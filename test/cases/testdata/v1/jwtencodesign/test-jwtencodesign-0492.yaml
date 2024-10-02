@@ -1,0 +1,14 @@
+---
+cases:
+  - note: jwtencodesign/https://tools.ietf.org/html/rfc7515#appendix-A.1
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	io.jwt.encode_sign({"alg": "HS256", "typ": "JWT"}, {"aud": ["bob", "saul"], "exp": 1300819380, "http://example.com/is_root": true, "iss": "joe", "privateParams": {"private_one": "one", "private_two": "two"}}, {"k": "AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow", "kty": "oct"}, x)
+        }
+    data: {}
+    want_result:
+      - x: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOlsiYm9iIiwic2F1bCJdLCJleHAiOjEzMDA4MTkzODAsImh0dHA6Ly9leGFtcGxlLmNvbS9pc19yb290Ijp0cnVlLCJpc3MiOiJqb2UiLCJwcml2YXRlUGFyYW1zIjp7InByaXZhdGVfb25lIjoib25lIiwicHJpdmF0ZV90d28iOiJ0d28ifX0.-Or2eol8bzly-Ztb0v7_7UkcKBkN_aNNpK33HK0MeOY

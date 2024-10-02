@@ -1,0 +1,14 @@
+---
+cases:
+  - note: strings/format_int
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	format_int(15.5, 16, x)
+        }
+    data: {}
+    want_result:
+      - x: f

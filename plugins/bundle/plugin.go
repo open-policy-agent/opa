@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -41,6 +42,8 @@ import (
 // successfully activate.
 const maxActivationRetry = 10
 
+var goos = runtime.GOOS
+
 // Loader defines the interface that the bundle plugin uses to control bundle
 // loading via HTTP, disk, etc.
 type Loader interface {
@@ -62,7 +65,7 @@ type Plugin struct {
 	downloaders       map[string]Loader
 	logger            logging.Logger
 	mtx               sync.Mutex
-	cfgMtx            sync.Mutex
+	cfgMtx            sync.RWMutex
 	ready             bool
 	bundlePersistPath string
 	stopped           bool
@@ -149,15 +152,16 @@ func (p *Plugin) Stop(ctx context.Context) {
 func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
 	// Reconfiguring should not occur in parallel, lock to ensure
 	// nothing swaps underneath us with the current p.config and the updated one.
-	// Use p.cfgMtx instead of p.mtx so as to not block any bundle downloads/activations
+	// Use p.cfgMtx instead of p.mtx to not block any bundle downloads/activations
 	// that are in progress. We upgrade to p.mtx locking after stopping downloaders.
 	p.cfgMtx.Lock()
-	defer p.cfgMtx.Unlock()
 
 	// Look for any bundles that have had their config changed, are new, or have been removed
 	newConfig := config.(*Config)
 	newBundles, updatedBundles, deletedBundles := p.configDelta(newConfig)
 	p.config = *newConfig
+
+	p.cfgMtx.Unlock()
 
 	if len(updatedBundles) == 0 && len(newBundles) == 0 && len(deletedBundles) == 0 {
 		// no relevant config changes
@@ -213,7 +217,8 @@ func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
 
 	readyNow := p.ready
 
-	for name, source := range p.config.Bundles {
+	bundles := p.getBundlesCpy()
+	for name, source := range bundles {
 		_, updated := updatedBundles[name]
 		_, isNew := newBundles[name]
 
@@ -225,7 +230,7 @@ func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
 				p.log(name).Info("Bundle loader configuration changed. Restarting bundle loader.")
 			}
 
-			downloader := p.newDownloader(name, source)
+			downloader := p.newDownloader(name, source, bundles)
 
 			etag := p.readBundleEtagFromStore(ctx, name)
 			downloader.SetCache(etag)
@@ -310,14 +315,20 @@ func (p *Plugin) UnregisterBulkListener(name interface{}) {
 
 // Config returns the plugins current configuration
 func (p *Plugin) Config() *Config {
-	return &p.config
+	p.cfgMtx.RLock()
+	defer p.cfgMtx.RUnlock()
+	return &Config{
+		Name:    p.config.Name,
+		Bundles: p.getBundlesCpy(),
+	}
 }
 
 func (p *Plugin) initDownloaders(ctx context.Context) {
+	bundles := p.getBundlesCpy()
 
 	// Initialize a downloader for each bundle configured.
-	for name, source := range p.config.Bundles {
-		downloader := p.newDownloader(name, source)
+	for name, source := range bundles {
+		downloader := p.newDownloader(name, source, bundles)
 
 		etag := p.readBundleEtagFromStore(ctx, name)
 		downloader.SetCache(etag)
@@ -351,8 +362,14 @@ func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {
 
 	persistedBundles := map[string]*bundle.Bundle{}
 
-	for name, src := range p.config.Bundles {
-		if p.persistBundle(name) {
+	bundles := p.getBundlesCpy()
+
+	p.cfgMtx.RLock()
+	isMultiBundle := p.config.IsMultiBundle()
+	p.cfgMtx.RUnlock()
+
+	for name, src := range bundles {
+		if p.persistBundle(name, bundles) {
 			b, err := p.loadBundleFromDisk(p.bundlePersistPath, name, src)
 			if err != nil {
 				p.log(name).Error("Failed to load bundle from disk: %v", err)
@@ -379,7 +396,7 @@ func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {
 			p.status[name].Metrics = metrics.New()
 			p.status[name].Type = b.Type()
 
-			err := p.activate(ctx, name, b)
+			err := p.activate(ctx, name, b, isMultiBundle)
 			if err != nil {
 				p.log(name).Error("Bundle activation failed: %v", err)
 				p.status[name].SetError(err)
@@ -401,7 +418,7 @@ func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {
 	}
 }
 
-func (p *Plugin) newDownloader(name string, source *Source) Loader {
+func (p *Plugin) newDownloader(name string, source *Source, bundles map[string]*Source) Loader {
 
 	if u, err := url.Parse(source.Resource); err == nil {
 		switch u.Scheme {
@@ -433,14 +450,14 @@ func (p *Plugin) newDownloader(name string, source *Source) Loader {
 			WithCallback(callback).
 			WithBundleVerificationConfig(source.Signing).
 			WithSizeLimitBytes(source.SizeLimitBytes).
-			WithBundlePersistence(p.persistBundle(name)).
+			WithBundlePersistence(p.persistBundle(name, bundles)).
 			WithBundleParserOpts(p.manager.ParserOptions())
 	}
 	return download.New(conf, client, path).
 		WithCallback(callback).
 		WithBundleVerificationConfig(source.Signing).
 		WithSizeLimitBytes(source.SizeLimitBytes).
-		WithBundlePersistence(p.persistBundle(name)).
+		WithBundlePersistence(p.persistBundle(name, bundles)).
 		WithLazyLoadingMode(true).
 		WithBundleName(name).
 		WithBundleParserOpts(p.manager.ParserOptions())
@@ -499,7 +516,11 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 		p.status[name].Metrics.Timer(metrics.RegoLoadBundles).Start()
 		defer p.status[name].Metrics.Timer(metrics.RegoLoadBundles).Stop()
 
-		if err := p.activate(ctx, name, u.Bundle); err != nil {
+		p.cfgMtx.RLock()
+		isMultiBundle := p.config.IsMultiBundle()
+		p.cfgMtx.RUnlock()
+
+		if err := p.activate(ctx, name, u.Bundle, isMultiBundle); err != nil {
 			p.log(name).Error("Bundle activation failed: %v", err)
 			p.status[name].SetError(err)
 			if !p.stopped {
@@ -509,7 +530,7 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 			return
 		}
 
-		if u.Bundle.Type() == bundle.SnapshotBundleType && p.persistBundle(name) {
+		if u.Bundle.Type() == bundle.SnapshotBundleType && p.persistBundle(name, p.getBundlesCpy()) {
 			p.log(name).Debug("Persisting bundle to disk in progress.")
 
 			err := p.saveBundleToDisk(name, u.Raw)
@@ -568,7 +589,7 @@ func (p *Plugin) checkPluginReadiness() {
 	}
 }
 
-func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle) error {
+func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle, isMultiBundle bool) error {
 	p.log(name).Debug("Bundle activation in progress (%v). Opening storage transaction.", b.Manifest.Revision)
 
 	params := storage.WriteParams
@@ -621,7 +642,7 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle) er
 			}
 		}
 
-		if p.config.IsMultiBundle() {
+		if isMultiBundle {
 			activateErr = bundle.Activate(opts)
 		} else {
 			activateErr = bundle.ActivateLegacy(opts)
@@ -642,8 +663,8 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle) er
 	return err
 }
 
-func (p *Plugin) persistBundle(name string) bool {
-	bundleSrc := p.config.Bundles[name]
+func (p *Plugin) persistBundle(name string, bundles map[string]*Source) bool {
+	bundleSrc := bundles[name]
 
 	if bundleSrc == nil {
 		return false
@@ -654,6 +675,9 @@ func (p *Plugin) persistBundle(name string) bool {
 // configDelta will return a map of new bundle sources, updated bundle sources, and a set of deleted bundle names
 func (p *Plugin) configDelta(newConfig *Config) (map[string]*Source, map[string]*Source, map[string]struct{}) {
 	deletedBundles := map[string]struct{}{}
+
+	// p.cfgMtx lock held at calling site, so we don't need
+	// to get a copy of the bundles map here
 	for name := range p.config.Bundles {
 		deletedBundles[name] = struct{}{}
 	}
@@ -676,7 +700,9 @@ func (p *Plugin) configDelta(newConfig *Config) (map[string]*Source, map[string]
 
 func (p *Plugin) saveBundleToDisk(name string, raw io.Reader) error {
 
-	bundleDir := filepath.Join(p.bundlePersistPath, name)
+	bundleName := getNormalizedBundleName(name)
+
+	bundleDir := filepath.Join(p.bundlePersistPath, bundleName)
 	bundleFile := filepath.Join(bundleDir, "bundle.tar.gz")
 
 	tmpFile, saveErr := saveCurrentBundleToDisk(bundleDir, raw)
@@ -702,10 +728,12 @@ func saveCurrentBundleToDisk(path string, raw io.Reader) (string, error) {
 }
 
 func (p *Plugin) loadBundleFromDisk(path, name string, src *Source) (*bundle.Bundle, error) {
+	bundleName := getNormalizedBundleName(name)
+
 	if src != nil {
-		return bundleUtils.LoadBundleFromDiskForRegoVersion(p.manager.ParserOptions().RegoVersion, path, name, src.Signing)
+		return bundleUtils.LoadBundleFromDiskForRegoVersion(p.manager.ParserOptions().RegoVersion, path, bundleName, src.Signing)
 	}
-	return bundleUtils.LoadBundleFromDiskForRegoVersion(p.manager.ParserOptions().RegoVersion, path, name, nil)
+	return bundleUtils.LoadBundleFromDiskForRegoVersion(p.manager.ParserOptions().RegoVersion, path, bundleName, nil)
 }
 
 func (p *Plugin) log(name string) logging.Logger {
@@ -722,6 +750,44 @@ func (p *Plugin) getBundlePersistPath() (string, error) {
 	}
 
 	return filepath.Join(persistDir, "bundles"), nil
+}
+
+func (p *Plugin) getBundlesCpy() map[string]*Source {
+	p.cfgMtx.RLock()
+	defer p.cfgMtx.RUnlock()
+	bundlesCpy := map[string]*Source{}
+	for k, v := range p.config.Bundles {
+		v := *v
+		bundlesCpy[k] = &v
+	}
+	return bundlesCpy
+}
+
+// getNormalizedBundleName returns a version of the input with
+// invalid file and directory name characters on Windows escaped.
+// It returns the input as-is for non-Windows systems.
+func getNormalizedBundleName(name string) string {
+	if goos != "windows" {
+		return name
+	}
+
+	sb := new(strings.Builder)
+	for i := 0; i < len(name); i++ {
+		if isReservedCharacter(rune(name[i])) {
+			sb.WriteString(fmt.Sprintf("\\%c", name[i]))
+		} else {
+			sb.WriteByte(name[i])
+		}
+	}
+
+	return sb.String()
+}
+
+// isReservedCharacter checks if the input is a reserved character on Windows that should not be
+// used in file and directory names
+// For details, see https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file#naming-conventions.
+func isReservedCharacter(r rune) bool {
+	return r == '<' || r == '>' || r == ':' || r == '"' || r == '/' || r == '\\' || r == '|' || r == '?' || r == '*'
 }
 
 type fileLoader struct {

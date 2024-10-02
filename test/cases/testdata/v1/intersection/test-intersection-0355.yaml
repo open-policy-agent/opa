@@ -1,0 +1,17 @@
+---
+cases:
+  - note: intersection/intersection_3_sets
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	s1 = {1, 2, 3}
+        	s2 = {2, 3, 4}
+        	s3 = {4, 5, 6}
+        	intersection({s1, s2, s3}, x)
+        }
+    data: {}
+    want_result:
+      - x: []

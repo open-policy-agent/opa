@@ -1,0 +1,27 @@
+---
+cases:
+  - note: nestedreferences/ground ref
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	__local0__ = data.h[0][0]
+        	data.a[__local0__] = 2
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+      h:
+        - - 1
+          - 2
+          - 3
+        - - 2
+          - 3
+          - 4
+    want_result:
+      - x: true

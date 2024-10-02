@@ -539,7 +539,7 @@ func TestNewDirectoryLoaderNormalizedRoot(t *testing.T) {
 }
 
 func getFilter(pattern string, minDepth int) filter.LoaderFilter {
-	return func(abspath string, info os.FileInfo, depth int) bool {
+	return func(_ string, info os.FileInfo, depth int) bool {
 		match, _ := filepath.Match(pattern, info.Name())
 		return match && depth >= minDepth
 	}

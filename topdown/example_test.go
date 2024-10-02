@@ -2,6 +2,8 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+//revive:disable:empty-block
+
 package topdown_test
 
 import (
@@ -193,10 +195,11 @@ func ExampleQuery_PartialRun() {
 	modules := map[string]*ast.Module{
 		"authz.rego": ast.MustParseModule(`
 			package example
+			import rego.v1
 
 			default allow = false
 
-			allow {
+			allow if {
 				role = data.roles[i]
 				input.group = role.groups[j]
 				input.permission = role.permissions[k]

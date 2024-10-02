@@ -27,7 +27,7 @@ func TestValueMapIter(t *testing.T) {
 	a.Put(String("y"), String("bar"))
 	a.Put(String("z"), String("baz"))
 	values := []string{}
-	a.Iter(func(k, v Value) bool {
+	a.Iter(func(_, v Value) bool {
 		values = append(values, string(v.(String)))
 		return false
 	})

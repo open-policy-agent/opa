@@ -147,7 +147,8 @@ func TestRequestWithInstrumentationV1CompileAPI(t *testing.T) {
 
 	policy := `
 	package test
-	p {input.x >= data.y}
+	import rego.v1
+	p if {input.x >= data.y}
 	`
 
 	err := testRuntime.UploadPolicy(t.Name(), strings.NewReader(policy))
@@ -170,7 +171,7 @@ func TestRequestWithInstrumentationV1CompileAPI(t *testing.T) {
 	assertCompileInstrumentationMetricsInMap(t, true, resp.Metrics)
 }
 
-func assertCompileInstrumentationMetricsInMap(t *testing.T, includeCompile bool, metrics map[string]interface{}) {
+func assertCompileInstrumentationMetricsInMap(t *testing.T, _ bool, metrics map[string]interface{}) {
 	expectedKeys := []string{
 		"histogram_eval_op_plug",
 		"timer_eval_op_plug_ns",

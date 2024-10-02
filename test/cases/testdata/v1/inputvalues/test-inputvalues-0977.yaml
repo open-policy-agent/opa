@@ -1,0 +1,65 @@
+---
+cases:
+  - note: inputvalues/loopback
+    query: data.z.loopback = x
+    modules:
+      - |
+        package z
+
+        p if {
+        	data.a[i] = x
+        	input.req1.foo = x
+        	input.req2.bar = x
+        	data.z.q[x]
+        }
+
+        q contains x if {
+        	input.req1.foo = x
+        	input.req2.bar = x
+        	data.z.r[x]
+        }
+
+        r contains x if {
+        	__local1__ = input.req2.bar
+        	__local2__ = input.req1.foo
+        	{"bar": [x], "foo": __local1__} = {"bar": [__local2__], "foo": x}
+        }
+
+        s if {
+        	input.req3.a.b.x[0] = 1
+        }
+
+        t if {
+        	input.req4.a.b.x[0] = 1
+        }
+
+        u contains x if {
+        	input.req3.a.b[_] = x
+        	x > 1
+        }
+
+        w := [[1, 2], [3, 4]]
+
+        gt1 if {
+        	__local3__ = input.req1
+        	__local3__ > 1
+        }
+
+        keys[x] := y if {
+        	data.numbers[_] = x
+        	to_number(x, y)
+        }
+
+        loopback := __local0__ if {
+        	true
+        	__local0__ = input
+        }
+
+        sets if {
+        	input.foo[{1}][1] = 1
+        }
+    data: {}
+    input_term: '{"foo": 1}'
+    want_result:
+      - x:
+          foo: 1

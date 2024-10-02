@@ -1,0 +1,14 @@
+---
+cases:
+  - note: "eqexpr/ground: number"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	17 = 17
+        }
+    data: {}
+    want_result:
+      - x: true

@@ -86,7 +86,7 @@ func validateAWSAuthParameters(o ast.Object) error {
 	return nil
 }
 
-func builtinAWSSigV4SignReq(ctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinAWSSigV4SignReq(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	// Request object.
 	reqObj, err := builtins.ObjectOperand(operands[0].Value, 1)
 	if err != nil {

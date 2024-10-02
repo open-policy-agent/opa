@@ -1,0 +1,21 @@
+---
+cases:
+  - note: partialobjectdoc/composites
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p[k] := v if {
+        	data.d[k] = v
+        }
+    data:
+      d:
+        e:
+          - bar
+          - baz
+    want_result:
+      - x:
+          e:
+            - bar
+            - baz

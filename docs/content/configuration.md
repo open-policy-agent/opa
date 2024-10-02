@@ -9,11 +9,19 @@ required must be specified if the parent is defined. For example, when the
 configuration contains a `status` key, the `status.service` field must be
 defined.
 
+{{< info >}}
+OPA accepts any name for the configuration file. Some tooling may however benefit from knowing what name to associate
+with OPA's configuration file (for auto-completion of attributes, linting, etc.). The following names could be
+considered idiomatic for that purpose:
+- `opa-config.yaml` (or `.json`)
+- `opa-conf.yaml` (or `.json`)
+{{< /info >}}
+
 The configuration file path is specified with the `-c` or `--config-file`
 command line argument:
 
 ```bash
-opa run -s -c config.yaml
+opa run -s -c opa-config.yaml
 ```
 
 The file can be either JSON or YAML format. The following is an example
@@ -76,11 +84,19 @@ distributed_tracing:
   service_name: opa
   sample_percentage: 50
   encryption: "off"
+  resource:
+    service_namespace: "my-namespace"
+    service_version: "1.1"
+    service_instance_id: "1"
 
 server:
+  decoding:
+    max_length: 134217728
+    gzip:
+      max_length: 268435456
   encoding:
     gzip:
-        min_length: 1024,
+        min_length: 1024
         compression_level: 9
 ```
 
@@ -182,6 +198,8 @@ Following successful authentication at the token endpoint the returned token wil
 | `services[_].credentials.oauth2.aws_kms.name`      | `string`   | No       | To specify a KMS key, use its key ID, key ARN, alias name, or alias ARN. Required only for signing with AWS KMS.                                                                                |
 | `services[_].credentials.oauth2.aws_kms.algorithm` | `string`   | No       | Specifies the signing algorithm used by the key `aws_kms.name` `(ECDSA_SHA_256, ECDSA_SHA_384 or ECDSA_SHA_512)`. Required only for signing with AWS KMS.                                       |
 | `services[_].credentials.oauth2.aws_signing`       | `{}`       | No       | AWS credentials for signing requests. Required if `aws_kms` is provided. |
+| `services[_].credentials.oauth2.client_assertion_path` | `string` | No | To specify a path to find a client assertion file. Used for Azure Workload Identity. |
+| `services[_].credentials.oauth2.client_assertion` | `string` | No | To specify a client assertion. Used for Azure Workload Identity. |
 
 Two claims will always be included in the issued JWT: `iat` and `exp`. Any other claims will be populated from the `additional_claims` map.
 
@@ -256,6 +274,35 @@ bundles:
     service: remote
     resource: bundles/http/example/authz.tar.gz
 ```
+
+The following is an example of using the client credentials grant type with JWT client authentication via Azure Workload Identity access to the storage account hosting the policies. All referenced environment variables are automatically populated by Azure when deployed via AKS. Note the similarity to [managed identity](#azure-managed-identities-token).
+
+```yaml
+services:
+  azure_storage_account:
+    url: https://YOUR_STORAGE_ACCOUNT.blob.core.windows.net/
+    headers:
+      x-ms-version: 2017-11-09
+    response_header_timeout_seconds: 5
+    credentials:
+      oauth2:
+        grant_type: client_credentials
+        client_id: "${AZURE_CLIENT_ID}"
+        client_assertion_path: "${AZURE_FEDERATED_TOKEN_FILE}"
+        token_url: "${AZURE_AUTHORITY_HOST}/${AZURE_TENANT_ID}/oauth2/v2.0/token"
+        scopes:
+          - https://storage.azure.com/.default
+
+bundles:
+  authz:
+    service: azure_storage_account
+    resource: YOUR_CONTAINER/YOUR_POLICY_BUNDLE.tar.gz
+    persist: true
+    polling:
+      min_delay_seconds: 60
+      max_delay_seconds: 120
+```
+
 ### OAuth2 JWT Bearer Grant Type
 
 OPA will authenticate using a bearer token obtained through the OAuth2 [JWT authorization grant](https://tools.ietf.org/html/rfc7523#section-2.1) flow.
@@ -358,7 +405,9 @@ To use the EC2 metadata service, the IAM role to use and the AWS region for the 
 be specified as `iam_role` and `aws_region` respectively.
 
 To use the ECS metadata service, specify only the AWS region for the resource as `aws_region`. ECS
-containers have at most one associated IAM role.
+containers have at most one associated IAM role. As per the [AWS documentation](https://docs.aws.amazon.com/sdkref/latest/guide/feature-container-credentials.html), credentials are
+sourced from the `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI` metadata environment variable or the
+`AWS_CONTAINER_CREDENTIALS_FULL_URI` metadata environment variable in order.
 
 > Providing a value for `iam_role` will cause OPA to use the EC2 metadata service even
 > if running inside an ECS container. This may result in unexpected problems if, for example,
@@ -530,6 +579,7 @@ When using a private image from an OCI registry you need to specify an authentic
 
 Examples of setting credentials for pulling private images:
 *AWS ECR* private images usually require at least basic authentication. The credentials to authenticate can be obtained using the AWS CLI command `aws ecr get-login` and those can be passed to the service configuration as basic bearer credentials as follows:
+
 ```yaml
 credentials:
   bearer:
@@ -538,6 +588,7 @@ credentials:
 ```
 
 Other AWS authentication methods also work:
+
 ```yaml
 credentials:
   s3_signing:
@@ -552,6 +603,7 @@ signing requests to other AWS services.
 A special case is that bearer authentication works differently to normal service authentication. The OCI downloader base64-encodes the credentials for you so that they need to be supplied in plain text.
 
 For *GHCR* (Github Container Registry) you can use a developer PAT (personal access token) when downloading a private image. These can be supplied as:
+
 ```yaml
 credentials:
   bearer:
@@ -592,7 +644,6 @@ If none of the existing credential options work for a service, OPA can authentic
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 |`services[_].credentials.plugin`|`string`|No|The name of the plugin to use for authentication|
-
 
 The following is an example of using a custom plugin for service credentials:
 
@@ -801,29 +852,39 @@ The following signing algorithms are supported:
 
 ## Caching
 
-Caching represents the configuration of the inter-query cache that built-in functions can utilize.
+Caching represents the configuration of the inter-query cache that built-in functions can utilize. Of the built-in
+functions provided by OPA, `http.send` is currently the only one to utilize the inter-query cache. See the documentation
+on the [http.send built-in function](../policy-reference/#http) for information about the available caching options.
 
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `caching.inter_query_builtin_cache.max_size_bytes` | `int64` | No | Inter-query cache size limit in bytes. OPA will drop old items from the cache if this limit is exceeded. By default, no limit is set. |
-| `caching.inter_query_builtin_cache.forced_eviction_threshold_percentage` | `int64` | No | Threshold limit configured as percentage of `caching.inter_query_builtin_cache.max_size_bytes`, when exceeded OPA will start dropping old items permaturely. By default, set to `100`. |
-| `caching.inter_query_builtin_cache.stale_entry_eviction_period_seconds` | `int64` | No | Stale entry eviction period in seconds. OPA will drop expired items from the cache every `stale_entry_eviction_period_seconds`. By default, set to `0` indicating stale entry eviction is disabled. |
+It also represents the configuration of the inter-query _value_ cache that built-in functions can utilize. Currently, 
+this cache is utilized by the `regex` and `glob` built-in functions for compiled regex and glob match patterns
+respectively, and the `json.schema_match` built-in function for compiled JSON schemas.
+
+| Field                                                                    | Type | Required | Description                                                                                                                                                                                         |
+|--------------------------------------------------------------------------| --- | --- |-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `caching.inter_query_builtin_cache.max_size_bytes`                       | `int64` | No | Inter-query cache size limit in bytes. OPA will drop old items from the cache if this limit is exceeded. By default, no limit is set.                                                               |
+| `caching.inter_query_builtin_cache.forced_eviction_threshold_percentage` | `int64` | No | Threshold limit configured as percentage of `caching.inter_query_builtin_cache.max_size_bytes`, when exceeded OPA will start dropping old items permaturely. By default, set to `100`.              |
+| `caching.inter_query_builtin_cache.stale_entry_eviction_period_seconds`  | `int64` | No | Stale entry eviction period in seconds. OPA will drop expired items from the cache every `stale_entry_eviction_period_seconds`. By default, set to `0` indicating stale entry eviction is disabled. |
+| `caching.inter_query_builtin_value_cache.max_num_entries`                | `int` | No | Maximum number of entries in the Inter-query value cache. OPA will drop random items from the cache if this limit is exceeded. By default, set to `0` indicating unlimited size.                    |
 
 ## Distributed tracing
 
 Distributed tracing represents the configuration of the OpenTelemetry Tracing.
 
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `distributed_tracing.type` | `string` | No | Setting this to "grpc" enables distributed tracing with an collector gRPC endpoint |
-| `distributed_tracing.address` | `string` | No (default: `localhost:4317`) | Address of the OpenTelemetry Collector gRPC endpoint. |
-| `distributed_tracing.service_name` | `string` | No (default: `opa`) | Logical name of the service. |
-| `distributed_tracing.sample_percentage` | `int` | No (default: `100`) | Percentage of traces that are sampled and exported. |
-| `distributed_tracing.encryption` | `string` | No (default: `off`) | Configures TLS. |
-| `distributed_tracing.allow_insecure_tls` | `bool` | No (default: `false`) | Allow insecure TLS. |
-| `distributed_tracing.tls_ca_cert_file` | `string` | No | The path to the root CA certificate. |
-| `distributed_tracing.tls_cert_file` | `string` | No (unless `encryption` equals `mtls`) | The path to the client certificate to authenticate with. |
-| `distributed_tracing.tls_private_key_file` | `string` | No (unless `tls_cert_file` provided)  | The path to the private key of the client certificate. |
+| Field                                              | Type     | Required | Description                                                                        |
+|----------------------------------------------------|----------| --- |------------------------------------------------------------------------------------|
+| `distributed_tracing.type`                         | `string` | No | Setting this to "grpc" enables distributed tracing with an collector gRPC endpoint |
+| `distributed_tracing.address`                      | `string` | No (default: `localhost:4317`) | Address of the OpenTelemetry Collector gRPC endpoint.                              |
+| `distributed_tracing.service_name`                 | `string` | No (default: `opa`) | Logical name of the service.                                                       |
+| `distributed_tracing.sample_percentage`            | `int`    | No (default: `100`) | Percentage of traces that are sampled and exported.                                |
+| `distributed_tracing.encryption`                   | `string` | No (default: `off`) | Configures TLS.                                                                    |
+| `distributed_tracing.allow_insecure_tls`           | `bool`   | No (default: `false`) | Allow insecure TLS.                                                                |
+| `distributed_tracing.tls_ca_cert_file`             | `string` | No | The path to the root CA certificate.                                               |
+| `distributed_tracing.tls_cert_file`                | `string` | No (unless `encryption` equals `mtls`) | The path to the client certificate to authenticate with.                           |
+| `distributed_tracing.tls_private_key_file`         | `string` | No (unless `tls_cert_file` provided)  | The path to the private key of the client certificate.                             |
+| `distributed_tracing.resource.service_version`     | `string` | No | Service version                                                                    |
+| `distributed_tracing.resource.service_instance_id` | `string` | No | Service instance id                                                                |
+| `distributed_tracing.resource.service_namespace`   | `string` | No | Service namespace                                                                  |
 
 The following encryption methods are supported:
 
@@ -853,14 +914,19 @@ See [the docs on disk storage](../storage/) for details about the settings.
 ## Server
 
 The `server` configuration sets:
-- the gzip compression settings for `/v0/data`, `/v1/data` and `/v1/compile` HTTP `POST` endpoints
+- for all incoming requests:
+  - maximum allowed request size
+  - maximum decompressed gzip payload size
+- the gzip compression settings for responses from the `/v0/data`, `/v1/data` and `/v1/compile` HTTP `POST` endpoints
 The gzip compression settings are used when the client sends `Accept-Encoding: gzip`
 - buckets for `http_request_duration_seconds` histogram
 
-| Field                                                       | Type        | Required                                                                  | Description                                                                                                                                                                                                               |
-|-------------------------------------------------------------|-------------|---------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `server.encoding.gzip.min_length`                           | `int`       | No, (default: 1024)                                                       | Specifies the minimum length of the response to compress                                                                                                                                                                  |
-| `server.encoding.gzip.compression_level`                    | `int`       | No, (default: 9)                                                          | Specifies the compression level. Accepted values: a value of either 0 (no compression), 1 (best speed, lowest compression) or 9 (slowest, best compression). See https://pkg.go.dev/compress/flate#pkg-constants          |
+| Field | Type| Required | Description |
+| --- | --- | --- | --- |
+| `server.decoding.max_length` | `int` | No, (default: 268435456) | Specifies the maximum allowed number of bytes to read from a request body. |
+| `server.decoding.gzip.max_length` | `int` | No, (default: 536870912) | Specifies the maximum allowed number of bytes to read from the gzip decompressor for gzip-encoded requests. |
+| `server.encoding.gzip.min_length` | `int` | No, (default: 1024) | Specifies the minimum length of the response to compress. |
+| `server.encoding.gzip.compression_level` | `int` | No, (default: 9) | Specifies the compression level. Accepted values: a value of either 0 (no compression), 1 (best speed, lowest compression) or 9 (slowest, best compression). See https://pkg.go.dev/compress/flate#pkg-constants |
 | `server.metrics.prom.http_request_duration_seconds.buckets` | `[]float64` | No, (default: [1e-6, 5e-6, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 0.01, 0.1, 1  ]) | Specifies the buckets for the `http_request_duration_seconds` metric. Each value is a float, it is expressed in seconds and subdivisions of it. E.g `1e-6` is 1 microsecond, `1e-3` 1 millisecond, `0.01` 10 milliseconds |
 
 ## Miscellaneous
@@ -882,6 +948,7 @@ Environment variables referenced with the `${...}` notation within the configura
 will be replaced with the value of the environment variable.
 
 Example using `BASE_URL` and `BEARER_TOKEN` environment variables:
+
 ```yaml
 services:
   acmecorp:
@@ -894,6 +961,7 @@ discovery:
   resource: /configuration/example/discovery
   decision: example
 ```
+
 The environment variables `BASE_URL` and `BEARER_TOKEN` will be substituted in when the config
 file is loaded by the OPA runtime.
 
@@ -916,13 +984,15 @@ specified with comma separators (`key1=value,key2=value2,..`). Or with additiona
 parameters.
 
 Example using several different options:
-```
+
+```shell
 opa run \
   --set "default_decision=/http/example/authz/allow" \
   --set "services.acmecorp.url=https://test-env/control-plane-api/v1" \
   --set "services.acmecorp.credentials.bearer.token=\${TOKEN}"
   --set "labels.app=myapp,labels.region=west"
 ```
+
 This is equivalent to a YAML config file that looks like:
 
 ```yaml
@@ -944,6 +1014,7 @@ The `--set-file` option is expecting a file path for the value. This allows keep
 files and loading them into the config at run time. For Example:
 
 With a file `/var/run/secrets/bearer_token.txt` that has contents:
+
 ```
 bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm
 ```
@@ -961,7 +1032,8 @@ It will read the contents of the file and set the config value with the token.
 If using arrays/lists in the configuration the `--set` and `--set-file` overrides will not be able to
 patch sub-objects of the list. They will overwrite the entire index with the new object.
 
-For example, a `config.yaml` file with contents:
+For example, a `opa-config.yaml` file with contents:
+
 ```yaml
 services:
   - name: acmecorp
@@ -970,20 +1042,24 @@ services:
       bearer:
         token: ""
 ```
+
 Used with overrides:
-```
+
+```shell
 opa run \
-  --config-file config.yaml
+  --config-file opa-config.yaml
   --set-file "services[0].credentials.bearer.token=/var/run/secrets/bearer_token.txt"
 ```
 
 Will result in configuration like:
+
 ```yaml
 services:
   - credentials:
       bearer:
         token: bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm
 ```
+
 Because the entire `0` index was overwritten.
 
 It is highly recommended to use objects/maps instead of lists for configuration for this reason.
@@ -1021,7 +1097,8 @@ plugins:
 ```
 
 You can do this by setting the value with `null`. For example:
-```
+
+```shell
 opa run --set "decision_logs.plugin=my_plugin" --set "plugins.my_plugin=null"
 ```
 

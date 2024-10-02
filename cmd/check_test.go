@@ -136,6 +136,8 @@ import rego.v1`,
 				params := newCheckParams()
 				params.capabilities = caps
 				params.bundleMode = tc.bundleMode
+				// Capabilities in test cases is pre v1
+				params.v0Compatible = true
 
 				err := checkModules(params, []string{root})
 				switch {
@@ -211,10 +213,11 @@ func TestCheckFailsOnInvalidRego(t *testing.T) {
 func TestCheckWithSchemasAnnotationButNoSchemaFlag(t *testing.T) {
 	policyWithSchemaRef := `
 package test
+import rego.v1
 # METADATA
 # schemas:
 #   - input: schema["input"]
-p { 
+p if { 
 	rego.metadata.rule() # presence of rego.metadata.* calls must not trigger unwanted schema evaluation 
 	input.foo == 42 # type mismatch with schema that should be ignored
 }`
@@ -226,10 +229,11 @@ p {
 
 	policyWithInlinedSchema := `
 package test
+import rego.v1
 # METADATA
 # schemas:
 #   - input.foo: {"type": "boolean"}
-p { 
+p if { 
 	rego.metadata.rule() # presence of rego.metadata.* calls must not trigger unwanted schema evaluation 
 	input.foo == 42 # type mismatch with schema that should be ignored
 }`
@@ -372,14 +376,45 @@ p contains x if {
 	}
 }
 
-func TestCheckV1Compatible(t *testing.T) {
+func TestCheckCompatibleFlags(t *testing.T) {
 	cases := []struct {
-		note    string
-		policy  string
-		expErrs []string
+		note         string
+		v0Compatible bool
+		v1Compatible bool
+		policy       string
+		expErrs      []string
 	}{
 		{
-			note: "rego.v1 imported, v1 compliant",
+			note:         "v0, no illegal keywords",
+			v0Compatible: true,
+			policy: `package test
+p[x] {
+	x := [1,2,3]
+}`,
+		},
+		{
+			note:         "v0, illegal keywords",
+			v0Compatible: true,
+			policy: `package test
+p contains x if {
+	x := [1,2,3]
+}`,
+			expErrs: []string{
+				"test.rego:2: rego_parse_error: var cannot be used for rule name",
+			},
+		},
+		{
+			note:         "v0, future.keywords imported",
+			v0Compatible: true,
+			policy: `package test
+import future.keywords
+p contains x if {
+	x := [1,2,3]
+}`,
+		},
+		{
+			note:         "v0, rego.v1 imported",
+			v0Compatible: true,
 			policy: `package test
 import rego.v1
 p contains x if {
@@ -387,7 +422,17 @@ p contains x if {
 }`,
 		},
 		{
-			note: "rego.v1 imported, NOT v1 compliant (parser)",
+			note:         "v1, rego.v1 imported, v1 compliant",
+			v1Compatible: true,
+			policy: `package test
+import rego.v1
+p contains x if {
+	x := [1,2,3]
+}`,
+		},
+		{
+			note:         "v1, rego.v1 imported, NOT v1 compliant (parser)",
+			v1Compatible: true,
 			policy: `package test
 import rego.v1
 p contains x {
@@ -401,7 +446,8 @@ q.r`,
 			},
 		},
 		{
-			note: "rego.v1 imported, NOT v1 compliant (compiler)",
+			note:         "v1, rego.v1 imported, NOT v1 compliant (compiler)",
+			v1Compatible: true,
 			policy: `package test
 import rego.v1
 
@@ -413,7 +459,8 @@ import data.bar as foo
 			},
 		},
 		{
-			note: "keywords imported, v1 compliant",
+			note:         "v1, keywords imported, v1 compliant",
+			v1Compatible: true,
 			policy: `package test
 import future.keywords.if
 import future.keywords.contains
@@ -422,7 +469,8 @@ p contains x if {
 }`,
 		},
 		{
-			note: "keywords imported, NOT v1 compliant",
+			note:         "v1, keywords imported, NOT v1 compliant",
+			v1Compatible: true,
 			policy: `package test
 import future.keywords.contains
 p contains x {
@@ -436,7 +484,8 @@ q.r`,
 			},
 		},
 		{
-			note: "keywords imported, NOT v1 compliant (compiler)",
+			note:         "v1, keywords imported, NOT v1 compliant (compiler)",
+			v1Compatible: true,
 			policy: `package test
 import future.keywords.if
 
@@ -448,13 +497,15 @@ input := 1 if {
 			},
 		},
 		{
-			note: "no imports, v1 compliant",
+			note:         "v1, no imports, v1 compliant",
+			v1Compatible: true,
 			policy: `package test
 p := 1
 `,
 		},
 		{
-			note: "no imports, NOT v1 compliant but v0 compliant (compiler)",
+			note:         "v1, no imports, NOT v1 compliant but v0 compliant (compiler)",
+			v1Compatible: true,
 			policy: `package test
 p.x`,
 			expErrs: []string{
@@ -462,8 +513,51 @@ p.x`,
 			},
 		},
 		{
-			note: "no imports, v1 compliant but NOT v0 compliant",
+			note:         "v1, no imports, v1 compliant but NOT v0 compliant",
+			v1Compatible: true,
 			policy: `package test
+p contains x if {
+	x := [1,2,3]
+}`,
+		},
+		// v0 takes precedence over v1
+		{
+			note:         "v0+v1, no illegal keywords",
+			v0Compatible: true,
+			v1Compatible: true,
+			policy: `package test
+p[x] {
+	x := [1,2,3]
+}`,
+		},
+		{
+			note:         "v0+v1, illegal keywords",
+			v0Compatible: true,
+			v1Compatible: true,
+			policy: `package test
+p contains x if {
+	x := [1,2,3]
+}`,
+			expErrs: []string{
+				"test.rego:2: rego_parse_error: var cannot be used for rule name",
+			},
+		},
+		{
+			note:         "v0+v1, future.keywords imported",
+			v0Compatible: true,
+			v1Compatible: true,
+			policy: `package test
+import future.keywords
+p contains x if {
+	x := [1,2,3]
+}`,
+		},
+		{
+			note:         "v0+v1, rego.v1 imported",
+			v0Compatible: true,
+			v1Compatible: true,
+			policy: `package test
+import rego.v1
 p contains x if {
 	x := [1,2,3]
 }`,
@@ -478,7 +572,8 @@ p contains x if {
 
 			test.WithTempFS(files, func(root string) {
 				params := newCheckParams()
-				params.v1Compatible = true
+				params.v0Compatible = tc.v0Compatible
+				params.v1Compatible = tc.v1Compatible
 
 				err := checkModules(params, []string{root})
 				switch {

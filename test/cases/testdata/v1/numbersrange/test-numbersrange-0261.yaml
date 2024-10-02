@@ -1,0 +1,14 @@
+---
+cases:
+  - note: "numbersrange/error: floating-point number pos 2"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	numbers.range(3, 3.14)
+        }
+    want_error_code: eval_type_error
+    want_error: "numbers.range: operand 2 must be integer number but got floating-point number"
+    strict_error: true

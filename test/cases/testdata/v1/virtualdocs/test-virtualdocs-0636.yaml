@@ -1,0 +1,22 @@
+---
+cases:
+  - note: "virtualdocs/input: object undefined key 2"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	data.generated.q.foo = 2
+        }
+
+        q[i] := x if {
+        	data.a[i] = x
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result: []

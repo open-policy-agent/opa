@@ -628,7 +628,7 @@ func TestNewMaskRuleSet(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			_, err := newMaskRuleSet(tc.value, func(mRule *maskRule, err error) {})
+			_, err := newMaskRuleSet(tc.value, func(_ *maskRule, _ error) {})
 			if err != nil {
 				if exp, act := tc.err.Error(), err.Error(); exp != act {
 					t.Fatalf("Expected: %s\nGot: %s", exp, act)
@@ -706,7 +706,7 @@ func TestMaskRuleSetMask(t *testing.T) {
 			ptr := &maskRuleSet{}
 			var ruleErr error
 			if tc.expErr != nil {
-				ptr.OnRuleError = func(mRule *maskRule, err error) {
+				ptr.OnRuleError = func(_ *maskRule, err error) {
 					ruleErr = err
 				}
 			} else {

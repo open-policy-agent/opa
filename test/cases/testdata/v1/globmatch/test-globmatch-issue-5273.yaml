@@ -1,0 +1,15 @@
+---
+cases:
+  - note: globmatch/no deadlocks for glob match
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p contains x if {
+        	glob.match("*.github.com", ["."], "api.github.com", x)
+        	glob.match("*.github.com", ["."], "api.github.com", x)
+        }
+    want_result:
+      - x:
+          - true

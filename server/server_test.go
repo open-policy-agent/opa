@@ -15,6 +15,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/binary"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -31,6 +32,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -636,16 +638,17 @@ func TestUnversionedGetHealthWithPolicyUsingPlugins(t *testing.T) {
 	store := inmem.New()
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 	healthPolicy := `package system.health
+  import rego.v1
 
   default live = false
 
-  live {
+  live if {
     input.plugin_state.bundle == "OK"
   }
 
   default ready = false
 
-  ready {
+  ready if {
     input.plugins_ready
   }
   `
@@ -694,12 +697,13 @@ func TestUnversionedGetHealthWithPolicyUsingPlugins(t *testing.T) {
 
 func TestDataV0(t *testing.T) {
 	testMod1 := `package test
+	import rego.v1
 
 	p = "hello"
 
 	q = {
 		"foo": [1,2,3,4]
-	} {
+	} if {
 		input.flag = true
 	}
 	`
@@ -851,22 +855,23 @@ func Test405StatusCodev0(t *testing.T) {
 func TestCompileV1(t *testing.T) {
 
 	mod := `package test
+	import rego.v1
 
-	p {
+	p if {
 		input.x = 1
 	}
 
-	q {
+	q if {
 		data.a[i] = input.x
 	}
 
 	default r = true
 
-	r { input.x = 1 }
+	r if { input.x = 1 }
 
-	custom_func(x) { data.a[i] == x }
+	custom_func(x) if { data.a[i] == x }
 
-	s { custom_func(input.x) }
+	s if { custom_func(input.x) }
 	`
 
 	expQuery := func(s string) string {
@@ -931,8 +936,9 @@ func TestCompileV1(t *testing.T) {
 				}`, 200, expQueryAndSupport(
 					`data.partial.test.r = true`,
 					`package partial.test
+					import rego.v1
 
-					r { input.x = 1 }
+					r if { input.x = 1 }
 					default r = true
 					`)},
 			},
@@ -960,8 +966,9 @@ func TestCompileV1(t *testing.T) {
 				}`, 200, expQueryAndSupport(
 					`data.partial.test.s = true`,
 					`package partial.test
-					s { data.partial.test.custom_func(1) }
-					custom_func(__local0__2) { data.a[i2] = __local0__2 }
+					import rego.v1
+					s if { data.partial.test.custom_func(1) }
+					custom_func(__local0__2) if { data.a[i2] = __local0__2 }
 					`)},
 			},
 		},
@@ -1020,8 +1027,9 @@ func TestCompileV1Observability(t *testing.T) {
 		f := newFixtureWithStore(t, disk)
 
 		err = f.v1(http.MethodPut, "/policies/test", `package test
-
-	p { input.x = 1 }`, 200, "")
+	import rego.v1
+	
+	p if { input.x = 1 }`, 200, "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1115,33 +1123,37 @@ func TestDataV1Redirection(t *testing.T) {
 func TestDataV1(t *testing.T) {
 	testMod1 := `package testmod
 
+import rego.v1
 import input.req1
 import input.req2 as reqx
 import input.req3.attr1
 
-p[x] { q[x]; not r[x] }
-q[x] { data.x.y[i] = x }
-r[x] { data.x.z[i] = x }
-g = true { req1.a[0] = 1; reqx.b[i] = 1 }
-h = true { attr1[i] > 1 }
-gt1 = true { req1 > 1 }
-arr = [1, 2, 3, 4] { true }
-undef = true { false }`
+p contains x if { q[x]; not r[x] }
+q contains x if { data.x.y[i] = x }
+r contains x if { data.x.z[i] = x }
+g = true if { req1.a[0] = 1; reqx.b[i] = 1 }
+h = true if { attr1[i] > 1 }
+gt1 = true if { req1 > 1 }
+arr = [1, 2, 3, 4] if { true }
+undef = true if { false }`
 
 	testMod2 := `package testmod
+import rego.v1
 
-p = [1, 2, 3, 4] { true }
-q = {"a": 1, "b": 2} { true }`
+p = [1, 2, 3, 4] if { true }
+q = {"a": 1, "b": 2} if { true }`
 
 	testMod4 := `package testmod
+import rego.v1
 
-p = true { true }
-p = false { true }`
+p = true if { true }
+p = false if { true }`
 
 	testMod5 := `package testmod.empty.mod`
 	testMod6 := `package testmod.all.undefined
+import rego.v1
 
-p = true { false }`
+p = true if { false }`
 
 	tests := []struct {
 		note string
@@ -1374,7 +1386,7 @@ p = true { false }`
     		      "location": {
     		        "col": 1,
     		        "file": "test",
-    		        "row": 4
+    		        "row": 5
     		      },
     		      "message": "complete rules must not produce multiple outputs"
     		    }
@@ -1438,10 +1450,11 @@ p = true { false }`
 		{"strict-builtin-errors", []tr{
 			{http.MethodPut, "/policies/test", `
 				package test
+				import rego.v1
 
 				default p = false
 
-				p { 1/0 }
+				p if { 1/0 }
 			`, 200, ""},
 			{http.MethodGet, "/data/test/p", "", 200, `{"result": false}`},
 			{http.MethodGet, "/data/test/p?strict-builtin-errors", "", 500, `{
@@ -1453,8 +1466,8 @@ p = true { false }`
 					"message": "div: divide by zero",
 					"location": {
 					  "file": "test",
-					  "row": 6,
-					  "col": 9
+					  "row": 7,
+					  "col": 12
 					}
 				  }
 				]
@@ -1475,8 +1488,8 @@ p = true { false }`
 					"message": "div: divide by zero",
 					"location": {
 					  "file": "test",
-					  "row": 6,
-					  "col": 9
+					  "row": 7,
+					  "col": 12
 					}
 				  }
 				]
@@ -1622,8 +1635,9 @@ func TestConfigV1(t *testing.T) {
 func TestDataYAML(t *testing.T) {
 
 	testMod1 := `package testmod
+import rego.v1
 import input.req1
-gt1 = true { req1 > 1 }`
+gt1 = true if { req1 > 1 }`
 
 	inputYaml1 := `
 ---
@@ -1682,6 +1696,344 @@ func TestDataPutV1IfNoneMatch(t *testing.T) {
 	}
 }
 
+// Ensure JSON payload is compressed with gzip.
+func mustGZIPPayload(payload []byte) []byte {
+	var compressedPayload bytes.Buffer
+	gz := gzip.NewWriter(&compressedPayload)
+	if _, err := gz.Write(payload); err != nil {
+		panic(fmt.Errorf("Error writing to gzip writer: %w", err))
+	}
+	if err := gz.Close(); err != nil {
+		panic(fmt.Errorf("Error closing gzip writer: %w", err))
+	}
+	return compressedPayload.Bytes()
+}
+
+// generateJSONBenchmarkData returns a map of `k` keys and `v` key/value pairs.
+// Taken from topdown/topdown_bench_test.go
+func generateJSONBenchmarkData(k, v int) map[string]interface{} {
+	// create array of null values that can be iterated over
+	keys := make([]interface{}, k)
+	for i := range keys {
+		keys[i] = nil
+	}
+
+	// create large JSON object value (100,000 entries is about 2MB on disk)
+	values := map[string]interface{}{}
+	for i := 0; i < v; i++ {
+		values[fmt.Sprintf("key%d", i)] = fmt.Sprintf("value%d", i)
+	}
+
+	return map[string]interface{}{
+		"input": map[string]interface{}{
+			"keys":   keys,
+			"values": values,
+		},
+	}
+}
+
+// Ref: https://github.com/open-policy-agent/opa/issues/6804
+func TestDataGetV1CompressedRequestWithAuthorizer(t *testing.T) {
+	tests := []struct {
+		note                  string
+		payload               []byte
+		forcePayloadSizeField uint32 // Size to manually set the payload field for the gzip blob.
+		expRespHTTPStatus     int
+		expErrorMsg           string
+	}{
+		{
+			note:              "empty message",
+			payload:           mustGZIPPayload([]byte{}),
+			expRespHTTPStatus: 401,
+		},
+		{
+			note:              "empty object",
+			payload:           mustGZIPPayload([]byte(`{}`)),
+			expRespHTTPStatus: 401,
+		},
+		{
+			note:              "basic authz - fail",
+			payload:           mustGZIPPayload([]byte(`{"user": "bob"}`)),
+			expRespHTTPStatus: 401,
+		},
+		{
+			note:              "basic authz - pass",
+			payload:           mustGZIPPayload([]byte(`{"user": "alice"}`)),
+			expRespHTTPStatus: 200,
+		},
+		{
+			note:                  "basic authz - malicious size field",
+			payload:               mustGZIPPayload([]byte(`{"user": "alice"}`)),
+			expRespHTTPStatus:     400,
+			forcePayloadSizeField: 134217728, // 128 MB
+			expErrorMsg:           "gzip: invalid checksum",
+		},
+		{
+			note:              "basic authz - huge zip",
+			payload:           mustGZIPPayload(util.MustMarshalJSON(generateJSONBenchmarkData(100, 100))),
+			expRespHTTPStatus: 401,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.note, func(t *testing.T) {
+			ctx := context.Background()
+			store := inmem.New()
+			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+			authzPolicy := `package system.authz
+
+import rego.v1
+
+default allow := false # Reject requests by default.
+
+allow if {
+	# Logic to authorize request goes here.
+	input.body.user == "alice"
+}
+`
+
+			if err := store.UpsertPolicy(ctx, txn, "test", []byte(authzPolicy)); err != nil {
+				panic(err)
+			}
+
+			if err := store.Commit(ctx, txn); err != nil {
+				panic(err)
+			}
+
+			opts := [](func(*Server)){
+				func(s *Server) {
+					s.WithStore(store)
+				},
+				func(s *Server) {
+					s.WithAuthorization(AuthorizationBasic)
+				},
+			}
+
+			f := newFixtureWithConfig(t, fmt.Sprintf(`{"server":{"decision_logs": %t}}`, true), opts...)
+
+			// Forcibly replace the size trailer field for the gzip blob.
+			// Byte order is little-endian, field is a uint32.
+			if test.forcePayloadSizeField != 0 {
+				binary.LittleEndian.PutUint32(test.payload[len(test.payload)-4:], test.forcePayloadSizeField)
+			}
+
+			// execute the request
+			req := newReqV1(http.MethodPost, "/data/test", string(test.payload))
+			req.Header.Set("Content-Encoding", "gzip")
+			f.reset()
+			f.server.Handler.ServeHTTP(f.recorder, req)
+			if f.recorder.Code != test.expRespHTTPStatus {
+				t.Fatalf("Unexpected HTTP status code, (exp,got): %d, %d", test.expRespHTTPStatus, f.recorder.Code)
+			}
+			if test.expErrorMsg != "" {
+				var serverErr types.ErrorV1
+				if err := json.Unmarshal(f.recorder.Body.Bytes(), &serverErr); err != nil {
+					t.Fatalf("Could not deserialize error message: %s", err.Error())
+				}
+				if serverErr.Message != test.expErrorMsg {
+					t.Fatalf("Expected error message to have message '%s', got message: '%s'", test.expErrorMsg, serverErr.Message)
+				}
+			}
+		})
+	}
+}
+
+// Tests to ensure the body size limits work, for compressed requests.
+func TestDataPostV1CompressedDecodingLimits(t *testing.T) {
+	defaultMaxLen := int64(1024)
+	defaultGzipMaxLen := int64(1024)
+
+	tests := []struct {
+		note                  string
+		wantGzip              bool
+		wantChunkedEncoding   bool
+		payload               []byte
+		forceContentLen       int64  // Size to manually set the Content-Length header to.
+		forcePayloadSizeField uint32 // Size to manually set the payload field for the gzip blob.
+		expRespHTTPStatus     int
+		expWarningMsg         string
+		expErrorMsg           string
+		maxLen                int64
+		gzipMaxLen            int64
+	}{
+		{
+			note:              "empty message",
+			payload:           []byte{},
+			expRespHTTPStatus: 200,
+			expWarningMsg:     "'input' key missing from the request",
+		},
+		{
+			note:              "empty message, gzip",
+			wantGzip:          true,
+			payload:           mustGZIPPayload([]byte{}),
+			expRespHTTPStatus: 200,
+			expWarningMsg:     "'input' key missing from the request",
+		},
+		{
+			note:              "empty message, malicious Content-Length",
+			payload:           []byte{},
+			forceContentLen:   2048, // Server should ignore this header entirely.
+			expRespHTTPStatus: 400,
+			expErrorMsg:       "request body too large",
+		},
+		{
+			note:              "empty message, gzip, malicious Content-Length",
+			wantGzip:          true,
+			payload:           mustGZIPPayload([]byte{}),
+			forceContentLen:   2048, // Server should ignore this header entirely.
+			expRespHTTPStatus: 400,
+			expErrorMsg:       "request body too large",
+		},
+		{
+			note:                  "basic - malicious size field, expect reject on gzip payload length",
+			wantGzip:              true,
+			payload:               mustGZIPPayload([]byte(`{"input": {"user": "alice"}}`)),
+			expRespHTTPStatus:     400,
+			forcePayloadSizeField: 134217728, // 128 MB
+			expErrorMsg:           "gzip payload too large",
+			gzipMaxLen:            1024,
+		},
+		{
+			note:                  "basic - malicious size field, expect reject on gzip payload length, chunked encoding",
+			wantGzip:              true,
+			wantChunkedEncoding:   true,
+			payload:               mustGZIPPayload([]byte(`{"input": {"user": "alice"}}`)),
+			expRespHTTPStatus:     400,
+			forcePayloadSizeField: 134217728, // 128 MB
+			expErrorMsg:           "gzip payload too large",
+			gzipMaxLen:            1024,
+		},
+		{
+			note:              "basic, large payload",
+			payload:           util.MustMarshalJSON(generateJSONBenchmarkData(100, 100)),
+			expRespHTTPStatus: 200,
+			maxLen:            134217728,
+		},
+		{
+			note:              "basic, large payload, expect reject on Content-Length",
+			payload:           util.MustMarshalJSON(generateJSONBenchmarkData(100, 100)),
+			expRespHTTPStatus: 400,
+			maxLen:            512,
+			expErrorMsg:       "request body too large",
+		},
+		{
+			note:                "basic, large payload, expect reject on Content-Length, chunked encoding",
+			wantChunkedEncoding: true,
+			payload:             util.MustMarshalJSON(generateJSONBenchmarkData(100, 100)),
+			expRespHTTPStatus:   200,
+			maxLen:              134217728,
+		},
+		{
+			note:              "basic, gzip, large payload",
+			wantGzip:          true,
+			payload:           mustGZIPPayload(util.MustMarshalJSON(generateJSONBenchmarkData(100, 100))),
+			expRespHTTPStatus: 200,
+			maxLen:            1024,
+			gzipMaxLen:        134217728,
+		},
+		{
+			note:              "basic, gzip, large payload, expect reject on gzip payload length",
+			wantGzip:          true,
+			payload:           mustGZIPPayload(util.MustMarshalJSON(generateJSONBenchmarkData(100, 100))),
+			expRespHTTPStatus: 400,
+			maxLen:            1024,
+			gzipMaxLen:        10,
+			expErrorMsg:       "gzip payload too large",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.note, func(t *testing.T) {
+			ctx := context.Background()
+			store := inmem.New()
+			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+			examplePolicy := `package example.authz
+
+import rego.v1
+
+default allow := false # Reject requests by default.
+
+allow if {
+	# Logic to authorize request goes here.
+	input.body.user == "alice"
+}
+`
+
+			if err := store.UpsertPolicy(ctx, txn, "test", []byte(examplePolicy)); err != nil {
+				panic(err)
+			}
+
+			if err := store.Commit(ctx, txn); err != nil {
+				panic(err)
+			}
+
+			opts := [](func(*Server)){
+				func(s *Server) {
+					s.WithStore(store)
+				},
+			}
+
+			// Set defaults for max_length configs, if not specified in the test case.
+			if test.maxLen == 0 {
+				test.maxLen = defaultMaxLen
+			}
+			if test.gzipMaxLen == 0 {
+				test.gzipMaxLen = defaultGzipMaxLen
+			}
+
+			f := newFixtureWithConfig(t, fmt.Sprintf(`{"server":{"decision_logs": %t, "decoding":{"max_length": %d, "gzip": {"max_length": %d}}}}`, true, test.maxLen, test.gzipMaxLen), opts...)
+
+			// Forcibly replace the size trailer field for the gzip blob.
+			// Byte order is little-endian, field is a uint32.
+			if test.forcePayloadSizeField != 0 {
+				binary.LittleEndian.PutUint32(test.payload[len(test.payload)-4:], test.forcePayloadSizeField)
+			}
+
+			// execute the request
+			req := newReqV1(http.MethodPost, "/data/test", string(test.payload))
+			if test.wantGzip {
+				req.Header.Set("Content-Encoding", "gzip")
+			}
+			if test.wantChunkedEncoding {
+				req.ContentLength = -1
+				req.TransferEncoding = []string{"chunked"}
+				req.Header.Set("Transfer-Encoding", "chunked")
+			}
+			if test.forceContentLen > 0 {
+				req.ContentLength = test.forceContentLen
+				req.Header.Set("Content-Length", strconv.FormatInt(test.forceContentLen, 10))
+			}
+			f.reset()
+			f.server.Handler.ServeHTTP(f.recorder, req)
+			if f.recorder.Code != test.expRespHTTPStatus {
+				t.Fatalf("Unexpected HTTP status code, (exp,got): %d, %d, response body: %s", test.expRespHTTPStatus, f.recorder.Code, f.recorder.Body.Bytes())
+			}
+			if test.expErrorMsg != "" {
+				var serverErr types.ErrorV1
+				if err := json.Unmarshal(f.recorder.Body.Bytes(), &serverErr); err != nil {
+					t.Fatalf("Could not deserialize error message: %s, message was: %s", err.Error(), f.recorder.Body.Bytes())
+				}
+				if !strings.Contains(serverErr.Message, test.expErrorMsg) {
+					t.Fatalf("Expected error message to have message '%s', got message: '%s'", test.expErrorMsg, serverErr.Message)
+				}
+			} else {
+				var resp types.DataResponseV1
+				if err := json.Unmarshal(f.recorder.Body.Bytes(), &resp); err != nil {
+					t.Fatalf("Could not deserialize response: %s, message was: %s", err.Error(), f.recorder.Body.Bytes())
+				}
+				if test.expWarningMsg != "" {
+					if !strings.Contains(resp.Warning.Message, test.expWarningMsg) {
+						t.Fatalf("Expected warning message to have message '%s', got message: '%s'", test.expWarningMsg, resp.Warning.Message)
+					}
+				} else if resp.Warning != nil {
+					// Error on unexpected warnings. Something is wrong.
+					t.Fatalf("Unexpected warning: code: %s, message: %s", resp.Warning.Code, resp.Warning.Message)
+				}
+			}
+		})
+	}
+}
+
 func TestDataPostV0CompressedResponse(t *testing.T) {
 	tests := []struct {
 		gzipMinLength      int
@@ -1701,8 +2053,9 @@ func TestDataPostV0CompressedResponse(t *testing.T) {
 		f := newFixtureWithConfig(t, fmt.Sprintf(`{"server":{"encoding":{"gzip":{"min_length": %d}}}}`, test.gzipMinLength))
 		// create the policy
 		err := f.v1(http.MethodPut, "/policies/test", `package opa.examples
+import rego.v1
 import input.example.flag
-allow_request { flag == true }
+allow_request if { flag == true }
 `, 200, "")
 		if err != nil {
 			t.Fatal(err)
@@ -1766,8 +2119,9 @@ func TestDataPostV1CompressedResponse(t *testing.T) {
 		f := newFixtureWithConfig(t, fmt.Sprintf(`{"server":{"encoding":{"gzip":{"min_length": %d}}}}`, test.gzipMinLength))
 		// create the policy
 		err := f.v1(http.MethodPut, "/policies/test", `package test
+import rego.v1
 default hello := false
-hello {
+hello if {
 	input.message == "world"
 }
 `, 200, "")
@@ -1839,22 +2193,23 @@ func TestCompileV1CompressedResponse(t *testing.T) {
 
 		// create the policy
 		mod := `package test
+	import rego.v1
 
-	p {
+	p if {
 		input.x = 1
 	}
 
-	q {
+	q if {
 		data.a[i] = input.x
 	}
 
 	default r = true
 
-	r { input.x = 1 }
+	r if { input.x = 1 }
 
-	custom_func(x) { data.a[i] == x }
+	custom_func(x) if { data.a[i] == x }
 
-	s { custom_func(input.x) }
+	s if { custom_func(input.x) }
 	`
 		err := f.v1(http.MethodPut, "/policies/test", mod, 200, "")
 		if err != nil {
@@ -1911,8 +2266,9 @@ func TestDataPostV0CompressedRequest(t *testing.T) {
 	f := newFixture(t)
 	// create the policy
 	err := f.v1(http.MethodPut, "/policies/test", `package opa.examples
+import rego.v1
 import input.example.flag
-allow_request { flag == true }
+allow_request if { flag == true }
 `, 200, "")
 	if err != nil {
 		t.Fatal(err)
@@ -1936,8 +2292,9 @@ func TestDataPostV1CompressedRequest(t *testing.T) {
 	f := newFixture(t)
 	// create the policy
 	err := f.v1(http.MethodPut, "/policies/test", `package test
+import rego.v1
 default hello := false
-hello {
+hello if {
 	input.message == "world"
 }
 `, 200, "")
@@ -1972,22 +2329,23 @@ func TestCompileV1CompressedRequest(t *testing.T) {
 	f := newFixture(t)
 	// create the policy
 	mod := `package test
+	import rego.v1
 
-	p {
+	p if {
 		input.x = 1
 	}
 
-	q {
+	q if {
 		data.a[i] = input.x
 	}
 
 	default r = true
 
-	r { input.x = 1 }
+	r if { input.x = 1 }
 
-	custom_func(x) { data.a[i] == x }
+	custom_func(x) if { data.a[i] == x }
 
-	s { custom_func(input.x) }
+	s if { custom_func(input.x) }
 	`
 	err := f.v1(http.MethodPut, "/policies/test", mod, 200, "")
 	if err != nil {
@@ -2372,8 +2730,9 @@ func TestDataPostWithActiveStoreWriteTxn(t *testing.T) {
 	f := newFixture(t)
 
 	err := f.v1(http.MethodPut, "/policies/test", `package test
+import rego.v1
 
-p = [1, 2, 3, 4] { true }`, 200, "")
+p = [1, 2, 3, 4] if { true }`, 200, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2408,8 +2767,9 @@ func TestDataPostExplain(t *testing.T) {
 	f := newFixture(t)
 
 	err := f.v1(http.MethodPut, "/policies/test", `package test
+import rego.v1
 
-p = [1, 2, 3, 4] { true }`, 200, "")
+p = [1, 2, 3, 4] if { true }`, 200, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2448,7 +2808,9 @@ func TestDataPostExplainNotes(t *testing.T) {
 
 	err := f.v1(http.MethodPut, "/policies/test", `
 		package test
-		p {
+		import rego.v1
+		
+		p if {
 			data.a[i] = x; x > 1
 			trace(sprintf("found x = %d", [x]))
 		}`, 200, "")
@@ -3257,8 +3619,10 @@ func TestStatusV1MetricsWithSystemAuthzPolicy(t *testing.T) {
 	store := inmem.New()
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 	authzPolicy := `package system.authz
+	import rego.v1
+	
 	default allow = false
-	allow {
+	allow if {
 		input.path = ["v1", "status"]
 	}`
 
@@ -3511,10 +3875,9 @@ func TestDecisionLoggingWithHTTPRequestContext(t *testing.T) {
 	req.Header.Set("foo2", "bar2")
 	req.Header.Add("foo2", "bar3")
 
-	var rctx logging.RequestContext
-	rctx.HTTPRequestContext = logging.HTTPRequestContext{Header: req.Header.Clone()}
+	httpRctx := logging.HTTPRequestContext{Header: req.Header.Clone()}
 
-	req = req.WithContext(logging.NewContext(req.Context(), &rctx))
+	req = req.WithContext(logging.WithHTTPRequestContext(req.Context(), &httpRctx))
 
 	if err := f.executeRequest(req, http.StatusOK, `{"decision_id": "1"}`); err != nil {
 		t.Fatal(err)
@@ -3617,13 +3980,16 @@ func TestDecisionLogging(t *testing.T) {
 			method: "PUT",
 			path:   "/policies/test2",
 			body: `package foo
-			p { {k: v | k = ["a", "a"][_]; v = [1, 2][_]} }`,
+			import rego.v1
+			p if { {k: v | k = ["a", "a"][_]; v = [1, 2][_]} }`,
 			response: `{}`,
 		},
 		{
-			method:   "PUT",
-			path:     "/policies/test",
-			body:     "package system\nmain { data.foo.p }",
+			method: "PUT",
+			path:   "/policies/test",
+			body: `package system
+			import rego.v1
+			main if { data.foo.p }`,
 			response: `{}`,
 		},
 		{
@@ -3871,8 +4237,9 @@ func TestUnversionedPost(t *testing.T) {
 
 	module := `
 	package system.main
+	import rego.v1
 
-	agg = x {
+	agg = x if {
 		sum(input.foo.bar, x)
 	}
 	`
@@ -3891,8 +4258,9 @@ func TestUnversionedPost(t *testing.T) {
 
 	module = `
 	package system
+	import rego.v1
 
-	main {
+	main if {
 		input.foo == "bar"
 	}
 	`
@@ -3941,8 +4309,9 @@ func TestUnversionedPost(t *testing.T) {
 
 	module = `
 	package http.authz
+	import rego.v1
 
-	agg = x {
+	agg = x if {
 		sum(input.foo.bar, x)
 	}
 	`
@@ -3998,12 +4367,13 @@ func TestAuthorization(t *testing.T) {
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
 	authzPolicy := `package system.authz
-
+		
+		import rego.v1
 		import input.identity
 
 		default allow = false
 
-		allow {
+		allow if {
 			identity = "bob"
 		}
 		`
@@ -4050,12 +4420,13 @@ func TestAuthorization(t *testing.T) {
 	// Reverse the policy.
 	update := identifier.SetIdentity(newReqV1(http.MethodPut, "/policies/test", `
 		package system.authz
-
+		
+		import rego.v1
 		import input.identity
 
 		default allow = false
 
-		allow {
+		allow if {
 			identity = "alice"
 		}
 	`), "bob")
@@ -4123,10 +4494,11 @@ func TestAuthorizationUsesInterQueryCache(t *testing.T) {
 	}))
 
 	authzPolicy := fmt.Sprintf(`package system.authz
+import rego.v1
 
 default allow := false
 
-allow {
+allow if {
 	resp := http.send({
 		"method": "GET", "url": "%[1]s/foo",
 		"force_cache": true,
@@ -4304,23 +4676,23 @@ type queryBindingErrStore struct {
 	storage.PolicyNotSupported
 }
 
-func (s *queryBindingErrStore) Read(ctx context.Context, txn storage.Transaction, path storage.Path) (interface{}, error) {
+func (s *queryBindingErrStore) Read(_ context.Context, _ storage.Transaction, _ storage.Path) (interface{}, error) {
 	return nil, fmt.Errorf("expected error")
 }
 
-func (*queryBindingErrStore) ListPolicies(ctx context.Context, txn storage.Transaction) ([]string, error) {
+func (*queryBindingErrStore) ListPolicies(_ context.Context, _ storage.Transaction) ([]string, error) {
 	return nil, nil
 }
 
-func (queryBindingErrStore) NewTransaction(ctx context.Context, params ...storage.TransactionParams) (storage.Transaction, error) {
+func (queryBindingErrStore) NewTransaction(_ context.Context, _ ...storage.TransactionParams) (storage.Transaction, error) {
 	return nil, nil
 }
 
-func (queryBindingErrStore) Commit(ctx context.Context, txn storage.Transaction) error {
+func (queryBindingErrStore) Commit(_ context.Context, _ storage.Transaction) error {
 	return nil
 }
 
-func (queryBindingErrStore) Abort(ctx context.Context, txn storage.Transaction) {
+func (queryBindingErrStore) Abort(_ context.Context, _ storage.Transaction) {
 
 }
 
@@ -4378,11 +4750,12 @@ func TestQueryBindingIterationError(t *testing.T) {
 const (
 	testMod = `package a.b.c
 
+import rego.v1
 import data.x.y as z
 import data.p
 
-q[x] { p[x]; not r[x] }
-r[x] { z[x] = 4 }`
+q contains x if { p[x]; not r[x] }
+r contains x if { z[x] = 4 }`
 )
 
 type fixture struct {
@@ -4881,7 +5254,7 @@ func TestMixedAddrTypes(t *testing.T) {
 
 func TestCustomRoute(t *testing.T) {
 	router := mux.NewRouter()
-	router.HandleFunc("/customEndpoint", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/customEndpoint", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"myCustomResponse": true}`)) // ignore error
 	})
 	f := newFixture(t, func(server *Server) {
@@ -4950,9 +5323,36 @@ func TestDistributedTracingEnabled(t *testing.T) {
 		}}`)
 
 	ctx := context.Background()
-	_, _, err := distributedtracing.Init(ctx, c, "foo")
+	_, _, _, err := distributedtracing.Init(ctx, c, "foo")
 	if err != nil {
 		t.Fatalf("Unexpected error initializing trace exporter %v", err)
+	}
+}
+
+func TestDistributedTracingResourceAttributes(t *testing.T) {
+	c := []byte(`{"distributed_tracing": {
+		"type": "grpc",
+		"service_name": "my-service",
+		"resource": {
+			"service_namespace": "my-namespace",
+			"service_version": "1.0",
+			"service_instance_id": "1"
+		}
+		}}`)
+
+	ctx := context.Background()
+	_, traceProvider, resource, err := distributedtracing.Init(ctx, c, "foo")
+	if err != nil {
+		t.Fatalf("Unexpected error initializing trace exporter %v", err)
+	}
+	if traceProvider == nil {
+		t.Fatalf("Tracer provider was not initialized")
+	}
+	if resource == nil {
+		t.Fatalf("Resource was not initialized")
+	}
+	if len(resource.Attributes()) != 4 {
+		t.Fatalf("Unexpected resource attributes count. Expected: %v, Got: %v", 4, len(resource.Attributes()))
 	}
 }
 
@@ -5405,7 +5805,7 @@ func TestCertReloading(t *testing.T) {
 				addr string,
 				initialCert *tls.Certificate,
 				initialCertPool *x509.CertPool,
-				certFilePath, keyFilePath, caCertPath string,
+				certFilePath, keyFilePath, _ string,
 			) *Server {
 				return New().
 					WithAddresses([]string{addr}).

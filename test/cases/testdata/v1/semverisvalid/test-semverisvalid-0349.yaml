@@ -1,0 +1,15 @@
+---
+cases:
+  - note: semverisvalid/valid
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	semver.is_valid("1.0.0", __local0__)
+        	x = __local0__
+        }
+    data: {}
+    want_result:
+      - x: true

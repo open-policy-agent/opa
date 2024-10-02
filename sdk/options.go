@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/sirupsen/logrus"
 
 	"github.com/open-policy-agent/opa/hooks"
@@ -55,7 +56,20 @@ type Options struct {
 	// Hooks allows hooking into the internals of SDK operations (TODO(sr): find better words)
 	Hooks hooks.Hooks
 
+	// V0Compatible enables v0 compatibility mode when set to true.
+	// This is an opt-in to OPA features and behaviors that were enabled by default in OPA v0.x.
+	// Takes precedence over V1Compatible.
+	V0Compatible bool
+
+	// V1Compatible enables v1 compatibility mode when set to true.
+	// This is an opt-in to OPA features and behaviors that will be enabled by default in OPA v1.0 and later.
+	// See https://www.openpolicyagent.org/docs/latest/opa-1/ for more information.
+	// If V0Compatible is set to true, this field is ignored.
 	V1Compatible bool
+
+	// RegoVersion sets the version of the Rego language to use.
+	// If V0Compatible or V1Compatible is set to true, this field is ignored.
+	RegoVersion ast.RegoVersion
 
 	// ManagerOpts allows customization of the plugin manager.
 	// The given options get appended to the list of options already provided by the SDK and eventually
@@ -64,6 +78,17 @@ type Options struct {
 
 	config []byte
 	block  bool
+}
+
+func (o *Options) regoVersion() ast.RegoVersion {
+	// v0 takes precedence over v1
+	if o.V0Compatible {
+		return ast.RegoV0
+	}
+	if o.V1Compatible {
+		return ast.RegoV1
+	}
+	return o.RegoVersion
 }
 
 func (o *Options) init() error {

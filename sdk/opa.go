@@ -39,23 +39,24 @@ import (
 // OPA represents an instance of the policy engine. OPA can be started with
 // several options that control configuration, logging, and lifecycle.
 type OPA struct {
-	id           string
-	state        *state
-	mtx          sync.Mutex
-	logger       logging.Logger
-	console      logging.Logger
-	plugins      map[string]plugins.Factory
-	store        storage.Store
-	hooks        hooks.Hooks
-	config       []byte
-	v1Compatible bool
-	managerOpts  []func(*plugins.Manager)
+	id          string
+	state       *state
+	mtx         sync.Mutex
+	logger      logging.Logger
+	console     logging.Logger
+	plugins     map[string]plugins.Factory
+	store       storage.Store
+	hooks       hooks.Hooks
+	config      []byte
+	regoVersion ast.RegoVersion
+	managerOpts []func(*plugins.Manager)
 }
 
 type state struct {
-	manager                *plugins.Manager
-	interQueryBuiltinCache cache.InterQueryCache
-	queryCache             *queryCache
+	manager                     *plugins.Manager
+	interQueryBuiltinCache      cache.InterQueryCache
+	interQueryBuiltinValueCache cache.InterQueryValueCache
+	queryCache                  *queryCache
 }
 
 // New returns a new OPA object. This function should minimally be called with
@@ -89,8 +90,9 @@ func New(ctx context.Context, opts Options) (*OPA, error) {
 	opa.logger = opts.Logger
 	opa.console = opts.ConsoleLogger
 	opa.plugins = opts.Plugins
-	opa.v1Compatible = opts.V1Compatible
 	opa.managerOpts = opts.ManagerOpts
+
+	opa.regoVersion = opts.regoVersion()
 
 	return opa, opa.configure(ctx, opa.config, opts.Ready, opts.block)
 }
@@ -137,13 +139,12 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 		plugins.Info(info),
 		plugins.Logger(opa.logger),
 		plugins.ConsoleLogger(opa.console),
+		plugins.WithParserOptions(ast.ParserOptions{RegoVersion: opa.regoVersion}),
 		plugins.EnablePrintStatements(opa.logger.GetLevel() >= logging.Info),
 		plugins.PrintHook(loggingPrintHook{logger: opa.logger}),
 		plugins.WithHooks(opa.hooks),
 	}
-	if opa.v1Compatible {
-		opts = append(opts, plugins.WithParserOptions(ast.ParserOptions{RegoVersion: ast.RegoV1}))
-	}
+
 	opts = append(opts, opa.managerOpts...)
 	manager, err := plugins.New(
 		bs,
@@ -232,6 +233,7 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 	opa.state.manager = manager
 	opa.state.queryCache.Clear()
 	opa.state.interQueryBuiltinCache = cache.NewInterQueryCacheWithContext(ctx, manager.InterQueryBuiltinCacheConfig())
+	opa.state.interQueryBuiltinValueCache = cache.NewInterQueryValueCache(ctx, manager.InterQueryBuiltinCacheConfig())
 	opa.config = bs
 
 	return nil
@@ -274,22 +276,23 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 		&record,
 		func(s state, result *DecisionResult) {
 			result.Result, result.Provenance, record.InputAST, record.Bundles, record.Error = evaluate(ctx, evalArgs{
-				runtime:             s.manager.Info,
-				printHook:           s.manager.PrintHook(),
-				compiler:            s.manager.GetCompiler(),
-				store:               s.manager.Store,
-				queryCache:          s.queryCache,
-				interQueryCache:     s.interQueryBuiltinCache,
-				ndbcache:            ndbc,
-				txn:                 record.Txn,
-				now:                 record.Timestamp,
-				path:                record.Path,
-				input:               *record.Input,
-				m:                   record.Metrics,
-				strictBuiltinErrors: options.StrictBuiltinErrors,
-				tracer:              options.Tracer,
-				profiler:            options.Profiler,
-				instrument:          options.Instrument,
+				runtime:                     s.manager.Info,
+				printHook:                   s.manager.PrintHook(),
+				compiler:                    s.manager.GetCompiler(),
+				store:                       s.manager.Store,
+				queryCache:                  s.queryCache,
+				interQueryCache:             s.interQueryBuiltinCache,
+				interQueryBuiltinValueCache: s.interQueryBuiltinValueCache,
+				ndbcache:                    ndbc,
+				txn:                         record.Txn,
+				now:                         record.Timestamp,
+				path:                        record.Path,
+				input:                       *record.Input,
+				m:                           record.Metrics,
+				strictBuiltinErrors:         options.StrictBuiltinErrors,
+				tracer:                      options.Tracer,
+				profiler:                    options.Profiler,
+				instrument:                  options.Instrument,
 			})
 			if record.Error == nil {
 				record.Results = &result.Result
@@ -503,22 +506,23 @@ func IsUndefinedErr(err error) bool {
 }
 
 type evalArgs struct {
-	runtime             *ast.Term
-	printHook           print.Hook
-	compiler            *ast.Compiler
-	store               storage.Store
-	txn                 storage.Transaction
-	queryCache          *queryCache
-	interQueryCache     cache.InterQueryCache
-	now                 time.Time
-	path                string
-	input               interface{}
-	ndbcache            builtins.NDBCache
-	m                   metrics.Metrics
-	strictBuiltinErrors bool
-	tracer              topdown.QueryTracer
-	profiler            topdown.QueryTracer
-	instrument          bool
+	runtime                     *ast.Term
+	printHook                   print.Hook
+	compiler                    *ast.Compiler
+	store                       storage.Store
+	txn                         storage.Transaction
+	queryCache                  *queryCache
+	interQueryCache             cache.InterQueryCache
+	interQueryBuiltinValueCache cache.InterQueryValueCache
+	now                         time.Time
+	path                        string
+	input                       interface{}
+	ndbcache                    builtins.NDBCache
+	m                           metrics.Metrics
+	strictBuiltinErrors         bool
+	tracer                      topdown.QueryTracer
+	profiler                    topdown.QueryTracer
+	instrument                  bool
 }
 
 func evaluate(ctx context.Context, args evalArgs) (interface{}, types.ProvenanceV1, ast.Value, map[string]server.BundleInfo, error) {
@@ -578,6 +582,7 @@ func evaluate(ctx context.Context, args evalArgs) (interface{}, types.Provenance
 		rego.EvalTransaction(args.txn),
 		rego.EvalMetrics(args.m),
 		rego.EvalInterQueryBuiltinCache(args.interQueryCache),
+		rego.EvalInterQueryBuiltinValueCache(args.interQueryBuiltinValueCache),
 		rego.EvalNDBuiltinCache(args.ndbcache),
 		rego.EvalQueryTracer(args.tracer),
 		rego.EvalMetrics(args.m),

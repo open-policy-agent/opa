@@ -1,0 +1,20 @@
+---
+cases:
+  - note: partialsetdoc/unexpected 'var requires evaluation'
+    query: data.x.p[x] = z
+    modules:
+      - |
+        package x
+
+        p contains a if {
+        	a := q
+        }
+
+        q contains b if {
+        	b := 1
+        }
+    want_result:
+      - x:
+          - 1
+        z:
+          - 1

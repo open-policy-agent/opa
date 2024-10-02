@@ -1,0 +1,28 @@
+---
+cases:
+  - note: "virtualdocs/output: set dereference"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains y if {
+        	data.generated.q[x][0] = y
+        }
+
+        q contains [x] if {
+        	data.a[_] = x
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x:
+          - 1
+          - 2
+          - 3
+          - 4
+    sort_bindings: true

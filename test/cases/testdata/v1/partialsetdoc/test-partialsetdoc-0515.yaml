@@ -1,0 +1,32 @@
+---
+cases:
+  - note: partialsetdoc/nested composites
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	data.f[i] = x
+        }
+    data:
+      f:
+        - xs:
+            - "1"
+          ys:
+            - "2"
+        - xs:
+            - "2"
+          ys:
+            - "3"
+    want_result:
+      - x:
+          - xs:
+              - "1"
+            ys:
+              - "2"
+          - xs:
+              - "2"
+            ys:
+              - "3"
+    sort_bindings: true

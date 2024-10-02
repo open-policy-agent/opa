@@ -9,19 +9,30 @@ evaluation, policy coverage, and more.
 
 ## Integrations
 
-> Note: See each integration for what features are supported! Not all support the same features.
+| Editor             | Link                                                                                                                                                                                                                                                                                                                                         | Note                                                                                                        |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Visual Studio Code | [marketplace.visualstudio.com/items?itemName=tsandall.opa](https://marketplace.visualstudio.com/items?itemName=tsandall.opa)                                                                                                                                                                                                                 | Supports Language Server and Debug Adapter                                                                  |
+| Neovim             | Syntax highlighting [tree-sitter-rego](https://github.com/FallenAngel97/tree-sitter-rego), Language server [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md#regal), Debugger [nvim-dap](https://github.com/mfussenegger/nvim-dap) + [nvim-dap-rego](https://github.com/rinx/nvim-dap-rego) | Supports Language Server and Debug Adapter                                                                  |
+| Zed                | [github.com/StyraInc/zed-rego](https://github.com/StyraInc/zed-rego)                                                                                                                                                                                                                                                                         | Supports Language Server                                                                                    |
+| IntelliJ IDEA      | [github.com/open-policy-agent/opa-idea-plugin](https://github.com/open-policy-agent/opa-idea-plugin)                                                                                                                                                                                                                                         |                                                                                                             |
+| Vim                | [github.com/tsandall/vim-rego](https://github.com/tsandall/vim-rego)                                                                                                                                                                                                                                                                         |                                                                                                             |
+| Emacs              | [github.com/psibi/rego-mode](https://github.com/psibi/rego-mode)                                                                                                                                                                                                                                                                             |                                                                                                             |
+| Nano               | [github.com/scopatz/nanorc](https://github.com/scopatz/nanorc)                                                                                                                                                                                                                                                                               |                                                                                                             |
+| Sublime Text       | [github.com/open-policy-agent/opa/tree/main/misc/syntax/sublime](https://github.com/open-policy-agent/opa/tree/main/misc/syntax/sublime)                                                                                                                                                                                                     |                                                                                                             |
+| TextMate           | [github.com/open-policy-agent/opa/tree/main/misc/syntax/textmate](https://github.com/open-policy-agent/opa/tree/main/misc/syntax/textmate)                                                                                                                                                                                                   |                                                                                                             |
+| Atom               | [github.com/open-policy-agent/opa/tree/main/misc/syntax/atom](https://github.com/open-policy-agent/opa/tree/main/misc/syntax/atom)                                                                                                                                                                                                           | The Atom editor is [no longer maintained](https://github.blog/news-insights/product-news/sunsetting-atom/). |
 
-| Editor | Link |
-| --- | --- |
-| Atom | [https://github.com/open-policy-agent/opa/tree/main/misc/syntax/atom](https://github.com/open-policy-agent/opa/tree/main/misc/syntax/atom) |
-| Emacs | [https://github.com/psibi/rego-mode](https://github.com/psibi/rego-mode) |
-| IntelliJ IDEA | [https://github.com/open-policy-agent/opa-idea-plugin](https://github.com/open-policy-agent/opa-idea-plugin) |
-| Nano | [https://github.com/scopatz/nanorc](https://github.com/scopatz/nanorc) |
-| Sublime Text | [https://github.com/open-policy-agent/opa/tree/main/misc/syntax/sublime](https://github.com/open-policy-agent/opa/tree/main/misc/syntax/sublime) |
-| TextMate | [https://github.com/open-policy-agent/opa/tree/main/misc/syntax/textmate](https://github.com/open-policy-agent/opa/tree/main/misc/syntax/textmate) |
-| Vim | [https://github.com/tsandall/vim-rego](https://github.com/tsandall/vim-rego) |
-| Visual Studio Code | [https://marketplace.visualstudio.com/items?itemName=tsandall.opa](https://marketplace.visualstudio.com/items?itemName=tsandall.opa) |
+{{< info >}}
+**Your editor missing? Built a Rego integration for your editor?** Drop us a
+message on [Slack](http://slack.openpolicyagent.org)
+We also have our [Ecosystem page](/ecosystem/). This is a great place to
+showcase your project. See
+[these instructions](https://github.com/open-policy-agent/opa/tree/main/docs#opa-ecosystem)
+to get it listed.
+{{</ info >}}
 
 ## Rego Playground
 
-The Rego Playground provides a great editor to get started with OPA and share policies. Try it out at [https://play.openpolicyagent.org/](https://play.openpolicyagent.org/)
+The Rego Playground provides a great editor to get started with OPA and share
+policies. Try it out at
+[play.openpolicyagent.org](https://play.openpolicyagent.org/).

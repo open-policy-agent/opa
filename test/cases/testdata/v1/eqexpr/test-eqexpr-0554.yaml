@@ -1,0 +1,13 @@
+---
+cases:
+  - note: "eqexpr/undefined: array deep var 2"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	[[1, x], [3, 4]] = [[1, 2], [x, 4]]
+        }
+    data: {}
+    want_result: []

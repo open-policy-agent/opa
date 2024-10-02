@@ -1,0 +1,18 @@
+---
+cases:
+  - note: undos/arrays-length
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	arr = [[1, [2]], [1, []], [2, [2]]]
+        	arr[_] = [x, [2]]
+        }
+    data: {}
+    want_result:
+      - x:
+          - 1
+          - 2
+    sort_bindings: true

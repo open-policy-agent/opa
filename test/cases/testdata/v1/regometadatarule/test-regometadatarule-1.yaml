@@ -1,0 +1,48 @@
+---
+cases:
+  - note: regometadatarule/simple
+    query: data.testing.p = x
+    modules:
+      - |
+        # METADATA
+        # description: The Rego test suite
+        package testing
+
+        # METADATA
+        # title: Testing annotations
+        # authors:
+        # - The OPA contributors
+        p := x if {
+        	x := rego.metadata.rule()
+        }
+    want_result:
+      - x:
+          authors:
+            - name: The OPA contributors
+          scope: rule
+          title: Testing annotations
+  - note: regometadatarule/rule scope only
+    query: data.testing.p = x
+    modules:
+      - |
+        # METADATA
+        # description: The Rego test suite
+        package testing
+
+        # METADATA
+        # title: Testing annotations
+        # authors:
+        # - The OPA contributors
+        p := "foo" if {
+        	false
+        }
+
+        # METADATA
+        # title: Another annotation
+        p := x if {
+        	x := rego.metadata.rule()
+        }
+    want_result:
+      - x:
+          scope: rule
+          title: Another annotation

@@ -90,19 +90,19 @@ func (c *Config) validateAndInjectDefaults(services []string, confKeys map[strin
 	}
 
 	// make a copy of the keys map
-	copy := map[string]*keys.Config{}
+	cpy := map[string]*keys.Config{}
 	for key, kc := range confKeys {
-		copy[key] = kc
+		cpy[key] = kc
 	}
 
 	if c.Signing != nil {
-		err := c.Signing.ValidateAndInjectDefaults(copy)
+		err := c.Signing.ValidateAndInjectDefaults(cpy)
 		if err != nil {
 			return fmt.Errorf("invalid configuration for discovery service: %s", err.Error())
 		}
 	} else {
 		if len(confKeys) > 0 {
-			c.Signing = bundle.NewVerificationConfig(copy, "", "", nil)
+			c.Signing = bundle.NewVerificationConfig(cpy, "", "", nil)
 		}
 	}
 

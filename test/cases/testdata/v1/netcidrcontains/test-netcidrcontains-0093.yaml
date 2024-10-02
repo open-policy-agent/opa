@@ -1,0 +1,16 @@
+---
+cases:
+  - note: netcidrcontains/cidr does not contain subnet partial
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	net.cidr_contains("172.17.0.0/24", "172.17.0.0/16", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - false
+    sort_bindings: true

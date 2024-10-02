@@ -53,7 +53,7 @@ func TestHTTPGetRequest(t *testing.T) {
 	people = append(people, Person{ID: "1", Firstname: "John"})
 
 	// test server
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		headers := w.Header()
 		headers["test-header"] = []string{"test-value"}
 		w.WriteHeader(http.StatusOK)
@@ -107,7 +107,7 @@ func TestHTTPGetRequestTlsInsecureSkipVerify(t *testing.T) {
 	people = append(people, Person{ID: "1", Firstname: "John"})
 
 	// test server
-	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(people)
 	}))
@@ -2299,7 +2299,7 @@ func getTestServer() (baseURL string, teardownFn func()) {
 	mux := http.NewServeMux()
 	ts := httptest.NewServer(mux)
 
-	mux.HandleFunc("/test", func(w http.ResponseWriter, req *http.Request) {
+	mux.HandleFunc("/test", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -2314,7 +2314,7 @@ func getTLSTestServer() (ts *httptest.Server) {
 	mux := http.NewServeMux()
 	ts = httptest.NewUnstartedServer(mux)
 
-	mux.HandleFunc("/test", func(w http.ResponseWriter, req *http.Request) {
+	mux.HandleFunc("/test", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -2331,7 +2331,7 @@ func getTLSTestServer() (ts *httptest.Server) {
 		_, _ = w.Write(js)
 	})
 
-	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -3361,7 +3361,7 @@ func getAllRequests(ch chan *http.Request) []*http.Request {
 
 func TestHTTPSendMetrics(t *testing.T) {
 	// run test server
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -3565,7 +3565,7 @@ func TestHTTPGetRequestAllowNet(t *testing.T) {
 	body := map[string]bool{"ok": true}
 
 	// test server
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(body)
 	}))

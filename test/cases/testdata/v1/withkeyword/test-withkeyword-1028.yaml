@@ -1,0 +1,25 @@
+---
+cases:
+  - note: withkeyword/with invalidate input stack iteration
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        q contains x if {
+        	input[_] = x
+        }
+
+        p contains [x, y] if {
+        	data.generated.q[x] with input as ["a", "b"]
+        	y = input
+        }
+    data: {}
+    input_term: '"c"'
+    want_result:
+      - x:
+          - - a
+            - c
+          - - b
+            - c
+    sort_bindings: true

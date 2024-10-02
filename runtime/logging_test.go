@@ -14,11 +14,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/logging/test"
+	"github.com/open-policy-agent/opa/server"
 )
 
 func TestValidateGzipHeader(t *testing.T) {
@@ -99,6 +101,68 @@ func TestValidateMetricsUrl(t *testing.T) {
 	}
 }
 
+func TestRequestErrorLoggingWithHTTPRequestContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	logger := test.New()
+	logger.SetLevel(logging.Error)
+
+	params := NewParams()
+	params.Addrs = &[]string{"localhost:0"}
+	params.Logger = logger
+
+	rt, err := NewRuntime(ctx, params)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	initChannel := rt.Manager.ServerInitializedChannel()
+	go func() {
+		if err := rt.Serve(ctx); err != nil {
+			t.Error(err)
+		}
+	}()
+	<-initChannel
+
+	rec := httptest.NewRecorder()
+	req, err := http.NewRequest("GET", "/v1/data", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req.Header.Set("foo", "bar")
+	req.Header.Set("foo2", "bar2")
+	req.Header.Add("foo2", "bar3")
+
+	decisions := []*server.Info{}
+
+	rt.server.WithDecisionLoggerWithErr(func(_ context.Context, info *server.Info) error {
+		decisions = append(decisions, info)
+		return nil
+	})
+
+	rt.server.Handler.ServeHTTP(rec, req)
+	if exp, act := http.StatusOK, rec.Result().StatusCode; exp != act {
+		t.Errorf("%s %s: expected HTTP %d, got %d", "GET", "/v1/data", exp, act)
+	}
+
+	if len(decisions) != 1 {
+		t.Fatalf("Expected exactly one decision but got: %d", len(decisions))
+	}
+
+	expHeaders := http.Header{}
+	expHeaders.Set("foo", "bar")
+	expHeaders.Add("foo2", "bar2")
+	expHeaders.Add("foo2", "bar3")
+
+	exp := logging.HTTPRequestContext{Header: expHeaders}
+
+	if !reflect.DeepEqual(decisions[0].HTTPRequestContext, exp) {
+		t.Fatalf("Expected HTTP request context %v but got: %v", exp, decisions[0].HTTPRequestContext)
+	}
+}
+
 func TestRequestLogging(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -154,7 +218,7 @@ func TestRequestLogging(t *testing.T) {
 		{
 			path:             "/metrics",
 			acceptEncoding:   "*/*",
-			expected:         "HELP go_gc_duration_seconds A summary of the pause duration of garbage collection cycles.",
+			expected:         "HELP go_gc_duration_seconds A summary of the wall-time pause (stop-the-world) duration in garbage collection cycles.",
 			expectedEncoding: "",
 			contentEncoding:  "",
 			requestBody:      nil,

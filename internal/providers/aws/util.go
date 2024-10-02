@@ -8,7 +8,7 @@ import (
 	"github.com/open-policy-agent/opa/logging"
 )
 
-// DoRequestWithClient is a convenience function to get the body of a http response with
+// DoRequestWithClient is a convenience function to get the body of an HTTP response with
 // appropriate error-handling boilerplate and logging.
 func DoRequestWithClient(req *http.Request, client *http.Client, desc string, logger logging.Logger) ([]byte, error) {
 	resp, err := client.Do(req)

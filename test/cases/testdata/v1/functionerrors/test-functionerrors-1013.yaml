@@ -1,0 +1,20 @@
+---
+cases:
+  - note: functionerrors/function input no match
+    query: data.test2.r = x
+    modules:
+      - |
+        package test2
+
+        p(1, a) := y if {
+        	y = a
+        }
+
+        p(2, b) := y if {
+        	y = b + 1
+        }
+
+        r := y if {
+        	data.test2.p(3, 0, y)
+        }
+    want_result: []

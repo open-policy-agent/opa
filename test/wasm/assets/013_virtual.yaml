@@ -53,12 +53,13 @@ cases:
     modules:
       - |
         package x.y
+        import rego.v1
         p = 1
-        q = 2 { false }
+        q = 2 if { false }
         r["a"] = 3
-        r["b"] = 4 { false }
-        s["elem1"]
-        s["elem2"] { false }
+        r["b"] = 4 if { false }
+        s contains "elem1"
+        s contains "elem2" if { false }
     want_defined: true
   - note: package extent
     query: |
@@ -66,8 +67,9 @@ cases:
     modules:
       - |
         package x.y
+        import rego.v1
         p = 1
-        q = 2 { false }
+        q = 2 if { false }
     want_defined: true
   - note: all undefined
     query: |
@@ -75,7 +77,8 @@ cases:
     modules:
       - |
         package x.y
-        p = 1 { false }
+        import rego.v1
+        p = 1 if { false }
     want_defined: true
   - note: skip functions
     query: |
@@ -98,8 +101,9 @@ cases:
     modules:
       - |
         package test
+        import rego.v1
 
-        p[x] {
+        p contains x if {
           data.pkg[x] = _
         }
       - |
@@ -112,8 +116,9 @@ cases:
     modules:
       - |
         package test
+        import rego.v1
 
-        p[x] {
+        p contains x if {
           data.pkg[x] = _
         }
       - |
@@ -130,16 +135,19 @@ cases:
     modules:
       - |
         package test
+        import rego.v1
 
-        p[[x, y, v]] { data.pkg[x].sub[y] = v }
+        p contains [x, y, v] if { data.pkg[x].sub[y] = v }
       - |
         package pkg.a.sub.b
+        import rego.v1
         p = 1
-        q = 2 { false }
+        q = 2 if { false }
       - |
         package pkg.b.sub.c
+        import rego.v1
         r = 3
-        s = 4 { false }
+        s = 4 if { false }
     want_defined: true
   - note: merge
     query: |

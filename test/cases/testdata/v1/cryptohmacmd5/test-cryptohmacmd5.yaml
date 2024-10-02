@@ -1,0 +1,33 @@
+---
+cases:
+  - note: cryptohmacmd5/crypto.hmac.md5
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p contains mac if {
+        	mac := crypto.hmac.md5(input.message, input.key)
+        }
+    input:
+      key: bar
+      message: foo
+    want_result:
+      - x:
+          - 31b6db9e5eb4addb42f1a6ca07367adc
+  - note: cryptohmacmd5/crypto.hmac.md5_unicode
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p contains mac if {
+        	mac := crypto.hmac.md5(input.message, input.key)
+        }
+    input:
+      key: 秘密の
+      message: "åäöçß\U0001F972♙Ω"
+    want_result:
+      - x:
+          - 20a8743c2157ac60b7e8b79c83651b8d
+    strict_error: true

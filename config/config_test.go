@@ -197,6 +197,12 @@ func TestActiveConfig(t *testing.T) {
 			"some-plugin": {}
 		},
 		"server": {
+			"decoding": {
+				"max_length": 134217728,
+				"gzip": {
+					"max_length": 268435456
+				}
+			},
 			"encoding": {
 				"gzip": {
 					"min_length": 1024,
@@ -265,6 +271,12 @@ func TestActiveConfig(t *testing.T) {
 			"some-plugin": {}
 		},
 		"server": {
+			"decoding": {
+				"max_length": 134217728,
+				"gzip": {
+					"max_length": 268435456
+				}
+			},
 			"encoding": {
 				"gzip": {
 					"min_length": 1024,

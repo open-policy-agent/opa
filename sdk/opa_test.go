@@ -332,12 +332,13 @@ func TestDecisionWithStrictBuiltinErrors(t *testing.T) {
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"main.rego": `
 package example
+import rego.v1
 
-erroring_function(number) = output {
+erroring_function(number) = output if {
 	output := number / 0
 }
 
-allow {
+allow if {
 	erroring_function(1)
 }
 `,
@@ -394,8 +395,9 @@ func TestDecisionWithTrace(t *testing.T) {
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"main.rego": `
 package system
+import rego.v1
 
-main {
+main if {
 	trace("foobar")
 	true
 }
@@ -820,8 +822,9 @@ func TestPartial(t *testing.T) {
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"main.rego": `
 package test
+import rego.v1
 
-allow {
+allow if {
 	data.junk.x = input.y
 }
 `,
@@ -899,12 +902,13 @@ func TestPartialWithStrictBuiltinErrors(t *testing.T) {
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"main.rego": `
 package example
+import rego.v1
 
-erroring_function(number) = output {
+erroring_function(number) = output if {
 	output := number / 0
 }
 
-allow {
+allow if {
 	erroring_function(1)
 }
 `,
@@ -970,8 +974,9 @@ func TestPartialWithTrace(t *testing.T) {
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"main.rego": `
 package system
+import rego.v1
 
-main {
+main if {
 	trace("foobar")
 }
 `,
@@ -1051,8 +1056,9 @@ func TestPartialWithMetrics(t *testing.T) {
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"main.rego": `
 package test
+import rego.v1
 
-allow {
+allow if {
 	data.junk.x = input.y
 }
 `,
@@ -1135,8 +1141,9 @@ func TestPartialWithInstrumentationAndProfile(t *testing.T) {
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"main.rego": `
 package test
+import rego.v1
 
-allow {
+allow if {
 	data.junk.x = input.y
 }
 `,
@@ -1240,8 +1247,9 @@ func TestPartialWithProvenance(t *testing.T) {
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"main.rego": `
 package test
+import rego.v1
 
-allow {
+allow if {
 	data.junk.x = input.y
 }
 `,
@@ -1315,8 +1323,9 @@ func TestPartialWithConfigurableID(t *testing.T) {
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"main.rego": `
 package test
+import rego.v1
 
-allow {
+allow if {
 	data.junk.x = input.y
 }
 `,
@@ -1520,10 +1529,11 @@ loopback = input
 `,
 			"log.rego": `
 package system.log
+import rego.v1
 
-mask["/input/secret"]
-mask["/input/top/secret"]
-mask["/input/dossier/1/highly"]
+mask contains "/input/secret"
+mask contains "/input/top/secret"
+mask contains "/input/dossier/1/highly"
 `,
 		}),
 	)
@@ -2041,6 +2051,7 @@ main := v { v := 7 }`,
 				Logger:       logger,
 				Ready:        readyCh,
 				Config:       strings.NewReader(c),
+				RegoVersion:  ast.RegoV0,
 				V1Compatible: tc.v1Compatible,
 			})
 			if err != nil {
@@ -2199,6 +2210,7 @@ bundles:
 					Logger:       logger,
 					Ready:        readyCh,
 					Config:       strings.NewReader(c),
+					RegoVersion:  ast.RegoV0,
 					V1Compatible: tc.v1Compatible,
 				})
 				if err != nil {
@@ -2594,19 +2606,20 @@ func TestOpaRuntimeEnvironmentVariableDefinedInOS(t *testing.T) {
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"main.rego": `
 package system
+import rego.v1
 
 rt := opa.runtime()
 
-grant {
+grant if {
 	authenticatedUser
 }
 
-claims := payload {
+claims := payload if {
 	io.jwt.verify_hs256(input.token, opa.runtime().env.TOKEN_VERIFY_KEY)
 	[_, payload, _] := io.jwt.decode(input.token)
 }
 
-authenticatedUser := a {
+authenticatedUser := a if {
 	claims
 	a := count(claims) > 0
 }
@@ -2659,19 +2672,20 @@ func TestOpaRuntimeEnvironmentVariableDefinedInConfig(t *testing.T) {
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"main.rego": `
 package system
+import rego.v1
 
 rt := opa.runtime()
 
-grant {
+grant if {
 	authenticatedUser
 }
 
-claims := payload {
+claims := payload if {
 	io.jwt.verify_hs256(input.token, opa.runtime().config.env.TOKEN_VERIFY_KEY)
 	[_, payload, _] := io.jwt.decode(input.token)
 }
 
-authenticatedUser := a {
+authenticatedUser := a if {
 	claims
 	a := count(claims) > 0
 }
@@ -2724,13 +2738,16 @@ func TestPrintStatements(t *testing.T) {
 
 	ctx := context.Background()
 
-	s := sdktest.MustNewServer(sdktest.MockBundle("/bundles/b.tar.gz", map[string]string{
-		"x.rego": `
+	s := sdktest.MustNewServer(
+		sdktest.RawBundles(true), // non-raw bundles will be compiled server-side, which will change print location depending on parser rego-version (v1 drops rego.v1 import).
+		sdktest.MockBundle("/bundles/b.tar.gz", map[string]string{
+			"x.rego": `
 package foo
+import rego.v1
 
-p { print("XXX") }
+p if { print("XXX") }
 `,
-	}))
+		}))
 
 	defer s.Stop()
 
@@ -2771,7 +2788,7 @@ p { print("XXX") }
 
 	e := entries[len(entries)-1]
 
-	if e.Message != "XXX" || e.Fields["line"].(string) != "/x.rego:4" {
+	if e.Message != "XXX" || e.Fields["line"].(string) != "/x.rego:5" {
 		t.Fatal("expected print output but got:", e)
 	}
 }

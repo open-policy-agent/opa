@@ -84,6 +84,7 @@ type Compiler struct {
 	fsys                         fs.FS                      // file system to use when loading paths
 	ns                           string
 	regoVersion                  ast.RegoVersion
+	followSymlinks               bool // optionally follow symlinks in the bundle directory when building the bundle
 }
 
 // New returns a new compiler instance that can be invoked.
@@ -219,6 +220,12 @@ func (c *Compiler) WithCapabilities(capabilities *ast.Capabilities) *Compiler {
 	return c
 }
 
+// WithFollowSymlinks sets whether or not to follow symlinks in the bundle directory when building the bundle
+func (c *Compiler) WithFollowSymlinks(yes bool) *Compiler {
+	c.followSymlinks = yes
+	return c
+}
+
 // WithMetadata sets the additional data to be included in .manifest
 func (c *Compiler) WithMetadata(metadata *map[string]interface{}) *Compiler {
 	c.metadata = metadata
@@ -248,20 +255,20 @@ func (c *Compiler) WithRegoVersion(v ast.RegoVersion) *Compiler {
 	return c
 }
 
-func addEntrypointsFromAnnotations(c *Compiler, ar []*ast.AnnotationsRef) error {
-	for _, ref := range ar {
+func addEntrypointsFromAnnotations(c *Compiler, arefs []*ast.AnnotationsRef) error {
+	for _, aref := range arefs {
 		var entrypoint ast.Ref
-		scope := ref.Annotations.Scope
+		scope := aref.Annotations.Scope
 
-		if ref.Annotations.Entrypoint {
+		if aref.Annotations.Entrypoint {
 			// Build up the entrypoint path from either package path or rule.
 			switch scope {
 			case "package":
-				if p := ref.GetPackage(); p != nil {
+				if p := aref.GetPackage(); p != nil {
 					entrypoint = p.Path
 				}
-			case "rule":
-				if r := ref.GetRule(); r != nil {
+			case "document":
+				if r := aref.GetRule(); r != nil {
 					entrypoint = r.Ref().GroundPrefix()
 				}
 			default:
@@ -471,7 +478,17 @@ func (c *Compiler) initBundle(usePath bool) error {
 	// TODO(tsandall): the metrics object should passed through here so we that
 	// we can track read and parse times.
 
-	load, err := initload.LoadPathsForRegoVersion(c.regoVersion, c.paths, c.filter, c.asBundle, c.bvc, false, c.useRegoAnnotationEntrypoints, c.capabilities, c.fsys)
+	load, err := initload.LoadPathsForRegoVersion(
+		c.regoVersion,
+		c.paths,
+		c.filter,
+		c.asBundle,
+		c.bvc,
+		false,
+		c.useRegoAnnotationEntrypoints,
+		c.followSymlinks,
+		c.capabilities,
+		c.fsys)
 	if err != nil {
 		return fmt.Errorf("load error: %w", err)
 	}
@@ -1090,6 +1107,7 @@ func (o *optimizer) getSupportForEntrypoint(queries []ast.Body, e *ast.Term, res
 	path := e.Value.(ast.Ref)
 	name := ast.Var(path[len(path)-1].Value.(ast.String))
 	module := &ast.Module{Package: &ast.Package{Path: path[:len(path)-1]}}
+	module.SetRegoVersion(o.regoVersion)
 
 	for _, query := range queries {
 		// NOTE(tsandall): when the query refers to the original entrypoint, throw it

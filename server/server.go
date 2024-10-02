@@ -6,7 +6,6 @@ package server
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -25,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	serverDecodingPlugin "github.com/open-policy-agent/opa/plugins/server/decoding"
 	serverEncodingPlugin "github.com/open-policy-agent/opa/plugins/server/encoding"
 
 	"github.com/gorilla/mux"
@@ -111,42 +111,43 @@ type Server struct {
 	Handler           http.Handler
 	DiagnosticHandler http.Handler
 
-	router                 *mux.Router
-	addrs                  []string
-	diagAddrs              []string
-	h2cEnabled             bool
-	authentication         AuthenticationScheme
-	authorization          AuthorizationScheme
-	cert                   *tls.Certificate
-	tlsConfigMtx           sync.RWMutex
-	certFile               string
-	certFileHash           []byte
-	certKeyFile            string
-	certKeyFileHash        []byte
-	certRefresh            time.Duration
-	certPool               *x509.CertPool
-	certPoolFile           string
-	certPoolFileHash       []byte
-	minTLSVersion          uint16
-	mtx                    sync.RWMutex
-	partials               map[string]rego.PartialResult
-	preparedEvalQueries    *cache
-	store                  storage.Store
-	manager                *plugins.Manager
-	decisionIDFactory      func() string
-	logger                 func(context.Context, *Info) error
-	errLimit               int
-	pprofEnabled           bool
-	runtime                *ast.Term
-	httpListeners          []httpListener
-	metrics                Metrics
-	defaultDecisionPath    string
-	interQueryBuiltinCache iCache.InterQueryCache
-	allPluginsOkOnce       bool
-	distributedTracingOpts tracing.Options
-	ndbCacheEnabled        bool
-	unixSocketPerm         *string
-	cipherSuites           *[]uint16
+	router                      *mux.Router
+	addrs                       []string
+	diagAddrs                   []string
+	h2cEnabled                  bool
+	authentication              AuthenticationScheme
+	authorization               AuthorizationScheme
+	cert                        *tls.Certificate
+	tlsConfigMtx                sync.RWMutex
+	certFile                    string
+	certFileHash                []byte
+	certKeyFile                 string
+	certKeyFileHash             []byte
+	certRefresh                 time.Duration
+	certPool                    *x509.CertPool
+	certPoolFile                string
+	certPoolFileHash            []byte
+	minTLSVersion               uint16
+	mtx                         sync.RWMutex
+	partials                    map[string]rego.PartialResult
+	preparedEvalQueries         *cache
+	store                       storage.Store
+	manager                     *plugins.Manager
+	decisionIDFactory           func() string
+	logger                      func(context.Context, *Info) error
+	errLimit                    int
+	pprofEnabled                bool
+	runtime                     *ast.Term
+	httpListeners               []httpListener
+	metrics                     Metrics
+	defaultDecisionPath         string
+	interQueryBuiltinCache      iCache.InterQueryCache
+	interQueryBuiltinValueCache iCache.InterQueryValueCache
+	allPluginsOkOnce            bool
+	distributedTracingOpts      tracing.Options
+	ndbCacheEnabled             bool
+	unixSocketPerm              *string
+	cipherSuites                *[]uint16
 }
 
 // Metrics defines the interface that the server requires for recording HTTP
@@ -215,6 +216,11 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 		return nil, err
 	}
 	s.DiagnosticHandler = s.initHandlerAuthn(s.DiagnosticHandler)
+
+	s.Handler, err = s.initHandlerDecodingLimits(s.Handler)
+	if err != nil {
+		return nil, err
+	}
 
 	return s, s.store.Commit(ctx, txn)
 }
@@ -647,7 +653,7 @@ func (s *Server) getListenerForHTTPSServer(u *url.URL, h http.Handler, t httpLis
 		// GetConfigForClient is used to ensure that a fresh config is provided containing the latest cert pool.
 		// This is not required, but appears to be how connect time updates config should be done:
 		// https://github.com/golang/go/issues/16066#issuecomment-250606132
-		GetConfigForClient: func(info *tls.ClientHelloInfo) (*tls.Config, error) {
+		GetConfigForClient: func(_ *tls.ClientHelloInfo) (*tls.Config, error) {
 			s.tlsConfigMtx.Lock()
 			defer s.tlsConfigMtx.Unlock()
 
@@ -743,7 +749,8 @@ func (s *Server) initHandlerAuthz(handler http.Handler) http.Handler {
 			authorizer.Decision(s.manager.Config.DefaultAuthorizationDecisionRef),
 			authorizer.PrintHook(s.manager.PrintHook()),
 			authorizer.EnablePrintStatements(s.manager.EnablePrintStatements()),
-			authorizer.InterQueryCache(s.interQueryBuiltinCache))
+			authorizer.InterQueryCache(s.interQueryBuiltinCache),
+			authorizer.InterQueryValueCache(s.interQueryBuiltinValueCache))
 
 		if s.metrics != nil {
 			handler = s.instrumentHandler(handler.ServeHTTP, PromHandlerAPIAuthz)
@@ -751,6 +758,24 @@ func (s *Server) initHandlerAuthz(handler http.Handler) http.Handler {
 	}
 
 	return handler
+}
+
+// Enforces request body size limits on incoming requests. For gzipped requests,
+// it passes the size limit down the body-reading method via the request
+// context.
+func (s *Server) initHandlerDecodingLimits(handler http.Handler) (http.Handler, error) {
+	var decodingRawConfig json.RawMessage
+	serverConfig := s.manager.Config.Server
+	if serverConfig != nil {
+		decodingRawConfig = serverConfig.Decoding
+	}
+	decodingConfig, err := serverDecodingPlugin.NewConfigBuilder().WithBytes(decodingRawConfig).Parse()
+	if err != nil {
+		return nil, err
+	}
+	decodingHandler := handlers.DecodingLimitsHandler(handler, *decodingConfig.MaxLength, *decodingConfig.Gzip.MaxLength)
+
+	return decodingHandler, nil
 }
 
 func (s *Server) initHandlerCompression(handler http.Handler) (http.Handler, error) {
@@ -777,7 +802,12 @@ func (s *Server) initRouters(ctx context.Context) {
 	diagRouter := mux.NewRouter()
 
 	// authorizer, if configured, needs the iCache to be set up already
-	s.interQueryBuiltinCache = iCache.NewInterQueryCacheWithContext(ctx, s.manager.InterQueryBuiltinCacheConfig())
+
+	cacheConfig := s.manager.InterQueryBuiltinCacheConfig()
+
+	s.interQueryBuiltinCache = iCache.NewInterQueryCacheWithContext(ctx, cacheConfig)
+	s.interQueryBuiltinValueCache = iCache.NewInterQueryValueCache(ctx, cacheConfig)
+
 	s.manager.RegisterCacheTrigger(s.updateCacheConfig)
 
 	// Add authorization handler. This must come BEFORE authentication handler
@@ -910,6 +940,7 @@ func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.
 		rego.Runtime(s.runtime),
 		rego.UnsafeBuiltins(unsafeBuiltinsMap),
 		rego.InterQueryBuiltinCache(s.interQueryBuiltinCache),
+		rego.InterQueryBuiltinValueCache(s.interQueryBuiltinValueCache),
 		rego.PrintHook(s.manager.PrintHook()),
 		rego.EnablePrintStatements(s.manager.EnablePrintStatements()),
 		rego.DistributedTracingOpts(s.distributedTracingOpts),
@@ -1098,6 +1129,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 		rego.EvalParsedInput(input),
 		rego.EvalMetrics(m),
 		rego.EvalInterQueryBuiltinCache(s.interQueryBuiltinCache),
+		rego.EvalInterQueryBuiltinValueCache(s.interQueryBuiltinValueCache),
 		rego.EvalNDBuiltinCache(ndbCache),
 	}
 
@@ -1337,7 +1369,7 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 	m.Timer(metrics.RegoQueryParse).Start()
 
 	// decompress the input if sent as zip
-	body, err := readPlainBody(r)
+	body, err := util.ReadMaybeCompressedBody(r)
 	if err != nil {
 		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "could not decompress the body"))
 		return
@@ -1379,6 +1411,7 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 		rego.Runtime(s.runtime),
 		rego.UnsafeBuiltins(unsafeBuiltinsMap),
 		rego.InterQueryBuiltinCache(s.interQueryBuiltinCache),
+		rego.InterQueryBuiltinValueCache(s.interQueryBuiltinValueCache),
 		rego.PrintHook(s.manager.PrintHook()),
 	)
 
@@ -1518,6 +1551,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		rego.EvalMetrics(m),
 		rego.EvalQueryTracer(buf),
 		rego.EvalInterQueryBuiltinCache(s.interQueryBuiltinCache),
+		rego.EvalInterQueryBuiltinValueCache(s.interQueryBuiltinValueCache),
 		rego.EvalInstrument(includeInstrumentation),
 		rego.EvalNDBuiltinCache(ndbCache),
 	}
@@ -1737,6 +1771,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		rego.EvalMetrics(m),
 		rego.EvalQueryTracer(buf),
 		rego.EvalInterQueryBuiltinCache(s.interQueryBuiltinCache),
+		rego.EvalInterQueryBuiltinValueCache(s.interQueryBuiltinValueCache),
 		rego.EvalInstrument(includeInstrumentation),
 		rego.EvalNDBuiltinCache(ndbCache),
 	}
@@ -2503,7 +2538,7 @@ func (s *Server) getCompiler() *ast.Compiler {
 	return s.manager.GetCompiler()
 }
 
-func (s *Server) makeRego(ctx context.Context,
+func (s *Server) makeRego(_ context.Context,
 	strictBuiltinErrors bool,
 	txn storage.Transaction,
 	input ast.Value,
@@ -2632,6 +2667,7 @@ func isPathOwned(path, root []string) bool {
 
 func (s *Server) updateCacheConfig(cacheConfig *iCache.Config) {
 	s.interQueryBuiltinCache.UpdateConfig(cacheConfig)
+	s.interQueryBuiltinValueCache.UpdateConfig(cacheConfig)
 }
 
 func (s *Server) updateNDCache(enabled bool) {
@@ -2714,6 +2750,8 @@ func getExplain(p []string, zero types.ExplainModeV1) types.ExplainModeV1 {
 		switch x {
 		case string(types.ExplainNotesV1):
 			return types.ExplainNotesV1
+		case string(types.ExplainFailsV1):
+			return types.ExplainFailsV1
 		case string(types.ExplainFullV1):
 			return types.ExplainFullV1
 		case string(types.ExplainDebugV1):
@@ -2732,7 +2770,7 @@ func readInputV0(r *http.Request) (ast.Value, *interface{}, error) {
 	}
 
 	// decompress the input if sent as zip
-	body, err := readPlainBody(r)
+	bodyBytes, err := util.ReadMaybeCompressedBody(r)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not decompress the body: %w", err)
 	}
@@ -2740,17 +2778,13 @@ func readInputV0(r *http.Request) (ast.Value, *interface{}, error) {
 	var x interface{}
 
 	if strings.Contains(r.Header.Get("Content-Type"), "yaml") {
-		bs, err := io.ReadAll(body)
-		if err != nil {
-			return nil, nil, err
-		}
-		if len(bs) > 0 {
-			if err = util.Unmarshal(bs, &x); err != nil {
+		if len(bodyBytes) > 0 {
+			if err = util.Unmarshal(bodyBytes, &x); err != nil {
 				return nil, nil, fmt.Errorf("body contains malformed input document: %w", err)
 			}
 		}
 	} else {
-		dec := util.NewJSONDecoder(body)
+		dec := util.NewJSONDecoder(bytes.NewBuffer(bodyBytes))
 		if err := dec.Decode(&x); err != nil && err != io.EOF {
 			return nil, nil, fmt.Errorf("body contains malformed input document: %w", err)
 		}
@@ -2785,7 +2819,7 @@ func readInputPostV1(r *http.Request) (ast.Value, *interface{}, error) {
 	var request types.DataRequestV1
 
 	// decompress the input if sent as zip
-	body, err := readPlainBody(r)
+	bodyBytes, err := util.ReadMaybeCompressedBody(r)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not decompress the body: %w", err)
 	}
@@ -2794,17 +2828,13 @@ func readInputPostV1(r *http.Request) (ast.Value, *interface{}, error) {
 	// There is no standard for yaml mime-type so we just look for
 	// anything related
 	if strings.Contains(ct, "yaml") {
-		bs, err := io.ReadAll(body)
-		if err != nil {
-			return nil, nil, err
-		}
-		if len(bs) > 0 {
-			if err = util.Unmarshal(bs, &request); err != nil {
+		if len(bodyBytes) > 0 {
+			if err = util.Unmarshal(bodyBytes, &request); err != nil {
 				return nil, nil, fmt.Errorf("body contains malformed input document: %w", err)
 			}
 		}
 	} else {
-		dec := util.NewJSONDecoder(body)
+		dec := util.NewJSONDecoder(bytes.NewBuffer(bodyBytes))
 		if err := dec.Decode(&request); err != nil && err != io.EOF {
 			return nil, nil, fmt.Errorf("body contains malformed input document: %w", err)
 		}
@@ -2829,11 +2859,10 @@ type compileRequestOptions struct {
 	DisableInlining []string
 }
 
-func readInputCompilePostV1(r io.ReadCloser) (*compileRequest, *types.ErrorV1) {
-
+func readInputCompilePostV1(reqBytes []byte) (*compileRequest, *types.ErrorV1) {
 	var request types.CompileRequestV1
 
-	err := util.NewJSONDecoder(r).Decode(&request)
+	err := util.NewJSONDecoder(bytes.NewBuffer(reqBytes)).Decode(&request)
 	if err != nil {
 		return nil, types.NewErrorV1(types.CodeInvalidParameter, "error(s) occurred while decoding request: %v", err.Error())
 	}
@@ -2957,6 +2986,13 @@ func (l decisionLogger) Log(ctx context.Context, txn storage.Transaction, path s
 	}
 	decisionID, _ := logging.DecisionIDFromContext(ctx)
 
+	var httpRctx logging.HTTPRequestContext
+
+	httpRctxVal, _ := logging.HTTPRequestContextFromContext(ctx)
+	if httpRctxVal != nil {
+		httpRctx = *httpRctxVal
+	}
+
 	info := &Info{
 		Txn:                txn,
 		Revision:           l.revision,
@@ -2964,7 +3000,7 @@ func (l decisionLogger) Log(ctx context.Context, txn storage.Transaction, path s
 		Timestamp:          time.Now().UTC(),
 		DecisionID:         decisionID,
 		RemoteAddr:         rctx.ClientAddr,
-		HTTPRequestContext: rctx.HTTPRequestContext,
+		HTTPRequestContext: httpRctx,
 		Path:               path,
 		Query:              query,
 		Input:              goInput,
@@ -3021,22 +3057,6 @@ func annotateSpan(ctx context.Context, decisionID string) {
 	}
 	trace.SpanFromContext(ctx).
 		SetAttributes(attribute.String(otelDecisionIDAttr, decisionID))
-}
-
-func readPlainBody(r *http.Request) (io.ReadCloser, error) {
-	if strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
-		gzReader, err := gzip.NewReader(r.Body)
-		if err != nil {
-			return nil, err
-		}
-		bytesBody, err := io.ReadAll(gzReader)
-		if err != nil {
-			return nil, err
-		}
-		defer gzReader.Close()
-		return io.NopCloser(bytes.NewReader(bytesBody)), err
-	}
-	return r.Body, nil
 }
 
 func pretty(r *http.Request) bool {

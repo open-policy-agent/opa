@@ -6,6 +6,7 @@
 package logs
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -415,21 +416,43 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 
 // Plugin implements decision log buffering and uploading.
 type Plugin struct {
-	manager   *plugins.Manager
-	config    Config
-	buffer    *logBuffer
-	enc       *chunkEncoder
-	mtx       sync.Mutex
-	stop      chan chan struct{}
-	reconfig  chan reconfigure
-	mask      *rego.PreparedEvalQuery
-	maskMutex sync.Mutex
-	drop      *rego.PreparedEvalQuery
-	dropMutex sync.Mutex
-	limiter   *rate.Limiter
-	metrics   metrics.Metrics
-	logger    logging.Logger
-	status    *lstat.Status
+	manager      *plugins.Manager
+	config       Config
+	buffer       *logBuffer
+	enc          *chunkEncoder
+	mtx          sync.Mutex
+	statusMtx    sync.Mutex
+	stop         chan chan struct{}
+	reconfig     chan reconfigure
+	preparedMask prepareOnce
+	preparedDrop prepareOnce
+	limiter      *rate.Limiter
+	metrics      metrics.Metrics
+	logger       logging.Logger
+	status       *lstat.Status
+}
+
+type prepareOnce struct {
+	once          *sync.Once
+	preparedQuery *rego.PreparedEvalQuery
+	err           error
+}
+
+func newPrepareOnce() *prepareOnce {
+	return &prepareOnce{
+		once: new(sync.Once),
+	}
+}
+
+func (po *prepareOnce) drop() {
+	po.once = new(sync.Once)
+}
+
+func (po *prepareOnce) prepareOnce(f func() (*rego.PreparedEvalQuery, error)) (*rego.PreparedEvalQuery, error) {
+	po.once.Do(func() {
+		po.preparedQuery, po.err = f()
+	})
+	return po.preparedQuery, po.err
 }
 
 type reconfigure struct {
@@ -513,14 +536,16 @@ func (b *ConfigBuilder) Parse() (*Config, error) {
 func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 
 	plugin := &Plugin{
-		manager:  manager,
-		config:   *parsedConfig,
-		stop:     make(chan chan struct{}),
-		buffer:   newLogBuffer(*parsedConfig.Reporting.BufferSizeLimitBytes),
-		enc:      newChunkEncoder(*parsedConfig.Reporting.UploadSizeLimitBytes),
-		reconfig: make(chan reconfigure),
-		logger:   manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
-		status:   &lstat.Status{},
+		manager:      manager,
+		config:       *parsedConfig,
+		stop:         make(chan chan struct{}),
+		buffer:       newLogBuffer(*parsedConfig.Reporting.BufferSizeLimitBytes),
+		enc:          newChunkEncoder(*parsedConfig.Reporting.UploadSizeLimitBytes),
+		reconfig:     make(chan reconfigure),
+		logger:       manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
+		status:       &lstat.Status{},
+		preparedDrop: *newPrepareOnce(),
+		preparedMask: *newPrepareOnce(),
 	}
 
 	if parsedConfig.Reporting.MaxDecisionsPerSecond != nil {
@@ -554,7 +579,7 @@ func Lookup(manager *plugins.Manager) *Plugin {
 }
 
 // Start starts the plugin.
-func (p *Plugin) Start(ctx context.Context) error {
+func (p *Plugin) Start(_ context.Context) error {
 	p.logger.Info("Starting decision logger.")
 	go p.loop()
 	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateOK})
@@ -691,9 +716,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 	}
 
 	if p.config.Service != "" {
-		p.mtx.Lock()
 		p.encodeAndBufferEvent(event)
-		p.mtx.Unlock()
 	}
 
 	if p.config.Plugin != nil {
@@ -713,13 +736,8 @@ func (p *Plugin) Reconfigure(_ context.Context, config interface{}) {
 	done := make(chan struct{})
 	p.reconfig <- reconfigure{config: config, done: done}
 
-	p.maskMutex.Lock()
-	defer p.maskMutex.Unlock()
-	p.mask = nil
-
-	p.dropMutex.Lock()
-	defer p.dropMutex.Unlock()
-	p.drop = nil
+	p.preparedMask.drop()
+	p.preparedDrop.drop()
 
 	<-done
 }
@@ -753,13 +771,8 @@ func (p *Plugin) Trigger(ctx context.Context) error {
 // fires. This indicates a new compiler instance is available. The decision
 // logger needs to prepare a new masking query.
 func (p *Plugin) compilerUpdated(storage.Transaction) {
-	p.maskMutex.Lock()
-	defer p.maskMutex.Unlock()
-	p.mask = nil
-
-	p.dropMutex.Lock()
-	defer p.dropMutex.Unlock()
-	p.drop = nil
+	p.preparedMask.drop()
+	p.preparedDrop.drop()
 }
 
 func (p *Plugin) loop() {
@@ -818,13 +831,11 @@ func (p *Plugin) loop() {
 func (p *Plugin) doOneShot(ctx context.Context) error {
 	uploaded, err := p.oneShot(ctx)
 
-	// Make a local copy of the plugins's status. This is needed as locking the status for
-	// the status upload duration will block policy evaluation and result in
-	// increased latency for OPA clients
-	p.mtx.Lock()
+	// Make a local copy of the plugins's status.
+	p.statusMtx.Lock()
 	p.status.SetError(err)
 	oldStatus := p.status
-	p.mtx.Unlock()
+	p.statusMtx.Unlock()
 
 	if s := status.Lookup(p.manager); s != nil {
 		s.UpdateDecisionLogsStatus(*oldStatus)
@@ -879,12 +890,9 @@ func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {
 					continue
 				}
 
-				p.mtx.Lock()
 				for _, event := range events {
 					p.encodeAndBufferEvent(event)
 				}
-				p.mtx.Unlock()
-
 			} else {
 				// requeue the chunk
 				p.mtx.Lock()
@@ -925,7 +933,7 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 		}
 	}
 
-	result, err := p.enc.Write(event)
+	result, err := p.encodeEvent(event)
 	if err != nil {
 		// If there's no ND builtins cache in the event, then we don't
 		// need to retry encoding anything.
@@ -945,7 +953,7 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 		newEvent := event
 		newEvent.NDBuiltinCache = nil
 
-		result, err = p.enc.Write(newEvent)
+		result, err = p.encodeEvent(newEvent)
 		if err != nil {
 			if p.metrics != nil {
 				p.metrics.Counter(logEncodingFailureCounterName).Incr()
@@ -959,9 +967,22 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 		p.metrics.Counter(logNDBDropCounterName).Incr()
 	}
 
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
 	for _, chunk := range result {
 		p.bufferChunk(p.buffer, chunk)
 	}
+}
+
+func (p *Plugin) encodeEvent(event EventV1) ([][]byte, error) {
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(event); err != nil {
+		return nil, err
+	}
+
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+	return p.enc.WriteBytes(buf.Bytes())
 }
 
 func (p *Plugin) bufferChunk(buffer *logBuffer, bs []byte) {
@@ -975,42 +996,33 @@ func (p *Plugin) bufferChunk(buffer *logBuffer, bs []byte) {
 }
 
 func (p *Plugin) maskEvent(ctx context.Context, txn storage.Transaction, input ast.Value, event *EventV1) error {
+	pq, err := p.preparedMask.prepareOnce(func() (*rego.PreparedEvalQuery, error) {
+		var pq rego.PreparedEvalQuery
 
-	mask, err := func() (rego.PreparedEvalQuery, error) {
+		query := ast.NewBody(ast.NewExpr(ast.NewTerm(p.config.maskDecisionRef)))
 
-		p.maskMutex.Lock()
-		defer p.maskMutex.Unlock()
+		r := rego.New(
+			rego.ParsedQuery(query),
+			rego.Compiler(p.manager.GetCompiler()),
+			rego.Store(p.manager.Store),
+			rego.Transaction(txn),
+			rego.Runtime(p.manager.Info),
+			rego.EnablePrintStatements(p.manager.EnablePrintStatements()),
+			rego.PrintHook(p.manager.PrintHook()),
+		)
 
-		if p.mask == nil {
-
-			query := ast.NewBody(ast.NewExpr(ast.NewTerm(p.config.maskDecisionRef)))
-
-			r := rego.New(
-				rego.ParsedQuery(query),
-				rego.Compiler(p.manager.GetCompiler()),
-				rego.Store(p.manager.Store),
-				rego.Transaction(txn),
-				rego.Runtime(p.manager.Info),
-				rego.EnablePrintStatements(p.manager.EnablePrintStatements()),
-				rego.PrintHook(p.manager.PrintHook()),
-			)
-
-			pq, err := r.PrepareForEval(context.Background())
-			if err != nil {
-				return rego.PreparedEvalQuery{}, err
-			}
-
-			p.mask = &pq
+		pq, err := r.PrepareForEval(context.Background())
+		if err != nil {
+			return nil, err
 		}
-
-		return *p.mask, nil
-	}()
+		return &pq, nil
+	})
 
 	if err != nil {
 		return err
 	}
 
-	rs, err := mask.Eval(
+	rs, err := pq.Eval(
 		ctx,
 		rego.EvalParsedInput(input),
 		rego.EvalTransaction(txn),
@@ -1038,40 +1050,34 @@ func (p *Plugin) maskEvent(ctx context.Context, txn storage.Transaction, input a
 }
 
 func (p *Plugin) dropEvent(ctx context.Context, txn storage.Transaction, input ast.Value) (bool, error) {
+	var err error
 
-	drop, err := func() (rego.PreparedEvalQuery, error) {
+	pq, err := p.preparedDrop.prepareOnce(func() (*rego.PreparedEvalQuery, error) {
+		var pq rego.PreparedEvalQuery
 
-		p.dropMutex.Lock()
-		defer p.dropMutex.Unlock()
+		query := ast.NewBody(ast.NewExpr(ast.NewTerm(p.config.dropDecisionRef)))
+		r := rego.New(
+			rego.ParsedQuery(query),
+			rego.Compiler(p.manager.GetCompiler()),
+			rego.Store(p.manager.Store),
+			rego.Transaction(txn),
+			rego.Runtime(p.manager.Info),
+			rego.EnablePrintStatements(p.manager.EnablePrintStatements()),
+			rego.PrintHook(p.manager.PrintHook()),
+		)
 
-		if p.drop == nil {
-			query := ast.NewBody(ast.NewExpr(ast.NewTerm(p.config.dropDecisionRef)))
-			r := rego.New(
-				rego.ParsedQuery(query),
-				rego.Compiler(p.manager.GetCompiler()),
-				rego.Store(p.manager.Store),
-				rego.Transaction(txn),
-				rego.Runtime(p.manager.Info),
-				rego.EnablePrintStatements(p.manager.EnablePrintStatements()),
-				rego.PrintHook(p.manager.PrintHook()),
-			)
-
-			pq, err := r.PrepareForEval(context.Background())
-			if err != nil {
-				return rego.PreparedEvalQuery{}, err
-			}
-
-			p.drop = &pq
+		pq, err := r.PrepareForEval(context.Background())
+		if err != nil {
+			return nil, err
 		}
-
-		return *p.drop, nil
-	}()
+		return &pq, nil
+	})
 
 	if err != nil {
 		return false, err
 	}
 
-	rs, err := drop.Eval(
+	rs, err := pq.Eval(
 		ctx,
 		rego.EvalParsedInput(input),
 		rego.EvalTransaction(txn),

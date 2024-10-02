@@ -1,0 +1,18 @@
+---
+cases:
+  - note: partialsetdoc/composite key
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains [x, {"y": y}] if {
+        	x = 1
+        	y = 2
+        }
+    data: {}
+    want_result:
+      - x:
+          - - 1
+            - "y": 2
+    sort_bindings: true

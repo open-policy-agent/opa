@@ -6,6 +6,7 @@ package authorizer
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -35,7 +36,7 @@ func (a appendingPrintHook) Print(_ print.Context, s string) error {
 	return nil
 }
 
-func (h *mockHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *mockHandler) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(200)
 }
 
@@ -48,30 +49,30 @@ func TestBasic(t *testing.T) {
 
         import data.system.tokens
 
-        allow = resp {
+        allow = resp if {
             not undefined_case
         }
 
-        resp["allowed"] = allowed {
+        resp["allowed"] = allowed if {
             not undefined_case
             not wrong_object
         }
 
-        resp["reason"] = "custom reason" {
+        resp["reason"] = "custom reason" if {
             input.path = ["reason"]
         }
 
-        resp["reason"] = 0 {
+        resp["reason"] = 0 if {
             input.path = ["reason", "wrong_type"]
         }
 
-        resp["foo"] = "bar" {
+        resp["foo"] = "bar" if {
             wrong_object
         }
 
         default allowed = false
 
-        allowed = allow_inner {
+        allowed = allow_inner if {
             not undefined_case            # undefined
             not wrong_object              # object response, wrong key
             not input.path[0] = "reason"  # custom reason
@@ -79,39 +80,39 @@ func TestBasic(t *testing.T) {
 			print("ok")
         }
 
-        undefined_case {
+        undefined_case if {
             input.path[0] = "undefined"
         }
 
-        wrong_object {
+        wrong_object if {
             input.path = ["reason", "wrong_object"]
         }
 
-        conflict_error {
+        conflict_error if {
             input.path[0] = "conflict_error"
             {k: v | k = ["a", "a"][_]; [1, 2][v]}
         }
 
         default allow_inner = false
 
-        allow_inner {
+        allow_inner if {
             valid_method
             valid_path
         }
 
-        valid_method {
+        valid_method if {
             rights[_].access[_] = access_map[input.method]
         }
 
-        valid_path {
+        valid_path if {
             rights[_].path = "*"
         }
 
-        valid_path {
+        valid_path if {
             rights[_].path = input.path
         }
 
-        rights[right] {
+        rights contains right if {
             role = tokens[input.identity].roles[_]
             right = all_rights[role][_]
         }
@@ -146,7 +147,7 @@ func TestBasic(t *testing.T) {
         `
 		c := ast.NewCompiler().WithEnablePrintStatements(true)
 		c.Compile(map[string]*ast.Module{
-			"test.rego": ast.MustParseModule(module),
+			"test.rego": ast.MustParseModuleWithOpts(module, ast.ParserOptions{AllFutureKeywords: true}),
 		})
 		if c.Failed() {
 			t.Fatalf("Unexpected error compiling test module: %v", c.Errors)
@@ -460,7 +461,7 @@ func TestMakeInputWithBody(t *testing.T) {
 func TestInterQueryCache(t *testing.T) {
 
 	count := 0
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		count++
 	}))
@@ -472,8 +473,9 @@ func TestInterQueryCache(t *testing.T) {
 	compiler := func() *ast.Compiler {
 		module := fmt.Sprintf(`
         package system.authz
+        import rego.v1
 
-        allow {
+        allow if {
             http.send({
                 "method": "GET",
                 "url": "%v",
@@ -513,6 +515,43 @@ func TestInterQueryCache(t *testing.T) {
 	if count != 1 {
 		t.Error("Expected http.send response to be cached")
 	}
+}
+
+func TestInterQueryValueCache(t *testing.T) {
+
+	compiler := func() *ast.Compiler {
+		module := `
+        package system.authz
+        import rego.v1
+
+		allow if {
+			regex.match("foo.*", "foobar")
+		}`
+		c := ast.NewCompiler()
+		c.Compile(map[string]*ast.Module{
+			"test.rego": ast.MustParseModule(module),
+		})
+		if c.Failed() {
+			t.Fatalf("Unexpected error compiling test module: %v", c.Errors)
+		}
+		return c
+	}
+
+	recorder := httptest.NewRecorder()
+	req, err := http.NewRequest(http.MethodGet, "http://localhost:8181/v1/data", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config, _ := cache.ParseCachingConfig(nil)
+	interQueryValueCache := cache.NewInterQueryValueCache(context.Background(), config)
+
+	basic := NewBasic(&mockHandler{}, compiler, inmem.New(), InterQueryValueCache(interQueryValueCache), Decision(func() ast.Ref {
+		return ast.MustParseRef("data.system.authz.allow")
+	}))
+
+	// Execute the policy
+	basic.ServeHTTP(recorder, req)
 }
 
 func Equal(a, b []string) bool {

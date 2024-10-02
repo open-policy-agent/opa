@@ -1,0 +1,30 @@
+---
+cases:
+  - note: "virtualdocs/no suffix: bound ref with long prefix (#238)"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	data.generated.q
+        	data.generated.q
+        }
+
+        q := x if {
+        	x = data.c[0].z.p
+        }
+    data:
+      c:
+        - "true":
+            - null
+            - 3.14159
+          x:
+            - true
+            - false
+            - foo
+          z:
+            p: true
+            q: false
+    want_result:
+      - x: true

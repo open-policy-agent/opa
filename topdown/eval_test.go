@@ -261,7 +261,7 @@ func TestTopdownVirtualCache(t *testing.T) {
 			note: "different args",
 			module: `package p
 					f(0) = 1
-					f(x) = 12 { x > 0 }`,
+					f(x) = 12 if { x > 0 }`,
 			query: `data.p.f(0); data.p.f(1)`,
 			hit:   0,
 			miss:  2,
@@ -270,7 +270,7 @@ func TestTopdownVirtualCache(t *testing.T) {
 			note: "same args",
 			module: `package p
 					f(0) = 1
-					f(x) = 12 { x > 0 }`,
+					f(x) = 12 if { x > 0 }`,
 			query: `data.p.f(1); data.p.f(1)`,
 			hit:   1,
 			miss:  1,
@@ -279,7 +279,7 @@ func TestTopdownVirtualCache(t *testing.T) {
 			note: "captured output",
 			module: `package p
 					f(0) = 1
-					f(x) = 12 { x > 0 }`,
+					f(x) = 12 if { x > 0 }`,
 			query: `data.p.f(0); data.p.f(0, x)`,
 			hit:   1,
 			miss:  1,
@@ -288,8 +288,8 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "captured output, bool(false) result",
 			module: `package p
-					g(x) = true { x > 0 }
-					g(x) = false { x <= 0 }`,
+					g(x) = true if { x > 0 }
+					g(x) = false if { x <= 0 }`,
 			query: `data.p.g(-1, x); data.p.g(-1, y)`,
 			hit:   1,
 			miss:  1,
@@ -299,8 +299,8 @@ func TestTopdownVirtualCache(t *testing.T) {
 			note: "same args, iteration case",
 			module: `package p
 			f(0) = 1
-			f(x) = 12 { x > 0 }
-			q = y {
+			f(x) = 12 if { x > 0 }
+			q = y if {
 				x := f(1)
 				y := f(1)
 				x == y
@@ -313,7 +313,7 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "cache invalidation",
 			module: `package p
-					f(x) = y { x+input = y }`,
+					f(x) = y if { x+input = y }`,
 			query: `data.p.f(1, z) with input as 7; data.p.f(1, z2) with input as 8`,
 			hit:   0,
 			miss:  2,
@@ -321,8 +321,8 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial object: simple",
 			module: `package p
-			s["foo"] = true { true }
-			s["bar"] = true { true }`,
+			s["foo"] = true if { true }
+			s["bar"] = true if { true }`,
 			query: `data.p.s["foo"]; data.p.s["foo"]`,
 			hit:   1,
 			miss:  1,
@@ -330,8 +330,8 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial object: query into object value",
 			module: `package p
-			s["foo"] = { "x": 42, "y": 43 } { true }
-			s["bar"] = { "x": 42, "y": 43 } { true }`,
+			s["foo"] = { "x": 42, "y": 43 } if { true }
+			s["bar"] = { "x": 42, "y": 43 } if { true }`,
 			query: `data.p.s["foo"].x = x; data.p.s["foo"].y`,
 			hit:   1,
 			miss:  1,
@@ -340,7 +340,7 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial object: simple, general ref",
 			module: `package p
-			s.t[u].v = true { x = ["foo", "bar"]; u = x[_] }`,
+			s.t[u].v = true if { x = ["foo", "bar"]; u = x[_] }`,
 			query: `data.p.s.t["foo"].v = x; data.p.s.t["foo"].v`,
 			hit:   1,
 			miss:  1,
@@ -349,7 +349,7 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial object: simple, general ref, multiple vars",
 			module: `package p
-			s.t[u].v[w] = true { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[_] }`,
+			s.t[u].v[w] = true if { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[_] }`,
 			query: `data.p.s.t = x; data.p.s.t`,
 			hit:   1,
 			miss:  1,
@@ -371,7 +371,7 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial object: simple, general ref, multiple vars (2)",
 			module: `package p
-			s.t[u].v[w] = true { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[_] }`,
+			s.t[u].v[w] = true if { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[_] }`,
 			query: `data.p.s.t.foo = x; data.p.s.t["foo"]`,
 			hit:   1,
 			miss:  1,
@@ -385,7 +385,7 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial object: simple, general ref, multiple vars (3)",
 			module: `package p
-			s.t[u].v[w] = true { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[_] }`,
+			s.t[u].v[w] = true if { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[_] }`,
 			query: `data.p.s.t.foo.v = x; data.p.s.t["foo"].v`,
 			hit:   1,
 			miss:  1,
@@ -397,7 +397,7 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial object: simple, general ref, multiple vars (4)",
 			module: `package p
-			s.t[u].v[w] = true { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[_] }`,
+			s.t[u].v[w] = true if { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[_] }`,
 			query: `data.p.s.t.foo.v.re = x; data.p.s.t["foo"].v["re"]`,
 			hit:   1,
 			miss:  1,
@@ -406,7 +406,7 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial object: simple, general ref, miss",
 			module: `package p
-			s.t[u].v[w] = true { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[_] }`,
+			s.t[u].v[w] = true if { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[_] }`,
 			query: `data.p.s.t.foo.v.re = x; data.p.s.t.foo.v.do`,
 			hit:   0,
 			miss:  2,
@@ -415,7 +415,7 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial object: simple, general ref, miss (2)",
 			module: `package p
-			s.t[u].v[w] = i { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[i] }`,
+			s.t[u].v[w] = i if { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[i] }`,
 			query: `data.p.s.t.foo.v.re = x; data.p.s.t.foo.v.do; data.p.s.t.foo.v.re`,
 			hit:   1,
 			miss:  2,
@@ -424,7 +424,7 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial object: simple, general ref, miss (3)",
 			module: `package p
-			s.t[u].v[w] = i { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[i] }`,
+			s.t[u].v[w] = i if { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[i] }`,
 			query: `data.p.s.t.foo.v.re = x; data.p.s.t.foo.v.do; data.p.s.t.bar.v.re`,
 			hit:   0,
 			miss:  3,
@@ -433,7 +433,7 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial object: simple, general ref, miss (3)",
 			module: `package p
-			s.t[u].v[w] = i { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[i] }`,
+			s.t[u].v[w] = i if { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[i] }`,
 			query: `data.p.s.t.foo.v.re = x; data.p.s.t.foo.v.do; data.p.s.t.bar.v.re; data.p.s.t.foo.v.do`,
 			hit:   1,
 			miss:  3,
@@ -442,7 +442,7 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial object: simple, general ref, miss (4)",
 			module: `package p
-			s.t[u].v[w] = i { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[i] }`,
+			s.t[u].v[w] = i if { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[i] }`,
 			query: `data.p.s.t.foo = x; data.p.s.t.foo.v.do`,
 			hit:   1,
 			miss:  1,
@@ -456,7 +456,7 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial object: simple, general ref, miss (5)",
 			module: `package p
-			s.t[u].v[w] = i { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[i] }`,
+			s.t[u].v[w] = i if { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[i] }`,
 			query: `data.p.s.t.foo; data.p.s.t.foo.v.do = x`,
 			hit:   1,
 			miss:  1,
@@ -465,7 +465,7 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial object: simple, general ref, miss (6)",
 			module: `package p
-			s.t[u].v[w] = i { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[i] }`,
+			s.t[u].v[w] = i if { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[i] }`,
 			query: `data.p.s.t.foo.v.do = x; data.p.s.t.foo`,
 			hit:   0, // Note: Could we be smart in query term eval order to gain an extra hit here?
 			miss:  2,
@@ -474,8 +474,8 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial object: simple, query into value",
 			module: `package p
-			s["foo"].t = { "x": 42, "y": 43 } { true }
-			s["bar"].t = { "x": 42, "y": 43 } { true }`,
+			s["foo"].t = { "x": 42, "y": 43 } if { true }
+			s["bar"].t = { "x": 42, "y": 43 } if { true }`,
 			query: `data.p.s["foo"].t.x = x; data.p.s["foo"].t.x`,
 			hit:   1,
 			miss:  1,
@@ -484,8 +484,8 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial set: simple",
 			module: `package p
-			s["foo"] { true }
-			s["bar"] { true }`,
+			s contains "foo" if { true }
+			s contains "bar" if { true }`,
 			query: `data.p.s["foo"]; data.p.s["foo"]`,
 			hit:   1,
 			miss:  1,
@@ -493,7 +493,7 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial set: object",
 			module: `package p
-				s[z] { z := {"foo": "bar"} }`,
+				s contains z if { z := {"foo": "bar"} }`,
 			query: `x = {"foo": "bar"}; data.p.s[x]; data.p.s[x]`,
 			hit:   1,
 			miss:  1,
@@ -501,7 +501,7 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial set: miss",
 			module: `package p
-				s[z] { z = true }`,
+				s contains z if { z = true }`,
 			query: `data.p.s[true]; not data.p.s[false]`,
 			hit:   0,
 			miss:  2,
@@ -509,8 +509,8 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial set: full extent cached",
 			module: `package test
-				p[x] { x = 1 }
-				p[x] { x = 2 }
+				p contains x if { x = 1 }
+				p contains x if { x = 2 }
 			`,
 			query: "data.test.p = x; data.test.p = y",
 			hit:   1,
@@ -519,9 +519,9 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial set: all rules + each rule (non-ground var) cached",
 			module: `package test
-				p = r { data.test.q = x; data.test.q[y] = z; data.test.q[a] = b; r := true }
-				q[x] { x = 1 }
-				q[x] { x = 2 }
+				p = r if { data.test.q = x; data.test.q[y] = z; data.test.q[a] = b; r := true }
+				q contains x if { x = 1 }
+				q contains x if { x = 2 }
 			`,
 			query: "data.test.p = true",
 			hit:   3, // 'data.test.q[y] = z' + 2x 'data.test.q[a] = b'
@@ -530,9 +530,9 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial set: all rules + each rule (non-ground composite) cached",
 			module: `package test
-				p { data.test.q = x; data.test.q[[y, 1]] = z; data.test.q[[a, 2]] = b }
-				q[[x, x]] { x = 1 }
-				q[[x, x]] { x = 2 }
+				p if { data.test.q = x; data.test.q[[y, 1]] = z; data.test.q[[a, 2]] = b }
+				q contains [x, x] if { x = 1 }
+				q contains [x, x] if { x = 2 }
 			`,
 			query: "data.test.p = true",
 			hit:   2, // 'data.test.q[[y,1]] = z' + 'data.test.q[[a, 2]] = b'
@@ -541,9 +541,9 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial set: each rule (non-ground var), full extent cached",
 			module: `package test
-				p = r { data.test.q[y] = z; data.test.q = x; r := true }
-				q[x] { x = 1 }
-				q[x] { x = 2 }
+				p = r if { data.test.q[y] = z; data.test.q = x; r := true }
+				q contains x if { x = 1 }
+				q contains x if { x = 2 }
 			`,
 			query: "data.test.p = x",
 			hit:   2, // 2x 'data.test.q = x'
@@ -552,14 +552,111 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial set: each rule (non-ground composite), full extent cached",
 			module: `package test
-				p = y { data.test.q[[y, 1]] = z; data.test.q = x }
-				q[[x, x]] { x = 1 }
-				q[[x, x]] { x = 2 }
+				p = y if { data.test.q[[y, 1]] = z; data.test.q = x }
+				q contains [x, x] if { x = 1 }
+				q contains [x, x] if { x = 2 }
 			`,
 			query: "data.test.p = x",
 			hit:   0,
 			miss:  3, // 'data.test.p = true' + 'data.test.q[[y, 1]] = z' + 'data.test.q = x'
 			exp:   1,
+		},
+		{
+			note: "partial object, ref-head, ref with unification scope",
+			module: `package test
+			
+			a[x][y][z] := x + y + z if {
+				some x in [1, 2]
+				some y in [3, 4]
+				some z in [5, 6]
+			}
+			
+			p if {
+				x := a[1][_][5]   # miss, cache key: data.test.a[1][<_,5>]
+				some foo
+				y := a[1][foo][5] # hit, cache key: data.test.a[1][<_,5>]
+				x == y
+			}`,
+			query: `data.test.p = x`,
+			hit:   1, // data.test.a[1][_][5]
+			miss:  2, // data.test.p + data.test.a[1][_][5]
+		},
+		{
+			note: "partial object, ref-head, ref with unification scope, component order",
+			module: `package test
+			
+			a[x][y][a][b] := i if {
+				some x in [1, 2]
+				some y in [3, 4]
+				some a in ["foo", "bar"]
+				some i, b in ["foo", "bar"]
+			}
+			
+			p if {
+				x := a[1][_]["foo"]["bar"] # miss, cache key: data.test.a[1][<_,foo,bar>]
+				y := a[1][_]["bar"]["foo"] # miss, cache key: data.test.a[1][<_,bar,foo>]
+				x != y
+			}`,
+			query: `data.test.p = x`,
+			hit:   0,
+			miss:  3, // data.test.p + data.test.a[1][<_,foo,bar>] + data.test.a[1][<_,bar,foo>]
+		},
+		{
+			note: "partial object, ref-head, ref with unification scope, diverging key scope",
+			module: `package test
+			
+			a[x][y][z] := x + y + z if {
+				some x in [1, 2]
+				some y in [3, 4]
+				some z in [5, 6]
+			}
+			
+			p if {
+				x := a[1][_][5] # miss, cache key: data.test.a[1][<_,5>]
+				y := a[1][_][6] # miss, cache key: data.test.a[1][<_,6>]
+				z := a[1][_][5] # hit, cache key: data.test.a[1][<_,5>]
+				x != y
+				x == z
+			}`,
+			query: `data.test.p = x`,
+			hit:   1, // data.test.a[1][_][5]
+			miss:  3, // data.test.p + data.test.a[1][_][5] + data.test.a[1][_][6]
+		},
+		{
+			note: "partial object, ref-head, ref with unification scope, trailing vars don't contribute to key scope",
+			module: `package test
+				
+				a[x][y][z][x] := x + y + z if {
+					some x in [1, 2]
+					some y in [3, 4]
+					some z in [5, 6]
+				}
+				
+				p if {
+					x := a[1][_][5][_] # miss, cache key: data.test.a[1][<_,5>]
+					y := a[1][_][5]    # hit, cache key: data.test.a[1][<_,5>]
+					x == y[_]
+				}`,
+			query: `data.test.p = x`,
+			hit:   1, // data.test.a[1][_][5]
+			miss:  2, // data.test.p + data.test.a[1][_][5]
+		},
+		{
+			// Regression test for https://github.com/open-policy-agent/opa/issues/6926
+			note: "partial object, ref-head, leaf set, ref with unification scope",
+			module: `package p
+				
+				obj.sub[x][x] contains x if some x in ["one", "two"]
+				
+				obj[x][x] contains x if x := "whatever"
+				
+				main contains x if {
+					[1 | obj.sub[_].one[_]] # miss, cache key: data.p.obj.sub[<_,one>]
+					x := obj.sub[_][_][_]   # miss, cache key: data.p.obj.sub
+				}`,
+			query: `data.p.main = x`,
+			hit:   0,
+			miss:  3, // data.p.main + data.p.obj.sub[<_,one>] + data.p.obj.sub
 		},
 	}
 
@@ -614,7 +711,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial set",
 			module: `package test
-				p[v] {
+				p contains v if {
 					v := [1, 2, 3][_]
 				}
 			`,
@@ -624,7 +721,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object",
 			module: `package test
-				p[i] := v {
+				p[i] := v if {
 					v := [1, 2, 3][i]
 				}
 			`,
@@ -634,7 +731,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object (const key)",
 			module: `package test
-				p["foo"] := v {
+				p["foo"] := v if {
 					v := 42
 				}
 			`,
@@ -644,7 +741,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "ref head",
 			module: `package test
-				p.foo := v {
+				p.foo := v if {
 					v := 42
 				}
 			`,
@@ -654,7 +751,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object (ref head)",
 			module: `package test
-				p.q.r[i] := v {
+				p.q.r[i] := v if {
 					v := ["a", "b", "c"][i]
 				}
 			`,
@@ -664,7 +761,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object (ref head), query to obj root",
 			module: `package test
-				p.q.r[i] := v {
+				p.q.r[i] := v if {
 					v := ["a", "b", "c"][i]
 				}
 			`,
@@ -674,7 +771,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object (ref head), query to obj root, enumerating keys",
 			module: `package test
-				p.q.r[i] := v {
+				p.q.r[i] := v if {
 					v := ["a", "b", "c"][i]
 				}
 			`,
@@ -685,7 +782,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object (ref head), implicit 'true' value",
 			module: `package test
-				p.q.r[v] {
+				p.q.r[v] if {
 					v := [1, 2, 3][_]
 				}
 			`,
@@ -730,7 +827,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object (general ref head, multiple vars)",
 			module: `package test
-				p.q[x].r[i] := v {
+				p.q[x].r[i] := v if {
 					some i
 					v := [1, 2, 3][i]
 					x := ["a", "b", "c"][_]
@@ -742,7 +839,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object (general ref head, multiple vars) #2",
 			module: `package test
-				p[j].foo[i] := v {
+				p[j].foo[i] := v if {
 					v := [1, 2, 3][i]
 					j := ["a", "b", "c"][_]
 				}
@@ -767,7 +864,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object with overlapping rule (defining key/value in object)",
 			module: `package test
-				foo.bar[i] := v {
+				foo.bar[i] := v if {
 					v := ["a", "b", "c"][i]
 				}
 				foo.bar.baz := 42
@@ -778,7 +875,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object with overlapping rule (dee ref on overlap)",
 			module: `package test
-				p[k] := 1 {
+				p[k] := 1 if {
 					k := "foo"
 				}
 				p.q.r.s.t := 42
@@ -789,7 +886,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object with overlapping rule (dee ref on overlap; conflict)",
 			module: `package test
-				p[k] := 1 {
+				p[k] := 1 if {
 					k := "q"
 				}
 				p.q.r.s.t := 42
@@ -800,7 +897,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object with overlapping rule (key conflict)",
 			module: `package test
-				foo.bar[k] := v {
+				foo.bar[k] := v if {
 					k := "a"
 					v := 43
 				}
@@ -812,10 +909,10 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object generating conflicting nested keys (different nested object depth)",
 			module: `package test
-				p.q.r {
+				p.q.r if {
 					true
 				}
-				p.q[r].s.t {
+				p.q[r].s.t if {
 					r := "foo"
 				}`,
 			query: `data = x`,
@@ -824,10 +921,10 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object generating conflicting nested keys (different nested object depth; key conflict)",
 			module: `package test
-				p.q[k].s := 1 {
+				p.q[k].s := 1 if {
 					k := "r"
 				}
-				p.q[k].s.t := 1 {
+				p.q[k].s.t := 1 if {
 					k := "r"
 				}`,
 			query:  `data = x`,
@@ -836,14 +933,14 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object (overlapping rules producing same values)",
 			module: `package test
-				p.foo.bar[i] := v {
+				p.foo.bar[i] := v if {
 					v := ["a", "b", "c"][i]
 				}
-				p.foo[i][j] := v {
+				p.foo[i][j] := v if {
 					i := "bar"
 					v := ["a", "b", "c"][j]
 				}
-				p[q][i][j] := v {
+				p[q][i][j] := v if {
 					q := "foo"
 					i := "bar"
 					v := ["a", "b", "c"][j]
@@ -855,10 +952,10 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object (overlapping rules, same depth, producing non-conflicting keys)",
 			module: `package test
-				p.foo[i].bar := v {
+				p.foo[i].bar := v if {
 					v := ["a", "b", "c"][i]
 				}
-				p.foo.bar[i] := v {
+				p.foo.bar[i] := v if {
 					v := ["a", "b", "c"][i]
 				}
 			`,
@@ -874,7 +971,7 @@ func TestPartialRule(t *testing.T) {
 			note: "partial object NOT intersecting with object value of other rule",
 			module: `package test
 				p.foo := {"bar": {"baz": 1}}
-				p[k] := 2 {k := "other"}
+				p[k] := 2 if {k := "other"}
 			`,
 			query: `data = x`,
 			exp:   `[{"x": {"test": {"p": {"foo": {"bar": {"baz": 1}}, "other": 2}}}}]`,
@@ -883,7 +980,7 @@ func TestPartialRule(t *testing.T) {
 			note: "partial object NOT intersecting with object value of other rule (nested object merge along rule refs)",
 			module: `package test
 				p.foo.bar := {"baz": 1}                        # p.foo.bar == {"baz": 1}
-				p[k].bar2 := v {k := "foo"; v := {"other": 2}} # p.foo.bar2 == {"other": 2}
+				p[k].bar2 := v if {k := "foo"; v := {"other": 2}} # p.foo.bar2 == {"other": 2}
 			`,
 			query: `data = x`,
 			exp:   `[{"x": {"test": {"p": {"foo": {"bar": {"baz": 1}, "bar2": {"other": 2}}}}}}]`,
@@ -892,7 +989,7 @@ func TestPartialRule(t *testing.T) {
 			note: "partial object intersecting with object value of other rule (not merging otherwise conflict-free obj values)",
 			module: `package test
 				p.foo := {"bar": {"baz": 1}}                       # p == {"foo": {"bar": {"baz": 1}}}
-				p[k] := v {k := "foo"; v := {"bar": {"other": 2}}} # p == {"foo": {"bar": {"other": 2}}}
+				p[k] := v if {k := "foo"; v := {"bar": {"other": 2}}} # p == {"foo": {"bar": {"other": 2}}}
 			`,
 			query:  `data = x`,
 			expErr: "eval_conflict_error: object keys must be unique", // conflict on key "bar" which is inside rule values, which may not be modified by other rule
@@ -900,8 +997,8 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object rules with overlapping known ref vars (no eval-time conflict)",
 			module: `package test
-				p[k].r1 := 1 { k := "q" }
-				p[k].r2 := 2 { k := "q" }
+				p[k].r1 := 1 if { k := "q" }
+				p[k].r2 := 2 if { k := "q" }
 			`,
 			query: `data = x`,
 			exp:   `[{"x": {"test": {"p": {"q": {"r1": 1, "r2": 2}}}}}]`,
@@ -909,8 +1006,8 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object rules with overlapping known ref vars (eval-time conflict)",
 			module: `package test
-				p[k].r := 1 { k := "q" }
-				p[k].r := 2 { k := "q" }
+				p[k].r := 1 if { k := "q" }
+				p[k].r := 2 if { k := "q" }
 			`,
 			query:  `data = x`,
 			expErr: "eval_conflict_error: object keys must be unique",
@@ -918,8 +1015,8 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object rules with overlapping known ref vars, non-overlapping object type values (eval-time conflict)",
 			module: `package test
-				p[k].r := {"s1": 1} { k := "q" }
-				p[k].r := {"s2": 2} { k := "q" }
+				p[k].r := {"s1": 1} if { k := "q" }
+				p[k].r := {"s2": 2} if { k := "q" }
 			`,
 			query:  `data = x`,
 			expErr: "eval_conflict_error: object keys must be unique",
@@ -927,7 +1024,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object rule with object value containing var",
 			module: `package test
-				p.foo.q[y] := {"x": z} { y := ["bar", "baz"][_]; z := 4 }
+				p.foo.q[y] := {"x": z} if { y := ["bar", "baz"][_]; z := 4 }
 			`,
 			query: `data = x`,
 			exp:   `[{"x": {"test": {"p": {"foo": {"q": {"bar": {"x": 4}, "baz": {"x": 4}}}}}}}]`,
@@ -935,8 +1032,8 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object rule with object value and intersecting key override rule (regression test #6211)",
 			module: `package test
-				p.foo.q[y] := {"x": 7} { y := ["bar", "baz"][_] }
-				p.foo.q.baz.y = 9 { true }
+				p.foo.q[y] := {"x": 7} if { y := ["bar", "baz"][_] }
+				p.foo.q.baz.y = 9 if { true }
 			`,
 			query:  `data = x`,
 			expErr: "eval_conflict_error: object keys must be unique",
@@ -944,8 +1041,8 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object rule with object value and intersecting key override rule (query up to partial object) (regression test #6211)",
 			module: `package test
-				p.foo.q[y] := {"x": 7} { y := ["bar", "baz"][_] }
-				p.foo.q.baz.y = 9 { true }
+				p.foo.q[y] := {"x": 7} if { y := ["bar", "baz"][_] }
+				p.foo.q.baz.y = 9 if { true }
 			`,
 			query:  `data = x.test.p.foo.q`,
 			expErr: "eval_conflict_error: object keys must be unique",
@@ -953,8 +1050,8 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object rule with object value and intersecting key override rule (query into partial object) (regression test #6211)",
 			module: `package test
-				p.foo.q[y] := {"x": 7} { y := ["bar", "baz"][_] }
-				p.foo.q.baz.y = 9 { true }
+				p.foo.q[y] := {"x": 7} if { y := ["bar", "baz"][_] }
+				p.foo.q.baz.y = 9 if { true }
 			`,
 			query: `data.test.p.foo.q.bar = x`,
 			exp:   `[{"x": {"x": 7}}]`,
@@ -962,8 +1059,8 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object rule with object value and intersecting key override rule (query into key override) (regression test #6211)",
 			module: `package test
-				p.foo.q[y] := {"x": 7} { y := ["bar", "baz"][_] }
-				p.foo.q.baz.y = 9 { true }
+				p.foo.q[y] := {"x": 7} if { y := ["bar", "baz"][_] }
+				p.foo.q.baz.y = 9 if { true }
 			`,
 			query:  `data.test.p.foo.q.baz = x`,
 			expErr: "eval_conflict_error: object keys must be unique",
@@ -971,8 +1068,8 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object rule with object value and intersecting key override rule (query into partial object, enumeration) (regression test #6211)",
 			module: `package test
-				p.foo.q[y] := {"x": 7} { y := ["bar", "baz"][_] }
-				p.foo.q.baz.y = 9 { true }
+				p.foo.q[y] := {"x": 7} if { y := ["bar", "baz"][_] }
+				p.foo.q.baz.y = 9 if { true }
 			`,
 			query:  `data.test.p.foo.q[z] = x`,
 			expErr: "eval_conflict_error: object keys must be unique",
@@ -980,8 +1077,8 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object rule with object value and intersecting key override rule (query into partial object, enumeration #2) (regression test #6211)",
 			module: `package test
-				p.foo.q[y] := {"x": 7} { y := ["bar", "baz"][_] }
-				p.foo.q.baz.y = 9 { true }
+				p.foo.q[y] := {"x": 7} if { y := ["bar", "baz"][_] }
+				p.foo.q.baz.y = 9 if { true }
 			`,
 			query:  `data.test.p.foo.q[z].x = x`,
 			expErr: "eval_conflict_error: object keys must be unique",
@@ -989,8 +1086,8 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object rule with object value and intersecting key override rule (query into key override, enumeration) (regression test #6211)",
 			module: `package test
-				p.foo.q[y] := {"x": 7} { y := ["bar", "baz"][_] }
-				p.foo.q.baz.y = 9 { true }
+				p.foo.q[y] := {"x": 7} if { y := ["bar", "baz"][_] }
+				p.foo.q.baz.y = 9 if { true }
 			`,
 			query:  `data.test.p.foo.q.baz[z] = x`,
 			expErr: "eval_conflict_error: object keys must be unique",
@@ -999,7 +1096,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "deep query into partial object (ref head)",
 			module: `package test
-				p.q[r] := 1 { r := "foo" }
+				p.q[r] := 1 if { r := "foo" }
 			`,
 			query: `data.test.p.q.foo = x`,
 			exp:   `[{"x": 1}]`,
@@ -1007,7 +1104,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "deep query into partial object (ref head) and object value",
 			module: `package test
-				p.q[r] := x { 
+				p.q[r] := x if { 
 					r := "foo" 
 					x := {"bar": {"baz": 1}}
 				}
@@ -1018,7 +1115,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "deep query into partial object starting-point (general ref head) up to array value",
 			module: `package test
-				p.q[r].s[t].u := x {
+				p.q[r].s[t].u := x if {
 					obj := {
 						"foo": {
 							"do": ["a", "b", "c"],
@@ -1038,7 +1135,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "deep query into partial object mid-point (general ref head) up to array value",
 			module: `package test
-				p.q[r].s[t].u := x {
+				p.q[r].s[t].u := x if {
 					obj := {
 						"foo": {
 							"do": ["a", "b", "c"],
@@ -1058,7 +1155,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "deep query into partial object (general ref head) up to array value",
 			module: `package test
-				p.q[r].s[t].u := x {
+				p.q[r].s[t].u := x if {
 					obj := {
 						"foo": {
 							"do": ["a", "b", "c"],
@@ -1078,7 +1175,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "deep query into partial object (general ref head) and array value",
 			module: `package test
-				p.q[r].s[t].u := x {
+				p.q[r].s[t].u := x if {
 					obj := {
 						"foo": {
 							"do": ["a", "b", "c"],
@@ -1099,7 +1196,7 @@ func TestPartialRule(t *testing.T) {
 			note: "query up to (ref head), but not into partial set",
 			module: `package test
 				import future.keywords
-				p.q.r contains s { {"foo", "bar", "bax"}[s] }
+				p.q.r contains s if { {"foo", "bar", "bax"}[s] }
 			`,
 			query: `data.test.p = x`,
 			exp:   `[{"x": {"q": {"r": ["bar", "bax", "foo"]}}}]`,
@@ -1108,7 +1205,7 @@ func TestPartialRule(t *testing.T) {
 			note: "deep query up to (ref mid-point), but not into partial set",
 			module: `package test
 				import future.keywords
-				p.q.r contains s { {"foo", "bar", "bax"}[s] }
+				p.q.r contains s if { {"foo", "bar", "bax"}[s] }
 			`,
 			query: `data.test.p.q = x`,
 			exp:   `[{"x": {"r": ["bar", "bax", "foo"]}}]`,
@@ -1117,7 +1214,7 @@ func TestPartialRule(t *testing.T) {
 			note: "deep query up to (ref tail), but not into partial set",
 			module: `package test
 				import future.keywords
-				p.q.r contains s { {"foo", "bar", "bax"}[s] }
+				p.q.r contains s if { {"foo", "bar", "bax"}[s] }
 			`,
 			query: `data.test.p.q.r = x`,
 			exp:   `[{"x": ["bar", "bax", "foo"]}]`,
@@ -1126,7 +1223,7 @@ func TestPartialRule(t *testing.T) {
 			note: "deep query into partial set",
 			module: `package test
 				import future.keywords
-				p.q contains r { {"foo", "bar", "bax"}[r] }
+				p.q contains r if { {"foo", "bar", "bax"}[r] }
 			`,
 			query: `data.test.p.q.foo = x`,
 			exp:   `[{"x": "foo"}]`,
@@ -1134,7 +1231,7 @@ func TestPartialRule(t *testing.T) {
 		{ // enumeration
 			note: "deep query into partial object and object value, full depth, enumeration on object value",
 			module: `package test
-				p.q[r] := x { 
+				p.q[r] := x if { 
 					r := ["foo", "bar"][_]
 					x := {"s": {"do": 0, "re": 1, "mi": 2}}
 				}
@@ -1145,7 +1242,7 @@ func TestPartialRule(t *testing.T) {
 		{ // enumeration
 			note: "deep query into partial object and object value, full depth, enumeration on rule path and object value",
 			module: `package test
-				p.q[r] := x { 
+				p.q[r] := x if { 
 					r := ["foo", "bar"][_]
 					x := {"s": {"do": 0, "re": 1, "mi": 2}}
 				}
@@ -1157,7 +1254,7 @@ func TestPartialRule(t *testing.T) {
 			note: "deep query into partial object (ref head) and set value",
 			module: `package test
 				import future.keywords
-				p.q contains t {
+				p.q contains t if {
 					{"do", "re", "mi"}[t]
 				}
 			`,
@@ -1168,7 +1265,7 @@ func TestPartialRule(t *testing.T) {
 			note: "deep query into partial object (general ref head) and set value",
 			module: `package test
 				import future.keywords
-				p.q[r] contains t { 
+				p.q[r] contains t if { 
 					r := ["foo", "bar"][_] 
 					{"do", "re", "mi"}[t]
 				}
@@ -1180,7 +1277,7 @@ func TestPartialRule(t *testing.T) {
 			note: "deep query into partial object (general ref head, static tail) and set value",
 			module: `package test
 				import future.keywords
-				p.q[r].s contains t { 
+				p.q[r].s contains t if { 
 					r := ["foo", "bar"][_] 
 					{"do", "re", "mi"}[t]
 				}
@@ -1192,7 +1289,7 @@ func TestPartialRule(t *testing.T) {
 			note: "deep query into general ref to set value",
 			module: `package test
 				import future.keywords
-				p.q[r].s contains t { 
+				p.q[r].s contains t if { 
 					r := ["foo", "bar"][_] 
 					t := ["do", "re", "mi"][_]
 				}
@@ -1203,7 +1300,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "deep query into general ref to object value",
 			module: `package test
-				p.q[r].s[t] := u { 
+				p.q[r].s[t] := u if { 
 					r := ["foo", "bar"][_] 
 					t := ["do", "re", "mi"][u]
 				}
@@ -1215,7 +1312,7 @@ func TestPartialRule(t *testing.T) {
 			note: "deep query into general ref enumerating set values",
 			module: `package test
 				import future.keywords
-				p.q[r].s contains t { 
+				p.q[r].s contains t if { 
 					r := ["foo", "bar"][_] 
 					{"do", "re", "mi"}[t]
 				}
@@ -1227,7 +1324,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "deep query into partial object and object value, non-tail var",
 			module: `package test
-				p.q[r].s := x { 
+				p.q[r].s := x if { 
 					r := "foo" 
 					x := {"bar": {"baz": 1}}
 				}
@@ -1238,7 +1335,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "deep query into partial object, on first var in ref",
 			module: `package test
-				p.q[r].s := 1 { r := "foo" }
+				p.q[r].s := 1 if { r := "foo" }
 			`,
 			query: `data.test.p.q.foo = x`,
 			exp:   `[{"x": {"s": 1}}]`,
@@ -1246,7 +1343,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "deep query into partial object, beyond first var in ref",
 			module: `package test
-				p.q[r].s := 1 { r := "foo" }
+				p.q[r].s := 1 if { r := "foo" }
 			`,
 			query: `data.test.p.q.foo.s = x`,
 			exp:   `[{"x": 1}]`,
@@ -1254,7 +1351,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "deep query into partial object, shallow rule ref",
 			module: `package test
-				p.q[r][s] := 1 { r := "foo"; s := "bar" }
+				p.q[r][s] := 1 if { r := "foo"; s := "bar" }
 			`,
 			query: `data.test.p.q.foo = x`,
 			exp:   `[{"x": {"bar": 1}}]`,
@@ -1262,7 +1359,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "deep query into partial object, shallow rule ref, multiple keys",
 			module: `package test
-				p.q[r][s] := t { l := ["do", "re", "mi"]; r := "foo"; s := l[t] }
+				p.q[r][s] := t if { l := ["do", "re", "mi"]; r := "foo"; s := l[t] }
 			`,
 			query: `data.test.p.q.foo = x`,
 			exp:   `[{"x": {"do": 0, "re": 1, "mi": 2}}]`,
@@ -1270,7 +1367,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "deep query into partial object, beyond first var in ref, multiple vars",
 			module: `package test
-				p.q[r][s] := 1 { r := "foo"; s := "bar" }
+				p.q[r][s] := 1 if { r := "foo"; s := "bar" }
 			`,
 			query: `data.test.p.q.foo.bar = x`,
 			exp:   `[{"x": 1}]`,
@@ -1278,7 +1375,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "deep query into partial object, beyond first var in ref, multiple vars",
 			module: `package test
-				p.q[r][s].t := 1 { r := "foo"; s := "bar" }
+				p.q[r][s].t := 1 if { r := "foo"; s := "bar" }
 			`,
 			query: `data.test.p.q.foo.bar = x`,
 			exp:   `[{"x": {"t": 1}}]`,
@@ -1286,7 +1383,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "deep query to partial object, overlapping rules (key override), no dynamic ref",
 			module: `package test
-				p.q[r] := 1 { r := "foo" }
+				p.q[r] := 1 if { r := "foo" }
 				p.q.r := 2
 			`,
 			query: `data.test.p.q = x`,
@@ -1295,7 +1392,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "deep query into partial object, overlapping rules (key override), no dynamic ref",
 			module: `package test
-				p.q[r] := 1 { r := "foo" }
+				p.q[r] := 1 if { r := "foo" }
 				p.q.r := 2
 			`,
 			query: `data.test.p.q.r = x`,
@@ -1304,8 +1401,8 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "deep query into partial object, overlapping rules, no dynamic ref",
 			module: `package test
-				p.q[r] := 1 { r := "foo" }
-				p.q[r] := 2 { r := "bar" }
+				p.q[r] := 1 if { r := "foo" }
+				p.q[r] := 2 if { r := "bar" }
 			`,
 			query: `data.test.p.q.foo = x`,
 			exp:   `[{"x": 1}]`,
@@ -1313,8 +1410,8 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "deep query into partial object, overlapping rules with same key/value, no dynamic ref",
 			module: `package test
-				p.q[r] := 1 { r := "foo" }
-				p.q[r] := 1 { r := "foo" }
+				p.q[r] := 1 if { r := "foo" }
+				p.q[r] := 1 if { r := "foo" }
 			`,
 			query: `data.test.p.q.foo = x`,
 			exp:   `[{"x": 1}]`,
@@ -1322,8 +1419,8 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "deep query into partial object, overlapping rules, dynamic ref",
 			module: `package test
-				p.q[r].s := 1 { r := "r" }
-				p.q.r[s] := 2 { s := "foo" }
+				p.q[r].s := 1 if { r := "r" }
+				p.q.r[s] := 2 if { s := "foo" }
 			`,
 			query: `data.test.p.q.r = x`,
 			exp:   `[{"x": {"s": 1, "foo": 2}}]`,
@@ -1331,8 +1428,8 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "deep query into partial object, overlapping rules with same key/value, dynamic ref",
 			module: `package test
-				p.q[r].s := 1 { r := "r" }
-				p.q.r[s] := 1 { s := "s" }
+				p.q[r].s := 1 if { r := "r" }
+				p.q.r[s] := 1 if { s := "s" }
 			`,
 			query: `data.test.p.q.r = x`,
 			exp:   `[{"x": {"s": 1}}]`,
@@ -1341,7 +1438,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "shallow query into general ref, key enumeration",
 			module: `package test
-				p.q[r].s[t] := u {
+				p.q[r].s[t] := u if {
 					r := ["a", "b", "c"][_]
 					t := ["d", "e", "f"][u]
 				}`,
@@ -1353,8 +1450,8 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "query to partial object, overlapping rules, dynamic ref, key enumeration",
 			module: `package test
-				p.q[r].s := 1 { r := "foo" }
-				p.q[r].s := 2 { r := "bar" }
+				p.q[r].s := 1 if { r := "foo" }
+				p.q[r].s := 2 if { r := "bar" }
 			`,
 			query: `data.test.p.q[i] = x`,
 			exp:   `[{"i": "bar", "x": {"s": 2}}, {"i": "foo", "x": {"s": 1}}]`,
@@ -1362,8 +1459,8 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "deep query into partial object, overlapping rules, dynamic ref, key enumeration",
 			module: `package test
-				p.q[r].s := 1 { r := "foo" }
-				p.q[r].s := 2 { r := "bar" }
+				p.q[r].s := 1 if { r := "foo" }
+				p.q[r].s := 2 if { r := "bar" }
 			`,
 			query: `data.test.p.q[i].s = x`,
 			exp:   `[{"i": "bar", "x": 2}, {"i": "foo", "x": 1}]`,
@@ -1372,7 +1469,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object generating conflicting keys",
 			module: `package test
-				p[k] := x {
+				p[k] := x if {
 					k := "foo"
 					x := [1, 2][_]
 				}`,
@@ -1382,7 +1479,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object (ref head) generating conflicting keys (dots in head)",
 			module: `package test
-				p.q[k] := x {
+				p.q[k] := x if {
 					k := "foo"
 					x := [1, 2][_]
 				}`,
@@ -1392,7 +1489,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object (general ref head) generating conflicting nested keys",
 			module: `package test
-				p.q[k].s := x {
+				p.q[k].s := x if {
 					k := "foo"
 					x := [1, 2][_]
 				}`,
@@ -1402,7 +1499,7 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "partial object (general ref head) generating conflicting ref vars",
 			module: `package test
-				p.q[k].s := x {
+				p.q[k].s := x if {
 					k := ["foo", "foo"][x]
 				}`,
 			query:  `data = x`,

@@ -398,10 +398,10 @@ func TestRule_MarshalJSON(t *testing.T) {
 
 	# comment
 
-	allow { true }
+	allow if { true }
 	`
 
-	module, err := ParseModuleWithOpts("example.rego", rawModule, ParserOptions{})
+	module, err := ParseModuleWithOpts("example.rego", rawModule, ParserOptions{AllFutureKeywords: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -481,10 +481,10 @@ func TestHead_MarshalJSON(t *testing.T) {
 
 	# comment
 
-	allow { true }
+	allow if { true }
 	`
 
-	module, err := ParseModuleWithOpts("example.rego", rawModule, ParserOptions{})
+	module, err := ParseModuleWithOpts("example.rego", rawModule, ParserOptions{AllFutureKeywords: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -543,16 +543,52 @@ func TestHead_MarshalJSON(t *testing.T) {
 	}
 }
 
+func TestRuleHeadRefWithTermLocations_MarshalJSON(t *testing.T) {
+	policy := `package test
+
+import rego.v1
+
+ref.head[rule].test contains "value" if {
+	rule := "rule"
+}`
+
+	jsonOptions := &astJSON.Options{
+		MarshalOptions: astJSON.MarshalOptions{
+			IncludeLocation: astJSON.NodeToggle{
+				Head: true,
+				Term: true,
+			},
+		},
+	}
+
+	module, err := ParseModuleWithOpts("test.rego", policy, ParserOptions{JSONOptions: jsonOptions})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bs, err := json.Marshal(module.Rules[0].Head)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Ensure marshalled JSON includes location for any term
+	expectedJSON := `{"key":{"location":{"file":"test.rego","row":5,"col":30},"type":"string","value":"value"},"ref":[{"location":{"file":"test.rego","row":5,"col":1},"type":"var","value":"ref"},{"location":{"file":"test.rego","row":5,"col":5},"type":"string","value":"head"},{"location":{"file":"test.rego","row":5,"col":10},"type":"var","value":"rule"},{"location":{"file":"test.rego","row":5,"col":16},"type":"string","value":"test"}],"location":{"file":"test.rego","row":5,"col":1}}`
+
+	if string(bs) != expectedJSON {
+		t.Errorf("expected %s but got %s", expectedJSON, string(bs))
+	}
+}
+
 func TestExpr_MarshalJSON(t *testing.T) {
 	rawModule := `
 	package foo
 
 	# comment
 
-	allow { true }
+	allow if { true }
 	`
 
-	module, err := ParseModuleWithOpts("example.rego", rawModule, ParserOptions{})
+	module, err := ParseModuleWithOpts("example.rego", rawModule, ParserOptions{AllFutureKeywords: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -594,7 +630,7 @@ func TestExpr_MarshalJSON(t *testing.T) {
 				}
 				return e
 			}(),
-			ExpectedJSON: `{"index":0,"location":{"file":"example.rego","row":6,"col":10},"terms":{"type":"boolean","value":true}}`,
+			ExpectedJSON: `{"index":0,"location":{"file":"example.rego","row":6,"col":13},"terms":{"type":"boolean","value":true}}`,
 		},
 	}
 
@@ -617,10 +653,10 @@ func TestExpr_UnmarshalJSON(t *testing.T) {
 
 	# comment
 
-	allow { true }
+	allow if { true }
 	`
 
-	module, err := ParseModuleWithOpts("example.rego", rawModule, ParserOptions{})
+	module, err := ParseModuleWithOpts("example.rego", rawModule, ParserOptions{AllFutureKeywords: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -642,7 +678,7 @@ func TestExpr_UnmarshalJSON(t *testing.T) {
 			}(),
 		},
 		"location case": {
-			JSON:         `{"index":0,"location":{"file":"example.rego","row":6,"col":10},"terms":{"type":"boolean","value":true}}`,
+			JSON:         `{"index":0,"location":{"file":"example.rego","row":6,"col":13},"terms":{"type":"boolean","value":true}}`,
 			ExpectedExpr: expr,
 		},
 	}
@@ -721,16 +757,14 @@ func TestEvery_MarshalJSON(t *testing.T) {
 	rawModule := `
 package foo
 
-import future.keywords.every
-
-allow {
+allow if {
 	every e in [1,2,3] {
 		e == 1
     }
 }
 `
 
-	module, err := ParseModuleWithOpts("example.rego", rawModule, ParserOptions{})
+	module, err := ParseModuleWithOpts("example.rego", rawModule, ParserOptions{AllFutureKeywords: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -762,7 +796,7 @@ allow {
 				e.jsonOptions = astJSON.Options{MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NodeToggle{Every: true}}}
 				return e
 			}(),
-			ExpectedJSON: `{"body":[{"index":0,"terms":[{"type":"ref","value":[{"type":"var","value":"equal"}]},{"type":"var","value":"e"},{"type":"number","value":1}]}],"domain":{"type":"array","value":[{"type":"number","value":1},{"type":"number","value":2},{"type":"number","value":3}]},"key":null,"location":{"file":"example.rego","row":7,"col":2},"value":{"type":"var","value":"e"}}`,
+			ExpectedJSON: `{"body":[{"index":0,"terms":[{"type":"ref","value":[{"type":"var","value":"equal"}]},{"type":"var","value":"e"},{"type":"number","value":1}]}],"domain":{"type":"array","value":[{"type":"number","value":1},{"type":"number","value":2},{"type":"number","value":3}]},"key":null,"location":{"file":"example.rego","row":5,"col":2},"value":{"type":"var","value":"e"}}`,
 		},
 	}
 
@@ -784,14 +818,14 @@ func TestWith_MarshalJSON(t *testing.T) {
 	rawModule := `
 package foo
 
-a {input}
+a if {input}
 
-b {
+b if {
 	a with input as 1
 }
 `
 
-	module, err := ParseModuleWithOpts("example.rego", rawModule, ParserOptions{})
+	module, err := ParseModuleWithOpts("example.rego", rawModule, ParserOptions{AllFutureKeywords: true})
 	if err != nil {
 		t.Fatal(err)
 	}

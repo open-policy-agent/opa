@@ -2638,7 +2638,7 @@ func filterObject(o Value, filter Value) (Value, error) {
 			other = v
 		}
 
-		err := iterObj.Iter(func(key *Term, value *Term) error {
+		err := iterObj.Iter(func(key *Term, _ *Term) error {
 			if other.Get(key) != nil {
 				filteredValue, err := filterObject(v.Get(key).Value, filteredObj.Get(key).Value)
 				if err != nil {
@@ -3096,12 +3096,12 @@ func unmarshalTermSlice(s []interface{}) ([]*Term, error) {
 	buf := []*Term{}
 	for _, x := range s {
 		if m, ok := x.(map[string]interface{}); ok {
-			if t, err := unmarshalTerm(m); err == nil {
+			t, err := unmarshalTerm(m)
+			if err == nil {
 				buf = append(buf, t)
 				continue
-			} else {
-				return nil, err
 			}
+			return nil, err
 		}
 		return nil, fmt.Errorf("ast: unable to unmarshal term")
 	}

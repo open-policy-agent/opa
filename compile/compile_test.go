@@ -98,16 +98,18 @@ func TestCompilerLoadError(t *testing.T) {
 func TestCompilerLoadAsBundleSuccess(t *testing.T) {
 
 	ctx := context.Background()
+	rv := fmt.Sprintf("%d", ast.DefaultRegoVersion.Int())
 
 	files := map[string]string{
-		"b1/.manifest": `{"roots": ["b1"]}`,
+		"b1/.manifest": `{"roots": ["b1"], "rego_version": ` + rv + `}`,
 		"b1/test.rego": `
 			package b1.test
+			import rego.v1
 
 			p = 1`,
 		"b1/data.json": `
 			{"b1": {"k": "v"}}`,
-		"b2/.manifest": `{"roots": ["b2"]}`,
+		"b2/.manifest": `{"roots": ["b2"], "rego_version": ` + rv + `}`,
 		"b2/data.json": `
 			{"b2": {"k2": "v2"}}`,
 	}
@@ -150,14 +152,14 @@ func TestCompilerLoadAsBundleSuccess(t *testing.T) {
 			}
 
 			if !compiler.bundle.Equal(*exp) {
-				t.Fatalf("expected %v but got %v", exp, compiler.bundle)
+				t.Fatalf("expected:\n\n%v\n\nbut got:\n\n%v", exp, compiler.bundle)
 			}
 
 			expRoots := []string{"b1", "b2"}
 			expManifest := bundle.Manifest{
 				Roots: &expRoots,
 			}
-			expManifest.SetRegoVersion(ast.RegoV0)
+			expManifest.SetRegoVersion(ast.DefaultRegoVersion)
 
 			if !compiler.bundle.Manifest.Equal(expManifest) {
 				t.Fatalf("expected %v but got %v", compiler.bundle.Manifest, expManifest)
@@ -173,11 +175,12 @@ func TestCompilerLoadAsBundleWithBundleRegoVersion(t *testing.T) {
 		expErrs []string
 	}{
 		{
-			note: "No bundle rego version",
+			note: "No bundle rego version (default version)",
 			files: map[string]string{
 				".manifest": `{}`,
 				"test.rego": `package test
-p[1] {
+import rego.v1
+p[1] if {
 	input.x == 2
 }`,
 			},
@@ -461,7 +464,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 		expFileRegoVersions  map[string]int
 	}{
 		{
-			note: "single bundle, no bundle rego version",
+			note: "single bundle, no bundle rego version (default version)",
 			bundles: []*bundle.Bundle{
 				{
 					Manifest: bundle.Manifest{
@@ -471,7 +474,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 					Modules: []bundle.ModuleFile{},
 				},
 			},
-			expGlobalRegoVersion: pointTo(0),
+			expGlobalRegoVersion: pointTo(ast.DefaultRegoVersion.Int()),
 			expFileRegoVersions:  map[string]int{},
 		},
 		{
@@ -908,8 +911,9 @@ func TestCompilerLoadFilesystemWithEnablePrintStatementsFalse(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
 			package test
+			import rego.v1
 
-                        allow { print(1) }
+			allow if { print(1) }
 		`,
 		"data.json": `
 			{"b1": {"k": "v"}}`,
@@ -941,8 +945,9 @@ func TestCompilerLoadFilesystemWithEnablePrintStatementsTrue(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
 			package test
+			import rego.v1
 
-                        allow { print(1) }
+			allow if { print(1) }
 		`,
 		"data.json": `
 			{"b1": {"k": "v"}}`,
@@ -1010,7 +1015,7 @@ func TestCompilerInputBundle(t *testing.T) {
 			{
 				URL:    "/foo.rego",
 				Path:   "/foo.rego",
-				Raw:    []byte("package test\np = 7"),
+				Raw:    []byte("package test\np := 7"),
 				Parsed: ast.MustParseModule("package test\np = 7"),
 			},
 		},
@@ -1022,7 +1027,7 @@ func TestCompilerInputBundle(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	exp := "package test\n\np = 7\n"
+	exp := "package test\n\np := 7\n"
 
 	if exp != string(compiler.Bundle().Modules[0].Raw) {
 		t.Fatalf("expected module to have been formatted (output different than expected):\n\ngot: %v\n\nwant: %v", string(compiler.Bundle().Modules[0].Raw), exp)
@@ -1061,8 +1066,9 @@ func TestCompilerError(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
 			package test
-			default p = false
-			p { p }`,
+			import rego.v1
+			default p := false
+			p if { p }`,
 	}
 
 	for _, useMemoryFS := range []bool{false, true} {
@@ -1090,9 +1096,10 @@ func TestCompilerOptimizationL1(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
 			package test
-			default p = false
-			p { q }
-			q { input.x = data.foo }`,
+			
+			default p := false
+			p if { q }
+			q if { input.x = data.foo }`,
 		"data.json": `
 			{"foo": 1}`,
 	}
@@ -1101,6 +1108,7 @@ func TestCompilerOptimizationL1(t *testing.T) {
 		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
 			compiler := New().
+				WithRegoVersion(ast.RegoV1).
 				WithFS(fsys).
 				WithPaths(root).
 				WithOptimizationLevel(1).
@@ -1111,13 +1119,13 @@ func TestCompilerOptimizationL1(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			optimizedExp := ast.MustParseModule(`
+			optimizedExp := ast.MustParseModuleWithOpts(`
 			package test
 
 			default p = false
-			p { data.test.q = X; X }
-			q { input.x = 1 }
-		`)
+			p if { data.test.q = X; X }
+			q if { input.x = 1 }
+		`, ast.ParserOptions{RegoVersion: ast.RegoV1})
 
 			// NOTE(tsandall): PE generates vars with wildcard prefix. Instead of
 			// constructing the AST manually, just rewrite to the expected value
@@ -1150,9 +1158,9 @@ func TestCompilerOptimizationL2(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
 			package test
-			default p = false
-			p { q }
-			q { input.x = data.foo }`,
+			default p := false
+			p if { q }
+			q if { input.x = data.foo }`,
 		"data.json": `
 			{"foo": 1}`,
 	}
@@ -1161,6 +1169,7 @@ func TestCompilerOptimizationL2(t *testing.T) {
 		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
 			compiler := New().
+				WithRegoVersion(ast.RegoV1).
 				WithFS(fsys).
 				WithPaths(root).
 				WithOptimizationLevel(2).
@@ -1171,17 +1180,18 @@ func TestCompilerOptimizationL2(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			prunedExp := ast.MustParseModule(`
-			package test
+			prunedExp := ast.MustParseModuleWithOpts(`
+				package test
 
-			q { input.x = data.foo }`)
+				q if { input.x = data.foo }`,
+				ast.ParserOptions{RegoVersion: ast.RegoV1})
 
-			optimizedExp := ast.MustParseModule(`
-			package test
+			optimizedExp := ast.MustParseModuleWithOpts(`
+				package test
 
-			default p = false
-			p { input.x = 1 }
-      `)
+				default p = false
+				p if { input.x = 1 }`,
+				ast.ParserOptions{RegoVersion: ast.RegoV1})
 
 			if len(compiler.bundle.Modules) != 2 {
 				t.Fatalf("expected two modules but got: %v", compiler.bundle.Modules)
@@ -1209,9 +1219,10 @@ func TestCompilerOptimizationWithConfiguredNamespace(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
 			package test
+			import rego.v1
 
-			p { not q }
-			q { k[input.a]; k[input.b] }  # generate a product that is not inlined
+			p if { not q }
+			q if { k[input.a]; k[input.b] }  # generate a product that is not inlined
 			k = {1,2,3}
 		`,
 	}
@@ -1235,18 +1246,21 @@ func TestCompilerOptimizationWithConfiguredNamespace(t *testing.T) {
 				t.Fatalf("expected two modules but got: %v", len(compiler.bundle.Modules))
 			}
 
-			optimizedExp := ast.MustParseModule(`package custom
-
-			__not1_0_2__ = true { data.test.q = _; _ }`)
+			// The compiler will drop the rego.v1 import, so we need to affix the rego-version of the expected module to
+			// v1, to have its string serialization include 'if'/'else' keywords but not the rego.v1 import.
+			optimizedExp := ast.MustParseModuleWithOpts(`package custom
+				__not1_0_2__ = true if { data.test.q = _; _ }`,
+				ast.ParserOptions{RegoVersion: ast.RegoV1})
 
 			if optimizedExp.String() != compiler.bundle.Modules[0].Parsed.String() {
 				t.Fatalf("expected optimized module to be:\n\n%v\n\ngot:\n\n%v", optimizedExp, compiler.bundle.Modules[0])
 			}
 
-			expected := ast.MustParseModule(`package test
-k = {1, 2, 3} { true }
-p = true { not data.custom.__not1_0_2__ }
-q = true { __local0__3 = input.a; data.test.k[__local0__3] = _; _; __local1__3 = input.b; data.test.k[__local1__3] = _; _ }`)
+			expected := ast.MustParseModuleWithOpts(`package test
+				k = {1, 2, 3} if { true }
+				p = true if { not data.custom.__not1_0_2__ }
+				q = true if { __local0__3 = input.a; data.test.k[__local0__3] = _; _; __local1__3 = input.b; data.test.k[__local1__3] = _; _ }`,
+				ast.ParserOptions{RegoVersion: ast.RegoV1})
 
 			if expected.String() != compiler.bundle.Modules[1].Parsed.String() {
 				t.Fatalf("expected module to be:\n\n%v\n\ngot:\n\n%v", expected, compiler.bundle.Modules[1])
@@ -1615,6 +1629,9 @@ update {
 					}
 
 					compiler := New().
+						// In v1, the rego.v1 import is stripped from optimized modules, but in v0 it is not.
+						// Therefore, we need to tie down the test modules to a specific version.
+						WithRegoVersion(ast.RegoV0).
 						WithFS(fsys).
 						WithPaths(root).
 						WithOptimizationLevel(1).
@@ -1724,7 +1741,7 @@ contains := 2 {
 import rego.v1
 
 p if {
-	data.foo.contains = input.x
+	data.foo["contains"] = input.x
 }
 `,
 				`package foo
@@ -1876,7 +1893,7 @@ func modulesToString(modules []bundle.ModuleFile) string {
 	for i, m := range modules {
 		buf.WriteString(strconv.Itoa(i))
 		buf.WriteString(":\n")
-		buf.WriteString(string(m.Raw))
+		buf.Write(m.Raw)
 		buf.WriteString("\n\n")
 	}
 	return buf.String()
@@ -1988,13 +2005,14 @@ func TestCompilerWasmTargetMultipleEntrypoints(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `package test
 
-		p = true`,
+		p := true`,
 		"policy.rego": `package policy
 
-		authz = true`,
+		authz := true`,
 		"mask.rego": `package system.log
+		import rego.v1
 
-		mask["/input/password"]`,
+		mask contains "/input/password"`,
 	}
 
 	for _, useMemoryFS := range []bool{false, true} {
@@ -2017,7 +2035,7 @@ func TestCompilerWasmTargetMultipleEntrypoints(t *testing.T) {
 
 			expManifest := bundle.Manifest{}
 			expManifest.Init()
-			expManifest.SetRegoVersion(ast.RegoV0)
+			expManifest.SetRegoVersion(ast.DefaultRegoVersion)
 			expManifest.WasmResolvers = []bundle.WasmResolver{
 				{
 					Entrypoint: "test/p",
@@ -2106,7 +2124,7 @@ q = true`,
 					Annotations: []*ast.Annotations{
 						{
 							Title:      "My P rule",
-							Scope:      "rule",
+							Scope:      "document",
 							Entrypoint: true,
 						},
 					},
@@ -2130,12 +2148,13 @@ q = true`,
 func TestCompilerWasmTargetEntrypointDependents(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `package test
-
-		p { q }
-		q { r }
-		r = 1
-		s = 2
-		z { r }`}
+			import rego.v1
+	
+			p if { q }
+			q if { r }
+			r := 1
+			s := 2
+			z if { r }`}
 
 	for _, useMemoryFS := range []bool{false, true} {
 		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
@@ -2157,7 +2176,7 @@ func TestCompilerWasmTargetEntrypointDependents(t *testing.T) {
 
 			expManifest := bundle.Manifest{}
 			expManifest.Init()
-			expManifest.SetRegoVersion(ast.RegoV0)
+			expManifest.SetRegoVersion(ast.DefaultRegoVersion)
 			expManifest.WasmResolvers = []bundle.WasmResolver{
 				{
 					Entrypoint: "test/r",
@@ -2191,9 +2210,10 @@ func TestCompilerWasmTargetEntrypointDependents(t *testing.T) {
 func TestCompilerWasmTargetLazyCompile(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `package test
+		import rego.v1
 
-		p { input.x = q }
-		q = "foo"`,
+		p if { input.x = q }
+		q := "foo"`,
 	}
 
 	for _, useMemoryFS := range []bool{false, true} {
@@ -2270,8 +2290,9 @@ func TestCompilerPlanTarget(t *testing.T) {
 func TestCompilerPlanTargetPruneUnused(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `package test
-		p[1]
-		f(x) { p[x] }`,
+		import rego.v1
+		p contains 1
+		f(x) if { p[x] }`,
 	}
 
 	for _, useMemoryFS := range []bool{false, true} {
@@ -2366,21 +2387,23 @@ func TestCompilerRegoEntrypointAnnotations(t *testing.T) {
 		wantEntrypoints map[string]struct{}
 	}{
 		{
-			note:        "rule annotation",
+			note:        "implied document scope annotation",
 			entrypoints: []string{},
 			modules: map[string]string{
 				"test.rego": `
 package test
 
+import rego.v1
+
 # METADATA
 # entrypoint: true
-p {
+p if {
 	q[input.x]
 }
 
-q[1]
-q[2]
-q[3]
+q contains 1
+q contains 2
+q contains 3
 				`,
 			},
 			wantEntrypoints: map[string]struct{}{
@@ -2396,13 +2419,15 @@ q[3]
 # entrypoint: true
 package test
 
-p {
+import rego.v1
+
+p if {
 	q[input.x]
 }
 
-q[1]
-q[2]
-q[3]
+q contains 1
+q contains 2
+q contains 3
 				`,
 			},
 			wantEntrypoints: map[string]struct{}{
@@ -2416,29 +2441,32 @@ q[3]
 				"test.rego": `
 package test
 
+import rego.v1
 import data.test.nested
 
-p {
+p if {
 	q[input.x]
 	nested.p
 }
 
-q[1]
-q[2]
-q[3]
+q contains 1
+q contains 2
+q contains 3
 				`,
 				"test/nested.rego": `
 package test.nested
 
+import rego.v1
+
 # METADATA
 # entrypoint: true
-p {
+p if {
 	q[input.x]
 }
 
-q[1]
-q[2]
-q[3]
+q contains 1
+q contains 2
+q contains 3
 				`,
 			},
 			wantEntrypoints: map[string]struct{}{
@@ -2452,29 +2480,32 @@ q[3]
 				"test.rego": `
 package test
 
+import rego.v1
 import data.test.nested
 
-p {
+p if {
 	q[input.x]
 	nested.p
 }
 
-q[1]
-q[2]
-q[3]
+q contains 1
+q contains 2
+q contains 3
 				`,
 				"test/nested.rego": `
 # METADATA
 # entrypoint: true
 package test.nested
 
-p {
+import rego.v1
+
+p if {
 	q[input.x]
 }
 
-q[1]
-q[2]
-q[3]
+q contains 1
+q contains 2
+q contains 3
 				`,
 			},
 			wantEntrypoints: map[string]struct{}{
@@ -2488,29 +2519,32 @@ q[3]
 				"test.rego": `
 package test
 
+import rego.v1
 import data.test.nested
 
-p {
+p if {
 	q[input.x]
 	nested.p
 }
 
-q[1]
-q[2]
-q[3]
+q contains 1
+q contains 2
+q contains 3
 				`,
 				"test/nested.rego": `
 # METADATA
 # entrypoint: true
 package test.nested
 
-p {
+import rego.v1
+
+p if {
 	q[input.x]
 }
 
-q[1]
-q[2]
-q[3]
+q contains 1
+q contains 2
+q contains 3
 				`,
 			},
 			wantEntrypoints: map[string]struct{}{
@@ -2525,15 +2559,17 @@ q[3]
 				"test.rego": `
 package test
 
+import rego.v1
+
 # METADATA
 # entrypoint: true
-p {
+p if {
 	q[input.x]
 }
 
-q[1]
-q[2]
-q[3]
+q contains 1
+q contains 2
+q contains 3
 				`,
 			},
 			wantEntrypoints: map[string]struct{}{
@@ -2547,15 +2583,17 @@ q[3]
 				"test.rego": `
 package test
 
+import rego.v1
+
 # METADATA
 # entrypoint: true
-a.b.c.p {
+a.b.c.p if {
 	q[input.x]
 }
 
-q[1]
-q[2]
-q[3]
+q contains 1
+q contains 2
+q contains 3
 				`,
 			},
 			wantEntrypoints: map[string]struct{}{
@@ -2571,15 +2609,17 @@ q[3]
 # entrypoint: true
 package test.a.b.c
 
+import rego.v1
+
 # METADATA
 # entrypoint: true
-d.e.f.g {
+d.e.f.g if {
 	q[input.x]
 }
 
-q[1]
-q[2]
-q[3]
+q contains 1
+q contains 2
+q contains 3
 				`,
 			},
 			wantEntrypoints: map[string]struct{}{
@@ -2594,15 +2634,17 @@ q[3]
 				"test.rego": `
 package test
 
+import rego.v1
+
 # METADATA
 # entrypoint: true
-a.b[1.0] {
+a.b[1.0] if {
 	q[input.x]
 }
 
-q[1]
-q[2]
-q[3]
+q contains 1
+q contains 2
+q contains 3
 				`,
 			},
 			wantEntrypoints: map[string]struct{}{
@@ -2616,15 +2658,17 @@ q[3]
 				"test.rego": `
 package test
 
+import rego.v1
+
 # METADATA
 # entrypoint: true
-a.b["1.0.0"].foo {
+a.b["1.0.0"].foo if {
 	q[input.x]
 }
 
-q[1]
-q[2]
-q[3]
+q contains 1
+q contains 2
+q contains 3
 				`,
 			},
 			wantEntrypoints: map[string]struct{}{
@@ -2751,10 +2795,10 @@ func TestCompilerSetRoots(t *testing.T) {
 
 func TestCompilerOutput(t *testing.T) {
 	// NOTE(tsandall): must use format package here because the compiler formats.
+	mod := ast.MustParseModuleWithOpts(`package test
+		p { input.x = data.foo }`, ast.ParserOptions{RegoVersion: ast.RegoV0})
 	files := map[string]string{
-		"test.rego": string(format.MustAst(ast.MustParseModule(`package test
-
-		p { input.x = data.foo }`))),
+		"test.rego": string(format.MustAstWithOpts(mod, format.Opts{RegoVersion: ast.RegoV0})),
 		"data.json": `{"foo": 1}`,
 		".manifest": `{"rego_version": 0}`,
 	}
@@ -2764,6 +2808,7 @@ func TestCompilerOutput(t *testing.T) {
 
 			buf := bytes.NewBuffer(nil)
 			compiler := New().
+				WithAsBundle(true). // To respect the manifest file.
 				WithFS(fsys).
 				WithPaths(root).
 				WithOutput(buf)
@@ -2818,7 +2863,7 @@ func TestOptimizerNoops(t *testing.T) {
 				"test.rego": `
 					package test.foo.bar
 
-					p { input.x = 1 }
+					p if { input.x = 1 }
 				`,
 			},
 		},
@@ -2826,7 +2871,7 @@ func TestOptimizerNoops(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			o := getOptimizer(tc.modules, "", tc.entrypoints, nil, "")
+			o := getOptimizer(tc.modules, "", tc.entrypoints, nil, "", ast.ParserOptions{AllFutureKeywords: true})
 			cpy := o.bundle.Copy()
 			err := o.Do(context.Background())
 			if err != nil {
@@ -2857,7 +2902,7 @@ func TestOptimizerErrors(t *testing.T) {
 			modules: map[string]string{
 				"test.rego": `
 					package test
-					p { data.test.p }
+					p if { data.test.p }
 				`,
 			},
 			wantErr: fmt.Errorf("1 error occurred: test.rego:3: rego_recursion_error: rule data.test.p is recursive: data.test.p -> data.test.p"),
@@ -2868,7 +2913,7 @@ func TestOptimizerErrors(t *testing.T) {
 			modules: map[string]string{
 				"test.rego": `
 					package test
-					p { {k: v | k = ["a", "a"][_]; v = [0, 1][_] } }
+					p if { {k: v | k = ["a", "a"][_]; v = [0, 1][_] } }
 				`,
 			},
 			wantErr: fmt.Errorf("test.rego:3: eval_conflict_error: object keys must be unique"),
@@ -2877,7 +2922,7 @@ func TestOptimizerErrors(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			o := getOptimizer(tc.modules, "", tc.entrypoints, nil, "")
+			o := getOptimizer(tc.modules, "", tc.entrypoints, nil, "", ast.ParserOptions{AllFutureKeywords: true})
 			cpy := o.bundle.Copy()
 			got := o.Do(context.Background())
 			if got == nil || got.Error() != tc.wantErr.Error() {
@@ -2907,29 +2952,29 @@ func TestOptimizerOutput(t *testing.T) {
 				"test.rego": `
 					package test
 
-					p {
+					p if {
 						q[input.x]
 					}
 
-					q[1]
-					q[2]
-					q[3]
+					q contains 1
+					q contains 2
+					q contains 3
 				`,
 			},
 			wantModules: map[string]string{
 				"optimized/test.rego": `
 					package test
 
-					p = __result__ { 1 = input.x; __result__ = true }
-					p = __result__ { 2 = input.x; __result__ = true }
-					p = __result__ { 3 = input.x; __result__ = true }
+					p = __result__ if { 1 = input.x; __result__ = true }
+					p = __result__ if { 2 = input.x; __result__ = true }
+					p = __result__ if { 3 = input.x; __result__ = true }
 				`,
 				"test.rego": `
 					package test
 
-					q[1]
-					q[2]
-					q[3]
+					q contains 1
+					q contains 2
+					q contains 3
 				`,
 			},
 		},
@@ -2942,10 +2987,10 @@ func TestOptimizerOutput(t *testing.T) {
 
 					default p = false
 
-					p { q[input.x] }
+					p if { q[input.x] }
 
-					q[1]
-					q[2]`,
+					q contains 1
+					q contains 2`,
 			},
 			wantModules: map[string]string{
 				"optimized/test.rego": `
@@ -2953,15 +2998,15 @@ func TestOptimizerOutput(t *testing.T) {
 
 					default p = false
 
-					p = true { 1 = input.x }
-					p = true { 2 = input.x }
+					p = true if { 1 = input.x }
+					p = true if { 2 = input.x }
 
 				`,
 				"test.rego": `
 					package test
 
-					q[1]
-					q[2]
+					q contains 1
+					q contains 2
 				`,
 			},
 		},
@@ -2973,25 +3018,25 @@ func TestOptimizerOutput(t *testing.T) {
 					package test
 
 					default p.q.r = false
-					p.q.r { q[input.x] }
+					p.q.r if { q[input.x] }
 
-					q[1]
-					q[2]`,
+					q contains 1
+					q contains 2`,
 			},
 			wantModules: map[string]string{
 				"optimized/test/p/q.rego": `
 					package test.p.q
 
 					default r = false
-					r = true { 1 = input.x }
-					r = true { 2 = input.x }
+					r = true if { 1 = input.x }
+					r = true if { 2 = input.x }
 
 				`,
 				"test.rego": `
 					package test
 
-					q[1]
-					q[2]
+					q contains 1
+					q contains 2
 				`,
 			},
 		},
@@ -3002,41 +3047,41 @@ func TestOptimizerOutput(t *testing.T) {
 				"test.rego": `
 					package test
 
-					p {
+					p if {
 						q[input.x]
 					}
 
-					r {
+					r if {
 						q[input.x]
 					}
 
-					s {
+					s if {
 						q[input.x]
 					}
 
-					q[1]
+					q contains 1
 				`,
 			},
 			wantModules: map[string]string{
 				"optimized/test.rego": `
 					package test
 
-					p = __result__ { 1 = input.x; __result__ = true }
+					p = __result__ if { 1 = input.x; __result__ = true }
 				`,
 				"optimized/test.1.rego": `
 					package test
 
-					r = __result__ { 1 = input.x; __result__ = true }
+					r = __result__ if { 1 = input.x; __result__ = true }
 				`,
 				"optimized/test.2.rego": `
 					package test
 
-					s = __result__ { 1 = input.x; __result__ = true }
+					s = __result__ if { 1 = input.x; __result__ = true }
 				`,
 				"test.rego": `
 					package test
 
-					q[1] { true }
+					q contains 1 if { true }
 				`,
 			},
 		},
@@ -3054,7 +3099,7 @@ func TestOptimizerOutput(t *testing.T) {
 				"optimized/test.rego": `
 					package test
 
-					foo = __result__ { __result__ = {"bar": {"p": true}} }`,
+					foo = __result__ if { __result__ = {"bar": {"p": true}} }`,
 			},
 		},
 		{
@@ -3064,41 +3109,41 @@ func TestOptimizerOutput(t *testing.T) {
 				"test.rego": `
 					package test
 
-					p { q[input.x] }
+					p if { q[input.x] }
 
-					q[x] {
+					q contains x if {
 						s[x]
 					}
 
-					s[1]
-					s[2]
+					s contains 1
+					s contains 2
 
-					t {
+					t if {
 						p
 					}
 
-					r { t with q as {3} }
+					r if { t with q as {3} }
 				`,
 			},
 			wantModules: map[string]string{
 				"optimized/test.1.rego": `
 					package test
 
-					p = __result__ { data.test.q[input.x]; __result__ = true }
+					p = __result__ if { data.test.q[input.x]; __result__ = true }
 				`,
 				"optimized/test.rego": `
 					package test
 
-					q[1] { true }
-					q[2] { true }
+					q contains 1 if { true }
+					q contains 2 if { true }
 				`,
 				"test.rego": `
 					package test
 
-					s[1] { true }
-					s[2] { true }
-					t { p }
-					r = true { t with q as {3} }
+					s contains 1 if { true }
+					s contains 2 if { true }
+					t if { p }
+					r = true if { t with q as {3} }
 				`,
 			},
 		},
@@ -3108,22 +3153,22 @@ func TestOptimizerOutput(t *testing.T) {
 			modules: map[string]string{
 				"x.rego": `
 					package test["foo bar"]  # package does not match safe pattern so use alt. format
-					p { q[input.x] }
-					q[1]
-					q[2]
+					p if { q[input.x] }
+					q contains 1
+					q contains 2
 				`,
 			},
 			wantModules: map[string]string{
 				"optimized/partial/0/0.rego": `
 					package test["foo bar"]
-					p = __result__ { 1 = input.x; __result__ = true }
-					p = __result__ { 2 = input.x; __result__ = true }
+					p = __result__ if { 1 = input.x; __result__ = true }
+					p = __result__ if { 2 = input.x; __result__ = true }
 				`,
 				"x.rego": `
 					package test["foo bar"]
 
-					q[1]
-					q[2]
+					q contains 1
+					q contains 2
 				`,
 			},
 		},
@@ -3134,8 +3179,8 @@ func TestOptimizerOutput(t *testing.T) {
 				"test.rego": `
 					package test
 
-					p { not q }
-					q { k[input.a]; k[input.b] }  # generate a product that is not inlined
+					p if { not q }
+					q if { k[input.a]; k[input.b] }  # generate a product that is not inlined
 					k = {1,2,3}
 				`,
 			},
@@ -3143,26 +3188,26 @@ func TestOptimizerOutput(t *testing.T) {
 				"optimized/partial.rego": `
 					package partial
 
-					__not1_0_2__ = true { 1 = input.a; 1 = input.b }
-					__not1_0_2__ = true { 1 = input.a; 2 = input.b }
-					__not1_0_2__ = true { 1 = input.a; 3 = input.b }
-					__not1_0_2__ = true { 2 = input.a; 1 = input.b }
-					__not1_0_2__ = true { 2 = input.a; 2 = input.b }
-					__not1_0_2__ = true { 2 = input.a; 3 = input.b }
-					__not1_0_2__ = true { 3 = input.a; 1 = input.b }
-					__not1_0_2__ = true { 3 = input.a; 2 = input.b }
-					__not1_0_2__ = true { 3 = input.a; 3 = input.b }
+					__not1_0_2__ = true if { 1 = input.a; 1 = input.b }
+					__not1_0_2__ = true if { 1 = input.a; 2 = input.b }
+					__not1_0_2__ = true if { 1 = input.a; 3 = input.b }
+					__not1_0_2__ = true if { 2 = input.a; 1 = input.b }
+					__not1_0_2__ = true if { 2 = input.a; 2 = input.b }
+					__not1_0_2__ = true if { 2 = input.a; 3 = input.b }
+					__not1_0_2__ = true if { 3 = input.a; 1 = input.b }
+					__not1_0_2__ = true if { 3 = input.a; 2 = input.b }
+					__not1_0_2__ = true if { 3 = input.a; 3 = input.b }
 				`,
 				"optimized/test.rego": `
 					package test
 
-					p = __result__ { not data.partial.__not1_0_2__; __result__ = true }
+					p = __result__ if { not data.partial.__not1_0_2__; __result__ = true }
 				`,
 				"test.rego": `
 					package test
 
-					q = true { k[input.a]; k[input.b] }
-					k = {1, 2, 3} { true }
+					q = true if { k[input.a]; k[input.b] }
+					k = {1, 2, 3} if { true }
 				`,
 			},
 		},
@@ -3174,8 +3219,8 @@ func TestOptimizerOutput(t *testing.T) {
 				"test.rego": `
 					package test
 
-					p { not q }
-					q { k[input.a]; k[input.b] }  # generate a product that is not inlined
+					p if { not q }
+					q if { k[input.a]; k[input.b] }  # generate a product that is not inlined
 					k = {1,2,3}
 				`,
 			},
@@ -3183,26 +3228,26 @@ func TestOptimizerOutput(t *testing.T) {
 				"optimized/custom.rego": `
 					package custom
 
-					__not1_0_2__ = true { 1 = input.a; 1 = input.b }
-					__not1_0_2__ = true { 1 = input.a; 2 = input.b }
-					__not1_0_2__ = true { 1 = input.a; 3 = input.b }
-					__not1_0_2__ = true { 2 = input.a; 1 = input.b }
-					__not1_0_2__ = true { 2 = input.a; 2 = input.b }
-					__not1_0_2__ = true { 2 = input.a; 3 = input.b }
-					__not1_0_2__ = true { 3 = input.a; 1 = input.b }
-					__not1_0_2__ = true { 3 = input.a; 2 = input.b }
-					__not1_0_2__ = true { 3 = input.a; 3 = input.b }
+					__not1_0_2__ = true if { 1 = input.a; 1 = input.b }
+					__not1_0_2__ = true if { 1 = input.a; 2 = input.b }
+					__not1_0_2__ = true if { 1 = input.a; 3 = input.b }
+					__not1_0_2__ = true if { 2 = input.a; 1 = input.b }
+					__not1_0_2__ = true if { 2 = input.a; 2 = input.b }
+					__not1_0_2__ = true if { 2 = input.a; 3 = input.b }
+					__not1_0_2__ = true if { 3 = input.a; 1 = input.b }
+					__not1_0_2__ = true if { 3 = input.a; 2 = input.b }
+					__not1_0_2__ = true if { 3 = input.a; 3 = input.b }
 				`,
 				"optimized/test.rego": `
 					package test
 
-					p = __result__ { not data.custom.__not1_0_2__; __result__ = true }
+					p = __result__ if { not data.custom.__not1_0_2__; __result__ = true }
 				`,
 				"test.rego": `
 					package test
 
-					q = true { k[input.a]; k[input.b] }
-					k = {1, 2, 3} { true }
+					q = true if { k[input.a]; k[input.b] }
+					k = {1, 2, 3} if { true }
 				`,
 			},
 		},
@@ -3213,13 +3258,13 @@ func TestOptimizerOutput(t *testing.T) {
 				"test.rego": `
 					package test
 
-					p {
+					p if {
 						q[x]
 						data.external.users[x] == input.user
 					}
 
-					q["foo"]
-					q["bar"]
+					q contains "foo"
+					q contains "bar"
 				`,
 			},
 			roots: []string{"test"},
@@ -3227,14 +3272,14 @@ func TestOptimizerOutput(t *testing.T) {
 				"optimized/test.rego": `
 					package test
 
-					p = __result__ { data.external.users.bar = input.user; __result__ = true }
-					p = __result__ { data.external.users.foo = input.user; __result__ = true }
+					p = __result__ if { data.external.users.bar = input.user; __result__ = true }
+					p = __result__ if { data.external.users.foo = input.user; __result__ = true }
 				`,
 				"test.rego": `
 					package test
 
-					q["foo"]
-					q["bar"]
+					q contains "foo"
+					q contains "bar"
 				`,
 			},
 		},
@@ -3245,13 +3290,13 @@ func TestOptimizerOutput(t *testing.T) {
 				"test.rego": `
 					package test
 
-					p {
+					p if {
 						x := split(input.a, ":")
 						f(x[0])
 					}
 
-					f(x) { x == null }
-					f(x) { startswith(x, "foo") }
+					f(x) if { x == null }
+					f(x) if { startswith(x, "foo") }
 				`,
 			},
 			roots: []string{"test"},
@@ -3259,13 +3304,13 @@ func TestOptimizerOutput(t *testing.T) {
 				"optimized/test.rego": `
 					package test
 
-					p = __result__ { split(input.a, ":", __local3__1); startswith(__local3__1[0], "foo"); __result__ = true }
+					p = __result__ if { split(input.a, ":", __local3__1); startswith(__local3__1[0], "foo"); __result__ = true }
 				`,
 				"test.rego": `
 					package test
 
-					f(x) { x == null }
-					f(x) { startswith(x, "foo") }
+					f(x) if { x == null }
+					f(x) if { startswith(x, "foo") }
 				`,
 			},
 		},
@@ -3276,14 +3321,14 @@ func TestOptimizerOutput(t *testing.T) {
 				"test.rego": `
 					package test
 
-					p[msg] {
+					p contains msg if {
 						x := split(input.a, ":")
 						f(x[0])
 						msg := "test string"
 					}
 
-					f(x) { x == null }
-					f(x) { startswith(x, "foo") }
+					f(x) if { x == null }
+					f(x) if { startswith(x, "foo") }
 				`,
 			},
 			roots: []string{"test"},
@@ -3291,13 +3336,13 @@ func TestOptimizerOutput(t *testing.T) {
 				"optimized/test.rego": `
 					package test
 
-					p["test string"] { split(input.a, ":", __local4__1); startswith(__local4__1[0], "foo") }
+					p contains "test string" if { split(input.a, ":", __local4__1); startswith(__local4__1[0], "foo") }
 				`,
 				"test.rego": `
 					package test
 
-					f(x) { x == null }
-					f(x) { startswith(x, "foo") }
+					f(x) if { x == null }
+					f(x) if { startswith(x, "foo") }
 				`,
 			},
 		},
@@ -3308,15 +3353,15 @@ func TestOptimizerOutput(t *testing.T) {
 				"test.rego": `
 					package test
 
-					p[k] = value  {
+					p[k] = value if {
 						x := split(input.a, ":")
 						f(x[0])
 						k := "a"
 						value := 1
 					}
 
-					f(x) { x == null }
-					f(x) { startswith(x, "foo") }
+					f(x) if { x == null }
+					f(x) if { startswith(x, "foo") }
 				`,
 			},
 			roots: []string{"test"},
@@ -3324,13 +3369,13 @@ func TestOptimizerOutput(t *testing.T) {
 				"optimized/test/p.rego": `
 					package test.p
 
-					a = 1 { split(input.a, ":", __local5__1); startswith(__local5__1[0], "foo") }
+					a = 1 if { split(input.a, ":", __local5__1); startswith(__local5__1[0], "foo") }
 				`,
 				"test.rego": `
 					package test
 
-					f(x) { x == null }
-					f(x) { startswith(x, "foo") }
+					f(x) if { x == null }
+					f(x) if { startswith(x, "foo") }
 				`,
 			},
 		},
@@ -3341,13 +3386,13 @@ func TestOptimizerOutput(t *testing.T) {
 				"test.rego": `
 					package test
 
-					p  { not q }
-					q {
+					p if { not q }
+					q if {
 						x := split(input.a, ":")
 						f(x[0])
 					}
-					f(x) { x == null }
-					f(x) { startswith(x, "foo") }
+					f(x) if { x == null }
+					f(x) if { startswith(x, "foo") }
 				`,
 			},
 			roots: []string{"test"},
@@ -3355,17 +3400,17 @@ func TestOptimizerOutput(t *testing.T) {
 				"optimized/test.rego": `
 					package test
 
-					p = __result__ { not data.partial.__not1_0_2__; __result__ = true }
+					p = __result__ if { not data.partial.__not1_0_2__; __result__ = true }
 				`,
 				"test.rego": `
 					package test
-					q = true { assign(x, split(input.a, ":")); f(x[0]) }
-					f(x) { x == null }
-					f(x) { startswith(x, "foo") }
+					q = true if { assign(x, split(input.a, ":")); f(x[0]) }
+					f(x) if { x == null }
+					f(x) if { startswith(x, "foo") }
 				`,
 				"optimized/partial.rego": `
 					package partial
-            		__not1_0_2__ = true { split(input.a, ":", __local3__3); startswith(__local3__3[0], "foo") }
+            		__not1_0_2__ = true if { split(input.a, ":", __local3__3); startswith(__local3__3[0], "foo") }
 				`,
 			},
 		},
@@ -3374,7 +3419,8 @@ func TestOptimizerOutput(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 
-			o := getOptimizer(tc.modules, tc.data, tc.entrypoints, tc.roots, tc.namespace)
+			popts := ast.ParserOptions{AllFutureKeywords: true}
+			o := getOptimizer(tc.modules, tc.data, tc.entrypoints, tc.roots, tc.namespace, popts)
 			original := o.bundle.Copy()
 			err := o.Do(context.Background())
 			if err != nil {
@@ -3382,7 +3428,7 @@ func TestOptimizerOutput(t *testing.T) {
 			}
 
 			exp := &bundle.Bundle{
-				Modules: getModuleFiles(tc.wantModules, false),
+				Modules: getModuleFiles(tc.wantModules, false, popts),
 				Data:    original.Data, // data is not pruned at all today
 			}
 
@@ -3462,10 +3508,10 @@ func TestRefSet(t *testing.T) {
 
 }
 
-func getOptimizer(modules map[string]string, data string, entries []string, roots []string, ns string) *optimizer {
+func getOptimizer(modules map[string]string, data string, entries []string, roots []string, ns string, popts ast.ParserOptions) *optimizer {
 
 	b := &bundle.Bundle{
-		Modules: getModuleFiles(modules, true),
+		Modules: getModuleFiles(modules, true, popts),
 	}
 
 	if data != "" {
@@ -3496,7 +3542,7 @@ func getOptimizer(modules map[string]string, data string, entries []string, root
 	return o
 }
 
-func getModuleFiles(src map[string]string, includeRaw bool) []bundle.ModuleFile {
+func getModuleFiles(src map[string]string, includeRaw bool, popts ast.ParserOptions) []bundle.ModuleFile {
 
 	keys := make([]string, 0, len(src))
 	for k := range src {
@@ -3507,7 +3553,7 @@ func getModuleFiles(src map[string]string, includeRaw bool) []bundle.ModuleFile 
 	modules := make([]bundle.ModuleFile, 0, len(keys))
 
 	for _, k := range keys {
-		module, err := ast.ParseModule(k, src[k])
+		module, err := ast.ParseModuleWithOpts(k, src[k], popts)
 		if err != nil {
 			panic(err)
 		}

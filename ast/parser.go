@@ -30,6 +30,8 @@ var RegoV1CompatibleRef = Ref{VarTerm("rego"), StringTerm("v1")}
 // RegoVersion defines the Rego syntax requirements for a module.
 type RegoVersion int
 
+const DefaultRegoVersion = RegoVersion(0)
+
 const (
 	// RegoV0 is the default, original Rego syntax.
 	RegoV0 RegoVersion = iota
@@ -48,6 +50,19 @@ func (v RegoVersion) Int() int {
 		return 1
 	}
 	return 0
+}
+
+func (v RegoVersion) String() string {
+	switch v {
+	case RegoV0:
+		return "v0"
+	case RegoV1:
+		return "v1"
+	case RegoV0CompatV1:
+		return "v0v1"
+	default:
+		return "unknown"
+	}
 }
 
 func RegoVersionFromInt(i int) RegoVersion {
@@ -303,6 +318,31 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		// RegoV1 includes all future keywords in the default language definition
 		for k, v := range futureKeywords {
 			allowedFutureKeywords[k] = v
+		}
+
+		// For sake of error reporting, we still need to check that keywords in capabilities are known,
+		for _, kw := range p.po.Capabilities.FutureKeywords {
+			if _, ok := futureKeywords[kw]; !ok {
+				return nil, nil, Errors{
+					&Error{
+						Code:     ParseErr,
+						Message:  fmt.Sprintf("illegal capabilities: unknown keyword: %v", kw),
+						Location: nil,
+					},
+				}
+			}
+		}
+		// and that explicitly requested future keywords are known.
+		for _, kw := range p.po.FutureKeywords {
+			if _, ok := allowedFutureKeywords[kw]; !ok {
+				return nil, nil, Errors{
+					&Error{
+						Code:     ParseErr,
+						Message:  fmt.Sprintf("unknown future keyword: %v", kw),
+						Location: nil,
+					},
+				}
+			}
 		}
 	} else {
 		for _, kw := range p.po.Capabilities.FutureKeywords {
@@ -596,7 +636,12 @@ func (p *Parser) parseImport() *Import {
 
 	path := imp.Path.Value.(Ref)
 
-	if !RootDocumentNames.Contains(path[0]) && !FutureRootDocument.Equal(path[0]) && !RegoRootDocument.Equal(path[0]) {
+	switch {
+	case RootDocumentNames.Contains(path[0]):
+	case FutureRootDocument.Equal(path[0]):
+	case RegoRootDocument.Equal(path[0]):
+	default:
+		p.hint("if this is unexpected, try updating OPA")
 		p.errorf(imp.Path.Location, "unexpected import path, must begin with one of: %v, got: %v",
 			RootDocumentNames.Union(NewSet(FutureRootDocument, RegoRootDocument)),
 			path[0])
@@ -668,6 +713,10 @@ func (p *Parser) parseRules() []*Rule {
 
 	// p[x] if ...  becomes a single-value rule p[x]
 	if hasIf && !usesContains && len(rule.Head.Ref()) == 2 {
+		if !rule.Head.Ref()[1].IsGround() && len(rule.Head.Args) == 0 {
+			rule.Head.Key = rule.Head.Ref()[1]
+		}
+
 		if rule.Head.Value == nil {
 			rule.Head.generatedValue = true
 			rule.Head.Value = BooleanTerm(true).SetLocation(rule.Head.Location)
@@ -2130,6 +2179,7 @@ func (p *Parser) doScan(skipws bool) {
 		p.s.loc.Col = pos.Col
 		p.s.loc.Offset = pos.Offset
 		p.s.loc.Text = p.s.Text(pos.Offset, pos.End)
+		p.s.loc.Tabs = pos.Tabs
 
 		for _, err := range errs {
 			p.error(p.s.Loc(), err.Message)
@@ -2306,6 +2356,11 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 				b.loc = comment.Location
 			}
 		}
+
+		if match == nil && len(b.comments) > 0 {
+			b.loc = b.comments[0].Location
+		}
+
 		return nil, augmentYamlError(err, b.comments)
 	}
 
@@ -2373,6 +2428,21 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 	}
 
 	result.Location = b.loc
+
+	// recreate original text of entire metadata block for location text attribute
+	sb := strings.Builder{}
+	sb.WriteString("# METADATA\n")
+
+	lines := bytes.Split(b.buf.Bytes(), []byte{'\n'})
+
+	for _, line := range lines[:len(lines)-1] {
+		sb.WriteString("# ")
+		sb.Write(line)
+		sb.WriteByte('\n')
+	}
+
+	result.Location.Text = []byte(strings.TrimSuffix(sb.String(), "\n"))
+
 	return &result, nil
 }
 
@@ -2410,10 +2480,11 @@ func augmentYamlError(err error, comments []*Comment) error {
 	return err
 }
 
-func unwrapPair(pair map[string]interface{}) (k string, v interface{}) {
-	for k, v = range pair {
+func unwrapPair(pair map[string]interface{}) (string, interface{}) {
+	for k, v := range pair {
+		return k, v
 	}
-	return
+	return "", nil
 }
 
 var errInvalidSchemaRef = fmt.Errorf("invalid schema reference")
@@ -2625,15 +2696,16 @@ func (p *Parser) regoV1Import(imp *Import) {
 		return
 	}
 
-	if p.po.RegoVersion == RegoV1 {
-		// We're parsing for Rego v1, where the 'rego.v1' import is a no-op.
+	path := imp.Path.Value.(Ref)
+
+	// v1 is only valid option
+	if len(path) == 1 || !path[1].Equal(RegoV1CompatibleRef[1]) || len(path) > 2 {
+		p.errorf(imp.Path.Location, "invalid import `%s`, must be `%s`", path, RegoV1CompatibleRef)
 		return
 	}
 
-	path := imp.Path.Value.(Ref)
-
-	if len(path) == 1 || !path[1].Equal(RegoV1CompatibleRef[1]) || len(path) > 2 {
-		p.errorf(imp.Path.Location, "invalid import `%s`, must be `%s`", path, RegoV1CompatibleRef)
+	if p.po.RegoVersion == RegoV1 {
+		// We're parsing for Rego v1, where the 'rego.v1' import is a no-op.
 		return
 	}
 

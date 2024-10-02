@@ -1,0 +1,26 @@
+---
+cases:
+  - note: comprehensions/array embedded array
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains i if {
+        	__local0__ = [x | x = data.a[_]]
+        	xs = [__local0__]
+        	__local1__ = xs[0][i]
+        	__local1__ > 1
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x:
+          - 1
+          - 2
+          - 3
+    sort_bindings: true

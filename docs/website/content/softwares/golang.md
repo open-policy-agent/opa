@@ -1,4 +1,4 @@
 ---
 link: https://golang.org/
-title: golang
+title: Go
 ---

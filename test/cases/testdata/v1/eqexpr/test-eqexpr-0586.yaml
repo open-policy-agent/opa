@@ -1,0 +1,18 @@
+---
+cases:
+  - note: "eqexpr/pattern: object multiple vars"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains z if {
+        	{"x": x, "y": y} = {"x": 1, "y": 2}
+        	z = [x, y]
+        }
+    data: {}
+    want_result:
+      - x:
+          - - 1
+            - 2
+    sort_bindings: true

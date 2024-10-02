@@ -1,0 +1,17 @@
+---
+cases:
+  - note: bitsnegate/basic bitwise-negate
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains __local0__ if {
+        	bits.negate(42, __local1__)
+        	__local0__ = __local1__
+        }
+    data: {}
+    want_result:
+      - x:
+          - -43
+    sort_bindings: true

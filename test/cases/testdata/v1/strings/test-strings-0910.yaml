@@ -1,0 +1,14 @@
+---
+cases:
+  - note: "strings/trim: empty string"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	trim("", ".", x)
+        }
+    data: {}
+    want_result:
+      - x: ""

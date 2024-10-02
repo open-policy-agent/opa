@@ -28,6 +28,7 @@ import (
 	"github.com/open-policy-agent/opa/logging/test"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
+	"github.com/open-policy-agent/opa/plugins/bundle"
 	bundlePlugin "github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/plugins/logs"
 	"github.com/open-policy-agent/opa/plugins/status"
@@ -55,11 +56,12 @@ func TestEvaluateBundle(t *testing.T) {
 
 	sampleModule := `
 		package foo.bar
+		import rego.v1
 
 		bundle = {
 			"name": rt.name,
 			"service": "example"
-		} {
+		} if {
 			rt := opa.runtime()
 		}
 	`
@@ -502,7 +504,7 @@ func (r *reconfigureTestPlugin) Start(context.Context) error {
 func (*reconfigureTestPlugin) Stop(context.Context) {
 }
 
-func (r *reconfigureTestPlugin) Reconfigure(_ context.Context, config interface{}) {
+func (r *reconfigureTestPlugin) Reconfigure(_ context.Context, _ interface{}) {
 	r.counts["reconfig"]++
 }
 
@@ -1903,7 +1905,11 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 	*period = 10
 	threshold := new(int64)
 	*threshold = 90
-	expectedCacheConf := &cache.Config{InterQueryBuiltinCache: cache.InterQueryBuiltinCacheConfig{MaxSizeBytes: maxSize, StaleEntryEvictionPeriodSeconds: period, ForcedEvictionThresholdPercentage: threshold}}
+	maxNumEntriesInterQueryValueCache := new(int)
+	*maxNumEntriesInterQueryValueCache = 0
+
+	expectedCacheConf := &cache.Config{InterQueryBuiltinCache: cache.InterQueryBuiltinCacheConfig{MaxSizeBytes: maxSize, StaleEntryEvictionPeriodSeconds: period, ForcedEvictionThresholdPercentage: threshold},
+		InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{MaxNumEntries: maxNumEntriesInterQueryValueCache}}
 
 	if !reflect.DeepEqual(cacheConf, expectedCacheConf) {
 		t.Fatalf("want %v got %v", expectedCacheConf, cacheConf)
@@ -3763,6 +3769,54 @@ func TestPluginManualTriggerLifecycle(t *testing.T) {
 
 	// reconfigure plugins via discovery and then trigger discovery
 	fixture.testDiscoReconfigurationScenario(ctx, m)
+}
+
+func TestListeners(t *testing.T) {
+	manager, err := plugins.New([]byte(`{
+			"labels": {"x": "y"},
+			"services": {
+				"localhost": {
+					"url": "http://localhost:9999"
+				}
+			},
+			"discovery": {"name": "config", "persist": true},
+		}`), "test-id", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testPlugin := &reconfigureTestPlugin{counts: map[string]int{}}
+	testFactory := testFactory{p: testPlugin}
+
+	disco, err := New(manager, Factories(map[string]plugins.Factory{"test_plugin": testFactory}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+
+	ensurePluginState(t, disco, plugins.StateNotReady)
+
+	var status *bundle.Status
+	disco.RegisterListener("testlistener", func(s bundle.Status) {
+		status = &s
+	})
+
+	// simulate a bundle download error
+	disco.oneShot(ctx, download.Update{Error: fmt.Errorf("unknown error")})
+
+	if status == nil {
+		t.Fatalf("Expected discovery listener to receive status but was nil")
+	}
+
+	status = nil
+	disco.Unregister("testlistener")
+
+	// simulate a bundle download error
+	disco.oneShot(ctx, download.Update{Error: fmt.Errorf("unknown error")})
+	if status != nil {
+		t.Fatalf("Expected discovery listener to be removed but received %v", status)
+	}
 }
 
 type testFixture struct {

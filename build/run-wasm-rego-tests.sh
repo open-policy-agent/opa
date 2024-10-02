@@ -16,13 +16,18 @@ ASSETS=${ASSETS:-"$PWD/test/wasm/assets"}
 VERBOSE=${VERBOSE:-"0"}
 TESTGEN_CONTAINER_NAME="opa-wasm-testgen-container"
 TESTRUN_CONTAINER_NAME="opa-wasm-testrun-container"
+WASM_BUILD_ONLY=${WASM_BUILD_ONLY:-"false"}
 
 function main {
     trap interrupt SIGINT SIGTERM
     mkdir -p $PWD/.go/cache/go-build
     mkdir -p $PWD/.go/bin
     generate_testcases
-    run_testcases
+    if [[ "${WASM_BUILD_ONLY}" != "true" ]]; then
+        run_testcases
+    else
+        echo "Running wasm tests disabled by environment variable."
+    fi
 }
 
 function interrupt {

@@ -100,7 +100,9 @@ var Wildcard = &Term{Value: Var("_")}
 var WildcardPrefix = "$"
 
 // Keywords contains strings that map to language keywords.
-var Keywords = [...]string{
+var Keywords = KeywordsForRegoVersion(DefaultRegoVersion)
+
+var KeywordsV0 = [...]string{
 	"not",
 	"package",
 	"import",
@@ -114,13 +116,65 @@ var Keywords = [...]string{
 	"some",
 }
 
+var KeywordsV1 = [...]string{
+	"not",
+	"package",
+	"import",
+	"as",
+	"default",
+	"else",
+	"with",
+	"null",
+	"true",
+	"false",
+	"some",
+	"if",
+	"contains",
+	"in",
+	"every",
+}
+
+func KeywordsForRegoVersion(v RegoVersion) []string {
+	switch v {
+	case RegoV0:
+		return KeywordsV0[:]
+	case RegoV1, RegoV0CompatV1:
+		return KeywordsV1[:]
+	}
+	return nil
+}
+
 // IsKeyword returns true if s is a language keyword.
 func IsKeyword(s string) bool {
-	for _, x := range Keywords {
+	return IsInKeywords(s, Keywords)
+}
+
+func IsInKeywords(s string, keywords []string) bool {
+	for _, x := range keywords {
 		if x == s {
 			return true
 		}
 	}
+	return false
+}
+
+// IsKeywordInRegoVersion returns true if s is a language keyword.
+func IsKeywordInRegoVersion(s string, regoVersion RegoVersion) bool {
+	switch regoVersion {
+	case RegoV0:
+		for _, x := range KeywordsV0 {
+			if x == s {
+				return true
+			}
+		}
+	case RegoV1, RegoV0CompatV1:
+		for _, x := range KeywordsV1 {
+			if x == s {
+				return true
+			}
+		}
+	}
+
 	return false
 }
 
@@ -233,7 +287,9 @@ type (
 		Negated   bool        `json:"negated,omitempty"`
 		Location  *Location   `json:"location,omitempty"`
 
-		jsonOptions astJSON.Options
+		jsonOptions   astJSON.Options
+		generatedFrom *Expr
+		generates     []*Expr
 	}
 
 	// SomeDecl represents a variable declaration statement. The symbols are variables.
@@ -363,7 +419,7 @@ func (mod *Module) String() string {
 		buf = append(buf, "")
 		for _, rule := range mod.Rules {
 			buf = appendAnnotationStrings(buf, rule)
-			buf = append(buf, rule.String())
+			buf = append(buf, rule.stringWithOpts(toStringOpts{regoVersion: mod.regoVersion}))
 		}
 	}
 	return strings.Join(buf, "\n")
@@ -528,7 +584,7 @@ func (pkg *Package) MarshalJSON() ([]byte, error) {
 }
 
 // IsValidImportPath returns an error indicating if the import path is invalid.
-// If the import path is invalid, err is nil.
+// If the import path is valid, err is nil.
 func IsValidImportPath(v Value) (err error) {
 	switch v := v.(type) {
 	case Var:
@@ -728,18 +784,30 @@ func (rule *Rule) Ref() Ref {
 }
 
 func (rule *Rule) String() string {
+	return rule.stringWithOpts(toStringOpts{})
+}
+
+type toStringOpts struct {
+	regoVersion RegoVersion
+}
+
+func (rule *Rule) stringWithOpts(opts toStringOpts) string {
 	buf := []string{}
 	if rule.Default {
 		buf = append(buf, "default")
 	}
-	buf = append(buf, rule.Head.String())
+	buf = append(buf, rule.Head.stringWithOpts(opts))
 	if !rule.Default {
+		switch opts.regoVersion {
+		case RegoV1, RegoV0CompatV1:
+			buf = append(buf, "if")
+		}
 		buf = append(buf, "{")
 		buf = append(buf, rule.Body.String())
 		buf = append(buf, "}")
 	}
 	if rule.Else != nil {
-		buf = append(buf, rule.Else.elseString())
+		buf = append(buf, rule.Else.elseString(opts))
 	}
 	return strings.Join(buf, " ")
 }
@@ -782,7 +850,7 @@ func (rule *Rule) MarshalJSON() ([]byte, error) {
 	return json.Marshal(data)
 }
 
-func (rule *Rule) elseString() string {
+func (rule *Rule) elseString(opts toStringOpts) string {
 	var buf []string
 
 	buf = append(buf, "else")
@@ -793,12 +861,17 @@ func (rule *Rule) elseString() string {
 		buf = append(buf, value.String())
 	}
 
+	switch opts.regoVersion {
+	case RegoV1, RegoV0CompatV1:
+		buf = append(buf, "if")
+	}
+
 	buf = append(buf, "{")
 	buf = append(buf, rule.Body.String())
 	buf = append(buf, "}")
 
 	if rule.Else != nil {
-		buf = append(buf, rule.Else.elseString())
+		buf = append(buf, rule.Else.elseString(opts))
 	}
 
 	return strings.Join(buf, " ")
@@ -958,16 +1031,28 @@ func (head *Head) Equal(other *Head) bool {
 }
 
 func (head *Head) String() string {
+	return head.stringWithOpts(toStringOpts{})
+}
+
+func (head *Head) stringWithOpts(opts toStringOpts) string {
 	buf := strings.Builder{}
 	buf.WriteString(head.Ref().String())
+	containsAdded := false
 
 	switch {
 	case len(head.Args) != 0:
 		buf.WriteString(head.Args.String())
 	case len(head.Reference) == 1 && head.Key != nil:
-		buf.WriteRune('[')
-		buf.WriteString(head.Key.String())
-		buf.WriteRune(']')
+		switch opts.regoVersion {
+		case RegoV0:
+			buf.WriteRune('[')
+			buf.WriteString(head.Key.String())
+			buf.WriteRune(']')
+		default:
+			containsAdded = true
+			buf.WriteString(" contains ")
+			buf.WriteString(head.Key.String())
+		}
 	}
 	if head.Value != nil {
 		if head.Assign {
@@ -976,7 +1061,7 @@ func (head *Head) String() string {
 			buf.WriteString(" = ")
 		}
 		buf.WriteString(head.Value.String())
-	} else if head.Name == "" && head.Key != nil {
+	} else if !containsAdded && head.Name == "" && head.Key != nil {
 		buf.WriteString(" contains ")
 		buf.WriteString(head.Key.String())
 	}
@@ -992,16 +1077,22 @@ func (head *Head) setJSONOptions(opts astJSON.Options) {
 
 func (head *Head) MarshalJSON() ([]byte, error) {
 	var loc *Location
-	if head.jsonOptions.MarshalOptions.IncludeLocation.Head {
+	includeLoc := head.jsonOptions.MarshalOptions.IncludeLocation
+	if includeLoc.Head {
 		if head.Location != nil {
 			loc = head.Location
+		}
+
+		for _, term := range head.Reference {
+			if term.Location != nil {
+				term.jsonOptions.MarshalOptions.IncludeLocation.Term = includeLoc.Term
+			}
 		}
 	}
 
 	// NOTE(sr): we do this to override the rendering of `head.Reference`.
 	// It's still what'll be used via the default means of encoding/json
 	// for unmarshaling a json object into a Head struct!
-	// NOTE(charlieegan3): we also need to optionally include the location
 	type h Head
 	return json.Marshal(struct {
 		h
@@ -1591,6 +1682,46 @@ func (expr *Expr) Vars(params VarVisitorParams) VarSet {
 // The builtin operator must be the first term.
 func NewBuiltinExpr(terms ...*Term) *Expr {
 	return &Expr{Terms: terms}
+}
+
+func (expr *Expr) CogeneratedExprs() []*Expr {
+	visited := map[*Expr]struct{}{}
+	visitCogeneratedExprs(expr, func(e *Expr) bool {
+		if expr.Equal(e) {
+			return true
+		}
+		if _, ok := visited[e]; ok {
+			return true
+		}
+		visited[e] = struct{}{}
+		return false
+	})
+
+	result := make([]*Expr, 0, len(visited))
+	for e := range visited {
+		result = append(result, e)
+	}
+	return result
+}
+
+func (expr *Expr) BaseCogeneratedExpr() *Expr {
+	if expr.generatedFrom == nil {
+		return expr
+	}
+	return expr.generatedFrom.BaseCogeneratedExpr()
+}
+
+func visitCogeneratedExprs(expr *Expr, f func(*Expr) bool) {
+	if parent := expr.generatedFrom; parent != nil {
+		if stop := f(parent); !stop {
+			visitCogeneratedExprs(parent, f)
+		}
+	}
+	for _, child := range expr.generates {
+		if stop := f(child); !stop {
+			visitCogeneratedExprs(child, f)
+		}
+	}
 }
 
 func (d *SomeDecl) String() string {

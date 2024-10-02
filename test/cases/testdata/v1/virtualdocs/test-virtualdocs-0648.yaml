@@ -1,0 +1,22 @@
+---
+cases:
+  - note: "virtualdocs/output: set falsy values"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	data.generated.q[x]
+        }
+
+        q := {0, "", false, null, [], {}, set()}
+    want_result:
+      - x:
+          - null
+          - 0
+          - ""
+          - []
+          - []
+          - {}
+    sort_bindings: true

@@ -61,7 +61,9 @@ type testCommandParams struct {
 	stopChan     chan os.Signal
 	output       io.Writer
 	errOutput    io.Writer
+	v0Compatible bool
 	v1Compatible bool
+	varValues    bool
 }
 
 func newTestCommandParams() testCommandParams {
@@ -78,10 +80,14 @@ func newTestCommandParams() testCommandParams {
 }
 
 func (p *testCommandParams) RegoVersion() ast.RegoVersion {
+	// v0 takes precedence over v1
+	if p.v0Compatible {
+		return ast.RegoV0
+	}
 	if p.v1Compatible {
 		return ast.RegoV1
 	}
-	return ast.RegoV0
+	return ast.DefaultRegoVersion
 }
 
 func opaTest(args []string, testParams testCommandParams) (int, error) {
@@ -348,7 +354,8 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 		WithEnablePrintStatements(!testParams.benchmark).
 		WithCapabilities(capabilities).
 		WithSchemas(schemaSet).
-		WithUseTypeCheckAnnotations(true)
+		WithUseTypeCheckAnnotations(true).
+		WithRewriteTestRules(testParams.varValues)
 
 	info, err := runtime.Term(runtime.Params{})
 	if err != nil {
@@ -384,7 +391,7 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 		SetCompiler(compiler).
 		SetStore(store).
 		CapturePrintOutput(true).
-		EnableTracing(testParams.verbose).
+		EnableTracing(testParams.verbose || testParams.varValues).
 		SetCoverageQueryTracer(coverTracer).
 		SetRuntime(info).
 		SetModules(modules).
@@ -413,6 +420,8 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 				BenchmarkResults:         testParams.benchmark,
 				BenchMarkShowAllocations: testParams.benchMem,
 				BenchMarkGoBenchFormat:   goBench,
+				FailureLine:              testParams.varValues,
+				LocalVars:                testParams.varValues,
 			}
 		}
 	} else {
@@ -520,7 +529,7 @@ recommended as some updates might cause them to be dropped by OPA.
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
 
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, args []string) {
 			exitCode, _ := opaTest(args, testParams)
 			os.Exit(exitCode)
 		},
@@ -536,6 +545,7 @@ recommended as some updates might cause them to be dropped by OPA.
 	testCommand.Flags().BoolVar(&testParams.benchmark, "bench", false, "benchmark the unit tests")
 	testCommand.Flags().StringVarP(&testParams.runRegex, "run", "r", "", "run only test cases matching the regular expression.")
 	testCommand.Flags().BoolVarP(&testParams.watch, "watch", "w", false, "watch command line files for changes")
+	testCommand.Flags().BoolVar(&testParams.varValues, "var-values", false, "show local variable values in test output")
 
 	// Shared flags
 	addBundleModeFlag(testCommand.Flags(), &testParams.bundleMode, false)
@@ -547,6 +557,7 @@ recommended as some updates might cause them to be dropped by OPA.
 	addTargetFlag(testCommand.Flags(), testParams.target)
 	addCapabilitiesFlag(testCommand.Flags(), testParams.capabilities)
 	addSchemaFlags(testCommand.Flags(), testParams.schema)
+	addV0CompatibleFlag(testCommand.Flags(), &testParams.v0Compatible, false)
 	addV1CompatibleFlag(testCommand.Flags(), &testParams.v1Compatible, false)
 
 	RootCommand.AddCommand(testCommand)

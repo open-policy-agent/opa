@@ -14,7 +14,7 @@ import (
 	"github.com/open-policy-agent/opa/util/test"
 )
 
-const formatted = `package test
+const formattedV0 = `package test
 
 p {
 	a == 1
@@ -23,7 +23,16 @@ p {
 }
 `
 
-const unformatted = `
+const formattedV1 = `package test
+
+p if {
+	a == 1
+	true
+	1 + 3
+}
+`
+
+const unformattedV0 = `
         package test
 
         p { a == 1; true
@@ -33,9 +42,20 @@ const unformatted = `
 
 `
 
-const singleWrongArity = `package test
+const unformattedV1 = `
+        package test
 
-p {
+        p if{ a == 1; true
+                1 +    3
+        }
+
+
+`
+
+const singleWrongArity = `package test
+import rego.v1
+
+p if {
 	a := 1
 	b := 2
 	plus(a, b, c) == 3
@@ -43,8 +63,9 @@ p {
 `
 
 const MultipleWrongArity = `package test
+import rego.v1
 
-p {
+p if {
 	x:=5
 	y:=7
 	z:=6
@@ -58,31 +79,54 @@ type errorWriter struct {
 	ErrMsg string
 }
 
-func (ew errorWriter) Write(p []byte) (n int, err error) {
+func (ew errorWriter) Write(_ []byte) (n int, err error) {
 	return 0, fmt.Errorf(ew.ErrMsg)
 }
 
 func TestFmtFormatFile(t *testing.T) {
-	params := fmtCommandParams{}
-	var stdout bytes.Buffer
-
-	files := map[string]string{
-		"policy.rego": unformatted,
+	cases := []struct {
+		note        string
+		params      fmtCommandParams
+		unformatted string
+		formatted   string
+	}{
+		{
+			note:        "v0",
+			params:      fmtCommandParams{v0Compatible: true},
+			unformatted: unformattedV0,
+			formatted:   formattedV0,
+		},
+		{
+			note:        "v1",
+			params:      fmtCommandParams{v1Compatible: true},
+			unformatted: unformattedV1,
+			formatted:   formattedV1,
+		},
 	}
 
-	test.WithTempFS(files, func(path string) {
-		policyFile := filepath.Join(path, "policy.rego")
-		info, err := os.Stat(policyFile)
-		err = formatFile(&params, &stdout, policyFile, info, err)
-		if err != nil {
-			t.Fatalf("Unexpected error: %s", err)
-		}
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			var stdout bytes.Buffer
 
-		actual := stdout.String()
-		if actual != formatted {
-			t.Fatalf("Expected:%s\n\nGot:\n%s\n\n", formatted, actual)
-		}
-	})
+			files := map[string]string{
+				"policy.rego": tc.unformatted,
+			}
+
+			test.WithTempFS(files, func(path string) {
+				policyFile := filepath.Join(path, "policy.rego")
+				info, err := os.Stat(policyFile)
+				err = formatFile(&tc.params, &stdout, policyFile, info, err)
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+
+				actual := stdout.String()
+				if actual != tc.formatted {
+					t.Fatalf("Expected:%s\n\nGot:\n%s\n\n", tc.formatted, actual)
+				}
+			})
+		})
+	}
 }
 
 func TestFmtFormatFileFailToReadFile(t *testing.T) {
@@ -94,7 +138,7 @@ func TestFmtFormatFileFailToReadFile(t *testing.T) {
 	var stdout = bytes.Buffer{}
 
 	files := map[string]string{
-		"policy.rego": unformatted,
+		"policy.rego": unformattedV0,
 	}
 
 	notThere := "notThere.rego"
@@ -116,249 +160,485 @@ func TestFmtFormatFileFailToReadFile(t *testing.T) {
 }
 
 func TestFmtFormatFileNoChanges(t *testing.T) {
-	params := fmtCommandParams{}
-	var stdout bytes.Buffer
-
-	files := map[string]string{
-		"policy.rego": formatted,
+	cases := []struct {
+		note   string
+		params fmtCommandParams
+		module string
+	}{
+		{
+			note:   "v0",
+			params: fmtCommandParams{v0Compatible: true},
+			module: formattedV0,
+		},
+		{
+			note:   "v1",
+			params: fmtCommandParams{v1Compatible: true},
+			module: formattedV1,
+		},
 	}
 
-	test.WithTempFS(files, func(path string) {
-		policyFile := filepath.Join(path, "policy.rego")
-		info, err := os.Stat(policyFile)
-		err = formatFile(&params, &stdout, policyFile, info, err)
-		if err != nil {
-			t.Fatalf("Unexpected error: %s", err)
-		}
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			var stdout bytes.Buffer
 
-		actual := stdout.String()
-		if actual != formatted {
-			t.Fatalf("Expected:%s\n\nGot:\n%s\n\n", formatted, actual)
-		}
-	})
+			files := map[string]string{
+				"policy.rego": tc.module,
+			}
+
+			test.WithTempFS(files, func(path string) {
+				policyFile := filepath.Join(path, "policy.rego")
+				info, err := os.Stat(policyFile)
+				err = formatFile(&tc.params, &stdout, policyFile, info, err)
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+
+				actual := stdout.String()
+				if actual != tc.module {
+					t.Fatalf("Expected:%s\n\nGot:\n%s\n\n", tc.module, actual)
+				}
+			})
+		})
+	}
 }
 
 func TestFmtFailFormatFileNoChanges(t *testing.T) {
-	params := fmtCommandParams{
-		fail: true,
-		diff: true,
+	cases := []struct {
+		note   string
+		params fmtCommandParams
+		module string
+	}{
+		{
+			note: "v0",
+			params: fmtCommandParams{
+				v0Compatible: true,
+				fail:         true,
+				diff:         true,
+			},
+			module: formattedV0,
+		},
+		{
+			note: "v1",
+			params: fmtCommandParams{
+				v1Compatible: true,
+				fail:         true,
+				diff:         true,
+			},
+			module: formattedV1,
+		},
 	}
-	var stdout bytes.Buffer
 
-	files := map[string]string{
-		"policy.rego": formatted,
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			var stdout bytes.Buffer
+
+			files := map[string]string{
+				"policy.rego": tc.module,
+			}
+
+			test.WithTempFS(files, func(path string) {
+				policyFile := filepath.Join(path, "policy.rego")
+				info, err := os.Stat(policyFile)
+				err = formatFile(&tc.params, &stdout, policyFile, info, err)
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+
+				actual := stdout.String()
+				if len(actual) > 0 {
+					t.Fatalf("Expected no output, got:\n%v\n\n", actual)
+				}
+			})
+		})
 	}
-
-	test.WithTempFS(files, func(path string) {
-		policyFile := filepath.Join(path, "policy.rego")
-		info, err := os.Stat(policyFile)
-		err = formatFile(&params, &stdout, policyFile, info, err)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-
-		actual := stdout.String()
-		if len(actual) > 0 {
-			t.Fatalf("Expected no output, got:\n%v\n\n", actual)
-		}
-	})
 }
 
 func TestFmtFormatFileDiff(t *testing.T) {
-	params := fmtCommandParams{
-		diff: true,
+	cases := []struct {
+		note   string
+		params fmtCommandParams
+		module string
+	}{
+		{
+			note: "v0",
+			params: fmtCommandParams{
+				v0Compatible: true,
+				diff:         true,
+			},
+			module: formattedV0,
+		},
+		{
+			note: "v1",
+			params: fmtCommandParams{
+				v1Compatible: true,
+				diff:         true,
+			},
+			module: formattedV1,
+		},
 	}
-	var stdout bytes.Buffer
 
-	files := map[string]string{
-		"policy.rego": formatted,
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			var stdout bytes.Buffer
+
+			files := map[string]string{
+				"policy.rego": tc.module,
+			}
+
+			test.WithTempFS(files, func(path string) {
+				policyFile := filepath.Join(path, "policy.rego")
+				info, err := os.Stat(policyFile)
+				err = formatFile(&tc.params, &stdout, policyFile, info, err)
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+
+				actual := stdout.String()
+
+				if len(actual) > 0 {
+					t.Fatalf("Expected no output, got:\n%s\n\n", actual)
+				}
+			})
+		})
 	}
-
-	test.WithTempFS(files, func(path string) {
-		policyFile := filepath.Join(path, "policy.rego")
-		info, err := os.Stat(policyFile)
-		err = formatFile(&params, &stdout, policyFile, info, err)
-		if err != nil {
-			t.Fatalf("Unexpected error: %s", err)
-		}
-
-		actual := stdout.String()
-
-		if len(actual) > 0 {
-			t.Fatalf("Expected no output, got:\n%s\n\n", actual)
-		}
-	})
 }
 
 func TestFmtFormatFileFailToPrintDiff(t *testing.T) {
-
-	params := fmtCommandParams{
-		diff: true,
+	cases := []struct {
+		note   string
+		params fmtCommandParams
+		module string
+	}{
+		{
+			note: "v0",
+			params: fmtCommandParams{
+				v0Compatible: true,
+				diff:         true,
+			},
+			module: unformattedV0,
+		},
+		{
+			note: "v1",
+			params: fmtCommandParams{
+				v1Compatible: true,
+				diff:         true,
+			},
+			module: unformattedV1,
+		},
 	}
 
-	errMsg := "io.Write error"
-	var stdout = errorWriter{ErrMsg: errMsg}
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			errMsg := "io.Write error"
+			var stdout = errorWriter{ErrMsg: errMsg}
 
-	files := map[string]string{
-		"policy.rego": unformatted,
+			files := map[string]string{
+				"policy.rego": tc.module,
+			}
+
+			test.WithTempFS(files, func(path string) {
+				policyFile := filepath.Join(path, "policy.rego")
+				info, err := os.Stat(policyFile)
+				err = formatFile(&tc.params, &stdout, policyFile, info, err)
+				if err == nil {
+					t.Fatalf("Expected error, found none")
+				}
+
+				actual := err.Error()
+
+				if !strings.Contains(actual, errMsg) {
+					t.Fatalf("Expected error message to include %s, got:\n%s\n\n", errMsg, actual)
+				}
+			})
+		})
 	}
-
-	test.WithTempFS(files, func(path string) {
-		policyFile := filepath.Join(path, "policy.rego")
-		info, err := os.Stat(policyFile)
-		err = formatFile(&params, &stdout, policyFile, info, err)
-		if err == nil {
-			t.Fatalf("Expected error, found none")
-		}
-
-		actual := err.Error()
-
-		if !strings.Contains(actual, errMsg) {
-			t.Fatalf("Expected error message to include %s, got:\n%s\n\n", errMsg, actual)
-		}
-	})
 }
 
 func TestFmtFormatFileList(t *testing.T) {
-	params := fmtCommandParams{
-		list: true,
+	cases := []struct {
+		note   string
+		params fmtCommandParams
+		module string
+	}{
+		{
+			note: "v0",
+			params: fmtCommandParams{
+				v0Compatible: true,
+				list:         true,
+			},
+			module: formattedV0,
+		},
+		{
+			note: "v1",
+			params: fmtCommandParams{
+				v1Compatible: true,
+				list:         true,
+			},
+			module: formattedV1,
+		},
 	}
-	var stdout bytes.Buffer
 
-	files := map[string]string{
-		"policy.rego": formatted,
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			var stdout bytes.Buffer
+
+			files := map[string]string{
+				"policy.rego": tc.module,
+			}
+
+			test.WithTempFS(files, func(path string) {
+				policyFile := filepath.Join(path, "policy.rego")
+				info, err := os.Stat(policyFile)
+				err = formatFile(&tc.params, &stdout, policyFile, info, err)
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+
+				actual := strings.TrimSpace(stdout.String())
+
+				if len(actual) > 0 {
+					t.Fatalf("Expected no output, got:\n%s\n\n", actual)
+				}
+			})
+		})
 	}
-
-	test.WithTempFS(files, func(path string) {
-		policyFile := filepath.Join(path, "policy.rego")
-		info, err := os.Stat(policyFile)
-		err = formatFile(&params, &stdout, policyFile, info, err)
-		if err != nil {
-			t.Fatalf("Unexpected error: %s", err)
-		}
-
-		actual := strings.TrimSpace(stdout.String())
-
-		if len(actual) > 0 {
-			t.Fatalf("Expected no output, got:\n%s\n\n", actual)
-		}
-	})
 }
 
 func TestFmtFailFormatFileList(t *testing.T) {
-	params := fmtCommandParams{
-		fail: true,
-		list: true,
+	cases := []struct {
+		note   string
+		params fmtCommandParams
+		module string
+	}{
+		{
+			note: "v0",
+			params: fmtCommandParams{
+				v0Compatible: true,
+				fail:         true,
+				list:         true,
+			},
+			module: formattedV0,
+		},
+		{
+			note: "v1",
+			params: fmtCommandParams{
+				v1Compatible: true,
+				fail:         true,
+				list:         true,
+			},
+			module: formattedV1,
+		},
 	}
-	var stdout bytes.Buffer
 
-	files := map[string]string{
-		"policy.rego": formatted,
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			var stdout bytes.Buffer
+
+			files := map[string]string{
+				"policy.rego": tc.module,
+			}
+
+			test.WithTempFS(files, func(path string) {
+				policyFile := filepath.Join(path, "policy.rego")
+				info, err := os.Stat(policyFile)
+				err = formatFile(&tc.params, &stdout, policyFile, info, err)
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+
+				actual := strings.TrimSpace(stdout.String())
+				if len(actual) > 0 {
+					t.Fatalf("Expected no output, got:\n%v\n\n", actual)
+				}
+			})
+		})
 	}
-
-	test.WithTempFS(files, func(path string) {
-		policyFile := filepath.Join(path, "policy.rego")
-		info, err := os.Stat(policyFile)
-		err = formatFile(&params, &stdout, policyFile, info, err)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-
-		actual := strings.TrimSpace(stdout.String())
-		if len(actual) > 0 {
-			t.Fatalf("Expected no output, got:\n%v\n\n", actual)
-		}
-	})
 }
 
 func TestFmtFailFormatFileChangesList(t *testing.T) {
-	params := fmtCommandParams{
-		fail: true,
-		list: true,
+	cases := []struct {
+		note   string
+		params fmtCommandParams
+		module string
+	}{
+		{
+			note: "v0",
+			params: fmtCommandParams{
+				v0Compatible: true,
+				fail:         true,
+				list:         true,
+			},
+			module: unformattedV0,
+		},
+		{
+			note: "v1",
+			params: fmtCommandParams{
+				v1Compatible: true,
+				fail:         true,
+				list:         true,
+			},
+			module: unformattedV1,
+		},
 	}
-	var stdout bytes.Buffer
 
-	files := map[string]string{
-		"policy.rego": unformatted,
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			var stdout bytes.Buffer
+
+			files := map[string]string{
+				"policy.rego": tc.module,
+			}
+
+			test.WithTempFS(files, func(path string) {
+				policyFile := filepath.Join(path, "policy.rego")
+				info, err := os.Stat(policyFile)
+				err = formatFile(&tc.params, &stdout, policyFile, info, err)
+				if err == nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+
+				actual := strings.TrimSpace(stdout.String())
+				if len(actual) == 0 {
+					t.Fatalf("Expected output, got:\n%v\n\n", actual)
+				}
+			})
+		})
 	}
-
-	test.WithTempFS(files, func(path string) {
-		policyFile := filepath.Join(path, "policy.rego")
-		info, err := os.Stat(policyFile)
-		err = formatFile(&params, &stdout, policyFile, info, err)
-		if err == nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-
-		actual := strings.TrimSpace(stdout.String())
-		if len(actual) == 0 {
-			t.Fatalf("Expected output, got:\n%v\n\n", actual)
-		}
-	})
 }
 
 func TestFmtFailFileNoChanges(t *testing.T) {
-	params := fmtCommandParams{
-		fail: true,
+	cases := []struct {
+		note   string
+		params fmtCommandParams
+		module string
+	}{
+		{
+			note: "v0",
+			params: fmtCommandParams{
+				v0Compatible: true,
+				fail:         true,
+			},
+			module: formattedV0,
+		},
+		{
+			note: "v1",
+			params: fmtCommandParams{
+				v1Compatible: true,
+				fail:         true,
+			},
+			module: formattedV1,
+		},
 	}
 
-	files := map[string]string{
-		"policy.rego": formatted,
-	}
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			files := map[string]string{
+				"policy.rego": tc.module,
+			}
 
-	test.WithTempFS(files, func(path string) {
-		policyFile := filepath.Join(path, "policy.rego")
-		info, err := os.Stat(policyFile)
-		err = formatFile(&params, io.Discard, policyFile, info, err)
-		if err != nil {
-			t.Fatalf("Expected error but did not receive one")
-		}
-	})
+			test.WithTempFS(files, func(path string) {
+				policyFile := filepath.Join(path, "policy.rego")
+				info, err := os.Stat(policyFile)
+				err = formatFile(&tc.params, io.Discard, policyFile, info, err)
+				if err != nil {
+					t.Fatalf("Expected error but did not receive one")
+				}
+			})
+		})
+	}
 }
 
 func TestFmtFailFileChanges(t *testing.T) {
-	params := fmtCommandParams{
-		fail: true,
+	cases := []struct {
+		note   string
+		params fmtCommandParams
+		module string
+	}{
+		{
+			note: "v0",
+			params: fmtCommandParams{
+				v0Compatible: true,
+				fail:         true,
+			},
+			module: unformattedV0,
+		},
+		{
+			note: "v1",
+			params: fmtCommandParams{
+				v1Compatible: true,
+				fail:         true,
+			},
+			module: unformattedV1,
+		},
 	}
 
-	files := map[string]string{
-		"policy.rego": unformatted,
-	}
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			files := map[string]string{
+				"policy.rego": tc.module,
+			}
 
-	test.WithTempFS(files, func(path string) {
-		policyFile := filepath.Join(path, "policy.rego")
-		info, err := os.Stat(policyFile)
-		err = formatFile(&params, io.Discard, policyFile, info, err)
-		if err == nil {
-			t.Fatalf("Unexpected error: %s", err)
-		}
-	})
+			test.WithTempFS(files, func(path string) {
+				policyFile := filepath.Join(path, "policy.rego")
+				info, err := os.Stat(policyFile)
+				err = formatFile(&tc.params, io.Discard, policyFile, info, err)
+				if err == nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+			})
+		})
+	}
 }
 
 func TestFmtFailFileChangesDiff(t *testing.T) {
-	params := fmtCommandParams{
-		diff: true,
-		fail: true,
+	cases := []struct {
+		note   string
+		params fmtCommandParams
+		module string
+	}{
+		{
+			note: "v0",
+			params: fmtCommandParams{
+				v0Compatible: true,
+				diff:         true,
+				fail:         true,
+			},
+			module: unformattedV0,
+		},
+		{
+			note: "v1",
+			params: fmtCommandParams{
+				v1Compatible: true,
+				diff:         true,
+				fail:         true,
+			},
+			module: unformattedV1,
+		},
 	}
-	var stdout bytes.Buffer
 
-	files := map[string]string{
-		"policy.rego": unformatted,
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			var stdout bytes.Buffer
+
+			files := map[string]string{
+				"policy.rego": tc.module,
+			}
+
+			test.WithTempFS(files, func(path string) {
+				policyFile := filepath.Join(path, "policy.rego")
+				info, err := os.Stat(policyFile)
+				err = formatFile(&tc.params, &stdout, policyFile, info, err)
+				if err == nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+
+				actual := strings.TrimSpace(stdout.String())
+				if len(actual) == 0 {
+					t.Fatalf("Expected output, got:\n%v\n\n", actual)
+				}
+			})
+		})
 	}
-
-	test.WithTempFS(files, func(path string) {
-		policyFile := filepath.Join(path, "policy.rego")
-		info, err := os.Stat(policyFile)
-		err = formatFile(&params, &stdout, policyFile, info, err)
-		if err == nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-
-		actual := strings.TrimSpace(stdout.String())
-		if len(actual) == 0 {
-			t.Fatalf("Expected output, got:\n%v\n\n", actual)
-		}
-	})
 }
 
 func TestFmtSingleWrongArityError(t *testing.T) {
@@ -377,7 +657,7 @@ func TestFmtSingleWrongArityError(t *testing.T) {
 			t.Fatalf("Expected error but did not receive one")
 		}
 
-		loc := ast.Location{File: policyFile, Row: 6}
+		loc := ast.Location{File: policyFile, Row: 7}
 		errExp := ast.NewError(ast.TypeErr, &loc, "%s: %s", "plus", "arity mismatch")
 		errExp.Details = &format.ArityFormatErrDetail{
 			Have: []string{"var", "var", "var"},
@@ -410,9 +690,9 @@ func TestFmtMultipleWrongArityError(t *testing.T) {
 		}
 
 		locations := []ast.Location{
-			{File: policyFile, Row: 7},
 			{File: policyFile, Row: 8},
 			{File: policyFile, Row: 9},
+			{File: policyFile, Row: 10},
 		}
 		haveStrings := [][]string{
 			{"array"},
@@ -543,7 +823,9 @@ q := all([true, false])
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			params := fmtCommandParams{
-				regoV1: true,
+				// Locking rego-version to v0, as it's only then the --rego-v1 flag is relevant
+				v0Compatible: true,
+				regoV1:       true,
 			}
 
 			files := map[string]string{

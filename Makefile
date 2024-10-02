@@ -28,7 +28,7 @@ ifeq ($(WASM_ENABLED),1)
 GO_TAGS = -tags=opa_wasm
 endif
 
-GOLANGCI_LINT_VERSION := v1.51.0
+GOLANGCI_LINT_VERSION := v1.59.1
 YAML_LINT_VERSION := 0.29.0
 YAML_LINT_FORMAT ?= auto
 
@@ -334,20 +334,20 @@ image-quick-%: ensure-executable-bin
 ifneq ($(GOARCH),arm64) # build only static images for arm64
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION) \
-		--build-arg BASE=cgr.dev/chainguard/glibc-dynamic \
+		--build-arg BASE=chainguard/glibc-dynamic \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform linux/$* \
 		.
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-debug \
-		--build-arg BASE=cgr.dev/chainguard/glibc-dynamic:latest-dev \
+		--build-arg BASE=chainguard/glibc-dynamic:latest-dev \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform linux/$* \
 		.
 endif
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-static \
-		--build-arg BASE=cgr.dev/chainguard/static:latest \
+		--build-arg BASE=chainguard/static:latest \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--build-arg BIN_SUFFIX=_static \
 		--platform linux/$* \
@@ -355,7 +355,7 @@ endif
 
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-static-debug \
-		--build-arg BASE=cgr.dev/chainguard/busybox:latest-glibc \
+		--build-arg BASE=chainguard/busybox:latest-glibc \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--build-arg BIN_SUFFIX=_static \
 		--platform linux/$* \
@@ -366,7 +366,7 @@ endif
 push-manifest-list-%: ensure-executable-bin
 	$(DOCKER) buildx build \
 		--tag $(DOCKER_IMAGE):$* \
-		--build-arg BASE=cgr.dev/chainguard/glibc-dynamic:latest \
+		--build-arg BASE=chainguard/glibc-dynamic:latest \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform $(DOCKER_PLATFORMS) \
 		--provenance=false \
@@ -374,7 +374,7 @@ push-manifest-list-%: ensure-executable-bin
 		.
 	$(DOCKER) buildx build \
 		--tag $(DOCKER_IMAGE):$*-debug \
-		--build-arg BASE=cgr.dev/chainguard/glibc-dynamic:latest-dev \
+		--build-arg BASE=chainguard/glibc-dynamic:latest-dev \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform $(DOCKER_PLATFORMS) \
 		--provenance=false \
@@ -383,7 +383,7 @@ push-manifest-list-%: ensure-executable-bin
 
 	$(DOCKER) buildx build \
 		--tag $(DOCKER_IMAGE):$*-static \
-		--build-arg BASE=cgr.dev/chainguard/static:latest \
+		--build-arg BASE=chainguard/static:latest \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--build-arg BIN_SUFFIX=_static \
 		--platform $(DOCKER_PLATFORMS_STATIC) \
@@ -393,7 +393,7 @@ push-manifest-list-%: ensure-executable-bin
 
 	$(DOCKER) buildx build \
 		--tag $(DOCKER_IMAGE):$*-static-debug \
-		--build-arg BASE=cgr.dev/chainguard/busybox:latest-glibc \
+		--build-arg BASE=chainguard/busybox:latest-glibc \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--build-arg BIN_SUFFIX=_static \
 		--platform $(DOCKER_PLATFORMS_STATIC) \

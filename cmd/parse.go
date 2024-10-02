@@ -29,14 +29,19 @@ const (
 type parseParams struct {
 	format       *util.EnumFlag
 	jsonInclude  string
+	v0Compatible bool
 	v1Compatible bool
 }
 
 func (p *parseParams) regoVersion() ast.RegoVersion {
+	// the '--v0--compatible' flag takes precedence over the '--v1-compatible' flag
+	if p.v0Compatible {
+		return ast.RegoV0
+	}
 	if p.v1Compatible {
 		return ast.RegoV1
 	}
-	return ast.RegoV0
+	return ast.DefaultRegoVersion
 }
 
 var configuredParseParams = parseParams{

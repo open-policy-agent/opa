@@ -56,9 +56,10 @@ func TestMain(m *testing.M) {
 	// We need the policy to be present already, otherwise authorization
 	// for the health endpoint is going to fail on server startup.
 	authzPolicy := []byte(`package system.authz
+import rego.v1
 import input.identity
 default allow = false
-allow {
+allow if {
 	identity = "CN=my-client"
 }`)
 

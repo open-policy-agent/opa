@@ -168,6 +168,7 @@ func generateRaiseErrorResult(err error) *ast.Term {
 func getHTTPResponse(bctx BuiltinContext, req ast.Object) (*ast.Term, error) {
 
 	bctx.Metrics.Timer(httpSendLatencyMetricKey).Start()
+	defer bctx.Metrics.Timer(httpSendLatencyMetricKey).Stop()
 
 	key, err := getKeyFromRequest(req)
 	if err != nil {
@@ -198,8 +199,6 @@ func getHTTPResponse(bctx BuiltinContext, req ast.Object) (*ast.Term, error) {
 			return nil, err
 		}
 	}
-
-	bctx.Metrics.Timer(httpSendLatencyMetricKey).Stop()
 
 	return ast.NewTerm(resp), nil
 }
@@ -346,7 +345,7 @@ func useSocket(rawURL string, tlsConfig *tls.Config) (bool, string, *http.Transp
 	u.RawQuery = v.Encode()
 
 	tr := http.DefaultTransport.(*http.Transport).Clone()
-	tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+	tr.DialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
 		return http.DefaultTransport.(*http.Transport).DialContext(ctx, "unix", socket)
 	}
 	tr.TLSClientConfig = tlsConfig
@@ -474,7 +473,7 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 			}
 			body = bytes.NewBuffer(bodyValBytes)
 		case "raw_body":
-			rawBody = bytes.NewBuffer([]byte(strVal))
+			rawBody = bytes.NewBufferString(strVal)
 		case "tls_use_system_certs":
 			tempTLSUseSystemCerts, err := strconv.ParseBool(obj.Get(val).String())
 			if err != nil {

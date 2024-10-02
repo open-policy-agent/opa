@@ -5,6 +5,285 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 0.69.0
+
+This release contains a mix of features, bugfixes and necessary tooling and test changes required to support the upcoming OPA `1.0` release.
+
+
+### Inter-Query Value Cache ([#6908](https://github.com/open-policy-agent/opa/issues/6908))
+
+OPA now has a new inter-query value cache added to the SDK. It is intended to be used for values that are expensive to
+compute and can be reused across multiple queries. The cache can be leveraged by built-in functions to store values
+that otherwise aren't appropriate for the existing inter-query cache; for instance when the entry size isn't an
+appropriate or primary limiting factor for cache eviction.
+
+The default size of the inter-query value cache is unbounded, but can be configured via the
+`caching.inter_query_builtin_value_cache.max_num_entries` configuration field. OPA will drop random items from the cache
+if this limit is exceeded.
+
+The cache is used by the `regex` and `glob` built-in functions, which previously had individual, non-configurable
+caches with a max entry size of `100` each.
+
+Currently, the cache is only exercised when running OPA in server mode (ie. `opa run -s`). Also this feature is unsupported
+for WASM.
+
+Authored by @ashutosh-narkar, reported by @amirsalarsafaei
+
+### Topdown and Rego
+
+- Future-proofing tests in the `ast`, `topdown`, `rego` etc. packages to be `1.0` compatible (authored by @johanfylling)
+- ast: Attach annotation to static part of rule ref ([#7050](https://github.com/open-policy-agent/opa/issues/7050)) authored by @anderseknert
+- ast: Make `Module.String()` include `if`/`contains` for v1 modules ([#6973](https://github.com/open-policy-agent/opa/issues/6973)) authored by @johanfylling reported by @nikpivkin
+- topdown/http: Stop `http.send` latency timer when an error is encountered ([#7007](https://github.com/open-policy-agent/opa/pull/7007)) authored by @lukyer
+- ast/compile: Refactor local variable replacement and replace declared variables in `with`'s target ([#6979](https://github.com/open-policy-agent/opa/issues/6979)) authored by @srenatus reported by @bluebrown
+- ast: Update type checker to cache schema types ([#6970](https://github.com/open-policy-agent/opa/pull/6970)) authored by @nikpivkin
+- test: Fix indentation in a YAML test case ([#7039](https://github.com/open-policy-agent/opa/pull/7039)) authored by @matajoh
+- format: Bracketing keyword ref elements in formatter output ([#7010](https://github.com/open-policy-agent/opa/pull/7010)) authored by @johanfylling
+
+### Runtime, Tooling, SDK
+
+- Future-proofing tests in the `sdk`, `downlaod`, `server` , `cmd` etc. packages to be `1.0` compatible (authored by @johanfylling)
+- cmd: Add `--v0-compatible` flag to make OPA behave as `v0.x` post `v1.0` release ([#7065](https://github.com/open-policy-agent/opa/pull/7065)) authored by @johanfylling
+- util: Strip  UTF-8 BOM from input JSON when found ([#6988](https://github.com/open-policy-agent/opa/issues/6988)) authored by @anderseknert reported by @adhilto
+- plugins/rest: Support reading AWS token from the filesystem for the AWS container credential provider ([#6997](https://github.com/open-policy-agent/opa/pull/6997)) authored by @cmaddalozzo
+- debug: Add `RegoOption` launch option to debugger for setting custom Rego options ([#7045](https://github.com/open-policy-agent/opa/issues/7045)) authored by @johanfylling
+- debug: Always include `Input` and `Data` variable scopes to ease discoverability of the scopes ([#7074](https://github.com/open-policy-agent/opa/pull/7074)) authored by @johanfylling
+- wasm: Fix arithmetic comparison for large numbers, caused by an integer overflow ([#6991](https://github.com/open-policy-agent/opa/issues/6991)) authored by @Ptroger
+
+### Docs, Website, Ecosystem
+
+- Add Marsh McLennan to adopters ([#7060](https://github.com/open-policy-agent/opa/issues/7060)) authored by @anderseknert reported by @pratimsc
+- Add APIwiz to adopters ([#7067](https://github.com/open-policy-agent/opa/pull/7067)) authored by @anderseknert
+- docs: Fix misnomer in OPA-Istio tutorial to document Istio's AuthorizationPolicy API ([#6984](https://github.com/open-policy-agent/opa/pull/6984)) authored by @tjons
+- docs: Readme updates to highlight more up-to-date information about OPA ([#7066](https://github.com/open-policy-agent/opa/pull/7066)) authored by @charlieegan3
+- docs: Update documentation to show Debug API uses ([#7036](https://github.com/open-policy-agent/opa/pull/7036))  authored by @charlieegan3
+- docs: Simplify the OPA-Istio tutorial example policy ([#7059](https://github.com/open-policy-agent/opa/pull/7059)) authored by @anderseknert
+- website: Update policy examples on the OPA home page to be `1.0` compatible  ([#7033](https://github.com/open-policy-agent/opa/pull/7033))  authored by @charlieegan3
+
+### Miscellaneous
+
+- build: Bump github.com/golang/glob, remove replace directive ([#7024](https://github.com/open-policy-agent/opa/issues/7024)) authored by @srenatus reported by @mmannerm
+- Dependency updates; notably:
+  - build(deps): bump github.com/containerd/containerd from 1.7.21 to 1.7.22
+  - build(deps): bump github.com/prometheus/client_golang from 1.20.2 to 1.20.4
+  - build(deps): bump go.uber.org/automaxprocs from 1.5.3 to 1.6.0
+  - build(deps): bump golang.org/x/net from 0.28.0 to 0.29.0
+  - build(deps): bump google.golang.org/grpc from 1.66.0 to 1.67.0
+  - build(go): bump 1.22.5 to 1.23.1 ([#7006](https://github.com/open-policy-agent/opa/pull/7006)) authored by @srenatus
+
+## 0.68.0
+
+This release contains a mix of features and bugfixes.
+
+### Breaking Changes
+
+#### `entrypoint` annotation implies `document` scope ([#6798](https://github.com/open-policy-agent/opa/issues/6798))
+
+The [entrypoint annotation's](https://www.openpolicyagent.org/docs/latest/policy-language/#entrypoint) scope requirement 
+has changed from `rule` to `document` ([https://github.com/open-policy-agent/opa/issues/6798](#6798)). 
+Furthermore, if no `scope` annotation is declared for a METADATA block preceding a rule, the presence of an `entrypoint` 
+annotation with a `true` value will assign the block a `document` scope, where the `rule` scope is otherwise the default.
+
+In practice, a rule entrypoint always point to the entire document and not a particular rule definition. The previous behavior was a bug, and one we've now addressed.
+
+Authored by @anderseknert
+
+### Topdown and Rego
+
+- ast: Fixing nil-pointer dereference in compiler for partial rule edge case ([#6930](https://github.com/open-policy-agent/opa/issues/6930)) authored by @johanfylling
+- ast+parser: Add hint to future-proof imports ([6968](https://github.com/open-policy-agent/opa/pull/6968)) authored by @srenatus
+- topdown: Adding unification scope to virtual-cache key. Fixing issue where false positive cache hits can occur when unification "restricts" the scope of ref-head rule evaluation ([#6926](https://github.com/open-policy-agent/opa/issues/6926)) authored by @johanfylling reported by @anderseknert
+- topdown: Marshal JWT encode sign inputs as JSON ([#6934](https://github.com/open-policy-agent/opa/pull/6934)) authored by @charlieegan3
+
+### Runtime, Tooling, SDK
+
+- ast: Make type checker `copy` method copy all values ([#6949](https://github.com/open-policy-agent/opa/pull/6949)) authored by @anderseknert
+- ast: Include term locations in rule heads when requested ([#6860](https://github.com/open-policy-agent/opa/issues/6860)) authored by @anderseknert
+- debug: Adding experimental debugger SDK ([#6876](https://github.com/open-policy-agent/opa/issues/6876)) authored by @johanfylling
+- distributedtracing: allow OpenTelemetry resource attributes to be configured under distributed_tracing config ([#6942](https://github.com/open-policy-agent/opa/issues/6942)) authored and reported by @brettmc
+- download: Fixing issue when saving OCI bundles on disk ([#6939](https://github.com/open-policy-agent/opa/issues/6939)) authored and reported by @Sergey-Kizimov
+- logging: Always include HTTP request context in incoming req context ([#6951](https://github.com/open-policy-agent/opa/issues/6951)) authored by @ashutosh-narkar reported by @alvarogomez93
+- plugins/bundle: Avoid race-condition during bundle reconfiguration and activation ([#6849](https://github.com/open-policy-agent/opa/issues/6849)) authored by @ashutosh-narkar reported by @Pushpalanka
+- plugins/bundle: Escape reserved chars used in persisted bundle directory name ([#6915](https://github.com/open-policy-agent/opa/issues/6915)) authored by @ashutosh-narkar reported by @alvarogomez93
+- plugins/rest: Support AWS_CONTAINER_CREDENTIALS_FULL_URI metadata endpoint ([#6893](https://github.com/open-policy-agent/opa/issues/6893)) authored and reported by @mbamber
+- util+server: Fix bug around chunked request handling. ([#6904](https://github.com/open-policy-agent/opa/issues/6904)) authored by @philipaconrad reported by @David-Wobrock
+- `opa exec`: This command never supported "pretty" formatting (`--format=pretty` or `-f pretty`), only `json`. Passing `pretty` is now invalid. ([#6923](https://github.com/open-policy-agent/opa/pull/6923)) authored by @srenatus
+  Note that the flag is now unnecessary, but it's kept so existing calls like `opa exec -fjson ...` remain valid.
+
+#### Security Fix: CVE-2024-8260 ([#6933](https://github.com/open-policy-agent/opa/pull/6933))
+
+This release includes a fix where OPA would accept UNC locations on Windows. Reading those could leak NTLM hashes.
+The attack vector would include an adversary tricking the user in passing an UNC path to OPA, e.g. `opa eval -d $FILE`.
+UNC paths are now forbidden. If this is an issue for you, please reach out on Slack or GitHub issues.
+
+Reported by Shelly Raban
+Authored by @ashutosh-narkar
+
+### Docs, Website, Ecosystem
+
+- docs: Suggest using `opa-config.yaml` as name for config file (#6966) ([#6959](https://github.com/open-policy-agent/opa/issues/6959)) authored by @anderseknert
+- docs: Add documentation for OPA Spring Boot integration ([#6898](https://github.com/open-policy-agent/opa/pull/6898)) authored by @charlieegan3
+- docs: Update Istio tutorial ([#6896](https://github.com/open-policy-agent/opa/pull/6896)) authored by @Pindar
+- docs: Update contrib docs ([#6974](https://github.com/open-policy-agent/opa/pull/6974)) authored by @charlieegan3
+- docs: Add Lula to the OPA ecosystem ([#6902](https://github.com/open-policy-agent/opa/pull/6902)) authored by @brandtkeller
+- docs: Add github action policy testing automation ([#6954](https://github.com/open-policy-agent/opa/pull/6954)) authored by @oycyc
+- docs: Mention `http.send` in inter-query cache config docs ([#6953](https://github.com/open-policy-agent/opa/pull/6953)) authored by @anderseknert
+- docs+topdown: Fixing typos in built-in descriptions ([#6940](https://github.com/open-policy-agent/opa/pull/6940)) authored by @msorens
+
+### Miscellaneous
+
+- build: Make it possible to build only wasm testcases ([#6920](https://github.com/open-policy-agent/opa/pull/6920)) authored by @andreaTP
+- Dependency updates; notably:
+  - build(deps): bump github.com/containerd/containerd from 1.7.20 to 1.7.21
+  - build(deps): bump github.com/prometheus/client_golang from 1.19.1 to 1.20.2
+  - build(deps): bump golang.org/x/net from 0.27.0 to 0.28.0
+  - build(deps): bump golang.org/x/time from 0.5.0 to 0.6.0
+  - build(deps): bump google.golang.org/grpc from 1.65.0 to 1.66.0
+
+## 0.67.1
+
+This is a bug fix release addressing the following issue:
+
+- util+server: Fix bug around chunked request handling ([#6906](https://github.com/open-policy-agent/opa/pull/6906)) authored by @philipaconrad, reported by @David-Wobrock. A request handling bug was introduced in ([#6868](https://github.com/open-policy-agent/opa/pull/6868)), which caused OPA to treat all incoming chunked requests as if they had zero-length request bodies.
+
+## 0.67.0
+
+This release contains a mix of features, a new builtin function (`strings.count`), performance improvements, and bugfixes.
+
+### Breaking Change
+
+#### Request Body Size Limits
+
+OPA now automatically rejects very large requests ([#6868](https://github.com/open-policy-agent/opa/pull/6868)) authored by @philipaconrad.
+Requests with a `Content-Length` larger than 128 MB uncompressed, and gzipped requests with payloads that decompress to
+larger than 256 MB will be rejected, as part of hardening OPA against denial-of-service attacks. Previously, a large
+enough request could cause an OPA instance to run out of memory in low-memory sidecar deployment scenarios, just from
+attempting to read the request body into memory.
+
+These changes allow improvements in memory usage for the OPA HTTP server, and help OPA deployments avoid some accidental out-of-memory situations.
+
+For most users, no changes will be needed to continue using OPA. However, to control this behavior, two new configuration
+keys are available: `server.decoding.max_length` and `server.decoding.gzip.max_length`. These control the max size in
+bytes to allow for an incoming request payload, and the maximum size in bytes to allow for a decompressed gzip request payload, respectively.
+
+Here's an example OPA configuration using the new keys:
+
+```yaml
+# Set max request size to 64 MB and max gzip size (decompressed) to be 128 MB.
+server:
+  decoding:
+    max_length: 67108864
+    gzip:
+      max_length: 134217728
+```
+
+### Topdown and Rego
+
+- topdown: New `strings.count` builtin which returns the number of non-overlapping instances of a substring in a string ([#6827](https://github.com/open-policy-agent/opa/issues/6827)) authored by @Manish-Giri
+- format: Produce error when `--rego-v1`  formatted module has rule name conflicting with keyword ([#6833](https://github.com/open-policy-agent/opa/issues/6833)) authored by @johanfylling
+- topdown: Add cap to caches for regex and glob built-in functions ([#6828](https://github.com/open-policy-agent/opa/issues/6828)) authored by @johanfylling. This fixes possible memory leaks where caches grow uncontrollably when large amounts of regexes or globs are generated or originate from the input document.
+
+### Runtime, Tooling, SDK
+- repl: Add support for correctly loading bundle modules ([#6872](https://github.com/open-policy-agent/opa/issues/6872)) authored by @ashutosh-narkar
+- plugins/discovery: Allow un-registration of discovery listener ([#6851](https://github.com/open-policy-agent/opa/pull/6851)) authored by @mjungsbluth. The discovery plugin allows OPA to register a bundle download status listener but previously did not offer a method to unregister that listener
+- plugins/logs: Reduce amount of work performed inside global lock in decision log plugin ([#6859](https://github.com/open-policy-agent/opa/pull/6859)) authored by @johanfylling
+- plugins/rest: Add a new client credential attribute to support Azure Workload Identity. This would allow workloads deployed on an Azure Kubernetes Services (AKS) cluster to authenticate and access Azure cloud resources ([#6802](https://github.com/open-policy-agent/opa/pull/6802)) authored by @ledbutter
+- cmd/inspect: Add ability for opa inspect to inspect a single file outside of any bundle ([#6873](https://github.com/open-policy-agent/opa/pull/6873)) authored by @tjons
+- cmd+bundle: Add `--follow-symlinks` flag to the `opa build` command to allow users to build directories with symlinked files, and have the contents of those symlinked files included in the built bundle ([#6800](https://github.com/open-policy-agent/opa/pull/6800)) authored by @tjons
+- server: Add missing handling in the server for the `explain=fails` query value ([#6886](https://github.com/open-policy-agent/opa/pull/6886)) authored by @acamatcisco
+
+### Docs, Website, Ecosystem
+- docs: Update bundle section with an example of a manifest with `rego_version` and `file_rego_versions` attributes ([#6885](https://github.com/open-policy-agent/opa/pull/6885)) authored by @ashutosh-narkar
+- docs: Better link language SDKs to make them more discoverable ([#6866](https://github.com/open-policy-agent/opa/pull/6866)) authored by @charlieegan3
+
+### Miscellaneous
+
+- ci: Add the OpenSSF Scorecard Github Action to help evaluate the OPA project's security posture ([#6848](https://github.com/open-policy-agent/opa/pull/6848)) authored by @harshitasao
+- Dependency updates; notably:
+  - build(go): bump golang from 1.22.4 to 1.22.5
+  - build(deps): bump github.com/containerd/containerd from 1.7.18 to 1.7.20
+  - build(deps): bump golang.org/x/net from 0.26.0 to 0.27.0
+  - build(deps): bump google.golang.org/grpc from 1.64.0 to 1.65.0
+  - build(deps): bump go.opentelemetry.io modules ([#6847](https://github.com/open-policy-agent/opa/pull/6847))
+
+## 0.66.0
+
+This release contains a mix of features, performance improvements, and bugfixes.
+
+### Improved Test Reports ([2546](https://github.com/open-policy-agent/opa/issues/2546))
+
+The `opa test` command now includes a new `--var-values` flag that enriches reporting of failed tests with the values and locations for variables in the failing expression.
+E.g.:
+
+```
+FAILURES
+--------------------------------------------------------------------------------
+data.test.test_my_policy: FAIL (0ms)
+
+  test.rego:8:
+    	x == y + z
+    	|    |   |
+    	|    |   3
+    	|    y + z: 5
+    	|    y: 2
+    	1
+
+SUMMARY
+--------------------------------------------------------------------------------
+test.rego:
+data.test.test_foo: FAIL (0ms)
+--------------------------------------------------------------------------------
+FAIL: 1/1
+```
+
+Authored by @johanfylling, reported by @grosser.
+
+### Reading stdin in `opa exec` ([#6538](https://github.com/open-policy-agent/opa/issues/6538))
+
+The `opa exec` command now supports reading `input` documents from stdin with the `--stdin-input` (`-I`) flag.
+E.g.:
+
+```shell
+$ echo '{"user": "alice"}' | opa exec --stdin-input --bundle my_bundle
+```
+
+Authored by @colinjlacy, reported by @humbertoc-silva.
+
+### Topdown and Rego
+
+- ast: Fix blanket "unexpected assign token" error message / usability issue ([#6563](https://github.com/open-policy-agent/opa/issues/6563)) authored by @anderseknert
+- ast: Fix wrong location on metadata parse errors on first line ([#6587](https://github.com/open-policy-agent/opa/issues/6587)) authored by @anderseknert
+- ast: Fix/inspect unknowns in with stmt ([#6812](https://github.com/open-policy-agent/opa/issues/6812)) authored by @johanfylling reported by @surajupadhyay01
+- ast: Include original text in annotation location text attribute ([#6779](https://github.com/open-policy-agent/opa/issues/6779)) authored by @anderseknert
+- ast: Expanding nested expressions in `every` domain ([#6790](https://github.com/open-policy-agent/opa/issues/6790)) authored by @johanfylling reported by @anakrish
+- topdown: Add http.send request attribute to ignore headers for caching key ([#6642](https://github.com/open-policy-agent/opa/issues/6642)) authored and reported by @rudrakhp
+
+### Runtime, Tooling, SDK
+
+- build: Use chainguard images from dockerhub ([#6830](https://github.com/open-policy-agent/opa/pull/6830)) authored by @srenatus
+- bundle: Preallocate buffers for file contents. ([#6818](https://github.com/open-policy-agent/opa/pull/6818)) authored by @philipaconrad
+- plugins: Reduce locks during decision logging ([#6797](https://github.com/open-policy-agent/opa/pull/6797)) authored by @mjungsbluth
+- plugins/rest: Do local map modification in OAuth2 client credentials flow ([#6769](https://github.com/open-policy-agent/opa/issues/6769)) authored and reported by @eubaranov
+- loader: Use a better error message when trying to merge non-objects ([#6803](https://github.com/open-policy-agent/opa/issues/6803)) authored by @anderseknert
+- server/authorizer: Fix gzip payload handling ([#6804](https://github.com/open-policy-agent/opa/issues/6804)) authored by @philipaconrad reported by @nevumx
+
+### Docs, Website, Ecosystem
+
+- docs: Remove missing prometheus metric `go_memstats_gc_cpu_fraction` ([#6783](https://github.com/open-policy-agent/opa/issues/6783)) authored by @philipaconrad
+- docs: Mention that default functions may not evaluate ([#6265](https://github.com/open-policy-agent/opa/issues/6265)) authored by @anderseknert
+- docs: Fix spelling and grammar of `an HTTP` ([#6786](https://github.com/open-policy-agent/opa/pull/6786)) authored by @jdbaldry
+- docs/website: Add vs code and zed to ecosystem page ([#6788](https://github.com/open-policy-agent/opa/pull/6788)) authored by @charlieegan3
+- docs/website: Add Flipt to the OPA ecosystem ([#6781](https://github.com/open-policy-agent/opa/pull/6781)) authored by @markphelps
+- docs/website: Add Flipt blog to their ecosystem page ([#6789](https://github.com/open-policy-agent/opa/pull/6789)) authored by @charlieegan3
+- docs/website: Revise language SDK content ([#6811](https://github.com/open-policy-agent/opa/pull/6811)) authored by @charlieegan3
+
+### Miscellaneous
+
+- Dependency updates; notably:
+  - build(go): bump golang from 1.22.3 to 1.22.4
+  - build(deps): bump github.com/containerd/containerd from 1.7.17 to 1.7.18
+  - build(deps): bump golang.org/x/net from 0.25.0 to 0.26.0
+
 ## 0.65.0
 
 This release contains a mix of features and bugfixes.

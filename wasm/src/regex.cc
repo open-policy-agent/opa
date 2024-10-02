@@ -8,6 +8,8 @@
 
 #include <unordered_map>
 
+static const int MAX_CACHE_SIZE = 100;
+
 typedef std::unordered_map<std::string, re2::RE2*> re_cache;
 
 OPA_BUILTIN
@@ -61,6 +63,16 @@ static re2::RE2* compile(const char *pattern)
 // reuse returns the precompiled pattern to the cache.
 static void reuse(re2::RE2 *re)
 {
+	if (cache()->size() >= MAX_CACHE_SIZE)
+	{
+		// Delete a (semi-)random key to make room for the new one.
+		auto i = cache()->begin();
+		if (i != cache()->end())
+		{
+			delete i->second;
+			cache()->erase(i);
+		}
+	}
     cache()->insert(std::make_pair(re->pattern(), re));
 }
 

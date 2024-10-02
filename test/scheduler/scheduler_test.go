@@ -39,7 +39,7 @@ func TestScheduler(t *testing.T) {
 	}
 }
 
-func setup(ctx context.Context, t *testing.T, filename string) *rego.Rego {
+func setup(_ context.Context, t *testing.T, filename string) *rego.Rego {
 
 	// policy compilation
 	c := ast.NewCompiler()
@@ -127,6 +127,7 @@ const (
 	policy = `
 package opa.test.scheduler
 
+import rego.v1
 import data.nodes
 import data.pods
 import data.pvs
@@ -137,14 +138,14 @@ import input.pod as req
 
 # Fit rule for all pods. Implements same filtering and
 # prioritisation logic that is included by default in Kubernetes.
-fit[node_name] = weight {
+fit[node_name] = weight if {
     scheduler_name[my_scheduler_name]
     filter[node_id]
     weight := prioritise[node_id]
     node_name := nodes[node_id].metadata.name
 }
 
-filter[node_id] {
+filter contains node_id if {
     # Filtering for all pods except hollow node pods.
     not hollow_node
     not blacklisted[nodes[node_id].metadata.name]
@@ -158,7 +159,7 @@ filter[node_id] {
     nodes[node_id].metadata.name == "127.0.0.1"
 }
 
-port_conflicts[node_id] {
+port_conflicts contains node_id if {
     node := nodes[node_id]
     pods[i].spec.nodeName == node.metadata.name
     container := pods[i].spec.containers[j]
@@ -168,13 +169,13 @@ port_conflicts[node_id] {
     req_port == port
 }
 
-disk_conflicts[node_id] {
+disk_conflicts contains node_id if {
     gce_persistent_disk_conflicts[node_id]
     aws_ebs_conflicts[node_id]
     rbd_conflicts[node_id]
 }
 
-gce_persistent_disk_conflicts[node_id] {
+gce_persistent_disk_conflicts contains node_id if {
     req_disk := req.spec.volumes[i].gcePersistentDisk
     not req_disk.readOnly
     node := nodes[node_id]
@@ -193,7 +194,7 @@ gce_persistent_disk_conflicts[node_id] {
     not disk.readOnly
 }
 
-aws_ebs_conflicts[node_id] {
+aws_ebs_conflicts contains node_id if {
     req_disk := req.spec.volumes[i].awsElasticBlockStore
     node := nodes[node_id]
     pod := pods[j]
@@ -202,7 +203,7 @@ aws_ebs_conflicts[node_id] {
     disk.volumeID == req_disk.volumeID
 }
 
-rbd_conflicts[node_id] {
+rbd_conflicts contains node_id if {
     req_disk := req.spec.volumes[i].rbd
     node := nodes[node_id]
     pod := pods[j]
@@ -213,7 +214,7 @@ rbd_conflicts[node_id] {
     req_disk.monitors[l] == disk.monitors[m]
 }
 
-pv_zone_label_match[node_id] {
+pv_zone_label_match contains node_id if {
     req_volume := req.spec.volumes[i]
     req_claim_name := req_volume.persistentVolumeClaim.claimName
     req_namespace := req.metadata.namespace
@@ -225,26 +226,26 @@ pv_zone_label_match[node_id] {
     nodes[node_id].metadata.labels[label] == value
 }
 
-resources_available[node_id] {
+resources_available contains node_id if {
     node := nodes[node_id]
     not pods_exceeded[node_id]
     not mem_exceeded[node_id]
     not cpu_exceeded[node_id]
 }
 
-pods_exceeded[node_id] {
+pods_exceeded contains node_id if {
     num_pods := count(pods_on_node[node_id])
     max_pods := to_number(nodes[node_id].status.allocatable.pods)
     num_pods >= max_pods
 }
 
-mem_exceeded[node_id] {
+mem_exceeded contains node_id if {
     alloc := allocatable_mem[node_id]
     total := mem_total[node_id]
     total >= alloc
 }
 
-cpu_exceeded[node_id] {
+cpu_exceeded contains node_id if {
     alloc := allocatable_cpu[node_id]
     total := cpu_total[node_id]
     total >= alloc
@@ -258,7 +259,7 @@ cpu_nonzero_total[node_id] = sum([cpu | cpu := req_cpu[_]]) + used_nonzero_cpu[n
 
 mem_nonzero_total[node_id] = sum([mem | mem := req_mem[_]]) + used_nonzero_mem[node_id]
 
-req_cpu[name] = cpu {
+req_cpu[name] = cpu if {
     container := req.spec.containers[_]
     name := container.name
     cpu := container.resources.requests.cpu
@@ -269,7 +270,7 @@ req_cpu[name] = cpu {
     cpu := default_milli_cpu_req
 }
 
-req_mem[name] = mem {
+req_mem[name] = mem if {
     container := req.spec.containers[_]
     name := container.name
     mem := container.resources.requests.memory
@@ -280,15 +281,15 @@ req_mem[name] = mem {
     mem := default_memory_req
 }
 
-allocatable_mem[node_id] = alloc {
+allocatable_mem[node_id] = alloc if {
     alloc := nodes[node_id].status.allocatable.memory
 }
 
-allocatable_cpu[node_id] = alloc {
+allocatable_cpu[node_id] = alloc if {
     alloc := nodes[node_id].status.allocatable.cpu
 }
 
-used_mem[node_id] = used {
+used_mem[node_id] = used if {
     node_pods := pods_on_node[node_id]
     mem := [m | pod := node_pods[_]
                 container := pod.spec.containers[_]
@@ -297,7 +298,7 @@ used_mem[node_id] = used {
     used := sum(mem)
 }
 
-used_cpu[node_id] = used {
+used_cpu[node_id] = used if {
     node_pods := pods_on_node[node_id]
     cpu := [c | pod := node_pods[_]
                 container := pod.spec.containers[_]
@@ -306,7 +307,7 @@ used_cpu[node_id] = used {
     used := sum(cpu)
 }
 
-used_nonzero_mem[node_id] = used {
+used_nonzero_mem[node_id] = used if {
     node_pods := pods_on_node[node_id]
     mem := [m | pod := node_pods[_]
                 container := pod.spec.containers[_]
@@ -319,7 +320,7 @@ used_nonzero_mem[node_id] = used {
     used := sum(mem) + sum(def)
 }
 
-used_nonzero_cpu[node_id] = used {
+used_nonzero_cpu[node_id] = used if {
     node_pods := pods_on_node[node_id]
     cpu = [c | pod := node_pods[_]
                container := pod.spec.containers[_]
@@ -332,16 +333,16 @@ used_nonzero_cpu[node_id] = used {
     used = sum(cpu) + sum(def)
 }
 
-pods_on_node[node_id] = pds {
+pods_on_node[node_id] = pds if {
     node_name := nodes[node_id].metadata.name
     pds := [p | pods[i].spec.nodeName == node_name; p := pods[i]]
 }
 
-hollow_node {
+hollow_node if {
     req.metadata.labels[i] == "hollow-node"
 }
 
-blacklisted[node_name] {
+blacklisted contains node_name if {
     node_names := [
         "127.0.0.1"
     ]
@@ -351,7 +352,7 @@ blacklisted[node_name] {
 my_scheduler_name = "experimental"
 
 # This scheduler is responsible for pods annotated with the following scheduler names.
-scheduler_name[scheduler] {
+scheduler_name contains scheduler if {
     scheduler := req.metadata.annotations[k8s_scheduler_annotations]
 }
 
@@ -378,28 +379,28 @@ toleration_annotation = "scheduler.alpha.kubernetes.io/tolerations"
 default_milli_cpu_req = 100    # 0.1 cores
 default_memory_req = 209715200 # 200MB
 
-prioritise[node_id] = weight {
+prioritise[node_id] = weight if {
     weight := sum([
         selector_spreading[node_id],
         balanced_allocation[node_id],
         least_requested[node_id]]) / 3
 }
 
-least_requested[node_id] = weight {
+least_requested[node_id] = weight if {
     weight := (cpu_weight[node_id] + mem_weight[node_id]) / 2
 }
 
-cpu_weight[node_id] = weight {
+cpu_weight[node_id] = weight if {
     cpu_capacity := allocatable_cpu[node_id]
     weight := ((cpu_capacity - cpu_nonzero_total[node_id]) * 10) / cpu_capacity
 }
 
-mem_weight[node_id] = weight {
+mem_weight[node_id] = weight if {
     mem_capacity := allocatable_mem[node_id]
     weight := ((mem_capacity - mem_nonzero_total[node_id]) * 10) / mem_capacity
 }
 
-balanced_allocation[node_id] = weight {
+balanced_allocation[node_id] = weight if {
     mem_f := mem_fraction[node_id]
     cpu_f := cpu_fraction[node_id]
     mem_f < 1
@@ -419,61 +420,61 @@ balanced_allocation[node_id] = weight {
     weight = 0
 }
 
-cpu_fraction[node_id] = f {
+cpu_fraction[node_id] = f if {
     f := cpu_nonzero_total[node_id] / allocatable_cpu[node_id]
 }
 
-mem_fraction[node_id] = f {
+mem_fraction[node_id] = f if {
     f := mem_nonzero_total[node_id] / allocatable_mem[node_id]
 }
 
-selector_spreading[node_id] = weight {
+selector_spreading[node_id] = weight if {
     max_count := max_rc_match_count
     weight := ((max_count - rc_match_count[node_id]) / max_count) * 10
 }
 
-max_rc_match_count = max_count {
+max_rc_match_count = max_count if {
     max([1, max([c | c := rc_match_count[_]])], max_count)
 }
 
-rc_match_count[node_id] = cnt {
+rc_match_count[node_id] = cnt if {
     nodes[node_id]
     rcs_req_matches[rc_id]
     cnt := count([1 | rcs_on_node[node_id][_] == rc_id])
 }
 
-rcs_on_node[node_id] = rc_ids {
+rcs_on_node[node_id] = rc_ids if {
     pods_on_node[node_id] = node_pods
     rc_ids = [ rc_id | pod := node_pods[_]
                        rc_id := rcs_for_pod[pod.metadata.uid][_]]
 }
 
-rcs_for_pod[pod_id] = rc_ids {
+rcs_for_pod[pod_id] = rc_ids if {
     pods[pod_id]
     rc_ids = [rc_id | rcs[rc_id]
                       selector_matches[[pod_id, rc_id]]]
 }
 
-selector_matches[[pod_id, rc_id]] {
+selector_matches contains [pod_id, rc_id] if {
     pods[pod_id]
     rcs[rc_id]
     x = [pod_id, rc_id]
     not selector_not_matches[x]
 }
 
-selector_not_matches[[pod_id, rc_id]] {
+selector_not_matches contains [pod_id, rc_id] if {
     pods[pod_id] = pod
     rc := rcs[rc_id]
     v := rc.spec.selector[k]
     not pod.metadata.labels[k] = v
 }
 
-rcs_req_matches[rc_id] {
+rcs_req_matches contains rc_id if {
     rcs[rc_id]
     not rcs_req_not_matches[rc_id]
 }
 
-rcs_req_not_matches[rc_id] {
+rcs_req_not_matches contains rc_id if {
     value := rcs[rc_id].spec.selector[label]
     not req.metadata.labels[label] = value
 }

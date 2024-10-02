@@ -1,0 +1,30 @@
+---
+cases:
+  - note: "eqexpr/pattern: object non-ground ref"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	__local0__ = data.c[0].x[i]
+        	{"a": 1, "b": x} = {"a": 1, "b": __local0__}
+        }
+    data:
+      c:
+        - "true":
+            - null
+            - 3.14159
+          x:
+            - true
+            - false
+            - foo
+          z:
+            p: true
+            q: false
+    want_result:
+      - x:
+          - false
+          - true
+          - foo
+    sort_bindings: true

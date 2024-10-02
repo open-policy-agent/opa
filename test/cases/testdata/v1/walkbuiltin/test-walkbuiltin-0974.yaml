@@ -1,0 +1,30 @@
+---
+cases:
+  - note: walkbuiltin/match and filter
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains [k, x] if {
+        	__local0__ = data.generated.q
+        	walk(__local0__, [k, x])
+        	__local1__ = k[1]
+        	contains(__local1__, "oo")
+        }
+
+        q := [{
+        	"foo": 1,
+        	"bar": 2,
+        	"bazoo": 3,
+        }]
+    data: {}
+    want_result:
+      - x:
+          - - - 0
+              - bazoo
+            - 3
+          - - - 0
+              - foo
+            - 1
+    sort_bindings: true

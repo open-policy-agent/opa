@@ -1,0 +1,23 @@
+---
+cases:
+  - data:
+      ok: |-
+        package foo.bar
+
+        import rego.v1
+        import data.a
+
+        p if { a = true }
+    modules:
+      - |
+        package generated
+
+        p = x {
+          __local0__ = data.ok
+          rego.parse_module("x.rego", __local0__, module)
+          x = module["package"].path[1].value
+        }
+    note: regoparsemodule/ok
+    query: data.generated.p = x
+    want_result:
+      - x: foo

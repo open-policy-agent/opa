@@ -1,0 +1,15 @@
+---
+cases:
+  - note: arithmetic/remainder
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	__local0__ = 7 % 4
+        	x = __local0__
+        }
+    data: {}
+    want_result:
+      - x: 3

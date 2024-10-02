@@ -1,0 +1,14 @@
+---
+cases:
+  - note: "strings/split: empty string"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	split("", ".", [x])
+        }
+    data: {}
+    want_result:
+      - x: ""

@@ -6,39 +6,41 @@ Open Policy Agent (OPA) is an open source, general-purpose policy engine that en
 
 OPA is proud to be a graduated project in the [Cloud Native Computing Foundation](https://cncf.io) (CNCF) landscape. For details read the CNCF [announcement](https://www.cncf.io/announcements/2021/02/04/cloud-native-computing-foundation-announces-open-policy-agent-graduation/).
 
-## Want to connect with the community or get support for OPA?
+## Get started with OPA
 
-- Join the [OPA Slack](https://slack.openpolicyagent.org) for day-to-day conversations with the OPA community.
-- Need Support? Check out the [Community Discussions](https://github.com/orgs/open-policy-agent/discussions) to ask questions.
+- Write your first Rego policy with the [Rego Playground](https://play.openpolicyagent.org) or use it to share your work with others for feedback and support. Have a look at the [Access Control examples](https://play.openpolicyagent.org/?example-group=access-control) if you're not sure where to start.
+- Install the [VS Code extension](https://marketplace.visualstudio.com/items?itemName=tsandall.opa) to get started locally with live diagnostics, debugging and formatting. See [Editor and IDE Support](https://www.openpolicyagent.org/docs/edge/editor-and-ide-support/) for other supported editors.
+- Go to the [OPA Documentation](https://www.openpolicyagent.org/docs/latest/) to
+  learn about the Rego language as well as how to deploy and integrate OPA.
+- Check out the learning resources in the [Learning Rego](https://www.openpolicyagent.org/ecosystem/learning-rego/) section of the ecosystem directory.
+- Follow the [Running OPA](https://www.openpolicyagent.org/docs/latest/#running-opa) instructions to get started with the OPA CLI locally.
+- See [Docker Hub](https://hub.docker.com/r/openpolicyagent/opa/tags/) for container images and the [GitHub releases](https://github.com/open-policy-agent/opa/releases) for binaries.
+- Check out the [OPA Roadmap](https://docs.google.com/presentation/d/16QV6gvLDOV3I0_guPC3_19g6jHkEg3X9xqMYgtoCKrs/edit?usp=sharing) to see a high-level snapshot of OPA features in-progress and planned.
 
-## Want to learn more about OPA?
+## Want to talk about OPA or get support?
 
-- Go to [openpolicyagent.org](https://www.openpolicyagent.org) to get started with documentation and tutorials.
-- Browse [blog.openpolicyagent.org](https://blog.openpolicyagent.org) for news about OPA, community, policy and authorization.
-- Watch OPA's [YouTube](https://www.youtube.com/channel/UClDMRN5HlqD3di5MMf-SV4A) channel for videos about OPA.
-- Try OPA with the [Rego Playground](https://play.openpolicyagent.org) to experiment with policies and share your work.
-- View the [OPA Roadmap](https://docs.google.com/presentation/d/16QV6gvLDOV3I0_guPC3_19g6jHkEg3X9xqMYgtoCKrs/edit?usp=sharing) to see a high-level snapshot of OPA features in-progress and planned.
+- Join the [OPA Slack](https://slack.openpolicyagent.org) to talk to other OPA users and maintainers. See `#help` for support.
+- Check out the [Community Discussions](https://github.com/orgs/open-policy-agent/discussions) to ask questions.
+
+## Interested to learn what others are doing with OPA?
+
+- Browse community projects on the [OPA Ecosystem Directory](http://openpolicyagent.org/ecosystem/) - don't forget to [list your own](https://github.com/open-policy-agent/opa/tree/main/docs#opa-ecosystem)!
 - Check out the [ADOPTERS.md](./ADOPTERS.md) file for a list of production adopters. Does your organization use OPA in production? Support the OPA project by submitting a PR to add your organization to the list with a short description of your OPA use cases!
-
-## Want to download OPA?
-
-- [Docker Hub](https://hub.docker.com/r/openpolicyagent/opa/tags/) for Docker images.
-- [GitHub releases](https://github.com/open-policy-agent/opa/releases) for binary releases and changelogs.
 
 ## Want to integrate OPA?
 
-* See the high-level [Go SDK](https://www.openpolicyagent.org/docs/latest/integration/#integrating-with-the-go-sdk) or the low-level Go API
+- See the high-level [Go SDK](https://www.openpolicyagent.org/docs/latest/integration/#integrating-with-the-go-sdk) or the low-level Go API
   [![GoDoc](https://godoc.org/github.com/open-policy-agent/opa?status.svg)](https://godoc.org/github.com/open-policy-agent/opa/rego)
   to integrate OPA with services written in Go.
-* See [REST API](https://www.openpolicyagent.org/docs/rest-api.html) to
-  integrate OPA with services written in other languages.
-* See the [integration docs](https://www.openpolicyagent.org/docs/latest/integration/) for more options.
+- See the [REST API](https://www.openpolicyagent.org/docs/rest-api.html)
+  reference to integrate OPA with services written in other languages.
+- See the [integration docs](https://www.openpolicyagent.org/docs/latest/integration/) for more options.
 
 ## Want to contribute to OPA?
 
-* Read the [Contributing Guide](https://www.openpolicyagent.org/docs/latest/contributing/) to learn how to make your first contribution.
-* Use [#contributors](https://openpolicyagent.slack.com/archives/C02L1TLPN59) in Slack to talk to other contributors and OPA maintainers.
-* File a [GitHub Issue](https://github.com/open-policy-agent/opa/issues) to request features or report bugs.
+- Read the [Contributing Guide](https://www.openpolicyagent.org/docs/latest/contributing/) to learn how to make your first contribution.
+- Use [#contributors](https://openpolicyagent.slack.com/archives/C02L1TLPN59) in Slack to talk to other contributors and OPA maintainers.
+- File a [GitHub Issue](https://github.com/open-policy-agent/opa/issues) to request features or report bugs.
 
 ## How does OPA work?
 
@@ -48,12 +50,12 @@ across your stack.
 With OPA, you define _rules_ that govern how your system should behave. These
 rules exist to answer questions like:
 
-* Can user X call operation Y on resource Z?
-* What clusters should workload W be deployed to?
-* What tags must be set on resource R before it's created?
+- Can user X call operation Y on resource Z?
+- What clusters should workload W be deployed to?
+- What tags must be set on resource R before it's created?
 
 You integrate services with OPA so that these kinds of policy decisions do not
-have to be *hardcoded* in your service. Services integrate with OPA by
+have to be _hardcoded_ in your service. Services integrate with OPA by
 executing _queries_ when policy decisions are needed.
 
 When you query OPA for a policy decision, OPA evaluates the rules and data
@@ -62,10 +64,10 @@ the result of the query.
 
 For example, in a simple API authorization use case:
 
-* You write rules that allow (or deny) access to your service APIs.
-* Your service queries OPA when it receives API requests.
-* OPA returns allow (or deny) decisions to your service.
-* Your service _enforces_ the decisions by accepting or rejecting requests accordingly.
+- You write rules that allow (or deny) access to your service APIs.
+- Your service queries OPA when it receives API requests.
+- OPA returns allow (or deny) decisions to your service.
+- Your service _enforces_ the decisions by accepting or rejecting requests accordingly.
 
 For concrete examples of how to integrate OPA with systems like [Kubernetes](https://www.openpolicyagent.org/docs/kubernetes-admission-control.html), [Terraform](https://www.openpolicyagent.org/docs/terraform.html), [Docker](https://www.openpolicyagent.org/docs/docker-authorization.html), [SSH](https://www.openpolicyagent.org/docs/ssh-and-sudo-authorization.html), and more, see [openpolicyagent.org](https://www.openpolicyagent.org).
 
@@ -86,11 +88,9 @@ For concrete examples of how to integrate OPA with systems like [Kubernetes](htt
 - Enforcing Bespoke Policies In Kubernetes @ KubeCon US 2017: [video](https://www.youtube.com/watch?v=llDI8VvkUj8), [slides](https://www.slideshare.net/TorinSandall/enforcing-bespoke-policies-in-kubernetes)
 - Istio's Mixer: Policy Enforcement with Custom Adapters @ CloudNativeCon US 2017: [video](https://www.youtube.com/watch?v=czZLXUqzd24), [slides](https://www.slideshare.net/TorinSandall/istios-mixer-policy-enforcement-with-custom-adapters-cloud-nativecon-17)
 
-## Security Audit
+## Security
 
-A third party security audit was performed by Cure53, you can see the full report [here](SECURITY_AUDIT.pdf)
-
-## Reporting Security Vulnerabilities
+A third party security audit was performed by Cure53, you can see the full report [here](SECURITY_AUDIT.pdf).
 
 Please report vulnerabilities by email to [open-policy-agent-security](mailto:open-policy-agent-security@googlegroups.com).
 We will send a confirmation message to acknowledge that we have received the

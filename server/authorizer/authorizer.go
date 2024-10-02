@@ -7,7 +7,6 @@ package authorizer
 
 import (
 	"context"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -33,6 +32,7 @@ type Basic struct {
 	printHook             print.Hook
 	enablePrintStatements bool
 	interQueryCache       cache.InterQueryCache
+	interQueryValueCache  cache.InterQueryValueCache
 }
 
 // Runtime returns an argument that sets the runtime on the authorizer.
@@ -74,6 +74,13 @@ func InterQueryCache(interQueryCache cache.InterQueryCache) func(*Basic) {
 	}
 }
 
+// InterQueryValueCache enables the inter-query value cache on the authorizer
+func InterQueryValueCache(interQueryValueCache cache.InterQueryValueCache) func(*Basic) {
+	return func(b *Basic) {
+		b.interQueryValueCache = interQueryValueCache
+	}
+}
+
 // NewBasic returns a new Basic object.
 func NewBasic(inner http.Handler, compiler func() *ast.Compiler, store storage.Store, opts ...func(*Basic)) http.Handler {
 	b := &Basic{
@@ -108,6 +115,7 @@ func (h *Basic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		rego.EnablePrintStatements(h.enablePrintStatements),
 		rego.PrintHook(h.printHook),
 		rego.InterQueryBuiltinCache(h.interQueryCache),
+		rego.InterQueryBuiltinValueCache(h.interQueryValueCache),
 	)
 
 	rs, err := rego.Eval(r.Context())
@@ -151,7 +159,6 @@ func (h *Basic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func makeInput(r *http.Request) (*http.Request, interface{}, error) {
-
 	path, err := parsePath(r.URL.Path)
 	if err != nil {
 		return r, nil, err
@@ -164,7 +171,7 @@ func makeInput(r *http.Request) (*http.Request, interface{}, error) {
 
 	if expectBody(r.Method, path) {
 		var err error
-		rawBody, err = io.ReadAll(r.Body)
+		rawBody, err = util.ReadMaybeCompressedBody(r)
 		if err != nil {
 			return r, nil, err
 		}

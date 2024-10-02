@@ -1,0 +1,23 @@
+---
+cases:
+  - note: "virtualdocs/output: object value"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p[x] := y if {
+        	data.generated.q[x] = y
+        }
+
+        q[k] := v if {
+        	data.b[k] = v
+        }
+    data:
+      b:
+        v1: hello
+        v2: goodbye
+    want_result:
+      - x:
+          v1: hello
+          v2: goodbye

@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"os"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -199,7 +200,10 @@ func (m Manifest) Equal(other Manifest) bool {
 	if m.RegoVersion != nil && other.RegoVersion != nil && *m.RegoVersion != *other.RegoVersion {
 		return false
 	}
-	if !reflect.DeepEqual(m.FileRegoVersions, other.FileRegoVersions) {
+
+	// If both are nil, or both are empty, we consider them equal.
+	if !(len(m.FileRegoVersions) == 0 && len(other.FileRegoVersions) == 0) &&
+		!reflect.DeepEqual(m.FileRegoVersions, other.FileRegoVersions) {
 		return false
 	}
 
@@ -449,6 +453,7 @@ type Reader struct {
 	name                  string
 	persist               bool
 	regoVersion           ast.RegoVersion
+	followSymlinks        bool
 }
 
 // NewReader is deprecated. Use NewCustomReader instead.
@@ -534,6 +539,11 @@ func (r *Reader) WithBundleEtag(etag string) *Reader {
 // WithBundleName specifies the bundle name
 func (r *Reader) WithBundleName(name string) *Reader {
 	r.name = name
+	return r
+}
+
+func (r *Reader) WithFollowSymlinks(yes bool) *Reader {
+	r.followSymlinks = yes
 	return r
 }
 
@@ -1085,6 +1095,9 @@ func (b *Bundle) FormatModulesForRegoVersion(version ast.RegoVersion, preserveMo
 		opts := format.Opts{}
 		if preserveModuleRegoVersion {
 			opts.RegoVersion = module.Parsed.RegoVersion()
+			opts.ParserOptions = &ast.ParserOptions{
+				RegoVersion: opts.RegoVersion,
+			}
 		} else {
 			opts.RegoVersion = version
 		}
@@ -1190,7 +1203,8 @@ func (b *Bundle) SetRegoVersion(v ast.RegoVersion) {
 // If there is no defined version for the given path, the default version def is returned.
 // If the version does not correspond to ast.RegoV0 or ast.RegoV1, an error is returned.
 func (b *Bundle) RegoVersionForFile(path string, def ast.RegoVersion) (ast.RegoVersion, error) {
-	if version, err := b.Manifest.numericRegoVersionForFile(path); err != nil {
+	version, err := b.Manifest.numericRegoVersionForFile(path)
+	if err != nil {
 		return def, err
 	} else if version == nil {
 		return def, nil
@@ -1198,9 +1212,8 @@ func (b *Bundle) RegoVersionForFile(path string, def ast.RegoVersion) (ast.RegoV
 		return ast.RegoV0, nil
 	} else if *version == 1 {
 		return ast.RegoV1, nil
-	} else {
-		return def, fmt.Errorf("unknown bundle rego-version %d for file '%s'", *version, path)
 	}
+	return def, fmt.Errorf("unknown bundle rego-version %d for file '%s'", *version, path)
 }
 
 func (m *Manifest) numericRegoVersionForFile(path string) (*int, error) {
@@ -1667,6 +1680,7 @@ func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes in
 }
 
 func readFile(f *Descriptor, sizeLimitBytes int64) (bytes.Buffer, error) {
+	// Case for pre-loaded byte buffers, like those from the tarballLoader.
 	if bb, ok := f.reader.(*bytes.Buffer); ok {
 		_ = f.Close() // always close, even on error
 
@@ -1678,6 +1692,37 @@ func readFile(f *Descriptor, sizeLimitBytes int64) (bytes.Buffer, error) {
 		return *bb, nil
 	}
 
+	// Case for *lazyFile readers:
+	if lf, ok := f.reader.(*lazyFile); ok {
+		var buf bytes.Buffer
+		if lf.file == nil {
+			var err error
+			if lf.file, err = os.Open(lf.path); err != nil {
+				return buf, fmt.Errorf("failed to open file %s: %w", f.path, err)
+			}
+		}
+		// Bail out if we can't read the whole file-- there's nothing useful we can do at that point!
+		fileSize, _ := fstatFileSize(lf.file)
+		if fileSize > sizeLimitBytes {
+			return buf, fmt.Errorf(maxSizeLimitBytesErrMsg, strings.TrimPrefix(f.Path(), "/"), fileSize, sizeLimitBytes-1)
+		}
+		// Prealloc the buffer for the file read.
+		buffer := make([]byte, fileSize)
+		_, err := io.ReadFull(lf.file, buffer)
+		if err != nil {
+			return buf, err
+		}
+		_ = lf.file.Close() // always close, even on error
+
+		// Note(philipc): Replace the lazyFile reader in the *Descriptor with a
+		// pointer to the wrapping bytes.Buffer, so that we don't re-read the
+		// file on disk again by accident.
+		buf = *bytes.NewBuffer(buffer)
+		f.reader = &buf
+		return buf, nil
+	}
+
+	// Fallback case:
 	var buf bytes.Buffer
 	n, err := f.Read(&buf, sizeLimitBytes)
 	_ = f.Close() // always close, even on error
@@ -1689,6 +1734,17 @@ func readFile(f *Descriptor, sizeLimitBytes int64) (bytes.Buffer, error) {
 	}
 
 	return buf, nil
+}
+
+// Takes an already open file handle and invokes the os.Stat system call on it
+// to determine the file's size. Passes any errors from *File.Stat on up to the
+// caller.
+func fstatFileSize(f *os.File) (int64, error) {
+	fileInfo, err := f.Stat()
+	if err != nil {
+		return 0, err
+	}
+	return fileInfo.Size(), nil
 }
 
 func normalizePath(p string) string {

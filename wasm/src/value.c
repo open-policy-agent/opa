@@ -976,7 +976,15 @@ int opa_number_try_int(opa_number_t *n, long long *i)
         *i = n->v.i;
         return 0;
     case OPA_NUMBER_REPR_REF:
-        return opa_atoi64(n->v.ref.s, n->v.ref.len, i);
+        if (opa_atoi64(n->v.ref.s, n->v.ref.len, i) == 0)
+        {
+            if (*i == LLONG_MIN || *i == LLONG_MAX)
+            {
+                return -1;
+            }
+            return 0;
+        }
+        return -1;
     default:
         opa_abort("opa_number_try_int: illegal repr");
         return -1;

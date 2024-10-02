@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"embed"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -51,8 +52,9 @@ func TestLoadRego(t *testing.T) {
 
 	files := map[string]string{
 		"/foo.rego": `package ex
+import rego.v1
 
-p = true { true }`}
+p = true if { true }`}
 
 	test.WithTempFS(files, func(rootDir string) {
 		moduleFile := filepath.Join(rootDir, "foo.rego")
@@ -574,6 +576,61 @@ func TestAsBundleWithFile(t *testing.T) {
 	})
 }
 
+func TestCheckForUNCPath(t *testing.T) {
+	cases := []struct {
+		input   string
+		wantErr bool
+		err     error
+	}{
+		{
+			input:   "c:/foo",
+			wantErr: false,
+		},
+		{
+			input:   "file:///c:/a/b",
+			wantErr: false,
+		},
+		{
+			input:   `\\localhost\c$`,
+			wantErr: true,
+			err:     fmt.Errorf("UNC path read is not allowed: \\\\localhost\\c$"),
+		},
+		{
+			input:   `\\\\localhost\c$`,
+			wantErr: true,
+			err:     fmt.Errorf("UNC path read is not allowed: \\\\\\\\localhost\\c$"),
+		},
+		{
+			input:   `//localhost/foo`,
+			wantErr: true,
+			err:     fmt.Errorf("UNC path read is not allowed: //localhost/foo"),
+		},
+		{
+			input:   `file:///a/b/c`,
+			wantErr: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			err := checkForUNCPath(tc.input)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("Expected error but got nil")
+				}
+
+				if tc.err != nil && tc.err.Error() != err.Error() {
+					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+			}
+		})
+	}
+}
+
 func TestLoadRooted(t *testing.T) {
 	files := map[string]string{
 		"/foo.json":         "[1,2,3]",
@@ -732,7 +789,7 @@ func TestLoadErrors(t *testing.T) {
 		}
 
 		expected := []string{
-			"bad_doc.json: bad document type",
+			"bad_doc.json: document must be of type object",
 			"a.json: EOF",
 			"b.yaml: error converting YAML to JSON",
 			"empty.rego:0: rego_parse_error: empty module",

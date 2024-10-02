@@ -1,0 +1,25 @@
+---
+cases:
+  - note: nestedreferences/var ref
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains y if {
+        	x = [1, 2, 3]
+        	__local0__ = x[_]
+        	y = data.a[__local0__]
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x:
+          - 2
+          - 3
+          - 4
+    sort_bindings: true

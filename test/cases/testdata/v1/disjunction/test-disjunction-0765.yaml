@@ -1,0 +1,48 @@
+---
+cases:
+    - note: "disjunction/incr: query object"
+      query: data.generated.p = x
+      modules:
+          - |
+              package generated
+
+              p[k] := v if {
+              	data.b[v] = k
+              }
+
+              p[k] := v if {
+              	data.a[i] = v
+              	data.g[k][j] = v
+              }
+      data:
+          a:
+              - "1"
+              - "2"
+              - "3"
+              - "4"
+          b:
+              v1: hello
+              v2: goodbye
+          g:
+              a:
+                  - "1"
+                  - "0"
+                  - "0"
+                  - "0"
+              b:
+                  - "0"
+                  - "2"
+                  - "0"
+                  - "0"
+              c:
+                  - "0"
+                  - "0"
+                  - "0"
+                  - "4"
+      want_result:
+          - x:
+                a: "1"
+                b: "2"
+                c: "4"
+                goodbye: v2
+                hello: v1

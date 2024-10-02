@@ -16,8 +16,9 @@ func TestEnablePrintStatementsForFilesystemPolicies(t *testing.T) {
 	files := map[string]string{
 		"/test.rego": `
 			package test
+			import rego.v1
 
-			p {
+			p if {
 				print("hello world")
 			}
 		`,
@@ -59,8 +60,9 @@ func TestEnablePrintStatementsForFilesystemPolicies(t *testing.T) {
 func TestEnablePrintStatementsForHTTPAPIPushedPolicies(t *testing.T) {
 	policy := `
 		package test
+		import rego.v1
 
-		p {
+		p if {
 			print("hello world")
 		}
 	`
@@ -100,15 +102,18 @@ func TestEnablePrintStatementsForHTTPAPIPushedPolicies(t *testing.T) {
 
 func TestEnablePrintStatementsForBundles(t *testing.T) {
 
-	server := test_sdk.MustNewServer(test_sdk.MockBundle("/bundles/bundle.tar.gz", map[string]string{
-		"test.rego": `
+	server := test_sdk.MustNewServer(
+		test_sdk.RawBundles(true),
+		test_sdk.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			"test.rego": `
 			package test
+			import rego.v1
 
-			p {
+			p if {
 				print("hello world")
 			}
 		`,
-	}))
+		}))
 
 	params := e2e.NewAPIServerTestParams()
 

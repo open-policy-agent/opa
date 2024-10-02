@@ -1,0 +1,20 @@
+---
+cases:
+  - note: "virtualdocs/input: set ground composite (1)"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	z = [[1, 2], 2]
+        	data.generated.q[z]
+        }
+
+        q contains [x, y] if {
+        	y = 2
+        	x = [1, y]
+        }
+    data: {}
+    want_result:
+      - x: true

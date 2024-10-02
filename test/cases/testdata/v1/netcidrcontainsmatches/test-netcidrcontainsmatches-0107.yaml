@@ -1,0 +1,19 @@
+---
+cases:
+  - note: netcidrcontainsmatches/bad array
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := __local0__ if {
+        	__local2__ = data.a[0]
+        	net.cidr_contains_matches(["1.1.2.0/24", "1.1.1.0/24"], ["1.1.1.1", __local2__], __local1__)
+        	__local0__ = __local1__
+        }
+    data:
+      a:
+        - 1
+    want_error_code: eval_builtin_error
+    want_error: "net.cidr_contains_matches: operand 2: element must be string or non-empty array"
+    strict_error: true

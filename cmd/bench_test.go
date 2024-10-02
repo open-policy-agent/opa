@@ -382,7 +382,7 @@ func TestBenchMainErrRunningBenchmark(t *testing.T) {
 	var buf bytes.Buffer
 
 	mockRunner := &mockBenchRunner{}
-	mockRunner.onRun = func(ctx context.Context, ectx *evalContext, params benchmarkCommandParams, f func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
+	mockRunner.onRun = func(_ context.Context, _ *evalContext, _ benchmarkCommandParams, _ func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
 		return testing.BenchmarkResult{}, errors.New("error error error")
 	}
 
@@ -405,7 +405,7 @@ func TestBenchMainWithCount(t *testing.T) {
 
 	params.count = 25
 	actualCount := 0
-	mockRunner.onRun = func(ctx context.Context, ectx *evalContext, params benchmarkCommandParams, f func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
+	mockRunner.onRun = func(_ context.Context, _ *evalContext, _ benchmarkCommandParams, _ func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
 		actualCount++
 		return testing.BenchmarkResult{}, nil
 	}
@@ -433,7 +433,7 @@ func TestBenchMainWithNegativeCount(t *testing.T) {
 
 	params.count = -1
 	actualCount := 0
-	mockRunner.onRun = func(ctx context.Context, ectx *evalContext, params benchmarkCommandParams, f func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
+	mockRunner.onRun = func(_ context.Context, _ *evalContext, _ benchmarkCommandParams, _ func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
 		actualCount++
 		return testing.BenchmarkResult{}, nil
 	}
@@ -458,7 +458,7 @@ func validateBenchMainPrep(t *testing.T, args []string, params benchmarkCommandP
 
 	mockRunner := &mockBenchRunner{}
 
-	mockRunner.onRun = func(ctx context.Context, ectx *evalContext, params benchmarkCommandParams, f func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
+	mockRunner.onRun = func(ctx context.Context, ectx *evalContext, _ benchmarkCommandParams, _ func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
 
 		// cheat and use the ectx to evalute the query to ensure the input setup on it was valid
 		r := rego.New(ectx.regoArgs...)
@@ -683,8 +683,9 @@ func TestBenchMainWithDataE2E(t *testing.T) {
 	params.e2e = true
 
 	mod := `package a.b
+	import rego.v1
 
-	x {
+	x if {
 	   data.a.b.c == 42
 	}
 	`
@@ -731,9 +732,10 @@ func TestBenchMainBadQueryE2E(t *testing.T) {
 	}
 }
 
-func TestBenchMainV1Compatible(t *testing.T) {
+func TestBenchMainCompatibleFlags(t *testing.T) {
 	tests := []struct {
 		note         string
+		v0Compatible bool
 		v1Compatible bool
 		module       string
 		query        string
@@ -741,7 +743,8 @@ func TestBenchMainV1Compatible(t *testing.T) {
 	}{
 		// These tests are slow, so we're not being completely exhaustive here.
 		{
-			note: "v0.x, keywords not used",
+			note:         "v0, keywords not used",
+			v0Compatible: true,
 			module: `package test
 a[4] {
 	1 == 1
@@ -749,7 +752,8 @@ a[4] {
 			query: `data.test.a`,
 		},
 		{
-			note: "v0.x, no keywords imported",
+			note:         "v0, no keywords imported",
+			v0Compatible: true,
 			module: `package test
 a contains 4 if {
 	1 == 1
@@ -761,7 +765,7 @@ a contains 4 if {
 			},
 		},
 		{
-			note:         "v1.0, keywords not used",
+			note:         "v1, keywords not used",
 			v1Compatible: true,
 			module: `package test
 a[4] {
@@ -774,10 +778,20 @@ a[4] {
 			},
 		},
 		{
-			note:         "v1.0, no keywords imported",
+			note:         "v1, no keywords imported",
 			v1Compatible: true,
 			module: `package test
 a contains 4 if {
+	1 == 1
+}`,
+			query: `data.test.a`,
+		},
+		{
+			note:         "v0+v1, keywords not used (v0 takes precedence)",
+			v0Compatible: true,
+			v1Compatible: true,
+			module: `package test
+a[4] {
 	1 == 1
 }`,
 			query: `data.test.a`,
@@ -807,6 +821,7 @@ a contains 4 if {
 				test.WithTempFS(files, func(path string) {
 					params := testBenchParams()
 					_ = params.outputFormat.Set(evalPrettyOutput)
+					params.v0Compatible = tc.v0Compatible
 					params.v1Compatible = tc.v1Compatible
 					params.e2e = mode.e2e
 
@@ -1303,8 +1318,9 @@ func fakeBenchResults() testing.BenchmarkResult {
 
 func testBundle() bundle.Bundle {
 	mod := `package a.b
+	import rego.v1
 
-	x {
+	x if {
 	   data.a.b.c == 42
 	}
 	`

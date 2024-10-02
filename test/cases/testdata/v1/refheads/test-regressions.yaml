@@ -1,0 +1,180 @@
+---
+cases:
+  - note: regression/ref-not-hashable
+    query: data.test = x
+    modules:
+      - |
+        package test
+
+        ms[m.z] := m if {
+        	m := input.xs[y]
+        }
+    input:
+      xs:
+        something:
+          z: a
+    want_result:
+      - x:
+          ms:
+            a:
+              z: a
+  - note: regression/function refs and package extent
+    query: data.test = x
+    modules:
+      - |
+        package test
+
+        foo["bar"](x) := x + 1
+
+        x := foo.bar(2)
+    want_result:
+      - x:
+          foo: {}
+          x: 3
+  - note: regression/rule refs and package extent
+    query: data.test = x
+    modules:
+      - |
+        package test
+
+        buz["quz"] := 3 if input == 3
+
+        x := y if {
+        	y := buz.quz with input as 3
+        }
+    want_result:
+      - x:
+          buz: {}
+          x: 3
+  - note: regression/rule refs and package extents, multiple modules
+    query: data.test = x
+    modules:
+      - |
+        package test
+
+        x := y if {
+        	y := data.test.buz.quz with input as 3
+        }
+      - |
+        package test.buz
+
+        quz := 3 if input == 3
+    want_result:
+      - x:
+          buz: {}
+          x: 3
+  - note: regression/type checking with ref rules
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        all[0] := [2]
+
+        level := 1
+
+        p := y if y := all[level - 1][_]
+    want_result:
+      - x: 2
+  - note: regression/type checking with ref rules, number
+    query: data.test.p[0] = x
+    modules:
+      - |
+        package test
+
+        p[0] := 1
+    want_result:
+      - x: 1
+  - note: regression/type checking with ref rules, bool
+    query: data.test.p[true] = x
+    modules:
+      - |
+        package test
+
+        p[true] := 1
+    want_result:
+      - x: 1
+  - note: regression/full extent with partial object rule with empty indexer lookup result
+    query: data.test = x
+    modules:
+      - |
+        package test
+
+        p[x] := 2 if {
+        	x := input # we'll get 0 rules for data.test.p
+        	false
+        }
+    want_result:
+      - x:
+          p: {}
+  - note: regression/obj in ref head query
+    query: data.test.p[{"a":"b"}] = x
+    modules:
+      - |
+        package test
+
+        p[{"a": "b"}] := true
+    want_result:
+      - x: true
+  - note: regression/full extent with non-string (number) last term
+    query: data.test = x
+    modules:
+      - |
+        package test
+
+        p[0] := true
+    want_result:
+      - x:
+          p:
+            "0": true
+  - note: regression/full extent with non-string last term, comparison
+    query: data.test.q = x
+    modules:
+      - |
+        package test
+
+        p[0] := 1
+
+        q if p[0] == 1
+    want_result:
+      - x: true
+  - note: regression/full extent with non-string (boolean) last term
+    query: data.test = x
+    modules:
+      - |
+        package test
+
+        p[true] := true
+    want_result:
+      - x:
+          p:
+            "true": true
+  - note: regression/full extent with non-string last term, comparison
+    query: data.test.q = x
+    modules:
+      - |
+        package test
+
+        p[true] := false
+
+        q if p[true] == false
+    want_result:
+      - x: true
+  - note: regression/virtual-cache key scope
+    query: data.test.main = x
+    modules:
+      - |
+        package test
+
+        obj.sub[x][x] contains x if some x in ["one", "two"]
+
+        obj[x][x] contains x if x := "whatever"
+
+        main contains x if {
+          [1 | obj.sub[_].one[_]]
+          x := obj.sub[_][_][_]
+        }
+    want_result:
+      - x:
+          - "one"
+          - "two"

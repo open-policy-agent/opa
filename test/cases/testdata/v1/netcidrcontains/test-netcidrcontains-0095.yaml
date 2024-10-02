@@ -1,0 +1,16 @@
+---
+cases:
+  - note: netcidrcontains/cidr contains single ip subnet
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	net.cidr_contains("10.0.0.0/8", "10.1.1.1/32", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - true
+    sort_bindings: true

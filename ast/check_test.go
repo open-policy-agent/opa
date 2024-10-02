@@ -1225,17 +1225,19 @@ func TestCheckRefErrInvalid(t *testing.T) {
 
 func TestFunctionsTypeInference(t *testing.T) {
 	functions := []string{
-		`foo([a, b]) = y { split(a, b, y) }`,
-		`bar(x) = y { count(x, y) }`,
-		`baz([x, y]) = z { sprintf("%s%s", [x, y], z) }`,
-		`qux({"bar": x, "foo": y}) = {a: b} { upper(y, a); json.unmarshal(x, b) }`,
-		`corge(x) = y { qux({"bar": x, "foo": x}, a); baz([a["{5: true}"], "BUZ"], y) }`,
+		`foo([a, b]) = y if { split(a, b, y) }`,
+		`bar(x) = y if { count(x, y) }`,
+		`baz([x, y]) = z if { sprintf("%s%s", [x, y], z) }`,
+		`qux({"bar": x, "foo": y}) = {a: b} if { upper(y, a); json.unmarshal(x, b) }`,
+		`corge(x) = y if { qux({"bar": x, "foo": x}, a); baz([a["{5: true}"], "BUZ"], y) }`,
 	}
 	body := strings.Join(functions, "\n")
 	base := fmt.Sprintf("package base\n%s", body)
 
+	popts := ParserOptions{AllFutureKeywords: true}
+
 	c := NewCompiler()
-	if c.Compile(map[string]*Module{"base": MustParseModule(base)}); c.Failed() {
+	if c.Compile(map[string]*Module{"base": MustParseModuleWithOpts(base, popts)}); c.Failed() {
 		t.Fatalf("Failed to compile base module: %v", c.Errors)
 	}
 
@@ -1244,68 +1246,68 @@ func TestFunctionsTypeInference(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			`fn(_) = y { data.base.foo(["hello", 5], y) }`,
+			`fn(_) = y if { data.base.foo(["hello", 5], y) }`,
 			true,
 		},
 		{
-			`fn(_) = y { data.base.foo(["hello", "ll"], y) }`,
+			`fn(_) = y if { data.base.foo(["hello", "ll"], y) }`,
 			false,
 		},
 		{
-			`fn(_) = y { data.base.baz(["hello", "ll"], y) }`,
+			`fn(_) = y if { data.base.baz(["hello", "ll"], y) }`,
 			false,
 		},
 		{
-			`fn(_) = y { data.base.baz([5, ["foo", "bar", true]], y) }`,
+			`fn(_) = y if { data.base.baz([5, ["foo", "bar", true]], y) }`,
 			false,
 		},
 		{
-			`fn(_) = y { data.base.baz(["hello", {"a": "b", "c": 3}], y) }`,
+			`fn(_) = y if { data.base.baz(["hello", {"a": "b", "c": 3}], y) }`,
 			false,
 		},
 		{
-			`fn(_) = y { data.base.corge("this is not json", y) }`,
+			`fn(_) = y if { data.base.corge("this is not json", y) }`,
 			false,
 		},
 		{
-			`fn(x) = y { data.non_existent(x, a); y = a[0] }`,
+			`fn(x) = y if { data.non_existent(x, a); y = a[0] }`,
 			true,
 		},
 		{
-			`fn(x) = y { y = [x] }`,
+			`fn(x) = y if { y = [x] }`,
 			false,
 		},
 		{
-			`f(x) = y { [x] = y }`,
+			`f(x) = y if { [x] = y }`,
 			false,
 		},
 		{
-			`fn(x) = y { y = {"k": x} }`,
+			`fn(x) = y if { y = {"k": x} }`,
 			false,
 		},
 		{
-			`f(x) = y { {"k": x} = y }`,
+			`f(x) = y if { {"k": x} = y }`,
 			false,
 		},
 		{
-			`p { [data.base.foo] }`,
+			`p if { [data.base.foo] }`,
 			true,
 		},
 		{
-			`p { x = data.base.foo }`,
+			`p if { x = data.base.foo }`,
 			true,
 		},
 		{
-			`p { data.base.foo(data.base.bar) }`,
+			`p if { data.base.foo(data.base.bar) }`,
 			true,
 		},
 	}
 
 	for n, test := range tests {
 		t.Run(fmt.Sprintf("Test Case %d", n), func(t *testing.T) {
-			mod := MustParseModule(fmt.Sprintf("package test\n%s", test.body))
+			mod := MustParseModuleWithOpts(fmt.Sprintf("package test\n%s", test.body), popts)
 			c := NewCompiler()
-			c.Compile(map[string]*Module{"base": MustParseModule(base), "mod": mod})
+			c.Compile(map[string]*Module{"base": MustParseModuleWithOpts(base, popts), "mod": mod})
 			if test.wantErr && !c.Failed() {
 				t.Errorf("Expected error but got success")
 			} else if !test.wantErr && c.Failed() {
@@ -1321,8 +1323,9 @@ func TestFunctionTypeInferenceUnappliedWithObjectVarKey(t *testing.T) {
 	// from args in the head.
 	module := MustParseModule(`
 		package test
+		import rego.v1
 
-		f(x) = y { y = {x: 1} }
+		f(x) := y if { y = {x: 1} }
 	`)
 
 	elems := []util.T{
@@ -1348,12 +1351,13 @@ func TestCheckValidErrors(t *testing.T) {
 
 	module := MustParseModule(`
 		package test
+		import rego.v1
 
-		p {
+		p if {
 			concat("", 1)  # type error
 		}
 
-		q {
+		q if {
 			r(1)
 		}
 
@@ -1361,33 +1365,35 @@ func TestCheckValidErrors(t *testing.T) {
 
 	module2 := MustParseModule(`
 		package test
+		import rego.v1
 
-		b {
+		b if {
 			a(1)		# call erroneous function
 		}
 
-		a(x) {
+		a(x) if {
 			max("foo")  # max requires an array
 		}
 
-		m {
+		m if {
 			1 / "foo"	# type error
 		}
 
-		n {
+		n if {
 			m			# call erroneous rule
 		}`)
 
 	module3 := MustParseModule(`
 		package test
+		import rego.v1
 
 		x := {"a" : 1}
 
-		y {
+		y if {
 			z
 		}
 
-		z {
+		z if {
 			x[1] == 1	# undefined reference error
 		}`)
 
@@ -1506,11 +1512,12 @@ func TestCheckErrorOrdering(t *testing.T) {
 
 	mod := MustParseModule(`
 		package test
+		import rego.v1
 
 		q = true
 
-		p { data.test.q = 1 }  # type error: bool = number
-		p { data.test.q = 2 }  # type error: bool = number
+		p if { data.test.q = 1 }  # type error: bool = number
+		p if { data.test.q = 2 }  # type error: bool = number
 	`)
 
 	input := make([]util.T, len(mod.Rules))
@@ -2310,6 +2317,7 @@ p { input = "foo" }`}},
 			for i, module := range tc.modules {
 				mod, err := ParseModuleWithOpts(fmt.Sprintf("test%d.rego", i+1), module, ParserOptions{
 					ProcessAnnotation: true,
+					RegoVersion:       RegoV0,
 				})
 				if err != nil {
 					t.Fatal(err)
@@ -2360,12 +2368,13 @@ func TestCheckAnnotationInference(t *testing.T) {
 			modules: map[string]string{
 				"test.rego": `
 package test
+import rego.v1
 
 # METADATA
 # scope: rule
 # schemas:
 # - input: schema.foo
-p = x { input = x }
+p = x if { input = x }
 
 q = p`,
 			},
@@ -2429,7 +2438,7 @@ func TestRemoteSchema(t *testing.T) {
 	schema := `{"type": "boolean"}`
 
 	schemaCalled := false
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		schemaCalled = true
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(schema))
@@ -2438,11 +2447,12 @@ func TestRemoteSchema(t *testing.T) {
 
 	policy := fmt.Sprintf(`
 package test
+import rego.v1
 
 # METADATA
 # schemas:
 # - input: {$ref: "%s"}
-p {
+p if {
 	input == 42
 }`, server.URL)
 
@@ -2477,7 +2487,7 @@ func TestRemoteSchemaHostNotAllowed(t *testing.T) {
 	schema := `{"type": "boolean"}`
 
 	schemaCalled := false
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		schemaCalled = true
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(schema))
@@ -2486,11 +2496,12 @@ func TestRemoteSchemaHostNotAllowed(t *testing.T) {
 
 	policy := fmt.Sprintf(`
 package test
+import rego.v1
 
 # METADATA
 # schemas:
 # - input: {$ref: "%s"}
-p {
+p if {
 	input == 42
 }`, server.URL)
 

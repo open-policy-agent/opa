@@ -519,10 +519,11 @@ func TestPluginOneShotWithAuthzSchemaVerification(t *testing.T) {
 
 	// authz rules with no error
 	authzModule := `package system.authz
+		import rego.v1
 
 		default allow := false
 
-		allow {
+		allow if {
           input.identity == "foo"
 		}`
 
@@ -554,26 +555,27 @@ func TestPluginOneShotWithAuthzSchemaVerification(t *testing.T) {
 
 	// authz rules with errors
 	authzModule = `package system.authz
+		import rego.v1
 
 		default allow := false
 
-		allow {
+		allow if {
           input.identty == "foo"            # type error 1
 		}
 
-        allow {
+        allow if {
           helper1
         }
 
-        helper1 {
+        helper1 if {
           helper2
         }
 
-        helper2 {
+        helper2 if {
           input.method == 123               # type error 2
 		}
 
-        dont_type_check_me {
+        dont_type_check_me if {
           input.methd == "GET"               # type error 3
 		}`
 
@@ -665,22 +667,23 @@ func TestPluginOneShotWithAuthzSchemaVerificationNonDefaultAuthzPath(t *testing.
 	module := "package foo\n\ncorge=1"
 
 	authzModule := `package foo.authz
+		import rego.v1
 
 		default allow := false
 
-		allow {
+		allow if {
           input.identty == "foo"            # type error 1
 		}
 
-        allow {
+        allow if {
           helper
         }
 
-        helper {
+        helper if {
           input.method == 123               # type error 2
 		}
 
-        dont_type_check_me {
+        dont_type_check_me if {
           input.methd == "GET"               # type error 3
 		}`
 
@@ -757,7 +760,7 @@ func TestPluginStartLazyLoadInMem(t *testing.T) {
 		},
 	}
 
-	s1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		err := bundle.NewWriter(w).Write(mockBundle1)
 		if err != nil {
 			t.Fatal(err)
@@ -772,7 +775,7 @@ func TestPluginStartLazyLoadInMem(t *testing.T) {
 		},
 	}
 
-	s2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		err := bundle.NewWriter(w).Write(mockBundle2)
 		if err != nil {
 			t.Fatal(err)
@@ -1911,6 +1914,85 @@ func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 	}
 }
 
+func TestLoadAndActivateBundlesFromDiskReservedChars(t *testing.T) {
+
+	ctx := context.Background()
+	manager := getTestManager()
+
+	dir := t.TempDir()
+
+	goos = "windows"
+
+	bundleName := "test?bundle=opa" // bundle name contains reserved characters
+	bundleSource := Source{
+		Persist: true,
+	}
+
+	bundles := map[string]*Source{}
+	bundles[bundleName] = &bundleSource
+
+	plugin := New(&Config{Bundles: bundles}, manager)
+	plugin.bundlePersistPath = filepath.Join(dir, ".opa")
+
+	plugin.loadAndActivateBundlesFromDisk(ctx)
+
+	// persist a bundle to disk and then load it
+	module := "package foo\n\ncorge=1"
+
+	b := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
+		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
+		Modules: []bundle.ModuleFile{
+			{
+				URL:    "/foo/bar.rego",
+				Path:   "/foo/bar.rego",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+	}
+
+	b.Manifest.Init()
+
+	var buf bytes.Buffer
+	if err := bundle.NewWriter(&buf).UseModulePath(true).Write(b); err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	err := plugin.saveBundleToDisk(bundleName, &buf)
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	plugin.loadAndActivateBundlesFromDisk(ctx)
+
+	txn := storage.NewTransactionOrDie(ctx, manager.Store)
+	defer manager.Store.Abort(ctx, txn)
+
+	ids, err := manager.Store.ListPolicies(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	} else if len(ids) != 1 {
+		t.Fatal("Expected 1 policy")
+	}
+
+	bs, err := manager.Store.GetPolicy(ctx, txn, ids[0])
+	exp := []byte("package foo\n\ncorge=1")
+	if err != nil {
+		t.Fatal(err)
+	} else if !bytes.Equal(bs, exp) {
+		t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
+	}
+
+	data, err := manager.Store.Read(ctx, txn, storage.Path{})
+	expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test?bundle=opa": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
+	if err != nil {
+		t.Fatal(err)
+	} else if !reflect.DeepEqual(data, expData) {
+		t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+	}
+}
+
 func TestLoadAndActivateBundlesFromDiskV1Compatible(t *testing.T) {
 	type update struct {
 		modules map[string]string
@@ -2412,18 +2494,20 @@ func TestLoadAndActivateDepBundlesFromDisk(t *testing.T) {
 	module1 := `
 package bar
 
+import rego.v1
 import data.foo
 
 default allow = false
 
-allow {
+allow if {
 	foo.is_one(1)
 }`
 
 	module2 := `
 package foo
+import rego.v1
 
-is_one(x) {
+is_one(x) if {
 	x == 1
 }`
 
@@ -2510,11 +2594,12 @@ func TestLoadAndActivateDepBundlesFromDiskMaxAttempts(t *testing.T) {
 	module := `
 package bar
 
+import rego.v1
 import data.foo
 
 default allow = false
 
-allow {
+allow if {
 	foo.is_one(1)
 }`
 
@@ -2567,7 +2652,10 @@ func TestPluginOneShotCompileError(t *testing.T) {
 
 	ensurePluginState(t, plugin, plugins.StateNotReady)
 
-	raw1 := "package foo\n\np[x] { x = 1 }"
+	raw1 := `package foo
+import rego.v1
+
+p contains x if { x = 1 }`
 
 	b1 := &bundle.Bundle{
 		Data: map[string]interface{}{"a": "b"},
@@ -2589,8 +2677,11 @@ func TestPluginOneShotCompileError(t *testing.T) {
 		Data: map[string]interface{}{"a": "b"},
 		Modules: []bundle.ModuleFile{
 			{
-				Path:   "/example2.rego",
-				Parsed: ast.MustParseModule("package foo\n\np[x]"),
+				Path: "/example2.rego",
+				Parsed: ast.MustParseModule(`package foo
+import rego.v1
+
+p contains x`),
 			},
 		},
 	}
@@ -2901,7 +2992,10 @@ func TestPluginListener(t *testing.T) {
 		t.Fatal("Listener not properly registered")
 	}
 
-	module := "package gork\np[x] { x = 1 }"
+	module := `package gork
+import rego.v1
+
+p contains x if { x = 1 }`
 
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{
@@ -2926,7 +3020,10 @@ func TestPluginListener(t *testing.T) {
 
 	validateStatus(t, s1, "quickbrownfaux", false)
 
-	module = "package gork\np[x]"
+	module = `package gork
+import rego.v1
+
+p contains x`
 
 	b.Manifest.Revision = "slowgreenburd"
 	b.Modules[0] = bundle.ModuleFile{
@@ -2941,7 +3038,10 @@ func TestPluginListener(t *testing.T) {
 
 	validateStatus(t, s2, "quickbrownfaux", true)
 
-	module = "package gork\np[1]"
+	module = `package gork
+import rego.v1
+
+p contains 1`
 	b.Manifest.Revision = "fancybluederg"
 	b.Modules[0] = bundle.ModuleFile{
 		Path:   "/foo.rego",
@@ -3067,7 +3167,10 @@ func TestPluginBulkListener(t *testing.T) {
 		t.Fatal("Bulk listener not properly registered")
 	}
 
-	module := "package gork\np[x] { x = 1 }"
+	module := `package gork
+import rego.v1
+
+p contains x if { x = 1 }`
 
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{
@@ -3108,7 +3211,10 @@ func TestPluginBulkListener(t *testing.T) {
 		}
 	}
 
-	module = "package gork\np[x]"
+	module = `package gork
+import rego.v1
+
+p contains x`
 
 	b.Manifest.Revision = "slowgreenburd"
 	b.Modules[0] = bundle.ModuleFile{
@@ -3138,7 +3244,10 @@ func TestPluginBulkListener(t *testing.T) {
 		}
 	}
 
-	module = "package gork\np[1]"
+	module = `package gork
+import rego.v1
+
+p contains 1`
 	b.Manifest.Revision = "fancybluederg"
 	b.Modules[0] = bundle.ModuleFile{
 		Path:   "/foo.rego",
@@ -3177,7 +3286,10 @@ func TestPluginBulkListener(t *testing.T) {
 	}
 
 	// Test updates the other bundles
-	module = "package p1\np[x] { x = 1 }"
+	module = `package p1
+import rego.v1
+
+p contains x if { x = 1 }`
 
 	b1 := bundle.Bundle{
 		Manifest: bundle.Manifest{
@@ -3251,7 +3363,10 @@ func TestPluginBulkListenerStatusCopyOnly(t *testing.T) {
 		bulkChan <- status
 	})
 
-	module := "package gork\np[x] { x = 1 }"
+	module := `package gork
+import rego.v1
+
+p contains x if { x = 1 }`
 
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{
@@ -3349,8 +3464,8 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 	// Ensure a/a3-6 are intact. a1-2 are overwritten by bundle, and
 	// that the manifest has been written to storage.
 	expData := util.MustUnmarshalJSON([]byte(`{"a1": "foo", "a3": "x2", "a5": "x3"}`))
-	expIds := []string{filepath.Join(bundleName, "bundle/id1"), "some/id2", "some/id3"}
-	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux", nil)
+	expIDs := []string{filepath.Join(bundleName, "bundle/id1"), "some/id2", "some/id3"}
+	validateStoreState(ctx, t, manager.Store, "/a", expData, expIDs, bundleName, "quickbrownfaux", nil)
 
 	// Activate a bundle that is scoped to a/a3 ad a/a6. Include a function
 	// inside package a.a4 that we can depend on outside of the bundle scope to
@@ -3384,8 +3499,8 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 
 	// Ensure a/a5-a6 are intact. a3 and a4 are overwritten by bundle.
 	expData = util.MustUnmarshalJSON([]byte(`{"a3": "foo", "a5": "x3"}`))
-	expIds = []string{filepath.Join(bundleName, "bundle/id2"), "some/id3"}
-	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux-2",
+	expIDs = []string{filepath.Join(bundleName, "bundle/id2"), "some/id3"}
+	validateStoreState(ctx, t, manager.Store, "/a", expData, expIDs, bundleName, "quickbrownfaux-2",
 		map[string]interface{}{
 			"a": map[string]interface{}{"a1": "deadbeef"},
 		})
@@ -3408,8 +3523,8 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 
 	// Ensure bundle activation failed by checking that previous revision is
 	// still active.
-	expIds = []string{filepath.Join(bundleName, "bundle/id2"), "not_scoped", "some/id3"}
-	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux-2",
+	expIDs = []string{filepath.Join(bundleName, "bundle/id2"), "not_scoped", "some/id3"}
+	validateStoreState(ctx, t, manager.Store, "/a", expData, expIDs, bundleName, "quickbrownfaux-2",
 		map[string]interface{}{
 			"a": map[string]interface{}{"a1": "deadbeef"},
 		})
@@ -3789,8 +3904,8 @@ func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
 
 	// Ensure it has been activated
 	expData := util.MustUnmarshalJSON([]byte(`{"a2": "foo"}`))
-	expIds := []string{"bundle/id1"}
-	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux", nil)
+	expIDs := []string{"bundle/id1"}
+	validateStoreState(ctx, t, manager.Store, "/a", expData, expIDs, bundleName, "quickbrownfaux", nil)
 
 	if plugin.config.IsMultiBundle() {
 		t.Fatalf("Expected plugin to be in non-multi bundle config mode")
@@ -3810,8 +3925,8 @@ func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
 	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
 
 	// The only thing that should have changed is the store id for the policy
-	expIds = []string{"test-bundle/bundle/id1"}
-	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux-2", nil)
+	expIDs = []string{"test-bundle/bundle/id1"}
+	validateStoreState(ctx, t, manager.Store, "/a", expData, expIDs, bundleName, "quickbrownfaux-2", nil)
 
 	// Make sure the legacy path is gone now that we are in multi-bundle mode
 	var actual string
@@ -3908,8 +4023,8 @@ func TestUpgradeLegacyBundleToMultiBundleNewBundles(t *testing.T) {
 
 	// Ensure it has been activated
 	expData := util.MustUnmarshalJSON([]byte(`{"a2": "foo"}`))
-	expIds := []string{"bundle/id1"}
-	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux", nil)
+	expIDs := []string{"bundle/id1"}
+	validateStoreState(ctx, t, manager.Store, "/a", expData, expIDs, bundleName, "quickbrownfaux", nil)
 
 	if plugin.config.IsMultiBundle() {
 		t.Fatalf("Expected plugin to be in non-multi bundle config mode")
@@ -3949,8 +4064,8 @@ func TestUpgradeLegacyBundleToMultiBundleNewBundles(t *testing.T) {
 	plugin.oneShot(ctx, "b2", download.Update{Bundle: &b})
 
 	expData = util.MustUnmarshalJSON([]byte(`{"b2": "foo"}`))
-	expIds = []string{"b2/id1"}
-	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, "b2", "b2-1", nil)
+	expIDs = []string{"b2/id1"}
+	validateStoreState(ctx, t, manager.Store, "/a", expData, expIDs, "b2", "b2-1", nil)
 
 	// Make sure the legacy path is gone now that we are in multi-bundle mode
 	var actual string
@@ -5698,7 +5813,7 @@ func TestPluginManualTrigger(t *testing.T) {
 		Modules: []bundle.ModuleFile{},
 	}
 
-	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		err := bundle.NewWriter(w).Write(mockBundle)
 		if err != nil {
 			t.Fatal(err)
@@ -5798,7 +5913,7 @@ func TestPluginManualTriggerMultipleDiskStorage(t *testing.T) {
 		},
 	}
 
-	s1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		err := bundle.NewWriter(w).Write(mockBundle1)
 		if err != nil {
 			t.Fatal(err)
@@ -5813,7 +5928,7 @@ func TestPluginManualTriggerMultipleDiskStorage(t *testing.T) {
 		},
 	}
 
-	s2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		err := bundle.NewWriter(w).Write(mockBundle2)
 		if err != nil {
 			t.Fatal(err)
@@ -5938,7 +6053,7 @@ func TestPluginManualTriggerMultiple(t *testing.T) {
 		},
 	}
 
-	s1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		err := bundle.NewWriter(w).Write(mockBundle1)
 		if err != nil {
 			t.Fatal(err)
@@ -5953,7 +6068,7 @@ func TestPluginManualTriggerMultiple(t *testing.T) {
 		},
 	}
 
-	s2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		err := bundle.NewWriter(w).Write(mockBundle2)
 		if err != nil {
 			t.Fatal(err)
@@ -6034,7 +6149,7 @@ func TestPluginManualTriggerWithTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		time.Sleep(3 * time.Second) // this should cause the context deadline to exceed
 	}))
 
@@ -6089,6 +6204,58 @@ func TestPluginManualTriggerWithTimeout(t *testing.T) {
 	}
 }
 
+func TestGetNormalizedBundleName(t *testing.T) {
+	cases := []struct {
+		input string
+		goos  string
+		exp   string
+	}{
+		{
+			input: "foo",
+			exp:   "foo",
+		},
+		{
+			input: "foo=bar",
+			exp:   "foo=bar",
+			goos:  "windows",
+		},
+		{
+			input: "c:/foo",
+			exp:   "c:/foo",
+		},
+		{
+			input: "c:/foo",
+			exp:   "c\\:\\/foo",
+			goos:  "windows",
+		},
+		{
+			input: "file:\"<>c:/a",
+			exp:   "file\\:\\\"\\<\\>c\\:\\/a",
+			goos:  "windows",
+		},
+		{
+			input: "|a?b*c",
+			exp:   "\\|a\\?b\\*c",
+			goos:  "windows",
+		},
+		{
+			input: "a?b=c",
+			exp:   "a\\?b=c",
+			goos:  "windows",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			goos = tc.goos
+			actual := getNormalizedBundleName(tc.input)
+			if actual != tc.exp {
+				t.Fatalf("Want %v but got: %v", tc.exp, actual)
+			}
+		})
+	}
+}
+
 func writeTestBundleToDisk(t *testing.T, srcDir string, signed bool) bundle.Bundle {
 	t.Helper()
 
@@ -6115,7 +6282,11 @@ func writeTestBundleToDisk(t *testing.T, srcDir string, signed bool) bundle.Bund
 func getTestBundle(t *testing.T) bundle.Bundle {
 	t.Helper()
 
-	module := "package gork\np[x] { x = 1 }"
+	module := `package gork
+import rego.v1
+
+
+p contains x if { x = 1 }`
 
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{
@@ -6160,7 +6331,7 @@ func getTestRawBundle(t *testing.T) io.Reader {
 	return &buf
 }
 
-func validateStoreState(ctx context.Context, t *testing.T, store storage.Store, root string, expData interface{}, expIds []string, expBundleName string, expBundleRev string, expMetadata map[string]interface{}) {
+func validateStoreState(ctx context.Context, t *testing.T, store storage.Store, root string, expData interface{}, expIDs []string, expBundleName string, expBundleRev string, expMetadata map[string]interface{}) {
 	t.Helper()
 	if err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 		value, err := store.Read(ctx, txn, storage.MustParsePath(root))
@@ -6178,10 +6349,10 @@ func validateStoreState(ctx context.Context, t *testing.T, store storage.Store, 
 		}
 
 		sort.Strings(ids)
-		sort.Strings(expIds)
+		sort.Strings(expIDs)
 
-		if !reflect.DeepEqual(ids, expIds) {
-			return fmt.Errorf("Expected ids %v but got %v", expIds, ids)
+		if !reflect.DeepEqual(ids, expIDs) {
+			return fmt.Errorf("Expected ids %v but got %v", expIDs, ids)
 		}
 
 		rev, err := bundle.ReadBundleRevisionFromStore(ctx, store, txn, expBundleName)

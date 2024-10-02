@@ -1,0 +1,27 @@
+---
+cases:
+  - note: "virtualdocs/output: object non-string key"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	data.generated.q[x] = 1
+        }
+
+        q[k] := 1 if {
+        	data.a[_] = k
+        	k < 3
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x:
+          - 1
+          - 2
+    sort_bindings: true

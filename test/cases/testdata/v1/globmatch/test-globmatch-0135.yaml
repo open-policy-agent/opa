@@ -1,0 +1,16 @@
+---
+cases:
+  - note: globmatch/super glob match with . delimiter
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	glob.match("api.**.com", ["."], "api.cdn.github.com", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - true
+    sort_bindings: true

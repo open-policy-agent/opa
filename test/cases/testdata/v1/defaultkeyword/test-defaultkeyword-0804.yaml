@@ -1,0 +1,20 @@
+---
+cases:
+  - note: defaultkeyword/undefined
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := 1 if {
+        	false
+        }
+
+        default p := 0
+
+        p := 2 if {
+        	false
+        }
+    data: {}
+    want_result:
+      - x: 0
