@@ -12,6 +12,7 @@ import (
 
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
+	"github.com/open-policy-agent/opa/util"
 
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa"
 )
@@ -156,9 +157,11 @@ func (l *Loader) poller() {
 			l.logError(err)
 		}
 
+		timer, timerCancel := util.TimerWithCancel(l.interval)
 		select {
-		case <-time.After(l.interval):
+		case <-timer.C:
 		case <-l.closing:
+			timerCancel() // explicitly cancel the timer.
 			return
 		}
 	}
