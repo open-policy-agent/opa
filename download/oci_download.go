@@ -186,14 +186,16 @@ func (d *OCIDownloader) loop(ctx context.Context) {
 
 		d.logger.Debug("OCI - Waiting %v before next download/retry.", delay)
 
+		timer, timerCancel := util.TimerWithCancel(delay)
 		select {
-		case <-time.After(delay):
+		case <-timer.C:
 			if err != nil {
 				retry++
 			} else {
 				retry = 0
 			}
 		case <-ctx.Done():
+			timerCancel() // explicitly cancel the timer.
 			return
 		}
 	}
