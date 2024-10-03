@@ -82,7 +82,7 @@ p contains 2 if { # step-over to here, the next partial rule 'p'
 }
 `,
 			brRow:  5,
-			brHits: 2, // First enter, then exit
+			brHits: 2, // First eval, then fail
 			expRow: 8,
 		},
 		{
