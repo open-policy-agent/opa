@@ -52,6 +52,40 @@ q := y if {
 			expRow: 6,
 		},
 		{
+			note: "partial rule (success)",
+			module: `package test
+import rego.v1
+
+p contains 1 if { # breakpoint
+	true    
+}
+
+p contains 2 if { # step-over to here, the next partial rule 'p'
+	true
+}
+`,
+			brRow:  4,
+			brHits: 2, // First enter, then exit
+			expRow: 8,
+		},
+		{
+			note: "partial rule (fail)",
+			module: `package test
+import rego.v1
+
+p contains 1 if { 
+	false         # breakpoint
+}
+
+p contains 2 if { # step-over to here, the next partial rule 'p'
+	true
+}
+`,
+			brRow:  5,
+			brHits: 2, // First eval, then fail
+			expRow: 8,
+		},
+		{
 			note: "function",
 			module: `package test
 import rego.v1
