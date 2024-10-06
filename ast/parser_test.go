@@ -5052,7 +5052,7 @@ public_servers[server] {
 	ports[k].networks[l] = networks[m].id;
 	networks[m].public = true
 }`,
-			expError: "test.rego:14: rego_parse_error: yaml: line 7: could not find expected ':'",
+			expError: "test.rego:14: rego_parse_error: yaml: line 6: could not find expected ':'",
 		},
 		{
 			note: "Ill-structured (invalid) annotation document path",
@@ -5146,7 +5146,7 @@ public_servers[server] {
 	networks[m].public = true
 }`,
 			expNumComments: 6,
-			expError:       "rego_parse_error: yaml: line 3: did not find expected key",
+			expError:       "rego_parse_error: yaml: line 2: did not find expected key",
 		},
 		{
 			note: "Multiple rules with and without metadata",
@@ -6058,7 +6058,7 @@ func TestAnnotationsAugmentedError(t *testing.T) {
 				"# scope: rule\n" +
 				"p := true\n",
 			expErrorHint: "Hint: on line 4, symbol(s) ['\\u00a0'] immediately following a key/value separator ':' is not a legal yaml space character",
-			expErrorRow:  5,
+			expErrorRow:  6, // Should be 5 really, and yaml.v2 reported the error as on line 1, but v3 on line 3..
 		},
 		{
 			note: "thin whitespace (\\u2009) after key/value separator",
@@ -6101,7 +6101,7 @@ func TestAnnotationsAugmentedError(t *testing.T) {
 				"p := true\n",
 			expErrorHint: "Hint: on line 4, symbol(s) ['\\u3000'] immediately following a key/value separator ':' is not a legal yaml space character\n" +
 				"  Hint: on line 6, symbol(s) ['\\u2009'] immediately following a key/value separator ':' is not a legal yaml space character",
-			expErrorRow: 5,
+			expErrorRow: 6,
 		},
 	}
 
@@ -6127,6 +6127,26 @@ func TestAnnotationsAugmentedError(t *testing.T) {
 				t.Fatalf("expected error location row %v, got %v", tc.expErrorRow, loc.Row)
 			}
 		})
+	}
+}
+
+func TestAnnotationsAreParsedAsYamlv1_2(t *testing.T) {
+	policy := `package p
+	
+# METADATA
+# custom:
+#   string: yes
+is_string := rego.metadata.rule().custom.string == "yes"
+`
+	mod := MustParseModuleWithOpts(policy, ParserOptions{ProcessAnnotation: true})
+
+	if len(mod.Annotations) != 1 {
+		t.Fatalf("Expected exactly one annotation but got %v", len(mod.Annotations))
+	}
+
+	anno := mod.Annotations[0]
+	if value, ok := anno.Custom["string"].(string); !ok || value != "yes" {
+		t.Fatalf("Expected custom.string to be 'yes' but got %v", value)
 	}
 }
 
