@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/cmd/internal/env"
+	fileurl "github.com/open-policy-agent/opa/internal/file/url"
 	"github.com/open-policy-agent/opa/runtime"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/util"
@@ -422,9 +423,16 @@ func historyPath() string {
 }
 
 func loadCertificate(tlsCertFile, tlsPrivateKeyFile string) (*tls.Certificate, error) {
-
 	if tlsCertFile != "" && tlsPrivateKeyFile != "" {
-		cert, err := tls.LoadX509KeyPair(tlsCertFile, tlsPrivateKeyFile)
+		tlsCertFilePath, err := fileurl.Clean(tlsCertFile)
+		if err != nil {
+			return nil, err
+		}
+		tlsPrivateKeyFilePath, err := fileurl.Clean(tlsPrivateKeyFile)
+		if err != nil {
+			return nil, err
+		}
+		cert, err := tls.LoadX509KeyPair(tlsCertFilePath, tlsPrivateKeyFilePath)
 		if err != nil {
 			return nil, err
 		}
@@ -437,6 +445,10 @@ func loadCertificate(tlsCertFile, tlsPrivateKeyFile string) (*tls.Certificate, e
 }
 
 func loadCertPool(tlsCACertFile string) (*x509.CertPool, error) {
+	tlsCACertFile, err := fileurl.Clean(tlsCACertFile)
+	if err != nil {
+		return nil, err
+	}
 	caCertPEM, err := os.ReadFile(tlsCACertFile)
 	if err != nil {
 		return nil, fmt.Errorf("read CA cert file: %v", err)
