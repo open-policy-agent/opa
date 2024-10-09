@@ -535,11 +535,14 @@ When the given resource (the object in the GCS bucket) contains slashes (/) or o
 OPA will authenticate with an [Azure managed identities](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview) token.
 The [token request](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http)
 can be configured via the plugin to customize the base URL, API version, and resource. Specific managed identity IDs can be optionally provided as well.
+(The token request for [Azure App Service](https://learn.microsoft.com/en-us/azure/app-service/overview-managed-identity?tabs=portal%2Chttp#connect-to-azure-services-in-app-code) or
+[Azure Container Apps](https://learn.microsoft.com/en-us/azure/container-apps/managed-identity?tabs=bicep%2Chttp#connect-to-azure-services-in-app-code) is similar to above interface,
+but the endpoint and the header are different. Please see the individual documents for more details.)
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `services[_].credentials.azure_managed_identity.endpoint` | `string` | No | Request endpoint. (default: `http://169.254.169.254/metadata/identity/oauth2/token`, the Azure Instance Metadata Service endpoint (recommended))|
-| `services[_].credentials.azure_managed_identity.api_version` | `string` | No | API version to use. (default: `2018-02-01`, the minimum version) |
+| `services[_].credentials.azure_managed_identity.endpoint` | `string` | No | Request endpoint. (Detect endpoint from IDENTITY_ENDPOINT environment variable when you use managed identity on Azure App Service or Container Apps. Otherwise set default: `http://169.254.169.254/metadata/identity/oauth2/token`, the Azure Instance Metadata Service endpoint (recommended))|
+| `services[_].credentials.azure_managed_identity.api_version` | `string` | No | API version to use. (default: `2019-08-01` when you use `IDENTITY_ENDPONT` endpoint, otherwise `2018-02-01`, the minimum version) |
 | `services[_].credentials.azure_managed_identity.resource` | `string` | No | App ID URI of the target resource. (default: `https://storage.azure.com/`) |
 | `services[_].credentials.azure_managed_identity.object_id` | `string` | No | Optional object ID of the managed identity you would like the token for. Required, if your VM has multiple user-assigned managed identities. |
 | `services[_].credentials.azure_managed_identity.client_id` | `string` | No | Optional client ID of the managed identity you would like the token for. Required, if your VM has multiple user-assigned managed identities. |
