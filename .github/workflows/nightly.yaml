@@ -113,7 +113,7 @@ jobs:
       # Equivalent to:
       # $ trivy image openpolicyagent/opa:edge-static
       - name: Run Trivy scan on image
-        uses: aquasecurity/trivy-action@f781cce5aab226378ee181d764ab90ea0be3cdd8 # 0.25.0
+        uses: aquasecurity/trivy-action@a20de5420d57c4102486cdd9578b45609c99d7eb # 0.26.0
         with:
           image-ref: 'openpolicyagent/opa:edge-static'
           format: table
@@ -122,7 +122,7 @@ jobs:
           vuln-type: os,library
           severity: CRITICAL,HIGH
         env:
-          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db:latest
+          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
 
       - name: Slack Notification
         uses: 8398a7/action-slack@28ba43ae48961b90635b50953d216767a6bea486 # v3.16.2
@@ -143,7 +143,7 @@ jobs:
       # Equivalent to:
       # $ trivy fs .
       - name: Run Trivy scan on repo
-        uses: aquasecurity/trivy-action@f781cce5aab226378ee181d764ab90ea0be3cdd8 # 0.25.0
+        uses: aquasecurity/trivy-action@a20de5420d57c4102486cdd9578b45609c99d7eb # 0.26.0
         with:
           scan-type: fs
           format: table
@@ -152,7 +152,7 @@ jobs:
           skip-dirs: vendor/,internal/gqlparser/validator/imported/
           severity: CRITICAL,HIGH
         env:
-          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db:latest
+          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
 
       - name: Slack Notification
         uses: 8398a7/action-slack@28ba43ae48961b90635b50953d216767a6bea486 # v3.16.2
