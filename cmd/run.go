@@ -426,11 +426,11 @@ func loadCertificate(tlsCertFile, tlsPrivateKeyFile string) (*tls.Certificate, e
 	if tlsCertFile != "" && tlsPrivateKeyFile != "" {
 		tlsCertFilePath, err := fileurl.Clean(tlsCertFile)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("invalid certificate file path: %w", err)
 		}
 		tlsPrivateKeyFilePath, err := fileurl.Clean(tlsPrivateKeyFile)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("invalid certificate private key file path: %w", err)
 		}
 		cert, err := tls.LoadX509KeyPair(tlsCertFilePath, tlsPrivateKeyFilePath)
 		if err != nil {
