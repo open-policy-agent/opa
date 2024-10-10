@@ -306,3 +306,16 @@ func (s *functionMocksStack) Lookup(f string) *ast.Term {
 	}
 	return nil
 }
+
+func (s *functionMocksStack) ExtraVars() []*ast.Term {
+	exs := make([]*ast.Term, 0)
+	current := *s.stack[len(s.stack)-1]
+	for i := len(current) - 1; i >= 0; i-- {
+		for _, t := range current[i] {
+			if _, ok := t.Value.(ast.Var); ok {
+				exs = append(exs, t)
+			}
+		}
+	}
+	return exs
+}
