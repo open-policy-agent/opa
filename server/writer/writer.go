@@ -49,8 +49,7 @@ func ErrorString(w http.ResponseWriter, status int, code string, err error) {
 
 // Error writes a response with specified status and error response.
 func Error(w http.ResponseWriter, status int, err *types.ErrorV1) {
-	headers := w.Header()
-	headers.Add("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_, _ = w.Write(append(err.Bytes(), byte('\n')))
 }
@@ -66,7 +65,7 @@ func JSON(w http.ResponseWriter, code int, v interface{}, pretty bool) {
 		enc.SetIndent("", "  ")
 	}
 
-	w.Header().Add("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 
 	if err := enc.Encode(v); err != nil {
