@@ -57,6 +57,9 @@ func Error(w http.ResponseWriter, status int, err *types.ErrorV1) {
 
 // JSON writes a response with the specified status code and object. The object
 // will be JSON serialized.
+// Deprecated: This method is problematic when using a non-200 status `code`: if
+// encoding the payload fails, it'll print "superfluous call to WriteHeader()"
+// logs.
 func JSON(w http.ResponseWriter, code int, v interface{}, pretty bool) {
 	enc := json.NewEncoder(w)
 	if pretty {
@@ -74,7 +77,18 @@ func JSON(w http.ResponseWriter, code int, v interface{}, pretty bool) {
 
 // JSONOK is a helper for status "200 OK" responses
 func JSONOK(w http.ResponseWriter, v interface{}, pretty bool) {
-	JSON(w, http.StatusOK, v, pretty)
+	enc := json.NewEncoder(w)
+	if pretty {
+		enc.SetIndent("", "  ")
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	// If Encode() calls w.Write() for the first time, it'll set the HTTP status
+	// to 200 OK.
+	if err := enc.Encode(v); err != nil {
+		ErrorAuto(w, err)
+		return
+	}
 }
 
 // Bytes writes a response with the specified status code and bytes.
