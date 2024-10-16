@@ -36,44 +36,45 @@ import (
 )
 
 type evalCommandParams struct {
-	capabilities        *capabilitiesFlag
-	coverage            bool
-	partial             bool
-	unknowns            []string
-	disableInlining     []string
-	shallowInlining     bool
-	disableIndexing     bool
-	disableEarlyExit    bool
-	strictBuiltinErrors bool
-	showBuiltinErrors   bool
-	dataPaths           repeatedStringFlag
-	inputPath           string
-	imports             repeatedStringFlag
-	pkg                 string
-	stdin               bool
-	stdinInput          bool
-	explain             *util.EnumFlag
-	metrics             bool
-	instrument          bool
-	ignore              []string
-	outputFormat        *util.EnumFlag
-	profile             bool
-	profileCriteria     repeatedStringFlag
-	profileLimit        intFlag
-	count               int
-	prettyLimit         intFlag
-	fail                bool
-	failDefined         bool
-	bundlePaths         repeatedStringFlag
-	schema              *schemaFlags
-	target              *util.EnumFlag
-	timeout             time.Duration
-	optimizationLevel   int
-	entrypoints         repeatedStringFlag
-	strict              bool
-	v0Compatible        bool
-	v1Compatible        bool
-	traceVarValues      bool
+	capabilities           *capabilitiesFlag
+	coverage               bool
+	partial                bool
+	unknowns               []string
+	disableInlining        []string
+	shallowInlining        bool
+	disableIndexing        bool
+	disableEarlyExit       bool
+	strictBuiltinErrors    bool
+	showBuiltinErrors      bool
+	dataPaths              repeatedStringFlag
+	inputPath              string
+	imports                repeatedStringFlag
+	pkg                    string
+	stdin                  bool
+	stdinInput             bool
+	explain                *util.EnumFlag
+	metrics                bool
+	instrument             bool
+	ignore                 []string
+	outputFormat           *util.EnumFlag
+	profile                bool
+	profileCriteria        repeatedStringFlag
+	profileLimit           intFlag
+	count                  int
+	prettyLimit            intFlag
+	fail                   bool
+	failDefined            bool
+	bundlePaths            repeatedStringFlag
+	schema                 *schemaFlags
+	target                 *util.EnumFlag
+	timeout                time.Duration
+	optimizationLevel      int
+	entrypoints            repeatedStringFlag
+	strict                 bool
+	v0Compatible           bool
+	v1Compatible           bool
+	traceVarValues         bool
+	ReadAstValuesFromStore bool
 }
 
 func (p *evalCommandParams) regoVersion() ast.RegoVersion {
@@ -321,6 +322,7 @@ access.
 	evalCommand.Flags().IntVarP(&params.optimizationLevel, "optimize", "O", 0, "set optimization level")
 	evalCommand.Flags().VarP(&params.entrypoints, "entrypoint", "e", "set slash separated entrypoint path")
 	evalCommand.Flags().BoolVar(&params.traceVarValues, "var-values", false, "show local variable values in pretty trace output")
+	evalCommand.Flags().BoolVar(&params.ReadAstValuesFromStore, "eager-ast-values", false, "read AST values from store")
 
 	// Shared flags
 	addCapabilitiesFlag(evalCommand.Flags(), params.capabilities)
@@ -550,6 +552,7 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		rego.Query(query),
 		rego.Runtime(info),
 		rego.SetRegoVersion(params.regoVersion()),
+		rego.StoreReadAST(params.ReadAstValuesFromStore),
 	}
 
 	evalArgs := []rego.EvalOption{

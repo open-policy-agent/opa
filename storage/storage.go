@@ -125,6 +125,9 @@ func NonEmpty(ctx context.Context, store Store, txn Transaction) func([]string) 
 				if _, ok := val.(map[string]interface{}); ok {
 					return false, nil
 				}
+				if _, ok := val.(ast.Object); ok {
+					return false, nil
+				}
 				return true, nil
 			}
 		}

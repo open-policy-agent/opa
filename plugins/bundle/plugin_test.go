@@ -34,7 +34,8 @@ import (
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/disk"
-	inmem "github.com/open-policy-agent/opa/storage/inmem/test"
+	"github.com/open-policy-agent/opa/storage/inmem"
+	inmemtst "github.com/open-policy-agent/opa/storage/inmem/test"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
 )
@@ -107,6 +108,50 @@ func TestPluginOneShot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	} else if !reflect.DeepEqual(data, expData) {
+		t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+	}
+}
+
+func TestPluginOneShotWithAstStore(t *testing.T) {
+
+	ctx := context.Background()
+	store := inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false), inmem.OptReturnASTValuesOnRead(true))
+	manager := getTestManagerWithOpts(nil, store)
+	plugin := New(&Config{}, manager)
+	bundleName := "test-bundle"
+	plugin.status[bundleName] = &Status{Name: bundleName, Metrics: metrics.New()}
+	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
+
+	ensurePluginState(t, plugin, plugins.StateNotReady)
+
+	b := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
+		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
+		Etag:     "foo",
+	}
+
+	b.Manifest.Init()
+
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Size: snapshotBundleSize})
+
+	ensurePluginState(t, plugin, plugins.StateOK)
+
+	if status, ok := plugin.status[bundleName]; !ok {
+		t.Fatalf("Expected to find status for %s, found nil", bundleName)
+	} else if status.Type != bundle.SnapshotBundleType {
+		t.Fatalf("expected snapshot bundle but got %v", status.Type)
+	} else if status.Size != snapshotBundleSize {
+		t.Fatalf("expected snapshot bundle size %d but got %d", snapshotBundleSize, status.Size)
+	}
+
+	txn := storage.NewTransactionOrDie(ctx, manager.Store)
+	defer manager.Store.Abort(ctx, txn)
+
+	data, err := manager.Store.Read(ctx, txn, storage.Path{})
+	expData := ast.MustParseTerm(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`)
+	if err != nil {
+		t.Fatal(err)
+	} else if ast.Compare(data, expData) != 0 {
 		t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
 	}
 }
@@ -403,7 +448,7 @@ corge contains 1 if {
 		t.Run(tc.note, func(t *testing.T) {
 			ctx := context.Background()
 			managerPopts := ast.ParserOptions{RegoVersion: tc.managerRegoVersion}
-			manager, err := plugins.New(nil, "test-instance-id", inmem.New(),
+			manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(),
 				plugins.WithParserOptions(managerPopts))
 			if err != nil {
 				t.Fatal(err)
@@ -1081,6 +1126,104 @@ func TestPluginOneShotDeltaBundle(t *testing.T) {
 	}
 }
 
+func TestPluginOneShotDeltaBundleAstStore(t *testing.T) {
+
+	ctx := context.Background()
+	store := inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false), inmem.OptReturnASTValuesOnRead(true))
+	manager := getTestManagerWithOpts(nil, store)
+	plugin := New(&Config{}, manager)
+	bundleName := "test-bundle"
+	plugin.status[bundleName] = &Status{Name: bundleName, Metrics: metrics.New()}
+	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
+
+	ensurePluginState(t, plugin, plugins.StateNotReady)
+
+	module := "package a\n\ncorge=1"
+
+	b := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux", Roots: &[]string{"a"}},
+		Data: map[string]interface{}{
+			"a": map[string]interface{}{
+				"baz": "qux",
+			},
+		},
+		Modules: []bundle.ModuleFile{
+			{
+				Path:   "a/policy.rego",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+	}
+
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+
+	ensurePluginState(t, plugin, plugins.StateOK)
+
+	// simulate a delta bundle download
+
+	// replace a value
+	p1 := bundle.PatchOperation{
+		Op:    "replace",
+		Path:  "a/baz",
+		Value: "bux",
+	}
+
+	// add a new object member
+	p2 := bundle.PatchOperation{
+		Op:    "upsert",
+		Path:  "/a/foo",
+		Value: []interface{}{"hello", "world"},
+	}
+
+	b2 := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "delta", Roots: &[]string{"a"}},
+		Patch:    bundle.Patch{Data: []bundle.PatchOperation{p1, p2}},
+		Etag:     "foo",
+	}
+
+	plugin.process(ctx, bundleName, download.Update{Bundle: &b2, Metrics: metrics.New(), Size: deltaBundleSize})
+
+	ensurePluginState(t, plugin, plugins.StateOK)
+
+	if status, ok := plugin.status[bundleName]; !ok {
+		t.Fatalf("Expected to find status for %s, found nil", bundleName)
+	} else if status.Type != bundle.DeltaBundleType {
+		t.Fatalf("expected delta bundle but got %v", status.Type)
+	} else if status.Size != deltaBundleSize {
+		t.Fatalf("expected delta bundle size %d but got %d", deltaBundleSize, status.Size)
+	}
+
+	txn := storage.NewTransactionOrDie(ctx, manager.Store)
+	defer manager.Store.Abort(ctx, txn)
+
+	ids, err := manager.Store.ListPolicies(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ids) != 1 {
+		t.Fatalf("Expected 1 policy, got %d", len(ids))
+	}
+
+	bs, err := manager.Store.GetPolicy(ctx, txn, ids[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	exp := []byte("package a\n\ncorge=1")
+	if !bytes.Equal(bs, exp) {
+		t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
+	}
+
+	data, err := manager.Store.Read(ctx, txn, storage.Path{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expData := ast.MustParseTerm(`{"a": {"baz": "bux", "foo": ["hello", "world"]}, "system": {"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "delta", "roots": ["a"]}}}}}`)
+	if ast.Compare(data, expData) != 0 {
+		t.Fatalf("Bad data content. Exp:\n%#v\n\nGot:\n\n%#v", expData, data)
+	}
+}
+
 func TestPluginStart(t *testing.T) {
 
 	ctx := context.Background()
@@ -1318,7 +1461,7 @@ corge contains 1 if {
 			popts := ast.ParserOptions{RegoVersion: regoVersion}
 
 			ctx := context.Background()
-			manager, err := plugins.New(nil, "test-instance-id", inmem.New(), plugins.WithParserOptions(popts))
+			manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(), plugins.WithParserOptions(popts))
 			if err != nil {
 				t.Fatal("unexpected error:", err)
 			}
@@ -1594,7 +1737,7 @@ corge contains 1 if {
 		t.Run(tc.note, func(t *testing.T) {
 			ctx := context.Background()
 			managerPopts := ast.ParserOptions{RegoVersion: tc.managerRegoVersion}
-			manager, err := plugins.New(nil, "test-instance-id", inmem.New(),
+			manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(),
 				plugins.WithParserOptions(managerPopts))
 			if err != nil {
 				t.Fatal("unexpected error:", err)
@@ -2127,7 +2270,7 @@ corge contains 2 if {
 			popts := ast.ParserOptions{RegoVersion: regoVersion}
 
 			ctx := context.Background()
-			manager, err := plugins.New(nil, "test-instance-id", inmem.New(),
+			manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(),
 				plugins.WithParserOptions(popts))
 			if err != nil {
 				t.Fatal("unexpected error:", err)
@@ -2334,7 +2477,7 @@ corge contains 1 if {
 		t.Run(tc.note, func(t *testing.T) {
 			ctx := context.Background()
 			managerPopts := ast.ParserOptions{RegoVersion: tc.managerRegoVersion}
-			manager, err := plugins.New(nil, "test-instance-id", inmem.New(),
+			manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(),
 				plugins.WithParserOptions(managerPopts))
 			if err != nil {
 				t.Fatal("unexpected error:", err)
@@ -3596,7 +3739,7 @@ func getTestManager() *plugins.Manager {
 }
 
 func getTestManagerWithOpts(config []byte, stores ...storage.Store) *plugins.Manager {
-	store := inmem.New()
+	store := inmemtst.New()
 	if len(stores) == 1 {
 		store = stores[0]
 	}
@@ -4250,7 +4393,7 @@ func TestLoadBundleFromDisk(t *testing.T) {
 func TestLoadBundleFromDiskV1Compatible(t *testing.T) {
 	popts := ast.ParserOptions{RegoVersion: ast.RegoV1}
 
-	manager, err := plugins.New(nil, "test-instance-id", inmem.New(), plugins.WithParserOptions(popts))
+	manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(), plugins.WithParserOptions(popts))
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -4573,7 +4716,7 @@ p contains 7 if {
 
 				f.Close()
 
-				manager, err := plugins.New(nil, "test-instance-id", inmem.New(), plugins.WithParserOptions(popts))
+				manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(), plugins.WithParserOptions(popts))
 				if err != nil {
 					t.Fatal("unexpected error:", err)
 				}
@@ -4887,7 +5030,7 @@ p contains 7 if {
 				f.Close()
 
 				managerPopts := ast.ParserOptions{RegoVersion: tc.managerRegoVersion}
-				manager, err := plugins.New(nil, "test-instance-id", inmem.New(),
+				manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(),
 					plugins.WithParserOptions(managerPopts))
 				if err != nil {
 					t.Fatal("unexpected error:", err)
@@ -5089,7 +5232,7 @@ p contains 7 if {
 				"test.rego": tc.module,
 			}, func(dir string) {
 
-				manager, err := plugins.New(nil, "test-instance-id", inmem.New(), plugins.WithParserOptions(popts))
+				manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(), plugins.WithParserOptions(popts))
 				if err != nil {
 					t.Fatal("unexpected error:", err)
 				}
@@ -5380,7 +5523,7 @@ p contains 7 if {
 			}, func(dir string) {
 
 				managerPopts := ast.ParserOptions{RegoVersion: tc.managerRegoVersion}
-				manager, err := plugins.New(nil, "test-instance-id", inmem.New(),
+				manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(),
 					plugins.WithParserOptions(managerPopts))
 				if err != nil {
 					t.Fatal("unexpected error:", err)

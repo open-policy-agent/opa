@@ -58,7 +58,7 @@ func NewFromObject(data map[string]interface{}) storage.Store {
 	return NewFromObjectWithOpts(data)
 }
 
-// NewFromObject returns a new in-memory store from the supplied data object, with the
+// NewFromObjectWithOpts returns a new in-memory store from the supplied data object, with the
 // options passed.
 func NewFromObjectWithOpts(data map[string]interface{}, opts ...Opt) storage.Store {
 	db := NewWithOpts(opts...)
@@ -93,6 +93,7 @@ func NewFromReaderWithOpts(r io.Reader, opts ...Opt) storage.Store {
 	return NewFromObjectWithOpts(data, opts...)
 }
 
+// FIXME: Break out separate ast inmem store?
 type store struct {
 	rmu      sync.RWMutex                      // reader-writer lock
 	wmu      sync.Mutex                        // writer lock
@@ -106,6 +107,7 @@ type store struct {
 	// data through JSON before adding the data to the store. Defaults to true.
 	roundTripOnWrite bool
 
+	// FIXME: rename to something like eagerASTConversion?
 	returnASTValuesOnRead bool
 }
 
@@ -307,12 +309,6 @@ func (db *store) Read(_ context.Context, txn storage.Transaction, path storage.P
 		return nil, err
 	}
 
-	//if db.returnASTValuesOnRead {
-	//	return v, nil
-	//}
-	//
-	//return ast.JSON(v.(ast.Value))
-
 	return v, nil
 }
 
@@ -345,9 +341,43 @@ func (h *handle) Unregister(_ context.Context, txn storage.Transaction) {
 }
 
 func (db *store) runOnCommitTriggers(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
+	if db.returnASTValuesOnRead && len(db.triggers) > 0 {
+		// FIXME: Not very performant for large data.
+
+		dataEvents := make([]storage.DataEvent, 0, len(event.Data))
+
+		for _, dataEvent := range event.Data {
+			if astData, ok := dataEvent.Data.(ast.Value); ok {
+				jsn, err := ast.ValueToInterface(astData, illegalResolver{})
+				if err != nil {
+					panic(err)
+				}
+				dataEvents = append(dataEvents, storage.DataEvent{
+					Path:    dataEvent.Path,
+					Data:    jsn,
+					Removed: dataEvent.Removed,
+				})
+			} else {
+				dataEvents = append(dataEvents, dataEvent)
+			}
+		}
+
+		event = storage.TriggerEvent{
+			Policy:  event.Policy,
+			Data:    dataEvents,
+			Context: event.Context,
+		}
+	}
+
 	for _, t := range db.triggers {
 		t.OnCommit(ctx, txn, event)
 	}
+}
+
+type illegalResolver struct{}
+
+func (illegalResolver) Resolve(ref ast.Ref) (interface{}, error) {
+	return nil, fmt.Errorf("illegal value: %v", ref)
 }
 
 func (db *store) underlying(txn storage.Transaction) (*transaction, error) {

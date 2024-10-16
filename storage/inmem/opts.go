@@ -26,6 +26,6 @@ func OptRoundTripOnWrite(enabled bool) Opt {
 
 func OptReturnASTValuesOnRead(enabled bool) Opt {
 	return func(s *store) {
-		s.roundTripOnWrite = enabled
+		s.returnASTValuesOnRead = enabled
 	}
 }

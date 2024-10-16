@@ -269,6 +269,9 @@ Flags:
 
 	runCommand.SetUsageTemplate(usageTemplate)
 
+	// FIXME: Naming(?)
+	runCommand.Flags().BoolVar(&cmdParams.rt.ReadAstValuesFromStore, "eager-ast-values", false, "read AST values from store")
+
 	RootCommand.AddCommand(runCommand)
 }
 
