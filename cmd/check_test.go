@@ -211,7 +211,7 @@ func TestCheckFailsOnInvalidRego(t *testing.T) {
 
 // Assert that 'schemas' annotations with schema refs are only informing the type checker when the --schema flag is used
 func TestCheckWithSchemasAnnotationButNoSchemaFlag(t *testing.T) {
-	policyWithSchemaRef := `
+	policiesWithSchemaRef := []string{`
 package test
 import rego.v1
 # METADATA
@@ -220,11 +220,21 @@ import rego.v1
 p if { 
 	rego.metadata.rule() # presence of rego.metadata.* calls must not trigger unwanted schema evaluation 
 	input.foo == 42 # type mismatch with schema that should be ignored
-}`
+}`,
+		`
+package p
 
-	err := testCheckWithSchemasAnnotationButNoSchemaFlag(policyWithSchemaRef)
-	if err != nil {
-		t.Fatalf("unexpected error from eval with schema ref: %v", err)
+# METADATA
+# schemas:
+# - data.p.x: schema["nope"]
+bug := data.p.x
+`}
+
+	for i, pol := range policiesWithSchemaRef {
+		err := testCheckWithSchemasAnnotationButNoSchemaFlag(pol)
+		if err != nil {
+			t.Fatalf("unexpected error from eval policy %d with schema ref: %v", i, err)
+		}
 	}
 
 	policyWithInlinedSchema := `
@@ -238,7 +248,7 @@ p if {
 	input.foo == 42 # type mismatch with schema that should be ignored
 }`
 
-	err = testCheckWithSchemasAnnotationButNoSchemaFlag(policyWithInlinedSchema)
+	err := testCheckWithSchemasAnnotationButNoSchemaFlag(policyWithInlinedSchema)
 	// We expect an error here, as inlined schemas are always used for type checking
 	if !strings.Contains(err.Error(), "rego_type_error: match error") {
 		t.Fatalf("unexpected error from eval with inlined schema, got: %v", err)
