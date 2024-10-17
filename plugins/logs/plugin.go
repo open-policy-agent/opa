@@ -802,8 +802,9 @@ func (p *Plugin) loop() {
 
 			waitC = make(chan struct{})
 			go func() {
+				timer, timerCancel := util.TimerWithCancel(delay)
 				select {
-				case <-time.After(delay):
+				case <-timer.C:
 					if err != nil {
 						retry++
 					} else {
@@ -811,6 +812,7 @@ func (p *Plugin) loop() {
 					}
 					close(waitC)
 				case <-ctx.Done():
+					timerCancel() // explicitly cancel the timer.
 				}
 			}()
 		}

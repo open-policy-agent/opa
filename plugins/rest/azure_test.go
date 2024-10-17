@@ -25,7 +25,6 @@ func assertParamsEqual(t *testing.T, expected url.Values, actual url.Values, lab
 		t.Errorf("%s: expected %s, got %s", label, expected.Encode(), actual.Encode())
 	}
 }
-
 func TestAzureManagedIdentitiesAuthPlugin_NewClient(t *testing.T) {
 	tests := []struct {
 		label      string
@@ -72,6 +71,64 @@ func TestAzureManagedIdentitiesAuthPlugin_NewClient(t *testing.T) {
 		// This is because the latter cannot test default endpoint setting, which we do here
 		assertStringsEqual(t, nonEmptyString(tt.endpoint, azureIMDSEndpoint), ap.Endpoint, tt.label)
 		assertStringsEqual(t, nonEmptyString(tt.apiVersion, defaultAPIVersion), ap.APIVersion, tt.label)
+		assertStringsEqual(t, nonEmptyString(tt.resource, defaultResource), ap.Resource, tt.label)
+		assertStringsEqual(t, tt.objectID, ap.ObjectID, tt.label)
+		assertStringsEqual(t, tt.clientID, ap.ClientID, tt.label)
+		assertStringsEqual(t, tt.miResID, ap.MiResID, tt.label)
+	}
+}
+
+func TestAzureManagedIdentitiesAuthPluginForAppService_NewClient(t *testing.T) {
+	tests := []struct {
+		label      string
+		endpoint   string
+		apiVersion string
+		resource   string
+		objectID   string
+		clientID   string
+		miResID    string
+	}{
+		{
+			"test all defaults",
+			"", "", "", "", "", "",
+		},
+		{
+			"test no defaults",
+			"some_endpoint", "some_version", "some_resource", "some_oid", "some_cid", "some_miresid",
+		},
+	}
+
+	nonEmptyString := func(value string, defaultValue string) string {
+		if value == "" {
+			return defaultValue
+		}
+		return value
+	}
+
+	defaultIdentityEndpoint := "http://localhost:42356/msi/token"
+	defaultIdentityHeader := "IdentityHeader"
+	t.Setenv("IDENTITY_ENDPOINT", defaultIdentityEndpoint)
+	t.Setenv("IDENTITY_HEADER", defaultIdentityHeader)
+
+	for _, tt := range tests {
+		config := generateConfigString(tt.endpoint, tt.apiVersion, tt.resource, tt.objectID, tt.clientID, tt.miResID)
+
+		client, err := New([]byte(config), map[string]*keys.Config{})
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		ap := client.config.Credentials.AzureManagedIdentity
+		_, err = ap.NewClient(client.config)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		// We test that default values are set correctly in the azureManagedIdentitiesAuthPlugin
+		// Note that there is significant overlap between TestAzureManagedIdentitiesAuthPlugin_NewClient and TestAzureManagedIdentitiesAuthPlugin
+		// This is because the latter cannot test default endpoint setting, which we do here
+		assertStringsEqual(t, nonEmptyString(tt.endpoint, defaultIdentityEndpoint), ap.Endpoint, tt.label)
+		assertStringsEqual(t, nonEmptyString(tt.apiVersion, defaultAPIVersionForAppServiceMsi), ap.APIVersion, tt.label)
 		assertStringsEqual(t, nonEmptyString(tt.resource, defaultResource), ap.Resource, tt.label)
 		assertStringsEqual(t, tt.objectID, ap.ObjectID, tt.label)
 		assertStringsEqual(t, tt.clientID, ap.ClientID, tt.label)

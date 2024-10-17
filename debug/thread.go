@@ -176,11 +176,13 @@ func (t *thread) stepOver() error {
 		return err
 	}
 
+	hasExited := startE != nil && (startE.Op == topdown.ExitOp || startE.Op == topdown.FailOp)
+
 	baseQueryVisited := false
 Loop:
 	for {
 		i, e := t.stack.Next()
-		t.logger.Debug("Step-over on event: #%d", i)
+		t.logger.Debug("Step-over on event #%d:\n%v", i, e)
 
 		if e != nil && e.QueryID == 0 {
 			baseQueryVisited = true
@@ -215,6 +217,10 @@ Loop:
 			t.logger.Debug("Continuing past query: %d; base-query", qid)
 		case e.QueryID <= startE.QueryID:
 			t.logger.Debug("Resuming on query: %d; start-query: %d", qid, startE.QueryID)
+			break Loop
+		case hasExited && e.Op == topdown.EnterOp && qid != startE.QueryID:
+			// We have exited the current query scope, and entered a new one; probably a relative partial rule.
+			t.logger.Debug("Resuming on query: %d; query-exited", qid)
 			break Loop
 		case baseQueryVisited:
 			t.logger.Debug("Resuming on query: %d; base-query visited", qid)

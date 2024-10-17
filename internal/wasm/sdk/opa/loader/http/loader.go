@@ -16,6 +16,7 @@ import (
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa"
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
+	"github.com/open-policy-agent/opa/util"
 )
 
 const (
@@ -139,9 +140,12 @@ func (l *Loader) poller() {
 			break
 		}
 
+		delay := time.Duration(float64((l.maxDelay-l.minDelay))*rand.Float64()) + l.minDelay
+		timer, timerCancel := util.TimerWithCancel(delay)
 		select {
-		case <-time.After(time.Duration(float64((l.maxDelay-l.minDelay))*rand.Float64()) + l.minDelay):
+		case <-timer.C:
 		case <-ctx.Done():
+			timerCancel() // explicitly cancel the timer.
 			return
 		}
 	}
@@ -160,9 +164,12 @@ func (l *Loader) download(ctx context.Context) error {
 			break
 		}
 
+		delay := defaultBackoff(float64(MinRetryDelay), float64(l.maxDelay), retry)
+		timer, timerCancel := util.TimerWithCancel(delay)
 		select {
-		case <-time.After(defaultBackoff(float64(MinRetryDelay), float64(l.maxDelay), retry)):
+		case <-timer.C:
 		case <-ctx.Done():
+			timerCancel() // explicitly cancel the timer.
 			return context.Canceled
 		}
 	}
