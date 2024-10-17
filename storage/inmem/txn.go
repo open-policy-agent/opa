@@ -335,20 +335,6 @@ func (u *updateRaw) Remove() bool {
 	return u.remove
 }
 
-type updateAST struct {
-	path   storage.Path // data path modified by update
-	remove bool         // indicates whether update removes the value at path
-	value  ast.Value    // value to add/replace at path (ignored if remove is true)
-}
-
-func (u *updateAST) Path() storage.Path {
-	return u.path
-}
-
-func (u *updateAST) Remove() bool {
-	return u.remove
-}
-
 func (db *store) value() interface{} {
 	if db.returnASTValuesOnRead {
 		return db.dataAST
@@ -363,13 +349,6 @@ func (db *store) set(data interface{}) {
 		return
 	}
 	db.data = data.(map[string]interface{})
-}
-
-func interfaceToValue(v interface{}) (ast.Value, error) {
-	if v, ok := v.(ast.Value); ok {
-		return v, nil
-	}
-	return ast.InterfaceToValue(v)
 }
 
 func (db *store) newUpdate(data interface{}, op storage.PatchOp, path storage.Path, idx int, value interface{}) (dataUpdate, error) {
@@ -406,109 +385,6 @@ func newUpdateRaw(data interface{}, op storage.PatchOp, path storage.Path, idx i
 		Code:    storage.InternalErr,
 		Message: "invalid data value encountered",
 	}
-}
-
-func newUpdateAST(data interface{}, op storage.PatchOp, path storage.Path, idx int, value ast.Value) (*updateAST, error) {
-
-	switch data.(type) {
-	case ast.Null, ast.Boolean, ast.Number, ast.String:
-		return nil, errors.NewNotFoundError(path)
-	}
-
-	switch data := data.(type) {
-	case ast.Object:
-		return newUpdateObjectAST(data, op, path, idx, value)
-
-	case *ast.Array:
-		return newUpdateArrayAST(data, op, path, idx, value)
-	}
-
-	return nil, &storage.Error{
-		Code:    storage.InternalErr,
-		Message: "invalid data value encountered",
-	}
-}
-
-func newUpdateArrayAST(data *ast.Array, op storage.PatchOp, path storage.Path, idx int, value ast.Value) (*updateAST, error) {
-
-	if idx == len(path)-1 {
-		if path[idx] == "-" || path[idx] == strconv.Itoa(data.Len()) {
-			if op != storage.AddOp {
-				return nil, invalidPatchError("%v: invalid patch path", path)
-			}
-
-			cpy := data.Copy()
-			cpy = cpy.Append(ast.NewTerm(value))
-			return &updateAST{path[:len(path)-1], false, cpy}, nil
-		}
-
-		pos, err := ptr.ValidateASTArrayIndex(data, path[idx], path)
-		if err != nil {
-			return nil, err
-		}
-
-		switch op {
-		case storage.AddOp:
-			var results []*ast.Term
-			for i := 0; i < data.Len(); i++ {
-				if i == pos {
-					results = append(results, ast.NewTerm(value))
-				}
-				results = append(results, data.Elem(i))
-			}
-
-			return &updateAST{path[:len(path)-1], false, ast.NewArray(results...)}, nil
-
-		case storage.RemoveOp:
-			var results []*ast.Term
-			for i := 0; i < data.Len(); i++ {
-				if i != pos {
-					results = append(results, data.Elem(i))
-				}
-			}
-			return &updateAST{path[:len(path)-1], false, ast.NewArray(results...)}, nil
-
-		default:
-			var results []*ast.Term
-			for i := 0; i < data.Len(); i++ {
-				if i == pos {
-					results = append(results, ast.NewTerm(value))
-				} else {
-					results = append(results, data.Elem(i))
-				}
-			}
-
-			return &updateAST{path[:len(path)-1], false, ast.NewArray(results...)}, nil
-		}
-	}
-
-	pos, err := ptr.ValidateASTArrayIndex(data, path[idx], path)
-	if err != nil {
-		return nil, err
-	}
-
-	return newUpdateAST(data.Elem(pos).Value, op, path, idx+1, value)
-}
-
-func newUpdateObjectAST(data ast.Object, op storage.PatchOp, path storage.Path, idx int, value ast.Value) (*updateAST, error) {
-	key := ast.StringTerm(path[idx])
-	val := data.Get(key)
-
-	if idx == len(path)-1 {
-		switch op {
-		case storage.ReplaceOp, storage.RemoveOp:
-			if val == nil {
-				return nil, errors.NewNotFoundError(path)
-			}
-		}
-		return &updateAST{path, op == storage.RemoveOp, value}, nil
-	}
-
-	if val != nil {
-		return newUpdateAST(val.Value, op, path, idx+1, value)
-	}
-
-	return nil, errors.NewNotFoundError(path)
 }
 
 func newUpdateArray(data []interface{}, op storage.PatchOp, path storage.Path, idx int, value interface{}) (dataUpdate, error) {
@@ -620,126 +496,7 @@ func (u *updateRaw) Value() interface{} {
 	return u.value
 }
 
-func (u *updateAST) Apply(v interface{}) interface{} {
-	if len(u.path) == 0 {
-		return u.value
-	}
-
-	data, ok := v.(ast.Value)
-	if !ok {
-		panic("illegal value type")
-	}
-
-	if u.remove {
-		return removeInAst(data, u.path)
-	}
-
-	parent, err := ptr.PtrAST(data, u.path[:len(u.path)-1])
-	if err != nil {
-		panic(err)
-	}
-
-	key := u.path[len(u.path)-1]
-	switch parent := parent.(type) {
-	case ast.Object:
-		if parent == nil {
-			parent = ast.NewObject()
-		}
-		parent.Insert(ast.StringTerm(key), ast.NewTerm(u.value))
-	case *ast.Array:
-		idx, err := strconv.Atoi(key)
-		if err != nil {
-			panic(err)
-		}
-		parent.Set(idx, ast.NewTerm(u.value))
-	}
-	// FIXME: This will return data with updated values, but not updated hashes.
-	// We probably need to recursively rebuild the AST.
-	return data
-}
-
-func removeInAst(value ast.Value, path storage.Path) ast.Value {
-	if len(path) == 0 {
-		return value
-	}
-
-	switch value := value.(type) {
-	case ast.Object:
-		return removeInAstObject(value, path)
-	case *ast.Array:
-		return removeInAstArray(value, path)
-	default:
-		panic("illegal value type")
-	}
-}
-
-func removeInAstObject(obj ast.Object, path storage.Path) ast.Object {
-	key := ast.StringTerm(path[0])
-
-	if len(path) == 1 {
-		var items [][2]*ast.Term
-		obj.Foreach(func(k *ast.Term, v *ast.Term) {
-			if k.Equal(key) {
-				return
-			}
-			items = append(items, [2]*ast.Term{k, v})
-		})
-		return ast.NewObject(items...)
-	}
-
-	if child := obj.Get(key); child != nil {
-		updatedChild := removeInAst(child.Value, path[1:])
-		obj.Insert(key, ast.NewTerm(updatedChild))
-	}
-
-	return obj
-}
-
-func removeInAstArray(arr *ast.Array, path storage.Path) *ast.Array {
-	idx, err := strconv.Atoi(path[0])
-	if err != nil {
-		// We expect the path to be valid at this point.
-		return arr
-	}
-
-	if idx < 0 || idx >= arr.Len() {
-		return arr
-	}
-
-	if len(path) == 1 {
-		var elems []*ast.Term
-		for i := 0; i < arr.Len(); i++ {
-			if i == idx {
-				continue
-			}
-			elems = append(elems, arr.Elem(i))
-		}
-		return ast.NewArray(elems...)
-	}
-
-	updatedChild := removeInAst(arr.Elem(idx).Value, path[1:])
-	arr.Set(idx, ast.NewTerm(updatedChild))
-	return arr
-}
-
-func (u *updateAST) Set(v interface{}) {
-	if v, ok := v.(ast.Value); ok {
-		u.value = v
-	}
-	//panic("illegal value type") // FIXME: do conversion?
-}
-
-func (u *updateAST) Value() interface{} {
-	return u.value
-}
-
 func (u *updateRaw) Relative(path storage.Path) dataUpdate {
-	cpy := *u
-	cpy.path = cpy.path[len(path):]
-	return &cpy
-}
-
-func (u *updateAST) Relative(path storage.Path) dataUpdate {
 	cpy := *u
 	cpy.path = cpy.path[len(path):]
 	return &cpy
