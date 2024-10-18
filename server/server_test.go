@@ -2636,6 +2636,74 @@ func TestBundleNoRoots(t *testing.T) {
 	}
 }
 
+func TestDataUpdate(t *testing.T) {
+	tests := []struct {
+		note    string
+		readAst bool
+	}{
+		{
+			note: "read raw data",
+		},
+		{
+			note:    "read ast data",
+			readAst: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			f := newFixtureWithStore(t, inmem.NewWithOpts(inmem.OptReturnASTValuesOnRead(tc.readAst)))
+
+			// PUT data
+
+			putData := `{"a":1,"b":2, "c": 3}`
+			err := f.v1(http.MethodPut, "/data/x", putData, 204, "")
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			req := newReqV1(http.MethodGet, "/data/x", "")
+			f.reset()
+			f.server.Handler.ServeHTTP(f.recorder, req)
+
+			var result types.DataResponseV1
+
+			if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
+				t.Fatalf("Unexpected JSON decode error: %v", err)
+			}
+
+			var expected interface{}
+			if err := util.UnmarshalJSON([]byte(putData), &expected); err != nil {
+				t.Fatalf("Unexpected JSON decode error: %v", err)
+			}
+			if result.Result == nil || !reflect.DeepEqual(*result.Result, expected) {
+				t.Fatalf("Expected %v but got: %v", expected, *result.Result)
+			}
+
+			// DELETE data
+
+			if err := f.v1(http.MethodDelete, "/data/x/b", "", 204, ""); err != nil {
+				t.Fatal("Unexpected error:", err)
+			}
+
+			req = newReqV1(http.MethodGet, "/data/x", "")
+			f.reset()
+			f.server.Handler.ServeHTTP(f.recorder, req)
+
+			if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
+				t.Fatalf("Unexpected JSON decode error: %v", err)
+			}
+
+			if err := util.UnmarshalJSON([]byte(`{"a":1,"c": 3}`), &expected); err != nil {
+				t.Fatalf("Unexpected JSON decode error: %v", err)
+			}
+			if result.Result == nil || !reflect.DeepEqual(*result.Result, expected) {
+				t.Fatalf("Expected %v but got: %v", expected, *result.Result)
+			}
+		})
+	}
+}
+
 func TestDataGetExplainFull(t *testing.T) {
 	f := newFixture(t)
 
