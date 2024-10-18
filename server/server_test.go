@@ -70,18 +70,23 @@ type tr struct {
 }
 
 func TestUnversionedGetHealth(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 	req := newReqUnversioned(http.MethodGet, "/health", "")
 	validateDiagnosticRequest(t, f, req, 200, `{}`)
 }
 
 func TestUnversionedGetHealthBundleNoBundleSet(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 	req := newReqUnversioned(http.MethodGet, "/health?bundles=true", "")
 	validateDiagnosticRequest(t, f, req, 200, `{}`)
 }
 
 func TestUnversionedGetHealthCheckOnlyBundlePlugin(t *testing.T) {
+	t.Parallel()
 
 	f := newFixture(t)
 
@@ -102,6 +107,7 @@ func TestUnversionedGetHealthCheckOnlyBundlePlugin(t *testing.T) {
 }
 
 func TestUnversionedGetHealthCheckDiscoveryWithBundle(t *testing.T) {
+	t.Parallel()
 
 	f := newFixture(t)
 
@@ -129,6 +135,7 @@ func TestUnversionedGetHealthCheckDiscoveryWithBundle(t *testing.T) {
 }
 
 func TestUnversionedGetHealthCheckBundleActivationSingleLegacy(t *testing.T) {
+	t.Parallel()
 
 	// Initialize the server as if there is no bundle plugin
 
@@ -156,6 +163,7 @@ func TestUnversionedGetHealthCheckBundleActivationSingleLegacy(t *testing.T) {
 }
 
 func TestBundlesReady(t *testing.T) {
+	t.Parallel()
 
 	cases := []struct {
 		note   string
@@ -247,6 +255,7 @@ func TestBundlesReady(t *testing.T) {
 }
 
 func TestUnversionedGetHealthCheckDiscoveryWithPlugins(t *testing.T) {
+	t.Parallel()
 
 	// Use the same server through the cases, the status updates apply incrementally to it.
 	f := newFixture(t)
@@ -387,6 +396,7 @@ func TestUnversionedGetHealthCheckDiscoveryWithPlugins(t *testing.T) {
 }
 
 func TestUnversionedGetHealthCheckDiscoveryWithPluginsAndExclude(t *testing.T) {
+	t.Parallel()
 
 	// Use the same server through the cases, the status updates apply incrementally to it.
 	f := newFixture(t)
@@ -499,6 +509,7 @@ func TestUnversionedGetHealthCheckDiscoveryWithPluginsAndExclude(t *testing.T) {
 }
 
 func TestUnversionedGetHealthCheckBundleAndPlugins(t *testing.T) {
+	t.Parallel()
 
 	cases := []struct {
 		note     string
@@ -588,12 +599,16 @@ func TestUnversionedGetHealthCheckBundleAndPlugins(t *testing.T) {
 }
 
 func TestUnversionedGetHealthWithPolicyMissing(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 	req := newReqUnversioned(http.MethodGet, "/health/live", "")
 	validateDiagnosticRequest(t, f, req, 500, `{"error":"health check (data.system.health.live) was undefined"}`)
 }
 
 func TestUnversionedGetHealthWithPolicyUpdates(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	store := inmem.New()
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
@@ -634,6 +649,8 @@ func TestUnversionedGetHealthWithPolicyUpdates(t *testing.T) {
 }
 
 func TestUnversionedGetHealthWithPolicyUsingPlugins(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	store := inmem.New()
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
@@ -696,6 +713,8 @@ func TestUnversionedGetHealthWithPolicyUsingPlugins(t *testing.T) {
 }
 
 func TestDataV0(t *testing.T) {
+	t.Parallel()
+
 	testMod1 := `package test
 	import rego.v1
 
@@ -757,6 +776,8 @@ func TestDataV0(t *testing.T) {
 
 // Tests that the responses for (theoretically) valid resources but with forbidden methods return the proper status code
 func Test405StatusCodev1(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		note string
 		reqs []tr
@@ -820,6 +841,8 @@ func Test405StatusCodev1(t *testing.T) {
 
 // Tests that the responses for (theoretically) valid resources but with forbidden methods return the proper status code
 func Test405StatusCodev0(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		note string
 		reqs []tr
@@ -853,6 +876,7 @@ func Test405StatusCodev0(t *testing.T) {
 }
 
 func TestCompileV1(t *testing.T) {
+	t.Parallel()
 
 	mod := `package test
 	import rego.v1
@@ -1016,6 +1040,8 @@ func TestCompileV1(t *testing.T) {
 }
 
 func TestCompileV1Observability(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	test.WithTempFS(nil, func(root string) {
@@ -1062,6 +1088,8 @@ func TestCompileV1Observability(t *testing.T) {
 }
 
 func TestCompileV1UnsafeBuiltin(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 
 	query := `{"query": "http.send({\"method\": \"get\", \"url\": \"foo.com\"}, x)"}`
@@ -1087,6 +1115,8 @@ func TestCompileV1UnsafeBuiltin(t *testing.T) {
 }
 
 func TestDataV1Redirection(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 	// Testing redirect at the root level
 	if err := f.v1(http.MethodPut, "/data/", `{"foo": [1,2,3]}`, 301, ""); err != nil {
@@ -1121,6 +1151,8 @@ func TestDataV1Redirection(t *testing.T) {
 }
 
 func TestDataV1(t *testing.T) {
+	t.Parallel()
+
 	testMod1 := `package testmod
 
 import rego.v1
@@ -1531,6 +1563,8 @@ p = true if { false }`
 }
 
 func TestDataV1Metrics(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	test.WithTempFS(nil, func(root string) {
@@ -1569,6 +1603,8 @@ func TestDataV1Metrics(t *testing.T) {
 }
 
 func TestConfigV1(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 
 	c := []byte(`{"services": {
@@ -1633,6 +1669,7 @@ func TestConfigV1(t *testing.T) {
 }
 
 func TestDataYAML(t *testing.T) {
+	t.Parallel()
 
 	testMod1 := `package testmod
 import rego.v1
@@ -1685,6 +1722,8 @@ main = data.testmod.gt1`, 200, ""); err != nil {
 }
 
 func TestDataPutV1IfNoneMatch(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 	if err := f.v1(http.MethodPut, "/data/a/b/c", "0", 204, ""); err != nil {
 		t.Fatalf("Unexpected error from PUT /data/a/b/c: %v", err)
@@ -1734,6 +1773,8 @@ func generateJSONBenchmarkData(k, v int) map[string]interface{} {
 
 // Ref: https://github.com/open-policy-agent/opa/issues/6804
 func TestDataGetV1CompressedRequestWithAuthorizer(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		note                  string
 		payload               []byte
@@ -1840,6 +1881,8 @@ allow if {
 
 // Tests to ensure the body size limits work, for compressed requests.
 func TestDataPostV1CompressedDecodingLimits(t *testing.T) {
+	t.Parallel()
+
 	defaultMaxLen := int64(1024)
 	defaultGzipMaxLen := int64(1024)
 
@@ -2035,6 +2078,8 @@ allow if {
 }
 
 func TestDataPostV0CompressedResponse(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		gzipMinLength      int
 		compressedResponse bool
@@ -2101,6 +2146,8 @@ allow_request if { flag == true }
 }
 
 func TestDataPostV1CompressedResponse(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		gzipMinLength      int
 		compressedResponse bool
@@ -2174,6 +2221,8 @@ hello if {
 }
 
 func TestCompileV1CompressedResponse(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		gzipMinLength      int
 		compressedResponse bool
@@ -2263,6 +2312,8 @@ func TestCompileV1CompressedResponse(t *testing.T) {
 }
 
 func TestDataPostV0CompressedRequest(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 	// create the policy
 	err := f.v1(http.MethodPut, "/policies/test", `package opa.examples
@@ -2289,6 +2340,8 @@ allow_request if { flag == true }
 }
 
 func TestDataPostV1CompressedRequest(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 	// create the policy
 	err := f.v1(http.MethodPut, "/policies/test", `package test
@@ -2326,6 +2379,8 @@ hello if {
 }
 
 func TestCompileV1CompressedRequest(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 	// create the policy
 	mod := `package test
@@ -2378,6 +2433,7 @@ func TestCompileV1CompressedRequest(t *testing.T) {
 }
 
 func TestBundleScope(t *testing.T) {
+	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -2503,6 +2559,7 @@ func TestBundleScope(t *testing.T) {
 }
 
 func TestBundleScopeMultiBundle(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 
@@ -2568,6 +2625,8 @@ func TestBundleScopeMultiBundle(t *testing.T) {
 }
 
 func TestBundleNoRoots(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	f := newFixture(t)
@@ -2705,6 +2764,8 @@ func TestDataUpdate(t *testing.T) {
 }
 
 func TestDataGetExplainFull(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 
 	err := f.v1(http.MethodPut, "/data/x", `{"a":1,"b":2}`, 204, "")
@@ -2794,6 +2855,7 @@ func TestDataGetExplainFull(t *testing.T) {
 }
 
 func TestDataPostWithActiveStoreWriteTxn(t *testing.T) {
+	t.Parallel()
 
 	f := newFixture(t)
 
@@ -2832,6 +2894,8 @@ p = [1, 2, 3, 4] if { true }`, 200, "")
 }
 
 func TestDataPostExplain(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 
 	err := f.v1(http.MethodPut, "/policies/test", `package test
@@ -2872,6 +2936,8 @@ p = [1, 2, 3, 4] if { true }`, 200, "")
 }
 
 func TestDataPostExplainNotes(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 
 	err := f.v1(http.MethodPut, "/policies/test", `
@@ -2917,6 +2983,7 @@ func TestDataPostExplainNotes(t *testing.T) {
 }
 
 func TestDataProvenanceSingleBundle(t *testing.T) {
+	t.Parallel()
 
 	f := newFixture(t)
 
@@ -2987,6 +3054,7 @@ func TestDataProvenanceSingleBundle(t *testing.T) {
 }
 
 func TestDataProvenanceSingleFileBundle(t *testing.T) {
+	t.Parallel()
 
 	f := newFixture(t)
 
@@ -3035,6 +3103,7 @@ func TestDataProvenanceSingleFileBundle(t *testing.T) {
 }
 
 func TestDataProvenanceMultiBundle(t *testing.T) {
+	t.Parallel()
 
 	f := newFixture(t)
 
@@ -3145,6 +3214,8 @@ func TestDataProvenanceMultiBundle(t *testing.T) {
 }
 
 func TestDataMetricsEval(t *testing.T) {
+	t.Parallel()
+
 	// These tests all use the POST /v1/data API with ?metrics appended.
 	// We're setting up the disk store because that injects a few extra metrics,
 	// which storage/inmem does not.
@@ -3222,6 +3293,7 @@ func assertMetricsExist(t *testing.T, metrics types.MetricsV1, expected []string
 }
 
 func TestV1Pretty(t *testing.T) {
+	t.Parallel()
 
 	f := newFixture(t)
 	err := f.v1(http.MethodPatch, "/data/x", `[{"op": "add", "path":"/", "value": [1,2,3,4]}]`, 204, "")
@@ -3249,6 +3321,8 @@ func TestV1Pretty(t *testing.T) {
 }
 
 func TestPoliciesPutV1(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 	req := newReqV1(http.MethodPut, "/policies/1", testMod)
 
@@ -3269,6 +3343,8 @@ func TestPoliciesPutV1(t *testing.T) {
 }
 
 func TestPoliciesPutV1Empty(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 	req := newReqV1(http.MethodPut, "/policies/1", "")
 
@@ -3280,6 +3356,8 @@ func TestPoliciesPutV1Empty(t *testing.T) {
 }
 
 func TestPoliciesPutV1ParseError(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 	req := newReqV1(http.MethodPut, "/policies/test", `
     package a.b.c
@@ -3334,6 +3412,8 @@ func TestPoliciesPutV1ParseError(t *testing.T) {
 }
 
 func TestPoliciesPutV1CompileError(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 	req := newReqV1(http.MethodPut, "/policies/test", `package a.b.c
 
@@ -3370,6 +3450,8 @@ q[x] { p[x] }`,
 }
 
 func TestPoliciesPutV1Noop(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 	err := f.v1("PUT", "/policies/test?metrics", `package foo`, 200, "")
 	if err != nil {
@@ -3422,6 +3504,8 @@ func TestPoliciesPutV1Noop(t *testing.T) {
 }
 
 func TestPoliciesListV1(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 	putPolicy(t, f, testMod)
 
@@ -3473,6 +3557,8 @@ func assertListPolicy(t *testing.T, f *fixture, expected []types.PolicyV1) {
 }
 
 func TestPoliciesGetV1(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 	put := newReqV1(http.MethodPut, "/policies/1", testMod)
 	f.server.Handler.ServeHTTP(f.recorder, put)
@@ -3503,6 +3589,8 @@ func TestPoliciesGetV1(t *testing.T) {
 }
 
 func TestPoliciesDeleteV1(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 	put := newReqV1(http.MethodPut, "/policies/1", testMod)
 	f.server.Handler.ServeHTTP(f.recorder, put)
@@ -3538,6 +3626,8 @@ func TestPoliciesDeleteV1(t *testing.T) {
 }
 
 func TestPoliciesPathSlashes(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 	if err := f.v1(http.MethodPut, "/policies/a/b/c.rego", testMod, 200, ""); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -3548,6 +3638,8 @@ func TestPoliciesPathSlashes(t *testing.T) {
 }
 
 func TestPoliciesUrlEncoded(t *testing.T) {
+	t.Parallel()
+
 	const expectedPolicyID = "/a policy/another-component"
 	var urlEscapedPolicyID = url.PathEscape(expectedPolicyID)
 	f := newFixture(t)
@@ -3590,6 +3682,7 @@ func TestPoliciesUrlEncoded(t *testing.T) {
 }
 
 func TestStatusV1(t *testing.T) {
+	t.Parallel()
 
 	f := newFixture(t)
 
@@ -3680,6 +3773,7 @@ func TestStatusV1(t *testing.T) {
 }
 
 func TestStatusV1MetricsWithSystemAuthzPolicy(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 
@@ -3849,6 +3943,8 @@ func TestStatusV1MetricsWithSystemAuthzPolicy(t *testing.T) {
 }
 
 func TestQueryPostBasic(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 	f.server, _ = New().
 		WithAddresses([]string{"localhost:8182"}).
@@ -3873,6 +3969,7 @@ func TestQueryPostBasic(t *testing.T) {
 }
 
 func TestDecisionIDs(t *testing.T) {
+	t.Parallel()
 
 	f := newFixture(t)
 
@@ -3924,6 +4021,8 @@ func TestDecisionIDs(t *testing.T) {
 }
 
 func TestDecisionLoggingWithHTTPRequestContext(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 
 	decisions := []*Info{}
@@ -3968,6 +4067,8 @@ func TestDecisionLoggingWithHTTPRequestContext(t *testing.T) {
 }
 
 func TestDecisionLogging(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 
 	decisions := []*Info{}
@@ -4158,6 +4259,7 @@ func TestDecisionLogging(t *testing.T) {
 }
 
 func TestDecisionLogErrorMessage(t *testing.T) {
+	t.Parallel()
 
 	f := newFixture(t)
 
@@ -4174,6 +4276,8 @@ func TestDecisionLogErrorMessage(t *testing.T) {
 }
 
 func TestQueryV1(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	test.WithTempFS(nil, func(root string) {
@@ -4221,6 +4325,8 @@ func TestQueryV1(t *testing.T) {
 }
 
 func TestBadQueryV1(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 
 	expectedErr := `{
@@ -4250,6 +4356,8 @@ func TestBadQueryV1(t *testing.T) {
 }
 
 func TestQueryV1UnsafeBuiltin(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 
 	query := `/query?q=http.send({"method": "get", "url": "foo.com"}, x)`
@@ -4276,6 +4384,7 @@ func TestQueryV1UnsafeBuiltin(t *testing.T) {
 }
 
 func TestUnversionedPost(t *testing.T) {
+	t.Parallel()
 
 	f := newFixture(t)
 
@@ -4398,6 +4507,8 @@ func TestUnversionedPost(t *testing.T) {
 }
 
 func TestQueryV1Explain(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 	get := newReqV1(http.MethodGet, `/query?q=a=[1,2,3]%3Ba[i]=x&explain=debug`, "")
 	f.server.Handler.ServeHTTP(f.recorder, get)
@@ -4420,6 +4531,7 @@ func TestQueryV1Explain(t *testing.T) {
 }
 
 func TestAuthorization(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 	store := inmem.New()
@@ -4541,6 +4653,7 @@ func TestAuthorization(t *testing.T) {
 }
 
 func TestAuthorizationUsesInterQueryCache(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 	store := inmem.New()
@@ -4629,6 +4742,7 @@ func validateAuthorizedRequest(t *testing.T, s *Server, req *http.Request, exp i
 }
 
 func TestServerUsesAuthorizerParsedBody(t *testing.T) {
+	t.Parallel()
 
 	// Construct a request w/ a different message body (this should never happen.)
 	req, err := http.NewRequest(http.MethodPost, "http://localhost:8182/v1/data/test/echo", bytes.NewBufferString(`{"foo": "bad"}`))
@@ -4679,6 +4793,8 @@ func TestServerUsesAuthorizerParsedBody(t *testing.T) {
 }
 
 func TestServerReloadTrigger(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 	store := f.server.store
 	ctx := context.Background()
@@ -4699,6 +4815,8 @@ func TestServerReloadTrigger(t *testing.T) {
 }
 
 func TestServerClearsCompilerConflictCheck(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t)
 	store := f.server.store
 	ctx := context.Background()
@@ -4777,6 +4895,7 @@ func (queryBindingErrStore) Unregister(context.Context, storage.Transaction, str
 }
 
 func TestQueryBindingIterationError(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 	mock := &queryBindingErrStore{}
@@ -5091,6 +5210,8 @@ func mustUnmarshalTrace(t types.TraceV1) (trace types.TraceV1Raw) {
 }
 
 func TestShutdown(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t, func(s *Server) {
 		s.WithDiagnosticAddresses([]string{":8443"})
 	})
@@ -5115,6 +5236,8 @@ func TestShutdown(t *testing.T) {
 }
 
 func TestShutdownError(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t, func(s *Server) {
 		s.WithDiagnosticAddresses([]string{":8443"})
 	})
@@ -5140,6 +5263,8 @@ func TestShutdownError(t *testing.T) {
 }
 
 func TestShutdownMultipleErrors(t *testing.T) {
+	t.Parallel()
+
 	f := newFixture(t, func(s *Server) {
 		s.WithDiagnosticAddresses([]string{":8443"})
 	})
@@ -5173,6 +5298,8 @@ func TestShutdownMultipleErrors(t *testing.T) {
 }
 
 func TestAddrsNoListeners(t *testing.T) {
+	t.Parallel()
+
 	s := New()
 	a := s.Addrs()
 	if len(a) != 0 {
@@ -5181,6 +5308,8 @@ func TestAddrsNoListeners(t *testing.T) {
 }
 
 func TestAddrsWithEmptyListenAddr(t *testing.T) {
+	t.Parallel()
+
 	s := New()
 	s.httpListeners = []httpListener{&mockHTTPListener{}}
 	a := s.Addrs()
@@ -5190,6 +5319,8 @@ func TestAddrsWithEmptyListenAddr(t *testing.T) {
 }
 
 func TestAddrsWithListenAddr(t *testing.T) {
+	t.Parallel()
+
 	s := New()
 	s.httpListeners = []httpListener{&mockHTTPListener{addrs: ":8181"}}
 	a := s.Addrs()
@@ -5199,6 +5330,8 @@ func TestAddrsWithListenAddr(t *testing.T) {
 }
 
 func TestAddrsWithMixedListenerAddr(t *testing.T) {
+	t.Parallel()
+
 	s := New()
 	addrs := []string{":8181", "", "unix:///var/tmp/foo.sock"}
 	expected := []string{":8181", "unix:///var/tmp/foo.sock"}
@@ -5228,6 +5361,8 @@ func TestAddrsWithMixedListenerAddr(t *testing.T) {
 }
 
 func TestDiagnosticAddrsNoListeners(t *testing.T) {
+	t.Parallel()
+
 	s := New()
 	a := s.DiagnosticAddrs()
 	if len(a) != 0 {
@@ -5236,6 +5371,8 @@ func TestDiagnosticAddrsNoListeners(t *testing.T) {
 }
 
 func TestDiagnosticAddrsWithEmptyListenAddr(t *testing.T) {
+	t.Parallel()
+
 	s := New()
 	s.httpListeners = []httpListener{&mockHTTPListener{t: diagnosticListenerType}}
 	a := s.DiagnosticAddrs()
@@ -5245,6 +5382,8 @@ func TestDiagnosticAddrsWithEmptyListenAddr(t *testing.T) {
 }
 
 func TestDiagnosticAddrsWithListenAddr(t *testing.T) {
+	t.Parallel()
+
 	s := New()
 	s.httpListeners = []httpListener{&mockHTTPListener{addrs: ":8181", t: diagnosticListenerType}}
 	a := s.DiagnosticAddrs()
@@ -5254,6 +5393,8 @@ func TestDiagnosticAddrsWithListenAddr(t *testing.T) {
 }
 
 func TestDiagnosticAddrsWithMixedListenerAddr(t *testing.T) {
+	t.Parallel()
+
 	s := New()
 	addrs := []string{":8181", "", "unix:///var/tmp/foo.sock"}
 	expected := []string{":8181", "unix:///var/tmp/foo.sock"}
@@ -5283,6 +5424,8 @@ func TestDiagnosticAddrsWithMixedListenerAddr(t *testing.T) {
 }
 
 func TestMixedAddrTypes(t *testing.T) {
+	t.Parallel()
+
 	s := New()
 
 	s.httpListeners = []httpListener{}
@@ -5321,6 +5464,8 @@ func TestMixedAddrTypes(t *testing.T) {
 }
 
 func TestCustomRoute(t *testing.T) {
+	t.Parallel()
+
 	router := mux.NewRouter()
 	router.HandleFunc("/customEndpoint", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"myCustomResponse": true}`)) // ignore error
@@ -5342,6 +5487,8 @@ func TestCustomRoute(t *testing.T) {
 }
 
 func TestDiagnosticRoutes(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		path      string
 		should404 bool
@@ -5386,6 +5533,8 @@ func TestDiagnosticRoutes(t *testing.T) {
 }
 
 func TestDistributedTracingEnabled(t *testing.T) {
+	t.Parallel()
+
 	c := []byte(`{"distributed_tracing": {
 		"type": "grpc"
 		}}`)
@@ -5398,6 +5547,8 @@ func TestDistributedTracingEnabled(t *testing.T) {
 }
 
 func TestDistributedTracingResourceAttributes(t *testing.T) {
+	t.Parallel()
+
 	c := []byte(`{"distributed_tracing": {
 		"type": "grpc",
 		"service_name": "my-service",
@@ -5425,6 +5576,7 @@ func TestDistributedTracingResourceAttributes(t *testing.T) {
 }
 
 func TestCertPoolReloading(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 
@@ -5836,6 +5988,7 @@ func TestCertPoolReloading(t *testing.T) {
 }
 
 func TestCertReloading(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 
