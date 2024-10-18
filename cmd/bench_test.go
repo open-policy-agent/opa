@@ -26,6 +26,8 @@ import (
 // Minimize the number of tests that *actually* run the benchmarks, they are pretty slow.
 // Have one test that exercises the whole flow.
 func TestRunBenchmark(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 
 	args := []string{"1 + 1"}
@@ -61,6 +63,8 @@ func TestRunBenchmark(t *testing.T) {
 }
 
 func TestRunBenchmarkWithQueryImport(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	// We add the rego.v1 import ..
 	params.imports = newrepeatedStringFlag([]string{"rego.v1"})
@@ -99,6 +103,8 @@ func TestRunBenchmarkWithQueryImport(t *testing.T) {
 }
 
 func TestRunBenchmarkE2E(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	params.e2e = true
 
@@ -143,6 +149,7 @@ func TestRunBenchmarkE2E(t *testing.T) {
 }
 
 func TestRunBenchmarkE2EWithOPAConfigFile(t *testing.T) {
+	t.Parallel()
 
 	fs := map[string]string{
 		"/config.yaml": `{"decision_logs": {"console": true}}`,
@@ -196,6 +203,8 @@ func TestRunBenchmarkE2EWithOPAConfigFile(t *testing.T) {
 }
 
 func TestRunBenchmarkFailFastE2E(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	params.fail = true // configured to fail on undefined results
 	params.e2e = true
@@ -225,6 +234,8 @@ func TestRunBenchmarkFailFastE2E(t *testing.T) {
 }
 
 func TestBenchPartialE2E(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	params.partial = true
 	params.fail = true
@@ -270,6 +281,8 @@ func TestBenchPartialE2E(t *testing.T) {
 }
 
 func TestRunBenchmarkPartialFailFastE2E(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	params.partial = true
 	params.unknowns = []string{}
@@ -300,10 +313,11 @@ func TestRunBenchmarkPartialFailFastE2E(t *testing.T) {
 	if actual != expected {
 		t.Fatalf("\nExpected:\n%s\n\nGot:\n%s\n", expected, actual)
 	}
-
 }
 
 func TestRunBenchmarkFailFast(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	params.fail = true // configured to fail on undefined results
 
@@ -345,6 +359,8 @@ func (r *mockBenchRunner) run(ctx context.Context, ectx *evalContext, params ben
 }
 
 func TestBenchPartial(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	params.partial = true
 	params.fail = true
@@ -362,6 +378,8 @@ func TestBenchPartial(t *testing.T) {
 }
 
 func TestBenchMainErrPreparing(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	args := []string{"???"} // query compile error
 	var buf bytes.Buffer
@@ -377,6 +395,8 @@ func TestBenchMainErrPreparing(t *testing.T) {
 }
 
 func TestBenchMainErrRunningBenchmark(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	args := []string{"1+1"}
 	var buf bytes.Buffer
@@ -397,6 +417,8 @@ func TestBenchMainErrRunningBenchmark(t *testing.T) {
 }
 
 func TestBenchMainWithCount(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	args := []string{"1+1"}
 	var buf bytes.Buffer
@@ -425,6 +447,8 @@ func TestBenchMainWithCount(t *testing.T) {
 }
 
 func TestBenchMainWithNegativeCount(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	args := []string{"1+1"}
 	var buf bytes.Buffer
@@ -489,6 +513,8 @@ func validateBenchMainPrep(t *testing.T, args []string, params benchmarkCommandP
 }
 
 func TestBenchMainWithJSONInputFile(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	files := map[string]string{
 		"/input.json": `{"x": 42}`,
@@ -502,6 +528,8 @@ func TestBenchMainWithJSONInputFile(t *testing.T) {
 }
 
 func TestBenchMainWithYAMLInputFile(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	files := map[string]string{
 		"/input.yaml": `x: 42`,
@@ -515,6 +543,8 @@ func TestBenchMainWithYAMLInputFile(t *testing.T) {
 }
 
 func TestBenchMainInvalidInputFile(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	files := map[string]string{
 		"/input.yaml": `x: 42`,
@@ -536,6 +566,8 @@ func TestBenchMainInvalidInputFile(t *testing.T) {
 }
 
 func TestBenchMainWithJSONInputFileE2E(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	params.e2e = true
 	files := map[string]string{
@@ -559,6 +591,8 @@ func TestBenchMainWithJSONInputFileE2E(t *testing.T) {
 }
 
 func TestBenchMainWithYAMLInputFileE2E(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	params.e2e = true
 	files := map[string]string{
@@ -582,6 +616,8 @@ func TestBenchMainWithYAMLInputFileE2E(t *testing.T) {
 }
 
 func TestBenchMainInvalidInputFileE2E(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	params.e2e = true
 	files := map[string]string{
@@ -605,6 +641,8 @@ func TestBenchMainInvalidInputFileE2E(t *testing.T) {
 }
 
 func TestBenchMainWithBundleData(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 
 	b := testBundle()
@@ -637,6 +675,8 @@ func TestBenchMainWithBundleData(t *testing.T) {
 }
 
 func TestBenchMainWithBundleDataE2E(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	params.e2e = true
 
@@ -679,6 +719,8 @@ func TestBenchMainWithBundleDataE2E(t *testing.T) {
 }
 
 func TestBenchMainWithDataE2E(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	params.e2e = true
 
@@ -716,6 +758,8 @@ func TestBenchMainWithDataE2E(t *testing.T) {
 }
 
 func TestBenchMainBadQueryE2E(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	params.e2e = true
 	args := []string{"foo.bar"}
@@ -733,6 +777,8 @@ func TestBenchMainBadQueryE2E(t *testing.T) {
 }
 
 func TestBenchMainCompatibleFlags(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		note         string
 		v0Compatible bool
@@ -813,7 +859,10 @@ a[4] {
 
 	for _, mode := range modes {
 		for _, tc := range tests {
+			tc := tc // Reassignment prevents loop var scoping issue. (See: https://go.dev/blog/loopvar-preview)
 			t.Run(fmt.Sprintf("%s, %s", tc.note, mode.name), func(t *testing.T) {
+				t.Parallel()
+
 				files := map[string]string{
 					"mod.rego": tc.module,
 				}
@@ -863,6 +912,8 @@ a[4] {
 }
 
 func TestBenchMainWithBundleRegoVersion(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		note                   string
 		bundleRegoVersion      int
@@ -972,7 +1023,10 @@ a contains 4 if {
 	for _, bundleType := range bundleTypeCases {
 		for _, mode := range modes {
 			for _, tc := range tests {
+				tc := tc // Reassignment prevents loop var scoping issue. (See: https://go.dev/blog/loopvar-preview)
 				t.Run(fmt.Sprintf("%s, %s, %s", bundleType.note, tc.note, mode.name), func(t *testing.T) {
+					t.Parallel()
+
 					files := map[string]string{}
 
 					if bundleType.tar {
@@ -1062,6 +1116,8 @@ a contains 4 if {
 }
 
 func TestRenderBenchmarkResultJSONOutput(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	err := params.outputFormat.Set(evalJSONOutput)
 	if err != nil {
@@ -1103,6 +1159,8 @@ func TestRenderBenchmarkResultJSONOutput(t *testing.T) {
 }
 
 func TestRenderBenchmarkResultPrettyOutput(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	params.benchMem = false
 	err := params.outputFormat.Set(evalPrettyOutput)
@@ -1140,6 +1198,8 @@ func TestRenderBenchmarkResultPrettyOutput(t *testing.T) {
 }
 
 func TestRenderBenchmarkResultPrettyOutputShowAllocs(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	params.benchMem = true
 	err := params.outputFormat.Set(evalPrettyOutput)
@@ -1179,6 +1239,8 @@ func TestRenderBenchmarkResultPrettyOutputShowAllocs(t *testing.T) {
 }
 
 func TestRenderBenchmarkResultGoBenchOutputShowAllocs(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	params.benchMem = true
 	err := params.outputFormat.Set(benchmarkGoBenchOutput)
@@ -1203,6 +1265,8 @@ func TestRenderBenchmarkResultGoBenchOutputShowAllocs(t *testing.T) {
 }
 
 func TestRenderBenchmarkErrorJSONOutput(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	err := params.outputFormat.Set(evalJSONOutput)
 	if err != nil {
@@ -1244,6 +1308,8 @@ func TestRenderBenchmarkErrorJSONOutput(t *testing.T) {
 }
 
 func TestRenderBenchmarkErrorPrettyOutput(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	err := params.outputFormat.Set(evalPrettyOutput)
 	if err != nil {
@@ -1254,6 +1320,8 @@ func TestRenderBenchmarkErrorPrettyOutput(t *testing.T) {
 }
 
 func TestRenderBenchmarkErrorGoBenchOutput(t *testing.T) {
+	t.Parallel()
+
 	params := testBenchParams()
 	err := params.outputFormat.Set(benchmarkGoBenchOutput)
 	if err != nil {

@@ -45,6 +45,7 @@ const (
 )
 
 func TestPluginOneShot(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 	manager := getTestManager()
@@ -112,6 +113,8 @@ func TestPluginOneShot(t *testing.T) {
 }
 
 func TestPluginOneShotV1Compatible(t *testing.T) {
+	t.Parallel()
+
 	// Note: modules are parsed before passed to plugin, so any expected errors must be triggered by the compiler stage.
 	tests := []struct {
 		note         string
@@ -251,6 +254,8 @@ corge contains 1 if {
 }
 
 func TestPluginOneShotWithBundleRegoVersion(t *testing.T) {
+	t.Parallel()
+
 	// Note: modules are parsed before passed to plugin, so any expected errors must be triggered by the compiler stage.
 	tests := []struct {
 		note               string
@@ -497,6 +502,7 @@ corge contains 1 if {
 }
 
 func TestPluginOneShotWithAuthzSchemaVerification(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 
@@ -641,6 +647,7 @@ func TestPluginOneShotWithAuthzSchemaVerification(t *testing.T) {
 }
 
 func TestPluginOneShotWithAuthzSchemaVerificationNonDefaultAuthzPath(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 
@@ -740,6 +747,8 @@ func TestPluginOneShotWithAuthzSchemaVerificationNonDefaultAuthzPath(t *testing.
 }
 
 func TestPluginStartLazyLoadInMem(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	module := "package authz\n\ncorge=1"
@@ -880,6 +889,7 @@ func TestPluginStartLazyLoadInMem(t *testing.T) {
 }
 
 func TestPluginOneShotDiskStorageMetrics(t *testing.T) {
+	t.Parallel()
 
 	test.WithTempFS(nil, func(dir string) {
 		ctx := context.Background()
@@ -985,6 +995,7 @@ func TestPluginOneShotDiskStorageMetrics(t *testing.T) {
 }
 
 func TestPluginOneShotDeltaBundle(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 	manager := getTestManager()
@@ -1082,6 +1093,7 @@ func TestPluginOneShotDeltaBundle(t *testing.T) {
 }
 
 func TestPluginStart(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 	manager := getTestManager()
@@ -1095,6 +1107,8 @@ func TestPluginStart(t *testing.T) {
 }
 
 func TestStop(t *testing.T) {
+	t.Parallel()
+
 	var longPollTimeout int64 = 3
 	done := make(chan struct{})
 	tsURLBase := "/opa-test/"
@@ -1160,6 +1174,7 @@ func TestStop(t *testing.T) {
 }
 
 func TestPluginOneShotBundlePersistence(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 	manager := getTestManager()
@@ -1261,6 +1276,8 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 }
 
 func TestPluginOneShotBundlePersistenceV1Compatible(t *testing.T) {
+	t.Parallel()
+
 	// Note: modules are parsed before passed to plugin, so any expected errors must be triggered by the compiler stage.
 	tests := []struct {
 		note         string
@@ -1446,6 +1463,8 @@ corge contains 1 if {
 }
 
 func TestPluginOneShotBundlePersistenceWithBundleRegoVersion(t *testing.T) {
+	t.Parallel()
+
 	// Note: modules are parsed before passed to plugin, so any expected errors must be triggered by the compiler stage.
 	tests := []struct {
 		note               string
@@ -1738,6 +1757,7 @@ corge contains 1 if {
 }
 
 func TestPluginOneShotSignedBundlePersistence(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 	manager := getTestManager()
@@ -1834,6 +1854,7 @@ func TestPluginOneShotSignedBundlePersistence(t *testing.T) {
 }
 
 func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 	manager := getTestManager()
@@ -1915,6 +1936,7 @@ func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 }
 
 func TestLoadAndActivateBundlesFromDiskReservedChars(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 	manager := getTestManager()
@@ -1994,6 +2016,8 @@ func TestLoadAndActivateBundlesFromDiskReservedChars(t *testing.T) {
 }
 
 func TestLoadAndActivateBundlesFromDiskV1Compatible(t *testing.T) {
+	t.Parallel()
+
 	type update struct {
 		modules map[string]string
 		expErrs []string
@@ -2241,6 +2265,8 @@ corge contains 2 if {
 }
 
 func TestLoadAndActivateBundlesFromDiskWithBundleRegoVersion(t *testing.T) {
+	t.Parallel()
+
 	// Note: modules are parsed before passed to plugin, so any expected errors must be triggered by the compiler stage.
 	tests := []struct {
 		note               string
@@ -2469,6 +2495,8 @@ func bundleRegoVersion(v ast.RegoVersion) int {
 }
 
 func TestLoadAndActivateDepBundlesFromDisk(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	manager := getTestManager()
 
@@ -2575,6 +2603,8 @@ is_one(x) if {
 }
 
 func TestLoadAndActivateDepBundlesFromDiskMaxAttempts(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	manager := getTestManager()
 
@@ -2642,6 +2672,7 @@ allow if {
 }
 
 func TestPluginOneShotCompileError(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 	manager := getTestManager()
@@ -2731,10 +2762,11 @@ p contains x`),
 	if err != nil || !reflect.DeepEqual("b", data) {
 		t.Fatalf("Expected data to be intact but got: %v, err: %v", data, err)
 	}
-
 }
 
 func TestPluginOneShotHTTPError(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	manager := getTestManager()
 	plugin := New(&Config{}, manager)
@@ -2774,6 +2806,7 @@ func TestPluginOneShotHTTPError(t *testing.T) {
 }
 
 func TestPluginOneShotActivationRemovesOld(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 	manager := getTestManager()
@@ -2845,13 +2878,14 @@ func TestPluginOneShotActivationRemovesOld(t *testing.T) {
 		}
 		return nil
 	})
-
 	if err != nil {
 		t.Fatal("Unexpected:", err)
 	}
 }
 
 func TestPluginOneShotActivationConflictingRoots(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	manager := getTestManager()
 	plugin := New(&Config{}, manager)
@@ -2919,6 +2953,8 @@ func TestPluginOneShotActivationConflictingRoots(t *testing.T) {
 }
 
 func TestPluginOneShotActivationPrefixMatchingRoots(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	manager := getTestManager()
 	plugin := Plugin{
@@ -2956,7 +2992,6 @@ func TestPluginOneShotActivationPrefixMatchingRoots(t *testing.T) {
 	}})
 
 	ensureBundleOverlapStatus(t, &plugin, bundleNames, []bool{false, true})
-
 }
 
 func ensureBundleOverlapStatus(t *testing.T, p *Plugin, bundleNames []string, expectedErrs []bool) {
@@ -2974,6 +3009,7 @@ func ensureBundleOverlapStatus(t *testing.T, p *Plugin, bundleNames []string, ex
 }
 
 func TestPluginListener(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 	manager := getTestManager()
@@ -3087,6 +3123,8 @@ func validateStatus(t *testing.T, actual Status, expected string, expectStatusEr
 }
 
 func TestPluginListenerErrorClearedOn304(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	manager := getTestManager()
 	plugin := Plugin{
@@ -3139,6 +3177,8 @@ func TestPluginListenerErrorClearedOn304(t *testing.T) {
 }
 
 func TestPluginBulkListener(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	manager := getTestManager()
 	plugin := Plugin{
@@ -3340,6 +3380,8 @@ p contains x if { x = 1 }`
 }
 
 func TestPluginBulkListenerStatusCopyOnly(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	manager := getTestManager()
 	plugin := Plugin{
@@ -3399,6 +3441,7 @@ p contains x if { x = 1 }`
 }
 
 func TestPluginActivateScopedBundle(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 	manager := getTestManager()
@@ -3531,6 +3574,7 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 }
 
 func TestPluginSetCompilerOnContext(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 	manager := getTestManager()
@@ -3609,6 +3653,8 @@ func getTestManagerWithOpts(config []byte, stores ...storage.Store) *plugins.Man
 }
 
 func TestPluginReconfigure(t *testing.T) {
+	t.Parallel()
+
 	tsURLBase := "/opa-test/"
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasPrefix(r.URL.Path, tsURLBase) {
@@ -3806,6 +3852,7 @@ func TestPluginReconfigure(t *testing.T) {
 }
 
 func TestPluginRequestVsDownloadTimestamp(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 	manager := getTestManager()
@@ -3855,6 +3902,7 @@ func TestPluginRequestVsDownloadTimestamp(t *testing.T) {
 }
 
 func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 	manager := getTestManager()
@@ -3951,6 +3999,8 @@ func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
 }
 
 func TestUpgradeLegacyBundleToMultiBundleNewBundles(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	manager := getTestManager()
 
@@ -4090,6 +4140,7 @@ func TestUpgradeLegacyBundleToMultiBundleNewBundles(t *testing.T) {
 }
 
 func TestSaveBundleToDiskNew(t *testing.T) {
+	t.Parallel()
 
 	manager := getTestManager()
 
@@ -4106,6 +4157,8 @@ func TestSaveBundleToDiskNew(t *testing.T) {
 }
 
 func TestSaveBundleToDiskNewConfiguredPersistDir(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 
 	manager := getTestManager()
@@ -4131,6 +4184,7 @@ func TestSaveBundleToDiskNewConfiguredPersistDir(t *testing.T) {
 }
 
 func TestSaveBundleToDiskOverWrite(t *testing.T) {
+	t.Parallel()
 
 	manager := getTestManager()
 
@@ -4191,6 +4245,8 @@ func TestSaveBundleToDiskOverWrite(t *testing.T) {
 }
 
 func TestSaveCurrentBundleToDisk(t *testing.T) {
+	t.Parallel()
+
 	srcDir := t.TempDir()
 
 	bundlePath, err := saveCurrentBundleToDisk(srcDir, getTestRawBundle(t))
@@ -4214,6 +4270,7 @@ func TestSaveCurrentBundleToDisk(t *testing.T) {
 }
 
 func TestLoadBundleFromDisk(t *testing.T) {
+	t.Parallel()
 
 	manager := getTestManager()
 	plugin := New(&Config{}, manager)
@@ -4248,6 +4305,8 @@ func TestLoadBundleFromDisk(t *testing.T) {
 }
 
 func TestLoadBundleFromDiskV1Compatible(t *testing.T) {
+	t.Parallel()
+
 	popts := ast.ParserOptions{RegoVersion: ast.RegoV1}
 
 	manager, err := plugins.New(nil, "test-instance-id", inmem.New(), plugins.WithParserOptions(popts))
@@ -4308,6 +4367,8 @@ p contains 1 if {
 }
 
 func TestLoadSignedBundleFromDisk(t *testing.T) {
+	t.Parallel()
+
 	manager := getTestManager()
 	plugin := New(&Config{}, manager)
 
@@ -4349,6 +4410,8 @@ func TestLoadSignedBundleFromDisk(t *testing.T) {
 }
 
 func TestGetDefaultBundlePersistPath(t *testing.T) {
+	t.Parallel()
+
 	plugin := New(&Config{}, getTestManager())
 	path, err := plugin.getBundlePersistPath()
 	if err != nil {
@@ -4361,6 +4424,8 @@ func TestGetDefaultBundlePersistPath(t *testing.T) {
 }
 
 func TestConfiguredBundlePersistPath(t *testing.T) {
+	t.Parallel()
+
 	persistPath := "/var/opa"
 	manager := getTestManager()
 	manager.Config.PersistenceDirectory = &persistPath
@@ -4377,6 +4442,7 @@ func TestConfiguredBundlePersistPath(t *testing.T) {
 }
 
 func TestPluginUsingFileLoader(t *testing.T) {
+	t.Parallel()
 
 	test.WithTempFS(map[string]string{}, func(dir string) {
 
@@ -4431,10 +4497,11 @@ func TestPluginUsingFileLoader(t *testing.T) {
 			t.Fatal("expected successful activation")
 		}
 	})
-
 }
 
 func TestPluginUsingFileLoaderV1Compatible(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		note         string
 		v1Compatible bool
@@ -4622,6 +4689,8 @@ p contains 7 if {
 }
 
 func TestPluginUsingFileLoaderWithBundleRegoVersion(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		note               string
 		managerRegoVersion ast.RegoVersion
@@ -4937,6 +5006,8 @@ p contains 7 if {
 }
 
 func TestPluginUsingDirectoryLoader(t *testing.T) {
+	t.Parallel()
+
 	test.WithTempFS(map[string]string{
 		"test.rego": `package test
 
@@ -4972,6 +5043,8 @@ func TestPluginUsingDirectoryLoader(t *testing.T) {
 }
 
 func TestPluginUsingDirectoryLoaderV1Compatible(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		note         string
 		v1Compatible bool
@@ -5138,6 +5211,8 @@ p contains 7 if {
 }
 
 func TestPluginUsingDirectoryLoaderWithBundleRegoVersion(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		note               string
 		managerRegoVersion ast.RegoVersion
@@ -5430,6 +5505,7 @@ p contains 7 if {
 }
 
 func TestPluginReadBundleEtagFromDiskStore(t *testing.T) {
+	t.Parallel()
 
 	// setup fake http server with mock bundle
 	mockBundle := bundle.Bundle{
@@ -5607,6 +5683,8 @@ func TestPluginReadBundleEtagFromDiskStore(t *testing.T) {
 }
 
 func TestPluginStateReconciliationOnReconfigure(t *testing.T) {
+	t.Parallel()
+
 	// setup fake http server with mock bundle
 	mockBundles := map[string]bundle.Bundle{
 		"b1": {
@@ -5804,6 +5882,7 @@ func TestPluginStateReconciliationOnReconfigure(t *testing.T) {
 }
 
 func TestPluginManualTrigger(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 
@@ -5892,6 +5971,7 @@ func TestPluginManualTrigger(t *testing.T) {
 }
 
 func TestPluginManualTriggerMultipleDiskStorage(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 
@@ -6041,6 +6121,7 @@ func TestPluginManualTriggerMultipleDiskStorage(t *testing.T) {
 }
 
 func TestPluginManualTriggerMultiple(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 
@@ -6145,6 +6226,7 @@ func TestPluginManualTriggerMultiple(t *testing.T) {
 }
 
 func TestPluginManualTriggerWithTimeout(t *testing.T) {
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
@@ -6205,6 +6287,8 @@ func TestPluginManualTriggerWithTimeout(t *testing.T) {
 }
 
 func TestGetNormalizedBundleName(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		input string
 		goos  string
