@@ -126,6 +126,7 @@ The optional "gobench" output format conforms to the Go Benchmark Data Format.
 	addTargetFlag(benchCommand.Flags(), params.target)
 	addV0CompatibleFlag(benchCommand.Flags(), &params.v0Compatible, false)
 	addV1CompatibleFlag(benchCommand.Flags(), &params.v1Compatible, false)
+	addReadAstValuesFromStoreFlag(benchCommand.Flags(), &params.ReadAstValuesFromStore, false)
 
 	// Shared benchmark flags
 	addCountFlag(benchCommand.Flags(), &params.count, "benchmark")
@@ -136,7 +137,6 @@ The optional "gobench" output format conforms to the Go Benchmark Data Format.
 
 	benchCommand.Flags().IntVar(&params.gracefulShutdownPeriod, "shutdown-grace-period", 10, "set the time (in seconds) that the server will wait to gracefully shut down. This flag is valid in 'e2e' mode only.")
 	benchCommand.Flags().IntVar(&params.shutdownWaitPeriod, "shutdown-wait-period", 0, "set the time (in seconds) that the server will wait before initiating shutdown. This flag is valid in 'e2e' mode only.")
-	benchCommand.Flags().BoolVar(&params.ReadAstValuesFromStore, "eager-ast-values", false, "read AST values from store")
 
 	RootCommand.AddCommand(benchCommand)
 }

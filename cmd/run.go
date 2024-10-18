@@ -242,6 +242,7 @@ See https://godoc.org/crypto/tls#pkg-constants for more information.
 	addConfigOverrides(runCommand.Flags(), &cmdParams.rt.ConfigOverrides)
 	addConfigOverrideFiles(runCommand.Flags(), &cmdParams.rt.ConfigOverrideFiles)
 	addBundleModeFlag(runCommand.Flags(), &cmdParams.rt.BundleMode, false)
+	addReadAstValuesFromStoreFlag(runCommand.Flags(), &cmdParams.rt.ReadAstValuesFromStore, false)
 
 	runCommand.Flags().BoolVar(&cmdParams.skipVersionCheck, "skip-version-check", false, "disables anonymous version reporting (see: https://www.openpolicyagent.org/docs/latest/privacy)")
 	err := runCommand.Flags().MarkDeprecated("skip-version-check", "\"skip-version-check\" is deprecated. Use \"disable-telemetry\" instead")
@@ -269,9 +270,6 @@ Flags:
 `
 
 	runCommand.SetUsageTemplate(usageTemplate)
-
-	// FIXME: Naming(?)
-	runCommand.Flags().BoolVar(&cmdParams.rt.ReadAstValuesFromStore, "eager-ast-values", false, "read AST values from store")
 
 	RootCommand.AddCommand(runCommand)
 }

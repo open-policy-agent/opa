@@ -322,7 +322,6 @@ access.
 	evalCommand.Flags().IntVarP(&params.optimizationLevel, "optimize", "O", 0, "set optimization level")
 	evalCommand.Flags().VarP(&params.entrypoints, "entrypoint", "e", "set slash separated entrypoint path")
 	evalCommand.Flags().BoolVar(&params.traceVarValues, "var-values", false, "show local variable values in pretty trace output")
-	evalCommand.Flags().BoolVar(&params.ReadAstValuesFromStore, "eager-ast-values", false, "read AST values from store")
 
 	// Shared flags
 	addCapabilitiesFlag(evalCommand.Flags(), params.capabilities)
@@ -346,6 +345,7 @@ access.
 	addStrictFlag(evalCommand.Flags(), &params.strict, false)
 	addV0CompatibleFlag(evalCommand.Flags(), &params.v0Compatible, false)
 	addV1CompatibleFlag(evalCommand.Flags(), &params.v1Compatible, false)
+	addReadAstValuesFromStoreFlag(evalCommand.Flags(), &params.ReadAstValuesFromStore, false)
 
 	RootCommand.AddCommand(evalCommand)
 }
