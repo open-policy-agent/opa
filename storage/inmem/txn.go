@@ -314,7 +314,6 @@ func (txn *transaction) DeletePolicy(id string) error {
 }
 
 type dataUpdate interface {
-	// FIXME: make all methods private
 	Path() storage.Path
 	Remove() bool
 	Apply(interface{}) interface{}
@@ -331,10 +330,6 @@ type updateRaw struct {
 	value  interface{}  // value to add/replace at path (ignored if remove is true)
 }
 
-func (u *updateRaw) Remove() bool {
-	return u.remove
-}
-
 func (db *store) value() interface{} {
 	if db.returnASTValuesOnRead {
 		return db.dataAST
@@ -342,7 +337,6 @@ func (db *store) value() interface{} {
 	return db.data
 }
 
-// FIXME: use stronger typing here
 func (db *store) set(data interface{}) {
 	if db.returnASTValuesOnRead {
 		db.dataAST = data.(ast.Object)
@@ -452,6 +446,10 @@ func newUpdateObject(data map[string]interface{}, op storage.PatchOp, path stora
 	}
 
 	return nil, errors.NewNotFoundError(path)
+}
+
+func (u *updateRaw) Remove() bool {
+	return u.remove
 }
 
 func (u *updateRaw) Path() storage.Path {

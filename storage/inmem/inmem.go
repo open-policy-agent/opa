@@ -93,7 +93,6 @@ func NewFromReaderWithOpts(r io.Reader, opts ...Opt) storage.Store {
 	return NewFromObjectWithOpts(data, opts...)
 }
 
-// FIXME: Break out separate ast inmem store?
 type store struct {
 	rmu      sync.RWMutex                      // reader-writer lock
 	wmu      sync.Mutex                        // writer lock
@@ -107,7 +106,7 @@ type store struct {
 	// data through JSON before adding the data to the store. Defaults to true.
 	roundTripOnWrite bool
 
-	// FIXME: rename to something like eagerASTConversion?
+	// FIXME: naming(?)
 	returnASTValuesOnRead bool
 }
 

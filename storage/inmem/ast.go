@@ -31,8 +31,9 @@ func (u *updateAST) Remove() bool {
 func (u *updateAST) Set(v interface{}) {
 	if v, ok := v.(ast.Value); ok {
 		u.value = v
+	} else {
+		panic("illegal value type") // FIXME: do conversion?
 	}
-	//panic("illegal value type") // FIXME: do conversion?
 }
 
 func (u *updateAST) Value() interface{} {
