@@ -15,6 +15,8 @@ import (
 )
 
 func TestParseCachingConfig(t *testing.T) {
+	t.Parallel()
+
 	maxSize := new(int64)
 	*maxSize = defaultMaxSizeBytes
 	period := new(int64)
@@ -90,6 +92,7 @@ func TestParseCachingConfig(t *testing.T) {
 }
 
 func TestInsert(t *testing.T) {
+	t.Parallel()
 
 	in := `{"inter_query_builtin_cache": {"max_size_bytes": 20},}` // 20 byte limit for test purposes
 
@@ -178,6 +181,7 @@ func TestInsert(t *testing.T) {
 }
 
 func TestInterQueryValueCache(t *testing.T) {
+	t.Parallel()
 
 	in := `{"inter_query_builtin_value_cache": {"max_num_entries": 4},}`
 
@@ -269,6 +273,8 @@ func TestInterQueryValueCache(t *testing.T) {
 }
 
 func TestConcurrentInsert(t *testing.T) {
+	t.Parallel()
+
 	in := `{"inter_query_builtin_cache": {"max_size_bytes": 20},}` // 20 byte limit for test purposes
 
 	config, err := ParseCachingConfig([]byte(in))
@@ -321,6 +327,8 @@ func TestConcurrentInsert(t *testing.T) {
 }
 
 func TestClone(t *testing.T) {
+	t.Parallel()
+
 	in := `{"inter_query_builtin_cache": {"max_size_bytes": 40},}`
 
 	config, err := ParseCachingConfig([]byte(in))
@@ -362,6 +370,8 @@ func TestClone(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
+	t.Parallel()
+
 	config, err := ParseCachingConfig(nil)
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
@@ -387,6 +397,8 @@ func TestDelete(t *testing.T) {
 }
 
 func TestInsertWithExpiryAndEviction(t *testing.T) {
+	t.Parallel()
+
 	// 50 byte max size
 	// 1s stale cleanup period
 	// 80% threshold to for FIFO eviction (eviction after 40 bytes)
@@ -431,6 +443,8 @@ func TestInsertWithExpiryAndEviction(t *testing.T) {
 }
 
 func TestInsertHighTTLWithStaleEntryCleanup(t *testing.T) {
+	t.Parallel()
+
 	// 40 byte max size
 	// 1s stale cleanup period
 	// 100% threshold to for FIFO eviction (eviction after 40 bytes)
@@ -472,6 +486,8 @@ func TestInsertHighTTLWithStaleEntryCleanup(t *testing.T) {
 }
 
 func TestInsertHighTTLWithoutStaleEntryCleanup(t *testing.T) {
+	t.Parallel()
+
 	// 40 byte max size
 	// 0s stale cleanup period -> no cleanup
 	// 100% threshold to for FIFO eviction (eviction after 40 bytes)
@@ -510,6 +526,8 @@ func TestInsertHighTTLWithoutStaleEntryCleanup(t *testing.T) {
 }
 
 func TestZeroExpiryTime(t *testing.T) {
+	t.Parallel()
+
 	// 20 byte max size
 	// 1s stale cleanup period
 	// 100% threshold to for FIFO eviction (eviction after 40 bytes)
@@ -536,6 +554,8 @@ func TestZeroExpiryTime(t *testing.T) {
 }
 
 func TestCancelNewInterQueryCacheWithContext(t *testing.T) {
+	t.Parallel()
+
 	// 40 byte max size
 	// 1s stale cleanup period
 	// 100% threshold to for FIFO eviction (eviction after 40 bytes)
@@ -565,6 +585,8 @@ func TestCancelNewInterQueryCacheWithContext(t *testing.T) {
 }
 
 func TestUpdateConfig(t *testing.T) {
+	t.Parallel()
+
 	config, err := ParseCachingConfig(nil)
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
@@ -592,6 +614,8 @@ func TestUpdateConfig(t *testing.T) {
 }
 
 func TestDefaultConfigValues(t *testing.T) {
+	t.Parallel()
+
 	c := NewInterQueryCache(nil)
 	actualC, ok := c.(*cache)
 	if !ok {
