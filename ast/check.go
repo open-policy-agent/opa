@@ -231,7 +231,8 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 		}
 
 		ref := schemaAnnot.Path
-		if ref == nil && refType == nil {
+		// if we do not have a ref or a reftype, we should not evaluate this rule.
+		if ref == nil || refType == nil {
 			continue
 		}
 
