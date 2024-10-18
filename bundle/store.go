@@ -59,14 +59,14 @@ func metadataPath(name string) storage.Path {
 	return append(BundlesBasePath, name, "manifest", "metadata")
 }
 
-func read(store storage.Store, ctx context.Context, txn storage.Transaction, path storage.Path) (interface{}, error) {
+func read(ctx context.Context, store storage.Store, txn storage.Transaction, path storage.Path) (interface{}, error) {
 	value, err := store.Read(ctx, txn, path)
 	if err != nil {
 		return nil, err
 	}
 
 	if astValue, ok := value.(ast.Value); ok {
-		value, err = ast.JSON(astValue.(ast.Value))
+		value, err = ast.JSON(astValue)
 		if err != nil {
 			return nil, err
 		}
@@ -77,7 +77,7 @@ func read(store storage.Store, ctx context.Context, txn storage.Transaction, pat
 
 // ReadBundleNamesFromStore will return a list of bundle names which have had their metadata stored.
 func ReadBundleNamesFromStore(ctx context.Context, store storage.Store, txn storage.Transaction) ([]string, error) {
-	value, err := read(store, ctx, txn, BundlesBasePath)
+	value, err := read(ctx, store, txn, BundlesBasePath)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +169,7 @@ func eraseWasmModulesFromStore(ctx context.Context, store storage.Store, txn sto
 // ReadWasmMetadataFromStore will read Wasm module resolver metadata from the store.
 func ReadWasmMetadataFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, name string) ([]WasmResolver, error) {
 	path := wasmEntrypointsPath(name)
-	value, err := read(store, ctx, txn, path)
+	value, err := read(ctx, store, txn, path)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +192,7 @@ func ReadWasmMetadataFromStore(ctx context.Context, store storage.Store, txn sto
 // ReadWasmModulesFromStore will write Wasm module resolver metadata from the store.
 func ReadWasmModulesFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, name string) (map[string][]byte, error) {
 	path := wasmModulePath(name)
-	value, err := read(store, ctx, txn, path)
+	value, err := read(ctx, store, txn, path)
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +221,7 @@ func ReadWasmModulesFromStore(ctx context.Context, store storage.Store, txn stor
 // If the bundle is not activated, this function will return
 // storage NotFound error.
 func ReadBundleRootsFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, name string) ([]string, error) {
-	value, err := read(store, ctx, txn, rootsPath(name))
+	value, err := read(ctx, store, txn, rootsPath(name))
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +251,7 @@ func ReadBundleRevisionFromStore(ctx context.Context, store storage.Store, txn s
 }
 
 func readRevisionFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, path storage.Path) (string, error) {
-	value, err := read(store, ctx, txn, path)
+	value, err := read(ctx, store, txn, path)
 	if err != nil {
 		return "", err
 	}

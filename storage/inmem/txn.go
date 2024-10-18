@@ -198,7 +198,7 @@ func (txn *transaction) Commit() (result storage.TriggerEvent) {
 
 func pointer(v interface{}, path storage.Path) (interface{}, error) {
 	if v, ok := v.(ast.Value); ok {
-		return ptr.PtrAST(v, path)
+		return ptr.ValuePtr(v, path)
 	}
 	return ptr.Ptr(v, path)
 }

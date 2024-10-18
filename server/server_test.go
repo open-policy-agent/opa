@@ -2682,7 +2682,9 @@ func TestDataUpdate(t *testing.T) {
 
 			// DELETE data
 
-			err = f.v1(http.MethodDelete, "/data/x/b", "", 204, "")
+			if err := f.v1(http.MethodDelete, "/data/x/b", "", 204, ""); err != nil {
+				t.Fatal("Unexpected error:", err)
+			}
 
 			req = newReqV1(http.MethodGet, "/data/x", "")
 			f.reset()

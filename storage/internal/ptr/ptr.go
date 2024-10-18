@@ -37,7 +37,7 @@ func Ptr(data interface{}, path storage.Path) (interface{}, error) {
 	return node, nil
 }
 
-func PtrAST(data ast.Value, path storage.Path) (ast.Value, error) {
+func ValuePtr(data ast.Value, path storage.Path) (ast.Value, error) {
 	node := data
 	for i := range path {
 		key := path[i]
