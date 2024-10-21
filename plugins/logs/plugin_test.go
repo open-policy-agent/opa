@@ -64,6 +64,8 @@ func (p *testPlugin) Log(_ context.Context, event EventV1) error {
 }
 
 func TestPluginCustomBackend(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	manager, _ := plugins.New(nil, "test-instance-id", inmem.New())
 
@@ -92,6 +94,7 @@ func TestPluginCustomBackend(t *testing.T) {
 }
 
 func TestPluginCustomBackendAndHTTPServiceAndConsole(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 	backend := testPlugin{}
@@ -156,6 +159,8 @@ func TestPluginCustomBackendAndHTTPServiceAndConsole(t *testing.T) {
 }
 
 func TestPluginRequestContext(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	manager, _ := plugins.New(nil, "test-instance-id", inmem.New())
 
@@ -267,6 +272,8 @@ func TestPluginRequestContext(t *testing.T) {
 }
 
 func TestPluginSingleBundle(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	manager, _ := plugins.New(nil, "test-instance-id", inmem.New())
 
@@ -292,6 +299,8 @@ func TestPluginSingleBundle(t *testing.T) {
 }
 
 func TestPluginErrorNoResult(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	manager, _ := plugins.New(nil, "test-instance-id", inmem.New())
 
@@ -315,6 +324,8 @@ func TestPluginErrorNoResult(t *testing.T) {
 }
 
 func TestPluginQueriesAndPaths(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	manager, _ := plugins.New(nil, "test-instance-id", inmem.New())
 
@@ -362,6 +373,7 @@ func TestPluginQueriesAndPaths(t *testing.T) {
 }
 
 func TestPluginStartSameInput(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 
@@ -442,6 +454,7 @@ func TestPluginStartSameInput(t *testing.T) {
 }
 
 func TestPluginStartChangingInputValues(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 
@@ -511,6 +524,7 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 }
 
 func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 
@@ -572,6 +586,7 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 }
 
 func TestPluginRequeue(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 
@@ -631,6 +646,8 @@ func logServerInfo(id string, input interface{}, result interface{}) *server.Inf
 }
 
 func TestPluginRequeBufferPreserved(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	fixture := newTestFixture(t, testFixtureOptions{ReportingUploadSizeLimitBytes: 300})
@@ -664,6 +681,8 @@ func TestPluginRequeBufferPreserved(t *testing.T) {
 }
 
 func TestPluginRateLimitInt(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
@@ -762,6 +781,8 @@ func TestPluginRateLimitInt(t *testing.T) {
 }
 
 func TestPluginRateLimitFloat(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
@@ -769,7 +790,7 @@ func TestPluginRateLimitFloat(t *testing.T) {
 		panic(err)
 	}
 
-	numDecisions := 0.1 // 0.1 decision per second ie. 1 decision per 10 seconds
+	numDecisions := 0.5 // 0.5 decision per second ie. 1 decision per 2 seconds
 	fixture := newTestFixture(t, testFixtureOptions{
 		ReportingMaxDecisionsPerSecond: float64(numDecisions),
 		ReportingUploadSizeLimitBytes:  300,
@@ -810,14 +831,14 @@ func TestPluginRateLimitFloat(t *testing.T) {
 		t.Fatalf("Expected %v bytes written into the encoder but got %v", bytesWritten, fixture.plugin.enc.bytesWritten)
 	}
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(1 * time.Second)
 	_ = fixture.plugin.Log(ctx, event2) // event 2 should not be written into the encoder as rate limit exceeded
 
 	if fixture.plugin.enc.bytesWritten != bytesWritten {
 		t.Fatalf("Expected %v bytes written into the encoder but got %v", bytesWritten, fixture.plugin.enc.bytesWritten)
 	}
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(1 * time.Second)
 	_ = fixture.plugin.Log(ctx, event2) // event 2 should now be written into the encoder
 
 	if fixture.plugin.buffer.Len() != 1 {
@@ -867,6 +888,8 @@ func TestPluginRateLimitFloat(t *testing.T) {
 }
 
 func TestPluginStatusUpdateHTTPError(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	fixture := newTestFixture(t, testFixtureOptions{ReportingUploadSizeLimitBytes: 300})
@@ -909,6 +932,8 @@ func TestPluginStatusUpdateHTTPError(t *testing.T) {
 }
 
 func TestPluginStatusUpdateEncodingFailure(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	testLogger := test.New()
 
@@ -997,6 +1022,8 @@ func TestPluginStatusUpdateEncodingFailure(t *testing.T) {
 }
 
 func TestPluginStatusUpdateBufferSizeExceeded(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	testLogger := test.New()
 
@@ -1111,6 +1138,8 @@ func TestPluginStatusUpdateBufferSizeExceeded(t *testing.T) {
 }
 
 func TestPluginStatusUpdateRateLimitExceeded(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	testLogger := test.New()
 
@@ -1218,6 +1247,8 @@ func TestPluginStatusUpdateRateLimitExceeded(t *testing.T) {
 }
 
 func TestPluginRateLimitRequeue(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	numDecisions := 100 // 100 decisions per second
@@ -1281,6 +1312,8 @@ func TestPluginRateLimitRequeue(t *testing.T) {
 }
 
 func TestPluginRateLimitDropCountStatus(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	testLogger := test.New()
 
@@ -1381,6 +1414,8 @@ func TestPluginRateLimitDropCountStatus(t *testing.T) {
 }
 
 func TestChunkMaxUploadSizeLimitNDBCacheDropping(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	testLogger := test.New()
 
@@ -1432,6 +1467,8 @@ func TestChunkMaxUploadSizeLimitNDBCacheDropping(t *testing.T) {
 }
 
 func TestPluginRateLimitBadConfig(t *testing.T) {
+	t.Parallel()
+
 	manager, _ := plugins.New(nil, "test-instance-id", inmem.New())
 
 	bufSize := 40000
@@ -1457,6 +1494,8 @@ func TestPluginRateLimitBadConfig(t *testing.T) {
 }
 
 func TestPluginNoLogging(t *testing.T) {
+	t.Parallel()
+
 	// Given no custom plugin, no service(s) and no console logging configured,
 	// this should not be an error, but neither do we need to initiate the plugin
 	cases := []struct {
@@ -1491,6 +1530,8 @@ func TestPluginNoLogging(t *testing.T) {
 }
 
 func TestPluginTriggerManual(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	fixture := newTestFixture(t)
@@ -1570,6 +1611,8 @@ func TestPluginTriggerManual(t *testing.T) {
 }
 
 func TestPluginTriggerManualWithTimeout(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
@@ -1666,6 +1709,8 @@ func TestPluginTriggerManualWithTimeout(t *testing.T) {
 }
 
 func TestPluginGracefulShutdownFlushesDecisions(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	fixture := newTestFixture(t)
@@ -1704,6 +1749,8 @@ func TestPluginGracefulShutdownFlushesDecisions(t *testing.T) {
 }
 
 func TestPluginTerminatesAfterGracefulShutdownPeriod(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	fixture := newTestFixture(t)
@@ -1734,6 +1781,8 @@ func TestPluginTerminatesAfterGracefulShutdownPeriod(t *testing.T) {
 }
 
 func TestPluginTerminatesAfterGracefulShutdownPeriodWithoutLogs(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	fixture := newTestFixture(t)
@@ -1753,6 +1802,7 @@ func TestPluginTerminatesAfterGracefulShutdownPeriodWithoutLogs(t *testing.T) {
 }
 
 func TestPluginReconfigure(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 	fixture := newTestFixture(t)
@@ -1799,6 +1849,7 @@ func TestPluginReconfigure(t *testing.T) {
 }
 
 func TestPluginReconfigureUploadSizeLimit(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 	limit := int64(300)
@@ -1854,6 +1905,8 @@ func (a appendingPrintHook) Print(_ print.Context, s string) error {
 }
 
 func TestPluginMasking(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		note          string
 		rawPolicy     []byte
@@ -2264,12 +2317,13 @@ func TestPluginMasking(t *testing.T) {
 				}
 
 			}
-
 		})
 	}
 }
 
 func TestPluginDrop(t *testing.T) {
+	t.Parallel()
+
 	// Test cases
 	tests := []struct {
 		note      string
@@ -2365,6 +2419,8 @@ func TestPluginDrop(t *testing.T) {
 }
 
 func TestPluginMaskErrorHandling(t *testing.T) {
+	t.Parallel()
+
 	rawPolicy := []byte(`
 			package system.log
 			import rego.v1
@@ -2439,6 +2495,8 @@ func TestPluginMaskErrorHandling(t *testing.T) {
 }
 
 func TestPluginDropErrorHandling(t *testing.T) {
+	t.Parallel()
+
 	rawPolicy := []byte(`
 			package system.log
 			import rego.v1
@@ -2649,6 +2707,8 @@ func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
 }
 
 func TestParseConfigUseDefaultServiceNoConsole(t *testing.T) {
+	t.Parallel()
+
 	services := []string{
 		"s0",
 		"s1",
@@ -2671,6 +2731,8 @@ func TestParseConfigUseDefaultServiceNoConsole(t *testing.T) {
 }
 
 func TestParseConfigDefaultServiceWithConsole(t *testing.T) {
+	t.Parallel()
+
 	services := []string{
 		"s0",
 		"s1",
@@ -2693,6 +2755,8 @@ func TestParseConfigDefaultServiceWithConsole(t *testing.T) {
 }
 
 func TestParseConfigTriggerMode(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		note     string
 		config   []byte
@@ -2753,6 +2817,8 @@ func TestParseConfigTriggerMode(t *testing.T) {
 }
 
 func TestEventV1ToAST(t *testing.T) {
+	t.Parallel()
+
 	input := `{"foo": [{"bar": 1, "baz": {"2": 3.3333333, "4": null}}]}`
 	var goInput interface{} = string(util.MustMarshalJSON(input))
 	astInput, err := roundtripJSONToAST(goInput)
@@ -2952,12 +3018,12 @@ func TestEventV1ToAST(t *testing.T) {
 			if expected.Compare(actual) != 0 {
 				t.Fatalf("\nExpected:\n%s\n\nGot:\n%s\n\n", expected, actual)
 			}
-
 		})
 	}
 }
 
 func TestPluginDefaultResourcePath(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 
@@ -2995,6 +3061,7 @@ func TestPluginDefaultResourcePath(t *testing.T) {
 }
 
 func TestPluginResourcePathAndPartitionName(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 
@@ -3036,6 +3103,7 @@ func TestPluginResourcePathAndPartitionName(t *testing.T) {
 }
 
 func TestPluginResourcePath(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 
