@@ -4112,6 +4112,29 @@ func TestWildcards(t *testing.T) {
 	})
 }
 
+// https://github.com/open-policy-agent/opa/issues/7128
+func TestParseMultiValueRuleGeneratedBodyLocationText(t *testing.T) {
+	t.Parallel()
+
+	mod := `package test
+	
+	import rego.v1
+	
+	foo contains "bar"
+	`
+
+	parsed, err := ParseModule("test.rego", mod)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	text := string(parsed.Rules[0].Location.Text)
+
+	if text != `foo contains "bar"` {
+		t.Errorf("Expected rule location text to be %q but got %q", `foo contains "bar"`, text)
+	}
+}
+
 func TestRuleFromBodyJSONOptions(t *testing.T) {
 	tests := []string{
 		`pi = 3.14159`,

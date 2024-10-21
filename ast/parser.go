@@ -780,6 +780,8 @@ func (p *Parser) parseRules() []*Rule {
 	case usesContains:
 		rule.Body = NewBody(NewExpr(BooleanTerm(true).SetLocation(rule.Location)).SetLocation(rule.Location))
 		rule.generatedBody = true
+		rule.Location = rule.Head.Location
+
 		return []*Rule{&rule}
 
 	default:
