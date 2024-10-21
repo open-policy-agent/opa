@@ -272,7 +272,7 @@ func ReadBundleMetadataFromStore(ctx context.Context, store storage.Store, txn s
 }
 
 func readMetadataFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, path storage.Path) (map[string]interface{}, error) {
-	value, err := store.Read(ctx, txn, path)
+	value, err := read(ctx, store, txn, path)
 	if err != nil {
 		return nil, suppressNotFound(err)
 	}
@@ -293,7 +293,7 @@ func ReadBundleEtagFromStore(ctx context.Context, store storage.Store, txn stora
 }
 
 func readEtagFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, path storage.Path) (string, error) {
-	value, err := store.Read(ctx, txn, path)
+	value, err := read(ctx, store, txn, path)
 	if err != nil {
 		return "", err
 	}

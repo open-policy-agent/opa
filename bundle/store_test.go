@@ -5021,3 +5021,182 @@ func TestHasRootsOverlap(t *testing.T) {
 		})
 	}
 }
+
+func TestBundleStoreHelpers(t *testing.T) {
+	storeReadModes := []struct {
+		note    string
+		readAst bool
+	}{
+		{
+			note:    "read raw",
+			readAst: false,
+		},
+		{
+			note:    "read ast",
+			readAst: true,
+		},
+	}
+
+	ctx := context.Background()
+
+	bundles := map[string]*Bundle{
+		"bundle1": {
+			Manifest: Manifest{
+				Roots: &[]string{},
+			},
+		},
+		"bundle2": {
+			Manifest: Manifest{
+				Roots:    &[]string{"a"},
+				Revision: "foo",
+				Metadata: map[string]interface{}{
+					"a": "b",
+				},
+				WasmResolvers: []WasmResolver{
+					{
+						Entrypoint: "foo/bar",
+						Module:     "m.wasm",
+					},
+				},
+			},
+			Etag: "bar",
+			WasmModules: []WasmModuleFile{
+				{
+					Path: "/m.wasm",
+					Raw:  []byte("d2FzbS1tb2R1bGU="),
+				},
+			},
+		},
+	}
+
+	for _, srm := range storeReadModes {
+		t.Run(srm.note, func(t *testing.T) {
+			mockStore := mock.NewWithData(nil, inmem.OptReturnASTValuesOnRead(srm.readAst))
+			txn := storage.NewTransactionOrDie(ctx, mockStore, storage.WriteParams)
+			c := ast.NewCompiler()
+			m := metrics.New()
+
+			err := Activate(&ActivateOpts{
+				Ctx:      ctx,
+				Store:    mockStore,
+				Txn:      txn,
+				Compiler: c,
+				Metrics:  m,
+				Bundles:  bundles,
+			})
+
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Bundle names
+
+			if names, err := ReadBundleNamesFromStore(ctx, mockStore, txn); err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			} else if len(names) != len(bundles) {
+				t.Errorf("expected bundle names:\n\n%v\n\nin store, found\n\n%v", bundles, names)
+			} else {
+				for _, name := range names {
+					if _, ok := bundles[name]; !ok {
+						t.Errorf("expected bundle names:\n\n%v\n\nin store, found\n\n%v", bundles, names)
+					}
+				}
+			}
+
+			// Etag
+
+			if etag, err := ReadBundleEtagFromStore(ctx, mockStore, txn, "bundle1"); err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			} else if etag != "" {
+				t.Errorf("expected empty etag but got %s", etag)
+			}
+
+			if etag, err := ReadBundleEtagFromStore(ctx, mockStore, txn, "bundle2"); err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			} else if exp := "bar"; etag != exp {
+				t.Errorf("expected etag %s but got %s", exp, etag)
+			}
+
+			// Revision
+
+			if rev, err := ReadBundleRevisionFromStore(ctx, mockStore, txn, "bundle1"); err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			} else if rev != "" {
+				t.Errorf("expected empty revision but got %s", rev)
+			}
+
+			if rev, err := ReadBundleRevisionFromStore(ctx, mockStore, txn, "bundle2"); err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			} else if exp := "foo"; rev != exp {
+				t.Errorf("expected revision %s but got %s", exp, rev)
+			}
+
+			// Roots
+
+			if roots, err := ReadBundleRootsFromStore(ctx, mockStore, txn, "bundle1"); err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			} else if len(roots) != 0 {
+				t.Errorf("expected empty roots but got %v", roots)
+			}
+
+			if roots, err := ReadBundleRootsFromStore(ctx, mockStore, txn, "bundle2"); err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			} else if exp := *bundles["bundle2"].Manifest.Roots; !reflect.DeepEqual(exp, roots) {
+				t.Errorf("expected roots %v but got %v", exp, roots)
+			}
+
+			// Bundle metadata
+
+			if meta, err := ReadBundleMetadataFromStore(ctx, mockStore, txn, "bundle1"); err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			} else if len(meta) != 0 {
+				t.Errorf("expected empty metadata but got %v", meta)
+			}
+
+			if meta, err := ReadBundleMetadataFromStore(ctx, mockStore, txn, "bundle2"); err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			} else if exp := bundles["bundle2"].Manifest.Metadata; !reflect.DeepEqual(exp, meta) {
+				t.Errorf("expected metadata %v but got %v", exp, meta)
+			}
+
+			// Wasm metadata
+
+			if _, err := ReadWasmMetadataFromStore(ctx, mockStore, txn, "bundle1"); err == nil {
+				t.Fatalf("expected error but got nil")
+			} else if exp, act := "storage_not_found_error: /bundles/bundle1/manifest/wasm: document does not exist", err.Error(); !strings.Contains(act, exp) {
+				t.Fatalf("expected error:\n\n%s\n\nbut got:\n\n%v", exp, act)
+			}
+
+			if resolvers, err := ReadWasmMetadataFromStore(ctx, mockStore, txn, "bundle2"); err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			} else if exp := bundles["bundle2"].Manifest.WasmResolvers; !reflect.DeepEqual(exp, resolvers) {
+				t.Errorf("expected wasm metadata:\n\n%v\n\nbut got:\n\n%v", exp, resolvers)
+			}
+
+			// Wasm modules
+
+			if _, err := ReadWasmModulesFromStore(ctx, mockStore, txn, "bundle1"); err == nil {
+				t.Fatalf("expected error but got nil")
+			} else if exp, act := "storage_not_found_error: /bundles/bundle1/wasm: document does not exist", err.Error(); !strings.Contains(act, exp) {
+				t.Fatalf("expected error:\n\n%s\n\nbut got:\n\n%v", exp, act)
+			}
+
+			if modules, err := ReadWasmModulesFromStore(ctx, mockStore, txn, "bundle2"); err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			} else if exp := bundles["bundle2"].WasmModules; len(exp) != len(modules) {
+				t.Errorf("expected wasm modules:\n\n%v\n\nbut got:\n\n%v", exp, modules)
+			} else {
+				for _, exp := range bundles["bundle2"].WasmModules {
+					act := modules[exp.Path]
+					if act == nil {
+						t.Errorf("expected wasm module %s but got nil", exp.Path)
+					}
+					if !bytes.Equal(exp.Raw, act) {
+						t.Errorf("expected wasm module %s to have raw data:\n\n%v\n\nbut got:\n\n%v", exp.Path, exp.Raw, act)
+					}
+				}
+			}
+
+		})
+	}
+}
