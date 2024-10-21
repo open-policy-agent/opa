@@ -38,8 +38,6 @@ func New() storage.Store {
 // NewWithOpts returns an empty in-memory store, with extra options passed.
 func NewWithOpts(opts ...Opt) storage.Store {
 	s := &store{
-		data:                  map[string]interface{}{},
-		dataAST:               ast.NewObject(),
 		triggers:              map[*handle]storage.TriggerConfig{},
 		policies:              map[string][]byte{},
 		roundTripOnWrite:      true,
@@ -48,6 +46,12 @@ func NewWithOpts(opts ...Opt) storage.Store {
 
 	for _, opt := range opts {
 		opt(s)
+	}
+
+	if s.returnASTValuesOnRead {
+		s.data = ast.NewObject()
+	} else {
+		s.data = map[string]interface{}{}
 	}
 
 	return s
@@ -97,8 +101,7 @@ type store struct {
 	rmu      sync.RWMutex                      // reader-writer lock
 	wmu      sync.Mutex                        // writer lock
 	xid      uint64                            // last generated transaction id
-	data     map[string]interface{}            // raw data
-	dataAST  ast.Object                        // raw data stored as AST values
+	data     interface{}                       // raw or AST data
 	policies map[string][]byte                 // raw policies
 	triggers map[*handle]storage.TriggerConfig // registered triggers
 
@@ -106,6 +109,8 @@ type store struct {
 	// data through JSON before adding the data to the store. Defaults to true.
 	roundTripOnWrite bool
 
+	// returnASTValuesOnRead, if true, means that the store will eagerly convert data to AST values,
+	// and return them on Read.
 	// FIXME: naming(?)
 	returnASTValuesOnRead bool
 }

@@ -120,8 +120,7 @@ func (txn *transaction) Write(op storage.PatchOp, path storage.Path, value inter
 		curr = curr.Next()
 	}
 
-	//update, err := newUpdateAST(txn.db.value(), op, path, 0, v)
-	update, err := txn.db.newUpdate(txn.db.value(), op, path, 0, value)
+	update, err := txn.db.newUpdate(txn.db.data, op, path, 0, value)
 	if err != nil {
 		return err
 	}
@@ -171,8 +170,7 @@ func (txn *transaction) Commit() (result storage.TriggerEvent) {
 	result.Context = txn.context
 	for curr := txn.updates.Front(); curr != nil; curr = curr.Next() {
 		action := curr.Value.(dataUpdate)
-		updated := action.Apply(txn.db.value())
-		txn.db.set(updated)
+		txn.db.data = action.Apply(txn.db.data)
 
 		result.Data = append(result.Data, storage.DataEvent{
 			Path:    action.Path(),
@@ -222,8 +220,7 @@ func deepcpy(v interface{}) interface{} {
 func (txn *transaction) Read(path storage.Path) (interface{}, error) {
 
 	if !txn.write {
-		//return ptr.Ptr(txn.db.data, path)
-		return pointer(txn.db.value(), path)
+		return pointer(txn.db.data, path)
 	}
 
 	var merge []dataUpdate
@@ -244,7 +241,7 @@ func (txn *transaction) Read(path storage.Path) (interface{}, error) {
 		}
 	}
 
-	data, err := pointer(txn.db.value(), path)
+	data, err := pointer(txn.db.data, path)
 
 	if err != nil {
 		return nil, err
@@ -328,21 +325,6 @@ type updateRaw struct {
 	path   storage.Path // data path modified by update
 	remove bool         // indicates whether update removes the value at path
 	value  interface{}  // value to add/replace at path (ignored if remove is true)
-}
-
-func (db *store) value() interface{} {
-	if db.returnASTValuesOnRead {
-		return db.dataAST
-	}
-	return db.data
-}
-
-func (db *store) set(data interface{}) {
-	if db.returnASTValuesOnRead {
-		db.dataAST = data.(ast.Object)
-		return
-	}
-	db.data = data.(map[string]interface{})
 }
 
 func (db *store) newUpdate(data interface{}, op storage.PatchOp, path storage.Path, idx int, value interface{}) (dataUpdate, error) {
