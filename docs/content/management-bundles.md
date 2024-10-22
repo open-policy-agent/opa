@@ -1309,7 +1309,7 @@ To push the build image to an upstream registry we first need to login using:
 
 And now we can push our policy using:
 ```bash
-oras push ghcr.io/someorg/policy-hello:1.0.0 --manifest-config config.json:application/vnd.oci.image.config.v1+json bundle.tar.gz:application/vnd.oci.image.layer.v1.tar+gzip
+oras push ghcr.io/someorg/policy-hello:1.0.0 --config config.json:application/vnd.oci.image.config.v1+json bundle.tar.gz:application/vnd.oci.image.layer.v1.tar+gzip
 ```
 
 ###### Spin up the policy with OPA CLI
