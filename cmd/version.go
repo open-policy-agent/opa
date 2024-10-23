@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/cmd/internal/env"
@@ -47,6 +48,7 @@ func generateCmdOutput(out io.Writer, check bool) {
 	fmt.Fprintln(out, "Build Hostname: "+version.Hostname)
 	fmt.Fprintln(out, "Go Version: "+version.GoVersion)
 	fmt.Fprintln(out, "Platform: "+version.Platform)
+	fmt.Fprintln(out, "Rego Version: "+ast.DefaultRegoVersion.String())
 
 	var wasmAvailable string
 

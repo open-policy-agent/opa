@@ -112,7 +112,7 @@ install: generate
 	$(GO) install $(GO_TAGS) -ldflags $(LDFLAGS)
 
 .PHONY: test
-test: go-test wasm-test
+test: go-test go-test-v1 wasm-test
 
 .PHONY: go-build
 go-build: generate
@@ -121,6 +121,10 @@ go-build: generate
 .PHONY: go-test
 go-test: generate
 	$(GO) test $(GO_TAGS),slow ./...
+
+.PHONY: go-test-v1
+go-test-v1: generate
+	$(GO) test $(GO_TAGS),rego_v1,slow ./...
 
 .PHONY: race-detector
 race-detector: generate
