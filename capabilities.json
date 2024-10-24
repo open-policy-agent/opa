@@ -493,13 +493,29 @@
             "of": [
               {
                 "dynamic": {
-                  "type": "string"
+                  "of": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ],
+                  "type": "any"
                 },
                 "type": "array"
               },
               {
                 "of": {
-                  "type": "string"
+                  "of": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ],
+                  "type": "any"
                 },
                 "type": "set"
               }

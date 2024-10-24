@@ -1035,8 +1035,8 @@ var Concat = &Builtin{
 		types.Args(
 			types.Named("delimiter", types.S),
 			types.Named("collection", types.NewAny(
-				types.NewSet(types.S),
-				types.NewArray(nil, types.S),
+				types.NewSet(types.NewAny(types.N, types.S)),
+				types.NewArray(nil, types.NewAny(types.N, types.S)),
 			)).Description("strings to join"),
 		),
 		types.Named("output", types.S),

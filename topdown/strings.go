@@ -156,11 +156,14 @@ func builtinConcat(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) 
 	switch b := operands[1].Value.(type) {
 	case *ast.Array:
 		err := b.Iter(func(x *ast.Term) error {
-			s, ok := x.Value.(ast.String)
-			if !ok {
-				return builtins.NewOperandElementErr(2, operands[1].Value, x.Value, "string")
+			switch v := x.Value.(type) {
+			case ast.String:
+				strs = append(strs, string(v))
+			case ast.Number:
+				strs = append(strs, v.String())
+			default:
+				return builtins.NewOperandElementErr(2, operands[1].Value, x.Value, "string", "number")
 			}
-			strs = append(strs, string(s))
 			return nil
 		})
 		if err != nil {
@@ -168,11 +171,14 @@ func builtinConcat(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) 
 		}
 	case ast.Set:
 		err := b.Iter(func(x *ast.Term) error {
-			s, ok := x.Value.(ast.String)
-			if !ok {
-				return builtins.NewOperandElementErr(2, operands[1].Value, x.Value, "string")
+			switch v := x.Value.(type) {
+			case ast.String:
+				strs = append(strs, string(v))
+			case ast.Number:
+				strs = append(strs, v.String())
+			default:
+				return builtins.NewOperandElementErr(2, operands[1].Value, x.Value, "string", "number")
 			}
-			strs = append(strs, string(s))
 			return nil
 		})
 		if err != nil {
