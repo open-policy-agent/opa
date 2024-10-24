@@ -126,6 +126,7 @@ The optional "gobench" output format conforms to the Go Benchmark Data Format.
 	addTargetFlag(benchCommand.Flags(), params.target)
 	addV0CompatibleFlag(benchCommand.Flags(), &params.v0Compatible, false)
 	addV1CompatibleFlag(benchCommand.Flags(), &params.v1Compatible, false)
+	addReadAstValuesFromStoreFlag(benchCommand.Flags(), &params.ReadAstValuesFromStore, false)
 
 	// Shared benchmark flags
 	addCountFlag(benchCommand.Flags(), &params.count, "benchmark")

@@ -165,6 +165,11 @@ func addV1CompatibleFlag(fs *pflag.FlagSet, v1Compatible *bool, value bool) {
 	fs.BoolVar(v1Compatible, "v1-compatible", value, "opt-in to OPA features and behaviors that are enabled by default in OPA v1.0")
 }
 
+func addReadAstValuesFromStoreFlag(fs *pflag.FlagSet, readAstValuesFromStore *bool, value bool) {
+	// FIXME: naming?
+	fs.BoolVar(readAstValuesFromStore, "read-ast-values", value, "read AST values from store")
+}
+
 func addE2EFlag(fs *pflag.FlagSet, e2e *bool, value bool) {
 	fs.BoolVar(e2e, "e2e", value, "run benchmarks against a running OPA server")
 }

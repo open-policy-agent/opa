@@ -45,6 +45,7 @@ func (t *Transaction) safeToUse() bool {
 // Store is a mock storage.Store implementation for use in testing.
 type Store struct {
 	inmem        storage.Store
+	storeOpts    []inmem.Opt
 	baseData     map[string]interface{}
 	Transactions []*Transaction
 	Reads        []*ReadCall
@@ -69,16 +70,19 @@ type WriteCall struct {
 }
 
 // New creates a new mock Store
-func New() *Store {
-	s := &Store{}
+func New(opt ...inmem.Opt) *Store {
+	s := &Store{
+		storeOpts: opt,
+	}
 	s.Reset()
 	return s
 }
 
 // NewWithData creates a store with some initial data
-func NewWithData(data map[string]interface{}) *Store {
+func NewWithData(data map[string]interface{}, opt ...inmem.Opt) *Store {
 	s := &Store{
-		baseData: data,
+		baseData:  data,
+		storeOpts: opt,
 	}
 	s.Reset()
 	return s
@@ -90,9 +94,9 @@ func (s *Store) Reset() {
 	s.Reads = []*ReadCall{}
 	s.Writes = []*WriteCall{}
 	if s.baseData != nil {
-		s.inmem = inmem.NewFromObject(s.baseData)
+		s.inmem = inmem.NewFromObjectWithOpts(s.baseData, s.storeOpts...)
 	} else {
-		s.inmem = inmem.New()
+		s.inmem = inmem.NewWithOpts(s.storeOpts...)
 	}
 }
 
