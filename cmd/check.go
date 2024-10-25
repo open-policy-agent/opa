@@ -7,6 +7,7 @@ package cmd
 import (
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -87,6 +88,7 @@ func checkModules(params checkParams, args []string) error {
 				WithSkipBundleVerification(true).
 				WithProcessAnnotation(true).
 				WithCapabilities(capabilities).
+				WithFilter(filterFromPaths(params.ignore)).
 				AsBundle(path)
 			if err != nil {
 				return err
@@ -128,6 +130,12 @@ func checkModules(params checkParams, args []string) error {
 		return compiler.Errors
 	}
 	return nil
+}
+
+func filterFromPaths(paths []string) loader.Filter {
+	return func(abspath string, info fs.FileInfo, depth int) bool {
+		return loaderFilter{Ignore: paths}.Apply(abspath, info, depth)
+	}
 }
 
 func outputErrors(format string, err error) {
