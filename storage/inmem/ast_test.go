@@ -34,19 +34,26 @@ func TestSetInAst(t *testing.T) {
 			expected: `{"a": 1, "b": 42, "c": 3}`,
 		},
 		{
-			// new keys can be added to objects
-			note:     "add object key",
-			value:    `{"a": 1, "b": 2, "c": 3}`,
-			path:     "/b",
-			newValue: "42",
-			expected: `{"a": 1, "b": 42, "c": 3}`,
-		},
-		{
 			note:     "set nested object key",
 			value:    `{"a": {"b": 1, "c": 2, "d": 3}, "b": 4}`,
 			path:     "/a/c",
 			newValue: "42",
 			expected: `{"a": {"b": 1, "c": 42, "d": 3}, "b": 4}`,
+		},
+		// new keys can be added to objects
+		{
+			note:     "add object key",
+			value:    `{"a": 1, "b": 2, "c": 3}`,
+			path:     "/d",
+			newValue: "42",
+			expected: `{"a": 1, "b": 2, "c": 3, "d": 42}`,
+		},
+		{
+			note:     "add nested object key",
+			value:    `{"a": {"b": 1, "c": 2, "d": 3}, "b": 4}`,
+			path:     "/a/e",
+			newValue: "42",
+			expected: `{"a": {"b": 1, "c": 2, "d": 3, "e": 42}, "b": 4}`,
 		},
 
 		{

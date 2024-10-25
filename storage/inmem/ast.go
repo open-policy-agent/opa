@@ -220,8 +220,7 @@ func setInAstObject(obj ast.Object, path storage.Path, value ast.Value) (ast.Val
 func setInAstArray(arr *ast.Array, path storage.Path, value ast.Value) (ast.Value, error) {
 	idx, err := strconv.Atoi(path[0])
 	if err != nil {
-		// We expect the path to be valid at this point.
-		return arr, nil
+		return nil, fmt.Errorf("illegal array index %v: %v", path[0], err)
 	}
 
 	if idx < 0 || idx >= arr.Len() {
@@ -262,6 +261,7 @@ func removeInAstObject(obj ast.Object, path storage.Path) (ast.Value, error) {
 
 	if len(path) == 1 {
 		var items [][2]*ast.Term
+		// Note: possibly expensive operation for large data.
 		obj.Foreach(func(k *ast.Term, v *ast.Term) {
 			if k.Equal(key) {
 				return
@@ -295,6 +295,7 @@ func removeInAstArray(arr *ast.Array, path storage.Path) (ast.Value, error) {
 
 	if len(path) == 1 {
 		var elems []*ast.Term
+		// Note: possibly expensive operation for large data.
 		for i := 0; i < arr.Len(); i++ {
 			if i == idx {
 				continue

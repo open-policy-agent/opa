@@ -1030,7 +1030,6 @@ func LegacyReadRevisionFromStore(ctx context.Context, store storage.Store, txn s
 
 // ActivateLegacy calls Activate for the bundles but will also write their manifest to the older unnamed store location.
 // Deprecated: Use Activate with named bundles instead.
-// FIXME: Test this with AST-read toggled on?
 func ActivateLegacy(opts *ActivateOpts) error {
 	opts.legacy = true
 	return activateBundles(opts)

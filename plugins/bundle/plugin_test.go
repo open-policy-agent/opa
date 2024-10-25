@@ -4302,6 +4302,111 @@ func TestUpgradeLegacyBundleToMultiBundleNewBundles(t *testing.T) {
 	}
 }
 
+func TestLegacyBundleDataRead(t *testing.T) {
+	readModes := []struct {
+		note    string
+		readAst bool
+	}{
+		{
+			note:    "read raw",
+			readAst: false,
+		},
+		{
+			note:    "read ast",
+			readAst: true,
+		},
+	}
+
+	for _, rm := range readModes {
+		t.Run(rm.note, func(t *testing.T) {
+			ctx := context.Background()
+			manager := getTestManagerWithOpts(nil, inmem.NewWithOpts(inmem.OptReturnASTValuesOnRead(rm.readAst)))
+
+			plugin := Plugin{
+				manager:     manager,
+				status:      map[string]*Status{},
+				etags:       map[string]string{},
+				downloaders: map[string]Loader{},
+			}
+
+			bundleName := "test-bundle"
+			plugin.status[bundleName] = &Status{Name: bundleName}
+			plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
+
+			tsURLBase := "/opa-test/"
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if !strings.HasPrefix(r.URL.Path, tsURLBase) {
+					t.Fatalf("Invalid request URL path: %s, expected prefix %s", r.URL.Path, tsURLBase)
+				}
+				fmt.Fprintln(w, "") // Note: this is an invalid bundle and will fail the download
+			}))
+			defer ts.Close()
+
+			serviceName := "test-svc"
+			err := manager.Reconfigure(&config.Config{
+				Services: []byte(fmt.Sprintf("{\"%s\":{ \"url\": \"%s\"}}", serviceName, ts.URL+tsURLBase)),
+			})
+			if err != nil {
+				t.Fatalf("Error configuring plugin manager: %s", err)
+			}
+
+			var delay int64 = 10
+			triggerPolling := plugins.TriggerPeriodic
+			downloadConf := download.Config{Polling: download.PollingConfig{MinDelaySeconds: &delay, MaxDelaySeconds: &delay}, Trigger: &triggerPolling}
+
+			// Start with a "legacy" style config for a single bundle
+			plugin.config = Config{
+				Bundles: map[string]*Source{
+					bundleName: {
+						Config:  downloadConf,
+						Service: serviceName,
+					},
+				},
+				Name:    bundleName,
+				Service: serviceName,
+				Prefix:  nil,
+			}
+
+			module := "package a.a1\n\nbar=1"
+
+			b := bundle.Bundle{
+				Manifest: bundle.Manifest{Revision: "quickbrownfaux", Roots: &[]string{"a/a1", "a/a2"}},
+				Data: map[string]interface{}{
+					"a": map[string]interface{}{
+						"a2": "foo",
+					},
+				},
+				Modules: []bundle.ModuleFile{
+					{
+						Path:   "bundle/id1",
+						Parsed: ast.MustParseModule(module),
+						Raw:    []byte(module),
+					},
+				},
+			}
+
+			b.Manifest.Init()
+
+			if plugin.config.IsMultiBundle() {
+				t.Fatalf("Expected plugin to be in non-multi bundle config mode")
+			}
+
+			plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+
+			exp := `{"a2": "foo"}`
+			var expData interface{}
+			if rm.readAst {
+				expData = ast.MustParseTerm(exp).Value
+			} else {
+				expData = util.MustUnmarshalJSON([]byte(exp))
+			}
+
+			expIDs := []string{"bundle/id1"}
+			validateStoreState(ctx, t, manager.Store, "/a", expData, expIDs, bundleName, "quickbrownfaux", nil)
+		})
+	}
+}
+
 func TestSaveBundleToDiskNew(t *testing.T) {
 
 	manager := getTestManager()

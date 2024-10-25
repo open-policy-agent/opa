@@ -579,7 +579,7 @@ type Rego struct {
 	compiler                    *ast.Compiler
 	store                       storage.Store
 	ownStore                    bool
-	ownStoreReadAst             bool // FIXME: Alternative to a new option, we could add a WritableStore() method that assigns store and sets ownStore to true.
+	ownStoreReadAst             bool
 	txn                         storage.Transaction
 	metrics                     metrics.Metrics
 	queryTracers                []topdown.QueryTracer

@@ -241,7 +241,10 @@ type Params struct {
 	// CipherSuites specifies the list of enabled TLS 1.0–1.2 cipher suites
 	CipherSuites *[]uint16
 
-	// FIXME: Document this
+	// ReadAstValuesFromStore controls whether the storage layer should return AST values when reading from the store.
+	// This is an eager conversion, that comes with an upfront performance cost when updating the store (e.g. bundle updates).
+	// Evaluation performance is affected in that data doesn't need to be converted to AST during evaluation.
+	// Only applicable when using the default in-memory store, and not when used together with the DiskStorage option.
 	ReadAstValuesFromStore bool
 }
 
