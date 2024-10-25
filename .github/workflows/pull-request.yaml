@@ -72,7 +72,7 @@ jobs:
         run: echo "go_version=$(cat .go-version)" >> $GITHUB_OUTPUT
 
       - name: Install Go (${{ steps.go_version.outputs.go_version }})
-        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
+        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
         with:
           go-version: ${{ steps.go_version.outputs.go_version }}
         if: matrix.os == 'darwin'
@@ -123,7 +123,7 @@ jobs:
         run: echo "go_version=$(cat .go-version)" >> $GITHUB_OUTPUT
 
       - name: Install Go (${{ steps.go_version.outputs.go_version }})
-        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
+        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
         with:
           go-version: ${{ steps.go_version.outputs.go_version }}
 
@@ -328,7 +328,7 @@ jobs:
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: generated
-      - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
+      - uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
         with:
           go-version: ${{ matrix.version }}
       - run: make build
