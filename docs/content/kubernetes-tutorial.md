@@ -125,8 +125,6 @@ expressions will be allowed.
 ```live:ingress_allowlist:module:read_only
 package kubernetes.admission
 
-import rego.v1
-
 import data.kubernetes.namespaces
 
 operations := {"CREATE", "UPDATE"}
@@ -172,8 +170,6 @@ namespaces from sharing the same hostname.
 ```live:ingress_conflicts:module:read_only
 package kubernetes.admission
 
-import rego.v1
-
 import data.kubernetes.ingresses
 
 deny contains msg if {
@@ -197,8 +193,6 @@ Let's define a main policy that imports the [Restrict Hostnames](#policy-1-restr
 
 ```live:main:module:read_only
 package system
-
-import rego.v1
 
 import data.kubernetes.admission
 

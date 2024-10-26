@@ -189,8 +189,6 @@ Now let's change the policy so that it's a bit more useful.
 ```live:docker_authz_deny_unconfined:module:openable
 package docker.authz
 
-import rego.v1
-
 default allow := false
 
 allow if {
@@ -390,8 +388,6 @@ EOF
 
 ```live:docker_authz_users:module:read_only,openable
 package docker.authz
-
-import rego.v1
 
 default allow := false
 

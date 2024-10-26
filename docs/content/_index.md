@@ -127,7 +127,6 @@ at some point in time, but have been introduced gradually.
 
 ```live:example/refs:module:hidden
 package example
-import rego.v1
 ```
 
 When OPA evaluates policies it binds data provided in the query to a global
@@ -164,7 +163,6 @@ input.deadbeef
 
 ```live:example/exprs:module:hidden
 package example
-import rego.v1
 ```
 
 To produce policy decisions in Rego you write expressions against input and
@@ -223,7 +221,6 @@ input.servers[0].protocols[0] == "telnet"
 
 ```live:example/vars:module:hidden
 package example
-import rego.v1
 ```
 
 You can store values in intermediate variables using the `:=` (assignment)
@@ -275,7 +272,6 @@ x != y  # y has not been assigned a value
 
 ```live:example/iter:module:hidden
 package example
-import rego.v1
 ```
 
 Like other declarative languages (e.g., SQL), iteration in Rego happens
@@ -375,19 +371,6 @@ some i; input.servers[i].protocols[i] == "ssh"  # there is no assignment of i th
 While plain iteration serves as a powerful building block, Rego also features ways
 to express _FOR SOME_ and _FOR ALL_ more explicitly.
 
-{{< info >}}
-To ensure backwards-compatibility, the keywords discussed below introduced slowly.
-In the first stage, users can opt-in to using the new keywords via a special import:
-`import rego.v1` or, alternatively, `import future.keywords.every` introduces the `every` keyword described here.
-(Importing `every` means also importing `in` without an extra `import` statement.)
-
-At some point in the future, the keyword will become _standard_, and the import will
-become a no-op that can safely be removed. This should give all users ample time to
-update their policies, so that the new keyword will not cause clashes with existing
-variable names.
-[See the docs on _future keywords_](./policy-language/#future-keywords) for more information.
-{{< /info >}}
-
 ##### FOR SOME (`some`)
 
 `some ... in ...` is used to iterate over the collection (its last argument),
@@ -482,7 +465,6 @@ logic statements. Rules can either be "complete" or "partial".
 
 ```live:example/complete:module:hidden
 package example.rules
-import rego.v1
 ```
 
 #### Complete Rules
@@ -573,7 +555,6 @@ any_public_networks
 
 ```live:example/partial_set:module:hidden
 package example
-import rego.v1
 ```
 
 Partial rules are if-then statements that generate a set of values and
@@ -649,8 +630,6 @@ protocols:
 ```live:example/logical_or/complete:module:openable,merge_down
 package example.logical_or
 
-import rego.v1
-
 default shell_accessible := false
 
 shell_accessible if {
@@ -691,8 +670,6 @@ could be modified to generate a set of servers that expose `"telnet"` or
 
 ```live:example/logical_or/partial_set:module:openable,merge_down
 package example.logical_or
-
-import rego.v1
 
 shell_accessible contains server.id if {
 	server := input.servers[_]
@@ -752,8 +729,6 @@ For example:
 
 ```live:example/final:module:openable,merge_down
 package example
-
-import rego.v1
 
 allow if {                                          # allow is true if...
     count(violation) == 0                           # there are zero violations.
@@ -891,8 +866,6 @@ For example:
 
 ```live:example/using_opa:module:openable,read_only
 package example
-
-import rego.v1
 
 default allow := false                              # unless otherwise defined, allow is false
 
@@ -1034,10 +1007,9 @@ You can start OPA as a server with `-s` or `--server`:
 ./opa run --server ./example.rego
 ```
 
-By default OPA listens for HTTP connections on `0.0.0.0:8181`. See `opa run
+By default OPA listens for HTTP connections on `localhost:8181`. See `opa run
 --help` for a list of options to change the listening address, enable TLS, and
-more. For example, if the `--v1-compatible` flag is set, OPA will listen
-for HTTP connections on `localhost:8181` by default.
+more.
 
 Inside of another terminal use `curl` (or a similar tool) to access OPA's HTTP
 API. When you query the `/v1/data` HTTP API you must wrap input data inside of a

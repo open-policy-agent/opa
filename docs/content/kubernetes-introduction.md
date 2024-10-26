@@ -75,8 +75,6 @@ referring to illegal registries:
 ```live:container_image:module:openable
 package kubernetes.admission
 
-import rego.v1
-
 deny contains reason if {
 	some container
 	input_containers[container]

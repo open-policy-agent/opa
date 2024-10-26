@@ -75,8 +75,6 @@ The policy below does all of the above in parts:
 ```live:example:module:openable
 package graphqlapi.authz
 
-import rego.v1
-
 subordinates := {"alice": [], "charlie": [], "bob": ["alice"], "betty": ["charlie"]}
 
 query_ast := graphql.parse(input.query, input.schema)[0] # If validation fails, the rules depending on this will be undefined.
@@ -308,8 +306,6 @@ Let's extend the policy to handle this.
 ```live:hr_example:module:read_only,openable
 package graphqlapi.authz
 
-import rego.v1
-
 # Allow HR members to get anyone's salary.
 allowed_query(q) if {
 	selected_salary(q)
@@ -351,8 +347,6 @@ To get a sense of one way the subordinate and HR data might be communicated in t
 
 ```live:jwt_example:module:hidden
 package graphqlapi.authz
-
-import rego.v1
 
 query_ast := graphql.parse(input.query, input.schema)[0] # If validation fails, the rules depending on this will be undefined.
 

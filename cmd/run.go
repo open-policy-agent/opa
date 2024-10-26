@@ -215,7 +215,7 @@ See https://godoc.org/crypto/tls#pkg-constants for more information.
 	runCommand.Flags().BoolVarP(&cmdParams.serverMode, "server", "s", false, "start the runtime in server mode")
 	runCommand.Flags().IntVar(&cmdParams.rt.ReadyTimeout, "ready-timeout", 0, "wait (in seconds) for configured plugins before starting server (value <= 0 disables ready check)")
 	runCommand.Flags().StringVarP(&cmdParams.rt.HistoryPath, "history", "H", historyPath(), "set path of history file")
-	cmdParams.rt.Addrs = runCommand.Flags().StringSliceP("addr", "a", []string{defaultAddr}, "set listening address of the server (e.g., [ip]:<port> for TCP, unix://<path> for UNIX domain socket)")
+	cmdParams.rt.Addrs = runCommand.Flags().StringSliceP("addr", "a", []string{defaultLocalAddr}, "set listening address of the server (e.g., [ip]:<port> for TCP, unix://<path> for UNIX domain socket)")
 	cmdParams.rt.DiagnosticAddrs = runCommand.Flags().StringSlice("diagnostic-addr", []string{}, "set read-only diagnostic listening address of the server for /health and /metric APIs (e.g., [ip]:<port> for TCP, unix://<path> for UNIX domain socket)")
 	cmdParams.rt.UnixSocketPerm = runCommand.Flags().String("unix-socket-perm", "755", "specify the permissions for the Unix domain socket if used to listen for incoming connections")
 	runCommand.Flags().BoolVar(&cmdParams.rt.H2CEnabled, "h2c", false, "enable H2C for HTTP listeners")
@@ -381,9 +381,8 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string, addrSe
 	rt.SetDistributedTracingLogging()
 	rt.Params.AddrSetByUser = addrSetByUser
 
-	// v0 negates v1
-	if !addrSetByUser && !rt.Params.V0Compatible && rt.Params.V1Compatible {
-		rt.Params.Addrs = &[]string{defaultLocalAddr}
+	if !addrSetByUser && rt.Params.V0Compatible {
+		rt.Params.Addrs = &[]string{defaultAddr}
 	}
 
 	return rt, nil

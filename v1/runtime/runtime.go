@@ -525,7 +525,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	}
 
 	serverInitializingMessage := "Initializing server."
-	if !rt.Params.AddrSetByUser && (rt.Params.V0Compatible || !rt.Params.V1Compatible) {
+	if !rt.Params.AddrSetByUser && rt.Params.V0Compatible {
 		serverInitializingMessage += " OPA is running on a public (0.0.0.0) network interface. Unless you intend to expose OPA outside of the host, binding to the localhost interface (--addr localhost:8181) is recommended. See https://www.openpolicyagent.org/docs/latest/security/#interface-binding"
 	}
 

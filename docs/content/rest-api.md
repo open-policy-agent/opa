@@ -672,8 +672,6 @@ Content-Type: text/plain
 ```live:put_example:module:read_only
 package opa.examples
 
-import rego.v1
-
 import data.networks
 import data.ports
 import data.servers
@@ -894,8 +892,6 @@ The examples below assume the following policy:
 ```live:input_example:module:read_only
 package opa.examples
 
-import rego.v1
-
 import input.example.flag
 
 allow_request if flag == true
@@ -998,8 +994,6 @@ The examples below assume the following policy:
 
 ```live:webhook_example:module:read_only
 package opa.examples
-
-import rego.v1
 
 import input.example.flag
 
@@ -1211,8 +1205,6 @@ Content-Type: text/plain
 ```live:system_example:module:read_only
 package system
 
-import rego.v1
-
 main := msg if {
 	msg := sprintf("hello, %v", [input.user])
 }
@@ -1362,8 +1354,6 @@ The example below assumes that OPA has been given the following policy:
 ```live:compile_example:module:read_only
 package example
 
-import rego.v1
-
 allow if {
 	input.subject.clearance_level >= data.reports[_].clearance_level
 }
@@ -1459,8 +1449,6 @@ For example, if you extend to policy above to include a "break glass" condition,
 ```live:compile_unconditional_example:module:read_only
 package example
 
-import rego.v1
-
 allow if {
 	input.subject.clearance_level >= data.reports[_].clearance_level
 }
@@ -1539,8 +1527,6 @@ exception:
 
 ```live:compile_unconditional_false_example:module:read_only
 package example
-
-import rego.v1
 
 allow if {
 	input.subject.clearance_level >= data.reports[_].clearance_level
@@ -1676,8 +1662,6 @@ able to process the `live` rule. OPA is ready once all plugins have entered the 
 ```live:health_policy_example:module:read_only
 package system.health
 
-import rego.v1
-
 # opa is live if it can process this rule
 default live := true
 
@@ -1695,8 +1679,6 @@ specific a plugin leaves the OK state, try this:
 
 ```live:health_policy_example_2:module:read_only
 package system.health
-
-import rego.v1
 
 default live := true
 

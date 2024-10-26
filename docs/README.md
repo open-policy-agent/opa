@@ -173,8 +173,6 @@ In this module:
 ```live:rule_body:module
 package example
 
-import rego.v1
-
 u if {
 	"foo" == "foo"
 }
@@ -202,8 +200,6 @@ Here's what a more complex set of blocks could look like:
 ``````markdown
 ```live:eg:module:hidden
 package example
-
-import rego.v1
 ```
 
 We can define a scalar rule:
@@ -252,8 +248,6 @@ Whereas the `eg/string/rule` output is evaluated with the module:
 
 ```
 package example
-
-import rego.v1
 
 string := "hello"
 
