@@ -174,8 +174,6 @@ simple policy to block an S3 Bucket unless it has an `AccessControl` attribute s
 ```live:example/system:module
 package system
 
-import rego.v1
-
 main := {
 	"allow": count(deny) == 0,
 	"violations": deny,
@@ -361,8 +359,6 @@ take a look at what such a main policy might look like:
 #
 package system
 
-import rego.v1
-
 main := {
 	"allow": count(violations) == 0,
 	"violations": violations,
@@ -437,8 +433,6 @@ We can now modify our original policy to verify S3 bucket resources only:
 ```live:example/bucket:module
 package aws.s3.bucket
 
-import rego.v1
-
 deny contains sprintf("S3 Bucket %s 'AccessControl' attribute value must be 'Private'", [input.resource.id]) if {
 	not bucket_is_private
 }
@@ -466,8 +460,6 @@ A simple authz policy for checking the bearer token might look something like th
 **authz.rego**
 ```live:example/authz:module
 package system.authz
-
-import rego.v1
 
 default allow := false
 

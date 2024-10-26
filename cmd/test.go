@@ -461,8 +461,6 @@ Example policy (example/authz.rego):
 
 	package authz
 
-	import rego.v1
-
 	allow if {
 		input.path == ["users"]
 		input.method == "POST"
@@ -476,8 +474,6 @@ Example policy (example/authz.rego):
 Example test (example/authz_test.rego):
 
 	package authz_test
-
-	import rego.v1
 
 	import data.authz.allow
 

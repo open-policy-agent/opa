@@ -15,8 +15,6 @@ Let's start with an example policy that restricts access to an endpoint based on
 ```live:bool_example:module:openable
 package envoy.authz
 
-import rego.v1
-
 import input.attributes.request.http
 
 default allow := false
@@ -112,8 +110,6 @@ If you want, you can also control the HTTP status sent to the upstream or downst
 
 ```live:obj_example:module:openable
 package envoy.authz
-
-import rego.v1
 
 import input.attributes.request.http
 
@@ -440,8 +436,6 @@ access the path `/people`.
 ```live:parsed_path_example:module:read_only
 package envoy.authz
 
-import rego.v1
-
 default allow := false
 
 allow if input.parsed_path == ["people"]
@@ -453,8 +447,6 @@ the HTTP URL query as a map of string array. The below sample policy allows anyo
 
 ```live:parsed_query_example:module:read_only
 package envoy.authz
-
-import rego.v1
 
 default allow := false
 
@@ -471,8 +463,6 @@ can then be used in a policy as shown below.
 
 ```live:parsed_body_example:module:read_only
 package envoy.authz
-
-import rego.v1
 
 default allow := false
 

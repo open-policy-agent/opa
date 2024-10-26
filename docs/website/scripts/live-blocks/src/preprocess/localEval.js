@@ -71,6 +71,7 @@ async function prepEval(groups, groupName, opaVersion) {
   const {module, package: pkg, query, input, included} = getGroupData(groups, groupName)
   const base = ['eval', '--fail'] // Fail on undefined
   const rest = []
+  rest.push('--v1-compatible')
   const moduleFilenameMap = {}
 
   try {
