@@ -166,8 +166,7 @@ func addV1CompatibleFlag(fs *pflag.FlagSet, v1Compatible *bool, value bool) {
 }
 
 func addReadAstValuesFromStoreFlag(fs *pflag.FlagSet, readAstValuesFromStore *bool, value bool) {
-	// FIXME: naming?
-	fs.BoolVar(readAstValuesFromStore, "read-ast-values", value, "read AST values from store")
+	fs.BoolVar(readAstValuesFromStore, "optimize-store-for-read-speed", value, "optimize default in-memory store for read speed. Has possible negative impact on memory footprint and write speed. See https://www.openpolicyagent.org/docs/latest/policy-performance/#storage-optimization for more details.")
 }
 
 func addE2EFlag(fs *pflag.FlagSet, e2e *bool, value bool) {
