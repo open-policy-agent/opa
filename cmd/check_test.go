@@ -188,6 +188,27 @@ func TestCheckIgnoresNonRegoFiles(t *testing.T) {
 	})
 }
 
+func TestCheckIgnoreBundleMode(t *testing.T) {
+	t.Parallel()
+
+	files := map[string]string{
+		"ignore.rego":  `invalid rego`,
+		"include.rego": `package valid`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+		params := newCheckParams()
+
+		params.ignore = []string{"ignore.rego"}
+		params.bundleMode = true
+
+		err := checkModules(params, []string{root})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
 func TestCheckFailsOnInvalidRego(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `package test
