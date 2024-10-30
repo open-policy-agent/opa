@@ -975,6 +975,22 @@ into call sites. In addition, more aggressive inlining is applied within rules. 
 [copy propagation](https://en.wikipedia.org/wiki/Copy_propagation) and inlining of certain negated
 statements that would otherwise generate support rules.
 
+## Storage Optimization
+
+### In-Memory Store Read Optimization
+
+During normal operation, data values read from storage are converted to an AST representation that is used during policy evaluation. 
+This conversion can be expensive both in execution time and in memory usage, especially for large data values. 
+The default in-memory store can be configured to optimize for read speed by precomputing the AST representation of data values during storage write operations. 
+This removes the time spent converting raw data values to AST during policy evaluation, improving performance. 
+
+The memory footprint of the store will increase, as processed AST values generally take up more space in memory than the corresponding raw data values, but overall memory usage of OPA might remain more stable over time, as pre-converted data is shared across evaluations and isn't recomputed for each evaluation, which can cause spikes in memory usage.
+Storage write operations will be slower due to the additional processing required to precompute the AST representation of data values. This can impact startup time and bundle loading/updates, especially for large data values. 
+
+This feature can be enabled for `opa run`, `opa eval`, and `opa bench` by setting the `--optimize-store-for-read-speed` flag.
+
+Users are recommended to do performance testing to determine the optimal configuration for their use case.
+
 ## Key Takeaways
 
 For high-performance use cases:

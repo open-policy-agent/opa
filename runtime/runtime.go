@@ -23,6 +23,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gorilla/mux"
+	"github.com/open-policy-agent/opa/storage/inmem"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/propagation"
@@ -53,7 +54,6 @@ import (
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/disk"
-	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/tracing"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
@@ -240,6 +240,12 @@ type Params struct {
 
 	// CipherSuites specifies the list of enabled TLS 1.0–1.2 cipher suites
 	CipherSuites *[]uint16
+
+	// ReadAstValuesFromStore controls whether the storage layer should return AST values when reading from the store.
+	// This is an eager conversion, that comes with an upfront performance cost when updating the store (e.g. bundle updates).
+	// Evaluation performance is affected in that data doesn't need to be converted to AST during evaluation.
+	// Only applicable when using the default in-memory store, and not when used together with the DiskStorage option.
+	ReadAstValuesFromStore bool
 }
 
 func (p *Params) regoVersion() ast.RegoVersion {
@@ -400,7 +406,8 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 			return nil, fmt.Errorf("initialize disk store: %w", err)
 		}
 	} else {
-		store = inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false))
+		store = inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false),
+			inmem.OptReturnASTValuesOnRead(params.ReadAstValuesFromStore))
 	}
 
 	traceExporter, tracerProvider, _, err := internal_tracing.Init(ctx, config, params.ID)

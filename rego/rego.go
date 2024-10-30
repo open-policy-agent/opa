@@ -579,6 +579,7 @@ type Rego struct {
 	compiler                    *ast.Compiler
 	store                       storage.Store
 	ownStore                    bool
+	ownStoreReadAst             bool
 	txn                         storage.Transaction
 	metrics                     metrics.Metrics
 	queryTracers                []topdown.QueryTracer
@@ -1007,6 +1008,15 @@ func Store(s storage.Store) func(r *Rego) {
 	}
 }
 
+// StoreReadAST returns an argument that sets whether the store should eagerly convert data to AST values.
+//
+// Only applicable when no store has been set on the Rego object through the Store option.
+func StoreReadAST(enabled bool) func(r *Rego) {
+	return func(r *Rego) {
+		r.ownStoreReadAst = enabled
+	}
+}
+
 // Transaction returns an argument that sets the transaction to use for storage
 // layer operations.
 //
@@ -1266,7 +1276,7 @@ func New(options ...func(r *Rego)) *Rego {
 	}
 
 	if r.store == nil {
-		r.store = inmem.New()
+		r.store = inmem.NewWithOpts(inmem.OptReturnASTValuesOnRead(r.ownStoreReadAst))
 		r.ownStore = true
 	} else {
 		r.ownStore = false
