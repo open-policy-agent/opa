@@ -6609,6 +6609,61 @@ func TestPluginManualTriggerWithTimeout(t *testing.T) {
 	}
 }
 
+func TestPluginManualTriggerWithServerError(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	s := httptest.NewServer(http.HandlerFunc(func(resp http.ResponseWriter, _ *http.Request) {
+		resp.WriteHeader(500)
+	}))
+
+	// setup plugin pointing at fake server
+	manager := getTestManagerWithOpts([]byte(fmt.Sprintf(`{
+		"services": {
+			"default": {
+				"url": %q
+			}
+		}
+	}`, s.URL)))
+
+	var manual plugins.TriggerMode = "manual"
+
+	plugin := New(&Config{
+		Bundles: map[string]*Source{
+			"test": {
+				Service:        "default",
+				SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
+				Config:         download.Config{Trigger: &manual},
+			},
+		},
+	}, manager)
+
+	err := plugin.Start(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// manually trigger bundle download
+	err = plugin.Trigger(ctx)
+
+	plugin.Stop(ctx)
+
+	var bundleErrors Errors
+	if errors.As(err, &bundleErrors) {
+		if len(bundleErrors) != 1 {
+			t.Fatalf("expected exactly one error, got %d", len(bundleErrors))
+		}
+		for _, e := range bundleErrors {
+			if e.BundleName != "test" {
+				t.Fatalf("expected error for bundle 'test' but got '%s'", e.BundleName)
+			}
+		}
+	} else {
+		t.Fatalf("expected type of error to be %s but got %s", reflect.TypeOf(bundleErrors), reflect.TypeOf(err))
+	}
+}
+
 // Warning: This test modifies package variables, and as
 // a result, cannot be run in parallel with other tests.
 func TestGetNormalizedBundleName(t *testing.T) {

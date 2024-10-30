@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/cmd/internal/exec"
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	loggingtest "github.com/open-policy-agent/opa/logging/test"
@@ -321,15 +323,32 @@ main contains "hello" if {
 
 					ctx, cancel := context.WithCancel(context.Background())
 					defer cancel()
-					go func() {
+					go func(expectedErrors []string) {
 						err := runExecWithContext(ctx, params)
 						// Note(philipc): Catch the expected cancellation
 						// errors, allowing unexpected test failures through.
 						if err != context.Canceled {
-							t.Error(err)
-							return
+							var errs ast.Errors
+							if errors.As(err, &errs) {
+								for _, expErr := range expectedErrors {
+									found := false
+									for _, e := range errs {
+										if strings.Contains(e.Error(), expErr) {
+											found = true
+											break
+										}
+									}
+									if !found {
+										t.Errorf("Could not find expected error: %s in %v", expErr, errs)
+										return
+									}
+								}
+							} else {
+								t.Error(err)
+								return
+							}
 						}
-					}()
+					}(tc.expErrs)
 
 					if !test.Eventually(t, 5*time.Second, func() bool {
 						for _, expErr := range tc.expErrs {
