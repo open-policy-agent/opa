@@ -127,6 +127,7 @@ type Compiler struct {
 	maxErrs                    int
 	sorted                     []string // list of sorted module names
 	pathExists                 func([]string) (bool, error)
+	pathConflictCheckRoots     []string
 	after                      map[string][]CompilerStageDefinition
 	metrics                    metrics.Metrics
 	capabilities               *Capabilities                 // user-supplied capabilities
@@ -380,6 +381,14 @@ func (c *Compiler) WithEnablePrintStatements(yes bool) *Compiler {
 // paths that exist as determined by the provided callable.
 func (c *Compiler) WithPathConflictsCheck(fn func([]string) (bool, error)) *Compiler {
 	c.pathExists = fn
+	return c
+}
+
+// WithPathConflictsCheckRoot enables checking path conflicts from the specified root instead
+// of the top root node. This would enable optimizting path conflict checks during bundle
+// activation if a bundle already defines its own root paths.
+func (c *Compiler) WithPathConflictsCheckRoot(rootPaths []string) *Compiler {
+	c.pathConflictCheckRoots = rootPaths
 	return c
 }
 

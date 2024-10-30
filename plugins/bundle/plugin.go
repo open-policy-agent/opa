@@ -615,6 +615,10 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle, is
 		compiler = compiler.WithPathConflictsCheck(storage.NonEmpty(ctx, p.manager.Store, txn)).
 			WithEnablePrintStatements(p.manager.EnablePrintStatements())
 
+		if b.Manifest.Roots != nil {
+			compiler = compiler.WithPathConflictsCheckRoot(*b.Manifest.Roots)
+		}
+
 		var activateErr error
 
 		opts := &bundle.ActivateOpts{

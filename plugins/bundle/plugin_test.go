@@ -6574,6 +6574,194 @@ func TestGetNormalizedBundleName(t *testing.T) {
 	}
 }
 
+func TestBundleActivationWithRootOverlap(t *testing.T) {
+	ctx := context.Background()
+	plugin := getPluginWithExistingLoadedBundle(
+		t,
+		"policy-bundle",
+		[]string{"foo/bar"},
+		nil,
+		[]testModule{
+			{
+				Path: "foo/bar/bar.rego",
+				Data: `package foo.bar
+result := true`,
+			},
+		},
+	)
+
+	bundleName := "new-bundle"
+	plugin.status[bundleName] = &Status{Name: bundleName, Metrics: metrics.New()}
+	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
+
+	b := getTestBundleWithData(
+		[]string{"foo/bar/baz"},
+		[]byte(`{"foo": {"bar": 1, "baz": "qux"}}`),
+		nil,
+	)
+
+	b.Manifest.Init()
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Size: snapshotBundleSize})
+
+	// "foo/bar" and "foo/bar/baz" overlap with each other; activation will fail
+	status, ok := plugin.status[bundleName]
+	if !ok {
+		t.Fatalf("Expected to find status for %s, found nil", bundleName)
+	}
+	if status.Code != errCode {
+		t.Fatalf(`Expected status code to be %s, found %s`, errCode, status.Code)
+	}
+	if !strings.Contains(status.Message, "detected overlapping") {
+		t.Fatalf(`Expected status message to contain detected overlapping roots", found %s`, status.Message)
+	}
+}
+
+func TestBundleActivationWithNoManifestRootsButWithPathConflict(t *testing.T) {
+	ctx := context.Background()
+	plugin := getPluginWithExistingLoadedBundle(
+		t,
+		"policy-bundle",
+		[]string{"foo/bar"},
+		nil,
+		[]testModule{
+			{
+				Path: "foo/bar/bar.rego",
+				Data: `package foo.bar
+result := true`,
+			},
+		},
+	)
+
+	bundleName := "new-bundle"
+	plugin.status[bundleName] = &Status{Name: bundleName, Metrics: metrics.New()}
+	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
+
+	b := getTestBundleWithData(
+		nil,
+		[]byte(`{"foo": {"bar": 1, "baz": "qux"}}`),
+		nil,
+	)
+
+	b.Manifest.Init()
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Size: snapshotBundleSize})
+
+	// new bundle has path "foo/bar" which overlaps with existing bundle with path "foo/bar"; activation will fail
+	status, ok := plugin.status[bundleName]
+	if !ok {
+		t.Fatalf("Expected to find status for %s, found nil", bundleName)
+	}
+	if status.Code != errCode {
+		t.Fatalf(`Expected status code to be %s, found %s`, errCode, status.Code)
+	}
+	if !strings.Contains(status.Message, "detected overlapping") {
+		t.Fatalf(`Expected status message to contain detected overlapping roots", found %s`, status.Message)
+	}
+}
+
+func TestBundleActivationWithNoManifestRootsOverlap(t *testing.T) {
+	ctx := context.Background()
+	plugin := getPluginWithExistingLoadedBundle(
+		t,
+		"policy-bundle",
+		[]string{"foo/bar"},
+		nil,
+		[]testModule{
+			{
+				Path: "foo/bar/bar.rego",
+				Data: `package foo.bar
+result := true`,
+			},
+		},
+	)
+
+	bundleName := "new-bundle"
+	plugin.status[bundleName] = &Status{Name: bundleName, Metrics: metrics.New()}
+	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
+
+	b := getTestBundleWithData(
+		[]string{"foo/baz"},
+		nil,
+		[]testModule{
+			{
+				Path: "foo/bar/baz.rego",
+				Data: `package foo.baz
+result := true`,
+			},
+		},
+	)
+
+	b.Manifest.Init()
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Size: snapshotBundleSize})
+
+	status, ok := plugin.status[bundleName]
+	if !ok {
+		t.Fatalf("Expected to find status for %s, found nil", bundleName)
+	}
+	if status.Code != "" {
+		t.Fatalf(`Expected status code to be empty, found %s`, status.Code)
+	}
+}
+
+type testModule struct {
+	Path string
+	Data string
+}
+
+func getTestBundleWithData(roots []string, data []byte, modules []testModule) bundle.Bundle {
+	b := bundle.Bundle{}
+
+	if len(roots) > 0 {
+		b.Manifest = bundle.Manifest{Roots: &roots}
+	}
+
+	if len(data) > 0 {
+		b.Data = util.MustUnmarshalJSON(data).(map[string]interface{})
+	}
+
+	for _, m := range modules {
+		if len(m.Data) > 0 {
+			b.Modules = append(b.Modules,
+				bundle.ModuleFile{
+					Path:   m.Path,
+					Parsed: ast.MustParseModule(m.Data),
+					Raw:    []byte(m.Data),
+				},
+			)
+		}
+	}
+
+	b.Manifest.Init()
+
+	return b
+}
+
+func getPluginWithExistingLoadedBundle(t *testing.T, bundleName string, roots []string, data []byte, modules []testModule) *Plugin {
+	ctx := context.Background()
+	store := inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false), inmem.OptReturnASTValuesOnRead(true))
+	manager := getTestManagerWithOpts(nil, store)
+	plugin := New(&Config{}, manager)
+	plugin.status[bundleName] = &Status{Name: bundleName, Metrics: metrics.New()}
+	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
+
+	ensurePluginState(t, plugin, plugins.StateNotReady)
+
+	b := getTestBundleWithData(roots, data, modules)
+
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Size: snapshotBundleSize})
+
+	ensurePluginState(t, plugin, plugins.StateOK)
+
+	if status, ok := plugin.status[bundleName]; !ok {
+		t.Fatalf("Expected to find status for %s, found nil", bundleName)
+	} else if status.Type != bundle.SnapshotBundleType {
+		t.Fatalf("expected snapshot bundle but got %v", status.Type)
+	} else if status.Size != snapshotBundleSize {
+		t.Fatalf("expected snapshot bundle size %d but got %d", snapshotBundleSize, status.Size)
+	}
+
+	return plugin
+}
+
 func writeTestBundleToDisk(t *testing.T, srcDir string, signed bool) bundle.Bundle {
 	t.Helper()
 

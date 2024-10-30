@@ -18,8 +18,36 @@ func CheckPathConflicts(c *Compiler, exists func([]string) (bool, error)) Errors
 		return nil
 	}
 
-	for _, node := range root.Children {
-		errs = append(errs, checkDocumentConflicts(node, exists, nil)...)
+	if len(c.pathConflictCheckRoots) == 0 {
+		for _, child := range root.Children {
+			errs = append(errs, checkDocumentConflicts(child, exists, nil)...)
+		}
+		return errs
+	}
+
+	for _, rootPath := range c.pathConflictCheckRoots {
+		// traverse AST from `path` to go to the new root
+		paths := strings.Split(rootPath, "/")
+		node := root
+		nodeNotFound := false
+		for _, key := range paths {
+			child := node.Child(String(key))
+			if child == nil {
+				nodeNotFound = true
+				break
+			}
+			node = child
+		}
+
+		if nodeNotFound {
+			// could not find the node from the AST (e.g. `path` is from a data file)
+			// then no conflict is possible
+			continue
+		}
+
+		for _, child := range node.Children {
+			errs = append(errs, checkDocumentConflicts(child, exists, paths)...)
+		}
 	}
 
 	return errs

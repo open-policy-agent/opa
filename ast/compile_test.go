@@ -1954,6 +1954,9 @@ bar.baz contains "quz" if true`,
 		"mod8.rego": `package badrules.complete_partial
 p := 1
 p[r] := 2 if { r := "foo" }`,
+
+		"mod9.rego": `package anotherbadrules.dataoverlap
+p { true }`,
 	})
 
 	c.WithPathConflictsCheck(func(path []string) (bool, error) {
@@ -1963,7 +1966,7 @@ p[r] := 2 if { r := "foo" }`,
 			return false, fmt.Errorf("unexpected error")
 		}
 		return false, nil
-	})
+	}).WithPathConflictsCheckRoot([]string{"badrules"})
 
 	compileStages(c, c.checkRuleConflicts)
 
