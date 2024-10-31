@@ -418,3 +418,113 @@ cases:
         }
     want_result:
       - x: true
+  - note: units_parse_bytes/scientific notation with KB
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse_bytes("1e3KB") == 1000000
+        }
+    want_result:
+      - x: true
+  - note: units_parse_bytes/uppercase scientific notation with MiB
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse_bytes("3.2E2MiB") == 335544320
+        }
+    want_result:
+      - x: true
+  - note: units_parse_bytes/mixed case scientific notation with GiB
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse_bytes("4.5e1GiB") == 48318382080
+        }
+    want_result:
+      - x: true
+  - note: units_parse_bytes/scientific notation without unit
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse_bytes("5e6") == 5000000
+        }
+    want_result:
+      - x: true
+  - note: units_parse_bytes/scientific notation with negative exponent and KB
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse_bytes("1e-2KB") == 10
+        }
+    want_result:
+      - x: true
+  - note: units_parse_bytes/uppercase scientific notation with GB
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse_bytes("6.4E1GB") == 64000000000
+        }
+    want_result:
+      - x: true
+  - note: units_parse_bytes/mixed case scientific notation with TiB
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse_bytes("7.5e1TiB") == 82463372083200
+        }
+    want_result:
+      - x: true
+  - note: units_parse_bytes/scientific notation with lowercase MiB
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse_bytes("5e2MiB") == 524288000
+        }
+    want_result:
+      - x: true
+  - note: units_parse_bytes/invalid format with only E or e
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          not units.parse_bytes("5E") == 5
+        }
+    want_result:
+      - x: true
+  - note: units_parse_bytes/scientific notation with lowercase scientific notation and GiB
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse_bytes("2e2GiB") == 214748364800
+        }
+    want_result:
+      - x: true

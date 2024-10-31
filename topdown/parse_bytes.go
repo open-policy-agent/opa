@@ -121,21 +121,34 @@ func extractNumAndUnit(s string) (string, string) {
 	}
 
 	firstNonNumIdx := -1
-	for idx, r := range s {
-		if !isNum(r) {
+	for idx := 0; idx < len(s); idx++ {
+		r := rune(s[idx])
+		if !isNum(r) && r != 'e' && r != 'E' && r != '+' && r != '-' {
 			firstNonNumIdx = idx
 			break
 		}
+		if r == 'e' || r == 'E' {
+			// Check if the next character is a valid digit or +/- for scientific notation
+			if idx == len(s)-1 || (!unicode.IsDigit(rune(s[idx+1])) && rune(s[idx+1]) != '+' && rune(s[idx+1]) != '-') {
+				firstNonNumIdx = idx
+				break
+			}
+			// Skip the next character if it is '+' or '-'
+			if idx+1 < len(s) && (s[idx+1] == '+' || s[idx+1] == '-') {
+				idx++
+			}
+		}
 	}
 
-	if firstNonNumIdx == -1 { // only digits and '.'
+	if firstNonNumIdx == -1 { // only digits, '.', or valid scientific notation
 		return s, ""
 	}
 	if firstNonNumIdx == 0 { // only units (starts with non-digit)
 		return "", s
 	}
 
-	return s[0:firstNonNumIdx], s[firstNonNumIdx:]
+	// Return the number and the rest as the unit
+	return s[:firstNonNumIdx], s[firstNonNumIdx:]
 }
 
 func init() {
