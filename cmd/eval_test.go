@@ -29,6 +29,19 @@ import (
 	"github.com/open-policy-agent/opa/util/test"
 )
 
+func TestEvalWithIllegalUnknownArgs(t *testing.T) {
+	params := newEvalCommandParams()
+	params.unknowns = []string{"[input, data.posts]"}
+	params.partial = true
+
+	err := validateEvalParams(&params, []string{"data"})
+
+	if !strings.EqualFold(err.Error(), illegalUnknownsArg.Error()) {
+		t.Errorf("expected %s; got %s", illegalUnknownsArg.Error(), err.Error())
+	}
+
+}
+
 func TestEvalExitCode(t *testing.T) {
 	params := newEvalCommandParams()
 	params.fail = true
@@ -764,8 +777,8 @@ func TestEvalWithSchemaFileWithRemoteRef(t *testing.T) {
 		"p.rego": `package p
 import rego.v1
 
-r if { 
-	input.metadata.clusterName == "NAME" 
+r if {
+	input.metadata.clusterName == "NAME"
 }`,
 	}
 
@@ -1296,7 +1309,7 @@ p if {
 	y := 2
 	z := 3
 	x == z - y
-} 
+}
 `,
 			},
 			expected: `%SKIP_LINE%
@@ -1335,7 +1348,7 @@ p if {
 	y := 2
 	z := 3
 	x == z - y
-} 
+}
 `,
 			},
 			expected: `%SKIP_LINE%
@@ -1380,7 +1393,7 @@ p if {
 	x := v
 
 	x.foo[_] == "a"
-} 
+}
 `,
 			},
 			expected: `%SKIP_LINE%
