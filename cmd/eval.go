@@ -37,7 +37,7 @@ import (
 )
 
 var (
-	illegalUnknownsArg = errors.New("illegal argument with --unknowns, specify string with one or more --unknowns")
+	errIllegalUnknownsArg = errors.New("illegal argument with --unknowns, specify string with one or more --unknowns")
 )
 
 type evalCommandParams struct {
@@ -142,7 +142,7 @@ func validateEvalParams(p *evalCommandParams, cmdArgs []string) error {
 	regexArr := regexp.MustCompile(`^\[.*\]$`)
 	for _, unknwn := range p.unknowns {
 		if regexArr.MatchString(unknwn) {
-			return errors.New(illegalUnknownsArg.Error())
+			return errors.New(errIllegalUnknownsArg.Error())
 		}
 	}
 

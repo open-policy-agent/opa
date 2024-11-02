@@ -36,8 +36,8 @@ func TestEvalWithIllegalUnknownArgs(t *testing.T) {
 
 	err := validateEvalParams(&params, []string{"data"})
 
-	if !strings.EqualFold(err.Error(), illegalUnknownsArg.Error()) {
-		t.Errorf("expected %s; got %s", illegalUnknownsArg.Error(), err.Error())
+	if !strings.EqualFold(err.Error(), errIllegalUnknownsArg.Error()) {
+		t.Errorf("expected %s; got %s", errIllegalUnknownsArg.Error(), err.Error())
 	}
 
 }
