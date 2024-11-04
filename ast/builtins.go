@@ -563,7 +563,7 @@ var Abs = &Builtin{
 	Description: "Returns the number without its sign.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.N),
+			types.Named("x", types.N).Description("the number to take the absolute value of"),
 		),
 		types.Named("y", types.N).Description("the absolute value of `x`"),
 	),
@@ -593,10 +593,10 @@ var BitsOr = &Builtin{
 	Description: "Returns the bitwise \"OR\" of two integers.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.N),
-			types.Named("y", types.N),
+			types.Named("x", types.N).Description("the first integer"),
+			types.Named("y", types.N).Description("the second integer"),
 		),
-		types.Named("z", types.N),
+		types.Named("z", types.N).Description("the bitwise OR of `x` and `y`"),
 	),
 }
 
@@ -605,10 +605,10 @@ var BitsAnd = &Builtin{
 	Description: "Returns the bitwise \"AND\" of two integers.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.N),
-			types.Named("y", types.N),
+			types.Named("x", types.N).Description("the first integer"),
+			types.Named("y", types.N).Description("the second integer"),
 		),
-		types.Named("z", types.N),
+		types.Named("z", types.N).Description("the bitwise AND of `x` and `y`"),
 	),
 }
 
@@ -617,9 +617,9 @@ var BitsNegate = &Builtin{
 	Description: "Returns the bitwise negation (flip) of an integer.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.N),
+			types.Named("x", types.N).Description("the integer to negate"),
 		),
-		types.Named("z", types.N),
+		types.Named("z", types.N).Description("the bitwise negation of `x`"),
 	),
 }
 
@@ -628,10 +628,10 @@ var BitsXOr = &Builtin{
 	Description: "Returns the bitwise \"XOR\" (exclusive-or) of two integers.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.N),
-			types.Named("y", types.N),
+			types.Named("x", types.N).Description("the first integer"),
+			types.Named("y", types.N).Description("the second integer"),
 		),
-		types.Named("z", types.N),
+		types.Named("z", types.N).Description("the bitwise XOR of `x` and `y`"),
 	),
 }
 
@@ -640,10 +640,10 @@ var BitsShiftLeft = &Builtin{
 	Description: "Returns a new integer with its bits shifted `s` bits to the left.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.N),
-			types.Named("s", types.N),
+			types.Named("x", types.N).Description("the integer to shift"),
+			types.Named("s", types.N).Description("the number of bits to shift"),
 		),
-		types.Named("z", types.N),
+		types.Named("z", types.N).Description("the result of shifting `x` `s` bits to the left"),
 	),
 }
 
@@ -652,10 +652,10 @@ var BitsShiftRight = &Builtin{
 	Description: "Returns a new integer with its bits shifted `s` bits to the right.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.N),
-			types.Named("s", types.N),
+			types.Named("x", types.N).Description("the integer to shift"),
+			types.Named("s", types.N).Description("the number of bits to shift"),
 		),
-		types.Named("z", types.N),
+		types.Named("z", types.N).Description("the result of shifting `x` `s` bits to the right"),
 	),
 }
 
@@ -671,8 +671,8 @@ var And = &Builtin{
 	Description: "Returns the intersection of two sets.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.NewSet(types.A)),
-			types.Named("y", types.NewSet(types.A)),
+			types.Named("x", types.NewSet(types.A)).Description("the first set"),
+			types.Named("y", types.NewSet(types.A)).Description("the second set"),
 		),
 		types.Named("z", types.NewSet(types.A)).Description("the intersection of `x` and `y`"),
 	),
@@ -749,7 +749,7 @@ var Sum = &Builtin{
 			types.Named("collection", types.NewAny(
 				types.NewSet(types.N),
 				types.NewArray(nil, types.N),
-			)),
+			)).Description("the set or array of numbers to sum"),
 		),
 		types.Named("n", types.N).Description("the sum of all elements"),
 	),
@@ -758,13 +758,13 @@ var Sum = &Builtin{
 
 var Product = &Builtin{
 	Name:        "product",
-	Description: "Muliplies elements of an array or set of numbers",
+	Description: "Multiplies elements of an array or set of numbers",
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("collection", types.NewAny(
 				types.NewSet(types.N),
 				types.NewArray(nil, types.N),
-			)),
+			)).Description("the set or array of numbers to multiply"),
 		),
 		types.Named("n", types.N).Description("the product of all elements"),
 	),
@@ -779,7 +779,7 @@ var Max = &Builtin{
 			types.Named("collection", types.NewAny(
 				types.NewSet(types.A),
 				types.NewArray(nil, types.A),
-			)),
+			)).Description("the set or array to be searched"),
 		),
 		types.Named("n", types.A).Description("the maximum of all elements"),
 	),
@@ -794,7 +794,7 @@ var Min = &Builtin{
 			types.Named("collection", types.NewAny(
 				types.NewSet(types.A),
 				types.NewArray(nil, types.A),
-			)),
+			)).Description("the set or array to be searched"),
 		),
 		types.Named("n", types.A).Description("the minimum of all elements"),
 	),
@@ -829,8 +829,8 @@ var ArrayConcat = &Builtin{
 	Description: "Concatenates two arrays.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.NewArray(nil, types.A)),
-			types.Named("y", types.NewArray(nil, types.A)),
+			types.Named("x", types.NewArray(nil, types.A)).Description("the first array"),
+			types.Named("y", types.NewArray(nil, types.A)).Description("the second array"),
 		),
 		types.Named("z", types.NewArray(nil, types.A)).Description("the concatenation of `x` and `y`"),
 	),
@@ -875,9 +875,9 @@ var ToNumber = &Builtin{
 				types.S,
 				types.B,
 				types.NewNull(),
-			)),
+			)).Description("value to convert"),
 		),
-		types.Named("num", types.N),
+		types.Named("num", types.N).Description("the numeric representation of `x`"),
 	),
 	Categories: conversions,
 }
@@ -894,7 +894,7 @@ var RegexMatch = &Builtin{
 			types.Named("pattern", types.S).Description("regular expression"),
 			types.Named("value", types.S).Description("value to match against `pattern`"),
 		),
-		types.Named("result", types.B),
+		types.Named("result", types.B).Description("true if `value` matches `pattern`"),
 	),
 }
 
@@ -905,7 +905,7 @@ var RegexIsValid = &Builtin{
 		types.Args(
 			types.Named("pattern", types.S).Description("regular expression"),
 		),
-		types.Named("result", types.B),
+		types.Named("result", types.B).Description("true if `pattern` is a valid regular expression"),
 	),
 }
 
@@ -918,7 +918,7 @@ var RegexFindAllStringSubmatch = &Builtin{
 			types.Named("value", types.S).Description("string to match"),
 			types.Named("number", types.N).Description("number of matches to return; `-1` means all matches"),
 		),
-		types.Named("output", types.NewArray(nil, types.NewArray(nil, types.S))),
+		types.Named("output", types.NewArray(nil, types.NewArray(nil, types.S))).Description("array of all matches"),
 	),
 }
 
@@ -932,7 +932,7 @@ var RegexTemplateMatch = &Builtin{
 			types.Named("delimiter_start", types.S).Description("start delimiter of the regular expression in `template`"),
 			types.Named("delimiter_end", types.S).Description("end delimiter of the regular expression in `template`"),
 		),
-		types.Named("result", types.B),
+		types.Named("result", types.B).Description("true if `value` matches the `template`"),
 	),
 } // TODO(sr): example:`regex.template_match("urn:foo:{.*}", "urn:foo:bar:baz", "{", "}")`` returns ``true``.
 
@@ -974,10 +974,10 @@ var GlobsMatch = &Builtin{
 The set of regex symbols is limited for this builtin: only ` + "`.`, `*`, `+`, `[`, `-`, `]` and `\\` are treated as special symbols.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("glob1", types.S),
-			types.Named("glob2", types.S),
+			types.Named("glob1", types.S).Description("first glob-style regular expression"),
+			types.Named("glob2", types.S).Description("second glob-style regular expression"),
 		),
-		types.Named("result", types.B),
+		types.Named("result", types.B).Description("true if the intersection of `glob1` and `glob2` matches a non-empty set of non-empty strings"),
 	),
 }
 
@@ -1033,13 +1033,13 @@ var Concat = &Builtin{
 	Description: "Joins a set or array of strings with a delimiter.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("delimiter", types.S),
+			types.Named("delimiter", types.S).Description("string to use as a delimiter"),
 			types.Named("collection", types.NewAny(
 				types.NewSet(types.S),
 				types.NewArray(nil, types.S),
 			)).Description("strings to join"),
 		),
-		types.Named("output", types.S),
+		types.Named("output", types.S).Description("the joined string"),
 	),
 	Categories: stringsCat,
 }
@@ -1088,7 +1088,7 @@ var Substring = &Builtin{
 	Description: "Returns the  portion of a string for a given `offset` and a `length`.  If `length < 0`, `output` is the remainder of the string.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("value", types.S),
+			types.Named("value", types.S).Description("string to extract substring from"),
 			types.Named("offset", types.N).Description("offset, must be positive"),
 			types.Named("length", types.N).Description("length of the substring starting from `offset`"),
 		),
@@ -1215,7 +1215,7 @@ The old string comparisons are done in argument order.`,
 			).Description("replacement pairs"),
 			types.Named("value", types.S).Description("string to replace substring matches in"),
 		),
-		types.Named("output", types.S),
+		types.Named("output", types.S).Description("string with replaced substrings"),
 	),
 }
 
@@ -1228,7 +1228,7 @@ var RegexReplace = &Builtin{
 			types.Named("pattern", types.S).Description("regex pattern to be applied"),
 			types.Named("value", types.S).Description("regex value"),
 		),
-		types.Named("output", types.S),
+		types.Named("output", types.S).Description("string with replaced substrings"),
 	),
 }
 
@@ -1327,9 +1327,9 @@ var StringReverse = &Builtin{
 	Description: "Reverses a given string.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.S),
+			types.Named("x", types.S).Description("string to reverse"),
 		),
-		types.Named("y", types.S),
+		types.Named("y", types.S).Description("reversed string"),
 	),
 	Categories: stringsCat,
 }
@@ -1359,8 +1359,8 @@ var RandIntn = &Builtin{
 	Description: "Returns a random integer between `0` and `n` (`n` exclusive). If `n` is `0`, then `y` is always `0`. For any given argument pair (`str`, `n`), the output will be consistent throughout a query evaluation.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("str", types.S),
-			types.Named("n", types.N),
+			types.Named("str", types.S).Description("seed string for the random number"),
+			types.Named("n", types.N).Description("upper bound of the random number (exclusive)"),
 		),
 		types.Named("y", types.N).Description("random integer in the range `[0, abs(n))`"),
 	),
@@ -1373,8 +1373,8 @@ var NumbersRange = &Builtin{
 	Description: "Returns an array of numbers in the given (inclusive) range. If `a==b`, then `range == [a]`; if `a > b`, then `range` is in descending order.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("a", types.N),
-			types.Named("b", types.N),
+			types.Named("a", types.N).Description("the start of the range"),
+			types.Named("b", types.N).Description("the end of the range (inclusive)"),
 		),
 		types.Named("range", types.NewArray(nil, types.N)).Description("the range between `a` and `b`"),
 	),
@@ -1389,9 +1389,9 @@ var NumbersRangeStep = &Builtin{
 	`,
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("a", types.N),
-			types.Named("b", types.N),
-			types.Named("step", types.N),
+			types.Named("a", types.N).Description("the start of the range"),
+			types.Named("b", types.N).Description("the end of the range (inclusive)"),
+			types.Named("step", types.N).Description("the step between numbers in the range"),
 		),
 		types.Named("range", types.NewArray(nil, types.N)).Description("the range between `a` and `b` in `step` increments"),
 	),
@@ -1443,7 +1443,7 @@ var UUIDRFC4122 = &Builtin{
 	Description: "Returns a new UUIDv4.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("k", types.S),
+			types.Named("k", types.S).Description("seed string"),
 		),
 		types.Named("output", types.S).Description("a version 4 UUID; for any given `k`, the output will be consistent throughout a query evaluation"),
 	),
@@ -1456,7 +1456,7 @@ var UUIDParse = &Builtin{
 	Categories:  nil,
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("uuid", types.S),
+			types.Named("uuid", types.S).Description("UUID string to parse"),
 		),
 		types.Named("result", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))).Description("Properties of UUID if valid (version, variant, etc). Undefined otherwise."),
 	),
@@ -1479,7 +1479,7 @@ var JSONFilter = &Builtin{
 			types.Named("object", types.NewObject(
 				nil,
 				types.NewDynamicProperty(types.A, types.A),
-			)),
+			)).Description("object to filter"),
 			types.Named("paths", types.NewAny(
 				types.NewArray(
 					nil,
@@ -1517,7 +1517,7 @@ var JSONRemove = &Builtin{
 			types.Named("object", types.NewObject(
 				nil,
 				types.NewDynamicProperty(types.A, types.A),
-			)),
+			)).Description("object to remove paths from"),
 			types.Named("paths", types.NewAny(
 				types.NewArray(
 					nil,
@@ -1553,7 +1553,7 @@ var JSONPatch = &Builtin{
 		"Additionally works on sets, where a value contained in the set is considered to be its path.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("object", types.A), // TODO(sr): types.A?
+			types.Named("object", types.A).Description("the object to patch"), // TODO(sr): types.A?
 			types.Named("patches", types.NewArray(
 				nil,
 				types.NewObject(
@@ -1563,7 +1563,7 @@ var JSONPatch = &Builtin{
 					},
 					types.NewDynamicProperty(types.A, types.A),
 				),
-			)),
+			)).Description("the JSON patches to apply"),
 		),
 		types.Named("output", types.A).Description("result obtained after consecutively applying all patch operations in `patches`"),
 	),
@@ -1589,15 +1589,13 @@ var ObjectSubset = &Builtin{
 			types.Named("super", types.NewAny(types.NewObject(
 				nil,
 				types.NewDynamicProperty(types.A, types.A),
-			),
-				types.NewSet(types.A),
+			), types.NewSet(types.A),
 				types.NewArray(nil, types.A),
 			)).Description("object to test if sub is a subset of"),
 			types.Named("sub", types.NewAny(types.NewObject(
 				nil,
 				types.NewDynamicProperty(types.A, types.A),
-			),
-				types.NewSet(types.A),
+			), types.NewSet(types.A),
 				types.NewArray(nil, types.A),
 			)).Description("object to test if super is a superset of"),
 		),
@@ -1614,11 +1612,11 @@ var ObjectUnion = &Builtin{
 			types.Named("a", types.NewObject(
 				nil,
 				types.NewDynamicProperty(types.A, types.A),
-			)),
+			)).Description("left-hand object"),
 			types.Named("b", types.NewObject(
 				nil,
 				types.NewDynamicProperty(types.A, types.A),
-			)),
+			)).Description("right-hand object"),
 		),
 		types.Named("output", types.A).Description("a new object which is the result of an asymmetric recursive union of two objects where conflicts are resolved by choosing the key from the right-hand object `b`"),
 	), // TODO(sr): types.A?  ^^^^^^^ (also below)
@@ -1633,7 +1631,7 @@ var ObjectUnionN = &Builtin{
 			types.Named("objects", types.NewArray(
 				nil,
 				types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
-			)),
+			)).Description("list of objects to merge"),
 		),
 		types.Named("output", types.A).Description("asymmetric recursive union of all objects in `objects`, merged from left to right, where conflicts are resolved by choosing the key from the right-hand object"),
 	),
@@ -1672,7 +1670,7 @@ var ObjectFilter = &Builtin{
 				types.NewArray(nil, types.A),
 				types.NewSet(types.A),
 				types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
-			)),
+			)).Description("keys to keep in `object`"),
 		),
 		types.Named("filtered", types.A).Description("remaining data from `object` with only keys specified in `keys`"),
 	),
@@ -1772,7 +1770,7 @@ var Base64Encode = &Builtin{
 	Description: "Serializes the input string into base64 encoding.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.S),
+			types.Named("x", types.S).Description("string to encode"),
 		),
 		types.Named("y", types.S).Description("base64 serialization of `x`"),
 	),
@@ -1784,7 +1782,7 @@ var Base64Decode = &Builtin{
 	Description: "Deserializes the base64 encoded input string.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.S),
+			types.Named("x", types.S).Description("string to decode"),
 		),
 		types.Named("y", types.S).Description("base64 deserialization of `x`"),
 	),
@@ -1796,7 +1794,7 @@ var Base64IsValid = &Builtin{
 	Description: "Verifies the input string is base64 encoded.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.S),
+			types.Named("x", types.S).Description("string to check"),
 		),
 		types.Named("result", types.B).Description("`true` if `x` is valid base64 encoded value, `false` otherwise"),
 	),
@@ -1808,7 +1806,7 @@ var Base64UrlEncode = &Builtin{
 	Description: "Serializes the input string into base64url encoding.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.S),
+			types.Named("x", types.S).Description("string to encode"),
 		),
 		types.Named("y", types.S).Description("base64url serialization of `x`"),
 	),
@@ -1820,7 +1818,7 @@ var Base64UrlEncodeNoPad = &Builtin{
 	Description: "Serializes the input string into base64url encoding without padding.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.S),
+			types.Named("x", types.S).Description("string to encode"),
 		),
 		types.Named("y", types.S).Description("base64url serialization of `x`"),
 	),
@@ -1832,7 +1830,7 @@ var Base64UrlDecode = &Builtin{
 	Description: "Deserializes the base64url encoded input string.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.S),
+			types.Named("x", types.S).Description("string to decode"),
 		),
 		types.Named("y", types.S).Description("base64url deserialization of `x`"),
 	),
@@ -1844,7 +1842,7 @@ var URLQueryDecode = &Builtin{
 	Description: "Decodes a URL-encoded input string.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.S),
+			types.Named("x", types.S).Description("the URL-encoded string"),
 		),
 		types.Named("y", types.S).Description("URL-encoding deserialization of `x`"),
 	),
@@ -1856,7 +1854,7 @@ var URLQueryEncode = &Builtin{
 	Description: "Encodes the input string into a URL-encoded string.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.S),
+			types.Named("x", types.S).Description("the string to encode"),
 		),
 		types.Named("y", types.S).Description("URL-encoding serialization of `x`"),
 	),
@@ -1875,7 +1873,11 @@ var URLQueryEncodeObject = &Builtin{
 					types.NewAny(
 						types.S,
 						types.NewArray(nil, types.S),
-						types.NewSet(types.S)))))),
+						types.NewSet(types.S)),
+				),
+			),
+			).Description("the object to encode"),
+		),
 		types.Named("y", types.S).Description("the URL-encoded serialization of `object`"),
 	),
 	Categories: encoding,
@@ -1937,7 +1939,7 @@ var HexEncode = &Builtin{
 	Description: "Serializes the input string using hex-encoding.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.S),
+			types.Named("x", types.S).Description("string to encode"),
 		),
 		types.Named("y", types.S).Description("serialization of `x` using hex-encoding"),
 	),
@@ -2219,7 +2221,7 @@ var ParseRFC3339Nanos = &Builtin{
 	Description: "Returns the time in nanoseconds parsed from the string in RFC3339 format. `undefined` if the result would be outside the valid time range that can fit within an `int64`.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("value", types.S),
+			types.Named("value", types.S).Description("input string to parse in RFC3339 format"),
 		),
 		types.Named("ns", types.N).Description("`value` in nanoseconds since epoch"),
 	),
@@ -2300,9 +2302,9 @@ var AddDate = &Builtin{
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("ns", types.N).Description("nanoseconds since the epoch"),
-			types.Named("years", types.N),
-			types.Named("months", types.N),
-			types.Named("days", types.N),
+			types.Named("years", types.N).Description("number of years to add"),
+			types.Named("months", types.N).Description("number of months to add"),
+			types.Named("days", types.N).Description("number of days to add"),
 		),
 		types.Named("output", types.N).Description("nanoseconds since the epoch representing the input time, with years, months and days added"),
 	),
@@ -2316,11 +2318,11 @@ var Diff = &Builtin{
 			types.Named("ns1", types.NewAny(
 				types.N,
 				types.NewArray([]types.Type{types.N, types.S}, nil),
-			)),
+			)).Description("nanoseconds since the epoch; or a two-element array of the nanoseconds, and a timezone string"),
 			types.Named("ns2", types.NewAny(
 				types.N,
 				types.NewArray([]types.Type{types.N, types.S}, nil),
-			)),
+			)).Description("nanoseconds since the epoch; or a two-element array of the nanoseconds, and a timezone string"),
 		),
 		types.Named("output", types.NewArray([]types.Type{types.N, types.N, types.N, types.N, types.N, types.N}, nil)).Description("difference between `ns1` and `ns2` (in their supplied timezones, if supplied, or UTC) as array of numbers: `[years, months, days, hours, minutes, seconds]`"),
 	),
@@ -2440,7 +2442,7 @@ var CryptoMd5 = &Builtin{
 	Description: "Returns a string representing the input string hashed with the MD5 function",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.S),
+			types.Named("x", types.S).Description("input string"),
 		),
 		types.Named("y", types.S).Description("MD5-hash of `x`"),
 	),
@@ -2451,7 +2453,7 @@ var CryptoSha1 = &Builtin{
 	Description: "Returns a string representing the input string hashed with the SHA1 function",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.S),
+			types.Named("x", types.S).Description("input string"),
 		),
 		types.Named("y", types.S).Description("SHA1-hash of `x`"),
 	),
@@ -2462,7 +2464,7 @@ var CryptoSha256 = &Builtin{
 	Description: "Returns a string representing the input string hashed with the SHA256 function",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.S),
+			types.Named("x", types.S).Description("input string"),
 		),
 		types.Named("y", types.S).Description("SHA256-hash of `x`"),
 	),
@@ -2539,7 +2541,7 @@ var WalkBuiltin = &Builtin{
 	Description: "Generates `[path, value]` tuples for all nested documents of `x` (recursively).  Queries can use `walk` to traverse documents nested under `x`.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.A),
+			types.Named("x", types.A).Description("value to walk"),
 		),
 		types.Named("output", types.NewArray(
 			[]types.Type{
@@ -2602,7 +2604,7 @@ var IsNumber = &Builtin{
 	Description: "Returns `true` if the input value is a number.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.A),
+			types.Named("x", types.A).Description("input value"),
 		),
 		types.Named("result", types.B).Description("`true` if `x` is a number, `false` otherwise."),
 	),
@@ -2614,7 +2616,7 @@ var IsString = &Builtin{
 	Description: "Returns `true` if the input value is a string.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.A),
+			types.Named("x", types.A).Description("input value"),
 		),
 		types.Named("result", types.B).Description("`true` if `x` is a string, `false` otherwise."),
 	),
@@ -2626,7 +2628,7 @@ var IsBoolean = &Builtin{
 	Description: "Returns `true` if the input value is a boolean.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.A),
+			types.Named("x", types.A).Description("input value"),
 		),
 		types.Named("result", types.B).Description("`true` if `x` is an boolean, `false` otherwise."),
 	),
@@ -2638,7 +2640,7 @@ var IsArray = &Builtin{
 	Description: "Returns `true` if the input value is an array.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.A),
+			types.Named("x", types.A).Description("input value"),
 		),
 		types.Named("result", types.B).Description("`true` if `x` is an array, `false` otherwise."),
 	),
@@ -2650,7 +2652,7 @@ var IsSet = &Builtin{
 	Description: "Returns `true` if the input value is a set.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.A),
+			types.Named("x", types.A).Description("input value"),
 		),
 		types.Named("result", types.B).Description("`true` if `x` is a set, `false` otherwise."),
 	),
@@ -2662,7 +2664,7 @@ var IsObject = &Builtin{
 	Description: "Returns true if the input value is an object",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.A),
+			types.Named("x", types.A).Description("input value"),
 		),
 		types.Named("result", types.B).Description("`true` if `x` is an object, `false` otherwise."),
 	),
@@ -2674,7 +2676,7 @@ var IsNull = &Builtin{
 	Description: "Returns `true` if the input value is null.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.A),
+			types.Named("x", types.A).Description("input value"),
 		),
 		types.Named("result", types.B).Description("`true` if `x` is null, `false` otherwise."),
 	),
@@ -2691,7 +2693,7 @@ var TypeNameBuiltin = &Builtin{
 	Description: "Returns the type of its input value.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.A),
+			types.Named("x", types.A).Description("input value"),
 		),
 		types.Named("type", types.S).Description(`one of "null", "boolean", "number", "string", "array", "object", "set"`),
 	),
@@ -2708,9 +2710,11 @@ var HTTPSend = &Builtin{
 	Description: "Returns a HTTP response to the given HTTP request.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("request", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))),
+			types.Named("request", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))).
+				Description("the HTTP request object"),
 		),
-		types.Named("response", types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))),
+		types.Named("response", types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))).
+			Description("the HTTP response object"),
 	),
 	Nondeterministic: true,
 }
@@ -2725,8 +2729,10 @@ var GraphQLParse = &Builtin{
 	Description: "Returns AST objects for a given GraphQL query and schema after validating the query against the schema. Returns undefined if errors were encountered during parsing or validation. The query and/or schema can be either GraphQL strings or AST objects from the other GraphQL builtin functions.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("query", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))),
-			types.Named("schema", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))),
+			types.Named("query", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))).
+				Description("the GraphQL query"),
+			types.Named("schema", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))).
+				Description("the GraphQL schema"),
 		),
 		types.Named("output", types.NewArray([]types.Type{
 			types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
@@ -2741,8 +2747,10 @@ var GraphQLParseAndVerify = &Builtin{
 	Description: "Returns a boolean indicating success or failure alongside the parsed ASTs for a given GraphQL query and schema after validating the query against the schema. The query and/or schema can be either GraphQL strings or AST objects from the other GraphQL builtin functions.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("query", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))),
-			types.Named("schema", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))),
+			types.Named("query", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))).
+				Description("the GraphQL query"),
+			types.Named("schema", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))).
+				Description("the GraphQL schema"),
 		),
 		types.Named("output", types.NewArray([]types.Type{
 			types.B,
@@ -2759,7 +2767,7 @@ var GraphQLParseQuery = &Builtin{
 	Description: "Returns an AST object for a GraphQL query.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("query", types.S),
+			types.Named("query", types.S).Description("GraphQL query string"),
 		),
 		types.Named("output", types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))).Description("AST object for the GraphQL query."),
 	),
@@ -2772,7 +2780,7 @@ var GraphQLParseSchema = &Builtin{
 	Description: "Returns an AST object for a GraphQL schema.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("schema", types.S),
+			types.Named("schema", types.S).Description("GraphQL schema string"),
 		),
 		types.Named("output", types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))).Description("AST object for the GraphQL schema."),
 	),
@@ -2785,8 +2793,10 @@ var GraphQLIsValid = &Builtin{
 	Description: "Checks that a GraphQL query is valid against a given schema. The query and/or schema can be either GraphQL strings or AST objects from the other GraphQL builtin functions.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("query", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))),
-			types.Named("schema", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))),
+			types.Named("query", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))).
+				Description("the GraphQL query"),
+			types.Named("schema", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))).
+				Description("the GraphQL schema"),
 		),
 		types.Named("output", types.B).Description("`true` if the query is valid under the given schema. `false` otherwise."),
 	),
@@ -2799,7 +2809,8 @@ var GraphQLSchemaIsValid = &Builtin{
 	Description: "Checks that the input is a valid GraphQL schema. The schema can be either a GraphQL string or an AST object from the other GraphQL builtin functions.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("schema", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))),
+			types.Named("schema", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))).
+				Description("the schema to verify"),
 		),
 		types.Named("output", types.B).Description("`true` if the schema is a valid GraphQL schema. `false` otherwise."),
 	),
@@ -2869,11 +2880,14 @@ var ProvidersAWSSignReqObj = &Builtin{
 	Description: "Signs an HTTP request object for Amazon Web Services. Currently implements [AWS Signature Version 4 request signing](https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html) by the `Authorization` header method.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("request", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))),
-			types.Named("aws_config", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))),
-			types.Named("time_ns", types.N),
+			types.Named("request", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))).
+				Description("HTTP request object"),
+			types.Named("aws_config", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))).
+				Description("AWS configuration object"),
+			types.Named("time_ns", types.N).Description("nanoseconds since the epoch"),
 		),
-		types.Named("signed_request", types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))),
+		types.Named("signed_request", types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))).
+			Description("HTTP request object with `Authorization` header"),
 	),
 	Categories: providersAWSCat,
 }
@@ -2890,7 +2904,8 @@ var RegoParseModule = &Builtin{
 			types.Named("filename", types.S).Description("file name to attach to AST nodes' locations"),
 			types.Named("rego", types.S).Description("Rego module"),
 		),
-		types.Named("output", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))), // TODO(tsandall): import AST schema
+		types.Named("output", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))).
+			Description("AST object for the Rego module"),
 	),
 }
 
@@ -2958,12 +2973,12 @@ var GlobMatch = &Builtin{
 	Description: "Parses and matches strings against the glob notation. Not to be confused with `regex.globs_match`.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("pattern", types.S),
+			types.Named("pattern", types.S).Description("glob pattern"),
 			types.Named("delimiters", types.NewAny(
 				types.NewArray(nil, types.S),
 				types.NewNull(),
 			)).Description("glob pattern delimiters, e.g. `[\".\", \":\"]`, defaults to `[\".\"]` if unset. If `delimiters` is `null`, glob match without delimiter."),
-			types.Named("match", types.S),
+			types.Named("match", types.S).Description("string to match against `pattern`"),
 		),
 		types.Named("result", types.B).Description("true if `match` can be found in `pattern` which is separated by `delimiters`"),
 	),
@@ -2974,7 +2989,7 @@ var GlobQuoteMeta = &Builtin{
 	Description: "Returns a string which represents a version of the pattern where all asterisks have been escaped.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("pattern", types.S),
+			types.Named("pattern", types.S).Description("glob pattern"),
 		),
 		types.Named("output", types.S).Description("the escaped string of `pattern`"),
 	),
@@ -2990,10 +3005,10 @@ var NetCIDRIntersects = &Builtin{
 	Description: "Checks if a CIDR intersects with another CIDR (e.g. `192.168.0.0/16` overlaps with `192.168.1.0/24`). Supports both IPv4 and IPv6 notations.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("cidr1", types.S),
-			types.Named("cidr2", types.S),
+			types.Named("cidr1", types.S).Description("first CIDR"),
+			types.Named("cidr2", types.S).Description("second CIDR"),
 		),
-		types.Named("result", types.B),
+		types.Named("result", types.B).Description("`true` if `cidr1` intersects with `cidr2`"),
 	),
 }
 
@@ -3002,7 +3017,7 @@ var NetCIDRExpand = &Builtin{
 	Description: "Expands CIDR to set of hosts  (e.g., `net.cidr_expand(\"192.168.0.0/30\")` generates 4 hosts: `{\"192.168.0.0\", \"192.168.0.1\", \"192.168.0.2\", \"192.168.0.3\"}`).",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("cidr", types.S),
+			types.Named("cidr", types.S).Description("CIDR to expand"),
 		),
 		types.Named("hosts", types.NewSet(types.S)).Description("set of IP addresses the CIDR `cidr` expands to"),
 	),
@@ -3013,10 +3028,10 @@ var NetCIDRContains = &Builtin{
 	Description: "Checks if a CIDR or IP is contained within another CIDR. `output` is `true` if `cidr_or_ip` (e.g. `127.0.0.64/26` or `127.0.0.1`) is contained within `cidr` (e.g. `127.0.0.1/24`) and `false` otherwise. Supports both IPv4 and IPv6 notations.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("cidr", types.S),
-			types.Named("cidr_or_ip", types.S),
+			types.Named("cidr", types.S).Description("CIDR to check against"),
+			types.Named("cidr_or_ip", types.S).Description("CIDR or IP to check"),
 		),
-		types.Named("result", types.B),
+		types.Named("result", types.B).Description("`true` if `cidr_or_ip` is contained within `cidr`"),
 	),
 }
 
@@ -3026,8 +3041,8 @@ var NetCIDRContainsMatches = &Builtin{
 		"This function is similar to `net.cidr_contains` except it allows callers to pass collections of CIDRs or IPs as arguments and returns the matches (as opposed to a boolean result indicating a match between two CIDRs/IPs).",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("cidrs", netCidrContainsMatchesOperandType),
-			types.Named("cidrs_or_ips", netCidrContainsMatchesOperandType),
+			types.Named("cidrs", netCidrContainsMatchesOperandType).Description("CIDRs to check against"),
+			types.Named("cidrs_or_ips", netCidrContainsMatchesOperandType).Description("CIDRs or IPs to check"),
 		),
 		types.Named("output", types.NewSet(types.NewArray([]types.Type{types.A, types.A}, nil))).Description("tuples identifying matches where `cidrs_or_ips` are contained within `cidrs`"),
 	),
@@ -3054,9 +3069,9 @@ var NetCIDRIsValid = &Builtin{
 	Description: "Parses an IPv4/IPv6 CIDR and returns a boolean indicating if the provided CIDR is valid.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("cidr", types.S),
+			types.Named("cidr", types.S).Description("CIDR to validate"),
 		),
-		types.Named("result", types.B),
+		types.Named("result", types.B).Description("`true` if `cidr` is a valid CIDR"),
 	),
 }
 
@@ -3101,7 +3116,7 @@ var SemVerIsValid = &Builtin{
 	Description: "Validates that the input is a valid SemVer string.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("vsn", types.A),
+			types.Named("vsn", types.A).Description("input to validate"),
 		),
 		types.Named("result", types.B).Description("`true` if `vsn` is a valid SemVer; `false` otherwise"),
 	),
@@ -3112,8 +3127,8 @@ var SemVerCompare = &Builtin{
 	Description: "Compares valid SemVer formatted version strings.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("a", types.S),
-			types.Named("b", types.S),
+			types.Named("a", types.S).Description("first version string"),
+			types.Named("b", types.S).Description("second version string"),
 		),
 		types.Named("result", types.N).Description("`-1` if `a < b`; `1` if `a > b`; `0` if `a == b`"),
 	),
