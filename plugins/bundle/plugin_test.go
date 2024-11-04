@@ -6609,10 +6609,10 @@ result := true`,
 		t.Fatalf("Expected to find status for %s, found nil", bundleName)
 	}
 	if status.Code != errCode {
-		t.Fatalf(`Expected status code to be %s, found %s`, errCode, status.Code)
+		t.Fatalf("Expected status code to be %s, found %s", errCode, status.Code)
 	}
 	if !strings.Contains(status.Message, "detected overlapping") {
-		t.Fatalf(`Expected status message to contain detected overlapping roots", found %s`, status.Message)
+		t.Fatalf(`Expected status message to contain "detected overlapping roots", found %s`, status.Message)
 	}
 }
 
@@ -6651,10 +6651,10 @@ result := true`,
 		t.Fatalf("Expected to find status for %s, found nil", bundleName)
 	}
 	if status.Code != errCode {
-		t.Fatalf(`Expected status code to be %s, found %s`, errCode, status.Code)
+		t.Fatalf("Expected status code to be %s, found %s", errCode, status.Code)
 	}
 	if !strings.Contains(status.Message, "detected overlapping") {
-		t.Fatalf(`Expected status message to contain detected overlapping roots", found %s`, status.Message)
+		t.Fatalf(`Expected status message to contain "detected overlapping roots", found %s`, status.Message)
 	}
 }
 
@@ -6698,7 +6698,7 @@ result := true`,
 		t.Fatalf("Expected to find status for %s, found nil", bundleName)
 	}
 	if status.Code != "" {
-		t.Fatalf(`Expected status code to be empty, found %s`, status.Code)
+		t.Fatalf("Expected status code to be empty, found %s", status.Code)
 	}
 }
 
@@ -6754,9 +6754,9 @@ func getPluginWithExistingLoadedBundle(t *testing.T, bundleName string, roots []
 	if status, ok := plugin.status[bundleName]; !ok {
 		t.Fatalf("Expected to find status for %s, found nil", bundleName)
 	} else if status.Type != bundle.SnapshotBundleType {
-		t.Fatalf("expected snapshot bundle but got %v", status.Type)
+		t.Fatalf("Expected snapshot bundle but got %v", status.Type)
 	} else if status.Size != snapshotBundleSize {
-		t.Fatalf("expected snapshot bundle size %d but got %d", snapshotBundleSize, status.Size)
+		t.Fatalf("Expected snapshot bundle size %d but got %d", snapshotBundleSize, status.Size)
 	}
 
 	return plugin
