@@ -384,10 +384,10 @@ func (c *Compiler) WithPathConflictsCheck(fn func([]string) (bool, error)) *Comp
 	return c
 }
 
-// WithPathConflictsCheckRoot enables checking path conflicts from the specified root instead
+// WithPathConflictsCheckRoots enables checking path conflicts from the specified root instead
 // of the top root node. This would enable optimizting path conflict checks during bundle
 // activation if a bundle already defines its own root paths.
-func (c *Compiler) WithPathConflictsCheckRoot(rootPaths []string) *Compiler {
+func (c *Compiler) WithPathConflictsCheckRoots(rootPaths []string) *Compiler {
 	c.pathConflictCheckRoots = rootPaths
 	return c
 }

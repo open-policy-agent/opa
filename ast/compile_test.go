@@ -1966,7 +1966,7 @@ p { true }`,
 			return false, fmt.Errorf("unexpected error")
 		}
 		return false, nil
-	}).WithPathConflictsCheckRoot([]string{"badrules"})
+	}).WithPathConflictsCheckRoots([]string{"badrules"})
 
 	compileStages(c, c.checkRuleConflicts)
 
