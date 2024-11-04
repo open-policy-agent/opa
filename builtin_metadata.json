@@ -248,6 +248,7 @@
   "abs": {
     "args": [
       {
+        "description": "the number to take the absolute value of",
         "name": "x",
         "type": "number"
       }
@@ -499,10 +500,12 @@
   "and": {
     "args": [
       {
+        "description": "the first set",
         "name": "x",
         "type": "set[any]"
       },
       {
+        "description": "the second set",
         "name": "y",
         "type": "set[any]"
       }
@@ -755,10 +758,12 @@
   "array.concat": {
     "args": [
       {
+        "description": "the first array",
         "name": "x",
         "type": "array[any]"
       },
       {
+        "description": "the second array",
         "name": "y",
         "type": "array[any]"
       }
@@ -1229,6 +1234,7 @@
   "base64.decode": {
     "args": [
       {
+        "description": "string to decode",
         "name": "x",
         "type": "string"
       }
@@ -1356,6 +1362,7 @@
   "base64.encode": {
     "args": [
       {
+        "description": "string to encode",
         "name": "x",
         "type": "string"
       }
@@ -1483,6 +1490,7 @@
   "base64.is_valid": {
     "args": [
       {
+        "description": "string to check",
         "name": "x",
         "type": "string"
       }
@@ -1589,6 +1597,7 @@
   "base64url.decode": {
     "args": [
       {
+        "description": "string to decode",
         "name": "x",
         "type": "string"
       }
@@ -1716,6 +1725,7 @@
   "base64url.encode": {
     "args": [
       {
+        "description": "string to encode",
         "name": "x",
         "type": "string"
       }
@@ -1843,6 +1853,7 @@
   "base64url.encode_no_pad": {
     "args": [
       {
+        "description": "string to encode",
         "name": "x",
         "type": "string"
       }
@@ -1947,10 +1958,12 @@
   "bits.and": {
     "args": [
       {
+        "description": "the first integer",
         "name": "x",
         "type": "number"
       },
       {
+        "description": "the second integer",
         "name": "y",
         "type": "number"
       }
@@ -2065,6 +2078,7 @@
     "description": "Returns the bitwise \"AND\" of two integers.",
     "introduced": "v0.18.0",
     "result": {
+      "description": "the bitwise AND of `x` and `y`",
       "name": "z",
       "type": "number"
     },
@@ -2073,10 +2087,12 @@
   "bits.lsh": {
     "args": [
       {
+        "description": "the integer to shift",
         "name": "x",
         "type": "number"
       },
       {
+        "description": "the number of bits to shift",
         "name": "s",
         "type": "number"
       }
@@ -2191,6 +2207,7 @@
     "description": "Returns a new integer with its bits shifted `s` bits to the left.",
     "introduced": "v0.18.0",
     "result": {
+      "description": "the result of shifting `x` `s` bits to the left",
       "name": "z",
       "type": "number"
     },
@@ -2199,6 +2216,7 @@
   "bits.negate": {
     "args": [
       {
+        "description": "the integer to negate",
         "name": "x",
         "type": "number"
       }
@@ -2313,6 +2331,7 @@
     "description": "Returns the bitwise negation (flip) of an integer.",
     "introduced": "v0.18.0",
     "result": {
+      "description": "the bitwise negation of `x`",
       "name": "z",
       "type": "number"
     },
@@ -2321,10 +2340,12 @@
   "bits.or": {
     "args": [
       {
+        "description": "the first integer",
         "name": "x",
         "type": "number"
       },
       {
+        "description": "the second integer",
         "name": "y",
         "type": "number"
       }
@@ -2439,6 +2460,7 @@
     "description": "Returns the bitwise \"OR\" of two integers.",
     "introduced": "v0.18.0",
     "result": {
+      "description": "the bitwise OR of `x` and `y`",
       "name": "z",
       "type": "number"
     },
@@ -2447,10 +2469,12 @@
   "bits.rsh": {
     "args": [
       {
+        "description": "the integer to shift",
         "name": "x",
         "type": "number"
       },
       {
+        "description": "the number of bits to shift",
         "name": "s",
         "type": "number"
       }
@@ -2565,6 +2589,7 @@
     "description": "Returns a new integer with its bits shifted `s` bits to the right.",
     "introduced": "v0.18.0",
     "result": {
+      "description": "the result of shifting `x` `s` bits to the right",
       "name": "z",
       "type": "number"
     },
@@ -2573,10 +2598,12 @@
   "bits.xor": {
     "args": [
       {
+        "description": "the first integer",
         "name": "x",
         "type": "number"
       },
       {
+        "description": "the second integer",
         "name": "y",
         "type": "number"
       }
@@ -2691,6 +2718,7 @@
     "description": "Returns the bitwise \"XOR\" (exclusive-or) of two integers.",
     "introduced": "v0.18.0",
     "result": {
+      "description": "the bitwise XOR of `x` and `y`",
       "name": "z",
       "type": "number"
     },
@@ -3542,6 +3570,7 @@
   "concat": {
     "args": [
       {
+        "description": "string to use as a delimiter",
         "name": "delimiter",
         "type": "string"
       },
@@ -3665,6 +3694,7 @@
     "description": "Joins a set or array of strings with a delimiter.",
     "introduced": "v0.17.0",
     "result": {
+      "description": "the joined string",
       "name": "output",
       "type": "string"
     },
@@ -4315,6 +4345,7 @@
   "crypto.md5": {
     "args": [
       {
+        "description": "input string",
         "name": "x",
         "type": "string"
       }
@@ -4482,6 +4513,7 @@
   "crypto.sha1": {
     "args": [
       {
+        "description": "input string",
         "name": "x",
         "type": "string"
       }
@@ -4609,6 +4641,7 @@
   "crypto.sha256": {
     "args": [
       {
+        "description": "input string",
         "name": "x",
         "type": "string"
       }
@@ -5988,6 +6021,7 @@
   "glob.match": {
     "args": [
       {
+        "description": "glob pattern",
         "name": "pattern",
         "type": "string"
       },
@@ -5997,6 +6031,7 @@
         "type": "any\u003cnull, array[string]\u003e"
       },
       {
+        "description": "string to match against `pattern`",
         "name": "match",
         "type": "string"
       }
@@ -6124,6 +6159,7 @@
   "glob.quote_meta": {
     "args": [
       {
+        "description": "glob pattern",
         "name": "pattern",
         "type": "string"
       }
@@ -6456,10 +6492,12 @@
   "graphql.is_valid": {
     "args": [
       {
+        "description": "the GraphQL query",
         "name": "query",
         "type": "any\u003cstring, object[any: any]\u003e"
       },
       {
+        "description": "the GraphQL schema",
         "name": "schema",
         "type": "any\u003cstring, object[any: any]\u003e"
       }
@@ -6528,10 +6566,12 @@
   "graphql.parse": {
     "args": [
       {
+        "description": "the GraphQL query",
         "name": "query",
         "type": "any\u003cstring, object[any: any]\u003e"
       },
       {
+        "description": "the GraphQL schema",
         "name": "schema",
         "type": "any\u003cstring, object[any: any]\u003e"
       }
@@ -6600,10 +6640,12 @@
   "graphql.parse_and_verify": {
     "args": [
       {
+        "description": "the GraphQL query",
         "name": "query",
         "type": "any\u003cstring, object[any: any]\u003e"
       },
       {
+        "description": "the GraphQL schema",
         "name": "schema",
         "type": "any\u003cstring, object[any: any]\u003e"
       }
@@ -6672,6 +6714,7 @@
   "graphql.parse_query": {
     "args": [
       {
+        "description": "GraphQL query string",
         "name": "query",
         "type": "string"
       }
@@ -6740,6 +6783,7 @@
   "graphql.parse_schema": {
     "args": [
       {
+        "description": "GraphQL schema string",
         "name": "schema",
         "type": "string"
       }
@@ -6808,6 +6852,7 @@
   "graphql.schema_is_valid": {
     "args": [
       {
+        "description": "the schema to verify",
         "name": "schema",
         "type": "any\u003cstring, object[any: any]\u003e"
       }
@@ -7235,6 +7280,7 @@
   "hex.encode": {
     "args": [
       {
+        "description": "string to encode",
         "name": "x",
         "type": "string"
       }
@@ -7339,6 +7385,7 @@
   "http.send": {
     "args": [
       {
+        "description": "the HTTP request object",
         "name": "request",
         "type": "object[string: any]"
       }
@@ -7457,6 +7504,7 @@
     "description": "Returns a HTTP response to the given HTTP request.",
     "introduced": "v0.17.0",
     "result": {
+      "description": "the HTTP response object",
       "name": "response",
       "type": "object[any: any]"
     },
@@ -10108,6 +10156,7 @@
   "is_array": {
     "args": [
       {
+        "description": "input value",
         "name": "x",
         "type": "any"
       }
@@ -10235,6 +10284,7 @@
   "is_boolean": {
     "args": [
       {
+        "description": "input value",
         "name": "x",
         "type": "any"
       }
@@ -10362,6 +10412,7 @@
   "is_null": {
     "args": [
       {
+        "description": "input value",
         "name": "x",
         "type": "any"
       }
@@ -10489,6 +10540,7 @@
   "is_number": {
     "args": [
       {
+        "description": "input value",
         "name": "x",
         "type": "any"
       }
@@ -10616,6 +10668,7 @@
   "is_object": {
     "args": [
       {
+        "description": "input value",
         "name": "x",
         "type": "any"
       }
@@ -10743,6 +10796,7 @@
   "is_set": {
     "args": [
       {
+        "description": "input value",
         "name": "x",
         "type": "any"
       }
@@ -10870,6 +10924,7 @@
   "is_string": {
     "args": [
       {
+        "description": "input value",
         "name": "x",
         "type": "any"
       }
@@ -10997,6 +11052,7 @@
   "json.filter": {
     "args": [
       {
+        "description": "object to filter",
         "name": "object",
         "type": "object[any: any]"
       },
@@ -11450,10 +11506,12 @@
   "json.patch": {
     "args": [
       {
+        "description": "the object to patch",
         "name": "object",
         "type": "any"
       },
       {
+        "description": "the JSON patches to apply",
         "name": "patches",
         "type": "array[object\u003cop: string, path: any\u003e[any: any]]"
       }
@@ -11555,6 +11613,7 @@
   "json.remove": {
     "args": [
       {
+        "description": "object to remove paths from",
         "name": "object",
         "type": "object[any: any]"
       },
@@ -12249,6 +12308,7 @@
   "max": {
     "args": [
       {
+        "description": "the set or array to be searched",
         "name": "collection",
         "type": "any\u003carray[any], set[any]\u003e"
       }
@@ -12376,6 +12436,7 @@
   "min": {
     "args": [
       {
+        "description": "the set or array to be searched",
         "name": "collection",
         "type": "any\u003carray[any], set[any]\u003e"
       }
@@ -12898,10 +12959,12 @@
   "net.cidr_contains": {
     "args": [
       {
+        "description": "CIDR to check against",
         "name": "cidr",
         "type": "string"
       },
       {
+        "description": "CIDR or IP to check",
         "name": "cidr_or_ip",
         "type": "string"
       }
@@ -13020,6 +13083,7 @@
     "description": "Checks if a CIDR or IP is contained within another CIDR. `output` is `true` if `cidr_or_ip` (e.g. `127.0.0.64/26` or `127.0.0.1`) is contained within `cidr` (e.g. `127.0.0.1/24`) and `false` otherwise. Supports both IPv4 and IPv6 notations.",
     "introduced": "v0.17.0",
     "result": {
+      "description": "`true` if `cidr_or_ip` is contained within `cidr`",
       "name": "result",
       "type": "boolean"
     },
@@ -13028,10 +13092,12 @@
   "net.cidr_contains_matches": {
     "args": [
       {
+        "description": "CIDRs to check against",
         "name": "cidrs",
         "type": "any\u003cstring, array[any\u003cstring, array[any]\u003e], object[string: any\u003cstring, array[any]\u003e], set[any\u003cstring, array[any]\u003e]\u003e"
       },
       {
+        "description": "CIDRs or IPs to check",
         "name": "cidrs_or_ips",
         "type": "any\u003cstring, array[any\u003cstring, array[any]\u003e], object[string: any\u003cstring, array[any]\u003e], set[any\u003cstring, array[any]\u003e]\u003e"
       }
@@ -13154,6 +13220,7 @@
   "net.cidr_expand": {
     "args": [
       {
+        "description": "CIDR to expand",
         "name": "cidr",
         "type": "string"
       }
@@ -13281,10 +13348,12 @@
   "net.cidr_intersects": {
     "args": [
       {
+        "description": "first CIDR",
         "name": "cidr1",
         "type": "string"
       },
       {
+        "description": "second CIDR",
         "name": "cidr2",
         "type": "string"
       }
@@ -13403,6 +13472,7 @@
     "description": "Checks if a CIDR intersects with another CIDR (e.g. `192.168.0.0/16` overlaps with `192.168.1.0/24`). Supports both IPv4 and IPv6 notations.",
     "introduced": "v0.17.0",
     "result": {
+      "description": "`true` if `cidr1` intersects with `cidr2`",
       "name": "result",
       "type": "boolean"
     },
@@ -13411,6 +13481,7 @@
   "net.cidr_is_valid": {
     "args": [
       {
+        "description": "CIDR to validate",
         "name": "cidr",
         "type": "string"
       }
@@ -13462,6 +13533,7 @@
     "description": "Parses an IPv4/IPv6 CIDR and returns a boolean indicating if the provided CIDR is valid.",
     "introduced": "v0.46.0",
     "result": {
+      "description": "`true` if `cidr` is a valid CIDR",
       "name": "result",
       "type": "boolean"
     },
@@ -13783,10 +13855,12 @@
   "numbers.range": {
     "args": [
       {
+        "description": "the start of the range",
         "name": "a",
         "type": "number"
       },
       {
+        "description": "the end of the range (inclusive)",
         "name": "b",
         "type": "number"
       }
@@ -13897,14 +13971,17 @@
   "numbers.range_step": {
     "args": [
       {
+        "description": "the start of the range",
         "name": "a",
         "type": "number"
       },
       {
+        "description": "the end of the range (inclusive)",
         "name": "b",
         "type": "number"
       },
       {
+        "description": "the step between numbers in the range",
         "name": "step",
         "type": "number"
       }
@@ -13948,6 +14025,7 @@
         "type": "object[any: any]"
       },
       {
+        "description": "keys to keep in `object`",
         "name": "keys",
         "type": "any\u003carray[any], object[any: any], set[any]\u003e"
       }
@@ -14472,10 +14550,12 @@
   "object.union": {
     "args": [
       {
+        "description": "left-hand object",
         "name": "a",
         "type": "object[any: any]"
       },
       {
+        "description": "right-hand object",
         "name": "b",
         "type": "object[any: any]"
       }
@@ -14601,6 +14681,7 @@
   "object.union_n": {
     "args": [
       {
+        "description": "list of objects to merge",
         "name": "objects",
         "type": "array[object[any: any]]"
       }
@@ -15133,6 +15214,7 @@
   "product": {
     "args": [
       {
+        "description": "the set or array of numbers to multiply",
         "name": "collection",
         "type": "any\u003carray[number], set[number]\u003e"
       }
@@ -15248,7 +15330,7 @@
       "v0.70.0",
       "edge"
     ],
-    "description": "Muliplies elements of an array or set of numbers",
+    "description": "Multiplies elements of an array or set of numbers",
     "introduced": "v0.17.0",
     "result": {
       "description": "the product of all elements",
@@ -15260,14 +15342,17 @@
   "providers.aws.sign_req": {
     "args": [
       {
+        "description": "HTTP request object",
         "name": "request",
         "type": "object[string: any]"
       },
       {
+        "description": "AWS configuration object",
         "name": "aws_config",
         "type": "object[string: any]"
       },
       {
+        "description": "nanoseconds since the epoch",
         "name": "time_ns",
         "type": "number"
       }
@@ -15315,6 +15400,7 @@
     "description": "Signs an HTTP request object for Amazon Web Services. Currently implements [AWS Signature Version 4 request signing](https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html) by the `Authorization` header method.",
     "introduced": "v0.47.0",
     "result": {
+      "description": "HTTP request object with `Authorization` header",
       "name": "signed_request",
       "type": "object[any: any]"
     },
@@ -15323,10 +15409,12 @@
   "rand.intn": {
     "args": [
       {
+        "description": "seed string for the random number",
         "name": "str",
         "type": "string"
       },
       {
+        "description": "upper bound of the random number (exclusive)",
         "name": "n",
         "type": "number"
       }
@@ -15669,6 +15757,7 @@
     "description": "Returns all successive matches of the expression.",
     "introduced": "v0.17.0",
     "result": {
+      "description": "array of all matches",
       "name": "output",
       "type": "array[array[string]]"
     },
@@ -15815,10 +15904,12 @@
   "regex.globs_match": {
     "args": [
       {
+        "description": "first glob-style regular expression",
         "name": "glob1",
         "type": "string"
       },
       {
+        "description": "second glob-style regular expression",
         "name": "glob2",
         "type": "string"
       }
@@ -15937,6 +16028,7 @@
     "description": "Checks if the intersection of two glob-style regular expressions matches a non-empty set of non-empty strings.\nThe set of regex symbols is limited for this builtin: only `.`, `*`, `+`, `[`, `-`, `]` and `\\` are treated as special symbols.",
     "introduced": "v0.17.0",
     "result": {
+      "description": "true if the intersection of `glob1` and `glob2` matches a non-empty set of non-empty strings",
       "name": "result",
       "type": "boolean"
     },
@@ -16046,6 +16138,7 @@
     "description": "Checks if a string is a valid regular expression: the detailed syntax for patterns is defined by https://github.com/google/re2/wiki/Syntax.",
     "introduced": "v0.23.0",
     "result": {
+      "description": "true if `pattern` is a valid regular expression",
       "name": "result",
       "type": "boolean"
     },
@@ -16160,6 +16253,7 @@
     "description": "Matches a string against a regular expression.",
     "introduced": "v0.23.0",
     "result": {
+      "description": "true if `value` matches `pattern`",
       "name": "result",
       "type": "boolean"
     },
@@ -16231,6 +16325,7 @@
     "description": "Find and replaces the text using the regular expression pattern.",
     "introduced": "v0.45.0",
     "result": {
+      "description": "string with replaced substrings",
       "name": "output",
       "type": "string"
     },
@@ -16506,6 +16601,7 @@
     "description": "Matches a string against a pattern, where there pattern may be glob-like",
     "introduced": "v0.17.0",
     "result": {
+      "description": "true if `value` matches the `template`",
       "name": "result",
       "type": "boolean"
     },
@@ -16766,6 +16862,7 @@
     "description": "Parses the input Rego string and returns an object representation of the AST.",
     "introduced": "v0.17.0",
     "result": {
+      "description": "AST object for the Rego module",
       "name": "output",
       "type": "object[string: any]"
     },
@@ -17172,10 +17269,12 @@
   "semver.compare": {
     "args": [
       {
+        "description": "first version string",
         "name": "a",
         "type": "string"
       },
       {
+        "description": "second version string",
         "name": "b",
         "type": "string"
       }
@@ -17286,6 +17385,7 @@
   "semver.is_valid": {
     "args": [
       {
+        "description": "input to validate",
         "name": "vsn",
         "type": "any"
       }
@@ -18380,6 +18480,7 @@
     "description": "Replaces a string from a list of old, new string pairs.\nReplacements are performed in the order they appear in the target string, without overlapping matches.\nThe old string comparisons are done in argument order.",
     "introduced": "v0.17.0",
     "result": {
+      "description": "string with replaced substrings",
       "name": "output",
       "type": "string"
     },
@@ -18388,6 +18489,7 @@
   "strings.reverse": {
     "args": [
       {
+        "description": "string to reverse",
         "name": "x",
         "type": "string"
       }
@@ -18456,6 +18558,7 @@
     "description": "Reverses a given string.",
     "introduced": "v0.36.0",
     "result": {
+      "description": "reversed string",
       "name": "y",
       "type": "string"
     },
@@ -18464,6 +18567,7 @@
   "substring": {
     "args": [
       {
+        "description": "string to extract substring from",
         "name": "value",
         "type": "string"
       },
@@ -18601,6 +18705,7 @@
   "sum": {
     "args": [
       {
+        "description": "the set or array of numbers to sum",
         "name": "collection",
         "type": "any\u003carray[number], set[number]\u003e"
       }
@@ -18733,14 +18838,17 @@
         "type": "number"
       },
       {
+        "description": "number of years to add",
         "name": "years",
         "type": "number"
       },
       {
+        "description": "number of months to add",
         "name": "months",
         "type": "number"
       },
       {
+        "description": "number of days to add",
         "name": "days",
         "type": "number"
       }
@@ -19118,10 +19226,12 @@
   "time.diff": {
     "args": [
       {
+        "description": "nanoseconds since the epoch; or a two-element array of the nanoseconds, and a timezone string",
         "name": "ns1",
         "type": "any\u003cnumber, array\u003cnumber, string\u003e\u003e"
       },
       {
+        "description": "nanoseconds since the epoch; or a two-element array of the nanoseconds, and a timezone string",
         "name": "ns2",
         "type": "any\u003cnumber, array\u003cnumber, string\u003e\u003e"
       }
@@ -19652,6 +19762,7 @@
   "time.parse_rfc3339_ns": {
     "args": [
       {
+        "description": "input string to parse in RFC3339 format",
         "name": "value",
         "type": "string"
       }
@@ -19907,6 +20018,7 @@
   "to_number": {
     "args": [
       {
+        "description": "value to convert",
         "name": "x",
         "type": "any\u003cnull, boolean, number, string\u003e"
       }
@@ -20025,6 +20137,7 @@
     "description": "Converts a string, bool, or number value to a number: Strings are converted to numbers using `strconv.Atoi`, Boolean `false` is converted to 0 and `true` is converted to 1.",
     "introduced": "v0.17.0",
     "result": {
+      "description": "the numeric representation of `x`",
       "name": "num",
       "type": "number"
     },
@@ -20954,6 +21067,7 @@
   "type_name": {
     "args": [
       {
+        "description": "input value",
         "name": "x",
         "type": "any"
       }
@@ -21534,6 +21648,7 @@
   "urlquery.decode": {
     "args": [
       {
+        "description": "the URL-encoded string",
         "name": "x",
         "type": "string"
       }
@@ -21768,6 +21883,7 @@
   "urlquery.encode": {
     "args": [
       {
+        "description": "the string to encode",
         "name": "x",
         "type": "string"
       }
@@ -21895,6 +22011,7 @@
   "urlquery.encode_object": {
     "args": [
       {
+        "description": "the object to encode",
         "name": "object",
         "type": "object[string: any\u003cstring, array[string], set[string]\u003e]"
       }
@@ -22022,6 +22139,7 @@
   "uuid.parse": {
     "args": [
       {
+        "description": "UUID string to parse",
         "name": "uuid",
         "type": "string"
       }
@@ -22059,6 +22177,7 @@
   "uuid.rfc4122": {
     "args": [
       {
+        "description": "seed string",
         "name": "k",
         "type": "string"
       }
@@ -22177,6 +22296,7 @@
   "walk": {
     "args": [
       {
+        "description": "value to walk",
         "name": "x",
         "type": "any"
       }
