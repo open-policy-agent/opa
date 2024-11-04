@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"slices"
 	"strings"
 )
 
@@ -18,7 +19,7 @@ func CheckPathConflicts(c *Compiler, exists func([]string) (bool, error)) Errors
 		return nil
 	}
 
-	if len(c.pathConflictCheckRoots) == 0 {
+	if len(c.pathConflictCheckRoots) == 0 || slices.Contains(c.pathConflictCheckRoots, "") {
 		for _, child := range root.Children {
 			errs = append(errs, checkDocumentConflicts(child, exists, nil)...)
 		}
