@@ -288,6 +288,8 @@ pre-production (in alphabetical order):
 
 * [Magda](https://github.com/magda-io/magda) is a federated, Kubernetes-based, open-source data catalog system. Working as Magda's central authorisation policy engine, OPA helps not only the API endpoint authorisation. Magda also uses its partial evaluation feature to translate datasets authorisation decisions to other database-specific DSLs (e.g. SQL or Elasticsearch DSL) and use them for dataset authorisation enforcement in different databases.
 
+* [VodafoneZiggo](https://www.vodafoneziggo.nl/) Is a Dutch telecommunications company that uses OPA to power authorisation decisions in our internal developer platform based on Backstage, it is also used as a way to enforce and validate component metadata that is onboarded as software components into the Backstage software catalog.
+
 Other adopters that have gone into production or various stages of
 testing include:
 
