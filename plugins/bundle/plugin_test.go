@@ -2122,9 +2122,9 @@ func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 	}
 }
 
+// Warning: This test modifies package variables, and as
+// a result, cannot be run in parallel with other tests.
 func TestLoadAndActivateBundlesFromDiskReservedChars(t *testing.T) {
-	t.Parallel()
-
 	ctx := context.Background()
 	manager := getTestManager()
 
@@ -6609,9 +6609,9 @@ func TestPluginManualTriggerWithTimeout(t *testing.T) {
 	}
 }
 
+// Warning: This test modifies package variables, and as
+// a result, cannot be run in parallel with other tests.
 func TestGetNormalizedBundleName(t *testing.T) {
-	t.Parallel()
-
 	cases := []struct {
 		input string
 		goos  string
