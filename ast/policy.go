@@ -136,6 +136,8 @@ var KeywordsV1 = [...]string{
 
 func KeywordsForRegoVersion(v RegoVersion) []string {
 	switch v {
+	case RegoUndefined:
+		return KeywordsForRegoVersion(DefaultRegoVersion)
 	case RegoV0:
 		return KeywordsV0[:]
 	case RegoV1, RegoV0CompatV1:
@@ -791,6 +793,13 @@ type toStringOpts struct {
 	regoVersion RegoVersion
 }
 
+func (opts toStringOpts) RegoVersion() RegoVersion {
+	if opts.regoVersion == RegoUndefined {
+		return DefaultRegoVersion
+	}
+	return opts.regoVersion
+}
+
 func (rule *Rule) stringWithOpts(opts toStringOpts) string {
 	buf := []string{}
 	if rule.Default {
@@ -798,7 +807,7 @@ func (rule *Rule) stringWithOpts(opts toStringOpts) string {
 	}
 	buf = append(buf, rule.Head.stringWithOpts(opts))
 	if !rule.Default {
-		switch opts.regoVersion {
+		switch opts.RegoVersion() {
 		case RegoV1, RegoV0CompatV1:
 			buf = append(buf, "if")
 		}
@@ -861,7 +870,7 @@ func (rule *Rule) elseString(opts toStringOpts) string {
 		buf = append(buf, value.String())
 	}
 
-	switch opts.regoVersion {
+	switch opts.RegoVersion() {
 	case RegoV1, RegoV0CompatV1:
 		buf = append(buf, "if")
 	}
@@ -1043,7 +1052,7 @@ func (head *Head) stringWithOpts(opts toStringOpts) string {
 	case len(head.Args) != 0:
 		buf.WriteString(head.Args.String())
 	case len(head.Reference) == 1 && head.Key != nil:
-		switch opts.regoVersion {
+		switch opts.RegoVersion() {
 		case RegoV0:
 			buf.WriteRune('[')
 			buf.WriteString(head.Key.String())

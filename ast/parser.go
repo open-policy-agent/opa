@@ -30,11 +30,12 @@ var RegoV1CompatibleRef = Ref{VarTerm("rego"), StringTerm("v1")}
 // RegoVersion defines the Rego syntax requirements for a module.
 type RegoVersion int
 
-const DefaultRegoVersion = RegoVersion(0)
+const DefaultRegoVersion = RegoV0
 
 const (
+	RegoUndefined RegoVersion = iota
 	// RegoV0 is the default, original Rego syntax.
-	RegoV0 RegoVersion = iota
+	RegoV0
 	// RegoV0CompatV1 requires modules to comply with both the RegoV0 and RegoV1 syntax (as when 'rego.v1' is imported in a module).
 	// Shortly, RegoV1 compatibility is required, but 'rego.v1' or 'future.keywords' must also be imported.
 	RegoV0CompatV1
@@ -116,6 +117,10 @@ type Parser struct {
 	cache parsedTermCache
 }
 
+func (p *Parser) ParserOptions() ParserOptions {
+	return p.po
+}
+
 type parsedTermCacheItem struct {
 	t      *Term
 	post   *state // post is the post-state that's restored on a cache-hit
@@ -162,6 +167,10 @@ func (po *ParserOptions) EffectiveRegoVersion() RegoVersion {
 }
 
 // NewParser creates and initializes a Parser.
+//
+// Returns a Parser that expects modules using the v0 syntax.
+// To parse modules with the v1 syntax, use [Parser.WithRegoVersion],
+// or use [github.com/open-policy-agent/opa/v1/parser.NewParser] instead.
 func NewParser() *Parser {
 	p := &Parser{
 		s:  &state{},

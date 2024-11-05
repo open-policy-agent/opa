@@ -244,8 +244,8 @@ func (m Manifest) Copy() Manifest {
 func (m Manifest) String() string {
 	m.Init()
 	if m.RegoVersion != nil {
-		return fmt.Sprintf("<revision: %q, rego_version: %d, roots: %v, wasm: %+v, metadata: %+v>",
-			m.Revision, *m.RegoVersion, *m.Roots, m.WasmResolvers, m.Metadata)
+		return fmt.Sprintf("<revision: %q, rego_version: %d, file_rego_versions: %v, roots: %v, wasm: %+v, metadata: %+v>",
+			m.Revision, *m.RegoVersion, m.FileRegoVersions, *m.Roots, m.WasmResolvers, m.Metadata)
 	}
 	return fmt.Sprintf("<revision: %q, roots: %v, wasm: %+v, metadata: %+v>",
 		m.Revision, *m.Roots, m.WasmResolvers, m.Metadata)

@@ -97,6 +97,7 @@ func CapabilitiesForThisVersion() *Capabilities {
 		return f.Builtins[i].Name < f.Builtins[j].Name
 	})
 
+	// FIXME: In v1, this list should be empty
 	for kw := range futureKeywords {
 		f.FutureKeywords = append(f.FutureKeywords, kw)
 	}

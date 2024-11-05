@@ -1,8 +1,7 @@
-// Copyright 2017 The OPA Authors.  All rights reserved.
+// Copyright 2024 The OPA Authors.  All rights reserved.
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-// nolint: goconst // string duplication is for test readability.
 package rego
 
 import (
@@ -35,7 +34,244 @@ import (
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
+	"github.com/open-policy-agent/opa/v1/parser"
 )
+
+func TestRegoEval(t *testing.T) {
+	tests := []struct {
+		note        string
+		module      string
+		regoVersion ast.RegoVersion
+		expErr      string
+	}{
+		// Default to v1
+		{
+			note: "undefined rego-version, v0 module",
+			module: `package test
+p := x {
+	x := 42
+}`,
+			regoVersion: ast.RegoUndefined,
+			expErr:      "rego_parse_error: `if` keyword is required before rule body",
+		},
+		{
+			note: "undefined rego-version, rego.v1 import",
+			module: `package test
+import rego.v1
+
+p := x if {
+	x := 42
+}`,
+			regoVersion: ast.RegoUndefined,
+		},
+		{
+			note: "undefined rego-version, v1 module",
+			module: `package test
+p := x if {
+	x := 42
+}`,
+			regoVersion: ast.RegoUndefined,
+		},
+
+		// Override to v0
+		{
+			note: "v0 rego-version override, v0 module",
+			module: `package test
+p := x {
+	x := 42
+}`,
+			regoVersion: ast.RegoV0,
+		},
+		{
+			note: "v0 rego-version override, rego.v1 import",
+			module: `package test
+import rego.v1
+
+p := x if {
+	x := 42
+}`,
+			regoVersion: ast.RegoV0,
+		},
+		{
+			note: "v0 rego-version override, v1 module",
+			module: `package test
+p := x if {
+	x := 42
+}`,
+			regoVersion: ast.RegoV0,
+			expErr:      "rego_unsafe_var_error: var x is unsafe",
+		},
+
+		// Override to v1 (same as default)
+		{
+			note: "v1 rego-version override, v0 module",
+			module: `package test
+p := x {
+	x := 42
+}`,
+			regoVersion: ast.RegoV1,
+			expErr:      "rego_parse_error: `if` keyword is required before rule body",
+		},
+		{
+			note: "v1 rego-version override, rego.v1 import",
+			module: `package test
+import rego.v1
+
+p := x if {
+	x := 42
+}`,
+			regoVersion: ast.RegoV1,
+		},
+		{
+			note: "v1 rego-version override, v1 module",
+			module: `package test
+p := x if {
+	x := 42
+}`,
+			regoVersion: ast.RegoV1,
+		},
+	}
+
+	query := "x = data.test.p"
+	expBindings := Vars{"x": json.Number("42")}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			opts := []func(*Rego){
+				Module("test.rego", tc.module),
+				Query(query),
+			}
+
+			if tc.regoVersion != ast.RegoUndefined {
+				opts = append(opts, SetRegoVersion(tc.regoVersion))
+			}
+
+			r := New(opts...)
+			rs, err := r.Eval(context.Background())
+
+			if tc.expErr != "" {
+				if err == nil {
+					t.Fatalf("Expected error, got nil")
+				}
+
+				if !strings.Contains(err.Error(), tc.expErr) {
+					test.FatalMismatch(t, err.Error(), tc.expErr)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+
+				if len(rs) != 1 {
+					t.Fatalf("Expected exactly one result, got: %v", rs)
+				}
+
+				if !reflect.DeepEqual(rs[0].Bindings, expBindings) {
+					test.FatalMismatch(t, rs[0].Bindings, expBindings)
+				}
+			}
+		})
+	}
+}
+
+func TestRegoEvalConstructedModule(t *testing.T) {
+	tests := []struct {
+		note        string
+		module      ast.Module
+		regoVersion ast.RegoVersion
+		expErr      string
+	}{
+		{
+			note: "undefined rego-version",
+			module: ast.Module{
+				Package: &ast.Package{
+					Path: ast.Ref{ast.VarTerm("data"), ast.StringTerm("test")},
+				},
+				Rules: []*ast.Rule{
+					{
+						Head: ast.NewHead("p", nil, ast.VarTerm("x")),
+						Body: ast.NewBody(ast.Equality.Expr(ast.VarTerm("x"), ast.NumberTerm("42"))),
+					},
+				},
+			},
+		},
+		{
+			note: "undefined rego-version, duplicate imports",
+			module: ast.Module{
+				Package: &ast.Package{
+					Path: ast.Ref{ast.VarTerm("data"), ast.StringTerm("test")},
+				},
+				Imports: []*ast.Import{
+					{Path: ast.RefTerm(ast.VarTerm("data"), ast.StringTerm("foo"))},
+					{Path: ast.RefTerm(ast.VarTerm("data"), ast.StringTerm("foo"))},
+				},
+				Rules: []*ast.Rule{
+					{
+						Head: ast.NewHead("p", nil, ast.VarTerm("x")),
+						Body: ast.NewBody(ast.Equality.Expr(ast.VarTerm("x"), ast.NumberTerm("42"))),
+					},
+				},
+			},
+			expErr: "rego_compile_error: import must not shadow import data.foo",
+		},
+		{
+			note: "undefined rego-version, shadowed keyword",
+			module: ast.Module{
+				Package: &ast.Package{
+					Path: ast.Ref{ast.VarTerm("data"), ast.StringTerm("test")},
+				},
+				Rules: []*ast.Rule{
+					{
+						Head: ast.NewHead("input"),
+						Body: ast.NewBody(&ast.Expr{Terms: ast.BooleanTerm(true)}),
+					},
+				},
+			},
+			expErr: "rego_compile_error: rules must not shadow input (use a different rule name)",
+		},
+	}
+
+	query := "x = data.test.p"
+	expBindings := Vars{"x": json.Number("42")}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			opts := []func(*Rego){
+				ParsedModule(&tc.module),
+				Query(query),
+			}
+
+			if tc.regoVersion != ast.RegoUndefined {
+				opts = append(opts, SetRegoVersion(tc.regoVersion))
+			}
+
+			r := New(opts...)
+			rs, err := r.Eval(context.Background())
+
+			if tc.expErr != "" {
+				if err == nil {
+					t.Fatalf("Expected error, got nil")
+				}
+
+				if !strings.Contains(err.Error(), tc.expErr) {
+					test.FatalMismatch(t, err.Error(), tc.expErr)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+
+				if len(rs) != 1 {
+					t.Fatalf("Expected exactly one result, got: %v", rs)
+				}
+
+				if !reflect.DeepEqual(rs[0].Bindings, expBindings) {
+					test.FatalMismatch(t, rs[0].Bindings, expBindings)
+				}
+			}
+		})
+	}
+}
 
 func assertEval(t *testing.T, r *Rego, expected string) {
 	t.Helper()
@@ -1777,7 +2013,7 @@ func TestPreparedQueryGetModules(t *testing.T) {
 		if !found {
 			t.Fatalf("Unexpected module %s", name)
 		}
-		if actualMod.String() != ast.MustParseModule(expectedMod).String() {
+		if actualMod.String() != parser.MustParseModule(expectedMod).String() {
 			t.Fatalf("Modules for %s do not match.\n\nExpected:\n%s\n\nActual:\n%s\n\n",
 				name, actualMod.String(), expectedMod)
 		}

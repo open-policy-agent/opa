@@ -149,6 +149,7 @@ type Compiler struct {
 	allowUndefinedFuncCalls    bool                          // don't error on calls to unknown functions.
 	evalMode                   CompilerEvalMode              //
 	rewriteTestRulesForTracing bool                          // rewrite test rules to capture dynamic values for tracing.
+	defaultRegoVersion         RegoVersion                   // default Rego version to use when a module doesn't specify one
 }
 
 // CompilerStage defines the interface for stages in the compiler.
@@ -292,6 +293,10 @@ type stage struct {
 }
 
 // NewCompiler returns a new empty compiler.
+//
+// By default, modules with no assigned [ast.RegoVersion], such as handcrafted modules that haven't been parsed from a file,
+// will be treated as [ast.RegoV0] modules. To default to [ast.RegoV1] instead, use [github.com/open-policy-agent/opa/v1/compile.NewCompiler],
+// or explicitly set the default rego-version on the compiler returned here using [Compiler.WithDefaultRegoVersion].
 func NewCompiler() *Compiler {
 
 	c := &Compiler{
@@ -475,6 +480,11 @@ func (c *Compiler) WithEvalMode(e CompilerEvalMode) *Compiler {
 // so they can be accessed by tracing.
 func (c *Compiler) WithRewriteTestRules(rewrite bool) *Compiler {
 	c.rewriteTestRulesForTracing = rewrite
+	return c
+}
+
+func (c *Compiler) WithDefaultRegoVersion(version RegoVersion) *Compiler {
+	c.defaultRegoVersion = version
 	return c
 }
 
@@ -1704,7 +1714,7 @@ func (c *Compiler) checkDuplicateImports() {
 
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		if c.strict || mod.regoV1Compatible() {
+		if c.strict || c.moduleIsRegoV1(mod) {
 			modules = append(modules, mod)
 		}
 	}
@@ -1718,13 +1728,27 @@ func (c *Compiler) checkDuplicateImports() {
 func (c *Compiler) checkKeywordOverrides() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		if c.strict || mod.regoV1Compatible() {
+		if c.strict || c.moduleIsRegoV1(mod) {
 			errs := checkRootDocumentOverrides(mod)
 			for _, err := range errs {
 				c.err(err)
 			}
 		}
 	}
+}
+
+func (c *Compiler) moduleIsRegoV1(mod *Module) bool {
+	switch mod.regoVersion {
+	case RegoUndefined:
+		switch c.defaultRegoVersion {
+		case RegoV1, RegoV0CompatV1:
+			return true
+		default:
+			return false
+		}
+	}
+
+	return mod.regoV1Compatible()
 }
 
 // resolveAllRefs resolves references in expressions to their fully qualified values.

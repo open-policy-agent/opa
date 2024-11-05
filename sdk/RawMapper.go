@@ -1,17 +1,9 @@
 package sdk
 
 import (
-	"github.com/open-policy-agent/opa/rego"
+	v1 "github.com/open-policy-agent/opa/v1/sdk"
 )
 
-type RawMapper struct {
-}
-
-func (e *RawMapper) MapResults(pq *rego.PartialQueries) (interface{}, error) {
-
-	return pq, nil
-}
-
-func (e *RawMapper) ResultToJSON(results interface{}) (interface{}, error) {
-	return results, nil
-}
+// RawMapper
+// deprecated: use v1.sdk.RawMapper instead.
+type RawMapper = v1.RawMapper

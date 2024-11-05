@@ -50,7 +50,8 @@ type Value interface {
 	Find(path Ref) (Value, error) // Find returns value referred to by path or an error if path is not found.
 	Hash() int                    // Returns hash code of the value.
 	IsGround() bool               // IsGround returns true if this value is not a variable or contains no variables.
-	String() string               // String returns a human readable string representation of the value.
+	// FIXME: Some String() impls depend on DefaultRegoVersion. Do we need a v1/ast/ValueToString()?
+	String() string // String returns a human readable string representation of the value.
 }
 
 // InterfaceToValue converts a native Go value x to a Value.

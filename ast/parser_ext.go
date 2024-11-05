@@ -21,6 +21,8 @@ import (
 	astJSON "github.com/open-policy-agent/opa/ast/json"
 )
 
+// TODO: Add deprecated annotations
+
 // MustParseBody returns a parsed body.
 // If an error occurs during parsing, panic.
 func MustParseBody(input string) Body {
@@ -689,6 +691,10 @@ func parseModule(filename string, stmts []Statement, comments []*Comment, regoCo
 
 	// The comments slice only holds comments that were not their own statements.
 	mod.Comments = append(mod.Comments, comments...)
+	if regoCompatibilityMode == RegoUndefined {
+		// We default to v0 behaviour for backwards compatibility reasons.
+		regoCompatibilityMode = RegoV0
+	}
 	mod.regoVersion = regoCompatibilityMode
 
 	for i, stmt := range stmts[1:] {
