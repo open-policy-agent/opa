@@ -2982,9 +2982,9 @@ func TestDataPostExplainNotes(t *testing.T) {
 	}
 }
 
+// Warning: This test modifies package variables in the version package, and as
+// a result, cannot be run in parallel with other tests.
 func TestDataProvenanceSingleBundle(t *testing.T) {
-	t.Parallel()
-
 	f := newFixture(t)
 
 	// Dummy up since we are not using ld...
@@ -3053,9 +3053,9 @@ func TestDataProvenanceSingleBundle(t *testing.T) {
 	}
 }
 
+// Warning: This test modifies package variables in the version package, and as
+// a result, cannot be run in parallel with other tests.
 func TestDataProvenanceSingleFileBundle(t *testing.T) {
-	t.Parallel()
-
 	f := newFixture(t)
 
 	// Dummy up since we are not using ld...
@@ -3102,9 +3102,9 @@ func TestDataProvenanceSingleFileBundle(t *testing.T) {
 	}
 }
 
+// Warning: This test modifies package variables in the version package, and as
+// a result, cannot be run in parallel with other tests.
 func TestDataProvenanceMultiBundle(t *testing.T) {
-	t.Parallel()
-
 	f := newFixture(t)
 
 	// Dummy up since we are not using ld...
