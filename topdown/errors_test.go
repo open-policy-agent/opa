@@ -10,6 +10,8 @@ import (
 )
 
 func TestErrorWrapping(t *testing.T) {
+	t.Parallel()
+
 	isHalt := func(err error) bool {
 		return errors.As(err, &topdown.Halt{})
 	}
@@ -104,7 +106,10 @@ func TestErrorWrapping(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			if !tc.check(tc.err) {
 				t.Errorf("unexpected 'false'")
 			}

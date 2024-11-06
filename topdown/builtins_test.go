@@ -9,6 +9,7 @@ import (
 )
 
 func TestCustomBuiltinIterator(t *testing.T) {
+	t.Parallel()
 
 	query := NewQuery(ast.MustParseBody("test(1, x)")).WithBuiltins(map[string]*Builtin{
 		"test": {

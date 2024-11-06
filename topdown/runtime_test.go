@@ -11,6 +11,7 @@ import (
 )
 
 func TestOPARuntime(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 	q := NewQuery(ast.MustParseBody("opa.runtime(x)")) // no runtime info
@@ -46,6 +47,7 @@ func TestOPARuntime(t *testing.T) {
 }
 
 func TestOPARuntimeConfigMasking(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 	q := NewQuery(ast.MustParseBody("opa.runtime(x)")).WithRuntime(ast.MustParseTerm(`{"config": {

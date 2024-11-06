@@ -7,6 +7,8 @@ import (
 )
 
 func TestRegexCompiler(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range []struct {
 		template       string
 		delimiterStart byte
@@ -23,7 +25,10 @@ func TestRegexCompiler(t *testing.T) {
 		{"urn:foo.bar.com:{.*{}", '{', '}', true, "", true},
 		{"urn:foo:<.*>", '<', '>', false, "urn:foo:bar:baz", false},
 	} {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(fmt.Sprintf("template=%s", tc.template), func(t *testing.T) {
+			t.Parallel()
+
 			result, err := compileRegexTemplate(tc.template, tc.delimiterStart, tc.delimiterEnd)
 			if tc.failCompile != (err != nil) {
 				t.Fatalf("failed regex template compilation: %t != %t", tc.failCompile, err != nil)

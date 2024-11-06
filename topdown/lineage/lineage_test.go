@@ -15,6 +15,7 @@ import (
 )
 
 func TestFilter(t *testing.T) {
+	t.Parallel()
 
 	tests := []struct {
 		note   string
@@ -172,7 +173,10 @@ Enter data.test.p = x
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			buf := topdown.NewBufferTracer()
 			compiler := ast.MustCompileModules(map[string]string{
 				"test.rego": tc.module,
@@ -195,5 +199,4 @@ Enter data.test.p = x
 			}
 		})
 	}
-
 }

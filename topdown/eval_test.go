@@ -17,6 +17,8 @@ import (
 )
 
 func TestQueryIDFactory(t *testing.T) {
+	t.Parallel()
+
 	f := &queryIDFactory{}
 	for i := 0; i < 10; i++ {
 		if n := f.Next(); n != uint64(i) {
@@ -26,6 +28,8 @@ func TestQueryIDFactory(t *testing.T) {
 }
 
 func TestMergeNonOverlappingKeys(t *testing.T) {
+	t.Parallel()
+
 	realData := ast.MustParseTerm(`{"foo": "bar"}`).Value.(ast.Object)
 	mockData := ast.MustParseTerm(`{"baz": "blah"}`).Value.(ast.Object)
 
@@ -42,6 +46,8 @@ func TestMergeNonOverlappingKeys(t *testing.T) {
 }
 
 func TestMergeOverlappingKeys(t *testing.T) {
+	t.Parallel()
+
 	realData := ast.MustParseTerm(`{"foo": "bar"}`).Value.(ast.Object)
 	mockData := ast.MustParseTerm(`{"foo": "blah"}`).Value.(ast.Object)
 
@@ -71,6 +77,8 @@ func TestMergeOverlappingKeys(t *testing.T) {
 }
 
 func TestMergeWhenHittingNonObject(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		note            string
 		real, mock, exp *ast.Term
@@ -108,7 +116,10 @@ func TestMergeWhenHittingNonObject(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			merged, ok := merge(tc.mock.Value, tc.real.Value)
 			if !ok {
 				t.Fatal("expected no error")
@@ -121,6 +132,8 @@ func TestMergeWhenHittingNonObject(t *testing.T) {
 }
 
 func TestRefContainsNonScalar(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		note     string
 		ref      ast.Ref
@@ -159,7 +172,10 @@ func TestRefContainsNonScalar(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			actual := refContainsNonScalar(tc.ref)
 
 			if actual != tc.expected {
@@ -171,6 +187,7 @@ func TestRefContainsNonScalar(t *testing.T) {
 }
 
 func TestContainsNestedRefOrCall(t *testing.T) {
+	t.Parallel()
 
 	tests := []struct {
 		note  string
@@ -235,7 +252,10 @@ func TestContainsNestedRefOrCall(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			vis := newNestedCheckVisitor()
 			expr := ast.MustParseExpr(tc.input)
 			result := containsNestedRefOrCall(vis, expr)
@@ -247,6 +267,8 @@ func TestContainsNestedRefOrCall(t *testing.T) {
 }
 
 func TestTopdownVirtualCache(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	store := inmem.New()
 
@@ -661,7 +683,10 @@ func TestTopdownVirtualCache(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			compiler := compileModules([]string{tc.module})
 			txn := storage.NewTransactionOrDie(ctx, store)
 			defer store.Abort(ctx, txn)
@@ -698,6 +723,8 @@ func TestTopdownVirtualCache(t *testing.T) {
 }
 
 func TestPartialRule(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	store := inmem.New()
 
@@ -1508,7 +1535,10 @@ func TestPartialRule(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			compiler := compileModules([]string{tc.module})
 			txn := storage.NewTransactionOrDie(ctx, store)
 			defer store.Abort(ctx, txn)

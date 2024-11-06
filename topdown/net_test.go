@@ -23,6 +23,8 @@ import (
 // Due to some intricacies of the net/LookupIP internals, it seems impossible
 // to do that in a way that passes the race detector.
 func TestNetLookupIPAddr(t *testing.T) {
+	t.Parallel()
+
 	srv, err := mockdns.NewServerWithLogger(map[string]mockdns.Zone{
 		"v4.org.": {
 			A: []string{"1.2.3.4"},
@@ -55,7 +57,11 @@ func TestNetLookupIPAddr(t *testing.T) {
 		"v6.org":    ast.NewSet(ast.StringTerm("1:2:3::4")),
 		"v4-v6.org": ast.NewSet(ast.StringTerm("1.2.3.4"), ast.StringTerm("1:2:3::4")),
 	} {
+		addr := addr // copy for capturing loop variable (not needed in Go 1.22+)
+		exp := exp
 		t.Run(addr, func(t *testing.T) {
+			t.Parallel()
+
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			bctx := BuiltinContext{
@@ -131,7 +137,11 @@ func TestNetLookupIPAddr(t *testing.T) {
 		"cancelled": cancelled,
 		"timed out": timedOut,
 	} {
+		name := name // copy for capturing loop variable (not needed in Go 1.22+)
+		ctx := ctx
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
 			ctx, cancel := ctx()
 			defer cancel()
 			bctx := BuiltinContext{
@@ -163,7 +173,11 @@ func TestNetLookupIPAddr(t *testing.T) {
 		"allow_net match":                   {addr},
 		"allow_net match + additional host": {addr, "example.com"},
 	} {
+		name := name // copy for capturing loop variable (not needed in Go 1.22+)
+		allowNet := allowNet
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			capabilities := ast.CapabilitiesForThisVersion()
@@ -191,7 +205,11 @@ func TestNetLookupIPAddr(t *testing.T) {
 		"allow_net empty":    {},
 		"allow_net no match": {"example.com"},
 	} {
+		name := name // copy for capturing loop variable (not needed in Go 1.22+)
+		allowNet := allowNet
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			capabilities := ast.CapabilitiesForThisVersion()

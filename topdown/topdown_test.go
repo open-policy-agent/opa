@@ -33,6 +33,8 @@ import (
 )
 
 func TestTopDownQueryIDsUnique(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	store := inmem.New()
 	inputTerm := &ast.Term{}
@@ -71,6 +73,8 @@ func TestTopDownQueryIDsUnique(t *testing.T) {
 }
 
 func TestTopDownIndexExpr(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	store := inmem.New()
 	txn := storage.NewTransactionOrDie(ctx, store)
@@ -124,6 +128,7 @@ func TestTopDownIndexExpr(t *testing.T) {
 }
 
 func TestTopDownWithKeyword(t *testing.T) {
+	t.Parallel()
 
 	tests := []struct {
 		note    string
@@ -158,8 +163,9 @@ func TestTopDownWithKeyword(t *testing.T) {
 	}
 }
 
+// Warning(philipc): This test modifies package variables in the ast package,
+// which means it cannot be run in parallel with other tests.
 func TestTopDownUnsupportedBuiltin(t *testing.T) {
-
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name: "unsupported_builtin",
 	})
@@ -178,10 +184,10 @@ func TestTopDownUnsupportedBuiltin(t *testing.T) {
 	if !reflect.DeepEqual(err, expected) {
 		t.Fatalf("Expected %v but got: %v", expected, err)
 	}
-
 }
 
 func TestTopDownQueryCancellation(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 
@@ -230,6 +236,8 @@ func TestTopDownQueryCancellation(t *testing.T) {
 }
 
 func TestTopDownQueryCancellationEvery(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	module := func(ev ast.Every, _ ...interface{}) *ast.Module {
@@ -264,7 +272,10 @@ func TestTopDownQueryCancellationEvery(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			compiler := ast.NewCompiler().WithEnablePrintStatements(true)
 			compiler.Compile(map[string]*ast.Module{"test.rego": tc.module})
 			if compiler.Failed() {
@@ -325,6 +336,8 @@ func TestTopDownQueryCancellationEvery(t *testing.T) {
 }
 
 func TestTopDownEarlyExit(t *testing.T) {
+	t.Parallel()
+
 	// NOTE(sr): There are two ways to early-exit: don't evaluate subsequent
 	// rule bodies, like
 	//
@@ -1494,7 +1507,10 @@ arr := [1, 2, 3, 4, 5]
 		},
 	}
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			countExit := 1 + tc.extraExit
 			ctx := context.Background()
 			compiler := compileModules([]string{tc.module})
@@ -1553,6 +1569,8 @@ arr := [1, 2, 3, 4, 5]
 }
 
 func TestTopDownEvery(t *testing.T) {
+	t.Parallel()
+
 	n := func(ns ...string) []string { return ns }
 
 	tests := []struct {
@@ -1662,7 +1680,10 @@ func TestTopDownEvery(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			ctx := context.Background()
 			c := ast.NewCompiler().WithEnablePrintStatements(true)
 			mod := ast.MustParseModuleWithOpts(tc.module, ast.ParserOptions{AllFutureKeywords: true})
@@ -1743,6 +1764,7 @@ func (m *contextPropagationStore) Read(ctx context.Context, _ storage.Transactio
 }
 
 func TestTopDownContextPropagation(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.WithValue(context.Background(), contextPropagationMock{}, "bar")
 
@@ -1808,6 +1830,8 @@ func (a *astStore) Read(_ context.Context, _ storage.Transaction, path storage.P
 }
 
 func TestTopdownStoreAST(t *testing.T) {
+	t.Parallel()
+
 	body := ast.MustParseBody(`data.stored = x`)
 	ctx := context.Background()
 	compiler := ast.NewCompiler()
@@ -1832,6 +1856,8 @@ func TestTopdownStoreAST(t *testing.T) {
 }
 
 func TestTopdownLazyObj(t *testing.T) {
+	t.Parallel()
+
 	body := ast.MustParseBody(`data.stored = x`)
 	ctx := context.Background()
 	compiler := ast.NewCompiler()
@@ -1862,6 +1888,8 @@ func TestTopdownLazyObj(t *testing.T) {
 }
 
 func TestTopdownLazyObjOptOut(t *testing.T) {
+	t.Parallel()
+
 	body := ast.MustParseBody(`data.stored = x`)
 	ctx := context.Background()
 	compiler := ast.NewCompiler()

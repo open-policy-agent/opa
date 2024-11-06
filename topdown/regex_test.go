@@ -14,6 +14,8 @@ import (
 )
 
 func TestRegexBuiltinCache(t *testing.T) {
+	t.Parallel()
+
 	ctx := BuiltinContext{}
 	iter := func(*ast.Term) error { return nil }
 
@@ -69,6 +71,7 @@ func TestRegexBuiltinCache(t *testing.T) {
 }
 
 func TestRegexBuiltinInterQueryValueCache(t *testing.T) {
+	t.Parallel()
 
 	ip := []byte(`{"inter_query_builtin_value_cache": {"max_num_entries": "10"},}`)
 	config, _ := cache.ParseCachingConfig(ip)
@@ -121,6 +124,7 @@ func TestRegexBuiltinInterQueryValueCache(t *testing.T) {
 }
 
 func TestRegexBuiltinInterQueryValueCacheTypeMismatch(t *testing.T) {
+	t.Parallel()
 
 	ip := []byte(`{"inter_query_builtin_value_cache": {"max_num_entries": "10"},}`)
 	config, _ := cache.ParseCachingConfig(ip)

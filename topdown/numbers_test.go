@@ -9,6 +9,7 @@ import (
 )
 
 func TestRandIntnZero(t *testing.T) {
+	t.Parallel()
 
 	qrs, err := NewQuery(ast.MustParseBody(`rand.intn("x", 0, out)`)).Run(context.Background())
 	if err != nil {
@@ -27,6 +28,7 @@ func TestRandIntnZero(t *testing.T) {
 }
 
 func TestRandIntnNegative(t *testing.T) {
+	t.Parallel()
 
 	qrs, err := NewQuery(ast.MustParseBody(`rand.intn("x", -100, out)`)).Run(context.Background())
 	if err != nil {
@@ -46,6 +48,7 @@ func TestRandIntnNegative(t *testing.T) {
 }
 
 func TestRandIntnSeedingAndCaching(t *testing.T) {
+	t.Parallel()
 
 	query := `rand.intn("x", 100000, x); rand.intn("x", 1000, y); rand.intn("x", 100000, x2); rand.intn("y", 1000, z)`
 
@@ -80,6 +83,7 @@ func TestRandIntnSeedingAndCaching(t *testing.T) {
 }
 
 func TestRandIntnSavingDuringPartialEval(t *testing.T) {
+	t.Parallel()
 
 	query := `x = "x"; y = 100; rand.intn(x, y, z)`
 	c := ast.NewCompiler().

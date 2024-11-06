@@ -57,7 +57,6 @@ func TestParseCachingConfig(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-
 			config, err := ParseCachingConfig(tc.input)
 			if tc.wantErr {
 				if err == nil {

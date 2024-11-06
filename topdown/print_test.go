@@ -12,6 +12,7 @@ import (
 )
 
 func TestTopDownPrint(t *testing.T) {
+	t.Parallel()
 
 	cases := []struct {
 		note   string
@@ -106,7 +107,9 @@ func TestTopDownPrint(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
 
 			c := ast.MustCompileModulesWithOpts(map[string]string{"test.rego": tc.module},
 				ast.CompileOpts{
@@ -139,6 +142,7 @@ func TestTopDownPrint(t *testing.T) {
 }
 
 func TestTopDownPrintInternalError(t *testing.T) {
+	t.Parallel()
 
 	buf := bytes.NewBuffer(nil)
 
@@ -158,6 +162,7 @@ func TestTopDownPrintInternalError(t *testing.T) {
 }
 
 func TestTopDownPrintHookNotSupplied(t *testing.T) {
+	t.Parallel()
 
 	// NOTE(tsandall): The built-in function implementation expects all inputs
 	// to be _sets_, even scalar values are wrapped. This expectation comes from
@@ -179,6 +184,7 @@ func TestTopDownPrintHookNotSupplied(t *testing.T) {
 }
 
 func TestTopDownPrintWithStrictBuiltinErrors(t *testing.T) {
+	t.Parallel()
 
 	buf := bytes.NewBuffer(nil)
 
@@ -215,6 +221,7 @@ func (erroringPrintHook) Print(print.Context, string) error {
 }
 
 func TestTopDownPrintHookErrorPropagation(t *testing.T) {
+	t.Parallel()
 
 	// NOTE(tsandall): See comment above about wrapping operands in sets.
 	q := NewQuery(ast.MustParseBody(`internal.print([{"some message"}])`)).

@@ -12,6 +12,8 @@ import (
 )
 
 func TestUnionFindRootValue(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		root     unionFindRoot
@@ -47,6 +49,7 @@ func TestUnionFindRootValue(t *testing.T) {
 }
 
 func TestUnionFindMakeSet(t *testing.T) {
+	t.Parallel()
 
 	uf := newUnionFind(nil)
 
@@ -94,6 +97,8 @@ func TestUnionFindMakeSet(t *testing.T) {
 }
 
 func TestUnionFindFindEmptyUF(t *testing.T) {
+	t.Parallel()
+
 	uf := newUnionFind(noopUnionFindRank)
 	actual, found := uf.Find(ast.Var("a"))
 	if found || actual != nil {
@@ -102,6 +107,8 @@ func TestUnionFindFindEmptyUF(t *testing.T) {
 }
 
 func TestUnionFindFindIsParent(t *testing.T) {
+	t.Parallel()
+
 	uf := newUnionFind(noopUnionFindRank)
 
 	uf.MakeSet(ast.Var("a")) // "a" will have a parent "a"
@@ -115,6 +122,8 @@ func TestUnionFindFindIsParent(t *testing.T) {
 }
 
 func TestUnionFindFindParent(t *testing.T) {
+	t.Parallel()
+
 	fooBarRef := ast.Ref{ast.StringTerm("foo"), ast.StringTerm("bar"), ast.VarTerm("x")}
 	call := ast.Call{ast.RefTerm(ast.VarTerm("gt")), ast.NumberTerm("1"), ast.VarTerm("x")}
 
@@ -135,6 +144,8 @@ func TestUnionFindFindParent(t *testing.T) {
 }
 
 func TestUnionFindMerge(t *testing.T) {
+	t.Parallel()
+
 	uf := newUnionFind(noopUnionFindRank)
 
 	tests := []struct {
