@@ -16,6 +16,8 @@ import (
 )
 
 func TestNewFromConfig(t *testing.T) {
+	t.Parallel()
+
 	tmpdir := t.TempDir()
 
 	for _, tc := range []struct {
@@ -101,6 +103,8 @@ storage:
 }
 
 func TestDataDirPrefix(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	tmpdir := t.TempDir()
 
@@ -130,6 +134,8 @@ func TestDataDirPrefix(t *testing.T) {
 }
 
 func TestBadgerConfigFromOptions(t *testing.T) {
+	t.Parallel()
+
 	type check func(*testing.T, badger.Options)
 	checks := func(c ...check) []check {
 		return c
@@ -219,7 +225,10 @@ func TestBadgerConfigFromOptions(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			act, _ := badgerConfigFromOptions(tc.opts)
 			for _, check := range tc.checks {
 				check(t, act)

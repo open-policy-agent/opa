@@ -142,7 +142,7 @@ OHoCIHmNX37JOqTcTzGn2u9+c8NlnvZ0uDvsd1BmKPaUmjmm
 
 		t.Run("unset, defaults to wallclock", func(t *testing.T) {
 			t.Parallel()
-	
+
 			c := ast.NewObject() // 'time' constraint is unset
 			constraints, err := parseTokenConstraints(c, wallclock)
 			if err != nil {
