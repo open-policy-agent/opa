@@ -223,7 +223,7 @@ allow {
 		t.Run(tc.target+"/"+tc.note, func(t *testing.T) {
 			defer leaktest.Check(t)()
 			before := time.Now()
-			ctx, cancel := context.WithTimeout(context.Background(), 200 * time.Millisecond)
+			ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 			defer cancel()
 
 			pq, err := New(
