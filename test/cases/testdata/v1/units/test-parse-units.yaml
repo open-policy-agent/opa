@@ -396,3 +396,135 @@ cases:
         }
     want_result:
       - x: true
+  - note: units_parse/1e10 lowercase scientific notation without unit
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse("1e10") == 10000000000
+        }
+    want_result:
+      - x: true
+  - note: units_parse/3.2E4 uppercase scientific notation without unit
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse("3.2E4") == 32000
+        }
+    want_result:
+      - x: true
+  - note: units_parse/2.5e3 mixed case scientific notation with K
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse("2.5e3K") == 2500000
+        }
+    want_result:
+      - x: true
+  - note: units_parse/1e3M lowercase scientific notation with M
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse("1e3M") == 1000000000
+        }
+    want_result:
+      - x: true
+  - note: units_parse/4E2G uppercase scientific notation with G
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse("4E2G") == 400000000000
+        }
+    want_result:
+      - x: true
+  - note: units_parse/5e1Gi mixed case scientific notation with Gi
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse("5e1Gi") == 53687091200
+        }
+    want_result:
+      - x: true
+  - note: units_parse/1e-2 lowercase scientific notation with negative exponent
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse("1e-2") == 0.01
+        }
+    want_result:
+      - x: true
+  - note: units_parse/7.8E-1 uppercase scientific notation with negative exponent
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse("7.8E-1") == 0.78
+        }
+    want_result:
+      - x: true
+  - note: units_parse/6e3Mi mixed case scientific notation with binary Mi
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse("6e3Mi") == 6291456000
+        }
+    want_result:
+      - x: true
+  - note: units_parse/invalid notation with single E
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          not units.parse("5E") == 5
+        }
+    want_result:
+      - x: true
+  - note: units_parse/number without exponent or unit
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse("42") == 42
+        }
+    want_result:
+      - x: true
+  - note: units_parse/negative number in scientific notation with unit
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse("-3.5E2m") == -0.35
+        }
+    want_result:
+      - x: true
