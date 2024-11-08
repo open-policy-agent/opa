@@ -123,6 +123,7 @@ func extractNumAndUnit(s string) (string, string) {
 	firstNonNumIdx := -1
 	for idx := 0; idx < len(s); idx++ {
 		r := rune(s[idx])
+		// Identify the first non-numeric character, marking the boundary between the number and the unit.
 		if !isNum(r) && r != 'e' && r != 'E' && r != '+' && r != '-' {
 			firstNonNumIdx = idx
 			break
