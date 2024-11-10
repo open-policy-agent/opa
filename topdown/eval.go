@@ -1461,20 +1461,23 @@ func (e *eval) getRules(ref ast.Ref, args []*ast.Term) (*ast.IndexResult, error)
 
 	result.EarlyExit = result.EarlyExit && e.earlyExit
 
-	var msg strings.Builder
-	if len(result.Rules) == 1 {
-		msg.WriteString("(matched 1 rule")
-	} else {
-		msg.Grow(len("(matched NNNN rules)"))
-		msg.WriteString("(matched ")
-		msg.WriteString(strconv.Itoa(len(result.Rules)))
-		msg.WriteString(" rules")
+	if e.traceEnabled {
+		var msg strings.Builder
+		if len(result.Rules) == 1 {
+			msg.WriteString("(matched 1 rule")
+		} else {
+			msg.Grow(len("(matched NNNN rules)"))
+			msg.WriteString("(matched ")
+			msg.WriteString(strconv.Itoa(len(result.Rules)))
+			msg.WriteString(" rules")
+		}
+		if result.EarlyExit {
+			msg.WriteString(", early exit")
+		}
+		msg.WriteRune(')')
+		e.traceIndex(e.query[e.index], msg.String(), &ref)
 	}
-	if result.EarlyExit {
-		msg.WriteString(", early exit")
-	}
-	msg.WriteRune(')')
-	e.traceIndex(e.query[e.index], msg.String(), &ref)
+
 	return result, err
 }
 
