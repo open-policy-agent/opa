@@ -932,6 +932,22 @@ func (e *eval) biunifyArraysRec(a, b *ast.Array, b1, b2 *bindings, iter unifyIte
 	})
 }
 
+func (e *eval) biunifyTerms(a, b []*ast.Term, b1, b2 *bindings, iter unifyIterator) error {
+	if len(a) != len(b) {
+		return nil
+	}
+	return e.biunifyTermsRec(a, b, b1, b2, iter, 0)
+}
+
+func (e *eval) biunifyTermsRec(a, b []*ast.Term, b1, b2 *bindings, iter unifyIterator, idx int) error {
+	if idx == len(a) {
+		return iter()
+	}
+	return e.biunify(a[idx], b[idx], b1, b2, func() error {
+		return e.biunifyTermsRec(a, b, b1, b2, iter, idx+1)
+	})
+}
+
 func (e *eval) biunifyObjects(a, b ast.Object, b1, b2 *bindings, iter unifyIterator) error {
 	if a.Len() != b.Len() {
 		return nil
@@ -1962,7 +1978,7 @@ func (e evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, cacheKey ast.R
 
 	child.traceEnter(rule)
 
-	err := child.biunifyArrays(ast.NewArray(e.terms[1:]...), ast.NewArray(args...), e.e.bindings, child.bindings, func() error {
+	err := child.biunifyTerms(e.terms[1:], args, e.e.bindings, child.bindings, func() error {
 		return child.eval(func(child *eval) error {
 			child.traceExit(rule)
 
