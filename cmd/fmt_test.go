@@ -75,6 +75,25 @@ p if {
 }
 `
 
+const ComprehensionCommentShouldNotMoveFormatted = `package test
+
+f(x) := [x |
+	some v in x
+
+	# regal ignore:external-reference
+	x in data.foo
+][0]
+`
+
+const ComprehensionCommentShouldNotMoveUnformatted = `package test
+
+f(x) := [x |
+	some v in x
+	# regal ignore:external-reference
+	x in data.foo
+][0]
+`
+
 type errorWriter struct {
 	ErrMsg string
 }
@@ -102,6 +121,12 @@ func TestFmtFormatFile(t *testing.T) {
 			unformatted: unformattedV1,
 			formatted:   formattedV1,
 		},
+		{
+			note:        "comment in comprehension",
+			params:      fmtCommandParams{v1Compatible: true},
+			unformatted: ComprehensionCommentShouldNotMoveUnformatted,
+			formatted:   ComprehensionCommentShouldNotMoveFormatted,
+		},
 	}
 
 	for _, tc := range cases {
@@ -122,7 +147,7 @@ func TestFmtFormatFile(t *testing.T) {
 
 				actual := stdout.String()
 				if actual != tc.formatted {
-					t.Fatalf("Expected:%s\n\nGot:\n%s\n\n", tc.formatted, actual)
+					t.Fatalf("Expected:\n%s\n\nGot:\n%s\n\n", tc.formatted, actual)
 				}
 			})
 		})
