@@ -386,7 +386,7 @@ func (w *writer) writePackage(pkg *ast.Package, comments []*ast.Comment) []*ast.
 	copy(path[1:], pkg.Path[2:])
 
 	w.write("package ")
-	w.writeRef(path)
+	w.writeRef(path, nil)
 
 	w.blankLine()
 
@@ -526,7 +526,11 @@ func (w *writer) writeElse(rule *ast.Rule, comments []*ast.Comment) []*ast.Comme
 	}
 
 	rule.Else.Head.Name = "else" // NOTE(sr): whaaat
-	rule.Else.Head.Reference = ast.Ref{ast.VarTerm("else")}
+
+	elseHeadReference := ast.VarTerm("else")             // construct a reference for the term
+	elseHeadReference.Location = rule.Else.Head.Location // and set the location to match the rule location
+
+	rule.Else.Head.Reference = ast.Ref{elseHeadReference}
 	rule.Else.Head.Args = nil
 	comments = w.insertComments(comments, rule.Else.Head.Location)
 
@@ -552,7 +556,7 @@ func (w *writer) writeHead(head *ast.Head, isDefault, isExpandedConst bool, comm
 		ref = ref.GroundPrefix()
 	}
 	if w.fmtOpts.refHeads || len(ref) == 1 {
-		w.writeRef(ref)
+		w.writeRef(ref, comments)
 	} else {
 		w.write(ref[0].String())
 		w.write("[")
@@ -811,7 +815,7 @@ func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Co
 
 	switch x := term.Value.(type) {
 	case ast.Ref:
-		w.writeRef(x)
+		comments = w.writeRef(x, comments)
 	case ast.Object:
 		comments = w.writeObject(x, term.Location, comments)
 	case *ast.Array:
@@ -846,14 +850,14 @@ func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Co
 	return comments
 }
 
-func (w *writer) writeRef(x ast.Ref) {
+func (w *writer) writeRef(x ast.Ref, comments []*ast.Comment) []*ast.Comment {
 	if len(x) > 0 {
 		parens := false
 		_, ok := x[0].Value.(ast.Call)
 		if ok {
 			parens = x[0].Location.Text[0] == 40 // Starts with "("
 		}
-		w.writeTermParens(parens, x[0], nil)
+		comments = w.writeTermParens(parens, x[0], comments)
 		path := x[1:]
 		for _, t := range path {
 			switch p := t.Value.(type) {
@@ -863,11 +867,13 @@ func (w *writer) writeRef(x ast.Ref) {
 				w.writeBracketed(w.formatVar(p))
 			default:
 				w.write("[")
-				w.writeTerm(t, nil)
+				comments = w.writeTerm(t, comments)
 				w.write("]")
 			}
 		}
 	}
+
+	return comments
 }
 
 func (w *writer) writeBracketed(str string) {
@@ -1111,7 +1117,7 @@ func (w *writer) writeImport(imp *ast.Import) {
 		w2 := writer{
 			buf: bytes.Buffer{},
 		}
-		w2.writeRef(path)
+		w2.writeRef(path, nil)
 		buf = append(buf, w2.buf.String())
 	} else {
 		buf = append(buf, path.String())
