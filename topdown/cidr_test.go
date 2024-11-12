@@ -11,6 +11,7 @@ import (
 )
 
 func TestNetCIDRExpandCancellation(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 
@@ -42,5 +43,4 @@ func TestNetCIDRExpandCancellation(t *testing.T) {
 	if err == nil || err.(*Error).Code != CancelErr {
 		t.Fatalf("Expected cancel error but got: %v (err: %v)", qrs, err)
 	}
-
 }

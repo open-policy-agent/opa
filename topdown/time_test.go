@@ -14,6 +14,7 @@ import (
 )
 
 func TestTimeSeeding(t *testing.T) {
+	t.Parallel()
 
 	query := `time.now_ns(x)`
 	clock := time.Now()

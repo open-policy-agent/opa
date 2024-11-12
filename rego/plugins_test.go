@@ -58,6 +58,8 @@ func (t *testPlugin) Eval(_ context.Context, _ *EvalContext, rt ast.Value) (ast.
 	))), nil
 }
 
+// Warning(philipc): This test modifies package variables, which means it cannot
+// be run safely in parallel with other tests.
 func TestTargetViaPlugin(t *testing.T) {
 	tp := testPlugin{}
 	RegisterPlugin("rego.target.foo", &tp)
@@ -77,6 +79,8 @@ type defaultPlugin struct {
 
 func (*defaultPlugin) IsTarget(t string) bool { return t == "" || t == "foo" }
 
+// Warning(philipc): This test modifies package variables, which means it cannot
+// be run safely in parallel with other tests.
 func TestTargetViaDefaultPlugin(t *testing.T) {
 	t.Run("no target", func(t *testing.T) {
 		tp := defaultPlugin{testPlugin{}}
@@ -102,6 +106,8 @@ func TestTargetViaDefaultPlugin(t *testing.T) {
 	})
 }
 
+// Warning(philipc): This test modifies package variables, which means it cannot
+// be run safely in parallel with other tests.
 func TestPluginPrepareOptions(t *testing.T) {
 	ctx := context.Background()
 	tp := testPlugin{}

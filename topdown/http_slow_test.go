@@ -20,8 +20,9 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
+// Warning(philipc): This test modifies package variables, which means it cannot
+// be run in parallel with other tests.
 func TestHTTPSendTimeout(t *testing.T) {
-
 	// Each test can tweak the response delay, default is 0 with no delay
 	var responseDelay time.Duration
 
@@ -123,6 +124,7 @@ func TestHTTPSendTimeout(t *testing.T) {
 }
 
 func TestHTTPSendRetryRequest(t *testing.T) {
+	t.Parallel()
 
 	tests := []struct {
 		note        string
@@ -155,7 +157,10 @@ func TestHTTPSendRetryRequest(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
 				_, err := w.Write([]byte(tc.response))
@@ -174,7 +179,9 @@ func TestHTTPSendRetryRequest(t *testing.T) {
 
 			ctx := context.Background()
 			if tc.evalTimeout > 0 {
-				ctx, _ = context.WithTimeout(ctx, tc.evalTimeout)
+				var ctxCancel context.CancelFunc
+				ctx, ctxCancel = context.WithTimeout(ctx, tc.evalTimeout)
+				defer ctxCancel()
 			}
 
 			q := newQuery(strings.ReplaceAll(tc.query, "%URL%", "http://"+ts.Listener.Addr().String()), time.Now())

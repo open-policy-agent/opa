@@ -10,7 +10,6 @@ package rego
 import (
 	"context"
 	"fmt"
-	"github.com/open-policy-agent/opa/metrics"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -18,6 +17,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/open-policy-agent/opa/metrics"
+	"github.com/open-policy-agent/opa/util"
 
 	"github.com/fortytw2/leaktest"
 
@@ -32,6 +34,8 @@ import (
 )
 
 func TestPrepareAndEvalWithWasmTarget(t *testing.T) {
+	t.Parallel()
+
 	mod := `
 	package test
 	default p = false
@@ -78,6 +82,8 @@ func TestPrepareAndEvalWithWasmTarget(t *testing.T) {
 }
 
 func TestPrepareAndEvalWithWasmTargetModulesOnCompiler(t *testing.T) {
+	t.Parallel()
+
 	mod := `
 	package test
 	default p = false
@@ -117,6 +123,7 @@ func TestPrepareAndEvalWithWasmTargetModulesOnCompiler(t *testing.T) {
 }
 
 func TestWasmTimeOfDay(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 	pq, err := New(Query("time.now_ns()"), Target("wasm")).PrepareForEval(ctx)
@@ -132,16 +139,19 @@ func TestWasmTimeOfDay(t *testing.T) {
 }
 
 func TestEvalWithContextTimeout(t *testing.T) {
+	t.Parallel()
 	test.Skip(t)
 
 	ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		timer, cancel := util.TimerWithCancel(5 * time.Second)
 		select {
 		case <-r.Context().Done():
 			// Without this, our test execution would hang waiting for this server to have
 			// served all requests to the end -- unrelated to the behaviour in the client,
 			// so the test would still pass.
+			cancel()
 			return
-		case <-time.After(5 * time.Second):
+		case <-timer.C:
 			return
 		}
 	}))
@@ -213,7 +223,7 @@ allow {
 		t.Run(tc.target+"/"+tc.note, func(t *testing.T) {
 			defer leaktest.Check(t)()
 			before := time.Now()
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 			defer cancel()
 
 			pq, err := New(
@@ -242,13 +252,17 @@ allow {
 }
 
 func TestRandSeedingOptions(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 
 	exp := "0194fdc2-fa2f-4cc0-81d3-ff12045b73c8"
 
 	for _, tgt := range []string{targetWasm, targetRego} {
+		tgt := tgt // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tgt, func(t *testing.T) {
+			t.Parallel()
+
 			seed := rand.New(rand.NewSource(0))
 
 			// Check expected uuid is returned.
@@ -286,13 +300,14 @@ func TestRandSeedingOptions(t *testing.T) {
 }
 
 func TestCompatWithABIMinorVersion1(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	pq, err := New(
 		LoadBundle("testdata/bundle.tar.gz"),
 		Query("data.test.allow"),
 	).PrepareForEval(ctx)
-
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -306,6 +321,8 @@ func TestCompatWithABIMinorVersion1(t *testing.T) {
 }
 
 func TestEvalWasmWithInterQueryCache(t *testing.T) {
+	t.Parallel()
+
 	newHeaders := map[string][]string{"Cache-Control": {"max-age=290304000, public"}}
 
 	var requests []*http.Request
@@ -347,6 +364,8 @@ func TestEvalWasmWithInterQueryCache(t *testing.T) {
 }
 
 func TestEvalWasmWithHTTPAllowNet(t *testing.T) {
+	t.Parallel()
+
 	var requests []*http.Request
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests = append(requests, r)
@@ -396,6 +415,8 @@ func TestEvalWasmWithHTTPAllowNet(t *testing.T) {
 	}
 }
 
+// Warning(philipc): This test modifies package variables, which means it cannot
+// be run safely in parallel with other tests.
 func TestRegoTargetWasmAndTargetPluginDisablesIndexingTopdownStages(t *testing.T) {
 	tp := testPlugin{}
 	RegisterPlugin("rego.target.foo", &tp)

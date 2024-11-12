@@ -11,6 +11,8 @@ import (
 )
 
 func TestIsDisjoint(t *testing.T) {
+	t.Parallel()
+
 	paths := func(ps ...string) pathSet {
 		ret := make([]storage.Path, len(ps))
 		for i := range ps {
@@ -49,7 +51,10 @@ func TestIsDisjoint(t *testing.T) {
 			overlapped: true,
 		},
 	} {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			act := tc.ps.IsDisjoint()
 			if !tc.overlapped != act {
 				t.Errorf("path set: %v, disjoint == %v, expected %v", tc.ps, act, !tc.overlapped)

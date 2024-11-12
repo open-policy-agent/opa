@@ -12,6 +12,7 @@ import (
 )
 
 func TestPartitionTrie(t *testing.T) {
+	t.Parallel()
 
 	// Build simple trie
 	root := buildPartitionTrie([]storage.Path{
@@ -104,7 +105,10 @@ func TestPartitionTrie(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(strings.TrimPrefix(tc.path, "/"), func(t *testing.T) {
+			t.Parallel()
+
 			gotIdx, gotPtr := root.Find(storage.MustParsePath(tc.path))
 			if gotIdx != tc.wantIdx || gotPtr != tc.wantPtr {
 				t.Fatalf("expected (%d, %v) but got (%d, %v)", tc.wantIdx, tc.wantPtr, gotIdx, gotPtr)

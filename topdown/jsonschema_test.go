@@ -14,6 +14,8 @@ import (
 )
 
 func TestAstValueToJSONSchemaLoader(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		note   string
 		schema ast.Value
@@ -71,7 +73,10 @@ func TestAstValueToJSONSchemaLoader(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			_, err := astValueToJSONSchemaLoader(tc.schema)
 			if tc.valid && err != nil {
 				t.Errorf("Unexpected JSON Schema validation result, expected valid = true, got = false: %s", err)
@@ -86,6 +91,8 @@ func TestAstValueToJSONSchemaLoader(t *testing.T) {
 }
 
 func TestBuiltinJSONSchemaVerify(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		note   string
 		schema ast.Value
@@ -137,7 +144,10 @@ func TestBuiltinJSONSchemaVerify(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			result := ast.NullTerm().Value
 			err := builtinJSONSchemaVerify(
 				BuiltinContext{},
@@ -165,6 +175,8 @@ func TestBuiltinJSONSchemaVerify(t *testing.T) {
 }
 
 func TestBuiltinJSONMatchSchema(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		note     string
 		document ast.Value
@@ -250,7 +262,10 @@ func TestBuiltinJSONMatchSchema(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			result := ast.NullTerm().Value
 			err := builtinJSONMatchSchema(
 				BuiltinContext{},

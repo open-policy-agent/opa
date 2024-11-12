@@ -20,6 +20,8 @@ import (
 // used is outside of the rego package. Testing them within the rego package
 // would be less realistic.
 func TestPrepareOption(t *testing.T) {
+	t.Parallel()
+
 	t.Run("BuiltinFuncs", func(t *testing.T) {
 		bi := map[string]*topdown.Builtin{
 			"count": {

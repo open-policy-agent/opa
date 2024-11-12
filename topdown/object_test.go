@@ -11,6 +11,8 @@ import (
 )
 
 func TestObjectUnionNBuiltin(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		note     string
 		query    string
