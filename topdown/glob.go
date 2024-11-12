@@ -55,7 +55,7 @@ func builtinGlobMatch(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.
 	if err != nil {
 		return err
 	}
-	return iter(ast.BooleanTerm(m))
+	return iter(ast.InternedBooleanTerm(m))
 }
 
 func globCompileAndMatch(bctx BuiltinContext, id, pattern, match string, delimiters []rune) (bool, error) {

@@ -96,7 +96,7 @@ func builtinCryptoX509ParseAndVerifyCertificates(_ BuiltinContext, operands []*a
 	}
 
 	invalid := ast.ArrayTerm(
-		ast.BooleanTerm(false),
+		ast.InternedBooleanTerm(false),
 		ast.NewTerm(ast.NewArray()),
 	)
 
@@ -116,7 +116,7 @@ func builtinCryptoX509ParseAndVerifyCertificates(_ BuiltinContext, operands []*a
 	}
 
 	valid := ast.ArrayTerm(
-		ast.BooleanTerm(true),
+		ast.InternedBooleanTerm(true),
 		ast.NewTerm(value),
 	)
 
@@ -152,14 +152,12 @@ func builtinCryptoX509ParseAndVerifyCertificatesWithOptions(_ BuiltinContext, op
 		return err
 	}
 
-	invalid := ast.ArrayTerm(
-		ast.BooleanTerm(false),
-		ast.NewTerm(ast.NewArray()),
-	)
-
 	certs, err := getX509CertsFromString(string(input))
 	if err != nil {
-		return iter(invalid)
+		return iter(ast.ArrayTerm(
+			ast.InternedBooleanTerm(false),
+			ast.NewTerm(ast.NewArray()),
+		))
 	}
 
 	// Collect the cert verification options
@@ -170,7 +168,10 @@ func builtinCryptoX509ParseAndVerifyCertificatesWithOptions(_ BuiltinContext, op
 
 	verified, err := verifyX509CertificateChain(certs, verifyOpt)
 	if err != nil {
-		return iter(invalid)
+		return iter(ast.ArrayTerm(
+			ast.InternedBooleanTerm(false),
+			ast.NewTerm(ast.NewArray()),
+		))
 	}
 
 	value, err := ast.InterfaceToValue(verified)
@@ -178,12 +179,10 @@ func builtinCryptoX509ParseAndVerifyCertificatesWithOptions(_ BuiltinContext, op
 		return err
 	}
 
-	valid := ast.ArrayTerm(
-		ast.BooleanTerm(true),
+	return iter(ast.ArrayTerm(
+		ast.InternedBooleanTerm(true),
 		ast.NewTerm(value),
-	)
-
-	return iter(valid)
+	))
 }
 
 func extractVerifyOpts(options ast.Object) (verifyOpt x509.VerifyOptions, err error) {
@@ -522,7 +521,7 @@ func builtinCryptoHmacEqual(_ BuiltinContext, operands []*ast.Term, iter func(*a
 
 	res := hmac.Equal([]byte(mac1), []byte(mac2))
 
-	return iter(ast.BooleanTerm(res))
+	return iter(ast.InternedBooleanTerm(res))
 }
 
 func init() {
