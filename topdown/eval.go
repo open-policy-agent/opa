@@ -409,7 +409,7 @@ func (e *eval) evalStep(iter evalIterator) error {
 					return iter(e)
 				})
 			}
-			if !e.bindings.Plug(rterm).Equal(ast.BooleanTerm(false)) {
+			if !e.bindings.Plug(rterm).Equal(ast.InternedBooleanTerm(false)) {
 				defined = true
 				err := iter(e)
 				e.traceRedo(expr)
@@ -2206,7 +2206,7 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 		switch doc := doc.(type) {
 		case *ast.Array:
 			for i := 0; i < doc.Len(); i++ {
-				k := ast.IntNumberTerm(i)
+				k := ast.InternedIntNumberTerm(i)
 				err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
 					return e.next(iter, k)
 				})
@@ -3460,7 +3460,7 @@ func (e evalTerm) enumerate(iter unifyIterator) error {
 	switch v := e.term.Value.(type) {
 	case *ast.Array:
 		for i := 0; i < v.Len(); i++ {
-			k := ast.IntNumberTerm(i)
+			k := ast.InternedIntNumberTerm(i)
 			err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
 				return e.next(iter, k)
 			})

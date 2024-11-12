@@ -1024,7 +1024,7 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 	}
 
 	unverified := ast.ArrayTerm(
-		ast.BooleanTerm(false),
+		ast.InternedBooleanTerm(false),
 		ast.NewTerm(ast.NewObject()),
 		ast.NewTerm(ast.NewObject()),
 	)
@@ -1137,7 +1137,7 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 	}
 
 	verified := ast.ArrayTerm(
-		ast.BooleanTerm(true),
+		ast.InternedBooleanTerm(true),
 		ast.NewTerm(token.decodedHeader),
 		ast.NewTerm(payload),
 	)

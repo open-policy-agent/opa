@@ -25,15 +25,15 @@ func builtinRegexIsValid(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 
 	s, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
-		return iter(ast.BooleanTerm(false))
+		return iter(ast.InternedBooleanTerm(false))
 	}
 
 	_, err = regexp.Compile(string(s))
 	if err != nil {
-		return iter(ast.BooleanTerm(false))
+		return iter(ast.InternedBooleanTerm(false))
 	}
 
-	return iter(ast.BooleanTerm(true))
+	return iter(ast.InternedBooleanTerm(true))
 }
 
 func builtinRegexMatch(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -49,7 +49,7 @@ func builtinRegexMatch(bctx BuiltinContext, operands []*ast.Term, iter func(*ast
 	if err != nil {
 		return err
 	}
-	return iter(ast.BooleanTerm(re.MatchString(string(s2))))
+	return iter(ast.InternedBooleanTerm(re.MatchString(string(s2))))
 }
 
 func builtinRegexMatchTemplate(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -79,7 +79,7 @@ func builtinRegexMatchTemplate(_ BuiltinContext, operands []*ast.Term, iter func
 	if err != nil {
 		return err
 	}
-	return iter(ast.BooleanTerm(re.MatchString(string(match))))
+	return iter(ast.InternedBooleanTerm(re.MatchString(string(match))))
 }
 
 func builtinRegexSplit(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -176,7 +176,7 @@ func builtinGlobsMatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 	if err != nil {
 		return err
 	}
-	return iter(ast.BooleanTerm(ne))
+	return iter(ast.InternedBooleanTerm(ne))
 }
 
 func builtinRegexFind(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {

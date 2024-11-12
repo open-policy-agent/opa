@@ -34,13 +34,13 @@ func builtinSemVerCompare(_ BuiltinContext, operands []*ast.Term, iter func(*ast
 
 	result := versionA.Compare(*versionB)
 
-	return iter(ast.IntNumberTerm(result))
+	return iter(ast.InternedIntNumberTerm(result))
 }
 
 func builtinSemVerIsValid(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	versionString, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
-		return iter(ast.BooleanTerm(false))
+		return iter(ast.InternedBooleanTerm(false))
 	}
 
 	result := true
@@ -50,7 +50,7 @@ func builtinSemVerIsValid(_ BuiltinContext, operands []*ast.Term, iter func(*ast
 		result = false
 	}
 
-	return iter(ast.BooleanTerm(result))
+	return iter(ast.InternedBooleanTerm(result))
 }
 
 func init() {

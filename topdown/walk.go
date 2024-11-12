@@ -50,7 +50,7 @@ func walk(filter, path *ast.Array, input *ast.Term, iter func(*ast.Term) error) 
 	switch v := input.Value.(type) {
 	case *ast.Array:
 		for i := 0; i < v.Len(); i++ {
-			path = pathAppend(path, ast.IntNumberTerm(i))
+			path = pathAppend(path, ast.InternedIntNumberTerm(i))
 			if err := walk(filter, path, v.Elem(i), iter); err != nil {
 				return err
 			}

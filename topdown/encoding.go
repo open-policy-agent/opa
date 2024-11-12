@@ -144,10 +144,10 @@ func builtinJSONIsValid(_ BuiltinContext, operands []*ast.Term, iter func(*ast.T
 
 	str, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
-		return iter(ast.BooleanTerm(false))
+		return iter(ast.InternedBooleanTerm(false))
 	}
 
-	return iter(ast.BooleanTerm(json.Valid([]byte(str))))
+	return iter(ast.InternedBooleanTerm(json.Valid([]byte(str))))
 }
 
 func builtinBase64Encode(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -175,11 +175,11 @@ func builtinBase64Decode(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 func builtinBase64IsValid(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	str, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
-		return iter(ast.BooleanTerm(false))
+		return iter(ast.InternedBooleanTerm(false))
 	}
 
 	_, err = base64.StdEncoding.DecodeString(string(str))
-	return iter(ast.BooleanTerm(err == nil))
+	return iter(ast.InternedBooleanTerm(err == nil))
 }
 
 func builtinBase64UrlEncode(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -355,12 +355,12 @@ func builtinYAMLUnmarshal(_ BuiltinContext, operands []*ast.Term, iter func(*ast
 func builtinYAMLIsValid(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	str, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
-		return iter(ast.BooleanTerm(false))
+		return iter(ast.InternedBooleanTerm(false))
 	}
 
 	var x interface{}
 	err = yaml.Unmarshal([]byte(str), &x)
-	return iter(ast.BooleanTerm(err == nil))
+	return iter(ast.InternedBooleanTerm(err == nil))
 }
 
 func builtinHexEncode(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {

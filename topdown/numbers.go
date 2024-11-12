@@ -14,9 +14,13 @@ import (
 
 type randIntCachingKey string
 
+var zero = big.NewInt(0)
 var one = big.NewInt(1)
 
 func builtinNumbersRange(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	if canGenerateCheapRange(operands) {
+		return generateCheapRange(operands, iter)
+	}
 
 	x, err := builtins.BigIntOperand(operands[0].Value, 1)
 	if err != nil {
@@ -53,7 +57,7 @@ func builtinNumbersRangeStep(bctx BuiltinContext, operands []*ast.Term, iter fun
 		return err
 	}
 
-	if step.Cmp(big.NewInt(0)) <= 0 {
+	if step.Cmp(zero) <= 0 {
 		return fmt.Errorf("numbers.range_step: step must be a positive number above zero")
 	}
 
@@ -63,6 +67,51 @@ func builtinNumbersRangeStep(bctx BuiltinContext, operands []*ast.Term, iter fun
 	}
 
 	return iter(ast)
+}
+
+func canGenerateCheapRange(operands []*ast.Term) bool {
+	x, err := builtins.IntOperand(operands[0].Value, 1)
+	if err != nil || !ast.HasInternedIntNumberTerm(x) {
+		return false
+	}
+
+	y, err := builtins.IntOperand(operands[1].Value, 2)
+	if err != nil || !ast.HasInternedIntNumberTerm(y) {
+		return false
+	}
+
+	return true
+}
+
+func generateCheapRange(operands []*ast.Term, iter func(*ast.Term) error) error {
+	x, err := builtins.IntOperand(operands[0].Value, 1)
+	if err != nil {
+		return err
+	}
+
+	y, err := builtins.IntOperand(operands[1].Value, 2)
+	if err != nil {
+		return err
+	}
+
+	step := 1
+
+	stepOp, err := builtins.IntOperand(operands[2].Value, 3)
+	if err == nil {
+		step = stepOp
+	}
+
+	if step <= 0 {
+		return fmt.Errorf("numbers.range_step: step must be a positive number above zero")
+	}
+
+	terms := make([]*ast.Term, 0, y+1)
+
+	for i := x; i <= y; i += step {
+		terms = append(terms, ast.InternedIntNumberTerm(i))
+	}
+
+	return iter(ast.ArrayTerm(terms...))
 }
 
 func generateRange(bctx BuiltinContext, x *big.Int, y *big.Int, step *big.Int, funcName string) (*ast.Term, error) {
@@ -109,7 +158,7 @@ func builtinRandIntn(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.T
 	}
 
 	if n == 0 {
-		return iter(ast.IntNumberTerm(0))
+		return iter(ast.InternedIntNumberTerm(0))
 	}
 
 	if n < 0 {
@@ -126,7 +175,7 @@ func builtinRandIntn(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.T
 	if err != nil {
 		return err
 	}
-	result := ast.IntNumberTerm(r.Intn(n))
+	result := ast.InternedIntNumberTerm(r.Intn(n))
 	bctx.Cache.Put(key, result)
 
 	return iter(result)

@@ -127,7 +127,7 @@ func builtinDate(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) er
 		return err
 	}
 	year, month, day := t.Date()
-	result := ast.NewArray(ast.IntNumberTerm(year), ast.IntNumberTerm(int(month)), ast.IntNumberTerm(day))
+	result := ast.NewArray(ast.InternedIntNumberTerm(year), ast.InternedIntNumberTerm(int(month)), ast.InternedIntNumberTerm(day))
 	return iter(ast.NewTerm(result))
 }
 
@@ -137,7 +137,7 @@ func builtinClock(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) e
 		return err
 	}
 	hour, minute, second := t.Clock()
-	result := ast.NewArray(ast.IntNumberTerm(hour), ast.IntNumberTerm(minute), ast.IntNumberTerm(second))
+	result := ast.NewArray(ast.InternedIntNumberTerm(hour), ast.InternedIntNumberTerm(minute), ast.InternedIntNumberTerm(second))
 	return iter(ast.NewTerm(result))
 }
 
@@ -238,8 +238,8 @@ func builtinDiff(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) er
 	}
 	// END REDISTRIBUTION FROM APACHE 2.0 LICENSED PROJECT
 
-	return iter(ast.ArrayTerm(ast.IntNumberTerm(year), ast.IntNumberTerm(month), ast.IntNumberTerm(day),
-		ast.IntNumberTerm(hour), ast.IntNumberTerm(min), ast.IntNumberTerm(sec)))
+	return iter(ast.ArrayTerm(ast.InternedIntNumberTerm(year), ast.InternedIntNumberTerm(month), ast.InternedIntNumberTerm(day),
+		ast.InternedIntNumberTerm(hour), ast.InternedIntNumberTerm(min), ast.InternedIntNumberTerm(sec)))
 }
 
 func tzTime(a ast.Value) (t time.Time, lay string, err error) {

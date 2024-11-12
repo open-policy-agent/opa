@@ -47,7 +47,7 @@ func builtinAnyPrefixMatch(_ BuiltinContext, operands []*ast.Term, iter func(*as
 		return builtins.NewOperandTypeErr(2, b, "string", "set", "array")
 	}
 
-	return iter(ast.BooleanTerm(anyStartsWithAny(strs, prefixes)))
+	return iter(ast.InternedBooleanTerm(anyStartsWithAny(strs, prefixes)))
 }
 
 func builtinAnySuffixMatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -87,7 +87,7 @@ func builtinAnySuffixMatch(_ BuiltinContext, operands []*ast.Term, iter func(*as
 		return builtins.NewOperandTypeErr(2, b, "string", "set", "array")
 	}
 
-	return iter(ast.BooleanTerm(anyStartsWithAny(strsReversed, suffixesReversed)))
+	return iter(ast.InternedBooleanTerm(anyStartsWithAny(strsReversed, suffixesReversed)))
 }
 
 func anyStartsWithAny(strs []string, prefixes []string) bool {
@@ -218,14 +218,14 @@ func builtinIndexOf(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 	for i, r := range baseRunes {
 		if len(baseRunes) >= i+searchLen {
 			if r == searchRunes[0] && runesEqual(baseRunes[i:i+searchLen], searchRunes) {
-				return iter(ast.IntNumberTerm(i))
+				return iter(ast.InternedIntNumberTerm(i))
 			}
 		} else {
 			break
 		}
 	}
 
-	return iter(ast.IntNumberTerm(-1))
+	return iter(ast.InternedIntNumberTerm(-1))
 }
 
 func builtinIndexOfN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -250,7 +250,7 @@ func builtinIndexOfN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 	for i, r := range baseRunes {
 		if len(baseRunes) >= i+searchLen {
 			if r == searchRunes[0] && runesEqual(baseRunes[i:i+searchLen], searchRunes) {
-				arr = append(arr, ast.IntNumberTerm(i))
+				arr = append(arr, ast.InternedIntNumberTerm(i))
 			}
 		} else {
 			break
@@ -307,7 +307,7 @@ func builtinContains(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 		return err
 	}
 
-	return iter(ast.BooleanTerm(strings.Contains(string(s), string(substr))))
+	return iter(ast.InternedBooleanTerm(strings.Contains(string(s), string(substr))))
 }
 
 func builtinStringCount(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -326,7 +326,7 @@ func builtinStringCount(_ BuiltinContext, operands []*ast.Term, iter func(*ast.T
 
 	count := strings.Count(baseTerm, searchTerm)
 
-	return iter(ast.IntNumberTerm(count))
+	return iter(ast.InternedIntNumberTerm(count))
 }
 
 func builtinStartsWith(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -340,7 +340,7 @@ func builtinStartsWith(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 		return err
 	}
 
-	return iter(ast.BooleanTerm(strings.HasPrefix(string(s), string(prefix))))
+	return iter(ast.InternedBooleanTerm(strings.HasPrefix(string(s), string(prefix))))
 }
 
 func builtinEndsWith(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -354,7 +354,7 @@ func builtinEndsWith(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 		return err
 	}
 
-	return iter(ast.BooleanTerm(strings.HasSuffix(string(s), string(suffix))))
+	return iter(ast.InternedBooleanTerm(strings.HasSuffix(string(s), string(suffix))))
 }
 
 func builtinLower(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
