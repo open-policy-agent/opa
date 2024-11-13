@@ -14,9 +14,9 @@ import (
 	"github.com/open-policy-agent/opa/cmd/internal/exec"
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	loggingtest "github.com/open-policy-agent/opa/logging/test"
-	sdk_test "github.com/open-policy-agent/opa/sdk/test"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
+	sdk_test "github.com/open-policy-agent/opa/v1/sdk/test"
 )
 
 func TestExecBasic(t *testing.T) {

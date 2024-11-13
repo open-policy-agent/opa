@@ -42,7 +42,6 @@ import (
 	"github.com/open-policy-agent/opa/plugins"
 	bundlePlugin "github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/plugins/status"
-	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/server/authorizer"
 	"github.com/open-policy-agent/opa/server/handlers"
 	"github.com/open-policy-agent/opa/server/identifier"
@@ -55,6 +54,7 @@ import (
 	"github.com/open-policy-agent/opa/topdown/lineage"
 	"github.com/open-policy-agent/opa/tracing"
 	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/open-policy-agent/opa/version"
 )
 
@@ -929,6 +929,7 @@ func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.
 	}
 
 	opts := []func(*rego.Rego){
+		rego.SetRegoVersion(ast.DefaultRegoVersion),
 		rego.Store(s.store),
 		rego.Transaction(txn),
 		rego.Compiler(s.getCompiler()),

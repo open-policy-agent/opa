@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/logging"
-	"github.com/open-policy-agent/opa/sdk"
+	"github.com/open-policy-agent/opa/v1/sdk"
 
 	"github.com/open-policy-agent/opa/util/test"
 )

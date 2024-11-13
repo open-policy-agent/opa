@@ -117,7 +117,7 @@ p := x if {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			opts := ParserOptions{}
+			opts := ast.ParserOptions{}
 			if tc.regoVersion != ast.RegoUndefined {
 				opts.RegoVersion = tc.regoVersion
 			}

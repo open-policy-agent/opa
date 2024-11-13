@@ -216,51 +216,71 @@ type Builtin4 = v1.Builtin4
 type BuiltinDyn = v1.BuiltinDyn
 
 // RegisterBuiltin1 adds a built-in function globally inside the OPA runtime.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func RegisterBuiltin1(decl *Function, impl Builtin1) {
 	v1.RegisterBuiltin1(decl, impl)
 }
 
 // RegisterBuiltin2 adds a built-in function globally inside the OPA runtime.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func RegisterBuiltin2(decl *Function, impl Builtin2) {
 	v1.RegisterBuiltin2(decl, impl)
 }
 
 // RegisterBuiltin3 adds a built-in function globally inside the OPA runtime.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func RegisterBuiltin3(decl *Function, impl Builtin3) {
 	v1.RegisterBuiltin3(decl, impl)
 }
 
 // RegisterBuiltin4 adds a built-in function globally inside the OPA runtime.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func RegisterBuiltin4(decl *Function, impl Builtin4) {
 	v1.RegisterBuiltin4(decl, impl)
 }
 
 // RegisterBuiltinDyn adds a built-in function globally inside the OPA runtime.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func RegisterBuiltinDyn(decl *Function, impl BuiltinDyn) {
 	v1.RegisterBuiltinDyn(decl, impl)
 }
 
 // Function1 returns an option that adds a built-in function to the Rego object.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Function1(decl *Function, f Builtin1) func(*Rego) {
 	return v1.Function1(decl, f)
 }
 
 // Function2 returns an option that adds a built-in function to the Rego object.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Function2(decl *Function, f Builtin2) func(*Rego) {
 	return v1.Function2(decl, f)
 }
 
 // Function3 returns an option that adds a built-in function to the Rego object.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Function3(decl *Function, f Builtin3) func(*Rego) {
 	return v1.Function3(decl, f)
 }
 
 // Function4 returns an option that adds a built-in function to the Rego object.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Function4(decl *Function, f Builtin4) func(*Rego) {
 	return v1.Function4(decl, f)
 }
 
 // FunctionDyn returns an option that adds a built-in function to the Rego object.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func FunctionDyn(decl *Function, f BuiltinDyn) func(*Rego) {
 	return v1.FunctionDyn(decl, f)
 }
@@ -268,84 +288,114 @@ func FunctionDyn(decl *Function, f BuiltinDyn) func(*Rego) {
 // FunctionDecl returns an option that adds a custom-built-in function
 // __declaration__. NO implementation is provided. This is used for
 // non-interpreter execution envs (e.g., Wasm).
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func FunctionDecl(decl *Function) func(*Rego) {
 	return v1.FunctionDecl(decl)
 }
 
 // Dump returns an argument that sets the writer to dump debugging information to.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Dump(w io.Writer) func(r *Rego) {
 	return v1.Dump(w)
 }
 
 // Query returns an argument that sets the Rego query.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Query(q string) func(r *Rego) {
 	return v1.Query(q)
 }
 
 // ParsedQuery returns an argument that sets the Rego query.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func ParsedQuery(q ast.Body) func(r *Rego) {
 	return v1.ParsedQuery(q)
 }
 
 // Package returns an argument that sets the Rego package on the query's
 // context.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Package(p string) func(r *Rego) {
 	return v1.Package(p)
 }
 
 // ParsedPackage returns an argument that sets the Rego package on the query's
 // context.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func ParsedPackage(pkg *ast.Package) func(r *Rego) {
 	return v1.ParsedPackage(pkg)
 }
 
 // Imports returns an argument that adds a Rego import to the query's context.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Imports(p []string) func(r *Rego) {
 	return v1.Imports(p)
 }
 
 // ParsedImports returns an argument that adds Rego imports to the query's
 // context.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func ParsedImports(imp []*ast.Import) func(r *Rego) {
 	return v1.ParsedImports(imp)
 }
 
 // Input returns an argument that sets the Rego input document. Input should be
 // a native Go value representing the input document.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Input(x interface{}) func(r *Rego) {
 	return v1.Input(x)
 }
 
 // ParsedInput returns an argument that sets the Rego input document.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func ParsedInput(x ast.Value) func(r *Rego) {
 	return v1.ParsedInput(x)
 }
 
 // Unknowns returns an argument that sets the values to treat as unknown during
 // partial evaluation.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Unknowns(unknowns []string) func(r *Rego) {
 	return v1.Unknowns(unknowns)
 }
 
 // ParsedUnknowns returns an argument that sets the values to treat as unknown
 // during partial evaluation.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func ParsedUnknowns(unknowns []*ast.Term) func(r *Rego) {
 	return v1.ParsedUnknowns(unknowns)
 }
 
 // DisableInlining adds a set of paths to exclude from partial evaluation inlining.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func DisableInlining(paths []string) func(r *Rego) {
 	return v1.DisableInlining(paths)
 }
 
 // ShallowInlining prevents rules that depend on unknown values from being inlined.
 // Rules that only depend on known values are inlined.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func ShallowInlining(yes bool) func(r *Rego) {
 	return v1.ShallowInlining(yes)
 }
 
 // SkipPartialNamespace disables namespacing of partial evalution results for support
 // rules generated from policy. Synthetic support rules are still namespaced.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func SkipPartialNamespace(yes bool) func(r *Rego) {
 	return v1.SkipPartialNamespace(yes)
 }
@@ -353,11 +403,15 @@ func SkipPartialNamespace(yes bool) func(r *Rego) {
 // PartialNamespace returns an argument that sets the namespace to use for
 // partial evaluation results. The namespace must be a valid package path
 // component.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func PartialNamespace(ns string) func(r *Rego) {
 	return v1.PartialNamespace(ns)
 }
 
 // Module returns an argument that adds a Rego module.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Module(filename, input string) func(r *Rego) {
 	return v1.Module(filename, input)
 }
@@ -365,6 +419,8 @@ func Module(filename, input string) func(r *Rego) {
 // ParsedModule returns an argument that adds a parsed Rego module. If a string
 // module with the same filename name is added, it will override the parsed
 // module.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func ParsedModule(module *ast.Module) func(*Rego) {
 	return v1.ParsedModule(module)
 }
@@ -376,6 +432,8 @@ func ParsedModule(module *ast.Module) func(*Rego) {
 // can be used to filter which files are used.
 // The Load option can only be used once.
 // Note: Loading files will require a write transaction on the store.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Load(paths []string, filter loader.Filter) func(r *Rego) {
 	return v1.Load(paths, filter)
 }
@@ -384,16 +442,22 @@ func Load(paths []string, filter loader.Filter) func(r *Rego) {
 // a bundle from. The path can be a compressed bundle file or a directory
 // to be loaded as a bundle.
 // Note: Loading bundles will require a write transaction on the store.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func LoadBundle(path string) func(r *Rego) {
 	return v1.LoadBundle(path)
 }
 
 // ParsedBundle returns an argument that adds a bundle to be loaded.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func ParsedBundle(name string, b *bundle.Bundle) func(r *Rego) {
 	return v1.ParsedBundle(name, b)
 }
 
 // Compiler returns an argument that sets the Rego compiler.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Compiler(c *ast.Compiler) func(r *Rego) {
 	return v1.Compiler(c)
 }
@@ -403,6 +467,8 @@ func Compiler(c *ast.Compiler) func(r *Rego) {
 // If using the Load, LoadBundle, or ParsedBundle options then a transaction
 // must also be provided via the Transaction() option. After loading files
 // or bundles the transaction should be aborted or committed.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Store(s storage.Store) func(r *Rego) {
 	return v1.Store(s)
 }
@@ -410,6 +476,8 @@ func Store(s storage.Store) func(r *Rego) {
 // StoreReadAST returns an argument that sets whether the store should eagerly convert data to AST values.
 //
 // Only applicable when no store has been set on the Rego object through the Store option.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func StoreReadAST(enabled bool) func(r *Rego) {
 	return v1.StoreReadAST(enabled)
 }
@@ -420,39 +488,53 @@ func StoreReadAST(enabled bool) func(r *Rego) {
 // Requires the store associated with the transaction to be provided via the
 // Store() option. If using Load(), LoadBundle(), or ParsedBundle() options
 // the transaction will likely require write params.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Transaction(txn storage.Transaction) func(r *Rego) {
 	return v1.Transaction(txn)
 }
 
 // Metrics returns an argument that sets the metrics collection.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Metrics(m metrics.Metrics) func(r *Rego) {
 	return v1.Metrics(m)
 }
 
 // Instrument returns an argument that enables instrumentation for diagnosing
 // performance issues.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Instrument(yes bool) func(r *Rego) {
 	return v1.Instrument(yes)
 }
 
 // Trace returns an argument that enables tracing on r.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Trace(yes bool) func(r *Rego) {
 	return v1.Trace(yes)
 }
 
 // Tracer returns an argument that adds a query tracer to r.
 // Deprecated: Use QueryTracer instead.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Tracer(t topdown.Tracer) func(r *Rego) {
 	return v1.Tracer(t)
 }
 
 // QueryTracer returns an argument that adds a query tracer to r.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func QueryTracer(t topdown.QueryTracer) func(r *Rego) {
 	return v1.QueryTracer(t)
 }
 
 // Runtime returns an argument that sets the runtime data to provide to the
 // evaluation engine.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Runtime(term *ast.Term) func(r *Rego) {
 	return v1.Runtime(term)
 }
@@ -460,24 +542,32 @@ func Runtime(term *ast.Term) func(r *Rego) {
 // Time sets the wall clock time to use during policy evaluation. Prepared queries
 // do not inherit this parameter. Use EvalTime to set the wall clock time when
 // executing a prepared query.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Time(x time.Time) func(r *Rego) {
 	return v1.Time(x)
 }
 
 // Seed sets a reader that will seed randomization required by built-in functions.
 // If a seed is not provided crypto/rand.Reader is used.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Seed(r io.Reader) func(*Rego) {
 	return v1.Seed(r)
 }
 
 // PrintTrace is a helper function to write a human-readable version of the
 // trace to the writer w.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func PrintTrace(w io.Writer, r *Rego) {
 	v1.PrintTrace(w, r)
 }
 
 // PrintTraceWithLocation is a helper function to write a human-readable version of the
 // trace to the writer w.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func PrintTraceWithLocation(w io.Writer, r *Rego) {
 	v1.PrintTraceWithLocation(w, r)
 }
@@ -486,23 +576,31 @@ func PrintTraceWithLocation(w io.Writer, r *Rego) {
 // This option is ignored for module compilation if the caller supplies the
 // compiler. This option is always honored for query compilation. Provide an
 // empty (non-nil) map to disable checks on queries.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func UnsafeBuiltins(unsafeBuiltins map[string]struct{}) func(r *Rego) {
 	return v1.UnsafeBuiltins(unsafeBuiltins)
 }
 
 // SkipBundleVerification skips verification of a signed bundle.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func SkipBundleVerification(yes bool) func(r *Rego) {
 	return v1.SkipBundleVerification(yes)
 }
 
 // InterQueryBuiltinCache sets the inter-query cache that built-in functions can utilize
 // during evaluation.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func InterQueryBuiltinCache(c cache.InterQueryCache) func(r *Rego) {
 	return v1.InterQueryBuiltinCache(c)
 }
 
 // InterQueryBuiltinValueCache sets the inter-query value cache that built-in functions can utilize
 // during evaluation.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func InterQueryBuiltinValueCache(c cache.InterQueryValueCache) func(r *Rego) {
 	return v1.InterQueryBuiltinValueCache(c)
 }
@@ -513,21 +611,29 @@ func NDBuiltinCache(c builtins.NDBCache) func(r *Rego) {
 }
 
 // StrictBuiltinErrors tells the evaluator to treat all built-in function errors as fatal errors.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func StrictBuiltinErrors(yes bool) func(r *Rego) {
 	return v1.StrictBuiltinErrors(yes)
 }
 
 // BuiltinErrorList supplies an error slice to store built-in function errors.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func BuiltinErrorList(list *[]topdown.Error) func(r *Rego) {
 	return v1.BuiltinErrorList(list)
 }
 
 // Resolver sets a Resolver for a specified ref path.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Resolver(ref ast.Ref, r resolver.Resolver) func(r *Rego) {
 	return v1.Resolver(ref, r)
 }
 
 // Schemas sets the schemaSet
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Schemas(x *ast.SchemaSet) func(r *Rego) {
 	return v1.Schemas(x)
 }
@@ -535,26 +641,36 @@ func Schemas(x *ast.SchemaSet) func(r *Rego) {
 // Capabilities configures the underlying compiler's capabilities.
 // This option is ignored for module compilation if the caller supplies the
 // compiler.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Capabilities(c *ast.Capabilities) func(r *Rego) {
 	return v1.Capabilities(c)
 }
 
 // Target sets the runtime to exercise.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Target(t string) func(r *Rego) {
 	return v1.Target(t)
 }
 
 // GenerateJSON sets the AST to JSON converter for the results.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func GenerateJSON(f func(*ast.Term, *EvalContext) (interface{}, error)) func(r *Rego) {
 	return v1.GenerateJSON(f)
 }
 
 // PrintHook sets the object to use for handling print statement outputs.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func PrintHook(h print.Hook) func(r *Rego) {
 	return v1.PrintHook(h)
 }
 
 // DistributedTracingOpts sets the options to be used by distributed tracing.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func DistributedTracingOpts(tr tracing.Options) func(r *Rego) {
 	return v1.DistributedTracingOpts(tr)
 }
@@ -563,15 +679,22 @@ func DistributedTracingOpts(tr tracing.Options) func(r *Rego) {
 // print() calls will be erased from the policy. This option only applies to
 // queries and policies that passed as raw strings, i.e., this function will not
 // have any affect if the caller supplies the ast.Compiler instance.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func EnablePrintStatements(yes bool) func(r *Rego) {
 	return v1.EnablePrintStatements(yes)
 }
 
 // Strict enables or disables strict-mode in the compiler
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func Strict(yes bool) func(r *Rego) {
 	return v1.Strict(yes)
 }
 
+// SetRegoVersion sets the rego-version to use for compiling modules and queries.
+//
+// Deprecated: Use the Compiler option in the [github.com/open-policy-agent/opa/v1] package instead.
 func SetRegoVersion(version ast.RegoVersion) func(r *Rego) {
 	return v1.SetRegoVersion(version)
 }

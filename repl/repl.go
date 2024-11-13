@@ -31,10 +31,10 @@ import (
 	pr "github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/profiler"
-	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/lineage"
+	"github.com/open-policy-agent/opa/v1/rego"
 )
 
 // REPL represents an instance of the interactive shell.
@@ -1043,6 +1043,7 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 	var prof *profiler.Profiler
 
 	args := []func(*rego.Rego){
+		rego.SetRegoVersion(r.regoVersion),
 		rego.Compiler(compiler),
 		rego.Store(r.store),
 		rego.Transaction(r.txn),

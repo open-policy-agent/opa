@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/server/identifier"
 	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/server/writer"
@@ -20,6 +19,7 @@ import (
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/topdown/print"
 	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/v1/rego"
 )
 
 // Basic provides policy-based authorization over incoming requests.
@@ -107,6 +107,7 @@ func (h *Basic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rego := rego.New(
+		rego.SetRegoVersion(ast.DefaultRegoVersion),
 		rego.Query(h.decision().String()),
 		rego.Compiler(h.compiler()),
 		rego.Store(h.store),

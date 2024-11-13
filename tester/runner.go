@@ -20,10 +20,10 @@ import (
 	wasm_errors "github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/metrics"
-	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/v1/rego"
 )
 
 // TestPrefix declares the prefix for all test rules.
@@ -471,6 +471,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	printbuf := bytes.NewBuffer(nil)
 	var builtinErrors []topdown.Error
 	rg := rego.New(
+		rego.SetRegoVersion(ast.DefaultRegoVersion),
 		rego.Store(r.store),
 		rego.Transaction(txn),
 		rego.Compiler(r.compiler),
@@ -540,6 +541,7 @@ func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod 
 	br := testing.Benchmark(func(b *testing.B) {
 
 		pq, err := rego.New(
+			rego.SetRegoVersion(ast.DefaultRegoVersion),
 			rego.Store(r.store),
 			rego.Transaction(txn),
 			rego.Compiler(r.compiler),

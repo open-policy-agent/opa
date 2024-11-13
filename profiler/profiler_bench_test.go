@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/v1/rego"
 )
 
 func BenchmarkProfilerBigLocalVar(b *testing.B) {
@@ -33,6 +33,7 @@ func BenchmarkProfilerBigLocalVar(b *testing.B) {
 				ctx := context.Background()
 
 				pq, err := rego.New(
+					rego.SetRegoVersion(ast.RegoV1),
 					rego.Module("test.rego", module),
 					rego.Query("data.test.p"),
 				).PrepareForEval(ctx)

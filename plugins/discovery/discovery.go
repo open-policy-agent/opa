@@ -31,9 +31,9 @@ import (
 	"github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/plugins/logs"
 	"github.com/open-policy-agent/opa/plugins/status"
-	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/v1/rego"
 )
 
 const (
@@ -544,6 +544,7 @@ func evaluateBundle(ctx context.Context, id string, info *ast.Term, b *bundleApi
 	store := inmem.NewFromObjectWithOpts(b.Data, inmem.OptRoundTripOnWrite(false))
 
 	rego := rego.New(
+		rego.SetRegoVersion(ast.DefaultRegoVersion),
 		rego.Query(query),
 		rego.Compiler(compiler),
 		rego.Store(store),

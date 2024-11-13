@@ -4,6 +4,8 @@
 
 package main
 
+//nolint:staticcheck
+
 import (
 	"archive/tar"
 	"compress/gzip"
@@ -62,6 +64,7 @@ func compileTestCases(ctx context.Context, tests cases.Set) (*compiledTestCaseSe
 			return nil, fmt.Errorf("test case %v: must specify exactly one expectation (e.g., want_defined) but got %v", tc.Note, numExpects)
 		}
 
+		//nolint:staticcheck // intentional use of deprecated API
 		args := []func(*rego.Rego){
 			rego.Query(tc.Query),
 			rego.FunctionDecl(&rego.Function{
@@ -88,11 +91,13 @@ func compileTestCases(ctx context.Context, tests cases.Set) (*compiledTestCaseSe
 		}
 
 		for idx, module := range tc.Modules {
+			//nolint:staticcheck // intentional use of deprecated API
 			args = append(args, rego.Module(fmt.Sprintf("module%d.rego", idx), module))
 		}
 
 		var bs []byte
 
+		//nolint:staticcheck // intentional use of deprecated API
 		cr, err := rego.New(args...).Compile(ctx)
 		if err != nil {
 			return nil, err

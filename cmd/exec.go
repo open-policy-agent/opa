@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/cmd/internal/env"
@@ -21,8 +22,8 @@ import (
 	"github.com/open-policy-agent/opa/plugins/discovery"
 	"github.com/open-policy-agent/opa/plugins/logs"
 	"github.com/open-policy-agent/opa/plugins/status"
-	"github.com/open-policy-agent/opa/sdk"
 	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/v1/sdk"
 )
 
 func init() {
@@ -129,6 +130,7 @@ func runExecWithContext(ctx context.Context, params *exec.Params) error {
 		Ready:         ready,
 		V0Compatible:  params.V0Compatible,
 		V1Compatible:  params.V1Compatible,
+		RegoVersion:   ast.DefaultRegoVersion,
 	})
 	if err != nil {
 		return fmt.Errorf("runtime error: %w", err)

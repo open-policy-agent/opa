@@ -32,12 +32,12 @@ import (
 	bundlePlugin "github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/plugins/logs"
 	"github.com/open-policy-agent/opa/plugins/status"
-	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
 	inmem "github.com/open-policy-agent/opa/storage/inmem/test"
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/open-policy-agent/opa/version"
 )
 
@@ -3914,6 +3914,7 @@ func (t *testFixture) loop(ctx context.Context) {
 
 func (t *testFixture) runQuery(ctx context.Context, query string, m metrics.Metrics) (interface{}, error) {
 	r := rego.New(
+		rego.SetRegoVersion(ast.DefaultRegoVersion),
 		rego.Query(query),
 		rego.Store(t.manager.Store),
 		rego.Metrics(m),

@@ -17,8 +17,8 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
-	"github.com/open-policy-agent/opa/compile"
 	"github.com/open-policy-agent/opa/internal/file/archive"
+	"github.com/open-policy-agent/opa/v1/compile"
 
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -144,7 +144,7 @@ func (s *Server) buildBundles(ref string, policies map[string]string) error {
 	bundleManifest.SetRegoVersion(ast.DefaultRegoVersion)
 	bundleManifest.Init()
 
-	err := compile.New().WithOutput(buf).WithBundle(&bundle.Bundle{
+	err := compile.NewBundleCompiler().WithOutput(buf).WithBundle(&bundle.Bundle{
 		Data:     map[string]interface{}{},
 		Modules:  modules,
 		Manifest: bundleManifest,
@@ -443,7 +443,7 @@ func (s *Server) handleBundles(w http.ResponseWriter, r *http.Request) {
 
 	// Compile the bundle out into a buffer
 	buf := bytes.NewBuffer(nil)
-	err := compile.New().WithOutput(buf).WithBundle(&bundle.Bundle{
+	err := compile.NewBundleCompiler().WithOutput(buf).WithBundle(&bundle.Bundle{
 		Data:     data,
 		Modules:  modules,
 		Manifest: manifest,

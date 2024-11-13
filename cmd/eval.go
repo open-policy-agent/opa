@@ -21,7 +21,6 @@ import (
 	"github.com/open-policy-agent/opa/ast/location"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/cmd/internal/env"
-	"github.com/open-policy-agent/opa/compile"
 	"github.com/open-policy-agent/opa/cover"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
@@ -29,10 +28,11 @@ import (
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/profiler"
-	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/lineage"
 	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/v1/compile"
+	"github.com/open-policy-agent/opa/v1/rego"
 )
 
 type evalCommandParams struct {
@@ -862,7 +862,7 @@ func generateOptimizedBundle(params evalCommandParams, asBundle bool, filter loa
 		capabilities = ast.CapabilitiesForThisVersion()
 	}
 
-	compiler := compile.New().
+	compiler := compile.NewBundleCompiler().
 		WithCapabilities(capabilities).
 		WithTarget(params.target.String()).
 		WithAsBundle(asBundle).

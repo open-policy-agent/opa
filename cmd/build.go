@@ -17,9 +17,9 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/cmd/internal/env"
-	"github.com/open-policy-agent/opa/compile"
 	"github.com/open-policy-agent/opa/keys"
 	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/v1/compile"
 )
 
 const defaultPublicKeyID = "default"
@@ -47,6 +47,16 @@ type buildParams struct {
 	v0Compatible       bool
 	v1Compatible       bool
 	followSymlinks     bool
+}
+
+func (p *buildParams) regoVersion() ast.RegoVersion {
+	if p.v0Compatible {
+		return ast.RegoV0
+	}
+	if p.v1Compatible {
+		return ast.RegoV1
+	}
+	return ast.DefaultRegoVersion
 }
 
 func newBuildParams() buildParams {
@@ -293,7 +303,8 @@ func dobuild(params buildParams, args []string) error {
 		capabilities = ast.CapabilitiesForThisVersion()
 	}
 
-	compiler := compile.New().
+	compiler := compile.NewBundleCompiler().
+		WithRegoVersion(params.regoVersion()).
 		WithCapabilities(capabilities).
 		WithTarget(params.target.String()).
 		WithAsBundle(params.bundleMode).

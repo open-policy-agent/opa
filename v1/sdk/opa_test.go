@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	sdktest "github.com/open-policy-agent/opa/v1/sdk/test"
 	"github.com/prometheus/client_golang/prometheus"
 	promdto "github.com/prometheus/client_model/go"
 
@@ -35,7 +36,6 @@ import (
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/profiler"
 	"github.com/open-policy-agent/opa/rego"
-	sdktest "github.com/open-policy-agent/opa/sdk/test"
 	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/builtins"

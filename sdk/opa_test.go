@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	sdktest "github.com/open-policy-agent/opa/sdk/test"
+	sdktest "github.com/open-policy-agent/opa/v1/sdk/test"
 	"github.com/prometheus/client_golang/prometheus"
 	promdto "github.com/prometheus/client_model/go"
 

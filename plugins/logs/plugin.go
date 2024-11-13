@@ -28,10 +28,10 @@ import (
 	lstat "github.com/open-policy-agent/opa/plugins/logs/status"
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"github.com/open-policy-agent/opa/plugins/status"
-	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/v1/rego"
 )
 
 // Logger defines the interface for decision logging plugins.
@@ -1004,6 +1004,7 @@ func (p *Plugin) maskEvent(ctx context.Context, txn storage.Transaction, input a
 		query := ast.NewBody(ast.NewExpr(ast.NewTerm(p.config.maskDecisionRef)))
 
 		r := rego.New(
+			rego.SetRegoVersion(ast.DefaultRegoVersion),
 			rego.ParsedQuery(query),
 			rego.Compiler(p.manager.GetCompiler()),
 			rego.Store(p.manager.Store),
@@ -1059,6 +1060,7 @@ func (p *Plugin) dropEvent(ctx context.Context, txn storage.Transaction, input a
 
 		query := ast.NewBody(ast.NewExpr(ast.NewTerm(p.config.dropDecisionRef)))
 		r := rego.New(
+			rego.SetRegoVersion(ast.DefaultRegoVersion),
 			rego.ParsedQuery(query),
 			rego.Compiler(p.manager.GetCompiler()),
 			rego.Store(p.manager.Store),

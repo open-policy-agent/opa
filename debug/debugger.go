@@ -20,11 +20,11 @@ import (
 	"github.com/open-policy-agent/opa/ast/location"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
 	"github.com/open-policy-agent/opa/logging"
-	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
 	prnt "github.com/open-policy-agent/opa/topdown/print"
+	"github.com/open-policy-agent/opa/v1/rego"
 )
 
 // Debugger is the interface for launching OPA debugger Session(s).
