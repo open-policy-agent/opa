@@ -1977,8 +1977,8 @@ p[r] := 2 if { r := "foo" }`,
 		"rego_type_error: conflicting rules data.badrules.complete_partial.p[r] found",
 		"rego_type_error: conflicting rules data.badrules.p[x] found",
 		"rego_type_error: conflicting rules data.badrules.q found",
-		"rego_type_error: multiple default rules data.badrules.defkw.foo found",
-		"rego_type_error: multiple default rules data.badrules.defkw.p.q.bar found",
+		"rego_type_error: multiple default rules data.badrules.defkw.foo found at mod3.rego:3, mod3.rego:4",
+		"rego_type_error: multiple default rules data.badrules.defkw.p.q.bar found at mod3.rego:7, mod3.rego:8",
 		"rego_type_error: package badrules.s conflicts with rule s defined at mod1.rego:10",
 		"rego_type_error: package badrules.s conflicts with rule s defined at mod1.rego:9",
 		"rego_type_error: package badrules.t conflicts with rule t defined at mod1.rego:11",
@@ -2048,7 +2048,7 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				`package pkg.p.q
 				default r = 4
 				r = 2`),
-			err: "rego_type_error: multiple default rules data.pkg.p.q.r found",
+			err: "rego_type_error: multiple default rules data.pkg.p.q.r found at mod0.rego:2, mod1.rego:2",
 		},
 		{
 			note: "arity mismatch, ref and ref rule",
@@ -2068,7 +2068,7 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				`package pkg.p
 				default q.w.r = 4
 				q.w.r = 2`),
-			err: "rego_type_error: multiple default rules data.pkg.p.q.w.r found",
+			err: "rego_type_error: multiple default rules data.pkg.p.q.w.r found at mod0.rego:2, mod1.rego:2",
 		},
 		{
 			note: "multi-value + single-value rules, both with same ref prefix",

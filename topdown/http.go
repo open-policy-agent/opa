@@ -148,7 +148,7 @@ func builtinHTTPSend(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.T
 
 func generateRaiseErrorResult(err error) *ast.Term {
 	obj := ast.NewObject()
-	obj.Insert(ast.StringTerm("status_code"), ast.IntNumberTerm(0))
+	obj.Insert(ast.StringTerm("status_code"), ast.InternedIntNumberTerm(0))
 
 	errObj := ast.NewObject()
 
@@ -966,7 +966,7 @@ func (c *interQueryCache) checkHTTPSendInterQueryCache() (ast.Value, error) {
 
 // insertIntoHTTPSendInterQueryCache inserts given key and value in the inter-query cache
 func insertIntoHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Value, resp *http.Response, respBody []byte, cacheParams *forceCacheParams) error {
-	if resp == nil || (!forceCaching(cacheParams) && !canStore(resp.Header)) || !cacheableCodes.Contains(ast.IntNumberTerm(resp.StatusCode)) {
+	if resp == nil || (!forceCaching(cacheParams) && !canStore(resp.Header)) || !cacheableCodes.Contains(ast.InternedIntNumberTerm(resp.StatusCode)) {
 		return nil
 	}
 
@@ -1007,7 +1007,7 @@ func createAllowedKeys() {
 
 func createCacheableHTTPStatusCodes() {
 	for _, element := range cacheableHTTPStatusCodes {
-		cacheableCodes.Add(ast.IntNumberTerm(element))
+		cacheableCodes.Add(ast.InternedIntNumberTerm(element))
 	}
 }
 
@@ -1549,7 +1549,7 @@ func (c *intraQueryCache) InsertIntoCache(value *http.Response) (ast.Value, erro
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}
 
-	if cacheableCodes.Contains(ast.IntNumberTerm(value.StatusCode)) {
+	if cacheableCodes.Contains(ast.InternedIntNumberTerm(value.StatusCode)) {
 		insertIntoHTTPSendCache(c.bctx, c.key, result)
 	}
 

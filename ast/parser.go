@@ -1362,6 +1362,11 @@ func (p *Parser) parseTermInfixCallInList() *Term {
 	return p.parseTermIn(nil, false, p.s.loc.Offset)
 }
 
+// use static references to avoid allocations, and
+// copy them to  the call term only when needed
+var memberWithKeyRef = MemberWithKey.Ref()
+var memberRef = Member.Ref()
+
 func (p *Parser) parseTermIn(lhs *Term, keyVal bool, offset int) *Term {
 	// NOTE(sr): `in` is a bit special: besides `lhs in rhs`, it also
 	// supports `key, val in rhs`, so it can have an optional second lhs.
@@ -1374,7 +1379,8 @@ func (p *Parser) parseTermIn(lhs *Term, keyVal bool, offset int) *Term {
 			s := p.save()
 			p.scan()
 			if mhs := p.parseTermRelation(nil, offset); mhs != nil {
-				if op := p.parseTermOpName(MemberWithKey.Ref(), tokens.In); op != nil {
+
+				if op := p.parseTermOpName(memberWithKeyRef, tokens.In); op != nil {
 					if rhs := p.parseTermRelation(nil, p.s.loc.Offset); rhs != nil {
 						call := p.setLoc(CallTerm(op, lhs, mhs, rhs), lhs.Location, offset, p.s.lastEnd)
 						switch p.s.tok {
@@ -1388,7 +1394,7 @@ func (p *Parser) parseTermIn(lhs *Term, keyVal bool, offset int) *Term {
 			}
 			p.restore(s)
 		}
-		if op := p.parseTermOpName(Member.Ref(), tokens.In); op != nil {
+		if op := p.parseTermOpName(memberRef, tokens.In); op != nil {
 			if rhs := p.parseTermRelation(nil, p.s.loc.Offset); rhs != nil {
 				call := p.setLoc(CallTerm(op, lhs, rhs), lhs.Location, offset, p.s.lastEnd)
 				switch p.s.tok {
@@ -1625,8 +1631,7 @@ func (p *Parser) parseNumber() *Term {
 
 	// Note: Use the original string, do *not* round trip from
 	// the big.Float as it can cause precision loss.
-	r := NumberTerm(json.Number(s)).SetLocation(loc)
-	return r
+	return NumberTerm(json.Number(s)).SetLocation(loc)
 }
 
 func (p *Parser) parseString() *Term {
@@ -2064,10 +2069,11 @@ func (p *Parser) parseTermOp(values ...tokens.Token) *Term {
 func (p *Parser) parseTermOpName(ref Ref, values ...tokens.Token) *Term {
 	for i := range values {
 		if p.s.tok == values[i] {
-			for _, r := range ref {
+			cp := ref.Copy()
+			for _, r := range cp {
 				r.SetLocation(p.s.Loc())
 			}
-			t := RefTerm(ref...)
+			t := RefTerm(cp...)
 			t.SetLocation(p.s.Loc())
 			p.scan()
 			return t

@@ -149,8 +149,11 @@ something else
 var invalidData = `nothingtoseehere`
 
 func TestX509ParseAndVerify(t *testing.T) {
+	t.Parallel()
 
 	t.Run("TestFullChainPEM", func(t *testing.T) {
+		t.Parallel()
+
 		chain := strings.Join([]string{rootCA, intermediateCA, leaf}, "\n")
 
 		parsed, err := getX509CertsFromString(chain)
@@ -164,6 +167,8 @@ func TestX509ParseAndVerify(t *testing.T) {
 	})
 
 	t.Run("TestFullChainBase64", func(t *testing.T) {
+		t.Parallel()
+
 		chain := strings.Join([]string{rootCA, intermediateCA, leaf}, "\n")
 		b64 := base64.StdEncoding.EncodeToString([]byte(chain))
 
@@ -178,6 +183,8 @@ func TestX509ParseAndVerify(t *testing.T) {
 	})
 
 	t.Run("TestWrongOrder", func(t *testing.T) {
+		t.Parallel()
+
 		chain := strings.Join([]string{leaf, intermediateCA, rootCA}, "\n")
 
 		parsed, err := getX509CertsFromString(chain)
@@ -191,6 +198,8 @@ func TestX509ParseAndVerify(t *testing.T) {
 	})
 
 	t.Run("TestMissingIntermediate", func(t *testing.T) {
+		t.Parallel()
+
 		chain := strings.Join([]string{rootCA, leaf}, "\n")
 
 		parsed, err := getX509CertsFromString(chain)
@@ -204,6 +213,8 @@ func TestX509ParseAndVerify(t *testing.T) {
 	})
 
 	t.Run("TestTooFewCerts", func(t *testing.T) {
+		t.Parallel()
+
 		parsed, err := getX509CertsFromString(leaf)
 		if err != nil {
 			t.Fatalf("failed to parse leaf cert: %v", err)
@@ -216,6 +227,8 @@ func TestX509ParseAndVerify(t *testing.T) {
 }
 
 func Test_parsex509KeyPair(t *testing.T) {
+	t.Parallel()
+
 	certPemEC := []byte(`-----BEGIN CERTIFICATE-----
 MIIBhTCCASugAwIBAgIQIRi6zePL6mKjOipn+dNuaTAKBggqhkjOPQQDAjASMRAw
 DgYDVQQKEwdBY21lIENvMB4XDTE3MTAyMDE5NDMwNloXDTE4MTAyMDE5NDMwNlow
@@ -399,6 +412,8 @@ KcZjiyUsFLvdC5de1MeT1rJjQEsiZxH+QPR88tuByUVG000lpA==
 	certPemRSAKeyB64 := []byte(`LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUpRZ0lCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQ1N3d2dna29BZ0VBQW9JQ0FRQzNOOWp2aWNtS3BHZDEKUDNwWGVBK01vaWRkTmpKNXZNMTNLcWFUYzEyOW1jbUhIdElyakduaG9Mck5TTFdjTEdLTkJic0JOaTVsb3E0MQpzSm9neW1OeFVzeFFRRXJYbjVEaUVuRVFmMUJxK25TR3pJZEdtYm1KVldxSHQ0dFNJSGRDSUVheEhESFdrSW9rCmxSNHQ4Q2dOSXZoS3FsR0dKbHZMZlBWWmdXSGpzOUhBKzYrRzM1dHAvWmdBdlNBL051dGs1UDlBTE9qbHlzaXkKU2lYNm1hUlBrK3lyTmZwcXpBOWNsSWVWUVFDVFNHSFJQZU94ZzFTU3FwSGhNdWt1WTAxSkh3b3RCVVFsTkt1RApXQnd6MTNGT3VhUGM3NGcwcHNOUVdlQ0lpN0laNmNQWldKZmJDa1JIQjBlRnBhT0djbnlGRmFmQWZOWVoxd1o4CjdINlUzVTR6d3IwSUx4WXo2RG44QjRmSWtrb1kxOVBIRW1uNHRySG01d2JSbkpWUGllZmZBWnpxSy96Y2FpQkYKVkRkR1FDL1R5M0s1ejkrVkZiSXpQV0lSNVM2d2VXdGJBOGgzYWEvRS90SFNDWVd2aSs0UndxUHhmV1E2SmV2eApkV0MwOFJneTFJUHo3dnFrdkQwYmc3UmYwMXZJVW9oTzN2Ym9IN0p6Mkswb3ZFR2lSZGNQUWZCeHkvUjZPNGVzCnRQcFRMRTlDU1NrY1RBUWNpZkNwbjNPVTgvdnVSTERFeTlBdCttYWQrRzVWS2lTbm84RDV5Z2xqT0hFUUlDWk8KMGNFTkY1dVZjck5OaFFZUzBKZDdGOWVWQ1NPOEhVQ3NsTXFGMmVkbkZDcFNmcllJUWtzUlRnZWo0YlhVeGxURgozdmZqRVpuNWlkVnNJZ2oydFZRb04wZHJuOE1BU1FJREFRQUJBb0lDQUJKaUttUm9neDRqM2xTYm5Lc3Jtd1hOCm5GMEVLOTdlcEpBTktiOFlQNExmYkNMZ1l3Nm5EVldzQXFwSDNoOFFMZ2cvMTdKb3JSR2FGOWcvd3N0QSsyYmEKdTdEZXJwUEJpVEJCMFBIcWtGZFhqM3NhQ1FXNnRXelQ4dmN3b2F4SklTWXpwbHd0ZTh1dlg0a0pwRWhRTlRpUwpObThKZFZvY1BiQW1kdGkyL0dzME52cmgxZ3dXb2htcHJnZCs4bjRkUk5Pd0RYTnpQaUFXYjNwQ0tkcmg4U1JoCjc0aURSei9SZjBZWENoNmQ4ZENWWGVrNGlFRGVzRXp5QythWWJPQ3dhb2dJY3dVdTV0WkQyV1M1b2NUSzNHM2QKZnhWVFBHdXFBdVZzU3pUd0xWdmZ3bnlyb0xzRDVmTnBoZEhoVzQzSkxYak9BakcwWk9nZFZPT1NlQ1g0S1prbwptcWc4b3Y1TksxclVRVGQwNng2bmg0elBXdEdaTDIwbE9EMTZvRWgzUlZoRFU5akQ1U25aZ2M1Mzg2bVkxeTVJClV0QTBUUnh3MzNIcjRWT1ExaXVCZzlrNTU2MzFIcGl0clBWZ1QvLzVzYzdjMjhpQ2lBRnVFZGg3SDF5cG5NNkgKc1pjL2prRTJBOFF1NnpKSTV2NzRoYkFaTmxONVMrcDU4ajhrV2pPYTd4bnZwYk5saXc1a2JDK2Ezb25ZSVNHZApTNVZITzVEVkVaOEY3aUtUTS8zTEFZdDZScG0vdEZJOUhFZVRGWHVCVEVsYTlsb0srUWdXbjF1QVVMeGtKUHFyCkFXZ0tzL0FYYWpxVyt0d3ZUM2M5cUFDaGFTakhjV3lxem05WGh6RDRwNTg2cnpDZ3M5VUNSSStudlEvOGFIMWoKNm9CdkRqbUxpem9WUEVkR2k1VkJBb0lCQVFEM2pRZThEdVIxVjYveS9HcXRNRVcyVXptdTl2d1R4VXRBSFZtawpob25PbFo0MDVEL1B3b0s1dXBORjV2QWtxNDN1b1M2OXVuQWxxbGpraVNmOTEzU3pYZEE4dXRRYlQzVFczUmxWCkZ2dXZlN3YvcWtRZFdScm5rdXJhcWtFbnhUMnlKOGdlaG1Qcmo1STMwVHVRVXpSdmFRc2hyYkIwV3NCcGcrRmIKdWJnV29wU21hVTY5aEJpSGxwWFYrcjJRUXIrVllHT3JLUkNSWDRhMGxtbEJxbDdnemVZSTA2d2RpamszelF5cgorcVltYjRkdEFqd3huQ09CRG9qbVJBM2hGTmpVbC8wNlVvMmZzUEM1cjduWlA2cURUMUU2MU5tVDhPZ3kyUWE1Cm90Uk4wS1E3bThGRXAwUDA4aHByOTRxVlZLaHB2NzMzcGMwQkhCQXZ6VG9RdTdKcEFvSUJBUUM5ZUxZZzVSS3cKMDZQSEVmRlhMTnZ1NU12Q2I0T2NHY1BHUElLaHEyWExTbFJSSElVSkdueFB2RVRrcm93YXhDVGVVc2g0WUFtUApZUjZxKzE2aHRwN1JBZ1RWNkxvZUpnQ2hDNVRvTWlkZkR2MmxEUnZneVpMWWtsU0VIcEpaSXRWWTI4NzFWTkRaClhFQWwwOGFGcHlENDNseXdNc3UxaHYzSnRMVGJVTDNZdGtBZnBQVFJBZ0ZaaFlxbVJUdTJKeXN5dXVoWWFVbS8KeEw3WDcvYmlJZ2FPemR1YkF0QXBFTUlEbnFOdVdKOUVBQit4a1c5VUIyTFpRZjBuOTh2bG40aUowaDhsb1V5RAphWElPbWpDZFJXeGFzeVRRQkNEZUR0eXgxbHNvb1R1U2JWU1FFSHVUeUgzVno2UHZBZC9xNGxwRW5hY0UvMjE5CjRXUEh6NnArcDJMaEFvSUJBQ28yQXhhZkYzZW16eHJJemN2Z1NsTFBtQ3RzZEFsUEFBamJ1RmhrbElVRVlDaTIKcnViWFRRRXNma1pTSGFxekVnMlpzR1dycjhuTVpVSDYzVFhja2txdmVYMlJnZTl5T2dNVlNtZUc5cjJ5aEprUQp5SEtVcWhESXJZRkJ2TUJ5VXBYWlVMZGJ4UmY2c0QwU1VXekhzMDQ0QkN6bStBcXZHdFlqSmI5RlNNMmJSV3VtCjAwVmZpK3M2MHl2Y2lJeGJ4VjFNUlZKL094TCt6ZkpuSDJXU0RvR1l1bHZROUMxSlQzNWpXWUROeVowT01YSjIKQ2h1UGUwSmJYeDZjaGgxV042N3doNzUxS3k4S3RkR0QxRlhtRkVZMXRTMHA5RHZVdlZOR1RHNUZCSnlNTWlUego1eDIwdzlLMW9hbTlXUVVqbldBQzBQcTBhK04vakljS0lKZVAyZGtDZ2dFQVhPZzhKcFV0UFJnS1R5czFOSklDCnBubjZrRFV1Uy9VMlVwYUpWODA3OVJ0VmpSQjNDNmU1SFVBc2FCWlBEVER4QXpPRXFjSXQ3ZWlwcVIzcG9WSnoKUGZuSGRUelJSc2RMdDZ4K0wvMm40S3p4STJYeUxaK3FLaGhXNlJJMG9SQzduUDdyMU5EcU9DdE1LVUJYTUdKcgpnSjFJeGYyaWRqamphV3o2NGpBTlo1NjJnczNZWGtTbGRNaE8zSWxHWm1OK2d6bXpoT2JjQ3ZUbXYrd2pHMitqCjE1S0tCTkMwVWU2dHRDaXQ2d1g1MHRaY3RDMmtjWWZOcU1yNjRBWmFMUmExVlI5N3RuQUpuTWF2N3drY25ZSFYKU0FSZ0lNQmxmWDI4S2xmNkMwcEVjK0M0Zm93V2pMamJPMlM5OWd6dFI3Z0dtMjdTMzFpQTBDRWRWSFU0SFRMbgpBUUtDQVFFQXNzajBmRThqa0ZpdnpRMmxTZTBEeGhwUXFHZVF1UGROYkJKVnNBcVdmRXRKQ0h2R0JYaTZBeEIrClFnN015RE14dnVPYXQ1TVNUQ01GYzNYdVFUdEtxdlF3SGxXMXZpTnJxckNzRHVRNTVDa1ZQTUxmazk4VlFoeHkKMnpUd20zOUd5a1ZpLy9CaU5LQzRCU2ZtZlN6cGdiYlJnSEI2Ny9zcGIwejBMbXUrWG5uL0ROemxxS1pvQUZFQgpwcDdzNkVmWGdJN1Npbm94dGxuRHM4eDdFM2dlcEtENVVWbnQzM3FZbUhCOVZ3WHpUZDBaSkhrY0x1b1VpanJjCko2cENYVTcrRlpPd3pJQi9IcFFPZ2pwdklqQ0pJaHRGeFZ5Z2JqdXVjRThRS2Naaml5VXNGTHZkQzVkZTFNZVQKMXJKalFFc2laeEgrUVBSODh0dUJ5VVZHMDAwbHBBPT0KLS0tLS1FTkQgUFJJVkFURSBLRVktLS0tLQo=`)
 
 	t.Run("ParseX509KeyPairEC", func(t *testing.T) {
+		t.Parallel()
+
 		validKeyPairEc, err := getTLSx509KeyPairFromString(certPemEC, keyPemEC)
 		if err != nil {
 			t.Fatal("failed to parse x509 key pair")
@@ -410,6 +425,8 @@ KcZjiyUsFLvdC5de1MeT1rJjQEsiZxH+QPR88tuByUVG000lpA==
 	})
 
 	t.Run("ParseX509KeyPairRSA", func(t *testing.T) {
+		t.Parallel()
+
 		validCertPair, err := getTLSx509KeyPairFromString(certPemx509, certPemRSA)
 		if err != nil {
 			t.Fatal("failed to parse x509 Pair with RSAkey")
@@ -421,6 +438,8 @@ KcZjiyUsFLvdC5de1MeT1rJjQEsiZxH+QPR88tuByUVG000lpA==
 	})
 
 	t.Run("ParseX509KeyPairRSABase64", func(t *testing.T) {
+		t.Parallel()
+
 		validCertPair, err := getTLSx509KeyPairFromString(certPemRSACrtB64, certPemRSAKeyB64)
 		if err != nil {
 			t.Fatal("failed to parse x509 Pair with RSAkey")
@@ -432,6 +451,8 @@ KcZjiyUsFLvdC5de1MeT1rJjQEsiZxH+QPR88tuByUVG000lpA==
 	})
 
 	t.Run("ParseX509KeyPairDERx509", func(t *testing.T) {
+		t.Parallel()
+
 		validCertPair, err := getTLSx509KeyPairFromString(certDERx509, certDERRSA)
 		if err != nil {
 			t.Fatal("failed to parse x509 Pair with RSAkey", err)
@@ -442,6 +463,8 @@ KcZjiyUsFLvdC5de1MeT1rJjQEsiZxH+QPR88tuByUVG000lpA==
 	})
 
 	t.Run("ParseX509KeyPairPEMstringB64Key", func(t *testing.T) {
+		t.Parallel()
+
 		validCertPair, err := getTLSx509KeyPairFromString(certPemx509, certPemRSAKeyB64)
 		if err != nil {
 			t.Fatal("failed to parse x509 Pair with RSAkey")
@@ -453,6 +476,8 @@ KcZjiyUsFLvdC5de1MeT1rJjQEsiZxH+QPR88tuByUVG000lpA==
 	})
 
 	t.Run("ParseX509KeyPairB64CRTBPEMKey", func(t *testing.T) {
+		t.Parallel()
+
 		validCertPair, err := getTLSx509KeyPairFromString(certPemRSACrtB64, certPemRSA)
 		if err != nil {
 			t.Fatal("failed to parse x509 Pair with RSAkey")
@@ -464,6 +489,8 @@ KcZjiyUsFLvdC5de1MeT1rJjQEsiZxH+QPR88tuByUVG000lpA==
 	})
 
 	t.Run("ParseX509KeyPairMisMatchedTypes", func(t *testing.T) {
+		t.Parallel()
+
 		certPair, err := getTLSx509KeyPairFromString(certPemEC, certPemRSA)
 		if err == nil {
 			t.Fatal("expected error but got nil")
@@ -476,6 +503,8 @@ KcZjiyUsFLvdC5de1MeT1rJjQEsiZxH+QPR88tuByUVG000lpA==
 }
 
 func Test_getPrivateKeyFromPEMData(t *testing.T) {
+	t.Parallel()
+
 	tests := map[string]struct {
 		input    string
 		wantErr  string
@@ -638,7 +667,10 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 		},
 	}
 	for name, testData := range tests {
+		testData := testData // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
 			keys, err := getPrivateKeysFromPEMData(testData.input)
 			if testData.wantErr != "" {
 				if err != nil && !strings.Contains(err.Error(), testData.wantErr) {
@@ -657,6 +689,7 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 }
 
 func TestParseAndVerifyX509CertsWithOptions(t *testing.T) {
+	t.Parallel()
 
 	chain := strings.Join([]string{rootCA, intermediateCA, leaf}, "\n")
 
@@ -732,6 +765,8 @@ func TestParseAndVerifyX509CertsWithOptions(t *testing.T) {
 }
 
 func TestExtractX509VerifyOptions(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		jsonOption      *ast.Term
 		expectErr       error

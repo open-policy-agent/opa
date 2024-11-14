@@ -1066,12 +1066,12 @@ func (c *Compiler) checkRuleConflicts() {
 		}
 
 		kinds := make(map[RuleKind]struct{}, len(node.Values))
-		defaultRules := 0
 		completeRules := 0
 		partialRules := 0
 		arities := make(map[int]struct{}, len(node.Values))
 		name := ""
 		var conflicts []Ref
+		defaultRules := make([]*Rule, 0)
 
 		for _, rule := range node.Values {
 			r := rule.(*Rule)
@@ -1080,7 +1080,7 @@ func (c *Compiler) checkRuleConflicts() {
 			kinds[r.Head.RuleKind()] = struct{}{}
 			arities[len(r.Head.Args)] = struct{}{}
 			if r.Default {
-				defaultRules++
+				defaultRules = append(defaultRules, r)
 			}
 
 			// Single-value rules may not have any other rules in their extent.
@@ -1136,8 +1136,21 @@ func (c *Compiler) checkRuleConflicts() {
 		case len(kinds) > 1 || len(arities) > 1 || (completeRules >= 1 && partialRules >= 1):
 			c.err(NewError(TypeErr, node.Values[0].(*Rule).Loc(), "conflicting rules %v found", name))
 
-		case defaultRules > 1:
-			c.err(NewError(TypeErr, node.Values[0].(*Rule).Loc(), "multiple default rules %s found", name))
+		case len(defaultRules) > 1:
+
+			defaultRuleLocations := strings.Builder{}
+			defaultRuleLocations.WriteString(defaultRules[0].Loc().String())
+			for i := 1; i < len(defaultRules); i++ {
+				defaultRuleLocations.WriteString(", ")
+				defaultRuleLocations.WriteString(defaultRules[i].Loc().String())
+			}
+
+			c.err(NewError(
+				TypeErr,
+				defaultRules[0].Module.Package.Loc(),
+				"multiple default rules %s found at %s",
+				name, defaultRuleLocations.String()),
+			)
 		}
 
 		return false

@@ -36,6 +36,8 @@ func fixture(n int) map[string]interface{} {
 }
 
 func TestSetTxnIsTooBigToFitIntoOneRequestWhenUseDiskStoreReturnsError(t *testing.T) {
+	t.Parallel()
+
 	test.WithTempFS(nil, func(dir string) {
 		ctx := context.Background()
 		s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
@@ -72,6 +74,8 @@ func TestSetTxnIsTooBigToFitIntoOneRequestWhenUseDiskStoreReturnsError(t *testin
 }
 
 func TestDeleteTxnIsTooBigToFitIntoOneRequestWhenUseDiskStore(t *testing.T) {
+	t.Parallel()
+
 	test.WithTempFS(nil, func(dir string) {
 		ctx := context.Background()
 		s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{

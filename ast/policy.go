@@ -84,7 +84,7 @@ var RootDocumentRefs = NewSet(
 
 // SystemDocumentKey is the name of the top-level key that identifies the system
 // document.
-var SystemDocumentKey = String("system")
+const SystemDocumentKey = String("system")
 
 // ReservedVars is the set of names that refer to implicitly ground vars.
 var ReservedVars = NewVarSet(
@@ -97,7 +97,7 @@ var Wildcard = &Term{Value: Var("_")}
 
 // WildcardPrefix is the special character that all wildcard variables are
 // prefixed with when the statement they are contained in is parsed.
-var WildcardPrefix = "$"
+const WildcardPrefix = "$"
 
 // Keywords contains strings that map to language keywords.
 var Keywords = KeywordsForRegoVersion(DefaultRegoVersion)

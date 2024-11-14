@@ -75,7 +75,7 @@ func builtinNetCIDRIntersects(_ BuiltinContext, operands []*ast.Term, iter func(
 	// If either net contains the others starting IP they are overlapping
 	cidrsOverlap := cidrnetA.Contains(cidrnetB.IP) || cidrnetB.Contains(cidrnetA.IP)
 
-	return iter(ast.BooleanTerm(cidrsOverlap))
+	return iter(ast.InternedBooleanTerm(cidrsOverlap))
 }
 
 func builtinNetCIDRContains(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -92,7 +92,7 @@ func builtinNetCIDRContains(_ BuiltinContext, operands []*ast.Term, iter func(*a
 
 	ip := net.ParseIP(string(bStr))
 	if ip != nil {
-		return iter(ast.BooleanTerm(cidrnetA.Contains(ip)))
+		return iter(ast.InternedBooleanTerm(cidrnetA.Contains(ip)))
 	}
 
 	// It wasn't an IP, try and parse it as a CIDR
@@ -113,7 +113,7 @@ func builtinNetCIDRContains(_ BuiltinContext, operands []*ast.Term, iter func(*a
 		cidrContained = cidrnetA.Contains(lastIP)
 	}
 
-	return iter(ast.BooleanTerm(cidrContained))
+	return iter(ast.InternedBooleanTerm(cidrContained))
 }
 
 var errNetCIDRContainsMatchElementType = errors.New("element must be string or non-empty array")
@@ -142,7 +142,7 @@ func evalNetCIDRContainsMatchesOperand(operand int, a *ast.Term, iter func(cidr,
 			if err != nil {
 				return fmt.Errorf("operand %v: %v", operand, err)
 			}
-			if err := iter(cidr, ast.IntNumberTerm(i)); err != nil {
+			if err := iter(cidr, ast.InternedIntNumberTerm(i)); err != nil {
 				return err
 			}
 		}
@@ -219,13 +219,13 @@ func builtinNetCIDRExpand(bctx BuiltinContext, operands []*ast.Term, iter func(*
 func builtinNetCIDRIsValid(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	cidr, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
-		return iter(ast.BooleanTerm(false))
+		return iter(ast.InternedBooleanTerm(false))
 	}
 
 	if _, _, err := net.ParseCIDR(string(cidr)); err != nil {
-		return iter(ast.BooleanTerm(false))
+		return iter(ast.InternedBooleanTerm(false))
 	}
-	return iter(ast.BooleanTerm(true))
+	return iter(ast.InternedBooleanTerm(true))
 }
 
 type cidrBlockRange struct {

@@ -105,6 +105,7 @@ func (*testDump) do(t *testing.T, s *Store) {
 }
 
 func TestPolicies(t *testing.T) {
+	t.Parallel()
 
 	test.WithTempFS(map[string]string{}, func(dir string) {
 		ctx := context.Background()
@@ -170,12 +171,16 @@ func TestPolicies(t *testing.T) {
 }
 
 func TestTruncateAbsoluteStoragePath(t *testing.T) {
+	t.Parallel()
+
 	test.WithTempFS(map[string]string{}, func(dir string) {
 		runTruncateTest(t, dir)
 	})
 }
 
 func TestTruncateRelativeStoragePath(t *testing.T) {
+	t.Parallel()
+
 	dir := "foobar"
 	err := os.Mkdir(dir, 0700)
 	if err != nil {
@@ -306,6 +311,8 @@ func runTruncateTest(t *testing.T, dir string) {
 }
 
 func TestTruncateMultipleTxn(t *testing.T) {
+	t.Parallel()
+
 	test.WithTempFS(map[string]string{}, func(dir string) {
 		ctx := context.Background()
 		s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: nil, Badger: "memtablesize=4000;valuethreshold=600"})
@@ -392,6 +399,7 @@ func TestTruncateMultipleTxn(t *testing.T) {
 }
 
 func TestDataPartitioningValidation(t *testing.T) {
+	t.Parallel()
 
 	closeFn := func(ctx context.Context, s *Store) {
 		t.Helper()
@@ -585,6 +593,8 @@ func TestDataPartitioningValidation(t *testing.T) {
 }
 
 func TestDataPartitioningSystemPartitions(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	dir := "unused"
 
@@ -604,6 +614,7 @@ func TestDataPartitioningSystemPartitions(t *testing.T) {
 }
 
 func TestDataPartitioningReadsAndWrites(t *testing.T) {
+	t.Parallel()
 
 	tests := []struct {
 		note       string
@@ -1133,7 +1144,10 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			test.WithTempFS(map[string]string{}, func(dir string) {
 
 				partitions := make([]storage.Path, len(tc.partitions))
@@ -1179,6 +1193,8 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 }
 
 func TestDataPartitioningReadNotFoundErrors(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		note       string
 		partitions []string
@@ -1285,7 +1301,10 @@ func TestDataPartitioningReadNotFoundErrors(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			test.WithTempFS(map[string]string{}, func(dir string) {
 
 				partitions := make([]storage.Path, len(tc.partitions))
@@ -1323,6 +1342,8 @@ func TestDataPartitioningReadNotFoundErrors(t *testing.T) {
 }
 
 func TestDataPartitioningWriteNotFoundErrors(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		note       string
 		partitions []string
@@ -1437,7 +1458,10 @@ func TestDataPartitioningWriteNotFoundErrors(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			test.WithTempFS(map[string]string{}, func(dir string) {
 
 				partitions := make([]storage.Path, len(tc.partitions))
@@ -1480,8 +1504,13 @@ func TestDataPartitioningWriteNotFoundErrors(t *testing.T) {
 }
 
 func TestDataPartitioningWriteInvalidPatchError(t *testing.T) {
+	t.Parallel()
+
 	for _, pt := range []string{"/*", "/foo"} {
+		pt := pt // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(pt, func(t *testing.T) {
+			t.Parallel()
+
 			test.WithTempFS(map[string]string{}, func(dir string) {
 				ctx := context.Background()
 				s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
@@ -1536,6 +1565,8 @@ func executeTestWrite(ctx context.Context, t *testing.T, s storage.Store, x test
 }
 
 func TestDiskTriggers(t *testing.T) {
+	t.Parallel()
+
 	test.WithTempFS(map[string]string{}, func(dir string) {
 		ctx := context.Background()
 		store, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
@@ -1606,6 +1637,8 @@ func TestDiskTriggers(t *testing.T) {
 }
 
 func TestLookup(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		note     string
 		input    []byte
@@ -1639,7 +1672,9 @@ func TestLookup(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
 
 			path, ok := storage.ParsePathEscaped("/" + tc.path)
 			if !ok {
@@ -1672,9 +1707,13 @@ func TestLookup(t *testing.T) {
 }
 
 func TestDiskDiagnostics(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("no partitions", func(t *testing.T) {
+		t.Parallel()
+
 		test.WithTempFS(nil, func(dir string) {
 			buf := bytes.Buffer{}
 			logger := logging.New()
@@ -1736,6 +1775,8 @@ func TestDiskDiagnostics(t *testing.T) {
 	})
 
 	t.Run("two partitions", func(t *testing.T) {
+		t.Parallel()
+
 		test.WithTempFS(nil, func(dir string) {
 			opts := Options{
 				Dir: dir,
@@ -1803,6 +1844,8 @@ func TestDiskDiagnostics(t *testing.T) {
 	})
 
 	t.Run("patterned partitions", func(t *testing.T) {
+		t.Parallel()
+
 		test.WithTempFS(nil, func(dir string) {
 			opts := Options{Dir: dir,
 				Partitions: []storage.Path{

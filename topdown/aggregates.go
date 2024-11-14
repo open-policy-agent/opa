@@ -14,13 +14,13 @@ import (
 func builtinCount(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch a := operands[0].Value.(type) {
 	case *ast.Array:
-		return iter(ast.IntNumberTerm(a.Len()))
+		return iter(ast.InternedIntNumberTerm(a.Len()))
 	case ast.Object:
-		return iter(ast.IntNumberTerm(a.Len()))
+		return iter(ast.InternedIntNumberTerm(a.Len()))
 	case ast.Set:
-		return iter(ast.IntNumberTerm(a.Len()))
+		return iter(ast.InternedIntNumberTerm(a.Len()))
 	case ast.String:
-		return iter(ast.IntNumberTerm(len([]rune(a))))
+		return iter(ast.InternedIntNumberTerm(len([]rune(a))))
 	}
 	return builtins.NewOperandTypeErr(1, operands[0].Value, "array", "object", "set", "string")
 }
@@ -178,7 +178,7 @@ func builtinAll(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 	switch val := operands[0].Value.(type) {
 	case ast.Set:
 		res := true
-		match := ast.BooleanTerm(true)
+		match := ast.InternedBooleanTerm(true)
 		val.Until(func(term *ast.Term) bool {
 			if !match.Equal(term) {
 				res = false
@@ -186,10 +186,10 @@ func builtinAll(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 			}
 			return false
 		})
-		return iter(ast.BooleanTerm(res))
+		return iter(ast.InternedBooleanTerm(res))
 	case *ast.Array:
 		res := true
-		match := ast.BooleanTerm(true)
+		match := ast.InternedBooleanTerm(true)
 		val.Until(func(term *ast.Term) bool {
 			if !match.Equal(term) {
 				res = false
@@ -197,7 +197,7 @@ func builtinAll(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 			}
 			return false
 		})
-		return iter(ast.BooleanTerm(res))
+		return iter(ast.InternedBooleanTerm(res))
 	default:
 		return builtins.NewOperandTypeErr(1, operands[0].Value, "array", "set")
 	}
@@ -206,11 +206,11 @@ func builtinAll(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 func builtinAny(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch val := operands[0].Value.(type) {
 	case ast.Set:
-		res := val.Len() > 0 && val.Contains(ast.BooleanTerm(true))
-		return iter(ast.BooleanTerm(res))
+		res := val.Len() > 0 && val.Contains(ast.InternedBooleanTerm(true))
+		return iter(ast.InternedBooleanTerm(res))
 	case *ast.Array:
 		res := false
-		match := ast.BooleanTerm(true)
+		match := ast.InternedBooleanTerm(true)
 		val.Until(func(term *ast.Term) bool {
 			if match.Equal(term) {
 				res = true
@@ -218,7 +218,7 @@ func builtinAny(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 			}
 			return false
 		})
-		return iter(ast.BooleanTerm(res))
+		return iter(ast.InternedBooleanTerm(res))
 	default:
 		return builtins.NewOperandTypeErr(1, operands[0].Value, "array", "set")
 	}
@@ -228,27 +228,20 @@ func builtinMember(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) 
 	containee := operands[0]
 	switch c := operands[1].Value.(type) {
 	case ast.Set:
-		return iter(ast.BooleanTerm(c.Contains(containee)))
+		return iter(ast.InternedBooleanTerm(c.Contains(containee)))
 	case *ast.Array:
-		ret := false
-		c.Until(func(v *ast.Term) bool {
-			if v.Value.Compare(containee.Value) == 0 {
-				ret = true
+		for i := 0; i < c.Len(); i++ {
+			if c.Elem(i).Value.Compare(containee.Value) == 0 {
+				return iter(ast.InternedBooleanTerm(true))
 			}
-			return ret
-		})
-		return iter(ast.BooleanTerm(ret))
+		}
+		return iter(ast.InternedBooleanTerm(false))
 	case ast.Object:
-		ret := false
-		c.Until(func(_, v *ast.Term) bool {
-			if v.Value.Compare(containee.Value) == 0 {
-				ret = true
-			}
-			return ret
-		})
-		return iter(ast.BooleanTerm(ret))
+		return iter(ast.InternedBooleanTerm(c.Until(func(_, v *ast.Term) bool {
+			return v.Value.Compare(containee.Value) == 0
+		})))
 	}
-	return iter(ast.BooleanTerm(false))
+	return iter(ast.InternedBooleanTerm(false))
 }
 
 func builtinMemberWithKey(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -259,9 +252,9 @@ func builtinMemberWithKey(_ BuiltinContext, operands []*ast.Term, iter func(*ast
 		if act := c.Get(key); act != nil {
 			ret = act.Value.Compare(val.Value) == 0
 		}
-		return iter(ast.BooleanTerm(ret))
+		return iter(ast.InternedBooleanTerm(ret))
 	}
-	return iter(ast.BooleanTerm(false))
+	return iter(ast.InternedBooleanTerm(false))
 }
 
 func init() {

@@ -11,6 +11,7 @@ import (
 )
 
 func TestMergeTermWithValues(t *testing.T) {
+	t.Parallel()
 
 	tests := []struct {
 		note     string
@@ -83,8 +84,10 @@ func TestMergeTermWithValues(t *testing.T) {
 	}
 
 	for i, tc := range tests {
-
+		i := i
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
 
 			pairs := make([][2]*ast.Term, len(tc.input))
 
@@ -124,6 +127,7 @@ func TestMergeTermWithValues(t *testing.T) {
 }
 
 func TestMergeTermWithValuesInputsShouldBeImmutable(t *testing.T) {
+	t.Parallel()
 
 	initial := ast.MustParseTerm(`{"foo": 1}`)
 	expInitial := initial.Copy()
