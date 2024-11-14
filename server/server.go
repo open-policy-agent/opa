@@ -1154,7 +1154,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 		if len(s.getCompiler().GetRulesForVirtualDocument(ref)) > 0 {
 			messageType = types.MsgFoundUndefinedError
 		}
-		err := types.NewErrorV1(types.CodeUndefinedDocument, fmt.Sprintf("%v: %v", messageType, ref))
+		err := types.NewErrorV1(types.CodeUndefinedDocument, "%v: %v", messageType, ref)
 		if err := logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m); err != nil {
 			writer.ErrorAuto(w, err)
 			return

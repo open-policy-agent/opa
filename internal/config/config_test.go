@@ -311,7 +311,7 @@ discovery:
 
 		configBytes, err := Load(configFile, configOverrides, nil)
 		if err != nil {
-			t.Errorf("unexpected error loading config: " + err.Error())
+			t.Errorf("unexpected error loading config: %s", err.Error())
 		}
 
 		config := map[string]interface{}{}
@@ -367,7 +367,7 @@ discovery:
 
 		configBytes, err := Load(configFile, nil, overrideFiles)
 		if err != nil {
-			t.Errorf("unexpected error loading config: " + err.Error())
+			t.Errorf("unexpected error loading config: %s", err.Error())
 		}
 
 		config := map[string]interface{}{}
@@ -409,7 +409,7 @@ func TestLoadConfigWithParamOverrideNoConfigFile(t *testing.T) {
 
 	configBytes, err := Load("", configOverrides, nil)
 	if err != nil {
-		t.Errorf("unexpected error loading config: " + err.Error())
+		t.Errorf("unexpected error loading config: %s", err.Error())
 	}
 
 	config := map[string]interface{}{}
@@ -451,7 +451,7 @@ func TestLoadConfigWithParamOverrideNoConfigFileWithEmptyObject(t *testing.T) {
 
 	configBytes, err := Load("", configOverrides, nil)
 	if err != nil {
-		t.Errorf("unexpected error loading config: " + err.Error())
+		t.Errorf("unexpected error loading config: %s", err.Error())
 	}
 
 	config := map[string]interface{}{}

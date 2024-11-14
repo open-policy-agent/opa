@@ -358,7 +358,7 @@ func TestDependencies(t *testing.T) {
 			})
 
 			mod := compiler.Modules["test"]
-			min, full := runDeps(t, mod)
+			minOfAll, full := runDeps(t, mod)
 
 			// Test that we get the same result by analyzing all the
 			// rules separately.
@@ -369,7 +369,7 @@ func TestDependencies(t *testing.T) {
 				fullRules = append(fullRules, f...)
 			}
 
-			assertRefSliceEq(t, exp, min)
+			assertRefSliceEq(t, exp, minOfAll)
 			assertRefSliceEq(t, exp, minRules)
 
 			for _, full := range test.full {

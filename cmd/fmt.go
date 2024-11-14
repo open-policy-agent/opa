@@ -223,9 +223,9 @@ func formatStdin(params *fmtCommandParams, r io.Reader, w io.Writer) error {
 	return err
 }
 
-func doDiff(old, new []byte) (diffString string) {
+func doDiff(a, b []byte) (diffString string) { // "a" is old, "b" is new
 	dmp := diffmatchpatch.New()
-	diffs := dmp.DiffMain(string(old), string(new), false)
+	diffs := dmp.DiffMain(string(a), string(b), false)
 	return dmp.DiffPrettyText(diffs)
 }
 
