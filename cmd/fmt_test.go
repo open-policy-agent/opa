@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -98,8 +99,8 @@ type errorWriter struct {
 	ErrMsg string
 }
 
-func (ew errorWriter) Write(_ []byte) (n int, err error) {
-	return 0, fmt.Errorf(ew.ErrMsg)
+func (ew errorWriter) Write([]byte) (int, error) {
+	return 0, errors.New(ew.ErrMsg)
 }
 
 func TestFmtFormatFile(t *testing.T) {

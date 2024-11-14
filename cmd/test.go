@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -373,7 +374,7 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 		if testParams.benchmark {
 			errMsg := "coverage reporting is not supported when benchmarking tests"
 			fmt.Fprintln(testParams.errOutput, errMsg)
-			return nil, nil, fmt.Errorf(errMsg)
+			return nil, nil, errors.New(errMsg)
 		}
 		cov = cover.New()
 		coverTracer = cov

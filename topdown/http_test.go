@@ -3073,7 +3073,7 @@ func TestCertSelectionLogic(t *testing.T) {
 			tlsConfig := getClientTLSConfig(obj)
 			if tc.expected == nil {
 				if tlsConfig != nil {
-					t.Fatalf(tc.msg)
+					t.Fatal(tc.msg)
 				}
 			} else {
 				// nolint:staticcheck // ignoring the deprecated (*CertPool).Subjects() call here because it's in a test.

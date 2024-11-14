@@ -192,7 +192,7 @@ func checkRegoV1Rule(rule *Rule, opts RegoCheckOptions) Errors {
 	var errs Errors
 
 	if opts.NoKeywordsAsRuleNames && IsKeywordInRegoVersion(rule.Head.Name.String(), RegoV1) {
-		errs = append(errs, NewError(ParseErr, rule.Location, fmt.Sprintf("%s keyword cannot be used for rule name", rule.Head.Name.String())))
+		errs = append(errs, NewError(ParseErr, rule.Location, "%s keyword cannot be used for rule name", rule.Head.Name.String()))
 	}
 	if opts.RequireRuleBodyOrValue && rule.generatedBody && rule.Head.generatedValue {
 		errs = append(errs, NewError(ParseErr, rule.Location, "%s must have value assignment and/or body declaration", t))

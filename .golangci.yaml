@@ -1,6 +1,9 @@
 run:
   timeout: 5m
 
+issues:
+  max-same-issues: 0 # don't hide issues in CI runs because they are the same type
+
 linter-settings:
   lll:
     line-length: 200

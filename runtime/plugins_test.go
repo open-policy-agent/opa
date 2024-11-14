@@ -70,7 +70,7 @@ func TestRegisterPlugin(t *testing.T) {
 
 		rt, err := NewRuntime(context.Background(), params)
 		if err != nil {
-			t.Fatalf(err.Error())
+			t.Fatal(err.Error())
 		}
 
 		if err := rt.Manager.Start(context.Background()); err != nil {
@@ -102,7 +102,7 @@ func TestRegisterPluginNotStartedWithoutConfig(t *testing.T) {
 
 		rt, err := NewRuntime(context.Background(), params)
 		if err != nil {
-			t.Fatalf(err.Error())
+			t.Fatal(err.Error())
 		}
 
 		if err := rt.Manager.Start(context.Background()); err != nil {
@@ -155,7 +155,7 @@ func TestWaitPluginsReady(t *testing.T) {
 
 		rt, err := NewRuntime(context.Background(), params)
 		if err != nil {
-			t.Fatalf(err.Error())
+			t.Fatal(err.Error())
 		}
 
 		if err := rt.Manager.Start(context.Background()); err != nil {

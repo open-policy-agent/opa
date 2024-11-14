@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -506,7 +507,7 @@ func testEvalWithSchemasAnnotationButNoSchemaFlag(policy string) error {
 		var defined bool
 		defined, err = eval([]string{query}, params, &buf)
 		if !defined || err != nil {
-			err = fmt.Errorf(buf.String())
+			err = errors.New(buf.String())
 		}
 	})
 
