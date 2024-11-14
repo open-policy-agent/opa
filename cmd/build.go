@@ -320,18 +320,6 @@ func dobuild(params buildParams, args []string) error {
 		WithPartialNamespace(params.ns).
 		WithFollowSymlinks(params.followSymlinks)
 
-	regoVersion := ast.RegoUndefined
-	if params.v0Compatible {
-		// v0 takes precedence over v1
-		regoVersion = ast.RegoV0
-	} else if params.v1Compatible {
-		regoVersion = ast.RegoV1
-	}
-
-	if regoVersion != ast.RegoUndefined {
-		compiler = compiler.WithRegoVersion(regoVersion)
-	}
-
 	if params.revision.isSet {
 		compiler = compiler.WithRevision(*params.revision.v)
 	}

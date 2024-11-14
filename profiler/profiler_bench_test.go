@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/v1/parser"
 	"github.com/open-policy-agent/opa/v1/rego"
 )
 
@@ -25,7 +25,7 @@ func BenchmarkProfilerBigLocalVar(b *testing.B) {
 				profiler := New()
 				module := generateModule(varCount, iterationCount)
 
-				_, err := ast.ParseModule("test.rego", module)
+				_, err := parser.ParseModule("test.rego", module)
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -33,7 +33,6 @@ func BenchmarkProfilerBigLocalVar(b *testing.B) {
 				ctx := context.Background()
 
 				pq, err := rego.New(
-					rego.SetRegoVersion(ast.RegoV1),
 					rego.Module("test.rego", module),
 					rego.Query("data.test.p"),
 				).PrepareForEval(ctx)
@@ -62,7 +61,7 @@ func generateModule(numVars int, dataSize int) string {
 	sb := strings.Builder{}
 	sb.WriteString(`package test
 
-p {
+p if {
 	x := a
 	v := x[i]
 `)

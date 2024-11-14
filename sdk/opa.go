@@ -15,7 +15,7 @@ import (
 // OPA represents an instance of the policy engine. OPA can be started with
 // several options that control configuration, logging, and lifecycle.
 //
-// Deprecated: use [v1.OPA] instead.
+// Deprecated: [github.com/open-policy-agent/opa/v1/sdk.OPA] instead.
 type OPA = v1.OPA
 
 // New returns a new OPA object. This function should minimally be called with
