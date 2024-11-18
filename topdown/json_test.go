@@ -11,6 +11,8 @@ import (
 )
 
 func TestFiltersToObject(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		note     string
 		filters  []string
@@ -94,7 +96,10 @@ func TestFiltersToObject(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			var paths []ast.Ref
 			for _, path := range tc.filters {
 				parsedPath, err := parsePath(ast.MustParseTerm(path))

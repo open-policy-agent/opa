@@ -40,30 +40,31 @@ opa bench <query> [flags]
 ### Options
 
 ```
-      --benchmem                       report memory allocations with benchmark results (default true)
-  -b, --bundle string                  set bundle file(s) or directory path(s). This flag can be repeated.
-  -c, --config-file string             set path of configuration file
-      --count int                      number of times to repeat each benchmark (default 1)
-  -d, --data string                    set policy or data file(s). This flag can be repeated.
-      --e2e                            run benchmarks against a running OPA server
-      --fail                           exits with non-zero exit code on undefined/empty result and errors (default true)
-  -f, --format {json,pretty,gobench}   set output format (default pretty)
-  -h, --help                           help for bench
-      --ignore strings                 set file and directory names to ignore during loading (e.g., '.*' excludes hidden files)
-      --import string                  set query import(s). This flag can be repeated.
-  -i, --input string                   set input file path
-      --metrics                        report query performance metrics (default true)
-      --package string                 set query package
-  -p, --partial                        perform partial evaluation
-  -s, --schema string                  set schema file path or directory path
-      --shutdown-grace-period int      set the time (in seconds) that the server will wait to gracefully shut down. This flag is valid in 'e2e' mode only. (default 10)
-      --shutdown-wait-period int       set the time (in seconds) that the server will wait before initiating shutdown. This flag is valid in 'e2e' mode only.
-      --stdin                          read query from stdin
-  -I, --stdin-input                    read input document from stdin
-  -t, --target {rego,wasm}             set the runtime to exercise (default rego)
-  -u, --unknowns stringArray           set paths to treat as unknown during partial evaluation (default [input])
-      --v0-compatible                  opt-in to OPA features and behaviors prior to the OPA v1.0 release. Takes precedence over --v1-compatible
-      --v1-compatible                  opt-in to OPA features and behaviors that are enabled by default in OPA v1.0
+      --benchmem                        report memory allocations with benchmark results (default true)
+  -b, --bundle string                   set bundle file(s) or directory path(s). This flag can be repeated.
+  -c, --config-file string              set path of configuration file
+      --count int                       number of times to repeat each benchmark (default 1)
+  -d, --data string                     set policy or data file(s). This flag can be repeated.
+      --e2e                             run benchmarks against a running OPA server
+      --fail                            exits with non-zero exit code on undefined/empty result and errors (default true)
+  -f, --format {json,pretty,gobench}    set output format (default pretty)
+  -h, --help                            help for bench
+      --ignore strings                  set file and directory names to ignore during loading (e.g., '.*' excludes hidden files)
+      --import string                   set query import(s). This flag can be repeated.
+  -i, --input string                    set input file path
+      --metrics                         report query performance metrics (default true)
+      --optimize-store-for-read-speed   optimize default in-memory store for read speed. Has possible negative impact on memory footprint and write speed. See https://www.openpolicyagent.org/docs/latest/policy-performance/#storage-optimization for more details.
+      --package string                  set query package
+  -p, --partial                         perform partial evaluation
+  -s, --schema string                   set schema file path or directory path
+      --shutdown-grace-period int       set the time (in seconds) that the server will wait to gracefully shut down. This flag is valid in 'e2e' mode only. (default 10)
+      --shutdown-wait-period int        set the time (in seconds) that the server will wait before initiating shutdown. This flag is valid in 'e2e' mode only.
+      --stdin                           read query from stdin
+  -I, --stdin-input                     read input document from stdin
+  -t, --target {rego,wasm}              set the runtime to exercise (default rego)
+  -u, --unknowns stringArray            set paths to treat as unknown during partial evaluation (default [input])
+      --v0-compatible                   opt-in to OPA features and behaviors prior to the OPA v1.0 release. Takes precedence over --v1-compatible
+      --v1-compatible                   opt-in to OPA features and behaviors that are enabled by default in OPA v1.0
 ```
 
 ____
@@ -556,6 +557,7 @@ opa eval <query> [flags]
       --instrument                                                enable query instrumentation metrics (implies --metrics)
       --metrics                                                   report query performance metrics
   -O, --optimize int                                              set optimization level
+      --optimize-store-for-read-speed                             optimize default in-memory store for read speed. Has possible negative impact on memory footprint and write speed. See https://www.openpolicyagent.org/docs/latest/policy-performance/#storage-optimization for more details.
       --package string                                            set query package
   -p, --partial                                                   perform partial evaluation
       --pretty-limit int                                          set limit after which pretty output gets truncated (default 80)
@@ -913,6 +915,7 @@ opa run [flags]
       --log-timestamp-format string          set log timestamp format (OPA_LOG_TIMESTAMP_FORMAT environment variable)
   -m, --max-errors int                       set the number of errors to allow before compilation fails early (default 10)
       --min-tls-version {1.0,1.1,1.2,1.3}    set minimum TLS version to be used by OPA's server (default 1.2)
+      --optimize-store-for-read-speed        optimize default in-memory store for read speed. Has possible negative impact on memory footprint and write speed. See https://www.openpolicyagent.org/docs/latest/policy-performance/#storage-optimization for more details.
       --pprof                                enables pprof endpoints
       --ready-timeout int                    wait (in seconds) for configured plugins before starting server (value <= 0 disables ready check)
       --scope string                         scope to use for bundle signature verification

@@ -22,8 +22,12 @@ import (
 )
 
 func TestParseTokenConstraints(t *testing.T) {
+	t.Parallel()
+
 	wallclock := ast.NumberTerm(int64ToJSONNumber(time.Now().UnixNano()))
 	t.Run("Empty", func(t *testing.T) {
+		t.Parallel()
+
 		c := ast.NewObject()
 		constraints, err := parseTokenConstraints(c, wallclock)
 		if err != nil {
@@ -37,6 +41,8 @@ func TestParseTokenConstraints(t *testing.T) {
 		}
 	})
 	t.Run("Alg", func(t *testing.T) {
+		t.Parallel()
+
 		c := ast.NewObject()
 		c.Insert(ast.StringTerm("alg"), ast.StringTerm("RS256"))
 		constraints, err := parseTokenConstraints(c, wallclock)
@@ -48,6 +54,8 @@ func TestParseTokenConstraints(t *testing.T) {
 		}
 	})
 	t.Run("Cert", func(t *testing.T) {
+		t.Parallel()
+
 		c := ast.NewObject()
 		c.Insert(ast.StringTerm("cert"), ast.StringTerm(`-----BEGIN CERTIFICATE-----
 MIIBcDCCARagAwIBAgIJAMZmuGSIfvgzMAoGCCqGSM49BAMCMBMxETAPBgNVBAMM
@@ -75,6 +83,8 @@ OHoCIHmNX37JOqTcTzGn2u9+c8NlnvZ0uDvsd1BmKPaUmjmm
 		}
 	})
 	t.Run("Cert Multi Key", func(t *testing.T) {
+		t.Parallel()
+
 		c := ast.NewObject()
 		c.Insert(ast.StringTerm("cert"), ast.StringTerm(`{
     "keys": [
@@ -113,6 +123,8 @@ OHoCIHmNX37JOqTcTzGn2u9+c8NlnvZ0uDvsd1BmKPaUmjmm
 		}
 	})
 	t.Run("Time", func(t *testing.T) {
+		t.Parallel()
+
 		now := time.Now()
 		wallclock := ast.NumberTerm(int64ToJSONNumber(now.UnixNano()))
 
@@ -129,6 +141,8 @@ OHoCIHmNX37JOqTcTzGn2u9+c8NlnvZ0uDvsd1BmKPaUmjmm
 		})
 
 		t.Run("unset, defaults to wallclock", func(t *testing.T) {
+			t.Parallel()
+
 			c := ast.NewObject() // 'time' constraint is unset
 			constraints, err := parseTokenConstraints(c, wallclock)
 			if err != nil {
@@ -141,6 +155,8 @@ OHoCIHmNX37JOqTcTzGn2u9+c8NlnvZ0uDvsd1BmKPaUmjmm
 	})
 
 	t.Run("Unrecognized", func(t *testing.T) {
+		t.Parallel()
+
 		c := ast.NewObject()
 		c.Insert(ast.StringTerm("whatever"), ast.StringTerm("junk"))
 		_, err := parseTokenConstraints(c, wallclock)
@@ -151,7 +167,11 @@ OHoCIHmNX37JOqTcTzGn2u9+c8NlnvZ0uDvsd1BmKPaUmjmm
 }
 
 func TestParseTokenHeader(t *testing.T) {
+	t.Parallel()
+
 	t.Run("Errors", func(t *testing.T) {
+		t.Parallel()
+
 		token := &JSONWebToken{
 			header: "",
 		}
@@ -179,6 +199,8 @@ func TestParseTokenHeader(t *testing.T) {
 		}
 	})
 	t.Run("Alg", func(t *testing.T) {
+		t.Parallel()
+
 		token := &JSONWebToken{
 			header: base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"RS256"}`)),
 		}
@@ -199,6 +221,8 @@ func TestParseTokenHeader(t *testing.T) {
 }
 
 func TestTopDownJWTEncodeSignES256(t *testing.T) {
+	t.Parallel()
+
 	const examplePayload = `{"iss":"joe",` + "\r\n" + ` "exp":1300819380,` + "\r\n" + ` "http://example.com/is_root":true}`
 	const es256Hdr = `{"alg":"ES256"}`
 	const ecKey = `{
@@ -320,6 +344,8 @@ func TestTopDownJWTEncodeSignES256(t *testing.T) {
 // TestTopDownJWTEncodeSignEC needs to perform all tests inline because we do not know the
 // expected values before hand
 func TestTopDownJWTEncodeSignES512(t *testing.T) {
+	t.Parallel()
+
 	const examplePayload = `{"iss":"joe",` + "\r\n" + ` "exp":1300819380,` + "\r\n" + ` "http://example.com/is_root":true}`
 	const es512Hdr = `{"alg":"ES512"}`
 	const ecKey = `{
@@ -457,6 +483,8 @@ func (*cng) Read(p []byte) (int, error) {
 }
 
 func TestTopdownJWTEncodeSignECWithSeedReturnsSameSignature(t *testing.T) {
+	t.Parallel()
+
 	query := `io.jwt.encode_sign({"alg": "ES256"},{"pay": "load"},
 	  {"kty":"EC",
 	   "crv":"P-256",
@@ -490,6 +518,8 @@ func TestTopdownJWTEncodeSignECWithSeedReturnsSameSignature(t *testing.T) {
 }
 
 func TestTopdownJWTUnknownAlgTypesDiscardedFromJWKS(t *testing.T) {
+	t.Parallel()
+
 	cert := `{
     "keys": [
 	    {
@@ -531,6 +561,8 @@ func TestTopdownJWTUnknownAlgTypesDiscardedFromJWKS(t *testing.T) {
 }
 
 func TestTopdownJWTVerifyOnlyVerifiesUsingApplicableKeys(t *testing.T) {
+	t.Parallel()
+
 	cert := ast.MustInterfaceToValue(`{
     "keys": [
         {
@@ -603,7 +635,10 @@ func TestTopdownJWTVerifyOnlyVerifiesUsingApplicableKeys(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			header := base64.RawURLEncoding.EncodeToString([]byte(tc.header))
 			payload := base64.RawURLEncoding.EncodeToString([]byte("{}"))
 			signature := base64.RawURLEncoding.EncodeToString([]byte("ignored"))
@@ -629,6 +664,8 @@ func TestTopdownJWTVerifyOnlyVerifiesUsingApplicableKeys(t *testing.T) {
 }
 
 func TestTopdownJWTDecodeVerifyIgnoresKeysOfUnknownAlgInJWKS(t *testing.T) {
+	t.Parallel()
+
 	c := ast.NewObject()
 	c.Insert(ast.StringTerm("cert"), ast.StringTerm(`{
     "keys": [

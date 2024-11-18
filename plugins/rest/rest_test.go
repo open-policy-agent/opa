@@ -48,6 +48,8 @@ import (
 const keyID = "key1"
 
 func TestAuthPluginWithNoAuthPluginLookup(t *testing.T) {
+	t.Parallel()
+
 	authPlugin := "anything"
 	cfg := Config{
 		Credentials: struct {
@@ -71,6 +73,8 @@ func TestAuthPluginWithNoAuthPluginLookup(t *testing.T) {
 	}
 }
 
+// Note(philipc): Cannot run this test in parallel, due to the t.Setenv calls
+// from one of its helper methods.
 func TestNew(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -871,6 +875,8 @@ func TestNew(t *testing.T) {
 }
 
 func TestNewWithResponseHeaderTimeout(t *testing.T) {
+	t.Parallel()
+
 	input := `{
 				"name": "foo",
 				"url": "http://localhost",
@@ -888,6 +894,8 @@ func TestNewWithResponseHeaderTimeout(t *testing.T) {
 }
 
 func TestDoWithResponseHeaderTimeout(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	tests := map[string]struct {
@@ -949,6 +957,8 @@ func (*tracemock) NewHandler(http.Handler, string, tracing.Options) http.Handler
 }
 
 func TestDoWithDistributedTracingOpts(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	mock := tracemock{}
 	tracing.RegisterHTTPTracing(&mock)
@@ -986,6 +996,8 @@ func TestDoWithDistributedTracingOpts(t *testing.T) {
 }
 
 func TestDoWithResponseInClientLog(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	body := "Some Bad Request was received"
@@ -1021,6 +1033,8 @@ func TestDoWithResponseInClientLog(t *testing.T) {
 }
 
 func TestDoWithTruncatedResponseInClientLog(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -1056,6 +1070,8 @@ func TestDoWithTruncatedResponseInClientLog(t *testing.T) {
 }
 
 func TestValidUrl(t *testing.T) {
+	t.Parallel()
+
 	ts := testServer{
 		t:         t,
 		expMethod: "GET",
@@ -1107,14 +1123,20 @@ func testBearerToken(t *testing.T, scheme, token string) {
 }
 
 func TestBearerTokenDefaultScheme(t *testing.T) {
+	t.Parallel()
+
 	testBearerToken(t, "", "secret")
 }
 
 func TestBearerTokenCustomScheme(t *testing.T) {
+	t.Parallel()
+
 	testBearerToken(t, "Acmecorp-Token", "secret")
 }
 
 func TestBearerTokenPath(t *testing.T) {
+	t.Parallel()
+
 	ts := testServer{
 		t:                  t,
 		expBearerScheme:    "",
@@ -1177,6 +1199,8 @@ func TestBearerTokenPath(t *testing.T) {
 }
 
 func TestBearerWithCustomCACert(t *testing.T) {
+	t.Parallel()
+
 	ts := testServer{
 		t:                  t,
 		tls:                true,
@@ -1206,6 +1230,8 @@ func TestBearerWithCustomCACert(t *testing.T) {
 }
 
 func TestBearerWithCustomCACertAndSystemCA(t *testing.T) {
+	t.Parallel()
+
 	ts := testServer{
 		t:                  t,
 		tls:                true,
@@ -1236,6 +1262,8 @@ func TestBearerWithCustomCACertAndSystemCA(t *testing.T) {
 }
 
 func TestBearerTokenInvalidConfig(t *testing.T) {
+	t.Parallel()
+
 	ts := testServer{
 		t:               t,
 		expBearerScheme: "",
@@ -1272,6 +1300,8 @@ func TestBearerTokenInvalidConfig(t *testing.T) {
 }
 
 func TestBearerTokenIsEncodedForOCI(t *testing.T) {
+	t.Parallel()
+
 	config := `{
 		"name": "foo",
 		"type": "oci",
@@ -1325,6 +1355,8 @@ func newTestBearerClient(t *testing.T, ts *testServer, tokenPath string) *Client
 }
 
 func TestClientCert(t *testing.T) {
+	t.Parallel()
+
 	ts := testServer{
 		t:                t,
 		tls:              true,
@@ -1383,6 +1415,8 @@ func TestClientCert(t *testing.T) {
 }
 
 func TestClientCertPassword(t *testing.T) {
+	t.Parallel()
+
 	ts := testServer{
 		t:                  t,
 		tls:                true,
@@ -1411,6 +1445,8 @@ func TestClientCertPassword(t *testing.T) {
 }
 
 func TestClientTLSWithCustomCACert(t *testing.T) {
+	t.Parallel()
+
 	ts := testServer{
 		t:                t,
 		tls:              true,
@@ -1440,6 +1476,8 @@ func TestClientTLSWithCustomCACert(t *testing.T) {
 }
 
 func TestClientTLSWithCustomCACertAndSystemCA(t *testing.T) {
+	t.Parallel()
+
 	ts := testServer{
 		t:                t,
 		tls:              true,
@@ -1470,6 +1508,8 @@ func TestClientTLSWithCustomCACertAndSystemCA(t *testing.T) {
 }
 
 func TestOauth2ClientCredentials(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		ts      *testServer
 		ots     *oauth2TestServer
@@ -1540,6 +1580,8 @@ func TestOauth2ClientCredentials(t *testing.T) {
 }
 
 func TestOauth2ClientCredentialsExpiringTokenIsRefreshed(t *testing.T) {
+	t.Parallel()
+
 	ts := testServer{
 		t:              t,
 		expBearerToken: "token_1",
@@ -1578,6 +1620,8 @@ func TestOauth2ClientCredentialsExpiringTokenIsRefreshed(t *testing.T) {
 }
 
 func TestOauth2ClientCredentialsNonExpiringTokenIsReused(t *testing.T) {
+	t.Parallel()
+
 	ts := testServer{
 		t:              t,
 		expBearerToken: "token_1",
@@ -1606,6 +1650,8 @@ func TestOauth2ClientCredentialsNonExpiringTokenIsReused(t *testing.T) {
 }
 
 func TestOauth2JwtBearerGrantType(t *testing.T) {
+	t.Parallel()
+
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
@@ -1645,6 +1691,8 @@ func TestOauth2JwtBearerGrantType(t *testing.T) {
 }
 
 func TestOauth2JwtBearerGrantTypePKCS8EncodedPrivateKey(t *testing.T) {
+	t.Parallel()
+
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
@@ -1690,6 +1738,8 @@ func TestOauth2JwtBearerGrantTypePKCS8EncodedPrivateKey(t *testing.T) {
 }
 
 func TestOauth2JwtBearerGrantTypeEllipticCurveAlgorithm(t *testing.T) {
+	t.Parallel()
+
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
@@ -1740,6 +1790,8 @@ func TestOauth2JwtBearerGrantTypeEllipticCurveAlgorithm(t *testing.T) {
 }
 
 func TestOauth2ClientCredentialsJwtAuthentication(t *testing.T) {
+	t.Parallel()
+
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
@@ -1786,6 +1838,8 @@ func TestOauth2ClientCredentialsJwtAuthentication(t *testing.T) {
 
 // https://github.com/open-policy-agent/opa/issues/3255
 func TestS3SigningInstantiationInitializesLogger(t *testing.T) {
+	t.Parallel()
+
 	config := `{
 			"name": "foo",
 			"url": "https://bundles.example.com",
@@ -1817,6 +1871,8 @@ func TestS3SigningInstantiationInitializesLogger(t *testing.T) {
 }
 
 func TestS3SigningMultiCredentialProvider(t *testing.T) {
+	t.Parallel()
+
 	credentialProviderCount := 4
 	config := `{
 		"name": "foo",
@@ -1866,6 +1922,8 @@ func TestS3SigningMultiCredentialProvider(t *testing.T) {
 }
 
 func TestAWSCredentialServiceChain(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		input   string
@@ -1962,6 +2020,8 @@ func TestAWSCredentialServiceChain(t *testing.T) {
 }
 
 func TestDebugLoggingRequestMaskAuthorizationHeader(t *testing.T) {
+	t.Parallel()
+
 	token := "secret"
 	plaintext := "plaintext"
 	ts := testServer{t: t, expBearerToken: token}
@@ -2318,7 +2378,7 @@ func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 				_, _ = w.Write([]byte(errMsg))
 				return
 			}
-			t.t.Fatalf(errMsg)
+			t.t.Fatal(errMsg)
 		}
 		if t.expBearerToken != "" && !strings.HasSuffix(auth, t.expBearerToken) {
 			errMsg := fmt.Sprintf("Expected bearer token %q, got authorization header %q", t.expBearerToken, auth)
@@ -2327,7 +2387,7 @@ func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 				_, _ = w.Write([]byte(errMsg))
 				return
 			}
-			t.t.Fatalf(errMsg)
+			t.t.Fatal(errMsg)
 		}
 	}
 	if t.expectClientCert {
@@ -2509,6 +2569,8 @@ func (*myPluginMock) Prepare(*http.Request) error {
 	return nil
 }
 
+// Note(philipc): Cannot run this test in parallel, due to the t.Setenv calls
+// from one of its helper methods.
 func TestOauth2ClientCredentialsGrantTypeWithKms(t *testing.T) {
 
 	// DER-encoded object from KMS as explained here: https://docs.aws.amazon.com/kms/latest/APIReference/API_Sign.html#API_Sign_ResponseSyntax

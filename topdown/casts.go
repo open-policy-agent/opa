@@ -14,12 +14,12 @@ import (
 func builtinToNumber(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch a := operands[0].Value.(type) {
 	case ast.Null:
-		return iter(ast.NumberTerm("0"))
+		return iter(ast.InternedIntNumberTerm(0))
 	case ast.Boolean:
 		if a {
-			return iter(ast.NumberTerm("1"))
+			return iter(ast.InternedIntNumberTerm(1))
 		}
-		return iter(ast.NumberTerm("0"))
+		return iter(ast.InternedIntNumberTerm(0))
 	case ast.Number:
 		return iter(ast.NewTerm(a))
 	case ast.String:

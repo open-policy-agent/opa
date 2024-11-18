@@ -679,6 +679,12 @@ func FloatNumberTerm(f float64) *Term {
 func (num Number) Equal(other Value) bool {
 	switch other := other.(type) {
 	case Number:
+		n1, ok1 := num.Int64()
+		n2, ok2 := other.Int64()
+		if ok1 && ok2 && n1 == n2 {
+			return true
+		}
+
 		return Compare(num, other) == 0
 	default:
 		return false
@@ -1108,26 +1114,46 @@ func IsVarCompatibleString(s string) bool {
 	return varRegexp.MatchString(s)
 }
 
+var sbPool = sync.Pool{
+	New: func() any {
+		return &strings.Builder{}
+	},
+}
+
 func (ref Ref) String() string {
 	if len(ref) == 0 {
 		return ""
 	}
-	buf := []string{ref[0].Value.String()}
-	path := ref[1:]
-	for _, p := range path {
+
+	sb := sbPool.Get().(*strings.Builder)
+	sb.Reset()
+
+	defer sbPool.Put(sb)
+
+	sb.Grow(10 * len(ref))
+
+	sb.WriteString(ref[0].Value.String())
+
+	for _, p := range ref[1:] {
 		switch p := p.Value.(type) {
 		case String:
 			str := string(p)
-			if varRegexp.MatchString(str) && len(buf) > 0 && !IsKeyword(str) {
-				buf = append(buf, "."+str)
+			if varRegexp.MatchString(str) && !IsKeyword(str) {
+				sb.WriteByte('.')
+				sb.WriteString(str)
 			} else {
-				buf = append(buf, "["+p.String()+"]")
+				sb.WriteString(`["`)
+				sb.WriteString(str)
+				sb.WriteString(`"]`)
 			}
 		default:
-			buf = append(buf, "["+p.String()+"]")
+			sb.WriteByte('[')
+			sb.WriteString(p.String())
+			sb.WriteByte(']')
 		}
 	}
-	return strings.Join(buf, "")
+
+	return sb.String()
 }
 
 // OutputVars returns a VarSet containing variables that would be bound by evaluating
@@ -1271,16 +1297,22 @@ func (arr *Array) MarshalJSON() ([]byte, error) {
 }
 
 func (arr *Array) String() string {
-	var b strings.Builder
-	b.WriteRune('[')
+	sb := sbPool.Get().(*strings.Builder)
+	sb.Reset()
+	sb.Grow(len(arr.elems) * 16)
+
+	defer sbPool.Put(sb)
+
+	sb.WriteRune('[')
 	for i, e := range arr.elems {
 		if i > 0 {
-			b.WriteString(", ")
+			sb.WriteString(", ")
 		}
-		b.WriteString(e.String())
+		sb.WriteString(e.String())
 	}
-	b.WriteRune(']')
-	return b.String()
+	sb.WriteRune(']')
+
+	return sb.String()
 }
 
 // Len returns the number of elements in the array.
@@ -1291,6 +1323,11 @@ func (arr *Array) Len() int {
 // Elem returns the element i of arr.
 func (arr *Array) Elem(i int) *Term {
 	return arr.elems[i]
+}
+
+// Set sets the element i of arr.
+func (arr *Array) Set(i int, v *Term) {
+	arr.set(i, v)
 }
 
 // rehash updates the cached hash of arr.
@@ -1306,6 +1343,7 @@ func (arr *Array) set(i int, v *Term) {
 	arr.ground = arr.ground && v.IsGround()
 	arr.elems[i] = v
 	arr.hashs[i] = v.Value.Hash()
+	arr.rehash()
 }
 
 // Slice returns a slice of arr starting from i index to j. -1
@@ -1454,16 +1492,23 @@ func (s *set) String() string {
 	if s.Len() == 0 {
 		return "set()"
 	}
-	var b strings.Builder
-	b.WriteRune('{')
+
+	sb := sbPool.Get().(*strings.Builder)
+	sb.Reset()
+	sb.Grow(s.Len() * 16)
+
+	defer sbPool.Put(sb)
+
+	sb.WriteRune('{')
 	for i := range s.sortedKeys() {
 		if i > 0 {
-			b.WriteString(", ")
+			sb.WriteString(", ")
 		}
-		b.WriteString(s.keys[i].Value.String())
+		sb.WriteString(s.keys[i].Value.String())
 	}
-	b.WriteRune('}')
-	return b.String()
+	sb.WriteRune('}')
+
+	return sb.String()
 }
 
 func (s *set) sortedKeys() []*Term {
@@ -2361,19 +2406,25 @@ func (obj object) Len() int {
 }
 
 func (obj object) String() string {
-	var b strings.Builder
-	b.WriteRune('{')
+	sb := sbPool.Get().(*strings.Builder)
+	sb.Reset()
+	sb.Grow(obj.Len() * 32)
+
+	defer sbPool.Put(sb)
+
+	sb.WriteRune('{')
 
 	for i, elem := range obj.sortedKeys() {
 		if i > 0 {
-			b.WriteString(", ")
+			sb.WriteString(", ")
 		}
-		b.WriteString(elem.key.String())
-		b.WriteString(": ")
-		b.WriteString(elem.value.String())
+		sb.WriteString(elem.key.String())
+		sb.WriteString(": ")
+		sb.WriteString(elem.value.String())
 	}
-	b.WriteRune('}')
-	return b.String()
+	sb.WriteRune('}')
+
+	return sb.String()
 }
 
 func (obj *object) get(k *Term) *objectElem {
@@ -2560,6 +2611,8 @@ func (obj *object) insert(k, v *Term) {
 			}
 
 			curr.value = v
+
+			obj.rehash()
 			return
 		}
 	}
@@ -2581,6 +2634,19 @@ func (obj *object) insert(k, v *Term) {
 	}
 	if v.IsGround() {
 		obj.ground++
+	}
+}
+
+func (obj *object) rehash() {
+	// obj.keys is considered truth, from which obj.hash and obj.elems are recalculated.
+
+	obj.hash = 0
+	obj.elems = make(map[int]*objectElem, len(obj.keys))
+
+	for _, elem := range obj.keys {
+		hash := elem.key.Hash()
+		obj.hash += hash + elem.value.Hash()
+		obj.elems[hash] = elem
 	}
 }
 

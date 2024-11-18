@@ -317,7 +317,7 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 		r.store = inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false))
 	}
 
-	if r.bundles != nil && len(r.bundles) > 0 {
+	if len(r.bundles) > 0 {
 		if txn == nil {
 			return nil, fmt.Errorf("unable to activate bundles: storage transaction is nil")
 		}

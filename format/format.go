@@ -386,7 +386,7 @@ func (w *writer) writePackage(pkg *ast.Package, comments []*ast.Comment) []*ast.
 	copy(path[1:], pkg.Path[2:])
 
 	w.write("package ")
-	w.writeRef(path)
+	w.writeRef(path, nil)
 
 	w.blankLine()
 
@@ -526,7 +526,11 @@ func (w *writer) writeElse(rule *ast.Rule, comments []*ast.Comment) []*ast.Comme
 	}
 
 	rule.Else.Head.Name = "else" // NOTE(sr): whaaat
-	rule.Else.Head.Reference = ast.Ref{ast.VarTerm("else")}
+
+	elseHeadReference := ast.VarTerm("else")             // construct a reference for the term
+	elseHeadReference.Location = rule.Else.Head.Location // and set the location to match the rule location
+
+	rule.Else.Head.Reference = ast.Ref{elseHeadReference}
 	rule.Else.Head.Args = nil
 	comments = w.insertComments(comments, rule.Else.Head.Location)
 
@@ -552,7 +556,7 @@ func (w *writer) writeHead(head *ast.Head, isDefault, isExpandedConst bool, comm
 		ref = ref.GroundPrefix()
 	}
 	if w.fmtOpts.refHeads || len(ref) == 1 {
-		w.writeRef(ref)
+		w.writeRef(ref, comments)
 	} else {
 		w.write(ref[0].String())
 		w.write("[")
@@ -811,7 +815,7 @@ func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Co
 
 	switch x := term.Value.(type) {
 	case ast.Ref:
-		w.writeRef(x)
+		comments = w.writeRef(x, comments)
 	case ast.Object:
 		comments = w.writeObject(x, term.Location, comments)
 	case *ast.Array:
@@ -846,14 +850,14 @@ func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Co
 	return comments
 }
 
-func (w *writer) writeRef(x ast.Ref) {
+func (w *writer) writeRef(x ast.Ref, comments []*ast.Comment) []*ast.Comment {
 	if len(x) > 0 {
 		parens := false
 		_, ok := x[0].Value.(ast.Call)
 		if ok {
 			parens = x[0].Location.Text[0] == 40 // Starts with "("
 		}
-		w.writeTermParens(parens, x[0], nil)
+		comments = w.writeTermParens(parens, x[0], comments)
 		path := x[1:]
 		for _, t := range path {
 			switch p := t.Value.(type) {
@@ -863,11 +867,13 @@ func (w *writer) writeRef(x ast.Ref) {
 				w.writeBracketed(w.formatVar(p))
 			default:
 				w.write("[")
-				w.writeTerm(t, nil)
+				comments = w.writeTerm(t, comments)
 				w.write("]")
 			}
 		}
 	}
+
+	return comments
 }
 
 func (w *writer) writeBracketed(str string) {
@@ -1030,7 +1036,7 @@ func (w *writer) writeObjectComprehension(object *ast.ObjectComprehension, loc *
 	return w.writeComprehension('{', '}', object.Value, object.Body, loc, comments)
 }
 
-func (w *writer) writeComprehension(open, close byte, term *ast.Term, body ast.Body, loc *ast.Location, comments []*ast.Comment) []*ast.Comment {
+func (w *writer) writeComprehension(openChar, closeChar byte, term *ast.Term, body ast.Body, loc *ast.Location, comments []*ast.Comment) []*ast.Comment {
 	if term.Location.Row-loc.Row >= 1 {
 		w.endLine()
 		w.startLine()
@@ -1044,10 +1050,10 @@ func (w *writer) writeComprehension(open, close byte, term *ast.Term, body ast.B
 	comments = w.writeTermParens(parens, term, comments)
 	w.write(" |")
 
-	return w.writeComprehensionBody(open, close, body, term.Location, loc, comments)
+	return w.writeComprehensionBody(openChar, closeChar, body, term.Location, loc, comments)
 }
 
-func (w *writer) writeComprehensionBody(open, close byte, body ast.Body, term, compr *ast.Location, comments []*ast.Comment) []*ast.Comment {
+func (w *writer) writeComprehensionBody(openChar, closeChar byte, body ast.Body, term, compr *ast.Location, comments []*ast.Comment) []*ast.Comment {
 	exprs := make([]interface{}, 0, len(body))
 	for _, expr := range body {
 		exprs = append(exprs, expr)
@@ -1071,7 +1077,7 @@ func (w *writer) writeComprehensionBody(open, close byte, body ast.Body, term, c
 		comments = w.writeExpr(body[i], comments)
 	}
 
-	return w.insertComments(comments, closingLoc(0, 0, open, close, compr))
+	return w.insertComments(comments, closingLoc(0, 0, openChar, closeChar, compr))
 }
 
 func (w *writer) writeImports(imports []*ast.Import, comments []*ast.Comment) []*ast.Comment {
@@ -1111,7 +1117,7 @@ func (w *writer) writeImport(imp *ast.Import) {
 		w2 := writer{
 			buf: bytes.Buffer{},
 		}
-		w2.writeRef(path)
+		w2.writeRef(path, nil)
 		buf = append(buf, w2.buf.String())
 	} else {
 		buf = append(buf, path.String())
@@ -1397,7 +1403,7 @@ func getLoc(x interface{}) *ast.Location {
 	}
 }
 
-func closingLoc(skipOpen, skipClose, open, close byte, loc *ast.Location) *ast.Location {
+func closingLoc(skipOpen, skipClose, openChar, closeChar byte, loc *ast.Location) *ast.Location {
 	i, offset := 0, 0
 
 	// Skip past parens/brackets/braces in rule heads.
@@ -1406,7 +1412,7 @@ func closingLoc(skipOpen, skipClose, open, close byte, loc *ast.Location) *ast.L
 	}
 
 	for ; i < len(loc.Text); i++ {
-		if loc.Text[i] == open {
+		if loc.Text[i] == openChar {
 			break
 		}
 	}
@@ -1423,9 +1429,9 @@ func closingLoc(skipOpen, skipClose, open, close byte, loc *ast.Location) *ast.L
 		}
 
 		switch loc.Text[i] {
-		case open:
+		case openChar:
 			state++
-		case close:
+		case closeChar:
 			state--
 		case '\n':
 			offset++
@@ -1435,10 +1441,10 @@ func closingLoc(skipOpen, skipClose, open, close byte, loc *ast.Location) *ast.L
 	return &ast.Location{Row: loc.Row + offset}
 }
 
-func skipPast(open, close byte, loc *ast.Location) (int, int) {
+func skipPast(openChar, closeChar byte, loc *ast.Location) (int, int) {
 	i := 0
 	for ; i < len(loc.Text); i++ {
-		if loc.Text[i] == open {
+		if loc.Text[i] == openChar {
 			break
 		}
 	}
@@ -1452,9 +1458,9 @@ func skipPast(open, close byte, loc *ast.Location) (int, int) {
 		}
 
 		switch loc.Text[i] {
-		case open:
+		case openChar:
 			state++
-		case close:
+		case closeChar:
 			state--
 		case '\n':
 			offset++

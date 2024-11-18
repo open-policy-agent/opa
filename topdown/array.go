@@ -33,7 +33,7 @@ func builtinArrayConcat(_ BuiltinContext, operands []*ast.Term, iter func(*ast.T
 		i++
 	})
 
-	return iter(ast.NewTerm(ast.NewArray(arrC...)))
+	return iter(ast.ArrayTerm(arrC...))
 }
 
 func builtinArraySlice(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {

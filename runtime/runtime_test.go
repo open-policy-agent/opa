@@ -34,14 +34,37 @@ import (
 )
 
 func TestRuntimeProcessWatchEvents(t *testing.T) {
-	testRuntimeProcessWatchEvents(t, false)
+	tests := []struct {
+		note     string
+		asBundle bool
+		readAst  bool
+	}{
+		{
+			note: "no bundle, read raw data",
+		},
+		{
+			note:    "no bundle, read ast",
+			readAst: true,
+		},
+		{
+			note:     "bundle, read raw data",
+			asBundle: true,
+		},
+		{
+			note:     "bundle, read ast",
+			asBundle: true,
+			readAst:  true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			testRuntimeProcessWatchEvents(t, tc.asBundle, tc.readAst)
+		})
+	}
 }
 
-func TestRuntimeProcessWatchEventsWithBundle(t *testing.T) {
-	testRuntimeProcessWatchEvents(t, true)
-}
-
-func testRuntimeProcessWatchEvents(t *testing.T, asBundle bool) {
+func testRuntimeProcessWatchEvents(t *testing.T, asBundle bool, readAst bool) {
 	t.Helper()
 
 	ctx := context.Background()
@@ -60,6 +83,7 @@ func testRuntimeProcessWatchEvents(t *testing.T, asBundle bool) {
 		params := NewParams()
 		params.Paths = []string{rootDir}
 		params.BundleMode = asBundle
+		params.ReadAstValuesFromStore = readAst
 
 		rt, err := NewRuntime(ctx, params)
 		if err != nil {
@@ -110,9 +134,18 @@ func testRuntimeProcessWatchEvents(t *testing.T, asBundle bool) {
 			}
 
 			rt.Store.Abort(ctx, txn)
-			if reflect.DeepEqual(val, expected) {
-				return // success
+
+			if readAst {
+				exp, _ := ast.InterfaceToValue(expected)
+				if ast.Compare(val, exp) == 0 {
+					return // success
+				}
+			} else {
+				if reflect.DeepEqual(val, expected) {
+					return // success
+				}
 			}
+
 		}
 
 		t.Fatalf("Did not see expected change in %v, last value: %v, buf: %v", maxWaitTime, val, buf.String())
@@ -1531,7 +1564,7 @@ func TestRuntimeWithExplicitMetricConfiguration(t *testing.T) {
 
 		_, err := NewRuntime(context.Background(), params)
 		if err != nil {
-			t.Fatalf(err.Error())
+			t.Fatal(err.Error())
 		}
 	})
 }

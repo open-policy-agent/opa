@@ -11,6 +11,7 @@ import (
 )
 
 func TestSaveSet(t *testing.T) {
+	t.Parallel()
 
 	tests := []struct {
 		terms    []string

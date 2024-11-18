@@ -222,8 +222,8 @@ func getExports(c *wasmtime.Caller) exports {
 	return e
 }
 
-func (e exports) Malloc(caller *wasmtime.Caller, len int32) (int32, error) {
-	ptr, err := e.mallocFn.Call(caller, len)
+func (e exports) Malloc(caller *wasmtime.Caller, length int32) (int32, error) {
+	ptr, err := e.mallocFn.Call(caller, length)
 	if err != nil {
 		return 0, err
 	}
@@ -238,8 +238,8 @@ func (e exports) ValueDump(caller *wasmtime.Caller, addr int32) (int32, error) {
 	return result.(int32), nil
 }
 
-func (e exports) ValueParse(caller *wasmtime.Caller, addr int32, len int32) (int32, error) {
-	result, err := e.valueParseFn.Call(caller, addr, len)
+func (e exports) ValueParse(caller *wasmtime.Caller, addr int32, length int32) (int32, error) {
+	result, err := e.valueParseFn.Call(caller, addr, length)
 	if err != nil {
 		return 0, err
 	}

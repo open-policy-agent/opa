@@ -16,6 +16,7 @@ import (
 )
 
 func TestQueryTracerDontPlugLocalVars(t *testing.T) {
+	t.Parallel()
 
 	cases := []struct {
 		note         string
@@ -66,7 +67,9 @@ func TestQueryTracerDontPlugLocalVars(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
 
 			query := initTracerTestQuery()
 
@@ -105,6 +108,7 @@ func TestQueryTracerDontPlugLocalVars(t *testing.T) {
 }
 
 func TestLegacyTracerUpgrade(t *testing.T) {
+	t.Parallel()
 
 	query := initTracerTestQuery()
 
@@ -126,7 +130,8 @@ func TestLegacyTracerUpgrade(t *testing.T) {
 }
 
 func TestLegacyTracerBackwardsCompatibility(t *testing.T) {
-	t.Helper()
+	t.Parallel()
+
 	query := initTracerTestQuery()
 
 	// Using a tracer that does _not_ implement the newer
@@ -156,6 +161,8 @@ func TestLegacyTracerBackwardsCompatibility(t *testing.T) {
 }
 
 func TestDisabledTracer(t *testing.T) {
+	t.Parallel()
+
 	query := initTracerTestQuery()
 
 	tracer := &testQueryTracer{
@@ -180,6 +187,8 @@ func TestDisabledTracer(t *testing.T) {
 }
 
 func TestRegoMetadataBuiltinCall(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		note          string
 		query         string
@@ -198,7 +207,10 @@ func TestRegoMetadataBuiltinCall(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			c := ast.NewCompiler()
 			q := NewQuery(ast.MustParseBody(tc.query)).WithCompiler(c).
 				WithStrictBuiltinErrors(true)
@@ -216,6 +228,8 @@ func TestRegoMetadataBuiltinCall(t *testing.T) {
 }
 
 func TestWithCompilerErrors(t *testing.T) {
+	t.Parallel()
+
 	store := inmem.New()
 	ctx := context.Background()
 	txn := storage.NewTransactionOrDie(ctx, store)

@@ -14,6 +14,7 @@ import (
 )
 
 func TestUUIDRFC4122SeedingAndCaching(t *testing.T) {
+	t.Parallel()
 
 	query := `uuid.rfc4122("x",x); uuid.rfc4122("y", y); uuid.rfc4122("x",x2)`
 
@@ -43,7 +44,6 @@ func TestUUIDRFC4122SeedingAndCaching(t *testing.T) {
 	if !result.Equal(exp) {
 		t.Fatalf("expected %v but got %v", exp, result)
 	}
-
 }
 
 type fakeSeedErrorReader struct{}
@@ -53,6 +53,7 @@ func (fakeSeedErrorReader) Read([]byte) (int, error) {
 }
 
 func TestUUIDRFC4122SeedError(t *testing.T) {
+	t.Parallel()
 
 	query := `uuid.rfc4122("x",x)`
 
@@ -63,10 +64,10 @@ func TestUUIDRFC4122SeedError(t *testing.T) {
 	if topdownErr, ok := err.(*Error); !ok || topdownErr.Code != BuiltinErr {
 		t.Fatal("unexpected error (or lack of error):", err)
 	}
-
 }
 
 func TestUUIDRFC4122SavingDuringPartialEval(t *testing.T) {
+	t.Parallel()
 
 	query := `foo = "x"; uuid.rfc4122(foo,x)`
 	c := ast.NewCompiler().

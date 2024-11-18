@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -506,7 +507,7 @@ func testEvalWithSchemasAnnotationButNoSchemaFlag(policy string) error {
 		var defined bool
 		defined, err = eval([]string{query}, params, &buf)
 		if !defined || err != nil {
-			err = fmt.Errorf(buf.String())
+			err = errors.New(buf.String())
 		}
 	})
 
@@ -1043,6 +1044,48 @@ func TestEvalWithBundleDuplicateFileNames(t *testing.T) {
 
 		assertResultSet(t, output.Result, `[[{"a":{"p":1},"b":{"q":1}}]]`)
 	})
+}
+
+func TestEvalWithReadASTValuesFromStore(t *testing.T) {
+	// Note: This test is a bit of a hack. It's difficult to discern whether AST values were actually read from the store.
+	// This just ensures that we don't get any unexpected errors when enabling the flag.
+
+	tests := []struct {
+		note    string
+		readAst bool
+	}{
+		{
+			note:    "read raw data from store",
+			readAst: false,
+		},
+		{
+			note:    "read AST values from store",
+			readAst: true,
+		},
+	}
+
+	files := map[string]string{
+		"test.rego": `
+			package test
+			p = 1`,
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			test.WithTempFS(files, func(path string) {
+				params := newEvalCommandParams()
+				params.dataPaths = newrepeatedStringFlag([]string{path})
+				params.ReadAstValuesFromStore = tc.readAst
+
+				var buf bytes.Buffer
+
+				defined, err := eval([]string{"data.test.p"}, params, &buf)
+				if !defined || err != nil {
+					t.Fatalf("Unexpected undefined or error: %v", err)
+				}
+			})
+		})
+	}
 }
 
 func TestEvalWithStrictBuiltinErrors(t *testing.T) {

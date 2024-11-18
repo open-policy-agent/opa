@@ -165,6 +165,10 @@ func addV1CompatibleFlag(fs *pflag.FlagSet, v1Compatible *bool, value bool) {
 	fs.BoolVar(v1Compatible, "v1-compatible", value, "opt-in to OPA features and behaviors that are enabled by default in OPA v1.0")
 }
 
+func addReadAstValuesFromStoreFlag(fs *pflag.FlagSet, readAstValuesFromStore *bool, value bool) {
+	fs.BoolVar(readAstValuesFromStore, "optimize-store-for-read-speed", value, "optimize default in-memory store for read speed. Has possible negative impact on memory footprint and write speed. See https://www.openpolicyagent.org/docs/latest/policy-performance/#storage-optimization for more details.")
+}
+
 func addE2EFlag(fs *pflag.FlagSet, e2e *bool, value bool) {
 	fs.BoolVar(e2e, "e2e", value, "run benchmarks against a running OPA server")
 }

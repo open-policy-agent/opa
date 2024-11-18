@@ -13,6 +13,8 @@ import (
 )
 
 func TestBindingsZeroValues(t *testing.T) {
+	t.Parallel()
+
 	var unifier *bindings
 
 	// Plugging
@@ -33,6 +35,8 @@ func term(s string) *ast.Term {
 }
 
 func TestBindingsArrayHashmap(t *testing.T) {
+	t.Parallel()
+
 	var bindings bindings
 	b := newBindingsArrayHashmap()
 	keys := make(map[int]ast.Var)

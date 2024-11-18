@@ -19,6 +19,7 @@ import (
 )
 
 func TestEventEqual(t *testing.T) {
+	t.Parallel()
 
 	a := ast.NewValueMap()
 	a.Put(ast.String("foo"), ast.Number("1"))
@@ -54,6 +55,8 @@ func TestEventEqual(t *testing.T) {
 }
 
 func TestPrettyTrace(t *testing.T) {
+	t.Parallel()
+
 	module := `package test
 
 	p if { q[x]; plus(x, 1, n) }
@@ -114,6 +117,8 @@ Redo data.test.p = _
 }
 
 func TestPrettyTraceWithLocation(t *testing.T) {
+	t.Parallel()
+
 	module := `package test
 
 	p if { q[x]; plus(x, 1, n) }
@@ -174,6 +179,8 @@ query:3     | | Redo data.test.q[x]
 }
 
 func TestPrettyTraceWithLocationTruncatedPaths(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	compiler := ast.MustCompileModulesWithOpts(map[string]string{
@@ -245,6 +252,8 @@ authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:5     | | Redo da
 }
 
 func TestPrettyTracePartialWithLocationTruncatedPaths(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	compiler := ast.MustCompileModulesWithOpts(map[string]string{
@@ -414,6 +423,8 @@ query:1                                                              | Fail data
 }
 
 func TestTraceDuplicate(t *testing.T) {
+	t.Parallel()
+
 	// NOTE(sr): We're explicitly bypassing a caching optimization here:
 	// When the first query for a partial is `p[x]`, and `x` is not ground,
 	// we'll have the evaluation eval the full extent of the partial and
@@ -459,6 +470,8 @@ func TestTraceDuplicate(t *testing.T) {
 }
 
 func TestTraceNote(t *testing.T) {
+	t.Parallel()
+
 	module := `package test
 
 	p if { q[x]; plus(x, 1, n); trace(sprintf("n=%v", [n])) }
@@ -524,6 +537,8 @@ Redo data.test.p = _
 }
 
 func TestTraceNoteWithLocation(t *testing.T) {
+	t.Parallel()
+
 	module := `package test
 
 	p if { q[x]; plus(x, 1, n); trace(sprintf("n=%v", [n])) }
@@ -589,6 +604,7 @@ query:3     | | Redo data.test.q[x]
 }
 
 func TestMultipleTracers(t *testing.T) {
+	t.Parallel()
 
 	ctx := context.Background()
 
@@ -616,6 +632,8 @@ func TestMultipleTracers(t *testing.T) {
 }
 
 func TestTraceRewrittenQueryVars(t *testing.T) {
+	t.Parallel()
+
 	module := `package test
 
 	y = [1, 2, 3]`
@@ -674,6 +692,7 @@ func TestTraceRewrittenQueryVars(t *testing.T) {
 }
 
 func TestTraceRewrittenVars(t *testing.T) {
+	t.Parallel()
 
 	mustParse := func(s string) *ast.Expr {
 		return ast.MustParseBodyWithOpts(s, ast.ParserOptions{FutureKeywords: []string{"every"}})[0]
@@ -743,7 +762,10 @@ func TestTraceRewrittenVars(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			output := rewrite(tc.evt)
 			tc.exp(t, tc.evt, output)
 		})
@@ -751,6 +773,8 @@ func TestTraceRewrittenVars(t *testing.T) {
 }
 
 func TestTraceEveryEvaluation(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	events := func(es ...string) []string {
@@ -865,6 +889,8 @@ func TestTraceEveryEvaluation(t *testing.T) {
 }
 
 func TestShortTraceFileNames(t *testing.T) {
+	t.Parallel()
+
 	longFilePath1 := "/really/long/file/path/longer/than/most/would/really/ever/be/policy.rego"
 	longFilePath1Similar := "/really/long/file/path/longer/than/most/policy.rego"
 	longFilePath2 := "GfjEjnMA6coNiPoMoRMVk7KeorGeRmjRkIYUsWtr564SQ7yDo4Yss2SoN8PMoe0TOfVaNFd1HQbC9NhK.rego"
@@ -1003,7 +1029,10 @@ func TestShortTraceFileNames(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			actualNames, actualLongest := getShortenedFileNames(tc.trace)
 			if actualLongest != tc.expectedLongest {
 				t.Errorf("Expected longest location to be %d, got %d", tc.expectedLongest, actualLongest)
@@ -1017,6 +1046,8 @@ func TestShortTraceFileNames(t *testing.T) {
 }
 
 func TestBufferTracerTraceConfig(t *testing.T) {
+	t.Parallel()
+
 	ct := QueryTracer(NewBufferTracer())
 	conf := ct.Config()
 
@@ -1030,6 +1061,8 @@ func TestBufferTracerTraceConfig(t *testing.T) {
 }
 
 func TestTraceInput(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	module := `
 		package test
@@ -1072,6 +1105,8 @@ func TestTraceInput(t *testing.T) {
 }
 
 func TestTracePlug(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	module := `
 		package test
@@ -1163,6 +1198,8 @@ func compareBuffers(t *testing.T, expected, actual string) {
 }
 
 func TestPrettyTraceWithLocationForMetadataCall(t *testing.T) {
+	t.Parallel()
+
 	module := `package test
 rule_no_output_var := rego.metadata.rule()
 
@@ -1252,6 +1289,8 @@ query:1      | Redo data.test = _
 }
 
 func TestPrettyTraceWithUnifyOps(t *testing.T) {
+	t.Parallel()
+
 	module := `package test
 
 	p contains x if {
@@ -1309,6 +1348,8 @@ func removeUnifyOps(trace []*Event) (result []*Event) {
 }
 
 func TestPrettyTraceWithLocalVars(t *testing.T) {
+	t.Parallel()
+
 	{
 		module := `package test
 
@@ -1393,6 +1434,8 @@ Redo data.test = _                                   {_: {"p": true}}
 }
 
 func TestPrettyTraceExprVars(t *testing.T) {
+	t.Parallel()
+
 	{
 		module := `package test
 

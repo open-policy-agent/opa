@@ -47,6 +47,8 @@ type Person struct {
 
 // TestHTTPGetRequest returns the list of persons
 func TestHTTPGetRequest(t *testing.T) {
+	t.Parallel()
+
 	var people []Person
 
 	// test data
@@ -101,6 +103,8 @@ func TestHTTPGetRequest(t *testing.T) {
 
 // TestHTTPGetRequest returns the list of persons
 func TestHTTPGetRequestTlsInsecureSkipVerify(t *testing.T) {
+	t.Parallel()
+
 	var people []Person
 
 	// test data
@@ -155,6 +159,8 @@ func TestHTTPGetRequestTlsInsecureSkipVerify(t *testing.T) {
 }
 
 func TestHTTPEnableJSONOrYAMLDecode(t *testing.T) {
+	t.Parallel()
+
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/json-no-header":
@@ -307,6 +313,8 @@ func echoCustomHeaders(w http.ResponseWriter, r *http.Request) {
 
 // TestHTTPSendCustomRequestHeaders adds custom headers to request
 func TestHTTPSendCustomRequestHeaders(t *testing.T) {
+	t.Parallel()
+
 	// test server
 	ts := httptest.NewServer(http.HandlerFunc(echoCustomHeaders))
 	defer ts.Close()
@@ -359,6 +367,8 @@ func TestHTTPSendCustomRequestHeaders(t *testing.T) {
 
 // TestHTTPHostHeader tests Host header support
 func TestHTTPHostHeader(t *testing.T) {
+	t.Parallel()
+
 	// test server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -396,6 +406,8 @@ func TestHTTPHostHeader(t *testing.T) {
 
 // TestHTTPPostRequest adds a new person
 func TestHTTPPostRequest(t *testing.T) {
+	t.Parallel()
+
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		contentType := r.Header.Get("Content-Type")
 
@@ -496,6 +508,8 @@ func TestHTTPPostRequest(t *testing.T) {
 }
 
 func TestHTTPDeleteRequest(t *testing.T) {
+	t.Parallel()
+
 	var people []Person
 
 	// test data
@@ -572,6 +586,8 @@ func TestHTTPDeleteRequest(t *testing.T) {
 // TestInvalidKeyError returns an error when an invalid key is passed in the
 // http.send builtin
 func TestInvalidKeyError(t *testing.T) {
+	t.Parallel()
+
 	// run the test
 	tests := []struct {
 		note     string
@@ -590,6 +606,8 @@ func TestInvalidKeyError(t *testing.T) {
 }
 
 func TestInvalidRetryParam(t *testing.T) {
+	t.Parallel()
+
 	// run the test
 	tests := []struct {
 		note     string
@@ -609,6 +627,8 @@ func TestInvalidRetryParam(t *testing.T) {
 }
 
 func TestParseTimeout(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		note     string
 		raw      ast.Value
@@ -687,7 +707,10 @@ func TestParseTimeout(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			actual, err := parseTimeout(tc.raw)
 			switch e := tc.expected.(type) {
 			case error:
@@ -703,6 +726,8 @@ func TestParseTimeout(t *testing.T) {
 
 // TestHTTPRedirectDisable tests redirects are not enabled by default
 func TestHTTPRedirectDisable(t *testing.T) {
+	t.Parallel()
+
 	// test server
 	baseURL, teardown := getTestServer()
 	defer teardown()
@@ -733,6 +758,8 @@ func TestHTTPRedirectDisable(t *testing.T) {
 
 // TestHTTPRedirectEnable tests redirects are enabled
 func TestHTTPRedirectEnable(t *testing.T) {
+	t.Parallel()
+
 	// test server
 	baseURL, teardown := getTestServer()
 	defer teardown()
@@ -760,6 +787,8 @@ func TestHTTPRedirectEnable(t *testing.T) {
 }
 
 func TestHTTPRedirectAllowNet(t *testing.T) {
+	t.Parallel()
+
 	// test server
 	baseURL, teardown := getTestServer()
 	defer teardown()
@@ -826,6 +855,8 @@ func TestHTTPRedirectAllowNet(t *testing.T) {
 }
 
 func TestHTTPSendRaiseError(t *testing.T) {
+	t.Parallel()
+
 	// test server
 	baseURL, teardown := getTestServer()
 	defer teardown()
@@ -928,13 +959,18 @@ func TestHTTPSendRaiseError(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			runTopDownTestCase(t, data, tc.note, []string{strings.ReplaceAll(tc.ruleTemplate, "%URL%", baseURL)}, tc.response)
 		})
 	}
 }
 
 func TestHTTPSendCaching(t *testing.T) {
+	t.Parallel()
+
 	// run the test
 	tests := []struct {
 		note             string
@@ -1099,7 +1135,10 @@ func TestHTTPSendCaching(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			var requests []*http.Request
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				requests = append(requests, r)
@@ -1124,6 +1163,8 @@ func TestHTTPSendCaching(t *testing.T) {
 }
 
 func TestHTTPSendIntraQueryCaching(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		note                       string
 		request                    string
@@ -1198,7 +1239,10 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 	t0 := time.Now()
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			var requests []*http.Request
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				requests = append(requests, r)
@@ -1267,6 +1311,8 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 }
 
 func TestHTTPSendInterQueryCaching(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		note             string
 		query            string // each query is run three times
@@ -1354,7 +1400,10 @@ func TestHTTPSendInterQueryCaching(t *testing.T) {
 	t0 := time.Now()
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			var requests []*http.Request
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				requests = append(requests, r)
@@ -1408,6 +1457,8 @@ func TestHTTPSendInterQueryCaching(t *testing.T) {
 }
 
 func TestHTTPSendInterQueryForceCaching(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		note             string
 		query            string
@@ -1519,7 +1570,10 @@ func TestHTTPSendInterQueryForceCaching(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			t0 := time.Now().UTC()
 
 			var requests []*http.Request
@@ -1567,6 +1621,8 @@ func TestHTTPSendInterQueryForceCaching(t *testing.T) {
 }
 
 func TestHTTPSendInterQueryForceCachingRefresh(t *testing.T) {
+	t.Parallel()
+
 	cacheTime := 300
 	tests := []struct {
 		note             string
@@ -1601,7 +1657,10 @@ func TestHTTPSendInterQueryForceCachingRefresh(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			t0 := time.Now().UTC()
 
 			var requests []*http.Request
@@ -1715,6 +1774,8 @@ func TestHTTPSendInterQueryForceCachingRefresh(t *testing.T) {
 }
 
 func TestHTTPSendInterQueryCachingModifiedResp(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		note             string
 		query            string
@@ -1747,7 +1808,10 @@ func TestHTTPSendInterQueryCachingModifiedResp(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			t0 := time.Now().UTC()
 
 			var requests []*http.Request
@@ -1803,6 +1867,8 @@ func TestHTTPSendInterQueryCachingModifiedResp(t *testing.T) {
 }
 
 func TestHTTPSendInterQueryCachingNewResp(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		note             string
 		query            string // each query will be run three times
@@ -1821,7 +1887,10 @@ func TestHTTPSendInterQueryCachingNewResp(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			t0 := time.Now().UTC()
 
 			var requests []*http.Request
@@ -1889,6 +1958,8 @@ func newQuery(qStr string, t0 time.Time) *Query {
 }
 
 func TestInsertIntoHTTPSendInterQueryCacheError(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		note             string
 		query            string
@@ -1914,9 +1985,12 @@ func TestInsertIntoHTTPSendInterQueryCacheError(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t0 := time.Now().UTC()
 
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			var requests []*http.Request
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				requests = append(requests, r)
@@ -1958,6 +2032,8 @@ func TestInsertIntoHTTPSendInterQueryCacheError(t *testing.T) {
 }
 
 func TestGetCachingMode(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		note      string
 		input     ast.Object
@@ -1998,7 +2074,10 @@ func TestGetCachingMode(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			actual, err := getCachingMode(tc.input)
 			if tc.wantError {
 				if err == nil {
@@ -2022,6 +2101,8 @@ func TestGetCachingMode(t *testing.T) {
 }
 
 func TestGetResponseHeaderDateEmpty(t *testing.T) {
+	t.Parallel()
+
 	_, err := getResponseHeaderDate(http.Header{"Date": {""}})
 	if err == nil {
 		t.Fatal("Expected error but got nil")
@@ -2034,6 +2115,8 @@ func TestGetResponseHeaderDateEmpty(t *testing.T) {
 }
 
 func TestParseMaxAgeCacheDirective(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		note      string
 		input     map[string]string
@@ -2079,7 +2162,10 @@ func TestParseMaxAgeCacheDirective(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			actual, err := parseMaxAgeCacheDirective(tc.input)
 			if tc.wantError {
 				if err == nil {
@@ -2103,6 +2189,8 @@ func TestParseMaxAgeCacheDirective(t *testing.T) {
 }
 
 func TestNewForceCacheParams(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		note      string
 		input     ast.Object
@@ -2141,7 +2229,10 @@ func TestNewForceCacheParams(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			actual, err := newForceCacheParams(tc.input)
 			if tc.wantError {
 				if err == nil {
@@ -2165,6 +2256,8 @@ func TestNewForceCacheParams(t *testing.T) {
 }
 
 func TestGetBoolValFromReqObj(t *testing.T) {
+	t.Parallel()
+
 	validInput := ast.MustParseTerm(`{"cache": true}`)
 	validInputObj := validInput.Value.(ast.Object)
 
@@ -2206,7 +2299,10 @@ func TestGetBoolValFromReqObj(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			actual, err := getBoolValFromReqObj(tc.input, tc.key)
 			if tc.wantError {
 				if err == nil {
@@ -2230,6 +2326,8 @@ func TestGetBoolValFromReqObj(t *testing.T) {
 }
 
 func TestInterQueryCheckCacheError(t *testing.T) {
+	t.Parallel()
+
 	input := ast.MustParseTerm(`{"force_cache": true}`)
 	inputObj := input.Value.(ast.Object)
 
@@ -2245,6 +2343,8 @@ func TestInterQueryCheckCacheError(t *testing.T) {
 }
 
 func TestNewInterQueryCacheValue(t *testing.T) {
+	t.Parallel()
+
 	date := "Wed, 31 Dec 2115 07:28:00 GMT"
 	maxAge := 290304000
 
@@ -2338,6 +2438,8 @@ func getTLSTestServer() (ts *httptest.Server) {
 	return
 }
 
+// Warning(philipc): This test cannot be run in parallel with other tests, due
+// to the t.Setenv calls used to set up the server environment.
 func TestHTTPSClient(t *testing.T) {
 	const (
 		localClientCertFile  = "testdata/client-cert.pem"
@@ -2631,6 +2733,8 @@ func TestHTTPSClient(t *testing.T) {
 	})
 }
 
+// Warning(philipc): This test cannot be run in parallel with other tests, due
+// to the t.Setenv calls from one of its helper methods.
 func TestHTTPSNoClientCerts(t *testing.T) {
 	const (
 		localCaFile         = "testdata/ca.pem"
@@ -2847,6 +2951,9 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 // tests, some larger projects have just slapped linter ignores on the
 // offending callsites. Since we only use (*CertPool).Subjects() here for
 // tests, we've gone with using linter ignores for now.
+//
+// Warning(philipc): This test cannot be run in parallel with other tests, due
+// to the t.Setenv calls used to set up the server environment.
 func TestCertSelectionLogic(t *testing.T) {
 	const (
 		localCaFile = "testdata/ca.pem"
@@ -2966,7 +3073,7 @@ func TestCertSelectionLogic(t *testing.T) {
 			tlsConfig := getClientTLSConfig(obj)
 			if tc.expected == nil {
 				if tlsConfig != nil {
-					t.Fatalf(tc.msg)
+					t.Fatal(tc.msg)
 				}
 			} else {
 				// nolint:staticcheck // ignoring the deprecated (*CertPool).Subjects() call here because it's in a test.
@@ -2979,6 +3086,7 @@ func TestCertSelectionLogic(t *testing.T) {
 }
 
 func TestHTTPSendCacheDefaultStatusCodesIntraQueryCache(t *testing.T) {
+	t.Parallel()
 
 	// run test server
 	var requests []*http.Request
@@ -3020,6 +3128,7 @@ func TestHTTPSendCacheDefaultStatusCodesIntraQueryCache(t *testing.T) {
 }
 
 func TestHTTPSendCacheDefaultStatusCodesInterQueryCache(t *testing.T) {
+	t.Parallel()
 
 	// run test server
 	var requests []*http.Request
@@ -3110,6 +3219,7 @@ func (c *onlyOnceInterQueryCache) Clone(val iCache.InterQueryCacheValue) (iCache
 }
 
 func TestInterQueryCacheConcurrentModification(t *testing.T) {
+	t.Parallel()
 
 	// create an inter-query cache that'll return a value on first access, but none at subsequent accesses.
 	clock := time.Now()
@@ -3158,6 +3268,8 @@ func TestInterQueryCacheConcurrentModification(t *testing.T) {
 }
 
 func TestInterQueryCacheDataClone(t *testing.T) {
+	t.Parallel()
+
 	data := interQueryCacheData{
 		Headers: map[string][]string{
 			"Date": {"Thu, 01 Jan 1970 00:00:00 GMT"},
@@ -3184,6 +3296,7 @@ func TestInterQueryCacheDataClone(t *testing.T) {
 }
 
 func TestInterQueryCacheValueClone(t *testing.T) {
+	t.Parallel()
 
 	cacheData := interQueryCacheData{
 		Headers: map[string][]string{
@@ -3218,6 +3331,8 @@ func TestInterQueryCacheValueClone(t *testing.T) {
 }
 
 func TestIntraQueryCache_ClientError(t *testing.T) {
+	t.Parallel()
+
 	data := loadSmallTestData()
 
 	tests := []struct {
@@ -3250,7 +3365,10 @@ func TestIntraQueryCache_ClientError(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			ch := make(chan *http.Request)
 			// A HTTP server that always causes a timeout
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -3280,6 +3398,8 @@ func TestIntraQueryCache_ClientError(t *testing.T) {
 }
 
 func TestInterQueryCache_ClientError(t *testing.T) {
+	t.Parallel()
+
 	data := loadSmallTestData()
 
 	tests := []struct {
@@ -3312,7 +3432,10 @@ func TestInterQueryCache_ClientError(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
 			ch := make(chan *http.Request)
 
 			// A HTTP server that always causes a timeout
@@ -3360,6 +3483,8 @@ func getAllRequests(ch chan *http.Request) []*http.Request {
 }
 
 func TestHTTPSendMetrics(t *testing.T) {
+	t.Parallel()
+
 	// run test server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -3407,6 +3532,8 @@ func TestHTTPSendMetrics(t *testing.T) {
 	})
 }
 
+// Warning(philipc): This test cannot be run in parallel with other tests, due
+// to the t.Setenv calls used to set up the server environment.
 func TestInitDefaults(t *testing.T) {
 	t.Setenv("HTTP_SEND_TIMEOUT", "300mss")
 
@@ -3428,6 +3555,8 @@ var httpSendHelperRules = []string{
 }
 
 func TestSocketHTTPGetRequest(t *testing.T) {
+	t.Parallel()
+
 	var people []Person
 
 	// test data
@@ -3517,50 +3646,56 @@ func (*tracemock) NewHandler(http.Handler, string, tracing.Options) http.Handler
 	panic("unreachable")
 }
 
-func TestDistributedTracingEnabled(t *testing.T) {
-	mock := tracemock{}
-	tracing.RegisterHTTPTracing(&mock)
+// Warning(philipc): This test modifies package variables in tracing, which
+// means it cannot be run in parallel with other tests.
+func TestDistributedTracingEnableDisable(t *testing.T) {
+	t.Run("TestDistributedTracingEnabled", func(t *testing.T) {
+		mock := tracemock{}
+		tracing.RegisterHTTPTracing(&mock)
 
-	builtinContext := BuiltinContext{
-		Context:                context.Background(),
-		DistributedTracingOpts: tracing.NewOptions(true), // any option means it's enabled
-	}
+		builtinContext := BuiltinContext{
+			Context:                context.Background(),
+			DistributedTracingOpts: tracing.NewOptions(true), // any option means it's enabled
+		}
 
-	_, client, err := createHTTPRequest(builtinContext, ast.NewObject())
-	if err != nil {
-		t.Fatalf("Unexpected error creating HTTP request %v", err)
-	}
-	if client.Transport == nil {
-		t.Fatal("No Transport defined")
-	}
+		_, client, err := createHTTPRequest(builtinContext, ast.NewObject())
+		if err != nil {
+			t.Fatalf("Unexpected error creating HTTP request %v", err)
+		}
+		if client.Transport == nil {
+			t.Fatal("No Transport defined")
+		}
 
-	if exp, act := 1, mock.called; exp != act {
-		t.Errorf("calls to NewTransport: expected %d, got %d", exp, act)
-	}
-}
+		if exp, act := 1, mock.called; exp != act {
+			t.Errorf("calls to NewTransport: expected %d, got %d", exp, act)
+		}
+	})
 
-func TestDistributedTracingDisabled(t *testing.T) {
-	mock := tracemock{}
-	tracing.RegisterHTTPTracing(&mock)
+	t.Run("TestDistributedTracingDisabled", func(t *testing.T) {
+		mock := tracemock{}
+		tracing.RegisterHTTPTracing(&mock)
 
-	builtinContext := BuiltinContext{
-		Context: context.Background(),
-	}
+		builtinContext := BuiltinContext{
+			Context: context.Background(),
+		}
 
-	_, client, err := createHTTPRequest(builtinContext, ast.NewObject())
-	if err != nil {
-		t.Fatalf("Unexpected error creating HTTP request %v", err)
-	}
-	if client.Transport == nil {
-		t.Fatal("No Transport defined")
-	}
+		_, client, err := createHTTPRequest(builtinContext, ast.NewObject())
+		if err != nil {
+			t.Fatalf("Unexpected error creating HTTP request %v", err)
+		}
+		if client.Transport == nil {
+			t.Fatal("No Transport defined")
+		}
 
-	if exp, act := 0, mock.called; exp != act {
-		t.Errorf("calls to NewTransported: expected %d, got %d", exp, act)
-	}
+		if exp, act := 0, mock.called; exp != act {
+			t.Errorf("calls to NewTransported: expected %d, got %d", exp, act)
+		}
+	})
 }
 
 func TestHTTPGetRequestAllowNet(t *testing.T) {
+	t.Parallel()
+
 	// test data
 	body := map[string]bool{"ok": true}
 

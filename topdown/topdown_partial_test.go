@@ -18,6 +18,8 @@ import (
 )
 
 func TestTopDownPartialEval(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		note                 string
 		unknowns             []string

@@ -23,6 +23,8 @@ import (
 // Due to some intricacies of the net/LookupIP internals, it seems impossible
 // to do that in a way that passes the race detector.
 func TestNetLookupIPAddr(t *testing.T) {
+	t.Parallel()
+
 	srv, err := mockdns.NewServerWithLogger(map[string]mockdns.Zone{
 		"v4.org.": {
 			A: []string{"1.2.3.4"},

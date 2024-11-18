@@ -725,7 +725,7 @@ func (e *EditTree) Unfold(path ast.Ref) (*EditTree, error) {
 
 		// Fall back to looking up the key in e.value.
 		// Extend the tree if key is present. Error otherwise.
-		if v, err := x.Find(ast.Ref{ast.IntNumberTerm(idx)}); err == nil {
+		if v, err := x.Find(ast.Ref{ast.InternedIntNumberTerm(idx)}); err == nil {
 			// TODO: Consider a more efficient "Replace" function that special-cases this for arrays instead?
 			_, err := e.Delete(ast.IntNumberTerm(idx))
 			if err != nil {
@@ -1026,8 +1026,7 @@ func (e *EditTree) Exists(path ast.Ref) bool {
 			}
 			// Fallback if child lookup failed.
 			// We have to ensure that the lookup term is a number here, or Find will fail.
-			k := ast.Ref{ast.IntNumberTerm(idx)}.Concat(path[1:])
-			_, err = x.Find(k)
+			_, err = x.Find(ast.Ref{ast.InternedIntNumberTerm(idx)}.Concat(path[1:]))
 			return err == nil
 		default:
 			// Catch all primitive types.
