@@ -37,7 +37,7 @@ func (p *findDefinitionParams) regoVersion() ast.RegoVersion {
 	if p.v1Compatible {
 		return ast.RegoV1
 	}
-	return ast.DefaultRegoVersion
+	return ast.DefaultRegoVersion()
 }
 
 func init() {

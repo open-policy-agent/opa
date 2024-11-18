@@ -37,7 +37,7 @@ func (m *moveCommandParams) regoVersion() ast.RegoVersion {
 	if m.v1Compatible {
 		return ast.RegoV1
 	}
-	return ast.DefaultRegoVersion
+	return ast.DefaultRegoVersion()
 }
 
 func init() {
@@ -149,7 +149,7 @@ func doMove(params moveCommandParams, args []string, out io.Writer) error {
 			return err
 		}
 
-		formatted, err := format.Ast(mod)
+		formatted, err := format.AstWithOpts(mod, format.Opts{RegoVersion: params.regoVersion()})
 		if err != nil {
 			return newError("failed to parse Rego source file: %v", err)
 		}

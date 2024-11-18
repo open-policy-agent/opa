@@ -124,7 +124,7 @@ go-test: generate
 
 .PHONY: go-test-v1
 go-test-v1: generate
-	$(GO) test $(GO_TAGS),rego_v1,slow ./...
+	$(GO) test $(GO_TAGS),opa_rego_v1,slow ./...
 
 .PHONY: race-detector
 race-detector: generate

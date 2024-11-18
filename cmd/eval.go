@@ -83,7 +83,7 @@ func (p *evalCommandParams) regoVersion() ast.RegoVersion {
 	} else if p.v1Compatible {
 		return ast.RegoV1
 	}
-	return ast.DefaultRegoVersion
+	return ast.DefaultRegoVersion()
 }
 
 func newEvalCommandParams() evalCommandParams {

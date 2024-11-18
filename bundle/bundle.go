@@ -244,8 +244,8 @@ func (m Manifest) Copy() Manifest {
 func (m Manifest) String() string {
 	m.Init()
 	if m.RegoVersion != nil {
-		return fmt.Sprintf("<revision: %q, rego_version: %d, roots: %v, wasm: %+v, metadata: %+v>",
-			m.Revision, *m.RegoVersion, *m.Roots, m.WasmResolvers, m.Metadata)
+		return fmt.Sprintf("<revision: %q, rego_version: %d, file_rego_versions: %v, roots: %v, wasm: %+v, metadata: %+v>",
+			m.Revision, *m.RegoVersion, m.FileRegoVersions, *m.Roots, m.WasmResolvers, m.Metadata)
 	}
 	return fmt.Sprintf("<revision: %q, roots: %v, wasm: %+v, metadata: %+v>",
 		m.Revision, *m.Roots, m.WasmResolvers, m.Metadata)
@@ -711,10 +711,10 @@ func (r *Reader) Read() (Bundle, error) {
 
 	// Parse modules
 	popts := r.ParserOptions()
-	popts.RegoVersion = bundle.RegoVersion(popts.RegoVersion)
+	popts.RegoVersion = bundle.RegoVersion(popts.EffectiveRegoVersion())
 	for _, mf := range modules {
 		modulePopts := popts
-		if modulePopts.RegoVersion, err = bundle.RegoVersionForFile(mf.RelativePath, popts.RegoVersion); err != nil {
+		if modulePopts.RegoVersion, err = bundle.RegoVersionForFile(mf.RelativePath, popts.EffectiveRegoVersion()); err != nil {
 			return bundle, err
 		}
 		r.metrics.Timer(metrics.RegoModuleParse).Start()
@@ -1203,6 +1203,10 @@ func (b *Bundle) SetRegoVersion(v ast.RegoVersion) {
 // If there is no defined version for the given path, the default version def is returned.
 // If the version does not correspond to ast.RegoV0 or ast.RegoV1, an error is returned.
 func (b *Bundle) RegoVersionForFile(path string, def ast.RegoVersion) (ast.RegoVersion, error) {
+	if def == ast.RegoUndefined {
+		def = ast.DefaultRegoVersion()
+	}
+
 	version, err := b.Manifest.numericRegoVersionForFile(path)
 	if err != nil {
 		return def, err
@@ -1408,6 +1412,10 @@ func MergeWithRegoVersion(bundles []*Bundle, regoVersion ast.RegoVersion, usePat
 
 	if len(bundles) == 0 {
 		return nil, errors.New("expected at least one bundle")
+	}
+
+	if regoVersion == ast.RegoUndefined {
+		regoVersion = ast.DefaultRegoVersion()
 	}
 
 	if len(bundles) == 1 {

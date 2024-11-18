@@ -98,7 +98,7 @@ func TestCompilerLoadError(t *testing.T) {
 func TestCompilerLoadAsBundleSuccess(t *testing.T) {
 
 	ctx := context.Background()
-	rv := fmt.Sprintf("%d", ast.DefaultRegoVersion.Int())
+	rv := fmt.Sprintf("%d", ast.DefaultRegoVersion().Int())
 
 	files := map[string]string{
 		"b1/.manifest": `{"roots": ["b1"], "rego_version": ` + rv + `}`,
@@ -159,10 +159,10 @@ func TestCompilerLoadAsBundleSuccess(t *testing.T) {
 			expManifest := bundle.Manifest{
 				Roots: &expRoots,
 			}
-			expManifest.SetRegoVersion(ast.DefaultRegoVersion)
+			expManifest.SetRegoVersion(ast.DefaultRegoVersion())
 
 			if !compiler.bundle.Manifest.Equal(expManifest) {
-				t.Fatalf("expected %v but got %v", compiler.bundle.Manifest, expManifest)
+				t.Fatalf("expected:\n\n%v\n\nbut got:\n\n%v", compiler.bundle.Manifest, expManifest)
 			}
 		})
 	}
@@ -474,7 +474,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 					Modules: []bundle.ModuleFile{},
 				},
 			},
-			expGlobalRegoVersion: pointTo(ast.DefaultRegoVersion.Int()),
+			expGlobalRegoVersion: pointTo(ast.DefaultRegoVersion().Int()),
 			expFileRegoVersions:  map[string]int{},
 		},
 		{
@@ -2035,7 +2035,7 @@ func TestCompilerWasmTargetMultipleEntrypoints(t *testing.T) {
 
 			expManifest := bundle.Manifest{}
 			expManifest.Init()
-			expManifest.SetRegoVersion(ast.DefaultRegoVersion)
+			expManifest.SetRegoVersion(ast.DefaultRegoVersion())
 			expManifest.WasmResolvers = []bundle.WasmResolver{
 				{
 					Entrypoint: "test/p",
@@ -2176,7 +2176,7 @@ func TestCompilerWasmTargetEntrypointDependents(t *testing.T) {
 
 			expManifest := bundle.Manifest{}
 			expManifest.Init()
-			expManifest.SetRegoVersion(ast.DefaultRegoVersion)
+			expManifest.SetRegoVersion(ast.DefaultRegoVersion())
 			expManifest.WasmResolvers = []bundle.WasmResolver{
 				{
 					Entrypoint: "test/r",

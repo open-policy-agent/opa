@@ -94,6 +94,7 @@ func New() *Compiler {
 		optimizationLevel: 0,
 		target:            TargetRego,
 		debug:             debug.Discard(),
+		regoVersion:       ast.DefaultRegoVersion(),
 	}
 }
 
@@ -293,6 +294,10 @@ func addEntrypointsFromAnnotations(c *Compiler, arefs []*ast.AnnotationsRef) err
 
 // Build compiles and links the input files and outputs a bundle to the writer.
 func (c *Compiler) Build(ctx context.Context) error {
+
+	if c.regoVersion == ast.RegoUndefined {
+		return fmt.Errorf("rego-version not set")
+	}
 
 	if err := c.init(); err != nil {
 		return err

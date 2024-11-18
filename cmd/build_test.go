@@ -905,7 +905,7 @@ p2 := 2
 				tr := tar.NewReader(gr)
 
 				expManifest := strings.ReplaceAll(tc.manifest, "%REGO_VERSION%",
-					fmt.Sprintf("%d", ast.DefaultRegoVersion.Int()))
+					fmt.Sprintf("%d", ast.DefaultRegoVersion().Int()))
 
 				found := false
 				for {
@@ -1712,7 +1712,7 @@ q contains 1 if {
 								}
 								expVal = strings.ReplaceAll(expVal, "%ROOT%", root)
 								expVal = strings.ReplaceAll(expVal, "%DEFAULT_REGO_VERSION%",
-									fmt.Sprintf("%d", ast.DefaultRegoVersion.Int()))
+									fmt.Sprintf("%d", ast.DefaultRegoVersion().Int()))
 								if string(b) != expVal {
 									t.Fatalf("expected %v:\n\n%v\n\nbut got:\n\n%v", expName, expVal, string(b))
 								}

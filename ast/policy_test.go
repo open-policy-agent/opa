@@ -616,7 +616,7 @@ func TestRuleString(t *testing.T) {
 			assertRuleString(t, tc.rule, tc.expV0, toStringOpts{regoVersion: RegoV0})
 			assertRuleString(t, tc.rule, tc.expV1, toStringOpts{regoVersion: RegoV1})
 
-			switch DefaultRegoVersion {
+			switch DefaultRegoVersion() {
 			case RegoV0:
 				assertRuleString(t, tc.rule, tc.expV0, toStringOpts{})
 			case RegoV1:
@@ -863,7 +863,7 @@ import rego.v1
 p := 7 if { true }`
 
 	if module.String() != exp {
-		t.Fatalf("expected %q but got %q", exp, module.String())
+		t.Fatalf("expected:\n\n%q\n\nbut got:\n\n%q", exp, module.String())
 	}
 }
 

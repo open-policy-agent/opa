@@ -364,7 +364,7 @@ func (r *REPL) WithV1Compatible(v1Compatible bool) *REPL {
 	if v1Compatible {
 		r.regoVersion = ast.RegoV1
 	} else {
-		r.regoVersion = ast.DefaultRegoVersion
+		r.regoVersion = ast.DefaultRegoVersion()
 	}
 	return r
 }

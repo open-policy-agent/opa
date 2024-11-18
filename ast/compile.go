@@ -1717,7 +1717,7 @@ func (c *Compiler) checkDuplicateImports() {
 
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		if c.strict || mod.regoV1Compatible() {
+		if c.strict || moduleIsRegoV1(mod) {
 			modules = append(modules, mod)
 		}
 	}
@@ -1731,13 +1731,27 @@ func (c *Compiler) checkDuplicateImports() {
 func (c *Compiler) checkKeywordOverrides() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		if c.strict || mod.regoV1Compatible() {
+		if c.strict || moduleIsRegoV1(mod) {
 			errs := checkRootDocumentOverrides(mod)
 			for _, err := range errs {
 				c.err(err)
 			}
 		}
 	}
+}
+
+func moduleIsRegoV1(mod *Module) bool {
+	switch mod.regoVersion {
+	case RegoUndefined:
+		switch DefaultRegoVersion() {
+		case RegoV1, RegoV0CompatV1:
+			return true
+		default:
+			return false
+		}
+	}
+
+	return mod.regoV1Compatible()
 }
 
 // resolveAllRefs resolves references in expressions to their fully qualified values.

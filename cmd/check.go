@@ -54,7 +54,7 @@ func (p *checkParams) regoVersion() ast.RegoVersion {
 	if p.v1Compatible {
 		return ast.RegoV1
 	}
-	return ast.DefaultRegoVersion
+	return ast.DefaultRegoVersion()
 }
 
 const (

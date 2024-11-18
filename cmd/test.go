@@ -88,7 +88,7 @@ func (p *testCommandParams) RegoVersion() ast.RegoVersion {
 	if p.v1Compatible {
 		return ast.RegoV1
 	}
-	return ast.DefaultRegoVersion
+	return ast.DefaultRegoVersion()
 }
 
 func opaTest(args []string, testParams testCommandParams) (int, error) {

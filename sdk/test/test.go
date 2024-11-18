@@ -141,7 +141,7 @@ func (s *Server) buildBundles(ref string, policies map[string]string) error {
 	// interpreted as v0 on the receiving end, which will cause problems if modules are parsed/compiled
 	// as v1 on this end, which will drop 'rego.v1' and 'future.keywords' imports.
 	bundleManifest := bundle.Manifest{}
-	bundleManifest.SetRegoVersion(ast.DefaultRegoVersion)
+	bundleManifest.SetRegoVersion(ast.DefaultRegoVersion())
 	bundleManifest.Init()
 
 	err := compile.New().WithOutput(buf).WithBundle(&bundle.Bundle{

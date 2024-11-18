@@ -256,7 +256,7 @@ func (p *Params) regoVersion() ast.RegoVersion {
 	if p.V1Compatible {
 		return ast.RegoV1
 	}
-	return ast.DefaultRegoVersion
+	return ast.DefaultRegoVersion()
 }
 
 // LoggingConfig stores the configuration for OPA's logging behaviour.
