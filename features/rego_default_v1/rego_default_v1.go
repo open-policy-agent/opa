@@ -9,8 +9,11 @@
 //	import _ "github.com/open-policy-agent/opa/internal/rego_default_v1"
 package rego_default_v1
 
-import "github.com/open-policy-agent/opa/ast"
+import (
+	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/rego_default"
+)
 
 func init() {
-	ast.SetDefaultRegoVersion(ast.RegoV1)
+	rego_default.DefaultRegoVersion = int(ast.RegoV1)
 }

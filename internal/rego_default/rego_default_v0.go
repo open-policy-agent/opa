@@ -2,9 +2,9 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-//go:build opa_rego_v1
-// +build opa_rego_v1
+//go:build !opa_rego_v1
 
-package ast
+package rego_default
 
-var defaultRegoVersion = RegoV1
+// DefaultRegoVersion is the default Rego version (v0).
+var DefaultRegoVersion = 1 // enum value for ast.RegoV0

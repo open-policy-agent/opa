@@ -17,6 +17,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/open-policy-agent/opa/internal/rego_default"
 	"gopkg.in/yaml.v3"
 
 	"github.com/open-policy-agent/opa/ast/internal/scanner"
@@ -45,23 +46,8 @@ const (
 )
 
 func DefaultRegoVersion() RegoVersion {
-	return defaultRegoVersion
+	return RegoVersion(rego_default.DefaultRegoVersion)
 }
-
-// SetDefaultRegoVersion sets the default RegoVersion.
-//
-// Direct use of this function is not recommended.
-// Use [github.com/open-policy-agent/opa/features/rego_default_v1] instead to set the default RegoVersion to RegoV1.
-func SetDefaultRegoVersion(v RegoVersion) {
-	defaultRegoVersion = v
-}
-
-//func EffectiveRegoVersion(regoVersion RegoVersion) RegoVersion {
-//	if regoVersion == RegoUndefined {
-//		return DefaultRegoVersion()
-//	}
-//	return regoVersion
-//}
 
 func (v RegoVersion) Int() int {
 	if v == RegoV1 {
