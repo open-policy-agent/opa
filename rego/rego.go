@@ -120,6 +120,7 @@ type EvalContext struct {
 	interQueryBuiltinValueCache cache.InterQueryValueCache
 	ndBuiltinCache              builtins.NDBCache
 	resolvers                   []refResolver
+	httpRoundTripper            topdown.CustomizeRoundTripper
 	sortSets                    bool
 	copyMaps                    bool
 	printHook                   print.Hook
@@ -332,6 +333,13 @@ func EvalNDBuiltinCache(c builtins.NDBCache) EvalOption {
 func EvalResolver(ref ast.Ref, r resolver.Resolver) EvalOption {
 	return func(e *EvalContext) {
 		e.resolvers = append(e.resolvers, refResolver{ref, r})
+	}
+}
+
+// EvalHTTPRoundTripper allows customizing the http.RoundTripper for this evaluation.
+func EvalHTTPRoundTripper(t topdown.CustomizeRoundTripper) EvalOption {
+	return func(e *EvalContext) {
+		e.httpRoundTripper = t
 	}
 }
 
@@ -2163,6 +2171,10 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 
 	if ectx.parsedInput != nil {
 		q = q.WithInput(ast.NewTerm(ectx.parsedInput))
+	}
+
+	if ectx.httpRoundTripper != nil {
+		q = q.WithHTTPRoundTripper(ectx.httpRoundTripper)
 	}
 
 	for i := range ectx.resolvers {

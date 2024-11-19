@@ -108,6 +108,7 @@ type eval struct {
 	tracingOpts                 tracing.Options
 	findOne                     bool
 	strictObjects               bool
+	roundTripper                CustomizeRoundTripper
 }
 
 func (e *eval) Run(iter evalIterator) error {
@@ -836,6 +837,7 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		PrintHook:                   e.printHook,
 		DistributedTracingOpts:      e.tracingOpts,
 		Capabilities:                capabilities,
+		RoundTripper:                e.roundTripper,
 	}
 
 	eval := evalBuiltin{

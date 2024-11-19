@@ -2068,6 +2068,12 @@ func setAllowNet(a []string) func(*Query) *Query {
 	}
 }
 
+func setRoundTripper(t CustomizeRoundTripper) func(*Query) *Query {
+	return func(q *Query) *Query {
+		return q.WithHTTPRoundTripper(t)
+	}
+}
+
 func runTopDownTestCase(t *testing.T, data map[string]interface{}, note string, rules []string, expected interface{}, options ...func(*Query) *Query) {
 	t.Helper()
 
@@ -2228,7 +2234,7 @@ func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler
 			// the result of a query against `data` because the queries need to be
 			// converted into rules (which would result in recursion.)
 			if len(path) > 0 {
-				runTopDownPartialTestCase(ctx, t, compiler, store, txn, inputTerm, rhs, body, requiresSort, expected)
+				runTopDownPartialTestCase(ctx, t, compiler, store, txn, inputTerm, rhs, body, requiresSort, expected, options...)
 			}
 		default:
 			t.Fatalf("Unexpected expected value type: %+v", e)
@@ -2236,7 +2242,8 @@ func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler
 	})
 }
 
-func runTopDownPartialTestCase(ctx context.Context, t *testing.T, compiler *ast.Compiler, store storage.Store, txn storage.Transaction, input *ast.Term, output *ast.Term, body ast.Body, requiresSort bool, expected interface{}) {
+func runTopDownPartialTestCase(ctx context.Context, t *testing.T, compiler *ast.Compiler, store storage.Store, txn storage.Transaction, input *ast.Term, output *ast.Term, body ast.Body, requiresSort bool, expected interface{},
+	options ...func(*Query) *Query) {
 	t.Helper()
 
 	// add an inter-query cache
@@ -2285,6 +2292,10 @@ func runTopDownPartialTestCase(ctx context.Context, t *testing.T, compiler *ast.
 		WithInput(input).
 		WithInterQueryBuiltinCache(interQueryCache).
 		WithInterQueryBuiltinValueCache(interQueryValueCache)
+
+	for _, opt := range options {
+		query = opt(query)
+	}
 
 	qrs, err := query.Run(ctx)
 	if err != nil {
