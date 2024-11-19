@@ -2,8 +2,8 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-//go:build test_rego_default_v1_import
-// +build test_rego_default_v1_import
+//go:build test_rego_default_v0_import
+// +build test_rego_default_v0_import
 
 package rego_default
 
@@ -12,12 +12,12 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
-	_ "github.com/open-policy-agent/opa/features/rego_default_v1"
+	_ "github.com/open-policy-agent/opa/features/rego_default_v0"
 )
 
 func TestDefaultRegoVersion(t *testing.T) {
-	if ast.DefaultRegoVersion() != ast.RegoV1 {
-		t.Fatal("expected default rego version to be v1")
+	if ast.DefaultRegoVersion() != ast.RegoV0 {
+		t.Fatalf("expected default rego version to be v0, got %s", ast.DefaultRegoVersion())
 	}
 }
 
@@ -29,24 +29,23 @@ func TestParseModule(t *testing.T) {
 		expErrs  []string
 	}{
 		{
-			note: "v1 module",
-			module: `package test
-
-p contains x if {
-	x in [1, 2, 3]
-}`,
-			expRules: []string{"p"},
-		},
-		{
 			note: "v0 module",
 			module: `package test
 
 p[x] {
 	x := [1, 2, 3][_]
 }`,
+			expRules: []string{"p"},
+		},
+		{
+			note: "v1 module",
+			module: `package test
+
+p contains x if {
+	x in [1, 2, 3]
+}`,
 			expErrs: []string{
-				"test.rego:3: rego_parse_error: `if` keyword is required before rule body",
-				"test.rego:3: rego_parse_error: `contains` keyword is required for partial set rules",
+				"test.rego:4: rego_parse_error: unexpected identifier token: expected \\n or ; or }",
 			},
 		},
 	}
@@ -80,8 +79,6 @@ p[x] {
 					}
 				}
 			}
-
 		})
 	}
-
 }

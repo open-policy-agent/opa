@@ -2,12 +2,12 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-// Package rego_default_v1 sets the default [ast.RegoVersion] to [ast.RegoV1].
+// Package rego_default_v0 sets the default [ast.RegoVersion] to [ast.RegoV0].
 //
 // Usage (import side effects only):
 //
-//	import _ "github.com/open-policy-agent/opa/internal/rego_default_v1"
-package rego_default_v1
+//	import _ "github.com/open-policy-agent/opa/internal/rego_default_v0"
+package rego_default_v0
 
 import (
 	"github.com/open-policy-agent/opa/ast"
@@ -15,5 +15,5 @@ import (
 )
 
 func init() {
-	rego_default.DefaultRegoVersion = int(ast.RegoV1)
+	rego_default.DefaultRegoVersion = int(ast.RegoV0)
 }
