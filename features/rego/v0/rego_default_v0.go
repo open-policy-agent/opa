@@ -6,14 +6,14 @@
 //
 // Usage (import side effects only):
 //
-//	import _ "github.com/open-policy-agent/opa/internal/rego_default_v0"
-package rego_default_v0
+//	import _ "github.com/open-policy-agent/opa/features/rego/v0
+package v0
 
 import (
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/internal/rego_default"
+	"github.com/open-policy-agent/opa/internal/rego/version"
 )
 
 func init() {
-	rego_default.DefaultRegoVersion = int(ast.RegoV0)
+	version.DefaultRegoVersion = int(ast.RegoV0)
 }

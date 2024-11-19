@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
-	_ "github.com/open-policy-agent/opa/features/rego_default_v0"
+	_ "github.com/open-policy-agent/opa/features/rego/v0"
 )
 
 func TestDefaultRegoVersion(t *testing.T) {

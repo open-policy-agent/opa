@@ -5,7 +5,7 @@
 //go:build opa_rego_v0
 // +build opa_rego_v0
 
-package rego_default
+package version
 
 // DefaultRegoVersion is the default Rego version (v0).
 var DefaultRegoVersion = 1 // enum value for ast.RegoV0

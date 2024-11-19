@@ -17,7 +17,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/open-policy-agent/opa/internal/rego_default"
+	"github.com/open-policy-agent/opa/internal/rego/version"
 	"gopkg.in/yaml.v3"
 
 	"github.com/open-policy-agent/opa/ast/internal/scanner"
@@ -46,7 +46,7 @@ const (
 )
 
 func DefaultRegoVersion() RegoVersion {
-	return RegoVersion(rego_default.DefaultRegoVersion)
+	return RegoVersion(version.DefaultRegoVersion)
 }
 
 func (v RegoVersion) Int() int {
