@@ -119,46 +119,50 @@ func TestOPA(t *testing.T) {
 		},
 		{
 			Description: "Runtime error/var assignment conflict",
-			Policy: `a = "b" { input > 1 }
-a = "c" { input > 2 }`,
+			Policy: `
+				import rego.v1
+				a = "b" if { input > 1 }
+				a = "c" if { input > 2 }`,
 			Query: "data.p.a = x",
 			Evals: []Eval{
 				{Input: "3"},
 			},
-			WantErr: "internal_error: module.rego:3:1: var assignment conflict",
+			WantErr: "internal_error: module.rego:5:5: var assignment conflict",
 		},
 		{
 			Description: "Runtime error/else conflict-1",
 			Query:       `data.p.q`,
 			Policy: `
-				q {
+				import rego.v1
+				q if {
 					false
 				}
-				else = true {
+				else = true if {
 					true
 				}
 				q = false`,
 			Evals:   []Eval{{}},
-			WantErr: "internal_error: module.rego:9:5: var assignment conflict",
+			WantErr: "internal_error: module.rego:10:5: var assignment conflict",
 		},
 		{
 			Description: "Runtime error/else conflict-2",
 			Query:       `data.p.q`,
 			Policy: `
-				q {
+				import rego.v1
+				q if {
 					false
 				}
-				else = false {
+				else = false if {
 					true
 				}
-				q {
+				q if {
 					false
 				}
-				else = true {
+				else = true if {
 					true
 				}`,
 			Evals:   []Eval{{}},
-			WantErr: "internal_error: module.rego:12:5: var assignment conflict",
+			WantErr: "internal_error: module.rego:13:5: var assignment conflict",
 		},
 		// NOTE(sr): The next two test cases were used to replicate issue
 		// https://github.com/open-policy-agent/opa/issues/2962 -- their raison d'être
@@ -166,8 +170,9 @@ a = "c" { input > 2 }`,
 		{
 			Description: "Only input changing, regex.match",
 			Policy: `
+			import rego.v1
 			default hello = false
-			hello {
+			hello if {
 				regex.match("^world$", input.message)
 			}`,
 			Query: "data.p.hello = x",
@@ -179,8 +184,9 @@ a = "c" { input > 2 }`,
 		{
 			Description: "Only input changing, glob.match",
 			Policy: `
+			import rego.v1
 			default hello = false
-			hello {
+			hello if {
 				glob.match("world", [":"], input.message)
 			}`,
 			Query: "data.p.hello = x",
@@ -215,7 +221,9 @@ a = "c" { input > 2 }`,
 		{
 			Description: "mpd init problem (#3110)",
 			Query:       `data.p.main = x`,
-			Policy:      `main { numbers.range(1, 2)[_] == 2 }`,
+			Policy: `
+				import rego.v1
+				main if { numbers.range(1, 2)[_] == 2 }`,
 			Evals: []Eval{
 				{Result: `{{"x": true}}`},
 				{Result: `{{"x": true}}`},
