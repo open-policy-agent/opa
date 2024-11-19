@@ -59,6 +59,7 @@ import (
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
 	"github.com/open-policy-agent/opa/version"
+	prom "github.com/prometheus/client_golang/prometheus"
 )
 
 type tr struct {
@@ -3696,7 +3697,16 @@ func TestStatusV1(t *testing.T) {
 
 	// Expect HTTP 200 after status plus is registered
 	manual := plugins.TriggerManual
-	bs := pluginStatus.New(&pluginStatus.Config{Trigger: &manual}, f.server.manager)
+	bs := pluginStatus.New(&pluginStatus.Config{
+		Trigger: &manual,
+		PrometheusConfig: &pluginStatus.PrometheusConfig{
+			Collectors: &pluginStatus.Collectors{
+				BundleLoadDurationNanoseconds: &pluginStatus.BundleLoadDurationNanoseconds{
+					Buckets: prom.ExponentialBuckets(1000, 2, 20),
+				},
+			},
+		},
+	}, f.server.manager)
 	err := bs.Start(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -3820,7 +3830,17 @@ func TestStatusV1MetricsWithSystemAuthzPolicy(t *testing.T) {
 
 	// Register Status plugin
 	manual := plugins.TriggerManual
-	bs := pluginStatus.New(&pluginStatus.Config{Trigger: &manual, Prometheus: true}, f.server.manager).WithMetrics(prom)
+	bs := pluginStatus.New(&pluginStatus.Config{
+		Trigger:    &manual,
+		Prometheus: true,
+		PrometheusConfig: &pluginStatus.PrometheusConfig{
+			Collectors: &pluginStatus.Collectors{
+				BundleLoadDurationNanoseconds: &pluginStatus.BundleLoadDurationNanoseconds{
+					Buckets: []float64{1, 1000, 10_000, 1e8},
+				},
+			},
+		},
+	}, f.server.manager).WithMetrics(prom)
 	err := bs.Start(context.Background())
 	if err != nil {
 		t.Fatal(err)
