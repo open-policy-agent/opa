@@ -12,8 +12,6 @@ import (
 	"net/http"
 	"reflect"
 
-	prom "github.com/prometheus/client_golang/prometheus"
-
 	lstat "github.com/open-policy-agent/opa/plugins/logs/status"
 
 	"github.com/open-policy-agent/opa/logging"
@@ -62,16 +60,23 @@ type Plugin struct {
 	metrics                metrics.Metrics
 	logger                 logging.Logger
 	trigger                chan trigger
+	collectors             *collectors
 }
 
 // Config contains configuration for the plugin.
 type Config struct {
-	Plugin        *string              `json:"plugin"`
-	Service       string               `json:"service"`
-	PartitionName string               `json:"partition_name,omitempty"`
-	ConsoleLogs   bool                 `json:"console"`
-	Prometheus    bool                 `json:"prometheus"`
-	Trigger       *plugins.TriggerMode `json:"trigger,omitempty"` // trigger mode
+	Plugin           *string              `json:"plugin"`
+	Service          string               `json:"service"`
+	PartitionName    string               `json:"partition_name,omitempty"`
+	ConsoleLogs      bool                 `json:"console"`
+	Prometheus       bool                 `json:"prometheus"`
+	PrometheusConfig *PrometheusConfig    `json:"prometheus_config,omitempty"`
+	Trigger          *plugins.TriggerMode `json:"trigger,omitempty"` // trigger mode
+}
+
+// BundleLoadDurationNanoseconds represents the configuration for the status.prometheus_config.bundle_loading_duration_ns settings
+type BundleLoadDurationNanoseconds struct {
+	Buckets []float64 `json:"buckets,omitempty"` // the float64 array of buckets representing nanoseconds or multiple of nanoseconds
 }
 
 type reconfigure struct {
@@ -85,7 +90,6 @@ type trigger struct {
 }
 
 func (c *Config) validateAndInjectDefaults(services []string, pluginsList []string, trigger *plugins.TriggerMode) error {
-
 	if c.Plugin != nil {
 		var found bool
 		for _, other := range pluginsList {
@@ -123,6 +127,8 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 		return fmt.Errorf("invalid status config: %w", err)
 	}
 	c.Trigger = t
+
+	c.PrometheusConfig = injectDefaultDurationBuckets(c.PrometheusConfig)
 
 	return nil
 }
@@ -211,6 +217,7 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		queryCh:        make(chan chan *UpdateRequestV1),
 		logger:         manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
 		trigger:        make(chan trigger),
+		collectors:     newCollectors(parsedConfig.PrometheusConfig),
 	}
 
 	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
@@ -246,7 +253,7 @@ func (p *Plugin) Start(ctx context.Context) error {
 	p.manager.RegisterPluginStatusListener(Name, p.UpdatePluginStatus)
 
 	if p.config.Prometheus {
-		p.registerAll()
+		p.collectors.RegisterAll(p.manager.PrometheusRegister(), p.logger)
 	}
 
 	// Set the status plugin's status to OK now that everything is registered and
@@ -254,32 +261,6 @@ func (p *Plugin) Start(ctx context.Context) error {
 	// current status of all the other plugins too.
 	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateOK})
 	return nil
-}
-
-func (p *Plugin) register(r prom.Registerer, cs ...prom.Collector) {
-	for _, c := range cs {
-		if err := r.Register(c); err != nil {
-			p.logger.Error("Status metric failed to register on prometheus :%v.", err)
-		}
-	}
-}
-
-func (p *Plugin) registerAll() {
-	if p.manager.PrometheusRegister() != nil {
-		p.register(p.manager.PrometheusRegister(), allCollectors...)
-	}
-}
-
-func (p *Plugin) unregister(r prom.Registerer, cs ...prom.Collector) {
-	for _, c := range cs {
-		r.Unregister(c)
-	}
-}
-
-func (p *Plugin) unregisterAll() {
-	if p.manager.PrometheusRegister() != nil {
-		p.unregister(p.manager.PrometheusRegister(), allCollectors...)
-	}
 }
 
 // Stop stops the plugin.
@@ -348,11 +329,9 @@ func (p *Plugin) Trigger(ctx context.Context) error {
 }
 
 func (p *Plugin) loop(ctx context.Context) {
-
 	ctx, cancel := context.WithCancel(ctx)
 
 	for {
-
 		select {
 		case statuses := <-p.pluginStatusCh:
 			p.lastPluginStatuses = statuses
@@ -429,7 +408,6 @@ func (p *Plugin) loop(ctx context.Context) {
 }
 
 func (p *Plugin) oneShot(ctx context.Context) error {
-
 	req := p.snapshot()
 
 	if p.config.ConsoleLogs {
@@ -440,7 +418,7 @@ func (p *Plugin) oneShot(ctx context.Context) error {
 	}
 
 	if p.config.Prometheus {
-		updatePrometheusMetrics(req)
+		p.updatePrometheusMetrics(req)
 	}
 
 	if p.config.Plugin != nil {
@@ -455,7 +433,6 @@ func (p *Plugin) oneShot(ctx context.Context) error {
 		resp, err := p.manager.Client(p.config.Service).
 			WithJSON(req).
 			Do(ctx, "POST", fmt.Sprintf("/status/%v", p.config.PartitionName))
-
 		if err != nil {
 			return fmt.Errorf("Status update failed: %w", err)
 		}
@@ -480,16 +457,19 @@ func (p *Plugin) reconfigure(config interface{}) {
 	p.logger.Info("Status reporter configuration changed.")
 
 	if newConfig.Prometheus && !p.config.Prometheus {
-		p.registerAll()
+		p.collectors.RegisterAll(p.manager.PrometheusRegister(), p.logger)
 	} else if !newConfig.Prometheus && p.config.Prometheus {
-		p.unregisterAll()
+		p.collectors.UnregisterAll(p.manager.PrometheusRegister())
+	} else if newConfig.Prometheus && p.config.Prometheus {
+		if !reflect.DeepEqual(newConfig.PrometheusConfig, p.config.PrometheusConfig) {
+			p.collectors.ReregisterBundleLoadDuration(p.manager.PrometheusRegister(), newConfig.PrometheusConfig, p.logger)
+		}
 	}
 
 	p.config = *newConfig
 }
 
 func (p *Plugin) snapshot() *UpdateRequestV1 {
-
 	s := &UpdateRequestV1{
 		Labels:       p.manager.Labels(),
 		Discovery:    p.lastDiscoStatus,
@@ -522,27 +502,28 @@ func (p *Plugin) logUpdate(update *UpdateRequestV1) error {
 	return nil
 }
 
-func updatePrometheusMetrics(u *UpdateRequestV1) {
-	pluginStatus.Reset()
+func (p *Plugin) updatePrometheusMetrics(u *UpdateRequestV1) {
+	p.collectors.pluginStatus.Reset()
 	for name, plugin := range u.Plugins {
-		pluginStatus.WithLabelValues(name, string(plugin.State)).Set(1)
+		p.collectors.pluginStatus.WithLabelValues(name, string(plugin.State)).Set(1)
 	}
-	lastSuccessfulActivation.Reset()
+	p.collectors.lastSuccessfulActivation.Reset()
 	for _, bundle := range u.Bundles {
 		if bundle.Code == "" && !bundle.LastSuccessfulActivation.IsZero() {
-			loaded.WithLabelValues(bundle.Name).Inc()
+			p.collectors.loaded.WithLabelValues(bundle.Name).Inc()
 		} else {
-			failLoad.WithLabelValues(bundle.Name, bundle.Code, bundle.Message).Inc()
+			p.collectors.failLoad.WithLabelValues(bundle.Name, bundle.Code, bundle.Message).Inc()
 		}
-		lastSuccessfulActivation.WithLabelValues(bundle.Name, bundle.ActiveRevision).Set(float64(bundle.LastSuccessfulActivation.UnixNano()))
-		lastSuccessfulDownload.WithLabelValues(bundle.Name).Set(float64(bundle.LastSuccessfulDownload.UnixNano()))
-		lastSuccessfulRequest.WithLabelValues(bundle.Name).Set(float64(bundle.LastSuccessfulRequest.UnixNano()))
-		lastRequest.WithLabelValues(bundle.Name).Set(float64(bundle.LastRequest.UnixNano()))
+		p.collectors.lastSuccessfulActivation.WithLabelValues(bundle.Name, bundle.ActiveRevision).Set(float64(bundle.LastSuccessfulActivation.UnixNano()))
+		p.collectors.lastSuccessfulDownload.WithLabelValues(bundle.Name).Set(float64(bundle.LastSuccessfulDownload.UnixNano()))
+		p.collectors.lastSuccessfulRequest.WithLabelValues(bundle.Name).Set(float64(bundle.LastSuccessfulRequest.UnixNano()))
+		p.collectors.lastRequest.WithLabelValues(bundle.Name).Set(float64(bundle.LastRequest.UnixNano()))
+
 		if bundle.Metrics != nil {
 			for stage, metric := range bundle.Metrics.All() {
 				switch stage {
 				case "timer_bundle_request_ns", "timer_rego_data_parse_ns", "timer_rego_module_parse_ns", "timer_rego_module_compile_ns", "timer_rego_load_bundles_ns":
-					bundleLoadDuration.WithLabelValues(bundle.Name, stage).Observe(float64(metric.(int64)))
+					p.collectors.bundleLoadDuration.WithLabelValues(bundle.Name, stage).Observe(float64(metric.(int64)))
 				}
 			}
 		}

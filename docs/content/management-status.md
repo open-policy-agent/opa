@@ -297,6 +297,10 @@ Example of minimal config to enable:
 ```yaml
 status:
     prometheus: true
+    prometheus_config:
+      collectors:
+        bundle_loading_duration_ns:
+          buckets: [1, 1000, 10_000, 1e8]
 ```
 
 When enabled the OPA instance's Prometheus endpoint exposes the metrics described on [the monitoring documentation](../monitoring/#status-metrics).

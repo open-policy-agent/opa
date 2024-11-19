@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -34,6 +35,71 @@ func TestMain(m *testing.M) {
 		version.Version = "unit-test"
 	}
 	os.Exit(m.Run())
+}
+
+func TestConfigValueParse(t *testing.T) {
+	tests := []struct {
+		note             string
+		input            string
+		expectedNoConfig bool
+		expectedValue    []float64
+	}{
+		{
+			note:             "empty config",
+			input:            `{}`,
+			expectedNoConfig: true,
+		},
+		{
+			note:             "empty prometheus config",
+			input:            `{"prometheus": false}`,
+			expectedNoConfig: true,
+		},
+		{
+			note:          "no specific prometheus config, expected default config buckets",
+			input:         `{"prometheus": true}`,
+			expectedValue: defaultBundleLoadStageBuckets,
+		},
+		{
+			note:          "no specific prometheus config, expected default config buckets",
+			input:         `{"prometheus": true, "prometheus_config": {}}`,
+			expectedValue: defaultBundleLoadStageBuckets,
+		},
+		{
+			note:          "no specific collectors config, expected default config buckets",
+			input:         `{"prometheus": true, "prometheus_config": {"collectors": {}}}`,
+			expectedValue: defaultBundleLoadStageBuckets,
+		},
+		{
+			note:          "specified prometheus config, expected value same as config",
+			input:         `{"prometheus": true, "prometheus_config": {"collectors": {"bundle_loading_duration_ns": {}}}}`,
+			expectedValue: defaultBundleLoadStageBuckets,
+		},
+		{
+			note:          "specified prometheus config, expected value same as config",
+			input:         `{"prometheus": true, "prometheus_config": {"collectors": {"bundle_loading_duration_ns": {"buckets": []}}}}`,
+			expectedValue: []float64{},
+		},
+		{
+			note:          "specified prometheus config, expected value same as config",
+			input:         `{"prometheus": true, "prometheus_config": {"collectors": {"bundle_loading_duration_ns": {"buckets":[1, 1000, 1000_000, 1e8]}}}}`,
+			expectedValue: []float64{1, 1000, 1000_000, 1e8},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.note, func(t *testing.T) {
+			config, err := ParseConfig([]byte(test.input), []string{}, []string{"status"})
+			if err != nil {
+				t.Errorf("expected no error: %v", err)
+			}
+			if test.expectedNoConfig && config != nil {
+				t.Errorf("expected parsed config is nil, got %v", config)
+			}
+			if !test.expectedNoConfig && !slices.Equal(config.PrometheusConfig.Collectors.BundleLoadDurationNanoseconds.Buckets, test.expectedValue) {
+				t.Errorf("expected %v, got %v", test.expectedValue, config.PrometheusConfig.Collectors.BundleLoadDurationNanoseconds.Buckets)
+			}
+		})
+	}
 }
 
 func TestPluginPrometheus(t *testing.T) {
@@ -61,65 +127,65 @@ func TestPluginPrometheus(t *testing.T) {
 
 	assertOpInformationGauge(t, registerMock)
 
-	if registerMock.Collectors[pluginStatus] != true {
+	if registerMock.Collectors[fixture.plugin.collectors.pluginStatus] != true {
 		t.Fatalf("Plugin status metric was not registered on prometheus")
 	}
-	if registerMock.Collectors[loaded] != true {
+	if registerMock.Collectors[fixture.plugin.collectors.loaded] != true {
 		t.Fatalf("Loaded metric was not registered on prometheus")
 	}
-	if registerMock.Collectors[failLoad] != true {
+	if registerMock.Collectors[fixture.plugin.collectors.failLoad] != true {
 		t.Fatalf("FailLoad metric was not registered on prometheus")
 	}
-	if registerMock.Collectors[lastRequest] != true {
+	if registerMock.Collectors[fixture.plugin.collectors.lastRequest] != true {
 		t.Fatalf("Last request metric was not registered on prometheus")
 	}
-	if registerMock.Collectors[lastSuccessfulActivation] != true {
+	if registerMock.Collectors[fixture.plugin.collectors.lastSuccessfulActivation] != true {
 		t.Fatalf("Last Successful Activation metric was not registered on prometheus")
 	}
-	if registerMock.Collectors[lastSuccessfulDownload] != true {
+	if registerMock.Collectors[fixture.plugin.collectors.lastSuccessfulDownload] != true {
 		t.Fatalf("Last Successful Download metric was not registered on prometheus")
 	}
-	if registerMock.Collectors[lastSuccessfulRequest] != true {
+	if registerMock.Collectors[fixture.plugin.collectors.lastSuccessfulRequest] != true {
 		t.Fatalf("Last Successful Request metric was not registered on prometheus")
 	}
-	if registerMock.Collectors[bundleLoadDuration] != true {
+	if registerMock.Collectors[fixture.plugin.collectors.bundleLoadDuration] != true {
 		t.Fatalf("Bundle Load Duration metric was not registered on prometheus")
 	}
 	if len(registerMock.Collectors) != 9 {
 		t.Fatalf("Number of collectors expected (%v), got %v", 9, len(registerMock.Collectors))
 	}
 
-	lastRequestMetricResult := time.UnixMilli(int64(testutil.ToFloat64(lastRequest) / 1e6))
+	lastRequestMetricResult := time.UnixMilli(int64(testutil.ToFloat64(fixture.plugin.collectors.lastRequest) / 1e6))
 	if !lastRequestMetricResult.Equal(status.LastRequest) {
 		t.Fatalf("Last request expected (%v), got %v", status.LastRequest.UTC(), lastRequestMetricResult.UTC())
 	}
 
-	lastSuccessfulRequestMetricResult := time.UnixMilli(int64(testutil.ToFloat64(lastSuccessfulRequest) / 1e6))
+	lastSuccessfulRequestMetricResult := time.UnixMilli(int64(testutil.ToFloat64(fixture.plugin.collectors.lastSuccessfulRequest) / 1e6))
 	if !lastSuccessfulRequestMetricResult.Equal(status.LastSuccessfulRequest) {
 		t.Fatalf("Last request expected (%v), got %v", status.LastSuccessfulRequest.UTC(), lastSuccessfulRequestMetricResult.UTC())
 	}
 
-	lastSuccessfulDownloadMetricResult := time.UnixMilli(int64(testutil.ToFloat64(lastSuccessfulDownload) / 1e6))
+	lastSuccessfulDownloadMetricResult := time.UnixMilli(int64(testutil.ToFloat64(fixture.plugin.collectors.lastSuccessfulDownload) / 1e6))
 	if !lastSuccessfulDownloadMetricResult.Equal(status.LastSuccessfulDownload) {
 		t.Fatalf("Last request expected (%v), got %v", status.LastSuccessfulDownload.UTC(), lastSuccessfulDownloadMetricResult.UTC())
 	}
 
-	lastSuccessfulActivationMetricResult := time.UnixMilli(int64(testutil.ToFloat64(lastSuccessfulActivation) / 1e6))
+	lastSuccessfulActivationMetricResult := time.UnixMilli(int64(testutil.ToFloat64(fixture.plugin.collectors.lastSuccessfulActivation) / 1e6))
 	if !lastSuccessfulActivationMetricResult.Equal(status.LastSuccessfulActivation) {
 		t.Fatalf("Last request expected (%v), got %v", status.LastSuccessfulActivation.UTC(), lastSuccessfulActivationMetricResult.UTC())
 	}
 
-	bundlesLoaded := testutil.CollectAndCount(loaded)
+	bundlesLoaded := testutil.CollectAndCount(fixture.plugin.collectors.loaded)
 	if bundlesLoaded != 1 {
 		t.Fatalf("Unexpected number of bundle loads (%v), got %v", 1, bundlesLoaded)
 	}
 
-	bundlesFailedToLoad := testutil.CollectAndCount(failLoad)
+	bundlesFailedToLoad := testutil.CollectAndCount(fixture.plugin.collectors.failLoad)
 	if bundlesFailedToLoad != 0 {
 		t.Fatalf("Unexpected number of bundle fails load (%v), got %v", 0, bundlesFailedToLoad)
 	}
 
-	pluginsStatus := testutil.CollectAndCount(pluginStatus)
+	pluginsStatus := testutil.CollectAndCount(fixture.plugin.collectors.pluginStatus)
 	if pluginsStatus != 1 {
 		t.Fatalf("Unexpected number of plugins (%v), got %v", 1, pluginsStatus)
 	}
@@ -228,12 +294,12 @@ func TestMetricsBundleWithoutRevision(t *testing.T) {
 	fixture.plugin.BulkUpdateBundleStatus(map[string]*bundle.Status{"bundle": status})
 	<-fixture.server.ch
 
-	bundlesLoaded := testutil.CollectAndCount(loaded)
+	bundlesLoaded := testutil.CollectAndCount(fixture.plugin.collectors.loaded)
 	if bundlesLoaded != 1 {
 		t.Fatalf("Unexpected number of bundle loads (%v), got %v", 1, bundlesLoaded)
 	}
 
-	bundlesFailedToLoad := testutil.CollectAndCount(failLoad)
+	bundlesFailedToLoad := testutil.CollectAndCount(fixture.plugin.collectors.failLoad)
 	if bundlesFailedToLoad != 0 {
 		t.Fatalf("Unexpected number of bundle fails load (%v), got %v", 0, bundlesFailedToLoad)
 	}
@@ -785,16 +851,38 @@ func TestPlugin2xxStatus(t *testing.T) {
 
 func TestPluginReconfigure(t *testing.T) {
 	ctx := context.Background()
-	fixture := newTestFixture(t, nil)
+	fixture := newTestFixture(t, nil, func(c *Config) {
+		c.Prometheus = true
+	})
 	defer fixture.server.stop()
 
 	if err := fixture.plugin.Start(ctx); err != nil {
 		t.Fatal(err)
 	}
 
+	// expect initial prometheus config is filled with default BundleLoadDurationNanoseconds bucket
+	initialPrometheusConfig := &PrometheusConfig{
+		Collectors: &Collectors{
+			BundleLoadDurationNanoseconds: &BundleLoadDurationNanoseconds{
+				Buckets: defaultBundleLoadStageBuckets,
+			},
+		},
+	}
+	if !reflect.DeepEqual(fixture.plugin.config.PrometheusConfig, initialPrometheusConfig) {
+		t.Fatalf("Expected initial prometheus config %+v: test but got %+v", initialPrometheusConfig, fixture.plugin.config.PrometheusConfig)
+	}
+
 	pluginConfig := []byte(`{
 			"service": "example",
-			"partition_name": "test"
+			"partition_name": "test",
+			"prometheus": true,
+			"prometheus_config": {
+				"collectors": {
+					"bundle_loading_duration_ns": {
+						"buckets":[1, 1000, 1000_000, 1e8]
+					}
+				}
+			}
 		}`)
 
 	config, _ := ParseConfig(pluginConfig, fixture.manager.Services(), nil)
@@ -802,8 +890,20 @@ func TestPluginReconfigure(t *testing.T) {
 	fixture.plugin.Reconfigure(ctx, config)
 	fixture.plugin.Stop(ctx)
 
+	// after reconfigure, expect partition name and prometheus config are updated
 	if fixture.plugin.config.PartitionName != "test" {
 		t.Fatalf("Expected partition name: test but got %v", fixture.plugin.config.PartitionName)
+	}
+
+	expectedPromConfig := &PrometheusConfig{
+		Collectors: &Collectors{
+			BundleLoadDurationNanoseconds: &BundleLoadDurationNanoseconds{
+				Buckets: []float64{1, 1000, 1000_000, 1e8},
+			},
+		},
+	}
+	if !reflect.DeepEqual(fixture.plugin.config.PrometheusConfig, expectedPromConfig) {
+		t.Fatalf("Expected prometheus config %+v: test but got %+v", expectedPromConfig, fixture.plugin.config.PrometheusConfig)
 	}
 }
 
@@ -915,7 +1015,6 @@ func TestParseConfigTriggerMode(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
-
 			c, err := NewConfigBuilder().WithBytes(tc.config).WithServices([]string{"s0"}).WithTriggerMode(&tc.expected).Parse()
 
 			if tc.wantErr {
