@@ -237,6 +237,115 @@ func TestInitRuntimeSkipKnownSchemaCheck(t *testing.T) {
 	})
 }
 
+func TestRunServerUploadPolicy(t *testing.T) {
+	v0Policy := `package test
+	p { q["a"] }
+	q[x] {
+		x = "a"
+	}`
+
+	v1Policy := `package test
+	p if { q["a"] }
+	q contains x if {
+		x = "a"
+	}`
+
+	tests := []struct {
+		note         string
+		v0Compatible bool
+		v1Compatible bool
+		module       string
+		expErr       bool
+	}{
+		{
+			note:         "v0-compatible, v0 policy",
+			v0Compatible: true,
+			v1Compatible: false,
+			module:       v0Policy,
+		},
+		{
+			note:         "v0-compatible, v1 policy",
+			v0Compatible: true,
+			v1Compatible: false,
+			module:       v1Policy,
+			expErr:       true,
+		},
+		{
+			note:         "v1-compatible, v0 policy",
+			v0Compatible: false,
+			v1Compatible: true,
+			module:       v0Policy,
+			expErr:       true,
+		},
+		{
+			note:         "v1-compatible, v1 policy",
+			v0Compatible: false,
+			v1Compatible: true,
+			module:       v1Policy,
+		},
+		{
+			note:         "v0-compatible, v1-compatible, v0 policy",
+			v0Compatible: true,
+			v1Compatible: true,
+			module:       v0Policy,
+		},
+		{
+			note:         "v0-compatible, v1-compatible, v1 policy",
+			v0Compatible: true,
+			v1Compatible: true,
+			module:       v1Policy,
+			expErr:       true,
+		},
+	}
+
+	for i, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+
+			params := newTestRunParams()
+			params.rt.V0Compatible = tc.v0Compatible
+			params.rt.V1Compatible = tc.v1Compatible
+
+			rt, err := initRuntime(ctx, params, nil, false)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			testRuntime := e2e.WrapRuntime(ctx, cancel, rt)
+
+			done := make(chan bool)
+			go func() {
+				err := rt.Serve(ctx)
+				if err != nil {
+					t.Errorf("Unexpected error: %s", err)
+				}
+				done <- true
+			}()
+
+			err = testRuntime.WaitForServer()
+			if err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+
+			// upload policy
+			err = testRuntime.UploadPolicy(fmt.Sprintf("mod%d", i), bytes.NewBufferString(tc.module))
+
+			if tc.expErr {
+				if err == nil {
+					t.Fatalf("Expected error but got nil")
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+			}
+
+			cancel()
+			<-done
+		})
+	}
+}
+
 func TestRunServerCheckLogTimestampFormat(t *testing.T) {
 	for _, format := range []string{time.Kitchen, time.RFC3339Nano} {
 		t.Run(format, func(t *testing.T) {
