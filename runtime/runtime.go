@@ -259,6 +259,10 @@ func (p *Params) regoVersion() ast.RegoVersion {
 	return ast.DefaultRegoVersion
 }
 
+func (p *Params) parserOptions() ast.ParserOptions {
+	return ast.ParserOptions{RegoVersion: p.regoVersion()}
+}
+
 // LoggingConfig stores the configuration for OPA's logging behaviour.
 type LoggingConfig struct {
 	Level           string
@@ -437,7 +441,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.WithPrometheusRegister(metrics),
 		plugins.WithTracerProvider(tracerProvider),
 		plugins.WithEnableTelemetry(params.EnableVersionCheck),
-		plugins.WithParserOptions(ast.ParserOptions{RegoVersion: regoVersion}))
+		plugins.WithParserOptions(params.parserOptions()))
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
