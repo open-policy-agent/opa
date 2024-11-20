@@ -3343,33 +3343,28 @@ r contains x if { z[x] = 4 }`
 	tests := []struct {
 		note        string
 		regoVersion ast.RegoVersion
-		modId       string
 		module      string
 		expErrs     []string
 	}{
 		{
 			note:        "v0 server, v0 module",
 			regoVersion: ast.RegoV0,
-			modId:       "a",
 			module:      v0Module,
 		},
 		{
 			note:        "v0 server, v1 module",
 			regoVersion: ast.RegoV0,
-			modId:       "b",
 			module:      v1Module,
 			expErrs:     []string{"var cannot be used for rule name"},
 		},
 		{
 			note:        "v1 server, v1 module",
 			regoVersion: ast.RegoV1,
-			modId:       "c",
 			module:      v1Module,
 		},
 		{
 			note:        "v1 server, v0 module",
 			regoVersion: ast.RegoV1,
-			modId:       "d",
 			module:      v0Module,
 			expErrs: []string{
 				"`if` keyword is required before rule body",
@@ -3378,12 +3373,12 @@ r contains x if { z[x] = 4 }`
 		},
 	}
 
-	for _, tc := range tests {
+	for i, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			f := newFixture(t, plugins.WithParserOptions(ast.ParserOptions{
 				RegoVersion: tc.regoVersion,
 			}))
-			req := newReqV1(http.MethodPut, fmt.Sprintf("/policies/%s", tc.modId), tc.module)
+			req := newReqV1(http.MethodPut, fmt.Sprintf("/policies/%d", i), tc.module)
 
 			f.server.Handler.ServeHTTP(f.recorder, req)
 
