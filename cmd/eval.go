@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -139,9 +138,16 @@ func validateEvalParams(p *evalCommandParams, cmdArgs []string) error {
 	}
 
 	//* check if illegal arguments is passed with unknowns flag
-	regexArr := regexp.MustCompile(`^\[.*\]$`)
 	for _, unknwn := range p.unknowns {
-		if regexArr.MatchString(unknwn) {
+		term, err := ast.ParseTerm(unknwn)
+		if err != nil {
+			return err
+		}
+
+		switch term.Value.(type) {
+		case ast.Ref:
+			return nil
+		default:
 			return errors.New(errIllegalUnknownsArg.Error())
 		}
 	}

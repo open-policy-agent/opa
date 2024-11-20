@@ -30,16 +30,47 @@ import (
 )
 
 func TestEvalWithIllegalUnknownArgs(t *testing.T) {
-	params := newEvalCommandParams()
-	params.unknowns = []string{"[input, data.posts]"}
-	params.partial = true
 
-	err := validateEvalParams(&params, []string{"data"})
-
-	if !strings.EqualFold(err.Error(), errIllegalUnknownsArg.Error()) {
-		t.Errorf("expected %s; got %s", errIllegalUnknownsArg.Error(), err.Error())
+	tests := []struct {
+		name        string
+		unknowns    string
+		expectedErr error
+	}{
+		{
+			name:        "happy path: passing ref as unknown",
+			unknowns:    "data.posts",
+			expectedErr: nil,
+		},
+		{
+			name:        "passing ; separated values",
+			unknowns:    "input; data.posts",
+			expectedErr: errors.New("expected exactly one term but got: input; data.posts"),
+		},
+		{
+			name:        "passing array as unknown",
+			unknowns:    "[input, data.posts]",
+			expectedErr: errIllegalUnknownsArg,
+		},
+		{
+			name:        "passing set as unknown",
+			unknowns:    "{input, data.posts}",
+			expectedErr: errIllegalUnknownsArg,
+		},
 	}
 
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			params := newEvalCommandParams()
+			params.unknowns = []string{tt.unknowns}
+			params.partial = true
+
+			err := validateEvalParams(&params, []string{"data"})
+
+			if tt.expectedErr != nil && !strings.EqualFold(err.Error(), tt.expectedErr.Error()) {
+				t.Errorf("expected %s; got %s", errIllegalUnknownsArg.Error(), err.Error())
+			}
+		})
+	}
 }
 
 func TestEvalExitCode(t *testing.T) {
