@@ -113,7 +113,7 @@ jobs:
       # Equivalent to:
       # $ trivy image openpolicyagent/opa:edge-static
       - name: Run Trivy scan on image
-        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # 0.28.0
+        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # 0.29.0
         with:
           image-ref: 'openpolicyagent/opa:edge-static'
           format: table
@@ -143,7 +143,7 @@ jobs:
       # Equivalent to:
       # $ trivy fs .
       - name: Run Trivy scan on repo
-        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # 0.28.0
+        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # 0.29.0
         with:
           scan-type: fs
           format: table
