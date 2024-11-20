@@ -2161,7 +2161,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 	}
 
 	m.Timer(metrics.RegoModuleParse).Start()
-	parsedMod, err := ast.ParseModule(id, string(buf))
+	parsedMod, err := ast.ParseModuleWithOpts(id, string(buf), s.manager.ParserOptions())
 	m.Timer(metrics.RegoModuleParse).Stop()
 
 	if err != nil {
@@ -2391,7 +2391,7 @@ func (s *Server) checkPolicyIDScope(ctx context.Context, txn storage.Transaction
 		return err
 	}
 
-	module, err := ast.ParseModule(id, string(bs))
+	module, err := ast.ParseModuleWithOpts(id, string(bs), s.manager.ParserOptions())
 	if err != nil {
 		return err
 	}
@@ -2523,7 +2523,7 @@ func (s *Server) loadModules(ctx context.Context, txn storage.Transaction) (map[
 			return nil, err
 		}
 
-		parsed, err := ast.ParseModule(id, string(bs))
+		parsed, err := ast.ParseModuleWithOpts(id, string(bs), s.manager.ParserOptions())
 		if err != nil {
 			return nil, err
 		}
