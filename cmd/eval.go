@@ -392,7 +392,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 			for _, t := range timers {
 				val, ok := t[name].(int64)
 				if !ok {
-					return false, fmt.Errorf("missing timer for %s" + name)
+					return false, fmt.Errorf("missing timer for %s", name)
 				}
 				vals = append(vals, val)
 			}

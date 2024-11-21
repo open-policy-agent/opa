@@ -22,24 +22,24 @@ func init() {
 
 // DefaultBackoff returns a delay with an exponential backoff based on the
 // number of retries.
-func DefaultBackoff(base, max float64, retries int) time.Duration {
-	return Backoff(base, max, .2, 1.6, retries)
+func DefaultBackoff(base, maxNS float64, retries int) time.Duration {
+	return Backoff(base, maxNS, .2, 1.6, retries)
 }
 
 // Backoff returns a delay with an exponential backoff based on the number of
 // retries. Same algorithm used in gRPC.
-func Backoff(base, max, jitter, factor float64, retries int) time.Duration {
+func Backoff(base, maxNS, jitter, factor float64, retries int) time.Duration {
 	if retries == 0 {
 		return 0
 	}
 
-	backoff, max := base, max
-	for backoff < max && retries > 0 {
+	backoff, maxNS := base, maxNS
+	for backoff < maxNS && retries > 0 {
 		backoff *= factor
 		retries--
 	}
-	if backoff > max {
-		backoff = max
+	if backoff > maxNS {
+		backoff = maxNS
 	}
 
 	// Randomize backoff delays so that if a cluster of requests start at

@@ -2378,7 +2378,7 @@ func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 				_, _ = w.Write([]byte(errMsg))
 				return
 			}
-			t.t.Fatalf(errMsg)
+			t.t.Fatal(errMsg)
 		}
 		if t.expBearerToken != "" && !strings.HasSuffix(auth, t.expBearerToken) {
 			errMsg := fmt.Sprintf("Expected bearer token %q, got authorization header %q", t.expBearerToken, auth)
@@ -2387,7 +2387,7 @@ func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 				_, _ = w.Write([]byte(errMsg))
 				return
 			}
-			t.t.Fatalf(errMsg)
+			t.t.Fatal(errMsg)
 		}
 	}
 	if t.expectClientCert {

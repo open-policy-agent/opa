@@ -570,6 +570,93 @@ p if {
 	})
 }
 
+func TestFiles(t *testing.T) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
+	defer cancel()
+
+	files := map[string]string{
+		"mod.rego": `package test
+import rego.v1
+
+p if {
+	input.foo == "a"
+	input.bar == "b"
+	data.baz == "c"
+	data.qux == "d"
+}
+`,
+		"input.json": `{
+	"foo": "a",
+	"bar": "b"
+}`,
+		"input.yaml": `
+foo: a
+bar: b
+`,
+		"data.json": `{
+	"baz": "c",
+	"qux": "d"
+}`,
+		"data.yaml": `
+baz: c
+qux: d
+`,
+	}
+
+	for _, ext := range []string{"json", "yaml"} {
+		t.Run(ext, func(t *testing.T) {
+			test.WithTempFS(files, func(rootDir string) {
+				eh := newTestEventHandler()
+				d := NewDebugger(SetEventHandler(eh.HandleEvent))
+
+				launchProps := LaunchEvalProperties{
+					LaunchProperties: LaunchProperties{
+						DataPaths: []string{
+							path.Join(rootDir, "mod.rego"),
+							path.Join(rootDir, fmt.Sprintf("data.%s", ext)),
+						},
+						EnablePrint: true,
+					},
+					Query:     "x = data.test.p",
+					InputPath: path.Join(rootDir, fmt.Sprintf("input.%s", ext)),
+				}
+
+				s, err := d.LaunchEval(ctx, launchProps)
+				if err != nil {
+					t.Fatalf("Unexpected error launching debgug session: %v", err)
+				}
+
+				if err := s.ResumeAll(); err != nil {
+					t.Fatalf("Unexpected error resuming threads: %v", err)
+				}
+
+				// result output
+				exp := `[
+  {
+    "expressions": [
+      {
+        "value": true,
+        "text": "x = data.test.p",
+        "location": {
+          "row": 1,
+          "col": 1
+        }
+      }
+    ],
+    "bindings": {
+      "x": true
+    }
+  }
+]`
+				e := eh.WaitFor(ctx, StdoutEventType)
+				if e.Message != exp {
+					t.Fatalf("Expected message to be:\n\n%s\n\ngot:\n\n%s", exp, e.Message)
+				}
+			})
+		})
+	}
+}
+
 func topOfStack(t *testing.T, s Session) *stackFrame {
 	t.Helper()
 	stk, err := s.StackTrace(ThreadID(1))

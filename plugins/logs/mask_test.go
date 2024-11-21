@@ -711,7 +711,7 @@ func TestMaskRuleSetMask(t *testing.T) {
 				}
 			} else {
 				ptr.OnRuleError = func(mRule *maskRule, err error) {
-					t.Fatalf(fmt.Sprintf("unexpected rule error, rule: %s, error: %s", mRule.String(), err.Error()))
+					t.Fatalf("unexpected rule error, rule: %s, error: %s", mRule.String(), err.Error())
 				}
 			}
 			for _, rule := range tc.rules {

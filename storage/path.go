@@ -84,11 +84,7 @@ func NewPathForRef(ref ast.Ref) (path Path, err error) {
 // is less than other, 0 if p is equal to other, or 1 if p is greater than
 // other.
 func (p Path) Compare(other Path) (cmp int) {
-	min := len(p)
-	if len(other) < min {
-		min = len(other)
-	}
-	for i := 0; i < min; i++ {
+	for i := 0; i < min(len(p), len(other)); i++ {
 		if cmp := strings.Compare(p[i], other[i]); cmp != 0 {
 			return cmp
 		}

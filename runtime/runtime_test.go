@@ -1564,7 +1564,7 @@ func TestRuntimeWithExplicitMetricConfiguration(t *testing.T) {
 
 		_, err := NewRuntime(context.Background(), params)
 		if err != nil {
-			t.Fatalf(err.Error())
+			t.Fatal(err.Error())
 		}
 	})
 }

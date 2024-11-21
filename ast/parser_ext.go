@@ -710,7 +710,7 @@ func parseModule(filename string, stmts []Statement, comments []*Comment, regoCo
 		case Body:
 			rule, err := ParseRuleFromBody(mod, stmt)
 			if err != nil {
-				errs = append(errs, NewError(ParseErr, stmt[0].Location, err.Error()))
+				errs = append(errs, NewError(ParseErr, stmt[0].Location, err.Error())) //nolint:govet
 				continue
 			}
 			rule.generatedBody = true

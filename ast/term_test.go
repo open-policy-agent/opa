@@ -723,13 +723,11 @@ func TestSetEqual(t *testing.T) {
 		a := MustParseTerm(tc.a)
 		b := MustParseTerm(tc.b)
 		if a.Equal(b) != tc.expected {
-			var msg string
 			if tc.expected {
-				msg = fmt.Sprintf("Expected %v to equal %v", a, b)
+				t.Errorf("Expected %v to equal %v", a, b)
 			} else {
-				msg = fmt.Sprintf("Expected %v to NOT equal %v", a, b)
+				t.Errorf("Expected %v to NOT equal %v", a, b)
 			}
-			t.Errorf(msg)
 		}
 	}
 }
