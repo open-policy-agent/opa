@@ -32,7 +32,10 @@ func VerifyAuthorizationPolicySchema(compiler *ast.Compiler, ref ast.Ref) error 
 	schemaSet := ast.NewSchemaSet()
 	schemaSet.Put(ast.SchemaRootRef, schemaDefinitions[AuthorizationPolicySchema])
 
-	errs := ast.NewCompiler().WithSchemas(schemaSet).PassesTypeCheckRules(rules)
+	errs := ast.NewCompiler().
+		WithDefaultRegoVersion(compiler.DefaultRegoVersion()).
+		WithSchemas(schemaSet).
+		PassesTypeCheckRules(rules)
 
 	if len(errs) > 0 {
 		return errs

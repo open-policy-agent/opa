@@ -776,6 +776,102 @@ func TestBenchMainBadQueryE2E(t *testing.T) {
 	}
 }
 
+func TestBenchMain_DefaultRegoVersion(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		note    string
+		module  string
+		query   string
+		expErrs []string
+	}{
+		// These tests are slow, so we're not being completely exhaustive here.
+		{
+			note: "v0 module",
+			module: `package test
+a[x] {
+	x := 42
+}`,
+			query: `data.test.a`,
+			expErrs: []string{
+				"mod.rego:2: rego_parse_error: `if` keyword is required before rule body",
+				"mod.rego:2: rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note: "v1 module",
+			module: `package test
+a contains x if {
+	x := 42
+}`,
+			query: `data.test.a`,
+		},
+	}
+
+	modes := []struct {
+		name string
+		e2e  bool
+	}{
+		{
+			name: "run",
+		},
+		{
+			name: "e2e",
+			e2e:  true,
+		},
+	}
+
+	for _, mode := range modes {
+		for _, tc := range tests {
+			t.Run(fmt.Sprintf("%s, %s", tc.note, mode.name), func(t *testing.T) {
+				t.Parallel()
+
+				files := map[string]string{
+					"mod.rego": tc.module,
+				}
+
+				test.WithTempFS(files, func(path string) {
+					params := testBenchParams()
+					_ = params.outputFormat.Set(evalPrettyOutput)
+					params.e2e = mode.e2e
+
+					for n := range files {
+						err := params.dataPaths.Set(filepath.Join(path, n))
+						if err != nil {
+							t.Fatalf("Unexpected error: %s", err)
+						}
+					}
+
+					args := []string{tc.query}
+
+					var buf bytes.Buffer
+					rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+
+					if len(tc.expErrs) > 0 {
+						if rc == 0 {
+							t.Fatalf("Expected non-zero return code")
+						}
+
+						output := buf.String()
+						for _, expErr := range tc.expErrs {
+							if !strings.Contains(output, expErr) {
+								t.Fatalf("Expected error:\n\n%s\n\ngot:\n\n%s", expErr, output)
+							}
+						}
+					} else {
+						if err != nil {
+							t.Fatalf("Unexpected error: %s", err)
+						}
+						if rc != 0 {
+							t.Fatalf("Unexpected return code %d, expected 0", rc)
+						}
+					}
+				})
+			})
+		}
+	}
+}
+
 func TestBenchMainCompatibleFlags(t *testing.T) {
 	t.Parallel()
 

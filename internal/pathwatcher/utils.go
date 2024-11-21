@@ -42,7 +42,7 @@ func CreatePathWatcher(rootPaths []string) (*fsnotify.Watcher, error) {
 // ProcessWatcherUpdate handles an occurrence of a watcher event
 func ProcessWatcherUpdate(ctx context.Context, paths []string, removed string, store storage.Store, filter loader.Filter, asBundle bool,
 	f func(context.Context, storage.Transaction, *initload.LoadPathsResult) error) error {
-	return ProcessWatcherUpdateForRegoVersion(ctx, ast.RegoV0, paths, removed, store, filter, asBundle, f)
+	return ProcessWatcherUpdateForRegoVersion(ctx, ast.DefaultRegoVersion, paths, removed, store, filter, asBundle, f)
 }
 
 func ProcessWatcherUpdateForRegoVersion(ctx context.Context, regoVersion ast.RegoVersion, paths []string, removed string, store storage.Store, filter loader.Filter, asBundle bool,
@@ -75,7 +75,7 @@ func ProcessWatcherUpdateForRegoVersion(ctx context.Context, regoVersion ast.Reg
 					if err != nil {
 						return err
 					}
-					module, err := ast.ParseModule(id, string(bs))
+					module, err := ast.ParseModuleWithOpts(id, string(bs), ast.ParserOptions{RegoVersion: regoVersion})
 					if err != nil {
 						return err
 					}

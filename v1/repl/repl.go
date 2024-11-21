@@ -18,15 +18,13 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/open-policy-agent/opa/v1/bundle"
-	"github.com/open-policy-agent/opa/v1/compile"
-	"github.com/open-policy-agent/opa/version"
-
 	"github.com/peterh/liner"
 
 	"github.com/open-policy-agent/opa/internal/future"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/bundle"
+	"github.com/open-policy-agent/opa/v1/compile"
 	"github.com/open-policy-agent/opa/v1/format"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/profiler"
@@ -34,6 +32,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/topdown"
 	"github.com/open-policy-agent/opa/v1/topdown/lineage"
+	"github.com/open-policy-agent/opa/v1/version"
 )
 
 // REPL represents an instance of the interactive shell.
@@ -125,6 +124,7 @@ func New(store storage.Store, historyPath string, output io.Writer, outputFormat
 		errLimit:     errLimit,
 		prettyLimit:  defaultPrettyLimit,
 		target:       compile.TargetRego,
+		regoVersion:  ast.DefaultRegoVersion,
 	}
 }
 

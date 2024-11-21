@@ -11,7 +11,7 @@ import (
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/util"
-	"github.com/open-policy-agent/opa/version"
+	"github.com/open-policy-agent/opa/v1/version"
 )
 
 // Params controls the types of runtime information to return.

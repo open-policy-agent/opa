@@ -27,6 +27,47 @@ import (
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
+func TestCompilerV1Module(t *testing.T) {
+
+	files := map[string]string{
+		"test.rego": `
+			package test
+
+			p contains x if {
+				x = "a"
+			}`,
+	}
+
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
+
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root)
+
+			err := compiler.Build(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Verify result is just bundle load.
+			exp, err := loader.NewFileLoader().WithFS(fsys).AsBundle(root)
+			if err != nil {
+				panic(err)
+			}
+
+			err = exp.FormatModules(false)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if !compiler.Bundle().Equal(*exp) {
+				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", compiler.Bundle(), exp)
+			}
+		})
+	}
+}
+
 func TestOrderedStringSet(t *testing.T) {
 	var ss orderedStringSet
 	result := ss.Append("a", "b", "b", "a", "e", "c", "e")
@@ -451,11 +492,11 @@ p contains "B" if {
 	}
 }
 
-func pointTo[T any](x T) *T {
-	return &x
-}
-
 func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
+	regoV0 := ast.RegoV0.Int()
+	regoV1 := ast.RegoV1.Int()
+	regoDef := ast.RegoV1.Int()
+
 	tests := []struct {
 		note                 string
 		bundles              []*bundle.Bundle
@@ -474,7 +515,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 					Modules: []bundle.ModuleFile{},
 				},
 			},
-			expGlobalRegoVersion: pointTo(ast.DefaultRegoVersion.Int()),
+			expGlobalRegoVersion: &regoDef,
 			expFileRegoVersions:  map[string]int{},
 		},
 		{
@@ -483,13 +524,13 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 				{
 					Manifest: bundle.Manifest{
 						Roots:       &[]string{"a"},
-						RegoVersion: pointTo(1),
+						RegoVersion: &regoV1,
 					},
 					Data:    map[string]interface{}{},
 					Modules: []bundle.ModuleFile{},
 				},
 			},
-			expGlobalRegoVersion: pointTo(1),
+			expGlobalRegoVersion: &regoV1,
 			expFileRegoVersions:  map[string]int{},
 		},
 		{
@@ -511,7 +552,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 				},
 			},
 			regoVersion:          ast.RegoV1,
-			expGlobalRegoVersion: pointTo(1),
+			expGlobalRegoVersion: &regoV1,
 		},
 		{
 			note: "global rego versions, v1 bundles, v0 provided",
@@ -519,7 +560,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 				{
 					Manifest: bundle.Manifest{
 						Roots:       &[]string{"a"},
-						RegoVersion: pointTo(1),
+						RegoVersion: &regoV1,
 					},
 					Data: map[string]interface{}{},
 					Modules: []bundle.ModuleFile{
@@ -534,7 +575,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 				{
 					Manifest: bundle.Manifest{
 						Roots:       &[]string{"b"},
-						RegoVersion: pointTo(1),
+						RegoVersion: &regoV1,
 					},
 					Data: map[string]interface{}{},
 					Modules: []bundle.ModuleFile{
@@ -549,7 +590,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 			},
 			regoVersion: ast.RegoV0,
 			// global rego-version in bundles are dropped in favor of the provided rego-version
-			expGlobalRegoVersion: pointTo(0),
+			expGlobalRegoVersion: &regoV0,
 			expFileRegoVersions: map[string]int{
 				"/a/test1.rego": 1,
 				"/b/test1.rego": 1,
@@ -561,7 +602,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 				{
 					Manifest: bundle.Manifest{
 						Roots:       &[]string{"a"},
-						RegoVersion: pointTo(0),
+						RegoVersion: &regoV0,
 					},
 					Data: map[string]interface{}{},
 					Modules: []bundle.ModuleFile{
@@ -576,7 +617,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 				{
 					Manifest: bundle.Manifest{
 						Roots:       &[]string{"b"},
-						RegoVersion: pointTo(0),
+						RegoVersion: &regoV0,
 					},
 					Data: map[string]interface{}{},
 					Modules: []bundle.ModuleFile{
@@ -591,7 +632,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 			},
 			regoVersion: ast.RegoV1,
 			// global rego-version in bundles are dropped in favor of the provided rego-version
-			expGlobalRegoVersion: pointTo(1),
+			expGlobalRegoVersion: &regoV1,
 			expFileRegoVersions: map[string]int{
 				"/a/test1.rego": 0,
 				"/b/test1.rego": 0,
@@ -603,7 +644,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 				{
 					Manifest: bundle.Manifest{
 						Roots:       &[]string{"a"},
-						RegoVersion: pointTo(0),
+						RegoVersion: &regoV0,
 					},
 					Data: map[string]interface{}{},
 					Modules: []bundle.ModuleFile{
@@ -618,7 +659,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 				{
 					Manifest: bundle.Manifest{
 						Roots:       &[]string{"b"},
-						RegoVersion: pointTo(1),
+						RegoVersion: &regoV1,
 					},
 					Data: map[string]interface{}{},
 					Modules: []bundle.ModuleFile{
@@ -633,7 +674,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 			},
 			regoVersion: ast.RegoV0,
 			// global rego-version in bundles are dropped in favor of the provided rego-version
-			expGlobalRegoVersion: pointTo(0),
+			expGlobalRegoVersion: &regoV0,
 			expFileRegoVersions: map[string]int{
 				"/b/test1.rego": 1,
 			},
@@ -644,7 +685,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 				{
 					Manifest: bundle.Manifest{
 						Roots:       &[]string{"a"},
-						RegoVersion: pointTo(1),
+						RegoVersion: &regoV1,
 					},
 					Data: map[string]interface{}{},
 					Modules: []bundle.ModuleFile{
@@ -665,7 +706,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 				{
 					Manifest: bundle.Manifest{
 						Roots:       &[]string{"b"},
-						RegoVersion: pointTo(1),
+						RegoVersion: &regoV1,
 						FileRegoVersions: map[string]int{
 							"/test1.rego": 0,
 						},
@@ -690,7 +731,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 				},
 				{
 					Manifest: bundle.Manifest{
-						RegoVersion: pointTo(0),
+						RegoVersion: &regoV0,
 						Roots:       &[]string{"c"},
 					},
 					Data: map[string]interface{}{},
@@ -714,7 +755,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 			},
 			regoVersion: ast.RegoV0,
 			// global rego-version in bundles are dropped in favor of the provided rego-version
-			expGlobalRegoVersion: pointTo(0),
+			expGlobalRegoVersion: &regoV0,
 			// rego-versions is expected for all modules with different rego-version than the global rego-version
 			expFileRegoVersions: map[string]int{
 				"/a/test1.rego": 1,
@@ -728,7 +769,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 				{
 					Manifest: bundle.Manifest{
 						Roots:       &[]string{"a"},
-						RegoVersion: pointTo(0),
+						RegoVersion: &regoV0,
 						FileRegoVersions: map[string]int{
 							"a/*": 1,
 						},
@@ -755,7 +796,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 				{
 					Manifest: bundle.Manifest{
 						Roots:       &[]string{"b"},
-						RegoVersion: pointTo(1),
+						RegoVersion: &regoV1,
 						FileRegoVersions: map[string]int{
 							// glob should not affect files with matching path in the other bundle
 							"*/bar/*": 0,
@@ -782,7 +823,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 				},
 			},
 			regoVersion:          ast.RegoV0,
-			expGlobalRegoVersion: pointTo(0),
+			expGlobalRegoVersion: &regoV0,
 			expFileRegoVersions: map[string]int{
 				"/a/foo/test.rego": 1,
 				"/a/bar/test.rego": 1,

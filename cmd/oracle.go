@@ -162,6 +162,8 @@ func dofindDefinition(params findDefinitionParams, stdin io.Reader, stdout io.Wr
 		}
 	}
 
+	// FindDefinition() will instantiate a new compiler, but we don't need to set the
+	// default rego-version because the passed modules already have the rego-version from parsing.
 	result, err := oracle.New().FindDefinition(oracle.DefinitionQuery{
 		Buffer:   bs,
 		Filename: filename,
