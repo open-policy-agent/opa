@@ -2,6 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+//go:build opa_wasm
 // +build opa_wasm
 
 package http
@@ -16,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/v1/bundle"
 )
 
 func TestHTTPLoader(t *testing.T) {

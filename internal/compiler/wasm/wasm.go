@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/compiler/wasm/opa"
 	"github.com/open-policy-agent/opa/internal/debug"
 	"github.com/open-policy-agent/opa/internal/wasm/encoding"
@@ -20,8 +19,9 @@ import (
 	"github.com/open-policy-agent/opa/internal/wasm/module"
 	"github.com/open-policy-agent/opa/internal/wasm/types"
 	"github.com/open-policy-agent/opa/internal/wasm/util"
-	"github.com/open-policy-agent/opa/ir"
-	opatypes "github.com/open-policy-agent/opa/types"
+	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/ir"
+	opatypes "github.com/open-policy-agent/opa/v1/types"
 )
 
 // Record Wasm ABI version in exported global variable

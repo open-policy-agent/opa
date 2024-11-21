@@ -12,7 +12,7 @@ set -ex
 GOVERSION=${GOVERSION:?"You must set the GOVERSION environment variable."}
 DOCKER_UID=${DOCKER_UID:-$(id -u)}
 DOCKER_GID=${DOCKER_GID:-$(id -g)}
-ASSETS=${ASSETS:-"$PWD/test/wasm/assets"}
+ASSETS=${ASSETS:-"$PWD/v1/test/wasm/assets"}
 VERBOSE=${VERBOSE:-"0"}
 TESTGEN_CONTAINER_NAME="opa-wasm-testgen-container"
 TESTRUN_CONTAINER_NAME="opa-wasm-testrun-container"
@@ -61,7 +61,7 @@ function generate_testcases {
         sh -c 'git config --global --add safe.directory /src && make wasm-rego-testgen-install \
                 && wasm-rego-testgen \
                 --input-dir=/assets \
-                --runner=/src/test/wasm/assets/test.js \
+                --runner=/src/v1/test/wasm/assets/test.js \
                 --output=/src/.go/cache/testcases.tar.gz'
 }
 

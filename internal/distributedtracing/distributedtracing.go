@@ -22,14 +22,14 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
 	"google.golang.org/grpc/credentials"
 
-	"github.com/open-policy-agent/opa/config"
-	"github.com/open-policy-agent/opa/logging"
-	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/v1/config"
+	"github.com/open-policy-agent/opa/v1/logging"
+	"github.com/open-policy-agent/opa/v1/util"
 
 	// The import registers opentelemetry with the top-level `tracing` package,
 	// so the latter can be used from rego/topdown without an explicit build-time
 	// dependency.
-	_ "github.com/open-policy-agent/opa/features/tracing"
+	_ "github.com/open-policy-agent/opa/v1/features/tracing"
 )
 
 const (

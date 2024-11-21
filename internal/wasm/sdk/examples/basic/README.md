@@ -1,7 +1,7 @@
 Basic Wasm Module Evaluation Example
 ====================================
 
-The [main.go](./main.go) example demonstrates the loading and executing of OPA
+The [main.go](main.go) example demonstrates the loading and executing of OPA
 produced wasm policy binary.
 
 ## Setup
