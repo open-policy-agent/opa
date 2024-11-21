@@ -14,11 +14,11 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/cover"
 	"github.com/open-policy-agent/opa/storage"
-	"github.com/open-policy-agent/opa/tester"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util/test"
 	"github.com/open-policy-agent/opa/v1/rego"
+	"github.com/open-policy-agent/opa/v1/tester"
 )
 
 func TestRun(t *testing.T) {
@@ -59,32 +59,31 @@ type expectedTestResults map[[2]string]expectedTestResult
 func testRun(t *testing.T, conf testRunConfig) map[string]*ast.Module {
 	files := map[string]string{
 		"/a.rego": `package foo
-			allow { true }
+			allow if { true }
 			`,
 		"/a_test.rego": `package foo
-			
-			test_pass { allow }
-			non_test { true }
-			test_fail { not allow }
+			test_pass if { allow }
+			non_test if { true }
+			test_fail if { not allow }
 			test_fail_non_bool = 100
-			test_err { conflict }
+			test_err if { conflict }
 			conflict = true
 			conflict = false
-			test_duplicate { false }
-			test_duplicate { true }
-			test_duplicate { true }
-			todo_test_skip { true }
+			test_duplicate if { false }
+			test_duplicate if { true }
+			test_duplicate if { true }
+			todo_test_skip if { true }
 			`,
 		"/b_test.rego": `package bar
-			test_duplicate { true }`,
+			test_duplicate if { true }`,
 		"/c_test.rego": `package baz
-			a.b.test_duplicate { false }
-			a.b.test_duplicate { true }
-			a.b.test_duplicate { true }`,
+			a.b.test_duplicate if { false }
+			a.b.test_duplicate if { true }
+			a.b.test_duplicate if { true }`,
 		// Regression test for issue #5496.
 		"/d_test.rego": `package test
 		a[0] := 1
-		test_pass { true }`,
+		test_pass if { true }`,
 	}
 
 	tests := expectedTestResults{
@@ -180,28 +179,28 @@ func validateTestResults(t *testing.T, tests expectedTestResults, rs []*tester.R
 func TestRunWithFilterRegex(t *testing.T) {
 	files := map[string]string{
 		"/a.rego": `package foo
-			allow { true }
+			allow if { true }
 			`,
 		"/a_test.rego": `package foo
-			test_pass { allow }
-			non_test { true }
-			test_fail { not allow }
+			test_pass if { allow }
+			non_test if { true }
+			test_fail if { not allow }
 			test_fail_non_bool = 100
-			test_err { conflict }
+			test_err if { conflict }
 			conflict = true
 			conflict = false
-			test_duplicate { false }
-			test_duplicate { true }
-			test_duplicate { true }
-			todo_test_skip { true }
-			todo_test_skip_too { false }
+			test_duplicate if { false }
+			test_duplicate if { true }
+			test_duplicate if { true }
+			todo_test_skip if { true }
+			todo_test_skip_too if { false }
 			`,
 		"/b_test.rego": `package bar
-			test_duplicate { true }`,
+			test_duplicate if { true }`,
 		"/c_test.rego": `package baz
-			a.b.test_duplicate { false }
-			a.b.test_duplicate { true }
-			a.b.test_duplicate { true }`,
+			a.b.test_duplicate if { false }
+			a.b.test_duplicate if { true }
+			a.b.test_duplicate if { true }`,
 	}
 
 	cases := []struct {
@@ -348,8 +347,6 @@ func testCancel(t *testing.T, bench bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	module := `package foo
-	import rego.v1
-
 	test_1 if { test.sleep("100ms") }
 	test_2 if { true }`
 
@@ -410,8 +407,6 @@ func testTimeout(t *testing.T, bench bool) {
 
 	files := map[string]string{
 		"/a_test.rego": `package foo
-		import rego.v1
-
 		test_1 if { test.sleep("100ms") }
 
 		# 1ms is low enough for a single test to pass,
@@ -466,8 +461,6 @@ func TestRunnerPrintOutput(t *testing.T) {
 
 	files := map[string]string{
 		"/test.rego": `package test
-		import rego.v1
-
 		test_a if { print("A") }
 		test_b if { false; print("B") }
 		test_c if { print("C"); false }
@@ -565,8 +558,6 @@ func TestRunnerWithCustomBuiltin(t *testing.T) {
 
 	files := map[string]string{
 		"/test.rego": `package test
-		import rego.v1
-
 		test_a if { my_sum(2,3) == 5 }
 		test_b if { my_sum(5,4) == 1 }
 		test_c if { my_sum(4,1.0) == 5 }`,
@@ -613,8 +604,6 @@ func TestRunnerWithCustomBuiltin(t *testing.T) {
 
 func TestRunnerWithBuiltinErrors(t *testing.T) {
 	const ruleTemplate = `package test
-	import rego.v1
-	
 	test_json_parsing if {
       x := json.unmarshal("%s")
 	  x.test == 123

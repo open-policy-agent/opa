@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -875,157 +877,157 @@ func TestJSONReporterBenchmark(t *testing.T) {
 	}
 }
 
-//func TestPrettyReporterFmtBenchmark(t *testing.T) {
-//	benchResult := &testing.BenchmarkResult{
-//		N:         1000,
-//		T:         1230000,
-//		Bytes:     0,
-//		MemAllocs: 10000,
-//		MemBytes:  123456,
-//		Extra: map[string]float64{
-//			"extra1": 99887766,
-//			"extra2": 11223344,
-//		},
-//	}
-//	cases := []struct {
-//		note            string
-//		tr              *Result
-//		goBenchFmt      bool
-//		showAllocations bool
-//		expectedName    string
-//	}{
-//		{
-//			note: "base",
-//			tr: &Result{
-//				Package:         "data.foo.bar",
-//				Name:            "test_baz",
-//				BenchmarkResult: benchResult,
-//			},
-//			expectedName: "data.foo.bar.test_baz",
-//		},
-//		{
-//			note: "with memory",
-//			tr: &Result{
-//				Package:         "data.foo.bar",
-//				Name:            "test_baz",
-//				BenchmarkResult: benchResult,
-//			},
-//			expectedName:    "data.foo.bar.test_baz",
-//			showAllocations: true,
-//		},
-//		{
-//			note: "gobench format",
-//			tr: &Result{
-//				Package:         "data.foo.bar",
-//				Name:            "test_baz",
-//				BenchmarkResult: benchResult,
-//			},
-//			expectedName: "BenchmarkDataFooBarTestBaz",
-//			goBenchFmt:   true,
-//		},
-//		{
-//			note: "gobench format with memory",
-//			tr: &Result{
-//				Package:         "data.foo.bar",
-//				Name:            "test_baz",
-//				BenchmarkResult: benchResult,
-//			},
-//			expectedName:    "BenchmarkDataFooBarTestBaz",
-//			goBenchFmt:      true,
-//			showAllocations: true,
-//		},
-//		{
-//			note: "gobench format extra underscores",
-//			tr: &Result{
-//				Package:         "data.foo.bar",
-//				Name:            "_test___baz__",
-//				BenchmarkResult: benchResult,
-//			},
-//			expectedName: "BenchmarkDataFooBarTestBaz",
-//			goBenchFmt:   true,
-//		},
-//		{
-//			note: "gobench format already camelcase",
-//			tr: &Result{
-//				Package:         "data.foo.bar",
-//				Name:            "test_fooBar",
-//				BenchmarkResult: benchResult,
-//			},
-//			expectedName: "BenchmarkDataFooBarTestFooBar",
-//			goBenchFmt:   true,
-//		},
-//
-//		{
-//			note: "gobench format underscore in path",
-//			tr: &Result{
-//				Package:         "data.foo_bar.test_thing__",
-//				Name:            "test_fooBar",
-//				BenchmarkResult: benchResult,
-//			},
-//			expectedName: "BenchmarkDataFooBarTestThingTestFooBar",
-//			goBenchFmt:   true,
-//		},
-//	}
-//
-//	for _, tc := range cases {
-//		t.Run(tc.note, func(t *testing.T) {
-//			r := PrettyReporter{
-//				BenchmarkResults:         true,
-//				BenchMarkShowAllocations: tc.showAllocations,
-//				BenchMarkGoBenchFormat:   tc.goBenchFmt,
-//			}
-//
-//			actual := r.fmtBenchmark(tc.tr)
-//
-//			fields := strings.Fields(actual)
-//
-//			// Expect the first field to be the name
-//			name := fields[0]
-//			if name != tc.expectedName {
-//				t.Fatalf("Expected first field of formatted result to be %s, got %s\n\n\t Full Result: %s", tc.expectedName, name, actual)
-//			}
-//
-//			// The next field should be the count (N)
-//			n, err := strconv.Atoi(fields[1])
-//			if err != nil {
-//				t.Fatalf("Unexpected error parsing count (N): %s", err)
-//			}
-//			if n != tc.tr.BenchmarkResult.N {
-//				t.Fatalf("Expected N == %d, got %d", tc.tr.BenchmarkResult.N, n)
-//			}
-//
-//			// Every field after this is optional, and the order doesn't really matter. Expect pairs of fields
-//			// with the first being the value and second being the name
-//			results := map[string]float64{}
-//			for i := 2; i < len(fields); i += 2 {
-//				v, err := strconv.ParseFloat(fields[i], 64)
-//				if err != nil {
-//					t.Fatalf("Unexpected error parsing value '%s' for key '%s': %s", fields[i], fields[i+1], err)
-//				}
-//				results[fields[i+1]] = v
-//			}
-//
-//			requiredKeys := []string{
-//				"ns/op",
-//			}
-//
-//			for k := range tc.tr.BenchmarkResult.Extra {
-//				requiredKeys = append(requiredKeys, k)
-//			}
-//
-//			if tc.showAllocations {
-//				requiredKeys = append(requiredKeys, "B/op", "allocs/op")
-//			}
-//
-//			for _, k := range requiredKeys {
-//				_, ok := results[k]
-//				if !ok {
-//					t.Errorf("Missing expected key %s in results, got %+v", k, results)
-//				}
-//			}
-//		})
-//	}
-//}
+func TestPrettyReporterFmtBenchmark(t *testing.T) {
+	benchResult := &testing.BenchmarkResult{
+		N:         1000,
+		T:         1230000,
+		Bytes:     0,
+		MemAllocs: 10000,
+		MemBytes:  123456,
+		Extra: map[string]float64{
+			"extra1": 99887766,
+			"extra2": 11223344,
+		},
+	}
+	cases := []struct {
+		note            string
+		tr              *Result
+		goBenchFmt      bool
+		showAllocations bool
+		expectedName    string
+	}{
+		{
+			note: "base",
+			tr: &Result{
+				Package:         "data.foo.bar",
+				Name:            "test_baz",
+				BenchmarkResult: benchResult,
+			},
+			expectedName: "data.foo.bar.test_baz",
+		},
+		{
+			note: "with memory",
+			tr: &Result{
+				Package:         "data.foo.bar",
+				Name:            "test_baz",
+				BenchmarkResult: benchResult,
+			},
+			expectedName:    "data.foo.bar.test_baz",
+			showAllocations: true,
+		},
+		{
+			note: "gobench format",
+			tr: &Result{
+				Package:         "data.foo.bar",
+				Name:            "test_baz",
+				BenchmarkResult: benchResult,
+			},
+			expectedName: "BenchmarkDataFooBarTestBaz",
+			goBenchFmt:   true,
+		},
+		{
+			note: "gobench format with memory",
+			tr: &Result{
+				Package:         "data.foo.bar",
+				Name:            "test_baz",
+				BenchmarkResult: benchResult,
+			},
+			expectedName:    "BenchmarkDataFooBarTestBaz",
+			goBenchFmt:      true,
+			showAllocations: true,
+		},
+		{
+			note: "gobench format extra underscores",
+			tr: &Result{
+				Package:         "data.foo.bar",
+				Name:            "_test___baz__",
+				BenchmarkResult: benchResult,
+			},
+			expectedName: "BenchmarkDataFooBarTestBaz",
+			goBenchFmt:   true,
+		},
+		{
+			note: "gobench format already camelcase",
+			tr: &Result{
+				Package:         "data.foo.bar",
+				Name:            "test_fooBar",
+				BenchmarkResult: benchResult,
+			},
+			expectedName: "BenchmarkDataFooBarTestFooBar",
+			goBenchFmt:   true,
+		},
+
+		{
+			note: "gobench format underscore in path",
+			tr: &Result{
+				Package:         "data.foo_bar.test_thing__",
+				Name:            "test_fooBar",
+				BenchmarkResult: benchResult,
+			},
+			expectedName: "BenchmarkDataFooBarTestThingTestFooBar",
+			goBenchFmt:   true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			r := PrettyReporter{
+				BenchmarkResults:         true,
+				BenchMarkShowAllocations: tc.showAllocations,
+				BenchMarkGoBenchFormat:   tc.goBenchFmt,
+			}
+
+			actual := r.fmtBenchmark(tc.tr)
+
+			fields := strings.Fields(actual)
+
+			// Expect the first field to be the name
+			name := fields[0]
+			if name != tc.expectedName {
+				t.Fatalf("Expected first field of formatted result to be %s, got %s\n\n\t Full Result: %s", tc.expectedName, name, actual)
+			}
+
+			// The next field should be the count (N)
+			n, err := strconv.Atoi(fields[1])
+			if err != nil {
+				t.Fatalf("Unexpected error parsing count (N): %s", err)
+			}
+			if n != tc.tr.BenchmarkResult.N {
+				t.Fatalf("Expected N == %d, got %d", tc.tr.BenchmarkResult.N, n)
+			}
+
+			// Every field after this is optional, and the order doesn't really matter. Expect pairs of fields
+			// with the first being the value and second being the name
+			results := map[string]float64{}
+			for i := 2; i < len(fields); i += 2 {
+				v, err := strconv.ParseFloat(fields[i], 64)
+				if err != nil {
+					t.Fatalf("Unexpected error parsing value '%s' for key '%s': %s", fields[i], fields[i+1], err)
+				}
+				results[fields[i+1]] = v
+			}
+
+			requiredKeys := []string{
+				"ns/op",
+			}
+
+			for k := range tc.tr.BenchmarkResult.Extra {
+				requiredKeys = append(requiredKeys, k)
+			}
+
+			if tc.showAllocations {
+				requiredKeys = append(requiredKeys, "B/op", "allocs/op")
+			}
+
+			for _, k := range requiredKeys {
+				_, ok := results[k]
+				if !ok {
+					t.Errorf("Missing expected key %s in results, got %+v", k, results)
+				}
+			}
+		})
+	}
+}
 
 func resultsChan(ts []*Result) chan *Result {
 	ch := make(chan *Result)

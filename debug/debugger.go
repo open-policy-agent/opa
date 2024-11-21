@@ -24,7 +24,7 @@ import (
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
 	prnt "github.com/open-policy-agent/opa/topdown/print"
-  "github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/v1/rego"
 )
 
