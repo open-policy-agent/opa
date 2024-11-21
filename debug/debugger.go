@@ -25,6 +25,7 @@ import (
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
 	prnt "github.com/open-policy-agent/opa/topdown/print"
+	"github.com/open-policy-agent/opa/util"
 )
 
 // Debugger is the interface for launching OPA debugger Session(s).
@@ -350,7 +351,7 @@ func (d *debugger) LaunchEval(ctx context.Context, props LaunchEvalProperties, o
 	return s, nil
 }
 
-func readInput(path string) (interface{}, error) {
+func readInput(path string) (any, error) {
 	path, err := fileurl.Clean(path)
 	if err != nil {
 		return nil, err
@@ -361,8 +362,8 @@ func readInput(path string) (interface{}, error) {
 		return nil, err
 	}
 
-	var input interface{}
-	if err := json.Unmarshal(data, &input); err != nil {
+	var input any
+	if err := util.Unmarshal(data, &input); err != nil {
 		return nil, err
 	}
 

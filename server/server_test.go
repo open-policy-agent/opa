@@ -59,6 +59,7 @@ import (
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
 	"github.com/open-policy-agent/opa/version"
+	prom "github.com/prometheus/client_golang/prometheus"
 )
 
 type tr struct {
@@ -1551,7 +1552,7 @@ p = true if { false }`
 				defer disk.Close(ctx)
 				executeRequests(t, tc.reqs,
 					variant{"inmem", nil},
-					variant{"disk", []func(*Server){
+					variant{"disk", []any{
 						func(s *Server) {
 							s.WithStore(disk)
 						},
@@ -2446,7 +2447,7 @@ func TestBundleScope(t *testing.T) {
 
 		for _, v := range []variant{
 			{"inmem", nil},
-			{"disk", []func(*Server){func(s *Server) { s.WithStore(disk) }}},
+			{"disk", []any{func(s *Server) { s.WithStore(disk) }}},
 		} {
 			t.Run(v.name, func(t *testing.T) {
 				f := newFixture(t, v.opts...)
@@ -3323,22 +3324,103 @@ func TestV1Pretty(t *testing.T) {
 func TestPoliciesPutV1(t *testing.T) {
 	t.Parallel()
 
-	f := newFixture(t)
-	req := newReqV1(http.MethodPut, "/policies/1", testMod)
+	v0Module := `package a.b.c
 
-	f.server.Handler.ServeHTTP(f.recorder, req)
+import data.x.y as z
+import data.p
 
-	if f.recorder.Code != 200 {
-		t.Fatalf("Expected success but got %v", f.recorder)
+q[x] { p[x]; not r[x] }
+r[x] { z[x] = 4 }`
+
+	v1Module := `package a.b.c
+
+import data.x.y as z
+import data.p
+
+q contains x if { p[x]; not r[x] }
+r contains x if { z[x] = 4 }`
+
+	tests := []struct {
+		note        string
+		regoVersion ast.RegoVersion
+		module      string
+		expErrs     []string
+	}{
+		{
+			note:        "v0 server, v0 module",
+			regoVersion: ast.RegoV0,
+			module:      v0Module,
+		},
+		{
+			note:        "v0 server, v1 module",
+			regoVersion: ast.RegoV0,
+			module:      v1Module,
+			expErrs:     []string{"var cannot be used for rule name"},
+		},
+		{
+			note:        "v1 server, v1 module",
+			regoVersion: ast.RegoV1,
+			module:      v1Module,
+		},
+		{
+			note:        "v1 server, v0 module",
+			regoVersion: ast.RegoV1,
+			module:      v0Module,
+			expErrs: []string{
+				"`if` keyword is required before rule body",
+				"`contains` keyword is required for partial set rules",
+			},
+		},
 	}
 
-	var response map[string]interface{}
-	if err := json.NewDecoder(f.recorder.Body).Decode(&response); err != nil {
-		t.Fatalf("Unexpected error while unmarshalling response: %v", err)
-	}
+	for i, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			f := newFixture(t, plugins.WithParserOptions(ast.ParserOptions{
+				RegoVersion: tc.regoVersion,
+			}))
+			req := newReqV1(http.MethodPut, fmt.Sprintf("/policies/%d", i), tc.module)
 
-	if len(response) != 0 {
-		t.Fatalf("Expected empty wrapper object")
+			f.server.Handler.ServeHTTP(f.recorder, req)
+
+			var response map[string]interface{}
+			if err := json.NewDecoder(f.recorder.Body).Decode(&response); err != nil {
+				t.Fatalf("Unexpected error while unmarshalling response: %v", err)
+			}
+
+			if len(tc.expErrs) > 0 {
+				if f.recorder.Code != 400 {
+					t.Fatalf("Expected bad request but got %v", f.recorder)
+				}
+
+				var errs []string
+				if errors, ok := response["errors"].([]interface{}); ok {
+					for _, err := range errors {
+						errs = append(errs, err.(map[string]interface{})["message"].(string))
+					}
+				}
+
+				for _, expErr := range tc.expErrs {
+					found := false
+					for _, err := range errs {
+						if strings.Contains(err, expErr) {
+							found = true
+							break
+						}
+					}
+					if !found {
+						t.Fatalf("Expected error containing %q but got: %v", expErr, errs)
+					}
+				}
+			} else {
+				if f.recorder.Code != 200 {
+					t.Fatalf("Expected success but got %v", f.recorder)
+				}
+
+				if len(response) != 0 {
+					t.Fatalf("Expected empty wrapper object")
+				}
+			}
+		})
 	}
 }
 
@@ -3696,7 +3778,16 @@ func TestStatusV1(t *testing.T) {
 
 	// Expect HTTP 200 after status plus is registered
 	manual := plugins.TriggerManual
-	bs := pluginStatus.New(&pluginStatus.Config{Trigger: &manual}, f.server.manager)
+	bs := pluginStatus.New(&pluginStatus.Config{
+		Trigger: &manual,
+		PrometheusConfig: &pluginStatus.PrometheusConfig{
+			Collectors: &pluginStatus.Collectors{
+				BundleLoadDurationNanoseconds: &pluginStatus.BundleLoadDurationNanoseconds{
+					Buckets: prom.ExponentialBuckets(1000, 2, 20),
+				},
+			},
+		},
+	}, f.server.manager)
 	err := bs.Start(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -3820,7 +3911,17 @@ func TestStatusV1MetricsWithSystemAuthzPolicy(t *testing.T) {
 
 	// Register Status plugin
 	manual := plugins.TriggerManual
-	bs := pluginStatus.New(&pluginStatus.Config{Trigger: &manual, Prometheus: true}, f.server.manager).WithMetrics(prom)
+	bs := pluginStatus.New(&pluginStatus.Config{
+		Trigger:    &manual,
+		Prometheus: true,
+		PrometheusConfig: &pluginStatus.PrometheusConfig{
+			Collectors: &pluginStatus.Collectors{
+				BundleLoadDurationNanoseconds: &pluginStatus.BundleLoadDurationNanoseconds{
+					Buckets: []float64{1, 1000, 10_000, 1e8},
+				},
+			},
+		},
+	}, f.server.manager).WithMetrics(prom)
 	err := bs.Start(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -4951,16 +5052,26 @@ type fixture struct {
 	t        *testing.T
 }
 
-func newFixture(t *testing.T, opts ...func(*Server)) *fixture {
+func newFixture(t *testing.T, opts ...any) *fixture {
 	ctx := context.Background()
 	server := New().
 		WithAddresses([]string{"localhost:8182"}).
 		WithStore(inmem.New()) // potentially overridden via opts
+
 	for _, opt := range opts {
-		opt(server)
+		if opt, ok := opt.(func(*Server)); ok {
+			opt(server)
+		}
 	}
 
-	m, err := plugins.New([]byte{}, "test", server.store)
+	var mOpts []func(*plugins.Manager)
+	for _, opt := range opts {
+		if opt, ok := opt.(func(*plugins.Manager)); ok {
+			mOpts = append(mOpts, opt)
+		}
+	}
+
+	m, err := plugins.New([]byte{}, "test", server.store, mOpts...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -5113,7 +5224,7 @@ func (f *fixture) reset() {
 
 type variant struct {
 	name string
-	opts []func(*Server)
+	opts []any
 }
 
 func executeRequests(t *testing.T, reqs []tr, variants ...variant) {
