@@ -972,6 +972,58 @@ func TestParseJSONOutputComments(t *testing.T) {
 	}
 }
 
+func TestParse_DefaultRegoVersion(t *testing.T) {
+	tests := []struct {
+		note    string
+		module  string
+		expErrs []string
+	}{
+		{
+			note: "v0 module",
+			module: `package test
+a[x] {
+	x := 42
+}`,
+			expErrs: []string{
+				"`if` keyword is required before rule body",
+				"`contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note: "v1 module",
+			module: `package test
+a contains x if {
+	x := 42
+}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			files := map[string]string{
+				"test.rego": tc.module,
+			}
+
+			_, _, stderr, _ := testParse(t, files, &parseParams{
+				format: util.NewEnumFlag(parseFormatPretty, []string{parseFormatPretty, parseFormatJSON}),
+			})
+
+			if len(tc.expErrs) > 0 {
+				errs := string(stderr)
+				for _, expErr := range tc.expErrs {
+					if !strings.Contains(errs, expErr) {
+						t.Fatalf("Expected error:\n\n%q\n\ngot:\n\n%s", expErr, errs)
+					}
+				}
+			} else {
+				if len(stderr) > 0 {
+					t.Fatalf("Expected no stderr output, got:\n%s\n", string(stderr))
+				}
+			}
+		})
+	}
+}
+
 func TestParseCompatibleFlags(t *testing.T) {
 	tests := []struct {
 		note         string

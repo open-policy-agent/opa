@@ -320,6 +320,11 @@ type (
 	}
 )
 
+// SetModuleRegoVersion sets the RegoVersion for the Module.
+func SetModuleRegoVersion(mod *Module, v RegoVersion) {
+	mod.regoVersion = v
+}
+
 // Compare returns an integer indicating whether mod is less than, equal to,
 // or greater than other.
 func (mod *Module) Compare(other *Module) int {
@@ -784,11 +789,22 @@ func (rule *Rule) Ref() Ref {
 }
 
 func (rule *Rule) String() string {
-	return rule.stringWithOpts(toStringOpts{})
+	regoVersion := DefaultRegoVersion
+	if rule.Module != nil {
+		regoVersion = rule.Module.RegoVersion()
+	}
+	return rule.stringWithOpts(toStringOpts{regoVersion: regoVersion})
 }
 
 type toStringOpts struct {
 	regoVersion RegoVersion
+}
+
+func (o toStringOpts) RegoVersion() RegoVersion {
+	if o.regoVersion == RegoUndefined {
+		return DefaultRegoVersion
+	}
+	return o.regoVersion
 }
 
 func (rule *Rule) stringWithOpts(opts toStringOpts) string {
@@ -798,7 +814,7 @@ func (rule *Rule) stringWithOpts(opts toStringOpts) string {
 	}
 	buf = append(buf, rule.Head.stringWithOpts(opts))
 	if !rule.Default {
-		switch opts.regoVersion {
+		switch opts.RegoVersion() {
 		case RegoV1, RegoV0CompatV1:
 			buf = append(buf, "if")
 		}
@@ -861,7 +877,7 @@ func (rule *Rule) elseString(opts toStringOpts) string {
 		buf = append(buf, value.String())
 	}
 
-	switch opts.regoVersion {
+	switch opts.RegoVersion() {
 	case RegoV1, RegoV0CompatV1:
 		buf = append(buf, "if")
 	}
@@ -1043,7 +1059,7 @@ func (head *Head) stringWithOpts(opts toStringOpts) string {
 	case len(head.Args) != 0:
 		buf.WriteString(head.Args.String())
 	case len(head.Reference) == 1 && head.Key != nil:
-		switch opts.regoVersion {
+		switch opts.RegoVersion() {
 		case RegoV0:
 			buf.WriteRune('[')
 			buf.WriteString(head.Key.String())

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/cover"
 	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/open-policy-agent/opa/v1/storage"
+	"github.com/open-policy-agent/opa/v1/storage/inmem"
 	"github.com/open-policy-agent/opa/v1/tester"
 	"github.com/open-policy-agent/opa/v1/topdown"
 	"github.com/open-policy-agent/opa/v1/types"
@@ -700,6 +702,178 @@ func TestRunnerWithBuiltinErrors(t *testing.T) {
 					}
 				}
 			})
+		})
+	}
+}
+
+func TestLoad_DefaultRegoVersion(t *testing.T) {
+	tests := []struct {
+		note    string
+		module  string
+		expErrs []string
+	}{
+		{
+			note: "v0 module", // NOT default rego-version
+			module: `package test
+
+p[x] { 
+	x = "a" 
+}
+
+test_p {
+	p["a"]
+}`,
+			expErrs: []string{
+				"test.rego:3: rego_parse_error: `if` keyword is required before rule body",
+				"test.rego:3: rego_parse_error: `contains` keyword is required for partial set rules",
+				"test.rego:7: rego_parse_error: `if` keyword is required before rule body",
+			},
+		},
+		{
+			note: "import rego.v1",
+			module: `package test
+import rego.v1
+
+p contains x if { 
+	x := "a" 
+}
+
+test_p if {
+	"a" in p
+}`,
+		},
+		{
+			note: "v1 module", // default rego-version
+			module: `package test
+
+p contains x if { 
+	x := "a" 
+}
+
+test_p if {
+	"a" in p
+}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			files := map[string]string{
+				"test.rego": tc.module,
+			}
+
+			test.WithTempFS(files, func(root string) {
+				modules, store, err := tester.Load([]string{root}, nil)
+				if len(tc.expErrs) > 0 {
+					if err == nil {
+						t.Fatalf("Expected error but got nil")
+					}
+
+					for _, expErr := range tc.expErrs {
+						if !strings.Contains(err.Error(), expErr) {
+							t.Fatalf("Expected error to contain:\n\n%q\n\nbut got:\n\n%v", expErr, err)
+						}
+					}
+				} else {
+					if err != nil {
+						t.Fatalf("Unexpected error: %v", err)
+					}
+
+					if modules == nil {
+						t.Fatalf("Expected modules to be non-nil")
+					}
+
+					if store == nil {
+						t.Fatalf("Expected store to be non-nil")
+					}
+				}
+			})
+		})
+	}
+}
+
+func TestRun_DefaultRegoVersion(t *testing.T) {
+	tests := []struct {
+		note    string
+		module  ast.Module
+		expErrs []string
+	}{
+		{
+			note: "no v1 violations",
+			module: ast.Module{
+				Package: ast.MustParsePackage(`package test`),
+				Rules: []*ast.Rule{
+					ast.MustParseRule(`p[x] { x = "a" }`),
+					ast.MustParseRule(`test_p { p["a"] }`),
+				},
+			},
+		},
+		{
+			note: "v1 violations",
+			module: ast.Module{
+				Package: ast.MustParsePackage(`package test`),
+				Imports: ast.MustParseImports(`
+					import data.foo
+					import data.bar as foo
+				`),
+				Rules: []*ast.Rule{
+					ast.MustParseRule(`p[x] { x = "a" }`),
+					ast.MustParseRule(`test_p { p["a"] }`),
+				},
+			},
+			expErrs: []string{
+				"rego_compile_error: import must not shadow import data.foo",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			ctx := context.Background()
+
+			modules := map[string]*ast.Module{
+				"test": &tc.module,
+			}
+
+			store := inmem.New()
+			txn := storage.NewTransactionOrDie(ctx, store)
+			defer store.Abort(ctx, txn)
+
+			runner := tester.NewRunner().
+				SetStore(store).
+				SetModules(modules).
+				SetTimeout(10 * time.Second)
+
+			ch, err := runner.RunTests(ctx, txn)
+
+			if len(tc.expErrs) > 0 {
+				if err == nil {
+					t.Fatalf("Expected error but got nil")
+				}
+
+				for _, expErr := range tc.expErrs {
+					if !strings.Contains(err.Error(), expErr) {
+						t.Fatalf("Expected error to contain:\n\n%q\n\nbut got:\n\n%v", expErr, err)
+					}
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+
+				var rs []*tester.Result
+				for r := range ch {
+					rs = append(rs, r)
+				}
+
+				if len(rs) != 1 {
+					t.Fatalf("Expected exactly one result but got: %v", rs)
+				}
+
+				if rs[0].Fail {
+					t.Fatalf("Expected test to pass but it failed")
+				}
+			}
 		})
 	}
 }

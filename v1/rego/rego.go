@@ -629,6 +629,10 @@ type Rego struct {
 	regoVersion                 ast.RegoVersion
 }
 
+func (r *Rego) RegoVersion() ast.RegoVersion {
+	return r.regoVersion
+}
+
 // Function represents a built-in function that is callable in Rego.
 type Function struct {
 	Name             string
@@ -1280,6 +1284,10 @@ func New(options ...func(r *Rego)) *Rego {
 		// a target plugin (checked below)
 		if r.target == targetWasm {
 			r.compiler = r.compiler.WithEvalMode(ast.EvalModeIR)
+		}
+
+		if r.regoVersion != ast.RegoUndefined {
+			r.compiler = r.compiler.WithDefaultRegoVersion(r.regoVersion)
 		}
 	}
 
@@ -2359,7 +2367,8 @@ func (r *Rego) partialResult(ctx context.Context, pCfg *PrepareConfig) (PartialR
 	// Construct module for queries.
 	id := fmt.Sprintf("__partialresult__%s__", ectx.partialNamespace)
 
-	module, err := ast.ParseModule(id, "package "+ectx.partialNamespace)
+	module, err := ast.ParseModuleWithOpts(id, "package "+ectx.partialNamespace,
+		ast.ParserOptions{RegoVersion: r.regoVersion})
 	if err != nil {
 		return PartialResult{}, fmt.Errorf("bad partial namespace")
 	}

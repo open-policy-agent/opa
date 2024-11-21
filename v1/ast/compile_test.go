@@ -11183,3 +11183,78 @@ test_something = true if {
 		})
 	}
 }
+
+func TestCompile_DefaultRegoVersion(t *testing.T) {
+	tests := []struct {
+		note    string
+		modules map[string]*Module
+		expErrs Errors
+	}{
+		{
+			note: "no module rego-version, no v1 violations",
+			modules: map[string]*Module{
+				"test": {
+					Package: MustParsePackage(`package test`),
+					Imports: MustParseImports(`import data.foo
+						import data.bar`),
+				},
+			},
+		},
+		{
+			note: "no module rego-version, v1 violations", // default is v1, errors expected
+			modules: map[string]*Module{
+				"test": {
+					Package: MustParsePackage(`package test`),
+					Imports: MustParseImports(`import data.foo
+						import data.bar as foo`),
+				},
+			},
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "import must not shadow import data.foo",
+				},
+			},
+		},
+		{
+			note: "v0 module, v1 violations",
+			modules: map[string]*Module{
+				"test": MustParseModuleWithOpts(`package test
+						import data.foo
+						import data.bar as foo`,
+					ParserOptions{RegoVersion: RegoV0}),
+			},
+		},
+		{
+			note: "v1 module, v1 violations",
+			modules: map[string]*Module{
+				"test": MustParseModuleWithOpts(`package test
+						import data.foo
+						import data.bar as foo`,
+					ParserOptions{RegoVersion: RegoV1}),
+			},
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "import must not shadow import data.foo",
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			compiler := NewCompiler()
+
+			compiler.Compile(tc.modules)
+
+			if len(tc.expErrs) > 0 {
+				assertErrors(t, compiler.Errors, tc.expErrs, false)
+			} else {
+				if len(compiler.Errors) > 0 {
+					t.Fatalf("Unexpected errors: %v", compiler.Errors)
+				}
+			}
+		})
+	}
+}

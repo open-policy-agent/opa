@@ -39,7 +39,7 @@ func TestPrepareAndEvalWithWasmTarget(t *testing.T) {
 	mod := `
 	package test
 	default p = false
-	p {
+	p if {
 		input.x == 1
 	}
 	`
@@ -87,7 +87,7 @@ func TestPrepareAndEvalWithWasmTargetModulesOnCompiler(t *testing.T) {
 	mod := `
 	package test
 	default p = false
-	p {
+	p if {
 		input.x == data.x.p
 	}
 	`
@@ -161,13 +161,13 @@ func TestEvalWithContextTimeout(t *testing.T) {
 	// but calls the topdown function from the wasm instance's execution.
 	// Also, it uses the topdown.Cancel mechanism for cancellation.
 	cidrExpand := `package p
-allow {
+allow if {
 	net.cidr_expand("1.0.0.0/1")
 }`
 
 	// Also a host function, but uses context.Context for cancellation.
 	httpSend := fmt.Sprintf(`package p
-allow {
+allow if {
 	http.send({"method": "get", "url": "%s", "raise_error": true})
 }`,
 		ts.URL)
@@ -175,7 +175,7 @@ allow {
 	// This is a natively-implemented (for the wasm target) function that
 	// takes long.
 	numbersRange := `package p
-allow {
+allow if {
 	numbers.range(1, 1e8)[_] == 1e8
 }`
 
