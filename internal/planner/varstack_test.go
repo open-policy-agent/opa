@@ -3,8 +3,8 @@ package planner
 import (
 	"testing"
 
-	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/ir"
+	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/ir"
 )
 
 func TestVarStackPushPop(t *testing.T) {

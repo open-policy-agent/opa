@@ -14,10 +14,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/internal/file/archive"
-	"github.com/open-policy-agent/opa/util/test"
+	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/bundle"
+	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
 func TestGenerateBundleInfoWithFileDir(t *testing.T) {

@@ -15,12 +15,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/internal/presentation"
-	"github.com/open-policy-agent/opa/rego"
-	"github.com/open-policy-agent/opa/util"
-	"github.com/open-policy-agent/opa/util/test"
+	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/bundle"
+	"github.com/open-policy-agent/opa/v1/rego"
+	"github.com/open-policy-agent/opa/v1/util"
+	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
 // Minimize the number of tests that *actually* run the benchmarks, they are pretty slow.

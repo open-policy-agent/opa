@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/open-policy-agent/opa/util"
-	"github.com/open-policy-agent/opa/util/test"
+	"github.com/open-policy-agent/opa/v1/util"
+	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
 func TestOracleFindDefinition(t *testing.T) {
