@@ -689,7 +689,12 @@ func parseModule(filename string, stmts []Statement, comments []*Comment, regoCo
 
 	// The comments slice only holds comments that were not their own statements.
 	mod.Comments = append(mod.Comments, comments...)
-	mod.regoVersion = regoCompatibilityMode
+
+	if regoCompatibilityMode == RegoUndefined {
+		mod.regoVersion = DefaultRegoVersion
+	} else {
+		mod.regoVersion = regoCompatibilityMode
+	}
 
 	for i, stmt := range stmts[1:] {
 		switch stmt := stmt.(type) {

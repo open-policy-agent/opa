@@ -107,7 +107,12 @@ func TestDoMoveRenamePackage(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				formatted := format.MustAst(tc.expected)
+				var formatted []byte
+				if tc.v0Compatible {
+					formatted = format.MustAstWithOpts(tc.expected, format.Opts{RegoVersion: ast.RegoV0})
+				} else {
+					formatted = format.MustAstWithOpts(tc.expected, format.Opts{RegoVersion: ast.RegoV1})
+				}
 
 				if !reflect.DeepEqual(formatted, buf.Bytes()) {
 					t.Fatalf("Expected module:\n%v\n\nGot:\n%v\n", string(formatted), buf.String())
@@ -227,7 +232,12 @@ func TestDoMoveOverwriteFile(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				actual := ast.MustParseModule(string(data))
+				var actual *ast.Module
+				if tc.v0Compatible {
+					actual = ast.MustParseModuleWithOpts(string(data), ast.ParserOptions{RegoVersion: ast.RegoV0})
+				} else {
+					actual = ast.MustParseModuleWithOpts(string(data), ast.ParserOptions{RegoVersion: ast.RegoV1})
+				}
 
 				if !tc.expected.Equal(actual) {
 					t.Fatalf("Expected module:\n%v\n\nGot:\n%v\n", tc.expected, actual)
