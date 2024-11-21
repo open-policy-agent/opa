@@ -1,7 +1,7 @@
 Loader Example
 ==============
 
-[main.go](./main.go) loads a bundle either from a file or HTTP server.
+[main.go](main.go) loads a bundle either from a file or HTTP server.
 
 ## Setup
 

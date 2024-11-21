@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
-	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/v1/bundle"
+	"github.com/open-policy-agent/opa/v1/util"
 
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa"
 )
