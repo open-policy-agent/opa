@@ -39,7 +39,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/open-policy-agent/opa/version"
 
 	"github.com/open-policy-agent/opa/internal/distributedtracing"
 	"github.com/open-policy-agent/opa/internal/prometheus"
@@ -59,6 +58,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
 	"github.com/open-policy-agent/opa/v1/util"
 	"github.com/open-policy-agent/opa/v1/util/test"
+	"github.com/open-policy-agent/opa/v1/version"
 	prom "github.com/prometheus/client_golang/prometheus"
 )
 
@@ -879,23 +879,61 @@ func Test405StatusCodev0(t *testing.T) {
 func TestCompileV1(t *testing.T) {
 	t.Parallel()
 
-	mod := `package test
-	import rego.v1
+	v0mod := `package test
+	
+	p {
+		input.x = 1
+	}
+	
+	q {
+		data.a[i] = input.x
+	}
+	
+	default r = true
+	
+	r { input.x = 1 }
+	
+	custom_func(x) { data.a[i] == x }
+	
+	s { custom_func(input.x) }
+	`
 
+	v1mod := `package test
+	
 	p if {
 		input.x = 1
 	}
-
+	
 	q if {
 		data.a[i] = input.x
 	}
-
+	
 	default r = true
-
+	
 	r if { input.x = 1 }
-
+	
 	custom_func(x) if { data.a[i] == x }
+	
+	s if { custom_func(input.x) }
+	`
 
+	v0v1mod := `package test
+	import rego.v1
+	
+	p if {
+		input.x = 1
+	}
+	
+	q if {
+		data.a[i] = input.x
+	}
+	
+	default r = true
+	
+	r if { input.x = 1 }
+	
+	custom_func(x) if { data.a[i] == x }
+	
 	s if { custom_func(input.x) }
 	`
 
@@ -903,18 +941,59 @@ func TestCompileV1(t *testing.T) {
 		return fmt.Sprintf(`{"result": {"queries": [%v]}}`, string(util.MustMarshalJSON(ast.MustParseBody(s))))
 	}
 
-	expQueryAndSupport := func(q string, m string) string {
-		return fmt.Sprintf(`{"result": {"queries": [%v], "support": [%v]}}`, string(util.MustMarshalJSON(ast.MustParseBody(q))), string(util.MustMarshalJSON(ast.MustParseModule(m))))
+	expError := func(s string) string {
+		return fmt.Sprintf(`{
+          "code": "invalid_parameter",
+          "errors": [
+            %s
+          ],
+          "message": "error(s) occurred while compiling module(s)"
+        }`, s)
+	}
+
+	expQueryAndSupport := func(q string, m string, rv ast.RegoVersion) string {
+		opts := ast.ParserOptions{RegoVersion: rv}
+		return fmt.Sprintf(`{"result": {"queries": [%v], "support": [%v]}}`,
+			string(util.MustMarshalJSON(ast.MustParseBodyWithOpts(q, opts))),
+			string(util.MustMarshalJSON(ast.MustParseModuleWithOpts(m, opts))))
 	}
 
 	tests := []struct {
-		note string
-		trs  []tr
+		note        string
+		trs         []tr
+		regoVersion ast.RegoVersion
 	}{
+		{
+			note: "v1 keyword in query",
+			trs: []tr{
+				{http.MethodPost, "/compile", `{
+					"unknowns": ["input"],
+					"query": "42 in input.x"
+				}`, 200, expQuery("42 in input.x")},
+			},
+		},
+		{
+			note:        "v1 keyword in query (v0 rego-version)",
+			regoVersion: ast.RegoV0,
+			trs: []tr{
+				{http.MethodPost, "/compile", `{
+					"unknowns": ["input"],
+					"query": "42 in input.x"
+				}`, 400, expError(fmt.Sprintf(`{
+					"code": "rego_unsafe_var_error",
+					"location": {
+					"col": 4,
+					"file": "",
+					"row": 1
+					},
+					"message": "%s"
+				}`, "var in is unsafe (hint: `import future.keywords.in` to import a future keyword)"))},
+			},
+		},
 		{
 			note: "basic",
 			trs: []tr{
-				{http.MethodPut, "/policies/test", mod, 200, ""},
+				{http.MethodPut, "/policies/test", v1mod, 200, ""},
 				{http.MethodPost, "/compile", `{
 					"unknowns": ["input"],
 					"query": "data.test.p = true"
@@ -934,7 +1013,7 @@ func TestCompileV1(t *testing.T) {
 		{
 			note: "data",
 			trs: []tr{
-				{http.MethodPut, "/policies/test", mod, 200, ""},
+				{http.MethodPut, "/policies/test", v1mod, 200, ""},
 				{http.MethodPost, "/compile", `{
 					"unknowns": ["data.a"],
 					"input": {
@@ -955,23 +1034,75 @@ func TestCompileV1(t *testing.T) {
 		{
 			note: "support",
 			trs: []tr{
-				{http.MethodPut, "/policies/test", mod, 200, ""},
+				{http.MethodPut, "/policies/test", v1mod, 200, ""},
 				{http.MethodPost, "/compile", `{
 					"query": "data.test.r = true"
 				}`, 200, expQueryAndSupport(
 					`data.partial.test.r = true`,
 					`package partial.test
-					import rego.v1
 
 					r if { input.x = 1 }
 					default r = true
-					`)},
+					`,
+					ast.DefaultRegoVersion)},
+			},
+		},
+		{
+			note:        "support (v0 rego-version)",
+			regoVersion: ast.RegoV0,
+			trs: []tr{
+				{http.MethodPut, "/policies/test", v0mod, 200, ""},
+				{http.MethodPost, "/compile", `{
+					"query": "data.test.r = true"
+				}`, 200, expQueryAndSupport(
+					`data.partial.test.r = true`,
+					`package partial.test
+
+					r { input.x = 1 }
+					default r = true
+					`,
+					ast.RegoV0)},
+			},
+		},
+		{
+			note:        "support (v1 rego-version)",
+			regoVersion: ast.RegoV1,
+			trs: []tr{
+				{http.MethodPut, "/policies/test", v1mod, 200, ""},
+				{http.MethodPost, "/compile", `{
+					"query": "data.test.r = true"
+				}`, 200, expQueryAndSupport(
+					`data.partial.test.r = true`,
+					`package partial.test
+
+					r if { input.x = 1 }
+					default r = true
+					`,
+					ast.RegoV1)},
+			},
+		},
+		{
+			note:        "support (import rego.v1)",
+			regoVersion: ast.RegoV0,
+			trs: []tr{
+				{http.MethodPut, "/policies/test", v0v1mod, 200, ""},
+				// NOTE: v0 support rules don't get the rego.v1 import applied
+				{http.MethodPost, "/compile", `{
+					"query": "data.test.r = true"
+				}`, 200, expQueryAndSupport(
+					`data.partial.test.r = true`,
+					`package partial.test
+
+					r { input.x = 1 }
+					default r = true
+					`,
+					ast.RegoV0)},
 			},
 		},
 		{
 			note: "function without disableInlining",
 			trs: []tr{
-				{http.MethodPut, "/policies/test", mod, 200, ""},
+				{http.MethodPut, "/policies/test", v1mod, 200, ""},
 				{http.MethodPost, "/compile", `{
 					"unknowns": ["data.a"],
 					"query": "data.test.s = true",
@@ -982,7 +1113,7 @@ func TestCompileV1(t *testing.T) {
 		{
 			note: "function with disableInlining",
 			trs: []tr{
-				{http.MethodPut, "/policies/test", mod, 200, ""},
+				{http.MethodPut, "/policies/test", v1mod, 200, ""},
 				{http.MethodPost, "/compile", `{
 					"unknowns": ["data.a"],
 					"query": "data.test.s = true",
@@ -991,10 +1122,11 @@ func TestCompileV1(t *testing.T) {
 				}`, 200, expQueryAndSupport(
 					`data.partial.test.s = true`,
 					`package partial.test
-					import rego.v1
+					
 					s if { data.partial.test.custom_func(1) }
 					custom_func(__local0__2) if { data.a[i2] = __local0__2 }
-					`)},
+					`,
+					ast.DefaultRegoVersion)},
 			},
 		},
 		{
@@ -1035,7 +1167,14 @@ func TestCompileV1(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			executeRequests(t, tc.trs)
+			if tc.regoVersion != ast.RegoUndefined {
+				executeRequests(t, tc.trs, variant{
+					name: tc.regoVersion.String(),
+					opts: []any{plugins.WithParserOptions(ast.ParserOptions{RegoVersion: tc.regoVersion})},
+				})
+			} else {
+				executeRequests(t, tc.trs)
+			}
 		})
 	}
 }
@@ -3897,7 +4036,7 @@ func TestStatusV1MetricsWithSystemAuthzPolicy(t *testing.T) {
 	}(logging.NewNoOpLogger())
 
 	prom := prometheus.New(inner, logger, []float64{1e-6, 5e-6, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 0.01, 0.1, 1})
-	serverOpts := []func(s *Server){func(s *Server) { s.WithAuthorization(AuthorizationBasic) }, func(s *Server) { s.WithMetrics(prom) }}
+	serverOpts := []any{func(s *Server) { s.WithAuthorization(AuthorizationBasic) }, func(s *Server) { s.WithMetrics(prom) }}
 
 	f := newFixtureWithStore(t, store, serverOpts...)
 
@@ -4379,50 +4518,93 @@ func TestDecisionLogErrorMessage(t *testing.T) {
 func TestQueryV1(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	test.WithTempFS(nil, func(root string) {
-		disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer disk.Close(ctx)
+	tests := []struct {
+		note        string
+		regoVersion ast.RegoVersion
+		query       string
+		expErr      bool
+	}{
+		{
+			note:        "v0",
+			regoVersion: ast.RegoV0,
+			query:       "a=[1,2,3]%3Ba[i]=x",
+		},
+		{
+			note:        "v0, v1 keywords in query",
+			regoVersion: ast.RegoV0,
+			query:       "a=[1,2,3]%3Bsome+i,+x+in+a",
+			expErr:      true,
+		},
+		{
+			note:        "v1",
+			regoVersion: ast.RegoV1,
+			query:       "a=[1,2,3]%3Bsome+i,+x+in+a",
+		},
+		{
+			note:  "default rego-version", // v1
+			query: "a=[1,2,3]%3Bsome+i,+x+in+a",
+		},
+	}
 
-		f := newFixtureWithStore(t, disk)
-		get := newReqV1(http.MethodGet, `/query?q=a=[1,2,3]%3Ba[i]=x&metrics`, "")
-		f.server.Handler.ServeHTTP(f.recorder, get)
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			test.WithTempFS(nil, func(root string) {
+				disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer disk.Close(ctx)
 
-		if f.recorder.Code != 200 {
-			t.Fatalf("Expected success but got %v", f.recorder)
-		}
+				var opts []any
+				if tc.regoVersion != ast.RegoUndefined {
+					opts = append(opts, plugins.WithParserOptions(ast.ParserOptions{RegoVersion: tc.regoVersion}))
+				}
 
-		var expected types.QueryResponseV1
-		err = util.UnmarshalJSON([]byte(`{
+				f := newFixtureWithStore(t, disk, opts...)
+				get := newReqV1(http.MethodGet, fmt.Sprintf(`/query?q=%s&metrics`, tc.query), "")
+				f.server.Handler.ServeHTTP(f.recorder, get)
+
+				if tc.expErr {
+					if f.recorder.Code != 400 {
+						t.Fatalf("Expected error but got %v", f.recorder)
+					}
+				} else {
+					if f.recorder.Code != 200 {
+						t.Fatalf("Expected success but got %v", f.recorder)
+					}
+
+					var expected types.QueryResponseV1
+					err = util.UnmarshalJSON([]byte(`{
 		"result": [{"a":[1,2,3],"i":0,"x":1},{"a":[1,2,3],"i":1,"x":2},{"a":[1,2,3],"i":2,"x":3}]
 	}`), &expected)
-		if err != nil {
-			panic(err)
-		}
+					if err != nil {
+						panic(err)
+					}
 
-		var result types.QueryResponseV1
-		err = util.UnmarshalJSON(f.recorder.Body.Bytes(), &result)
-		if err != nil {
-			t.Fatalf("Unexpected error while unmarshalling result: %v", err)
-		}
+					var result types.QueryResponseV1
+					err = util.UnmarshalJSON(f.recorder.Body.Bytes(), &result)
+					if err != nil {
+						t.Fatalf("Unexpected error while unmarshalling result: %v", err)
+					}
 
-		assertMetricsExist(t, result.Metrics, []string{
-			"counter_disk_read_keys",
-			"timer_rego_query_compile_ns",
-			"timer_rego_query_eval_ns",
-			// "timer_server_handler_ns", // TODO(sr): we're not consistent about timing this?
-			"timer_disk_read_ns",
+					assertMetricsExist(t, result.Metrics, []string{
+						"counter_disk_read_keys",
+						"timer_rego_query_compile_ns",
+						"timer_rego_query_eval_ns",
+						// "timer_server_handler_ns", // TODO(sr): we're not consistent about timing this?
+						"timer_disk_read_ns",
+					})
+
+					result.Metrics = nil
+					if !reflect.DeepEqual(result, expected) {
+						t.Fatalf("Expected:\n\n%v\n\nbut got:\n\n%v", expected, result)
+					}
+				}
+			})
 		})
-
-		result.Metrics = nil
-		if !reflect.DeepEqual(result, expected) {
-			t.Fatalf("Expected %v but got: %v", expected, result)
-		}
-	})
+	}
 }
 
 func TestBadQueryV1(t *testing.T) {
@@ -5122,9 +5304,17 @@ func newFixtureWithConfig(t *testing.T, config string, opts ...func(*Server)) *f
 	}
 }
 
-func newFixtureWithStore(t *testing.T, store storage.Store, opts ...func(*Server)) *fixture {
+func newFixtureWithStore(t *testing.T, store storage.Store, opts ...any) *fixture {
 	ctx := context.Background()
-	m, err := plugins.New([]byte{}, "test", store)
+
+	var mOpts []func(*plugins.Manager)
+	for _, opt := range opts {
+		if opt, ok := opt.(func(*plugins.Manager)); ok {
+			mOpts = append(mOpts, opt)
+		}
+	}
+
+	m, err := plugins.New([]byte{}, "test", store, mOpts...)
 	if err != nil {
 		panic(err)
 	}
@@ -5137,9 +5327,13 @@ func newFixtureWithStore(t *testing.T, store storage.Store, opts ...func(*Server
 		WithAddresses([]string{"localhost:8182"}).
 		WithStore(store).
 		WithManager(m)
+
 	for _, opt := range opts {
-		opt(server)
+		if opt, ok := opt.(func(*Server)); ok {
+			opt(server)
+		}
 	}
+
 	server, err = server.Init(ctx)
 	if err != nil {
 		panic(err)
@@ -5229,6 +5423,16 @@ type variant struct {
 
 func executeRequests(t *testing.T, reqs []tr, variants ...variant) {
 	t.Helper()
+
+	if len(variants) == 0 {
+		f := newFixture(t)
+		for i, req := range reqs {
+			if err := f.v1(req.method, req.path, req.body, req.code, req.resp); err != nil {
+				t.Errorf("Unexpected response on request %d: %v", i+1, err)
+			}
+		}
+	}
+
 	for _, v := range variants {
 		t.Run(v.name, func(t *testing.T) {
 			f := newFixture(t, v.opts...)

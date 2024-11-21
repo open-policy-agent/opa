@@ -16,7 +16,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/version"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
@@ -27,6 +26,7 @@ import (
 	inmem "github.com/open-policy-agent/opa/v1/storage/inmem/test"
 	"github.com/open-policy-agent/opa/v1/util"
 	"github.com/open-policy-agent/opa/v1/util/test"
+	"github.com/open-policy-agent/opa/v1/version"
 )
 
 func TestMain(m *testing.M) {

@@ -18,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/version"
 	"github.com/prometheus/client_golang/prometheus"
 	promdto "github.com/prometheus/client_model/go"
 
@@ -43,7 +42,79 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 	"github.com/open-policy-agent/opa/v1/topdown/lineage"
 	"github.com/open-policy-agent/opa/v1/util/test"
+	"github.com/open-policy-agent/opa/v1/version"
 )
+
+func TestDefaultRegoVersion(t *testing.T) {
+
+	ctx := context.Background()
+
+	server := sdktest.MustNewServer(
+		sdktest.RawBundles(true),
+		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			// v1 module
+			"main.rego": `
+package system
+
+main if {
+	"a" in p
+}
+
+p contains x if {
+	x = "a"
+}
+
+str = "foo"
+
+loopback = input
+`,
+		}),
+	)
+
+	defer server.Stop()
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/bundle.tar.gz"
+			}
+		}
+	}`, server.URL())
+
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config: strings.NewReader(config),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer opa.Stop(ctx)
+
+	if result, err := opa.Decision(ctx, sdk.DecisionOptions{}); err != nil {
+		t.Fatal(err)
+	} else if decision, ok := result.Result.(bool); !ok || !decision {
+		t.Fatal("expected true but got:", decision, ok)
+	}
+
+	if result, err := opa.Decision(ctx, sdk.DecisionOptions{Path: "/system/str"}); err != nil {
+		t.Fatal(err)
+	} else if decision, ok := result.Result.(string); !ok || decision != "foo" {
+		t.Fatal(`expected "foo" but got:`, decision)
+	}
+
+	exp := map[string]interface{}{"foo": "bar"}
+
+	if result, err := opa.Decision(ctx, sdk.DecisionOptions{Path: "/system/loopback", Input: map[string]interface{}{"foo": "bar"}}); err != nil {
+		t.Fatal(err)
+	} else if !reflect.DeepEqual(result.Result, exp) {
+		t.Fatalf("expected %v but got %v", exp, result.Result)
+	}
+}
 
 // Plugin creates an empty plugin to test plugin initialization and shutdown
 type plugin struct {

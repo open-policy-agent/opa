@@ -5,9 +5,9 @@ package download
 import (
 	"context"
 
-	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/bundle"
-	"github.com/open-policy-agent/opa/plugins/rest"
+	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/bundle"
+	"github.com/open-policy-agent/opa/v1/plugins/rest"
 )
 
 func NewOCI(Config, rest.Client, string, string) *OCIDownloader {

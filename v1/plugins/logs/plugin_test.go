@@ -36,7 +36,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 	"github.com/open-policy-agent/opa/v1/topdown/print"
 	"github.com/open-policy-agent/opa/v1/util"
-	"github.com/open-policy-agent/opa/version"
+	"github.com/open-policy-agent/opa/v1/version"
 )
 
 func TestMain(m *testing.M) {

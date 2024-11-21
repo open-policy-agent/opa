@@ -565,22 +565,24 @@ Custom:
 	})
 }
 
-func TestDoInspectV1Compatible(t *testing.T) {
+func TestDoInspect_V0Compatible(t *testing.T) {
 	tests := []struct {
 		note         string
-		v1Compatible bool
+		v0Compatible bool
 		module       string
 		expErrs      []string
 	}{
 		{
-			note: "v0.x, keywords not used",
+			note:         "v0, keywords not used",
+			v0Compatible: true,
 			module: `package test
 p[v] { 
 	v := input.x 
 }`,
 		},
 		{
-			note: "v0.x, no keywords imported, but used",
+			note:         "v0, no keywords imported, but used",
+			v0Compatible: true,
 			module: `package test
 p contains v if { 
 	v := input.x 
@@ -590,7 +592,7 @@ p contains v if {
 			},
 		},
 		{
-			note: "v0.x, keywords imported",
+			note: "v0, keywords imported",
 			module: `package test
 import future.keywords
 p contains v if { 
@@ -598,7 +600,7 @@ p contains v if {
 }`,
 		},
 		{
-			note: "v0.x, rego.v1 imported",
+			note: "v0, rego.v1 imported",
 			module: `package test
 import rego.v1
 p contains v if { 
@@ -606,8 +608,7 @@ p contains v if {
 }`,
 		},
 		{
-			note:         "v1.0, keywords not used",
-			v1Compatible: true,
+			note: "v1, keywords not used",
 			module: `package test
 p[v] { 
 	v := input.x 
@@ -618,16 +619,14 @@ p[v] {
 			},
 		},
 		{
-			note:         "v1.0, no keywords imported",
-			v1Compatible: true,
+			note: "v1, no keywords imported",
 			module: `package test
 p contains v if { 
 	v := input.x 
 }`,
 		},
 		{
-			note:         "v1.0, keywords imported",
-			v1Compatible: true,
+			note: "v1, keywords imported",
 			module: `package test
 import future.keywords
 p contains v if { 
@@ -635,8 +634,7 @@ p contains v if {
 }`,
 		},
 		{
-			note:         "v1.0, rego.v1 imported",
-			v1Compatible: true,
+			note: "v1, rego.v1 imported",
 			module: `package test
 import rego.v1
 p contains v if { 
@@ -664,7 +662,7 @@ p contains v if {
 
 				var out bytes.Buffer
 				params := newInspectCommandParams()
-				params.v1Compatible = tc.v1Compatible
+				params.v0Compatible = tc.v0Compatible
 				err = params.outputFormat.Set(evalJSONOutput)
 				if err != nil {
 					t.Fatalf("Unexpected error: %s", err)
@@ -1038,7 +1036,7 @@ func TestUnknownRefs(t *testing.T) {
 			files: [][2]string{
 				{
 					"/policy.rego", `package test
-p {
+p if {
 	foo.bar(42)
 	contains("foo", "o")
 }`,
@@ -1424,7 +1422,7 @@ func TestCallToUnknownRegoFunction(t *testing.T) {
 		{"/policy.rego", `package test
 import data.x.y
 
-p {
+p if {
 	y(1) == true
 }
 		`},

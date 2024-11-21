@@ -26,7 +26,6 @@ import (
 
 	serverDecodingPlugin "github.com/open-policy-agent/opa/v1/plugins/server/decoding"
 	serverEncodingPlugin "github.com/open-policy-agent/opa/v1/plugins/server/encoding"
-	"github.com/open-policy-agent/opa/version"
 
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel/attribute"
@@ -56,6 +55,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown/lineage"
 	"github.com/open-policy-agent/opa/v1/tracing"
 	"github.com/open-policy-agent/opa/v1/util"
+	"github.com/open-policy-agent/opa/v1/version"
 )
 
 // AuthenticationScheme enumerates the supported authentication schemes. The
@@ -1375,7 +1375,7 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	request, reqErr := readInputCompilePostV1(body)
+	request, reqErr := readInputCompilePostV1(body, s.manager.ParserOptions())
 	if reqErr != nil {
 		writer.Error(w, http.StatusBadRequest, reqErr)
 		return
@@ -2245,7 +2245,7 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	}
 	qStr := qStrs[len(qStrs)-1]
 
-	parsedQuery, err := validateQuery(qStr)
+	parsedQuery, err := validateQuery(qStr, s.manager.ParserOptions())
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
@@ -2303,7 +2303,7 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	qStr := request.Query
-	parsedQuery, err := validateQuery(qStr)
+	parsedQuery, err := validateQuery(qStr, s.manager.ParserOptions())
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
@@ -2703,8 +2703,8 @@ func stringPathToRef(s string) (r ast.Ref) {
 	return r
 }
 
-func validateQuery(query string) (ast.Body, error) {
-	return ast.ParseBody(query)
+func validateQuery(query string, opts ast.ParserOptions) (ast.Body, error) {
+	return ast.ParseBodyWithOpts(query, opts)
 }
 
 func getBoolParam(url *url.URL, name string, ifEmpty bool) bool {
@@ -2859,7 +2859,7 @@ type compileRequestOptions struct {
 	DisableInlining []string
 }
 
-func readInputCompilePostV1(reqBytes []byte) (*compileRequest, *types.ErrorV1) {
+func readInputCompilePostV1(reqBytes []byte, queryParserOptions ast.ParserOptions) (*compileRequest, *types.ErrorV1) {
 	var request types.CompileRequestV1
 
 	err := util.NewJSONDecoder(bytes.NewBuffer(reqBytes)).Decode(&request)
@@ -2867,7 +2867,7 @@ func readInputCompilePostV1(reqBytes []byte) (*compileRequest, *types.ErrorV1) {
 		return nil, types.NewErrorV1(types.CodeInvalidParameter, "error(s) occurred while decoding request: %v", err.Error())
 	}
 
-	query, err := ast.ParseBody(request.Query)
+	query, err := ast.ParseBodyWithOpts(request.Query, queryParserOptions)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:

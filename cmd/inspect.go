@@ -31,14 +31,18 @@ const pageWidth = 80
 type inspectCommandParams struct {
 	outputFormat    *util.EnumFlag
 	listAnnotations bool
+	v0Compatible    bool
 	v1Compatible    bool
 }
 
 func (p *inspectCommandParams) regoVersion() ast.RegoVersion {
+	if p.v0Compatible {
+		return ast.RegoV0
+	}
 	if p.v1Compatible {
 		return ast.RegoV1
 	}
-	return ast.RegoV0
+	return ast.DefaultRegoVersion
 }
 
 func newInspectCommandParams() inspectCommandParams {
@@ -98,6 +102,7 @@ that file and summarize its structure and contents.
 
 	addOutputFormat(inspectCommand.Flags(), params.outputFormat)
 	addListAnnotations(inspectCommand.Flags(), &params.listAnnotations)
+	addV0CompatibleFlag(inspectCommand.Flags(), &params.v0Compatible, false)
 	addV1CompatibleFlag(inspectCommand.Flags(), &params.v1Compatible, false)
 	RootCommand.AddCommand(inspectCommand)
 }

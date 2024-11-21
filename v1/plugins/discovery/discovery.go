@@ -537,6 +537,10 @@ func evaluateBundle(ctx context.Context, id string, info *ast.Term, b *bundleApi
 
 	compiler := ast.NewCompiler()
 
+	if regoVersion := b.RegoVersion(ast.DefaultRegoVersion); regoVersion != ast.RegoUndefined {
+		compiler = compiler.WithDefaultRegoVersion(regoVersion)
+	}
+
 	if compiler.Compile(modules); compiler.Failed() {
 		return nil, compiler.Errors
 	}
