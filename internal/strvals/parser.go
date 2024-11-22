@@ -31,7 +31,7 @@ var ErrNotList = errors.New("not a list")
 
 // MaxIndex is the maximum index that will be allowed by setIndex.
 // The default value 65536 = 1024 * 64
-var MaxIndex = 65536
+const MaxIndex = 65536
 
 // ToYAML takes a string of arguments and converts to a YAML document.
 func ToYAML(s string) (string, error) {

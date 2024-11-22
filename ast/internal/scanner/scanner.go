@@ -9,6 +9,7 @@ import (
 	"io"
 	"unicode"
 	"unicode/utf8"
+	"unsafe"
 
 	"github.com/open-policy-agent/opa/ast/internal/tokens"
 )
@@ -18,31 +19,31 @@ const bom = 0xFEFF
 // Scanner is used to tokenize an input stream of
 // Rego source code.
 type Scanner struct {
+	keywords         map[string]tokens.Token
+	bs               []byte
+	errors           []Error
+	tabs             []int
 	offset           int
 	row              int
 	col              int
-	bs               []byte
-	curr             rune
 	width            int
-	errors           []Error
-	keywords         map[string]tokens.Token
-	tabs             []int
+	curr             rune
 	regoV1Compatible bool
 }
 
 // Error represents a scanner error.
 type Error struct {
-	Pos     Position
 	Message string
+	Pos     Position
 }
 
 // Position represents a point in the scanned source code.
 type Position struct {
+	Tabs   []int // positions of any tabs preceding Col
 	Offset int   // start offset in bytes
 	End    int   // end offset in bytes
 	Row    int   // line number computed in bytes
 	Col    int   // column number computed in bytes
-	Tabs   []int // positions of any tabs preceding Col
 }
 
 // New returns an initialized scanner that will scan
@@ -270,7 +271,8 @@ func (s *Scanner) scanIdentifier() string {
 	for isLetter(s.curr) || isDigit(s.curr) {
 		s.next()
 	}
-	return string(s.bs[start : s.offset-1])
+
+	return byteSliceToString(s.bs[start : s.offset-1])
 }
 
 func (s *Scanner) scanNumber() string {
@@ -321,7 +323,7 @@ func (s *Scanner) scanNumber() string {
 		}
 	}
 
-	return string(s.bs[start : s.offset-1])
+	return byteSliceToString(s.bs[start : s.offset-1])
 }
 
 func (s *Scanner) scanString() string {
@@ -355,7 +357,7 @@ func (s *Scanner) scanString() string {
 		}
 	}
 
-	return string(s.bs[start : s.offset-1])
+	return byteSliceToString(s.bs[start : s.offset-1])
 }
 
 func (s *Scanner) scanRawString() string {
@@ -370,7 +372,8 @@ func (s *Scanner) scanRawString() string {
 			break
 		}
 	}
-	return string(s.bs[start : s.offset-1])
+
+	return byteSliceToString(s.bs[start : s.offset-1])
 }
 
 func (s *Scanner) scanComment() string {
@@ -383,7 +386,8 @@ func (s *Scanner) scanComment() string {
 	if s.offset > 1 && s.bs[s.offset-2] == '\r' {
 		end = end - 1
 	}
-	return string(s.bs[start:end])
+
+	return byteSliceToString(s.bs[start:end])
 }
 
 func (s *Scanner) next() {
@@ -413,7 +417,7 @@ func (s *Scanner) next() {
 	if s.curr == '\n' {
 		s.row++
 		s.col = 0
-		s.tabs = []int{}
+		s.tabs = s.tabs[:0]
 	} else {
 		s.col++
 		if s.curr == '\t' {
@@ -452,4 +456,8 @@ func (s *Scanner) error(reason string) {
 		Row:    s.row,
 		Col:    s.col,
 	}, Message: reason})
+}
+
+func byteSliceToString(bs []byte) string {
+	return unsafe.String(unsafe.SliceData(bs), len(bs))
 }

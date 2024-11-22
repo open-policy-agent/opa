@@ -55,7 +55,7 @@ func (vs *ValueMap) Equal(other *ValueMap) bool {
 		return other == nil || other.Len() == 0
 	}
 	if other == nil {
-		return vs == nil || vs.Len() == 0
+		return vs.Len() == 0
 	}
 	return vs.hashMap.Equal(other.hashMap)
 }

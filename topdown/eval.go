@@ -112,6 +112,11 @@ type eval struct {
 }
 
 func (e *eval) Run(iter evalIterator) error {
+	if !e.traceEnabled {
+		// avoid function literal escaping to heap if we don't need the trace
+		return e.eval(iter)
+	}
+
 	e.traceEnter(e.query)
 	return e.eval(func(e *eval) error {
 		e.traceExit(e.query)
@@ -347,9 +352,7 @@ func (e *eval) evalExpr(iter evalIterator) error {
 
 		if err != nil {
 			switch err := err.(type) {
-			case *deferredEarlyExitError:
-				return wrapErr(err)
-			case *earlyExitError:
+			case *deferredEarlyExitError, *earlyExitError:
 				return wrapErr(err)
 			default:
 				return err
@@ -403,7 +406,8 @@ func (e *eval) evalStep(iter evalIterator) error {
 			})
 		}
 	case *ast.Term:
-		rterm := e.generateVar(fmt.Sprintf("term_%d_%d", e.queryID, e.index))
+		// generateVar inlined here to avoid extra allocations in hot path
+		rterm := ast.VarTerm(fmt.Sprintf("%s_term_%d_%d", e.genvarprefix, e.queryID, e.index))
 		err = e.unify(terms, rterm, func() error {
 			if e.saveSet.Contains(rterm, e.bindings) {
 				return e.saveExpr(ast.NewExpr(rterm), e.bindings, func() error {
@@ -458,12 +462,17 @@ func (e *eval) evalNot(iter evalIterator) error {
 	child := e.closure(negation)
 
 	var defined bool
-	child.traceEnter(negation)
+	if e.traceEnabled {
+		child.traceEnter(negation)
+	}
 
 	err := child.eval(func(*eval) error {
-		child.traceExit(negation)
+		if e.traceEnabled {
+			child.traceExit(negation)
+			child.traceRedo(negation)
+		}
 		defined = true
-		child.traceRedo(negation)
+
 		return nil
 	})
 
@@ -771,7 +780,7 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 	if ref[0].Equal(ast.DefaultRootDocument) {
 		if mocked {
 			f := e.compiler.TypeEnv.Get(ref).(*types.Function)
-			return e.evalCallValue(len(f.FuncArgs().Args), terms, mock, iter)
+			return e.evalCallValue(f.Arity(), terms, mock, iter)
 		}
 
 		var ir *ast.IndexResult
@@ -801,11 +810,11 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 	}
 
 	if mocked { // value replacement of built-in call
-		return e.evalCallValue(len(bi.Decl.Args()), terms, mock, iter)
+		return e.evalCallValue(bi.Decl.Arity(), terms, mock, iter)
 	}
 
 	if e.unknown(e.query[e.index], e.bindings) {
-		return e.saveCall(len(bi.Decl.Args()), terms, iter)
+		return e.saveCall(bi.Decl.Arity(), terms, iter)
 	}
 
 	var parentID uint64
@@ -1702,7 +1711,7 @@ func (e *eval) getDeclArgsLen(x *ast.Expr) (int, error) {
 	bi, _, ok := e.builtinFunc(operator.String())
 
 	if ok {
-		return len(bi.Decl.Args()), nil
+		return bi.Decl.Arity(), nil
 	}
 
 	ir, err := e.getRules(operator, nil)
@@ -1745,7 +1754,7 @@ func (e evalBuiltin) eval(iter unifyIterator) error {
 		operands[i] = e.e.bindings.Plug(e.terms[i])
 	}
 
-	numDeclArgs := len(e.bi.Decl.FuncArgs().Args)
+	numDeclArgs := e.bi.Decl.Arity()
 
 	e.e.instr.startTimer(evalOpBuiltinCall)
 	var err error
