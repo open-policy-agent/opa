@@ -149,6 +149,7 @@ type Compiler struct {
 	allowUndefinedFuncCalls    bool                          // don't error on calls to unknown functions.
 	evalMode                   CompilerEvalMode              //
 	rewriteTestRulesForTracing bool                          // rewrite test rules to capture dynamic values for tracing.
+	defaultRegoVersion         RegoVersion
 }
 
 // CompilerStage defines the interface for stages in the compiler.
@@ -310,6 +311,7 @@ func NewCompiler() *Compiler {
 		deprecatedBuiltinsMap: map[string]struct{}{},
 		comprehensionIndices:  map[*Term]*ComprehensionIndex{},
 		debug:                 debug.Discard(),
+		defaultRegoVersion:    DefaultRegoVersion,
 	}
 
 	c.ModuleTree = NewModuleTree(nil)
@@ -889,6 +891,11 @@ type ModuleLoader func(resolved map[string]*Module) (parsed map[string]*Module, 
 // immediately.
 func (c *Compiler) WithModuleLoader(f ModuleLoader) *Compiler {
 	c.moduleLoader = f
+	return c
+}
+
+func (c *Compiler) WithDefaultRegoVersion(regoVersion RegoVersion) *Compiler {
+	c.defaultRegoVersion = regoVersion
 	return c
 }
 
@@ -1717,7 +1724,7 @@ func (c *Compiler) checkDuplicateImports() {
 
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		if c.strict || moduleIsRegoV1(mod) {
+		if c.strict || c.moduleIsRegoV1(mod) {
 			modules = append(modules, mod)
 		}
 	}
@@ -1731,7 +1738,7 @@ func (c *Compiler) checkDuplicateImports() {
 func (c *Compiler) checkKeywordOverrides() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		if c.strict || moduleIsRegoV1(mod) {
+		if c.strict || c.moduleIsRegoV1(mod) {
 			errs := checkRootDocumentOverrides(mod)
 			for _, err := range errs {
 				c.err(err)
@@ -1740,9 +1747,9 @@ func (c *Compiler) checkKeywordOverrides() {
 	}
 }
 
-func moduleIsRegoV1(mod *Module) bool {
+func (c *Compiler) moduleIsRegoV1(mod *Module) bool {
 	if mod.regoVersion == RegoUndefined {
-		switch DefaultRegoVersion {
+		switch c.defaultRegoVersion {
 		case RegoV1, RegoV0CompatV1:
 			return true
 		}

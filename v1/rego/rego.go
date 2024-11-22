@@ -621,6 +621,10 @@ type Rego struct {
 	regoVersion                 ast.RegoVersion
 }
 
+func (r *Rego) RegoVersion() ast.RegoVersion {
+	return r.regoVersion
+}
+
 // Function represents a built-in function that is callable in Rego.
 type Function struct {
 	Name             string

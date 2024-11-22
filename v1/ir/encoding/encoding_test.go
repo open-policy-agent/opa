@@ -12,10 +12,10 @@ import (
 
 func TestRoundTrip(t *testing.T) {
 
+	// Note: v1 module
 	c, err := ast.CompileModules(map[string]string{
 		"test.rego": `
 			package test
-			import rego.v1
 
 			p if {
 				input.foo == 7

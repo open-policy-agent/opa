@@ -1681,6 +1681,8 @@ func TestMergeCorruptManifest(t *testing.T) {
 
 func TestMerge(t *testing.T) {
 
+	expRegoVersion := ast.DefaultRegoVersion.Int()
+
 	cases := []struct {
 		note       string
 		bundles    []*Bundle
@@ -1711,7 +1713,7 @@ func TestMerge(t *testing.T) {
 				Manifest: Manifest{
 					Revision:         "abcdef",
 					Roots:            &[]string{""},
-					RegoVersion:      pointTo(0), // Default rego-version
+					RegoVersion:      &expRegoVersion,
 					FileRegoVersions: map[string]int{},
 				},
 				Modules: []ModuleFile{
@@ -1749,7 +1751,7 @@ func TestMerge(t *testing.T) {
 						"foo",
 						"bar",
 					},
-					RegoVersion: pointTo(0), // Default rego-version
+					RegoVersion: &expRegoVersion,
 				},
 				Data: map[string]interface{}{},
 			},
@@ -1794,7 +1796,7 @@ func TestMerge(t *testing.T) {
 						"logs",
 						"authz",
 					},
-					RegoVersion: pointTo(0), // Default rego-version
+					RegoVersion: &expRegoVersion,
 				},
 				WasmModules: []WasmModuleFile{
 					{
@@ -1851,7 +1853,7 @@ func TestMerge(t *testing.T) {
 						"foo",
 						"baz",
 					},
-					RegoVersion: pointTo(0), // Default rego-version
+					RegoVersion: &expRegoVersion,
 				},
 				Modules: []ModuleFile{
 					{
@@ -1900,7 +1902,7 @@ func TestMerge(t *testing.T) {
 						"foo/bar",
 						"baz",
 					},
-					RegoVersion: pointTo(0), // Default rego-version
+					RegoVersion: &expRegoVersion,
 				},
 				Data: map[string]interface{}{
 					"foo": map[string]interface{}{
@@ -1936,7 +1938,7 @@ func TestMerge(t *testing.T) {
 						"foo/bar",
 						"baz",
 					},
-					RegoVersion: pointTo(0), // Default rego-version
+					RegoVersion: &expRegoVersion,
 				},
 				Data: map[string]interface{}{},
 			},
@@ -1973,7 +1975,7 @@ func TestMerge(t *testing.T) {
 				Data: map[string]interface{}{},
 				Manifest: Manifest{
 					Roots:       &[]string{"a", "b"},
-					RegoVersion: pointTo(0), // Default rego-version
+					RegoVersion: &expRegoVersion,
 				},
 				PlanModules: []PlanModuleFile{
 					{

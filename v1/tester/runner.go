@@ -647,6 +647,10 @@ func LoadBundles(args []string, filter loader.Filter) (map[string]*bundle.Bundle
 // LoadBundlesWithRegoVersion will load the given args as bundles, either tarball or directory is OK.
 // Bundles are parsed in accordance with the given RegoVersion.
 func LoadBundlesWithRegoVersion(args []string, filter loader.Filter, regoVersion ast.RegoVersion) (map[string]*bundle.Bundle, error) {
+	if regoVersion == ast.RegoUndefined {
+		regoVersion = ast.DefaultRegoVersion
+	}
+
 	bundles := map[string]*bundle.Bundle{}
 	for _, bundleDir := range args {
 		b, err := loader.NewFileLoader().

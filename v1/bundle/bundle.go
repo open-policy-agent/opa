@@ -1397,7 +1397,7 @@ func mktree(path []string, value interface{}) (map[string]interface{}, error) {
 // will have an empty revision except in the special case where a single bundle is provided
 // (and in that case the bundle is just returned unmodified.)
 func Merge(bundles []*Bundle) (*Bundle, error) {
-	return MergeWithRegoVersion(bundles, ast.RegoV0, false)
+	return MergeWithRegoVersion(bundles, ast.DefaultRegoVersion, false)
 }
 
 // MergeWithRegoVersion creates a merged bundle from the provided bundles, similar to Merge.
