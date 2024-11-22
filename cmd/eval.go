@@ -137,7 +137,7 @@ func validateEvalParams(p *evalCommandParams, cmdArgs []string) error {
 		return errors.New("invalid output format for evaluation")
 	}
 
-	//* check if illegal arguments is passed with unknowns flag
+	// check if illegal arguments is passed with unknowns flag
 	for _, unknwn := range p.unknowns {
 		term, err := ast.ParseTerm(unknwn)
 		if err != nil {
@@ -148,7 +148,7 @@ func validateEvalParams(p *evalCommandParams, cmdArgs []string) error {
 		case ast.Ref:
 			return nil
 		default:
-			return errors.New(errIllegalUnknownsArg.Error())
+			return errIllegalUnknownsArg
 		}
 	}
 
