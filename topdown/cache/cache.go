@@ -154,11 +154,14 @@ func NewInterQueryCache(config *Config) InterQueryCache {
 func NewInterQueryCacheWithContext(ctx context.Context, config *Config) InterQueryCache {
 	iqCache := newCache(config)
 	if iqCache.staleEntryEvictionTimePeriodSeconds() > 0 {
-		cleanupTicker := time.NewTicker(time.Duration(iqCache.staleEntryEvictionTimePeriodSeconds()) * time.Second)
 		go func() {
+			cleanupTicker := time.NewTicker(time.Duration(iqCache.staleEntryEvictionTimePeriodSeconds()) * time.Second)
 			for {
 				select {
 				case <-cleanupTicker.C:
+					// NOTE: We stop the ticker and create a new one here to ensure that applications
+					// get _at least_ staleEntryEvictionTimePeriodSeconds with the cache unlocked;
+					// see https://github.com/open-policy-agent/opa/pull/7188/files#r1855342998
 					cleanupTicker.Stop()
 					iqCache.cleanStaleValues()
 					cleanupTicker = time.NewTicker(time.Duration(iqCache.staleEntryEvictionTimePeriodSeconds()) * time.Second)
