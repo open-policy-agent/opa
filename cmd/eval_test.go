@@ -37,14 +37,19 @@ func TestEvalWithIllegalUnknownArgs(t *testing.T) {
 		expectedErr error
 	}{
 		{
-			name:        "happy path: passing ref as unknown",
-			unknowns:    "data.posts",
+			name:        "happy path: passing input ref as unknown",
+			unknowns:    "input",
 			expectedErr: nil,
 		},
 		{
-			name:        "passing ; separated values",
-			unknowns:    "input; data.posts",
-			expectedErr: errors.New("expected exactly one term but got: input; data.posts"),
+			name:        "happy path: passing input.users ref as unknown",
+			unknowns:    "input.users",
+			expectedErr: nil,
+		},
+		{
+			name:        "passing multiple refs with ; separated",
+			unknowns:    "input;input.users",
+			expectedErr: errors.New("expected exactly one term but got: input; input.users"),
 		},
 		{
 			name:        "passing array as unknown",
