@@ -35,6 +35,10 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
+var (
+	errIllegalUnknownsArg = errors.New("illegal argument with --unknowns, specify string with one or more --unknowns")
+)
+
 type evalCommandParams struct {
 	capabilities           *capabilitiesFlag
 	coverage               bool
@@ -109,6 +113,7 @@ func newEvalCommandParams() evalCommandParams {
 }
 
 func validateEvalParams(p *evalCommandParams, cmdArgs []string) error {
+
 	if len(cmdArgs) > 0 && p.stdin {
 		return errors.New("specify query argument or --stdin but not both")
 	} else if len(cmdArgs) == 0 && !p.stdin {
@@ -130,6 +135,21 @@ func validateEvalParams(p *evalCommandParams, cmdArgs []string) error {
 		return errors.New("invalid output format for partial evaluation")
 	} else if !p.partial && of == evalSourceOutput {
 		return errors.New("invalid output format for evaluation")
+	}
+
+	// check if illegal arguments is passed with unknowns flag
+	for _, unknwn := range p.unknowns {
+		term, err := ast.ParseTerm(unknwn)
+		if err != nil {
+			return err
+		}
+
+		switch term.Value.(type) {
+		case ast.Ref:
+			return nil
+		default:
+			return errIllegalUnknownsArg
+		}
 	}
 
 	if p.optimizationLevel > 0 {

@@ -29,6 +29,55 @@ import (
 	"github.com/open-policy-agent/opa/util/test"
 )
 
+func TestEvalWithIllegalUnknownArgs(t *testing.T) {
+
+	tests := []struct {
+		name        string
+		unknowns    string
+		expectedErr error
+	}{
+		{
+			name:        "happy path: passing input ref as unknown",
+			unknowns:    "input",
+			expectedErr: nil,
+		},
+		{
+			name:        "happy path: passing input.users ref as unknown",
+			unknowns:    "input.users",
+			expectedErr: nil,
+		},
+		{
+			name:        "passing multiple refs with ; separated",
+			unknowns:    "input;input.users",
+			expectedErr: errors.New("expected exactly one term but got: input; input.users"),
+		},
+		{
+			name:        "passing array as unknown",
+			unknowns:    "[input, data.posts]",
+			expectedErr: errIllegalUnknownsArg,
+		},
+		{
+			name:        "passing set as unknown",
+			unknowns:    "{input, data.posts}",
+			expectedErr: errIllegalUnknownsArg,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			params := newEvalCommandParams()
+			params.unknowns = []string{tt.unknowns}
+			params.partial = true
+
+			err := validateEvalParams(&params, []string{"data"})
+
+			if tt.expectedErr != nil && !strings.EqualFold(err.Error(), tt.expectedErr.Error()) {
+				t.Errorf("expected %s; got %s", errIllegalUnknownsArg.Error(), err.Error())
+			}
+		})
+	}
+}
+
 func TestEvalExitCode(t *testing.T) {
 	params := newEvalCommandParams()
 	params.fail = true
@@ -764,8 +813,8 @@ func TestEvalWithSchemaFileWithRemoteRef(t *testing.T) {
 		"p.rego": `package p
 import rego.v1
 
-r if { 
-	input.metadata.clusterName == "NAME" 
+r if {
+	input.metadata.clusterName == "NAME"
 }`,
 	}
 
@@ -1296,7 +1345,7 @@ p if {
 	y := 2
 	z := 3
 	x == z - y
-} 
+}
 `,
 			},
 			expected: `%SKIP_LINE%
@@ -1335,7 +1384,7 @@ p if {
 	y := 2
 	z := 3
 	x == z - y
-} 
+}
 `,
 			},
 			expected: `%SKIP_LINE%
@@ -1380,7 +1429,7 @@ p if {
 	x := v
 
 	x.foo[_] == "a"
-} 
+}
 `,
 			},
 			expected: `%SKIP_LINE%
