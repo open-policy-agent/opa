@@ -1181,7 +1181,7 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 			ruleTemplate:               `p = x { http.send(%REQ%, r); x = r.body }`,
 			headers:                    map[string][]string{"Cache-Control": {"max-age=290304000, public"}},
 			response:                   `{"x": 1}`,
-			expectedReqCount:           1,
+			expectedReqCount:           2, // Partial evaluation generates a second query, so expect 2 requests
 			expectedInterQueryCacheHit: false,
 		},
 		{
@@ -1197,7 +1197,7 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 								}`,
 			headers:                    map[string][]string{"Cache-Control": {"max-age=290304000, public"}},
 			response:                   `{"x": 1}`,
-			expectedReqCount:           1,
+			expectedReqCount:           2, // Partial evaluation generates a second query, so expect 2 requests
 			expectedInterQueryCacheHit: false,
 		},
 		{
@@ -1213,11 +1213,11 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 								}`,
 			headers:                    map[string][]string{"Cache-Control": {"max-age=290304000, public"}},
 			response:                   `{"x": 1}`,
-			expectedReqCount:           1,
+			expectedReqCount:           1, // Inter-query cache applies across full and partial eval
 			expectedInterQueryCacheHit: true,
 		},
 		{
-			note:    "http.send GET multiple (inter-query cache enabled, )",
+			note:    "http.send GET multiple (inter-query cache enabled, server no-store)",
 			request: `{"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}`,
 			ruleTemplate: `p = x {
 									r1 = http.send(%REQ%)
@@ -1229,7 +1229,7 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 								}`,
 			headers:                    map[string][]string{"Cache-Control": {"no-store"}},
 			response:                   `{"x": 1}`,
-			expectedReqCount:           1,
+			expectedReqCount:           2, // no-store means the Partial evaluation generates a second query
 			expectedInterQueryCacheHit: false,
 		},
 	}
@@ -1285,8 +1285,8 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 			runTopDownTestCase(t, data, tc.note, []string{rule}, tc.response, opts...)
 
 			// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
-			// eval first), so expect 2x the total request count the test case specified.
-			actualCount := len(requests) / 2
+			// eval first); this affects inter-query caching enabled vs disabled.
+			actualCount := len(requests)
 			if actualCount != tc.expectedReqCount {
 				t.Fatalf("Expected to get %d requests, got %d", tc.expectedReqCount, actualCount)
 			}
@@ -3101,7 +3101,7 @@ func TestHTTPSendCacheDefaultStatusCodesIntraQueryCache(t *testing.T) {
 		}
 	}))
 
-	defer ts.Close()
+	t.Cleanup(ts.Close)
 
 	t.Run("non-cacheable status code: intra-query cache", func(t *testing.T) {
 		base := fmt.Sprintf(`http.send({"method": "get", "url": %q, "cache": true})`, ts.URL)
@@ -3773,5 +3773,124 @@ func TestHTTPGetRequestAllowNet(t *testing.T) {
 
 	for _, tc := range tests {
 		runTopDownTestCase(t, data, tc.note, append(tc.rules, httpSendHelperRules...), tc.expected, tc.options)
+	}
+}
+
+type secretTransport struct {
+	extraRequestHeaders http.Header
+
+	*http.Transport
+}
+
+func (st *secretTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	for k, v := range st.extraRequestHeaders {
+		// Set additional headers on the request not visible to the caller
+		req.Header[k] = v
+	}
+	return st.Transport.RoundTrip(req)
+}
+
+func (st *secretTransport) Transform(t *http.Transport) http.RoundTripper {
+	st.Transport = t.Clone()
+	return st
+}
+
+func TestHTTPWithCustomTransport(t *testing.T) {
+	// test data
+	body := map[string]bool{"ok": true}
+
+	// test server only returns answers when a custom header is set
+	var callCount int
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		if r.Header.Get("secret-header") != "secret-value" {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(body)
+	}))
+
+	defer ts.Close()
+
+	// host
+	serverURL, err := url.Parse(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverHost := strings.Split(serverURL.Host, ":")[0]
+
+	// expected result
+	expectedResult := make(map[string]interface{})
+	expectedResult["status"] = "200 OK"
+	expectedResult["status_code"] = http.StatusOK
+
+	expectedResult["body"] = body
+	expectedResult["raw_body"] = "{\"ok\":true}\n"
+
+	resultObj := ast.MustInterfaceToValue(expectedResult)
+
+	hostError := &Error{Code: "eval_builtin_error", Message: fmt.Sprintf("http.send: unallowed host: %s", serverHost)}
+	expectedError := map[string]any{"body": nil, "raw_body": "", "status": "403 Forbidden", "status_code": 403}
+	errorObj := ast.MustInterfaceToValue(expectedError)
+
+	rules := []string{fmt.Sprintf(
+		`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true}, resp); x := remove_headers(resp) }`, ts.URL)}
+
+	st := &secretTransport{
+		extraRequestHeaders: http.Header{"secret-header": []string{"secret-value"}},
+	}
+
+	// run the test
+	tests := []struct {
+		note     string
+		rules    []string
+		options  func(*Query) *Query
+		expected interface{}
+		calls    int
+	}{
+		{
+			"http.send transport is default",
+			rules,
+			func(q *Query) *Query {
+				return q
+			},
+			errorObj.String(),
+			1,
+		},
+		{
+			"http.send transport is nil",
+			rules,
+			setRoundTripper(nil),
+			errorObj.String(),
+			1,
+		},
+		{
+			"http.send transport adds secret header",
+			rules,
+			setRoundTripper(st.Transform),
+			resultObj.String(),
+			1,
+		},
+		{
+			"http.send allow_net empty, no call to endpoint",
+			rules,
+			setAllowNet([]string{}),
+			hostError,
+			0,
+		},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		startingCalls := callCount
+		runTopDownTestCase(t, data, tc.note, append(tc.rules, httpSendHelperRules...), tc.expected, tc.options)
+		// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
+		// eval first), so expect 2x the total request count the test case specified.
+		serverCalls := (callCount - startingCalls) / 2
+		if serverCalls != tc.calls {
+			t.Errorf("Expected %d calls to server, got %d", tc.calls, serverCalls)
+		}
 	}
 }

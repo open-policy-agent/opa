@@ -52,6 +52,7 @@ type (
 		QueryID                     uint64                     // identifies query being evaluated
 		ParentID                    uint64                     // identifies parent of query being evaluated
 		PrintHook                   print.Hook                 // provides callback function to use for printing
+		RoundTripper                CustomizeRoundTripper      // customize transport to use for HTTP requests
 		DistributedTracingOpts      tracing.Options            // options to be used by distributed tracing.
 		rand                        *rand.Rand                 // randomization source for non-security-sensitive operations
 		Capabilities                *ast.Capabilities
