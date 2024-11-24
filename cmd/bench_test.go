@@ -859,7 +859,6 @@ a[4] {
 
 	for _, mode := range modes {
 		for _, tc := range tests {
-			tc := tc // Reassignment prevents loop var scoping issue. (See: https://go.dev/blog/loopvar-preview)
 			t.Run(fmt.Sprintf("%s, %s", tc.note, mode.name), func(t *testing.T) {
 				t.Parallel()
 
@@ -1023,7 +1022,6 @@ a contains 4 if {
 	for _, bundleType := range bundleTypeCases {
 		for _, mode := range modes {
 			for _, tc := range tests {
-				tc := tc // Reassignment prevents loop var scoping issue. (See: https://go.dev/blog/loopvar-preview)
 				t.Run(fmt.Sprintf("%s, %s, %s", bundleType.note, tc.note, mode.name), func(t *testing.T) {
 					t.Parallel()
 

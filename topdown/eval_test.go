@@ -116,7 +116,6 @@ func TestMergeWhenHittingNonObject(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
@@ -172,7 +171,6 @@ func TestRefContainsNonScalar(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
@@ -252,7 +250,6 @@ func TestContainsNestedRefOrCall(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
@@ -586,13 +583,13 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial object, ref-head, ref with unification scope",
 			module: `package test
-			
+
 			a[x][y][z] := x + y + z if {
 				some x in [1, 2]
 				some y in [3, 4]
 				some z in [5, 6]
 			}
-			
+
 			p if {
 				x := a[1][_][5]   # miss, cache key: data.test.a[1][<_,5>]
 				some foo
@@ -606,14 +603,14 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial object, ref-head, ref with unification scope, component order",
 			module: `package test
-			
+
 			a[x][y][a][b] := i if {
 				some x in [1, 2]
 				some y in [3, 4]
 				some a in ["foo", "bar"]
 				some i, b in ["foo", "bar"]
 			}
-			
+
 			p if {
 				x := a[1][_]["foo"]["bar"] # miss, cache key: data.test.a[1][<_,foo,bar>]
 				y := a[1][_]["bar"]["foo"] # miss, cache key: data.test.a[1][<_,bar,foo>]
@@ -626,13 +623,13 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial object, ref-head, ref with unification scope, diverging key scope",
 			module: `package test
-			
+
 			a[x][y][z] := x + y + z if {
 				some x in [1, 2]
 				some y in [3, 4]
 				some z in [5, 6]
 			}
-			
+
 			p if {
 				x := a[1][_][5] # miss, cache key: data.test.a[1][<_,5>]
 				y := a[1][_][6] # miss, cache key: data.test.a[1][<_,6>]
@@ -647,13 +644,13 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial object, ref-head, ref with unification scope, trailing vars don't contribute to key scope",
 			module: `package test
-				
+
 				a[x][y][z][x] := x + y + z if {
 					some x in [1, 2]
 					some y in [3, 4]
 					some z in [5, 6]
 				}
-				
+
 				p if {
 					x := a[1][_][5][_] # miss, cache key: data.test.a[1][<_,5>]
 					y := a[1][_][5]    # hit, cache key: data.test.a[1][<_,5>]
@@ -667,11 +664,11 @@ func TestTopdownVirtualCache(t *testing.T) {
 			// Regression test for https://github.com/open-policy-agent/opa/issues/6926
 			note: "partial object, ref-head, leaf set, ref with unification scope",
 			module: `package p
-				
+
 				obj.sub[x][x] contains x if some x in ["one", "two"]
-				
+
 				obj[x][x] contains x if x := "whatever"
-				
+
 				main contains x if {
 					[1 | obj.sub[_].one[_]] # miss, cache key: data.p.obj.sub[<_,one>]
 					x := obj.sub[_][_][_]   # miss, cache key: data.p.obj.sub
@@ -683,7 +680,6 @@ func TestTopdownVirtualCache(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
@@ -988,9 +984,9 @@ func TestPartialRule(t *testing.T) {
 			`,
 			query: `data = x`,
 			exp: `[{"x": {"test": {"p": {"foo": {
-						"0": {"bar": "a"}, 
-						"1": {"bar": "b"}, 
-						"2": {"bar": "c"}, 
+						"0": {"bar": "a"},
+						"1": {"bar": "b"},
+						"2": {"bar": "c"},
 						"bar": {"0": "a", "1": "b", "2": "c"}}}}}}]`,
 		},
 		// Intersections with object values
@@ -1131,8 +1127,8 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "deep query into partial object (ref head) and object value",
 			module: `package test
-				p.q[r] := x if { 
-					r := "foo" 
+				p.q[r] := x if {
+					r := "foo"
 					x := {"bar": {"baz": 1}}
 				}
 			`,
@@ -1258,7 +1254,7 @@ func TestPartialRule(t *testing.T) {
 		{ // enumeration
 			note: "deep query into partial object and object value, full depth, enumeration on object value",
 			module: `package test
-				p.q[r] := x if { 
+				p.q[r] := x if {
 					r := ["foo", "bar"][_]
 					x := {"s": {"do": 0, "re": 1, "mi": 2}}
 				}
@@ -1269,7 +1265,7 @@ func TestPartialRule(t *testing.T) {
 		{ // enumeration
 			note: "deep query into partial object and object value, full depth, enumeration on rule path and object value",
 			module: `package test
-				p.q[r] := x if { 
+				p.q[r] := x if {
 					r := ["foo", "bar"][_]
 					x := {"s": {"do": 0, "re": 1, "mi": 2}}
 				}
@@ -1292,8 +1288,8 @@ func TestPartialRule(t *testing.T) {
 			note: "deep query into partial object (general ref head) and set value",
 			module: `package test
 				import future.keywords
-				p.q[r] contains t if { 
-					r := ["foo", "bar"][_] 
+				p.q[r] contains t if {
+					r := ["foo", "bar"][_]
 					{"do", "re", "mi"}[t]
 				}
 			`,
@@ -1304,8 +1300,8 @@ func TestPartialRule(t *testing.T) {
 			note: "deep query into partial object (general ref head, static tail) and set value",
 			module: `package test
 				import future.keywords
-				p.q[r].s contains t if { 
-					r := ["foo", "bar"][_] 
+				p.q[r].s contains t if {
+					r := ["foo", "bar"][_]
 					{"do", "re", "mi"}[t]
 				}
 			`,
@@ -1316,8 +1312,8 @@ func TestPartialRule(t *testing.T) {
 			note: "deep query into general ref to set value",
 			module: `package test
 				import future.keywords
-				p.q[r].s contains t if { 
-					r := ["foo", "bar"][_] 
+				p.q[r].s contains t if {
+					r := ["foo", "bar"][_]
 					t := ["do", "re", "mi"][_]
 				}
 			`,
@@ -1327,8 +1323,8 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "deep query into general ref to object value",
 			module: `package test
-				p.q[r].s[t] := u if { 
-					r := ["foo", "bar"][_] 
+				p.q[r].s[t] := u if {
+					r := ["foo", "bar"][_]
 					t := ["do", "re", "mi"][u]
 				}
 			`,
@@ -1339,8 +1335,8 @@ func TestPartialRule(t *testing.T) {
 			note: "deep query into general ref enumerating set values",
 			module: `package test
 				import future.keywords
-				p.q[r].s contains t if { 
-					r := ["foo", "bar"][_] 
+				p.q[r].s contains t if {
+					r := ["foo", "bar"][_]
 					{"do", "re", "mi"}[t]
 				}
 			`,
@@ -1351,8 +1347,8 @@ func TestPartialRule(t *testing.T) {
 		{
 			note: "deep query into partial object and object value, non-tail var",
 			module: `package test
-				p.q[r].s := x if { 
-					r := "foo" 
+				p.q[r].s := x if {
+					r := "foo"
 					x := {"bar": {"baz": 1}}
 				}
 			`,
@@ -1470,7 +1466,7 @@ func TestPartialRule(t *testing.T) {
 					t := ["d", "e", "f"][u]
 				}`,
 			query: `data.test.p.q[x] = y`,
-			exp: `[{"x": "a", "y": {"s": {"d": 0, "e": 1, "f": 2}}}, 
+			exp: `[{"x": "a", "y": {"s": {"d": 0, "e": 1, "f": 2}}},
 					{"x": "b", "y": {"s": {"d": 0, "e": 1, "f": 2}}},
 					{"x": "c", "y": {"s": {"d": 0, "e": 1, "f": 2}}}]`,
 		},
@@ -1535,7 +1531,6 @@ func TestPartialRule(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 

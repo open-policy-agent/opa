@@ -707,7 +707,6 @@ func TestParseTimeout(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
@@ -959,7 +958,6 @@ func TestHTTPSendRaiseError(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
@@ -1135,7 +1133,6 @@ func TestHTTPSendCaching(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
@@ -1239,7 +1236,6 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 	t0 := time.Now()
 
 	for _, tc := range tests {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
@@ -1400,7 +1396,6 @@ func TestHTTPSendInterQueryCaching(t *testing.T) {
 	t0 := time.Now()
 
 	for _, tc := range tests {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
@@ -1570,7 +1565,6 @@ func TestHTTPSendInterQueryForceCaching(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
@@ -1657,7 +1651,6 @@ func TestHTTPSendInterQueryForceCachingRefresh(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
@@ -1808,7 +1801,6 @@ func TestHTTPSendInterQueryCachingModifiedResp(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
@@ -1887,7 +1879,6 @@ func TestHTTPSendInterQueryCachingNewResp(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
@@ -1985,7 +1976,6 @@ func TestInsertIntoHTTPSendInterQueryCacheError(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t0 := time.Now().UTC()
 
 		t.Run(tc.note, func(t *testing.T) {
@@ -2074,7 +2064,6 @@ func TestGetCachingMode(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
@@ -2162,7 +2151,6 @@ func TestParseMaxAgeCacheDirective(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
@@ -2229,7 +2217,6 @@ func TestNewForceCacheParams(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
@@ -2299,7 +2286,6 @@ func TestGetBoolValFromReqObj(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
@@ -3342,21 +3328,21 @@ func TestIntraQueryCache_ClientError(t *testing.T) {
 	}{
 		{
 			note: "raised errors",
-			rules: []string{`p["one"] { 
-	not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms"}) 
+			rules: []string{`p["one"] {
+	not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms"})
 }`,
-				`p["two"] { 
+				`p["two"] {
 	not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms"})
 }`},
 			expected: `["one", "two"]`,
 		},
 		{
 			note: "no raised errors",
-			rules: []string{`p["one"] { 
-	r := http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "raise_error": false}) 
+			rules: []string{`p["one"] {
+	r := http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "raise_error": false})
 	r.error.code == "eval_http_send_network_error"
 }`,
-				`p["two"] { 
+				`p["two"] {
 	r := http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "raise_error": false})
 	r.error.code == "eval_http_send_network_error"
 }`},
@@ -3365,7 +3351,6 @@ func TestIntraQueryCache_ClientError(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
@@ -3409,21 +3394,21 @@ func TestInterQueryCache_ClientError(t *testing.T) {
 	}{
 		{
 			note: "raised errors",
-			rules: []string{`p["one"] { 
-	not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true}) 
+			rules: []string{`p["one"] {
+	not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true})
 }`,
-				`p["two"] { 
+				`p["two"] {
 	not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true})
 }`},
 			expected: `["one", "two"]`,
 		},
 		{
 			note: "no raised errors",
-			rules: []string{`p["one"] { 
-	r := http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true, "raise_error": false}) 
+			rules: []string{`p["one"] {
+	r := http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true, "raise_error": false})
 	r.error.code == "eval_http_send_network_error"
 }`,
-				`p["two"] { 
+				`p["two"] {
 	r := http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true, "raise_error": false})
 	r.error.code == "eval_http_send_network_error"
 }`},
@@ -3432,7 +3417,6 @@ func TestInterQueryCache_ClientError(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 

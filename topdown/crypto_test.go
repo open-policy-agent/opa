@@ -667,7 +667,6 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 		},
 	}
 	for name, testData := range tests {
-		testData := testData // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -829,9 +828,9 @@ func TestExtractX509VerifyOptions(t *testing.T) {
 			},
 		},
 		{ // KeyUsages as an array
-			jsonOption: ast.MustParseTerm(`{"DNSName": "test.com", "CurrentTime": 1708447636000000000, 
-				"MaxConstraintComparisons": 5, 				
-				"KeyUsages" : ["KeyUsageAny", "KeyUsageAny", 1, 2,   
+			jsonOption: ast.MustParseTerm(`{"DNSName": "test.com", "CurrentTime": 1708447636000000000,
+				"MaxConstraintComparisons": 5,
+				"KeyUsages" : ["KeyUsageAny", "KeyUsageAny", 1, 2,
 				"KeyUsageServerAuth","KeyUsageClientAuth"]}`),
 			expectVerifyOpt: x509.VerifyOptions{
 				DNSName:                   "test.com",

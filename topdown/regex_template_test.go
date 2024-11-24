@@ -25,7 +25,6 @@ func TestRegexCompiler(t *testing.T) {
 		{"urn:foo.bar.com:{.*{}", '{', '}', true, "", true},
 		{"urn:foo:<.*>", '<', '>', false, "urn:foo:bar:baz", false},
 	} {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(fmt.Sprintf("template=%s", tc.template), func(t *testing.T) {
 			t.Parallel()
 

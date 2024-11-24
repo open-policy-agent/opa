@@ -73,7 +73,6 @@ func TestAstValueToJSONSchemaLoader(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
@@ -144,7 +143,6 @@ func TestBuiltinJSONSchemaVerify(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
@@ -262,7 +260,6 @@ func TestBuiltinJSONMatchSchema(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
