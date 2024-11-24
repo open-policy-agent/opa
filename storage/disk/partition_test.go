@@ -105,7 +105,6 @@ func TestPartitionTrie(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(strings.TrimPrefix(tc.path, "/"), func(t *testing.T) {
 			t.Parallel()
 

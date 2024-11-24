@@ -413,7 +413,6 @@ func (s *session) start() error {
 	defer s.mtx.Unlock()
 
 	for _, t := range s.threads {
-		t := t
 		go func() {
 			s.d.logger.Debug("Thread %d started", t.id)
 			s.d.sendEvent(Event{Type: ThreadEventType, Thread: t.id, Message: "started"})

@@ -51,7 +51,6 @@ func TestIsDisjoint(t *testing.T) {
 			overlapped: true,
 		},
 	} {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 

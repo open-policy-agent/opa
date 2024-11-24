@@ -272,7 +272,6 @@ func TestTopDownQueryCancellationEvery(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
@@ -431,7 +430,7 @@ func TestTopDownEarlyExit(t *testing.T) {
 				package test
 				p if { q }
 
-				q contains x if { 
+				q contains x if {
 					x := [1, 2, 3][_]; trace("a")
 				}`,
 			notes: n("a", "a", "a"),
@@ -440,12 +439,12 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, iteration: other partial doc that cannot exit early",
 			module: `
 				package test
-				p if { 
-					data.arr[_] = x; trace("x") 
-					q 
+				p if {
+					data.arr[_] = x; trace("x")
+					q
 				}
 
-				q contains x if { 
+				q contains x if {
 					x := [1, 2, 3][_]; trace("a")
 				}`,
 			notes: n("x", "a", "a", "a"),
@@ -458,11 +457,11 @@ func TestTopDownEarlyExit(t *testing.T) {
 					data.arr[_] = x; trace("x")
 					q
 				}
-		
+
 				q contains x if {
 					x := [1, 2, 3][_]; trace("a")
 				}
-		
+
 				q contains x if {
 					x := [4, 5, 6][_]; trace("b")
 				}`,
@@ -558,8 +557,8 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, multiple array iteration",
 			module: `
 				package test
-				p if { 
-					data.arr[_] = x; trace("x") 
+				p if {
+					data.arr[_] = x; trace("x")
 					data.arr[_] = y; trace("y")
 					data.arr[_] = z; trace("z")
 				}
@@ -571,12 +570,12 @@ func TestTopDownEarlyExit(t *testing.T) {
 			module: `
 				package test
 				p if {
-					data.arr[_] = x; trace("x") 
+					data.arr[_] = x; trace("x")
 					data.arr[_] = y; trace("y")
 					q; trace("q")
 				}
 
-				q if { 
+				q if {
 					data.arr[_] = a; trace("a")
 					data.arr[_] = b; trace("b")
 				}
@@ -589,18 +588,18 @@ func TestTopDownEarlyExit(t *testing.T) {
 			module: `
 				package test
 				p if {
-					data.arr[_] = x; trace("x") 
+					data.arr[_] = x; trace("x")
 					data.arr[_] = y; trace("y")
 					q; trace("q")
 				}
 
-				q if { 
+				q if {
 					data.arr[_] = a; trace("a")
 					data.arr[_] = b; trace("b")
 				}
 
 				# Not called because of EE
-				q if { 
+				q if {
 					data.arr[_] = a; trace("c")
 					data.arr[_] = b; trace("d")
 				}
@@ -613,13 +612,13 @@ func TestTopDownEarlyExit(t *testing.T) {
 			module: `
 				package test
 				p if {
-					data.arr[_] = x; trace("x") 
+					data.arr[_] = x; trace("x")
 					data.arr[_] = y; trace("y")
 					q; trace("q1")
 					q; trace("q2") # result of q in cache
 				}
 
-				q if { 
+				q if {
 					data.arr[_] = a; trace("a")
 					data.arr[_] = b; trace("b")
 				}
@@ -632,19 +631,19 @@ func TestTopDownEarlyExit(t *testing.T) {
 			module: `
 				package test
 				p if {
-					data.arr[_] = x; trace("x") 
+					data.arr[_] = x; trace("x")
 					data.arr[_] = y; trace("y")
 					q; trace("q1")
 					q; trace("q2") # result of q in cache
 				}
 
-				q if { 
+				q if {
 					data.arr[_] = a; trace("a")
 					data.arr[_] = b; trace("b")
 				}
 
 				# Not called because of EE
-				q if { 
+				q if {
 					data.arr[_] = a; trace("c")
 					data.arr[_] = b; trace("d")
 				}
@@ -657,18 +656,18 @@ func TestTopDownEarlyExit(t *testing.T) {
 			module: `
 				package test
 				p if {
-					data.arr[_] = x; trace("x") 
+					data.arr[_] = x; trace("x")
 					data.arr[_] = y; trace("y")
 					q; trace("q")
 					r; trace("r")
 				}
 
-				q if { 
+				q if {
 					data.arr[_] = a; trace("a")
 					data.arr[_] = b; trace("b")
 				}
 
-				r if { 
+				r if {
 					data.arr[_] = c; trace("c")
 					data.arr[_] = d; trace("d")
 				}
@@ -681,7 +680,7 @@ func TestTopDownEarlyExit(t *testing.T) {
 			module: `
 				package test
 				arr := ["a", "b", "c"]
-				p if { 
+				p if {
 					arr[_] = x; trace("x")
 				}
 			`,
@@ -693,8 +692,8 @@ func TestTopDownEarlyExit(t *testing.T) {
 			module: `
 				package test
 				arr := ["a", "b", "c"]
-				p if { 
-					arr[_] = x; trace("x") 
+				p if {
+					arr[_] = x; trace("x")
 					arr[_] = y; trace("y") # arr in cache
 				}
 			`,
@@ -753,11 +752,11 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, array iteration, func call with early exit",
 			module: `
 				package test
-				p if { 
+				p if {
 					data.arr[_] = x; trace("x")
 					f(1) == 1
 				}
-				
+
 				f(x) := 1 if {
 					trace("a")
 				}
@@ -769,15 +768,15 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, multiple array iterations, func call multiple early exit",
 			module: `
 				package test
-				p if { 
+				p if {
 					data.arr[_] = x; trace("x")
 					f(1) == 1
 				}
-				
+
 				f(x) := 1 if {
 					trace("a")
 				}
-				
+
 				f(x) := 1 if {
 					trace("b")
 				}
@@ -789,15 +788,15 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, multiple array iterations, func call without early exit",
 			module: `
 				package test
-				p if { 
+				p if {
 					data.arr[_] = x; trace("x")
 					f(1) == 1
 				}
-				
+
 				f(x) := 1 if {
 					trace("a")
 				}
-				
+
 				f(x) := 1 if {
 					trace("b")
 				}
@@ -813,11 +812,11 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, multiple array iterations, func call with early exit and iteration",
 			module: `
 				package test
-				p if { 
+				p if {
 					data.arr[_] = x; trace("x")
 					f(1) == 1
 				}
-				
+
 				f(x) := 1 if {
 					data.arr[_] = a; trace("a")
 				}
@@ -829,11 +828,11 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, array iteration, func call without early exit, static arg",
 			module: `
 				package test
-				p if { 
+				p if {
 					data.arr[_] = x; trace("x")
 					f(1) == 1
 				}
-				
+
 				f(x) := x if {
 					trace("a")
 				}
@@ -844,11 +843,11 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, array iteration -> func call without early exit, dynamic arg",
 			module: `
 				package test
-				p if { 
+				p if {
 					data.arr[_] = x; trace("x")
 					f(x) == x
 				}
-				
+
 				f(x) := x if {
 					trace("a")
 				}
@@ -861,11 +860,11 @@ func TestTopDownEarlyExit(t *testing.T) {
 				package test
 				s := { 1, 2, 3 }
 
-				p if { 
+				p if {
 					s[_] = x; trace("x")
 					f(x) == x
 				}
-				
+
 				f(x) := x if {
 					trace("a")
 				}
@@ -883,11 +882,11 @@ func TestTopDownEarlyExit(t *testing.T) {
 					"c": 3,
 				}
 
-				p if { 
+				p if {
 					o[_] = x; trace("x")
 					f(x) == x
 				}
-				
+
 				f(x) := x if {
 					trace("a")
 				}
@@ -899,13 +898,13 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, array iteration -> func call without early exit, array iteration, dynamic arg",
 			module: `
 				package test
-				p if { 
+				p if {
 					arr[_] = x; trace("x")
 					f(x) == x
 				}
 
 				arr := [1, 2, 3, 4, 2]
-				
+
 				f(x) := x if {
 					arr[_] = y; trace("a")
 					y == 2; trace("b") # y will have exactly two matches, so we expect two "b" notes, and an exhaustive number of "a" notes
@@ -921,7 +920,7 @@ func TestTopDownEarlyExit(t *testing.T) {
 
 				s := { 1, 2, 3, 4, 5 }
 
-				p if { 
+				p if {
 					s[_] = x; trace("x")
 					f(x) == x
 				}
@@ -939,14 +938,14 @@ func TestTopDownEarlyExit(t *testing.T) {
 			module: `
 				package test
 
-				o := { 
+				o := {
 					"a": 1,
 					"b": 2,
 					"c": 3,
 					"d": 2,
 				}
 
-				p if { 
+				p if {
 					o[_] = x; trace("x")
 					f(x) == x
 				}
@@ -963,13 +962,13 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, array iteration -> func call without early exit, virtual doc array iteration, dynamic arg",
 			module: `
 				package test
-				p if { 
+				p if {
 					data.arr[_] = x; trace("x")
 					f(x) == x
 				}
 
 arr := [1, 2, 3, 4, 5]
-				
+
 				f(x) := x if {
 					arr[_] = y; trace("a")
 					y == 3; trace("b")
@@ -982,11 +981,11 @@ arr := [1, 2, 3, 4, 5]
 			note: "complete doc, array iteration -> func (multi) call without early exit, static arg",
 			module: `
 				package test
-				p if { 
+				p if {
 					data.arr[_] = x; trace("x")
 					f(1) == 1
 				}
-				
+
 				f(x) := x if {
 					trace("a")
 				}
@@ -1151,9 +1150,9 @@ arr := [1, 2, 3, 4, 5]
 				import future.keywords
 				p if {
 					data.arr[_] = x; trace("x")
-					every x in [1, 2, 3] { 
+					every x in [1, 2, 3] {
 						data.arr[_] = y; trace("a")
-						x; trace("b") 
+						x; trace("b")
 					}
 				}
 			`,
@@ -1166,7 +1165,7 @@ arr := [1, 2, 3, 4, 5]
 				import future.keywords
 				p if {
 					data.arr_small[_] = x; trace("x")
-					every x in [1, 2, 3] { 
+					every x in [1, 2, 3] {
 						data.arr_small[_] = y; trace("e1")
 						x
 						q; trace("e2")
@@ -1192,7 +1191,7 @@ arr := [1, 2, 3, 4, 5]
 				import future.keywords
 				p if {
 					data.arr[_] = x; trace("x")
-					every x in [1, 2, 3] { 
+					every x in [1, 2, 3] {
 						data.arr_small[_] = y; trace("e1")
 						x
 						q; trace("e2")
@@ -1222,11 +1221,11 @@ arr := [1, 2, 3, 4, 5]
 				}
 
 				arr := [1, 2]
-		
+
 				q := x if {
 					x := 1
 					arr[_] = y; trace("a")
-					every v in [1, 2, 3] { 
+					every v in [1, 2, 3] {
 						v; trace("b") # we expect 3*len(arr)==6 "b" notes
 					}
 				}
@@ -1244,15 +1243,15 @@ arr := [1, 2, 3, 4, 5]
 				}
 
 				arr := [1, 2]
-		
+
 				q := x if {
 					x := 1
 					arr[_] = y; trace("a")
-					every v in [1, 2, 3] { 
+					every v in [1, 2, 3] {
 						v; r; trace("b") # we expect 3*len(arr)==6 "b" notes
 					}
 				}
-	
+
 				r if {
 					data.arr[_] = x; trace("c")
 				}
@@ -1269,7 +1268,7 @@ arr := [1, 2, 3, 4, 5]
 					data.arr[_] = x; trace("p1")
 					y := [v | v = data.arr[_]; q]; trace("p2")
 				}
-		
+
 				q if {
 					data.arr[_] = x; trace("q")
 				}
@@ -1285,7 +1284,7 @@ arr := [1, 2, 3, 4, 5]
 					data.arr[_] = x; trace("p1")
 					y := [v | v = data.arr[_]; q]; trace("p2")
 				}
-		
+
 				q if {
 					data.arr[_] = x; trace("q")
 					r
@@ -1308,7 +1307,7 @@ arr := [1, 2, 3, 4, 5]
 					data.arr[_] = x; trace("p1")
 					y := {v | v = data.arr[_]; q}; trace("p2")
 				}
-		
+
 				q if {
 					data.arr[_] = x; trace("q")
 				}
@@ -1324,7 +1323,7 @@ arr := [1, 2, 3, 4, 5]
 					data.arr[_] = x; trace("p1")
 					y := {v | v = data.arr[_]; q}; trace("p2")
 				}
-		
+
 				q if {
 					data.arr[_] = x; trace("q")
 					r
@@ -1347,7 +1346,7 @@ arr := [1, 2, 3, 4, 5]
 					data.arr[_] = x; trace("p1")
 					y := {k: v | v = data.arr[k]; q}; trace("p2")
 				}
-		
+
 				q if {
 					data.arr[_] = x; trace("q")
 				}
@@ -1363,7 +1362,7 @@ arr := [1, 2, 3, 4, 5]
 					data.arr[_] = x; trace("p1")
 					y := {k: v | v = data.arr[k]; q}; trace("p2")
 				}
-		
+
 				q if {
 					data.arr[_] = x; trace("q")
 					r
@@ -1465,7 +1464,7 @@ arr := [1, 2, 3, 4, 5]
 					data.arr[_] = x; trace("p1")
 					not q; trace("p2")
 				}
-		
+
 				q := false if {
 					data.arr[_] = x; trace("q")
 				}
@@ -1481,7 +1480,7 @@ arr := [1, 2, 3, 4, 5]
 					data.arr[_] = x; trace("p1")
 					not q; trace("p2")
 				}
-		
+
 				q := x if {
 					x := false
 					data.arr_small[_] = y; trace("q")
@@ -1497,7 +1496,7 @@ arr := [1, 2, 3, 4, 5]
 					data.arr[_] = x; trace("p1")
 					not q; trace("p2")
 				}
-		
+
 				q if {
 					data.arr_small[_] = x; trace("q")
 					false
@@ -1507,7 +1506,6 @@ arr := [1, 2, 3, 4, 5]
 		},
 	}
 	for _, tc := range tests {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
@@ -1680,7 +1678,6 @@ func TestTopDownEvery(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
