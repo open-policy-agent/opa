@@ -21,3 +21,21 @@ cases:
           - - []
             - 1
     sort_bindings: true
+  - note: walkbuiltin/scalar no path
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p contains x if {
+        	walk(data.a[0], [_, x])
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x:
+          - 1

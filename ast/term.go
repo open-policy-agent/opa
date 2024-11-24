@@ -8,7 +8,6 @@ package ast
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -326,7 +325,6 @@ func (term *Term) SetLoc(loc *Location) {
 
 // Copy returns a deep copy of term.
 func (term *Term) Copy() *Term {
-
 	if term == nil {
 		return nil
 	}
@@ -386,6 +384,8 @@ func (term *Term) Equal(other *Term) bool {
 	case Var:
 		return v.Equal(other.Value)
 	case Ref:
+		return v.Equal(other.Value)
+	case *Array:
 		return v.Equal(other.Value)
 	}
 
@@ -1234,7 +1234,20 @@ func (arr *Array) Copy() *Array {
 
 // Equal returns true if arr is equal to other.
 func (arr *Array) Equal(other Value) bool {
-	return Compare(arr, other) == 0
+	if arr == other {
+		return true
+	}
+
+	if other, ok := other.(*Array); ok && len(arr.elems) == len(other.elems) {
+		for i := range arr.elems {
+			if !arr.elems[i].Equal(other.elems[i]) {
+				return false
+			}
+		}
+		return true
+	}
+
+	return false
 }
 
 // Compare compares arr to other, return <0, 0, or >0 if it is less than, equal to,
@@ -1397,21 +1410,19 @@ func (arr *Array) Iter(f func(*Term) error) error {
 
 // Until calls f on each element in arr. If f returns true, iteration stops.
 func (arr *Array) Until(f func(*Term) bool) bool {
-	err := arr.Iter(func(t *Term) error {
-		if f(t) {
-			return errStop
+	for _, term := range arr.elems {
+		if f(term) {
+			return true
 		}
-		return nil
-	})
-	return err != nil
+	}
+	return false
 }
 
 // Foreach calls f on each element in arr.
 func (arr *Array) Foreach(f func(*Term)) {
-	_ = arr.Iter(func(t *Term) error {
-		f(t)
-		return nil
-	}) // ignore error
+	for _, term := range arr.elems {
+		f(term)
+	}
 }
 
 // Append appends a term to arr, returning the appended array.
@@ -1446,8 +1457,8 @@ type Set interface {
 // NewSet returns a new Set containing t.
 func NewSet(t ...*Term) Set {
 	s := newset(len(t))
-	for i := range t {
-		s.Add(t[i])
+	for _, term := range t {
+		s.insert(term, false)
 	}
 	return s
 }
@@ -1484,10 +1495,11 @@ type set struct {
 
 // Copy returns a deep copy of s.
 func (s *set) Copy() Set {
-	cpy := newset(s.Len())
-	s.Foreach(func(x *Term) {
-		cpy.Add(x.Copy())
-	})
+	terms := make([]*Term, len(s.keys))
+	for i := range s.keys {
+		terms[i] = s.keys[i].Copy()
+	}
+	cpy := NewSet(terms...).(*set)
 	cpy.hash = s.hash
 	cpy.ground = s.ground
 	return cpy
@@ -1560,13 +1572,14 @@ func (s *set) Find(path Ref) (Value, error) {
 
 // Diff returns elements in s that are not in other.
 func (s *set) Diff(other Set) Set {
-	r := NewSet()
-	s.Foreach(func(x *Term) {
-		if !other.Contains(x) {
-			r.Add(x)
+	terms := make([]*Term, 0, len(s.keys))
+	for _, term := range s.sortedKeys() {
+		if !other.Contains(term) {
+			terms = append(terms, term)
 		}
-	})
-	return r
+	}
+
+	return NewSet(terms...)
 }
 
 // Intersect returns the set containing elements in both s and other.
@@ -1581,13 +1594,14 @@ func (s *set) Intersect(other Set) Set {
 		n = m
 	}
 
-	r := newset(n)
-	ss.Foreach(func(x *Term) {
-		if so.Contains(x) {
-			r.Add(x)
+	terms := make([]*Term, 0, n)
+	for _, term := range ss.sortedKeys() {
+		if so.Contains(term) {
+			terms = append(terms, term)
 		}
-	})
-	return r
+	}
+
+	return NewSet(terms...)
 }
 
 // Union returns the set containing all elements of s and other.
@@ -1600,56 +1614,48 @@ func (s *set) Union(other Set) Set {
 
 // Add updates s to include t.
 func (s *set) Add(t *Term) {
-	s.insert(t)
+	s.insert(t, true)
 }
 
 // Iter calls f on each element in s. If f returns an error, iteration stops
 // and the return value is the error.
 func (s *set) Iter(f func(*Term) error) error {
-	for i := range s.sortedKeys() {
-		if err := f(s.keys[i]); err != nil {
+	for _, term := range s.sortedKeys() {
+		if err := f(term); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-var errStop = errors.New("stop")
-
 // Until calls f on each element in s. If f returns true, iteration stops.
 func (s *set) Until(f func(*Term) bool) bool {
-	err := s.Iter(func(t *Term) error {
-		if f(t) {
-			return errStop
+	for _, term := range s.sortedKeys() {
+		if f(term) {
+			return true
 		}
-		return nil
-	})
-	return err != nil
+	}
+	return false
 }
 
 // Foreach calls f on each element in s.
 func (s *set) Foreach(f func(*Term)) {
-	_ = s.Iter(func(t *Term) error {
-		f(t)
-		return nil
-	}) // ignore error
+	for _, term := range s.sortedKeys() {
+		f(term)
+	}
 }
 
 // Map returns a new Set obtained by applying f to each value in s.
 func (s *set) Map(f func(*Term) (*Term, error)) (Set, error) {
-	set := NewSet()
-	err := s.Iter(func(x *Term) error {
+	mapped := make([]*Term, 0, len(s.keys))
+	for _, x := range s.sortedKeys() {
 		term, err := f(x)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		set.Add(term)
-		return nil
-	})
-	if err != nil {
-		return nil, err
+		mapped = append(mapped, term)
 	}
-	return set, nil
+	return NewSet(mapped...), nil
 }
 
 // Reduce returns a Term produced by applying f to each value in s. The first
@@ -1697,9 +1703,23 @@ func (s *set) Slice() []*Term {
 	return s.sortedKeys()
 }
 
+// Internal method to use for cases where a set may be reused in favor
+// of creating a new one (with the associated allocations).
+func (s *set) clear() {
+	clear(s.elems)
+	s.keys = s.keys[:0]
+	s.hash = 0
+	s.ground = true
+	s.sortGuard = new(sync.Once)
+}
+
+func (s *set) insertNoGuard(x *Term) {
+	s.insert(x, false)
+}
+
 // NOTE(philipc): We assume a many-readers, single-writer model here.
 // This method should NOT be used concurrently, or else we risk data races.
-func (s *set) insert(x *Term) {
+func (s *set) insert(x *Term, resetSortGuard bool) {
 	hash := x.Hash()
 	insertHash := hash
 	// This `equal` utility is duplicated and manually inlined a number of
@@ -1791,9 +1811,15 @@ func (s *set) insert(x *Term) {
 	s.elems[insertHash] = x
 	// O(1) insertion, but we'll have to re-sort the keys later.
 	s.keys = append(s.keys, x)
-	// Reset the sync.Once instance.
-	// See https://github.com/golang/go/issues/25955 for why we do it this way.
-	s.sortGuard = new(sync.Once)
+
+	if resetSortGuard {
+		// Reset the sync.Once instance.
+		// See https://github.com/golang/go/issues/25955 for why we do it this way.
+		// Note that this will always be the case when external code calls insert via
+		// Add, or otherwise. Internal code may however benefit from not having to
+		// re-create this pointer when it's known not to be needed.
+		s.sortGuard = new(sync.Once)
+	}
 
 	s.hash += hash
 	s.ground = s.ground && x.IsGround()
@@ -1915,7 +1941,7 @@ type Object interface {
 func NewObject(t ...[2]*Term) Object {
 	obj := newobject(len(t))
 	for i := range t {
-		obj.Insert(t[i][0], t[i][1])
+		obj.insert(t[i][0], t[i][1], false)
 	}
 	return obj
 }
@@ -2216,7 +2242,7 @@ func (obj *object) Find(path Ref) (Value, error) {
 }
 
 func (obj *object) Insert(k, v *Term) {
-	obj.insert(k, v)
+	obj.insert(k, v, true)
 }
 
 // Get returns the value of k in obj if k exists, otherwise nil.
@@ -2248,12 +2274,12 @@ func (obj *object) Copy() Object {
 
 // Diff returns a new Object that contains only the key/value pairs that exist in obj.
 func (obj *object) Diff(other Object) Object {
-	r := NewObject()
-	obj.Foreach(func(k, v *Term) {
-		if other.Get(k) == nil {
-			r.Insert(k, v)
+	r := newobject(obj.Len())
+	for _, node := range obj.sortedKeys() {
+		if other.Get(node.key) == nil {
+			r.insert(node.key, node.value, false)
 		}
-	})
+	}
 	return r
 }
 
@@ -2285,38 +2311,31 @@ func (obj *object) Iter(f func(*Term, *Term) error) error {
 // true, iteration stops and Until returns true. Otherwise, return
 // false.
 func (obj *object) Until(f func(*Term, *Term) bool) bool {
-	err := obj.Iter(func(k, v *Term) error {
-		if f(k, v) {
-			return errStop
+	for _, node := range obj.sortedKeys() {
+		if f(node.key, node.value) {
+			return true
 		}
-		return nil
-	})
-	return err != nil
+	}
+	return false
 }
 
 // Foreach calls f for each key-value pair in the object.
 func (obj *object) Foreach(f func(*Term, *Term)) {
-	_ = obj.Iter(func(k, v *Term) error {
-		f(k, v)
-		return nil
-	}) // ignore error
+	for _, node := range obj.sortedKeys() {
+		f(node.key, node.value)
+	}
 }
 
 // Map returns a new Object constructed by mapping each element in the object
 // using the function f.
 func (obj *object) Map(f func(*Term, *Term) (*Term, *Term, error)) (Object, error) {
 	cpy := newobject(obj.Len())
-	err := obj.Iter(func(k, v *Term) error {
-		var err error
-		k, v, err = f(k, v)
+	for _, node := range obj.sortedKeys() {
+		k, v, err := f(node.key, node.value)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		cpy.insert(k, v)
-		return nil
-	})
-	if err != nil {
-		return nil, err
+		cpy.insert(k, v, false)
 	}
 	return cpy, nil
 }
@@ -2451,10 +2470,10 @@ func (obj *object) get(k *Term) *objectElem {
 	case Null, Boolean, String, Var:
 		equal = func(y Value) bool { return x == y }
 	case Number:
-		if xi, err := json.Number(x).Int64(); err == nil {
+		if xi, ok := x.Int64(); ok {
 			equal = func(y Value) bool {
 				if y, ok := y.(Number); ok {
-					if yi, err := json.Number(y).Int64(); err == nil {
+					if yi, ok := y.Int64(); ok {
 						return xi == yi
 					}
 				}
@@ -2528,7 +2547,7 @@ func (obj *object) get(k *Term) *objectElem {
 
 // NOTE(philipc): We assume a many-readers, single-writer model here.
 // This method should NOT be used concurrently, or else we risk data races.
-func (obj *object) insert(k, v *Term) {
+func (obj *object) insert(k, v *Term, resetSortGuard bool) {
 	hash := k.Hash()
 	head := obj.elems[hash]
 	// This `equal` utility is duplicated and manually inlined a number of
@@ -2635,9 +2654,16 @@ func (obj *object) insert(k, v *Term) {
 	obj.elems[hash] = elem
 	// O(1) insertion, but we'll have to re-sort the keys later.
 	obj.keys = append(obj.keys, elem)
-	// Reset the sync.Once instance.
-	// See https://github.com/golang/go/issues/25955 for why we do it this way.
-	obj.sortGuard = new(sync.Once)
+
+	if resetSortGuard {
+		// Reset the sync.Once instance.
+		// See https://github.com/golang/go/issues/25955 for why we do it this way.
+		// Note that this will always be the case when external code calls insert via
+		// Add, or otherwise. Internal code may however benefit from not having to
+		// re-create this pointer when it's known not to be needed.
+		obj.sortGuard = new(sync.Once)
+	}
+
 	obj.hash += hash + v.Hash()
 
 	if k.IsGround() {
@@ -2688,18 +2714,17 @@ func filterObject(o Value, filter Value) (Value, error) {
 		}
 		return values, nil
 	case Set:
-		values := NewSet()
-		err := v.Iter(func(t *Term) error {
+		terms := make([]*Term, 0, v.Len())
+		for _, t := range v.Slice() {
 			if filteredObj.Get(t) != nil {
 				filteredValue, err := filterObject(t.Value, filteredObj.Get(t).Value)
 				if err != nil {
-					return err
+					return nil, err
 				}
-				values.Add(NewTerm(filteredValue))
+				terms = append(terms, NewTerm(filteredValue))
 			}
-			return nil
-		})
-		return values, err
+		}
+		return NewSet(terms...), nil
 	case *object:
 		values := NewObject()
 
@@ -3238,11 +3263,7 @@ func unmarshalValue(d map[string]interface{}) (Value, error) {
 		}
 	case "set":
 		if s, err := unmarshalTermSliceValue(d); err == nil {
-			set := NewSet()
-			for _, x := range s {
-				set.Add(x)
-			}
-			return set, nil
+			return NewSet(s...), nil
 		}
 	case "object":
 		if s, ok := v.([]interface{}); ok {

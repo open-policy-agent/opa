@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/open-policy-agent/opa/util"
 )
@@ -137,8 +138,15 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 }
 
 func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
+	tr := ttrPool.Get().(*trieTraversalResult)
 
-	tr := newTrieTraversalResult()
+	defer func() {
+		clear(tr.unordered)
+		tr.ordering = tr.ordering[:0]
+		tr.values.clear()
+
+		ttrPool.Put(tr)
+	}()
 
 	err := i.root.Traverse(resolver, tr)
 	if err != nil {
@@ -419,13 +427,22 @@ type trieWalker interface {
 type trieTraversalResult struct {
 	unordered map[int][]*ruleNode
 	ordering  []int
-	values    Set
+	values    *set
+}
+
+var ttrPool = sync.Pool{
+	New: func() any {
+		return newTrieTraversalResult()
+	},
 }
 
 func newTrieTraversalResult() *trieTraversalResult {
 	return &trieTraversalResult{
 		unordered: map[int][]*ruleNode{},
-		values:    NewSet(),
+		// Number 3 is arbitrary, but seemed to be the most common number of values
+		// stored when benchmarking the trie traversal against a large policy library
+		// (Regal).
+		values: newset(3),
 	}
 }
 
@@ -439,7 +456,7 @@ func (tr *trieTraversalResult) Add(t *trieNode) {
 		tr.unordered[root] = append(nodes, node)
 	}
 	if t.values != nil {
-		t.values.Foreach(tr.values.Add)
+		t.values.Foreach(tr.values.insertNoGuard)
 	}
 }
 

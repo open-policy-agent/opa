@@ -388,6 +388,34 @@ func BenchmarkArrayString(b *testing.B) {
 	}
 }
 
+// This was used primarily to test the performance of the Equal method using the
+// current implementation vs that of the previous implementation, which simply called
+// the Compare function to test for equality (== 0). This was about as fast as the current
+// implementation when both arrays were equal, but significantly slower when they
+// were not (135 nanoseconds for the old implementation vs 4 nanoseconds now).
+func BenchmarkArrayEquality(b *testing.B) {
+	sizes := []int{5, 50, 500, 5000}
+	for _, n := range sizes {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			arrA := NewArray()
+			arrB := NewArray()
+			for i := 0; i < n; i++ {
+				arrA = arrA.Append(IntNumberTerm(i))
+				arrB = arrB.Append(IntNumberTerm(i))
+			}
+			// make sure the arrays are not equal
+			arrB = arrB.Append(IntNumberTerm(10000))
+			b.ResetTimer()
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				if arrA.Equal(arrB) {
+					b.Fatal("expected not equal")
+				}
+			}
+		})
+	}
+}
+
 func BenchmarkSetString(b *testing.B) {
 	sizes := []int{5, 50, 500, 5000, 50000}
 
