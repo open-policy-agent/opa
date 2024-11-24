@@ -385,6 +385,8 @@ func (term *Term) Equal(other *Term) bool {
 		return v.Equal(other.Value)
 	case Var:
 		return v.Equal(other.Value)
+	case Ref:
+		return v.Equal(other.Value)
 	}
 
 	return term.Value.Compare(other.Value) == 0
@@ -992,7 +994,20 @@ func (ref Ref) Copy() Ref {
 
 // Equal returns true if ref is equal to other.
 func (ref Ref) Equal(other Value) bool {
-	return Compare(ref, other) == 0
+	switch o := other.(type) {
+	case Ref:
+		if len(ref) == len(o) {
+			for i := range ref {
+				if !ref[i].Equal(o[i]) {
+					return false
+				}
+			}
+
+			return true
+		}
+	}
+
+	return false
 }
 
 // Compare compares ref to other, return <0, 0, or >0 if it is less than, equal to,
@@ -1578,12 +1593,8 @@ func (s *set) Intersect(other Set) Set {
 // Union returns the set containing all elements of s and other.
 func (s *set) Union(other Set) Set {
 	r := NewSet()
-	s.Foreach(func(x *Term) {
-		r.Add(x)
-	})
-	other.Foreach(func(x *Term) {
-		r.Add(x)
-	})
+	s.Foreach(r.Add)
+	other.Foreach(r.Add)
 	return r
 }
 

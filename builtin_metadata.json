@@ -21380,7 +21380,7 @@
       "v0.70.0",
       "edge"
     ],
-    "description": "Converts strings like \"10G\", \"5K\", \"4M\", \"1500m\", and the like into a number.\nThis number can be a non-integer, such as 1.5, 0.22, etc. Scientific notation is supported, \nallowing values such as \"1e-3K\" (1) or \"2.5e6M\" (2.5 million M).\n\nSupports standard metric decimal and binary SI units (e.g., K, Ki, M, Mi, G, Gi, etc.) where\nm, K, M, G, T, P, and E are treated as decimal units and Ki, Mi, Gi, Ti, Pi, and Ei are treated as\nbinary units.\n\nNote that 'm' and 'M' are case-sensitive to allow distinguishing between \"milli\" and \"mega\" units\nrespectively. Other units are case-insensitive.",
+    "description": "Converts strings like \"10G\", \"5K\", \"4M\", \"1500m\", and the like into a number.\nThis number can be a non-integer, such as 1.5, 0.22, etc. Scientific notation is supported,\nallowing values such as \"1e-3K\" (1) or \"2.5e6M\" (2.5 million M).\n\nSupports standard metric decimal and binary SI units (e.g., K, Ki, M, Mi, G, Gi, etc.) where\nm, K, M, G, T, P, and E are treated as decimal units and Ki, Mi, Gi, Ti, Pi, and Ei are treated as\nbinary units.\n\nNote that 'm' and 'M' are case-sensitive to allow distinguishing between \"milli\" and \"mega\" units\nrespectively. Other units are case-insensitive.",
     "introduced": "v0.41.0",
     "result": {
       "description": "the parsed number",
@@ -21508,7 +21508,7 @@
       "v0.70.0",
       "edge"
     ],
-    "description": "Converts strings like \"10GB\", \"5K\", \"4mb\", or \"1e6KB\" into an integer number of bytes.\n\nSupports standard byte units (e.g., KB, KiB, etc.) where KB, MB, GB, and TB are treated as decimal \nunits, and KiB, MiB, GiB, and TiB are treated as binary units. Scientific notation is supported, \nenabling values like \"1.5e3MB\" (1500MB) or \"2e6GiB\" (2 million GiB).\n\nThe bytes symbol (b/B) in the unit is optional; omitting it will yield the same result (e.g., \"Mi\" \nand \"MiB\" are equivalent).",
+    "description": "Converts strings like \"10GB\", \"5K\", \"4mb\", or \"1e6KB\" into an integer number of bytes.\n\nSupports standard byte units (e.g., KB, KiB, etc.) where KB, MB, GB, and TB are treated as decimal\nunits, and KiB, MiB, GiB, and TiB are treated as binary units. Scientific notation is supported,\nenabling values like \"1.5e3MB\" (1500MB) or \"2e6GiB\" (2 million GiB).\n\nThe bytes symbol (b/B) in the unit is optional; omitting it will yield the same result (e.g., \"Mi\"\nand \"MiB\" are equivalent).",
     "introduced": "v0.17.0",
     "result": {
       "description": "the parsed number",

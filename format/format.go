@@ -758,7 +758,7 @@ func (w *writer) writeFunctionCall(expr *ast.Expr, comments []*ast.Comment) []*a
 		return w.writeFunctionCallPlain(terms, comments)
 	}
 
-	numDeclArgs := len(bi.Decl.Args())
+	numDeclArgs := bi.Decl.Arity()
 	numCallArgs := len(terms) - 1
 
 	switch numCallArgs {
@@ -918,7 +918,7 @@ func (w *writer) writeCall(parens bool, x ast.Call, loc *ast.Location, comments 
 	// NOTE(Trolloldem): writeCall is only invoked when the function call is a term
 	// of another function. The only valid arity is the one of the
 	// built-in function
-	if len(bi.Decl.Args()) != len(x)-1 {
+	if bi.Decl.Arity() != len(x)-1 {
 		w.errs = append(w.errs, ArityFormatMismatchError(x[1:], x[0].String(), loc, bi.Decl))
 		return comments
 	}
@@ -935,10 +935,10 @@ func (w *writer) writeCall(parens bool, x ast.Call, loc *ast.Location, comments 
 
 func (w *writer) writeInOperator(parens bool, operands []*ast.Term, comments []*ast.Comment, loc *ast.Location, f *types.Function) []*ast.Comment {
 
-	if len(operands) != len(f.Args()) {
+	if len(operands) != f.Arity() {
 		// The number of operands does not math the arity of the `in` operator
 		operator := ast.Member.Name
-		if len(f.Args()) == 3 {
+		if f.Arity() == 3 {
 			operator = ast.MemberWithKey.Name
 		}
 		w.errs = append(w.errs, ArityFormatMismatchError(operands, operator, loc, f))
@@ -1603,9 +1603,9 @@ type ArityFormatErrDetail struct {
 
 // arityMismatchError but for `fmt` checks since the compiler has not run yet.
 func ArityFormatMismatchError(operands []*ast.Term, operator string, loc *ast.Location, f *types.Function) *ast.Error {
-	want := make([]string, len(f.Args()))
-	for i := range f.Args() {
-		want[i] = types.Sprint(f.Args()[i])
+	want := make([]string, f.Arity())
+	for i, arg := range f.Args() {
+		want[i] = types.Sprint(arg)
 	}
 
 	have := make([]string, len(operands))

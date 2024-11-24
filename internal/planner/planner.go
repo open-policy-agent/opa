@@ -1037,7 +1037,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 			args = p.defaultOperands()
 		} else if decl, ok := p.decls[operator]; ok {
 			relation = decl.Relation
-			arity = len(decl.Decl.Args())
+			arity = decl.Decl.Arity()
 			void = decl.Decl.Result() == nil
 			name = operator
 			p.externs[operator] = decl

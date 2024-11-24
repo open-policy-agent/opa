@@ -809,7 +809,7 @@ func memoize(decl *Function, bctx BuiltinContext, terms []*ast.Term, ifEmpty fun
 	// The term slice _may_ include an output term depending on how the caller
 	// referred to the built-in function. Only use the arguments as the cache
 	// key. Unification ensures we don't get false positive matches.
-	for i := 0; i < len(decl.Decl.Args()); i++ {
+	for i := 0; i < decl.Decl.Arity(); i++ {
 		if _, err := b.WriteString(terms[i].String()); err != nil {
 			return nil, err
 		}

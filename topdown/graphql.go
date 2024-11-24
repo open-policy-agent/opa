@@ -174,7 +174,7 @@ func pruneIrrelevantGraphQLASTNodes(value ast.Value) ast.Value {
 			case ast.Object:
 				// Safe, because we knew the type before going to prune it.
 				vo := pruneIrrelevantGraphQLASTNodes(v).(ast.Object)
-				if len(vo.Keys()) > 0 {
+				if vo.Len() > 0 {
 					result = result.Append(ast.NewTerm(vo))
 				}
 			default:
@@ -209,7 +209,7 @@ func pruneIrrelevantGraphQLASTNodes(value ast.Value) ast.Value {
 			case ast.Object:
 				// Safe, because we knew the type before going to prune it.
 				vo := pruneIrrelevantGraphQLASTNodes(v).(ast.Object)
-				if len(vo.Keys()) > 0 {
+				if vo.Len() > 0 {
 					result.Insert(k, ast.NewTerm(vo))
 				}
 			default:

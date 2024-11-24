@@ -62,9 +62,16 @@ type baseDocEqIndex struct {
 	onlyGroundRefs bool
 }
 
+var (
+	equalityRef      = Equality.Ref()
+	equalRef         = Equal.Ref()
+	globMatchRef     = GlobMatch.Ref()
+	internalPrintRef = InternalPrint.Ref()
+)
+
 func newBaseDocEqIndex(isVirtual func(Ref) bool) *baseDocEqIndex {
 	return &baseDocEqIndex{
-		skipIndexing:   NewSet(NewTerm(InternalPrint.Ref())),
+		skipIndexing:   NewSet(NewTerm(internalPrintRef)),
 		isVirtual:      isVirtual,
 		root:           newTrieNodeImpl(),
 		onlyGroundRefs: true,
@@ -255,17 +262,17 @@ func (i *refindices) Update(rule *Rule, expr *Expr) {
 	op := expr.Operator()
 
 	switch {
-	case op.Equal(Equality.Ref()):
+	case op.Equal(equalityRef):
 		i.updateEq(rule, expr)
 
-	case op.Equal(Equal.Ref()) && len(expr.Operands()) == 2:
+	case op.Equal(equalRef) && len(expr.Operands()) == 2:
 		// NOTE(tsandall): if equal() is called with more than two arguments the
 		// output value is being captured in which case the indexer cannot
 		// exclude the rule if the equal() call would return false (because the
 		// false value must still be produced.)
 		i.updateEq(rule, expr)
 
-	case op.Equal(GlobMatch.Ref()) && len(expr.Operands()) == 3:
+	case op.Equal(globMatchRef) && len(expr.Operands()) == 3:
 		// NOTE(sr): Same as with equal() above -- 4 operands means the output
 		// of `glob.match` is captured and the rule can thus not be excluded.
 		i.updateGlobMatch(rule, expr)
@@ -354,7 +361,7 @@ func (i *refindices) updateGlobMatch(rule *Rule, expr *Expr) {
 			if ref == nil {
 				for j, arg := range args {
 					if arg.Equal(match) {
-						ref = Ref{FunctionArgRootDocument, IntNumberTerm(j)}
+						ref = Ref{FunctionArgRootDocument, InternedIntNumberTerm(j)}
 					}
 				}
 			}
@@ -432,7 +439,7 @@ func (tr *trieTraversalResult) Add(t *trieNode) {
 		tr.unordered[root] = append(nodes, node)
 	}
 	if t.values != nil {
-		t.values.Foreach(func(v *Term) { tr.values.Add(v) })
+		t.values.Foreach(tr.values.Add)
 	}
 }
 
@@ -764,7 +771,7 @@ func eqOperandsToRefAndValue(isVirtual func(Ref) bool, args []*Term, a, b *Term)
 		for i, arg := range args {
 			if arg.Value.Compare(v) == 0 {
 				if bval, ok := indexValue(b); ok {
-					return &refindex{Ref: Ref{FunctionArgRootDocument, IntNumberTerm(i)}, Value: bval}, true
+					return &refindex{Ref: Ref{FunctionArgRootDocument, InternedIntNumberTerm(i)}, Value: bval}, true
 				}
 			}
 		}

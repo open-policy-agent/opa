@@ -727,7 +727,7 @@ func (e *EditTree) Unfold(path ast.Ref) (*EditTree, error) {
 		// Extend the tree if key is present. Error otherwise.
 		if v, err := x.Find(ast.Ref{ast.InternedIntNumberTerm(idx)}); err == nil {
 			// TODO: Consider a more efficient "Replace" function that special-cases this for arrays instead?
-			_, err := e.Delete(ast.IntNumberTerm(idx))
+			_, err := e.Delete(ast.InternedIntNumberTerm(idx))
 			if err != nil {
 				return nil, err
 			}
