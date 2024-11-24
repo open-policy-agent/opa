@@ -33,5 +33,5 @@ type Compiler = v1.Compiler
 
 // New returns a new compiler instance that can be invoked.
 func New() *Compiler {
-	return v1.New().WithRegoVersion(ast.RegoV1)
+	return v1.New().WithRegoVersion(ast.DefaultRegoVersion)
 }

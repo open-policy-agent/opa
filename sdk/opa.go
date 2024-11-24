@@ -31,7 +31,7 @@ type RawMapper = v1.RawMapper
 
 func New(ctx context.Context, opts Options) (*OPA, error) {
 	if opts.RegoVersion == ast.RegoUndefined {
-		opts.RegoVersion = ast.RegoV0
+		opts.RegoVersion = ast.DefaultRegoVersion
 	}
 	return v1.New(ctx, opts)
 }

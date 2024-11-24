@@ -35,7 +35,7 @@ type FileLoader = v1.FileLoader
 
 // NewFileLoader returns a new FileLoader instance.
 func NewFileLoader() FileLoader {
-	return v1.NewFileLoader()
+	return v1.NewFileLoader().WithRegoVersion(ast.DefaultRegoVersion)
 }
 
 // GetBundleDirectoryLoader returns a bundle directory loader which can be used to load

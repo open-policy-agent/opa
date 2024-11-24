@@ -10,13 +10,6 @@ import (
 	v1 "github.com/open-policy-agent/opa/v1/ast"
 )
 
-func setDefaultRegoVersion(opts ParserOptions) ParserOptions {
-	if opts.RegoVersion == RegoUndefined {
-		opts.RegoVersion = DefaultRegoVersion
-	}
-	return opts
-}
-
 // MustParseBody returns a parsed body.
 // If an error occurs during parsing, panic.
 func MustParseBody(input string) Body {
@@ -308,3 +301,10 @@ func ParseStatementsWithOpts(filename, input string, popts ParserOptions) ([]Sta
 
 // ParserErrorDetail holds additional details for parser errors.
 type ParserErrorDetail = v1.ParserErrorDetail
+
+func setDefaultRegoVersion(opts ParserOptions) ParserOptions {
+	if opts.RegoVersion == RegoUndefined {
+		opts.RegoVersion = DefaultRegoVersion
+	}
+	return opts
+}
