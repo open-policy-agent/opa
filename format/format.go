@@ -27,6 +27,16 @@ func Source(filename string, src []byte) ([]byte, error) {
 }
 
 func SourceWithOpts(filename string, src []byte, opts Opts) ([]byte, error) {
+	if opts.RegoVersion == ast.RegoUndefined {
+		opts.RegoVersion = ast.DefaultRegoVersion
+	}
+	if opts.ParserOptions == nil {
+		opts.ParserOptions = &ast.ParserOptions{}
+	}
+	if opts.ParserOptions.RegoVersion == ast.RegoUndefined {
+		opts.ParserOptions.RegoVersion = ast.DefaultRegoVersion
+	}
+
 	return v1.SourceWithOpts(filename, src, opts)
 }
 
