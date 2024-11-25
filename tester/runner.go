@@ -43,7 +43,7 @@ type Runner = v1.Runner
 
 // NewRunner returns a new runner.
 func NewRunner() *Runner {
-	return v1.NewRunner()
+	return v1.NewRunner().SetDefaultRegoVersion(ast.DefaultRegoVersion)
 }
 
 type Builtin = v1.Builtin

@@ -126,13 +126,22 @@ type Runner struct {
 	filter                string
 	target                string // target type (wasm, rego, etc.)
 	customBuiltins        []*Builtin
+	defaultRegoVersion    ast.RegoVersion
 }
 
 // NewRunner returns a new runner.
 func NewRunner() *Runner {
 	return &Runner{
-		timeout: 5 * time.Second,
+		timeout:            5 * time.Second,
+		defaultRegoVersion: ast.DefaultRegoVersion,
 	}
+}
+
+// SetDefaultRegoVersion sets the default Rego version to use when compiling modules.
+// Not applicable if a custom [ast.Compiler] is set via [SetCompiler].
+func (r *Runner) SetDefaultRegoVersion(v ast.RegoVersion) *Runner {
+	r.defaultRegoVersion = v
+	return r
 }
 
 // SetCompiler sets the compiler used by the runner.
@@ -303,7 +312,8 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 
 		r.compiler = ast.NewCompiler().
 			WithCapabilities(capabilities).
-			WithEnablePrintStatements(enablePrintStatements)
+			WithEnablePrintStatements(enablePrintStatements).
+			WithDefaultRegoVersion(r.defaultRegoVersion)
 	}
 
 	// rewrite duplicate test_* rule names as we compile modules
