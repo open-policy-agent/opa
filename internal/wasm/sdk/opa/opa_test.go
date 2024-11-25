@@ -119,8 +119,8 @@ func TestOPA(t *testing.T) {
 		},
 		{
 			Description: "Runtime error/var assignment conflict",
-			Policy: `a = "b" { input > 1 }
-a = "c" { input > 2 }`,
+			Policy: `a = "b" if { input > 1 }
+a = "c" if { input > 2 }`,
 			Query: "data.p.a = x",
 			Evals: []Eval{
 				{Input: "3"},
@@ -131,10 +131,10 @@ a = "c" { input > 2 }`,
 			Description: "Runtime error/else conflict-1",
 			Query:       `data.p.q`,
 			Policy: `
-				q {
+				q if {
 					false
 				}
-				else = true {
+				else = true if {
 					true
 				}
 				q = false`,
@@ -145,16 +145,16 @@ a = "c" { input > 2 }`,
 			Description: "Runtime error/else conflict-2",
 			Query:       `data.p.q`,
 			Policy: `
-				q {
+				q if {
 					false
 				}
-				else = false {
+				else = false if {
 					true
 				}
-				q {
+				q if {
 					false
 				}
-				else = true {
+				else = true if {
 					true
 				}`,
 			Evals:   []Eval{{}},
@@ -167,7 +167,7 @@ a = "c" { input > 2 }`,
 			Description: "Only input changing, regex.match",
 			Policy: `
 			default hello = false
-			hello {
+			hello if {
 				regex.match("^world$", input.message)
 			}`,
 			Query: "data.p.hello = x",
@@ -180,7 +180,7 @@ a = "c" { input > 2 }`,
 			Description: "Only input changing, glob.match",
 			Policy: `
 			default hello = false
-			hello {
+			hello if {
 				glob.match("world", [":"], input.message)
 			}`,
 			Query: "data.p.hello = x",
@@ -215,7 +215,7 @@ a = "c" { input > 2 }`,
 		{
 			Description: "mpd init problem (#3110)",
 			Query:       `data.p.main = x`,
-			Policy:      `main { numbers.range(1, 2)[_] == 2 }`,
+			Policy:      `main if { numbers.range(1, 2)[_] == 2 }`,
 			Evals: []Eval{
 				{Result: `{{"x": true}}`},
 				{Result: `{{"x": true}}`},
