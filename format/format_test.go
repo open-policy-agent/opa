@@ -58,7 +58,6 @@ p    contains    x    if      {
 						t.Fatalf("expected error:\n\n%q\n\nbut got:\n\n%q", expErr, err)
 					}
 				}
-				return
 			} else {
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)
@@ -138,7 +137,6 @@ p    contains    x    if      {
 						t.Fatalf("expected error:\n\n%q\n\nbut got:\n\n%q", expErr, err)
 					}
 				}
-				return
 			} else {
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)
