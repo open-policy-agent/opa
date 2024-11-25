@@ -144,9 +144,7 @@ func builtinObjectKeys(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 		return err
 	}
 
-	keys := ast.SetTerm(object.Keys()...)
-
-	return iter(keys)
+	return iter(ast.SetTerm(object.Keys()...))
 }
 
 // getObjectKeysParam returns a set of key values

@@ -675,7 +675,7 @@ func Arity(x Type) int {
 	if !ok {
 		return 0
 	}
-	return len(f.FuncArgs().Args)
+	return f.Arity()
 }
 
 // NewFunction returns a new Function object of the given argument and result types.
@@ -721,6 +721,11 @@ func (t *Function) Args() []Type {
 		cpy[i] = unwrap(t.args[i])
 	}
 	return cpy
+}
+
+// Arity returns the number of arguments in the function signature.
+func (t *Function) Arity() int {
+	return len(t.args)
 }
 
 // Result returns the function's result type.
@@ -780,14 +785,15 @@ func (t *Function) Union(other *Function) *Function {
 		return other
 	}
 
-	a := t.Args()
-	b := other.Args()
-	if len(a) != len(b) {
+	if t.Arity() != other.Arity() {
 		return nil
 	}
 
-	aIsVariadic := t.FuncArgs().Variadic != nil
-	bIsVariadic := other.FuncArgs().Variadic != nil
+	tfa := t.FuncArgs()
+	ofa := other.FuncArgs()
+
+	aIsVariadic := tfa.Variadic != nil
+	bIsVariadic := ofa.Variadic != nil
 
 	if aIsVariadic && !bIsVariadic {
 		return nil
@@ -795,13 +801,16 @@ func (t *Function) Union(other *Function) *Function {
 		return nil
 	}
 
+	a := t.Args()
+	b := other.Args()
+
 	args := make([]Type, len(a))
 	for i := range a {
 		args[i] = Or(a[i], b[i])
 	}
 
 	result := NewFunction(args, Or(t.Result(), other.Result()))
-	result.variadic = Or(t.FuncArgs().Variadic, other.FuncArgs().Variadic)
+	result.variadic = Or(tfa.Variadic, ofa.Variadic)
 
 	return result
 }

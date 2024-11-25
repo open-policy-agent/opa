@@ -106,7 +106,7 @@ Redo data.test.p = x
 			note: "disjunction (iteration)",
 			module: `package test
 			import rego.v1
-			
+
 			q contains 1
 			q contains 2
 			p if { q[x]; trace(sprintf("x=%d", [x])) }`,
@@ -173,7 +173,6 @@ Enter data.test.p = x
 	}
 
 	for _, tc := range tests {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 

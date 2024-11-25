@@ -57,6 +57,7 @@ type Query struct {
 	strictBuiltinErrors         bool
 	builtinErrorList            *[]Error
 	strictObjects               bool
+	roundTripper                CustomizeRoundTripper
 	printHook                   print.Hook
 	tracingOpts                 tracing.Options
 	virtualCache                VirtualCache
@@ -276,6 +277,12 @@ func (q *Query) WithBuiltinErrorList(list *[]Error) *Query {
 // WithResolver configures an external resolver to use for the given ref.
 func (q *Query) WithResolver(ref ast.Ref, r resolver.Resolver) *Query {
 	q.external.Put(ref, r)
+	return q
+}
+
+// WithHTTPRoundTripper configures a custom HTTP transport for built-in functions that make HTTP requests.
+func (q *Query) WithHTTPRoundTripper(t CustomizeRoundTripper) *Query {
+	q.roundTripper = t
 	return q
 }
 
@@ -561,6 +568,7 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		printHook:                   q.printHook,
 		tracingOpts:                 q.tracingOpts,
 		strictObjects:               q.strictObjects,
+		roundTripper:                q.roundTripper,
 	}
 	e.caller = e
 	q.metrics.Timer(metrics.RegoQueryEval).Start()

@@ -67,7 +67,6 @@ func TestQueryTracerDontPlugLocalVars(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
@@ -207,7 +206,6 @@ func TestRegoMetadataBuiltinCall(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
@@ -267,16 +265,16 @@ func initTracerTestQuery() *Query {
 
 	compiler := compileModules([]string{
 		`package x
-	
+
 	p if {
 		a := [1, 2, 3]
 		f(a[_])
 	}
-	
+
 	f(x) if {
 		x == 3
 	}
-	
+
 	`})
 
 	return NewQuery(ast.MustParseBody("data.x.p")).

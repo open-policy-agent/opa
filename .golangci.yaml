@@ -29,4 +29,5 @@ linters:
     - gosimple
     - prealloc
     - unconvert
+    - copyloopvar
     # - gosec # too many false positives

@@ -23,7 +23,6 @@ func TestRego(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range cases.MustLoad("../test/cases/testdata/v0").Sorted().Cases {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(fmt.Sprintf("v0/%s", tc.Note), func(t *testing.T) {
 			t.Parallel()
 
@@ -31,7 +30,6 @@ func TestRego(t *testing.T) {
 		})
 	}
 	for _, tc := range cases.MustLoad("../test/cases/testdata/v1").Sorted().Cases {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(fmt.Sprintf("v1/%s", tc.Note), func(t *testing.T) {
 			t.Parallel()
 
@@ -44,7 +42,6 @@ func TestOPARego(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range cases.MustLoad("testdata/cases").Sorted().Cases {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(tc.Note, func(t *testing.T) {
 			t.Parallel()
 
@@ -57,7 +54,6 @@ func TestRegoWithNDBCache(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range cases.MustLoad("../test/cases/testdata/v0").Sorted().Cases {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(fmt.Sprintf("v0/%s", tc.Note), func(t *testing.T) {
 			t.Parallel()
 
@@ -67,7 +63,6 @@ func TestRegoWithNDBCache(t *testing.T) {
 		})
 	}
 	for _, tc := range cases.MustLoad("../test/cases/testdata/v1").Sorted().Cases {
-		tc := tc // copy for capturing loop variable (not needed in Go 1.22+)
 		t.Run(fmt.Sprintf("v1/%s", tc.Note), func(t *testing.T) {
 			t.Parallel()
 

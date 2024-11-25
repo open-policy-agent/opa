@@ -1404,7 +1404,7 @@ var NumbersRangeStep = &Builtin{
 var UnitsParse = &Builtin{
 	Name: "units.parse",
 	Description: `Converts strings like "10G", "5K", "4M", "1500m", and the like into a number.
-This number can be a non-integer, such as 1.5, 0.22, etc. Scientific notation is supported, 
+This number can be a non-integer, such as 1.5, 0.22, etc. Scientific notation is supported,
 allowing values such as "1e-3K" (1) or "2.5e6M" (2.5 million M).
 
 Supports standard metric decimal and binary SI units (e.g., K, Ki, M, Mi, G, Gi, etc.) where
@@ -1425,11 +1425,11 @@ var UnitsParseBytes = &Builtin{
 	Name: "units.parse_bytes",
 	Description: `Converts strings like "10GB", "5K", "4mb", or "1e6KB" into an integer number of bytes.
 
-Supports standard byte units (e.g., KB, KiB, etc.) where KB, MB, GB, and TB are treated as decimal 
-units, and KiB, MiB, GiB, and TiB are treated as binary units. Scientific notation is supported, 
+Supports standard byte units (e.g., KB, KiB, etc.) where KB, MB, GB, and TB are treated as decimal
+units, and KiB, MiB, GiB, and TiB are treated as binary units. Scientific notation is supported,
 enabling values like "1.5e3MB" (1500MB) or "2e6GiB" (2 million GiB).
 
-The bytes symbol (b/B) in the unit is optional; omitting it will yield the same result (e.g., "Mi" 
+The bytes symbol (b/B) in the unit is optional; omitting it will yield the same result (e.g., "Mi"
 and "MiB" are equivalent).`,
 	Decl: types.NewFunction(
 		types.Args(
@@ -3387,7 +3387,7 @@ func (b *Builtin) Ref() Ref {
 // IsTargetPos returns true if a variable in the i-th position will be bound by
 // evaluating the call expression.
 func (b *Builtin) IsTargetPos(i int) bool {
-	return len(b.Decl.FuncArgs().Args) == i
+	return b.Decl.Arity() == i
 }
 
 func init() {

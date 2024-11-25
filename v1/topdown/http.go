@@ -96,6 +96,10 @@ var (
 
 type httpSendKey string
 
+// CustomizeRoundTripper allows customizing an existing http.Transport,
+// to the returned value, which could be the same Transport or a new one.
+type CustomizeRoundTripper func(*http.Transport) http.RoundTripper
+
 const (
 	// httpSendBuiltinCacheKey is the key in the builtin context cache that
 	// points to the http.send() specific cache resides at.
@@ -626,21 +630,27 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 		tlsConfig.RootCAs = pool
 	}
 
+	var transport *http.Transport
 	if isTLS {
 		if ok, parsedURL, tr := useSocket(url, &tlsConfig); ok {
-			client.Transport = tr
+			transport = tr
 			url = parsedURL
 		} else {
-			tr := http.DefaultTransport.(*http.Transport).Clone()
-			tr.TLSClientConfig = &tlsConfig
-			tr.DisableKeepAlives = true
-			client.Transport = tr
+			transport = http.DefaultTransport.(*http.Transport).Clone()
+			transport.TLSClientConfig = &tlsConfig
+			transport.DisableKeepAlives = true
 		}
 	} else {
 		if ok, parsedURL, tr := useSocket(url, nil); ok {
-			client.Transport = tr
+			transport = tr
 			url = parsedURL
 		}
+	}
+
+	if bctx.RoundTripper != nil {
+		client.Transport = bctx.RoundTripper(transport)
+	} else if transport != nil {
+		client.Transport = transport
 	}
 
 	// check if redirects are enabled
