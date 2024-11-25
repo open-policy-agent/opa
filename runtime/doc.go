@@ -3,4 +3,6 @@
 // license that can be found in the LICENSE file.
 
 // Package runtime contains the entry point to the policy engine.
+//
+// Deprecated: Use [github.com/open-policy-agent/opa/v1/runtime] instead.
 package runtime

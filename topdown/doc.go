@@ -7,4 +7,6 @@
 // The topdown implementation is a modified version of the standard top-down
 // evaluation algorithm used in Datalog. References and comprehensions are
 // evaluated eagerly while all other terms are evaluated lazily.
+//
+// Deprecated: Use [github.com/open-policy-agent/opa/v1/topdown] instead.
 package topdown

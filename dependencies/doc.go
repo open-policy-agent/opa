@@ -4,4 +4,6 @@
 
 // Package dependencies provides functions for determining the set of ast.Refs that AST
 // elements depend on.
+//
+// Deprecated: Use [github.com/open-policy-agent/opa/v1/dependencies] instead.
 package dependencies

@@ -3,4 +3,6 @@
 // license that can be found in the LICENSE file.
 
 // Package storage exposes the policy engine's storage layer.
+//
+// Deprecated: Use [github.com/open-policy-agent/opa/v1/storage] instead.
 package storage
