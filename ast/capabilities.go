@@ -5,7 +5,6 @@
 package ast
 
 import (
-	_ "embed"
 	"io"
 
 	v1 "github.com/open-policy-agent/opa/v1/ast"

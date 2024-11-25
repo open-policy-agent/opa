@@ -14,5 +14,5 @@ type ValueMap = v1.ValueMap
 
 // NewValueMap returns a new ValueMap.
 func NewValueMap() *ValueMap {
-	return (*ValueMap)(v1.NewValueMap())
+	return v1.NewValueMap()
 }

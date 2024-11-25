@@ -492,10 +492,6 @@ p contains "B" if {
 	}
 }
 
-func pointTo[T any](x T) *T {
-	return &x
-}
-
 func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 	regoV0 := ast.RegoV0.Int()
 	regoV1 := ast.RegoV1.Int()

@@ -10,16 +10,16 @@ import (
 
 type (
 	// Deprecated: Functional-style builtins are deprecated. Use BuiltinFunc instead.
-	FunctionalBuiltin1 = v1.FunctionalBuiltin1
+	FunctionalBuiltin1 = v1.FunctionalBuiltin1 //nolint:staticcheck // SA1019: Intentional use of deprecated type.
 
 	// Deprecated: Functional-style builtins are deprecated. Use BuiltinFunc instead.
-	FunctionalBuiltin2 = v1.FunctionalBuiltin2
+	FunctionalBuiltin2 = v1.FunctionalBuiltin2 //nolint:staticcheck // SA1019: Intentional use of deprecated type.
 
 	// Deprecated: Functional-style builtins are deprecated. Use BuiltinFunc instead.
-	FunctionalBuiltin3 = v1.FunctionalBuiltin3
+	FunctionalBuiltin3 = v1.FunctionalBuiltin3 //nolint:staticcheck // SA1019: Intentional use of deprecated type.
 
 	// Deprecated: Functional-style builtins are deprecated. Use BuiltinFunc instead.
-	FunctionalBuiltin4 = v1.FunctionalBuiltin4
+	FunctionalBuiltin4 = v1.FunctionalBuiltin4 //nolint:staticcheck // SA1019: Intentional use of deprecated type.
 
 	// BuiltinContext contains context from the evaluator that may be used by
 	// built-in functions.
