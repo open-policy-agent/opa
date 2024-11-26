@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -1954,9 +1955,6 @@ bar.baz contains "quz" if true`,
 		"mod8.rego": `package badrules.complete_partial
 p := 1
 p[r] := 2 if { r := "foo" }`,
-
-		"mod9.rego": `package anotherbadrules.dataoverlap
-p { true }`,
 	})
 
 	c.WithPathConflictsCheck(func(path []string) (bool, error) {
@@ -1966,7 +1964,7 @@ p { true }`,
 			return false, fmt.Errorf("unexpected error")
 		}
 		return false, nil
-	}).WithPathConflictsCheckRoots([]string{"badrules"})
+	})
 
 	compileStages(c, c.checkRuleConflicts)
 
@@ -1987,6 +1985,40 @@ p { true }`,
 		"rego_type_error: package badrules.t conflicts with rule t defined at mod1.rego:11",
 		"rego_type_error: rule data.badrules.s conflicts with [data.badrules.s.q]",
 		"rego_type_error: rule data.badrules.t conflicts with [data.badrules.t.q]",
+	}
+
+	assertCompilerErrorStrings(t, c, expected)
+}
+
+func TestCompilerCheckRuleConflictsWithRoots(t *testing.T) {
+
+	c := getCompilerWithParsedModules(map[string]string{
+		"mod1.rego": `package badrules.dataoverlap
+
+p if { true }`,
+		"mod2.rego": `package badrules.existserr
+p if { true }`,
+
+		// this does not trigger conflict check because
+		// WithPathConflictsCheckRoots limits the root to "badrules".
+		"mod3.rego": `package badrules_outside_root.dataoverlap
+p if { true }`,
+	})
+
+	c.WithPathConflictsCheck(func(path []string) (bool, error) {
+		if slices.Contains(path, "dataoverlap") {
+			return true, nil
+		} else if reflect.DeepEqual(path, []string{"badrules", "existserr", "p"}) {
+			return false, fmt.Errorf("unexpected error")
+		}
+		return false, nil
+	}).WithPathConflictsCheckRoots([]string{"badrules"})
+
+	compileStages(c, c.checkRuleConflicts)
+
+	expected := []string{
+		"rego_compile_error: conflict check for data path badrules/existserr/p: unexpected error",
+		"rego_compile_error: conflicting rule for data path badrules/dataoverlap/p found",
 	}
 
 	assertCompilerErrorStrings(t, c, expected)

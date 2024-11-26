@@ -30,17 +30,14 @@ func CheckPathConflicts(c *Compiler, exists func([]string) (bool, error)) Errors
 		// traverse AST from `path` to go to the new root
 		paths := strings.Split(rootPath, "/")
 		node := root
-		nodeNotFound := false
 		for _, key := range paths {
-			child := node.Child(String(key))
-			if child == nil {
-				nodeNotFound = true
+			node = node.Child(String(key))
+			if node == nil {
 				break
 			}
-			node = child
 		}
 
-		if nodeNotFound {
+		if node == nil {
 			// could not find the node from the AST (e.g. `path` is from a data file)
 			// then no conflict is possible
 			continue

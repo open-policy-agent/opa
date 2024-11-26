@@ -385,8 +385,9 @@ func (c *Compiler) WithPathConflictsCheck(fn func([]string) (bool, error)) *Comp
 }
 
 // WithPathConflictsCheckRoots enables checking path conflicts from the specified root instead
-// of the top root node. This would enable optimizting path conflict checks during bundle
-// activation if a bundle already defines its own root paths.
+// of the top root node. Limiting conflict checks to a known set of roots, such as bundle roots,
+// improves performance. Each root has the format of a "/"-delimited string, excluding the "data"
+// root document.
 func (c *Compiler) WithPathConflictsCheckRoots(rootPaths []string) *Compiler {
 	c.pathConflictCheckRoots = rootPaths
 	return c

@@ -6611,8 +6611,8 @@ result := true`,
 	if status.Code != errCode {
 		t.Fatalf("Expected status code to be %s, found %s", errCode, status.Code)
 	}
-	if !strings.Contains(status.Message, "detected overlapping") {
-		t.Fatalf(`Expected status message to contain "detected overlapping roots", found %s`, status.Message)
+	if exp := "detected overlapping roots"; !strings.Contains(status.Message, exp) {
+		t.Fatalf(`Expected status message to contain "%s", found %s`, exp, status.Message)
 	}
 }
 
