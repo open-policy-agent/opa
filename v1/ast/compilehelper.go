@@ -31,7 +31,9 @@ func CompileModulesWithOpt(modules map[string]string, opts CompileOpts) (*Compil
 		parsed[f] = pm
 	}
 
-	compiler := NewCompiler().WithEnablePrintStatements(opts.EnablePrintStatements)
+	compiler := NewCompiler().
+		WithDefaultRegoVersion(opts.ParserOptions.RegoVersion).
+		WithEnablePrintStatements(opts.EnablePrintStatements)
 	compiler.Compile(parsed)
 
 	if compiler.Failed() {

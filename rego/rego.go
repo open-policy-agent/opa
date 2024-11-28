@@ -578,13 +578,15 @@ func SetRegoVersion(version ast.RegoVersion) func(r *Rego) {
 
 // New returns a new Rego object.
 func New(options ...func(r *Rego)) *Rego {
-	r := v1.New(options...)
+	opts := make([]func(r *Rego), 0, len(options)+1)
+	opts = append(opts, options...)
+	opts = append(opts, func(r *Rego) {
+		if r.RegoVersion() == ast.RegoUndefined {
+			SetRegoVersion(ast.DefaultRegoVersion)(r)
+		}
+	})
 
-	if r.RegoVersion() == ast.RegoUndefined {
-		SetRegoVersion(ast.DefaultRegoVersion)(r)
-	}
-
-	return r
+	return v1.New(opts...)
 }
 
 // CompileOption defines a function to set options on Compile calls.

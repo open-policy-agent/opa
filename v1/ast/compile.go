@@ -152,6 +152,10 @@ type Compiler struct {
 	defaultRegoVersion         RegoVersion
 }
 
+func (c *Compiler) DefaultRegoVersion() RegoVersion {
+	return c.defaultRegoVersion
+}
+
 // CompilerStage defines the interface for stages in the compiler.
 type CompilerStage func(*Compiler) *Error
 
@@ -894,6 +898,8 @@ func (c *Compiler) WithModuleLoader(f ModuleLoader) *Compiler {
 	return c
 }
 
+// WithDefaultRegoVersion sets the default Rego version to use when a module doesn't specify one;
+// such as when it's hand-crafted instead of parsed.
 func (c *Compiler) WithDefaultRegoVersion(regoVersion RegoVersion) *Compiler {
 	c.defaultRegoVersion = regoVersion
 	return c

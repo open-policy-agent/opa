@@ -41,7 +41,7 @@ func TestReplWasmTarget(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	repl.OneShot(ctx, `p = true { input.foo = "bar" }`)
+	repl.OneShot(ctx, `p = true if { input.foo = "bar" }`)
 	buffer.Reset()
 	repl.OneShot(ctx, "p")
 

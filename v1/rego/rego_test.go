@@ -37,7 +37,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
-func TestRegoEvalDefaultRegoVersion(t *testing.T) {
+func TestRegoEval_DefaultRegoVersion(t *testing.T) {
 	tests := []struct {
 		note      string
 		module    string
@@ -45,7 +45,7 @@ func TestRegoEvalDefaultRegoVersion(t *testing.T) {
 		expErrs   []string
 	}{
 		{
-			note: "v0", // v0 in NOT the default version
+			note: "v0 module", // v0 in NOT the default version
 			module: `package test
 
 p[x] {
@@ -57,7 +57,7 @@ p[x] {
 			},
 		},
 		{
-			note: "v0 import rego.v1",
+			note: "import rego.v1",
 			module: `package test
 import rego.v1
 
@@ -67,13 +67,26 @@ p contains x if {
 			expResult: []string{"a", "b", "c"},
 		},
 		{
-			note: "v1", // v1 is the default version
+			note: "v1 module ", // v1 is the default version
 			module: `package test
 
 p contains x if {
 	some x in ["a", "b", "c"]
 }`,
 			expResult: []string{"a", "b", "c"},
+		},
+		{
+			note: "v1 module, v1 compile-time violations", // v1 is the default version
+			module: `package test
+import data.foo
+import data.bar as foo
+
+p contains x if {
+	some x in ["a", "b", "c"]
+}`,
+			expErrs: []string{
+				"test.rego:3: rego_compile_error: import must not shadow import data.foo",
+			},
 		},
 	}
 

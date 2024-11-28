@@ -53,6 +53,7 @@ func InsertAndCompile(ctx context.Context, opts InsertAndCompileOptions) (*Inser
 	}
 
 	compiler := ast.NewCompiler().
+		WithDefaultRegoVersion(opts.ParserOptions.RegoVersion).
 		SetErrorLimit(opts.MaxErrors).
 		WithPathConflictsCheck(storage.NonEmpty(ctx, opts.Store, opts.Txn)).
 		WithEnablePrintStatements(opts.EnablePrintStatements)

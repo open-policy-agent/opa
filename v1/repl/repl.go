@@ -125,6 +125,7 @@ func New(store storage.Store, historyPath string, output io.Writer, outputFormat
 		errLimit:     errLimit,
 		prettyLimit:  defaultPrettyLimit,
 		target:       compile.TargetRego,
+		regoVersion:  ast.DefaultRegoVersion,
 	}
 }
 

@@ -1285,6 +1285,10 @@ func New(options ...func(r *Rego)) *Rego {
 		if r.target == targetWasm {
 			r.compiler = r.compiler.WithEvalMode(ast.EvalModeIR)
 		}
+
+		if r.regoVersion != ast.RegoUndefined {
+			r.compiler = r.compiler.WithDefaultRegoVersion(r.regoVersion)
+		}
 	}
 
 	if r.store == nil {
