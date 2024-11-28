@@ -16,7 +16,6 @@ func TestDoMoveRenamePackage(t *testing.T) {
 	cases := []struct {
 		note         string
 		v0Compatible bool
-		v1Compatible bool
 		module       string
 		expected     *ast.Module
 	}{
@@ -41,8 +40,7 @@ func TestDoMoveRenamePackage(t *testing.T) {
 				}`, ast.ParserOptions{RegoVersion: ast.RegoV0}),
 		},
 		{
-			note:         "v1",
-			v1Compatible: true,
+			note: "v1",
 			module: `package lib.foo
 			
 				# this is a comment
@@ -60,28 +58,6 @@ func TestDoMoveRenamePackage(t *testing.T) {
 					input.message == "hello"    # this is a comment too
 				}`, ast.ParserOptions{RegoVersion: ast.RegoV1}),
 		},
-		// v0 takes precedence over v1
-		{
-			note:         "v0+v1",
-			v0Compatible: true,
-			v1Compatible: true,
-			module: `package lib.foo
-			
-				# this is a comment
-				default allow = false
-				
-				allow {
-					input.message == "hello"    # this is a comment too
-				}`,
-			expected: ast.MustParseModuleWithOpts(`package baz.bar
-
-				# this is a comment
-				default allow = false
-				
-				allow {
-					input.message == "hello"    # this is a comment too
-				}`, ast.ParserOptions{RegoVersion: ast.RegoV0}),
-		},
 	}
 
 	for _, tc := range cases {
@@ -97,7 +73,6 @@ func TestDoMoveRenamePackage(t *testing.T) {
 				params := moveCommandParams{
 					mapping:      newrepeatedStringFlag(mappings),
 					v0Compatible: tc.v0Compatible,
-					v1Compatible: tc.v1Compatible,
 				}
 
 				var buf bytes.Buffer
@@ -126,7 +101,6 @@ func TestDoMoveOverwriteFile(t *testing.T) {
 	cases := []struct {
 		note         string
 		v0Compatible bool
-		v1Compatible bool
 		module       string
 		expected     *ast.Module
 	}{
@@ -154,8 +128,7 @@ func TestDoMoveOverwriteFile(t *testing.T) {
 				}`, ast.ParserOptions{RegoVersion: ast.RegoV0}),
 		},
 		{
-			note:         "v1",
-			v1Compatible: true,
+			note: "v1",
 			module: `package lib.foo
 
 				import data.x.q
@@ -176,31 +149,6 @@ func TestDoMoveOverwriteFile(t *testing.T) {
 					input.message == "hello"
 				}`, ast.ParserOptions{RegoVersion: ast.RegoV1}),
 		},
-		// v0 takes precedence over v1
-		{
-			note:         "v0+v1",
-			v0Compatible: true,
-			v1Compatible: true,
-			module: `package lib.foo
-
-				import data.x.q
-				
-				default allow := false
-
-				allow {
-					input.message == "hello"
-				}
-				`,
-			expected: ast.MustParseModuleWithOpts(`package baz.bar
-	
-				import data.hidden.q
-			
-				default allow := false
-
-				allow {
-					input.message == "hello"
-				}`, ast.ParserOptions{RegoVersion: ast.RegoV0}),
-		},
 	}
 
 	for _, tc := range cases {
@@ -217,7 +165,6 @@ func TestDoMoveOverwriteFile(t *testing.T) {
 					mapping:      newrepeatedStringFlag(mappings),
 					overwrite:    true,
 					v0Compatible: tc.v0Compatible,
-					v1Compatible: tc.v1Compatible,
 				}
 
 				var buf bytes.Buffer

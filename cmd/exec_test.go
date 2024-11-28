@@ -87,7 +87,7 @@ func TestExecDecisionOption(t *testing.T) {
 		s := sdk_test.MustNewServer(sdk_test.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"test.rego": `
 				package foo
-				import rego.v1
+				
 				main contains "hello"
 			`,
 		}))
@@ -129,7 +129,7 @@ func TestExecBundleFlag(t *testing.T) {
 	files := map[string]string{
 		"files/test.json": `{"foo": 7}`,
 		"bundle/x.rego": `package system
-		import rego.v1
+		
 		main contains "hello"`,
 	}
 
@@ -158,6 +158,128 @@ func TestExecBundleFlag(t *testing.T) {
 		}
 
 	})
+}
+
+func TestExec_DefaultRegoVersion(t *testing.T) {
+	tests := []struct {
+		note    string
+		module  string
+		expErrs []string
+	}{
+		{
+			note: "v0, module",
+			module: `package system
+main["hello"] {
+	input.foo == "bar"
+}`,
+			expErrs: []string{
+				"test.rego:2: rego_parse_error: `if` keyword is required before rule body",
+				"test.rego:2: rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note: "v1 module",
+			module: `package system
+main contains "hello" if {
+	input.foo == "bar"
+}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			files := map[string]string{
+				"test.json": `{"foo": "bar"}`,
+			}
+
+			test.WithTempFS(files, func(dir string) {
+				s := sdk_test.MustNewServer(
+					sdk_test.MockBundle("/bundles/bundle.tar.gz", map[string]string{"test.rego": tc.module}),
+					sdk_test.RawBundles(true),
+				)
+
+				defer s.Stop()
+
+				var buf bytes.Buffer
+				params := exec.NewParams(&buf)
+				_ = params.OutputFormat.Set("json")
+				params.ConfigOverrides = []string{
+					"services.test.url=" + s.URL(),
+					"bundles.test.resource=/bundles/bundle.tar.gz",
+				}
+
+				params.Paths = append(params.Paths, dir)
+
+				if len(tc.expErrs) > 0 {
+					testLogger := loggingtest.New()
+					params.Logger = testLogger
+
+					ctx, cancel := context.WithCancel(context.Background())
+					defer cancel()
+					go func(expectedErrors []string) {
+						err := runExecWithContext(ctx, params)
+						// Note(philipc): Catch the expected cancellation
+						// errors, allowing unexpected test failures through.
+						if err != context.Canceled {
+							var errs ast.Errors
+							if errors.As(err, &errs) {
+								for _, expErr := range expectedErrors {
+									found := false
+									for _, e := range errs {
+										if strings.Contains(e.Error(), expErr) {
+											found = true
+											break
+										}
+									}
+									if !found {
+										t.Errorf("Could not find expected error: %s in %v", expErr, errs)
+										return
+									}
+								}
+							} else {
+								t.Error(err)
+								return
+							}
+						}
+					}(tc.expErrs)
+
+					if !test.Eventually(t, 5*time.Second, func() bool {
+						for _, expErr := range tc.expErrs {
+							found := false
+							for _, e := range testLogger.Entries() {
+								if strings.Contains(e.Message, expErr) {
+									found = true
+									break
+								}
+							}
+							if !found {
+								return false
+							}
+						}
+						return true
+					}) {
+						t.Fatalf("timed out waiting for logged errors:\n\n%v\n\ngot\n\n%v:", tc.expErrs, testLogger.Entries())
+					}
+				} else {
+					err := runExec(params)
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					output := util.MustUnmarshalJSON(bytes.ReplaceAll(buf.Bytes(), []byte(dir), nil))
+
+					exp := util.MustUnmarshalJSON([]byte(`{"result": [{
+			"path": "/test.json",
+			"result": ["hello"]
+		}]}`))
+
+					if !reflect.DeepEqual(output, exp) {
+						t.Fatal("Expected:", exp, "Got:", output)
+					}
+				}
+			})
+		})
+	}
 }
 
 func TestExecCompatibleFlags(t *testing.T) {

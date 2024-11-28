@@ -407,6 +407,60 @@ p contains x if {
 	}
 }
 
+func TestCheck_DefaultRegoVersion(t *testing.T) {
+	cases := []struct {
+		note    string
+		policy  string
+		expErrs []string
+	}{
+		{
+			note: "v0 module",
+			policy: `package test
+a[x] {
+	x := 42
+}`,
+			expErrs: []string{
+				"test.rego:2: rego_parse_error: `if` keyword is required before rule body",
+				"test.rego:2: rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note: "v1 module",
+			policy: `package test
+a contains x if {
+	x := 42
+}`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			files := map[string]string{
+				"test.rego": tc.policy,
+			}
+
+			test.WithTempFS(files, func(root string) {
+				params := newCheckParams()
+
+				err := checkModules(params, []string{root})
+				switch {
+				case err != nil && len(tc.expErrs) > 0:
+					for _, expErr := range tc.expErrs {
+						if !strings.Contains(err.Error(), expErr) {
+							t.Fatalf("expected err:\n\n%v\n\ngot:\n\n%v", expErr, err)
+						}
+					}
+					return // don't read back bundle below
+				case err != nil && len(tc.expErrs) == 0:
+					t.Fatalf("unexpected error: %v", err)
+				case err == nil && len(tc.expErrs) > 0:
+					t.Fatalf("expected error:\n\n%v\n\ngot: none", tc.expErrs)
+				}
+			})
+		})
+	}
+}
+
 func TestCheckCompatibleFlags(t *testing.T) {
 	cases := []struct {
 		note         string
