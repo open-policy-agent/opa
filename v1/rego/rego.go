@@ -2367,7 +2367,8 @@ func (r *Rego) partialResult(ctx context.Context, pCfg *PrepareConfig) (PartialR
 	// Construct module for queries.
 	id := fmt.Sprintf("__partialresult__%s__", ectx.partialNamespace)
 
-	module, err := ast.ParseModule(id, "package "+ectx.partialNamespace)
+	module, err := ast.ParseModuleWithOpts(id, "package "+ectx.partialNamespace,
+		ast.ParserOptions{RegoVersion: r.regoVersion})
 	if err != nil {
 		return PartialResult{}, fmt.Errorf("bad partial namespace")
 	}

@@ -481,7 +481,11 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		}
 	}
 
-	for i := range support {
+	for i, m := range support {
+		if regoVersion := q.compiler.DefaultRegoVersion(); regoVersion != ast.RegoUndefined {
+			ast.SetModuleRegoVersion(m, q.compiler.DefaultRegoVersion())
+		}
+
 		sort.Slice(support[i].Rules, func(j, k int) bool {
 			return support[i].Rules[j].Compare(support[i].Rules[k]) < 0
 		})

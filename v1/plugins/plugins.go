@@ -537,6 +537,7 @@ func (m *Manager) Init(ctx context.Context) error {
 			Bundles:               m.initBundles,
 			MaxErrors:             m.maxErrors,
 			EnablePrintStatements: m.enablePrintStatements,
+			ParserOptions:         m.parserOptions,
 		})
 
 		if err != nil {
@@ -939,7 +940,13 @@ func loadCompilerFromStore(ctx context.Context, store storage.Store, txn storage
 		modules[policy] = module
 	}
 
-	compiler := ast.NewCompiler().WithEnablePrintStatements(enablePrintStatements)
+	compiler := ast.NewCompiler().
+		WithEnablePrintStatements(enablePrintStatements)
+
+	if popts.RegoVersion != ast.RegoUndefined {
+		compiler = compiler.WithDefaultRegoVersion(popts.RegoVersion)
+	}
+
 	compiler.Compile(modules)
 	return compiler, nil
 }

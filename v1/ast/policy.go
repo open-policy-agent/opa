@@ -320,6 +320,11 @@ type (
 	}
 )
 
+// SetModuleRegoVersion sets the RegoVersion for the Module.
+func SetModuleRegoVersion(mod *Module, v RegoVersion) {
+	mod.regoVersion = v
+}
+
 // Compare returns an integer indicating whether mod is less than, equal to,
 // or greater than other.
 func (mod *Module) Compare(other *Module) int {

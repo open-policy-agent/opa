@@ -1212,6 +1212,17 @@ func TestOneShot_DefaultRegoVersion(t *testing.T) {
 			},
 		},
 		{
+			note: "v1 compile-time violation",
+			actions: []action{
+				{
+					line: "b if { data := 1; data == 1 }",
+					expErrs: []string{
+						"rego_compile_error: variables must not shadow data (use a different variable name)",
+					},
+				},
+			},
+		},
+		{
 			note: "rego.v1 imported",
 			actions: []action{
 				{
@@ -1265,7 +1276,7 @@ func TestOneShot_DefaultRegoVersion(t *testing.T) {
 	}
 }
 
-func TestOneShotV1Compatible(t *testing.T) {
+func TestOneShot_RegoVersion(t *testing.T) {
 	type action struct {
 		line      string
 		expOutput string
@@ -1277,7 +1288,7 @@ func TestOneShotV1Compatible(t *testing.T) {
 		regoVersion ast.RegoVersion
 	}{
 		{
-			note:        "v0.x, keywords used",
+			note:        "v0, keywords used",
 			regoVersion: ast.RegoV0,
 			actions: []action{
 				{
@@ -1287,7 +1298,7 @@ func TestOneShotV1Compatible(t *testing.T) {
 			},
 		},
 		{
-			note:        "v0.x, keywords not used",
+			note:        "v0, keywords not used",
 			regoVersion: ast.RegoV0,
 			actions: []action{
 				{
@@ -1297,7 +1308,7 @@ func TestOneShotV1Compatible(t *testing.T) {
 			},
 		},
 		{
-			note:        "v0.x, keywords imported",
+			note:        "v0, keywords imported",
 			regoVersion: ast.RegoV0,
 			actions: []action{
 				{
@@ -1310,7 +1321,7 @@ func TestOneShotV1Compatible(t *testing.T) {
 			},
 		},
 		{
-			note:        "v0.x, rego.v1 imported",
+			note:        "v0, rego.v1 imported",
 			regoVersion: ast.RegoV0,
 			actions: []action{
 				{
@@ -1323,7 +1334,17 @@ func TestOneShotV1Compatible(t *testing.T) {
 			},
 		},
 		{
-			note:        "v1.0, keywords not used",
+			note:        "v0, v1 compile-time violation",
+			regoVersion: ast.RegoV0,
+			actions: []action{
+				{
+					line:      "b { data := 1; data == 1 }",
+					expOutput: "Rule 'b' defined in package repl. Type 'show' to see rules.\n",
+				},
+			},
+		},
+		{
+			note:        "v1, keywords not used",
 			regoVersion: ast.RegoV1,
 			actions: []action{
 				{
@@ -1336,7 +1357,7 @@ func TestOneShotV1Compatible(t *testing.T) {
 			},
 		},
 		{
-			note:        "v1.0, keywords used, not imported",
+			note:        "v1, keywords used, not imported",
 			regoVersion: ast.RegoV1,
 			actions: []action{
 				{
@@ -1346,7 +1367,7 @@ func TestOneShotV1Compatible(t *testing.T) {
 			},
 		},
 		{
-			note:        "v1.0, keywords used, keywords imported",
+			note:        "v1, keywords used, keywords imported",
 			regoVersion: ast.RegoV1,
 			actions: []action{
 				{
@@ -1359,7 +1380,7 @@ func TestOneShotV1Compatible(t *testing.T) {
 			},
 		},
 		{
-			note:        "v1.0, keywords used, rego.v1 imported",
+			note:        "v1, keywords used, rego.v1 imported",
 			regoVersion: ast.RegoV1,
 			actions: []action{
 				{
@@ -1368,6 +1389,18 @@ func TestOneShotV1Compatible(t *testing.T) {
 				{
 					line:      "a contains 2 if { true }",
 					expOutput: "Rule 'a' defined in package repl. Type 'show' to see rules.\n",
+				},
+			},
+		},
+		{
+			note:        "v1 compile-time violation",
+			regoVersion: ast.RegoV1,
+			actions: []action{
+				{
+					line: "b if { data := 1; data == 1 }",
+					expErrs: []string{
+						"rego_compile_error: variables must not shadow data (use a different variable name)",
+					},
 				},
 			},
 		},
@@ -1405,7 +1438,7 @@ func TestOneShotV1Compatible(t *testing.T) {
 	}
 }
 
-func TestStoredModuleV1Compatible(t *testing.T) {
+func TestStoredModule_RegoVersion(t *testing.T) {
 	tests := []struct {
 		note        string
 		regoVersion ast.RegoVersion
@@ -1415,7 +1448,7 @@ func TestStoredModuleV1Compatible(t *testing.T) {
 		expErrs     []string
 	}{
 		{
-			note:        "v0.x keywords not used",
+			note:        "v0 keywords not used",
 			regoVersion: ast.RegoV0,
 			module: `package example
 p[2] { 1 == 1 }`,
@@ -1423,7 +1456,7 @@ p[2] { 1 == 1 }`,
 			expOutput: "[\n  2\n]\n",
 		},
 		{
-			note:        "v0.x, keywords not imported but used",
+			note:        "v0, keywords not imported but used",
 			regoVersion: ast.RegoV0,
 			module: `package example
 p contains 2 if { 1 == 1 }`,
@@ -1434,7 +1467,7 @@ p contains 2 if { 1 == 1 }`,
 			},
 		},
 		{
-			note:        "v0.x, keywords imported",
+			note:        "v0, keywords imported",
 			regoVersion: ast.RegoV0,
 			module: `package example
 import future.keywords
@@ -1443,7 +1476,7 @@ p contains 2 if { 1 == 1 }`,
 			expOutput: "[\n  2\n]\n",
 		},
 		{
-			note:        "v0.x, rego.v1 imported",
+			note:        "v0, rego.v1 imported",
 			regoVersion: ast.RegoV0,
 			module: `package example
 import rego.v1
@@ -1452,7 +1485,15 @@ p contains 2 if { 1 == 1 }`,
 			expOutput: "[\n  2\n]\n",
 		},
 		{
-			note:        "v1.0, keywords not used",
+			note:        "v0, v1 compile-time violation",
+			regoVersion: ast.RegoV0,
+			module: `package example
+p { data := 1; data == 1 }`,
+			line:      "data.example.p",
+			expOutput: "true\n",
+		},
+		{
+			note:        "v1, keywords not used",
 			regoVersion: ast.RegoV1,
 			module: `package example
 p[2] { 1 == 1 }`,
@@ -1463,7 +1504,7 @@ p[2] { 1 == 1 }`,
 			},
 		},
 		{
-			note:        "v1.0, keywords not imported",
+			note:        "v1, keywords not imported",
 			regoVersion: ast.RegoV1,
 			module: `package example
 p contains 2 if { 1 == 1 }`,
@@ -1471,7 +1512,7 @@ p contains 2 if { 1 == 1 }`,
 			expOutput: "[\n  2\n]\n",
 		},
 		{
-			note:        "v1.0, keywords imported",
+			note:        "v1, keywords imported",
 			regoVersion: ast.RegoV1,
 			module: `package example
 import future.keywords
@@ -1480,13 +1521,23 @@ p contains 2 if { 1 == 1 }`,
 			expOutput: "[\n  2\n]\n",
 		},
 		{
-			note:        "v1.0, rego.v1 imported",
+			note:        "v1, rego.v1 imported",
 			regoVersion: ast.RegoV1,
 			module: `package example
 import rego.v1
 p contains 2 if { 1 == 1 }`,
 			line:      "data.example.p",
 			expOutput: "[\n  2\n]\n",
+		},
+		{
+			note:        "v1, v1 compile-time violation",
+			regoVersion: ast.RegoV1,
+			module: `package example
+p if { data := 1; data == 1 }`,
+			line: "data.example.p",
+			expErrs: []string{
+				"rego_compile_error: variables must not shadow data (use a different variable name)",
+			},
 		},
 	}
 

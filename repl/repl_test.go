@@ -27,6 +27,15 @@ func TestOneShot_DefaultRegoVersion(t *testing.T) {
 		actions []action
 	}{
 		{
+			note: "v0 rule, v1 compile-time violation",
+			actions: []action{
+				{
+					line:      "b { data := 1; data == 1 }",
+					expOutput: "Rule 'b' defined in package repl. Type 'show' to see rules.\n",
+				},
+			},
+		},
+		{
 			note: "v1 keywords used",
 			actions: []action{
 				{
