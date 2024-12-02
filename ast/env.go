@@ -9,4 +9,4 @@ import (
 )
 
 // TypeEnv contains type info for static analysis such as type checking.
-type TypeEnv v1.TypeEnv
+type TypeEnv = v1.TypeEnv
