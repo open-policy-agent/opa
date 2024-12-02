@@ -194,7 +194,7 @@ int opa_atof64(const char *str, int len, double *result)
     // Reject non-JSON number formats (like "Infinite" or "Infinity")
     if (len >= 8) {
         if (opa_strncmp(str, "Infinite", 8) == 0 || opa_strncmp(str, "Infinity", 8) == 0) {
-            return -2;  // Invalid number format
+            return -2;  
         }
     }
 
