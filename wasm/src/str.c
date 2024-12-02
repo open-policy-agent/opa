@@ -191,16 +191,11 @@ int opa_atof64(const char *str, int len, double *result)
         return -1;
     }
 
-    // Check for special values
-    if (len == 8 && opa_strncmp(str, "Infinite", 8) == 0)
-    {
-        *result = INFINITY;
-        return 0;
-    }
-    if (len == 8 && opa_strncmp(str, "Infinity", 8) == 0)
-    {
-        *result = INFINITY;
-        return 0;
+    // Reject non-JSON number formats (like "Infinite" or "Infinity")
+    if (len >= 8) {
+        if (opa_strncmp(str, "Infinite", 8) == 0 || opa_strncmp(str, "Infinity", 8) == 0) {
+            return -2;  // Invalid number format
+        }
     }
 
     // Handle sign.
