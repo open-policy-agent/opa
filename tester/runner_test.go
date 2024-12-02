@@ -6,6 +6,7 @@ package tester_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"testing"
@@ -408,6 +409,10 @@ func testCancel(t *testing.T, bench bool) {
 		if !topdown.IsCancel(results[0].Error) {
 			t.Fatalf("Expected cancel error for first test but got: %v", results[0].Error)
 		}
+
+		if !errors.Is(results[0].Error, context.Canceled) {
+			t.Fatalf("Expected error to be of type context.Canceled but got: %v", results[0].Error)
+		}
 	})
 }
 
@@ -475,6 +480,10 @@ func testTimeout(t *testing.T, bench bool) {
 			if topdown.IsCancel(results[1].Error) {
 				t.Fatalf("Expected no error for second test, but it timed out")
 			}
+		}
+
+		if !errors.Is(results[0].Error, context.DeadlineExceeded) {
+			t.Fatalf("Expected error to be of type context.DeadlineExceeded but got: %v", results[0].Error)
 		}
 	})
 }
