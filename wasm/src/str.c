@@ -1,5 +1,6 @@
 #include "string.h"
 #include "limits.h"
+#include "math.h"
 
 size_t opa_strlen(const char *s)
 {
@@ -188,6 +189,18 @@ int opa_atof64(const char *str, int len, double *result)
     if (len <= 0)
     {
         return -1;
+    }
+
+    // Check for special values
+    if (len == 8 && opa_strncmp(str, "Infinite", 8) == 0)
+    {
+        *result = INFINITY;
+        return 0;
+    }
+    if (len == 8 && opa_strncmp(str, "Infinity", 8) == 0)
+    {
+        *result = INFINITY;
+        return 0;
     }
 
     // Handle sign.

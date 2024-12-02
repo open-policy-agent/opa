@@ -20,10 +20,17 @@ opa_value *opa_to_number(opa_value *v)
     {
         opa_string_t *a = opa_cast_string(v);
         double n;
-        // NOTE: we're only using opa_atof64 for validation here
-        if (opa_atof64(a->v, a->len, &n) != 0)
+        // Check for special values and convert them using opa_atof64
+        int result = opa_atof64(a->v, a->len, &n);
+        if (result != 0)
         {
             return NULL;
+        }
+
+        // If it's a special value (Infinity), create a number with that value
+        if (isinf(n))
+        {
+            return opa_number_float(n);
         }
 
         return opa_number_ref(a->v, a->len);

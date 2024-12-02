@@ -23,7 +23,12 @@ func builtinToNumber(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 	case ast.Number:
 		return iter(ast.NewTerm(a))
 	case ast.String:
-		_, err := strconv.ParseFloat(string(a), 64)
+		// Handle special cases first
+		str := string(a)
+		if str == "Infinite" || str == "Infinity" {
+			return iter(ast.NewTerm(ast.Number("1e999"))) // A very large number to represent infinity
+		}
+		_, err := strconv.ParseFloat(str, 64)
 		if err != nil {
 			return err
 		}
