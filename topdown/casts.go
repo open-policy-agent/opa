@@ -6,6 +6,7 @@ package topdown
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/topdown/builtins"
@@ -23,7 +24,16 @@ func builtinToNumber(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 	case ast.Number:
 		return iter(ast.NewTerm(a))
 	case ast.String:
-		_, err := strconv.ParseFloat(string(a), 64)
+		strValue := string(a)
+
+		trimmedVal := strings.TrimLeft(strValue, "+-")
+		lowerCaseVal := strings.ToLower(trimmedVal)
+
+		if lowerCaseVal == "inf" || lowerCaseVal == "infinity" || lowerCaseVal == "nan" {
+			return builtins.NewOperandTypeErr(1, operands[0].Value, "valid number string")
+		}
+
+		_, err := strconv.ParseFloat(strValue, 64)
 		if err != nil {
 			return err
 		}
