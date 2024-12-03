@@ -7,8 +7,10 @@ package topdown
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/metrics"
@@ -1564,6 +1566,82 @@ func TestPartialRule(t *testing.T) {
 					t.Fatalf("expected %d query result:\n\n%+v,\n\ngot %d query results:\n\n%+v", expLen, exp, act, qrs)
 				}
 				testAssertResultSet(t, exp, qrs, false)
+			}
+		})
+	}
+}
+
+func TestContextErrorHandling(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store := inmem.New()
+
+	tests := []struct {
+		note       string
+		before     func() context.Context
+		module     string
+		expErr     string
+		expErrType error
+	}{
+		{
+			note: "context deadline exceeded is handled",
+			before: func() context.Context {
+				ctx, cancel := context.WithTimeout(ctx, 1*time.Millisecond)
+				time.Sleep(10 * time.Millisecond)
+				cancel()
+				return ctx
+			},
+			module: `package test
+				p contains v if {
+					v := [1, 2, 3][_]
+				}
+			`,
+			expErr:     context.DeadlineExceeded.Error(),
+			expErrType: context.DeadlineExceeded,
+		},
+		{
+			note: "context cancellation is handled",
+			before: func() context.Context {
+				ctx, cancel := context.WithCancel(ctx)
+				cancel()
+				return ctx
+			},
+			module: `package test
+				p contains v if {
+					v := [1, 2, 3][_]
+				}
+			`,
+			expErr:     context.Canceled.Error(),
+			expErrType: context.Canceled,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			compiler := compileModules([]string{tc.module})
+			txn := storage.NewTransactionOrDie(ctx, store)
+			defer store.Abort(ctx, txn)
+
+			query := NewQuery(ast.MustParseBody("")).
+				WithCompiler(compiler).
+				WithStore(store).
+				WithTransaction(txn)
+
+			testCtx := tc.before()
+			qrs, err := query.Run(testCtx)
+
+			if err == nil {
+				t.Fatalf("Expected error %v but got result: %v", tc.expErr, qrs)
+			}
+			if exp, act := tc.expErr, err.Error(); !strings.Contains(act, exp) {
+				t.Fatalf("Expected error %v but got: %v", exp, act)
+			}
+
+			if et := tc.expErrType; et != nil && !errors.Is(err, tc.expErrType) {
+				t.Fatalf("Expected error to be of type %#v, but got %#v", et, err)
 			}
 		})
 	}

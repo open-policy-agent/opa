@@ -259,7 +259,7 @@ func TestRegoCancellation(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected cancellation error but got: %v", rs)
 	}
-	exp := topdown.Error{Code: topdown.CancelErr, Message: "caller cancelled query execution"}
+	exp := topdown.Error{Code: topdown.CancelErr, Message: context.DeadlineExceeded.Error()}
 	if !errors.Is(err, &exp) {
 		t.Errorf("error: expected %v, got: %v", exp, err)
 	}
@@ -1137,7 +1137,7 @@ func TestPrepareAndPartial(t *testing.T) {
 	mod := `
 	package test
 	import rego.v1
-	
+
 	default p = false
 	p if {
 		input.x = 1
@@ -1326,7 +1326,7 @@ func TestPartialResultWithInput(t *testing.T) {
 	mod := `
 	package test
 	import rego.v1
-	
+
 	default p = false
 	p if {
 		input.x == 1
@@ -1355,7 +1355,7 @@ func TestPartialResultWithNamespace(t *testing.T) {
 	mod := `
 	package test
 	import rego.v1
-	
+
 	p if {
 		true
 	}
@@ -1398,7 +1398,7 @@ func TestPreparedPartialResultWithTracer(t *testing.T) {
 	mod := `
 	package test
 	import rego.v1
-	
+
 	default p = false
 	p if {
 		input.x = 1
@@ -1440,7 +1440,7 @@ func TestPreparedPartialResultWithQueryTracer(t *testing.T) {
 	mod := `
 	package test
 	import rego.v1
-	
+
 	default p = false
 	p if {
 		input.x = 1
@@ -2174,7 +2174,7 @@ func TestRegoLoadBundleWithProvidedStore(t *testing.T) {
 func TestRegoCustomBuiltinPartialPropagate(t *testing.T) {
 	mod := `package test
 	import rego.v1
-	
+
 	p if {
 		x = trim_and_split(input.foo, "/")
 		x == ["foo", "bar", "baz"]
@@ -2279,15 +2279,15 @@ func TestShallowInliningOption(t *testing.T) {
 		SetRegoVersion(ast.RegoV1),
 		Module("example.rego", `
 			package test
-			
+
 			p if {
 				q = true
 			}
-			
+
 			q if {
 				input.x = r
 			}
-			
+
 			r = 7
 		`),
 		ShallowInlining(true))
@@ -2318,19 +2318,19 @@ func TestRegoPartialResultSortedRules(t *testing.T) {
 		SetRegoVersion(ast.RegoV1),
 		Module("example.rego", `
 			package test
-	
+
 			default p = false
-	
+
 			p if {
 				r = (input.d * input.a) + input.c
 				r < s
 			}
-	
+
 			p if {
 				r = (input.d * input.b) + input.c
 				r < s
 			}
-	
+
 			s = 100
 	`))
 
