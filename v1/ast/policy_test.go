@@ -626,6 +626,60 @@ func TestRuleString(t *testing.T) {
 	}
 }
 
+func TestRuleString_DefaultRegoVersion(t *testing.T) {
+	// ast.Rule.String() will respect the rego-version of the ast.Module it is part of.
+
+	tests := []struct {
+		note        string
+		module      string
+		regoVersion RegoVersion
+		exp         string
+	}{
+		{
+			note:        "v0",
+			regoVersion: RegoV0,
+			module: `package a.b.c
+
+p[x] { x = "a" }`,
+			exp: `p[x] { x = "a" }`,
+		},
+		{
+			note:        "v1",
+			regoVersion: RegoV1,
+			module: `package a.b.c
+
+p contains x if { x = "a" }`,
+			exp: `p contains x if { x = "a" }`,
+		},
+		{
+			note: "default rego-version",
+			module: `package a.b.c
+
+p contains x if { x = "a" }`,
+			exp: `p contains x if { x = "a" }`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			var mod *Module
+
+			if tc.regoVersion == RegoUndefined {
+				mod = MustParseModule(tc.module)
+			} else {
+				mod = MustParseModuleWithOpts(tc.module, ParserOptions{RegoVersion: tc.regoVersion})
+			}
+
+			rule := mod.Rules[0]
+			act := rule.String()
+
+			if act != tc.exp {
+				t.Fatalf("Expected:\n\n%s\n\nbut got:\n\n%s", tc.exp, act)
+			}
+		})
+	}
+}
+
 func TestRulePath(t *testing.T) {
 	ruleWithMod := func(r string) Ref {
 		mod := module("package pkg\n" + r)
@@ -642,9 +696,9 @@ func TestRulePath(t *testing.T) {
 
 func TestModuleString(t *testing.T) {
 
+	// v1 module
 	input := `package a.b.c
 
-import rego.v1
 import data.foo.bar
 import input.xyz
 

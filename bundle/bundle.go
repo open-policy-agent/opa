@@ -77,13 +77,13 @@ type Reader = v1.Reader
 
 // NewReader is deprecated. Use NewCustomReader instead.
 func NewReader(r io.Reader) *Reader {
-	return v1.NewReader(r)
+	return v1.NewReader(r).WithRegoVersion(ast.DefaultRegoVersion)
 }
 
 // NewCustomReader returns a new Reader configured to use the
 // specified DirectoryLoader.
 func NewCustomReader(loader DirectoryLoader) *Reader {
-	return v1.NewCustomReader(loader)
+	return v1.NewCustomReader(loader).WithRegoVersion(ast.DefaultRegoVersion)
 }
 
 // Write is deprecated. Use NewWriter instead.

@@ -215,6 +215,11 @@ func IsVarCompatibleString(s string) bool {
 // QueryIterator defines the interface for querying AST documents with references.
 type QueryIterator = v1.QueryIterator
 
+// ArrayTerm creates a new Term with an Array value.
+func ArrayTerm(a ...*Term) *Term {
+	return v1.ArrayTerm(a...)
+}
+
 // NewArray creates an Array with the terms provided. The array will
 // use the provided term slice.
 func NewArray(a ...*Term) *Array {
@@ -232,6 +237,10 @@ type Set = v1.Set
 // NewSet returns a new Set containing t.
 func NewSet(t ...*Term) Set {
 	return v1.NewSet(t...)
+}
+
+func SetTerm(t ...*Term) *Term {
+	return v1.SetTerm(t...)
 }
 
 // Object represents an object as defined by the language.

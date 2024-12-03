@@ -170,6 +170,79 @@ func TestReadWithBaseDir(t *testing.T) {
 	}
 }
 
+func TestRead_DefaultRegoVersion(t *testing.T) {
+	tests := []struct {
+		note    string
+		module  string
+		expErrs []string
+	}{
+		{
+			note: "v0",
+			module: `package example
+
+p[x] {
+	x := "a"
+}`,
+			expErrs: []string{
+				"test.rego:3: rego_parse_error: `if` keyword is required before rule body",
+				"test.rego:3: rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note: "rego.v1 import",
+			module: `package example
+import rego.v1
+
+p contains x if {
+	x := "a"
+}`,
+		},
+		{
+			note: "v1", // v1 is the default rego-version
+			module: `package example
+
+p contains x if {
+	x := "a"
+}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			module := tc.module
+			files := [][2]string{
+				{"test.rego", module},
+			}
+
+			buf := archive.MustWriteTarGz(files)
+			loader := NewTarballLoaderWithBaseURL(buf, "")
+			br := NewCustomReader(loader)
+
+			bundle, err := br.Read()
+
+			if len(tc.expErrs) > 0 {
+				if err == nil {
+					t.Fatalf("Expected error(s):\n\n%v\n\nbut got nil", tc.expErrs)
+				}
+
+				for _, expErr := range tc.expErrs {
+					if !strings.Contains(err.Error(), expErr) {
+						t.Fatalf("Expected error:\n\n%s\n\nbut got:\n\n%s", expErr, err)
+					}
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+
+				if len(bundle.Modules) != 1 {
+					t.Fatalf("expected 1 module but got %d", len(bundle.Modules))
+				}
+			}
+		})
+	}
+}
+
 func TestReadWithSizeLimit(t *testing.T) {
 
 	buf := archive.MustWriteTarGz([][2]string{

@@ -7,6 +7,8 @@ package loader
 
 import (
 	"io/fs"
+	"os"
+	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
@@ -77,7 +79,7 @@ func Schemas(schemaPath string) (*ast.SchemaSet, error) {
 // All returns a Result object loaded (recursively) from the specified paths.
 // Deprecated: Use FileLoader.Filtered() instead.
 func All(paths []string) (*Result, error) {
-	return v1.All(paths)
+	return NewFileLoader().Filtered(paths, nil)
 }
 
 // Filtered returns a Result object loaded (recursively) from the specified
@@ -85,7 +87,7 @@ func All(paths []string) (*Result, error) {
 // file/directory is excluded.
 // Deprecated: Use FileLoader.Filtered() instead.
 func Filtered(paths []string, filter Filter) (*Result, error) {
-	return v1.Filtered(paths, filter)
+	return NewFileLoader().Filtered(paths, filter)
 }
 
 // AsBundle loads a path as a bundle. If it is a single file
@@ -93,22 +95,28 @@ func Filtered(paths []string, filter Filter) (*Result, error) {
 // is supplied it will be loaded as an unzipped bundle tree.
 // Deprecated: Use FileLoader.AsBundle() instead.
 func AsBundle(path string) (*bundle.Bundle, error) {
-	return v1.AsBundle(path)
+	return NewFileLoader().AsBundle(path)
 }
 
 // AllRegos returns a Result object loaded (recursively) with all Rego source
 // files from the specified paths.
 func AllRegos(paths []string) (*Result, error) {
-	return v1.AllRegos(paths)
+	return NewFileLoader().Filtered(paths, func(_ string, info os.FileInfo, _ int) bool {
+		return !info.IsDir() && !strings.HasSuffix(info.Name(), bundle.RegoExt)
+	})
 }
 
 // Rego is deprecated. Use RegoWithOpts instead.
 func Rego(path string) (*RegoFile, error) {
-	return v1.Rego(path)
+	return RegoWithOpts(path, ast.ParserOptions{})
 }
 
 // RegoWithOpts returns a RegoFile object loaded from the given path.
 func RegoWithOpts(path string, opts ast.ParserOptions) (*RegoFile, error) {
+	if opts.RegoVersion == ast.RegoUndefined {
+		opts.RegoVersion = ast.DefaultRegoVersion
+	}
+
 	return v1.RegoWithOpts(path, opts)
 }
 

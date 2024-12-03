@@ -789,7 +789,11 @@ func (rule *Rule) Ref() Ref {
 }
 
 func (rule *Rule) String() string {
-	return rule.stringWithOpts(toStringOpts{})
+	regoVersion := DefaultRegoVersion
+	if rule.Module != nil {
+		regoVersion = rule.Module.RegoVersion()
+	}
+	return rule.stringWithOpts(toStringOpts{regoVersion: regoVersion})
 }
 
 type toStringOpts struct {

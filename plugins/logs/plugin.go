@@ -39,6 +39,10 @@ type Config = v1.Config
 // Plugin implements decision log buffering and uploading.
 type Plugin = v1.Plugin
 
+func ParseConfig(config []byte, services []string, pluginList []string) (*Config, error) {
+	return v1.ParseConfig(config, services, pluginList)
+}
+
 // ConfigBuilder assists in the construction of the plugin configuration.
 type ConfigBuilder = v1.ConfigBuilder
 
