@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/open-policy-agent/opa/v1/util/test"
+	"github.com/open-policy-agent/opa/util/test"
 )
 
 func TestRegoEval_DefaultRegoVersion(t *testing.T) {

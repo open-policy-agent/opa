@@ -6,6 +6,7 @@ package tester_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -330,7 +331,7 @@ func TestRunWithFilterRegex(t *testing.T) {
 			},
 		},
 		{
-			note:  "matching ref rule halfways",
+			note:  "matching ref rule halfway",
 			regex: "data.baz.a",
 			tests: expectedTestResults{
 				{"data.baz", "a.b.test_duplicate"}:         {false, true, false},
@@ -386,7 +387,7 @@ func testCancel(t *testing.T, bench bool) {
 		txn := storage.NewTransactionOrDie(ctx, store)
 		runner := tester.NewRunner().SetStore(store).SetModules(modules)
 
-		// Everything below uses a canceled context..
+		// Everything below uses a canceled context ...
 		cancel()
 
 		var ch chan *tester.Result
@@ -409,6 +410,10 @@ func testCancel(t *testing.T, bench bool) {
 
 		if !topdown.IsCancel(results[0].Error) {
 			t.Fatalf("Expected cancel error for first test but got: %v", results[0].Error)
+		}
+
+		if !errors.Is(results[0].Error, context.Canceled) {
+			t.Fatalf("Expected error to be of type context.Canceled but got: %v", results[0].Error)
 		}
 	})
 }
@@ -477,6 +482,10 @@ func testTimeout(t *testing.T, bench bool) {
 			if topdown.IsCancel(results[1].Error) {
 				t.Fatalf("Expected no error for second test, but it timed out")
 			}
+		}
+
+		if !errors.Is(results[0].Error, context.DeadlineExceeded) {
+			t.Fatalf("Expected error to be of type context.DeadlineExceeded but got: %v", results[0].Error)
 		}
 	})
 }

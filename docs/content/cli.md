@@ -261,6 +261,7 @@ opa build <path> [<path> [...]] [flags]
       --v1-compatible                  opt-in to OPA features and behaviors that are enabled by default in OPA v1.0
       --verification-key string        set the secret (HMAC) or path of the PEM file containing the public key (RSA and ECDSA)
       --verification-key-id string     name assigned to the verification key used for bundle verification (default "default")
+      --wasm-include-print             enable print statements inside of WebAssembly modules compiled by the compiler
 ```
 
 ____

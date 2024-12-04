@@ -41,3 +41,18 @@ cases:
               - 3
             - 3
     sort_bindings: true
+  - note: walkbuiltin/sets no path
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [x | walk({{1, 2, 3}}, [_, x])]
+    data: {}
+    want_result:
+      - x:
+          - [[1, 2, 3]]
+          - [1, 2, 3]
+          - 1
+          - 2
+          - 3

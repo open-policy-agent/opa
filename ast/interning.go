@@ -8,6 +8,7 @@ import (
 	v1 "github.com/open-policy-agent/opa/v1/ast"
 )
 
+// InternedBooleanTerm returns an interned term with the given boolean value.
 func InternedBooleanTerm(b bool) *Term {
 	return v1.InternedBooleanTerm(b)
 }
@@ -19,6 +20,15 @@ func InternedIntNumberTerm(i int) *Term {
 	return v1.InternedIntNumberTerm(i)
 }
 
+// InternedIntFromString returns a term with the given integer value if the string
+// maps to an interned term. If the string does not map to an interned term, nil is
+// returned.
+func InternedIntNumberTermFromString(s string) *Term {
+	return v1.InternedIntNumberTermFromString(s)
+}
+
+// HasInternedIntNumberTerm returns true if the given integer value maps to an interned
+// term, otherwise false.
 func HasInternedIntNumberTerm(i int) bool {
 	return v1.HasInternedIntNumberTerm(i)
 }

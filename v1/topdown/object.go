@@ -150,29 +150,18 @@ func builtinObjectKeys(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 // getObjectKeysParam returns a set of key values
 // from a supplied ast array, object, set value
 func getObjectKeysParam(arrayOrSet ast.Value) (ast.Set, error) {
-	keys := ast.NewSet()
-
 	switch v := arrayOrSet.(type) {
 	case *ast.Array:
-		_ = v.Iter(func(f *ast.Term) error {
-			keys.Add(f)
-			return nil
-		})
+		keys := ast.NewSet()
+		v.Foreach(keys.Add)
+		return keys, nil
 	case ast.Set:
-		_ = v.Iter(func(f *ast.Term) error {
-			keys.Add(f)
-			return nil
-		})
+		return ast.NewSet(v.Slice()...), nil
 	case ast.Object:
-		_ = v.Iter(func(k *ast.Term, _ *ast.Term) error {
-			keys.Add(k)
-			return nil
-		})
-	default:
-		return nil, builtins.NewOperandTypeErr(2, arrayOrSet, "object", "set", "array")
+		return ast.NewSet(v.Keys()...), nil
 	}
 
-	return keys, nil
+	return nil, builtins.NewOperandTypeErr(2, arrayOrSet, "object", "set", "array")
 }
 
 func mergeWithOverwrite(objA, objB ast.Object) ast.Object {

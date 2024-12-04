@@ -146,7 +146,6 @@
 package edittree
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"sort"
@@ -213,10 +212,10 @@ func (e *EditTree) getKeyHash(key *ast.Term) (int, bool) {
 	case ast.Null, ast.Boolean, ast.String, ast.Var:
 		equal = func(y ast.Value) bool { return x == y }
 	case ast.Number:
-		if xi, err := json.Number(x).Int64(); err == nil {
+		if xi, ok := x.Int64(); ok {
 			equal = func(y ast.Value) bool {
 				if y, ok := y.(ast.Number); ok {
-					if yi, err := json.Number(y).Int64(); err == nil {
+					if yi, ok := y.Int64(); ok {
 						return xi == yi
 					}
 				}

@@ -1,0 +1,90 @@
+---
+cases:
+  - note: "casts/to_number: nan input"
+    query: data.generated.p = b
+    modules:
+      - |
+        package generated
+
+        p if {
+          to_number("nan", b)
+        }
+    want_error_code: eval_type_error
+    strict_error: true
+  - note: "casts/to_number: inf input"
+    query: data.generated.p = b
+    modules:
+      - |
+        package generated
+
+        p if {
+          to_number("inf", b)
+        }
+    want_error_code: eval_type_error
+    strict_error: true
+  - note: "casts/to_number: -inf input"
+    query: data.generated.p = b
+    modules:
+      - |
+        package generated
+
+        p if {
+          to_number("-inf", b)
+        }
+    want_error_code: eval_type_error
+    strict_error: true
+  - note: "casts/to_number: Infinity input"
+    query: data.generated.p = b
+    modules:
+      - |
+        package generated
+
+        p if {
+          to_number("Infinity", b)
+        }
+    want_error_code: eval_type_error
+    strict_error: true
+  - note: "casts/to_number: -Infinity input"
+    query: data.generated.p = b
+    modules:
+      - |
+        package generated
+
+        p if {
+          to_number("-Infinity", b)
+        }
+    want_error_code: eval_type_error
+    strict_error: true
+  - note: "casts/to_number: -nan input"
+    query: data.generated.p = b
+    modules:
+      - |
+        package generated
+
+        p if {
+          to_number("-nan", b)
+        }
+    want_error_code: eval_type_error
+    strict_error: true
+  - note: "casts/to_number: -NaN input"
+    query: data.generated.p = b
+    modules:
+      - |
+        package generated
+
+        p if {
+          to_number("-NaN", b)
+        }
+    want_error_code: eval_type_error
+    strict_error: true
+  - note: "casts/to_number: iNf input"
+    query: data.generated.p = b
+    modules:
+      - |
+        package generated
+
+        p if {
+          to_number("iNf", b)
+        }
+    want_error_code: eval_type_error
+    strict_error: true
