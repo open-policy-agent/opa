@@ -1,4 +1,4 @@
-package planner
+package encoding
 
 import (
 	"bytes"
