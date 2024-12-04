@@ -126,7 +126,7 @@ p contains x if {
 
 			test.WithTempFS(files, func(rootDir string) {
 				moduleFile := filepath.Join(rootDir, "test.rego")
-				filter := func(path string, info os.FileInfo, depth int) bool {
+				filter := func(string, os.FileInfo, int) bool {
 					return false
 				}
 
