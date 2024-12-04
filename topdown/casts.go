@@ -26,6 +26,10 @@ func builtinToNumber(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 	case ast.String:
 		strValue := string(a)
 
+		if it := ast.InternedIntNumberTermFromString(strValue); it != nil {
+			return iter(it)
+		}
+
 		trimmedVal := strings.TrimLeft(strValue, "+-")
 		lowerCaseVal := strings.ToLower(trimmedVal)
 

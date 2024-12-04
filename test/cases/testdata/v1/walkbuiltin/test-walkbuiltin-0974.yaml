@@ -1,16 +1,14 @@
 ---
 cases:
   - note: walkbuiltin/match and filter
-    query: data.generated.p = x
+    query: data.test.p = x
     modules:
       - |
-        package generated
+        package test
 
         p contains [k, x] if {
-        	__local0__ = data.generated.q
-        	walk(__local0__, [k, x])
-        	__local1__ = k[1]
-        	contains(__local1__, "oo")
+        	walk(q, [k, x])
+        	contains(k[1], "oo")
         }
 
         q := [{

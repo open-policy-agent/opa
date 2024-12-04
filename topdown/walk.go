@@ -8,6 +8,10 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
+var (
+	emptyArr = ast.ArrayTerm()
+)
+
 func evalWalk(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	input := operands[0]
 
@@ -24,7 +28,6 @@ func evalWalk(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error
 }
 
 func walk(filter, path *ast.Array, input *ast.Term, iter func(*ast.Term) error) error {
-
 	if filter == nil || filter.Len() == 0 {
 		if path == nil {
 			path = ast.NewArray()
@@ -50,36 +53,27 @@ func walk(filter, path *ast.Array, input *ast.Term, iter func(*ast.Term) error) 
 	switch v := input.Value.(type) {
 	case *ast.Array:
 		for i := 0; i < v.Len(); i++ {
-			path = pathAppend(path, ast.InternedIntNumberTerm(i))
-			if err := walk(filter, path, v.Elem(i), iter); err != nil {
+			if err := walk(filter, pathAppend(path, ast.InternedIntNumberTerm(i)), v.Elem(i), iter); err != nil {
 				return err
 			}
-			path = path.Slice(0, path.Len()-1)
 		}
 	case ast.Object:
 		return v.Iter(func(k, v *ast.Term) error {
-			path = pathAppend(path, k)
-			if err := walk(filter, path, v, iter); err != nil {
+			if err := walk(filter, pathAppend(path, k), v, iter); err != nil {
 				return err
 			}
-			path = path.Slice(0, path.Len()-1)
 			return nil
 		})
 	case ast.Set:
-		return v.Iter(func(elem *ast.Term) error {
-			path = pathAppend(path, elem)
-			if err := walk(filter, path, elem, iter); err != nil {
+		for _, elem := range v.Slice() {
+			if err := walk(filter, pathAppend(path, elem), elem, iter); err != nil {
 				return err
 			}
-			path = path.Slice(0, path.Len()-1)
-			return nil
-		})
+		}
 	}
 
 	return nil
 }
-
-var emptyArr = ast.ArrayTerm()
 
 func walkNoPath(input *ast.Term, iter func(*ast.Term) error) error {
 	if err := iter(ast.ArrayTerm(emptyArr, input)); err != nil {
@@ -98,9 +92,11 @@ func walkNoPath(input *ast.Term, iter func(*ast.Term) error) error {
 			}
 		}
 	case ast.Set:
-		return v.Iter(func(elem *ast.Term) error {
-			return walkNoPath(elem, iter)
-		})
+		for _, elem := range v.Slice() {
+			if err := walkNoPath(elem, iter); err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil

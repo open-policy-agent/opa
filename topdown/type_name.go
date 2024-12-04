@@ -10,22 +10,32 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
+var (
+	nullStringTerm    = ast.StringTerm("null")
+	booleanStringTerm = ast.StringTerm("boolean")
+	numberStringTerm  = ast.StringTerm("number")
+	stringStringTerm  = ast.StringTerm("string")
+	arrayStringTerm   = ast.StringTerm("array")
+	objectStringTerm  = ast.StringTerm("object")
+	setStringTerm     = ast.StringTerm("set")
+)
+
 func builtinTypeName(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch operands[0].Value.(type) {
 	case ast.Null:
-		return iter(ast.StringTerm("null"))
+		return iter(nullStringTerm)
 	case ast.Boolean:
-		return iter(ast.StringTerm("boolean"))
+		return iter(booleanStringTerm)
 	case ast.Number:
-		return iter(ast.StringTerm("number"))
+		return iter(numberStringTerm)
 	case ast.String:
-		return iter(ast.StringTerm("string"))
+		return iter(stringStringTerm)
 	case *ast.Array:
-		return iter(ast.StringTerm("array"))
+		return iter(arrayStringTerm)
 	case ast.Object:
-		return iter(ast.StringTerm("object"))
+		return iter(objectStringTerm)
 	case ast.Set:
-		return iter(ast.StringTerm("set"))
+		return iter(setStringTerm)
 	}
 
 	return fmt.Errorf("illegal value")

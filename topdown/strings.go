@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/tchap/go-patricia/v2/patricia"
@@ -537,7 +538,17 @@ func builtinSprintf(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 		return builtins.NewOperandTypeErr(2, operands[1].Value, "array")
 	}
 
-	args := make([]interface{}, astArr.Len())
+	// Optimized path for where sprintf is used as a "to_string" function for
+	// a single integer, i.e. sprintf("%d", [x]) where x is an integer.
+	if s == "%d" && astArr.Len() == 1 {
+		if n, ok := astArr.Elem(0).Value.(ast.Number); ok {
+			if i, ok := n.Int(); ok {
+				return iter(ast.StringTerm(strconv.Itoa(i)))
+			}
+		}
+	}
+
+	args := make([]any, astArr.Len())
 
 	for i := range args {
 		switch v := astArr.Elem(i).Value.(type) {
