@@ -981,7 +981,7 @@ func (c *Compiler) buildRequiredCapabilities() {
 				features[FeatureRegoV1Import] = struct{}{}
 			case path.HasPrefix(futureKeywordsPrefix):
 				if len(path) == 2 {
-					for kw := range futureKeywords {
+					for kw := range allFutureKeywords {
 						keywords[kw] = struct{}{}
 					}
 				} else {
@@ -5800,7 +5800,7 @@ func safetyErrorSlice(unsafe unsafeVars, rewritten map[Var]Var) (result Errors) 
 			v = w
 		}
 		if !v.IsGenerated() {
-			if _, ok := futureKeywords[string(v)]; ok {
+			if _, ok := allFutureKeywords[string(v)]; ok {
 				result = append(result, NewError(UnsafeVarErr, pair.Loc,
 					"var %[1]v is unsafe (hint: `import future.keywords.%[1]v` to import a future keyword)", v))
 				continue

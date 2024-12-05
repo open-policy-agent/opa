@@ -2501,7 +2501,7 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 				if name == "" && len(r.Head.Reference) > 0 {
 					name = r.Head.Reference[0].Value.(ast.Var)
 				}
-				if ast.IsFutureKeyword(name.String()) {
+				if ast.IsFutureKeywordForRegoVersion(name.String(), ast.RegoV0) {
 					applyRegoVersion = false
 					return true
 				}
@@ -2510,7 +2510,7 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 
 			if applyRegoVersion {
 				ast.WalkVars(mod, func(v ast.Var) bool {
-					if ast.IsFutureKeyword(v.String()) {
+					if ast.IsFutureKeywordForRegoVersion(v.String(), ast.RegoV0) {
 						applyRegoVersion = false
 						return true
 					}

@@ -97,7 +97,7 @@ func CapabilitiesForThisVersion() *Capabilities {
 		return f.Builtins[i].Name < f.Builtins[j].Name
 	})
 
-	for kw := range futureKeywords {
+	for kw := range allFutureKeywords {
 		f.FutureKeywords = append(f.FutureKeywords, kw)
 	}
 	sort.Strings(f.FutureKeywords)

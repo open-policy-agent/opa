@@ -43,3 +43,7 @@ type ParserOptions = v1.ParserOptions
 func NewParser() *Parser {
 	return v1.NewParser().WithRegoVersion(DefaultRegoVersion)
 }
+
+func IsFutureKeyword(s string) bool {
+	return v1.IsFutureKeywordForRegoVersion(s, RegoV0)
+}

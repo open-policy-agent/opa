@@ -283,7 +283,7 @@ func (p *Parser) parsedTermCachePush(t *Term, s0 *state) {
 func (p *Parser) futureParser() *Parser {
 	q := *p
 	q.s = p.save()
-	q.s.s = p.s.s.WithKeywords(futureKeywords)
+	q.s.s = p.s.s.WithKeywords(allFutureKeywords)
 	q.cache = parsedTermCache{}
 	return &q
 }
@@ -301,7 +301,7 @@ func (p *Parser) presentParser() (*Parser, map[string]tokens.Token) {
 	var cpy map[string]tokens.Token
 	q := *p
 	q.s = p.save()
-	q.s.s, cpy = p.s.s.WithoutKeywords(futureKeywords)
+	q.s.s, cpy = p.s.s.WithoutKeywords(allFutureKeywords)
 	q.cache = parsedTermCache{}
 	return &q, cpy
 }
@@ -319,23 +319,28 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
 	if p.po.EffectiveRegoVersion() == RegoV1 {
 		// RegoV1 includes all future keywords in the default language definition
-		for k, v := range futureKeywords {
+		for k, v := range futureKeywordsV0 {
 			allowedFutureKeywords[k] = v
 		}
 
-		// For sake of error reporting, we still need to check that keywords in capabilities are known,
 		for _, kw := range p.po.Capabilities.FutureKeywords {
-			if _, ok := futureKeywords[kw]; !ok {
-				return nil, nil, Errors{
-					&Error{
-						Code:     ParseErr,
-						Message:  fmt.Sprintf("illegal capabilities: unknown keyword: %v", kw),
-						Location: nil,
-					},
+			if tok, ok := futureKeywords[kw]; ok {
+				allowedFutureKeywords[kw] = tok
+			} else {
+				// For sake of error reporting, we still need to check that keywords in capabilities are known in v0
+				if _, ok := futureKeywordsV0[kw]; !ok {
+					return nil, nil, Errors{
+						&Error{
+							Code:     ParseErr,
+							Message:  fmt.Sprintf("illegal capabilities: unknown keyword: %v", kw),
+							Location: nil,
+						},
+					}
 				}
 			}
 		}
-		// and that explicitly requested future keywords are known.
+
+		// Check that explicitly requested future keywords are known.
 		for _, kw := range p.po.FutureKeywords {
 			if _, ok := allowedFutureKeywords[kw]; !ok {
 				return nil, nil, Errors{
@@ -350,7 +355,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 	} else {
 		for _, kw := range p.po.Capabilities.FutureKeywords {
 			var ok bool
-			allowedFutureKeywords[kw], ok = futureKeywords[kw]
+			allowedFutureKeywords[kw], ok = futureKeywordsV0[kw]
 			if !ok {
 				return nil, nil, Errors{
 					&Error{
@@ -2145,8 +2150,7 @@ func (p *Parser) illegal(note string, a ...interface{}) {
 	tokType := "token"
 	if tokens.IsKeyword(p.s.tok) {
 		tokType = "keyword"
-	}
-	if _, ok := futureKeywords[p.s.tok.String()]; ok {
+	} else if _, ok := allFutureKeywords[p.s.tok.String()]; ok {
 		tokType = "keyword"
 	}
 
@@ -2641,16 +2645,34 @@ func convertYAMLMapKeyTypes(x any, path []string) (any, error) {
 
 // futureKeywords is the source of truth for future keywords that will
 // eventually become standard keywords inside of Rego.
-var futureKeywords = map[string]tokens.Token{
+var futureKeywords = map[string]tokens.Token{}
+
+// futureKeywordsV0 is the source of truth for future keywords that were
+// not yet a standard part of Rego in v0, and required importing.
+var futureKeywordsV0 = map[string]tokens.Token{
 	"in":       tokens.In,
 	"every":    tokens.Every,
 	"contains": tokens.Contains,
 	"if":       tokens.If,
 }
 
+var allFutureKeywords map[string]tokens.Token
+
 func IsFutureKeyword(s string) bool {
-	_, ok := futureKeywords[s]
-	return ok
+	return IsFutureKeywordForRegoVersion(s, RegoV1)
+}
+
+func IsFutureKeywordForRegoVersion(s string, v RegoVersion) bool {
+	var yes bool
+
+	switch v {
+	case RegoV0, RegoV0CompatV1:
+		_, yes = futureKeywordsV0[s]
+	case RegoV1:
+		_, yes = futureKeywords[s]
+	}
+
+	return yes
 }
 
 func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]tokens.Token) {
@@ -2724,12 +2746,12 @@ func (p *Parser) regoV1Import(imp *Import) {
 	}
 
 	// import all future keywords with the rego.v1 import
-	kwds := make([]string, 0, len(futureKeywords))
-	for k := range futureKeywords {
+	kwds := make([]string, 0, len(futureKeywordsV0))
+	for k := range futureKeywordsV0 {
 		kwds = append(kwds, k)
 	}
 
-	if p.s.s.HasKeyword(futureKeywords) && !p.s.s.RegoV1Compatible() {
+	if p.s.s.HasKeyword(futureKeywordsV0) && !p.s.s.RegoV1Compatible() {
 		// We have imported future keywords, but they didn't come from another `rego.v1` import.
 		p.errorf(imp.Path.Location, "the `%s` import implies `future.keywords`, these are therefore mutually exclusive", RegoV1CompatibleRef)
 		return
@@ -2737,6 +2759,16 @@ func (p *Parser) regoV1Import(imp *Import) {
 
 	p.s.s.SetRegoV1Compatible()
 	for _, kw := range kwds {
-		p.s.s.AddKeyword(kw, futureKeywords[kw])
+		p.s.s.AddKeyword(kw, futureKeywordsV0[kw])
+	}
+}
+
+func init() {
+	allFutureKeywords = map[string]tokens.Token{}
+	for k, v := range futureKeywords {
+		allFutureKeywords[k] = v
+	}
+	for k, v := range futureKeywordsV0 {
+		allFutureKeywords[k] = v
 	}
 }
