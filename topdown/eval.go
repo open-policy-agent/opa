@@ -340,15 +340,14 @@ func (e *eval) evalExpr(iter evalIterator) error {
 		return &earlyExitError{prev: err, e: e}
 	}
 
-	if e.ctx != nil && e.ctx.Err() != nil {
-		return &Error{
-			Code:    CancelErr,
-			Message: e.ctx.Err().Error(),
-			err:     e.ctx.Err(),
-		}
-	}
-
 	if e.cancel != nil && e.cancel.Cancelled() {
+		if e.ctx != nil && e.ctx.Err() != nil {
+			return &Error{
+				Code:    CancelErr,
+				Message: e.ctx.Err().Error(),
+				err:     e.ctx.Err(),
+			}
+		}
 		return &Error{
 			Code:    CancelErr,
 			Message: "caller cancelled query execution",
