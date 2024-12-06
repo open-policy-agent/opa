@@ -33,8 +33,6 @@ profile.
 ```live:example:module:read_only,openable
 package authz
 
-import rego.v1
-
 allow if {
 	input.path == ["users"]
 	input.method == "POST"
@@ -52,8 +50,6 @@ To test this policy, we will create a separate Rego file that contains test case
 
 ```live:example/test:module:read_only
 package authz_test
-
-import rego.v1
 
 import data.authz
 
@@ -129,8 +125,6 @@ Consider the following utility module:
 ```live:example_vars:module:read_only,openable
 package authz
 
-import rego.v1
-
 allowed_actions(user) := [action |
 	user in data.actions[action]
 ]
@@ -142,7 +136,6 @@ with accompanying tests:
 package authz_test
 
 import data.authz
-import rego.v1
 
 test_allowed_actions_all_can_read if {
 	users := ["alice", "bob", "jane"]
@@ -190,8 +183,6 @@ name is prefixed with `test_`. It's a good practice for tests to be placed in a 
 ```live:example_format:module:read_only
 package mypackage_test
 
-import rego.v1
-
 import data.mypackage
 
 test_some_descriptive_name if {
@@ -224,8 +215,6 @@ by zero condition) the test result is marked as an `ERROR`. Tests prefixed with
 
 ```live:example_results:module:read_only
 package example_test
-
-import rego.v1
 
 import data.example
 
@@ -329,8 +318,6 @@ Below is a simple policy that depends on the data document.
 ```live:with_keyword:module:read_only,openable
 package authz
 
-import rego.v1
-
 allow if {
 	some x in data.policies
 	x.name == "test_policy"
@@ -346,8 +333,6 @@ Below is the Rego file to test the above policy.
 
 ```live:with_keyword/tests:module:read_only
 package authz_test
-
-import rego.v1
 
 import data.authz
 
@@ -377,8 +362,6 @@ Below is an example to replace a **rule without arguments**.
 ```live:with_keyword_rules:module:read_only
 package authz
 
-import rego.v1
-
 allow1 if allow2
 
 allow2 if 2 == 1
@@ -388,8 +371,6 @@ allow2 if 2 == 1
 
 ```live:with_keyword_rules/tests:module:read_only
 package authz_test
-
-import rego.v1
 
 import data.authz
 
@@ -412,8 +393,6 @@ Here is an example to replace a rule's **built-in function** with a user-defined
 ```live:with_keyword_builtins:module:read_only
 package authz
 
-import rego.v1
-
 import data.jwks.cert
 
 allow if {
@@ -425,8 +404,6 @@ allow if {
 
 ```live:with_keyword_builtins/tests:module:read_only
 package authz_test
-
-import rego.v1
 
 import data.authz
 
@@ -469,8 +446,6 @@ function by a built-in function.
 ```live:with_keyword_funcs:module:read_only
 package authz
 
-import rego.v1
-
 replace_rule if {
 	replace(input.label)
 }
@@ -484,8 +459,6 @@ replace(label) if {
 
 ```live:with_keyword_funcs/tests:module:read_only
 package authz_test
-
-import rego.v1
 
 import data.authz
 

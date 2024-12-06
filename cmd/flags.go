@@ -158,11 +158,12 @@ func addRegoV1FlagWithDescription(fs *pflag.FlagSet, regoV1 *bool, value bool, d
 }
 
 func addV0CompatibleFlag(fs *pflag.FlagSet, v1Compatible *bool, value bool) {
-	fs.BoolVar(v1Compatible, "v0-compatible", value, "opt-in to OPA features and behaviors prior to the OPA v1.0 release. Takes precedence over --v1-compatible")
+	fs.BoolVar(v1Compatible, "v0-compatible", value, "opt-in to OPA features and behaviors prior to the OPA v1.0 release")
 }
 
 func addV1CompatibleFlag(fs *pflag.FlagSet, v1Compatible *bool, value bool) {
 	fs.BoolVar(v1Compatible, "v1-compatible", value, "opt-in to OPA features and behaviors that are enabled by default in OPA v1.0")
+	_ = fs.MarkHidden("v1-compatible")
 }
 
 func addReadAstValuesFromStoreFlag(fs *pflag.FlagSet, readAstValuesFromStore *bool, value bool) {

@@ -470,8 +470,6 @@ practice you would vary the threshold depending on the user.)
 ```live:terraform:module:openable
 package terraform.analysis
 
-import rego.v1
-
 import input as tfplan
 
 ########################
@@ -793,8 +791,6 @@ The policy uses the walk keyword to explore the json structure, and uses conditi
 
 ```rego
 package terraform.module
-
-import rego.v1
 
 deny contains msg if {
 	desc := resources[r].values.description

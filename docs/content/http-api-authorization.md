@@ -39,8 +39,6 @@ cd bundles
 ```live:example:module:openable
 package httpapi.authz
 
-import rego.v1
-
 # bob is alice's manager, and betty is charlie's.
 subordinates := {"alice": [], "charlie": [], "bob": ["alice"], "betty": ["charlie"]}
 
@@ -217,8 +215,6 @@ this.
 ```live:hr_example:module:read_only,openable
 package httpapi.authz
 
-import rego.v1
-
 # Allow HR members to get anyone's salary.
 allow if {
 	input.method == "GET"
@@ -263,8 +259,6 @@ real world, let's try a similar exercise utilizing the JWT utilities of OPA.
 
 ```live:jwt_example:module:openable
 package httpapi.authz
-
-import rego.v1
 
 default allow := false
 

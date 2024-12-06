@@ -48,8 +48,6 @@ The `quick_start.yaml` manifest defines the following resources:
 
     ```live:example:module:openable
     package istio.authz
-    
-    import rego.v1
 
     default allow := false
 
