@@ -5,6 +5,7 @@ package download
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -26,7 +27,6 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
-	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/rest"
@@ -300,7 +300,7 @@ func (d *OCIDownloader) pull(ctx context.Context, ref string) (*ocispec.Descript
 
 	d.logger.Debug("OCIDownloader: using auth plugin: %T", plugin)
 
-	resolver, err := dockerResolver(plugin, d.client.Config(), d.logger)
+	resolver, err := dockerResolver(d.client.Config())
 	if err != nil {
 		return nil, fmt.Errorf("invalid host url %s: %w", d.client.Config().URL, err)
 	}
@@ -318,30 +318,36 @@ func (d *OCIDownloader) pull(ctx context.Context, ref string) (*ocispec.Descript
 	return &manifestDescriptor, nil
 }
 
-func dockerResolver(plugin rest.HTTPAuthPlugin, config *rest.Config, logger logging.Logger) (remotes.Resolver, error) {
-	client, err := plugin.NewClient(*config)
+func dockerResolver(config *rest.Config) (remotes.Resolver, error) {
+	tc, err := rest.DefaultTLSConfig(*config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create auth client: %w", err)
+		return nil, fmt.Errorf("failed to create tls config: %w", err)
 	}
+
+	client := rest.DefaultRoundTripperClient(tc, *config.ResponseHeaderTimeoutSeconds)
 
 	urlInfo, err := url.Parse(config.URL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse url: %w", err)
 	}
 
-	authorizer := pluginAuthorizer{
-		plugin: plugin,
-		client: client,
-		logger: logger,
+	header := make(http.Header)
+	if b := config.Credentials.Bearer; b != nil {
+		t := base64.StdEncoding.EncodeToString([]byte(config.Credentials.Bearer.Token))
+		header.Set("Authorization", "Basic "+t)
 	}
+
+	authorizer := docker.NewDockerAuthorizer(
+		docker.WithAuthClient(client),
+		docker.WithAuthHeader(header),
+	)
 
 	registryHost := docker.RegistryHost{
 		Host:         urlInfo.Host,
 		Scheme:       urlInfo.Scheme,
 		Capabilities: docker.HostCapabilityPull | docker.HostCapabilityResolve | docker.HostCapabilityPush,
-		Client:       client,
 		Path:         "/v2",
-		Authorizer:   &authorizer,
+		Authorizer:   authorizer,
 	}
 
 	opts := docker.ResolverOptions{
@@ -351,57 +357,6 @@ func dockerResolver(plugin rest.HTTPAuthPlugin, config *rest.Config, logger logg
 	}
 
 	return docker.NewResolver(opts), nil
-}
-
-type pluginAuthorizer struct {
-	plugin rest.HTTPAuthPlugin
-	client *http.Client
-
-	// authorizer will be populated by the first call to pluginAuthorizer.Prepare
-	// since it requires a first pass through the plugin.Prepare method.
-	authorizer docker.Authorizer
-
-	logger logging.Logger
-}
-
-var _ docker.Authorizer = &pluginAuthorizer{}
-
-func (a *pluginAuthorizer) AddResponses(ctx context.Context, responses []*http.Response) error {
-	return a.authorizer.AddResponses(ctx, responses)
-}
-
-// Authorize uses a rest.HTTPAuthPlugin to Prepare a request before passing it on
-// to the docker.Authorizer.
-func (a *pluginAuthorizer) Authorize(ctx context.Context, req *http.Request) error {
-	if err := a.plugin.Prepare(req); err != nil {
-		err = fmt.Errorf("failed to prepare docker request: %w", err)
-
-		// Make sure to log this before passing the error back to docker
-		a.logger.Error(err.Error())
-
-		return err
-	}
-
-	if a.authorizer == nil {
-		// Some registry authentication implementations require a token fetch from
-		// a separate authenticated token server. This flow is described in the
-		// docker token auth spec:
-		// https://docs.docker.com/registry/spec/auth/token/#requesting-a-token
-		//
-		// Unfortunately, the containerd implementation does not use the Prepare
-		// mechanism to authenticate these token requests and we need to add
-		// auth information in form of a static docker.WithAuthHeader.
-		//
-		// Since rest.HTTPAuthPlugins will set the auth header on the request
-		// passed to HTTPAuthPlugin.Prepare, we can use it afterwards to build
-		// our docker.Authorizer.
-		a.authorizer = docker.NewDockerAuthorizer(
-			docker.WithAuthHeader(req.Header),
-			docker.WithAuthClient(a.client),
-		)
-	}
-
-	return a.authorizer.Authorize(ctx, req)
 }
 
 func manifestFromDesc(ctx context.Context, target oraslib.Target, desc *ocispec.Descriptor) (*ocispec.Manifest, error) {
