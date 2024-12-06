@@ -1625,12 +1625,16 @@ func TestContextErrorHandling(t *testing.T) {
 			txn := storage.NewTransactionOrDie(ctx, store)
 			defer store.Abort(ctx, txn)
 
+			c := NewCancel()
 			query := NewQuery(ast.MustParseBody("")).
 				WithCompiler(compiler).
 				WithStore(store).
-				WithTransaction(txn)
+				WithTransaction(txn).
+				WithCancel(c)
 
 			testCtx := tc.before()
+			c.Cancel()
+
 			qrs, err := query.Run(testCtx)
 
 			if err == nil {
