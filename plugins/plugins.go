@@ -12,16 +12,16 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/open-policy-agent/opa/v1/ast"
-	"github.com/open-policy-agent/opa/v1/bundle"
-	"github.com/open-policy-agent/opa/v1/hooks"
-	"github.com/open-policy-agent/opa/v1/loader"
-	"github.com/open-policy-agent/opa/v1/logging"
+	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/hooks"
+	"github.com/open-policy-agent/opa/loader"
+	"github.com/open-policy-agent/opa/logging"
+	"github.com/open-policy-agent/opa/resolver/wasm"
+	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/topdown/print"
+	"github.com/open-policy-agent/opa/tracing"
 	v1 "github.com/open-policy-agent/opa/v1/plugins"
-	"github.com/open-policy-agent/opa/v1/resolver/wasm"
-	"github.com/open-policy-agent/opa/v1/storage"
-	"github.com/open-policy-agent/opa/v1/topdown/print"
-	"github.com/open-policy-agent/opa/v1/tracing"
 )
 
 // Factory defines the interface OPA uses to instantiate your plugin.
@@ -92,7 +92,7 @@ type Triggerable = v1.Triggerable
 
 // State defines the state that a Plugin instance is currently
 // in with pre-defined states.
-type State v1.State
+type State = v1.State
 
 const (
 	// StateNotReady indicates that the Plugin is not in an error state, but isn't
@@ -252,5 +252,17 @@ func WithTelemetryGatherers(gs map[string]report.Gatherer) func(*Manager) {
 
 // New creates a new Manager using config.
 func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*Manager, error) {
-	return v1.New(raw, id, store, opts...)
+	options := make([]func(*Manager), 0, len(opts)+1)
+	options = append(options, opts...)
+
+	// Add option to apply default Rego version if not set. Must be last in list of options.
+	options = append(options, func(m *Manager) {
+		if m.ParserOptions().RegoVersion == ast.RegoUndefined {
+			cpy := m.ParserOptions()
+			cpy.RegoVersion = ast.DefaultRegoVersion
+			WithParserOptions(cpy)(m)
+		}
+	})
+
+	return v1.New(raw, id, store, options...)
 }
