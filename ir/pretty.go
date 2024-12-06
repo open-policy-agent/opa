@@ -5,40 +5,12 @@
 package ir
 
 import (
-	"fmt"
 	"io"
-	"strings"
+
+	v1 "github.com/open-policy-agent/opa/v1/ir"
 )
 
 // Pretty writes a human-readable representation of an IR object to w.
 func Pretty(w io.Writer, x interface{}) error {
-
-	pp := &prettyPrinter{
-		depth: -1,
-		w:     w,
-	}
-	return Walk(pp, x)
-}
-
-type prettyPrinter struct {
-	depth int
-	w     io.Writer
-}
-
-func (pp *prettyPrinter) Before(_ interface{}) {
-	pp.depth++
-}
-
-func (pp *prettyPrinter) After(_ interface{}) {
-	pp.depth--
-}
-
-func (pp *prettyPrinter) Visit(x interface{}) (Visitor, error) {
-	pp.writeIndent("%T %+v", x, x)
-	return pp, nil
-}
-
-func (pp *prettyPrinter) writeIndent(f string, a ...interface{}) {
-	pad := strings.Repeat("| ", pp.depth)
-	fmt.Fprintf(pp.w, pad+f+"\n", a...)
+	return v1.Pretty(w, x)
 }

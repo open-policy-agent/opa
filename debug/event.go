@@ -5,51 +5,19 @@
 package debug
 
 import (
-	"fmt"
-	"strings"
-
-	"github.com/open-policy-agent/opa/topdown"
+	v1 "github.com/open-policy-agent/opa/v1/debug"
 )
 
-type EventType string
+type EventType = v1.EventType
 
 const (
-	ExceptionEventType  = "exception"
-	StdoutEventType     = "stdout"
-	StoppedEventType    = "stopped"
-	TerminatedEventType = "terminated"
-	ThreadEventType     = "thread"
+	ExceptionEventType  = v1.ExceptionEventType
+	StdoutEventType     = v1.StdoutEventType
+	StoppedEventType    = v1.StoppedEventType
+	TerminatedEventType = v1.TerminatedEventType
+	ThreadEventType     = v1.ThreadEventType
 )
 
-type Event struct {
-	Type       EventType
-	Thread     ThreadID
-	Message    string
-	stackIndex int
-	stackEvent *topdown.Event
-}
+type Event = v1.Event
 
-func (d Event) String() string {
-	buf := new(strings.Builder)
-
-	buf.WriteString(fmt.Sprintf("%s{", d.Type))
-	buf.WriteString(fmt.Sprintf("thread=%d", d.Thread))
-
-	if d.Message != "" {
-		buf.WriteString(fmt.Sprintf(", message=%q", d.Message))
-	}
-
-	if d.stackEvent != nil {
-		buf.WriteString(fmt.Sprintf(", stackIndex=%d", d.stackIndex))
-	}
-
-	buf.WriteString("}")
-
-	return buf.String()
-}
-
-type EventHandler func(Event)
-
-func newNopEventHandler() EventHandler {
-	return func(_ Event) {}
-}
+type EventHandler = v1.EventHandler

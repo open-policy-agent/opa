@@ -5,25 +5,14 @@
 package resolver
 
 import (
-	"context"
-
-	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/metrics"
+	v1 "github.com/open-policy-agent/opa/v1/resolver"
 )
 
 // Resolver defines an external value resolver for OPA evaluations.
-type Resolver interface {
-	Eval(context.Context, Input) (Result, error)
-}
+type Resolver = v1.Resolver
 
 // Input as provided to a Resolver instance when evaluating.
-type Input struct {
-	Ref     ast.Ref
-	Input   *ast.Term
-	Metrics metrics.Metrics
-}
+type Input = v1.Input
 
 // Result of resolving a ref.
-type Result struct {
-	Value ast.Value
-}
+type Result = v1.Result

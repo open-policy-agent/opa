@@ -1,6 +1,10 @@
 package util
 
-import "time"
+import (
+	"time"
+
+	v1 "github.com/open-policy-agent/opa/v1/util"
+)
 
 // TimerWithCancel exists because of memory leaks when using
 // time.After in select statements. Instead, we now manually create timers,
@@ -30,19 +34,5 @@ import "time"
 //		}
 //	}
 func TimerWithCancel(delay time.Duration) (*time.Timer, func()) {
-	timer := time.NewTimer(delay)
-
-	return timer, func() {
-		// Note: The Stop function returns:
-		// - true: if the timer is active. (no draining required)
-		// - false: if the timer was already stopped or fired/expired.
-		// In this case the channel should be drained to prevent memory
-		// leaks only if it is not empty.
-		// This operation is safe only if the cancel function is
-		// used in same goroutine. Concurrent reading or canceling may
-		// cause deadlock.
-		if !timer.Stop() && len(timer.C) > 0 {
-			<-timer.C
-		}
-	}
+	return v1.TimerWithCancel(delay)
 }

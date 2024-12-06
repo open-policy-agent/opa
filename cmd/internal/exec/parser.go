@@ -3,7 +3,7 @@ package exec
 import (
 	"io"
 
-	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 type parser interface {

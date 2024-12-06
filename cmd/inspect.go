@@ -13,13 +13,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/cmd/internal/env"
 	ib "github.com/open-policy-agent/opa/internal/bundle/inspect"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
 	iStrs "github.com/open-policy-agent/opa/internal/strings"
-	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/bundle"
+	"github.com/open-policy-agent/opa/v1/util"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
@@ -31,14 +31,18 @@ const pageWidth = 80
 type inspectCommandParams struct {
 	outputFormat    *util.EnumFlag
 	listAnnotations bool
+	v0Compatible    bool
 	v1Compatible    bool
 }
 
 func (p *inspectCommandParams) regoVersion() ast.RegoVersion {
+	if p.v0Compatible {
+		return ast.RegoV0
+	}
 	if p.v1Compatible {
 		return ast.RegoV1
 	}
-	return ast.RegoV0
+	return ast.DefaultRegoVersion
 }
 
 func newInspectCommandParams() inspectCommandParams {
@@ -98,6 +102,7 @@ that file and summarize its structure and contents.
 
 	addOutputFormat(inspectCommand.Flags(), params.outputFormat)
 	addListAnnotations(inspectCommand.Flags(), &params.listAnnotations)
+	addV0CompatibleFlag(inspectCommand.Flags(), &params.v0Compatible, false)
 	addV1CompatibleFlag(inspectCommand.Flags(), &params.v1Compatible, false)
 	RootCommand.AddCommand(inspectCommand)
 }

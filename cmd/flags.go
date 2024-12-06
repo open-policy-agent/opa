@@ -9,8 +9,8 @@ import (
 
 	"github.com/spf13/pflag"
 
-	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 func addConfigFileFlag(fs *pflag.FlagSet, file *string) {
@@ -163,6 +163,7 @@ func addV0CompatibleFlag(fs *pflag.FlagSet, v1Compatible *bool, value bool) {
 
 func addV1CompatibleFlag(fs *pflag.FlagSet, v1Compatible *bool, value bool) {
 	fs.BoolVar(v1Compatible, "v1-compatible", value, "opt-in to OPA features and behaviors that are enabled by default in OPA v1.0")
+	_ = fs.MarkHidden("v1-compatible")
 }
 
 func addReadAstValuesFromStoreFlag(fs *pflag.FlagSet, readAstValuesFromStore *bool, value bool) {

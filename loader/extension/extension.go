@@ -5,36 +5,25 @@
 package extension
 
 import (
-	"sync"
+	v1 "github.com/open-policy-agent/opa/v1/loader/extension"
 )
-
-var pluginMtx sync.Mutex
-var bundleExtensions map[string]Handler
 
 // Handler is used to unmarshal a byte slice of a registered extension
 // EXPERIMENTAL: Please don't rely on this functionality, it may go
 // away or change in the future.
-type Handler func([]byte, any) error
+type Handler = v1.Handler
 
 // RegisterExtension registers a Handler for a certain file extension, including
 // the dot: ".json", not "json".
 // EXPERIMENTAL: Please don't rely on this functionality, it may go
 // away or change in the future.
 func RegisterExtension(name string, handler Handler) {
-	pluginMtx.Lock()
-	defer pluginMtx.Unlock()
-
-	if bundleExtensions == nil {
-		bundleExtensions = map[string]Handler{}
-	}
-	bundleExtensions[name] = handler
+	v1.RegisterExtension(name, handler)
 }
 
 // FindExtension ios used to look up a registered extension Handler
 // EXPERIMENTAL: Please don't rely on this functionality, it may go
 // away or change in the future.
 func FindExtension(ext string) Handler {
-	pluginMtx.Lock()
-	defer pluginMtx.Unlock()
-	return bundleExtensions[ext]
+	return v1.FindExtension(ext)
 }
