@@ -1351,6 +1351,16 @@ func (expr *Expr) Complement() *Expr {
 	return &cpy
 }
 
+// ComplementNoWith returns a copy of this expression with the negation flag flipped
+// and the with modifier removed. This is the same as calling .Complement().NoWith()
+// but without making an intermediate copy.
+func (expr *Expr) ComplementNoWith() *Expr {
+	cpy := *expr
+	cpy.Negated = !cpy.Negated
+	cpy.With = nil
+	return &cpy
+}
+
 // Equal returns true if this Expr equals the other Expr.
 func (expr *Expr) Equal(other *Expr) bool {
 	return expr.Compare(other) == 0
@@ -1441,9 +1451,11 @@ func (expr *Expr) sortOrder() int {
 func (expr *Expr) CopyWithoutTerms() *Expr {
 	cpy := *expr
 
-	cpy.With = make([]*With, len(expr.With))
-	for i := range expr.With {
-		cpy.With[i] = expr.With[i].Copy()
+	if expr.With != nil {
+		cpy.With = make([]*With, len(expr.With))
+		for i := range expr.With {
+			cpy.With[i] = expr.With[i].Copy()
+		}
 	}
 
 	return &cpy

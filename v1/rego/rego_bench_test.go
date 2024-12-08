@@ -2,7 +2,9 @@ package rego
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/open-policy-agent/opa/internal/runtime"
@@ -66,5 +68,54 @@ func BenchmarkPartialObjectRuleCrossModule(b *testing.B) {
 				}
 			}
 		})
+	}
+}
+
+func BenchmarkCustomFunctionInHotPath(b *testing.B) {
+	ctx := context.Background()
+
+	bs, err := os.ReadFile("testdata/ast.json")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	input := ast.MustParseTerm(string(bs))
+	module := ast.MustParseModule(`package test
+
+	import rego.v1
+
+	r := count(refs)
+
+	refs contains value if {
+		walk(input, [_, value])
+		is_ref(value)
+	}
+
+	is_ref(value) if value.type == "ref"
+	is_ref(value) if value[0].type == "ref"`)
+
+	r := New(Query("data.test.r = x"), ParsedModule(module))
+
+	pq, err := r.PrepareForEval(ctx)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		res, err := pq.Eval(ctx, EvalParsedInput(input.Value))
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		if res == nil {
+			b.Fatal("expected result")
+		}
+
+		if res[0].Bindings["x"].(json.Number) != "402" {
+			b.Fatalf("expected 402, got %v", res[0].Bindings["x"])
+		}
 	}
 }

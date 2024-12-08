@@ -50,9 +50,6 @@ func builtinObjectUnionN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 			return builtins.NewOperandElementErr(1, arr, arr.Elem(i).Value, "object")
 		}
 		mergewithOverwriteInPlace(result, o, frozenKeys)
-		if err != nil {
-			return err
-		}
 	}
 
 	return iter(ast.NewTerm(result))

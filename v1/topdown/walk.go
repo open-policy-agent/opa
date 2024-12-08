@@ -8,9 +8,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 )
 
-var (
-	emptyArr = ast.ArrayTerm()
-)
+var emptyArr = ast.ArrayTerm()
 
 func evalWalk(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	input := operands[0]
@@ -18,9 +16,9 @@ func evalWalk(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error
 	if pathIsWildcard(operands) {
 		// When the path assignment is a wildcard: walk(input, [_, value])
 		// we may skip the path construction entirely, and simply return
-		// same pointer in each iteration. This is a much more efficient
+		// same pointer in each iteration. This is a *much* more efficient
 		// path when only the values are needed.
-		return walkNoPath(input, iter)
+		return walkNoPath(ast.ArrayTerm(emptyArr, input), iter)
 	}
 
 	filter := getOutputPath(operands)
@@ -58,12 +56,11 @@ func walk(filter, path *ast.Array, input *ast.Term, iter func(*ast.Term) error) 
 			}
 		}
 	case ast.Object:
-		return v.Iter(func(k, v *ast.Term) error {
-			if err := walk(filter, pathAppend(path, k), v, iter); err != nil {
+		for _, k := range v.Keys() {
+			if err := walk(filter, pathAppend(path, k), v.Get(k), iter); err != nil {
 				return err
 			}
-			return nil
-		})
+		}
 	case ast.Set:
 		for _, elem := range v.Slice() {
 			if err := walk(filter, pathAppend(path, elem), elem, iter); err != nil {
@@ -76,24 +73,37 @@ func walk(filter, path *ast.Array, input *ast.Term, iter func(*ast.Term) error) 
 }
 
 func walkNoPath(input *ast.Term, iter func(*ast.Term) error) error {
-	if err := iter(ast.ArrayTerm(emptyArr, input)); err != nil {
+	// Note: the path array is embedded in the input from the start here
+	// in order to avoid an extra allocation per iteration. This leads to
+	// a little convoluted code below in order to extract and set the value,
+	// but since walk is commonly used to traverse large data structures,
+	// the performance gain is worth it.
+	if err := iter(input); err != nil {
 		return err
 	}
 
-	switch v := input.Value.(type) {
+	inputArray := input.Value.(*ast.Array)
+	value := inputArray.Get(ast.InternedIntNumberTerm(1)).Value
+
+	switch v := value.(type) {
 	case ast.Object:
-		return v.Iter(func(_, v *ast.Term) error {
-			return walkNoPath(v, iter)
-		})
+		for _, k := range v.Keys() {
+			inputArray.Set(1, v.Get(k))
+			if err := walkNoPath(input, iter); err != nil {
+				return err
+			}
+		}
 	case *ast.Array:
 		for i := 0; i < v.Len(); i++ {
-			if err := walkNoPath(v.Elem(i), iter); err != nil {
+			inputArray.Set(1, v.Elem(i))
+			if err := walkNoPath(input, iter); err != nil {
 				return err
 			}
 		}
 	case ast.Set:
 		for _, elem := range v.Slice() {
-			if err := walkNoPath(elem, iter); err != nil {
+			inputArray.Set(1, elem)
+			if err := walkNoPath(input, iter); err != nil {
 				return err
 			}
 		}

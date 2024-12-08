@@ -119,9 +119,6 @@ func builtinAWSSigV4SignReq(_ BuiltinContext, operands []*ast.Term, iter func(*a
 	}
 
 	signingTimestamp = time.Unix(0, ts)
-	if err != nil {
-		return err
-	}
 
 	// Make sure our required keys exist!
 	// This check is stricter than required, but better to break here than downstream.

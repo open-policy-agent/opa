@@ -357,14 +357,14 @@ func (vis *GenericVisitor) Walk(x interface{}) {
 			vis.Walk(x.Get(k))
 		})
 	case Object:
-		x.Foreach(func(k, _ *Term) {
+		for _, k := range x.Keys() {
 			vis.Walk(k)
 			vis.Walk(x.Get(k))
-		})
+		}
 	case *Array:
-		x.Foreach(func(t *Term) {
-			vis.Walk(t)
-		})
+		for i := 0; i < x.Len(); i++ {
+			vis.Walk(x.Elem(i))
+		}
 	case Set:
 		xSlice := x.Slice()
 		for i := range xSlice {

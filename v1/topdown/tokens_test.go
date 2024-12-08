@@ -238,14 +238,11 @@ func TestTopDownJWTEncodeSignES256(t *testing.T) {
 		input1 string
 		input2 string
 		input3 string
-		err    string
 	}{
 		"https://tools.ietf.org/html/rfc7515#appendix-A.3",
 		"`" + es256Hdr + "`",
 		"`" + examplePayload + "`",
 		"`" + ecKey + "`",
-
-		"",
 	}
 	type test struct {
 		note  string
@@ -361,14 +358,11 @@ func TestTopDownJWTEncodeSignES512(t *testing.T) {
 		input1 string
 		input2 string
 		input3 string
-		err    string
 	}{
 		"https://tools.ietf.org/html/rfc7515#appendix-A.4",
 		"`" + es512Hdr + "`",
 		"`" + examplePayload + "`",
 		"`" + ecKey + "`",
-
-		"",
 	}
 	type test struct {
 		note  string
