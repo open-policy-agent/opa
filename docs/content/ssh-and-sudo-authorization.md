@@ -160,8 +160,6 @@ and non-admins to only SSH into hosts that they contributed code to.
 ```live:sshd_authz:module:read_only
 package sshd.authz
 
-import rego.v1
-
 import input.pull_responses
 import input.sysinfo
 
@@ -201,8 +199,6 @@ Create the `sudo` authorization policy. It should allow only admins to use `sudo
 
 ```live:sudo_authz:module:read_only
 package sudo.authz
-
-import rego.v1
 
 # By default, users are not authorized.
 default allow := false
@@ -374,8 +370,6 @@ Then we need to make sure that the authorization takes this input into account.
 ```live:sudo_authz/elevate:module:read_only
 # A package can be defined across multiple files.
 package sudo.authz
-
-import rego.v1
 
 import data.elevate
 import input.display_responses

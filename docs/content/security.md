@@ -95,17 +95,12 @@ OPA can be configured to listen on specific interfaces using the `--addr` flag. 
 ```bash
 opa run --server \
   --log-level debug \
-  --addr localhost:8181 \
+  --addr 0.0.0.0:8181 \
 ```
 
-By default, OPA binds to the 0.0.0.0 interface, which allows the OPA server to be exposed to services running outside of the same machine. It's important to note that binding OPA to the 0.0.0.0 interface by itself is not inherently insecure in a trusted environment, exposing OPA to the outside world would also require opening ports and likely a similar procedure on a gateway layer above.
+By default, OPA binds to `localhost`, which prevents the OPA server from being exposed to services running outside of the same machine.
 
 In situations where OPA is not intended to be exposed to remote services, it is recommended to bind OPA to the localhost interface, which only allows connections from the same machine. If it is necessary to expose OPA to remote services, ensure to follow the security recommendations on this page, such as requiring authentication.
-
-{{< info >}}
-The `--v1-compatible` flag can be set on `opa run` to opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 releases. For example, if the `--v1-compatible` flag is set, OPA will listen
-for HTTP connections on `localhost:8181` by default.
-{{< /info >}}
 
 ## Authentication and Authorization
 
@@ -158,8 +153,6 @@ must be provided on startup. The authorization policy must be structured as foll
 # by OPA. Authorization policy must be defined under
 # system.authz as follows:
 package system.authz
-
-import rego.v1
 
 default allow := false # Reject requests by default.
 
@@ -267,8 +260,6 @@ identity:
 ```live:system_authz_secret:module:read_only
 package system.authz
 
-import rego.v1
-
 default allow := false          # Reject requests by default.
 
 allow if {                      # Allow request if...
@@ -319,8 +310,6 @@ follows:
 ```live:system_authz_object_resp:module:read_only
 package system.authz
 
-import rego.v1
-
 default allow := {
 	"allowed": false,
 	"reason": "unauthorized resource access",
@@ -343,8 +332,6 @@ validate the identity:
 
 ```live:system_authz_bearer:module:read_only
 package system.authz
-
-import rego.v1
 
 # Tokens may defined in policy or pushed into OPA as data.
 tokens := {
@@ -375,8 +362,6 @@ documents:
 
 ```live:system_authz_bearer_complete:module:read_only
 package system.authz
-
-import rego.v1
 
 # Rights may be defined in policy or pushed into OPA as data.
 rights := {
@@ -516,8 +501,6 @@ information such as which paths are allowed.
 ```live:system_authz_x509:module:read_only
 package system.authz
 
-import rego.v1
-
 id_uri := input.client_certificates[0].URIs[0]
 id_string := sprintf("%s://%s%s", [id_uri.Scheme, id_uri.Host, id_uri.Path])
 
@@ -635,8 +618,6 @@ clients access to the default policy decision, i.e., `POST /`:
 
 ```live:hardened_example:module:read_only
 package system.authz
-
-import rego.v1
 
 # Deny access by default.
 default allow := false

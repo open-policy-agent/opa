@@ -71,8 +71,6 @@ decisions: `example/authz/allow` and `example/authz/is_admin`.
 ```live:authz:module:openable,read_only
 package example.authz
 
-import rego.v1
-
 default allow := false
 
 allow if {
@@ -219,8 +217,6 @@ func main() {
 		"example.rego": `
 				package authz
 
-				import rego.v1
-
 				default allow := false
 
 				allow if input.open == "sesame"
@@ -313,8 +309,6 @@ store, etc.
 
 module := `
 package example.authz
-
-import rego.v1
 
 default allow := false
 

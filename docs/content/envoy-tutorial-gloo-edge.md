@@ -109,8 +109,6 @@ The following OPA policy will work as follows:
 ```live:example:module:openable
 package envoy.authz
 
-import rego.v1
-
 import input.attributes.request.http as http_request
 
 default allow := false
