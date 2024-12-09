@@ -65,8 +65,10 @@ var (
 )
 
 const (
-	// default interval between OPA version report uploads
-	defaultUploadIntervalSec = int64(3600)
+	// default interval between OPA version report uploads after startup (1h)
+	defaultInitialUploadInterval = time.Hour
+	// upload interval when OPA has been running for 6+ hrs (6h)
+	defaultLaterUploadInterval = 6 * time.Hour
 )
 
 // RegisterPlugin registers a plugin factory with the runtime
@@ -634,9 +636,8 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	}
 
 	if rt.Params.EnableVersionCheck {
-		d := time.Duration(int64(time.Second) * defaultUploadIntervalSec)
 		rt.done = make(chan struct{})
-		go rt.checkOPAUpdateLoop(ctx, d, rt.done)
+		go rt.checkOPAUpdateLoop(ctx, rt.done)
 	}
 
 	defer func() {
@@ -765,8 +766,13 @@ func (rt *Runtime) checkOPAUpdate(ctx context.Context) *report.DataResponse {
 	return resp
 }
 
-func (rt *Runtime) checkOPAUpdateLoop(ctx context.Context, uploadDuration time.Duration, done chan struct{}) {
-	ticker := time.NewTicker(uploadDuration)
+func (rt *Runtime) checkOPAUpdateLoop(ctx context.Context, done chan struct{}) {
+	rt.checkOPAUpdateLoopDurations(ctx, done, defaultInitialUploadInterval, defaultLaterUploadInterval)
+}
+
+func (rt *Runtime) checkOPAUpdateLoopDurations(ctx context.Context, done chan struct{}, initialDur, laterDur time.Duration) {
+	ticker := time.NewTicker(initialDur)
+	i := 0
 	mr.New(mr.NewSource(time.Now().UnixNano())) // Seed the PRNG.
 
 	for {
@@ -790,8 +796,15 @@ func (rt *Runtime) checkOPAUpdateLoop(ctx context.Context, uploadDuration time.D
 		select {
 		case <-ticker.C:
 			ticker.Stop()
-			newInterval := mr.Int63n(defaultUploadIntervalSec) + defaultUploadIntervalSec
-			ticker = time.NewTicker(time.Duration(int64(time.Second) * newInterval))
+			i++ // count the attempts
+
+			newInterval := time.Duration(mr.Int63n(int64(time.Hour / time.Second))) // spray, between 0 and 1 hr
+			if i < 6 {
+				newInterval += initialDur
+			} else {
+				newInterval += laterDur
+			}
+			ticker = time.NewTicker(newInterval)
 		case <-done:
 			ticker.Stop()
 			return
