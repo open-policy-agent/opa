@@ -58,12 +58,21 @@ func Ready(ch chan struct{}) func(*Server) error {
 	}
 }
 
+// ParserOptions sets the ast.ParserOptions to use when parsing modules when preparing bundles.
+func ParserOptions(popts ast.ParserOptions) func(*Server) error {
+	return func(s *Server) error {
+		s.parserOptions = popts
+		return nil
+	}
+}
+
 // Server provides a mock HTTP server for testing the SDK and integrations.
 type Server struct {
-	server     *httptest.Server
-	ready      chan struct{}
-	bundles    map[string]map[string]string
-	rawBundles bool
+	server        *httptest.Server
+	ready         chan struct{}
+	bundles       map[string]map[string]string
+	rawBundles    bool
+	parserOptions ast.ParserOptions
 }
 
 // MustNewServer returns a new Server for test purposes or panics if an error occurs.
@@ -100,6 +109,10 @@ func RawBundles(raw bool) func(*Server) error {
 	}
 }
 
+func (s *Server) ParserOptions() ast.ParserOptions {
+	return s.parserOptions
+}
+
 // WithTestBundle adds a bundle to the server at the specified endpoint.
 func (s *Server) WithTestBundle(endpoint string, policies map[string]string) *Server {
 	s.bundles[endpoint] = policies
@@ -121,7 +134,7 @@ func (s *Server) buildBundles(ref string, policies map[string]string) error {
 	// Prepare the modules to include in the bundle. Sort them so bundles are deterministic.
 	modules := make([]bundle.ModuleFile, 0, len(policies))
 	for url, str := range policies {
-		module, err := ast.ParseModule(url, str)
+		module, err := ast.ParseModuleWithOpts(url, str, s.parserOptions)
 		if err != nil {
 			return fmt.Errorf("failed to parse module: %v", err)
 		}
@@ -402,7 +415,7 @@ func (s *Server) handleBundles(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		case strings.HasSuffix(url, ".rego"):
-			module, err := ast.ParseModule(url, str)
+			module, err := ast.ParseModuleWithOpts(url, str, s.parserOptions)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				_, _ = w.Write([]byte(err.Error()))
