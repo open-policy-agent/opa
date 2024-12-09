@@ -12,10 +12,10 @@ import (
 	"sort"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/open-policy-agent/opa/ast"
 	initload "github.com/open-policy-agent/opa/internal/runtime/init"
-	"github.com/open-policy-agent/opa/loader"
-	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/loader"
+	"github.com/open-policy-agent/opa/v1/storage"
 )
 
 // CreatePathWatcher creates watchers to monitor for path changes
@@ -42,7 +42,7 @@ func CreatePathWatcher(rootPaths []string) (*fsnotify.Watcher, error) {
 // ProcessWatcherUpdate handles an occurrence of a watcher event
 func ProcessWatcherUpdate(ctx context.Context, paths []string, removed string, store storage.Store, filter loader.Filter, asBundle bool,
 	f func(context.Context, storage.Transaction, *initload.LoadPathsResult) error) error {
-	return ProcessWatcherUpdateForRegoVersion(ctx, ast.RegoV0, paths, removed, store, filter, asBundle, f)
+	return ProcessWatcherUpdateForRegoVersion(ctx, ast.DefaultRegoVersion, paths, removed, store, filter, asBundle, f)
 }
 
 func ProcessWatcherUpdateForRegoVersion(ctx context.Context, regoVersion ast.RegoVersion, paths []string, removed string, store storage.Store, filter loader.Filter, asBundle bool,
@@ -75,7 +75,7 @@ func ProcessWatcherUpdateForRegoVersion(ctx context.Context, regoVersion ast.Reg
 					if err != nil {
 						return err
 					}
-					module, err := ast.ParseModule(id, string(bs))
+					module, err := ast.ParseModuleWithOpts(id, string(bs), ast.ParserOptions{RegoVersion: regoVersion})
 					if err != nil {
 						return err
 					}

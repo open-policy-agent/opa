@@ -12,12 +12,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/ast/json"
-	"github.com/open-policy-agent/opa/bundle"
 	initload "github.com/open-policy-agent/opa/internal/runtime/init"
-	"github.com/open-policy-agent/opa/loader"
-	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/ast/json"
+	"github.com/open-policy-agent/opa/v1/bundle"
+	"github.com/open-policy-agent/opa/v1/loader"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // Info represents information about a bundle.

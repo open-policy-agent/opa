@@ -16,9 +16,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/logging"
-	"github.com/open-policy-agent/opa/test/e2e"
-	"github.com/open-policy-agent/opa/util/test"
+	"github.com/open-policy-agent/opa/v1/logging"
+	"github.com/open-policy-agent/opa/v1/test/e2e"
+	"github.com/open-policy-agent/opa/v1/util/test"
 	"github.com/spf13/cobra"
 )
 
@@ -253,48 +253,30 @@ func TestRunServerUploadPolicy(t *testing.T) {
 	tests := []struct {
 		note         string
 		v0Compatible bool
-		v1Compatible bool
 		module       string
 		expErr       bool
 	}{
 		{
 			note:         "v0-compatible, v0 policy",
 			v0Compatible: true,
-			v1Compatible: false,
 			module:       v0Policy,
 		},
 		{
 			note:         "v0-compatible, v1 policy",
 			v0Compatible: true,
-			v1Compatible: false,
 			module:       v1Policy,
 			expErr:       true,
 		},
 		{
-			note:         "v1-compatible, v0 policy",
+			note:         "v1, v0 policy",
 			v0Compatible: false,
-			v1Compatible: true,
 			module:       v0Policy,
 			expErr:       true,
 		},
 		{
-			note:         "v1-compatible, v1 policy",
+			note:         "v1, v1 policy",
 			v0Compatible: false,
-			v1Compatible: true,
 			module:       v1Policy,
-		},
-		{
-			note:         "v0-compatible, v1-compatible, v0 policy",
-			v0Compatible: true,
-			v1Compatible: true,
-			module:       v0Policy,
-		},
-		{
-			note:         "v0-compatible, v1-compatible, v1 policy",
-			v0Compatible: true,
-			v1Compatible: true,
-			module:       v1Policy,
-			expErr:       true,
 		},
 	}
 
@@ -304,7 +286,6 @@ func TestRunServerUploadPolicy(t *testing.T) {
 
 			params := newTestRunParams()
 			params.rt.V0Compatible = tc.v0Compatible
-			params.rt.V1Compatible = tc.v1Compatible
 
 			rt, err := initRuntime(ctx, params, nil, false)
 			if err != nil {

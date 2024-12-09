@@ -15,14 +15,14 @@ import (
 	"github.com/open-policy-agent/opa/cmd/internal/exec"
 	"github.com/open-policy-agent/opa/internal/config"
 	internal_logging "github.com/open-policy-agent/opa/internal/logging"
-	"github.com/open-policy-agent/opa/logging"
-	"github.com/open-policy-agent/opa/plugins"
-	"github.com/open-policy-agent/opa/plugins/bundle"
-	"github.com/open-policy-agent/opa/plugins/discovery"
-	"github.com/open-policy-agent/opa/plugins/logs"
-	"github.com/open-policy-agent/opa/plugins/status"
-	"github.com/open-policy-agent/opa/sdk"
-	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/v1/logging"
+	"github.com/open-policy-agent/opa/v1/plugins"
+	"github.com/open-policy-agent/opa/v1/plugins/bundle"
+	"github.com/open-policy-agent/opa/v1/plugins/discovery"
+	"github.com/open-policy-agent/opa/v1/plugins/logs"
+	"github.com/open-policy-agent/opa/v1/plugins/status"
+	"github.com/open-policy-agent/opa/v1/sdk"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 func init() {

@@ -6,27 +6,14 @@ package identifier
 
 import (
 	"net/http"
+
+	v1 "github.com/open-policy-agent/opa/v1/server/identifier"
 )
 
 // TLSBased extracts the CN of the client's TLS ceritificate
-type TLSBased struct {
-	inner http.Handler
-}
+type TLSBased = v1.TLSBased
 
 // NewTLSBased returns a new TLSBased object.
 func NewTLSBased(inner http.Handler) *TLSBased {
-	return &TLSBased{
-		inner: inner,
-	}
-}
-
-func (h *TLSBased) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if tls := r.TLS; tls != nil {
-		if certs := tls.PeerCertificates; len(certs) > 0 {
-			r = SetIdentity(r, certs[0].Subject.ToRDNSequence().String())
-			r = SetClientCertificates(r, certs)
-		}
-	}
-
-	h.inner.ServeHTTP(w, r)
+	return v1.NewTLSBased(inner)
 }

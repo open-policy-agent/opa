@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/open-policy-agent/opa/sdk"
+	"github.com/open-policy-agent/opa/v1/sdk"
 )
 
 var (

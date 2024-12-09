@@ -8,48 +8,38 @@
 // configured sink.
 package tracing
 
-import "net/http"
+import (
+	"net/http"
+
+	v1 "github.com/open-policy-agent/opa/v1/tracing"
+)
 
 // Options are options for the HTTPTracingService, passed along as-is.
-type Options []interface{}
+type Options = v1.Options
 
 // NewOptions is a helper method for constructing `tracing.Options`
 func NewOptions(opts ...interface{}) Options {
-	return opts
+	return v1.NewOptions(opts...)
 }
 
 // HTTPTracingService defines how distributed tracing comes in, server- and client-side
-type HTTPTracingService interface {
-	// NewTransport is used when setting up an HTTP client
-	NewTransport(http.RoundTripper, Options) http.RoundTripper
-
-	// NewHandler is used to wrap an http.Handler in the server
-	NewHandler(http.Handler, string, Options) http.Handler
-}
-
-var tracing HTTPTracingService
+type HTTPTracingService = v1.HTTPTracingService
 
 // RegisterHTTPTracing enables a HTTPTracingService for further use.
 func RegisterHTTPTracing(ht HTTPTracingService) {
-	tracing = ht
+	v1.RegisterHTTPTracing(ht)
 }
 
 // NewTransport returns another http.RoundTripper, instrumented to emit tracing
 // spans according to Options. Provided by the HTTPTracingService registered with
 // this package via RegisterHTTPTracing.
 func NewTransport(tr http.RoundTripper, opts Options) http.RoundTripper {
-	if tracing == nil {
-		return tr
-	}
-	return tracing.NewTransport(tr, opts)
+	return v1.NewTransport(tr, opts)
 }
 
 // NewHandler returns another http.Handler, instrumented to emit tracing spans
 // according to Options. Provided by the HTTPTracingService registered with
 // this package via RegisterHTTPTracing.
 func NewHandler(f http.Handler, label string, opts Options) http.Handler {
-	if tracing == nil {
-		return f
-	}
-	return tracing.NewHandler(f, label, opts)
+	return v1.NewHandler(f, label, opts)
 }

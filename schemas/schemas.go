@@ -5,11 +5,9 @@
 package schemas
 
 import (
-	"embed"
+	v1 "github.com/open-policy-agent/opa/v1/schemas"
 )
 
 // FS contains the known schemas for OPA's Authorization Policy etc.
 // "authorizationPolicy.json" contains the input schema for OPA's Authorization Policy
-//
-//go:embed *.json
-var FS embed.FS
+var FS = v1.FS
