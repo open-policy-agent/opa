@@ -58,11 +58,11 @@ matches your setup to find the recommended upgrade path.
 If you are in doubt, [Scenario 1](#scenario-1) is the most common starting
 point and we recommended you start there.
 
-|                           | v0.x Consumer                | Mix Consumer              | v1.0 Consumer                        |
-|---------------------------|--------------------------------------|---------------------------|--------------------------------------|
-| v0.x Producer             | [Scenario 1](#scenario-1) (All v0.x) | [Scenario 4](#scenario-4) | [Scenario 7](#scenario-7)            |
-| Mix Producer | [Scenario 2](#scenario-2)            | [Scenario 5](#scenario-5) | [Scenario 8](#scenario-8)            |
-| v1.0 Producer             | [Scenario 3](#scenario-3)            | [Scenario 6](#scenario-6) | [Scenario 9](#scenario-9) (All v1.0) |
+|                   | v0.x Consumer                        | Mix Consumer              | v1.0 Consumer                        |
+|-------------------|--------------------------------------|---------------------------|--------------------------------------|
+| **v0.x Producer** | [Scenario 1](#scenario-1) (All v0.x) | [Scenario 4](#scenario-4) | [Scenario 7](#scenario-7)            |
+| **Mix Producer**  | [Scenario 2](#scenario-2)            | [Scenario 5](#scenario-5) | [Scenario 8](#scenario-8)            |
+| **v1.0 Producer** | [Scenario 3](#scenario-3)            | [Scenario 6](#scenario-6) | [Scenario 9](#scenario-9) (All v1.0) |
 
 <!-- source https://docs.google.com/drawings/d/137EObOVhMIVk9NEWOX0u_1eQOqe0MRkPQlmwKXkYWEU/edit -->
 
