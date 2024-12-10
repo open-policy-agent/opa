@@ -21,6 +21,7 @@ type VersionIndex = v1.VersionIndex
 // heads, they wouldn't be able to parse them.
 const FeatureRefHeadStringPrefixes = v1.FeatureRefHeadStringPrefixes
 const FeatureRefHeads = v1.FeatureRefHeads
+const FeatureRegoV1 = v1.FeatureRegoV1
 const FeatureRegoV1Import = v1.FeatureRegoV1Import
 
 // Capabilities defines a structure containing data that describes the capabilities

@@ -52,6 +52,7 @@ var minVersionIndex = func() VersionIndex {
 // heads, they wouldn't be able to parse them.
 const FeatureRefHeadStringPrefixes = "rule_head_ref_string_prefixes"
 const FeatureRefHeads = "rule_head_refs"
+const FeatureRegoV1 = "rego_v1"
 const FeatureRegoV1Import = "rego_v1_import"
 
 // Capabilities defines a structure containing data that describes the capabilities
@@ -105,6 +106,7 @@ func CapabilitiesForThisVersion() *Capabilities {
 	f.Features = []string{
 		FeatureRefHeadStringPrefixes,
 		FeatureRefHeads,
+		FeatureRegoV1,
 		FeatureRegoV1Import,
 	}
 

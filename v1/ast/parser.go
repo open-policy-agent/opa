@@ -318,7 +318,17 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 	allowedFutureKeywords := map[string]tokens.Token{}
 
 	if p.po.EffectiveRegoVersion() == RegoV1 {
-		// RegoV1 includes all future keywords in the default language definition
+		if !p.po.Capabilities.ContainsFeature(FeatureRegoV1) {
+			return nil, nil, Errors{
+				&Error{
+					Code:     ParseErr,
+					Message:  "illegal capabilities: rego_v1 feature required for parsing v1 Rego",
+					Location: nil,
+				},
+			}
+		}
+
+		// RegoV1 includes all v0 future keywords in the default language definition
 		for k, v := range futureKeywordsV0 {
 			allowedFutureKeywords[k] = v
 		}

@@ -9463,9 +9463,10 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 			`,
 			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV1}},
 			builtins: []string{"eq", "gt"},
+			features: []string{"rego_v1"},
 		},
 		{
-			note: "rego.v1 import",
+			note: "rego.v1 import, v0 module",
 			module: `
 				package x
 
@@ -9473,19 +9474,64 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 
 				p if { true }
 			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV0}},
 			features: []string{"rego_v1_import"},
 		},
 		{
-			note: "future.keywords wildcard",
+			note: "rego.v1 import, v1 module",
+			module: `
+				package x
+
+				import rego.v1
+
+				p if { true }
+			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV1}},
+			features: []string{"rego_v1"},
+		},
+		{
+			note: "rego.v1 import, default rego-version module (v1)",
+			module: `
+				package x
+
+				import rego.v1
+
+				p if { true }
+			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV1}},
+			features: []string{"rego_v1"},
+		},
+		{
+			note: "future.keywords wildcard, v0 module",
 			module: `
 				package x
 
 				import future.keywords
 			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV0}},
 			keywords: []string{"contains", "every", "if", "in"},
 		},
 		{
-			note: "future.keywords specific",
+			note: "future.keywords wildcard, v1 module",
+			module: `
+				package x
+
+				import future.keywords
+			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV1}},
+			features: []string{"rego_v1"},
+		},
+		{
+			note: "future.keywords wildcard, default rego-version module (v1)",
+			module: `
+				package x
+
+				import future.keywords
+			`,
+			features: []string{"rego_v1"},
+		},
+		{
+			note: "future.keywords specific, v0 module",
 			module: `
 				package x
 
@@ -9494,7 +9540,33 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 				import future.keywords.contains
 				import future.keywords.every
 			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV0}},
 			keywords: []string{"contains", "every", "if", "in"},
+		},
+		{
+			note: "future.keywords specific, v1 module",
+			module: `
+				package x
+
+				import future.keywords.in
+				import future.keywords.if
+				import future.keywords.contains
+				import future.keywords.every
+			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV1}},
+			features: []string{"rego_v1"},
+		},
+		{
+			note: "future.keywords specific, default rego-version module (v1)",
+			module: `
+				package x
+
+				import future.keywords.in
+				import future.keywords.if
+				import future.keywords.contains
+				import future.keywords.every
+			`,
+			features: []string{"rego_v1"},
 		},
 		{
 			note: "rewriting erases assignment",
@@ -9505,6 +9577,7 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 			`,
 			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV1}},
 			builtins: []string{"assign", "eq"},
+			features: []string{"rego_v1"},
 		},
 		{
 			note: "rewriting erases equals",
@@ -9515,6 +9588,7 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 			`,
 			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV1}},
 			builtins: []string{"eq", "equal"},
+			features: []string{"rego_v1"},
 		},
 		{
 			note: "rewriting erases print",
@@ -9525,6 +9599,7 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 			`,
 			opts:     CompileOpts{EnablePrintStatements: true, ParserOptions: ParserOptions{RegoVersion: RegoV1}},
 			builtins: []string{"eq", "internal.print", "print"},
+			features: []string{"rego_v1"},
 		},
 
 		{
@@ -9536,15 +9611,68 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 			`,
 			opts:     CompileOpts{EnablePrintStatements: false, ParserOptions: ParserOptions{RegoVersion: RegoV1}},
 			builtins: []string{"print"}, // only print required because compiler will replace with true
+			features: []string{"rego_v1"},
 		},
 		{
-			note: "dots in the head",
+			note: "dots in the head, v0 module",
 			module: `
 				package x
 
 				a.b.c := 7
 			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV0}},
 			features: []string{"rule_head_ref_string_prefixes"},
+		},
+		{
+			note: "dots in the head, v1 module",
+			module: `
+				package x
+
+				a.b.c := 7
+			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV1}},
+			features: []string{"rego_v1"}, // rego_v1 includes rule_head_ref_string_prefixes
+		},
+		{
+			note: "dots in the head, default rego-version module (v1)",
+			module: `
+				package x
+
+				a.b.c := 7
+			`,
+			features: []string{"rego_v1"}, // rego_v1 includes rule_head_ref_string_prefixes
+		},
+		{
+			note: "dynamic dots in the head, v0 module",
+			module: `
+				package x
+
+				a[x].c[y] := z { x := "b"; y := "c"; z := "d" }
+			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV0}},
+			builtins: []string{"assign", "eq"},
+			features: []string{"rule_head_refs"},
+		},
+		{
+			note: "dynamic dots in the head, v1 module",
+			module: `
+				package x
+
+				a[x].c[y] := z if { x := "b"; y := "c"; z := "d" }
+			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV1}},
+			builtins: []string{"assign", "eq"},
+			features: []string{"rego_v1"}, // rego_v1 includes rule_head_refs
+		},
+		{
+			note: "dynamic dots in the head, default rego-version module (v1)",
+			module: `
+				package x
+
+				a[x].c[y] := z if { x := "b"; y := "c"; z := "d" }
+			`,
+			builtins: []string{"assign", "eq"},
+			features: []string{"rego_v1"}, // rego_v1 includes rule_head_refs
 		},
 	}
 

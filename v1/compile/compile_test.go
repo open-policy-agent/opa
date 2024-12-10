@@ -1891,6 +1891,9 @@ p if {
 					ast.FeatureRefHeadStringPrefixes,
 					ast.FeatureRefHeads,
 				}
+				if tc.modulesRegoVersion == ast.RegoV1 {
+					capabilities.Features = append(capabilities.Features, ast.FeatureRegoV1)
+				}
 				if tc.regoV1ImportCapable {
 					capabilities.Features = append(capabilities.Features, ast.FeatureRegoV1Import)
 				}

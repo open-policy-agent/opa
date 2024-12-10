@@ -117,7 +117,7 @@ type Compiler struct {
 	// with the key being the generated name and value being the original.
 	RewrittenVars map[Var]Var
 
-	// Capabliities required by the modules that were compiled.
+	// Capabilities required by the modules that were compiled.
 	Required *Capabilities
 
 	localvargen                *localVarGenerator
@@ -971,21 +971,46 @@ func (c *Compiler) buildRequiredCapabilities() {
 	features := map[string]struct{}{}
 
 	// extract required keywords from modules
+
 	keywords := map[string]struct{}{}
 	futureKeywordsPrefix := Ref{FutureRootDocument, StringTerm("keywords")}
 	for _, name := range c.sorted {
 		for _, imp := range c.imports[name] {
+			mod := c.Modules[name]
 			path := imp.Path.Value.(Ref)
 			switch {
 			case path.Equal(RegoV1CompatibleRef):
-				features[FeatureRegoV1Import] = struct{}{}
+				if !c.moduleIsRegoV1(mod) {
+					features[FeatureRegoV1Import] = struct{}{}
+				}
 			case path.HasPrefix(futureKeywordsPrefix):
 				if len(path) == 2 {
-					for kw := range allFutureKeywords {
-						keywords[kw] = struct{}{}
+					if c.moduleIsRegoV1(mod) {
+						for kw := range futureKeywords {
+							keywords[kw] = struct{}{}
+						}
+					} else {
+						for kw := range allFutureKeywords {
+							keywords[kw] = struct{}{}
+						}
 					}
 				} else {
-					keywords[string(path[2].Value.(String))] = struct{}{}
+					kw := string(path[2].Value.(String))
+					if c.moduleIsRegoV1(mod) {
+						for allowedKw := range futureKeywords {
+							if kw == allowedKw {
+								keywords[kw] = struct{}{}
+								break
+							}
+						}
+					} else {
+						for allowedKw := range allFutureKeywords {
+							if kw == allowedKw {
+								keywords[kw] = struct{}{}
+								break
+							}
+						}
+					}
 				}
 			}
 		}
@@ -996,13 +1021,19 @@ func (c *Compiler) buildRequiredCapabilities() {
 	// extract required features from modules
 
 	for _, name := range c.sorted {
-		for _, rule := range c.Modules[name].Rules {
-			refLen := len(rule.Head.Reference)
-			if refLen >= 3 {
-				if refLen > len(rule.Head.Reference.ConstantPrefix()) {
-					features[FeatureRefHeads] = struct{}{}
-				} else {
-					features[FeatureRefHeadStringPrefixes] = struct{}{}
+		mod := c.Modules[name]
+
+		if c.moduleIsRegoV1(mod) {
+			features[FeatureRegoV1] = struct{}{}
+		} else {
+			for _, rule := range mod.Rules {
+				refLen := len(rule.Head.Reference)
+				if refLen >= 3 {
+					if refLen > len(rule.Head.Reference.ConstantPrefix()) {
+						features[FeatureRefHeads] = struct{}{}
+					} else {
+						features[FeatureRefHeadStringPrefixes] = struct{}{}
+					}
 				}
 			}
 		}
@@ -1730,7 +1761,7 @@ func (c *Compiler) checkDuplicateImports() {
 
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		if c.strict || c.moduleIsRegoV1(mod) {
+		if c.strict || c.moduleIsRegoV1Compatible(mod) {
 			modules = append(modules, mod)
 		}
 	}
@@ -1744,7 +1775,7 @@ func (c *Compiler) checkDuplicateImports() {
 func (c *Compiler) checkKeywordOverrides() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		if c.strict || c.moduleIsRegoV1(mod) {
+		if c.strict || c.moduleIsRegoV1Compatible(mod) {
 			errs := checkRootDocumentOverrides(mod)
 			for _, err := range errs {
 				c.err(err)
@@ -1756,6 +1787,23 @@ func (c *Compiler) checkKeywordOverrides() {
 func (c *Compiler) moduleIsRegoV1(mod *Module) bool {
 	if mod.regoVersion == RegoUndefined {
 		switch c.defaultRegoVersion {
+		case RegoUndefined:
+			c.err(NewError(CompileErr, mod.Package.Loc(), "cannot determine rego version for module"))
+			return false
+		case RegoV1:
+			return true
+		}
+		return false
+	}
+	return mod.regoVersion == RegoV1
+}
+
+func (c *Compiler) moduleIsRegoV1Compatible(mod *Module) bool {
+	if mod.regoVersion == RegoUndefined {
+		switch c.defaultRegoVersion {
+		case RegoUndefined:
+			c.err(NewError(CompileErr, mod.Package.Loc(), "cannot determine rego version for module"))
+			return false
 		case RegoV1, RegoV0CompatV1:
 			return true
 		}
@@ -1847,8 +1895,28 @@ func (c *Compiler) resolveAllRefs() {
 func (c *Compiler) removeImports() {
 	c.imports = make(map[string][]*Import, len(c.Modules))
 	for name := range c.Modules {
-		c.imports[name] = c.Modules[name].Imports
-		c.Modules[name].Imports = nil
+		mod := c.Modules[name]
+
+		//// FIXME: Break out to separate compiler stage?
+		//for _, imp := range mod.Imports {
+		//	if Compare(imp.Path.Value, RegoV1CompatibleRef) == 0 {
+		//		// If a module has the rego.v1 import, we forcibly set the rego version to v0v1.
+		//		// This helps us when calculating the required capabilities in a later stage.
+		//		mod.regoVersion = RegoV0CompatV1
+		//		break
+		//	}
+		//}
+		//
+		//if mod.regoVersion == RegoUndefined {
+		//	if c.defaultRegoVersion == RegoUndefined {
+		//		c.err(NewError(CompileErr, mod.Package.Loc(), "cannot determine rego version for module"))
+		//		continue
+		//	}
+		//	mod.regoVersion = c.defaultRegoVersion
+		//}
+
+		c.imports[name] = mod.Imports
+		mod.Imports = nil
 	}
 }
 

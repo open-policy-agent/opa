@@ -9,25 +9,40 @@ import (
 
 func TestParserCatchesIllegalCapabilities(t *testing.T) {
 	tests := []struct {
-		note        string
-		regoVersion RegoVersion
+		note         string
+		regoVersion  RegoVersion
+		capabilities Capabilities
+		expErr       string
 	}{
 		{
-			note:        "v0",
+			note:        "v0, bad future keyword",
 			regoVersion: RegoV0,
+			capabilities: Capabilities{
+				FutureKeywords: []string{"deadbeef"},
+			},
+			expErr: "illegal capabilities: unknown keyword: deadbeef",
 		},
 		{
-			note:        "v1",
+			note:        "v1, bad future keyword",
 			regoVersion: RegoV1,
+			capabilities: Capabilities{
+				Features:       []string{FeatureRegoV1},
+				FutureKeywords: []string{"deadbeef"},
+			},
+			expErr: "illegal capabilities: unknown keyword: deadbeef",
+		},
+		{
+			note:         "v1, no rego_v1 feature",
+			regoVersion:  RegoV1,
+			capabilities: Capabilities{},
+			expErr:       "illegal capabilities: rego_v1 feature required for parsing v1 Rego",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			var opts ParserOptions
-			opts.Capabilities = &Capabilities{
-				FutureKeywords: []string{"deadbeef"},
-			}
+			opts.Capabilities = &tc.capabilities
 
 			opts.RegoVersion = tc.regoVersion
 
@@ -36,7 +51,7 @@ func TestParserCatchesIllegalCapabilities(t *testing.T) {
 				t.Fatal("expected error")
 			} else if errs, ok := err.(Errors); !ok || len(errs) != 1 {
 				t.Fatal("expected exactly one error but got:", err)
-			} else if errs[0].Code != ParseErr || errs[0].Message != "illegal capabilities: unknown keyword: deadbeef" {
+			} else if errs[0].Code != ParseErr || errs[0].Message != tc.expErr {
 				t.Fatal("unexpected error:", err)
 			}
 		})
