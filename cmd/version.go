@@ -12,7 +12,7 @@ import (
 	"os"
 
 	"github.com/open-policy-agent/opa/v1/ast"
-	version2 "github.com/open-policy-agent/opa/version"
+	version2 "github.com/open-policy-agent/opa/v1/version"
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/cmd/internal/env"

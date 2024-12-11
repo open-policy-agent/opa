@@ -4,11 +4,10 @@
 
 package version
 
-import (
-	v1 "github.com/open-policy-agent/opa/v1/version"
-)
+import "github.com/open-policy-agent/opa/internal/rego/opa"
 
 // WasmRuntimeAvailable indicates if a wasm runtime is available in this OPA.
 func WasmRuntimeAvailable() bool {
-	return v1.WasmRuntimeAvailable()
+	_, err := opa.LookupEngine("wasm")
+	return err == nil
 }
