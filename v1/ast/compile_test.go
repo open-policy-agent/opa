@@ -10402,6 +10402,14 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 				p.q.r := 42`,
 		},
 		{
+			note: "rego-v1 feature, ref-head rule",
+			features: []string{
+				FeatureRegoV1,
+			},
+			module: `package test
+				p.q.r := 42`,
+		},
+		{
 			note: "string-prefix-ref-head feature, general-ref-head rule",
 			features: []string{
 				FeatureRefHeadStringPrefixes,
@@ -10419,6 +10427,14 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 				p[q].r[s] := 42 if { q := "foo"; s := "bar" }`,
 		},
 		{
+			note: "rego-v1 feature, general-ref-head rule",
+			features: []string{
+				FeatureRegoV1,
+			},
+			module: `package test
+				p[q].r[s] := 42 if { q := "foo"; s := "bar" }`,
+		},
+		{
 			note: "string-prefix-ref-head & ref-head features, general-ref-head rule",
 			features: []string{
 				FeatureRefHeadStringPrefixes,
@@ -10428,10 +10444,30 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 				p[q].r[s] := 42 if { q := "foo"; s := "bar" }`,
 		},
 		{
+			note: "string-prefix-ref-head & ref-head & rego-v1 features, general-ref-head rule",
+			features: []string{
+				FeatureRefHeadStringPrefixes,
+				FeatureRefHeads,
+				FeatureRegoV1,
+			},
+			module: `package test
+				p[q].r[s] := 42 if { q := "foo"; s := "bar" }`,
+		},
+		{
 			note: "string-prefix-ref-head & ref-head features, ref-head rule",
 			features: []string{
 				FeatureRefHeadStringPrefixes,
 				FeatureRefHeads,
+			},
+			module: `package test
+				p.q.r := 42`,
+		},
+		{
+			note: "string-prefix-ref-head & ref-head & rego-v1 features, ref-head rule",
+			features: []string{
+				FeatureRefHeadStringPrefixes,
+				FeatureRefHeads,
+				FeatureRegoV1,
 			},
 			module: `package test
 				p.q.r := 42`,
@@ -10457,6 +10493,15 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 			note: "ref-head feature, string-prefix-ref-head with contains kw",
 			features: []string{
 				FeatureRefHeads,
+			},
+			module: `package test
+				import future.keywords.contains
+				p.x contains 1`,
+		},
+		{
+			note: "rego-v1 feature, string-prefix-ref-head with contains kw",
+			features: []string{
+				FeatureRegoV1,
 			},
 			module: `package test
 				import future.keywords.contains
@@ -10490,6 +10535,41 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 				import future.keywords
 				p[x] contains 1 if x = "foo"`,
 		},
+		{
+			note: "rego-v1 feature, general-ref-head with contains kw",
+			features: []string{
+				FeatureRegoV1,
+			},
+			module: `package test
+				import future.keywords
+				p[x] contains 1 if x = "foo"`,
+		},
+
+		{
+			note: "no features, rego.v1 import",
+			module: `package test
+				import rego.v1
+				p if { true }`,
+			expectedErr: "rego_compile_error: rego.v1 import is not supported",
+		},
+		{
+			note: "rego-v1-import feature, rego.v1 import",
+			module: `package test
+				import rego.v1
+				p if { true }`,
+			features: []string{
+				FeatureRegoV1Import,
+			},
+		},
+		{
+			note: "rego-v1-import feature, rego.v1 import",
+			module: `package test
+				import rego.v1
+				p if { true }`,
+			features: []string{
+				FeatureRegoV1,
+			},
+		},
 	}
 
 	for _, tc := range cases {
@@ -10497,8 +10577,11 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 			capabilities := CapabilitiesForThisVersion()
 			capabilities.Features = tc.features
 
+			// Modules are parsed with full set of capabilities
+			mod := module(tc.module)
+
 			compiler := NewCompiler().WithCapabilities(capabilities)
-			compiler.Compile(map[string]*Module{"test": module(tc.module)})
+			compiler.Compile(map[string]*Module{"test": mod})
 			if tc.expectedErr != "" {
 				if !compiler.Failed() {
 					t.Fatal("expected error but got success")

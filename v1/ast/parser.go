@@ -2732,7 +2732,7 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 }
 
 func (p *Parser) regoV1Import(imp *Import) {
-	if !p.po.Capabilities.ContainsFeature(FeatureRegoV1Import) {
+	if !p.po.Capabilities.ContainsFeature(FeatureRegoV1Import) && !p.po.Capabilities.ContainsFeature(FeatureRegoV1) {
 		p.errorf(imp.Path.Location, "invalid import, `%s` is not supported by current capabilities", RegoV1CompatibleRef)
 		return
 	}

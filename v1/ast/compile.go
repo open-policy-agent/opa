@@ -332,7 +332,7 @@ func NewCompiler() *Compiler {
 		{"InitLocalVarGen", "compile_stage_init_local_var_gen", c.initLocalVarGen},
 		{"RewriteRuleHeadRefs", "compile_stage_rewrite_rule_head_refs", c.rewriteRuleHeadRefs},
 		{"CheckKeywordOverrides", "compile_stage_check_keyword_overrides", c.checkKeywordOverrides},
-		{"CheckDuplicateImports", "compile_stage_check_duplicate_imports", c.checkDuplicateImports},
+		{"CheckDuplicateImports", "compile_stage_check_imports", c.checkImports},
 		{"RemoveImports", "compile_stage_remove_imports", c.removeImports},
 		{"SetModuleTree", "compile_stage_set_module_tree", c.setModuleTree},
 		{"SetRuleTree", "compile_stage_set_rule_tree", c.setRuleTree}, // depends on RewriteRuleHeadRefs
@@ -1756,11 +1756,21 @@ func (c *Compiler) GetAnnotationSet() *AnnotationSet {
 	return c.annotationSet
 }
 
-func (c *Compiler) checkDuplicateImports() {
+func (c *Compiler) checkImports() {
 	modules := make([]*Module, 0, len(c.Modules))
+
+	supportsRegoV1Import := c.capabilities.ContainsFeature(FeatureRegoV1Import) ||
+		c.capabilities.ContainsFeature(FeatureRegoV1)
 
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
+
+		for _, imp := range mod.Imports {
+			if !supportsRegoV1Import && Compare(imp.Path, RegoV1CompatibleRef) == 0 {
+				c.err(NewError(CompileErr, imp.Loc(), "rego.v1 import is not supported"))
+			}
+		}
+
 		if c.strict || c.moduleIsRegoV1Compatible(mod) {
 			modules = append(modules, mod)
 		}
@@ -1895,28 +1905,8 @@ func (c *Compiler) resolveAllRefs() {
 func (c *Compiler) removeImports() {
 	c.imports = make(map[string][]*Import, len(c.Modules))
 	for name := range c.Modules {
-		mod := c.Modules[name]
-
-		//// FIXME: Break out to separate compiler stage?
-		//for _, imp := range mod.Imports {
-		//	if Compare(imp.Path.Value, RegoV1CompatibleRef) == 0 {
-		//		// If a module has the rego.v1 import, we forcibly set the rego version to v0v1.
-		//		// This helps us when calculating the required capabilities in a later stage.
-		//		mod.regoVersion = RegoV0CompatV1
-		//		break
-		//	}
-		//}
-		//
-		//if mod.regoVersion == RegoUndefined {
-		//	if c.defaultRegoVersion == RegoUndefined {
-		//		c.err(NewError(CompileErr, mod.Package.Loc(), "cannot determine rego version for module"))
-		//		continue
-		//	}
-		//	mod.regoVersion = c.defaultRegoVersion
-		//}
-
-		c.imports[name] = mod.Imports
-		mod.Imports = nil
+		c.imports[name] = c.Modules[name].Imports
+		c.Modules[name].Imports = nil
 	}
 }
 
@@ -1963,6 +1953,9 @@ func (c *Compiler) rewriteRuleHeadRefs() {
 				case FeatureRefHeadStringPrefixes:
 					cannotSpeakStringPrefixRefs = false
 				case FeatureRefHeads:
+					cannotSpeakGeneralRefs = false
+				case FeatureRegoV1:
+					cannotSpeakStringPrefixRefs = false
 					cannotSpeakGeneralRefs = false
 				}
 			}
