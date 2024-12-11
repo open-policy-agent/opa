@@ -98,16 +98,13 @@ func CapabilitiesForThisVersion() *Capabilities {
 		return f.Builtins[i].Name < f.Builtins[j].Name
 	})
 
-	for kw := range allFutureKeywords {
+	for kw := range futureKeywords {
 		f.FutureKeywords = append(f.FutureKeywords, kw)
 	}
 	sort.Strings(f.FutureKeywords)
 
 	f.Features = []string{
-		FeatureRefHeadStringPrefixes,
-		FeatureRefHeads,
 		FeatureRegoV1,
-		FeatureRegoV1Import,
 	}
 
 	return f
