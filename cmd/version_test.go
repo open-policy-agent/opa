@@ -29,6 +29,7 @@ func TestGenerateCmdOutputDisableCheckFlag(t *testing.T) {
 		"Go Version",
 		"Platform",
 		"WebAssembly",
+		"Rego Version",
 	})
 }
 
@@ -60,6 +61,7 @@ func TestGenerateCmdOutputWithCheckFlagNoError(t *testing.T) {
 		"Latest Upstream Version",
 		"Release Notes",
 		"Download",
+		"Rego Version",
 	})
 }
 

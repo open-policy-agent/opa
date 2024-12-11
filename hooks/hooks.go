@@ -5,10 +5,7 @@
 package hooks
 
 import (
-	"context"
-	"fmt"
-
-	"github.com/open-policy-agent/opa/config"
+	v1 "github.com/open-policy-agent/opa/v1/hooks"
 )
 
 // Hook is a hook to be called in some select places in OPA's operation.
@@ -27,26 +24,14 @@ import (
 // When multiple instances of a hook are provided, they are all going to be executed
 // in an unspecified order (it's a map-range call underneath). If you need hooks to
 // be run in order, you can wrap them into another hook, and configure that one.
-type Hook any
+type Hook = v1.Hook
 
 // Hooks is the type used for every struct in OPA that can work with hooks.
-type Hooks struct {
-	m map[Hook]struct{} // we are NOT providing a stable invocation ordering
-}
+type Hooks = v1.Hooks
 
 // New creates a new instance of Hooks.
 func New(hs ...Hook) Hooks {
-	h := Hooks{m: make(map[Hook]struct{}, len(hs))}
-	for i := range hs {
-		h.m[hs[i]] = struct{}{}
-	}
-	return h
-}
-
-func (hs Hooks) Each(fn func(Hook)) {
-	for h := range hs.m {
-		fn(h)
-	}
+	return v1.New(hs...)
 }
 
 // ConfigHook allows inspecting or rewriting the configuration when the plugin
@@ -54,24 +39,8 @@ func (hs Hooks) Each(fn func(Hook)) {
 // Note that this hook is not run when the plugin manager is reconfigured. This
 // usually only happens when there's a new config from a discovery bundle, and
 // for processing _that_, there's `ConfigDiscoveryHook`.
-type ConfigHook interface {
-	OnConfig(context.Context, *config.Config) (*config.Config, error)
-}
+type ConfigHook = v1.ConfigHook
 
 // ConfigHook allows inspecting or rewriting the discovered configuration when
 // the discovery plugin is processing it.
-type ConfigDiscoveryHook interface {
-	OnConfigDiscovery(context.Context, *config.Config) (*config.Config, error)
-}
-
-func (hs Hooks) Validate() error {
-	for h := range hs.m {
-		switch h.(type) {
-		case ConfigHook,
-			ConfigDiscoveryHook: // OK
-		default:
-			return fmt.Errorf("unknown hook type %T", h)
-		}
-	}
-	return nil
-}
+type ConfigDiscoveryHook = v1.ConfigDiscoveryHook

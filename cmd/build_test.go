@@ -13,11 +13,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/file/archive"
-	"github.com/open-policy-agent/opa/loader"
-	"github.com/open-policy-agent/opa/util"
-	"github.com/open-policy-agent/opa/util/test"
+	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/loader"
+	"github.com/open-policy-agent/opa/v1/util"
+	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
 func TestBuildProducesBundle(t *testing.T) {
@@ -225,7 +225,7 @@ func TestBuildErrorDoesNotWriteFile(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
 			package test
-			import rego.v1
+			
 			p if { p }
 		`,
 	}
@@ -252,7 +252,7 @@ func TestBuildErrorVerifyNonBundle(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
 			package test
-			import rego.v1
+			
 			p if { p }
 		`,
 	}
@@ -335,7 +335,6 @@ func TestBuildPlanWithPruneUnused(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
 			package test
-			import rego.v1
 			
 			p contains 1
 			
@@ -404,7 +403,6 @@ func TestBuildPlanWithPrintStatements(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
 			package test
-			import rego.v1
 
 			p if { print("hello") }
 		`,
@@ -482,7 +480,6 @@ func TestBuildPlanWithRegoEntrypointAnnotations(t *testing.T) {
 # METADATA
 # entrypoint: true
 package test
-import rego.v1
 
 p contains 1
 
@@ -512,8 +509,6 @@ p[x] {
 			files: map[string]string{
 				"test.rego": `
 package test
-
-import future.keywords
 
 # METADATA
 # entrypoint: true
@@ -546,8 +541,6 @@ p[i] := x {
 				"test.rego": `
 package test
 
-import future.keywords
-
 # METADATA
 # entrypoint: true
 p[i] if {
@@ -577,7 +570,6 @@ p.a.b if {
 			files: map[string]string{
 				"test.rego": `
 package test
-import rego.v1
 
 # METADATA
 # entrypoint: true
@@ -593,7 +585,6 @@ p.a.b[i] := x if {
 			files: map[string]string{
 				"test.rego": `
 package test
-import rego.v1
 
 p contains 1
 
@@ -1721,6 +1712,123 @@ q contains 1 if {
 						}
 						if !found {
 							t.Fatalf("unexpected file in bundle: %v", f.Name)
+						}
+					}
+				}
+			})
+		})
+	}
+}
+
+func TestBuild_DefaultRegoVersion(t *testing.T) {
+	tests := []struct {
+		note     string
+		files    map[string]string
+		expFiles map[string]string
+		expErrs  []string
+	}{
+		{
+			note: "v0 module",
+			files: map[string]string{
+				"test.rego": `package test
+				p[x] {
+					x := 42
+				}`,
+			},
+			expErrs: []string{
+				"test.rego:2: rego_parse_error: `if` keyword is required before rule body",
+				"test.rego:2: rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note: "v1 module",
+			files: map[string]string{
+				"test.rego": `package test
+				
+				p contains x if {
+					x := 42
+				}`,
+			},
+			expFiles: map[string]string{
+				".manifest": `{"revision":"","roots":[""],"rego_version":1}
+`,
+				"test.rego": `package test
+
+p contains x if {
+	x := 42
+}
+`,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			test.WithTempFS(tc.files, func(root string) {
+				params := newBuildParams()
+				params.outputFile = path.Join(root, "bundle.tar.gz")
+
+				err := dobuild(params, []string{root})
+
+				if len(tc.expErrs) > 0 {
+					if err == nil {
+						t.Fatal("expected error but got nil")
+					}
+					for _, expErr := range tc.expErrs {
+						if !strings.Contains(err.Error(), expErr) {
+							t.Fatalf("expected error:\n\n%v\n\ngot:\n\n%v", expErr, err)
+						}
+					}
+				} else {
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					fl := loader.NewFileLoader()
+					_, err = fl.AsBundle(params.outputFile)
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					// Check that manifest is not written given no input manifest and no other flags
+					f, err := os.Open(params.outputFile)
+					if err != nil {
+						t.Fatal(err)
+					}
+					defer f.Close()
+
+					gr, err := gzip.NewReader(f)
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					tr := tar.NewReader(gr)
+
+					foundFiles := map[string]struct{}{}
+					for {
+						f, err := tr.Next()
+						if err == io.EOF {
+							break
+						} else if err != nil {
+							t.Fatal(err)
+						}
+						foundFiles[path.Base(f.Name)] = struct{}{}
+						expectedFile := tc.expFiles[path.Base(f.Name)]
+						if expectedFile != "" {
+							data, err := io.ReadAll(tr)
+							if err != nil {
+								t.Fatal(err)
+							}
+							actualFile := string(data)
+							if actualFile != expectedFile {
+								t.Fatalf("expected file %s to be:\n\n%v\n\ngot:\n\n%v", f.Name, expectedFile, actualFile)
+							}
+						}
+					}
+
+					for expectedFile := range tc.expFiles {
+						if _, ok := foundFiles[expectedFile]; !ok {
+							t.Fatalf("expected file %s not found in bundle, got: %v", expectedFile, foundFiles)
 						}
 					}
 				}

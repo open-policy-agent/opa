@@ -11,12 +11,13 @@ import (
 	"io"
 	"os"
 
+	"github.com/open-policy-agent/opa/v1/ast"
+	version2 "github.com/open-policy-agent/opa/v1/version"
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/cmd/internal/env"
 	"github.com/open-policy-agent/opa/internal/report"
 	"github.com/open-policy-agent/opa/internal/uuid"
-	"github.com/open-policy-agent/opa/version"
 )
 
 func init() {
@@ -41,16 +42,17 @@ func init() {
 }
 
 func generateCmdOutput(out io.Writer, check bool) {
-	fmt.Fprintln(out, "Version: "+version.Version)
-	fmt.Fprintln(out, "Build Commit: "+version.Vcs)
-	fmt.Fprintln(out, "Build Timestamp: "+version.Timestamp)
-	fmt.Fprintln(out, "Build Hostname: "+version.Hostname)
-	fmt.Fprintln(out, "Go Version: "+version.GoVersion)
-	fmt.Fprintln(out, "Platform: "+version.Platform)
+	fmt.Fprintln(out, "Version: "+version2.Version)
+	fmt.Fprintln(out, "Build Commit: "+version2.Vcs)
+	fmt.Fprintln(out, "Build Timestamp: "+version2.Timestamp)
+	fmt.Fprintln(out, "Build Hostname: "+version2.Hostname)
+	fmt.Fprintln(out, "Go Version: "+version2.GoVersion)
+	fmt.Fprintln(out, "Platform: "+version2.Platform)
+	fmt.Fprintln(out, "Rego Version: "+ast.DefaultRegoVersion.String())
 
 	var wasmAvailable string
 
-	if version.WasmRuntimeAvailable() {
+	if version2.WasmRuntimeAvailable() {
 		wasmAvailable = "available"
 	} else {
 		wasmAvailable = "unavailable"

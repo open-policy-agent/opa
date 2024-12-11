@@ -1,5 +1,5 @@
 package filter
 
-import "io/fs"
+import v1 "github.com/open-policy-agent/opa/v1/loader/filter"
 
-type LoaderFilter func(abspath string, info fs.FileInfo, depth int) bool
+type LoaderFilter = v1.LoaderFilter

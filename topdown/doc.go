@@ -7,4 +7,8 @@
 // The topdown implementation is a modified version of the standard top-down
 // evaluation algorithm used in Datalog. References and comprehensions are
 // evaluated eagerly while all other terms are evaluated lazily.
+//
+// Deprecated: This package is intended for older projects transitioning from OPA v0.x and will remain for the lifetime of OPA v1.x, but its use is not recommended.
+// For newer features and behaviours, such as defaulting to the Rego v1 syntax, use the corresponding components in the [github.com/open-policy-agent/opa/v1] package instead.
+// See https://www.openpolicyagent.org/docs/latest/v0-compatibility/ for more information.
 package topdown

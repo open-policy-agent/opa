@@ -6,44 +6,22 @@
 package version
 
 import (
-	"runtime"
-	"runtime/debug"
+	v1 "github.com/open-policy-agent/opa/v1/version"
 )
 
 // Version is the canonical version of OPA.
-var Version = "0.71.0-dev"
+var Version = v1.Version
 
 // GoVersion is the version of Go this was built with
-var GoVersion = runtime.Version()
+var GoVersion = v1.GoVersion
 
 // Platform is the runtime OS and architecture of this OPA binary
-var Platform = runtime.GOOS + "/" + runtime.GOARCH
+var Platform = v1.Platform
 
 // Additional version information that is displayed by the "version" command and used to
 // identify the version of running instances of OPA.
 var (
-	Vcs       = ""
-	Timestamp = ""
-	Hostname  = ""
+	Vcs       = v1.Vcs
+	Timestamp = v1.Timestamp
+	Hostname  = v1.Hostname
 )
-
-func init() {
-	bi, ok := debug.ReadBuildInfo()
-	if !ok {
-		return
-	}
-	dirty := false
-	for _, s := range bi.Settings {
-		switch s.Key {
-		case "vcs.time":
-			Timestamp = s.Value
-		case "vcs.revision":
-			Vcs = s.Value
-		case "vcs.modified":
-			dirty = s.Value == "true"
-		}
-	}
-	if dirty {
-		Vcs = Vcs + "-dirty"
-	}
-}

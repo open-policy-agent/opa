@@ -13,8 +13,72 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/internal/file/archive"
-	"github.com/open-policy-agent/opa/util/test"
+	"github.com/open-policy-agent/opa/v1/util/test"
 )
+
+func TestDeps_DefaultRegoVersion(t *testing.T) {
+	tests := []struct {
+		note    string
+		module  string
+		query   string
+		expErrs []string
+	}{
+		{
+			note: "v0 module",
+			module: `package test
+a[x] {
+	x := 42
+}`,
+			query: `data.test.p`,
+			expErrs: []string{
+				"test.rego:2: rego_parse_error: `if` keyword is required before rule body",
+				"test.rego:2: rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note: "v1 module",
+			module: `package test
+a contains x if {
+	x := 42
+}`,
+			query: `data.test.a`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			files := map[string]string{
+				"test.rego": tc.module,
+			}
+
+			test.WithTempFS(files, func(rootPath string) {
+				params := newDepsCommandParams()
+				_ = params.outputFormat.Set(depsFormatPretty)
+
+				for f := range files {
+					_ = params.dataPaths.Set(filepath.Join(rootPath, f))
+				}
+
+				err := deps([]string{tc.query}, params, io.Discard)
+
+				if len(tc.expErrs) > 0 {
+					if err == nil {
+						t.Fatalf("Expected error but got nil")
+					}
+					for _, expErr := range tc.expErrs {
+						if !strings.Contains(err.Error(), expErr) {
+							t.Fatalf("Expected error:\n\n%s\n\ngot:\n\n%s", expErr, err.Error())
+						}
+					}
+				} else {
+					if err != nil {
+						t.Fatalf("Unexpected error: %v", err)
+					}
+				}
+			})
+		})
+	}
+}
 
 func TestDepsCompatibleFlags(t *testing.T) {
 	tests := []struct {

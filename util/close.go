@@ -5,18 +5,14 @@
 package util
 
 import (
-	"io"
 	"net/http"
+
+	v1 "github.com/open-policy-agent/opa/v1/util"
 )
 
 // Close reads the remaining bytes from the response and then closes it to
 // ensure that the connection is freed. If the body is not read and closed, a
 // leak can occur.
 func Close(resp *http.Response) {
-	if resp != nil && resp.Body != nil {
-		if _, err := io.Copy(io.Discard, resp.Body); err != nil {
-			return
-		}
-		resp.Body.Close()
-	}
+	v1.Close(resp)
 }

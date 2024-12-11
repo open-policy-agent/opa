@@ -18,4 +18,4 @@ func main() {
 
 //go:generate build/gen-run-go.sh internal/cmd/genopacapabilities/main.go capabilities.json
 //go:generate build/gen-run-go.sh internal/cmd/genbuiltinmetadata/main.go builtin_metadata.json
-//go:generate build/gen-run-go.sh internal/cmd/genversionindex/main.go ast/version_index.json
+//go:generate build/gen-run-go.sh internal/cmd/genversionindex/main.go v1/ast/version_index.json

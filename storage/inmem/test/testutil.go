@@ -6,17 +6,17 @@ package test
 
 import (
 	"github.com/open-policy-agent/opa/storage"
-	"github.com/open-policy-agent/opa/storage/inmem"
+	v1 "github.com/open-policy-agent/opa/v1/storage/inmem/test"
 )
 
 // New returns an inmem store with some common options set: opt-out of write
 // roundtripping.
 func New() storage.Store {
-	return inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false))
+	return v1.New()
 }
 
 // NewFromObject returns an inmem store from the passed object, with some
 // common options set: opt-out of write roundtripping.
 func NewFromObject(x map[string]interface{}) storage.Store {
-	return inmem.NewFromObjectWithOpts(x, inmem.OptRoundTripOnWrite(false))
+	return v1.NewFromObject(x)
 }

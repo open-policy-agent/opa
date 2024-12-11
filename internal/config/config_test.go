@@ -14,7 +14,7 @@ import (
 
 	"sigs.k8s.io/yaml"
 
-	"github.com/open-policy-agent/opa/util/test"
+	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
 func setTestEnvVar(t *testing.T, name, value string) string {
