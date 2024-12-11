@@ -18,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/version"
 	"github.com/prometheus/client_golang/prometheus"
 	promdto "github.com/prometheus/client_model/go"
 
@@ -43,6 +42,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 	"github.com/open-policy-agent/opa/v1/topdown/lineage"
 	"github.com/open-policy-agent/opa/v1/util/test"
+	"github.com/open-policy-agent/opa/v1/version"
 )
 
 func TestDefaultRegoVersion(t *testing.T) {

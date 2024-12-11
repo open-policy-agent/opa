@@ -26,7 +26,6 @@ import (
 
 	serverDecodingPlugin "github.com/open-policy-agent/opa/v1/plugins/server/decoding"
 	serverEncodingPlugin "github.com/open-policy-agent/opa/v1/plugins/server/encoding"
-	"github.com/open-policy-agent/opa/version"
 
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel/attribute"
@@ -56,6 +55,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown/lineage"
 	"github.com/open-policy-agent/opa/v1/tracing"
 	"github.com/open-policy-agent/opa/v1/util"
+	"github.com/open-policy-agent/opa/v1/version"
 )
 
 // AuthenticationScheme enumerates the supported authentication schemes. The

@@ -19,7 +19,7 @@ import (
 
 	"github.com/open-policy-agent/opa/v1/keys"
 	"github.com/open-policy-agent/opa/v1/logging"
-	"github.com/open-policy-agent/opa/version"
+	"github.com/open-policy-agent/opa/v1/version"
 
 	"github.com/open-policy-agent/opa/v1/plugins/rest"
 	"github.com/open-policy-agent/opa/v1/util"

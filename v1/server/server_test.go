@@ -39,7 +39,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/open-policy-agent/opa/version"
 
 	"github.com/open-policy-agent/opa/internal/distributedtracing"
 	"github.com/open-policy-agent/opa/internal/prometheus"
@@ -59,6 +58,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
 	"github.com/open-policy-agent/opa/v1/util"
 	"github.com/open-policy-agent/opa/v1/util/test"
+	"github.com/open-policy-agent/opa/v1/version"
 	prom "github.com/prometheus/client_golang/prometheus"
 )
 

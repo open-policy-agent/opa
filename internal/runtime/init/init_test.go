@@ -24,7 +24,7 @@ import (
 	inmem "github.com/open-policy-agent/opa/v1/storage/inmem/test"
 	"github.com/open-policy-agent/opa/v1/util"
 	"github.com/open-policy-agent/opa/v1/util/test"
-	"github.com/open-policy-agent/opa/version"
+	"github.com/open-policy-agent/opa/v1/version"
 )
 
 func TestInit(t *testing.T) {

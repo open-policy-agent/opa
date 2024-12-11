@@ -13,7 +13,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/util"
-	"github.com/open-policy-agent/opa/version"
+	"github.com/open-policy-agent/opa/v1/version"
 )
 
 func TestConfigPluginNames(t *testing.T) {

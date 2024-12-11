@@ -132,6 +132,10 @@ issues:
       linters:
         - staticcheck
       text: "SA1019"
+    - path: version/
+      linters:
+        - staticcheck
+      text: "SA1019"
 
 linter-settings:
   lll:

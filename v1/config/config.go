@@ -17,7 +17,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/ref"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/util"
-	"github.com/open-policy-agent/opa/version"
+	"github.com/open-policy-agent/opa/v1/version"
 )
 
 // Config represents the configuration file that OPA can be started with.
