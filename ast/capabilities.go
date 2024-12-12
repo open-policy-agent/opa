@@ -34,7 +34,7 @@ type WasmABIVersion = v1.WasmABIVersion
 
 // CapabilitiesForThisVersion returns the capabilities of this version of OPA.
 func CapabilitiesForThisVersion() *Capabilities {
-	return v1.CapabilitiesForThisVersion()
+	return v1.CapabilitiesForThisVersion(v1.CapabilitiesRegoVersion(DefaultRegoVersion))
 }
 
 // LoadCapabilitiesJSON loads a JSON serialized capabilities structure from the reader r.

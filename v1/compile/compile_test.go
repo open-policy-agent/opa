@@ -1663,7 +1663,7 @@ update {
 			for _, useMemoryFS := range []bool{false, true} {
 				test.WithTestFS(tc.files, useMemoryFS, func(root string, fsys fs.FS) {
 
-					caps := ast.CapabilitiesForThisVersion()
+					caps := ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0))
 					caps.Features = []string{
 						ast.FeatureRefHeadStringPrefixes,
 						ast.FeatureRefHeads,

@@ -84,8 +84,30 @@ type WasmABIVersion struct {
 	Minor   int `json:"minor_version"`
 }
 
+type CapabilitiesOptions struct {
+	regoVersion RegoVersion
+}
+
+func newCapabilitiesOptions(opts []CapabilitiesOption) CapabilitiesOptions {
+	co := CapabilitiesOptions{}
+	for _, opt := range opts {
+		opt(&co)
+	}
+	return co
+}
+
+type CapabilitiesOption func(*CapabilitiesOptions)
+
+func CapabilitiesRegoVersion(regoVersion RegoVersion) CapabilitiesOption {
+	return func(o *CapabilitiesOptions) {
+		o.regoVersion = regoVersion
+	}
+}
+
 // CapabilitiesForThisVersion returns the capabilities of this version of OPA.
-func CapabilitiesForThisVersion() *Capabilities {
+func CapabilitiesForThisVersion(opts ...CapabilitiesOption) *Capabilities {
+	co := newCapabilitiesOptions(opts)
+
 	f := &Capabilities{}
 
 	for _, vers := range capabilities.ABIVersions() {
@@ -98,14 +120,28 @@ func CapabilitiesForThisVersion() *Capabilities {
 		return f.Builtins[i].Name < f.Builtins[j].Name
 	})
 
-	for kw := range futureKeywords {
-		f.FutureKeywords = append(f.FutureKeywords, kw)
-	}
-	sort.Strings(f.FutureKeywords)
+	if co.regoVersion == RegoV0 || co.regoVersion == RegoV0CompatV1 {
+		for kw := range allFutureKeywords {
+			f.FutureKeywords = append(f.FutureKeywords, kw)
+		}
 
-	f.Features = []string{
-		FeatureRegoV1,
+		f.Features = []string{
+			FeatureRefHeadStringPrefixes,
+			FeatureRefHeads,
+			FeatureRegoV1Import,
+		}
+	} else {
+		for kw := range futureKeywords {
+			f.FutureKeywords = append(f.FutureKeywords, kw)
+		}
+
+		f.Features = []string{
+			FeatureRegoV1,
+		}
 	}
+
+	sort.Strings(f.FutureKeywords)
+	sort.Strings(f.Features)
 
 	return f
 }

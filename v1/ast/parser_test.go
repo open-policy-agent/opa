@@ -1266,26 +1266,6 @@ func TestFutureImports(t *testing.T) {
 	}
 	assertParseModule(t, "multiple imports, all kw in options", mod, &parsed, ParserOptions{AllFutureKeywords: true})
 	assertParseModule(t, "multiple imports, single in options", mod, &parsed, ParserOptions{FutureKeywords: []string{"in"}})
-
-	mod = `
-		package p
-		import rego.v1
-		import future.keywords.in
-	`
-	// Only applies to v0, as the 'rego.v1' import is a no-op in v1
-	assertParseModuleErrorMatch(t, "rego.v1 and future.keywords.in imported", mod,
-		"rego_parse_error: the `rego.v1` import implies `future.keywords`, these are therefore mutually exclusive",
-		ParserOptions{RegoVersion: RegoV0})
-
-	mod = `
-		package p
-        import future.keywords
-		import rego.v1
-	`
-	// Only applies to v0, as the 'rego.v1' import is a no-op in v1
-	assertParseModuleErrorMatch(t, "rego.v1 and future.keywords imported", mod,
-		"rego_parse_error: the `rego.v1` import implies `future.keywords`, these are therefore mutually exclusive",
-		ParserOptions{RegoVersion: RegoV0})
 }
 
 func TestFutureAndRegoV1ImportsExtraction(t *testing.T) {
@@ -1388,7 +1368,6 @@ import future.keywords
 p contains 1 if {
 	input.x == 1
 }`,
-			expectedErrors: []string{"rego_parse_error: the `rego.v1` import implies `future.keywords`, these are therefore mutually exclusive"},
 		},
 		{
 			note: "`if` keyword used on rule",

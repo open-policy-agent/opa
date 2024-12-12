@@ -54,6 +54,7 @@ p { is_foo("bar") }`,
 			caps: func() string {
 				c := ast.CapabilitiesForThisVersion()
 				c.FutureKeywords = []string{"in"}
+				c.Features = []string{}
 				j, err := json.Marshal(c)
 				if err != nil {
 					panic(err)
@@ -65,6 +66,23 @@ import future.keywords.if
 import future.keywords.in
 p if "opa" in input.tools`,
 			err: "rego_parse_error: unexpected keyword, must be one of [in]",
+		},
+		{
+			note: "future kw NOT defined in caps, rego-v1 feature",
+			caps: func() string {
+				c := ast.CapabilitiesForThisVersion()
+				c.FutureKeywords = []string{"in"}
+				c.Features = []string{ast.FeatureRegoV1}
+				j, err := json.Marshal(c)
+				if err != nil {
+					panic(err)
+				}
+				return string(j)
+			}(),
+			policy: `package test
+import future.keywords.if
+import future.keywords.in
+p if "opa" in input.tools`,
 		},
 		{
 			note: "future kw are defined in caps",
@@ -102,6 +120,20 @@ import rego.v1`,
 			caps: func() string {
 				c := ast.CapabilitiesForThisVersion()
 				c.Features = []string{ast.FeatureRegoV1Import}
+				j, err := json.Marshal(c)
+				if err != nil {
+					panic(err)
+				}
+				return string(j)
+			}(),
+			policy: `package test
+import rego.v1`,
+		},
+		{
+			note: "rego.v1 imported AND rego-v1 in capabilities",
+			caps: func() string {
+				c := ast.CapabilitiesForThisVersion()
+				c.Features = []string{ast.FeatureRegoV1}
 				j, err := json.Marshal(c)
 				if err != nil {
 					panic(err)

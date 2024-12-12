@@ -312,7 +312,7 @@ func (p *Parser) presentParser() (*Parser, map[string]tokens.Token) {
 func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
 	if p.po.Capabilities == nil {
-		p.po.Capabilities = CapabilitiesForThisVersion()
+		p.po.Capabilities = CapabilitiesForThisVersion(CapabilitiesRegoVersion(p.po.RegoVersion))
 	}
 
 	allowedFutureKeywords := map[string]tokens.Token{}
@@ -328,7 +328,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 			}
 		}
 
-		// RegoV1 includes all v0 future keywords in the default language definition
+		// rego-v1 includes all v0 future keywords in the default language definition
 		for k, v := range futureKeywordsV0 {
 			allowedFutureKeywords[k] = v
 		}
@@ -365,7 +365,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 	} else {
 		for _, kw := range p.po.Capabilities.FutureKeywords {
 			var ok bool
-			allowedFutureKeywords[kw], ok = futureKeywordsV0[kw]
+			allowedFutureKeywords[kw], ok = allFutureKeywords[kw]
 			if !ok {
 				return nil, nil, Errors{
 					&Error{
@@ -374,6 +374,13 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 						Location: nil,
 					},
 				}
+			}
+		}
+
+		if p.po.Capabilities.ContainsFeature(FeatureRegoV1) {
+			// rego-v1 includes all v0 future keywords in the default language definition
+			for k, v := range futureKeywordsV0 {
+				allowedFutureKeywords[k] = v
 			}
 		}
 	}
@@ -2698,11 +2705,6 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 		return
 	}
 
-	if p.s.s.RegoV1Compatible() {
-		p.errorf(imp.Path.Location, "the `%s` import implies `future.keywords`, these are therefore mutually exclusive", RegoV1CompatibleRef)
-		return
-	}
-
 	kwds := make([]string, 0, len(allowedFutureKeywords))
 	for k := range allowedFutureKeywords {
 		kwds = append(kwds, k)
@@ -2759,12 +2761,6 @@ func (p *Parser) regoV1Import(imp *Import) {
 	kwds := make([]string, 0, len(futureKeywordsV0))
 	for k := range futureKeywordsV0 {
 		kwds = append(kwds, k)
-	}
-
-	if p.s.s.HasKeyword(futureKeywordsV0) && !p.s.s.RegoV1Compatible() {
-		// We have imported future keywords, but they didn't come from another `rego.v1` import.
-		p.errorf(imp.Path.Location, "the `%s` import implies `future.keywords`, these are therefore mutually exclusive", RegoV1CompatibleRef)
-		return
 	}
 
 	p.s.s.SetRegoV1Compatible()
