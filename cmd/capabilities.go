@@ -15,9 +15,17 @@ import (
 )
 
 type capabilitiesParams struct {
-	showCurrent bool
-	version     string
-	file        string
+	showCurrent  bool
+	version      string
+	file         string
+	v0Compatible bool
+}
+
+func (p *capabilitiesParams) regoVersion() ast.RegoVersion {
+	if p.v0Compatible {
+		return ast.RegoV0
+	}
+	return ast.DefaultRegoVersion
 }
 
 func init() {
@@ -84,7 +92,8 @@ Print the capabilities of a capabilities file
 	}
 	capabilitiesCommand.Flags().BoolVar(&capabilitiesParams.showCurrent, "current", false, "print current capabilities")
 	capabilitiesCommand.Flags().StringVar(&capabilitiesParams.version, "version", "", "print capabilities of a specific version")
-	capabilitiesCommand.Flags().StringVar(&capabilitiesParams.file, "file", "", "print current capabilities")
+	capabilitiesCommand.Flags().StringVar(&capabilitiesParams.file, "file", "", "print capabilities defined by a file")
+	addV0CompatibleFlag(capabilitiesCommand.Flags(), &capabilitiesParams.v0Compatible, false)
 
 	RootCommand.AddCommand(capabilitiesCommand)
 }
@@ -100,7 +109,7 @@ func doCapabilities(params capabilitiesParams) (string, error) {
 	} else if len(params.file) > 0 {
 		c, err = ast.LoadCapabilitiesFile(params.file)
 	} else if params.showCurrent {
-		c = ast.CapabilitiesForThisVersion()
+		c = ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(params.regoVersion()))
 	} else {
 		return showVersions()
 	}

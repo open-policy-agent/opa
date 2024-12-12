@@ -5,9 +5,13 @@
 package cmd
 
 import (
+	"bytes"
 	"path"
+	"reflect"
+	"sort"
 	"testing"
 
+	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
@@ -73,4 +77,62 @@ func TestCapabilitiesFile(t *testing.T) {
 		})
 
 	})
+}
+
+func TestCapabilitiesCurrent(t *testing.T) {
+	tests := []struct {
+		note              string
+		v0Compatible      bool
+		expFeatures       []string
+		expFutureKeywords []string
+	}{
+		{
+			note: "current",
+			expFeatures: []string{
+				ast.FeatureRegoV1,
+			},
+		},
+		{
+			note:         "current --v0-compatible",
+			v0Compatible: true,
+			expFeatures: []string{
+				ast.FeatureRefHeadStringPrefixes,
+				ast.FeatureRefHeads,
+				ast.FeatureRegoV1Import,
+			},
+			expFutureKeywords: []string{
+				"in",
+				"every",
+				"contains",
+				"if",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			// These are sorted in the output
+			sort.Strings(tc.expFutureKeywords)
+			sort.Strings(tc.expFeatures)
+
+			params := capabilitiesParams{
+				showCurrent:  true,
+				v0Compatible: tc.v0Compatible,
+			}
+			capsStr, err := doCapabilities(params)
+			if err != nil {
+				t.Fatal("expected success", err)
+			}
+
+			caps, err := ast.LoadCapabilitiesJSON(bytes.NewReader([]byte(capsStr)))
+
+			if !reflect.DeepEqual(caps.Features, tc.expFeatures) {
+				t.Errorf("expected features:\n\n%v\n\nbut got:\n\n%v", tc.expFeatures, caps.Features)
+			}
+
+			if !reflect.DeepEqual(caps.FutureKeywords, tc.expFutureKeywords) {
+				t.Errorf("expected future keywords:\n\n%v\n\nbut got:\n\n%v", tc.expFutureKeywords, caps.FutureKeywords)
+			}
+		})
+	}
 }
