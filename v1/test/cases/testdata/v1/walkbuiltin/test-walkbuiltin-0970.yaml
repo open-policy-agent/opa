@@ -1,0 +1,41 @@
+---
+cases:
+  - note: walkbuiltin/scalar
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	__local0__ = data.a[0]
+        	walk(__local0__, x)
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x:
+          - - []
+            - 1
+    sort_bindings: true
+  - note: walkbuiltin/scalar no path
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p contains x if {
+        	walk(data.a[0], [_, x])
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x:
+          - 1

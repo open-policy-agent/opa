@@ -6,25 +6,17 @@
 package identifier
 
 import (
-	"context"
 	"net/http"
+
+	v1 "github.com/open-policy-agent/opa/v1/server/identifier"
 )
-
-type identityKey string
-
-const identity = identityKey("org.openpolicyagent/identity")
 
 // Identity returns the identity of the caller associated with ctx.
 func Identity(r *http.Request) (string, bool) {
-	ctx := r.Context()
-	v, ok := ctx.Value(identity).(string)
-	if ok {
-		return v, true
-	}
-	return "", false
+	return v1.Identity(r)
 }
 
 // SetIdentity returns a new http.Request with the identity set to v.
 func SetIdentity(r *http.Request, v string) *http.Request {
-	return r.WithContext(context.WithValue(r.Context(), identity, v))
+	return v1.SetIdentity(r, v)
 }

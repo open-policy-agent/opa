@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -9,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/format"
-	"github.com/open-policy-agent/opa/util/test"
+	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/format"
+	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
 const formattedV0 = `package test
@@ -75,12 +76,31 @@ p if {
 }
 `
 
+const ComprehensionCommentShouldNotMoveFormatted = `package test
+
+f(x) := [x |
+	some v in x
+
+	# regal ignore:external-reference
+	x in data.foo
+][0]
+`
+
+const ComprehensionCommentShouldNotMoveUnformatted = `package test
+
+f(x) := [x |
+	some v in x
+	# regal ignore:external-reference
+	x in data.foo
+][0]
+`
+
 type errorWriter struct {
 	ErrMsg string
 }
 
-func (ew errorWriter) Write(_ []byte) (n int, err error) {
-	return 0, fmt.Errorf(ew.ErrMsg)
+func (ew errorWriter) Write([]byte) (int, error) {
+	return 0, errors.New(ew.ErrMsg)
 }
 
 func TestFmtFormatFile(t *testing.T) {
@@ -98,9 +118,15 @@ func TestFmtFormatFile(t *testing.T) {
 		},
 		{
 			note:        "v1",
-			params:      fmtCommandParams{v1Compatible: true},
+			params:      fmtCommandParams{},
 			unformatted: unformattedV1,
 			formatted:   formattedV1,
+		},
+		{
+			note:        "comment in comprehension",
+			params:      fmtCommandParams{},
+			unformatted: ComprehensionCommentShouldNotMoveUnformatted,
+			formatted:   ComprehensionCommentShouldNotMoveFormatted,
 		},
 	}
 
@@ -122,7 +148,7 @@ func TestFmtFormatFile(t *testing.T) {
 
 				actual := stdout.String()
 				if actual != tc.formatted {
-					t.Fatalf("Expected:%s\n\nGot:\n%s\n\n", tc.formatted, actual)
+					t.Fatalf("Expected:\n%s\n\nGot:\n%s\n\n", tc.formatted, actual)
 				}
 			})
 		})
@@ -172,7 +198,7 @@ func TestFmtFormatFileNoChanges(t *testing.T) {
 		},
 		{
 			note:   "v1",
-			params: fmtCommandParams{v1Compatible: true},
+			params: fmtCommandParams{},
 			module: formattedV1,
 		},
 	}
@@ -220,9 +246,8 @@ func TestFmtFailFormatFileNoChanges(t *testing.T) {
 		{
 			note: "v1",
 			params: fmtCommandParams{
-				v1Compatible: true,
-				fail:         true,
-				diff:         true,
+				fail: true,
+				diff: true,
 			},
 			module: formattedV1,
 		},
@@ -270,8 +295,7 @@ func TestFmtFormatFileDiff(t *testing.T) {
 		{
 			note: "v1",
 			params: fmtCommandParams{
-				v1Compatible: true,
-				diff:         true,
+				diff: true,
 			},
 			module: formattedV1,
 		},
@@ -320,8 +344,7 @@ func TestFmtFormatFileFailToPrintDiff(t *testing.T) {
 		{
 			note: "v1",
 			params: fmtCommandParams{
-				v1Compatible: true,
-				diff:         true,
+				diff: true,
 			},
 			module: unformattedV1,
 		},
@@ -371,8 +394,7 @@ func TestFmtFormatFileList(t *testing.T) {
 		{
 			note: "v1",
 			params: fmtCommandParams{
-				v1Compatible: true,
-				list:         true,
+				list: true,
 			},
 			module: formattedV1,
 		},
@@ -422,9 +444,8 @@ func TestFmtFailFormatFileList(t *testing.T) {
 		{
 			note: "v1",
 			params: fmtCommandParams{
-				v1Compatible: true,
-				fail:         true,
-				list:         true,
+				fail: true,
+				list: true,
 			},
 			module: formattedV1,
 		},
@@ -473,9 +494,8 @@ func TestFmtFailFormatFileChangesList(t *testing.T) {
 		{
 			note: "v1",
 			params: fmtCommandParams{
-				v1Compatible: true,
-				fail:         true,
-				list:         true,
+				fail: true,
+				list: true,
 			},
 			module: unformattedV1,
 		},
@@ -523,8 +543,7 @@ func TestFmtFailFileNoChanges(t *testing.T) {
 		{
 			note: "v1",
 			params: fmtCommandParams{
-				v1Compatible: true,
-				fail:         true,
+				fail: true,
 			},
 			module: formattedV1,
 		},
@@ -565,8 +584,7 @@ func TestFmtFailFileChanges(t *testing.T) {
 		{
 			note: "v1",
 			params: fmtCommandParams{
-				v1Compatible: true,
-				fail:         true,
+				fail: true,
 			},
 			module: unformattedV1,
 		},
@@ -608,9 +626,8 @@ func TestFmtFailFileChangesDiff(t *testing.T) {
 		{
 			note: "v1",
 			params: fmtCommandParams{
-				v1Compatible: true,
-				diff:         true,
-				fail:         true,
+				diff: true,
+				fail: true,
 			},
 			module: unformattedV1,
 		},
@@ -868,7 +885,7 @@ q := all([true, false])
 	}
 }
 
-func TestFmtV1Compatible(t *testing.T) {
+func TestFmt_DefaultRegoVersion(t *testing.T) {
 	tests := []struct {
 		note         string
 		input        string
@@ -980,9 +997,7 @@ q := all([true, false])
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			params := fmtCommandParams{
-				v1Compatible: true,
-			}
+			params := fmtCommandParams{}
 
 			files := map[string]string{
 				"policy.rego": tc.input,

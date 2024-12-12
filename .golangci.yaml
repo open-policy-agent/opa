@@ -1,6 +1,142 @@
 run:
   timeout: 5m
 
+issues:
+  max-same-issues: 0 # don't hide issues in CI runs because they are the same type
+  exclude-rules:
+    - path: ast/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: bundle/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: capabilities/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: compile/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: config/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: cover/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: debug/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: dependencies/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: download/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: format/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: hooks/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: ir/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: keys/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: loader/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: logging/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: metrics/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: plugins/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: profiler/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: refactor/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: repl/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: rego/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: resolver/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: runtime/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: schemas/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: sdk/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: server/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: storage/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: tester/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: topdown/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: tracing/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: types/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: util/
+      linters:
+        - staticcheck
+      text: "SA1019"
+    - path: version/
+      linters:
+        - staticcheck
+      text: "SA1019"
+
 linter-settings:
   lll:
     line-length: 200
@@ -26,4 +162,5 @@ linters:
     - gosimple
     - prealloc
     - unconvert
+    - copyloopvar
     # - gosec # too many false positives

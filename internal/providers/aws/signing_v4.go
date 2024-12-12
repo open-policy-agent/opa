@@ -19,7 +19,7 @@ import (
 
 	v4 "github.com/open-policy-agent/opa/internal/providers/aws/v4"
 
-	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/v1/ast"
 )
 
 func stringFromTerm(t *ast.Term) string {

@@ -17,22 +17,26 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/ast/location"
-	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/cmd/internal/env"
-	"github.com/open-policy-agent/opa/compile"
-	"github.com/open-policy-agent/opa/cover"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/internal/runtime"
-	"github.com/open-policy-agent/opa/loader"
-	"github.com/open-policy-agent/opa/metrics"
-	"github.com/open-policy-agent/opa/profiler"
-	"github.com/open-policy-agent/opa/rego"
-	"github.com/open-policy-agent/opa/topdown"
-	"github.com/open-policy-agent/opa/topdown/lineage"
-	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/ast/location"
+	"github.com/open-policy-agent/opa/v1/bundle"
+	"github.com/open-policy-agent/opa/v1/compile"
+	"github.com/open-policy-agent/opa/v1/cover"
+	"github.com/open-policy-agent/opa/v1/loader"
+	"github.com/open-policy-agent/opa/v1/metrics"
+	"github.com/open-policy-agent/opa/v1/profiler"
+	"github.com/open-policy-agent/opa/v1/rego"
+	"github.com/open-policy-agent/opa/v1/topdown"
+	"github.com/open-policy-agent/opa/v1/topdown/lineage"
+	"github.com/open-policy-agent/opa/v1/util"
+)
+
+var (
+	errIllegalUnknownsArg = errors.New("illegal argument with --unknowns, specify string with one or more --unknowns")
 )
 
 type evalCommandParams struct {
@@ -109,6 +113,7 @@ func newEvalCommandParams() evalCommandParams {
 }
 
 func validateEvalParams(p *evalCommandParams, cmdArgs []string) error {
+
 	if len(cmdArgs) > 0 && p.stdin {
 		return errors.New("specify query argument or --stdin but not both")
 	} else if len(cmdArgs) == 0 && !p.stdin {
@@ -130,6 +135,21 @@ func validateEvalParams(p *evalCommandParams, cmdArgs []string) error {
 		return errors.New("invalid output format for partial evaluation")
 	} else if !p.partial && of == evalSourceOutput {
 		return errors.New("invalid output format for evaluation")
+	}
+
+	// check if illegal arguments is passed with unknowns flag
+	for _, unknwn := range p.unknowns {
+		term, err := ast.ParseTerm(unknwn)
+		if err != nil {
+			return err
+		}
+
+		switch term.Value.(type) {
+		case ast.Ref:
+			return nil
+		default:
+			return errIllegalUnknownsArg
+		}
 	}
 
 	if p.optimizationLevel > 0 {
@@ -392,7 +412,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 			for _, t := range timers {
 				val, ok := t[name].(int64)
 				if !ok {
-					return false, fmt.Errorf("missing timer for %s" + name)
+					return false, fmt.Errorf("missing timer for %s", name)
 				}
 				vals = append(vals, val)
 			}
@@ -479,7 +499,6 @@ func evalOnce(ctx context.Context, ectx *evalContext) pr.Output {
 	result.Errors = pr.NewOutputErrors(resultErr)
 	if ectx.builtInErrorList != nil {
 		for _, err := range *(ectx.builtInErrorList) {
-			err := err
 			result.Errors = append(result.Errors, pr.NewOutputErrors(&err)...)
 		}
 	}

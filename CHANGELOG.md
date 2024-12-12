@@ -5,6 +5,11 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Minimal Go version to build OPA: 1.22
+
+OPA now requires at least Go 1.22 to build.
+
+
 ## 0.70.0
 
 This release contains a mix of features, performance improvements, and bugfixes.

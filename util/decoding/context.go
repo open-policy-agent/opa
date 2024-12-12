@@ -1,31 +1,24 @@
 package decoding
 
-import "context"
+import (
+	"context"
 
-type requestContextKey string
-
-// Note(philipc): We can add functions later to add the max request body length
-// to contexts, if we ever need to.
-const (
-	reqCtxKeyMaxLen     = requestContextKey("server-decoding-plugin-context-max-length")
-	reqCtxKeyGzipMaxLen = requestContextKey("server-decoding-plugin-context-gzip-max-length")
+	v1 "github.com/open-policy-agent/opa/v1/util/decoding"
 )
 
 func AddServerDecodingMaxLen(ctx context.Context, maxLen int64) context.Context {
-	return context.WithValue(ctx, reqCtxKeyMaxLen, maxLen)
+	return v1.AddServerDecodingMaxLen(ctx, maxLen)
 }
 
 func AddServerDecodingGzipMaxLen(ctx context.Context, maxLen int64) context.Context {
-	return context.WithValue(ctx, reqCtxKeyGzipMaxLen, maxLen)
+	return v1.AddServerDecodingGzipMaxLen(ctx, maxLen)
 }
 
 // Used for enforcing max body content limits when dealing with chunked requests.
 func GetServerDecodingMaxLen(ctx context.Context) (int64, bool) {
-	maxLength, ok := ctx.Value(reqCtxKeyMaxLen).(int64)
-	return maxLength, ok
+	return v1.GetServerDecodingMaxLen(ctx)
 }
 
 func GetServerDecodingGzipMaxLen(ctx context.Context) (int64, bool) {
-	gzipMaxLength, ok := ctx.Value(reqCtxKeyGzipMaxLen).(int64)
-	return gzipMaxLength, ok
+	return v1.GetServerDecodingGzipMaxLen(ctx)
 }

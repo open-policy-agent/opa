@@ -5,151 +5,21 @@
 package discovery
 
 import (
-	"fmt"
-	"strings"
-
-	"github.com/open-policy-agent/opa/keys"
-
-	"github.com/open-policy-agent/opa/bundle"
-
-	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/download"
-	"github.com/open-policy-agent/opa/util"
+	v1 "github.com/open-policy-agent/opa/v1/plugins/discovery"
 )
 
 // Config represents the configuration for the discovery feature.
-type Config struct {
-	download.Config                            // bundle downloader configuration
-	Name            *string                    `json:"name"`               // Deprecated: name of the discovery bundle, use `Resource` instead.
-	Prefix          *string                    `json:"prefix,omitempty"`   // Deprecated: use `Resource` instead.
-	Decision        *string                    `json:"decision"`           // the name of the query to run on the bundle to get the config
-	Service         string                     `json:"service"`            // the name of the service used to download discovery bundle from
-	Resource        *string                    `json:"resource,omitempty"` // the resource path which will be downloaded from the service
-	Signing         *bundle.VerificationConfig `json:"signing,omitempty"`  // configuration used to verify a signed bundle
-	Persist         bool                       `json:"persist"`            // control whether to persist activated discovery bundle to disk
-
-	service string
-	path    string
-	query   string
-}
+type Config = v1.Config
 
 // ConfigBuilder assists in the construction of the plugin configuration.
-type ConfigBuilder struct {
-	raw      []byte
-	services []string
-	keys     map[string]*keys.Config
-}
+type ConfigBuilder = v1.ConfigBuilder
 
 // NewConfigBuilder returns a new ConfigBuilder to build and parse the discovery config
 func NewConfigBuilder() *ConfigBuilder {
-	return &ConfigBuilder{}
-}
-
-// WithBytes sets the raw discovery config
-func (b *ConfigBuilder) WithBytes(config []byte) *ConfigBuilder {
-	b.raw = config
-	return b
-}
-
-// WithServices sets the services that implement control plane APIs
-func (b *ConfigBuilder) WithServices(services []string) *ConfigBuilder {
-	b.services = services
-	return b
-}
-
-// WithKeyConfigs sets the public keys to verify a signed bundle
-func (b *ConfigBuilder) WithKeyConfigs(keys map[string]*keys.Config) *ConfigBuilder {
-	b.keys = keys
-	return b
-}
-
-// Parse returns a valid Config object with defaults injected.
-func (b *ConfigBuilder) Parse() (*Config, error) {
-	if b.raw == nil {
-		return nil, nil
-	}
-
-	var result Config
-
-	if err := util.Unmarshal(b.raw, &result); err != nil {
-		return nil, err
-	}
-
-	return &result, result.validateAndInjectDefaults(b.services, b.keys)
+	return v1.NewConfigBuilder()
 }
 
 // ParseConfig returns a valid Config object with defaults injected.
 func ParseConfig(bs []byte, services []string) (*Config, error) {
-	return NewConfigBuilder().WithBytes(bs).WithServices(services).Parse()
+	return v1.ParseConfig(bs, services)
 }
-
-func (c *Config) validateAndInjectDefaults(services []string, confKeys map[string]*keys.Config) error {
-
-	if c.Resource == nil && c.Name == nil {
-		return fmt.Errorf("missing required discovery.resource field")
-	}
-
-	// make a copy of the keys map
-	cpy := map[string]*keys.Config{}
-	for key, kc := range confKeys {
-		cpy[key] = kc
-	}
-
-	if c.Signing != nil {
-		err := c.Signing.ValidateAndInjectDefaults(cpy)
-		if err != nil {
-			return fmt.Errorf("invalid configuration for discovery service: %s", err.Error())
-		}
-	} else {
-		if len(confKeys) > 0 {
-			c.Signing = bundle.NewVerificationConfig(cpy, "", "", nil)
-		}
-	}
-
-	if c.Resource != nil {
-		c.path = *c.Resource
-	} else {
-		if c.Prefix == nil {
-			s := defaultDiscoveryPathPrefix
-			c.Prefix = &s
-		}
-
-		c.path = fmt.Sprintf("%v/%v", strings.Trim(*c.Prefix, "/"), strings.Trim(*c.Name, "/"))
-	}
-
-	service, err := c.getServiceFromList(c.Service, services)
-	if err != nil {
-		return fmt.Errorf("invalid configuration for discovery service: %s", err.Error())
-	}
-
-	c.service = service
-
-	if c.Decision != nil {
-		c.query = fmt.Sprintf("%v.%v", ast.DefaultRootDocument, strings.Replace(strings.Trim(*c.Decision, "/"), "/", ".", -1))
-	} else if c.Name != nil {
-		c.query = fmt.Sprintf("%v.%v", ast.DefaultRootDocument, strings.Replace(strings.Trim(*c.Name, "/"), "/", ".", -1))
-	} else {
-		c.query = ast.DefaultRootDocument.String()
-	}
-
-	return c.Config.ValidateAndInjectDefaults()
-}
-
-func (c *Config) getServiceFromList(service string, services []string) (string, error) {
-	if service == "" {
-		if len(services) != 1 {
-			return "", fmt.Errorf("more than one service is defined")
-		}
-		return services[0], nil
-	}
-	for _, svc := range services {
-		if svc == service {
-			return service, nil
-		}
-	}
-	return service, fmt.Errorf("service name %q not found", service)
-}
-
-const (
-	defaultDiscoveryPathPrefix = "bundles"
-)

@@ -5,15 +5,10 @@
 package util
 
 import (
-	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
-	"reflect"
 
-	"sigs.k8s.io/yaml"
-
-	"github.com/open-policy-agent/opa/loader/extension"
+	v1 "github.com/open-policy-agent/opa/v1/util"
 )
 
 // UnmarshalJSON parses the JSON encoded data and stores the result in the value
@@ -22,29 +17,7 @@ import (
 // This function is intended to be used in place of the standard json.Marshal
 // function when json.Number is required.
 func UnmarshalJSON(bs []byte, x interface{}) error {
-	return unmarshalJSON(bs, x, true)
-}
-
-func unmarshalJSON(bs []byte, x interface{}, ext bool) error {
-	buf := bytes.NewBuffer(bs)
-	decoder := NewJSONDecoder(buf)
-	if err := decoder.Decode(x); err != nil {
-		if handler := extension.FindExtension(".json"); handler != nil && ext {
-			return handler(bs, x)
-		}
-		return err
-	}
-
-	// Since decoder.Decode validates only the first json structure in bytes,
-	// check if decoder has more bytes to consume to validate whole input bytes.
-	tok, err := decoder.Token()
-	if tok != nil {
-		return fmt.Errorf("error: invalid character '%s' after top-level value", tok)
-	}
-	if err != nil && err != io.EOF {
-		return err
-	}
-	return nil
+	return v1.UnmarshalJSON(bs, x)
 }
 
 // NewJSONDecoder returns a new decoder that reads from r.
@@ -52,9 +25,7 @@ func unmarshalJSON(bs []byte, x interface{}, ext bool) error {
 // This function is intended to be used in place of the standard json.NewDecoder
 // when json.Number is required.
 func NewJSONDecoder(r io.Reader) *json.Decoder {
-	decoder := json.NewDecoder(r)
-	decoder.UseNumber()
-	return decoder
+	return v1.NewJSONDecoder(r)
 }
 
 // MustUnmarshalJSON parse the JSON encoded data and returns the result.
@@ -62,11 +33,7 @@ func NewJSONDecoder(r io.Reader) *json.Decoder {
 // If the data cannot be decoded, this function will panic. This function is for
 // test purposes.
 func MustUnmarshalJSON(bs []byte) interface{} {
-	var x interface{}
-	if err := UnmarshalJSON(bs, &x); err != nil {
-		panic(err)
-	}
-	return x
+	return v1.MustUnmarshalJSON(bs)
 }
 
 // MustMarshalJSON returns the JSON encoding of x
@@ -74,11 +41,7 @@ func MustUnmarshalJSON(bs []byte) interface{} {
 // If the data cannot be encoded, this function will panic. This function is for
 // test purposes.
 func MustMarshalJSON(x interface{}) []byte {
-	bs, err := json.Marshal(x)
-	if err != nil {
-		panic(err)
-	}
-	return bs
+	return v1.MustMarshalJSON(x)
 }
 
 // RoundTrip encodes to JSON, and decodes the result again.
@@ -87,11 +50,7 @@ func MustMarshalJSON(x interface{}) []byte {
 // rego.Input and inmem's Write operations. Works with both references and
 // values.
 func RoundTrip(x *interface{}) error {
-	bs, err := json.Marshal(x)
-	if err != nil {
-		return err
-	}
-	return UnmarshalJSON(bs, x)
+	return v1.RoundTrip(x)
 }
 
 // Reference returns a pointer to its argument unless the argument already is
@@ -100,34 +59,10 @@ func RoundTrip(x *interface{}) error {
 // Used for preparing Go types (including pointers to structs) into values to be
 // put through util.RoundTrip().
 func Reference(x interface{}) *interface{} {
-	var y interface{}
-	rv := reflect.ValueOf(x)
-	if rv.Kind() == reflect.Ptr {
-		return Reference(rv.Elem().Interface())
-	}
-	if rv.Kind() != reflect.Invalid {
-		y = rv.Interface()
-		return &y
-	}
-	return &x
+	return v1.Reference(x)
 }
 
 // Unmarshal decodes a YAML, JSON or JSON extension value into the specified type.
 func Unmarshal(bs []byte, v interface{}) error {
-	if len(bs) > 2 && bs[0] == 0xef && bs[1] == 0xbb && bs[2] == 0xbf {
-		bs = bs[3:] // Strip UTF-8 BOM, see https://www.rfc-editor.org/rfc/rfc8259#section-8.1
-	}
-
-	if json.Valid(bs) {
-		return unmarshalJSON(bs, v, false)
-	}
-	nbs, err := yaml.YAMLToJSON(bs)
-	if err == nil {
-		return unmarshalJSON(nbs, v, false)
-	}
-	// not json or yaml: try extensions
-	if handler := extension.FindExtension(".json"); handler != nil {
-		return handler(bs, v)
-	}
-	return err
+	return v1.Unmarshal(bs, v)
 }

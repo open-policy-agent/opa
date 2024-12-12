@@ -1,4 +1,4 @@
-package planner
+package encoding
 
 import (
 	"bytes"
@@ -12,12 +12,12 @@ import (
 
 func TestRoundTrip(t *testing.T) {
 
+	// Note: v0 module
 	c, err := ast.CompileModules(map[string]string{
 		"test.rego": `
 			package test
-			import rego.v1
 
-			p if {
+			p {
 				input.foo == 7
 			}
 		`,

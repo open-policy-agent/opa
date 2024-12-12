@@ -13,12 +13,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/cmd/internal/env"
-	"github.com/open-policy-agent/opa/format"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
-	"github.com/open-policy-agent/opa/loader"
-	"github.com/open-policy-agent/opa/refactor"
+	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/format"
+	"github.com/open-policy-agent/opa/v1/loader"
+	"github.com/open-policy-agent/opa/v1/refactor"
 )
 
 type moveCommandParams struct {
@@ -149,7 +149,7 @@ func doMove(params moveCommandParams, args []string, out io.Writer) error {
 			return err
 		}
 
-		formatted, err := format.Ast(mod)
+		formatted, err := format.AstWithOpts(mod, format.Opts{RegoVersion: params.regoVersion()})
 		if err != nil {
 			return newError("failed to parse Rego source file: %v", err)
 		}

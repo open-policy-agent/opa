@@ -7,4 +7,4 @@
 
 package cmd
 
-import _ "github.com/open-policy-agent/opa/features/wasm"
+import _ "github.com/open-policy-agent/opa/v1/features/wasm"

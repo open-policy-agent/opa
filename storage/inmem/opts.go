@@ -1,7 +1,9 @@
 package inmem
 
+import v1 "github.com/open-policy-agent/opa/v1/storage/inmem"
+
 // An Opt modifies store at instantiation.
-type Opt func(*store)
+type Opt = v1.Opt
 
 // OptRoundTripOnWrite sets whether incoming objects written to store are
 // round-tripped through JSON to ensure they are serializable to JSON.
@@ -19,9 +21,7 @@ type Opt func(*store)
 // and that mutations happening to the objects after they have been passed into
 // Write() don't affect their logic.
 func OptRoundTripOnWrite(enabled bool) Opt {
-	return func(s *store) {
-		s.roundTripOnWrite = enabled
-	}
+	return v1.OptRoundTripOnWrite(enabled)
 }
 
 // OptReturnASTValuesOnRead sets whether data values added to the store should be
@@ -31,7 +31,5 @@ func OptRoundTripOnWrite(enabled bool) Opt {
 // which may result in panics if the data is not valid. Callers should ensure that passed data
 // can be serialized to AST values; otherwise, it's recommended to also enable OptRoundTripOnWrite.
 func OptReturnASTValuesOnRead(enabled bool) Opt {
-	return func(s *store) {
-		s.returnASTValuesOnRead = enabled
-	}
+	return v1.OptReturnASTValuesOnRead(enabled)
 }

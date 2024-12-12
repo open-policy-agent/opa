@@ -17,9 +17,9 @@ import (
 
 	"github.com/open-policy-agent/opa/cmd/internal/env"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
-	"github.com/open-policy-agent/opa/runtime"
-	"github.com/open-policy-agent/opa/server"
-	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/v1/runtime"
+	"github.com/open-policy-agent/opa/v1/server"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 const (

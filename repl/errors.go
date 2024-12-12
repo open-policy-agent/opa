@@ -4,35 +4,13 @@
 
 package repl
 
-import "fmt"
+import v1 "github.com/open-policy-agent/opa/v1/repl"
 
 // Error is the error type returned by the REPL.
-type Error struct {
-	Code    string
-	Message string
-}
-
-func (err *Error) Error() string {
-	return fmt.Sprintf("code %v: %v", err.Code, err.Message)
-}
+type Error = v1.Error
 
 const (
 	// BadArgsErr indicates bad arguments were provided to a built-in REPL
 	// command.
-	BadArgsErr string = "bad arguments"
+	BadArgsErr string = v1.BadArgsErr
 )
-
-func newBadArgsErr(f string, a ...interface{}) *Error {
-	return &Error{
-		Code:    BadArgsErr,
-		Message: fmt.Sprintf(f, a...),
-	}
-}
-
-// stop is returned by the 'exit' command to indicate to the REPL that it should
-// break and return.
-type stop struct{}
-
-func (stop) Error() string {
-	return "<stop>"
-}

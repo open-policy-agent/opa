@@ -9,15 +9,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/open-policy-agent/opa/util"
-	"github.com/open-policy-agent/opa/util/test"
+	"github.com/open-policy-agent/opa/v1/util"
+	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
 func TestOracleFindDefinition(t *testing.T) {
 	cases := []struct {
 		note         string
 		v0Compatible bool
-		v1Compatible bool
 		onDiskModule string
 		stdin        string
 		paths        []string
@@ -42,8 +41,7 @@ q = true`,
 			},
 		},
 		{
-			note:         "v1",
-			v1Compatible: true,
+			note: "v1",
 			onDiskModule: `package test
 
 p if { r }
@@ -58,27 +56,6 @@ q = true`,
 				"test.rego:10",
 				"test.rego:15",
 				"test.rego:21",
-			},
-		},
-		// v0 takes precedence over v1
-		{
-			note:         "v0+v1",
-			v0Compatible: true,
-			v1Compatible: true,
-			onDiskModule: `package test
-
-p { r }
-
-r = true`,
-			stdin: `package test
-
-p { q }
-
-q = true`,
-			paths: []string{
-				"test.rego:10",
-				"test.rego:15",
-				"test.rego:18",
 			},
 		},
 	}
@@ -102,7 +79,6 @@ q = true`,
 					},
 					stdinBuffer:  true,
 					v0Compatible: tc.v0Compatible,
-					v1Compatible: tc.v1Compatible,
 				}
 
 				stdout := bytes.NewBuffer(nil)

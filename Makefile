@@ -28,7 +28,7 @@ ifeq ($(WASM_ENABLED),1)
 GO_TAGS = -tags=opa_wasm
 endif
 
-GOLANGCI_LINT_VERSION := v1.59.1
+GOLANGCI_LINT_VERSION := v1.60.1
 YAML_LINT_VERSION := 0.29.0
 YAML_LINT_FORMAT ?= auto
 
@@ -233,7 +233,7 @@ wasm-lib-clean:
 
 .PHONY: wasm-rego-testgen-install
 wasm-rego-testgen-install:
-	$(GO) install ./test/wasm/cmd/wasm-rego-testgen
+	$(GO) install ./v1/test/wasm/cmd/wasm-rego-testgen
 
 ######################################################
 #
@@ -479,7 +479,7 @@ check-go-module:
 .PHONY: check-yaml-tests
 check-yaml-tests:
 ifeq ($(DOCKER_RUNNING), 1)
-	docker run --rm -v $(shell pwd):/data:ro,Z -w /data pipelinecomponents/yamllint:${YAML_LINT_VERSION} yamllint -f $(YAML_LINT_FORMAT) test/cases/testdata
+	docker run --rm -v $(shell pwd):/data:ro,Z -w /data pipelinecomponents/yamllint:${YAML_LINT_VERSION} yamllint -f $(YAML_LINT_FORMAT) v1/test/cases/testdata
 else
 	@echo "Docker not installed or running. Skipping yamllint run."
 endif

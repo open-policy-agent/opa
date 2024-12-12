@@ -19,17 +19,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa"
-	"github.com/open-policy-agent/opa/rego"
-	"github.com/open-policy-agent/opa/test/cases"
-	"github.com/open-policy-agent/opa/types"
-	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/rego"
+	"github.com/open-policy-agent/opa/v1/test/cases"
+	"github.com/open-policy-agent/opa/v1/types"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 const opaRootDir = "../../../../../"
 
-var caseDir = flag.String("case-dir", filepath.Join(opaRootDir, "test/cases/testdata/"), "set directory to load test cases from")
+var caseDir = flag.String("case-dir", filepath.Join(opaRootDir, "v1/test/cases/testdata/"), "set directory to load test cases from")
 var exceptionsFile = flag.String("exceptions", "./exceptions.yaml", "set file to load a list of test names to exclude")
 
 var exceptions map[string]string

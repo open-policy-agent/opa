@@ -14,12 +14,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/cmd/internal/env"
-	"github.com/open-policy-agent/opa/compile"
-	"github.com/open-policy-agent/opa/keys"
-	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/bundle"
+	"github.com/open-policy-agent/opa/v1/compile"
+	"github.com/open-policy-agent/opa/v1/keys"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 const defaultPublicKeyID = "default"
@@ -47,6 +47,7 @@ type buildParams struct {
 	v0Compatible       bool
 	v1Compatible       bool
 	followSymlinks     bool
+	wasmIncludePrint   bool
 }
 
 func newBuildParams() buildParams {
@@ -241,6 +242,7 @@ against OPA v0.22.0:
 	buildCommand.Flags().StringVarP(&buildParams.outputFile, "output", "o", "bundle.tar.gz", "set the output filename")
 	buildCommand.Flags().StringVar(&buildParams.ns, "partial-namespace", "partial", "set the namespace to use for partially evaluated files in an optimized bundle")
 	buildCommand.Flags().BoolVar(&buildParams.followSymlinks, "follow-symlinks", false, "follow symlinks in the input set of paths when building the bundle")
+	buildCommand.Flags().BoolVar(&buildParams.wasmIncludePrint, "wasm-include-print", false, "enable print statements inside of WebAssembly modules compiled by the compiler")
 
 	addBundleModeFlag(buildCommand.Flags(), &buildParams.bundleMode, false)
 	addIgnoreFlag(buildCommand.Flags(), &buildParams.ignore)
@@ -332,6 +334,10 @@ func dobuild(params buildParams, args []string) error {
 
 	if params.target.String() == compile.TargetPlan {
 		compiler = compiler.WithEnablePrintStatements(true)
+	}
+
+	if params.target.String() == compile.TargetWasm {
+		compiler = compiler.WithEnablePrintStatements(params.wasmIncludePrint)
 	}
 
 	err = compiler.Build(context.Background())

@@ -146,14 +146,13 @@
 package edittree
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"sort"
 	"strings"
 
-	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/edittree/bitvector"
+	"github.com/open-policy-agent/opa/v1/ast"
 )
 
 // Deletions are encoded with a nil value pointer.
@@ -213,10 +212,10 @@ func (e *EditTree) getKeyHash(key *ast.Term) (int, bool) {
 	case ast.Null, ast.Boolean, ast.String, ast.Var:
 		equal = func(y ast.Value) bool { return x == y }
 	case ast.Number:
-		if xi, err := json.Number(x).Int64(); err == nil {
+		if xi, ok := x.Int64(); ok {
 			equal = func(y ast.Value) bool {
 				if y, ok := y.(ast.Number); ok {
-					if yi, err := json.Number(y).Int64(); err == nil {
+					if yi, ok := y.Int64(); ok {
 						return xi == yi
 					}
 				}
@@ -725,9 +724,9 @@ func (e *EditTree) Unfold(path ast.Ref) (*EditTree, error) {
 
 		// Fall back to looking up the key in e.value.
 		// Extend the tree if key is present. Error otherwise.
-		if v, err := x.Find(ast.Ref{ast.IntNumberTerm(idx)}); err == nil {
+		if v, err := x.Find(ast.Ref{ast.InternedIntNumberTerm(idx)}); err == nil {
 			// TODO: Consider a more efficient "Replace" function that special-cases this for arrays instead?
-			_, err := e.Delete(ast.IntNumberTerm(idx))
+			_, err := e.Delete(ast.InternedIntNumberTerm(idx))
 			if err != nil {
 				return nil, err
 			}
@@ -1026,8 +1025,7 @@ func (e *EditTree) Exists(path ast.Ref) bool {
 			}
 			// Fallback if child lookup failed.
 			// We have to ensure that the lookup term is a number here, or Find will fail.
-			k := ast.Ref{ast.IntNumberTerm(idx)}.Concat(path[1:])
-			_, err = x.Find(k)
+			_, err = x.Find(ast.Ref{ast.InternedIntNumberTerm(idx)}.Concat(path[1:]))
 			return err == nil
 		default:
 			// Catch all primitive types.

@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -18,15 +19,64 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/internal/presentation"
-	"github.com/open-policy-agent/opa/loader"
-	"github.com/open-policy-agent/opa/rego"
-	"github.com/open-policy-agent/opa/topdown"
-	"github.com/open-policy-agent/opa/util"
-	"github.com/open-policy-agent/opa/util/test"
+	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/loader"
+	"github.com/open-policy-agent/opa/v1/rego"
+	"github.com/open-policy-agent/opa/v1/topdown"
+	"github.com/open-policy-agent/opa/v1/util"
+	"github.com/open-policy-agent/opa/v1/util/test"
 )
+
+func TestEvalWithIllegalUnknownArgs(t *testing.T) {
+
+	tests := []struct {
+		name        string
+		unknowns    string
+		expectedErr error
+	}{
+		{
+			name:        "happy path: passing input ref as unknown",
+			unknowns:    "input",
+			expectedErr: nil,
+		},
+		{
+			name:        "happy path: passing input.users ref as unknown",
+			unknowns:    "input.users",
+			expectedErr: nil,
+		},
+		{
+			name:        "passing multiple refs with ; separated",
+			unknowns:    "input;input.users",
+			expectedErr: errors.New("expected exactly one term but got: input; input.users"),
+		},
+		{
+			name:        "passing array as unknown",
+			unknowns:    "[input, data.posts]",
+			expectedErr: errIllegalUnknownsArg,
+		},
+		{
+			name:        "passing set as unknown",
+			unknowns:    "{input, data.posts}",
+			expectedErr: errIllegalUnknownsArg,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			params := newEvalCommandParams()
+			params.unknowns = []string{tt.unknowns}
+			params.partial = true
+
+			err := validateEvalParams(&params, []string{"data"})
+
+			if tt.expectedErr != nil && !strings.EqualFold(err.Error(), tt.expectedErr.Error()) {
+				t.Errorf("expected %s; got %s", errIllegalUnknownsArg.Error(), err.Error())
+			}
+		})
+	}
+}
 
 func TestEvalExitCode(t *testing.T) {
 	params := newEvalCommandParams()
@@ -62,7 +112,6 @@ func TestEvalExitCode(t *testing.T) {
 func TestEvalWithShowBuiltinErrors(t *testing.T) {
 	files := map[string]string{
 		"x.rego": `package x
-import rego.v1
 
 p if {
 	1/0
@@ -132,7 +181,6 @@ q if {
 func TestEvalWithProfiler(t *testing.T) {
 	files := map[string]string{
 		"x.rego": `package x
-import rego.v1
 
 p if {
 	a := 1
@@ -168,7 +216,7 @@ p if {
 
 		expectedNumEval := []int{3, 1, 1, 1, 1}
 		expectedNumRedo := []int{3, 1, 1, 1, 1}
-		expectedRow := []int{8, 7, 6, 5, 1}
+		expectedRow := []int{7, 6, 5, 4, 1}
 		expectedNumGenExpr := []int{3, 1, 1, 1, 1}
 
 		for idx, actualExprStat := range output.Profile {
@@ -272,7 +320,7 @@ func TestEvalWithOptimize(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
 			package test
-			import rego.v1
+			
 			default p = false
 			p if { q }
 			q if { input.x = data.foo }`,
@@ -303,7 +351,6 @@ func TestEvalIssue5368(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
 package system
-import rego.v1
 
 object_key_exists(object, key) if {
 	_ = object[key]
@@ -342,7 +389,7 @@ func TestEvalWithOptimizeBundleData(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
 			package test
-			import rego.v1
+			
 			default p = false
 			p if { q }
 			q if { input.x = data.foo }`,
@@ -506,7 +553,7 @@ func testEvalWithSchemasAnnotationButNoSchemaFlag(policy string) error {
 		var defined bool
 		defined, err = eval([]string{query}, params, &buf)
 		if !defined || err != nil {
-			err = fmt.Errorf(buf.String())
+			err = errors.New(buf.String())
 		}
 	})
 
@@ -517,7 +564,6 @@ func testEvalWithSchemasAnnotationButNoSchemaFlag(policy string) error {
 func TestEvalWithSchemasAnnotationButNoSchemaFlag(t *testing.T) {
 	policyWithSchemaRef := `
 package test
-import rego.v1
 
 # METADATA
 # schemas:
@@ -534,7 +580,6 @@ p if {
 
 	policyWithInlinedSchema := `
 package test
-import rego.v1
 
 # METADATA
 # schemas:
@@ -680,7 +725,6 @@ func TestEvalWithJSONSchema(t *testing.T) {
 
 	policyWithSchemasAnnotation := `
 package test
-import rego.v1
 
 # METADATA
 # schemas:
@@ -695,7 +739,6 @@ p if {
 
 	policyWithInlinedSchemasAnnotation := `
 package test
-import rego.v1
 
 # METADATA
 # schemas:
@@ -761,10 +804,9 @@ func TestEvalWithSchemaFileWithRemoteRef(t *testing.T) {
 		"input.json":  input,
 		"schema.json": fmt.Sprintf(schemaFmt, ts.URL),
 		"p.rego": `package p
-import rego.v1
 
-r if { 
-	input.metadata.clusterName == "NAME" 
+r if {
+	input.metadata.clusterName == "NAME"
 }`,
 	}
 
@@ -942,7 +984,6 @@ func TestEvalWithRegoEntrypointAnnotations(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
 package test
-import rego.v1
 
 default p = false
 # METADATA
@@ -1170,7 +1211,6 @@ func TestEvalDebugTraceJSONOutput(t *testing.T) {
 	params.disableIndexing = true
 
 	mod := `package x
-	import rego.v1
 
 	p contains a if {
 		a := input.z
@@ -1245,15 +1285,15 @@ func TestEvalDebugTraceJSONOutput(t *testing.T) {
 
 	expectedEvalLocationsAndVars := []locationAndVars{
 		{
-			location:    ast.NewLocation(nil, policyFile, 5, 3), // a := input.z
+			location:    ast.NewLocation(nil, policyFile, 4, 3), // a := input.z
 			varBindings: map[string]string{"__local0__": "a"},
 		},
 		{
-			location:    ast.NewLocation(nil, policyFile, 6, 3), // a == 1
+			location:    ast.NewLocation(nil, policyFile, 5, 3), // a == 1
 			varBindings: map[string]string{"__local0__": "a"},
 		},
 		{
-			location:    ast.NewLocation(nil, policyFile, 10, 3), // b := input.y
+			location:    ast.NewLocation(nil, policyFile, 9, 3), // b := input.y
 			varBindings: map[string]string{"__local1__": "b"},
 		},
 	}
@@ -1295,7 +1335,7 @@ p if {
 	y := 2
 	z := 3
 	x == z - y
-} 
+}
 `,
 			},
 			expected: `%SKIP_LINE%
@@ -1334,7 +1374,7 @@ p if {
 	y := 2
 	z := 3
 	x == z - y
-} 
+}
 `,
 			},
 			expected: `%SKIP_LINE%
@@ -1379,7 +1419,7 @@ p if {
 	x := v
 
 	x.foo[_] == "a"
-} 
+}
 `,
 			},
 			expected: `%SKIP_LINE%
@@ -1742,7 +1782,6 @@ func TestResetExprLocations(t *testing.T) {
 	// and exprs with no location information.
 	pq, err := rego.New(rego.Query("data.test.p = x"), rego.Module("test.rego", `
 		package test
-		import rego.v1
 
 		default p = false
 
@@ -1783,7 +1822,7 @@ func TestResetExprLocations(t *testing.T) {
 }
 func kubeSchemaServer(t *testing.T) *httptest.Server {
 	t.Helper()
-	bs, err := os.ReadFile("../ast/testdata/_definitions.json")
+	bs, err := os.ReadFile("../v1/ast/testdata/_definitions.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2084,21 +2123,12 @@ func TestEvalDiscardProfilerOutput(t *testing.T) {
 func TestPolicyWithStrictFlag(t *testing.T) {
 	testsShouldError := []struct {
 		note            string
+		v0Compatible    bool
 		policy          string
 		query           string
 		expectedCode    string
 		expectedMessage string
 	}{
-		{
-			note: "strict mode should error on duplicate imports",
-			policy: `package x
-			import data.bar
-			import data.bar
-			foo = bar`,
-			query:           "data.foo",
-			expectedCode:    "rego_compile_error",
-			expectedMessage: "import must not shadow import data.bar",
-		},
 		{
 			note: "strict mode should error on unused imports",
 			policy: `package x
@@ -2110,10 +2140,32 @@ func TestPolicyWithStrictFlag(t *testing.T) {
 			expectedMessage: "import data.foo unused",
 		},
 		{
-			note: "strict mode should error when reserved vars data or input is used",
+			note:         "v0 compat, strict mode should error on duplicate imports",
+			v0Compatible: true,
+			policy: `package x
+			import data.bar
+			import data.bar
+			foo = bar`,
+			query:           "data.foo",
+			expectedCode:    "rego_compile_error",
+			expectedMessage: "import must not shadow import data.bar",
+		},
+		{
+			note:         "v0 compat, strict mode should error on unused imports",
+			v0Compatible: true,
 			policy: `package x
 			import future.keywords.if
-			data if { x = 1}`,
+			import data.foo
+			foo = 2`,
+			query:           "data.foo",
+			expectedCode:    "rego_compile_error",
+			expectedMessage: "import data.foo unused",
+		},
+		{
+			note:         "v0 compat, strict mode should error when reserved vars data or input is used",
+			v0Compatible: true,
+			policy: `package x
+			data { x = 1}`,
 			query:           "data.foo",
 			expectedCode:    "rego_compile_error",
 			expectedMessage: "rules must not shadow data (use a different rule name)",
@@ -2128,26 +2180,38 @@ func TestPolicyWithStrictFlag(t *testing.T) {
 			}
 
 			test.WithTempFS(files, func(path string) {
-				params := newEvalCommandParams()
-				params.strict = true
+				for _, strict := range []bool{true, false} {
+					params := newEvalCommandParams()
+					params.strict = strict
+					params.v0Compatible = tc.v0Compatible
 
-				_ = params.dataPaths.Set(filepath.Join(path, "test.rego"))
+					_ = params.dataPaths.Set(filepath.Join(path, "test.rego"))
 
-				var buf bytes.Buffer
-				_, err := eval([]string{tc.query}, params, &buf)
-				if err == nil {
-					t.Fatal("expected error, got nil")
-				}
-				var output presentation.Output
-				if err := util.NewJSONDecoder(&buf).Decode(&output); err != nil {
-					t.Fatal(err)
-				}
+					var buf bytes.Buffer
+					_, err := eval([]string{tc.query}, params, &buf)
 
-				if code := output.Errors[0].Code; code != tc.expectedCode {
-					t.Errorf("expected code '%v', got '%v'", tc.expectedCode, code)
-				}
-				if msg := output.Errors[0].Message; msg != tc.expectedMessage {
-					t.Errorf("expected message '%v', got '%v'", tc.expectedMessage, msg)
+					if strict {
+						if err == nil {
+							t.Fatal("expected error, got nil")
+						}
+						var output presentation.Output
+						if err := util.NewJSONDecoder(&buf).Decode(&output); err != nil {
+							t.Fatal(err)
+						}
+
+						if code := output.Errors[0].Code; code != tc.expectedCode {
+							t.Errorf("expected code '%v', got '%v'", tc.expectedCode, code)
+						}
+						if msg := output.Errors[0].Message; msg != tc.expectedMessage {
+							t.Errorf("expected message '%v', got '%v'", tc.expectedMessage, msg)
+						}
+					} else if err != nil {
+						var output presentation.Output
+						if err := util.NewJSONDecoder(&buf).Decode(&output); err != nil {
+							t.Fatal(err)
+						}
+						t.Fatal("unexpected error when non-strict:", output)
+					}
 				}
 			})
 		})
@@ -2198,13 +2262,24 @@ func TestPolicyWithStrictFlag(t *testing.T) {
 func TestBundleWithStrictFlag(t *testing.T) {
 	testsShouldError := []struct {
 		note            string
+		v0Compatible    bool
 		policy          string
 		query           string
 		expectedCode    string
 		expectedMessage string
 	}{
 		{
-			note: "strict mode should error on duplicate imports in this bundle",
+			note: "strict mode should error on unused imports in this bundle",
+			policy: `package x
+			import data.foo
+			foo = 2`,
+			query:           "data.foo",
+			expectedCode:    "rego_compile_error",
+			expectedMessage: "import data.foo unused",
+		},
+		{
+			note:         "v0 compat, strict mode should error on duplicate imports in this bundle",
+			v0Compatible: true,
 			policy: `package x
 			import data.bar
 			import data.bar
@@ -2214,9 +2289,9 @@ func TestBundleWithStrictFlag(t *testing.T) {
 			expectedMessage: "import must not shadow import data.bar",
 		},
 		{
-			note: "strict mode should error on unused imports in this bundle",
+			note:         "v0 compat, strict mode should error on unused imports in this bundle",
+			v0Compatible: true,
 			policy: `package x
-			import future.keywords.if
 			import data.foo
 			foo = 2`,
 			query:           "data.foo",
@@ -2224,10 +2299,10 @@ func TestBundleWithStrictFlag(t *testing.T) {
 			expectedMessage: "import data.foo unused",
 		},
 		{
-			note: "strict mode should error when reserved vars data or input is used in this bundle",
+			note:         "v0 compat, strict mode should error when reserved vars data or input is used in this bundle",
+			v0Compatible: true,
 			policy: `package x
-			import future.keywords.if
-			data if { x = 1}`,
+			data { x = 1}`,
 			query:           "data.foo",
 			expectedCode:    "rego_compile_error",
 			expectedMessage: "rules must not shadow data (use a different rule name)",
@@ -2242,27 +2317,39 @@ func TestBundleWithStrictFlag(t *testing.T) {
 			}
 
 			test.WithTempFS(files, func(path string) {
-				params := newEvalCommandParams()
-				if err := params.bundlePaths.Set(path); err != nil {
-					t.Fatal(err)
-				}
-				params.strict = true
+				for _, strict := range []bool{true, false} {
+					params := newEvalCommandParams()
+					if err := params.bundlePaths.Set(path); err != nil {
+						t.Fatal(err)
+					}
+					params.strict = strict
+					params.v0Compatible = tc.v0Compatible
 
-				var buf bytes.Buffer
-				_, err := eval([]string{tc.query}, params, &buf)
-				if err == nil {
-					t.Fatal("expected error, got nil")
-				}
-				var output presentation.Output
-				if err := util.NewJSONDecoder(&buf).Decode(&output); err != nil {
-					t.Fatal(err)
-				}
+					var buf bytes.Buffer
+					_, err := eval([]string{tc.query}, params, &buf)
 
-				if code := output.Errors[0].Code; code != tc.expectedCode {
-					t.Errorf("expected code '%v', got '%v'", tc.expectedCode, code)
-				}
-				if msg := output.Errors[0].Message; msg != tc.expectedMessage {
-					t.Errorf("expected message '%v', got '%v'", tc.expectedMessage, msg)
+					if strict {
+						if err == nil {
+							t.Fatal("expected error, got nil")
+						}
+						var output presentation.Output
+						if err := util.NewJSONDecoder(&buf).Decode(&output); err != nil {
+							t.Fatal(err)
+						}
+
+						if code := output.Errors[0].Code; code != tc.expectedCode {
+							t.Errorf("expected code '%v', got '%v'", tc.expectedCode, code)
+						}
+						if msg := output.Errors[0].Message; msg != tc.expectedMessage {
+							t.Errorf("expected message '%v', got '%v'", tc.expectedMessage, msg)
+						}
+					} else if err != nil {
+						var output presentation.Output
+						if err := util.NewJSONDecoder(&buf).Decode(&output); err != nil {
+							t.Fatal(err)
+						}
+						t.Fatal("unexpected error when non-strict:", output)
+					}
 				}
 			})
 		})
@@ -2316,7 +2403,7 @@ func TestBundleWithStrictFlag(t *testing.T) {
 func TestIfElseIfElseNoBrace(t *testing.T) {
 	files := map[string]string{
 		"bug.rego": `package bug
-			import future.keywords.if
+			
 			p if false
 			else := 1 if false
 			else := 2`,
@@ -2341,7 +2428,7 @@ func TestIfElseIfElseNoBrace(t *testing.T) {
 func TestIfElseIfElseBrace(t *testing.T) {
 	files := map[string]string{
 		"bug.rego": `package bug
-			import future.keywords.if
+			
 			p if false
 			else := 1 if { false }
 			else := 2`,
@@ -2366,7 +2453,7 @@ func TestIfElseIfElseBrace(t *testing.T) {
 func TestIfElse(t *testing.T) {
 	files := map[string]string{
 		"bug.rego": `package bug
-			import future.keywords.if
+			
 			p if false
 			else := 1 `,
 	}
@@ -2418,7 +2505,7 @@ func TestElseNoIfV0(t *testing.T) {
 func TestElseIf(t *testing.T) {
 	files := map[string]string{
 		"bug.rego": `package bug
-			import future.keywords.if
+			
 			p if false
 			else := x if {
 				x=2
@@ -2475,7 +2562,7 @@ func TestElseIfElseV0(t *testing.T) {
 func TestUnexpectedElseIfElseErr(t *testing.T) {
 	files := map[string]string{
 		"bug.rego": `package bug
-			import future.keywords.if
+			
 			p if false
 			else := x if {
 				x=2
@@ -2513,7 +2600,7 @@ func TestUnexpectedElseIfElseErr(t *testing.T) {
 func TestUnexpectedElseIfErr(t *testing.T) {
 	files := map[string]string{
 		"bug.rego": `package bug
-			import future.keywords.if
+			
 			q := 1 if false
 			else := 2 if
 			`,
@@ -2542,6 +2629,95 @@ func TestUnexpectedElseIfErr(t *testing.T) {
 			t.Fatalf("expected error message to contain '%s', but got '%s'", expectedErrorMessage, errorMessage)
 		}
 	})
+}
+
+func TestEval_DefaultRegoVersion(t *testing.T) {
+	tests := []struct {
+		note    string
+		modules map[string]string
+		query   string
+		expErrs []string
+	}{
+		{
+			note: "v0 module",
+			modules: map[string]string{
+				"test.rego": `package test
+a[x] {
+	x := 42
+}`,
+			},
+			query: `data.test.a`,
+			expErrs: []string{
+				"test.rego:2: rego_parse_error: `if` keyword is required before rule body",
+				"test.rego:2: rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note: "v1 module",
+			modules: map[string]string{
+				"test.rego": `package test
+a contains x if {
+	x := 42
+}`,
+			},
+			query: `data.test.a`,
+		},
+	}
+
+	setup := []struct {
+		name          string
+		commandParams func(params *evalCommandParams, path string)
+	}{
+		{
+			name: "Files",
+			commandParams: func(params *evalCommandParams, path string) {
+				params.dataPaths = newrepeatedStringFlag([]string{path})
+			},
+		},
+		{
+			name: "Bundle",
+			commandParams: func(params *evalCommandParams, path string) {
+				if err := params.bundlePaths.Set(path); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+	}
+
+	for _, s := range setup {
+		for _, tc := range tests {
+			t.Run(fmt.Sprintf("%s: %s", s.name, tc.note), func(t *testing.T) {
+				test.WithTempFS(tc.modules, func(path string) {
+					params := newEvalCommandParams()
+					_ = params.outputFormat.Set(evalPrettyOutput)
+					s.commandParams(&params, path)
+
+					var buf bytes.Buffer
+
+					defined, err := eval([]string{tc.query}, params, &buf)
+
+					if len(tc.expErrs) > 0 {
+						if err == nil {
+							t.Fatal("expected error, got none")
+						}
+
+						actual := buf.String()
+						for _, expErr := range tc.expErrs {
+							if !strings.Contains(actual, expErr) {
+								t.Fatalf("expected error:\n\n%v\n\ngot\n\n%v", expErr, actual)
+							}
+						}
+					} else {
+						if err != nil {
+							t.Fatalf("Unexpected error: %v, buf: %s", err, buf.String())
+						} else if !defined {
+							t.Fatal("expected result to be defined")
+						}
+					}
+				})
+			})
+		}
+	}
 }
 
 func TestEvalPolicyWithCompatibleFlags(t *testing.T) {

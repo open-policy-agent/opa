@@ -1,0 +1,58 @@
+---
+cases:
+  - note: walkbuiltin/sets
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	__local0__ = data.generated.q
+        	walk(__local0__, x)
+        }
+
+        q := {{1, 2, 3}}
+    data: {}
+    want_result:
+      - x:
+          - - []
+            - - - 1
+                - 2
+                - 3
+          - - - - 1
+                - 2
+                - 3
+            - - 1
+              - 2
+              - 3
+          - - - - 1
+                - 2
+                - 3
+              - 1
+            - 1
+          - - - - 1
+                - 2
+                - 3
+              - 2
+            - 2
+          - - - - 1
+                - 2
+                - 3
+              - 3
+            - 3
+    sort_bindings: true
+  - note: walkbuiltin/sets no path
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [x | walk({{1, 2, 3}}, [_, x])]
+    data: {}
+    want_result:
+      - x:
+          - [[1, 2, 3]]
+          - [1, 2, 3]
+          - 1
+          - 2
+          - 3

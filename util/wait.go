@@ -5,8 +5,9 @@
 package util
 
 import (
-	"fmt"
 	"time"
+
+	v1 "github.com/open-policy-agent/opa/v1/util"
 )
 
 // WaitFunc will call passed function at an interval and return nil
@@ -14,21 +15,5 @@ import (
 // If timeout is reached before the passed in function returns true
 // an error is returned.
 func WaitFunc(fun func() bool, interval, timeout time.Duration) error {
-	if fun() {
-		return nil
-	}
-	ticker := time.NewTicker(interval)
-	timer := time.NewTimer(timeout)
-	defer ticker.Stop()
-	defer timer.Stop()
-	for {
-		select {
-		case <-timer.C:
-			return fmt.Errorf("timeout")
-		case <-ticker.C:
-			if fun() {
-				return nil
-			}
-		}
-	}
+	return v1.WaitFunc(fun, interval, timeout)
 }

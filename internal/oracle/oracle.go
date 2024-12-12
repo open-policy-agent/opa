@@ -3,7 +3,7 @@ package oracle
 import (
 	"errors"
 
-	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/v1/ast"
 )
 
 // Error defines the structure of errors returned by the oracle.
@@ -198,9 +198,9 @@ func findContainingNodeStack(module *ast.Module, pos int) []ast.Node {
 
 	ast.WalkNodes(module, func(x ast.Node) bool {
 
-		min, max := getLocMinMax(x)
+		minLoc, maxLoc := getLocMinMax(x)
 
-		if pos < min || pos >= max {
+		if pos < minLoc || pos >= maxLoc {
 			return true
 		}
 
@@ -218,7 +218,7 @@ func getLocMinMax(x ast.Node) (int, int) {
 	}
 
 	loc := x.Loc()
-	min := loc.Offset
+	minOff := loc.Offset
 
 	// Special case bodies because location text is only for the first expr.
 	if body, ok := x.(ast.Body); ok {
@@ -227,10 +227,10 @@ func getLocMinMax(x ast.Node) (int, int) {
 		if extraLoc == nil {
 			return -1, -1
 		}
-		return min, extraLoc.Offset + len(extraLoc.Text)
+		return minOff, extraLoc.Offset + len(extraLoc.Text)
 	}
 
-	return min, min + len(loc.Text)
+	return minOff, minOff + len(loc.Text)
 }
 
 // findLastExpr returns the last expression in an ast.Body that has not been generated

@@ -5,29 +5,14 @@
 package topdown
 
 import (
-	"sync/atomic"
+	v1 "github.com/open-policy-agent/opa/v1/topdown"
 )
 
 // Cancel defines the interface for cancelling topdown queries. Cancel
 // operations are thread-safe and idempotent.
-type Cancel interface {
-	Cancel()
-	Cancelled() bool
-}
-
-type cancel struct {
-	flag int32
-}
+type Cancel = v1.Cancel
 
 // NewCancel returns a new Cancel object.
 func NewCancel() Cancel {
-	return &cancel{}
-}
-
-func (c *cancel) Cancel() {
-	atomic.StoreInt32(&c.flag, 1)
-}
-
-func (c *cancel) Cancelled() bool {
-	return atomic.LoadInt32(&c.flag) != 0
+	return v1.NewCancel()
 }

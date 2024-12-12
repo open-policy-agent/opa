@@ -14,10 +14,10 @@ import (
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"github.com/spf13/cobra"
 
-	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/cmd/internal/env"
-	"github.com/open-policy-agent/opa/format"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
+	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/format"
 )
 
 type fmtCommandParams struct {
@@ -223,9 +223,9 @@ func formatStdin(params *fmtCommandParams, r io.Reader, w io.Writer) error {
 	return err
 }
 
-func doDiff(old, new []byte) (diffString string) {
+func doDiff(a, b []byte) (diffString string) { // "a" is old, "b" is new
 	dmp := diffmatchpatch.New()
-	diffs := dmp.DiffMain(string(old), string(new), false)
+	diffs := dmp.DiffMain(string(a), string(b), false)
 	return dmp.DiffPrettyText(diffs)
 }
 
