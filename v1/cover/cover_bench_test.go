@@ -61,7 +61,7 @@ func generateModule(numVars int, dataSize int) string {
 	sb := strings.Builder{}
 	sb.WriteString(`package test
 
-p {
+p if {
 	x := a
 	v := x[i]
 `)

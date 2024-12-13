@@ -84,10 +84,8 @@ func BenchmarkSetIntersectionSlow(b *testing.B) {
 				store := inmem.NewFromObject(map[string]interface{}{"sets": genNxMSetBenchmarkData(n, m)})
 
 				module := `package test
-				import future.keywords.every
-				import future.keywords.in
 
-				combined[z] {
+				combined contains z if {
 					data.sets[m][z]
 					every ss in data.sets {
 						ss[z]

@@ -19,7 +19,7 @@ func BenchmarkBulkStartsWithNaive(b *testing.B) {
 		"test.rego": `
 package test
 
-result {
+result if {
   startswith(data.strings[_], data.prefixes[_])
 }
 `,
@@ -64,7 +64,7 @@ func BenchmarkBulkStartsWithOptimized(b *testing.B) {
 		"test.rego": `
 package test
 
-result {
+result if {
   strings.any_prefix_match(data.strings, data.prefixes)
 }
 `,
