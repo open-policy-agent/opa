@@ -18,25 +18,25 @@ func PartialObjectBenchmarkCrossModule(n int) []string {
     import data.test.bar
 	import data.test.baz
 
-	output[key] := value {
+	output[key] := value if {
 		value := bar[key]
 		startswith("bench_test_", key)
 	}`
 	barMod := "package test.bar\n"
 	barMod += `
-	cond_bench_0 {
+	cond_bench_0 if {
 		contains(lower(input.test_input_0), lower("input_01"))
 	}
-	cond_bench_1 {
+	cond_bench_1 if {
 		contains(lower(input.test_input_1), lower("input"))
 	}
-	cond_bench_2 {
+	cond_bench_2 if {
 		contains(lower(input.test_input_2), lower("input_10"))
 	}
     bench_test_out_result := load_tests(test_collector)
 
-    load_tests(in) := out {
-		out := in
+    load_tests(i) := out if {
+		out := i
 	}
     `
 
@@ -45,15 +45,15 @@ func PartialObjectBenchmarkCrossModule(n int) []string {
 
 	for idx := 1; idx <= n; idx++ {
 		barMod += fmt.Sprintf(`
-		bench_test_%[1]d := result {
+		bench_test_%[1]d := result if {
             input.bench_test_collector_mambo_number_%[3]d
 			result := input.bench_test_collector_mambo_number_%[3]d
-        } else := result {
+        } else := result if {
 			is_null(bench_test_out_result.mambo_number_%[3]d.error)
 			result := bench_test_out_result.mambo_number_%[3]d.result
 		}
 
-        test_collector["mambo_number_%[3]d"] := result {
+        test_collector["mambo_number_%[3]d"] := result if {
 			cond_bench_%[2]d
 			not %[3]d == 2
 			not %[3]d == 3
@@ -63,11 +63,11 @@ func PartialObjectBenchmarkCrossModule(n int) []string {
 		`, idx, idx%3, idx%5)
 		ruleBuilder += fmt.Sprintf("    bar.bench_test_%[1]d == %[1]d\n", idx)
 		if idx%10 == 0 {
-			bazMod += fmt.Sprintf(`rule_%d {
+			bazMod += fmt.Sprintf(`rule_%d if {
 				%s
 			}`, idx, ruleBuilder)
 			fooMod += fmt.Sprintf(`
-			final_decision = "allow" {
+			final_decision = "allow" if {
 				baz.rule_%d
 			}
 			`, idx)
@@ -85,7 +85,7 @@ func ArrayIterationBenchmarkModule(n int) string {
 
 	fixture = [ x | x := numbers.range(1, %d)[_] ]
 
-	main { fixture[i] }`, n)
+	main if { fixture[i] }`, n)
 }
 
 // SetIterationBenchmarkModule returns a module that iterates a set
@@ -95,7 +95,7 @@ func SetIterationBenchmarkModule(n int) string {
 
 	fixture = { x | x := numbers.range(1, %d)[_] }
 
-	main { fixture[i] }`, n)
+	main if { fixture[i] }`, n)
 }
 
 // ObjectIterationBenchmarkModule returns a module that iterates an object
@@ -105,7 +105,7 @@ func ObjectIterationBenchmarkModule(n int) string {
 
 	fixture = { x: x | x := numbers.range(1, %d)[_] }
 
-	main { fixture[i] }`, n)
+	main if { fixture[i] }`, n)
 }
 
 // GenerateLargeJSONBenchmarkData returns a map of 100 keys and 100.000 key/value
@@ -176,12 +176,12 @@ func GenerateConcurrencyBenchmarkData() (string, map[string]interface{}) {
 
 	import data.objs
 
-	p {
+	p if {
 		objs[i].attr1 = "get"
 		objs[i].groups[j] = "eng"
 	}
 
-	p {
+	p if {
 		objs[i].user = "alice"
 	}
 	`
@@ -195,7 +195,7 @@ func GenerateConcurrencyBenchmarkData() (string, map[string]interface{}) {
 func GenerateVirtualDocsBenchmarkData(numTotalRules, numHitRules int) (string, map[string]interface{}) {
 
 	hitRule := `
-	allow {
+	allow if {
 		input.method = "POST"
 		input.path = ["accounts", account_id]
 		input.user_id = account_id
@@ -203,7 +203,7 @@ func GenerateVirtualDocsBenchmarkData(numTotalRules, numHitRules int) (string, m
 	`
 
 	missRule := `
-	allow {
+	allow if {
 		input.method = "GET"
 		input.path = ["salaries", account_id]
 		input.user_id = account_id

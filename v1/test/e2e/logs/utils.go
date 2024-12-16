@@ -80,7 +80,7 @@ func GeneratePolicy(ruleCounts int, ruleHits int) string {
 	pb.WriteString("package test\n")
 	hits := 0
 	for i := 0; i < ruleCounts; i++ {
-		pb.WriteString("rule {")
+		pb.WriteString("rule if {")
 		if hits < ruleHits {
 			pb.WriteString("input.hit = true")
 			hits++
