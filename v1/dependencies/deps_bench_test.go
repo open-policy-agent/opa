@@ -60,14 +60,14 @@ func makePolicy(ruleCount int) string {
 	var b strings.Builder
 	b.WriteString("package test\n\n")
 
-	b.WriteString("main {\n")
+	b.WriteString("main if {\n")
 	for i := 0; i < ruleCount; i++ {
 		b.WriteString(fmt.Sprintf("  p_%d\n", i))
 	}
 	b.WriteString("}\n\n")
 
 	for i := 0; i < ruleCount; i++ {
-		b.WriteString(fmt.Sprintf("p_%d {\n", i))
+		b.WriteString(fmt.Sprintf("p_%d if {\n", i))
 		for j := i + 1; j < ruleCount; j++ {
 			b.WriteString(fmt.Sprintf("  p_%d\n", j))
 		}

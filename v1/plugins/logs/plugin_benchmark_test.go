@@ -222,7 +222,7 @@ func BenchmarkMaskingErase(b *testing.B) {
 		return store.UpsertPolicy(ctx, txn, "test.rego", []byte(`
 			package system.log
 
-			mask["/input"] {
+			mask contains "/input" if {
 				input.input.request.kind.kind == "Pod"
 			}
 		`))

@@ -44,13 +44,13 @@ func generateDynamicPolicyBenchmarkData(N int) map[string]string {
 		"main.rego": `
 			package main
 
-			denies[x] {
+			denies contains x if {
 				x := data.policies[input.type][input.subtype][_].denies[_]
 			}
-			any_denies {
+			any_denies if {
 				denies[_]
 			}
-			allow {
+			allow if {
 				not any_denies
 			}`,
 	}
@@ -64,7 +64,7 @@ func generateDynamicPolicyBenchmarkData(N int) map[string]string {
 
 func generateDynamicMockPolicy(N int) string {
 	return fmt.Sprintf(`package policies["%d"]["%d"].policy%d
-denies[x] {
+denies contains x if {
 	input.attribute == "%d"
 	x := "policy%d"
 }`, N, N, N, N, N)
@@ -104,7 +104,7 @@ func generateLargePartialRuleBenchmarkData(N int) map[string]string {
 		policy.WriteString(generateLargePartialRuleMockRule(i))
 		policy.WriteString("\n\n")
 	}
-	policy.WriteString(`number_denies = x {
+	policy.WriteString(`number_denies = x if {
 		x := count(deny)
 	}`)
 
@@ -115,7 +115,7 @@ func generateLargePartialRuleBenchmarkData(N int) map[string]string {
 }
 
 func generateLargePartialRuleMockRule(N int) string {
-	return fmt.Sprintf(`deny[[resource, errormsg]] {
+	return fmt.Sprintf(`deny contains [resource, errormsg] if {
 		resource := "example.%d"
 		i := %d
 		i %% 2 != 0
