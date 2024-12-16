@@ -493,6 +493,170 @@ a contains x if {
 	}
 }
 
+func TestCheckWithRegoV1Capability(t *testing.T) {
+	cases := []struct {
+		note         string
+		v0Compatible bool
+		capabilities *ast.Capabilities
+		policy       string
+		expErrs      []string
+	}{
+		{
+			note:         "v0 module, v0-compatible, no capabilities",
+			v0Compatible: true,
+			policy: `package test
+a[x] {
+	x := 42
+}`,
+		},
+		{
+			note:         "v0 module, v0-compatible, v0 capabilities",
+			v0Compatible: true,
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
+			policy: `package test
+a[x] {
+	x := 42
+}`,
+		},
+		{
+			note:         "v0 module, v0-compatible, v1 capabilities",
+			v0Compatible: true,
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV1)),
+			policy: `package test
+a[x] {
+	x := 42
+}`,
+		},
+
+		{
+			note: "v0 module, not v0-compatible, no capabilities",
+			policy: `package test
+a[x] {
+	x := 42
+}`,
+			expErrs: []string{
+				"test.rego:2: rego_parse_error: `if` keyword is required before rule body",
+				"test.rego:2: rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note:         "v0 module, not v0-compatible, v0 capabilities",
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
+			policy: `package test
+a[x] {
+	x := 42
+}`,
+			expErrs: []string{
+				"rego_parse_error: illegal capabilities: rego_v1 feature required for parsing v1 Rego",
+			},
+		},
+		{
+			note:         "v0 module, not v0-compatible, v1 capabilities",
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV1)),
+			policy: `package test
+a[x] {
+	x := 42
+}`,
+			expErrs: []string{
+				"test.rego:2: rego_parse_error: `if` keyword is required before rule body",
+				"test.rego:2: rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+
+		{
+			note:         "v1 module, v0-compatible, no capabilities",
+			v0Compatible: true,
+			policy: `package test
+a contains x if {
+	x := 42
+}`,
+			expErrs: []string{
+				"test.rego:2: rego_parse_error: var cannot be used for rule name",
+			},
+		},
+		{
+			note:         "v1 module, v0-compatible, v0 capabilities",
+			v0Compatible: true,
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
+			policy: `package test
+a contains x if {
+	x := 42
+}`,
+			expErrs: []string{
+				"test.rego:2: rego_parse_error: var cannot be used for rule name",
+			},
+		},
+		{
+			note:         "v1 module, v0-compatible, v1 capabilities",
+			v0Compatible: true,
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV1)),
+			policy: `package test
+a contains x if {
+	x := 42
+}`,
+			expErrs: []string{
+				"test.rego:2: rego_parse_error: var cannot be used for rule name",
+			},
+		},
+
+		{
+			note: "v1 module, not v0-compatible, no capabilities",
+			policy: `package test
+a contains x if {
+	x := 42
+}`,
+		},
+		{
+			note:         "v1 module, not v0-compatible, v0 capabilities",
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
+			policy: `package test
+a contains x if {
+	x := 42
+}`,
+			expErrs: []string{
+				"rego_parse_error: illegal capabilities: rego_v1 feature required for parsing v1 Rego",
+			},
+		},
+		{
+			note:         "v1 module, not v0-compatible, v1 capabilities",
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV1)),
+			policy: `package test
+a contains x if {
+	x := 42
+}`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			files := map[string]string{
+				"test.rego": tc.policy,
+			}
+
+			test.WithTempFS(files, func(root string) {
+				params := newCheckParams()
+				params.v0Compatible = tc.v0Compatible
+				params.capabilities.C = tc.capabilities
+
+				err := checkModules(params, []string{root})
+				switch {
+				case err != nil && len(tc.expErrs) > 0:
+					for _, expErr := range tc.expErrs {
+						if !strings.Contains(err.Error(), expErr) {
+							t.Fatalf("expected err:\n\n%v\n\ngot:\n\n%v", expErr, err)
+						}
+					}
+					return // don't read back bundle below
+				case err != nil && len(tc.expErrs) == 0:
+					t.Fatalf("unexpected error: %v", err)
+				case err == nil && len(tc.expErrs) > 0:
+					t.Fatalf("expected error:\n\n%v\n\ngot: none", tc.expErrs)
+				}
+			})
+		})
+	}
+}
+
 func TestCheckCompatibleFlags(t *testing.T) {
 	cases := []struct {
 		note         string

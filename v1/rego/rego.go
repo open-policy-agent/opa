@@ -1913,6 +1913,7 @@ func (r *Rego) loadFiles(ctx context.Context, txn storage.Transaction, m metrics
 		WithMetrics(m).
 		WithProcessAnnotation(true).
 		WithRegoVersion(r.regoVersion).
+		WithCapabilities(r.capabilities).
 		Filtered(r.loadPaths.paths, r.loadPaths.filter)
 	if err != nil {
 		return err
@@ -1944,6 +1945,7 @@ func (r *Rego) loadBundles(_ context.Context, _ storage.Transaction, m metrics.M
 			WithProcessAnnotation(true).
 			WithSkipBundleVerification(r.skipBundleVerification).
 			WithRegoVersion(r.regoVersion).
+			WithCapabilities(r.capabilities).
 			AsBundle(path)
 		if err != nil {
 			return fmt.Errorf("loading error: %s", err)
