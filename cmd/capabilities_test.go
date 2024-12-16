@@ -125,6 +125,9 @@ func TestCapabilitiesCurrent(t *testing.T) {
 			}
 
 			caps, err := ast.LoadCapabilitiesJSON(bytes.NewReader([]byte(capsStr)))
+			if err != nil {
+				t.Fatal("expected success", err)
+			}
 
 			if !reflect.DeepEqual(caps.Features, tc.expFeatures) {
 				t.Errorf("expected features:\n\n%v\n\nbut got:\n\n%v", tc.expFeatures, caps.Features)

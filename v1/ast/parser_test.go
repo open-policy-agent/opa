@@ -6591,23 +6591,6 @@ func assertParseModuleError(t *testing.T, msg, input string) {
 	}
 }
 
-func assertParseModuleErrorMatch(t *testing.T, msg, input string, expected string, opts ...ParserOptions) {
-	t.Helper()
-
-	opt := ParserOptions{}
-	if len(opts) == 1 {
-		opt = opts[0]
-	}
-
-	m, err := ParseModuleWithOpts("", input, opt)
-	if err == nil {
-		t.Errorf("Error on test \"%s\": expected parse error: %v (parsed)", msg, m)
-	}
-	if !strings.Contains(err.Error(), expected) {
-		t.Errorf("Error on test \"%s\"; expected:\n\n%v\n\ngot:\n\n%v", msg, expected, err)
-	}
-}
-
 func assertParsePackage(t *testing.T, msg string, input string, correct *Package) {
 	assertParseOne(t, msg, input, func(parsed interface{}) {
 		pkg := parsed.(*Package)
