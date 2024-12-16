@@ -1,7 +1,6 @@
 package helpers
 
-import future.keywords.if
-import future.keywords.in
+import rego.v1
 
 last_indexof(string, search) := i if {
 	all := [i | chars := split(string, ""); chars[i] == search]
