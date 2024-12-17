@@ -21,14 +21,15 @@ import (
 )
 
 type fmtCommandParams struct {
-	overwrite    bool
-	list         bool
-	diff         bool
-	fail         bool
-	regoV1       bool
-	v0Compatible bool
-	v1Compatible bool
-	checkResult  bool
+	overwrite     bool
+	list          bool
+	diff          bool
+	fail          bool
+	regoV1        bool
+	v0Compatible  bool
+	v1Compatible  bool
+	checkResult   bool
+	dropV0Imports bool
 }
 
 var fmtParams = fmtCommandParams{}
@@ -133,7 +134,8 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 	}
 
 	opts := format.Opts{
-		RegoVersion: params.regoVersion(),
+		RegoVersion:   params.regoVersion(),
+		DropV0Imports: params.dropV0Imports,
 	}
 
 	if params.v0Compatible {
@@ -254,6 +256,7 @@ func init() {
 	addV0CompatibleFlag(formatCommand.Flags(), &fmtParams.v0Compatible, false)
 	addV1CompatibleFlag(formatCommand.Flags(), &fmtParams.v1Compatible, false)
 	formatCommand.Flags().BoolVar(&fmtParams.checkResult, "check-result", true, "assert that the formatted code is valid and can be successfully parsed (default true)")
+	formatCommand.Flags().BoolVar(&fmtParams.dropV0Imports, "drop-v0-imports", false, "drop v0 imports from the formatted code, such as 'rego.v1' and 'future.keywords'")
 
 	RootCommand.AddCommand(formatCommand)
 }
