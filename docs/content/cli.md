@@ -322,8 +322,9 @@ opa capabilities [flags]
 
 ```
       --current          print current capabilities
-      --file string      print current capabilities
+      --file string      print capabilities defined by a file
   -h, --help             help for capabilities
+      --v0-compatible    opt-in to OPA features and behaviors prior to the OPA v1.0 release. Takes precedence over --v1-compatible
       --version string   print capabilities of a specific version
 ```
 
