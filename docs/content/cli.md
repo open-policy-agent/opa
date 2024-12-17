@@ -672,14 +672,15 @@ opa fmt [path [...]] [flags]
 ### Options
 
 ```
-      --check-result    assert that the formatted code is valid and can be successfully parsed (default true) (default true)
-  -d, --diff            only display a diff of the changes
-      --fail            non zero exit code on reformat
-  -h, --help            help for fmt
-  -l, --list            list all files who would change when formatted
-      --rego-v1         format module(s) to be compatible with both Rego v1 and current OPA version)
-      --v0-compatible   opt-in to OPA features and behaviors prior to the OPA v1.0 release. Takes precedence over --v1-compatible
-  -w, --write           overwrite the original source file
+      --check-result      assert that the formatted code is valid and can be successfully parsed (default true) (default true)
+  -d, --diff              only display a diff of the changes
+      --drop-v0-imports   drop v0 imports from the formatted code, such as 'rego.v1' and 'future.keywords'
+      --fail              non zero exit code on reformat
+  -h, --help              help for fmt
+  -l, --list              list all files who would change when formatted
+      --rego-v1           format module(s) to be compatible with both Rego v1 and current OPA version)
+      --v0-compatible     opt-in to OPA features and behaviors prior to the OPA v1.0 release. Takes precedence over --v1-compatible
+  -w, --write             overwrite the original source file
 ```
 
 ____
