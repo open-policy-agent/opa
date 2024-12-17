@@ -2393,11 +2393,13 @@ allow if {
 					1 < 2
 				}`,
 			},
-			// the rego.v1 import is obsolete in rego-v1, and is removed
+			// the rego.v1 import is kept to maximize compatibility surface
 			expectedFiles: map[string]string{
 				".manifest": `{"revision":"","roots":[""],"rego_version":1}
 `,
 				"test.rego": `package test
+
+import rego.v1
 
 allow if {
 	1 < 2
@@ -2415,11 +2417,38 @@ allow if {
 					1 < 2
 				}`,
 			},
-			// future.keywords imports are obsolete in rego-v1, and are removed
+			// future.keywords imports are kept to maximize compatibility surface
 			expectedFiles: map[string]string{
 				".manifest": `{"revision":"","roots":[""],"rego_version":1}
 `,
 				"test.rego": `package test
+
+import future.keywords.if
+
+allow if {
+	1 < 2
+}
+`,
+			},
+		},
+		{
+			note:         "v1 compatibility: policy with rego.v1 and future.keywords imports",
+			v1Compatible: true,
+			files: map[string]string{
+				"test.rego": `package test
+				import rego.v1
+				import future.keywords.if
+				allow if {
+					1 < 2
+				}`,
+			},
+			// future.keywords are dropped as these are covered by rego.v1
+			expectedFiles: map[string]string{
+				".manifest": `{"revision":"","roots":[""],"rego_version":1}
+`,
+				"test.rego": `package test
+
+import rego.v1
 
 allow if {
 	1 < 2

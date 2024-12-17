@@ -1,6 +1,7 @@
 package example
 
-import rego.v1 # import will be dropped
+import rego.v1 # rego.v1 import kept for broadest compatibility surface
+import future.keywords.if # future.keywords imports are dropped, as they're covered by rego.v1
 
 # R1: constant
 a := 1
