@@ -1913,6 +1913,7 @@ func (r *Rego) loadFiles(ctx context.Context, txn storage.Transaction, m metrics
 		WithMetrics(m).
 		WithProcessAnnotation(true).
 		WithRegoVersion(r.regoVersion).
+		WithCapabilities(r.capabilities).
 		Filtered(r.loadPaths.paths, r.loadPaths.filter)
 	if err != nil {
 		return err
@@ -1944,6 +1945,7 @@ func (r *Rego) loadBundles(_ context.Context, _ storage.Transaction, m metrics.M
 			WithProcessAnnotation(true).
 			WithSkipBundleVerification(r.skipBundleVerification).
 			WithRegoVersion(r.regoVersion).
+			WithCapabilities(r.capabilities).
 			AsBundle(path)
 		if err != nil {
 			return fmt.Errorf("loading error: %s", err)
@@ -2489,7 +2491,10 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 	}
 
 	// If the target rego-version is v0, and the rego.v1 import is available, then we attempt to apply it to support modules.
-	if r.regoVersion == ast.RegoV0 && (r.capabilities == nil || r.capabilities.ContainsFeature(ast.FeatureRegoV1Import)) {
+	if r.regoVersion == ast.RegoV0 &&
+		(r.capabilities == nil ||
+			r.capabilities.ContainsFeature(ast.FeatureRegoV1Import) ||
+			r.capabilities.ContainsFeature(ast.FeatureRegoV1)) {
 
 		for i, mod := range support {
 			// We can't apply the RegoV0CompatV1 version to the support module if it contains rules or vars that
@@ -2501,7 +2506,7 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 				if name == "" && len(r.Head.Reference) > 0 {
 					name = r.Head.Reference[0].Value.(ast.Var)
 				}
-				if ast.IsFutureKeyword(name.String()) {
+				if ast.IsFutureKeywordForRegoVersion(name.String(), ast.RegoV0) {
 					applyRegoVersion = false
 					return true
 				}
@@ -2510,7 +2515,7 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 
 			if applyRegoVersion {
 				ast.WalkVars(mod, func(v ast.Var) bool {
-					if ast.IsFutureKeyword(v.String()) {
+					if ast.IsFutureKeywordForRegoVersion(v.String(), ast.RegoV0) {
 						applyRegoVersion = false
 						return true
 					}

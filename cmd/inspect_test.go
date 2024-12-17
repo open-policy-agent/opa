@@ -54,7 +54,7 @@ func TestDoInspect(t *testing.T) {
 		}
 
 		res := `{
-    "capabilities": {},
+    "capabilities": {"features": ["rego_v1"]},
     "manifest": {"revision": "rev", "roots": ["foo", "bar", "fuz", "baz", "a", "x"]},
     "signatures_config": {},
     "namespaces": {"data": ["/data.json"], "data.foo": ["/example/foo.rego"]}
@@ -63,7 +63,7 @@ func TestDoInspect(t *testing.T) {
 		exp := util.MustUnmarshalJSON([]byte(res))
 		result := util.MustUnmarshalJSON(out.Bytes())
 		if !reflect.DeepEqual(exp, result) {
-			t.Fatalf("expected inspect output to be %v, got %v", exp, result)
+			t.Fatalf("expected inspect output to be:\n\n%v\n\ngot:\n\n%v", exp, result)
 		}
 	})
 }
@@ -1075,6 +1075,9 @@ p if {
           "type": "function"
         }
       }
+    ],
+    "features": [
+      "rego_v1"
     ]
   }
 }`,
@@ -1084,7 +1087,6 @@ p if {
 			note: "known ref replaced inside 'with' stmt",
 			files: [][2]string{
 				{"/policy.rego", `package test
-import rego.v1
 
 foo.bar(_) := false
 
@@ -1113,7 +1115,7 @@ test_p if {
   },
   "capabilities": {
     "features": [
-      "rego_v1_import"
+      "rego_v1"
     ]
   }
 }`,
@@ -1122,7 +1124,6 @@ test_p if {
 			note: "unknown ref replaced inside 'with' stmt",
 			files: [][2]string{
 				{"/policy.rego", `package test
-import rego.v1
 
 p if {
 	data.foo.bar(42)
@@ -1149,7 +1150,7 @@ test_p if {
   },
   "capabilities": {
     "features": [
-      "rego_v1_import"
+      "rego_v1"
     ]
   }
 }`,
@@ -1158,7 +1159,6 @@ test_p if {
 			note: "unknown built-in (var) replaced inside 'with' stmt",
 			files: [][2]string{
 				{"/policy.rego", `package test
-import rego.v1
 
 p if {
 	foo(42)
@@ -1185,7 +1185,7 @@ test_p if {
   },
   "capabilities": {
     "features": [
-      "rego_v1_import"
+      "rego_v1"
     ]
   }
 }`,
@@ -1194,7 +1194,6 @@ test_p if {
 			note: "unknown built-in (ref) replaced inside 'with' stmt",
 			files: [][2]string{
 				{"/policy.rego", `package test
-import rego.v1
 
 p if {
 	foo.bar(42)
@@ -1221,7 +1220,7 @@ test_p if {
   },
   "capabilities": {
     "features": [
-      "rego_v1_import"
+      "rego_v1"
     ]
   }
 }`,
@@ -1230,7 +1229,6 @@ test_p if {
 			note: "call replaced by unknown data ref inside 'with' stmt",
 			files: [][2]string{
 				{"/policy.rego", `package test
-import rego.v1
 
 p if {
 	foo(42)
@@ -1277,7 +1275,7 @@ test_p if {
       }
     ],
     "features": [
-      "rego_v1_import"
+      "rego_v1"
     ]
   }
 }`,
@@ -1286,7 +1284,6 @@ test_p if {
 			note: "call replaced by unknown built-in (var) inside 'with' stmt",
 			files: [][2]string{
 				{"/policy.rego", `package test
-import rego.v1
 
 p if {
 	foo(42)
@@ -1314,7 +1311,7 @@ test_p if {
   },
   "capabilities": {
     "features": [
-      "rego_v1_import"
+      "rego_v1"
     ]
   }
 }`,
@@ -1323,7 +1320,6 @@ test_p if {
 			note: "call replaced by unknown built-in (ref) inside 'with' stmt",
 			files: [][2]string{
 				{"/policy.rego", `package test
-import rego.v1
 
 p if {
 	foo(42)
@@ -1371,7 +1367,7 @@ test_p if {
       }
     ],
     "features": [
-      "rego_v1_import"
+      "rego_v1"
     ]
   }
 }`,
@@ -1509,6 +1505,9 @@ p if {
         },
         "infix": "=="
       }
+    ],
+    "features": [
+      "rego_v1"
     ]
   }
 }`)

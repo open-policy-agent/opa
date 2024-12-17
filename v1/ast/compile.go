@@ -117,7 +117,7 @@ type Compiler struct {
 	// with the key being the generated name and value being the original.
 	RewrittenVars map[Var]Var
 
-	// Capabliities required by the modules that were compiled.
+	// Capabilities required by the modules that were compiled.
 	Required *Capabilities
 
 	localvargen                *localVarGenerator
@@ -332,7 +332,7 @@ func NewCompiler() *Compiler {
 		{"InitLocalVarGen", "compile_stage_init_local_var_gen", c.initLocalVarGen},
 		{"RewriteRuleHeadRefs", "compile_stage_rewrite_rule_head_refs", c.rewriteRuleHeadRefs},
 		{"CheckKeywordOverrides", "compile_stage_check_keyword_overrides", c.checkKeywordOverrides},
-		{"CheckDuplicateImports", "compile_stage_check_duplicate_imports", c.checkDuplicateImports},
+		{"CheckDuplicateImports", "compile_stage_check_imports", c.checkImports},
 		{"RemoveImports", "compile_stage_remove_imports", c.removeImports},
 		{"SetModuleTree", "compile_stage_set_module_tree", c.setModuleTree},
 		{"SetRuleTree", "compile_stage_set_rule_tree", c.setRuleTree}, // depends on RewriteRuleHeadRefs
@@ -971,21 +971,46 @@ func (c *Compiler) buildRequiredCapabilities() {
 	features := map[string]struct{}{}
 
 	// extract required keywords from modules
+
 	keywords := map[string]struct{}{}
 	futureKeywordsPrefix := Ref{FutureRootDocument, StringTerm("keywords")}
 	for _, name := range c.sorted {
 		for _, imp := range c.imports[name] {
+			mod := c.Modules[name]
 			path := imp.Path.Value.(Ref)
 			switch {
 			case path.Equal(RegoV1CompatibleRef):
-				features[FeatureRegoV1Import] = struct{}{}
+				if !c.moduleIsRegoV1(mod) {
+					features[FeatureRegoV1Import] = struct{}{}
+				}
 			case path.HasPrefix(futureKeywordsPrefix):
 				if len(path) == 2 {
-					for kw := range futureKeywords {
-						keywords[kw] = struct{}{}
+					if c.moduleIsRegoV1(mod) {
+						for kw := range futureKeywords {
+							keywords[kw] = struct{}{}
+						}
+					} else {
+						for kw := range allFutureKeywords {
+							keywords[kw] = struct{}{}
+						}
 					}
 				} else {
-					keywords[string(path[2].Value.(String))] = struct{}{}
+					kw := string(path[2].Value.(String))
+					if c.moduleIsRegoV1(mod) {
+						for allowedKw := range futureKeywords {
+							if kw == allowedKw {
+								keywords[kw] = struct{}{}
+								break
+							}
+						}
+					} else {
+						for allowedKw := range allFutureKeywords {
+							if kw == allowedKw {
+								keywords[kw] = struct{}{}
+								break
+							}
+						}
+					}
 				}
 			}
 		}
@@ -996,13 +1021,19 @@ func (c *Compiler) buildRequiredCapabilities() {
 	// extract required features from modules
 
 	for _, name := range c.sorted {
-		for _, rule := range c.Modules[name].Rules {
-			refLen := len(rule.Head.Reference)
-			if refLen >= 3 {
-				if refLen > len(rule.Head.Reference.ConstantPrefix()) {
-					features[FeatureRefHeads] = struct{}{}
-				} else {
-					features[FeatureRefHeadStringPrefixes] = struct{}{}
+		mod := c.Modules[name]
+
+		if c.moduleIsRegoV1(mod) {
+			features[FeatureRegoV1] = struct{}{}
+		} else {
+			for _, rule := range mod.Rules {
+				refLen := len(rule.Head.Reference)
+				if refLen >= 3 {
+					if refLen > len(rule.Head.Reference.ConstantPrefix()) {
+						features[FeatureRefHeads] = struct{}{}
+					} else {
+						features[FeatureRefHeadStringPrefixes] = struct{}{}
+					}
 				}
 			}
 		}
@@ -1725,12 +1756,22 @@ func (c *Compiler) GetAnnotationSet() *AnnotationSet {
 	return c.annotationSet
 }
 
-func (c *Compiler) checkDuplicateImports() {
+func (c *Compiler) checkImports() {
 	modules := make([]*Module, 0, len(c.Modules))
+
+	supportsRegoV1Import := c.capabilities.ContainsFeature(FeatureRegoV1Import) ||
+		c.capabilities.ContainsFeature(FeatureRegoV1)
 
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		if c.strict || c.moduleIsRegoV1(mod) {
+
+		for _, imp := range mod.Imports {
+			if !supportsRegoV1Import && Compare(imp.Path, RegoV1CompatibleRef) == 0 {
+				c.err(NewError(CompileErr, imp.Loc(), "rego.v1 import is not supported"))
+			}
+		}
+
+		if c.strict || c.moduleIsRegoV1Compatible(mod) {
 			modules = append(modules, mod)
 		}
 	}
@@ -1744,7 +1785,7 @@ func (c *Compiler) checkDuplicateImports() {
 func (c *Compiler) checkKeywordOverrides() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		if c.strict || c.moduleIsRegoV1(mod) {
+		if c.strict || c.moduleIsRegoV1Compatible(mod) {
 			errs := checkRootDocumentOverrides(mod)
 			for _, err := range errs {
 				c.err(err)
@@ -1756,6 +1797,23 @@ func (c *Compiler) checkKeywordOverrides() {
 func (c *Compiler) moduleIsRegoV1(mod *Module) bool {
 	if mod.regoVersion == RegoUndefined {
 		switch c.defaultRegoVersion {
+		case RegoUndefined:
+			c.err(NewError(CompileErr, mod.Package.Loc(), "cannot determine rego version for module"))
+			return false
+		case RegoV1:
+			return true
+		}
+		return false
+	}
+	return mod.regoVersion == RegoV1
+}
+
+func (c *Compiler) moduleIsRegoV1Compatible(mod *Module) bool {
+	if mod.regoVersion == RegoUndefined {
+		switch c.defaultRegoVersion {
+		case RegoUndefined:
+			c.err(NewError(CompileErr, mod.Package.Loc(), "cannot determine rego version for module"))
+			return false
 		case RegoV1, RegoV0CompatV1:
 			return true
 		}
@@ -1895,6 +1953,9 @@ func (c *Compiler) rewriteRuleHeadRefs() {
 				case FeatureRefHeadStringPrefixes:
 					cannotSpeakStringPrefixRefs = false
 				case FeatureRefHeads:
+					cannotSpeakGeneralRefs = false
+				case FeatureRegoV1:
+					cannotSpeakStringPrefixRefs = false
 					cannotSpeakGeneralRefs = false
 				}
 			}
@@ -5800,7 +5861,7 @@ func safetyErrorSlice(unsafe unsafeVars, rewritten map[Var]Var) (result Errors) 
 			v = w
 		}
 		if !v.IsGenerated() {
-			if _, ok := futureKeywords[string(v)]; ok {
+			if _, ok := allFutureKeywords[string(v)]; ok {
 				result = append(result, NewError(UnsafeVarErr, pair.Loc,
 					"var %[1]v is unsafe (hint: `import future.keywords.%[1]v` to import a future keyword)", v))
 				continue

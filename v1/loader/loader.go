@@ -762,6 +762,7 @@ func loadBundleFile(path string, bs []byte, m metrics.Metrics, opts ast.ParserOp
 	tl := bundle.NewTarballLoaderWithBaseURL(bytes.NewBuffer(bs), path)
 	br := bundle.NewCustomReader(tl).
 		WithRegoVersion(opts.RegoVersion).
+		WithCapabilities(opts.Capabilities).
 		WithJSONOptions(opts.JSONOptions).
 		WithProcessAnnotations(opts.ProcessAnnotation).
 		WithMetrics(m).

@@ -1663,7 +1663,7 @@ update {
 			for _, useMemoryFS := range []bool{false, true} {
 				test.WithTestFS(tc.files, useMemoryFS, func(root string, fsys fs.FS) {
 
-					caps := ast.CapabilitiesForThisVersion()
+					caps := ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0))
 					caps.Features = []string{
 						ast.FeatureRefHeadStringPrefixes,
 						ast.FeatureRefHeads,
@@ -1890,6 +1890,9 @@ p if {
 				capabilities.Features = []string{
 					ast.FeatureRefHeadStringPrefixes,
 					ast.FeatureRefHeads,
+				}
+				if tc.modulesRegoVersion == ast.RegoV1 {
+					capabilities.Features = append(capabilities.Features, ast.FeatureRegoV1)
 				}
 				if tc.regoV1ImportCapable {
 					capabilities.Features = append(capabilities.Features, ast.FeatureRegoV1Import)

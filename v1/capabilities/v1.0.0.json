@@ -4819,6 +4819,12 @@
       }
     }
   ],
+  "future_keywords": [
+    "contains",
+    "every",
+    "if",
+    "in"
+  ],
   "wasm_abi_versions": [
     {
       "version": 1,
@@ -4830,6 +4836,9 @@
     }
   ],
   "features": [
-    "rego_v1"
+    "rule_head_ref_string_prefixes",
+    "rule_head_refs",
+    "rego_v1",
+    "rego_v1_import"
   ]
 }

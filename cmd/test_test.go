@@ -2578,6 +2578,318 @@ test_l if {
 	}
 }
 
+func TestRunWithRegoV1Capability(t *testing.T) {
+	tests := []struct {
+		note         string
+		v0Compatible bool
+		capabilities *ast.Capabilities
+		files        map[string]string
+		expErrs      []string
+	}{
+		{
+			note:         "v0 module, v0-compatible, no capabilities",
+			v0Compatible: true,
+			files: map[string]string{
+				"/test.rego": `package test
+
+l1 := {1, 3, 5}
+l2[v] {
+	v := l1[_]
+}
+
+test_l {
+	l1 == l2
+}`,
+			},
+		},
+		{
+			note:         "v0 module, v0-compatible, v0 capabilities",
+			v0Compatible: true,
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
+			files: map[string]string{
+				"/test.rego": `package test
+
+l1 := {1, 3, 5}
+l2[v] {
+	v := l1[_]
+}
+
+test_l {
+	l1 == l2
+}`,
+			},
+		},
+		{
+			note:         "v0 module, v0-compatible, v1 capabilities",
+			v0Compatible: true,
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV1)),
+			files: map[string]string{
+				"/test.rego": `package test
+
+l1 := {1, 3, 5}
+l2[v] {
+	v := l1[_]
+}
+
+test_l {
+	l1 == l2
+}`,
+			},
+		},
+
+		{
+			note: "v0 module, not v0-compatible, no capabilities",
+			files: map[string]string{
+				"/test.rego": `package test
+
+l1 := {1, 3, 5}
+l2[v] {
+	v := l1[_]
+}
+
+test_l {
+	l1 == l2
+}`,
+			},
+			expErrs: []string{
+				"test.rego:4: rego_parse_error: `if` keyword is required before rule body",
+				"test.rego:4: rego_parse_error: `contains` keyword is required for partial set rules",
+				"test.rego:8: rego_parse_error: `if` keyword is required before rule body",
+			},
+		},
+		{
+			note:         "v0 module, not v0-compatible, v0 capabilities",
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
+			files: map[string]string{
+				"/test.rego": `package test
+
+l1 := {1, 3, 5}
+l2[v] {
+	v := l1[_]
+}
+
+test_l {
+	l1 == l2
+}`,
+			},
+			expErrs: []string{
+				"rego_parse_error: illegal capabilities: rego_v1 feature required for parsing v1 Rego",
+			},
+		},
+		{
+			note:         "v0 module, not v0-compatible, v1 capabilities",
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV1)),
+			files: map[string]string{
+				"/test.rego": `package test
+
+l1 := {1, 3, 5}
+l2[v] {
+	v := l1[_]
+}
+
+test_l {
+	l1 == l2
+}`,
+			},
+			expErrs: []string{
+				"test.rego:4: rego_parse_error: `if` keyword is required before rule body",
+				"test.rego:4: rego_parse_error: `contains` keyword is required for partial set rules",
+				"test.rego:8: rego_parse_error: `if` keyword is required before rule body",
+			},
+		},
+
+		{
+			note:         "v1 module, v0-compatible, no capabilities",
+			v0Compatible: true,
+			files: map[string]string{
+				"/test.rego": `package test
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+			expErrs: []string{
+				"test.rego:4: rego_parse_error: var cannot be used for rule name",
+			},
+		},
+		{
+			note:         "v1 module, v0-compatible, v0 capabilities",
+			v0Compatible: true,
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
+			files: map[string]string{
+				"/test.rego": `package test
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+			expErrs: []string{
+				"test.rego:4: rego_parse_error: var cannot be used for rule name",
+			},
+		},
+		{
+			note:         "v1 module, v0-compatible, v1 capabilities",
+			v0Compatible: true,
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV1)),
+			files: map[string]string{
+				"/test.rego": `package test
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+			expErrs: []string{
+				"test.rego:4: rego_parse_error: var cannot be used for rule name",
+			},
+		},
+
+		{
+			note: "v1 module, not v0-compatible, no capabilities",
+			files: map[string]string{
+				"/test.rego": `package test
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+		{
+			note:         "v1 module, not v0-compatible, v0 capabilities",
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
+			files: map[string]string{
+				"/test.rego": `package test
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+			expErrs: []string{
+				"rego_parse_error: illegal capabilities: rego_v1 feature required for parsing v1 Rego",
+			},
+		},
+		{
+			note:         "v1 module, not v0-compatible, v1 capabilities",
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV1)),
+			files: map[string]string{
+				"/test.rego": `package test
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+	}
+
+	loadTypes := []loadType{loadFile, loadBundle, loadTarball}
+
+	for _, tc := range tests {
+		for _, loadType := range loadTypes {
+			t.Run(fmt.Sprintf("%s (%s)", tc.note, loadType), func(t *testing.T) {
+				var files map[string]string
+				if loadType != loadTarball {
+					files = tc.files
+				}
+				test.WithTempFS(files, func(root string) {
+					if loadType == loadTarball {
+						f, err := os.Create(filepath.Join(root, "bundle.tar.gz"))
+						if err != nil {
+							t.Fatal(err)
+						}
+
+						testBundle := bundle.Bundle{
+							Data: map[string]interface{}{},
+						}
+						for k, v := range tc.files {
+							testBundle.Modules = append(testBundle.Modules, bundle.ModuleFile{
+								Path: k,
+								Raw:  []byte(v),
+							})
+						}
+
+						if err := bundle.Write(f, testBundle); err != nil {
+							t.Fatal(err)
+						}
+					}
+
+					var buf bytes.Buffer
+					var errBuf bytes.Buffer
+
+					testParams := newTestCommandParams()
+					testParams.bundleMode = loadType == loadBundle
+					testParams.count = 1
+					testParams.output = &buf
+					testParams.errOutput = &errBuf
+					testParams.v0Compatible = tc.v0Compatible
+					testParams.capabilities.C = tc.capabilities
+
+					var paths []string
+					if loadType == loadTarball {
+						paths = []string{filepath.Join(root, "bundle.tar.gz")}
+					} else {
+						paths = []string{root}
+					}
+
+					exitCode, _ := opaTest(paths, testParams)
+					if len(tc.expErrs) > 0 {
+						if exitCode == 0 {
+							t.Fatalf("expected non-zero exit code")
+						}
+
+						for _, expErr := range tc.expErrs {
+							if actual := errBuf.String(); !strings.Contains(actual, expErr) {
+								t.Fatalf("expected error output to contain:\n\n%q\n\nbut got:\n\n%q", expErr, actual)
+							}
+						}
+					} else {
+						if exitCode != 0 {
+							t.Fatalf("unexpected exit code: %d", exitCode)
+						}
+
+						if errBuf.Len() > 0 {
+							t.Fatalf("expected no error output but got:\n\n%q", buf.String())
+						}
+
+						expected := "PASS: 1/1"
+						if actual := buf.String(); !strings.Contains(actual, expected) {
+							t.Fatalf("expected output to contain:\n\n%s\n\nbut got:\n\n%q", expected, actual)
+						}
+					}
+				})
+			})
+		}
+	}
+}
+
 func TestRun_CompatibleFlags(t *testing.T) {
 	tests := []struct {
 		note         string

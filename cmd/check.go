@@ -73,7 +73,7 @@ func checkModules(params checkParams, args []string) error {
 	if params.capabilities.C != nil {
 		capabilities = params.capabilities.C
 	} else {
-		capabilities = ast.CapabilitiesForThisVersion()
+		capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(params.regoVersion()))
 	}
 
 	ss, err := loader.Schemas(params.schema.path)
@@ -194,6 +194,7 @@ func init() {
 	addCapabilitiesFlag(checkCommand.Flags(), checkParams.capabilities)
 	addSchemaFlags(checkCommand.Flags(), checkParams.schema)
 	addStrictFlag(checkCommand.Flags(), &checkParams.strict, false)
+	// FIXME: Rename or add new flag with same effect? '--rego-v1' will become even more confusing in 1.0, as what it actually means is check that module is compatible with BOTH v0 and v1.
 	addRegoV1FlagWithDescription(checkCommand.Flags(), &checkParams.regoV1, false,
 		"check for Rego v1 compatibility (policies must also be compatible with current OPA version)")
 	addV0CompatibleFlag(checkCommand.Flags(), &checkParams.v0Compatible, false)

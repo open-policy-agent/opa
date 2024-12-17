@@ -705,8 +705,10 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		regoArgs = append(regoArgs, rego.BuiltinErrorList(&builtInErrors))
 	}
 
-	if params.capabilities != nil {
+	if params.capabilities.C != nil {
 		regoArgs = append(regoArgs, rego.Capabilities(params.capabilities.C))
+	} else {
+		regoArgs = append(regoArgs, rego.Capabilities(ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(params.regoVersion()))))
 	}
 
 	if params.strict {
@@ -878,7 +880,7 @@ func generateOptimizedBundle(params evalCommandParams, asBundle bool, filter loa
 	if params.capabilities.C != nil {
 		capabilities = params.capabilities.C
 	} else {
-		capabilities = ast.CapabilitiesForThisVersion()
+		capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(params.regoVersion()))
 	}
 
 	compiler := compile.New().

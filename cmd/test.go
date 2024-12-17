@@ -116,11 +116,17 @@ func opaTest(args []string, testParams testCommandParams) (int, error) {
 	var bundles map[string]*bundle.Bundle
 	var store storage.Store
 
+	popts := ast.ParserOptions{
+		RegoVersion:       testParams.RegoVersion(),
+		Capabilities:      testParams.capabilities.C,
+		ProcessAnnotation: true,
+	}
+
 	if testParams.bundleMode {
-		bundles, err = tester.LoadBundlesWithRegoVersion(args, filter.Apply, testParams.RegoVersion())
+		bundles, err = tester.LoadBundlesWithParserOptions(args, filter.Apply, popts)
 		store = inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false))
 	} else {
-		modules, store, err = tester.LoadWithRegoVersion(args, filter.Apply, testParams.RegoVersion())
+		modules, store, err = tester.LoadWithParserOptions(args, filter.Apply, popts)
 	}
 
 	if err != nil {

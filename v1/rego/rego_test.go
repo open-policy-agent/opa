@@ -137,6 +137,213 @@ p contains x if {
 	}
 }
 
+func TestRegoEval_Capabilities(t *testing.T) {
+	tests := []struct {
+		note         string
+		regoVersion  ast.RegoVersion
+		capabilities *ast.Capabilities
+		module       string
+		expResult    interface{}
+		expErrs      []string
+	}{
+		{
+			note:        "v0 module, rego-v0, no capabilities",
+			regoVersion: ast.RegoV0,
+			module: `package test
+
+p[x] {
+	x = ["a", "b", "c"][_]
+}`,
+			expResult: []string{"a", "b", "c"},
+		},
+		{
+			note:         "v0 module, rego-v0, v0 capabilities",
+			regoVersion:  ast.RegoV0,
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
+			module: `package test
+
+p[x] {
+	x = ["a", "b", "c"][_]
+}`,
+			expResult: []string{"a", "b", "c"},
+		},
+		{
+			note:         "v0 module, rego-v0, v1 capabilities",
+			regoVersion:  ast.RegoV0,
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV1)),
+			module: `package test
+
+p[x] {
+	x = ["a", "b", "c"][_]
+}`,
+			expResult: []string{"a", "b", "c"},
+		},
+
+		{
+			note:        "v0 module, rego-v1, no capabilities",
+			regoVersion: ast.RegoV1,
+			module: `package test
+
+p[x] {
+	x = ["a", "b", "c"][_]
+}`,
+			expErrs: []string{
+				"test.rego:3: rego_parse_error: `if` keyword is required before rule body",
+				"test.rego:3: rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note:         "v0 module, rego-v1, v0 capabilities",
+			regoVersion:  ast.RegoV1,
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
+			module: `package test
+
+p[x] {
+	x = ["a", "b", "c"][_]
+}`,
+			expErrs: []string{
+				"rego_parse_error: illegal capabilities: rego_v1 feature required for parsing v1 Rego",
+			},
+		},
+		{
+			note:         "v0 module, rego-v1, v1 capabilities",
+			regoVersion:  ast.RegoV1,
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV1)),
+			module: `package test
+
+p[x] {
+	x = ["a", "b", "c"][_]
+}`,
+			expErrs: []string{
+				"test.rego:3: rego_parse_error: `if` keyword is required before rule body",
+				"test.rego:3: rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+
+		{
+			note:        "v1 module, rego-v0, no capabilities",
+			regoVersion: ast.RegoV0,
+			module: `package test
+
+p contains x if {
+	some x in ["a", "b", "c"]
+}`,
+			expErrs: []string{
+				"test.rego:4: rego_parse_error: unexpected identifier token",
+			},
+		},
+		{
+			note:         "v1 module, rego-v0, v0 capabilities",
+			regoVersion:  ast.RegoV0,
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
+			module: `package test
+
+p contains x if {
+	some x in ["a", "b", "c"]
+}`,
+			expErrs: []string{
+				"test.rego:4: rego_parse_error: unexpected identifier token",
+			},
+		},
+		{
+			note:         "v1 module, rego-v0, v1 capabilities",
+			regoVersion:  ast.RegoV0,
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV1)),
+			module: `package test
+
+p contains x if {
+	some x in ["a", "b", "c"]
+}`,
+			expErrs: []string{
+				"test.rego:4: rego_parse_error: unexpected identifier token",
+			},
+		},
+
+		{
+			note:        "v1 module, rego-v1, no capabilities",
+			regoVersion: ast.RegoV1,
+			module: `package test
+
+p contains x if {
+	some x in ["a", "b", "c"]
+}`,
+			expResult: []string{"a", "b", "c"},
+		},
+		{
+			note:         "v1 module, rego-v1, v0 capabilities",
+			regoVersion:  ast.RegoV1,
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
+			module: `package test
+
+p contains x if {
+	some x in ["a", "b", "c"]
+}`,
+			expErrs: []string{
+				"rego_parse_error: illegal capabilities: rego_v1 feature required for parsing v1 Rego",
+			},
+		},
+		{
+			note:         "v1 module, rego-v1, v1 capabilities",
+			regoVersion:  ast.RegoV1,
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV1)),
+			module: `package test
+
+p contains x if {
+	some x in ["a", "b", "c"]
+}`,
+			expResult: []string{"a", "b", "c"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			files := map[string]string{
+				"test.rego": tc.module,
+			}
+
+			test.WithTempFS(files, func(root string) {
+				ctx := context.Background()
+
+				pq, err := New(
+					SetRegoVersion(tc.regoVersion),
+					Capabilities(tc.capabilities),
+					Load([]string{root}, nil),
+					Query("data.test.p"),
+				).PrepareForEval(ctx)
+
+				if tc.expErrs != nil {
+					if err == nil {
+						t.Fatalf("Expected error but got nil")
+					}
+
+					for _, expErr := range tc.expErrs {
+						if !strings.Contains(err.Error(), expErr) {
+							t.Fatalf("Expected error to contain:\n\n%q\n\nbut got:\n\n%v", expErr, err)
+						}
+					}
+				} else {
+					if err != nil {
+						t.Fatalf("Unexpected error: %v", err)
+					}
+
+					rs, err := pq.Eval(ctx)
+					if err != nil {
+						t.Fatalf("Unexpected error: %v", err)
+					}
+
+					if len(rs) != 1 {
+						t.Fatalf("Expected exactly one result but got:\n\n%v", rs)
+					}
+
+					if reflect.DeepEqual(rs[0].Expressions[0].Value, tc.expResult) {
+						t.Fatalf("Expected %v but got: %v", tc.expResult, rs[0].Expressions[0].Value)
+					}
+				}
+			})
+		})
+	}
+}
+
 func assertEval(t *testing.T, r *Rego, expected string) {
 	t.Helper()
 	rs, err := r.Eval(context.Background())

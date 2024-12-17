@@ -1,8 +1,6 @@
 package integrations
 
-import future.keywords.contains
-import future.keywords.if
-import future.keywords.in
+import rego.v1
 
 allowed_image_extensions := ["png", "svg"]
 
