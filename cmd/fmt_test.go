@@ -840,9 +840,7 @@ q := all([true, false])
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			params := fmtCommandParams{
-				// Locking rego-version to v0, as it's only then the --rego-v1 flag is relevant
-				v0Compatible: true,
-				regoV1:       true,
+				regoV1: true,
 			}
 
 			files := map[string]string{

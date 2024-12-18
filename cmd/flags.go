@@ -153,8 +153,12 @@ func addStrictFlag(fs *pflag.FlagSet, strict *bool, value bool) {
 	fs.BoolVarP(strict, "strict", "S", value, "enable compiler strict mode")
 }
 
-func addRegoV1FlagWithDescription(fs *pflag.FlagSet, regoV1 *bool, value bool, description string) {
+func addRegoV0V1FlagWithDescription(fs *pflag.FlagSet, regoV1 *bool, value bool, description string) {
+	fs.BoolVar(regoV1, "v0-v1", value, description)
+
+	// For backwards compatibility
 	fs.BoolVar(regoV1, "rego-v1", value, description)
+	_ = fs.MarkHidden("rego-v1")
 }
 
 func addV0CompatibleFlag(fs *pflag.FlagSet, v1Compatible *bool, value bool) {

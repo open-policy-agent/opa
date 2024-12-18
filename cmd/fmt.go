@@ -138,6 +138,10 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 		DropV0Imports: params.dropV0Imports,
 	}
 
+	if params.regoV1 {
+		opts.ParserOptions = &ast.ParserOptions{RegoVersion: ast.RegoV0}
+	}
+
 	if params.v0Compatible {
 		// v0 takes precedence over v1
 		opts.ParserOptions = &ast.ParserOptions{RegoVersion: ast.RegoV0}
@@ -216,6 +220,11 @@ func formatStdin(params *fmtCommandParams, r io.Reader, w io.Writer) error {
 
 	opts := format.Opts{}
 	opts.RegoVersion = params.regoVersion()
+
+	if params.regoV1 {
+		opts.ParserOptions = &ast.ParserOptions{RegoVersion: ast.RegoV0}
+	}
+
 	formatted, err := format.SourceWithOpts("stdin", contents, opts)
 	if err != nil {
 		return err
@@ -252,7 +261,7 @@ func init() {
 	formatCommand.Flags().BoolVarP(&fmtParams.list, "list", "l", false, "list all files who would change when formatted")
 	formatCommand.Flags().BoolVarP(&fmtParams.diff, "diff", "d", false, "only display a diff of the changes")
 	formatCommand.Flags().BoolVar(&fmtParams.fail, "fail", false, "non zero exit code on reformat")
-	addRegoV1FlagWithDescription(formatCommand.Flags(), &fmtParams.regoV1, false, "format module(s) to be compatible with both Rego v1 and current OPA version)")
+	addRegoV0V1FlagWithDescription(formatCommand.Flags(), &fmtParams.regoV1, false, "format module(s) to be compatible with both Rego v0 and v1")
 	addV0CompatibleFlag(formatCommand.Flags(), &fmtParams.v0Compatible, false)
 	addV1CompatibleFlag(formatCommand.Flags(), &fmtParams.v1Compatible, false)
 	formatCommand.Flags().BoolVar(&fmtParams.checkResult, "check-result", true, "assert that the formatted code is valid and can be successfully parsed (default true)")
