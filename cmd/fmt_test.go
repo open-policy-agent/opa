@@ -746,10 +746,11 @@ func TestFmtMultipleWrongArityError(t *testing.T) {
 
 func TestFmtRegoV1(t *testing.T) {
 	tests := []struct {
-		note        string
-		input       string
-		expected    string
-		expectedErr string
+		note         string
+		v1Compatible bool
+		input        string
+		expected     string
+		expectedErr  string
 	}{
 		{
 			note: "no future imports",
@@ -835,14 +836,30 @@ q := all([true, false])
 %ROOT%/policy.rego:3: rego_type_error: deprecated built-in function calls in expression: any
 %ROOT%/policy.rego:6: rego_type_error: deprecated built-in function calls in expression: all`,
 		},
+		{
+			note:         "v1 module",
+			v1Compatible: true,
+			input: `package test
+
+p contains x if {
+	some x in ["a", "b", "c"]
+}`,
+			expected: `package test
+
+import rego.v1
+
+p contains x if {
+	some x in ["a", "b", "c"]
+}
+`,
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			params := fmtCommandParams{
-				// Locking rego-version to v0, as it's only then the --rego-v1 flag is relevant
-				v0Compatible: true,
 				regoV1:       true,
+				v1Compatible: tc.v1Compatible,
 			}
 
 			files := map[string]string{

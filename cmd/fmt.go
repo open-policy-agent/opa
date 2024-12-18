@@ -59,7 +59,7 @@ is provided - this tool will use stdin.
 The format of the output is not defined specifically; whatever this tool outputs
 is considered correct format (with the exception of bugs).
 
-If the '-w' option is supplied, the 'fmt' command with overwrite the source file
+If the '-w' option is supplied, the 'fmt' command will overwrite the source file
 instead of printing to stdout.
 
 If the '-d' option is supplied, the 'fmt' command will output a diff between the
@@ -70,7 +70,26 @@ that would change if formatted. The '-l' option will suppress any other output
 to stdout from the 'fmt' command.
 
 If the '--fail' option is supplied, the 'fmt' command will return a non zero exit
-code if a file would be reformatted.`,
+code if a file would be reformatted.
+
+The 'fmt' command can be run in several compatibility modes for consuming and outputting
+different Rego versions:
+
+* 'opa fmt':
+  * v1 Rego is formatted to v1
+  * 'rego.v1'/'future.keywords' imports are NOT removed
+  * 'rego.v1'/'future.keywords' imports are NOT added if missing
+  * v0 rego is rejected
+* 'opa fmt --v0-compatible':
+  * v0 Rego is formatted to v0
+  * v1 Rego is rejected
+* 'opa fmt --v0-v1':
+  * v0 Rego is formatted to be compatible with v0 AND v1
+  * v1 Rego is rejected
+* 'opa fmt --v0-v1 --v1-compatible':
+  * v1 Rego is formatted to be compatible with v0 AND v1
+  * v0 Rego is rejected
+`,
 	PreRunE: func(cmd *cobra.Command, _ []string) error {
 		return env.CmdFlags.CheckEnvironmentVariables(cmd)
 	},
@@ -136,6 +155,10 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 	opts := format.Opts{
 		RegoVersion:   params.regoVersion(),
 		DropV0Imports: params.dropV0Imports,
+	}
+
+	if params.regoV1 {
+		opts.ParserOptions = &ast.ParserOptions{RegoVersion: ast.RegoV0}
 	}
 
 	if params.v0Compatible {
@@ -216,6 +239,11 @@ func formatStdin(params *fmtCommandParams, r io.Reader, w io.Writer) error {
 
 	opts := format.Opts{}
 	opts.RegoVersion = params.regoVersion()
+
+	if params.regoV1 {
+		opts.ParserOptions = &ast.ParserOptions{RegoVersion: ast.RegoV0}
+	}
+
 	formatted, err := format.SourceWithOpts("stdin", contents, opts)
 	if err != nil {
 		return err
@@ -252,7 +280,7 @@ func init() {
 	formatCommand.Flags().BoolVarP(&fmtParams.list, "list", "l", false, "list all files who would change when formatted")
 	formatCommand.Flags().BoolVarP(&fmtParams.diff, "diff", "d", false, "only display a diff of the changes")
 	formatCommand.Flags().BoolVar(&fmtParams.fail, "fail", false, "non zero exit code on reformat")
-	addRegoV1FlagWithDescription(formatCommand.Flags(), &fmtParams.regoV1, false, "format module(s) to be compatible with both Rego v1 and current OPA version)")
+	addRegoV0V1FlagWithDescription(formatCommand.Flags(), &fmtParams.regoV1, false, "format module(s) to be compatible with both Rego v0 and v1")
 	addV0CompatibleFlag(formatCommand.Flags(), &fmtParams.v0Compatible, false)
 	addV1CompatibleFlag(formatCommand.Flags(), &fmtParams.v1Compatible, false)
 	formatCommand.Flags().BoolVar(&fmtParams.checkResult, "check-result", true, "assert that the formatted code is valid and can be successfully parsed (default true)")
