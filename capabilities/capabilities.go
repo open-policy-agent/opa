@@ -8,10 +8,12 @@
 package capabilities
 
 import (
-	v1 "github.com/open-policy-agent/opa/v1/capabilities"
+	"embed"
 )
 
 // FS contains the embedded capabilities/ directory of the built version,
 // which has all the capabilities of previous versions:
 // "v0.18.0.json" contains the capabilities JSON of version v0.18.0, etc
-var FS = v1.FS
+//
+//go:embed *.json
+var FS embed.FS
