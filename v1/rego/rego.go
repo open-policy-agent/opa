@@ -1735,9 +1735,6 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 	}
 
 	txnErr := txnClose(ctx, err) // Always call closer
-	if err != nil {
-		return PreparedEvalQuery{}, err
-	}
 	if txnErr != nil {
 		return PreparedEvalQuery{}, txnErr
 	}

@@ -39,8 +39,6 @@ type typeChecker struct {
 // newTypeChecker returns a new typeChecker object that has no errors.
 func newTypeChecker() *typeChecker {
 	return &typeChecker{
-		builtins:    make(map[string]*Builtin),
-		schemaTypes: make(map[string]types.Type),
 		exprCheckers: map[string]exprChecker{
 			"eq": checkExprEq,
 		},
@@ -62,6 +60,7 @@ func (tc *typeChecker) copy() *typeChecker {
 	return newTypeChecker().
 		WithVarRewriter(tc.varRewriter).
 		WithSchemaSet(tc.ss).
+		WithSchemaTypes(tc.schemaTypes).
 		WithAllowNet(tc.allowNet).
 		WithInputType(tc.input).
 		WithAllowUndefinedFunctionCalls(tc.allowUndefinedFuncs).
@@ -81,6 +80,11 @@ func (tc *typeChecker) WithBuiltins(builtins map[string]*Builtin) *typeChecker {
 
 func (tc *typeChecker) WithSchemaSet(ss *SchemaSet) *typeChecker {
 	tc.ss = ss
+	return tc
+}
+
+func (tc *typeChecker) WithSchemaTypes(schemaTypes map[string]types.Type) *typeChecker {
+	tc.schemaTypes = schemaTypes
 	return tc
 }
 
@@ -124,6 +128,7 @@ func (tc *typeChecker) CheckBody(env *TypeEnv, body Body) (*TypeEnv, Errors) {
 
 	errors := []*Error{}
 	env = tc.newEnv(env)
+	vis := newRefChecker(env, tc.varRewriter)
 
 	WalkExprs(body, func(expr *Expr) bool {
 
@@ -134,7 +139,8 @@ func (tc *typeChecker) CheckBody(env *TypeEnv, body Body) (*TypeEnv, Errors) {
 
 		hasClosureErrors := len(closureErrs) > 0
 
-		vis := newRefChecker(env, tc.varRewriter)
+		// reset errors from previous iteration
+		vis.errs = nil
 		NewGenericVisitor(vis.Visit).Walk(expr)
 		for _, err := range vis.errs {
 			errors = append(errors, err)
@@ -200,6 +206,10 @@ func (tc *typeChecker) checkClosures(env *TypeEnv, expr *Expr) Errors {
 }
 
 func (tc *typeChecker) getSchemaType(schemaAnnot *SchemaAnnotation, rule *Rule) (types.Type, *Error) {
+	if tc.schemaTypes == nil {
+		tc.schemaTypes = make(map[string]types.Type)
+	}
+
 	if refType, exists := tc.schemaTypes[schemaAnnot.Schema.String()]; exists {
 		return refType, nil
 	}
@@ -353,7 +363,7 @@ func (tc *typeChecker) checkExpr(env *TypeEnv, expr *Expr) *Error {
 	// If the type checker wasn't provided with a required capabilities
 	// structure then just skip. In some cases, type checking might be run
 	// without the need to record what builtins are required.
-	if tc.required != nil {
+	if tc.required != nil && tc.builtins != nil {
 		if bi, ok := tc.builtins[operator]; ok {
 			tc.required.addBuiltinSorted(bi)
 		}
@@ -433,14 +443,13 @@ func (tc *typeChecker) checkExprBuiltin(env *TypeEnv, expr *Expr) *Error {
 func checkExprEq(env *TypeEnv, expr *Expr) *Error {
 
 	pre := getArgTypes(env, expr.Operands())
-	exp := Equality.Decl.FuncArgs()
 
-	if len(pre) < len(exp.Args) {
-		return newArgError(expr.Location, expr.Operator(), "too few arguments", pre, exp)
+	if len(pre) < Equality.Decl.Arity() {
+		return newArgError(expr.Location, expr.Operator(), "too few arguments", pre, Equality.Decl.FuncArgs())
 	}
 
-	if len(exp.Args) < len(pre) {
-		return newArgError(expr.Location, expr.Operator(), "too many arguments", pre, exp)
+	if Equality.Decl.Arity() < len(pre) {
+		return newArgError(expr.Location, expr.Operator(), "too many arguments", pre, Equality.Decl.FuncArgs())
 	}
 
 	a, b := expr.Operand(0), expr.Operand(1)
@@ -684,7 +693,6 @@ func rewriteVarsNop(node Ref) Ref {
 }
 
 func newRefChecker(env *TypeEnv, f varRewriter) *refChecker {
-
 	if f == nil {
 		f = rewriteVarsNop
 	}
