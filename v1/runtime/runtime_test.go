@@ -688,6 +688,48 @@ func TestCheckOPAUpdateLoopNoUpdate(t *testing.T) {
 	testCheckOPAUpdateLoop(t, baseURL, "OPA is up to date.")
 }
 
+func TestCheckOPAUpdateLoopLaterRequests(t *testing.T) {
+	resp := &report.DataResponse{Latest: report.ReleaseDetails{
+		OPAUpToDate: true,
+	}}
+
+	// test server
+	baseURL, teardown := getTestServer(resp, http.StatusOK)
+	defer teardown()
+
+	t.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
+
+	ctx := context.Background()
+
+	logger := logging.New()
+	stdout := bytes.NewBuffer(nil)
+	logger.SetOutput(stdout)
+	logger.SetLevel(logging.Debug)
+
+	rt := getTestRuntime(ctx, t, logger)
+
+	done := make(chan struct{})
+	go func() {
+		initial := time.Millisecond
+		later := 100 * time.Millisecond
+		rt.checkOPAUpdateLoopDurations(ctx, done, initial, later)
+	}()
+	time.Sleep(150 * time.Millisecond)
+	done <- struct{}{}
+
+	// NOTE(sr): We'll assert that within 200ms, we have gotten less than
+	// 10 requests. This is a little less strict than we could be, to not
+	// make this test too sensitive to timing and noise test environments.
+	// However, it's strict enbough: If the "later" duration wasn't
+	// respected, we'd see a lot more requests.
+	needle := "OPA is up to date."
+	act := strings.Count(stdout.String(), needle)
+	exp := 7
+	if act > exp+1 || act < exp {
+		t.Fatalf("Expected output to contain: %q >= 7 times, less than 8, got %d", needle, act)
+	}
+}
+
 func TestCheckOPAUpdateLoopWithNewUpdate(t *testing.T) {
 	exp := &report.DataResponse{Latest: report.ReleaseDetails{
 		Download:      "https://openpolicyagent.org/downloads/v100.0.0/opa_darwin_amd64",
@@ -1475,8 +1517,9 @@ func testCheckOPAUpdateLoop(t *testing.T, url, expected string) {
 
 	done := make(chan struct{})
 	go func() {
-		d := time.Duration(int64(time.Millisecond) * 1)
-		rt.checkOPAUpdateLoop(ctx, d, done)
+		initial := time.Millisecond
+		later := initial
+		rt.checkOPAUpdateLoopDurations(ctx, done, initial, later)
 	}()
 	time.Sleep(2 * time.Millisecond)
 	done <- struct{}{}
@@ -1504,12 +1547,12 @@ func TestAddrWarningMessage(t *testing.T) {
 		name          string
 		addrSetByUser bool
 		containsMsg   bool
-		v1Compatible  bool
+		v0Compatible  bool
 	}{
-		{"WarningMessage", false, true, false},
 		{"NoWarningMessage", true, false, false},
-		{"V1Compatible", false, false, true},
-		{"V1InCompatible", false, true, false},
+		{"WarningMessage", false, true, true},
+		{"V0Compatible", false, true, true},
+		{"V0InCompatible", false, false, false},
 	}
 
 	for _, tc := range testCases {
@@ -1526,7 +1569,7 @@ func TestAddrWarningMessage(t *testing.T) {
 			params.Addrs = &[]string{"localhost:8181"}
 			params.AddrSetByUser = tc.addrSetByUser
 			params.GracefulShutdownPeriod = 1
-			params.V1Compatible = tc.v1Compatible
+			params.V0Compatible = tc.v0Compatible
 			rt, err := NewRuntime(ctx, params)
 			if err != nil {
 				t.Fatalf("Unexpected error %v", err)

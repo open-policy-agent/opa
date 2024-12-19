@@ -1,8 +1,8 @@
 package integrations_test
 
-import future.keywords.in
+import rego.v1
 
-messages_for_key(key, output) = messages {
+messages_for_key(key, output) = messages if {
 	messages := {m |
 		some e
 		output[e]
@@ -15,18 +15,18 @@ messages_for_key(key, output) = messages {
 
 print_if(true, _, _, _) = true
 
-print_if(false, key, false, output) := false {
+print_if(false, key, false, output) := false if {
 	print("Exp:", {})
 	print("Got: ", messages_for_key(key, output))
 }
 
-print_if(false, key, expected, output) := false {
+print_if(false, key, expected, output) := false if {
 	is_string(expected)
 	print("Exp:", expected)
 	print("Got:", messages_for_key(key, output))
 }
 
-test_integration_has_valid_key {
+test_integration_has_valid_key if {
 	output := data.integrations.deny with input as {"integrations": {"/integrations/in.valid/": {"link": "https://example.com/", "title": "Example"}}}
 
 	key := "key"
@@ -40,7 +40,7 @@ test_integration_has_valid_key {
 	print_if(result, key, message, output)
 }
 
-test_integration_has_required_fields_missing {
+test_integration_has_required_fields_missing if {
 	output := data.integrations.deny with input as {"integrations": {"/integrations/regal/": {}}}
 
 	key := "fields"
@@ -53,7 +53,7 @@ test_integration_has_required_fields_missing {
 	print_if(result, key, message, output)
 }
 
-test_integration_has_required_fields_present {
+test_integration_has_required_fields_present if {
 	output := data.integrations.deny with input as {"integrations": {"/integrations/regal/": {"title": "Regal"}}}
 
 	key := "fields"
@@ -66,7 +66,7 @@ test_integration_has_required_fields_present {
 	print_if(result, key, false, output)
 }
 
-test_integration_has_content_missing {
+test_integration_has_content_missing if {
 	output := data.integrations.deny with input as {"integrations": {"/integrations/regal/": {}}}
 
 	key := "content"
@@ -79,7 +79,7 @@ test_integration_has_content_missing {
 	print_if(result, key, message, output)
 }
 
-test_integration_has_content_blank {
+test_integration_has_content_blank if {
 	output := data.integrations.deny with input as {"integrations": {"/integrations/regal/": {"content": "\t\t\n   "}}}
 
 	key := "content"
@@ -92,7 +92,7 @@ test_integration_has_content_blank {
 	print_if(result, key, message, output)
 }
 
-test_integration_has_content_present {
+test_integration_has_content_present if {
 	output := data.integrations.deny with input as {"integrations": {"/integrations/regal/": {"content": "foobar"}}}
 
 	key := "content"
@@ -103,7 +103,7 @@ test_integration_has_content_present {
 	print_if(result, key, false, output)
 }
 
-test_every_integration_has_image_missing {
+test_every_integration_has_image_missing if {
 	output := data.integrations.deny with input as {
 		"images": ["reegal.png"],
 		"integrations": {"/integrations/regal/": {}},
@@ -119,7 +119,7 @@ test_every_integration_has_image_missing {
 	print_if(result, key, message, output)
 }
 
-test_every_integration_has_image_present {
+test_every_integration_has_image_present if {
 	output := data.integrations.deny with input as {
 		"images": ["regal.png"],
 		"integrations": {"regal": {}},
@@ -133,7 +133,7 @@ test_every_integration_has_image_present {
 	print_if(result, key, false, output)
 }
 
-test_every_integration_has_image_missing_but_permitted {
+test_every_integration_has_image_missing_but_permitted if {
 	output := data.integrations.deny with input as {
 		"images": ["reegal.png"],
 		"integrations": {"regal": {"allow_missing_image": true}},
@@ -148,7 +148,7 @@ test_every_integration_has_image_missing_but_permitted {
 	print_if(result, key, false, output)
 }
 
-test_every_image_has_integration_missing {
+test_every_image_has_integration_missing if {
 	output := data.integrations.deny with input as {
 		"images": ["regal.png"],
 		"integrations": {"foobar": {}},
@@ -164,7 +164,7 @@ test_every_image_has_integration_missing {
 	print_if(result, key, message, output)
 }
 
-test_every_image_has_integration_present {
+test_every_image_has_integration_present if {
 	output := data.integrations.deny with input as {
 		"images": ["regal.png"],
 		"integrations": {"/integrations/regal/": {}},
@@ -178,7 +178,7 @@ test_every_image_has_integration_present {
 	print_if(result, key, false, output)
 }
 
-test_integration_organizations_missing {
+test_integration_organizations_missing if {
 	output := data.integrations.deny with input as {
 		"organizations": {"/organizations/stira/": {}},
 		"integrations": {"/integrations/regal/": {"inventors": ["styra"]}},
@@ -194,7 +194,7 @@ test_integration_organizations_missing {
 	print_if(result, key, message, output)
 }
 
-test_integration_organizations_present {
+test_integration_organizations_present if {
 	output := data.integrations.deny with input as {
 		"organizations": {"/organizations/styra/": {}},
 		"integrations": {"/integrations/regal/": {"inventors": ["styra"]}},
@@ -208,7 +208,7 @@ test_integration_organizations_present {
 	print_if(result, key, false, output)
 }
 
-test_integration_softwares_missing {
+test_integration_softwares_missing if {
 	output := data.integrations.deny with input as {
 		"softwares": {"/softwares/mars/": {}},
 		"integrations": {"/integrations/regal/": {"software": ["terraform"]}},
@@ -224,7 +224,7 @@ test_integration_softwares_missing {
 	print_if(result, key, message, output)
 }
 
-test_integration_softwares_present {
+test_integration_softwares_present if {
 	output := data.integrations.deny with input as {
 		"softwares": {"/softwares/terraform/": {}},
 		"integrations": {"/integrations/regal/": {"software": ["terraform"]}},
@@ -238,7 +238,7 @@ test_integration_softwares_present {
 	print_if(result, key, false, output)
 }
 
-test_software_has_required_fields_missing {
+test_software_has_required_fields_missing if {
 	output := data.integrations.deny with input as {"softwares": {"/softwares/terraform/": {}}}
 
 	key := "fields"
@@ -251,7 +251,7 @@ test_software_has_required_fields_missing {
 	print_if(result, key, message, output)
 }
 
-test_software_has_required_fields_present {
+test_software_has_required_fields_present if {
 	output := data.integrations.deny with input as {"softwares": {"terraform": {"link": "https://www.terraform.io/", "title": "Terraform"}}}
 
 	key := "fields"
@@ -263,7 +263,7 @@ test_software_has_required_fields_present {
 	print_if(result, key, false, output)
 }
 
-test_organization_has_required_labels {
+test_organization_has_required_labels if {
 	output := data.integrations.deny with input as {"organizations": {"/organizations/styra/": {}}}
 
 	key := "fields"
@@ -276,7 +276,7 @@ test_organization_has_required_labels {
 	print_if(result, key, message, output)
 }
 
-test_organization_has_required_fields_present {
+test_organization_has_required_fields_present if {
 	output := data.integrations.deny with input as {"organizations": {"styra": {"link": "https://styra.com/", "title": "Styra"}}}
 
 	key := "fields"
@@ -288,7 +288,7 @@ test_organization_has_required_fields_present {
 	print_if(result, key, false, output)
 }
 
-test_organization_has_valid_key {
+test_organization_has_valid_key if {
 	output := data.integrations.deny with input as {"organizations": {"/organizations/sty.ra/": {"link": "https://styra.com/", "title": "Styra"}}}
 
 	key := "key"
@@ -302,7 +302,7 @@ test_organization_has_valid_key {
 	print_if(result, key, message, output)
 }
 
-test_organization_has_one_or_more_integrations_none {
+test_organization_has_one_or_more_integrations_none if {
 	output := data.integrations.deny with input as {"organizations": {"/organizations/foobar/": {}}, "integrations": {}}
 
 	key := "orphaned_org"
@@ -315,7 +315,7 @@ test_organization_has_one_or_more_integrations_none {
 	print_if(result, key, message, output)
 }
 
-test_organization_has_one_or_more_integrations_one {
+test_organization_has_one_or_more_integrations_one if {
 	output := data.integrations.deny with input as {"organizations": {"/organizations/foobaz/": {}}, "integrations": {"/integrations/foobar/": {"inventors": ["foobaz"]}}}
 
 	key := "orphaned_org"
@@ -326,7 +326,7 @@ test_organization_has_one_or_more_integrations_one {
 	print_if(result, key, false, output)
 }
 
-test_organization_has_one_or_more_integrations_speaker {
+test_organization_has_one_or_more_integrations_speaker if {
 	output := data.integrations.deny with input as {"organizations": {"foobaz": {}}, "integrations": {"foobar": {"videos": [{"speakers": [{"organization": "foobaz"}]}]}}}
 
 	key := "orphaned_org"
@@ -337,7 +337,7 @@ test_organization_has_one_or_more_integrations_speaker {
 	print_if(result, key, false, output)
 }
 
-test_software_has_one_or_more_integrations_none {
+test_software_has_one_or_more_integrations_none if {
 	output := data.integrations.deny with input as {"softwares": {"/softwares/foobar/": {}}, "integrations": {}}
 
 	key := "orphaned_software"
@@ -350,7 +350,7 @@ test_software_has_one_or_more_integrations_none {
 	print_if(result, key, message, output)
 }
 
-test_software_has_one_or_more_integrations_one {
+test_software_has_one_or_more_integrations_one if {
 	output := data.integrations.deny with input as {"softwares": {"foobaz": {}}, "integrations": {"foobar": {"software": ["foobaz"]}}}
 
 	key := "orphaned_software"
@@ -361,7 +361,7 @@ test_software_has_one_or_more_integrations_one {
 	print_if(result, key, false, output)
 }
 
-test_software_has_valid_key {
+test_software_has_valid_key if {
 	output := data.integrations.deny with input as {"softwares": {"/softwares/in.valid/": {"link": "https://example.com/", "title": "Example"}}}
 
 	key := "key"

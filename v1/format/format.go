@@ -31,6 +31,10 @@ type Opts struct {
 
 	// ParserOptions is the parser options used when parsing the module to be formatted.
 	ParserOptions *ast.ParserOptions
+
+	// DropV0Imports instructs the formatter to drop all v0 imports from the module; i.e. 'rego.v1' and 'future.keywords' imports.
+	// Imports are only removed if [Opts.RegoVersion] makes them redundant.
+	DropV0Imports bool
 }
 
 func (o Opts) effectiveRegoVersion() ast.RegoVersion {
@@ -140,6 +144,7 @@ type fmtOpts struct {
 	refHeads bool
 
 	regoV1         bool
+	regoV1Imported bool
 	futureKeywords []string
 }
 
@@ -200,6 +205,7 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 
 			switch {
 			case isRegoV1Compatible(n):
+				o.regoV1Imported = true
 				o.contains = true
 				o.ifs = true
 			case future.IsAllFutureKeywords(n):
@@ -234,14 +240,21 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 
 	switch x := x.(type) {
 	case *ast.Module:
-		if regoVersion == ast.RegoV1 {
+		if regoVersion == ast.RegoV1 && opts.DropV0Imports {
 			x.Imports = filterRegoV1Import(x.Imports)
 		} else if regoVersion == ast.RegoV0CompatV1 {
 			x.Imports = ensureRegoV1Import(x.Imports)
 		}
 
-		if regoVersion == ast.RegoV0CompatV1 || regoVersion == ast.RegoV1 || moduleIsRegoV1Compatible(x) {
-			x.Imports = future.FilterFutureImports(x.Imports)
+		regoV1Imported := moduleIsRegoV1Compatible(x)
+		if regoVersion == ast.RegoV0CompatV1 || regoVersion == ast.RegoV1 || regoV1Imported {
+			if !opts.DropV0Imports && !regoV1Imported {
+				for _, kw := range o.futureKeywords {
+					x.Imports = ensureFutureKeywordImport(x.Imports, kw)
+				}
+			} else {
+				x.Imports = future.FilterFutureImports(x.Imports)
+			}
 		} else {
 			for kw := range extraFutureKeywordImports {
 				x.Imports = ensureFutureKeywordImport(x.Imports, kw)

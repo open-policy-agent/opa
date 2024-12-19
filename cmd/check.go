@@ -73,7 +73,7 @@ func checkModules(params checkParams, args []string) error {
 	if params.capabilities.C != nil {
 		capabilities = params.capabilities.C
 	} else {
-		capabilities = ast.CapabilitiesForThisVersion()
+		capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(params.regoVersion()))
 	}
 
 	ss, err := loader.Schemas(params.schema.path)
@@ -194,8 +194,8 @@ func init() {
 	addCapabilitiesFlag(checkCommand.Flags(), checkParams.capabilities)
 	addSchemaFlags(checkCommand.Flags(), checkParams.schema)
 	addStrictFlag(checkCommand.Flags(), &checkParams.strict, false)
-	addRegoV1FlagWithDescription(checkCommand.Flags(), &checkParams.regoV1, false,
-		"check for Rego v1 compatibility (policies must also be compatible with current OPA version)")
+	addRegoV0V1FlagWithDescription(checkCommand.Flags(), &checkParams.regoV1, false,
+		"check for Rego v0 and v1 compatibility (policies must be compatible with both Rego versions)")
 	addV0CompatibleFlag(checkCommand.Flags(), &checkParams.v0Compatible, false)
 	addV1CompatibleFlag(checkCommand.Flags(), &checkParams.v1Compatible, false)
 	RootCommand.AddCommand(checkCommand)

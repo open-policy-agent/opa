@@ -19,7 +19,7 @@ func BenchmarkInliningFullScan(b *testing.B) {
 		"test.rego": `
 		package test
 
-		p {
+		p if {
 			data.a[i] == input
 		}
 		`,

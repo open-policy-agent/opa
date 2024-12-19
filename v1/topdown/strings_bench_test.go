@@ -19,7 +19,7 @@ func BenchmarkBulkStartsWithNaive(b *testing.B) {
 		"test.rego": `
 package test
 
-result {
+result if {
   startswith(data.strings[_], data.prefixes[_])
 }
 `,
@@ -64,7 +64,7 @@ func BenchmarkBulkStartsWithOptimized(b *testing.B) {
 		"test.rego": `
 package test
 
-result {
+result if {
   strings.any_prefix_match(data.strings, data.prefixes)
 }
 `,
@@ -111,5 +111,38 @@ func generateBulkStartsWithInput() map[string]interface{} {
 	return map[string]interface{}{
 		"strings":  strs,
 		"prefixes": prefixes,
+	}
+}
+
+func BenchmarkSplit(b *testing.B) {
+	bctx := BuiltinContext{}
+	operands := []*ast.Term{
+		ast.StringTerm("a.b.c.d.e"),
+		ast.StringTerm("."),
+	}
+
+	exp := eqIter(ast.ArrayTerm(
+		ast.StringTerm("a"),
+		ast.StringTerm("b"),
+		ast.StringTerm("c"),
+		ast.StringTerm("d"),
+		ast.StringTerm("e"),
+	))
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		if err := builtinSplit(bctx, operands, exp); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func eqIter(a *ast.Term) func(*ast.Term) error {
+	return func(b *ast.Term) error {
+		if !a.Equal(b) {
+			return fmt.Errorf("expected %v equal to %v", a, b)
+		}
+		return nil
 	}
 }

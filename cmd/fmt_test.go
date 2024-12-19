@@ -746,10 +746,11 @@ func TestFmtMultipleWrongArityError(t *testing.T) {
 
 func TestFmtRegoV1(t *testing.T) {
 	tests := []struct {
-		note        string
-		input       string
-		expected    string
-		expectedErr string
+		note         string
+		v1Compatible bool
+		input        string
+		expected     string
+		expectedErr  string
 	}{
 		{
 			note: "no future imports",
@@ -835,14 +836,30 @@ q := all([true, false])
 %ROOT%/policy.rego:3: rego_type_error: deprecated built-in function calls in expression: any
 %ROOT%/policy.rego:6: rego_type_error: deprecated built-in function calls in expression: all`,
 		},
+		{
+			note:         "v1 module",
+			v1Compatible: true,
+			input: `package test
+
+p contains x if {
+	some x in ["a", "b", "c"]
+}`,
+			expected: `package test
+
+import rego.v1
+
+p contains x if {
+	some x in ["a", "b", "c"]
+}
+`,
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			params := fmtCommandParams{
-				// Locking rego-version to v0, as it's only then the --rego-v1 flag is relevant
-				v0Compatible: true,
 				regoV1:       true,
+				v1Compatible: tc.v1Compatible,
 			}
 
 			files := map[string]string{
@@ -887,10 +904,11 @@ q := all([true, false])
 
 func TestFmt_DefaultRegoVersion(t *testing.T) {
 	tests := []struct {
-		note         string
-		input        string
-		expected     string
-		expectedErrs []string
+		note          string
+		dropV0Imports bool
+		input         string
+		expected      string
+		expectedErrs  []string
 	}{
 		{
 			note: "no keywords used",
@@ -935,6 +953,86 @@ q contains "foo" if {
 			note: "future imports",
 			input: `package test
 import future.keywords
+p if {
+	input.x == 1
+}
+
+q contains "foo" if {
+	input.x == 2
+}
+`,
+			// NOTE: We keep the future imports to create the broadest possible compatibility surface
+			expected: `package test
+
+import future.keywords
+
+p if {
+	input.x == 1
+}
+
+q contains "foo" if {
+	input.x == 2
+}
+`,
+		},
+		{
+			note: "future imports, drop v0 imports",
+			input: `package test
+import future.keywords.if
+import future.keywords.contains
+p if {
+	input.x == 1
+}
+
+q contains "foo" if {
+	input.x == 2
+}
+`,
+			expected: `package test
+
+import future.keywords.contains
+import future.keywords.if
+
+p if {
+	input.x == 1
+}
+
+q contains "foo" if {
+	input.x == 2
+}
+`,
+		},
+		{
+			note: "rego.v1 import",
+			input: `package test
+import rego.v1
+p if {
+	input.x == 1
+}
+
+q contains "foo" if {
+	input.x == 2
+}
+`,
+			// NOTE: We keep the rego.v1 import to create the broadest possible compatibility surface
+			expected: `package test
+
+import rego.v1
+
+p if {
+	input.x == 1
+}
+
+q contains "foo" if {
+	input.x == 2
+}
+`,
+		},
+		{
+			note:          "rego.v1 import, drop v0 imports",
+			dropV0Imports: true,
+			input: `package test
+import rego.v1
 p if {
 	input.x == 1
 }
@@ -998,6 +1096,7 @@ q := all([true, false])
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			params := fmtCommandParams{}
+			params.dropV0Imports = tc.dropV0Imports
 
 			files := map[string]string{
 				"policy.rego": tc.input,

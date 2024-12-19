@@ -7,7 +7,6 @@ toc: true
 
 ```live:eg:module:hidden
 package example
-import rego.v1
 ```
 
 OPA is purpose built for reasoning about information represented in structured
@@ -772,19 +771,6 @@ document that is defined by the rule.
 
 The sample code in this section make use of the data defined in [Examples](#example-data).
 
-{{< info >}}
-Rule definitions can be more expressive when using the _future keywords_ `contains` and
-`if` which will become standard in [OPA v1.0](../opa-1).
-
-To follow along as-is, please import the keywords, or preferably, import `rego.v1`:
-
-```live:eg/data/info:module:read_only
-import rego.v1
-```
-
-[See the docs on _future keywords_](#future-keywords) for more information.
-{{< /info >}}
-
 ### Generating Sets
 
 The following rule defines a set containing the hostnames of all servers:
@@ -1018,8 +1004,6 @@ Module:
 ```live:general_ref_head:module
 package example
 
-import rego.v1
-
 # A partial object rule that converts a list of users to a mapping by "role" and then "id".
 users_by_role[role][id] := user if {
 	some user in input.users
@@ -1052,8 +1036,6 @@ The first variable declared in a rule head's reference divides the reference in 
 ```live:general_ref_head_conflict:module
 package example
 
-import rego.v1
-
 # R1
 p[x].r := y if {
 	x := "q"
@@ -1076,8 +1058,6 @@ Conflicts are detected at compile-time, where possible, between rules even if th
 
 ```live:general_ref_head_conflict2:module
 package example
-
-import rego.v1
 
 # R1
 p[x].r := y if {
@@ -1104,8 +1084,6 @@ Rules are not allowed to overlap with object values of other rules.
 ```live:general_ref_head_conflict3:module
 package example
 
-import rego.v1
-
 # R1
 p.q.r := {"s": 1}
 
@@ -1125,8 +1103,6 @@ We won't get a conflict if we update the policy to the following:
 
 ```live:general_ref_head_conflict4:module
 package example
-
-import rego.v1
 
 # R1
 p.q.r.s := 1
@@ -1583,7 +1559,8 @@ For more details see the language [Grammar](../policy-reference/#grammar).
 
 ### Imports
 
-Import statements declare dependencies that modules have on documents defined outside the package. By importing a document, the identifiers exported by that document can be referenced within the current module.
+Import statements declare dependencies that modules have on documents defined outside the package. By importing a
+document, the identifiers exported by that document can be referenced within the current module.
 
 All modules contain implicit statements which import the `data` and `input` documents.
 
@@ -1591,7 +1568,6 @@ Modules use the same syntax to declare dependencies on [Base and Virtual Documen
 
 ```live:import_data:module:read_only
 package opa.examples
-import rego.v1 # uses 'in' and 'contains' and 'if'
 
 import data.servers
 
@@ -1605,7 +1581,6 @@ Similarly, modules can declare dependencies on query arguments by specifying an 
 
 ```live:import_input:module:read_only
 package opa.examples
-import rego.v1
 
 import input.user
 import input.method
@@ -1637,7 +1612,6 @@ Imports can include an optional `as` keyword to handle namespacing issues:
 
 ```live:import_namespacing:module:read_only
 package opa.examples
-import rego.v1
 
 import data.servers as my_servers
 
@@ -1647,36 +1621,7 @@ http_servers contains server if {
 }
 ```
 
-## Future Keywords
-
-To ensure backwards-compatibility, new keywords (like `every`) were introduced slowly.
-In the first stage, users could opt-in to using the new keywords via a special import:
-
-* `import future.keywords` introduces _all_ future keywords, and
-* `import future.keywords.x` _only_ introduces the `x` keyword -- see below for all known future keywords.
-* **Recommended** `import rego.v1` introduces all future keywords, and enforces the use of `if` and `contains` in rule heads where applicable.
-
-{{< info >}}
-It is recommended to use the `rego.v1` import instead of `future.keywords` imports,
-as this will ensure that your policy is compatible with the future release of [OPA v1.0](../opa-1).
-If the `rego.v1` import is present in a module, then `future.keywords` and
-`future.keywords.*` import is implied, and not allowed.
-{{< /info >}}
-
-In [OPA v1.0](../opa-1), the new keywords will become _standard_, and
-the import will become a no-op that can safely be removed. This should give all
-users ample time to update their policies, so that the new keyword will not cause
-clashes with existing variable names.
-
-{{< info >}}
-Note that some future keyword imports have consequences on pretty-printing:
-If `contains` or `if` are imported, the pretty-printer will use them as applicable
-when formatting the modules.
-{{< /info >}}
-
-This is the list of all future keywords that will become standard in OPA v1.0:
-
-### `future.keywords.in`
+## In Keyword
 
 More expressive membership and existential quantification keyword:
 
@@ -1690,29 +1635,9 @@ deny {
 }
 ```
 
-`in` was introduced in [v0.34.0](https://github.com/open-policy-agent/opa/releases/tag/v0.34.0).
 See [the keywords docs](#membership-and-iteration-in) for details.
 
-### `future.keywords.every`
-
-Expressive _universal quantification_ keyword:
-
-```live:eg/kws/every:module:read_only
-allowed := {"customer", "admin"}
-
-allow {
-    every role in input.roles {
-        role.name in allowed
-    }
-}
-```
-
-There is no need to also import `future.keywords.in`, that is **implied** by importing `future.keywords.every`.
-
-`every` was introduced in [v0.38.0](https://github.com/open-policy-agent/opa/releases/tag/v0.38.0).
-See [Every Keyword](#every-keyword) for details.
-
-### `future.keywords.if`
+## If Keyword
 
 This keyword allows more expressive rule heads:
 
@@ -1720,17 +1645,13 @@ This keyword allows more expressive rule heads:
 deny if input.token != "secret"
 ```
 
-`if` was introduced in [v0.42.0](https://github.com/open-policy-agent/opa/releases/tag/v0.42.0).
-
-### `future.keywords.contains`
+## Contains Keyword
 
 This keyword allows more expressive rule heads for partial set rules:
 
 ```live:eg/kws/contains:module:read_only
 deny contains msg { msg := "forbidden" }
 ```
-
-`contains` was introduced in [v0.42.0](https://github.com/open-policy-agent/opa/releases/tag/v0.42.0).
 
 ## Some Keyword
 
@@ -1786,14 +1707,6 @@ For using the `some` keyword with iteration, see
 [the documentation of the `in` operator](#membership-and-iteration-in).
 
 ## Every Keyword
-
-{{< info >}}
-`every` is a future keyword and needs to be imported.
-
-`import rego.v1` or, alternatively, `import future.keywords.every` introduces the `every` keyword described here.
-
-[See the docs on _future keywords_](#future-keywords) for more information.
-{{< /info >}}
 
 ```live:eg/data/every0:module:merge_down
 names_with_dev if {
@@ -2183,14 +2096,6 @@ limit imposed on the number of `else` clauses on a rule.
 ## Operators
 
 ### Membership and iteration: `in`
-
-{{< info >}}
-To ensure backwards-compatibility, new keywords (like `in`) are introduced slowly.
-In the first stage, users can opt-in to using the new keywords via a special import:
-`import rego.v1` or, alternatively, `import future.keywords.in` introduces the `in` keyword described here.
-
-[See the docs on _future keywords_](#future-keywords) for more information.
-{{< /info >}}
 
 The membership operator `in` lets you check if an element is part of a collection (array, set, or object). It always evaluates to `true` or `false`:
 
@@ -2958,8 +2863,6 @@ The following policy
 ```live:example/metadata/1:module
 package example
 
-import rego.v1
-
 # METADATA
 # title: Deny invalid numbers
 # description: Numbers may not be higher than 5
@@ -3139,8 +3042,6 @@ starts with a specific prefix.
 ```
 package kubernetes.admission
 
-import rego.v1
-
 deny contains msg if {
 	input.request.kind.kinds == "Pod"
 	image := input.request.object.spec.containers[_].image
@@ -3250,8 +3151,6 @@ Consider the following Rego code which checks if an operation is allowed by a us
 
 ```
 package policy
-
-import rego.v1
 
 import data.acl
 
@@ -3371,8 +3270,6 @@ within the package:
 #   - data.acl: schema["acl-schema"]
 package example
 
-import rego.v1
-
 allow if {
     access := data.acl["alice"]
     access[_] == input.operation
@@ -3410,8 +3307,6 @@ Consider the following example:
 
 ```
 package kubernetes.admission
-
-import rego.v1
 
 # METADATA
 # scope: rule
@@ -3473,8 +3368,6 @@ It is sometimes useful to have different input schemas for different rules in th
 ```
 package policy
 
-import rego.v1
-
 import data.acl
 
 default allow := false
@@ -3532,8 +3425,6 @@ Specifically, `anyOf` acts as an Rego Or type where at least one (can be more th
 
 ```
 package kubernetes.admission
-
-import rego.v1
 
 # METADATA
 # scope: rule
@@ -3615,8 +3506,6 @@ Specifically, `allOf` keyword implies that all conditions under `allOf` within a
 
 ```
 package kubernetes.admission
-
-import rego.v1
 
 # METADATA
 # scope: rule
@@ -3775,9 +3664,6 @@ For a tool that generates JSON Schema from JSON samples, please see: <https://js
 ## Strict Mode
 
 The Rego compiler supports `strict mode`, where additional constraints and safety checks are enforced during compilation.
-Compiler rules that will be enforced by future versions of OPA, but will be a breaking change once introduced, are incubated in strict mode.
-This creates an opportunity for users to verify that their policies are compatible with the next version of OPA before upgrading.
-
 Compiler Strict mode is supported by the `check` command, and can be enabled through the `--strict`/`-S` flag.
 
 ```
@@ -3786,65 +3672,10 @@ Compiler Strict mode is supported by the `check` command, and can be enabled thr
 
 ### Strict Mode Constraints and Checks
 
-Name | Description                                                                                                                                                                                                                                                    | Enforced by default in OPA version
---- |----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| ---
-Duplicate imports | Duplicate [imports](../policy-language/#imports), where one import shadows another, are prohibited.                                                                                                                                                            | 1.0
-Unused local assignments | Unused arguments or [assignments](../policy-reference/#assignment-and-equality) local to a rule, function or comprehension are prohibited                                                                                                                                   |
-Unused imports | Unused [imports](../policy-language/#imports) are prohibited.                                                                                                                                                                                                  |
-`input` and `data` reserved keywords | `input` and `data` are reserved keywords, and may not be used as names for rules and variable assignment.                                                                                                                                                      | 1.0
-Use of deprecated built-ins | Use of deprecated functions is prohibited, and these will be removed in OPA 1.0. Deprecated built-in functions: `any`, `all`, `re_match`,  `net.cidr_overlap`, `set_diff`, `cast_array`, `cast_set`, `cast_string`, `cast_boolean`, `cast_null`, `cast_object` | 1.0
-
-{{< info >}}
-If the `rego.v1` import is present in a module, all strict mode checks documented above except the unused local assignment and unused imports checks are enforced on the module.
-
-Additionally the `rego.v1` import also requires the usage of `if` and `contains` keywords when declaring certain rules. The `if` keyword is required before a rule body and the `contains` keyword is required for partial set rules.
-{{< /info >}}
-
-## The `rego.v1` Import
-
-In the future, when [OPA v1.0](../opa-1) is released, breaking changes will be introduced to the Rego language.
-The `rego.v1` import is a way to opt-in to these breaking changes early, and ensure that your policies are compatible with OPA v1.0.
-If a module containing this import is not compatible with OPA v1.0, it will cause a compilation error.
-
-When a module imports `rego.v1`, the following features and constraints are implied:
-
-* all [Future keywords](#future-keywords) are implied and can be used without import.
-  These imports are mutually exclusive, and it will cause a compilation error to import both `rego.v1` and `future.keywords` in the same module.
-* the [if](#futurekeywordsif) keyword is required before a rule body declaration.
-* the [contains](#futurekeywordscontains) keyword is required for partial set (multi-value) rules.
-* most [Strict mode](#strict-mode) constraints and checks are implied and enforced. See the strict mode [constraints and checks table](#strict-mode-constraints-and-checks) for details.
-
-The `rego.v1` import only affects the module where it's declared. It does not affect any other modules, even if they are importing, or is imported by, a module where `rego.v1` is declared.
-
-In OPA v1.0, the `rego.v1` import will have no semantic impact on the policy, as all its implied features and constraints will be enforced by default. It will however still be a valid statement, and won't cause any compilation errors.
-
-Example policy that imports `rego.v1` to be compatible with the future syntax in OPA v1.0:
-
-```live:rego_v1:module:read_only
-package example
-
-import rego.v1
-
-l := [1, 2, 3]
-
-default allow := false
-
-# 'if' is part of default v1.0 syntax, and doesn't need import.
-# 'if' is required before rule body.
-allow if {
-  count(violations) == 0
-}
-
-# 'contains' is part of default v1.0 syntax, and doesn't need import.
-# 'contains' is required to declare multi-value, partial set rule.
-violations contains msg if {
-  # 'every' and 'in' are part of default v1.0 syntax, and doesn't need imports.
-  every x in l {
-    x > 0
-  }
-  msg := "no negative entries"
-}
-```
+Name | Description                                                                                                                                                                                                                                                    
+--- |----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Unused local assignments | Unused arguments or [assignments](../policy-reference/#assignment-and-equality) local to a rule, function or comprehension are prohibited                                                                                                                                  
+Unused imports | Unused [imports](../policy-language/#imports) are prohibited.                                                                                                                                                                                                  
 
 ## Ecosystem Projects
 

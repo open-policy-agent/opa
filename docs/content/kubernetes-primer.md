@@ -17,8 +17,6 @@ trusted registry.
 ```live:container_images:module:openable
 package kubernetes.admission                                                # line 1
 
-import rego.v1
-
 deny contains msg if {                                                      # line 2
     input.request.kind.kind == "Pod"                                        # line 3
     image := input.request.object.spec.containers[_].image                  # line 4
@@ -205,8 +203,6 @@ When you write policies, you should use the OPA unit-test framework *before* sen
 ```live:container_images/test:module:read_only,openable
 package kubernetes.test_admission                         # line 1
 
-import rego.v1
-
 import data.kubernetes.admission                          # line 2
 
 test_image_safety if {                                    # line 3
@@ -284,8 +280,6 @@ To avoid conflicting ingresses, you write a policy like the one that follows.
 
 ```live:ingress_conflicts:module:read_only
 package kubernetes.admission
-
-import rego.v1
 
 deny contains msg if {
   some namespace, name
@@ -491,8 +485,6 @@ have been loaded into OPA and unions the results:
 
 ```live:admission_main:module:read_only
 package system
-
-import rego.v1
 
 import data.kubernetes.admission
 

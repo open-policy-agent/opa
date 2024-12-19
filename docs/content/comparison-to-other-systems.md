@@ -54,8 +54,6 @@ example RBAC policy shown above.
 ```live:rbac:module:openable
 package rbac.authz
 
-import rego.v1
-
 # user-role assignments
 user_roles := {
     "alice": ["engineering", "webdev"],
@@ -185,8 +183,6 @@ OPA supports ABAC policies as shown below.
 ```live:abac:module:openable
 package abac
 
-import rego.v1
-
 # User attributes
 user_attributes := {
 	"alice": {"tenure": 15, "title": "trader"},
@@ -299,8 +295,6 @@ expect the input to have `principal`, `action`, and `resource` fields.
 
 ```live:iam:module:openable
 package aws
-
-import rego.v1
 
 default allow := false
 
@@ -460,8 +454,6 @@ roughly the same as for XACML: attributes of users, actions, and resources.
 
 ```live:xacml:module:openable
 package xacml
-
-import rego.v1
 
 # METADATA
 # title: urn:curtiss:ba:taa:taa-1.1

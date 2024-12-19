@@ -2907,6 +2907,224 @@ func TestEvalPolicyWithCompatibleFlags(t *testing.T) {
 	}
 }
 
+func TestEvalPolicyWithRegoV1Capability(t *testing.T) {
+	tests := []struct {
+		note         string
+		v0Compatible bool
+		capabilities *ast.Capabilities
+		modules      map[string]string
+		expErrs      []string
+	}{
+		{
+			note:         "v0 module, v0-compatible, no capabilities",
+			v0Compatible: true,
+			modules: map[string]string{
+				"test.rego": `package test
+				allow {
+					1 < 2
+				}`,
+			},
+		},
+		{
+			note:         "v0 module, v0-compatible, v0 capabilities",
+			v0Compatible: true,
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
+			modules: map[string]string{
+				"test.rego": `package test
+				allow {
+					1 < 2
+				}`,
+			},
+		},
+		{
+			note:         "v0 module, v0-compatible, v1 capabilities",
+			v0Compatible: true,
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV1)),
+			modules: map[string]string{
+				"test.rego": `package test
+				allow {
+					1 < 2
+				}`,
+			},
+		},
+		{
+			note:         "v0 module, not v0-compatible, no capabilities",
+			v0Compatible: false,
+			modules: map[string]string{
+				"test.rego": `package test
+				allow {
+					1 < 2
+				}`,
+			},
+			expErrs: []string{
+				"test.rego:2: rego_parse_error: `if` keyword is required before rule body",
+			},
+		},
+		{
+			note:         "v0 module, not v0-compatible, v0 capabilities",
+			v0Compatible: false,
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
+			modules: map[string]string{
+				"test.rego": `package test
+				allow {
+					1 < 2
+				}`,
+			},
+			expErrs: []string{
+				"rego_parse_error: illegal capabilities: rego_v1 feature required for parsing v1 Rego",
+			},
+		},
+		{
+			note:         "v0 module, not v0-compatible, v1 capabilities",
+			v0Compatible: false,
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV1)),
+			modules: map[string]string{
+				"test.rego": `package test
+				allow {
+					1 < 2
+				}`,
+			},
+			expErrs: []string{
+				"test.rego:2: rego_parse_error: `if` keyword is required before rule body",
+			},
+		},
+
+		{
+			note:         "v1 module, v0-compatible, no capabilities",
+			v0Compatible: true,
+			modules: map[string]string{
+				"test.rego": `package test
+				allow if {
+					1 < 2
+				}`,
+			},
+			expErrs: []string{
+				"test.rego:2: rego_parse_error: var cannot be used for rule name",
+			},
+		},
+		{
+			note:         "v1 module, v0-compatible, v0 capabilities",
+			v0Compatible: true,
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
+			modules: map[string]string{
+				"test.rego": `package test
+				allow if {
+					1 < 2
+				}`,
+			},
+			expErrs: []string{
+				"test.rego:2: rego_parse_error: var cannot be used for rule name",
+			},
+		},
+		{
+			note:         "v1 module, v0-compatible, v1 capabilities",
+			v0Compatible: true,
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV1)),
+			modules: map[string]string{
+				"test.rego": `package test
+				allow if {
+					1 < 2
+				}`,
+			},
+			expErrs: []string{
+				"test.rego:2: rego_parse_error: var cannot be used for rule name",
+			},
+		},
+		{
+			note:         "v1 module, not v0-compatible, no capabilities",
+			v0Compatible: false,
+			modules: map[string]string{
+				"test.rego": `package test
+				allow if {
+					1 < 2
+				}`,
+			},
+		},
+		{
+			note:         "v1 module, not v0-compatible, v0 capabilities",
+			v0Compatible: false,
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
+			modules: map[string]string{
+				"test.rego": `package test
+				allow if {
+					1 < 2
+				}`,
+			},
+			expErrs: []string{
+				"rego_parse_error: illegal capabilities: rego_v1 feature required for parsing v1 Rego",
+			},
+		},
+		{
+			note:         "v1 module, not v0-compatible, v1 capabilities",
+			v0Compatible: false,
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV1)),
+			modules: map[string]string{
+				"test.rego": `package test
+				allow if {
+					1 < 2
+				}`,
+			},
+		},
+	}
+
+	setup := []struct {
+		name          string
+		commandParams func(params *evalCommandParams, path string)
+	}{
+		{
+			name: "Files",
+			commandParams: func(params *evalCommandParams, path string) {
+				params.dataPaths = newrepeatedStringFlag([]string{path})
+			},
+		},
+		{
+			name: "Bundle",
+			commandParams: func(params *evalCommandParams, path string) {
+				if err := params.bundlePaths.Set(path); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+	}
+
+	for _, s := range setup {
+		for _, tc := range tests {
+			t.Run(fmt.Sprintf("%s: %s", s.name, tc.note), func(t *testing.T) {
+				test.WithTempFS(tc.modules, func(path string) {
+					params := newEvalCommandParams()
+					s.commandParams(&params, path)
+					_ = params.outputFormat.Set(evalPrettyOutput)
+					params.v0Compatible = tc.v0Compatible
+					params.capabilities.C = tc.capabilities
+
+					var buf bytes.Buffer
+
+					defined, err := eval([]string{"data.test.allow"}, params, &buf)
+
+					if len(tc.expErrs) > 0 {
+						if err == nil {
+							t.Fatal("expected error, got none")
+						}
+
+						actual := buf.String()
+						for _, expErr := range tc.expErrs {
+							if !strings.Contains(actual, expErr) {
+								t.Fatalf("expected error:\n\n%v\n\ngot\n\n%v", expErr, actual)
+							}
+						}
+					} else {
+						if err != nil {
+							t.Fatalf("Unexpected error: %v, buf: %s", err, buf.String())
+						} else if !defined {
+							t.Fatal("expected result to be defined")
+						}
+					}
+				})
+			})
+		}
+	}
+}
+
 func TestEvalPolicyWithBundleRegoVersion(t *testing.T) {
 	tests := []struct {
 		note        string

@@ -15,6 +15,7 @@ import (
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 func builtinAnyPrefixMatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -386,9 +387,9 @@ func builtinSplit(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) e
 		return err
 	}
 	elems := strings.Split(string(s), string(d))
-	arr := make([]*ast.Term, len(elems))
+	arr := util.NewPtrSlice[ast.Term](len(elems))
 	for i := range elems {
-		arr[i] = ast.StringTerm(elems[i])
+		arr[i].Value = ast.String(elems[i])
 	}
 	return iter(ast.ArrayTerm(arr...))
 }
@@ -438,14 +439,8 @@ func builtinReplaceN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 		}
 		oldnewArr = append(oldnewArr, string(keyVal), string(strVal))
 	}
-	if err != nil {
-		return err
-	}
 
-	r := strings.NewReplacer(oldnewArr...)
-	replaced := r.Replace(string(s))
-
-	return iter(ast.StringTerm(replaced))
+	return iter(ast.StringTerm(strings.NewReplacer(oldnewArr...).Replace(string(s))))
 }
 
 func builtinTrim(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {

@@ -44,7 +44,7 @@ func BenchmarkArrayPlugging(b *testing.B) {
 			store := inmem.NewFromObject(map[string]interface{}{"fixture": data})
 			module := `package test
 			fixture := data.fixture
-			main { x := fixture }`
+			main if { x := fixture }`
 
 			query := ast.MustParseBody("data.test.main")
 			compiler := ast.MustCompileModules(map[string]string{
@@ -482,19 +482,19 @@ const partialEvalBenchmarkPolicy = `package authz
 
 	default allow = false
 
-	allow {
+	allow if {
 		user_has_role[role_name]
 		role_has_permission[role_name]
 	}
 
-	user_has_role[role_name] {
+	user_has_role contains role_name if {
 		data.bindings[_] = binding
 		binding.iss = input.iss
 		binding.group = input.group
 		role_name = binding.role
 	}
 
-	role_has_permission[role_name] {
+	role_has_permission contains role_name if {
 		data.roles[_] = role
 		role.name = role_name
 		role.operation = input.operation
@@ -607,7 +607,7 @@ func BenchmarkComprehensionIndexing(b *testing.B) {
 			module: `
 				package test
 
-				bench_array {
+				bench_array if {
 					v := data.items[_]
 					ks := [k | some k; v == data.items[k]]
 				}
@@ -619,7 +619,7 @@ func BenchmarkComprehensionIndexing(b *testing.B) {
 			module: `
 				package test
 
-				bench_set {
+				bench_set if {
 					v := data.items[_]
 					ks := {k | some k; v == data.items[k]}
 				}
@@ -631,7 +631,7 @@ func BenchmarkComprehensionIndexing(b *testing.B) {
 			module: `
 				package test
 
-				bench_object {
+				bench_object if {
 					v := data.items[_]
 					ks := {k: 1 | some k; v == data.items[k]}
 				}
@@ -717,7 +717,7 @@ func moduleWithDefs(n int) string {
 	b.WriteString(`package test
 `)
 	for i := 1; i <= n; i++ {
-		fmt.Fprintf(&b, `f(x) = y { y := true; x == %[1]d }
+		fmt.Fprintf(&b, `f(x) = y if { y := true; x == %[1]d }
 `, i)
 	}
 	return b.String()
@@ -751,7 +751,7 @@ func BenchmarkObjectSubset(b *testing.B) {
 			store := inmem.NewFromObject(map[string]interface{}{"all": all, "evens": evens})
 
 			module := `package test
-			main {object.subset(data.all, data.evens)}`
+			main if {object.subset(data.all, data.evens)}`
 
 			query := ast.MustParseBody("data.test.main")
 			compiler := ast.MustCompileModules(map[string]string{
@@ -811,14 +811,14 @@ func BenchmarkObjectSubsetSlow(b *testing.B) {
 			// https://github.com/open-policy-agent/opa/issues/4358#issue-1141145857
 
 			module := `package test
-			path_matches[match] {
+			path_matches contains match if {
 			    [path, value] := walk(data.evens)
 			    not is_object(value)
 
 			    match := object.get(data.all, path, null) == value
 			}
 
-			main { path_matches == {true} }`
+			main if { path_matches == {true} }`
 
 			query := ast.MustParseBody("data.test.main")
 			compiler := ast.MustCompileModules(map[string]string{
@@ -904,7 +904,7 @@ func BenchmarkGlob(b *testing.B) {
 			})
 
 			module := `package test
-			main {
+			main if {
 				needleMatches := {h | h := data.haystack[_]; glob.match(data.needleGlob, [], h)}
 				xMatches := {h | h := data.haystack[_]; glob.match("*x*", [], h)}
 				yMtches := {h | h := data.haystack[_]; glob.match("*y*", [], h)}
@@ -945,8 +945,7 @@ func BenchmarkGlob(b *testing.B) {
 func BenchmarkMemberWithKeyFromBaseDoc(b *testing.B) {
 	store := inmem.NewFromObject(test.GenerateLargeJSONBenchmarkData())
 	mod := `package test
-	import future.keywords.in
-	main { "key99", "value99" in data.values }
+	main if { "key99", "value99" in data.values }
 	`
 
 	ctx := context.Background()
@@ -971,7 +970,7 @@ func BenchmarkMemberWithKeyFromBaseDoc(b *testing.B) {
 func BenchmarkObjectGetFromBaseDoc(b *testing.B) {
 	store := inmem.NewFromObject(test.GenerateLargeJSONBenchmarkData())
 	mod := `package test
-	main { object.get(data.values, "key99", false) == "value99" }
+	main if { object.get(data.values, "key99", false) == "value99" }
 	`
 
 	ctx := context.Background()

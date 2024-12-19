@@ -71,30 +71,37 @@ func InterfaceToValue(x interface{}) (Value, error) {
 		return intNumber(x), nil
 	case string:
 		return String(x), nil
-	case []interface{}:
-		r := make([]*Term, len(x))
+	case []any:
+		r := util.NewPtrSlice[Term](len(x))
 		for i, e := range x {
 			e, err := InterfaceToValue(e)
 			if err != nil {
 				return nil, err
 			}
-			r[i] = &Term{Value: e}
+			r[i].Value = e
 		}
 		return NewArray(r...), nil
-	case map[string]interface{}:
-		r := newobject(len(x))
+	case map[string]any:
+		kvs := util.NewPtrSlice[Term](len(x) * 2)
+		idx := 0
 		for k, v := range x {
 			k, err := InterfaceToValue(k)
 			if err != nil {
 				return nil, err
 			}
+			kvs[idx].Value = k
 			v, err := InterfaceToValue(v)
 			if err != nil {
 				return nil, err
 			}
-			r.Insert(NewTerm(k), NewTerm(v))
+			kvs[idx+1].Value = v
+			idx += 2
 		}
-		return r, nil
+		tuples := make([][2]*Term, len(kvs)/2)
+		for i := 0; i < len(kvs); i += 2 {
+			tuples[i/2] = *(*[2]*Term)(kvs[i : i+2])
+		}
+		return NewObject(tuples...), nil
 	case map[string]string:
 		r := newobject(len(x))
 		for k, v := range x {

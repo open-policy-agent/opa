@@ -244,8 +244,6 @@ Update the `policies/tutorial.rego` with the following content.
 #-----------------------------------------------------------------------------
 package kafka.authz
 
-import rego.v1
-
 default allow := false
 
 allow if {

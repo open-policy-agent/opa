@@ -929,12 +929,7 @@ func (r *REPL) parserOptions() (ast.ParserOptions, error) {
 		if err == nil {
 			for _, i := range r.modules[r.currentModuleID].Imports {
 				if ast.Compare(i.Path.Value, ast.RegoV1CompatibleRef) == 0 {
-					opts.RegoVersion = ast.RegoV0CompatV1
-
-					// ast.RegoV0CompatV1 sets parsing requirements, but doesn't imply allowed future keywords
-					if r.capabilities != nil {
-						opts.FutureKeywords = r.capabilities.FutureKeywords
-					}
+					opts.RegoVersion = ast.RegoV1
 				}
 			}
 		}

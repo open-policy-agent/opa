@@ -622,9 +622,45 @@ func Load(args []string, filter loader.Filter) (map[string]*ast.Module, storage.
 // LoadWithRegoVersion returns modules and an in-memory store for running tests.
 // Modules are parsed in accordance with the given RegoVersion.
 func LoadWithRegoVersion(args []string, filter loader.Filter, regoVersion ast.RegoVersion) (map[string]*ast.Module, storage.Store, error) {
+	if regoVersion == ast.RegoUndefined {
+		regoVersion = ast.DefaultRegoVersion
+	}
+
 	loaded, err := loader.NewFileLoader().
 		WithRegoVersion(regoVersion).
 		WithProcessAnnotation(true).
+		Filtered(args, filter)
+	if err != nil {
+		return nil, nil, err
+	}
+	store := inmem.NewFromObject(loaded.Documents)
+	modules := map[string]*ast.Module{}
+	ctx := context.Background()
+	err = storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
+		for _, loadedModule := range loaded.Modules {
+			modules[loadedModule.Name] = loadedModule.Parsed
+
+			// Add the policies to the store to ensure that any future bundle
+			// activations will preserve them and re-compile the module with
+			// the bundle modules.
+			err := store.UpsertPolicy(ctx, txn, loadedModule.Name, loadedModule.Raw)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return modules, store, err
+}
+
+// LoadWithParserOptions returns modules and an in-memory store for running tests.
+// Modules are parsed in accordance with the given [ast.ParserOptions].
+func LoadWithParserOptions(args []string, filter loader.Filter, popts ast.ParserOptions) (map[string]*ast.Module, storage.Store, error) {
+	loaded, err := loader.NewFileLoader().
+		WithRegoVersion(popts.RegoVersion).
+		WithCapabilities(popts.Capabilities).
+		WithProcessAnnotation(popts.ProcessAnnotation).
+		WithJSONOptions(popts.JSONOptions).
 		Filtered(args, filter)
 	if err != nil {
 		return nil, nil, err
@@ -666,6 +702,32 @@ func LoadBundlesWithRegoVersion(args []string, filter loader.Filter, regoVersion
 		b, err := loader.NewFileLoader().
 			WithRegoVersion(regoVersion).
 			WithProcessAnnotation(true).
+			WithSkipBundleVerification(true).
+			WithFilter(filter).
+			AsBundle(bundleDir)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load bundle %s: %s", bundleDir, err)
+		}
+		bundles[bundleDir] = b
+	}
+
+	return bundles, nil
+}
+
+// LoadBundlesWithParserOptions will load the given args as bundles, either tarball or directory is OK.
+// Bundles are parsed in accordance with the given [ast.ParserOptions].
+func LoadBundlesWithParserOptions(args []string, filter loader.Filter, popts ast.ParserOptions) (map[string]*bundle.Bundle, error) {
+	if popts.RegoVersion == ast.RegoUndefined {
+		popts.RegoVersion = ast.DefaultRegoVersion
+	}
+
+	bundles := map[string]*bundle.Bundle{}
+	for _, bundleDir := range args {
+		b, err := loader.NewFileLoader().
+			WithRegoVersion(popts.RegoVersion).
+			WithCapabilities(popts.Capabilities).
+			WithProcessAnnotation(popts.ProcessAnnotation).
+			WithJSONOptions(popts.JSONOptions).
 			WithSkipBundleVerification(true).
 			WithFilter(filter).
 			AsBundle(bundleDir)

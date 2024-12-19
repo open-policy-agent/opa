@@ -57,6 +57,17 @@ func newBuildParams() buildParams {
 	}
 }
 
+func (p *buildParams) regoVersion() ast.RegoVersion {
+	if p.v0Compatible {
+		// v0 takes precedence over v1
+		return ast.RegoV0
+	}
+	if p.v1Compatible {
+		return ast.RegoV1
+	}
+	return ast.DefaultRegoVersion
+}
+
 func init() {
 
 	buildParams := newBuildParams()
@@ -292,7 +303,7 @@ func dobuild(params buildParams, args []string) error {
 	if params.capabilities.C != nil {
 		capabilities = params.capabilities.C
 	} else {
-		capabilities = ast.CapabilitiesForThisVersion()
+		capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(params.regoVersion()))
 	}
 
 	compiler := compile.New().
@@ -311,14 +322,7 @@ func dobuild(params buildParams, args []string) error {
 		WithPartialNamespace(params.ns).
 		WithFollowSymlinks(params.followSymlinks)
 
-	regoVersion := ast.DefaultRegoVersion
-	if params.v0Compatible {
-		// v0 takes precedence over v1
-		regoVersion = ast.RegoV0
-	} else if params.v1Compatible {
-		regoVersion = ast.RegoV1
-	}
-	compiler = compiler.WithRegoVersion(regoVersion)
+	compiler = compiler.WithRegoVersion(params.regoVersion())
 
 	if params.revision.isSet {
 		compiler = compiler.WithRevision(*params.revision.v)
