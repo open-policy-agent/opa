@@ -34,6 +34,21 @@ cases:
           - -6
           - -8
           - -10
+  - note: numbersrangestep/descending (cheap optimization)
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p = num if {
+          num := numbers.range_step(10, 3, 2)
+        }
+    want_result:
+      - x:
+          - 10
+          - 8
+          - 6
+          - 4
   - note: numbersrangestep/negative
     query: data.test.p = x
     modules:
