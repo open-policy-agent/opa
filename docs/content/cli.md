@@ -63,7 +63,7 @@ opa bench <query> [flags]
   -I, --stdin-input                     read input document from stdin
   -t, --target {rego,wasm}              set the runtime to exercise (default rego)
   -u, --unknowns stringArray            set paths to treat as unknown during partial evaluation (default [input])
-      --v0-compatible                   opt-in to OPA features and behaviors prior to the OPA v1.0 release. Takes precedence over --v1-compatible
+      --v0-compatible                   opt-in to OPA features and behaviors prior to the OPA v1.0 release
 ```
 
 ____
@@ -256,7 +256,7 @@ opa build <path> [<path> [...]] [flags]
       --signing-key string             set the secret (HMAC) or path of the PEM file containing the private key (RSA and ECDSA)
       --signing-plugin string          name of the plugin to use for signing/verification (see https://www.openpolicyagent.org/docs/latest/management-bundles/#signature-plugin
   -t, --target {rego,wasm,plan}        set the output bundle target type (default rego)
-      --v0-compatible                  opt-in to OPA features and behaviors prior to the OPA v1.0 release. Takes precedence over --v1-compatible
+      --v0-compatible                  opt-in to OPA features and behaviors prior to the OPA v1.0 release
       --verification-key string        set the secret (HMAC) or path of the PEM file containing the public key (RSA and ECDSA)
       --verification-key-id string     name assigned to the verification key used for bundle verification (default "default")
       --wasm-include-print             enable print statements inside of WebAssembly modules compiled by the compiler
@@ -324,7 +324,7 @@ opa capabilities [flags]
       --current          print current capabilities
       --file string      print capabilities defined by a file
   -h, --help             help for capabilities
-      --v0-compatible    opt-in to OPA features and behaviors prior to the OPA v1.0 release. Takes precedence over --v1-compatible
+      --v0-compatible    opt-in to OPA features and behaviors prior to the OPA v1.0 release
       --version string   print capabilities of a specific version
 ```
 
@@ -355,10 +355,10 @@ opa check <path> [path [...]] [flags]
   -h, --help                   help for check
       --ignore strings         set file and directory names to ignore during loading (e.g., '.*' excludes hidden files)
   -m, --max-errors int         set the number of errors to allow before compilation fails early (default 10)
-      --rego-v1                check for Rego v1 compatibility (policies must also be compatible with current OPA version)
   -s, --schema string          set schema file path or directory path
   -S, --strict                 enable compiler strict mode
-      --v0-compatible          opt-in to OPA features and behaviors prior to the OPA v1.0 release. Takes precedence over --v1-compatible
+      --v0-compatible          opt-in to OPA features and behaviors prior to the OPA v1.0 release
+      --v0-v1                  check for Rego v0 and v1 compatibility (policies must be compatible with both Rego versions)
 ```
 
 ____
@@ -379,8 +379,6 @@ from the outside world, or virtual documents, i.e values that are computed from 
 Given a policy like this:
 
 	package policy
-
-	import rego.v1
 
 	allow if is_admin
 
@@ -572,7 +570,7 @@ opa eval <query> [flags]
   -t, --target {rego,wasm}                                        set the runtime to exercise (default rego)
       --timeout duration                                          set eval timeout (default unlimited)
   -u, --unknowns stringArray                                      set paths to treat as unknown during partial evaluation (default [input])
-      --v0-compatible                                             opt-in to OPA features and behaviors prior to the OPA v1.0 release. Takes precedence over --v1-compatible
+      --v0-compatible                                             opt-in to OPA features and behaviors prior to the OPA v1.0 release
       --var-values                                                show local variable values in pretty trace output
 ```
 
@@ -634,7 +632,7 @@ opa exec <path> [<path> [...]] [flags]
       --set-file stringArray                 override config values with files on the command line (use commas to specify multiple values)
   -I, --stdin-input                          read input document from stdin rather than a static file
       --timeout duration                     set exec timeout with a Go-style duration, such as '5m 30s'. (default unlimited)
-      --v0-compatible                        opt-in to OPA features and behaviors prior to the OPA v1.0 release. Takes precedence over --v1-compatible
+      --v0-compatible                        opt-in to OPA features and behaviors prior to the OPA v1.0 release
 ```
 
 ____
@@ -652,7 +650,7 @@ is provided - this tool will use stdin.
 The format of the output is not defined specifically; whatever this tool outputs
 is considered correct format (with the exception of bugs).
 
-If the '-w' option is supplied, the 'fmt' command with overwrite the source file
+If the '-w' option is supplied, the 'fmt' command will overwrite the source file
 instead of printing to stdout.
 
 If the '-d' option is supplied, the 'fmt' command will output a diff between the
@@ -664,6 +662,25 @@ to stdout from the 'fmt' command.
 
 If the '--fail' option is supplied, the 'fmt' command will return a non zero exit
 code if a file would be reformatted.
+
+The 'fmt' command can be run in several compatibility modes for consuming and outputting
+different Rego versions:
+
+* 'opa fmt':
+  * v1 Rego is formatted to v1
+  * 'rego.v1'/'future.keywords' imports are NOT removed
+  * 'rego.v1'/'future.keywords' imports are NOT added if missing
+  * v0 rego is rejected
+* 'opa fmt --v0-compatible':
+  * v0 Rego is formatted to v0
+  * v1 Rego is rejected
+* 'opa fmt --v0-v1':
+  * v0 Rego is formatted to be compatible with v0 AND v1
+  * v1 Rego is rejected
+* 'opa fmt --v0-v1 --v1-compatible':
+  * v1 Rego is formatted to be compatible with v0 AND v1
+  * v0 Rego is rejected
+
 
 ```
 opa fmt [path [...]] [flags]
@@ -678,8 +695,8 @@ opa fmt [path [...]] [flags]
       --fail              non zero exit code on reformat
   -h, --help              help for fmt
   -l, --list              list all files who would change when formatted
-      --rego-v1           format module(s) to be compatible with both Rego v1 and current OPA version)
-      --v0-compatible     opt-in to OPA features and behaviors prior to the OPA v1.0 release. Takes precedence over --v1-compatible
+      --v0-compatible     opt-in to OPA features and behaviors prior to the OPA v1.0 release
+      --v0-v1             format module(s) to be compatible with both Rego v0 and v1
   -w, --write             overwrite the original source file
 ```
 
@@ -726,7 +743,7 @@ opa inspect <path> [<path> [...]] [flags]
   -a, --annotations            list annotations
   -f, --format {json,pretty}   set output format (default pretty)
   -h, --help                   help for inspect
-      --v0-compatible          opt-in to OPA features and behaviors prior to the OPA v1.0 release. Takes precedence over --v1-compatible
+      --v0-compatible          opt-in to OPA features and behaviors prior to the OPA v1.0 release
 ```
 
 ____
@@ -892,7 +909,7 @@ opa run [flags]
 ### Options
 
 ```
-  -a, --addr strings                         set listening address of the server (e.g., [ip]:<port> for TCP, unix://<path> for UNIX domain socket) (default [:8181])
+  -a, --addr strings                         set listening address of the server (e.g., [ip]:<port> for TCP, unix://<path> for UNIX domain socket) (default [localhost:8181])
       --authentication {token,tls,off}       set authentication scheme (default off)
       --authorization {basic,off}            set authorization scheme (default off)
   -b, --bundle                               load paths as bundle files or root directories
@@ -928,7 +945,7 @@ opa run [flags]
       --tls-cipher-suites strings            set list of enabled TLS 1.0–1.2 cipher suites (IANA)
       --tls-private-key-file string          set path of TLS private key file
       --unix-socket-perm string              specify the permissions for the Unix domain socket if used to listen for incoming connections (default "755")
-      --v0-compatible                        opt-in to OPA features and behaviors prior to the OPA v1.0 release. Takes precedence over --v1-compatible
+      --v0-compatible                        opt-in to OPA features and behaviors prior to the OPA v1.0 release
       --verification-key string              set the secret (HMAC) or path of the PEM file containing the public key (RSA and ECDSA)
       --verification-key-id string           name assigned to the verification key used for bundle verification (default "default")
   -w, --watch                                watch command line files for changes
@@ -1066,8 +1083,6 @@ Example policy (example/authz.rego):
 
 	package authz
 
-	import rego.v1
-
 	allow if {
 		input.path == ["users"]
 		input.method == "POST"
@@ -1081,8 +1096,6 @@ Example policy (example/authz.rego):
 Example test (example/authz_test.rego):
 
 	package authz_test
-
-	import rego.v1
 
 	import data.authz.allow
 
@@ -1147,7 +1160,7 @@ opa test <path> [path [...]] [flags]
   -t, --target {rego,wasm}                 set the runtime to exercise (default rego)
       --threshold float                    set coverage threshold and exit with non-zero status if coverage is less than threshold %
       --timeout duration                   set test timeout (default 5s, 30s when benchmarking)
-      --v0-compatible                      opt-in to OPA features and behaviors prior to the OPA v1.0 release. Takes precedence over --v1-compatible
+      --v0-compatible                      opt-in to OPA features and behaviors prior to the OPA v1.0 release
       --var-values                         show local variable values in test output
   -v, --verbose                            set verbose reporting mode
   -w, --watch                              watch command line files for changes

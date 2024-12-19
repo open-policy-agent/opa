@@ -1547,12 +1547,12 @@ func TestAddrWarningMessage(t *testing.T) {
 		name          string
 		addrSetByUser bool
 		containsMsg   bool
-		v1Compatible  bool
+		v0Compatible  bool
 	}{
-		{"WarningMessage", false, true, false},
 		{"NoWarningMessage", true, false, false},
-		{"V1Compatible", false, false, true},
-		{"V1InCompatible", false, true, false},
+		{"WarningMessage", false, true, true},
+		{"V0Compatible", false, true, true},
+		{"V0InCompatible", false, false, false},
 	}
 
 	for _, tc := range testCases {
@@ -1569,7 +1569,7 @@ func TestAddrWarningMessage(t *testing.T) {
 			params.Addrs = &[]string{"localhost:8181"}
 			params.AddrSetByUser = tc.addrSetByUser
 			params.GracefulShutdownPeriod = 1
-			params.V1Compatible = tc.v1Compatible
+			params.V0Compatible = tc.v0Compatible
 			rt, err := NewRuntime(ctx, params)
 			if err != nil {
 				t.Fatalf("Unexpected error %v", err)

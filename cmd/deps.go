@@ -74,8 +74,6 @@ Given a policy like this:
 
 	package policy
 
-	import rego.v1
-
 	allow if is_admin
 
 	is_admin if "admin" in input.user.roles

@@ -149,8 +149,6 @@ resources, supply the following policy to OPA:
 ```ruby
 package system.log
 
-import rego.v1
-
 mask contains "/input/password" if {
 	# OPA provides the entire decision log event as input to the masking policy.
 	# Refer to the original input document under input.input.
@@ -214,8 +212,6 @@ operations
 ```ruby
 package system.log
 
-import rego.v1
-
 mask contains {"op": "upsert", "path": "/input/password", "value": "**REDACTED**"} if {
 	# conditionally upsert password if it existed in the original event
 	input.input.password
@@ -227,8 +223,6 @@ the following rule format can be used.
 
 ```ruby
 package system.log
-
-import rego.v1
 
 # always upsert, no conditions in rule body
 mask contains {"op": "upsert", "path": "/input/password", "value": "**REDACTED**"}
@@ -268,8 +262,6 @@ This rule will drop all requests to the _allow_ rule in the _kafka_ package, tha
 ```live:drop_rule_example/kafka_allow_rule:module:read_only
 package system.log
 
-import rego.v1
-
 drop if {
 	input.path == "kafka/allow"
 	input.result == true
@@ -281,8 +273,6 @@ Log only requests for _delete_ and _alter_ operations
 
 ```live:drop_rule_example/log_only_delete_alter_operations:module:read_only
 package system.log
-
-import rego.v1
 
 drop if {
 	input.path == "kafka/allow"

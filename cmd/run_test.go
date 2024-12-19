@@ -59,7 +59,7 @@ func TestRunServerBaseListenOnLocalhost(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	rt, err := initRuntime(ctx, params, nil, false)
+	rt, err := initRuntime(ctx, params, nil, true)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -436,7 +436,7 @@ func TestInitRuntimeAddrSetByUser(t *testing.T) {
 func newTestRunParams() runCmdParams {
 	params := newRunParams()
 	params.rt.GracefulShutdownPeriod = 1
-	params.rt.Addrs = &[]string{"localhost:0"}
+	params.rt.Addrs = &[]string{"localhost:8181"}
 	params.rt.DiagnosticAddrs = &[]string{}
 	params.serverMode = true
 	return params
