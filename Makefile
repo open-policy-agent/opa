@@ -499,14 +499,14 @@ endif
 		-e GITHUB_TOKEN=$(GITHUB_TOKEN) \
 		-e LAST_VERSION=$(LAST_VERSION) \
 		-v $(PWD):/_src:Z \
-		ashtalk/python-go-perl:v1 \
+		ashtalk/python-go-perl:v2 \
 		/_src/build/gen-release-patch.sh --version=$(VERSION) --source-url=/_src
 
 .PHONY: dev-patch
 dev-patch:
 	@$(DOCKER) run $(DOCKER_FLAGS) \
 		-v $(PWD):/_src:Z \
-		ashtalk/python-go-perl:v1 \
+		ashtalk/python-go-perl:v2 \
 		/_src/build/gen-dev-patch.sh --version=$(VERSION) --source-url=/_src
 
 # Deprecated targets. To be removed.
