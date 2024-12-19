@@ -107,8 +107,14 @@ func generateCheapRange(operands []*ast.Term, iter func(*ast.Term) error) error 
 
 	terms := make([]*ast.Term, 0, y+1)
 
-	for i := x; i <= y; i += step {
-		terms = append(terms, ast.InternedIntNumberTerm(i))
+	if x <= y {
+		for i := x; i <= y; i += step {
+			terms = append(terms, ast.InternedIntNumberTerm(i))
+		}
+	} else {
+		for i := x; i >= y; i -= step {
+			terms = append(terms, ast.InternedIntNumberTerm(i))
+		}
 	}
 
 	return iter(ast.ArrayTerm(terms...))
