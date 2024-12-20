@@ -19,7 +19,7 @@ Below we highlight some key changes to the defaults in OPA 1.0:
 - Using `if` for all rule definitions and `contains` for multi-value rules is now mandatory, not just when using the `rego.v1` import.
 - Other new keywords (`every`, `in`) are available without any imports.
 - Previously requirements that were only run in "strict mode" (like `opa check --strict`) are now the default. Duplicate imports and imports which shadow each other are no longer allowed.
-- OPA 1.0 comes with a range of backwards compatibility features to aid your migrations, please see the [v0 compatibility guide](https://www.openpolicyagent.org/docs/edge/v0-compatibility/)
+- OPA 1.0 comes with a range of backwards compatibility features to aid your migrations, please see the [v0 compatibility guide](https://www.openpolicyagent.org/docs/latest/v0-compatibility/)
 if you must continue to support v0 Rego.
 
 Read more about the OPA 1.0 announcement on the [OPA blog](https://blog.openpolicyagent.org/).
@@ -78,7 +78,7 @@ Authored by @philipaconrad.
 
 
 ### Topdown and Rego
-- topdown: move context.Context cancellation check by @srenatus in [#7210](https://github.com/open-policy-agent/opa/pull/7210)
+
 - Provide a more useful error message when there are conflicting default rules by @tjons in [#7164](https://github.com/open-policy-agent/opa/pull/7164)
 - Fix test flakes in `topdown/cache` by @evankanderson in [#7188](https://github.com/open-policy-agent/opa/pull/7188)
 - Add description to all built-in function args and return values by @anderseknert in [#7153](https://github.com/open-policy-agent/opa/pull/7153)
