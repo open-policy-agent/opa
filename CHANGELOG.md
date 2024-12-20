@@ -16,9 +16,9 @@ The release makes new functionality designed to simplify policy writing and impr
 
 Below we highlight some key changes to the defaults in OPA 1.0:
 
-- The `if` & `contains` keywords are now mandatory when declaring rule heads, not just when using the `rego.v1` import.
+- Using `if` for all rule definitions and `contains` for multi-value rules is now mandatory, not just when using the `rego.v1` import.
 - Other new keywords (`every`, `in`) are available without any imports.
-- Previously rules reserved for `opa check --strict` are now the default. Duplicate imports and imports which shadow each other are no longer allowed.
+- Previously requirements that were only run in "strict mode" (like `opa check --strict`) are now the default. Duplicate imports and imports which shadow each other are no longer allowed.
 - OPA 1.0 comes with a range of backwards compatibility features to aid your migrations, please see the [v0 compatibility guide](https://www.openpolicyagent.org/docs/edge/v0-compatibility/)
 if you must continue to support v0 Rego.
 
@@ -62,6 +62,7 @@ setting of user defined buckets for metrics. This aids when debugging the loadin
 Authored by @jwu730-1.
 
 ### Test suite performance improvements
+
 PR [#7126](https://github.com/open-policy-agent/opa/pull/7126) updates tests to improve performance. Topdown and `storage/disk/`
 tests now run around 50% and 75% faster respectively.
 
@@ -79,7 +80,7 @@ Authored by @philipaconrad.
 ### Topdown and Rego
 - topdown: move context.Context cancellation check by @srenatus in [#7210](https://github.com/open-policy-agent/opa/pull/7210)
 - Provide a more useful error message when there are conflicting default rules by @tjons in [#7164](https://github.com/open-policy-agent/opa/pull/7164)
-- Fix flakes in `topdown/cache` by @evankanderson in [#7188](https://github.com/open-policy-agent/opa/pull/7188)
+- Fix test flakes in `topdown/cache` by @evankanderson in [#7188](https://github.com/open-policy-agent/opa/pull/7188)
 - Add description to all built-in function args and return values by @anderseknert in [#7153](https://github.com/open-policy-agent/opa/pull/7153)
 - Built-in function `to_number` now rejects "Inf", "Infinity" and "NaN" values by @sikehish in [#7203](https://github.com/open-policy-agent/opa/pull/7203)
 - Update eval_cancel_error logic to separate context canceled, timeout errors by @mchitten in [#7202](https://github.com/open-policy-agent/opa/pull/7202)
@@ -88,7 +89,7 @@ Authored by @philipaconrad.
 
 - Respect runtime rego-version in RESTful policy API by @johanfylling in [#7183](https://github.com/open-policy-agent/opa/pull/7183)
 - Debugger: allow YAML to be used as input by @anderseknert in [#7178](https://github.com/open-policy-agent/opa/pull/7178)
-- `opa build`: provide an option to preserve print statements (#7194) by @me-viper in [#7195](https://github.com/open-policy-agent/opa/pull/7195)
+- `opa build`: provide an option to preserve print statements for the "wasm" target (#7194) by @me-viper in [#7195](https://github.com/open-policy-agent/opa/pull/7195)
 - Fix improper formatter behavior when comprehension contains comment by @tjons in [#7169](https://github.com/open-policy-agent/opa/pull/7169)
 - runtime: send version report less often when OPA long-running by @srenatus in [#7211](https://github.com/open-policy-agent/opa/pull/7211)
 - `opa eval`: Return error if illegal arguments passed with `--unknowns` flag by @kd-labs in [#7149](https://github.com/open-policy-agent/opa/pull/7149)
