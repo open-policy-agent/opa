@@ -70,12 +70,6 @@ export default async function localEval(groups, groupName, opaVersion) {
 async function prepEval(groups, groupName, opaVersion) {
   const {module, package: pkg, query, input, included} = getGroupData(groups, groupName)
   const base = ['eval', '--fail'] // Fail on undefined
-
-  // eval pre-1.0 policies in v0 compatible mode.
-  if (semver.valid(opaVersion) && semver.satisfies(semver.coerce(opaVersion), '<1.0.0')) {
-    base.push('--v0-compatible')
-  }
-
   const rest = []
   const moduleFilenameMap = {}
 
