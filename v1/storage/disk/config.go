@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"os"
 
-	badger "github.com/dgraph-io/badger/v3"
+	badger "github.com/dgraph-io/badger/v4"
 	"github.com/open-policy-agent/opa/v1/config"
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/util"
