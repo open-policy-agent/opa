@@ -207,6 +207,7 @@ When Envoy receives a policy decision, it expects a JSON object with the followi
 * `http_status` (optional): a number representing the HTTP status code
 * `body` (optional): the response body
 * `dynamic_metadata` (optional): an object representing dynamic metadata to be consumed by the next Envoy filter.
+* `query_parameters_to_remove` (optional): is an array containing the names of string query parameters to be removed.
 
 To construct that output object using the policies demonstrated in the last section, you can use the following Rego snippet.  Notice that we are using partial object rules so that any variables with undefined values simply have no key in the `result` object.
 
@@ -218,6 +219,7 @@ result["request_headers_to_remove"] := request_headers_to_remove
 result["body"] := body
 result["http_status"] := status_code
 result["dynamic_metadata"] := dynamic_metadata
+result["query_parameters_to_remove"] := query_parameters_to_remove
 ```
 
 For a single user, including this snippet in your normal policy is fine, but when you have multiple teams writing policies, you will typically pull this bit of boilerplate into a wrapper package, so your teams can focus on writing the policies shown in the previous sections.
