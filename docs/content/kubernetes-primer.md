@@ -50,7 +50,7 @@ spec:
     name: mysql-backend
 ```
 
-The admission review request to sent to OPA would look like this:
+The admission review request to be sent to OPA would look like this:
 
 ```live:container_images:input
 {
