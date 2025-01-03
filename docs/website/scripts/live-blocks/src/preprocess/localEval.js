@@ -69,7 +69,7 @@ export default async function localEval(groups, groupName, opaVersion) {
 // Returns 1st a function that consumes a string for the output format you want and produces an array of arguments and 2nd a map of module file names to strings that should be replaced in error messages. May throw a user-friendly error.
 async function prepEval(groups, groupName, opaVersion) {
   const {module, package: pkg, query, input, included} = getGroupData(groups, groupName)
-  const base = ['eval', '--fail', '--v1-compatible'] // Fail on undefined
+  const base = ['eval', '--fail'] // Fail on undefined
   const rest = []
   const moduleFilenameMap = {}
 
