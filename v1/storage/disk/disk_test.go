@@ -19,7 +19,7 @@ import (
 
 	"github.com/open-policy-agent/opa/v1/bundle"
 
-	badger "github.com/dgraph-io/badger/v3"
+	badger "github.com/dgraph-io/badger/v4"
 
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/storage"
