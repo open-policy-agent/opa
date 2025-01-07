@@ -15,7 +15,6 @@ import (
 )
 
 func TestNewMaskRule(t *testing.T) {
-
 	tests := []struct {
 		note   string
 		input  *maskRule
@@ -181,7 +180,6 @@ func TestNewMaskRule(t *testing.T) {
 }
 
 func TestMaskRuleMask(t *testing.T) {
-
 	tests := []struct {
 		note   string
 		ptr    *maskRule
@@ -487,19 +485,68 @@ func TestMaskRuleMask(t *testing.T) {
 			exp:   `{"input": {"foo": [{"baz": 1}]}}`,
 		},
 		{
-			note: "erase: undefined array: remove element",
+			note: "erase: array: remove element",
 			ptr: &maskRule{
 				OP:   maskOPRemove,
 				Path: "/input/foo/0",
 			},
 			event: `{"input": {"foo": [1]}}`,
-			exp:   `{"input": {"foo": [1]}}`,
+			exp:   `{"input": {"foo": []}, "erased": ["/input/foo/0"]}`,
 		},
 		{
-			note: "upsert: unsupported nested object type (array) #2",
+			note: "erase: array: remove element with deeper nesting",
 			ptr: &maskRule{
-				OP:   maskOPUpsert,
-				Path: "/input/foo/0",
+				OP:   maskOPRemove,
+				Path: "/input/foo/0/bar/1",
+			},
+			event: `{"input": {"foo": [{"bar": [1, 2]}]}}`,
+			exp:   `{"input": {"foo": [{"bar": [1]}]}, "erased": ["/input/foo/0/bar/1"]}`,
+		},
+		{
+			note: "erase: array: remove element that does not exist",
+			ptr: &maskRule{
+				OP:   maskOPRemove,
+				Path: "/input/foo/0/bar/9",
+			},
+			event: `{"input": {"foo": [{"bar": [1, 2]}]}}`,
+			exp:   `{"input": {"foo": [{"bar": [1, 2]}]}}`,
+		},
+		{
+			note: "upsert: array: upsert element",
+			ptr: &maskRule{
+				OP:    maskOPUpsert,
+				Path:  "/input/foo/0",
+				Value: 2,
+			},
+			event: `{"input": {"foo": [1]}}`,
+			exp:   `{"input": {"foo": [2]}, "masked": ["/input/foo/0"]}`,
+		},
+		{
+			note: "upsert: array: upsert nested array element",
+			ptr: &maskRule{
+				OP:    maskOPUpsert,
+				Path:  "/input/foo/0/bar/0",
+				Value: 2,
+			},
+			event: `{"input": {"foo": [{"bar": [1]}]}}`,
+			exp:   `{"input": {"foo": [{"bar": [2]}]}, "masked": ["/input/foo/0/bar/0"]}`,
+		},
+		{
+			note: "upsert: array: upsert element in 2d array",
+			ptr: &maskRule{
+				OP:    maskOPUpsert,
+				Path:  "/input/foo/0/0",
+				Value: 2,
+			},
+			event: `{"input": {"foo": [[1]]}}`,
+			exp:   `{"input": {"foo": [[2]]}, "masked": ["/input/foo/0/0"]}`,
+		},
+		{
+			note: "upsert: array: upsert element that does not exist",
+			ptr: &maskRule{
+				OP:    maskOPUpsert,
+				Path:  "/input/foo/1",
+				Value: 2,
 			},
 			event: `{"input": {"foo": [1]}}`,
 			exp:   `{"input": {"foo": [1]}}`,
@@ -564,7 +611,6 @@ func TestMaskRuleMask(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-
 			ptr, err := newMaskRule(tc.ptr.Path, withOP(tc.ptr.OP), withValue(tc.ptr.Value))
 			if tc.ptr.failUndefinedPath {
 				_ = withFailUndefinedPath()(ptr)
@@ -641,7 +687,6 @@ func TestNewMaskRuleSet(t *testing.T) {
 }
 
 func TestMaskRuleSetMask(t *testing.T) {
-
 	tests := []struct {
 		note   string
 		rules  []*maskRule
