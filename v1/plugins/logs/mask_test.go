@@ -542,6 +542,16 @@ func TestMaskRuleMask(t *testing.T) {
 			exp:   `{"input": {"foo": [[2]]}, "masked": ["/input/foo/0/0"]}`,
 		},
 		{
+			note: "upsert: array: upsert element that does not exist",
+			ptr: &maskRule{
+				OP:    maskOPUpsert,
+				Path:  "/input/foo/1",
+				Value: 2,
+			},
+			event: `{"input": {"foo": [1]}}`,
+			exp:   `{"input": {"foo": [1]}}`,
+		},
+		{
 			note: "erase: object key",
 			ptr: &maskRule{
 				OP:   maskOPRemove,
