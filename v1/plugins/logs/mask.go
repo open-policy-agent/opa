@@ -200,30 +200,6 @@ func (r maskRule) Mask(event *EventV1) error {
 	return nil
 }
 
-func (r maskRule) lookup(p []string, node interface{}) (interface{}, error) {
-	for i := 0; i < len(p); i++ {
-		switch v := node.(type) {
-		case map[string]interface{}:
-			var ok bool
-			if node, ok = v[p[i]]; !ok {
-				return nil, errMaskInvalidObject
-			}
-		case []interface{}:
-			idx, err := strconv.Atoi(p[i])
-			if err != nil {
-				return nil, errMaskInvalidObject
-			} else if idx < 0 || idx >= len(v) {
-				return nil, errMaskInvalidObject
-			}
-			node = v[idx]
-		default:
-			return nil, errMaskInvalidObject
-		}
-	}
-
-	return node, nil
-}
-
 func (r maskRule) removeValue(p []string, node interface{}) error {
 	if len(p) == 0 {
 		return nil
