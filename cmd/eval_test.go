@@ -1872,17 +1872,18 @@ time.clock(input.y, time.clock(input.x))
 	}
 }
 
-func TestEvalPartialRegoVersionOutput(t *testing.T) {
+func TestEvalPartialOutput_RegoVersion(t *testing.T) {
 	tests := []struct {
 		note                string
 		regoV1ImportCapable bool
-		v1Compatible        bool
+		v0Compatible        bool
 		query               string
 		module              string
-		expected            string
+		expected            map[string]string
 	}{
 		{
 			note:                "v0, no future keywords",
+			v0Compatible:        true,
 			regoV1ImportCapable: true,
 			query:               "data.test.p",
 			module: `package test
@@ -1891,9 +1892,9 @@ p[v] {
 	v := input.v
 }
 `,
-			expected: `# Query 1
-data.partial.test.p = _term_0_0
-_term_0_0
+			expected: map[string]string{
+				evalSourceOutput: `# Query 1
+data.partial.test.p
 
 # Module 1
 package partial.test
@@ -1902,9 +1903,21 @@ import rego.v1
 
 p contains __local0__1 if __local0__1 = input.v
 `,
+				evalPrettyOutput: `+-----------+-------------------------------------------------+
+| Query 1   | data.partial.test.p                             |
++-----------+-------------------------------------------------+
+| Support 1 | package partial.test                            |
+|           |                                                 |
+|           | import rego.v1                                  |
+|           |                                                 |
+|           | p contains __local0__1 if __local0__1 = input.v |
++-----------+-------------------------------------------------+
+`,
+			},
 		},
 		{
 			note:                "v0, no future keywords, not rego.v1 import capable",
+			v0Compatible:        true,
 			regoV1ImportCapable: false,
 			query:               "data.test.p",
 			module: `package test
@@ -1913,9 +1926,9 @@ p[v] {
 	v := input.v
 }
 `,
-			expected: `# Query 1
-data.partial.test.p = _term_0_0
-_term_0_0
+			expected: map[string]string{
+				evalSourceOutput: `# Query 1
+data.partial.test.p
 
 # Module 1
 package partial.test
@@ -1924,9 +1937,21 @@ p[__local0__1] {
 	__local0__1 = input.v
 }
 `,
+				evalPrettyOutput: `+-----------+-------------------------+
+| Query 1   | data.partial.test.p     |
++-----------+-------------------------+
+| Support 1 | package partial.test    |
+|           |                         |
+|           | p[__local0__1] {        |
+|           |   __local0__1 = input.v |
+|           | }                       |
++-----------+-------------------------+
+`,
+			},
 		},
 		{
 			note:                "v0, future keywords",
+			v0Compatible:        true,
 			regoV1ImportCapable: true,
 			query:               "data.test.p",
 			module: `package test
@@ -1937,9 +1962,9 @@ p contains v if {
 	v := input.v
 }
 `,
-			expected: `# Query 1
-data.partial.test.p = _term_0_0
-_term_0_0
+			expected: map[string]string{
+				evalSourceOutput: `# Query 1
+data.partial.test.p
 
 # Module 1
 package partial.test
@@ -1948,11 +1973,22 @@ import rego.v1
 
 p contains __local0__1 if __local0__1 = input.v
 `,
+				evalPrettyOutput: `+-----------+-------------------------------------------------+
+| Query 1   | data.partial.test.p                             |
++-----------+-------------------------------------------------+
+| Support 1 | package partial.test                            |
+|           |                                                 |
+|           | import rego.v1                                  |
+|           |                                                 |
+|           | p contains __local0__1 if __local0__1 = input.v |
++-----------+-------------------------------------------------+
+`,
+			},
 		},
 		{
 			note:                "v1",
 			regoV1ImportCapable: true,
-			v1Compatible:        true,
+			v0Compatible:        false,
 			query:               "data.test.p",
 			module: `package test
 
@@ -1960,52 +1996,95 @@ p contains v if {
 	v := input.v
 }
 `,
-			expected: `# Query 1
-data.partial.test.p = _term_0_0
-_term_0_0
+			expected: map[string]string{
+				evalSourceOutput: `# Query 1
+data.partial.test.p
 
 # Module 1
 package partial.test
 
 p contains __local0__1 if __local0__1 = input.v
 `,
+				evalPrettyOutput: `+-----------+-------------------------------------------------+
+| Query 1   | data.partial.test.p                             |
++-----------+-------------------------------------------------+
+| Support 1 | package partial.test                            |
+|           |                                                 |
+|           | p contains __local0__1 if __local0__1 = input.v |
++-----------+-------------------------------------------------+
+`,
+			},
+		},
+		{
+			note:                "v1, rego.v1 import",
+			regoV1ImportCapable: true,
+			v0Compatible:        false,
+			query:               "data.test.p",
+			module: `package test
+
+import rego.v1
+
+p contains v if {
+	v := input.v
+}
+`,
+			expected: map[string]string{
+				evalSourceOutput: `# Query 1
+data.partial.test.p
+
+# Module 1
+package partial.test
+
+p contains __local0__1 if __local0__1 = input.v
+`,
+				evalPrettyOutput: `+-----------+-------------------------------------------------+
+| Query 1   | data.partial.test.p                             |
++-----------+-------------------------------------------------+
+| Support 1 | package partial.test                            |
+|           |                                                 |
+|           | p contains __local0__1 if __local0__1 = input.v |
++-----------+-------------------------------------------------+
+`,
+			},
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			files := map[string]string{
-				"test.rego": tc.module,
-			}
-
-			test.WithTempFS(files, func(path string) {
-				params := newEvalCommandParams()
-				_ = params.dataPaths.Set(filepath.Join(path, "test.rego"))
-				params.partial = true
-				params.shallowInlining = true
-				params.v0Compatible = !tc.v1Compatible
-				params.v1Compatible = tc.v1Compatible
-				_ = params.outputFormat.Set(evalSourceOutput)
-
-				if !tc.regoV1ImportCapable {
-					caps := newcapabilitiesFlag()
-					caps.C = ast.CapabilitiesForThisVersion()
-					caps.C.Features = []string{
-						ast.FeatureRefHeadStringPrefixes,
-						ast.FeatureRefHeads,
+			for format, expected := range tc.expected {
+				t.Run(format, func(t *testing.T) {
+					files := map[string]string{
+						"test.rego": tc.module,
 					}
-					params.capabilities = caps
-				}
 
-				buf := new(bytes.Buffer)
-				_, err := eval([]string{tc.query}, params, buf)
-				if err != nil {
-					t.Fatal("unexpected error:", err)
-				}
-				if actual := buf.String(); actual != tc.expected {
-					t.Errorf("expected output %q\ngot %q", tc.expected, actual)
-				}
-			})
+					test.WithTempFS(files, func(path string) {
+						params := newEvalCommandParams()
+						_ = params.dataPaths.Set(filepath.Join(path, "test.rego"))
+						params.partial = true
+						params.v0Compatible = tc.v0Compatible
+						_ = params.outputFormat.Set(format)
+
+						if !tc.regoV1ImportCapable {
+							caps := newcapabilitiesFlag()
+							caps.C = ast.CapabilitiesForThisVersion()
+							caps.C.Features = []string{
+								ast.FeatureRefHeadStringPrefixes,
+								ast.FeatureRefHeads,
+							}
+							params.capabilities = caps
+						}
+
+						buf := new(bytes.Buffer)
+						_, err := eval([]string{tc.query}, params, buf)
+						if err != nil {
+							t.Fatal("unexpected error:", err)
+						}
+						if actual := buf.String(); actual != expected {
+							t.Errorf("expected output:\n\n%s\n\ngot:\n\n%s", expected, actual)
+						}
+					})
+				})
+			}
 		})
 	}
 }

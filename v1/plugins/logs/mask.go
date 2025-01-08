@@ -24,9 +24,7 @@ const (
 	partNDBCache = "nd_builtin_cache"
 )
 
-var (
-	errMaskInvalidObject = fmt.Errorf("mask upsert invalid object")
-)
+var errMaskInvalidObject = fmt.Errorf("mask upsert invalid object")
 
 type maskRule struct {
 	OP                maskOP      `json:"op"`
@@ -79,7 +77,7 @@ func newMaskRule(path string, opts ...maskRuleOption) (*maskRule, error) {
 		escapedParts[i] = url.PathEscape(parts[i])
 	}
 
-	modifyFullObj := false
+	var modifyFullObj bool
 	if len(escapedParts) == 1 {
 		modifyFullObj = true
 	}
@@ -126,7 +124,6 @@ func withFailUndefinedPath() maskRuleOption {
 }
 
 func (r maskRule) Mask(event *EventV1) error {
-
 	var maskObj *interface{}     // pointer to event Input|Result|NDBCache object
 	var maskObjPtr **interface{} // pointer to the event Input|Result|NDBCache pointer itself
 
@@ -167,28 +164,16 @@ func (r maskRule) Mask(event *EventV1) error {
 		if r.modifyFullObj {
 			*maskObjPtr = nil
 		} else {
-
-			parent, err := r.lookup(r.escapedParts[1:len(r.escapedParts)-1], *maskObj)
+			err := r.removeValue(r.escapedParts[1:], *maskObj)
 			if err != nil {
 				if err == errMaskInvalidObject && r.failUndefinedPath {
 					return err
 				}
-			}
-			parentObj, ok := parent.(map[string]interface{})
-			if !ok {
 				return nil
 			}
-
-			fld := r.escapedParts[len(r.escapedParts)-1]
-			if _, ok := parentObj[fld]; !ok {
-				return nil
-			}
-
-			delete(parentObj, fld)
-
 		}
-		event.Erased = append(event.Erased, r.String())
 
+		event.Erased = append(event.Erased, r.String())
 	case maskOPUpsert:
 		if r.modifyFullObj {
 			*maskObjPtr = &r.Value
@@ -206,71 +191,148 @@ func (r maskRule) Mask(event *EventV1) error {
 				return nil
 			}
 		}
-		event.Masked = append(event.Masked, r.String())
 
+		event.Masked = append(event.Masked, r.String())
 	default:
 		return fmt.Errorf("illegal mask op value: %s", r.OP)
 	}
 
 	return nil
-
 }
 
-func (r maskRule) lookup(p []string, node interface{}) (interface{}, error) {
-	for i := 0; i < len(p); i++ {
-		switch v := node.(type) {
-		case map[string]interface{}:
-			var ok bool
-			if node, ok = v[p[i]]; !ok {
-				return nil, errMaskInvalidObject
-			}
-		case []interface{}:
-			idx, err := strconv.Atoi(p[i])
-			if err != nil {
-				return nil, errMaskInvalidObject
-			} else if idx < 0 || idx >= len(v) {
-				return nil, errMaskInvalidObject
-			}
-			node = v[idx]
-		default:
-			return nil, errMaskInvalidObject
-		}
-	}
-
-	return node, nil
-}
-
-func (r maskRule) mkdirp(node map[string]interface{}, path []string, value interface{}) error {
-	if len(path) == 0 {
+func (r maskRule) removeValue(p []string, node interface{}) error {
+	if len(p) == 0 {
 		return nil
 	}
 
-	// create intermediate nodes
-	for i := 0; i < len(path)-1; i++ {
-		child, ok := node[path[i]]
+	// the key or index to be removed
+	targetKey := p[len(p)-1]
 
-		if !ok {
-			child := map[string]interface{}{}
-			node[path[i]] = child
+	// nodeParent stores the parent of the node to be modified during the
+	// removal, this is only needed when the node is a slice
+	var nodeParent interface{}
+	// nodeKey stores the key of the node to be modified relative to the parent
+	var nodeKey string
+
+	// Walk to the parent of the target to be removed, the nodeParent is cached
+	// support removing of slice values
+	for i := 0; i < len(p)-1; i++ {
+		switch v := node.(type) {
+		case map[string]interface{}:
+			child, ok := v[p[i]]
+			if !ok {
+				return errMaskInvalidObject
+			}
+			nodeParent = v
+			nodeKey = p[i]
 			node = child
-			continue
+
+		case []interface{}:
+			index, err := strconv.Atoi(p[i])
+			if err != nil || index < 0 || index >= len(v) {
+				return errMaskInvalidObject
+			}
+			nodeParent = v
+			nodeKey = p[i]
+			node = v[index]
+
+		default:
+			return errMaskInvalidObject
+		}
+	}
+
+	switch v := node.(type) {
+	case map[string]interface{}:
+		if _, ok := v[targetKey]; !ok {
+			return errMaskInvalidObject
 		}
 
-		switch obj := child.(type) {
+		delete(v, targetKey)
+
+	case []interface{}:
+		// first, check the targetKey is a valid index
+		targetIndex, err := strconv.Atoi(targetKey)
+		if err != nil || targetIndex < 0 || targetIndex >= len(v) {
+			return errMaskInvalidObject
+		}
+
+		switch nodeParent := nodeParent.(type) {
+		case []interface{}:
+			// update the target's grandparent slice with a new slice
+			index, err := strconv.Atoi(nodeKey)
+			if err != nil {
+				return errMaskInvalidObject
+			}
+
+			nodeParent[index] = append(v[:targetIndex], v[targetIndex+1:]...)
+
 		case map[string]interface{}:
-			node = obj
+			nodeParent[nodeKey] = append(v[:targetIndex], v[targetIndex+1:]...)
+
 		default:
 			return errMaskInvalidObject
 		}
 
+	default:
+		return errMaskInvalidObject
 	}
 
-	node[path[len(path)-1]] = value
+	return nil
+}
+
+func (r maskRule) mkdirp(node interface{}, path []string, value interface{}) error {
+	if len(path) == 0 {
+		return nil
+	}
+
+	for i := 0; i < len(path)-1; i++ {
+		switch v := node.(type) {
+		case map[string]interface{}:
+			child, ok := v[path[i]]
+			if !ok {
+				child = map[string]interface{}{}
+				v[path[i]] = child
+			}
+
+			node = child
+
+		case []interface{}:
+			idx, err := strconv.Atoi(path[i])
+			if err != nil || idx < 0 {
+				return errMaskInvalidObject
+			}
+
+			for len(v) <= idx {
+				v = append(v, nil)
+			}
+
+			node = v[idx]
+
+		default:
+			return errMaskInvalidObject
+		}
+	}
+
+	switch v := node.(type) {
+	case map[string]interface{}:
+		v[path[len(path)-1]] = value
+
+	case []interface{}:
+		idx, err := strconv.Atoi(path[len(path)-1])
+		if err != nil || idx < 0 || idx >= len(v) {
+			return errMaskInvalidObject
+		}
+		v[idx] = value
+
+	default:
+		return errMaskInvalidObject
+	}
+
 	return nil
 }
 
 func newMaskRuleSet(rv interface{}, onRuleError func(*maskRule, error)) (*maskRuleSet, error) {
-	var mRuleSet = &maskRuleSet{
+	mRuleSet := &maskRuleSet{
 		OnRuleError: onRuleError,
 	}
 	rawRules, ok := rv.([]interface{})
@@ -279,7 +341,6 @@ func newMaskRuleSet(rv interface{}, onRuleError func(*maskRule, error)) (*maskRu
 	}
 
 	for _, iface := range rawRules {
-
 		switch v := iface.(type) {
 
 		case string:
@@ -310,12 +371,10 @@ func newMaskRuleSet(rv interface{}, onRuleError func(*maskRule, error)) (*maskRu
 
 			// use unmarshalled values to create new Mask Rule
 			rule, err := newMaskRule(rule.Path, withOP(rule.OP), withValue(rule.Value))
-
 			// TODO add withFailUndefinedPath() option based on
 			//   A) new syntax in user defined mask rule
 			//   B) passed in/global configuration option
 			//   rule precedence A>B
-
 			if err != nil {
 				return nil, err
 			}

@@ -137,12 +137,9 @@ issues:
         - staticcheck
       text: "SA1019"
 
-linter-settings:
+linters-settings:
   lll:
     line-length: 200
-
-  misspell:
-    locale: US
 
 linters:
   disable-all: true
