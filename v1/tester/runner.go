@@ -398,20 +398,33 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 }
 
 func (r *Runner) shouldRun(rule *ast.Rule, testRegex *regexp.Regexp) bool {
-	ruleName := ruleName(rule.Head)
+	var ref ast.Ref
 
-	// All tests must have the right prefix
-	if !strings.HasPrefix(ruleName, TestPrefix) && !strings.HasPrefix(ruleName, SkipTestPrefix) {
-		return false
+	for _, term := range rule.Head.Ref().GroundPrefix() {
+		ref = ref.Append(term)
+
+		var n string
+		switch v := term.Value.(type) {
+		case ast.Var:
+			n = string(v)
+		case ast.String:
+			n = string(v)
+		default:
+			n = ""
+		}
+
+		if strings.HasPrefix(n, TestPrefix) || strings.HasPrefix(n, SkipTestPrefix) {
+			// Even with the prefix it needs to pass the regex (if applicable)
+			fullName := ref.String()
+			if testRegex != nil && !testRegex.MatchString(fullName) {
+				return false
+			}
+
+			return true
+		}
 	}
 
-	// Even with the prefix it needs to pass the regex (if applicable)
-	fullName := rule.Ref().String()
-	if testRegex != nil && !testRegex.MatchString(fullName) {
-		return false
-	}
-
-	return true
+	return false
 }
 
 // rewriteDuplicateTestNames will rewrite duplicate test names to have a numbered suffix.
