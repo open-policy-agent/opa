@@ -254,36 +254,21 @@ func (r *Runner) Target(target string) *Runner {
 	return r
 }
 
-func getFailedAtFromTrace(bufFailureLineTracer *topdown.BufferTracer) *ast.Expr {
-	events := *bufFailureLineTracer
-	const SecondToLast = 2
-	eventsLen := len(events)
-	for i, opFail := eventsLen-1, 0; i >= 0; i-- {
-		if events[i].Op == topdown.FailOp {
-			opFail++
-		}
-		if opFail == SecondToLast {
-			return events[i].Node.(*ast.Expr)
-		}
-	}
-	return nil
-}
-
 // Run executes all tests contained in supplied modules.
 // Deprecated: Use RunTests and the Runner#SetModules or Runner#SetBundles
 // helpers instead. This will NOT use the modules or bundles set on the Runner.
-func (r *Runner) Run(ctx context.Context, modules map[string]*ast.Module) (ch chan *Result, err error) {
+func (r *Runner) Run(ctx context.Context, modules map[string]*ast.Module) (chan *Result, error) {
 	return r.SetModules(modules).RunTests(ctx, nil)
 }
 
 // RunTests executes tests found in either modules or bundles loaded on the runner.
-func (r *Runner) RunTests(ctx context.Context, txn storage.Transaction) (ch chan *Result, err error) {
+func (r *Runner) RunTests(ctx context.Context, txn storage.Transaction) (chan *Result, error) {
 	return r.runTests(ctx, txn, true, r.runTest)
 }
 
 // RunBenchmarks executes tests similar to tester.Runner#RunTests but will repeat
 // a number of times to get stable performance metrics.
-func (r *Runner) RunBenchmarks(ctx context.Context, txn storage.Transaction, options BenchmarkOptions) (ch chan *Result, err error) {
+func (r *Runner) RunBenchmarks(ctx context.Context, txn storage.Transaction, options BenchmarkOptions) (chan *Result, error) {
 	return r.runTests(ctx, txn, false, func(ctx context.Context, txn storage.Transaction, module *ast.Module, rule *ast.Rule) (result *Result, b bool) {
 		return r.runBenchmark(ctx, txn, module, rule, options)
 	})
@@ -461,7 +446,6 @@ func ruleName(h *ast.Head) string {
 
 func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.Module, rule *ast.Rule) (*Result, bool) {
 	var bufferTracer *topdown.BufferTracer
-	var bufFailureLineTracer *topdown.BufferTracer
 	var tracer topdown.QueryTracer
 
 	if r.cover != nil {
@@ -526,9 +510,6 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		}
 	} else if len(rs) == 0 {
 		tr.Fail = true
-		if bufFailureLineTracer != nil {
-			tr.FailedAt = getFailedAtFromTrace(bufFailureLineTracer)
-		}
 	} else if b, ok := rs[0].Expressions[0].Value.(bool); !ok || !b {
 		tr.Fail = true
 	}
@@ -634,7 +615,7 @@ func LoadWithRegoVersion(args []string, filter loader.Filter, regoVersion ast.Re
 		return nil, nil, err
 	}
 	store := inmem.NewFromObject(loaded.Documents)
-	modules := map[string]*ast.Module{}
+	modules := make(map[string]*ast.Module, len(loaded.Modules))
 	ctx := context.Background()
 	err = storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
 		for _, loadedModule := range loaded.Modules {
@@ -666,7 +647,7 @@ func LoadWithParserOptions(args []string, filter loader.Filter, popts ast.Parser
 		return nil, nil, err
 	}
 	store := inmem.NewFromObject(loaded.Documents)
-	modules := map[string]*ast.Module{}
+	modules := make(map[string]*ast.Module, len(loaded.Modules))
 	ctx := context.Background()
 	err = storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
 		for _, loadedModule := range loaded.Modules {
@@ -697,7 +678,7 @@ func LoadBundlesWithRegoVersion(args []string, filter loader.Filter, regoVersion
 		regoVersion = ast.DefaultRegoVersion
 	}
 
-	bundles := map[string]*bundle.Bundle{}
+	bundles := make(map[string]*bundle.Bundle, len(args))
 	for _, bundleDir := range args {
 		b, err := loader.NewFileLoader().
 			WithRegoVersion(regoVersion).
@@ -721,7 +702,7 @@ func LoadBundlesWithParserOptions(args []string, filter loader.Filter, popts ast
 		popts.RegoVersion = ast.DefaultRegoVersion
 	}
 
-	bundles := map[string]*bundle.Bundle{}
+	bundles := make(map[string]*bundle.Bundle, len(args))
 	for _, bundleDir := range args {
 		b, err := loader.NewFileLoader().
 			WithRegoVersion(popts.RegoVersion).
