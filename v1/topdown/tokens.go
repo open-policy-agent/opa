@@ -1226,6 +1226,10 @@ func getInputSHA(input []byte, h func() hash.Hash) []byte {
 	return hasher.Sum(nil)
 }
 
+func resetJwtCache() {
+	// TODO
+}
+
 func init() {
 	RegisterBuiltinFunc(ast.JWTDecode.Name, builtinJWTDecode)
 	RegisterBuiltinFunc(ast.JWTVerifyRS256.Name, builtinJWTVerifyRS256)
