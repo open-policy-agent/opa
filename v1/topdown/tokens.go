@@ -20,6 +20,7 @@ import (
 	"hash"
 	"math/big"
 	"strings"
+	"sync"
 
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
 	"github.com/open-policy-agent/opa/internal/jwx/jwk"
@@ -222,8 +223,8 @@ func builtinJWTVerifyPS512(_ BuiltinContext, operands []*ast.Term, iter func(*as
 }
 
 // Implements RSA JWT signature verification.
-func builtinJWTVerifyRSA(a ast.Value, b ast.Value, hasher func() hash.Hash, verify func(publicKey *rsa.PublicKey, digest []byte, signature []byte) error) (ast.Value, error) {
-	return builtinJWTVerify(a, b, hasher, func(publicKey interface{}, digest []byte, signature []byte) error {
+func builtinJWTVerifyRSA(jwt ast.Value, keyStr ast.Value, hasher func() hash.Hash, verify func(publicKey *rsa.PublicKey, digest []byte, signature []byte) error) (ast.Value, error) {
+	return builtinJWTVerify(jwt, keyStr, hasher, func(publicKey interface{}, digest []byte, signature []byte) error {
 		publicKeyRsa, ok := publicKey.(*rsa.PublicKey)
 		if !ok {
 			return fmt.Errorf("incorrect public key type")
@@ -345,13 +346,13 @@ func getKeyByKid(kid string, keys []verificationKey) *verificationKey {
 }
 
 // Implements JWT signature verification.
-func builtinJWTVerify(a ast.Value, b ast.Value, hasher func() hash.Hash, verify func(publicKey interface{}, digest []byte, signature []byte) error) (ast.Value, error) {
-	token, err := decodeJWT(a)
+func builtinJWTVerify(jwt ast.Value, keyStr ast.Value, hasher func() hash.Hash, verify func(publicKey interface{}, digest []byte, signature []byte) error) (ast.Value, error) {
+	token, err := decodeJWT(jwt)
 	if err != nil {
 		return nil, err
 	}
 
-	s, err := builtins.StringOperand(b, 2)
+	s, err := builtins.StringOperand(keyStr, 2)
 	if err != nil {
 		return nil, err
 	}
@@ -1036,57 +1037,86 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 		return err
 	}
 	var token *JSONWebToken
-	var p *ast.Term
-	for {
-		// RFC7519 7.2 #1-2 split into parts
-		if token, err = decodeJWT(a); err != nil {
-			return err
-		}
-		// RFC7519 7.2 #3, #4, #6
-		if err := token.decodeHeader(); err != nil {
-			return err
-		}
-		// RFC7159 7.2 #5 (and RFC7159 5.2 #5) validate header fields
-		header, err := parseTokenHeader(token)
-		if err != nil {
-			return err
-		}
-		if !header.valid() {
+	var payload ast.Object
+	var header ast.Object
+
+	if found, th, tp, valid := getJWTFromCache(a); found {
+		if !valid {
 			return iter(unverified)
 		}
-		// Check constraints that impact signature verification.
-		if constraints.alg != "" && constraints.alg != header.alg {
-			return iter(unverified)
-		}
-		// RFC7159 7.2 #7 verify the signature
-		signature, err := token.decodeSignature()
-		if err != nil {
-			return err
-		}
-		if err := constraints.verify(header.kid, header.alg, token.header, token.payload, signature); err != nil {
-			if err == errSignatureNotVerified {
+
+		header = th
+		payload = tp
+	} else {
+		var p *ast.Term
+
+		for {
+			// RFC7519 7.2 #1-2 split into parts
+			if token, err = decodeJWT(a); err != nil {
+				return err
+			}
+
+			// RFC7519 7.2 #3, #4, #6
+			if err := token.decodeHeader(); err != nil {
+				return err
+			}
+
+			// RFC7159 7.2 #5 (and RFC7159 5.2 #5) validate header fields
+			header, err := parseTokenHeader(token)
+			if err != nil {
+				return err
+			}
+
+			if !header.valid() {
 				return iter(unverified)
 			}
+
+			// Check constraints that impact signature verification.
+			if constraints.alg != "" && constraints.alg != header.alg {
+				return iter(unverified)
+			}
+
+			// RFC7159 7.2 #7 verify the signature
+			signature, err := token.decodeSignature()
+			if err != nil {
+				return err
+			}
+
+			if err := constraints.verify(header.kid, header.alg, token.header, token.payload, signature); err != nil {
+				if err == errSignatureNotVerified {
+					putJWTInCache(a, nil, nil, false)
+					return iter(unverified)
+				}
+				return err
+			}
+
+			// RFC7159 7.2 #9-10 decode the payload
+			p, err = getResult(builtinBase64UrlDecode, ast.StringTerm(token.payload))
+			if err != nil {
+				return fmt.Errorf("JWT payload had invalid encoding: %v", err)
+			}
+
+			// RFC7159 7.2 #8 and 5.2 cty
+			if strings.ToUpper(header.cty) == headerJwt {
+				// Nested JWT, go round again with payload as first argument
+				a = p.Value
+				continue
+			}
+
+			// Non-nested JWT (or we've reached the bottom of the nesting).
+			break
+		}
+
+		payload, err = extractJSONObject(string(p.Value.(ast.String)))
+		if err != nil {
 			return err
 		}
-		// RFC7159 7.2 #9-10 decode the payload
-		p, err = getResult(builtinBase64UrlDecode, ast.StringTerm(token.payload))
-		if err != nil {
-			return fmt.Errorf("JWT payload had invalid encoding: %v", err)
-		}
-		// RFC7159 7.2 #8 and 5.2 cty
-		if strings.ToUpper(header.cty) == headerJwt {
-			// Nested JWT, go round again with payload as first argument
-			a = p.Value
-			continue
-		}
-		// Non-nested JWT (or we've reached the bottom of the nesting).
-		break
+
+		header = token.decodedHeader
+
+		putJWTInCache(a, header, payload, true)
 	}
-	payload, err := extractJSONObject(string(p.Value.(ast.String)))
-	if err != nil {
-		return err
-	}
+
 	// Check registered claim names against constraints or environment
 	// RFC7159 4.1.1 iss
 	if constraints.iss != "" {
@@ -1138,7 +1168,7 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 
 	verified := ast.ArrayTerm(
 		ast.InternedBooleanTerm(true),
-		ast.NewTerm(token.decodedHeader),
+		ast.NewTerm(header),
 		ast.NewTerm(payload),
 	)
 	return iter(verified)
@@ -1226,8 +1256,42 @@ func getInputSHA(input []byte, h func() hash.Hash) []byte {
 	return hasher.Sum(nil)
 }
 
+type jwtCacheEntry struct {
+	payload        ast.Object
+	header         ast.Object
+	validSignature bool
+}
+
+var jwtCache = map[string]jwtCacheEntry{}
+var jwtCacheLock = sync.RWMutex{}
+
 func resetJwtCache() {
-	// TODO
+	jwtCacheLock.Lock()
+	defer jwtCacheLock.Unlock()
+	jwtCache = map[string]jwtCacheEntry{}
+}
+
+func getJWTFromCache(serializedJwt ast.Value) (bool, ast.Object, ast.Object, bool) {
+	key, ok := serializedJwt.(ast.String)
+	if !ok {
+		return false, nil, nil, false
+	}
+
+	jwtCacheLock.RLock()
+	defer jwtCacheLock.RUnlock()
+	entry, ok := jwtCache[string(key)]
+	return ok, entry.header, entry.payload, entry.validSignature
+}
+
+func putJWTInCache(serializedJwt ast.Value, header ast.Object, payload ast.Object, validSignature bool) {
+	key, ok := serializedJwt.(ast.String)
+	if !ok {
+		return
+	}
+
+	jwtCacheLock.Lock()
+	defer jwtCacheLock.Unlock()
+	jwtCache[string(key)] = jwtCacheEntry{header: header, payload: payload, validSignature: validSignature}
 }
 
 func init() {
