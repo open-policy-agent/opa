@@ -59,3 +59,6 @@
 /docs/:version/integrations/*  /integrations/:splat 301!
 /docs/:version/organizations/*  /organizations/:splat 301!
 /docs/:version/softwares/*  /softwares/:splat 301!
+
+# opa-1 was removed when we updated to 1.0.0
+/docs/latest/opa-1 /docs/latest/v0-upgrade 301!
