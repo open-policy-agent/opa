@@ -707,7 +707,7 @@ shell_accessible
 
 {{< info >}}
 💡 There's a [blog post](https://www.styra.com/blog/how-to-express-or-in-rego/) that goes into much more detail
-on this topic showing different methods express OR in idiomatic Rego for different use cases.
+on this topic showing different methods to express OR in idiomatic Rego for different use cases.
 {{< /info >}}
 
 <!---TBD: explain conflicts --->
