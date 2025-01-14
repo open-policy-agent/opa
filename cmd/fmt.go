@@ -75,18 +75,18 @@ code if a file would be reformatted.
 The 'fmt' command can be run in several compatibility modes for consuming and outputting
 different Rego versions:
 
-* 'opa fmt':
+* ` + "`" + `opa fmt` + "`" + `:
   * v1 Rego is formatted to v1
-  * 'rego.v1'/'future.keywords' imports are NOT removed
-  * 'rego.v1'/'future.keywords' imports are NOT added if missing
+  * ` + "`" + `rego.v1` + "`" + `/` + "`" + `future.keywords` + "`" + ` imports are NOT removed
+  * ` + "`" + `rego.v1` + "`" + `/` + "`" + `future.keywords` + "`" + ` imports are NOT added if missing
   * v0 rego is rejected
-* 'opa fmt --v0-compatible':
+* ` + "`" + `opa fmt --v0-compatible` + "`" + `:
   * v0 Rego is formatted to v0
   * v1 Rego is rejected
-* 'opa fmt --v0-v1':
+* ` + "`" + `opa fmt --v0-v1` + "`" + `:
   * v0 Rego is formatted to be compatible with v0 AND v1
   * v1 Rego is rejected
-* 'opa fmt --v0-v1 --v1-compatible':
+* ` + "`" + `opa fmt --v0-v1 --v1-compatible` + "`" + `:
   * v1 Rego is formatted to be compatible with v0 AND v1
   * v0 Rego is rejected
 `,
@@ -99,7 +99,6 @@ different Rego versions:
 }
 
 func opaFmt(args []string) int {
-
 	if len(args) == 0 {
 		if err := formatStdin(&fmtParams, os.Stdin, os.Stdout); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -231,7 +230,6 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 }
 
 func formatStdin(params *fmtCommandParams, r io.Reader, w io.Writer) error {
-
 	contents, err := io.ReadAll(r)
 	if err != nil {
 		return err
