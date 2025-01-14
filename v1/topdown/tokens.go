@@ -130,8 +130,8 @@ func builtinJWTDecode(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 }
 
 // Implements RS256 JWT signature verification
-func builtinJWTVerifyRS256(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	result, err := builtinJWTVerifyRSA(operands[0].Value, operands[1].Value, sha256.New, func(publicKey *rsa.PublicKey, digest []byte, signature []byte) error {
+func builtinJWTVerifyRS256(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	result, err := builtinJWTVerifyRSA(bctx, operands[0].Value, operands[1].Value, sha256.New, func(publicKey *rsa.PublicKey, digest []byte, signature []byte) error {
 		return rsa.VerifyPKCS1v15(
 			publicKey,
 			crypto.SHA256,
@@ -145,8 +145,8 @@ func builtinJWTVerifyRS256(_ BuiltinContext, operands []*ast.Term, iter func(*as
 }
 
 // Implements RS384 JWT signature verification
-func builtinJWTVerifyRS384(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	result, err := builtinJWTVerifyRSA(operands[0].Value, operands[1].Value, sha512.New384, func(publicKey *rsa.PublicKey, digest []byte, signature []byte) error {
+func builtinJWTVerifyRS384(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	result, err := builtinJWTVerifyRSA(bctx, operands[0].Value, operands[1].Value, sha512.New384, func(publicKey *rsa.PublicKey, digest []byte, signature []byte) error {
 		return rsa.VerifyPKCS1v15(
 			publicKey,
 			crypto.SHA384,
@@ -160,8 +160,8 @@ func builtinJWTVerifyRS384(_ BuiltinContext, operands []*ast.Term, iter func(*as
 }
 
 // Implements RS512 JWT signature verification
-func builtinJWTVerifyRS512(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	result, err := builtinJWTVerifyRSA(operands[0].Value, operands[1].Value, sha512.New, func(publicKey *rsa.PublicKey, digest []byte, signature []byte) error {
+func builtinJWTVerifyRS512(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	result, err := builtinJWTVerifyRSA(bctx, operands[0].Value, operands[1].Value, sha512.New, func(publicKey *rsa.PublicKey, digest []byte, signature []byte) error {
 		return rsa.VerifyPKCS1v15(
 			publicKey,
 			crypto.SHA512,
@@ -175,8 +175,8 @@ func builtinJWTVerifyRS512(_ BuiltinContext, operands []*ast.Term, iter func(*as
 }
 
 // Implements PS256 JWT signature verification
-func builtinJWTVerifyPS256(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	result, err := builtinJWTVerifyRSA(operands[0].Value, operands[1].Value, sha256.New, func(publicKey *rsa.PublicKey, digest []byte, signature []byte) error {
+func builtinJWTVerifyPS256(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	result, err := builtinJWTVerifyRSA(bctx, operands[0].Value, operands[1].Value, sha256.New, func(publicKey *rsa.PublicKey, digest []byte, signature []byte) error {
 		return rsa.VerifyPSS(
 			publicKey,
 			crypto.SHA256,
@@ -191,8 +191,8 @@ func builtinJWTVerifyPS256(_ BuiltinContext, operands []*ast.Term, iter func(*as
 }
 
 // Implements PS384 JWT signature verification
-func builtinJWTVerifyPS384(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	result, err := builtinJWTVerifyRSA(operands[0].Value, operands[1].Value, sha512.New384, func(publicKey *rsa.PublicKey, digest []byte, signature []byte) error {
+func builtinJWTVerifyPS384(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	result, err := builtinJWTVerifyRSA(bctx, operands[0].Value, operands[1].Value, sha512.New384, func(publicKey *rsa.PublicKey, digest []byte, signature []byte) error {
 		return rsa.VerifyPSS(
 			publicKey,
 			crypto.SHA384,
@@ -207,8 +207,8 @@ func builtinJWTVerifyPS384(_ BuiltinContext, operands []*ast.Term, iter func(*as
 }
 
 // Implements PS512 JWT signature verification
-func builtinJWTVerifyPS512(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	result, err := builtinJWTVerifyRSA(operands[0].Value, operands[1].Value, sha512.New, func(publicKey *rsa.PublicKey, digest []byte, signature []byte) error {
+func builtinJWTVerifyPS512(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	result, err := builtinJWTVerifyRSA(bctx, operands[0].Value, operands[1].Value, sha512.New, func(publicKey *rsa.PublicKey, digest []byte, signature []byte) error {
 		return rsa.VerifyPSS(
 			publicKey,
 			crypto.SHA512,
@@ -223,8 +223,8 @@ func builtinJWTVerifyPS512(_ BuiltinContext, operands []*ast.Term, iter func(*as
 }
 
 // Implements RSA JWT signature verification.
-func builtinJWTVerifyRSA(jwt ast.Value, keyStr ast.Value, hasher func() hash.Hash, verify func(publicKey *rsa.PublicKey, digest []byte, signature []byte) error) (ast.Value, error) {
-	return builtinJWTVerify(jwt, keyStr, hasher, func(publicKey interface{}, digest []byte, signature []byte) error {
+func builtinJWTVerifyRSA(bctx BuiltinContext, jwt ast.Value, keyStr ast.Value, hasher func() hash.Hash, verify func(publicKey *rsa.PublicKey, digest []byte, signature []byte) error) (ast.Value, error) {
+	return builtinJWTVerify(bctx, jwt, keyStr, hasher, func(publicKey interface{}, digest []byte, signature []byte) error {
 		publicKeyRsa, ok := publicKey.(*rsa.PublicKey)
 		if !ok {
 			return fmt.Errorf("incorrect public key type")
@@ -234,8 +234,8 @@ func builtinJWTVerifyRSA(jwt ast.Value, keyStr ast.Value, hasher func() hash.Has
 }
 
 // Implements ES256 JWT signature verification.
-func builtinJWTVerifyES256(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	result, err := builtinJWTVerify(operands[0].Value, operands[1].Value, sha256.New, verifyES)
+func builtinJWTVerifyES256(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	result, err := builtinJWTVerify(bctx, operands[0].Value, operands[1].Value, sha256.New, verifyES)
 	if err == nil {
 		return iter(ast.NewTerm(result))
 	}
@@ -243,8 +243,8 @@ func builtinJWTVerifyES256(_ BuiltinContext, operands []*ast.Term, iter func(*as
 }
 
 // Implements ES384 JWT signature verification
-func builtinJWTVerifyES384(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	result, err := builtinJWTVerify(operands[0].Value, operands[1].Value, sha512.New384, verifyES)
+func builtinJWTVerifyES384(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	result, err := builtinJWTVerify(bctx, operands[0].Value, operands[1].Value, sha512.New384, verifyES)
 	if err == nil {
 		return iter(ast.NewTerm(result))
 	}
@@ -252,8 +252,8 @@ func builtinJWTVerifyES384(_ BuiltinContext, operands []*ast.Term, iter func(*as
 }
 
 // Implements ES512 JWT signature verification
-func builtinJWTVerifyES512(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	result, err := builtinJWTVerify(operands[0].Value, operands[1].Value, sha512.New, verifyES)
+func builtinJWTVerifyES512(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	result, err := builtinJWTVerify(bctx, operands[0].Value, operands[1].Value, sha512.New, verifyES)
 	if err == nil {
 		return iter(ast.NewTerm(result))
 	}
@@ -346,7 +346,11 @@ func getKeyByKid(kid string, keys []verificationKey) *verificationKey {
 }
 
 // Implements JWT signature verification.
-func builtinJWTVerify(jwt ast.Value, keyStr ast.Value, hasher func() hash.Hash, verify func(publicKey interface{}, digest []byte, signature []byte) error) (ast.Value, error) {
+func builtinJWTVerify(bctx BuiltinContext, jwt ast.Value, keyStr ast.Value, hasher func() hash.Hash, verify func(publicKey interface{}, digest []byte, signature []byte) error) (ast.Value, error) {
+	if found, _, _, valid := getTokenFromCache(bctx, jwt, keyStr); found {
+		return ast.Boolean(valid), nil
+	}
+
 	token, err := decodeJWT(jwt)
 	if err != nil {
 		return nil, err
@@ -376,6 +380,11 @@ func builtinJWTVerify(jwt ast.Value, keyStr ast.Value, hasher func() hash.Hash, 
 		return nil, err
 	}
 
+	done := func(valid bool) (ast.Boolean, error) {
+		putTokenInCache(bctx, jwt, keyStr, nil, nil, valid)
+		return ast.Boolean(valid), nil
+	}
+
 	// Validate the JWT signature
 
 	// First, check if there's a matching key ID (`kid`) in both token header and key(s).
@@ -384,7 +393,7 @@ func builtinJWTVerify(jwt ast.Value, keyStr ast.Value, hasher func() hash.Hash, 
 		if key := getKeyByKid(header.kid, keys); key != nil {
 			err = verify(key.key, getInputSHA([]byte(token.header+"."+token.payload), hasher), []byte(signature))
 
-			return ast.Boolean(err == nil), nil
+			return done(err == nil)
 		}
 	}
 
@@ -396,7 +405,7 @@ func builtinJWTVerify(jwt ast.Value, keyStr ast.Value, hasher func() hash.Hash, 
 			// we'll need to verify to find out
 			err = verify(key.key, getInputSHA([]byte(token.header+"."+token.payload), hasher), []byte(signature))
 			if err == nil {
-				return ast.Boolean(true), nil
+				return done(true)
 			}
 		} else {
 			if header.alg != key.alg {
@@ -404,13 +413,13 @@ func builtinJWTVerify(jwt ast.Value, keyStr ast.Value, hasher func() hash.Hash, 
 			}
 			err = verify(key.key, getInputSHA([]byte(token.header+"."+token.payload), hasher), []byte(signature))
 			if err == nil {
-				return ast.Boolean(true), nil
+				return done(true)
 			}
 		}
 	}
 
 	// None of the keys worked, return false
-	return ast.Boolean(false), nil
+	return done(false)
 }
 
 // Implements HS256 (secret) JWT signature verification
@@ -1051,8 +1060,27 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 			return iter(unverified)
 		}
 
-		header = th
-		payload = tp
+		if th == nil || tp == nil {
+			// Cache entry was created by one of the other built-ins that doesn't decode header/payload
+
+			if token, err = decodeJWT(a); err != nil {
+				return err
+			}
+
+			header = token.decodedHeader
+
+			p, err := getResult(builtinBase64UrlDecode, ast.StringTerm(token.payload))
+			if err != nil {
+				return fmt.Errorf("JWT payload had invalid encoding: %v", err)
+			}
+
+			payload, err = extractJSONObject(string(p.Value.(ast.String)))
+			if err != nil {
+				return err
+			}
+
+			putTokenInCache(bctx, a, k, header, payload, true)
+		}
 	} else {
 		var p *ast.Term
 

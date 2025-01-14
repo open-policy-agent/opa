@@ -631,6 +631,8 @@ func TestTopdownJWTVerifyOnlyVerifiesUsingApplicableKeys(t *testing.T) {
 		},
 	}
 
+	bctx := BuiltinContext{}
+
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
@@ -647,7 +649,7 @@ func TestTopdownJWTVerifyOnlyVerifiesUsingApplicableKeys(t *testing.T) {
 				return fmt.Errorf("fail")
 			}
 
-			_, err := builtinJWTVerify(token, cert, sha256.New, verifier)
+			_, err := builtinJWTVerify(bctx, token, cert, sha256.New, verifier)
 			if err != nil {
 				t.Fatal(err)
 			}
