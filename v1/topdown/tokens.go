@@ -20,13 +20,13 @@ import (
 	"hash"
 	"math/big"
 	"strings"
-	"sync"
 
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
 	"github.com/open-policy-agent/opa/internal/jwx/jwk"
 	"github.com/open-policy-agent/opa/internal/jwx/jws"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
+	"github.com/open-policy-agent/opa/v1/topdown/cache"
 )
 
 var (
@@ -1040,8 +1040,14 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 	var payload ast.Object
 	var header ast.Object
 
-	if found, th, tp, valid := getJWTFromCache(a); found {
-		if !valid {
+	// FIXME: optimize
+	k, _ := b.Filter(ast.NewObject(
+		ast.Item(ast.StringTerm("secret"), ast.ObjectTerm()),
+		ast.Item(ast.StringTerm("cert"), ast.ObjectTerm()),
+	))
+
+	if found, th, tp, validSignature := getTokenFromCache(bctx, a, k); found {
+		if !validSignature {
 			return iter(unverified)
 		}
 
@@ -1084,7 +1090,7 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 
 			if err := constraints.verify(header.kid, header.alg, token.header, token.payload, signature); err != nil {
 				if err == errSignatureNotVerified {
-					putJWTInCache(a, nil, nil, false)
+					putTokenInCache(bctx, a, k, nil, nil, false)
 					return iter(unverified)
 				}
 				return err
@@ -1114,7 +1120,7 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 
 		header = token.decodedHeader
 
-		putJWTInCache(a, header, payload, true)
+		putTokenInCache(bctx, a, k, header, payload, true)
 	}
 
 	// Check registered claim names against constraints or environment
@@ -1262,39 +1268,55 @@ type jwtCacheEntry struct {
 	validSignature bool
 }
 
-var jwtCache = map[string]jwtCacheEntry{}
-var jwtCacheLock = sync.RWMutex{}
+const tokenCacheName = "io_jwt"
 
-func resetJwtCache() {
-	jwtCacheLock.Lock()
-	defer jwtCacheLock.Unlock()
-	jwtCache = map[string]jwtCacheEntry{}
-}
+func getTokenFromCache(bctx BuiltinContext, serializedJwt ast.Value, publicKey ast.Value) (bool, ast.Object, ast.Object, bool) {
+	if bctx.InterQueryBuiltinValueCache == nil {
+		return false, nil, nil, false
+	}
 
-func getJWTFromCache(serializedJwt ast.Value) (bool, ast.Object, ast.Object, bool) {
-	key, ok := serializedJwt.(ast.String)
+	c := bctx.InterQueryBuiltinValueCache.GetCache(tokenCacheName)
+	if c == nil {
+		return false, nil, nil, false
+	}
+
+	key := createTokenCacheKey(serializedJwt, publicKey)
+
+	entry, ok := c.Get(key)
 	if !ok {
 		return false, nil, nil, false
 	}
 
-	jwtCacheLock.RLock()
-	defer jwtCacheLock.RUnlock()
-	entry, ok := jwtCache[string(key)]
-	return ok, entry.header, entry.payload, entry.validSignature
+	if jwtEntry, ok := entry.(jwtCacheEntry); ok {
+		return true, jwtEntry.header, jwtEntry.payload, jwtEntry.validSignature
+	}
+
+	return false, nil, nil, false
 }
 
-func putJWTInCache(serializedJwt ast.Value, header ast.Object, payload ast.Object, validSignature bool) {
-	key, ok := serializedJwt.(ast.String)
-	if !ok {
+func putTokenInCache(bctx BuiltinContext, serializedJwt ast.Value, publicKey ast.Value, header ast.Object, payload ast.Object, validSignature bool) {
+	if bctx.InterQueryBuiltinValueCache == nil {
 		return
 	}
 
-	jwtCacheLock.Lock()
-	defer jwtCacheLock.Unlock()
-	jwtCache[string(key)] = jwtCacheEntry{header: header, payload: payload, validSignature: validSignature}
+	c := bctx.InterQueryBuiltinValueCache.GetCache(tokenCacheName)
+	if c == nil {
+		return
+	}
+
+	key := createTokenCacheKey(serializedJwt, publicKey)
+
+	c.Insert(key, jwtCacheEntry{header: header, payload: payload, validSignature: validSignature})
+}
+
+func createTokenCacheKey(serializedJwt ast.Value, publicKey ast.Value) ast.Value {
+	return ast.NewArray(ast.NewTerm(serializedJwt), ast.NewTerm(publicKey))
 }
 
 func init() {
+	// By default, the JWT cache is disabled.
+	cache.RegisterDefaultInterQueryBuiltinValueCacheConfig(tokenCacheName, nil)
+
 	RegisterBuiltinFunc(ast.JWTDecode.Name, builtinJWTDecode)
 	RegisterBuiltinFunc(ast.JWTVerifyRS256.Name, builtinJWTVerifyRS256)
 	RegisterBuiltinFunc(ast.JWTVerifyRS384.Name, builtinJWTVerifyRS384)

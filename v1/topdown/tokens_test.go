@@ -14,11 +14,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-policy-agent/opa/internal/jwx/jwa"
 	"github.com/open-policy-agent/opa/internal/jwx/jwk"
 	"github.com/open-policy-agent/opa/internal/jwx/jws"
+	"github.com/open-policy-agent/opa/internal/jwx/jws/sign"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/storage"
 	inmem "github.com/open-policy-agent/opa/v1/storage/inmem/test"
+	"github.com/open-policy-agent/opa/v1/topdown/cache"
 )
 
 func TestParseTokenConstraints(t *testing.T) {
@@ -719,4 +722,202 @@ func TestTopdownJWTDecodeVerifyIgnoresKeysOfUnknownAlgInJWKS(t *testing.T) {
 			t.Errorf("expected alg: RSA-OAEP to be removed from key set")
 		}
 	}
+}
+
+func TestBuiltinJWTDecodeVerify_TokenCache(t *testing.T) {
+	ctx := context.Background()
+
+	const privateKey = `{
+		"kty":"RSA",
+		"n":"ofgWCuLjybRlzo0tZWJjNiuSfb4p4fAkd_wWJcyQoTbji9k0l8W26mPddxHmfHQp-Vaw-4qPCJrcS2mJPMEzP1Pt0Bm4d4QlL-yRT-SFd2lZS-pCgNMsD1W_YpRPEwOWvG6b32690r2jZ47soMZo9wGzjb_7OMg0LOL-bSf63kpaSHSXndS5z5rexMdbBYUsLA9e-KXBdQOS-UTo7WTBEMa2R2CapHg665xsmtdVMTBQY4uDZlxvb3qCo5ZwKh9kG4LT6_I5IhlJH7aGhyxXFvUK-DWNmoudF8NAco9_h9iaGNj8q2ethFkMLs91kzk2PAcDTW9gb54h4FRWyuXpoQ",
+		"e":"AQAB",
+		"d":"Eq5xpGnNCivDflJsRQBXHx1hdR1k6Ulwe2JZD50LpXyWPEAeP88vLNO97IjlA7_GQ5sLKMgvfTeXZx9SE-7YwVol2NXOoAJe46sui395IW_GO-pWJ1O0BkTGoVEn2bKVRUCgu-GjBVaYLU6f3l9kJfFNS3E0QbVdxzubSu3Mkqzjkn439X0M_V51gfpRLI9JYanrC4D4qAdGcopV_0ZHHzQlBjudU2QvXt4ehNYTCBr6XCLQUShb1juUO1ZdiYoFaFQT5Tw8bGUl_x_jTj3ccPDVZFD9pIuhLhBOneufuBiB4cS98l2SR_RQyGWSeWjnczT0QU91p1DhOVRuOopznQ",
+		"p":"4BzEEOtIpmVdVEZNCqS7baC4crd0pqnRH_5IB3jw3bcxGn6QLvnEtfdUdiYrqBdss1l58BQ3KhooKeQTa9AB0Hw_Py5PJdTJNPY8cQn7ouZ2KKDcmnPGBY5t7yLc1QlQ5xHdwW1VhvKn-nXqhJTBgIPgtldC-KDV5z-y2XDwGUc",
+		"q":"uQPEfgmVtjL0Uyyx88GZFF1fOunH3-7cepKmtH4pxhtCoHqpWmT8YAmZxaewHgHAjLYsp1ZSe7zFYHj7C6ul7TjeLQeZD_YwD66t62wDmpe_HlB-TnBA-njbglfIsRLtXlnDzQkv5dTltRJ11BKBBypeeF6689rjcJIDEz9RWdc",
+		"dp":"BwKfV3Akq5_MFZDFZCnW-wzl-CCo83WoZvnLQwCTeDv8uzluRSnm71I3QCLdhrqE2e9YkxvuxdBfpT_PI7Yz-FOKnu1R6HsJeDCjn12Sk3vmAktV2zb34MCdy7cpdTh_YVr7tss2u6vneTwrA86rZtu5Mbr1C1XsmvkxHQAdYo0",
+		"dq":"h_96-mK1R_7glhsum81dZxjTnYynPbZpHziZjeeHcXYsXaaMwkOlODsWa7I9xXDoRwbKgB719rrmI2oKr6N3Do9U0ajaHF-NKJnwgjMd2w9cjz3_-kyNlxAr2v4IKhGNpmM5iIgOS1VZnOZ68m6_pbLBSp3nssTdlqvd0tIiTHU",
+		"qi":"IYd7DHOhrWvxkwPQsRM2tOgrjbcrfvtQJipd-DlcxyVuuM9sQLdgjVk2oy26F0EmpScGLq2MowX7fhd_QJQ3ydy5cY7YIBi87w93IKLEdfnbJtoOPLUW0ITrJReOgo1cq9SbsxYawBgfp_gh6A5603k2-ZQwVK0JKSHuLFkuQ3U"
+	}`
+
+	const publicKey = `{
+		"kty":"RSA",
+		"n":"ofgWCuLjybRlzo0tZWJjNiuSfb4p4fAkd_wWJcyQoTbji9k0l8W26mPddxHmfHQp-Vaw-4qPCJrcS2mJPMEzP1Pt0Bm4d4QlL-yRT-SFd2lZS-pCgNMsD1W_YpRPEwOWvG6b32690r2jZ47soMZo9wGzjb_7OMg0LOL-bSf63kpaSHSXndS5z5rexMdbBYUsLA9e-KXBdQOS-UTo7WTBEMa2R2CapHg665xsmtdVMTBQY4uDZlxvb3qCo5ZwKh9kG4LT6_I5IhlJH7aGhyxXFvUK-DWNmoudF8NAco9_h9iaGNj8q2ethFkMLs91kzk2PAcDTW9gb54h4FRWyuXpoQ",
+		"e":"AQAB"
+	}`
+
+	const keys = `{"keys": [` + publicKey + `]}`
+
+	keysTerm := ast.ObjectTerm(ast.Item(ast.StringTerm("cert"), ast.StringTerm(keys)))
+
+	jwt := createJwtT(t, `{"i": "foo"}`, privateKey)
+	jwtTerm := ast.NewTerm(ast.String(jwt))
+
+	t.Run("no cache", func(t *testing.T) {
+		var verified bool
+		iter := func(r *ast.Term) error {
+			verified = bool(r.Value.(*ast.Array).Get(ast.NumberTerm("0")).Value.(ast.Boolean))
+			return nil
+		}
+
+		bctx := BuiltinContext{
+			Context: ctx,
+			Time:    ast.NumberTerm(int64ToJSONNumber(time.Now().UnixNano())),
+		}
+
+		err := builtinJWTDecodeVerify(bctx, []*ast.Term{jwtTerm, keysTerm}, iter)
+		if err != nil {
+			t.Fatalf("unexpected error: %q", err)
+		}
+
+		if !verified {
+			t.Fatal("expected token to be successfully verified")
+		}
+	})
+
+	config := cache.Config{
+		InterQueryBuiltinValueCache: cache.RootInterQueryBuiltinValueCacheConfig{
+			NamedCacheConfigs: map[string]*cache.InterQueryBuiltinValueCacheConfig{
+				tokenCacheName: {
+					MaxNumEntries: &[]int{5}[0],
+				},
+			},
+		},
+	}
+
+	t.Run("cache", func(t *testing.T) {
+		var verified bool
+		iter := func(r *ast.Term) error {
+			verified = bool(r.Value.(*ast.Array).Get(ast.NumberTerm("0")).Value.(ast.Boolean))
+			return nil
+		}
+
+		bctx := BuiltinContext{
+			Context:                     ctx,
+			Time:                        ast.NumberTerm(int64ToJSONNumber(time.Now().UnixNano())),
+			InterQueryBuiltinValueCache: cache.NewInterQueryValueCache(ctx, &config),
+		}
+
+		t.Run("successful verification", func(t *testing.T) {
+			err := builtinJWTDecodeVerify(bctx, []*ast.Term{jwtTerm, keysTerm}, iter)
+			if err != nil {
+				t.Fatalf("unexpected error: %q", err)
+			}
+
+			if !verified {
+				t.Fatal("expected token to be successfully verified")
+			}
+
+			k := createTokenCacheKey(ast.String(jwt), keysTerm.Value)
+			if _, ok := bctx.InterQueryBuiltinValueCache.GetCache(tokenCacheName).Get(k); !ok {
+				t.Fatal("expected token to be cached")
+			}
+		})
+
+		t.Run("failed verification (bad signature)", func(t *testing.T) {
+			badJwt := createBadJwt(t, `{"i": "foo"}`)
+			badJwtTerm := ast.NewTerm(ast.String(badJwt))
+
+			err := builtinJWTDecodeVerify(bctx, []*ast.Term{badJwtTerm, keysTerm}, iter)
+			if err != nil {
+				t.Fatalf("unexpected error: %q", err)
+			}
+
+			if verified {
+				t.Fatal("expected token to fail verification")
+			}
+
+			k := createTokenCacheKey(ast.String(badJwt), keysTerm.Value)
+			if _, ok := bctx.InterQueryBuiltinValueCache.GetCache(tokenCacheName).Get(k); !ok {
+				t.Fatal("expected token to be cached")
+			}
+		})
+
+		t.Run("failed verification (constraints)", func(t *testing.T) {
+			badJwt := createJwtT(t, `{"i": "foo", "iss": "foo"}`, privateKey)
+			badJwtTerm := ast.NewTerm(ast.String(badJwt))
+			constraints := ast.ObjectTerm(
+				ast.Item(ast.StringTerm("cert"), ast.StringTerm(keys)),
+				ast.Item(ast.StringTerm("iss"), ast.StringTerm("bar")),
+			)
+
+			err := builtinJWTDecodeVerify(bctx, []*ast.Term{badJwtTerm, constraints}, iter)
+			if err != nil {
+				t.Fatalf("unexpected error: %q", err)
+			}
+
+			if verified {
+				t.Fatal("expected token to fail verification")
+			}
+
+			k := createTokenCacheKey(ast.String(badJwt), keysTerm.Value)
+			if _, ok := bctx.InterQueryBuiltinValueCache.GetCache(tokenCacheName).Get(k); !ok {
+				t.Fatal("expected token to be cached")
+			}
+		})
+	})
+}
+
+func createJwtT(t *testing.T, payload string, privateKey string) string {
+	t.Helper()
+
+	jwt, err := createJwt(payload, privateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return jwt
+}
+
+func createBadJwt(t *testing.T, payload string) string {
+	t.Helper()
+
+	return strings.Join(
+		[]string{
+			base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"RS256"}`)),
+			base64.RawURLEncoding.EncodeToString([]byte(payload)),
+			base64.RawURLEncoding.EncodeToString([]byte(`bad_signature`)),
+		}, ".",
+	)
+}
+
+func createJwt(payload string, privateKey string) (string, error) {
+	const hdr = `{"alg":"RS256"}`
+
+	var jwkKeySet *jwk.Set
+	jwkKeySet, err := jwk.ParseString(privateKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse JWK: %s", err.Error())
+	}
+	signer, err := sign.New(jwa.RS256)
+	if err != nil {
+		return "", fmt.Errorf("failed to create signer: %s", err.Error())
+	}
+
+	hdrStr := base64.RawURLEncoding.EncodeToString([]byte(hdr))
+	payloadStr := base64.RawURLEncoding.EncodeToString([]byte(payload))
+
+	signingInput := strings.Join(
+		[]string{
+			hdrStr,
+			payloadStr,
+		}, ".",
+	)
+	pk, err := jwkKeySet.Keys[0].Materialize()
+	if err != nil {
+		return "", fmt.Errorf("failed to materialize key: %s", err.Error())
+	}
+	signature, err := signer.Sign([]byte(signingInput), pk)
+	if err != nil {
+		return "", fmt.Errorf("failed to sign message: %s", err.Error())
+	}
+	encSignature := base64.RawURLEncoding.EncodeToString(signature)
+
+	encoded := strings.Join(
+		[]string{
+			signingInput,
+			encSignature,
+		}, ".",
+	)
+
+	return encoded, nil
 }

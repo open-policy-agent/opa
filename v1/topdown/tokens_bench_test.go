@@ -5,16 +5,13 @@
 package topdown
 
 import (
-	"encoding/base64"
+	"context"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/internal/jwx/jwa"
-	"github.com/open-policy-agent/opa/internal/jwx/jwk"
-	"github.com/open-policy-agent/opa/internal/jwx/jws/sign"
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/topdown/cache"
 )
 
 const privateKey = `{
@@ -38,12 +35,13 @@ const publicKey = `{
 const keys = `{"keys": [` + publicKey + `]}`
 
 func BenchmarkTokens(b *testing.B) {
-	resetJwtCache()
+	ctx := context.Background()
+	iter := func(*ast.Term) error { return nil }
 
 	bctx := BuiltinContext{
-		Time: ast.NumberTerm(int64ToJSONNumber(time.Now().UnixNano())),
+		Context: ctx,
+		Time:    ast.NumberTerm(int64ToJSONNumber(time.Now().UnixNano())),
 	}
-	iter := func(*ast.Term) error { return nil }
 
 	keysTerm := ast.ObjectTerm(ast.Item(ast.StringTerm("cert"), ast.StringTerm(keys)))
 
@@ -58,13 +56,13 @@ func BenchmarkTokens(b *testing.B) {
 		}
 	}
 
-	jwtCounts := []int{1, 5, 10, 100}
-	concurrencyLevels := []int{1, 10, 100, 1000}
+	jwtCounts := []int{1, 5, 6, 10, 100}
+	concurrencyLevels := []int{1, 1000}
 	for _, jwtCount := range jwtCounts {
 		jwts := make([]string, jwtCount)
 
 		for i := 0; i < jwtCount; i++ {
-			jwts[i] = createJwt(b, fmt.Sprintf(`{"i": %d}`, i))
+			jwts[i] = createJwtB(b, fmt.Sprintf(`{"i": %d}`, i))
 		}
 
 		for _, concurrencyLevel := range concurrencyLevels {
@@ -93,44 +91,79 @@ func BenchmarkTokens(b *testing.B) {
 	}
 }
 
-func createJwt(b *testing.B, payload string) string {
-	const hdr = `{"alg":"RS256"}`
+func BenchmarkTokens_Cache(b *testing.B) {
+	ctx := context.Background()
+	iter := func(*ast.Term) error { return nil }
 
-	var jwkKeySet *jwk.Set
-	jwkKeySet, err := jwk.ParseString(privateKey)
-	if err != nil {
-		b.Fatalf("Failed to parse JWK: %s", err.Error())
+	bctx := BuiltinContext{
+		Context: ctx,
+		Time:    ast.NumberTerm(int64ToJSONNumber(time.Now().UnixNano())),
+		InterQueryBuiltinValueCache: cache.NewInterQueryValueCache(ctx, &cache.Config{
+			InterQueryBuiltinValueCache: cache.RootInterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*cache.InterQueryBuiltinValueCacheConfig{
+					tokenCacheName: {
+						MaxNumEntries: &[]int{5}[0],
+					},
+				},
+			},
+		}),
 	}
-	signer, err := sign.New(jwa.RS256)
-	if err != nil {
-		b.Fatalf("Failed to create signer: %s", err.Error())
+
+	keysTerm := ast.ObjectTerm(ast.Item(ast.StringTerm("cert"), ast.StringTerm(keys)))
+
+	worker := func(id int, jobs <-chan string, results chan<- bool) {
+		for jwt := range jobs {
+			err := builtinJWTDecodeVerify(bctx, []*ast.Term{ast.NewTerm(ast.String(jwt)), keysTerm}, iter)
+			if err != nil {
+				results <- false
+				b.Fatal(err)
+			}
+			results <- true
+		}
 	}
 
-	hdrStr := base64.RawURLEncoding.EncodeToString([]byte(hdr))
-	payloadStr := base64.RawURLEncoding.EncodeToString([]byte(payload))
+	jwtCounts := []int{1, 5, 6, 10, 100}
+	concurrencyLevels := []int{1, 1000}
+	for _, jwtCount := range jwtCounts {
+		jwts := make([]string, jwtCount)
 
-	signingInput := strings.Join(
-		[]string{
-			hdrStr,
-			payloadStr,
-		}, ".",
-	)
-	privateKey, err := jwkKeySet.Keys[0].Materialize()
-	if err != nil {
-		b.Fatalf("Failed to materialize key: %s", err.Error())
+		for i := 0; i < jwtCount; i++ {
+			jwts[i] = createJwtB(b, fmt.Sprintf(`{"i": %d}`, i))
+		}
+
+		for _, concurrencyLevel := range concurrencyLevels {
+			b.Run(fmt.Sprintf("concurrency: %d, JWT count: %d", concurrencyLevel, jwtCount), func(b *testing.B) {
+				count := b.N
+				jobs := make(chan string, count)
+				results := make(chan bool, count)
+
+				for w := 0; w < concurrencyLevel; w++ {
+					go worker(w, jobs, results)
+				}
+
+				b.ResetTimer()
+
+				for i := 0; i < count; i++ {
+					jobs <- jwts[i%jwtCount]
+				}
+
+				close(jobs)
+
+				for i := 0; i < count; i++ {
+					<-results
+				}
+			})
+		}
 	}
-	signature, err := signer.Sign([]byte(signingInput), privateKey)
+}
+
+func createJwtB(b *testing.B, payload string) string {
+	b.Helper()
+
+	jwt, err := createJwt(payload, privateKey)
 	if err != nil {
-		b.Fatalf("Failed to sign message: %s", err.Error())
+		b.Fatal(err)
 	}
-	encSignature := base64.RawURLEncoding.EncodeToString(signature)
 
-	encoded := strings.Join(
-		[]string{
-			signingInput,
-			encSignature,
-		}, ".",
-	)
-
-	return encoded
+	return jwt
 }

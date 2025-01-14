@@ -24,16 +24,41 @@ const (
 	defaultStaleEntryEvictionPeriodSeconds   = int64(0)   // never
 )
 
+var defaultInterQueryBuiltinValueCacheConfig = InterQueryBuiltinValueCacheConfig{
+	MaxNumEntries: &[]int{defaultInterQueryBuiltinValueCacheSize}[0],
+}
+
+var interQueryBuiltinValueCacheDefaultConfigs = map[string]*InterQueryBuiltinValueCacheConfig{}
+
+func getDefaultInterQueryBuiltinValueCacheConfig(name string) *InterQueryBuiltinValueCacheConfig {
+	if c, ok := interQueryBuiltinValueCacheDefaultConfigs[name]; ok {
+		return c
+	}
+	return &defaultInterQueryBuiltinValueCacheConfig
+}
+
+// RegisterDefaultInterQueryBuiltinValueCacheConfig registers a default configuration for the inter-query value cache;
+// used when none has been explicitly configured.
+// To disable a named cache when not configured, pass a nil config.
+func RegisterDefaultInterQueryBuiltinValueCacheConfig(name string, config *InterQueryBuiltinValueCacheConfig) {
+	interQueryBuiltinValueCacheDefaultConfigs[name] = config
+}
+
 // Config represents the configuration for the inter-query builtin cache.
 type Config struct {
-	InterQueryBuiltinCache      InterQueryBuiltinCacheConfig      `json:"inter_query_builtin_cache"`
-	InterQueryBuiltinValueCache InterQueryBuiltinValueCacheConfig `json:"inter_query_builtin_value_cache"`
+	InterQueryBuiltinCache      InterQueryBuiltinCacheConfig          `json:"inter_query_builtin_cache"`
+	InterQueryBuiltinValueCache RootInterQueryBuiltinValueCacheConfig `json:"inter_query_builtin_value_cache"`
 }
 
 // InterQueryBuiltinValueCacheConfig represents the configuration of the inter-query value cache that built-in functions can utilize.
 // MaxNumEntries - max number of cache entries
 type InterQueryBuiltinValueCacheConfig struct {
 	MaxNumEntries *int `json:"max_num_entries,omitempty"`
+}
+
+type RootInterQueryBuiltinValueCacheConfig struct {
+	InterQueryBuiltinValueCacheConfig
+	NamedCacheConfigs map[string]*InterQueryBuiltinValueCacheConfig `json:"named,omitempty"`
 }
 
 // InterQueryBuiltinCacheConfig represents the configuration of the inter-query cache that built-in functions can utilize.
@@ -59,8 +84,18 @@ func ParseCachingConfig(raw []byte) (*Config, error) {
 		maxInterQueryBuiltinValueCacheSize := new(int)
 		*maxInterQueryBuiltinValueCacheSize = defaultInterQueryBuiltinValueCacheSize
 
-		return &Config{InterQueryBuiltinCache: InterQueryBuiltinCacheConfig{MaxSizeBytes: maxSize, ForcedEvictionThresholdPercentage: threshold, StaleEntryEvictionPeriodSeconds: period},
-			InterQueryBuiltinValueCache: InterQueryBuiltinValueCacheConfig{MaxNumEntries: maxInterQueryBuiltinValueCacheSize}}, nil
+		return &Config{
+			InterQueryBuiltinCache: InterQueryBuiltinCacheConfig{
+				MaxSizeBytes:                      maxSize,
+				ForcedEvictionThresholdPercentage: threshold,
+				StaleEntryEvictionPeriodSeconds:   period,
+			},
+			InterQueryBuiltinValueCache: RootInterQueryBuiltinValueCacheConfig{
+				InterQueryBuiltinValueCacheConfig: InterQueryBuiltinValueCacheConfig{
+					MaxNumEntries: maxInterQueryBuiltinValueCacheSize,
+				},
+			},
+		}, nil
 	}
 
 	var config Config
@@ -103,12 +138,12 @@ func (c *Config) validateAndInjectDefaults() error {
 		}
 	}
 
-	if c.InterQueryBuiltinValueCache.MaxNumEntries == nil {
+	if c.InterQueryBuiltinValueCache.InterQueryBuiltinValueCacheConfig.MaxNumEntries == nil {
 		maxSize := new(int)
 		*maxSize = defaultInterQueryBuiltinValueCacheSize
-		c.InterQueryBuiltinValueCache.MaxNumEntries = maxSize
+		c.InterQueryBuiltinValueCache.InterQueryBuiltinValueCacheConfig.MaxNumEntries = maxSize
 	} else {
-		numEntries := *c.InterQueryBuiltinValueCache.MaxNumEntries
+		numEntries := *c.InterQueryBuiltinValueCache.InterQueryBuiltinValueCacheConfig.MaxNumEntries
 		if numEntries < 0 {
 			return fmt.Errorf("invalid max_num_entries %v", numEntries)
 		}
@@ -330,62 +365,72 @@ func (c *cache) cleanStaleValues() (dropped int) {
 	return dropped
 }
 
-type InterQueryValueCache interface {
-	Get(key ast.Value) (value any, found bool)
-	Insert(key ast.Value, value any) int
-	Delete(key ast.Value)
-	UpdateConfig(config *Config)
+type TypedInterQueryValueCacheBucket[K comparable, V any] interface {
+	Get(key K) (value V, found bool)
+	Insert(key K, value V) int
+	Delete(key K)
 }
 
-type interQueryValueCache struct {
-	items  map[string]any
-	config *Config
+type InterQueryValueCacheBucket = TypedInterQueryValueCacheBucket[ast.Value, any]
+
+type typedInterQueryValueCacheBucket[K comparable, V any] struct {
+	items  util.TypedHashMap[K, V]
+	config *InterQueryBuiltinValueCacheConfig
 	mtx    sync.RWMutex
 }
 
-// Get returns the value in the cache for k.
-func (c *interQueryValueCache) Get(k ast.Value) (any, bool) {
-	c.mtx.RLock()
-	defer c.mtx.RUnlock()
-	value, ok := c.items[k.String()]
-	return value, ok
+type interQueryValueCacheBucket = typedInterQueryValueCacheBucket[ast.Value, any]
+
+func newItemsMap() *util.TypedHashMap[ast.Value, any] {
+	return util.NewTypedHashMap[ast.Value, any](
+		func(a, b ast.Value) bool { return a.Compare(b) == 0 },
+		func(a any, b any) bool { return false }, // map equality not supported
+		func(a ast.Value) int { return a.Hash() },
+		func(a any) int { return 0 }, // map equality not supported
+		nil,
+	)
 }
 
-// Insert inserts a key k into the cache with value v.
-func (c *interQueryValueCache) Insert(k ast.Value, v any) (dropped int) {
+func (c *typedInterQueryValueCacheBucket[K, V]) Get(k K) (V, bool) {
+	c.mtx.RLock()
+	defer c.mtx.RUnlock()
+	return c.items.Get(k)
+}
+
+func (c *typedInterQueryValueCacheBucket[K, V]) Insert(k K, v V) (dropped int) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
 	maxEntries := c.maxNumEntries()
 	if maxEntries > 0 {
-		if len(c.items) >= maxEntries {
-			itemsToRemove := len(c.items) - maxEntries + 1
+		l := c.items.Len()
+		if l >= maxEntries {
+			itemsToRemove := l - maxEntries + 1
 
 			// Delete a (semi-)random key to make room for the new one.
-			for k := range c.items {
-				delete(c.items, k)
+			c.items.Iter(func(k K, v V) bool {
+				c.items.Delete(k)
 				dropped++
 
 				if itemsToRemove == dropped {
-					break
+					return true
 				}
-			}
+				return false
+			})
 		}
 	}
 
-	c.items[k.String()] = v
+	c.items.Put(k, v)
 	return dropped
 }
 
-// Delete deletes the value in the cache for k.
-func (c *interQueryValueCache) Delete(k ast.Value) {
+func (c *typedInterQueryValueCacheBucket[K, V]) Delete(k K) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
-	delete(c.items, k.String())
+	c.items.Delete(k)
 }
 
-// UpdateConfig updates the cache config.
-func (c *interQueryValueCache) UpdateConfig(config *Config) {
+func (c *typedInterQueryValueCacheBucket[K, V]) updateConfig(config *InterQueryBuiltinValueCacheConfig) {
 	if config == nil {
 		return
 	}
@@ -394,16 +439,139 @@ func (c *interQueryValueCache) UpdateConfig(config *Config) {
 	c.config = config
 }
 
-func (c *interQueryValueCache) maxNumEntries() int {
+func (c *typedInterQueryValueCacheBucket[K, V]) maxNumEntries() int {
 	if c.config == nil {
 		return defaultInterQueryBuiltinValueCacheSize
 	}
-	return *c.config.InterQueryBuiltinValueCache.MaxNumEntries
+	return *c.config.MaxNumEntries
+}
+
+type InterQueryValueCache interface {
+	InterQueryValueCacheBucket
+	GetCache(name string) InterQueryValueCacheBucket
+	UpdateConfig(config *Config)
 }
 
 func NewInterQueryValueCache(_ context.Context, config *Config) InterQueryValueCache {
-	return &interQueryValueCache{
-		items:  map[string]any{},
-		config: config,
+	var c *RootInterQueryBuiltinValueCacheConfig
+	var gc *InterQueryBuiltinValueCacheConfig
+	if config != nil {
+		c = &config.InterQueryBuiltinValueCache
+		gc = &c.InterQueryBuiltinValueCacheConfig
+	}
+
+	return &interQueryBuiltinValueCache{
+		globalCache: interQueryValueCacheBucket{
+			items:  *newItemsMap(),
+			config: gc,
+		},
+		namedCaches: map[string]*interQueryValueCacheBucket{},
+		config:      c,
+	}
+}
+
+type interQueryBuiltinValueCache struct {
+	globalCache     interQueryValueCacheBucket
+	namedCachesLock sync.RWMutex
+	namedCaches     map[string]*interQueryValueCacheBucket
+	config          *RootInterQueryBuiltinValueCacheConfig
+}
+
+func (c *interQueryBuiltinValueCache) Get(k ast.Value) (any, bool) {
+	if c == nil {
+		return nil, false
+	}
+
+	return c.globalCache.Get(k)
+}
+
+func (c *interQueryBuiltinValueCache) Insert(k ast.Value, v any) int {
+	if c == nil {
+		return 0
+	}
+
+	return c.globalCache.Insert(k, v)
+}
+
+func (c *interQueryBuiltinValueCache) Delete(k ast.Value) {
+	if c == nil {
+		return
+	}
+
+	c.globalCache.Delete(k)
+}
+
+func (c *interQueryBuiltinValueCache) GetCache(name string) InterQueryValueCacheBucket {
+	if c == nil {
+		return nil
+	}
+
+	if c.namedCaches == nil {
+		return nil
+	}
+
+	c.namedCachesLock.RLock()
+	nc, ok := c.namedCaches[name]
+	c.namedCachesLock.RUnlock()
+
+	if !ok {
+		c.namedCachesLock.Lock()
+		defer c.namedCachesLock.Unlock()
+
+		if nc, ok := c.namedCaches[name]; ok {
+			// Some other goroutine has created the cache while we were waiting for the lock.
+			return nc
+		}
+
+		var config *InterQueryBuiltinValueCacheConfig
+		if c.config != nil {
+			config = c.config.NamedCacheConfigs[name]
+			if config == nil {
+				config = getDefaultInterQueryBuiltinValueCacheConfig(name)
+			}
+		}
+
+		if config == nil {
+			// No config, cache disabled.
+			return nil
+		}
+
+		nc = &interQueryValueCacheBucket{
+			items:  *newItemsMap(),
+			config: config,
+		}
+
+		c.namedCaches[name] = nc
+	}
+
+	return nc
+}
+
+func (c *interQueryBuiltinValueCache) UpdateConfig(config *Config) {
+	if c == nil {
+		return
+	}
+
+	if config == nil {
+		c.globalCache.updateConfig(nil)
+	} else {
+		c.globalCache.updateConfig(&config.InterQueryBuiltinValueCache.InterQueryBuiltinValueCacheConfig)
+	}
+
+	c.namedCachesLock.Lock()
+	defer c.namedCachesLock.Unlock()
+
+	c.config = &config.InterQueryBuiltinValueCache
+
+	for name, nc := range c.namedCaches {
+		if config == nil {
+			nc.updateConfig(nil)
+		} else {
+			if namedConfig := c.config.NamedCacheConfigs[name]; namedConfig != nil {
+				nc.updateConfig(namedConfig)
+			} else {
+				nc.updateConfig(getDefaultInterQueryBuiltinValueCacheConfig(name))
+			}
+		}
 	}
 }

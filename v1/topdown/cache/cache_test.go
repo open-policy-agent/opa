@@ -26,8 +26,18 @@ func TestParseCachingConfig(t *testing.T) {
 	maxNumEntriesInterQueryValueCache := new(int)
 	*maxNumEntriesInterQueryValueCache = defaultInterQueryBuiltinValueCacheSize
 
-	expected := &Config{InterQueryBuiltinCache: InterQueryBuiltinCacheConfig{MaxSizeBytes: maxSize, StaleEntryEvictionPeriodSeconds: period, ForcedEvictionThresholdPercentage: threshold},
-		InterQueryBuiltinValueCache: InterQueryBuiltinValueCacheConfig{MaxNumEntries: maxNumEntriesInterQueryValueCache}}
+	expected := &Config{
+		InterQueryBuiltinCache: InterQueryBuiltinCacheConfig{
+			MaxSizeBytes:                      maxSize,
+			StaleEntryEvictionPeriodSeconds:   period,
+			ForcedEvictionThresholdPercentage: threshold,
+		},
+		InterQueryBuiltinValueCache: RootInterQueryBuiltinValueCacheConfig{
+			InterQueryBuiltinValueCacheConfig: InterQueryBuiltinValueCacheConfig{
+				MaxNumEntries: maxNumEntriesInterQueryValueCache,
+			},
+		},
+	}
 
 	tests := map[string]struct {
 		input   []byte

@@ -1908,8 +1908,18 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 	maxNumEntriesInterQueryValueCache := new(int)
 	*maxNumEntriesInterQueryValueCache = 0
 
-	expectedCacheConf := &cache.Config{InterQueryBuiltinCache: cache.InterQueryBuiltinCacheConfig{MaxSizeBytes: maxSize, StaleEntryEvictionPeriodSeconds: period, ForcedEvictionThresholdPercentage: threshold},
-		InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{MaxNumEntries: maxNumEntriesInterQueryValueCache}}
+	expectedCacheConf := &cache.Config{
+		InterQueryBuiltinCache: cache.InterQueryBuiltinCacheConfig{
+			MaxSizeBytes:                      maxSize,
+			StaleEntryEvictionPeriodSeconds:   period,
+			ForcedEvictionThresholdPercentage: threshold,
+		},
+		InterQueryBuiltinValueCache: cache.RootInterQueryBuiltinValueCacheConfig{
+			InterQueryBuiltinValueCacheConfig: cache.InterQueryBuiltinValueCacheConfig{
+				MaxNumEntries: maxNumEntriesInterQueryValueCache,
+			},
+		},
+	}
 
 	if !reflect.DeepEqual(cacheConf, expectedCacheConf) {
 		t.Fatalf("want %v got %v", expectedCacheConf, cacheConf)

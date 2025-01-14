@@ -433,7 +433,7 @@ func TestManagerWithCachingConfig(t *testing.T) {
 	limit := int64(100)
 	expected.InterQueryBuiltinCache.MaxSizeBytes = &limit
 	maxNumEntriesInterQueryValueCache := int(100)
-	expected.InterQueryBuiltinValueCache.MaxNumEntries = &maxNumEntriesInterQueryValueCache
+	expected.InterQueryBuiltinValueCache.InterQueryBuiltinValueCacheConfig.MaxNumEntries = &maxNumEntriesInterQueryValueCache
 
 	if !reflect.DeepEqual(m.InterQueryBuiltinCacheConfig(), expected) {
 		t.Fatalf("want %+v got %+v", expected, m.interQueryBuiltinCacheConfig)
