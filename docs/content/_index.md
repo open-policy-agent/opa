@@ -940,7 +940,7 @@ follows:
 > pi := 3.14
 ```
 
-Once "pi" is defined, you query for the value and write expressions in terms of
+Once `pi` is defined, you query for the value and write expressions in terms of
 it:
 
 ```ruby
