@@ -706,8 +706,8 @@ shell_accessible
 ```
 
 {{< info >}}
-💡 there's a [blog post](https://www.styra.com/blog/how-to-express-or-in-rego/) that goes into much more detail
-on this topic showing different methods express OR in idiomatic Rego for different use cases.
+💡 There's a [blog post](https://www.styra.com/blog/how-to-express-or-in-rego/) that goes into much more detail
+on this topic showing different methods to express OR in idiomatic Rego for different use cases.
 {{< /info >}}
 
 <!---TBD: explain conflicts --->
@@ -940,7 +940,7 @@ follows:
 > pi := 3.14
 ```
 
-Once "pi" is defined, you query for the value and write expressions in terms of
+Once `pi` is defined, you query for the value and write expressions in terms of
 it:
 
 ```ruby
