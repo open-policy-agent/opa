@@ -423,67 +423,22 @@ func builtinJWTVerify(bctx BuiltinContext, jwt ast.Value, keyStr ast.Value, hash
 }
 
 // Implements HS256 (secret) JWT signature verification
-func builtinJWTVerifyHS256(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	// Decode the JSON Web Token
-	token, err := decodeJWT(operands[0].Value)
-	if err != nil {
-		return err
-	}
-
-	// Process Secret input
-	astSecret, err := builtins.StringOperand(operands[1].Value, 2)
-	if err != nil {
-		return err
-	}
-	secret := string(astSecret)
-
-	mac := hmac.New(sha256.New, []byte(secret))
-	_, err = mac.Write([]byte(token.header + "." + token.payload))
-	if err != nil {
-		return err
-	}
-
-	signature, err := token.decodeSignature()
-	if err != nil {
-		return err
-	}
-
-	return iter(ast.NewTerm(ast.Boolean(hmac.Equal([]byte(signature), mac.Sum(nil)))))
+func builtinJWTVerifyHS256(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	return builtinJWTVerifyHS(bctx, operands, sha256.New, iter)
 }
 
 // Implements HS384 JWT signature verification
-func builtinJWTVerifyHS384(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	// Decode the JSON Web Token
-	token, err := decodeJWT(operands[0].Value)
-	if err != nil {
-		return err
-	}
-
-	// Process Secret input
-	astSecret, err := builtins.StringOperand(operands[1].Value, 2)
-	if err != nil {
-		return err
-	}
-	secret := string(astSecret)
-
-	mac := hmac.New(sha512.New384, []byte(secret))
-	_, err = mac.Write([]byte(token.header + "." + token.payload))
-	if err != nil {
-		return err
-	}
-
-	signature, err := token.decodeSignature()
-	if err != nil {
-		return err
-	}
-
-	return iter(ast.NewTerm(ast.Boolean(hmac.Equal([]byte(signature), mac.Sum(nil)))))
+func builtinJWTVerifyHS384(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	return builtinJWTVerifyHS(bctx, operands, sha512.New384, iter)
 }
 
 // Implements HS512 JWT signature verification
-func builtinJWTVerifyHS512(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	// Decode the JSON Web Token
-	token, err := decodeJWT(operands[0].Value)
+func builtinJWTVerifyHS512(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	return builtinJWTVerifyHS(bctx, operands, sha512.New, iter)
+}
+
+func builtinJWTVerifyHS(bctx BuiltinContext, operands []*ast.Term, hashF func() hash.Hash, iter func(*ast.Term) error) error {
+	jwt, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
 	}
@@ -493,9 +448,20 @@ func builtinJWTVerifyHS512(_ BuiltinContext, operands []*ast.Term, iter func(*as
 	if err != nil {
 		return err
 	}
+
+	if found, _, _, valid := getTokenFromCache(bctx, jwt, astSecret); found {
+		return iter(ast.NewTerm(ast.Boolean(valid)))
+	}
+
+	// Decode the JSON Web Token
+	token, err := decodeJWT(jwt)
+	if err != nil {
+		return err
+	}
+
 	secret := string(astSecret)
 
-	mac := hmac.New(sha512.New, []byte(secret))
+	mac := hmac.New(hashF, []byte(secret))
 	_, err = mac.Write([]byte(token.header + "." + token.payload))
 	if err != nil {
 		return err
@@ -506,7 +472,11 @@ func builtinJWTVerifyHS512(_ BuiltinContext, operands []*ast.Term, iter func(*as
 		return err
 	}
 
-	return iter(ast.NewTerm(ast.Boolean(hmac.Equal([]byte(signature), mac.Sum(nil)))))
+	valid := hmac.Equal([]byte(signature), mac.Sum(nil))
+
+	putTokenInCache(bctx, jwt, astSecret, nil, nil, valid)
+
+	return iter(ast.NewTerm(ast.Boolean(valid)))
 }
 
 // -- Full JWT verification and decoding --
