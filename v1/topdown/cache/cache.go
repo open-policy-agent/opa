@@ -358,21 +358,17 @@ func (c *cache) cleanStaleValues() (dropped int) {
 	return dropped
 }
 
-type TypedInterQueryValueCacheBucket[K comparable, V any] interface {
-	Get(key K) (value V, found bool)
-	Insert(key K, value V) int
-	Delete(key K)
+type InterQueryValueCacheBucket interface {
+	Get(key ast.Value) (value any, found bool)
+	Insert(key ast.Value, value any) int
+	Delete(key ast.Value)
 }
 
-type InterQueryValueCacheBucket = TypedInterQueryValueCacheBucket[ast.Value, any]
-
-type typedInterQueryValueCacheBucket[K comparable, V any] struct {
-	items  util.TypedHashMap[K, V]
+type interQueryValueCacheBucket struct {
+	items  util.TypedHashMap[ast.Value, any]
 	config *InterQueryBuiltinValueCacheConfig
 	mtx    sync.RWMutex
 }
-
-type interQueryValueCacheBucket = typedInterQueryValueCacheBucket[ast.Value, any]
 
 func newItemsMap() *util.TypedHashMap[ast.Value, any] {
 	return util.NewTypedHashMap[ast.Value, any](
@@ -384,13 +380,13 @@ func newItemsMap() *util.TypedHashMap[ast.Value, any] {
 	)
 }
 
-func (c *typedInterQueryValueCacheBucket[K, V]) Get(k K) (V, bool) {
+func (c *interQueryValueCacheBucket) Get(k ast.Value) (any, bool) {
 	c.mtx.RLock()
 	defer c.mtx.RUnlock()
 	return c.items.Get(k)
 }
 
-func (c *typedInterQueryValueCacheBucket[K, V]) Insert(k K, v V) (dropped int) {
+func (c *interQueryValueCacheBucket) Insert(k ast.Value, v any) (dropped int) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
@@ -401,7 +397,7 @@ func (c *typedInterQueryValueCacheBucket[K, V]) Insert(k K, v V) (dropped int) {
 			itemsToRemove := l - maxEntries + 1
 
 			// Delete a (semi-)random key to make room for the new one.
-			c.items.Iter(func(k K, v V) bool {
+			c.items.Iter(func(k ast.Value, v any) bool {
 				c.items.Delete(k)
 				dropped++
 
@@ -417,13 +413,13 @@ func (c *typedInterQueryValueCacheBucket[K, V]) Insert(k K, v V) (dropped int) {
 	return dropped
 }
 
-func (c *typedInterQueryValueCacheBucket[K, V]) Delete(k K) {
+func (c *interQueryValueCacheBucket) Delete(k ast.Value) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	c.items.Delete(k)
 }
 
-func (c *typedInterQueryValueCacheBucket[K, V]) updateConfig(config *InterQueryBuiltinValueCacheConfig) {
+func (c *interQueryValueCacheBucket) updateConfig(config *InterQueryBuiltinValueCacheConfig) {
 	if config == nil {
 		return
 	}
@@ -432,7 +428,7 @@ func (c *typedInterQueryValueCacheBucket[K, V]) updateConfig(config *InterQueryB
 	c.config = config
 }
 
-func (c *typedInterQueryValueCacheBucket[K, V]) maxNumEntries() int {
+func (c *interQueryValueCacheBucket) maxNumEntries() int {
 	if c.config == nil {
 		return defaultInterQueryBuiltinValueCacheSize
 	}
