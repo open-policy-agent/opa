@@ -45,12 +45,11 @@ func BenchmarkTokens(b *testing.B) {
 
 	keysTerm := ast.ObjectTerm(ast.Item(ast.StringTerm("cert"), ast.StringTerm(keys)))
 
-	worker := func(id int, jobs <-chan string, results chan<- bool) {
+	worker := func(jobs <-chan string, results chan<- bool) {
 		for jwt := range jobs {
 			err := builtinJWTDecodeVerify(bctx, []*ast.Term{ast.NewTerm(ast.String(jwt)), keysTerm}, iter)
 			if err != nil {
 				results <- false
-				b.Fatal(err)
 			}
 			results <- true
 		}
@@ -72,7 +71,7 @@ func BenchmarkTokens(b *testing.B) {
 				results := make(chan bool, count)
 
 				for w := 0; w < concurrencyLevel; w++ {
-					go worker(w, jobs, results)
+					go worker(jobs, results)
 				}
 
 				b.ResetTimer()
@@ -84,7 +83,10 @@ func BenchmarkTokens(b *testing.B) {
 				close(jobs)
 
 				for i := 0; i < count; i++ {
-					<-results
+					r := <-results
+					if !r {
+						b.Fatal("failed to verify JWT")
+					}
 				}
 			})
 		}
@@ -111,12 +113,11 @@ func BenchmarkTokens_Cache(b *testing.B) {
 
 	keysTerm := ast.ObjectTerm(ast.Item(ast.StringTerm("cert"), ast.StringTerm(keys)))
 
-	worker := func(id int, jobs <-chan string, results chan<- bool) {
+	worker := func(jobs <-chan string, results chan<- bool) {
 		for jwt := range jobs {
 			err := builtinJWTDecodeVerify(bctx, []*ast.Term{ast.NewTerm(ast.String(jwt)), keysTerm}, iter)
 			if err != nil {
 				results <- false
-				b.Fatal(err)
 			}
 			results <- true
 		}
@@ -138,7 +139,7 @@ func BenchmarkTokens_Cache(b *testing.B) {
 				results := make(chan bool, count)
 
 				for w := 0; w < concurrencyLevel; w++ {
-					go worker(w, jobs, results)
+					go worker(jobs, results)
 				}
 
 				b.ResetTimer()

@@ -373,9 +373,9 @@ type interQueryValueCacheBucket struct {
 func newItemsMap() *util.TypedHashMap[ast.Value, any] {
 	return util.NewTypedHashMap[ast.Value, any](
 		func(a, b ast.Value) bool { return a.Compare(b) == 0 },
-		func(a any, b any) bool { return false }, // map equality not supported
+		func(any, any) bool { return false }, // map equality not supported
 		func(a ast.Value) int { return a.Hash() },
-		func(a any) int { return 0 }, // map equality not supported
+		func(any) int { return 0 }, // map equality not supported
 		nil,
 	)
 }
@@ -397,14 +397,11 @@ func (c *interQueryValueCacheBucket) Insert(k ast.Value, v any) (dropped int) {
 			itemsToRemove := l - maxEntries + 1
 
 			// Delete a (semi-)random key to make room for the new one.
-			c.items.Iter(func(k ast.Value, v any) bool {
+			c.items.Iter(func(k ast.Value, _ any) bool {
 				c.items.Delete(k)
 				dropped++
 
-				if itemsToRemove == dropped {
-					return true
-				}
-				return false
+				return itemsToRemove == dropped
 			})
 		}
 	}
