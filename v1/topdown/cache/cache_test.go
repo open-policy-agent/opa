@@ -100,6 +100,181 @@ func TestParseCachingConfig(t *testing.T) {
 	}
 }
 
+func TestInterValueCache_DefaultConfiguration(t *testing.T) {
+	t.Run("default config not set", func(t *testing.T) {
+		config := Config{
+			InterQueryBuiltinValueCache: RootInterQueryBuiltinValueCacheConfig{},
+		}
+
+		c := NewInterQueryValueCache(context.Background(), &config)
+		if c.GetCache("foo") != nil {
+			t.Fatal("Expected cache to be disabled")
+		}
+	})
+
+	t.Run("default config set", func(t *testing.T) {
+		config := Config{
+			InterQueryBuiltinValueCache: RootInterQueryBuiltinValueCacheConfig{},
+		}
+
+		RegisterDefaultInterQueryBuiltinValueCacheConfig("bar", &InterQueryBuiltinValueCacheConfig{
+			MaxNumEntries: &[]int{5}[0],
+		})
+
+		c := NewInterQueryValueCache(context.Background(), &config)
+		if act := *c.GetCache("bar").(*interQueryValueCacheBucket).config.MaxNumEntries; act != 5 {
+			t.Fatalf("Expected 5 max entries, got %d", act)
+		}
+	})
+
+	t.Run("explicitly disabled", func(t *testing.T) {
+		cacheConfig := Config{
+			InterQueryBuiltinValueCache: RootInterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*InterQueryBuiltinValueCacheConfig{
+					"baz": nil,
+				},
+			},
+		}
+
+		RegisterDefaultInterQueryBuiltinValueCacheConfig("baz", nil)
+
+		c := NewInterQueryValueCache(context.Background(), &cacheConfig)
+		if c.GetCache("baz") != nil {
+			t.Fatal("Expected cache to be disabled")
+		}
+	})
+
+	t.Run("override", func(t *testing.T) {
+		cacheConfig := Config{
+			InterQueryBuiltinValueCache: RootInterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*InterQueryBuiltinValueCacheConfig{
+					"box": {
+						MaxNumEntries: &[]int{5}[0],
+					},
+				},
+			},
+		}
+
+		RegisterDefaultInterQueryBuiltinValueCacheConfig("box", &InterQueryBuiltinValueCacheConfig{
+			MaxNumEntries: &[]int{10}[0],
+		})
+
+		c := NewInterQueryValueCache(context.Background(), &cacheConfig)
+		if act := *c.GetCache("box").(*interQueryValueCacheBucket).config.MaxNumEntries; act != 5 {
+			t.Fatalf("Expected 5 max entries, got %d", act)
+		}
+	})
+}
+
+func TestInterValueCache_NamedCaches(t *testing.T) {
+	t.Parallel()
+
+	t.Run("configured max is respected", func(t *testing.T) {
+		config := Config{
+			InterQueryBuiltinValueCache: RootInterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*InterQueryBuiltinValueCacheConfig{
+					"foo": {
+						MaxNumEntries: &[]int{2}[0],
+					},
+				},
+			},
+		}
+
+		c := NewInterQueryValueCache(context.Background(), &config)
+
+		nc := c.GetCache("foo").(*interQueryValueCacheBucket)
+		if act := *nc.config.MaxNumEntries; act != 2 {
+			t.Fatalf("Expected 2 max entries, got %d", act)
+		}
+
+		if nc.items.Len() != 0 {
+			t.Fatalf("Expected cache to be empty")
+		}
+
+		nc.Insert(ast.StringTerm("a").Value, "b")
+		if nc.items.Len() != 1 {
+			t.Fatalf("Expected cache to have 1 entry")
+		}
+		if v, found := nc.Get(ast.StringTerm("a").Value); !found && v != "b" {
+			t.Fatalf("Expected cache hit")
+		}
+
+		nc.Insert(ast.StringTerm("c").Value, "d")
+		if nc.items.Len() != 2 {
+			t.Fatalf("Expected cache to have 2 entries")
+		}
+		if v, found := nc.Get(ast.StringTerm("c").Value); !found && v != "d" {
+			t.Fatalf("Expected cache hit")
+		}
+
+		nc.Insert(ast.StringTerm("e").Value, "f")
+		if nc.items.Len() != 2 {
+			t.Fatalf("Expected cache to still have 2 entries")
+		}
+		if v, found := nc.Get(ast.StringTerm("e").Value); !found && v != "f" {
+			t.Fatalf("Expected cache hit")
+		}
+	})
+
+	t.Run("named caches are separate", func(t *testing.T) {
+		config := Config{
+			InterQueryBuiltinValueCache: RootInterQueryBuiltinValueCacheConfig{
+				InterQueryBuiltinValueCacheConfig: InterQueryBuiltinValueCacheConfig{
+					MaxNumEntries: &[]int{2}[0],
+				},
+				NamedCacheConfigs: map[string]*InterQueryBuiltinValueCacheConfig{
+					"foo": {
+						MaxNumEntries: &[]int{2}[0],
+					},
+					"bar": {
+						MaxNumEntries: &[]int{2}[0],
+					},
+				},
+			},
+		}
+
+		c := NewInterQueryValueCache(context.Background(), &config)
+
+		c.Insert(ast.StringTerm("foo").Value, "bar")
+
+		nc1 := c.GetCache("foo").(*interQueryValueCacheBucket)
+		nc2 := c.GetCache("bar").(*interQueryValueCacheBucket)
+
+		nc1.Insert(ast.StringTerm("a").Value, "b")
+		nc2.Insert(ast.StringTerm("c").Value, "d")
+
+		if _, found := c.Get(ast.StringTerm("foo").Value); !found {
+			t.Fatal("Expected cache hit")
+		}
+		if _, found := c.Get(ast.StringTerm("a").Value); found {
+			t.Fatal("Expected cache miss")
+		}
+		if _, found := c.Get(ast.StringTerm("c").Value); found {
+			t.Fatal("Expected cache miss")
+		}
+
+		if _, found := nc1.Get(ast.StringTerm("a").Value); !found {
+			t.Fatal("Expected cache hit")
+		}
+		if _, found := nc1.Get(ast.StringTerm("c").Value); found {
+			t.Fatal("Expected cache miss")
+		}
+		if _, found := nc1.Get(ast.StringTerm("foo").Value); found {
+			t.Fatal("Expected cache miss")
+		}
+
+		if _, found := nc2.Get(ast.StringTerm("c").Value); !found {
+			t.Fatal("Expected cache hit")
+		}
+		if _, found := nc2.Get(ast.StringTerm("a").Value); found {
+			t.Fatal("Expected cache miss")
+		}
+		if _, found := nc2.Get(ast.StringTerm("foo").Value); found {
+			t.Fatal("Expected cache miss")
+		}
+	})
+}
+
 func TestInsert(t *testing.T) {
 	t.Parallel()
 

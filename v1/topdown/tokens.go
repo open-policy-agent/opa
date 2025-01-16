@@ -1027,10 +1027,14 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 
 	if found, th, tp, validSignature := getTokenFromCache(bctx, a, k); found {
 		if !validSignature {
+			// For the given token and key(s), the signature is invalid
 			return iter(unverified)
 		}
 
-		if th == nil || tp == nil {
+		if th != nil && tp != nil {
+			header = th
+			payload = tp
+		} else {
 			// Cache entry was created by one of the other built-ins that doesn't decode header/payload
 
 			if token, err = decodeJWT(a); err != nil {

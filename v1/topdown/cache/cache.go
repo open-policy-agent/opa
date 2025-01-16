@@ -24,17 +24,10 @@ const (
 	defaultStaleEntryEvictionPeriodSeconds   = int64(0)   // never
 )
 
-var defaultInterQueryBuiltinValueCacheConfig = InterQueryBuiltinValueCacheConfig{
-	MaxNumEntries: &[]int{defaultInterQueryBuiltinValueCacheSize}[0],
-}
-
 var interQueryBuiltinValueCacheDefaultConfigs = map[string]*InterQueryBuiltinValueCacheConfig{}
 
 func getDefaultInterQueryBuiltinValueCacheConfig(name string) *InterQueryBuiltinValueCacheConfig {
-	if c, ok := interQueryBuiltinValueCacheDefaultConfigs[name]; ok {
-		return c
-	}
-	return &defaultInterQueryBuiltinValueCacheConfig
+	return interQueryBuiltinValueCacheDefaultConfigs[name]
 }
 
 // RegisterDefaultInterQueryBuiltinValueCacheConfig registers a default configuration for the inter-query value cache;
@@ -564,14 +557,16 @@ func (c *interQueryBuiltinValueCache) UpdateConfig(config *Config) {
 	c.config = &config.InterQueryBuiltinValueCache
 
 	for name, nc := range c.namedCaches {
-		if config == nil {
-			nc.updateConfig(nil)
+		// For each named cache: if it has a config, update it; if no config, remove it.
+		namedConfig := c.config.NamedCacheConfigs[name]
+		if namedConfig == nil {
+			namedConfig = getDefaultInterQueryBuiltinValueCacheConfig(name)
+		}
+
+		if namedConfig == nil {
+			delete(c.namedCaches, name)
 		} else {
-			if namedConfig := c.config.NamedCacheConfigs[name]; namedConfig != nil {
-				nc.updateConfig(namedConfig)
-			} else {
-				nc.updateConfig(getDefaultInterQueryBuiltinValueCacheConfig(name))
-			}
+			nc.updateConfig(namedConfig)
 		}
 	}
 }

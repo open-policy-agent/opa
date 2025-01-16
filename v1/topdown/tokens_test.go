@@ -834,15 +834,16 @@ func TestBuiltinJWTDecodeVerify_TokenCache(t *testing.T) {
 			}
 		})
 
-		t.Run("failed verification (constraints)", func(t *testing.T) {
-			badJwt := createJwtT(t, `{"i": "foo", "iss": "foo"}`, privateKey)
-			badJwtTerm := ast.NewTerm(ast.String(badJwt))
+		t.Run("iss constraint check", func(t *testing.T) {
+			jwt := createJwtT(t, `{"i": "foo", "iss": "foo"}`, privateKey)
+			jwtTerm := ast.NewTerm(ast.String(jwt))
+
 			constraints := ast.ObjectTerm(
 				ast.Item(ast.StringTerm("cert"), ast.StringTerm(keys)),
 				ast.Item(ast.StringTerm("iss"), ast.StringTerm("bar")),
 			)
 
-			err := builtinJWTDecodeVerify(bctx, []*ast.Term{badJwtTerm, constraints}, iter)
+			err := builtinJWTDecodeVerify(bctx, []*ast.Term{jwtTerm, constraints}, iter)
 			if err != nil {
 				t.Fatalf("unexpected error: %q", err)
 			}
@@ -851,9 +852,85 @@ func TestBuiltinJWTDecodeVerify_TokenCache(t *testing.T) {
 				t.Fatal("expected token to fail verification")
 			}
 
-			k := createTokenCacheKey(ast.String(badJwt), keysTerm.Value)
+			k := createTokenCacheKey(ast.String(jwt), keysTerm.Value)
 			if _, ok := bctx.InterQueryBuiltinValueCache.GetCache(tokenCacheName).Get(k); !ok {
 				t.Fatal("expected token to be cached")
+			}
+		})
+
+		t.Run("nbf constraint check", func(t *testing.T) {
+			now := time.Second * 0
+
+			// Token's nbf is 1 sec in the future.
+			jwt := createJwtT(t, fmt.Sprintf(`{"i": "foo", "nbf": %d}`, 1), privateKey)
+			jwtTerm := ast.NewTerm(ast.String(jwt))
+
+			bctx.Time = ast.NumberTerm(int64ToJSONNumber(int64(now)))
+
+			err := builtinJWTDecodeVerify(bctx, []*ast.Term{jwtTerm, keysTerm}, iter)
+			if err != nil {
+				t.Fatalf("unexpected error: %q", err)
+			}
+
+			// Token's nbf is in the future, so it should not be verified.
+			if verified {
+				t.Fatal("expected token to fail verification")
+			}
+
+			k := createTokenCacheKey(ast.String(jwt), keysTerm.Value)
+			if _, ok := bctx.InterQueryBuiltinValueCache.GetCache(tokenCacheName).Get(k); !ok {
+				t.Fatal("expected token to be cached")
+			}
+
+			// Move time to the future, so the token is now valid.
+			now = time.Second * 2
+			bctx.Time = ast.NumberTerm(int64ToJSONNumber(int64(now)))
+
+			err = builtinJWTDecodeVerify(bctx, []*ast.Term{jwtTerm, keysTerm}, iter)
+			if err != nil {
+				t.Fatalf("unexpected error: %q", err)
+			}
+
+			if !verified {
+				t.Fatal("expected token to be successfully verified")
+			}
+		})
+
+		t.Run("exp constraint check", func(t *testing.T) {
+			now := time.Second * 0
+
+			// Token's exp is 1 sec in the future.
+			jwt := createJwtT(t, fmt.Sprintf(`{"i": "foo", "exp": %d}`, 1), privateKey)
+			jwtTerm := ast.NewTerm(ast.String(jwt))
+
+			bctx.Time = ast.NumberTerm(int64ToJSONNumber(int64(now)))
+
+			err := builtinJWTDecodeVerify(bctx, []*ast.Term{jwtTerm, keysTerm}, iter)
+			if err != nil {
+				t.Fatalf("unexpected error: %q", err)
+			}
+
+			// Token's exp is in the future, so it should be verified.
+			if !verified {
+				t.Fatal("expected token to be successfully verified")
+			}
+
+			k := createTokenCacheKey(ast.String(jwt), keysTerm.Value)
+			if _, ok := bctx.InterQueryBuiltinValueCache.GetCache(tokenCacheName).Get(k); !ok {
+				t.Fatal("expected token to be cached")
+			}
+
+			// Move time to the future, so the token is now expired.
+			now = time.Second * 2
+			bctx.Time = ast.NumberTerm(int64ToJSONNumber(int64(now)))
+
+			err = builtinJWTDecodeVerify(bctx, []*ast.Term{jwtTerm, keysTerm}, iter)
+			if err != nil {
+				t.Fatalf("unexpected error: %q", err)
+			}
+
+			if verified {
+				t.Fatal("expected token to fail verification")
 			}
 		})
 	})
