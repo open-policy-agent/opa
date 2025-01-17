@@ -418,8 +418,8 @@ func TestBundleLazyModeLifecycleRaw(t *testing.T) {
 			}
 		},
 		"modules":{
-			"rego_version":{
-				"example/example.rego":3
+			"example/example.rego":{
+				"rego_version":3
 			}
 		}
 	}
@@ -470,7 +470,7 @@ func TestBundleLazyModeLifecycleRaw(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	expectedRaw = `{"system": {"bundles": {}, "modules": {"rego_version": {}}}}`
+	expectedRaw = `{"system": {"bundles": {}, "modules": {}}}`
 	expected = loadExpectedSortedResult(expectedRaw)
 	if !reflect.DeepEqual(expected, actual) {
 		t.Errorf("expected %v, got %v", expectedRaw, string(util.MustMarshalJSON(actual)))
@@ -649,9 +649,11 @@ func TestBundleLazyModeLifecycle(t *testing.T) {
 			}
 		},
 		"modules":{
-			"rego_version":{
-				"bundle1/a/policy.rego":3,
-				"bundle2/b/policy.rego":3
+			"bundle1/a/policy.rego":{
+				"rego_version":3
+			},
+			"bundle2/b/policy.rego":{
+				"rego_version":3
 			}
 		}
 	}
@@ -814,8 +816,8 @@ func TestBundleLazyModeLifecycleRawNoBundleRoots(t *testing.T) {
 			}
 		},
 		"modules":{
-			"rego_version":{
-				"bundle1/example/example.rego":3
+			"example/example.rego":{
+				"rego_version":3
 			}
 		}
 	}
@@ -1011,8 +1013,8 @@ func TestBundleLazyModeLifecycleRawNoBundleRootsDiskStorage(t *testing.T) {
 			}
 		},
 		"modules":{
-			"rego_version":{
-				"bundle1/example/example.rego":3
+			"example/example.rego":{
+				"rego_version":3
 			}
 		}
 	}
@@ -1188,8 +1190,8 @@ func TestBundleLazyModeLifecycleNoBundleRoots(t *testing.T) {
                }
             },
 			"modules":{
-				"rego_version":{
-					"bundle1/a/policy.rego":3
+				"bundle1/a/policy.rego":{
+					"rego_version":3
 				}
 			}
          }
@@ -1403,8 +1405,8 @@ func TestBundleLazyModeLifecycleNoBundleRootsDiskStorage(t *testing.T) {
                }
             },
 			"modules":{
-				"rego_version":{
-					"bundle1/a/policy.rego":3
+				"bundle1/a/policy.rego":{
+					"rego_version":3
 				}
 			}
          }
@@ -1641,8 +1643,8 @@ func TestBundleLazyModeLifecycleMixBundleTypeActivationDiskStorage(t *testing.T)
                }
             },
 			"modules":{
-				"rego_version":{
-					"bundle1/a/policy.rego":3
+				"bundle1/a/policy.rego":{
+					"rego_version":3
 				}
 			}
          }
@@ -1778,8 +1780,8 @@ func TestBundleLazyModeLifecycleOldBundleEraseDiskStorage(t *testing.T) {
                }
             },
 			"modules":{
-				"rego_version":{
-					"bundle1/a/policy.rego":3
+				"bundle1/a/policy.rego":{
+					"rego_version":3
 				}
 			}
          }
@@ -1995,8 +1997,8 @@ func TestBundleLazyModeLifecycleRestoreBackupDB(t *testing.T) {
                }
             },
 			"modules":{
-				"rego_version":{
-					"bundle1/a/policy.rego":3
+				"bundle1/a/policy.rego":{
+					"rego_version":3
 				}
 			}
          }
@@ -2079,8 +2081,8 @@ func TestBundleLazyModeLifecycleRestoreBackupDB(t *testing.T) {
                }
             },
 			"modules":{
-				"rego_version":{
-					"bundle1/a/policy.rego":3
+				"bundle1/a/policy.rego":{
+					"rego_version":3
 				}
 			}
          }
@@ -2367,6 +2369,14 @@ func TestDeltaBundleLazyModeLifecycleDiskStorage(t *testing.T) {
 							"roots": ["d"]
 						},
 						"etag": ""
+					}
+				},
+				"modules":{
+					"bundle1/a/policy.rego":{
+						"rego_version":3
+					},
+					"bundle2/b/policy.rego":{
+						"rego_version":3
 					}
 				}
 			}
@@ -3230,7 +3240,14 @@ func TestDeltaBundleLazyModeLifecycle(t *testing.T) {
 					"etag": ""
 				}
 			},
-			"modules":{}
+			"modules":{
+				"bundle1/policy.rego":{
+					"rego_version":3
+				},
+				"bundle2/policy.rego":{
+					"rego_version":3
+				}
+			}
 		}
 	}`
 
@@ -3521,7 +3538,14 @@ func TestDeltaBundleLazyModeWithDefaultRules(t *testing.T) {
 					"etag": ""
 				}
 			},
-			"modules":{}
+			"modules":{
+				"bundle1/policy.rego":{
+					"rego_version":3
+				},
+				"bundle2/policy.rego":{
+					"rego_version":3
+				}
+			}
 		}
 	}`
 
@@ -3670,9 +3694,11 @@ func TestBundleLifecycle(t *testing.T) {
 			}
 		},
 		"modules": {
-			"rego_version": {
-				"bundle1/a/policy.rego": 3,
-				"bundle2/b/policy.rego": 3
+			"bundle1/a/policy.rego": {
+				"rego_version": 3
+			},
+			"bundle2/b/policy.rego": {
+				"rego_version": 3
 			}
 		}
 	}
@@ -3989,7 +4015,14 @@ func TestDeltaBundleLifecycle(t *testing.T) {
 					"etag": ""
 				}
 			},
-			"modules":{}
+			"modules":{
+				"bundle1/a/policy.rego":{
+					"rego_version":3
+				},
+				"bundle2/b/policy.rego":{
+					"rego_version":3
+				}
+			}
 		}
 	}`
 

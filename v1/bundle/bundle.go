@@ -67,8 +67,9 @@ type Bundle struct {
 
 // Raw contains raw bytes representing the bundle's content
 type Raw struct {
-	Path  string
-	Value []byte
+	Path   string
+	Value  []byte
+	module *ModuleFile
 }
 
 // Patch contains an array of objects wherein each object represents the patch operation to be
@@ -633,15 +634,6 @@ func (r *Reader) Read() (Bundle, error) {
 			fullPath := r.fullPath(path)
 			bs := buf.Bytes()
 
-			if r.lazyLoadingMode {
-				p := fullPath
-				if r.name != "" {
-					p = modulePathWithPrefix(r.name, fullPath)
-				}
-
-				raw = append(raw, Raw{Path: p, Value: bs})
-			}
-
 			// Modules are parsed after we've had a chance to read the manifest
 			mf := ModuleFile{
 				URL:          f.URL(),
@@ -650,6 +642,15 @@ func (r *Reader) Read() (Bundle, error) {
 				Raw:          bs,
 			}
 			modules = append(modules, mf)
+
+			if r.lazyLoadingMode {
+				p := fullPath
+				if r.name != "" {
+					p = modulePathWithPrefix(r.name, fullPath)
+				}
+
+				raw = append(raw, Raw{Path: p, Value: bs, module: &mf})
+			}
 		} else if filepath.Base(path) == WasmFile {
 			bundle.WasmModules = append(bundle.WasmModules, WasmModuleFile{
 				URL:  f.URL(),
@@ -1218,6 +1219,19 @@ func (b *Bundle) RegoVersionForFile(path string, def ast.RegoVersion) (ast.RegoV
 		return ast.RegoV1, nil
 	}
 	return def, fmt.Errorf("unknown bundle rego-version %d for file '%s'", *version, path)
+}
+
+func (m *Manifest) RegoVersionForFile(path string) (ast.RegoVersion, error) {
+	v, err := m.numericRegoVersionForFile(path)
+	if err != nil {
+		return ast.RegoUndefined, err
+	}
+
+	if v == nil {
+		return ast.RegoUndefined, nil
+	}
+
+	return ast.RegoVersionFromInt(*v), nil
 }
 
 func (m *Manifest) numericRegoVersionForFile(path string) (*int, error) {
