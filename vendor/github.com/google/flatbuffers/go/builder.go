@@ -1,5 +1,7 @@
 package flatbuffers
 
+import "sort"
+
 // Builder is a state machine for creating FlatBuffer objects.
 // Use a Builder to construct object(s) starting from leaf nodes.
 //
@@ -22,6 +24,7 @@ type Builder struct {
 }
 
 const fileIdentifierLength = 4
+const sizePrefixLength = 4
 
 // NewBuilder initializes a Builder of size `initial_size`.
 // The internal buffer is grown as needed.
@@ -51,6 +54,12 @@ func (b *Builder) Reset() {
 
 	if b.vtable != nil {
 		b.vtable = b.vtable[:0]
+	}
+
+	if b.sharedStrings != nil {
+		for key := range b.sharedStrings {
+			delete(b.sharedStrings, key)
+		}
 	}
 
 	b.head = UOffsetT(len(b.Bytes))
@@ -306,6 +315,25 @@ func (b *Builder) EndVector(vectorNumElems int) UOffsetT {
 
 	b.nested = false
 	return b.Offset()
+}
+
+// CreateVectorOfTables serializes slice of table offsets into a vector.
+func (b *Builder) CreateVectorOfTables(offsets []UOffsetT) UOffsetT {
+	b.assertNotNested()
+	b.StartVector(4, len(offsets), 4)
+	for i := len(offsets) - 1; i >= 0; i-- {
+		b.PrependUOffsetT(offsets[i])
+	}
+	return b.EndVector(len(offsets))
+}
+
+type KeyCompare func(o1, o2 UOffsetT, buf []byte) bool
+
+func (b *Builder) CreateVectorOfSortedTables(offsets []UOffsetT, keyCompare KeyCompare) UOffsetT {
+	sort.Slice(offsets, func(i, j int) bool {
+		return keyCompare(offsets[i], offsets[j], b.Bytes)
+	})
+	return b.CreateVectorOfTables(offsets)
 }
 
 // CreateSharedString Checks if the string is already written
@@ -574,11 +602,53 @@ func (b *Builder) FinishWithFileIdentifier(rootTable UOffsetT, fid []byte) {
 	b.Finish(rootTable)
 }
 
+// FinishSizePrefixed finalizes a buffer, pointing to the given `rootTable`.
+// The buffer is prefixed with the size of the buffer, excluding the size
+// of the prefix itself.
+func (b *Builder) FinishSizePrefixed(rootTable UOffsetT) {
+	b.finish(rootTable, true)
+}
+
+// FinishSizePrefixedWithFileIdentifier finalizes a buffer, pointing to the given `rootTable`
+// and applies a file identifier. The buffer is prefixed with the size of the buffer,
+// excluding the size of the prefix itself.
+func (b *Builder) FinishSizePrefixedWithFileIdentifier(rootTable UOffsetT, fid []byte) {
+	if fid == nil || len(fid) != fileIdentifierLength {
+		panic("incorrect file identifier length")
+	}
+	// In order to add a file identifier and size prefix to the flatbuffer message,
+	// we need to prepare an alignment, a size prefix length, and file identifier length
+	b.Prep(b.minalign, SizeInt32+fileIdentifierLength+sizePrefixLength)
+	for i := fileIdentifierLength - 1; i >= 0; i-- {
+		// place the file identifier
+		b.PlaceByte(fid[i])
+	}
+	// finish
+	b.finish(rootTable, true)
+}
+
 // Finish finalizes a buffer, pointing to the given `rootTable`.
 func (b *Builder) Finish(rootTable UOffsetT) {
+	b.finish(rootTable, false)
+}
+
+// finish finalizes a buffer, pointing to the given `rootTable`
+// with an optional size prefix.
+func (b *Builder) finish(rootTable UOffsetT, sizePrefix bool) {
 	b.assertNotNested()
-	b.Prep(b.minalign, SizeUOffsetT)
+
+	if sizePrefix {
+		b.Prep(b.minalign, SizeUOffsetT+sizePrefixLength)
+	} else {
+		b.Prep(b.minalign, SizeUOffsetT)
+	}
+
 	b.PrependUOffsetT(rootTable)
+
+	if sizePrefix {
+		b.PlaceUint32(uint32(b.Offset()))
+	}
+
 	b.finished = true
 }
 

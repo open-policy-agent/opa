@@ -5,6 +5,10 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Dependency Updates
+
+- github.com/dgraph-io/badger: v3.2103.5 -> v4.5.0 by @Juneezee in [#7239](https://github.com/open-policy-agent/opa/pull/7239)
+
 ## 1.0.0
 
 > **_NOTES:_**
