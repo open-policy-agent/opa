@@ -721,7 +721,7 @@ func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transac
 	}
 
 	remaining := map[string]*ast.Module{}
-	removed := []string{}
+	var removed []string
 
 	for _, id := range ids {
 		bs, err := store.GetPolicy(ctx, txn, id)

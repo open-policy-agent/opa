@@ -306,10 +306,21 @@ func TestBundleLazyModeLifecycleRaw(t *testing.T) {
 		{"/a/b/c/data.json", "[1,2,3]"},
 		{"/a/b/d/data.json", "true"},
 		{"/a/b/y/data.yaml", `foo: 1`},
-		{"/example/example.rego", `package example`},
+		{"/example/example.rego", `package example
+			p contains 42 if { true }
+		`},
+		{"/example/example_v0.rego", `package example
+			q[42] { true }
+		`},
 		{"/authz/allow/policy.wasm", `wasm-module`},
 		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}`},
-		{"/.manifest", `{"revision": "foo", "roots": ["a", "example", "x", "authz"],"wasm":[{"entrypoint": "authz/allow", "module": "/authz/allow/policy.wasm"}]}`},
+		{"/.manifest", `{
+			"revision": "foo", 
+			"roots": ["a", "example", "x", "authz"],
+			"wasm":[{"entrypoint": "authz/allow", "module": "/authz/allow/policy.wasm"}],
+			"rego_version": 1,
+			"file_rego_versions": {"/example/example_v0.rego": 0}
+		}`},
 	}
 
 	buf := archive.MustWriteTarGz(files)
@@ -409,7 +420,11 @@ func TestBundleLazyModeLifecycleRaw(t *testing.T) {
 							"entrypoint": "authz/allow",
 							"module": "/authz/allow/policy.wasm"
 						}
-					]
+					],
+					"rego_version": 1,
+					"file_rego_versions": {
+						"/example/example_v0.rego": 0
+					}
 				},
 				"etag": "bar",
 				"wasm": {
@@ -420,6 +435,9 @@ func TestBundleLazyModeLifecycleRaw(t *testing.T) {
 		"modules":{
 			"example/example.rego":{
 				"rego_version":3
+			},
+			"example/example_v0.rego":{
+				"rego_version":1
 			}
 		}
 	}
@@ -540,11 +558,14 @@ func TestBundleLazyModeLifecycle(t *testing.T) {
 		"mod1": ast.MustParseModule("package x\np = true"),
 	}
 
-	mod1 := "package a\np = true"
-	mod2 := "package b\np = true"
+	// v1 bundle
+
+	mod1 := `package a
+		p contains 42 if { true }
+	`
 
 	b1Files := [][2]string{
-		{"/.manifest", `{"roots": ["a"]}`},
+		{"/.manifest", `{"roots": ["a"], "rego_version": 1}`},
 		{"a/policy.rego", mod1},
 		{"/data.json", `{"a": {"b": "foo"}}`},
 	}
@@ -558,8 +579,14 @@ func TestBundleLazyModeLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// v0 bundle
+
+	mod2 := `package b
+		p[42] { true }
+	`
+
 	b2Files := [][2]string{
-		{"/.manifest", `{"roots": ["b", "c"]}`},
+		{"/.manifest", `{"roots": ["b", "c"], "rego_version": 0}`},
 		{"b/policy.rego", mod2},
 		{"/data.json", `{}`},
 	}
@@ -636,14 +663,16 @@ func TestBundleLazyModeLifecycle(t *testing.T) {
 			"bundle1": {
 				"manifest": {
 					"revision": "",
-					"roots": ["a"]
+					"roots": ["a"],
+					"rego_version": 1
 				},
 				"etag": "foo"
 			},
 			"bundle2": {
 				"manifest": {
 					"revision": "",
-					"roots": ["b", "c"]
+					"roots": ["b", "c"],
+					"rego_version": 0
 				},
 				"etag": ""
 			}
@@ -653,7 +682,7 @@ func TestBundleLazyModeLifecycle(t *testing.T) {
 				"rego_version":3
 			},
 			"bundle2/b/policy.rego":{
-				"rego_version":3
+				"rego_version":1
 			}
 		}
 	}
