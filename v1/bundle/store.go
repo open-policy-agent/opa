@@ -59,6 +59,10 @@ func metadataPath(name string) storage.Path {
 	return append(BundlesBasePath, name, "manifest", "metadata")
 }
 
+func moduleRegoVersionPath() storage.Path {
+	return append(BundlesBasePath, "modules")
+}
+
 func read(ctx context.Context, store storage.Store, txn storage.Transaction, path storage.Path) (interface{}, error) {
 	value, err := store.Read(ctx, txn, path)
 	if err != nil {
@@ -163,6 +167,36 @@ func eraseWasmModulesFromStore(ctx context.Context, store storage.Store, txn sto
 	path := wasmModulePath(name)
 
 	err := store.Write(ctx, txn, storage.RemoveOp, path, nil)
+	return suppressNotFound(err)
+}
+
+func writeModuleRegoVersionMapToStore(ctx context.Context, store storage.Store, txn storage.Transaction, value map[string]ast.RegoVersion) error {
+	return write(ctx, store, txn, moduleRegoVersionPath(), value)
+}
+
+func readModuleRegoVersionMapFromStore(ctx context.Context, store storage.Store, txn storage.Transaction) (map[string]ast.RegoVersion, error) {
+	var moduleRegoVersionMap map[string]ast.RegoVersion
+
+	value, err := read(ctx, store, txn, moduleRegoVersionPath())
+	if err != nil {
+		return moduleRegoVersionMap, suppressNotFound(err)
+	}
+
+	bs, err := json.Marshal(value)
+	if err != nil {
+		return moduleRegoVersionMap, fmt.Errorf("corrupt module rego version data")
+	}
+
+	err = util.UnmarshalJSON(bs, &moduleRegoVersionMap)
+	if err != nil {
+		return moduleRegoVersionMap, fmt.Errorf("corrupt wasm manifest data")
+	}
+
+	return moduleRegoVersionMap, nil
+}
+
+func eraseModuleRegoVersionMapFromStore(ctx context.Context, store storage.Store, txn storage.Transaction) error {
+	err := store.Write(ctx, txn, storage.RemoveOp, moduleRegoVersionPath(), nil)
 	return suppressNotFound(err)
 }
 
@@ -470,7 +504,7 @@ func activateBundles(opts *ActivateOpts) error {
 		remainingAndExtra[name] = mod
 	}
 
-	err = compileModules(opts.Compiler, opts.Metrics, snapshotBundles, remainingAndExtra, opts.legacy, opts.AuthorizationDecisionRef)
+	moduleIdToRegoVersionMap, err := compileModules(opts.Compiler, opts.Metrics, snapshotBundles, remainingAndExtra, opts.legacy, opts.AuthorizationDecisionRef)
 	if err != nil {
 		return err
 	}
@@ -497,7 +531,7 @@ func activateBundles(opts *ActivateOpts) error {
 		}
 	}
 
-	return nil
+	return writeModuleRegoVersionMapToStore(opts.Ctx, opts.Store, opts.Txn, moduleIdToRegoVersionMap)
 }
 
 func doDFS(obj map[string]json.RawMessage, path string, roots []string) error {
@@ -649,6 +683,11 @@ func eraseBundles(ctx context.Context, store storage.Store, txn storage.Transact
 		}
 	}
 
+	err = eraseModuleRegoVersionMapFromStore(ctx, store, txn)
+	if err != nil {
+		return nil, err
+	}
+
 	return remaining, nil
 }
 
@@ -675,6 +714,11 @@ func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transac
 		return nil, err
 	}
 
+	moduleIdToRegoVersion, err := readModuleRegoVersionMapFromStore(ctx, store, txn)
+	if err != nil {
+		return nil, err
+	}
+
 	remaining := map[string]*ast.Module{}
 
 	for _, id := range ids {
@@ -682,7 +726,13 @@ func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transac
 		if err != nil {
 			return nil, err
 		}
-		module, err := ast.ParseModuleWithOpts(id, string(bs), parserOpts)
+
+		parserOptsCpy := parserOpts
+		if regoVersion, ok := moduleIdToRegoVersion[id]; ok {
+			parserOptsCpy.RegoVersion = regoVersion
+		}
+
+		module, err := ast.ParseModuleWithOpts(id, string(bs), parserOptsCpy)
 		if err != nil {
 			return nil, err
 		}
@@ -792,7 +842,7 @@ func writeData(ctx context.Context, store storage.Store, txn storage.Transaction
 	return nil
 }
 
-func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, legacy bool, authorizationDecisionRef ast.Ref) error {
+func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, legacy bool, authorizationDecisionRef ast.Ref) (map[string]ast.RegoVersion, error) {
 
 	m.Timer(metrics.RegoModuleCompile).Start()
 	defer m.Timer(metrics.RegoModuleCompile).Stop()
@@ -809,6 +859,8 @@ func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[strin
 		modules[name] = module
 	}
 
+	moduleIdToRegoVersion := map[string]ast.RegoVersion{}
+
 	// include all the new bundle modules
 	for bundleName, b := range bundles {
 		if legacy {
@@ -818,19 +870,26 @@ func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[strin
 		} else {
 			for name, module := range b.ParsedModules(bundleName) {
 				modules[name] = module
+
+				p, err := getFileStoragePath(name)
+				if err != nil {
+					return nil, err
+				}
+
+				moduleIdToRegoVersion[strings.TrimLeft(p.String(), "/")] = module.RegoVersion()
 			}
 		}
 	}
 
 	if compiler.Compile(modules); compiler.Failed() {
-		return compiler.Errors
+		return nil, compiler.Errors
 	}
 
 	if authorizationDecisionRef.Equal(ast.EmptyRef()) {
-		return nil
+		return moduleIdToRegoVersion, nil
 	}
 
-	return iCompiler.VerifyAuthorizationPolicySchema(compiler, authorizationDecisionRef)
+	return moduleIdToRegoVersion, iCompiler.VerifyAuthorizationPolicySchema(compiler, authorizationDecisionRef)
 }
 
 func writeModules(ctx context.Context, store storage.Store, txn storage.Transaction, compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, legacy bool) error {
