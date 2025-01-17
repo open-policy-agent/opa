@@ -23,6 +23,8 @@ import (
 // BundlesBasePath is the storage path used for storing bundle metadata
 var BundlesBasePath = storage.MustParsePath("/system/bundles")
 
+var ModulesMetaBasePath = storage.MustParsePath("/system/modules")
+
 // Note: As needed these helpers could be memoized.
 
 // ManifestStoragePath is the storage path used for the given named bundle manifest.
@@ -60,7 +62,8 @@ func metadataPath(name string) storage.Path {
 }
 
 func moduleRegoVersionPath() storage.Path {
-	return append(BundlesBasePath, "modules")
+	// FIXME: change to '/system/modules/<id>/rego_version/<rego_version>'?
+	return append(ModulesMetaBasePath, "rego_version")
 }
 
 func read(ctx context.Context, store storage.Store, txn storage.Transaction, path storage.Path) (interface{}, error) {
@@ -171,7 +174,10 @@ func eraseWasmModulesFromStore(ctx context.Context, store storage.Store, txn sto
 }
 
 func writeModuleRegoVersionMapToStore(ctx context.Context, store storage.Store, txn storage.Transaction, value map[string]ast.RegoVersion) error {
-	return write(ctx, store, txn, moduleRegoVersionPath(), value)
+	if len(value) > 0 {
+		return write(ctx, store, txn, moduleRegoVersionPath(), value)
+	}
+	return nil
 }
 
 func readModuleRegoVersionMapFromStore(ctx context.Context, store storage.Store, txn storage.Transaction) (map[string]ast.RegoVersion, error) {

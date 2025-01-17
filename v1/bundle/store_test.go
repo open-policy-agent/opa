@@ -416,13 +416,18 @@ func TestBundleLazyModeLifecycleRaw(t *testing.T) {
 					"/authz/allow/policy.wasm": "d2FzbS1tb2R1bGU="
 				}
 			}
+		},
+		"modules":{
+			"rego_version":{
+				"bundle1/example/example.rego":3
+			}
 		}
 	}
 }
 `
 	expected := loadExpectedSortedResult(expectedRaw)
 	if !reflect.DeepEqual(expected, actual) {
-		t.Errorf("expected %v, got %v", expectedRaw, string(util.MustMarshalJSON(actual)))
+		t.Errorf("expected %s, got %s", expectedRaw, string(util.MustMarshalJSON(actual)))
 	}
 
 	// Ensure that the extra module was included
@@ -465,7 +470,7 @@ func TestBundleLazyModeLifecycleRaw(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	expectedRaw = `{"system": {"bundles": {}}}`
+	expectedRaw = `{"system": {"bundles": {}, "modules": {}}}`
 	expected = loadExpectedSortedResult(expectedRaw)
 	if !reflect.DeepEqual(expected, actual) {
 		t.Errorf("expected %v, got %v", expectedRaw, string(util.MustMarshalJSON(actual)))
@@ -642,6 +647,12 @@ func TestBundleLazyModeLifecycle(t *testing.T) {
 				},
 				"etag": ""
 			}
+		},
+		"modules":{
+			"rego_version":{
+				"bundle1/a/policy.rego":3,
+				"bundle2/b/policy.rego":3
+			}
 		}
 	}
 }
@@ -691,7 +702,7 @@ func TestBundleLazyModeLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	expectedRaw = `{"system": {"bundles": {}}}`
+	expectedRaw = `{"system": {"bundles": {}, "modules": {}}}`
 	expected = loadExpectedSortedResult(expectedRaw)
 	if !reflect.DeepEqual(expected, actual) {
 		t.Errorf("expected %v, got %v", expectedRaw, string(util.MustMarshalJSON(actual)))
@@ -800,6 +811,11 @@ func TestBundleLazyModeLifecycleRawNoBundleRoots(t *testing.T) {
 					"roots": [""]
 				},
 				"etag": "foo"
+			}
+		},
+		"modules":{
+			"rego_version":{
+				"bundle1/example/example.rego":3
 			}
 		}
 	}
@@ -993,6 +1009,11 @@ func TestBundleLazyModeLifecycleRawNoBundleRootsDiskStorage(t *testing.T) {
 				},
 				"etag": "foo"
 			}
+		},
+		"modules":{
+			"rego_version":{
+				"bundle1/example/example.rego":3
+			}
 		}
 	}
 }
@@ -1165,7 +1186,12 @@ func TestBundleLazyModeLifecycleNoBundleRoots(t *testing.T) {
                   },
                   "etag": ""
                }
-            }
+            },
+			"modules":{
+				"rego_version":{
+					"bundle1/a/policy.rego":3
+				}
+			}
          }
       }`
 
@@ -1375,7 +1401,12 @@ func TestBundleLazyModeLifecycleNoBundleRootsDiskStorage(t *testing.T) {
                   },
                   "etag": ""
                }
-            }
+            },
+			"modules":{
+				"rego_version":{
+					"bundle1/a/policy.rego":3
+				}
+			}
          }
       }`
 
@@ -1608,7 +1639,12 @@ func TestBundleLazyModeLifecycleMixBundleTypeActivationDiskStorage(t *testing.T)
                   },
                   "etag": ""
                }
-            }
+            },
+			"modules":{
+				"rego_version":{
+					"bundle1/a/policy.rego":3
+				}
+			}
          }
       }`
 
@@ -1740,7 +1776,12 @@ func TestBundleLazyModeLifecycleOldBundleEraseDiskStorage(t *testing.T) {
                   },
                   "etag": ""
                }
-            }
+            },
+			"modules":{
+				"rego_version":{
+					"bundle1/a/policy.rego":3
+				}
+			}
          }
       }`
 
@@ -1952,7 +1993,12 @@ func TestBundleLazyModeLifecycleRestoreBackupDB(t *testing.T) {
                   },
                   "etag": ""
                }
-            }
+            },
+			"modules":{
+				"rego_version":{
+					"bundle1/a/policy.rego":3
+				}
+			}
          }
       }`
 
@@ -2031,7 +2077,12 @@ func TestBundleLazyModeLifecycleRestoreBackupDB(t *testing.T) {
                   },
                   "etag": ""
                }
-            }
+            },
+			"modules":{
+				"rego_version":{
+					"bundle1/a/policy.rego":3
+				}
+			}
          }
       }`
 
@@ -3178,7 +3229,8 @@ func TestDeltaBundleLazyModeLifecycle(t *testing.T) {
 					},
 					"etag": ""
 				}
-			}
+			},
+			"modules":{}
 		}
 	}`
 
@@ -3468,7 +3520,8 @@ func TestDeltaBundleLazyModeWithDefaultRules(t *testing.T) {
 					},
 					"etag": ""
 				}
-			}
+			},
+			"modules":{}
 		}
 	}`
 
@@ -3615,6 +3668,12 @@ func TestBundleLifecycle(t *testing.T) {
 				},
 				"etag": ""
 			}
+		},
+		"modules": {
+			"rego_version": {
+				"bundle1/a/policy.rego": 3,
+				"bundle2/b/policy.rego": 3
+			}
 		}
 	}
 }
@@ -3661,7 +3720,7 @@ func TestBundleLifecycle(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err)
 			}
-			expectedRaw = `{"system": {"bundles": {}}}`
+			expectedRaw = `{"system": {"bundles": {}, "modules": {}}}`
 			assertEqual(t, tc.readAst, expectedRaw, actual)
 
 			mockStore.AssertValid(t)
@@ -3929,7 +3988,8 @@ func TestDeltaBundleLifecycle(t *testing.T) {
 					},
 					"etag": ""
 				}
-			}
+			},
+			"modules":{}
 		}
 	}`
 
