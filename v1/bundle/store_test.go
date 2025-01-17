@@ -419,7 +419,7 @@ func TestBundleLazyModeLifecycleRaw(t *testing.T) {
 		},
 		"modules":{
 			"rego_version":{
-				"bundle1/example/example.rego":3
+				"example/example.rego":3
 			}
 		}
 	}
@@ -470,7 +470,7 @@ func TestBundleLazyModeLifecycleRaw(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	expectedRaw = `{"system": {"bundles": {}, "modules": {}}}`
+	expectedRaw = `{"system": {"bundles": {}, "modules": {"rego_version": {}}}}`
 	expected = loadExpectedSortedResult(expectedRaw)
 	if !reflect.DeepEqual(expected, actual) {
 		t.Errorf("expected %v, got %v", expectedRaw, string(util.MustMarshalJSON(actual)))
@@ -4427,7 +4427,7 @@ func TestErasePolicies(t *testing.T) {
 			for _, root := range tc.roots {
 				roots[root] = struct{}{}
 			}
-			remaining, err := erasePolicies(ctx, mockStore, txn, ast.ParserOptions{}, roots)
+			remaining, _, err := erasePolicies(ctx, mockStore, txn, ast.ParserOptions{}, roots)
 			if !tc.expectErr && err != nil {
 				t.Fatalf("unepected error: %s", err)
 			} else if tc.expectErr && err == nil {
