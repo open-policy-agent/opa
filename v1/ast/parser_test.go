@@ -14,7 +14,6 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast/internal/tokens"
-	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 )
 
 const (
@@ -4096,9 +4095,9 @@ func TestParseMultiValueRuleGeneratedBodyLocationText(t *testing.T) {
 	t.Parallel()
 
 	mod := `package test
-	
+
 	import rego.v1
-	
+
 	foo contains "bar"
 	`
 
@@ -4112,85 +4111,6 @@ func TestParseMultiValueRuleGeneratedBodyLocationText(t *testing.T) {
 	if text != `foo contains "bar"` {
 		t.Errorf("Expected rule location text to be %q but got %q", `foo contains "bar"`, text)
 	}
-}
-
-func TestRuleFromBodyJSONOptions(t *testing.T) {
-	tests := []string{
-		`pi = 3.14159`,
-		`p contains x if { x = 1 }`,
-		`greeting = "hello"`,
-		`cores = [{0: 1}, {1: 2}]`,
-		`wrapper = cores[0][1]`,
-		`pi = [3, 1, 4, x, y, z]`,
-		`foo["bar"] = "buz"`,
-		`foo["9"] = "10"`,
-		`foo.buz = "bar"`,
-		`foo.fizz contains "buzz"`,
-		`bar contains 1`,
-		`bar contains [{"foo":"baz"}]`,
-		`bar contains "qux"`,
-		`input = 1`,
-		`data = 2`,
-		`f(1) = 2`,
-		`f(1)`,
-		`d1 := 1234`,
-	}
-
-	parserOpts := ParserOptions{ProcessAnnotation: true, AllFutureKeywords: true}
-	parserOpts.JSONOptions = &astJSON.Options{
-		MarshalOptions: astJSON.MarshalOptions{
-			IncludeLocation: astJSON.NodeToggle{
-				Term:           true,
-				Package:        true,
-				Comment:        true,
-				Import:         true,
-				Rule:           true,
-				Head:           true,
-				Expr:           true,
-				SomeDecl:       true,
-				Every:          true,
-				With:           true,
-				Annotations:    true,
-				AnnotationsRef: true,
-			},
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc, func(t *testing.T) {
-			testModule := "package a.b.c\n" + tc
-			assertParseModuleJSONOptions(t, tc, testModule, parserOpts)
-		})
-	}
-}
-
-func TestRuleFromBodyJSONOptionsLocationOptions(t *testing.T) {
-	parserOpts := ParserOptions{ProcessAnnotation: true}
-	parserOpts.JSONOptions = &astJSON.Options{
-		MarshalOptions: astJSON.MarshalOptions{
-			IncludeLocation: astJSON.NodeToggle{
-				Term:           true,
-				Package:        true,
-				Comment:        true,
-				Import:         true,
-				Rule:           true,
-				Head:           true,
-				Expr:           true,
-				SomeDecl:       true,
-				Every:          true,
-				With:           true,
-				Annotations:    true,
-				AnnotationsRef: true,
-			},
-			IncludeLocationText: true,
-			ExcludeLocationFile: true,
-		},
-	}
-
-	module := `package a.b.c
-			foo := "bar"
-			`
-	assertParseModuleJSONOptions(t, `foo := "bar"`, module, parserOpts)
 }
 
 func TestRuleModulePtr(t *testing.T) {
@@ -6134,7 +6054,7 @@ func TestAnnotationsAugmentedError(t *testing.T) {
 
 func TestAnnotationsAreParsedAsYamlv1_2(t *testing.T) {
 	policy := `package p
-	
+
 # METADATA
 # custom:
 #   string: yes
@@ -6535,53 +6455,6 @@ func assertParseModule(t *testing.T, msg string, input string, correct *Module, 
 		t.Errorf("Error on test %s: modules not equal: %v (parsed), %v (correct)", msg, m, correct)
 	}
 
-}
-
-func assertParseModuleJSONOptions(t *testing.T, msg string, input string, opts ...ParserOptions) {
-	opt := ParserOptions{}
-	if len(opts) == 1 {
-		opt = opts[0]
-	}
-	m, err := ParseModuleWithOpts("", input, opt)
-	if err != nil {
-		t.Errorf("Error on test \"%s\": parse error on %s: %s", msg, input, err)
-		return
-	}
-
-	if len(m.Rules) != 1 {
-		t.Fatalf("Error on test \"%s\": expected 1 rule but got %d", msg, len(m.Rules))
-	}
-
-	rule := m.Rules[0]
-	if rule.Head.jsonOptions != *opt.JSONOptions {
-		t.Fatalf("Error on test \"%s\": expected rule Head Options\n%v\n, got\n%v", msg, *opt.JSONOptions, rule.Head.jsonOptions)
-	}
-	if rule.Body[0].jsonOptions != *opt.JSONOptions {
-		t.Fatalf("Error on test \"%s\": expected rule Body Options\n%v\n, got\n%v", msg, *opt.JSONOptions, rule.Body[0].jsonOptions)
-	}
-	switch terms := rule.Body[0].Terms.(type) {
-	case []*Term:
-		for _, term := range terms {
-			if term.jsonOptions != *opt.JSONOptions {
-				t.Fatalf("Error on test \"%s\": expected body Term Options\n%v\n, got\n%v", msg, *opt.JSONOptions, term.jsonOptions)
-			}
-		}
-	case *SomeDecl:
-		if terms.jsonOptions != *opt.JSONOptions {
-			t.Fatalf("Error on test \"%s\": expected body Term Options\n%v\n, got\n%v", msg, *opt.JSONOptions, terms.jsonOptions)
-		}
-	case *Every:
-		if terms.jsonOptions != *opt.JSONOptions {
-			t.Fatalf("Error on test \"%s\": expected body Term Options\n%v\n, got\n%v", msg, *opt.JSONOptions, terms.jsonOptions)
-		}
-	case *Term:
-		if terms.jsonOptions != *opt.JSONOptions {
-			t.Fatalf("Error on test \"%s\": expected body Term Options\n%v\n, got\n%v", msg, *opt.JSONOptions, terms.jsonOptions)
-		}
-	}
-	if rule.jsonOptions != *opt.JSONOptions {
-		t.Fatalf("Error on test \"%s\": expected rule Options\n%v\n, got\n%v", msg, *opt.JSONOptions, rule.jsonOptions)
-	}
 }
 
 func assertParseModuleError(t *testing.T, msg, input string) {

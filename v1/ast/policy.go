@@ -213,8 +213,6 @@ type (
 		// TODO: these fields have inconsistent JSON keys with other structs in this package.
 		Text     []byte
 		Location *Location
-
-		jsonOptions astJSON.Options
 	}
 
 	// Package represents the namespace of the documents produced
@@ -222,8 +220,6 @@ type (
 	Package struct {
 		Path     Ref       `json:"path"`
 		Location *Location `json:"location,omitempty"`
-
-		jsonOptions astJSON.Options
 	}
 
 	// Import represents a dependency on a document outside of the policy
@@ -232,8 +228,6 @@ type (
 		Path     *Term     `json:"path"`
 		Alias    Var       `json:"alias,omitempty"`
 		Location *Location `json:"location,omitempty"`
-
-		jsonOptions astJSON.Options
 	}
 
 	// Rule represents a rule as defined in the language. Rules define the
@@ -253,7 +247,6 @@ type (
 		Module *Module `json:"-"`
 
 		generatedBody bool
-		jsonOptions   astJSON.Options
 	}
 
 	// Head represents the head of a rule.
@@ -268,7 +261,6 @@ type (
 
 		keywords       []tokens.Token
 		generatedValue bool
-		jsonOptions    astJSON.Options
 	}
 
 	// Args represents zero or more arguments to a rule.
@@ -287,7 +279,6 @@ type (
 		Negated   bool        `json:"negated,omitempty"`
 		Location  *Location   `json:"location,omitempty"`
 
-		jsonOptions   astJSON.Options
 		generatedFrom *Expr
 		generates     []*Expr
 	}
@@ -296,8 +287,6 @@ type (
 	SomeDecl struct {
 		Symbols  []*Term   `json:"symbols"`
 		Location *Location `json:"location,omitempty"`
-
-		jsonOptions astJSON.Options
 	}
 
 	Every struct {
@@ -306,8 +295,6 @@ type (
 		Domain   *Term     `json:"domain"`
 		Body     Body      `json:"body"`
 		Location *Location `json:"location,omitempty"`
-
-		jsonOptions astJSON.Options
 	}
 
 	// With represents a modifier on an expression.
@@ -315,8 +302,6 @@ type (
 		Target   *Term     `json:"target"`
 		Value    *Term     `json:"value"`
 		Location *Location `json:"location,omitempty"`
-
-		jsonOptions astJSON.Options
 	}
 )
 
@@ -514,15 +499,6 @@ func (c *Comment) Equal(other *Comment) bool {
 	return c.Location.Equal(other.Location) && bytes.Equal(c.Text, other.Text)
 }
 
-func (c *Comment) setJSONOptions(opts astJSON.Options) {
-	// Note: this is not used for location since Comments use default JSON marshaling
-	// behavior with struct field names in JSON.
-	c.jsonOptions = opts
-	if c.Location != nil {
-		c.Location.JSONOptions = opts
-	}
-}
-
 // Compare returns an integer indicating whether pkg is less than, equal to,
 // or greater than other.
 func (pkg *Package) Compare(other *Package) int {
@@ -567,19 +543,12 @@ func (pkg *Package) String() string {
 	return fmt.Sprintf("package %v", path)
 }
 
-func (pkg *Package) setJSONOptions(opts astJSON.Options) {
-	pkg.jsonOptions = opts
-	if pkg.Location != nil {
-		pkg.Location.JSONOptions = opts
-	}
-}
-
 func (pkg *Package) MarshalJSON() ([]byte, error) {
 	data := map[string]interface{}{
 		"path": pkg.Path,
 	}
 
-	if pkg.jsonOptions.MarshalOptions.IncludeLocation.Package {
+	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Package {
 		if pkg.Location != nil {
 			data["location"] = pkg.Location
 		}
@@ -680,13 +649,6 @@ func (imp *Import) String() string {
 	return strings.Join(buf, " ")
 }
 
-func (imp *Import) setJSONOptions(opts astJSON.Options) {
-	imp.jsonOptions = opts
-	if imp.Location != nil {
-		imp.Location.JSONOptions = opts
-	}
-}
-
 func (imp *Import) MarshalJSON() ([]byte, error) {
 	data := map[string]interface{}{
 		"path": imp.Path,
@@ -696,7 +658,7 @@ func (imp *Import) MarshalJSON() ([]byte, error) {
 		data["alias"] = imp.Alias
 	}
 
-	if imp.jsonOptions.MarshalOptions.IncludeLocation.Import {
+	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Import {
 		if imp.Location != nil {
 			data["location"] = imp.Location
 		}
@@ -832,13 +794,6 @@ func (rule *Rule) isFunction() bool {
 	return len(rule.Head.Args) > 0
 }
 
-func (rule *Rule) setJSONOptions(opts astJSON.Options) {
-	rule.jsonOptions = opts
-	if rule.Location != nil {
-		rule.Location.JSONOptions = opts
-	}
-}
-
 func (rule *Rule) MarshalJSON() ([]byte, error) {
 	data := map[string]interface{}{
 		"head": rule.Head,
@@ -853,7 +808,7 @@ func (rule *Rule) MarshalJSON() ([]byte, error) {
 		data["else"] = rule.Else
 	}
 
-	if rule.jsonOptions.MarshalOptions.IncludeLocation.Rule {
+	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Rule {
 		if rule.Location != nil {
 			data["location"] = rule.Location
 		}
@@ -914,14 +869,11 @@ func NewHead(name Var, args ...*Term) *Head {
 	return head
 }
 
-// VarHead creates a head object, initializes its Name, Location, and Options,
-// and returns the new head.
-func VarHead(name Var, location *Location, jsonOpts *astJSON.Options) *Head {
+// VarHead creates a head object, initializes its Name and Location and returns the new head.
+// NOTE: The JSON options argument is no longer used, and kept only for backwards compatibility.
+func VarHead(name Var, location *Location, _ *astJSON.Options) *Head {
 	h := NewHead(name)
 	h.Reference[0].Location = location
-	if jsonOpts != nil {
-		h.Reference[0].setJSONOptions(*jsonOpts)
-	}
 	return h
 }
 
@@ -1084,26 +1036,10 @@ func (head *Head) stringWithOpts(opts toStringOpts) string {
 	return buf.String()
 }
 
-func (head *Head) setJSONOptions(opts astJSON.Options) {
-	head.jsonOptions = opts
-	if head.Location != nil {
-		head.Location.JSONOptions = opts
-	}
-}
-
 func (head *Head) MarshalJSON() ([]byte, error) {
 	var loc *Location
-	includeLoc := head.jsonOptions.MarshalOptions.IncludeLocation
-	if includeLoc.Head {
-		if head.Location != nil {
-			loc = head.Location
-		}
-
-		for _, term := range head.Reference {
-			if term.Location != nil {
-				term.jsonOptions.MarshalOptions.IncludeLocation.Term = includeLoc.Term
-			}
-		}
+	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Head && head.Location != nil {
+		loc = head.Location
 	}
 
 	// NOTE(sr): we do this to override the rendering of `head.Reference`.
@@ -1655,13 +1591,6 @@ func (expr *Expr) String() string {
 	return strings.Join(buf, " ")
 }
 
-func (expr *Expr) setJSONOptions(opts astJSON.Options) {
-	expr.jsonOptions = opts
-	if expr.Location != nil {
-		expr.Location.JSONOptions = opts
-	}
-}
-
 func (expr *Expr) MarshalJSON() ([]byte, error) {
 	data := map[string]interface{}{
 		"terms": expr.Terms,
@@ -1680,7 +1609,7 @@ func (expr *Expr) MarshalJSON() ([]byte, error) {
 		data["negated"] = true
 	}
 
-	if expr.jsonOptions.MarshalOptions.IncludeLocation.Expr {
+	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Expr {
 		if expr.Location != nil {
 			data["location"] = expr.Location
 		}
@@ -1794,19 +1723,12 @@ func (d *SomeDecl) Hash() int {
 	return termSliceHash(d.Symbols)
 }
 
-func (d *SomeDecl) setJSONOptions(opts astJSON.Options) {
-	d.jsonOptions = opts
-	if d.Location != nil {
-		d.Location.JSONOptions = opts
-	}
-}
-
 func (d *SomeDecl) MarshalJSON() ([]byte, error) {
 	data := map[string]interface{}{
 		"symbols": d.Symbols,
 	}
 
-	if d.jsonOptions.MarshalOptions.IncludeLocation.SomeDecl {
+	if astJSON.GetOptions().MarshalOptions.IncludeLocation.SomeDecl {
 		if d.Location != nil {
 			data["location"] = d.Location
 		}
@@ -1871,13 +1793,6 @@ func (q *Every) KeyValueVars() VarSet {
 	return vis.vars
 }
 
-func (q *Every) setJSONOptions(opts astJSON.Options) {
-	q.jsonOptions = opts
-	if q.Location != nil {
-		q.Location.JSONOptions = opts
-	}
-}
-
 func (q *Every) MarshalJSON() ([]byte, error) {
 	data := map[string]interface{}{
 		"key":    q.Key,
@@ -1886,7 +1801,7 @@ func (q *Every) MarshalJSON() ([]byte, error) {
 		"body":   q.Body,
 	}
 
-	if q.jsonOptions.MarshalOptions.IncludeLocation.Every {
+	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Every {
 		if q.Location != nil {
 			data["location"] = q.Location
 		}
@@ -1953,20 +1868,13 @@ func (w *With) SetLoc(loc *Location) {
 	w.Location = loc
 }
 
-func (w *With) setJSONOptions(opts astJSON.Options) {
-	w.jsonOptions = opts
-	if w.Location != nil {
-		w.Location.JSONOptions = opts
-	}
-}
-
 func (w *With) MarshalJSON() ([]byte, error) {
 	data := map[string]interface{}{
 		"target": w.Target,
 		"value":  w.Value,
 	}
 
-	if w.jsonOptions.MarshalOptions.IncludeLocation.With {
+	if astJSON.GetOptions().MarshalOptions.IncludeLocation.With {
 		if w.Location != nil {
 			data["location"] = w.Location
 		}

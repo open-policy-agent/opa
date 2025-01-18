@@ -445,7 +445,6 @@ type Reader struct {
 	verificationConfig    *VerificationConfig
 	skipVerify            bool
 	processAnnotations    bool
-	jsonOptions           *astJSON.Options
 	capabilities          *ast.Capabilities
 	files                 map[string]FileInfo // files in the bundle signature payload
 	sizeLimitBytes        int64
@@ -518,9 +517,11 @@ func (r *Reader) WithCapabilities(caps *ast.Capabilities) *Reader {
 	return r
 }
 
-// WithJSONOptions sets the JSONOptions to use when parsing policy files
-func (r *Reader) WithJSONOptions(opts *astJSON.Options) *Reader {
-	r.jsonOptions = opts
+// WithJSONOptions sets the JSON options on the parser (now a no-op).
+//
+// Deprecated: Use SetOptions in the json package instead, where a longer description
+// of why this is deprecated also can be found.
+func (r *Reader) WithJSONOptions(*astJSON.Options) *Reader {
 	return r
 }
 
@@ -572,7 +573,6 @@ func (r *Reader) ParserOptions() ast.ParserOptions {
 	return ast.ParserOptions{
 		ProcessAnnotation: r.processAnnotations,
 		Capabilities:      r.capabilities,
-		JSONOptions:       r.jsonOptions,
 		RegoVersion:       r.regoVersion,
 	}
 }
