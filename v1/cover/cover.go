@@ -8,10 +8,11 @@ package cover
 import (
 	"bytes"
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // Cover computes and reports on coverage.
@@ -144,8 +145,8 @@ type PositionSlice []Position
 
 // Sort sorts the slice by line number.
 func (sl PositionSlice) Sort() {
-	sort.Slice(sl, func(i, j int) bool {
-		return sl[i].Row < sl[j].Row
+	slices.SortFunc(sl, func(a, b Position) int {
+		return a.Row - b.Row
 	})
 }
 
@@ -257,13 +258,7 @@ func (e *CoverageThresholdError) Error() string {
 	if e.Report != nil && len(e.Report.Files) > 0 {
 		buffer.WriteString("\nLines not covered:")
 
-		sorted := make([]string, 0, len(e.Report.Files))
-		for file := range e.Report.Files {
-			sorted = append(sorted, file)
-		}
-		sort.Strings(sorted)
-
-		for _, file := range sorted {
+		for _, file := range util.KeysSorted(e.Report.Files) {
 			report := e.Report.Files[file]
 			for _, r := range report.NotCovered {
 				if r.Start.Row == r.End.Row {
@@ -275,7 +270,7 @@ func (e *CoverageThresholdError) Error() string {
 		}
 	}
 
-	return fmt.Sprint(buffer.String())
+	return buffer.String()
 }
 
 func sortedPositionSliceToRangeSlice(sorted []Position) (result []Range) {

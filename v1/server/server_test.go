@@ -31,7 +31,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"sort"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -880,60 +879,60 @@ func TestCompileV1(t *testing.T) {
 	t.Parallel()
 
 	v0mod := `package test
-	
+
 	p {
 		input.x = 1
 	}
-	
+
 	q {
 		data.a[i] = input.x
 	}
-	
+
 	default r = true
-	
+
 	r { input.x = 1 }
-	
+
 	custom_func(x) { data.a[i] == x }
-	
+
 	s { custom_func(input.x) }
 	`
 
 	v1mod := `package test
-	
+
 	p if {
 		input.x = 1
 	}
-	
+
 	q if {
 		data.a[i] = input.x
 	}
-	
+
 	default r = true
-	
+
 	r if { input.x = 1 }
-	
+
 	custom_func(x) if { data.a[i] == x }
-	
+
 	s if { custom_func(input.x) }
 	`
 
 	v0v1mod := `package test
 	import rego.v1
-	
+
 	p if {
 		input.x = 1
 	}
-	
+
 	q if {
 		data.a[i] = input.x
 	}
-	
+
 	default r = true
-	
+
 	r if { input.x = 1 }
-	
+
 	custom_func(x) if { data.a[i] == x }
-	
+
 	s if { custom_func(input.x) }
 	`
 
@@ -1122,7 +1121,7 @@ func TestCompileV1(t *testing.T) {
 				}`, 200, expQueryAndSupport(
 					`data.partial.test.s = true`,
 					`package partial.test
-					
+
 					s if { data.partial.test.custom_func(1) }
 					custom_func(__local0__2) if { data.a[i2] = __local0__2 }
 					`,
@@ -1194,7 +1193,7 @@ func TestCompileV1Observability(t *testing.T) {
 
 		err = f.v1(http.MethodPut, "/policies/test", `package test
 	import rego.v1
-	
+
 	p if { input.x = 1 }`, 200, "")
 		if err != nil {
 			t.Fatal(err)
@@ -3083,7 +3082,7 @@ func TestDataPostExplainNotes(t *testing.T) {
 	err := f.v1(http.MethodPut, "/policies/test", `
 		package test
 		import rego.v1
-		
+
 		p if {
 			data.a[i] = x; x > 1
 			trace(sprintf("found x = %d", [x]))
@@ -3693,13 +3692,7 @@ func TestPoliciesPutV1Noop(t *testing.T) {
 
 	// Sort the metric keys and compare to expected value. We're assuming the
 	// server skips parsing if the bytes are equal.
-	result := []string{}
-
-	for k := range resp.Metrics {
-		result = append(result, k)
-	}
-
-	sort.Strings(result)
+	result := util.KeysSorted(resp.Metrics)
 
 	if !reflect.DeepEqual(exp, result) {
 		t.Fatalf("Expected %v but got %v", exp, result)
@@ -4012,7 +4005,7 @@ func TestStatusV1MetricsWithSystemAuthzPolicy(t *testing.T) {
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 	authzPolicy := `package system.authz
 	import rego.v1
-	
+
 	default allow = false
 	allow if {
 		input.path = ["v1", "status"]
@@ -4830,7 +4823,7 @@ func TestAuthorization(t *testing.T) {
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
 	authzPolicy := `package system.authz
-		
+
 		import rego.v1
 		import input.identity
 
@@ -4883,7 +4876,7 @@ func TestAuthorization(t *testing.T) {
 	// Reverse the policy.
 	update := identifier.SetIdentity(newReqV1(http.MethodPut, "/policies/test", `
 		package system.authz
-		
+
 		import rego.v1
 		import input.identity
 

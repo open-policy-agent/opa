@@ -6,7 +6,9 @@ package ast
 
 import (
 	"fmt"
-	"sort"
+	"slices"
+
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // VarSet represents a set of variables.
@@ -77,9 +79,7 @@ func (s VarSet) Sorted() []Var {
 	for v := range s {
 		sorted = append(sorted, v)
 	}
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i].Compare(sorted[j]) < 0
-	})
+	slices.SortFunc(sorted, VarCompare)
 	return sorted
 }
 
@@ -91,10 +91,5 @@ func (s VarSet) Update(vs VarSet) {
 }
 
 func (s VarSet) String() string {
-	tmp := make([]string, 0, len(s))
-	for v := range s {
-		tmp = append(tmp, string(v))
-	}
-	sort.Strings(tmp)
-	return fmt.Sprintf("%v", tmp)
+	return fmt.Sprintf("%v", util.KeysSorted(s))
 }

@@ -14,8 +14,9 @@ import (
 	"fmt"
 	"hash"
 	"io"
-	"sort"
 	"strings"
+
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // HashingAlgorithm represents a subset of hashing algorithms implemented in Go
@@ -97,13 +98,7 @@ func walk(v interface{}, h io.Writer) {
 	case map[string]interface{}:
 		_, _ = h.Write([]byte("{"))
 
-		var keys []string
-		for k := range x {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-
-		for i, key := range keys {
+		for i, key := range util.KeysSorted(x) {
 			if i > 0 {
 				_, _ = h.Write([]byte(","))
 			}
