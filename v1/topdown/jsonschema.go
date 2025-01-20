@@ -61,7 +61,7 @@ func builtinJSONSchemaVerify(_ BuiltinContext, operands []*ast.Term, iter func(*
 		return iter(newResultTerm(false, ast.StringTerm("jsonschema: "+err.Error())))
 	}
 
-	return iter(newResultTerm(true, ast.NullTerm()))
+	return iter(newResultTerm(true, ast.InternedNullTerm))
 }
 
 // builtinJSONMatchSchema accepts 2 arguments both can be string or object and verifies if the document matches the JSON schema.

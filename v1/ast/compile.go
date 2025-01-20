@@ -5500,7 +5500,7 @@ func rewriteDeclaredAssignment(g *localVarGenerator, stack *localDeclaredVars, e
 				return true
 			}
 		}
-		errs = append(errs, NewError(CompileErr, t.Location, "cannot assign to %v", TypeName(t.Value)))
+		errs = append(errs, NewError(CompileErr, t.Location, "cannot assign to %v", ValueName(t.Value)))
 		return true
 	}
 

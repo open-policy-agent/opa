@@ -186,7 +186,7 @@ func ParseRuleFromExpr(module *Module, expr *Expr) (*Rule, error) {
 			}
 			return ParsePartialSetDocRuleFromTerm(module, term)
 		default:
-			return nil, fmt.Errorf("%v cannot be used for rule name", TypeName(v))
+			return nil, fmt.Errorf("%v cannot be used for rule name", ValueName(v))
 		}
 	}
 
@@ -277,7 +277,7 @@ func ParseCompleteDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule, erro
 			return nil, fmt.Errorf("ref not ground")
 		}
 	} else {
-		return nil, fmt.Errorf("%v cannot be used for rule name", TypeName(lhs.Value))
+		return nil, fmt.Errorf("%v cannot be used for rule name", ValueName(lhs.Value))
 	}
 	head.Value = rhs
 	head.Location = lhs.Location
@@ -299,7 +299,7 @@ func ParseCompleteDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule, erro
 func ParseCompleteDocRuleWithDotsFromTerm(module *Module, term *Term) (*Rule, error) {
 	ref, ok := term.Value.(Ref)
 	if !ok {
-		return nil, fmt.Errorf("%v cannot be used for rule name", TypeName(term.Value))
+		return nil, fmt.Errorf("%v cannot be used for rule name", ValueName(term.Value))
 	}
 
 	if _, ok := ref[0].Value.(Var); !ok {
@@ -328,7 +328,7 @@ func ParseCompleteDocRuleWithDotsFromTerm(module *Module, term *Term) (*Rule, er
 func ParsePartialObjectDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule, error) {
 	ref, ok := lhs.Value.(Ref)
 	if !ok {
-		return nil, fmt.Errorf("%v cannot be used as rule name", TypeName(lhs.Value))
+		return nil, fmt.Errorf("%v cannot be used as rule name", ValueName(lhs.Value))
 	}
 
 	if _, ok := ref[0].Value.(Var); !ok {
@@ -363,7 +363,7 @@ func ParsePartialSetDocRuleFromTerm(module *Module, term *Term) (*Rule, error) {
 
 	ref, ok := term.Value.(Ref)
 	if !ok || len(ref) == 1 {
-		return nil, fmt.Errorf("%vs cannot be used for rule head", TypeName(term.Value))
+		return nil, fmt.Errorf("%vs cannot be used for rule head", ValueName(term.Value))
 	}
 	if _, ok := ref[0].Value.(Var); !ok {
 		return nil, fmt.Errorf("invalid rule head: %v", ref)
@@ -373,7 +373,7 @@ func ParsePartialSetDocRuleFromTerm(module *Module, term *Term) (*Rule, error) {
 	if len(ref) == 2 {
 		v, ok := ref[0].Value.(Var)
 		if !ok {
-			return nil, fmt.Errorf("%vs cannot be used for rule head", TypeName(term.Value))
+			return nil, fmt.Errorf("%vs cannot be used for rule head", ValueName(term.Value))
 		}
 		// Modify the code to add the location to the head ref
 		// and set the head ref's jsonOptions.
@@ -408,7 +408,7 @@ func ParseRuleFromCallEqExpr(module *Module, lhs, rhs *Term) (*Rule, error) {
 
 	ref, ok := call[0].Value.(Ref)
 	if !ok {
-		return nil, fmt.Errorf("%vs cannot be used in function signature", TypeName(call[0].Value))
+		return nil, fmt.Errorf("%vs cannot be used in function signature", ValueName(call[0].Value))
 	}
 	if _, ok := ref[0].Value.(Var); !ok {
 		return nil, fmt.Errorf("invalid rule head: %v", ref)

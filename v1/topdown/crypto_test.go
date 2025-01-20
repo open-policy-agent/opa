@@ -865,3 +865,29 @@ func TestExtractX509VerifyOptions(t *testing.T) {
 		}
 	}
 }
+
+// Before/after replacing sprintf("%x", ...) with hex.EncodeToString(...), and using
+// util.ByteSliceToString to convert the resulting byte slice:
+// BenchmarkMd5-10    	 3294998	       435.2 ns/op	     128 B/op	       5 allocs/op
+// BenchmarkMd5-10    	 6193455	       180.9 ns/op	      96 B/op	       3 allocs/op
+// ...
+func BenchmarkMd5(b *testing.B) {
+	bctx := BuiltinContext{}
+	operands := []*ast.Term{ast.StringTerm("hello")}
+	expect := ast.String("5d41402abc4b2a76b9719d911017c592")
+	iter := func(result *ast.Term) error {
+		if !expect.Equal(result.Value) {
+			return fmt.Errorf("unexpected result: %v", result.Value)
+		}
+		return nil
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		err := builtinCryptoMd5(bctx, operands, iter)
+		if err != nil {
+			b.Fatalf("unexpected error: %v", err)
+		}
+	}
+}
