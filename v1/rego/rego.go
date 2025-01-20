@@ -2598,7 +2598,7 @@ func (r *Rego) rewriteQueryForPartialEval(_ ast.QueryCompiler, query ast.Body) (
 
 	ref, ok := term.Value.(ast.Ref)
 	if !ok {
-		return nil, fmt.Errorf("partial evaluation requires ref (not %v)", ast.TypeName(term.Value))
+		return nil, fmt.Errorf("partial evaluation requires ref (not %v)", ast.ValueName(term.Value))
 	}
 
 	if !ref.IsGround() {

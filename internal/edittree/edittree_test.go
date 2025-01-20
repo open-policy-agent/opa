@@ -885,7 +885,7 @@ func parsePath(path *ast.Term) (ast.Ref, error) {
 			pathSegments = append(pathSegments, term)
 		})
 	default:
-		return nil, builtins.NewOperandErr(2, "must be one of {set, array} containing string paths or array of path segments but got %v", ast.TypeName(p))
+		return nil, builtins.NewOperandErr(2, "must be one of {set, array} containing string paths or array of path segments but got %v", ast.ValueName(p))
 	}
 
 	return pathSegments, nil

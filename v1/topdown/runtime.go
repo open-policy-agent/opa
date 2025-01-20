@@ -12,14 +12,16 @@ import (
 
 var configStringTerm = ast.StringTerm("config")
 
+var nothingResolver ast.Resolver = illegalResolver{}
+
 func builtinOPARuntime(bctx BuiltinContext, _ []*ast.Term, iter func(*ast.Term) error) error {
 
 	if bctx.Runtime == nil {
-		return iter(ast.ObjectTerm())
+		return iter(ast.InternedEmptyObject)
 	}
 
 	if bctx.Runtime.Get(configStringTerm) != nil {
-		iface, err := ast.ValueToInterface(bctx.Runtime.Value, illegalResolver{})
+		iface, err := ast.ValueToInterface(bctx.Runtime.Value, nothingResolver)
 		if err != nil {
 			return err
 		}
