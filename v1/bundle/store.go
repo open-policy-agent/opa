@@ -23,7 +23,7 @@ import (
 // BundlesBasePath is the storage path used for storing bundle metadata
 var BundlesBasePath = storage.MustParsePath("/system/bundles")
 
-var ModulesMetaBasePath = storage.MustParsePath("/system/modules")
+var ModulesInfoBasePath = storage.MustParsePath("/system/modules")
 
 // Note: As needed these helpers could be memoized.
 
@@ -62,11 +62,11 @@ func metadataPath(name string) storage.Path {
 }
 
 func moduleRegoVersionPath(id string) storage.Path {
-	return append(ModulesMetaBasePath, strings.Trim(id, "/"), "rego_version")
+	return append(ModulesInfoBasePath, strings.Trim(id, "/"), "rego_version")
 }
 
 func moduleInfoPath(id string) storage.Path {
-	return append(ModulesMetaBasePath, strings.Trim(id, "/"))
+	return append(ModulesInfoBasePath, strings.Trim(id, "/"))
 }
 
 func read(ctx context.Context, store storage.Store, txn storage.Transaction, path storage.Path) (interface{}, error) {
@@ -693,6 +693,33 @@ func eraseData(ctx context.Context, store storage.Store, txn storage.Transaction
 	return nil
 }
 
+type moduleInfo struct {
+	RegoVersion ast.RegoVersion `json:"rego_version"`
+}
+
+func readModuleInfoFromStore(ctx context.Context, store storage.Store, txn storage.Transaction) (map[string]moduleInfo, error) {
+	versions := map[string]moduleInfo{}
+
+	value, err := read(ctx, store, txn, ModulesInfoBasePath)
+	if suppressNotFound(err) != nil {
+		return nil, err
+	}
+
+	if value != nil {
+		bs, err := json.Marshal(value)
+		if err != nil {
+			return nil, fmt.Errorf("corrupt rego version")
+		}
+
+		err = util.UnmarshalJSON(bs, &versions)
+		if err != nil {
+			return nil, fmt.Errorf("corrupt rego version")
+		}
+	}
+
+	return versions, nil
+}
+
 func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transaction, parserOpts ast.ParserOptions, roots map[string]struct{}) (map[string]*ast.Module, []string, error) {
 
 	ids, err := store.ListPolicies(ctx, txn)
@@ -700,24 +727,17 @@ func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transac
 		return nil, nil, err
 	}
 
+	modulesInfo, err := readModuleInfoFromStore(ctx, store, txn)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read module info from store: %w", err)
+	}
+
 	getRegoVersion := func(modId string) (ast.RegoVersion, bool) {
-		regoVersionValue, err := store.Read(ctx, txn, moduleRegoVersionPath(modId))
-		if err != nil {
+		info, ok := modulesInfo[modId]
+		if !ok {
 			return ast.RegoUndefined, false
 		}
-
-		bs, err := json.Marshal(regoVersionValue)
-		if err != nil {
-			return ast.RegoUndefined, false
-		}
-
-		var moduleRegoVersion ast.RegoVersion
-		err = util.UnmarshalJSON(bs, &moduleRegoVersion)
-		if err != nil {
-			return ast.RegoUndefined, false
-		}
-
-		return moduleRegoVersion, true
+		return info.RegoVersion, true
 	}
 
 	remaining := map[string]*ast.Module{}
@@ -832,11 +852,13 @@ func writeDataAndModules(ctx context.Context, store storage.Store, txn storage.T
 				if strings.HasSuffix(f.Path, RegoExt) {
 					p, err := getFileStoragePath(f.Path)
 					if err != nil {
-						return fmt.Errorf("failed to write module to bundle mapping for '%s' in bundle '%s': %w", f.Path, name, err)
+						return fmt.Errorf("failed get storage path for module '%s' in bundle '%s': %w", f.Path, name, err)
 					}
 
 					if m := f.module; m != nil {
-						if regoVersion, err := b.RegoVersionForFile(f.Path, ast.RegoUndefined); err == nil && regoVersion != ast.RegoUndefined {
+						// 'f.module.Path' contains the module's path as it relates to the bundle root, and can be used for looking up the rego-version.
+						// 'f.Path' can differ, based on how the bundle reader was initialized.
+						if regoVersion, err := b.RegoVersionForFile(f.module.Path, ast.RegoUndefined); err == nil && regoVersion != ast.RegoUndefined {
 							if err := write(ctx, store, txn, moduleRegoVersionPath(p.String()), regoVersion); err != nil {
 								return fmt.Errorf("failed to write rego version for '%s' in bundle '%s': %w", f.Path, name, err)
 							}
