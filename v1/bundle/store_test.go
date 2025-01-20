@@ -301,6 +301,1037 @@ func TestBundleLazyModeNoPolicyOrData(t *testing.T) {
 	}
 }
 
+func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
+	type files [][2]string
+	type bundles map[string]files
+	type deactivation struct {
+		bundles map[string]struct{}
+		expData string
+	}
+	type activation struct {
+		bundles            bundles
+		lazy               bool
+		readWithBundleName bool
+		expData            string
+	}
+
+	tests := []struct {
+		note    string
+		updates []interface{}
+	}{
+		// single v0 bundle
+		{
+			note: "v0 bundle, lazy, read with bundle name",
+			updates: []interface{}{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 0}`},
+							{"a/policy.rego", `package a
+								p[42] { true }`},
+						},
+					},
+					lazy:               true,
+					readWithBundleName: true,
+					// Lazy mode, bundle reader decides if module name should be prefixed with bundle name; reader initialized with bundle name, so prefix is expected.
+					expData: `{
+									"system":{
+										"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}},
+										"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
+									}
+								}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+		{
+			note: "v0 bundle, not lazy, read with bundle name",
+			updates: []interface{}{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 0}`},
+							{"a/policy.rego", `package a
+								p[42] { true }`},
+						},
+					},
+					lazy:               false,
+					readWithBundleName: true,
+					// Not lazy mode, bundle store decides that module name should be prefixed with bundle name.
+					expData: `{
+									"system":{
+										"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}},
+										"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
+									}
+								}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+		{
+			note: "v0 bundle, lazy, read with NO bundle name",
+			updates: []interface{}{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 0}`},
+							{"a/policy.rego", `package a
+								p[42] { true }`},
+						},
+					},
+					lazy:               true,
+					readWithBundleName: false,
+					// Lazy mode, bundle reader decides if module name should be prefixed with bundle name; reader not initialized with bundle name, so prefix not expected.
+					expData: `{
+									"system":{
+										"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}},
+										"modules":{"a/policy.rego":{"rego_version":1}}
+									}
+								}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+		{
+			note: "v0 bundle, not lazy, read with NO bundle name",
+			updates: []interface{}{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 0}`},
+							{"a/policy.rego", `package a
+								p[42] { true }`},
+						},
+					},
+					lazy:               false,
+					readWithBundleName: false,
+					// Not lazy mode, bundle store decides that module name should be prefixed with bundle name.
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}},
+									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
+								}
+							}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+
+		// single v1 bundle
+		{
+			note: "v1 bundle, lazy, read with bundle name",
+			updates: []interface{}{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 1}`},
+							{"a/policy.rego", `package a
+								p contains 42 if { true }`},
+						},
+					},
+					lazy:               true,
+					readWithBundleName: true,
+					// Lazy mode, bundle reader decides if module name should be prefixed with bundle name; reader initialized with bundle name, so prefix is expected.
+					expData: `{
+									"system":{
+										"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":1,"revision":"","roots":["a"]}}},
+										"modules":{"bundle1/a/policy.rego":{"rego_version":3}}
+									}
+								}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+		{
+			note: "v1 bundle, not lazy, read with bundle name",
+			updates: []interface{}{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 1}`},
+							{"a/policy.rego", `package a
+								p contains 42 if { true }`},
+						},
+					},
+					lazy:               false,
+					readWithBundleName: true,
+					// Not lazy mode, bundle store decides that module name should be prefixed with bundle name.
+					expData: `{
+									"system":{
+										"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":1,"revision":"","roots":["a"]}}},
+										"modules":{"bundle1/a/policy.rego":{"rego_version":3}}
+									}
+								}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+		{
+			note: "v1 bundle, lazy, read with NO bundle name",
+			updates: []interface{}{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 1}`},
+							{"a/policy.rego", `package a
+								p contains 42 if { true }`},
+						},
+					},
+					lazy:               true,
+					readWithBundleName: false,
+					// Lazy mode, bundle reader decides if module name should be prefixed with bundle name; reader not initialized with bundle name, so prefix not expected.
+					expData: `{
+									"system":{
+										"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":1,"revision":"","roots":["a"]}}},
+										"modules":{"a/policy.rego":{"rego_version":3}}
+									}
+								}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+		{
+			note: "v1 bundle, not lazy, read with NO bundle name",
+			updates: []interface{}{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 1}`},
+							{"a/policy.rego", `package a
+								p contains 42 if { true }`},
+						},
+					},
+					lazy:               false,
+					readWithBundleName: false,
+					// Not lazy mode, bundle store decides that module name should be prefixed with bundle name.
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":1,"revision":"","roots":["a"]}}},
+									"modules":{"bundle1/a/policy.rego":{"rego_version":3}}
+								}
+							}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+
+		{
+			note: "custom bundle without rego-version, lazy",
+			updates: []interface{}{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"]}`},
+							{"a/policy.rego", `package a
+								p contains 42 if { true }`},
+						},
+					},
+					lazy:               true,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"revision":"","roots":["a"]}}},
+									"modules":{"bundle1/a/policy.rego":{"rego_version":3}}
+								}
+							}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+
+		{
+			note: "v0, lazy replaced by non-lazy",
+			updates: []interface{}{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 0}`},
+							{"a/policy.rego", `package a
+								p[42] { true }`},
+						},
+					},
+					lazy:               true,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}},
+									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
+								}
+							}`,
+				},
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 1}`},
+							{"a/policy.rego", `package a
+								p contains 42 if { true }`},
+						},
+					},
+					lazy:               false,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":1,"revision":"","roots":["a"]}}},
+									"modules":{"bundle1/a/policy.rego":{"rego_version":3}}
+								}
+							}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+
+		{
+			note: "v0 bundle replaced by v1 bundle, lazy",
+			updates: []interface{}{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 0}`},
+							{"a/policy.rego", `package a
+								p[42] { true }`},
+						},
+					},
+					lazy:               true,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}},
+									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
+								}
+							}`,
+				},
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 1}`},
+							{"a/policy.rego", `package a
+								p contains 42 if { true }`},
+						},
+					},
+					lazy:               true,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":1,"revision":"","roots":["a"]}}},
+									"modules":{"bundle1/a/policy.rego":{"rego_version":3}}
+								}
+							}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+		{
+			note: "v0 bundle replaced by v1 bundle, not lazy",
+			updates: []interface{}{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 0}`},
+							{"a/policy.rego", `package a
+								p[42] { true }`},
+						},
+					},
+					lazy:               false,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}},
+									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
+								}
+							}`,
+				},
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 1}`},
+							{"a/policy.rego", `package a
+								p contains 42 if { true }`},
+						},
+					},
+					lazy:               false,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":1,"revision":"","roots":["a"]}}},
+									"modules":{"bundle1/a/policy.rego":{"rego_version":3}}
+								}
+							}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+		{
+			note: "v0 bundle replaced by custom bundle, not lazy",
+			updates: []interface{}{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 0}`},
+							{"a/policy.rego", `package a
+								p[42] { true }`},
+						},
+					},
+					lazy:               false,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}},
+									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
+								}
+							}`,
+				},
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"]}`}, // no rego-version
+							{"a/policy.rego", `package a
+								p contains 42 if { true }`},
+						},
+					},
+					lazy:               false,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"revision":"","roots":["a"]}}},
+									"modules":{"bundle1/a/policy.rego":{"rego_version":3}}
+								}
+							}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+
+		{
+			note: "v1 bundle replaced by v0 bundle, lazy",
+			updates: []interface{}{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 1}`},
+							{"a/policy.rego", `package a
+								p contains 42 if { true }`},
+						},
+					},
+					lazy:               true,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":1,"revision":"","roots":["a"]}}},
+									"modules":{"bundle1/a/policy.rego":{"rego_version":3}}
+								}
+							}`,
+				},
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 0}`},
+							{"a/policy.rego", `package a
+								p[42] { true }`},
+						},
+					},
+					lazy:               true,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}},
+									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
+								}
+							}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+		{
+			note: "v1 bundle replaced by v0 bundle, not lazy",
+			updates: []interface{}{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 1}`},
+							{"a/policy.rego", `package a
+								p contains 42 if { true }`},
+						},
+					},
+					lazy:               false,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":1,"revision":"","roots":["a"]}}},
+									"modules":{"bundle1/a/policy.rego":{"rego_version":3}}
+								}
+							}`,
+				},
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 0}`},
+							{"a/policy.rego", `package a
+								p[42] { true }`},
+						},
+					},
+					lazy:               false,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}},
+									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
+								}
+							}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+		{
+			note: "custom bundle replaced by v0 bundle, lazy",
+			updates: []interface{}{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"]}`}, // no rego-version
+							{"a/policy.rego", `package a
+								p contains 42 if { true }`},
+						},
+					},
+					lazy:               true,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"revision":"","roots":["a"]}}},
+									"modules":{"bundle1/a/policy.rego":{"rego_version":3}}
+								}
+							}`,
+				},
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 0}`},
+							{"a/policy.rego", `package a
+								p[42] { true }`},
+						},
+					},
+					lazy:               true,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}},
+									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
+								}
+							}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+
+		{
+			note: "multiple v0 bundles, all dropped",
+			updates: []interface{}{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 0}`},
+							{"a/policy.rego", `package a
+								p[42] { true }`},
+						},
+						"bundle2": {
+							{"/.manifest", `{"roots": ["b"], "rego_version": 0}`},
+							{"b/policy.rego", `package b
+								p[42] { true }`},
+						},
+					},
+					lazy:               true,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{
+										"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}},
+										"bundle2":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["b"]}}
+									},
+									"modules":{"bundle1/a/policy.rego":{"rego_version":1},"bundle2/b/policy.rego":{"rego_version":1}}
+								}
+							}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}, "bundle2": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+
+		{
+			note: "multiple v0 bundles, one dropped",
+			updates: []interface{}{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 0}`},
+							{"a/policy.rego", `package a
+								p[42] { true }`},
+						},
+						"bundle2": {
+							{"/.manifest", `{"roots": ["b"], "rego_version": 0}`},
+							{"b/policy.rego", `package b
+								p[42] { true }`},
+						},
+					},
+					lazy:               true,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{
+										"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}},
+										"bundle2":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["b"]}}
+									},
+									"modules":{"bundle1/a/policy.rego":{"rego_version":1},"bundle2/b/policy.rego":{"rego_version":1}}
+								}
+							}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{
+								"system":{
+									"bundles":{
+										"bundle2":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["b"]}}
+									},
+									"modules":{"bundle2/b/policy.rego":{"rego_version":1}}
+								}
+							}`,
+				},
+			},
+		},
+
+		{
+			note: "v0 bundle with v1 bundle added",
+			updates: []interface{}{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 0}`},
+							{"a/policy.rego", `package a
+								p[42] { true }`},
+						},
+					},
+					lazy:               true,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}},
+									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
+								}
+							}`,
+				},
+				activation{
+					bundles: bundles{
+						"bundle2": {
+							{"/.manifest", `{"roots": ["b"], "rego_version": 1}`},
+							{"b/policy.rego", `package b
+								p contains 42 if { true }`},
+						},
+					},
+					lazy:               true,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{
+										"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}},
+										"bundle2":{"etag":"bar","manifest":{"rego_version":1,"revision":"","roots":["b"]}}
+									},
+									"modules":{"bundle1/a/policy.rego":{"rego_version":1},"bundle2/b/policy.rego":{"rego_version":3}}
+								}
+							}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}, "bundle2": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+
+		{
+			note: "mixed-version bundles, lazy",
+			updates: []interface{}{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a", "b"], "rego_version": 0, "file_rego_versions": {"/b/policy.rego": 1}}`},
+							{"a/policy.rego", `package a
+								p[42] { true }`},
+							{"b/policy.rego", `package b
+								p contains 42 if { true }`},
+						},
+						"bundle2": {
+							{"/.manifest", `{"roots": ["c", "d"], "rego_version": 1, "file_rego_versions": {"/d/policy.rego": 0}}`},
+							{"c/policy.rego", `package c
+								p contains 42 if { true }`},
+							{"d/policy.rego", `package d
+								p[42] { true }`},
+						},
+					},
+					lazy:               true,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{
+										"bundle1":{"etag":"bar","manifest":{"file_rego_versions":{"/b/policy.rego":1},"rego_version":0,"revision":"","roots":["a","b"]}},
+										"bundle2":{"etag":"bar","manifest":{"file_rego_versions":{"/d/policy.rego":0},"rego_version":1,"revision":"","roots":["c","d"]}}
+									},
+									"modules":{
+										"bundle1/a/policy.rego":{"rego_version":1},
+										"bundle1/b/policy.rego":{"rego_version":3},
+										"bundle2/c/policy.rego":{"rego_version":3},
+										"bundle2/d/policy.rego":{"rego_version":1}
+									}
+								}
+							}`,
+				},
+				// replacing bundles
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a", "b"], "rego_version": 0, "file_rego_versions": {"/b/policy2.rego": 1}}`},
+							{"a/policy2.rego", `package a
+								q[42] { true }`},
+							{"b/policy2.rego", `package b
+								q contains 42 if { true }`},
+						},
+						"bundle2": {
+							{"/.manifest", `{"roots": ["c", "d"], "rego_version": 1, "file_rego_versions": {"/d/policy2.rego": 0}}`},
+							{"c/policy2.rego", `package c
+								q contains 42 if { true }`},
+							{"d/policy2.rego", `package d
+								q[42] { true }`},
+						},
+					},
+					lazy:               true,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{
+										"bundle1":{"etag":"bar","manifest":{"file_rego_versions":{"/b/policy2.rego":1},"rego_version":0,"revision":"","roots":["a","b"]}},
+										"bundle2":{"etag":"bar","manifest":{"file_rego_versions":{"/d/policy2.rego":0},"rego_version":1,"revision":"","roots":["c","d"]}}
+									},
+									"modules":{
+										"bundle1/a/policy2.rego":{"rego_version":1},
+										"bundle1/b/policy2.rego":{"rego_version":3},
+										"bundle2/c/policy2.rego":{"rego_version":3},
+										"bundle2/d/policy2.rego":{"rego_version":1}
+									}
+								}
+							}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}, "bundle2": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+		{
+			note: "mixed-version bundles, lazy, read with NO bundle name",
+			updates: []interface{}{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a", "b"], "rego_version": 0, "file_rego_versions": {"/b/policy.rego": 1}}`},
+							{"a/policy.rego", `package a
+								p[42] { true }`},
+							{"b/policy.rego", `package b
+								p contains 42 if { true }`},
+						},
+						"bundle2": {
+							{"/.manifest", `{"roots": ["c", "d"], "rego_version": 1, "file_rego_versions": {"/d/policy.rego": 0}}`},
+							{"c/policy.rego", `package c
+								p contains 42 if { true }`},
+							{"d/policy.rego", `package d
+								p[42] { true }`},
+						},
+					},
+					lazy:               true,
+					readWithBundleName: false,
+					expData: `{
+								"system":{
+									"bundles":{
+										"bundle1":{"etag":"bar","manifest":{"file_rego_versions":{"/b/policy.rego":1},"rego_version":0,"revision":"","roots":["a","b"]}},
+										"bundle2":{"etag":"bar","manifest":{"file_rego_versions":{"/d/policy.rego":0},"rego_version":1,"revision":"","roots":["c","d"]}}
+									},
+									"modules":{
+										"a/policy.rego":{"rego_version":1},
+										"b/policy.rego":{"rego_version":3},
+										"c/policy.rego":{"rego_version":3},
+										"d/policy.rego":{"rego_version":1}
+									}
+								}
+							}`,
+				},
+				// replacing bundles
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a", "b"], "rego_version": 0, "file_rego_versions": {"/b/policy2.rego": 1}}`},
+							{"a/policy2.rego", `package a
+								q[42] { true }`},
+							{"b/policy2.rego", `package b
+								q contains 42 if { true }`},
+						},
+						"bundle2": {
+							{"/.manifest", `{"roots": ["c", "d"], "rego_version": 1, "file_rego_versions": {"/d/policy2.rego": 0}}`},
+							{"c/policy2.rego", `package c
+								q contains 42 if { true }`},
+							{"d/policy2.rego", `package d
+								q[42] { true }`},
+						},
+					},
+					lazy:               true,
+					readWithBundleName: false,
+					expData: `{
+								"system":{
+									"bundles":{
+										"bundle1":{"etag":"bar","manifest":{"file_rego_versions":{"/b/policy2.rego":1},"rego_version":0,"revision":"","roots":["a","b"]}},
+										"bundle2":{"etag":"bar","manifest":{"file_rego_versions":{"/d/policy2.rego":0},"rego_version":1,"revision":"","roots":["c","d"]}}
+									},
+									"modules":{
+										"a/policy2.rego":{"rego_version":1},
+										"b/policy2.rego":{"rego_version":3},
+										"c/policy2.rego":{"rego_version":3},
+										"d/policy2.rego":{"rego_version":1}
+									}
+								}
+							}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}, "bundle2": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+		{
+			note: "mixed-version bundles, not lazy",
+			updates: []interface{}{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a", "b"], "rego_version": 0, "file_rego_versions": {"/b/policy.rego": 1}}`},
+							{"a/policy.rego", `package a
+								p[42] { true }`},
+							{"b/policy.rego", `package b
+								p contains 42 if { true }`},
+						},
+						"bundle2": {
+							{"/.manifest", `{"roots": ["c", "d"], "rego_version": 1, "file_rego_versions": {"/d/policy.rego": 0}}`},
+							{"c/policy.rego", `package c
+								p contains 42 if { true }`},
+							{"d/policy.rego", `package d
+								p[42] { true }`},
+						},
+					},
+					lazy:               false,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{
+										"bundle1":{"etag":"bar","manifest":{"file_rego_versions":{"/b/policy.rego":1},"rego_version":0,"revision":"","roots":["a","b"]}},
+										"bundle2":{"etag":"bar","manifest":{"file_rego_versions":{"/d/policy.rego":0},"rego_version":1,"revision":"","roots":["c","d"]}}
+									},
+									"modules":{
+										"bundle1/a/policy.rego":{"rego_version":1},
+										"bundle1/b/policy.rego":{"rego_version":3},
+										"bundle2/c/policy.rego":{"rego_version":3},
+										"bundle2/d/policy.rego":{"rego_version":1}
+									}
+								}
+							}`,
+				},
+				// replacing bundles
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a", "b"], "rego_version": 0, "file_rego_versions": {"/b/policy2.rego": 1}}`},
+							{"a/policy2.rego", `package a
+								q[42] { true }`},
+							{"b/policy2.rego", `package b
+								q contains 42 if { true }`},
+						},
+						"bundle2": {
+							{"/.manifest", `{"roots": ["c", "d"], "rego_version": 1, "file_rego_versions": {"/d/policy2.rego": 0}}`},
+							{"c/policy2.rego", `package c
+								q contains 42 if { true }`},
+							{"d/policy2.rego", `package d
+								q[42] { true }`},
+						},
+					},
+					lazy:               false,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{
+										"bundle1":{"etag":"bar","manifest":{"file_rego_versions":{"/b/policy2.rego":1},"rego_version":0,"revision":"","roots":["a","b"]}},
+										"bundle2":{"etag":"bar","manifest":{"file_rego_versions":{"/d/policy2.rego":0},"rego_version":1,"revision":"","roots":["c","d"]}}
+									},
+									"modules":{
+										"bundle1/a/policy2.rego":{"rego_version":1},
+										"bundle1/b/policy2.rego":{"rego_version":3},
+										"bundle2/c/policy2.rego":{"rego_version":3},
+										"bundle2/d/policy2.rego":{"rego_version":1}
+									}
+								}
+							}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}, "bundle2": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			ctx := context.Background()
+			mockStore := mock.New()
+
+			compiler := ast.NewCompiler()
+			m := metrics.New()
+
+			for _, update := range tc.updates {
+				if act, ok := update.(activation); ok {
+					bundles := map[string]*Bundle{}
+					for bundleName, files := range act.bundles {
+						buf := archive.MustWriteTarGz(files)
+						loader := NewTarballLoaderWithBaseURL(buf, "")
+						br := NewCustomReader(loader).WithBundleEtag("bar").WithLazyLoadingMode(act.lazy)
+						if act.readWithBundleName {
+							br = br.WithBundleName(bundleName)
+						}
+
+						bundle, err := br.Read()
+						if err != nil {
+							t.Fatal(err)
+						}
+
+						bundles[bundleName] = &bundle
+					}
+
+					txn := storage.NewTransactionOrDie(ctx, mockStore, storage.WriteParams)
+
+					err := Activate(&ActivateOpts{
+						Ctx:      ctx,
+						Store:    mockStore,
+						Txn:      txn,
+						Compiler: compiler,
+						Metrics:  m,
+						Bundles:  bundles,
+					})
+					if err != nil {
+						t.Fatalf("unexpected error: %s", err)
+					}
+
+					err = mockStore.Commit(ctx, txn)
+					if err != nil {
+						t.Fatalf("unexpected error: %s", err)
+					}
+
+					// Start read transaction
+					txn = storage.NewTransactionOrDie(ctx, mockStore)
+
+					actual, err := mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+					if err != nil {
+						t.Fatalf("unexpected error: %s", err)
+					}
+
+					expectedRaw := act.expData
+					expected := loadExpectedSortedResult(expectedRaw)
+					if !reflect.DeepEqual(expected, actual) {
+						t.Errorf("expected:\n\n%s\n\ngot:\n\n%s", expectedRaw, string(util.MustMarshalJSON(actual)))
+					}
+
+					// Stop the "read" transaction
+					mockStore.Abort(ctx, txn)
+				} else if deact, ok := update.(deactivation); ok {
+					txn := storage.NewTransactionOrDie(ctx, mockStore, storage.WriteParams)
+
+					err := Deactivate(&DeactivateOpts{
+						Ctx:         ctx,
+						Store:       mockStore,
+						Txn:         txn,
+						BundleNames: deact.bundles,
+					})
+					if err != nil {
+						t.Fatalf("unexpected error: %s", err)
+					}
+
+					err = mockStore.Commit(ctx, txn)
+					if err != nil {
+						t.Fatalf("unexpected error: %s", err)
+					}
+
+					// Start read transaction
+					txn = storage.NewTransactionOrDie(ctx, mockStore)
+
+					actual, err := mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+					if err != nil {
+						t.Fatalf("unexpected error: %s", err)
+					}
+
+					expectedRaw := deact.expData // `{"system": {"bundles": {}, "modules": {}}}`
+					expected := loadExpectedSortedResult(expectedRaw)
+					if !reflect.DeepEqual(expected, actual) {
+						t.Errorf("expected:\n\n%s\n\ngot:\n\n%s", expectedRaw, string(util.MustMarshalJSON(actual)))
+					}
+
+					// Stop the "read" transaction
+					mockStore.Abort(ctx, txn)
+				}
+			}
+		})
+	}
+}
+
 func TestBundleLazyModeLifecycleRaw(t *testing.T) {
 	files := [][2]string{
 		{"/a/b/c/data.json", "[1,2,3]"},
