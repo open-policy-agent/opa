@@ -490,7 +490,7 @@ func activateBundles(opts *ActivateOpts) error {
 		remainingAndExtra[name] = mod
 	}
 
-	_, err = compileModules(opts.Compiler, opts.Metrics, snapshotBundles, remainingAndExtra, opts.legacy, opts.AuthorizationDecisionRef)
+	err = compileModules(opts.Compiler, opts.Metrics, snapshotBundles, remainingAndExtra, opts.legacy, opts.AuthorizationDecisionRef)
 	if err != nil {
 		return err
 	}
@@ -901,7 +901,7 @@ func writeData(ctx context.Context, store storage.Store, txn storage.Transaction
 	return nil
 }
 
-func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, legacy bool, authorizationDecisionRef ast.Ref) (map[string]ast.RegoVersion, error) {
+func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, legacy bool, authorizationDecisionRef ast.Ref) error {
 
 	m.Timer(metrics.RegoModuleCompile).Start()
 	defer m.Timer(metrics.RegoModuleCompile).Stop()
@@ -918,38 +918,28 @@ func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[strin
 		modules[name] = module
 	}
 
-	moduleIDToRegoVersion := map[string]ast.RegoVersion{}
-
 	// include all the new bundle modules
 	for bundleName, b := range bundles {
 		if legacy {
-			// FIXME: Do we need to account for legacy mode in moduleIdToRegoVersion?
 			for _, mf := range b.Modules {
 				modules[mf.Path] = mf.Parsed
 			}
 		} else {
 			for name, module := range b.ParsedModules(bundleName) {
 				modules[name] = module
-
-				p, err := getFileStoragePath(name)
-				if err != nil {
-					return nil, err
-				}
-
-				moduleIDToRegoVersion[strings.TrimLeft(p.String(), "/")] = module.RegoVersion()
 			}
 		}
 	}
 
 	if compiler.Compile(modules); compiler.Failed() {
-		return nil, compiler.Errors
+		return compiler.Errors
 	}
 
 	if authorizationDecisionRef.Equal(ast.EmptyRef()) {
-		return moduleIDToRegoVersion, nil
+		return nil
 	}
 
-	return moduleIDToRegoVersion, iCompiler.VerifyAuthorizationPolicySchema(compiler, authorizationDecisionRef)
+	return iCompiler.VerifyAuthorizationPolicySchema(compiler, authorizationDecisionRef)
 }
 
 func writeModules(ctx context.Context, store storage.Store, txn storage.Transaction, compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, legacy bool) error {
