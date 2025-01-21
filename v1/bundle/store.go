@@ -698,26 +698,35 @@ type moduleInfo struct {
 }
 
 func readModuleInfoFromStore(ctx context.Context, store storage.Store, txn storage.Transaction) (map[string]moduleInfo, error) {
-	versions := map[string]moduleInfo{}
-
 	value, err := read(ctx, store, txn, ModulesInfoBasePath)
 	if suppressNotFound(err) != nil {
 		return nil, err
 	}
 
-	if value != nil {
-		bs, err := json.Marshal(value)
-		if err != nil {
-			return nil, fmt.Errorf("corrupt rego version")
-		}
-
-		err = util.UnmarshalJSON(bs, &versions)
-		if err != nil {
-			return nil, fmt.Errorf("corrupt rego version")
-		}
+	if value == nil {
+		return nil, nil
 	}
 
-	return versions, nil
+	if m, ok := value.(map[string]any); ok {
+		versions := make(map[string]moduleInfo, len(m))
+
+		for k, v := range m {
+			if m0, ok := v.(map[string]any); ok {
+				if ver, ok := m0["rego_version"]; ok {
+					if vs, ok := ver.(json.Number); ok { // float64?
+						if i, err := vs.Int64(); err != nil {
+							return nil, fmt.Errorf("corrupt rego version")
+						} else {
+							versions[k] = moduleInfo{RegoVersion: ast.RegoVersionFromInt(int(i))}
+						}
+					}
+				}
+			}
+		}
+		return versions, nil
+	}
+
+	return nil, fmt.Errorf("corrupt rego version")
 }
 
 func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transaction, parserOpts ast.ParserOptions, roots map[string]struct{}) (map[string]*ast.Module, []string, error) {
@@ -835,7 +844,7 @@ func writeDataAndModules(ctx context.Context, store storage.Store, txn storage.T
 				}
 
 				if regoVersion, err := b.RegoVersionForFile(mf.Path, ast.RegoUndefined); err == nil && regoVersion != ast.RegoUndefined {
-					if err := write(ctx, store, txn, moduleRegoVersionPath(path), regoVersion); err != nil {
+					if err := write(ctx, store, txn, moduleRegoVersionPath(path), regoVersion.Int()); err != nil {
 						return fmt.Errorf("failed to write rego version for '%s' in bundle '%s': %w", mf.Path, name, err)
 					}
 				}
@@ -859,7 +868,7 @@ func writeDataAndModules(ctx context.Context, store storage.Store, txn storage.T
 						// 'f.module.Path' contains the module's path as it relates to the bundle root, and can be used for looking up the rego-version.
 						// 'f.Path' can differ, based on how the bundle reader was initialized.
 						if regoVersion, err := b.RegoVersionForFile(f.module.Path, ast.RegoUndefined); err == nil && regoVersion != ast.RegoUndefined {
-							if err := write(ctx, store, txn, moduleRegoVersionPath(p.String()), regoVersion); err != nil {
+							if err := write(ctx, store, txn, moduleRegoVersionPath(p.String()), regoVersion.Int()); err != nil {
 								return fmt.Errorf("failed to write rego version for '%s' in bundle '%s': %w", f.Path, name, err)
 							}
 						}

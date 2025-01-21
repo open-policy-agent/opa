@@ -337,7 +337,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					expData: `{
 									"system":{
 										"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}},
-										"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
+										"modules":{"bundle1/a/policy.rego":{"rego_version":0}}
 									}
 								}`,
 				},
@@ -364,7 +364,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					expData: `{
 									"system":{
 										"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}},
-										"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
+										"modules":{"bundle1/a/policy.rego":{"rego_version":0}}
 									}
 								}`,
 				},
@@ -391,7 +391,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					expData: `{
 									"system":{
 										"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}},
-										"modules":{"a/policy.rego":{"rego_version":1}}
+										"modules":{"a/policy.rego":{"rego_version":0}}
 									}
 								}`,
 				},
@@ -418,7 +418,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					expData: `{
 								"system":{
 									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}},
-									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
+									"modules":{"bundle1/a/policy.rego":{"rego_version":0}}
 								}
 							}`,
 				},
@@ -447,7 +447,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					expData: `{
 									"system":{
 										"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":1,"revision":"","roots":["a"]}}},
-										"modules":{"bundle1/a/policy.rego":{"rego_version":3}}
+										"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
 									}
 								}`,
 				},
@@ -474,7 +474,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					expData: `{
 									"system":{
 										"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":1,"revision":"","roots":["a"]}}},
-										"modules":{"bundle1/a/policy.rego":{"rego_version":3}}
+										"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
 									}
 								}`,
 				},
@@ -501,7 +501,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					expData: `{
 									"system":{
 										"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":1,"revision":"","roots":["a"]}}},
-										"modules":{"a/policy.rego":{"rego_version":3}}
+										"modules":{"a/policy.rego":{"rego_version":1}}
 									}
 								}`,
 				},
@@ -528,7 +528,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					expData: `{
 								"system":{
 									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":1,"revision":"","roots":["a"]}}},
-									"modules":{"bundle1/a/policy.rego":{"rego_version":3}}
+									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
 								}
 							}`,
 				},
@@ -555,7 +555,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					expData: `{
 								"system":{
 									"bundles":{"bundle1":{"etag":"bar","manifest":{"revision":"","roots":["a"]}}},
-									"modules":{"bundle1/a/policy.rego":{"rego_version":3}}
+									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
 								}
 							}`,
 				},
@@ -582,7 +582,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					expData: `{
 								"system":{
 									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}},
-									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
+									"modules":{"bundle1/a/policy.rego":{"rego_version":0}}
 								}
 							}`,
 				},
@@ -599,7 +599,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					expData: `{
 								"system":{
 									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":1,"revision":"","roots":["a"]}}},
-									"modules":{"bundle1/a/policy.rego":{"rego_version":3}}
+									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
 								}
 							}`,
 				},
@@ -626,7 +626,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					expData: `{
 								"system":{
 									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}},
-									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
+									"modules":{"bundle1/a/policy.rego":{"rego_version":0}}
 								}
 							}`,
 				},
@@ -643,7 +643,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					expData: `{
 								"system":{
 									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":1,"revision":"","roots":["a"]}}},
-									"modules":{"bundle1/a/policy.rego":{"rego_version":3}}
+									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
 								}
 							}`,
 				},
@@ -669,7 +669,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					expData: `{
 								"system":{
 									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}},
-									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
+									"modules":{"bundle1/a/policy.rego":{"rego_version":0}}
 								}
 							}`,
 				},
@@ -686,7 +686,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					expData: `{
 								"system":{
 									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":1,"revision":"","roots":["a"]}}},
-									"modules":{"bundle1/a/policy.rego":{"rego_version":3}}
+									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
 								}
 							}`,
 				},
@@ -712,7 +712,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					expData: `{
 								"system":{
 									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}},
-									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
+									"modules":{"bundle1/a/policy.rego":{"rego_version":0}}
 								}
 							}`,
 				},
@@ -729,7 +729,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					expData: `{
 								"system":{
 									"bundles":{"bundle1":{"etag":"bar","manifest":{"revision":"","roots":["a"]}}},
-									"modules":{"bundle1/a/policy.rego":{"rego_version":3}}
+									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
 								}
 							}`,
 				},
@@ -756,7 +756,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					expData: `{
 								"system":{
 									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":1,"revision":"","roots":["a"]}}},
-									"modules":{"bundle1/a/policy.rego":{"rego_version":3}}
+									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
 								}
 							}`,
 				},
@@ -773,7 +773,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					expData: `{
 								"system":{
 									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}},
-									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
+									"modules":{"bundle1/a/policy.rego":{"rego_version":0}}
 								}
 							}`,
 				},
@@ -799,7 +799,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					expData: `{
 								"system":{
 									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":1,"revision":"","roots":["a"]}}},
-									"modules":{"bundle1/a/policy.rego":{"rego_version":3}}
+									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
 								}
 							}`,
 				},
@@ -816,7 +816,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					expData: `{
 								"system":{
 									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}},
-									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
+									"modules":{"bundle1/a/policy.rego":{"rego_version":0}}
 								}
 							}`,
 				},
@@ -842,7 +842,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					expData: `{
 								"system":{
 									"bundles":{"bundle1":{"etag":"bar","manifest":{"revision":"","roots":["a"]}}},
-									"modules":{"bundle1/a/policy.rego":{"rego_version":3}}
+									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
 								}
 							}`,
 				},
@@ -859,7 +859,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					expData: `{
 								"system":{
 									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}},
-									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
+									"modules":{"bundle1/a/policy.rego":{"rego_version":0}}
 								}
 							}`,
 				},
@@ -894,7 +894,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 										"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}},
 										"bundle2":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["b"]}}
 									},
-									"modules":{"bundle1/a/policy.rego":{"rego_version":1},"bundle2/b/policy.rego":{"rego_version":1}}
+									"modules":{"bundle1/a/policy.rego":{"rego_version":0},"bundle2/b/policy.rego":{"rego_version":0}}
 								}
 							}`,
 				},
@@ -929,7 +929,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 										"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}},
 										"bundle2":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["b"]}}
 									},
-									"modules":{"bundle1/a/policy.rego":{"rego_version":1},"bundle2/b/policy.rego":{"rego_version":1}}
+									"modules":{"bundle1/a/policy.rego":{"rego_version":0},"bundle2/b/policy.rego":{"rego_version":0}}
 								}
 							}`,
 				},
@@ -940,7 +940,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 									"bundles":{
 										"bundle2":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["b"]}}
 									},
-									"modules":{"bundle2/b/policy.rego":{"rego_version":1}}
+									"modules":{"bundle2/b/policy.rego":{"rego_version":0}}
 								}
 							}`,
 				},
@@ -963,7 +963,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					expData: `{
 								"system":{
 									"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}},
-									"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
+									"modules":{"bundle1/a/policy.rego":{"rego_version":0}}
 								}
 							}`,
 				},
@@ -983,7 +983,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 										"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}},
 										"bundle2":{"etag":"bar","manifest":{"rego_version":1,"revision":"","roots":["b"]}}
 									},
-									"modules":{"bundle1/a/policy.rego":{"rego_version":1},"bundle2/b/policy.rego":{"rego_version":3}}
+									"modules":{"bundle1/a/policy.rego":{"rego_version":0},"bundle2/b/policy.rego":{"rego_version":1}}
 								}
 							}`,
 				},
@@ -1023,10 +1023,10 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 										"bundle2":{"etag":"bar","manifest":{"file_rego_versions":{"/d/policy.rego":0},"rego_version":1,"revision":"","roots":["c","d"]}}
 									},
 									"modules":{
-										"bundle1/a/policy.rego":{"rego_version":1},
-										"bundle1/b/policy.rego":{"rego_version":3},
-										"bundle2/c/policy.rego":{"rego_version":3},
-										"bundle2/d/policy.rego":{"rego_version":1}
+										"bundle1/a/policy.rego":{"rego_version":0},
+										"bundle1/b/policy.rego":{"rego_version":1},
+										"bundle2/c/policy.rego":{"rego_version":1},
+										"bundle2/d/policy.rego":{"rego_version":0}
 									}
 								}
 							}`,
@@ -1058,10 +1058,10 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 										"bundle2":{"etag":"bar","manifest":{"file_rego_versions":{"/d/policy2.rego":0},"rego_version":1,"revision":"","roots":["c","d"]}}
 									},
 									"modules":{
-										"bundle1/a/policy2.rego":{"rego_version":1},
-										"bundle1/b/policy2.rego":{"rego_version":3},
-										"bundle2/c/policy2.rego":{"rego_version":3},
-										"bundle2/d/policy2.rego":{"rego_version":1}
+										"bundle1/a/policy2.rego":{"rego_version":0},
+										"bundle1/b/policy2.rego":{"rego_version":1},
+										"bundle2/c/policy2.rego":{"rego_version":1},
+										"bundle2/d/policy2.rego":{"rego_version":0}
 									}
 								}
 							}`,
@@ -1101,10 +1101,10 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 										"bundle2":{"etag":"bar","manifest":{"file_rego_versions":{"/d/policy.rego":0},"rego_version":1,"revision":"","roots":["c","d"]}}
 									},
 									"modules":{
-										"a/policy.rego":{"rego_version":1},
-										"b/policy.rego":{"rego_version":3},
-										"c/policy.rego":{"rego_version":3},
-										"d/policy.rego":{"rego_version":1}
+										"a/policy.rego":{"rego_version":0},
+										"b/policy.rego":{"rego_version":1},
+										"c/policy.rego":{"rego_version":1},
+										"d/policy.rego":{"rego_version":0}
 									}
 								}
 							}`,
@@ -1136,10 +1136,10 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 										"bundle2":{"etag":"bar","manifest":{"file_rego_versions":{"/d/policy2.rego":0},"rego_version":1,"revision":"","roots":["c","d"]}}
 									},
 									"modules":{
-										"a/policy2.rego":{"rego_version":1},
-										"b/policy2.rego":{"rego_version":3},
-										"c/policy2.rego":{"rego_version":3},
-										"d/policy2.rego":{"rego_version":1}
+										"a/policy2.rego":{"rego_version":0},
+										"b/policy2.rego":{"rego_version":1},
+										"c/policy2.rego":{"rego_version":1},
+										"d/policy2.rego":{"rego_version":0}
 									}
 								}
 							}`,
@@ -1179,10 +1179,10 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 										"bundle2":{"etag":"bar","manifest":{"file_rego_versions":{"/d/policy.rego":0},"rego_version":1,"revision":"","roots":["c","d"]}}
 									},
 									"modules":{
-										"bundle1/a/policy.rego":{"rego_version":1},
-										"bundle1/b/policy.rego":{"rego_version":3},
-										"bundle2/c/policy.rego":{"rego_version":3},
-										"bundle2/d/policy.rego":{"rego_version":1}
+										"bundle1/a/policy.rego":{"rego_version":0},
+										"bundle1/b/policy.rego":{"rego_version":1},
+										"bundle2/c/policy.rego":{"rego_version":1},
+										"bundle2/d/policy.rego":{"rego_version":0}
 									}
 								}
 							}`,
@@ -1214,10 +1214,10 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 										"bundle2":{"etag":"bar","manifest":{"file_rego_versions":{"/d/policy2.rego":0},"rego_version":1,"revision":"","roots":["c","d"]}}
 									},
 									"modules":{
-										"bundle1/a/policy2.rego":{"rego_version":1},
-										"bundle1/b/policy2.rego":{"rego_version":3},
-										"bundle2/c/policy2.rego":{"rego_version":3},
-										"bundle2/d/policy2.rego":{"rego_version":1}
+										"bundle1/a/policy2.rego":{"rego_version":0},
+										"bundle1/b/policy2.rego":{"rego_version":1},
+										"bundle2/c/policy2.rego":{"rego_version":1},
+										"bundle2/d/policy2.rego":{"rego_version":0}
 									}
 								}
 							}`,
@@ -1465,10 +1465,10 @@ func TestBundleLazyModeLifecycleRaw(t *testing.T) {
 		},
 		"modules":{
 			"example/example.rego":{
-				"rego_version":3
+				"rego_version":1
 			},
 			"example/example_v0.rego":{
-				"rego_version":1
+				"rego_version":0
 			}
 		}
 	}
@@ -1710,10 +1710,10 @@ func TestBundleLazyModeLifecycle(t *testing.T) {
 		},
 		"modules":{
 			"bundle1/a/policy.rego":{
-				"rego_version":3
+				"rego_version":1
 			},
 			"bundle2/b/policy.rego":{
-				"rego_version":1
+				"rego_version":0
 			}
 		}
 	}
@@ -1877,7 +1877,7 @@ func TestBundleLazyModeLifecycleRawNoBundleRoots(t *testing.T) {
 		},
 		"modules":{
 			"example/example.rego":{
-				"rego_version":3
+				"rego_version":1
 			}
 		}
 	}
@@ -2074,7 +2074,7 @@ func TestBundleLazyModeLifecycleRawNoBundleRootsDiskStorage(t *testing.T) {
 		},
 		"modules":{
 			"example/example.rego":{
-				"rego_version":3
+				"rego_version":1
 			}
 		}
 	}
@@ -2251,7 +2251,7 @@ func TestBundleLazyModeLifecycleNoBundleRoots(t *testing.T) {
             },
 			"modules":{
 				"bundle1/a/policy.rego":{
-					"rego_version":3
+					"rego_version":1
 				}
 			}
          }
@@ -2466,7 +2466,7 @@ func TestBundleLazyModeLifecycleNoBundleRootsDiskStorage(t *testing.T) {
             },
 			"modules":{
 				"bundle1/a/policy.rego":{
-					"rego_version":3
+					"rego_version":1
 				}
 			}
          }
@@ -2704,7 +2704,7 @@ func TestBundleLazyModeLifecycleMixBundleTypeActivationDiskStorage(t *testing.T)
             },
 			"modules":{
 				"bundle1/a/policy.rego":{
-					"rego_version":3
+					"rego_version":1
 				}
 			}
          }
@@ -2841,7 +2841,7 @@ func TestBundleLazyModeLifecycleOldBundleEraseDiskStorage(t *testing.T) {
             },
 			"modules":{
 				"bundle1/a/policy.rego":{
-					"rego_version":3
+					"rego_version":1
 				}
 			}
          }
@@ -3058,7 +3058,7 @@ func TestBundleLazyModeLifecycleRestoreBackupDB(t *testing.T) {
             },
 			"modules":{
 				"bundle1/a/policy.rego":{
-					"rego_version":3
+					"rego_version":1
 				}
 			}
          }
@@ -3142,7 +3142,7 @@ func TestBundleLazyModeLifecycleRestoreBackupDB(t *testing.T) {
             },
 			"modules":{
 				"bundle1/a/policy.rego":{
-					"rego_version":3
+					"rego_version":1
 				}
 			}
          }
@@ -3433,10 +3433,10 @@ func TestDeltaBundleLazyModeLifecycleDiskStorage(t *testing.T) {
 				},
 				"modules":{
 					"bundle1/a/policy.rego":{
-						"rego_version":3
+						"rego_version":1
 					},
 					"bundle2/b/policy.rego":{
-						"rego_version":3
+						"rego_version":1
 					}
 				}
 			}
@@ -4302,10 +4302,10 @@ func TestDeltaBundleLazyModeLifecycle(t *testing.T) {
 			},
 			"modules":{
 				"bundle1/policy.rego":{
-					"rego_version":3
+					"rego_version":1
 				},
 				"bundle2/policy.rego":{
-					"rego_version":3
+					"rego_version":1
 				}
 			}
 		}
@@ -4600,10 +4600,10 @@ func TestDeltaBundleLazyModeWithDefaultRules(t *testing.T) {
 			},
 			"modules":{
 				"bundle1/policy.rego":{
-					"rego_version":3
+					"rego_version":1
 				},
 				"bundle2/policy.rego":{
-					"rego_version":3
+					"rego_version":1
 				}
 			}
 		}
@@ -4755,10 +4755,10 @@ func TestBundleLifecycle(t *testing.T) {
 		},
 		"modules": {
 			"bundle1/a/policy.rego": {
-				"rego_version": 3
+				"rego_version": 1
 			},
 			"bundle2/b/policy.rego": {
-				"rego_version": 3
+				"rego_version": 1
 			}
 		}
 	}
@@ -5077,10 +5077,10 @@ func TestDeltaBundleLifecycle(t *testing.T) {
 			},
 			"modules":{
 				"bundle1/a/policy.rego":{
-					"rego_version":3
+					"rego_version":1
 				},
 				"bundle2/b/policy.rego":{
-					"rego_version":3
+					"rego_version":1
 				}
 			}
 		}
