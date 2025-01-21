@@ -23,6 +23,8 @@ import (
 // BundlesBasePath is the storage path used for storing bundle metadata
 var BundlesBasePath = storage.MustParsePath("/system/bundles")
 
+var ModulesInfoBasePath = storage.MustParsePath("/system/modules")
+
 // Note: As needed these helpers could be memoized.
 
 // ManifestStoragePath is the storage path used for the given named bundle manifest.
@@ -57,6 +59,14 @@ func wasmEntrypointsPath(name string) storage.Path {
 
 func metadataPath(name string) storage.Path {
 	return append(BundlesBasePath, name, "manifest", "metadata")
+}
+
+func moduleRegoVersionPath(id string) storage.Path {
+	return append(ModulesInfoBasePath, strings.Trim(id, "/"), "rego_version")
+}
+
+func moduleInfoPath(id string) storage.Path {
+	return append(ModulesInfoBasePath, strings.Trim(id, "/"))
 }
 
 func read(ctx context.Context, store storage.Store, txn storage.Transaction, path storage.Path) (interface{}, error) {
@@ -164,6 +174,16 @@ func eraseWasmModulesFromStore(ctx context.Context, store storage.Store, txn sto
 
 	err := store.Write(ctx, txn, storage.RemoveOp, path, nil)
 	return suppressNotFound(err)
+}
+
+func eraseModuleRegoVersionsFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, modules []string) error {
+	for _, module := range modules {
+		err := store.Write(ctx, txn, storage.RemoveOp, moduleInfoPath(module), nil)
+		if err := suppressNotFound(err); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ReadWasmMetadataFromStore will read Wasm module resolver metadata from the store.
@@ -626,7 +646,7 @@ func eraseBundles(ctx context.Context, store storage.Store, txn storage.Transact
 		return nil, err
 	}
 
-	remaining, err := erasePolicies(ctx, store, txn, parserOpts, roots)
+	remaining, removed, err := erasePolicies(ctx, store, txn, parserOpts, roots)
 	if err != nil {
 		return nil, err
 	}
@@ -649,6 +669,11 @@ func eraseBundles(ctx context.Context, store storage.Store, txn storage.Transact
 		}
 	}
 
+	err = eraseModuleRegoVersionsFromStore(ctx, store, txn, removed)
+	if err != nil {
+		return nil, err
+	}
+
 	return remaining, nil
 }
 
@@ -668,44 +693,103 @@ func eraseData(ctx context.Context, store storage.Store, txn storage.Transaction
 	return nil
 }
 
-func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transaction, parserOpts ast.ParserOptions, roots map[string]struct{}) (map[string]*ast.Module, error) {
+type moduleInfo struct {
+	RegoVersion ast.RegoVersion `json:"rego_version"`
+}
 
-	ids, err := store.ListPolicies(ctx, txn)
-	if err != nil {
+func readModuleInfoFromStore(ctx context.Context, store storage.Store, txn storage.Transaction) (map[string]moduleInfo, error) {
+	value, err := read(ctx, store, txn, ModulesInfoBasePath)
+	if suppressNotFound(err) != nil {
 		return nil, err
 	}
 
+	if value == nil {
+		return nil, nil
+	}
+
+	if m, ok := value.(map[string]any); ok {
+		versions := make(map[string]moduleInfo, len(m))
+
+		for k, v := range m {
+			if m0, ok := v.(map[string]any); ok {
+				if ver, ok := m0["rego_version"]; ok {
+					if vs, ok := ver.(json.Number); ok {
+						i, err := vs.Int64()
+						if err != nil {
+							return nil, fmt.Errorf("corrupt rego version")
+						}
+						versions[k] = moduleInfo{RegoVersion: ast.RegoVersionFromInt(int(i))}
+					}
+				}
+			}
+		}
+		return versions, nil
+	}
+
+	return nil, fmt.Errorf("corrupt rego version")
+}
+
+func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transaction, parserOpts ast.ParserOptions, roots map[string]struct{}) (map[string]*ast.Module, []string, error) {
+
+	ids, err := store.ListPolicies(ctx, txn)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	modulesInfo, err := readModuleInfoFromStore(ctx, store, txn)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read module info from store: %w", err)
+	}
+
+	getRegoVersion := func(modId string) (ast.RegoVersion, bool) {
+		info, ok := modulesInfo[modId]
+		if !ok {
+			return ast.RegoUndefined, false
+		}
+		return info.RegoVersion, true
+	}
+
 	remaining := map[string]*ast.Module{}
+	var removed []string
 
 	for _, id := range ids {
 		bs, err := store.GetPolicy(ctx, txn, id)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		module, err := ast.ParseModuleWithOpts(id, string(bs), parserOpts)
+
+		parserOptsCpy := parserOpts
+		if regoVersion, ok := getRegoVersion(id); ok {
+			parserOptsCpy.RegoVersion = regoVersion
+		}
+
+		module, err := ast.ParseModuleWithOpts(id, string(bs), parserOptsCpy)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		path, err := module.Package.Path.Ptr()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		deleted := false
 		for root := range roots {
 			if RootPathsContain([]string{root}, path) {
 				if err := store.DeletePolicy(ctx, txn, id); err != nil {
-					return nil, err
+					return nil, nil, err
 				}
 				deleted = true
 				break
 			}
 		}
-		if !deleted {
+
+		if deleted {
+			removed = append(removed, id)
+		} else {
 			remaining[id] = module
 		}
 	}
 
-	return remaining, nil
+	return remaining, removed, nil
 }
 
 func writeManifestToStore(opts *ActivateOpts, name string, manifest Manifest) error {
@@ -758,6 +842,12 @@ func writeDataAndModules(ctx context.Context, store storage.Store, txn storage.T
 				if err := store.UpsertPolicy(ctx, txn, path, mf.Raw); err != nil {
 					return err
 				}
+
+				if regoVersion, err := b.RegoVersionForFile(mf.Path, ast.RegoUndefined); err == nil && regoVersion != ast.RegoUndefined {
+					if err := write(ctx, store, txn, moduleRegoVersionPath(path), regoVersion.Int()); err != nil {
+						return fmt.Errorf("failed to write rego version for '%s' in bundle '%s': %w", mf.Path, name, err)
+					}
+				}
 			}
 		} else {
 			params.BasePaths = *b.Manifest.Roots
@@ -765,6 +855,25 @@ func writeDataAndModules(ctx context.Context, store storage.Store, txn storage.T
 			err := store.Truncate(ctx, txn, params, NewIterator(b.Raw))
 			if err != nil {
 				return fmt.Errorf("store truncate failed for bundle '%s': %v", name, err)
+			}
+
+			for _, f := range b.Raw {
+				if strings.HasSuffix(f.Path, RegoExt) {
+					p, err := getFileStoragePath(f.Path)
+					if err != nil {
+						return fmt.Errorf("failed get storage path for module '%s' in bundle '%s': %w", f.Path, name, err)
+					}
+
+					if m := f.module; m != nil {
+						// 'f.module.Path' contains the module's path as it relates to the bundle root, and can be used for looking up the rego-version.
+						// 'f.Path' can differ, based on how the bundle reader was initialized.
+						if regoVersion, err := b.RegoVersionForFile(f.module.Path, ast.RegoUndefined); err == nil && regoVersion != ast.RegoUndefined {
+							if err := write(ctx, store, txn, moduleRegoVersionPath(p.String()), regoVersion.Int()); err != nil {
+								return fmt.Errorf("failed to write rego version for '%s' in bundle '%s': %w", f.Path, name, err)
+							}
+						}
+					}
+				}
 			}
 		}
 	}
