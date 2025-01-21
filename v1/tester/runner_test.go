@@ -8,7 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"reflect"
+	"maps"
 	"strings"
 	"testing"
 	"time"
@@ -63,12 +63,12 @@ func testRun(t *testing.T, conf testRunConfig) map[string]*ast.Module {
 	files := map[string]string{
 		"/a.rego": `package foo
 			import rego.v1
-			
+
 			allow if { true }
 			`,
 		"/a_test.rego": `package foo
 			import rego.v1
-			
+
 			test_pass if { allow }
 			non_test if { true }
 			test_fail if { not allow }
@@ -83,7 +83,7 @@ func testRun(t *testing.T, conf testRunConfig) map[string]*ast.Module {
 			`,
 		"/b_test.rego": `package bar
 			import rego.v1
-			
+
 			test_duplicate if { true }`,
 		"/c_test.rego": `package baz
 			import rego.v1
@@ -193,12 +193,12 @@ func TestRunWithFilterRegex(t *testing.T) {
 	files := map[string]string{
 		"/a.rego": `package foo
 			import rego.v1
-			
+
 			allow if { true }
 			`,
 		"/a_test.rego": `package foo
 			import rego.v1
-			
+
 			test_pass if { allow }
 			non_test if { true }
 			test_fail if { not allow }
@@ -214,11 +214,11 @@ func TestRunWithFilterRegex(t *testing.T) {
 			`,
 		"/b_test.rego": `package bar
 			import rego.v1
-			
+
 			test_duplicate if { true }`,
 		"/c_test.rego": `package baz
 			import rego.v1
-			
+
 			a.b.test_duplicate if { false }
 			a.b.test_duplicate if { true }
 			a.b.test_duplicate if { true }`,
@@ -536,7 +536,7 @@ func TestRunnerPrintOutput(t *testing.T) {
 			got[tr.Name] = string(tr.Output)
 		}
 
-		if !reflect.DeepEqual(exp, got) {
+		if !maps.Equal(exp, got) {
 			t.Fatal("expected:", exp, "got:", got)
 		}
 	})
@@ -633,7 +633,7 @@ func TestRunnerWithCustomBuiltin(t *testing.T) {
 			got[tr.Name] = tr.Pass()
 		}
 
-		if !reflect.DeepEqual(exp, got) {
+		if !maps.Equal(exp, got) {
 			t.Fatal("expected:", exp, "got:", got)
 		}
 	})
@@ -642,7 +642,7 @@ func TestRunnerWithCustomBuiltin(t *testing.T) {
 func TestRunnerWithBuiltinErrors(t *testing.T) {
 	const ruleTemplate = `package test
 	import rego.v1
-	
+
 	test_json_parsing if {
       x := json.unmarshal("%s")
 	  x.test == 123
@@ -716,8 +716,8 @@ func TestLoad_DefaultRegoVersion(t *testing.T) {
 			note: "v0 module", // NOT default rego-version
 			module: `package test
 
-p[x] { 
-	x = "a" 
+p[x] {
+	x = "a"
 }
 
 test_p {
@@ -734,8 +734,8 @@ test_p {
 			module: `package test
 import rego.v1
 
-p contains x if { 
-	x := "a" 
+p contains x if {
+	x := "a"
 }
 
 test_p if {
@@ -746,8 +746,8 @@ test_p if {
 			note: "v1 module", // default rego-version
 			module: `package test
 
-p contains x if { 
-	x := "a" 
+p contains x if {
+	x := "a"
 }
 
 test_p if {

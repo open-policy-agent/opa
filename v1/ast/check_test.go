@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -1502,7 +1503,7 @@ func TestCheckErrorDetails(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		if !reflect.DeepEqual(tc.detail.Lines(), tc.expected) {
+		if !slices.Equal(tc.detail.Lines(), tc.expected) {
 			t.Errorf("Expected %v for %v but got: %v", tc.expected, tc.detail, tc.detail.Lines())
 		}
 	}

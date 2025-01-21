@@ -5,10 +5,12 @@
 package inmem
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/open-policy-agent/opa/internal/file/archive"
@@ -685,13 +687,13 @@ func TestTruncate(t *testing.T) {
 
 	bs, err := store.GetPolicy(ctx, txn, "policy.rego")
 	expectedBytes := []byte("package foo\n p = 1")
-	if err != nil || !reflect.DeepEqual(expectedBytes, bs) {
+	if err != nil || !bytes.Equal(expectedBytes, bs) {
 		t.Fatalf("Expected get policy to return %v but got: %v (err: %v)", expectedBytes, bs, err)
 	}
 
 	bs, err = store.GetPolicy(ctx, txn, "roles/policy.rego")
 	expectedBytes = []byte("package bar\n p = 1")
-	if err != nil || !reflect.DeepEqual(expectedBytes, bs) {
+	if err != nil || !bytes.Equal(expectedBytes, bs) {
 		t.Fatalf("Expected get policy to return %v but got: %v (err: %v)", expectedBytes, bs, err)
 	}
 }
@@ -783,13 +785,13 @@ func TestTruncateAst(t *testing.T) {
 
 	bs, err := store.GetPolicy(ctx, txn, "policy.rego")
 	expectedBytes := []byte("package foo\n p = 1")
-	if err != nil || !reflect.DeepEqual(expectedBytes, bs) {
+	if err != nil || !bytes.Equal(expectedBytes, bs) {
 		t.Fatalf("Expected get policy to return %v but got: %v (err: %v)", expectedBytes, bs, err)
 	}
 
 	bs, err = store.GetPolicy(ctx, txn, "roles/policy.rego")
 	expectedBytes = []byte("package bar\n p = 1")
-	if err != nil || !reflect.DeepEqual(expectedBytes, bs) {
+	if err != nil || !bytes.Equal(expectedBytes, bs) {
 		t.Fatalf("Expected get policy to return %v but got: %v (err: %v)", expectedBytes, bs, err)
 	}
 }
@@ -998,13 +1000,13 @@ func TestInMemoryTxnPolicies(t *testing.T) {
 
 	ids, err := store.ListPolicies(ctx, txn)
 	expectedIDs := []string{"test"}
-	if err != nil || !reflect.DeepEqual(expectedIDs, ids) {
+	if err != nil || !slices.Equal(expectedIDs, ids) {
 		t.Fatalf("Expected list policies to return %v but got: %v (err: %v)", expectedIDs, ids, err)
 	}
 
 	bs, err := store.GetPolicy(ctx, txn, "test")
 	expectedBytes := []byte("package test\nimport data.foo")
-	if err != nil || !reflect.DeepEqual(expectedBytes, bs) {
+	if err != nil || !bytes.Equal(expectedBytes, bs) {
 		t.Fatalf("Expected get policy to return %v but got: %v (err: %v)", expectedBytes, bs, err)
 	}
 
@@ -1018,13 +1020,13 @@ func TestInMemoryTxnPolicies(t *testing.T) {
 
 	ids, err = store.ListPolicies(ctx, txn)
 	expectedIDs = []string{"test2"}
-	if err != nil || !reflect.DeepEqual(expectedIDs, ids) {
+	if err != nil || !slices.Equal(expectedIDs, ids) {
 		t.Fatalf("Expected list policies to return %v but got: %v (err: %v)", expectedIDs, ids, err)
 	}
 
 	bs, err = store.GetPolicy(ctx, txn, "test2")
 	expectedBytes = []byte("package test2")
-	if err != nil || !reflect.DeepEqual(expectedBytes, bs) {
+	if err != nil || !bytes.Equal(expectedBytes, bs) {
 		t.Fatalf("Expected get policy to return %v but got: %v (err: %v)", expectedBytes, bs, err)
 	}
 
@@ -1037,7 +1039,7 @@ func TestInMemoryTxnPolicies(t *testing.T) {
 	txn = storage.NewTransactionOrDie(ctx, store)
 	ids, err = store.ListPolicies(ctx, txn)
 	expectedIDs = []string{"test"}
-	if err != nil || !reflect.DeepEqual(expectedIDs, ids) {
+	if err != nil || !slices.Equal(expectedIDs, ids) {
 		t.Fatalf("Expected list policies to return %v but got: %v (err: %v)", expectedIDs, ids, err)
 	}
 

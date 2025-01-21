@@ -17,6 +17,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -3052,7 +3053,7 @@ func TestPluginOneShotActivationRemovesOld(t *testing.T) {
 		ids, err := manager.Store.ListPolicies(ctx, txn)
 		if err != nil {
 			return err
-		} else if !reflect.DeepEqual([]string{filepath.Join(bundleName, "/example2.rego")}, ids) {
+		} else if !slices.Equal([]string{filepath.Join(bundleName, "/example2.rego")}, ids) {
 			return fmt.Errorf("expected updated policy ids")
 		}
 		data, err := manager.Store.Read(ctx, txn, storage.Path{})
@@ -7007,7 +7008,7 @@ func validateStoreState(ctx context.Context, t *testing.T, store storage.Store, 
 		sort.Strings(ids)
 		sort.Strings(expIDs)
 
-		if !reflect.DeepEqual(ids, expIDs) {
+		if !slices.Equal(ids, expIDs) {
 			return fmt.Errorf("expected ids %v but got %v", expIDs, ids)
 		}
 

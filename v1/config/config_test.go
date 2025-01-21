@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/util"
@@ -77,7 +78,7 @@ func TestConfigPluginNames(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			actual := test.conf.PluginNames()
-			if !reflect.DeepEqual(actual, test.expected) {
+			if !slices.Equal(actual, test.expected) {
 				t.Errorf("Expected %v but got %v", test.expected, actual)
 			}
 		})

@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -87,7 +87,7 @@ func TestHttpSendInterQueryForceCache(t *testing.T) {
 			if tc.noForce {
 				module = `
 				package test
-			
+
 				response := http.send({
 					"method": "get",
 					"url": "%s"
@@ -96,7 +96,7 @@ func TestHttpSendInterQueryForceCache(t *testing.T) {
 			} else {
 				module = `
 				package test
-			
+
 				response := http.send({
 					"method": "get",
 					"url": "%s",
@@ -127,7 +127,7 @@ func TestHttpSendInterQueryForceCache(t *testing.T) {
 			if err = json.Unmarshal(resultJSON, &parsedBody); err != nil {
 				t.Fatal(err)
 			}
-			if !reflect.DeepEqual(parsedBody.Result, expect) {
+			if !maps.Equal(parsedBody.Result, expect) {
 				t.Errorf("Expected response %v, got %v", expect, parsedBody.Result)
 			}
 
@@ -144,7 +144,7 @@ func TestHttpSendInterQueryForceCache(t *testing.T) {
 			if err = json.Unmarshal(resultJSON, &parsedBody); err != nil {
 				t.Fatal(err)
 			}
-			if !reflect.DeepEqual(parsedBody.Result, expect) {
+			if !maps.Equal(parsedBody.Result, expect) {
 				t.Errorf("Expected response %v, got %v", expect, parsedBody.Result)
 			}
 

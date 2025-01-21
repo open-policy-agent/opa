@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -67,7 +68,7 @@ func TestGenerateBundleInfoWithFileDir(t *testing.T) {
 
 		expBuiltinNames := []string{"eq", "gt"}
 
-		if !reflect.DeepEqual(expBuiltinNames, builtinNames) {
+		if !slices.Equal(expBuiltinNames, builtinNames) {
 			t.Fatalf("expected builtin names to be %v but got %v", expBuiltinNames, builtinNames)
 		}
 	})
