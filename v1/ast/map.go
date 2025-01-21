@@ -31,7 +31,7 @@ func (vs *ValueMap) MarshalJSON() ([]byte, error) {
 	vs.Iter(func(k Value, v Value) bool {
 		tmp = append(tmp, map[string]interface{}{
 			"name":  k.String(),
-			"type":  TypeName(v),
+			"type":  ValueName(v),
 			"value": v,
 		})
 		return false

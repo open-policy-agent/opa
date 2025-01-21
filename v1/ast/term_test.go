@@ -277,7 +277,7 @@ func TestTermBadJSON(t *testing.T) {
 	term := Term{}
 	err := util.UnmarshalJSON([]byte(input), &term)
 	expected := fmt.Errorf("ast: unable to unmarshal term")
-	if !reflect.DeepEqual(expected, err) {
+	if expected.Error() != err.Error() {
 		t.Errorf("Expected %v but got: %v", expected, err)
 	}
 }
@@ -756,7 +756,7 @@ func TestSetMap(t *testing.T) {
 		return nil, fmt.Errorf("oops")
 	})
 
-	if !reflect.DeepEqual(err, fmt.Errorf("oops")) {
+	if err.Error() != "oops" {
 		t.Fatalf("Expected oops to be returned but got: %v, %v", result, err)
 	}
 }
@@ -1418,7 +1418,7 @@ func TestLazyObjectKeys(t *testing.T) {
 	})
 	act := x.Keys()
 	exp := []*Term{StringTerm("a"), StringTerm("b"), StringTerm("c")}
-	if !reflect.DeepEqual(exp, act) {
+	if !termSliceEqual(exp, act) {
 		t.Errorf("expected Keys() %v, got %v", exp, act)
 	}
 	assertForced(t, x, false)
@@ -1436,7 +1436,7 @@ func TestLazyObjectKeysIterator(t *testing.T) {
 		act = append(act, k)
 	}
 	exp := []*Term{StringTerm("a"), StringTerm("b"), StringTerm("c")}
-	if !reflect.DeepEqual(exp, act) {
+	if !termSliceEqual(exp, act) {
 		t.Errorf("expected Keys() %v, got %v", exp, act)
 	}
 	assertForced(t, x, false)

@@ -20,7 +20,7 @@ import (
 type Reporter interface {
 
 	// Report is called with a channel that will contain test results.
-	Report(ch chan *Result) error
+	Report(chan *Result) error
 }
 
 // PrettyReporter reports test results in a simple human readable format.

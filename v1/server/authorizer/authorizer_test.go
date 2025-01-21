@@ -332,7 +332,7 @@ func TestMakeInput(t *testing.T) {
 		}
 	`))
 
-	if !reflect.DeepEqual(util.MustMarshalJSON(expectedResult), util.MustMarshalJSON(result)) {
+	if !bytes.Equal(util.MustMarshalJSON(expectedResult), util.MustMarshalJSON(result)) {
 		t.Fatalf("Expected %+v but got %+v", expectedResult, result)
 	}
 

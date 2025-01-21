@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -19,6 +19,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown/print"
 	"github.com/open-policy-agent/opa/v1/tracing"
 	"github.com/open-policy-agent/opa/v1/types"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 type evalIterator func(*eval) error
@@ -114,6 +115,7 @@ type eval struct {
 	skipSaveNamespace           bool
 	findOne                     bool
 	strictObjects               bool
+	defined                     bool
 }
 
 type evp struct {
@@ -446,7 +448,7 @@ func (e *eval) evalStep(iter evalIterator) error {
 			}
 		case *ast.Term:
 			// generateVar inlined here to avoid extra allocations in hot path
-			rterm := ast.VarTerm(fmt.Sprintf("%s_term_%d_%d", e.genvarprefix, e.queryID, e.index))
+			rterm := ast.VarTerm(e.fmtVarTerm())
 			err = e.unify(terms, rterm, func() error {
 				if e.saveSet.Contains(rterm, e.bindings) {
 					return e.saveExpr(ast.NewExpr(rterm), e.bindings, func() error {
@@ -503,7 +505,7 @@ func (e *eval) evalStep(iter evalIterator) error {
 		}
 	case *ast.Term:
 		// generateVar inlined here to avoid extra allocations in hot path
-		rterm := ast.VarTerm(fmt.Sprintf("%s_term_%d_%d", e.genvarprefix, e.queryID, e.index))
+		rterm := ast.VarTerm(e.fmtVarTerm())
 		err = e.unify(terms, rterm, func() error {
 			if e.saveSet.Contains(rterm, e.bindings) {
 				return e.saveExpr(ast.NewExpr(rterm), e.bindings, func() error {
@@ -532,6 +534,20 @@ func (e *eval) evalStep(iter evalIterator) error {
 	return err
 }
 
+// Single-purpose fmt.Sprintf replacement for generating variable names with only
+// one allocation performed instead of 4, and in 1/3 the time.
+func (e *eval) fmtVarTerm() string {
+	buf := make([]byte, 0, len(e.genvarprefix)+util.NumDigitsUint(e.queryID)+util.NumDigitsInt(e.index)+7)
+
+	buf = append(buf, e.genvarprefix...)
+	buf = append(buf, "_term_"...)
+	buf = strconv.AppendUint(buf, e.queryID, 10)
+	buf = append(buf, '_')
+	buf = strconv.AppendInt(buf, int64(e.index), 10)
+
+	return util.ByteSliceToString(buf)
+}
+
 func (e *eval) evalNot(iter evalIterator) error {
 
 	expr := e.query[e.index]
@@ -542,12 +558,10 @@ func (e *eval) evalNot(iter evalIterator) error {
 
 	negation := ast.NewBody(expr.ComplementNoWith())
 	child := evalPool.Get()
+	defer evalPool.Put(child)
 
 	e.closure(negation, child)
 
-	defer evalPool.Put(child)
-
-	var defined bool
 	if e.traceEnabled {
 		child.traceEnter(negation)
 	}
@@ -557,16 +571,18 @@ func (e *eval) evalNot(iter evalIterator) error {
 			child.traceExit(negation)
 			child.traceRedo(negation)
 		}
-		defined = true
+		child.defined = true
 
 		return nil
 	}); err != nil {
 		return err
 	}
 
-	if !defined {
+	if !child.defined {
 		return iter(e)
 	}
+
+	child.defined = false
 
 	e.traceFail(expr)
 	return nil
@@ -807,9 +823,7 @@ func (e *eval) evalNotPartialSupport(negationID uint64, expr *ast.Expr, unknowns
 		args = append(args, ast.NewTerm(v))
 	}
 
-	sort.Slice(args, func(i, j int) bool {
-		return args[i].Value.Compare(args[j].Value) < 0
-	})
+	slices.SortFunc(args, ast.TermValueCompare)
 
 	if len(args) > 0 {
 		head.Args = args
@@ -1621,7 +1635,11 @@ func (e *eval) getRules(ref ast.Ref, args []*ast.Term) (*ast.IndexResult, error)
 			msg.WriteString(", early exit")
 		}
 		msg.WriteRune(')')
-		e.traceIndex(e.query[e.index], msg.String(), &ref)
+
+		// Copy ref here as ref otherwise always escapes to the heap,
+		// whether tracing is enabled or not.
+		r := ref.Copy()
+		e.traceIndex(e.query[e.index], msg.String(), &r)
 	}
 
 	return result, err
@@ -1647,7 +1665,9 @@ var (
 func (e *evalResolver) Resolve(ref ast.Ref) (ast.Value, error) {
 	e.e.instr.startTimer(evalOpResolve)
 
-	if e.e.inliningControl.Disabled(ref, true) || e.e.saveSet.Contains(ast.NewTerm(ref), nil) {
+	// NOTE(ae): nil check on saveSet to avoid ast.NewTerm allocation when not needed
+	if e.e.inliningControl.Disabled(ref, true) || (e.e.saveSet != nil &&
+		e.e.saveSet.Contains(ast.NewTerm(ref), nil)) {
 		e.e.instr.stopTimer(evalOpResolve)
 		return nil, ast.UnknownValueErr{}
 	}
@@ -1811,7 +1831,13 @@ func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, erro
 }
 
 func (e *eval) generateVar(suffix string) *ast.Term {
-	return ast.VarTerm(fmt.Sprintf("%v_%v", e.genvarprefix, suffix))
+	buf := make([]byte, 0, len(e.genvarprefix)+len(suffix)+1)
+
+	buf = append(buf, e.genvarprefix...)
+	buf = append(buf, '_')
+	buf = append(buf, suffix...)
+
+	return ast.VarTerm(util.ByteSliceToString(buf))
 }
 
 func (e *eval) rewrittenVar(v ast.Var) (ast.Var, bool) {
@@ -1873,7 +1899,7 @@ func (e *evalBuiltin) canUseNDBCache(bi *ast.Builtin) bool {
 	return bi.Nondeterministic && e.bctx.NDBuiltinCache != nil
 }
 
-func (e evalBuiltin) eval(iter unifyIterator) error {
+func (e *evalBuiltin) eval(iter unifyIterator) error {
 
 	operands := make([]*ast.Term, len(e.terms))
 
@@ -2079,9 +2105,15 @@ func (e evalFunc) evalCache(argCount int, iter unifyIterator) (ast.Ref, bool, er
 	} else {
 		plen = len(e.terms)
 	}
+
 	cacheKey := make([]*ast.Term, plen)
 	for i := 0; i < plen; i++ {
-		cacheKey[i] = e.e.bindings.Plug(e.terms[i])
+		if e.terms[i].IsGround() {
+			// Avoid expensive copying of ref if it is ground.
+			cacheKey[i] = e.terms[i]
+		} else {
+			cacheKey[i] = e.e.bindings.Plug(e.terms[i])
+		}
 	}
 
 	cached, _ := e.e.virtualCache.Get(cacheKey)
@@ -2176,7 +2208,6 @@ func (e evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, cacheKey ast.R
 func (e evalFunc) partialEvalSupport(declArgsLen int, iter unifyIterator) error {
 
 	path := e.e.namespaceRef(e.ref)
-	term := ast.NewTerm(path)
 
 	if !e.e.saveSupport.Exists(path) {
 		for _, rule := range e.ir.Rules {
@@ -2190,6 +2221,8 @@ func (e evalFunc) partialEvalSupport(declArgsLen int, iter unifyIterator) error 
 	if !e.e.saveSupport.Exists(path) { // we haven't saved anything, nothing to call
 		return nil
 	}
+
+	term := ast.NewTerm(path)
 
 	return e.e.saveCall(declArgsLen, append([]*ast.Term{term}, e.terms[1:]...), iter)
 }
@@ -2276,9 +2309,7 @@ func (e evalTree) finish(iter unifyIterator) error {
 	// In some cases, it may not be possible to PE the ref. If the path refers
 	// to virtual docs that PE does not support or base documents where inlining
 	// has been disabled, then we have to save.
-	save := e.e.unknown(e.plugged, e.e.bindings)
-
-	if save {
+	if e.e.partial() && e.e.unknown(e.plugged, e.e.bindings) {
 		return e.e.saveUnify(ast.NewTerm(e.plugged), e.rterm, e.bindings, e.rbindings, iter)
 	}
 
@@ -2620,14 +2651,16 @@ func (e evalVirtualPartial) evalEachRule(iter unifyIterator, unknown bool) error
 		return nil
 	}
 
-	m := maxRefLength(e.ir.Rules, len(e.ref))
-	if e.e.unknown(e.ref[e.pos+1:m], e.bindings) {
-		for _, rule := range e.ir.Rules {
-			if err := e.evalOneRulePostUnify(iter, rule); err != nil {
-				return err
+	if e.e.partial() {
+		m := maxRefLength(e.ir.Rules, len(e.ref))
+		if e.e.unknown(e.ref[e.pos+1:m], e.bindings) {
+			for _, rule := range e.ir.Rules {
+				if err := e.evalOneRulePostUnify(iter, rule); err != nil {
+					return err
+				}
 			}
+			return nil
 		}
-		return nil
 	}
 
 	hint, err := e.evalCache(iter)

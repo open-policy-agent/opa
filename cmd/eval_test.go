@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -320,7 +321,7 @@ func TestEvalWithOptimize(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
 			package test
-			
+
 			default p = false
 			p if { q }
 			q if { input.x = data.foo }`,
@@ -389,7 +390,7 @@ func TestEvalWithOptimizeBundleData(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
 			package test
-			
+
 			default p = false
 			p if { q }
 			q if { input.x = data.foo }`,
@@ -1303,7 +1304,7 @@ func TestEvalDebugTraceJSONOutput(t *testing.T) {
 		for _, actual := range evals {
 			if expected.location.Compare(actual.location) == 0 {
 				found = true
-				if !reflect.DeepEqual(expected.varBindings, actual.varBindings) {
+				if !maps.Equal(expected.varBindings, actual.varBindings) {
 					t.Errorf("Expected var bindings:\n\n\t%+v\n\nGot\n\n\t%+v\n\n", expected.varBindings, actual.varBindings)
 				}
 			}
@@ -2482,7 +2483,7 @@ func TestBundleWithStrictFlag(t *testing.T) {
 func TestIfElseIfElseNoBrace(t *testing.T) {
 	files := map[string]string{
 		"bug.rego": `package bug
-			
+
 			p if false
 			else := 1 if false
 			else := 2`,
@@ -2507,7 +2508,7 @@ func TestIfElseIfElseNoBrace(t *testing.T) {
 func TestIfElseIfElseBrace(t *testing.T) {
 	files := map[string]string{
 		"bug.rego": `package bug
-			
+
 			p if false
 			else := 1 if { false }
 			else := 2`,
@@ -2532,7 +2533,7 @@ func TestIfElseIfElseBrace(t *testing.T) {
 func TestIfElse(t *testing.T) {
 	files := map[string]string{
 		"bug.rego": `package bug
-			
+
 			p if false
 			else := 1 `,
 	}
@@ -2584,7 +2585,7 @@ func TestElseNoIfV0(t *testing.T) {
 func TestElseIf(t *testing.T) {
 	files := map[string]string{
 		"bug.rego": `package bug
-			
+
 			p if false
 			else := x if {
 				x=2
@@ -2641,7 +2642,7 @@ func TestElseIfElseV0(t *testing.T) {
 func TestUnexpectedElseIfElseErr(t *testing.T) {
 	files := map[string]string{
 		"bug.rego": `package bug
-			
+
 			p if false
 			else := x if {
 				x=2
@@ -2679,7 +2680,7 @@ func TestUnexpectedElseIfElseErr(t *testing.T) {
 func TestUnexpectedElseIfErr(t *testing.T) {
 	files := map[string]string{
 		"bug.rego": `package bug
-			
+
 			q := 1 if false
 			else := 2 if
 			`,

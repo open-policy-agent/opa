@@ -1519,7 +1519,7 @@ func (p *Planner) planValue(t ast.Value, loc *ast.Location, iter planiter) error
 		p.loc = loc
 		return p.planObjectComprehension(v, iter)
 	default:
-		return fmt.Errorf("%v term not implemented", ast.TypeName(v))
+		return fmt.Errorf("%v term not implemented", ast.ValueName(v))
 	}
 }
 

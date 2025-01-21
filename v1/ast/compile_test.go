@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"reflect"
 	"slices"
 	"sort"
@@ -299,8 +300,8 @@ func TestModuleTree(t *testing.T) {
 	if tree.Children[Var("data")].Children[String("user")].Children[String("system")].Hide {
 		t.Fatalf("Expected user.system node to be visible")
 	}
-
 }
+
 func TestCompilerGetExports(t *testing.T) {
 	tests := []struct {
 		note    string
@@ -777,7 +778,7 @@ func TestRuleIndices(t *testing.T) {
 			note: "regression test for #6930 (no if)",
 			modules: modules(
 				`package test
-			
+
 				p.q contains "foo"
 
 				p[q] := r if {
@@ -1525,7 +1526,7 @@ func TestCompilerErrorLimit(t *testing.T) {
 
 	sort.Strings(exp)
 	sort.Strings(result)
-	if !reflect.DeepEqual(exp, result) {
+	if !slices.Equal(exp, result) {
 		t.Errorf("Expected errors %v, got %v", exp, result)
 	}
 }
@@ -1958,9 +1959,9 @@ p[r] := 2 if { r := "foo" }`,
 	})
 
 	c.WithPathConflictsCheck(func(path []string) (bool, error) {
-		if reflect.DeepEqual(path, []string{"badrules", "dataoverlap", "p"}) {
+		if slices.Equal(path, []string{"badrules", "dataoverlap", "p"}) {
 			return true, nil
-		} else if reflect.DeepEqual(path, []string{"badrules", "existserr", "p"}) {
+		} else if slices.Equal(path, []string{"badrules", "existserr", "p"}) {
 			return false, fmt.Errorf("unexpected error")
 		}
 		return false, nil
@@ -2007,7 +2008,7 @@ p if { true }`,
 	c.WithPathConflictsCheck(func(path []string) (bool, error) {
 		if slices.Contains(path, "dataoverlap") {
 			return true, nil
-		} else if reflect.DeepEqual(path, []string{"badrules", "existserr", "p"}) {
+		} else if slices.Equal(path, []string{"badrules", "existserr", "p"}) {
 			return false, fmt.Errorf("unexpected error")
 		}
 		return false, nil
@@ -2750,13 +2751,13 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 			expected: `
 			package test
 
-			p = true { 
+			p = true {
 				plus(1, 2, __local3__)
 				mul(3, 4, __local4__)
 				numbers.range(__local3__, __local4__, __local5__)
 				__local2__ = __local5__
-				every __local0__, __local1__ in __local2__ { 
-					__local1__ 
+				every __local0__, __local1__ in __local2__ {
+					__local1__
 				}
 			}`,
 		},
@@ -2770,13 +2771,13 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 			expected: `
 			package test
 
-			p = true { 
+			p = true {
 				div(1, 2, __local3__)
 				abs(-1, __local4__)
 				__local2__ = [__local3__, "foo", __local4__]
 				every __local0__, __local1__ in __local2__ {
 					__local1__
-				} 
+				}
 			}`,
 		},
 		{
@@ -2788,13 +2789,13 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 			expected: `
 			package test
 
-			p = true { 
+			p = true {
 				div(1, 2, __local3__)
 				abs(-1, __local4__)
 				__local2__ = [__local3__, ["foo", __local4__]]
-				every __local0__, __local1__ in __local2__ { 
-					__local1__ 
-				} 
+				every __local0__, __local1__ in __local2__ {
+					__local1__
+				}
 			}`,
 		},
 	}
@@ -5547,7 +5548,7 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 			if result.Compare(exp) != 0 {
 				t.Fatalf("\nExpected:\n\n%v\n\nGot:\n\n%v", exp, result)
 			}
-			if !reflect.DeepEqual(c.RewrittenVars, tc.expRewrittenMap) {
+			if !maps.Equal(c.RewrittenVars, tc.expRewrittenMap) {
 				t.Fatalf("\nExpected Rewritten Vars:\n\n\t%+v\n\nGot:\n\n\t%+v\n\n", tc.expRewrittenMap, c.RewrittenVars)
 			}
 		})
@@ -9721,15 +9722,15 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 				names = append(names, compiler.Required.Builtins[i].Name)
 			}
 
-			if !reflect.DeepEqual(names, tc.builtins) {
+			if !slices.Equal(names, tc.builtins) {
 				t.Fatalf("expected builtins to be %v but got %v", tc.builtins, names)
 			}
 
-			if !reflect.DeepEqual(compiler.Required.FutureKeywords, tc.keywords) {
+			if !slices.Equal(compiler.Required.FutureKeywords, tc.keywords) {
 				t.Fatalf("expected keywords to be %v but got %v", tc.keywords, compiler.Required.FutureKeywords)
 			}
 
-			if !reflect.DeepEqual(compiler.Required.Features, tc.features) {
+			if !slices.Equal(compiler.Required.Features, tc.features) {
 				t.Fatalf("expected features to be %v but got %v", tc.features, compiler.Required.Features)
 			}
 		})
@@ -11292,12 +11293,12 @@ test_something if {
 	a == b
 }`,
 			exp: `package test
-        
+
 a := 1 if { true }
 b := 2 if { true }
 
-test_something = true if { 
-	data.test.a = data.test.b 
+test_something = true if {
+	data.test.a = data.test.b
 }`,
 		},
 		{
@@ -11314,11 +11315,11 @@ test_something if {
 			// When the test fails on '__local0__ = __local1__', the values for 'a' and 'b' are captured in local bindings,
 			// accessible by the tracer.
 			exp: `package test
-        
+
 a := 1 if { true }
 b := 2 if { true }
 
-test_something = true if { 
+test_something = true if {
 	__local0__ = data.test.a
 	__local1__ = data.test.b
 	__local0__ = __local1__
@@ -11341,7 +11342,7 @@ test_something if {
 a := 1 if { true }
 b := 2 if { true }
 
-test_something = true if { 
+test_something = true if {
 	not data.test.a = data.test.b
 }`,
 		},
@@ -11364,14 +11365,14 @@ a := 1 if { true }
 b := 2 if { true }
 l := [1, 2, 3] if { true }
 
-test_something = true if { 
+test_something = true if {
 	__local2__ = data.test.l
-	every __local0__, __local1__ in __local2__ { 
+	every __local0__, __local1__ in __local2__ {
 		__local4__ = data.test.b
 		plus(__local4__, __local1__, __local3__)
 		__local5__ = data.test.a
-		lt(__local5__, __local3__) 
-	} 
+		lt(__local5__, __local3__)
+	}
 }`,
 		},
 		{
@@ -11391,19 +11392,19 @@ test_something if {
 			// When tests contain an 'every' statement, we're interested in the circumstances that made the every fail,
 			// so it's body is rewritten.
 			exp: `package test
-        
+
 a := 1 if { true }
 b := 2 if { true }
 l := [1, 2, 3] if { true }
 
-test_something = true if { 
-	__local2__ = data.test.l; 
-	every __local0__, __local1__ in __local2__ { 
+test_something = true if {
+	__local2__ = data.test.l;
+	every __local0__, __local1__ in __local2__ {
 		__local4__ = data.test.b
 		plus(__local4__, __local1__, __local3__)
 		__local5__ = data.test.a
-		lt(__local5__, __local3__) 
-	} 
+		lt(__local5__, __local3__)
+	}
 }`,
 		},
 	}

@@ -96,9 +96,11 @@ func generateCheapRange(operands []*ast.Term, iter func(*ast.Term) error) error 
 
 	step := 1
 
-	stepOp, err := builtins.IntOperand(operands[2].Value, 3)
-	if err == nil {
-		step = stepOp
+	if len(operands) > 2 {
+		stepOp, err := builtins.IntOperand(operands[2].Value, 3)
+		if err == nil {
+			step = stepOp
+		}
 	}
 
 	if step <= 0 {

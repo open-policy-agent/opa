@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -128,7 +128,7 @@ func TestIteratorOrder(t *testing.T) {
 
 	expDataFiles := []string{"/", "/a", "/a/b", "/a/b/c", "/a/b/d/e", "/a/b/y/x/z"}
 
-	if !reflect.DeepEqual(expDataFiles, actualDataFiles) {
+	if !slices.Equal(expDataFiles, actualDataFiles) {
 		t.Fatalf("Expected data files %v but got %v", expDataFiles, actualDataFiles)
 	}
 }

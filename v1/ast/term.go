@@ -14,7 +14,7 @@ import (
 	"math/big"
 	"net/url"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -56,10 +56,16 @@ type Value interface {
 func InterfaceToValue(x interface{}) (Value, error) {
 	switch x := x.(type) {
 	case nil:
-		return Null{}, nil
+		return NullValue, nil
 	case bool:
-		return Boolean(x), nil
+		if x {
+			return InternedBooleanTerm(true).Value, nil
+		}
+		return InternedBooleanTerm(false).Value, nil
 	case json.Number:
+		if interned := InternedIntNumberTermFromString(string(x)); interned != nil {
+			return interned.Value, nil
+		}
 		return Number(x), nil
 	case int64:
 		return int64Number(x), nil
@@ -85,11 +91,7 @@ func InterfaceToValue(x interface{}) (Value, error) {
 		kvs := util.NewPtrSlice[Term](len(x) * 2)
 		idx := 0
 		for k, v := range x {
-			k, err := InterfaceToValue(k)
-			if err != nil {
-				return nil, err
-			}
-			kvs[idx].Value = k
+			kvs[idx].Value = String(k)
 			v, err := InterfaceToValue(v)
 			if err != nil {
 				return nil, err
@@ -105,15 +107,7 @@ func InterfaceToValue(x interface{}) (Value, error) {
 	case map[string]string:
 		r := newobject(len(x))
 		for k, v := range x {
-			k, err := InterfaceToValue(k)
-			if err != nil {
-				return nil, err
-			}
-			v, err := InterfaceToValue(v)
-			if err != nil {
-				return nil, err
-			}
-			r.Insert(NewTerm(k), NewTerm(v))
+			r.Insert(StringTerm(k), StringTerm(v))
 		}
 		return r, nil
 	default:
@@ -136,7 +130,7 @@ func ValueFromReader(r io.Reader) (Value, error) {
 
 // As converts v into a Go native type referred to by x.
 func As(v Value, x interface{}) error {
-	return util.NewJSONDecoder(bytes.NewBufferString(v.String())).Decode(x)
+	return util.NewJSONDecoder(strings.NewReader(v.String())).Decode(x)
 }
 
 // Resolver defines the interface for resolving references to native Go values.
@@ -363,7 +357,7 @@ func (term *Term) Copy() *Term {
 }
 
 // Equal returns true if this term equals the other term. Equality is
-// defined for each kind of term.
+// defined for each kind of term, and does not compare the Location.
 func (term *Term) Equal(other *Term) bool {
 	if term == nil && other != nil {
 		return false
@@ -375,28 +369,7 @@ func (term *Term) Equal(other *Term) bool {
 		return true
 	}
 
-	// TODO(tsandall): This early-exit avoids allocations for types that have
-	// Equal() functions that just use == underneath. We should revisit the
-	// other types and implement Equal() functions that do not require
-	// allocations.
-	switch v := term.Value.(type) {
-	case Null:
-		return v.Equal(other.Value)
-	case Boolean:
-		return v.Equal(other.Value)
-	case Number:
-		return v.Equal(other.Value)
-	case String:
-		return v.Equal(other.Value)
-	case Var:
-		return v.Equal(other.Value)
-	case Ref:
-		return v.Equal(other.Value)
-	case *Array:
-		return v.Equal(other.Value)
-	}
-
-	return term.Value.Compare(other.Value) == 0
+	return ValueEqual(term.Value, other.Value)
 }
 
 // Get returns a value referred to by name from the term.
@@ -441,7 +414,7 @@ func (term *Term) setJSONOptions(opts astJSON.Options) {
 // Specialized marshalling logic is required to include a type hint for Value.
 func (term *Term) MarshalJSON() ([]byte, error) {
 	d := map[string]interface{}{
-		"type":  TypeName(term.Value),
+		"type":  ValueName(term.Value),
 		"value": term.Value,
 	}
 	if term.jsonOptions.MarshalOptions.IncludeLocation.Term {
@@ -553,13 +526,7 @@ func ContainsClosures(v interface{}) bool {
 // IsScalar returns true if the AST value is a scalar.
 func IsScalar(v Value) bool {
 	switch v.(type) {
-	case String:
-		return true
-	case Number:
-		return true
-	case Boolean:
-		return true
-	case Null:
+	case String, Number, Boolean, Null:
 		return true
 	}
 	return false
@@ -568,9 +535,11 @@ func IsScalar(v Value) bool {
 // Null represents the null value defined by JSON.
 type Null struct{}
 
+var NullValue Value = Null{}
+
 // NullTerm creates a new Term with a Null value.
 func NullTerm() *Term {
-	return &Term{Value: Null{}}
+	return &Term{Value: NullValue}
 }
 
 // Equal returns true if the other term Value is also Null.
@@ -586,13 +555,16 @@ func (null Null) Equal(other Value) bool {
 // Compare compares null to other, return <0, 0, or >0 if it is less than, equal to,
 // or greater than other.
 func (null Null) Compare(other Value) int {
-	return Compare(null, other)
+	if _, ok := other.(Null); ok {
+		return 0
+	}
+	return -1
 }
 
 // Find returns the current value or a not found error.
 func (null Null) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
-		return null, nil
+		return NullValue, nil
 	}
 	return nil, errFindNotFound
 }
@@ -616,7 +588,10 @@ type Boolean bool
 
 // BooleanTerm creates a new Term with a Boolean value.
 func BooleanTerm(b bool) *Term {
-	return &Term{Value: Boolean(b)}
+	if b {
+		return &Term{Value: InternedBooleanTerm(true).Value}
+	}
+	return &Term{Value: InternedBooleanTerm(false).Value}
 }
 
 // Equal returns true if the other Value is a Boolean and is equal.
@@ -632,13 +607,29 @@ func (bol Boolean) Equal(other Value) bool {
 // Compare compares bol to other, return <0, 0, or >0 if it is less than, equal to,
 // or greater than other.
 func (bol Boolean) Compare(other Value) int {
-	return Compare(bol, other)
+	switch other := other.(type) {
+	case Boolean:
+		if bol == other {
+			return 0
+		}
+		if !bol {
+			return -1
+		}
+		return 1
+	case Null:
+		return 1
+	}
+
+	return -1
 }
 
 // Find returns the current value or a not found error.
 func (bol Boolean) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
-		return bol, nil
+		if bol {
+			return InternedBooleanTerm(true).Value, nil
+		}
+		return InternedBooleanTerm(false).Value, nil
 	}
 	return nil, errFindNotFound
 }
@@ -688,13 +679,14 @@ func FloatNumberTerm(f float64) *Term {
 func (num Number) Equal(other Value) bool {
 	switch other := other.(type) {
 	case Number:
-		n1, ok1 := num.Int64()
-		n2, ok2 := other.Int64()
-		if ok1 && ok2 && n1 == n2 {
-			return true
+		if n1, ok1 := num.Int64(); ok1 {
+			n2, ok2 := other.Int64()
+			if ok1 && ok2 && n1 == n2 {
+				return true
+			}
 		}
 
-		return Compare(num, other) == 0
+		return num.Compare(other) == 0
 	default:
 		return false
 	}
@@ -703,6 +695,21 @@ func (num Number) Equal(other Value) bool {
 // Compare compares num to other, return <0, 0, or >0 if it is less than, equal to,
 // or greater than other.
 func (num Number) Compare(other Value) int {
+	// Optimize for the common case, as calling Compare allocates on heap.
+	if otherNum, yes := other.(Number); yes {
+		if ai, ok := num.Int64(); ok {
+			if bi, ok := otherNum.Int64(); ok {
+				if ai == bi {
+					return 0
+				}
+				if ai < bi {
+					return -1
+				}
+				return 1
+			}
+		}
+	}
+
 	return Compare(num, other)
 }
 
@@ -800,6 +807,19 @@ func (str String) Equal(other Value) bool {
 // Compare compares str to other, return <0, 0, or >0 if it is less than, equal to,
 // or greater than other.
 func (str String) Compare(other Value) int {
+	// Optimize for the common case of one string being compared to another by
+	// using a direct comparison of values. This avoids the allocation performed
+	// when calling Compare and its interface{} argument conversion.
+	if otherStr, ok := other.(String); ok {
+		if str == otherStr {
+			return 0
+		}
+		if str < otherStr {
+			return -1
+		}
+		return 1
+	}
+
 	return Compare(str, other)
 }
 
@@ -848,6 +868,9 @@ func (v Var) Equal(other Value) bool {
 // Compare compares v to other, return <0, 0, or >0 if it is less than, equal to,
 // or greater than other.
 func (v Var) Compare(other Value) int {
+	if otherVar, ok := other.(Var); ok {
+		return strings.Compare(string(v), string(otherVar))
+	}
 	return Compare(v, other)
 }
 
@@ -1020,6 +1043,10 @@ func (ref Ref) Equal(other Value) bool {
 // Compare compares ref to other, return <0, 0, or >0 if it is less than, equal to,
 // or greater than other.
 func (ref Ref) Compare(other Value) int {
+	if o, ok := other.(Ref); ok {
+		return termSliceCompare(ref, o)
+	}
+
 	return Compare(ref, other)
 }
 
@@ -1051,32 +1078,32 @@ func (ref Ref) HasPrefix(other Ref) bool {
 
 // ConstantPrefix returns the constant portion of the ref starting from the head.
 func (ref Ref) ConstantPrefix() Ref {
-	ref = ref.Copy()
-
 	i := ref.Dynamic()
 	if i < 0 {
-		return ref
+		return ref.Copy()
 	}
-	return ref[:i]
+	return ref[:i].Copy()
 }
 
 func (ref Ref) StringPrefix() Ref {
-	r := ref.Copy()
-
 	for i := 1; i < len(ref); i++ {
-		switch r[i].Value.(type) {
+		switch ref[i].Value.(type) {
 		case String: // pass
 		default: // cut off
-			return r[:i]
+			return ref[:i].Copy()
 		}
 	}
 
-	return r
+	return ref.Copy()
 }
 
 // GroundPrefix returns the ground portion of the ref starting from the head. By
 // definition, the head of the reference is always ground.
 func (ref Ref) GroundPrefix() Ref {
+	if ref.IsGround() {
+		return ref
+	}
+
 	prefix := make(Ref, 0, len(ref))
 
 	for i, x := range ref {
@@ -1260,6 +1287,19 @@ func (arr *Array) Equal(other Value) bool {
 // Compare compares arr to other, return <0, 0, or >0 if it is less than, equal to,
 // or greater than other.
 func (arr *Array) Compare(other Value) int {
+	if b, ok := other.(*Array); ok {
+		return termSliceCompare(arr.elems, b.elems)
+	}
+
+	sortA := sortOrder(arr)
+	sortB := sortOrder(other)
+
+	if sortA < sortB {
+		return -1
+	} else if sortB < sortA {
+		return 1
+	}
+
 	return Compare(arr, other)
 }
 
@@ -1307,7 +1347,9 @@ func (arr *Array) Sorted() *Array {
 	for i := range cpy {
 		cpy[i] = arr.elems[i]
 	}
-	sort.Sort(termSlice(cpy))
+
+	slices.SortFunc(cpy, TermValueCompare)
+
 	a := NewArray(cpy...)
 	a.hashs = arr.hashs
 	return a
@@ -1480,7 +1522,7 @@ func newset(n int) *set {
 		keys:      keys,
 		hash:      0,
 		ground:    true,
-		sortGuard: new(sync.Once),
+		sortGuard: sync.Once{},
 	}
 }
 
@@ -1493,11 +1535,15 @@ func SetTerm(t ...*Term) *Term {
 }
 
 type set struct {
-	elems     map[int]*Term
-	keys      []*Term
-	hash      int
-	ground    bool
-	sortGuard *sync.Once // Prevents race condition around sorting.
+	elems  map[int]*Term
+	keys   []*Term
+	hash   int
+	ground bool
+	// Prevents race condition around sorting.
+	// We can avoid (the allocation cost of) using a pointer here as all
+	// methods of `set` use a pointer receiver, and the `sync.Once` value
+	// is never copied.
+	sortGuard sync.Once
 }
 
 // Copy returns a deep copy of s.
@@ -1547,7 +1593,7 @@ func (s *set) String() string {
 
 func (s *set) sortedKeys() []*Term {
 	s.sortGuard.Do(func() {
-		sort.Sort(termSlice(s.keys))
+		slices.SortFunc(s.keys, TermValueCompare)
 	})
 	return s.keys
 }
@@ -1717,7 +1763,7 @@ func (s *set) clear() {
 	s.keys = s.keys[:0]
 	s.hash = 0
 	s.ground = true
-	s.sortGuard = new(sync.Once)
+	s.sortGuard = sync.Once{}
 }
 
 func (s *set) insertNoGuard(x *Term) {
@@ -1825,7 +1871,7 @@ func (s *set) insert(x *Term, resetSortGuard bool) {
 		// Note that this will always be the case when external code calls insert via
 		// Add, or otherwise. Internal code may however benefit from not having to
 		// re-create this pointer when it's known not to be needed.
-		s.sortGuard = new(sync.Once)
+		s.sortGuard = sync.Once{}
 	}
 
 	s.hash += hash
@@ -2094,7 +2140,8 @@ func (l *lazyObj) Keys() []*Term {
 	for k := range l.native {
 		ret = append(ret, StringTerm(k))
 	}
-	sort.Sort(termSlice(ret))
+	slices.SortFunc(ret, TermValueCompare)
+
 	return ret
 }
 
@@ -2148,7 +2195,7 @@ type object struct {
 	ground int // number of key and value grounds. Counting is
 	// required to support insert's key-value replace.
 	hash      int
-	sortGuard *sync.Once // Prevents race condition around sorting.
+	sortGuard sync.Once // Prevents race condition around sorting.
 }
 
 func newobject(n int) *object {
@@ -2161,7 +2208,7 @@ func newobject(n int) *object {
 		keys:      keys,
 		ground:    0,
 		hash:      0,
-		sortGuard: new(sync.Once),
+		sortGuard: sync.Once{},
 	}
 }
 
@@ -2185,7 +2232,9 @@ func Item(key, value *Term) [2]*Term {
 
 func (obj *object) sortedKeys() objectElemSlice {
 	obj.sortGuard.Do(func() {
-		sort.Sort(obj.keys)
+		slices.SortFunc(obj.keys, func(a, b *objectElem) int {
+			return a.key.Value.Compare(b.key.Value)
+		})
 	})
 	return obj.keys
 }
@@ -2376,7 +2425,7 @@ func (obj *object) MarshalJSON() ([]byte, error) {
 // overlapping keys between obj and other, the values of associated with the keys are merged. Only
 // objects can be merged with other objects. If the values cannot be merged, the second turn value
 // will be false.
-func (obj object) Merge(other Object) (Object, bool) {
+func (obj *object) Merge(other Object) (Object, bool) {
 	return obj.MergeWith(other, func(v1, v2 *Term) (*Term, bool) {
 		obj1, ok1 := v1.Value.(Object)
 		obj2, ok2 := v2.Value.(Object)
@@ -2395,7 +2444,7 @@ func (obj object) Merge(other Object) (Object, bool) {
 // If there are overlapping keys between obj and other, the conflictResolver
 // is called. The conflictResolver can return a merged value and a boolean
 // indicating if the merge has failed and should stop.
-func (obj object) MergeWith(other Object, conflictResolver func(v1, v2 *Term) (*Term, bool)) (Object, bool) {
+func (obj *object) MergeWith(other Object, conflictResolver func(v1, v2 *Term) (*Term, bool)) (Object, bool) {
 	result := NewObject()
 	stop := obj.Until(func(k, v *Term) bool {
 		v2 := other.Get(k)
@@ -2438,11 +2487,11 @@ func (obj *object) Filter(filter Object) (Object, error) {
 }
 
 // Len returns the number of elements in the object.
-func (obj object) Len() int {
+func (obj *object) Len() int {
 	return len(obj.keys)
 }
 
-func (obj object) String() string {
+func (obj *object) String() string {
 	sb := sbPool.Get().(*strings.Builder)
 	sb.Reset()
 	sb.Grow(obj.Len() * 32)
@@ -2667,8 +2716,8 @@ func (obj *object) insert(k, v *Term, resetSortGuard bool) {
 		// See https://github.com/golang/go/issues/25955 for why we do it this way.
 		// Note that this will always be the case when external code calls insert via
 		// Add, or otherwise. Internal code may however benefit from not having to
-		// re-create this pointer when it's known not to be needed.
-		obj.sortGuard = new(sync.Once)
+		// re-create this when it's known not to be needed.
+		obj.sortGuard = sync.Once{}
 	}
 
 	obj.hash += hash + v.Hash()
@@ -2695,7 +2744,7 @@ func (obj *object) rehash() {
 }
 
 func filterObject(o Value, filter Value) (Value, error) {
-	if filter.Compare(Null{}) == 0 {
+	if (Null{}).Equal(filter) {
 		return o, nil
 	}
 
@@ -3013,10 +3062,14 @@ func (c Call) String() string {
 
 func termSliceCopy(a []*Term) []*Term {
 	cpy := make([]*Term, len(a))
-	for i := range a {
-		cpy[i] = a[i].Copy()
-	}
+	termSliceCopyTo(a, cpy)
 	return cpy
+}
+
+func termSliceCopyTo(src, dst []*Term) {
+	for i := range src {
+		dst[i] = src[i].Copy()
+	}
 }
 
 func termSliceEqual(a, b []*Term) bool {
@@ -3243,7 +3296,7 @@ func unmarshalValue(d map[string]interface{}) (Value, error) {
 	v := d["value"]
 	switch d["type"] {
 	case "null":
-		return Null{}, nil
+		return NullValue, nil
 	case "boolean":
 		if b, ok := v.(bool); ok {
 			return Boolean(b), nil

@@ -666,18 +666,18 @@ code if a file would be reformatted.
 The 'fmt' command can be run in several compatibility modes for consuming and outputting
 different Rego versions:
 
-* 'opa fmt':
+* `opa fmt`:
   * v1 Rego is formatted to v1
-  * 'rego.v1'/'future.keywords' imports are NOT removed
-  * 'rego.v1'/'future.keywords' imports are NOT added if missing
+  * `rego.v1`/`future.keywords` imports are NOT removed
+  * `rego.v1`/`future.keywords` imports are NOT added if missing
   * v0 rego is rejected
-* 'opa fmt --v0-compatible':
+* `opa fmt --v0-compatible`:
   * v0 Rego is formatted to v0
   * v1 Rego is rejected
-* 'opa fmt --v0-v1':
+* `opa fmt --v0-v1`:
   * v0 Rego is formatted to be compatible with v0 AND v1
   * v1 Rego is rejected
-* 'opa fmt --v0-v1 --v1-compatible':
+* `opa fmt --v0-v1 --v1-compatible`:
   * v1 Rego is formatted to be compatible with v0 AND v1
   * v0 Rego is rejected
 
@@ -727,7 +727,7 @@ Example:
     bundle.tar.gz
     $ opa inspect bundle.tar.gz
 
-You can provide exactly one OPA bundle, path to a bundle directory, or direct path to a Rego file to the 'inspect' command 
+You can provide exactly one OPA bundle, path to a bundle directory, or direct path to a Rego file to the 'inspect' command
 on the command-line. If you provide a path referring to a directory, the 'inspect' command will load that path as a bundle
 and summarize its structure and contents. If you provide a path referring to a Rego file, the 'inspect' command will load
 that file and summarize its structure and contents.

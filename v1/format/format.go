@@ -1637,7 +1637,7 @@ func ArityFormatMismatchError(operands []*ast.Term, operator string, loc *ast.Lo
 
 	have := make([]string, len(operands))
 	for i := 0; i < len(operands); i++ {
-		have[i] = ast.TypeName(operands[i].Value)
+		have[i] = ast.ValueName(operands[i].Value)
 	}
 	err := ast.NewError(ast.TypeErr, loc, "%s: %s", operator, "arity mismatch")
 	err.Details = &ArityFormatErrDetail{

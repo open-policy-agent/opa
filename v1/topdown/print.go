@@ -62,7 +62,7 @@ func builtinPrintCrossProductOperands(bctx BuiltinContext, buf []string, operand
 
 	xs, ok := operands.Elem(i).Value.(ast.Set)
 	if !ok {
-		return Halt{Err: internalErr(bctx.Location, fmt.Sprintf("illegal argument type: %v", ast.TypeName(operands.Elem(i).Value)))}
+		return Halt{Err: internalErr(bctx.Location, fmt.Sprintf("illegal argument type: %v", ast.ValueName(operands.Elem(i).Value)))}
 	}
 
 	if xs.Len() == 0 {

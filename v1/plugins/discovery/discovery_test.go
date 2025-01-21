@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -955,7 +956,7 @@ import future.keywords
 labels.x := "label value changed"
 default_decision := "bar/baz"
 default_authorization_decision := "baz/qux"
-plugins.test_plugin := v if { 
+plugins.test_plugin := v if {
 	v := {"a": "b"}
 }
 services.acmecorp.url := v if {
@@ -974,7 +975,7 @@ bundles.authz.service := v if {
 labels.x := "label value changed"
 default_decision := "bar/baz"
 default_authorization_decision := "baz/qux"
-plugins.test_plugin := v if { 
+plugins.test_plugin := v if {
 	v := {"a": "b"}
 }
 services.acmecorp.url := v if {
@@ -1082,7 +1083,7 @@ func TestLoadAndActivateBundleFromDiskWithBundleRegoVersion(t *testing.T) {
 labels.x := "label value changed"
 default_decision := "bar/baz"
 default_authorization_decision := "baz/qux"
-plugins.test_plugin := v { 
+plugins.test_plugin := v {
 	v := {"a": "b"}
 }
 
@@ -1104,7 +1105,7 @@ bundles.authz.service := v {
 labels.x := "label value changed"
 default_decision := "bar/baz"
 default_authorization_decision := "baz/qux"
-plugins.test_plugin := v { 
+plugins.test_plugin := v {
 	v := {"a": "b"}
 }`},
 				"policy2.rego": {1, `package config
@@ -1127,7 +1128,7 @@ bundles.authz.service := v if {
 labels.x := "label value changed"
 default_decision := "bar/baz"
 default_authorization_decision := "baz/qux"
-plugins.test_plugin := v if { 
+plugins.test_plugin := v if {
 	v := {"a": "b"}
 }
 services.acmecorp.url := v if {
@@ -1147,7 +1148,7 @@ bundles.authz.service := v if {
 labels.x := "label value changed"
 default_decision := "bar/baz"
 default_authorization_decision := "baz/qux"
-plugins.test_plugin := v { 
+plugins.test_plugin := v {
 	v := {"a": "b"}
 }`},
 				"policy2.rego": {-1, `package config
@@ -1403,7 +1404,7 @@ func TestReconfigure(t *testing.T) {
 
 	// Verify labels are unchanged but allow additions
 	exp := map[string]string{"x": "y", "y": "new label", "id": "test-id", "version": version.Version}
-	if !reflect.DeepEqual(manager.Labels(), exp) {
+	if !maps.Equal(manager.Labels(), exp) {
 		t.Errorf("Expected labels to be unchanged (%v) but got %v", exp, manager.Labels())
 	}
 
@@ -1418,7 +1419,7 @@ func TestReconfigure(t *testing.T) {
 	}
 
 	// Verify plugins started
-	if !reflect.DeepEqual(testPlugin.counts, map[string]int{"start": 1}) {
+	if !maps.Equal(testPlugin.counts, map[string]int{"start": 1}) {
 		t.Errorf("Expected exactly one plugin start but got %v", testPlugin)
 	}
 
@@ -1440,7 +1441,7 @@ func TestReconfigure(t *testing.T) {
 
 	// Verify label additions are always on top of bootstrap config with multiple discovery documents
 	exp = map[string]string{"x": "y", "z": "another added label", "id": "test-id", "version": version.Version}
-	if !reflect.DeepEqual(manager.Labels(), exp) {
+	if !maps.Equal(manager.Labels(), exp) {
 		t.Errorf("Expected labels to be unchanged (%v) but got %v", exp, manager.Labels())
 	}
 
@@ -1450,7 +1451,7 @@ func TestReconfigure(t *testing.T) {
 		t.Fatalf("expected snapshot bundle but got %v", disco.status.Type)
 	}
 
-	if !reflect.DeepEqual(testPlugin.counts, map[string]int{"start": 1, "reconfig": 1}) {
+	if !maps.Equal(testPlugin.counts, map[string]int{"start": 1, "reconfig": 1}) {
 		t.Errorf("Expected one plugin start and one reconfig but got %v", testPlugin)
 	}
 }
@@ -1505,7 +1506,7 @@ plugins.test_plugin := v if {
 
 	// Verify labels are unchanged but allow additions
 	exp := map[string]string{"x": "y", "y": "new label", "id": "test-id", "version": version.Version}
-	if !reflect.DeepEqual(manager.Labels(), exp) {
+	if !maps.Equal(manager.Labels(), exp) {
 		t.Errorf("Expected labels to be unchanged (%v) but got %v", exp, manager.Labels())
 	}
 
@@ -1520,7 +1521,7 @@ plugins.test_plugin := v if {
 	}
 
 	// Verify plugins started
-	if !reflect.DeepEqual(testPlugin.counts, map[string]int{"start": 1}) {
+	if !maps.Equal(testPlugin.counts, map[string]int{"start": 1}) {
 		t.Errorf("Expected exactly one plugin start but got %v", testPlugin)
 	}
 
@@ -1539,7 +1540,7 @@ plugins.test_plugin := v if {
 
 	// Verify label additions are always on top of bootstrap config with multiple discovery documents
 	exp = map[string]string{"x": "y", "z": "another added label", "id": "test-id", "version": version.Version}
-	if !reflect.DeepEqual(manager.Labels(), exp) {
+	if !maps.Equal(manager.Labels(), exp) {
 		t.Errorf("Expected labels to be unchanged (%v) but got %v", exp, manager.Labels())
 	}
 
@@ -1549,7 +1550,7 @@ plugins.test_plugin := v if {
 		t.Fatalf("expected snapshot bundle but got %v", disco.status.Type)
 	}
 
-	if !reflect.DeepEqual(testPlugin.counts, map[string]int{"start": 1, "reconfig": 1}) {
+	if !maps.Equal(testPlugin.counts, map[string]int{"start": 1, "reconfig": 1}) {
 		t.Errorf("Expected one plugin start and one reconfig but got %v", testPlugin)
 	}
 
@@ -1646,7 +1647,7 @@ plugins.test_plugin := v if {
 
 	// Verify labels are unchanged but allow additions
 	exp := map[string]string{"x": "y", "y": "new label", "id": "test-id", "version": version.Version}
-	if !reflect.DeepEqual(manager.Labels(), exp) {
+	if !maps.Equal(manager.Labels(), exp) {
 		t.Errorf("Expected labels to be unchanged (%v) but got %v", exp, manager.Labels())
 	}
 
@@ -1661,7 +1662,7 @@ plugins.test_plugin := v if {
 	}
 
 	// Verify plugins started
-	if !reflect.DeepEqual(testPlugin.counts, map[string]int{"start": 1}) {
+	if !maps.Equal(testPlugin.counts, map[string]int{"start": 1}) {
 		t.Errorf("Expected exactly one plugin start but got %v", testPlugin)
 	}
 
@@ -1680,7 +1681,7 @@ plugins.test_plugin := v if {
 
 	// Verify label additions are always on top of bootstrap config with multiple discovery documents
 	exp = map[string]string{"x": "y", "z": "another added label", "id": "test-id", "version": version.Version}
-	if !reflect.DeepEqual(manager.Labels(), exp) {
+	if !maps.Equal(manager.Labels(), exp) {
 		t.Errorf("Expected labels to be unchanged (%v) but got %v", exp, manager.Labels())
 	}
 
@@ -1690,7 +1691,7 @@ plugins.test_plugin := v if {
 		t.Fatalf("expected snapshot bundle but got %v", disco.status.Type)
 	}
 
-	if !reflect.DeepEqual(testPlugin.counts, map[string]int{"start": 1, "reconfig": 1}) {
+	if !maps.Equal(testPlugin.counts, map[string]int{"start": 1, "reconfig": 1}) {
 		t.Errorf("Expected one plugin start and one reconfig but got %v", testPlugin)
 	}
 }
@@ -1753,7 +1754,7 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 	}
 
 	exp := map[string]string{"x": "y", "y": "new label", "id": "test-id", "version": version.Version}
-	if !reflect.DeepEqual(manager.Labels(), exp) {
+	if !maps.Equal(manager.Labels(), exp) {
 		t.Errorf("Expected labels (%v) but got %v", exp, manager.Labels())
 	}
 
@@ -2861,7 +2862,7 @@ func TestStatusUpdatesFromPersistedBundlesDontDelayBoot(t *testing.T) {
 	defer listener.Close()
 
 	manager, err := plugins.New([]byte(fmt.Sprintf(`{
-            "persistence_directory": %q, 
+            "persistence_directory": %q,
 			"services": {
 				"localhost": {
 					"url": "http://%s"

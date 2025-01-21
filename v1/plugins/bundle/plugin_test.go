@@ -17,6 +17,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -105,7 +106,13 @@ func TestPluginOneShot(t *testing.T) {
 	}
 
 	data, err := manager.Store.Read(ctx, txn, storage.Path{})
-	expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
+	expData := util.MustUnmarshalJSON([]byte(`{
+		"foo": {"bar": 1, "baz": "qux"}, 
+		"system": {
+			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
+			"modules": {"test-bundle/foo/bar": {"rego_version": 1}}
+		}
+	}`))
 	if err != nil {
 		t.Fatal(err)
 	} else if !reflect.DeepEqual(data, expData) {
@@ -960,7 +967,13 @@ func TestPluginStartLazyLoadInMem(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			expected := `{"p": "x1", "q": "x2", "system": {"bundles": {"test-1": {"etag": "", "manifest": {"revision": "", "roots": ["p", "authz"]}}, "test-2": {"etag": "", "manifest": {"revision": "", "roots": ["q"]}}}}}`
+			expected := `{
+				"p": "x1", "q": "x2", 
+				"system": {
+					"bundles": {"test-1": {"etag": "", "manifest": {"revision": "", "roots": ["p", "authz"]}}, "test-2": {"etag": "", "manifest": {"revision": "", "roots": ["q"]}}},
+					"modules": {"test-1/bar/policy.rego": {"rego_version": 1}}
+				}
+			}`
 			if rm.readAst {
 				expData := ast.MustParseTerm(expected)
 				if ast.Compare(data, expData) != 0 {
@@ -1027,11 +1040,11 @@ func TestPluginOneShotDiskStorageMetrics(t *testing.T) {
 			t.Errorf("%s: expected %v, got %v", name, exp, act)
 		}
 		name = "disk_written_keys"
-		if exp, act := 6, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
+		if exp, act := 7, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
 			t.Errorf("%s: expected %v, got %v", name, exp, act)
 		}
 		name = "disk_read_keys"
-		if exp, act := 13, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
+		if exp, act := 14, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
 			t.Errorf("%s: expected %v, got %v", name, exp, act)
 		}
 		name = "disk_read_bytes"
@@ -1073,7 +1086,13 @@ func TestPluginOneShotDiskStorageMetrics(t *testing.T) {
 		}
 
 		data, err := manager.Store.Read(ctx, txn, storage.Path{})
-		expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
+		expData := util.MustUnmarshalJSON([]byte(`{
+			"foo": {"bar": 1, "baz": "qux"}, 
+			"system": {
+				"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
+				"modules": {"test-bundle/foo/bar": {"rego_version": 1}}
+			}
+		}`))
 		if err != nil {
 			t.Fatal(err)
 		} else if !reflect.DeepEqual(data, expData) {
@@ -1174,7 +1193,13 @@ func TestPluginOneShotDeltaBundle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expData := util.MustUnmarshalJSON([]byte(`{"a": {"baz": "bux", "foo": ["hello", "world"]}, "system": {"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "delta", "roots": ["a"]}}}}}`))
+	expData := util.MustUnmarshalJSON([]byte(`{
+		"a": {"baz": "bux", "foo": ["hello", "world"]}, 
+		"system": {
+			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "delta", "roots": ["a"]}}},
+			"modules": {"test-bundle/a/policy.rego": {"rego_version": 1}}
+		}
+	}`))
 	if !reflect.DeepEqual(data, expData) {
 		t.Fatalf("Bad data content. Exp:\n%#v\n\nGot:\n\n%#v", expData, data)
 	}
@@ -1273,7 +1298,13 @@ func TestPluginOneShotDeltaBundleWithAstStore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expData := ast.MustParseTerm(`{"a": {"baz": "bux", "foo": ["hello", "world"]}, "system": {"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "delta", "roots": ["a"]}}}}}`)
+	expData := ast.MustParseTerm(`{
+		"a": {"baz": "bux", "foo": ["hello", "world"]}, 
+		"system": {
+			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "delta", "roots": ["a"]}}},
+			"modules": {"test-bundle/a/policy.rego": {"rego_version": 1}}
+		}
+	}`)
 	if ast.Compare(data, expData) != 0 {
 		t.Fatalf("Bad data content. Exp:\n%#v\n\nGot:\n\n%#v", expData, data)
 	}
@@ -1454,7 +1485,13 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 	}
 
 	data, err := manager.Store.Read(ctx, txn, storage.Path{})
-	expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
+	expData := util.MustUnmarshalJSON([]byte(`{
+		"foo": {"bar": 1, "baz": "qux"}, 
+		"system": {
+			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
+			"modules": {"test-bundle/foo/bar.rego": {"rego_version": 1}}
+		}
+	}`))
 	if err != nil {
 		t.Fatal(err)
 	} else if !reflect.DeepEqual(data, expData) {
@@ -1638,7 +1675,13 @@ corge contains 1 if {
 				}
 
 				data, err := manager.Store.Read(ctx, txn, storage.Path{})
-				expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
+				expData := util.MustUnmarshalJSON([]byte(`{
+					"foo": {"bar": 1, "baz": "qux"}, 
+					"system": {
+						"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
+						"modules": {"test-bundle/foo/bar.rego": {"rego_version": 1}}
+					}
+				}`))
 				if err != nil {
 					t.Fatal(err)
 				} else if !reflect.DeepEqual(data, expData) {
@@ -1925,14 +1968,29 @@ corge contains 1 if {
 				}
 
 				data, err := manager.Store.Read(ctx, txn, storage.Path{})
-				var regoVersion string
+
+				var manifestRegoVersion string
 				if tc.bundleRegoVersion != nil {
-					regoVersion = fmt.Sprintf(`, "rego_version": %d`, bundleRegoVersion(*tc.bundleRegoVersion))
+					manifestRegoVersion = fmt.Sprintf(`, "rego_version": %d`, bundleRegoVersion(*tc.bundleRegoVersion))
 				} else {
-					regoVersion = ""
+					manifestRegoVersion = ""
 				}
-				expData := util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux"%s, "roots": [""]}}}}}`,
-					regoVersion)))
+
+				var moduleRegoVersion int
+				if tc.bundleRegoVersion != nil {
+					moduleRegoVersion = tc.bundleRegoVersion.Int()
+				} else {
+					moduleRegoVersion = ast.DefaultRegoVersion.Int()
+				}
+
+				expData := util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{
+					"foo": {"bar": 1, "baz": "qux"}, 
+					"system": {
+						"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux"%s, "roots": [""]}}},
+						"modules": {"test-bundle/foo/bar.rego": {"rego_version": %d}}
+					}
+				}`,
+					manifestRegoVersion, moduleRegoVersion)))
 				if err != nil {
 					t.Fatal(err)
 				} else if !reflect.DeepEqual(data, expData) {
@@ -2114,7 +2172,13 @@ func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 	}
 
 	data, err := manager.Store.Read(ctx, txn, storage.Path{})
-	expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
+	expData := util.MustUnmarshalJSON([]byte(`{
+		"foo": {"bar": 1, "baz": "qux"}, 
+		"system": {
+			"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
+			"modules": {"test-bundle/foo/bar.rego": {"rego_version": 1}}
+		}
+	}`))
 	if err != nil {
 		t.Fatal(err)
 	} else if !reflect.DeepEqual(data, expData) {
@@ -2194,7 +2258,13 @@ func TestLoadAndActivateBundlesFromDiskReservedChars(t *testing.T) {
 	}
 
 	data, err := manager.Store.Read(ctx, txn, storage.Path{})
-	expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test?bundle=opa": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
+	expData := util.MustUnmarshalJSON([]byte(`{
+		"foo": {"bar": 1, "baz": "qux"}, 
+		"system": {
+			"bundles": {"test?bundle=opa": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
+			"modules": {"test/foo/bar.rego": {"rego_version": 1}}
+		}
+	}`))
 	if err != nil {
 		t.Fatal(err)
 	} else if !reflect.DeepEqual(data, expData) {
@@ -2416,6 +2486,7 @@ corge contains 2 if {
 				} else {
 					txn := storage.NewTransactionOrDie(ctx, manager.Store)
 					fatal := func(args ...any) {
+						t.Helper()
 						manager.Store.Abort(ctx, txn)
 						t.Fatal(args...)
 					}
@@ -2437,7 +2508,13 @@ corge contains 2 if {
 					}
 
 					data, err := manager.Store.Read(ctx, txn, storage.Path{})
-					expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
+					expData := util.MustUnmarshalJSON([]byte(`{
+						"foo": {"bar": 1, "baz": "qux"}, 
+						"system": {
+							"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
+							"modules": {"test-bundle/foo/bar.rego": {"rego_version": 1}}
+						}
+					}`))
 					if err != nil {
 						fatal(err)
 					} else if !reflect.DeepEqual(data, expData) {
@@ -2649,12 +2726,27 @@ corge contains 1 if {
 				}
 
 				data, err := manager.Store.Read(ctx, txn, storage.Path{})
-				regoVersionStr := ""
+
+				manifestRegoVersionStr := ""
 				if tc.bundleRegoVersion != nil {
-					regoVersionStr = fmt.Sprintf(`, "rego_version": %d`, bundleRegoVersion(*tc.bundleRegoVersion))
+					manifestRegoVersionStr = fmt.Sprintf(`, "rego_version": %d`, bundleRegoVersion(*tc.bundleRegoVersion))
 				}
-				expData := util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux"%s, "roots": [""]}}}}}`,
-					regoVersionStr)))
+
+				var moduleRegoVersion int
+				if tc.bundleRegoVersion != nil {
+					moduleRegoVersion = tc.bundleRegoVersion.Int()
+				} else {
+					moduleRegoVersion = ast.DefaultRegoVersion.Int()
+				}
+
+				expData := util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{
+						"foo": {"bar": 1, "baz": "qux"}, 
+						"system": {
+							"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux"%s, "roots": [""]}}},
+							"modules": {"test-bundle/foo/bar.rego": {"rego_version": %d}}
+						}
+					}`,
+					manifestRegoVersionStr, moduleRegoVersion)))
 				if err != nil {
 					t.Fatal(err)
 				} else if !reflect.DeepEqual(data, expData) {
@@ -3052,7 +3144,7 @@ func TestPluginOneShotActivationRemovesOld(t *testing.T) {
 		ids, err := manager.Store.ListPolicies(ctx, txn)
 		if err != nil {
 			return err
-		} else if !reflect.DeepEqual([]string{filepath.Join(bundleName, "/example2.rego")}, ids) {
+		} else if !slices.Equal([]string{filepath.Join(bundleName, "/example2.rego")}, ids) {
 			return fmt.Errorf("expected updated policy ids")
 		}
 		data, err := manager.Store.Read(ctx, txn, storage.Path{})
@@ -6434,7 +6526,13 @@ func TestPluginManualTriggerMultipleDiskStorage(t *testing.T) {
 		}
 
 		data, err := manager.Store.Read(ctx, txn, storage.Path{})
-		expData := util.MustUnmarshalJSON([]byte(`{"p": "x1", "q": "x2", "system": {"bundles": {"test-1": {"etag": "", "manifest": {"revision": "", "roots": ["p", "authz"]}}, "test-2": {"etag": "", "manifest": {"revision": "", "roots": ["q"]}}}}}`))
+		expData := util.MustUnmarshalJSON([]byte(`{
+			"p": "x1", "q": "x2", 
+			"system": {
+				"bundles": {"test-1": {"etag": "", "manifest": {"revision": "", "roots": ["p", "authz"]}}, "test-2": {"etag": "", "manifest": {"revision": "", "roots": ["q"]}}},
+				"modules": {"test-1/bar/policy.rego": {"rego_version": 1}}
+			}
+		}`))
 		if err != nil {
 			t.Fatal(err)
 		} else if !reflect.DeepEqual(data, expData) {
@@ -7007,7 +7105,7 @@ func validateStoreState(ctx context.Context, t *testing.T, store storage.Store, 
 		sort.Strings(ids)
 		sort.Strings(expIDs)
 
-		if !reflect.DeepEqual(ids, expIDs) {
+		if !slices.Equal(ids, expIDs) {
 			return fmt.Errorf("expected ids %v but got %v", expIDs, ids)
 		}
 

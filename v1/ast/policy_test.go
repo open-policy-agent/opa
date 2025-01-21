@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"reflect"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast/location"
@@ -332,7 +331,7 @@ func TestExprBadJSON(t *testing.T) {
 	assert := func(js string, exp error) {
 		expr := Expr{}
 		err := util.UnmarshalJSON([]byte(js), &expr)
-		if !reflect.DeepEqual(exp, err) {
+		if exp.Error() != err.Error() {
 			t.Errorf("For %v Expected %v but got: %v", js, exp, err)
 		}
 	}
@@ -898,7 +897,7 @@ func mustParseURL(str string) url.URL {
 
 func TestModuleStringAnnotations(t *testing.T) {
 	module, err := ParseModuleWithOpts("test.rego", `package test
-import rego.v1 
+import rego.v1
 
 # METADATA
 # scope: rule
@@ -939,8 +938,8 @@ d.e.f := 3
 e.f.g[1]
 f.g.h[1] := 4
 
-g := 5 { 
-	false 
+g := 5 {
+	false
 } else := 6 {
 	false
 } else := 7`,
@@ -968,8 +967,8 @@ d.e.f := 3
 e.f.g contains 1
 f.g.h[1] := 4
 
-g := 5 if { 
-	false 
+g := 5 if {
+	false
 } else := 6 if {
 	false
 } else := 7`,
@@ -997,8 +996,8 @@ d.e.f := 3
 e.f.g contains 1
 f.g.h[1] := 4
 
-g := 5 if { 
-	false 
+g := 5 if {
+	false
 } else := 6 if {
 	false
 } else := 7`,

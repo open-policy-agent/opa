@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"slices"
 	"testing"
 	"time"
 
@@ -326,7 +327,7 @@ func TestManagerWithOPATelemetryUpdateLoop(t *testing.T) {
 				t.Fatalf("Expected number of server calls: %+v but got: %+v", exp, len(versions))
 			}
 
-			if !reflect.DeepEqual(tc.exp, versions) {
+			if !slices.Equal(tc.exp, versions) {
 				t.Fatalf("Expected OPA versions: %+v but got: %+v", tc.exp, versions)
 			}
 		})
