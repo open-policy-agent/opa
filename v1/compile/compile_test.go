@@ -7,11 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
 	"path"
 	"path/filepath"
-	"reflect"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -71,7 +71,7 @@ func TestCompilerV1Module(t *testing.T) {
 func TestOrderedStringSet(t *testing.T) {
 	var ss orderedStringSet
 	result := ss.Append("a", "b", "b", "a", "e", "c", "e")
-	if !reflect.DeepEqual(result, orderedStringSet{"a", "b", "e", "c"}) {
+	if !slices.Equal(result, orderedStringSet{"a", "b", "e", "c"}) {
 		t.Fatal(result)
 	}
 }
@@ -850,7 +850,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 
 			compareRegoVersions(t, tc.expGlobalRegoVersion, result.Manifest.RegoVersion)
 
-			if !reflect.DeepEqual(tc.expFileRegoVersions, result.Manifest.FileRegoVersions) {
+			if !maps.Equal(tc.expFileRegoVersions, result.Manifest.FileRegoVersions) {
 				t.Fatalf("expected file rego versions to be:\n\n%v\n\nbut got:\n\n%v", tc.expFileRegoVersions, result.Manifest.FileRegoVersions)
 			}
 		})
@@ -1137,7 +1137,7 @@ func TestCompilerOptimizationL1(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
 			package test
-			
+
 			default p := false
 			p if { q }
 			q if { input.x = data.foo }`,
@@ -1524,8 +1524,8 @@ foo[__local1__1] = true {
 			files: map[string]string{
 				"test.rego": `package test
 
-p { 
-	q[input.x][input.y] 
+p {
+	q[input.x][input.y]
 }
 
 q["foo/bar"][x] {
@@ -1844,7 +1844,7 @@ p {
 			files: map[string]string{
 				"test.rego": `package test
 
-import rego.v1 
+import rego.v1
 
 p if {
     input.x == 1
@@ -2193,7 +2193,7 @@ func TestCompilerWasmTargetEntrypointDependents(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `package test
 			import rego.v1
-	
+
 			p if { q }
 			q if { r }
 			r := 1
@@ -3588,12 +3588,7 @@ func getOptimizer(modules map[string]string, data string, entries []string, root
 
 func getModuleFiles(src map[string]string, includeRaw bool, popts ast.ParserOptions) []bundle.ModuleFile {
 
-	keys := make([]string, 0, len(src))
-	for k := range src {
-		keys = append(keys, k)
-	}
-
-	sort.Strings(keys)
+	keys := util.KeysSorted(src)
 	modules := make([]bundle.ModuleFile, 0, len(keys))
 
 	for _, k := range keys {

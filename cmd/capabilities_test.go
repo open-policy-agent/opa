@@ -7,7 +7,7 @@ package cmd
 import (
 	"bytes"
 	"path"
-	"reflect"
+	"slices"
 	"sort"
 	"testing"
 
@@ -129,11 +129,11 @@ func TestCapabilitiesCurrent(t *testing.T) {
 				t.Fatal("expected success", err)
 			}
 
-			if !reflect.DeepEqual(caps.Features, tc.expFeatures) {
+			if !slices.Equal(caps.Features, tc.expFeatures) {
 				t.Errorf("expected features:\n\n%v\n\nbut got:\n\n%v", tc.expFeatures, caps.Features)
 			}
 
-			if !reflect.DeepEqual(caps.FutureKeywords, tc.expFutureKeywords) {
+			if !slices.Equal(caps.FutureKeywords, tc.expFutureKeywords) {
 				t.Errorf("expected future keywords:\n\n%v\n\nbut got:\n\n%v", tc.expFutureKeywords, caps.FutureKeywords)
 			}
 		})

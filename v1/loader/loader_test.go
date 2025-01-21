@@ -15,6 +15,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -821,7 +822,7 @@ func TestAsBundleWithDir(t *testing.T) {
 		}
 
 		expectedRoots := []string{"foo", "bar", "baz"}
-		if !reflect.DeepEqual(*b.Manifest.Roots, expectedRoots) {
+		if !slices.Equal(*b.Manifest.Roots, expectedRoots) {
 			t.Fatalf("expected roots %s, got: %s", expectedRoots, *b.Manifest.Roots)
 		}
 	})
@@ -862,7 +863,7 @@ func TestAsBundleWithFileURLDir(t *testing.T) {
 		}
 
 		expectedRoots := []string{"foo"}
-		if !reflect.DeepEqual(*b.Manifest.Roots, expectedRoots) {
+		if !slices.Equal(*b.Manifest.Roots, expectedRoots) {
 			t.Fatalf("expected roots %s, got: %s", expectedRoots, *b.Manifest.Roots)
 		}
 	})
@@ -1239,7 +1240,7 @@ func TestSplitPrefix(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
 			parts, gotPath := SplitPrefix(tc.input)
-			if !reflect.DeepEqual(parts, tc.wantParts) {
+			if !slices.Equal(parts, tc.wantParts) {
 				t.Errorf("wanted parts %v but got %v", tc.wantParts, parts)
 			}
 			if gotPath != tc.wantPath {
@@ -1297,7 +1298,7 @@ func TestDirs(t *testing.T) {
 
 	e := []string{"/", "/foo", "/foo/bar"}
 	sorted := Dirs(paths)
-	if !reflect.DeepEqual(sorted, e) {
+	if !slices.Equal(sorted, e) {
 		t.Errorf("got: %q wanted: %q", sorted, e)
 	}
 }

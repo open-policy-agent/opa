@@ -6,7 +6,7 @@ package pathwatcher
 
 import (
 	"path/filepath"
-	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -34,7 +34,7 @@ func TestWatchPaths(t *testing.T) {
 		for _, p := range paths {
 			result = append(result, filepath.Clean(strings.TrimPrefix(p, rootDir)))
 		}
-		if !reflect.DeepEqual(expected, result) {
+		if !slices.Equal(expected, result) {
 			t.Fatalf("Expected %q but got: %q", expected, result)
 		}
 	})

@@ -290,13 +290,13 @@ func runTruncateTest(t *testing.T, dir string) {
 
 	bs, err := s.GetPolicy(ctx, txn, "policy.rego")
 	expectedBytes := []byte("package foo\n p = 1")
-	if err != nil || !reflect.DeepEqual(expectedBytes, bs) {
+	if err != nil || !bytes.Equal(expectedBytes, bs) {
 		t.Fatalf("Expected get policy to return %v but got: %v (err: %v)", expectedBytes, bs, err)
 	}
 
 	bs, err = s.GetPolicy(ctx, txn, "roles/policy.rego")
 	expectedBytes = []byte("package bar\n p = 1")
-	if err != nil || !reflect.DeepEqual(expectedBytes, bs) {
+	if err != nil || !bytes.Equal(expectedBytes, bs) {
 		t.Fatalf("Expected get policy to return %v but got: %v (err: %v)", expectedBytes, bs, err)
 	}
 

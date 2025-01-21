@@ -8,9 +8,9 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -755,7 +755,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 
 			compareRegoVersions(t, tc.expGlobalRegoVersion, result.Manifest.RegoVersion)
 
-			if !reflect.DeepEqual(tc.expFileRegoVersions, result.Manifest.FileRegoVersions) {
+			if !maps.Equal(tc.expFileRegoVersions, result.Manifest.FileRegoVersions) {
 				t.Fatalf("expected file rego versions to be:\n\n%v\n\nbut got:\n\n%v", tc.expFileRegoVersions, result.Manifest.FileRegoVersions)
 			}
 		})

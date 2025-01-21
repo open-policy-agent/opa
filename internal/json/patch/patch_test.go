@@ -1,7 +1,7 @@
 package patch
 
 import (
-	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/storage"
@@ -79,7 +79,7 @@ func TestParsePatchPathEscaped(t *testing.T) {
 				t.Fatalf("Expected ok to be %v but was %v", tc.expectedOK, actualOK)
 			}
 
-			if !reflect.DeepEqual(tc.expectedPath, actualPath) {
+			if !slices.Equal(tc.expectedPath, actualPath) {
 				t.Fatalf("Expected path to be %v but was %v", tc.expectedPath, actualPath)
 			}
 		})
