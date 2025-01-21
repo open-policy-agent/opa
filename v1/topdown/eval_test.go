@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -1648,5 +1649,43 @@ func TestContextErrorHandling(t *testing.T) {
 				t.Fatalf("Expected error to be of type %#v, but got %#v", et, err)
 			}
 		})
+	}
+}
+
+func TestFmtVarTerm(t *testing.T) {
+	e := &eval{
+		genvarprefix: "foobar",
+		queryID:      12345,
+		index:        54321,
+	}
+
+	res := e.fmtVarTerm()
+
+	if res != "foobar_term_12345_54321" {
+		t.Fatalf("Expected foobar_term_12345_54321 but got %s", res)
+	}
+
+	res = fmt.Sprintf("%s_term_%d_%d", e.genvarprefix, e.queryID, e.index)
+
+	if res != "foobar_term_12345_54321" {
+		t.Fatalf("Expected foobar_term_12345_54321 but got %s", res)
+	}
+}
+
+// Comparison with fmt.Sprintf:
+// fmt.sprintf        8093799   159.41 ns/op      56 B/op       4 allocs/op
+// formatVarTerm     20424126    50.95 ns/op      24 B/op       1 allocs/op
+func BenchmarkFormatVarTerm(b *testing.B) {
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	e := &eval{
+		genvarprefix: "foobar",
+		queryID:      12345,
+		index:        54321,
+	}
+
+	for i := 0; i < b.N; i++ {
+		_ = e.fmtVarTerm()
 	}
 }
