@@ -714,11 +714,11 @@ func readModuleInfoFromStore(ctx context.Context, store storage.Store, txn stora
 			if m0, ok := v.(map[string]any); ok {
 				if ver, ok := m0["rego_version"]; ok {
 					if vs, ok := ver.(json.Number); ok {
-						if i, err := vs.Int64(); err != nil {
+						i, err := vs.Int64()
+						if err != nil {
 							return nil, fmt.Errorf("corrupt rego version")
-						} else {
-							versions[k] = moduleInfo{RegoVersion: ast.RegoVersionFromInt(int(i))}
 						}
+						versions[k] = moduleInfo{RegoVersion: ast.RegoVersionFromInt(int(i))}
 					}
 				}
 			}
