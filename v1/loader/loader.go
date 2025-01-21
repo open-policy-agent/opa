@@ -12,7 +12,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"sigs.k8s.io/yaml"
@@ -564,12 +563,7 @@ func Dirs(paths []string) []string {
 		unique[dir] = struct{}{}
 	}
 
-	u := make([]string, 0, len(unique))
-	for k := range unique {
-		u = append(u, k)
-	}
-	sort.Strings(u)
-	return u
+	return util.KeysSorted(unique)
 }
 
 // SplitPrefix returns a tuple specifying the document prefix and the file

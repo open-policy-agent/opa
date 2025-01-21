@@ -10,7 +10,6 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -24,6 +23,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
 	"github.com/open-policy-agent/opa/v1/topdown"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // TestPrefix declares the prefix for all test rules.
@@ -349,13 +349,7 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 		}
 	}
 
-	filenames := make([]string, 0, len(r.compiler.Modules))
-	for name := range r.compiler.Modules {
-		filenames = append(filenames, name)
-	}
-
-	sort.Strings(filenames)
-
+	filenames := util.KeysSorted(r.compiler.Modules)
 	ch := make(chan *Result)
 
 	go func() {

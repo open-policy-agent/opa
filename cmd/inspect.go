@@ -81,7 +81,7 @@ Example:
     bundle.tar.gz
     $ opa inspect bundle.tar.gz
 
-You can provide exactly one OPA bundle, path to a bundle directory, or direct path to a Rego file to the 'inspect' command 
+You can provide exactly one OPA bundle, path to a bundle directory, or direct path to a Rego file to the 'inspect' command
 on the command-line. If you provide a path referring to a directory, the 'inspect' command will load that path as a bundle
 and summarize its structure and contents. If you provide a path referring to a Rego file, the 'inspect' command will load
 that file and summarize its structure and contents.
@@ -210,13 +210,7 @@ func populateNamespaces(out io.Writer, n map[string][]string) error {
 	t.SetAutoMergeCellsByColumnIndex([]int{0})
 	var lines [][]string
 
-	keys := make([]string, 0, len(n))
-	for k := range n {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	for _, k := range keys {
+	for _, k := range util.KeysSorted(n) {
 		for _, file := range n[k] {
 			lines = append(lines, []string{k, truncateFileName(file)})
 		}

@@ -13,7 +13,6 @@ import (
 	"math"
 	"net/http"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -608,12 +607,7 @@ func renderBenchmarkResult(params benchmarkCommandParams, br testing.BenchmarkRe
 			})
 		}
 
-		var keys []string
-		for k := range br.Extra {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
+		for _, k := range util.KeysSorted(br.Extra) {
 			data = append(data, []string{k, prettyFormatFloat(br.Extra[k])})
 		}
 

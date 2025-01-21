@@ -13,13 +13,13 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"sort"
 	"strings"
 	"time"
 
 	v4 "github.com/open-policy-agent/opa/internal/providers/aws/v4"
 
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 func stringFromTerm(t *ast.Term) string {
@@ -65,19 +65,6 @@ func sha256MAC(message string, key []byte) []byte {
 	mac := hmac.New(sha256.New, key)
 	mac.Write([]byte(message))
 	return mac.Sum(nil)
-}
-
-func sortKeys(strMap map[string][]string) []string {
-	keys := make([]string, len(strMap))
-
-	i := 0
-	for k := range strMap {
-		keys[i] = k
-		i++
-	}
-	sort.Strings(keys)
-
-	return keys
 }
 
 // SignRequest modifies an http.Request to include an AWS V4 signature based on the provided credentials.
@@ -168,7 +155,7 @@ func SignV4(headers map[string][]string, method string, theURL *url.URL, body []
 	canonicalReq += theURL.RawQuery + "\n"      // RAW Query String
 
 	// include the values for the signed headers
-	orderedKeys := sortKeys(headersToSign)
+	orderedKeys := util.KeysSorted(headersToSign)
 	for _, k := range orderedKeys {
 		canonicalReq += k + ":" + strings.Join(headersToSign[k], ",") + "\n"
 	}
