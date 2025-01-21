@@ -20,6 +20,13 @@ func builtinArrayConcat(_ BuiltinContext, operands []*ast.Term, iter func(*ast.T
 		return err
 	}
 
+	if arrA.Len() == 0 {
+		return iter(operands[1])
+	}
+	if arrB.Len() == 0 {
+		return iter(operands[0])
+	}
+
 	arrC := make([]*ast.Term, arrA.Len()+arrB.Len())
 
 	i := 0
@@ -66,6 +73,10 @@ func builtinArraySlice(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 		startIndex = 0
 	} else if startIndex > stopIndex {
 		startIndex = stopIndex
+	}
+
+	if startIndex == 0 && stopIndex >= arr.Len() {
+		return iter(operands[0])
 	}
 
 	return iter(ast.NewTerm(arr.Slice(startIndex, stopIndex)))

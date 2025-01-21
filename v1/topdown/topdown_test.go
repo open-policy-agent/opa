@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -181,7 +182,7 @@ func TestTopDownUnsupportedBuiltin(t *testing.T) {
 
 	expected := unsupportedBuiltinErr(body[0].Location)
 
-	if !reflect.DeepEqual(err, expected) {
+	if err.Error() != expected.Error() {
 		t.Fatalf("Expected %v but got: %v", expected, err)
 	}
 }
@@ -1552,7 +1553,7 @@ arr := [1, 2, 3, 4, 5]
 			}
 			sort.Strings(notes)
 			sort.Strings(tc.notes)
-			if !reflect.DeepEqual(notes, tc.notes) {
+			if !slices.Equal(notes, tc.notes) {
 				t.Errorf("unexpected note traces, expected %v, got %v", tc.notes, notes)
 			}
 			if exp, act := countExit, exits["early"]; exp != act {
@@ -1715,7 +1716,7 @@ func TestTopDownEvery(t *testing.T) {
 			notes := strings.Split(buf.String(), "\n")
 			notes = notes[:len(notes)-1] // last one is empty-string because each line ends in "\n"
 			if len(tc.notes) != 0 || len(tc.notes) == 0 && len(notes) != 0 {
-				if !reflect.DeepEqual(notes, tc.notes) {
+				if !slices.Equal(notes, tc.notes) {
 					t.Errorf("unexpected prints, expected %q, got %q", tc.notes, notes)
 				}
 			}

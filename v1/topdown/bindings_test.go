@@ -57,6 +57,8 @@ func TestBindingsArrayHashmap(t *testing.T) {
 }
 
 func testBindingKeys(t *testing.T, bindings *bindings, b *bindingsArrayHashmap, keys map[int]ast.Var) {
+	t.Helper()
+
 	for k := range keys {
 		value := testBindingValue(bindings, k)
 		if v, ok := b.Get(testBindingKey(k)); !ok {

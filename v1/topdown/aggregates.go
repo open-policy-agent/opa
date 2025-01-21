@@ -99,7 +99,7 @@ func builtinMax(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 		if a.Len() == 0 {
 			return nil
 		}
-		var max = ast.Value(ast.Null{})
+		max := ast.InternedNullTerm.Value
 		a.Foreach(func(x *ast.Term) {
 			if ast.Compare(max, x.Value) <= 0 {
 				max = x.Value
@@ -110,7 +110,7 @@ func builtinMax(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 		if a.Len() == 0 {
 			return nil
 		}
-		max, err := a.Reduce(ast.NullTerm(), func(max *ast.Term, elem *ast.Term) (*ast.Term, error) {
+		max, err := a.Reduce(ast.InternedNullTerm, func(max *ast.Term, elem *ast.Term) (*ast.Term, error) {
 			if ast.Compare(max, elem) <= 0 {
 				return elem, nil
 			}
@@ -142,11 +142,11 @@ func builtinMin(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 		if a.Len() == 0 {
 			return nil
 		}
-		min, err := a.Reduce(ast.NullTerm(), func(min *ast.Term, elem *ast.Term) (*ast.Term, error) {
+		min, err := a.Reduce(ast.InternedNullTerm, func(min *ast.Term, elem *ast.Term) (*ast.Term, error) {
 			// The null term is considered to be less than any other term,
 			// so in order for min of a set to make sense, we need to check
 			// for it.
-			if min.Value.Compare(ast.Null{}) == 0 {
+			if min.Value.Compare(ast.InternedNullTerm.Value) == 0 {
 				return elem, nil
 			}
 

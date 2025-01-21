@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -438,24 +440,21 @@ func (c *Compiler) WithDebug(sink io.Writer) *Compiler {
 	return c
 }
 
-// WithBuiltins is deprecated. Use WithCapabilities instead.
+// WithBuiltins is deprecated.
+// Deprecated: Use WithCapabilities instead.
 func (c *Compiler) WithBuiltins(builtins map[string]*Builtin) *Compiler {
-	c.customBuiltins = make(map[string]*Builtin)
-	for k, v := range builtins {
-		c.customBuiltins[k] = v
-	}
+	c.customBuiltins = maps.Clone(builtins)
 	return c
 }
 
-// WithUnsafeBuiltins is deprecated. Use WithCapabilities instead.
+// WithUnsafeBuiltins is deprecated.
+// Deprecated: Use WithCapabilities instead.
 func (c *Compiler) WithUnsafeBuiltins(unsafeBuiltins map[string]struct{}) *Compiler {
-	for name := range unsafeBuiltins {
-		c.unsafeBuiltinsMap[name] = struct{}{}
-	}
+	maps.Copy(c.unsafeBuiltinsMap, unsafeBuiltins)
 	return c
 }
 
-// WithStrict enables strict mode in the compiler.
+// WithStrict toggles strict mode in the compiler.
 func (c *Compiler) WithStrict(strict bool) *Compiler {
 	c.strict = strict
 	return c
@@ -560,7 +559,7 @@ func (c *Compiler) ComprehensionIndex(term *Term) *ComprehensionIndex {
 // otherwise, the ref is used to perform a ruleset lookup.
 func (c *Compiler) GetArity(ref Ref) int {
 	if bi := c.builtins[ref.String()]; bi != nil {
-		return len(bi.Decl.FuncArgs().Args)
+		return bi.Decl.Arity()
 	}
 	rules := c.GetRulesExact(ref)
 	if len(rules) == 0 {
@@ -668,7 +667,7 @@ func (c *Compiler) GetRulesWithPrefix(ref Ref) (rules []*Rule) {
 	return rules
 }
 
-func extractRules(s []util.T) []*Rule {
+func extractRules(s []any) []*Rule {
 	rules := make([]*Rule, len(s))
 	for i := range s {
 		rules[i] = s[i].(*Rule)
@@ -811,7 +810,7 @@ func (c *Compiler) GetRulesDynamicWithOpts(ref Ref, opts RulesOptions) []*Rule {
 }
 
 // Utility: add all rule values to the set.
-func insertRules(set map[*Rule]struct{}, rules []util.T) {
+func insertRules(set map[*Rule]struct{}, rules []any) {
 	for _, rule := range rules {
 		set[rule.(*Rule)] = struct{}{}
 	}
@@ -972,6 +971,13 @@ func (c *Compiler) buildComprehensionIndices() {
 	}
 }
 
+var (
+	keywordsTerm         = StringTerm("keywords")
+	pathTerm             = StringTerm("path")
+	annotationsTerm      = StringTerm("annotations")
+	futureKeywordsPrefix = Ref{FutureRootDocument, keywordsTerm}
+)
+
 // buildRequiredCapabilities updates the required capabilities on the compiler
 // to include any keyword and feature dependencies present in the modules. The
 // built-in function dependencies will have already been added by the type
@@ -983,7 +989,7 @@ func (c *Compiler) buildRequiredCapabilities() {
 	// extract required keywords from modules
 
 	keywords := map[string]struct{}{}
-	futureKeywordsPrefix := Ref{FutureRootDocument, StringTerm("keywords")}
+
 	for _, name := range c.sorted {
 		for _, imp := range c.imports[name] {
 			mod := c.Modules[name]
@@ -1026,7 +1032,7 @@ func (c *Compiler) buildRequiredCapabilities() {
 		}
 	}
 
-	c.Required.FutureKeywords = stringMapToSortedSlice(keywords)
+	c.Required.FutureKeywords = util.KeysSorted(keywords)
 
 	// extract required features from modules
 
@@ -1049,23 +1055,11 @@ func (c *Compiler) buildRequiredCapabilities() {
 		}
 	}
 
-	c.Required.Features = stringMapToSortedSlice(features)
+	c.Required.Features = util.KeysSorted(features)
 
 	for i, bi := range c.Required.Builtins {
 		c.Required.Builtins[i] = bi.Minimal()
 	}
-}
-
-func stringMapToSortedSlice(xs map[string]struct{}) []string {
-	if len(xs) == 0 {
-		return nil
-	}
-	s := make([]string, 0, len(xs))
-	for k := range xs {
-		s = append(s, k)
-	}
-	sort.Strings(s)
-	return s
 }
 
 // checkRecursion ensures that there are no recursive definitions, i.e., there are
@@ -1609,6 +1603,10 @@ func (c *Compiler) checkTypes() {
 }
 
 func (c *Compiler) checkUnsafeBuiltins() {
+	if len(c.unsafeBuiltinsMap) == 0 {
+		return
+	}
+
 	for _, name := range c.sorted {
 		errs := checkUnsafeBuiltins(c.unsafeBuiltinsMap, c.Modules[name])
 		for _, err := range errs {
@@ -1618,6 +1616,17 @@ func (c *Compiler) checkUnsafeBuiltins() {
 }
 
 func (c *Compiler) checkDeprecatedBuiltins() {
+	checkNeeded := false
+	for _, b := range c.Required.Builtins {
+		if _, found := c.deprecatedBuiltinsMap[b.Name]; found {
+			checkNeeded = true
+			break
+		}
+	}
+	if !checkNeeded {
+		return
+	}
+
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
 		if c.strict || mod.regoV1Compatible() {
@@ -1776,7 +1785,7 @@ func (c *Compiler) checkImports() {
 		mod := c.Modules[name]
 
 		for _, imp := range mod.Imports {
-			if !supportsRegoV1Import && Compare(imp.Path, RegoV1CompatibleRef) == 0 {
+			if !supportsRegoV1Import && RegoV1CompatibleRef.Equal(imp.Path.Value) {
 				c.err(NewError(CompileErr, imp.Loc(), "rego.v1 import is not supported"))
 			}
 		}
@@ -2218,8 +2227,10 @@ func containsPrintCall(x interface{}) bool {
 	return found
 }
 
+var printRef = Print.Ref()
+
 func isPrintCall(x *Expr) bool {
-	return x.IsCall() && x.Operator().Equal(Print.Ref())
+	return x.IsCall() && x.Operator().Equal(printRef)
 }
 
 // rewriteRefsInHead will rewrite rules so that the head does not contain any
@@ -2454,8 +2465,8 @@ func getPrimaryRuleAnnotations(as *AnnotationSet, rule *Rule) *Annotations {
 	}
 
 	// Sort by annotation location; chain must start with annotations declared closest to rule, then going outward
-	sort.SliceStable(annots, func(i, j int) bool {
-		return annots[i].Location.Compare(annots[j].Location) > 0
+	slices.SortStableFunc(annots, func(a, b *Annotations) int {
+		return -a.Location.Compare(b.Location)
 	})
 
 	return annots[0]
@@ -2509,12 +2520,15 @@ func rewriteRegoMetadataCalls(metadataChainVar *Var, metadataRuleVar *Var, body 
 	return errs
 }
 
+var regoMetadataChainRef = RegoMetadataChain.Ref()
+var regoMetadataRuleRef = RegoMetadataRule.Ref()
+
 func isRegoMetadataChainCall(x *Expr) bool {
-	return x.IsCall() && x.Operator().Equal(RegoMetadataChain.Ref())
+	return x.IsCall() && x.Operator().Equal(regoMetadataChainRef)
 }
 
 func isRegoMetadataRuleCall(x *Expr) bool {
-	return x.IsCall() && x.Operator().Equal(RegoMetadataRule.Ref())
+	return x.IsCall() && x.Operator().Equal(regoMetadataRuleRef)
 }
 
 func createMetadataChain(chain []*AnnotationsRef) (*Term, *Error) {
@@ -2524,14 +2538,14 @@ func createMetadataChain(chain []*AnnotationsRef) (*Term, *Error) {
 		p := link.Path.toArray().
 			Slice(1, -1) // Dropping leading 'data' element of path
 		obj := NewObject(
-			Item(StringTerm("path"), NewTerm(p)),
+			Item(pathTerm, NewTerm(p)),
 		)
 		if link.Annotations != nil {
 			annotObj, err := link.Annotations.toObject()
 			if err != nil {
 				return nil, err
 			}
-			obj.Insert(StringTerm("annotations"), NewTerm(*annotObj))
+			obj.Insert(annotationsTerm, NewTerm(*annotObj))
 		}
 		metaArray = metaArray.Append(NewTerm(obj))
 	}
@@ -2646,9 +2660,7 @@ func (c *Compiler) rewriteLocalVarsInRule(rule *Rule, unusedArgs VarSet, argsSta
 
 	// For rewritten vars use the collection of all variables that
 	// were in the stack at some point in time.
-	for k, v := range stack.rewritten {
-		c.RewrittenVars[k] = v
-	}
+	maps.Copy(c.RewrittenVars, stack.rewritten)
 
 	rule.Body = body
 
@@ -2716,9 +2728,7 @@ func (xform *rewriteNestedHeadVarLocalTransform) Visit(x interface{}) bool {
 			stop = true
 		}
 
-		for k, v := range stack.rewritten {
-			xform.RewrittenVars[k] = v
-		}
+		maps.Copy(xform.RewrittenVars, stack.rewritten)
 
 		return stop
 	}
@@ -3045,13 +3055,12 @@ func (qc *queryCompiler) rewriteLocalVars(_ *QueryContext, body Body) (Body, err
 	if len(err) != 0 {
 		return nil, err
 	}
-	qc.rewritten = make(map[Var]Var, len(stack.rewritten))
-	for k, v := range stack.rewritten {
-		// The vars returned during the rewrite will include all seen vars,
-		// even if they're not declared with an assignment operation. We don't
-		// want to include these inside the rewritten set though.
-		qc.rewritten[k] = v
-	}
+
+	// The vars returned during the rewrite will include all seen vars,
+	// even if they're not declared with an assignment operation. We don't
+	// want to include these inside the rewritten set though.
+	qc.rewritten = maps.Clone(stack.rewritten)
+
 	return body, nil
 }
 
@@ -3279,9 +3288,7 @@ func getComprehensionIndex(dbg debug.Debug, arity func(Ref) int, candidates VarS
 		result = append(result, NewTerm(v))
 	}
 
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Value.Compare(result[j].Value) < 0
-	})
+	slices.SortFunc(result, TermValueCompare)
 
 	debugRes := make([]*Term, len(result))
 	for i, r := range result {
@@ -3406,12 +3413,7 @@ func NewModuleTree(mods map[string]*Module) *ModuleTreeNode {
 	root := &ModuleTreeNode{
 		Children: map[Value]*ModuleTreeNode{},
 	}
-	names := make([]string, 0, len(mods))
-	for name := range mods {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	for _, name := range names {
+	for _, name := range util.KeysSorted(mods) {
 		m := mods[name]
 		node := root
 		for i, x := range m.Package.Path {
@@ -3488,7 +3490,7 @@ func (n *ModuleTreeNode) DepthFirst(f func(*ModuleTreeNode) bool) {
 // rule path.
 type TreeNode struct {
 	Key      Value
-	Values   []util.T
+	Values   []any
 	Children map[Value]*TreeNode
 	Sorted   []Value
 	Hide     bool
@@ -3608,9 +3610,7 @@ func (n *TreeNode) DepthFirst(f func(*TreeNode) bool) {
 }
 
 func (n *TreeNode) sort() {
-	sort.Slice(n.Sorted, func(i, j int) bool {
-		return n.Sorted[i].Compare(n.Sorted[j]) < 0
-	})
+	slices.SortFunc(n.Sorted, Value.Compare)
 }
 
 func treeNodeFromRef(ref Ref, rule *Rule) *TreeNode {
@@ -3621,7 +3621,7 @@ func treeNodeFromRef(ref Ref, rule *Rule) *TreeNode {
 		Children: nil,
 	}
 	if rule != nil {
-		node.Values = []util.T{rule}
+		node.Values = []any{rule}
 	}
 
 	for i := len(ref) - 2; i >= 0; i-- {
@@ -3648,9 +3648,7 @@ func (n *TreeNode) flattenChildren() []Ref {
 		})
 	}
 
-	sort.Slice(ret.s, func(i, j int) bool {
-		return ret.s[i].Compare(ret.s[j]) < 0
-	})
+	slices.SortFunc(ret.s, RefCompare)
 	return ret.s
 }
 
@@ -3888,8 +3886,8 @@ func (vs unsafeVars) Vars() (result []unsafeVarLoc) {
 		})
 	}
 
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Loc.Compare(result[j].Loc) < 0
+	slices.SortFunc(result, func(a, b unsafeVarLoc) int {
+		return a.Loc.Compare(b.Loc)
 	})
 
 	return result
@@ -5101,23 +5099,13 @@ func (s *localDeclaredVars) Copy() *localDeclaredVars {
 
 	for i := range s.vars {
 		stack.vars = append(stack.vars, newDeclaredVarSet())
-		for k, v := range s.vars[i].vs {
-			stack.vars[0].vs[k] = v
-		}
-		for k, v := range s.vars[i].reverse {
-			stack.vars[0].reverse[k] = v
-		}
-		for k, v := range s.vars[i].count {
-			stack.vars[0].count[k] = v
-		}
-		for k, v := range s.vars[i].occurrence {
-			stack.vars[0].occurrence[k] = v
-		}
+		maps.Copy(stack.vars[0].vs, s.vars[i].vs)
+		maps.Copy(stack.vars[0].reverse, s.vars[i].reverse)
+		maps.Copy(stack.vars[0].occurrence, s.vars[i].occurrence)
+		maps.Copy(stack.vars[0].count, s.vars[i].count)
 	}
 
-	for k, v := range s.rewritten {
-		stack.rewritten[k] = v
-	}
+	maps.Copy(stack.rewritten, s.rewritten)
 
 	return stack
 }
@@ -5500,7 +5488,7 @@ func rewriteDeclaredAssignment(g *localVarGenerator, stack *localDeclaredVars, e
 				return true
 			}
 		}
-		errs = append(errs, NewError(CompileErr, t.Location, "cannot assign to %v", TypeName(t.Value)))
+		errs = append(errs, NewError(CompileErr, t.Location, "cannot assign to %v", ValueName(t.Value)))
 		return true
 	}
 
@@ -5889,8 +5877,8 @@ func safetyErrorSlice(unsafe unsafeVars, rewritten map[Var]Var) (result Errors) 
 	// the latter are not meaningful to the user.)
 	pairs := unsafe.Slice()
 
-	sort.Slice(pairs, func(i, j int) bool {
-		return pairs[i].Expr.Location.Compare(pairs[j].Expr.Location) < 0
+	slices.SortFunc(pairs, func(a, b unsafePair) int {
+		return a.Expr.Location.Compare(b.Expr.Location)
 	})
 
 	// Report at most one error per generated variable.
@@ -5957,12 +5945,7 @@ func newRefSet(x ...Ref) *refSet {
 
 // ContainsPrefix returns true if r is prefixed by any of the existing refs in the set.
 func (rs *refSet) ContainsPrefix(r Ref) bool {
-	for i := range rs.s {
-		if r.HasPrefix(rs.s[i]) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(rs.s, r.HasPrefix)
 }
 
 // AddPrefix inserts r into the set if r is not prefixed by any existing
@@ -5987,8 +5970,6 @@ func (rs *refSet) Sorted() []*Term {
 	for i := range rs.s {
 		terms[i] = NewTerm(rs.s[i])
 	}
-	sort.Slice(terms, func(i, j int) bool {
-		return terms[i].Value.Compare(terms[j].Value) < 0
-	})
+	slices.SortFunc(terms, TermValueCompare)
 	return terms
 }

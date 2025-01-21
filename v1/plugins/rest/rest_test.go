@@ -27,6 +27,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -2298,7 +2299,7 @@ func (t *oauth2TestServer) handle(w http.ResponseWriter, r *http.Request) {
 
 	if len(r.Form["scope"]) > 0 {
 		scope := strings.Split(r.Form["scope"][0], " ")
-		if !reflect.DeepEqual(*t.expScope, scope) {
+		if !slices.Equal(*t.expScope, scope) {
 			t.t.Fatalf("Expected scope %v, got %v", *t.expScope, scope)
 		}
 	} else if t.expScope != nil && len(*t.expScope) > 0 {

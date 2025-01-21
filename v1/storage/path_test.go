@@ -6,7 +6,6 @@ package storage
 
 import (
 	"math"
-	"reflect"
 	"testing"
 
 	"fmt"
@@ -61,7 +60,7 @@ func TestNewPathForRef(t *testing.T) {
 
 	for _, tc := range tests {
 		result, err := NewPathForRef(tc.input)
-		if tc.err != nil && !reflect.DeepEqual(tc.err, err) {
+		if tc.err != nil && tc.err.Error() != err.Error() {
 			t.Errorf("For %v expected %v but got %v", tc.input, tc.err, err)
 		} else if !result.Equal(tc.result) {
 			t.Errorf("For %v expected %v but got %v", tc.input, tc.result, result)

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"maps"
 	"reflect"
 	"strings"
 	"testing"
@@ -1036,7 +1037,7 @@ func TestShortTraceFileNames(t *testing.T) {
 				t.Errorf("Expected longest location to be %d, got %d", tc.expectedLongest, actualLongest)
 			}
 
-			if !reflect.DeepEqual(actualNames, tc.expectedNames) {
+			if !maps.Equal(actualNames, tc.expectedNames) {
 				t.Errorf("Expected %+v got %+v", tc.expectedNames, actualNames)
 			}
 		})

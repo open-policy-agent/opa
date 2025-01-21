@@ -151,14 +151,7 @@ func Compare(a, b interface{}) int {
 		}
 		return 1
 	case Var:
-		b := b.(Var)
-		if a.Equal(b) {
-			return 0
-		}
-		if a < b {
-			return -1
-		}
-		return 1
+		return VarCompare(a, b.(Var))
 	case Ref:
 		b := b.(Ref)
 		return termSliceCompare(a, b)
@@ -181,7 +174,7 @@ func Compare(a, b interface{}) int {
 		if cmp := Compare(a.Term, b.Term); cmp != 0 {
 			return cmp
 		}
-		return Compare(a.Body, b.Body)
+		return a.Body.Compare(b.Body)
 	case *ObjectComprehension:
 		b := b.(*ObjectComprehension)
 		if cmp := Compare(a.Key, b.Key); cmp != 0 {
@@ -190,13 +183,13 @@ func Compare(a, b interface{}) int {
 		if cmp := Compare(a.Value, b.Value); cmp != 0 {
 			return cmp
 		}
-		return Compare(a.Body, b.Body)
+		return a.Body.Compare(b.Body)
 	case *SetComprehension:
 		b := b.(*SetComprehension)
 		if cmp := Compare(a.Term, b.Term); cmp != 0 {
 			return cmp
 		}
-		return Compare(a.Body, b.Body)
+		return a.Body.Compare(b.Body)
 	case Call:
 		b := b.(Call)
 		return termSliceCompare(a, b)
@@ -393,4 +386,55 @@ func withSliceCompare(a, b []*With) int {
 		return 1
 	}
 	return 0
+}
+
+func VarCompare(a, b Var) int {
+	if a == b {
+		return 0
+	}
+	if a < b {
+		return -1
+	}
+	return 1
+}
+
+func TermValueCompare(a, b *Term) int {
+	return a.Value.Compare(b.Value)
+}
+
+func ValueEqual(a, b Value) bool {
+	// TODO(ae): why doesn't this work the same?
+	//
+	// case interface{ Equal(Value) bool }:
+	// 	   return v.Equal(b)
+	//
+	// When put on top, golangci-lint even flags the other cases as unreachable..
+	// but TestTopdownVirtualCache will have failing test cases when we replace
+	// the other cases with the above one.. 🤔
+	switch v := a.(type) {
+	case Null:
+		return v.Equal(b)
+	case Boolean:
+		return v.Equal(b)
+	case Number:
+		return v.Equal(b)
+	case String:
+		return v.Equal(b)
+	case Var:
+		return v.Equal(b)
+	case Ref:
+		return v.Equal(b)
+	case *Array:
+		return v.Equal(b)
+	}
+
+	return a.Compare(b) == 0
+}
+
+func RefCompare(a, b Ref) int {
+	return termSliceCompare(a, b)
+}
+
+func RefEqual(a, b Ref) bool {
+	return termSliceEqual(a, b)
 }

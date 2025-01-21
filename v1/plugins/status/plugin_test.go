@@ -7,6 +7,7 @@ package status
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -416,7 +417,7 @@ func TestPluginStartTriggerManual(t *testing.T) {
 		},
 	}
 
-	if !reflect.DeepEqual(result.Labels, exp.Labels) {
+	if !maps.Equal(result.Labels, exp.Labels) {
 		t.Fatalf("Expected: %v but got: %v", exp, result)
 	}
 
@@ -675,7 +676,7 @@ func TestPluginStartBulkUpdateMultiple(t *testing.T) {
 		"version": version.Version,
 	}
 
-	if !reflect.DeepEqual(result.Labels, expLabels) {
+	if !maps.Equal(result.Labels, expLabels) {
 		t.Fatalf("Unexpected status labels: %+v", result.Labels)
 	}
 

@@ -6,6 +6,7 @@ package util
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -68,7 +69,7 @@ func TestDFSStop(t *testing.T) {
 
 	expected := []int{1, 3, 7, 6}
 
-	if !reflect.DeepEqual(expected, t1.ordered) {
+	if !slices.Equal(expected, t1.ordered) {
 		t.Fatalf("Expected DFS ordering %v but got: %v", expected, t1.ordered)
 	}
 }
@@ -93,7 +94,7 @@ func TestBFSStop(t *testing.T) {
 
 	expected := []int{1, 2, 3, 4}
 
-	if !reflect.DeepEqual(expected, t1.ordered) {
+	if !slices.Equal(expected, t1.ordered) {
 		t.Fatalf("Expected DFS ordering %v but got: %v", expected, t1.ordered)
 	}
 }
@@ -115,7 +116,7 @@ func TestDFS(t *testing.T) {
 
 	expected := []int{1, 3, 7, 6, 2, 5, 4}
 
-	if !reflect.DeepEqual(expected, t1.ordered) {
+	if !slices.Equal(expected, t1.ordered) {
 		t.Fatalf("Expected DFS ordering %v but got: %v", expected, t1.ordered)
 	}
 }
@@ -137,7 +138,7 @@ func TestBFS(t *testing.T) {
 
 	expected := []int{1, 2, 3, 4, 5, 6, 7}
 
-	if !reflect.DeepEqual(expected, t1.ordered) {
+	if !slices.Equal(expected, t1.ordered) {
 		t.Fatalf("Expected DFS ordering %v but got: %v", expected, t1.ordered)
 	}
 
