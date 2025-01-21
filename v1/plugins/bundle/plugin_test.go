@@ -109,7 +109,7 @@ func TestPluginOneShot(t *testing.T) {
 		"foo": {"bar": 1, "baz": "qux"}, 
 		"system": {
 			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
-			"modules": {"test-bundle/foo/bar": {"rego_version": 3}}
+			"modules": {"test-bundle/foo/bar": {"rego_version": 1}}
 		}
 	}`))
 	if err != nil {
@@ -970,7 +970,7 @@ func TestPluginStartLazyLoadInMem(t *testing.T) {
 				"p": "x1", "q": "x2", 
 				"system": {
 					"bundles": {"test-1": {"etag": "", "manifest": {"revision": "", "roots": ["p", "authz"]}}, "test-2": {"etag": "", "manifest": {"revision": "", "roots": ["q"]}}},
-					"modules": {"test-1/bar/policy.rego": {"rego_version": 3}}
+					"modules": {"test-1/bar/policy.rego": {"rego_version": 1}}
 				}
 			}`
 			if rm.readAst {
@@ -1089,7 +1089,7 @@ func TestPluginOneShotDiskStorageMetrics(t *testing.T) {
 			"foo": {"bar": 1, "baz": "qux"}, 
 			"system": {
 				"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
-				"modules": {"test-bundle/foo/bar": {"rego_version": 3}}
+				"modules": {"test-bundle/foo/bar": {"rego_version": 1}}
 			}
 		}`))
 		if err != nil {
@@ -1196,7 +1196,7 @@ func TestPluginOneShotDeltaBundle(t *testing.T) {
 		"a": {"baz": "bux", "foo": ["hello", "world"]}, 
 		"system": {
 			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "delta", "roots": ["a"]}}},
-			"modules": {"test-bundle/a/policy.rego": {"rego_version": 3}}
+			"modules": {"test-bundle/a/policy.rego": {"rego_version": 1}}
 		}
 	}`))
 	if !reflect.DeepEqual(data, expData) {
@@ -1301,7 +1301,7 @@ func TestPluginOneShotDeltaBundleWithAstStore(t *testing.T) {
 		"a": {"baz": "bux", "foo": ["hello", "world"]}, 
 		"system": {
 			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "delta", "roots": ["a"]}}},
-			"modules": {"test-bundle/a/policy.rego": {"rego_version": 3}}
+			"modules": {"test-bundle/a/policy.rego": {"rego_version": 1}}
 		}
 	}`)
 	if ast.Compare(data, expData) != 0 {
@@ -1488,7 +1488,7 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 		"foo": {"bar": 1, "baz": "qux"}, 
 		"system": {
 			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
-			"modules": {"test-bundle/foo/bar.rego": {"rego_version": 3}}
+			"modules": {"test-bundle/foo/bar.rego": {"rego_version": 1}}
 		}
 	}`))
 	if err != nil {
@@ -1678,7 +1678,7 @@ corge contains 1 if {
 					"foo": {"bar": 1, "baz": "qux"}, 
 					"system": {
 						"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
-						"modules": {"test-bundle/foo/bar.rego": {"rego_version": 3}}
+						"modules": {"test-bundle/foo/bar.rego": {"rego_version": 1}}
 					}
 				}`))
 				if err != nil {
@@ -1975,11 +1975,11 @@ corge contains 1 if {
 					manifestRegoVersion = ""
 				}
 
-				var moduleRegoVersion ast.RegoVersion
+				var moduleRegoVersion int
 				if tc.bundleRegoVersion != nil {
-					moduleRegoVersion = *tc.bundleRegoVersion
+					moduleRegoVersion = tc.bundleRegoVersion.Int()
 				} else {
-					moduleRegoVersion = ast.DefaultRegoVersion
+					moduleRegoVersion = ast.DefaultRegoVersion.Int()
 				}
 
 				expData := util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{
@@ -2175,7 +2175,7 @@ func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 		"foo": {"bar": 1, "baz": "qux"}, 
 		"system": {
 			"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
-			"modules": {"test-bundle/foo/bar.rego": {"rego_version": 3}}
+			"modules": {"test-bundle/foo/bar.rego": {"rego_version": 1}}
 		}
 	}`))
 	if err != nil {
@@ -2261,7 +2261,7 @@ func TestLoadAndActivateBundlesFromDiskReservedChars(t *testing.T) {
 		"foo": {"bar": 1, "baz": "qux"}, 
 		"system": {
 			"bundles": {"test?bundle=opa": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
-			"modules": {"test/foo/bar.rego": {"rego_version": 3}}
+			"modules": {"test/foo/bar.rego": {"rego_version": 1}}
 		}
 	}`))
 	if err != nil {
@@ -2511,7 +2511,7 @@ corge contains 2 if {
 						"foo": {"bar": 1, "baz": "qux"}, 
 						"system": {
 							"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
-							"modules": {"test-bundle/foo/bar.rego": {"rego_version": 3}}
+							"modules": {"test-bundle/foo/bar.rego": {"rego_version": 1}}
 						}
 					}`))
 					if err != nil {
@@ -2731,11 +2731,11 @@ corge contains 1 if {
 					manifestRegoVersionStr = fmt.Sprintf(`, "rego_version": %d`, bundleRegoVersion(*tc.bundleRegoVersion))
 				}
 
-				var moduleRegoVersion ast.RegoVersion
+				var moduleRegoVersion int
 				if tc.bundleRegoVersion != nil {
-					moduleRegoVersion = *tc.bundleRegoVersion
+					moduleRegoVersion = tc.bundleRegoVersion.Int()
 				} else {
-					moduleRegoVersion = ast.DefaultRegoVersion
+					moduleRegoVersion = ast.DefaultRegoVersion.Int()
 				}
 
 				expData := util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{
@@ -6529,7 +6529,7 @@ func TestPluginManualTriggerMultipleDiskStorage(t *testing.T) {
 			"p": "x1", "q": "x2", 
 			"system": {
 				"bundles": {"test-1": {"etag": "", "manifest": {"revision": "", "roots": ["p", "authz"]}}, "test-2": {"etag": "", "manifest": {"revision": "", "roots": ["q"]}}},
-				"modules": {"test-1/bar/policy.rego": {"rego_version": 3}}
+				"modules": {"test-1/bar/policy.rego": {"rego_version": 1}}
 			}
 		}`))
 		if err != nil {
