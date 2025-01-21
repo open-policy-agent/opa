@@ -1,6 +1,7 @@
 package util
 
 import (
+	"math"
 	"slices"
 	"unsafe"
 )
@@ -36,4 +37,28 @@ func ByteSliceToString(bs []byte) string {
 // Note that the byte slice must not be modified after conversion
 func StringToByteSlice[T ~string](s T) []byte {
 	return unsafe.Slice(unsafe.StringData(string(s)), len(s))
+}
+
+// NumDigitsInt returns the number of digits in n.
+// This is useful for pre-allocating buffers for string conversion.
+func NumDigitsInt(n int) int {
+	if n == 0 {
+		return 1
+	}
+
+	if n < 0 {
+		n = -n
+	}
+
+	return int(math.Log10(float64(n))) + 1
+}
+
+// NumDigitsUint returns the number of digits in n.
+// This is useful for pre-allocating buffers for string conversion.
+func NumDigitsUint(n uint64) int {
+	if n == 0 {
+		return 1
+	}
+
+	return int(math.Log10(float64(n))) + 1
 }
