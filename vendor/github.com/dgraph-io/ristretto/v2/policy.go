@@ -40,6 +40,7 @@ type defaultPolicy[V any] struct {
 	evict    *sampledLFU
 	itemsCh  chan []uint64
 	stop     chan struct{}
+	done     chan struct{}
 	isClosed bool
 	metrics  *Metrics
 }
@@ -50,6 +51,7 @@ func newDefaultPolicy[V any](numCounters, maxCost int64) *defaultPolicy[V] {
 		evict:   newSampledLFU(maxCost),
 		itemsCh: make(chan []uint64, 3),
 		stop:    make(chan struct{}),
+		done:    make(chan struct{}),
 	}
 	go p.processItems()
 	return p
@@ -73,6 +75,7 @@ func (p *defaultPolicy[V]) processItems() {
 			p.admit.Push(items)
 			p.Unlock()
 		case <-p.stop:
+			p.done <- struct{}{}
 			return
 		}
 	}
@@ -226,7 +229,9 @@ func (p *defaultPolicy[V]) Close() {
 
 	// Block until the p.processItems goroutine returns.
 	p.stop <- struct{}{}
+	<-p.done
 	close(p.stop)
+	close(p.done)
 	close(p.itemsCh)
 	p.isClosed = true
 }

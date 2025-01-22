@@ -11,7 +11,7 @@ require (
 	github.com/bytecodealliance/wasmtime-go/v3 v3.0.2
 	github.com/containerd/containerd v1.7.25
 	github.com/containerd/errdefs v1.0.0
-	github.com/dgraph-io/badger/v4 v4.5.0
+	github.com/dgraph-io/badger/v4 v4.5.1
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/foxcpp/go-mockdns v1.1.0
 	github.com/fsnotify/fsnotify v1.8.0
@@ -61,12 +61,12 @@ require (
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/platforms v0.2.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
-	github.com/dgraph-io/ristretto/v2 v2.0.0 // indirect
+	github.com/dgraph-io/ristretto/v2 v2.1.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-	github.com/google/flatbuffers v24.3.25+incompatible // indirect
+	github.com/google/flatbuffers v24.12.23+incompatible // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.25.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect

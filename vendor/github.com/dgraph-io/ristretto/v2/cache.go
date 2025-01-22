@@ -72,6 +72,7 @@ type Cache[K Key, V any] struct {
 	keyToHash func(K) (uint64, uint64)
 	// stop is used to stop the processItems goroutine.
 	stop chan struct{}
+	done chan struct{}
 	// indicates whether cache is closed.
 	isClosed atomic.Bool
 	// cost calculates cost from a value.
@@ -146,6 +147,16 @@ type Config[K Key, V any] struct {
 	// used to do manual memory deallocation. Would also be called on eviction
 	// as well as on rejection of the value.
 	OnExit func(val V)
+
+	// ShouldUpdate is called when a value already exists in cache and is being updated.
+	// If ShouldUpdate returns true, the cache continues with the update (Set). If the
+	// function returns false, no changes are made in the cache. If the value doesn't
+	// already exist, the cache continue with setting that value for the given key.
+	//
+	// In this function, you can check whether the new value is valid. For example, if
+	// your value has timestamp assosicated with it, you could check whether the new
+	// value has the latest timestamp, preventing you from setting an older value.
+	ShouldUpdate func(cur, prev V) bool
 
 	// KeyToHash function is used to customize the key hashing algorithm.
 	// Each key will be hashed using the provided function. If keyToHash value
@@ -227,10 +238,12 @@ func NewCache[K Key, V any](config *Config[K, V]) (*Cache[K, V], error) {
 		setBuf:             make(chan *Item[V], setBufSize),
 		keyToHash:          config.KeyToHash,
 		stop:               make(chan struct{}),
+		done:               make(chan struct{}),
 		cost:               config.Cost,
 		ignoreInternalCost: config.IgnoreInternalCost,
 		cleanupTicker:      time.NewTicker(time.Duration(config.TtlTickerDurationInSec) * time.Second / 2),
 	}
+	cache.storedItems.SetShouldUpdateFn(config.ShouldUpdate)
 	cache.onExit = func(val V) {
 		if config.OnExit != nil {
 			config.OnExit(val)
@@ -422,7 +435,9 @@ func (c *Cache[K, V]) Close() {
 
 	// Block until processItems goroutine is returned.
 	c.stop <- struct{}{}
+	<-c.done
 	close(c.stop)
+	close(c.done)
 	close(c.setBuf)
 	c.cachePolicy.Close()
 	c.cleanupTicker.Stop()
@@ -438,6 +453,7 @@ func (c *Cache[K, V]) Clear() {
 	}
 	// Block until processItems goroutine is returned.
 	c.stop <- struct{}{}
+	<-c.done
 
 	// Clear out the setBuf channel.
 loop:
@@ -556,6 +572,7 @@ func (c *Cache[K, V]) processItems() {
 		case <-c.cleanupTicker.C:
 			c.storedItems.Cleanup(c.cachePolicy, onEvict)
 		case <-c.stop:
+			c.done <- struct{}{}
 			return
 		}
 	}

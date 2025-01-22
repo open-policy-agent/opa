@@ -59,7 +59,7 @@ github.com/containerd/platforms
 # github.com/cpuguy83/go-md2man/v2 v2.0.4
 ## explicit; go 1.11
 github.com/cpuguy83/go-md2man/v2/md2man
-# github.com/dgraph-io/badger/v4 v4.5.0
+# github.com/dgraph-io/badger/v4 v4.5.1
 ## explicit; go 1.21
 github.com/dgraph-io/badger/v4
 github.com/dgraph-io/badger/v4/fb
@@ -69,7 +69,7 @@ github.com/dgraph-io/badger/v4/skl
 github.com/dgraph-io/badger/v4/table
 github.com/dgraph-io/badger/v4/trie
 github.com/dgraph-io/badger/v4/y
-# github.com/dgraph-io/ristretto/v2 v2.0.0
+# github.com/dgraph-io/ristretto/v2 v2.1.0
 ## explicit; go 1.21
 github.com/dgraph-io/ristretto/v2
 github.com/dgraph-io/ristretto/v2/z
@@ -117,7 +117,7 @@ github.com/golang/groupcache/lru
 ## explicit; go 1.17
 github.com/golang/protobuf/jsonpb
 github.com/golang/protobuf/proto
-# github.com/google/flatbuffers v24.3.25+incompatible
+# github.com/google/flatbuffers v24.12.23+incompatible
 ## explicit
 github.com/google/flatbuffers/go
 # github.com/google/go-cmp v0.6.0
