@@ -15,8 +15,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/open-policy-agent/opa/internal/version"
 	"github.com/open-policy-agent/opa/v1/logging/test"
 	"github.com/open-policy-agent/opa/v1/runtime"
+	opasdktest "github.com/open-policy-agent/opa/v1/sdk/test"
 	"github.com/open-policy-agent/opa/v1/server"
 	"github.com/open-policy-agent/opa/v1/test/e2e"
 	"github.com/open-policy-agent/opa/v1/tracing"
@@ -42,6 +44,7 @@ func TestMain(m *testing.M) {
 
 	var err error
 	testRuntime, err = e2e.NewTestRuntime(testServerParams)
+
 	if err != nil {
 		os.Exit(1)
 	}
@@ -665,6 +668,97 @@ allow if {
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[0].Attributes...))
 
+	})
+}
+
+func TestControlPlaneSpans(t *testing.T) {
+	// setup
+	spanExp := tracetest.NewInMemoryExporter()
+	options := tracing.NewOptions(
+		otelhttp.WithTracerProvider(trace.NewTracerProvider(trace.WithSpanProcessor(trace.NewSimpleSpanProcessor(spanExp)))),
+	)
+
+	opaControlPlane := opasdktest.MustNewServer(
+		opasdktest.MockBundle("/bundles/test", map[string]string{
+			"main.rego": `
+				package main
+
+				default allow = false
+			`,
+		}),
+		opasdktest.MockBundle("/bundles/discovery", map[string]string{
+			"data.json": `
+				{"discovery":{"bundles":{"bundles/test":{"persist":false,"resource":"bundles/test","service":"bundleregistry"}}}}
+			`,
+		}),
+	)
+
+	testServerParams := e2e.NewAPIServerTestParams()
+	testServerParams.ConfigOverrides = []string{
+		fmt.Sprintf("services.bundleregistry.url=%s", opaControlPlane.URL()),
+		"discovery.name=discovery",
+		"discovery.resource=/bundles/discovery",
+		"discovery.service=bundleregistry",
+	}
+
+	testServerParams.DistributedTracingOpts = options
+	testServerParams.ReadyTimeout = 1
+	testServerParams.Logging = runtime.LoggingConfig{Level: "debug"}
+
+	e2e.WithRuntime(t, e2e.TestRuntimeOpts{}, testServerParams, func(rt *e2e.TestRuntime) {
+		// We expect 3 spans:
+		// 1. GET /bundles/discovery (client)
+		// 2. GET /bundles/test (client)
+		// 3. health check (server)
+
+		spans := spanExp.GetSpans()
+		if got, expected := len(spans), 3; got != expected {
+			t.Fatalf("got %d span(s), expected %d", got, expected)
+		}
+		for _, span := range spans {
+			if !span.SpanContext.IsValid() {
+				t.Fatalf("invalid span created: %#v", span.SpanContext)
+			}
+		}
+
+		if got, expected := spans[0].SpanKind.String(), "client"; got != expected {
+			t.Fatalf("Expected span kind to be %q but got %q", expected, got)
+		}
+		if got, expected := spans[1].SpanKind.String(), "client"; got != expected {
+			t.Fatalf("Expected span kind to be %q but got %q", expected, got)
+		}
+
+		u, err := url.Parse(opaControlPlane.URL())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		port, err := strconv.Atoi(u.Port())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expected := []interface{}{
+			attribute.String("net.peer.name", u.Hostname()),
+			attribute.Int("net.peer.port", port),
+			attribute.String("http.method", "GET"),
+			attribute.String("http.url", u.String()+"/bundles/discovery"),
+			attribute.Int("http.status_code", 200),
+			attribute.Int("http.response_content_length", 168),
+			attribute.String("user_agent.original", version.UserAgent),
+		}
+		compareSpanAttributes(t, expected, attribute.NewSet(spans[0].Attributes...))
+
+		expected = []interface{}{
+			attribute.String("net.peer.name", u.Hostname()),
+			attribute.Int("net.peer.port", port),
+			attribute.String("http.method", "GET"),
+			attribute.String("http.url", u.String()+"/bundles/test"),
+			attribute.Int("http.status_code", 200),
+			attribute.Int("http.response_content_length", 164),
+			attribute.String("user_agent.original", version.UserAgent),
+		}
+		compareSpanAttributes(t, expected, attribute.NewSet(spans[1].Attributes...))
 	})
 }
 
