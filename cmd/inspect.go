@@ -241,7 +241,7 @@ func populateAnnotations(out io.Writer, refs []*ast.AnnotationsRef) error {
 				fmt.Fprintln(out, "Package: ", dropDataPrefix(p.Path))
 			}
 			if r := ref.GetRule(); r != nil {
-				fmt.Fprintln(out, "Rule:    ", r.Head.Name)
+				fmt.Fprintln(out, "Rule:    ", r.Head.Ref().String())
 			}
 			if loc := ref.Location; loc != nil {
 				fmt.Fprintln(out, "Location:", loc.String())
