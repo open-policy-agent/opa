@@ -90,7 +90,7 @@ func parse(args []string, params *parseParams, stdout io.Writer, stderr io.Write
 		RegoVersion:       params.regoVersion(),
 	}
 	if exposeLocation {
-		parserOpts.JSONOptions = &astJSON.Options{
+		astJSON.SetOptions(astJSON.Options{
 			MarshalOptions: astJSON.MarshalOptions{
 				IncludeLocationText: true,
 				IncludeLocation: astJSON.NodeToggle{
@@ -108,7 +108,8 @@ func parse(args []string, params *parseParams, stdout io.Writer, stderr io.Write
 					AnnotationsRef: true,
 				},
 			},
-		}
+		})
+		defer astJSON.SetOptions(astJSON.Defaults())
 	}
 
 	result, err := loader.RegoWithOpts(args[0], parserOpts)

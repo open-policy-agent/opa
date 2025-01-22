@@ -635,7 +635,6 @@ func LoadWithParserOptions(args []string, filter loader.Filter, popts ast.Parser
 		WithRegoVersion(popts.RegoVersion).
 		WithCapabilities(popts.Capabilities).
 		WithProcessAnnotation(popts.ProcessAnnotation).
-		WithJSONOptions(popts.JSONOptions).
 		Filtered(args, filter)
 	if err != nil {
 		return nil, nil, err
@@ -702,7 +701,6 @@ func LoadBundlesWithParserOptions(args []string, filter loader.Filter, popts ast
 			WithRegoVersion(popts.RegoVersion).
 			WithCapabilities(popts.Capabilities).
 			WithProcessAnnotation(popts.ProcessAnnotation).
-			WithJSONOptions(popts.JSONOptions).
 			WithSkipBundleVerification(true).
 			WithFilter(filter).
 			AsBundle(bundleDir)
