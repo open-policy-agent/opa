@@ -164,6 +164,16 @@ func benchMain(args []string, params benchmarkCommandParams, w io.Writer, r benc
 		return 1, errRender
 	}
 
+	resultHandler := rego.GenerateJSON(func(*ast.Term, *rego.EvalContext) (interface{}, error) {
+		// Do nothing with the result, as we are only interested in benchmarking evaluation —
+		// not the potentially slow process of rendering the result.
+		// Undefined / empty results will still be handled normally (fail the benchmark unless --fail
+		// is set to false).
+		return nil, nil
+	})
+
+	ectx.regoArgs = append(ectx.regoArgs, resultHandler)
+
 	var benchFunc func(context.Context, ...rego.EvalOption) error
 	rg := rego.New(ectx.regoArgs...)
 

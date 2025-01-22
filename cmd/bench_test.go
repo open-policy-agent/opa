@@ -477,6 +477,7 @@ func TestBenchMainWithNegativeCount(t *testing.T) {
 }
 
 func validateBenchMainPrep(t *testing.T, args []string, params benchmarkCommandParams) {
+	t.Helper()
 
 	var buf bytes.Buffer
 
@@ -496,8 +497,8 @@ func validateBenchMainPrep(t *testing.T, args []string, params benchmarkCommandP
 			return testing.BenchmarkResult{}, err
 		}
 
-		if !rs.Allowed() {
-			t.Errorf("Unexpected results: %+v", rs)
+		if len(rs) == 0 {
+			return testing.BenchmarkResult{}, fmt.Errorf("expected result, got none")
 		}
 
 		return testing.BenchmarkResult{}, nil
