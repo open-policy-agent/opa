@@ -1318,7 +1318,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 						t.Fatalf("unexpected error: %s", err)
 					}
 
-					expectedRaw := deact.expData // `{"system": {"bundles": {}, "modules": {}}}`
+					expectedRaw := deact.expData
 					expected := loadExpectedSortedResult(expectedRaw)
 					if !reflect.DeepEqual(expected, actual) {
 						t.Errorf("expected:\n\n%s\n\ngot:\n\n%s", expectedRaw, string(util.MustMarshalJSON(actual)))

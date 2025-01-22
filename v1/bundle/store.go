@@ -843,7 +843,18 @@ func writeDataAndModules(ctx context.Context, store storage.Store, txn storage.T
 					return err
 				}
 
-				if regoVersion, err := b.RegoVersionForFile(mf.Path, ast.RegoUndefined); err == nil && regoVersion != ast.RegoUndefined {
+				regoVersion := ast.RegoUndefined
+				if mf.Parsed != nil {
+					regoVersion = mf.Parsed.RegoVersion()
+				}
+				if regoVersion == ast.RegoUndefined {
+					var err error
+					regoVersion, err = b.RegoVersionForFile(mf.Path, ast.RegoUndefined)
+					if err != nil {
+						return fmt.Errorf("failed to get rego version for '%s' in bundle '%s': %w", mf.Path, name, err)
+					}
+				}
+				if regoVersion != ast.RegoUndefined {
 					if err := write(ctx, store, txn, moduleRegoVersionPath(path), regoVersion.Int()); err != nil {
 						return fmt.Errorf("failed to write rego version for '%s' in bundle '%s': %w", mf.Path, name, err)
 					}
