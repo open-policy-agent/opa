@@ -9,6 +9,7 @@ import (
 
 	"github.com/open-policy-agent/opa/internal/runtime"
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/loader"
 	inmem "github.com/open-policy-agent/opa/v1/storage/inmem/test"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
@@ -73,13 +74,7 @@ func BenchmarkPartialObjectRuleCrossModule(b *testing.B) {
 
 func BenchmarkCustomFunctionInHotPath(b *testing.B) {
 	ctx := context.Background()
-
-	bs, err := os.ReadFile("testdata/ast.json")
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	input := ast.MustParseTerm(string(bs))
+	input := ast.MustParseTerm(mustReadFileAsString(b, "testdata/ast.rego"))
 	module := ast.MustParseModule(`package test
 
 	import rego.v1
@@ -118,4 +113,85 @@ func BenchmarkCustomFunctionInHotPath(b *testing.B) {
 			b.Fatalf("expected 402, got %v", res[0].Bindings["x"])
 		}
 	}
+}
+
+// Benchmarks of the ACI test data from Regorus
+// https://github.com/microsoft/regorus?tab=readme-ov-file#performance
+
+// BenchmarkAciTestBuildAndEval-10    37    30700209 ns/op    16437935 B/op    384211 allocs/op
+func BenchmarkAciTestBuildAndEval(b *testing.B) {
+	ctx := context.Background()
+
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		bundle, err := loader.NewFileLoader().
+			WithRegoVersion(ast.RegoV0).
+			AsBundle("testdata/aci")
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		input := ast.MustParseTerm(mustReadFileAsString(b, "testdata/aci/input.json"))
+
+		r := New(Query("data.framework.mount_overlay = x"), ParsedBundle("", bundle))
+
+		pq, err := r.PrepareForEval(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		res, err := pq.Eval(ctx, EvalParsedInput(input.Value))
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		_ = res
+	}
+}
+
+// BenchmarkAciTestOnlyEval-10    12752    92188 ns/op    50005 B/op    1062 allocs/op
+func BenchmarkAciTestOnlyEval(b *testing.B) {
+	ctx := context.Background()
+
+	bundle, err := loader.NewFileLoader().
+		WithRegoVersion(ast.RegoV0).
+		AsBundle("testdata/aci")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	input := ast.MustParseTerm(mustReadFileAsString(b, "testdata/aci/input.json"))
+
+	r := New(Query("data.framework.mount_overlay = x"), ParsedBundle("", bundle))
+
+	pq, err := r.PrepareForEval(ctx)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+
+		res, err := pq.Eval(ctx, EvalParsedInput(input.Value))
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		_ = res
+	}
+}
+
+func mustReadFileAsString(b *testing.B, path string) string {
+	b.Helper()
+
+	bs, err := os.ReadFile(path)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	return string(bs)
 }
