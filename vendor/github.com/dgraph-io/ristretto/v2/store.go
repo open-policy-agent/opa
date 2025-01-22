@@ -21,6 +21,8 @@ import (
 	"time"
 )
 
+type updateFn[V any] func(cur, prev V) bool
+
 // TODO: Do we need this to be a separate struct from Item?
 type storeItem[V any] struct {
 	key        uint64
@@ -53,6 +55,7 @@ type store[V any] interface {
 	Cleanup(policy *defaultPolicy[V], onEvict func(item *Item[V]))
 	// Clear clears all contents of the store.
 	Clear(onEvict func(item *Item[V]))
+	SetShouldUpdateFn(f updateFn[V])
 }
 
 // newStore returns the default store implementation.
@@ -76,6 +79,12 @@ func newShardedMap[V any]() *shardedMap[V] {
 		sm.shards[i] = newLockedMap[V](sm.expiryMap)
 	}
 	return sm
+}
+
+func (m *shardedMap[V]) SetShouldUpdateFn(f updateFn[V]) {
+	for i := range m.shards {
+		m.shards[i].setShouldUpdateFn(f)
+	}
 }
 
 func (sm *shardedMap[V]) Get(key, conflict uint64) (V, bool) {
@@ -116,15 +125,23 @@ func (sm *shardedMap[V]) Clear(onEvict func(item *Item[V])) {
 
 type lockedMap[V any] struct {
 	sync.RWMutex
-	data map[uint64]storeItem[V]
-	em   *expirationMap[V]
+	data         map[uint64]storeItem[V]
+	em           *expirationMap[V]
+	shouldUpdate updateFn[V]
 }
 
 func newLockedMap[V any](em *expirationMap[V]) *lockedMap[V] {
 	return &lockedMap[V]{
 		data: make(map[uint64]storeItem[V]),
 		em:   em,
+		shouldUpdate: func(cur, prev V) bool {
+			return true
+		},
 	}
+}
+
+func (m *lockedMap[V]) setShouldUpdateFn(f updateFn[V]) {
+	m.shouldUpdate = f
 }
 
 func (m *lockedMap[V]) get(key, conflict uint64) (V, bool) {
@@ -167,6 +184,9 @@ func (m *lockedMap[V]) Set(i *Item[V]) {
 		if i.Conflict != 0 && (i.Conflict != item.conflict) {
 			return
 		}
+		if m.shouldUpdate != nil && !m.shouldUpdate(i.Value, item.value) {
+			return
+		}
 		m.em.update(i.Key, i.Conflict, item.expiration, i.Expiration)
 	} else {
 		// The value is not in the map already. There's no need to return anything.
@@ -184,13 +204,12 @@ func (m *lockedMap[V]) Set(i *Item[V]) {
 
 func (m *lockedMap[V]) Del(key, conflict uint64) (uint64, V) {
 	m.Lock()
+	defer m.Unlock()
 	item, ok := m.data[key]
 	if !ok {
-		m.Unlock()
 		return 0, zeroValue[V]()
 	}
 	if conflict != 0 && (conflict != item.conflict) {
-		m.Unlock()
 		return 0, zeroValue[V]()
 	}
 
@@ -199,20 +218,21 @@ func (m *lockedMap[V]) Del(key, conflict uint64) (uint64, V) {
 	}
 
 	delete(m.data, key)
-	m.Unlock()
 	return item.conflict, item.value
 }
 
 func (m *lockedMap[V]) Update(newItem *Item[V]) (V, bool) {
 	m.Lock()
+	defer m.Unlock()
 	item, ok := m.data[newItem.Key]
 	if !ok {
-		m.Unlock()
 		return zeroValue[V](), false
 	}
 	if newItem.Conflict != 0 && (newItem.Conflict != item.conflict) {
-		m.Unlock()
 		return zeroValue[V](), false
+	}
+	if m.shouldUpdate != nil && !m.shouldUpdate(newItem.Value, item.value) {
+		return item.value, false
 	}
 
 	m.em.update(newItem.Key, newItem.Conflict, item.expiration, newItem.Expiration)
@@ -223,12 +243,12 @@ func (m *lockedMap[V]) Update(newItem *Item[V]) (V, bool) {
 		expiration: newItem.Expiration,
 	}
 
-	m.Unlock()
 	return item.value, true
 }
 
 func (m *lockedMap[V]) Clear(onEvict func(item *Item[V])) {
 	m.Lock()
+	defer m.Unlock()
 	i := &Item[V]{}
 	if onEvict != nil {
 		for _, si := range m.data {
@@ -239,5 +259,4 @@ func (m *lockedMap[V]) Clear(onEvict func(item *Item[V])) {
 		}
 	}
 	m.data = make(map[uint64]storeItem[V])
-	m.Unlock()
 }
