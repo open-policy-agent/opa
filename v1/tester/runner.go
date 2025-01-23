@@ -55,6 +55,11 @@ func RunWithFilter(ctx context.Context, _ loader.Filter, paths ...string) ([]*Re
 	return result, nil
 }
 
+type SubResult struct {
+	Fail       bool                 `json:"fail,omitempty"`
+	SubResults map[string]SubResult `json:"sub_results,omitempty"`
+}
+
 // Result represents a single test case result.
 type Result struct {
 	Location        *ast.Location            `json:"location"`
@@ -68,6 +73,7 @@ type Result struct {
 	Output          []byte                   `json:"output,omitempty"`
 	FailedAt        *ast.Expr                `json:"failed_at,omitempty"`
 	BenchmarkResult *testing.BenchmarkResult `json:"benchmark_result,omitempty"`
+	SubResults      map[string]SubResult     `json:"sub_results,omitempty"`
 }
 
 func newResult(loc *ast.Location, pkg, name string, duration time.Duration, trace []*topdown.Event, output []byte) *Result {
@@ -90,7 +96,16 @@ func (r *Result) String() string {
 	if r.Skip {
 		return fmt.Sprintf("%v.%v: %v", r.Package, r.Name, r.outcome())
 	}
-	return fmt.Sprintf("%v.%v: %v (%v)", r.Package, r.Name, r.outcome(), r.Duration)
+	var buf bytes.Buffer
+
+	buf.WriteString(fmt.Sprintf("%v.%v: %v (%v)", r.Package, r.Name, r.outcome(), r.Duration))
+
+	for n, sr := range r.SubResults {
+		buf.WriteString("\n")
+		buf.WriteString(sr.string(n, "  "))
+	}
+
+	return buf.String()
 }
 
 func (r *Result) outcome() string {
@@ -104,6 +119,25 @@ func (r *Result) outcome() string {
 		return "SKIPPED"
 	}
 	return "ERROR"
+}
+
+func (sr *SubResult) string(name string, prefix string) string {
+	var buf bytes.Buffer
+	buf.WriteString(fmt.Sprintf("%v%v: %v", prefix, name, sr.outcome()))
+
+	for n, sr := range sr.SubResults {
+		buf.WriteString("\n")
+		buf.WriteString(sr.string(n, prefix+"  "))
+	}
+
+	return buf.String()
+}
+
+func (sr *SubResult) outcome() string {
+	if sr.Fail {
+		return "FAIL"
+	}
+	return "PASS"
 }
 
 // BenchmarkOptions defines options specific to benchmarking tests
@@ -438,16 +472,20 @@ func rewriteDuplicateTestNames(compiler *ast.Compiler) *ast.Error {
 			if !strings.HasPrefix(name, TestPrefix) {
 				continue
 			}
-			key := rule.Ref().String()
+			key := rule.Ref().GroundPrefix().String()
 			if k, ok := count[key]; ok {
-				ref := rule.Head.Ref()
+				groundRef := rule.Head.Ref().GroundPrefix()
+				dynamicSuffix := rule.Head.Ref().DynamicSuffix()
 				newName := fmt.Sprintf("%s#%02d", name, k)
-				if len(ref) == 1 {
-					ref[0] = ast.VarTerm(newName)
+				if len(groundRef) == 1 {
+					groundRef[0] = ast.VarTerm(newName)
 				} else {
-					ref[len(ref)-1] = ast.StringTerm(newName)
+					groundRef[len(groundRef)-1] = ast.StringTerm(newName)
 				}
-				rule.Head.SetRef(ref)
+				for i := 0; i < len(dynamicSuffix); i++ {
+					groundRef = append(groundRef, dynamicSuffix[i])
+				}
+				rule.Head.SetRef(groundRef)
 			}
 			count[key]++
 		}
@@ -461,7 +499,7 @@ func rewriteDuplicateTestNames(compiler *ast.Compiler) *ast.Error {
 // -- it'll resolve `p.q.r` to `r`. For representing results, we'll
 // use rule.Head.Ref()
 func ruleName(h *ast.Head) string {
-	ref := h.Ref()
+	ref := h.Ref().GroundPrefix()
 	switch last := ref[len(ref)-1].Value.(type) {
 	case ast.Var:
 		return string(last)
@@ -486,7 +524,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 
 	ruleName := ruleName(rule.Head)
 	if strings.HasPrefix(ruleName, SkipTestPrefix) { // TODO(sr): add test
-		tr := newResult(rule.Loc(), mod.Package.Path.String(), rule.Head.Ref().String(), 0*time.Second, nil, nil)
+		tr := newResult(rule.Loc(), mod.Package.Path.String(), rule.Head.Ref().GroundPrefix().String(), 0*time.Second, nil, nil)
 		tr.Skip = true
 		return tr, false
 	}
@@ -519,7 +557,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		trace = *bufferTracer
 	}
 
-	tr := newResult(rule.Loc(), mod.Package.Path.String(), rule.Head.Ref().String(), dt, trace, printbuf.Bytes())
+	tr := newResult(rule.Loc(), mod.Package.Path.String(), rule.Head.Ref().GroundPrefix().String(), dt, trace, printbuf.Bytes())
 
 	// If there was an error other than errors from builtins, prefer that error.
 	if err != nil {
@@ -542,6 +580,8 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		if bufFailureLineTracer != nil {
 			tr.FailedAt = getFailedAtFromTrace(bufFailureLineTracer)
 		}
+	} else if rule.Head.DocKind() == ast.PartialObjectDoc {
+		tr.Fail, tr.SubResults = subResults(rs[0].Expressions[0].Value)
 	} else if b, ok := rs[0].Expressions[0].Value.(bool); !ok || !b {
 		tr.Fail = true
 	}
@@ -549,11 +589,57 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	return tr, stop
 }
 
+func subResults(v any) (bool, map[string]SubResult) {
+	if v == nil {
+		return true, map[string]SubResult{}
+	}
+
+	var fail bool
+
+	switch x := v.(type) {
+	case map[string]any:
+		result := map[string]SubResult{}
+		for k, v := range x {
+			sr := subResult(v)
+			result[k] = sr
+			if sr.Fail {
+				fail = true
+			}
+		}
+		return fail, result
+	}
+
+	return true, map[string]SubResult{}
+}
+
+func subResult(v any) SubResult {
+	if v == nil {
+		return SubResult{}
+	}
+
+	switch x := v.(type) {
+	case map[string]any:
+		fail, srs := subResults(x)
+		return SubResult{
+			Fail:       fail,
+			SubResults: srs,
+		}
+	case bool:
+		return SubResult{
+			Fail: !x,
+		}
+	default:
+		return SubResult{
+			Fail: true,
+		}
+	}
+}
+
 func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod *ast.Module, rule *ast.Rule, options BenchmarkOptions) (*Result, bool) {
 	tr := &Result{
 		Location: rule.Loc(),
 		Package:  mod.Package.Path.String(),
-		Name:     rule.Head.Ref().String(), // TODO(sr): test
+		Name:     rule.Head.Ref().GroundPrefix().String(), // TODO(sr): test
 	}
 
 	var stop bool

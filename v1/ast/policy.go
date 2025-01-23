@@ -960,6 +960,8 @@ func (head *Head) DocKind() DocKind {
 			return PartialObjectDoc
 		}
 		return PartialSetDoc
+	} else if head.HasDynamicRef() {
+		return PartialObjectDoc
 	}
 	return CompleteDoc
 }
@@ -1155,8 +1157,7 @@ func (head *Head) SetLoc(loc *Location) {
 
 func (head *Head) HasDynamicRef() bool {
 	pos := head.Reference.Dynamic()
-	// Ref is dynamic if it has one non-constant term that isn't the first or last term or if it's a partial set rule.
-	return pos > 0 && (pos < len(head.Reference)-1 || head.RuleKind() == MultiValue)
+	return pos > 0 && (pos < len(head.Reference))
 }
 
 // Copy returns a deep copy of a.
