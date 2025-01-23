@@ -1,5 +1,5 @@
-//go:build !windows && !plan9
-// +build !windows,!plan9
+//go:build !windows && !plan9 && !js && !wasip1
+// +build !windows,!plan9,!js,!wasip1
 
 /*
  * Copyright 2017 Dgraph Labs, Inc. and Contributors

@@ -1067,14 +1067,20 @@ func TestLoadWithJSONOptions(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	// load the file with JSON options set to include location data
-	loaded, err := NewFileLoader().WithFS(fsys).WithJSONOptions(&astJSON.Options{
+	astJSON.SetOptions(astJSON.Options{
 		MarshalOptions: astJSON.MarshalOptions{
 			IncludeLocation: astJSON.NodeToggle{
 				Package: true,
 			},
 		},
-	}).All(paths)
+	})
+
+	t.Cleanup(func() {
+		astJSON.SetOptions(astJSON.Defaults())
+	})
+
+	// load the file with JSON options set to include location data
+	loaded, err := NewFileLoader().WithFS(fsys).All(paths)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}

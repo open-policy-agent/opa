@@ -150,7 +150,6 @@ type ParserOptions struct {
 	AllFutureKeywords bool
 	FutureKeywords    []string
 	SkipRules         bool
-	JSONOptions       *astJSON.Options
 	// RegoVersion is the version of Rego to parse for.
 	RegoVersion        RegoVersion
 	unreleasedKeywords bool // TODO(sr): cleanup
@@ -237,10 +236,11 @@ func (p *Parser) WithSkipRules(skip bool) *Parser {
 	return p
 }
 
-// WithJSONOptions sets the Options which will be set on nodes to configure
-// their JSON marshaling behavior.
-func (p *Parser) WithJSONOptions(jsonOptions *astJSON.Options) *Parser {
-	p.po.JSONOptions = jsonOptions
+// WithJSONOptions sets the JSON options on the parser (now a no-op).
+//
+// Deprecated: Use SetOptions in the json package instead, where a longer description
+// of why this is deprecated also can be found.
+func (p *Parser) WithJSONOptions(_ *astJSON.Options) *Parser {
 	return p
 }
 
@@ -492,19 +492,6 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
 	if p.po.ProcessAnnotation {
 		stmts = p.parseAnnotations(stmts)
-	}
-
-	if p.po.JSONOptions != nil {
-		for i := range stmts {
-			vis := NewGenericVisitor(func(x interface{}) bool {
-				if x, ok := x.(customJSON); ok {
-					x.setJSONOptions(*p.po.JSONOptions)
-				}
-				return false
-			})
-
-			vis.Walk(stmts[i])
-		}
 	}
 
 	return stmts, p.s.comments, p.s.errors
@@ -971,9 +958,8 @@ func (p *Parser) parseHead(defaultRule bool) (*Head, bool) {
 
 	switch x := ref.Value.(type) {
 	case Var:
-		// Modify the code to add the location to the head ref
-		// and set the head ref's jsonOptions.
-		head = VarHead(x, ref.Location, p.po.JSONOptions)
+		// TODO
+		head = VarHead(x, ref.Location, nil)
 	case Ref:
 		head = RefHead(x)
 	case Call:

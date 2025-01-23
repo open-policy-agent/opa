@@ -294,8 +294,6 @@ func MustInterfaceToValue(x interface{}) Value {
 type Term struct {
 	Value    Value     `json:"value"`              // the value of the Term as represented in Go
 	Location *Location `json:"location,omitempty"` // the location of the Term in the source
-
-	jsonOptions astJSON.Options
 }
 
 // NewTerm returns a new Term object.
@@ -402,13 +400,6 @@ func (term *Term) IsGround() bool {
 	return term.Value.IsGround()
 }
 
-func (term *Term) setJSONOptions(opts astJSON.Options) {
-	term.jsonOptions = opts
-	if term.Location != nil {
-		term.Location.JSONOptions = opts
-	}
-}
-
 // MarshalJSON returns the JSON encoding of the term.
 //
 // Specialized marshalling logic is required to include a type hint for Value.
@@ -417,7 +408,8 @@ func (term *Term) MarshalJSON() ([]byte, error) {
 		"type":  ValueName(term.Value),
 		"value": term.Value,
 	}
-	if term.jsonOptions.MarshalOptions.IncludeLocation.Term {
+	jsonOptions := astJSON.GetOptions().MarshalOptions
+	if jsonOptions.IncludeLocation.Term {
 		if term.Location != nil {
 			d["location"] = term.Location
 		}

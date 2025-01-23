@@ -90,8 +90,9 @@ func TestLocationCompare(t *testing.T) {
 
 func TestLocationMarshal(t *testing.T) {
 	testCases := map[string]struct {
-		loc *Location
-		exp string
+		loc     *Location
+		options astJSON.Options
+		exp     string
 	}{
 		"default json options": {
 			loc: &Location{
@@ -108,10 +109,10 @@ func TestLocationMarshal(t *testing.T) {
 				File: "file",
 				Row:  1,
 				Col:  1,
-				JSONOptions: astJSON.Options{
-					MarshalOptions: astJSON.MarshalOptions{
-						IncludeLocationText: true,
-					},
+			},
+			options: astJSON.Options{
+				MarshalOptions: astJSON.MarshalOptions{
+					IncludeLocationText: true,
 				},
 			},
 			exp: `{"file":"file","row":1,"col":1,"text":"dGV4dA=="}`,
@@ -121,10 +122,10 @@ func TestLocationMarshal(t *testing.T) {
 				File: "file",
 				Row:  1,
 				Col:  1,
-				JSONOptions: astJSON.Options{
-					MarshalOptions: astJSON.MarshalOptions{
-						ExcludeLocationFile: true,
-					},
+			},
+			options: astJSON.Options{
+				MarshalOptions: astJSON.MarshalOptions{
+					ExcludeLocationFile: true,
 				},
 			},
 			exp: `{"row":1,"col":1}`,
@@ -133,6 +134,9 @@ func TestLocationMarshal(t *testing.T) {
 
 	for id, tc := range testCases {
 		t.Run(id, func(t *testing.T) {
+			astJSON.SetOptions(tc.options)
+			defer astJSON.SetOptions(astJSON.Defaults())
+
 			bs, err := json.Marshal(tc.loc)
 			if err != nil {
 				t.Fatal(err)
