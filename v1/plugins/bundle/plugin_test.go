@@ -1675,13 +1675,13 @@ corge contains 1 if {
 				}
 
 				data, err := manager.Store.Read(ctx, txn, storage.Path{})
-				expData := util.MustUnmarshalJSON([]byte(`{
+				expData := util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{
 					"foo": {"bar": 1, "baz": "qux"}, 
 					"system": {
 						"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
-						"modules": {"test-bundle/foo/bar.rego": {"rego_version": 1}}
+						"modules": {"test-bundle/foo/bar.rego": {"rego_version": %d}}
 					}
-				}`))
+				}`, regoVersion.Int())))
 				if err != nil {
 					t.Fatal(err)
 				} else if !reflect.DeepEqual(data, expData) {
@@ -1980,7 +1980,7 @@ corge contains 1 if {
 				if tc.bundleRegoVersion != nil {
 					moduleRegoVersion = tc.bundleRegoVersion.Int()
 				} else {
-					moduleRegoVersion = ast.DefaultRegoVersion.Int()
+					moduleRegoVersion = tc.managerRegoVersion.Int()
 				}
 
 				expData := util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{
@@ -2508,13 +2508,13 @@ corge contains 2 if {
 					}
 
 					data, err := manager.Store.Read(ctx, txn, storage.Path{})
-					expData := util.MustUnmarshalJSON([]byte(`{
+					expData := util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{
 						"foo": {"bar": 1, "baz": "qux"}, 
 						"system": {
 							"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
-							"modules": {"test-bundle/foo/bar.rego": {"rego_version": 1}}
+							"modules": {"test-bundle/foo/bar.rego": {"rego_version": %d}}
 						}
-					}`))
+					}`, regoVersion.Int())))
 					if err != nil {
 						fatal(err)
 					} else if !reflect.DeepEqual(data, expData) {
@@ -2736,7 +2736,7 @@ corge contains 1 if {
 				if tc.bundleRegoVersion != nil {
 					moduleRegoVersion = tc.bundleRegoVersion.Int()
 				} else {
-					moduleRegoVersion = ast.DefaultRegoVersion.Int()
+					moduleRegoVersion = tc.managerRegoVersion.Int()
 				}
 
 				expData := util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{
