@@ -56,13 +56,12 @@ type Value interface {
 // InterfaceToValue converts a native Go value x to a Value.
 func InterfaceToValue(x interface{}) (Value, error) {
 	switch x := x.(type) {
+	case Value:
+		return x, nil
 	case nil:
 		return NullValue, nil
 	case bool:
-		if x {
-			return InternedBooleanTerm(true).Value, nil
-		}
-		return InternedBooleanTerm(false).Value, nil
+		return InternedBooleanTerm(x).Value, nil
 	case json.Number:
 		if interned := InternedIntNumberTermFromString(string(x)); interned != nil {
 			return interned.Value, nil
@@ -86,6 +85,12 @@ func InterfaceToValue(x interface{}) (Value, error) {
 				return nil, err
 			}
 			r[i].Value = e
+		}
+		return NewArray(r...), nil
+	case []string:
+		r := util.NewPtrSlice[Term](len(x))
+		for i, e := range x {
+			r[i].Value = String(e)
 		}
 		return NewArray(r...), nil
 	case map[string]any:
