@@ -39,18 +39,20 @@ func RegisterDefaultInterQueryBuiltinValueCacheConfig(name string, config *Inter
 
 // Config represents the configuration for the inter-query builtin cache.
 type Config struct {
-	InterQueryBuiltinCache      InterQueryBuiltinCacheConfig          `json:"inter_query_builtin_cache"`
-	InterQueryBuiltinValueCache RootInterQueryBuiltinValueCacheConfig `json:"inter_query_builtin_value_cache"`
+	InterQueryBuiltinCache      InterQueryBuiltinCacheConfig      `json:"inter_query_builtin_cache"`
+	InterQueryBuiltinValueCache InterQueryBuiltinValueCacheConfig `json:"inter_query_builtin_value_cache"`
+}
+
+// NamedValueCacheConfig represents the configuration of a named cache that built-in functions can utilize.
+// A default configuration to be used if not explicitly configured can be registered using RegisterDefaultInterQueryBuiltinValueCacheConfig.
+type NamedValueCacheConfig struct {
+	MaxNumEntries *int `json:"max_num_entries,omitempty"`
 }
 
 // InterQueryBuiltinValueCacheConfig represents the configuration of the inter-query value cache that built-in functions can utilize.
 // MaxNumEntries - max number of cache entries
 type InterQueryBuiltinValueCacheConfig struct {
-	MaxNumEntries *int `json:"max_num_entries,omitempty"`
-}
-
-type RootInterQueryBuiltinValueCacheConfig struct {
-	InterQueryBuiltinValueCacheConfig
+	MaxNumEntries     *int                                          `json:"max_num_entries,omitempty"`
 	NamedCacheConfigs map[string]*InterQueryBuiltinValueCacheConfig `json:"named,omitempty"`
 }
 
@@ -83,10 +85,8 @@ func ParseCachingConfig(raw []byte) (*Config, error) {
 				ForcedEvictionThresholdPercentage: threshold,
 				StaleEntryEvictionPeriodSeconds:   period,
 			},
-			InterQueryBuiltinValueCache: RootInterQueryBuiltinValueCacheConfig{
-				InterQueryBuiltinValueCacheConfig: InterQueryBuiltinValueCacheConfig{
-					MaxNumEntries: maxInterQueryBuiltinValueCacheSize,
-				},
+			InterQueryBuiltinValueCache: InterQueryBuiltinValueCacheConfig{
+				MaxNumEntries: maxInterQueryBuiltinValueCacheSize,
 			},
 		}, nil
 	}
@@ -131,14 +131,21 @@ func (c *Config) validateAndInjectDefaults() error {
 		}
 	}
 
-	if c.InterQueryBuiltinValueCache.InterQueryBuiltinValueCacheConfig.MaxNumEntries == nil {
+	if c.InterQueryBuiltinValueCache.MaxNumEntries == nil {
 		maxSize := new(int)
 		*maxSize = defaultInterQueryBuiltinValueCacheSize
-		c.InterQueryBuiltinValueCache.InterQueryBuiltinValueCacheConfig.MaxNumEntries = maxSize
+		c.InterQueryBuiltinValueCache.MaxNumEntries = maxSize
 	} else {
-		numEntries := *c.InterQueryBuiltinValueCache.InterQueryBuiltinValueCacheConfig.MaxNumEntries
+		numEntries := *c.InterQueryBuiltinValueCache.MaxNumEntries
 		if numEntries < 0 {
 			return fmt.Errorf("invalid max_num_entries %v", numEntries)
+		}
+	}
+
+	for name, namedConfig := range c.InterQueryBuiltinValueCache.NamedCacheConfigs {
+		numEntries := *namedConfig.MaxNumEntries
+		if numEntries < 0 {
+			return fmt.Errorf("invalid max_num_entries %v for named cache %v", numEntries, name)
 		}
 	}
 
@@ -439,17 +446,15 @@ type InterQueryValueCache interface {
 }
 
 func NewInterQueryValueCache(_ context.Context, config *Config) InterQueryValueCache {
-	var c *RootInterQueryBuiltinValueCacheConfig
-	var gc *InterQueryBuiltinValueCacheConfig
+	var c *InterQueryBuiltinValueCacheConfig
 	if config != nil {
 		c = &config.InterQueryBuiltinValueCache
-		gc = &c.InterQueryBuiltinValueCacheConfig
 	}
 
 	return &interQueryBuiltinValueCache{
 		globalCache: interQueryValueCacheBucket{
 			items:  *newItemsMap(),
-			config: gc,
+			config: c,
 		},
 		namedCaches: map[string]*interQueryValueCacheBucket{},
 		config:      c,
@@ -460,7 +465,7 @@ type interQueryBuiltinValueCache struct {
 	globalCache     interQueryValueCacheBucket
 	namedCachesLock sync.RWMutex
 	namedCaches     map[string]*interQueryValueCacheBucket
-	config          *RootInterQueryBuiltinValueCacheConfig
+	config          *InterQueryBuiltinValueCacheConfig
 }
 
 func (c *interQueryBuiltinValueCache) Get(k ast.Value) (any, bool) {
@@ -541,7 +546,7 @@ func (c *interQueryBuiltinValueCache) UpdateConfig(config *Config) {
 	if config == nil {
 		c.globalCache.updateConfig(nil)
 	} else {
-		c.globalCache.updateConfig(&config.InterQueryBuiltinValueCache.InterQueryBuiltinValueCacheConfig)
+		c.globalCache.updateConfig(&config.InterQueryBuiltinValueCache)
 	}
 
 	c.namedCachesLock.Lock()

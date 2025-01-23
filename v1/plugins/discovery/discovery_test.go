@@ -1915,10 +1915,8 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 			StaleEntryEvictionPeriodSeconds:   period,
 			ForcedEvictionThresholdPercentage: threshold,
 		},
-		InterQueryBuiltinValueCache: cache.RootInterQueryBuiltinValueCacheConfig{
-			InterQueryBuiltinValueCacheConfig: cache.InterQueryBuiltinValueCacheConfig{
-				MaxNumEntries: maxNumEntriesInterQueryValueCache,
-			},
+		InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
+			MaxNumEntries: maxNumEntriesInterQueryValueCache,
 		},
 	}
 

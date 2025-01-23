@@ -32,10 +32,8 @@ func TestParseCachingConfig(t *testing.T) {
 			StaleEntryEvictionPeriodSeconds:   period,
 			ForcedEvictionThresholdPercentage: threshold,
 		},
-		InterQueryBuiltinValueCache: RootInterQueryBuiltinValueCacheConfig{
-			InterQueryBuiltinValueCacheConfig: InterQueryBuiltinValueCacheConfig{
-				MaxNumEntries: maxNumEntriesInterQueryValueCache,
-			},
+		InterQueryBuiltinValueCache: InterQueryBuiltinValueCacheConfig{
+			MaxNumEntries: maxNumEntriesInterQueryValueCache,
 		},
 	}
 
@@ -103,7 +101,7 @@ func TestParseCachingConfig(t *testing.T) {
 func TestInterValueCache_DefaultConfiguration(t *testing.T) {
 	t.Run("default config not set", func(t *testing.T) {
 		config := Config{
-			InterQueryBuiltinValueCache: RootInterQueryBuiltinValueCacheConfig{},
+			InterQueryBuiltinValueCache: InterQueryBuiltinValueCacheConfig{},
 		}
 
 		c := NewInterQueryValueCache(context.Background(), &config)
@@ -114,7 +112,7 @@ func TestInterValueCache_DefaultConfiguration(t *testing.T) {
 
 	t.Run("default config set", func(t *testing.T) {
 		config := Config{
-			InterQueryBuiltinValueCache: RootInterQueryBuiltinValueCacheConfig{},
+			InterQueryBuiltinValueCache: InterQueryBuiltinValueCacheConfig{},
 		}
 
 		RegisterDefaultInterQueryBuiltinValueCacheConfig("bar", &InterQueryBuiltinValueCacheConfig{
@@ -129,7 +127,7 @@ func TestInterValueCache_DefaultConfiguration(t *testing.T) {
 
 	t.Run("explicitly disabled", func(t *testing.T) {
 		cacheConfig := Config{
-			InterQueryBuiltinValueCache: RootInterQueryBuiltinValueCacheConfig{
+			InterQueryBuiltinValueCache: InterQueryBuiltinValueCacheConfig{
 				NamedCacheConfigs: map[string]*InterQueryBuiltinValueCacheConfig{
 					"baz": nil,
 				},
@@ -146,7 +144,7 @@ func TestInterValueCache_DefaultConfiguration(t *testing.T) {
 
 	t.Run("override", func(t *testing.T) {
 		cacheConfig := Config{
-			InterQueryBuiltinValueCache: RootInterQueryBuiltinValueCacheConfig{
+			InterQueryBuiltinValueCache: InterQueryBuiltinValueCacheConfig{
 				NamedCacheConfigs: map[string]*InterQueryBuiltinValueCacheConfig{
 					"box": {
 						MaxNumEntries: &[]int{5}[0],
@@ -171,7 +169,7 @@ func TestInterValueCache_NamedCaches(t *testing.T) {
 
 	t.Run("configured max is respected", func(t *testing.T) {
 		config := Config{
-			InterQueryBuiltinValueCache: RootInterQueryBuiltinValueCacheConfig{
+			InterQueryBuiltinValueCache: InterQueryBuiltinValueCacheConfig{
 				NamedCacheConfigs: map[string]*InterQueryBuiltinValueCacheConfig{
 					"foo": {
 						MaxNumEntries: &[]int{2}[0],
@@ -218,10 +216,8 @@ func TestInterValueCache_NamedCaches(t *testing.T) {
 
 	t.Run("named caches are separate", func(t *testing.T) {
 		config := Config{
-			InterQueryBuiltinValueCache: RootInterQueryBuiltinValueCacheConfig{
-				InterQueryBuiltinValueCacheConfig: InterQueryBuiltinValueCacheConfig{
-					MaxNumEntries: &[]int{2}[0],
-				},
+			InterQueryBuiltinValueCache: InterQueryBuiltinValueCacheConfig{
+				MaxNumEntries: &[]int{2}[0],
 				NamedCacheConfigs: map[string]*InterQueryBuiltinValueCacheConfig{
 					"foo": {
 						MaxNumEntries: &[]int{2}[0],
