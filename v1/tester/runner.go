@@ -320,12 +320,13 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 		// Activate the bundle(s) to get their info and policies into the store
 		// the actual compiled policies will overwritten later..
 		opts := &bundle.ActivateOpts{
-			Ctx:      ctx,
-			Store:    r.store,
-			Txn:      txn,
-			Compiler: r.compiler,
-			Metrics:  metrics.New(),
-			Bundles:  r.bundles,
+			Ctx:           ctx,
+			Store:         r.store,
+			Txn:           txn,
+			Compiler:      r.compiler,
+			Metrics:       metrics.New(),
+			Bundles:       r.bundles,
+			ParserOptions: ast.ParserOptions{RegoVersion: r.defaultRegoVersion},
 		}
 		err = bundle.Activate(opts)
 		if err != nil {
