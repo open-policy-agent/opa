@@ -495,7 +495,7 @@ func activateBundles(opts *ActivateOpts) error {
 		return err
 	}
 
-	if err := writeDataAndModules(opts.Ctx, opts.Store, opts.Txn, opts.TxnCtx, snapshotBundles, opts.legacy); err != nil {
+	if err := writeDataAndModules(opts.Ctx, opts.Store, opts.Txn, opts.TxnCtx, snapshotBundles, opts.legacy, opts.ParserOptions.RegoVersion); err != nil {
 		return err
 	}
 
@@ -816,7 +816,17 @@ func writeEtagToStore(opts *ActivateOpts, name, etag string) error {
 	return nil
 }
 
-func writeDataAndModules(ctx context.Context, store storage.Store, txn storage.Transaction, txnCtx *storage.Context, bundles map[string]*Bundle, legacy bool) error {
+func writeModuleRegoVersionToStore(ctx context.Context, store storage.Store, txn storage.Transaction, b *Bundle,
+	bundlePath string, storagePath string, runtimeRegoVersion ast.RegoVersion) error {
+	if v, err := b.RegoVersionForFile(bundlePath, ast.RegoUndefined); err == nil && v != ast.RegoUndefined && v != runtimeRegoVersion {
+		if err := write(ctx, store, txn, moduleRegoVersionPath(storagePath), v.Int()); err != nil {
+			return fmt.Errorf("failed to write rego version for module '%s': %w", storagePath, err)
+		}
+	}
+	return nil
+}
+
+func writeDataAndModules(ctx context.Context, store storage.Store, txn storage.Transaction, txnCtx *storage.Context, bundles map[string]*Bundle, legacy bool, runtimeRegoVersion ast.RegoVersion) error {
 	params := storage.WriteParams
 	params.Context = txnCtx
 
@@ -843,10 +853,8 @@ func writeDataAndModules(ctx context.Context, store storage.Store, txn storage.T
 					return err
 				}
 
-				if regoVersion, err := b.RegoVersionForFile(mf.Path, ast.RegoUndefined); err == nil && regoVersion != ast.RegoUndefined {
-					if err := write(ctx, store, txn, moduleRegoVersionPath(path), regoVersion.Int()); err != nil {
-						return fmt.Errorf("failed to write rego version for '%s' in bundle '%s': %w", mf.Path, name, err)
-					}
+				if err := writeModuleRegoVersionToStore(ctx, store, txn, b, mf.Path, path, runtimeRegoVersion); err != nil {
+					return err
 				}
 			}
 		} else {
@@ -867,10 +875,8 @@ func writeDataAndModules(ctx context.Context, store storage.Store, txn storage.T
 					if m := f.module; m != nil {
 						// 'f.module.Path' contains the module's path as it relates to the bundle root, and can be used for looking up the rego-version.
 						// 'f.Path' can differ, based on how the bundle reader was initialized.
-						if regoVersion, err := b.RegoVersionForFile(f.module.Path, ast.RegoUndefined); err == nil && regoVersion != ast.RegoUndefined {
-							if err := write(ctx, store, txn, moduleRegoVersionPath(p.String()), regoVersion.Int()); err != nil {
-								return fmt.Errorf("failed to write rego version for '%s' in bundle '%s': %w", f.Path, name, err)
-							}
+						if err := writeModuleRegoVersionToStore(ctx, store, txn, b, f.module.Path, p.String(), runtimeRegoVersion); err != nil {
+							return err
 						}
 					}
 				}
