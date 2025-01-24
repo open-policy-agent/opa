@@ -1717,7 +1717,14 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
         "decision_logs": {"console": true},
         "nd_builtin_cache": false,
         "distributed_tracing": {"type": "grpc"},
-        "caching": {"inter_query_builtin_cache": {"max_size_bytes": 10000000, "forced_eviction_threshold_percentage": 90}}
+        "caching": {
+			"inter_query_builtin_cache": {"max_size_bytes": 10000000, "forced_eviction_threshold_percentage": 90},
+			"inter_query_builtin_value_cache": {
+				"named": {
+					"io_jwt": {"max_num_entries": 55}
+				} 
+			}
+		}
 	}`)
 
 	manager, err := plugins.New(bootConfigRaw, "test-id", inmem.New())
@@ -1877,7 +1884,14 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 	serviceBundle = makeDataBundle(7, `
 		{
 			"config": {
-				"caching": {"inter_query_builtin_cache": {"max_size_bytes": 200, "stale_entry_eviction_period_seconds": 10, "forced_eviction_threshold_percentage": 200}}
+				"caching": {
+					"inter_query_builtin_cache": {"max_size_bytes": 200, "stale_entry_eviction_period_seconds": 10, "forced_eviction_threshold_percentage": 200},
+					"inter_query_builtin_value_cache": {
+						"named": {
+							"io_jwt": {"max_num_entries": 10}
+						} 
+					}
+				}
 			}
 		}
 	`)
@@ -1888,7 +1902,11 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 		t.Fatal("Expected to find status, found nil")
 	}
 
-	expectedOverriddenKeys := []string{"caching.inter_query_builtin_cache.max_size_bytes", "caching.inter_query_builtin_cache.forced_eviction_threshold_percentage"}
+	expectedOverriddenKeys := []string{
+		"caching.inter_query_builtin_cache.max_size_bytes",
+		"caching.inter_query_builtin_cache.forced_eviction_threshold_percentage",
+		"caching.inter_query_builtin_value_cache.named.io_jwt.max_num_entries",
+	}
 	for _, k := range expectedOverriddenKeys {
 		if !strings.Contains(disco.status.Message, k) {
 			t.Fatalf("expected key \"%v\" to be overridden", k)
@@ -1908,6 +1926,8 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 	*threshold = 90
 	maxNumEntriesInterQueryValueCache := new(int)
 	*maxNumEntriesInterQueryValueCache = 0
+	maxNumEntriesJWTValueCache := new(int)
+	*maxNumEntriesJWTValueCache = 55
 
 	expectedCacheConf := &cache.Config{
 		InterQueryBuiltinCache: cache.InterQueryBuiltinCacheConfig{
@@ -1917,6 +1937,11 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 		},
 		InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
 			MaxNumEntries: maxNumEntriesInterQueryValueCache,
+			NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
+				"io_jwt": {
+					MaxNumEntries: maxNumEntriesJWTValueCache,
+				},
+			},
 		},
 	}
 
