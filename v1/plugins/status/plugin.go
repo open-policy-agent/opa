@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"reflect"
 
@@ -528,4 +529,21 @@ func (p *Plugin) updatePrometheusMetrics(u *UpdateRequestV1) {
 			}
 		}
 	}
+}
+
+func (u UpdateRequestV1) Equal(other UpdateRequestV1) bool {
+	return maps.Equal(u.Labels, other.Labels) &&
+		maps.EqualFunc(u.Bundles, other.Bundles, (*bundle.Status).Equal) &&
+		maps.EqualFunc(u.Plugins, other.Plugins, (*plugins.Status).Equal) &&
+		u.Bundle.Equal(other.Bundle) &&
+		u.Discovery.Equal(other.Discovery) &&
+		u.DecisionLogs.Equal(other.DecisionLogs) &&
+		nullSafeDeepEqual(u.Metrics, other.Metrics)
+}
+
+func nullSafeDeepEqual(a, b interface{}) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	return a != nil && b != nil && reflect.DeepEqual(a, b)
 }

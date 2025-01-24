@@ -163,6 +163,14 @@ func (s *Status) String() string {
 	return fmt.Sprintf("{%v %q}", s.State, s.Message)
 }
 
+func (s *Status) Equal(other *Status) bool {
+	if s == nil || other == nil {
+		return s == nil && other == nil
+	}
+
+	return s.State == other.State && s.Message == other.Message
+}
+
 // StatusListener defines a handler to register for status updates.
 type StatusListener func(status map[string]*Status)
 

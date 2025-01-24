@@ -107,7 +107,7 @@ func TestPluginOneShot(t *testing.T) {
 
 	data, err := manager.Store.Read(ctx, txn, storage.Path{})
 	expData := util.MustUnmarshalJSON([]byte(`{
-		"foo": {"bar": 1, "baz": "qux"}, 
+		"foo": {"bar": 1, "baz": "qux"},
 		"system": {
 			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
 			"modules": {"test-bundle/foo/bar": {"rego_version": 1}}
@@ -968,7 +968,7 @@ func TestPluginStartLazyLoadInMem(t *testing.T) {
 			}
 
 			expected := `{
-				"p": "x1", "q": "x2", 
+				"p": "x1", "q": "x2",
 				"system": {
 					"bundles": {"test-1": {"etag": "", "manifest": {"revision": "", "roots": ["p", "authz"]}}, "test-2": {"etag": "", "manifest": {"revision": "", "roots": ["q"]}}},
 					"modules": {"test-1/bar/policy.rego": {"rego_version": 1}}
@@ -1087,7 +1087,7 @@ func TestPluginOneShotDiskStorageMetrics(t *testing.T) {
 
 		data, err := manager.Store.Read(ctx, txn, storage.Path{})
 		expData := util.MustUnmarshalJSON([]byte(`{
-			"foo": {"bar": 1, "baz": "qux"}, 
+			"foo": {"bar": 1, "baz": "qux"},
 			"system": {
 				"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
 				"modules": {"test-bundle/foo/bar": {"rego_version": 1}}
@@ -1194,7 +1194,7 @@ func TestPluginOneShotDeltaBundle(t *testing.T) {
 		t.Fatal(err)
 	}
 	expData := util.MustUnmarshalJSON([]byte(`{
-		"a": {"baz": "bux", "foo": ["hello", "world"]}, 
+		"a": {"baz": "bux", "foo": ["hello", "world"]},
 		"system": {
 			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "delta", "roots": ["a"]}}},
 			"modules": {"test-bundle/a/policy.rego": {"rego_version": 1}}
@@ -1299,7 +1299,7 @@ func TestPluginOneShotDeltaBundleWithAstStore(t *testing.T) {
 		t.Fatal(err)
 	}
 	expData := ast.MustParseTerm(`{
-		"a": {"baz": "bux", "foo": ["hello", "world"]}, 
+		"a": {"baz": "bux", "foo": ["hello", "world"]},
 		"system": {
 			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "delta", "roots": ["a"]}}},
 			"modules": {"test-bundle/a/policy.rego": {"rego_version": 1}}
@@ -1486,7 +1486,7 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 
 	data, err := manager.Store.Read(ctx, txn, storage.Path{})
 	expData := util.MustUnmarshalJSON([]byte(`{
-		"foo": {"bar": 1, "baz": "qux"}, 
+		"foo": {"bar": 1, "baz": "qux"},
 		"system": {
 			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
 			"modules": {"test-bundle/foo/bar.rego": {"rego_version": 1}}
@@ -1675,7 +1675,7 @@ corge contains 1 if {
 				}
 
 				expData := util.MustUnmarshalJSON([]byte(`{
-					"foo": {"bar": 1, "baz": "qux"}, 
+					"foo": {"bar": 1, "baz": "qux"},
 					"system": {
 						"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}
 					}
@@ -1980,7 +1980,7 @@ corge contains 1 if {
 				}
 
 				expData := util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{
-					"foo": {"bar": 1, "baz": "qux"}, 
+					"foo": {"bar": 1, "baz": "qux"},
 					"system": {
 						"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux"%s, "roots": [""]}}}%s
 					}
@@ -2169,7 +2169,7 @@ func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 
 	data, err := manager.Store.Read(ctx, txn, storage.Path{})
 	expData := util.MustUnmarshalJSON([]byte(`{
-		"foo": {"bar": 1, "baz": "qux"}, 
+		"foo": {"bar": 1, "baz": "qux"},
 		"system": {
 			"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
 			"modules": {"test-bundle/foo/bar.rego": {"rego_version": 1}}
@@ -2255,7 +2255,7 @@ func TestLoadAndActivateBundlesFromDiskReservedChars(t *testing.T) {
 
 	data, err := manager.Store.Read(ctx, txn, storage.Path{})
 	expData := util.MustUnmarshalJSON([]byte(`{
-		"foo": {"bar": 1, "baz": "qux"}, 
+		"foo": {"bar": 1, "baz": "qux"},
 		"system": {
 			"bundles": {"test?bundle=opa": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
 			"modules": {"test/foo/bar.rego": {"rego_version": 1}}
@@ -2504,7 +2504,7 @@ corge contains 2 if {
 					}
 
 					expData := util.MustUnmarshalJSON([]byte(`{
-						"foo": {"bar": 1, "baz": "qux"}, 
+						"foo": {"bar": 1, "baz": "qux"},
 						"system": {
 							"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}
 						}
@@ -2739,7 +2739,7 @@ corge contains 1 if {
 				var expData any
 				if moduleRegoVersion != runtimeRegoVersion {
 					expData = util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{
-						"foo": {"bar": 1, "baz": "qux"}, 
+						"foo": {"bar": 1, "baz": "qux"},
 						"system": {
 							"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux"%s, "roots": [""]}}},
 							"modules": {"test-bundle/foo/bar.rego": {"rego_version": %d}}
@@ -2748,7 +2748,7 @@ corge contains 1 if {
 						manifestRegoVersionStr, moduleRegoVersion)))
 				} else {
 					expData = util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{
-						"foo": {"bar": 1, "baz": "qux"}, 
+						"foo": {"bar": 1, "baz": "qux"},
 						"system": {
 							"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux"%s, "roots": [""]}}}
 						}
@@ -3534,7 +3534,7 @@ p contains x if { x = 1 }`
 			t.Errorf("Expected to have bundle status for %q included in update, got: %+v", name, s1)
 		}
 		// they should be defaults at this point
-		if !reflect.DeepEqual(s, &Status{Name: name}) {
+		if !s.Equal(&Status{Name: name}) {
 			t.Errorf("Expected bundle %q to have an empty status, got: %+v", name, s1)
 		}
 	}
@@ -3567,7 +3567,7 @@ p contains x`
 			t.Errorf("Expected to have bundle status for %q included in update, got: %+v", name, s2)
 		}
 		// they should be still defaults
-		if !reflect.DeepEqual(s, &Status{Name: name}) {
+		if !s.Equal(&Status{Name: name}) {
 			t.Errorf("Expected bundle %q to have an empty status, got: %+v", name, s2)
 		}
 	}
@@ -3599,7 +3599,7 @@ p contains 1`
 			t.Errorf("Expected to have bundle status for %q included in update, got: %+v", name, s3)
 		}
 		// they should still be defaults
-		if !reflect.DeepEqual(s, &Status{Name: name}) {
+		if !s.Equal(&Status{Name: name}) {
 			t.Errorf("Expected bundle %q to have an empty status, got: %+v", name, s3)
 		}
 	}
@@ -3645,7 +3645,7 @@ p contains x if { x = 1 }`
 		t.Fatal("Unexpected status update, got:", s5)
 	}
 
-	if !reflect.DeepEqual(s5[bundleNames[0]], s4[bundleNames[0]]) {
+	if !s5[bundleNames[0]].Equal(s4[bundleNames[0]]) {
 		t.Fatalf("Expected bundle %q to have the same status as before updating bundle %q, got: %+v", bundleNames[0], bundleNames[1], s5)
 	}
 
@@ -3656,7 +3656,7 @@ p contains x if { x = 1 }`
 			t.Errorf("Expected to have bundle status for %q included in update, got: %+v", name, s5)
 		}
 		// they should still be defaults
-		if !reflect.DeepEqual(s, &Status{Name: name}) {
+		if !s.Equal(&Status{Name: name}) {
 			t.Errorf("Expected bundle %q to have an empty status, got: %+v", name, s5)
 		}
 	}
@@ -6858,7 +6858,7 @@ func TestPluginManualTriggerMultipleDiskStorage(t *testing.T) {
 
 		data, err := manager.Store.Read(ctx, txn, storage.Path{})
 		expData := util.MustUnmarshalJSON([]byte(`{
-			"p": "x1", "q": "x2", 
+			"p": "x1", "q": "x2",
 			"system": {
 				"bundles": {"test-1": {"etag": "", "manifest": {"revision": "", "roots": ["p", "authz"]}}, "test-2": {"etag": "", "manifest": {"revision": "", "roots": ["q"]}}},
 				"modules": {"test-1/bar/policy.rego": {"rego_version": 1}}

@@ -1932,7 +1932,7 @@ func TestIsValidImportPath(t *testing.T) {
 		result := IsValidImportPath(path)
 		if tc.expected == nil && result != nil {
 			t.Errorf("Unexpected error for %v: %v", path, result)
-		} else if !reflect.DeepEqual(tc.expected, result) {
+		} else if tc.expected.Error() != result.Error() {
 			t.Errorf("For %v expected %v but got: %v", path, tc.expected, result)
 		}
 	}

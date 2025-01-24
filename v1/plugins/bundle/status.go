@@ -7,6 +7,7 @@ package bundle
 import (
 	"encoding/json"
 	"errors"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -94,4 +95,41 @@ func (s *Status) SetError(err error) {
 		s.Message = err.Error()
 		s.Errors = nil
 	}
+}
+
+func (s *Status) Equal(other *Status) bool {
+	if s == nil || other == nil {
+		return s == nil && other == nil
+	}
+
+	equal := s.Name == other.Name &&
+		s.Type == other.Type &&
+		s.Size == other.Size &&
+		s.Code == other.Code &&
+		s.Message == other.Message &&
+		s.HTTPCode == other.HTTPCode &&
+		s.ActiveRevision == other.ActiveRevision &&
+		s.LastSuccessfulActivation.Equal(other.LastSuccessfulActivation) &&
+		s.LastSuccessfulDownload.Equal(other.LastSuccessfulDownload) &&
+		s.LastSuccessfulRequest.Equal(other.LastSuccessfulRequest) &&
+		s.LastRequest.Equal(other.LastRequest)
+
+	if !equal {
+		return false
+	}
+
+	if len(s.Errors) != len(other.Errors) {
+		return false
+	}
+	for i := range s.Errors {
+		if s.Errors[i].Error() != other.Errors[i].Error() {
+			return false
+		}
+	}
+
+	if s.Metrics != nil && other.Metrics != nil && s.Metrics.All() != nil && other.Metrics.All() != nil {
+		return reflect.DeepEqual(s.Metrics.All(), other.Metrics.All())
+	}
+
+	return s.Metrics == nil && other.Metrics == nil
 }
