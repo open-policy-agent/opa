@@ -63,6 +63,7 @@ func builtinGlobMatch(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.
 func globCompileAndMatch(bctx BuiltinContext, id, pattern, match string, delimiters []rune) (bool, error) {
 
 	if bctx.InterQueryBuiltinValueCache != nil {
+		// TODO: Use named cache
 		val, ok := bctx.InterQueryBuiltinValueCache.Get(ast.String(id))
 		if ok {
 			pat, valid := val.(glob.Glob)
