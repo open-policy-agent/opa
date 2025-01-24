@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"reflect"
 	"strconv"
 
 	"github.com/open-policy-agent/opa/v1/metrics"
@@ -47,6 +48,10 @@ func (s *Status) SetError(err error) {
 		s.HTTPCode = ""
 		s.Message = err.Error()
 	}
+}
+
+func (s *Status) Equal(other *Status) bool {
+	return reflect.DeepEqual(s, other)
 }
 
 type HTTPError struct {

@@ -140,6 +140,9 @@ issues:
 linters-settings:
   lll:
     line-length: 200
+  govet:
+    enable:
+      - deepequalerrors
 
 linters:
   disable-all: true

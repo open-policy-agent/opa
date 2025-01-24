@@ -220,7 +220,7 @@ func TestInMemoryWrite(t *testing.T) {
 						t.Errorf("Test case %d (%v): expected patch error, but got nil instead", i+1, tc.note)
 						continue
 					}
-					if !reflect.DeepEqual(err, tc.expected) {
+					if err.Error() != tc.expected.Error() {
 						t.Errorf("Test case %d (%v): expected patch error %v but got: %v", i+1, tc.note, tc.expected, err)
 						continue
 					}
@@ -238,7 +238,7 @@ func TestInMemoryWrite(t *testing.T) {
 						t.Errorf("Test case %d (%v): expected get error but got: %v", i+1, tc.note, result)
 						continue
 					}
-					if !reflect.DeepEqual(err, expected) {
+					if err.Error() != expected.Error() {
 						t.Errorf("Test case %d (%v): expected get error %v but got: %v", i+1, tc.note, expected, err)
 						continue
 					}
