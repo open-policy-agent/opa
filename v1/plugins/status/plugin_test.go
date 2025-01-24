@@ -334,7 +334,7 @@ func TestPluginStart(t *testing.T) {
 		},
 	}
 
-	if !reflect.DeepEqual(result, exp) {
+	if !result.Equal(exp) {
 		t.Fatalf("Expected: %v but got: %v", exp, result)
 	}
 
@@ -345,7 +345,7 @@ func TestPluginStart(t *testing.T) {
 
 	exp.Bundles = map[string]*bundle.Status{"test": status}
 
-	if !reflect.DeepEqual(result, exp) {
+	if !result.Equal(exp) {
 		t.Fatalf("Expected: %v but got: %v", exp, result)
 	}
 }
@@ -434,7 +434,7 @@ func TestPluginStartTriggerManual(t *testing.T) {
 
 	exp.Bundles = map[string]*bundle.Status{"test": status}
 
-	if !reflect.DeepEqual(result.Bundles, exp.Bundles) {
+	if !maps.EqualFunc(result.Bundles, exp.Bundles, (*bundle.Status).Equal) {
 		t.Fatalf("Expected: %v but got: %v", exp, result)
 	}
 }
@@ -480,7 +480,7 @@ func TestPluginStartTriggerManualMultiple(t *testing.T) {
 	exp.Bundles = map[string]*bundle.Status{"test": status}
 	exp.Discovery = status
 
-	if !reflect.DeepEqual(result, exp) {
+	if !result.Equal(exp) {
 		t.Fatalf("Expected: %v but got: %v", exp, result)
 	}
 }
@@ -632,7 +632,7 @@ func TestPluginStartBulkUpdate(t *testing.T) {
 
 	exp.Bundles = map[string]*bundle.Status{status.Name: status}
 
-	if !reflect.DeepEqual(result, exp) {
+	if !result.Equal(exp) {
 		t.Fatalf("Expected: %v but got: %v", exp, result)
 	}
 }
@@ -729,7 +729,7 @@ func TestPluginStartDiscovery(t *testing.T) {
 		},
 	}
 
-	if !reflect.DeepEqual(result, exp) {
+	if !result.Equal(exp) {
 		t.Fatalf("Expected: %+v but got: %+v", exp, result)
 	}
 }
@@ -772,7 +772,7 @@ func TestPluginStartDecisionLogs(t *testing.T) {
 		},
 	}
 
-	if !reflect.DeepEqual(result, exp) {
+	if !result.Equal(exp) {
 		t.Fatalf("Expected: %+v but got: %+v", exp, result)
 	}
 }
