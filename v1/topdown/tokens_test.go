@@ -778,7 +778,7 @@ func TestBuiltinJWTDecodeVerify_TokenCache(t *testing.T) {
 
 	config := cache.Config{
 		InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
-			NamedCacheConfigs: map[string]*cache.InterQueryBuiltinValueCacheConfig{
+			NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
 				tokenCacheName: {
 					MaxNumEntries: &[]int{5}[0],
 				},
@@ -1099,7 +1099,7 @@ func TestBuiltinJWTVerify_TokenCache(t *testing.T) {
 
 	cacheConfig := cache.Config{
 		InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
-			NamedCacheConfigs: map[string]*cache.InterQueryBuiltinValueCacheConfig{
+			NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
 				tokenCacheName: {
 					MaxNumEntries: &[]int{5}[0],
 				},

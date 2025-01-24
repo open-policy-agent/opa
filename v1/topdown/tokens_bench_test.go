@@ -102,7 +102,7 @@ func BenchmarkTokens_Cache(b *testing.B) {
 		Time:    ast.NumberTerm(int64ToJSONNumber(time.Now().UnixNano())),
 		InterQueryBuiltinValueCache: cache.NewInterQueryValueCache(ctx, &cache.Config{
 			InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
-				NamedCacheConfigs: map[string]*cache.InterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
 					tokenCacheName: {
 						MaxNumEntries: &[]int{5}[0],
 					},

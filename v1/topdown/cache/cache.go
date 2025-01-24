@@ -24,16 +24,16 @@ const (
 	defaultStaleEntryEvictionPeriodSeconds   = int64(0)   // never
 )
 
-var interQueryBuiltinValueCacheDefaultConfigs = map[string]*InterQueryBuiltinValueCacheConfig{}
+var interQueryBuiltinValueCacheDefaultConfigs = map[string]*NamedValueCacheConfig{}
 
-func getDefaultInterQueryBuiltinValueCacheConfig(name string) *InterQueryBuiltinValueCacheConfig {
+func getDefaultInterQueryBuiltinValueCacheConfig(name string) *NamedValueCacheConfig {
 	return interQueryBuiltinValueCacheDefaultConfigs[name]
 }
 
 // RegisterDefaultInterQueryBuiltinValueCacheConfig registers a default configuration for the inter-query value cache;
 // used when none has been explicitly configured.
 // To disable a named cache when not configured, pass a nil config.
-func RegisterDefaultInterQueryBuiltinValueCacheConfig(name string, config *InterQueryBuiltinValueCacheConfig) {
+func RegisterDefaultInterQueryBuiltinValueCacheConfig(name string, config *NamedValueCacheConfig) {
 	interQueryBuiltinValueCacheDefaultConfigs[name] = config
 }
 
@@ -52,8 +52,8 @@ type NamedValueCacheConfig struct {
 // InterQueryBuiltinValueCacheConfig represents the configuration of the inter-query value cache that built-in functions can utilize.
 // MaxNumEntries - max number of cache entries
 type InterQueryBuiltinValueCacheConfig struct {
-	MaxNumEntries     *int                                          `json:"max_num_entries,omitempty"`
-	NamedCacheConfigs map[string]*InterQueryBuiltinValueCacheConfig `json:"named,omitempty"`
+	MaxNumEntries     *int                              `json:"max_num_entries,omitempty"`
+	NamedCacheConfigs map[string]*NamedValueCacheConfig `json:"named,omitempty"`
 }
 
 // InterQueryBuiltinCacheConfig represents the configuration of the inter-query cache that built-in functions can utilize.
@@ -373,7 +373,7 @@ type InterQueryValueCacheBucket interface {
 
 type interQueryValueCacheBucket struct {
 	items  util.TypedHashMap[ast.Value, any]
-	config *InterQueryBuiltinValueCacheConfig
+	config *NamedValueCacheConfig
 	mtx    sync.RWMutex
 }
 
@@ -423,7 +423,7 @@ func (c *interQueryValueCacheBucket) Delete(k ast.Value) {
 	c.items.Delete(k)
 }
 
-func (c *interQueryValueCacheBucket) updateConfig(config *InterQueryBuiltinValueCacheConfig) {
+func (c *interQueryValueCacheBucket) updateConfig(config *NamedValueCacheConfig) {
 	if config == nil {
 		return
 	}
@@ -447,14 +447,21 @@ type InterQueryValueCache interface {
 
 func NewInterQueryValueCache(_ context.Context, config *Config) InterQueryValueCache {
 	var c *InterQueryBuiltinValueCacheConfig
+	var nc *NamedValueCacheConfig
 	if config != nil {
 		c = &config.InterQueryBuiltinValueCache
+		// NOTE: This is a side-effect of reusing the interQueryValueCacheBucket as the global cache.
+		// It's a hidden implementation detail that we can clean up in the future when revisiting the named caches
+		// to automatically apply them to any built-in instead of the global cache.
+		nc = &NamedValueCacheConfig{
+			MaxNumEntries: c.MaxNumEntries,
+		}
 	}
 
 	return &interQueryBuiltinValueCache{
 		globalCache: interQueryValueCacheBucket{
 			items:  *newItemsMap(),
-			config: c,
+			config: nc,
 		},
 		namedCaches: map[string]*interQueryValueCacheBucket{},
 		config:      c,
@@ -514,7 +521,7 @@ func (c *interQueryBuiltinValueCache) GetCache(name string) InterQueryValueCache
 			return nc
 		}
 
-		var config *InterQueryBuiltinValueCacheConfig
+		var config *NamedValueCacheConfig
 		if c.config != nil {
 			config = c.config.NamedCacheConfigs[name]
 			if config == nil {
@@ -546,7 +553,10 @@ func (c *interQueryBuiltinValueCache) UpdateConfig(config *Config) {
 	if config == nil {
 		c.globalCache.updateConfig(nil)
 	} else {
-		c.globalCache.updateConfig(&config.InterQueryBuiltinValueCache)
+
+		c.globalCache.updateConfig(&NamedValueCacheConfig{
+			MaxNumEntries: config.InterQueryBuiltinValueCache.MaxNumEntries,
+		})
 	}
 
 	c.namedCachesLock.Lock()

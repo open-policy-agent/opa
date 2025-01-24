@@ -115,7 +115,7 @@ func TestInterValueCache_DefaultConfiguration(t *testing.T) {
 			InterQueryBuiltinValueCache: InterQueryBuiltinValueCacheConfig{},
 		}
 
-		RegisterDefaultInterQueryBuiltinValueCacheConfig("bar", &InterQueryBuiltinValueCacheConfig{
+		RegisterDefaultInterQueryBuiltinValueCacheConfig("bar", &NamedValueCacheConfig{
 			MaxNumEntries: &[]int{5}[0],
 		})
 
@@ -128,7 +128,7 @@ func TestInterValueCache_DefaultConfiguration(t *testing.T) {
 	t.Run("explicitly disabled", func(t *testing.T) {
 		cacheConfig := Config{
 			InterQueryBuiltinValueCache: InterQueryBuiltinValueCacheConfig{
-				NamedCacheConfigs: map[string]*InterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*NamedValueCacheConfig{
 					"baz": nil,
 				},
 			},
@@ -145,7 +145,7 @@ func TestInterValueCache_DefaultConfiguration(t *testing.T) {
 	t.Run("override", func(t *testing.T) {
 		cacheConfig := Config{
 			InterQueryBuiltinValueCache: InterQueryBuiltinValueCacheConfig{
-				NamedCacheConfigs: map[string]*InterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*NamedValueCacheConfig{
 					"box": {
 						MaxNumEntries: &[]int{5}[0],
 					},
@@ -153,7 +153,7 @@ func TestInterValueCache_DefaultConfiguration(t *testing.T) {
 			},
 		}
 
-		RegisterDefaultInterQueryBuiltinValueCacheConfig("box", &InterQueryBuiltinValueCacheConfig{
+		RegisterDefaultInterQueryBuiltinValueCacheConfig("box", &NamedValueCacheConfig{
 			MaxNumEntries: &[]int{10}[0],
 		})
 
@@ -170,7 +170,7 @@ func TestInterValueCache_NamedCaches(t *testing.T) {
 	t.Run("configured max is respected", func(t *testing.T) {
 		config := Config{
 			InterQueryBuiltinValueCache: InterQueryBuiltinValueCacheConfig{
-				NamedCacheConfigs: map[string]*InterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*NamedValueCacheConfig{
 					"foo": {
 						MaxNumEntries: &[]int{2}[0],
 					},
@@ -218,7 +218,7 @@ func TestInterValueCache_NamedCaches(t *testing.T) {
 		config := Config{
 			InterQueryBuiltinValueCache: InterQueryBuiltinValueCacheConfig{
 				MaxNumEntries: &[]int{2}[0],
-				NamedCacheConfigs: map[string]*InterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*NamedValueCacheConfig{
 					"foo": {
 						MaxNumEntries: &[]int{2}[0],
 					},

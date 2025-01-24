@@ -1312,6 +1312,8 @@ func putTokenInCache(bctx BuiltinContext, serializedJwt ast.Value, publicKey ast
 }
 
 func createTokenCacheKey(serializedJwt ast.Value, publicKey ast.Value) ast.Value {
+	// We need to create a key that is unique to the serialized JWT (for lookup) and the public key used to verify it,
+	// so that we don't get a misleading cached validation result for a different, invalid key.
 	return ast.NewArray(ast.NewTerm(serializedJwt), ast.NewTerm(publicKey))
 }
 
