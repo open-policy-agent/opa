@@ -28,6 +28,23 @@ The motivation to build Ristretto comes from the need for a contention-free cach
 
 Ristretto is production-ready. See [Projects using Ristretto](#projects-using-ristretto).
 
+## Getting Started
+
+### Installing
+To start using Ristretto, install Go 1.21 or above. Ristretto needs go modules. From your project, run the following command
+
+```sh
+$ go get github.com/dgraph-io/ristretto/v2
+```
+This will retrieve the library.
+
+#### Choosing a version
+
+Following these rules:
+
+- v1.x.x is the first version used in most programs with Ristretto dependencies.
+- v2.x.x is the new version with support for generics, for which it has a slightly different interface. 
+This version is designed to solve compatibility problems of programs using the old version of Ristretto. If you start writing a new program, it is recommended to use this version.
 
 ## Usage
 

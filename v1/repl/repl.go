@@ -844,7 +844,7 @@ func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule) error {
 		if unset {
 			msg = "re-defined"
 		}
-		fmt.Fprintf(r.output, "Rule '%v' %v in %v. Type 'show' to see rules.\n", rule.Head.Name, msg, mod.Package)
+		fmt.Fprintf(r.output, "Rule '%v' %v in %v. Type 'show' to see rules.\n", rule.Head.Ref().String(), msg, mod.Package)
 	}
 
 	return nil
