@@ -1,0 +1,12 @@
+{
+  "containerID": "container0",
+  "layerPaths": [
+    "/run/layers/p0-layer0",
+    "/run/layers/p0-layer1",
+    "/run/layers/p0-layer2",
+    "/run/layers/p0-layer3",
+    "/run/layers/p0-layer4",
+    "/run/layers/p0-layer5"
+  ],
+  "target": "/run/gcs/c/container0/rootfs"
+}

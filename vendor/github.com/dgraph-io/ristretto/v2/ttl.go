@@ -121,9 +121,9 @@ func (m *expirationMap[_]) del(key uint64, expiration time.Time) {
 // cleanup removes all the items in the bucket that was just completed. It deletes
 // those items from the store, and calls the onEvict function on those items.
 // This function is meant to be called periodically.
-func (m *expirationMap[V]) cleanup(store store[V], policy *defaultPolicy[V], onEvict func(item *Item[V])) {
+func (m *expirationMap[V]) cleanup(store store[V], policy *defaultPolicy[V], onEvict func(item *Item[V])) int {
 	if m == nil {
-		return
+		return 0
 	}
 
 	m.Lock()
@@ -133,7 +133,10 @@ func (m *expirationMap[V]) cleanup(store store[V], policy *defaultPolicy[V], onE
 	// (but not including) the last one that was cleaned up
 	var buckets []bucket
 	for bucketNum := m.lastCleanedBucketNum + 1; bucketNum <= currentBucketNum; bucketNum++ {
-		buckets = append(buckets, m.buckets[bucketNum])
+		// With an empty bucket, we don't need to add it to the Clean list
+		if b := m.buckets[bucketNum]; b != nil {
+			buckets = append(buckets, b)
+		}
 		delete(m.buckets, bucketNum)
 	}
 	m.lastCleanedBucketNum = currentBucketNum
@@ -161,6 +164,10 @@ func (m *expirationMap[V]) cleanup(store store[V], policy *defaultPolicy[V], onE
 			}
 		}
 	}
+
+	cleanedBucketsCount := len(buckets)
+
+	return cleanedBucketsCount
 }
 
 // clear clears the expirationMap, the caller is responsible for properly

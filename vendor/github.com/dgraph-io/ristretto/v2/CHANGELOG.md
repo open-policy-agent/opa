@@ -5,6 +5,18 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project will adhere to [Semantic Versioning](http://semver.org/spec/v2.0.0.html) starting v1.0.0.
 
 
+## [v2.0.1] - 2024-12-11
+
+### Fixed
+
+- Wait for goroutines to finish (#423)
+- Bump golang.org/x/sys from 0.27.0 to 0.28.0 in the minor group (#421)
+- Bump github.com/stretchr/testify from 1.9.0 to 1.10.0 in the minor group (#420)
+- Bump golang.org/x/sys from 0.26.0 to 0.27.0 in the minor group (#419)
+
+**Full Changelog**: https://github.com/dgraph-io/ristretto/compare/v2.0.0...v2.0.1
+
+
 ## [v2.0.0] - 2024-11-11
 
 ### Breaking

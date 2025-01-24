@@ -1029,6 +1029,19 @@ func TestOneShotEmptyBufferOneRule(t *testing.T) {
 	expectOutput(t, buffer.String(), "Rule 'p' defined in package repl. Type 'show' to see rules.\n")
 }
 
+func TestOneShotRefHeadRulePrinted(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	repl.regoVersion = ast.RegoV1
+
+	if err := repl.OneShot(ctx, `foo.bar.baz if { true }`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	expectOutput(t, buffer.String(), "Rule 'foo.bar.baz' defined in package repl. Type 'show' to see rules.\n")
+}
+
 func TestOneShotBufferedExpr(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore()

@@ -1674,14 +1674,14 @@ corge contains 1 if {
 					t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
 				}
 
-				data, err := manager.Store.Read(ctx, txn, storage.Path{})
-				expData := util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{
+				expData := util.MustUnmarshalJSON([]byte(`{
 					"foo": {"bar": 1, "baz": "qux"}, 
 					"system": {
-						"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
-						"modules": {"test-bundle/foo/bar.rego": {"rego_version": %d}}
+						"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}
 					}
-				}`, regoVersion.Int())))
+				}`))
+
+				data, err := manager.Store.Read(ctx, txn, storage.Path{})
 				if err != nil {
 					t.Fatal(err)
 				} else if !reflect.DeepEqual(data, expData) {
@@ -1970,27 +1970,23 @@ corge contains 1 if {
 				data, err := manager.Store.Read(ctx, txn, storage.Path{})
 
 				var manifestRegoVersion string
+				var moduleRegoVersion string
 				if tc.bundleRegoVersion != nil {
 					manifestRegoVersion = fmt.Sprintf(`, "rego_version": %d`, bundleRegoVersion(*tc.bundleRegoVersion))
-				} else {
-					manifestRegoVersion = ""
-				}
 
-				var moduleRegoVersion int
-				if tc.bundleRegoVersion != nil {
-					moduleRegoVersion = tc.bundleRegoVersion.Int()
-				} else {
-					moduleRegoVersion = tc.managerRegoVersion.Int()
+					if *tc.bundleRegoVersion != tc.managerRegoVersion {
+						moduleRegoVersion = fmt.Sprintf(`,"modules": {"test-bundle/foo/bar.rego": {"rego_version": %d}}`, tc.bundleRegoVersion.Int())
+					}
 				}
 
 				expData := util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{
 					"foo": {"bar": 1, "baz": "qux"}, 
 					"system": {
-						"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux"%s, "roots": [""]}}},
-						"modules": {"test-bundle/foo/bar.rego": {"rego_version": %d}}
+						"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux"%s, "roots": [""]}}}%s
 					}
 				}`,
 					manifestRegoVersion, moduleRegoVersion)))
+
 				if err != nil {
 					t.Fatal(err)
 				} else if !reflect.DeepEqual(data, expData) {
@@ -2507,14 +2503,14 @@ corge contains 2 if {
 						}
 					}
 
-					data, err := manager.Store.Read(ctx, txn, storage.Path{})
-					expData := util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{
+					expData := util.MustUnmarshalJSON([]byte(`{
 						"foo": {"bar": 1, "baz": "qux"}, 
 						"system": {
-							"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
-							"modules": {"test-bundle/foo/bar.rego": {"rego_version": %d}}
+							"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}
 						}
-					}`, regoVersion.Int())))
+					}`))
+
+					data, err := manager.Store.Read(ctx, txn, storage.Path{})
 					if err != nil {
 						fatal(err)
 					} else if !reflect.DeepEqual(data, expData) {
@@ -2732,21 +2728,34 @@ corge contains 1 if {
 					manifestRegoVersionStr = fmt.Sprintf(`, "rego_version": %d`, bundleRegoVersion(*tc.bundleRegoVersion))
 				}
 
+				runtimeRegoVersion := manager.ParserOptions().RegoVersion.Int()
 				var moduleRegoVersion int
 				if tc.bundleRegoVersion != nil {
 					moduleRegoVersion = tc.bundleRegoVersion.Int()
 				} else {
-					moduleRegoVersion = tc.managerRegoVersion.Int()
+					moduleRegoVersion = runtimeRegoVersion
 				}
 
-				expData := util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{
+				var expData any
+				if moduleRegoVersion != runtimeRegoVersion {
+					expData = util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{
 						"foo": {"bar": 1, "baz": "qux"}, 
 						"system": {
 							"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux"%s, "roots": [""]}}},
 							"modules": {"test-bundle/foo/bar.rego": {"rego_version": %d}}
 						}
 					}`,
-					manifestRegoVersionStr, moduleRegoVersion)))
+						manifestRegoVersionStr, moduleRegoVersion)))
+				} else {
+					expData = util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{
+						"foo": {"bar": 1, "baz": "qux"}, 
+						"system": {
+							"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux"%s, "roots": [""]}}}
+						}
+					}`,
+						manifestRegoVersionStr)))
+				}
+
 				if err != nil {
 					t.Fatal(err)
 				} else if !reflect.DeepEqual(data, expData) {
