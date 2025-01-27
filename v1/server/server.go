@@ -1405,6 +1405,7 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 		rego.ParsedInput(request.Input),
 		rego.ParsedUnknowns(request.Unknowns),
 		rego.DisableInlining(request.Options.DisableInlining),
+		rego.NondeterministicBuiltins(request.Options.NondeterminsiticBuiltins),
 		rego.QueryTracer(buf),
 		rego.Instrument(includeInstrumentation),
 		rego.Metrics(m),
@@ -2856,7 +2857,8 @@ type compileRequest struct {
 }
 
 type compileRequestOptions struct {
-	DisableInlining []string
+	DisableInlining          []string
+	NondeterminsiticBuiltins bool
 }
 
 func readInputCompilePostV1(reqBytes []byte, queryParserOptions ast.ParserOptions) (*compileRequest, *types.ErrorV1) {
@@ -2898,16 +2900,15 @@ func readInputCompilePostV1(reqBytes []byte, queryParserOptions ast.ParserOption
 		}
 	}
 
-	result := &compileRequest{
+	return &compileRequest{
 		Query:    query,
 		Input:    input,
 		Unknowns: unknowns,
 		Options: compileRequestOptions{
-			DisableInlining: request.Options.DisableInlining,
+			DisableInlining:          request.Options.DisableInlining,
+			NondeterminsiticBuiltins: request.Options.NondeterministicBuiltins,
 		},
-	}
-
-	return result, nil
+	}, nil
 }
 
 var indexHTML, _ = template.New("index").Parse(`

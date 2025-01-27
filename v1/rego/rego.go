@@ -934,6 +934,15 @@ func DisableInlining(paths []string) func(r *Rego) {
 	}
 }
 
+// NondeterministicBuiltins causes non-deterministic builtins to be evalued during
+// partial evaluation. This is needed to pull in external data, or validate a JWT,
+// during PE, so that the result informs what queries are returned.
+func NondeterministicBuiltins(yes bool) func(r *Rego) {
+	return func(r *Rego) {
+		r.nondeterministicBuiltins = yes
+	}
+}
+
 // ShallowInlining prevents rules that depend on unknown values from being inlined.
 // Rules that only depend on known values are inlined.
 func ShallowInlining(yes bool) func(r *Rego) {
@@ -2346,17 +2355,18 @@ func (r *Rego) partialResult(ctx context.Context, pCfg *PrepareConfig) (PartialR
 	}
 
 	ectx := &EvalContext{
-		parsedInput:         r.parsedInput,
-		metrics:             r.metrics,
-		txn:                 r.txn,
-		partialNamespace:    r.partialNamespace,
-		queryTracers:        r.queryTracers,
-		compiledQuery:       r.compiledQueries[partialResultQueryType],
-		instrumentation:     r.instrumentation,
-		indexing:            true,
-		resolvers:           r.resolvers,
-		capabilities:        r.capabilities,
-		strictBuiltinErrors: r.strictBuiltinErrors,
+		parsedInput:              r.parsedInput,
+		metrics:                  r.metrics,
+		txn:                      r.txn,
+		partialNamespace:         r.partialNamespace,
+		queryTracers:             r.queryTracers,
+		compiledQuery:            r.compiledQueries[partialResultQueryType],
+		instrumentation:          r.instrumentation,
+		indexing:                 true,
+		resolvers:                r.resolvers,
+		capabilities:             r.capabilities,
+		strictBuiltinErrors:      r.strictBuiltinErrors,
+		nondeterministicBuiltins: r.nondeterministicBuiltins,
 	}
 
 	disableInlining := r.disableInlining
