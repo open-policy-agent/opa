@@ -552,6 +552,7 @@ opa eval <query> [flags]
   -i, --input string                                              set input file path
       --instrument                                                enable query instrumentation metrics (implies --metrics)
       --metrics                                                   report query performance metrics
+      --nondeterminstic-builtins                                  evaluate nondeterministic builtins (if all arguments are known) during partial eval
   -O, --optimize int                                              set optimization level
       --optimize-store-for-read-speed                             optimize default in-memory store for read speed. Has possible negative impact on memory footprint and write speed. See https://www.openpolicyagent.org/docs/latest/policy-performance/#storage-optimization for more details.
       --package string                                            set query package
