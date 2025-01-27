@@ -9,11 +9,10 @@ This release contains a mix of features, performance improvements, and bugfixes.
 
 ### Topdown and Rego
 
-- rego: Fixing broken `BenchmarkCustomFunctionInHotPath` ([#7312](https://github.com/open-policy-agent/opa/pull/7312)) authored by @johanfylling
 - topdown: Fix out of range error in `numbers.range` built-in ([#7269](https://github.com/open-policy-agent/opa/issues/7269)) authored by @anderseknert
 - topdown: Adding configurable token cache to `io.jwt` token verification built-ins ([#7274](https://github.com/open-policy-agent/opa/pull/7274)) authored by @johanfylling
 - topdown: Reduce allocations in hot path ([#7288](https://github.com/open-policy-agent/opa/pull/7288)) authored by @anderseknert
-- topdown+rego+server: Allow opt-in for evaluating non-det builtins in PE ([#7313](https://github.com/open-policy-agent/opa/pull/7313)) authored by @srenatus
+- topdown+rego+server: Allow opt-in for evaluating non-det builtins in PE ([#6496](https://github.com/open-policy-agent/opa/issues/6496)) authored by @srenatus
 
 ### Runtime, Tooling, SDK
 
@@ -55,12 +54,7 @@ This release contains a mix of features, performance improvements, and bugfixes.
   - build(deps): bump golang.org/x/net from 0.33.0 to 0.34.0
   - build(deps): bump golang.org/x/time from 0.8.0 to 0.9.0
   - build(deps): bump google.golang.org/grpc from 1.69.2 to 1.70.0
-  - build(deps): bump go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp from 0.58.0 to 0.59.0
-  - build(deps): bump go.opentelemetry.io/otel from 1.33.0 to 1.34.0
-  - build(deps): bump go.opentelemetry.io/otel/exporters/otlp/otlptrace from 1.33.0 to 1.34.0
-  - build(deps): bump go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc from 1.33.0 to 1.34.0
-  - build(deps): bump go.opentelemetry.io/otel/sdk from 1.33.0 to 1.34.0
-  - build(deps): bump go.opentelemetry.io/otel/trace from 1.33.0 to 1.34.0
+  - build(deps): bump go.opentelemetry.io deps to 1.34.0/0.59.0 
 
 ### Dependency Updates
 
