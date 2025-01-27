@@ -618,10 +618,7 @@ func (bol Boolean) Compare(other Value) int {
 // Find returns the current value or a not found error.
 func (bol Boolean) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
-		if bol {
-			return InternedBooleanTerm(true).Value, nil
-		}
-		return InternedBooleanTerm(false).Value, nil
+		return InternedBooleanTerm(bool(bol)).Value, nil
 	}
 	return nil, errFindNotFound
 }
@@ -1155,20 +1152,12 @@ func IsVarCompatibleString(s string) bool {
 	return varRegexp.MatchString(s)
 }
 
-var sbPool = sync.Pool{
-	New: func() any {
-		return &strings.Builder{}
-	},
-}
-
 func (ref Ref) String() string {
 	if len(ref) == 0 {
 		return ""
 	}
 
-	sb := sbPool.Get().(*strings.Builder)
-	sb.Reset()
-
+	sb := sbPool.Get()
 	defer sbPool.Put(sb)
 
 	sb.Grow(10 * len(ref))
@@ -1311,7 +1300,15 @@ func (arr *Array) Find(path Ref) (Value, error) {
 	if i < 0 || i >= arr.Len() {
 		return nil, errFindNotFound
 	}
-	return arr.Elem(i).Value.Find(path[1:])
+
+	term := arr.Elem(i)
+	// Using Find on scalar values costs an allocation (type -> Value conversion)
+	// and since we already have the Value here, we can avoid that.
+	if len(path) == 1 && IsScalar(term.Value) {
+		return term.Value, nil
+	}
+
+	return term.Value.Find(path[1:])
 }
 
 // Get returns the element at pos or nil if not possible.
@@ -1366,8 +1363,7 @@ func (arr *Array) MarshalJSON() ([]byte, error) {
 }
 
 func (arr *Array) String() string {
-	sb := sbPool.Get().(*strings.Builder)
-	sb.Reset()
+	sb := sbPool.Get()
 	sb.Grow(len(arr.elems) * 16)
 
 	defer sbPool.Put(sb)
@@ -1565,8 +1561,7 @@ func (s *set) String() string {
 		return "set()"
 	}
 
-	sb := sbPool.Get().(*strings.Builder)
-	sb.Reset()
+	sb := sbPool.Get()
 	sb.Grow(s.Len() * 16)
 
 	defer sbPool.Put(sb)
@@ -2282,11 +2277,17 @@ func (obj *object) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
 		return obj, nil
 	}
-	value := obj.Get(path[0])
-	if value == nil {
+	term := obj.Get(path[0])
+	if term == nil {
 		return nil, errFindNotFound
 	}
-	return value.Value.Find(path[1:])
+	// Using Find on scalar values costs an allocation (type -> Value conversion)
+	// and since we already have the Value here, we can avoid that.
+	if len(path) == 1 && IsScalar(term.Value) {
+		return term.Value, nil
+	}
+
+	return term.Value.Find(path[1:])
 }
 
 func (obj *object) Insert(k, v *Term) {
@@ -2375,7 +2376,8 @@ func (obj *object) Foreach(f func(*Term, *Term)) {
 }
 
 // Map returns a new Object constructed by mapping each element in the object
-// using the function f.
+// using the function f. If f returns an error, the error is returned by Map.
+// If f return a nil key, the element is skipped.
 func (obj *object) Map(f func(*Term, *Term) (*Term, *Term, error)) (Object, error) {
 	cpy := newobject(obj.Len())
 	for _, node := range obj.sortedKeys() {
@@ -2383,7 +2385,9 @@ func (obj *object) Map(f func(*Term, *Term) (*Term, *Term, error)) (Object, erro
 		if err != nil {
 			return nil, err
 		}
-		cpy.insert(k, v, false)
+		if k != nil {
+			cpy.insert(k, v, false)
+		}
 	}
 	return cpy, nil
 }
@@ -2484,8 +2488,7 @@ func (obj *object) Len() int {
 }
 
 func (obj *object) String() string {
-	sb := sbPool.Get().(*strings.Builder)
-	sb.Reset()
+	sb := sbPool.Get()
 	sb.Grow(obj.Len() * 32)
 
 	defer sbPool.Put(sb)
