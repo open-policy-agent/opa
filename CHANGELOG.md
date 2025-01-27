@@ -57,11 +57,7 @@ This release contains a mix of features, performance improvements, and bugfixes.
   - build(deps): bump golang.org/x/net from 0.33.0 to 0.34.0
   - build(deps): bump golang.org/x/time from 0.8.0 to 0.9.0
   - build(deps): bump google.golang.org/grpc from 1.69.2 to 1.70.0
-  - build(deps): bump go.opentelemetry.io deps to 1.34.0/0.59.0 
-
-### Dependency Updates
-
-- github.com/dgraph-io/badger: v3.2103.5 -> v4.5.0 by @Juneezee in [#7239](https://github.com/open-policy-agent/opa/pull/7239)
+  - build(deps): bump go.opentelemetry.io deps to 1.34.0/0.59.0
 
 ## 1.0.1
 
