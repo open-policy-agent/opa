@@ -5,6 +5,7 @@
 package distributedtracing
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/open-policy-agent/opa/internal/version"
 	"github.com/open-policy-agent/opa/v1/logging/test"
+	"github.com/open-policy-agent/opa/v1/plugins/logs"
 	"github.com/open-policy-agent/opa/v1/runtime"
 	opasdktest "github.com/open-policy-agent/opa/v1/sdk/test"
 	"github.com/open-policy-agent/opa/v1/server"
@@ -692,6 +694,15 @@ func TestControlPlaneSpans(t *testing.T) {
 			`,
 		}),
 	)
+	controlPlaneURL, err := url.Parse(opaControlPlane.URL())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	controlPlanePort, err := strconv.Atoi(controlPlaneURL.Port())
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	testServerParams := e2e.NewAPIServerTestParams()
 	testServerParams.ConfigOverrides = []string{
@@ -699,20 +710,24 @@ func TestControlPlaneSpans(t *testing.T) {
 		"discovery.name=discovery",
 		"discovery.resource=/bundles/discovery",
 		"discovery.service=bundleregistry",
+		"status.service=bundleregistry",
+		"decision_logs.service=bundleregistry",
 	}
 
 	testServerParams.DistributedTracingOpts = options
-	testServerParams.ReadyTimeout = 1
+	testServerParams.ReadyTimeout = 5
 	testServerParams.Logging = runtime.LoggingConfig{Level: "debug"}
 
 	e2e.WithRuntime(t, e2e.TestRuntimeOpts{}, testServerParams, func(rt *e2e.TestRuntime) {
 		// We expect 3 spans:
 		// 1. GET /bundles/discovery (client)
 		// 2. GET /bundles/test (client)
-		// 3. health check (server)
+		// 3. 6 spans for status updates
+		// 4. health check (server)
 
 		spans := spanExp.GetSpans()
-		if got, expected := len(spans), 3; got != expected {
+
+		if got, expected := len(spans), 9; got != expected {
 			t.Fatalf("got %d span(s), expected %d", got, expected)
 		}
 		for _, span := range spans {
@@ -721,22 +736,14 @@ func TestControlPlaneSpans(t *testing.T) {
 			}
 		}
 
-		if got, expected := spans[0].SpanKind.String(), "client"; got != expected {
-			t.Fatalf("Expected span kind to be %q but got %q", expected, got)
-		}
-		if got, expected := spans[1].SpanKind.String(), "client"; got != expected {
-			t.Fatalf("Expected span kind to be %q but got %q", expected, got)
-		}
-
-		u, err := url.Parse(opaControlPlane.URL())
-		if err != nil {
-			t.Fatal(err)
+		for idx := range 8 {
+			if got, expected := spans[idx].SpanKind.String(), "client"; got != expected {
+				t.Fatalf("Expected span kind to be %q but got %q", expected, got)
+			}
 		}
 
-		port, err := strconv.Atoi(u.Port())
-		if err != nil {
-			t.Fatal(err)
-		}
+		u := controlPlaneURL
+		port := controlPlanePort
 
 		expected := []interface{}{
 			attribute.String("net.peer.name", u.Hostname()),
@@ -758,6 +765,89 @@ func TestControlPlaneSpans(t *testing.T) {
 			attribute.Int("http.response_content_length", 164),
 			attribute.String("user_agent.original", version.UserAgent),
 		}
+		compareSpanAttributes(t, expected, attribute.NewSet(spans[1].Attributes...))
+
+		for i := 2; i < 8; i++ {
+			expected = []interface{}{
+				attribute.String("net.peer.name", u.Hostname()),
+				attribute.Int("net.peer.port", port),
+				attribute.String("http.method", "POST"),
+				attribute.String("http.url", u.String()+"/status"),
+				attribute.String("user_agent.original", version.UserAgent),
+			}
+			compareSpanAttributes(t, expected, attribute.NewSet(spans[i].Attributes...))
+		}
+
+		spanExp.Reset()
+
+		mr, err := http.Post(rt.URL()+"/v1/data/main", "application/json", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer mr.Body.Close()
+
+		plugin := logs.Lookup(rt.Runtime.Manager)
+		_ = plugin.Trigger(context.Background())
+
+		spans = spanExp.GetSpans()
+		// Expect 2 spans:
+		// 1. POST /v1/data/main (server)
+		// 2. POST /v1/logs (client)
+
+		if got, expected := len(spans), 2; got != expected {
+			t.Fatalf("got %d span(s), expected %d", got, expected)
+		}
+		for _, span := range spans {
+			if !span.SpanContext.IsValid() {
+				t.Fatalf("invalid span created: %#v", span.SpanContext)
+			}
+		}
+		if got, expected := spans[0].Name, "v1/data"; got != expected {
+			t.Fatalf("Expected span name to be %q but got %q", expected, got)
+		}
+		if got, expected := spans[0].SpanKind.String(), "server"; got != expected {
+			t.Fatalf("Expected span kind to be %q but got %q", expected, got)
+		}
+		if got, expected := spans[1].Name, "HTTP POST"; got != expected {
+			t.Fatalf("Expected span name to be %q but got %q", expected, got)
+		}
+		if got, expected := spans[1].SpanKind.String(), "client"; got != expected {
+			t.Fatalf("Expected span kind to be %q but got %q", expected, got)
+		}
+
+		u, err = url.Parse(rt.URL())
+		if err != nil {
+			t.Fatal(err)
+		}
+		port, err = strconv.Atoi(u.Port())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expected = []interface{}{
+			attribute.String("net.host.name", u.Hostname()),
+			attribute.Int("net.host.port", port),
+			attribute.String("net.protocol.version", "1.1"),
+			attribute.String("net.sock.peer.addr", "127.0.0.1"),
+			attribute.Key("net.sock.peer.port"),
+			attribute.String("http.method", "POST"),
+			attribute.String("http.scheme", "http"),
+			attribute.String("http.target", "/v1/data/main"),
+			attribute.Int("http.status_code", 200),
+			attribute.Int("http.response_content_length", 168),
+			attribute.String("user_agent.original", "Go-http-client/1.1"),
+		}
+
+		compareSpanAttributes(t, expected, attribute.NewSet(spans[0].Attributes...))
+
+		expected = []interface{}{
+			attribute.String("net.peer.name", controlPlaneURL.Hostname()),
+			attribute.Int("net.peer.port", controlPlanePort),
+			attribute.String("http.method", "POST"),
+			attribute.String("http.url", controlPlaneURL.String()+"/logs"),
+			attribute.String("user_agent.original", version.UserAgent),
+		}
+
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[1].Attributes...))
 	})
 }
