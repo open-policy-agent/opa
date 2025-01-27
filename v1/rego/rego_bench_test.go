@@ -11,6 +11,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/runtime"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/loader"
+	"github.com/open-policy-agent/opa/v1/storage"
 	inmem "github.com/open-policy-agent/opa/v1/storage/inmem/test"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
@@ -314,6 +315,102 @@ func BenchmarkObjectIteration(b *testing.B) {
 		}
 		if res[0].Bindings["x"].(bool) != false {
 			b.Fatalf("expected false, got %v", res[0].Bindings["x"])
+		}
+	}
+}
+
+// Comparing the cost of referencing not found data in Go vs. AST storage
+//
+// BenchmarkStoreRefNotFound/inmem-go-10         	    5208	    212288 ns/op	  160609 B/op	    2936 allocs/op
+// BenchmarkStoreRefNotFound/inmem-ast-10        	   13929	     90053 ns/op	   39614 B/op	    1012 allocs/op
+func BenchmarkStoreRefNotFound(b *testing.B) {
+	ctx := context.Background()
+
+	things := make(map[string]map[string]string, 100)
+	for i := range 100 {
+		things[strconv.Itoa(i)] = map[string]string{"foo": "bar"}
+	}
+
+	stores := map[string]storage.Store{
+		"inmem-go":  inmem.NewFromObject(map[string]any{"things": things}),
+		"inmem-ast": inmem.NewFromObjectWithASTRead(map[string]any{"things": things}),
+	}
+	policy := `package p
+
+r contains true if {
+	data.things[_].bar
+}
+`
+	for name, store := range stores {
+		b.Run(name, func(b *testing.B) {
+			r := New(
+				Query("data.p.r = x"),
+				Store(store),
+				ParsedModule(ast.MustParseModule(policy)),
+				GenerateJSON(func(*ast.Term, *EvalContext) (any, error) {
+					return nil, nil
+				}),
+			)
+
+			pq, err := r.PrepareForEval(ctx)
+			if err != nil {
+				b.Fatal(err)
+			}
+
+			b.ResetTimer()
+			b.ReportAllocs()
+
+			for range b.N {
+				res, err := pq.Eval(ctx)
+				if err != nil {
+					b.Fatal(err)
+				}
+
+				_ = res
+			}
+		})
+	}
+}
+
+// 242.5 ns/op     168 B/op      7 allocs/op  // original implementation
+// 176.7 ns/op      96 B/op      4 allocs/op  // sync.Pool in ptr.ValuePtr (saving 1 alloc/op per path part)
+func BenchmarkStoreRead(b *testing.B) {
+	ctx := context.Background()
+	store := inmem.NewFromObjectWithASTRead(map[string]any{
+		"foo": map[string]any{
+			"bar": map[string]any{
+				"baz": "qux",
+			},
+		},
+	})
+
+	txn, err := store.NewTransaction(ctx)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	ref := ast.MustParseRef("data.foo.bar.baz")
+
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for range b.N {
+		// 1 alloc/op
+		path, err := storage.NewPathForRef(ref)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		// 3 allocs/op (down from 6)
+		// turns each string in path into a StringTerm only to use it
+		// for a Get call in storage (ptr.ValuePtr)
+		v, err := store.Read(ctx, txn, path)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		if v == nil {
+			b.Fatal("expected value")
 		}
 	}
 }
