@@ -7,30 +7,33 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 This release contains a mix of features, performance improvements, and bugfixes.
 
+### Performance Improvements
+
+- ast: Remove jsonOptions from AST nodes and terms ([#7281](https://github.com/open-policy-agent/opa/pull/7281)) authored by @anderseknert
+- ast+plugins: Optimize activation of bundles with no inter-bundle path overlap ([#7144](https://github.com/open-policy-agent/opa/issues/7144)) authored and reported by @sqyang94
+- bundle: Optimizing rego-version management in bundle activation ([#7296](https://github.com/open-policy-agent/opa/pull/7296)) authored by @johanfylling
+- cmd: Don't generate JSON from result in `opa bench` ([#7291](https://github.com/open-policy-agent/opa/issues/7291)) authored by @anderseknert
+- topdown: Adding configurable token cache to `io.jwt` token verification built-ins ([#7274](https://github.com/open-policy-agent/opa/pull/7274)) authored by @johanfylling
+- topdown: Reduce allocations in hot path ([#7288](https://github.com/open-policy-agent/opa/pull/7288)) authored by @anderseknert
+- perf: Improvements to terms and built-in functions ([#7284](https://github.com/open-policy-agent/opa/pull/7284)) authored by @anderseknert
+- perf: add Regorus ACI benchmark tests ([#7298](https://github.com/open-policy-agent/opa/pull/7298)) authored by @anderseknert
+- plugins: Don't use reflect.DeepEqual for errors ([#7238](https://github.com/open-policy-agent/opa/issues/7238)) authored by @anderseknert
+- testing: replace reflect.DeepEqual where possible ([#7286](https://github.com/open-policy-agent/opa/pull/7286)) authored by @anderseknert
+
 ### Topdown and Rego
 
 - topdown: Fix out of range error in `numbers.range` built-in ([#7269](https://github.com/open-policy-agent/opa/issues/7269)) authored by @anderseknert
-- topdown: Adding configurable token cache to `io.jwt` token verification built-ins ([#7274](https://github.com/open-policy-agent/opa/pull/7274)) authored by @johanfylling
-- topdown: Reduce allocations in hot path ([#7288](https://github.com/open-policy-agent/opa/pull/7288)) authored by @anderseknert
 - topdown+rego+server: Allow opt-in for evaluating non-det builtins in PE ([#6496](https://github.com/open-policy-agent/opa/issues/6496)) authored by @srenatus
 
 ### Runtime, Tooling, SDK
 
-- ast: Remove jsonOptions from AST nodes and terms ([#7281](https://github.com/open-policy-agent/opa/pull/7281)) authored by @anderseknert
-- ast+plugins: Optimize activation of bundles with no inter-bundle path overlap ([#7144](https://github.com/open-policy-agent/opa/issues/7144)) authored and reported by @sqyang94
 - bundle: Add info about the correct rego version to parse modules on the store ([#7278](https://github.com/open-policy-agent/opa/pull/7278)) co-authored by @ashutosh-narkar and @johanfylling
-- bundle: Optimizing rego-version management in bundle activation ([#7296](https://github.com/open-policy-agent/opa/pull/7296)) authored by @johanfylling
 - bundle+plugins: Fixing issue where bundle plugin could panic on reconfiguration (SDK use) ([#7297](https://github.com/open-policy-agent/opa/issues/7297)) authored by @johanfylling reported by @carabasdaniel
-- cmd: Don't generate JSON from result in `opa bench` ([#7291](https://github.com/open-policy-agent/opa/issues/7291)) authored by @anderseknert
 - cmd: Fix printed representation of ref head rules in `opa repl` ([#7301](https://github.com/open-policy-agent/opa/issues/7301)) authored by @anderseknert reported by @tsandall
 - cmd: Respect `--v0-compatible` for `opa eval` partial eval support modules ([#7251](https://github.com/open-policy-agent/opa/pull/7251)) authored by @johanfylling
 - golangci: fix invalid `linter-settings` configuration name ([#7244](https://github.com/open-policy-agent/opa/pull/7244)) authored by @Juneezee
-- perf: Improvements to terms and built-in functions ([#7284](https://github.com/open-policy-agent/opa/pull/7284)) authored by @anderseknert
-- perf: add Regorus ACI benchmark tests ([#7298](https://github.com/open-policy-agent/opa/pull/7298)) authored by @anderseknert
-- plugins: Don't use reflect.DeepEqual for errors ([#7238](https://github.com/open-policy-agent/opa/issues/7238)) authored by @anderseknert
 - plugins/logs: Add support for masking with array keys ([#6883](https://github.com/open-policy-agent/opa/issues/6883)) authored by @charlieegan3
 - tester: code nitpicks ([#7252](https://github.com/open-policy-agent/opa/pull/7252)) authored by @srenatus
-- testing: replace reflect.DeepEqual where possible ([#7286](https://github.com/open-policy-agent/opa/pull/7286)) authored by @anderseknert
 - util: Add util.Keys and util.KeysSorted ([#7285](https://github.com/open-policy-agent/opa/pull/7285)) authored by @anderseknert
 
 ### Docs, Website, Ecosystem
