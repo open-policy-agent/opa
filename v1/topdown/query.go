@@ -46,6 +46,7 @@ type Query struct {
 	instr                       *Instrumentation
 	disableInlining             []ast.Ref
 	shallowInlining             bool
+	nondeterministicBuiltins    bool
 	genvarprefix                string
 	runtime                     *ast.Term
 	builtins                    map[string]*Builtin
@@ -313,6 +314,14 @@ func (q *Query) WithVirtualCache(vc VirtualCache) *Query {
 	return q
 }
 
+// WithNondeterministicBuiltins causes non-deterministic builtins to be evalued
+// during partial evaluation. This is needed to pull in external data, or validate
+// a JWT, during PE, so that the result informs what queries are returned.
+func (q *Query) WithNondeterministicBuiltins(yes bool) *Query {
+	q.nondeterministicBuiltins = yes
+	return q
+}
+
 // PartialRun executes partial evaluation on the query with respect to unknown
 // values. Partial evaluation attempts to evaluate as much of the query as
 // possible without requiring values for the unknowns set on the query. The
@@ -380,7 +389,8 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		saveNamespace:               ast.StringTerm(q.partialNamespace),
 		skipSaveNamespace:           q.skipSaveNamespace,
 		inliningControl: &inliningControl{
-			shallow: q.shallowInlining,
+			shallow:                  q.shallowInlining,
+			nondeterministicBuiltins: q.nondeterministicBuiltins,
 		},
 		genvarprefix:  q.genvarprefix,
 		runtime:       q.runtime,

@@ -365,7 +365,13 @@ func saveRequired(c *ast.Compiler, ic *inliningControl, icIgnoreInternal bool, s
 		}
 		switch node := node.(type) {
 		case *ast.Expr:
-			found = len(node.With) > 0 || ignoreExprDuringPartial(node)
+			found = len(node.With) > 0
+			if found {
+				return found
+			}
+			if !ic.nondeterministicBuiltins { // skip evaluating non-det builtins for PE
+				found = ignoreExprDuringPartial(node)
+			}
 		case *ast.Term:
 			switch v := node.Value.(type) {
 			case ast.Var:
@@ -422,8 +428,9 @@ func ignoreDuringPartial(bi *ast.Builtin) bool {
 }
 
 type inliningControl struct {
-	shallow bool
-	disable []disableInliningFrame
+	shallow                  bool
+	disable                  []disableInliningFrame
+	nondeterministicBuiltins bool // evaluate non-det builtins during PE (if args are known)
 }
 
 type disableInliningFrame struct {
