@@ -40,45 +40,46 @@ var (
 )
 
 type evalCommandParams struct {
-	capabilities           *capabilitiesFlag
-	coverage               bool
-	partial                bool
-	unknowns               []string
-	disableInlining        []string
-	shallowInlining        bool
-	disableIndexing        bool
-	disableEarlyExit       bool
-	strictBuiltinErrors    bool
-	showBuiltinErrors      bool
-	dataPaths              repeatedStringFlag
-	inputPath              string
-	imports                repeatedStringFlag
-	pkg                    string
-	stdin                  bool
-	stdinInput             bool
-	explain                *util.EnumFlag
-	metrics                bool
-	instrument             bool
-	ignore                 []string
-	outputFormat           *util.EnumFlag
-	profile                bool
-	profileCriteria        repeatedStringFlag
-	profileLimit           intFlag
-	count                  int
-	prettyLimit            intFlag
-	fail                   bool
-	failDefined            bool
-	bundlePaths            repeatedStringFlag
-	schema                 *schemaFlags
-	target                 *util.EnumFlag
-	timeout                time.Duration
-	optimizationLevel      int
-	entrypoints            repeatedStringFlag
-	strict                 bool
-	v0Compatible           bool
-	v1Compatible           bool
-	traceVarValues         bool
-	ReadAstValuesFromStore bool
+	capabilities              *capabilitiesFlag
+	coverage                  bool
+	partial                   bool
+	unknowns                  []string
+	disableInlining           []string
+	nondeterministicBuiltions bool
+	shallowInlining           bool
+	disableIndexing           bool
+	disableEarlyExit          bool
+	strictBuiltinErrors       bool
+	showBuiltinErrors         bool
+	dataPaths                 repeatedStringFlag
+	inputPath                 string
+	imports                   repeatedStringFlag
+	pkg                       string
+	stdin                     bool
+	stdinInput                bool
+	explain                   *util.EnumFlag
+	metrics                   bool
+	instrument                bool
+	ignore                    []string
+	outputFormat              *util.EnumFlag
+	profile                   bool
+	profileCriteria           repeatedStringFlag
+	profileLimit              intFlag
+	count                     int
+	prettyLimit               intFlag
+	fail                      bool
+	failDefined               bool
+	bundlePaths               repeatedStringFlag
+	schema                    *schemaFlags
+	target                    *util.EnumFlag
+	timeout                   time.Duration
+	optimizationLevel         int
+	entrypoints               repeatedStringFlag
+	strict                    bool
+	v0Compatible              bool
+	v1Compatible              bool
+	traceVarValues            bool
+	ReadAstValuesFromStore    bool
 }
 
 func (p *evalCommandParams) regoVersion() ast.RegoVersion {
@@ -328,6 +329,7 @@ access.
 	evalCommand.Flags().BoolVarP(&params.coverage, "coverage", "", false, "report coverage")
 	evalCommand.Flags().StringArrayVarP(&params.disableInlining, "disable-inlining", "", []string{}, "set paths of documents to exclude from inlining")
 	evalCommand.Flags().BoolVarP(&params.shallowInlining, "shallow-inlining", "", false, "disable inlining of rules that depend on unknowns")
+	evalCommand.Flags().BoolVarP(&params.nondeterministicBuiltions, "nondeterminstic-builtins", "", false, "evaluate nondeterministic builtins (if all arguments are known) during partial eval")
 	evalCommand.Flags().BoolVar(&params.disableIndexing, "disable-indexing", false, "disable indexing optimizations")
 	evalCommand.Flags().BoolVar(&params.disableEarlyExit, "disable-early-exit", false, "disable 'early exit' optimizations")
 	evalCommand.Flags().BoolVarP(&params.strictBuiltinErrors, "strict-builtin-errors", "", false, "treat the first built-in function error encountered as fatal")
@@ -577,6 +579,7 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 	evalArgs := []rego.EvalOption{
 		rego.EvalRuleIndexing(!params.disableIndexing),
 		rego.EvalEarlyExit(!params.disableEarlyExit),
+		rego.EvalNondeterministicBuiltins(params.nondeterministicBuiltions),
 	}
 
 	if len(params.imports.v) > 0 {

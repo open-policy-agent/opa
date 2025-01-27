@@ -374,7 +374,8 @@ type CompileRequestV1 struct {
 	Query    string       `json:"query"`
 	Unknowns *[]string    `json:"unknowns"`
 	Options  struct {
-		DisableInlining []string `json:"disableInlining,omitempty"`
+		DisableInlining          []string `json:"disableInlining,omitempty"`
+		NondeterministicBuiltins bool     `json:"nondeterministicBuiltins"`
 	} `json:"options,omitempty"`
 }
 

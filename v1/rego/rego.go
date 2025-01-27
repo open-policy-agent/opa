@@ -113,6 +113,7 @@ type EvalContext struct {
 	compiledQuery               compiledQuery
 	unknowns                    []string
 	disableInlining             []ast.Ref
+	nondeterministicBuiltins    bool
 	parsedUnknowns              []*ast.Term
 	indexing                    bool
 	earlyExit                   bool
@@ -372,6 +373,15 @@ func EvalVirtualCache(vc topdown.VirtualCache) EvalOption {
 	}
 }
 
+// EvalNondeterministicBuiltins causes non-deterministic builtins to be evalued
+// during partial evaluation. This is needed to pull in external data, or validate
+// a JWT, during PE, so that the result informs what queries are returned.
+func EvalNondeterministicBuiltins(yes bool) EvalOption {
+	return func(e *EvalContext) {
+		e.nondeterministicBuiltins = yes
+	}
+}
+
 func (pq preparedQuery) Modules() map[string]*ast.Module {
 	mods := make(map[string]*ast.Module)
 
@@ -394,24 +404,25 @@ func (pq preparedQuery) Modules() map[string]*ast.Module {
 // been opened.
 func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption) (*EvalContext, func(context.Context), error) {
 	ectx := &EvalContext{
-		hasInput:            false,
-		rawInput:            nil,
-		parsedInput:         nil,
-		metrics:             nil,
-		txn:                 nil,
-		instrument:          false,
-		instrumentation:     nil,
-		partialNamespace:    pq.r.partialNamespace,
-		queryTracers:        nil,
-		unknowns:            pq.r.unknowns,
-		parsedUnknowns:      pq.r.parsedUnknowns,
-		compiledQuery:       compiledQuery{},
-		indexing:            true,
-		earlyExit:           true,
-		resolvers:           pq.r.resolvers,
-		printHook:           pq.r.printHook,
-		capabilities:        pq.r.capabilities,
-		strictBuiltinErrors: pq.r.strictBuiltinErrors,
+		hasInput:                 false,
+		rawInput:                 nil,
+		parsedInput:              nil,
+		metrics:                  nil,
+		txn:                      nil,
+		instrument:               false,
+		instrumentation:          nil,
+		partialNamespace:         pq.r.partialNamespace,
+		queryTracers:             nil,
+		unknowns:                 pq.r.unknowns,
+		parsedUnknowns:           pq.r.parsedUnknowns,
+		nondeterministicBuiltins: pq.r.nondeterministicBuiltins,
+		compiledQuery:            compiledQuery{},
+		indexing:                 true,
+		earlyExit:                true,
+		resolvers:                pq.r.resolvers,
+		printHook:                pq.r.printHook,
+		capabilities:             pq.r.capabilities,
+		strictBuiltinErrors:      pq.r.strictBuiltinErrors,
 	}
 
 	for _, o := range options {
@@ -580,6 +591,7 @@ type Rego struct {
 	parsedUnknowns              []*ast.Term
 	disableInlining             []string
 	shallowInlining             bool
+	nondeterministicBuiltins    bool
 	skipPartialNamespace        bool
 	partialNamespace            string
 	modules                     []rawModule
@@ -919,6 +931,15 @@ func ParsedUnknowns(unknowns []*ast.Term) func(r *Rego) {
 func DisableInlining(paths []string) func(r *Rego) {
 	return func(r *Rego) {
 		r.disableInlining = paths
+	}
+}
+
+// NondeterministicBuiltins causes non-deterministic builtins to be evalued during
+// partial evaluation. This is needed to pull in external data, or validate a JWT,
+// during PE, so that the result informs what queries are returned.
+func NondeterministicBuiltins(yes bool) func(r *Rego) {
+	return func(r *Rego) {
+		r.nondeterministicBuiltins = yes
 	}
 }
 
@@ -2334,17 +2355,18 @@ func (r *Rego) partialResult(ctx context.Context, pCfg *PrepareConfig) (PartialR
 	}
 
 	ectx := &EvalContext{
-		parsedInput:         r.parsedInput,
-		metrics:             r.metrics,
-		txn:                 r.txn,
-		partialNamespace:    r.partialNamespace,
-		queryTracers:        r.queryTracers,
-		compiledQuery:       r.compiledQueries[partialResultQueryType],
-		instrumentation:     r.instrumentation,
-		indexing:            true,
-		resolvers:           r.resolvers,
-		capabilities:        r.capabilities,
-		strictBuiltinErrors: r.strictBuiltinErrors,
+		parsedInput:              r.parsedInput,
+		metrics:                  r.metrics,
+		txn:                      r.txn,
+		partialNamespace:         r.partialNamespace,
+		queryTracers:             r.queryTracers,
+		compiledQuery:            r.compiledQueries[partialResultQueryType],
+		instrumentation:          r.instrumentation,
+		indexing:                 true,
+		resolvers:                r.resolvers,
+		capabilities:             r.capabilities,
+		strictBuiltinErrors:      r.strictBuiltinErrors,
+		nondeterministicBuiltins: r.nondeterministicBuiltins,
 	}
 
 	disableInlining := r.disableInlining
@@ -2441,6 +2463,7 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		WithInstrumentation(ectx.instrumentation).
 		WithUnknowns(unknowns).
 		WithDisableInlining(ectx.disableInlining).
+		WithNondeterministicBuiltins(ectx.nondeterministicBuiltins).
 		WithRuntime(r.runtime).
 		WithIndexing(ectx.indexing).
 		WithEarlyExit(ectx.earlyExit).

@@ -6,7 +6,10 @@ package topdown
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -21,21 +24,22 @@ func TestTopDownPartialEval(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		note                 string
-		unknowns             []string
-		disableInlining      []string
-		shallow              bool
-		skipPartialNamespace bool
-		query                string
-		modules              []string
-		moduleASTs           []*ast.Module
-		data                 string
-		input                string
-		wantQueries          []string
-		wantQueryASTs        []ast.Body
-		wantSupport          []string
-		wantSupportASTs      []*ast.Module
-		ignoreOrder          bool
+		note                     string
+		unknowns                 []string
+		disableInlining          []string
+		nondeterministicBuiltins bool
+		shallow                  bool
+		skipPartialNamespace     bool
+		query                    string
+		modules                  []string
+		moduleASTs               []*ast.Module
+		data                     string
+		input                    string
+		wantQueries              []string
+		wantQueryASTs            []ast.Body
+		wantSupport              []string
+		wantSupportASTs          []*ast.Module
+		ignoreOrder              bool
 	}{
 		{
 			note:        "empty",
@@ -1534,7 +1538,7 @@ func TestTopDownPartialEval(t *testing.T) {
 				package partial.test
 
 				q if { data.partial.test.mock_count(input.y, __local1__3); __local1__3 = input.x }
-				mock_count(__local0__4) = 100 
+				mock_count(__local0__4) = 100
 			`},
 		},
 		{
@@ -3841,7 +3845,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			query: "data.test.p",
 			modules: []string{`package test
 			key_exists(obj, k) if { x = obj[k] }
-			
+
 			p if {
 				key_exists(input, "foo")
 				{ true | input.foo }
@@ -3939,8 +3943,8 @@ func TestTopDownPartialEval(t *testing.T) {
 			}`},
 			wantQueries: []string{`data.partial.test.p.q.r.s = x_term_0_0; x_term_0_0; x = "s"`},
 			wantSupport: []string{`package partial.test.p.q.r
-			s = __local0__1 if { 
-				__local0__1 = input.y 
+			s = __local0__1 if {
+				__local0__1 = input.y
 			}`},
 		},
 		{
@@ -3964,8 +3968,8 @@ func TestTopDownPartialEval(t *testing.T) {
 			}`},
 			wantQueries: []string{`data.partial.test.p.q[x] = x_term_0_0; x_term_0_0`},
 			wantSupport: []string{`package partial.test.p.q
-			foo = __local1__1 if { 
-				__local1__1 = input.y 
+			foo = __local1__1 if {
+				__local1__1 = input.y
 			}`},
 		},
 		{ // https://github.com/open-policy-agent/opa/issues/6094
@@ -3979,7 +3983,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			}`},
 			wantQueries: []string{`data.partial.test.p.q[x] = x_term_0_0; x_term_0_0`},
 			wantSupport: []string{`package partial.test.p
-			q[__local0__1] = __local1__1 if { 
+			q[__local0__1] = __local1__1 if {
 				__local0__1 = input.x
 				__local1__1 = input.y
 			}`},
@@ -3995,7 +3999,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			}`},
 			wantQueries: []string{`data.partial.test.p.q.r.s[x] = x_term_0_0; x_term_0_0`},
 			wantSupport: []string{`package partial.test.p.q.r
-			s[__local0__1] = __local1__1 if { 
+			s[__local0__1] = __local1__1 if {
 				__local0__1 = input.x
 				__local1__1 = input.y
 			}`},
@@ -4011,7 +4015,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			}`},
 			wantQueries: []string{`data.partial.test.p.q[x] = x_term_0_0; x_term_0_0`},
 			wantSupport: []string{`package partial.test.p
-			q contains __local0__1 if { 
+			q contains __local0__1 if {
 				__local0__1 = input.y
 			}`},
 		},
@@ -4025,8 +4029,8 @@ func TestTopDownPartialEval(t *testing.T) {
 			}`},
 			wantQueries: []string{`"foo/bar" = input.z; data.partial.test.p.q["foo/bar"]`},
 			wantSupport: []string{`package partial.test.p
-			q["foo/bar"].baz = true if { 
-				input.x = input.y 
+			q["foo/bar"].baz = true if {
+				input.x = input.y
 			}`},
 		},
 		{
@@ -4039,9 +4043,20 @@ func TestTopDownPartialEval(t *testing.T) {
 			}`},
 			wantQueries: []string{`"do/re" = input.a; "mi/fa" = input.b; data.partial.test.p.q["do/re"]["mi/fa"]`},
 			wantSupport: []string{`package partial.test.p
-			q["do/re"]["mi/fa"].baz = true if { 
+			q["do/re"]["mi/fa"].baz = true if {
 				input.x = input.y
 			}`},
+		},
+		{
+			note:                     "nondeterministic builtin evaluated in PE",
+			query:                    "data.test.p",
+			unknowns:                 []string{"input.x"},
+			input:                    `{"a": 2}`,
+			nondeterministicBuiltins: true,
+			modules: []string{fmt.Sprintf(`package test
+			p if input.x == http.send({"method": "POST", "url": "%s", "body": input.a}).body.p`, testserver.URL),
+			},
+			wantQueries: []string{`"x" = input.x`},
 		},
 	}
 
@@ -4087,7 +4102,8 @@ func TestTopDownPartialEval(t *testing.T) {
 				WithUnknowns(unknowns).
 				WithDisableInlining(disableInlining).
 				WithSkipPartialNamespace(tc.skipPartialNamespace).
-				WithShallowInlining(tc.shallow)
+				WithShallowInlining(tc.shallow).
+				WithNondeterministicBuiltins(tc.nondeterministicBuiltins)
 
 			// Set genvarprefix so that tests can refer to vars in generated
 			// expressions.
@@ -4309,4 +4325,20 @@ func (s moduleSet) Diff(other moduleSet) (r moduleSet) {
 
 func (s moduleSet) Equal(other moduleSet) bool {
 	return len(s.Diff(other)) == 0 && len(other.Diff(s)) == 0
+}
+
+var testserver = srv(func(w http.ResponseWriter, _ *http.Request) error {
+	w.Header().Set("Content-Type", "application/json")
+	return json.NewEncoder(w).Encode(map[string]any{
+		"p": "x",
+	})
+})
+
+func srv(f func(http.ResponseWriter, *http.Request) error) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := f(w, r); err != nil {
+			w.WriteHeader(500)
+			fmt.Fprintln(w, err.Error())
+		}
+	}))
 }
