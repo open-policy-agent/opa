@@ -74,7 +74,7 @@ func BenchmarkPartialObjectRuleCrossModule(b *testing.B) {
 
 func BenchmarkCustomFunctionInHotPath(b *testing.B) {
 	ctx := context.Background()
-	input := ast.MustParseTerm(mustReadFileAsString(b, "testdata/ast.rego"))
+	input := ast.MustParseTerm(mustReadFileAsString(b, "testdata/ast.json"))
 	module := ast.MustParseModule(`package test
 
 	import rego.v1
