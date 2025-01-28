@@ -8,6 +8,7 @@ package tester
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"sort"
@@ -56,8 +57,62 @@ func RunWithFilter(ctx context.Context, _ loader.Filter, paths ...string) ([]*Re
 }
 
 type SubResult struct {
-	Fail       bool                 `json:"fail,omitempty"`
-	SubResults map[string]SubResult `json:"sub_results,omitempty"`
+	Fail       bool         `json:"fail,omitempty"`
+	SubResults SubResultMap `json:"sub_results,omitempty"`
+}
+
+type SubResultMap map[string]*SubResult
+
+// FIXME: Cleanup SubResultMap initialization and updating
+
+func (srm SubResultMap) FailIfUnset(path ast.Array) bool {
+	current := srm
+	for i := 0; i < path.Len()-1; i++ {
+		term := path.Elem(i)
+		k := termToString(term)
+		if sr, ok := current[k]; ok {
+			current = sr.SubResults
+		} else {
+			current = SubResultMap{}
+		}
+	}
+
+	if term := path.Elem(path.Len() - 1); term != nil {
+		k := termToString(term)
+		if sr, ok := current[k]; ok {
+			return sr.Fail
+		}
+
+		current[k] = &SubResult{
+			Fail: true,
+		}
+	}
+
+	return true
+}
+
+type unknownResolver struct{}
+
+func (unknownResolver) Resolve(_ ast.Ref) (interface{}, error) {
+	return "UNKNOWN", nil
+}
+
+func termToString(t *ast.Term) string {
+	ti, err := ast.ValueToInterface(t.Value, unknownResolver{})
+	if err != nil {
+		return "INVALID"
+	}
+	var str string
+	var ok bool
+	if str, ok = ti.(string); !ok {
+		var buf bytes.Buffer
+		if err := json.NewEncoder(&buf).Encode(ti); err != nil {
+			return "INVALID"
+		}
+		str = strings.TrimSpace(buf.String())
+	}
+
+	return str
 }
 
 // Result represents a single test case result.
@@ -73,17 +128,18 @@ type Result struct {
 	Output          []byte                   `json:"output,omitempty"`
 	FailedAt        *ast.Expr                `json:"failed_at,omitempty"`
 	BenchmarkResult *testing.BenchmarkResult `json:"benchmark_result,omitempty"`
-	SubResults      map[string]SubResult     `json:"sub_results,omitempty"`
+	SubResults      SubResultMap             `json:"sub_results,omitempty"`
 }
 
 func newResult(loc *ast.Location, pkg, name string, duration time.Duration, trace []*topdown.Event, output []byte) *Result {
 	return &Result{
-		Location: loc,
-		Package:  pkg,
-		Name:     name,
-		Duration: duration,
-		Trace:    trace,
-		Output:   output,
+		Location:   loc,
+		Package:    pkg,
+		Name:       name,
+		Duration:   duration,
+		Trace:      trace,
+		Output:     output,
+		SubResults: SubResultMap{},
 	}
 }
 
@@ -589,16 +645,16 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	return tr, stop
 }
 
-func subResults(v any) (bool, map[string]SubResult) {
+func subResults(v any) (bool, map[string]*SubResult) {
 	if v == nil {
-		return true, map[string]SubResult{}
+		return true, map[string]*SubResult{}
 	}
 
 	var fail bool
 
 	switch x := v.(type) {
 	case map[string]any:
-		result := map[string]SubResult{}
+		result := map[string]*SubResult{}
 		for k, v := range x {
 			sr := subResult(v)
 			result[k] = sr
@@ -609,27 +665,27 @@ func subResults(v any) (bool, map[string]SubResult) {
 		return fail, result
 	}
 
-	return true, map[string]SubResult{}
+	return true, map[string]*SubResult{}
 }
 
-func subResult(v any) SubResult {
+func subResult(v any) *SubResult {
 	if v == nil {
-		return SubResult{}
+		return &SubResult{}
 	}
 
 	switch x := v.(type) {
 	case map[string]any:
 		fail, srs := subResults(x)
-		return SubResult{
+		return &SubResult{
 			Fail:       fail,
 			SubResults: srs,
 		}
 	case bool:
-		return SubResult{
+		return &SubResult{
 			Fail: !x,
 		}
 	default:
-		return SubResult{
+		return &SubResult{
 			Fail: true,
 		}
 	}

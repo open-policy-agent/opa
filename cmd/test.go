@@ -206,6 +206,9 @@ func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runne
 					exitCode = 2
 				}
 			}
+			if updateFailedSubResults(tr, tr.Trace) {
+				tr.Fail = true
+			}
 			tr.Trace = filterTrace(&testParams, tr.Trace)
 			dup <- tr
 		}
@@ -222,6 +225,22 @@ func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runne
 	}
 
 	return exitCode, err
+}
+
+func updateFailedSubResults(r *tester.Result, trace []*topdown.Event) bool {
+	failed := false
+
+	for _, e := range trace {
+		if e.Op == topdown.TestCaseOp {
+			if p, ok := e.Input().Value.(*ast.Array); ok {
+				if r.SubResults.FailIfUnset(*p) {
+					failed = true
+				}
+			}
+		}
+	}
+
+	return failed
 }
 
 func filterTrace(params *testCommandParams, trace []*topdown.Event) []*topdown.Event {
