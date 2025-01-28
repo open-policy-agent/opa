@@ -37,6 +37,9 @@ import (
 	"testing"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
+	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
+
 	"github.com/gorilla/mux"
 
 	"github.com/open-policy-agent/opa/internal/distributedtracing"
@@ -5857,15 +5860,28 @@ func TestDistributedTracingEnabled(t *testing.T) {
 func TestDistributedTracingResourceAttributes(t *testing.T) {
 	t.Parallel()
 
-	c := []byte(`{"distributed_tracing": {
+	attributes := map[attribute.Key]string{
+		semconv.DeploymentEnvironmentKey: "prod",
+		semconv.ServiceNameKey:           "my-service",
+		semconv.ServiceVersionKey:        "1.0",
+		semconv.ServiceNamespaceKey:      "my-namespace",
+		semconv.ServiceInstanceIDKey:     "1",
+	}
+
+	c := []byte(fmt.Sprintf(`{"distributed_tracing": {
 		"type": "grpc",
-		"service_name": "my-service",
+		"service_name": "%s",
 		"resource": {
-			"service_namespace": "my-namespace",
-			"service_version": "1.0",
-			"service_instance_id": "1"
+			"service_namespace": "%s",
+			"service_version": "%s",
+			"service_instance_id": "%s",
+			"deployment_environment": "%s"
 		}
-		}}`)
+		}}`, attributes[semconv.ServiceNameKey],
+		attributes[semconv.ServiceNamespaceKey],
+		attributes[semconv.ServiceVersionKey],
+		attributes[semconv.ServiceInstanceIDKey],
+		attributes[semconv.DeploymentEnvironmentKey]))
 
 	ctx := context.Background()
 	_, traceProvider, resource, err := distributedtracing.Init(ctx, c, "foo")
@@ -5878,9 +5894,16 @@ func TestDistributedTracingResourceAttributes(t *testing.T) {
 	if resource == nil {
 		t.Fatalf("Resource was not initialized")
 	}
-	if len(resource.Attributes()) != 4 {
-		t.Fatalf("Unexpected resource attributes count. Expected: %v, Got: %v", 4, len(resource.Attributes()))
+	if len(resource.Attributes()) != 5 {
+		t.Fatalf("Unexpected resource attributes count. Expected: %v, Got: %v", 5, len(resource.Attributes()))
 	}
+
+	for _, value := range resource.Attributes() {
+		if attribute.StringValue(attributes[value.Key]) != value.Value {
+			t.Fatalf("Unexpected resource attribute. Expected: %v, Got: %v", attributes[value.Key], value)
+		}
+	}
+
 }
 
 func TestCertPoolReloading(t *testing.T) {

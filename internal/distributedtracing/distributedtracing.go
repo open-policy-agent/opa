@@ -55,9 +55,10 @@ func isSupportedSampleRatePercentage(sampleRate int) bool {
 }
 
 type resourceConfig struct {
-	ServiceVersion    string `json:"service_version,omitempty"`
-	ServiceInstanceID string `json:"service_instance_id,omitempty"`
-	ServiceNamespace  string `json:"service_namespace,omitempty"`
+	ServiceVersion        string `json:"service_version,omitempty"`
+	ServiceInstanceID     string `json:"service_instance_id,omitempty"`
+	ServiceNamespace      string `json:"service_namespace,omitempty"`
+	DeploymentEnvironment string `json:"deployment_environment,omitempty"`
 }
 
 type distributedTracingConfig struct {
@@ -116,6 +117,13 @@ func Init(ctx context.Context, raw []byte, id string) (*otlptrace.Exporter, *tra
 	}
 	if distributedTracingConfig.Resource.ServiceNamespace != "" {
 		resourceAttributes = append(resourceAttributes, semconv.ServiceNamespaceKey.String(distributedTracingConfig.Resource.ServiceNamespace))
+	}
+
+	// NOTE: this is currently using the `deployment.environment` setting which is being deprecated
+	// in favour of `deployment.environment.name` in future versions of the OpenTelemetry schema.
+	// This will need to be taken into account when upgrading the library version in the future.
+	if distributedTracingConfig.Resource.DeploymentEnvironment != "" {
+		resourceAttributes = append(resourceAttributes, semconv.DeploymentEnvironmentKey.String(distributedTracingConfig.Resource.DeploymentEnvironment))
 	}
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
