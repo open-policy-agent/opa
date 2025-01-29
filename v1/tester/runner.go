@@ -63,7 +63,7 @@ type SubResult struct {
 
 type SubResultMap map[string]*SubResult
 
-// FIXME: Cleanup SubResultMap initialization and updating
+// TODO: Cleanup SubResultMap initialization and updating
 
 func (srm SubResultMap) FailIfUnset(path ast.Array) bool {
 	current := srm
@@ -73,7 +73,12 @@ func (srm SubResultMap) FailIfUnset(path ast.Array) bool {
 		if sr, ok := current[k]; ok {
 			current = sr.SubResults
 		} else {
-			current = SubResultMap{}
+			srm := SubResultMap{}
+			current[k] = &SubResult{
+				SubResults: srm,
+				Fail:       true,
+			}
+			current = srm
 		}
 	}
 
@@ -413,6 +418,12 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 		Stage:      rewriteDuplicateTestNames,
 	})
 
+	r.compiler.WithStageAfter("InitLocalVarGen", ast.CompilerStageDefinition{
+		Name:       "InjectTestCaseFunc",
+		MetricName: "inject_test_case_func",
+		Stage:      injectTestCaseFunc,
+	})
+
 	if r.store == nil {
 		r.store = inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false))
 	}
@@ -521,13 +532,23 @@ func (r *Runner) shouldRun(rule *ast.Rule, testRegex *regexp.Regexp) bool {
 // This uses a global "count" of each to ensure compiling more than once as new modules
 // are added can't introduce duplicates again.
 func rewriteDuplicateTestNames(compiler *ast.Compiler) *ast.Error {
+	// FIXME: Should test_* ref rules with static suffixes be rewritten?
+	// E.g., data.example.test_a.b.c -> data.example.test_a#01.b.c, so it can be reported as:
+	//
+	// data.example.test_a#01: FAIL
+	//   b: FAIL
+	//     c: FAIL
+	//
+	// This could be made configurable, so that the user can choose to group tests by declaration or not.
+
 	count := map[string]int{}
 	for _, mod := range compiler.Modules {
 		for _, rule := range mod.Rules {
-			name := ruleName(rule.Head)
+			name, _ := ruleName(rule.Head)
 			if !strings.HasPrefix(name, TestPrefix) {
 				continue
 			}
+
 			key := rule.Ref().GroundPrefix().String()
 			if k, ok := count[key]; ok {
 				groundRef := rule.Head.Ref().GroundPrefix()
@@ -549,21 +570,63 @@ func rewriteDuplicateTestNames(compiler *ast.Compiler) *ast.Error {
 	return nil
 }
 
+func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
+	for _, mod := range compiler.Modules {
+		for _, rule := range mod.Rules {
+			// Only apply to test rules
+			rName, rni := ruleName(rule.Head)
+			if !strings.HasPrefix(rName, TestPrefix) {
+				continue
+			}
+
+			// TODO: Only apply to rules that doesn't have manual use of the test case function
+
+			// Construct test-case name
+			ref := rule.Head.Ref()
+			if rni < 0 || len(ref) <= rni+1 {
+				// We only inject the test-case function if there is a rule ref "tail" behind the rule name
+				continue
+			}
+			args := ast.NewArray(ref[rni+1:]...)
+
+			// Inject the test case function
+			// TODO: Find the earliest point where the test case function can be injected
+
+			rule.Body = append(rule.Body, ast.NewExpr([]*ast.Term{
+				ast.NewTerm(ast.InternalTestCase.Ref()),
+				ast.NewTerm(args),
+			}))
+		}
+	}
+	return nil
+}
+
 // ruleName is a helper to be used when checking if a function
 // (a) is a test, or
 // (b) needs to be skipped
 // -- it'll resolve `p.q.r` to `r`. For representing results, we'll
 // use rule.Head.Ref()
-func ruleName(h *ast.Head) string {
-	ref := h.Ref().GroundPrefix()
-	switch last := ref[len(ref)-1].Value.(type) {
-	case ast.Var:
-		return string(last)
-	case ast.String:
-		return string(last)
-	default:
-		return ""
+func ruleName(h *ast.Head) (string, int) {
+	var n string
+
+	index := 0
+	for i, term := range h.Ref().GroundPrefix() {
+		index = i
+		switch v := term.Value.(type) {
+		case ast.Var:
+			n = string(v)
+		case ast.String:
+			n = string(v)
+		default:
+			n = ""
+		}
+
+		if strings.HasPrefix(n, TestPrefix) || strings.HasPrefix(n, SkipTestPrefix) {
+			break
+		}
 	}
+
+	return n, index
 }
 
 func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.Module, rule *ast.Rule) (*Result, bool) {
@@ -578,7 +641,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		tracer = bufferTracer
 	}
 
-	ruleName := ruleName(rule.Head)
+	ruleName, _ := ruleName(rule.Head)
 	if strings.HasPrefix(ruleName, SkipTestPrefix) { // TODO(sr): add test
 		tr := newResult(rule.Loc(), mod.Package.Path.String(), rule.Head.Ref().GroundPrefix().String(), 0*time.Second, nil, nil)
 		tr.Skip = true
@@ -638,11 +701,31 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		}
 	} else if rule.Head.DocKind() == ast.PartialObjectDoc {
 		tr.Fail, tr.SubResults = subResults(rs[0].Expressions[0].Value)
+		// FIXME: Join with above call to subResults()?
+		if updateFailedSubResults(tr, tr.Trace) {
+			tr.Fail = true
+		}
 	} else if b, ok := rs[0].Expressions[0].Value.(bool); !ok || !b {
 		tr.Fail = true
 	}
 
 	return tr, stop
+}
+
+func updateFailedSubResults(r *Result, trace []*topdown.Event) bool {
+	failed := false
+
+	for _, e := range trace {
+		if e.Op == topdown.TestCaseOp {
+			if p, ok := e.Input().Value.(*ast.Array); ok {
+				if r.SubResults.FailIfUnset(*p) {
+					failed = true
+				}
+			}
+		}
+	}
+
+	return failed
 }
 
 func subResults(v any) (bool, map[string]*SubResult) {

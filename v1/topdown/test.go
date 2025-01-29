@@ -11,9 +11,15 @@ const TestCaseOp Op = "TestCase"
 func builtinTestCase(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	// FIXME: Don't store test-case operands as input doc on event
 	// FIXME: Update Event to include test-case operands in trace logging
+
 	e := (&Event{
 		Op:      TestCaseOp,
 		QueryID: bctx.QueryID,
+		//Node: operands[0],
+		Node: ast.NewExpr([]*ast.Term{
+			ast.NewTerm(ast.InternalTestCase.Ref()),
+			ast.NewTerm(operands[0].Value),
+		}),
 	}).WithInput(operands[0])
 
 	for _, tracer := range bctx.QueryTracers {
