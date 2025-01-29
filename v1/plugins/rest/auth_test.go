@@ -1,10 +1,13 @@
 package rest
 
 import (
+	"bytes"
+	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/keys"
+	"github.com/open-policy-agent/opa/v1/logging"
 )
 
 func TestOCIWithAWSAuthSetsUpECRAuthPlugin(t *testing.T) {
@@ -319,5 +322,54 @@ func TestOauth2WithClientAssertionPathOverrideAssertionType(t *testing.T) {
 
 	if client.config.Credentials.OAuth2.ClientAssertionType != "urn:ietf:params:oauth:my-thing" {
 		t.Errorf("OAuth2.ClientAssertionType = %v, want = %v", client.config.Credentials.OAuth2.ClientAssertionType, "urn:ietf:params:oauth:my-thing")
+	}
+}
+
+func TestBearerTokenHeaderAttachement(t *testing.T) {
+	conf := `{
+		"name": "foo",
+		"url": "http://localhost",
+		"type":"oci",
+		"credentials": {
+	      "bearer": {
+		    "token":"user:password",
+          }, 
+        }
+    }`
+	client, err := New([]byte(conf), map[string]*keys.Config{})
+	if err != nil {
+		t.Fatalf("New() = %v", err)
+	}
+	var buf bytes.Buffer
+	client.logger.SetLevel(logging.Debug)
+	client.logger.(*logging.StandardLogger).SetOutput(&buf)
+
+	_, err = client.config.Credentials.Bearer.NewClient(client.config)
+	if err != nil {
+		t.Fatalf("Bearer Auth Plugin new client should not error = %q", err)
+	}
+
+	err = client.config.Credentials.Bearer.Prepare(&http.Request{Response: &http.Response{StatusCode: http.StatusTemporaryRedirect}})
+	if err != nil {
+		t.Fatalf("Bearer Auth Plugin should not error on redirect = %q ", err)
+	}
+	if !strings.Contains(buf.String(), "not attaching authorization header as the response contains a redirect") {
+		t.Fatalf("log debug output does not contain the message to confirm that the authorization header was not attached")
+	}
+
+	err = client.config.Credentials.Bearer.Prepare(&http.Request{Response: &http.Response{StatusCode: http.StatusTemporaryRedirect}})
+	if err != nil {
+		t.Fatalf("Bearer Auth Plugin should not error on redirect = %q ", err)
+	}
+	if !strings.Contains(buf.String(), "not attaching authorization header as the response contains a redirect") {
+		t.Fatalf("log debug output does not contain the message to confirm that the authorization header was not attached")
+	}
+
+	err = client.config.Credentials.Bearer.Prepare(&http.Request{Header: http.Header{}})
+	if err != nil {
+		t.Fatalf("Bearer Auth Plugin should not error on redirect = %q ", err)
+	}
+	if !strings.Contains(buf.String(), "attaching authorization header") {
+		t.Fatalf("log debug output should show that the authorization header is attached")
 	}
 }
