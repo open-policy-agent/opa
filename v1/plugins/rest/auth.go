@@ -126,10 +126,14 @@ type bearerAuthPlugin struct {
 	// encode is set to true for the OCIDownloader because
 	// it expects tokens in plain text but needs them in base64.
 	encode bool
+	logger logging.Logger
 }
 
 func (ap *bearerAuthPlugin) NewClient(c Config) (*http.Client, error) {
 	t, err := DefaultTLSConfig(c)
+
+	ap.logger = c.logger
+
 	if err != nil {
 		return nil, err
 	}
@@ -153,6 +157,9 @@ func (ap *bearerAuthPlugin) NewClient(c Config) (*http.Client, error) {
 
 func (ap *bearerAuthPlugin) Prepare(req *http.Request) error {
 	token := ap.Token
+	if ap.logger == nil {
+		ap.logger = logging.Get()
+	}
 
 	if ap.TokenPath != "" {
 		bytes, err := os.ReadFile(ap.TokenPath)
@@ -166,7 +173,12 @@ func (ap *bearerAuthPlugin) Prepare(req *http.Request) error {
 		token = base64.StdEncoding.EncodeToString([]byte(token))
 	}
 
-	req.Header.Add("Authorization", fmt.Sprintf("%v %v", ap.Scheme, token))
+	if req.Response != nil && (req.Response.StatusCode == http.StatusPermanentRedirect || req.Response.StatusCode == http.StatusTemporaryRedirect) {
+		ap.logger.Debug("not attaching authorization header as the response contains a redirect")
+	} else {
+		ap.logger.Debug("attaching authorization header")
+		req.Header.Add("Authorization", fmt.Sprintf("%v %v", ap.Scheme, token))
+	}
 	return nil
 }
 
