@@ -3650,28 +3650,55 @@ func (e evalTerm) enumerate(iter unifyIterator) error {
 
 	switch v := e.term.Value.(type) {
 	case *ast.Array:
+		// Note(anders):
+		// For this case (e.g. input.foo[_]), we can avoid the (quite expensive) overhead of a callback
+		// function literal escaping to the heap in each iteration by inlining the biunification logic,
+		// meaning a 10x reduction in both the number of allocations made as well as the memory consumed.
+		// It is possible that such inlining could be done for the set/object cases as well, and that's
+		// worth looking into later, as I imagine set iteration in particular would be an even greater
+		// win across most policies. Those cases are however much more complex, as we need to deal with
+		// any type on either side, not just int/var as is the case here.
 		for i := 0; i < v.Len(); i++ {
-			k := ast.InternedIntNumberTerm(i)
-			if err := handleErr(e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
-				return e.next(iter, k)
-			})); err != nil {
-				return err
+			a := ast.InternedIntNumberTerm(i)
+			b := e.ref[e.pos]
+
+			if _, ok := b.Value.(ast.Var); ok {
+				if e.e.traceEnabled {
+					e.e.traceUnify(a, b)
+				}
+				var undo undo
+				b, e.bindings = e.bindings.apply(b)
+				e.bindings.bind(b, a, e.bindings, &undo)
+
+				err := e.next(iter, a)
+				undo.Undo()
+				if err != nil {
+					if err := handleErr(err); err != nil {
+						return err
+					}
+				}
 			}
 		}
 	case ast.Object:
 		for _, k := range v.Keys() {
-			if err := handleErr(e.e.biunify(k, e.ref[e.pos], e.termbindings, e.bindings, func() error {
+			err := e.e.biunify(k, e.ref[e.pos], e.termbindings, e.bindings, func() error {
 				return e.next(iter, e.termbindings.Plug(k))
-			})); err != nil {
-				return err
+			})
+			if err != nil {
+				if err := handleErr(err); err != nil {
+					return err
+				}
 			}
 		}
 	case ast.Set:
 		for _, elem := range v.Slice() {
-			if err := handleErr(e.e.biunify(elem, e.ref[e.pos], e.termbindings, e.bindings, func() error {
+			err := e.e.biunify(elem, e.ref[e.pos], e.termbindings, e.bindings, func() error {
 				return e.next(iter, e.termbindings.Plug(elem))
-			})); err != nil {
-				return err
+			})
+			if err != nil {
+				if err := handleErr(err); err != nil {
+					return err
+				}
 			}
 		}
 	}

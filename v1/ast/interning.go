@@ -17,6 +17,9 @@ var (
 	minusOneTerm = &Term{Value: Number("-1")}
 
 	InternedNullTerm = &Term{Value: Null{}}
+
+	InternedEmptyString = StringTerm("")
+	InternedEmptyObject = ObjectTerm()
 )
 
 // InternedBooleanTerm returns an interned term with the given boolean value.
@@ -1092,7 +1095,3 @@ var intNumberTerms = [...]*Term{
 	{Value: Number("511")},
 	{Value: Number("512")},
 }
-
-var InternedEmptyString = StringTerm("")
-
-var InternedEmptyObject = ObjectTerm()

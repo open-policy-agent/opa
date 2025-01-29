@@ -153,6 +153,12 @@ func (c *baseCache) Get(ref ast.Ref) ast.Value {
 		if node == nil {
 			return nil
 		} else if node.value != nil {
+			if len(ref) == 1 && ast.IsScalar(node.value) {
+				// If the node is a scalar, return the value directly
+				// and avoid an allocation when calling Find.
+				return node.value
+			}
+
 			result, err := node.value.Find(ref[i+1:])
 			if err != nil {
 				return nil

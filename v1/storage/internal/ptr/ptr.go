@@ -43,8 +43,15 @@ func ValuePtr(data ast.Value, path storage.Path) (ast.Value, error) {
 		key := path[i]
 		switch curr := node.(type) {
 		case ast.Object:
-			keyTerm := ast.StringTerm(key)
+			// This term is only created for the lookup, which is not.. ideal.
+			// By using the pool, we can at least avoid allocating the term itself,
+			// while still having to pay 1 allocation for the value. A better solution
+			// would be dynamically interned string terms.
+			keyTerm := ast.TermPtrPool.Get()
+			keyTerm.Value = ast.String(key)
+
 			val := curr.Get(keyTerm)
+			ast.TermPtrPool.Put(keyTerm)
 			if val == nil {
 				return nil, errors.NewNotFoundError(path)
 			}
