@@ -4,7 +4,9 @@ The following table lists OPA project maintainers and areas of expertise in alph
 
 | Name | GitHub | Email | Organization | Repositories/Area of Expertise | Added/Renewed On |
 | --- | --- | --- | --- | --- |------------------|
+| Anders Eknert | @anderseknert | anders@styra.com | Styra | opa | 2025-01-27 |
 | Ash Narkar | @ashutosh-narkar | anarkar4387@gmail.com | Styra | opa, opa-envoy-plugin | 2024-03-31       |
+| Charlie Egan | @charlieegan3 | charlie@styra.com | Styra | opa | 2025-01-27 |
 | Max Smythe | @maxsmythe | smythe@google.com | Google | frameworks/constraints, gatekeeper, gatekeeper-library, cert-controller | 2024-03-31       |
 | Nilekh Chaudhari | @nilekhc | nilekhc@gmail.com | Microsoft | gatekeeper-library | 2024-03-31       |
 | Rita Zhang | @ritazh | rita.z.zhang@gmail.com | Microsoft | frameworks/constraints, gatekeeper, gatekeeper-library, cert-controller | 2024-03-31       |
