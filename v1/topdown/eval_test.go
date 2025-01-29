@@ -23,7 +23,7 @@ func TestQueryIDFactory(t *testing.T) {
 	t.Parallel()
 
 	f := &queryIDFactory{}
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		if n := f.Next(); n != uint64(i) {
 			t.Errorf("expected %d, got %d", i, n)
 		}
@@ -1685,7 +1685,7 @@ func BenchmarkFormatVarTerm(b *testing.B) {
 		index:        54321,
 	}
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = e.fmtVarTerm()
 	}
 }

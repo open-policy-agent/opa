@@ -91,7 +91,7 @@ func builtinArrayReverse(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 	length := arr.Len()
 	reversedArr := make([]*ast.Term, length)
 
-	for index := 0; index < length; index++ {
+	for index := range length {
 		reversedArr[index] = arr.Elem(length - index - 1)
 	}
 

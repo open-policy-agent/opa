@@ -309,7 +309,7 @@ func RuneSliceOperand(x ast.Value, pos int) ([]rune, error) {
 	}
 
 	var f = make([]rune, a.Len())
-	for k := 0; k < a.Len(); k++ {
+	for k := range a.Len() {
 		b := a.Elem(k)
 		c, ok := b.Value.(ast.String)
 		if !ok {

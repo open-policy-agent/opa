@@ -517,7 +517,7 @@ func parseAnnotations(comments []*Comment) ([]*Annotations, Errors) {
 	var curr *metadataParser
 	var blocks []*metadataParser
 
-	for i := 0; i < len(comments); i++ {
+	for i := range comments {
 		if curr != nil {
 			if comments[i].Location.Row == comments[i-1].Location.Row+1 && comments[i].Location.Col == 1 {
 				curr.Append(comments[i])

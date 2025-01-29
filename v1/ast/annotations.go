@@ -325,7 +325,7 @@ func compareAuthors(a, b []*AuthorAnnotation) int {
 		return -1
 	}
 
-	for i := 0; i < len(a); i++ {
+	for i := range a {
 		if cmp := a[i].Compare(b[i]); cmp != 0 {
 			return cmp
 		}
@@ -341,7 +341,7 @@ func compareRelatedResources(a, b []*RelatedResourceAnnotation) int {
 		return -1
 	}
 
-	for i := 0; i < len(a); i++ {
+	for i := range a {
 		if cmp := strings.Compare(a[i].String(), b[i].String()); cmp != 0 {
 			return cmp
 		}
@@ -356,7 +356,7 @@ func compareSchemas(a, b []*SchemaAnnotation) int {
 		maxLen = len(b)
 	}
 
-	for i := 0; i < maxLen; i++ {
+	for i := range maxLen {
 		if cmp := a[i].Compare(b[i]); cmp != 0 {
 			return cmp
 		}
@@ -378,7 +378,7 @@ func compareStringLists(a, b []string) int {
 		return -1
 	}
 
-	for i := 0; i < len(a); i++ {
+	for i := range a {
 		if cmp := strings.Compare(a[i], b[i]); cmp != 0 {
 			return cmp
 		}

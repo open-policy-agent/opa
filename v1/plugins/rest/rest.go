@@ -94,7 +94,7 @@ func (c *Config) AuthPlugin(lookup AuthPluginLookupFunc) (HTTPAuthPlugin, error)
 	}
 	// reflection avoids need for this code to change as auth plugins are added
 	s := reflect.ValueOf(c.Credentials)
-	for i := 0; i < s.NumField(); i++ {
+	for i := range s.NumField() {
 		if s.Field(i).IsNil() {
 			continue
 		}

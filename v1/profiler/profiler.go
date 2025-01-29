@@ -311,7 +311,7 @@ func AggregateProfiles(profiles ...[]ExprStats) []ExprStatsAggregated {
 		return []ExprStatsAggregated{}
 	}
 	res := make([]ExprStatsAggregated, len(profiles[0]))
-	for j := 0; j < len(profiles[0]); j++ {
+	for j := range len(profiles[0]) {
 		var s []ExprStats
 		for _, p := range profiles {
 			s = append(s, p[j])
@@ -378,6 +378,9 @@ func (ms *multiSorter) Less(i, j int) bool {
 	p, q := &ms.stats[i], &ms.stats[j]
 	// Try all but the last comparison.
 	var k int
+	// changing this here changes the semantics, likely because
+	// k outlives the range.. seems like a bug in the intrange linter
+	//nolint:intrange
 	for k = 0; k < len(ms.less)-1; k++ {
 		less := ms.less[k]
 		switch {

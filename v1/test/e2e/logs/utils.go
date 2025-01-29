@@ -43,7 +43,7 @@ func RunDecisionLoggerBenchmark(b *testing.B, rt *e2e.TestRuntime) {
 				}
 				b.ResetTimer()
 
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					b.StartTimer()
 
 					bodyJSON, err := rt.GetDataWithInput("data/test/rule", input)
@@ -79,7 +79,7 @@ func GeneratePolicy(ruleCounts int, ruleHits int) string {
 	pb := strings.Builder{}
 	pb.WriteString("package test\n")
 	hits := 0
-	for i := 0; i < ruleCounts; i++ {
+	for range ruleCounts {
 		pb.WriteString("rule if {")
 		if hits < ruleHits {
 			pb.WriteString("input.hit = true")

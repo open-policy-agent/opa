@@ -154,7 +154,7 @@ func (vs *variableManager) subVars(v ast.Value) VarRef {
 
 	if arr, ok := v.(*ast.Array); ok {
 		vars := make([]namedVar, 0, arr.Len())
-		for i := 0; i < arr.Len(); i++ {
+		for i := range arr.Len() {
 			vars = append(vars, namedVar{
 				name:  fmt.Sprintf("%d", i),
 				value: arr.Elem(i).Value,

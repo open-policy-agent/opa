@@ -45,7 +45,7 @@ import (
 func delimiterIndices(s string, delimiterStart, delimiterEnd byte) ([]int, error) {
 	var level, idx int
 	idxs := make([]int, 0)
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		switch s[i] {
 		case delimiterStart:
 			if level++; level == 1 {

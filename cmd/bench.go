@@ -214,7 +214,7 @@ func benchMain(args []string, params benchmarkCommandParams, w io.Writer, r benc
 	}
 
 	// Run the benchmark as many times as specified, re-use the prepared objects for each
-	for i := 0; i < params.count; i++ {
+	for range params.count {
 		br, err := r.run(ctx, ectx, params, benchFunc)
 		if err != nil {
 			errRender := renderBenchmarkError(params, err, w)
@@ -252,7 +252,7 @@ func (r *goBenchRunner) run(ctx context.Context, ectx *evalContext, params bench
 		hist.Clear()
 
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 
 			// Start the timer (might already be started, but that's ok)
 			b.StartTimer()
@@ -350,7 +350,7 @@ func benchE2E(ctx context.Context, args []string, params benchmarkCommandParams,
 	baseDelay := time.Duration(100) * time.Millisecond
 	maxDelay := time.Duration(60) * time.Second
 	retries := 3 // Max of around 1 minute total wait time.
-	for i := 0; i < retries; i++ {
+	for i := range retries {
 		if len(rt.Addrs()) == 0 {
 			delay := util.DefaultBackoff(float64(baseDelay), float64(maxDelay), i)
 			time.Sleep(delay)
@@ -415,7 +415,7 @@ func benchE2E(ctx context.Context, args []string, params benchmarkCommandParams,
 		url += "?metrics=true"
 	}
 
-	for i := 0; i < params.count; i++ {
+	for range params.count {
 		br, err := runE2E(params, url, body)
 		if err != nil {
 			return err
@@ -441,7 +441,7 @@ func runE2E(params benchmarkCommandParams, url string, input map[string]interfac
 		hist.Clear()
 
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 
 			// Start the timer
 			b.StartTimer()

@@ -884,7 +884,7 @@ func BenchmarkMd5(b *testing.B) {
 
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		err := builtinCryptoMd5(bctx, operands, iter)
 		if err != nil {
 			b.Fatalf("unexpected error: %v", err)

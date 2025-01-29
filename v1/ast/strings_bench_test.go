@@ -7,7 +7,7 @@ func BenchmarkTypeName(b *testing.B) {
 	term := StringTerm("foo")
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		name := TypeName(term.Value)
 		if name != "string" {
 			b.Fatalf("expected string but got %v", name)
@@ -20,7 +20,7 @@ func BenchmarkValueName(b *testing.B) {
 	term := StringTerm("foo")
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		name := ValueName(term.Value)
 		if name != "string" {
 			b.Fatalf("expected string but got %v", name)

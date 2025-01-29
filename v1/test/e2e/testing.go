@@ -288,7 +288,7 @@ func WithRuntime(t *testing.T, opts TestRuntimeOpts, params runtime.Params, f fu
 func (t *TestRuntime) WaitForServer() error {
 	delay := time.Duration(100) * time.Millisecond
 	retries := 100 // 10 seconds before we give up
-	for i := 0; i < retries; i++ {
+	for range retries {
 		// First make sure it has started listening and we have an address
 		if t.URL() != "" {
 			// Then make sure it has started serving

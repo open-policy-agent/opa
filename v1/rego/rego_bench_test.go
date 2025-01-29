@@ -26,7 +26,7 @@ func BenchmarkPartialObjectRuleCrossModule(b *testing.B) {
 			query := "data.test.foo"
 
 			input := make(map[string]interface{})
-			for idx := 0; idx <= 3; idx++ {
+			for idx := range 4 {
 				input[fmt.Sprintf("test_input_%d", idx)] = "test_input_10"
 			}
 			inputAST, err := ast.InterfaceToValue(input)
@@ -57,7 +57,7 @@ func BenchmarkPartialObjectRuleCrossModule(b *testing.B) {
 
 			b.ResetTimer()
 
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_, err = pq.Eval(
 					ctx,
 					EvalParsedInput(inputAST),
@@ -100,7 +100,7 @@ func BenchmarkCustomFunctionInHotPath(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		res, err := pq.Eval(ctx, EvalParsedInput(input.Value))
 		if err != nil {
 			b.Fatal(err)
@@ -126,7 +126,7 @@ func BenchmarkAciTestBuildAndEval(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		bundle, err := loader.NewFileLoader().
 			WithRegoVersion(ast.RegoV0).
 			AsBundle("testdata/aci")
@@ -175,7 +175,7 @@ func BenchmarkAciTestOnlyEval(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		res, err := pq.Eval(ctx, EvalParsedInput(input.Value))
 		if err != nil {
 			b.Fatal(err)
@@ -191,7 +191,7 @@ func BenchmarkArrayIteration(b *testing.B) {
 	ctx := context.Background()
 
 	at := make([]*ast.Term, 512)
-	for i := 0; i < 511; i++ {
+	for i := range 511 {
 		at[i] = ast.StringTerm("a")
 	}
 	at[511] = ast.StringTerm("v")
@@ -213,7 +213,7 @@ func BenchmarkArrayIteration(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		res, err := pq.Eval(ctx, EvalParsedInput(input))
 		if err != nil {
 			b.Fatal(err)
@@ -236,7 +236,7 @@ func BenchmarkSetIteration(b *testing.B) {
 	ctx := context.Background()
 
 	at := make([]*ast.Term, 512)
-	for i := 0; i < 512; i++ {
+	for i := range 512 {
 		at[i] = ast.StringTerm(strconv.Itoa(i))
 	}
 
@@ -259,7 +259,7 @@ func BenchmarkSetIteration(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		res, err := pq.Eval(ctx, EvalParsedInput(input))
 		if err != nil {
 			b.Fatal(err)
@@ -280,7 +280,7 @@ func BenchmarkObjectIteration(b *testing.B) {
 	ctx := context.Background()
 
 	at := make([][2]*ast.Term, 512)
-	for i := 0; i < 512; i++ {
+	for i := range 512 {
 		at[i] = ast.Item(ast.StringTerm(strconv.Itoa(i)), ast.StringTerm(strconv.Itoa(i)))
 	}
 
@@ -304,7 +304,7 @@ func BenchmarkObjectIteration(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		res, err := pq.Eval(ctx, EvalParsedInput(input))
 		if err != nil {
 			b.Fatal(err)

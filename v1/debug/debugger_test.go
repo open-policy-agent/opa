@@ -181,7 +181,7 @@ f(x) := y if {
 					expBrHits = tc.brHits
 				}
 
-				for i := 0; i < expBrHits; i++ {
+				for range expBrHits {
 					if err := s.ResumeAll(); err != nil {
 						t.Fatalf("Unexpected error resuming threads: %v", err)
 					}
@@ -324,7 +324,7 @@ p if {
 				if tc.brHits > 0 {
 					expBrHits = tc.brHits
 				}
-				for i := 0; i < expBrHits; i++ {
+				for range expBrHits {
 					if err := s.ResumeAll(); err != nil {
 						t.Fatalf("Unexpected error resuming threads: %v", err)
 					}
@@ -474,7 +474,7 @@ p if {
 				if tc.brHits > 0 {
 					expBrHits = tc.brHits
 				}
-				for i := 0; i < expBrHits; i++ {
+				for range expBrHits {
 					if err := s.ResumeAll(); err != nil {
 						t.Fatalf("Unexpected error resuming threads: %v", err)
 					}

@@ -41,14 +41,14 @@ func TestBindingsArrayHashmap(t *testing.T) {
 	b := newBindingsArrayHashmap()
 	keys := make(map[int]ast.Var)
 
-	for i := 0; i < maxLinearScan+1; i++ {
+	for i := range maxLinearScan + 1 {
 		b.Put(testBindingKey(i), testBindingValue(&bindings, i))
 		keys[i] = testBindingKey(i).Value.(ast.Var)
 
 		testBindingKeys(t, &bindings, &b, keys)
 	}
 
-	for i := 0; i < maxLinearScan+1; i++ {
+	for i := range maxLinearScan + 1 {
 		b.Delete(testBindingKey(i))
 		delete(keys, i)
 

@@ -237,7 +237,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}
 	// wait until each server has finished shutting down
 	var errorList []error
-	for i := 0; i < len(s.httpListeners); i++ {
+	for range s.httpListeners {
 		err := <-errChan
 		if err != nil {
 			errorList = append(errorList, err)

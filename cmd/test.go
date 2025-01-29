@@ -148,7 +148,7 @@ func opaTest(args []string, testParams testCommandParams) (int, error) {
 	}
 
 	success := true
-	for i := 0; i < testParams.count; i++ {
+	for range testParams.count {
 		exitCode, err := runTests(ctx, txn, runner, reporter, testParams)
 		if exitCode != 0 {
 			success = false
@@ -322,7 +322,7 @@ func processWatcherUpdate(ctx context.Context, testParams testCommandParams, pat
 			return err
 		}
 
-		for i := 0; i < testParams.count; i++ {
+		for range testParams.count {
 			exitCode, err := runTests(ctx, txn, runner, reporter, testParams)
 			if exitCode != 0 {
 				return err

@@ -1388,7 +1388,7 @@ func mergeSchemas(schemas ...*gojsonschema.SubSchema) (*gojsonschema.SubSchema, 
 		} else if result.Types.Contains("object") && len(result.PropertiesChildren) > 0 && schemas[i].Types.Contains("object") && len(schemas[i].PropertiesChildren) > 0 {
 			result.PropertiesChildren = append(result.PropertiesChildren, schemas[i].PropertiesChildren...)
 		} else if result.Types.Contains("array") && len(result.ItemsChildren) > 0 && schemas[i].Types.Contains("array") && len(schemas[i].ItemsChildren) > 0 {
-			for j := 0; j < len(schemas[i].ItemsChildren); j++ {
+			for j := range len(schemas[i].ItemsChildren) {
 				if len(result.ItemsChildren)-1 < j && !(len(schemas[i].ItemsChildren)-1 < j) {
 					result.ItemsChildren = append(result.ItemsChildren, schemas[i].ItemsChildren[j])
 				}
@@ -4411,7 +4411,7 @@ func resolveRefsInExpr(globals map[Var]*usedRef, ignore *declaredVarStack, expr 
 		cpy.Terms = resolveRefsInTerm(globals, ignore, ts)
 	case []*Term:
 		buf := make([]*Term, len(ts))
-		for i := 0; i < len(ts); i++ {
+		for i := range ts {
 			buf[i] = resolveRefsInTerm(globals, ignore, ts[i])
 		}
 		cpy.Terms = buf
@@ -4516,7 +4516,7 @@ func resolveRefsInTerm(globals map[Var]*usedRef, ignore *declaredVarStack, term 
 
 func resolveRefsInTermArray(globals map[Var]*usedRef, ignore *declaredVarStack, terms *Array) []*Term {
 	cpy := make([]*Term, terms.Len())
-	for i := 0; i < terms.Len(); i++ {
+	for i := range terms.Len() {
 		cpy[i] = resolveRefsInTerm(globals, ignore, terms.Elem(i))
 	}
 	return cpy
@@ -4524,7 +4524,7 @@ func resolveRefsInTermArray(globals map[Var]*usedRef, ignore *declaredVarStack, 
 
 func resolveRefsInTermSlice(globals map[Var]*usedRef, ignore *declaredVarStack, terms []*Term) []*Term {
 	cpy := make([]*Term, len(terms))
-	for i := 0; i < len(terms); i++ {
+	for i := range terms {
 		cpy[i] = resolveRefsInTerm(globals, ignore, terms[i])
 	}
 	return cpy
@@ -4798,7 +4798,7 @@ func rewriteDynamicsOne(original *Expr, f *equalityFactory, term *Term, result B
 		connectGeneratedExprs(original, generated)
 		return result, result[len(result)-1].Operand(0)
 	case *Array:
-		for i := 0; i < v.Len(); i++ {
+		for i := range v.Len() {
 			var t *Term
 			result, t = rewriteDynamicsOne(original, f, v.Elem(i), result)
 			v.set(i, t)
@@ -4875,7 +4875,7 @@ func rewriteExprTermsInHead(gen *localVarGenerator, rule *Rule) {
 
 func rewriteExprTermsInBody(gen *localVarGenerator, body Body) Body {
 	cpy := make(Body, 0, len(body))
-	for i := 0; i < len(body); i++ {
+	for i := range body {
 		for _, expr := range expandExpr(gen, body[i]) {
 			cpy.Append(expr)
 		}
@@ -5028,7 +5028,7 @@ func expandExprRef(gen *localVarGenerator, v []*Term) (support []*Expr) {
 }
 
 func expandExprTermArray(gen *localVarGenerator, arr *Array) (support []*Expr) {
-	for i := 0; i < arr.Len(); i++ {
+	for i := range arr.Len() {
 		extras, v := expandExprTerm(gen, arr.Elem(i))
 		arr.set(i, v)
 		support = append(support, extras...)
@@ -5710,7 +5710,7 @@ func validateWith(c *Compiler, unsafeBuiltinsMap map[string]struct{}, expr *Expr
 	case isDataRef(target):
 		ref := target.Value.(Ref)
 		targetNode := c.RuleTree
-		for i := 0; i < len(ref)-1; i++ {
+		for i := range len(ref) - 1 {
 			child := targetNode.Child(ref[i].Value)
 			if child == nil {
 				break

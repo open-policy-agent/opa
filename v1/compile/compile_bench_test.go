@@ -55,7 +55,7 @@ func generateDynamicPolicyBenchmarkData(N int) map[string]string {
 			}`,
 	}
 
-	for i := 0; i < N; i++ {
+	for i := range N {
 		files[fmt.Sprintf("policy%d.rego", i)] = generateDynamicMockPolicy(i)
 	}
 
@@ -100,7 +100,7 @@ func generateLargePartialRuleBenchmarkData(N int) map[string]string {
 
 	policy.WriteString(`package example.large.partial.rules.policy["dynamic_part"].main`)
 	policy.WriteString("\n\n")
-	for i := 0; i < N; i++ {
+	for i := range N {
 		policy.WriteString(generateLargePartialRuleMockRule(i))
 		policy.WriteString("\n\n")
 	}

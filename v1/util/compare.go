@@ -82,7 +82,7 @@ func Compare(a, b interface{}) int {
 			if bLen < minLen {
 				minLen = bLen
 			}
-			for i := 0; i < minLen; i++ {
+			for i := range minLen {
 				cmp := Compare(a[i], b[i])
 				if cmp != 0 {
 					return cmp
@@ -106,7 +106,7 @@ func Compare(a, b interface{}) int {
 			if bLen < minLen {
 				minLen = bLen
 			}
-			for i := 0; i < minLen; i++ {
+			for i := range minLen {
 				if aKeys[i] < bKeys[i] {
 					return -1
 				} else if bKeys[i] < aKeys[i] {

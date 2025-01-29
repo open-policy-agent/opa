@@ -892,7 +892,7 @@ func Compare(a, b Type) int {
 			minLen = lenStaticB
 		}
 
-		for i := 0; i < minLen; i++ {
+		for i := range minLen {
 			if cmp := util.Compare(objA.static[i].Key, objB.static[i].Key); cmp != 0 {
 				return cmp
 			}
@@ -931,7 +931,7 @@ func Compare(a, b Type) int {
 		} else if len(fA.args) > len(fB.args) {
 			return 1
 		}
-		for i := 0; i < len(fA.args); i++ {
+		for i := range len(fA.args) {
 			if cmp := Compare(fA.args[i], fB.args[i]); cmp != 0 {
 				return cmp
 			}
@@ -1172,7 +1172,7 @@ func typeSliceCompare(a, b []Type) int {
 	if len(b) < minLen {
 		minLen = len(b)
 	}
-	for i := 0; i < minLen; i++ {
+	for i := range minLen {
 		if cmp := Compare(a[i], b[i]); cmp != 0 {
 			return cmp
 		}

@@ -106,7 +106,7 @@ func (v *varValidator) validateVarType(typ *ast.Type, val reflect.Value) (reflec
 			slc = reflect.Append(slc, val)
 			val = slc
 		}
-		for i := 0; i < val.Len(); i++ {
+		for i := range val.Len() {
 			resetPath()
 			v.path = append(v.path, ast.PathIndex(i))
 			field := val.Index(i)

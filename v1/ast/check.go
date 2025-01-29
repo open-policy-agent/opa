@@ -284,7 +284,7 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 
 		// Construct function type.
 		args := make([]types.Type, len(rule.Head.Args))
-		for i := 0; i < len(rule.Head.Args); i++ {
+		for i := range len(rule.Head.Args) {
 			args[i] = cpy.Get(rule.Head.Args[i])
 		}
 
@@ -525,7 +525,7 @@ func unify2Array(env *TypeEnv, a *Term, b *Term) bool {
 	switch bv := b.Value.(type) {
 	case *Array:
 		if arr.Len() == bv.Len() {
-			for i := 0; i < arr.Len(); i++ {
+			for i := range arr.Len() {
 				if !unify2(env, arr.Elem(i), env.Get(arr.Elem(i)), bv.Elem(i), env.Get(bv.Elem(i))) {
 					return false
 				}
@@ -565,7 +565,7 @@ func unify1(env *TypeEnv, term *Term, tpe types.Type, union bool) bool {
 			return unify1Array(env, v, tpe, union)
 		case types.Any:
 			if types.Compare(tpe, types.A) == 0 {
-				for i := 0; i < v.Len(); i++ {
+				for i := range v.Len() {
 					unify1(env, v.Elem(i), types.A, true)
 				}
 				return true
@@ -638,7 +638,7 @@ func unify1Array(env *TypeEnv, val *Array, tpe *types.Array, union bool) bool {
 	if val.Len() != tpe.Len() && tpe.Dynamic() == nil {
 		return false
 	}
-	for i := 0; i < val.Len(); i++ {
+	for i := range val.Len() {
 		if !unify1(env, val.Elem(i), tpe.Select(i), union) {
 			return false
 		}
@@ -948,7 +948,7 @@ func unifiesArrays(a, b *types.Array) bool {
 
 func unifiesArraysStatic(a, b *types.Array) bool {
 	if a.Len() != 0 {
-		for i := 0; i < a.Len(); i++ {
+		for i := range a.Len() {
 			if !unifies(a.Select(i), b.Select(i)) {
 				return false
 			}

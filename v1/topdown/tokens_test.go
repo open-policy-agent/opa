@@ -491,7 +491,7 @@ func TestTopdownJWTEncodeSignECWithSeedReturnsSameSignature(t *testing.T) {
 	  }, x)`
 
 	encodedSigned := "eyJhbGciOiJFUzI1NiJ9.eyJwYXkiOiJsb2FkIn0.wDU6G2XTYFP3QdVYhy-PBzkacEFNJwVT4HPQHOLtUmJu-OcVUaX9n-Ukv50AJwoF59L2wS5aOzoUwuru48Q4tw"
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		q := NewQuery(ast.MustParseBody(query)).
 			WithSeed(&cng{}).
 			WithStrictBuiltinErrors(true).

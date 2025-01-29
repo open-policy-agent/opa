@@ -373,7 +373,7 @@ func (b *bindingsArrayHashmap) Delete(key *ast.Term) {
 
 func (b *bindingsArrayHashmap) Iter(f func(k *ast.Term, v value) bool) {
 	if b.m == nil {
-		for i := 0; i < b.n; i++ {
+		for i := range b.n {
 			if f((*b.a)[i].key, (*b.a)[i].value) {
 				return
 			}
@@ -390,7 +390,7 @@ func (b *bindingsArrayHashmap) Iter(f func(k *ast.Term, v value) bool) {
 
 func (b *bindingsArrayHashmap) find(key *ast.Term) int {
 	v := key.Value.(ast.Var)
-	for i := 0; i < b.n; i++ {
+	for i := range b.n {
 		if (*b.a)[i].key.Value.(ast.Var) == v {
 			return i
 		}

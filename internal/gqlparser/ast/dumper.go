@@ -88,7 +88,7 @@ func typeName(t reflect.Type) string {
 func (d *dumper) dumpArray(v reflect.Value) {
 	d.WriteString("[" + typeName(v.Type().Elem()) + "]")
 
-	for i := 0; i < v.Len(); i++ {
+	for i := range v.Len() {
 		d.nl()
 		d.WriteString("- ")
 		d.indent++
@@ -102,7 +102,7 @@ func (d *dumper) dumpStruct(v reflect.Value) {
 	d.indent++
 
 	typ := v.Type()
-	for i := 0; i < v.NumField(); i++ {
+	for i := range v.NumField() {
 		f := v.Field(i)
 		if typ.Field(i).Tag.Get("dump") == "-" {
 			continue
@@ -132,13 +132,13 @@ func isZero(v reflect.Value) bool {
 			return true
 		}
 		z := true
-		for i := 0; i < v.Len(); i++ {
+		for i := range v.Len() {
 			z = z && isZero(v.Index(i))
 		}
 		return z
 	case reflect.Struct:
 		z := true
-		for i := 0; i < v.NumField(); i++ {
+		for i := range v.NumField() {
 			z = z && isZero(v.Field(i))
 		}
 		return z

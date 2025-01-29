@@ -1178,7 +1178,7 @@ func compareBuffers(t *testing.T, expected, actual string) {
 		min = len(b)
 	}
 
-	for i := 0; i < min; i++ {
+	for i := range min {
 		if a[i] != b[i] {
 			t.Errorf("Line %v in trace is incorrect. Expected %q but got: %q", i+1, a[i], b[i])
 		}

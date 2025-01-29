@@ -325,7 +325,7 @@ func TestTruncateMultipleTxn(t *testing.T) {
 
 		archiveFiles := map[string]string{}
 
-		for i := 0; i < 20; i++ {
+		for i := range 20 {
 
 			path := fmt.Sprintf("users/user%d/data.json", i)
 

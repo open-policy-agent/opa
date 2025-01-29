@@ -269,7 +269,7 @@ func readNameMap(r io.Reader) ([]module.NameMap, error) {
 		return nil, err
 	}
 	nm := make([]module.NameMap, n)
-	for i := uint32(0); i < n; i++ {
+	for i := range n {
 		var name string
 		id, err := leb128.ReadVarUint32(r)
 		if err != nil {
@@ -289,7 +289,7 @@ func readNameSectionLocals(r io.Reader, s *module.NameSection) error {
 	if err != nil {
 		return err
 	}
-	for i := uint32(0); i < n; i++ {
+	for range n {
 		id, err := leb128.ReadVarUint32(r) // func index
 		if err != nil {
 			return err
@@ -326,7 +326,7 @@ func readTypeSection(r io.Reader, s *module.TypeSection) error {
 		return err
 	}
 
-	for i := uint32(0); i < n; i++ {
+	for range n {
 
 		var ftype module.FunctionType
 		if err := readFunctionType(r, &ftype); err != nil {
@@ -346,7 +346,7 @@ func readImportSection(r io.Reader, s *module.ImportSection) error {
 		return err
 	}
 
-	for i := uint32(0); i < n; i++ {
+	for range n {
 
 		var imp module.Import
 
@@ -367,7 +367,7 @@ func readTableSection(r io.Reader, s *module.TableSection) error {
 		return err
 	}
 
-	for i := uint32(0); i < n; i++ {
+	for range n {
 
 		var table module.Table
 
@@ -396,7 +396,7 @@ func readMemorySection(r io.Reader, s *module.MemorySection) error {
 		return err
 	}
 
-	for i := uint32(0); i < n; i++ {
+	for range n {
 
 		var mem module.Memory
 
@@ -417,7 +417,7 @@ func readGlobalSection(r io.Reader, s *module.GlobalSection) error {
 		return err
 	}
 
-	for i := uint32(0); i < n; i++ {
+	for range n {
 
 		var global module.Global
 
@@ -442,7 +442,7 @@ func readExportSection(r io.Reader, s *module.ExportSection) error {
 		return err
 	}
 
-	for i := uint32(0); i < n; i++ {
+	for range n {
 
 		var exp module.Export
 
@@ -463,7 +463,7 @@ func readElementSection(r io.Reader, s *module.ElementSection) error {
 		return err
 	}
 
-	for i := uint32(0); i < n; i++ {
+	for range n {
 
 		var seg module.ElementSegment
 
@@ -484,7 +484,7 @@ func readDataSection(r io.Reader, s *module.DataSection) error {
 		return err
 	}
 
-	for i := uint32(0); i < n; i++ {
+	for range n {
 
 		var seg module.DataSegment
 
@@ -505,7 +505,7 @@ func readRawCodeSection(r io.Reader, s *module.RawCodeSection) error {
 		return err
 	}
 
-	for i := uint32(0); i < n; i++ {
+	for range n {
 		var seg module.RawCodeSegment
 
 		if err := readRawCodeSegment(r, &seg); err != nil {
@@ -838,7 +838,7 @@ func readLocals(r io.Reader, locals *[]module.LocalDeclaration) error {
 
 	ret := make([]module.LocalDeclaration, n)
 
-	for i := uint32(0); i < n; i++ {
+	for i := range n {
 		if err := readVarUint32(r, &ret[i].Count); err != nil {
 			return err
 		}
@@ -888,7 +888,7 @@ func readVarUint32Vector(r io.Reader, v *[]uint32) error {
 
 	ret := make([]uint32, n)
 
-	for i := uint32(0); i < n; i++ {
+	for i := range n {
 		if err := readVarUint32(r, &ret[i]); err != nil {
 			return err
 		}
@@ -907,7 +907,7 @@ func readValueTypeVector(r io.Reader, v *[]types.ValueType) error {
 
 	ret := make([]types.ValueType, n)
 
-	for i := uint32(0); i < n; i++ {
+	for i := range n {
 		if err := readValueType(r, &ret[i]); err != nil {
 			return err
 		}

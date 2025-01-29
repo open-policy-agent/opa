@@ -234,7 +234,7 @@ func Transform(t Transformer, x interface{}) (interface{}, error) {
 			return k, v, nil
 		})
 	case *Array:
-		for i := 0; i < y.Len(); i++ {
+		for i := range y.Len() {
 			v, err := transformTerm(t, y.Elem(i))
 			if err != nil {
 				return nil, err

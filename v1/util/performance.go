@@ -21,7 +21,7 @@ func NewPtrSlice[T any](n int) []*T {
 func GrowPtrSlice[T any](s []*T, n int) []*T {
 	s = slices.Grow(s, n)
 	p := make([]T, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		s = append(s, &p[i])
 	}
 	return s

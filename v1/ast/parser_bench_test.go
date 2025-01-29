@@ -145,7 +145,7 @@ func BenchmarkParseBasicABACModule(b *testing.B) {
 
 func runParseModuleBenchmark(b *testing.B, mod string) {
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := ParseModuleWithOpts("", mod, ParserOptions{AllFutureKeywords: true})
 		if err != nil {
 			b.Fatalf("Unexpected error: %s", err)
@@ -155,7 +155,7 @@ func runParseModuleBenchmark(b *testing.B, mod string) {
 
 func runParseStatementBenchmark(b *testing.B, stmt string) {
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := ParseStatement(stmt)
 		if err != nil {
 			b.Fatalf("Unexpected error: %s", err)
@@ -165,7 +165,7 @@ func runParseStatementBenchmark(b *testing.B, stmt string) {
 
 func runParseStatementBenchmarkWithError(b *testing.B, stmt string) {
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := ParseStatement(stmt)
 		if err == nil {
 			b.Fatalf("Expected error: %s", err)
@@ -175,7 +175,7 @@ func runParseStatementBenchmarkWithError(b *testing.B, stmt string) {
 
 func generateModule(numRules int) string {
 	mod := "package bench\n"
-	for i := 0; i < numRules; i++ {
+	for i := range numRules {
 		mod += fmt.Sprintf("p%d if { input.x%d = %d }\n", i, i, i)
 	}
 	return mod
@@ -183,7 +183,7 @@ func generateModule(numRules int) string {
 
 func generateArrayStatement(size int) string {
 	a := make([]string, size)
-	for i := 0; i < size; i++ {
+	for i := range size {
 		a[i] = fmt.Sprintf("entry-%d", i)
 	}
 	return string(util.MustMarshalJSON(a))
@@ -196,7 +196,7 @@ func generateObjectStatement(width, depth int) string {
 
 func generateObject(width, depth int) map[string]interface{} {
 	o := map[string]interface{}{}
-	for i := 0; i < width; i++ {
+	for i := range width {
 		key := fmt.Sprintf("entry-%d", i)
 		if depth <= 1 {
 			o[key] = "value"
@@ -209,7 +209,7 @@ func generateObject(width, depth int) map[string]interface{} {
 
 func generateObjectOrSetStatement(depth int) string {
 	s := strings.Builder{}
-	for i := 0; i < depth; i++ {
+	for i := range depth {
 		fmt.Fprintf(&s, `{a%d:a%d|`, i, i)
 	}
 	return s.String()

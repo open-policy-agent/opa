@@ -442,7 +442,7 @@ func lookup(path storage.Path, data map[string]interface{}) (interface{}, bool) 
 	if len(path) == 0 {
 		return data, true
 	}
-	for i := 0; i < len(path)-1; i++ {
+	for i := range len(path) - 1 {
 		value, ok := data[path[i]]
 		if !ok {
 			return nil, false
