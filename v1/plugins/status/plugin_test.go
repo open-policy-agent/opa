@@ -252,7 +252,7 @@ func getConstLabels(gauge prometheus.Gauge) prometheus.Labels {
 
 	// put all label pairs into a map for easier comparison.
 	labels := make(prometheus.Labels, constLabelPairs.Len())
-	for i := 0; i < constLabelPairs.Len(); i++ {
+	for i := range constLabelPairs.Len() {
 		name := constLabelPairs.Index(i).Elem().FieldByName("Name").Elem().String()
 		value := constLabelPairs.Index(i).Elem().FieldByName("Value").Elem().String()
 		labels[name] = value
@@ -657,7 +657,7 @@ func TestPluginStartBulkUpdateMultiple(t *testing.T) {
 	statuses := map[string]*bundle.Status{}
 	tDownload, _ := time.Parse(time.RFC3339Nano, "2018-01-01T00:00:00.0000000Z")
 	tActivate, _ := time.Parse(time.RFC3339Nano, "2018-01-01T00:00:01.0000000Z")
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		name := fmt.Sprintf("test-bundle-%d", i)
 		statuses[name] = &bundle.Status{
 			Name:                     name,

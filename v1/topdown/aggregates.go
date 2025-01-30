@@ -230,7 +230,7 @@ func builtinMember(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) 
 	case ast.Set:
 		return iter(ast.InternedBooleanTerm(c.Contains(containee)))
 	case *ast.Array:
-		for i := 0; i < c.Len(); i++ {
+		for i := range c.Len() {
 			if c.Elem(i).Value.Compare(containee.Value) == 0 {
 				return iter(ast.InternedBooleanTerm(true))
 			}

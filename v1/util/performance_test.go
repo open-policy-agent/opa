@@ -8,9 +8,9 @@ type testStruct struct {
 
 func BenchmarkNewPtrSlice(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		s := NewPtrSlice[testStruct](100)
-		for j := 0; j < 100; j++ {
+		for j := range 100 {
 			s[j].foo = j
 		}
 	}

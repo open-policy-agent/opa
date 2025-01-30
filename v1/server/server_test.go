@@ -1898,7 +1898,7 @@ func generateJSONBenchmarkData(k, v int) map[string]interface{} {
 
 	// create large JSON object value (100,000 entries is about 2MB on disk)
 	values := map[string]interface{}{}
-	for i := 0; i < v; i++ {
+	for i := range v {
 		values[fmt.Sprintf("key%d", i)] = fmt.Sprintf("value%d", i)
 	}
 
@@ -4987,7 +4987,7 @@ allow if {
 		t.Fatal(err)
 	}
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		req1, err := http.NewRequest(http.MethodGet, "http://localhost:8182/health", nil)
 		if err != nil {
 			t.Fatal(err)

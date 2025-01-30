@@ -201,7 +201,7 @@ func TestTopDownQueryCancellation(t *testing.T) {
 	})
 
 	arr := make([]interface{}, 1000)
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		arr[i] = i
 	}
 	data := map[string]interface{}{
@@ -283,7 +283,7 @@ func TestTopDownQueryCancellationEvery(t *testing.T) {
 			}
 
 			arr := make([]interface{}, 1000)
-			for i := 0; i < 1000; i++ {
+			for i := range 1000 {
 				arr[i] = i
 			}
 			data := map[string]interface{}{
@@ -1516,7 +1516,7 @@ arr := [1, 2, 3, 4, 5]
 			size := 1000
 			arr := make([]interface{}, size)
 			obj := make(map[string]interface{}, size)
-			for i := 0; i < size; i++ {
+			for i := range size {
 				arr[i] = i
 				obj[strconv.Itoa(i)] = i
 			}

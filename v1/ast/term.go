@@ -182,7 +182,7 @@ func valueToInterface(v Value, resolver Resolver, opt JSONOpt) (interface{}, err
 		return string(v), nil
 	case *Array:
 		buf := []interface{}{}
-		for i := 0; i < v.Len(); i++ {
+		for i := range v.Len() {
 			x1, err := valueToInterface(v.Elem(i).Value, resolver, opt)
 			if err != nil {
 				return nil, err
@@ -2248,7 +2248,7 @@ func (obj *object) Compare(other Value) int {
 	if len(b.keys) < len(akeys) {
 		minLen = len(bkeys)
 	}
-	for i := 0; i < minLen; i++ {
+	for i := range minLen {
 		keysCmp := Compare(akeys[i].key, bkeys[i].key)
 		if keysCmp < 0 {
 			return -1
@@ -2753,7 +2753,7 @@ func filterObject(o Value, filter Value) (Value, error) {
 		return o, nil
 	case *Array:
 		values := NewArray()
-		for i := 0; i < v.Len(); i++ {
+		for i := range v.Len() {
 			subFilter := filteredObj.Get(StringTerm(strconv.Itoa(i)))
 			if subFilter != nil {
 				filteredValue, err := filterObject(v.Elem(i).Value, subFilter.Value)

@@ -60,7 +60,7 @@ func BenchmarkTokens(b *testing.B) {
 	for _, jwtCount := range jwtCounts {
 		jwts := make([]string, jwtCount)
 
-		for i := 0; i < jwtCount; i++ {
+		for i := range jwtCount {
 			jwts[i] = createJwtB(b, fmt.Sprintf(`{"i": %d}`, i))
 		}
 
@@ -70,19 +70,19 @@ func BenchmarkTokens(b *testing.B) {
 				jobs := make(chan string, count)
 				results := make(chan bool, count)
 
-				for w := 0; w < concurrencyLevel; w++ {
+				for range concurrencyLevel {
 					go worker(jobs, results)
 				}
 
 				b.ResetTimer()
 
-				for i := 0; i < count; i++ {
+				for i := range count {
 					jobs <- jwts[i%jwtCount]
 				}
 
 				close(jobs)
 
-				for i := 0; i < count; i++ {
+				for range count {
 					r := <-results
 					if !r {
 						b.Fatal("failed to verify JWT")
@@ -128,7 +128,7 @@ func BenchmarkTokens_Cache(b *testing.B) {
 	for _, jwtCount := range jwtCounts {
 		jwts := make([]string, jwtCount)
 
-		for i := 0; i < jwtCount; i++ {
+		for i := range jwtCount {
 			jwts[i] = createJwtB(b, fmt.Sprintf(`{"i": %d}`, i))
 		}
 
@@ -138,19 +138,19 @@ func BenchmarkTokens_Cache(b *testing.B) {
 				jobs := make(chan string, count)
 				results := make(chan bool, count)
 
-				for w := 0; w < concurrencyLevel; w++ {
+				for range concurrencyLevel {
 					go worker(jobs, results)
 				}
 
 				b.ResetTimer()
 
-				for i := 0; i < count; i++ {
+				for i := range count {
 					jobs <- jwts[i%jwtCount]
 				}
 
 				close(jobs)
 
-				for i := 0; i < count; i++ {
+				for range count {
 					<-results
 				}
 			})

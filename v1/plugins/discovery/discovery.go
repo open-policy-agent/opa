@@ -244,7 +244,7 @@ func (c *Discovery) loadAndActivateBundleFromDisk(ctx context.Context) {
 			return
 		}
 
-		for retry := 0; retry < maxActivationRetry; retry++ {
+		for range maxActivationRetry {
 
 			ps, err := c.processBundle(ctx, b)
 			if err != nil {

@@ -216,7 +216,7 @@ func (r maskRule) removeValue(p []string, node interface{}) error {
 
 	// Walk to the parent of the target to be removed, the nodeParent is cached
 	// support removing of slice values
-	for i := 0; i < len(p)-1; i++ {
+	for i := range len(p) - 1 {
 		switch v := node.(type) {
 		case map[string]interface{}:
 			child, ok := v[p[i]]
@@ -285,7 +285,7 @@ func (r maskRule) mkdirp(node interface{}, path []string, value interface{}) err
 		return nil
 	}
 
-	for i := 0; i < len(path)-1; i++ {
+	for i := range len(path) - 1 {
 		switch v := node.(type) {
 		case map[string]interface{}:
 			child, ok := v[path[i]]

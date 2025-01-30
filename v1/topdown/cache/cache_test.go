@@ -469,7 +469,7 @@ func TestConcurrentInsert(t *testing.T) {
 
 	wg := sync.WaitGroup{}
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		wg.Add(1)
 
 		go func() {

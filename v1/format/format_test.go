@@ -705,7 +705,7 @@ func differsAt(a, b []byte) (int, int) {
 		minLen = len(b)
 	}
 	ln := 1
-	for i := 0; i < minLen; i++ {
+	for i := range minLen {
 		if a[i] == '\n' {
 			ln++
 		}

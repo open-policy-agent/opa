@@ -549,7 +549,7 @@ func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod 
 		// Don't count setup in the benchmark time, only evaluation time
 		b.ResetTimer()
 
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 
 			// Start the timer (might already be started, but that's ok)
 			b.StartTimer()

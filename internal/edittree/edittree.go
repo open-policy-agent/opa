@@ -552,14 +552,14 @@ func (e *EditTree) Delete(key *ast.Term) (*EditTree, error) {
 		}
 		// Do rewrites to clear out the newly-removed element.
 		e.deleteChildValue(idx)
-		for i := 0; i < len(rewritesScalars); i++ {
+		for i := range rewritesScalars {
 			originalIdx := rewritesScalars[i]
 			rewriteIdx := rewritesScalars[i] - 1
 			v := e.childScalarValues[originalIdx]
 			e.deleteChildValue(originalIdx)
 			e.setChildScalarValue(rewriteIdx, v)
 		}
-		for i := 0; i < len(rewritesComposites); i++ {
+		for i := range rewritesComposites {
 			originalIdx := rewritesComposites[i]
 			rewriteIdx := rewritesComposites[i] - 1
 			v := e.childCompositeValues[originalIdx]
@@ -591,7 +591,7 @@ func (e *EditTree) Delete(key *ast.Term) (*EditTree, error) {
 //gcassert:inline
 func sumZeroesBelowIndex(index int, bv *bitvector.BitVector) int {
 	zeroesSeen := 0
-	for i := 0; i < index; i++ {
+	for i := range index {
 		if bv.Element(i) == 0 {
 			zeroesSeen++
 		}
@@ -601,7 +601,7 @@ func sumZeroesBelowIndex(index int, bv *bitvector.BitVector) int {
 
 func findIndexOfNthZero(n int, bv *bitvector.BitVector) (int, bool) {
 	zeroesSeen := 0
-	for i := 0; i < bv.Length(); i++ {
+	for i := range bv.Length() {
 		if bv.Element(i) == 0 {
 			zeroesSeen++
 		}
@@ -831,7 +831,7 @@ func (e *EditTree) Render() *ast.Term {
 		// original array. We build a new Array with modified/deleted keys.
 		out := make([]*ast.Term, 0, e.insertions.Length())
 		eIdx := 0
-		for i := 0; i < e.insertions.Length(); i++ {
+		for i := range e.insertions.Length() {
 			// If the index == 0, that indicates we should look up the next
 			// surviving original element.
 			// If the index == 1, that indicates we should look up that

@@ -400,7 +400,7 @@ func TestHashArray(t *testing.T) {
 		t.Errorf("expected %v, got %v", exp, act)
 	}
 
-	for j := 0; j < arr1.Len(); j++ {
+	for j := range arr1.Len() {
 		for i := 0; i <= j; i++ {
 			slice := arr1.Slice(i, j)
 			exp := termSliceHash(slice.elems)
@@ -859,7 +859,7 @@ func TestSetCopy(t *testing.T) {
 func TestSetConcurrentReads(t *testing.T) {
 	// Create array of numbers.
 	numbers := make([]*Term, 10000)
-	for i := 0; i < 10000; i++ {
+	for i := range 10000 {
 		numbers[i] = IntNumberTerm(i)
 	}
 	// Shuffle numbers array for random insertion order.
@@ -869,7 +869,7 @@ func TestSetConcurrentReads(t *testing.T) {
 	})
 	// Build set with numbers in unsorted order.
 	s := NewSet()
-	for i := 0; i < len(numbers); i++ {
+	for i := range numbers {
 		s.Add(numbers[i])
 	}
 	// In-place sort on numbers.
@@ -879,7 +879,7 @@ func TestSetConcurrentReads(t *testing.T) {
 	var wg sync.WaitGroup
 	num := runtime.NumCPU()
 	wg.Add(num)
-	for i := 0; i < num; i++ {
+	for range num {
 		go func() {
 			defer wg.Done()
 			var retrieved []*Term
@@ -888,7 +888,7 @@ func TestSetConcurrentReads(t *testing.T) {
 			})
 			// Check for sortedness of retrieved results.
 			// This will hit a race condition around `s.sortedKeys`.
-			for n := 0; n < len(retrieved); n++ {
+			for n := range retrieved {
 				if retrieved[n] != numbers[n] {
 					t.Errorf("Expected: %v at iteration %d but got %v instead", numbers[n], n, retrieved[n])
 				}
@@ -901,7 +901,7 @@ func TestSetConcurrentReads(t *testing.T) {
 func TestObjectConcurrentReads(t *testing.T) {
 	// Create array of numbers.
 	numbers := make([]*Term, 10000)
-	for i := 0; i < 10000; i++ {
+	for i := range 10000 {
 		numbers[i] = IntNumberTerm(i)
 	}
 	// Shuffle numbers array for random insertion order.
@@ -911,7 +911,7 @@ func TestObjectConcurrentReads(t *testing.T) {
 	})
 	// Build an object with numbers in unsorted order.
 	o := NewObject()
-	for i := 0; i < len(numbers); i++ {
+	for i := range numbers {
 		o.Insert(numbers[i], NullTerm())
 	}
 	// In-place sort on numbers.
@@ -921,7 +921,7 @@ func TestObjectConcurrentReads(t *testing.T) {
 	var wg sync.WaitGroup
 	num := runtime.NumCPU()
 	wg.Add(num)
-	for i := 0; i < num; i++ {
+	for range num {
 		go func() {
 			defer wg.Done()
 			var retrieved []*Term
@@ -930,7 +930,7 @@ func TestObjectConcurrentReads(t *testing.T) {
 			})
 			// Check for sortedness of retrieved results.
 			// This will hit a race condition around `s.sortedKeys`.
-			for n := 0; n < len(retrieved); n++ {
+			for n := range retrieved {
 				if retrieved[n] != numbers[n] {
 					t.Errorf("Expected: %v at iteration %d but got %v instead", numbers[n], n, retrieved[n])
 				}
@@ -987,7 +987,7 @@ func TestArrayOperations(t *testing.T) {
 			`[1, 2, 3, 4]`,
 			[]string{"1", "2", "3", "4"},
 			func(arr *Array) {
-				for i := 0; i < arr.Len(); i++ {
+				for i := range arr.Len() {
 					results = append(results, arr.Elem(i))
 				}
 			},

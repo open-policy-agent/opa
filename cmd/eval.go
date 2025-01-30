@@ -394,7 +394,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 	profiles := make([][]profiler.ExprStats, ectx.params.count)
 	timers := make([]map[string]interface{}, ectx.params.count)
 
-	for i := 0; i < ectx.params.count; i++ {
+	for i := range ectx.params.count {
 		results[i] = evalOnce(ctx, ectx)
 		profiles[i] = results[i].Profile
 		if ts, ok := results[i].Metrics.(metrics.TimerMetrics); ok {

@@ -281,8 +281,7 @@ baz if {
 		t.Fatalf("Expected %v stats instead got %v", expectedResLen, len(stats))
 	}
 
-	var i int
-	for i = 0; i < len(stats)-1; i++ {
+	for i := range len(stats) - 1 {
 		if stats[i].ExprTimeNs < stats[i+1].ExprTimeNs {
 			t.Fatalf("Results not sorted in decreasing order of evaluation times")
 		}
@@ -344,7 +343,7 @@ baz if {
 	}
 
 	var i int
-	for i = 0; i < len(stats)-1; i++ {
+	for i = range len(stats) - 1 {
 		if stats[i].NumEval < stats[i+1].NumEval {
 			t.Fatalf("Results not sorted in decreasing order of number of evaluations")
 		}
@@ -412,7 +411,7 @@ baz if {
 	}
 
 	var i int
-	for i = 0; i < len(stats)-1; i++ {
+	for i = range len(stats) - 1 {
 		if stats[i].NumEval < stats[i+1].NumEval {
 			t.Fatalf("Results not sorted in decreasing order of number of evaluations")
 		}

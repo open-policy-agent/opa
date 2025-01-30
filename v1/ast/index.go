@@ -849,7 +849,7 @@ func globDelimiterToString(delim *Term) (string, bool) {
 	if arr.Len() == 0 {
 		result = "."
 	} else {
-		for i := 0; i < arr.Len(); i++ {
+		for i := range arr.Len() {
 			term := arr.Elem(i)
 			s, ok := term.Value.(String)
 			if !ok {

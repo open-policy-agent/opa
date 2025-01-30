@@ -32,7 +32,7 @@ result if {
 
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 
 		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 
@@ -77,7 +77,7 @@ result if {
 
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 
 		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 
@@ -101,11 +101,12 @@ result if {
 }
 
 func generateBulkStartsWithInput() map[string]interface{} {
-	var strs, prefixes []string
-	for i := 0; i < 1000; i++ {
+	strs := make([]string, 0, 1000)
+	for i := range strs {
 		strs = append(strs, fmt.Sprintf("aabbccddeeffgghhiijjkkllmmnnoopp_%d", i))
 	}
-	for i := 0; i < 100; i++ {
+	prefixes := make([]string, 0, 100)
+	for i := range prefixes {
 		prefixes = append(prefixes, fmt.Sprintf("aabbccddeeffgghhiijjkkllmmnnoorr_%d", i))
 	}
 	return map[string]interface{}{
@@ -131,7 +132,7 @@ func BenchmarkSplit(b *testing.B) {
 
 	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if err := builtinSplit(bctx, operands, exp); err != nil {
 			b.Fatal(err)
 		}
@@ -152,7 +153,7 @@ func BenchmarkSubstring(b *testing.B) {
 
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if err := builtinSubstring(BuiltinContext{}, operands, iter); err != nil {
 			b.Fatal(err)
 		}
@@ -172,7 +173,7 @@ func BenchmarkIndexOf(b *testing.B) {
 
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if err := builtinIndexOf(BuiltinContext{}, operands, eqIter(ast.InternedIntNumberTerm(40))); err != nil {
 			b.Fatal(err)
 		}
@@ -218,7 +219,7 @@ func BenchmarkTrimSpace(b *testing.B) {
 	for _, c := range cases {
 		b.Run(c.input, func(b *testing.B) {
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				if err := builtinTrimSpace(bctx, c.operands, iter); err != nil {
 					b.Fatal(err)
 				}

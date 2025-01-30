@@ -43,7 +43,7 @@ func BenchmarkProfilerBigLocalVar(b *testing.B) {
 
 				b.ResetTimer()
 
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					b.StartTimer()
 					_, err = pq.Eval(ctx, rego.EvalQueryTracer(profiler))
 					b.StopTimer()
@@ -65,12 +65,12 @@ p if {
 	x := a
 	v := x[i]
 `)
-	for i := 0; i < numVars; i++ {
+	for i := range numVars {
 		sb.WriteString(fmt.Sprintf("\tv%d := x[i+%d]\n", i, i))
 	}
 	sb.WriteString("\tfalse\n}\n")
 	sb.WriteString("\na := [\n")
-	for i := 0; i < dataSize; i++ {
+	for i := range dataSize {
 		sb.WriteString(fmt.Sprintf("\t%d,\n", i))
 	}
 	sb.WriteString("]\n")

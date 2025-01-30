@@ -1504,7 +1504,7 @@ func (e *eval) saveExprMarkUnknowns(expr *ast.Expr, b *bindings, iter unifyItera
 	e.traceSave(expr)
 	err = iter()
 	e.saveStack.Pop()
-	for i := 0; i < pops; i++ {
+	for range pops {
 		e.saveSet.Pop()
 	}
 	return err
@@ -1534,7 +1534,7 @@ func (e *eval) saveUnify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) e
 	err := iter()
 
 	e.saveStack.Pop()
-	for i := 0; i < pops; i++ {
+	for range pops {
 		e.saveSet.Pop()
 	}
 
@@ -1561,7 +1561,7 @@ func (e *eval) saveCall(declArgsLen int, terms []*ast.Term, iter unifyIterator) 
 	err := iter()
 
 	e.saveStack.Pop()
-	for i := 0; i < pops; i++ {
+	for range pops {
 		e.saveSet.Pop()
 	}
 	return err
@@ -1583,7 +1583,7 @@ func (e *eval) saveInlinedNegatedExprs(exprs []*ast.Expr, iter unifyIterator) er
 		e.traceSave(expr)
 	}
 	err := iter()
-	for i := 0; i < len(exprs); i++ {
+	for range exprs {
 		e.saveStack.Pop()
 	}
 	return err
@@ -2107,7 +2107,7 @@ func (e evalFunc) evalCache(argCount int, iter unifyIterator) (ast.Ref, bool, er
 	}
 
 	cacheKey := make([]*ast.Term, plen)
-	for i := 0; i < plen; i++ {
+	for i := range plen {
 		if e.terms[i].IsGround() {
 			// Avoid expensive copying of ref if it is ground.
 			cacheKey[i] = e.terms[i]
@@ -2378,7 +2378,7 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 	if doc != nil {
 		switch doc := doc.(type) {
 		case *ast.Array:
-			for i := 0; i < doc.Len(); i++ {
+			for i := range doc.Len() {
 				k := ast.InternedIntNumberTerm(i)
 				err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
 					return e.next(iter, k)
@@ -3658,7 +3658,7 @@ func (e evalTerm) enumerate(iter unifyIterator) error {
 		// worth looking into later, as I imagine set iteration in particular would be an even greater
 		// win across most policies. Those cases are however much more complex, as we need to deal with
 		// any type on either side, not just int/var as is the case here.
-		for i := 0; i < v.Len(); i++ {
+		for i := range v.Len() {
 			a := ast.InternedIntNumberTerm(i)
 			b := e.ref[e.pos]
 

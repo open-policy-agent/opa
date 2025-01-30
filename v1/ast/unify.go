@@ -135,7 +135,7 @@ func (u *unifier) unify(a *Term, b *Term) {
 			}
 		case *Array:
 			if a.Len() == b.Len() {
-				for i := 0; i < a.Len(); i++ {
+				for i := range a.Len() {
 					u.unify(a.Elem(i), b.Elem(i))
 				}
 			}

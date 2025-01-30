@@ -95,7 +95,7 @@ func TestChunkEncoderAdaptive(t *testing.T) {
 
 	var chunks [][]byte
 	numEvents := 400
-	for i := 0; i < numEvents; i++ {
+	for i := range numEvents {
 
 		bundles := map[string]BundleInfoV1{}
 		bundles["authz"] = BundleInfoV1{Revision: fmt.Sprint(i)}

@@ -151,6 +151,7 @@ linters:
     - errcheck
     - govet
     - ineffassign
+    - intrange
     - revive # replacement for golint
     - gofmt
     - goimports

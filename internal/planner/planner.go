@@ -223,7 +223,7 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 	}
 
 	// Initialize parameters for functions.
-	for i := 0; i < len(rules[0].Head.Args); i++ {
+	for range len(rules[0].Head.Args) {
 		fn.Params = append(fn.Params, p.newLocal())
 	}
 

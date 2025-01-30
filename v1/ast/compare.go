@@ -300,7 +300,7 @@ func importsCompare(a, b []*Import) int {
 	if len(b) < minLen {
 		minLen = len(b)
 	}
-	for i := 0; i < minLen; i++ {
+	for i := range minLen {
 		if cmp := a[i].Compare(b[i]); cmp != 0 {
 			return cmp
 		}
@@ -319,7 +319,7 @@ func annotationsCompare(a, b []*Annotations) int {
 	if len(b) < minLen {
 		minLen = len(b)
 	}
-	for i := 0; i < minLen; i++ {
+	for i := range minLen {
 		if cmp := a[i].Compare(b[i]); cmp != 0 {
 			return cmp
 		}
@@ -338,7 +338,7 @@ func rulesCompare(a, b []*Rule) int {
 	if len(b) < minLen {
 		minLen = len(b)
 	}
-	for i := 0; i < minLen; i++ {
+	for i := range minLen {
 		if cmp := a[i].Compare(b[i]); cmp != 0 {
 			return cmp
 		}
@@ -357,7 +357,7 @@ func termSliceCompare(a, b []*Term) int {
 	if len(b) < minLen {
 		minLen = len(b)
 	}
-	for i := 0; i < minLen; i++ {
+	for i := range minLen {
 		if cmp := Compare(a[i], b[i]); cmp != 0 {
 			return cmp
 		}
@@ -375,7 +375,7 @@ func withSliceCompare(a, b []*With) int {
 	if len(b) < minLen {
 		minLen = len(b)
 	}
-	for i := 0; i < minLen; i++ {
+	for i := range minLen {
 		if cmp := Compare(a[i], b[i]); cmp != 0 {
 			return cmp
 		}

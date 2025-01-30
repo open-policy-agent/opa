@@ -267,7 +267,7 @@ func (m Manifest) equalWasmResolversAndRoots(other Manifest) bool {
 		return false
 	}
 
-	for i := 0; i < len(m.WasmResolvers); i++ {
+	for i := range len(m.WasmResolvers) {
 		if !m.WasmResolvers[i].Equal(&other.WasmResolvers[i]) {
 			return false
 		}
@@ -298,7 +298,7 @@ func (wr *WasmResolver) Equal(other *WasmResolver) bool {
 		return false
 	}
 
-	for i := 0; i < annotLen; i++ {
+	for i := range annotLen {
 		if wr.Annotations[i].Compare(other.Annotations[i]) != 0 {
 			return false
 		}
@@ -333,7 +333,7 @@ func (m *Manifest) validateAndInjectDefaults(b Bundle) error {
 		roots[i] = strings.Trim(roots[i], "/")
 	}
 
-	for i := 0; i < len(roots)-1; i++ {
+	for i := range len(roots) - 1 {
 		for j := i + 1; j < len(roots); j++ {
 			if RootPathsOverlap(roots[i], roots[j]) {
 				return fmt.Errorf("manifest has overlapped roots: '%v' and '%v'", roots[i], roots[j])
@@ -763,7 +763,7 @@ func (r *Reader) Read() (Bundle, error) {
 	for _, r := range bundle.Manifest.WasmResolvers {
 		epMap[r.Module] = append(epMap[r.Module], r.Entrypoint)
 	}
-	for i := 0; i < len(bundle.WasmModules); i++ {
+	for i := range len(bundle.WasmModules) {
 		entrypoints := epMap[bundle.WasmModules[i].Path]
 		for _, entrypoint := range entrypoints {
 			ref, err := ast.PtrRef(ast.DefaultRootDocument, entrypoint)
@@ -1354,7 +1354,7 @@ func (b *Bundle) readData(key []string) *interface{} {
 
 	node := b.Data
 
-	for i := 0; i < len(key)-1; i++ {
+	for i := range len(key) - 1 {
 
 		child, ok := node[key[i]]
 		if !ok {

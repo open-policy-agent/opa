@@ -89,7 +89,7 @@ func BenchmarkDirectoryLoader(b *testing.B) {
 // Creates a flat JSON object of configurable size.
 func benchTestGetFlatDataJSON(numKeys int) string {
 	largeFile := make(map[string]string, numKeys)
-	for i := 0; i < numKeys; i++ {
+	for i := range numKeys {
 		largeFile[strconv.FormatInt(int64(i), 10)] = strings.Repeat("A", 1024)
 	}
 	return string(util.MustMarshalJSON(largeFile))

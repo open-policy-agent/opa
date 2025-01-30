@@ -199,7 +199,7 @@ func TestHTTPEnableJSONOrYAMLDecode(t *testing.T) {
 
 	headers := func(xs ...string) func(map[string]interface{}) {
 		hdrs := map[string]interface{}{}
-		for i := 0; i < len(xs)/2; i++ {
+		for i := range len(xs) / 2 {
 			hdrs[xs[2*i]] = []interface{}{xs[2*i+1]}
 		}
 		return func(x map[string]interface{}) {
@@ -1431,7 +1431,7 @@ func TestHTTPSendInterQueryCaching(t *testing.T) {
 			qStr := strings.ReplaceAll(tc.query, "%URL%", ts.URL)
 			q := newQuery(qStr, t0)
 
-			for i := 0; i < 3; i++ {
+			for i := range 3 {
 				res, err := q.Run(context.Background())
 				if err != nil {
 					t.Fatal(err)
@@ -1594,7 +1594,7 @@ func TestHTTPSendInterQueryForceCaching(t *testing.T) {
 			qStr := strings.ReplaceAll(tc.query, "%URL%", ts.URL)
 			q := newQuery(qStr, t0)
 
-			for i := 0; i < 3; i++ {
+			for i := range 3 {
 				res, err := q.Run(context.Background())
 				if err != nil {
 					t.Fatal(err)
@@ -1702,7 +1702,7 @@ func TestHTTPSendInterQueryForceCachingRefresh(t *testing.T) {
 			   then expire it out and run again to simulate an
 			   expired cache
 			*/
-			for i := 0; i < 2; i++ {
+			for i := range 2 {
 				resp, err := q.Run(context.Background())
 				if err != nil {
 					t.Fatal(err)
@@ -1836,7 +1836,7 @@ func TestHTTPSendInterQueryCachingModifiedResp(t *testing.T) {
 			qStr := strings.ReplaceAll(tc.query, "%URL%", ts.URL)
 			q := newQuery(qStr, t0)
 
-			for i := 0; i < 3; i++ {
+			for i := range 3 {
 				res, err := q.Run(context.Background())
 				if err != nil {
 					t.Fatal(err)
@@ -1913,7 +1913,7 @@ func TestHTTPSendInterQueryCachingNewResp(t *testing.T) {
 			qStr := strings.ReplaceAll(tc.query, "%URL%", ts.URL)
 			q := newQuery(qStr, t0)
 
-			for i := 0; i < 3; i++ {
+			for i := range 3 {
 				res, err := q.Run(context.Background())
 				if err != nil {
 					t.Fatal(err)
@@ -2001,7 +2001,7 @@ func TestInsertIntoHTTPSendInterQueryCacheError(t *testing.T) {
 			qStr := strings.ReplaceAll(tc.query, "%URL%", ts.URL)
 			q := newQuery(qStr, t0)
 
-			for i := 0; i < 3; i++ {
+			for i := range 3 {
 				res, err := q.Run(context.Background())
 				if err != nil {
 					t.Fatal(err)

@@ -1177,7 +1177,7 @@ func (body Body) Compare(other Body) int {
 	if len(other) < minLen {
 		minLen = len(other)
 	}
-	for i := 0; i < minLen; i++ {
+	for i := range minLen {
 		if cmp := body[i].Compare(other[i]); cmp != 0 {
 			return cmp
 		}
