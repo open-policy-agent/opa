@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -418,7 +419,7 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 		Stage:      rewriteDuplicateTestNames,
 	})
 
-	r.compiler.WithStageAfter("InitLocalVarGen", ast.CompilerStageDefinition{
+	r.compiler.WithStageAfter("RewriteLocalVars", ast.CompilerStageDefinition{
 		Name:       "InjectTestCaseFunc",
 		MetricName: "inject_test_case_func",
 		Stage:      injectTestCaseFunc,
@@ -570,9 +571,13 @@ func rewriteDuplicateTestNames(compiler *ast.Compiler) *ast.Error {
 	return nil
 }
 
+// TODO: Explain why we inject the internal.test_case function, and why we want to place it as far up the rule body as possible.
+// And that this might require us to also move generated assignment expressions up too.
 func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 	for _, mod := range compiler.Modules {
 		for _, rule := range mod.Rules {
+			// FIXME: Do we need to account for else blocks?
+
 			// Only apply to test rules
 			rName, rni := ruleName(rule.Head)
 			if !strings.HasPrefix(rName, TestPrefix) {
@@ -587,18 +592,112 @@ func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 				// We only inject the test-case function if there is a rule ref "tail" behind the rule name
 				continue
 			}
-			args := ast.NewArray(ref[rni+1:]...)
+			argsRef := ref[rni+1:]
+			args := ast.NewArray(argsRef...)
 
-			// Inject the test case function
-			// TODO: Find the earliest point where the test case function can be injected
+			// Find the earliest point where the test case function can be injected
 
-			rule.Body = append(rule.Body, ast.NewExpr([]*ast.Term{
+			injectBelow := len(rule.Body) - 1
+
+			// Find generated local vars referenced in the head whose assignment expr can be moved up the body
+			for _, term := range argsRef {
+				// We expect to find generated expressions, if any, at the tail of the body
+				for i := len(rule.Body) - 1; i >= 0; {
+					expr := rule.Body[i]
+					moved := false
+
+					// If the expression is a generated assignment of a var in the head ref, we attempt to move it as far
+					// up the body as possible.
+					// Once done for all vars in the head ref, we can inject the test case function below the last (possibly moved) such expr.
+					if expr.Generated && (expr.IsEquality() || expr.IsAssignment()) && expr.Operand(0).Equal(term) {
+						// Based on the vars in the rhs of the expr, see if we can move it up the rule body
+						// Can we get away with just placing it under the lowes first occurrence of any referenced var?
+						vars := ast.NewVarSet()
+						ast.WalkVars(expr.Operand(1), func(v ast.Var) bool {
+							// We only care about local vars
+							if isLocalVar(v) {
+								vars.Add(v)
+							}
+							return false
+						})
+
+						if len(vars) == 0 {
+							// No local vars referenced, can be moved to top of body
+							rule.Body, moved = moveExpr(rule.Body, i, 0)
+						} else {
+							// Find the lowest individual index of each var referenced in the rhs, and select the highest
+
+							// TODO: Use TypedValueMap once synced with main
+							lowest := ast.NewValueMap()
+
+							for j := i - 1; j >= 0; j-- {
+								expr := rule.Body[j]
+								ast.WalkVars(expr, func(v ast.Var) bool {
+									if vars.Contains(v) {
+										lowest.Put(v, ast.Number(strconv.Itoa(j)))
+										return true
+									}
+									return false
+								})
+							}
+
+							highest := 0
+							lowest.Iter(func(k, v ast.Value) bool {
+								if n, err := strconv.Atoi(string(v.(ast.Number))); err == nil {
+									if n > highest {
+										highest = n
+									}
+								}
+								return false
+							})
+
+							if highest < i {
+								// Move the expression to just after the lowest index
+								rule.Body, moved = moveExpr(rule.Body, i, highest+1)
+							}
+						}
+					}
+
+					// If the expression was moved, we need to re-evaluate the current index, as it contains a new expression
+					if !moved {
+						i--
+					}
+				}
+			}
+
+			testCaseFuncExpr := ast.NewExpr([]*ast.Term{
 				ast.NewTerm(ast.InternalTestCase.Ref()),
 				ast.NewTerm(args),
-			}))
+			})
+
+			rule.Body = insertExpr(rule.Body, testCaseFuncExpr, injectBelow)
 		}
 	}
 	return nil
+}
+
+func isLocalVar(v ast.Value) bool {
+	if v, ok := v.(ast.Var); ok {
+		if strings.HasPrefix(string(v), ast.LocalVarPrefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func insertExpr(body ast.Body, expr *ast.Expr, index int) ast.Body {
+	return append(body[:index], append(ast.Body{expr}, body[index:]...)...)
+}
+
+func moveExpr(body ast.Body, from int, to int) (ast.Body, bool) {
+	if from == to {
+		return body, false
+	}
+
+	expr := body[from]                                                // Save the expression to move
+	body = append(body[:from], body[from+1:]...)                      // Remove the expression from the body
+	body = append(body[:to], append(ast.Body{expr}, body[to:]...)...) // Insert the expression at the new position
+	return body, true
 }
 
 // ruleName is a helper to be used when checking if a function
