@@ -72,6 +72,7 @@ type eval struct {
 	store                       storage.Store
 	txn                         storage.Transaction
 	virtualCache                VirtualCache
+	baseCache                   BaseCache
 	interQueryBuiltinCache      cache.InterQueryCache
 	interQueryBuiltinValueCache cache.InterQueryValueCache
 	printHook                   print.Hook
@@ -80,7 +81,6 @@ type eval struct {
 	parent                      *eval
 	caller                      *eval
 	bindings                    *bindings
-	baseCache                   *baseCache
 	compiler                    *ast.Compiler
 	input                       *ast.Term
 	data                        *ast.Term
