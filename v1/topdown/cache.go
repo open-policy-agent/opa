@@ -32,6 +32,12 @@ type VirtualCache interface {
 	Keys() []ast.Ref
 }
 
+// BaseCache defines the interface for a cache that stores cached base documents, i.e. data.
+type BaseCache interface {
+	Get(ast.Ref) ast.Value
+	Put(ast.Ref, ast.Value)
+}
+
 type virtualCache struct {
 	stack []*virtualCacheElem
 }

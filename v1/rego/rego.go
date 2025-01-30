@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"strings"
 	"time"
 
@@ -128,6 +129,7 @@ type EvalContext struct {
 	capabilities                *ast.Capabilities
 	strictBuiltinErrors         bool
 	virtualCache                topdown.VirtualCache
+	baseCache                   topdown.BaseCache
 }
 
 func (e *EvalContext) RawInput() *interface{} {
@@ -365,11 +367,19 @@ func EvalPrintHook(ph print.Hook) EvalOption {
 	}
 }
 
-// EvalVirtualCache sets the topdown.VirtualCache to use for evaluation. This is
-// optional, and if not set, the default cache is used.
+// EvalVirtualCache sets the topdown.VirtualCache to use for evaluation.
+// This is optional, and if not set, the default cache is used.
 func EvalVirtualCache(vc topdown.VirtualCache) EvalOption {
 	return func(e *EvalContext) {
 		e.virtualCache = vc
+	}
+}
+
+// EvalBaseCache sets the topdown.BaseCache to use for evaluation.
+// This is optional, and if not set, the default cache is used.
+func EvalBaseCache(bc topdown.BaseCache) EvalOption {
+	return func(e *EvalContext) {
+		e.baseCache = bc
 	}
 }
 
@@ -2183,7 +2193,8 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithSeed(ectx.seed).
 		WithPrintHook(ectx.printHook).
 		WithDistributedTracingOpts(r.distributedTacingOpts).
-		WithVirtualCache(ectx.virtualCache)
+		WithVirtualCache(ectx.virtualCache).
+		WithBaseCache(ectx.baseCache)
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)
@@ -2895,14 +2906,8 @@ func (r *Rego) planQuery(queries []ast.Body, evalQueryType queryType) (*ir.Polic
 	}
 
 	decls := make(map[string]*ast.Builtin, len(r.builtinDecls)+len(ast.BuiltinMap))
-
-	for k, v := range ast.BuiltinMap {
-		decls[k] = v
-	}
-
-	for k, v := range r.builtinDecls {
-		decls[k] = v
-	}
+	maps.Copy(decls, ast.BuiltinMap)
+	maps.Copy(decls, r.builtinDecls)
 
 	const queryName = "eval" // NOTE(tsandall): the query name is arbitrary
 

@@ -62,6 +62,7 @@ type Query struct {
 	printHook                   print.Hook
 	tracingOpts                 tracing.Options
 	virtualCache                VirtualCache
+	baseCache                   BaseCache
 }
 
 // Builtin represents a built-in function that queries can call.
@@ -314,6 +315,13 @@ func (q *Query) WithVirtualCache(vc VirtualCache) *Query {
 	return q
 }
 
+// WithBaseCache sets the BaseCache to use during evaluation. This is
+// optional, and if not set, the default cache is used.
+func (q *Query) WithBaseCache(bc BaseCache) *Query {
+	q.baseCache = bc
+	return q
+}
+
 // WithNondeterministicBuiltins causes non-deterministic builtins to be evalued
 // during partial evaluation. This is needed to pull in external data, or validate
 // a JWT, during PE, so that the result informs what queries are returned.
@@ -353,6 +361,13 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		vc = NewVirtualCache()
 	}
 
+	var bc BaseCache
+	if q.baseCache != nil {
+		bc = q.baseCache
+	} else {
+		bc = newBaseCache()
+	}
+
 	e := &eval{
 		ctx:                         ctx,
 		metrics:                     q.metrics,
@@ -366,7 +381,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		bindings:                    b,
 		compiler:                    q.compiler,
 		store:                       q.store,
-		baseCache:                   newBaseCache(),
+		baseCache:                   bc,
 		targetStack:                 newRefStack(),
 		txn:                         q.txn,
 		input:                       q.input,
@@ -544,6 +559,13 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		vc = NewVirtualCache()
 	}
 
+	var bc BaseCache
+	if q.baseCache != nil {
+		bc = q.baseCache
+	} else {
+		bc = newBaseCache()
+	}
+
 	e := &eval{
 		ctx:                         ctx,
 		metrics:                     q.metrics,
@@ -557,7 +579,7 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		bindings:                    newBindings(0, q.instr),
 		compiler:                    q.compiler,
 		store:                       q.store,
-		baseCache:                   newBaseCache(),
+		baseCache:                   bc,
 		targetStack:                 newRefStack(),
 		txn:                         q.txn,
 		input:                       q.input,
