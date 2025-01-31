@@ -6,6 +6,7 @@ package ast
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -17,7 +18,7 @@ import (
 func BenchmarkParseModuleRulesBase(b *testing.B) {
 	sizes := []int{1, 10, 100, 1000}
 	for _, size := range sizes {
-		b.Run(fmt.Sprint(size), func(b *testing.B) {
+		b.Run(strconv.Itoa(size), func(b *testing.B) {
 			mod := generateModule(size)
 			runParseModuleBenchmark(b, mod)
 		})
@@ -43,7 +44,7 @@ func BenchmarkParseStatementMixedJSON(b *testing.B) {
 func BenchmarkParseStatementSimpleArray(b *testing.B) {
 	sizes := []int{1, 10, 100, 1000}
 	for _, size := range sizes {
-		b.Run(fmt.Sprint(size), func(b *testing.B) {
+		b.Run(strconv.Itoa(size), func(b *testing.B) {
 			stmt := generateArrayStatement(size)
 			runParseStatementBenchmark(b, stmt)
 		})
@@ -53,7 +54,7 @@ func BenchmarkParseStatementSimpleArray(b *testing.B) {
 func TestParseStatementSimpleArray(b *testing.T) {
 	sizes := []int{10} // , 10, 100, 1000}
 	for _, size := range sizes {
-		b.Run(fmt.Sprint(size), func(b *testing.T) {
+		b.Run(strconv.Itoa(size), func(b *testing.T) {
 			stmt := generateArrayStatement(size)
 			_, err := ParseStatement(stmt)
 			if err != nil {
@@ -78,7 +79,7 @@ func BenchmarkParseStatementNestedObjects(b *testing.B) {
 func BenchmarkParseStatementNestedObjectsOrSets(b *testing.B) {
 	sizes := []int{1, 5, 10, 15, 20}
 	for _, size := range sizes {
-		b.Run(fmt.Sprintf("%d", size), func(b *testing.B) {
+		b.Run(strconv.Itoa(size), func(b *testing.B) {
 			stmt := generateObjectOrSetStatement(size)
 			runParseStatementBenchmarkWithError(b, stmt)
 		})
@@ -90,52 +91,52 @@ func BenchmarkParseBasicABACModule(b *testing.B) {
 	package app.abac
 
 	default allow = false
-	
+
 	allow if {
 		user_is_owner
 	}
-	
+
 	allow if {
 		user_is_employee
 		action_is_read
 	}
-	
+
 	allow if {
 		user_is_employee
 		user_is_senior
 		action_is_update
 	}
-	
+
 	allow if {
 		user_is_customer
 		action_is_read
 		not pet_is_adopted
 	}
-	
+
 	user_is_owner if {
 		data.user_attributes[input.user].title == "owner"
 	}
-	
+
 	user_is_employee if {
 		data.user_attributes[input.user].title == "employee"
 	}
-	
+
 	user_is_customer if {
 		data.user_attributes[input.user].title == "customer"
 	}
-	
+
 	user_is_senior if {
 		data.user_attributes[input.user].tenure > 8
 	}
-	
+
 	action_is_read if {
 		input.action == "read"
 	}
-	
+
 	action_is_update if {
 		input.action == "update"
 	}
-	
+
 	pet_is_adopted if {
 		data.pet_attributes[input.resource].adopted == true
 	}

@@ -7,7 +7,7 @@ package ast
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"net/url"
 	"testing"
 
@@ -347,7 +347,7 @@ func TestExprBadJSON(t *testing.T) {
 	}
 	`
 
-	exp := fmt.Errorf("ast: unable to unmarshal negated field with type: json.Number (expected true or false)")
+	exp := errors.New("ast: unable to unmarshal negated field with type: json.Number (expected true or false)")
 	assert(js, exp)
 
 	js = `
@@ -358,7 +358,7 @@ func TestExprBadJSON(t *testing.T) {
 		"index": 0
 	}
 	`
-	exp = fmt.Errorf("ast: unable to unmarshal term")
+	exp = errors.New("ast: unable to unmarshal term")
 	assert(js, exp)
 
 	js = `
@@ -367,14 +367,14 @@ func TestExprBadJSON(t *testing.T) {
 		"index": 0
 	}
 	`
-	exp = fmt.Errorf(`ast: unable to unmarshal terms field with type: string (expected {"value": ..., "type": ...} or [{"value": ..., "type": ...}, ...])`)
+	exp = errors.New(`ast: unable to unmarshal terms field with type: string (expected {"value": ..., "type": ...} or [{"value": ..., "type": ...}, ...])`)
 	assert(js, exp)
 
 	js = `
 	{
 		"terms": {"value": "foo", "type": "string"}
 	}`
-	exp = fmt.Errorf("ast: unable to unmarshal index field with type: <nil> (expected integer)")
+	exp = errors.New("ast: unable to unmarshal index field with type: <nil> (expected integer)")
 	assert(js, exp)
 }
 

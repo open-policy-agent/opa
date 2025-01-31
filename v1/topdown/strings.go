@@ -5,6 +5,7 @@
 package topdown
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"sort"
@@ -227,7 +228,7 @@ func builtinIndexOf(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 		return err
 	}
 	if len(string(search)) == 0 {
-		return fmt.Errorf("empty search character")
+		return errors.New("empty search character")
 	}
 
 	if isASCII(string(base)) && isASCII(string(search)) {
@@ -262,7 +263,7 @@ func builtinIndexOfN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 		return err
 	}
 	if len(string(search)) == 0 {
-		return fmt.Errorf("empty search character")
+		return errors.New("empty search character")
 	}
 
 	baseRunes := []rune(string(base))
@@ -301,7 +302,7 @@ func builtinSubstring(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 	}
 
 	if startIndex < 0 {
-		return fmt.Errorf("negative offset")
+		return errors.New("negative offset")
 	}
 
 	sbase := string(base)

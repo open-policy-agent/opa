@@ -521,7 +521,7 @@ recommended as some updates might cause them to be dropped by OPA.
 `,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				return fmt.Errorf("specify at least one file")
+				return errors.New("specify at least one file")
 			}
 
 			// If an --explain flag was set, turn on verbose output

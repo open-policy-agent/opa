@@ -583,7 +583,7 @@ func TestRegoCustomBuiltinHalt(t *testing.T) {
 			),
 		},
 		func(BuiltinContext, *ast.Term) (*ast.Term, error) {
-			return nil, NewHaltError(fmt.Errorf("stop"))
+			return nil, NewHaltError(errors.New("stop"))
 		},
 	)
 	r := New(Query(`halt_func("")`), funOpt)

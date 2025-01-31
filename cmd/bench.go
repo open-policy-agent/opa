@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -190,7 +191,7 @@ func benchMain(args []string, params benchmarkCommandParams, w io.Writer, r benc
 			if err != nil {
 				return err
 			} else if len(result) == 0 && params.fail {
-				return fmt.Errorf("undefined result")
+				return errors.New("undefined result")
 			}
 			return nil
 		}
@@ -207,7 +208,7 @@ func benchMain(args []string, params benchmarkCommandParams, w io.Writer, r benc
 			if err != nil {
 				return err
 			} else if len(result.Queries) == 0 && params.fail {
-				return fmt.Errorf("undefined result")
+				return errors.New("undefined result")
 			}
 			return nil
 		}
@@ -307,7 +308,7 @@ func benchE2E(ctx context.Context, args []string, params benchmarkCommandParams,
 	// We fix the issue here by binding port 0; this will result in the OS
 	// allocating us an open port.
 	rtParams := runtime.Params{
-		Addrs:                  &[]string{fmt.Sprintf("%s:0", host)},
+		Addrs:                  &[]string{host + ":0"},
 		Paths:                  paths,
 		Logger:                 logger,
 		BundleMode:             params.bundlePaths.isFlagSet(),
@@ -365,7 +366,7 @@ func benchE2E(ctx context.Context, args []string, params benchmarkCommandParams,
 	}
 	// Check for port still being unbound after retry loop.
 	if port == 0 {
-		return fmt.Errorf("unable to bind a port for bench testing")
+		return errors.New("unable to bind a port for bench testing")
 	}
 
 	query, err := readQuery(params, args)
@@ -399,7 +400,7 @@ func benchE2E(ctx context.Context, args []string, params benchmarkCommandParams,
 	} else {
 		_, err := ast.ParseBody(query)
 		if err != nil {
-			return fmt.Errorf("error occurred while parsing query")
+			return errors.New("error occurred while parsing query")
 		}
 
 		if strings.HasPrefix(query, "data.") {
@@ -536,7 +537,7 @@ func e2eQuery(params benchmarkCommandParams, url string, input map[string]interf
 		}
 
 		if result.Result == nil && params.fail {
-			return nil, fmt.Errorf("undefined result")
+			return nil, errors.New("undefined result")
 		}
 
 		return result.Metrics, nil
@@ -549,31 +550,31 @@ func e2eQuery(params benchmarkCommandParams, url string, input map[string]interf
 
 	if params.fail {
 		if result.Result == nil {
-			return nil, fmt.Errorf("undefined result")
+			return nil, errors.New("undefined result")
 		}
 
 		i := *result.Result
 
 		peResult, ok := i.(map[string]interface{})
 		if !ok {
-			return nil, fmt.Errorf("invalid result for compile response")
+			return nil, errors.New("invalid result for compile response")
 		}
 
 		if len(peResult) == 0 {
-			return nil, fmt.Errorf("undefined result")
+			return nil, errors.New("undefined result")
 		}
 
 		if val, ok := peResult["queries"]; ok {
 			queries, ok := val.([]interface{})
 			if !ok {
-				return nil, fmt.Errorf("invalid result for output of partial evaluation")
+				return nil, errors.New("invalid result for output of partial evaluation")
 			}
 
 			if len(queries) == 0 {
-				return nil, fmt.Errorf("undefined result")
+				return nil, errors.New("undefined result")
 			}
 		} else {
-			return nil, fmt.Errorf("invalid result for output of partial evaluation")
+			return nil, errors.New("invalid result for output of partial evaluation")
 		}
 	}
 
@@ -606,14 +607,14 @@ func renderBenchmarkResult(params benchmarkCommandParams, br testing.BenchmarkRe
 		fmt.Fprintf(w, "\n")
 	default:
 		data := [][]string{
-			{"samples", fmt.Sprintf("%d", br.N)},
+			{"samples", strconv.Itoa(br.N)},
 			{"ns/op", prettyFormatFloat(float64(br.T.Nanoseconds()) / float64(br.N))},
 		}
 		if params.benchMem {
 			data = append(data, []string{
-				"B/op", fmt.Sprintf("%d", br.AllocedBytesPerOp()),
+				"B/op", strconv.FormatInt(br.AllocedBytesPerOp(), 10),
 			}, []string{
-				"allocs/op", fmt.Sprintf("%d", br.AllocsPerOp()),
+				"allocs/op", strconv.FormatInt(br.AllocsPerOp(), 10),
 			})
 		}
 

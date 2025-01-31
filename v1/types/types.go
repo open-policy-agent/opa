@@ -8,6 +8,7 @@ package types
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -768,7 +769,7 @@ func (t *Function) UnmarshalJSON(bs []byte) error {
 
 	f, ok := tpe.(*Function)
 	if !ok {
-		return fmt.Errorf("invalid type")
+		return errors.New("invalid type")
 	}
 
 	*t = *f

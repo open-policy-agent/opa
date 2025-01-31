@@ -3859,7 +3859,7 @@ func TestPoliciesUrlEncoded(t *testing.T) {
 	f := newFixture(t)
 
 	// PUT policy with URL encoded ID
-	put := newReqV1(http.MethodPut, fmt.Sprintf("/policies/%s", urlEscapedPolicyID), testMod)
+	put := newReqV1(http.MethodPut, "/policies/"+urlEscapedPolicyID, testMod)
 	f.server.Handler.ServeHTTP(f.recorder, put)
 
 	if f.recorder.Code != 200 {
@@ -3870,7 +3870,7 @@ func TestPoliciesUrlEncoded(t *testing.T) {
 	f.reset()
 	// GET policy with URL encoded ID
 
-	get := newReqV1(http.MethodGet, fmt.Sprintf("/policies/%s", urlEscapedPolicyID), "")
+	get := newReqV1(http.MethodGet, "/policies/"+urlEscapedPolicyID, "")
 	f.server.Handler.ServeHTTP(f.recorder, get)
 	if f.recorder.Code != 200 {
 		t.Fatalf("Expected success but got %v", f.recorder)
@@ -3888,7 +3888,7 @@ func TestPoliciesUrlEncoded(t *testing.T) {
 	f.reset()
 	// DELETE policy with URL encoded ID
 
-	deleteRequest := newReqV1(http.MethodDelete, fmt.Sprintf("/policies/%s", urlEscapedPolicyID), "")
+	deleteRequest := newReqV1(http.MethodDelete, "/policies/"+urlEscapedPolicyID, "")
 	f.server.Handler.ServeHTTP(f.recorder, deleteRequest)
 	if f.recorder.Code != 200 {
 		t.Fatalf("Expected success but got %v", f.recorder)
@@ -4214,7 +4214,7 @@ func TestDecisionIDs(t *testing.T) {
 		return nil
 	}).WithDecisionIDFactory(func() string {
 		ctr++
-		return fmt.Sprint(ctr)
+		return strconv.Itoa(ctr)
 	})
 
 	if err := f.v1("GET", "/data/undefined", "", 200, `{"decision_id": "1"}`); err != nil {
@@ -4264,7 +4264,7 @@ func TestDecisionLoggingWithHTTPRequestContext(t *testing.T) {
 
 	f.server = f.server.WithDecisionIDFactory(func() string {
 		nextID++
-		return fmt.Sprint(nextID)
+		return strconv.Itoa(nextID)
 	}).WithDecisionLoggerWithErr(func(_ context.Context, info *Info) error {
 		decisions = append(decisions, info)
 		return nil
@@ -4310,10 +4310,10 @@ func TestDecisionLogging(t *testing.T) {
 
 	f.server = f.server.WithDecisionIDFactory(func() string {
 		nextID++
-		return fmt.Sprint(nextID)
+		return strconv.Itoa(nextID)
 	}).WithDecisionLoggerWithErr(func(_ context.Context, info *Info) error {
 		if info.Path == "fail_closed/decision_logger_err" {
-			return fmt.Errorf("some error")
+			return errors.New("some error")
 		}
 		decisions = append(decisions, info)
 		return nil
@@ -4497,7 +4497,7 @@ func TestDecisionLogErrorMessage(t *testing.T) {
 	f := newFixture(t)
 
 	f.server.WithDecisionLoggerWithErr(func(context.Context, *Info) error {
-		return fmt.Errorf("xxx")
+		return errors.New("xxx")
 	})
 
 	if err := f.v1(http.MethodPost, "/data", "", 500, `{
@@ -5139,7 +5139,7 @@ type queryBindingErrStore struct {
 }
 
 func (s *queryBindingErrStore) Read(_ context.Context, _ storage.Transaction, _ storage.Path) (interface{}, error) {
-	return nil, fmt.Errorf("expected error")
+	return nil, errors.New("expected error")
 }
 
 func (*queryBindingErrStore) ListPolicies(_ context.Context, _ storage.Transaction) ([]string, error) {

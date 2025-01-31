@@ -8,6 +8,7 @@ package status
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"net/http"
@@ -425,7 +426,7 @@ func (p *Plugin) oneShot(ctx context.Context) error {
 	if p.config.Plugin != nil {
 		proxy, ok := p.manager.Plugin(*p.config.Plugin).(Logger)
 		if !ok {
-			return fmt.Errorf("plugin does not implement Logger interface")
+			return errors.New("plugin does not implement Logger interface")
 		}
 		return proxy.Log(ctx, req)
 	}

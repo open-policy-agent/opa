@@ -498,7 +498,7 @@ func validateBenchMainPrep(t *testing.T, args []string, params benchmarkCommandP
 		}
 
 		if len(rs) == 0 {
-			return testing.BenchmarkResult{}, fmt.Errorf("expected result, got none")
+			return testing.BenchmarkResult{}, errors.New("expected result, got none")
 		}
 
 		return testing.BenchmarkResult{}, nil

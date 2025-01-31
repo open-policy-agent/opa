@@ -2,7 +2,6 @@ package bundle
 
 import (
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -11,8 +10,8 @@ import (
 
 func TestErrors(t *testing.T) {
 	errs := Errors{
-		NewBundleError("foo", fmt.Errorf("foo error")),
-		NewBundleError("bar", fmt.Errorf("bar error")),
+		NewBundleError("foo", errors.New("foo error")),
+		NewBundleError("bar", errors.New("bar error")),
 	}
 
 	expected := "Bundle name: foo, Code: bundle_error, HTTPCode: -1, Message: foo error\nBundle name: bar, Code: bundle_error, HTTPCode: -1, Message: bar error"
@@ -24,8 +23,8 @@ func TestErrors(t *testing.T) {
 }
 
 func TestUnwrapSlice(t *testing.T) {
-	fooErr := NewBundleError("foo", fmt.Errorf("foo error"))
-	barErr := NewBundleError("bar", fmt.Errorf("bar error"))
+	fooErr := NewBundleError("foo", errors.New("foo error"))
+	barErr := NewBundleError("bar", errors.New("bar error"))
 
 	errs := Errors{fooErr, barErr}
 
@@ -124,7 +123,7 @@ func TestASTErrorsWrapping(t *testing.T) {
 }
 
 func TestGenericErrorWrapping(t *testing.T) {
-	err := fmt.Errorf("foo error")
+	err := errors.New("foo error")
 	bundleErr := NewBundleError("foo", err)
 
 	if bundleErr.BundleName != "foo" {

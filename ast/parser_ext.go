@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"errors"
 	"fmt"
 
 	v1 "github.com/open-policy-agent/opa/v1/ast"
@@ -279,7 +280,7 @@ func ParseStatement(input string) (Statement, error) {
 		return nil, err
 	}
 	if len(stmts) != 1 {
-		return nil, fmt.Errorf("expected exactly one statement")
+		return nil, errors.New("expected exactly one statement")
 	}
 	return stmts[0], nil
 }

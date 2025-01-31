@@ -2,6 +2,7 @@ package validator
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -11,7 +12,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/gqlparser/gqlerror"
 )
 
-var ErrUnexpectedType = fmt.Errorf("Unexpected Type")
+var ErrUnexpectedType = errors.New("Unexpected Type")
 
 // VariableValues coerces and validates variable values
 func VariableValues(schema *ast.Schema, op *ast.OperationDefinition, variables map[string]interface{}) (map[string]interface{}, error) {

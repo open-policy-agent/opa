@@ -6,6 +6,7 @@ package http
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -14,7 +15,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa"
-	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
+	werrors "github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/util"
 )
@@ -82,7 +83,7 @@ func (l *Loader) Init() (*Loader, error) {
 	}
 
 	if l.url == "" {
-		return nil, errors.New(errors.InvalidConfigErr, "missing url")
+		return nil, werrors.New(werrors.InvalidConfigErr, "missing url")
 	}
 
 	l.initialized = true
@@ -93,7 +94,7 @@ func (l *Loader) Init() (*Loader, error) {
 // successful download.  If cancelled, will return context.Cancelled.
 func (l *Loader) Start(ctx context.Context) error {
 	if !l.initialized {
-		return errors.New(errors.NotReadyErr, "")
+		return werrors.New(werrors.NotReadyErr, "")
 	}
 
 	if err := l.download(ctx); err != nil {
@@ -183,7 +184,7 @@ func (l *Loader) download(ctx context.Context) error {
 // SetPolicyData of OPA returns.
 func (l *Loader) Load(ctx context.Context) error {
 	if !l.initialized {
-		return errors.New(errors.NotReadyErr, "")
+		return werrors.New(werrors.NotReadyErr, "")
 	}
 
 	l.mutex.Lock()
@@ -191,11 +192,11 @@ func (l *Loader) Load(ctx context.Context) error {
 
 	bundle, err := l.get(ctx, "")
 	if err != nil {
-		return errors.New(errors.InvalidBundleErr, err.Error())
+		return werrors.New(werrors.InvalidBundleErr, err.Error())
 	}
 
 	if len(bundle.WasmModules) == 0 {
-		return errors.New(errors.InvalidBundleErr, "missing wasm")
+		return werrors.New(werrors.InvalidBundleErr, "missing wasm")
 	}
 
 	var data *interface{}
@@ -245,11 +246,11 @@ func (l *Loader) get(ctx context.Context, tag string) (*bundle.Bundle, error) {
 	case http.StatusNotModified:
 		return nil, nil
 	case http.StatusUnauthorized:
-		return nil, fmt.Errorf("not authorized (401)")
+		return nil, errors.New("not authorized (401)")
 	case http.StatusForbidden:
-		return nil, fmt.Errorf("forbidden (403)")
+		return nil, errors.New("forbidden (403)")
 	case http.StatusNotFound:
-		return nil, fmt.Errorf("not found (404)")
+		return nil, errors.New("not found (404)")
 	default:
 		return nil, fmt.Errorf("unknown HTTP status %v", resp.StatusCode)
 	}

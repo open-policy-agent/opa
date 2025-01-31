@@ -143,6 +143,15 @@ linters-settings:
   govet:
     enable:
       - deepequalerrors
+  perfsprint:
+    # only rule disabled by default, but it's a good one
+    err-error: true
+  revive:
+    rules:
+    # this mainly complains about us using min/max for variable names,
+    # which seems like an unlikely source of actual issues
+     - name: redefines-builtin-id
+       disabled: true
 
 linters:
   disable-all: true
@@ -164,4 +173,5 @@ linters:
     - prealloc
     - unconvert
     - copyloopvar
+    - perfsprint
     # - gosec # too many false positives

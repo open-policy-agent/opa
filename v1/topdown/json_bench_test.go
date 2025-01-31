@@ -291,11 +291,11 @@ func gen3LayerObject(l1Keys, l2Keys, l3Keys int) ast.Value {
 		for j := range l2Keys {
 			l3Obj := ast.NewObject()
 			for k := range l3Keys {
-				l3Obj.Insert(ast.StringTerm(fmt.Sprintf("%d", k)), ast.BooleanTerm(true))
+				l3Obj.Insert(ast.StringTerm(strconv.Itoa(k)), ast.InternedBooleanTerm(true))
 			}
-			l2Obj.Insert(ast.StringTerm(fmt.Sprintf("%d", j)), ast.NewTerm(l3Obj))
+			l2Obj.Insert(ast.StringTerm(strconv.Itoa(j)), ast.NewTerm(l3Obj))
 		}
-		obj.Insert(ast.StringTerm(fmt.Sprintf("%d", i)), ast.NewTerm(l2Obj))
+		obj.Insert(ast.StringTerm(strconv.Itoa(i)), ast.NewTerm(l2Obj))
 	}
 	return obj
 }
@@ -410,11 +410,11 @@ func BenchmarkJSONPatchPathologicalNestedAddChainObject(b *testing.B) {
 			patchObj.Insert(ast.StringTerm("path"), ast.StringTerm(path))
 			patchList[i] = ast.NewTerm(patchObj)
 		}
-		testdata[fmt.Sprintf("%d", n)] = ast.NewArray(patchList...)
+		testdata[strconv.Itoa(n)] = ast.NewArray(patchList...)
 	}
 
 	for _, n := range sizes {
-		testName := fmt.Sprintf("%d", n)
+		testName := strconv.Itoa(n)
 		b.Run(testName, func(b *testing.B) {
 			runJSONPatchBenchmarkTest(ctx, b, ast.NewObject(), testdata[testName])
 		})
@@ -441,11 +441,11 @@ func BenchmarkJSONPatchPathologicalNestedAddChainArray(b *testing.B) {
 			patchObj.Insert(ast.StringTerm("path"), ast.StringTerm(path))
 			patchList[i] = ast.NewTerm(patchObj)
 		}
-		testdata[fmt.Sprintf("%d", n)] = ast.NewArray(patchList...)
+		testdata[strconv.Itoa(n)] = ast.NewArray(patchList...)
 	}
 
 	for _, n := range sizes {
-		testName := fmt.Sprintf("%d", n)
+		testName := strconv.Itoa(n)
 		b.Run(testName, func(b *testing.B) {
 			runJSONPatchBenchmarkTest(ctx, b, ast.NewArray(), testdata[testName])
 		})
@@ -484,11 +484,11 @@ func BenchmarkJSONPatchPathologicalNestedAddChainSet(b *testing.B) {
 			patchObj.Insert(ast.StringTerm("path"), ast.NewTerm(path))
 			patchList[i] = ast.NewTerm(patchObj)
 		}
-		testdata[fmt.Sprintf("%d", n)] = ast.NewArray(patchList...)
+		testdata[strconv.Itoa(n)] = ast.NewArray(patchList...)
 	}
 
 	for _, n := range sizes {
-		testName := fmt.Sprintf("%d", n)
+		testName := strconv.Itoa(n)
 		b.Run(testName, func(b *testing.B) {
 			runJSONPatchBenchmarkTest(ctx, b, ast.NewSet(ast.StringTerm("a")), testdata[testName])
 		})

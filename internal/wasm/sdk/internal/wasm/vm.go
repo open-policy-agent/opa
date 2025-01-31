@@ -276,7 +276,7 @@ func getABIVersion(i *wasmtime.Instance, store wasmtime.Storelike) (int32, int32
 			return majorVal.I32(), minorVal.I32(), nil
 		}
 	}
-	return 0, 0, fmt.Errorf("failed to read ABI version")
+	return 0, 0, errors.New("failed to read ABI version")
 }
 
 // Eval performs an evaluation of the specified entrypoint, with any provided

@@ -31,7 +31,7 @@ func getLastIP(cidr *net.IPNet) (net.IP, error) {
 	prefixLen, bits := cidr.Mask.Size()
 	if prefixLen == 0 && bits == 0 {
 		// non-standard mask, see https://golang.org/pkg/net/#IPMask.Size
-		return nil, fmt.Errorf("CIDR mask is in non-standard format")
+		return nil, errors.New("CIDR mask is in non-standard format")
 	}
 	var lastIP []byte
 	if prefixLen == bits {

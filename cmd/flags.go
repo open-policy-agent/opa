@@ -78,7 +78,7 @@ func addBenchmemFlag(fs *pflag.FlagSet, benchMem *bool, value bool) {
 }
 
 func addCountFlag(fs *pflag.FlagSet, count *int, cmdType string) {
-	fs.IntVar(count, "count", 1, fmt.Sprintf("number of times to repeat each %s", cmdType))
+	fs.IntVar(count, "count", 1, "number of times to repeat each "+cmdType)
 }
 
 func addMaxErrorsFlag(fs *pflag.FlagSet, errLimit *int) {

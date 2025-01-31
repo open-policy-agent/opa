@@ -18,6 +18,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"hash"
 	"os"
@@ -204,7 +205,7 @@ func extractVerifyOpts(options ast.Object) (verifyOpt x509.VerifyOptions, err er
 			if ok {
 				verifyOpt.DNSName = strings.Trim(string(dns), "\"")
 			} else {
-				return verifyOpt, fmt.Errorf("'DNSName' should be a string")
+				return verifyOpt, errors.New("'DNSName' should be a string")
 			}
 		case "CurrentTime":
 			c, ok := options.Get(key).Value.(ast.Number)
@@ -213,10 +214,10 @@ func extractVerifyOpts(options ast.Object) (verifyOpt x509.VerifyOptions, err er
 				if ok {
 					verifyOpt.CurrentTime = time.Unix(0, nanosecs)
 				} else {
-					return verifyOpt, fmt.Errorf("'CurrentTime' should be a valid int64 number")
+					return verifyOpt, errors.New("'CurrentTime' should be a valid int64 number")
 				}
 			} else {
-				return verifyOpt, fmt.Errorf("'CurrentTime' should be a number")
+				return verifyOpt, errors.New("'CurrentTime' should be a number")
 			}
 		case "MaxConstraintComparisons":
 			c, ok := options.Get(key).Value.(ast.Number)
@@ -225,10 +226,10 @@ func extractVerifyOpts(options ast.Object) (verifyOpt x509.VerifyOptions, err er
 				if ok {
 					verifyOpt.MaxConstraintComparisions = maxComparisons
 				} else {
-					return verifyOpt, fmt.Errorf("'MaxConstraintComparisons' should be a valid number")
+					return verifyOpt, errors.New("'MaxConstraintComparisons' should be a valid number")
 				}
 			} else {
-				return verifyOpt, fmt.Errorf("'MaxConstraintComparisons' should be a number")
+				return verifyOpt, errors.New("'MaxConstraintComparisons' should be a number")
 			}
 		case "KeyUsages":
 			type forEach interface {
@@ -241,7 +242,7 @@ func extractVerifyOpts(options ast.Object) (verifyOpt x509.VerifyOptions, err er
 			case ast.Set:
 				ks = options.Get(key).Value.(ast.Set)
 			default:
-				return verifyOpt, fmt.Errorf("'KeyUsages' should be an Array or Set")
+				return verifyOpt, errors.New("'KeyUsages' should be an Array or Set")
 			}
 
 			// Collect the x509.ExtKeyUsage values by looking up the
@@ -262,7 +263,7 @@ func extractVerifyOpts(options ast.Object) (verifyOpt x509.VerifyOptions, err er
 				return x509.VerifyOptions{}, fmt.Errorf("invalid entries for 'KeyUsages' found: %s", invalidKUsgs)
 			}
 		default:
-			return verifyOpt, fmt.Errorf("invalid key option")
+			return verifyOpt, errors.New("invalid key option")
 		}
 
 	}
@@ -312,7 +313,7 @@ func builtinCryptoX509ParseCertificateRequest(_ BuiltinContext, operands []*ast.
 
 	p, _ := pem.Decode(bytes)
 	if p != nil && p.Type != blockTypeCertificateRequest {
-		return fmt.Errorf("invalid PEM-encoded certificate signing request")
+		return errors.New("invalid PEM-encoded certificate signing request")
 	}
 	if p != nil {
 		bytes = p.Bytes
@@ -354,7 +355,7 @@ func builtinCryptoJWKFromPrivateKey(_ BuiltinContext, operands []*ast.Term, iter
 	pemDataString := string(input)
 
 	if pemDataString == "" {
-		return fmt.Errorf("input PEM data was empty")
+		return errors.New("input PEM data was empty")
 	}
 
 	// This built in must be supplied a valid PEM or base64 encoded string.
@@ -495,7 +496,7 @@ func hmacHelper(operands []*ast.Term, iter func(*ast.Term) error, h func() hash.
 	mac.Write([]byte(message))
 	messageDigest := mac.Sum(nil)
 
-	return iter(ast.StringTerm(fmt.Sprintf("%x", messageDigest)))
+	return iter(ast.StringTerm(hex.EncodeToString(messageDigest)))
 }
 
 func builtinCryptoHmacMd5(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -704,7 +705,7 @@ func addCACertsFromBytes(pool *x509.CertPool, pemBytes []byte) (*x509.CertPool, 
 	}
 
 	if ok := pool.AppendCertsFromPEM(pemBytes); !ok {
-		return nil, fmt.Errorf("could not append certificates")
+		return nil, errors.New("could not append certificates")
 	}
 
 	return pool, nil

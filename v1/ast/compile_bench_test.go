@@ -1,7 +1,7 @@
 package ast
 
 import (
-	"fmt"
+	"strconv"
 	"testing"
 )
 
@@ -19,7 +19,7 @@ func BenchmarkRewriteDynamics(b *testing.B) {
 	queries := makeQueriesForRewriteDynamicsBenchmark(sizes, body)
 
 	for i := range sizes {
-		b.Run(fmt.Sprint(sizes[i]), func(b *testing.B) {
+		b.Run(strconv.Itoa(sizes[i]), func(b *testing.B) {
 			factory := newEqualityFactory(newLocalVarGenerator("q", nil))
 			b.ResetTimer()
 			for range b.N {

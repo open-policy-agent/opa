@@ -10,6 +10,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -519,7 +520,7 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 			var ok bool
 			customHeaders, ok = headersValInterface.(map[string]interface{})
 			if !ok {
-				return nil, nil, fmt.Errorf("invalid type for headers key")
+				return nil, nil, errors.New("invalid type for headers key")
 			}
 		case "tls_insecure_skip_verify":
 			tlsInsecureSkipVerify, err = strconv.ParseBool(obj.Get(val).String())
@@ -990,7 +991,7 @@ func insertIntoHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Value, resp 
 
 	obj, ok := key.(ast.Object)
 	if !ok {
-		return fmt.Errorf("interface conversion error")
+		return errors.New("interface conversion error")
 	}
 
 	cachingMode, err := getCachingMode(obj)
@@ -1336,7 +1337,7 @@ func parseCacheControlHeader(headers http.Header) map[string]string {
 func getResponseHeaderDate(headers http.Header) (date time.Time, err error) {
 	dateHeader := headers.Get("date")
 	if dateHeader == "" {
-		err = fmt.Errorf("no date header")
+		err = errors.New("no date header")
 		return
 	}
 	return http.ParseTime(dateHeader)
@@ -1614,7 +1615,7 @@ type forceCacheParams struct {
 func newForceCacheParams(req ast.Object) (*forceCacheParams, error) {
 	term := req.Get(keyCache["force_cache_duration_seconds"])
 	if term == nil {
-		return nil, fmt.Errorf("'force_cache' set but 'force_cache_duration_seconds' parameter is missing")
+		return nil, errors.New("'force_cache' set but 'force_cache_duration_seconds' parameter is missing")
 	}
 
 	forceCacheDurationSeconds := term.String()
@@ -1632,7 +1633,7 @@ func getRaiseErrorValue(req ast.Object) (bool, error) {
 	var ok bool
 	if v := req.Get(keyCache["raise_error"]); v != nil {
 		if result, ok = v.Value.(ast.Boolean); !ok {
-			return false, fmt.Errorf("invalid value for raise_error field")
+			return false, errors.New("invalid value for raise_error field")
 		}
 	}
 	return bool(result), nil

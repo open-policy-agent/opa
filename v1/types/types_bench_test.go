@@ -7,15 +7,16 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"testing"
 )
 
 func BenchmarkSelect(b *testing.B) {
 	sizes := []int{1000, 10000, 100000}
 	for _, size := range sizes {
-		b.Run(fmt.Sprint(size), func(b *testing.B) {
+		b.Run(strconv.Itoa(size), func(b *testing.B) {
 			tpe := generateType(size)
-			runSelectBenchmark(b, tpe, json.Number(fmt.Sprint(size-1)))
+			runSelectBenchmark(b, tpe, json.Number(strconv.Itoa(size-1)))
 		})
 	}
 }
@@ -34,7 +35,7 @@ func runSelectBenchmark(b *testing.B, tpe Type, key interface{}) {
 func generateType(n int) Type {
 	static := make([]*StaticProperty, n)
 	for i := range n {
-		static[i] = NewStaticProperty(json.Number(fmt.Sprint(i)), N)
+		static[i] = NewStaticProperty(json.Number(strconv.Itoa(i)), N)
 	}
 	return NewObject(static, nil)
 }
@@ -42,7 +43,7 @@ func generateType(n int) Type {
 func generateTypeWithPrefix(n int, prefix string) Type {
 	static := make([]*StaticProperty, n)
 	for i := range n {
-		static[i] = NewStaticProperty(prefix+fmt.Sprint(i), S)
+		static[i] = NewStaticProperty(prefix+strconv.Itoa(i), S)
 	}
 	return NewObject(static, nil)
 }
@@ -57,7 +58,7 @@ func BenchmarkAnyMergeOne(b *testing.B) {
 		}
 		tpeB := N
 		b.ResetTimer()
-		b.Run(fmt.Sprint(size), func(b *testing.B) {
+		b.Run(strconv.Itoa(size), func(b *testing.B) {
 			result := anyA.Merge(tpeB)
 			if len(result) != len(anyA)+1 {
 				b.Fatalf("Expected length of merged result to be: %d, got: %d", len(anyA)+1, len(result))

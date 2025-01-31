@@ -363,7 +363,7 @@ discovery:
 	test.WithTempFS(fs, func(rootDir string) {
 		configFile := filepath.Join(rootDir, "/some/config.yaml")
 		secretFile := filepath.Join(rootDir, "/some/secret.txt")
-		overrideFiles := []string{fmt.Sprintf("services.acmecorp.credentials.bearer.token=%s", secretFile)}
+		overrideFiles := []string{"services.acmecorp.credentials.bearer.token=" + secretFile}
 
 		configBytes, err := Load(configFile, nil, overrideFiles)
 		if err != nil {

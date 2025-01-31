@@ -146,6 +146,7 @@
 package edittree
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"sort"
@@ -335,13 +336,13 @@ func (e *EditTree) deleteChildValue(hash int) {
 // Insert creates a new child of e, and returns the new child EditTree node.
 func (e *EditTree) Insert(key, value *ast.Term) (*EditTree, error) {
 	if e.value == nil {
-		return nil, fmt.Errorf("deleted node encountered during insert operation")
+		return nil, errors.New("deleted node encountered during insert operation")
 	}
 	if key == nil {
-		return nil, fmt.Errorf("nil key provided for insert operation")
+		return nil, errors.New("nil key provided for insert operation")
 	}
 	if value == nil {
-		return nil, fmt.Errorf("nil value provided for insert operation")
+		return nil, errors.New("nil value provided for insert operation")
 	}
 
 	switch x := e.value.Value.(type) {
@@ -367,7 +368,7 @@ func (e *EditTree) Insert(key, value *ast.Term) (*EditTree, error) {
 			return nil, err
 		}
 		if idx < 0 || idx > e.insertions.Length() {
-			return nil, fmt.Errorf("index for array insertion out of bounds")
+			return nil, errors.New("index for array insertion out of bounds")
 		}
 		return e.unsafeInsertArray(idx, value), nil
 	default:
@@ -457,10 +458,10 @@ func (e *EditTree) unsafeInsertArray(idx int, value *ast.Term) *EditTree {
 // already present in e. It then returns the deleted child EditTree node.
 func (e *EditTree) Delete(key *ast.Term) (*EditTree, error) {
 	if e.value == nil {
-		return nil, fmt.Errorf("deleted node encountered during delete operation")
+		return nil, errors.New("deleted node encountered during delete operation")
 	}
 	if key == nil {
-		return nil, fmt.Errorf("nil key provided for delete operation")
+		return nil, errors.New("nil key provided for delete operation")
 	}
 
 	switch e.value.Value.(type) {
@@ -531,7 +532,7 @@ func (e *EditTree) Delete(key *ast.Term) (*EditTree, error) {
 			return nil, err
 		}
 		if idx < 0 || idx > e.insertions.Length()-1 {
-			return nil, fmt.Errorf("index for array delete out of bounds")
+			return nil, errors.New("index for array delete out of bounds")
 		}
 
 		// Collect insertion indexes above the delete site for rewriting.
@@ -637,7 +638,7 @@ func (e *EditTree) Unfold(path ast.Ref) (*EditTree, error) {
 	}
 	// 1+ path segment case.
 	if e.value == nil {
-		return nil, fmt.Errorf("nil value encountered where composite value was expected")
+		return nil, errors.New("nil value encountered where composite value was expected")
 	}
 
 	// Switch behavior based on types.
@@ -879,7 +880,7 @@ func (e *EditTree) Render() *ast.Term {
 // Returns the inserted EditTree node.
 func (e *EditTree) InsertAtPath(path ast.Ref, value *ast.Term) (*EditTree, error) {
 	if value == nil {
-		return nil, fmt.Errorf("cannot insert nil value into EditTree")
+		return nil, errors.New("cannot insert nil value into EditTree")
 	}
 
 	if len(path) == 0 {
@@ -910,7 +911,7 @@ func (e *EditTree) DeleteAtPath(path ast.Ref) (*EditTree, error) {
 	// Root document case:
 	if len(path) == 0 {
 		if e.value == nil {
-			return nil, fmt.Errorf("deleted node encountered during delete operation")
+			return nil, errors.New("deleted node encountered during delete operation")
 		}
 		e.value = nil
 		e.childKeys = nil
@@ -1046,7 +1047,7 @@ func toIndex(arrayLength int, term *ast.Term) (int, error) {
 	switch v := term.Value.(type) {
 	case ast.Number:
 		if i, ok = v.Int(); !ok {
-			return 0, fmt.Errorf("invalid number type for indexing")
+			return 0, errors.New("invalid number type for indexing")
 		}
 	case ast.String:
 		if v == "-" {
@@ -1054,13 +1055,13 @@ func toIndex(arrayLength int, term *ast.Term) (int, error) {
 		}
 		num := ast.Number(v)
 		if i, ok = num.Int(); !ok {
-			return 0, fmt.Errorf("invalid string for indexing")
+			return 0, errors.New("invalid string for indexing")
 		}
 		if v != "0" && strings.HasPrefix(string(v), "0") {
-			return 0, fmt.Errorf("leading zeros are not allowed in JSON paths")
+			return 0, errors.New("leading zeros are not allowed in JSON paths")
 		}
 	default:
-		return 0, fmt.Errorf("invalid type for indexing")
+		return 0, errors.New("invalid type for indexing")
 	}
 
 	return i, nil

@@ -1416,7 +1416,7 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 	ensurePluginState(t, plugin, plugins.StateNotReady)
 
 	// simulate a bundle download error with no bundle on disk
-	plugin.oneShot(ctx, bundleName, download.Update{Error: fmt.Errorf("unknown error")})
+	plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
 
 	if plugin.status[bundleName].Message == "" {
 		t.Fatal("expected error but got none")
@@ -1462,7 +1462,7 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 	}
 
 	// simulate a bundle download error and verify that the bundle on disk is activated
-	plugin.oneShot(ctx, bundleName, download.Update{Error: fmt.Errorf("unknown error")})
+	plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -1583,7 +1583,7 @@ corge contains 1 if {
 			ensurePluginState(t, plugin, plugins.StateNotReady)
 
 			// simulate a bundle download error with no bundle on disk
-			plugin.oneShot(ctx, bundleName, download.Update{Error: fmt.Errorf("unknown error")})
+			plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
 
 			if plugin.status[bundleName].Message == "" {
 				t.Fatal("expected error but got none")
@@ -1652,7 +1652,7 @@ corge contains 1 if {
 				}
 
 				// simulate a bundle download error and verify that the bundle on disk is activated
-				plugin.oneShot(ctx, bundleName, download.Update{Error: fmt.Errorf("unknown error")})
+				plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
 
 				ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -1868,7 +1868,7 @@ corge contains 1 if {
 			ensurePluginState(t, plugin, plugins.StateNotReady)
 
 			// simulate a bundle download error with no bundle on disk
-			plugin.oneShot(ctx, bundleName, download.Update{Error: fmt.Errorf("unknown error")})
+			plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
 
 			if plugin.status[bundleName].Message == "" {
 				t.Fatal("expected error but got none")
@@ -1945,7 +1945,7 @@ corge contains 1 if {
 				}
 
 				// simulate a bundle download error and verify that the bundle on disk is activated
-				plugin.oneShot(ctx, bundleName, download.Update{Error: fmt.Errorf("unknown error")})
+				plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
 
 				ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -2024,7 +2024,7 @@ func TestPluginOneShotSignedBundlePersistence(t *testing.T) {
 	ensurePluginState(t, plugin, plugins.StateNotReady)
 
 	// simulate a bundle download error with no bundle on disk
-	plugin.oneShot(ctx, bundleName, download.Update{Error: fmt.Errorf("unknown error")})
+	plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
 
 	if plugin.status[bundleName].Message == "" {
 		t.Fatal("expected error but got none")
@@ -2069,7 +2069,7 @@ func TestPluginOneShotSignedBundlePersistence(t *testing.T) {
 	}
 
 	// simulate a bundle download error and verify that the bundle on disk is activated
-	plugin.oneShot(ctx, bundleName, download.Update{Error: fmt.Errorf("unknown error")})
+	plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -3154,7 +3154,7 @@ func TestPluginOneShotActivationRemovesOld(t *testing.T) {
 		if err != nil {
 			return err
 		} else if !slices.Equal([]string{filepath.Join(bundleName, "/example2.rego")}, ids) {
-			return fmt.Errorf("expected updated policy ids")
+			return errors.New("expected updated policy ids")
 		}
 		data, err := manager.Store.Read(ctx, txn, storage.Path{})
 		// remove system key to make comparison simpler
@@ -3162,7 +3162,7 @@ func TestPluginOneShotActivationRemovesOld(t *testing.T) {
 		if err != nil {
 			return err
 		} else if !reflect.DeepEqual(data, map[string]interface{}{"baz": "qux"}) {
-			return fmt.Errorf("expected updated data")
+			return errors.New("expected updated data")
 		}
 		return nil
 	})
@@ -3448,7 +3448,7 @@ func TestPluginListenerErrorClearedOn304(t *testing.T) {
 	}
 
 	// Test that service error triggers failure notification.
-	go plugin.oneShot(ctx, bundleName, download.Update{Error: fmt.Errorf("some error")})
+	go plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("some error")})
 	s2 := <-ch
 
 	if s2.ActiveRevision != "quickbrownfaux" || s2.Code == "" {

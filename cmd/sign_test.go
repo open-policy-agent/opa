@@ -6,7 +6,7 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -139,22 +139,22 @@ func TestValidateSignParams(t *testing.T) {
 		"no_args": {
 			[]string{},
 			newSignCmdParams(),
-			true, fmt.Errorf("specify atleast one path containing policy and/or data files"),
+			true, errors.New("specify atleast one path containing policy and/or data files"),
 		},
 		"no_signing_key": {
 			[]string{"foo"},
 			newSignCmdParams(),
-			true, fmt.Errorf("specify the secret (HMAC) or path of the PEM file containing the private key (RSA and ECDSA)"),
+			true, errors.New("specify the secret (HMAC) or path of the PEM file containing the private key (RSA and ECDSA)"),
 		},
 		"empty_signing_key": {
 			[]string{"foo"},
 			signCmdParams{key: "", bundleMode: true},
-			true, fmt.Errorf("specify the secret (HMAC) or path of the PEM file containing the private key (RSA and ECDSA)"),
+			true, errors.New("specify the secret (HMAC) or path of the PEM file containing the private key (RSA and ECDSA)"),
 		},
 		"non_bundle_mode": {
 			[]string{"foo"},
 			signCmdParams{key: "foo"},
-			true, fmt.Errorf("enable bundle mode (ie. --bundle) to sign bundle files or directories"),
+			true, errors.New("enable bundle mode (ie. --bundle) to sign bundle files or directories"),
 		},
 		"no_error": {
 			[]string{"foo"},

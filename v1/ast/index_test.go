@@ -5,7 +5,7 @@
 package ast
 
 import (
-	"fmt"
+	"errors"
 	"testing"
 )
 
@@ -28,7 +28,7 @@ func (r testResolver) Resolve(ref Ref) (Value, error) {
 		return nil, UnknownValueErr{}
 	}
 	if ref.Equal(r.failRef) {
-		return nil, fmt.Errorf("some error")
+		return nil, errors.New("some error")
 	}
 	if ref.HasPrefix(InputRootRef) {
 		v, err := r.input.Value.Find(ref[1:])

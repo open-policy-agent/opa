@@ -729,19 +729,19 @@ func (r *Reader) Read() (Bundle, error) {
 
 	if bundle.Type() == DeltaBundleType {
 		if len(bundle.Data) != 0 {
-			return bundle, fmt.Errorf("delta bundle expected to contain only patch file but data files found")
+			return bundle, errors.New("delta bundle expected to contain only patch file but data files found")
 		}
 
 		if len(bundle.Modules) != 0 {
-			return bundle, fmt.Errorf("delta bundle expected to contain only patch file but policy files found")
+			return bundle, errors.New("delta bundle expected to contain only patch file but policy files found")
 		}
 
 		if len(bundle.WasmModules) != 0 {
-			return bundle, fmt.Errorf("delta bundle expected to contain only patch file but wasm files found")
+			return bundle, errors.New("delta bundle expected to contain only patch file but wasm files found")
 		}
 
 		if r.persist {
-			return bundle, fmt.Errorf("'persist' property is true in config. persisting delta bundle to disk is not supported")
+			return bundle, errors.New("'persist' property is true in config. persisting delta bundle to disk is not supported")
 		}
 	}
 
@@ -816,12 +816,12 @@ func (r *Reader) checkSignaturesAndDescriptors(signatures SignaturesConfig) erro
 	}
 
 	if signatures.isEmpty() && r.verificationConfig != nil && r.verificationConfig.KeyID != "" {
-		return fmt.Errorf("bundle missing .signatures.json file")
+		return errors.New("bundle missing .signatures.json file")
 	}
 
 	if !signatures.isEmpty() {
 		if r.verificationConfig == nil {
-			return fmt.Errorf("verification key not provided")
+			return errors.New("verification key not provided")
 		}
 
 		// verify the JWT signatures included in the `.signatures.json` file
@@ -1390,7 +1390,7 @@ func mktree(path []string, value interface{}) (map[string]interface{}, error) {
 		// For 0 length path the value is the full tree.
 		obj, ok := value.(map[string]interface{})
 		if !ok {
-			return nil, fmt.Errorf("root value must be object")
+			return nil, errors.New("root value must be object")
 		}
 		return obj, nil
 	}

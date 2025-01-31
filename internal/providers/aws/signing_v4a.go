@@ -9,7 +9,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
+	"errors"
 	"hash"
 	"io"
 	"math/big"
@@ -107,7 +107,7 @@ func deriveKeyFromAccessKeyPair(accessKey, secretKey string) (*ecdsa.PrivateKey,
 
 		counter++
 		if counter > 0xFF {
-			return nil, fmt.Errorf("exhausted single byte external counter")
+			return nil, errors.New("exhausted single byte external counter")
 		}
 	}
 	d = d.Add(d, one)
@@ -146,7 +146,7 @@ func retrievePrivateKey(symmetric Credentials) (v4aCredentials, error) {
 
 	privateKey, err := deriveKeyFromAccessKeyPair(symmetric.AccessKey, symmetric.SecretKey)
 	if err != nil {
-		return v4aCredentials{}, fmt.Errorf("failed to derive asymmetric key from credentials")
+		return v4aCredentials{}, errors.New("failed to derive asymmetric key from credentials")
 	}
 
 	creds := v4aCredentials{

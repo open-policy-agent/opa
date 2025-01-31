@@ -20,7 +20,7 @@ func BenchmarkPartialObjectRuleCrossModule(b *testing.B) {
 	sizes := []int{10, 100, 1000}
 
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			store := inmem.NewFromObject(map[string]interface{}{})
 			mods := test.PartialObjectBenchmarkCrossModule(n)
 			query := "data.test.foo"

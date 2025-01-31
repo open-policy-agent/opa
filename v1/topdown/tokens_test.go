@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -646,7 +647,7 @@ func TestTopdownJWTVerifyOnlyVerifiesUsingApplicableKeys(t *testing.T) {
 			verifyCalls := 0
 			verifier := func(_ interface{}, _ []byte, _ []byte) error {
 				verifyCalls++
-				return fmt.Errorf("fail")
+				return errors.New("fail")
 			}
 
 			_, err := builtinJWTVerify(bctx, token, cert, sha256.New, verifier)

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -189,7 +190,7 @@ func SignV4(headers map[string][]string, method string, theURL *url.URL, body []
 	authHeader := "AWS4-HMAC-SHA256 Credential=" + awsCreds.AccessKey + "/" + dateNow
 	authHeader += "/" + awsCreds.RegionName + "/" + service + "/aws4_request,"
 	authHeader += "SignedHeaders=" + headerList + ","
-	authHeader += "Signature=" + fmt.Sprintf("%x", signature)
+	authHeader += "Signature=" + hex.EncodeToString(signature)
 
 	return authHeader, awsHeaders
 }

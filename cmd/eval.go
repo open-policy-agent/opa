@@ -155,7 +155,7 @@ func validateEvalParams(p *evalCommandParams, cmdArgs []string) error {
 
 	if p.optimizationLevel > 0 {
 		if len(p.dataPaths.v) > 0 && p.bundlePaths.isFlagSet() {
-			return fmt.Errorf("specify either --data or --bundle flag with optimization level greater than 0")
+			return errors.New("specify either --data or --bundle flag with optimization level greater than 0")
 		}
 	}
 
@@ -699,7 +699,7 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 	if params.strictBuiltinErrors {
 		regoArgs = append(regoArgs, rego.StrictBuiltinErrors(true))
 		if params.showBuiltinErrors {
-			return nil, fmt.Errorf("cannot use --show-builtin-errors with --strict-builtin-errors, --strict-builtin-errors will return the first built-in error encountered immediately")
+			return nil, errors.New("cannot use --show-builtin-errors with --strict-builtin-errors, --strict-builtin-errors will return the first built-in error encountered immediately")
 		}
 	}
 

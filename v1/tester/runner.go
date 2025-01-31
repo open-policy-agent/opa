@@ -8,6 +8,7 @@ package tester
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -314,7 +315,7 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 
 	if len(r.bundles) > 0 {
 		if txn == nil {
-			return nil, fmt.Errorf("unable to activate bundles: storage transaction is nil")
+			return nil, errors.New("unable to activate bundles: storage transaction is nil")
 		}
 
 		// Activate the bundle(s) to get their info and policies into the store

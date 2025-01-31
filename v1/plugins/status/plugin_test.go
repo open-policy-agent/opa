@@ -6,6 +6,7 @@ package status
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"net/http"
@@ -1002,14 +1003,14 @@ func TestParseConfigTriggerMode(t *testing.T) {
 			config:   []byte(`{"trigger": "manual"}`),
 			expected: plugins.TriggerPeriodic,
 			wantErr:  true,
-			err:      fmt.Errorf("invalid status config: trigger mode mismatch: periodic and manual (hint: check discovery configuration)"),
+			err:      errors.New("invalid status config: trigger mode mismatch: periodic and manual (hint: check discovery configuration)"),
 		},
 		{
 			note:     "bad trigger mode",
 			config:   []byte(`{"trigger": "foo"}`),
 			expected: "foo",
 			wantErr:  true,
-			err:      fmt.Errorf("invalid status config: invalid trigger mode \"foo\" (want \"periodic\" or \"manual\")"),
+			err:      errors.New("invalid status config: invalid trigger mode \"foo\" (want \"periodic\" or \"manual\")"),
 		},
 	}
 

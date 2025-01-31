@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -359,7 +360,7 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string, addrSe
 	params.rt.BundleVerificationConfig = bvc
 
 	if params.rt.BundleVerificationConfig != nil && !params.rt.BundleMode {
-		return nil, fmt.Errorf("enable bundle mode (ie. --bundle) to verify bundle files or directories")
+		return nil, errors.New("enable bundle mode (ie. --bundle) to verify bundle files or directories")
 	}
 
 	params.rt.SkipKnownSchemaCheck = params.skipKnownSchemaCheck
@@ -443,7 +444,7 @@ func loadCertificate(tlsCertFile, tlsPrivateKeyFile string) (*tls.Certificate, e
 		}
 		return &cert, nil
 	} else if tlsCertFile != "" || tlsPrivateKeyFile != "" {
-		return nil, fmt.Errorf("--tls-cert-file and --tls-private-key-file must be specified together")
+		return nil, errors.New("--tls-cert-file and --tls-private-key-file must be specified together")
 	}
 
 	return nil, nil

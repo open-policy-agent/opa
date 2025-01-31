@@ -1069,7 +1069,7 @@ func (r *RefErrInvalidDetail) Lines() []string {
 	lines := []string{r.Ref.String()}
 	offset := len(r.Ref[:r.Pos].String()) + 1
 	pad := strings.Repeat(" ", offset)
-	lines = append(lines, fmt.Sprintf("%s^", pad))
+	lines = append(lines, pad+"^")
 	if r.Have != nil {
 		lines = append(lines, fmt.Sprintf("%shave (type): %v", pad, r.Have))
 	} else {

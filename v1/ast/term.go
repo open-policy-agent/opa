@@ -8,6 +8,7 @@ package ast
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -26,7 +27,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
-var errFindNotFound = fmt.Errorf("find: not found")
+var errFindNotFound = errors.New("find: not found")
 
 // Location records a position in source code.
 type Location = location.Location
@@ -1140,7 +1141,7 @@ func (ref Ref) Ptr() (string, error) {
 		if str, ok := term.Value.(String); ok {
 			parts = append(parts, url.PathEscape(string(str)))
 		} else {
-			return "", fmt.Errorf("invalid path value type")
+			return "", errors.New("invalid path value type")
 		}
 	}
 	return strings.Join(parts, "/"), nil
@@ -3118,7 +3119,7 @@ func unmarshalBody(b []interface{}) (Body, error) {
 	}
 	return buf, nil
 unmarshal_error:
-	return nil, fmt.Errorf("ast: unable to unmarshal body")
+	return nil, errors.New("ast: unable to unmarshal body")
 }
 
 func unmarshalExpr(expr *Expr, v map[string]interface{}) error {
@@ -3255,7 +3256,7 @@ func unmarshalTermSlice(s []interface{}) ([]*Term, error) {
 			}
 			return nil, err
 		}
-		return nil, fmt.Errorf("ast: unable to unmarshal term")
+		return nil, errors.New("ast: unable to unmarshal term")
 	}
 	return buf, nil
 }
@@ -3264,7 +3265,7 @@ func unmarshalTermSliceValue(d map[string]interface{}) ([]*Term, error) {
 	if s, ok := d["value"].([]interface{}); ok {
 		return unmarshalTermSlice(s)
 	}
-	return nil, fmt.Errorf(`ast: unable to unmarshal term (expected {"value": [...], "type": ...} where type is one of: ref, array, or set)`)
+	return nil, errors.New(`ast: unable to unmarshal term (expected {"value": [...], "type": ...} where type is one of: ref, array, or set)`)
 }
 
 func unmarshalWith(i interface{}) (*With, error) {
@@ -3284,7 +3285,7 @@ func unmarshalWith(i interface{}) (*With, error) {
 		}
 		return nil, err
 	}
-	return nil, fmt.Errorf(`ast: unable to unmarshal with modifier (expected {"target": {...}, "value": {...}})`)
+	return nil, errors.New(`ast: unable to unmarshal with modifier (expected {"target": {...}, "value": {...}})`)
 }
 
 func unmarshalValue(d map[string]interface{}) (Value, error) {
@@ -3402,5 +3403,5 @@ func unmarshalValue(d map[string]interface{}) (Value, error) {
 		}
 	}
 unmarshal_error:
-	return nil, fmt.Errorf("ast: unable to unmarshal term")
+	return nil, errors.New("ast: unable to unmarshal term")
 }

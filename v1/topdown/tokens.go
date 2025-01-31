@@ -227,7 +227,7 @@ func builtinJWTVerifyRSA(bctx BuiltinContext, jwt ast.Value, keyStr ast.Value, h
 	return builtinJWTVerify(bctx, jwt, keyStr, hasher, func(publicKey interface{}, digest []byte, signature []byte) error {
 		publicKeyRsa, ok := publicKey.(*rsa.PublicKey)
 		if !ok {
-			return fmt.Errorf("incorrect public key type")
+			return errors.New("incorrect public key type")
 		}
 		return verify(publicKeyRsa, digest, signature)
 	})
@@ -268,7 +268,7 @@ func verifyES(publicKey interface{}, digest []byte, signature []byte) (err error
 	}()
 	publicKeyEcdsa, ok := publicKey.(*ecdsa.PublicKey)
 	if !ok {
-		return fmt.Errorf("incorrect public key type")
+		return errors.New("incorrect public key type")
 	}
 	r, s := &big.Int{}, &big.Int{}
 	n := len(signature) / 2
@@ -277,7 +277,7 @@ func verifyES(publicKey interface{}, digest []byte, signature []byte) (err error
 	if ecdsa.Verify(publicKeyEcdsa, digest, r, s) {
 		return nil
 	}
-	return fmt.Errorf("ECDSA signature verification error")
+	return errors.New("ECDSA signature verification error")
 }
 
 type verificationKey struct {
@@ -292,7 +292,7 @@ type verificationKey struct {
 func getKeysFromCertOrJWK(certificate string) ([]verificationKey, error) {
 	if block, rest := pem.Decode([]byte(certificate)); block != nil {
 		if len(rest) > 0 {
-			return nil, fmt.Errorf("extra data after a PEM certificate block")
+			return nil, errors.New("extra data after a PEM certificate block")
 		}
 
 		if block.Type == blockTypeCertificate {
@@ -312,7 +312,7 @@ func getKeysFromCertOrJWK(certificate string) ([]verificationKey, error) {
 			return []verificationKey{{key: key}}, nil
 		}
 
-		return nil, fmt.Errorf("failed to extract a Key from the PEM certificate")
+		return nil, errors.New("failed to extract a Key from the PEM certificate")
 	}
 
 	jwks, err := jwk.ParseString(certificate)
@@ -533,7 +533,7 @@ var tokenConstraintTypes = map[string]tokenConstraintHandler{
 func tokenConstraintCert(value ast.Value, constraints *tokenConstraints) error {
 	s, ok := value.(ast.String)
 	if !ok {
-		return fmt.Errorf("cert constraint: must be a string")
+		return errors.New("cert constraint: must be a string")
 	}
 
 	keys, err := getKeysFromCertOrJWK(string(s))
@@ -558,14 +558,14 @@ func tokenConstraintTime(value ast.Value, constraints *tokenConstraints) error {
 func timeFromValue(value ast.Value) (float64, error) {
 	time, ok := value.(ast.Number)
 	if !ok {
-		return 0, fmt.Errorf("token time constraint: must be a number")
+		return 0, errors.New("token time constraint: must be a number")
 	}
 	timeFloat, ok := time.Float64()
 	if !ok {
-		return 0, fmt.Errorf("token time constraint: unvalid float64")
+		return 0, errors.New("token time constraint: unvalid float64")
 	}
 	if timeFloat < 0 {
-		return 0, fmt.Errorf("token time constraint: must not be negative")
+		return 0, errors.New("token time constraint: must not be negative")
 	}
 	return timeFloat, nil
 }
@@ -616,10 +616,10 @@ func (constraints *tokenConstraints) validate() error {
 		keys++
 	}
 	if keys > 1 {
-		return fmt.Errorf("duplicate key constraints")
+		return errors.New("duplicate key constraints")
 	}
 	if keys < 1 {
-		return fmt.Errorf("no key constraint")
+		return errors.New("no key constraint")
 	}
 	return nil
 }
@@ -733,7 +733,7 @@ var errSignatureNotVerified = errors.New("signature not verified")
 func verifyHMAC(key interface{}, hash crypto.Hash, payload []byte, signature []byte) error {
 	macKey, ok := key.([]byte)
 	if !ok {
-		return fmt.Errorf("incorrect symmetric key type")
+		return errors.New("incorrect symmetric key type")
 	}
 	mac := hmac.New(hash.New, macKey)
 	if _, err := mac.Write(payload); err != nil {
@@ -756,7 +756,7 @@ func verifyAsymmetric(verify tokenVerifyAsymmetricFunction) tokenVerifyFunction 
 func verifyRSAPKCS(key interface{}, hash crypto.Hash, digest []byte, signature []byte) error {
 	publicKeyRsa, ok := key.(*rsa.PublicKey)
 	if !ok {
-		return fmt.Errorf("incorrect public key type")
+		return errors.New("incorrect public key type")
 	}
 	if err := rsa.VerifyPKCS1v15(publicKeyRsa, hash, digest, signature); err != nil {
 		return errSignatureNotVerified
@@ -767,7 +767,7 @@ func verifyRSAPKCS(key interface{}, hash crypto.Hash, digest []byte, signature [
 func verifyRSAPSS(key interface{}, hash crypto.Hash, digest []byte, signature []byte) error {
 	publicKeyRsa, ok := key.(*rsa.PublicKey)
 	if !ok {
-		return fmt.Errorf("incorrect public key type")
+		return errors.New("incorrect public key type")
 	}
 	if err := rsa.VerifyPSS(publicKeyRsa, hash, digest, signature, nil); err != nil {
 		return errSignatureNotVerified
@@ -783,7 +783,7 @@ func verifyECDSA(key interface{}, _ crypto.Hash, digest []byte, signature []byte
 	}()
 	publicKeyEcdsa, ok := key.(*ecdsa.PublicKey)
 	if !ok {
-		return fmt.Errorf("incorrect public key type")
+		return errors.New("incorrect public key type")
 	}
 	r, s := &big.Int{}, &big.Int{}
 	n := len(signature) / 2
@@ -832,19 +832,19 @@ var tokenHeaderTypes = map[string]tokenHeaderHandler{
 func tokenHeaderCrit(header *tokenHeader, value ast.Value) error {
 	v, ok := value.(*ast.Array)
 	if !ok {
-		return fmt.Errorf("crit: must be a list")
+		return errors.New("crit: must be a list")
 	}
 	header.crit = map[string]bool{}
 	_ = v.Iter(func(elem *ast.Term) error {
 		tv, ok := elem.Value.(ast.String)
 		if !ok {
-			return fmt.Errorf("crit: must be a list of strings")
+			return errors.New("crit: must be a list of strings")
 		}
 		header.crit[string(tv)] = true
 		return nil
 	})
 	if len(header.crit) == 0 {
-		return fmt.Errorf("crit: must be a nonempty list") // 'MUST NOT' use the empty list
+		return errors.New("crit: must be a nonempty list") // 'MUST NOT' use the empty list
 	}
 	return nil
 }
@@ -903,7 +903,7 @@ func commonBuiltinJWTEncodeSign(bctx BuiltinContext, inputHeaders, jwsPayload, j
 		return err
 	}
 	if jwk.GetKeyTypeFromKey(key) != keys.Keys[0].GetKeyType() {
-		return fmt.Errorf("JWK derived key type and keyType parameter do not match")
+		return errors.New("JWK derived key type and keyType parameter do not match")
 	}
 
 	standardHeaders := &jws.StandardHeaders{}
@@ -914,11 +914,11 @@ func commonBuiltinJWTEncodeSign(bctx BuiltinContext, inputHeaders, jwsPayload, j
 	}
 	alg := standardHeaders.GetAlgorithm()
 	if alg == jwa.Unsupported {
-		return fmt.Errorf("unknown signature algorithm")
+		return errors.New("unknown signature algorithm")
 	}
 
 	if (standardHeaders.Type == "" || standardHeaders.Type == headerJwt) && !json.Valid([]byte(jwsPayload)) {
-		return fmt.Errorf("type is JWT but payload is not JSON")
+		return errors.New("type is JWT but payload is not JSON")
 	}
 
 	// process payload and sign
@@ -1157,7 +1157,7 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 				return iter(unverified)
 			}
 		default:
-			return fmt.Errorf("exp value must be a number")
+			return errors.New("exp value must be a number")
 		}
 	}
 	// RFC7159 4.1.5 nbf
@@ -1170,7 +1170,7 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 				return iter(unverified)
 			}
 		default:
-			return fmt.Errorf("nbf value must be a number")
+			return errors.New("nbf value must be a number")
 		}
 	}
 

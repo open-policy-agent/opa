@@ -291,7 +291,7 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 	preferences := []string{fmt.Sprintf("modes=%v,%v", defaultBundleMode, deltaBundleMode)}
 
 	if d.longPollingEnabled && d.config.Polling.LongPollingTimeoutSeconds != nil {
-		wait := fmt.Sprintf("wait=%s", strconv.FormatInt(*d.config.Polling.LongPollingTimeoutSeconds, 10))
+		wait := "wait=" + strconv.FormatInt(*d.config.Polling.LongPollingTimeoutSeconds, 10)
 		preferences = append(preferences, wait)
 
 		// fetch existing response header timeout value on the http client's transport and
@@ -304,7 +304,7 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 		}
 	}
 
-	preferValue := fmt.Sprintf("%v", strings.Join(preferences, ";"))
+	preferValue := strings.Join(preferences, ";")
 	d.client = d.client.WithHeader("Prefer", preferValue)
 
 	m.Timer(metrics.BundleRequest).Start()
@@ -441,7 +441,7 @@ type HTTPError struct {
 }
 
 func (e HTTPError) Error() string {
-	return fmt.Sprintf("server replied with %s", http.StatusText(e.StatusCode))
+	return "server replied with " + http.StatusText(e.StatusCode)
 }
 
 func contains(s string, strings []string) bool {
