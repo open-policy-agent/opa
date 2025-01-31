@@ -33,10 +33,10 @@ type RuleIndex interface {
 
 // IndexResult contains the result of an index lookup.
 type IndexResult struct {
-	Kind           RuleKind
 	Rules          []*Rule
 	Else           map[*Rule][]*Rule
 	Default        *Rule
+	Kind           RuleKind
 	EarlyExit      bool
 	OnlyGroundRefs bool
 }
