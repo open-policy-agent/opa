@@ -185,7 +185,9 @@ func (db *store) Truncate(ctx context.Context, txn storage.Transaction, params s
 		}
 	}
 
-	if err != nil && err != io.EOF {
+	// err is known not to be nil at this point, as it getting assigned
+	// a non-nil value is the only way the loop above can exit.
+	if err != io.EOF {
 		return err
 	}
 

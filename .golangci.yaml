@@ -143,6 +143,7 @@ linters-settings:
   govet:
     enable:
       - deepequalerrors
+      - nilness
   perfsprint:
     # only rule disabled by default, but it's a good one
     err-error: true
