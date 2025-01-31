@@ -5,6 +5,7 @@
 package topdown
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -263,7 +264,7 @@ func getPatch(o ast.Object) (jsonPatch, error) {
 	}
 	op, ok := opTerm.Value.(ast.String)
 	if !ok {
-		return out, fmt.Errorf("attribute 'op' must be a string")
+		return out, errors.New("attribute 'op' must be a string")
 	}
 	out.op = string(op)
 	if _, found := validOps[out.op]; !found {
@@ -305,7 +306,7 @@ func applyPatches(source *ast.Term, operations *ast.Array) (*ast.Term, error) {
 	for i := range operations.Len() {
 		object, ok := operations.Elem(i).Value.(ast.Object)
 		if !ok {
-			return nil, fmt.Errorf("must be an array of JSON-Patch objects, but at least one element is not an object")
+			return nil, errors.New("must be an array of JSON-Patch objects, but at least one element is not an object")
 		}
 		patch, err := getPatch(object)
 		if err != nil {

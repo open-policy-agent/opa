@@ -1573,7 +1573,7 @@ p = 1`,
 	}
 
 	test.WithTempFS(files, func(rootDir string) {
-		fileName := fmt.Sprintf("%s/a/xxxxxxxxxxxxxxxxxxxxxx/yyyyyyyyyyyyyyyyyyyy/foo.rego", rootDir)
+		fileName := rootDir + "/a/xxxxxxxxxxxxxxxxxxxxxx/yyyyyyyyyyyyyyyyyyyy/foo.rego"
 		ps := newInspectCommandParams()
 		ps.listAnnotations = true
 		var out bytes.Buffer
@@ -1730,7 +1730,7 @@ p = 1`,
 	}
 
 	test.WithTempFS(files, func(rootDir string) {
-		fileName := fmt.Sprintf("%s/a/xxxxxxxxxxxxxxxxxxxxxx/yyyyyyyyyyyyyyyyyyyy/foo.rego", rootDir)
+		fileName := rootDir + "/a/xxxxxxxxxxxxxxxxxxxxxx/yyyyyyyyyyyyyyyyyyyy/foo.rego"
 		ps := newInspectCommandParams()
 		var out bytes.Buffer
 		err := doInspect(ps, fileName, &out)

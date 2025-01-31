@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -94,7 +95,7 @@ func ReadBundleNamesFromStore(ctx context.Context, store storage.Store, txn stor
 
 	bundleMap, ok := value.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("corrupt manifest roots")
+		return nil, errors.New("corrupt manifest roots")
 	}
 
 	bundles := make([]string, len(bundleMap))
@@ -196,14 +197,14 @@ func ReadWasmMetadataFromStore(ctx context.Context, store storage.Store, txn sto
 
 	bs, err := json.Marshal(value)
 	if err != nil {
-		return nil, fmt.Errorf("corrupt wasm manifest data")
+		return nil, errors.New("corrupt wasm manifest data")
 	}
 
 	var wasmMetadata []WasmResolver
 
 	err = util.UnmarshalJSON(bs, &wasmMetadata)
 	if err != nil {
-		return nil, fmt.Errorf("corrupt wasm manifest data")
+		return nil, errors.New("corrupt wasm manifest data")
 	}
 
 	return wasmMetadata, nil
@@ -219,14 +220,14 @@ func ReadWasmModulesFromStore(ctx context.Context, store storage.Store, txn stor
 
 	encodedModules, ok := value.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("corrupt wasm modules")
+		return nil, errors.New("corrupt wasm modules")
 	}
 
 	rawModules := map[string][]byte{}
 	for path, enc := range encodedModules {
 		encStr, ok := enc.(string)
 		if !ok {
-			return nil, fmt.Errorf("corrupt wasm modules")
+			return nil, errors.New("corrupt wasm modules")
 		}
 		bs, err := base64.StdEncoding.DecodeString(encStr)
 		if err != nil {
@@ -248,7 +249,7 @@ func ReadBundleRootsFromStore(ctx context.Context, store storage.Store, txn stor
 
 	sl, ok := value.([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("corrupt manifest roots")
+		return nil, errors.New("corrupt manifest roots")
 	}
 
 	roots := make([]string, len(sl))
@@ -256,7 +257,7 @@ func ReadBundleRootsFromStore(ctx context.Context, store storage.Store, txn stor
 	for i := range sl {
 		roots[i], ok = sl[i].(string)
 		if !ok {
-			return nil, fmt.Errorf("corrupt manifest root")
+			return nil, errors.New("corrupt manifest root")
 		}
 	}
 
@@ -278,7 +279,7 @@ func readRevisionFromStore(ctx context.Context, store storage.Store, txn storage
 
 	str, ok := value.(string)
 	if !ok {
-		return "", fmt.Errorf("corrupt manifest revision")
+		return "", errors.New("corrupt manifest revision")
 	}
 
 	return str, nil
@@ -299,7 +300,7 @@ func readMetadataFromStore(ctx context.Context, store storage.Store, txn storage
 
 	data, ok := value.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("corrupt manifest metadata")
+		return nil, errors.New("corrupt manifest metadata")
 	}
 
 	return data, nil
@@ -320,7 +321,7 @@ func readEtagFromStore(ctx context.Context, store storage.Store, txn storage.Tra
 
 	str, ok := value.(string)
 	if !ok {
-		return "", fmt.Errorf("corrupt bundle etag")
+		return "", errors.New("corrupt bundle etag")
 	}
 
 	return str, nil
@@ -446,7 +447,7 @@ func activateBundles(opts *ActivateOpts) error {
 						p := getNormalizedPath(path)
 
 						if len(p) == 0 {
-							return fmt.Errorf("root value must be object")
+							return errors.New("root value must be object")
 						}
 
 						// verify valid YAML or JSON value
@@ -716,7 +717,7 @@ func readModuleInfoFromStore(ctx context.Context, store storage.Store, txn stora
 					if vs, ok := ver.(json.Number); ok {
 						i, err := vs.Int64()
 						if err != nil {
-							return nil, fmt.Errorf("corrupt rego version")
+							return nil, errors.New("corrupt rego version")
 						}
 						versions[k] = moduleInfo{RegoVersion: ast.RegoVersionFromInt(int(i))}
 					}
@@ -726,7 +727,7 @@ func readModuleInfoFromStore(ctx context.Context, store storage.Store, txn stora
 		return versions, nil
 	}
 
-	return nil, fmt.Errorf("corrupt rego version")
+	return nil, errors.New("corrupt rego version")
 }
 
 func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transaction, parserOpts ast.ParserOptions, roots map[string]struct{}) (map[string]*ast.Module, []string, error) {
@@ -1093,7 +1094,7 @@ func applyPatches(ctx context.Context, store storage.Store, txn storage.Transact
 		// construct patch path
 		path, ok := patch.ParsePatchPathEscaped("/" + strings.Trim(pat.Path, "/"))
 		if !ok {
-			return fmt.Errorf("error parsing patch path")
+			return errors.New("error parsing patch path")
 		}
 
 		var op storage.PatchOp

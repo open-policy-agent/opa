@@ -1351,7 +1351,7 @@ func compileSchema(goSchema interface{}, allowNet []string) (*gojsonschema.Schem
 	if goSchema != nil {
 		refLoader = gojsonschema.NewGoLoader(goSchema)
 	} else {
-		return nil, fmt.Errorf("no schema as input to compile")
+		return nil, errors.New("no schema as input to compile")
 	}
 	schemasCompiled, err := sl.Compile(refLoader)
 	if err != nil {
@@ -1370,13 +1370,13 @@ func mergeSchemas(schemas ...*gojsonschema.SubSchema) (*gojsonschema.SubSchema, 
 		if len(schemas[i].PropertiesChildren) > 0 {
 			if !schemas[i].Types.Contains("object") {
 				if err := schemas[i].Types.Add("object"); err != nil {
-					return nil, fmt.Errorf("unable to set the type in schemas")
+					return nil, errors.New("unable to set the type in schemas")
 				}
 			}
 		} else if len(schemas[i].ItemsChildren) > 0 {
 			if !schemas[i].Types.Contains("array") {
 				if err := schemas[i].Types.Add("array"); err != nil {
-					return nil, fmt.Errorf("unable to set the type in schemas")
+					return nil, errors.New("unable to set the type in schemas")
 				}
 			}
 		}
@@ -1393,7 +1393,7 @@ func mergeSchemas(schemas ...*gojsonschema.SubSchema) (*gojsonschema.SubSchema, 
 					result.ItemsChildren = append(result.ItemsChildren, schemas[i].ItemsChildren[j])
 				}
 				if result.ItemsChildren[j].Types.String() != schemas[i].ItemsChildren[j].Types.String() {
-					return nil, fmt.Errorf("unable to merge these schemas")
+					return nil, errors.New("unable to merge these schemas")
 				}
 			}
 		}
@@ -1482,7 +1482,7 @@ func (parser *schemaParser) parseSchemaWithPropertyKey(schema interface{}, prope
 				}
 				return parser.parseSchema(objectOrArrayResult)
 			} else if subSchema.Types.String() != allOfResult.Types.String() {
-				return nil, fmt.Errorf("unable to merge these schemas")
+				return nil, errors.New("unable to merge these schemas")
 			}
 		}
 		return parser.parseSchema(allOfResult)

@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -329,14 +330,14 @@ func (s *Server) handleOCIBundles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.URL.Path == fmt.Sprintf("/v2/%s/manifests/%s", repo, tag) {
-		w.Header().Add("Content-Length", fmt.Sprintf("%d", manifestSize))
+		w.Header().Add("Content-Length", strconv.FormatInt(manifestSize, 10))
 		w.Header().Add("Content-Type", "application/vnd.oci.image.manifest.v1+json")
 		w.Header().Add("Docker-Content-Digest", fmt.Sprintf("sha256:%x", manifestSHA))
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 	if r.URL.Path == fmt.Sprintf("/v2/%s/manifests/sha256:%x", repo, manifestSHA) {
-		w.Header().Add("Content-Length", fmt.Sprintf("%d", manifestSize))
+		w.Header().Add("Content-Length", strconv.FormatInt(manifestSize, 10))
 		w.Header().Add("Content-Type", "application/vnd.oci.image.manifest.v1+json")
 		w.Header().Add("Docker-Content-Digest", fmt.Sprintf("sha256:%x", manifestSHA))
 		w.WriteHeader(200)
@@ -353,7 +354,7 @@ func (s *Server) handleOCIBundles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Path == fmt.Sprintf("/v2/%s/blobs/sha256:%x", repo, configSHA) {
-		w.Header().Add("Content-Length", fmt.Sprintf("%d", configSize))
+		w.Header().Add("Content-Length", strconv.FormatInt(configSize, 10))
 		w.Header().Add("Content-Type", "application/vnd.oci.image.manifest.v1+json")
 		w.Header().Add("Docker-Content-Digest", fmt.Sprintf("sha256:%x", configSHA))
 		w.WriteHeader(200)
@@ -370,7 +371,7 @@ func (s *Server) handleOCIBundles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Path == fmt.Sprintf("/v2/%s/blobs/sha256:%x", repo, tarSHA) {
-		w.Header().Add("Content-Length", fmt.Sprintf("%d", tarSize))
+		w.Header().Add("Content-Length", strconv.FormatInt(tarSize, 10))
 		w.Header().Add("Content-Type", "application/vnd.oci.image.manifest.v1+json")
 		w.Header().Add("Docker-Content-Digest", fmt.Sprintf("sha256:%x", tarSHA))
 		w.WriteHeader(200)

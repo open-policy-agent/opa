@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/sdk"
@@ -47,7 +47,7 @@ func TestJsonReporter_StoreDecision(t *testing.T) {
 			Name: "should return nil with increased error count if error is raised from decision",
 			Path: testString,
 			DecisionFunc: func(_ context.Context, _ sdk.DecisionOptions) (*sdk.DecisionResult, error) {
-				return nil, fmt.Errorf("test")
+				return nil, errors.New("test")
 			},
 			Params:               Params{FailNonEmpty: true},
 			ExpectedErrorCount:   1,

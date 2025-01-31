@@ -827,7 +827,7 @@ func (c *Compiler) compileFunc(fn *ir.Func) error {
 	memoize := len(fn.Params) == 2
 
 	if len(fn.Params) == 0 {
-		return fmt.Errorf("illegal function: zero args")
+		return errors.New("illegal function: zero args")
 	}
 
 	c.nextLocal = 0
@@ -1678,7 +1678,7 @@ func (c *Compiler) genLocal() uint32 {
 func (c *Compiler) function(name string) uint32 {
 	fidx, ok := c.funcs[name]
 	if !ok {
-		panic(fmt.Sprintf("function not found: %s", name))
+		panic("function not found: " + name)
 	}
 	return fidx
 }

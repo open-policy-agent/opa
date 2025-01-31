@@ -5,6 +5,7 @@
 package topdown
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -114,7 +115,7 @@ func removeCryptoKeys(x interface{}) error {
 func removeKey(x interface{}, keys ...string) error {
 	val, ok := x.(map[string]interface{})
 	if !ok {
-		return fmt.Errorf("type assertion error")
+		return errors.New("type assertion error")
 	}
 
 	for _, key := range keys {

@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -24,7 +25,7 @@ import (
 func BenchmarkArrayIteration(b *testing.B) {
 	sizes := []int{10, 100, 1000, 10000}
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			benchmarkIteration(b, test.ArrayIterationBenchmarkModule(n))
 		})
 	}
@@ -36,7 +37,7 @@ func BenchmarkArrayPlugging(b *testing.B) {
 	sizes := []int{10, 100, 1000, 10000}
 
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			data := make([]interface{}, n)
 			for i := range n {
 				data[i] = fmt.Sprintf("whatever%d", i)
@@ -81,7 +82,7 @@ func BenchmarkArrayPlugging(b *testing.B) {
 func BenchmarkSetIteration(b *testing.B) {
 	sizes := []int{10, 100, 1000, 10000}
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			benchmarkIteration(b, test.SetIterationBenchmarkModule(n))
 		})
 	}
@@ -90,7 +91,7 @@ func BenchmarkSetIteration(b *testing.B) {
 func BenchmarkObjectIteration(b *testing.B) {
 	sizes := []int{10, 100, 1000, 10000}
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			benchmarkIteration(b, test.ObjectIterationBenchmarkModule(n))
 		})
 	}
@@ -315,7 +316,7 @@ func runVirtualDocsBenchmark(b *testing.B, numTotalRules, numHitRules int) {
 func BenchmarkPartialEval(b *testing.B) {
 	sizes := []int{1, 10, 100, 1000}
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			runPartialEvalBenchmark(b, n)
 		})
 	}
@@ -324,7 +325,7 @@ func BenchmarkPartialEval(b *testing.B) {
 func BenchmarkPartialEvalCompile(b *testing.B) {
 	sizes := []int{1, 10, 100, 1000}
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			runPartialEvalCompileBenchmark(b, n)
 		})
 	}
@@ -554,7 +555,7 @@ func BenchmarkWalk(b *testing.B) {
 	sizes := []int{100, 1000, 2000, 3000}
 
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			data := genWalkBenchmarkData(n)
 			store := inmem.NewFromObject(data)
 			compiler := ast.NewCompiler()
@@ -689,7 +690,7 @@ func BenchmarkFunctionArgumentIndex(b *testing.B) {
 		})
 		body := ast.MustParseBody(fmt.Sprintf("data.test.f(%d, x)", n))
 
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			for range b.N {
 				q := NewQuery(body).
 					WithCompiler(compiler).
@@ -726,7 +727,7 @@ func moduleWithDefs(n int) string {
 func genComprehensionIndexingData(n int) map[string]interface{} {
 	items := map[string]interface{}{}
 	for i := range n {
-		items[fmt.Sprint(i)] = fmt.Sprint(i)
+		items[strconv.Itoa(i)] = strconv.Itoa(i)
 	}
 	return map[string]interface{}{"items": items}
 }
@@ -737,14 +738,14 @@ func BenchmarkObjectSubset(b *testing.B) {
 	sizes := []int{10, 100, 1000, 10000}
 
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			all := make(map[string]string)
 			evens := make(map[string]string)
 
 			for i := range n {
-				all[fmt.Sprint(i)] = fmt.Sprint(i * 2)
+				all[strconv.Itoa(i)] = strconv.Itoa(i * 2)
 				if i%2 == 0 {
-					evens[fmt.Sprint(i)] = fmt.Sprint(i * 2)
+					evens[strconv.Itoa(i)] = strconv.Itoa(i * 2)
 				}
 			}
 
@@ -794,14 +795,14 @@ func BenchmarkObjectSubsetSlow(b *testing.B) {
 	sizes := []int{10, 100, 1000, 10000}
 
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			all := make(map[string]string)
 			evens := make(map[string]string)
 
 			for i := range n {
-				all[fmt.Sprint(i)] = fmt.Sprint(i * 2)
+				all[strconv.Itoa(i)] = strconv.Itoa(i * 2)
 				if i%2 == 0 {
-					evens[fmt.Sprint(i)] = fmt.Sprint(i * 2)
+					evens[strconv.Itoa(i)] = strconv.Itoa(i * 2)
 				}
 			}
 
@@ -884,7 +885,7 @@ func BenchmarkGlob(b *testing.B) {
 	length := 32
 
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			haystack := make([]string, n)
 			for i := range n {
 				if i%2 == 0 {

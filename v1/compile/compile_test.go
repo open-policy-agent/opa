@@ -88,7 +88,7 @@ func TestCompilerInitErrors(t *testing.T) {
 		{
 			note: "bad target",
 			c:    New().WithTarget("deadbeef"),
-			want: fmt.Errorf("invalid target \"deadbeef\""),
+			want: errors.New("invalid target \"deadbeef\""),
 		},
 		{
 			note: "optimizations require entrypoint",
@@ -139,7 +139,7 @@ func TestCompilerLoadError(t *testing.T) {
 func TestCompilerLoadAsBundleSuccess(t *testing.T) {
 
 	ctx := context.Background()
-	rv := fmt.Sprintf("%d", ast.DefaultRegoVersion.Int())
+	rv := strconv.Itoa(ast.DefaultRegoVersion.Int())
 
 	files := map[string]string{
 		"b1/.manifest": `{"roots": ["b1"], "rego_version": ` + rv + `}`,
@@ -2938,7 +2938,7 @@ func TestOptimizerErrors(t *testing.T) {
 		{
 			note:        "undefined entrypoint",
 			entrypoints: []string{"data.test.p"},
-			wantErr:     fmt.Errorf("undefined entrypoint data.test.p"),
+			wantErr:     errors.New("undefined entrypoint data.test.p"),
 		},
 		{
 			note:        "compile error",
@@ -2949,7 +2949,7 @@ func TestOptimizerErrors(t *testing.T) {
 					p if { data.test.p }
 				`,
 			},
-			wantErr: fmt.Errorf("1 error occurred: test.rego:3: rego_recursion_error: rule data.test.p is recursive: data.test.p -> data.test.p"),
+			wantErr: errors.New("1 error occurred: test.rego:3: rego_recursion_error: rule data.test.p is recursive: data.test.p -> data.test.p"),
 		},
 		{
 			note:        "partial eval error",
@@ -2960,7 +2960,7 @@ func TestOptimizerErrors(t *testing.T) {
 					p if { {k: v | k = ["a", "a"][_]; v = [0, 1][_] } }
 				`,
 			},
-			wantErr: fmt.Errorf("test.rego:3: eval_conflict_error: object keys must be unique"),
+			wantErr: errors.New("test.rego:3: eval_conflict_error: object keys must be unique"),
 		},
 	}
 

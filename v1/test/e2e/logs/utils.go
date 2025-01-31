@@ -101,7 +101,7 @@ type TestLogServer struct {
 // URL string representation for the current server. Requires that the server
 // has already been started.
 func (t *TestLogServer) URL() string {
-	return fmt.Sprintf("http://%s", t.listener.Addr().String())
+	return "http://" + t.listener.Addr().String()
 }
 
 // Start the test server listening on a random port.

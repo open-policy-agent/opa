@@ -1580,7 +1580,7 @@ func (r *Rego) Compile(ctx context.Context, opts ...CompileOption) (*CompileResu
 	}
 
 	if tgt := r.targetPlugin(r.target); tgt != nil {
-		return nil, fmt.Errorf("unsupported for rego target plugins")
+		return nil, errors.New("unsupported for rego target plugins")
 	}
 
 	return r.compileWasm(modules, queries, compileQueryType) // TODO(sr) control flow is funky here
@@ -1658,7 +1658,7 @@ func (p *PrepareConfig) BuiltinFuncs() map[string]*topdown.Builtin {
 // of evaluating them.
 func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (PreparedEvalQuery, error) {
 	if !r.hasQuery() {
-		return PreparedEvalQuery{}, fmt.Errorf("cannot evaluate empty query")
+		return PreparedEvalQuery{}, errors.New("cannot evaluate empty query")
 	}
 
 	pCfg := &PrepareConfig{}
@@ -1712,7 +1712,7 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 
 		if r.hasWasmModule() {
 			_ = txnClose(ctx, err) // Ignore error
-			return PreparedEvalQuery{}, fmt.Errorf("wasm target not supported")
+			return PreparedEvalQuery{}, errors.New("wasm target not supported")
 		}
 
 		var modules []*ast.Module
@@ -1777,7 +1777,7 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 // of partially evaluating them.
 func (r *Rego) PrepareForPartial(ctx context.Context, opts ...PrepareOption) (PreparedPartialQuery, error) {
 	if !r.hasQuery() {
-		return PreparedPartialQuery{}, fmt.Errorf("cannot evaluate empty query")
+		return PreparedPartialQuery{}, errors.New("cannot evaluate empty query")
 	}
 
 	pCfg := &PrepareConfig{}
@@ -2281,7 +2281,7 @@ func (r *Rego) evalWasm(ctx context.Context, ectx *EvalContext) (ResultSet, erro
 func (r *Rego) valueToQueryResult(res ast.Value, ectx *EvalContext) (ResultSet, error) {
 	resultSet, ok := res.(ast.Set)
 	if !ok {
-		return nil, fmt.Errorf("illegal result type")
+		return nil, errors.New("illegal result type")
 	}
 
 	if resultSet.Len() == 0 {
@@ -2292,7 +2292,7 @@ func (r *Rego) valueToQueryResult(res ast.Value, ectx *EvalContext) (ResultSet, 
 	err := resultSet.Iter(func(term *ast.Term) error {
 		obj, ok := term.Value.(ast.Object)
 		if !ok {
-			return fmt.Errorf("illegal result type")
+			return errors.New("illegal result type")
 		}
 		qr := topdown.QueryResult{}
 		obj.Foreach(func(k, v *ast.Term) {
@@ -2402,7 +2402,7 @@ func (r *Rego) partialResult(ctx context.Context, pCfg *PrepareConfig) (PartialR
 	module, err := ast.ParseModuleWithOpts(id, "package "+ectx.partialNamespace,
 		ast.ParserOptions{RegoVersion: r.regoVersion})
 	if err != nil {
-		return PartialResult{}, fmt.Errorf("bad partial namespace")
+		return PartialResult{}, errors.New("bad partial namespace")
 	}
 
 	module.Rules = make([]*ast.Rule, len(pq.Queries))
@@ -2622,12 +2622,12 @@ func (r *Rego) rewriteQueryToCaptureValue(_ ast.QueryCompiler, query ast.Body) (
 
 func (r *Rego) rewriteQueryForPartialEval(_ ast.QueryCompiler, query ast.Body) (ast.Body, error) {
 	if len(query) != 1 {
-		return nil, fmt.Errorf("partial evaluation requires single ref (not multiple expressions)")
+		return nil, errors.New("partial evaluation requires single ref (not multiple expressions)")
 	}
 
 	term, ok := query[0].Terms.(*ast.Term)
 	if !ok {
-		return nil, fmt.Errorf("partial evaluation requires ref (not expression)")
+		return nil, errors.New("partial evaluation requires ref (not expression)")
 	}
 
 	ref, ok := term.Value.(ast.Ref)
@@ -2636,7 +2636,7 @@ func (r *Rego) rewriteQueryForPartialEval(_ ast.QueryCompiler, query ast.Body) (
 	}
 
 	if !ref.IsGround() {
-		return nil, fmt.Errorf("partial evaluation requires ground ref")
+		return nil, errors.New("partial evaluation requires ground ref")
 	}
 
 	return ast.NewBody(ast.Equality.Expr(ast.Wildcard, term)), nil

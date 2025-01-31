@@ -6,6 +6,7 @@ package wasm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -144,7 +145,7 @@ func getResult(evalResult *opa.Result) (ast.Value, error) {
 
 	resultSet, ok := parsed.Value.(ast.Set)
 	if !ok {
-		return nil, fmt.Errorf("illegal result type")
+		return nil, errors.New("illegal result type")
 	}
 
 	if resultSet.Len() == 0 {
@@ -152,14 +153,14 @@ func getResult(evalResult *opa.Result) (ast.Value, error) {
 	}
 
 	if resultSet.Len() > 1 {
-		return nil, fmt.Errorf("illegal result type")
+		return nil, errors.New("illegal result type")
 	}
 
 	var obj ast.Object
 	err = resultSet.Iter(func(term *ast.Term) error {
 		obj, ok = term.Value.(ast.Object)
 		if !ok || obj.Len() != 1 {
-			return fmt.Errorf("illegal result type")
+			return errors.New("illegal result type")
 		}
 		return nil
 	})

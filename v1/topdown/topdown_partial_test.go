@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -4193,12 +4194,12 @@ func prepareTest(ctx context.Context, t *testing.T, params fixtureParams, f func
 
 			if len(params.moduleASTs) > 0 {
 				for i, module := range params.moduleASTs {
-					modules[fmt.Sprint(i)] = module
+					modules[strconv.Itoa(i)] = module
 				}
 			}
 			for i, module := range params.modules {
 				j := len(params.moduleASTs) + i
-				modules[fmt.Sprint(j)] = ast.MustParseModuleWithOpts(module, opts)
+				modules[strconv.Itoa(j)] = ast.MustParseModuleWithOpts(module, opts)
 			}
 
 			if compiler.Compile(modules); compiler.Failed() {

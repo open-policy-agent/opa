@@ -6,7 +6,8 @@ package debug
 
 import (
 	"context"
-	"fmt"
+	"errors"
+	"strconv"
 	"sync"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -139,7 +140,7 @@ func (t *thread) stepIn() (eventAction, error) {
 	defer t.mtx.Unlock()
 
 	if t.stopped {
-		return nopAction, fmt.Errorf("thread stopped")
+		return nopAction, errors.New("thread stopped")
 	}
 
 	var a eventAction
@@ -168,7 +169,7 @@ func (t *thread) stepOver() error {
 	defer t.mtx.Unlock()
 
 	if t.stopped {
-		return fmt.Errorf("thread stopped")
+		return errors.New("thread stopped")
 	}
 
 	_, startE, err := t.current()
@@ -238,7 +239,7 @@ func (t *thread) stepOut() error {
 	defer t.mtx.Unlock()
 
 	if t.stopped {
-		return fmt.Errorf("thread stopped")
+		return errors.New("thread stopped")
 	}
 
 	_, c, err := t.current()
@@ -509,7 +510,7 @@ func (t *thread) resultVars(rs rego.ResultSet) VarRef {
 		)
 
 		vars = append(vars, namedVar{
-			name:  fmt.Sprintf("%d", i),
+			name:  strconv.Itoa(i),
 			value: res,
 		})
 	}

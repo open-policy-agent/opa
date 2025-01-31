@@ -1745,7 +1745,7 @@ func (e *evalResolver) Resolve(ref ast.Ref) (ast.Value, error) {
 		return merged, err
 	}
 	e.e.instr.stopTimer(evalOpResolve)
-	return nil, fmt.Errorf("illegal ref")
+	return nil, errors.New("illegal ref")
 }
 
 func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, error) {

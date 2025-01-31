@@ -296,7 +296,7 @@ func addEntrypointsFromAnnotations(c *Compiler, arefs []*ast.AnnotationsRef) err
 func (c *Compiler) Build(ctx context.Context) error {
 
 	if c.regoVersion == ast.RegoUndefined {
-		return fmt.Errorf("rego-version not set")
+		return errors.New("rego-version not set")
 	}
 
 	if err := c.init(); err != nil {

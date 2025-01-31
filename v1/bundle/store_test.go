@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -1918,8 +1918,8 @@ func TestBundleLazyModeLifecycleRawInvalidData(t *testing.T) {
 		files [][2]string
 		err   error
 	}{
-		"non-object root": {[][2]string{{"/data.json", `[1,2,3]`}}, fmt.Errorf("root value must be object")},
-		"invalid yaml":    {[][2]string{{"/a/b/data.yaml", `"foo`}}, fmt.Errorf("yaml: found unexpected end of stream")},
+		"non-object root": {[][2]string{{"/data.json", `[1,2,3]`}}, errors.New("root value must be object")},
+		"invalid yaml":    {[][2]string{{"/a/b/data.yaml", `"foo`}}, errors.New("yaml: found unexpected end of stream")},
 	}
 
 	for name, tc := range tests {
@@ -6411,7 +6411,7 @@ func TestDoDFS(t *testing.T) {
 			path:    filepath.Dir(strings.Trim("/data.json", "/")),
 			roots:   []string{"a/d"},
 			wantErr: true,
-			err:     fmt.Errorf("manifest roots [a/d] do not permit data at path '/d' (hint: check bundle directory structure)"),
+			err:     errors.New("manifest roots [a/d] do not permit data at path '/d' (hint: check bundle directory structure)"),
 		},
 		{
 			note:    "data outside roots 2",
@@ -6419,7 +6419,7 @@ func TestDoDFS(t *testing.T) {
 			path:    filepath.Dir(strings.Trim("/x/data.json", "/")),
 			roots:   []string{"x/a/b/c/d"},
 			wantErr: true,
-			err:     fmt.Errorf("manifest roots [x/a/b/c/d] do not permit data at path '/x/a/b/c/e' (hint: check bundle directory structure)"),
+			err:     errors.New("manifest roots [x/a/b/c/d] do not permit data at path '/x/a/b/c/e' (hint: check bundle directory structure)"),
 		},
 		{
 			note:    "data outside roots 3",
@@ -6427,7 +6427,7 @@ func TestDoDFS(t *testing.T) {
 			path:    filepath.Dir(strings.Trim("/data.json", "/")),
 			roots:   []string{"a/b/c/d"},
 			wantErr: true,
-			err:     fmt.Errorf("manifest roots [a/b/c/d] do not permit data at path '/a/b/c' (hint: check bundle directory structure)"),
+			err:     errors.New("manifest roots [a/b/c/d] do not permit data at path '/a/b/c' (hint: check bundle directory structure)"),
 		},
 		{
 			note:    "data outside multiple roots",
@@ -6435,7 +6435,7 @@ func TestDoDFS(t *testing.T) {
 			path:    filepath.Dir(strings.Trim("/data.json", "/")),
 			roots:   []string{"a/b", "c"},
 			wantErr: true,
-			err:     fmt.Errorf("manifest roots [a/b c] do not permit data at path '/e' (hint: check bundle directory structure)"),
+			err:     errors.New("manifest roots [a/b c] do not permit data at path '/e' (hint: check bundle directory structure)"),
 		},
 		{
 			note:    "data outside multiple roots 2",
@@ -6443,7 +6443,7 @@ func TestDoDFS(t *testing.T) {
 			path:    filepath.Dir(strings.Trim("/data.json", "/")),
 			roots:   []string{"a/b", "c/d/e"},
 			wantErr: true,
-			err:     fmt.Errorf("manifest roots [a/b c/d/e] do not permit data at path '/c/d' (hint: check bundle directory structure)"),
+			err:     errors.New("manifest roots [a/b c/d/e] do not permit data at path '/c/d' (hint: check bundle directory structure)"),
 		},
 	}
 

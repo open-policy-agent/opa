@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -224,7 +225,7 @@ func (d *OCIDownloader) download(ctx context.Context, m metrics.Metrics) (*downl
 
 	preferences := []string{fmt.Sprintf("modes=%v,%v", defaultBundleMode, deltaBundleMode)}
 
-	preferValue := fmt.Sprintf("%v", strings.Join(preferences, ";"))
+	preferValue := strings.Join(preferences, ";")
 	d.client = d.client.WithHeader("Prefer", preferValue)
 
 	m.Timer(metrics.BundleRequest).Start()
@@ -246,7 +247,7 @@ func (d *OCIDownloader) download(ctx context.Context, m metrics.Metrics) (*downl
 		}
 	}
 	if tarballDescriptor.MediaType == "" {
-		return nil, fmt.Errorf("no tarball descriptor found in the layers")
+		return nil, errors.New("no tarball descriptor found in the layers")
 	}
 	etag := tarballDescriptor.Digest.Hex()
 	bundleFilePath := filepath.Join(d.localStorePath, "blobs", "sha256", etag)
@@ -423,7 +424,7 @@ func manifestFromDesc(ctx context.Context, target oraslib.Target, desc *ocispec.
 	}
 
 	if len(manifest.Layers) < 1 {
-		return nil, fmt.Errorf("no layers in manifest")
+		return nil, errors.New("no layers in manifest")
 	}
 
 	return &manifest, nil

@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"embed"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io"
 	"io/fs"
 	"os"
@@ -948,17 +948,17 @@ func TestCheckForUNCPath(t *testing.T) {
 		{
 			input:   `\\localhost\c$`,
 			wantErr: true,
-			err:     fmt.Errorf("UNC path read is not allowed: \\\\localhost\\c$"),
+			err:     errors.New("UNC path read is not allowed: \\\\localhost\\c$"),
 		},
 		{
 			input:   `\\\\localhost\c$`,
 			wantErr: true,
-			err:     fmt.Errorf("UNC path read is not allowed: \\\\\\\\localhost\\c$"),
+			err:     errors.New("UNC path read is not allowed: \\\\\\\\localhost\\c$"),
 		},
 		{
 			input:   `//localhost/foo`,
 			wantErr: true,
-			err:     fmt.Errorf("UNC path read is not allowed: //localhost/foo"),
+			err:     errors.New("UNC path read is not allowed: //localhost/foo"),
 		},
 		{
 			input:   `file:///a/b/c`,

@@ -678,7 +678,7 @@ func (ap *ecrAuthPlugin) Prepare(r *http.Request) error {
 
 	ap.logger.Debug("Signing request with ECR authorization token")
 
-	r.Header.Set("Authorization", fmt.Sprintf("Basic %s", ap.token.AuthorizationToken))
+	r.Header.Set("Authorization", "Basic "+ap.token.AuthorizationToken)
 	return nil
 }
 

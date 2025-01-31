@@ -5,7 +5,9 @@
 package bundle
 
 import (
+	"errors"
 	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/plugins"
@@ -231,7 +233,7 @@ func TestParseAndValidateBundlesConfig(t *testing.T) {
 
 	keys := map[string]*keys.Config{"foo": {Key: "secret"}}
 	for i := range tests {
-		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			_, err := NewConfigBuilder().WithBytes([]byte(tests[i].conf)).WithServices(tests[i].services).
 				WithKeyConfigs(keys).Parse()
 			if err != nil && !tests[i].wantError {
@@ -409,7 +411,7 @@ func TestConfigIsMultiBundle(t *testing.T) {
 	}
 
 	for i := range tests {
-		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			actual := tests[i].conf.IsMultiBundle()
 			if actual != tests[i].expected {
 				t.Errorf("expected %t but got %t", tests[i].expected, actual)
@@ -462,20 +464,20 @@ func TestParseConfigTriggerMode(t *testing.T) {
 			conf:        `{"b1":{"service": "s1", "trigger": "periodic"}}`,
 			services:    []string{"s1"},
 			wantError:   true,
-			err:         fmt.Errorf("invalid configuration for bundle \"b1\": trigger mode mismatch: manual and periodic (hint: check discovery configuration)"),
+			err:         errors.New("invalid configuration for bundle \"b1\": trigger mode mismatch: manual and periodic (hint: check discovery configuration)"),
 			triggerMode: &tm,
 		},
 		{
 			conf:        `{"b1":{"service": "s1", "trigger": "foo"}}`,
 			services:    []string{"s1"},
 			wantError:   true,
-			err:         fmt.Errorf("invalid configuration for bundle \"b1\": invalid trigger mode \"foo\" (want \"periodic\" or \"manual\")"),
+			err:         errors.New("invalid configuration for bundle \"b1\": invalid trigger mode \"foo\" (want \"periodic\" or \"manual\")"),
 			triggerMode: nil,
 		},
 	}
 
 	for i := range tests {
-		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			config, err := NewConfigBuilder().WithBytes([]byte(tests[i].conf)).WithServices(tests[i].services).WithTriggerMode(tests[i].triggerMode).Parse()
 			if err != nil && !tests[i].wantError {
 				t.Fatalf("Unexpected error: %s", err)

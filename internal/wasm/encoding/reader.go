@@ -7,6 +7,7 @@ package encoding
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 
@@ -105,7 +106,7 @@ func readMagic(r io.Reader) error {
 	if err := binary.Read(r, binary.LittleEndian, &v); err != nil {
 		return err
 	} else if v != constant.Magic {
-		return fmt.Errorf("illegal magic value")
+		return errors.New("illegal magic value")
 	}
 	return nil
 }
@@ -115,7 +116,7 @@ func readVersion(r io.Reader) error {
 	if err := binary.Read(r, binary.LittleEndian, &v); err != nil {
 		return err
 	} else if v != constant.Version {
-		return fmt.Errorf("illegal wasm version")
+		return errors.New("illegal wasm version")
 	}
 	return nil
 }
@@ -199,7 +200,7 @@ func readSections(r io.Reader, m *module.Module) error {
 				return fmt.Errorf("code section: %w", err)
 			}
 		default:
-			return fmt.Errorf("illegal section id")
+			return errors.New("illegal section id")
 		}
 	}
 }
@@ -374,7 +375,7 @@ func readTableSection(r io.Reader, s *module.TableSection) error {
 		if elem, err := readByte(r); err != nil {
 			return err
 		} else if elem != constant.ElementTypeAnyFunc {
-			return fmt.Errorf("illegal element type")
+			return errors.New("illegal element type")
 		}
 
 		table.Type = types.Anyfunc
@@ -547,7 +548,7 @@ func readGlobal(r io.Reader, global *module.Global) error {
 	if b == 1 {
 		global.Mutable = true
 	} else if b != 0 {
-		return fmt.Errorf("illegal mutability flag")
+		return errors.New("illegal mutability flag")
 	}
 
 	return readConstantExpr(r, &global.Init)
@@ -584,7 +585,7 @@ func readImport(r io.Reader, imp *module.Import) error {
 		if elem, err := readByte(r); err != nil {
 			return err
 		} else if elem != constant.ElementTypeAnyFunc {
-			return fmt.Errorf("illegal element type")
+			return errors.New("illegal element type")
 		}
 		desc := module.TableImport{
 			Type: types.Anyfunc,
@@ -617,12 +618,12 @@ func readImport(r io.Reader, imp *module.Import) error {
 		if b == 1 {
 			desc.Mutable = true
 		} else if b != 0 {
-			return fmt.Errorf("illegal mutability flag")
+			return errors.New("illegal mutability flag")
 		}
 		return nil
 	}
 
-	return fmt.Errorf("illegal import descriptor type")
+	return errors.New("illegal import descriptor type")
 }
 
 func readExport(r io.Reader, exp *module.Export) error {
@@ -646,7 +647,7 @@ func readExport(r io.Reader, exp *module.Export) error {
 	case constant.ExportDescGlobal:
 		exp.Descriptor.Type = module.GlobalExportType
 	default:
-		return fmt.Errorf("illegal export descriptor type")
+		return errors.New("illegal export descriptor type")
 	}
 
 	exp.Descriptor.Index, err = leb128.ReadVarUint32(r)
@@ -727,7 +728,7 @@ func readExpr(r io.Reader, expr *module.Expr) (err error) {
 			case error:
 				err = r
 			default:
-				err = fmt.Errorf("unknown panic")
+				err = errors.New("unknown panic")
 			}
 		}
 	}()
@@ -823,7 +824,7 @@ func readLimits(r io.Reader, l *module.Limit) error {
 		}
 		l.Max = &maxLim
 	} else if b != 0 {
-		return fmt.Errorf("illegal limit flag")
+		return errors.New("illegal limit flag")
 	}
 
 	return nil

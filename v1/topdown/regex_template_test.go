@@ -1,7 +1,6 @@
 package topdown
 
 import (
-	"fmt"
 	"regexp"
 	"testing"
 )
@@ -25,7 +24,7 @@ func TestRegexCompiler(t *testing.T) {
 		{"urn:foo.bar.com:{.*{}", '{', '}', true, "", true},
 		{"urn:foo:<.*>", '<', '>', false, "urn:foo:bar:baz", false},
 	} {
-		t.Run(fmt.Sprintf("template=%s", tc.template), func(t *testing.T) {
+		t.Run("template="+tc.template, func(t *testing.T) {
 			t.Parallel()
 
 			result, err := compileRegexTemplate(tc.template, tc.delimiterStart, tc.delimiterEnd)

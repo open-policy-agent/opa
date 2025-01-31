@@ -5,6 +5,7 @@
 package planner
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -1238,7 +1239,7 @@ func findCallDynamic(path []ir.Operand, p interface{}) error {
 		return err
 	}
 	if !w.found {
-		return fmt.Errorf("not found")
+		return errors.New("not found")
 	}
 	return nil
 }
@@ -1250,7 +1251,7 @@ func findFunc(name, path string) func(interface{}) error {
 			return err
 		}
 		if !w.found {
-			return fmt.Errorf("not found")
+			return errors.New("not found")
 		}
 		return nil
 	}

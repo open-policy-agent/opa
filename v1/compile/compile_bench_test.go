@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -25,7 +26,7 @@ func BenchmarkCompileDynamicPolicy(b *testing.B) {
 		testcase := generateDynamicPolicyBenchmarkData(n)
 		test.WithTestFS(testcase, true, func(root string, fileSys fs.FS) {
 			b.ResetTimer()
-			b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
+			b.Run(strconv.Itoa(n), func(b *testing.B) {
 				compiler := New().
 					WithFS(fileSys).
 					WithPaths(root)
@@ -78,7 +79,7 @@ func BenchmarkLargePartialRulePolicy(b *testing.B) {
 	for _, n := range numPolicies {
 		testcase := generateLargePartialRuleBenchmarkData(n)
 		b.ResetTimer()
-		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			test.WithTempFS(testcase, func(root string) {
 				b.ResetTimer()
 

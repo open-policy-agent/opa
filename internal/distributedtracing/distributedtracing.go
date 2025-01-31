@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -215,7 +216,7 @@ func loadCertificate(tlsCertFile, tlsPrivateKeyFile string) (*tls.Certificate, e
 	}
 
 	if tlsCertFile != "" || tlsPrivateKeyFile != "" {
-		return nil, fmt.Errorf("distributed_tracing.tls_cert_file and distributed_tracing.tls_private_key_file must be specified together")
+		return nil, errors.New("distributed_tracing.tls_cert_file and distributed_tracing.tls_private_key_file must be specified together")
 	}
 
 	return nil, nil
@@ -247,7 +248,7 @@ func tlsOption(encryptionScheme string, encryptionSkipVerify bool, cert *tls.Cer
 	}
 	if encryptionScheme == "mtls" {
 		if cert == nil {
-			return nil, fmt.Errorf("distributed_tracing.tls_cert_file required but not supplied")
+			return nil, errors.New("distributed_tracing.tls_cert_file required but not supplied")
 		}
 		tlsConfig.Certificates = []tls.Certificate{*cert}
 	}

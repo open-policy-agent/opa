@@ -645,7 +645,7 @@ func (s *Server) getListenerForHTTPServer(u *url.URL, h http.Handler, t httpList
 func (s *Server) getListenerForHTTPSServer(u *url.URL, h http.Handler, t httpListenerType) (Loop, httpListener, error) {
 
 	if s.cert == nil {
-		return nil, nil, fmt.Errorf("TLS certificate required but not supplied")
+		return nil, nil, errors.New("TLS certificate required but not supplied")
 	}
 
 	tlsConfig := tls.Config{
@@ -1318,7 +1318,7 @@ func (s *Server) unversionedGetHealthWithPolicy(w http.ResponseWriter, r *http.R
 
 	vars := mux.Vars(r)
 	urlPath := vars["path"]
-	healthDataPath := fmt.Sprintf("/system/health/%s", urlPath)
+	healthDataPath := "/system/health/" + urlPath
 	healthDataPath = stringPathToDataRef(healthDataPath).String()
 
 	rego := rego.New(

@@ -6,7 +6,7 @@ package ast
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"math/rand"
 	"reflect"
 	"runtime"
@@ -120,7 +120,7 @@ func TestInterfaceToValueStructs(t *testing.T) {
 type brokenMarshaller struct{}
 
 func (brokenMarshaller) MarshalJSON() ([]byte, error) {
-	return nil, fmt.Errorf("broken")
+	return nil, errors.New("broken")
 }
 
 func TestObjectInsertGetLen(t *testing.T) {
@@ -276,7 +276,7 @@ func TestTermBadJSON(t *testing.T) {
 
 	term := Term{}
 	err := util.UnmarshalJSON([]byte(input), &term)
-	expected := fmt.Errorf("ast: unable to unmarshal term")
+	expected := errors.New("ast: unable to unmarshal term")
 	if expected.Error() != err.Error() {
 		t.Errorf("Expected %v but got: %v", expected, err)
 	}
@@ -325,7 +325,7 @@ func TestFind(t *testing.T) {
 	}{
 		{RefTerm(StringTerm("foo"), IntNumberTerm(1), StringTerm("bar")), MustParseTerm(`{2, 3, 4}`)},
 		{RefTerm(StringTerm("foo"), IntNumberTerm(1), StringTerm("bar"), IntNumberTerm(4)), MustParseTerm(`4`)},
-		{RefTerm(StringTerm("foo"), IntNumberTerm(2)), fmt.Errorf("not found")},
+		{RefTerm(StringTerm("foo"), IntNumberTerm(2)), errors.New("not found")},
 		{RefTerm(StringTerm("baz"), StringTerm("qux"), IntNumberTerm(0)), MustParseTerm(`"hello"`)},
 	}
 
@@ -753,7 +753,7 @@ func TestSetMap(t *testing.T) {
 	}
 
 	result, err = set.Map(func(*Term) (*Term, error) {
-		return nil, fmt.Errorf("oops")
+		return nil, errors.New("oops")
 	})
 
 	if err.Error() != "oops" {

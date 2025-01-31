@@ -2,6 +2,7 @@ package dependencies
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -11,7 +12,7 @@ import (
 func BenchmarkBase(b *testing.B) {
 	ruleCounts := []int{10, 20, 50}
 	for _, ruleCount := range ruleCounts {
-		b.Run(fmt.Sprint(ruleCount), func(b *testing.B) {
+		b.Run(strconv.Itoa(ruleCount), func(b *testing.B) {
 			policy := makePolicy(ruleCount)
 			module := ast.MustParseModule(policy)
 			compiler := ast.NewCompiler()
@@ -34,7 +35,7 @@ func BenchmarkBase(b *testing.B) {
 func BenchmarkVirtual(b *testing.B) {
 	ruleCounts := []int{10, 20, 50}
 	for _, ruleCount := range ruleCounts {
-		b.Run(fmt.Sprint(ruleCount), func(b *testing.B) {
+		b.Run(strconv.Itoa(ruleCount), func(b *testing.B) {
 			policy := makePolicy(ruleCount)
 			module := ast.MustParseModule(policy)
 			compiler := ast.NewCompiler()

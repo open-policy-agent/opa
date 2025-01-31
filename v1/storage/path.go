@@ -5,6 +5,7 @@
 package storage
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -50,7 +51,7 @@ func ParsePathEscaped(str string) (path Path, ok bool) {
 func NewPathForRef(ref ast.Ref) (path Path, err error) {
 
 	if len(ref) == 0 {
-		return nil, fmt.Errorf("empty reference (indicates error in caller)")
+		return nil, errors.New("empty reference (indicates error in caller)")
 	}
 
 	if len(ref) == 1 {

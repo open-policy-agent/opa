@@ -9,6 +9,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -300,7 +301,7 @@ func (t *TestRuntime) WaitForServer() error {
 		}
 		time.Sleep(delay)
 	}
-	return fmt.Errorf("API Server not ready in time")
+	return errors.New("API Server not ready in time")
 }
 
 // DeletePolicy will delete the given policy in the runtime via the v1 policy API

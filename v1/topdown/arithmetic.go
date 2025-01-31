@@ -5,7 +5,7 @@
 package topdown
 
 import (
-	"fmt"
+	"errors"
 	"math/big"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -116,14 +116,14 @@ func arithMultiply(a, b *big.Float) (*big.Float, error) {
 func arithDivide(a, b *big.Float) (*big.Float, error) {
 	i, acc := b.Int64()
 	if acc == big.Exact && i == 0 {
-		return nil, fmt.Errorf("divide by zero")
+		return nil, errors.New("divide by zero")
 	}
 	return new(big.Float).Quo(a, b), nil
 }
 
 func arithRem(a, b *big.Int) (*big.Int, error) {
 	if b.Int64() == 0 {
-		return nil, fmt.Errorf("modulo by zero")
+		return nil, errors.New("modulo by zero")
 	}
 	return new(big.Int).Rem(a, b), nil
 }
@@ -210,7 +210,7 @@ func builtinRem(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 
 		if okx && oky && inSmallIntRange(x) && inSmallIntRange(y) {
 			if y == 0 {
-				return fmt.Errorf("modulo by zero")
+				return errors.New("modulo by zero")
 			}
 
 			return iter(ast.InternedIntNumberTerm(x % y))
@@ -220,7 +220,7 @@ func builtinRem(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 		op2, err2 := builtins.NumberToInt(n2)
 
 		if err1 != nil || err2 != nil {
-			return fmt.Errorf("modulo on floating-point number")
+			return errors.New("modulo on floating-point number")
 		}
 
 		i, err := arithRem(op1, op2)

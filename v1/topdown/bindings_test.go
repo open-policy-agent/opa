@@ -5,7 +5,6 @@
 package topdown
 
 import (
-	"fmt"
 	"strconv"
 	"testing"
 
@@ -96,7 +95,7 @@ next:
 }
 
 func testBindingKey(key int) *ast.Term {
-	return ast.VarTerm(fmt.Sprintf("%d", key))
+	return ast.VarTerm(strconv.Itoa(key))
 }
 
 func testBindingValue(b *bindings, key int) value {

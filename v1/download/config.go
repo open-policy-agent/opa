@@ -5,6 +5,7 @@
 package download
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -57,14 +58,14 @@ func (c *Config) ValidateAndInjectDefaults() error {
 	// reject bad min/max values
 	if c.Polling.MaxDelaySeconds != nil && c.Polling.MinDelaySeconds != nil {
 		if *c.Polling.MaxDelaySeconds < *c.Polling.MinDelaySeconds {
-			return fmt.Errorf("max polling delay must be >= min polling delay")
+			return errors.New("max polling delay must be >= min polling delay")
 		}
 		min = *c.Polling.MinDelaySeconds
 		max = *c.Polling.MaxDelaySeconds
 	} else if c.Polling.MaxDelaySeconds == nil && c.Polling.MinDelaySeconds != nil {
-		return fmt.Errorf("polling configuration missing 'max_delay_seconds'")
+		return errors.New("polling configuration missing 'max_delay_seconds'")
 	} else if c.Polling.MinDelaySeconds == nil && c.Polling.MaxDelaySeconds != nil {
-		return fmt.Errorf("polling configuration missing 'min_delay_seconds'")
+		return errors.New("polling configuration missing 'min_delay_seconds'")
 	}
 
 	// scale to seconds
@@ -76,7 +77,7 @@ func (c *Config) ValidateAndInjectDefaults() error {
 
 	if c.Polling.LongPollingTimeoutSeconds != nil {
 		if *c.Polling.LongPollingTimeoutSeconds < 1 {
-			return fmt.Errorf("'long_polling_timeout_seconds' must be at least 1")
+			return errors.New("'long_polling_timeout_seconds' must be at least 1")
 		}
 	}
 

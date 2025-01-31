@@ -10,6 +10,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"net"
@@ -620,7 +621,7 @@ func TestOneShotWithBundlePersistence(t *testing.T) {
 	ensurePluginState(t, disco, plugins.StateNotReady)
 
 	// simulate a bundle download error with no bundle on disk
-	disco.oneShot(ctx, download.Update{Error: fmt.Errorf("unknown error")})
+	disco.oneShot(ctx, download.Update{Error: errors.New("unknown error")})
 
 	if disco.status.Message == "" {
 		t.Fatal("expected error but got none")
@@ -2737,7 +2738,7 @@ func TestStatusUpdates(t *testing.T) {
 	}`)})
 
 	// Downloader error.
-	disco.oneShot(ctx, download.Update{Error: fmt.Errorf("unknown error")})
+	disco.oneShot(ctx, download.Update{Error: errors.New("unknown error")})
 
 	// Clear error.
 	disco.oneShot(ctx, download.Update{ETag: "etag-2", Bundle: makeDataBundle(2, `{
@@ -2994,7 +2995,7 @@ func TestStatusUpdatesTimestamp(t *testing.T) {
 	}
 
 	// simulate error response from downloader
-	disco.oneShot(ctx, download.Update{Error: fmt.Errorf("unknown error")})
+	disco.oneShot(ctx, download.Update{Error: errors.New("unknown error")})
 
 	if disco.status.LastSuccessfulDownload != disco.status.LastSuccessfulRequest || disco.status.LastSuccessfulDownload == disco.status.LastRequest {
 		t.Fatal("expected last successful request to be same as download but different from request")
@@ -3319,7 +3320,7 @@ bundles:
 			confGood, false, nil,
 		},
 		"trigger_mode_mismatch": {
-			confBad, true, fmt.Errorf("invalid configuration for bundle \"bundle-new\": trigger mode mismatch: manual and periodic (hint: check discovery configuration)"),
+			confBad, true, errors.New("invalid configuration for bundle \"bundle-new\": trigger mode mismatch: manual and periodic (hint: check discovery configuration)"),
 		},
 	}
 
@@ -3386,7 +3387,7 @@ decision_logs:
 			confGood, false, nil,
 		},
 		"trigger_mode_mismatch": {
-			confBad, true, fmt.Errorf("invalid decision_log config: trigger mode mismatch: manual and periodic (hint: check discovery configuration)"),
+			confBad, true, errors.New("invalid decision_log config: trigger mode mismatch: manual and periodic (hint: check discovery configuration)"),
 		},
 	}
 
@@ -3459,7 +3460,7 @@ status:
 			confGood, false, nil,
 		},
 		"trigger_mode_mismatch": {
-			confBad, true, fmt.Errorf("invalid status config: trigger mode mismatch: manual and periodic (hint: check discovery configuration)"),
+			confBad, true, errors.New("invalid status config: trigger mode mismatch: manual and periodic (hint: check discovery configuration)"),
 		},
 	}
 
@@ -3837,7 +3838,7 @@ func TestListeners(t *testing.T) {
 	})
 
 	// simulate a bundle download error
-	disco.oneShot(ctx, download.Update{Error: fmt.Errorf("unknown error")})
+	disco.oneShot(ctx, download.Update{Error: errors.New("unknown error")})
 
 	if status == nil {
 		t.Fatalf("Expected discovery listener to receive status but was nil")
@@ -3847,7 +3848,7 @@ func TestListeners(t *testing.T) {
 	disco.Unregister("testlistener")
 
 	// simulate a bundle download error
-	disco.oneShot(ctx, download.Update{Error: fmt.Errorf("unknown error")})
+	disco.oneShot(ctx, download.Update{Error: errors.New("unknown error")})
 	if status != nil {
 		t.Fatalf("Expected discovery listener to be removed but received %v", status)
 	}

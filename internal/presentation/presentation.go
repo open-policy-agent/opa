@@ -8,6 +8,7 @@ package presentation
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -410,7 +411,7 @@ func Discard(w io.Writer, x interface{}) error {
 	encoder.SetIndent("", "  ")
 	field, ok := x.(Output)
 	if !ok {
-		return fmt.Errorf("error in converting interface to type Output")
+		return errors.New("error in converting interface to type Output")
 	}
 	bs, err := json.Marshal(field)
 	if err != nil {

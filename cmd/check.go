@@ -5,6 +5,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -174,7 +175,7 @@ func init() {
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				return fmt.Errorf("specify at least one file")
+				return errors.New("specify at least one file")
 			}
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
