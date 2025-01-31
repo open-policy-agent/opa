@@ -184,7 +184,7 @@ func RefHead(ref Ref, args ...*Term) *Head {
 }
 
 // DocKind represents the collection of document types that can be produced by rules.
-type DocKind int
+type DocKind = v1.DocKind
 
 const (
 	// CompleteDoc represents a document that is completely defined by the rule.
