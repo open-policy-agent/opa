@@ -29,6 +29,7 @@ func TestInterfaceToValue(t *testing.T) {
 			null,
 			"hello",
 			["goodbye", 1],
+			["dummy", "tummy"],
 			{"y": 3.1}
 		]
 	}
@@ -73,6 +74,8 @@ func TestInterfaceToValue(t *testing.T) {
 		{int(100), "100"},
 		{map[string]string{"foo": "bar"}, `{"foo": "bar"}`},
 		{uint64(100), "100"},
+		{[]string{"dummy", "tummy"}, `["dummy", "tummy"]`},
+		{String("bob"), `"bob"`},
 	}
 
 	for _, tc := range tests {
