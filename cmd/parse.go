@@ -133,10 +133,6 @@ func parse(args []string, params *parseParams, stdout io.Writer, stderr io.Write
 
 		_, _ = fmt.Fprint(stdout, string(bs)+"\n")
 	default:
-		if err != nil {
-			_, _ = fmt.Fprintln(stderr, err)
-			return 1
-		}
 		ast.Pretty(stdout, result.Parsed)
 	}
 
