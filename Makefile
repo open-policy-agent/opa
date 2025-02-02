@@ -97,7 +97,7 @@ release-dir:
 
 .PHONY: generate
 generate: wasm-lib-build
-	$(GO) generate
+	#$(GO) generate # TODO(sr): ifeq this
 
 .PHONY: build
 build: go-build
@@ -204,9 +204,9 @@ wasm-test: wasm-lib-test wasm-rego-test
 .PHONY: wasm-lib-build
 wasm-lib-build:
 ifeq ($(DOCKER_RUNNING), 1)
-	@$(MAKE) -C wasm ensure-builder build
-	cp wasm/_obj/opa.wasm internal/compiler/wasm/opa/opa.wasm
-	cp wasm/_obj/callgraph.csv internal/compiler/wasm/opa/callgraph.csv
+#	@$(MAKE) -C wasm ensure-builder build
+#	cp wasm/_obj/opa.wasm internal/compiler/wasm/opa/opa.wasm
+#	cp wasm/_obj/callgraph.csv internal/compiler/wasm/opa/callgraph.csv
 else
 	@echo "Docker not installed or not running. Skipping OPA-WASM library build."
 endif
@@ -301,7 +301,6 @@ ci-build-darwin-arm64-static: ensure-release-dir
 # that can install the `gcc-mingw-w64-x86-64` package via apt-get.
 .PHONY: ci-build-windows
 ci-build-windows: ensure-release-dir
-	build/ensure-windows-toolchain.sh
 	@$(MAKE) build GOOS=windows CC=x86_64-w64-mingw32-gcc
 	mv opa_windows_$(GOARCH) $(RELEASE_DIR)/opa_windows_$(GOARCH).exe
 	cd $(RELEASE_DIR)/ && shasum -a 256 opa_windows_$(GOARCH).exe > opa_windows_$(GOARCH).exe.sha256
