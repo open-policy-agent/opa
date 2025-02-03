@@ -77,6 +77,15 @@ jobs:
           go-version: ${{ steps.go_version.outputs.go_version }}
         if: matrix.os != 'linux'
 
+      - name: Ready msys2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: git mingw-w64-x86_64-toolchain
+          path-type: inherit
+        if: matrix.os == 'windows'
+
       # - run: C:/msys64/usr/bin/pacman.exe -S --needed mingw-w64-x86_64-gcc --noconfirm
       #   if: matrix.os == 'windows'
       # - shell: pwsh
