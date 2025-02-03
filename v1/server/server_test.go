@@ -5820,6 +5820,63 @@ func TestCustomRoute(t *testing.T) {
 	}
 }
 
+func TestCustomRouteWithMetrics(t *testing.T) {
+	t.Parallel()
+
+	// Add Prometheus Registerer to be used by plugins
+	inner := metrics.New()
+	prom := prometheus.New(inner, nil, []float64{1})
+	f := newFixture(t,
+		func(m *plugins.Manager) {
+			m.ExtraRoute("GET /v1/foo", "v1/foo", func(w http.ResponseWriter, _ *http.Request) {
+				fmt.Fprintln(w, `{"foo": "bar"}`)
+			})
+		},
+		func(s *Server) {
+			s.WithMetrics(prom)
+		})
+
+	{ // existing APIs still work fine
+		if err := f.v1(http.MethodGet, "/data", "", 200, `{"result":{}}`); err != nil {
+			t.Fatalf("Unexpected response for default server route: %v", err)
+		}
+	}
+	{ // new endpoint is wired up
+		r, err := http.NewRequest(http.MethodGet, "/v1/foo", nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+		if err := f.executeRequest(r, http.StatusOK, `{"foo": "bar"}`); err != nil {
+			t.Fatalf("Request to custom endpoint failed: %s", err)
+		}
+	}
+	{ // metrics are recorded for special endpoint
+		r, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+		f.reset()
+		f.server.DiagnosticHandler.ServeHTTP(f.recorder, r)
+		resp := f.recorder.Result()
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatalf("failed to read response body: %v", err)
+		}
+		resp.Body.Close()
+
+		for _, want := range []string{
+			`http_request_duration_seconds_count{code="200",handler="v1/data",method="get"} 1`, // default http handler
+			`http_request_duration_seconds_count{code="200",handler="v1/foo",method="get"} 1`,  // added handler
+			`http_request_duration_seconds_bucket{code="200",handler="v1/foo",method="get",le="1"} 1`,
+			`http_request_duration_seconds_bucket{code="200",handler="v1/foo",method="get",le="+Inf"} 1`,
+		} {
+			if !strings.Contains(string(body), want) {
+				t.Errorf("expected response to contain metric %q, but it did not.\nBody:\n%s", want, string(body))
+			}
+		}
+	}
+}
+
 func TestDiagnosticRoutes(t *testing.T) {
 	t.Parallel()
 

@@ -822,6 +822,10 @@ func (s *Server) initRouters(ctx context.Context) {
 		router.Handle("GET /health/{path...}", s.instrumentHandler(s.unversionedGetHealthWithPolicy, PromHandlerHealth))
 	}
 
+	for p, r := range s.manager.ExtraRoutes() {
+		mainRouter.Handle(p, s.instrumentHandler(r.HandlerFunc, r.PromName))
+	}
+
 	if s.pprofEnabled {
 		mainRouter.HandleFunc("GET /debug/pprof/", pprof.Index)
 		mainRouter.Handle("GET /debug/pprof/allocs", pprof.Handler("allocs"))

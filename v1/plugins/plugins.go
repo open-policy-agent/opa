@@ -219,6 +219,7 @@ type Manager struct {
 	opaReportNotifyCh            chan struct{}
 	stop                         chan chan struct{}
 	parserOptions                ast.ParserOptions
+	extraRoutes                  map[string]ExtraRoute
 }
 
 type managerContextKey string
@@ -442,6 +443,7 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		maxErrors:             -1,
 		serverInitialized:     make(chan struct{}),
 		bootstrapConfigLabels: parsedConfig.Labels,
+		extraRoutes:           map[string]ExtraRoute{},
 	}
 
 	for _, f := range opts {
@@ -651,6 +653,32 @@ func (m *Manager) setCompiler(compiler *ast.Compiler) {
 	m.compilerMux.Lock()
 	defer m.compilerMux.Unlock()
 	m.compiler = compiler
+}
+
+type ExtraRoute struct {
+	PromName    string // name is for prometheus metrics
+	HandlerFunc http.HandlerFunc
+}
+
+func (m *Manager) ExtraRoutes() map[string]ExtraRoute {
+	return m.extraRoutes
+}
+
+// ExtraRoute registers an extra route to be served by the HTTP
+// server later. Using this instead of directly registering routes
+// with GetRouter() lets the server apply its handler wrapping for
+// Prometheus and OpenTelemetry.
+// Caution: This cannot be used to dynamically register and un-
+// register HTTP handlers. It's meant as a late-stage set up helper,
+// to be called from a plugin's init methods.
+func (m *Manager) ExtraRoute(path, name string, hf http.HandlerFunc) {
+	if _, ok := m.extraRoutes[path]; ok {
+		panic("extra route already registered: " + path)
+	}
+	m.extraRoutes[path] = ExtraRoute{
+		PromName:    name,
+		HandlerFunc: hf,
+	}
 }
 
 // GetRouter returns the managers router if set
