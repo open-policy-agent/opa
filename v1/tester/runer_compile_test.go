@@ -1,0 +1,356 @@
+// Copyright 2025 The OPA Authors.  All rights reserved.
+// Use of this source code is governed by an Apache2
+// license that can be found in the LICENSE file.
+
+package tester
+
+import (
+	"testing"
+
+	"github.com/open-policy-agent/opa/v1/ast"
+)
+
+func TestInjectTestCaseFunc(t *testing.T) {
+	testCases := []struct {
+		note   string
+		module string
+		exp    string
+	}{
+		{
+			note: "head-ref, assigned last in body",
+			module: `package test
+				test_foo.foo if {
+					some tc in [
+						{"note": "a", "x": 1},
+					]
+					tc.x == 1
+				}`,
+			// no var assignment in body, func injected first in body
+			exp: `package test
+				test_foo.foo if { 
+					internal.test_case(["foo"])          # func injection
+					__local3__ = [{"note": "a", "x": 1}]
+					__local2__ = __local3__[__local1__]
+					__local2__.x = 1
+				}`,
+		},
+		{
+			note: "string in head-ref, assigned last in body",
+			module: `package test
+				test_foo["foo"] if {
+					some tc in [
+						{"note": "a", "x": 1},
+					]
+					tc.x == 1
+				}`,
+			// no var assignment in body, func injected first in body
+			exp: `package test
+				test_foo.foo if { 
+					internal.test_case(["foo"])          # func injection
+					__local3__ = [{"note": "a", "x": 1}]
+					__local2__ = __local3__[__local1__]
+					__local2__.x = 1
+				}`,
+		},
+
+		{
+			note: "const in head-ref, assigned last in body",
+			module: `package test
+				foo := "bar"
+				test_foo[foo] if {
+					some tc in [
+						{"note": "a", "x": 1},
+					]
+					tc.x == 1
+				}`,
+			// var assignment can be moved up the body, func injected after moved expr
+			exp: `package test
+				foo := "bar" if { true }
+				test_foo[__local0__] if { 
+					__local0__ = data.test.foo           # generated head-ref const/var assignment, moved up
+					internal.test_case([__local0__])     # func injection
+					__local4__ = [{"note": "a", "x": 1}]
+					__local3__ = __local4__[__local2__]
+					__local3__.x = 1
+				}`,
+		},
+
+		{
+			note: "var in head-ref, assigned last in body",
+			module: `package test
+				test_foo[note] if {
+					some tc in [
+						{"note": "a"},
+					]
+					note := tc.note
+				}`,
+			// var assignment cannot be moved up the body, func injected last in body
+			exp: `package test
+				test_foo[__local3__] if { 
+					__local4__ = [{"note": "a"}]
+					__local2__ = __local4__[__local1__]
+					__local3__ = __local2__.note        # head-ref var assignment
+					internal.test_case([__local3__])    # func injection
+				}`,
+		},
+		{
+			note: "var in head-ref, assigned last in body, trailing assertions",
+			module: `package test
+				test_foo[note] if {
+					some tc in [
+						{"note": "a", "x": 1},
+					]
+					note := tc.note
+					tc.x == 1
+				}`,
+			// var assignment cannot be moved up the body, func injected last in body
+			exp: `package test
+				test_foo[__local3__] if { 
+					__local4__ = [{"note": "a", "x": 1}]
+					__local2__ = __local4__[__local1__]
+					__local3__ = __local2__.note        # head-ref var assignment
+					internal.test_case([__local3__])    # func injection
+					__local2__.x = 1
+				}`,
+		},
+		{
+			note: "var in head-ref, assigned mid-body",
+			module: `package test
+				test_foo[note] if {
+					some tc in [
+						{"note": "a", "x": 1},
+					]
+					note := tc.note
+					tc.x == 1
+				}`,
+			// var assignment cannot be moved up the body, func injected after assignment
+			exp: `package test
+				test_foo[__local3__] if { 
+					__local4__ = [{"note": "a", "x": 1}]
+					__local2__ = __local4__[__local1__]
+					__local3__ = __local2__.note        # head-ref var assignment
+					internal.test_case([__local3__])    # func injection
+					__local2__.x = 1
+				}`,
+		},
+		{
+			note: "var in head-ref, assigned after unrelated assertions",
+			module: `package test
+				test_foo[note] if {
+					some tc in [
+						{"note": "a", "x": 1},
+					]
+					tc.x == 1
+					note := tc.note
+				}`,
+			// var assignment can be moved up the body, func injected after assignment
+			exp: `package test
+				test_foo[__local3__] if { 
+					__local4__ = [{"note": "a", "x": 1}]
+					__local2__ = __local4__[__local1__]
+					__local2__.x = 1                    # non-generated expression, can't be moved
+					__local3__ = __local2__.note        # head-ref var assignment
+					internal.test_case([__local3__])    # func injection
+				}`,
+		},
+
+		{
+			note: "ref in head-ref",
+			module: `package test
+				test_foo[tc.note] if {
+					some tc in [
+						{"note": "a"},
+					]
+				}`,
+			// var assignment cannot be moved up the body, func injected last in body
+			exp: `package test
+				test_foo[__local0__] if { 
+					__local4__ = [{"note": "a"}]
+					__local3__ = __local4__[__local2__]
+					__local0__ = __local3__.note        # generated head-ref var assignment
+					internal.test_case([__local0__])    # func injection
+				}`,
+		},
+		{
+			note: "ref in head-ref, can move above unrelated assertions",
+			module: `package test
+				test_foo[tc.note] if {
+					some tc in [
+						{"note": "a", "x": 1, "y": 2},
+					]
+					tc.x == 1
+					tc.y == 2
+				}`,
+			// var assignment can be moved up the body, func injected after assignment
+			exp: `package test
+				test_foo[__local0__] if { 
+					__local4__ = [{"note": "a", "x": 1, "y": 2}]
+					__local3__ = __local4__[__local2__]
+					__local0__ = __local3__.note                 # generated head-ref var assignment
+					internal.test_case([__local0__])			 # func injection
+					__local3__.x = 1
+					__local3__.y = 2
+					}`,
+		},
+
+		// Multiple head-ref test-case terms
+
+		{
+			note: "multi-term head-ref, assigned last in body",
+			module: `package test
+				test_foo.foo.bar if {
+					some tc in [
+						{"note": "a", "x": 1},
+					]
+					tc.x == 1
+				}`,
+			// no var assignment in body, func injected first in body
+			exp: `package test
+				test_foo.foo.bar if { 
+					internal.test_case(["foo", "bar"])   # func injection
+					__local3__ = [{"note": "a", "x": 1}]
+					__local2__ = __local3__[__local1__]
+					__local2__.x = 1
+				}`,
+		},
+		{
+			note: "multiple vars in head-ref",
+			module: `package test
+				test_foo[note1][note2] if {
+					some flag in [
+						{"note": "on", "a": 1},
+					]
+					note1 := flag.note
+					some tc in [
+						{"note": "a", "x": 1},
+					]
+					note2 := tc.note
+					flag.a == 1
+					tc.x == 1
+				}`,
+			// var assignment cannot be moved up the body, func injected after last head-ref assignment
+			exp: `package test
+				test_foo[__local3__][__local7__] = true if { 
+					__local8__ = [{"a": 1, "note": "on"}]; 
+					__local2__ = __local8__[__local1__]; 
+					__local3__ = __local2__.note;                 # manual head-ref var assignment
+					__local9__ = [{"note": "a", "x": 1}]; 
+					__local6__ = __local9__[__local5__]; 
+					__local7__ = __local6__.note;                 # manual head-ref var assignment
+					internal.test_case([__local3__, __local7__]); # func injection, after last head-ref assignment
+					__local2__.a = 1; 
+					__local6__.x = 1 
+				}`,
+		},
+		{
+			note: "multiple vars in head-ref, manual assignment below unrelated assertion(s)",
+			module: `package test
+				test_foo[note1][note2] if {
+					some flag in [
+						{"note": "on", "a": 1},
+					]
+					some tc in [
+						{"note": "a", "x": 1},
+					]
+					note2 := tc.note
+					flag.a == 1
+					note1 := flag.note
+					tc.x == 1
+				}`,
+			// var assignment cannot be moved up the body, func injected after last head-ref assignment
+			exp: `package test
+				test_foo[__local7__][__local6__] if { 
+					__local8__ = [{"a": 1, "note": "on"}]
+					__local2__ = __local8__[__local1__]
+					__local9__ = [{"note": "a", "x": 1}]
+					__local5__ = __local9__[__local4__]
+					__local6__ = __local5__.note                 # manual head-ref var assignment 
+					__local2__.a = 1
+					__local7__ = __local2__.note                 # manual head-ref var assignment, cannot be moved
+					internal.test_case([__local7__, __local6__]) # func injection, after last head-ref assignment
+					__local5__.x = 1 
+				}`,
+		},
+		{
+			note: "multiple refs in head-ref",
+			module: `package test
+				test_foo[tc.note][flag.note] if {
+					some flag in [
+						{"note": "on", "a": 1},
+					]
+					some tc in [
+						{"note": "a", "x": 1},
+					]
+					flag.a == 1
+					tc.x == 1
+				}`,
+			// var assignment can be moved up the body, func injected after last head-ref assignment
+			exp: `package test
+				test_foo[__local0__][__local1__] if { 
+					__local8__ = [{"a": 1, "note": "on"}]
+					__local4__ = __local8__[__local3__]
+					__local1__ = __local4__.note                 # generated head-ref var assignment, moved up
+					__local9__ = [{"note": "a", "x": 1}]
+					__local7__ = __local9__[__local6__]
+					__local0__ = __local7__.note                 # generated head-ref var assignment, moved up
+					internal.test_case([__local0__, __local1__]) # func injection, after last head-ref assignment
+					__local4__.a = 1; 
+					__local7__.x = 1 
+				}`,
+		},
+		{
+			note: "multiple refs in head-ref, mixed with ground terms",
+			module: `package test
+				test_foo[tc.note].bar[flag.note].baz if {
+					some flag in [
+						{"note": "on", "a": 1},
+					]
+					some tc in [
+						{"note": "a", "x": 1},
+					]
+					flag.a == 1
+					tc.x == 1
+				}`,
+			// var assignment cannot be moved up the body, func injected last in body
+			exp: `package test
+				test_foo[__local0__].bar[__local1__].baz if { 
+					__local8__ = [{"a": 1, "note": "on"}]
+					__local4__ = __local8__[__local3__]
+					__local1__ = __local4__.note                               # generated head-ref var assignment, moved up
+					__local9__ = [{"note": "a", "x": 1}]
+					__local7__ = __local9__[__local6__]
+					__local0__ = __local7__.note                               # generated head-ref var assignment, moved up
+					internal.test_case([__local0__, "bar", __local1__, "baz"]) # func injection, after last head-ref assignment
+					__local4__.a = 1
+					__local7__.x = 1
+				}`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.note, func(t *testing.T) {
+			modules := map[string]*ast.Module{
+				"test.rego": ast.MustParseModule(tc.module),
+			}
+
+			exp := ast.MustParseModule(tc.exp)
+
+			c := ast.NewCompiler()
+			c.WithStageAfter("RewriteLocalVars", ast.CompilerStageDefinition{
+				Name:       "InjectTestCaseFunc",
+				MetricName: "inject_test_case_func",
+				Stage:      injectTestCaseFunc,
+			})
+
+			c.Compile(modules)
+			if c.Failed() {
+				t.Fatalf("Unexpected error(s): %v", c.Errors)
+			}
+
+			result := c.Modules["test.rego"]
+			if !result.Equal(exp) {
+				t.Fatalf("Expected:\n\n%v\n\nbut got:\n\n%v", exp, result)
+			}
+		})
+	}
+}

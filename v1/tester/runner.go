@@ -597,63 +597,89 @@ func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 
 			// Find the earliest point where the test case function can be injected
 
-			injectBelow := len(rule.Body) - 1
+			injectBelow := -1
 
 			// Find generated local vars referenced in the head whose assignment expr can be moved up the body
 			for _, term := range argsRef {
-				// We expect to find generated expressions, if any, at the tail of the body
+				// We expect to find generated expressions - if any - at the tail of the body, so we start from the end
 				for i := len(rule.Body) - 1; i >= 0; {
 					expr := rule.Body[i]
 					moved := false
 
 					// If the expression is a generated assignment of a var in the head ref, we attempt to move it as far
 					// up the body as possible.
+					// This is a shallow move, we don't attempt to detect multiple levels of indirection and don't move such expressions; in such case, we move the assigning expression up to the first reference.
 					// Once done for all vars in the head ref, we can inject the test case function below the last (possibly moved) such expr.
-					if expr.Generated && (expr.IsEquality() || expr.IsAssignment()) && expr.Operand(0).Equal(term) {
-						// Based on the vars in the rhs of the expr, see if we can move it up the rule body
-						// Can we get away with just placing it under the lowes first occurrence of any referenced var?
-						vars := ast.NewVarSet()
-						ast.WalkVars(expr.Operand(1), func(v ast.Var) bool {
-							// We only care about local vars
-							if isLocalVar(v) {
-								vars.Add(v)
+					if (expr.IsEquality() || expr.IsAssignment()) && expr.Operand(0).Equal(term) {
+						if !expr.Generated {
+							if i > injectBelow {
+								// We can't inject the test-case function above this line
+								injectBelow = i
 							}
-							return false
-						})
-
-						if len(vars) == 0 {
-							// No local vars referenced, can be moved to top of body
-							rule.Body, moved = moveExpr(rule.Body, i, 0)
 						} else {
-							// Find the lowest individual index of each var referenced in the rhs, and select the highest
+							// FIXME: Should we also move non-generated expressions? Takes control from user, but could avoid gotchas.
+							// E.g. If the user manually declares a test-case name var assignment after test assertions, failed assertions will cause the failed test-case to not be picked up.
 
-							// TODO: Use TypedValueMap once synced with main
-							lowest := ast.NewValueMap()
-
-							for j := i - 1; j >= 0; j-- {
-								expr := rule.Body[j]
-								ast.WalkVars(expr, func(v ast.Var) bool {
-									if vars.Contains(v) {
-										lowest.Put(v, ast.Number(strconv.Itoa(j)))
-										return true
-									}
-									return false
-								})
-							}
-
-							highest := 0
-							lowest.Iter(func(k, v ast.Value) bool {
-								if n, err := strconv.Atoi(string(v.(ast.Number))); err == nil {
-									if n > highest {
-										highest = n
-									}
+							// Based on the vars in the rhs of the expr, see if we can move it up the rule body
+							// Can we get away with just placing it under the lowes first occurrence of any referenced var?
+							vars := ast.NewVarSet()
+							ast.WalkVars(expr.Operand(1), func(v ast.Var) bool {
+								// We only care about local vars
+								if isLocalVar(v) {
+									vars.Add(v)
 								}
 								return false
 							})
 
-							if highest < i {
-								// Move the expression to just after the lowest index
-								rule.Body, moved = moveExpr(rule.Body, i, highest+1)
+							if len(vars) == 0 {
+								// No local vars referenced, can be moved to top of body
+								rule.Body, moved = moveExpr(rule.Body, i, 0)
+								if 0 > injectBelow {
+									// We can't inject the test-case function above this line
+									injectBelow = 0
+								}
+							} else {
+								// Find the lowest (highest up the body) individual index of each var referenced in the rhs,
+								// and select the highest (lowest down the body) of those
+
+								// TODO: Use TypedValueMap once synced with main
+								lowest := ast.NewValueMap()
+
+								for j := i - 1; j >= 0; j-- {
+									expr := rule.Body[j]
+									ast.WalkVars(expr, func(v ast.Var) bool {
+										if vars.Contains(v) {
+											// We override the value for each var, so we get the lowest index (line highest up the body) for each
+											lowest.Put(v, ast.Number(strconv.Itoa(j)))
+											return true
+										}
+										return false
+									})
+								}
+
+								highest := 0
+								lowest.Iter(func(k, v ast.Value) bool {
+									if n, err := strconv.Atoi(string(v.(ast.Number))); err == nil {
+										if n > highest {
+											highest = n
+										}
+									}
+									return false
+								})
+
+								if highest < i {
+									// The expression is lower in the body than the lowes line of any expression that might contribute to its assignment
+									// Move the expression to just after the lowest line
+									moveTo := highest + 1
+									rule.Body, moved = moveExpr(rule.Body, i, moveTo)
+									if moveTo > injectBelow {
+										// If the expression was moved below the current injection point, we need to adjust the injection point to just below that point
+										injectBelow = moveTo
+									} else if i > injectBelow && moveTo < injectBelow {
+										// If the expression was previously below the injection point, but has now moved to above it, the injection point has been moved down one line
+										injectBelow++
+									}
+								}
 							}
 						}
 					}
@@ -670,7 +696,7 @@ func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 				ast.NewTerm(args),
 			})
 
-			rule.Body = insertExpr(rule.Body, testCaseFuncExpr, injectBelow)
+			rule.Body = insertExpr(rule.Body, testCaseFuncExpr, injectBelow+1)
 		}
 	}
 	return nil
@@ -686,6 +712,14 @@ func isLocalVar(v ast.Value) bool {
 }
 
 func insertExpr(body ast.Body, expr *ast.Expr, index int) ast.Body {
+	if index <= 0 {
+		return append(ast.Body{expr}, body...)
+	}
+
+	if index >= len(body) {
+		return append(body, expr)
+	}
+
 	return append(body[:index], append(ast.Body{expr}, body[index:]...)...)
 }
 
