@@ -250,7 +250,8 @@ func (t *TestRuntime) runTests(m *testing.M, suppressLogs bool) int {
 
 // TestRuntimeOpts contains parameters for the test runtime.
 type TestRuntimeOpts struct {
-	WaitForBundles bool // indicates if readiness check should depend on bundle activation
+	WaitForBundles   bool // indicates if readiness check should depend on bundle activation
+	PostServeActions func(rt *TestRuntime) error
 }
 
 // WithRuntime invokes f with a new TestRuntime after waiting for server
@@ -270,6 +271,13 @@ func WithRuntime(t *testing.T, opts TestRuntimeOpts, params runtime.Params, f fu
 		err := rt.Runtime.Serve(rt.Ctx)
 		done <- err
 	}()
+
+	if opts.PostServeActions != nil {
+		err = opts.PostServeActions(rt)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 
 	err = rt.WaitForServer()
 	if err != nil {

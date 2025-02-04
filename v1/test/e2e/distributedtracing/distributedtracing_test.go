@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"strconv"
@@ -18,7 +19,10 @@ import (
 
 	"github.com/open-policy-agent/opa/internal/version"
 	"github.com/open-policy-agent/opa/v1/logging/test"
+	"github.com/open-policy-agent/opa/v1/plugins/bundle"
+	"github.com/open-policy-agent/opa/v1/plugins/discovery"
 	"github.com/open-policy-agent/opa/v1/plugins/logs"
+	"github.com/open-policy-agent/opa/v1/plugins/status"
 	"github.com/open-policy-agent/opa/v1/runtime"
 	opasdktest "github.com/open-policy-agent/opa/v1/sdk/test"
 	"github.com/open-policy-agent/opa/v1/server"
@@ -690,10 +694,12 @@ func TestControlPlaneSpans(t *testing.T) {
 		}),
 		opasdktest.MockBundle("/bundles/discovery", map[string]string{
 			"data.json": `
-				{"discovery":{"bundles":{"bundles/test":{"persist":false,"resource":"bundles/test","service":"bundleregistry"}}}}
+				{"discovery":{"bundles":{"bundles/test":{"persist":false,"resource":"bundles/test","service":"bundleregistry", "trigger":"manual"}}}}
 			`,
 		}),
 	)
+	defer opaControlPlane.Stop()
+
 	controlPlaneURL, err := url.Parse(opaControlPlane.URL())
 	if err != nil {
 		t.Fatal(err)
@@ -704,30 +710,59 @@ func TestControlPlaneSpans(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+	}))
+	defer ts.Close()
+
+	statusURL, err := url.Parse(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	statusPort, err := strconv.Atoi(statusURL.Port())
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	testServerParams := e2e.NewAPIServerTestParams()
 	testServerParams.ConfigOverrides = []string{
-		fmt.Sprintf("services.bundleregistry.url=%s", opaControlPlane.URL()),
+		"services.bundleregistry.url=" + opaControlPlane.URL(),
+		"services.observability.url=" + ts.URL,
 		"discovery.name=discovery",
 		"discovery.resource=/bundles/discovery",
 		"discovery.service=bundleregistry",
-		"status.service=bundleregistry",
+		"discovery.trigger=manual",
+		"status.service=observability",
+		"status.trigger=manual",
 		"decision_logs.service=bundleregistry",
+		"decision_logs.reporting.trigger=manual",
 	}
 
 	testServerParams.DistributedTracingOpts = options
 	testServerParams.ReadyTimeout = 5
 	testServerParams.Logging = runtime.LoggingConfig{Level: "debug"}
 
-	e2e.WithRuntime(t, e2e.TestRuntimeOpts{}, testServerParams, func(rt *e2e.TestRuntime) {
+	manualTriggers := func(rt *e2e.TestRuntime) error {
+		err := discovery.Lookup(rt.Runtime.Manager).Trigger(rt.Ctx)
+		if err != nil {
+			return err
+		}
+		err = bundle.Lookup(rt.Runtime.Manager).Trigger(rt.Ctx)
+		if err != nil {
+			return err
+		}
+		return status.Lookup(rt.Runtime.Manager).Trigger(rt.Ctx)
+	}
+
+	e2e.WithRuntime(t, e2e.TestRuntimeOpts{PostServeActions: manualTriggers}, testServerParams, func(rt *e2e.TestRuntime) {
 		// We expect 3 spans:
 		// 1. GET /bundles/discovery (client)
 		// 2. GET /bundles/test (client)
-		// 3. 6 spans for status updates
+		// 3. POST /status (client)
 		// 4. health check (server)
 
 		spans := spanExp.GetSpans()
-
-		if got, expected := len(spans), 9; got != expected {
+		if got, expected := len(spans), 4; got != expected {
 			t.Fatalf("got %d span(s), expected %d", got, expected)
 		}
 		for _, span := range spans {
@@ -736,7 +771,7 @@ func TestControlPlaneSpans(t *testing.T) {
 			}
 		}
 
-		for idx := range 8 {
+		for idx := range 3 {
 			if got, expected := spans[idx].SpanKind.String(), "client"; got != expected {
 				t.Fatalf("Expected span kind to be %q but got %q", expected, got)
 			}
@@ -751,7 +786,7 @@ func TestControlPlaneSpans(t *testing.T) {
 			attribute.String("http.method", "GET"),
 			attribute.String("http.url", u.String()+"/bundles/discovery"),
 			attribute.Int("http.status_code", 200),
-			attribute.Int("http.response_content_length", 168),
+			attribute.Int("http.response_content_length", 180),
 			attribute.String("user_agent.original", version.UserAgent),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[0].Attributes...))
@@ -767,16 +802,14 @@ func TestControlPlaneSpans(t *testing.T) {
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[1].Attributes...))
 
-		for i := 2; i < 8; i++ {
-			expected = []interface{}{
-				attribute.String("net.peer.name", u.Hostname()),
-				attribute.Int("net.peer.port", port),
-				attribute.String("http.method", "POST"),
-				attribute.String("http.url", u.String()+"/status"),
-				attribute.String("user_agent.original", version.UserAgent),
-			}
-			compareSpanAttributes(t, expected, attribute.NewSet(spans[i].Attributes...))
+		expected = []interface{}{
+			attribute.String("net.peer.name", statusURL.Hostname()),
+			attribute.Int("net.peer.port", statusPort),
+			attribute.String("http.method", "POST"),
+			attribute.String("http.url", statusURL.String()+"/status"),
+			attribute.String("user_agent.original", version.UserAgent),
 		}
+		compareSpanAttributes(t, expected, attribute.NewSet(spans[2].Attributes...))
 
 		spanExp.Reset()
 
@@ -786,8 +819,7 @@ func TestControlPlaneSpans(t *testing.T) {
 		}
 		defer mr.Body.Close()
 
-		plugin := logs.Lookup(rt.Runtime.Manager)
-		_ = plugin.Trigger(context.Background())
+		_ = logs.Lookup(rt.Runtime.Manager).Trigger(context.Background())
 
 		spans = spanExp.GetSpans()
 		// Expect 2 spans:
