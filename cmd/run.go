@@ -182,9 +182,10 @@ OPA will automatically perform type checking based on a schema inferred from kno
 resulting from the schema check. Currently this check is performed on OPA's Authorization Policy Input document and will
 be expanded in the future. To disable this, use the --skip-known-schema-check flag.
 
-The --v1-compatible flag can be used to opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release.
-Current behaviors enabled by this flag include:
-- setting OPA's listening address to "localhost:8181" by default.
+The --v0-compatible flag can be used to opt-in to OPA features and behaviors that were the default in OPA v0.x.
+Behaviors enabled by this flag include:
+- setting OPA's listening address to ":8181" by default, corresponding to listening on every network interface.
+- expecting v0 Rego syntax in policy modules instead of the default v1 Rego syntax.
 
 The --tls-cipher-suites flag can be used to specify the list of enabled TLS 1.0–1.2 cipher suites. Note that TLS 1.3
 cipher suites are not configurable. Following are the supported TLS 1.0 - 1.2 cipher suites (IANA):
