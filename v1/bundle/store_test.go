@@ -830,6 +830,132 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		},
 
 		{
+			note: "custom bundle without rego-version, not lazy",
+			updates: []interface{}{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"]}`},
+							{"a/policy.rego", `package a
+								p contains 42 if { true }`},
+						},
+					},
+					lazy:               false,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"revision":"","roots":["a"]}}}
+								}
+							}`,
+				},
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"]}`},
+							{"a/policy.rego", `package a
+								p contains 1337 if { true }`},
+						},
+					},
+					lazy:               false,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"revision":"","roots":["a"]}}}
+								}
+							}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{}}}`,
+				},
+			},
+		},
+		{
+			note:               "custom bundle without rego-version, not lazy, v1 runtime (explicit)",
+			runtimeRegoVersion: ast.RegoV1,
+			updates: []interface{}{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"]}`},
+							{"a/policy.rego", `package a
+								p contains 42 if { true }`},
+						},
+					},
+					lazy:               false,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"revision":"","roots":["a"]}}}
+								}
+							}`,
+				},
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"]}`},
+							{"a/policy.rego", `package a
+								p contains 1337 if { true }`},
+						},
+					},
+					lazy:               false,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"revision":"","roots":["a"]}}}
+								}
+							}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{}}}`,
+				},
+			},
+		},
+		{
+			note:               "custom bundle without rego-version, not lazy, --v0-compatible",
+			runtimeRegoVersion: ast.RegoV0,
+			updates: []interface{}{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"]}`},
+							{"a/policy.rego", `package a
+								p[42] { true }`},
+						},
+					},
+					lazy:               false,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"revision":"","roots":["a"]}}}
+								}
+							}`,
+				},
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"]}`},
+							{"a/policy.rego", `package a
+								p[1337] { true }`},
+						},
+					},
+					lazy:               false,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"revision":"","roots":["a"]}}}
+								}
+							}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{}}}`,
+				},
+			},
+		},
+
+		{
 			note: "v0, lazy replaced by non-lazy",
 			updates: []interface{}{
 				activation{
