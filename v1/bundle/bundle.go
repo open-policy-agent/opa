@@ -715,8 +715,10 @@ func (r *Reader) Read() (Bundle, error) {
 	popts.RegoVersion = bundle.RegoVersion(popts.EffectiveRegoVersion())
 	for _, mf := range modules {
 		modulePopts := popts
-		if modulePopts.RegoVersion, err = bundle.RegoVersionForFile(mf.RelativePath, popts.EffectiveRegoVersion()); err != nil {
+		if regoVersion, err := bundle.RegoVersionForFile(mf.RelativePath, popts.EffectiveRegoVersion()); err != nil {
 			return bundle, err
+		} else if regoVersion != ast.RegoUndefined {
+			modulePopts.RegoVersion = regoVersion
 		}
 		r.metrics.Timer(metrics.RegoModuleParse).Start()
 		mf.Parsed, err = ast.ParseModuleWithOpts(mf.Path, string(mf.Raw), modulePopts)
@@ -1204,10 +1206,6 @@ func (b *Bundle) SetRegoVersion(v ast.RegoVersion) {
 // If there is no defined version for the given path, the default version def is returned.
 // If the version does not correspond to ast.RegoV0 or ast.RegoV1, an error is returned.
 func (b *Bundle) RegoVersionForFile(path string, def ast.RegoVersion) (ast.RegoVersion, error) {
-	if def == ast.RegoUndefined {
-		def = ast.DefaultRegoVersion
-	}
-
 	version, err := b.Manifest.numericRegoVersionForFile(path)
 	if err != nil {
 		return def, err
@@ -1513,7 +1511,7 @@ func bundleRegoVersions(bundle *Bundle, regoVersion ast.RegoVersion, usePath boo
 			return nil, err
 		}
 		// only record the rego version if it's different from one applied globally to the result bundle
-		if v != regoVersion {
+		if regoVersion != ast.RegoUndefined && v != regoVersion {
 			// We store the rego version by the absolute path to the bundle root, as this will be the - possibly new - path
 			// to the module inside the merged bundle.
 			fileRegoVersions[bundleAbsolutePath(m, usePath)] = v.Int()

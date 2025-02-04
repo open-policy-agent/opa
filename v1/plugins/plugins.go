@@ -448,6 +448,10 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		f(m)
 	}
 
+	if m.parserOptions.RegoVersion == ast.RegoUndefined {
+		m.parserOptions.RegoVersion = ast.DefaultRegoVersion
+	}
+
 	if m.logger == nil {
 		m.logger = logging.Get()
 	}
