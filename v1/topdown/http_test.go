@@ -3353,11 +3353,12 @@ func TestIntraQueryCache_ClientError(t *testing.T) {
 			t.Parallel()
 
 			ch := make(chan *http.Request)
+			const timeout = 20 * time.Millisecond // larger than the 10ms timeout in rules
+
 			// A HTTP server that always causes a timeout
-			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+				time.Sleep(timeout)
 				ch <- r
-				w.WriteHeader(http.StatusOK)
-				_, _ = w.Write([]byte(`{"foo": "bar"}`)) // ignore error
 			}))
 			defer ts.Close()
 
@@ -3367,7 +3368,11 @@ func TestIntraQueryCache_ClientError(t *testing.T) {
 			}
 
 			runTopDownTestCase(t, data, tc.note, rules, tc.expected)
-			requests := getAllRequests(ch)
+
+			// Wait 1 second for HTTP requests to arrive
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+			requests := getAllRequests(ctx, ch)
 
 			// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
 			// eval first), so expect 2x the total request count the test case specified.
@@ -3419,12 +3424,12 @@ func TestInterQueryCache_ClientError(t *testing.T) {
 			t.Parallel()
 
 			ch := make(chan *http.Request)
+			const timeout = 20 * time.Millisecond // larger than the 10ms timeout in rules
 
 			// A HTTP server that always causes a timeout
-			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+				time.Sleep(timeout)
 				ch <- r
-				w.WriteHeader(http.StatusOK)
-				_, _ = w.Write([]byte(`{"foo": "bar"}`)) // ignore error
 			}))
 			defer ts.Close()
 
@@ -3434,7 +3439,11 @@ func TestInterQueryCache_ClientError(t *testing.T) {
 			}
 
 			runTopDownTestCase(t, data, tc.note, rules, tc.expected)
-			requests := getAllRequests(ch)
+
+			// Wait 1 second for HTTP requests to arrive
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+			requests := getAllRequests(ctx, ch)
 
 			// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
 			// eval first), so expect 2x the total request count the test case specified.
@@ -3447,8 +3456,7 @@ func TestInterQueryCache_ClientError(t *testing.T) {
 	}
 }
 
-func getAllRequests(ch chan *http.Request) []*http.Request {
-	defer close(ch)
+func getAllRequests(ctx context.Context, ch chan *http.Request) []*http.Request {
 	var requests []*http.Request
 	for {
 		select {
@@ -3458,7 +3466,8 @@ func getAllRequests(ch chan *http.Request) []*http.Request {
 			} else {
 				return requests
 			}
-		default:
+		case <-ctx.Done():
+			close(ch)
 			return requests
 		}
 	}
