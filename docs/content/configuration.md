@@ -88,6 +88,7 @@ distributed_tracing:
     service_namespace: "my-namespace"
     service_version: "1.1"
     service_instance_id: "1"
+    deployment_environment: "prod"
 
 server:
   decoding:
@@ -876,20 +877,21 @@ respectively, and the `json.schema_match` built-in function for compiled JSON sc
 
 Distributed tracing represents the configuration of the OpenTelemetry Tracing.
 
-| Field                                              | Type     | Required | Description                                                                        |
-|----------------------------------------------------|----------| --- |------------------------------------------------------------------------------------|
-| `distributed_tracing.type`                         | `string` | No | Setting this to "grpc" enables distributed tracing with an collector gRPC endpoint |
-| `distributed_tracing.address`                      | `string` | No (default: `localhost:4317`) | Address of the OpenTelemetry Collector gRPC endpoint.                              |
-| `distributed_tracing.service_name`                 | `string` | No (default: `opa`) | Logical name of the service.                                                       |
-| `distributed_tracing.sample_percentage`            | `int`    | No (default: `100`) | Percentage of traces that are sampled and exported.                                |
-| `distributed_tracing.encryption`                   | `string` | No (default: `off`) | Configures TLS.                                                                    |
-| `distributed_tracing.allow_insecure_tls`           | `bool`   | No (default: `false`) | Allow insecure TLS.                                                                |
-| `distributed_tracing.tls_ca_cert_file`             | `string` | No | The path to the root CA certificate.                                               |
-| `distributed_tracing.tls_cert_file`                | `string` | No (unless `encryption` equals `mtls`) | The path to the client certificate to authenticate with.                           |
-| `distributed_tracing.tls_private_key_file`         | `string` | No (unless `tls_cert_file` provided)  | The path to the private key of the client certificate.                             |
-| `distributed_tracing.resource.service_version`     | `string` | No | Service version                                                                    |
-| `distributed_tracing.resource.service_instance_id` | `string` | No | Service instance id                                                                |
-| `distributed_tracing.resource.service_namespace`   | `string` | No | Service namespace                                                                  |
+| Field                                                 | Type     | Required                               | Description                                                                        |
+|-------------------------------------------------------|----------|----------------------------------------|------------------------------------------------------------------------------------|
+| `distributed_tracing.type`                            | `string` | No                                     | Setting this to "grpc" enables distributed tracing with an collector gRPC endpoint |
+| `distributed_tracing.address`                         | `string` | No (default: `localhost:4317`)         | Address of the OpenTelemetry Collector gRPC endpoint.                              |
+| `distributed_tracing.service_name`                    | `string` | No (default: `opa`)                    | Logical name of the service.                                                       |
+| `distributed_tracing.sample_percentage`               | `int`    | No (default: `100`)                    | Percentage of traces that are sampled and exported.                                |
+| `distributed_tracing.encryption`                      | `string` | No (default: `off`)                    | Configures TLS.                                                                    |
+| `distributed_tracing.allow_insecure_tls`              | `bool`   | No (default: `false`)                  | Allow insecure TLS.                                                                |
+| `distributed_tracing.tls_ca_cert_file`                | `string` | No                                     | The path to the root CA certificate.                                               |
+| `distributed_tracing.tls_cert_file`                   | `string` | No (unless `encryption` equals `mtls`) | The path to the client certificate to authenticate with.                           |
+| `distributed_tracing.tls_private_key_file`            | `string` | No (unless `tls_cert_file` provided)   | The path to the private key of the client certificate.                             |
+| `distributed_tracing.resource.service_version`        | `string` | No                                     | Service version                                                                    |
+| `distributed_tracing.resource.service_instance_id`    | `string` | No                                     | Service instance id                                                                |
+| `distributed_tracing.resource.service_namespace`      | `string` | No                                     | Service namespace                                                                  |
+| `distributed_tracing.resource.deployment_environment` | `string` | No                                     | Deployment environment name                                                        |
 
 The following encryption methods are supported:
 
