@@ -469,12 +469,9 @@ func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pl
 	config.Discovery = c.manager.Config.Discovery
 
 	// check for updates to the discovery service
-	opts := cfg.ServiceOptions{
-		Raw:        config.Services,
-		AuthPlugin: c.manager.AuthPlugin,
-		Keys:       c.manager.PublicKeys(),
-		Logger:     c.logger.WithFields(c.manager.Client(c.config.service).LoggerFields()),
-	}
+	opts := c.manager.DefaultServiceOpts(config)
+	opts.Logger = c.logger.WithFields(c.manager.Client(c.config.service).LoggerFields())
+
 	services, err := cfg.ParseServicesConfig(opts)
 	if err != nil {
 		return nil, err
