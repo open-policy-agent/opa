@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"unicode"
@@ -179,6 +180,9 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 		o.contains = true
 	}
 
+	memberRef := ast.Member.Ref()
+	memberWithKeyRef := ast.MemberWithKey.Ref()
+
 	// Preprocess the AST. Set any required defaults and calculate
 	// values required for printing the formatted output.
 	ast.WalkNodes(x, func(x ast.Node) bool {
@@ -192,7 +196,7 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 
 		case *ast.Expr:
 			switch {
-			case n.IsCall() && ast.Member.Ref().Equal(n.Operator()) || ast.MemberWithKey.Ref().Equal(n.Operator()):
+			case n.IsCall() && memberRef.Equal(n.Operator()) || memberWithKeyRef.Equal(n.Operator()):
 				extraFutureKeywordImports["in"] = struct{}{}
 			case n.IsEvery():
 				extraFutureKeywordImports["every"] = struct{}{}
@@ -438,6 +442,8 @@ func (w *writer) writeRules(rules []*ast.Rule, comments []*ast.Comment) []*ast.C
 	return comments
 }
 
+var expandedConst = ast.NewBody(ast.NewExpr(ast.InternedBooleanTerm(true)))
+
 func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment) []*ast.Comment {
 	if rule == nil {
 		return comments
@@ -455,7 +461,7 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 	// `foo = {"a": "b"} { true }` in the AST. We want to preserve that notation
 	// in the formatted code instead of expanding the bodies into rules, so we
 	// pretend that the rule has no body in this case.
-	isExpandedConst := rule.Body.Equal(ast.NewBody(ast.NewExpr(ast.BooleanTerm(true)))) && rule.Else == nil
+	isExpandedConst := rule.Body.Equal(expandedConst) && rule.Else == nil
 
 	comments = w.writeHead(rule.Head, rule.Default, isExpandedConst, comments)
 
@@ -508,6 +514,8 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 	return comments
 }
 
+var elseVar ast.Value = ast.Var("else")
+
 func (w *writer) writeElse(rule *ast.Rule, comments []*ast.Comment) []*ast.Comment {
 	// If there was nothing else on the line before the "else" starts
 	// then preserve this style of else block, otherwise it will be
@@ -554,7 +562,7 @@ func (w *writer) writeElse(rule *ast.Rule, comments []*ast.Comment) []*ast.Comme
 
 	rule.Else.Head.Name = "else" // NOTE(sr): whaaat
 
-	elseHeadReference := ast.VarTerm("else")             // construct a reference for the term
+	elseHeadReference := ast.NewTerm(elseVar)            // construct a reference for the term
 	elseHeadReference.Location = rule.Else.Head.Location // and set the location to match the rule location
 
 	rule.Else.Head.Reference = ast.Ref{elseHeadReference}
@@ -612,7 +620,7 @@ func (w *writer) writeHead(head *ast.Head, isDefault, isExpandedConst bool, comm
 	}
 
 	if head.Value != nil &&
-		(head.Key != nil || ast.Compare(head.Value, ast.BooleanTerm(true)) != 0 || isExpandedConst || isDefault) {
+		(head.Key != nil || !ast.InternedBooleanTerm(true).Equal(head.Value) || isExpandedConst || isDefault) {
 
 		// in rego v1, explicitly print value for ref-head constants that aren't partial set assignments, e.g.:
 		// * a -> parser error, won't reach here
@@ -623,7 +631,7 @@ func (w *writer) writeHead(head *ast.Head, isDefault, isExpandedConst bool, comm
 
 		if head.Location == head.Value.Location &&
 			head.Name != "else" &&
-			ast.Compare(head.Value, ast.BooleanTerm(true)) == 0 &&
+			ast.InternedBooleanTerm(true).Equal(head.Value) &&
 			!isRegoV1RefConst {
 			// If the value location is the same as the location of the head,
 			// we know that the value is generated, i.e. f(1)
@@ -1277,9 +1285,8 @@ func groupIterable(elements []interface{}, last *ast.Location) [][]interface{} {
 			return [][]interface{}{elements}
 		}
 	}
-	sort.Slice(elements, func(i, j int) bool {
-		return locLess(elements[i], elements[j])
-	})
+
+	slices.SortFunc(elements, locCmp)
 
 	var lines [][]interface{}
 	cur := make([]interface{}, 0, len(elements))
@@ -1351,7 +1358,30 @@ func groupImports(imports []*ast.Import) [][]*ast.Import {
 	return groups
 }
 
-func partitionComments(comments []*ast.Comment, l *ast.Location) (before []*ast.Comment, at *ast.Comment, after []*ast.Comment) {
+func partitionComments(comments []*ast.Comment, l *ast.Location) ([]*ast.Comment, *ast.Comment, []*ast.Comment) {
+	if len(comments) == 0 {
+		return nil, nil, nil
+	}
+
+	numBefore, numAfter := 0, 0
+	for _, c := range comments {
+		switch cmp := c.Location.Row - l.Row; {
+		case cmp < 0:
+			numBefore++
+		case cmp > 0:
+			numAfter++
+		}
+	}
+
+	if numAfter == len(comments) {
+		return nil, nil, comments
+	}
+
+	var at *ast.Comment
+
+	before := make([]*ast.Comment, 0, numBefore)
+	after := comments[0 : 0 : len(comments)-numBefore]
+
 	for _, c := range comments {
 		switch cmp := c.Location.Row - l.Row; {
 		case cmp < 0:
@@ -1430,6 +1460,8 @@ func getLoc(x interface{}) *ast.Location {
 	}
 }
 
+var negativeRow = &ast.Location{Row: -1}
+
 func closingLoc(skipOpen, skipClose, openChar, closeChar byte, loc *ast.Location) *ast.Location {
 	i, offset := 0, 0
 
@@ -1445,14 +1477,14 @@ func closingLoc(skipOpen, skipClose, openChar, closeChar byte, loc *ast.Location
 	}
 
 	if i >= len(loc.Text) {
-		return &ast.Location{Row: -1}
+		return negativeRow
 	}
 
 	state := 1
 	for state > 0 {
 		i++
 		if i >= len(loc.Text) {
-			return &ast.Location{Row: -1}
+			return negativeRow
 		}
 
 		switch loc.Text[i] {
@@ -1650,8 +1682,8 @@ func ArityFormatMismatchError(operands []*ast.Term, operator string, loc *ast.Lo
 // Lines returns the string representation of the detail.
 func (d *ArityFormatErrDetail) Lines() []string {
 	return []string{
-		"have: " + "(" + strings.Join(d.Have, ",") + ")",
-		"want: " + "(" + strings.Join(d.Want, ",") + ")",
+		"have: (" + strings.Join(d.Have, ",") + ")",
+		"want: (" + strings.Join(d.Want, ",") + ")",
 	}
 }
 
@@ -1664,10 +1696,12 @@ func moduleIsRegoV1Compatible(m *ast.Module) bool {
 	return false
 }
 
+var v1StringTerm = ast.StringTerm("v1")
+
 // isRegoV1Compatible returns true if the passed *ast.Import is `rego.v1`
 func isRegoV1Compatible(imp *ast.Import) bool {
 	path := imp.Path.Value.(ast.Ref)
 	return len(path) == 2 &&
 		ast.RegoRootDocument.Equal(path[0]) &&
-		path[1].Equal(ast.StringTerm("v1"))
+		path[1].Equal(v1StringTerm)
 }
