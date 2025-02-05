@@ -133,11 +133,22 @@ func (p Path) Ref(head *ast.Term) (ref ast.Ref) {
 }
 
 func (p Path) String() string {
-	buf := make([]string, len(p))
-	for i := range buf {
-		buf[i] = url.PathEscape(p[i])
+	if len(p) == 0 {
+		return "/"
 	}
-	return "/" + strings.Join(buf, "/")
+
+	l := 0
+	for i := range p {
+		l += len(p[i]) + 1
+	}
+
+	sb := strings.Builder{}
+	sb.Grow(l)
+	for i := range p {
+		sb.WriteByte('/')
+		sb.WriteString(url.PathEscape(p[i]))
+	}
+	return sb.String()
 }
 
 // MustParsePath returns a new Path for s. If s cannot be parsed, this function

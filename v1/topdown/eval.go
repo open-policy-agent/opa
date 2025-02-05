@@ -1788,16 +1788,7 @@ func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, erro
 				}
 			case ast.Object:
 				if obj.Len() > 0 {
-					cpy := ast.NewObject()
-					if err := obj.Iter(func(k *ast.Term, v *ast.Term) error {
-						if !ast.SystemDocumentKey.Equal(k.Value) {
-							cpy.Insert(k, v)
-						}
-						return nil
-					}); err != nil {
-						return nil, err
-					}
-					blob = cpy
+					blob, _ = obj.Map(systemDocumentKeyRemoveMapper)
 				}
 			}
 		}
@@ -1828,6 +1819,13 @@ func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, erro
 	}
 
 	return merged, nil
+}
+
+func systemDocumentKeyRemoveMapper(k, v *ast.Term) (*ast.Term, *ast.Term, error) {
+	if ast.SystemDocumentKey.Equal(k.Value) {
+		return nil, nil, nil
+	}
+	return k, v, nil
 }
 
 func (e *eval) generateVar(suffix string) *ast.Term {

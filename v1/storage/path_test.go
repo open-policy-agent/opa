@@ -192,3 +192,17 @@ func TestPathRef(t *testing.T) {
 		}
 	}
 }
+
+// 108.8 ns/op    80 B/op    3 allocs/op // original implementation concat + Join
+// 68.60 ns/op    24 B/op    2 allocs/op // strings.Builder
+// 50.28 ns/op    16 B/op    1 allocs/op // strings.Builder with pre-allocated buffer
+func BenchmarkPathString(b *testing.B) {
+	path := Path{"foo", "bar", "baz"}
+
+	for range b.N {
+		res := path.String()
+		if res != "/foo/bar/baz" {
+			b.Fatal("unexpected result:", res)
+		}
+	}
+}
