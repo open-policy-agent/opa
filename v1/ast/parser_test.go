@@ -1924,7 +1924,7 @@ func TestIsValidImportPath(t *testing.T) {
 		path     string
 		expected error
 	}{
-		{"[1,2,3]", fmt.Errorf("invalid path [1, 2, 3]: path must be ref or var")},
+		{"[1,2,3]", errors.New("invalid path [1, 2, 3]: path must be ref or var")},
 	}
 
 	for _, tc := range tests {
@@ -1932,7 +1932,7 @@ func TestIsValidImportPath(t *testing.T) {
 		result := IsValidImportPath(path)
 		if tc.expected == nil && result != nil {
 			t.Errorf("Unexpected error for %v: %v", path, result)
-		} else if !reflect.DeepEqual(tc.expected, result) {
+		} else if tc.expected.Error() != result.Error() {
 			t.Errorf("For %v expected %v but got: %v", path, tc.expected, result)
 		}
 	}
@@ -6102,12 +6102,12 @@ func TestAuthorAnnotation(t *testing.T) {
 		{
 			note:     "no name",
 			raw:      "",
-			expected: fmt.Errorf("author is an empty string"),
+			expected: errors.New("author is an empty string"),
 		},
 		{
 			note:     "only whitespaces",
 			raw:      " \t",
-			expected: fmt.Errorf("author is an empty string"),
+			expected: errors.New("author is an empty string"),
 		},
 		{
 			note:     "one name only",
@@ -6178,14 +6178,14 @@ func TestAuthorAnnotation(t *testing.T) {
 		{
 			note:     "empty map",
 			raw:      map[string]interface{}{},
-			expected: fmt.Errorf("'name' and/or 'email' values required in object"),
+			expected: errors.New("'name' and/or 'email' values required in object"),
 		},
 		{
 			note: "map with empty name",
 			raw: map[string]interface{}{
 				"name": "",
 			},
-			expected: fmt.Errorf("'name' and/or 'email' values required in object"),
+			expected: errors.New("'name' and/or 'email' values required in object"),
 		},
 		{
 			note: "map with email and empty name",
@@ -6200,7 +6200,7 @@ func TestAuthorAnnotation(t *testing.T) {
 			raw: map[string]interface{}{
 				"email": "",
 			},
-			expected: fmt.Errorf("'name' and/or 'email' values required in object"),
+			expected: errors.New("'name' and/or 'email' values required in object"),
 		},
 		{
 			note: "map with name and empty email",
@@ -6249,17 +6249,17 @@ func TestRelatedResourceAnnotation(t *testing.T) {
 		{
 			note:     "empty ref URL",
 			raw:      "",
-			expected: fmt.Errorf("ref URL may not be empty string"),
+			expected: errors.New("ref URL may not be empty string"),
 		},
 		{
 			note:     "only whitespaces in ref URL",
 			raw:      " \t",
-			expected: fmt.Errorf("parse \" \\t\": net/url: invalid control character in URL"),
+			expected: errors.New("parse \" \\t\": net/url: invalid control character in URL"),
 		},
 		{
 			note:     "invalid ref URL",
 			raw:      "https://foo:bar",
-			expected: fmt.Errorf("parse \"https://foo:bar\": invalid port \":bar\" after host"),
+			expected: errors.New("parse \"https://foo:bar\": invalid port \":bar\" after host"),
 		},
 		{
 			note:     "ref URL as string",
@@ -6278,7 +6278,7 @@ func TestRelatedResourceAnnotation(t *testing.T) {
 			raw: map[string]interface{}{
 				"description": "foo bar",
 			},
-			expected: fmt.Errorf("'ref' value required in object"),
+			expected: errors.New("'ref' value required in object"),
 		},
 		{
 			note: "map with ref and description",
@@ -6306,21 +6306,21 @@ func TestRelatedResourceAnnotation(t *testing.T) {
 		{
 			note:     "empty map",
 			raw:      map[string]interface{}{},
-			expected: fmt.Errorf("'ref' value required in object"),
+			expected: errors.New("'ref' value required in object"),
 		},
 		{
 			note: "map with empty ref",
 			raw: map[string]interface{}{
 				"ref": "",
 			},
-			expected: fmt.Errorf("'ref' value required in object"),
+			expected: errors.New("'ref' value required in object"),
 		},
 		{
 			note: "map with only whitespace in ref",
 			raw: map[string]interface{}{
 				"ref": " \t",
 			},
-			expected: fmt.Errorf("'ref' value required in object"),
+			expected: errors.New("'ref' value required in object"),
 		},
 	}
 
@@ -6414,7 +6414,7 @@ func assertParseErrorFunc(t *testing.T, msg string, input string, f func(string)
 	}
 	stmts, _, err := ParseStatementsWithOpts("", input, opt)
 	if err == nil && len(stmts) != 1 {
-		err = fmt.Errorf("expected exactly one statement")
+		err = errors.New("expected exactly one statement")
 	}
 	if err == nil {
 		t.Errorf("Error on test \"%s\": expected parse error on %s: expected no statements, got %d: %v", msg, input, len(stmts), stmts)

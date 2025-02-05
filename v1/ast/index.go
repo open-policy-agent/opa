@@ -33,10 +33,10 @@ type RuleIndex interface {
 
 // IndexResult contains the result of an index lookup.
 type IndexResult struct {
-	Kind           RuleKind
 	Rules          []*Rule
 	Else           map[*Rule][]*Rule
 	Default        *Rule
+	Kind           RuleKind
 	EarlyExit      bool
 	OnlyGroundRefs bool
 }
@@ -849,7 +849,7 @@ func globDelimiterToString(delim *Term) (string, bool) {
 	if arr.Len() == 0 {
 		result = "."
 	} else {
-		for i := 0; i < arr.Len(); i++ {
+		for i := range arr.Len() {
 			term := arr.Elem(i)
 			s, ok := term.Value.(String)
 			if !ok {

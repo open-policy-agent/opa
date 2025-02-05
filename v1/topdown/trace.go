@@ -867,7 +867,7 @@ func printArrows(w *bytes.Buffer, l []varInfo, printValueAt int) {
 			spaces = (col - prevCol) - 1
 		}
 
-		for j := 0; j < spaces; j++ {
+		for j := range spaces {
 			tab := false
 			for _, t := range info.exprLoc.Tabs {
 				if t == j+prevCol+1 {

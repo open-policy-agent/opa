@@ -2,7 +2,7 @@ package encoding
 
 import (
 	"compress/gzip"
-	"fmt"
+	"errors"
 
 	"github.com/open-policy-agent/opa/v1/util"
 )
@@ -74,7 +74,7 @@ func (c *Config) validateAndInjectDefaults() error {
 	}
 
 	if *c.Gzip.MinLength <= 0 {
-		return fmt.Errorf("invalid value for server.encoding.gzip.min_length field, should be a positive number")
+		return errors.New("invalid value for server.encoding.gzip.min_length field, should be a positive number")
 	}
 
 	acceptedCompressionLevels := map[int]bool{
@@ -84,7 +84,7 @@ func (c *Config) validateAndInjectDefaults() error {
 	}
 	_, compressionLevelAccepted := acceptedCompressionLevels[*c.Gzip.CompressionLevel]
 	if !compressionLevelAccepted {
-		return fmt.Errorf("invalid value for server.encoding.gzip.compression_level field, accepted values are 0, 1 or 9")
+		return errors.New("invalid value for server.encoding.gzip.compression_level field, accepted values are 0, 1 or 9")
 	}
 
 	return nil

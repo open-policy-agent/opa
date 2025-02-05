@@ -21,11 +21,11 @@ func BenchmarkBuiltinGlobMatch(b *testing.B) {
 		for _, patternCount := range []int{10, 100, 1000} {
 			b.Run(fmt.Sprintf("reuse-pattern=%v, pattern-count=%d", reusePattern, patternCount), func(b *testing.B) {
 				b.ResetTimer()
-				for n := 0; n < b.N; n++ {
+				for range b.N {
 					// Clearing the cache
 					globCache = make(map[string]glob.Glob)
 
-					for i := 0; i < patternCount; i++ {
+					for i := range patternCount {
 						var operands []*ast.Term
 						if reusePattern {
 							operands = []*ast.Term{
@@ -59,16 +59,16 @@ func BenchmarkBuiltinGlobMatchAsync(b *testing.B) {
 			for _, patternCount := range []int{10, 100, 1000} {
 				b.Run(fmt.Sprintf("reuse-pattern=%v, clients=%d, pattern-count=%d", reusePattern, clientCount, patternCount), func(b *testing.B) {
 					b.ResetTimer()
-					for n := 0; n < b.N; n++ {
+					for range b.N {
 						// Clearing the cache
 						globCache = make(map[string]glob.Glob)
 
 						wg := sync.WaitGroup{}
-						for i := 0; i < clientCount; i++ {
+						for i := range clientCount {
 							clientID := i
 							wg.Add(1)
 							go func() {
-								for j := 0; j < patternCount; j++ {
+								for j := range patternCount {
 									var operands []*ast.Term
 									if reusePattern {
 										operands = []*ast.Term{

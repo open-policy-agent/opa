@@ -160,7 +160,7 @@ func pruneIrrelevantGraphQLASTNodes(value ast.Value) ast.Value {
 		// Iterate over the array's elements, and do the following:
 		// - Drop any Nulls
 		// - Drop any any empty object/array value (after running the pruner)
-		for i := 0; i < x.Len(); i++ {
+		for i := range x.Len() {
 			vTerm := x.Elem(i)
 			switch v := vTerm.Value.(type) {
 			case ast.Null:

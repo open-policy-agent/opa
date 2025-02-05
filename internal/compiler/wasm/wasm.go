@@ -827,7 +827,7 @@ func (c *Compiler) compileFunc(fn *ir.Func) error {
 	memoize := len(fn.Params) == 2
 
 	if len(fn.Params) == 0 {
-		return fmt.Errorf("illegal function: zero args")
+		return errors.New("illegal function: zero args")
 	}
 
 	c.nextLocal = 0
@@ -1360,7 +1360,7 @@ func (c *Compiler) compileUpsert(local ir.Local, path []int, value ir.Operand, _
 	// Initialize the locals that specify the path of the upsert operation.
 	lpath := make(map[int]uint32, len(path))
 
-	for i := 0; i < len(path); i++ {
+	for i := range path {
 		lpath[i] = c.genLocal()
 		instrs = append(instrs, instruction.I32Const{Value: c.opaStringAddr(path[i])})
 		instrs = append(instrs, instruction.SetLocal{Index: lpath[i]})
@@ -1369,10 +1369,10 @@ func (c *Compiler) compileUpsert(local ir.Local, path []int, value ir.Operand, _
 	// Generate a block that traverses the path of the upsert operation,
 	// shallowing copying values at each step as needed. Stop before the final
 	// segment that will only be inserted.
-	var inner []instruction.Instruction
+	inner := make([]instruction.Instruction, 0, len(path)*21+1)
 	ltemp := c.genLocal()
 
-	for i := 0; i < len(path)-1; i++ {
+	for i := range len(path) - 1 {
 
 		// Lookup the next part of the path.
 		inner = append(inner, instruction.GetLocal{Index: lcopy})
@@ -1408,10 +1408,10 @@ func (c *Compiler) compileUpsert(local ir.Local, path []int, value ir.Operand, _
 	inner = append(inner, instruction.Br{Index: uint32(len(path) - 1)})
 
 	// Generate blocks that handle missing nodes during traversal.
-	var block []instruction.Instruction
+	block := make([]instruction.Instruction, 0, len(path)*10)
 	lval := c.genLocal()
 
-	for i := 0; i < len(path)-1; i++ {
+	for i := range len(path) - 1 {
 		block = append(block, instruction.Block{Instrs: inner})
 		block = append(block, instruction.Call{Index: c.function(opaObject)})
 		block = append(block, instruction.SetLocal{Index: lval})
@@ -1678,7 +1678,7 @@ func (c *Compiler) genLocal() uint32 {
 func (c *Compiler) function(name string) uint32 {
 	fidx, ok := c.funcs[name]
 	if !ok {
-		panic(fmt.Sprintf("function not found: %s", name))
+		panic("function not found: " + name)
 	}
 	return fidx
 }

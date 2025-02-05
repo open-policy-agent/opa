@@ -7,6 +7,7 @@ package builtins
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -97,7 +98,7 @@ func (c *NDBCache) UnmarshalJSON(data []byte) error {
 				out[string(k.Value.(ast.String))] = obj
 				return nil
 			}
-			return fmt.Errorf("expected Object, got other Value type in conversion")
+			return errors.New("expected Object, got other Value type in conversion")
 		})
 		if err != nil {
 			return err
@@ -262,7 +263,7 @@ func NumberToInt(n ast.Number) (*big.Int, error) {
 	f := NumberToFloat(n)
 	r, accuracy := f.Int(nil)
 	if accuracy != big.Exact {
-		return nil, fmt.Errorf("illegal value")
+		return nil, errors.New("illegal value")
 	}
 	return r, nil
 }
@@ -309,7 +310,7 @@ func RuneSliceOperand(x ast.Value, pos int) ([]rune, error) {
 	}
 
 	var f = make([]rune, a.Len())
-	for k := 0; k < a.Len(); k++ {
+	for k := range a.Len() {
 		b := a.Elem(k)
 		c, ok := b.Value.(ast.String)
 		if !ok {

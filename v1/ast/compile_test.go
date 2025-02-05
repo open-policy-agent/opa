@@ -13,6 +13,7 @@ import (
 	"reflect"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -445,8 +446,8 @@ func TestCompilerGetExports(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			c := NewCompiler()
 			for i, m := range tc.modules {
-				c.Modules[fmt.Sprint(i)] = m
-				c.sorted = append(c.sorted, fmt.Sprint(i))
+				c.Modules[strconv.Itoa(i)] = m
+				c.sorted = append(c.sorted, strconv.Itoa(i))
 			}
 			if exp, act := hashMap(tc.exports), c.getExports(); !exp.Equal(act) {
 				t.Errorf("expected %v, got %v", exp, act)
@@ -602,7 +603,7 @@ func TestCompilerCheckRuleHeadRefs(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			mods := make(map[string]*Module, len(tc.modules))
 			for i, m := range tc.modules {
-				mods[fmt.Sprint(i)] = m
+				mods[strconv.Itoa(i)] = m
 			}
 			c := NewCompiler()
 			c.Modules = mods
@@ -739,8 +740,8 @@ func TestRuleTreeWithDotsInHeads(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			c := NewCompiler()
 			for i, m := range tc.modules {
-				c.Modules[fmt.Sprint(i)] = m
-				c.sorted = append(c.sorted, fmt.Sprint(i))
+				c.Modules[strconv.Itoa(i)] = m
+				c.sorted = append(c.sorted, strconv.Itoa(i))
 			}
 			compileStages(c, c.setRuleTree)
 			if len(c.Errors) > 0 {
@@ -818,8 +819,8 @@ func TestRuleIndices(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			c := NewCompiler()
 			for i, m := range tc.modules {
-				c.Modules[fmt.Sprint(i)] = m
-				c.sorted = append(c.sorted, fmt.Sprint(i))
+				c.Modules[strconv.Itoa(i)] = m
+				c.sorted = append(c.sorted, strconv.Itoa(i))
 			}
 			compileStages(c, c.buildRuleIndices)
 
@@ -1962,7 +1963,7 @@ p[r] := 2 if { r := "foo" }`,
 		if slices.Equal(path, []string{"badrules", "dataoverlap", "p"}) {
 			return true, nil
 		} else if slices.Equal(path, []string{"badrules", "existserr", "p"}) {
-			return false, fmt.Errorf("unexpected error")
+			return false, errors.New("unexpected error")
 		}
 		return false, nil
 	})
@@ -2009,7 +2010,7 @@ p if { true }`,
 		if slices.Contains(path, "dataoverlap") {
 			return true, nil
 		} else if slices.Equal(path, []string{"badrules", "existserr", "p"}) {
-			return false, fmt.Errorf("unexpected error")
+			return false, errors.New("unexpected error")
 		}
 		return false, nil
 	}).WithPathConflictsCheckRoots([]string{"badrules"})
@@ -2045,7 +2046,7 @@ func TestCompilerCheckRuleConflictsDefaultFunction(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			mods := make(map[string]*Module, len(tc.modules))
 			for i, m := range tc.modules {
-				mods[fmt.Sprint(i)] = m
+				mods[strconv.Itoa(i)] = m
 			}
 			c := NewCompiler()
 			c.Modules = mods
@@ -2291,7 +2292,7 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			mods := make(map[string]*Module, len(tc.modules))
 			for i, m := range tc.modules {
-				mods[fmt.Sprint(i)] = m
+				mods[strconv.Itoa(i)] = m
 			}
 			c := NewCompiler()
 			c.Modules = mods
@@ -2357,7 +2358,7 @@ func TestCompilerCheckRulePkgConflicts(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			mods := make(map[string]*Module, len(tc.modules))
 			for i, m := range tc.modules {
-				mods[fmt.Sprint(i)] = m
+				mods[strconv.Itoa(i)] = m
 			}
 			c := NewCompiler()
 			c.Modules = mods
@@ -5523,7 +5524,7 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 	}
 
 	for i, tc := range tests {
-		t.Run(fmt.Sprint(i), func(t *testing.T) {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			setRegoVersion := func(po ParserOptions) ParserOptions {
 				po.RegoVersion = tc.regoVersion
 				return po
@@ -7039,7 +7040,7 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 		{
 			note:    "invalid target",
 			input:   `p if { true with foo.q as 1 }`,
-			wantErr: fmt.Errorf("rego_type_error: with keyword target must reference existing input, data, or a function"),
+			wantErr: errors.New("rego_type_error: with keyword target must reference existing input, data, or a function"),
 		},
 		{
 			note:     "built-in function: replaced by (unknown) var",
@@ -7130,7 +7131,7 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 				p if { q with is_object as http.send }
 			`,
 			opts:    func(c *Compiler) *Compiler { return c.WithUnsafeBuiltins(map[string]struct{}{"http.send": {}}) },
-			wantErr: fmt.Errorf("rego_compile_error: with keyword replacing built-in function: target must not be unsafe: \"http.send\""),
+			wantErr: errors.New("rego_compile_error: with keyword replacing built-in function: target must not be unsafe: \"http.send\""),
 		},
 		{
 			note: "non-built-in function: replaced by another built-in that's marked unsafe",
@@ -7141,7 +7142,7 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 				q with r as http.send
 			}`,
 			opts:    func(c *Compiler) *Compiler { return c.WithUnsafeBuiltins(map[string]struct{}{"http.send": {}}) },
-			wantErr: fmt.Errorf("rego_compile_error: with keyword replacing built-in function: target must not be unsafe: \"http.send\""),
+			wantErr: errors.New("rego_compile_error: with keyword replacing built-in function: target must not be unsafe: \"http.send\""),
 		},
 		{
 			note: "built-in function: valid, arity 1, non-compound name",
@@ -9043,7 +9044,7 @@ func TestCompileCustomBuiltins(t *testing.T) {
 func TestCompilerLazyLoadingError(t *testing.T) {
 
 	testLoader := func(map[string]*Module) (map[string]*Module, error) {
-		return nil, fmt.Errorf("something went horribly wrong")
+		return nil, errors.New("something went horribly wrong")
 	}
 
 	compiler := NewCompiler().WithModuleLoader(testLoader)
@@ -9763,17 +9764,17 @@ func TestQueryCompiler(t *testing.T) {
 		{
 			note:     "empty query",
 			q:        "   \t \n # foo \n",
-			expected: fmt.Errorf("1 error occurred: rego_compile_error: empty query cannot be compiled"),
+			expected: errors.New("1 error occurred: rego_compile_error: empty query cannot be compiled"),
 		},
 		{
 			note:     "invalid eq",
 			q:        "eq()",
-			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: eq: arity mismatch\n\thave: ()\n\twant: (any, any)"),
+			expected: errors.New("1 error occurred: 1:1: rego_type_error: eq: arity mismatch\n\thave: ()\n\twant: (any, any)"),
 		},
 		{
 			note:     "invalid eq",
 			q:        "eq(1)",
-			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: eq: arity mismatch\n\thave: (number)\n\twant: (any, any)"),
+			expected: errors.New("1 error occurred: 1:1: rego_type_error: eq: arity mismatch\n\thave: (number)\n\twant: (any, any)"),
 		},
 		{
 			note:     "rewrite assignment",
@@ -9808,12 +9809,12 @@ func TestQueryCompiler(t *testing.T) {
 			q:        "z",
 			pkg:      "",
 			imports:  nil,
-			expected: fmt.Errorf("1 error occurred: 1:1: rego_unsafe_var_error: var z is unsafe"),
+			expected: errors.New("1 error occurred: 1:1: rego_unsafe_var_error: var z is unsafe"),
 		},
 		{
 			note:        "unsafe var that is a future keyword",
 			q:           "1 in 2",
-			expected:    fmt.Errorf("1 error occurred: 1:3: rego_unsafe_var_error: var in is unsafe (hint: `import future.keywords.in` to import a future keyword)"),
+			expected:    errors.New("1 error occurred: 1:3: rego_unsafe_var_error: var in is unsafe (hint: `import future.keywords.in` to import a future keyword)"),
 			regoVersion: RegoV0,
 		},
 		{
@@ -9821,7 +9822,7 @@ func TestQueryCompiler(t *testing.T) {
 			q:        "[1 | some x; x == 1]",
 			pkg:      "",
 			imports:  nil,
-			expected: fmt.Errorf("1 error occurred: 1:14: rego_unsafe_var_error: var x is unsafe"),
+			expected: errors.New("1 error occurred: 1:14: rego_unsafe_var_error: var x is unsafe"),
 		},
 		{
 			note:     "safe vars",
@@ -9842,7 +9843,7 @@ func TestQueryCompiler(t *testing.T) {
 			q:        "x = 1 with foo.p as null",
 			pkg:      "",
 			imports:  nil,
-			expected: fmt.Errorf("1 error occurred: 1:12: rego_type_error: with keyword target must reference existing input, data, or a function"),
+			expected: errors.New("1 error occurred: 1:12: rego_type_error: with keyword target must reference existing input, data, or a function"),
 		},
 		{
 			note:     "rewrite with value",
@@ -9856,33 +9857,33 @@ func TestQueryCompiler(t *testing.T) {
 			q:        `startswith("x")`,
 			pkg:      "",
 			imports:  nil,
-			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: startswith: arity mismatch\n\thave: (string)\n\twant: (search: string, base: string)"),
+			expected: errors.New("1 error occurred: 1:1: rego_type_error: startswith: arity mismatch\n\thave: (string)\n\twant: (search: string, base: string)"),
 		},
 		{
 			note:     "built-in function arity mismatch (arity 0)",
 			q:        `x := opa.runtime("foo")`,
 			pkg:      "",
 			imports:  nil,
-			expected: fmt.Errorf("1 error occurred: 1:6: rego_type_error: opa.runtime: arity mismatch\n\thave: (string, ???)\n\twant: ()"),
+			expected: errors.New("1 error occurred: 1:6: rego_type_error: opa.runtime: arity mismatch\n\thave: (string, ???)\n\twant: ()"),
 		},
 		{
 			note:     "built-in function arity mismatch, nested",
 			q:        "count(sum())",
 			pkg:      "",
 			imports:  nil,
-			expected: fmt.Errorf("1 error occurred: 1:7: rego_type_error: sum: arity mismatch\n\thave: (???)\n\twant: (collection: any<array[number], set[number]>)"),
+			expected: errors.New("1 error occurred: 1:7: rego_type_error: sum: arity mismatch\n\thave: (???)\n\twant: (collection: any<array[number], set[number]>)"),
 		},
 		{
 			note:     "check types",
 			q:        "x = data.a.b.c.z; y = null; x = y",
 			pkg:      "",
 			imports:  nil,
-			expected: fmt.Errorf("match error\n\tleft  : number\n\tright : null"),
+			expected: errors.New("match error\n\tleft  : number\n\tright : null"),
 		},
 		{
 			note:     "undefined function",
 			q:        "data.deadbeef(x)",
-			expected: fmt.Errorf("rego_type_error: undefined function data.deadbeef"),
+			expected: errors.New("rego_type_error: undefined function data.deadbeef"),
 		},
 		{
 			note:     "imports resolved without package",
@@ -9894,7 +9895,7 @@ func TestQueryCompiler(t *testing.T) {
 		{
 			note:     "void call used as value",
 			q:        "x = print(1)",
-			expected: fmt.Errorf("rego_type_error: print(1) used as value"),
+			expected: errors.New("rego_type_error: print(1) used as value"),
 		},
 		{
 			note:     "print call erasure",
@@ -10085,12 +10086,12 @@ func TestQueryCompilerWithDeprecatedBuiltins(t *testing.T) {
 		{
 			note:           "all() built-in",
 			query:          "all([true, false])",
-			expectedErrors: fmt.Errorf("1 error occurred: 1:1: rego_type_error: deprecated built-in function calls in expression: all"),
+			expectedErrors: errors.New("1 error occurred: 1:1: rego_type_error: deprecated built-in function calls in expression: all"),
 		},
 		{
 			note:           "any() built-in",
 			query:          "any([true, false])",
-			expectedErrors: fmt.Errorf("1 error occurred: 1:1: rego_type_error: deprecated built-in function calls in expression: any"),
+			expectedErrors: errors.New("1 error occurred: 1:1: rego_type_error: deprecated built-in function calls in expression: any"),
 		},
 	}
 
@@ -10102,22 +10103,22 @@ func TestQueryCompilerWithUnusedAssignedVar(t *testing.T) {
 		{
 			note:           "array comprehension",
 			query:          "[1 | x := 2]",
-			expectedErrors: fmt.Errorf("1 error occurred: 1:6: rego_compile_error: assigned var x unused"),
+			expectedErrors: errors.New("1 error occurred: 1:6: rego_compile_error: assigned var x unused"),
 		},
 		{
 			note:           "set comprehension",
 			query:          "{1 | x := 2}",
-			expectedErrors: fmt.Errorf("1 error occurred: 1:6: rego_compile_error: assigned var x unused"),
+			expectedErrors: errors.New("1 error occurred: 1:6: rego_compile_error: assigned var x unused"),
 		},
 		{
 			note:           "object comprehension",
 			query:          "{1: 2 | x := 2}",
-			expectedErrors: fmt.Errorf("1 error occurred: 1:9: rego_compile_error: assigned var x unused"),
+			expectedErrors: errors.New("1 error occurred: 1:9: rego_compile_error: assigned var x unused"),
 		},
 		{
 			note:           "every: unused var in body",
 			query:          "every _ in [] { x := 10 }",
-			expectedErrors: fmt.Errorf("1 error occurred: 1:17: rego_compile_error: assigned var x unused"),
+			expectedErrors: errors.New("1 error occurred: 1:17: rego_compile_error: assigned var x unused"),
 		},
 	}
 
@@ -10129,17 +10130,17 @@ func TestQueryCompilerCheckKeywordOverrides(t *testing.T) {
 		{
 			note:           "input assigned",
 			query:          "input := 1",
-			expectedErrors: fmt.Errorf("1 error occurred: 1:1: rego_compile_error: variables must not shadow input (use a different variable name)"),
+			expectedErrors: errors.New("1 error occurred: 1:1: rego_compile_error: variables must not shadow input (use a different variable name)"),
 		},
 		{
 			note:           "data assigned",
 			query:          "data := 1",
-			expectedErrors: fmt.Errorf("1 error occurred: 1:1: rego_compile_error: variables must not shadow data (use a different variable name)"),
+			expectedErrors: errors.New("1 error occurred: 1:1: rego_compile_error: variables must not shadow data (use a different variable name)"),
 		},
 		{
 			note:           "nested input assigned",
 			query:          "d := [input | input := 1]",
-			expectedErrors: fmt.Errorf("1 error occurred: 1:15: rego_compile_error: variables must not shadow input (use a different variable name)"),
+			expectedErrors: errors.New("1 error occurred: 1:15: rego_compile_error: variables must not shadow input (use a different variable name)"),
 		},
 	}
 

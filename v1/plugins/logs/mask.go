@@ -5,6 +5,7 @@
 package logs
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -24,7 +25,7 @@ const (
 	partNDBCache = "nd_builtin_cache"
 )
 
-var errMaskInvalidObject = fmt.Errorf("mask upsert invalid object")
+var errMaskInvalidObject = errors.New("mask upsert invalid object")
 
 type maskRule struct {
 	OP                maskOP      `json:"op"`
@@ -54,9 +55,9 @@ func newMaskRule(path string, opts ...maskRuleOption) (*maskRule, error) {
 	)
 
 	if len(path) == 0 {
-		return nil, fmt.Errorf("mask must be non-empty")
+		return nil, errors.New("mask must be non-empty")
 	} else if !strings.HasPrefix(path, "/") {
-		return nil, fmt.Errorf("mask must be slash-prefixed")
+		return nil, errors.New("mask must be slash-prefixed")
 	}
 
 	parts := strings.Split(path[1:], "/")
@@ -216,7 +217,7 @@ func (r maskRule) removeValue(p []string, node interface{}) error {
 
 	// Walk to the parent of the target to be removed, the nodeParent is cached
 	// support removing of slice values
-	for i := 0; i < len(p)-1; i++ {
+	for i := range len(p) - 1 {
 		switch v := node.(type) {
 		case map[string]interface{}:
 			child, ok := v[p[i]]
@@ -285,7 +286,7 @@ func (r maskRule) mkdirp(node interface{}, path []string, value interface{}) err
 		return nil
 	}
 
-	for i := 0; i < len(path)-1; i++ {
+	for i := range len(path) - 1 {
 		switch v := node.(type) {
 		case map[string]interface{}:
 			child, ok := v[path[i]]

@@ -421,7 +421,7 @@ func (w *writer) writePackage(pkg *ast.Package, comments []*ast.Comment) []*ast.
 }
 
 func (w *writer) writeComments(comments []*ast.Comment) {
-	for i := 0; i < len(comments); i++ {
+	for i := range comments {
 		if i > 0 && locCmp(comments[i], comments[i-1]) > 1 {
 			w.blankLine()
 		}
@@ -1500,7 +1500,7 @@ func skipPast(openChar, closeChar byte, loc *ast.Location) (int, int) {
 // startLine begins a line with the current indentation level.
 func (w *writer) startLine() {
 	w.inline = true
-	for i := 0; i < w.level; i++ {
+	for range w.level {
 		w.write(w.indent)
 	}
 }
@@ -1636,7 +1636,7 @@ func ArityFormatMismatchError(operands []*ast.Term, operator string, loc *ast.Lo
 	}
 
 	have := make([]string, len(operands))
-	for i := 0; i < len(operands); i++ {
+	for i := range operands {
 		have[i] = ast.ValueName(operands[i].Value)
 	}
 	err := ast.NewError(ast.TypeErr, loc, "%s: %s", operator, "arity mismatch")

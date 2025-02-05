@@ -163,6 +163,14 @@ func (s *Status) String() string {
 	return fmt.Sprintf("{%v %q}", s.State, s.Message)
 }
 
+func (s *Status) Equal(other *Status) bool {
+	if s == nil || other == nil {
+		return s == nil && other == nil
+	}
+
+	return s.State == other.State && s.Message == other.Message
+}
+
 // StatusListener defines a handler to register for status updates.
 type StatusListener func(status map[string]*Status)
 
@@ -438,6 +446,11 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 
 	for _, f := range opts {
 		f(m)
+	}
+
+	if m.parserOptions.RegoVersion == ast.RegoUndefined {
+		// Default to v1 if rego-version is not set through options
+		m.parserOptions.RegoVersion = ast.DefaultRegoVersion
 	}
 
 	if m.logger == nil {

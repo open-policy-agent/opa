@@ -267,7 +267,7 @@ func (m Manifest) equalWasmResolversAndRoots(other Manifest) bool {
 		return false
 	}
 
-	for i := 0; i < len(m.WasmResolvers); i++ {
+	for i := range len(m.WasmResolvers) {
 		if !m.WasmResolvers[i].Equal(&other.WasmResolvers[i]) {
 			return false
 		}
@@ -298,7 +298,7 @@ func (wr *WasmResolver) Equal(other *WasmResolver) bool {
 		return false
 	}
 
-	for i := 0; i < annotLen; i++ {
+	for i := range annotLen {
 		if wr.Annotations[i].Compare(other.Annotations[i]) != 0 {
 			return false
 		}
@@ -333,7 +333,7 @@ func (m *Manifest) validateAndInjectDefaults(b Bundle) error {
 		roots[i] = strings.Trim(roots[i], "/")
 	}
 
-	for i := 0; i < len(roots)-1; i++ {
+	for i := range len(roots) - 1 {
 		for j := i + 1; j < len(roots); j++ {
 			if RootPathsOverlap(roots[i], roots[j]) {
 				return fmt.Errorf("manifest has overlapped roots: '%v' and '%v'", roots[i], roots[j])
@@ -715,8 +715,11 @@ func (r *Reader) Read() (Bundle, error) {
 	popts.RegoVersion = bundle.RegoVersion(popts.EffectiveRegoVersion())
 	for _, mf := range modules {
 		modulePopts := popts
-		if modulePopts.RegoVersion, err = bundle.RegoVersionForFile(mf.RelativePath, popts.EffectiveRegoVersion()); err != nil {
+		if regoVersion, err := bundle.RegoVersionForFile(mf.RelativePath, popts.EffectiveRegoVersion()); err != nil {
 			return bundle, err
+		} else if regoVersion != ast.RegoUndefined {
+			// We don't expect ast.RegoUndefined here, but don't override configured rego-version if we do just to be extra protective
+			modulePopts.RegoVersion = regoVersion
 		}
 		r.metrics.Timer(metrics.RegoModuleParse).Start()
 		mf.Parsed, err = ast.ParseModuleWithOpts(mf.Path, string(mf.Raw), modulePopts)
@@ -729,19 +732,19 @@ func (r *Reader) Read() (Bundle, error) {
 
 	if bundle.Type() == DeltaBundleType {
 		if len(bundle.Data) != 0 {
-			return bundle, fmt.Errorf("delta bundle expected to contain only patch file but data files found")
+			return bundle, errors.New("delta bundle expected to contain only patch file but data files found")
 		}
 
 		if len(bundle.Modules) != 0 {
-			return bundle, fmt.Errorf("delta bundle expected to contain only patch file but policy files found")
+			return bundle, errors.New("delta bundle expected to contain only patch file but policy files found")
 		}
 
 		if len(bundle.WasmModules) != 0 {
-			return bundle, fmt.Errorf("delta bundle expected to contain only patch file but wasm files found")
+			return bundle, errors.New("delta bundle expected to contain only patch file but wasm files found")
 		}
 
 		if r.persist {
-			return bundle, fmt.Errorf("'persist' property is true in config. persisting delta bundle to disk is not supported")
+			return bundle, errors.New("'persist' property is true in config. persisting delta bundle to disk is not supported")
 		}
 	}
 
@@ -763,7 +766,7 @@ func (r *Reader) Read() (Bundle, error) {
 	for _, r := range bundle.Manifest.WasmResolvers {
 		epMap[r.Module] = append(epMap[r.Module], r.Entrypoint)
 	}
-	for i := 0; i < len(bundle.WasmModules); i++ {
+	for i := range len(bundle.WasmModules) {
 		entrypoints := epMap[bundle.WasmModules[i].Path]
 		for _, entrypoint := range entrypoints {
 			ref, err := ast.PtrRef(ast.DefaultRootDocument, entrypoint)
@@ -816,12 +819,12 @@ func (r *Reader) checkSignaturesAndDescriptors(signatures SignaturesConfig) erro
 	}
 
 	if signatures.isEmpty() && r.verificationConfig != nil && r.verificationConfig.KeyID != "" {
-		return fmt.Errorf("bundle missing .signatures.json file")
+		return errors.New("bundle missing .signatures.json file")
 	}
 
 	if !signatures.isEmpty() {
 		if r.verificationConfig == nil {
-			return fmt.Errorf("verification key not provided")
+			return errors.New("verification key not provided")
 		}
 
 		// verify the JWT signatures included in the `.signatures.json` file
@@ -1204,10 +1207,6 @@ func (b *Bundle) SetRegoVersion(v ast.RegoVersion) {
 // If there is no defined version for the given path, the default version def is returned.
 // If the version does not correspond to ast.RegoV0 or ast.RegoV1, an error is returned.
 func (b *Bundle) RegoVersionForFile(path string, def ast.RegoVersion) (ast.RegoVersion, error) {
-	if def == ast.RegoUndefined {
-		def = ast.DefaultRegoVersion
-	}
-
 	version, err := b.Manifest.numericRegoVersionForFile(path)
 	if err != nil {
 		return def, err
@@ -1354,7 +1353,7 @@ func (b *Bundle) readData(key []string) *interface{} {
 
 	node := b.Data
 
-	for i := 0; i < len(key)-1; i++ {
+	for i := range len(key) - 1 {
 
 		child, ok := node[key[i]]
 		if !ok {
@@ -1390,7 +1389,7 @@ func mktree(path []string, value interface{}) (map[string]interface{}, error) {
 		// For 0 length path the value is the full tree.
 		obj, ok := value.(map[string]interface{})
 		if !ok {
-			return nil, fmt.Errorf("root value must be object")
+			return nil, errors.New("root value must be object")
 		}
 		return obj, nil
 	}
@@ -1513,7 +1512,7 @@ func bundleRegoVersions(bundle *Bundle, regoVersion ast.RegoVersion, usePath boo
 			return nil, err
 		}
 		// only record the rego version if it's different from one applied globally to the result bundle
-		if v != regoVersion {
+		if regoVersion != ast.RegoUndefined && v != regoVersion {
 			// We store the rego version by the absolute path to the bundle root, as this will be the - possibly new - path
 			// to the module inside the merged bundle.
 			fileRegoVersions[bundleAbsolutePath(m, usePath)] = v.Int()

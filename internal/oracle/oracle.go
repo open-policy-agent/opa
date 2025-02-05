@@ -93,7 +93,7 @@ func (o *Oracle) FindDefinition(q DefinitionQuery) (*DefinitionQueryResult, erro
 	top := stack[len(stack)-1]
 	if term, ok := top.(*ast.Term); ok {
 		if name, ok := term.Value.(ast.Var); ok {
-			for i := 0; i < len(stack); i++ {
+			for i := range stack {
 				switch node := stack[i].(type) {
 				case *ast.Rule:
 					if match := walkToFirstOccurrence(node.Head.Args, name); match != nil {

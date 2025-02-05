@@ -18,6 +18,7 @@ func TestCacheLimit(t *testing.T) {
 
 	// Fill the cache with values
 	var i int
+	//nolint:intrange
 	for i = 0; i < max; i++ {
 		c.Insert(strconv.Itoa(i), i)
 	}
@@ -26,7 +27,7 @@ func TestCacheLimit(t *testing.T) {
 	ensureCacheSize(t, c, max)
 
 	// Ensure they are all stored..
-	for j := 0; j < max; j++ {
+	for j := range max {
 		ensureCacheKey(t, c, strconv.Itoa(j), j)
 	}
 
@@ -50,7 +51,7 @@ func TestCacheLimit(t *testing.T) {
 	ensureCacheSize(t, c, max)
 
 	// Ensure the last set of "max" number are available, and everything else is not
-	for j := 0; j < i; j++ {
+	for j := range i {
 		k := strconv.Itoa(j)
 		if j >= (i - max) {
 			ensureCacheKey(t, c, k, j)

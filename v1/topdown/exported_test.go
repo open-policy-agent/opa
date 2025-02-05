@@ -23,14 +23,14 @@ func TestRego(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range cases.MustLoad("../test/cases/testdata/v0").Sorted().Cases {
-		t.Run(fmt.Sprintf("v0/%s", tc.Note), func(t *testing.T) {
+		t.Run("v0/"+tc.Note, func(t *testing.T) {
 			t.Parallel()
 
 			testRun(t, tc, ast.RegoV0)
 		})
 	}
 	for _, tc := range cases.MustLoad("../test/cases/testdata/v1").Sorted().Cases {
-		t.Run(fmt.Sprintf("v1/%s", tc.Note), func(t *testing.T) {
+		t.Run("v1/"+tc.Note, func(t *testing.T) {
 			t.Parallel()
 
 			testRun(t, tc, ast.RegoV1)
@@ -54,7 +54,7 @@ func TestRegoWithNDBCache(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range cases.MustLoad("../test/cases/testdata/v0").Sorted().Cases {
-		t.Run(fmt.Sprintf("v0/%s", tc.Note), func(t *testing.T) {
+		t.Run("v0/"+tc.Note, func(t *testing.T) {
 			t.Parallel()
 
 			testRun(t, tc, ast.RegoV0, func(q *Query) *Query {
@@ -63,7 +63,7 @@ func TestRegoWithNDBCache(t *testing.T) {
 		})
 	}
 	for _, tc := range cases.MustLoad("../test/cases/testdata/v1").Sorted().Cases {
-		t.Run(fmt.Sprintf("v1/%s", tc.Note), func(t *testing.T) {
+		t.Run("v1/"+tc.Note, func(t *testing.T) {
 			t.Parallel()
 
 			testRun(t, tc, ast.RegoV1, func(q *Query) *Query {

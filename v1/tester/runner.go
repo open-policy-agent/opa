@@ -8,6 +8,7 @@ package tester
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -314,18 +315,19 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 
 	if len(r.bundles) > 0 {
 		if txn == nil {
-			return nil, fmt.Errorf("unable to activate bundles: storage transaction is nil")
+			return nil, errors.New("unable to activate bundles: storage transaction is nil")
 		}
 
 		// Activate the bundle(s) to get their info and policies into the store
 		// the actual compiled policies will overwritten later..
 		opts := &bundle.ActivateOpts{
-			Ctx:      ctx,
-			Store:    r.store,
-			Txn:      txn,
-			Compiler: r.compiler,
-			Metrics:  metrics.New(),
-			Bundles:  r.bundles,
+			Ctx:           ctx,
+			Store:         r.store,
+			Txn:           txn,
+			Compiler:      r.compiler,
+			Metrics:       metrics.New(),
+			Bundles:       r.bundles,
+			ParserOptions: ast.ParserOptions{RegoVersion: r.defaultRegoVersion},
 		}
 		err = bundle.Activate(opts)
 		if err != nil {
@@ -548,7 +550,7 @@ func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod 
 		// Don't count setup in the benchmark time, only evaluation time
 		b.ResetTimer()
 
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 
 			// Start the timer (might already be started, but that's ok)
 			b.StartTimer()

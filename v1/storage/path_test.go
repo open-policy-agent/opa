@@ -5,6 +5,7 @@
 package storage
 
 import (
+	"errors"
 	"math"
 	"testing"
 
@@ -42,8 +43,8 @@ func TestNewPathForRef(t *testing.T) {
 		result Path
 		err    error
 	}{
-		{ast.Ref{}, nil, fmt.Errorf("empty reference (indicates error in caller)")},
-		{ast.MustParseRef("data.foo[x]"), nil, fmt.Errorf("unresolved reference (indicates error in caller): data.foo[x]")},
+		{ast.Ref{}, nil, errors.New("empty reference (indicates error in caller)")},
+		{ast.MustParseRef("data.foo[x]"), nil, errors.New("unresolved reference (indicates error in caller): data.foo[x]")},
 		{ast.MustParseRef("data.foo[true]"), nil, &Error{
 			Code:    NotFoundErr,
 			Message: fmt.Sprintf("%v: does not exist", ast.MustParseRef("data.foo[true]")),

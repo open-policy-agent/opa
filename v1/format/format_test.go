@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -705,7 +706,7 @@ func differsAt(a, b []byte) (int, int) {
 		minLen = len(b)
 	}
 	ln := 1
-	for i := 0; i < minLen; i++ {
+	for i := range minLen {
 		if a[i] == '\n' {
 			ln++
 		}
@@ -719,7 +720,7 @@ func differsAt(a, b []byte) (int, int) {
 func prefixWithLineNumbers(bs []byte) []byte {
 	raw := string(bs)
 	lines := strings.Split(raw, "\n")
-	format := fmt.Sprintf("%%%dd %%s", len(fmt.Sprint(len(lines)+1)))
+	format := fmt.Sprintf("%%%dd %%s", len(strconv.Itoa(len(lines)+1)))
 	for i, line := range lines {
 		lines[i] = fmt.Sprintf(format, i+1, line)
 	}

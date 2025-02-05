@@ -88,6 +88,7 @@ distributed_tracing:
     service_namespace: "my-namespace"
     service_version: "1.1"
     service_instance_id: "1"
+    deployment_environment: "prod"
 
 server:
   decoding:
@@ -864,31 +865,33 @@ It also represents the configuration of the inter-query _value_ cache that built
 this cache is utilized by the `regex` and `glob` built-in functions for compiled regex and glob match patterns
 respectively, and the `json.schema_match` built-in function for compiled JSON schemas.
 
-| Field                                                                    | Type | Required | Description                                                                                                                                                                                         |
-|--------------------------------------------------------------------------| --- | --- |-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `caching.inter_query_builtin_cache.max_size_bytes`                       | `int64` | No | Inter-query cache size limit in bytes. OPA will drop old items from the cache if this limit is exceeded. By default, no limit is set.                                                               |
-| `caching.inter_query_builtin_cache.forced_eviction_threshold_percentage` | `int64` | No | Threshold limit configured as percentage of `caching.inter_query_builtin_cache.max_size_bytes`, when exceeded OPA will start dropping old items permaturely. By default, set to `100`.              |
-| `caching.inter_query_builtin_cache.stale_entry_eviction_period_seconds`  | `int64` | No | Stale entry eviction period in seconds. OPA will drop expired items from the cache every `stale_entry_eviction_period_seconds`. By default, set to `0` indicating stale entry eviction is disabled. |
-| `caching.inter_query_builtin_value_cache.max_num_entries`                | `int` | No | Maximum number of entries in the Inter-query value cache. OPA will drop random items from the cache if this limit is exceeded. By default, set to `0` indicating unlimited size.                    |
+| Field                                                                    | Type    | Required | Description                                                                                                                                                                                                                                          |
+|--------------------------------------------------------------------------|---------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `caching.inter_query_builtin_cache.max_size_bytes`                       | `int64` | No       | Inter-query cache size limit in bytes. OPA will drop old items from the cache if this limit is exceeded. By default, no limit is set.                                                                                                                |
+| `caching.inter_query_builtin_cache.forced_eviction_threshold_percentage` | `int64` | No       | Threshold limit configured as percentage of `caching.inter_query_builtin_cache.max_size_bytes`, when exceeded OPA will start dropping old items permaturely. By default, set to `100`.                                                               |
+| `caching.inter_query_builtin_cache.stale_entry_eviction_period_seconds`  | `int64` | No       | Stale entry eviction period in seconds. OPA will drop expired items from the cache every `stale_entry_eviction_period_seconds`. By default, set to `0` indicating stale entry eviction is disabled.                                                  |
+| `caching.inter_query_builtin_value_cache.max_num_entries`                | `int`   | No       | Maximum number of entries in the Inter-query value cache. OPA will drop random items from the cache if this limit is exceeded. By default, set to `0` indicating unlimited size.                                                                     |
+| `caching.inter_query_builtin_value_cache.named.io_jwt.max_num_entries`   | `int`   | No       | Maximum number of entries in the `io_jwt` cache, used by the [`io.jwt` token verification](../policy-reference/#tokens) built-in functions. OPA will drop random items from the cache if this limit is exceeded. By default, this cache is disabled. |
 
 ## Distributed tracing
 
 Distributed tracing represents the configuration of the OpenTelemetry Tracing.
 
-| Field                                              | Type     | Required | Description                                                                        |
-|----------------------------------------------------|----------| --- |------------------------------------------------------------------------------------|
-| `distributed_tracing.type`                         | `string` | No | Setting this to "grpc" enables distributed tracing with an collector gRPC endpoint |
-| `distributed_tracing.address`                      | `string` | No (default: `localhost:4317`) | Address of the OpenTelemetry Collector gRPC endpoint.                              |
-| `distributed_tracing.service_name`                 | `string` | No (default: `opa`) | Logical name of the service.                                                       |
-| `distributed_tracing.sample_percentage`            | `int`    | No (default: `100`) | Percentage of traces that are sampled and exported.                                |
-| `distributed_tracing.encryption`                   | `string` | No (default: `off`) | Configures TLS.                                                                    |
-| `distributed_tracing.allow_insecure_tls`           | `bool`   | No (default: `false`) | Allow insecure TLS.                                                                |
-| `distributed_tracing.tls_ca_cert_file`             | `string` | No | The path to the root CA certificate.                                               |
-| `distributed_tracing.tls_cert_file`                | `string` | No (unless `encryption` equals `mtls`) | The path to the client certificate to authenticate with.                           |
-| `distributed_tracing.tls_private_key_file`         | `string` | No (unless `tls_cert_file` provided)  | The path to the private key of the client certificate.                             |
-| `distributed_tracing.resource.service_version`     | `string` | No | Service version                                                                    |
-| `distributed_tracing.resource.service_instance_id` | `string` | No | Service instance id                                                                |
-| `distributed_tracing.resource.service_namespace`   | `string` | No | Service namespace                                                                  |
+| Field                                                 | Type     | Required                               | Description                                                                        |
+|-------------------------------------------------------|----------|----------------------------------------|------------------------------------------------------------------------------------|
+| `distributed_tracing.type`                            | `string` | No                                     | Setting this to "grpc" enables distributed tracing with an collector gRPC endpoint |
+| `distributed_tracing.address`                         | `string` | No (default: `localhost:4317`)         | Address of the OpenTelemetry Collector gRPC endpoint.                              |
+| `distributed_tracing.service_name`                    | `string` | No (default: `opa`)                    | Logical name of the service.                                                       |
+| `distributed_tracing.sample_percentage`               | `int`    | No (default: `100`)                    | Percentage of traces that are sampled and exported.                                |
+| `distributed_tracing.encryption`                      | `string` | No (default: `off`)                    | Configures TLS.                                                                    |
+| `distributed_tracing.allow_insecure_tls`              | `bool`   | No (default: `false`)                  | Allow insecure TLS.                                                                |
+| `distributed_tracing.tls_ca_cert_file`                | `string` | No                                     | The path to the root CA certificate.                                               |
+| `distributed_tracing.tls_cert_file`                   | `string` | No (unless `encryption` equals `mtls`) | The path to the client certificate to authenticate with.                           |
+| `distributed_tracing.tls_private_key_file`            | `string` | No (unless `tls_cert_file` provided)   | The path to the private key of the client certificate.                             |
+| `distributed_tracing.resource.service_version`        | `string` | No                                     | Service version                                                                    |
+| `distributed_tracing.resource.service_instance_id`    | `string` | No                                     | Service instance id                                                                |
+| `distributed_tracing.resource.service_namespace`      | `string` | No                                     | Service namespace                                                                  |
+| `distributed_tracing.resource.deployment_environment` | `string` | No                                     | Deployment environment name                                                        |
 
 The following encryption methods are supported:
 

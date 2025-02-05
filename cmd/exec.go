@@ -142,7 +142,7 @@ func runExecWithContext(ctx context.Context, params *exec.Params) error {
 	case <-ctx.Done():
 		err := ctx.Err()
 		if err == context.DeadlineExceeded {
-			return fmt.Errorf("exec error: timed out before OPA was ready. This can happen when a remote bundle is malformed, or the timeout is set too low for normal OPA initialization")
+			return errors.New("exec error: timed out before OPA was ready. This can happen when a remote bundle is malformed, or the timeout is set too low for normal OPA initialization")
 		}
 		// Note(philipc): Previously, exec would simply eat the context
 		// cancellation error. We now propagate that upwards to the caller.

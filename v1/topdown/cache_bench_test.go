@@ -19,11 +19,11 @@ func BenchmarkVirtualCache(b *testing.B) {
 	keys := make([]ast.Ref, 0, max)
 	values := make([]*ast.Term, 0, max)
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		k1 := ast.StringTerm(fmt.Sprintf("aaaa%v", i))
-		for j := 0; j < n; j++ {
+		for j := range n {
 			k2 := ast.StringTerm(fmt.Sprintf("bbbb%v", j))
-			for k := 0; k < n; k++ {
+			for k := range n {
 				k3 := ast.StringTerm(fmt.Sprintf("cccc%v", k))
 				key := ast.Ref{ast.DefaultRootDocument, k1, k2, k3}
 				value := ast.ArrayTerm(k1, k2, k3)
@@ -36,7 +36,7 @@ func BenchmarkVirtualCache(b *testing.B) {
 	cache := NewVirtualCache()
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		idx := i % max
 		cache.Put(keys[idx], values[idx])
 		result, _ := cache.Get(keys[idx])

@@ -11,6 +11,7 @@ package repl
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -476,7 +477,7 @@ func (r *REPL) cmdTarget(t []string) error {
 
 func (r *REPL) cmdPrettyLimit(s []string) error {
 	if len(s) != 1 {
-		return fmt.Errorf("usage: pretty-limit <n>")
+		return errors.New("usage: pretty-limit <n>")
 	}
 	i64, err := strconv.ParseInt(s[0], 10, 0)
 	if err != nil {
@@ -603,7 +604,7 @@ func (r *REPL) cmdTypes() error {
 	return nil
 }
 
-var errUnknownUsage = fmt.Errorf("usage: unknown <input/data reference> [<input/data reference> [...]] (hint: try 'input')")
+var errUnknownUsage = errors.New("usage: unknown <input/data reference> [<input/data reference> [...]] (hint: try 'input')")
 
 func (r *REPL) cmdUnknown(s []string) error {
 
@@ -662,7 +663,7 @@ func (r *REPL) cmdUnsetPackage(ctx context.Context, args []string) error {
 		return newBadArgsErr("unset-package <var>: expects exactly one argument")
 	}
 
-	pkg, err := ast.ParsePackage(fmt.Sprintf("package %s", args[0]))
+	pkg, err := ast.ParsePackage("package " + args[0])
 	if err != nil {
 		return newBadArgsErr("argument must identify a package")
 	}

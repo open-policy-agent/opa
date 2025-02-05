@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -94,7 +95,7 @@ func ReadBundleNamesFromStore(ctx context.Context, store storage.Store, txn stor
 
 	bundleMap, ok := value.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("corrupt manifest roots")
+		return nil, errors.New("corrupt manifest roots")
 	}
 
 	bundles := make([]string, len(bundleMap))
@@ -196,14 +197,14 @@ func ReadWasmMetadataFromStore(ctx context.Context, store storage.Store, txn sto
 
 	bs, err := json.Marshal(value)
 	if err != nil {
-		return nil, fmt.Errorf("corrupt wasm manifest data")
+		return nil, errors.New("corrupt wasm manifest data")
 	}
 
 	var wasmMetadata []WasmResolver
 
 	err = util.UnmarshalJSON(bs, &wasmMetadata)
 	if err != nil {
-		return nil, fmt.Errorf("corrupt wasm manifest data")
+		return nil, errors.New("corrupt wasm manifest data")
 	}
 
 	return wasmMetadata, nil
@@ -219,14 +220,14 @@ func ReadWasmModulesFromStore(ctx context.Context, store storage.Store, txn stor
 
 	encodedModules, ok := value.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("corrupt wasm modules")
+		return nil, errors.New("corrupt wasm modules")
 	}
 
 	rawModules := map[string][]byte{}
 	for path, enc := range encodedModules {
 		encStr, ok := enc.(string)
 		if !ok {
-			return nil, fmt.Errorf("corrupt wasm modules")
+			return nil, errors.New("corrupt wasm modules")
 		}
 		bs, err := base64.StdEncoding.DecodeString(encStr)
 		if err != nil {
@@ -248,7 +249,7 @@ func ReadBundleRootsFromStore(ctx context.Context, store storage.Store, txn stor
 
 	sl, ok := value.([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("corrupt manifest roots")
+		return nil, errors.New("corrupt manifest roots")
 	}
 
 	roots := make([]string, len(sl))
@@ -256,7 +257,7 @@ func ReadBundleRootsFromStore(ctx context.Context, store storage.Store, txn stor
 	for i := range sl {
 		roots[i], ok = sl[i].(string)
 		if !ok {
-			return nil, fmt.Errorf("corrupt manifest root")
+			return nil, errors.New("corrupt manifest root")
 		}
 	}
 
@@ -278,7 +279,7 @@ func readRevisionFromStore(ctx context.Context, store storage.Store, txn storage
 
 	str, ok := value.(string)
 	if !ok {
-		return "", fmt.Errorf("corrupt manifest revision")
+		return "", errors.New("corrupt manifest revision")
 	}
 
 	return str, nil
@@ -299,7 +300,7 @@ func readMetadataFromStore(ctx context.Context, store storage.Store, txn storage
 
 	data, ok := value.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("corrupt manifest metadata")
+		return nil, errors.New("corrupt manifest metadata")
 	}
 
 	return data, nil
@@ -320,7 +321,7 @@ func readEtagFromStore(ctx context.Context, store storage.Store, txn storage.Tra
 
 	str, ok := value.(string)
 	if !ok {
-		return "", fmt.Errorf("corrupt bundle etag")
+		return "", errors.New("corrupt bundle etag")
 	}
 
 	return str, nil
@@ -446,7 +447,7 @@ func activateBundles(opts *ActivateOpts) error {
 						p := getNormalizedPath(path)
 
 						if len(p) == 0 {
-							return fmt.Errorf("root value must be object")
+							return errors.New("root value must be object")
 						}
 
 						// verify valid YAML or JSON value
@@ -495,7 +496,7 @@ func activateBundles(opts *ActivateOpts) error {
 		return err
 	}
 
-	if err := writeDataAndModules(opts.Ctx, opts.Store, opts.Txn, opts.TxnCtx, snapshotBundles, opts.legacy); err != nil {
+	if err := writeDataAndModules(opts.Ctx, opts.Store, opts.Txn, opts.TxnCtx, snapshotBundles, opts.legacy, opts.ParserOptions.RegoVersion); err != nil {
 		return err
 	}
 
@@ -716,7 +717,7 @@ func readModuleInfoFromStore(ctx context.Context, store storage.Store, txn stora
 					if vs, ok := ver.(json.Number); ok {
 						i, err := vs.Int64()
 						if err != nil {
-							return nil, fmt.Errorf("corrupt rego version")
+							return nil, errors.New("corrupt rego version")
 						}
 						versions[k] = moduleInfo{RegoVersion: ast.RegoVersionFromInt(int(i))}
 					}
@@ -726,7 +727,7 @@ func readModuleInfoFromStore(ctx context.Context, store storage.Store, txn stora
 		return versions, nil
 	}
 
-	return nil, fmt.Errorf("corrupt rego version")
+	return nil, errors.New("corrupt rego version")
 }
 
 func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transaction, parserOpts ast.ParserOptions, roots map[string]struct{}) (map[string]*ast.Module, []string, error) {
@@ -816,7 +817,31 @@ func writeEtagToStore(opts *ActivateOpts, name, etag string) error {
 	return nil
 }
 
-func writeDataAndModules(ctx context.Context, store storage.Store, txn storage.Transaction, txnCtx *storage.Context, bundles map[string]*Bundle, legacy bool) error {
+func writeModuleRegoVersionToStore(ctx context.Context, store storage.Store, txn storage.Transaction, b *Bundle,
+	mf ModuleFile, storagePath string, runtimeRegoVersion ast.RegoVersion) error {
+
+	var regoVersion ast.RegoVersion
+	if mf.Parsed != nil {
+		regoVersion = mf.Parsed.RegoVersion()
+	}
+
+	if regoVersion == ast.RegoUndefined {
+		var err error
+		regoVersion, err = b.RegoVersionForFile(mf.Path, runtimeRegoVersion)
+		if err != nil {
+			return fmt.Errorf("failed to get rego version for module '%s' in bundle: %w", mf.Path, err)
+		}
+	}
+
+	if regoVersion != ast.RegoUndefined && regoVersion != runtimeRegoVersion {
+		if err := write(ctx, store, txn, moduleRegoVersionPath(storagePath), regoVersion.Int()); err != nil {
+			return fmt.Errorf("failed to write rego version for module '%s': %w", storagePath, err)
+		}
+	}
+	return nil
+}
+
+func writeDataAndModules(ctx context.Context, store storage.Store, txn storage.Transaction, txnCtx *storage.Context, bundles map[string]*Bundle, legacy bool, runtimeRegoVersion ast.RegoVersion) error {
 	params := storage.WriteParams
 	params.Context = txnCtx
 
@@ -843,10 +868,8 @@ func writeDataAndModules(ctx context.Context, store storage.Store, txn storage.T
 					return err
 				}
 
-				if regoVersion, err := b.RegoVersionForFile(mf.Path, ast.RegoUndefined); err == nil && regoVersion != ast.RegoUndefined {
-					if err := write(ctx, store, txn, moduleRegoVersionPath(path), regoVersion.Int()); err != nil {
-						return fmt.Errorf("failed to write rego version for '%s' in bundle '%s': %w", mf.Path, name, err)
-					}
+				if err := writeModuleRegoVersionToStore(ctx, store, txn, b, mf, path, runtimeRegoVersion); err != nil {
+					return err
 				}
 			}
 		} else {
@@ -867,10 +890,8 @@ func writeDataAndModules(ctx context.Context, store storage.Store, txn storage.T
 					if m := f.module; m != nil {
 						// 'f.module.Path' contains the module's path as it relates to the bundle root, and can be used for looking up the rego-version.
 						// 'f.Path' can differ, based on how the bundle reader was initialized.
-						if regoVersion, err := b.RegoVersionForFile(f.module.Path, ast.RegoUndefined); err == nil && regoVersion != ast.RegoUndefined {
-							if err := write(ctx, store, txn, moduleRegoVersionPath(p.String()), regoVersion.Int()); err != nil {
-								return fmt.Errorf("failed to write rego version for '%s' in bundle '%s': %w", f.Path, name, err)
-							}
+						if err := writeModuleRegoVersionToStore(ctx, store, txn, b, *m, p.String(), runtimeRegoVersion); err != nil {
+							return err
 						}
 					}
 				}
@@ -999,7 +1020,7 @@ func lookup(path storage.Path, data map[string]interface{}) (interface{}, bool) 
 	if len(path) == 0 {
 		return data, true
 	}
-	for i := 0; i < len(path)-1; i++ {
+	for i := range len(path) - 1 {
 		value, ok := data[path[i]]
 		if !ok {
 			return nil, false
@@ -1073,7 +1094,7 @@ func applyPatches(ctx context.Context, store storage.Store, txn storage.Transact
 		// construct patch path
 		path, ok := patch.ParsePatchPathEscaped("/" + strings.Trim(pat.Path, "/"))
 		if !ok {
-			return fmt.Errorf("error parsing patch path")
+			return errors.New("error parsing patch path")
 		}
 
 		var op storage.PatchOp

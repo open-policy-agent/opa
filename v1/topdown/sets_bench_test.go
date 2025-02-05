@@ -16,9 +16,9 @@ import (
 
 func genNxMSetBenchmarkData(n, m int) ast.Value {
 	setOfSets := ast.NewSet()
-	for i := 0; i < n; i++ {
+	for i := range n {
 		v := ast.NewSet()
-		for j := 0; j < m; j++ {
+		for j := range m {
 			v.Add(ast.StringTerm(fmt.Sprintf("%d,%d", i, j)))
 		}
 		setOfSets.Add(ast.NewTerm(v))
@@ -47,7 +47,7 @@ func BenchmarkSetIntersection(b *testing.B) {
 
 				b.ResetTimer()
 
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 
 					err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 
@@ -99,7 +99,7 @@ func BenchmarkSetIntersectionSlow(b *testing.B) {
 
 				b.ResetTimer()
 
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 
 					err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 
@@ -149,7 +149,7 @@ func BenchmarkSetUnion(b *testing.B) {
 
 				b.ResetTimer()
 
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 
 					err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 
@@ -202,7 +202,7 @@ func BenchmarkSetUnionSlow(b *testing.B) {
 
 				b.ResetTimer()
 
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 
 					err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 

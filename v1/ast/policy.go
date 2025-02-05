@@ -892,7 +892,7 @@ func RefHead(ref Ref, args ...*Term) *Head {
 }
 
 // DocKind represents the collection of document types that can be produced by rules.
-type DocKind int
+type DocKind byte
 
 const (
 	// CompleteDoc represents a document that is completely defined by the rule.
@@ -916,7 +916,7 @@ func (head *Head) DocKind() DocKind {
 	return CompleteDoc
 }
 
-type RuleKind int
+type RuleKind byte
 
 const (
 	SingleValue = iota
@@ -1177,7 +1177,7 @@ func (body Body) Compare(other Body) int {
 	if len(other) < minLen {
 		minLen = len(other)
 	}
-	for i := 0; i < minLen; i++ {
+	for i := range minLen {
 		if cmp := body[i].Compare(other[i]); cmp != 0 {
 			return cmp
 		}

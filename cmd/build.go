@@ -7,6 +7,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -232,7 +233,7 @@ against OPA v0.22.0:
 `,
 		PreRunE: func(Cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				return fmt.Errorf("expected at least one path")
+				return errors.New("expected at least one path")
 			}
 			return env.CmdFlags.CheckEnvironmentVariables(Cmd)
 		},
@@ -293,7 +294,7 @@ func dobuild(params buildParams, args []string) error {
 	}
 
 	if (bvc != nil || bsc != nil) && !params.bundleMode {
-		return fmt.Errorf("enable bundle mode (ie. --bundle) to verify or sign bundle files or directories")
+		return errors.New("enable bundle mode (ie. --bundle) to verify or sign bundle files or directories")
 	}
 
 	var capabilities *ast.Capabilities

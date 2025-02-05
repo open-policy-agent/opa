@@ -5,7 +5,7 @@
 package util
 
 import (
-	"fmt"
+	"errors"
 	"time"
 )
 
@@ -24,7 +24,7 @@ func WaitFunc(fun func() bool, interval, timeout time.Duration) error {
 	for {
 		select {
 		case <-timer.C:
-			return fmt.Errorf("timeout")
+			return errors.New("timeout")
 		case <-ticker.C:
 			if fun() {
 				return nil

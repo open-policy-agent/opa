@@ -6,7 +6,7 @@ package logs
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -27,7 +27,7 @@ func TestNewMaskRule(t *testing.T) {
 				OP:   maskOPRemove,
 				Path: "",
 			},
-			expErr: fmt.Errorf("mask must be non-empty"),
+			expErr: errors.New("mask must be non-empty"),
 		},
 		{
 			note: "missing slash",
@@ -35,7 +35,7 @@ func TestNewMaskRule(t *testing.T) {
 				OP:   maskOPRemove,
 				Path: "foo",
 			},
-			expErr: fmt.Errorf("mask must be slash-prefixed"),
+			expErr: errors.New("mask must be slash-prefixed"),
 		},
 		{
 			note: "no prefix",
@@ -43,7 +43,7 @@ func TestNewMaskRule(t *testing.T) {
 				OP:   maskOPRemove,
 				Path: "/",
 			},
-			expErr: fmt.Errorf("mask prefix not allowed"),
+			expErr: errors.New("mask prefix not allowed"),
 		},
 		{
 			note: "bad prefix key",
@@ -51,7 +51,7 @@ func TestNewMaskRule(t *testing.T) {
 				OP:   maskOPRemove,
 				Path: "/labels/foo",
 			},
-			expErr: fmt.Errorf("mask prefix not allowed"),
+			expErr: errors.New("mask prefix not allowed"),
 		},
 		{
 			note: "standard",
@@ -85,7 +85,7 @@ func TestNewMaskRule(t *testing.T) {
 				OP:   maskOP("undefinedOP"),
 				Path: "/input/a/b/c",
 			},
-			expErr: fmt.Errorf("mask op is not supported: undefinedOP"),
+			expErr: errors.New("mask op is not supported: undefinedOP"),
 		},
 		{
 			note: "escaping",
@@ -105,7 +105,7 @@ func TestNewMaskRule(t *testing.T) {
 				OP:   maskOPRemove,
 				Path: "/input/a/%F/b",
 			},
-			expErr: fmt.Errorf("invalid URL escape"),
+			expErr: errors.New("invalid URL escape"),
 		},
 		{
 			note: "empty component",
@@ -150,7 +150,7 @@ func TestNewMaskRule(t *testing.T) {
 				OP:   maskOP("unsupported"),
 				Path: "/input",
 			},
-			expErr: fmt.Errorf("mask op is not supported: unsupported"),
+			expErr: errors.New("mask op is not supported: unsupported"),
 		},
 	}
 
@@ -661,14 +661,14 @@ func TestNewMaskRuleSet(t *testing.T) {
 		{
 			note:  "invalid format: not []interface{}",
 			value: map[string]int{"invalid": 1},
-			err:   fmt.Errorf("unexpected rule format map[invalid:1] (map[string]int)"),
+			err:   errors.New("unexpected rule format map[invalid:1] (map[string]int)"),
 		},
 		{
 			note: "invalid format: nested type not string or map[string]interface{}",
 			value: []interface{}{
 				[]int{1, 2},
 			},
-			err: fmt.Errorf("invalid mask rule format encountered: []int"),
+			err: errors.New("invalid mask rule format encountered: []int"),
 		},
 	}
 

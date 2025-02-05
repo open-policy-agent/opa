@@ -9,6 +9,7 @@ package topdown
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -37,7 +38,7 @@ func TestNetLookupIPAddr(t *testing.T) {
 			AAAA: []string{"1:2:3::4"},
 		},
 		"error.org.": {
-			Err: fmt.Errorf("OH NO"),
+			Err: errors.New("OH NO"),
 		},
 	}, sink{}, true)
 	if err != nil {

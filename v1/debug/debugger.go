@@ -287,7 +287,7 @@ func (d *debugger) LaunchEval(ctx context.Context, props LaunchEvalProperties, o
 	}
 
 	if props.InputPath != "" && props.Input != nil {
-		return nil, fmt.Errorf("cannot specify both input and input path")
+		return nil, errors.New("cannot specify both input and input path")
 	}
 
 	if props.Input != nil {
@@ -406,7 +406,7 @@ func newSession(ctx context.Context, debugger *debugger, varManager *variableMan
 
 func (s *session) start() error {
 	if s == nil {
-		return fmt.Errorf("no active debug session")
+		return errors.New("no active debug session")
 	}
 
 	s.mtx.Lock()
@@ -442,7 +442,7 @@ func (s *session) start() error {
 
 func (s *session) thread(id ThreadID) (*thread, error) {
 	if s == nil {
-		return nil, fmt.Errorf("no active debug session")
+		return nil, errors.New("no active debug session")
 	}
 
 	index := int(id - 1)
@@ -454,7 +454,7 @@ func (s *session) thread(id ThreadID) (*thread, error) {
 
 func (s *session) Resume(threadID ThreadID) error {
 	if s == nil {
-		return fmt.Errorf("no active debug session")
+		return errors.New("no active debug session")
 	}
 
 	s.mtx.Lock()
@@ -470,7 +470,7 @@ func (s *session) Resume(threadID ThreadID) error {
 
 func (s *session) ResumeAll() error {
 	if s == nil {
-		return fmt.Errorf("no active debug session")
+		return errors.New("no active debug session")
 	}
 
 	s.mtx.Lock()
@@ -486,7 +486,7 @@ func (s *session) ResumeAll() error {
 
 func (s *session) StepOver(threadID ThreadID) error {
 	if s == nil {
-		return fmt.Errorf("no active debug session")
+		return errors.New("no active debug session")
 	}
 
 	s.mtx.Lock()
@@ -523,7 +523,7 @@ func (s *session) StepOver(threadID ThreadID) error {
 
 func (s *session) StepIn(threadID ThreadID) error {
 	if s == nil {
-		return fmt.Errorf("no active debug session")
+		return errors.New("no active debug session")
 	}
 
 	s.mtx.Lock()
@@ -560,7 +560,7 @@ func (s *session) StepIn(threadID ThreadID) error {
 
 func (s *session) StepOut(threadID ThreadID) error {
 	if s == nil {
-		return fmt.Errorf("no active debug session")
+		return errors.New("no active debug session")
 	}
 
 	s.mtx.Lock()
@@ -597,7 +597,7 @@ func (s *session) StepOut(threadID ThreadID) error {
 
 func (s *session) Threads() ([]Thread, error) {
 	if s == nil {
-		return nil, fmt.Errorf("no active debug session")
+		return nil, errors.New("no active debug session")
 	}
 
 	s.mtx.Lock()
@@ -719,7 +719,7 @@ func (s *session) result(t *thread, rs rego.ResultSet) {
 
 func (s *session) StackTrace(threadID ThreadID) (StackTrace, error) {
 	if s == nil {
-		return nil, fmt.Errorf("no active debug session")
+		return nil, errors.New("no active debug session")
 	}
 
 	s.mtx.Lock()
@@ -791,7 +791,7 @@ func (s *session) frame(id FrameID) (*stackFrame, error) {
 
 func (s *session) Scopes(frameID FrameID) ([]Scope, error) {
 	if s == nil {
-		return nil, fmt.Errorf("no active debug session")
+		return nil, errors.New("no active debug session")
 	}
 
 	s.mtx.Lock()
@@ -812,7 +812,7 @@ func (s *session) Scopes(frameID FrameID) ([]Scope, error) {
 
 func (s *session) Variables(varRef VarRef) ([]Variable, error) {
 	if s == nil {
-		return nil, fmt.Errorf("no active debug session")
+		return nil, errors.New("no active debug session")
 	}
 
 	s.mtx.Lock()
@@ -830,7 +830,7 @@ func (s *session) Variables(varRef VarRef) ([]Variable, error) {
 
 func (s *session) Breakpoints() ([]Breakpoint, error) {
 	if s == nil {
-		return nil, fmt.Errorf("no active debug session")
+		return nil, errors.New("no active debug session")
 	}
 
 	s.mtx.Lock()
@@ -841,7 +841,7 @@ func (s *session) Breakpoints() ([]Breakpoint, error) {
 
 func (s *session) AddBreakpoint(loc location.Location) (Breakpoint, error) {
 	if s == nil {
-		return nil, fmt.Errorf("no active debug session")
+		return nil, errors.New("no active debug session")
 	}
 
 	s.mtx.Lock()
@@ -852,7 +852,7 @@ func (s *session) AddBreakpoint(loc location.Location) (Breakpoint, error) {
 
 func (s *session) RemoveBreakpoint(ID BreakpointID) (Breakpoint, error) {
 	if s == nil {
-		return nil, fmt.Errorf("no active debug session")
+		return nil, errors.New("no active debug session")
 	}
 
 	s.mtx.Lock()
@@ -868,7 +868,7 @@ func (s *session) RemoveBreakpoint(ID BreakpointID) (Breakpoint, error) {
 
 func (s *session) ClearBreakpoints() error {
 	if s == nil {
-		return fmt.Errorf("no active debug session")
+		return errors.New("no active debug session")
 	}
 
 	s.mtx.Lock()
@@ -881,7 +881,7 @@ func (s *session) ClearBreakpoints() error {
 
 func (s *session) Terminate() error {
 	if s == nil {
-		return fmt.Errorf("no active debug session")
+		return errors.New("no active debug session")
 	}
 
 	s.mtx.Lock()

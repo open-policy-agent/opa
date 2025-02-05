@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"strings"
 	"time"
 
@@ -113,6 +114,7 @@ type EvalContext struct {
 	compiledQuery               compiledQuery
 	unknowns                    []string
 	disableInlining             []ast.Ref
+	nondeterministicBuiltins    bool
 	parsedUnknowns              []*ast.Term
 	indexing                    bool
 	earlyExit                   bool
@@ -127,6 +129,7 @@ type EvalContext struct {
 	capabilities                *ast.Capabilities
 	strictBuiltinErrors         bool
 	virtualCache                topdown.VirtualCache
+	baseCache                   topdown.BaseCache
 }
 
 func (e *EvalContext) RawInput() *interface{} {
@@ -364,11 +367,28 @@ func EvalPrintHook(ph print.Hook) EvalOption {
 	}
 }
 
-// EvalVirtualCache sets the topdown.VirtualCache to use for evaluation. This is
-// optional, and if not set, the default cache is used.
+// EvalVirtualCache sets the topdown.VirtualCache to use for evaluation.
+// This is optional, and if not set, the default cache is used.
 func EvalVirtualCache(vc topdown.VirtualCache) EvalOption {
 	return func(e *EvalContext) {
 		e.virtualCache = vc
+	}
+}
+
+// EvalBaseCache sets the topdown.BaseCache to use for evaluation.
+// This is optional, and if not set, the default cache is used.
+func EvalBaseCache(bc topdown.BaseCache) EvalOption {
+	return func(e *EvalContext) {
+		e.baseCache = bc
+	}
+}
+
+// EvalNondeterministicBuiltins causes non-deterministic builtins to be evalued
+// during partial evaluation. This is needed to pull in external data, or validate
+// a JWT, during PE, so that the result informs what queries are returned.
+func EvalNondeterministicBuiltins(yes bool) EvalOption {
+	return func(e *EvalContext) {
+		e.nondeterministicBuiltins = yes
 	}
 }
 
@@ -394,24 +414,25 @@ func (pq preparedQuery) Modules() map[string]*ast.Module {
 // been opened.
 func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption) (*EvalContext, func(context.Context), error) {
 	ectx := &EvalContext{
-		hasInput:            false,
-		rawInput:            nil,
-		parsedInput:         nil,
-		metrics:             nil,
-		txn:                 nil,
-		instrument:          false,
-		instrumentation:     nil,
-		partialNamespace:    pq.r.partialNamespace,
-		queryTracers:        nil,
-		unknowns:            pq.r.unknowns,
-		parsedUnknowns:      pq.r.parsedUnknowns,
-		compiledQuery:       compiledQuery{},
-		indexing:            true,
-		earlyExit:           true,
-		resolvers:           pq.r.resolvers,
-		printHook:           pq.r.printHook,
-		capabilities:        pq.r.capabilities,
-		strictBuiltinErrors: pq.r.strictBuiltinErrors,
+		hasInput:                 false,
+		rawInput:                 nil,
+		parsedInput:              nil,
+		metrics:                  nil,
+		txn:                      nil,
+		instrument:               false,
+		instrumentation:          nil,
+		partialNamespace:         pq.r.partialNamespace,
+		queryTracers:             nil,
+		unknowns:                 pq.r.unknowns,
+		parsedUnknowns:           pq.r.parsedUnknowns,
+		nondeterministicBuiltins: pq.r.nondeterministicBuiltins,
+		compiledQuery:            compiledQuery{},
+		indexing:                 true,
+		earlyExit:                true,
+		resolvers:                pq.r.resolvers,
+		printHook:                pq.r.printHook,
+		capabilities:             pq.r.capabilities,
+		strictBuiltinErrors:      pq.r.strictBuiltinErrors,
 	}
 
 	for _, o := range options {
@@ -580,6 +601,7 @@ type Rego struct {
 	parsedUnknowns              []*ast.Term
 	disableInlining             []string
 	shallowInlining             bool
+	nondeterministicBuiltins    bool
 	skipPartialNamespace        bool
 	partialNamespace            string
 	modules                     []rawModule
@@ -813,7 +835,7 @@ func memoize(decl *Function, bctx BuiltinContext, terms []*ast.Term, ifEmpty fun
 	// The term slice _may_ include an output term depending on how the caller
 	// referred to the built-in function. Only use the arguments as the cache
 	// key. Unification ensures we don't get false positive matches.
-	for i := 0; i < decl.Decl.Arity(); i++ {
+	for i := range decl.Decl.Arity() {
 		if _, err := b.WriteString(terms[i].String()); err != nil {
 			return nil, err
 		}
@@ -919,6 +941,15 @@ func ParsedUnknowns(unknowns []*ast.Term) func(r *Rego) {
 func DisableInlining(paths []string) func(r *Rego) {
 	return func(r *Rego) {
 		r.disableInlining = paths
+	}
+}
+
+// NondeterministicBuiltins causes non-deterministic builtins to be evalued during
+// partial evaluation. This is needed to pull in external data, or validate a JWT,
+// during PE, so that the result informs what queries are returned.
+func NondeterministicBuiltins(yes bool) func(r *Rego) {
+	return func(r *Rego) {
+		r.nondeterministicBuiltins = yes
 	}
 }
 
@@ -1549,7 +1580,7 @@ func (r *Rego) Compile(ctx context.Context, opts ...CompileOption) (*CompileResu
 	}
 
 	if tgt := r.targetPlugin(r.target); tgt != nil {
-		return nil, fmt.Errorf("unsupported for rego target plugins")
+		return nil, errors.New("unsupported for rego target plugins")
 	}
 
 	return r.compileWasm(modules, queries, compileQueryType) // TODO(sr) control flow is funky here
@@ -1627,7 +1658,7 @@ func (p *PrepareConfig) BuiltinFuncs() map[string]*topdown.Builtin {
 // of evaluating them.
 func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (PreparedEvalQuery, error) {
 	if !r.hasQuery() {
-		return PreparedEvalQuery{}, fmt.Errorf("cannot evaluate empty query")
+		return PreparedEvalQuery{}, errors.New("cannot evaluate empty query")
 	}
 
 	pCfg := &PrepareConfig{}
@@ -1681,7 +1712,7 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 
 		if r.hasWasmModule() {
 			_ = txnClose(ctx, err) // Ignore error
-			return PreparedEvalQuery{}, fmt.Errorf("wasm target not supported")
+			return PreparedEvalQuery{}, errors.New("wasm target not supported")
 		}
 
 		var modules []*ast.Module
@@ -1746,7 +1777,7 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 // of partially evaluating them.
 func (r *Rego) PrepareForPartial(ctx context.Context, opts ...PrepareOption) (PreparedPartialQuery, error) {
 	if !r.hasQuery() {
-		return PreparedPartialQuery{}, fmt.Errorf("cannot evaluate empty query")
+		return PreparedPartialQuery{}, errors.New("cannot evaluate empty query")
 	}
 
 	pCfg := &PrepareConfig{}
@@ -2162,7 +2193,8 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithSeed(ectx.seed).
 		WithPrintHook(ectx.printHook).
 		WithDistributedTracingOpts(r.distributedTacingOpts).
-		WithVirtualCache(ectx.virtualCache)
+		WithVirtualCache(ectx.virtualCache).
+		WithBaseCache(ectx.baseCache)
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)
@@ -2249,7 +2281,7 @@ func (r *Rego) evalWasm(ctx context.Context, ectx *EvalContext) (ResultSet, erro
 func (r *Rego) valueToQueryResult(res ast.Value, ectx *EvalContext) (ResultSet, error) {
 	resultSet, ok := res.(ast.Set)
 	if !ok {
-		return nil, fmt.Errorf("illegal result type")
+		return nil, errors.New("illegal result type")
 	}
 
 	if resultSet.Len() == 0 {
@@ -2260,7 +2292,7 @@ func (r *Rego) valueToQueryResult(res ast.Value, ectx *EvalContext) (ResultSet, 
 	err := resultSet.Iter(func(term *ast.Term) error {
 		obj, ok := term.Value.(ast.Object)
 		if !ok {
-			return fmt.Errorf("illegal result type")
+			return errors.New("illegal result type")
 		}
 		qr := topdown.QueryResult{}
 		obj.Foreach(func(k, v *ast.Term) {
@@ -2334,17 +2366,18 @@ func (r *Rego) partialResult(ctx context.Context, pCfg *PrepareConfig) (PartialR
 	}
 
 	ectx := &EvalContext{
-		parsedInput:         r.parsedInput,
-		metrics:             r.metrics,
-		txn:                 r.txn,
-		partialNamespace:    r.partialNamespace,
-		queryTracers:        r.queryTracers,
-		compiledQuery:       r.compiledQueries[partialResultQueryType],
-		instrumentation:     r.instrumentation,
-		indexing:            true,
-		resolvers:           r.resolvers,
-		capabilities:        r.capabilities,
-		strictBuiltinErrors: r.strictBuiltinErrors,
+		parsedInput:              r.parsedInput,
+		metrics:                  r.metrics,
+		txn:                      r.txn,
+		partialNamespace:         r.partialNamespace,
+		queryTracers:             r.queryTracers,
+		compiledQuery:            r.compiledQueries[partialResultQueryType],
+		instrumentation:          r.instrumentation,
+		indexing:                 true,
+		resolvers:                r.resolvers,
+		capabilities:             r.capabilities,
+		strictBuiltinErrors:      r.strictBuiltinErrors,
+		nondeterministicBuiltins: r.nondeterministicBuiltins,
 	}
 
 	disableInlining := r.disableInlining
@@ -2369,7 +2402,7 @@ func (r *Rego) partialResult(ctx context.Context, pCfg *PrepareConfig) (PartialR
 	module, err := ast.ParseModuleWithOpts(id, "package "+ectx.partialNamespace,
 		ast.ParserOptions{RegoVersion: r.regoVersion})
 	if err != nil {
-		return PartialResult{}, fmt.Errorf("bad partial namespace")
+		return PartialResult{}, errors.New("bad partial namespace")
 	}
 
 	module.Rules = make([]*ast.Rule, len(pq.Queries))
@@ -2441,6 +2474,7 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		WithInstrumentation(ectx.instrumentation).
 		WithUnknowns(unknowns).
 		WithDisableInlining(ectx.disableInlining).
+		WithNondeterministicBuiltins(ectx.nondeterministicBuiltins).
 		WithRuntime(r.runtime).
 		WithIndexing(ectx.indexing).
 		WithEarlyExit(ectx.earlyExit).
@@ -2588,12 +2622,12 @@ func (r *Rego) rewriteQueryToCaptureValue(_ ast.QueryCompiler, query ast.Body) (
 
 func (r *Rego) rewriteQueryForPartialEval(_ ast.QueryCompiler, query ast.Body) (ast.Body, error) {
 	if len(query) != 1 {
-		return nil, fmt.Errorf("partial evaluation requires single ref (not multiple expressions)")
+		return nil, errors.New("partial evaluation requires single ref (not multiple expressions)")
 	}
 
 	term, ok := query[0].Terms.(*ast.Term)
 	if !ok {
-		return nil, fmt.Errorf("partial evaluation requires ref (not expression)")
+		return nil, errors.New("partial evaluation requires ref (not expression)")
 	}
 
 	ref, ok := term.Value.(ast.Ref)
@@ -2602,7 +2636,7 @@ func (r *Rego) rewriteQueryForPartialEval(_ ast.QueryCompiler, query ast.Body) (
 	}
 
 	if !ref.IsGround() {
-		return nil, fmt.Errorf("partial evaluation requires ground ref")
+		return nil, errors.New("partial evaluation requires ground ref")
 	}
 
 	return ast.NewBody(ast.Equality.Expr(ast.Wildcard, term)), nil
@@ -2872,14 +2906,8 @@ func (r *Rego) planQuery(queries []ast.Body, evalQueryType queryType) (*ir.Polic
 	}
 
 	decls := make(map[string]*ast.Builtin, len(r.builtinDecls)+len(ast.BuiltinMap))
-
-	for k, v := range ast.BuiltinMap {
-		decls[k] = v
-	}
-
-	for k, v := range r.builtinDecls {
-		decls[k] = v
-	}
+	maps.Copy(decls, ast.BuiltinMap)
+	maps.Copy(decls, r.builtinDecls)
 
 	const queryName = "eval" // NOTE(tsandall): the query name is arbitrary
 

@@ -197,10 +197,11 @@ func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
 	params.Context = storage.NewContext() // TODO(sr): metrics?
 	err := storage.Txn(ctx, p.manager.Store, params, func(txn storage.Transaction) error {
 		opts := &bundle.DeactivateOpts{
-			Ctx:         ctx,
-			Store:       p.manager.Store,
-			Txn:         txn,
-			BundleNames: deletedBundles,
+			Ctx:           ctx,
+			Store:         p.manager.Store,
+			Txn:           txn,
+			BundleNames:   deletedBundles,
+			ParserOptions: p.manager.ParserOptions(),
 		}
 		err := bundle.Deactivate(opts)
 		if err != nil {
@@ -402,7 +403,7 @@ func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {
 		return
 	}
 
-	for retry := 0; retry < maxActivationRetry; retry++ {
+	for range maxActivationRetry {
 
 		numActivatedBundles := 0
 		for name, b := range persistedBundles {
@@ -789,7 +790,7 @@ func getNormalizedBundleName(name string) string {
 	}
 
 	sb := new(strings.Builder)
-	for i := 0; i < len(name); i++ {
+	for i := range len(name) {
 		if isReservedCharacter(rune(name[i])) {
 			sb.WriteString(fmt.Sprintf("\\%c", name[i]))
 		} else {

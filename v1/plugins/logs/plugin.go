@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -342,14 +343,14 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 	// reject bad min/max values
 	if c.Reporting.MaxDelaySeconds != nil && c.Reporting.MinDelaySeconds != nil {
 		if *c.Reporting.MaxDelaySeconds < *c.Reporting.MinDelaySeconds {
-			return fmt.Errorf("max reporting delay must be >= min reporting delay in decision_logs")
+			return errors.New("max reporting delay must be >= min reporting delay in decision_logs")
 		}
 		min = *c.Reporting.MinDelaySeconds
 		max = *c.Reporting.MaxDelaySeconds
 	} else if c.Reporting.MaxDelaySeconds == nil && c.Reporting.MinDelaySeconds != nil {
-		return fmt.Errorf("reporting configuration missing 'max_delay_seconds' in decision_logs")
+		return errors.New("reporting configuration missing 'max_delay_seconds' in decision_logs")
 	} else if c.Reporting.MinDelaySeconds == nil && c.Reporting.MaxDelaySeconds != nil {
-		return fmt.Errorf("reporting configuration missing 'min_delay_seconds' in decision_logs")
+		return errors.New("reporting configuration missing 'min_delay_seconds' in decision_logs")
 	}
 
 	// scale to seconds
@@ -368,7 +369,7 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 	c.Reporting.UploadSizeLimitBytes = &uploadLimit
 
 	if c.Reporting.BufferSizeLimitBytes != nil && c.Reporting.MaxDecisionsPerSecond != nil {
-		return fmt.Errorf("invalid decision_log config, specify either 'buffer_size_limit_bytes' or 'max_decisions_per_second'")
+		return errors.New("invalid decision_log config, specify either 'buffer_size_limit_bytes' or 'max_decisions_per_second'")
 	}
 
 	// default the buffer size limit
@@ -722,7 +723,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 	if p.config.Plugin != nil {
 		proxy, ok := p.manager.Plugin(*p.config.Plugin).(Logger)
 		if !ok {
-			return fmt.Errorf("plugin does not implement Logger interface")
+			return errors.New("plugin does not implement Logger interface")
 		}
 		return proxy.Log(ctx, event)
 	}

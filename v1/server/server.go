@@ -237,7 +237,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}
 	// wait until each server has finished shutting down
 	var errorList []error
-	for i := 0; i < len(s.httpListeners); i++ {
+	for range s.httpListeners {
 		err := <-errChan
 		if err != nil {
 			errorList = append(errorList, err)
@@ -645,7 +645,7 @@ func (s *Server) getListenerForHTTPServer(u *url.URL, h http.Handler, t httpList
 func (s *Server) getListenerForHTTPSServer(u *url.URL, h http.Handler, t httpListenerType) (Loop, httpListener, error) {
 
 	if s.cert == nil {
-		return nil, nil, fmt.Errorf("TLS certificate required but not supplied")
+		return nil, nil, errors.New("TLS certificate required but not supplied")
 	}
 
 	tlsConfig := tls.Config{
@@ -1318,7 +1318,7 @@ func (s *Server) unversionedGetHealthWithPolicy(w http.ResponseWriter, r *http.R
 
 	vars := mux.Vars(r)
 	urlPath := vars["path"]
-	healthDataPath := fmt.Sprintf("/system/health/%s", urlPath)
+	healthDataPath := "/system/health/" + urlPath
 	healthDataPath = stringPathToDataRef(healthDataPath).String()
 
 	rego := rego.New(
@@ -1405,6 +1405,7 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 		rego.ParsedInput(request.Input),
 		rego.ParsedUnknowns(request.Unknowns),
 		rego.DisableInlining(request.Options.DisableInlining),
+		rego.NondeterministicBuiltins(request.Options.NondeterminsiticBuiltins),
 		rego.QueryTracer(buf),
 		rego.Instrument(includeInstrumentation),
 		rego.Metrics(m),
@@ -2856,7 +2857,8 @@ type compileRequest struct {
 }
 
 type compileRequestOptions struct {
-	DisableInlining []string
+	DisableInlining          []string
+	NondeterminsiticBuiltins bool
 }
 
 func readInputCompilePostV1(reqBytes []byte, queryParserOptions ast.ParserOptions) (*compileRequest, *types.ErrorV1) {
@@ -2898,16 +2900,15 @@ func readInputCompilePostV1(reqBytes []byte, queryParserOptions ast.ParserOption
 		}
 	}
 
-	result := &compileRequest{
+	return &compileRequest{
 		Query:    query,
 		Input:    input,
 		Unknowns: unknowns,
 		Options: compileRequestOptions{
-			DisableInlining: request.Options.DisableInlining,
+			DisableInlining:          request.Options.DisableInlining,
+			NondeterminsiticBuiltins: request.Options.NondeterministicBuiltins,
 		},
-	}
-
-	return result, nil
+	}, nil
 }
 
 var indexHTML, _ = template.New("index").Parse(`

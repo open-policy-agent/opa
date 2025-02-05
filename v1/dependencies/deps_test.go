@@ -5,8 +5,8 @@
 package dependencies
 
 import (
-	"fmt"
 	"sort"
+	"strconv"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -341,7 +341,7 @@ func TestDependencies(t *testing.T) {
 	}
 
 	for n, test := range tests {
-		t.Run(fmt.Sprint(n), func(t *testing.T) {
+		t.Run(strconv.Itoa(n), func(t *testing.T) {
 			module := ast.MustParseModuleWithOpts(test.ast, ast.ParserOptions{AllFutureKeywords: true})
 			compiler := ast.NewCompiler()
 			if compiler.Compile(map[string]*ast.Module{"test": module}); compiler.Failed() {
@@ -511,8 +511,7 @@ func assertRefSliceEq(t *testing.T, exp, result []ast.Ref) {
 	}
 
 	for i, e := range exp {
-		r := result[i]
-		if e.Compare(r) != 0 {
+		if !e.Equal(result[i]) {
 			t.Fatalf("Expected refs %v, got %v", exp, result)
 		}
 	}

@@ -2,7 +2,7 @@ package tester
 
 import (
 	"bytes"
-	"fmt"
+	"errors"
 	"reflect"
 	"strconv"
 	"strings"
@@ -52,7 +52,7 @@ func TestPrettyReporterVerbose(t *testing.T) {
 		{
 			Package: "data.foo.bar",
 			Name:    "test_qux",
-			Error:   fmt.Errorf("some err"),
+			Error:   errors.New("some err"),
 			Trace:   getFakeTraceEvents(),
 			Location: &ast.Location{
 				File: "policy1.rego",
@@ -160,7 +160,7 @@ func TestPrettyReporterFailureLine(t *testing.T) {
 		{
 			Package: "data.foo.bar",
 			Name:    "test_qux",
-			Error:   fmt.Errorf("some err"),
+			Error:   errors.New("some err"),
 			Trace:   getFakeTraceEvents(),
 			Location: &ast.Location{
 				File: "policy1.rego",
@@ -307,7 +307,7 @@ func TestPrettyReporter(t *testing.T) {
 		{
 			Package: "data.foo.bar",
 			Name:    "test_qux",
-			Error:   fmt.Errorf("some err"),
+			Error:   errors.New("some err"),
 			Trace:   getFakeTraceEvents(),
 			Location: &ast.Location{
 				File: "policy1.rego",
@@ -405,7 +405,7 @@ func TestJSONReporter(t *testing.T) {
 		{
 			Package: "data.foo.bar",
 			Name:    "test_qux",
-			Error:   fmt.Errorf("some err"),
+			Error:   errors.New("some err"),
 			Trace:   getFakeTraceEvents(),
 		},
 		{
@@ -627,7 +627,7 @@ func TestPrettyReporterVerboseBenchmark(t *testing.T) {
 		{
 			Package:         "data.foo.bar",
 			Name:            "test_qux",
-			Error:           fmt.Errorf("some err"),
+			Error:           errors.New("some err"),
 			BenchmarkResult: nil,
 		},
 		{
@@ -685,7 +685,7 @@ func TestPrettyReporterVerboseBenchmarkShowAllocations(t *testing.T) {
 		{
 			Package:         "data.foo.bar",
 			Name:            "test_qux",
-			Error:           fmt.Errorf("some err"),
+			Error:           errors.New("some err"),
 			BenchmarkResult: nil,
 		},
 		{
@@ -746,7 +746,7 @@ func TestPrettyReporterVerboseBenchmarkShowAllocationsGoBenchFormat(t *testing.T
 		{
 			Package:         "data.foo.bar",
 			Name:            "test_qux",
-			Error:           fmt.Errorf("some err"),
+			Error:           errors.New("some err"),
 			BenchmarkResult: nil,
 		},
 		{
@@ -805,7 +805,7 @@ func TestJSONReporterBenchmark(t *testing.T) {
 		{
 			Package: "data.foo.bar",
 			Name:    "test_qux",
-			Error:   fmt.Errorf("some err"),
+			Error:   errors.New("some err"),
 		},
 		{
 			Package: "data.foo.bar",

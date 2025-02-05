@@ -223,7 +223,7 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 	}
 
 	// Initialize parameters for functions.
-	for i := 0; i < len(rules[0].Head.Args); i++ {
+	for range len(rules[0].Head.Args) {
 		fn.Params = append(fn.Params, p.newLocal())
 	}
 
@@ -385,7 +385,7 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 							return nil
 						})
 					default:
-						return fmt.Errorf("illegal rule kind")
+						return errors.New("illegal rule kind")
 					}
 				})
 			})
@@ -1147,7 +1147,7 @@ func (p *Planner) planExprCallFunc(name string, arity int, void bool, operands [
 		})
 
 	default:
-		return fmt.Errorf("impossible replacement, arity mismatch")
+		return errors.New("impossible replacement, arity mismatch")
 	}
 }
 
@@ -1173,7 +1173,7 @@ func (p *Planner) planExprCallValue(value *ast.Term, arity int, operands []*ast.
 			})
 		})
 	default:
-		return fmt.Errorf("impossible replacement, arity mismatch")
+		return errors.New("impossible replacement, arity mismatch")
 	}
 }
 
@@ -1750,7 +1750,7 @@ func (p *Planner) planRef(ref ast.Ref, iter planiter) error {
 
 	head, ok := ref[0].Value.(ast.Var)
 	if !ok {
-		return fmt.Errorf("illegal ref: non-var head")
+		return errors.New("illegal ref: non-var head")
 	}
 
 	if head.Compare(ast.DefaultRootDocument.Value) == 0 {
@@ -1767,7 +1767,7 @@ func (p *Planner) planRef(ref ast.Ref, iter planiter) error {
 
 	p.ltarget, ok = p.vars.GetOp(head)
 	if !ok {
-		return fmt.Errorf("illegal ref: unsafe head")
+		return errors.New("illegal ref: unsafe head")
 	}
 
 	return p.planRefRec(ref, 1, iter)

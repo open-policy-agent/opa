@@ -1330,7 +1330,7 @@ func TestBearerTokenIsEncodedForOCI(t *testing.T) {
 
 	token := base64.StdEncoding.EncodeToString([]byte("secret"))
 
-	want := fmt.Sprintf("Bearer %s", token)
+	want := "Bearer " + token
 	got := req.Header.Get("Authorization")
 	if got != want {
 		t.Errorf("req.Header.Get(\"Authorization\") = %q, want = %q", got, want)

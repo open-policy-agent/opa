@@ -5,6 +5,7 @@
 package topdown
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"sort"
@@ -103,11 +104,11 @@ func anyStartsWithAny(strs []string, prefixes []string) bool {
 	}
 
 	trie := patricia.NewTrie()
-	for i := 0; i < len(strs); i++ {
+	for i := range strs {
 		trie.Insert([]byte(strs[i]), true)
 	}
 
-	for i := 0; i < len(prefixes); i++ {
+	for i := range prefixes {
 		if trie.MatchSubtree([]byte(prefixes[i])) {
 			return true
 		}
@@ -160,7 +161,7 @@ func builtinConcat(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) 
 	switch b := operands[1].Value.(type) {
 	case *ast.Array:
 		var l int
-		for i := 0; i < b.Len(); i++ {
+		for i := range b.Len() {
 			s, ok := b.Elem(i).Value.(ast.String)
 			if !ok {
 				return builtins.NewOperandElementErr(2, operands[1].Value, b.Elem(i).Value, "string")
@@ -173,14 +174,14 @@ func builtinConcat(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) 
 		}
 
 		strs = make([]string, 0, l)
-		for i := 0; i < b.Len(); i++ {
+		for i := range b.Len() {
 			strs = append(strs, string(b.Elem(i).Value.(ast.String)))
 		}
 
 	case ast.Set:
 		var l int
 		terms := b.Slice()
-		for i := 0; i < len(terms); i++ {
+		for i := range terms {
 			s, ok := terms[i].Value.(ast.String)
 			if !ok {
 				return builtins.NewOperandElementErr(2, operands[1].Value, terms[i].Value, "string")
@@ -193,7 +194,7 @@ func builtinConcat(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) 
 		}
 
 		strs = make([]string, 0, l)
-		for i := 0; i < b.Len(); i++ {
+		for i := range b.Len() {
 			strs = append(strs, string(terms[i].Value.(ast.String)))
 		}
 
@@ -227,7 +228,7 @@ func builtinIndexOf(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 		return err
 	}
 	if len(string(search)) == 0 {
-		return fmt.Errorf("empty search character")
+		return errors.New("empty search character")
 	}
 
 	if isASCII(string(base)) && isASCII(string(search)) {
@@ -262,7 +263,7 @@ func builtinIndexOfN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 		return err
 	}
 	if len(string(search)) == 0 {
-		return fmt.Errorf("empty search character")
+		return errors.New("empty search character")
 	}
 
 	baseRunes := []rune(string(base))
@@ -301,7 +302,7 @@ func builtinSubstring(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 	}
 
 	if startIndex < 0 {
-		return fmt.Errorf("negative offset")
+		return errors.New("negative offset")
 	}
 
 	sbase := string(base)
@@ -348,7 +349,7 @@ func builtinSubstring(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 }
 
 func isASCII(s string) bool {
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if s[i] > unicode.MaxASCII {
 			return false
 		}

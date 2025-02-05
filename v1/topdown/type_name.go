@@ -5,7 +5,7 @@
 package topdown
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 )
@@ -38,7 +38,7 @@ func builtinTypeName(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 		return iter(setStringTerm)
 	}
 
-	return fmt.Errorf("illegal value")
+	return errors.New("illegal value")
 }
 
 func init() {

@@ -16,9 +16,9 @@ import (
 
 func genNxMObjectBenchmarkData(n, m int) ast.Value {
 	objList := make([]*ast.Term, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		v := ast.NewObject()
-		for j := 0; j < m; j++ {
+		for j := range m {
 			v.Insert(ast.StringTerm(fmt.Sprintf("%d,%d", i, j)), ast.BooleanTerm(true))
 		}
 		objList[i] = ast.NewTerm(v)
@@ -46,7 +46,7 @@ func BenchmarkObjectUnionN(b *testing.B) {
 
 				b.ResetTimer()
 
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 
 					err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 
@@ -95,7 +95,7 @@ func BenchmarkObjectUnionNSlow(b *testing.B) {
 
 				b.ResetTimer()
 
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 
 					err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 

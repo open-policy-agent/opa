@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/binary"
-	"fmt"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -58,7 +58,7 @@ func ReadMaybeCompressedBody(r *http.Request) ([]byte, error) {
 		// earlier in DecodingLimitHandler.
 		sizeTrailerField := binary.LittleEndian.Uint32(content.Bytes()[content.Len()-4:])
 		if sizeTrailerField > uint32(gzipMaxLength) {
-			return content.Bytes(), fmt.Errorf("gzip payload too large")
+			return content.Bytes(), errors.New("gzip payload too large")
 		}
 		// Pull a gzip decompressor from the pool, and assign it to the current
 		// buffer, using Reset(). Later, return it back to the pool for another

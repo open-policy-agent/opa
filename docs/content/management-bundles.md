@@ -214,18 +214,18 @@ fields:
   `string` value that identifies the bundle revision.
 
 * `rego_version` - An optional field that specifies the rego-version of the Rego source files
-  in the bundle. The value of this field is an `integer`; where `0` corresponds to v0 Rego (current OPA v0.x syntax), 
-  and `1` corresponds to v1 Rego ([OPA v1.0](../opa-1/) syntax).
-  If the field is not included in the manifest, OPA will enforce v0 syntax, or v1 if executed with
-  the `--v1-compatible` flag.
-  An existing bundle `rego_version` field takes precedence to the `--v1-compatible` flag.
+  in the bundle. The value of this field is an `integer`; where `0` corresponds to v0 Rego ([OPA v0.x](../v0-compatibility/) syntax), 
+  and `1` corresponds to v1 Rego (current OPA v1.x syntax).
+  If the field is not included in the manifest, OPA will enforce v1 syntax, or v0 if executed with
+  the `--v0-compatible` flag.
+  An existing bundle `rego_version` field takes precedence to the `--v0-compatible` flag.
 
 * `file_rego_versions` - An optional field that specifies per-file rego-version overrides to the 
   `rego_version` field. The value of this field is a `map` where the keys are file paths relative to the
   bundle root directory (paths are absolute and start with `/`) and the values are `integer` rego-versions.
   Glob patterns are accepted, to allow for a single entry to apply to multiple files. The behaviour is undefined 
   for overlapping patterns. If a file is not matched by any pattern, the `rego_version` field is used.
-  Existing bundle `rego_version` and `file_rego_versions` fields takes precedence to the `--v1-compatible` flag.
+  Existing bundle `rego_version` and `file_rego_versions` fields takes precedence to the `--v0-compatible` flag.
 
 * `roots` - If you expect to load additional data into OPA from outside the
   bundle (e.g., via OPA's HTTP API) you should include a top-level

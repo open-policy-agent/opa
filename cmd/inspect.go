@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -150,14 +151,14 @@ func hasManifest(info *ib.Info) bool {
 
 func validateInspectParams(p *inspectCommandParams, args []string) error {
 	if len(args) != 1 {
-		return fmt.Errorf("specify exactly one OPA bundle or path")
+		return errors.New("specify exactly one OPA bundle or path")
 	}
 
 	of := p.outputFormat.String()
 	if of == evalJSONOutput || of == evalPrettyOutput {
 		return nil
 	}
-	return fmt.Errorf("invalid output format for inspect command")
+	return errors.New("invalid output format for inspect command")
 }
 
 func populateManifest(out io.Writer, m *bundle.Manifest) error {

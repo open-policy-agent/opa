@@ -57,10 +57,10 @@ func TestConcurrencyGetV1Data(t *testing.T) {
 	num := runtime.NumCPU()
 	wg.Add(num)
 
-	for i := 0; i < num; i++ {
+	for range num {
 		go func() {
 			defer wg.Done()
-			for n := 0; n < 1000; n++ {
+			for range 1000 {
 				dr := struct {
 					Result bool `json:"result"`
 				}{}
@@ -107,10 +107,10 @@ func TestConcurrencyCompile(t *testing.T) {
 	num := runtime.NumCPU()
 	wg.Add(num)
 
-	for i := 0; i < num; i++ {
+	for range num {
 		go func() {
 			defer wg.Done()
-			for n := 0; n < 1000; n++ {
+			for range 1000 {
 				if _, err := testRuntime.CompileRequest(req); err != nil {
 					t.Error(err)
 					return

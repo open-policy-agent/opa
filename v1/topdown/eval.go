@@ -72,6 +72,7 @@ type eval struct {
 	store                       storage.Store
 	txn                         storage.Transaction
 	virtualCache                VirtualCache
+	baseCache                   BaseCache
 	interQueryBuiltinCache      cache.InterQueryCache
 	interQueryBuiltinValueCache cache.InterQueryValueCache
 	printHook                   print.Hook
@@ -80,7 +81,6 @@ type eval struct {
 	parent                      *eval
 	caller                      *eval
 	bindings                    *bindings
-	baseCache                   *baseCache
 	compiler                    *ast.Compiler
 	input                       *ast.Term
 	data                        *ast.Term
@@ -1504,7 +1504,7 @@ func (e *eval) saveExprMarkUnknowns(expr *ast.Expr, b *bindings, iter unifyItera
 	e.traceSave(expr)
 	err = iter()
 	e.saveStack.Pop()
-	for i := 0; i < pops; i++ {
+	for range pops {
 		e.saveSet.Pop()
 	}
 	return err
@@ -1534,7 +1534,7 @@ func (e *eval) saveUnify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) e
 	err := iter()
 
 	e.saveStack.Pop()
-	for i := 0; i < pops; i++ {
+	for range pops {
 		e.saveSet.Pop()
 	}
 
@@ -1561,7 +1561,7 @@ func (e *eval) saveCall(declArgsLen int, terms []*ast.Term, iter unifyIterator) 
 	err := iter()
 
 	e.saveStack.Pop()
-	for i := 0; i < pops; i++ {
+	for range pops {
 		e.saveSet.Pop()
 	}
 	return err
@@ -1583,7 +1583,7 @@ func (e *eval) saveInlinedNegatedExprs(exprs []*ast.Expr, iter unifyIterator) er
 		e.traceSave(expr)
 	}
 	err := iter()
-	for i := 0; i < len(exprs); i++ {
+	for range exprs {
 		e.saveStack.Pop()
 	}
 	return err
@@ -1745,7 +1745,7 @@ func (e *evalResolver) Resolve(ref ast.Ref) (ast.Value, error) {
 		return merged, err
 	}
 	e.e.instr.stopTimer(evalOpResolve)
-	return nil, fmt.Errorf("illegal ref")
+	return nil, errors.New("illegal ref")
 }
 
 func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, error) {
@@ -2107,7 +2107,7 @@ func (e evalFunc) evalCache(argCount int, iter unifyIterator) (ast.Ref, bool, er
 	}
 
 	cacheKey := make([]*ast.Term, plen)
-	for i := 0; i < plen; i++ {
+	for i := range plen {
 		if e.terms[i].IsGround() {
 			// Avoid expensive copying of ref if it is ground.
 			cacheKey[i] = e.terms[i]
@@ -2378,7 +2378,7 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 	if doc != nil {
 		switch doc := doc.(type) {
 		case *ast.Array:
-			for i := 0; i < doc.Len(); i++ {
+			for i := range doc.Len() {
 				k := ast.InternedIntNumberTerm(i)
 				err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
 					return e.next(iter, k)
@@ -3650,28 +3650,55 @@ func (e evalTerm) enumerate(iter unifyIterator) error {
 
 	switch v := e.term.Value.(type) {
 	case *ast.Array:
-		for i := 0; i < v.Len(); i++ {
-			k := ast.InternedIntNumberTerm(i)
-			if err := handleErr(e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
-				return e.next(iter, k)
-			})); err != nil {
-				return err
+		// Note(anders):
+		// For this case (e.g. input.foo[_]), we can avoid the (quite expensive) overhead of a callback
+		// function literal escaping to the heap in each iteration by inlining the biunification logic,
+		// meaning a 10x reduction in both the number of allocations made as well as the memory consumed.
+		// It is possible that such inlining could be done for the set/object cases as well, and that's
+		// worth looking into later, as I imagine set iteration in particular would be an even greater
+		// win across most policies. Those cases are however much more complex, as we need to deal with
+		// any type on either side, not just int/var as is the case here.
+		for i := range v.Len() {
+			a := ast.InternedIntNumberTerm(i)
+			b := e.ref[e.pos]
+
+			if _, ok := b.Value.(ast.Var); ok {
+				if e.e.traceEnabled {
+					e.e.traceUnify(a, b)
+				}
+				var undo undo
+				b, e.bindings = e.bindings.apply(b)
+				e.bindings.bind(b, a, e.bindings, &undo)
+
+				err := e.next(iter, a)
+				undo.Undo()
+				if err != nil {
+					if err := handleErr(err); err != nil {
+						return err
+					}
+				}
 			}
 		}
 	case ast.Object:
 		for _, k := range v.Keys() {
-			if err := handleErr(e.e.biunify(k, e.ref[e.pos], e.termbindings, e.bindings, func() error {
+			err := e.e.biunify(k, e.ref[e.pos], e.termbindings, e.bindings, func() error {
 				return e.next(iter, e.termbindings.Plug(k))
-			})); err != nil {
-				return err
+			})
+			if err != nil {
+				if err := handleErr(err); err != nil {
+					return err
+				}
 			}
 		}
 	case ast.Set:
 		for _, elem := range v.Slice() {
-			if err := handleErr(e.e.biunify(elem, e.ref[e.pos], e.termbindings, e.bindings, func() error {
+			err := e.e.biunify(elem, e.ref[e.pos], e.termbindings, e.bindings, func() error {
 				return e.next(iter, e.termbindings.Plug(elem))
-			})); err != nil {
-				return err
+			})
+			if err != nil {
+				if err := handleErr(err); err != nil {
+					return err
+				}
 			}
 		}
 	}

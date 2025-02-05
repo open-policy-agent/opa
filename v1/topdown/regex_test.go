@@ -35,7 +35,7 @@ func TestRegexBuiltinCache(t *testing.T) {
 	}
 
 	// Fill up the cache.
-	for i := 0; i < regexCacheMaxSize-1; i++ {
+	for i := range regexCacheMaxSize - 1 {
 		operands := []*ast.Term{
 			ast.NewTerm(ast.String(fmt.Sprintf("foo%d.*", i))),
 			ast.NewTerm(ast.String(fmt.Sprintf("foo%dbar", i))),
@@ -96,7 +96,7 @@ func TestRegexBuiltinInterQueryValueCache(t *testing.T) {
 	}
 
 	// Fill up the cache.
-	for i := 0; i < 9; i++ {
+	for i := range 9 {
 		operands := []*ast.Term{
 			ast.NewTerm(ast.String(fmt.Sprintf("foo%d.*", i))),
 			ast.NewTerm(ast.String(fmt.Sprintf("foo%dbar", i))),

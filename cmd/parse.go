@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -55,7 +56,7 @@ var parseCommand = &cobra.Command{
 	Long:  `Parse Rego source file and print AST.`,
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return fmt.Errorf("no source file specified")
+			return errors.New("no source file specified")
 		}
 		return env.CmdFlags.CheckEnvironmentVariables(cmd)
 	},
@@ -132,10 +133,6 @@ func parse(args []string, params *parseParams, stdout io.Writer, stderr io.Write
 
 		_, _ = fmt.Fprint(stdout, string(bs)+"\n")
 	default:
-		if err != nil {
-			_, _ = fmt.Fprintln(stderr, err)
-			return 1
-		}
 		ast.Pretty(stdout, result.Parsed)
 	}
 

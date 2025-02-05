@@ -106,6 +106,7 @@ func builtinRegexSplit(bctx BuiltinContext, operands []*ast.Term, iter func(*ast
 
 func getRegexp(bctx BuiltinContext, pat string) (*regexp.Regexp, error) {
 	if bctx.InterQueryBuiltinValueCache != nil {
+		// TODO: Use named cache
 		val, ok := bctx.InterQueryBuiltinValueCache.Get(ast.String(pat))
 		if ok {
 			res, valid := val.(*regexp.Regexp)

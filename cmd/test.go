@@ -148,7 +148,7 @@ func opaTest(args []string, testParams testCommandParams) (int, error) {
 	}
 
 	success := true
-	for i := 0; i < testParams.count; i++ {
+	for range testParams.count {
 		exitCode, err := runTests(ctx, txn, runner, reporter, testParams)
 		if exitCode != 0 {
 			success = false
@@ -322,7 +322,7 @@ func processWatcherUpdate(ctx context.Context, testParams testCommandParams, pat
 			return err
 		}
 
-		for i := 0; i < testParams.count; i++ {
+		for range testParams.count {
 			exitCode, err := runTests(ctx, txn, runner, reporter, testParams)
 			if exitCode != 0 {
 				return err
@@ -521,7 +521,7 @@ recommended as some updates might cause them to be dropped by OPA.
 `,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				return fmt.Errorf("specify at least one file")
+				return errors.New("specify at least one file")
 			}
 
 			// If an --explain flag was set, turn on verbose output

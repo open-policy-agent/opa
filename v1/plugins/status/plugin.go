@@ -8,7 +8,9 @@ package status
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"reflect"
 
@@ -424,7 +426,7 @@ func (p *Plugin) oneShot(ctx context.Context) error {
 	if p.config.Plugin != nil {
 		proxy, ok := p.manager.Plugin(*p.config.Plugin).(Logger)
 		if !ok {
-			return fmt.Errorf("plugin does not implement Logger interface")
+			return errors.New("plugin does not implement Logger interface")
 		}
 		return proxy.Log(ctx, req)
 	}
@@ -528,4 +530,21 @@ func (p *Plugin) updatePrometheusMetrics(u *UpdateRequestV1) {
 			}
 		}
 	}
+}
+
+func (u UpdateRequestV1) Equal(other UpdateRequestV1) bool {
+	return maps.Equal(u.Labels, other.Labels) &&
+		maps.EqualFunc(u.Bundles, other.Bundles, (*bundle.Status).Equal) &&
+		maps.EqualFunc(u.Plugins, other.Plugins, (*plugins.Status).Equal) &&
+		u.Bundle.Equal(other.Bundle) &&
+		u.Discovery.Equal(other.Discovery) &&
+		u.DecisionLogs.Equal(other.DecisionLogs) &&
+		nullSafeDeepEqual(u.Metrics, other.Metrics)
+}
+
+func nullSafeDeepEqual(a, b interface{}) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	return a != nil && b != nil && reflect.DeepEqual(a, b)
 }

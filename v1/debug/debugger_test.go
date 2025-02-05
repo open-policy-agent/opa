@@ -181,7 +181,7 @@ f(x) := y if {
 					expBrHits = tc.brHits
 				}
 
-				for i := 0; i < expBrHits; i++ {
+				for range expBrHits {
 					if err := s.ResumeAll(); err != nil {
 						t.Fatalf("Unexpected error resuming threads: %v", err)
 					}
@@ -324,7 +324,7 @@ p if {
 				if tc.brHits > 0 {
 					expBrHits = tc.brHits
 				}
-				for i := 0; i < expBrHits; i++ {
+				for range expBrHits {
 					if err := s.ResumeAll(); err != nil {
 						t.Fatalf("Unexpected error resuming threads: %v", err)
 					}
@@ -474,7 +474,7 @@ p if {
 				if tc.brHits > 0 {
 					expBrHits = tc.brHits
 				}
-				for i := 0; i < expBrHits; i++ {
+				for range expBrHits {
 					if err := s.ResumeAll(); err != nil {
 						t.Fatalf("Unexpected error resuming threads: %v", err)
 					}
@@ -613,12 +613,12 @@ qux: d
 					LaunchProperties: LaunchProperties{
 						DataPaths: []string{
 							path.Join(rootDir, "mod.rego"),
-							path.Join(rootDir, fmt.Sprintf("data.%s", ext)),
+							path.Join(rootDir, "data."+ext),
 						},
 						EnablePrint: true,
 					},
 					Query:     "x = data.test.p",
-					InputPath: path.Join(rootDir, fmt.Sprintf("input.%s", ext)),
+					InputPath: path.Join(rootDir, "input."+ext),
 				}
 
 				s, err := d.LaunchEval(ctx, launchProps)

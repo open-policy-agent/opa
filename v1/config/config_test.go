@@ -6,6 +6,7 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -358,13 +359,13 @@ func TestActiveConfig(t *testing.T) {
 			badKeysConfig,
 			nil,
 			true,
-			fmt.Errorf("illegal keys config type: []interface {}"),
+			errors.New("illegal keys config type: []interface {}"),
 		},
 		"invalid_config_with_bad_creds": {
 			badServicesConfig,
 			nil,
 			true,
-			fmt.Errorf("type assertion error"),
+			errors.New("type assertion error"),
 		},
 	}
 

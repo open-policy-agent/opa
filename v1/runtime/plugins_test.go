@@ -6,7 +6,7 @@ package runtime
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -44,7 +44,7 @@ func (f Factory) Validate(_ *plugins.Manager, config []byte) (interface{}, error
 	}
 
 	if cfg.ConfigErr {
-		return nil, fmt.Errorf("test error")
+		return nil, errors.New("test error")
 	}
 
 	return cfg, nil

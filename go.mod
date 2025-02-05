@@ -6,7 +6,7 @@ toolchain go1.23.1
 
 require (
 	github.com/OneOfOne/xxhash v1.2.8
-	github.com/agnivade/levenshtein v1.2.0
+	github.com/agnivade/levenshtein v1.2.1
 	github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883
 	github.com/bytecodealliance/wasmtime-go/v3 v3.0.2
 	github.com/containerd/containerd v1.7.25
@@ -32,7 +32,7 @@ require (
 	github.com/sergi/go-diff v1.3.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.1
-	github.com/spf13/pflag v1.0.5
+	github.com/spf13/pflag v1.0.6
 	github.com/spf13/viper v1.18.2
 	github.com/tchap/go-patricia/v2 v2.3.2
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415
@@ -45,8 +45,8 @@ require (
 	go.opentelemetry.io/otel/trace v1.34.0
 	go.uber.org/automaxprocs v1.6.0
 	golang.org/x/net v0.34.0
-	golang.org/x/time v0.9.0
-	google.golang.org/grpc v1.69.4
+	golang.org/x/time v0.10.0
+	google.golang.org/grpc v1.70.0
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 	gopkg.in/yaml.v3 v3.0.1
 	oras.land/oras-go/v2 v2.3.1

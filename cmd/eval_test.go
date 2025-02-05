@@ -619,17 +619,17 @@ func testReadParamWithSchemaDir(input string, inputSchema string) error {
 		}
 
 		if schemaSet == nil {
-			err = fmt.Errorf("Schema set is empty")
+			err = errors.New("Schema set is empty")
 			return
 		}
 
 		if schemaSet.Get(ast.MustParseRef("schema.input")) == nil {
-			err = fmt.Errorf("Expected schema for input in schemaSet but got none")
+			err = errors.New("Expected schema for input in schemaSet but got none")
 			return
 		}
 
 		if schemaSet.Get(ast.MustParseRef(`schema.kubernetes["data-schema"]`)) == nil {
-			err = fmt.Errorf("Expected schemas for data in schemaSet but got none")
+			err = errors.New("Expected schemas for data in schemaSet but got none")
 			return
 		}
 

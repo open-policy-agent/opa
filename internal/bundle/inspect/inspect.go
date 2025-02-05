@@ -6,6 +6,7 @@ package inspect
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -144,7 +145,7 @@ func (bi *Info) getBundleDataWasmAndSignatures(name string) error {
 	}
 
 	if len(load.BundlesLoader) == 0 || len(load.BundlesLoader) > 1 {
-		return fmt.Errorf("expected information on one bundle only but got none or multiple")
+		return errors.New("expected information on one bundle only but got none or multiple")
 	}
 
 	bl := load.BundlesLoader[0]

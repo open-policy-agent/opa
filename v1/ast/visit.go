@@ -362,7 +362,7 @@ func (vis *GenericVisitor) Walk(x interface{}) {
 			vis.Walk(x.Get(k))
 		}
 	case *Array:
-		for i := 0; i < x.Len(); i++ {
+		for i := range x.Len() {
 			vis.Walk(x.Elem(i))
 		}
 	case Set:

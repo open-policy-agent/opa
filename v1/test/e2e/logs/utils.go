@@ -43,7 +43,7 @@ func RunDecisionLoggerBenchmark(b *testing.B, rt *e2e.TestRuntime) {
 				}
 				b.ResetTimer()
 
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					b.StartTimer()
 
 					bodyJSON, err := rt.GetDataWithInput("data/test/rule", input)
@@ -79,7 +79,7 @@ func GeneratePolicy(ruleCounts int, ruleHits int) string {
 	pb := strings.Builder{}
 	pb.WriteString("package test\n")
 	hits := 0
-	for i := 0; i < ruleCounts; i++ {
+	for range ruleCounts {
 		pb.WriteString("rule if {")
 		if hits < ruleHits {
 			pb.WriteString("input.hit = true")
@@ -101,7 +101,7 @@ type TestLogServer struct {
 // URL string representation for the current server. Requires that the server
 // has already been started.
 func (t *TestLogServer) URL() string {
-	return fmt.Sprintf("http://%s", t.listener.Addr().String())
+	return "http://" + t.listener.Addr().String()
 }
 
 // Start the test server listening on a random port.

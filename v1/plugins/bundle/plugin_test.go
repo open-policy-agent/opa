@@ -107,10 +107,9 @@ func TestPluginOneShot(t *testing.T) {
 
 	data, err := manager.Store.Read(ctx, txn, storage.Path{})
 	expData := util.MustUnmarshalJSON([]byte(`{
-		"foo": {"bar": 1, "baz": "qux"}, 
+		"foo": {"bar": 1, "baz": "qux"},
 		"system": {
-			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
-			"modules": {"test-bundle/foo/bar": {"rego_version": 1}}
+			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}
 		}
 	}`))
 	if err != nil {
@@ -968,10 +967,9 @@ func TestPluginStartLazyLoadInMem(t *testing.T) {
 			}
 
 			expected := `{
-				"p": "x1", "q": "x2", 
+				"p": "x1", "q": "x2",
 				"system": {
-					"bundles": {"test-1": {"etag": "", "manifest": {"revision": "", "roots": ["p", "authz"]}}, "test-2": {"etag": "", "manifest": {"revision": "", "roots": ["q"]}}},
-					"modules": {"test-1/bar/policy.rego": {"rego_version": 1}}
+					"bundles": {"test-1": {"etag": "", "manifest": {"revision": "", "roots": ["p", "authz"]}}, "test-2": {"etag": "", "manifest": {"revision": "", "roots": ["q"]}}}
 				}
 			}`
 			if rm.readAst {
@@ -1040,11 +1038,11 @@ func TestPluginOneShotDiskStorageMetrics(t *testing.T) {
 			t.Errorf("%s: expected %v, got %v", name, exp, act)
 		}
 		name = "disk_written_keys"
-		if exp, act := 7, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
+		if exp, act := 6, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
 			t.Errorf("%s: expected %v, got %v", name, exp, act)
 		}
 		name = "disk_read_keys"
-		if exp, act := 14, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
+		if exp, act := 13, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
 			t.Errorf("%s: expected %v, got %v", name, exp, act)
 		}
 		name = "disk_read_bytes"
@@ -1087,10 +1085,9 @@ func TestPluginOneShotDiskStorageMetrics(t *testing.T) {
 
 		data, err := manager.Store.Read(ctx, txn, storage.Path{})
 		expData := util.MustUnmarshalJSON([]byte(`{
-			"foo": {"bar": 1, "baz": "qux"}, 
+			"foo": {"bar": 1, "baz": "qux"},
 			"system": {
-				"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
-				"modules": {"test-bundle/foo/bar": {"rego_version": 1}}
+				"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}
 			}
 		}`))
 		if err != nil {
@@ -1194,10 +1191,9 @@ func TestPluginOneShotDeltaBundle(t *testing.T) {
 		t.Fatal(err)
 	}
 	expData := util.MustUnmarshalJSON([]byte(`{
-		"a": {"baz": "bux", "foo": ["hello", "world"]}, 
+		"a": {"baz": "bux", "foo": ["hello", "world"]},
 		"system": {
-			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "delta", "roots": ["a"]}}},
-			"modules": {"test-bundle/a/policy.rego": {"rego_version": 1}}
+			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "delta", "roots": ["a"]}}}
 		}
 	}`))
 	if !reflect.DeepEqual(data, expData) {
@@ -1299,10 +1295,9 @@ func TestPluginOneShotDeltaBundleWithAstStore(t *testing.T) {
 		t.Fatal(err)
 	}
 	expData := ast.MustParseTerm(`{
-		"a": {"baz": "bux", "foo": ["hello", "world"]}, 
+		"a": {"baz": "bux", "foo": ["hello", "world"]},
 		"system": {
-			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "delta", "roots": ["a"]}}},
-			"modules": {"test-bundle/a/policy.rego": {"rego_version": 1}}
+			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "delta", "roots": ["a"]}}}
 		}
 	}`)
 	if ast.Compare(data, expData) != 0 {
@@ -1416,7 +1411,7 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 	ensurePluginState(t, plugin, plugins.StateNotReady)
 
 	// simulate a bundle download error with no bundle on disk
-	plugin.oneShot(ctx, bundleName, download.Update{Error: fmt.Errorf("unknown error")})
+	plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
 
 	if plugin.status[bundleName].Message == "" {
 		t.Fatal("expected error but got none")
@@ -1462,7 +1457,7 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 	}
 
 	// simulate a bundle download error and verify that the bundle on disk is activated
-	plugin.oneShot(ctx, bundleName, download.Update{Error: fmt.Errorf("unknown error")})
+	plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -1486,10 +1481,9 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 
 	data, err := manager.Store.Read(ctx, txn, storage.Path{})
 	expData := util.MustUnmarshalJSON([]byte(`{
-		"foo": {"bar": 1, "baz": "qux"}, 
+		"foo": {"bar": 1, "baz": "qux"},
 		"system": {
-			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
-			"modules": {"test-bundle/foo/bar.rego": {"rego_version": 1}}
+			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}
 		}
 	}`))
 	if err != nil {
@@ -1583,7 +1577,7 @@ corge contains 1 if {
 			ensurePluginState(t, plugin, plugins.StateNotReady)
 
 			// simulate a bundle download error with no bundle on disk
-			plugin.oneShot(ctx, bundleName, download.Update{Error: fmt.Errorf("unknown error")})
+			plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
 
 			if plugin.status[bundleName].Message == "" {
 				t.Fatal("expected error but got none")
@@ -1652,7 +1646,7 @@ corge contains 1 if {
 				}
 
 				// simulate a bundle download error and verify that the bundle on disk is activated
-				plugin.oneShot(ctx, bundleName, download.Update{Error: fmt.Errorf("unknown error")})
+				plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
 
 				ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -1674,14 +1668,14 @@ corge contains 1 if {
 					t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
 				}
 
-				data, err := manager.Store.Read(ctx, txn, storage.Path{})
 				expData := util.MustUnmarshalJSON([]byte(`{
-					"foo": {"bar": 1, "baz": "qux"}, 
+					"foo": {"bar": 1, "baz": "qux"},
 					"system": {
-						"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
-						"modules": {"test-bundle/foo/bar.rego": {"rego_version": 1}}
+						"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}
 					}
 				}`))
+
+				data, err := manager.Store.Read(ctx, txn, storage.Path{})
 				if err != nil {
 					t.Fatal(err)
 				} else if !reflect.DeepEqual(data, expData) {
@@ -1868,7 +1862,7 @@ corge contains 1 if {
 			ensurePluginState(t, plugin, plugins.StateNotReady)
 
 			// simulate a bundle download error with no bundle on disk
-			plugin.oneShot(ctx, bundleName, download.Update{Error: fmt.Errorf("unknown error")})
+			plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
 
 			if plugin.status[bundleName].Message == "" {
 				t.Fatal("expected error but got none")
@@ -1945,7 +1939,7 @@ corge contains 1 if {
 				}
 
 				// simulate a bundle download error and verify that the bundle on disk is activated
-				plugin.oneShot(ctx, bundleName, download.Update{Error: fmt.Errorf("unknown error")})
+				plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
 
 				ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -1970,27 +1964,23 @@ corge contains 1 if {
 				data, err := manager.Store.Read(ctx, txn, storage.Path{})
 
 				var manifestRegoVersion string
+				var moduleRegoVersion string
 				if tc.bundleRegoVersion != nil {
 					manifestRegoVersion = fmt.Sprintf(`, "rego_version": %d`, bundleRegoVersion(*tc.bundleRegoVersion))
-				} else {
-					manifestRegoVersion = ""
-				}
 
-				var moduleRegoVersion int
-				if tc.bundleRegoVersion != nil {
-					moduleRegoVersion = tc.bundleRegoVersion.Int()
-				} else {
-					moduleRegoVersion = ast.DefaultRegoVersion.Int()
+					if *tc.bundleRegoVersion != tc.managerRegoVersion {
+						moduleRegoVersion = fmt.Sprintf(`,"modules": {"test-bundle/foo/bar.rego": {"rego_version": %d}}`, tc.bundleRegoVersion.Int())
+					}
 				}
 
 				expData := util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{
-					"foo": {"bar": 1, "baz": "qux"}, 
+					"foo": {"bar": 1, "baz": "qux"},
 					"system": {
-						"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux"%s, "roots": [""]}}},
-						"modules": {"test-bundle/foo/bar.rego": {"rego_version": %d}}
+						"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux"%s, "roots": [""]}}}%s
 					}
 				}`,
 					manifestRegoVersion, moduleRegoVersion)))
+
 				if err != nil {
 					t.Fatal(err)
 				} else if !reflect.DeepEqual(data, expData) {
@@ -2028,7 +2018,7 @@ func TestPluginOneShotSignedBundlePersistence(t *testing.T) {
 	ensurePluginState(t, plugin, plugins.StateNotReady)
 
 	// simulate a bundle download error with no bundle on disk
-	plugin.oneShot(ctx, bundleName, download.Update{Error: fmt.Errorf("unknown error")})
+	plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
 
 	if plugin.status[bundleName].Message == "" {
 		t.Fatal("expected error but got none")
@@ -2073,7 +2063,7 @@ func TestPluginOneShotSignedBundlePersistence(t *testing.T) {
 	}
 
 	// simulate a bundle download error and verify that the bundle on disk is activated
-	plugin.oneShot(ctx, bundleName, download.Update{Error: fmt.Errorf("unknown error")})
+	plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -2173,10 +2163,9 @@ func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 
 	data, err := manager.Store.Read(ctx, txn, storage.Path{})
 	expData := util.MustUnmarshalJSON([]byte(`{
-		"foo": {"bar": 1, "baz": "qux"}, 
+		"foo": {"bar": 1, "baz": "qux"},
 		"system": {
-			"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
-			"modules": {"test-bundle/foo/bar.rego": {"rego_version": 1}}
+			"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}
 		}
 	}`))
 	if err != nil {
@@ -2259,10 +2248,9 @@ func TestLoadAndActivateBundlesFromDiskReservedChars(t *testing.T) {
 
 	data, err := manager.Store.Read(ctx, txn, storage.Path{})
 	expData := util.MustUnmarshalJSON([]byte(`{
-		"foo": {"bar": 1, "baz": "qux"}, 
+		"foo": {"bar": 1, "baz": "qux"},
 		"system": {
-			"bundles": {"test?bundle=opa": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
-			"modules": {"test/foo/bar.rego": {"rego_version": 1}}
+			"bundles": {"test?bundle=opa": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}
 		}
 	}`))
 	if err != nil {
@@ -2507,14 +2495,14 @@ corge contains 2 if {
 						}
 					}
 
-					data, err := manager.Store.Read(ctx, txn, storage.Path{})
 					expData := util.MustUnmarshalJSON([]byte(`{
-						"foo": {"bar": 1, "baz": "qux"}, 
+						"foo": {"bar": 1, "baz": "qux"},
 						"system": {
-							"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
-							"modules": {"test-bundle/foo/bar.rego": {"rego_version": 1}}
+							"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}
 						}
 					}`))
+
+					data, err := manager.Store.Read(ctx, txn, storage.Path{})
 					if err != nil {
 						fatal(err)
 					} else if !reflect.DeepEqual(data, expData) {
@@ -2732,21 +2720,34 @@ corge contains 1 if {
 					manifestRegoVersionStr = fmt.Sprintf(`, "rego_version": %d`, bundleRegoVersion(*tc.bundleRegoVersion))
 				}
 
+				runtimeRegoVersion := manager.ParserOptions().RegoVersion.Int()
 				var moduleRegoVersion int
 				if tc.bundleRegoVersion != nil {
 					moduleRegoVersion = tc.bundleRegoVersion.Int()
 				} else {
-					moduleRegoVersion = ast.DefaultRegoVersion.Int()
+					moduleRegoVersion = runtimeRegoVersion
 				}
 
-				expData := util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{
-						"foo": {"bar": 1, "baz": "qux"}, 
+				var expData any
+				if moduleRegoVersion != runtimeRegoVersion {
+					expData = util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{
+						"foo": {"bar": 1, "baz": "qux"},
 						"system": {
 							"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux"%s, "roots": [""]}}},
 							"modules": {"test-bundle/foo/bar.rego": {"rego_version": %d}}
 						}
 					}`,
-					manifestRegoVersionStr, moduleRegoVersion)))
+						manifestRegoVersionStr, moduleRegoVersion)))
+				} else {
+					expData = util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{
+						"foo": {"bar": 1, "baz": "qux"},
+						"system": {
+							"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux"%s, "roots": [""]}}}
+						}
+					}`,
+						manifestRegoVersionStr)))
+				}
+
 				if err != nil {
 					t.Fatal(err)
 				} else if !reflect.DeepEqual(data, expData) {
@@ -3145,7 +3146,7 @@ func TestPluginOneShotActivationRemovesOld(t *testing.T) {
 		if err != nil {
 			return err
 		} else if !slices.Equal([]string{filepath.Join(bundleName, "/example2.rego")}, ids) {
-			return fmt.Errorf("expected updated policy ids")
+			return errors.New("expected updated policy ids")
 		}
 		data, err := manager.Store.Read(ctx, txn, storage.Path{})
 		// remove system key to make comparison simpler
@@ -3153,7 +3154,7 @@ func TestPluginOneShotActivationRemovesOld(t *testing.T) {
 		if err != nil {
 			return err
 		} else if !reflect.DeepEqual(data, map[string]interface{}{"baz": "qux"}) {
-			return fmt.Errorf("expected updated data")
+			return errors.New("expected updated data")
 		}
 		return nil
 	})
@@ -3439,7 +3440,7 @@ func TestPluginListenerErrorClearedOn304(t *testing.T) {
 	}
 
 	// Test that service error triggers failure notification.
-	go plugin.oneShot(ctx, bundleName, download.Update{Error: fmt.Errorf("some error")})
+	go plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("some error")})
 	s2 := <-ch
 
 	if s2.ActiveRevision != "quickbrownfaux" || s2.Code == "" {
@@ -3525,7 +3526,7 @@ p contains x if { x = 1 }`
 			t.Errorf("Expected to have bundle status for %q included in update, got: %+v", name, s1)
 		}
 		// they should be defaults at this point
-		if !reflect.DeepEqual(s, &Status{Name: name}) {
+		if !s.Equal(&Status{Name: name}) {
 			t.Errorf("Expected bundle %q to have an empty status, got: %+v", name, s1)
 		}
 	}
@@ -3558,7 +3559,7 @@ p contains x`
 			t.Errorf("Expected to have bundle status for %q included in update, got: %+v", name, s2)
 		}
 		// they should be still defaults
-		if !reflect.DeepEqual(s, &Status{Name: name}) {
+		if !s.Equal(&Status{Name: name}) {
 			t.Errorf("Expected bundle %q to have an empty status, got: %+v", name, s2)
 		}
 	}
@@ -3590,7 +3591,7 @@ p contains 1`
 			t.Errorf("Expected to have bundle status for %q included in update, got: %+v", name, s3)
 		}
 		// they should still be defaults
-		if !reflect.DeepEqual(s, &Status{Name: name}) {
+		if !s.Equal(&Status{Name: name}) {
 			t.Errorf("Expected bundle %q to have an empty status, got: %+v", name, s3)
 		}
 	}
@@ -3636,7 +3637,7 @@ p contains x if { x = 1 }`
 		t.Fatal("Unexpected status update, got:", s5)
 	}
 
-	if !reflect.DeepEqual(s5[bundleNames[0]], s4[bundleNames[0]]) {
+	if !s5[bundleNames[0]].Equal(s4[bundleNames[0]]) {
 		t.Fatalf("Expected bundle %q to have the same status as before updating bundle %q, got: %+v", bundleNames[0], bundleNames[1], s5)
 	}
 
@@ -3647,7 +3648,7 @@ p contains x if { x = 1 }`
 			t.Errorf("Expected to have bundle status for %q included in update, got: %+v", name, s5)
 		}
 		// they should still be defaults
-		if !reflect.DeepEqual(s, &Status{Name: name}) {
+		if !s.Equal(&Status{Name: name}) {
 			t.Errorf("Expected bundle %q to have an empty status, got: %+v", name, s5)
 		}
 	}
@@ -4206,6 +4207,328 @@ func TestPluginRequestVsDownloadTimestamp(t *testing.T) {
 
 	if plugin.status[bundleName].LastSuccessfulDownload != plugin.status[bundleName].LastSuccessfulRequest || plugin.status[bundleName].LastSuccessfulDownload == plugin.status[bundleName].LastRequest {
 		t.Fatal("expected last successful request to be same as download but different from request")
+	}
+}
+
+func TestReconfigurePlugin_OneShot_BundleDeactivation(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		note               string
+		runtimeRegoVersion ast.RegoVersion
+		bundleRegoVersion  ast.RegoVersion
+		moduleRegoVersion  ast.RegoVersion
+		module             string
+	}{
+		{
+			note:               "v0 runtime, v0 bundle",
+			runtimeRegoVersion: ast.RegoV0,
+			bundleRegoVersion:  ast.RegoV0,
+			moduleRegoVersion:  ast.RegoV0,
+			module: `package a
+					p[42] { true }`,
+		},
+		{
+			note:               "v0 runtime, v1 bundle",
+			runtimeRegoVersion: ast.RegoV0,
+			bundleRegoVersion:  ast.RegoV1,
+			moduleRegoVersion:  ast.RegoV1,
+			module: `package a
+					p contains 42 if { true }`,
+		},
+		{
+			note:               "v0 runtime, custom bundle",
+			runtimeRegoVersion: ast.RegoV0,
+			bundleRegoVersion:  ast.RegoUndefined,
+			moduleRegoVersion:  ast.RegoV0,
+			module: `package a
+					p[42] { true }`,
+		},
+		{
+			note:               "v1 runtime, v0 bundle",
+			runtimeRegoVersion: ast.RegoV1,
+			bundleRegoVersion:  ast.RegoV0,
+			moduleRegoVersion:  ast.RegoV0,
+			module: `package a
+					p[42] { true }`,
+		},
+		{
+			note:               "v1 runtime, v1 bundle",
+			runtimeRegoVersion: ast.RegoV1,
+			bundleRegoVersion:  ast.RegoV1,
+			moduleRegoVersion:  ast.RegoV1,
+			module: `package a
+					p contains 42 if { true }`,
+		},
+		{
+			note:               "v1 runtime, custom bundle",
+			runtimeRegoVersion: ast.RegoV1,
+			bundleRegoVersion:  ast.RegoUndefined,
+			moduleRegoVersion:  ast.RegoV1,
+			module: `package a
+					p contains 42 if { true }`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			ctx := context.Background()
+			manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(), plugins.WithParserOptions(ast.ParserOptions{RegoVersion: tc.runtimeRegoVersion}))
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+			bundleName := "test-bundle"
+
+			plugin := Plugin{
+				manager:     manager,
+				status:      map[string]*Status{},
+				etags:       map[string]string{},
+				downloaders: map[string]Loader{},
+				config: Config{
+					Bundles: map[string]*Source{
+						bundleName: {
+							Service: "s1",
+						},
+					},
+				},
+			}
+
+			plugin.status[bundleName] = &Status{Name: bundleName}
+			plugin.downloaders[bundleName] = download.New(download.Config{Trigger: pointTo(plugins.TriggerManual)}, plugin.manager.Client(""), bundleName)
+
+			b := bundle.Bundle{
+				Manifest: bundle.Manifest{
+					Revision: "quickbrownfaux",
+					Roots:    &[]string{"a"},
+				},
+				Modules: []bundle.ModuleFile{
+					{
+						Path:   "bundle/id1",
+						Parsed: ast.MustParseModuleWithOpts(tc.module, ast.ParserOptions{RegoVersion: tc.moduleRegoVersion}),
+						Raw:    []byte(tc.module),
+					},
+				},
+			}
+
+			if tc.bundleRegoVersion != ast.RegoUndefined {
+				b.Manifest.RegoVersion = pointTo(tc.bundleRegoVersion.Int())
+			}
+
+			b.Manifest.Init()
+
+			plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+
+			// Ensure it has been activated
+
+			txn := storage.NewTransactionOrDie(ctx, manager.Store)
+
+			ids, err := manager.Store.ListPolicies(ctx, txn)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			expIDs := []string{"test-bundle/bundle/id1"}
+
+			sort.Strings(ids)
+			sort.Strings(expIDs)
+
+			if !slices.Equal(ids, expIDs) {
+				t.Fatalf("expected ids %v but got %v", expIDs, ids)
+			}
+
+			manager.Store.Abort(ctx, txn)
+
+			// reconfigure with dropped bundle
+
+			plugin.Reconfigure(ctx, &Config{
+				Bundles: map[string]*Source{},
+			})
+
+			// bundle was removed from store
+
+			txn = storage.NewTransactionOrDie(ctx, manager.Store)
+
+			ids, err = manager.Store.ListPolicies(ctx, txn)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			expIDs = []string{}
+
+			sort.Strings(ids)
+
+			if !slices.Equal(ids, expIDs) {
+				t.Fatalf("expected ids %v but got %v", expIDs, ids)
+			}
+
+			manager.Store.Abort(ctx, txn)
+		})
+	}
+}
+
+func TestReconfigurePlugin_ManagerInit_BundleDeactivation(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		note               string
+		runtimeRegoVersion ast.RegoVersion
+		bundleRegoVersion  ast.RegoVersion
+		moduleRegoVersion  ast.RegoVersion
+		module             string
+	}{
+		{
+			note:               "v0 runtime, v0 bundle",
+			runtimeRegoVersion: ast.RegoV0,
+			bundleRegoVersion:  ast.RegoV0,
+			moduleRegoVersion:  ast.RegoV0,
+			module: `package a
+					p[42] { true }`,
+		},
+		{
+			note:               "v0 runtime, v1 bundle",
+			runtimeRegoVersion: ast.RegoV0,
+			bundleRegoVersion:  ast.RegoV1,
+			moduleRegoVersion:  ast.RegoV1,
+			module: `package a
+					p contains 42 if { true }`,
+		},
+		{
+			note:               "v0 runtime, custom bundle",
+			runtimeRegoVersion: ast.RegoV0,
+			bundleRegoVersion:  ast.RegoUndefined,
+			moduleRegoVersion:  ast.RegoV0,
+			module: `package a
+					p[42] { true }`,
+		},
+		{
+			note:               "v1 runtime, v0 bundle",
+			runtimeRegoVersion: ast.RegoV1,
+			bundleRegoVersion:  ast.RegoV0,
+			moduleRegoVersion:  ast.RegoV0,
+			module: `package a
+					p[42] { true }`,
+		},
+		{
+			note:               "v1 runtime, v1 bundle",
+			runtimeRegoVersion: ast.RegoV1,
+			bundleRegoVersion:  ast.RegoV1,
+			moduleRegoVersion:  ast.RegoV1,
+			module: `package a
+					p contains 42 if { true }`,
+		},
+		{
+			note:               "v1 runtime, custom bundle",
+			runtimeRegoVersion: ast.RegoV1,
+			bundleRegoVersion:  ast.RegoUndefined,
+			moduleRegoVersion:  ast.RegoV1,
+			module: `package a
+					p contains 42 if { true }`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			bundleName := "test-bundle"
+
+			b := bundle.Bundle{
+				Manifest: bundle.Manifest{
+					Revision: "quickbrownfaux",
+					Roots:    &[]string{"a"},
+				},
+				Modules: []bundle.ModuleFile{
+					{
+						Path:   "bundle/id1",
+						Parsed: ast.MustParseModuleWithOpts(tc.module, ast.ParserOptions{RegoVersion: tc.moduleRegoVersion}),
+						Raw:    []byte(tc.module),
+					},
+				},
+			}
+
+			if tc.bundleRegoVersion != ast.RegoUndefined {
+				b.Manifest.RegoVersion = pointTo(tc.bundleRegoVersion.Int())
+			}
+
+			b.Manifest.Init()
+
+			bundles := map[string]*bundle.Bundle{
+				bundleName: &b,
+			}
+
+			ctx := context.Background()
+			manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(),
+				plugins.WithParserOptions(ast.ParserOptions{RegoVersion: tc.runtimeRegoVersion}),
+				plugins.InitBundles(bundles))
+
+			if err := manager.Init(ctx); err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			plugin := Plugin{
+				manager:     manager,
+				status:      map[string]*Status{},
+				etags:       map[string]string{},
+				downloaders: map[string]Loader{},
+				config: Config{
+					Bundles: map[string]*Source{
+						bundleName: {
+							Service: "s1",
+						},
+					},
+				},
+			}
+
+			plugin.status[bundleName] = &Status{Name: bundleName}
+			plugin.downloaders[bundleName] = download.New(download.Config{Trigger: pointTo(plugins.TriggerManual)}, plugin.manager.Client(""), bundleName)
+
+			// Ensure it has been activated
+
+			txn := storage.NewTransactionOrDie(ctx, manager.Store)
+
+			ids, err := manager.Store.ListPolicies(ctx, txn)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			expIDs := []string{"test-bundle/bundle/id1"}
+
+			sort.Strings(ids)
+			sort.Strings(expIDs)
+
+			if !slices.Equal(ids, expIDs) {
+				t.Fatalf("expected ids %v but got %v", expIDs, ids)
+			}
+
+			manager.Store.Abort(ctx, txn)
+
+			// reconfigure with dropped bundle
+
+			plugin.Reconfigure(ctx, &Config{
+				Bundles: map[string]*Source{},
+			})
+
+			// bundle was removed from store
+
+			txn = storage.NewTransactionOrDie(ctx, manager.Store)
+
+			ids, err = manager.Store.ListPolicies(ctx, txn)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			expIDs = []string{}
+
+			sort.Strings(ids)
+
+			if !slices.Equal(ids, expIDs) {
+				t.Fatalf("expected ids %v but got %v", expIDs, ids)
+			}
+
+			manager.Store.Abort(ctx, txn)
+		})
 	}
 }
 
@@ -6527,10 +6850,9 @@ func TestPluginManualTriggerMultipleDiskStorage(t *testing.T) {
 
 		data, err := manager.Store.Read(ctx, txn, storage.Path{})
 		expData := util.MustUnmarshalJSON([]byte(`{
-			"p": "x1", "q": "x2", 
+			"p": "x1", "q": "x2",
 			"system": {
-				"bundles": {"test-1": {"etag": "", "manifest": {"revision": "", "roots": ["p", "authz"]}}, "test-2": {"etag": "", "manifest": {"revision": "", "roots": ["q"]}}},
-				"modules": {"test-1/bar/policy.rego": {"rego_version": 1}}
+				"bundles": {"test-1": {"etag": "", "manifest": {"revision": "", "roots": ["p", "authz"]}}, "test-2": {"etag": "", "manifest": {"revision": "", "roots": ["q"]}}}
 			}
 		}`))
 		if err != nil {

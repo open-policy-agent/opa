@@ -7,6 +7,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -773,27 +774,27 @@ func TestExtractX509VerifyOptions(t *testing.T) {
 	}{
 		{
 			jsonOption: ast.MustParseTerm(`{"DNSName": 1}`),
-			expectErr:  fmt.Errorf("'DNSName' should be a string"),
+			expectErr:  errors.New("'DNSName' should be a string"),
 		},
 		{
 			jsonOption: ast.MustParseTerm(`{CurrentTime: "string"}`),
-			expectErr:  fmt.Errorf("'CurrentTime' should be a number"),
+			expectErr:  errors.New("'CurrentTime' should be a number"),
 		},
 		{
 			jsonOption: ast.MustParseTerm(`{MaxConstraintComparisons: "string"}`),
-			expectErr:  fmt.Errorf("'MaxConstraintComparisons' should be a number"),
+			expectErr:  errors.New("'MaxConstraintComparisons' should be a number"),
 		},
 		{
 			jsonOption: ast.MustParseTerm(`{"KeyUsages" : "true"}`),
-			expectErr:  fmt.Errorf("'KeyUsages' should be an Array or Set"),
+			expectErr:  errors.New("'KeyUsages' should be an Array or Set"),
 		},
 		{
 			jsonOption: ast.MustParseTerm(`{"DNSName": 1, CurrentTime: "string", "KeyUsages" : {1,2}}`),
-			expectErr:  fmt.Errorf("'DNSName' should be a string"),
+			expectErr:  errors.New("'DNSName' should be a string"),
 		},
 		{
 			jsonOption: ast.MustParseTerm(`{"InvalidKey": "test.com"}`),
-			expectErr:  fmt.Errorf("invalid key option"),
+			expectErr:  errors.New("invalid key option"),
 		},
 		{
 			jsonOption:      ast.MustParseTerm(`{}`),
@@ -884,7 +885,7 @@ func BenchmarkMd5(b *testing.B) {
 
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		err := builtinCryptoMd5(bctx, operands, iter)
 		if err != nil {
 			b.Fatalf("unexpected error: %v", err)

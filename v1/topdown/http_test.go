@@ -199,7 +199,7 @@ func TestHTTPEnableJSONOrYAMLDecode(t *testing.T) {
 
 	headers := func(xs ...string) func(map[string]interface{}) {
 		hdrs := map[string]interface{}{}
-		for i := 0; i < len(xs)/2; i++ {
+		for i := range len(xs) / 2 {
 			hdrs[xs[2*i]] = []interface{}{xs[2*i+1]}
 		}
 		return func(x map[string]interface{}) {
@@ -808,7 +808,7 @@ func TestHTTPRedirectAllowNet(t *testing.T) {
 
 	resultObj := ast.MustInterfaceToValue(expectedResult)
 
-	expectedError := &Error{Code: "eval_builtin_error", Message: fmt.Sprintf("http.send: unallowed host: %s", serverHost)}
+	expectedError := &Error{Code: "eval_builtin_error", Message: "http.send: unallowed host: " + serverHost}
 
 	rules := []string{fmt.Sprintf(
 		`p = x { http.send({"method": "get", "url": "%s", "enable_redirect": true, "force_json_decode": true}, resp); x := remove_headers(resp) }`, baseURL)}
@@ -1431,7 +1431,7 @@ func TestHTTPSendInterQueryCaching(t *testing.T) {
 			qStr := strings.ReplaceAll(tc.query, "%URL%", ts.URL)
 			q := newQuery(qStr, t0)
 
-			for i := 0; i < 3; i++ {
+			for i := range 3 {
 				res, err := q.Run(context.Background())
 				if err != nil {
 					t.Fatal(err)
@@ -1594,7 +1594,7 @@ func TestHTTPSendInterQueryForceCaching(t *testing.T) {
 			qStr := strings.ReplaceAll(tc.query, "%URL%", ts.URL)
 			q := newQuery(qStr, t0)
 
-			for i := 0; i < 3; i++ {
+			for i := range 3 {
 				res, err := q.Run(context.Background())
 				if err != nil {
 					t.Fatal(err)
@@ -1702,7 +1702,7 @@ func TestHTTPSendInterQueryForceCachingRefresh(t *testing.T) {
 			   then expire it out and run again to simulate an
 			   expired cache
 			*/
-			for i := 0; i < 2; i++ {
+			for i := range 2 {
 				resp, err := q.Run(context.Background())
 				if err != nil {
 					t.Fatal(err)
@@ -1836,7 +1836,7 @@ func TestHTTPSendInterQueryCachingModifiedResp(t *testing.T) {
 			qStr := strings.ReplaceAll(tc.query, "%URL%", ts.URL)
 			q := newQuery(qStr, t0)
 
-			for i := 0; i < 3; i++ {
+			for i := range 3 {
 				res, err := q.Run(context.Background())
 				if err != nil {
 					t.Fatal(err)
@@ -1913,7 +1913,7 @@ func TestHTTPSendInterQueryCachingNewResp(t *testing.T) {
 			qStr := strings.ReplaceAll(tc.query, "%URL%", ts.URL)
 			q := newQuery(qStr, t0)
 
-			for i := 0; i < 3; i++ {
+			for i := range 3 {
 				res, err := q.Run(context.Background())
 				if err != nil {
 					t.Fatal(err)
@@ -2001,7 +2001,7 @@ func TestInsertIntoHTTPSendInterQueryCacheError(t *testing.T) {
 			qStr := strings.ReplaceAll(tc.query, "%URL%", ts.URL)
 			q := newQuery(qStr, t0)
 
-			for i := 0; i < 3; i++ {
+			for i := range 3 {
 				res, err := q.Run(context.Background())
 				if err != nil {
 					t.Fatal(err)
@@ -2053,13 +2053,13 @@ func TestGetCachingMode(t *testing.T) {
 			note:      "invalid caching mode type",
 			input:     ast.MustParseTerm(`{"caching_mode": 1}`).Value.(ast.Object),
 			wantError: true,
-			err:       fmt.Errorf("invalid value for \"caching_mode\" field"),
+			err:       errors.New("invalid value for \"caching_mode\" field"),
 		},
 		{
 			note:      "invalid caching mode value",
 			input:     ast.MustParseTerm(`{"caching_mode": "foo"}`).Value.(ast.Object),
 			wantError: true,
-			err:       fmt.Errorf("invalid value specified for \"caching_mode\" field: foo"),
+			err:       errors.New("invalid value specified for \"caching_mode\" field: foo"),
 		},
 	}
 
@@ -2146,7 +2146,7 @@ func TestParseMaxAgeCacheDirective(t *testing.T) {
 			input:     map[string]string{"max-age": "21,21"},
 			expected:  deltaSeconds(-1),
 			wantError: true,
-			err:       fmt.Errorf("strconv.ParseUint: parsing \"21,21\": invalid syntax"),
+			err:       errors.New("strconv.ParseUint: parsing \"21,21\": invalid syntax"),
 		},
 	}
 
@@ -2191,21 +2191,21 @@ func TestNewForceCacheParams(t *testing.T) {
 			input:     ast.MustParseTerm(`{}`).Value.(ast.Object),
 			expected:  nil,
 			wantError: true,
-			err:       fmt.Errorf("'force_cache' set but 'force_cache_duration_seconds' parameter is missing"),
+			err:       errors.New("'force_cache' set but 'force_cache_duration_seconds' parameter is missing"),
 		},
 		{
 			note:      "empty input",
 			input:     ast.MustParseTerm(`{"force_cache_duration_seconds": ""}`).Value.(ast.Object),
 			expected:  nil,
 			wantError: true,
-			err:       fmt.Errorf("strconv.ParseInt: parsing \"\\\"\\\"\": invalid syntax"),
+			err:       errors.New("strconv.ParseInt: parsing \"\\\"\\\"\": invalid syntax"),
 		},
 		{
 			note:      "invalid input",
 			input:     ast.MustParseTerm(`{"force_cache_duration_seconds": "foo"}`).Value.(ast.Object),
 			expected:  nil,
 			wantError: true,
-			err:       fmt.Errorf("strconv.ParseInt: parsing \"\\\"foo\\\"\": invalid syntax"),
+			err:       errors.New("strconv.ParseInt: parsing \"\\\"foo\\\"\": invalid syntax"),
 		},
 		{
 			note:      "valid input",
@@ -2273,7 +2273,7 @@ func TestGetBoolValFromReqObj(t *testing.T) {
 			key:       ast.StringTerm("cache"),
 			expected:  false,
 			wantError: true,
-			err:       fmt.Errorf("invalid value for \"cache\" field"),
+			err:       errors.New("invalid value for \"cache\" field"),
 		},
 		{
 			note:      "non existent key",
@@ -2690,8 +2690,7 @@ func TestHTTPSClient(t *testing.T) {
 		url := s.URL + "/cert"
 		hostname := "notpresent"
 
-		expected := &Error{Code: BuiltinErr, Message: fmt.Sprintf(
-			"x509: certificate is valid for localhost, not %s", hostname)}
+		expected := &Error{Code: BuiltinErr, Message: "x509: certificate is valid for localhost, not " + hostname}
 
 		data := loadSmallTestData()
 		rule := []string{fmt.Sprintf(
@@ -2707,8 +2706,7 @@ func TestHTTPSClient(t *testing.T) {
 		url := s.URL + "/cert"
 		hostname := "notpresent"
 
-		expected := &Error{Code: BuiltinErr, Message: fmt.Sprintf(
-			"x509: certificate is valid for localhost, not %s", hostname)}
+		expected := &Error{Code: BuiltinErr, Message: "x509: certificate is valid for localhost, not " + hostname}
 
 		data := loadSmallTestData()
 		rule := []string{fmt.Sprintf(
@@ -3585,7 +3583,7 @@ func TestSocketHTTPGetRequest(t *testing.T) {
 	}()
 	defer rs.Close()
 
-	path := fmt.Sprintf("socket=%s", url.PathEscape(socketPath))
+	path := "socket=" + url.PathEscape(socketPath)
 	rawURL := fmt.Sprintf("unix://localhost/end/point?%s&param1=value1&param2=value2", path) // Send a request to the server over the socket
 
 	// expected result
@@ -3717,7 +3715,7 @@ func TestHTTPGetRequestAllowNet(t *testing.T) {
 
 	resultObj := ast.MustInterfaceToValue(expectedResult)
 
-	expectedError := &Error{Code: "eval_builtin_error", Message: fmt.Sprintf("http.send: unallowed host: %s", serverHost)}
+	expectedError := &Error{Code: "eval_builtin_error", Message: "http.send: unallowed host: " + serverHost}
 
 	rules := []string{fmt.Sprintf(
 		`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true}, resp); x := remove_headers(resp) }`, ts.URL)}
@@ -3823,7 +3821,7 @@ func TestHTTPWithCustomTransport(t *testing.T) {
 
 	resultObj := ast.MustInterfaceToValue(expectedResult)
 
-	hostError := &Error{Code: "eval_builtin_error", Message: fmt.Sprintf("http.send: unallowed host: %s", serverHost)}
+	hostError := &Error{Code: "eval_builtin_error", Message: "http.send: unallowed host: " + serverHost}
 	expectedError := map[string]any{"body": nil, "raw_body": "", "status": "403 Forbidden", "status_code": 403}
 	errorObj := ast.MustInterfaceToValue(expectedError)
 

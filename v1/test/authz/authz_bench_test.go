@@ -106,7 +106,7 @@ func runAuthzBenchmark(b *testing.B, mode InputMode, numPaths int, extras ...boo
 
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		b.StartTimer()
 		rs, err := pq.Eval(
 			ctx,
