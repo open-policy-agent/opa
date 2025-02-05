@@ -718,6 +718,7 @@ func (r *Reader) Read() (Bundle, error) {
 		if regoVersion, err := bundle.RegoVersionForFile(mf.RelativePath, popts.EffectiveRegoVersion()); err != nil {
 			return bundle, err
 		} else if regoVersion != ast.RegoUndefined {
+			// We don't expect ast.RegoUndefined here, but don't override configured rego-version if we do just to be extra protective
 			modulePopts.RegoVersion = regoVersion
 		}
 		r.metrics.Timer(metrics.RegoModuleParse).Start()
