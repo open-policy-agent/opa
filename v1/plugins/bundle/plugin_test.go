@@ -109,8 +109,7 @@ func TestPluginOneShot(t *testing.T) {
 	expData := util.MustUnmarshalJSON([]byte(`{
 		"foo": {"bar": 1, "baz": "qux"},
 		"system": {
-			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
-			"modules": {"test-bundle/foo/bar": {"rego_version": 1}}
+			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}
 		}
 	}`))
 	if err != nil {
@@ -970,8 +969,7 @@ func TestPluginStartLazyLoadInMem(t *testing.T) {
 			expected := `{
 				"p": "x1", "q": "x2",
 				"system": {
-					"bundles": {"test-1": {"etag": "", "manifest": {"revision": "", "roots": ["p", "authz"]}}, "test-2": {"etag": "", "manifest": {"revision": "", "roots": ["q"]}}},
-					"modules": {"test-1/bar/policy.rego": {"rego_version": 1}}
+					"bundles": {"test-1": {"etag": "", "manifest": {"revision": "", "roots": ["p", "authz"]}}, "test-2": {"etag": "", "manifest": {"revision": "", "roots": ["q"]}}}
 				}
 			}`
 			if rm.readAst {
@@ -1040,11 +1038,11 @@ func TestPluginOneShotDiskStorageMetrics(t *testing.T) {
 			t.Errorf("%s: expected %v, got %v", name, exp, act)
 		}
 		name = "disk_written_keys"
-		if exp, act := 7, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
+		if exp, act := 6, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
 			t.Errorf("%s: expected %v, got %v", name, exp, act)
 		}
 		name = "disk_read_keys"
-		if exp, act := 14, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
+		if exp, act := 13, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
 			t.Errorf("%s: expected %v, got %v", name, exp, act)
 		}
 		name = "disk_read_bytes"
@@ -1089,8 +1087,7 @@ func TestPluginOneShotDiskStorageMetrics(t *testing.T) {
 		expData := util.MustUnmarshalJSON([]byte(`{
 			"foo": {"bar": 1, "baz": "qux"},
 			"system": {
-				"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
-				"modules": {"test-bundle/foo/bar": {"rego_version": 1}}
+				"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}
 			}
 		}`))
 		if err != nil {
@@ -1196,8 +1193,7 @@ func TestPluginOneShotDeltaBundle(t *testing.T) {
 	expData := util.MustUnmarshalJSON([]byte(`{
 		"a": {"baz": "bux", "foo": ["hello", "world"]},
 		"system": {
-			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "delta", "roots": ["a"]}}},
-			"modules": {"test-bundle/a/policy.rego": {"rego_version": 1}}
+			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "delta", "roots": ["a"]}}}
 		}
 	}`))
 	if !reflect.DeepEqual(data, expData) {
@@ -1301,8 +1297,7 @@ func TestPluginOneShotDeltaBundleWithAstStore(t *testing.T) {
 	expData := ast.MustParseTerm(`{
 		"a": {"baz": "bux", "foo": ["hello", "world"]},
 		"system": {
-			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "delta", "roots": ["a"]}}},
-			"modules": {"test-bundle/a/policy.rego": {"rego_version": 1}}
+			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "delta", "roots": ["a"]}}}
 		}
 	}`)
 	if ast.Compare(data, expData) != 0 {
@@ -1488,8 +1483,7 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 	expData := util.MustUnmarshalJSON([]byte(`{
 		"foo": {"bar": 1, "baz": "qux"},
 		"system": {
-			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
-			"modules": {"test-bundle/foo/bar.rego": {"rego_version": 1}}
+			"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}
 		}
 	}`))
 	if err != nil {
@@ -2171,8 +2165,7 @@ func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 	expData := util.MustUnmarshalJSON([]byte(`{
 		"foo": {"bar": 1, "baz": "qux"},
 		"system": {
-			"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
-			"modules": {"test-bundle/foo/bar.rego": {"rego_version": 1}}
+			"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}
 		}
 	}`))
 	if err != nil {
@@ -2257,8 +2250,7 @@ func TestLoadAndActivateBundlesFromDiskReservedChars(t *testing.T) {
 	expData := util.MustUnmarshalJSON([]byte(`{
 		"foo": {"bar": 1, "baz": "qux"},
 		"system": {
-			"bundles": {"test?bundle=opa": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}},
-			"modules": {"test/foo/bar.rego": {"rego_version": 1}}
+			"bundles": {"test?bundle=opa": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}
 		}
 	}`))
 	if err != nil {
@@ -6860,8 +6852,7 @@ func TestPluginManualTriggerMultipleDiskStorage(t *testing.T) {
 		expData := util.MustUnmarshalJSON([]byte(`{
 			"p": "x1", "q": "x2",
 			"system": {
-				"bundles": {"test-1": {"etag": "", "manifest": {"revision": "", "roots": ["p", "authz"]}}, "test-2": {"etag": "", "manifest": {"revision": "", "roots": ["q"]}}},
-				"modules": {"test-1/bar/policy.rego": {"rego_version": 1}}
+				"bundles": {"test-1": {"etag": "", "manifest": {"revision": "", "roots": ["p", "authz"]}}, "test-2": {"etag": "", "manifest": {"revision": "", "roots": ["q"]}}}
 			}
 		}`))
 		if err != nil {
