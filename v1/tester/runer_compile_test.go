@@ -17,6 +17,23 @@ func TestInjectTestCaseFunc(t *testing.T) {
 		exp    string
 	}{
 		{
+			note: "no head-ref, assigned last in body",
+			module: `package test
+				test_foo if {
+					some tc in [
+						{"note": "a", "x": 1},
+					]
+					tc.x == 1
+				}`,
+			// func not injected
+			exp: `package test
+				test_foo if {
+					__local3__ = [{"note": "a", "x": 1}]
+					__local2__ = __local3__[__local1__]
+					__local2__.x = 1
+				}`,
+		},
+		{
 			note: "head-ref, assigned last in body",
 			module: `package test
 				test_foo.foo if {
