@@ -211,6 +211,9 @@ func TestRunWithFilterRegex(t *testing.T) {
 			test_duplicate if { true }
 			todo_test_skip if { true }
 			todo_test_skip_too if { false }
+			test_cases[x][y] if { x := "foo"; y := "bar" }
+			test_duplicate.foo[y] if { x := "foo"; y := "bar" }
+			test_duplicate[x][y] if { x := "foo"; y := "bar" }
 			`,
 		"/b_test.rego": `package bar
 			import rego.v1
@@ -242,6 +245,9 @@ func TestRunWithFilterRegex(t *testing.T) {
 				{"data.foo", "test_err"}:                   {true, false, false},
 				{"data.foo", "todo_test_skip"}:             {false, false, true},
 				{"data.foo", "todo_test_skip_too"}:         {false, false, true},
+				{"data.foo", "test_cases"}:                 {false, false, false},
+				{"data.foo", "test_duplicate#03"}:          {false, false, false},
+				{"data.foo", "test_duplicate#04"}:          {false, false, false},
 				{"data.bar", "test_duplicate"}:             {false, false, false},
 				{"data.baz", "a.b.test_duplicate"}:         {false, true, false},
 				{"data.baz", "a.b[\"test_duplicate#01\"]"}: {false, false, false},
@@ -261,6 +267,9 @@ func TestRunWithFilterRegex(t *testing.T) {
 				{"data.foo", "test_err"}:                   {true, false, false},
 				{"data.foo", "todo_test_skip"}:             {false, false, true},
 				{"data.foo", "todo_test_skip_too"}:         {false, false, true},
+				{"data.foo", "test_cases"}:                 {false, false, false},
+				{"data.foo", "test_duplicate#03"}:          {false, false, false},
+				{"data.foo", "test_duplicate#04"}:          {false, false, false},
 				{"data.bar", "test_duplicate"}:             {false, false, false},
 				{"data.baz", "a.b.test_duplicate"}:         {false, true, false},
 				{"data.baz", "a.b[\"test_duplicate#01\"]"}: {false, false, false},
@@ -287,7 +296,7 @@ func TestRunWithFilterRegex(t *testing.T) {
 			},
 		},
 		{
-			note:  "single test ",
+			note:  "single test",
 			regex: "test_pass",
 			tests: expectedTestResults{
 				{"data.foo", "test_pass"}: {false, false, false},
@@ -337,6 +346,13 @@ func TestRunWithFilterRegex(t *testing.T) {
 				{"data.baz", "a.b.test_duplicate"}:         {false, true, false},
 				{"data.baz", "a.b[\"test_duplicate#01\"]"}: {false, false, false},
 				{"data.baz", "a.b[\"test_duplicate#02\"]"}: {false, false, false},
+			},
+		},
+		{
+			note:  "matching sub-test rule",
+			regex: "data.foo.test_cases",
+			tests: expectedTestResults{
+				{"data.foo", "test_cases"}: {false, false, false},
 			},
 		},
 	}

@@ -526,25 +526,24 @@ func rewriteDuplicateTestNames(compiler *ast.Compiler) *ast.Error {
 	count := map[string]int{}
 	for _, mod := range compiler.Modules {
 		for _, rule := range mod.Rules {
-			name, _ := ruleName(rule.Head)
+			name, ref := ruleName(rule.Head)
 			if !strings.HasPrefix(name, TestPrefix) {
 				continue
 			}
 
-			key := rule.Ref().GroundPrefix().String()
+			key := mod.Package.Path.Extend(ref).String()
 			if k, ok := count[key]; ok {
-				groundRef := rule.Head.Ref().GroundPrefix()
-				dynamicSuffix := rule.Head.Ref().DynamicSuffix()
+				dynamicSuffix := rule.Head.Ref()[len(ref):]
 				newName := fmt.Sprintf("%s#%02d", name, k)
-				if len(groundRef) == 1 {
-					groundRef[0] = ast.VarTerm(newName)
+				if len(ref) == 1 {
+					ref[0] = ast.VarTerm(newName)
 				} else {
-					groundRef[len(groundRef)-1] = ast.StringTerm(newName)
+					ref[len(ref)-1] = ast.StringTerm(newName)
 				}
 				for i := 0; i < len(dynamicSuffix); i++ {
-					groundRef = append(groundRef, dynamicSuffix[i])
+					ref = append(ref, dynamicSuffix[i])
 				}
-				rule.Head.SetRef(groundRef)
+				rule.Head.SetRef(ref)
 			}
 			count[key]++
 		}
@@ -560,7 +559,7 @@ func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 	for _, mod := range compiler.Modules {
 		for _, rule := range mod.Rules {
 			// Only apply to test rules
-			rName, rni := ruleName(rule.Head)
+			rName, rRef := ruleName(rule.Head)
 			if !strings.HasPrefix(rName, TestPrefix) {
 				continue
 			}
@@ -581,11 +580,11 @@ func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 
 			// Construct test-case name
 			ref := rule.Head.Ref()
-			if rni < 0 || len(ref) <= rni+1 {
+			if len(ref) <= len(rRef) {
 				// We only inject the test-case function if there is a rule ref "tail" behind the rule name
 				continue
 			}
-			argsRef := ref[rni+1:]
+			argsRef := ref[len(rRef):]
 			args := ast.NewArray(argsRef...)
 
 			// Find the earliest point where the test case function can be injected
@@ -730,12 +729,12 @@ func moveExpr(body ast.Body, from int, to int) (ast.Body, bool) {
 // (b) needs to be skipped
 // -- it'll resolve `p.q.r` to `r`. For representing results, we'll
 // use rule.Head.Ref()
-func ruleName(h *ast.Head) (string, int) {
+func ruleName(h *ast.Head) (string, ast.Ref) {
 	var n string
+	var ref ast.Ref
 
-	index := 0
-	for i, term := range h.Ref().GroundPrefix() {
-		index = i
+	for _, term := range h.Ref().GroundPrefix() {
+		ref = ref.Append(term)
 		switch v := term.Value.(type) {
 		case ast.Var:
 			n = string(v)
@@ -750,7 +749,7 @@ func ruleName(h *ast.Head) (string, int) {
 		}
 	}
 
-	return n, index
+	return n, ref
 }
 
 func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.Module, rule *ast.Rule) (*Result, bool) {
@@ -768,20 +767,21 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		bufferTracer = &t.BufferTracer
 	}
 
-	ruleName, _ := ruleName(rule.Head)
+	ruleName, ruleRef := ruleName(rule.Head)
 	if strings.HasPrefix(ruleName, SkipTestPrefix) { // TODO(sr): add test
-		tr := newResult(rule.Loc(), mod.Package.Path.String(), rule.Head.Ref().GroundPrefix().String(), 0*time.Second, nil, nil)
+		tr := newResult(rule.Loc(), mod.Package.Path.String(), ruleRef.String(), 0*time.Second, nil, nil)
 		tr.Skip = true
 		return tr, false
 	}
 
 	printbuf := bytes.NewBuffer(nil)
 	var builtinErrors []topdown.Error
+	queryPath := rule.Module.Package.Path.Extend(ruleRef)
 	rg := rego.New(
 		rego.Store(r.store),
 		rego.Transaction(txn),
 		rego.Compiler(r.compiler),
-		rego.Query(rule.Path().String()),
+		rego.Query(queryPath.String()),
 		rego.QueryTracer(tracer),
 		rego.Runtime(r.runtime),
 		rego.Target(r.target),
@@ -803,7 +803,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		trace = *bufferTracer
 	}
 
-	tr := newResult(rule.Loc(), mod.Package.Path.String(), rule.Head.Ref().GroundPrefix().String(), dt, trace, printbuf.Bytes())
+	tr := newResult(rule.Loc(), mod.Package.Path.String(), ruleRef.String(), dt, trace, printbuf.Bytes())
 
 	// If there was an error other than errors from builtins, prefer that error.
 	if err != nil {
