@@ -71,7 +71,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	badger "github.com/dgraph-io/badger/v3"
+	badger "github.com/dgraph-io/badger/v4"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/open-policy-agent/opa/v1/logging"
@@ -1004,7 +1004,7 @@ func lookup(path storage.Path, data []byte) (interface{}, bool, error) {
 		return obj, true, nil
 	}
 
-	for i := 0; i < len(path)-1; i++ {
+	for i := range len(path) - 1 {
 		value, ok := obj[path[i]]
 		if !ok {
 			return nil, false, nil

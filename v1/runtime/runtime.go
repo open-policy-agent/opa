@@ -10,6 +10,7 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io"
 	mr "math/rand"
@@ -443,7 +444,9 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.WithPrometheusRegister(metrics),
 		plugins.WithTracerProvider(tracerProvider),
 		plugins.WithEnableTelemetry(params.EnableVersionCheck),
-		plugins.WithParserOptions(params.parserOptions()))
+		plugins.WithParserOptions(params.parserOptions()),
+		plugins.WithDistributedTracingOpts(params.DistributedTracingOpts),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
@@ -521,7 +524,7 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 // a SIGTERM or SIGKILL signal is sent.
 func (rt *Runtime) Serve(ctx context.Context) error {
 	if rt.Params.Addrs == nil {
-		return fmt.Errorf("at least one address must be configured in runtime parameters")
+		return errors.New("at least one address must be configured in runtime parameters")
 	}
 
 	serverInitializingMessage := "Initializing server."

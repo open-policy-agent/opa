@@ -140,6 +140,19 @@ issues:
 linters-settings:
   lll:
     line-length: 200
+  govet:
+    enable:
+      - deepequalerrors
+      - nilness
+  perfsprint:
+    # only rule disabled by default, but it's a good one
+    err-error: true
+  revive:
+    rules:
+    # this mainly complains about us using min/max for variable names,
+    # which seems like an unlikely source of actual issues
+     - name: redefines-builtin-id
+       disabled: true
 
 linters:
   disable-all: true
@@ -148,6 +161,7 @@ linters:
     - errcheck
     - govet
     - ineffassign
+    - intrange
     - revive # replacement for golint
     - gofmt
     - goimports
@@ -160,4 +174,5 @@ linters:
     - prealloc
     - unconvert
     - copyloopvar
+    - perfsprint
     # - gosec # too many false positives

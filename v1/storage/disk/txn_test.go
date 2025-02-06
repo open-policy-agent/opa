@@ -11,7 +11,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/dgraph-io/badger/v3"
+	"github.com/dgraph-io/badger/v4"
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/util/test"
@@ -29,7 +29,7 @@ func randomString(n int) string {
 
 func fixture(n int) map[string]interface{} {
 	foo := map[string]string{}
-	for i := 0; i < n; i++ {
+	for i := range n {
 		foo[fmt.Sprintf(`"%d%s"`, i, randomString(4))] = randomString(3)
 	}
 	return map[string]interface{}{"foo": foo}

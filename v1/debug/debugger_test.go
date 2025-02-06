@@ -9,7 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
-	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -57,7 +57,7 @@ q := y if {
 import rego.v1
 
 p contains 1 if { # breakpoint
-	true    
+	true
 }
 
 p contains 2 if { # step-over to here, the next partial rule 'p'
@@ -73,7 +73,7 @@ p contains 2 if { # step-over to here, the next partial rule 'p'
 			module: `package test
 import rego.v1
 
-p contains 1 if { 
+p contains 1 if {
 	false         # breakpoint
 }
 
@@ -109,7 +109,7 @@ import rego.v1
 
 p if {
 	every x in [1, 2, 3] { # breakpoint
-		f(x) 
+		f(x)
 	}
 	true                   # step-over to here
 }
@@ -181,7 +181,7 @@ f(x) := y if {
 					expBrHits = tc.brHits
 				}
 
-				for i := 0; i < expBrHits; i++ {
+				for range expBrHits {
 					if err := s.ResumeAll(); err != nil {
 						t.Fatalf("Unexpected error resuming threads: %v", err)
 					}
@@ -324,7 +324,7 @@ p if {
 				if tc.brHits > 0 {
 					expBrHits = tc.brHits
 				}
-				for i := 0; i < expBrHits; i++ {
+				for range expBrHits {
 					if err := s.ResumeAll(); err != nil {
 						t.Fatalf("Unexpected error resuming threads: %v", err)
 					}
@@ -369,11 +369,11 @@ func TestDebuggerEvalStepOut(t *testing.T) {
 import rego.v1
 
 p if {
-	q       
+	q
 	true       # step-out to here
 }
 
-q := y if { 
+q := y if {
 	true       # breakpoint
 	y := 2 * 2
 }
@@ -387,11 +387,11 @@ q := y if {
 import rego.v1
 
 p if {
-	f(1)       
+	f(1)
 	true       # step-out to here
 }
 
-f(x) := y if { 
+f(x) := y if {
 	true       # breakpoint
 	y := x * 2
 }
@@ -474,7 +474,7 @@ p if {
 				if tc.brHits > 0 {
 					expBrHits = tc.brHits
 				}
-				for i := 0; i < expBrHits; i++ {
+				for range expBrHits {
 					if err := s.ResumeAll(); err != nil {
 						t.Fatalf("Unexpected error resuming threads: %v", err)
 					}
@@ -613,12 +613,12 @@ qux: d
 					LaunchProperties: LaunchProperties{
 						DataPaths: []string{
 							path.Join(rootDir, "mod.rego"),
-							path.Join(rootDir, fmt.Sprintf("data.%s", ext)),
+							path.Join(rootDir, "data."+ext),
 						},
 						EnablePrint: true,
 					},
 					Query:     "x = data.test.p",
-					InputPath: path.Join(rootDir, fmt.Sprintf("input.%s", ext)),
+					InputPath: path.Join(rootDir, "input."+ext),
 				}
 
 				s, err := d.LaunchEval(ctx, launchProps)
@@ -980,7 +980,7 @@ func TestDebuggerStopOnBreakpoint(t *testing.T) {
 				}
 			})
 
-			if !reflect.DeepEqual(stoppedAt, tc.expEventIndices) {
+			if !slices.Equal(stoppedAt, tc.expEventIndices) {
 				t.Errorf("Expected to stop at event indices %v, got %v", tc.expEventIndices, stoppedAt)
 			}
 		})
@@ -1123,7 +1123,7 @@ func TestDebuggerStepIn(t *testing.T) {
 			case <-doneCh:
 			}
 
-			if !reflect.DeepEqual(stoppedAt, tc.expEventIndices) {
+			if !slices.Equal(stoppedAt, tc.expEventIndices) {
 				t.Errorf("Expected to stop at event indices %v, got %v", tc.expEventIndices, stoppedAt)
 			}
 		})
@@ -1300,7 +1300,7 @@ func TestDebuggerStepOver(t *testing.T) {
 			case <-doneCh:
 			}
 
-			if !reflect.DeepEqual(stoppedAt, tc.expEventIndices) {
+			if !slices.Equal(stoppedAt, tc.expEventIndices) {
 				t.Errorf("Expected to stop at event indices %v, got %v", tc.expEventIndices, stoppedAt)
 			}
 		})
@@ -1461,7 +1461,7 @@ func TestDebuggerStepOut(t *testing.T) {
 			case <-doneCh:
 			}
 
-			if !reflect.DeepEqual(stoppedAt, tc.expEventIndices) {
+			if !slices.Equal(stoppedAt, tc.expEventIndices) {
 				t.Errorf("Expected to stop at event indices %v, got %v", tc.expEventIndices, stoppedAt)
 			}
 		})

@@ -7,9 +7,8 @@ package ast
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"net/url"
-	"reflect"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast/location"
@@ -332,7 +331,7 @@ func TestExprBadJSON(t *testing.T) {
 	assert := func(js string, exp error) {
 		expr := Expr{}
 		err := util.UnmarshalJSON([]byte(js), &expr)
-		if !reflect.DeepEqual(exp, err) {
+		if exp.Error() != err.Error() {
 			t.Errorf("For %v Expected %v but got: %v", js, exp, err)
 		}
 	}
@@ -348,7 +347,7 @@ func TestExprBadJSON(t *testing.T) {
 	}
 	`
 
-	exp := fmt.Errorf("ast: unable to unmarshal negated field with type: json.Number (expected true or false)")
+	exp := errors.New("ast: unable to unmarshal negated field with type: json.Number (expected true or false)")
 	assert(js, exp)
 
 	js = `
@@ -359,7 +358,7 @@ func TestExprBadJSON(t *testing.T) {
 		"index": 0
 	}
 	`
-	exp = fmt.Errorf("ast: unable to unmarshal term")
+	exp = errors.New("ast: unable to unmarshal term")
 	assert(js, exp)
 
 	js = `
@@ -368,14 +367,14 @@ func TestExprBadJSON(t *testing.T) {
 		"index": 0
 	}
 	`
-	exp = fmt.Errorf(`ast: unable to unmarshal terms field with type: string (expected {"value": ..., "type": ...} or [{"value": ..., "type": ...}, ...])`)
+	exp = errors.New(`ast: unable to unmarshal terms field with type: string (expected {"value": ..., "type": ...} or [{"value": ..., "type": ...}, ...])`)
 	assert(js, exp)
 
 	js = `
 	{
 		"terms": {"value": "foo", "type": "string"}
 	}`
-	exp = fmt.Errorf("ast: unable to unmarshal index field with type: <nil> (expected integer)")
+	exp = errors.New("ast: unable to unmarshal index field with type: <nil> (expected integer)")
 	assert(js, exp)
 }
 
@@ -898,7 +897,7 @@ func mustParseURL(str string) url.URL {
 
 func TestModuleStringAnnotations(t *testing.T) {
 	module, err := ParseModuleWithOpts("test.rego", `package test
-import rego.v1 
+import rego.v1
 
 # METADATA
 # scope: rule
@@ -939,8 +938,8 @@ d.e.f := 3
 e.f.g[1]
 f.g.h[1] := 4
 
-g := 5 { 
-	false 
+g := 5 {
+	false
 } else := 6 {
 	false
 } else := 7`,
@@ -968,8 +967,8 @@ d.e.f := 3
 e.f.g contains 1
 f.g.h[1] := 4
 
-g := 5 if { 
-	false 
+g := 5 if {
+	false
 } else := 6 if {
 	false
 } else := 7`,
@@ -997,8 +996,8 @@ d.e.f := 3
 e.f.g contains 1
 f.g.h[1] := 4
 
-g := 5 if { 
-	false 
+g := 5 if {
+	false
 } else := 6 if {
 	false
 } else := 7`,

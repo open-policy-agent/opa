@@ -32,12 +32,12 @@ func TestGlobBuiltinCache(t *testing.T) {
 	}
 
 	// the glob id will have a trailing '-' rune.
-	if _, ok := globCache[fmt.Sprintf("%s-", glob1)]; !ok {
+	if _, ok := globCache[glob1+"-"]; !ok {
 		t.Fatalf("Expected glob to be cached: %v", glob1)
 	}
 
 	// Fill up the cache.
-	for i := 0; i < regexCacheMaxSize-1; i++ {
+	for i := range regexCacheMaxSize - 1 {
 		operands := []*ast.Term{
 			ast.NewTerm(ast.String(fmt.Sprintf("foo/%d/*", i))),
 			ast.NullTerm(),
@@ -69,7 +69,7 @@ func TestGlobBuiltinCache(t *testing.T) {
 		t.Fatalf("Expected cache be capped at %d, was %d", regexCacheMaxSize, len(globCache))
 	}
 
-	if _, ok := globCache[fmt.Sprintf("%s-", glob2)]; !ok {
+	if _, ok := globCache[glob2+"-"]; !ok {
 		t.Fatalf("Expected glob to be cached: %v", glob2)
 	}
 }
@@ -97,12 +97,12 @@ func TestGlobBuiltinInterQueryValueCache(t *testing.T) {
 	}
 
 	// the glob id will have a trailing '-' rune.
-	if _, ok := ctx.InterQueryBuiltinValueCache.Get(ast.StringTerm(fmt.Sprintf("%s-", glob1)).Value); !ok {
+	if _, ok := ctx.InterQueryBuiltinValueCache.Get(ast.StringTerm(glob1 + "-").Value); !ok {
 		t.Fatalf("Expected glob to be cached: %v", glob1)
 	}
 
 	// Fill up the cache.
-	for i := 0; i < 9; i++ {
+	for i := range 9 {
 		operands := []*ast.Term{
 			ast.NewTerm(ast.String(fmt.Sprintf("foo/%d/*", i))),
 			ast.NullTerm(),
@@ -126,7 +126,7 @@ func TestGlobBuiltinInterQueryValueCache(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	if _, ok := ctx.InterQueryBuiltinValueCache.Get(ast.StringTerm(fmt.Sprintf("%s-", glob2)).Value); !ok {
+	if _, ok := ctx.InterQueryBuiltinValueCache.Get(ast.StringTerm(glob2 + "-").Value); !ok {
 		t.Fatalf("Expected glob to be cached: %v", glob2)
 	}
 }
@@ -154,12 +154,12 @@ func TestGlobBuiltinInterQueryValueCacheTypeMismatch(t *testing.T) {
 	}
 
 	// the glob id will have a trailing '-' rune.
-	if _, ok := ctx.InterQueryBuiltinValueCache.Get(ast.StringTerm(fmt.Sprintf("%s-", key)).Value); !ok {
+	if _, ok := ctx.InterQueryBuiltinValueCache.Get(ast.StringTerm(key + "-").Value); !ok {
 		t.Fatalf("Expected glob to be cached: %v", key)
 	}
 
 	// update the cache entry
-	ctx.InterQueryBuiltinValueCache.Insert(ast.StringTerm(fmt.Sprintf("%s-", key)).Value, "bar")
+	ctx.InterQueryBuiltinValueCache.Insert(ast.StringTerm(key+"-").Value, "bar")
 
 	err = builtinGlobMatch(ctx, operands, iter)
 	if err != nil {
@@ -167,7 +167,7 @@ func TestGlobBuiltinInterQueryValueCacheTypeMismatch(t *testing.T) {
 	}
 
 	// verify the cache entry is unchanged
-	value, ok := ctx.InterQueryBuiltinValueCache.Get(ast.StringTerm(fmt.Sprintf("%s-", key)).Value)
+	value, ok := ctx.InterQueryBuiltinValueCache.Get(ast.StringTerm(key + "-").Value)
 	if !ok {
 		t.Fatal("Expected key \"foo.*-\" in cache")
 	}

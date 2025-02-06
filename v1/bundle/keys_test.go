@@ -7,7 +7,7 @@ package bundle
 import (
 	"crypto/ecdsa"
 	"crypto/rsa"
-	"fmt"
+	"errors"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -36,7 +36,7 @@ func TestValidateAndInjectDefaultsVerificationConfig(t *testing.T) {
 		"valid_config_with_key_not_found": {
 			map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}},
 			NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "bar", "", nil),
-			true, fmt.Errorf("key id bar not found"),
+			true, errors.New("key id bar not found"),
 		},
 	}
 
@@ -83,7 +83,7 @@ func TestGetPublicKey(t *testing.T) {
 			"foo",
 			NewVerificationConfig(map[string]*KeyConfig{}, "", "", nil),
 			nil,
-			true, fmt.Errorf("verification key corresponding to ID foo not found"),
+			true, errors.New("verification key corresponding to ID foo not found"),
 		},
 	}
 

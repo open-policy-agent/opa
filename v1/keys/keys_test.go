@@ -1,6 +1,7 @@
 package keys
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -40,7 +41,7 @@ func TestParseKeysConfig(t *testing.T) {
 		"invalid_config_no_key": {
 			`{"foo": {"algorithm": "HS256"}}`,
 			nil,
-			true, fmt.Errorf("invalid keys configuration: no keys provided for key ID foo"),
+			true, errors.New("invalid keys configuration: no keys provided for key ID foo"),
 		},
 		"valid_config_default_alg": {
 			`{"foo": {"key": "FdFYFzERwC2uCBB46pZQi4GG85LujR8obt-KWRBICVQ"}}`,
@@ -50,12 +51,12 @@ func TestParseKeysConfig(t *testing.T) {
 		"invalid_raw_key_config": {
 			`{"bar": [1,2,3]}`,
 			nil,
-			true, fmt.Errorf("json: cannot unmarshal array into Go value of type keys.Config"),
+			true, errors.New("json: cannot unmarshal array into Go value of type keys.Config"),
 		},
 		"invalid_raw_config": {
 			`[1,2,3]`,
 			nil,
-			true, fmt.Errorf("json: cannot unmarshal array into Go value of type map[string]json.RawMessage"),
+			true, errors.New("json: cannot unmarshal array into Go value of type map[string]json.RawMessage"),
 		},
 	}
 

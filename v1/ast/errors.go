@@ -7,6 +7,7 @@ package ast
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -92,9 +93,9 @@ func (e *Error) Error() string {
 	if e.Location != nil {
 
 		if len(e.Location.File) > 0 {
-			prefix += e.Location.File + ":" + fmt.Sprint(e.Location.Row)
+			prefix += e.Location.File + ":" + strconv.Itoa(e.Location.Row)
 		} else {
-			prefix += fmt.Sprint(e.Location.Row) + ":" + fmt.Sprint(e.Location.Col)
+			prefix += strconv.Itoa(e.Location.Row) + ":" + strconv.Itoa(e.Location.Col)
 		}
 	}
 

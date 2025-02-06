@@ -6,7 +6,7 @@ package ast
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"math/rand"
 	"reflect"
 	"runtime"
@@ -29,6 +29,7 @@ func TestInterfaceToValue(t *testing.T) {
 			null,
 			"hello",
 			["goodbye", 1],
+			["dummy", "tummy"],
 			{"y": 3.1}
 		]
 	}
@@ -73,6 +74,8 @@ func TestInterfaceToValue(t *testing.T) {
 		{int(100), "100"},
 		{map[string]string{"foo": "bar"}, `{"foo": "bar"}`},
 		{uint64(100), "100"},
+		{[]string{"dummy", "tummy"}, `["dummy", "tummy"]`},
+		{String("bob"), `"bob"`},
 	}
 
 	for _, tc := range tests {
@@ -120,7 +123,7 @@ func TestInterfaceToValueStructs(t *testing.T) {
 type brokenMarshaller struct{}
 
 func (brokenMarshaller) MarshalJSON() ([]byte, error) {
-	return nil, fmt.Errorf("broken")
+	return nil, errors.New("broken")
 }
 
 func TestObjectInsertGetLen(t *testing.T) {
@@ -276,8 +279,8 @@ func TestTermBadJSON(t *testing.T) {
 
 	term := Term{}
 	err := util.UnmarshalJSON([]byte(input), &term)
-	expected := fmt.Errorf("ast: unable to unmarshal term")
-	if !reflect.DeepEqual(expected, err) {
+	expected := errors.New("ast: unable to unmarshal term")
+	if expected.Error() != err.Error() {
 		t.Errorf("Expected %v but got: %v", expected, err)
 	}
 }
@@ -325,7 +328,7 @@ func TestFind(t *testing.T) {
 	}{
 		{RefTerm(StringTerm("foo"), IntNumberTerm(1), StringTerm("bar")), MustParseTerm(`{2, 3, 4}`)},
 		{RefTerm(StringTerm("foo"), IntNumberTerm(1), StringTerm("bar"), IntNumberTerm(4)), MustParseTerm(`4`)},
-		{RefTerm(StringTerm("foo"), IntNumberTerm(2)), fmt.Errorf("not found")},
+		{RefTerm(StringTerm("foo"), IntNumberTerm(2)), errors.New("not found")},
 		{RefTerm(StringTerm("baz"), StringTerm("qux"), IntNumberTerm(0)), MustParseTerm(`"hello"`)},
 	}
 
@@ -400,7 +403,7 @@ func TestHashArray(t *testing.T) {
 		t.Errorf("expected %v, got %v", exp, act)
 	}
 
-	for j := 0; j < arr1.Len(); j++ {
+	for j := range arr1.Len() {
 		for i := 0; i <= j; i++ {
 			slice := arr1.Slice(i, j)
 			exp := termSliceHash(slice.elems)
@@ -753,10 +756,10 @@ func TestSetMap(t *testing.T) {
 	}
 
 	result, err = set.Map(func(*Term) (*Term, error) {
-		return nil, fmt.Errorf("oops")
+		return nil, errors.New("oops")
 	})
 
-	if !reflect.DeepEqual(err, fmt.Errorf("oops")) {
+	if err.Error() != "oops" {
 		t.Fatalf("Expected oops to be returned but got: %v, %v", result, err)
 	}
 }
@@ -859,7 +862,7 @@ func TestSetCopy(t *testing.T) {
 func TestSetConcurrentReads(t *testing.T) {
 	// Create array of numbers.
 	numbers := make([]*Term, 10000)
-	for i := 0; i < 10000; i++ {
+	for i := range 10000 {
 		numbers[i] = IntNumberTerm(i)
 	}
 	// Shuffle numbers array for random insertion order.
@@ -869,7 +872,7 @@ func TestSetConcurrentReads(t *testing.T) {
 	})
 	// Build set with numbers in unsorted order.
 	s := NewSet()
-	for i := 0; i < len(numbers); i++ {
+	for i := range numbers {
 		s.Add(numbers[i])
 	}
 	// In-place sort on numbers.
@@ -879,7 +882,7 @@ func TestSetConcurrentReads(t *testing.T) {
 	var wg sync.WaitGroup
 	num := runtime.NumCPU()
 	wg.Add(num)
-	for i := 0; i < num; i++ {
+	for range num {
 		go func() {
 			defer wg.Done()
 			var retrieved []*Term
@@ -888,7 +891,7 @@ func TestSetConcurrentReads(t *testing.T) {
 			})
 			// Check for sortedness of retrieved results.
 			// This will hit a race condition around `s.sortedKeys`.
-			for n := 0; n < len(retrieved); n++ {
+			for n := range retrieved {
 				if retrieved[n] != numbers[n] {
 					t.Errorf("Expected: %v at iteration %d but got %v instead", numbers[n], n, retrieved[n])
 				}
@@ -901,7 +904,7 @@ func TestSetConcurrentReads(t *testing.T) {
 func TestObjectConcurrentReads(t *testing.T) {
 	// Create array of numbers.
 	numbers := make([]*Term, 10000)
-	for i := 0; i < 10000; i++ {
+	for i := range 10000 {
 		numbers[i] = IntNumberTerm(i)
 	}
 	// Shuffle numbers array for random insertion order.
@@ -911,7 +914,7 @@ func TestObjectConcurrentReads(t *testing.T) {
 	})
 	// Build an object with numbers in unsorted order.
 	o := NewObject()
-	for i := 0; i < len(numbers); i++ {
+	for i := range numbers {
 		o.Insert(numbers[i], NullTerm())
 	}
 	// In-place sort on numbers.
@@ -921,7 +924,7 @@ func TestObjectConcurrentReads(t *testing.T) {
 	var wg sync.WaitGroup
 	num := runtime.NumCPU()
 	wg.Add(num)
-	for i := 0; i < num; i++ {
+	for range num {
 		go func() {
 			defer wg.Done()
 			var retrieved []*Term
@@ -930,7 +933,7 @@ func TestObjectConcurrentReads(t *testing.T) {
 			})
 			// Check for sortedness of retrieved results.
 			// This will hit a race condition around `s.sortedKeys`.
-			for n := 0; n < len(retrieved); n++ {
+			for n := range retrieved {
 				if retrieved[n] != numbers[n] {
 					t.Errorf("Expected: %v at iteration %d but got %v instead", numbers[n], n, retrieved[n])
 				}
@@ -987,7 +990,7 @@ func TestArrayOperations(t *testing.T) {
 			`[1, 2, 3, 4]`,
 			[]string{"1", "2", "3", "4"},
 			func(arr *Array) {
-				for i := 0; i < arr.Len(); i++ {
+				for i := range arr.Len() {
 					results = append(results, arr.Elem(i))
 				}
 			},
@@ -1418,7 +1421,7 @@ func TestLazyObjectKeys(t *testing.T) {
 	})
 	act := x.Keys()
 	exp := []*Term{StringTerm("a"), StringTerm("b"), StringTerm("c")}
-	if !reflect.DeepEqual(exp, act) {
+	if !termSliceEqual(exp, act) {
 		t.Errorf("expected Keys() %v, got %v", exp, act)
 	}
 	assertForced(t, x, false)
@@ -1436,7 +1439,7 @@ func TestLazyObjectKeysIterator(t *testing.T) {
 		act = append(act, k)
 	}
 	exp := []*Term{StringTerm("a"), StringTerm("b"), StringTerm("c")}
-	if !reflect.DeepEqual(exp, act) {
+	if !termSliceEqual(exp, act) {
 		t.Errorf("expected Keys() %v, got %v", exp, act)
 	}
 	assertForced(t, x, false)

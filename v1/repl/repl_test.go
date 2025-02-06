@@ -307,7 +307,7 @@ func TestDumpPath(t *testing.T) {
 		}
 	})
 	file := filepath.Join(dir, "tmpfile")
-	if err := repl.OneShot(ctx, fmt.Sprintf("dump %s", file)); err != nil {
+	if err := repl.OneShot(ctx, "dump "+file); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
@@ -354,7 +354,7 @@ func TestDumpPathCaseSensitive(t *testing.T) {
 		}
 	})
 	file := filepath.Join(dir, "tmpfile")
-	if err := repl.OneShot(ctx, fmt.Sprintf("dump %s", file)); err != nil {
+	if err := repl.OneShot(ctx, "dump "+file); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
@@ -1027,6 +1027,19 @@ func TestOneShotEmptyBufferOneRule(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 	expectOutput(t, buffer.String(), "Rule 'p' defined in package repl. Type 'show' to see rules.\n")
+}
+
+func TestOneShotRefHeadRulePrinted(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	repl.regoVersion = ast.RegoV1
+
+	if err := repl.OneShot(ctx, `foo.bar.baz if { true }`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	expectOutput(t, buffer.String(), "Rule 'foo.bar.baz' defined in package repl. Type 'show' to see rules.\n")
 }
 
 func TestOneShotBufferedExpr(t *testing.T) {
@@ -3337,7 +3350,7 @@ func TestCapabilities(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer).WithCapabilities(capabilities)
 	if err := repl.OneShot(ctx, `http.send({"url": "http://example.com", "method": "GET"})`); err != nil {
-		if !strings.Contains(fmt.Sprintf("%v", err), "undefined function http.send") {
+		if !strings.Contains(err.Error(), "undefined function http.send") {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 	} else {

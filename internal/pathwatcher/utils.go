@@ -9,13 +9,13 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"sort"
 
 	"github.com/fsnotify/fsnotify"
 	initload "github.com/open-policy-agent/opa/internal/runtime/init"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/loader"
 	"github.com/open-policy-agent/opa/v1/storage"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // CreatePathWatcher creates watchers to monitor for path changes
@@ -119,13 +119,7 @@ func getWatchPaths(rootPaths []string) ([]string, error) {
 			}
 		}
 
-		u := make([]string, 0, len(unique))
-		for k := range unique {
-			u = append(u, k)
-		}
-		sort.Strings(u)
-
-		paths = append(paths, u...)
+		paths = append(paths, util.KeysSorted(unique)...)
 	}
 
 	return paths, nil

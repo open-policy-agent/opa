@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -15,14 +16,14 @@ import (
 func BenchmarkObjectLookup(b *testing.B) {
 	sizes := []int{5, 50, 500, 5000}
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			obj := NewObject()
-			for i := 0; i < n; i++ {
-				obj.Insert(StringTerm(fmt.Sprint(i)), IntNumberTerm(i))
+			for i := range n {
+				obj.Insert(StringTerm(strconv.Itoa(i)), InternedIntNumberTerm(i))
 			}
-			key := StringTerm(fmt.Sprint(n - 1))
+			key := StringTerm(strconv.Itoa(n - 1))
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				value := obj.Get(key)
 				if value == nil {
 					b.Fatal("expected hit")
@@ -38,16 +39,16 @@ func BenchmarkObjectFind(b *testing.B) {
 		for _, m := range sizes {
 			b.Run(fmt.Sprintf("%d_%d", n, m), func(b *testing.B) {
 				obj := NewObject()
-				for i := 0; i < n; i++ {
+				for i := range n {
 					arr := NewArray()
-					for j := 0; j < m; j++ {
+					for j := range m {
 						arr = arr.Append(IntNumberTerm(j))
 					}
-					obj.Insert(StringTerm(fmt.Sprint(i)), NewTerm(arr))
+					obj.Insert(StringTerm(strconv.Itoa(i)), NewTerm(arr))
 				}
-				key := Ref{StringTerm(fmt.Sprint(n - 1)), IntNumberTerm(m - 1)}
+				key := Ref{StringTerm(strconv.Itoa(n - 1)), IntNumberTerm(m - 1)}
 				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					value, err := obj.Find(key)
 					if err != nil {
 						b.Fatal(err)
@@ -64,13 +65,13 @@ func BenchmarkObjectFind(b *testing.B) {
 func BenchmarkObjectCreationAndLookup(b *testing.B) {
 	sizes := []int{5, 50, 500, 5000, 50000, 500000}
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			obj := NewObject()
-			for i := 0; i < n; i++ {
-				obj.Insert(StringTerm(fmt.Sprint(i)), IntNumberTerm(i))
+			for i := range n {
+				obj.Insert(StringTerm(strconv.Itoa(i)), IntNumberTerm(i))
 			}
-			key := StringTerm(fmt.Sprint(n - 1))
-			for i := 0; i < b.N; i++ {
+			key := StringTerm(strconv.Itoa(n - 1))
+			for range b.N {
 				value := obj.Get(key)
 				if value == nil {
 					b.Fatal("expected hit")
@@ -83,15 +84,15 @@ func BenchmarkObjectCreationAndLookup(b *testing.B) {
 func BenchmarkLazyObjectLookup(b *testing.B) {
 	sizes := []int{5, 50, 500, 5000}
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			data := make(map[string]interface{}, n)
-			for i := 0; i < n; i++ {
-				data[fmt.Sprint(i)] = i
+			for i := range n {
+				data[strconv.Itoa(i)] = i
 			}
 			obj := LazyObject(data)
-			key := StringTerm(fmt.Sprint(n - 1))
+			key := StringTerm(strconv.Itoa(n - 1))
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				value := obj.Get(key)
 				if value == nil {
 					b.Fatal("expected hit")
@@ -107,17 +108,17 @@ func BenchmarkLazyObjectFind(b *testing.B) {
 		for _, m := range sizes {
 			b.Run(fmt.Sprintf("%d_%d", n, m), func(b *testing.B) {
 				data := make(map[string]interface{}, n)
-				for i := 0; i < n; i++ {
+				for i := range n {
 					arr := make([]string, 0, m)
-					for j := 0; j < m; j++ {
-						arr = append(arr, fmt.Sprint(j))
+					for j := range m {
+						arr = append(arr, strconv.Itoa(j))
 					}
-					data[fmt.Sprint(i)] = arr
+					data[strconv.Itoa(i)] = arr
 				}
 				obj := LazyObject(data)
-				key := Ref{StringTerm(fmt.Sprint(n - 1)), IntNumberTerm(m - 1)}
+				key := Ref{StringTerm(strconv.Itoa(n - 1)), IntNumberTerm(m - 1)}
 				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					value, err := obj.Find(key)
 					if err != nil {
 						b.Fatal(err)
@@ -134,13 +135,13 @@ func BenchmarkLazyObjectFind(b *testing.B) {
 func BenchmarkSetCreationAndLookup(b *testing.B) {
 	sizes := []int{5, 50, 500, 5000, 50000, 500000}
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			set := NewSet()
-			for i := 0; i < n; i++ {
-				set.Add(StringTerm(fmt.Sprint(i)))
+			for i := range n {
+				set.Add(StringTerm(strconv.Itoa(i)))
 			}
-			key := StringTerm(fmt.Sprint(n - 1))
-			for i := 0; i < b.N; i++ {
+			key := StringTerm(strconv.Itoa(n - 1))
+			for range b.N {
 				present := set.Contains(key)
 				if !present {
 					b.Fatal("expected hit")
@@ -153,15 +154,15 @@ func BenchmarkSetCreationAndLookup(b *testing.B) {
 func BenchmarkSetIntersection(b *testing.B) {
 	sizes := []int{5, 50, 500, 5000}
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			setA := NewSet()
 			setB := NewSet()
-			for i := 0; i < n; i++ {
+			for i := range n {
 				setA.Add(IntNumberTerm(i))
 				setB.Add(IntNumberTerm(i))
 			}
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				setC := setA.Intersect(setB)
 				if setC.Len() != setA.Len() || setC.Len() != setB.Len() {
 					b.Fatal("expected equal")
@@ -174,18 +175,18 @@ func BenchmarkSetIntersection(b *testing.B) {
 func BenchmarkSetIntersectionDifferentSize(b *testing.B) {
 	sizes := []int{4, 50, 500, 5000}
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			setA := NewSet()
 			setB := NewSet()
-			for i := 0; i < n; i++ {
+			for i := range n {
 				setA.Add(IntNumberTerm(i))
 			}
-			for i := 0; i < sizes[0]; i++ {
+			for i := range sizes[0] {
 				setB.Add(IntNumberTerm(i))
 			}
 			setB.Add(IntNumberTerm(-1))
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				setC := setA.Intersect(setB)
 				if setC.Len() != sizes[0] {
 					b.Fatal("expected size to be equal")
@@ -198,14 +199,14 @@ func BenchmarkSetIntersectionDifferentSize(b *testing.B) {
 func BenchmarkSetMembership(b *testing.B) {
 	sizes := []int{5, 50, 500, 5000}
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			setA := NewSet()
-			for i := 0; i < n; i++ {
+			for i := range n {
 				setA.Add(IntNumberTerm(i))
 			}
 			key := IntNumberTerm(n - 1)
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				if !setA.Contains(key) {
 					b.Fatal("expected hit")
 				}
@@ -217,10 +218,10 @@ func BenchmarkSetMembership(b *testing.B) {
 func BenchmarkTermHashing(b *testing.B) {
 	sizes := []int{10, 100, 1000}
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			s := String(strings.Repeat("a", n))
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_ = s.Hash()
 			}
 		})
@@ -250,22 +251,22 @@ func BenchmarkObjectString(b *testing.B) {
 	sizes := []int{5, 50, 500, 5000}
 
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			obj := map[string]int{}
-			for i := 0; i < n; i++ {
-				obj[fmt.Sprint(i)] = i
+			for i := range n {
+				obj[strconv.Itoa(i)] = i
 			}
 			val := MustInterfaceToValue(obj)
 
 			b.Run("String()", func(b *testing.B) {
 				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					str = val.String()
 				}
 			})
 			b.Run("json.Marshal", func(b *testing.B) {
 				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					bs, err = json.Marshal(obj)
 					if err != nil {
 						b.Fatal(err)
@@ -285,23 +286,23 @@ func BenchmarkObjectStringInterfaces(b *testing.B) {
 	sizes := []int{5, 50, 500, 5000, 50000}
 
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			obj := map[string]int{}
-			for i := 0; i < n; i++ {
-				obj[fmt.Sprint(i)] = i
+			for i := range n {
+				obj[strconv.Itoa(i)] = i
 			}
 			valString := MustInterfaceToValue(obj)
 			valJSON := MustInterfaceToValue(obj)
 
 			b.Run("String()", func(b *testing.B) {
 				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					str = valString.String()
 				}
 			})
 			b.Run("json.Marshal", func(b *testing.B) {
 				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					bs, err = json.Marshal(valJSON)
 					if err != nil {
 						b.Fatal(err)
@@ -318,15 +319,15 @@ func BenchmarkObjectConstruction(b *testing.B) {
 
 	b.Run("shuffled keys", func(b *testing.B) {
 		for _, n := range sizes {
-			b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.Run(strconv.Itoa(n), func(b *testing.B) {
 				es := []struct{ k, v int }{}
-				for i := 0; i < n; i++ {
+				for i := range n {
 					es = append(es, struct{ k, v int }{i, i})
 				}
 				rand.New(rand.NewSource(seed)) // Seed the PRNG.
 				rand.Shuffle(len(es), func(i, j int) { es[i], es[j] = es[j], es[i] })
 				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					obj := NewObject()
 					for _, e := range es {
 						obj.Insert(IntNumberTerm(e.k), IntNumberTerm(e.v))
@@ -337,13 +338,13 @@ func BenchmarkObjectConstruction(b *testing.B) {
 	})
 	b.Run("increasing keys", func(b *testing.B) {
 		for _, n := range sizes {
-			b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.Run(strconv.Itoa(n), func(b *testing.B) {
 				es := []struct{ k, v int }{}
-				for v := 0; v < n; v++ {
+				for v := range n {
 					es = append(es, struct{ k, v int }{v, v})
 				}
 				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					obj := NewObject()
 					for _, e := range es {
 						obj.Insert(IntNumberTerm(e.k), IntNumberTerm(e.v))
@@ -362,22 +363,22 @@ func BenchmarkArrayString(b *testing.B) {
 	sizes := []int{5, 50, 500, 5000}
 
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			obj := make([]string, n)
-			for i := 0; i < n; i++ {
-				obj[i] = fmt.Sprint(i)
+			for i := range n {
+				obj[i] = strconv.Itoa(i)
 			}
 			val := MustInterfaceToValue(obj)
 
 			b.Run("String()", func(b *testing.B) {
 				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					str = val.String()
 				}
 			})
 			b.Run("json.Marshal", func(b *testing.B) {
 				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					bs, err = json.Marshal(obj)
 					if err != nil {
 						b.Fatal(err)
@@ -396,10 +397,10 @@ func BenchmarkArrayString(b *testing.B) {
 func BenchmarkArrayEquality(b *testing.B) {
 	sizes := []int{5, 50, 500, 5000}
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			arrA := NewArray()
 			arrB := NewArray()
-			for i := 0; i < n; i++ {
+			for i := range n {
 				arrA = arrA.Append(IntNumberTerm(i))
 				arrB = arrB.Append(IntNumberTerm(i))
 			}
@@ -407,7 +408,7 @@ func BenchmarkArrayEquality(b *testing.B) {
 			arrB = arrB.Append(IntNumberTerm(10000))
 			b.ResetTimer()
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				if arrA.Equal(arrB) {
 					b.Fatal("expected not equal")
 				}
@@ -420,15 +421,15 @@ func BenchmarkSetString(b *testing.B) {
 	sizes := []int{5, 50, 500, 5000, 50000}
 
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			val := NewSet()
-			for i := 0; i < n; i++ {
+			for i := range n {
 				val.Add(IntNumberTerm(i))
 			}
 
 			b.Run("String()", func(b *testing.B) {
 				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					str = val.String()
 				}
 			})
@@ -441,15 +442,15 @@ func BenchmarkSetMarshalJSON(b *testing.B) {
 	sizes := []int{5, 50, 500, 5000, 50000}
 
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			set := NewSet()
-			for i := 0; i < n; i++ {
-				set.Add(StringTerm(fmt.Sprint(i)))
+			for i := range n {
+				set.Add(StringTerm(strconv.Itoa(i)))
 			}
 
 			b.Run("json.Marshal", func(b *testing.B) {
 				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					bs, err = json.Marshal(set)
 					if err != nil {
 						b.Fatal(err)

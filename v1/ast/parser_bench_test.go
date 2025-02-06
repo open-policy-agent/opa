@@ -6,6 +6,7 @@ package ast
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -17,7 +18,7 @@ import (
 func BenchmarkParseModuleRulesBase(b *testing.B) {
 	sizes := []int{1, 10, 100, 1000}
 	for _, size := range sizes {
-		b.Run(fmt.Sprint(size), func(b *testing.B) {
+		b.Run(strconv.Itoa(size), func(b *testing.B) {
 			mod := generateModule(size)
 			runParseModuleBenchmark(b, mod)
 		})
@@ -43,7 +44,7 @@ func BenchmarkParseStatementMixedJSON(b *testing.B) {
 func BenchmarkParseStatementSimpleArray(b *testing.B) {
 	sizes := []int{1, 10, 100, 1000}
 	for _, size := range sizes {
-		b.Run(fmt.Sprint(size), func(b *testing.B) {
+		b.Run(strconv.Itoa(size), func(b *testing.B) {
 			stmt := generateArrayStatement(size)
 			runParseStatementBenchmark(b, stmt)
 		})
@@ -53,7 +54,7 @@ func BenchmarkParseStatementSimpleArray(b *testing.B) {
 func TestParseStatementSimpleArray(b *testing.T) {
 	sizes := []int{10} // , 10, 100, 1000}
 	for _, size := range sizes {
-		b.Run(fmt.Sprint(size), func(b *testing.T) {
+		b.Run(strconv.Itoa(size), func(b *testing.T) {
 			stmt := generateArrayStatement(size)
 			_, err := ParseStatement(stmt)
 			if err != nil {
@@ -78,7 +79,7 @@ func BenchmarkParseStatementNestedObjects(b *testing.B) {
 func BenchmarkParseStatementNestedObjectsOrSets(b *testing.B) {
 	sizes := []int{1, 5, 10, 15, 20}
 	for _, size := range sizes {
-		b.Run(fmt.Sprintf("%d", size), func(b *testing.B) {
+		b.Run(strconv.Itoa(size), func(b *testing.B) {
 			stmt := generateObjectOrSetStatement(size)
 			runParseStatementBenchmarkWithError(b, stmt)
 		})
@@ -90,52 +91,52 @@ func BenchmarkParseBasicABACModule(b *testing.B) {
 	package app.abac
 
 	default allow = false
-	
+
 	allow if {
 		user_is_owner
 	}
-	
+
 	allow if {
 		user_is_employee
 		action_is_read
 	}
-	
+
 	allow if {
 		user_is_employee
 		user_is_senior
 		action_is_update
 	}
-	
+
 	allow if {
 		user_is_customer
 		action_is_read
 		not pet_is_adopted
 	}
-	
+
 	user_is_owner if {
 		data.user_attributes[input.user].title == "owner"
 	}
-	
+
 	user_is_employee if {
 		data.user_attributes[input.user].title == "employee"
 	}
-	
+
 	user_is_customer if {
 		data.user_attributes[input.user].title == "customer"
 	}
-	
+
 	user_is_senior if {
 		data.user_attributes[input.user].tenure > 8
 	}
-	
+
 	action_is_read if {
 		input.action == "read"
 	}
-	
+
 	action_is_update if {
 		input.action == "update"
 	}
-	
+
 	pet_is_adopted if {
 		data.pet_attributes[input.resource].adopted == true
 	}
@@ -145,7 +146,7 @@ func BenchmarkParseBasicABACModule(b *testing.B) {
 
 func runParseModuleBenchmark(b *testing.B, mod string) {
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := ParseModuleWithOpts("", mod, ParserOptions{AllFutureKeywords: true})
 		if err != nil {
 			b.Fatalf("Unexpected error: %s", err)
@@ -155,7 +156,7 @@ func runParseModuleBenchmark(b *testing.B, mod string) {
 
 func runParseStatementBenchmark(b *testing.B, stmt string) {
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := ParseStatement(stmt)
 		if err != nil {
 			b.Fatalf("Unexpected error: %s", err)
@@ -165,7 +166,7 @@ func runParseStatementBenchmark(b *testing.B, stmt string) {
 
 func runParseStatementBenchmarkWithError(b *testing.B, stmt string) {
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := ParseStatement(stmt)
 		if err == nil {
 			b.Fatalf("Expected error: %s", err)
@@ -175,7 +176,7 @@ func runParseStatementBenchmarkWithError(b *testing.B, stmt string) {
 
 func generateModule(numRules int) string {
 	mod := "package bench\n"
-	for i := 0; i < numRules; i++ {
+	for i := range numRules {
 		mod += fmt.Sprintf("p%d if { input.x%d = %d }\n", i, i, i)
 	}
 	return mod
@@ -183,7 +184,7 @@ func generateModule(numRules int) string {
 
 func generateArrayStatement(size int) string {
 	a := make([]string, size)
-	for i := 0; i < size; i++ {
+	for i := range size {
 		a[i] = fmt.Sprintf("entry-%d", i)
 	}
 	return string(util.MustMarshalJSON(a))
@@ -196,7 +197,7 @@ func generateObjectStatement(width, depth int) string {
 
 func generateObject(width, depth int) map[string]interface{} {
 	o := map[string]interface{}{}
-	for i := 0; i < width; i++ {
+	for i := range width {
 		key := fmt.Sprintf("entry-%d", i)
 		if depth <= 1 {
 			o[key] = "value"
@@ -209,7 +210,7 @@ func generateObject(width, depth int) map[string]interface{} {
 
 func generateObjectOrSetStatement(depth int) string {
 	s := strings.Builder{}
-	for i := 0; i < depth; i++ {
+	for i := range depth {
 		fmt.Fprintf(&s, `{a%d:a%d|`, i, i)
 	}
 	return s.String()

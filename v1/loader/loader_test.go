@@ -8,13 +8,14 @@ import (
 	"bytes"
 	"embed"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io"
 	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -821,7 +822,7 @@ func TestAsBundleWithDir(t *testing.T) {
 		}
 
 		expectedRoots := []string{"foo", "bar", "baz"}
-		if !reflect.DeepEqual(*b.Manifest.Roots, expectedRoots) {
+		if !slices.Equal(*b.Manifest.Roots, expectedRoots) {
 			t.Fatalf("expected roots %s, got: %s", expectedRoots, *b.Manifest.Roots)
 		}
 	})
@@ -862,7 +863,7 @@ func TestAsBundleWithFileURLDir(t *testing.T) {
 		}
 
 		expectedRoots := []string{"foo"}
-		if !reflect.DeepEqual(*b.Manifest.Roots, expectedRoots) {
+		if !slices.Equal(*b.Manifest.Roots, expectedRoots) {
 			t.Fatalf("expected roots %s, got: %s", expectedRoots, *b.Manifest.Roots)
 		}
 	})
@@ -947,17 +948,17 @@ func TestCheckForUNCPath(t *testing.T) {
 		{
 			input:   `\\localhost\c$`,
 			wantErr: true,
-			err:     fmt.Errorf("UNC path read is not allowed: \\\\localhost\\c$"),
+			err:     errors.New("UNC path read is not allowed: \\\\localhost\\c$"),
 		},
 		{
 			input:   `\\\\localhost\c$`,
 			wantErr: true,
-			err:     fmt.Errorf("UNC path read is not allowed: \\\\\\\\localhost\\c$"),
+			err:     errors.New("UNC path read is not allowed: \\\\\\\\localhost\\c$"),
 		},
 		{
 			input:   `//localhost/foo`,
 			wantErr: true,
-			err:     fmt.Errorf("UNC path read is not allowed: //localhost/foo"),
+			err:     errors.New("UNC path read is not allowed: //localhost/foo"),
 		},
 		{
 			input:   `file:///a/b/c`,
@@ -1066,14 +1067,20 @@ func TestLoadWithJSONOptions(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	// load the file with JSON options set to include location data
-	loaded, err := NewFileLoader().WithFS(fsys).WithJSONOptions(&astJSON.Options{
+	astJSON.SetOptions(astJSON.Options{
 		MarshalOptions: astJSON.MarshalOptions{
 			IncludeLocation: astJSON.NodeToggle{
 				Package: true,
 			},
 		},
-	}).All(paths)
+	})
+
+	t.Cleanup(func() {
+		astJSON.SetOptions(astJSON.Defaults())
+	})
+
+	// load the file with JSON options set to include location data
+	loaded, err := NewFileLoader().WithFS(fsys).All(paths)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -1239,7 +1246,7 @@ func TestSplitPrefix(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
 			parts, gotPath := SplitPrefix(tc.input)
-			if !reflect.DeepEqual(parts, tc.wantParts) {
+			if !slices.Equal(parts, tc.wantParts) {
 				t.Errorf("wanted parts %v but got %v", tc.wantParts, parts)
 			}
 			if gotPath != tc.wantPath {
@@ -1297,7 +1304,7 @@ func TestDirs(t *testing.T) {
 
 	e := []string{"/", "/foo", "/foo/bar"}
 	sorted := Dirs(paths)
-	if !reflect.DeepEqual(sorted, e) {
+	if !slices.Equal(sorted, e) {
 		t.Errorf("got: %q wanted: %q", sorted, e)
 	}
 }

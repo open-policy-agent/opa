@@ -583,7 +583,7 @@ func TestRegoCustomBuiltinHalt(t *testing.T) {
 			),
 		},
 		func(BuiltinContext, *ast.Term) (*ast.Term, error) {
-			return nil, NewHaltError(fmt.Errorf("stop"))
+			return nil, NewHaltError(errors.New("stop"))
 		},
 	)
 	r := New(Query(`halt_func("")`), funOpt)
@@ -1076,7 +1076,7 @@ func TestPrepareAndEvalRaceConditions(t *testing.T) {
 			// run this 1000 times concurrently
 			var wg sync.WaitGroup
 			wg.Add(1000)
-			for i := 0; i < 1000; i++ {
+			for range 1000 {
 				go func(t *testing.T) {
 					t.Helper()
 					assertPreparedEvalQueryEval(t, pq, []EvalOption{}, tc.exp)
@@ -1274,7 +1274,7 @@ func TestPrepareAndEvalIdempotent(t *testing.T) {
 
 	// Expect evaluating the same thing >1 time gives the same
 	// results each time.
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		assertPreparedEvalQueryEval(t, pq, []EvalOption{
 			EvalInput(map[string]int{"y": 1}),
 		}, "[[1]]")

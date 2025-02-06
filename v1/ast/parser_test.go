@@ -14,7 +14,6 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast/internal/tokens"
-	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 )
 
 const (
@@ -1925,7 +1924,7 @@ func TestIsValidImportPath(t *testing.T) {
 		path     string
 		expected error
 	}{
-		{"[1,2,3]", fmt.Errorf("invalid path [1, 2, 3]: path must be ref or var")},
+		{"[1,2,3]", errors.New("invalid path [1, 2, 3]: path must be ref or var")},
 	}
 
 	for _, tc := range tests {
@@ -1933,7 +1932,7 @@ func TestIsValidImportPath(t *testing.T) {
 		result := IsValidImportPath(path)
 		if tc.expected == nil && result != nil {
 			t.Errorf("Unexpected error for %v: %v", path, result)
-		} else if !reflect.DeepEqual(tc.expected, result) {
+		} else if tc.expected.Error() != result.Error() {
 			t.Errorf("For %v expected %v but got: %v", path, tc.expected, result)
 		}
 	}
@@ -4096,9 +4095,9 @@ func TestParseMultiValueRuleGeneratedBodyLocationText(t *testing.T) {
 	t.Parallel()
 
 	mod := `package test
-	
+
 	import rego.v1
-	
+
 	foo contains "bar"
 	`
 
@@ -4112,85 +4111,6 @@ func TestParseMultiValueRuleGeneratedBodyLocationText(t *testing.T) {
 	if text != `foo contains "bar"` {
 		t.Errorf("Expected rule location text to be %q but got %q", `foo contains "bar"`, text)
 	}
-}
-
-func TestRuleFromBodyJSONOptions(t *testing.T) {
-	tests := []string{
-		`pi = 3.14159`,
-		`p contains x if { x = 1 }`,
-		`greeting = "hello"`,
-		`cores = [{0: 1}, {1: 2}]`,
-		`wrapper = cores[0][1]`,
-		`pi = [3, 1, 4, x, y, z]`,
-		`foo["bar"] = "buz"`,
-		`foo["9"] = "10"`,
-		`foo.buz = "bar"`,
-		`foo.fizz contains "buzz"`,
-		`bar contains 1`,
-		`bar contains [{"foo":"baz"}]`,
-		`bar contains "qux"`,
-		`input = 1`,
-		`data = 2`,
-		`f(1) = 2`,
-		`f(1)`,
-		`d1 := 1234`,
-	}
-
-	parserOpts := ParserOptions{ProcessAnnotation: true, AllFutureKeywords: true}
-	parserOpts.JSONOptions = &astJSON.Options{
-		MarshalOptions: astJSON.MarshalOptions{
-			IncludeLocation: astJSON.NodeToggle{
-				Term:           true,
-				Package:        true,
-				Comment:        true,
-				Import:         true,
-				Rule:           true,
-				Head:           true,
-				Expr:           true,
-				SomeDecl:       true,
-				Every:          true,
-				With:           true,
-				Annotations:    true,
-				AnnotationsRef: true,
-			},
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc, func(t *testing.T) {
-			testModule := "package a.b.c\n" + tc
-			assertParseModuleJSONOptions(t, tc, testModule, parserOpts)
-		})
-	}
-}
-
-func TestRuleFromBodyJSONOptionsLocationOptions(t *testing.T) {
-	parserOpts := ParserOptions{ProcessAnnotation: true}
-	parserOpts.JSONOptions = &astJSON.Options{
-		MarshalOptions: astJSON.MarshalOptions{
-			IncludeLocation: astJSON.NodeToggle{
-				Term:           true,
-				Package:        true,
-				Comment:        true,
-				Import:         true,
-				Rule:           true,
-				Head:           true,
-				Expr:           true,
-				SomeDecl:       true,
-				Every:          true,
-				With:           true,
-				Annotations:    true,
-				AnnotationsRef: true,
-			},
-			IncludeLocationText: true,
-			ExcludeLocationFile: true,
-		},
-	}
-
-	module := `package a.b.c
-			foo := "bar"
-			`
-	assertParseModuleJSONOptions(t, `foo := "bar"`, module, parserOpts)
 }
 
 func TestRuleModulePtr(t *testing.T) {
@@ -6134,7 +6054,7 @@ func TestAnnotationsAugmentedError(t *testing.T) {
 
 func TestAnnotationsAreParsedAsYamlv1_2(t *testing.T) {
 	policy := `package p
-	
+
 # METADATA
 # custom:
 #   string: yes
@@ -6182,12 +6102,12 @@ func TestAuthorAnnotation(t *testing.T) {
 		{
 			note:     "no name",
 			raw:      "",
-			expected: fmt.Errorf("author is an empty string"),
+			expected: errors.New("author is an empty string"),
 		},
 		{
 			note:     "only whitespaces",
 			raw:      " \t",
-			expected: fmt.Errorf("author is an empty string"),
+			expected: errors.New("author is an empty string"),
 		},
 		{
 			note:     "one name only",
@@ -6258,14 +6178,14 @@ func TestAuthorAnnotation(t *testing.T) {
 		{
 			note:     "empty map",
 			raw:      map[string]interface{}{},
-			expected: fmt.Errorf("'name' and/or 'email' values required in object"),
+			expected: errors.New("'name' and/or 'email' values required in object"),
 		},
 		{
 			note: "map with empty name",
 			raw: map[string]interface{}{
 				"name": "",
 			},
-			expected: fmt.Errorf("'name' and/or 'email' values required in object"),
+			expected: errors.New("'name' and/or 'email' values required in object"),
 		},
 		{
 			note: "map with email and empty name",
@@ -6280,7 +6200,7 @@ func TestAuthorAnnotation(t *testing.T) {
 			raw: map[string]interface{}{
 				"email": "",
 			},
-			expected: fmt.Errorf("'name' and/or 'email' values required in object"),
+			expected: errors.New("'name' and/or 'email' values required in object"),
 		},
 		{
 			note: "map with name and empty email",
@@ -6329,17 +6249,17 @@ func TestRelatedResourceAnnotation(t *testing.T) {
 		{
 			note:     "empty ref URL",
 			raw:      "",
-			expected: fmt.Errorf("ref URL may not be empty string"),
+			expected: errors.New("ref URL may not be empty string"),
 		},
 		{
 			note:     "only whitespaces in ref URL",
 			raw:      " \t",
-			expected: fmt.Errorf("parse \" \\t\": net/url: invalid control character in URL"),
+			expected: errors.New("parse \" \\t\": net/url: invalid control character in URL"),
 		},
 		{
 			note:     "invalid ref URL",
 			raw:      "https://foo:bar",
-			expected: fmt.Errorf("parse \"https://foo:bar\": invalid port \":bar\" after host"),
+			expected: errors.New("parse \"https://foo:bar\": invalid port \":bar\" after host"),
 		},
 		{
 			note:     "ref URL as string",
@@ -6358,7 +6278,7 @@ func TestRelatedResourceAnnotation(t *testing.T) {
 			raw: map[string]interface{}{
 				"description": "foo bar",
 			},
-			expected: fmt.Errorf("'ref' value required in object"),
+			expected: errors.New("'ref' value required in object"),
 		},
 		{
 			note: "map with ref and description",
@@ -6386,21 +6306,21 @@ func TestRelatedResourceAnnotation(t *testing.T) {
 		{
 			note:     "empty map",
 			raw:      map[string]interface{}{},
-			expected: fmt.Errorf("'ref' value required in object"),
+			expected: errors.New("'ref' value required in object"),
 		},
 		{
 			note: "map with empty ref",
 			raw: map[string]interface{}{
 				"ref": "",
 			},
-			expected: fmt.Errorf("'ref' value required in object"),
+			expected: errors.New("'ref' value required in object"),
 		},
 		{
 			note: "map with only whitespace in ref",
 			raw: map[string]interface{}{
 				"ref": " \t",
 			},
-			expected: fmt.Errorf("'ref' value required in object"),
+			expected: errors.New("'ref' value required in object"),
 		},
 	}
 
@@ -6494,7 +6414,7 @@ func assertParseErrorFunc(t *testing.T, msg string, input string, f func(string)
 	}
 	stmts, _, err := ParseStatementsWithOpts("", input, opt)
 	if err == nil && len(stmts) != 1 {
-		err = fmt.Errorf("expected exactly one statement")
+		err = errors.New("expected exactly one statement")
 	}
 	if err == nil {
 		t.Errorf("Error on test \"%s\": expected parse error on %s: expected no statements, got %d: %v", msg, input, len(stmts), stmts)
@@ -6535,53 +6455,6 @@ func assertParseModule(t *testing.T, msg string, input string, correct *Module, 
 		t.Errorf("Error on test %s: modules not equal: %v (parsed), %v (correct)", msg, m, correct)
 	}
 
-}
-
-func assertParseModuleJSONOptions(t *testing.T, msg string, input string, opts ...ParserOptions) {
-	opt := ParserOptions{}
-	if len(opts) == 1 {
-		opt = opts[0]
-	}
-	m, err := ParseModuleWithOpts("", input, opt)
-	if err != nil {
-		t.Errorf("Error on test \"%s\": parse error on %s: %s", msg, input, err)
-		return
-	}
-
-	if len(m.Rules) != 1 {
-		t.Fatalf("Error on test \"%s\": expected 1 rule but got %d", msg, len(m.Rules))
-	}
-
-	rule := m.Rules[0]
-	if rule.Head.jsonOptions != *opt.JSONOptions {
-		t.Fatalf("Error on test \"%s\": expected rule Head Options\n%v\n, got\n%v", msg, *opt.JSONOptions, rule.Head.jsonOptions)
-	}
-	if rule.Body[0].jsonOptions != *opt.JSONOptions {
-		t.Fatalf("Error on test \"%s\": expected rule Body Options\n%v\n, got\n%v", msg, *opt.JSONOptions, rule.Body[0].jsonOptions)
-	}
-	switch terms := rule.Body[0].Terms.(type) {
-	case []*Term:
-		for _, term := range terms {
-			if term.jsonOptions != *opt.JSONOptions {
-				t.Fatalf("Error on test \"%s\": expected body Term Options\n%v\n, got\n%v", msg, *opt.JSONOptions, term.jsonOptions)
-			}
-		}
-	case *SomeDecl:
-		if terms.jsonOptions != *opt.JSONOptions {
-			t.Fatalf("Error on test \"%s\": expected body Term Options\n%v\n, got\n%v", msg, *opt.JSONOptions, terms.jsonOptions)
-		}
-	case *Every:
-		if terms.jsonOptions != *opt.JSONOptions {
-			t.Fatalf("Error on test \"%s\": expected body Term Options\n%v\n, got\n%v", msg, *opt.JSONOptions, terms.jsonOptions)
-		}
-	case *Term:
-		if terms.jsonOptions != *opt.JSONOptions {
-			t.Fatalf("Error on test \"%s\": expected body Term Options\n%v\n, got\n%v", msg, *opt.JSONOptions, terms.jsonOptions)
-		}
-	}
-	if rule.jsonOptions != *opt.JSONOptions {
-		t.Fatalf("Error on test \"%s\": expected rule Options\n%v\n, got\n%v", msg, *opt.JSONOptions, rule.jsonOptions)
-	}
 }
 
 func assertParseModuleError(t *testing.T, msg, input string) {

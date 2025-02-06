@@ -19,7 +19,7 @@ import (
 
 	"github.com/open-policy-agent/opa/v1/bundle"
 
-	badger "github.com/dgraph-io/badger/v3"
+	badger "github.com/dgraph-io/badger/v4"
 
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/storage"
@@ -290,13 +290,13 @@ func runTruncateTest(t *testing.T, dir string) {
 
 	bs, err := s.GetPolicy(ctx, txn, "policy.rego")
 	expectedBytes := []byte("package foo\n p = 1")
-	if err != nil || !reflect.DeepEqual(expectedBytes, bs) {
+	if err != nil || !bytes.Equal(expectedBytes, bs) {
 		t.Fatalf("Expected get policy to return %v but got: %v (err: %v)", expectedBytes, bs, err)
 	}
 
 	bs, err = s.GetPolicy(ctx, txn, "roles/policy.rego")
 	expectedBytes = []byte("package bar\n p = 1")
-	if err != nil || !reflect.DeepEqual(expectedBytes, bs) {
+	if err != nil || !bytes.Equal(expectedBytes, bs) {
 		t.Fatalf("Expected get policy to return %v but got: %v (err: %v)", expectedBytes, bs, err)
 	}
 
@@ -325,7 +325,7 @@ func TestTruncateMultipleTxn(t *testing.T) {
 
 		archiveFiles := map[string]string{}
 
-		for i := 0; i < 20; i++ {
+		for i := range 20 {
 
 			path := fmt.Sprintf("users/user%d/data.json", i)
 

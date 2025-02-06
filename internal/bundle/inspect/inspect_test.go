@@ -11,11 +11,13 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/v1/ast"
+	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
@@ -67,7 +69,7 @@ func TestGenerateBundleInfoWithFileDir(t *testing.T) {
 
 		expBuiltinNames := []string{"eq", "gt"}
 
-		if !reflect.DeepEqual(expBuiltinNames, builtinNames) {
+		if !slices.Equal(expBuiltinNames, builtinNames) {
 			t.Fatalf("expected builtin names to be %v but got %v", expBuiltinNames, builtinNames)
 		}
 	})
@@ -92,6 +94,15 @@ p = 1`,
 		if got, exp := len(info.Annotations), 1; got != exp {
 			t.Fatalf("expected %d annotation, but got: %d", exp, got)
 		}
+
+		astJSON.SetOptions(astJSON.Options{
+			MarshalOptions: astJSON.MarshalOptions{
+				IncludeLocation: astJSON.NodeToggle{
+					AnnotationsRef: true,
+				},
+			},
+		})
+		defer astJSON.SetOptions(astJSON.Defaults())
 
 		bs, err := json.Marshal(info.Annotations[0])
 		if err != nil {

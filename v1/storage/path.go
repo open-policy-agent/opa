@@ -5,6 +5,7 @@
 package storage
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -50,7 +51,7 @@ func ParsePathEscaped(str string) (path Path, ok bool) {
 func NewPathForRef(ref ast.Ref) (path Path, err error) {
 
 	if len(ref) == 0 {
-		return nil, fmt.Errorf("empty reference (indicates error in caller)")
+		return nil, errors.New("empty reference (indicates error in caller)")
 	}
 
 	if len(ref) == 1 {
@@ -84,7 +85,7 @@ func NewPathForRef(ref ast.Ref) (path Path, err error) {
 // is less than other, 0 if p is equal to other, or 1 if p is greater than
 // other.
 func (p Path) Compare(other Path) (cmp int) {
-	for i := 0; i < min(len(p), len(other)); i++ {
+	for i := range min(len(p), len(other)) {
 		if cmp := strings.Compare(p[i], other[i]); cmp != 0 {
 			return cmp
 		}
@@ -132,11 +133,22 @@ func (p Path) Ref(head *ast.Term) (ref ast.Ref) {
 }
 
 func (p Path) String() string {
-	buf := make([]string, len(p))
-	for i := range buf {
-		buf[i] = url.PathEscape(p[i])
+	if len(p) == 0 {
+		return "/"
 	}
-	return "/" + strings.Join(buf, "/")
+
+	l := 0
+	for i := range p {
+		l += len(p[i]) + 1
+	}
+
+	sb := strings.Builder{}
+	sb.Grow(l)
+	for i := range p {
+		sb.WriteByte('/')
+		sb.WriteString(url.PathEscape(p[i]))
+	}
+	return sb.String()
 }
 
 // MustParsePath returns a new Path for s. If s cannot be parsed, this function

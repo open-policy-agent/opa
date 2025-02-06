@@ -552,6 +552,7 @@ opa eval <query> [flags]
   -i, --input string                                              set input file path
       --instrument                                                enable query instrumentation metrics (implies --metrics)
       --metrics                                                   report query performance metrics
+      --nondeterminstic-builtins                                  evaluate nondeterministic builtins (if all arguments are known) during partial eval
   -O, --optimize int                                              set optimization level
       --optimize-store-for-read-speed                             optimize default in-memory store for read speed. Has possible negative impact on memory footprint and write speed. See https://www.openpolicyagent.org/docs/latest/policy-performance/#storage-optimization for more details.
       --package string                                            set query package
@@ -666,18 +667,18 @@ code if a file would be reformatted.
 The 'fmt' command can be run in several compatibility modes for consuming and outputting
 different Rego versions:
 
-* 'opa fmt':
+* `opa fmt`:
   * v1 Rego is formatted to v1
-  * 'rego.v1'/'future.keywords' imports are NOT removed
-  * 'rego.v1'/'future.keywords' imports are NOT added if missing
+  * `rego.v1`/`future.keywords` imports are NOT removed
+  * `rego.v1`/`future.keywords` imports are NOT added if missing
   * v0 rego is rejected
-* 'opa fmt --v0-compatible':
+* `opa fmt --v0-compatible`:
   * v0 Rego is formatted to v0
   * v1 Rego is rejected
-* 'opa fmt --v0-v1':
+* `opa fmt --v0-v1`:
   * v0 Rego is formatted to be compatible with v0 AND v1
   * v1 Rego is rejected
-* 'opa fmt --v0-v1 --v1-compatible':
+* `opa fmt --v0-v1 --v1-compatible`:
   * v1 Rego is formatted to be compatible with v0 AND v1
   * v0 Rego is rejected
 
@@ -689,7 +690,7 @@ opa fmt [path [...]] [flags]
 ### Options
 
 ```
-      --check-result      assert that the formatted code is valid and can be successfully parsed (default true) (default true)
+      --check-result      assert that the formatted code is valid and can be successfully parsed (default true)
   -d, --diff              only display a diff of the changes
       --drop-v0-imports   drop v0 imports from the formatted code, such as 'rego.v1' and 'future.keywords'
       --fail              non zero exit code on reformat
@@ -727,7 +728,7 @@ Example:
     bundle.tar.gz
     $ opa inspect bundle.tar.gz
 
-You can provide exactly one OPA bundle, path to a bundle directory, or direct path to a Rego file to the 'inspect' command 
+You can provide exactly one OPA bundle, path to a bundle directory, or direct path to a Rego file to the 'inspect' command
 on the command-line. If you provide a path referring to a directory, the 'inspect' command will load that path as a bundle
 and summarize its structure and contents. If you provide a path referring to a Rego file, the 'inspect' command will load
 that file and summarize its structure and contents.
@@ -886,9 +887,10 @@ OPA will automatically perform type checking based on a schema inferred from kno
 resulting from the schema check. Currently this check is performed on OPA's Authorization Policy Input document and will
 be expanded in the future. To disable this, use the --skip-known-schema-check flag.
 
-The --v1-compatible flag can be used to opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release.
-Current behaviors enabled by this flag include:
-- setting OPA's listening address to "localhost:8181" by default.
+The --v0-compatible flag can be used to opt-in to OPA features and behaviors that were the default in OPA v0.x.
+Behaviors enabled by this flag include:
+- setting OPA's listening address to ":8181" by default, corresponding to listening on every network interface.
+- expecting v0 Rego syntax in policy modules instead of the default v1 Rego syntax.
 
 The --tls-cipher-suites flag can be used to specify the list of enabled TLS 1.0–1.2 cipher suites. Note that TLS 1.3
 cipher suites are not configurable. Following are the supported TLS 1.0 - 1.2 cipher suites (IANA):

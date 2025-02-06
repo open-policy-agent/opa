@@ -44,7 +44,7 @@ func NewPool(poolSize, memoryMinPages, memoryMaxPages uint32) *Pool {
 	cfg.SetEpochInterruption(true)
 
 	available := make(chan struct{}, poolSize)
-	for i := uint32(0); i < poolSize; i++ {
+	for range poolSize {
 		available <- struct{}{}
 	}
 

@@ -456,7 +456,7 @@ q = true`
 		t.Fatal("expected an exact set of location pointers but got different number:", len(result), "result:", result)
 	}
 
-	for i := 0; i < len(result); i++ {
+	for i := range result {
 		if result[i].Loc() != exp[i] {
 			t.Fatal("expected exact location pointers but found difference on i =", i, "result:", result)
 		}
@@ -474,7 +474,7 @@ q = true`
 		t.Fatal("expected an exact set of location pointers but got different number:", len(result), "result:", result)
 	}
 
-	for i := 0; i < len(result); i++ {
+	for i := range result {
 		if result[i].Loc() != exp[i] {
 			t.Fatal("expected exact location pointers but found difference on i =", i, "result:", result)
 		}

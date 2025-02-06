@@ -5,6 +5,7 @@
 package topdown
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -58,7 +59,7 @@ func builtinNumbersRangeStep(bctx BuiltinContext, operands []*ast.Term, iter fun
 	}
 
 	if step.Cmp(zero) <= 0 {
-		return fmt.Errorf("numbers.range_step: step must be a positive number above zero")
+		return errors.New("numbers.range_step: step must be a positive number above zero")
 	}
 
 	ast, err := generateRange(bctx, x, y, step, "numbers.range_step")
@@ -96,13 +97,15 @@ func generateCheapRange(operands []*ast.Term, iter func(*ast.Term) error) error 
 
 	step := 1
 
-	stepOp, err := builtins.IntOperand(operands[2].Value, 3)
-	if err == nil {
-		step = stepOp
+	if len(operands) > 2 {
+		stepOp, err := builtins.IntOperand(operands[2].Value, 3)
+		if err == nil {
+			step = stepOp
+		}
 	}
 
 	if step <= 0 {
-		return fmt.Errorf("numbers.range_step: step must be a positive number above zero")
+		return errors.New("numbers.range_step: step must be a positive number above zero")
 	}
 
 	terms := make([]*ast.Term, 0, y+1)
@@ -136,7 +139,7 @@ func generateRange(bctx BuiltinContext, x *big.Int, y *big.Int, step *big.Int, f
 	haltErr := Halt{
 		Err: &Error{
 			Code:    CancelErr,
-			Message: fmt.Sprintf("%s: timed out before generating all numbers in range", funcName),
+			Message: funcName + ": timed out before generating all numbers in range",
 		},
 	}
 

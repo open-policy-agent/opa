@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -1232,7 +1233,7 @@ func TestFunctionsTypeInference(t *testing.T) {
 		`corge(x) = y if { qux({"bar": x, "foo": x}, a); baz([a["{5: true}"], "BUZ"], y) }`,
 	}
 	body := strings.Join(functions, "\n")
-	base := fmt.Sprintf("package base\n%s", body)
+	base := "package base\n" + body
 
 	popts := ParserOptions{AllFutureKeywords: true}
 
@@ -1305,7 +1306,7 @@ func TestFunctionsTypeInference(t *testing.T) {
 
 	for n, test := range tests {
 		t.Run(fmt.Sprintf("Test Case %d", n), func(t *testing.T) {
-			mod := MustParseModuleWithOpts(fmt.Sprintf("package test\n%s", test.body), popts)
+			mod := MustParseModuleWithOpts("package test\n"+test.body, popts)
 			c := NewCompiler()
 			c.Compile(map[string]*Module{"base": MustParseModuleWithOpts(base, popts), "mod": mod})
 			if test.wantErr && !c.Failed() {
@@ -1502,7 +1503,7 @@ func TestCheckErrorDetails(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		if !reflect.DeepEqual(tc.detail.Lines(), tc.expected) {
+		if !slices.Equal(tc.detail.Lines(), tc.expected) {
 			t.Errorf("Expected %v for %v but got: %v", tc.expected, tc.detail, tc.detail.Lines())
 		}
 	}

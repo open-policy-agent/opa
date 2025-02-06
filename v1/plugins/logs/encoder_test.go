@@ -5,7 +5,7 @@
 package logs
 
 import (
-	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -95,10 +95,10 @@ func TestChunkEncoderAdaptive(t *testing.T) {
 
 	var chunks [][]byte
 	numEvents := 400
-	for i := 0; i < numEvents; i++ {
+	for i := range numEvents {
 
 		bundles := map[string]BundleInfoV1{}
-		bundles["authz"] = BundleInfoV1{Revision: fmt.Sprint(i)}
+		bundles["authz"] = BundleInfoV1{Revision: strconv.Itoa(i)}
 
 		event := EventV1{
 			Labels: map[string]string{
@@ -106,7 +106,7 @@ func TestChunkEncoderAdaptive(t *testing.T) {
 				"app": "example-app",
 			},
 			Bundles:     bundles,
-			DecisionID:  fmt.Sprint(i),
+			DecisionID:  strconv.Itoa(i),
 			Path:        "foo/bar",
 			Input:       &expInput,
 			Result:      &result,

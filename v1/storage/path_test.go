@@ -5,8 +5,8 @@
 package storage
 
 import (
+	"errors"
 	"math"
-	"reflect"
 	"testing"
 
 	"fmt"
@@ -43,8 +43,8 @@ func TestNewPathForRef(t *testing.T) {
 		result Path
 		err    error
 	}{
-		{ast.Ref{}, nil, fmt.Errorf("empty reference (indicates error in caller)")},
-		{ast.MustParseRef("data.foo[x]"), nil, fmt.Errorf("unresolved reference (indicates error in caller): data.foo[x]")},
+		{ast.Ref{}, nil, errors.New("empty reference (indicates error in caller)")},
+		{ast.MustParseRef("data.foo[x]"), nil, errors.New("unresolved reference (indicates error in caller): data.foo[x]")},
 		{ast.MustParseRef("data.foo[true]"), nil, &Error{
 			Code:    NotFoundErr,
 			Message: fmt.Sprintf("%v: does not exist", ast.MustParseRef("data.foo[true]")),
@@ -61,7 +61,7 @@ func TestNewPathForRef(t *testing.T) {
 
 	for _, tc := range tests {
 		result, err := NewPathForRef(tc.input)
-		if tc.err != nil && !reflect.DeepEqual(tc.err, err) {
+		if tc.err != nil && tc.err.Error() != err.Error() {
 			t.Errorf("For %v expected %v but got %v", tc.input, tc.err, err)
 		} else if !result.Equal(tc.result) {
 			t.Errorf("For %v expected %v but got %v", tc.input, tc.result, result)
@@ -189,6 +189,20 @@ func TestPathRef(t *testing.T) {
 		result := path.Ref(head)
 		if !result.Equal(ref) {
 			t.Errorf("Expected %v but got %v", ref, result)
+		}
+	}
+}
+
+// 108.8 ns/op    80 B/op    3 allocs/op // original implementation concat + Join
+// 68.60 ns/op    24 B/op    2 allocs/op // strings.Builder
+// 50.28 ns/op    16 B/op    1 allocs/op // strings.Builder with pre-allocated buffer
+func BenchmarkPathString(b *testing.B) {
+	path := Path{"foo", "bar", "baz"}
+
+	for range b.N {
+		res := path.String()
+		if res != "/foo/bar/baz" {
+			b.Fatal("unexpected result:", res)
 		}
 	}
 }

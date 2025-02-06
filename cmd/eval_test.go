@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -320,7 +321,7 @@ func TestEvalWithOptimize(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
 			package test
-			
+
 			default p = false
 			p if { q }
 			q if { input.x = data.foo }`,
@@ -389,7 +390,7 @@ func TestEvalWithOptimizeBundleData(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
 			package test
-			
+
 			default p = false
 			p if { q }
 			q if { input.x = data.foo }`,
@@ -618,17 +619,17 @@ func testReadParamWithSchemaDir(input string, inputSchema string) error {
 		}
 
 		if schemaSet == nil {
-			err = fmt.Errorf("Schema set is empty")
+			err = errors.New("Schema set is empty")
 			return
 		}
 
 		if schemaSet.Get(ast.MustParseRef("schema.input")) == nil {
-			err = fmt.Errorf("Expected schema for input in schemaSet but got none")
+			err = errors.New("Expected schema for input in schemaSet but got none")
 			return
 		}
 
 		if schemaSet.Get(ast.MustParseRef(`schema.kubernetes["data-schema"]`)) == nil {
-			err = fmt.Errorf("Expected schemas for data in schemaSet but got none")
+			err = errors.New("Expected schemas for data in schemaSet but got none")
 			return
 		}
 
@@ -1303,7 +1304,7 @@ func TestEvalDebugTraceJSONOutput(t *testing.T) {
 		for _, actual := range evals {
 			if expected.location.Compare(actual.location) == 0 {
 				found = true
-				if !reflect.DeepEqual(expected.varBindings, actual.varBindings) {
+				if !maps.Equal(expected.varBindings, actual.varBindings) {
 					t.Errorf("Expected var bindings:\n\n\t%+v\n\nGot\n\n\t%+v\n\n", expected.varBindings, actual.varBindings)
 				}
 			}
@@ -1872,17 +1873,18 @@ time.clock(input.y, time.clock(input.x))
 	}
 }
 
-func TestEvalPartialRegoVersionOutput(t *testing.T) {
+func TestEvalPartialOutput_RegoVersion(t *testing.T) {
 	tests := []struct {
 		note                string
 		regoV1ImportCapable bool
-		v1Compatible        bool
+		v0Compatible        bool
 		query               string
 		module              string
-		expected            string
+		expected            map[string]string
 	}{
 		{
 			note:                "v0, no future keywords",
+			v0Compatible:        true,
 			regoV1ImportCapable: true,
 			query:               "data.test.p",
 			module: `package test
@@ -1891,9 +1893,9 @@ p[v] {
 	v := input.v
 }
 `,
-			expected: `# Query 1
-data.partial.test.p = _term_0_0
-_term_0_0
+			expected: map[string]string{
+				evalSourceOutput: `# Query 1
+data.partial.test.p
 
 # Module 1
 package partial.test
@@ -1902,9 +1904,21 @@ import rego.v1
 
 p contains __local0__1 if __local0__1 = input.v
 `,
+				evalPrettyOutput: `+-----------+-------------------------------------------------+
+| Query 1   | data.partial.test.p                             |
++-----------+-------------------------------------------------+
+| Support 1 | package partial.test                            |
+|           |                                                 |
+|           | import rego.v1                                  |
+|           |                                                 |
+|           | p contains __local0__1 if __local0__1 = input.v |
++-----------+-------------------------------------------------+
+`,
+			},
 		},
 		{
 			note:                "v0, no future keywords, not rego.v1 import capable",
+			v0Compatible:        true,
 			regoV1ImportCapable: false,
 			query:               "data.test.p",
 			module: `package test
@@ -1913,9 +1927,9 @@ p[v] {
 	v := input.v
 }
 `,
-			expected: `# Query 1
-data.partial.test.p = _term_0_0
-_term_0_0
+			expected: map[string]string{
+				evalSourceOutput: `# Query 1
+data.partial.test.p
 
 # Module 1
 package partial.test
@@ -1924,9 +1938,21 @@ p[__local0__1] {
 	__local0__1 = input.v
 }
 `,
+				evalPrettyOutput: `+-----------+-------------------------+
+| Query 1   | data.partial.test.p     |
++-----------+-------------------------+
+| Support 1 | package partial.test    |
+|           |                         |
+|           | p[__local0__1] {        |
+|           |   __local0__1 = input.v |
+|           | }                       |
++-----------+-------------------------+
+`,
+			},
 		},
 		{
 			note:                "v0, future keywords",
+			v0Compatible:        true,
 			regoV1ImportCapable: true,
 			query:               "data.test.p",
 			module: `package test
@@ -1937,9 +1963,9 @@ p contains v if {
 	v := input.v
 }
 `,
-			expected: `# Query 1
-data.partial.test.p = _term_0_0
-_term_0_0
+			expected: map[string]string{
+				evalSourceOutput: `# Query 1
+data.partial.test.p
 
 # Module 1
 package partial.test
@@ -1948,11 +1974,22 @@ import rego.v1
 
 p contains __local0__1 if __local0__1 = input.v
 `,
+				evalPrettyOutput: `+-----------+-------------------------------------------------+
+| Query 1   | data.partial.test.p                             |
++-----------+-------------------------------------------------+
+| Support 1 | package partial.test                            |
+|           |                                                 |
+|           | import rego.v1                                  |
+|           |                                                 |
+|           | p contains __local0__1 if __local0__1 = input.v |
++-----------+-------------------------------------------------+
+`,
+			},
 		},
 		{
 			note:                "v1",
 			regoV1ImportCapable: true,
-			v1Compatible:        true,
+			v0Compatible:        false,
 			query:               "data.test.p",
 			module: `package test
 
@@ -1960,52 +1997,95 @@ p contains v if {
 	v := input.v
 }
 `,
-			expected: `# Query 1
-data.partial.test.p = _term_0_0
-_term_0_0
+			expected: map[string]string{
+				evalSourceOutput: `# Query 1
+data.partial.test.p
 
 # Module 1
 package partial.test
 
 p contains __local0__1 if __local0__1 = input.v
 `,
+				evalPrettyOutput: `+-----------+-------------------------------------------------+
+| Query 1   | data.partial.test.p                             |
++-----------+-------------------------------------------------+
+| Support 1 | package partial.test                            |
+|           |                                                 |
+|           | p contains __local0__1 if __local0__1 = input.v |
++-----------+-------------------------------------------------+
+`,
+			},
+		},
+		{
+			note:                "v1, rego.v1 import",
+			regoV1ImportCapable: true,
+			v0Compatible:        false,
+			query:               "data.test.p",
+			module: `package test
+
+import rego.v1
+
+p contains v if {
+	v := input.v
+}
+`,
+			expected: map[string]string{
+				evalSourceOutput: `# Query 1
+data.partial.test.p
+
+# Module 1
+package partial.test
+
+p contains __local0__1 if __local0__1 = input.v
+`,
+				evalPrettyOutput: `+-----------+-------------------------------------------------+
+| Query 1   | data.partial.test.p                             |
++-----------+-------------------------------------------------+
+| Support 1 | package partial.test                            |
+|           |                                                 |
+|           | p contains __local0__1 if __local0__1 = input.v |
++-----------+-------------------------------------------------+
+`,
+			},
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			files := map[string]string{
-				"test.rego": tc.module,
-			}
-
-			test.WithTempFS(files, func(path string) {
-				params := newEvalCommandParams()
-				_ = params.dataPaths.Set(filepath.Join(path, "test.rego"))
-				params.partial = true
-				params.shallowInlining = true
-				params.v0Compatible = !tc.v1Compatible
-				params.v1Compatible = tc.v1Compatible
-				_ = params.outputFormat.Set(evalSourceOutput)
-
-				if !tc.regoV1ImportCapable {
-					caps := newcapabilitiesFlag()
-					caps.C = ast.CapabilitiesForThisVersion()
-					caps.C.Features = []string{
-						ast.FeatureRefHeadStringPrefixes,
-						ast.FeatureRefHeads,
+			for format, expected := range tc.expected {
+				t.Run(format, func(t *testing.T) {
+					files := map[string]string{
+						"test.rego": tc.module,
 					}
-					params.capabilities = caps
-				}
 
-				buf := new(bytes.Buffer)
-				_, err := eval([]string{tc.query}, params, buf)
-				if err != nil {
-					t.Fatal("unexpected error:", err)
-				}
-				if actual := buf.String(); actual != tc.expected {
-					t.Errorf("expected output %q\ngot %q", tc.expected, actual)
-				}
-			})
+					test.WithTempFS(files, func(path string) {
+						params := newEvalCommandParams()
+						_ = params.dataPaths.Set(filepath.Join(path, "test.rego"))
+						params.partial = true
+						params.v0Compatible = tc.v0Compatible
+						_ = params.outputFormat.Set(format)
+
+						if !tc.regoV1ImportCapable {
+							caps := newcapabilitiesFlag()
+							caps.C = ast.CapabilitiesForThisVersion()
+							caps.C.Features = []string{
+								ast.FeatureRefHeadStringPrefixes,
+								ast.FeatureRefHeads,
+							}
+							params.capabilities = caps
+						}
+
+						buf := new(bytes.Buffer)
+						_, err := eval([]string{tc.query}, params, buf)
+						if err != nil {
+							t.Fatal("unexpected error:", err)
+						}
+						if actual := buf.String(); actual != expected {
+							t.Errorf("expected output:\n\n%s\n\ngot:\n\n%s", expected, actual)
+						}
+					})
+				})
+			}
 		})
 	}
 }
@@ -2403,7 +2483,7 @@ func TestBundleWithStrictFlag(t *testing.T) {
 func TestIfElseIfElseNoBrace(t *testing.T) {
 	files := map[string]string{
 		"bug.rego": `package bug
-			
+
 			p if false
 			else := 1 if false
 			else := 2`,
@@ -2428,7 +2508,7 @@ func TestIfElseIfElseNoBrace(t *testing.T) {
 func TestIfElseIfElseBrace(t *testing.T) {
 	files := map[string]string{
 		"bug.rego": `package bug
-			
+
 			p if false
 			else := 1 if { false }
 			else := 2`,
@@ -2453,7 +2533,7 @@ func TestIfElseIfElseBrace(t *testing.T) {
 func TestIfElse(t *testing.T) {
 	files := map[string]string{
 		"bug.rego": `package bug
-			
+
 			p if false
 			else := 1 `,
 	}
@@ -2505,7 +2585,7 @@ func TestElseNoIfV0(t *testing.T) {
 func TestElseIf(t *testing.T) {
 	files := map[string]string{
 		"bug.rego": `package bug
-			
+
 			p if false
 			else := x if {
 				x=2
@@ -2562,7 +2642,7 @@ func TestElseIfElseV0(t *testing.T) {
 func TestUnexpectedElseIfElseErr(t *testing.T) {
 	files := map[string]string{
 		"bug.rego": `package bug
-			
+
 			p if false
 			else := x if {
 				x=2
@@ -2600,7 +2680,7 @@ func TestUnexpectedElseIfElseErr(t *testing.T) {
 func TestUnexpectedElseIfErr(t *testing.T) {
 	files := map[string]string{
 		"bug.rego": `package bug
-			
+
 			q := 1 if false
 			else := 2 if
 			`,

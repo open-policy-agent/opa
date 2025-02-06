@@ -48,9 +48,7 @@
       <div class="message {{ cond $ancient "is-danger" "is-warning"}} banner-version-warning">
       <div class="message-body">
         These are the docs for an older version of OPA ({{ $version }}). Latest stable release is <a href="/docs/latest">{{ $latestVersionString }}</a>
-        {{ if not $ancient }}
         <button class="delete" aria-label="delete"></button>
-        {{ end }}
       </div>
     </div>
     {{- end }}

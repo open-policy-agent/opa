@@ -244,7 +244,7 @@ func (c *Discovery) loadAndActivateBundleFromDisk(ctx context.Context) {
 			return
 		}
 
-		for retry := 0; retry < maxActivationRetry; retry++ {
+		for range maxActivationRetry {
 
 			ps, err := c.processBundle(ctx, b)
 			if err != nil {
@@ -469,12 +469,9 @@ func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pl
 	config.Discovery = c.manager.Config.Discovery
 
 	// check for updates to the discovery service
-	opts := cfg.ServiceOptions{
-		Raw:        config.Services,
-		AuthPlugin: c.manager.AuthPlugin,
-		Keys:       c.manager.PublicKeys(),
-		Logger:     c.logger.WithFields(c.manager.Client(c.config.service).LoggerFields()),
-	}
+	opts := c.manager.DefaultServiceOpts(config)
+	opts.Logger = c.logger.WithFields(c.manager.Client(c.config.service).LoggerFields())
+
 	services, err := cfg.ParseServicesConfig(opts)
 	if err != nil {
 		return nil, err
@@ -483,7 +480,7 @@ func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pl
 	if client, ok := services[c.config.service]; ok {
 		dClient := c.manager.Client(c.config.service)
 		if !client.Config().Equal(dClient.Config()) {
-			return nil, fmt.Errorf("updates to the discovery service are not allowed")
+			return nil, errors.New("updates to the discovery service are not allowed")
 		}
 	}
 
@@ -497,7 +494,7 @@ func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pl
 		for key, kc := range keys {
 			if curr, ok := c.config.Signing.PublicKeys[key]; ok {
 				if !curr.Equal(kc) {
-					return nil, fmt.Errorf("updates to keys specified in the boot configuration are not allowed")
+					return nil, errors.New("updates to keys specified in the boot configuration are not allowed")
 				}
 			}
 		}
@@ -560,7 +557,7 @@ func evaluateBundle(ctx context.Context, id string, info *ast.Term, b *bundleApi
 	}
 
 	if len(rs) == 0 {
-		return nil, fmt.Errorf("undefined configuration")
+		return nil, errors.New("undefined configuration")
 	}
 
 	bs, err := json.Marshal(rs[0].Expressions[0].Value)

@@ -88,7 +88,7 @@ func main() {
 			removed++
 			continue
 		}
-		document = append(document, fmt.Sprintf("%s\n", str))
+		document = append(document, str+"\n")
 	}
 
 	withHeader := fmt.Sprintf("%s%s", fileHeader, strings.Join(document, ""))

@@ -8,6 +8,7 @@ package presentation
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -410,7 +411,7 @@ func Discard(w io.Writer, x interface{}) error {
 	encoder.SetIndent("", "  ")
 	field, ok := x.(Output)
 	if !ok {
-		return fmt.Errorf("error in converting interface to type Output")
+		return errors.New("error in converting interface to type Output")
 	}
 	bs, err := json.Marshal(field)
 	if err != nil {
@@ -457,25 +458,25 @@ func prettyPartial(w io.Writer, pq *rego.PartialQueries) error {
 	var maxWidth int
 
 	for i := range pq.Queries {
-		s, width, err := prettyASTNode(pq.Queries[i])
+		f, width, err := prettyASTNode(pq.Queries[i], ast.DefaultRegoVersion)
 		if err != nil {
 			return err
 		}
 		if width > maxWidth {
 			maxWidth = width
 		}
-		table.Append([]string{fmt.Sprintf("Query %d", i+1), s})
+		table.Append([]string{fmt.Sprintf("Query %d", i+1), f})
 	}
 
-	for i := range pq.Support {
-		s, width, err := prettyASTNode(pq.Support[i])
+	for i, s := range pq.Support {
+		f, width, err := prettyASTNode(s, s.RegoVersion())
 		if err != nil {
 			return err
 		}
 		if width > maxWidth {
 			maxWidth = width
 		}
-		table.Append([]string{fmt.Sprintf("Support %d", i+1), s})
+		table.Append([]string{fmt.Sprintf("Support %d", i+1), f})
 	}
 
 	table.SetColMinWidth(1, maxWidth)
@@ -485,8 +486,8 @@ func prettyPartial(w io.Writer, pq *rego.PartialQueries) error {
 }
 
 // prettyASTNode is used for pretty-printing the result of partial eval
-func prettyASTNode(x interface{}) (string, int, error) {
-	bs, err := format.AstWithOpts(x, format.Opts{IgnoreLocations: true})
+func prettyASTNode(x interface{}, regoVersion ast.RegoVersion) (string, int, error) {
+	bs, err := format.AstWithOpts(x, format.Opts{IgnoreLocations: true, RegoVersion: regoVersion})
 	if err != nil {
 		return "", 0, fmt.Errorf("format error: %w", err)
 	}

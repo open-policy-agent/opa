@@ -38,9 +38,8 @@ type (
 		Custom           map[string]interface{}       `json:"custom,omitempty"`
 		Location         *Location                    `json:"location,omitempty"`
 
-		comments    []*Comment
-		node        Node
-		jsonOptions astJSON.Options
+		comments []*Comment
+		node     Node
 	}
 
 	// SchemaAnnotation contains a schema declaration for the document identified by the path.
@@ -76,8 +75,6 @@ type (
 		Path        Ref          `json:"path"` // The path of the node the annotations are applied to
 		Annotations *Annotations `json:"annotations,omitempty"`
 		Location    *Location    `json:"location,omitempty"` // The location of the node the annotations are applied to
-
-		jsonOptions astJSON.Options
 
 		node Node // The node the annotations are applied to
 	}
@@ -181,13 +178,6 @@ func (a *Annotations) GetTargetPath() Ref {
 	}
 }
 
-func (a *Annotations) setJSONOptions(opts astJSON.Options) {
-	a.jsonOptions = opts
-	if a.Location != nil {
-		a.Location.JSONOptions = opts
-	}
-}
-
 func (a *Annotations) MarshalJSON() ([]byte, error) {
 	if a == nil {
 		return []byte(`{"scope":""}`), nil
@@ -229,7 +219,7 @@ func (a *Annotations) MarshalJSON() ([]byte, error) {
 		data["custom"] = a.Custom
 	}
 
-	if a.jsonOptions.MarshalOptions.IncludeLocation.Annotations {
+	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Annotations {
 		if a.Location != nil {
 			data["location"] = a.Location
 		}
@@ -249,7 +239,6 @@ func NewAnnotationsRef(a *Annotations) *AnnotationsRef {
 		Path:        a.GetTargetPath(),
 		Annotations: a,
 		node:        a.node,
-		jsonOptions: a.jsonOptions,
 	}
 }
 
@@ -282,9 +271,19 @@ func (ar *AnnotationsRef) MarshalJSON() ([]byte, error) {
 		data["annotations"] = ar.Annotations
 	}
 
-	if ar.jsonOptions.MarshalOptions.IncludeLocation.AnnotationsRef {
+	if astJSON.GetOptions().MarshalOptions.IncludeLocation.AnnotationsRef {
 		if ar.Location != nil {
 			data["location"] = ar.Location
+		}
+
+		// The location set for the schema ref terms is wrong (always set to
+		// row 1) and not really useful anyway.. so strip it out before marshalling
+		for _, schema := range ar.Annotations.Schemas {
+			if schema.Path != nil {
+				for _, term := range schema.Path {
+					term.Location = nil
+				}
+			}
 		}
 	}
 
@@ -326,7 +325,7 @@ func compareAuthors(a, b []*AuthorAnnotation) int {
 		return -1
 	}
 
-	for i := 0; i < len(a); i++ {
+	for i := range a {
 		if cmp := a[i].Compare(b[i]); cmp != 0 {
 			return cmp
 		}
@@ -342,7 +341,7 @@ func compareRelatedResources(a, b []*RelatedResourceAnnotation) int {
 		return -1
 	}
 
-	for i := 0; i < len(a); i++ {
+	for i := range a {
 		if cmp := strings.Compare(a[i].String(), b[i].String()); cmp != 0 {
 			return cmp
 		}
@@ -357,7 +356,7 @@ func compareSchemas(a, b []*SchemaAnnotation) int {
 		maxLen = len(b)
 	}
 
-	for i := 0; i < maxLen; i++ {
+	for i := range maxLen {
 		if cmp := a[i].Compare(b[i]); cmp != 0 {
 			return cmp
 		}
@@ -379,7 +378,7 @@ func compareStringLists(a, b []string) int {
 		return -1
 	}
 
-	for i := 0; i < len(a); i++ {
+	for i := range a {
 		if cmp := strings.Compare(a[i], b[i]); cmp != 0 {
 			return cmp
 		}

@@ -23,7 +23,7 @@ func (s *BitVectorSuite) SetUpTest(_ *check.C) {
 }
 
 func (s *BitVectorSuite) TestElement(c *check.C) {
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		c.Assert(s.vector.Element(i), check.Equals, byte(0))
 	}
 	for i := 4; i < 12; i++ {
@@ -32,14 +32,14 @@ func (s *BitVectorSuite) TestElement(c *check.C) {
 }
 
 func (s *BitVectorSuite) TestInsert(c *check.C) {
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		s.vector.Insert(0, 8)
 	}
 	c.Assert(s.vector.Bytes(), check.DeepEquals, []byte{0xF0, 0xF0})
 }
 
 func (s *BitVectorSuite) TestAppend(c *check.C) {
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		if i%2 == 0 {
 			s.vector.Append(0)
 		} else {
@@ -68,14 +68,14 @@ func (s *BitVectorSuite) TestSetOneBit(c *check.C) {
 }
 
 func (s *BitVectorSuite) TestDelete(c *check.C) {
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		s.vector.Delete(8)
 	}
 	c.Assert(s.vector.Bytes(), check.DeepEquals, []byte{0xF0})
 }
 
 func (s *BitVectorSuite) TestDeleteFirstIndex(c *check.C) {
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		s.vector.Delete(0)
 	}
 	c.Assert(s.vector.Bytes(), check.DeepEquals, []byte{0xFF})

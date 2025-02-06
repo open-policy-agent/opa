@@ -9,6 +9,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -249,7 +250,8 @@ func (t *TestRuntime) runTests(m *testing.M, suppressLogs bool) int {
 
 // TestRuntimeOpts contains parameters for the test runtime.
 type TestRuntimeOpts struct {
-	WaitForBundles bool // indicates if readiness check should depend on bundle activation
+	WaitForBundles   bool // indicates if readiness check should depend on bundle activation
+	PostServeActions func(rt *TestRuntime) error
 }
 
 // WithRuntime invokes f with a new TestRuntime after waiting for server
@@ -270,6 +272,13 @@ func WithRuntime(t *testing.T, opts TestRuntimeOpts, params runtime.Params, f fu
 		done <- err
 	}()
 
+	if opts.PostServeActions != nil {
+		err = opts.PostServeActions(rt)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
 	err = rt.WaitForServer()
 	if err != nil {
 		t.Fatal(err)
@@ -288,7 +297,7 @@ func WithRuntime(t *testing.T, opts TestRuntimeOpts, params runtime.Params, f fu
 func (t *TestRuntime) WaitForServer() error {
 	delay := time.Duration(100) * time.Millisecond
 	retries := 100 // 10 seconds before we give up
-	for i := 0; i < retries; i++ {
+	for range retries {
 		// First make sure it has started listening and we have an address
 		if t.URL() != "" {
 			// Then make sure it has started serving
@@ -300,7 +309,7 @@ func (t *TestRuntime) WaitForServer() error {
 		}
 		time.Sleep(delay)
 	}
-	return fmt.Errorf("API Server not ready in time")
+	return errors.New("API Server not ready in time")
 }
 
 // DeletePolicy will delete the given policy in the runtime via the v1 policy API

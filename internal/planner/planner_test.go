@@ -5,9 +5,11 @@
 package planner
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -1222,7 +1224,7 @@ func (w *stmtCmpWalker) Visit(x interface{}) (ir.Visitor, error) {
 			f, ok := x.(*ir.Func)
 			if ok && s.Name == f.Name {
 				w.found = true
-				if !reflect.DeepEqual(s.Path, f.Path) {
+				if !slices.Equal(s.Path, f.Path) {
 					return nil, fmt.Errorf("func %v: expected path %v, got %v", f, s.Path, f.Path)
 				}
 			}
@@ -1237,7 +1239,7 @@ func findCallDynamic(path []ir.Operand, p interface{}) error {
 		return err
 	}
 	if !w.found {
-		return fmt.Errorf("not found")
+		return errors.New("not found")
 	}
 	return nil
 }
@@ -1249,7 +1251,7 @@ func findFunc(name, path string) func(interface{}) error {
 			return err
 		}
 		if !w.found {
-			return fmt.Errorf("not found")
+			return errors.New("not found")
 		}
 		return nil
 	}

@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"sort"
 )
 
 // Compare returns 0 if a equals b, -1 if a is less than b, and 1 if b is than a.
@@ -83,7 +82,7 @@ func Compare(a, b interface{}) int {
 			if bLen < minLen {
 				minLen = bLen
 			}
-			for i := 0; i < minLen; i++ {
+			for i := range minLen {
 				cmp := Compare(a[i], b[i])
 				if cmp != 0 {
 					return cmp
@@ -99,23 +98,15 @@ func Compare(a, b interface{}) int {
 	case map[string]interface{}:
 		switch b := b.(type) {
 		case map[string]interface{}:
-			var aKeys []string
-			for k := range a {
-				aKeys = append(aKeys, k)
-			}
-			var bKeys []string
-			for k := range b {
-				bKeys = append(bKeys, k)
-			}
-			sort.Strings(aKeys)
-			sort.Strings(bKeys)
+			aKeys := KeysSorted(a)
+			bKeys := KeysSorted(b)
 			aLen := len(aKeys)
 			bLen := len(bKeys)
 			minLen := aLen
 			if bLen < minLen {
 				minLen = bLen
 			}
-			for i := 0; i < minLen; i++ {
+			for i := range minLen {
 				if aKeys[i] < bKeys[i] {
 					return -1
 				} else if bKeys[i] < aKeys[i] {

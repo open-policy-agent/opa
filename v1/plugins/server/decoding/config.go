@@ -17,7 +17,7 @@
 package decoding
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/open-policy-agent/opa/v1/util"
 )
@@ -92,10 +92,10 @@ func (c *Config) validateAndInjectDefaults() error {
 	}
 
 	if *c.MaxLength <= 0 {
-		return fmt.Errorf("invalid value for server.decoding.max_length field, should be a positive number")
+		return errors.New("invalid value for server.decoding.max_length field, should be a positive number")
 	}
 	if *c.Gzip.MaxLength <= 0 {
-		return fmt.Errorf("invalid value for server.decoding.gzip.max_length field, should be a positive number")
+		return errors.New("invalid value for server.decoding.gzip.max_length field, should be a positive number")
 	}
 
 	return nil

@@ -15,6 +15,11 @@ var (
 
 	// since this is by far the most common negative number
 	minusOneTerm = &Term{Value: Number("-1")}
+
+	InternedNullTerm = &Term{Value: Null{}}
+
+	InternedEmptyString = StringTerm("")
+	InternedEmptyObject = ObjectTerm()
 )
 
 // InternedBooleanTerm returns an interned term with the given boolean value.

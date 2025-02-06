@@ -7,6 +7,7 @@ package builtins
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -97,7 +98,7 @@ func (c *NDBCache) UnmarshalJSON(data []byte) error {
 				out[string(k.Value.(ast.String))] = obj
 				return nil
 			}
-			return fmt.Errorf("expected Object, got other Value type in conversion")
+			return errors.New("expected Object, got other Value type in conversion")
 		})
 		if err != nil {
 			return err
@@ -128,23 +129,23 @@ func NewOperandErr(pos int, f string, a ...interface{}) error {
 func NewOperandTypeErr(pos int, got ast.Value, expected ...string) error {
 
 	if len(expected) == 1 {
-		return NewOperandErr(pos, "must be %v but got %v", expected[0], ast.TypeName(got))
+		return NewOperandErr(pos, "must be %v but got %v", expected[0], ast.ValueName(got))
 	}
 
-	return NewOperandErr(pos, "must be one of {%v} but got %v", strings.Join(expected, ", "), ast.TypeName(got))
+	return NewOperandErr(pos, "must be one of {%v} but got %v", strings.Join(expected, ", "), ast.ValueName(got))
 }
 
 // NewOperandElementErr returns an operand error indicating an element in the
 // composite operand was wrong.
 func NewOperandElementErr(pos int, composite ast.Value, got ast.Value, expected ...string) error {
 
-	tpe := ast.TypeName(composite)
+	tpe := ast.ValueName(composite)
 
 	if len(expected) == 1 {
-		return NewOperandErr(pos, "must be %v of %vs but got %v containing %v", tpe, expected[0], tpe, ast.TypeName(got))
+		return NewOperandErr(pos, "must be %v of %vs but got %v containing %v", tpe, expected[0], tpe, ast.ValueName(got))
 	}
 
-	return NewOperandErr(pos, "must be %v of (any of) {%v} but got %v containing %v", tpe, strings.Join(expected, ", "), tpe, ast.TypeName(got))
+	return NewOperandErr(pos, "must be %v of (any of) {%v} but got %v containing %v", tpe, strings.Join(expected, ", "), tpe, ast.ValueName(got))
 }
 
 // NewOperandEnumErr returns an operand error indicating a value was wrong.
@@ -233,7 +234,7 @@ func ObjectOperand(x ast.Value, pos int) (ast.Object, error) {
 func ArrayOperand(x ast.Value, pos int) (*ast.Array, error) {
 	a, ok := x.(*ast.Array)
 	if !ok {
-		return ast.NewArray(), NewOperandTypeErr(pos, x, "array")
+		return nil, NewOperandTypeErr(pos, x, "array")
 	}
 	return a, nil
 }
@@ -262,7 +263,7 @@ func NumberToInt(n ast.Number) (*big.Int, error) {
 	f := NumberToFloat(n)
 	r, accuracy := f.Int(nil)
 	if accuracy != big.Exact {
-		return nil, fmt.Errorf("illegal value")
+		return nil, errors.New("illegal value")
 	}
 	return r, nil
 }
@@ -309,7 +310,7 @@ func RuneSliceOperand(x ast.Value, pos int) ([]rune, error) {
 	}
 
 	var f = make([]rune, a.Len())
-	for k := 0; k < a.Len(); k++ {
+	for k := range a.Len() {
 		b := a.Elem(k)
 		c, ok := b.Value.(ast.String)
 		if !ok {

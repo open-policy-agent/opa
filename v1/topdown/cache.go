@@ -32,6 +32,12 @@ type VirtualCache interface {
 	Keys() []ast.Ref
 }
 
+// BaseCache defines the interface for a cache that stores cached base documents, i.e. data.
+type BaseCache interface {
+	Get(ast.Ref) ast.Value
+	Put(ast.Ref, ast.Value)
+}
+
 type virtualCache struct {
 	stack []*virtualCacheElem
 }
@@ -65,7 +71,7 @@ func (c *virtualCache) Pop() {
 //	ast.Term, true is impossible
 func (c *virtualCache) Get(ref ast.Ref) (*ast.Term, bool) {
 	node := c.stack[len(c.stack)-1]
-	for i := 0; i < len(ref); i++ {
+	for i := range ref {
 		x, ok := node.children.Get(ref[i])
 		if !ok {
 			return nil, false
@@ -83,7 +89,7 @@ func (c *virtualCache) Get(ref ast.Ref) (*ast.Term, bool) {
 // indicate that the Ref has resolved to undefined.
 func (c *virtualCache) Put(ref ast.Ref, value *ast.Term) {
 	node := c.stack[len(c.stack)-1]
-	for i := 0; i < len(ref); i++ {
+	for i := range ref {
 		x, ok := node.children.Get(ref[i])
 		if ok {
 			node = x.(*virtualCacheElem)
@@ -148,11 +154,17 @@ func newBaseCache() *baseCache {
 
 func (c *baseCache) Get(ref ast.Ref) ast.Value {
 	node := c.root
-	for i := 0; i < len(ref); i++ {
+	for i := range ref {
 		node = node.children[ref[i].Value]
 		if node == nil {
 			return nil
 		} else if node.value != nil {
+			if len(ref) == 1 && ast.IsScalar(node.value) {
+				// If the node is a scalar, return the value directly
+				// and avoid an allocation when calling Find.
+				return node.value
+			}
+
 			result, err := node.value.Find(ref[i+1:])
 			if err != nil {
 				return nil
@@ -165,7 +177,7 @@ func (c *baseCache) Get(ref ast.Ref) ast.Value {
 
 func (c *baseCache) Put(ref ast.Ref, value ast.Value) {
 	node := c.root
-	for i := 0; i < len(ref); i++ {
+	for i := range ref {
 		if child, ok := node.children[ref[i].Value]; ok {
 			node = child
 		} else {
@@ -264,7 +276,7 @@ func newComprehensionCacheElem() *comprehensionCacheElem {
 
 func (c *comprehensionCacheElem) Get(key []*ast.Term) *ast.Term {
 	node := c
-	for i := 0; i < len(key); i++ {
+	for i := range key {
 		x, ok := node.children.Get(key[i])
 		if !ok {
 			return nil
@@ -276,7 +288,7 @@ func (c *comprehensionCacheElem) Get(key []*ast.Term) *ast.Term {
 
 func (c *comprehensionCacheElem) Put(key []*ast.Term, value *ast.Term) {
 	node := c
-	for i := 0; i < len(key); i++ {
+	for i := range key {
 		x, ok := node.children.Get(key[i])
 		if ok {
 			node = x.(*comprehensionCacheElem)

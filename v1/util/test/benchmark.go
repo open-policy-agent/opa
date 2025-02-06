@@ -125,7 +125,7 @@ func GenerateJSONBenchmarkData(k, v int) map[string]interface{} {
 
 	// create large JSON object value (100,000 entries is about 2MB on disk)
 	values := map[string]interface{}{}
-	for i := 0; i < v; i++ {
+	for i := range v {
 		values[fmt.Sprintf("key%d", i)] = fmt.Sprintf("value%d", i)
 	}
 

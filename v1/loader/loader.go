@@ -12,7 +12,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"sigs.k8s.io/yaml"
@@ -101,6 +100,8 @@ type FileLoader interface {
 	WithSkipBundleVerification(bool) FileLoader
 	WithProcessAnnotation(bool) FileLoader
 	WithCapabilities(*ast.Capabilities) FileLoader
+	// Deprecated: Use SetOptions in the json package instead, where a longer description
+	// of why this is deprecated also can be found.
 	WithJSONOptions(*astJSON.Options) FileLoader
 	WithRegoVersion(ast.RegoVersion) FileLoader
 	WithFollowSymlinks(bool) FileLoader
@@ -178,9 +179,11 @@ func (fl *fileLoader) WithCapabilities(caps *ast.Capabilities) FileLoader {
 	return fl
 }
 
-// WithJSONOptions sets the JSONOptions for use when parsing files
-func (fl *fileLoader) WithJSONOptions(opts *astJSON.Options) FileLoader {
-	fl.opts.JSONOptions = opts
+// WithJSONOptions sets the JSON options on the parser (now a no-op).
+//
+// Deprecated: Use SetOptions in the json package instead, where a longer description
+// of why this is deprecated also can be found.
+func (fl *fileLoader) WithJSONOptions(*astJSON.Options) FileLoader {
 	return fl
 }
 
@@ -270,7 +273,6 @@ func (fl fileLoader) AsBundle(path string) (*bundle.Bundle, error) {
 		WithSkipBundleVerification(fl.skipVerify).
 		WithProcessAnnotations(fl.opts.ProcessAnnotation).
 		WithCapabilities(fl.opts.Capabilities).
-		WithJSONOptions(fl.opts.JSONOptions).
 		WithFollowSymlinks(fl.followSymlinks).
 		WithRegoVersion(fl.opts.RegoVersion)
 
@@ -564,12 +566,7 @@ func Dirs(paths []string) []string {
 		unique[dir] = struct{}{}
 	}
 
-	u := make([]string, 0, len(unique))
-	for k := range unique {
-		u = append(u, k)
-	}
-	sort.Strings(u)
-	return u
+	return util.KeysSorted(unique)
 }
 
 // SplitPrefix returns a tuple specifying the document prefix and the file
@@ -763,7 +760,6 @@ func loadBundleFile(path string, bs []byte, m metrics.Metrics, opts ast.ParserOp
 	br := bundle.NewCustomReader(tl).
 		WithRegoVersion(opts.RegoVersion).
 		WithCapabilities(opts.Capabilities).
-		WithJSONOptions(opts.JSONOptions).
 		WithProcessAnnotations(opts.ProcessAnnotation).
 		WithMetrics(m).
 		WithSkipBundleVerification(true).

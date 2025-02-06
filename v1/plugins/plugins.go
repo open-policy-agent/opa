@@ -163,6 +163,14 @@ func (s *Status) String() string {
 	return fmt.Sprintf("{%v %q}", s.State, s.Message)
 }
 
+func (s *Status) Equal(other *Status) bool {
+	if s == nil || other == nil {
+		return s == nil && other == nil
+	}
+
+	return s.State == other.State && s.Message == other.Message
+}
+
 // StatusListener defines a handler to register for status updates.
 type StatusListener func(status map[string]*Status)
 
@@ -440,6 +448,11 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		f(m)
 	}
 
+	if m.parserOptions.RegoVersion == ast.RegoUndefined {
+		// Default to v1 if rego-version is not set through options
+		m.parserOptions.RegoVersion = ast.DefaultRegoVersion
+	}
+
 	if m.logger == nil {
 		m.logger = logging.Get()
 	}
@@ -472,13 +485,7 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		return nil, err
 	}
 
-	serviceOpts := cfg.ServiceOptions{
-		Raw:                   parsedConfig.Services,
-		AuthPlugin:            m.AuthPlugin,
-		Keys:                  m.keys,
-		Logger:                m.logger,
-		DistributedTacingOpts: m.distributedTacingOpts,
-	}
+	serviceOpts := m.DefaultServiceOpts(parsedConfig)
 
 	m.services, err = cfg.ParseServicesConfig(serviceOpts)
 	if err != nil {
@@ -747,14 +754,19 @@ func (m *Manager) Stop(ctx context.Context) {
 	}
 }
 
-// Reconfigure updates the configuration on the manager.
-func (m *Manager) Reconfigure(config *config.Config) error {
-	opts := cfg.ServiceOptions{
+func (m *Manager) DefaultServiceOpts(config *config.Config) cfg.ServiceOptions {
+	return cfg.ServiceOptions{
 		Raw:                   config.Services,
 		AuthPlugin:            m.AuthPlugin,
 		Logger:                m.logger,
+		Keys:                  m.keys,
 		DistributedTacingOpts: m.distributedTacingOpts,
 	}
+}
+
+// Reconfigure updates the configuration on the manager.
+func (m *Manager) Reconfigure(config *config.Config) error {
+	opts := m.DefaultServiceOpts(config)
 
 	keys, err := keys.ParseKeysConfig(config.Keys)
 	if err != nil {

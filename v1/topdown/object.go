@@ -92,7 +92,7 @@ func builtinObjectFilter(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 
 	filterObj := ast.NewObject()
 	keys.Foreach(func(key *ast.Term) {
-		filterObj.Insert(key, ast.NullTerm())
+		filterObj.Insert(key, ast.InternedNullTerm)
 	})
 
 	// Actually do the filtering

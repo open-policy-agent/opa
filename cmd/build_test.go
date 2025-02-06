@@ -4,12 +4,14 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -637,7 +639,7 @@ p contains 1
 f(x) if { p[x] }
 `,
 			},
-			err: fmt.Errorf("plan compilation requires at least one entrypoint"),
+			err: errors.New("plan compilation requires at least one entrypoint"),
 		},
 	}
 	for _, tc := range tests {
@@ -942,7 +944,7 @@ p2 := 2
 				tr := tar.NewReader(gr)
 
 				expManifest := strings.ReplaceAll(tc.manifest, "%REGO_VERSION%",
-					fmt.Sprintf("%d", ast.DefaultRegoVersion.Int()))
+					strconv.Itoa(ast.DefaultRegoVersion.Int()))
 
 				found := false
 				for {
@@ -1868,7 +1870,7 @@ q contains 1 if {
 								}
 								expVal = strings.ReplaceAll(expVal, "%ROOT%", root)
 								expVal = strings.ReplaceAll(expVal, "%DEFAULT_REGO_VERSION%",
-									fmt.Sprintf("%d", ast.DefaultRegoVersion.Int()))
+									strconv.Itoa(ast.DefaultRegoVersion.Int()))
 								if string(b) != expVal {
 									t.Fatalf("expected %v:\n\n%v\n\nbut got:\n\n%v", expName, expVal, string(b))
 								}

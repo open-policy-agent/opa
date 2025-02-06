@@ -124,7 +124,7 @@ type authzProfile struct {
 
 func generateTokens(profile DataSetProfile) map[string]token {
 	tokens := map[string]token{}
-	for i := 0; i < profile.NumTokens; i++ {
+	for i := range profile.NumTokens {
 		token := generateToken(profile, i)
 		tokens[token.ID] = token
 	}
@@ -141,7 +141,7 @@ func generateToken(profile DataSetProfile, i int) token {
 
 func generateAuthzProfiles(profile DataSetProfile) []authzProfile {
 	profiles := make([]authzProfile, profile.NumPaths)
-	for i := 0; i < profile.NumPaths; i++ {
+	for i := range profile.NumPaths {
 		profiles[i] = generateAuthzProfile(profile, i)
 	}
 	return profiles

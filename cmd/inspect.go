@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -81,7 +82,7 @@ Example:
     bundle.tar.gz
     $ opa inspect bundle.tar.gz
 
-You can provide exactly one OPA bundle, path to a bundle directory, or direct path to a Rego file to the 'inspect' command 
+You can provide exactly one OPA bundle, path to a bundle directory, or direct path to a Rego file to the 'inspect' command
 on the command-line. If you provide a path referring to a directory, the 'inspect' command will load that path as a bundle
 and summarize its structure and contents. If you provide a path referring to a Rego file, the 'inspect' command will load
 that file and summarize its structure and contents.
@@ -150,14 +151,14 @@ func hasManifest(info *ib.Info) bool {
 
 func validateInspectParams(p *inspectCommandParams, args []string) error {
 	if len(args) != 1 {
-		return fmt.Errorf("specify exactly one OPA bundle or path")
+		return errors.New("specify exactly one OPA bundle or path")
 	}
 
 	of := p.outputFormat.String()
 	if of == evalJSONOutput || of == evalPrettyOutput {
 		return nil
 	}
-	return fmt.Errorf("invalid output format for inspect command")
+	return errors.New("invalid output format for inspect command")
 }
 
 func populateManifest(out io.Writer, m *bundle.Manifest) error {
@@ -210,13 +211,7 @@ func populateNamespaces(out io.Writer, n map[string][]string) error {
 	t.SetAutoMergeCellsByColumnIndex([]int{0})
 	var lines [][]string
 
-	keys := make([]string, 0, len(n))
-	for k := range n {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	for _, k := range keys {
+	for _, k := range util.KeysSorted(n) {
 		for _, file := range n[k] {
 			lines = append(lines, []string{k, truncateFileName(file)})
 		}
@@ -247,7 +242,7 @@ func populateAnnotations(out io.Writer, refs []*ast.AnnotationsRef) error {
 				fmt.Fprintln(out, "Package: ", dropDataPrefix(p.Path))
 			}
 			if r := ref.GetRule(); r != nil {
-				fmt.Fprintln(out, "Rule:    ", r.Head.Name)
+				fmt.Fprintln(out, "Rule:    ", r.Head.Ref().String())
 			}
 			if loc := ref.Location; loc != nil {
 				fmt.Fprintln(out, "Location:", loc.String())

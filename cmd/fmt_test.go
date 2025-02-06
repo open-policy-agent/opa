@@ -727,7 +727,7 @@ func TestFmtMultipleWrongArityError(t *testing.T) {
 			"plus",
 		}
 		expectedErrs := ast.Errors(make([]*ast.Error, 3))
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			loc := locations[i]
 			errExp := ast.NewError(ast.TypeErr, &loc, "%s: %s", operators[i], "arity mismatch")
 			errExp.Details = &format.ArityFormatErrDetail{

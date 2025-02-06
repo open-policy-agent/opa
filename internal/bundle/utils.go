@@ -6,6 +6,7 @@ package bundle
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -132,7 +133,7 @@ func SaveBundleToDisk(path string, raw io.Reader) (string, error) {
 	}
 
 	if raw == nil {
-		return "", fmt.Errorf("no raw bundle bytes to persist to disk")
+		return "", errors.New("no raw bundle bytes to persist to disk")
 	}
 
 	dest, err := os.CreateTemp(path, ".bundle.tar.gz.*.tmp")

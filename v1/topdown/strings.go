@@ -5,11 +5,14 @@
 package topdown
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/tchap/go-patricia/v2/patricia"
 
@@ -101,11 +104,11 @@ func anyStartsWithAny(strs []string, prefixes []string) bool {
 	}
 
 	trie := patricia.NewTrie()
-	for i := 0; i < len(strs); i++ {
+	for i := range strs {
 		trie.Insert([]byte(strs[i]), true)
 	}
 
-	for i := 0; i < len(prefixes); i++ {
+	for i := range prefixes {
 		if trie.MatchSubtree([]byte(prefixes[i])) {
 			return true
 		}
@@ -153,33 +156,48 @@ func builtinConcat(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) 
 		return err
 	}
 
-	strs := []string{}
+	var strs []string
 
 	switch b := operands[1].Value.(type) {
 	case *ast.Array:
-		err := b.Iter(func(x *ast.Term) error {
-			s, ok := x.Value.(ast.String)
+		var l int
+		for i := range b.Len() {
+			s, ok := b.Elem(i).Value.(ast.String)
 			if !ok {
-				return builtins.NewOperandElementErr(2, operands[1].Value, x.Value, "string")
+				return builtins.NewOperandElementErr(2, operands[1].Value, b.Elem(i).Value, "string")
 			}
-			strs = append(strs, string(s))
-			return nil
-		})
-		if err != nil {
-			return err
+			l += len(string(s))
 		}
+
+		if b.Len() == 1 {
+			return iter(b.Elem(0))
+		}
+
+		strs = make([]string, 0, l)
+		for i := range b.Len() {
+			strs = append(strs, string(b.Elem(i).Value.(ast.String)))
+		}
+
 	case ast.Set:
-		err := b.Iter(func(x *ast.Term) error {
-			s, ok := x.Value.(ast.String)
+		var l int
+		terms := b.Slice()
+		for i := range terms {
+			s, ok := terms[i].Value.(ast.String)
 			if !ok {
-				return builtins.NewOperandElementErr(2, operands[1].Value, x.Value, "string")
+				return builtins.NewOperandElementErr(2, operands[1].Value, terms[i].Value, "string")
 			}
-			strs = append(strs, string(s))
-			return nil
-		})
-		if err != nil {
-			return err
+			l += len(string(s))
 		}
+
+		if b.Len() == 1 {
+			return iter(b.Slice()[0])
+		}
+
+		strs = make([]string, 0, l)
+		for i := range b.Len() {
+			strs = append(strs, string(terms[i].Value.(ast.String)))
+		}
+
 	default:
 		return builtins.NewOperandTypeErr(2, operands[1].Value, "set", "array")
 	}
@@ -210,7 +228,11 @@ func builtinIndexOf(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 		return err
 	}
 	if len(string(search)) == 0 {
-		return fmt.Errorf("empty search character")
+		return errors.New("empty search character")
+	}
+
+	if isASCII(string(base)) && isASCII(string(search)) {
+		return iter(ast.InternedIntNumberTerm(strings.Index(string(base), string(search))))
 	}
 
 	baseRunes := []rune(string(base))
@@ -241,7 +263,7 @@ func builtinIndexOfN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 		return err
 	}
 	if len(string(search)) == 0 {
-		return fmt.Errorf("empty search character")
+		return errors.New("empty search character")
 	}
 
 	baseRunes := []rune(string(base))
@@ -268,15 +290,10 @@ func builtinSubstring(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 	if err != nil {
 		return err
 	}
-	runes := []rune(base)
 
 	startIndex, err := builtins.IntOperand(operands[1].Value, 2)
 	if err != nil {
 		return err
-	} else if startIndex >= len(runes) {
-		return iter(ast.StringTerm(""))
-	} else if startIndex < 0 {
-		return fmt.Errorf("negative offset")
 	}
 
 	length, err := builtins.IntOperand(operands[2].Value, 3)
@@ -284,18 +301,60 @@ func builtinSubstring(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 		return err
 	}
 
-	var s ast.String
+	if startIndex < 0 {
+		return errors.New("negative offset")
+	}
+
+	sbase := string(base)
+	if sbase == "" {
+		return iter(ast.InternedEmptyString)
+	}
+
+	// Optimized path for the likely common case of ASCII strings.
+	// This allocates less memory and runs in about 1/3 the time.
+	if isASCII(sbase) {
+		if startIndex >= len(sbase) {
+			return iter(ast.InternedEmptyString)
+		}
+
+		if length < 0 {
+			return iter(ast.StringTerm(sbase[startIndex:]))
+		}
+
+		upto := startIndex + length
+		if len(sbase) < upto {
+			upto = len(sbase)
+		}
+		return iter(ast.StringTerm(sbase[startIndex:upto]))
+	}
+
+	runes := []rune(base)
+
+	if startIndex >= len(runes) {
+		return iter(ast.InternedEmptyString)
+	}
+
+	var s string
 	if length < 0 {
-		s = ast.String(runes[startIndex:])
+		s = string(runes[startIndex:])
 	} else {
 		upto := startIndex + length
 		if len(runes) < upto {
 			upto = len(runes)
 		}
-		s = ast.String(runes[startIndex:upto])
+		s = string(runes[startIndex:upto])
 	}
 
-	return iter(ast.NewTerm(s))
+	return iter(ast.StringTerm(s))
+}
+
+func isASCII(s string) bool {
+	for i := range len(s) {
+		if s[i] > unicode.MaxASCII {
+			return false
+		}
+	}
+	return true
 }
 
 func builtinContains(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -325,7 +384,6 @@ func builtinStringCount(_ BuiltinContext, operands []*ast.Term, iter func(*ast.T
 
 	baseTerm := string(s)
 	searchTerm := string(substr)
-
 	count := strings.Count(baseTerm, searchTerm)
 
 	return iter(ast.InternedIntNumberTerm(count))
@@ -382,15 +440,22 @@ func builtinSplit(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) e
 	if err != nil {
 		return err
 	}
+
 	d, err := builtins.StringOperand(operands[1].Value, 2)
 	if err != nil {
 		return err
 	}
+
+	if !strings.Contains(string(s), string(d)) {
+		return iter(ast.ArrayTerm(operands[0]))
+	}
+
 	elems := strings.Split(string(s), string(d))
 	arr := util.NewPtrSlice[ast.Term](len(elems))
 	for i := range elems {
 		arr[i].Value = ast.String(elems[i])
 	}
+
 	return iter(ast.ArrayTerm(arr...))
 }
 
@@ -410,7 +475,12 @@ func builtinReplace(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 		return err
 	}
 
-	return iter(ast.StringTerm(strings.Replace(string(s), string(old), string(n), -1)))
+	replaced := strings.Replace(string(s), string(old), string(n), -1)
+	if replaced == string(s) {
+		return iter(operands[0])
+	}
+
+	return iter(ast.StringTerm(replaced))
 }
 
 func builtinReplaceN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -454,6 +524,11 @@ func builtinTrim(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) er
 		return err
 	}
 
+	trimmed := strings.Trim(string(s), string(c))
+	if trimmed == string(s) {
+		return iter(operands[0])
+	}
+
 	return iter(ast.StringTerm(strings.Trim(string(s), string(c))))
 }
 
@@ -468,7 +543,12 @@ func builtinTrimLeft(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 		return err
 	}
 
-	return iter(ast.StringTerm(strings.TrimLeft(string(s), string(c))))
+	trimmed := strings.TrimLeft(string(s), string(c))
+	if trimmed == string(s) {
+		return iter(operands[0])
+	}
+
+	return iter(ast.StringTerm(trimmed))
 }
 
 func builtinTrimPrefix(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -482,7 +562,12 @@ func builtinTrimPrefix(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 		return err
 	}
 
-	return iter(ast.StringTerm(strings.TrimPrefix(string(s), string(pre))))
+	trimmed := strings.TrimPrefix(string(s), string(pre))
+	if trimmed == string(s) {
+		return iter(operands[0])
+	}
+
+	return iter(ast.StringTerm(trimmed))
 }
 
 func builtinTrimRight(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -496,7 +581,12 @@ func builtinTrimRight(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 		return err
 	}
 
-	return iter(ast.StringTerm(strings.TrimRight(string(s), string(c))))
+	trimmed := strings.TrimRight(string(s), string(c))
+	if trimmed == string(s) {
+		return iter(operands[0])
+	}
+
+	return iter(ast.StringTerm(trimmed))
 }
 
 func builtinTrimSuffix(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -510,7 +600,12 @@ func builtinTrimSuffix(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 		return err
 	}
 
-	return iter(ast.StringTerm(strings.TrimSuffix(string(s), string(suf))))
+	trimmed := strings.TrimSuffix(string(s), string(suf))
+	if trimmed == string(s) {
+		return iter(operands[0])
+	}
+
+	return iter(ast.StringTerm(trimmed))
 }
 
 func builtinTrimSpace(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -519,7 +614,12 @@ func builtinTrimSpace(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 		return err
 	}
 
-	return iter(ast.StringTerm(strings.TrimSpace(string(s))))
+	trimmed := strings.TrimSpace(string(s))
+	if trimmed == string(s) {
+		return iter(operands[0])
+	}
+
+	return iter(ast.StringTerm(trimmed))
 }
 
 func builtinSprintf(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -577,15 +677,23 @@ func builtinReverse(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 }
 
 func reverseString(str string) string {
-	sRunes := []rune(str)
-	length := len(sRunes)
-	reversedRunes := make([]rune, length)
+	var buf []byte
+	var arr [255]byte
+	size := len(str)
 
-	for index, r := range sRunes {
-		reversedRunes[length-index-1] = r
+	if size < 255 {
+		buf = arr[:size:size]
+	} else {
+		buf = make([]byte, size)
 	}
 
-	return string(reversedRunes)
+	for start := 0; start < size; {
+		r, n := utf8.DecodeRuneInString(str[start:])
+		start += n
+		utf8.EncodeRune(buf[size-start:], r)
+	}
+
+	return string(buf)
 }
 
 func init() {

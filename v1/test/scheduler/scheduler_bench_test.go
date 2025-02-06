@@ -38,7 +38,7 @@ func runSchedulerBenchmark(b *testing.B, nodes int, pods int) {
 	ctx := context.Background()
 	params := setupBenchmark(nodes, pods)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		rego := rego.New(
 			rego.Compiler(params.compiler),
 			rego.Store(params.store),
@@ -113,7 +113,7 @@ func setupNodes(ctx context.Context, store storage.Store, txn storage.Transactio
 	if err := store.Write(ctx, txn, storage.AddOp, storage.MustParsePath("/nodes"), map[string]interface{}{}); err != nil {
 		panic(err)
 	}
-	for i := 0; i < n; i++ {
+	for i := range n {
 		input := nodeTemplateInput{
 			Name: fmt.Sprintf("node%v", i),
 		}
@@ -134,7 +134,7 @@ func setupRCs(ctx context.Context, store storage.Store, txn storage.Transaction,
 	if err := store.Write(ctx, txn, storage.AddOp, path, map[string]interface{}{}); err != nil {
 		panic(err)
 	}
-	for i := 0; i < n; i++ {
+	for i := range n {
 		input := nodeTemplateInput{
 			Name: fmt.Sprintf("rc%v", i),
 		}
@@ -155,7 +155,7 @@ func setupPods(ctx context.Context, store storage.Store, txn storage.Transaction
 	if err := store.Write(ctx, txn, storage.AddOp, path, map[string]interface{}{}); err != nil {
 		panic(err)
 	}
-	for i := 0; i < n; i++ {
+	for i := range n {
 		input := podTemplateInput{
 			Name:     fmt.Sprintf("pod%v", i),
 			NodeName: fmt.Sprintf("node%v", i%numNodes),

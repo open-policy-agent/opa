@@ -6,7 +6,7 @@ package extension_test
 
 import (
 	"crypto/rand"
-	"fmt"
+	"errors"
 	"reflect"
 	"testing"
 	"testing/fstest"
@@ -17,7 +17,7 @@ import (
 )
 
 func TestLoaderExtensionUnmarshal(t *testing.T) {
-	sentinelErr := fmt.Errorf("test handler called")
+	sentinelErr := errors.New("test handler called")
 	extension.RegisterExtension(".json", func([]byte, any) error {
 		return sentinelErr
 	})

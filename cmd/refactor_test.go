@@ -2,9 +2,9 @@ package cmd
 
 import (
 	"bytes"
+	"maps"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -23,10 +23,10 @@ func TestDoMoveRenamePackage(t *testing.T) {
 			note:         "v0",
 			v0Compatible: true,
 			module: `package lib.foo
-			
+
 				# this is a comment
 				default allow = false
-				
+
 				allow {
 					input.message == "hello"    # this is a comment too
 				}`,
@@ -34,7 +34,7 @@ func TestDoMoveRenamePackage(t *testing.T) {
 
 				# this is a comment
 				default allow = false
-				
+
 				allow {
 					input.message == "hello"    # this is a comment too
 				}`, ast.ParserOptions{RegoVersion: ast.RegoV0}),
@@ -42,10 +42,10 @@ func TestDoMoveRenamePackage(t *testing.T) {
 		{
 			note: "v1",
 			module: `package lib.foo
-			
+
 				# this is a comment
 				default allow = false
-				
+
 				allow if {
 					input.message == "hello"    # this is a comment too
 				}`,
@@ -53,7 +53,7 @@ func TestDoMoveRenamePackage(t *testing.T) {
 
 				# this is a comment
 				default allow = false
-				
+
 				allow if {
 					input.message == "hello"    # this is a comment too
 				}`, ast.ParserOptions{RegoVersion: ast.RegoV1}),
@@ -89,7 +89,7 @@ func TestDoMoveRenamePackage(t *testing.T) {
 					formatted = format.MustAstWithOpts(tc.expected, format.Opts{RegoVersion: ast.RegoV1})
 				}
 
-				if !reflect.DeepEqual(formatted, buf.Bytes()) {
+				if !bytes.Equal(formatted, buf.Bytes()) {
 					t.Fatalf("Expected module:\n%v\n\nGot:\n%v\n", string(formatted), buf.String())
 				}
 			})
@@ -110,7 +110,7 @@ func TestDoMoveOverwriteFile(t *testing.T) {
 			module: `package lib.foo
 
 				import data.x.q
-				
+
 				default allow := false
 
 				allow {
@@ -118,9 +118,9 @@ func TestDoMoveOverwriteFile(t *testing.T) {
 				}
 				`,
 			expected: ast.MustParseModuleWithOpts(`package baz.bar
-	
+
 				import data.hidden.q
-			
+
 				default allow := false
 
 				allow {
@@ -132,7 +132,7 @@ func TestDoMoveOverwriteFile(t *testing.T) {
 			module: `package lib.foo
 
 				import data.x.q
-				
+
 				default allow := false
 
 				allow if {
@@ -140,9 +140,9 @@ func TestDoMoveOverwriteFile(t *testing.T) {
 				}
 				`,
 			expected: ast.MustParseModuleWithOpts(`package baz.bar
-	
+
 				import data.hidden.q
-			
+
 				default allow := false
 
 				allow if {
@@ -202,7 +202,7 @@ func TestParseSrcDstMap(t *testing.T) {
 
 	expected := map[string]string{"data.lib.foo": "data.baz.bar", "data": "data.acme"}
 
-	if !reflect.DeepEqual(actual, expected) {
+	if !maps.Equal(actual, expected) {
 		t.Fatalf("Expected mapping %v but got %v", expected, actual)
 	}
 

@@ -483,7 +483,7 @@ func TestRaw(t *testing.T) {
 		{
 			note: "error",
 			output: Output{
-				Errors: NewOutputErrors(fmt.Errorf("boom")),
+				Errors: NewOutputErrors(errors.New("boom")),
 			},
 			want: "1 error occurred: boom\n",
 		},

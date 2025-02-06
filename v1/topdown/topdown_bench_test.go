@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -24,7 +25,7 @@ import (
 func BenchmarkArrayIteration(b *testing.B) {
 	sizes := []int{10, 100, 1000, 10000}
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			benchmarkIteration(b, test.ArrayIterationBenchmarkModule(n))
 		})
 	}
@@ -36,9 +37,9 @@ func BenchmarkArrayPlugging(b *testing.B) {
 	sizes := []int{10, 100, 1000, 10000}
 
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			data := make([]interface{}, n)
-			for i := 0; i < n; i++ {
+			for i := range n {
 				data[i] = fmt.Sprintf("whatever%d", i)
 			}
 			store := inmem.NewFromObject(map[string]interface{}{"fixture": data})
@@ -53,7 +54,7 @@ func BenchmarkArrayPlugging(b *testing.B) {
 
 			b.ResetTimer()
 
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 
 				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 
@@ -81,7 +82,7 @@ func BenchmarkArrayPlugging(b *testing.B) {
 func BenchmarkSetIteration(b *testing.B) {
 	sizes := []int{10, 100, 1000, 10000}
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			benchmarkIteration(b, test.SetIterationBenchmarkModule(n))
 		})
 	}
@@ -90,7 +91,7 @@ func BenchmarkSetIteration(b *testing.B) {
 func BenchmarkObjectIteration(b *testing.B) {
 	sizes := []int{10, 100, 1000, 10000}
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			benchmarkIteration(b, test.ObjectIterationBenchmarkModule(n))
 		})
 	}
@@ -105,7 +106,7 @@ func benchmarkIteration(b *testing.B, module string) {
 
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 
 		q := NewQuery(query).WithCompiler(compiler)
 		_, err := q.Run(ctx)
@@ -130,7 +131,7 @@ func BenchmarkLargeJSON(b *testing.B) {
 	// Read data.values N times inside query.
 	query := ast.MustParseBody("data.keys[_] = x; data.values = y")
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 
 		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 
@@ -192,15 +193,15 @@ func benchmarkConcurrency(b *testing.B, params []storage.TransactionParams) {
 
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		wg := new(sync.WaitGroup)
 		queriesPerCore := 1000 / len(params)
-		for j := 0; j < len(params); j++ {
+		for j := range params {
 			param := params[j] // capture j'th params before goroutine
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				for k := 0; k < queriesPerCore; k++ {
+				for range queriesPerCore {
 					txn := storage.NewTransactionOrDie(ctx, store, param)
 					query := NewQuery(ast.MustParseBody("data.test.p = x")).
 						WithCompiler(compiler).
@@ -225,10 +226,10 @@ func benchmarkConcurrency(b *testing.B, params []storage.TransactionParams) {
 }
 
 func getParams(nReaders, nWriters int) (sl []storage.TransactionParams) {
-	for i := 0; i < nReaders; i++ {
+	for range nReaders {
 		sl = append(sl, storage.TransactionParams{})
 	}
-	for i := 0; i < nWriters; i++ {
+	for range nWriters {
 		sl = append(sl, storage.WriteParams)
 	}
 	return sl
@@ -291,7 +292,7 @@ func runVirtualDocsBenchmark(b *testing.B, numTotalRules, numHitRules int) {
 
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		b.StopTimer()
 
 		query := NewQuery(query).
@@ -315,7 +316,7 @@ func runVirtualDocsBenchmark(b *testing.B, numTotalRules, numHitRules int) {
 func BenchmarkPartialEval(b *testing.B) {
 	sizes := []int{1, 10, 100, 1000}
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			runPartialEvalBenchmark(b, n)
 		})
 	}
@@ -324,7 +325,7 @@ func BenchmarkPartialEval(b *testing.B) {
 func BenchmarkPartialEvalCompile(b *testing.B) {
 	sizes := []int{1, 10, 100, 1000}
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			runPartialEvalCompileBenchmark(b, n)
 		})
 	}
@@ -395,7 +396,7 @@ func runPartialEvalBenchmark(b *testing.B, numRoles int) {
 			WithTransaction(txn).
 			WithInput(input)
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			qrs, err := query.Run(ctx)
 			if len(qrs) != 1 || err != nil {
 				b.Fatal("Unexpected query result:", qrs, "err:", err)
@@ -418,7 +419,7 @@ func runPartialEvalCompileBenchmark(b *testing.B, numRoles int) {
 
 		b.ResetTimer()
 
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			// compile original policy
 			compiler := ast.NewCompiler()
 			compiler.Compile(map[string]*ast.Module{
@@ -505,7 +506,7 @@ const partialEvalBenchmarkPolicy = `package authz
 func generatePartialEvalBenchmarkData(numRoles int) map[string]interface{} {
 	roles := make([]interface{}, numRoles)
 	bindings := make([]interface{}, numRoles)
-	for i := 0; i < numRoles; i++ {
+	for i := range numRoles {
 		role := map[string]interface{}{
 			"name":      fmt.Sprintf("role-%d", i),
 			"operation": fmt.Sprintf("operation-%d", i),
@@ -554,12 +555,12 @@ func BenchmarkWalk(b *testing.B) {
 	sizes := []int{100, 1000, 2000, 3000}
 
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			data := genWalkBenchmarkData(n)
 			store := inmem.NewFromObject(data)
 			compiler := ast.NewCompiler()
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 					query := ast.MustParseBody(fmt.Sprintf(`walk(data, [["arr", %v], x])`, n-1))
 					compiledQuery, err := compiler.QueryCompiler().Compile(query)
@@ -587,7 +588,7 @@ func BenchmarkWalk(b *testing.B) {
 
 func genWalkBenchmarkData(n int) map[string]interface{} {
 	sl := make([]interface{}, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		sl[i] = i
 	}
 	return map[string]interface{}{
@@ -654,7 +655,7 @@ func BenchmarkComprehensionIndexing(b *testing.B) {
 					b.Fatal(err)
 				}
 				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					err = storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 						m := metrics.New()
 						instr := NewInstrumentation(m)
@@ -689,8 +690,8 @@ func BenchmarkFunctionArgumentIndex(b *testing.B) {
 		})
 		body := ast.MustParseBody(fmt.Sprintf("data.test.f(%d, x)", n))
 
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			for range b.N {
 				q := NewQuery(body).
 					WithCompiler(compiler).
 					WithIndexing(true)
@@ -725,8 +726,8 @@ func moduleWithDefs(n int) string {
 
 func genComprehensionIndexingData(n int) map[string]interface{} {
 	items := map[string]interface{}{}
-	for i := 0; i < n; i++ {
-		items[fmt.Sprint(i)] = fmt.Sprint(i)
+	for i := range n {
+		items[strconv.Itoa(i)] = strconv.Itoa(i)
 	}
 	return map[string]interface{}{"items": items}
 }
@@ -737,14 +738,14 @@ func BenchmarkObjectSubset(b *testing.B) {
 	sizes := []int{10, 100, 1000, 10000}
 
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			all := make(map[string]string)
 			evens := make(map[string]string)
 
-			for i := 0; i < n; i++ {
-				all[fmt.Sprint(i)] = fmt.Sprint(i * 2)
+			for i := range n {
+				all[strconv.Itoa(i)] = strconv.Itoa(i * 2)
 				if i%2 == 0 {
-					evens[fmt.Sprint(i)] = fmt.Sprint(i * 2)
+					evens[strconv.Itoa(i)] = strconv.Itoa(i * 2)
 				}
 			}
 
@@ -760,7 +761,7 @@ func BenchmarkObjectSubset(b *testing.B) {
 
 			b.ResetTimer()
 
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 
 				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 
@@ -794,14 +795,14 @@ func BenchmarkObjectSubsetSlow(b *testing.B) {
 	sizes := []int{10, 100, 1000, 10000}
 
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			all := make(map[string]string)
 			evens := make(map[string]string)
 
-			for i := 0; i < n; i++ {
-				all[fmt.Sprint(i)] = fmt.Sprint(i * 2)
+			for i := range n {
+				all[strconv.Itoa(i)] = strconv.Itoa(i * 2)
 				if i%2 == 0 {
-					evens[fmt.Sprint(i)] = fmt.Sprint(i * 2)
+					evens[strconv.Itoa(i)] = strconv.Itoa(i * 2)
 				}
 			}
 
@@ -827,7 +828,7 @@ func BenchmarkObjectSubsetSlow(b *testing.B) {
 
 			b.ResetTimer()
 
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 
 				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 
@@ -856,7 +857,7 @@ func BenchmarkObjectSubsetSlow(b *testing.B) {
 // containing a random assortment of characters from the given symbols list.
 func randomString(symbols []rune, length int) string {
 	builder := strings.Builder{}
-	for i := 0; i < length; i++ {
+	for range length {
 		builder.WriteRune(symbols[rand.Intn(len(symbols))])
 	}
 	return builder.String()
@@ -884,9 +885,9 @@ func BenchmarkGlob(b *testing.B) {
 	length := 32
 
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			haystack := make([]string, n)
-			for i := 0; i < n; i++ {
+			for i := range n {
 				if i%2 == 0 {
 					haystack[i] = randomString([]rune{'a', 'b', 'c', 'd'}, length)
 				} else {
@@ -917,7 +918,7 @@ func BenchmarkGlob(b *testing.B) {
 
 			b.ResetTimer()
 
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 
 				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 
@@ -956,7 +957,7 @@ func BenchmarkMemberWithKeyFromBaseDoc(b *testing.B) {
 
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 			_, err := NewQuery(query).WithCompiler(compiler).WithStore(store).WithTransaction(txn).Run(ctx)
 			return err
@@ -981,7 +982,7 @@ func BenchmarkObjectGetFromBaseDoc(b *testing.B) {
 
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 			_, err := NewQuery(query).WithCompiler(compiler).WithStore(store).WithTransaction(txn).Run(ctx)
 			return err

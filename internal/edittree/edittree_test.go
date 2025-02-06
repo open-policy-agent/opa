@@ -5,6 +5,7 @@
 package edittree
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -522,7 +523,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "remove", "path": []}`,
 			},
 			source:   `"a"`,
-			expError: fmt.Errorf(`deleted node encountered during delete operation`),
+			expError: errors.New(`deleted node encountered during delete operation`),
 		},
 		// Primitive/Scalar error cases.
 		{
@@ -531,7 +532,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "add", "path": "/a", "value": "example"}`,
 			},
 			source:   `"a"`,
-			expError: fmt.Errorf(`expected composite type, found value: "a" (type: ast.String)`),
+			expError: errors.New(`expected composite type, found value: "a" (type: ast.String)`),
 		},
 		{
 			note: "nested add on primitive number",
@@ -539,7 +540,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "add", "path": "/1", "value": "example"}`,
 			},
 			source:   `2`,
-			expError: fmt.Errorf(`expected composite type, found value: 2 (type: ast.Number)`),
+			expError: errors.New(`expected composite type, found value: 2 (type: ast.Number)`),
 		},
 		{
 			note: "nested remove on primitive string",
@@ -547,7 +548,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "remove", "path": "/a"}`,
 			},
 			source:   `"a"`,
-			expError: fmt.Errorf(`expected composite type, found value: "a" (type: ast.String)`),
+			expError: errors.New(`expected composite type, found value: "a" (type: ast.String)`),
 		},
 		{
 			note: "nested remove on primitive number",
@@ -555,7 +556,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "remove", "path": "/1"}`,
 			},
 			source:   `2`,
-			expError: fmt.Errorf(`expected composite type, found value: 2 (type: ast.Number)`),
+			expError: errors.New(`expected composite type, found value: 2 (type: ast.Number)`),
 		},
 		{
 			note: "nested remove on nested primitive number",
@@ -563,7 +564,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "test", "path": "/a/2/b", "value": 3}`,
 			},
 			source:   `{"a": 2}`,
-			expError: fmt.Errorf(`expected composite type for path "2", found value: 2 (type: ast.Number)`),
+			expError: errors.New(`expected composite type for path "2", found value: 2 (type: ast.Number)`),
 		},
 		// Object error cases.
 		{
@@ -572,7 +573,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "remove", "path": "/b"}`,
 			},
 			source:   `{"a": {}}`,
-			expError: fmt.Errorf(`cannot delete child key "b" that does not exist`),
+			expError: errors.New(`cannot delete child key "b" that does not exist`),
 		},
 		{
 			note: "add on non-existent nested Object path",
@@ -580,7 +581,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "add", "path": "/b/c", "value": "example"}`,
 			},
 			source:   `{"a": {}}`,
-			expError: fmt.Errorf(`path "b" does not exist in object term {"a": {}}`),
+			expError: errors.New(`path "b" does not exist in object term {"a": {}}`),
 		},
 		{
 			note: "remove on non-existent nested Object path",
@@ -588,7 +589,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "remove", "path": "/b/c"}`,
 			},
 			source:   `{"a": {}}`,
-			expError: fmt.Errorf(`path "b" does not exist in object term {"a": {}}`),
+			expError: errors.New(`path "b" does not exist in object term {"a": {}}`),
 		},
 		{
 			note: "delete fails on deleted Object path - scalar",
@@ -597,7 +598,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "remove", "path": "/a"}`,
 			},
 			source:   `{"a": 2}`,
-			expError: fmt.Errorf(`cannot delete the already deleted scalar node for key "a"`),
+			expError: errors.New(`cannot delete the already deleted scalar node for key "a"`),
 		},
 		{
 			note: "delete fails on deleted Object path - composite",
@@ -607,7 +608,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "remove", "path": "/a"}`,
 			},
 			source:   `{}`,
-			expError: fmt.Errorf(`cannot delete the already deleted composite node for key "a"`),
+			expError: errors.New(`cannot delete the already deleted composite node for key "a"`),
 		},
 		{
 			note: "unfold fails on deleted Object path - scalar",
@@ -617,7 +618,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "test", "path": "/a", "value": 2}`,
 			},
 			source:   `{}`,
-			expError: fmt.Errorf(`cannot unfold the already deleted scalar node for key "a"`),
+			expError: errors.New(`cannot unfold the already deleted scalar node for key "a"`),
 		},
 		{
 			note: "unfold fails on deleted Object path - composite",
@@ -627,7 +628,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "test", "path": "/a", "value": 2}`,
 			},
 			source:   `{}`,
-			expError: fmt.Errorf(`cannot unfold the already deleted composite node for key "a"`),
+			expError: errors.New(`cannot unfold the already deleted composite node for key "a"`),
 		},
 		// Array error cases.
 		{
@@ -636,7 +637,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "add", "path": "/2", "value": "example"}`,
 			},
 			source:   `["a"]`,
-			expError: fmt.Errorf(`index for array insertion out of bounds`),
+			expError: errors.New(`index for array insertion out of bounds`),
 		},
 		{
 			note: "remove on non-existent Array path",
@@ -644,7 +645,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "remove", "path": "/2"}`,
 			},
 			source:   `["a"]`,
-			expError: fmt.Errorf(`index for array delete out of bounds`),
+			expError: errors.New(`index for array delete out of bounds`),
 		},
 		{
 			note: "add on non-existent nested Array path",
@@ -652,7 +653,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "add", "path": "/0/2", "value": "example"}`,
 			},
 			source:   `["a", [1, 2]]`,
-			expError: fmt.Errorf(`expected composite type, found value: "a" (type: ast.String)`),
+			expError: errors.New(`expected composite type, found value: "a" (type: ast.String)`),
 		},
 		{
 			note: "remove on non-existent nested Array path",
@@ -660,7 +661,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "remove", "path": "/0/1"}`,
 			},
 			source:   `["a", [1, 2]]`,
-			expError: fmt.Errorf(`expected composite type, found value: "a" (type: ast.String)`),
+			expError: errors.New(`expected composite type, found value: "a" (type: ast.String)`),
 		},
 		{
 			note: "remove on non-integer number Array path - term array",
@@ -668,7 +669,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "remove", "path": [1, 4.3]}`,
 			},
 			source:   `["a", [1, 2]]`,
-			expError: fmt.Errorf(`invalid number type for indexing`),
+			expError: errors.New(`invalid number type for indexing`),
 		},
 		{
 			note: "remove on non-integer number Array path - string",
@@ -676,7 +677,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "remove", "path": "/1/4.3"}`,
 			},
 			source:   `["a", [1, 2]]`,
-			expError: fmt.Errorf(`invalid string for indexing`),
+			expError: errors.New(`invalid string for indexing`),
 		},
 		{
 			note: "remove using number with 0 prefix in Array path",
@@ -684,7 +685,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "remove", "path": "/1/01"}`,
 			},
 			source:   `["a", [1, 2]]`,
-			expError: fmt.Errorf(`leading zeros are not allowed in JSON paths`),
+			expError: errors.New(`leading zeros are not allowed in JSON paths`),
 		},
 		{
 			note: "add with wrong indexing type in Array path",
@@ -692,7 +693,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "add", "path": [1, [0]], "value": 4}`,
 			},
 			source:   `["a", [1, 2]]`,
-			expError: fmt.Errorf(`invalid type for indexing`),
+			expError: errors.New(`invalid type for indexing`),
 		},
 		{
 			note: "test on non-existent nested Array path",
@@ -702,7 +703,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "test", "path": "/1/2", "value": "example"}`,
 			},
 			source:   `[0]`,
-			expError: fmt.Errorf(`expected composite type for path "2", found value: 1 (type: ast.Number)`),
+			expError: errors.New(`expected composite type for path "2", found value: 1 (type: ast.Number)`),
 		},
 		// The "-" index is always one beyond the end of the array, thus the delete case is an error.
 		{
@@ -711,7 +712,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "remove", "path": "-"}`,
 			},
 			source:   `[0, 1, 2]`,
-			expError: fmt.Errorf("index for array delete out of bounds"), // Ref: https://www.rfc-editor.org/rfc/rfc6901, section 4
+			expError: errors.New("index for array delete out of bounds"), // Ref: https://www.rfc-editor.org/rfc/rfc6901, section 4
 		},
 		// Set error cases.
 		{
@@ -720,7 +721,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "remove", "path": "/b"}`,
 			},
 			source:   `{"a"}`,
-			expError: fmt.Errorf(`cannot delete child key "b" that does not exist`),
+			expError: errors.New(`cannot delete child key "b" that does not exist`),
 		},
 		{
 			note: "add on non-existent nested Set path",
@@ -728,7 +729,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "add", "path": [{"a", [2, 1]}, [2, 1], 1], "value": {"a"}}`,
 			},
 			source:   `{"a"}`,
-			expError: fmt.Errorf(`path {"a", [2, 1]} does not exist in set term {"a"}`),
+			expError: errors.New(`path {"a", [2, 1]} does not exist in set term {"a"}`),
 		},
 		{
 			note: "remove on non-existent nested Set path",
@@ -736,7 +737,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "remove", "path": [{"a", [2, 1]}, [2, 1], 0]}`,
 			},
 			source:   `{"a"}`,
-			expError: fmt.Errorf(`path {"a", [2, 1]} does not exist in set term {"a"}`),
+			expError: errors.New(`path {"a", [2, 1]} does not exist in set term {"a"}`),
 		},
 		{
 			note: "insert non-matching key value pair into Set",
@@ -744,7 +745,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "add", "path": ["b"], "value": "c"}`,
 			},
 			source:   `{"a"}`,
-			expError: fmt.Errorf(`set key "b" does not equal value to be inserted "c"`),
+			expError: errors.New(`set key "b" does not equal value to be inserted "c"`),
 		},
 		{
 			note: "delete fails on deleted Set path - scalar",
@@ -753,7 +754,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				`{"op": "remove", "path": "/a"}`,
 			},
 			source:   `{"a"}`,
-			expError: fmt.Errorf(`cannot delete the already deleted scalar node for key "a"`),
+			expError: errors.New(`cannot delete the already deleted scalar node for key "a"`),
 		},
 	}
 
@@ -768,7 +769,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 			err := patches.Iter(func(term *ast.Term) error {
 				object, ok := term.Value.(ast.Object)
 				if !ok {
-					return fmt.Errorf("must be an array of JSON-Patch objects, but at least one element is not an object")
+					return errors.New("must be an array of JSON-Patch objects, but at least one element is not an object")
 				}
 				patch, err := getPatch(object)
 				if err != nil {
@@ -885,7 +886,7 @@ func parsePath(path *ast.Term) (ast.Ref, error) {
 			pathSegments = append(pathSegments, term)
 		})
 	default:
-		return nil, builtins.NewOperandErr(2, "must be one of {set, array} containing string paths or array of path segments but got %v", ast.TypeName(p))
+		return nil, builtins.NewOperandErr(2, "must be one of {set, array} containing string paths or array of path segments but got %v", ast.ValueName(p))
 	}
 
 	return pathSegments, nil
@@ -915,7 +916,7 @@ func getPatch(o ast.Object) (jsonPatch, error) {
 	}
 	op, ok := opTerm.Value.(ast.String)
 	if !ok {
-		return out, fmt.Errorf("attribute 'op' must be a string")
+		return out, errors.New("attribute 'op' must be a string")
 	}
 	out.op = string(op)
 

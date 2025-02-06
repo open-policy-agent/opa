@@ -185,7 +185,9 @@ func (db *store) Truncate(ctx context.Context, txn storage.Transaction, params s
 		}
 	}
 
-	if err != nil && err != io.EOF {
+	// err is known not to be nil at this point, as it getting assigned
+	// a non-nil value is the only way the loop above can exit.
+	if err != io.EOF {
 		return err
 	}
 
@@ -442,7 +444,7 @@ func lookup(path storage.Path, data map[string]interface{}) (interface{}, bool) 
 	if len(path) == 0 {
 		return data, true
 	}
-	for i := 0; i < len(path)-1; i++ {
+	for i := range len(path) - 1 {
 		value, ok := data[path[i]]
 		if !ok {
 			return nil, false

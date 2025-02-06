@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"slices"
 	"strings"
 )
 
@@ -18,8 +19,33 @@ func CheckPathConflicts(c *Compiler, exists func([]string) (bool, error)) Errors
 		return nil
 	}
 
-	for _, node := range root.Children {
-		errs = append(errs, checkDocumentConflicts(node, exists, nil)...)
+	if len(c.pathConflictCheckRoots) == 0 || slices.Contains(c.pathConflictCheckRoots, "") {
+		for _, child := range root.Children {
+			errs = append(errs, checkDocumentConflicts(child, exists, nil)...)
+		}
+		return errs
+	}
+
+	for _, rootPath := range c.pathConflictCheckRoots {
+		// traverse AST from `path` to go to the new root
+		paths := strings.Split(rootPath, "/")
+		node := root
+		for _, key := range paths {
+			node = node.Child(String(key))
+			if node == nil {
+				break
+			}
+		}
+
+		if node == nil {
+			// could not find the node from the AST (e.g. `path` is from a data file)
+			// then no conflict is possible
+			continue
+		}
+
+		for _, child := range node.Children {
+			errs = append(errs, checkDocumentConflicts(child, exists, paths)...)
+		}
 	}
 
 	return errs

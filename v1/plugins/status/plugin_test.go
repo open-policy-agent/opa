@@ -6,7 +6,9 @@ package status
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -251,7 +253,7 @@ func getConstLabels(gauge prometheus.Gauge) prometheus.Labels {
 
 	// put all label pairs into a map for easier comparison.
 	labels := make(prometheus.Labels, constLabelPairs.Len())
-	for i := 0; i < constLabelPairs.Len(); i++ {
+	for i := range constLabelPairs.Len() {
 		name := constLabelPairs.Index(i).Elem().FieldByName("Name").Elem().String()
 		value := constLabelPairs.Index(i).Elem().FieldByName("Value").Elem().String()
 		labels[name] = value
@@ -333,7 +335,7 @@ func TestPluginStart(t *testing.T) {
 		},
 	}
 
-	if !reflect.DeepEqual(result, exp) {
+	if !result.Equal(exp) {
 		t.Fatalf("Expected: %v but got: %v", exp, result)
 	}
 
@@ -344,7 +346,7 @@ func TestPluginStart(t *testing.T) {
 
 	exp.Bundles = map[string]*bundle.Status{"test": status}
 
-	if !reflect.DeepEqual(result, exp) {
+	if !result.Equal(exp) {
 		t.Fatalf("Expected: %v but got: %v", exp, result)
 	}
 }
@@ -416,7 +418,7 @@ func TestPluginStartTriggerManual(t *testing.T) {
 		},
 	}
 
-	if !reflect.DeepEqual(result.Labels, exp.Labels) {
+	if !maps.Equal(result.Labels, exp.Labels) {
 		t.Fatalf("Expected: %v but got: %v", exp, result)
 	}
 
@@ -433,7 +435,7 @@ func TestPluginStartTriggerManual(t *testing.T) {
 
 	exp.Bundles = map[string]*bundle.Status{"test": status}
 
-	if !reflect.DeepEqual(result.Bundles, exp.Bundles) {
+	if !maps.EqualFunc(result.Bundles, exp.Bundles, (*bundle.Status).Equal) {
 		t.Fatalf("Expected: %v but got: %v", exp, result)
 	}
 }
@@ -479,7 +481,7 @@ func TestPluginStartTriggerManualMultiple(t *testing.T) {
 	exp.Bundles = map[string]*bundle.Status{"test": status}
 	exp.Discovery = status
 
-	if !reflect.DeepEqual(result, exp) {
+	if !result.Equal(exp) {
 		t.Fatalf("Expected: %v but got: %v", exp, result)
 	}
 }
@@ -631,7 +633,7 @@ func TestPluginStartBulkUpdate(t *testing.T) {
 
 	exp.Bundles = map[string]*bundle.Status{status.Name: status}
 
-	if !reflect.DeepEqual(result, exp) {
+	if !result.Equal(exp) {
 		t.Fatalf("Expected: %v but got: %v", exp, result)
 	}
 }
@@ -656,7 +658,7 @@ func TestPluginStartBulkUpdateMultiple(t *testing.T) {
 	statuses := map[string]*bundle.Status{}
 	tDownload, _ := time.Parse(time.RFC3339Nano, "2018-01-01T00:00:00.0000000Z")
 	tActivate, _ := time.Parse(time.RFC3339Nano, "2018-01-01T00:00:01.0000000Z")
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		name := fmt.Sprintf("test-bundle-%d", i)
 		statuses[name] = &bundle.Status{
 			Name:                     name,
@@ -675,7 +677,7 @@ func TestPluginStartBulkUpdateMultiple(t *testing.T) {
 		"version": version.Version,
 	}
 
-	if !reflect.DeepEqual(result.Labels, expLabels) {
+	if !maps.Equal(result.Labels, expLabels) {
 		t.Fatalf("Unexpected status labels: %+v", result.Labels)
 	}
 
@@ -728,7 +730,7 @@ func TestPluginStartDiscovery(t *testing.T) {
 		},
 	}
 
-	if !reflect.DeepEqual(result, exp) {
+	if !result.Equal(exp) {
 		t.Fatalf("Expected: %+v but got: %+v", exp, result)
 	}
 }
@@ -771,7 +773,7 @@ func TestPluginStartDecisionLogs(t *testing.T) {
 		},
 	}
 
-	if !reflect.DeepEqual(result, exp) {
+	if !result.Equal(exp) {
 		t.Fatalf("Expected: %+v but got: %+v", exp, result)
 	}
 }
@@ -1001,14 +1003,14 @@ func TestParseConfigTriggerMode(t *testing.T) {
 			config:   []byte(`{"trigger": "manual"}`),
 			expected: plugins.TriggerPeriodic,
 			wantErr:  true,
-			err:      fmt.Errorf("invalid status config: trigger mode mismatch: periodic and manual (hint: check discovery configuration)"),
+			err:      errors.New("invalid status config: trigger mode mismatch: periodic and manual (hint: check discovery configuration)"),
 		},
 		{
 			note:     "bad trigger mode",
 			config:   []byte(`{"trigger": "foo"}`),
 			expected: "foo",
 			wantErr:  true,
-			err:      fmt.Errorf("invalid status config: invalid trigger mode \"foo\" (want \"periodic\" or \"manual\")"),
+			err:      errors.New("invalid status config: invalid trigger mode \"foo\" (want \"periodic\" or \"manual\")"),
 		},
 	}
 

@@ -7,6 +7,7 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -243,7 +244,7 @@ func removeCryptoKeys(x interface{}) error {
 func removeKey(x interface{}, keys ...string) error {
 	val, ok := x.(map[string]interface{})
 	if !ok {
-		return fmt.Errorf("type assertion error")
+		return errors.New("type assertion error")
 	}
 
 	for _, key := range keys {

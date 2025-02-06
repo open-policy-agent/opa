@@ -114,7 +114,7 @@ func newUpdateArrayAST(data *ast.Array, op storage.PatchOp, path storage.Path, i
 		switch op {
 		case storage.AddOp:
 			var results []*ast.Term
-			for i := 0; i < data.Len(); i++ {
+			for i := range data.Len() {
 				if i == pos {
 					results = append(results, ast.NewTerm(value))
 				}
@@ -125,7 +125,7 @@ func newUpdateArrayAST(data *ast.Array, op storage.PatchOp, path storage.Path, i
 
 		case storage.RemoveOp:
 			var results []*ast.Term
-			for i := 0; i < data.Len(); i++ {
+			for i := range data.Len() {
 				if i != pos {
 					results = append(results, data.Elem(i))
 				}
@@ -134,7 +134,7 @@ func newUpdateArrayAST(data *ast.Array, op storage.PatchOp, path storage.Path, i
 
 		default:
 			var results []*ast.Term
-			for i := 0; i < data.Len(); i++ {
+			for i := range data.Len() {
 				if i == pos {
 					results = append(results, ast.NewTerm(value))
 				} else {
@@ -296,7 +296,7 @@ func removeInAstArray(arr *ast.Array, path storage.Path) (ast.Value, error) {
 	if len(path) == 1 {
 		var elems []*ast.Term
 		// Note: possibly expensive operation for large data.
-		for i := 0; i < arr.Len(); i++ {
+		for i := range arr.Len() {
 			if i == idx {
 				continue
 			}

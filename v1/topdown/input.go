@@ -5,12 +5,12 @@
 package topdown
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 )
 
-var errBadPath = fmt.Errorf("bad document path")
+var errBadPath = errors.New("bad document path")
 
 func mergeTermWithValues(exist *ast.Term, pairs [][2]*ast.Term) (*ast.Term, error) {
 

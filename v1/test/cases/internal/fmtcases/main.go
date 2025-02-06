@@ -115,7 +115,7 @@ func copyEntry(sourceRoot string, sourceRegoVersion ast.RegoVersion, e os.DirEnt
 			return err
 		}
 
-		text := fmt.Sprintf("---\n%s", buf.String())
+		text := "---\n" + buf.String()
 		if err := os.WriteFile(targetPath, []byte(text), i.Mode()); err != nil {
 			return err
 		}

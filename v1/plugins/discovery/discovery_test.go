@@ -10,7 +10,9 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -619,7 +621,7 @@ func TestOneShotWithBundlePersistence(t *testing.T) {
 	ensurePluginState(t, disco, plugins.StateNotReady)
 
 	// simulate a bundle download error with no bundle on disk
-	disco.oneShot(ctx, download.Update{Error: fmt.Errorf("unknown error")})
+	disco.oneShot(ctx, download.Update{Error: errors.New("unknown error")})
 
 	if disco.status.Message == "" {
 		t.Fatal("expected error but got none")
@@ -955,7 +957,7 @@ import future.keywords
 labels.x := "label value changed"
 default_decision := "bar/baz"
 default_authorization_decision := "baz/qux"
-plugins.test_plugin := v if { 
+plugins.test_plugin := v if {
 	v := {"a": "b"}
 }
 services.acmecorp.url := v if {
@@ -974,7 +976,7 @@ bundles.authz.service := v if {
 labels.x := "label value changed"
 default_decision := "bar/baz"
 default_authorization_decision := "baz/qux"
-plugins.test_plugin := v if { 
+plugins.test_plugin := v if {
 	v := {"a": "b"}
 }
 services.acmecorp.url := v if {
@@ -1082,7 +1084,7 @@ func TestLoadAndActivateBundleFromDiskWithBundleRegoVersion(t *testing.T) {
 labels.x := "label value changed"
 default_decision := "bar/baz"
 default_authorization_decision := "baz/qux"
-plugins.test_plugin := v { 
+plugins.test_plugin := v {
 	v := {"a": "b"}
 }
 
@@ -1104,7 +1106,7 @@ bundles.authz.service := v {
 labels.x := "label value changed"
 default_decision := "bar/baz"
 default_authorization_decision := "baz/qux"
-plugins.test_plugin := v { 
+plugins.test_plugin := v {
 	v := {"a": "b"}
 }`},
 				"policy2.rego": {1, `package config
@@ -1127,7 +1129,7 @@ bundles.authz.service := v if {
 labels.x := "label value changed"
 default_decision := "bar/baz"
 default_authorization_decision := "baz/qux"
-plugins.test_plugin := v if { 
+plugins.test_plugin := v if {
 	v := {"a": "b"}
 }
 services.acmecorp.url := v if {
@@ -1147,7 +1149,7 @@ bundles.authz.service := v if {
 labels.x := "label value changed"
 default_decision := "bar/baz"
 default_authorization_decision := "baz/qux"
-plugins.test_plugin := v { 
+plugins.test_plugin := v {
 	v := {"a": "b"}
 }`},
 				"policy2.rego": {-1, `package config
@@ -1403,7 +1405,7 @@ func TestReconfigure(t *testing.T) {
 
 	// Verify labels are unchanged but allow additions
 	exp := map[string]string{"x": "y", "y": "new label", "id": "test-id", "version": version.Version}
-	if !reflect.DeepEqual(manager.Labels(), exp) {
+	if !maps.Equal(manager.Labels(), exp) {
 		t.Errorf("Expected labels to be unchanged (%v) but got %v", exp, manager.Labels())
 	}
 
@@ -1418,7 +1420,7 @@ func TestReconfigure(t *testing.T) {
 	}
 
 	// Verify plugins started
-	if !reflect.DeepEqual(testPlugin.counts, map[string]int{"start": 1}) {
+	if !maps.Equal(testPlugin.counts, map[string]int{"start": 1}) {
 		t.Errorf("Expected exactly one plugin start but got %v", testPlugin)
 	}
 
@@ -1440,7 +1442,7 @@ func TestReconfigure(t *testing.T) {
 
 	// Verify label additions are always on top of bootstrap config with multiple discovery documents
 	exp = map[string]string{"x": "y", "z": "another added label", "id": "test-id", "version": version.Version}
-	if !reflect.DeepEqual(manager.Labels(), exp) {
+	if !maps.Equal(manager.Labels(), exp) {
 		t.Errorf("Expected labels to be unchanged (%v) but got %v", exp, manager.Labels())
 	}
 
@@ -1450,7 +1452,7 @@ func TestReconfigure(t *testing.T) {
 		t.Fatalf("expected snapshot bundle but got %v", disco.status.Type)
 	}
 
-	if !reflect.DeepEqual(testPlugin.counts, map[string]int{"start": 1, "reconfig": 1}) {
+	if !maps.Equal(testPlugin.counts, map[string]int{"start": 1, "reconfig": 1}) {
 		t.Errorf("Expected one plugin start and one reconfig but got %v", testPlugin)
 	}
 }
@@ -1505,7 +1507,7 @@ plugins.test_plugin := v if {
 
 	// Verify labels are unchanged but allow additions
 	exp := map[string]string{"x": "y", "y": "new label", "id": "test-id", "version": version.Version}
-	if !reflect.DeepEqual(manager.Labels(), exp) {
+	if !maps.Equal(manager.Labels(), exp) {
 		t.Errorf("Expected labels to be unchanged (%v) but got %v", exp, manager.Labels())
 	}
 
@@ -1520,7 +1522,7 @@ plugins.test_plugin := v if {
 	}
 
 	// Verify plugins started
-	if !reflect.DeepEqual(testPlugin.counts, map[string]int{"start": 1}) {
+	if !maps.Equal(testPlugin.counts, map[string]int{"start": 1}) {
 		t.Errorf("Expected exactly one plugin start but got %v", testPlugin)
 	}
 
@@ -1539,7 +1541,7 @@ plugins.test_plugin := v if {
 
 	// Verify label additions are always on top of bootstrap config with multiple discovery documents
 	exp = map[string]string{"x": "y", "z": "another added label", "id": "test-id", "version": version.Version}
-	if !reflect.DeepEqual(manager.Labels(), exp) {
+	if !maps.Equal(manager.Labels(), exp) {
 		t.Errorf("Expected labels to be unchanged (%v) but got %v", exp, manager.Labels())
 	}
 
@@ -1549,7 +1551,7 @@ plugins.test_plugin := v if {
 		t.Fatalf("expected snapshot bundle but got %v", disco.status.Type)
 	}
 
-	if !reflect.DeepEqual(testPlugin.counts, map[string]int{"start": 1, "reconfig": 1}) {
+	if !maps.Equal(testPlugin.counts, map[string]int{"start": 1, "reconfig": 1}) {
 		t.Errorf("Expected one plugin start and one reconfig but got %v", testPlugin)
 	}
 
@@ -1646,7 +1648,7 @@ plugins.test_plugin := v if {
 
 	// Verify labels are unchanged but allow additions
 	exp := map[string]string{"x": "y", "y": "new label", "id": "test-id", "version": version.Version}
-	if !reflect.DeepEqual(manager.Labels(), exp) {
+	if !maps.Equal(manager.Labels(), exp) {
 		t.Errorf("Expected labels to be unchanged (%v) but got %v", exp, manager.Labels())
 	}
 
@@ -1661,7 +1663,7 @@ plugins.test_plugin := v if {
 	}
 
 	// Verify plugins started
-	if !reflect.DeepEqual(testPlugin.counts, map[string]int{"start": 1}) {
+	if !maps.Equal(testPlugin.counts, map[string]int{"start": 1}) {
 		t.Errorf("Expected exactly one plugin start but got %v", testPlugin)
 	}
 
@@ -1680,7 +1682,7 @@ plugins.test_plugin := v if {
 
 	// Verify label additions are always on top of bootstrap config with multiple discovery documents
 	exp = map[string]string{"x": "y", "z": "another added label", "id": "test-id", "version": version.Version}
-	if !reflect.DeepEqual(manager.Labels(), exp) {
+	if !maps.Equal(manager.Labels(), exp) {
 		t.Errorf("Expected labels to be unchanged (%v) but got %v", exp, manager.Labels())
 	}
 
@@ -1690,7 +1692,7 @@ plugins.test_plugin := v if {
 		t.Fatalf("expected snapshot bundle but got %v", disco.status.Type)
 	}
 
-	if !reflect.DeepEqual(testPlugin.counts, map[string]int{"start": 1, "reconfig": 1}) {
+	if !maps.Equal(testPlugin.counts, map[string]int{"start": 1, "reconfig": 1}) {
 		t.Errorf("Expected one plugin start and one reconfig but got %v", testPlugin)
 	}
 }
@@ -1716,7 +1718,14 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
         "decision_logs": {"console": true},
         "nd_builtin_cache": false,
         "distributed_tracing": {"type": "grpc"},
-        "caching": {"inter_query_builtin_cache": {"max_size_bytes": 10000000, "forced_eviction_threshold_percentage": 90}}
+        "caching": {
+			"inter_query_builtin_cache": {"max_size_bytes": 10000000, "forced_eviction_threshold_percentage": 90},
+			"inter_query_builtin_value_cache": {
+				"named": {
+					"io_jwt": {"max_num_entries": 55}
+				} 
+			}
+		}
 	}`)
 
 	manager, err := plugins.New(bootConfigRaw, "test-id", inmem.New())
@@ -1753,7 +1762,7 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 	}
 
 	exp := map[string]string{"x": "y", "y": "new label", "id": "test-id", "version": version.Version}
-	if !reflect.DeepEqual(manager.Labels(), exp) {
+	if !maps.Equal(manager.Labels(), exp) {
 		t.Errorf("Expected labels (%v) but got %v", exp, manager.Labels())
 	}
 
@@ -1876,7 +1885,14 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 	serviceBundle = makeDataBundle(7, `
 		{
 			"config": {
-				"caching": {"inter_query_builtin_cache": {"max_size_bytes": 200, "stale_entry_eviction_period_seconds": 10, "forced_eviction_threshold_percentage": 200}}
+				"caching": {
+					"inter_query_builtin_cache": {"max_size_bytes": 200, "stale_entry_eviction_period_seconds": 10, "forced_eviction_threshold_percentage": 200},
+					"inter_query_builtin_value_cache": {
+						"named": {
+							"io_jwt": {"max_num_entries": 10}
+						} 
+					}
+				}
 			}
 		}
 	`)
@@ -1887,7 +1903,11 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 		t.Fatal("Expected to find status, found nil")
 	}
 
-	expectedOverriddenKeys := []string{"caching.inter_query_builtin_cache.max_size_bytes", "caching.inter_query_builtin_cache.forced_eviction_threshold_percentage"}
+	expectedOverriddenKeys := []string{
+		"caching.inter_query_builtin_cache.max_size_bytes",
+		"caching.inter_query_builtin_cache.forced_eviction_threshold_percentage",
+		"caching.inter_query_builtin_value_cache.named.io_jwt.max_num_entries",
+	}
 	for _, k := range expectedOverriddenKeys {
 		if !strings.Contains(disco.status.Message, k) {
 			t.Fatalf("expected key \"%v\" to be overridden", k)
@@ -1907,9 +1927,24 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 	*threshold = 90
 	maxNumEntriesInterQueryValueCache := new(int)
 	*maxNumEntriesInterQueryValueCache = 0
+	maxNumEntriesJWTValueCache := new(int)
+	*maxNumEntriesJWTValueCache = 55
 
-	expectedCacheConf := &cache.Config{InterQueryBuiltinCache: cache.InterQueryBuiltinCacheConfig{MaxSizeBytes: maxSize, StaleEntryEvictionPeriodSeconds: period, ForcedEvictionThresholdPercentage: threshold},
-		InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{MaxNumEntries: maxNumEntriesInterQueryValueCache}}
+	expectedCacheConf := &cache.Config{
+		InterQueryBuiltinCache: cache.InterQueryBuiltinCacheConfig{
+			MaxSizeBytes:                      maxSize,
+			StaleEntryEvictionPeriodSeconds:   period,
+			ForcedEvictionThresholdPercentage: threshold,
+		},
+		InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
+			MaxNumEntries: maxNumEntriesInterQueryValueCache,
+			NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
+				"io_jwt": {
+					MaxNumEntries: maxNumEntriesJWTValueCache,
+				},
+			},
+		},
+	}
 
 	if !reflect.DeepEqual(cacheConf, expectedCacheConf) {
 		t.Fatalf("want %v got %v", expectedCacheConf, cacheConf)
@@ -2703,7 +2738,7 @@ func TestStatusUpdates(t *testing.T) {
 	}`)})
 
 	// Downloader error.
-	disco.oneShot(ctx, download.Update{Error: fmt.Errorf("unknown error")})
+	disco.oneShot(ctx, download.Update{Error: errors.New("unknown error")})
 
 	// Clear error.
 	disco.oneShot(ctx, download.Update{ETag: "etag-2", Bundle: makeDataBundle(2, `{
@@ -2851,7 +2886,7 @@ func TestStatusUpdatesFromPersistedBundlesDontDelayBoot(t *testing.T) {
 	defer listener.Close()
 
 	manager, err := plugins.New([]byte(fmt.Sprintf(`{
-            "persistence_directory": %q, 
+            "persistence_directory": %q,
 			"services": {
 				"localhost": {
 					"url": "http://%s"
@@ -2960,7 +2995,7 @@ func TestStatusUpdatesTimestamp(t *testing.T) {
 	}
 
 	// simulate error response from downloader
-	disco.oneShot(ctx, download.Update{Error: fmt.Errorf("unknown error")})
+	disco.oneShot(ctx, download.Update{Error: errors.New("unknown error")})
 
 	if disco.status.LastSuccessfulDownload != disco.status.LastSuccessfulRequest || disco.status.LastSuccessfulDownload == disco.status.LastRequest {
 		t.Fatal("expected last successful request to be same as download but different from request")
@@ -3285,7 +3320,7 @@ bundles:
 			confGood, false, nil,
 		},
 		"trigger_mode_mismatch": {
-			confBad, true, fmt.Errorf("invalid configuration for bundle \"bundle-new\": trigger mode mismatch: manual and periodic (hint: check discovery configuration)"),
+			confBad, true, errors.New("invalid configuration for bundle \"bundle-new\": trigger mode mismatch: manual and periodic (hint: check discovery configuration)"),
 		},
 	}
 
@@ -3352,7 +3387,7 @@ decision_logs:
 			confGood, false, nil,
 		},
 		"trigger_mode_mismatch": {
-			confBad, true, fmt.Errorf("invalid decision_log config: trigger mode mismatch: manual and periodic (hint: check discovery configuration)"),
+			confBad, true, errors.New("invalid decision_log config: trigger mode mismatch: manual and periodic (hint: check discovery configuration)"),
 		},
 	}
 
@@ -3425,7 +3460,7 @@ status:
 			confGood, false, nil,
 		},
 		"trigger_mode_mismatch": {
-			confBad, true, fmt.Errorf("invalid status config: trigger mode mismatch: manual and periodic (hint: check discovery configuration)"),
+			confBad, true, errors.New("invalid status config: trigger mode mismatch: manual and periodic (hint: check discovery configuration)"),
 		},
 	}
 
@@ -3803,7 +3838,7 @@ func TestListeners(t *testing.T) {
 	})
 
 	// simulate a bundle download error
-	disco.oneShot(ctx, download.Update{Error: fmt.Errorf("unknown error")})
+	disco.oneShot(ctx, download.Update{Error: errors.New("unknown error")})
 
 	if status == nil {
 		t.Fatalf("Expected discovery listener to receive status but was nil")
@@ -3813,7 +3848,7 @@ func TestListeners(t *testing.T) {
 	disco.Unregister("testlistener")
 
 	// simulate a bundle download error
-	disco.oneShot(ctx, download.Update{Error: fmt.Errorf("unknown error")})
+	disco.oneShot(ctx, download.Update{Error: errors.New("unknown error")})
 	if status != nil {
 		t.Fatalf("Expected discovery listener to be removed but received %v", status)
 	}

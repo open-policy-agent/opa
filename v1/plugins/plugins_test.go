@@ -7,11 +7,12 @@ package plugins
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"slices"
 	"testing"
 	"time"
 
@@ -326,7 +327,7 @@ func TestManagerWithOPATelemetryUpdateLoop(t *testing.T) {
 				t.Fatalf("Expected number of server calls: %+v but got: %+v", exp, len(versions))
 			}
 
-			if !reflect.DeepEqual(tc.exp, versions) {
+			if !slices.Equal(tc.exp, versions) {
 				t.Fatalf("Expected OPA versions: %+v but got: %+v", tc.exp, versions)
 			}
 		})
@@ -480,7 +481,7 @@ func (m *mockForInitStartOrdering) Start(_ context.Context) error {
 	if m.Manager.initialized {
 		return nil
 	}
-	return fmt.Errorf("expected manager to be initialized")
+	return errors.New("expected manager to be initialized")
 }
 
 func (*mockForInitStartOrdering) Stop(context.Context)                     {}

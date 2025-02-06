@@ -93,7 +93,7 @@ func TestPretty(t *testing.T) {
 			minLines = len(expectedLines)
 		}
 
-		for i := 0; i < minLines; i++ {
+		for i := range minLines {
 			if resultLines[i] != expectedLines[i] {
 				t.Fatalf("Expected line %d to be:\n\n%q\n\nGot:\n\n%q", i, expectedLines[i], resultLines[i])
 			}

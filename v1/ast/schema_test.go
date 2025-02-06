@@ -166,7 +166,7 @@ func TestAllOfSchemas(t *testing.T) {
 	emptyExpectedType := types.A
 
 	//Tests 5 & 6: schema with array of arrays,  object and array as siblings
-	expectedError := fmt.Errorf("unable to merge these schemas")
+	expectedError := errors.New("unable to merge these schemas")
 
 	//Test 7: array of objects
 	arrayOfObjectsStaticProps := []*types.StaticProperty{}
@@ -697,27 +697,27 @@ func TestCompilerCheckTypesWithAllOfSchema(t *testing.T) {
 		{
 			note:          "allOf schema with unmergeable Array of Arrays",
 			schema:        allOfArrayOfArrays,
-			expectedError: fmt.Errorf("unable to merge these schemas"),
+			expectedError: errors.New("unable to merge these schemas"),
 		},
 		{
 			note:          "allOf schema with Array and Object types as siblings",
 			schema:        allOfObjectAndArray,
-			expectedError: fmt.Errorf("unable to merge these schemas"),
+			expectedError: errors.New("unable to merge these schemas"),
 		},
 		{
 			note:          "allOf schema with Array type that contains different unmergeable types",
 			schema:        allOfArrayDifTypesWithError,
-			expectedError: fmt.Errorf("unable to merge these schemas"),
+			expectedError: errors.New("unable to merge these schemas"),
 		},
 		{
 			note:          "allOf schema with different unmergeable types",
 			schema:        allOfTypeErrorSchema,
-			expectedError: fmt.Errorf("unable to merge these schemas"),
+			expectedError: errors.New("unable to merge these schemas"),
 		},
 		{
 			note:          "allOf unmergeable schema with different parent and items types",
 			schema:        allOfSchemaWithParentError,
-			expectedError: fmt.Errorf("unable to merge these schemas"),
+			expectedError: errors.New("unable to merge these schemas"),
 		},
 		{
 			note:          "allOf schema of Array type with uneven numbers of items to merge",
@@ -727,7 +727,7 @@ func TestCompilerCheckTypesWithAllOfSchema(t *testing.T) {
 		{
 			note:          "allOf schema with unmergeable types String and Boolean",
 			schema:        allOfStringSchemaWithError,
-			expectedError: fmt.Errorf("unable to merge these schemas"),
+			expectedError: errors.New("unable to merge these schemas"),
 		},
 	}
 

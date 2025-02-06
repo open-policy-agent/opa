@@ -7,6 +7,7 @@ package ast
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -150,7 +151,6 @@ type ParserOptions struct {
 	AllFutureKeywords bool
 	FutureKeywords    []string
 	SkipRules         bool
-	JSONOptions       *astJSON.Options
 	// RegoVersion is the version of Rego to parse for.
 	RegoVersion        RegoVersion
 	unreleasedKeywords bool // TODO(sr): cleanup
@@ -237,10 +237,11 @@ func (p *Parser) WithSkipRules(skip bool) *Parser {
 	return p
 }
 
-// WithJSONOptions sets the Options which will be set on nodes to configure
-// their JSON marshaling behavior.
-func (p *Parser) WithJSONOptions(jsonOptions *astJSON.Options) *Parser {
-	p.po.JSONOptions = jsonOptions
+// WithJSONOptions sets the JSON options on the parser (now a no-op).
+//
+// Deprecated: Use SetOptions in the json package instead, where a longer description
+// of why this is deprecated also can be found.
+func (p *Parser) WithJSONOptions(_ *astJSON.Options) *Parser {
 	return p
 }
 
@@ -494,19 +495,6 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		stmts = p.parseAnnotations(stmts)
 	}
 
-	if p.po.JSONOptions != nil {
-		for i := range stmts {
-			vis := NewGenericVisitor(func(x interface{}) bool {
-				if x, ok := x.(customJSON); ok {
-					x.setJSONOptions(*p.po.JSONOptions)
-				}
-				return false
-			})
-
-			vis.Walk(stmts[i])
-		}
-	}
-
 	return stmts, p.s.comments, p.s.errors
 }
 
@@ -530,7 +518,7 @@ func parseAnnotations(comments []*Comment) ([]*Annotations, Errors) {
 	var curr *metadataParser
 	var blocks []*metadataParser
 
-	for i := 0; i < len(comments); i++ {
+	for i := range comments {
 		if curr != nil {
 			if comments[i].Location.Row == comments[i-1].Location.Row+1 && comments[i].Location.Col == 1 {
 				curr.Append(comments[i])
@@ -591,7 +579,7 @@ func (p *Parser) parsePackage() *Package {
 			pkg.Path[0] = DefaultRootDocument.Copy().SetLocation(v[0].Location)
 			first, ok := v[0].Value.(Var)
 			if !ok {
-				p.errorf(v[0].Location, "unexpected %v token: expecting var", TypeName(v[0].Value))
+				p.errorf(v[0].Location, "unexpected %v token: expecting var", ValueName(v[0].Value))
 				return nil
 			}
 			pkg.Path[1] = StringTerm(string(first)).SetLocation(v[0].Location)
@@ -600,7 +588,7 @@ func (p *Parser) parsePackage() *Package {
 				case String:
 					pkg.Path[i] = v[i-1]
 				default:
-					p.errorf(v[i-1].Location, "unexpected %v token: expecting string", TypeName(v[i-1].Value))
+					p.errorf(v[i-1].Location, "unexpected %v token: expecting string", ValueName(v[i-1].Value))
 					return nil
 				}
 			}
@@ -643,7 +631,7 @@ func (p *Parser) parseImport() *Import {
 		case Ref:
 			for i := 1; i < len(v); i++ {
 				if _, ok := v[i].Value.(String); !ok {
-					p.errorf(v[i].Location, "unexpected %v token: expecting string", TypeName(v[i].Value))
+					p.errorf(v[i].Location, "unexpected %v token: expecting string", ValueName(v[i].Value))
 					return nil
 				}
 			}
@@ -973,9 +961,8 @@ func (p *Parser) parseHead(defaultRule bool) (*Head, bool) {
 
 	switch x := ref.Value.(type) {
 	case Var:
-		// Modify the code to add the location to the head ref
-		// and set the head ref's jsonOptions.
-		head = VarHead(x, ref.Location, p.po.JSONOptions)
+		// TODO
+		head = VarHead(x, ref.Location, nil)
 	case Ref:
 		head = RefHead(x)
 	case Call:
@@ -1719,7 +1706,7 @@ func (p *Parser) parseRef(head *Term, offset int) (term *Term) {
 	case Var, *Array, Object, Set, *ArrayComprehension, *ObjectComprehension, *SetComprehension, Call:
 		// ok
 	default:
-		p.errorf(loc, "illegal ref (head cannot be %v)", TypeName(h))
+		p.errorf(loc, "illegal ref (head cannot be %v)", ValueName(h))
 	}
 
 	ref := []*Term{head}
@@ -2320,7 +2307,7 @@ func (p *Parser) validateDefaultRuleArgs(rule *Rule) bool {
 			switch v := x.Value.(type) {
 			case Var: // do nothing
 			default:
-				p.error(rule.Loc(), fmt.Sprintf("illegal default rule (arguments cannot contain %v)", TypeName(v)))
+				p.error(rule.Loc(), fmt.Sprintf("illegal default rule (arguments cannot contain %v)", ValueName(v)))
 				valid = false
 				return true
 			}
@@ -2370,7 +2357,7 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 	var raw rawAnnotation
 
 	if len(bytes.TrimSpace(b.buf.Bytes())) == 0 {
-		return nil, fmt.Errorf("expected METADATA block, found whitespace")
+		return nil, errors.New("expected METADATA block, found whitespace")
 	}
 
 	if err := yaml.Unmarshal(b.buf.Bytes(), &raw); err != nil {
@@ -2419,7 +2406,7 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 
 		a.Path, err = ParseRef(k)
 		if err != nil {
-			return nil, fmt.Errorf("invalid document reference")
+			return nil, errors.New("invalid document reference")
 		}
 
 		switch v := v.(type) {
@@ -2519,7 +2506,7 @@ func unwrapPair(pair map[string]interface{}) (string, interface{}) {
 	return "", nil
 }
 
-var errInvalidSchemaRef = fmt.Errorf("invalid schema reference")
+var errInvalidSchemaRef = errors.New("invalid schema reference")
 
 // NOTE(tsandall): 'schema' is not registered as a root because it's not
 // supported by the compiler or evaluator today. Once we fix that, we can remove
@@ -2558,7 +2545,7 @@ func parseRelatedResource(rr interface{}) (*RelatedResourceAnnotation, error) {
 			}
 			return &RelatedResourceAnnotation{Ref: *u}, nil
 		}
-		return nil, fmt.Errorf("ref URL may not be empty string")
+		return nil, errors.New("ref URL may not be empty string")
 	case map[string]interface{}:
 		description := strings.TrimSpace(getSafeString(rr, "description"))
 		ref := strings.TrimSpace(getSafeString(rr, "ref"))
@@ -2569,10 +2556,10 @@ func parseRelatedResource(rr interface{}) (*RelatedResourceAnnotation, error) {
 			}
 			return &RelatedResourceAnnotation{Description: description, Ref: *u}, nil
 		}
-		return nil, fmt.Errorf("'ref' value required in object")
+		return nil, errors.New("'ref' value required in object")
 	}
 
-	return nil, fmt.Errorf("invalid value type, must be string or map")
+	return nil, errors.New("invalid value type, must be string or map")
 }
 
 func parseAuthor(a interface{}) (*AuthorAnnotation, error) {
@@ -2590,10 +2577,10 @@ func parseAuthor(a interface{}) (*AuthorAnnotation, error) {
 		if len(name) > 0 || len(email) > 0 {
 			return &AuthorAnnotation{name, email}, nil
 		}
-		return nil, fmt.Errorf("'name' and/or 'email' values required in object")
+		return nil, errors.New("'name' and/or 'email' values required in object")
 	}
 
-	return nil, fmt.Errorf("invalid value type, must be string or map")
+	return nil, errors.New("invalid value type, must be string or map")
 }
 
 func getSafeString(m map[string]interface{}, k string) string {
@@ -2615,7 +2602,7 @@ func parseAuthorString(s string) (*AuthorAnnotation, error) {
 	parts := strings.Fields(s)
 
 	if len(parts) == 0 {
-		return nil, fmt.Errorf("author is an empty string")
+		return nil, errors.New("author is an empty string")
 	}
 
 	namePartCount := len(parts)
@@ -2651,7 +2638,7 @@ func convertYAMLMapKeyTypes(x any, path []string) (any, error) {
 		return result, nil
 	case []any:
 		for i := range x {
-			x[i], err = convertYAMLMapKeyTypes(x[i], append(path, fmt.Sprintf("%d", i)))
+			x[i], err = convertYAMLMapKeyTypes(x[i], append(path, strconv.Itoa(i)))
 			if err != nil {
 				return nil, err
 			}

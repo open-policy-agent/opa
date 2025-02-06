@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
@@ -60,11 +61,11 @@ func (*DefaultVerifier) VerifyBundleSignature(sc SignaturesConfig, bvc *Verifica
 	files := make(map[string]FileInfo)
 
 	if len(sc.Signatures) == 0 {
-		return files, fmt.Errorf(".signatures.json: missing JWT (expected exactly one)")
+		return files, errors.New(".signatures.json: missing JWT (expected exactly one)")
 	}
 
 	if len(sc.Signatures) > 1 {
-		return files, fmt.Errorf(".signatures.json: multiple JWTs not supported (expected exactly one)")
+		return files, errors.New(".signatures.json: multiple JWTs not supported (expected exactly one)")
 	}
 
 	for _, token := range sc.Signatures {
@@ -120,7 +121,7 @@ func verifyJWTSignature(token string, bvc *VerificationConfig) (*DecodedSignatur
 	}
 
 	if keyID == "" {
-		return nil, fmt.Errorf("verification key ID is empty")
+		return nil, errors.New("verification key ID is empty")
 	}
 
 	// now that we have the keyID, fetch the actual key
@@ -148,7 +149,7 @@ func verifyJWTSignature(token string, bvc *VerificationConfig) (*DecodedSignatur
 	}
 
 	if ds.Scope != scope {
-		return nil, fmt.Errorf("scope mismatch")
+		return nil, errors.New("scope mismatch")
 	}
 	return &ds, nil
 }

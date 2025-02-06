@@ -7,6 +7,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -773,27 +774,27 @@ func TestExtractX509VerifyOptions(t *testing.T) {
 	}{
 		{
 			jsonOption: ast.MustParseTerm(`{"DNSName": 1}`),
-			expectErr:  fmt.Errorf("'DNSName' should be a string"),
+			expectErr:  errors.New("'DNSName' should be a string"),
 		},
 		{
 			jsonOption: ast.MustParseTerm(`{CurrentTime: "string"}`),
-			expectErr:  fmt.Errorf("'CurrentTime' should be a number"),
+			expectErr:  errors.New("'CurrentTime' should be a number"),
 		},
 		{
 			jsonOption: ast.MustParseTerm(`{MaxConstraintComparisons: "string"}`),
-			expectErr:  fmt.Errorf("'MaxConstraintComparisons' should be a number"),
+			expectErr:  errors.New("'MaxConstraintComparisons' should be a number"),
 		},
 		{
 			jsonOption: ast.MustParseTerm(`{"KeyUsages" : "true"}`),
-			expectErr:  fmt.Errorf("'KeyUsages' should be an Array or Set"),
+			expectErr:  errors.New("'KeyUsages' should be an Array or Set"),
 		},
 		{
 			jsonOption: ast.MustParseTerm(`{"DNSName": 1, CurrentTime: "string", "KeyUsages" : {1,2}}`),
-			expectErr:  fmt.Errorf("'DNSName' should be a string"),
+			expectErr:  errors.New("'DNSName' should be a string"),
 		},
 		{
 			jsonOption: ast.MustParseTerm(`{"InvalidKey": "test.com"}`),
-			expectErr:  fmt.Errorf("invalid key option"),
+			expectErr:  errors.New("invalid key option"),
 		},
 		{
 			jsonOption:      ast.MustParseTerm(`{}`),
@@ -862,6 +863,32 @@ func TestExtractX509VerifyOptions(t *testing.T) {
 			if err == nil {
 				t.Fatalf("expected error: %s, got nil error", testCase.expectErr)
 			}
+		}
+	}
+}
+
+// Before/after replacing sprintf("%x", ...) with hex.EncodeToString(...), and using
+// util.ByteSliceToString to convert the resulting byte slice:
+// BenchmarkMd5-10    	 3294998	       435.2 ns/op	     128 B/op	       5 allocs/op
+// BenchmarkMd5-10    	 6193455	       180.9 ns/op	      96 B/op	       3 allocs/op
+// ...
+func BenchmarkMd5(b *testing.B) {
+	bctx := BuiltinContext{}
+	operands := []*ast.Term{ast.StringTerm("hello")}
+	expect := ast.String("5d41402abc4b2a76b9719d911017c592")
+	iter := func(result *ast.Term) error {
+		if !expect.Equal(result.Value) {
+			return fmt.Errorf("unexpected result: %v", result.Value)
+		}
+		return nil
+	}
+
+	b.ResetTimer()
+
+	for range b.N {
+		err := builtinCryptoMd5(bctx, operands, iter)
+		if err != nil {
+			b.Fatalf("unexpected error: %v", err)
 		}
 	}
 }

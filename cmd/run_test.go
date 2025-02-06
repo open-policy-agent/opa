@@ -11,7 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -184,7 +184,7 @@ func TestInitRuntimeCipherSuites(t *testing.T) {
 				t.Fatal("Expected error but got nil")
 			} else if err == nil {
 				if len(tc.expCipherSuites) > 0 {
-					if !reflect.DeepEqual(*rt.Params.CipherSuites, tc.expCipherSuites) {
+					if !slices.Equal(*rt.Params.CipherSuites, tc.expCipherSuites) {
 						t.Fatalf("expected cipher suites %v but got %v", tc.expCipherSuites, *rt.Params.CipherSuites)
 					}
 				} else {

@@ -528,7 +528,7 @@ func TestReadWithSignatures(t *testing.T) {
 		"no_signature_verification_config": {
 			[][2]string{{"/.signatures.json", `{"signatures": []}`}},
 			nil,
-			true, fmt.Errorf("verification key not provided"),
+			true, errors.New("verification key not provided"),
 		},
 		"no_signatures_file_no_keyid": {
 			[][2]string{{"/.manifest", `{"revision": "quickbrownfaux"}`}},
@@ -538,12 +538,12 @@ func TestReadWithSignatures(t *testing.T) {
 		"no_signatures_file": {
 			[][2]string{{"/.manifest", `{"revision": "quickbrownfaux"}`}},
 			NewVerificationConfig(map[string]*KeyConfig{}, "somekey", "", nil),
-			true, fmt.Errorf("bundle missing .signatures.json file"),
+			true, errors.New("bundle missing .signatures.json file"),
 		},
 		"no_signatures": {
 			[][2]string{{"/.signatures.json", `{"signatures": []}`}},
 			NewVerificationConfig(map[string]*KeyConfig{}, "", "", nil),
-			true, fmt.Errorf(".signatures.json: missing JWT (expected exactly one)"),
+			true, errors.New(".signatures.json: missing JWT (expected exactly one)"),
 		},
 		"digest_mismatch": {
 			[][2]string{
@@ -552,7 +552,7 @@ func TestReadWithSignatures(t *testing.T) {
 				{"/.manifest", `{"revision": "quickbrownfaux"}`},
 			},
 			NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "write", nil),
-			true, fmt.Errorf("a/b/c/data.json: digest mismatch (want: 42cfe6768b57bb5f7503c165c28dd07ac5b813554ebc850f2cc35843e7137b1d, got: a615eeaee21de5179de080de8c3052c8da901138406ba71c38c032845f7d54f4)"),
+			true, errors.New("a/b/c/data.json: digest mismatch (want: 42cfe6768b57bb5f7503c165c28dd07ac5b813554ebc850f2cc35843e7137b1d, got: a615eeaee21de5179de080de8c3052c8da901138406ba71c38c032845f7d54f4)"),
 		},
 		"no_hashing_alg": {
 			[][2]string{
@@ -560,7 +560,7 @@ func TestReadWithSignatures(t *testing.T) {
 				{"/a/b/c/data.json", "[1,2,3]"},
 			},
 			NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "write", nil),
-			true, fmt.Errorf("no hashing algorithm provided for file a/b/c/data.json"),
+			true, errors.New("no hashing algorithm provided for file a/b/c/data.json"),
 		},
 		"exclude_files": {
 			[][2]string{

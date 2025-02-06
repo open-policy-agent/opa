@@ -31,12 +31,14 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"sort"
 	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"go.opentelemetry.io/otel/attribute"
+	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
 
 	"github.com/gorilla/mux"
 
@@ -880,60 +882,60 @@ func TestCompileV1(t *testing.T) {
 	t.Parallel()
 
 	v0mod := `package test
-	
+
 	p {
 		input.x = 1
 	}
-	
+
 	q {
 		data.a[i] = input.x
 	}
-	
+
 	default r = true
-	
+
 	r { input.x = 1 }
-	
+
 	custom_func(x) { data.a[i] == x }
-	
+
 	s { custom_func(input.x) }
 	`
 
 	v1mod := `package test
-	
+
 	p if {
 		input.x = 1
 	}
-	
+
 	q if {
 		data.a[i] = input.x
 	}
-	
+
 	default r = true
-	
+
 	r if { input.x = 1 }
-	
+
 	custom_func(x) if { data.a[i] == x }
-	
+
 	s if { custom_func(input.x) }
 	`
 
 	v0v1mod := `package test
 	import rego.v1
-	
+
 	p if {
 		input.x = 1
 	}
-	
+
 	q if {
 		data.a[i] = input.x
 	}
-	
+
 	default r = true
-	
+
 	r if { input.x = 1 }
-	
+
 	custom_func(x) if { data.a[i] == x }
-	
+
 	s if { custom_func(input.x) }
 	`
 
@@ -1122,7 +1124,7 @@ func TestCompileV1(t *testing.T) {
 				}`, 200, expQueryAndSupport(
 					`data.partial.test.s = true`,
 					`package partial.test
-					
+
 					s if { data.partial.test.custom_func(1) }
 					custom_func(__local0__2) if { data.a[i2] = __local0__2 }
 					`,
@@ -1194,7 +1196,7 @@ func TestCompileV1Observability(t *testing.T) {
 
 		err = f.v1(http.MethodPut, "/policies/test", `package test
 	import rego.v1
-	
+
 	p if { input.x = 1 }`, 200, "")
 		if err != nil {
 			t.Fatal(err)
@@ -1899,7 +1901,7 @@ func generateJSONBenchmarkData(k, v int) map[string]interface{} {
 
 	// create large JSON object value (100,000 entries is about 2MB on disk)
 	values := map[string]interface{}{}
-	for i := 0; i < v; i++ {
+	for i := range v {
 		values[fmt.Sprintf("key%d", i)] = fmt.Sprintf("value%d", i)
 	}
 
@@ -3083,7 +3085,7 @@ func TestDataPostExplainNotes(t *testing.T) {
 	err := f.v1(http.MethodPut, "/policies/test", `
 		package test
 		import rego.v1
-		
+
 		p if {
 			data.a[i] = x; x > 1
 			trace(sprintf("found x = %d", [x]))
@@ -3693,13 +3695,7 @@ func TestPoliciesPutV1Noop(t *testing.T) {
 
 	// Sort the metric keys and compare to expected value. We're assuming the
 	// server skips parsing if the bytes are equal.
-	result := []string{}
-
-	for k := range resp.Metrics {
-		result = append(result, k)
-	}
-
-	sort.Strings(result)
+	result := util.KeysSorted(resp.Metrics)
 
 	if !reflect.DeepEqual(exp, result) {
 		t.Fatalf("Expected %v but got %v", exp, result)
@@ -3866,7 +3862,7 @@ func TestPoliciesUrlEncoded(t *testing.T) {
 	f := newFixture(t)
 
 	// PUT policy with URL encoded ID
-	put := newReqV1(http.MethodPut, fmt.Sprintf("/policies/%s", urlEscapedPolicyID), testMod)
+	put := newReqV1(http.MethodPut, "/policies/"+urlEscapedPolicyID, testMod)
 	f.server.Handler.ServeHTTP(f.recorder, put)
 
 	if f.recorder.Code != 200 {
@@ -3877,7 +3873,7 @@ func TestPoliciesUrlEncoded(t *testing.T) {
 	f.reset()
 	// GET policy with URL encoded ID
 
-	get := newReqV1(http.MethodGet, fmt.Sprintf("/policies/%s", urlEscapedPolicyID), "")
+	get := newReqV1(http.MethodGet, "/policies/"+urlEscapedPolicyID, "")
 	f.server.Handler.ServeHTTP(f.recorder, get)
 	if f.recorder.Code != 200 {
 		t.Fatalf("Expected success but got %v", f.recorder)
@@ -3895,7 +3891,7 @@ func TestPoliciesUrlEncoded(t *testing.T) {
 	f.reset()
 	// DELETE policy with URL encoded ID
 
-	deleteRequest := newReqV1(http.MethodDelete, fmt.Sprintf("/policies/%s", urlEscapedPolicyID), "")
+	deleteRequest := newReqV1(http.MethodDelete, "/policies/"+urlEscapedPolicyID, "")
 	f.server.Handler.ServeHTTP(f.recorder, deleteRequest)
 	if f.recorder.Code != 200 {
 		t.Fatalf("Expected success but got %v", f.recorder)
@@ -4012,7 +4008,7 @@ func TestStatusV1MetricsWithSystemAuthzPolicy(t *testing.T) {
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 	authzPolicy := `package system.authz
 	import rego.v1
-	
+
 	default allow = false
 	allow if {
 		input.path = ["v1", "status"]
@@ -4221,7 +4217,7 @@ func TestDecisionIDs(t *testing.T) {
 		return nil
 	}).WithDecisionIDFactory(func() string {
 		ctr++
-		return fmt.Sprint(ctr)
+		return strconv.Itoa(ctr)
 	})
 
 	if err := f.v1("GET", "/data/undefined", "", 200, `{"decision_id": "1"}`); err != nil {
@@ -4271,7 +4267,7 @@ func TestDecisionLoggingWithHTTPRequestContext(t *testing.T) {
 
 	f.server = f.server.WithDecisionIDFactory(func() string {
 		nextID++
-		return fmt.Sprint(nextID)
+		return strconv.Itoa(nextID)
 	}).WithDecisionLoggerWithErr(func(_ context.Context, info *Info) error {
 		decisions = append(decisions, info)
 		return nil
@@ -4317,10 +4313,10 @@ func TestDecisionLogging(t *testing.T) {
 
 	f.server = f.server.WithDecisionIDFactory(func() string {
 		nextID++
-		return fmt.Sprint(nextID)
+		return strconv.Itoa(nextID)
 	}).WithDecisionLoggerWithErr(func(_ context.Context, info *Info) error {
 		if info.Path == "fail_closed/decision_logger_err" {
-			return fmt.Errorf("some error")
+			return errors.New("some error")
 		}
 		decisions = append(decisions, info)
 		return nil
@@ -4504,7 +4500,7 @@ func TestDecisionLogErrorMessage(t *testing.T) {
 	f := newFixture(t)
 
 	f.server.WithDecisionLoggerWithErr(func(context.Context, *Info) error {
-		return fmt.Errorf("xxx")
+		return errors.New("xxx")
 	})
 
 	if err := f.v1(http.MethodPost, "/data", "", 500, `{
@@ -4830,7 +4826,7 @@ func TestAuthorization(t *testing.T) {
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
 	authzPolicy := `package system.authz
-		
+
 		import rego.v1
 		import input.identity
 
@@ -4883,7 +4879,7 @@ func TestAuthorization(t *testing.T) {
 	// Reverse the policy.
 	update := identifier.SetIdentity(newReqV1(http.MethodPut, "/policies/test", `
 		package system.authz
-		
+
 		import rego.v1
 		import input.identity
 
@@ -4994,7 +4990,7 @@ allow if {
 		t.Fatal(err)
 	}
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		req1, err := http.NewRequest(http.MethodGet, "http://localhost:8182/health", nil)
 		if err != nil {
 			t.Fatal(err)
@@ -5146,7 +5142,7 @@ type queryBindingErrStore struct {
 }
 
 func (s *queryBindingErrStore) Read(_ context.Context, _ storage.Transaction, _ storage.Path) (interface{}, error) {
-	return nil, fmt.Errorf("expected error")
+	return nil, errors.New("expected error")
 }
 
 func (*queryBindingErrStore) ListPolicies(_ context.Context, _ storage.Transaction) ([]string, error) {
@@ -5864,15 +5860,28 @@ func TestDistributedTracingEnabled(t *testing.T) {
 func TestDistributedTracingResourceAttributes(t *testing.T) {
 	t.Parallel()
 
-	c := []byte(`{"distributed_tracing": {
+	attributes := map[attribute.Key]string{
+		semconv.DeploymentEnvironmentKey: "prod",
+		semconv.ServiceNameKey:           "my-service",
+		semconv.ServiceVersionKey:        "1.0",
+		semconv.ServiceNamespaceKey:      "my-namespace",
+		semconv.ServiceInstanceIDKey:     "1",
+	}
+
+	c := []byte(fmt.Sprintf(`{"distributed_tracing": {
 		"type": "grpc",
-		"service_name": "my-service",
+		"service_name": "%s",
 		"resource": {
-			"service_namespace": "my-namespace",
-			"service_version": "1.0",
-			"service_instance_id": "1"
+			"service_namespace": "%s",
+			"service_version": "%s",
+			"service_instance_id": "%s",
+			"deployment_environment": "%s"
 		}
-		}}`)
+		}}`, attributes[semconv.ServiceNameKey],
+		attributes[semconv.ServiceNamespaceKey],
+		attributes[semconv.ServiceVersionKey],
+		attributes[semconv.ServiceInstanceIDKey],
+		attributes[semconv.DeploymentEnvironmentKey]))
 
 	ctx := context.Background()
 	_, traceProvider, resource, err := distributedtracing.Init(ctx, c, "foo")
@@ -5885,9 +5894,16 @@ func TestDistributedTracingResourceAttributes(t *testing.T) {
 	if resource == nil {
 		t.Fatalf("Resource was not initialized")
 	}
-	if len(resource.Attributes()) != 4 {
-		t.Fatalf("Unexpected resource attributes count. Expected: %v, Got: %v", 4, len(resource.Attributes()))
+	if len(resource.Attributes()) != 5 {
+		t.Fatalf("Unexpected resource attributes count. Expected: %v, Got: %v", 5, len(resource.Attributes()))
 	}
+
+	for _, value := range resource.Attributes() {
+		if attribute.StringValue(attributes[value.Key]) != value.Value {
+			t.Fatalf("Unexpected resource attribute. Expected: %v, Got: %v", attributes[value.Key], value)
+		}
+	}
+
 }
 
 func TestCertPoolReloading(t *testing.T) {

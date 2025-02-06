@@ -211,7 +211,7 @@ func allocHandler(rsp http.ResponseWriter, req *http.Request) {
 	if req.URL.Query().Get("pretty") == "true" {
 		alloc = prettyByteSize(total)
 	} else {
-		alloc = fmt.Sprintf("%d", total)
+		alloc = strconv.FormatUint(total, 10)
 	}
 
 	rsp.WriteHeader(200)

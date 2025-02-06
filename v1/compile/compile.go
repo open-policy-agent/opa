@@ -296,7 +296,7 @@ func addEntrypointsFromAnnotations(c *Compiler, arefs []*ast.AnnotationsRef) err
 func (c *Compiler) Build(ctx context.Context) error {
 
 	if c.regoVersion == ast.RegoUndefined {
-		return fmt.Errorf("rego-version not set")
+		return errors.New("rego-version not set")
 	}
 
 	if err := c.init(); err != nil {
@@ -613,7 +613,7 @@ func (c *Compiler) compilePlan(context.Context) error {
 
 		sorted := extras.Sorted()
 
-		for i := 0; i < sorted.Len(); i++ {
+		for i := range sorted.Len() {
 			p, err := sorted.Elem(i).Value.(ast.Ref).Ptr()
 			if err != nil {
 				return err
@@ -791,7 +791,7 @@ func pruneBundleEntrypoints(b *bundle.Bundle, entrypointrefs []*ast.Term) error 
 	requiredImports := map[string][]*ast.Import{}
 
 	for _, entrypoint := range entrypointrefs {
-		for i := 0; i < len(b.Modules); i++ {
+		for i := range len(b.Modules) {
 			mf := &b.Modules[i]
 
 			// Drop any rules that match the entrypoint path.
@@ -861,7 +861,7 @@ func pruneBundleEntrypoints(b *bundle.Bundle, entrypointrefs []*ast.Term) error 
 
 	// Any packages which had rules removed need an import injected for the
 	// removed rule to keep the policies valid.
-	for i := 0; i < len(b.Modules); i++ {
+	for i := range len(b.Modules) {
 		mf := &b.Modules[i]
 		pkgPath := mf.Parsed.Package.Path.String()
 		if imports, ok := requiredImports[pkgPath]; ok {

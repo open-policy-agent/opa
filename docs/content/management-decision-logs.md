@@ -184,15 +184,17 @@ from the decision log event. The erased paths are recorded on the event itself:
 There are a few restrictions on the JSON Pointers that OPA will erase:
 
 * Pointers must be prefixed with `/input`, `/result`, or `/nd_builtin_cache`.
-* Pointers may be undefined. For example `/input/name/first` in the example
-  above would be undefined. Undefined pointers are ignored.
-* Pointers must refer to object keys. Pointers to array elements will be treated
-  as undefined. For example `/input/emails/0/value` is allowed but `/input/emails/0` is not.
+* Pointers may point to undefined data. For example `/input/name/first` in the
+  example above would be undefined. Masking operations on undefined pointers are
+  ignored.
+* Pointers can also refer to arrays both as part of the path and as the last
+  element in the path. For example, both `/input/users/0/name` and
+  `/input/users/0` would be valid.
 
 In order to **modify** the contents of an input field, the **mask** rule may utilize the following format.
 
 * `"op"` -- The operation to apply when masking. All operations are done at the
-  path specified.  Valid options include:
+  path specified. Valid options include:
 
 |  op | Description  |
 |-----|--------------|

@@ -247,7 +247,7 @@ p = 1
 		min = len(wantLines)
 	}
 
-	for i := 0; i < min; i++ {
+	for i := range min {
 		if gotLines[i] != wantLines[i] {
 			t.Fatalf("Expected line %d to be\n%v\n, got\n%v", i, wantLines[i], gotLines[i])
 		}
@@ -473,7 +473,7 @@ a.b.c := true
 		min = len(wantLines)
 	}
 
-	for i := 0; i < min; i++ {
+	for i := range min {
 		if gotLines[i] != wantLines[i] {
 			t.Fatalf("Expected line %d to be\n%v\n, got\n%v", i, wantLines[i], gotLines[i])
 		}
@@ -934,7 +934,7 @@ allow = true if {
 		min = len(wantLines)
 	}
 
-	for i := 0; i < min; i++ {
+	for i := range min {
 		if gotLines[i] != wantLines[i] {
 			t.Fatalf("Expected line %d to be\n%v\n, got\n%v", i, wantLines[i], gotLines[i])
 		}

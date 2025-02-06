@@ -1320,6 +1320,11 @@ on the OPA blog shows how SQL can be generated based on Compile API output.
 For more details on Partial Evaluation in OPA, please refer to
 [this blog post](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422).
 
+Note that nondeterminstic builtins (like `http.send`) are _not evaluated_ during PE.
+You can change that by providing `nondeterminsticBuiltins: true` in your payload options.
+This would be desirable when using PE for generating filters using extra information
+from `http.send`.
+
 #### Request Body
 
 Compile API requests contain the following fields:
@@ -1328,7 +1333,7 @@ Compile API requests contain the following fields:
 | --- | --- | --- | --- |
 | `query` | `string` | Yes | The query to partially evaluate and compile. |
 | `input` | `any` | No | The input document to use during partial evaluation (default: undefined). |
-| `options`  | `object[string, any]`           | No | Additional options to use during partial evaluation. Only `disableInlining` option is supported. (default: undefined). |
+| `options`  | `object[string, any]`           | No | Additional options to use during partial evaluation: `disableInlining` (default: undefined) and `nondeterminsticBuiltins` (default: false). |
 | `unknowns` | `array[string]` | No | The terms to treat as unknown during partial evaluation (default: `["input"]`]). |
 
 ### Request Headers

@@ -5,6 +5,7 @@
 package topdown
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -98,7 +99,7 @@ func jsonRemove(a *ast.Term, b *ast.Term) (*ast.Term, error) {
 		// When indexes are removed we shift left to close empty spots in the array
 		// as per the JSON patch spec.
 		newArray := ast.NewArray()
-		for i := 0; i < aValue.Len(); i++ {
+		for i := range aValue.Len() {
 			v := aValue.Elem(i)
 			// recurse and add the diff of sub objects as needed
 			// Note: Keys in b will be strings for the index, eg path /a/1/b => {"a": {"1": {"b": null}}}
@@ -144,7 +145,7 @@ func getJSONPaths(operand ast.Value) ([]ast.Ref, error) {
 
 	switch v := operand.(type) {
 	case *ast.Array:
-		for i := 0; i < v.Len(); i++ {
+		for i := range v.Len() {
 			filter, err := parsePath(v.Elem(i))
 			if err != nil {
 				return nil, err
@@ -189,7 +190,7 @@ func parsePath(path *ast.Term) (ast.Ref, error) {
 			pathSegments = append(pathSegments, term)
 		})
 	default:
-		return nil, builtins.NewOperandErr(2, "must be one of {set, array} containing string paths or array of path segments but got %v", ast.TypeName(p))
+		return nil, builtins.NewOperandErr(2, "must be one of {set, array} containing string paths or array of path segments but got %v", ast.ValueName(p))
 	}
 
 	return pathSegments, nil
@@ -231,7 +232,7 @@ func pathsToObject(paths []ast.Ref) ast.Object {
 		}
 
 		if !done {
-			node.Insert(path[len(path)-1], ast.NullTerm())
+			node.Insert(path[len(path)-1], ast.InternedNullTerm)
 		}
 	}
 
@@ -263,7 +264,7 @@ func getPatch(o ast.Object) (jsonPatch, error) {
 	}
 	op, ok := opTerm.Value.(ast.String)
 	if !ok {
-		return out, fmt.Errorf("attribute 'op' must be a string")
+		return out, errors.New("attribute 'op' must be a string")
 	}
 	out.op = string(op)
 	if _, found := validOps[out.op]; !found {
@@ -302,10 +303,10 @@ func getPatch(o ast.Object) (jsonPatch, error) {
 
 func applyPatches(source *ast.Term, operations *ast.Array) (*ast.Term, error) {
 	et := edittree.NewEditTree(source)
-	for i := 0; i < operations.Len(); i++ {
+	for i := range operations.Len() {
 		object, ok := operations.Elem(i).Value.(ast.Object)
 		if !ok {
-			return nil, fmt.Errorf("must be an array of JSON-Patch objects, but at least one element is not an object")
+			return nil, errors.New("must be an array of JSON-Patch objects, but at least one element is not an object")
 		}
 		patch, err := getPatch(object)
 		if err != nil {

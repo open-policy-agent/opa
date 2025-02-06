@@ -20,7 +20,11 @@ func NewNotFoundError(path storage.Path) *storage.Error {
 }
 
 func NewNotFoundErrorWithHint(path storage.Path, hint string) *storage.Error {
-	return NewNotFoundErrorf("%v: %v", path.String(), hint)
+	message := path.String() + ": " + hint
+	return &storage.Error{
+		Code:    storage.NotFoundErr,
+		Message: message,
+	}
 }
 
 func NewNotFoundErrorf(f string, a ...interface{}) *storage.Error {

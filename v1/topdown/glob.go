@@ -13,8 +13,10 @@ import (
 const globCacheMaxSize = 100
 const globInterQueryValueCacheHits = "rego_builtin_glob_interquery_value_cache_hits"
 
-var globCacheLock = sync.Mutex{}
-var globCache map[string]glob.Glob
+var noDelimiters = []rune{}
+var dotDelimiters = []rune{'.'}
+var globCacheLock = sync.RWMutex{}
+var globCache = map[string]glob.Glob{}
 
 func builtinGlobMatch(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	pattern, err := builtins.StringOperand(operands[0].Value, 1)
@@ -25,14 +27,14 @@ func builtinGlobMatch(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.
 	var delimiters []rune
 	switch operands[1].Value.(type) {
 	case ast.Null:
-		delimiters = []rune{}
+		delimiters = noDelimiters
 	case *ast.Array:
 		delimiters, err = builtins.RuneSliceOperand(operands[1].Value, 2)
 		if err != nil {
 			return err
 		}
 		if len(delimiters) == 0 {
-			delimiters = []rune{'.'}
+			delimiters = dotDelimiters
 		}
 	default:
 		return builtins.NewOperandTypeErr(2, operands[1].Value, "array", "null")
@@ -61,6 +63,7 @@ func builtinGlobMatch(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.
 func globCompileAndMatch(bctx BuiltinContext, id, pattern, match string, delimiters []rune) (bool, error) {
 
 	if bctx.InterQueryBuiltinValueCache != nil {
+		// TODO: Use named cache
 		val, ok := bctx.InterQueryBuiltinValueCache.Get(ast.String(id))
 		if ok {
 			pat, valid := val.(glob.Glob)
@@ -86,14 +89,15 @@ func globCompileAndMatch(bctx BuiltinContext, id, pattern, match string, delimit
 		return res.Match(match), nil
 	}
 
-	globCacheLock.Lock()
-	defer globCacheLock.Unlock()
+	globCacheLock.RLock()
 	p, ok := globCache[id]
+	globCacheLock.RUnlock()
 	if !ok {
 		var err error
 		if p, err = glob.Compile(pattern, delimiters...); err != nil {
 			return false, err
 		}
+		globCacheLock.Lock()
 		if len(globCache) >= globCacheMaxSize {
 			// Delete a (semi-)random key to make room for the new one.
 			for k := range globCache {
@@ -102,9 +106,10 @@ func globCompileAndMatch(bctx BuiltinContext, id, pattern, match string, delimit
 			}
 		}
 		globCache[id] = p
+		globCacheLock.Unlock()
 	}
-	out := p.Match(match)
-	return out, nil
+
+	return p.Match(match), nil
 }
 
 func builtinGlobQuoteMeta(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -117,7 +122,6 @@ func builtinGlobQuoteMeta(_ BuiltinContext, operands []*ast.Term, iter func(*ast
 }
 
 func init() {
-	globCache = map[string]glob.Glob{}
 	RegisterBuiltinFunc(ast.GlobMatch.Name, builtinGlobMatch)
 	RegisterBuiltinFunc(ast.GlobQuoteMeta.Name, builtinGlobQuoteMeta)
 }
