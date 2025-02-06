@@ -690,7 +690,7 @@ opa fmt [path [...]] [flags]
 ### Options
 
 ```
-      --check-result      assert that the formatted code is valid and can be successfully parsed (default true) (default true)
+      --check-result      assert that the formatted code is valid and can be successfully parsed (default true)
   -d, --diff              only display a diff of the changes
       --drop-v0-imports   drop v0 imports from the formatted code, such as 'rego.v1' and 'future.keywords'
       --fail              non zero exit code on reformat
