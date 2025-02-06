@@ -33,6 +33,29 @@ func TestInjectTestCaseFunc(t *testing.T) {
 					__local2__.x = 1
 				}`,
 		},
+
+		{
+			note: "manual use of internal.test_case",
+			module: `package test
+				test_foo[tc.note] if {
+					some tc in [
+						{"note": "a", "x": 1},
+					]
+					tc.x == 1
+					internal.test_case([tc.note, "foo", "bar"])
+				}`,
+			// func not injected
+			exp: `package test
+				test_foo[__local0__] if { 
+					__local4__ = [{"note": "a", "x": 1}]
+					__local3__ = __local4__[__local2__]            # func would have been injected subsequent to here
+					__local3__.x = 1
+					__local5__ = __local3__.note
+					internal.test_case([__local5__, "foo", "bar"]) # manual use of func
+					__local0__ = __local3__.note 
+				}`,
+		},
+
 		{
 			note: "head-ref, assigned last in body",
 			module: `package test

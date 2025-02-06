@@ -552,20 +552,32 @@ func rewriteDuplicateTestNames(compiler *ast.Compiler) *ast.Error {
 	return nil
 }
 
+var testCaseFuncRef = ast.InternalTestCase.Ref()
+
 // TODO: Explain why we inject the internal.test_case function, and why we want to place it as far up the rule body as possible.
 // And that this might require us to also move generated assignment expressions up too.
 func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 	for _, mod := range compiler.Modules {
 		for _, rule := range mod.Rules {
-			// FIXME: Do we need to account for else blocks?
-
 			// Only apply to test rules
 			rName, rni := ruleName(rule.Head)
 			if !strings.HasPrefix(rName, TestPrefix) {
 				continue
 			}
 
-			// TODO: Only apply to rules that doesn't have manual use of the test case function
+			// Only apply to rules that doesn't have manual use of the test-case function
+			manualCall := false
+			ast.WalkExprs(rule.Body, func(expr *ast.Expr) bool {
+				if expr.IsCall() && expr.Operator().Equal(testCaseFuncRef) {
+					manualCall = true
+					return true
+				}
+				return false
+			})
+
+			if manualCall {
+				continue
+			}
 
 			// Construct test-case name
 			ref := rule.Head.Ref()
@@ -591,6 +603,7 @@ func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 					// up the body as possible.
 					// This is a shallow move, we don't attempt to detect multiple levels of indirection and don't move such expressions; in such case, we move the assigning expression up to the first reference.
 					// Once done for all vars in the head ref, we can inject the test case function below the last (possibly moved) such expr.
+					// Note: We don't move non-generated expressions, as that could contradict author intent.
 					if (expr.IsEquality() || expr.IsAssignment()) && expr.Operand(0).Equal(term) {
 						if !expr.Generated {
 							if i > injectBelow {
@@ -598,9 +611,6 @@ func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 								injectBelow = i
 							}
 						} else {
-							// FIXME: Should we also move non-generated expressions? Takes control from user, but could avoid gotchas.
-							// E.g. If the user manually declares a test-case name var assignment after test assertions, failed assertions will cause the failed test-case to not be picked up.
-
 							// Based on the vars in the rhs of the expr, see if we can move it up the rule body
 							// Can we get away with just placing it under the lowes first occurrence of any referenced var?
 							vars := ast.NewVarSet()
