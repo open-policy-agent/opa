@@ -752,6 +752,10 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	} else if r.trace {
 		bufferTracer = topdown.NewBufferTracer()
 		tracer = bufferTracer
+	} else {
+		t := NewTestQueryTracer()
+		tracer = t
+		bufferTracer = &t.BufferTracer
 	}
 
 	ruleName, _ := ruleName(rule.Head)
