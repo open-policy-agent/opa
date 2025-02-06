@@ -498,7 +498,7 @@ func (r *Runner) shouldRun(rule *ast.Rule, testRegex *regexp.Regexp) bool {
 
 		if strings.HasPrefix(n, TestPrefix) || strings.HasPrefix(n, SkipTestPrefix) {
 			// Even with the prefix it needs to pass the regex (if applicable)
-			fullName := ref.String()
+			fullName := rule.Module.Package.Path.Extend(ref).String()
 			if testRegex != nil && !testRegex.MatchString(fullName) {
 				return false
 			}
