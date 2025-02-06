@@ -867,3 +867,26 @@ p contains x if {
 		})
 	}
 }
+
+// 382	   3064960 ns/op	 4573131 B/op	   26266 allocs/op // no optimizations
+// 685	   1737719 ns/op	 1972193 B/op	   14160 allocs/op // pre-allocate partitionComments
+// 708	   1674343 ns/op	 1916700 B/op	   11556 allocs/op // static memberRef & memberWithKeyRef
+// 746	   1594546 ns/op	 1882652 B/op	   10644 allocs/op // various minor fixes
+// 1250	    853508 ns/op	  441730 B/op	    8895 allocs/op // partitionComments early return if unchanged
+// 1396	    812859 ns/op	  362651 B/op	    8811 allocs/op // partitionComments reuse backing array
+func BenchmarkFormatLargePolicy(b *testing.B) {
+	contents, err := os.ReadFile("testdata/bench.rego")
+	if err != nil {
+		b.Fatalf("Failed to read rego source: %v", err)
+	}
+	module := ast.MustParseModule(string(contents))
+
+	b.ResetTimer()
+
+	for range b.N {
+		_, err := AstWithOpts(module, Opts{RegoVersion: ast.RegoV1})
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
