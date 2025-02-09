@@ -1185,7 +1185,7 @@ func (e *eval) biunifyRef(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) 
 			e:         e,
 			ref:       ref,
 			pos:       1,
-			plugged:   ref.Copy(),
+			plugged:   ref.CopyNonGround(),
 			bindings:  b1,
 			rterm:     b,
 			rbindings: b2,
