@@ -260,6 +260,9 @@ func builtinRegexReplace(bctx BuiltinContext, operands []*ast.Term, iter func(*a
 	}
 
 	res := re.ReplaceAllString(string(base), string(value))
+	if res == string(base) {
+		return iter(operands[0])
+	}
 
 	return iter(ast.StringTerm(res))
 }
