@@ -1641,6 +1641,10 @@ func (p *Parser) parseNumber() *Term {
 
 func (p *Parser) parseString() *Term {
 	if p.s.lit[0] == '"' {
+		if p.s.lit == "\"\"" {
+			return NewTerm(InternedEmptyString.Value).SetLocation(p.s.Loc())
+		}
+
 		var s string
 		err := json.Unmarshal([]byte(p.s.lit), &s)
 		if err != nil {
