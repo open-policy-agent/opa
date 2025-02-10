@@ -829,11 +829,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	} else if len(rs) == 0 {
 		tr.Fail = true
 	} else if rule.Head.DocKind() == ast.PartialObjectDoc {
-		tr.Fail, tr.SubResults = subResults(rs[0].Expressions[0].Value)
-		// FIXME: Join with above call to subResults()?
-		if updateFailedSubResults(tr, tr.Trace) {
-			tr.Fail = true
-		}
+		tr.Fail, tr.SubResults = subResults(rs[0].Expressions[0].Value, trace)
 	} else if b, ok := rs[0].Expressions[0].Value.(bool); !ok || !b {
 		tr.Fail = true
 	}
@@ -841,32 +837,16 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	return tr, stop
 }
 
-func updateFailedSubResults(r *Result, trace []*topdown.Event) bool {
-	failed := false
-
-	for _, e := range trace {
-		if e.Op == topdown.TestCaseOp {
-			if p, ok := e.Input().Value.(*ast.Array); ok {
-				if r.SubResults.FailIfUnset(*p) {
-					failed = true
-				}
-			}
-		}
-	}
-
-	return failed
-}
-
-func subResults(v any) (bool, map[string]*SubResult) {
+func subResults(v any, trace []*topdown.Event) (bool, map[string]*SubResult) {
 	if v == nil {
 		return true, map[string]*SubResult{}
 	}
 
 	var fail bool
+	result := SubResultMap{}
 
 	switch x := v.(type) {
 	case map[string]any:
-		result := map[string]*SubResult{}
 		for k, v := range x {
 			sr := subResult(v)
 			result[k] = sr
@@ -874,10 +854,29 @@ func subResults(v any) (bool, map[string]*SubResult) {
 				fail = true
 			}
 		}
-		return fail, result
 	}
 
-	return true, map[string]*SubResult{}
+	if updateFailedSubResults(&result, trace) {
+		fail = true
+	}
+
+	return fail, result
+}
+
+func updateFailedSubResults(r *SubResultMap, trace []*topdown.Event) bool {
+	var fail bool
+
+	for _, e := range trace {
+		if e.Op == topdown.TestCaseOp {
+			if p, ok := e.Input().Value.(*ast.Array); ok {
+				if r.FailIfUnset(*p) {
+					fail = true
+				}
+			}
+		}
+	}
+
+	return fail
 }
 
 func subResult(v any) *SubResult {
@@ -887,7 +886,7 @@ func subResult(v any) *SubResult {
 
 	switch x := v.(type) {
 	case map[string]any:
-		fail, srs := subResults(x)
+		fail, srs := subResults(x, nil)
 		return &SubResult{
 			Fail:       fail,
 			SubResults: srs,
@@ -975,11 +974,7 @@ func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod 
 				tr.Fail = true
 				b.Fatal("Expected boolean result, got `undefined`")
 			} else if rule.Head.DocKind() == ast.PartialObjectDoc {
-				tr.Fail, tr.SubResults = subResults(rs[0].Expressions[0].Value)
-				// FIXME: Join with above call to subResults()?
-				if updateFailedSubResults(tr, tracer.Events()) {
-					tr.Fail = true
-				}
+				tr.Fail, tr.SubResults = subResults(rs[0].Expressions[0].Value, tracer.Events())
 			} else if pass, ok := rs[0].Expressions[0].Value.(bool); !ok || !pass {
 				tr.Fail = true
 				b.Fatal("Expected test to evaluate as true, got false")
