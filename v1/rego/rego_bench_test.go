@@ -154,6 +154,7 @@ func BenchmarkAciTestBuildAndEval(b *testing.B) {
 }
 
 // BenchmarkAciTestOnlyEval-10    12752    92188 ns/op    50005 B/op    1062 allocs/op
+// BenchmarkAciTestOnlyEval-10    13521	   86647 ns/op	  47448 B/op	 967 allocs/op // ref.CopyNonGround
 func BenchmarkAciTestOnlyEval(b *testing.B) {
 	ctx := context.Background()
 
@@ -321,8 +322,8 @@ func BenchmarkObjectIteration(b *testing.B) {
 
 // Comparing the cost of referencing not found data in Go vs. AST storage
 //
-// BenchmarkStoreRefNotFound/inmem-go-10         	    5208	    212288 ns/op	  160609 B/op	    2936 allocs/op
-// BenchmarkStoreRefNotFound/inmem-ast-10        	   13929	     90053 ns/op	   39614 B/op	    1012 allocs/op
+// BenchmarkStoreRefNotFound/inmem-go-10         5208    212288 ns/op    160609 B/op     2936 allocs/op
+// BenchmarkStoreRefNotFound/inmem-ast-10       13929     90053 ns/op     39614 B/op     1012 allocs/op
 func BenchmarkStoreRefNotFound(b *testing.B) {
 	ctx := context.Background()
 
@@ -411,6 +412,34 @@ func BenchmarkStoreRead(b *testing.B) {
 
 		if v == nil {
 			b.Fatal("expected value")
+		}
+	}
+}
+
+// 233337	      5730 ns/op	    5737 B/op	      93 allocs/op
+// 229280	      5222 ns/op	    5639 B/op	      89 allocs/op // ref.CopyNonGround
+func BenchmarkTrivialPolicy(b *testing.B) {
+	ctx := context.Background()
+	r := New(
+		ParsedQuery(ast.MustParseBody("data.p.r = x")),
+		ParsedModule(ast.MustParseModule(`package p
+		r := 1`)),
+		GenerateJSON(func(*ast.Term, *EvalContext) (any, error) {
+			return nil, nil
+		}),
+	)
+
+	pq, err := r.PrepareForEval(ctx)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ResetTimer()
+
+	for range b.N {
+		_, err := pq.Eval(ctx)
+		if err != nil {
+			b.Fatal(err)
 		}
 	}
 }

@@ -1114,7 +1114,7 @@ func (c *Compiler) checkRuleConflicts() {
 		for _, rule := range node.Values {
 			r := rule.(*Rule)
 			ref := r.Ref()
-			name = rw(ref.Copy()).String() // varRewriter operates in-place
+			name = rw(ref.CopyNonGround()).String() // varRewriter operates in-place
 			kinds[r.Head.RuleKind()] = struct{}{}
 			arities[len(r.Head.Args)] = struct{}{}
 			if r.Default {
@@ -1156,7 +1156,7 @@ func (c *Compiler) checkRuleConflicts() {
 			//   data.p.q[r][s] { r := input.r; s := input.s }
 			//   data.p[q].r.s { q := input.q }
 
-			if r.Ref().IsGround() && len(node.Children) > 0 {
+			if ref.IsGround() && len(node.Children) > 0 {
 				conflicts = node.flattenChildren()
 			}
 
