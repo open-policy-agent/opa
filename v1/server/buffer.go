@@ -37,6 +37,7 @@ type Info struct {
 	Metrics            metrics.Metrics
 	Trace              []*topdown.Event
 	RequestID          uint64
+	Custom             map[string]any
 }
 
 // BundleInfo contains information describing a bundle.

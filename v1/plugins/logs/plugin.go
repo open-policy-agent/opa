@@ -68,6 +68,7 @@ type EventV1 struct {
 	Metrics         map[string]any          `json:"metrics,omitempty"`
 	RequestID       uint64                  `json:"req_id,omitempty"`
 	RequestContext  *RequestContext         `json:"request_context,omitempty"`
+	Custom          map[string]any          `json:"custom,omitempty"`
 
 	inputAST ast.Value
 }
@@ -217,6 +218,14 @@ func (e *EventV1) AST() (ast.Value, error) {
 
 	if e.RequestID > 0 {
 		event.Insert(ast.InternedTerm("req_id"), ast.UIntNumberTerm(e.RequestID))
+	}
+
+	if len(e.Custom) > 0 {
+		custom, err := roundtripJSONToAST(e.Custom)
+		if err != nil {
+			return nil, err
+		}
+		event.Insert(ast.InternedTerm("custom"), ast.NewTerm(custom))
 	}
 
 	return event, nil
@@ -708,6 +717,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 		Timestamp:       decision.Timestamp,
 		RequestID:       decision.RequestID,
 		inputAST:        decision.InputAST,
+		Custom:          decision.Custom,
 	}
 
 	headers := map[string][]string{}
