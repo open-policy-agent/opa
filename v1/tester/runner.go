@@ -77,7 +77,8 @@ func (srm SubResultMap) FailIfUnset(path ast.Array) bool {
 	entry, ok := srm[termToString(t)]
 	if !ok {
 		entry = &SubResult{
-			Fail: true,
+			Fail:       true,
+			SubResults: SubResultMap{},
 		}
 		srm[termToString(t)] = entry
 	}
