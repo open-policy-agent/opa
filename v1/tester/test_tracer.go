@@ -19,3 +19,10 @@ func (t *TestQueryTracer) TraceEvent(e topdown.Event) {
 		t.BufferTracer.TraceEvent(e)
 	}
 }
+
+func (t *TestQueryTracer) Events() []*topdown.Event {
+	if t == nil {
+		return nil
+	}
+	return t.BufferTracer
+}

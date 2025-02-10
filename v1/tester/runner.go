@@ -68,34 +68,31 @@ type SubResultMap map[string]*SubResult
 // TODO: Cleanup SubResultMap initialization and updating
 
 func (srm SubResultMap) FailIfUnset(path ast.Array) bool {
-	current := srm
-	for i := 0; i < path.Len()-1; i++ {
-		term := path.Elem(i)
-		k := termToString(term)
-		if sr, ok := current[k]; ok {
-			current = sr.SubResults
-		} else {
-			srm := SubResultMap{}
-			current[k] = &SubResult{
-				SubResults: srm,
-				Fail:       true,
-			}
-			current = srm
-		}
+	if path.Len() == 0 {
+		return true
 	}
 
-	if term := path.Elem(path.Len() - 1); term != nil {
-		k := termToString(term)
-		if sr, ok := current[k]; ok {
-			return sr.Fail
-		}
+	t := path.Elem(0)
 
-		current[k] = &SubResult{
+	entry, ok := srm[termToString(t)]
+	if !ok {
+		entry = &SubResult{
 			Fail: true,
 		}
+		srm[termToString(t)] = entry
 	}
 
-	return true
+	if path.Len() == 1 {
+		return entry.Fail
+	}
+
+	fail := entry.SubResults.FailIfUnset(*path.Slice(1, path.Len()))
+
+	if fail {
+		entry.Fail = true
+	}
+
+	return fail
 }
 
 type unknownResolver struct{}
@@ -753,20 +750,6 @@ func ruleName(h *ast.Head) (string, ast.Ref) {
 }
 
 func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.Module, rule *ast.Rule) (*Result, bool) {
-	var bufferTracer *topdown.BufferTracer
-	var tracer topdown.QueryTracer
-
-	if r.cover != nil {
-		tracer = r.cover
-	} else if r.trace {
-		bufferTracer = topdown.NewBufferTracer()
-		tracer = bufferTracer
-	} else {
-		t := NewTestQueryTracer()
-		tracer = t
-		bufferTracer = &t.BufferTracer
-	}
-
 	ruleName, ruleRef := ruleName(rule.Head)
 	if strings.HasPrefix(ruleName, SkipTestPrefix) { // TODO(sr): add test
 		tr := newResult(rule.Loc(), mod.Package.Path.String(), ruleRef.String(), 0*time.Second, nil, nil)
@@ -774,20 +757,42 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		return tr, false
 	}
 
+	var bufferTracer *topdown.BufferTracer
+	var tracers []topdown.QueryTracer
+
+	if r.cover != nil {
+		t := NewTestQueryTracer()
+		tracers = append(tracers, r.cover, t)
+		bufferTracer = &t.BufferTracer
+	} else if r.trace {
+		bufferTracer = topdown.NewBufferTracer()
+		tracers = append(tracers, bufferTracer)
+	} else {
+		t := NewTestQueryTracer()
+		tracers = append(tracers, t)
+		bufferTracer = &t.BufferTracer
+	}
+
 	printbuf := bytes.NewBuffer(nil)
 	var builtinErrors []topdown.Error
 	queryPath := rule.Module.Package.Path.Extend(ruleRef)
-	rg := rego.New(
+
+	opts := []func(*rego.Rego){
 		rego.Store(r.store),
 		rego.Transaction(txn),
 		rego.Compiler(r.compiler),
 		rego.Query(queryPath.String()),
-		rego.QueryTracer(tracer),
 		rego.Runtime(r.runtime),
 		rego.Target(r.target),
 		rego.PrintHook(topdown.NewPrintHook(printbuf)),
 		rego.BuiltinErrorList(&builtinErrors),
-	)
+	}
+
+	for _, t := range tracers {
+		opts = append(opts, rego.QueryTracer(t))
+	}
+
+	rg := rego.New(opts...)
 
 	// Register custom builtins on rego instance
 	for _, v := range r.customBuiltins {
@@ -899,10 +904,12 @@ func subResult(v any) *SubResult {
 }
 
 func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod *ast.Module, rule *ast.Rule, options BenchmarkOptions) (*Result, bool) {
+	_, rf := ruleName(rule.Head)
+
 	tr := &Result{
 		Location: rule.Loc(),
 		Package:  mod.Package.Path.String(),
-		Name:     rule.Head.Ref().GroundPrefix().String(), // TODO(sr): test
+		Name:     rf.String(), // TODO(sr): test
 	}
 
 	var stop bool
@@ -936,14 +943,23 @@ func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod 
 		b.ResetTimer()
 
 		for range b.N {
+			opts := []rego.EvalOption{
+				rego.EvalTransaction(txn),
+				rego.EvalMetrics(m),
+			}
+
+			var tracer *TestQueryTracer
+			if rule.Head.DocKind() == ast.PartialObjectDoc {
+				tracer = NewTestQueryTracer()
+				opts = append(opts, rego.EvalQueryTracer(tracer))
+			}
 
 			// Start the timer (might already be started, but that's ok)
 			b.StartTimer()
 
 			rs, err := pq.Eval(
 				ctx,
-				rego.EvalTransaction(txn),
-				rego.EvalMetrics(m),
+				opts...,
 			)
 
 			// Stop the timer so we don't count any of the error handling time
@@ -958,6 +974,12 @@ func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod 
 			} else if len(rs) == 0 {
 				tr.Fail = true
 				b.Fatal("Expected boolean result, got `undefined`")
+			} else if rule.Head.DocKind() == ast.PartialObjectDoc {
+				tr.Fail, tr.SubResults = subResults(rs[0].Expressions[0].Value)
+				// FIXME: Join with above call to subResults()?
+				if updateFailedSubResults(tr, tracer.Events()) {
+					tr.Fail = true
+				}
 			} else if pass, ok := rs[0].Expressions[0].Value.(bool); !ok || !pass {
 				tr.Fail = true
 				b.Fatal("Expected test to evaluate as true, got false")
