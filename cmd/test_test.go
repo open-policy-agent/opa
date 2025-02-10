@@ -3474,3 +3474,27 @@ test_l if {
 		}
 	}
 }
+
+// Assert that a failing test doesn't cause a panic.
+// https://github.com/open-policy-agent/opa/issues/7205
+func TestTestBenchFailingTest(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `package test
+			test_fail if false`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+		fp := filepath.Join(path, "test.rego")
+		tp := newTestCommandParams()
+		tp.benchmark = true
+		tp.count = 1
+
+		exitCode, err := opaTest([]string{fp}, tp)
+		if exitCode == 0 {
+			t.Fatalf("Expected exit code 0, got %d", exitCode)
+		}
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+	})
+}

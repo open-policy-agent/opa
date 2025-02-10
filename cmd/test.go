@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"testing"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -182,6 +183,11 @@ func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runne
 	var err error
 	var ch chan *tester.Result
 	if testParams.benchmark {
+		// Initialize testing package for benchmarking. This is needed to set default values for some flags that may
+		// otherwise be dereferenced on some code paths causing panics, as reported in:
+		// https://github.com/open-policy-agent/opa/issues/7205
+		testing.Init()
+
 		benchOpts := tester.BenchmarkOptions{
 			ReportAllocations: testParams.benchMem,
 		}
@@ -451,7 +457,7 @@ func init() {
 		Use:   "test <path> [path [...]]",
 		Short: "Execute Rego test cases",
 		Long: `Execute Rego test cases.
-	
+
 The 'test' command takes a file or directory path as input and executes all
 test cases discovered in matching files. Test cases are rules whose names have the prefix "test_".
 
