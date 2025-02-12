@@ -64,12 +64,12 @@ func testRun(t *testing.T, conf testRunConfig) map[string]*ast.Module {
 	files := map[string]string{
 		"/a.rego": `package foo
 			import rego.v1
-
+		
 			allow if { true }
 			`,
 		"/a_test.rego": `package foo
 			import rego.v1
-
+		
 			test_pass if { allow }
 			non_test if { true }
 			test_fail if { not allow }
@@ -84,18 +84,18 @@ func testRun(t *testing.T, conf testRunConfig) map[string]*ast.Module {
 			`,
 		"/b_test.rego": `package bar
 			import rego.v1
-
+		
 			test_duplicate if { true }`,
 		"/c_test.rego": `package baz
 			import rego.v1
-
+		
 			a.b.test_duplicate if { false }
 			a.b.test_duplicate if { true }
 			a.b.test_duplicate if { true }`,
 		// Regression test for issue #5496.
 		"/d_test.rego": `package test
 			import rego.v1
-
+		
 			a[0] := 1
 			test_pass if { true }`,
 		"/e_test.rego": `package qux
@@ -199,26 +199,26 @@ func doTestRunWithTmpDir(t *testing.T, dir string, conf testRunConfig) ([]*teste
 func validateTestResults(t *testing.T, tests expectedTestResults, rs []*tester.Result, conf testRunConfig) {
 	t.Helper()
 	seen := map[[2]string]struct{}{}
-	for i := range rs {
-		k := [2]string{rs[i].Package, rs[i].Name}
+	for _, r := range rs {
+		k := [2]string{r.Package, r.Name}
 		seen[k] = struct{}{}
 		exp, ok := tests[k]
 		if !ok {
 			t.Errorf("Unexpected result for %v", k)
 			continue
-		} else if exp.wantErr != (rs[i].Error != nil) || exp.wantFail != rs[i].Fail {
-			t.Errorf("Expected %+v for %v but got: %v", exp, k, rs[i])
+		} else if exp.wantErr != (r.Error != nil) || exp.wantFail != r.Fail {
+			t.Errorf("Expected %+v for %v but got: %v", exp, k, r)
 		} else {
 			// Test passed
-			if conf.bench && rs[i].BenchmarkResult == nil {
+			if conf.bench && r.BenchmarkResult == nil {
 				t.Errorf("Expected BenchmarkResult for test %v, got nil", k)
-			} else if !conf.bench && rs[i].BenchmarkResult != nil {
+			} else if !conf.bench && r.BenchmarkResult != nil {
 				t.Errorf("Unexpected BenchmarkResult for test %v, expected nil", k)
 			}
 		}
 
 		if exp.cases != nil {
-			validateSubTestResults(t, exp.cases, rs[i].SubResults)
+			validateSubTestResults(t, exp.cases, r.SubResults)
 		}
 	}
 	for k := range tests {
@@ -235,7 +235,7 @@ func validateSubTestResults(t *testing.T, tests map[string]expectedTestResult, s
 		seen[k] = struct{}{}
 		sr, ok := srs[k]
 		if !ok {
-			t.Errorf("Unexpected sub-result for %v", k)
+			t.Errorf("Expected sub-result for %v", k)
 			continue
 		}
 

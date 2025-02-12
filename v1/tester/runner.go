@@ -59,35 +59,44 @@ func RunWithFilter(ctx context.Context, _ loader.Filter, paths ...string) ([]*Re
 }
 
 type SubResult struct {
-	Fail       bool         `json:"fail,omitempty"`
-	SubResults SubResultMap `json:"sub_results,omitempty"`
+	Name       []string         `json:"name,omitempty"`
+	Fail       bool             `json:"fail,omitempty"`
+	Trace      []*topdown.Event `json:"-"`
+	SubResults SubResultMap     `json:"sub_results,omitempty"`
 }
 
 type SubResultMap map[string]*SubResult
 
-// TODO: Cleanup SubResultMap initialization and updating
+func (srm SubResultMap) Update(path ast.Array, trace []*topdown.Event) bool {
+	strPath := make([]string, path.Len())
+	for i := 0; i < path.Len(); i++ {
+		strPath[i] = termToString(path.Elem(i))
+	}
+	return srm.update(strPath, 0, trace)
+}
 
-func (srm SubResultMap) FailIfUnset(path ast.Array) bool {
-	if path.Len() == 0 {
+func (srm SubResultMap) update(path []string, i int, trace []*topdown.Event) bool {
+	if i >= len(path) {
 		return true
 	}
 
-	t := path.Elem(0)
-
-	entry, ok := srm[termToString(t)]
+	k := path[i]
+	entry, ok := srm[k]
 	if !ok {
 		entry = &SubResult{
+			Name:       path[:i+1],
 			Fail:       true,
 			SubResults: SubResultMap{},
 		}
-		srm[termToString(t)] = entry
+		srm[k] = entry
 	}
 
-	if path.Len() == 1 {
+	if i == len(path)-1 {
+		entry.Trace = trace
 		return entry.Fail
 	}
 
-	fail := entry.SubResults.FailIfUnset(*path.Slice(1, path.Len()))
+	fail := entry.SubResults.update(path, i+1, trace)
 
 	if fail {
 		entry.Fail = true
@@ -154,6 +163,10 @@ func (r Result) Pass() bool {
 }
 
 func (r *Result) String() string {
+	return r.string(true)
+}
+
+func (r *Result) string(subResults bool) string {
 	if r.Skip {
 		return fmt.Sprintf("%v.%v: %v", r.Package, r.Name, r.outcome())
 	}
@@ -161,9 +174,11 @@ func (r *Result) String() string {
 
 	buf.WriteString(fmt.Sprintf("%v.%v: %v (%v)", r.Package, r.Name, r.outcome(), r.Duration))
 
-	for n, sr := range r.SubResults {
-		buf.WriteString("\n")
-		buf.WriteString(sr.string(n, "  "))
+	if subResults {
+		for n, sr := range r.SubResults {
+			buf.WriteString("\n")
+			buf.WriteString(sr.string(n, "  ", true))
+		}
 	}
 
 	return buf.String()
@@ -182,13 +197,15 @@ func (r *Result) outcome() string {
 	return "ERROR"
 }
 
-func (sr *SubResult) string(name string, prefix string) string {
+func (sr *SubResult) string(name string, prefix string, includeSubResults bool) string {
 	var buf bytes.Buffer
 	buf.WriteString(fmt.Sprintf("%v%v: %v", prefix, name, sr.outcome()))
 
-	for n, sr := range sr.SubResults {
-		buf.WriteString("\n")
-		buf.WriteString(sr.string(n, prefix+"  "))
+	if includeSubResults {
+		for n, sr := range sr.SubResults {
+			buf.WriteString("\n")
+			buf.WriteString(sr.string(n, prefix+prefix, true))
+		}
 	}
 
 	return buf.String()
@@ -199,6 +216,25 @@ func (sr *SubResult) outcome() string {
 		return "FAIL"
 	}
 	return "PASS"
+}
+
+// Iter is a depth-first iterator over all sub-results.
+func (srm SubResultMap) Iter(yield func(string, *SubResult) bool) {
+	for k, sr := range srm {
+		if !yield(k, sr) {
+			return
+		}
+		sr.SubResults.Iter(yield)
+	}
+}
+
+func (srm SubResultMap) String() string {
+	var buf bytes.Buffer
+	srm.Iter(func(k string, v *SubResult) bool {
+		buf.WriteString(v.string(k, "  ", true))
+		return true
+	})
+	return buf.String()
 }
 
 // BenchmarkOptions defines options specific to benchmarking tests
@@ -830,7 +866,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	} else if len(rs) == 0 {
 		tr.Fail = true
 	} else if rule.Head.DocKind() == ast.PartialObjectDoc {
-		tr.Fail, tr.SubResults = subResults(rs[0].Expressions[0].Value, trace)
+		tr.Fail, tr.SubResults = subResults(rs[0].Expressions[0].Value, nil, trace)
 	} else if b, ok := rs[0].Expressions[0].Value.(bool); !ok || !b {
 		tr.Fail = true
 	}
@@ -838,7 +874,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	return tr, stop
 }
 
-func subResults(v any, trace []*topdown.Event) (bool, map[string]*SubResult) {
+func subResults(v any, prefix []string, trace []*topdown.Event) (bool, map[string]*SubResult) {
 	if v == nil {
 		return true, map[string]*SubResult{}
 	}
@@ -849,7 +885,10 @@ func subResults(v any, trace []*topdown.Event) (bool, map[string]*SubResult) {
 	switch x := v.(type) {
 	case map[string]any:
 		for k, v := range x {
-			sr := subResult(v)
+			n := make([]string, len(prefix)+1)
+			copy(prefix, n)
+			n[len(n)-1] = k
+			sr := subResult(n, v)
 			result[k] = sr
 			if sr.Fail {
 				fail = true
@@ -857,47 +896,54 @@ func subResults(v any, trace []*topdown.Event) (bool, map[string]*SubResult) {
 		}
 	}
 
-	if updateFailedSubResults(&result, trace) {
-		fail = true
+	// Create failed sub-results and apply per-test-case traces.
+	// For each test-case event, we capture the trace from first event up until the next test-case event.
+	var testEvent *topdown.Event
+	for i, e := range trace {
+		if e.Op == topdown.TestCaseOp {
+			if testEvent != nil {
+				if p, ok := testEvent.Input().Value.(*ast.Array); ok {
+					if f := result.Update(*p, trace[:i]); f {
+						fail = true
+					}
+				}
+			}
+
+			testEvent = e
+		}
+	}
+	if testEvent != nil {
+		if p, ok := testEvent.Input().Value.(*ast.Array); ok {
+			if f := result.Update(*p, trace); f {
+				fail = true
+			}
+		}
 	}
 
 	return fail, result
 }
 
-func updateFailedSubResults(r *SubResultMap, trace []*topdown.Event) bool {
-	var fail bool
-
-	for _, e := range trace {
-		if e.Op == topdown.TestCaseOp {
-			if p, ok := e.Input().Value.(*ast.Array); ok {
-				if r.FailIfUnset(*p) {
-					fail = true
-				}
-			}
-		}
-	}
-
-	return fail
-}
-
-func subResult(v any) *SubResult {
+func subResult(n []string, v any) *SubResult {
 	if v == nil {
 		return &SubResult{}
 	}
 
 	switch x := v.(type) {
 	case map[string]any:
-		fail, srs := subResults(x, nil)
+		fail, srs := subResults(x, n, nil)
 		return &SubResult{
+			Name:       n,
 			Fail:       fail,
 			SubResults: srs,
 		}
 	case bool:
 		return &SubResult{
+			Name: n,
 			Fail: !x,
 		}
 	default:
 		return &SubResult{
+			Name: n,
 			Fail: true,
 		}
 	}
@@ -975,7 +1021,7 @@ func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod 
 				tr.Fail = true
 				b.Fatal("Expected boolean result, got `undefined`")
 			} else if rule.Head.DocKind() == ast.PartialObjectDoc {
-				tr.Fail, tr.SubResults = subResults(rs[0].Expressions[0].Value, tracer.Events())
+				tr.Fail, tr.SubResults = subResults(rs[0].Expressions[0].Value, nil, tracer.Events())
 			} else if pass, ok := rs[0].Expressions[0].Value.(bool); !ok || !pass {
 				tr.Fail = true
 				b.Fatal("Expected test to evaluate as true, got false")

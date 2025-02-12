@@ -57,44 +57,48 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 	}
 
 	if fail > 0 && (r.Verbose || r.FailureLine) {
-		fmt.Fprintln(r.Output, "FAILURES")
+		_, _ = fmt.Fprintln(r.Output, "FAILURES")
 		r.hl()
 
 		for _, failure := range failures {
-			fmt.Fprintln(r.Output, failure)
-			if r.Verbose {
-				fmt.Fprintln(r.Output)
-				topdown.PrettyTraceWithOpts(newIndentingWriter(r.Output), failure.Trace, topdown.PrettyTraceOptions{
-					Locations:     true,
-					ExprVariables: r.LocalVars,
-				})
-			}
+			_, _ = fmt.Fprintln(r.Output, failure.string(false))
 
-			if r.FailureLine {
-				fmt.Fprintln(r.Output)
-				for i := len(failure.Trace) - 1; i >= 0; i-- {
-					e := failure.Trace[i]
-					if e.Op == topdown.FailOp && e.Location != nil && e.QueryID != 0 {
-						if expr, isExpr := e.Node.(*ast.Expr); isExpr {
-							if _, isEvery := expr.Terms.(*ast.Every); isEvery {
-								// We're interested in the failing expression inside the every body.
-								continue
+			if len(failure.SubResults) > 0 {
+				// Print trace collectively for all sub-results.
+				if err := printFailure(r.Output, failure.Trace, r.Verbose, false, r.LocalVars); err != nil {
+					return err
+				}
+
+				if !r.FailureLine {
+					continue
+				}
+
+				for _, v := range failure.SubResults.Iter {
+					w := newIndentingWriter(r.Output)
+					if v.Fail {
+						if len(v.SubResults) == 0 {
+							for _, n := range v.Name {
+								_, _ = fmt.Fprintf(w, "%s: FAIL\n", n)
+								w = newIndentingWriter(w)
 							}
+
+							if err := printFailure(w, v.Trace, false, r.FailureLine, r.LocalVars); err != nil {
+								return err
+							}
+							_, _ = fmt.Fprintln(w)
 						}
-						_, _ = fmt.Fprintf(newIndentingWriter(r.Output), "%s:%d:\n", e.Location.File, e.Location.Row)
-						if err := topdown.PrettyEvent(newIndentingWriter(r.Output, 4), e, topdown.PrettyEventOpts{PrettyVars: r.LocalVars}); err != nil {
-							return err
-						}
-						_, _ = fmt.Fprintln(r.Output)
-						break
 					}
+				}
+			} else {
+				if err := printFailure(r.Output, failure.Trace, r.Verbose, r.FailureLine, r.LocalVars); err != nil {
+					return err
 				}
 			}
 
-			fmt.Fprintln(r.Output)
+			_, _ = fmt.Fprintln(r.Output)
 		}
 
-		fmt.Fprintln(r.Output, "SUMMARY")
+		_, _ = fmt.Fprintln(r.Output, "SUMMARY")
 		r.hl()
 	}
 
@@ -104,25 +108,25 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 
 		if tr.Pass() && r.BenchmarkResults {
 			dirty = true
-			fmt.Fprintln(r.Output, r.fmtBenchmark(tr))
+			_, _ = fmt.Fprintln(r.Output, r.fmtBenchmark(tr))
 		} else if r.Verbose || !tr.Pass() {
 			if tr.Location != nil && tr.Location.File != lastFile {
 				if lastFile != "" {
-					fmt.Fprintln(r.Output, "")
+					_, _ = fmt.Fprintln(r.Output, "")
 				}
-				fmt.Fprintf(r.Output, "%s:\n", tr.Location.File)
+				_, _ = fmt.Fprintf(r.Output, "%s:\n", tr.Location.File)
 				lastFile = tr.Location.File
 			}
 			dirty = true
-			fmt.Fprintln(r.Output, tr)
+			_, _ = fmt.Fprintln(r.Output, tr)
 			if len(tr.Output) > 0 {
-				fmt.Fprintln(r.Output)
-				fmt.Fprintln(newIndentingWriter(r.Output), strings.TrimSpace(string(tr.Output)))
-				fmt.Fprintln(r.Output)
+				_, _ = fmt.Fprintln(r.Output)
+				_, _ = fmt.Fprintln(newIndentingWriter(r.Output), strings.TrimSpace(string(tr.Output)))
+				_, _ = fmt.Fprintln(r.Output)
 			}
 		}
 		if tr.Error != nil {
-			fmt.Fprintf(r.Output, "  %v\n", tr.Error)
+			_, _ = fmt.Fprintf(r.Output, "  %v\n", tr.Error)
 		}
 	}
 
@@ -134,19 +138,52 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 	total := pass + fail + skip + errs
 
 	if pass != 0 {
-		fmt.Fprintln(r.Output, "PASS:", fmt.Sprintf("%d/%d", pass, total))
+		_, _ = fmt.Fprintln(r.Output, "PASS:", fmt.Sprintf("%d/%d", pass, total))
 	}
 
 	if fail != 0 {
-		fmt.Fprintln(r.Output, "FAIL:", fmt.Sprintf("%d/%d", fail, total))
+		_, _ = fmt.Fprintln(r.Output, "FAIL:", fmt.Sprintf("%d/%d", fail, total))
 	}
 
 	if skip != 0 {
-		fmt.Fprintln(r.Output, "SKIPPED:", fmt.Sprintf("%d/%d", skip, total))
+		_, _ = fmt.Fprintln(r.Output, "SKIPPED:", fmt.Sprintf("%d/%d", skip, total))
 	}
 
 	if errs != 0 {
-		fmt.Fprintln(r.Output, "ERROR:", fmt.Sprintf("%d/%d", errs, total))
+		_, _ = fmt.Fprintln(r.Output, "ERROR:", fmt.Sprintf("%d/%d", errs, total))
+	}
+
+	return nil
+}
+
+func printFailure(w io.Writer, trace []*topdown.Event, verbose bool, failureLine bool, localVars bool) error {
+	if verbose {
+		_, _ = fmt.Fprintln(w)
+		topdown.PrettyTraceWithOpts(newIndentingWriter(w), trace, topdown.PrettyTraceOptions{
+			Locations:     true,
+			ExprVariables: localVars,
+		})
+	}
+
+	if failureLine {
+		_, _ = fmt.Fprintln(w)
+		for i := len(trace) - 1; i >= 0; i-- {
+			e := trace[i]
+			if e.Op == topdown.FailOp && e.Location != nil && e.QueryID != 0 {
+				if expr, isExpr := e.Node.(*ast.Expr); isExpr {
+					if _, isEvery := expr.Terms.(*ast.Every); isEvery {
+						// We're interested in the failing expression inside the every body.
+						continue
+					}
+				}
+				_, _ = fmt.Fprintf(newIndentingWriter(w), "%s:%d:\n", e.Location.File, e.Location.Row)
+				if err := topdown.PrettyEvent(newIndentingWriter(w, 4), e, topdown.PrettyEventOpts{PrettyVars: localVars}); err != nil {
+					return err
+				}
+				_, _ = fmt.Fprintln(w)
+				break
+			}
+		}
 	}
 
 	return nil
@@ -253,6 +290,12 @@ func newIndentingWriter(w io.Writer, indent ...int) indentingWriter {
 	if len(indent) > 0 {
 		i = indent[0]
 	}
+
+	if iw, ok := w.(indentingWriter); ok {
+		i += iw.indent
+		w = iw.w
+	}
+
 	return indentingWriter{
 		w:      w,
 		indent: i,
