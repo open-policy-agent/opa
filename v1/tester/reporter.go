@@ -61,7 +61,8 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 		r.hl()
 
 		for _, failure := range failures {
-			_, _ = fmt.Fprintln(r.Output, failure.string(false))
+			_, _ = fmt.Fprint(r.Output, failure.string(false))
+			_, _ = fmt.Fprintln(r.Output)
 
 			if len(failure.SubResults) > 0 {
 				// Print trace collectively for all sub-results.
@@ -69,19 +70,17 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 					return err
 				}
 
-				_, _ = fmt.Fprintln(r.Output)
-
-				if !r.FailureLine {
-					continue
+				if r.Verbose || r.FailureLine {
+					_, _ = fmt.Fprintln(r.Output)
 				}
 
-				for _, sr := range failure.SubResults.Iter {
+				for fullName, sr := range failure.SubResults.Iter {
 					w := newIndentingWriter(r.Output)
 
 					if sr.Fail {
 						if len(sr.SubResults) == 0 {
 							// Print full test-case lineage for every failed leaf sub-result for readability.
-							for _, n := range sr.Name {
+							for _, n := range fullName {
 								_, _ = fmt.Fprintf(w, "%s: %s\n", n, sr.outcome())
 								w = newIndentingWriter(w)
 							}
@@ -89,10 +88,7 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 							if err := printFailure(w, sr.Trace, false, r.FailureLine, r.LocalVars); err != nil {
 								return err
 							}
-
-							_, _ = fmt.Fprintln(w)
 						}
-
 					}
 				}
 			} else {
@@ -123,8 +119,15 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 				_, _ = fmt.Fprintf(r.Output, "%s:\n", tr.Location.File)
 				lastFile = tr.Location.File
 			}
+
 			dirty = true
-			_, _ = fmt.Fprintln(r.Output, tr)
+			_, _ = fmt.Fprintln(r.Output, tr.string(false))
+
+			w := newIndentingWriter(r.Output)
+			if sr := tr.SubResults; len(sr) > 0 {
+				_, _ = fmt.Fprint(w, sr.string("  "))
+			}
+
 			if len(tr.Output) > 0 {
 				_, _ = fmt.Fprintln(r.Output)
 				_, _ = fmt.Fprintln(newIndentingWriter(r.Output), strings.TrimSpace(string(tr.Output)))

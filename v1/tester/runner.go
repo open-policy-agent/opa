@@ -59,7 +59,7 @@ func RunWithFilter(ctx context.Context, _ loader.Filter, paths ...string) ([]*Re
 }
 
 type SubResult struct {
-	Name       []string         `json:"name,omitempty"`
+	Name       string           `json:"name,omitempty"`
 	Fail       bool             `json:"fail,omitempty"`
 	Trace      []*topdown.Event `json:"-"`
 	SubResults SubResultMap     `json:"sub_results,omitempty"`
@@ -84,7 +84,7 @@ func (srm SubResultMap) update(path []string, i int, trace []*topdown.Event) boo
 	entry, ok := srm[k]
 	if !ok {
 		entry = &SubResult{
-			Name:       path[:i+1],
+			Name:       path[i],
 			Fail:       true,
 			SubResults: SubResultMap{},
 		}
@@ -196,14 +196,7 @@ func (r *Result) outcome() string {
 }
 
 func (sr *SubResult) String() string {
-	var name string
-	if len(sr.Name) > 0 {
-		name = sr.Name[len(sr.Name)-1]
-	} else {
-		name = "<UNKNOWN>"
-	}
-
-	return fmt.Sprintf("%v: %v", name, sr.outcome())
+	return fmt.Sprintf("%v: %v", sr.Name, sr.outcome())
 }
 
 func (sr *SubResult) outcome() string {
@@ -214,22 +207,35 @@ func (sr *SubResult) outcome() string {
 }
 
 // Iter is a depth-first iterator over all sub-results.
-func (srm SubResultMap) Iter(yield func(string, *SubResult) bool) {
+func (srm SubResultMap) Iter(yield func([]string, *SubResult) bool) {
+	srm.iter(nil, yield)
+}
+
+func (srm SubResultMap) iter(namePrefix []string, yield func([]string, *SubResult) bool) {
 	for _, k := range util.KeysSorted(srm) {
 		sr := srm[k]
-		if !yield(k, sr) {
+
+		fullName := make([]string, len(namePrefix)+1)
+		copy(fullName, namePrefix)
+		fullName[len(fullName)-1] = k
+
+		if !yield(fullName, sr) {
 			return
 		}
-		sr.SubResults.Iter(yield)
+		sr.SubResults.iter(fullName, yield)
 	}
 }
 
 func (srm SubResultMap) String() string {
+	return srm.string("  ")
+}
+
+func (srm SubResultMap) string(indent string) string {
 	var buf bytes.Buffer
-	for _, v := range srm.Iter {
+	for fullName, sr := range srm.Iter {
 		buf.WriteString(fmt.Sprintf("%s%s\n",
-			strings.Repeat("  ", len(v.Name)-1),
-			v.String(),
+			strings.Repeat(indent, len(fullName)-1),
+			sr.String(),
 		))
 	}
 	return buf.String()
@@ -864,7 +870,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	} else if len(rs) == 0 {
 		tr.Fail = true
 	} else if rule.Head.DocKind() == ast.PartialObjectDoc {
-		tr.Fail, tr.SubResults = subResults(rs[0].Expressions[0].Value, nil, trace)
+		tr.Fail, tr.SubResults = subResults(rs[0].Expressions[0].Value, trace)
 	} else if b, ok := rs[0].Expressions[0].Value.(bool); !ok || !b {
 		tr.Fail = true
 	}
@@ -872,7 +878,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	return tr, stop
 }
 
-func subResults(v any, prefix []string, trace []*topdown.Event) (bool, map[string]*SubResult) {
+func subResults(v any, trace []*topdown.Event) (bool, map[string]*SubResult) {
 	if v == nil {
 		return true, map[string]*SubResult{}
 	}
@@ -883,10 +889,7 @@ func subResults(v any, prefix []string, trace []*topdown.Event) (bool, map[strin
 	switch x := v.(type) {
 	case map[string]any:
 		for k, v := range x {
-			n := make([]string, len(prefix)+1)
-			copy(n, prefix)
-			n[len(n)-1] = k
-			sr := subResult(n, v)
+			sr := subResult(k, v)
 			result[k] = sr
 			if sr.Fail {
 				fail = true
@@ -921,14 +924,14 @@ func subResults(v any, prefix []string, trace []*topdown.Event) (bool, map[strin
 	return fail, result
 }
 
-func subResult(n []string, v any) *SubResult {
+func subResult(n string, v any) *SubResult {
 	if v == nil {
 		return &SubResult{}
 	}
 
 	switch x := v.(type) {
 	case map[string]any:
-		fail, srs := subResults(x, n, nil)
+		fail, srs := subResults(x, nil)
 		return &SubResult{
 			Name:       n,
 			Fail:       fail,
@@ -1019,7 +1022,7 @@ func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod 
 				tr.Fail = true
 				b.Fatal("Expected boolean result, got `undefined`")
 			} else if rule.Head.DocKind() == ast.PartialObjectDoc {
-				tr.Fail, tr.SubResults = subResults(rs[0].Expressions[0].Value, nil, tracer.Events())
+				tr.Fail, tr.SubResults = subResults(rs[0].Expressions[0].Value, tracer.Events())
 			} else if pass, ok := rs[0].Expressions[0].Value.(bool); !ok || !pass {
 				tr.Fail = true
 				b.Fatal("Expected test to evaluate as true, got false")

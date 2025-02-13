@@ -5,16 +5,25 @@ const fixtureReporterVerboseBenchmark = `FAILURES
 data.foo.bar.test_corge: FAIL (0s)
 
 
+data.foo.bar.test_cases_fail: FAIL (0s)
+
+
+  two: FAIL
+
 SUMMARY
 --------------------------------------------------------------------------------
 data.foo.bar.test_baz	    1000	       123.0 ns/op
 data.foo.bar.test_qux: ERROR (0s)
   some err
 data.foo.bar.test_corge: FAIL (0s)
+data.foo.bar.test_cases_fail: FAIL (0s)
+  one: PASS
+  two: FAIL
+data.foo.bar.test_cases_ok	    2000	        61.50 ns/op
 --------------------------------------------------------------------------------
-PASS: 1/3
-FAIL: 1/3
-ERROR: 1/3
+PASS: 2/5
+FAIL: 2/5
+ERROR: 1/5
 `
 
 const fixtureReporterVerboseBenchmarkShowAllocations = `FAILURES
