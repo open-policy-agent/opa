@@ -591,8 +591,43 @@ func rewriteDuplicateTestNames(compiler *ast.Compiler) *ast.Error {
 
 var testCaseFuncRef = ast.InternalTestCase.Ref()
 
-// TODO: Explain why we inject the internal.test_case function, and why we want to place it as far up the rule body as possible.
-// And that this might require us to also move generated assignment expressions up too.
+// injectTestCaseFunc will inject a call to the 'internal.test_case' function into partial-object test rules.
+// We attempt to find the earliest point in the rule body where we can inject the call, to ensure that the test-case
+// function is called as early as possible so that we capture as many failed test cases as possible.
+// This may require us to move generated assignment expressions up the body.
+// We do not attempt to move non-generated expressions, as that could contradict author intent.
+//
+// Consider the test rule:
+//
+//	test_concat[tc.note] if {
+//		some tc in [{
+//			"note": "empty + empty",
+//			"a": [],
+//			"b": [],
+//			"exp": [],
+//		}]
+//		act := array.concat(tc.a, tc.b)
+//		act == tc.exp
+//	}
+//
+// The compiler will rewrite this rule to (mid-stage @ 'RewriteLocalVars'):
+//
+//	test_concat[__local0__] := true if {
+//		__local3__ = [{"a": [], "b": [], "exp": [], "note": "empty + empty"}][__local2__]
+//		__local4__ = array.concat(__local3__.a, __local3__.b)
+//		__local4__ == __local3__.exp
+//		__local0__ = __local3__.note # generated var
+//	}
+//
+// We move the generated var assignment as far up the body as possible, and inject the test-case function below it:
+//
+//	test_concat[__local0__] := true if {
+//		__local3__ = [{"a": [], "b": [], "exp": [], "note": "empty + empty"}][__local2__]
+//		__local0__ = __local3__.note                          # moved up
+//		internal.test_case([__local0__])                      # injected
+//		__local4__ = array.concat(__local3__.a, __local3__.b) # this and below expressions can now fail eval and we will still have captured the test-case
+//		__local4__ == __local3__.exp
+//	}
 func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 	for _, mod := range compiler.Modules {
 		for _, rule := range mod.Rules {
