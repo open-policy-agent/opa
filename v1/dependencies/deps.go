@@ -6,7 +6,7 @@ package dependencies
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/util"
@@ -168,23 +168,25 @@ func virtual(compiler *ast.Compiler, x interface{}, virtualRefs *dependencies) e
 }
 
 type dependencies struct {
-	refs         *util.HashMap
-	visitedRules *util.HashMap
+	refs         *util.HasherMap[ast.Ref, ast.Ref]
+	visitedRules *util.TypedHashMap[*ast.Rule, *ast.Rule]
 }
 
 func newRefSet() *dependencies {
 	return &dependencies{
-		refs: util.NewHashMap(func(a, b util.T) bool {
-			return a.(ast.Ref).Equal(b.(ast.Ref))
-		}, func(a util.T) int {
-			return a.(ast.Ref).Hash()
-		}),
-		visitedRules: util.NewHashMap(func(a, b util.T) bool {
-			return a.(*ast.Rule).Equal(b.(*ast.Rule))
-		}, func(a util.T) int {
-			return a.(*ast.Rule).Ref().Hash()
-		}),
+		refs: util.NewHasherMap[ast.Ref, ast.Ref](ast.RefEqual),
+		visitedRules: util.NewTypedHashMap[*ast.Rule, *ast.Rule](
+			(*ast.Rule).Equal,
+			nil,
+			ruleHash,
+			nil,
+			nil,
+		),
 	}
+}
+
+func ruleHash(r *ast.Rule) int {
+	return r.Ref().Hash()
 }
 
 func (rs *dependencies) add(r ast.Ref) {
@@ -201,22 +203,18 @@ func (rs *dependencies) visited(rule *ast.Rule) bool {
 }
 
 func (rs *dependencies) toSlice() []ast.Ref {
-	var result []ast.Ref
-	rs.refs.Iter(func(k, _ util.T) bool {
-		result = append(result, k.(ast.Ref))
+	result := make([]ast.Ref, 0, rs.refs.Len())
+	rs.refs.Iter(func(k, _ ast.Ref) bool {
+		result = append(result, k)
 		return false
 	})
 	return result
 }
 
 func dedup(refs []ast.Ref) []ast.Ref {
-	sort.Slice(refs, func(i, j int) bool {
-		return refs[i].Compare(refs[j]) < 0
-	})
+	slices.SortFunc(refs, ast.RefCompare)
 
-	return filter(refs, func(a, b ast.Ref) bool {
-		return a.Compare(b) == 0
-	})
+	return slices.CompactFunc(refs, ast.RefEqual)
 }
 
 // filter removes all items from the list that cause pred to return true. It is

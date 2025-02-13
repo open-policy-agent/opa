@@ -13,15 +13,14 @@ import (
 // ValueMap represents a key/value map between AST term values. Any type of term
 // can be used as a key in the map.
 type ValueMap struct {
-	hashMap *util.HashMap
+	hashMap *util.TypedHashMap[Value, Value]
 }
 
 // NewValueMap returns a new ValueMap.
 func NewValueMap() *ValueMap {
-	vs := &ValueMap{
-		hashMap: util.NewHashMap(valueEq, valueHash),
+	return &ValueMap{
+		hashMap: util.NewTypedHashMap(ValueEqual, ValueEqual, Value.Hash, Value.Hash, nil),
 	}
-	return vs
 }
 
 // MarshalJSON provides a custom marshaller for the ValueMap which
@@ -37,16 +36,6 @@ func (vs *ValueMap) MarshalJSON() ([]byte, error) {
 		return false
 	})
 	return json.Marshal(tmp)
-}
-
-// Copy returns a shallow copy of the ValueMap.
-func (vs *ValueMap) Copy() *ValueMap {
-	if vs == nil {
-		return nil
-	}
-	cpy := NewValueMap()
-	cpy.hashMap = vs.hashMap.Copy()
-	return cpy
 }
 
 // Equal returns true if this ValueMap equals the other.
@@ -72,7 +61,7 @@ func (vs *ValueMap) Len() int {
 func (vs *ValueMap) Get(k Value) Value {
 	if vs != nil {
 		if v, ok := vs.hashMap.Get(k); ok {
-			return v.(Value)
+			return v
 		}
 	}
 	return nil
@@ -92,11 +81,7 @@ func (vs *ValueMap) Iter(iter func(Value, Value) bool) bool {
 	if vs == nil {
 		return false
 	}
-	return vs.hashMap.Iter(func(kt, vt util.T) bool {
-		k := kt.(Value)
-		v := vt.(Value)
-		return iter(k, v)
-	})
+	return vs.hashMap.Iter(iter)
 }
 
 // Put inserts a key k into the map with value v.
@@ -120,14 +105,4 @@ func (vs *ValueMap) String() string {
 		return "{}"
 	}
 	return vs.hashMap.String()
-}
-
-func valueHash(v util.T) int {
-	return v.(Value).Hash()
-}
-
-func valueEq(a, b util.T) bool {
-	av := a.(Value)
-	bv := b.(Value)
-	return av.Compare(bv) == 0
 }
