@@ -20,7 +20,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/OneOfOne/xxhash"
+	"github.com/cespare/xxhash/v2"
 
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/ast/location"
@@ -721,7 +721,7 @@ func (num Number) Hash() int {
 	f, err := json.Number(num).Float64()
 	if err != nil {
 		bs := []byte(num)
-		h := xxhash.Checksum64(bs)
+		h := xxhash.Sum64(bs)
 		return int(h)
 	}
 	return int(f)
@@ -837,8 +837,7 @@ func (str String) String() string {
 
 // Hash returns the hash code for the Value.
 func (str String) Hash() int {
-	h := xxhash.ChecksumString64S(string(str), hashSeed0)
-	return int(h)
+	return int(xxhash.Sum64String(string(str)))
 }
 
 // Var represents a variable as defined by the language.
@@ -879,8 +878,7 @@ func (v Var) Find(path Ref) (Value, error) {
 
 // Hash returns the hash code for the Value.
 func (v Var) Hash() int {
-	h := xxhash.ChecksumString64S(string(v), hashSeed0)
-	return int(h)
+	return int(xxhash.Sum64String(string(v)))
 }
 
 // IsGround always returns false.
