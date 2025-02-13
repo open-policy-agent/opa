@@ -175,10 +175,8 @@ func (r *Result) string(subResults bool) string {
 	buf.WriteString(fmt.Sprintf("%v.%v: %v (%v)", r.Package, r.Name, r.outcome(), r.Duration))
 
 	if subResults {
-		for n, sr := range r.SubResults {
-			buf.WriteString("\n")
-			buf.WriteString(sr.string(n, "  ", true))
-		}
+		buf.WriteString("\n")
+		buf.WriteString(r.SubResults.String())
 	}
 
 	return buf.String()
@@ -197,18 +195,15 @@ func (r *Result) outcome() string {
 	return "ERROR"
 }
 
-func (sr *SubResult) string(name string, prefix string, includeSubResults bool) string {
-	var buf bytes.Buffer
-	buf.WriteString(fmt.Sprintf("%v%v: %v", prefix, name, sr.outcome()))
-
-	if includeSubResults {
-		for n, sr := range sr.SubResults {
-			buf.WriteString("\n")
-			buf.WriteString(sr.string(n, prefix+prefix, true))
-		}
+func (sr *SubResult) String() string {
+	var name string
+	if len(sr.Name) > 0 {
+		name = sr.Name[len(sr.Name)-1]
+	} else {
+		name = "<UNKNOWN>"
 	}
 
-	return buf.String()
+	return fmt.Sprintf("%v: %v", name, sr.outcome())
 }
 
 func (sr *SubResult) outcome() string {
@@ -220,7 +215,8 @@ func (sr *SubResult) outcome() string {
 
 // Iter is a depth-first iterator over all sub-results.
 func (srm SubResultMap) Iter(yield func(string, *SubResult) bool) {
-	for k, sr := range srm {
+	for _, k := range util.KeysSorted(srm) {
+		sr := srm[k]
 		if !yield(k, sr) {
 			return
 		}
@@ -230,10 +226,12 @@ func (srm SubResultMap) Iter(yield func(string, *SubResult) bool) {
 
 func (srm SubResultMap) String() string {
 	var buf bytes.Buffer
-	srm.Iter(func(k string, v *SubResult) bool {
-		buf.WriteString(v.string(k, "  ", true))
-		return true
-	})
+	for _, v := range srm.Iter {
+		buf.WriteString(fmt.Sprintf("%s%s\n",
+			strings.Repeat("  ", len(v.Name)-1),
+			v.String(),
+		))
+	}
 	return buf.String()
 }
 
@@ -886,7 +884,7 @@ func subResults(v any, prefix []string, trace []*topdown.Event) (bool, map[strin
 	case map[string]any:
 		for k, v := range x {
 			n := make([]string, len(prefix)+1)
-			copy(prefix, n)
+			copy(n, prefix)
 			n[len(n)-1] = k
 			sr := subResult(n, v)
 			result[k] = sr

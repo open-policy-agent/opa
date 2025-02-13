@@ -69,24 +69,30 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 					return err
 				}
 
+				_, _ = fmt.Fprintln(r.Output)
+
 				if !r.FailureLine {
 					continue
 				}
 
-				for _, v := range failure.SubResults.Iter {
+				for _, sr := range failure.SubResults.Iter {
 					w := newIndentingWriter(r.Output)
-					if v.Fail {
-						if len(v.SubResults) == 0 {
-							for _, n := range v.Name {
-								_, _ = fmt.Fprintf(w, "%s: FAIL\n", n)
+
+					if sr.Fail {
+						if len(sr.SubResults) == 0 {
+							// Print full test-case lineage for every failed leaf sub-result for readability.
+							for _, n := range sr.Name {
+								_, _ = fmt.Fprintf(w, "%s: %s\n", n, sr.outcome())
 								w = newIndentingWriter(w)
 							}
 
-							if err := printFailure(w, v.Trace, false, r.FailureLine, r.LocalVars); err != nil {
+							if err := printFailure(w, sr.Trace, false, r.FailureLine, r.LocalVars); err != nil {
 								return err
 							}
+
 							_, _ = fmt.Fprintln(w)
 						}
+
 					}
 				}
 			} else {
