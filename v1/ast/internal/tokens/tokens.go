@@ -4,12 +4,14 @@
 
 package tokens
 
+import "maps"
+
 // Token represents a single Rego source code token
 // for use by the Parser.
-type Token int
+type Token uint8
 
 func (t Token) String() string {
-	if t < 0 || int(t) >= len(strings) {
+	if int(t) >= len(strings) {
 		return "unknown"
 	}
 	return strings[t]
@@ -137,11 +139,7 @@ var keywords = map[string]Token{
 
 // Keywords returns a copy of the default string -> Token keyword map.
 func Keywords() map[string]Token {
-	cpy := make(map[string]Token, len(keywords))
-	for k, v := range keywords {
-		cpy[k] = v
-	}
-	return cpy
+	return maps.Clone(keywords)
 }
 
 // IsKeyword returns if a token is a keyword
