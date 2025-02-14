@@ -21,6 +21,10 @@ func builtinObjectUnion(_ BuiltinContext, operands []*ast.Term, iter func(*ast.T
 		return err
 	}
 
+	if objA.Compare(objB) == 0 {
+		return iter(operands[0])
+	}
+
 	r := mergeWithOverwrite(objA, objB)
 
 	return iter(ast.NewTerm(r))
