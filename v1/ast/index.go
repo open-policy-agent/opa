@@ -64,15 +64,16 @@ type baseDocEqIndex struct {
 }
 
 var (
-	equalityRef      = Equality.Ref()
-	equalRef         = Equal.Ref()
-	globMatchRef     = GlobMatch.Ref()
-	internalPrintRef = InternalPrint.Ref()
+	equalityRef         = Equality.Ref()
+	equalRef            = Equal.Ref()
+	globMatchRef        = GlobMatch.Ref()
+	internalPrintRef    = InternalPrint.Ref()
+	internalTestCaseRef = InternalTestCase.Ref()
 )
 
 func newBaseDocEqIndex(isVirtual func(Ref) bool) *baseDocEqIndex {
 	return &baseDocEqIndex{
-		skipIndexing:   NewSet(NewTerm(internalPrintRef)),
+		skipIndexing:   NewSet(NewTerm(internalPrintRef), NewTerm(internalTestCaseRef)),
 		isVirtual:      isVirtual,
 		root:           newTrieNodeImpl(),
 		onlyGroundRefs: true,

@@ -4234,6 +4234,9 @@ func (f *equalityFactory) Generate(other *Term) *Expr {
 	return expr
 }
 
+// TODO: Move to internal package?
+const LocalVarPrefix = "__local"
+
 type localVarGenerator struct {
 	exclude VarSet
 	suffix  string
@@ -4258,7 +4261,7 @@ func newLocalVarGenerator(suffix string, node interface{}) *localVarGenerator {
 
 func (l *localVarGenerator) Generate() Var {
 	for {
-		result := Var("__local" + l.suffix + strconv.Itoa(l.next) + "__")
+		result := Var(LocalVarPrefix + l.suffix + strconv.Itoa(l.next) + "__")
 		l.next++
 		if !l.exclude.Contains(result) {
 			return result
