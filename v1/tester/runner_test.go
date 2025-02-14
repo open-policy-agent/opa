@@ -29,6 +29,10 @@ func TestRun(t *testing.T) {
 }
 
 func TestRunBenchmark(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	testRun(t, testRunConfig{bench: true})
 }
 

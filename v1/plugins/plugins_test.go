@@ -194,6 +194,10 @@ func TestPluginStatusUpdateOnStartAndStop(t *testing.T) {
 }
 
 func TestManagerWithOPATelemetryUpdateLoop(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	tests := []struct {
 		note        string
 		regoVersion ast.RegoVersion
