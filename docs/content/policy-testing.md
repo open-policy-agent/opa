@@ -299,7 +299,7 @@ opa test --format=json pass_fail_error_test.rego
 ]
 ```
 
-## Test Cases and Data-driven Testing
+## Parameterized Tests and Data-driven Testing
 
 A test rule can define multiple test cases for evaluation. 
 Test cases are declared by adding their name(s) to the rule as variables in its head's reference, and are evaluated through regular enumeration.
