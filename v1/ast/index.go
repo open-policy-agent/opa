@@ -235,7 +235,7 @@ type refindex struct {
 type refindices struct {
 	isVirtual func(Ref) bool
 	rules     map[*Rule][]*refindex
-	frequency *util.HashMap
+	frequency *util.HasherMap[Ref, int]
 	sorted    []Ref
 }
 
@@ -243,12 +243,7 @@ func newrefindices(isVirtual func(Ref) bool) *refindices {
 	return &refindices{
 		isVirtual: isVirtual,
 		rules:     map[*Rule][]*refindex{},
-		frequency: util.NewHashMap(func(a, b util.T) bool {
-			r1, r2 := a.(Ref), b.(Ref)
-			return r1.Equal(r2)
-		}, func(x util.T) int {
-			return x.(Ref).Hash()
-		}),
+		frequency: util.NewHasherMap[Ref, int](RefEqual),
 	}
 }
 
@@ -296,9 +291,9 @@ func (i *refindices) Sorted() []Ref {
 		counts := make([]int, 0, i.frequency.Len())
 		i.sorted = make([]Ref, 0, i.frequency.Len())
 
-		i.frequency.Iter(func(k, v util.T) bool {
-			counts = append(counts, v.(int))
-			i.sorted = append(i.sorted, k.(Ref))
+		i.frequency.Iter(func(k Ref, v int) bool {
+			counts = append(counts, v)
+			i.sorted = append(i.sorted, k)
 			return false
 		})
 
@@ -399,7 +394,7 @@ func (i *refindices) insert(rule *Rule, index *refindex) {
 		count = 0
 	}
 
-	i.frequency.Put(index.Ref, count.(int)+1)
+	i.frequency.Put(index.Ref, count+1)
 
 	for pos, other := range i.rules[rule] {
 		if other.Ref.Equal(index.Ref) {
@@ -467,7 +462,7 @@ type trieNode struct {
 	next      *trieNode
 	any       *trieNode
 	undefined *trieNode
-	scalars   *util.HashMap
+	scalars   *util.HasherMap[Value, *trieNode]
 	array     *trieNode
 	rules     []*ruleNode
 }
@@ -492,9 +487,7 @@ func (node *trieNode) String() string {
 	}
 	if node.scalars.Len() > 0 {
 		buf := make([]string, 0, node.scalars.Len())
-		node.scalars.Iter(func(k, v util.T) bool {
-			key := k.(Value)
-			val := v.(*trieNode)
+		node.scalars.Iter(func(key Value, val *trieNode) bool {
 			buf = append(buf, fmt.Sprintf("scalar(%v):%p", key, val))
 			return false
 		})
@@ -535,7 +528,7 @@ type ruleNode struct {
 
 func newTrieNodeImpl() *trieNode {
 	return &trieNode{
-		scalars: util.NewHashMap(valueEq, valueHash),
+		scalars: util.NewHasherMap[Value, *trieNode](ValueEqual),
 	}
 }
 
@@ -551,8 +544,7 @@ func (node *trieNode) Do(walker trieWalker) {
 		node.undefined.Do(next)
 	}
 
-	node.scalars.Iter(func(_, v util.T) bool {
-		child := v.(*trieNode)
+	node.scalars.Iter(func(_ Value, child *trieNode) bool {
 		child.Do(next)
 		return false
 	})
@@ -618,7 +610,7 @@ func (node *trieNode) insertValue(value Value) *trieNode {
 			child = newTrieNodeImpl()
 			node.scalars.Put(value, child)
 		}
-		return child.(*trieNode)
+		return child
 	case *Array:
 		if node.array == nil {
 			node.array = newTrieNodeImpl()
@@ -647,7 +639,7 @@ func (node *trieNode) insertArray(arr *Array) *trieNode {
 			child = newTrieNodeImpl()
 			node.scalars.Put(head, child)
 		}
-		return child.(*trieNode).insertArray(arr.Slice(1, -1))
+		return child.insertArray(arr.Slice(1, -1))
 	}
 
 	panic("illegal value")
@@ -712,7 +704,7 @@ func (node *trieNode) traverseValue(resolver ValueResolver, tr *trieTraversalRes
 		if !ok {
 			return nil
 		}
-		return child.(*trieNode).Traverse(resolver, tr)
+		return child.Traverse(resolver, tr)
 	}
 
 	return nil
@@ -741,7 +733,7 @@ func (node *trieNode) traverseArray(resolver ValueResolver, tr *trieTraversalRes
 	if !ok {
 		return nil
 	}
-	return child.(*trieNode).traverseArray(resolver, tr, arr.Slice(1, -1))
+	return child.traverseArray(resolver, tr, arr.Slice(1, -1))
 }
 
 func (node *trieNode) traverseUnknown(resolver ValueResolver, tr *trieTraversalResult) error {
@@ -767,12 +759,8 @@ func (node *trieNode) traverseUnknown(resolver ValueResolver, tr *trieTraversalR
 	}
 
 	var iterErr error
-	node.scalars.Iter(func(_, v util.T) bool {
-		child := v.(*trieNode)
-		if iterErr = child.traverseUnknown(resolver, tr); iterErr != nil {
-			return true
-		}
-		return false
+	node.scalars.Iter(func(_ Value, child *trieNode) bool {
+		return child.traverseUnknown(resolver, tr) != nil
 	})
 
 	return iterErr

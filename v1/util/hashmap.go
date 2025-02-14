@@ -12,6 +12,10 @@ import (
 // T is a concise way to refer to T.
 type T interface{}
 
+type Hasher interface {
+	Hash() int
+}
+
 type hashEntry[K any, V any] struct {
 	k    K
 	v    V
@@ -176,4 +180,92 @@ func (h *TypedHashMap[K, V]) Update(other *TypedHashMap[K, V]) *TypedHashMap[K, 
 		return false
 	})
 	return updated
+}
+
+type hasherEntry[K Hasher, V any] struct {
+	k    K
+	v    V
+	next *hasherEntry[K, V]
+}
+
+// HasherMap represents a simpler version of TypedHashMap that uses Hasher's
+// for keys, and requires only an equality function for keys. Ideally we'd have
+// and Equal method for all key types too, and we could get rid of that requirement.
+type HasherMap[K Hasher, V any] struct {
+	keq   func(K, K) bool
+	table map[int]*hasherEntry[K, V]
+	size  int
+}
+
+// NewHasherMap returns a new empty HasherMap.
+func NewHasherMap[K Hasher, V any](keq func(K, K) bool) *HasherMap[K, V] {
+	return &HasherMap[K, V]{
+		keq:   keq,
+		table: make(map[int]*hasherEntry[K, V]),
+		size:  0,
+	}
+}
+
+// Get returns the value for k.
+func (h *HasherMap[K, V]) Get(k K) (V, bool) {
+	for entry := h.table[k.Hash()]; entry != nil; entry = entry.next {
+		if h.keq(entry.k, k) {
+			return entry.v, true
+		}
+	}
+	var zero V
+	return zero, false
+}
+
+// Put inserts a key/value pair into this HashMap. If the key is already present, the existing
+// value is overwritten.
+func (h *HasherMap[K, V]) Put(k K, v V) {
+	hash := k.Hash()
+	head := h.table[hash]
+	for entry := head; entry != nil; entry = entry.next {
+		if h.keq(entry.k, k) {
+			entry.v = v
+			return
+		}
+	}
+	h.table[hash] = &hasherEntry[K, V]{k: k, v: v, next: head}
+	h.size++
+}
+
+// Delete removes the key k.
+func (h *HasherMap[K, V]) Delete(k K) {
+	hash := k.Hash()
+	var prev *hasherEntry[K, V]
+	for entry := h.table[hash]; entry != nil; entry = entry.next {
+		if h.keq(entry.k, k) {
+			if prev != nil {
+				prev.next = entry.next
+			} else {
+				h.table[hash] = entry.next
+			}
+			h.size--
+			return
+		}
+		prev = entry
+	}
+}
+
+// Iter invokes the iter function for each element in the HasherMap.
+// If the iter function returns true, iteration stops and the return value is true.
+// If the iter function never returns true, iteration proceeds through all elements
+// and the return value is false.
+func (h *HasherMap[K, V]) Iter(iter func(K, V) bool) bool {
+	for _, entry := range h.table {
+		for ; entry != nil; entry = entry.next {
+			if iter(entry.k, entry.v) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// Len returns the current size of this HashMap.
+func (h *HasherMap[K, V]) Len() int {
+	return h.size
 }
