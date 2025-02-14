@@ -26,6 +26,10 @@ import (
 // Minimize the number of tests that *actually* run the benchmarks, they are pretty slow.
 // Have one test that exercises the whole flow.
 func TestRunBenchmark(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	t.Parallel()
 
 	params := testBenchParams()
@@ -63,6 +67,10 @@ func TestRunBenchmark(t *testing.T) {
 }
 
 func TestRunBenchmarkWithQueryImport(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	t.Parallel()
 
 	params := testBenchParams()
@@ -103,6 +111,10 @@ func TestRunBenchmarkWithQueryImport(t *testing.T) {
 }
 
 func TestRunBenchmarkE2E(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	t.Parallel()
 
 	params := testBenchParams()
@@ -149,6 +161,10 @@ func TestRunBenchmarkE2E(t *testing.T) {
 }
 
 func TestRunBenchmarkE2EWithOPAConfigFile(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	t.Parallel()
 
 	fs := map[string]string{
@@ -203,6 +219,10 @@ func TestRunBenchmarkE2EWithOPAConfigFile(t *testing.T) {
 }
 
 func TestRunBenchmarkFailFastE2E(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	t.Parallel()
 
 	params := testBenchParams()
@@ -234,6 +254,10 @@ func TestRunBenchmarkFailFastE2E(t *testing.T) {
 }
 
 func TestBenchPartialE2E(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	t.Parallel()
 
 	params := testBenchParams()
@@ -281,6 +305,10 @@ func TestBenchPartialE2E(t *testing.T) {
 }
 
 func TestRunBenchmarkPartialFailFastE2E(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	t.Parallel()
 
 	params := testBenchParams()
@@ -567,6 +595,10 @@ func TestBenchMainInvalidInputFile(t *testing.T) {
 }
 
 func TestBenchMainWithJSONInputFileE2E(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	t.Parallel()
 
 	params := testBenchParams()
@@ -592,6 +624,10 @@ func TestBenchMainWithJSONInputFileE2E(t *testing.T) {
 }
 
 func TestBenchMainWithYAMLInputFileE2E(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	t.Parallel()
 
 	params := testBenchParams()
@@ -676,6 +712,10 @@ func TestBenchMainWithBundleData(t *testing.T) {
 }
 
 func TestBenchMainWithBundleDataE2E(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	t.Parallel()
 
 	params := testBenchParams()
@@ -720,6 +760,10 @@ func TestBenchMainWithBundleDataE2E(t *testing.T) {
 }
 
 func TestBenchMainWithDataE2E(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	t.Parallel()
 
 	params := testBenchParams()
@@ -759,6 +803,10 @@ func TestBenchMainWithDataE2E(t *testing.T) {
 }
 
 func TestBenchMainBadQueryE2E(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	t.Parallel()
 
 	params := testBenchParams()
@@ -778,6 +826,10 @@ func TestBenchMainBadQueryE2E(t *testing.T) {
 }
 
 func TestBenchMain_DefaultRegoVersion(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	t.Parallel()
 
 	tests := []struct {
@@ -874,6 +926,10 @@ a contains x if {
 }
 
 func TestBenchMainCompatibleFlags(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	t.Parallel()
 
 	tests := []struct {
@@ -1008,6 +1064,10 @@ a[4] {
 }
 
 func TestBenchMainWithBundleRegoVersion(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	t.Parallel()
 
 	tests := []struct {

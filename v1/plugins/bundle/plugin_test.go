@@ -1320,6 +1320,10 @@ func TestPluginStart(t *testing.T) {
 }
 
 func TestStop(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	t.Parallel()
 
 	var longPollTimeout int64 = 3

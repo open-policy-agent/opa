@@ -311,6 +311,10 @@ func runTruncateTest(t *testing.T, dir string) {
 }
 
 func TestTruncateMultipleTxn(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	t.Parallel()
 
 	test.WithTempFS(map[string]string{}, func(dir string) {

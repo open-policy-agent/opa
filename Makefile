@@ -114,6 +114,9 @@ install: generate
 .PHONY: test
 test: go-test wasm-test
 
+.PHONY: test-short
+test-short: go-test-short
+
 .PHONY: go-build
 go-build: generate
 	$(GO) build $(GO_TAGS) -o $(BIN) -ldflags $(LDFLAGS)
@@ -121,6 +124,10 @@ go-build: generate
 .PHONY: go-test
 go-test: generate
 	$(GO) test $(GO_TAGS),slow ./...
+
+.PHONY: go-test-short
+go-test-short: generate
+	$(GO) test $(GO_TAGS) -short ./...
 
 .PHONY: race-detector
 race-detector: generate

@@ -1293,6 +1293,10 @@ func TestDataV1Redirection(t *testing.T) {
 }
 
 func TestDataV1(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	t.Parallel()
 
 	testMod1 := `package testmod
