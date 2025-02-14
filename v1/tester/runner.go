@@ -552,15 +552,6 @@ func (r *Runner) shouldRun(rule *ast.Rule, testRegex *regexp.Regexp) bool {
 // This uses a global "count" of each to ensure compiling more than once as new modules
 // are added can't introduce duplicates again.
 func rewriteDuplicateTestNames(compiler *ast.Compiler) *ast.Error {
-	// FIXME: Should test_* ref rules with static suffixes be rewritten?
-	// E.g., data.example.test_a.b.c -> data.example.test_a#01.b.c, so it can be reported as:
-	//
-	// data.example.test_a#01: FAIL
-	//   b: FAIL
-	//     c: FAIL
-	//
-	// This could be made configurable, so that the user can choose to group tests by declaration or not.
-
 	count := map[string]int{}
 	for _, mod := range compiler.Modules {
 		for _, rule := range mod.Rules {
@@ -745,6 +736,17 @@ func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 								}
 							}
 						}
+					} else {
+						// The expression isn't a direct assignment, but the var could still be referenced within it
+						ast.WalkVars(expr, func(v ast.Var) bool {
+							if term.Value.Compare(v) == 0 {
+								if i > injectBelow {
+									injectBelow = i
+								}
+								return true
+							}
+							return false
+						})
 					}
 
 					// If the expression was moved, we need to re-evaluate the current index, as it contains a new expression

@@ -193,6 +193,33 @@ func TestInjectTestCaseFunc(t *testing.T) {
 					internal.test_case([__local3__])    # func injection
 				}`,
 		},
+		{
+			note: "var in head-ref, non-assignment reference in body",
+			module: `package test
+				test_concat[note] if {
+					some note, tc in {     # Compiled into roughly '__local__ = {...}; tc = __local__[note]' 
+						"empty + empty": {
+							"a": [],
+							"b": [],
+							"exp": [],
+						},
+					}
+					
+					act := array.concat(tc.a, tc.b)
+					act == tc.exp
+				}`,
+			exp: `package test
+				test_concat[__local0__] if { 
+					__local3__ = {"empty + empty": {"a": [], "b": [], "exp": []}}
+					__local1__ = __local3__[__local0__] # head-ref var assignment
+					internal.test_case([__local0__])    # func injection
+					__local5__ = __local1__.a
+					__local6__ = __local1__.b
+					array.concat(__local5__, __local6__, __local4__)
+					__local2__ = __local4__
+					__local2__ = __local1__.exp
+				}`,
+		},
 
 		{
 			note: "ref in head-ref",
