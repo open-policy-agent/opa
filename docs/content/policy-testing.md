@@ -299,6 +299,154 @@ opa test --format=json pass_fail_error_test.rego
 ]
 ```
 
+## Test Cases and Data-driven Testing
+
+A test rule can define multiple test cases for evaluation. 
+Test cases are declared by adding their name(s) to the rule as variables in its head's reference, and are evaluated through regular enumeration.
+
+**example_test.rego**:
+
+```live:example_test_cases:module:read_only
+package example_test
+
+test_concat[note] if {
+	some note, tc in {
+		"empty + empty": {
+			"a": [],
+			"b": [],
+			"exp": [],
+		},
+		"empty + filled": {
+			"a": [],
+			"b": [1, 2],
+			"exp": [1, 2],
+		},
+		"filled + filled": {
+			"a": [1, 2],
+			"b": [3, 4],
+			"exp": [1, 2, 3], # Faulty expectation, this test case will fail
+		},
+	}
+
+	act := array.concat(tc.a, tc.b)
+	act == tc.exp
+}
+```
+
+```console
+$ opa test example_test.rego
+example_test.rego:
+data.example_test.test_concat: FAIL (263.375µs)
+  empty + empty: PASS
+  empty + filled: PASS
+  filled + filled: FAIL
+--------------------------------------------------------------------------------
+FAIL: 1/1
+```
+
+Just as in regular evaluation, test-case data doesn't need to be declared as inline Rego, but can be loaded from json and yaml data files:
+
+**file_example_test.rego**:
+
+```live:example_file_test_cases:module:read_only
+package example_test
+
+import data.test_cases
+
+test_concat[note] if {
+	some note, tc in test_cases
+
+	act := array.concat(tc.a, tc.b)
+	act == tc.exp
+}
+```
+
+**file_example_test.yaml**:
+
+```yaml
+test_cases:
+   empty + empty:
+      a: []
+      b: []
+      exp: []
+   empty + filled:
+      a: []
+      b: [1, 2]
+      exp: [1, 2]
+   filled + filled:
+      a: [1, 2]
+      b: [3, 4]
+      exp: [1, 2, 3] # Faulty expectation, this test case will fail
+```
+
+```console
+$ opa test file_example_test.rego file_example_test.yaml
+file_example_test.rego:
+data.example_test.test_concat: FAIL (280µs)
+  empty + empty: PASS
+  empty + filled: PASS
+  filled + filled: FAIL
+--------------------------------------------------------------------------------
+FAIL: 1/1
+```
+
+Test cases can be nested by declaring multiple test case name variables in the head reference.
+This is useful when e.g. the same set of test cases can be used for asserting the same behaviour across slightly different circumstances:
+
+**nested_example_test.rego**:
+
+```live:example_nested_test_cases:module:read_only
+package example_test
+
+test_sign_token[note][alg] if {
+	some note, tc in {
+		"claims": {
+			"claims": {"foo": "bar"},
+		},
+		"no claims": {
+			"claims": {},
+		},
+	}
+
+	some alg in [
+		"HS256",
+		"HS333", # unknown signing algorithm, this test case will fail
+		"HS512",
+	]
+
+	secret := "foobar"
+	key := base64.encode(secret)
+
+	token := io.jwt.encode_sign({
+		"typ": "JWT",
+		"alg": alg
+	}, tc.claims, {
+		"kty": "oct",
+		"k": key
+	})
+
+	[valid, _, payload] := io.jwt.decode_verify(token, {"secret": secret})
+	valid
+	payload = tc.claims
+}
+```
+
+```console
+$ opa test nested_example_test.rego
+nested_example_test.rego:
+data.example_test.test_sign_token: FAIL (1.214541ms)
+  claims: FAIL
+    HS256: PASS
+    HS333: FAIL
+    HS512: PASS
+  no claims: FAIL
+    HS256: PASS
+    HS333: FAIL
+    HS512: PASS
+--------------------------------------------------------------------------------
+FAIL: 1/1
+```
+
 ## Data and Function Mocking
 
 OPA's `with` keyword can be used to replace the data document or called functions with mocks.
