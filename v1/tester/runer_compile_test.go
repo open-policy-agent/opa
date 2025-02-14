@@ -392,6 +392,57 @@ func TestInjectTestCaseFunc(t *testing.T) {
 					__local7__.x = 1
 				}`,
 		},
+		{
+			note: "multiple vars in head-ref, non-assignment reference in body",
+			module: `package example_test
+				test_sign_token[note][alg] if {
+					some note, tc in {
+						"claims": {
+							"claims": {"foo": "bar"},
+						},
+						"no claims": {
+							"claims": {},
+						},
+					}
+				
+					some alg in [
+						"HS256",
+						"HS512",
+					]
+				
+					secret := "foobar"
+					key := base64.encode(secret)
+				
+					token := io.jwt.encode_sign({
+						"typ": "JWT",
+						"alg": alg
+					}, tc.claims, {
+						"kty": "oct",
+						"k": key
+					})
+				
+					[valid, _, payload] := io.jwt.decode_verify(token, {"secret": secret})
+					valid
+					payload = tc.claims
+				}`,
+			exp: `package example_test
+				test_sign_token[__local0__][__local4__] if { 
+					__local11__ = {"claims": {"claims": {"foo": "bar"}}, "no claims": {"claims": {}}}
+					__local1__ = __local11__[__local0__]
+					__local12__ = ["HS256", "HS512"]
+					__local4__ = __local12__[__local3__]
+					internal.test_case([__local0__, __local4__])                  # func injection
+					__local5__ = "foobar"; base64.encode(__local5__, __local13__)
+					__local6__ = __local13__
+					__local16__ = __local1__.claims
+					io.jwt.encode_sign({"alg": __local4__, "typ": "JWT"}, __local16__, {"k": __local6__, "kty": "oct"}, __local14__)
+					__local7__ = __local14__
+					io.jwt.decode_verify(__local7__, {"secret": __local5__}, __local15__)
+					[__local8__, __local9__, __local10__] = __local15__
+					__local8__
+					__local10__ = __local1__.claims
+				}`,
+		},
 	}
 
 	for _, tc := range testCases {

@@ -651,11 +651,10 @@ func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 			argsRef := ref[len(rRef):]
 			args := ast.NewArray(argsRef...)
 
-			// Find the earliest point where the test case function can be injected
+			//
+			// Pass 1: Move generated assignment expressions up the body
+			//
 
-			injectBelow := -1
-
-			// Find generated local vars referenced in the head whose assignment expr can be moved up the body
 			for _, term := range argsRef {
 				// We expect to find generated expressions - if any - at the tail of the body, so we start from the end
 				for i := len(rule.Body) - 1; i >= 0; {
@@ -667,86 +666,57 @@ func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 					// This is a shallow move, we don't attempt to detect multiple levels of indirection and don't move such expressions; in such case, we move the assigning expression up to the first reference.
 					// Once done for all vars in the head ref, we can inject the test case function below the last (possibly moved) such expr.
 					// Note: We don't move non-generated expressions, as that could contradict author intent.
-					if (expr.IsEquality() || expr.IsAssignment()) && expr.Operand(0).Equal(term) {
-						if !expr.Generated {
-							if i > injectBelow {
-								// We can't inject the test-case function above this line
-								injectBelow = i
+					if expr.Generated && (expr.IsEquality() || expr.IsAssignment()) && expr.Operand(0).Equal(term) {
+						// Based on the vars in the rhs of the expr, see if we can move it up the rule body
+						// FIXME: Can we get away with just placing it under the lowes first occurrence of any referenced var?
+						vars := ast.NewVarSet()
+						ast.WalkVars(expr.Operand(1), func(v ast.Var) bool {
+							// We only care about local vars
+							if isLocalVar(v) {
+								vars.Add(v)
 							}
+							return false
+						})
+
+						if len(vars) == 0 {
+							// No local vars referenced, can be moved to top of body
+							rule.Body, moved = moveExpr(rule.Body, i, 0)
 						} else {
-							// Based on the vars in the rhs of the expr, see if we can move it up the rule body
-							// Can we get away with just placing it under the lowes first occurrence of any referenced var?
-							vars := ast.NewVarSet()
-							ast.WalkVars(expr.Operand(1), func(v ast.Var) bool {
-								// We only care about local vars
-								if isLocalVar(v) {
-									vars.Add(v)
+							// Find the lowest (highest up the body) individual index of each var referenced in the rhs,
+							// and select the highest (lowest down the body) of those
+
+							// TODO: Use TypedValueMap once synced with main
+							lowest := ast.NewValueMap()
+
+							for j := i - 1; j >= 0; j-- {
+								expr := rule.Body[j]
+								ast.WalkVars(expr, func(v ast.Var) bool {
+									if vars.Contains(v) {
+										// We override the value for each var, so we get the lowest index (line highest up the body) for each
+										lowest.Put(v, ast.Number(strconv.Itoa(j)))
+										return true
+									}
+									return false
+								})
+							}
+
+							highest := 0
+							lowest.Iter(func(k, v ast.Value) bool {
+								if n, err := strconv.Atoi(string(v.(ast.Number))); err == nil {
+									if n > highest {
+										highest = n
+									}
 								}
 								return false
 							})
 
-							if len(vars) == 0 {
-								// No local vars referenced, can be moved to top of body
-								rule.Body, moved = moveExpr(rule.Body, i, 0)
-								if 0 > injectBelow {
-									// We can't inject the test-case function above this line
-									injectBelow = 0
-								}
-							} else {
-								// Find the lowest (highest up the body) individual index of each var referenced in the rhs,
-								// and select the highest (lowest down the body) of those
-
-								// TODO: Use TypedValueMap once synced with main
-								lowest := ast.NewValueMap()
-
-								for j := i - 1; j >= 0; j-- {
-									expr := rule.Body[j]
-									ast.WalkVars(expr, func(v ast.Var) bool {
-										if vars.Contains(v) {
-											// We override the value for each var, so we get the lowest index (line highest up the body) for each
-											lowest.Put(v, ast.Number(strconv.Itoa(j)))
-											return true
-										}
-										return false
-									})
-								}
-
-								highest := 0
-								lowest.Iter(func(k, v ast.Value) bool {
-									if n, err := strconv.Atoi(string(v.(ast.Number))); err == nil {
-										if n > highest {
-											highest = n
-										}
-									}
-									return false
-								})
-
-								if highest < i {
-									// The expression is lower in the body than the lowes line of any expression that might contribute to its assignment
-									// Move the expression to just after the lowest line
-									moveTo := highest + 1
-									rule.Body, moved = moveExpr(rule.Body, i, moveTo)
-									if moveTo > injectBelow {
-										// If the expression was moved below the current injection point, we need to adjust the injection point to just below that point
-										injectBelow = moveTo
-									} else if i > injectBelow && moveTo < injectBelow {
-										// If the expression was previously below the injection point, but has now moved to above it, the injection point has been moved down one line
-										injectBelow++
-									}
-								}
+							if highest < i {
+								// The expression is lower in the body than the lowes line of any expression that might contribute to its assignment
+								// Move the expression to just after the lowest line
+								moveTo := highest + 1
+								rule.Body, moved = moveExpr(rule.Body, i, moveTo)
 							}
 						}
-					} else {
-						// The expression isn't a direct assignment, but the var could still be referenced within it
-						ast.WalkVars(expr, func(v ast.Var) bool {
-							if term.Value.Compare(v) == 0 {
-								if i > injectBelow {
-									injectBelow = i
-								}
-								return true
-							}
-							return false
-						})
 					}
 
 					// If the expression was moved, we need to re-evaluate the current index, as it contains a new expression
@@ -755,6 +725,35 @@ func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 					}
 				}
 			}
+
+			//
+			// Pass 2: Inject the test-case function below the lowest first occurrence of any referenced var
+			//
+
+			injectBelowMap := ast.NewValueMap()
+			for _, term := range argsRef {
+				for i := len(rule.Body) - 1; i >= 0; i-- {
+					expr := rule.Body[i]
+
+					ast.WalkVars(expr, func(v ast.Var) bool {
+						if term.Value.Compare(v) == 0 {
+							injectBelowMap.Put(v, ast.Number(strconv.Itoa(i)))
+						}
+						return false
+					})
+				}
+			}
+
+			// Find the earliest point where the test case function can be injected
+			injectBelow := -1
+			injectBelowMap.Iter(func(k, v ast.Value) bool {
+				if n, err := strconv.Atoi(string(v.(ast.Number))); err == nil {
+					if n > injectBelow {
+						injectBelow = n
+					}
+				}
+				return false
+			})
 
 			testCaseFuncExpr := ast.NewExpr([]*ast.Term{
 				ast.NewTerm(ast.InternalTestCase.Ref()),
