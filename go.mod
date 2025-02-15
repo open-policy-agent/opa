@@ -5,10 +5,10 @@ go 1.22.7
 toolchain go1.23.1
 
 require (
-	github.com/OneOfOne/xxhash v1.2.8
 	github.com/agnivade/levenshtein v1.2.1
 	github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883
 	github.com/bytecodealliance/wasmtime-go/v3 v3.0.2
+	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/containerd/containerd v1.7.25
 	github.com/containerd/errdefs v1.0.0
 	github.com/dgraph-io/badger/v4 v4.5.1
@@ -57,7 +57,6 @@ require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
-	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/platforms v0.2.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect

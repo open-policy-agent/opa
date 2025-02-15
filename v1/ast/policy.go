@@ -8,20 +8,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"strings"
-	"time"
 
 	"github.com/open-policy-agent/opa/v1/ast/internal/tokens"
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/util"
 )
-
-// Initialize seed for term hashing. This is intentionally placed before the
-// root document sets are constructed to ensure they use the same hash seed as
-// subsequent lookups. If the hash seeds are out of sync, lookups will fail.
-var hashSeed = rand.New(rand.NewSource(time.Now().UnixNano()))
-var hashSeed0 = (uint64(hashSeed.Uint32()) << 32) | uint64(hashSeed.Uint32())
 
 // DefaultRootDocument is the default root document.
 //

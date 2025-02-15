@@ -1,9 +1,6 @@
 # github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24
 ## explicit; go 1.20
 github.com/AdaLogics/go-fuzz-headers
-# github.com/OneOfOne/xxhash v1.2.8
-## explicit; go 1.11
-github.com/OneOfOne/xxhash
 # github.com/agnivade/levenshtein v1.2.1
 ## explicit; go 1.21
 github.com/agnivade/levenshtein
