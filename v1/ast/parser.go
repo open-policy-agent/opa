@@ -2684,7 +2684,7 @@ func IsFutureKeywordForRegoVersion(s string, v RegoVersion) bool {
 func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]tokens.Token) {
 	path := imp.Path.Value.(Ref)
 
-	if len(path) == 1 || !path[1].Equal(StringTerm("keywords")) {
+	if len(path) == 1 || !path[1].Equal(keywordsTerm) {
 		p.errorf(imp.Path.Location, "invalid import, must be `future.keywords`")
 		return
 	}

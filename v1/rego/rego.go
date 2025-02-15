@@ -79,12 +79,8 @@ func (pr PartialResult) Rego(options ...func(*Rego)) *Rego {
 	r := New(options...)
 
 	// Propagate any custom builtins.
-	for k, v := range pr.builtinDecls {
-		r.builtinDecls[k] = v
-	}
-	for k, v := range pr.builtinFuncs {
-		r.builtinFuncs[k] = v
-	}
+	maps.Copy(r.builtinDecls, pr.builtinDecls)
+	maps.Copy(r.builtinFuncs, pr.builtinFuncs)
 	return r
 }
 
@@ -1640,10 +1636,9 @@ func WithNoInline(paths []string) PrepareOption {
 func WithBuiltinFuncs(bis map[string]*topdown.Builtin) PrepareOption {
 	return func(p *PrepareConfig) {
 		if p.builtinFuncs == nil {
-			p.builtinFuncs = make(map[string]*topdown.Builtin, len(bis))
-		}
-		for k, v := range bis {
-			p.builtinFuncs[k] = v
+			p.builtinFuncs = maps.Clone(bis)
+		} else {
+			maps.Copy(p.builtinFuncs, bis)
 		}
 	}
 }

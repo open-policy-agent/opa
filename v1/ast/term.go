@@ -1768,20 +1768,6 @@ func (s *set) Slice() []*Term {
 	return s.sortedKeys()
 }
 
-// Internal method to use for cases where a set may be reused in favor
-// of creating a new one (with the associated allocations).
-func (s *set) clear() {
-	clear(s.elems)
-	s.keys = s.keys[:0]
-	s.hash = 0
-	s.ground = true
-	s.sortGuard = sync.Once{}
-}
-
-func (s *set) insertNoGuard(x *Term) {
-	s.insert(x, false)
-}
-
 // NOTE(philipc): We assume a many-readers, single-writer model here.
 // This method should NOT be used concurrently, or else we risk data races.
 func (s *set) insert(x *Term, resetSortGuard bool) {

@@ -1123,11 +1123,7 @@ func (w *writer) writeImports(imports []*ast.Import, comments []*ast.Comment) []
 		comments = w.insertComments(comments, group[0].Loc())
 
 		// Sort imports within a newline grouping.
-		sort.Slice(group, func(i, j int) bool {
-			a := group[i]
-			b := group[j]
-			return a.Compare(b) < 0
-		})
+		slices.SortFunc(group, (*ast.Import).Compare)
 		for _, i := range group {
 			w.startLine()
 			w.writeImport(i)

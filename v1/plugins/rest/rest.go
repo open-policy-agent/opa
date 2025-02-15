@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httputil"
 	"reflect"
@@ -293,7 +294,7 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 	}
 
 	url := c.config.URL + "/" + path
-	req, err := http.NewRequest(method, url, body)
+	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
 		return nil, err
 	}
@@ -303,23 +304,16 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 	}
 
 	// Copy custom headers from config.
-	for key, value := range c.config.Headers {
-		headers[key] = value
-	}
+	maps.Copy(headers, c.config.Headers)
 
 	// Overwrite with headers set directly on client.
-	for key, value := range c.headers {
-		headers[key] = value
-	}
+	maps.Copy(headers, c.headers)
 
 	for key, value := range headers {
 		req.Header.Add(key, value)
 	}
 
-	req = req.WithContext(ctx)
-
-	err = c.config.authPrepare(req, c.authPluginLookup)
-	if err != nil {
+	if err = c.config.authPrepare(req, c.authPluginLookup); err != nil {
 		return nil, err
 	}
 
