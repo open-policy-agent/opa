@@ -955,6 +955,7 @@ func TestPrettyReporterVerboseBenchmark(t *testing.T) {
 		{
 			Package: "data.foo.bar",
 			Name:    "test_corge",
+			Trace:   getFakeTraceEvents(),
 			Fail:    true,
 			BenchmarkResult: &testing.BenchmarkResult{
 				N:         100,
@@ -969,6 +970,7 @@ func TestPrettyReporterVerboseBenchmark(t *testing.T) {
 			Package: "data.foo.bar",
 			Name:    "test_cases_fail",
 			Fail:    true,
+			Trace:   getFakeTraceEvents(),
 			SubResults: SubResultMap{
 				"one": {
 					Name: "one",

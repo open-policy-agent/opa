@@ -4,9 +4,11 @@ const fixtureReporterVerboseBenchmark = `FAILURES
 --------------------------------------------------------------------------------
 data.foo.bar.test_corge: FAIL (0s)
 
+  query:1       | Fail true = false  
 
 data.foo.bar.test_cases_fail: FAIL (0s)
 
+  query:1       | Fail true = false  
 
   two: FAIL
 
