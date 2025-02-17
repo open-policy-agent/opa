@@ -402,6 +402,10 @@ func TermValueCompare(a, b *Term) int {
 	return a.Value.Compare(b.Value)
 }
 
+func TermValueEqual(a, b *Term) bool {
+	return ValueEqual(a.Value, b.Value)
+}
+
 func ValueEqual(a, b Value) bool {
 	// TODO(ae): why doesn't this work the same?
 	//

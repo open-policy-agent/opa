@@ -781,8 +781,8 @@ func (rc *refChecker) checkRef(curr *TypeEnv, node *typeTreeNode, ref Ref, idx i
 
 		case RootDocumentNames.Contains(ref[0]):
 			if idx != 0 {
-				node.Children().Iter(func(_, child util.T) bool {
-					_ = rc.checkRef(curr, child.(*typeTreeNode), ref, idx+1) // ignore error
+				node.Children().Iter(func(_ Value, child *typeTreeNode) bool {
+					_ = rc.checkRef(curr, child, ref, idx+1) // ignore error
 					return false
 				})
 				return nil
@@ -1127,8 +1127,8 @@ func newArgError(loc *Location, builtinName Ref, msg string, have []types.Type, 
 }
 
 func getOneOfForNode(node *typeTreeNode) (result []Value) {
-	node.Children().Iter(func(k, _ util.T) bool {
-		result = append(result, k.(Value))
+	node.Children().Iter(func(k Value, _ *typeTreeNode) bool {
+		result = append(result, k)
 		return false
 	})
 

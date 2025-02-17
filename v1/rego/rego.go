@@ -2855,17 +2855,26 @@ func parseStringsToRefs(s []string) ([]ast.Ref, error) {
 func finishFunction(name string, bctx topdown.BuiltinContext, result *ast.Term, err error, iter func(*ast.Term) error) error {
 	if err != nil {
 		var e *HaltError
+		sb := strings.Builder{}
 		if errors.As(err, &e) {
+			sb.Grow(len(name) + len(e.Error()) + 2)
+			sb.WriteString(name)
+			sb.WriteString(": ")
+			sb.WriteString(e.Error())
 			tdErr := &topdown.Error{
 				Code:     topdown.BuiltinErr,
-				Message:  fmt.Sprintf("%v: %v", name, e.Error()),
+				Message:  sb.String(),
 				Location: bctx.Location,
 			}
 			return topdown.Halt{Err: tdErr.Wrap(e)}
 		}
+		sb.Grow(len(name) + len(err.Error()) + 2)
+		sb.WriteString(name)
+		sb.WriteString(": ")
+		sb.WriteString(err.Error())
 		tdErr := &topdown.Error{
 			Code:     topdown.BuiltinErr,
-			Message:  fmt.Sprintf("%v: %v", name, err.Error()),
+			Message:  sb.String(),
 			Location: bctx.Location,
 		}
 		return tdErr.Wrap(err)

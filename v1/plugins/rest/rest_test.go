@@ -895,6 +895,10 @@ func TestNewWithResponseHeaderTimeout(t *testing.T) {
 }
 
 func TestDoWithResponseHeaderTimeout(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	t.Parallel()
 
 	ctx := context.Background()

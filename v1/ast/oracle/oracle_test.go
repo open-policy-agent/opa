@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/metrics"
 )
 
 func TestOracleFindDefinitionErrors(t *testing.T) {
@@ -484,7 +485,7 @@ q = true`
 
 func TestCompileUptoNoModules(t *testing.T) {
 
-	compiler, module, err := compileUpto("SetRuleTree", nil, []byte("package test\np=1"), "test.rego")
+	compiler, module, err := New().compileUpto("SetRuleTree", nil, []byte("package test\np=1"), "test.rego")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -502,7 +503,7 @@ func TestCompileUptoNoModules(t *testing.T) {
 
 func TestCompileUptoNoBuffer(t *testing.T) {
 
-	compiler, module, err := compileUpto("SetRuleTree", map[string]*ast.Module{
+	compiler, module, err := New().compileUpto("SetRuleTree", map[string]*ast.Module{
 		"test.rego": ast.MustParseModule("package test\np=1"),
 	}, nil, "test.rego")
 	if err != nil {
@@ -522,11 +523,26 @@ func TestCompileUptoNoBuffer(t *testing.T) {
 
 func TestCompileUptoBadStageName(t *testing.T) {
 
-	_, _, err := compileUpto("DEADBEEF", map[string]*ast.Module{
+	_, _, err := New().compileUpto("DEADBEEF", map[string]*ast.Module{
 		"test.rego": ast.MustParseModule("package test\np=1"),
 	}, nil, "test.rego")
 
 	if err.Error() != "unreachable: did not halt" {
 		t.Fatal("expected halt error but got:", err)
+	}
+}
+
+func TestUsingCustomCompiler(t *testing.T) {
+	m := metrics.New()
+	o := New().WithCompiler(ast.NewCompiler().WithMetrics(m))
+	q := DefinitionQuery{Modules: map[string]*ast.Module{"test.rego": ast.MustParseModule("package test\np=1")}}
+
+	if _, err := o.FindDefinition(q); !errors.Is(err, ErrNoMatchFound) {
+		t.Fatal("expected no definition found error but got:", err)
+	}
+
+	// Ensure metrics set on the custom compiler have been updated
+	if m.Timer("compile_stage_check_imports").Int64() == 0 {
+		t.Fatal("expected metrics to be updated")
 	}
 }

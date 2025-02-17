@@ -781,28 +781,17 @@ type httpSendCacheEntry struct {
 
 // The httpSendCache is used for intra-query caching of http.send results.
 type httpSendCache struct {
-	entries *util.HashMap
+	entries *util.HasherMap[ast.Value, httpSendCacheEntry]
 }
 
 func newHTTPSendCache() *httpSendCache {
 	return &httpSendCache{
-		entries: util.NewHashMap(valueEq, valueHash),
+		entries: util.NewHasherMap[ast.Value, httpSendCacheEntry](ast.ValueEqual),
 	}
-}
-
-func valueHash(v util.T) int {
-	return ast.StringTerm(v.(ast.Value).String()).Hash()
-}
-
-func valueEq(a, b util.T) bool {
-	av := a.(ast.Value)
-	bv := b.(ast.Value)
-	return av.String() == bv.String()
 }
 
 func (cache *httpSendCache) get(k ast.Value) *httpSendCacheEntry {
 	if v, ok := cache.entries.Get(k); ok {
-		v := v.(httpSendCacheEntry)
 		return &v
 	}
 	return nil

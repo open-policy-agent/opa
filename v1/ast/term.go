@@ -1017,6 +1017,25 @@ func (ref Ref) Copy() Ref {
 	return termSliceCopy(ref)
 }
 
+// CopyNonGround returns a new ref with deep copies of the non-ground parts and shallow
+// copies of the ground parts. This is a *much* cheaper operation than Copy for operations
+// that only intend to modify (e.g. plug) the non-ground parts. The head element of the ref
+// is always shallow copied.
+func (ref Ref) CopyNonGround() Ref {
+	cpy := make(Ref, len(ref))
+	cpy[0] = ref[0]
+
+	for i := 1; i < len(ref); i++ {
+		if ref[i].Value.IsGround() {
+			cpy[i] = ref[i]
+		} else {
+			cpy[i] = ref[i].Copy()
+		}
+	}
+
+	return cpy
+}
+
 // Equal returns true if ref is equal to other.
 func (ref Ref) Equal(other Value) bool {
 	switch o := other.(type) {
@@ -3063,14 +3082,10 @@ func (c Call) String() string {
 
 func termSliceCopy(a []*Term) []*Term {
 	cpy := make([]*Term, len(a))
-	termSliceCopyTo(a, cpy)
-	return cpy
-}
-
-func termSliceCopyTo(src, dst []*Term) {
-	for i := range src {
-		dst[i] = src[i].Copy()
+	for i := range a {
+		cpy[i] = a[i].Copy()
 	}
+	return cpy
 }
 
 func termSliceEqual(a, b []*Term) bool {
