@@ -69,7 +69,7 @@ type SubResultMap map[string]*SubResult
 
 func (srm SubResultMap) Update(path ast.Array, trace []*topdown.Event) bool {
 	strPath := make([]string, path.Len())
-	for i := 0; i < path.Len(); i++ {
+	for i := range path.Len() {
 		strPath[i] = termToString(path.Elem(i))
 	}
 	return srm.update(strPath, 0, trace)
@@ -569,7 +569,7 @@ func rewriteDuplicateTestNames(compiler *ast.Compiler) *ast.Error {
 				} else {
 					ref[len(ref)-1] = ast.StringTerm(newName)
 				}
-				for i := 0; i < len(dynamicSuffix); i++ {
+				for i := range len(dynamicSuffix) {
 					ref = append(ref, dynamicSuffix[i])
 				}
 				rule.Head.SetRef(ref)
