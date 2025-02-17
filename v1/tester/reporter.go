@@ -34,6 +34,10 @@ type PrettyReporter struct {
 	BenchMarkGoBenchFormat   bool
 }
 
+func (r PrettyReporter) println(a ...any) {
+	_, _ = fmt.Fprintln(r.Output, a...)
+}
+
 // Report prints the test report to the reporter's output.
 func (r PrettyReporter) Report(ch chan *Result) error {
 
@@ -57,12 +61,12 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 	}
 
 	if fail > 0 && (r.Verbose || r.FailureLine) {
-		_, _ = fmt.Fprintln(r.Output, "FAILURES")
+		r.println("FAILURES")
 		r.hl()
 
 		for _, failure := range failures {
 			_, _ = fmt.Fprint(r.Output, failure.string(false))
-			_, _ = fmt.Fprintln(r.Output)
+			r.println()
 
 			if len(failure.SubResults) > 0 {
 				// Print trace collectively for all sub-results.
@@ -71,7 +75,7 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 				}
 
 				if r.Verbose || r.FailureLine {
-					_, _ = fmt.Fprintln(r.Output)
+					r.println()
 				}
 
 				for fullName, sr := range failure.SubResults.Iter {
@@ -97,10 +101,10 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 				}
 			}
 
-			_, _ = fmt.Fprintln(r.Output)
+			r.println()
 		}
 
-		_, _ = fmt.Fprintln(r.Output, "SUMMARY")
+		r.println("SUMMARY")
 		r.hl()
 	}
 
@@ -110,18 +114,18 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 
 		if tr.Pass() && r.BenchmarkResults {
 			dirty = true
-			_, _ = fmt.Fprintln(r.Output, r.fmtBenchmark(tr))
+			r.println(r.fmtBenchmark(tr))
 		} else if r.Verbose || !tr.Pass() {
 			if tr.Location != nil && tr.Location.File != lastFile {
 				if lastFile != "" {
-					_, _ = fmt.Fprintln(r.Output, "")
+					r.println("")
 				}
 				_, _ = fmt.Fprintf(r.Output, "%s:\n", tr.Location.File)
 				lastFile = tr.Location.File
 			}
 
 			dirty = true
-			_, _ = fmt.Fprintln(r.Output, tr.string(false))
+			r.println(tr.string(false))
 
 			w := newIndentingWriter(r.Output)
 			if sr := tr.SubResults; len(sr) > 0 {
@@ -129,9 +133,9 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 			}
 
 			if len(tr.Output) > 0 {
-				_, _ = fmt.Fprintln(r.Output)
+				r.println()
 				_, _ = fmt.Fprintln(newIndentingWriter(r.Output), strings.TrimSpace(string(tr.Output)))
-				_, _ = fmt.Fprintln(r.Output)
+				r.println()
 			}
 		}
 		if tr.Error != nil {
@@ -147,19 +151,19 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 	total := pass + fail + skip + errs
 
 	if pass != 0 {
-		_, _ = fmt.Fprintln(r.Output, "PASS:", fmt.Sprintf("%d/%d", pass, total))
+		r.println("PASS:", fmt.Sprintf("%d/%d", pass, total))
 	}
 
 	if fail != 0 {
-		_, _ = fmt.Fprintln(r.Output, "FAIL:", fmt.Sprintf("%d/%d", fail, total))
+		r.println("FAIL:", fmt.Sprintf("%d/%d", fail, total))
 	}
 
 	if skip != 0 {
-		_, _ = fmt.Fprintln(r.Output, "SKIPPED:", fmt.Sprintf("%d/%d", skip, total))
+		r.println("SKIPPED:", fmt.Sprintf("%d/%d", skip, total))
 	}
 
 	if errs != 0 {
-		_, _ = fmt.Fprintln(r.Output, "ERROR:", fmt.Sprintf("%d/%d", errs, total))
+		r.println("ERROR:", fmt.Sprintf("%d/%d", errs, total))
 	}
 
 	return nil
