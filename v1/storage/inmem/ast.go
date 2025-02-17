@@ -101,8 +101,7 @@ func newUpdateArrayAST(data *ast.Array, op storage.PatchOp, path storage.Path, i
 				return nil, invalidPatchError("%v: invalid patch path", path)
 			}
 
-			cpy := data.Copy()
-			cpy = cpy.Append(ast.NewTerm(value))
+			cpy := data.Append(ast.NewTerm(value))
 			return &updateAST{path[:len(path)-1], false, cpy}, nil
 		}
 
