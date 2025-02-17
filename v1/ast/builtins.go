@@ -299,6 +299,9 @@ var DefaultBuiltins = [...]*Builtin{
 	// Printing
 	Print,
 	InternalPrint,
+
+	// Testing
+	InternalTestCase,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -3161,6 +3164,11 @@ var Print = &Builtin{
 var InternalPrint = &Builtin{
 	Name: "internal.print",
 	Decl: types.NewFunction([]types.Type{types.NewArray(nil, types.NewSet(types.A))}, nil),
+}
+
+var InternalTestCase = &Builtin{
+	Name: "internal.test_case",
+	Decl: types.NewFunction([]types.Type{types.NewArray(nil, types.A)}, nil),
 }
 
 /**
