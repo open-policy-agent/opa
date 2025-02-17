@@ -939,7 +939,7 @@ func subResults(v any, trace []*topdown.Event) (bool, map[string]*SubResult) {
 	for i, e := range trace {
 		if e.Op == topdown.TestCaseOp {
 			if testEvent != nil {
-				if p, ok := testEvent.Input().Value.(*ast.Array); ok {
+				if p, ok := testCaseTerms(testEvent); ok {
 					if f := result.Update(*p, trace[:i]); f {
 						fail = true
 					}
@@ -950,7 +950,7 @@ func subResults(v any, trace []*topdown.Event) (bool, map[string]*SubResult) {
 		}
 	}
 	if testEvent != nil {
-		if p, ok := testEvent.Input().Value.(*ast.Array); ok {
+		if p, ok := testCaseTerms(testEvent); ok {
 			if f := result.Update(*p, trace); f {
 				fail = true
 			}
@@ -958,6 +958,20 @@ func subResults(v any, trace []*topdown.Event) (bool, map[string]*SubResult) {
 	}
 
 	return fail, result
+}
+
+func testCaseTerms(e *topdown.Event) (*ast.Array, bool) {
+	if e == nil {
+		return nil, false
+	}
+
+	if expr, ok := e.Node.(*ast.Expr); ok {
+		if arr, ok := expr.Operand(0).Value.(*ast.Array); ok {
+			return arr, true
+		}
+	}
+
+	return nil, false
 }
 
 func subResult(n string, v any) *SubResult {
