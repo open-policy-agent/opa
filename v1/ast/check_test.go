@@ -518,7 +518,7 @@ func TestCheckInferenceRules(t *testing.T) {
 		{"ref_regression_array_key", ruleset2, "data.ref_regression_array_key.walker",
 			types.NewObject(
 				nil,
-				types.NewDynamicProperty(types.NewArray([]types.Type{types.NewArray(types.A, types.A), types.A}, nil),
+				types.NewDynamicProperty(types.NewArray([]types.Type{types.NewArray(types.NewAny(), types.A), types.A}, nil),
 					types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))),
 			)},
 		{

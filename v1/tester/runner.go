@@ -569,10 +569,7 @@ func rewriteDuplicateTestNames(compiler *ast.Compiler) *ast.Error {
 				} else {
 					ref[len(ref)-1] = ast.StringTerm(newName)
 				}
-				for i := range len(dynamicSuffix) {
-					ref = append(ref, dynamicSuffix[i])
-				}
-				rule.Head.SetRef(ref)
+				rule.Head.SetRef(append(ref, dynamicSuffix...))
 			}
 			count[key]++
 		}
