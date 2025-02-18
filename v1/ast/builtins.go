@@ -489,10 +489,10 @@ var Minus = &Builtin{
 	Description: "Minus subtracts the second number from the first number or computes the difference between two sets.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.NewAny(types.N, types.NewSet(types.A))),
-			types.Named("y", types.NewAny(types.N, types.NewSet(types.A))),
+			types.Named("x", types.NewAny(types.N, types.SetOfAny)),
+			types.Named("y", types.NewAny(types.N, types.SetOfAny)),
 		),
-		types.Named("z", types.NewAny(types.N, types.NewSet(types.A))).Description("the difference of `x` and `y`"),
+		types.Named("z", types.NewAny(types.N, types.SetOfAny)).Description("the difference of `x` and `y`"),
 	),
 	Categories: category("sets", "numbers"),
 }
@@ -674,10 +674,10 @@ var And = &Builtin{
 	Description: "Returns the intersection of two sets.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.NewSet(types.A)).Description("the first set"),
-			types.Named("y", types.NewSet(types.A)).Description("the second set"),
+			types.Named("x", types.SetOfAny).Description("the first set"),
+			types.Named("y", types.SetOfAny).Description("the second set"),
 		),
-		types.Named("z", types.NewSet(types.A)).Description("the intersection of `x` and `y`"),
+		types.Named("z", types.SetOfAny).Description("the intersection of `x` and `y`"),
 	),
 	Categories: sets,
 }
@@ -689,10 +689,10 @@ var Or = &Builtin{
 	Description: "Returns the union of two sets.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.NewSet(types.A)),
-			types.Named("y", types.NewSet(types.A)),
+			types.Named("x", types.SetOfAny),
+			types.Named("y", types.SetOfAny),
 		),
-		types.Named("z", types.NewSet(types.A)).Description("the union of `x` and `y`"),
+		types.Named("z", types.SetOfAny).Description("the union of `x` and `y`"),
 	),
 	Categories: sets,
 }
@@ -702,9 +702,9 @@ var Intersection = &Builtin{
 	Description: "Returns the intersection of the given input sets.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("xs", types.NewSet(types.NewSet(types.A))).Description("set of sets to intersect"),
+			types.Named("xs", types.NewSet(types.SetOfAny)).Description("set of sets to intersect"),
 		),
-		types.Named("y", types.NewSet(types.A)).Description("the intersection of all `xs` sets"),
+		types.Named("y", types.SetOfAny).Description("the intersection of all `xs` sets"),
 	),
 	Categories: sets,
 }
@@ -714,9 +714,9 @@ var Union = &Builtin{
 	Description: "Returns the union of the given input sets.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("xs", types.NewSet(types.NewSet(types.A))).Description("set of sets to merge"),
+			types.Named("xs", types.NewSet(types.SetOfAny)).Description("set of sets to merge"),
 		),
-		types.Named("y", types.NewSet(types.A)).Description("the union of all `xs` sets"),
+		types.Named("y", types.SetOfAny).Description("the union of all `xs` sets"),
 	),
 	Categories: sets,
 }
@@ -733,7 +733,7 @@ var Count = &Builtin{
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("collection", types.NewAny(
-				types.NewSet(types.A),
+				types.SetOfAny,
 				types.NewArray(nil, types.A),
 				types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 				types.S,
@@ -750,7 +750,7 @@ var Sum = &Builtin{
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("collection", types.NewAny(
-				types.NewSet(types.N),
+				types.SetOfNum,
 				types.NewArray(nil, types.N),
 			)).Description("the set or array of numbers to sum"),
 		),
@@ -765,7 +765,7 @@ var Product = &Builtin{
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("collection", types.NewAny(
-				types.NewSet(types.N),
+				types.SetOfNum,
 				types.NewArray(nil, types.N),
 			)).Description("the set or array of numbers to multiply"),
 		),
@@ -780,7 +780,7 @@ var Max = &Builtin{
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("collection", types.NewAny(
-				types.NewSet(types.A),
+				types.SetOfAny,
 				types.NewArray(nil, types.A),
 			)).Description("the set or array to be searched"),
 		),
@@ -795,7 +795,7 @@ var Min = &Builtin{
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("collection", types.NewAny(
-				types.NewSet(types.A),
+				types.SetOfAny,
 				types.NewArray(nil, types.A),
 			)).Description("the set or array to be searched"),
 		),
@@ -815,7 +815,7 @@ var Sort = &Builtin{
 		types.Args(
 			types.Named("collection", types.NewAny(
 				types.NewArray(nil, types.A),
-				types.NewSet(types.A),
+				types.SetOfAny,
 			)).Description("the array or set to be sorted"),
 		),
 		types.Named("n", types.NewArray(nil, types.A)).Description("the sorted array"),
@@ -845,8 +845,8 @@ var ArraySlice = &Builtin{
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("arr", types.NewArray(nil, types.A)).Description("the array to be sliced"),
-			types.Named("start", types.NewNumber()).Description("the start index of the returned slice; if less than zero, it's clamped to 0"),
-			types.Named("stop", types.NewNumber()).Description("the stop index of the returned slice; if larger than `count(arr)`, it's clamped to `count(arr)`"),
+			types.Named("start", types.N).Description("the start index of the returned slice; if less than zero, it's clamped to 0"),
+			types.Named("stop", types.N).Description("the stop index of the returned slice; if larger than `count(arr)`, it's clamped to `count(arr)`"),
 		),
 		types.Named("slice", types.NewArray(nil, types.A)).Description("the subslice of `array`, from `start` to `end`, including `arr[start]`, but excluding `arr[end]`"),
 	),
@@ -996,12 +996,12 @@ var AnyPrefixMatch = &Builtin{
 		types.Args(
 			types.Named("search", types.NewAny(
 				types.S,
-				types.NewSet(types.S),
+				types.SetOfStr,
 				types.NewArray(nil, types.S),
 			)).Description("search string(s)"),
 			types.Named("base", types.NewAny(
 				types.S,
-				types.NewSet(types.S),
+				types.SetOfStr,
 				types.NewArray(nil, types.S),
 			)).Description("base string(s)"),
 		),
@@ -1017,12 +1017,12 @@ var AnySuffixMatch = &Builtin{
 		types.Args(
 			types.Named("search", types.NewAny(
 				types.S,
-				types.NewSet(types.S),
+				types.SetOfStr,
 				types.NewArray(nil, types.S),
 			)).Description("search string(s)"),
 			types.Named("base", types.NewAny(
 				types.S,
-				types.NewSet(types.S),
+				types.SetOfStr,
 				types.NewArray(nil, types.S),
 			)).Description("base string(s)"),
 		),
@@ -1038,7 +1038,7 @@ var Concat = &Builtin{
 		types.Args(
 			types.Named("delimiter", types.S).Description("string to use as a delimiter"),
 			types.Named("collection", types.NewAny(
-				types.NewSet(types.S),
+				types.SetOfStr,
 				types.NewArray(nil, types.S),
 			)).Description("strings to join"),
 		),
@@ -1600,13 +1600,13 @@ var ObjectSubset = &Builtin{
 			types.Named("super", types.NewAny(types.NewObject(
 				nil,
 				types.NewDynamicProperty(types.A, types.A),
-			), types.NewSet(types.A),
+			), types.SetOfAny,
 				types.NewArray(nil, types.A),
 			)).Description("object to test if sub is a subset of"),
 			types.Named("sub", types.NewAny(types.NewObject(
 				nil,
 				types.NewDynamicProperty(types.A, types.A),
-			), types.NewSet(types.A),
+			), types.SetOfAny,
 				types.NewArray(nil, types.A),
 			)).Description("object to test if super is a superset of"),
 		),
@@ -1659,7 +1659,7 @@ var ObjectRemove = &Builtin{
 			)).Description("object to remove keys from"),
 			types.Named("keys", types.NewAny(
 				types.NewArray(nil, types.A),
-				types.NewSet(types.A),
+				types.SetOfAny,
 				types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 			)).Description("keys to remove from x"),
 		),
@@ -1679,7 +1679,7 @@ var ObjectFilter = &Builtin{
 			)).Description("object to filter keys"),
 			types.Named("keys", types.NewAny(
 				types.NewArray(nil, types.A),
-				types.NewSet(types.A),
+				types.SetOfAny,
 				types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 			)).Description("keys to keep in `object`"),
 		),
@@ -1710,7 +1710,7 @@ var ObjectKeys = &Builtin{
 		types.Args(
 			types.Named("object", types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))).Description("object to get keys from"),
 		),
-		types.Named("value", types.NewSet(types.A)).Description("set of `object`'s keys"),
+		types.Named("value", types.SetOfAny).Description("set of `object`'s keys"),
 	),
 }
 
@@ -1884,7 +1884,8 @@ var URLQueryEncodeObject = &Builtin{
 					types.NewAny(
 						types.S,
 						types.NewArray(nil, types.S),
-						types.NewSet(types.S)),
+						types.SetOfStr,
+					),
 				),
 			),
 			).Description("the object to encode"),
@@ -2575,13 +2576,13 @@ var ReachableBuiltin = &Builtin{
 				types.NewDynamicProperty(
 					types.A,
 					types.NewAny(
-						types.NewSet(types.A),
+						types.SetOfAny,
 						types.NewArray(nil, types.A)),
 				)),
 			).Description("object containing a set or array of neighboring vertices"),
-			types.Named("initial", types.NewAny(types.NewSet(types.A), types.NewArray(nil, types.A))).Description("set or array of root vertices"),
+			types.Named("initial", types.NewAny(types.SetOfAny, types.NewArray(nil, types.A))).Description("set or array of root vertices"),
 		),
-		types.Named("output", types.NewSet(types.A)).Description("set of vertices reachable from the `initial` vertices in the directed `graph`"),
+		types.Named("output", types.SetOfAny).Description("set of vertices reachable from the `initial` vertices in the directed `graph`"),
 	),
 }
 
@@ -2595,11 +2596,11 @@ var ReachablePathsBuiltin = &Builtin{
 				types.NewDynamicProperty(
 					types.A,
 					types.NewAny(
-						types.NewSet(types.A),
+						types.SetOfAny,
 						types.NewArray(nil, types.A)),
 				)),
 			).Description("object containing a set or array of root vertices"),
-			types.Named("initial", types.NewAny(types.NewSet(types.A), types.NewArray(nil, types.A))).Description("initial paths"), // TODO(sr): copied. is that correct?
+			types.Named("initial", types.NewAny(types.SetOfAny, types.NewArray(nil, types.A))).Description("initial paths"), // TODO(sr): copied. is that correct?
 		),
 		types.Named("output", types.NewSet(types.NewArray(nil, types.A))).Description("paths reachable from the `initial` vertices in the directed `graph`"),
 	),
@@ -3030,7 +3031,7 @@ var NetCIDRExpand = &Builtin{
 		types.Args(
 			types.Named("cidr", types.S).Description("CIDR to expand"),
 		),
-		types.Named("hosts", types.NewSet(types.S)).Description("set of IP addresses the CIDR `cidr` expands to"),
+		types.Named("hosts", types.SetOfStr).Description("set of IP addresses the CIDR `cidr` expands to"),
 	),
 }
 
@@ -3068,10 +3069,10 @@ Supports both IPv4 and IPv6 notations. IPv6 inputs need a prefix length (e.g. "/
 		types.Args(
 			types.Named("addrs", types.NewAny(
 				types.NewArray(nil, types.NewAny(types.S)),
-				types.NewSet(types.S),
+				types.SetOfStr,
 			)).Description("CIDRs or IP addresses"),
 		),
-		types.Named("output", types.NewSet(types.S)).Description("smallest possible set of CIDRs obtained after merging the provided list of IP addresses and subnets in `addrs`"),
+		types.Named("output", types.SetOfStr).Description("smallest possible set of CIDRs obtained after merging the provided list of IP addresses and subnets in `addrs`"),
 	),
 }
 
@@ -3113,7 +3114,7 @@ var NetLookupIPAddr = &Builtin{
 		types.Args(
 			types.Named("name", types.S).Description("domain name to resolve"),
 		),
-		types.Named("addrs", types.NewSet(types.S)).Description("IP addresses (v4 and v6) that `name` resolves to"),
+		types.Named("addrs", types.SetOfStr).Description("IP addresses (v4 and v6) that `name` resolves to"),
 	),
 	Nondeterministic: true,
 }
@@ -3163,7 +3164,7 @@ var Print = &Builtin{
 // The compiler rewrites print() calls to refer to the internal implementation.
 var InternalPrint = &Builtin{
 	Name: "internal.print",
-	Decl: types.NewFunction([]types.Type{types.NewArray(nil, types.NewSet(types.A))}, nil),
+	Decl: types.NewFunction([]types.Type{types.NewArray(nil, types.SetOfAny)}, nil),
 }
 
 var InternalTestCase = &Builtin{
@@ -3180,10 +3181,10 @@ var SetDiff = &Builtin{
 	Name: "set_diff",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewSet(types.A),
-			types.NewSet(types.A),
+			types.SetOfAny,
+			types.SetOfAny,
 		),
-		types.NewSet(types.A),
+		types.SetOfAny,
 	),
 	deprecated: true,
 }
@@ -3220,7 +3221,7 @@ var CastSet = &Builtin{
 	Name: "cast_set",
 	Decl: types.NewFunction(
 		types.Args(types.A),
-		types.NewSet(types.A),
+		types.SetOfAny,
 	),
 	deprecated: true,
 }
@@ -3286,7 +3287,7 @@ var All = &Builtin{
 	Decl: types.NewFunction(
 		types.Args(
 			types.NewAny(
-				types.NewSet(types.A),
+				types.SetOfAny,
 				types.NewArray(nil, types.A),
 			),
 		),
@@ -3302,7 +3303,7 @@ var Any = &Builtin{
 	Decl: types.NewFunction(
 		types.Args(
 			types.NewAny(
-				types.NewSet(types.A),
+				types.SetOfAny,
 				types.NewArray(nil, types.A),
 			),
 		),
