@@ -8,7 +8,7 @@ package metrics
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -94,8 +94,8 @@ func (m *metrics) String() string {
 		})
 	}
 
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i].Key < sorted[j].Key
+	slices.SortFunc(sorted, func(a, b metric) int {
+		return strings.Compare(a.Key, b.Key)
 	})
 
 	buf := make([]string, len(sorted))

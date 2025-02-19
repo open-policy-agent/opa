@@ -22,7 +22,7 @@ func builtinToNumber(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 		}
 		return iter(ast.InternedIntNumberTerm(0))
 	case ast.Number:
-		return iter(ast.NewTerm(a))
+		return iter(operands[0])
 	case ast.String:
 		strValue := string(a)
 
