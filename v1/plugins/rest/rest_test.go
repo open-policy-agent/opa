@@ -1927,8 +1927,6 @@ func TestS3SigningMultiCredentialProvider(t *testing.T) {
 }
 
 func TestAWSCredentialServiceChain(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name    string
 		input   string
@@ -1980,7 +1978,7 @@ func TestAWSCredentialServiceChain(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			for key, val := range tc.env {
-				_ = os.Setenv(key, val)
+				t.Setenv(key, val)
 			}
 
 			t.Cleanup(func() {

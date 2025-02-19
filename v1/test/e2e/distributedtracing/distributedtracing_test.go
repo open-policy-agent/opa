@@ -607,7 +607,7 @@ allow if {
 	input.path = ["health"]
 }`)
 
-	tmpfile, err := os.CreateTemp("", "authz.*.rego")
+	tmpfile, err := os.CreateTemp(t.TempDir(), "authz.*.rego")
 	if err != nil {
 		t.Fatal(err)
 	}

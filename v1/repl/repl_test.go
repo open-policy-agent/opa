@@ -295,18 +295,7 @@ func TestDumpPath(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
-	dir, err := os.MkdirTemp("", "dump-path-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Cleanup(func() {
-		err := os.RemoveAll(dir)
-		if err != nil {
-			t.Errorf("error cleaning up with RemoveAll(): %v", err)
-		}
-	})
-	file := filepath.Join(dir, "tmpfile")
+	file := filepath.Join(t.TempDir(), "tmpfile")
 	if err := repl.OneShot(ctx, "dump "+file); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -342,18 +331,7 @@ func TestDumpPathCaseSensitive(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
-	dir, err := os.MkdirTemp("", "DumpPathCaseSensitiveTest")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Cleanup(func() {
-		err := os.RemoveAll(dir)
-		if err != nil {
-			t.Errorf("error cleaning up with RemoveAll(): %v", err)
-		}
-	})
-	file := filepath.Join(dir, "tmpfile")
+	file := filepath.Join(t.TempDir(), "tmpfile")
 	if err := repl.OneShot(ctx, "dump "+file); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}

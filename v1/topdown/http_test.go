@@ -3554,7 +3554,7 @@ func TestSocketHTTPGetRequest(t *testing.T) {
 	people = append(people, Person{ID: "1", Firstname: "John"})
 
 	// Create a local socket
-	tmpF, err := os.CreateTemp("", "")
+	tmpF, err := os.CreateTemp(t.TempDir(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
