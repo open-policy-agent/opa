@@ -2831,17 +2831,9 @@ foo contains __local1__1 if {
 // There's probably some common utilities that could be extracted at some point but for now this code is
 // local to the test until we need to reuse it elsewhere.
 func TestBuildWithFollowSymlinks(t *testing.T) {
-	rootDir, err := os.MkdirTemp("", "build-follow-symlinks")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := os.RemoveAll(rootDir); err != nil {
-			t.Fatal(err)
-		}
-	}()
+	rootDir := t.TempDir()
 	bundleDir := path.Join(rootDir, "bundle")
-	err = os.Mkdir(bundleDir, 0777)
+	err := os.Mkdir(bundleDir, 0777)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2944,17 +2936,14 @@ func TestBuildWithFollowSymlinks(t *testing.T) {
 // This test uses a local tmp filesystem to create a directory with a local file in the bundle directory, and
 // verifies that the built bundle contains the files from the symlinked directory.
 func TestBuildWithFollowSymlinksEntireDir(t *testing.T) {
-	rootDir, err := os.MkdirTemp("", "build-follow-symlinks-dir")
-	if err != nil {
-		t.Fatal(err)
-	}
+	rootDir := t.TempDir()
 	defer func() {
 		if err := os.RemoveAll(rootDir); err != nil {
 			t.Fatal(err)
 		}
 	}()
 	bundleDir := path.Join(rootDir, "src")
-	err = os.Mkdir(bundleDir, 0777)
+	err := os.Mkdir(bundleDir, 0777)
 	if err != nil {
 		t.Fatal(err)
 	}

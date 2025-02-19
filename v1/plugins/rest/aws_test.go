@@ -361,7 +361,7 @@ func TestMetadataCredentialService(t *testing.T) {
 	test.WithTempFS(nil, func(path string) {
 		// wrong path: bad file token
 		t.Setenv(ecsFullPathEnvVar, "fullPath")
-		os.Setenv(ecsAuthorizationTokenFileEnvVar, filepath.Join(path, "bad-file"))
+		t.Setenv(ecsAuthorizationTokenFileEnvVar, filepath.Join(path, "bad-file"))
 		_, err = cs.credentials(context.Background())
 		assertErr("failed to read ECS metadata authorization token from file", err, t)
 		os.Unsetenv(ecsFullPathEnvVar)

@@ -167,7 +167,7 @@ linters:
     - goimports
     - unused
     - misspell
-    - tenv
+    - usetesting
     - typecheck
     - staticcheck
     - gosimple
