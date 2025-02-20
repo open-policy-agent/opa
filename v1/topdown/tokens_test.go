@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -491,7 +492,14 @@ func TestTopdownJWTEncodeSignECWithSeedReturnsSameSignature(t *testing.T) {
 	   "d":"jpsQnnGQmL-YBIffH1136cspYG6-0iY7X1fCE9-E9LI"
 	  }, x)`
 
-	encodedSigned := "eyJhbGciOiJFUzI1NiJ9.eyJwYXkiOiJsb2FkIn0.wDU6G2XTYFP3QdVYhy-PBzkacEFNJwVT4HPQHOLtUmJu-OcVUaX9n-Ukv50AJwoF59L2wS5aOzoUwuru48Q4tw"
+	// NOTE(ae): the signature differs between Go 1.23 and 1.24, as the latter uses the rand/v2 package (or that's my take)
+	var encodedSigned string
+	if runtime.Version() < "go1.24" {
+		encodedSigned = "eyJhbGciOiJFUzI1NiJ9.eyJwYXkiOiJsb2FkIn0.wDU6G2XTYFP3QdVYhy-PBzkacEFNJwVT4HPQHOLtUmJu-OcVUaX9n-Ukv50AJwoF59L2wS5aOzoUwuru48Q4tw"
+	} else {
+		encodedSigned = "eyJhbGciOiJFUzI1NiJ9.eyJwYXkiOiJsb2FkIn0.WAh1ydGVRdVwXNQ9i71LqUJSrs3WVDZENdN58jCkecC2oCXEnqcviaADIwcZbYmns5IfHNV1Euo6vBm75o5l9A"
+	}
+
 	for range 10 {
 		q := NewQuery(ast.MustParseBody(query)).
 			WithSeed(&cng{}).

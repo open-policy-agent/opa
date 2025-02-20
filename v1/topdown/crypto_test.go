@@ -853,7 +853,7 @@ func TestExtractX509VerifyOptions(t *testing.T) {
 			if !cmp.Equal(vo, testCase.expectVerifyOpt, cmpopts.SortSlices(
 				func(ku1, ku2 x509.ExtKeyUsage) bool {
 					return ku1 < ku2
-				})) {
+				}), cmpopts.IgnoreUnexported(x509.VerifyOptions{})) {
 
 				t.Fatalf("expected x509.VerifyOptions: %+v \n"+
 					"got: %+v", testCase.expectVerifyOpt, vo)
