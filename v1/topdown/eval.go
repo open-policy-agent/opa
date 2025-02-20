@@ -162,10 +162,10 @@ func (e *eval) String() string {
 func (e *eval) string(s *strings.Builder) {
 	fmt.Fprintf(s, "<query: %v index: %d findOne: %v", e.query, e.index, e.findOne)
 	if e.parent != nil {
-		s.WriteRune(' ')
+		s.WriteByte(' ')
 		e.parent.string(s)
 	}
-	s.WriteRune('>')
+	s.WriteByte('>')
 }
 
 func (e *eval) builtinFunc(name string) (*ast.Builtin, BuiltinFunc, bool) {
@@ -2669,7 +2669,7 @@ func maxRefLength(rules []*ast.Rule, ceil int) int {
 	for _, r := range rules {
 		rl := len(r.Ref())
 		if r.Head.RuleKind() == ast.MultiValue {
-			rl = rl + 1
+			rl++
 		}
 		if rl >= ceil {
 			return ceil

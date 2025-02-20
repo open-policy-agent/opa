@@ -268,13 +268,9 @@ func TestBasicEscapeError(t *testing.T) {
 
 	req.URL.Path = `/invalid/path/foo%LALALA`
 
-	compiler := func() *ast.Compiler {
-		return ast.NewCompiler()
-	}
-
 	store := inmem.New()
 
-	NewBasic(&mockHandler{}, compiler, store).ServeHTTP(recorder, req)
+	NewBasic(&mockHandler{}, ast.NewCompiler, store).ServeHTTP(recorder, req)
 
 	if recorder.Code != http.StatusBadRequest {
 		t.Fatalf("Expected bad request but got: %v", recorder)

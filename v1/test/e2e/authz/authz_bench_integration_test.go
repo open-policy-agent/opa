@@ -82,7 +82,7 @@ func runAuthzBenchmark(b *testing.B, mode testAuthz.InputMode, numPaths int) {
 		b.Fatal(err)
 	}
 
-	queryPath := strings.Replace(testAuthz.AllowQuery, ".", "/", -1)
+	queryPath := strings.ReplaceAll(testAuthz.AllowQuery, ".", "/")
 	url := testRuntime.URL() + "/v1/" + queryPath
 
 	input, expected := testAuthz.GenerateInput(profile, mode)

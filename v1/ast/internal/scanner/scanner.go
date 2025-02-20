@@ -101,8 +101,8 @@ func (s *Scanner) Keyword(lit string) tokens.Token {
 func (s *Scanner) AddKeyword(kw string, tok tokens.Token) {
 	s.keywords[kw] = tok
 
-	switch tok {
-	case tokens.Every: // importing 'every' means also importing 'in'
+	if tok == tokens.Every {
+		// importing 'every' means also importing 'in'
 		s.keywords["in"] = tokens.In
 	}
 }
@@ -398,7 +398,7 @@ func (s *Scanner) scanComment() string {
 	end := s.offset - 1
 	// Trim carriage returns that precede the newline
 	if s.offset > 1 && s.bs[s.offset-2] == '\r' {
-		end = end - 1
+		end -= 1
 	}
 
 	return util.ByteSliceToString(s.bs[start:end])

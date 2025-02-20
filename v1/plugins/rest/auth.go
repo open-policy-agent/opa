@@ -206,7 +206,7 @@ func convertSignatureToBase64(alg string, der []byte) (string, error) {
 	return signatureData, nil
 }
 
-func pointsFromDER(der []byte) (R, S *big.Int, err error) {
+func pointsFromDER(der []byte) (R, S *big.Int, err error) { //nolint:gocritic
 	R, S = &big.Int{}, &big.Int{}
 	data := asn1.RawValue{}
 	if _, err := asn1.Unmarshal(der, &data); err != nil {
@@ -394,12 +394,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) SignWithKMS(ctx context.Context, pa
 
 	encodedHdr := base64.RawURLEncoding.EncodeToString(hdrBuf)
 	encodedPayload := base64.RawURLEncoding.EncodeToString(payload)
-	input := strings.Join(
-		[]string{
-			encodedHdr,
-			encodedPayload,
-		}, ".",
-	)
+	input := encodedHdr + "." + encodedPayload
 	digest, err := messageDigest([]byte(input), ap.AWSKmsKey.Algorithm)
 	if err != nil {
 		return nil, err
@@ -628,7 +623,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) requestToken(ctx context.Context) (
 		return nil, err
 	}
 
-	if strings.ToLower(tokenResponse.TokenType) != "bearer" {
+	if !strings.EqualFold(tokenResponse.TokenType, "bearer") {
 		return nil, errors.New("unknown token type returned from token endpoint")
 	}
 

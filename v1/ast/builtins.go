@@ -3401,7 +3401,7 @@ func (b *Builtin) IsTargetPos(i int) bool {
 
 func init() {
 	BuiltinMap = map[string]*Builtin{}
-	for _, b := range DefaultBuiltins {
+	for _, b := range &DefaultBuiltins {
 		RegisterBuiltin(b)
 	}
 }

@@ -86,7 +86,7 @@ func Test(t *testing.T, filename string, f func(t *testing.T, input string) Spec
 						for i, tok := range result.Tokens {
 							expected := spec.Tokens[i]
 
-							if !strings.EqualFold(strings.Replace(expected.Kind, "_", "", -1), tok.Kind) {
+							if !strings.EqualFold(strings.ReplaceAll(expected.Kind, "_", ""), tok.Kind) {
 								t.Errorf("token[%d].kind should be %s, was %s", i, expected.Kind, tok.Kind)
 							}
 							if expected.Value != "undefined" && expected.Value != tok.Value {

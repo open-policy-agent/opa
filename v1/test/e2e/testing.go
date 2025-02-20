@@ -15,7 +15,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -353,19 +352,19 @@ func (t *TestRuntime) UploadData(data io.Reader) error {
 func (t *TestRuntime) UploadDataToPath(path string, data io.Reader) error {
 	client := &http.Client{}
 
-	urlPath := strings.TrimSuffix(filepath.Join("/v1/data"+path), "/")
+	urlPath := strings.TrimSuffix("/v1/data"+path, "/")
 
 	req, err := http.NewRequest("PUT", t.URL()+urlPath, data)
 	if err != nil {
-		return fmt.Errorf("Unexpected error creating request: %s", err)
+		return fmt.Errorf("unexpected error creating request: %s", err)
 	}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("Failed to PUT data: %s", err)
+		return fmt.Errorf("failed to PUT data: %s", err)
 	}
 	if resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("Unexpected response: %d %s", resp.StatusCode, resp.Status)
+		return fmt.Errorf("unexpected response: %d %s", resp.StatusCode, resp.Status)
 	}
 	return nil
 }

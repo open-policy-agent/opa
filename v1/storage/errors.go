@@ -56,8 +56,7 @@ func (err *Error) Error() string {
 
 // IsNotFound returns true if this error is a NotFoundErr.
 func IsNotFound(err error) bool {
-	switch err := err.(type) {
-	case *Error:
+	if err, ok := err.(*Error); ok {
 		return err.Code == NotFoundErr
 	}
 	return false

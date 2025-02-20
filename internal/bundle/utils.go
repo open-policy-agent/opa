@@ -98,7 +98,7 @@ func LoadBundleFromDiskForRegoVersion(regoVersion ast.RegoVersion, path, name st
 
 	_, err := os.Stat(bundlePath)
 	if err == nil {
-		f, err := os.Open(filepath.Join(bundlePath))
+		f, err := os.Open(bundlePath)
 		if err != nil {
 			return nil, err
 		}

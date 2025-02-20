@@ -183,8 +183,8 @@ func (enc *chunkEncoder) reset() ([][]byte, error) {
 	enc.initialize()
 
 	var result [][]byte
-	for _, event := range events {
-		chunk, err := enc.Write(event)
+	for i := range events {
+		chunk, err := enc.Write(events[i])
 		if err != nil {
 			return nil, err
 		}

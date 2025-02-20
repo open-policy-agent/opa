@@ -47,7 +47,7 @@ func main() {
 
 	err = doc.GenMarkdownTree(command, dir)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err) //nolint: gocritic
 	}
 
 	files, err := os.ReadDir(dir)

@@ -860,7 +860,7 @@ func Compare(a, b Type) int {
 	} else if x < y {
 		return -1
 	}
-	switch a.(type) {
+	switch a.(type) { //nolint:gocritic
 	case nil, Null, Boolean, Number, String:
 		return 0
 	case *Array:
@@ -1174,7 +1174,7 @@ func TypeOf(x interface{}) Type {
 type typeSlice []Type
 
 func (s typeSlice) Less(i, j int) bool { return Compare(s[i], s[j]) < 0 }
-func (s typeSlice) Swap(i, j int)      { x := s[i]; s[i] = s[j]; s[j] = x }
+func (s typeSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s typeSlice) Len() int           { return len(s) }
 
 func typeSliceCompare(a, b []Type) int {

@@ -207,7 +207,7 @@ func (t TraceV1) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON unmarshals the TraceV1 from a JSON representation.
 func (t *TraceV1) UnmarshalJSON(b []byte) error {
-	*t = TraceV1(b[:])
+	*t = TraceV1(b)
 	return nil
 }
 

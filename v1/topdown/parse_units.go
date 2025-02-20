@@ -50,7 +50,7 @@ func builtinUnits(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) e
 
 	// We remove escaped quotes from strings here to retain parity with units.parse_bytes.
 	s := string(raw)
-	s = strings.Replace(s, "\"", "", -1)
+	s = strings.ReplaceAll(s, "\"", "")
 
 	if strings.Contains(s, " ") {
 		return errIncludesSpaces

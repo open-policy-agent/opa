@@ -1109,10 +1109,8 @@ func TestInMemoryTriggers(t *testing.T) {
 						if err != nil || ast.Compare(expAstValue, result) != 0 {
 							t.Fatalf("Expected result to be %v for trigger read but got: %v (err: %v)", expectedValue, result, err)
 						}
-					} else {
-						if err != nil || !reflect.DeepEqual(result, expectedValue) {
-							t.Fatalf("Expected result to be %v for trigger read but got: %v (err: %v)", expectedValue, result, err)
-						}
+					} else if err != nil || !reflect.DeepEqual(result, expectedValue) {
+						t.Fatalf("Expected result to be %v for trigger read but got: %v (err: %v)", expectedValue, result, err)
 					}
 					event = evt
 				},

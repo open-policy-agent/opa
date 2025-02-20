@@ -434,17 +434,14 @@ func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {
 
 func (p *Plugin) newDownloader(name string, source *Source, bundles map[string]*Source) Loader {
 
-	if u, err := url.Parse(source.Resource); err == nil {
-		switch u.Scheme {
-		case "file":
-			return &fileLoader{
-				name:             name,
-				path:             u.Path,
-				bvc:              source.Signing,
-				sizeLimitBytes:   source.SizeLimitBytes,
-				f:                p.oneShot,
-				bundleParserOpts: p.manager.ParserOptions(),
-			}
+	if u, err := url.Parse(source.Resource); err == nil && u.Scheme == "file" {
+		return &fileLoader{
+			name:             name,
+			path:             u.Path,
+			bvc:              source.Signing,
+			sizeLimitBytes:   source.SizeLimitBytes,
+			f:                p.oneShot,
+			bundleParserOpts: p.manager.ParserOptions(),
 		}
 	}
 

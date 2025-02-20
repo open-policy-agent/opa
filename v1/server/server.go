@@ -581,9 +581,9 @@ func (b *baseHTTPListener) Type() httpListenerType {
 	return b.t
 }
 
-func isMinTLSVersionSupported(TLSVersion uint16) bool {
+func isMinTLSVersionSupported(tlsVersion uint16) bool {
 	for _, version := range supportedTLSVersions {
-		if TLSVersion == version {
+		if tlsVersion == version {
 			return true
 		}
 	}
@@ -2722,7 +2722,7 @@ func getBoolParam(url *url.URL, name string, ifEmpty bool) bool {
 	}
 
 	for _, x := range p {
-		if strings.ToLower(x) == "true" {
+		if strings.EqualFold(x, "true") {
 			return true
 		}
 	}

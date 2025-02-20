@@ -332,7 +332,7 @@ func TestHTTPSendCustomRequestHeaders(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	s := string(jsonString[:])
+	s := string(jsonString)
 
 	// expected result with custom User-Agent
 
@@ -344,7 +344,7 @@ func TestHTTPSendCustomRequestHeaders(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	s2 := string(jsonString[:])
+	s2 := string(jsonString)
 
 	// run the test
 	tests := []struct {
@@ -1589,8 +1589,6 @@ func TestHTTPSendInterQueryForceCaching(t *testing.T) {
 			}))
 			defer ts.Close()
 
-			//runTopDownTestCase(t, data, tc.note, []string{strings.ReplaceAll(tc.ruleTemplate, "%URL%", ts.URL)}, tc.response, opts)
-
 			qStr := strings.ReplaceAll(tc.query, "%URL%", ts.URL)
 			q := newQuery(qStr, t0)
 
@@ -2163,10 +2161,8 @@ func TestParseMaxAgeCacheDirective(t *testing.T) {
 				if tc.err != nil && tc.err.Error() != err.Error() {
 					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
 				}
-			} else {
-				if err != nil {
-					t.Fatalf("Unexpected error %v", err)
-				}
+			} else if err != nil {
+				t.Fatalf("Unexpected error %v", err)
 			}
 
 			if actual != tc.expected {
@@ -2298,10 +2294,8 @@ func TestGetBoolValFromReqObj(t *testing.T) {
 				if tc.err != nil && tc.err.Error() != err.Error() {
 					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
 				}
-			} else {
-				if err != nil {
-					t.Fatalf("Unexpected error %v", err)
-				}
+			} else if err != nil {
+				t.Fatalf("Unexpected error %v", err)
 			}
 
 			if actual != tc.expected {
@@ -2647,7 +2641,7 @@ func TestHTTPSClient(t *testing.T) {
 		data := loadSmallTestData()
 		rules := append(
 			httpSendHelperRules,
-			fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s", "tls_use_system_certs": true, "tls_ca_cert_env_variable": "CLIENT_CA_ENV", "tls_client_cert_env_variable": "CLIENT_CERT_ENV", "tls_client_key_env_variable": "CLIENT_KEY_ENV", "tls_ca_cert_file": "%s", "tls_client_cert_file": "%s", "tls_client_key_file": "%s"}, resp); x := clean_headers(resp) }`, s.URL, localCaFile, localClientCertFile, localClientKeyFile),
+			fmt.Sprintf(`p = x { http.send({"method": "get", "url": %q, "tls_use_system_certs": true, "tls_ca_cert_env_variable": "CLIENT_CA_ENV", "tls_client_cert_env_variable": "CLIENT_CERT_ENV", "tls_client_key_env_variable": "CLIENT_KEY_ENV", "tls_ca_cert_file": "%s", "tls_client_cert_file": "%s", "tls_client_key_file": "%s"}, resp); x := clean_headers(resp) }`, s.URL, localCaFile, localClientCertFile, localClientKeyFile),
 		)
 
 		// run the test
@@ -2678,7 +2672,7 @@ func TestHTTPSClient(t *testing.T) {
 		expectedResult := &Error{Code: BuiltinErr, Message: fixupDarwinGo118("x509: certificate signed by unknown authority", `“my-server” certificate is not standards compliant`), Location: nil}
 		data := loadSmallTestData()
 		rule := []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "tls_client_cert_file": "%s", "tls_client_key_file": "%s", "tls_use_system_certs": true}, x) }`, s.URL, localClientCertFile, localClientKeyFile)}
+			`p = x { http.send({"method": "get", "url": %q, "tls_client_cert_file": %q, "tls_client_key_file": %q, "tls_use_system_certs": true}, x) }`, s.URL, localClientCertFile, localClientKeyFile)}
 
 		// run the test
 		runTopDownTestCase(t, data, "http.send", rule, expectedResult)
@@ -2710,7 +2704,7 @@ func TestHTTPSClient(t *testing.T) {
 
 		data := loadSmallTestData()
 		rule := []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "tls_ca_cert_file": "%s", "tls_client_cert_file": "%s", "tls_client_key_file": "%s", "tls_server_name": "%s"}, x) }`, url, localCaFile, localClientCertFile, localClientKeyFile, hostname)}
+			`p = x { http.send({"method": "get", "url": %q, "tls_ca_cert_file": %q, "tls_client_cert_file": %q, "tls_client_key_file": %q, "tls_server_name": %q}, x) }`, url, localCaFile, localClientCertFile, localClientKeyFile, hostname)}
 
 		// run the test
 		runTopDownTestCase(t, data, "http.send", rule, expected)
@@ -2917,7 +2911,7 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 		expectedResult := &Error{Code: BuiltinErr, Message: fixupDarwinGo118("x509: certificate signed by unknown authority", `“my-server” certificate is not standards compliant`), Location: nil}
 		data := loadSmallTestData()
 		rule := []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "tls_use_system_certs": true}, x) }`, s.URL)}
+			`p = x { http.send({"method": "get", "url": %q, "tls_use_system_certs": true}, x) }`, s.URL)}
 
 		// run the test
 		runTopDownTestCase(t, data, "http.send", rule, expectedResult)
@@ -3612,9 +3606,9 @@ func TestSocketHTTPGetRequest(t *testing.T) {
 		expected interface{}
 	}{
 		{"http.send", []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true}, resp); x := clean_headers(resp) }`, rawURL)}, resultObj.String()},
+			`p = x { http.send({"method": "get", "url": %q, "force_json_decode": true}, resp); x := clean_headers(resp) }`, rawURL)}, resultObj.String()},
 		{"http.send skip verify no HTTPS", []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true, "tls_insecure_skip_verify": true}, resp); x := clean_headers(resp) }`, rawURL)}, resultObj.String()},
+			`p = x { http.send({"method": "get", "url": %q, "force_json_decode": true, "tls_insecure_skip_verify": true}, resp); x := clean_headers(resp) }`, rawURL)}, resultObj.String()},
 	}
 
 	data := loadSmallTestData()
@@ -3718,7 +3712,7 @@ func TestHTTPGetRequestAllowNet(t *testing.T) {
 	expectedError := &Error{Code: "eval_builtin_error", Message: "http.send: unallowed host: " + serverHost}
 
 	rules := []string{fmt.Sprintf(
-		`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true}, resp); x := remove_headers(resp) }`, ts.URL)}
+		`p = x { http.send({"method": "get", "url": %q, "force_json_decode": true}, resp); x := remove_headers(resp) }`, ts.URL)}
 
 	// run the test
 	tests := []struct {

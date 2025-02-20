@@ -306,10 +306,8 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 					tc.err([]*Error{NewError(TypeErr, rule.Head.Location, err.Error())}) //nolint:govet
 					tpe = nil
 				}
-			} else {
-				if typeV != nil {
-					tpe = typeV
-				}
+			} else if typeV != nil {
+				tpe = typeV
 			}
 		case MultiValue:
 			typeK := cpy.GetByValue(rule.Head.Key.Value)
@@ -732,8 +730,8 @@ func (rc *refChecker) Visit(x interface{}) bool {
 }
 
 func (rc *refChecker) checkApply(curr *TypeEnv, ref Ref) *Error {
-	switch tpe := curr.GetByRef(ref).(type) {
-	case *types.Function: // NOTE(sr): We don't support first-class functions, except for `with`.
+	if tpe, ok := curr.GetByRef(ref).(*types.Function); ok {
+		// NOTE(sr): We don't support first-class functions, except for `with`.
 		return newRefErrUnsupported(ref[0].Location, rc.varRewriter(ref), len(ref)-1, tpe)
 	}
 
@@ -1003,7 +1001,7 @@ type ArgErrDetail struct {
 func (d *ArgErrDetail) Lines() []string {
 	lines := make([]string, 2)
 	lines[0] = "have: " + formatArgs(d.Have)
-	lines[1] = "want: " + fmt.Sprint(d.Want)
+	lines[1] = "want: " + d.Want.String()
 	return lines
 }
 

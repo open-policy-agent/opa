@@ -175,7 +175,7 @@ func TestRunBenchmarkE2EWithOPAConfigFile(t *testing.T) {
 
 		params := testBenchParams()
 		params.e2e = true
-		params.configFile = filepath.Join(testDirRoot, "/config.yaml")
+		params.configFile = filepath.Join(testDirRoot, "config.yaml")
 
 		args := []string{"1 + 1"}
 		var buf bytes.Buffer
@@ -580,7 +580,7 @@ func TestBenchMainInvalidInputFile(t *testing.T) {
 	}
 	args := []string{"1+1"}
 	test.WithTempFS(files, func(path string) {
-		params.inputPath = filepath.Join(path, "definitely/not/input.yaml")
+		params.inputPath = filepath.Join(path, "definitely", "not", "input.yaml")
 
 		var buf bytes.Buffer
 
@@ -662,7 +662,7 @@ func TestBenchMainInvalidInputFileE2E(t *testing.T) {
 	}
 	args := []string{"1+1"}
 	test.WithTempFS(files, func(path string) {
-		params.inputPath = filepath.Join(path, "definitely/not/input.yaml")
+		params.inputPath = filepath.Join(path, "definitely", "not", "input.yaml")
 
 		var buf bytes.Buffer
 

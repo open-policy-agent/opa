@@ -1391,14 +1391,14 @@ func (arr *Array) String() string {
 
 	defer sbPool.Put(sb)
 
-	sb.WriteRune('[')
+	sb.WriteByte('[')
 	for i, e := range arr.elems {
 		if i > 0 {
 			sb.WriteString(", ")
 		}
 		sb.WriteString(e.String())
 	}
-	sb.WriteRune(']')
+	sb.WriteByte(']')
 
 	return sb.String()
 }
@@ -1589,14 +1589,14 @@ func (s *set) String() string {
 
 	defer sbPool.Put(sb)
 
-	sb.WriteRune('{')
+	sb.WriteByte('{')
 	for i := range s.sortedKeys() {
 		if i > 0 {
 			sb.WriteString(", ")
 		}
 		sb.WriteString(s.keys[i].Value.String())
 	}
-	sb.WriteRune('}')
+	sb.WriteByte('}')
 
 	return sb.String()
 }
@@ -2217,7 +2217,7 @@ type objectElem struct {
 type objectElemSlice []*objectElem
 
 func (s objectElemSlice) Less(i, j int) bool { return Compare(s[i].key.Value, s[j].key.Value) < 0 }
-func (s objectElemSlice) Swap(i, j int)      { x := s[i]; s[i] = s[j]; s[j] = x }
+func (s objectElemSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s objectElemSlice) Len() int           { return len(s) }
 
 // Item is a helper for constructing an tuple containing two Terms
@@ -2502,7 +2502,7 @@ func (obj *object) String() string {
 
 	defer sbPool.Put(sb)
 
-	sb.WriteRune('{')
+	sb.WriteByte('{')
 
 	for i, elem := range obj.sortedKeys() {
 		if i > 0 {
@@ -2512,7 +2512,7 @@ func (obj *object) String() string {
 		sb.WriteString(": ")
 		sb.WriteString(elem.value.String())
 	}
-	sb.WriteRune('}')
+	sb.WriteByte('}')
 
 	return sb.String()
 }

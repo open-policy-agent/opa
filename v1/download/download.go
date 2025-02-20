@@ -232,16 +232,14 @@ func (d *Downloader) loop(ctx context.Context) {
 
 		if err != nil {
 			delay = util.DefaultBackoff(float64(minRetryDelay), float64(*d.config.Polling.MaxDelaySeconds), retry)
-		} else {
-			if !d.longPollingEnabled || d.config.Polling.LongPollingTimeoutSeconds == nil {
-				// revert the response header timeout value on the http client's transport
-				if *d.client.Config().ResponseHeaderTimeoutSeconds == 0 {
-					d.client = d.client.SetResponseHeaderTimeout(&d.respHdrTimeoutSec)
-				}
-				min := float64(*d.config.Polling.MinDelaySeconds)
-				max := float64(*d.config.Polling.MaxDelaySeconds)
-				delay = time.Duration(((max - min) * rand.Float64()) + min)
+		} else if !d.longPollingEnabled || d.config.Polling.LongPollingTimeoutSeconds == nil {
+			// revert the response header timeout value on the http client's transport
+			if *d.client.Config().ResponseHeaderTimeoutSeconds == 0 {
+				d.client = d.client.SetResponseHeaderTimeout(&d.respHdrTimeoutSec)
 			}
+			min := float64(*d.config.Polling.MinDelaySeconds)
+			max := float64(*d.config.Polling.MaxDelaySeconds)
+			delay = time.Duration(((max - min) * rand.Float64()) + min)
 		}
 
 		d.logger.Debug("Waiting %v before next download/retry.", delay)

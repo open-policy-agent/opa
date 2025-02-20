@@ -101,11 +101,9 @@ func generatePayload(files []FileInfo, sc *SigningConfig, keyID string) ([]byte,
 		for claim, value := range claims {
 			payload[claim] = value
 		}
-	} else {
-		if keyID != "" {
-			// keyid claim is deprecated but include it for backwards compatibility.
-			payload["keyid"] = keyID
-		}
+	} else if keyID != "" {
+		// keyid claim is deprecated but include it for backwards compatibility.
+		payload["keyid"] = keyID
 	}
 	return json.Marshal(payload)
 }

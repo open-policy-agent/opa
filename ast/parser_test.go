@@ -21,7 +21,7 @@ func TestParser_DefaultRegoVersion(t *testing.T) {
 p[x] { 
 	c = ["a", "b", "c"][i] 
 }`,
-			expStmtCount: 2, //package, p
+			expStmtCount: 2, // package, p
 		},
 		{
 			note: "v1",
@@ -30,7 +30,7 @@ p contains x if {
 	c = ["a", "b", "c"][i] 
 }`,
 			// v1 Keywords are not recognized, and interpreted as individual statements
-			expStmtCount: 5, //package, p, contains, x, if
+			expStmtCount: 5, // package, p, contains, x, if
 		},
 	}
 

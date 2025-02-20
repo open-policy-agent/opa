@@ -513,7 +513,7 @@ func (r *REPL) cmdShow(args []string) error {
 		}
 		fmt.Fprint(r.output, string(bs))
 		return nil
-	} else if strings.Compare(args[0], "debug") == 0 {
+	} else if args[0] == "debug" {
 		debug := replDebugState{
 			Explain:             r.explain,
 			Metrics:             r.metricsEnabled(),
@@ -707,7 +707,7 @@ func (r *REPL) unsetRule(ctx context.Context, name ast.Var) (bool, error) {
 }
 
 func (r *REPL) unsetPackage(_ context.Context, pkg *ast.Package) (bool, error) {
-	path := fmt.Sprintf("%v", pkg.Path)
+	path := pkg.Path.String()
 	_, ok := r.modules[path]
 	if ok {
 		delete(r.modules, path)
@@ -1418,10 +1418,10 @@ func newCommand(line string) *command {
 		return nil
 	}
 	inputCommand := strings.ToLower(p[0])
-	for _, c := range builtin {
-		if c.name == inputCommand {
+	for i := range builtin {
+		if builtin[i].name == inputCommand {
 			return &command{
-				op:   c.name,
+				op:   builtin[i].name,
 				args: p[1:],
 			}
 		}

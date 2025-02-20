@@ -340,7 +340,7 @@ func (c *Compiler) initModule() error {
 		// two times. But let's deal with that when it happens.
 		if _, ok := c.funcs[name]; ok { // already seen
 			c.debug.Printf("function name duplicate: %s (%d)", name, fn.Index)
-			name = name + ".1"
+			name += ".1"
 		}
 		c.funcs[name] = fn.Index
 	}
@@ -348,7 +348,7 @@ func (c *Compiler) initModule() error {
 	for _, fn := range c.policy.Funcs.Funcs {
 
 		params := make([]types.ValueType, len(fn.Params))
-		for i := 0; i < len(params); i++ {
+		for i := range params {
 			params[i] = types.I32
 		}
 
@@ -996,12 +996,16 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 	for _, stmt := range block.Stmts {
 		switch stmt := stmt.(type) {
 		case *ir.ResultSetAddStmt:
-			instrs = append(instrs, instruction.GetLocal{Index: c.lrs})
-			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Value)})
-			instrs = append(instrs, instruction.Call{Index: c.function(opaSetAdd)})
+			instrs = append(instrs,
+				instruction.GetLocal{Index: c.lrs},
+				instruction.GetLocal{Index: c.local(stmt.Value)},
+				instruction.Call{Index: c.function(opaSetAdd)},
+			)
 		case *ir.ReturnLocalStmt:
-			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
-			instrs = append(instrs, instruction.Return{})
+			instrs = append(instrs,
+				instruction.GetLocal{Index: c.local(stmt.Source)},
+				instruction.Return{},
+			)
 		case *ir.BlockStmt:
 			for i := range stmt.Blocks {
 				block, err := c.compileBlock(stmt.Blocks[i])
@@ -1029,8 +1033,10 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 				return instrs, err
 			}
 		case *ir.AssignVarStmt:
-			instrs = append(instrs, c.instrRead(stmt.Source))
-			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
+			instrs = append(instrs,
+				c.instrRead(stmt.Source),
+				instruction.SetLocal{Index: c.local(stmt.Target)},
+			)
 		case *ir.AssignVarOnceStmt:
 			instrs = append(instrs, instruction.Block{
 				Instrs: []instruction.Instruction{
@@ -1535,8 +1541,7 @@ func (c *Compiler) compileExternalCall(stmt *ir.CallStmt, ef externalFunc, resul
 	}
 
 	instrs := *result
-	instrs = append(instrs, instruction.I32Const{Value: ef.ID})
-	instrs = append(instrs, instruction.I32Const{Value: 0}) // unused context parameter
+	instrs = append(instrs, instruction.I32Const{Value: ef.ID}, instruction.I32Const{Value: 0}) // unused context parameter
 
 	for _, arg := range stmt.Args {
 		instrs = append(instrs, c.instrRead(arg))
@@ -1545,9 +1550,11 @@ func (c *Compiler) compileExternalCall(stmt *ir.CallStmt, ef externalFunc, resul
 	instrs = append(instrs, instruction.Call{Index: c.function(builtinDispatchers[len(stmt.Args)])})
 
 	if ef.Decl.Result() != nil {
-		instrs = append(instrs, instruction.TeeLocal{Index: c.local(stmt.Result)})
-		instrs = append(instrs, instruction.I32Eqz{})
-		instrs = append(instrs, instruction.BrIf{Index: 0})
+		instrs = append(instrs,
+			instruction.TeeLocal{Index: c.local(stmt.Result)},
+			instruction.I32Eqz{},
+			instruction.BrIf{Index: 0},
+		)
 	} else {
 		instrs = append(instrs, instruction.Drop{})
 	}

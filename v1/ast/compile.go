@@ -3545,10 +3545,8 @@ func (n *TreeNode) add(path Ref, rule *Rule) {
 		}
 		node.Children[sub.Key] = sub
 		node.Sorted = append(node.Sorted, sub.Key)
-	} else {
-		if rule != nil {
-			node.Values = append(node.Values, rule)
-		}
+	} else if rule != nil {
+		node.Values = append(node.Values, rule)
 	}
 }
 

@@ -983,13 +983,8 @@ func createJwt(payload string, privateKey string) (string, error) {
 
 	hdrStr := base64.RawURLEncoding.EncodeToString([]byte(hdr))
 	payloadStr := base64.RawURLEncoding.EncodeToString([]byte(payload))
+	signingInput := hdrStr + "." + payloadStr
 
-	signingInput := strings.Join(
-		[]string{
-			hdrStr,
-			payloadStr,
-		}, ".",
-	)
 	pk, err := jwkKeySet.Keys[0].Materialize()
 	if err != nil {
 		return "", fmt.Errorf("failed to materialize key: %s", err.Error())
@@ -999,13 +994,7 @@ func createJwt(payload string, privateKey string) (string, error) {
 		return "", fmt.Errorf("failed to sign message: %s", err.Error())
 	}
 	encSignature := base64.RawURLEncoding.EncodeToString(signature)
-
-	encoded := strings.Join(
-		[]string{
-			signingInput,
-			encSignature,
-		}, ".",
-	)
+	encoded := signingInput + "." + encSignature
 
 	return encoded, nil
 }
