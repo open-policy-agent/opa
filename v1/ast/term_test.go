@@ -76,7 +76,7 @@ func TestInterfaceToValue(t *testing.T) {
 		{uint64(100), "100"},
 		{[]string{"dummy", "tummy"}, `["dummy", "tummy"]`},
 		{String("bob"), `"bob"`},
-				{[]byte("base64ed"), `"YmFzZTY0ZWQ="`}, // []byte is base64 encoded.
+		{[]byte("base64ed"), `"YmFzZTY0ZWQ="`}, // []byte is base64 encoded.
 	}
 
 	for _, tc := range tests {
