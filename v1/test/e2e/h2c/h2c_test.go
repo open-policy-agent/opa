@@ -55,7 +55,6 @@ func TestH2CHTTPListeners(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to GET %s: %s", u, err)
 		}
-		defer resp.Body.Close()
 
 		if expected, actual := http.StatusOK, resp.StatusCode; expected != actual {
 			t.Errorf("resp status: expected %d, got %d", expected, actual)
@@ -63,5 +62,7 @@ func TestH2CHTTPListeners(t *testing.T) {
 		if expected, actual := 2, resp.ProtoMajor; expected != actual {
 			t.Errorf("resp.ProtoMajor: expected %d, got %d", expected, actual)
 		}
+
+		resp.Body.Close()
 	}
 }

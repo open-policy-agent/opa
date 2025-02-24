@@ -42,7 +42,7 @@ type compiledTestCase struct {
 
 func compileTestCases(ctx context.Context, tests cases.Set) (*compiledTestCaseSet, error) {
 	result := make([]compiledTestCase, 0, len(tests.Cases))
-	for _, tc := range tests.Cases {
+	for _, tc := range tests.Cases { //nolint:gocritic
 
 		var numExpects int
 
@@ -171,7 +171,7 @@ func run(params params) error {
 					return err
 				}
 
-				dst := strings.Replace(files[i].Name(), ".yaml", ".json", -1)
+				dst := strings.ReplaceAll(files[i].Name(), ".yaml", ".json")
 				return writeFile(tw, dst, bs)
 			}()
 			if err != nil {

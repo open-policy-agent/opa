@@ -276,7 +276,7 @@ func (s *Server) handleOCIBundles(w http.ResponseWriter, r *http.Request) {
 	tag := ""  // image tag used in request path verification
 	repo := "" // image repo used in request path verification
 	var buf bytes.Buffer
-	//get first key that matches request url pattern
+	// get first key that matches request url pattern
 	for key := range s.bundles {
 		// extract tag
 		parsedRef := strings.Split(key, ":")

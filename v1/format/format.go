@@ -63,12 +63,10 @@ func SourceWithOpts(filename string, src []byte, opts Opts) ([]byte, error) {
 	var parserOpts ast.ParserOptions
 	if opts.ParserOptions != nil {
 		parserOpts = *opts.ParserOptions
-	} else {
-		if regoVersion == ast.RegoV1 {
-			// If the rego version is V1, we need to parse it as such, to allow for future keywords not being imported.
-			// Otherwise, we'll default to the default rego-version.
-			parserOpts.RegoVersion = ast.RegoV1
-		}
+	} else if regoVersion == ast.RegoV1 {
+		// If the rego version is V1, we need to parse it as such, to allow for future keywords not being imported.
+		// Otherwise, we'll default to the default rego-version.
+		parserOpts.RegoVersion = ast.RegoV1
 	}
 
 	if parserOpts.RegoVersion == ast.RegoUndefined {

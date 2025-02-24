@@ -921,10 +921,8 @@ func TestPluginStartLazyLoadInMem(t *testing.T) {
 				if ast.Compare(result, expected) != 0 {
 					t.Fatalf("expected data to be %v but got %v", expected, result)
 				}
-			} else {
-				if !reflect.DeepEqual(result, mockBundle1.Data["p"]) {
-					t.Fatalf("expected data to be %v but got %v", mockBundle1.Data, result)
-				}
+			} else if !reflect.DeepEqual(result, mockBundle1.Data["p"]) {
+				t.Fatalf("expected data to be %v but got %v", mockBundle1.Data, result)
 			}
 
 			result, err = storage.ReadOne(ctx, manager.Store, storage.Path{"q"})
@@ -937,10 +935,8 @@ func TestPluginStartLazyLoadInMem(t *testing.T) {
 				if ast.Compare(result, expected) != 0 {
 					t.Fatalf("expected data to be %v but got %v", expected, result)
 				}
-			} else {
-				if !reflect.DeepEqual(result, mockBundle2.Data["q"]) {
-					t.Fatalf("expected data to be %v but got %v", mockBundle2.Data, result)
-				}
+			} else if !reflect.DeepEqual(result, mockBundle2.Data["q"]) {
+				t.Fatalf("expected data to be %v but got %v", mockBundle2.Data, result)
 			}
 
 			txn := storage.NewTransactionOrDie(ctx, manager.Store)
@@ -1348,7 +1344,7 @@ func TestStop(t *testing.T) {
 
 	serviceName := "test-svc"
 	err := manager.Reconfigure(&config.Config{
-		Services: []byte(fmt.Sprintf("{\"%s\":{ \"url\": \"%s\"}}", serviceName, ts.URL+tsURLBase)),
+		Services: []byte(fmt.Sprintf("{%q:{ \"url\": %q}}", serviceName, ts.URL+tsURLBase)),
 	})
 	if err != nil {
 		t.Fatalf("Error configuring plugin manager: %s", err)
@@ -3008,7 +3004,7 @@ p contains x`),
 
 	txn := storage.NewTransactionOrDie(ctx, manager.Store)
 
-	_, err := manager.Store.GetPolicy(ctx, txn, filepath.Join(bundleName, "/example.rego"))
+	_, err := manager.Store.GetPolicy(ctx, txn, filepath.Join(bundleName, "example.rego"))
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -3037,7 +3033,7 @@ p contains x`),
 
 	txn = storage.NewTransactionOrDie(ctx, manager.Store)
 
-	_, err = manager.Store.GetPolicy(ctx, txn, filepath.Join(bundleName, "/example.rego"))
+	_, err = manager.Store.GetPolicy(ctx, txn, filepath.Join(bundleName, "example.rego"))
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -3149,7 +3145,7 @@ func TestPluginOneShotActivationRemovesOld(t *testing.T) {
 		ids, err := manager.Store.ListPolicies(ctx, txn)
 		if err != nil {
 			return err
-		} else if !slices.Equal([]string{filepath.Join(bundleName, "/example2.rego")}, ids) {
+		} else if !slices.Equal([]string{filepath.Join(bundleName, "example2.rego")}, ids) {
 			return errors.New("expected updated policy ids")
 		}
 		data, err := manager.Store.Read(ctx, txn, storage.Path{})
@@ -3813,7 +3809,7 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 			} else {
 				expData = util.MustUnmarshalJSON([]byte(exp))
 			}
-			expIDs := []string{filepath.Join(bundleName, "bundle/id1"), "some/id2", "some/id3"}
+			expIDs := []string{filepath.Join(bundleName, "bundle", "id1"), "some/id2", "some/id3"}
 			validateStoreState(ctx, t, manager.Store, "/a", expData, expIDs, bundleName, "quickbrownfaux", nil)
 
 			// Activate a bundle that is scoped to a/a3 ad a/a6. Include a function
@@ -3853,7 +3849,7 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 			} else {
 				expData = util.MustUnmarshalJSON([]byte(exp))
 			}
-			expIDs = []string{filepath.Join(bundleName, "bundle/id2"), "some/id3"}
+			expIDs = []string{filepath.Join(bundleName, "bundle", "id2"), "some/id3"}
 			validateStoreState(ctx, t, manager.Store, "/a", expData, expIDs, bundleName, "quickbrownfaux-2",
 				map[string]interface{}{
 					"a": map[string]interface{}{"a1": "deadbeef"},
@@ -3877,7 +3873,7 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 
 			// Ensure bundle activation failed by checking that previous revision is
 			// still active.
-			expIDs = []string{filepath.Join(bundleName, "bundle/id2"), "not_scoped", "some/id3"}
+			expIDs = []string{filepath.Join(bundleName, "bundle", "id2"), "not_scoped", "some/id3"}
 			validateStoreState(ctx, t, manager.Store, "/a", expData, expIDs, bundleName, "quickbrownfaux-2",
 				map[string]interface{}{
 					"a": map[string]interface{}{"a1": "deadbeef"},
@@ -3943,7 +3939,7 @@ func TestPluginSetCompilerOnContext(t *testing.T) {
 		t.Fatalf("Expected 2 events but got: %+v", events)
 	} else if compiler := plugins.GetCompilerOnContext(events[1].Context); compiler == nil {
 		t.Fatalf("Expected compiler on 2nd event but got: %+v", events)
-	} else if !compiler.Modules[filepath.Join(bundleName, "/test.rego")].Equal(exp) {
+	} else if !compiler.Modules[filepath.Join(bundleName, "test.rego")].Equal(exp) {
 		t.Fatalf("Expected module on compiler but got: %v", compiler.Modules)
 	}
 }
@@ -5420,10 +5416,8 @@ p contains 7 if {
 							t.Fatalf("expected error:\n\n%s\n\nbut got:\n\n%v", expErr, s.Errors)
 						}
 					}
-				} else {
-					if s.LastSuccessfulActivation.IsZero() {
-						t.Fatal("expected successful activation")
-					}
+				} else if s.LastSuccessfulActivation.IsZero() {
+					t.Fatal("expected successful activation")
 				}
 			})
 		})
@@ -5737,10 +5731,8 @@ p contains 7 if {
 							t.Fatalf("expected error:\n\n%s\n\nbut got:\n\n%v", expErr, s.Errors)
 						}
 					}
-				} else {
-					if s.LastSuccessfulActivation.IsZero() {
-						t.Fatal("expected successful activation")
-					}
+				} else if s.LastSuccessfulActivation.IsZero() {
+					t.Fatal("expected successful activation")
 				}
 			})
 		})
@@ -5942,10 +5934,8 @@ p contains 7 if {
 							t.Fatalf("expected error:\n\n%s\n\nbut got:\n\n%v", expErr, s.Errors)
 						}
 					}
-				} else {
-					if s.LastSuccessfulActivation.IsZero() {
-						t.Fatal("expected successful activation")
-					}
+				} else if s.LastSuccessfulActivation.IsZero() {
+					t.Fatal("expected successful activation")
 				}
 			})
 		})
@@ -6236,10 +6226,8 @@ p contains 7 if {
 							t.Fatalf("expected error:\n\n%s\n\nbut got:\n\n%v", expErr, s.Errors)
 						}
 					}
-				} else {
-					if s.LastSuccessfulActivation.IsZero() {
-						t.Fatal("expected successful activation")
-					}
+				} else if s.LastSuccessfulActivation.IsZero() {
+					t.Fatal("expected successful activation")
 				}
 			})
 		})

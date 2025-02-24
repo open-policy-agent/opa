@@ -201,7 +201,7 @@ func TestX509ParseAndVerify(t *testing.T) {
 	t.Run("TestMissingIntermediate", func(t *testing.T) {
 		t.Parallel()
 
-		chain := strings.Join([]string{rootCA, leaf}, "\n")
+		chain := rootCA + "\n" + leaf
 
 		parsed, err := getX509CertsFromString(chain)
 		if err != nil {

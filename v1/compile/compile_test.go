@@ -481,10 +481,8 @@ p contains "B" if {
 								t.Fatalf("expected error to contain:\n\n%s\n\ngot:\n\n%v", expErr, err)
 							}
 						}
-					} else {
-						if err != nil {
-							t.Fatal(err)
-						}
+					} else if err != nil {
+						t.Fatal(err)
 					}
 				})
 			})
@@ -1246,10 +1244,8 @@ func TestCompilerOptimizationL2(t *testing.T) {
 				if !compiler.bundle.Modules[1].Parsed.Equal(prunedExp) {
 					t.Fatalf("expected pruned module to be:\n\n%v\n\ngot:\n\n%v", prunedExp, compiler.bundle.Modules[1])
 				}
-			} else {
-				if !compiler.bundle.Modules[1].Parsed.Equal(optimizedExp) {
-					t.Fatalf("expected optimized module to be:\n\n%v\n\ngot:\n\n%v", optimizedExp, compiler.bundle.Modules[1])
-				}
+			} else if !compiler.bundle.Modules[1].Parsed.Equal(optimizedExp) {
+				t.Fatalf("expected optimized module to be:\n\n%v\n\ngot:\n\n%v", optimizedExp, compiler.bundle.Modules[1])
 			}
 		})
 	}

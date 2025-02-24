@@ -2149,7 +2149,7 @@ func TestRegoEvalWithBundle(t *testing.T) {
 			t.Fatalf("expected %d modules, found %d", exp, act)
 		}
 		for act := range mods {
-			if exp := filepath.Join(path, "x/x.rego"); exp != act {
+			if exp := filepath.Join(path, "x", "x.rego"); exp != act {
 				t.Errorf("expected module name %q, got %q", exp, act)
 			}
 		}
@@ -2176,7 +2176,7 @@ func TestRegoEvalWithBundleURL(t *testing.T) {
 			t.Fatalf("expected %d modules, found %d", exp, act)
 		}
 		for act := range mods {
-			if exp := filepath.Join(path, "x/x.rego"); exp != act {
+			if exp := filepath.Join(path, "x", "x.rego"); exp != act {
 				t.Errorf("expected module name %q, got %q", exp, act)
 			}
 		}

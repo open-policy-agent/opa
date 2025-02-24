@@ -9,7 +9,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 )
 
-// Deprecated in v0.4.2 in favour of minus/infix "-" operation.
+// Deprecated: deprecated in v0.4.2 in favour of minus/infix "-" operation.
 func builtinSetDiff(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 
 	s1, err := builtins.SetOperand(operands[0].Value, 1)

@@ -236,11 +236,11 @@ func extractVerifyOpts(options ast.Object) (verifyOpt x509.VerifyOptions, err er
 				Foreach(func(*ast.Term))
 			}
 			var ks forEach
-			switch options.Get(key).Value.(type) {
+			switch v := options.Get(key).Value.(type) {
 			case *ast.Array:
-				ks = options.Get(key).Value.(*ast.Array)
+				ks = v
 			case ast.Set:
-				ks = options.Get(key).Value.(ast.Set)
+				ks = v
 			default:
 				return verifyOpt, errors.New("'KeyUsages' should be an Array or Set")
 			}

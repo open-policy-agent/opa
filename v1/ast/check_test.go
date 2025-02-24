@@ -1529,9 +1529,7 @@ func TestCheckErrorOrdering(t *testing.T) {
 		inputReversed[i] = mod.Rules[i]
 	}
 
-	tmp := inputReversed[1]
-	inputReversed[1] = inputReversed[2]
-	inputReversed[2] = tmp
+	inputReversed[1], inputReversed[2] = inputReversed[2], inputReversed[1]
 
 	_, errs1 := newTypeChecker().CheckTypes(nil, input, nil)
 	_, errs2 := newTypeChecker().CheckTypes(nil, inputReversed, nil)

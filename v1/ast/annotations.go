@@ -330,8 +330,7 @@ func scopeCompare(s1, s2 string) int {
 }
 
 func scopeOrder(s string) int {
-	switch s {
-	case annotationScopeRule:
+	if s == annotationScopeRule {
 		return 1
 	}
 	return 0

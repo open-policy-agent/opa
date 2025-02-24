@@ -134,7 +134,7 @@ func (c parsedTermCache) String() string {
 	s.WriteRune('{')
 	var e *parsedTermCacheItem
 	for e = c.m; e != nil; e = e.next {
-		s.WriteString(fmt.Sprintf("%v", e))
+		s.WriteString(e.String())
 	}
 	s.WriteRune('}')
 	return s.String()
@@ -2063,7 +2063,7 @@ func (p *Parser) parseTermPairList(end tokens.Token, r [][2]*Term) [][2]*Term {
 func (p *Parser) parseTermOp(values ...tokens.Token) *Term {
 	for i := range values {
 		if p.s.tok == values[i] {
-			r := RefTerm(VarTerm(fmt.Sprint(p.s.tok)).SetLocation(p.s.Loc())).SetLocation(p.s.Loc())
+			r := RefTerm(VarTerm(p.s.tok.String()).SetLocation(p.s.Loc())).SetLocation(p.s.Loc())
 			p.scan()
 			return r
 		}
@@ -2612,7 +2612,7 @@ func parseAuthorString(s string) (*AuthorAnnotation, error) {
 		strings.HasSuffix(trailing, emailSuffix) {
 		email = trailing[len(emailPrefix):]
 		email = email[0 : len(email)-len(emailSuffix)]
-		namePartCount = namePartCount - 1
+		namePartCount -= 1
 	}
 
 	name := strings.Join(parts[0:namePartCount], " ")

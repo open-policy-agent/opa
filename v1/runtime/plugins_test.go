@@ -66,7 +66,7 @@ func TestRegisterPlugin(t *testing.T) {
 
 		RegisterPlugin("test", Factory{})
 
-		params.ConfigFile = filepath.Join(testDirRoot, "/config.yaml")
+		params.ConfigFile = filepath.Join(testDirRoot, "config.yaml")
 
 		rt, err := NewRuntime(context.Background(), params)
 		if err != nil {
@@ -98,7 +98,7 @@ func TestRegisterPluginNotStartedWithoutConfig(t *testing.T) {
 
 		RegisterPlugin("test", Factory{})
 
-		params.ConfigFile = filepath.Join(testDirRoot, "/config.yaml")
+		params.ConfigFile = filepath.Join(testDirRoot, "config.yaml")
 
 		rt, err := NewRuntime(context.Background(), params)
 		if err != nil {
@@ -130,7 +130,7 @@ func TestRegisterPluginBadBootConfig(t *testing.T) {
 
 		RegisterPlugin("test", Factory{})
 
-		params.ConfigFile = filepath.Join(testDirRoot, "/config.yaml")
+		params.ConfigFile = filepath.Join(testDirRoot, "config.yaml")
 
 		_, err := NewRuntime(context.Background(), params)
 		if err == nil || !strings.Contains(err.Error(), "config error: test") {
@@ -151,7 +151,7 @@ func TestWaitPluginsReady(t *testing.T) {
 		RegisterPlugin("test", Factory{})
 
 		params := NewParams()
-		params.ConfigFile = filepath.Join(testDirRoot, "/config.yaml")
+		params.ConfigFile = filepath.Join(testDirRoot, "config.yaml")
 
 		rt, err := NewRuntime(context.Background(), params)
 		if err != nil {

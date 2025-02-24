@@ -373,10 +373,6 @@ func exprLocalVars(e *Event) *ast.ValueMap {
 	vars := ast.NewValueMap()
 
 	findVars := func(term *ast.Term) bool {
-		//if r, ok := term.Value.(ast.Ref); ok {
-		//	fmt.Printf("ref: %v\n", r)
-		//	//return true
-		//}
 		if name, ok := term.Value.(ast.Var); ok {
 			if meta, ok := e.LocalMetadata[name]; ok {
 				if val := e.Locals.Get(name); val != nil {

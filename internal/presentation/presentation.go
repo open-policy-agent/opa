@@ -492,7 +492,7 @@ func prettyASTNode(x interface{}, regoVersion ast.RegoVersion) (string, int, err
 		return "", 0, fmt.Errorf("format error: %w", err)
 	}
 	var maxLineWidth int
-	s := strings.Trim(strings.Replace(string(bs), "\t", "  ", -1), "\n")
+	s := strings.Trim(strings.ReplaceAll(string(bs), "\t", "  "), "\n")
 	for _, line := range strings.Split(s, "\n") {
 		width := tablewriter.DisplayWidth(line)
 		if width > maxLineWidth {

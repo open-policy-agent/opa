@@ -109,7 +109,7 @@ func builtinNumBytes(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 func formatString(s ast.String) string {
 	str := string(s)
 	lower := strings.ToLower(str)
-	return strings.Replace(lower, "\"", "", -1)
+	return strings.ReplaceAll(lower, "\"", "")
 }
 
 // Splits the string into a number string à la "10" or "10.2" and a unit

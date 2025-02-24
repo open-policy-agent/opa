@@ -939,10 +939,8 @@ func TestDoWithResponseHeaderTimeout(t *testing.T) {
 				if !strings.Contains(err.Error(), tc.errMsg) {
 					t.Fatalf("Expected error %v but got %v", tc.errMsg, err.Error())
 				}
-			} else {
-				if err != nil {
-					t.Fatalf("Unexpected error %v", err)
-				}
+			} else if err != nil {
+				t.Fatalf("Unexpected error %v", err)
 			}
 		})
 	}
@@ -2013,10 +2011,8 @@ func TestAWSCredentialServiceChain(t *testing.T) {
 				if !strings.Contains(err.Error(), tc.errMsg) {
 					t.Fatalf("Expected error message %v but got %v", tc.errMsg, err.Error())
 				}
-			} else {
-				if err != nil {
-					t.Fatalf("Unexpected error: %v", err)
-				}
+			} else if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
 			}
 		})
 	}

@@ -697,7 +697,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 			return rt.gracefulServerShutdown(rt.server)
 		case err := <-errc:
 			rt.logger.WithFields(map[string]interface{}{"err": err}).Error("Listener failed.")
-			os.Exit(1)
+			os.Exit(1) //nolint:gocritic
 		}
 	}
 }
@@ -744,7 +744,7 @@ func (rt *Runtime) StartREPL(ctx context.Context) {
 	if rt.Params.Watch {
 		if err := rt.startWatcher(ctx, rt.Params.Paths, onReloadPrinter(rt.Params.Output)); err != nil {
 			fmt.Fprintln(rt.Params.Output, "error opening watch:", err)
-			os.Exit(1)
+			os.Exit(1) //nolint:gocritic
 		}
 	}
 

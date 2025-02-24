@@ -504,8 +504,8 @@ func TestLoadDirRecursive(t *testing.T) {
 		}
 		mod1 := ast.MustParseModule(files["/a/e.rego"])
 		mod2 := ast.MustParseModule(files["/b/d/e.rego"])
-		expectedMod1 := loaded.Modules[CleanPath(filepath.Join(rootDir, "/a/e.rego"))].Parsed
-		expectedMod2 := loaded.Modules[CleanPath(filepath.Join(rootDir, "/b/d/e.rego"))].Parsed
+		expectedMod1 := loaded.Modules[CleanPath(filepath.Join(rootDir, "a", "e.rego"))].Parsed
+		expectedMod2 := loaded.Modules[CleanPath(filepath.Join(rootDir, "b", "d", "e.rego"))].Parsed
 		if !mod1.Equal(expectedMod1) {
 			t.Fatalf("Expected:\n%v\n\nGot:\n%v", expectedMod1, mod1)
 		}
@@ -807,8 +807,8 @@ func TestAsBundleWithDir(t *testing.T) {
 		}
 
 		expectedModulePaths := map[string]struct{}{
-			filepath.Join(rootDir, "foo/policy.rego"): {},
-			filepath.Join(rootDir, "base.rego"):       {},
+			filepath.Join(rootDir, "foo", "policy.rego"): {},
+			filepath.Join(rootDir, "base.rego"):          {},
 		}
 		for _, mf := range b.Modules {
 			if _, found := expectedModulePaths[mf.Path]; !found {
@@ -849,7 +849,7 @@ func TestAsBundleWithFileURLDir(t *testing.T) {
 			t.Fatalf("expected 1 modules, got %d", len(b.Modules))
 		}
 		expectedModulePaths := map[string]struct{}{
-			filepath.Join(rootDir, "/foo/policy.rego"): {},
+			filepath.Join(rootDir, "foo", "policy.rego"): {},
 		}
 		for _, mf := range b.Modules {
 			if _, found := expectedModulePaths[mf.Path]; !found {
@@ -977,10 +977,8 @@ func TestCheckForUNCPath(t *testing.T) {
 				if tc.err != nil && tc.err.Error() != err.Error() {
 					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
 				}
-			} else {
-				if err != nil {
-					t.Fatalf("Unexpected error %v", err)
-				}
+			} else if err != nil {
+				t.Fatalf("Unexpected error %v", err)
 			}
 		})
 	}

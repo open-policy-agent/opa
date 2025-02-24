@@ -405,7 +405,7 @@ func BenchmarkJSONPatchPathologicalNestedAddChainObject(b *testing.B) {
 				[2]*ast.Term{ast.StringTerm("value"), ast.ObjectTerm()},
 			)
 
-			path = path + "/a"
+			path += "/a"
 
 			patchObj.Insert(ast.StringTerm("path"), ast.StringTerm(path))
 			patchList[i] = ast.NewTerm(patchObj)
@@ -436,7 +436,7 @@ func BenchmarkJSONPatchPathologicalNestedAddChainArray(b *testing.B) {
 				[2]*ast.Term{ast.StringTerm("value"), ast.ArrayTerm()},
 			)
 
-			path = path + "/0"
+			path += "/0"
 
 			patchObj.Insert(ast.StringTerm("path"), ast.StringTerm(path))
 			patchList[i] = ast.NewTerm(patchObj)

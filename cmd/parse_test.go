@@ -144,7 +144,7 @@ p = 1
 		t.Fatalf("Expected no stderr output, got:\n%s\n", string(stderr))
 	}
 
-	expectedOutput := strings.Replace(`{
+	expectedOutput := strings.ReplaceAll(`{
   "package": {
     "location": {
       "file": "TEMPDIR/x.rego",
@@ -238,7 +238,7 @@ p = 1
     }
   ]
 }
-`, "TEMPDIR", tempDirPath, -1)
+`, "TEMPDIR", tempDirPath)
 
 	gotLines := strings.Split(string(stdout), "\n")
 	wantLines := strings.Split(expectedOutput, "\n")
@@ -350,7 +350,7 @@ a.b.c := true
 		t.Fatalf("Expected no stderr output, got:\n%s\n", string(stderr))
 	}
 
-	expectedOutput := strings.Replace(`{
+	expectedOutput := strings.ReplaceAll(`{
   "package": {
     "location": {
       "file": "TEMPDIR/x.rego",
@@ -464,7 +464,7 @@ a.b.c := true
     }
   ]
 }
-`, "TEMPDIR", tempDirPath, -1)
+`, "TEMPDIR", tempDirPath)
 
 	gotLines := strings.Split(string(stdout), "\n")
 	wantLines := strings.Split(expectedOutput, "\n")
@@ -508,7 +508,7 @@ allow = true if {
 		t.Fatalf("Expected no stderr output, got:\n%s\n", string(stderr))
 	}
 
-	expectedOutput := strings.Replace(`{
+	expectedOutput := strings.ReplaceAll(`{
   "package": {
     "location": {
       "file": "TEMPDIR/x.rego",
@@ -925,7 +925,7 @@ allow = true if {
     }
   ]
 }
-`, "TEMPDIR", tempDirPath, -1)
+`, "TEMPDIR", tempDirPath)
 
 	gotLines := strings.Split(string(stdout), "\n")
 	wantLines := strings.Split(expectedOutput, "\n")
@@ -1015,10 +1015,8 @@ a contains x if {
 						t.Fatalf("Expected error:\n\n%q\n\ngot:\n\n%s", expErr, errs)
 					}
 				}
-			} else {
-				if len(stderr) > 0 {
-					t.Fatalf("Expected no stderr output, got:\n%s\n", string(stderr))
-				}
+			} else if len(stderr) > 0 {
+				t.Fatalf("Expected no stderr output, got:\n%s\n", string(stderr))
 			}
 		})
 	}
@@ -1172,10 +1170,8 @@ p contains v if {
 						t.Fatalf("Expected error:\n\n%q\n\ngot:\n\n%s", expErr, errs)
 					}
 				}
-			} else {
-				if len(stderr) > 0 {
-					t.Fatalf("Expected no stderr output, got:\n%s\n", string(stderr))
-				}
+			} else if len(stderr) > 0 {
+				t.Fatalf("Expected no stderr output, got:\n%s\n", string(stderr))
 			}
 		})
 	}

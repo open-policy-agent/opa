@@ -893,8 +893,8 @@ func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {
 					continue
 				}
 
-				for _, event := range events {
-					p.encodeAndBufferEvent(event)
+				for i := range events {
+					p.encodeAndBufferEvent(events[i])
 				}
 			} else {
 				// requeue the chunk

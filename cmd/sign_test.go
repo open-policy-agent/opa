@@ -176,10 +176,8 @@ func TestValidateSignParams(t *testing.T) {
 				if tc.err != nil && tc.err.Error() != err.Error() {
 					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
 				}
-			} else {
-				if err != nil {
-					t.Fatalf("Unexpected error %v", err)
-				}
+			} else if err != nil {
+				t.Fatalf("Unexpected error %v", err)
 			}
 		})
 	}

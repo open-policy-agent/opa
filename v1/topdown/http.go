@@ -607,7 +607,7 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 	}
 
 	if len(tlsCaCert) != 0 {
-		tlsCaCert = bytes.Replace(tlsCaCert, []byte("\\n"), []byte("\n"), -1)
+		tlsCaCert = bytes.ReplaceAll(tlsCaCert, []byte("\\n"), []byte("\n"))
 		pool, err := addCACertsFromBytes(tlsConfig.RootCAs, tlsCaCert)
 		if err != nil {
 			return nil, nil, err

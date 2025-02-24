@@ -127,10 +127,8 @@ func TestVerifyAuthorizationPolicySchema(t *testing.T) {
 						t.Errorf("Expected error %v not found", e)
 					}
 				}
-			} else {
-				if err != nil {
-					t.Fatalf("Unexpected error %v", err)
-				}
+			} else if err != nil {
+				t.Fatalf("Unexpected error %v", err)
 			}
 		})
 	}

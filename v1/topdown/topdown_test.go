@@ -2328,9 +2328,7 @@ func (rs resultSet) Less(i, j int) bool {
 }
 
 func (rs resultSet) Swap(i, j int) {
-	tmp := rs[i]
-	rs[i] = rs[j]
-	rs[j] = tmp
+	rs[i], rs[j] = rs[j], rs[i]
 }
 
 func (rs resultSet) Len() int {

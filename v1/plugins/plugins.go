@@ -803,7 +803,7 @@ func (m *Manager) Reconfigure(config *config.Config) error {
 
 	m.Config = config
 	m.interQueryBuiltinCacheConfig = interQueryBuiltinCacheConfig
-	for name, client := range services {
+	for name, client := range services { //nolint:gocritic
 		m.services[name] = client
 	}
 

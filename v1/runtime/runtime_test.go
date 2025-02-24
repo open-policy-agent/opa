@@ -140,10 +140,8 @@ func testRuntimeProcessWatchEvents(t *testing.T, asBundle bool, readAst bool) {
 				if ast.Compare(val, exp) == 0 {
 					return // success
 				}
-			} else {
-				if reflect.DeepEqual(val, expected) {
-					return // success
-				}
+			} else if reflect.DeepEqual(val, expected) {
+				return // success
 			}
 
 		}
@@ -1402,7 +1400,7 @@ func TestGracefulTracerShutdown(t *testing.T) {
 		logger := testLog.New()
 
 		params := NewParams()
-		params.ConfigFile = filepath.Join(testDirRoot, "/config.yaml")
+		params.ConfigFile = filepath.Join(testDirRoot, "config.yaml")
 		params.Addrs = &[]string{"localhost:0"}
 		params.GracefulShutdownPeriod = 1
 		params.Logger = logger
@@ -1603,7 +1601,7 @@ func TestRuntimeWithExplicitMetricConfiguration(t *testing.T) {
 
 	test.WithTempFS(fs, func(testDirRoot string) {
 		params := NewParams()
-		params.ConfigFile = filepath.Join(testDirRoot, "/config.yaml")
+		params.ConfigFile = filepath.Join(testDirRoot, "config.yaml")
 
 		_, err := NewRuntime(context.Background(), params)
 		if err != nil {
@@ -1619,7 +1617,7 @@ func TestRuntimeWithExplicitBadMetricConfiguration(t *testing.T) {
 
 	test.WithTempFS(fs, func(testDirRoot string) {
 		params := NewParams()
-		params.ConfigFile = filepath.Join(testDirRoot, "/config.yaml")
+		params.ConfigFile = filepath.Join(testDirRoot, "config.yaml")
 
 		_, err := NewRuntime(context.Background(), params)
 		if err == nil {

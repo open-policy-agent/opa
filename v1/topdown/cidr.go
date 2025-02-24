@@ -255,7 +255,7 @@ func (c cidrBlockRanges) Less(i, j int) bool {
 	}
 
 	// Then compare first IP.
-	cmp = bytes.Compare(*c[i].First, *c[i].First)
+	cmp = bytes.Compare(*c[i].First, *c[j].First)
 	if cmp < 0 {
 		return true
 	} else if cmp > 0 {

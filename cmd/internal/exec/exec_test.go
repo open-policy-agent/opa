@@ -237,7 +237,7 @@ func TestExec(t *testing.T) {
 				})
 
 				err := Exec(ctx, opa, params)
-				output := strings.Replace(buf.String(), dir, "%ROOT%", -1)
+				output := strings.ReplaceAll(buf.String(), dir, "%ROOT%")
 				tt.assertion(t, output, err)
 			})
 		})

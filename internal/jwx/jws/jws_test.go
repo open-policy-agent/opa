@@ -336,7 +336,7 @@ func TestEncode(t *testing.T) {
 		}
 
 		// Verify with standard ecdsa library
-		parts, err := jws.SplitCompact(string(jwsCompact[:]))
+		parts, err := jws.SplitCompact(string(jwsCompact))
 		if err != nil {
 			t.Fatal("Failed to split compact JWT")
 		}

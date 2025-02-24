@@ -10164,10 +10164,8 @@ func runStrictnessQueryTestCase(t *testing.T, cases []strictnessQueryTestCase) {
 				if !strings.Contains(err.Error(), tc.expectedErrors.Error()) {
 					t.Fatalf("Expected error %v but got: %v", tc.expectedErrors, err)
 				}
-			} else {
-				if err != nil {
-					t.Fatalf("Unexpected error from %v: %v", tc.query, err)
-				}
+			} else if err != nil {
+				t.Fatalf("Unexpected error from %v: %v", tc.query, err)
 			}
 		}
 	}
@@ -11493,10 +11491,8 @@ func TestCompile_DefaultRegoVersion(t *testing.T) {
 
 			if len(tc.expErrs) > 0 {
 				assertErrors(t, compiler.Errors, tc.expErrs, false)
-			} else {
-				if len(compiler.Errors) > 0 {
-					t.Fatalf("Unexpected errors: %v", compiler.Errors)
-				}
+			} else if len(compiler.Errors) > 0 {
+				t.Fatalf("Unexpected errors: %v", compiler.Errors)
 			}
 		})
 	}

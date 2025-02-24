@@ -232,6 +232,9 @@ func builtinIndexOf(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 	}
 
 	if isASCII(string(base)) && isASCII(string(search)) {
+		// this is a false positive in the indexAlloc rule that thinks
+		// we're converting byte arrays to strings
+		//nolint:gocritic
 		return iter(ast.InternedIntNumberTerm(strings.Index(string(base), string(search))))
 	}
 
@@ -475,7 +478,7 @@ func builtinReplace(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 		return err
 	}
 
-	replaced := strings.Replace(string(s), string(old), string(n), -1)
+	replaced := strings.ReplaceAll(string(s), string(old), string(n))
 	if replaced == string(s) {
 		return iter(operands[0])
 	}

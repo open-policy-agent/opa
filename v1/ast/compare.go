@@ -236,7 +236,7 @@ func Compare(a, b interface{}) int {
 type termSlice []*Term
 
 func (s termSlice) Less(i, j int) bool { return Compare(s[i].Value, s[j].Value) < 0 }
-func (s termSlice) Swap(i, j int)      { x := s[i]; s[i] = s[j]; s[j] = x }
+func (s termSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s termSlice) Len() int           { return len(s) }
 
 func sortOrder(x interface{}) int {

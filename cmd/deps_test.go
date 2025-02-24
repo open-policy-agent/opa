@@ -70,10 +70,8 @@ a contains x if {
 							t.Fatalf("Expected error:\n\n%s\n\ngot:\n\n%s", expErr, err.Error())
 						}
 					}
-				} else {
-					if err != nil {
-						t.Fatalf("Unexpected error: %v", err)
-					}
+				} else if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
 				}
 			})
 		})
@@ -249,10 +247,8 @@ p contains 3 if {
 							t.Fatalf("Expected error:\n\n%s\n\ngot:\n\n%s", expErr, err.Error())
 						}
 					}
-				} else {
-					if err != nil {
-						t.Fatalf("Unexpected error: %v", err)
-					}
+				} else if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
 				}
 			})
 		})
@@ -566,10 +562,8 @@ p contains 4 if {
 									t.Fatalf("Expected error:\n\n%s\n\ngot:\n\n%s", expErr, err.Error())
 								}
 							}
-						} else {
-							if err != nil {
-								t.Fatalf("Unexpected error: %v", err)
-							}
+						} else if err != nil {
+							t.Fatalf("Unexpected error: %v", err)
 						}
 					})
 				})
