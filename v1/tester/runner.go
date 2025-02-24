@@ -937,6 +937,8 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		v.Func(rg)
 	}
 
+	ctx = ast.WithCompiler(ctx, r.compiler)
+
 	t0 := time.Now()
 	rs, err := rg.Eval(ctx)
 	dt := time.Since(t0)
