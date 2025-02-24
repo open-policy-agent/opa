@@ -668,6 +668,8 @@ type Rego struct {
 	plugins                     []TargetPlugin
 	targetPrepState             TargetPluginEval
 	regoVersion                 ast.RegoVersion
+	compilerHook                func(*ast.Compiler)
+	evalMode                    *ast.CompilerEvalMode
 }
 
 func (r *Rego) RegoVersion() ast.RegoVersion {
@@ -1320,6 +1322,21 @@ func SetRegoVersion(version ast.RegoVersion) func(r *Rego) {
 	}
 }
 
+// CompilerHook sets a hook function that will be called after the compiler is initialized.
+// This is only called if the compiler has not been provided already.
+func CompilerHook(hook func(*ast.Compiler)) func(r *Rego) {
+	return func(r *Rego) {
+		r.compilerHook = hook
+	}
+}
+
+// EvalMode lets you override the evaluation mode.
+func EvalMode(mode ast.CompilerEvalMode) func(r *Rego) {
+	return func(r *Rego) {
+		r.evalMode = &mode
+	}
+}
+
 // New returns a new Rego object.
 func New(options ...func(r *Rego)) *Rego {
 
@@ -1335,6 +1352,8 @@ func New(options ...func(r *Rego)) *Rego {
 	for _, option := range options {
 		option(r)
 	}
+
+	callHook := r.compiler == nil // call hook only if we created the compiler here
 
 	if r.compiler == nil {
 		r.compiler = ast.NewCompiler().
@@ -1402,6 +1421,14 @@ func New(options ...func(r *Rego)) *Rego {
 
 	if t := r.targetPlugin(r.target); t != nil {
 		r.compiler = r.compiler.WithEvalMode(ast.EvalModeIR)
+	}
+
+	if r.evalMode != nil {
+		r.compiler = r.compiler.WithEvalMode(*r.evalMode)
+	}
+
+	if r.compilerHook != nil && callHook {
+		r.compilerHook(r.compiler)
 	}
 
 	return r

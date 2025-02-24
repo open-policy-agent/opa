@@ -473,7 +473,9 @@ func evalOnce(ctx context.Context, ectx *evalContext) pr.Output {
 	if ectx.profiler != nil {
 		ectx.profiler.reset()
 	}
-	r := rego.New(ectx.regoArgs...)
+	r := rego.New(append(ectx.regoArgs, rego.CompilerHook(func(c *ast.Compiler) {
+		ctx = ast.WithCompiler(ctx, c)
+	}))...)
 
 	if !ectx.params.partial {
 		var pq rego.PreparedEvalQuery
