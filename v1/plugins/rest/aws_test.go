@@ -974,7 +974,7 @@ func TestV4SigningWithMultiValueHeaders(t *testing.T) {
 	req.Header.Add("Accept", "text/html")
 
 	// force a non-random source so that we can predict the v4a signing key and, thus, signature
-	myReader := strings.NewReader("000000000000000000000000000000000")
+	myReader := strings.NewReader("000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
 	aws.SetRandomSource(myReader)
 	defer func() { aws.SetRandomSource(rand.Reader) }()
 
@@ -1006,23 +1006,25 @@ func TestV4SigningWithMultiValueHeaders(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		creds, err := cs.credentials(context.Background())
-		if err != nil {
-			t.Fatal("unexpected error getting credentials")
-		}
+		t.Run(test.sigVersion, func(t *testing.T) {
+			creds, err := cs.credentials(context.Background())
+			if err != nil {
+				t.Fatal("unexpected error getting credentials")
+			}
 
-		if err := aws.SignRequest(req, "execute-api", creds, time.Unix(1556129697, 0), test.sigVersion); err != nil {
-			t.Fatal("unexpected error during signing")
-		}
+			if err := aws.SignRequest(req, "execute-api", creds, time.Unix(1556129697, 0), test.sigVersion); err != nil {
+				t.Fatal("unexpected error during signing")
+			}
 
-		if len(req.Header.Values("Authorization")) != 1 {
-			t.Fatal("Authorization header is multi-valued. This will break AWS v4 signing.")
-		}
-		// Check the signed headers includes our multi-value 'accept' header
-		assertIn(test.expectedAuthorization, req.Header.Get("Authorization"), t)
-		// The multi-value headers are preserved
-		assertEq("text/plain", req.Header.Values("Accept")[0], t)
-		assertEq("text/html", req.Header.Values("Accept")[1], t)
+			if len(req.Header.Values("Authorization")) != 1 {
+				t.Fatal("Authorization header is multi-valued. This will break AWS v4 signing.")
+			}
+			// Check the signed headers includes our multi-value 'accept' header
+			assertIn(test.expectedAuthorization, req.Header.Get("Authorization"), t)
+			// The multi-value headers are preserved
+			assertEq("text/plain", req.Header.Values("Accept")[0], t)
+			assertEq("text/html", req.Header.Values("Accept")[1], t)
+		})
 	}
 }
 
