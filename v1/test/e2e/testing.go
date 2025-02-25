@@ -271,6 +271,11 @@ func WithRuntime(t *testing.T, opts TestRuntimeOpts, params runtime.Params, f fu
 		done <- err
 	}()
 
+	err = rt.WaitForServerStatus(runtime.ServerWaitingForPlugins)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if opts.PostServeActions != nil {
 		err = opts.PostServeActions(rt)
 		if err != nil {
@@ -309,6 +314,18 @@ func (t *TestRuntime) WaitForServer() error {
 		time.Sleep(delay)
 	}
 	return errors.New("API Server not ready in time")
+}
+
+func (t *TestRuntime) WaitForServerStatus(status runtime.ServerStatus) error {
+	delay := time.Duration(100) * time.Millisecond
+	retries := 100 // 10 seconds before we give up
+	for range retries {
+		if t.Runtime.ServerStatus() >= status {
+			return nil
+		}
+		time.Sleep(delay)
+	}
+	return fmt.Errorf("API Server did not reach status %d in time", status)
 }
 
 // DeletePolicy will delete the given policy in the runtime via the v1 policy API

@@ -282,6 +282,15 @@ func NewParams() Params {
 	}
 }
 
+type ServerStatus int
+
+const (
+	ServerNotStarted ServerStatus = iota
+	ServerWaitingForPlugins
+	ServerInitialized
+	ServerStopped
+)
+
 // Runtime represents a single OPA instance.
 type Runtime struct {
 	Params  Params
@@ -295,10 +304,10 @@ type Runtime struct {
 	traceExporter     *otlptrace.Exporter
 	loadedPathsResult *initload.LoadPathsResult
 
-	serverInitialized bool
-	serverInitMtx     sync.RWMutex
-	done              chan struct{}
-	repl              *repl.REPL
+	serverStatus  ServerStatus
+	serverInitMtx sync.RWMutex
+	done          chan struct{}
+	repl          *repl.REPL
 }
 
 // NewRuntime returns a new Runtime object initialized with params. Clients must
@@ -481,7 +490,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		logger:            logger,
 		metrics:           metrics,
 		reporter:          reporter,
-		serverInitialized: false,
+		serverStatus:      ServerNotStarted,
 		traceExporter:     traceExporter,
 		loadedPathsResult: loaded,
 	}
@@ -508,6 +517,18 @@ func extractMetricsConfig(config []byte, params Params) (*metrics_config.Config,
 	}
 
 	return metricsParsedConfig, nil
+}
+
+func (rt *Runtime) setServerStatus(status ServerStatus) {
+	rt.serverInitMtx.Lock()
+	defer rt.serverInitMtx.Unlock()
+	rt.serverStatus = status
+}
+
+func (rt *Runtime) ServerStatus() ServerStatus {
+	rt.serverInitMtx.RLock()
+	defer rt.serverInitMtx.RUnlock()
+	return rt.serverStatus
 }
 
 // StartServer starts the runtime in server mode. This function will block the
@@ -652,6 +673,8 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	rt.server.Handler = NewLoggingHandler(rt.logger, rt.server.Handler)
 	rt.server.DiagnosticHandler = NewLoggingHandler(rt.logger, rt.server.DiagnosticHandler)
 
+	rt.setServerStatus(ServerWaitingForPlugins)
+
 	if err := rt.waitPluginsReady(
 		100*time.Millisecond,
 		time.Second*time.Duration(rt.Params.ReadyTimeout)); err != nil {
@@ -682,12 +705,12 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	// Note that there is a small chance the socket of the server listener is still
 	// closed by the time this block is executed, due to the serverLoop above
 	// executing in a goroutine.
-	rt.serverInitMtx.Lock()
-	rt.serverInitialized = true
-	rt.serverInitMtx.Unlock()
+	rt.setServerStatus(ServerInitialized)
 	rt.Manager.ServerInitialized()
 
 	rt.logger.Debug("Server initialized.")
+
+	defer rt.setServerStatus(ServerStopped)
 
 	for {
 		select {
@@ -708,7 +731,7 @@ func (rt *Runtime) Addrs() []string {
 	rt.serverInitMtx.RLock()
 	defer rt.serverInitMtx.RUnlock()
 
-	if !rt.serverInitialized {
+	if rt.serverStatus < ServerInitialized {
 		return nil
 	}
 

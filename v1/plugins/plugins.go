@@ -501,8 +501,8 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 
 		m.reporter.RegisterGatherer("min_compatible_version", func(_ context.Context) (any, error) {
 			var minimumCompatibleVersion string
-			if m.compiler != nil && m.compiler.Required != nil {
-				minimumCompatibleVersion, _ = m.compiler.Required.MinimumCompatibleVersion()
+			if c := m.GetCompiler(); c != nil && c.Required != nil {
+				minimumCompatibleVersion, _ = c.Required.MinimumCompatibleVersion()
 			}
 			return minimumCompatibleVersion, nil
 		})
