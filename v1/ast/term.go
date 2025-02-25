@@ -76,8 +76,14 @@ func InterfaceToValue(x interface{}) (Value, error) {
 	case int:
 		return intNumber(x), nil
 	case string:
+		if v := InternedStringTerm.GetValue(x); v != nil {
+			return v, nil
+		}
 		return String(x), nil
 	case []any:
+		if len(x) == 0 {
+			return InternedEmptyArray.Value, nil
+		}
 		r := util.NewPtrSlice[Term](len(x))
 		for i, e := range x {
 			e, err := InterfaceToValue(e)
@@ -88,21 +94,31 @@ func InterfaceToValue(x interface{}) (Value, error) {
 		}
 		return NewArray(r...), nil
 	case []string:
-		r := util.NewPtrSlice[Term](len(x))
-		for i, e := range x {
-			r[i].Value = String(e)
+		if len(x) == 0 {
+			return InternedEmptyArray.Value, nil
+		}
+		r := make([]*Term, 0, len(x))
+		for i := range x {
+			r = append(r, InternedStringTerm.GetOrCreate(x[i]))
 		}
 		return NewArray(r...), nil
 	case map[string]any:
-		kvs := util.NewPtrSlice[Term](len(x) * 2)
+		if len(x) == 0 {
+			return InternedEmptyObject.Value, nil
+		}
+		kvs := make([]*Term, len(x)*2)
 		idx := 0
 		for k, v := range x {
-			kvs[idx].Value = String(k)
-			v, err := InterfaceToValue(v)
-			if err != nil {
-				return nil, err
+			kvs[idx] = InternedStringTerm.GetOrCreate(k)
+			if vt := InternedTerm(v); vt != nil {
+				kvs[idx+1] = vt
+			} else {
+				v, err := InterfaceToValue(v)
+				if err != nil {
+					return nil, err
+				}
+				kvs[idx+1] = NewTerm(v)
 			}
-			kvs[idx+1].Value = v
 			idx += 2
 		}
 		tuples := make([][2]*Term, len(kvs)/2)
@@ -111,9 +127,12 @@ func InterfaceToValue(x interface{}) (Value, error) {
 		}
 		return NewObject(tuples...), nil
 	case map[string]string:
+		if len(x) == 0 {
+			return InternedEmptyObject.Value, nil
+		}
 		r := newobject(len(x))
 		for k, v := range x {
-			r.Insert(StringTerm(k), StringTerm(v))
+			r.Insert(InternedStringTerm.GetOrCreate(k), StringTerm(v))
 		}
 		return r, nil
 	default:

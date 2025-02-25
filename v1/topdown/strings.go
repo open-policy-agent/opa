@@ -310,14 +310,14 @@ func builtinSubstring(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 
 	sbase := string(base)
 	if sbase == "" {
-		return iter(ast.InternedEmptyString)
+		return iter(ast.InternedStringTerm.Get(""))
 	}
 
 	// Optimized path for the likely common case of ASCII strings.
 	// This allocates less memory and runs in about 1/3 the time.
 	if isASCII(sbase) {
 		if startIndex >= len(sbase) {
-			return iter(ast.InternedEmptyString)
+			return iter(ast.InternedStringTerm.Get(""))
 		}
 
 		if length < 0 {
@@ -342,7 +342,7 @@ func builtinSubstring(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 	runes := []rune(base)
 
 	if startIndex >= len(runes) {
-		return iter(ast.InternedEmptyString)
+		return iter(ast.InternedStringTerm.Get(""))
 	}
 
 	var s string
@@ -649,7 +649,7 @@ func builtinSprintf(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 	if s == "%d" && astArr.Len() == 1 {
 		if n, ok := astArr.Elem(0).Value.(ast.Number); ok {
 			if i, ok := n.Int(); ok {
-				return iter(ast.InternedStringTerm(strconv.Itoa(i)))
+				return iter(ast.InternedStringTerm.GetOrCreate(strconv.Itoa(i)))
 			}
 		}
 	}

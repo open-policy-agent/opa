@@ -32,3 +32,25 @@ func Values[M ~map[K]V, K comparable, V any](m M) []V {
 	}
 	return r
 }
+
+// KeysRecursive returns a set of string keys from any map or slice,
+// including nested maps and slices.
+func KeysRecursive(x any, keys map[string]struct{}) map[string]struct{} {
+	switch x := x.(type) {
+	case map[string]any:
+		for k := range x {
+			keys[k] = struct{}{}
+			v := x[k]
+			keys = KeysRecursive(v, keys)
+		}
+	case []any:
+		for i := range x {
+			keys = KeysRecursive(x[i], keys)
+		}
+	case []map[string]any:
+		for i := range x {
+			keys = KeysRecursive(x[i], keys)
+		}
+	}
+	return keys
+}

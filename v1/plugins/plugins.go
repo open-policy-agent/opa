@@ -536,6 +536,12 @@ func (m *Manager) Init(ctx context.Context) error {
 	}
 
 	err := storage.Txn(ctx, m.Store, params, func(txn storage.Transaction) error {
+		// Drop references to these once we've passed them to the compiler,
+		// as to allow garbage collection to clean them up.
+		defer func() {
+			m.initBundles = nil
+			m.initFiles = loader.Result{}
+		}()
 
 		result, err := initload.InsertAndCompile(ctx, initload.InsertAndCompileOptions{
 			Store:                 m.Store,

@@ -4,7 +4,13 @@
 
 package ast
 
-import "strconv"
+import (
+	"encoding/json"
+	"maps"
+	"strconv"
+	"sync"
+	"sync/atomic"
+)
 
 // NOTE! Great care must be taken **not** to modify the terms returned
 // from these functions, as they are shared across all callers.
@@ -18,9 +24,127 @@ var (
 
 	InternedNullTerm = &Term{Value: Null{}}
 
-	InternedEmptyString = StringTerm("")
-	InternedEmptyObject = ObjectTerm()
+	InternedEmptyObject = &Term{Value: &object{}}
+	InternedEmptyArray  = ArrayTerm()
+
+	// InternedStringTerm is a thread-safe store for interned string terms optimized
+	// for (lock-free) read access. Interned terms are stored for the lifetime of the
+	// process, and should only be used for the most commonly accessed strings. Since
+	// the store is optimized for reads and the syncrhonized Store method is *not*
+	// lock-free, writes should never be performed in hot paths. Clients who wish to
+	// add to the store should do so either during initialization, or in bulk outside
+	// of hot paths.
+	InternedStringTerm = newStringTermStore()
 )
+
+func init() {
+	InternedStringTerm.Store("", " ", "\n", ", ", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9")
+}
+
+type stringTermStore struct {
+	m  atomic.Value
+	mu sync.Mutex
+}
+
+func newStringTermStore() *stringTermStore {
+	store := &stringTermStore{
+		m:  atomic.Value{},
+		mu: sync.Mutex{},
+	}
+	store.m.Store(make(map[string]*Term))
+
+	return store
+}
+
+// Get returns the Term for the given string, or nil if not interned.
+func (sts *stringTermStore) Get(s string) *Term {
+	return sts.m.Load().(map[string]*Term)[s]
+}
+
+// GetValue returns the Value for the given string, or nil if not interned.
+func (sts *stringTermStore) GetValue(s string) Value {
+	if v := sts.Get(s); v != nil {
+		return v.Value
+	}
+
+	return nil
+}
+
+// GetOrCreate returns the Term for the given string. If the term is not interned,
+// a new one will be returned (but not interned).
+func (sts *stringTermStore) GetOrCreate(s string) *Term {
+	if term := sts.Get(s); term != nil {
+		return term
+	}
+
+	return StringTerm(s)
+}
+
+// GetOrStore returns the Term for the given string. If the string is not interned,
+// it will be. Note that this should used sparingly, as writes are synchronized and
+// fairly expensive. Prefer to load strings in bulk using the Store method whenever
+// possible.
+func (sts *stringTermStore) GetOrStore(s string) *Term {
+	if term := sts.Get(s); term != nil {
+		return term
+	}
+
+	sts.Store(s)
+	return sts.Get(s)
+}
+
+func (sts *stringTermStore) Store(s ...string) {
+	curr := sts.m.Load().(map[string]*Term)
+
+	m := make(map[string]*Term, len(s))
+	for i := range s {
+		if _, ok := curr[s[i]]; !ok {
+			m[s[i]] = &Term{Value: String(s[i])}
+		}
+	}
+
+	if len(m) == 0 {
+		return
+	}
+
+	next := make(map[string]*Term, len(curr)+len(m))
+	maps.Copy(next, curr)
+	maps.Copy(next, m)
+
+	sts.mu.Lock()
+	sts.m.Store(next)
+	sts.mu.Unlock()
+}
+
+// InternedTerm returns an interned term of any possible "type" most closely
+// matching `a`, if one exists. Otherwise, nil.
+func InternedTerm(a any) *Term {
+	switch a := a.(type) {
+	case nil:
+		return InternedNullTerm
+	case bool:
+		return InternedBooleanTerm(a)
+	case int:
+		return InternedIntNumberTerm(a)
+	case json.Number:
+		i, err := a.Int64()
+		if err == nil {
+			return InternedIntNumberTerm(int(i))
+		}
+	case string:
+		return InternedStringTerm.Get(a)
+	case map[string]any:
+		if len(a) == 0 {
+			return InternedEmptyObject
+		}
+	case map[string]string:
+		if len(a) == 0 {
+			return InternedEmptyObject
+		}
+	}
+
+	return nil
+}
 
 // InternedBooleanTerm returns an interned term with the given boolean value.
 func InternedBooleanTerm(b bool) *Term {
@@ -61,29 +185,6 @@ func InternedIntNumberTermFromString(s string) *Term {
 // term, otherwise false.
 func HasInternedIntNumberTerm(i int) bool {
 	return i >= -1 && i < len(intNumberTerms)
-}
-
-func InternedStringTerm(s string) *Term {
-	if term, ok := internedStringTerms[s]; ok {
-		return term
-	}
-
-	return StringTerm(s)
-}
-
-var internedStringTerms = map[string]*Term{
-	"":   InternedEmptyString,
-	"0":  StringTerm("0"),
-	"1":  StringTerm("1"),
-	"2":  StringTerm("2"),
-	"3":  StringTerm("3"),
-	"4":  StringTerm("4"),
-	"5":  StringTerm("5"),
-	"6":  StringTerm("6"),
-	"7":  StringTerm("7"),
-	"8":  StringTerm("8"),
-	"9":  StringTerm("9"),
-	"10": StringTerm("10"),
 }
 
 var stringToIntNumberTermMap = map[string]*Term{

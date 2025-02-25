@@ -1006,8 +1006,10 @@ func insertIntoHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Value, resp 
 }
 
 func createKeys() {
+	ast.InternedStringTerm.Store(allowedKeyNames[:]...)
+
 	for _, element := range allowedKeyNames {
-		term := ast.StringTerm(element)
+		term := ast.InternedStringTerm.Get(element)
 
 		allowedKeys.Add(term)
 		keyCache[element] = term
