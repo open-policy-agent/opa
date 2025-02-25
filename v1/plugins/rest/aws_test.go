@@ -974,8 +974,8 @@ func TestV4SigningWithMultiValueHeaders(t *testing.T) {
 	req.Header.Add("Accept", "text/html")
 
 	// force a non-random source so that we can predict the v4a signing key and, thus, signature
-	myReader := strings.NewReader("000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
-	aws.SetRandomSource(myReader)
+	// The mock rand reader returns an endless stream of zeros
+	aws.SetRandomSource(test.NewZeroReader())
 	defer func() { aws.SetRandomSource(rand.Reader) }()
 
 	tests := []struct {
@@ -996,7 +996,7 @@ func TestV4SigningWithMultiValueHeaders(t *testing.T) {
 				// this signature is for go 1.20+, which changed crypto/ecdsa so signatures differ from go 1.18
 				"AWS4-ECDSA-P256-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/execute-api/aws4_request, " +
 					"SignedHeaders=accept;content-length;host;x-amz-content-sha256;x-amz-date;x-amz-region-set;x-amz-security-token, " +
-					"Signature=3046022100f7fd07e2a00b1be3074be0c2e3871bd42ddc4c01549b1ffc4809ef3fafde80780221008c6bf906cdb9040ebeb94d1134598e7920fa8cb7bda91b00ce0ab9838b79631b",
+					"Signature=304502204f38b116e49b743307141797f04c8610ed035c54d06acbeb4f33ab48c8ec578e022100bd5995cb1eaecb5aa8c3062dcfcae7af62b6f32cc578cd42268165e259be46a0",
 				// this signature is for go 1.24+
 				"AWS4-ECDSA-P256-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/execute-api/aws4_request, " +
 					"SignedHeaders=accept;content-length;host;x-amz-content-sha256;x-amz-date;x-amz-region-set;x-amz-security-token, " +
