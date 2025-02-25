@@ -326,7 +326,7 @@ func (t *TestRuntime) WaitForServerStatus(status runtime.ServerStatus) error {
 		}
 		time.Sleep(delay)
 	}
-	return errors.New(fmt.Sprintf("API Server did not reach status %d in time", status))
+	return fmt.Errorf("API Server did not reach status %d in time", status)
 }
 
 // DeletePolicy will delete the given policy in the runtime via the v1 policy API

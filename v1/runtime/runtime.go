@@ -707,9 +707,6 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	// closed by the time this block is executed, due to the serverLoop above
 	// executing in a goroutine.
 	rt.setServerStatus(ServerInitialized)
-	//rt.serverInitMtx.Lock()
-	//rt.serverInitialized = true
-	//rt.serverInitMtx.Unlock()
 	rt.Manager.ServerInitialized()
 
 	rt.logger.Debug("Server initialized.")
