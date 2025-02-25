@@ -673,7 +673,6 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	rt.server.Handler = NewLoggingHandler(rt.logger, rt.server.Handler)
 	rt.server.DiagnosticHandler = NewLoggingHandler(rt.logger, rt.server.DiagnosticHandler)
 
-	// Trigger post-serve-actions here?
 	rt.setServerStatus(ServerWaitingForPlugins)
 
 	if err := rt.waitPluginsReady(
