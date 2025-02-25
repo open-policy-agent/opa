@@ -216,7 +216,7 @@ func (s *httpSigner) Build() (signedRequest, error) {
 
 	signedHeaders, signedHeadersStr, canonicalHeaderStr := s.buildCanonicalHeaders(host, v4Internal.IgnoredHeaders, unsignedHeaders, s.Request.ContentLength)
 
-	rawQuery := strings.Replace(query.Encode(), "+", "%20", -1)
+	rawQuery := strings.ReplaceAll(query.Encode(), "+", "%20")
 
 	canonicalURI := v4Internal.GetURIPath(req.URL)
 

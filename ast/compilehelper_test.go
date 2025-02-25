@@ -108,10 +108,8 @@ func TestCompileModules_DefaultRegoVersion(t *testing.T) {
 						t.Fatalf("Expected error to contain:\n\n%s\n\nbut got:\n\n%s", expErr, err)
 					}
 				}
-			} else {
-				if err != nil {
-					t.Fatalf("Unexpected error: %v", err)
-				}
+			} else if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
 			}
 		})
 	}
@@ -216,10 +214,8 @@ func TestCompileModulesWithOpt_DefaultRegoVersion(t *testing.T) {
 						t.Fatalf("Expected error to contain:\n\n%s\n\nbut got:\n\n%s", expErr, err)
 					}
 				}
-			} else {
-				if err != nil {
-					t.Fatalf("Unexpected error: %v", err)
-				}
+			} else if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
 			}
 		})
 	}

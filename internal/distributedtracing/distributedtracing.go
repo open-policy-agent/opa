@@ -85,7 +85,7 @@ func Init(ctx context.Context, raw []byte, id string) (*otlptrace.Exporter, *tra
 		return nil, nil, nil, err
 	}
 
-	if strings.ToLower(distributedTracingConfig.Type) != "grpc" {
+	if !strings.EqualFold(distributedTracingConfig.Type, "grpc") {
 		return nil, nil, nil, nil
 	}
 

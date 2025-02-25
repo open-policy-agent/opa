@@ -205,7 +205,7 @@ func TestExec(t *testing.T) {
 				params.FailNonEmpty = true
 				if tt.stdIn {
 					params.StdIn = true
-					tempFile, err := os.CreateTemp("", "test")
+					tempFile, err := os.CreateTemp(t.TempDir(), "test")
 					if err != nil {
 						t.Fatalf("unexpected error creating temp file: %q", err.Error())
 					}
@@ -237,7 +237,7 @@ func TestExec(t *testing.T) {
 				})
 
 				err := Exec(ctx, opa, params)
-				output := strings.Replace(buf.String(), dir, "%ROOT%", -1)
+				output := strings.ReplaceAll(buf.String(), dir, "%ROOT%")
 				tt.assertion(t, output, err)
 			})
 		})

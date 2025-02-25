@@ -895,6 +895,10 @@ func TestNewWithResponseHeaderTimeout(t *testing.T) {
 }
 
 func TestDoWithResponseHeaderTimeout(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	t.Parallel()
 
 	ctx := context.Background()
@@ -935,10 +939,8 @@ func TestDoWithResponseHeaderTimeout(t *testing.T) {
 				if !strings.Contains(err.Error(), tc.errMsg) {
 					t.Fatalf("Expected error %v but got %v", tc.errMsg, err.Error())
 				}
-			} else {
-				if err != nil {
-					t.Fatalf("Unexpected error %v", err)
-				}
+			} else if err != nil {
+				t.Fatalf("Unexpected error %v", err)
 			}
 		})
 	}
@@ -1923,8 +1925,6 @@ func TestS3SigningMultiCredentialProvider(t *testing.T) {
 }
 
 func TestAWSCredentialServiceChain(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name    string
 		input   string
@@ -1976,7 +1976,7 @@ func TestAWSCredentialServiceChain(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			for key, val := range tc.env {
-				_ = os.Setenv(key, val)
+				t.Setenv(key, val)
 			}
 
 			t.Cleanup(func() {
@@ -2011,10 +2011,8 @@ func TestAWSCredentialServiceChain(t *testing.T) {
 				if !strings.Contains(err.Error(), tc.errMsg) {
 					t.Fatalf("Expected error message %v but got %v", tc.errMsg, err.Error())
 				}
-			} else {
-				if err != nil {
-					t.Fatalf("Unexpected error: %v", err)
-				}
+			} else if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
 			}
 		})
 	}

@@ -1069,7 +1069,7 @@ Execute Rego test cases
 ### Synopsis
 
 Execute Rego test cases.
-	
+
 The 'test' command takes a file or directory path as input and executes all
 test cases discovered in matching files. Test cases are rules whose names have the prefix "test_".
 

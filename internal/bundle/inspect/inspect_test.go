@@ -54,8 +54,8 @@ func TestGenerateBundleInfoWithFileDir(t *testing.T) {
 		expectedNamespaces := map[string][]string{
 			"data":     {filepath.Join(rootDir, "data.json")},
 			"data.bar": {filepath.Join(rootDir, "base.rego")},
-			"data.foo": {filepath.Join(rootDir, "baz/authz.rego"), filepath.Join(rootDir, "foo/policy.rego")},
-			"data.fuz": {filepath.Join(rootDir, "fuz/fuz.rego"), filepath.Join(rootDir, "fuz/data.json")},
+			"data.foo": {filepath.Join(rootDir, "baz", "authz.rego"), filepath.Join(rootDir, "foo", "policy.rego")},
+			"data.fuz": {filepath.Join(rootDir, "fuz", "fuz.rego"), filepath.Join(rootDir, "fuz", "data.json")},
 		}
 
 		if !reflect.DeepEqual(info.Namespaces, expectedNamespaces) {
@@ -253,7 +253,7 @@ func TestGenerateBundleInfoWithBundleTarGz(t *testing.T) {
 		expectedWasmModules := []map[string]interface{}{}
 		expectedWasmModule1 := map[string]interface{}{
 			"path":        "/example/policy.wasm",
-			"url":         filepath.Join(bundleFile, "/example/policy.wasm"),
+			"url":         filepath.Join(bundleFile, "example", "policy.wasm"),
 			"entrypoints": []string{"data.http.example.foo.allow"},
 		}
 

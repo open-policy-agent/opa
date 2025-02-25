@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -48,6 +49,8 @@ type Null struct{}
 func NewNull() Null {
 	return Null{}
 }
+
+var Nl Type = NewNull()
 
 // NamedType represents a type alias with an arbitrary name and description.
 // This is useful for generating documentation for built-in functions.
@@ -114,7 +117,7 @@ func (t Null) String() string {
 type Boolean struct{}
 
 // B represents an instance of the boolean type.
-var B = NewBoolean()
+var B Type = NewBoolean()
 
 // NewBoolean returns a new Boolean type.
 func NewBoolean() Boolean {
@@ -137,7 +140,7 @@ func (t Boolean) String() string {
 type String struct{}
 
 // S represents an instance of the string type.
-var S = NewString()
+var S Type = NewString()
 
 // NewString returns a new String type.
 func NewString() String {
@@ -159,7 +162,7 @@ func (String) String() string {
 type Number struct{}
 
 // N represents an instance of the number type.
-var N = NewNumber()
+var N Type = NewNumber()
 
 // NewNumber returns a new Number type.
 func NewNumber() Number {
@@ -253,6 +256,13 @@ type Set struct {
 	of Type
 }
 
+// Boxed set types.
+var (
+	SetOfAny Type = NewSet(A)
+	SetOfStr Type = NewSet(S)
+	SetOfNum Type = NewSet(N)
+)
+
 // NewSet returns a new Set type.
 func NewSet(of Type) *Set {
 	return &Set{
@@ -340,9 +350,8 @@ type Object struct {
 
 // NewObject returns a new Object type.
 func NewObject(static []*StaticProperty, dynamic *DynamicProperty) *Object {
-	sort.Slice(static, func(i, j int) bool {
-		cmp := util.Compare(static[i].Key, static[j].Key)
-		return cmp == -1
+	slices.SortFunc(static, func(a, b *StaticProperty) int {
+		return util.Compare(a.Key, b.Key)
 	})
 	return &Object{
 		static:  static,
@@ -505,7 +514,7 @@ func mergeObjects(a, b *Object) *Object {
 type Any []Type
 
 // A represents the superset of all types.
-var A = NewAny()
+var A Type = NewAny()
 
 // NewAny returns a new Any type.
 func NewAny(of ...Type) Any {
@@ -851,7 +860,7 @@ func Compare(a, b Type) int {
 	} else if x < y {
 		return -1
 	}
-	switch a.(type) {
+	switch a.(type) { //nolint:gocritic
 	case nil, Null, Boolean, Number, String:
 		return 0
 	case *Array:
@@ -1130,7 +1139,7 @@ func Nil(a Type) bool {
 func TypeOf(x interface{}) Type {
 	switch x := x.(type) {
 	case nil:
-		return NewNull()
+		return Nl
 	case bool:
 		return B
 	case string:
@@ -1165,7 +1174,7 @@ func TypeOf(x interface{}) Type {
 type typeSlice []Type
 
 func (s typeSlice) Less(i, j int) bool { return Compare(s[i], s[j]) < 0 }
-func (s typeSlice) Swap(i, j int)      { x := s[i]; s[i] = s[j]; s[j] = x }
+func (s typeSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s typeSlice) Len() int           { return len(s) }
 
 func typeSliceCompare(a, b []Type) int {

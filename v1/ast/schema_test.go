@@ -140,7 +140,7 @@ func TestSetTypesWithPodSchema(t *testing.T) {
 }
 
 func TestAllOfSchemas(t *testing.T) {
-	//Test 1: object schema
+	// Test 1: object schema
 	objectSchemaStaticProps := []*types.StaticProperty{}
 	objectSchemaStaticProps = append(objectSchemaStaticProps, &types.StaticProperty{Key: "AddressLine1", Value: types.S})
 	objectSchemaStaticProps = append(objectSchemaStaticProps, &types.StaticProperty{Key: "AddressLine2", Value: types.S})
@@ -151,10 +151,10 @@ func TestAllOfSchemas(t *testing.T) {
 	objectSchemaStaticProps = append(objectSchemaStaticProps, &types.StaticProperty{Key: "PostCode", Value: types.S})
 	objectSchemaExpectedType := types.NewObject(objectSchemaStaticProps, nil)
 
-	//Test 2: array schema
+	// Test 2: array schema
 	arrayExpectedType := types.NewArray(nil, types.N)
 
-	//Test 3: parent variation
+	// Test 3: parent variation
 	parentVariationStaticProps := []*types.StaticProperty{}
 	parentVariationStaticProps = append(parentVariationStaticProps, &types.StaticProperty{Key: "State", Value: types.S})
 	parentVariationStaticProps = append(parentVariationStaticProps, &types.StaticProperty{Key: "ZipCode", Value: types.S})
@@ -162,13 +162,13 @@ func TestAllOfSchemas(t *testing.T) {
 	parentVariationStaticProps = append(parentVariationStaticProps, &types.StaticProperty{Key: "PostCode", Value: types.S})
 	parentVariationExpectedType := types.NewObject(parentVariationStaticProps, nil)
 
-	//Test 4: empty schema with allOf
+	// Test 4: empty schema with allOf
 	emptyExpectedType := types.A
 
-	//Tests 5 & 6: schema with array of arrays,  object and array as siblings
+	// Tests 5 & 6: schema with array of arrays,  object and array as siblings
 	expectedError := errors.New("unable to merge these schemas")
 
-	//Test 7: array of objects
+	// Test 7: array of objects
 	arrayOfObjectsStaticProps := []*types.StaticProperty{}
 	arrayOfObjectsStaticProps = append(arrayOfObjectsStaticProps, &types.StaticProperty{Key: "State", Value: types.S})
 	arrayOfObjectsStaticProps = append(arrayOfObjectsStaticProps, &types.StaticProperty{Key: "ZipCode", Value: types.S})
@@ -179,7 +179,7 @@ func TestAllOfSchemas(t *testing.T) {
 	innerType := types.NewObject(arrayOfObjectsStaticProps, nil)
 	arrayOfObjectsExpectedType := types.NewArray(nil, innerType)
 
-	//Tests 8 & 9: allOf schema with type not specified
+	// Tests 8 & 9: allOf schema with type not specified
 	objectMissingStaticProps := []*types.StaticProperty{}
 	objectMissingStaticProps = append(objectMissingStaticProps, &types.StaticProperty{Key: "AddressLine", Value: types.S})
 	objectMissingStaticProps = append(objectMissingStaticProps, &types.StaticProperty{Key: "State", Value: types.S})
@@ -189,10 +189,10 @@ func TestAllOfSchemas(t *testing.T) {
 	objectMissingExpectedType := types.NewObject(objectMissingStaticProps, nil)
 	arrayMissingExpectedType := types.NewArray([]types.Type{types.N, types.N}, nil)
 
-	//Tests 10 & 11: allOf schema with array that contains different types (with and without error)
+	// Tests 10 & 11: allOf schema with array that contains different types (with and without error)
 	arrayDifTypesExpectedType := types.NewArray([]types.Type{types.S, types.N}, nil)
 
-	//Test 12: array inside of object
+	// Test 12: array inside of object
 	arrayInObjectstaticProps := []*types.StaticProperty{}
 	arrayInObjectstaticProps = append(arrayInObjectstaticProps, &types.StaticProperty{Key: "age", Value: types.N})
 	arrayInObjectstaticProps = append(arrayInObjectstaticProps, &types.StaticProperty{Key: "name", Value: types.S})
@@ -203,7 +203,7 @@ func TestAllOfSchemas(t *testing.T) {
 	arrayInObjectExpectedType := types.NewObject([]*types.StaticProperty{
 		types.NewStaticProperty("familyMembers", arrayInObjectInnerType)}, nil)
 
-	//Test 13: allOf inside core schema
+	// Test 13: allOf inside core schema
 	coreStaticProps := []*types.StaticProperty{}
 	coreStaticProps = append(coreStaticProps, &types.StaticProperty{Key: "accessMe", Value: types.S})
 	coreStaticProps = append(coreStaticProps, &types.StaticProperty{Key: "accessYou", Value: types.S})
@@ -213,12 +213,12 @@ func TestAllOfSchemas(t *testing.T) {
 	outerType = append(outerType, &types.StaticProperty{Key: "AddressLine", Value: types.S})
 	coreSchemaExpectedType := types.NewObject(outerType, nil)
 
-	//Tests 14-17: other types besides array and object
+	// Tests 14-17: other types besides array and object
 	expectedStringType := types.NewString()
 	expectedIntegerType := types.NewNumber()
 	expectedBooleanType := types.NewBoolean()
 
-	//Test 18: array with uneven numbers of items children to merge
+	// Test 18: array with uneven numbers of items children to merge
 	expectedUnevenArrayType := types.NewArray([]types.Type{types.N, types.N, types.S}, nil)
 
 	tests := []struct {
@@ -357,7 +357,7 @@ func TestAllOfSchemas(t *testing.T) {
 }
 
 func TestParseSchemaUntypedField(t *testing.T) {
-	//Expected type is: object<foo: any>
+	// Expected type is: object<foo: any>
 	staticProps := []*types.StaticProperty{}
 	staticProps = append(staticProps, &types.StaticProperty{Key: "foo", Value: types.A})
 	expectedType := types.NewObject(staticProps, nil)
@@ -365,13 +365,13 @@ func TestParseSchemaUntypedField(t *testing.T) {
 }
 
 func TestParseSchemaNoChildren(t *testing.T) {
-	//Expected type is: object[any: any]
+	// Expected type is: object[any: any]
 	expectedType := types.NewObject(nil, &types.DynamicProperty{Key: types.A, Value: types.A})
 	testParseSchema(t, noChildrenObjectSchema, expectedType, nil)
 }
 
 func TestParseSchemaArrayNoItems(t *testing.T) {
-	//Expected type is: object<b: array[any]>
+	// Expected type is: object<b: array[any]>
 	staticProps := []*types.StaticProperty{}
 	staticProps = append(staticProps, &types.StaticProperty{Key: "b", Value: types.NewArray(nil, types.A)})
 	expectedType := types.NewObject(staticProps, nil)
@@ -379,7 +379,7 @@ func TestParseSchemaArrayNoItems(t *testing.T) {
 }
 
 func TestParseSchemaBooleanField(t *testing.T) {
-	//Expected type is: object<a: boolean>
+	// Expected type is: object<a: boolean>
 	staticProps := []*types.StaticProperty{}
 	staticProps = append(staticProps, &types.StaticProperty{Key: "a", Value: types.B})
 	expectedType := types.NewObject(staticProps, nil)

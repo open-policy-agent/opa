@@ -34,6 +34,10 @@ type PrettyReporter struct {
 	BenchMarkGoBenchFormat   bool
 }
 
+func (r PrettyReporter) println(a ...any) {
+	_, _ = fmt.Fprintln(r.Output, a...)
+}
+
 // Report prints the test report to the reporter's output.
 func (r PrettyReporter) Report(ch chan *Result) error {
 
@@ -57,44 +61,50 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 	}
 
 	if fail > 0 && (r.Verbose || r.FailureLine) {
-		fmt.Fprintln(r.Output, "FAILURES")
+		r.println("FAILURES")
 		r.hl()
 
 		for _, failure := range failures {
-			fmt.Fprintln(r.Output, failure)
-			if r.Verbose {
-				fmt.Fprintln(r.Output)
-				topdown.PrettyTraceWithOpts(newIndentingWriter(r.Output), failure.Trace, topdown.PrettyTraceOptions{
-					Locations:     true,
-					ExprVariables: r.LocalVars,
-				})
-			}
+			_, _ = fmt.Fprint(r.Output, failure.string(false))
+			r.println()
 
-			if r.FailureLine {
-				fmt.Fprintln(r.Output)
-				for i := len(failure.Trace) - 1; i >= 0; i-- {
-					e := failure.Trace[i]
-					if e.Op == topdown.FailOp && e.Location != nil && e.QueryID != 0 {
-						if expr, isExpr := e.Node.(*ast.Expr); isExpr {
-							if _, isEvery := expr.Terms.(*ast.Every); isEvery {
-								// We're interested in the failing expression inside the every body.
-								continue
+			if len(failure.SubResults) > 0 {
+				// Print trace collectively for all sub-results.
+				if err := printFailure(r.Output, failure.Trace, r.Verbose, false, r.LocalVars); err != nil {
+					return err
+				}
+
+				if r.Verbose || r.FailureLine {
+					r.println()
+				}
+
+				for fullName, sr := range failure.SubResults.Iter {
+					w := newIndentingWriter(r.Output)
+
+					if sr.Fail {
+						if len(sr.SubResults) == 0 {
+							// Print full test-case lineage for every failed leaf sub-result for readability.
+							for _, n := range fullName {
+								_, _ = fmt.Fprintf(w, "%s: %s\n", n, sr.outcome())
+								w = newIndentingWriter(w)
+							}
+
+							if err := printFailure(w, sr.Trace, false, r.FailureLine, r.LocalVars); err != nil {
+								return err
 							}
 						}
-						_, _ = fmt.Fprintf(newIndentingWriter(r.Output), "%s:%d:\n", e.Location.File, e.Location.Row)
-						if err := topdown.PrettyEvent(newIndentingWriter(r.Output, 4), e, topdown.PrettyEventOpts{PrettyVars: r.LocalVars}); err != nil {
-							return err
-						}
-						_, _ = fmt.Fprintln(r.Output)
-						break
 					}
+				}
+			} else {
+				if err := printFailure(r.Output, failure.Trace, r.Verbose, r.FailureLine, r.LocalVars); err != nil {
+					return err
 				}
 			}
 
-			fmt.Fprintln(r.Output)
+			r.println()
 		}
 
-		fmt.Fprintln(r.Output, "SUMMARY")
+		r.println("SUMMARY")
 		r.hl()
 	}
 
@@ -104,25 +114,32 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 
 		if tr.Pass() && r.BenchmarkResults {
 			dirty = true
-			fmt.Fprintln(r.Output, r.fmtBenchmark(tr))
+			r.println(r.fmtBenchmark(tr))
 		} else if r.Verbose || !tr.Pass() {
 			if tr.Location != nil && tr.Location.File != lastFile {
 				if lastFile != "" {
-					fmt.Fprintln(r.Output, "")
+					r.println("")
 				}
-				fmt.Fprintf(r.Output, "%s:\n", tr.Location.File)
+				_, _ = fmt.Fprintf(r.Output, "%s:\n", tr.Location.File)
 				lastFile = tr.Location.File
 			}
+
 			dirty = true
-			fmt.Fprintln(r.Output, tr)
+			r.println(tr.string(false))
+
+			w := newIndentingWriter(r.Output)
+			if sr := tr.SubResults; len(sr) > 0 {
+				_, _ = fmt.Fprint(w, sr.string("  "))
+			}
+
 			if len(tr.Output) > 0 {
-				fmt.Fprintln(r.Output)
-				fmt.Fprintln(newIndentingWriter(r.Output), strings.TrimSpace(string(tr.Output)))
-				fmt.Fprintln(r.Output)
+				r.println()
+				_, _ = fmt.Fprintln(newIndentingWriter(r.Output), strings.TrimSpace(string(tr.Output)))
+				r.println()
 			}
 		}
 		if tr.Error != nil {
-			fmt.Fprintf(r.Output, "  %v\n", tr.Error)
+			_, _ = fmt.Fprintf(r.Output, "  %v\n", tr.Error)
 		}
 	}
 
@@ -134,19 +151,52 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 	total := pass + fail + skip + errs
 
 	if pass != 0 {
-		fmt.Fprintln(r.Output, "PASS:", fmt.Sprintf("%d/%d", pass, total))
+		r.println("PASS:", fmt.Sprintf("%d/%d", pass, total))
 	}
 
 	if fail != 0 {
-		fmt.Fprintln(r.Output, "FAIL:", fmt.Sprintf("%d/%d", fail, total))
+		r.println("FAIL:", fmt.Sprintf("%d/%d", fail, total))
 	}
 
 	if skip != 0 {
-		fmt.Fprintln(r.Output, "SKIPPED:", fmt.Sprintf("%d/%d", skip, total))
+		r.println("SKIPPED:", fmt.Sprintf("%d/%d", skip, total))
 	}
 
 	if errs != 0 {
-		fmt.Fprintln(r.Output, "ERROR:", fmt.Sprintf("%d/%d", errs, total))
+		r.println("ERROR:", fmt.Sprintf("%d/%d", errs, total))
+	}
+
+	return nil
+}
+
+func printFailure(w io.Writer, trace []*topdown.Event, verbose bool, failureLine bool, localVars bool) error {
+	if verbose {
+		_, _ = fmt.Fprintln(w)
+		topdown.PrettyTraceWithOpts(newIndentingWriter(w), trace, topdown.PrettyTraceOptions{
+			Locations:     true,
+			ExprVariables: localVars,
+		})
+	}
+
+	if failureLine {
+		_, _ = fmt.Fprintln(w)
+		for i := len(trace) - 1; i >= 0; i-- {
+			e := trace[i]
+			if e.Op == topdown.FailOp && e.Location != nil && e.QueryID != 0 {
+				if expr, isExpr := e.Node.(*ast.Expr); isExpr {
+					if _, isEvery := expr.Terms.(*ast.Every); isEvery {
+						// We're interested in the failing expression inside the every body.
+						continue
+					}
+				}
+				_, _ = fmt.Fprintf(newIndentingWriter(w), "%s:%d:\n", e.Location.File, e.Location.Row)
+				if err := topdown.PrettyEvent(newIndentingWriter(w, 4), e, topdown.PrettyEventOpts{PrettyVars: localVars}); err != nil {
+					return err
+				}
+				_, _ = fmt.Fprintln(w)
+				break
+			}
+		}
 	}
 
 	return nil
@@ -169,7 +219,7 @@ func (r PrettyReporter) fmtBenchmark(tr *Result) string {
 		// This converts the test case name like data.foo.bar.test_auth to be more
 		// like BenchmarkDataFooBarTestAuth.
 		camelCaseName := ""
-		for _, part := range strings.Split(strings.Replace(name, "_", ".", -1), ".") {
+		for _, part := range strings.Split(strings.ReplaceAll(name, "_", "."), ".") {
 			camelCaseName += strings.Title(part) //nolint:staticcheck // SA1019, no unicode here
 		}
 		name = "Benchmark" + camelCaseName
@@ -253,6 +303,12 @@ func newIndentingWriter(w io.Writer, indent ...int) indentingWriter {
 	if len(indent) > 0 {
 		i = indent[0]
 	}
+
+	if iw, ok := w.(indentingWriter); ok {
+		i += iw.indent
+		w = iw.w
+	}
+
 	return indentingWriter{
 		w:      w,
 		indent: i,

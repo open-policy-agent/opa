@@ -66,10 +66,8 @@ func TestCompile_DefaultRegoVersion(t *testing.T) {
 
 			if len(tc.expErrs) > 0 {
 				assertErrors(t, compiler.Errors, tc.expErrs)
-			} else {
-				if len(compiler.Errors) > 0 {
-					t.Fatalf("Unexpected errors: %v", compiler.Errors)
-				}
+			} else if len(compiler.Errors) > 0 {
+				t.Fatalf("Unexpected errors: %v", compiler.Errors)
 			}
 		})
 	}

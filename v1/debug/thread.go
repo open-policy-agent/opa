@@ -441,7 +441,7 @@ func (t *thread) virtualCacheVars(keys []ast.Ref, cache topdown.VirtualCache) Va
 			term, undefined := cache.Get(key)
 			var value ast.Value
 			if undefined {
-				value = ast.Null{}
+				value = ast.NullValue
 			} else {
 				value = term.Value
 			}

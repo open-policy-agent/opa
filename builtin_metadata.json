@@ -93,7 +93,8 @@
     "internal": [
       "internal.member_2",
       "internal.member_3",
-      "internal.print"
+      "internal.print",
+      "internal.test_case"
     ],
     "net": [
       "net.cidr_contains",
@@ -8174,6 +8175,19 @@
       "edge"
     ],
     "introduced": "v0.34.0",
+    "result": {},
+    "wasm": false
+  },
+  "internal.test_case": {
+    "args": [
+      {
+        "type": "array[any]"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "introduced": "edge",
     "result": {},
     "wasm": false
   },

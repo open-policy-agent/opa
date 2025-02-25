@@ -386,10 +386,8 @@ p contains "B" if {
 								t.Fatalf("expected error to contain:\n\n%s\n\ngot:\n\n%v", expErr, err)
 							}
 						}
-					} else {
-						if err != nil {
-							t.Fatal(err)
-						}
+					} else if err != nil {
+						t.Fatal(err)
 					}
 				})
 			})

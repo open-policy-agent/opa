@@ -1618,6 +1618,20 @@
       }
     },
     {
+      "name": "internal.test_case",
+      "decl": {
+        "args": [
+          {
+            "dynamic": {
+              "type": "any"
+            },
+            "type": "array"
+          }
+        ],
+        "type": "function"
+      }
+    },
+    {
       "name": "intersection",
       "decl": {
         "args": [

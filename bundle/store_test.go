@@ -86,18 +86,6 @@ func TestHasRootsOverlap(t *testing.T) {
 				}
 			}
 
-			//err := hasRootsOverlap(ctx, mockStore, txn, bundles)
-			//if !tc.overlaps && err != nil {
-			//	t.Fatalf("unepected error: %s", err)
-			//} else if tc.overlaps && (err == nil || !strings.Contains(err.Error(), "detected overlapping roots in bundle manifest")) {
-			//	t.Fatalf("expected overlapping roots error, got: %s", err)
-			//}
-
-			//err = mockStore.Commit(ctx, txn)
-			//if err != nil {
-			//	t.Fatalf("unexpected error: %s", err)
-			//}
-
 			mockStore.AssertValid(t)
 		})
 	}

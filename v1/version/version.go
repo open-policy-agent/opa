@@ -44,6 +44,6 @@ func init() {
 		}
 	}
 	if dirty {
-		Vcs = Vcs + "-dirty"
+		Vcs += "-dirty"
 	}
 }

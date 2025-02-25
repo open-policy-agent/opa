@@ -38,22 +38,15 @@ func TestValueMapIter(t *testing.T) {
 	}
 }
 
-func TestValueMapCopy(t *testing.T) {
-	a := NewValueMap()
-	a.Put(String("x"), String("foo"))
-	a.Put(String("y"), String("bar"))
-	b := a.Copy()
-	b.Delete(String("y"))
-	if a.Get(String("y")) != String("bar") {
-		t.Fatalf("Unexpected a['y'] value: %v", a.Get(String("y")))
-	}
-}
-
 func TestValueMapEqual(t *testing.T) {
 	a := NewValueMap()
 	a.Put(String("x"), String("foo"))
 	a.Put(String("y"), String("bar"))
-	b := a.Copy()
+
+	b := NewValueMap()
+	b.Put(String("x"), String("foo"))
+	b.Put(String("y"), String("bar"))
+
 	if !a.Equal(b) {
 		t.Fatalf("Expected a == b but not for: %v / %v", a, b)
 	}
@@ -89,9 +82,6 @@ func TestValueMapString(t *testing.T) {
 
 func TestValueMapNil(t *testing.T) {
 	var a *ValueMap
-	if a.Copy() != nil {
-		t.Fatalf("Expected nil map copy to be nil")
-	}
 	a.Delete(String("foo"))
 	var b *ValueMap
 	if !a.Equal(b) {

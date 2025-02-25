@@ -92,6 +92,69 @@ func TestPrettyReporterVerbose(t *testing.T) {
 				File: "policy4.rego",
 			},
 		},
+		{
+			Package: "data.foo.qux",
+			Name:    "test_cases",
+			Trace:   getFakeTraceEvents(),
+			Fail:    true,
+			// Will be sorted to "bar", "baz", "foo" in output for stability
+			SubResults: SubResultMap{
+				"foo": {
+					Name: "foo",
+					Fail: false,
+				},
+				"bar": {
+					Name: "bar",
+					Fail: true,
+				},
+				"baz": {
+					Name: "baz",
+					Fail: false,
+				},
+			},
+			Location: &ast.Location{
+				File: "policy5.rego",
+			},
+		},
+		{
+			Package: "data.foo.qux",
+			Name:    "test_cases_nested",
+			Trace:   getFakeTraceEvents(),
+			Fail:    true,
+			SubResults: SubResultMap{
+				"one": {
+					Name: "one",
+					Fail: false,
+					SubResults: SubResultMap{
+						"foo": {
+							Name: "foo",
+							Fail: false,
+						},
+						"bar": {
+							Name: "bar",
+							Fail: false,
+						},
+					},
+				},
+				"two": {
+					Name: "two",
+					Fail: true,
+					SubResults: SubResultMap{
+						"foo": {
+							Name: "foo",
+							Fail: true,
+						},
+						"bar": {
+							Name: "bar",
+							Fail: false,
+						},
+					},
+				},
+			},
+			Location: &ast.Location{
+				File: "policy5.rego",
+			},
+		},
 	}
 
 	r := PrettyReporter{
@@ -109,6 +172,19 @@ func TestPrettyReporterVerbose(t *testing.T) {
 data.foo.bar.test_corge: FAIL (0s)
 
   query:1       | Fail true = false  
+
+data.foo.qux.test_cases: FAIL (0s)
+
+  query:1       | Fail true = false  
+
+  bar: FAIL
+
+data.foo.qux.test_cases_nested: FAIL (0s)
+
+  query:1       | Fail true = false  
+
+  two: FAIL
+    foo: FAIL
 
 SUMMARY
 --------------------------------------------------------------------------------
@@ -129,11 +205,24 @@ data.foo.bar.test_contains_print: PASS (0s)
 
 policy4.rego:
 data.foo.baz.p.q.r.test_quz: PASS (0s)
+
+policy5.rego:
+data.foo.qux.test_cases: FAIL (0s)
+  bar: FAIL
+  baz: PASS
+  foo: PASS
+data.foo.qux.test_cases_nested: FAIL (0s)
+  one: PASS
+    bar: PASS
+    foo: PASS
+  two: FAIL
+    bar: PASS
+    foo: FAIL
 --------------------------------------------------------------------------------
-PASS: 3/6
-FAIL: 1/6
-SKIPPED: 1/6
-ERROR: 1/6
+PASS: 3/8
+FAIL: 3/8
+SKIPPED: 1/8
+ERROR: 1/8
 `
 
 	str := buf.String()
@@ -232,6 +321,68 @@ func TestPrettyReporterFailureLine(t *testing.T) {
 				File: "policy3.rego",
 			},
 		},
+		{
+			Package: "data.foo.qux",
+			Name:    "test_cases_nested",
+			Trace:   getFakeTraceEvents(),
+			Fail:    true,
+			SubResults: SubResultMap{
+				"one": {
+					Name: "one",
+					Fail: false,
+					SubResults: SubResultMap{
+						"foo": {
+							Name: "foo",
+							Fail: false,
+						},
+						"bar": {
+							Name: "bar",
+							Fail: false,
+						},
+					},
+				},
+				"two": {
+					Name: "two",
+					Fail: true,
+					SubResults: SubResultMap{
+						"foo": {
+							Name: "foo",
+							Fail: true,
+							Trace: getFakeTraceEventsFor(
+								ast.MustParseExpr("x == y + z"),
+								func(e *topdown.Event) {
+									// QueryID == 0 is not pretty-printed, as this is the base query to eval the test rule; not the test rule itself.
+									e.QueryID = 1
+								},
+								func(e *topdown.Event) {
+									e.Location.File = "policy5.rego"
+									e.Location.Row = 5
+								},
+								func(e *topdown.Event) {
+									e.Locals = ast.NewValueMap()
+									e.Locals.Put(ast.Var("x"), ast.Number("1"))
+									e.Locals.Put(ast.Var("y"), ast.Number("2"))
+									e.Locals.Put(ast.Var("z"), ast.Number("3"))
+								},
+								func(e *topdown.Event) {
+									e.LocalMetadata = map[ast.Var]topdown.VarMetadata{
+										"x": {Name: "x"},
+										"y": {Name: "y"},
+										"z": {Name: "z"},
+									}
+								}),
+						},
+						"bar": {
+							Name: "bar",
+							Fail: false,
+						},
+					},
+				},
+			},
+			Location: &ast.Location{
+				File: "policy5.rego",
+			},
+		},
 	}
 
 	r := PrettyReporter{
@@ -262,6 +413,18 @@ data.foo.bar.test_contains_print_fail: FAIL (0s)
 data.foo.baz.p.q.r.test_quz: FAIL (0s)
 
 
+data.foo.qux.test_cases_nested: FAIL (0s)
+
+  two: FAIL
+    foo: FAIL
+      
+        policy5.rego:5:
+          x == y + z
+          |    |   |
+          |    |   3
+          |    2
+          1      
+
 SUMMARY
 --------------------------------------------------------------------------------
 policy1.rego:
@@ -278,11 +441,20 @@ data.foo.bar.test_contains_print_fail: FAIL (0s)
 
 policy3.rego:
 data.foo.baz.p.q.r.test_quz: FAIL (0s)
+
+policy5.rego:
+data.foo.qux.test_cases_nested: FAIL (0s)
+  one: PASS
+    bar: PASS
+    foo: PASS
+  two: FAIL
+    bar: PASS
+    foo: FAIL
 --------------------------------------------------------------------------------
-PASS: 2/7
-FAIL: 3/7
-SKIPPED: 1/7
-ERROR: 1/7
+PASS: 2/8
+FAIL: 4/8
+SKIPPED: 1/8
+ERROR: 1/8
 `
 
 	if exp != buf.String() {
@@ -357,6 +529,69 @@ func TestPrettyReporter(t *testing.T) {
 				File: "policy3.rego",
 			},
 		},
+		{
+			Package: "data.foo.qux",
+			Name:    "test_cases",
+			Trace:   getFakeTraceEvents(),
+			Fail:    true,
+			// Will be sorted to "bar", "baz", "foo" in output for stability
+			SubResults: SubResultMap{
+				"foo": {
+					Name: "foo",
+					Fail: false,
+				},
+				"bar": {
+					Name: "bar",
+					Fail: true,
+				},
+				"baz": {
+					Name: "baz",
+					Fail: false,
+				},
+			},
+			Location: &ast.Location{
+				File: "policy4.rego",
+			},
+		},
+		{
+			Package: "data.foo.qux",
+			Name:    "test_cases_nested",
+			Trace:   getFakeTraceEvents(),
+			Fail:    true,
+			SubResults: SubResultMap{
+				"one": {
+					Name: "one",
+					Fail: false,
+					SubResults: SubResultMap{
+						"foo": {
+							Name: "foo",
+							Fail: false,
+						},
+						"bar": {
+							Name: "bar",
+							Fail: false,
+						},
+					},
+				},
+				"two": {
+					Name: "two",
+					Fail: true,
+					SubResults: SubResultMap{
+						"foo": {
+							Name: "foo",
+							Fail: true,
+						},
+						"bar": {
+							Name: "bar",
+							Fail: false,
+						},
+					},
+				},
+			},
+			Location: &ast.Location{
+				File: "policy4.rego",
+			},
+		},
 	}
 
 	r := PrettyReporter{
@@ -382,11 +617,24 @@ data.foo.bar.test_contains_print_fail: FAIL (0s)
 
 policy3.rego:
 data.foo.baz.p.q.r.test_quz: FAIL (0s)
+
+policy4.rego:
+data.foo.qux.test_cases: FAIL (0s)
+  bar: FAIL
+  baz: PASS
+  foo: PASS
+data.foo.qux.test_cases_nested: FAIL (0s)
+  one: PASS
+    bar: PASS
+    foo: PASS
+  two: FAIL
+    bar: PASS
+    foo: FAIL
 --------------------------------------------------------------------------------
-PASS: 2/7
-FAIL: 3/7
-SKIPPED: 1/7
-ERROR: 1/7
+PASS: 2/9
+FAIL: 5/9
+SKIPPED: 1/9
+ERROR: 1/9
 `
 
 	if exp != buf.String() {
@@ -429,6 +677,45 @@ func TestJSONReporter(t *testing.T) {
 			Package: "data.foo.baz",
 			Name:    "p.q.r.test_quz",
 		},
+		{
+			Package: "data.foo.qux",
+			Name:    "test_cases_nested",
+			Trace:   getFakeTraceEvents(),
+			Fail:    true,
+			SubResults: SubResultMap{
+				"one": {
+					Name: "one",
+					Fail: false,
+					SubResults: SubResultMap{
+						"foo": {
+							Name: "foo",
+							Fail: false,
+						},
+						"bar": {
+							Name: "bar",
+							Fail: false,
+						},
+					},
+				},
+				"two": {
+					Name: "two",
+					Fail: true,
+					SubResults: SubResultMap{
+						"foo": {
+							Name: "foo",
+							Fail: true,
+						},
+						"bar": {
+							Name: "bar",
+							Fail: false,
+						},
+					},
+				},
+			},
+			Location: &ast.Location{
+				File: "policy5.rego",
+			},
+		},
 	}
 
 	r := JSONReporter{
@@ -441,162 +728,197 @@ func TestJSONReporter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	exp := util.MustUnmarshalJSON([]byte(`[
-  {
-    "location": null,
-    "package": "data.foo.bar",
-    "name": "test_baz",
-    "duration": 0,
-    "trace": [
-      {
-        "Op": "Fail",
-        "Node": {
-          "index": 0,
-          "terms": [
-            {
-              "type": "ref",
-              "value": [
-                {
-                  "type": "var",
-                  "value": "eq"
-                }
-              ]
-            },
-            {
-              "type": "boolean",
-              "value": true
-            },
-            {
-              "type": "boolean",
-              "value": false
-            }
-          ]
+	exp := util.MustUnmarshalJSON([]byte(`[ {
+  "location" : null,
+  "package" : "data.foo.bar",
+  "name" : "test_baz",
+  "duration" : 0,
+  "trace" : [ {
+    "Op" : "Fail",
+    "Node" : {
+      "index" : 0,
+      "terms" : [ {
+        "type" : "ref",
+        "value" : [ {
+          "type" : "var",
+          "value" : "eq"
+        } ]
+      }, {
+        "type" : "boolean",
+        "value" : true
+      }, {
+        "type" : "boolean",
+        "value" : false
+      } ]
+    },
+    "Location" : {
+      "file" : "",
+      "row" : 1,
+      "col" : 1
+    },
+    "QueryID" : 0,
+    "ParentID" : 0,
+    "Locals" : null,
+    "LocalMetadata" : null,
+    "Message" : "",
+    "Ref" : null
+  } ]
+}, {
+  "location" : null,
+  "package" : "data.foo.bar",
+  "name" : "test_qux",
+  "error" : { },
+  "duration" : 0,
+  "trace" : [ {
+    "Op" : "Fail",
+    "Node" : {
+      "index" : 0,
+      "terms" : [ {
+        "type" : "ref",
+        "value" : [ {
+          "type" : "var",
+          "value" : "eq"
+        } ]
+      }, {
+        "type" : "boolean",
+        "value" : true
+      }, {
+        "type" : "boolean",
+        "value" : false
+      } ]
+    },
+    "Location" : {
+      "file" : "",
+      "row" : 1,
+      "col" : 1
+    },
+    "QueryID" : 0,
+    "ParentID" : 0,
+    "Locals" : null,
+    "LocalMetadata" : null,
+    "Message" : "",
+    "Ref" : null
+  } ]
+}, {
+  "location" : null,
+  "package" : "data.foo.bar",
+  "name" : "test_corge",
+  "fail" : true,
+  "duration" : 0,
+  "trace" : [ {
+    "Op" : "Fail",
+    "Node" : {
+      "index" : 0,
+      "terms" : [ {
+        "type" : "ref",
+        "value" : [ {
+          "type" : "var",
+          "value" : "eq"
+        } ]
+      }, {
+        "type" : "boolean",
+        "value" : true
+      }, {
+        "type" : "boolean",
+        "value" : false
+      } ]
+    },
+    "Location" : {
+      "file" : "",
+      "row" : 1,
+      "col" : 1
+    },
+    "QueryID" : 0,
+    "ParentID" : 0,
+    "Locals" : null,
+    "LocalMetadata" : null,
+    "Message" : "",
+    "Ref" : null
+  } ]
+}, {
+  "location" : null,
+  "package" : "data.foo.bar",
+  "name" : "todo_test_qux",
+  "skip" : true,
+  "duration" : 0
+}, {
+  "location" : null,
+  "package" : "data.foo.bar",
+  "name" : "test_contains_print",
+  "duration" : 0,
+  "output" : "ZmFrZSBwcmludCBvdXRwdXQK"
+}, {
+  "location" : null,
+  "package" : "data.foo.baz",
+  "name" : "p.q.r.test_quz",
+  "duration" : 0
+}, {
+  "location" : {
+    "file" : "policy5.rego",
+    "row" : 0,
+    "col" : 0
+  },
+  "package" : "data.foo.qux",
+  "name" : "test_cases_nested",
+  "fail" : true,
+  "duration" : 0,
+  "trace" : [ {
+    "Op" : "Fail",
+    "Node" : {
+      "index" : 0,
+      "terms" : [ {
+        "type" : "ref",
+        "value" : [ {
+          "type" : "var",
+          "value" : "eq"
+        } ]
+      }, {
+        "type" : "boolean",
+        "value" : true
+      }, {
+        "type" : "boolean",
+        "value" : false
+      } ]
+    },
+    "Location" : {
+      "file" : "",
+      "row" : 1,
+      "col" : 1
+    },
+    "QueryID" : 0,
+    "ParentID" : 0,
+    "Locals" : null,
+    "LocalMetadata" : null,
+    "Message" : "",
+    "Ref" : null
+  } ],
+  "sub_results" : {
+    "one" : {
+      "name" : "one",
+      "sub_results" : {
+        "bar" : {
+          "name" : "bar"
         },
-        "Location": {
-          "file": "",
-          "row": 1,
-          "col": 1
-        },
-        "QueryID": 0,
-        "ParentID": 0,
-        "Locals": null,
-        "LocalMetadata": null,
-        "Message": "",
-        "Ref": null
+        "foo" : {
+          "name" : "foo"
+        }
       }
-    ]
-  },
-  {
-    "location": null,
-    "package": "data.foo.bar",
-    "name": "test_qux",
-    "error": {},
-    "duration": 0,
-    "trace": [
-      {
-        "Op": "Fail",
-        "Node": {
-          "index": 0,
-          "terms": [
-            {
-              "type": "ref",
-              "value": [
-                {
-                  "type": "var",
-                  "value": "eq"
-                }
-              ]
-            },
-            {
-              "type": "boolean",
-              "value": true
-            },
-            {
-              "type": "boolean",
-              "value": false
-            }
-          ]
+    },
+    "two" : {
+      "name" : "two",
+      "fail" : true,
+      "sub_results" : {
+        "bar" : {
+          "name" : "bar"
         },
-        "Location": {
-          "file": "",
-          "row": 1,
-          "col": 1
-        },
-        "QueryID": 0,
-        "ParentID": 0,
-        "Locals": null,
-        "LocalMetadata": null,
-        "Message": "",
-        "Ref": null
+        "foo" : {
+          "name" : "foo",
+          "fail" : true
+        }
       }
-    ]
-  },
-  {
-    "location": null,
-    "package": "data.foo.bar",
-    "name": "test_corge",
-    "fail": true,
-    "duration": 0,
-    "trace": [
-      {
-        "Op": "Fail",
-        "Node": {
-          "index": 0,
-          "terms": [
-            {
-              "type": "ref",
-              "value": [
-                {
-                  "type": "var",
-                  "value": "eq"
-                }
-              ]
-            },
-            {
-              "type": "boolean",
-              "value": true
-            },
-            {
-              "type": "boolean",
-              "value": false
-            }
-          ]
-        },
-        "Location": {
-          "file": "",
-          "row": 1,
-          "col": 1
-        },
-        "QueryID": 0,
-        "ParentID": 0,
-        "Locals": null,
-        "LocalMetadata": null,
-        "Message": "",
-        "Ref": null
-      }
-    ]
-  },
-  {
-    "location": null,
-    "package": "data.foo.bar",
-    "name": "todo_test_qux",
-    "skip": true,
-    "duration": 0
-  },
-  {
-	  "location": null,
-	  "package": "data.foo.bar",
-	  "name": "test_contains_print",
-	  "output": "ZmFrZSBwcmludCBvdXRwdXQK",
-	  "duration": 0
-  },
-  {
-	"location": null,
-	"package": "data.foo.baz",
-	"name": "p.q.r.test_quz",
-	"duration": 0
-}
-]
+    }
+  }
+} ]
 `))
 
 	result := util.MustUnmarshalJSON(buf.Bytes())
@@ -633,10 +955,58 @@ func TestPrettyReporterVerboseBenchmark(t *testing.T) {
 		{
 			Package: "data.foo.bar",
 			Name:    "test_corge",
+			Trace:   getFakeTraceEvents(),
 			Fail:    true,
 			BenchmarkResult: &testing.BenchmarkResult{
 				N:         100,
 				T:         12300,
+				Bytes:     0,
+				MemAllocs: 567,
+				MemBytes:  890,
+				Extra:     nil,
+			},
+		},
+		{
+			Package: "data.foo.bar",
+			Name:    "test_cases_fail",
+			Fail:    true,
+			Trace:   getFakeTraceEvents(),
+			SubResults: SubResultMap{
+				"one": {
+					Name: "one",
+					Fail: false,
+				},
+				"two": {
+					Name: "two",
+					Fail: true,
+				},
+			},
+			BenchmarkResult: &testing.BenchmarkResult{
+				N:         100,
+				T:         12300,
+				Bytes:     0,
+				MemAllocs: 567,
+				MemBytes:  890,
+				Extra:     nil,
+			},
+		},
+		{
+			Package: "data.foo.bar",
+			Name:    "test_cases_ok",
+			Fail:    false,
+			SubResults: SubResultMap{
+				"one": {
+					Name: "one",
+					Fail: false,
+				},
+				"two": {
+					Name: "two",
+					Fail: true,
+				},
+			},
+			BenchmarkResult: &testing.BenchmarkResult{
+				N:         2000,
+				T:         123000,
 				Bytes:     0,
 				MemAllocs: 567,
 				MemBytes:  890,
@@ -817,6 +1187,52 @@ func TestJSONReporterBenchmark(t *testing.T) {
 			Name:    "todo_test_qux",
 			Skip:    true,
 		},
+		{
+			Package: "data.foo.bar",
+			Name:    "test_cases_fail",
+			Fail:    true,
+			SubResults: SubResultMap{
+				"one": {
+					Name: "one",
+					Fail: false,
+				},
+				"two": {
+					Name: "two",
+					Fail: true,
+				},
+			},
+			BenchmarkResult: &testing.BenchmarkResult{
+				N:         100,
+				T:         12300,
+				Bytes:     0,
+				MemAllocs: 567,
+				MemBytes:  890,
+				Extra:     nil,
+			},
+		},
+		{
+			Package: "data.foo.bar",
+			Name:    "test_cases_ok",
+			Fail:    false,
+			SubResults: SubResultMap{
+				"one": {
+					Name: "one",
+					Fail: false,
+				},
+				"two": {
+					Name: "two",
+					Fail: true,
+				},
+			},
+			BenchmarkResult: &testing.BenchmarkResult{
+				N:         2000,
+				T:         123000,
+				Bytes:     0,
+				MemAllocs: 567,
+				MemBytes:  890,
+				Extra:     nil,
+			},
+		},
 	}
 
 	r := JSONReporter{
@@ -835,7 +1251,7 @@ func TestJSONReporterBenchmark(t *testing.T) {
     "package": "data.foo.bar",
     "name": "test_baz",
     "duration": 0,
-	"benchmark_result": {
+    "benchmark_result": {
       "N": 1000,
       "T": 123000,
       "Bytes": 0,
@@ -861,11 +1277,58 @@ func TestJSONReporterBenchmark(t *testing.T) {
     "duration": 0
   },
   {
-    "location":null,
-    "duration":0,
-    "name":"todo_test_qux",
-    "package":"data.foo.bar",
-    "skip":true
+    "location": null,
+    "package": "data.foo.bar",
+    "name": "todo_test_qux",
+    "skip": true,
+    "duration": 0
+  },
+  {
+    "location": null,
+    "package": "data.foo.bar",
+    "name": "test_cases_fail",
+    "fail": true,
+    "duration": 0,
+    "benchmark_result": {
+      "N": 100,
+      "T": 12300,
+      "Bytes": 0,
+      "MemAllocs": 567,
+      "MemBytes": 890,
+      "Extra": null
+    },
+    "sub_results": {
+      "one": {
+        "name": "one"
+      },
+      "two": {
+        "name": "two",
+        "fail": true
+      }
+    }
+  },
+  {
+    "location": null,
+    "package": "data.foo.bar",
+    "name": "test_cases_ok",
+    "duration": 0,
+    "benchmark_result": {
+      "N": 2000,
+      "T": 123000,
+      "Bytes": 0,
+      "MemAllocs": 567,
+      "MemBytes": 890,
+      "Extra": null
+    },
+    "sub_results": {
+      "one": {
+        "name": "one"
+      },
+      "two": {
+        "name": "two",
+        "fail": true
+      }
+    }
   }
 ]
 `))

@@ -76,6 +76,7 @@ func TestInterfaceToValue(t *testing.T) {
 		{uint64(100), "100"},
 		{[]string{"dummy", "tummy"}, `["dummy", "tummy"]`},
 		{String("bob"), `"bob"`},
+		{[]byte("base64ed"), `"YmFzZTY0ZWQ="`}, // []byte is base64 encoded.
 	}
 
 	for _, tc := range tests {
@@ -866,7 +867,6 @@ func TestSetConcurrentReads(t *testing.T) {
 		numbers[i] = IntNumberTerm(i)
 	}
 	// Shuffle numbers array for random insertion order.
-	rand.New(rand.NewSource(10000)) // Seed the PRNG.
 	rand.Shuffle(len(numbers), func(i, j int) {
 		numbers[i], numbers[j] = numbers[j], numbers[i]
 	})
@@ -908,8 +908,8 @@ func TestObjectConcurrentReads(t *testing.T) {
 		numbers[i] = IntNumberTerm(i)
 	}
 	// Shuffle numbers array for random insertion order.
-	rand.New(rand.NewSource(10000)) // Seed the PRNG.
-	rand.Shuffle(len(numbers), func(i, j int) {
+	r := rand.New(rand.NewSource(10000)) // Seed the PRNG.
+	r.Shuffle(len(numbers), func(i, j int) {
 		numbers[i], numbers[j] = numbers[j], numbers[i]
 	})
 	// Build an object with numbers in unsorted order.

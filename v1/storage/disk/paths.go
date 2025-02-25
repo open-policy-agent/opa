@@ -6,7 +6,7 @@ package disk
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/open-policy-agent/opa/v1/storage"
@@ -150,8 +150,6 @@ func (ps pathSet) Contains(x storage.Path) bool {
 func (ps pathSet) Sorted() []storage.Path {
 	cpy := make(pathSet, len(ps))
 	copy(cpy, ps)
-	sort.Slice(cpy, func(i, j int) bool {
-		return cpy[i].Compare(cpy[j]) < 0
-	})
+	slices.SortFunc(cpy, storage.Path.Compare)
 	return cpy
 }

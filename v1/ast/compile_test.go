@@ -410,28 +410,8 @@ func TestCompilerGetExports(t *testing.T) {
 		// TODO(sr): add multi-val rule, and ref-with-var single-value rule.
 	}
 
-	hashMap := func(ms map[string][]string) *util.HashMap {
-		rules := util.NewHashMap(func(a, b util.T) bool {
-			switch a := a.(type) {
-			case Ref:
-				return a.Equal(b.(Ref))
-			case []Ref:
-				b := b.([]Ref)
-				if len(b) != len(a) {
-					return false
-				}
-				for i := range a {
-					if !a[i].Equal(b[i]) {
-						return false
-					}
-				}
-				return true
-			default:
-				panic("unreachable")
-			}
-		}, func(v util.T) int {
-			return v.(Ref).Hash()
-		})
+	hashMap := func(ms map[string][]string) *util.HasherMap[Ref, []Ref] {
+		rules := util.NewHasherMap[Ref, []Ref](RefEqual)
 		for r, rs := range ms {
 			refs := make([]Ref, len(rs))
 			for i := range rs {
@@ -449,11 +429,27 @@ func TestCompilerGetExports(t *testing.T) {
 				c.Modules[strconv.Itoa(i)] = m
 				c.sorted = append(c.sorted, strconv.Itoa(i))
 			}
-			if exp, act := hashMap(tc.exports), c.getExports(); !exp.Equal(act) {
+			if exp, act := hashMap(tc.exports), c.getExports(); !refMapEqual(exp, act) {
 				t.Errorf("expected %v, got %v", exp, act)
 			}
 		})
 	}
+}
+
+func refMapEqual(a, b *util.HasherMap[Ref, []Ref]) bool {
+	if a.Len() != b.Len() {
+		return false
+	}
+	return !a.Iter(func(k Ref, v []Ref) bool {
+		v2, ok := b.Get(k)
+		if !ok {
+			return true
+		}
+		if !refSliceEqual(v, v2) {
+			return true
+		}
+		return false
+	})
 }
 
 func toRef(s string) Ref {
@@ -10168,10 +10164,8 @@ func runStrictnessQueryTestCase(t *testing.T, cases []strictnessQueryTestCase) {
 				if !strings.Contains(err.Error(), tc.expectedErrors.Error()) {
 					t.Fatalf("Expected error %v but got: %v", tc.expectedErrors, err)
 				}
-			} else {
-				if err != nil {
-					t.Fatalf("Unexpected error from %v: %v", tc.query, err)
-				}
+			} else if err != nil {
+				t.Fatalf("Unexpected error from %v: %v", tc.query, err)
 			}
 		}
 	}
@@ -11497,10 +11491,8 @@ func TestCompile_DefaultRegoVersion(t *testing.T) {
 
 			if len(tc.expErrs) > 0 {
 				assertErrors(t, compiler.Errors, tc.expErrs, false)
-			} else {
-				if len(compiler.Errors) > 0 {
-					t.Fatalf("Unexpected errors: %v", compiler.Errors)
-				}
+			} else if len(compiler.Errors) > 0 {
+				t.Fatalf("Unexpected errors: %v", compiler.Errors)
 			}
 		})
 	}

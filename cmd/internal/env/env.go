@@ -33,7 +33,7 @@ func (cf cmdFlagsImpl) CheckEnvironmentVariables(command *cobra.Command) error {
 	}
 	command.Flags().VisitAll(func(f *pflag.Flag) {
 		configName := f.Name
-		configName = strings.Replace(configName, "-", "_", -1)
+		configName = strings.ReplaceAll(configName, "-", "_")
 		if !f.Changed && v.IsSet(configName) {
 			val := v.Get(configName)
 			err := command.Flags().Set(f.Name, fmt.Sprintf("%v", val))

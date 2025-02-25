@@ -1105,7 +1105,7 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 			}
 
 			// RFC7159 7.2 #8 and 5.2 cty
-			if strings.ToUpper(header.cty) == headerJwt {
+			if strings.EqualFold(header.cty, headerJwt) {
 				// Nested JWT, go round again with payload as first argument
 				a = p.Value
 				continue
@@ -1149,11 +1149,11 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 	}
 	// RFC7159 4.1.4 exp
 	if exp := payload.Get(jwtExpKey); exp != nil {
-		switch exp.Value.(type) {
+		switch v := exp.Value.(type) {
 		case ast.Number:
 			// constraints.time is in nanoseconds but exp Value is in seconds
 			compareTime := ast.FloatNumberTerm(constraints.time / 1000000000)
-			if ast.Compare(compareTime, exp.Value.(ast.Number)) != -1 {
+			if ast.Compare(compareTime, v) != -1 {
 				return iter(unverified)
 			}
 		default:
@@ -1162,11 +1162,11 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 	}
 	// RFC7159 4.1.5 nbf
 	if nbf := payload.Get(jwtNbfKey); nbf != nil {
-		switch nbf.Value.(type) {
+		switch v := nbf.Value.(type) {
 		case ast.Number:
 			// constraints.time is in nanoseconds but nbf Value is in seconds
 			compareTime := ast.FloatNumberTerm(constraints.time / 1000000000)
-			if ast.Compare(compareTime, nbf.Value.(ast.Number)) == -1 {
+			if ast.Compare(compareTime, v) == -1 {
 				return iter(unverified)
 			}
 		default:

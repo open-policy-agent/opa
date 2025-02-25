@@ -34,6 +34,10 @@ func (b *SafeBuffer) String() string {
 }
 
 func TestEnablePrintStatementsForBundles(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	ref := "registry.io/someorg/somerepo:tag"
 	server := test_sdk.MustNewServer(
 		test_sdk.MockOCIBundle(ref, map[string]string{

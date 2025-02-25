@@ -149,7 +149,7 @@ import rego.v1`,
 	for i := range tests {
 		tc := tests[i]
 		tc.bundleMode = true
-		tc.note = tc.note + " (as bundle)"
+		tc.note += " (as bundle)"
 		tests = append(tests, tc)
 	}
 

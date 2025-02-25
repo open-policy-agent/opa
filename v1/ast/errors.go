@@ -6,7 +6,7 @@ package ast
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -36,15 +36,12 @@ func (e Errors) Error() string {
 // Sort sorts the error slice by location. If the locations are equal then the
 // error message is compared.
 func (e Errors) Sort() {
-	sort.Slice(e, func(i, j int) bool {
-		a := e[i]
-		b := e[j]
-
+	slices.SortFunc(e, func(a, b *Error) int {
 		if cmp := a.Location.Compare(b.Location); cmp != 0 {
-			return cmp < 0
+			return cmp
 		}
 
-		return a.Error() < b.Error()
+		return strings.Compare(a.Error(), b.Error())
 	})
 }
 

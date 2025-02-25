@@ -3,6 +3,10 @@ run:
 
 issues:
   max-same-issues: 0 # don't hide issues in CI runs because they are the same type
+  exclude-dirs:
+    - internal/gojsonschema
+    - internal/gqlparser
+    - internal/jwx
   exclude-rules:
     - path: ast/
       linters:
@@ -140,6 +144,37 @@ issues:
 linters-settings:
   lll:
     line-length: 200
+  gocritic:
+    disabled-checks:
+      - appendAssign
+      # NOTE(ae): this one should be enabled, but there were too
+      # many violations to fix in one go... revisit later
+      - singleCaseSwitch
+      # Reasonable rule, but not sure what to replace with in
+      # many locations, so disabling for now
+      - exitAfterDefer
+      # The following 3 rules are disabled from the perfomance tag
+      # enabled further down. The first two are reasonable, but not
+      # super important. appendCombine is really nice though! And
+      # should be enabled. Just many places to fix..
+      - hugeParam
+      - preferFprint
+      - appendCombine
+    enabled-checks:
+      # NOTE that these are rules enabled in addition to the default set
+      - filepathJoin
+      - dupImport
+      - redundantSprint
+      - stringConcatSimplify
+    enabled-tags:
+      - performance
+    settings:
+      ifElseChain:
+        # ridiculous value set for now, but this should be
+        # lowered to something more reasonable, as the rule
+        # is reasonable (replace long if-else chains with
+        # switch)... just too many violations right now
+        minThreshold: 10
   govet:
     enable:
       - deepequalerrors
@@ -167,7 +202,7 @@ linters:
     - goimports
     - unused
     - misspell
-    - tenv
+    - usetesting
     - typecheck
     - staticcheck
     - gosimple
@@ -175,4 +210,5 @@ linters:
     - unconvert
     - copyloopvar
     - perfsprint
+    - gocritic
     # - gosec # too many false positives

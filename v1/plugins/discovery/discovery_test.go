@@ -30,7 +30,6 @@ import (
 	"github.com/open-policy-agent/opa/v1/logging/test"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
-	"github.com/open-policy-agent/opa/v1/plugins/bundle"
 	bundlePlugin "github.com/open-policy-agent/opa/v1/plugins/bundle"
 	"github.com/open-policy-agent/opa/v1/plugins/logs"
 	"github.com/open-policy-agent/opa/v1/plugins/status"
@@ -3339,10 +3338,8 @@ bundles:
 				if tc.err != nil && tc.err.Error() != err.Error() {
 					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
 				}
-			} else {
-				if err != nil {
-					t.Fatalf("Unexpected error %v", err)
-				}
+			} else if err != nil {
+				t.Fatalf("Unexpected error %v", err)
 			}
 		})
 	}
@@ -3406,10 +3403,8 @@ decision_logs:
 				if tc.err != nil && tc.err.Error() != err.Error() {
 					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
 				}
-			} else {
-				if err != nil {
-					t.Fatalf("Unexpected error %v", err)
-				}
+			} else if err != nil {
+				t.Fatalf("Unexpected error %v", err)
 			}
 		})
 	}
@@ -3479,10 +3474,8 @@ status:
 				if tc.err != nil && tc.err.Error() != err.Error() {
 					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
 				}
-			} else {
-				if err != nil {
-					t.Fatalf("Unexpected error %v", err)
-				}
+			} else if err != nil {
+				t.Fatalf("Unexpected error %v", err)
 			}
 		})
 	}
@@ -3832,8 +3825,8 @@ func TestListeners(t *testing.T) {
 
 	ensurePluginState(t, disco, plugins.StateNotReady)
 
-	var status *bundle.Status
-	disco.RegisterListener("testlistener", func(s bundle.Status) {
+	var status *bundlePlugin.Status
+	disco.RegisterListener("testlistener", func(s bundlePlugin.Status) {
 		status = &s
 	})
 
@@ -3954,7 +3947,7 @@ func (t *testFixture) runQuery(ctx context.Context, query string, m metrics.Metr
 		rego.Metrics(m),
 	)
 
-	//Run evaluation.
+	// Run evaluation.
 	rs, err := r.Eval(ctx)
 	if err != nil {
 		return nil, err

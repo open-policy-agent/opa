@@ -40,7 +40,7 @@ func BenchmarkCompileDynamicPolicy(b *testing.B) {
 	}
 }
 
-func generateDynamicPolicyBenchmarkData(N int) map[string]string {
+func generateDynamicPolicyBenchmarkData(n int) map[string]string {
 	files := map[string]string{
 		"main.rego": `
 			package main
@@ -56,19 +56,19 @@ func generateDynamicPolicyBenchmarkData(N int) map[string]string {
 			}`,
 	}
 
-	for i := range N {
+	for i := range n {
 		files[fmt.Sprintf("policy%d.rego", i)] = generateDynamicMockPolicy(i)
 	}
 
 	return files
 }
 
-func generateDynamicMockPolicy(N int) string {
+func generateDynamicMockPolicy(n int) string {
 	return fmt.Sprintf(`package policies["%d"]["%d"].policy%d
 denies contains x if {
 	input.attribute == "%d"
 	x := "policy%d"
-}`, N, N, N, N, N)
+}`, n, n, n, n, n)
 }
 
 func BenchmarkLargePartialRulePolicy(b *testing.B) {
@@ -95,13 +95,13 @@ func BenchmarkLargePartialRulePolicy(b *testing.B) {
 	}
 }
 
-func generateLargePartialRuleBenchmarkData(N int) map[string]string {
+func generateLargePartialRuleBenchmarkData(n int) map[string]string {
 	var policy strings.Builder
-	policy.Grow((140 * N) + 100) // Each rule takes around 130 characters.
+	policy.Grow((140 * n) + 100) // Each rule takes around 130 characters.
 
 	policy.WriteString(`package example.large.partial.rules.policy["dynamic_part"].main`)
 	policy.WriteString("\n\n")
-	for i := range N {
+	for i := range n {
 		policy.WriteString(generateLargePartialRuleMockRule(i))
 		policy.WriteString("\n\n")
 	}
@@ -115,11 +115,11 @@ func generateLargePartialRuleBenchmarkData(N int) map[string]string {
 	return files
 }
 
-func generateLargePartialRuleMockRule(N int) string {
+func generateLargePartialRuleMockRule(n int) string {
 	return fmt.Sprintf(`deny contains [resource, errormsg] if {
 		resource := "example.%d"
 		i := %d
 		i %% 2 != 0
 		errormsg := "denied because %d is an odd number."
-}`, N, N, N)
+}`, n, n, n)
 }

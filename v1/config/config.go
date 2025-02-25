@@ -99,7 +99,7 @@ func (c Config) PluginNames() (result []string) {
 
 // PluginsEnabled returns true if one or more plugin features are enabled.
 //
-// Deprecated. Use PluginNames instead.
+// Deprecated: Use PluginNames instead.
 func (c Config) PluginsEnabled() bool {
 	return c.Bundle != nil || c.Bundles != nil || c.DecisionLogs != nil || c.Status != nil || len(c.Plugins) > 0
 }

@@ -124,7 +124,7 @@ type Compiler struct {
 
 	localvargen                *localVarGenerator
 	moduleLoader               ModuleLoader
-	ruleIndices                *util.HashMap
+	ruleIndices                *util.HasherMap[Ref, RuleIndex]
 	stages                     []stage
 	maxErrs                    int
 	sorted                     []string // list of sorted module names
@@ -303,15 +303,10 @@ type stage struct {
 func NewCompiler() *Compiler {
 
 	c := &Compiler{
-		Modules:       map[string]*Module{},
-		RewrittenVars: map[Var]Var{},
-		Required:      &Capabilities{},
-		ruleIndices: util.NewHashMap(func(a, b util.T) bool {
-			r1, r2 := a.(Ref), b.(Ref)
-			return r1.Equal(r2)
-		}, func(x util.T) int {
-			return x.(Ref).Hash()
-		}),
+		Modules:               map[string]*Module{},
+		RewrittenVars:         map[Var]Var{},
+		Required:              &Capabilities{},
+		ruleIndices:           util.NewHasherMap[Ref, RuleIndex](RefEqual),
 		maxErrs:               CompileErrorLimitDefault,
 		after:                 map[string][]CompilerStageDefinition{},
 		unsafeBuiltinsMap:     map[string]struct{}{},
@@ -825,7 +820,7 @@ func (c *Compiler) RuleIndex(path Ref) RuleIndex {
 	if !ok {
 		return nil
 	}
-	return r.(RuleIndex)
+	return r
 }
 
 // PassesTypeCheck determines whether the given body passes type checking
@@ -1114,7 +1109,7 @@ func (c *Compiler) checkRuleConflicts() {
 		for _, rule := range node.Values {
 			r := rule.(*Rule)
 			ref := r.Ref()
-			name = rw(ref.Copy()).String() // varRewriter operates in-place
+			name = rw(ref.CopyNonGround()).String() // varRewriter operates in-place
 			kinds[r.Head.RuleKind()] = struct{}{}
 			arities[len(r.Head.Args)] = struct{}{}
 			if r.Default {
@@ -1156,7 +1151,7 @@ func (c *Compiler) checkRuleConflicts() {
 			//   data.p.q[r][s] { r := input.r; s := input.s }
 			//   data.p[q].r.s { q := input.q }
 
-			if r.Ref().IsGround() && len(node.Children) > 0 {
+			if ref.IsGround() && len(node.Children) > 0 {
 				conflicts = node.flattenChildren()
 			}
 
@@ -1738,13 +1733,9 @@ func (c *Compiler) err(err *Error) {
 	c.Errors = append(c.Errors, err)
 }
 
-func (c *Compiler) getExports() *util.HashMap {
+func (c *Compiler) getExports() *util.HasherMap[Ref, []Ref] {
 
-	rules := util.NewHashMap(func(a, b util.T) bool {
-		return a.(Ref).Equal(b.(Ref))
-	}, func(v util.T) int {
-		return v.(Ref).Hash()
-	})
+	rules := util.NewHasherMap[Ref, []Ref](RefEqual)
 
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
@@ -1757,18 +1748,30 @@ func (c *Compiler) getExports() *util.HashMap {
 	return rules
 }
 
-func hashMapAdd(rules *util.HashMap, pkg, rule Ref) {
+func refSliceEqual(a, b []Ref) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !a[i].Equal(b[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func hashMapAdd(rules *util.HasherMap[Ref, []Ref], pkg, rule Ref) {
 	prev, ok := rules.Get(pkg)
 	if !ok {
 		rules.Put(pkg, []Ref{rule})
 		return
 	}
-	for _, p := range prev.([]Ref) {
+	for _, p := range prev {
 		if p.Equal(rule) {
 			return
 		}
 	}
-	rules.Put(pkg, append(prev.([]Ref), rule))
+	rules.Put(pkg, append(prev, rule))
 }
 
 func (c *Compiler) GetAnnotationSet() *AnnotationSet {
@@ -1867,7 +1870,7 @@ func (c *Compiler) resolveAllRefs() {
 
 		var ruleExports []Ref
 		if x, ok := rules.Get(mod.Package.Path); ok {
-			ruleExports = x.([]Ref)
+			ruleExports = x
 		}
 
 		globals := getGlobals(mod.Package, ruleExports, mod.Imports)
@@ -3014,7 +3017,7 @@ func (qc *queryCompiler) resolveRefs(qctx *QueryContext, body Body) (Body, error
 			var ruleExports []Ref
 			rules := qc.compiler.getExports()
 			if exist, ok := rules.Get(pkg.Path); ok {
-				ruleExports = exist.([]Ref)
+				ruleExports = exist
 			}
 
 			globals = getGlobals(qctx.Package, ruleExports, qctx.Imports)
@@ -3542,10 +3545,8 @@ func (n *TreeNode) add(path Ref, rule *Rule) {
 		}
 		node.Children[sub.Key] = sub
 		node.Sorted = append(node.Sorted, sub.Key)
-	} else {
-		if rule != nil {
-			node.Values = append(node.Values, rule)
-		}
+	} else if rule != nil {
+		node.Values = append(node.Values, rule)
 	}
 }
 
@@ -4231,6 +4232,9 @@ func (f *equalityFactory) Generate(other *Term) *Expr {
 	return expr
 }
 
+// TODO: Move to internal package?
+const LocalVarPrefix = "__local"
+
 type localVarGenerator struct {
 	exclude VarSet
 	suffix  string
@@ -4255,7 +4259,7 @@ func newLocalVarGenerator(suffix string, node interface{}) *localVarGenerator {
 
 func (l *localVarGenerator) Generate() Var {
 	for {
-		result := Var("__local" + l.suffix + strconv.Itoa(l.next) + "__")
+		result := Var(LocalVarPrefix + l.suffix + strconv.Itoa(l.next) + "__")
 		l.next++
 		if !l.exclude.Contains(result) {
 			return result

@@ -20,7 +20,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/OneOfOne/xxhash"
+	"github.com/cespare/xxhash/v2"
 
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/ast/location"
@@ -721,7 +721,7 @@ func (num Number) Hash() int {
 	f, err := json.Number(num).Float64()
 	if err != nil {
 		bs := []byte(num)
-		h := xxhash.Checksum64(bs)
+		h := xxhash.Sum64(bs)
 		return int(h)
 	}
 	return int(f)
@@ -837,8 +837,7 @@ func (str String) String() string {
 
 // Hash returns the hash code for the Value.
 func (str String) Hash() int {
-	h := xxhash.ChecksumString64S(string(str), hashSeed0)
-	return int(h)
+	return int(xxhash.Sum64String(string(str)))
 }
 
 // Var represents a variable as defined by the language.
@@ -879,8 +878,7 @@ func (v Var) Find(path Ref) (Value, error) {
 
 // Hash returns the hash code for the Value.
 func (v Var) Hash() int {
-	h := xxhash.ChecksumString64S(string(v), hashSeed0)
-	return int(h)
+	return int(xxhash.Sum64String(string(v)))
 }
 
 // IsGround always returns false.
@@ -1015,6 +1013,25 @@ func (ref Ref) Dynamic() int {
 // Copy returns a deep copy of ref.
 func (ref Ref) Copy() Ref {
 	return termSliceCopy(ref)
+}
+
+// CopyNonGround returns a new ref with deep copies of the non-ground parts and shallow
+// copies of the ground parts. This is a *much* cheaper operation than Copy for operations
+// that only intend to modify (e.g. plug) the non-ground parts. The head element of the ref
+// is always shallow copied.
+func (ref Ref) CopyNonGround() Ref {
+	cpy := make(Ref, len(ref))
+	cpy[0] = ref[0]
+
+	for i := 1; i < len(ref); i++ {
+		if ref[i].Value.IsGround() {
+			cpy[i] = ref[i]
+		} else {
+			cpy[i] = ref[i].Copy()
+		}
+	}
+
+	return cpy
 }
 
 // Equal returns true if ref is equal to other.
@@ -1374,14 +1391,14 @@ func (arr *Array) String() string {
 
 	defer sbPool.Put(sb)
 
-	sb.WriteRune('[')
+	sb.WriteByte('[')
 	for i, e := range arr.elems {
 		if i > 0 {
 			sb.WriteString(", ")
 		}
 		sb.WriteString(e.String())
 	}
-	sb.WriteRune(']')
+	sb.WriteByte(']')
 
 	return sb.String()
 }
@@ -1572,14 +1589,14 @@ func (s *set) String() string {
 
 	defer sbPool.Put(sb)
 
-	sb.WriteRune('{')
+	sb.WriteByte('{')
 	for i := range s.sortedKeys() {
 		if i > 0 {
 			sb.WriteString(", ")
 		}
 		sb.WriteString(s.keys[i].Value.String())
 	}
-	sb.WriteRune('}')
+	sb.WriteByte('}')
 
 	return sb.String()
 }
@@ -1747,20 +1764,6 @@ func (s *set) Sorted() *Array {
 // Slice returns a slice of terms contained in the set.
 func (s *set) Slice() []*Term {
 	return s.sortedKeys()
-}
-
-// Internal method to use for cases where a set may be reused in favor
-// of creating a new one (with the associated allocations).
-func (s *set) clear() {
-	clear(s.elems)
-	s.keys = s.keys[:0]
-	s.hash = 0
-	s.ground = true
-	s.sortGuard = sync.Once{}
-}
-
-func (s *set) insertNoGuard(x *Term) {
-	s.insert(x, false)
 }
 
 // NOTE(philipc): We assume a many-readers, single-writer model here.
@@ -2214,7 +2217,7 @@ type objectElem struct {
 type objectElemSlice []*objectElem
 
 func (s objectElemSlice) Less(i, j int) bool { return Compare(s[i].key.Value, s[j].key.Value) < 0 }
-func (s objectElemSlice) Swap(i, j int)      { x := s[i]; s[i] = s[j]; s[j] = x }
+func (s objectElemSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s objectElemSlice) Len() int           { return len(s) }
 
 // Item is a helper for constructing an tuple containing two Terms
@@ -2499,7 +2502,7 @@ func (obj *object) String() string {
 
 	defer sbPool.Put(sb)
 
-	sb.WriteRune('{')
+	sb.WriteByte('{')
 
 	for i, elem := range obj.sortedKeys() {
 		if i > 0 {
@@ -2509,7 +2512,7 @@ func (obj *object) String() string {
 		sb.WriteString(": ")
 		sb.WriteString(elem.value.String())
 	}
-	sb.WriteRune('}')
+	sb.WriteByte('}')
 
 	return sb.String()
 }
@@ -3063,14 +3066,10 @@ func (c Call) String() string {
 
 func termSliceCopy(a []*Term) []*Term {
 	cpy := make([]*Term, len(a))
-	termSliceCopyTo(a, cpy)
-	return cpy
-}
-
-func termSliceCopyTo(src, dst []*Term) {
-	for i := range src {
-		dst[i] = src[i].Copy()
+	for i := range a {
+		cpy[i] = a[i].Copy()
 	}
+	return cpy
 }
 
 func termSliceEqual(a, b []*Term) bool {

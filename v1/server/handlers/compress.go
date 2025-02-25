@@ -131,7 +131,7 @@ func (w *compressResponseWriter) doCompressedResponse() error {
 	w.Header().Del(contentLengthHeader)
 	w.writeHeader()
 	// there's nothing to write
-	if w.buffer == nil || len(w.buffer) <= 0 {
+	if len(w.buffer) == 0 {
 		return nil
 	}
 	gzipWriter := gzipPool.Get().(*gzip.Writer)

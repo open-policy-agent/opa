@@ -31,3 +31,7 @@ type (
 func NewAnnotationsRef(a *Annotations) *AnnotationsRef {
 	return v1.NewAnnotationsRef(a)
 }
+
+func BuildAnnotationSet(modules []*Module) (*AnnotationSet, Errors) {
+	return v1.BuildAnnotationSet(modules)
+}

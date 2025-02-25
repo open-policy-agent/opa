@@ -2096,10 +2096,8 @@ func assertVariables(t *testing.T, s Session, variables []Variable, exp map[stri
 				t.Fatalf("Unexpected error: %v", err)
 			}
 			assertVariables(t, s, vars, expVar.children)
-		} else {
-			if v.VariablesReference() != 0 {
-				t.Errorf("Expected zero variables reference")
-			}
+		} else if v.VariablesReference() != 0 {
+			t.Errorf("Expected zero variables reference")
 		}
 	}
 }

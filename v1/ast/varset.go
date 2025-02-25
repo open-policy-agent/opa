@@ -16,11 +16,16 @@ type VarSet map[Var]struct{}
 
 // NewVarSet returns a new VarSet containing the specified variables.
 func NewVarSet(vs ...Var) VarSet {
-	s := VarSet{}
+	s := make(VarSet, len(vs))
 	for _, v := range vs {
 		s.Add(v)
 	}
 	return s
+}
+
+// NewVarSet returns a new VarSet containing the specified variables.
+func NewVarSetOfSize(size int) VarSet {
+	return make(VarSet, size)
 }
 
 // Add updates the set to include the variable "v".
@@ -36,7 +41,7 @@ func (s VarSet) Contains(v Var) bool {
 
 // Copy returns a shallow copy of the VarSet.
 func (s VarSet) Copy() VarSet {
-	cpy := VarSet{}
+	cpy := NewVarSetOfSize(len(s))
 	for v := range s {
 		cpy.Add(v)
 	}
@@ -45,7 +50,13 @@ func (s VarSet) Copy() VarSet {
 
 // Diff returns a VarSet containing variables in s that are not in vs.
 func (s VarSet) Diff(vs VarSet) VarSet {
-	r := VarSet{}
+	i := 0
+	for v := range s {
+		if !vs.Contains(v) {
+			i++
+		}
+	}
+	r := NewVarSetOfSize(i)
 	for v := range s {
 		if !vs.Contains(v) {
 			r.Add(v)
@@ -56,15 +67,26 @@ func (s VarSet) Diff(vs VarSet) VarSet {
 
 // Equal returns true if s contains exactly the same elements as vs.
 func (s VarSet) Equal(vs VarSet) bool {
-	if len(s.Diff(vs)) > 0 {
+	if len(s) != len(vs) {
 		return false
 	}
-	return len(vs.Diff(s)) == 0
+	for v := range s {
+		if !vs.Contains(v) {
+			return false
+		}
+	}
+	return true
 }
 
 // Intersect returns a VarSet containing variables in s that are in vs.
 func (s VarSet) Intersect(vs VarSet) VarSet {
-	r := VarSet{}
+	i := 0
+	for v := range s {
+		if vs.Contains(v) {
+			i++
+		}
+	}
+	r := NewVarSetOfSize(i)
 	for v := range s {
 		if vs.Contains(v) {
 			r.Add(v)
@@ -73,7 +95,7 @@ func (s VarSet) Intersect(vs VarSet) VarSet {
 	return r
 }
 
-// Sorted returns a sorted slice of vars from s.
+// Sorted returns a new sorted slice of vars from s.
 func (s VarSet) Sorted() []Var {
 	sorted := make([]Var, 0, len(s))
 	for v := range s {

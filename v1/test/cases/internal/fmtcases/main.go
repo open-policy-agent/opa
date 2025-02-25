@@ -89,7 +89,7 @@ func copyEntry(sourceRoot string, sourceRegoVersion ast.RegoVersion, e os.DirEnt
 		}
 
 		// Format test modules
-		for _, testCase := range testCases.Cases {
+		for _, testCase := range testCases.Cases { //nolint:gocritic
 			for i, module := range testCase.Modules {
 				bs, err := format.SourceWithOpts(fmt.Sprintf("mod%d.rego", i), []byte(module),
 					format.Opts{

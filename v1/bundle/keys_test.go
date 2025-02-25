@@ -52,10 +52,8 @@ func TestValidateAndInjectDefaultsVerificationConfig(t *testing.T) {
 				if tc.err != nil && tc.err.Error() != err.Error() {
 					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
 				}
-			} else {
-				if err != nil {
-					t.Fatalf("Unexpected error %v", err)
-				}
+			} else if err != nil {
+				t.Fatalf("Unexpected error %v", err)
 			}
 
 			if !reflect.DeepEqual(tc.vc.PublicKeys, tc.publicKeys) {
@@ -99,10 +97,8 @@ func TestGetPublicKey(t *testing.T) {
 				if tc.err != nil && tc.err.Error() != err.Error() {
 					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
 				}
-			} else {
-				if err != nil {
-					t.Fatalf("Unexpected error %v", err)
-				}
+			} else if err != nil {
+				t.Fatalf("Unexpected error %v", err)
 			}
 
 			if !reflect.DeepEqual(kc, tc.kc) {
@@ -328,7 +324,7 @@ func TestGetClaimsErrors(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(rootDir string) {
-		//json unmarshal error
+		// json unmarshal error
 		sc := NewSigningConfig("secret", "HS256", filepath.Join(rootDir, "claims.json"))
 		_, err := sc.GetClaims()
 		if err == nil {

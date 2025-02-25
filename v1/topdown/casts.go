@@ -22,7 +22,7 @@ func builtinToNumber(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 		}
 		return iter(ast.InternedIntNumberTerm(0))
 	case ast.Number:
-		return iter(ast.NewTerm(a))
+		return iter(operands[0])
 	case ast.String:
 		strValue := string(a)
 
@@ -46,7 +46,7 @@ func builtinToNumber(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 	return builtins.NewOperandTypeErr(1, operands[0].Value, "null", "boolean", "number", "string")
 }
 
-// Deprecated in v0.13.0.
+// Deprecated: deprecated in v0.13.0.
 func builtinToArray(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch val := operands[0].Value.(type) {
 	case *ast.Array:
@@ -64,7 +64,7 @@ func builtinToArray(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 	}
 }
 
-// Deprecated in v0.13.0.
+// Deprecated: deprecated in v0.13.0.
 func builtinToSet(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch val := operands[0].Value.(type) {
 	case *ast.Array:
@@ -80,7 +80,7 @@ func builtinToSet(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) e
 	}
 }
 
-// Deprecated in v0.13.0.
+// Deprecated: deprecated in v0.13.0.
 func builtinToString(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch val := operands[0].Value.(type) {
 	case ast.String:
@@ -90,7 +90,7 @@ func builtinToString(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 	}
 }
 
-// Deprecated in v0.13.0.
+// Deprecated: deprecated in v0.13.0.
 func builtinToBoolean(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch val := operands[0].Value.(type) {
 	case ast.Boolean:
@@ -100,7 +100,7 @@ func builtinToBoolean(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 	}
 }
 
-// Deprecated in v0.13.0.
+// Deprecated: deprecated in v0.13.0.
 func builtinToNull(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch val := operands[0].Value.(type) {
 	case ast.Null:
@@ -110,7 +110,7 @@ func builtinToNull(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) 
 	}
 }
 
-// Deprecated in v0.13.0.
+// Deprecated: deprecated in v0.13.0.
 func builtinToObject(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch val := operands[0].Value.(type) {
 	case ast.Object:

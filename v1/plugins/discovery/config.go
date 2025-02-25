@@ -101,10 +101,8 @@ func (c *Config) validateAndInjectDefaults(services []string, confKeys map[strin
 		if err != nil {
 			return fmt.Errorf("invalid configuration for discovery service: %s", err.Error())
 		}
-	} else {
-		if len(confKeys) > 0 {
-			c.Signing = bundle.NewVerificationConfig(cpy, "", "", nil)
-		}
+	} else if len(confKeys) > 0 {
+		c.Signing = bundle.NewVerificationConfig(cpy, "", "", nil)
 	}
 
 	if c.Resource != nil {
@@ -126,9 +124,9 @@ func (c *Config) validateAndInjectDefaults(services []string, confKeys map[strin
 	c.service = service
 
 	if c.Decision != nil {
-		c.query = fmt.Sprintf("%v.%v", ast.DefaultRootDocument, strings.Replace(strings.Trim(*c.Decision, "/"), "/", ".", -1))
+		c.query = fmt.Sprintf("%v.%v", ast.DefaultRootDocument, strings.ReplaceAll(strings.Trim(*c.Decision, "/"), "/", "."))
 	} else if c.Name != nil {
-		c.query = fmt.Sprintf("%v.%v", ast.DefaultRootDocument, strings.Replace(strings.Trim(*c.Name, "/"), "/", ".", -1))
+		c.query = fmt.Sprintf("%v.%v", ast.DefaultRootDocument, strings.ReplaceAll(strings.Trim(*c.Name, "/"), "/", "."))
 	} else {
 		c.query = ast.DefaultRootDocument.String()
 	}

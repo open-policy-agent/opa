@@ -28,7 +28,7 @@ ifeq ($(WASM_ENABLED),1)
 GO_TAGS = -tags=opa_wasm
 endif
 
-GOLANGCI_LINT_VERSION := v1.60.1
+GOLANGCI_LINT_VERSION := v1.64.5
 YAML_LINT_VERSION := 0.29.0
 YAML_LINT_FORMAT ?= auto
 
@@ -114,6 +114,9 @@ install: generate
 .PHONY: test
 test: go-test wasm-test
 
+.PHONY: test-short
+test-short: go-test-short
+
 .PHONY: go-build
 go-build: generate
 	$(GO) build $(GO_TAGS) -o $(BIN) -ldflags $(LDFLAGS)
@@ -121,6 +124,10 @@ go-build: generate
 .PHONY: go-test
 go-test: generate
 	$(GO) test $(GO_TAGS),slow ./...
+
+.PHONY: go-test-short
+go-test-short: generate
+	$(GO) test $(GO_TAGS) -short ./...
 
 .PHONY: race-detector
 race-detector: generate

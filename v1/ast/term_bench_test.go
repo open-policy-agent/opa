@@ -324,8 +324,8 @@ func BenchmarkObjectConstruction(b *testing.B) {
 				for i := range n {
 					es = append(es, struct{ k, v int }{i, i})
 				}
-				rand.New(rand.NewSource(seed)) // Seed the PRNG.
-				rand.Shuffle(len(es), func(i, j int) { es[i], es[j] = es[j], es[i] })
+				r := rand.New(rand.NewSource(seed)) // Seed the PRNG.
+				r.Shuffle(len(es), func(i, j int) { es[i], es[j] = es[j], es[i] })
 				b.ResetTimer()
 				for range b.N {
 					obj := NewObject()

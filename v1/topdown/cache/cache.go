@@ -372,19 +372,13 @@ type InterQueryValueCacheBucket interface {
 }
 
 type interQueryValueCacheBucket struct {
-	items  util.TypedHashMap[ast.Value, any]
+	items  util.HasherMap[ast.Value, any]
 	config *NamedValueCacheConfig
 	mtx    sync.RWMutex
 }
 
-func newItemsMap() *util.TypedHashMap[ast.Value, any] {
-	return util.NewTypedHashMap[ast.Value, any](
-		func(a, b ast.Value) bool { return a.Compare(b) == 0 },
-		func(any, any) bool { return false }, // map equality not supported
-		func(a ast.Value) int { return a.Hash() },
-		func(any) int { return 0 }, // map equality not supported
-		nil,
-	)
+func newItemsMap() *util.HasherMap[ast.Value, any] {
+	return util.NewHasherMap[ast.Value, any](ast.ValueEqual)
 }
 
 func (c *interQueryValueCacheBucket) Get(k ast.Value) (any, bool) {

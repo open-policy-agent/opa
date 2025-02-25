@@ -680,10 +680,8 @@ p contains v if {
 							t.Fatalf("Expected error:\n\n%v\n\nbut got:\n\n%v", expErr, err.Error())
 						}
 					}
-				} else {
-					if err != nil {
-						t.Fatalf("Unexpected error %v", err)
-					}
+				} else if err != nil {
+					t.Fatalf("Unexpected error %v", err)
 				}
 			})
 		})

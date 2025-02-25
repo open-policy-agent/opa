@@ -306,7 +306,7 @@ discovery:
 `}
 
 	test.WithTempFS(fs, func(rootDir string) {
-		configFile := filepath.Join(rootDir, "/some/config.yaml")
+		configFile := filepath.Join(rootDir, "some", "config.yaml")
 		configOverrides := []string{"services.acmecorp.credentials.bearer.token=bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm"}
 
 		configBytes, err := Load(configFile, configOverrides, nil)
@@ -361,8 +361,8 @@ discovery:
 	}
 
 	test.WithTempFS(fs, func(rootDir string) {
-		configFile := filepath.Join(rootDir, "/some/config.yaml")
-		secretFile := filepath.Join(rootDir, "/some/secret.txt")
+		configFile := filepath.Join(rootDir, "some", "config.yaml")
+		secretFile := filepath.Join(rootDir, "some", "secret.txt")
 		overrideFiles := []string{"services.acmecorp.credentials.bearer.token=" + secretFile}
 
 		configBytes, err := Load(configFile, nil, overrideFiles)

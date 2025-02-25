@@ -3,11 +3,13 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
+	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -17,9 +19,89 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 	loggingtest "github.com/open-policy-agent/opa/v1/logging/test"
 	sdk_test "github.com/open-policy-agent/opa/v1/sdk/test"
-	"github.com/open-policy-agent/opa/v1/util"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
+
+type execOutput struct {
+	Result []execResultItem `json:"result"`
+}
+
+type execResultItem struct {
+	DecisionID string              `json:"decision_id,omitempty"`
+	Path       string              `json:"path"`
+	Error      execResultItemError `json:"error,omitempty"`
+	Result     *any                `json:"result,omitempty"`
+}
+
+type execResultItemError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+func (r execResultItemError) isEmpty() bool {
+	return r.Code == "" && r.Message == ""
+}
+
+func toAnyPtr(a any) *any {
+	return &a
+}
+
+func toStringSlice(a *any) []string {
+	switch a := (*a).(type) {
+	case []string:
+		return a
+	case []interface{}:
+		strSlice := make([]string, len(a))
+		for i := range a {
+			strSlice[i] = a[i].(string)
+		}
+		return strSlice
+	}
+
+	return nil
+}
+
+func resultSliceEquals(t *testing.T, expected, output []execResultItem) {
+	t.Helper()
+
+	if len(expected) != len(output) {
+		t.Fatalf("Expected %d results but got %d", len(expected), len(output))
+	}
+
+	for i := range output {
+		if expected[i].Path != output[i].Path {
+			t.Fatalf("Expected path %v but got %v", expected[i].Path, output[i].Path)
+		}
+
+		if expected[i].Error.isEmpty() {
+			if !output[i].Error.isEmpty() {
+				t.Fatalf("Expected no error but got %v", output[i].Error)
+			}
+
+			if !slices.Equal(toStringSlice(expected[i].Result), toStringSlice(output[i].Result)) {
+				t.Fatalf("Expected result %v but got %v", expected[i].Result, output[i].Result)
+			}
+
+			if !uuidPattern.MatchString(output[i].DecisionID) {
+				t.Fatalf("Expected decision ID to be a UUID but got %v", output[i].DecisionID)
+			}
+		} else {
+			if expected[i].Error.Code != output[i].Error.Code {
+				t.Fatalf("Expected error code %v but got %v", expected[i].Error.Code, output[i].Error.Code)
+			}
+
+			if expected[i].Error.Message != output[i].Error.Message {
+				t.Fatalf("Expected error message %v but got %v", expected[i].Error.Message, output[i].Error.Message)
+			}
+
+			if output[i].DecisionID != "" {
+				t.Fatalf("Expected no decision ID but got %v", output[i].DecisionID)
+			}
+		}
+	}
+}
+
+var uuidPattern = regexp.MustCompile(`^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$`)
 
 func TestExecBasic(t *testing.T) {
 
@@ -35,7 +117,6 @@ func TestExecBasic(t *testing.T) {
 		s := sdk_test.MustNewServer(sdk_test.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"test.rego": `
 				package system
-				import rego.v1
 				main contains "hello"
 			`,
 		}))
@@ -56,24 +137,26 @@ func TestExecBasic(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		output := util.MustUnmarshalJSON(bytes.ReplaceAll(buf.Bytes(), []byte(dir), nil))
-
-		exp := util.MustUnmarshalJSON([]byte(`{"result": [{
-			"path": "/test.json",
-			"result": ["hello"]
-		}, {
-			"path": "/test2.yaml",
-			"result": ["hello"]
-		}, {
-			"path": "/test3.yml",
-			"result": ["hello"]
-		}]}`))
-
-		if !reflect.DeepEqual(output, exp) {
-			t.Fatal("Expected:", exp, "Got:", output)
+		var output execOutput
+		if err := json.Unmarshal(bytes.ReplaceAll(buf.Bytes(), []byte(dir), nil), &output); err != nil {
+			t.Fatal(err)
 		}
-	})
 
+		resultSliceEquals(t, []execResultItem{
+			{
+				Path:   "/test.json",
+				Result: toAnyPtr([]string{"hello"}),
+			},
+			{
+				Path:   "/test2.yaml",
+				Result: toAnyPtr([]string{"hello"}),
+			},
+			{
+				Path:   "/test3.yml",
+				Result: toAnyPtr([]string{"hello"}),
+			},
+		}, output.Result)
+	})
 }
 
 func TestExecDecisionOption(t *testing.T) {
@@ -109,17 +192,17 @@ func TestExecDecisionOption(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		output := util.MustUnmarshalJSON(bytes.ReplaceAll(buf.Bytes(), []byte(dir), nil))
-
-		exp := util.MustUnmarshalJSON([]byte(`{"result": [{
-			"path": "/test.json",
-			"result": ["hello"]
-		}]}`))
-
-		if !reflect.DeepEqual(output, exp) {
-			t.Fatal("Expected:", exp, "Got:", output)
+		var output execOutput
+		if err := json.Unmarshal(bytes.ReplaceAll(buf.Bytes(), []byte(dir), nil), &output); err != nil {
+			t.Fatal(err)
 		}
 
+		resultSliceEquals(t, []execResultItem{
+			{
+				Path:   "/test.json",
+				Result: toAnyPtr([]string{"hello"}),
+			},
+		}, output.Result)
 	})
 
 }
@@ -146,17 +229,17 @@ func TestExecBundleFlag(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		output := util.MustUnmarshalJSON(bytes.ReplaceAll(buf.Bytes(), []byte(dir), nil))
-
-		exp := util.MustUnmarshalJSON([]byte(`{"result": [{
-			"path": "/files/test.json",
-			"result": ["hello"]
-		}]}`))
-
-		if !reflect.DeepEqual(output, exp) {
-			t.Fatal("Expected:", exp, "Got:", output)
+		var output execOutput
+		if err := json.Unmarshal(bytes.ReplaceAll(buf.Bytes(), []byte(dir), nil), &output); err != nil {
+			t.Fatal(err)
 		}
 
+		resultSliceEquals(t, []execResultItem{
+			{
+				Path:   "/files/test.json",
+				Result: toAnyPtr([]string{"hello"}),
+			},
+		}, output.Result)
 	})
 }
 
@@ -266,16 +349,17 @@ main contains "hello" if {
 						t.Fatal(err)
 					}
 
-					output := util.MustUnmarshalJSON(bytes.ReplaceAll(buf.Bytes(), []byte(dir), nil))
-
-					exp := util.MustUnmarshalJSON([]byte(`{"result": [{
-			"path": "/test.json",
-			"result": ["hello"]
-		}]}`))
-
-					if !reflect.DeepEqual(output, exp) {
-						t.Fatal("Expected:", exp, "Got:", output)
+					var output execOutput
+					if err := json.Unmarshal(bytes.ReplaceAll(buf.Bytes(), []byte(dir), nil), &output); err != nil {
+						t.Fatal(err)
 					}
+
+					resultSliceEquals(t, []execResultItem{
+						{
+							Path:   "/test.json",
+							Result: toAnyPtr([]string{"hello"}),
+						},
+					}, output.Result)
 				}
 			})
 		})
@@ -495,16 +579,17 @@ main contains "hello" if {
 						t.Fatal(err)
 					}
 
-					output := util.MustUnmarshalJSON(bytes.ReplaceAll(buf.Bytes(), []byte(dir), nil))
-
-					exp := util.MustUnmarshalJSON([]byte(`{"result": [{
-			"path": "/test.json",
-			"result": ["hello"]
-		}]}`))
-
-					if !reflect.DeepEqual(output, exp) {
-						t.Fatal("Expected:", exp, "Got:", output)
+					var output execOutput
+					if err := json.Unmarshal(bytes.ReplaceAll(buf.Bytes(), []byte(dir), nil), &output); err != nil {
+						t.Fatal(err)
 					}
+
+					resultSliceEquals(t, []execResultItem{
+						{
+							Path:   "/test.json",
+							Result: toAnyPtr([]string{"hello"}),
+						},
+					}, output.Result)
 				}
 			})
 		})
@@ -838,16 +923,17 @@ main contains "hello" if {
 								t.Fatal(err)
 							}
 
-							output := util.MustUnmarshalJSON(bytes.ReplaceAll(buf.Bytes(), []byte(root), nil))
-
-							exp := util.MustUnmarshalJSON([]byte(`{"result": [{
-			"path": "/files/test.json",
-			"result": ["hello"]
-		}]}`))
-
-							if !reflect.DeepEqual(output, exp) {
-								t.Fatal("Expected:", exp, "Got:", output)
+							var output execOutput
+							if err := json.Unmarshal(bytes.ReplaceAll(buf.Bytes(), []byte(root), nil), &output); err != nil {
+								t.Fatal(err)
 							}
+
+							resultSliceEquals(t, []execResultItem{
+								{
+									Path:   "/files/test.json",
+									Result: toAnyPtr([]string{"hello"}),
+								},
+							}, output.Result)
 						}
 					})
 				})
@@ -912,7 +998,7 @@ func TestFailFlagCases(t *testing.T) {
 		files        map[string]string
 		decision     string
 		expectError  bool
-		expected     interface{}
+		expected     []byte
 		fail         bool
 		failDefined  bool
 		failNonEmpty bool
@@ -934,13 +1020,13 @@ func TestFailFlagCases(t *testing.T) {
 				}`,
 			},
 			expectError: false,
-			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
+			expected: []byte(`{"result": [{
 			"path": "/files/test.json",
 			"error": {
 				"code": "opa_undefined_error",
 				"message": "/system/main decision was undefined"
 			  }
-		}]}`)),
+		}]}`),
 			failDefined: true,
 		},
 		{
@@ -954,10 +1040,10 @@ func TestFailFlagCases(t *testing.T) {
 			},
 			decision:    "",
 			expectError: true,
-			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
+			expected: []byte(`{"result": [{
 			"path": "/files/test.json",
 			"result": ["hello"]
-		}]}`)),
+		}]}`),
 			failDefined: true,
 		},
 		{
@@ -978,10 +1064,10 @@ func TestFailFlagCases(t *testing.T) {
 			},
 			decision:    "fail/defined/flag/fail_test",
 			expectError: true,
-			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
+			expected: []byte(`{"result": [{
 			"path": "/files/test.json",
 			"result": true
-		}]}`)),
+		}]}`),
 			failDefined: true,
 		},
 		{
@@ -998,10 +1084,10 @@ func TestFailFlagCases(t *testing.T) {
 			},
 			decision:    "fail/defined/flag/fail_test",
 			expectError: true,
-			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
+			expected: []byte(`{"result": [{
 			"path": "/files/test.json",
 			"result": false
-		}]}`)),
+		}]}`),
 			failDefined: true,
 		},
 		{
@@ -1021,13 +1107,13 @@ func TestFailFlagCases(t *testing.T) {
 				}`,
 			},
 			expectError: true,
-			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
+			expected: []byte(`{"result": [{
 			"path": "/files/test.json",
 			"error": {
 				"code": "opa_undefined_error",
 				"message": "/system/main decision was undefined"
 			  }
-		}]}`)),
+		}]}`),
 			fail: true,
 		},
 		{
@@ -1040,10 +1126,10 @@ func TestFailFlagCases(t *testing.T) {
 			main contains "hello"`,
 			},
 			expectError: false,
-			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
+			expected: []byte(`{"result": [{
 			"path": "/files/test.json",
 			"result": ["hello"]
-		}]}`)),
+		}]}`),
 			fail: true,
 		},
 		{
@@ -1064,10 +1150,10 @@ func TestFailFlagCases(t *testing.T) {
 			},
 			decision:    "fail/defined/flag/fail_test",
 			expectError: false,
-			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
+			expected: []byte(`{"result": [{
 			"path": "/files/test.json",
 			"result": true
-		}]}`)),
+		}]}`),
 			fail: true,
 		},
 		{
@@ -1084,10 +1170,10 @@ func TestFailFlagCases(t *testing.T) {
 			},
 			decision:    "fail/defined/flag/fail_test",
 			expectError: false,
-			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
+			expected: []byte(`{"result": [{
 			"path": "/files/test.json",
 			"result": false
-		}]}`)),
+		}]}`),
 			fail: true,
 		},
 		{
@@ -1107,13 +1193,13 @@ func TestFailFlagCases(t *testing.T) {
 				}`,
 			},
 			expectError: false,
-			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
+			expected: []byte(`{"result": [{
 			"path": "/files/test.json",
 			"error": {
 				"code": "opa_undefined_error",
 				"message": "/system/main decision was undefined"
 			  }
-		}]}`)),
+		}]}`),
 			failNonEmpty: true,
 		},
 		{
@@ -1127,10 +1213,10 @@ func TestFailFlagCases(t *testing.T) {
 			},
 			decision:    "",
 			expectError: true,
-			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
+			expected: []byte(`{"result": [{
 			"path": "/files/test.json",
 			"result": ["hello"]
-		}]}`)),
+		}]}`),
 			failNonEmpty: true,
 		},
 		{
@@ -1151,10 +1237,10 @@ func TestFailFlagCases(t *testing.T) {
 			},
 			decision:    "fail/non/empty/flag/fail_test",
 			expectError: true,
-			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
+			expected: []byte(`{"result": [{
 			"path": "/files/test.json",
 			"result": true
-		}]}`)),
+		}]}`),
 			failNonEmpty: true,
 		},
 		{
@@ -1171,10 +1257,10 @@ func TestFailFlagCases(t *testing.T) {
 			},
 			decision:    "fail/non/empty/flag/fail_test",
 			expectError: true,
-			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
+			expected: []byte(`{"result": [{
 			"path": "/files/test.json",
 			"result": false
-		}]}`)),
+		}]}`),
 			failNonEmpty: true,
 		},
 		{
@@ -1191,10 +1277,10 @@ func TestFailFlagCases(t *testing.T) {
 			},
 			decision:    "fail/non/empty/flag/fail_test",
 			expectError: false,
-			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
+			expected: []byte(`{"result": [{
 			"path": "/files/test.json",
 			"result": []
-		}]}`)),
+		}]}`),
 			failNonEmpty: true,
 		},
 		{
@@ -1211,10 +1297,10 @@ func TestFailFlagCases(t *testing.T) {
 			},
 			decision:    "fail/non/empty/flag/fail_test",
 			expectError: false,
-			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
+			expected: []byte(`{"result": [{
 			"path": "/files/test.json",
 			"result": []
-		}]}`)),
+		}]}`),
 			failNonEmpty: true,
 		},
 	}
@@ -1242,11 +1328,17 @@ func TestFailFlagCases(t *testing.T) {
 					t.Fatal("expected error, but none occurred in test")
 				}
 
-				output := util.MustUnmarshalJSON(bytes.ReplaceAll(buf.Bytes(), []byte(dir), nil))
-
-				if !reflect.DeepEqual(output, tt.expected) {
-					t.Errorf("Expected %v, got: %v", tt.expected, output)
+				var output execOutput
+				if err := json.Unmarshal(bytes.ReplaceAll(buf.Bytes(), []byte(dir), nil), &output); err != nil {
+					t.Fatal(err)
 				}
+
+				var expected execOutput
+				if err := json.Unmarshal(tt.expected, &expected); err != nil {
+					t.Fatal(err)
+				}
+
+				resultSliceEquals(t, expected.Result, output.Result)
 			})
 		})
 	}
@@ -1328,7 +1420,7 @@ func TestExecWithInvalidInputOptions(t *testing.T) {
 				params.BundlePaths = []string{dir + "/bundle/"}
 				if tt.stdIn {
 					params.StdIn = true
-					tempFile, err := os.CreateTemp("", "test")
+					tempFile, err := os.CreateTemp(t.TempDir(), "test")
 					if err != nil {
 						t.Fatalf("unexpected error creating temp file: %q", err.Error())
 					}

@@ -850,7 +850,7 @@ func (s *session) AddBreakpoint(loc location.Location) (Breakpoint, error) {
 	return s.breakpoints.add(loc), nil
 }
 
-func (s *session) RemoveBreakpoint(ID BreakpointID) (Breakpoint, error) {
+func (s *session) RemoveBreakpoint(id BreakpointID) (Breakpoint, error) {
 	if s == nil {
 		return nil, errors.New("no active debug session")
 	}
@@ -858,9 +858,9 @@ func (s *session) RemoveBreakpoint(ID BreakpointID) (Breakpoint, error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
-	bp := s.breakpoints.remove(ID)
+	bp := s.breakpoints.remove(id)
 	if bp == nil {
-		return nil, fmt.Errorf("breakpoint %d not found", ID)
+		return nil, fmt.Errorf("breakpoint %d not found", id)
 	}
 
 	return bp, nil

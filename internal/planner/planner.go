@@ -497,7 +497,6 @@ func (p *Planner) planDotOr(obj ir.Local, key ir.Operand, or stmtFactory, iter p
 
 func (p *Planner) planNestedObjects(obj ir.Local, ref ast.Ref, iter planLocalIter) error {
 	if len(ref) == 0 {
-		//return fmt.Errorf("nested object construction didn't create object")
 		return iter(obj)
 	}
 
@@ -991,8 +990,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 		op := e.Operator()
 
 		if replacement := p.mocks.Lookup(operator); replacement != nil {
-			switch r := replacement.Value.(type) {
-			case ast.Ref:
+			if r, ok := replacement.Value.(ast.Ref); ok {
 				if !r.HasPrefix(ast.DefaultRootRef) && !r.HasPrefix(ast.InputRootRef) {
 					// replacement is builtin
 					operator = r.String()

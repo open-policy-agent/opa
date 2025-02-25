@@ -33,6 +33,11 @@ Verify the build was successful with `./opa_<OS>_<ARCH> run`.
 You can re-build the project with `make build`, execute all of the tests
 with `make test`, and execute all of the performance benchmarks with `make perf`.
 
+For quicker development-test iteration, you may use `make test-short` during development,
+and only run `make test` before submitting your changed. This avoids running the slowest
+tests and normally completes under a minute (compared to the several minutes required to run
+the full test suite).
+
 The static analysis checks (e.g., `go fmt`, `golint`, `go vet`) can be run
 with `make check`.
 
@@ -106,13 +111,7 @@ Pull Request, please mention it in the discussion.
 
 Several packages in this repository implement benchmark tests. To execute the
 benchmarks you can run `make perf` in the top-level directory. We use the Go
-benchmarking framework for all benchmarks. The benchmarks run on every pull
-request.
-
-To help catch performance regressions we also run a batch job that compares the
-benchmark results from the tip of main against the last major release. All of
-the results are posted and can be viewed
-[here](https://opa-benchmark-results.s3.amazonaws.com/index.html).
+benchmarking framework for all benchmarks.
 
 ## Dependencies
 

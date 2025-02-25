@@ -21,6 +21,15 @@ type Params struct {
 	SkipKnownSchemaCheck   bool
 }
 
+var (
+	configKey               = ast.StringTerm("config")
+	envKey                  = ast.StringTerm("env")
+	versionKey              = ast.StringTerm("version")
+	commitKey               = ast.StringTerm("commit")
+	authorizationEnabledKey = ast.StringTerm("authorization_enabled")
+	skipKnownSchemaCheckKey = ast.StringTerm("skip_known_schema_check")
+)
+
 // Term returns the runtime information as an ast.Term object.
 func Term(params Params) (*ast.Term, error) {
 
@@ -38,7 +47,7 @@ func Term(params Params) (*ast.Term, error) {
 			return nil, err
 		}
 
-		obj.Insert(ast.StringTerm("config"), ast.NewTerm(v))
+		obj.Insert(configKey, ast.NewTerm(v))
 	}
 
 	env := ast.NewObject()
@@ -46,17 +55,17 @@ func Term(params Params) (*ast.Term, error) {
 	for _, s := range os.Environ() {
 		parts := strings.SplitN(s, "=", 2)
 		if len(parts) == 1 {
-			env.Insert(ast.StringTerm(parts[0]), ast.NullTerm())
+			env.Insert(ast.StringTerm(parts[0]), ast.InternedNullTerm)
 		} else if len(parts) > 1 {
 			env.Insert(ast.StringTerm(parts[0]), ast.StringTerm(parts[1]))
 		}
 	}
 
-	obj.Insert(ast.StringTerm("env"), ast.NewTerm(env))
-	obj.Insert(ast.StringTerm("version"), ast.StringTerm(version.Version))
-	obj.Insert(ast.StringTerm("commit"), ast.StringTerm(version.Vcs))
-	obj.Insert(ast.StringTerm("authorization_enabled"), ast.BooleanTerm(params.IsAuthorizationEnabled))
-	obj.Insert(ast.StringTerm("skip_known_schema_check"), ast.BooleanTerm(params.SkipKnownSchemaCheck))
+	obj.Insert(envKey, ast.NewTerm(env))
+	obj.Insert(versionKey, ast.StringTerm(version.Version))
+	obj.Insert(commitKey, ast.StringTerm(version.Vcs))
+	obj.Insert(authorizationEnabledKey, ast.InternedBooleanTerm(params.IsAuthorizationEnabled))
+	obj.Insert(skipKnownSchemaCheckKey, ast.InternedBooleanTerm(params.SkipKnownSchemaCheck))
 
 	return ast.NewTerm(obj), nil
 }

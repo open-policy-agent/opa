@@ -63,12 +63,10 @@ func SourceWithOpts(filename string, src []byte, opts Opts) ([]byte, error) {
 	var parserOpts ast.ParserOptions
 	if opts.ParserOptions != nil {
 		parserOpts = *opts.ParserOptions
-	} else {
-		if regoVersion == ast.RegoV1 {
-			// If the rego version is V1, we need to parse it as such, to allow for future keywords not being imported.
-			// Otherwise, we'll default to the default rego-version.
-			parserOpts.RegoVersion = ast.RegoV1
-		}
+	} else if regoVersion == ast.RegoV1 {
+		// If the rego version is V1, we need to parse it as such, to allow for future keywords not being imported.
+		// Otherwise, we'll default to the default rego-version.
+		parserOpts.RegoVersion = ast.RegoV1
 	}
 
 	if parserOpts.RegoVersion == ast.RegoUndefined {
@@ -1123,11 +1121,7 @@ func (w *writer) writeImports(imports []*ast.Import, comments []*ast.Comment) []
 		comments = w.insertComments(comments, group[0].Loc())
 
 		// Sort imports within a newline grouping.
-		sort.Slice(group, func(i, j int) bool {
-			a := group[i]
-			b := group[j]
-			return a.Compare(b) < 0
-		})
+		slices.SortFunc(group, (*ast.Import).Compare)
 		for _, i := range group {
 			w.startLine()
 			w.writeImport(i)

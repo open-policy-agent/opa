@@ -134,7 +134,7 @@ func (c parsedTermCache) String() string {
 	s.WriteRune('{')
 	var e *parsedTermCacheItem
 	for e = c.m; e != nil; e = e.next {
-		s.WriteString(fmt.Sprintf("%v", e))
+		s.WriteString(e.String())
 	}
 	s.WriteRune('}')
 	return s.String()
@@ -726,7 +726,9 @@ func (p *Parser) parseRules() []*Rule {
 
 	// p[x] if ...  becomes a single-value rule p[x]
 	if hasIf && !usesContains && len(rule.Head.Ref()) == 2 {
-		if !rule.Head.Ref()[1].IsGround() && len(rule.Head.Args) == 0 {
+		v := rule.Head.Ref()[1]
+		_, isRef := v.Value.(Ref)
+		if (!v.IsGround() || isRef) && len(rule.Head.Args) == 0 {
 			rule.Head.Key = rule.Head.Ref()[1]
 		}
 
@@ -2061,7 +2063,7 @@ func (p *Parser) parseTermPairList(end tokens.Token, r [][2]*Term) [][2]*Term {
 func (p *Parser) parseTermOp(values ...tokens.Token) *Term {
 	for i := range values {
 		if p.s.tok == values[i] {
-			r := RefTerm(VarTerm(fmt.Sprint(p.s.tok)).SetLocation(p.s.Loc())).SetLocation(p.s.Loc())
+			r := RefTerm(VarTerm(p.s.tok.String()).SetLocation(p.s.Loc())).SetLocation(p.s.Loc())
 			p.scan()
 			return r
 		}
@@ -2610,7 +2612,7 @@ func parseAuthorString(s string) (*AuthorAnnotation, error) {
 		strings.HasSuffix(trailing, emailSuffix) {
 		email = trailing[len(emailPrefix):]
 		email = email[0 : len(email)-len(emailSuffix)]
-		namePartCount = namePartCount - 1
+		namePartCount -= 1
 	}
 
 	name := strings.Join(parts[0:namePartCount], " ")
@@ -2682,7 +2684,7 @@ func IsFutureKeywordForRegoVersion(s string, v RegoVersion) bool {
 func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]tokens.Token) {
 	path := imp.Path.Value.(Ref)
 
-	if len(path) == 1 || !path[1].Equal(StringTerm("keywords")) {
+	if len(path) == 1 || !path[1].Equal(keywordsTerm) {
 		p.errorf(imp.Path.Location, "invalid import, must be `future.keywords`")
 		return
 	}

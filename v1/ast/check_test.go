@@ -518,7 +518,7 @@ func TestCheckInferenceRules(t *testing.T) {
 		{"ref_regression_array_key", ruleset2, "data.ref_regression_array_key.walker",
 			types.NewObject(
 				nil,
-				types.NewDynamicProperty(types.NewArray([]types.Type{types.NewArray(types.A, types.A), types.A}, nil),
+				types.NewDynamicProperty(types.NewArray([]types.Type{types.NewArray(types.NewAny(), types.A), types.A}, nil),
 					types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))),
 			)},
 		{
@@ -1529,9 +1529,7 @@ func TestCheckErrorOrdering(t *testing.T) {
 		inputReversed[i] = mod.Rules[i]
 	}
 
-	tmp := inputReversed[1]
-	inputReversed[1] = inputReversed[2]
-	inputReversed[2] = tmp
+	inputReversed[1], inputReversed[2] = inputReversed[2], inputReversed[1]
 
 	_, errs1 := newTypeChecker().CheckTypes(nil, input, nil)
 	_, errs2 := newTypeChecker().CheckTypes(nil, inputReversed, nil)

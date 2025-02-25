@@ -299,12 +299,7 @@ func hasFileLocation(loc *ast.Location) bool {
 
 // Check the expression and return true if it should be included in the coverage report
 func includeExprInCoverage(x *ast.Expr) bool {
-	includeExprType := true
+	_, excludeExprType := x.Terms.(*ast.SomeDecl)
 
-	switch x.Terms.(type) {
-	case *ast.SomeDecl:
-		includeExprType = false
-	}
-
-	return includeExprType && hasFileLocation(x.Location)
+	return !excludeExprType && hasFileLocation(x.Location)
 }

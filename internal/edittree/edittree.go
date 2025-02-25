@@ -1180,5 +1180,5 @@ func (e *EditTree) Filter(paths []ast.Ref) *ast.Term {
 type termSlice []*ast.Term
 
 func (s termSlice) Less(i, j int) bool { return ast.Compare(s[i].Value, s[j].Value) < 0 }
-func (s termSlice) Swap(i, j int)      { x := s[i]; s[i] = s[j]; s[j] = x }
+func (s termSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s termSlice) Len() int           { return len(s) }

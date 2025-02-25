@@ -11,9 +11,10 @@ import (
 )
 
 type result struct {
-	Path   string       `json:"path"`
-	Error  error        `json:"error,omitempty"`
-	Result *interface{} `json:"result,omitempty"`
+	DecisionID string `json:"decision_id,omitempty"`
+	Path       string `json:"path"`
+	Error      error  `json:"error,omitempty"`
+	Result     *any   `json:"result,omitempty"`
 }
 
 type jsonReporter struct {
@@ -41,7 +42,7 @@ func (jr *jsonReporter) Close() error {
 	})
 }
 
-func (jr *jsonReporter) StoreDecision(input *interface{}, itemPath string) {
+func (jr *jsonReporter) StoreDecision(input *any, itemPath string) {
 	rs, err := jr.decisionFunc(*jr.ctx, sdk.DecisionOptions{
 		Path:  jr.params.Decision,
 		Now:   time.Now(),
@@ -55,7 +56,7 @@ func (jr *jsonReporter) StoreDecision(input *interface{}, itemPath string) {
 		return
 	}
 
-	jr.Report(result{Path: itemPath, Result: &rs.Result})
+	jr.Report(result{DecisionID: rs.ID, Path: itemPath, Result: &rs.Result})
 
 	if (jr.params.FailDefined && rs.Result != nil) || (jr.params.Fail && rs.Result == nil) {
 		jr.failCount++
