@@ -635,7 +635,7 @@ func TestV4Signing(t *testing.T) {
 				// this signature is for go 1.20+, which changed crypto/ecdsa so signatures differ from go 1.18
 				"AWS4-ECDSA-P256-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/s3/aws4_request, " +
 					"SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-region-set;x-amz-security-token, " +
-					"Signature=3045022031b9dd601cd02650193586a32721d0614bf2e34bbc76cff0d9812366d1dc8878022100d0cfbd91bd2dd98f1e2d7feb9091c48f8b66a20174922770ec9e3b74db8e1826",
+					"Signature=3046022100b5b0a90b1739a67315b53b5ac93164e2a511723f76e29bf5396b7e55cb5db75a0221008702a757055fe397997d279fabfd73d162e4cae38111e806e87f4500076f3de0",
 			},
 		},
 	}
@@ -830,7 +830,7 @@ func TestV4SigningOmitsIgnoredHeaders(t *testing.T) {
 				// this signature is for go 1.20+, which changed crypto/ecdsa so signatures differ from go 1.18
 				"AWS4-ECDSA-P256-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/execute-api/aws4_request, " +
 					"SignedHeaders=content-length;content-type;host;x-amz-content-sha256;x-amz-date;x-amz-region-set;x-amz-security-token, " +
-					"Signature=3045022100e62b33949d5d5666c1cc737db6673600d7893b977df48e4eb64a6e8747582a2f022011f56ad285472956a3e00c6971d03ebd8ecb579804d8fd91a6fb483a1f502118",
+					"Signature=30440220030e9ef5a174354265b33cb57e43ed15cf418d90954d1c6061d99bca709ff0bd02204f11c90715131161bc65040dd11bc761471ccd230888750a12dbeaaf40541c20",
 				// this signature is for go 1.24+
 				"AWS4-ECDSA-P256-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/execute-api/aws4_request, " +
 					"SignedHeaders=content-length;content-type;host;x-amz-content-sha256;x-amz-date;x-amz-region-set;x-amz-security-token, " +
@@ -996,11 +996,11 @@ func TestV4SigningWithMultiValueHeaders(t *testing.T) {
 				// this signature is for go 1.20+, which changed crypto/ecdsa so signatures differ from go 1.18
 				"AWS4-ECDSA-P256-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/execute-api/aws4_request, " +
 					"SignedHeaders=accept;content-length;host;x-amz-content-sha256;x-amz-date;x-amz-region-set;x-amz-security-token, " +
-					"Signature=304502204f38b116e49b743307141797f04c8610ed035c54d06acbeb4f33ab48c8ec578e022100bd5995cb1eaecb5aa8c3062dcfcae7af62b6f32cc578cd42268165e259be46a0",
+					"Signature=3045022047fc8a4a842fdaf8ca538580d8a7ef13da72b06f3b2953b2cb105c6ad86a9a41022100bb54877f27a58cf73a812af45bf82c94dd9f25d41a65645cb35f012cd1591589",
 				// this signature is for go 1.24+
 				"AWS4-ECDSA-P256-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/execute-api/aws4_request, " +
 					"SignedHeaders=accept;content-length;host;x-amz-content-sha256;x-amz-date;x-amz-region-set;x-amz-security-token, " +
-					"Signature=3045022100d53765da79a23a5d20129640f9c4c2b51d100430039941f5d28a038287b2c772022039889ff47cc54e4285c8761933edbaaf6314454d49b3f7dd4dd2a2265905d499",
+					"Signature=304502204f38b116e49b743307141797f04c8610ed035c54d06acbeb4f33ab48c8ec578e022100bd5995cb1eaecb5aa8c3062dcfcae7af62b6f32cc578cd42268165e259be46a0",
 			},
 		},
 	}
