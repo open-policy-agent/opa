@@ -610,8 +610,7 @@ func TestV4Signing(t *testing.T) {
 	req, _ := http.NewRequest("GET", "https://mybucket.s3.amazonaws.com/bundle.tar.gz", strings.NewReader(""))
 
 	// force a non-random source so that we can predict the v4a signing key and, thus, signature
-	myReader := strings.NewReader("000000000000000000000000000000000")
-	aws.SetRandomSource(myReader)
+	aws.SetRandomSource(test.NewZeroReader())
 	defer func() { aws.SetRandomSource(rand.Reader) }()
 
 	tests := []struct {
@@ -632,7 +631,7 @@ func TestV4Signing(t *testing.T) {
 				// this signature is for go 1.24+
 				"AWS4-ECDSA-P256-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/s3/aws4_request, " +
 					"SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-region-set;x-amz-security-token, " +
-					"Signature=3045022100ed23c88c8f952c049237b023994df067b51e05c9f9cf22b26a5d662e150e2d6c02205910f19c142e9b26fe9abb63a54f35ade8cdcad993297aef3931bce6a3d93003",
+					"Signature=3045022061d172d81cb118e1b1fbc321aa83b622eadbe8cc602d27d7e107cbf9caf42c09022100b3b0d9c52a382eea199b260f7aa69c658d63f78bd459da46ed94f30f66553389",
 				// this signature is for go 1.20+, which changed crypto/ecdsa so signatures differ from go 1.18
 				"AWS4-ECDSA-P256-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/s3/aws4_request, " +
 					"SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-region-set;x-amz-security-token, " +
@@ -642,22 +641,24 @@ func TestV4Signing(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		creds, err := cs.credentials(context.Background())
-		if err != nil {
-			t.Fatal("unexpected error getting credentials")
-		}
+		t.Run(test.sigVersion, func(t *testing.T) {
+			creds, err := cs.credentials(context.Background())
+			if err != nil {
+				t.Fatal("unexpected error getting credentials")
+			}
 
-		if err := aws.SignRequest(req, "s3", creds, time.Unix(1556129697, 0), test.sigVersion); err != nil {
-			t.Fatal("unexpected error during signing", err)
-		}
+			if err := aws.SignRequest(req, "s3", creds, time.Unix(1556129697, 0), test.sigVersion); err != nil {
+				t.Fatal("unexpected error during signing", err)
+			}
 
-		// expect mandatory headers
-		assertEq("mybucket.s3.amazonaws.com", req.Header.Get("Host"), t)
-		assertIn(test.expectedAuthorization, req.Header.Get("Authorization"), t)
-		assertEq("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-			req.Header.Get("X-Amz-Content-Sha256"), t)
-		assertEq("20190424T181457Z", req.Header.Get("X-Amz-Date"), t)
-		assertEq("MYAWSSECURITYTOKENGOESHERE", req.Header.Get("X-Amz-Security-Token"), t)
+			// expect mandatory headers
+			assertEq("mybucket.s3.amazonaws.com", req.Header.Get("Host"), t)
+			assertIn(test.expectedAuthorization, req.Header.Get("Authorization"), t)
+			assertEq("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				req.Header.Get("X-Amz-Content-Sha256"), t)
+			assertEq("20190424T181457Z", req.Header.Get("X-Amz-Date"), t)
+			assertEq("MYAWSSECURITYTOKENGOESHERE", req.Header.Get("X-Amz-Security-Token"), t)
+		})
 	}
 }
 
@@ -682,8 +683,7 @@ func TestV4SigningUnsignedPayload(t *testing.T) {
 		Expiration:      time.Now().UTC().Add(time.Minute * 2)}
 
 	// force a non-random source so that we can predict the v4a signing key and, thus, signature
-	myReader := strings.NewReader("000000000000000000000000000000000")
-	aws.SetRandomSource(myReader)
+	aws.SetRandomSource(test.NewZeroReader())
 	defer func() { aws.SetRandomSource(rand.Reader) }()
 
 	tests := []struct {
@@ -810,8 +810,7 @@ func TestV4SigningOmitsIgnoredHeaders(t *testing.T) {
 	req.Header.Set("X-Amzn-Trace-Id", "Some trace id")
 
 	// force a non-random source so that we can predict the v4a signing key and, thus, signature
-	myReader := strings.NewReader("000000000000000000000000000000000")
-	aws.SetRandomSource(myReader)
+	aws.SetRandomSource(test.NewZeroReader())
 	defer func() { aws.SetRandomSource(rand.Reader) }()
 
 	tests := []struct {
@@ -835,26 +834,28 @@ func TestV4SigningOmitsIgnoredHeaders(t *testing.T) {
 				// this signature is for go 1.24+
 				"AWS4-ECDSA-P256-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/execute-api/aws4_request, " +
 					"SignedHeaders=content-length;content-type;host;x-amz-content-sha256;x-amz-date;x-amz-region-set;x-amz-security-token, " +
-					"Signature=304402203ed4a726081286801d80dae4967a2fb1f5b9487b9ce16e8334e405be549e310a022043a425ab44fd79762e9ca75a8c390fc88685073f268fd244448bc3f464aa082f",
+					"Signature=30450220652e9b5e04bb50cc27a599a05e4755719c25a6a93c4da71784ea681e951c5e9b022100c9e090654a5077946478fcd35b4b60d34899961b604ab57e6dd13ebcb49fc672",
 			},
 		},
 	}
 
 	for _, test := range tests {
-		creds, err := cs.credentials(context.Background())
-		if err != nil {
-			t.Fatal("unexpected error getting credentials")
-		}
+		t.Run(test.sigVersion, func(t *testing.T) {
+			creds, err := cs.credentials(context.Background())
+			if err != nil {
+				t.Fatal("unexpected error getting credentials")
+			}
 
-		if err := aws.SignRequest(req, "execute-api", creds, time.Unix(1556129697, 0), test.sigVersion); err != nil {
-			t.Fatal("unexpected error during signing")
-		}
+			if err := aws.SignRequest(req, "execute-api", creds, time.Unix(1556129697, 0), test.sigVersion); err != nil {
+				t.Fatal("unexpected error during signing")
+			}
 
-		// Check the signed headers doesn't include user-agent, authorization or x-amz-trace-id
-		assertIn(test.expectedAuthorization, req.Header.Get("Authorization"), t)
-		// The headers omitted from signing should still be present in the request
-		assertEq(req.Header.Get("User-Agent"), "Unit Tests!", t)
-		assertEq(req.Header.Get("X-Amzn-Trace-Id"), "Some trace id", t)
+			// Check the signed headers doesn't include user-agent, authorization or x-amz-trace-id
+			assertIn(test.expectedAuthorization, req.Header.Get("Authorization"), t)
+			// The headers omitted from signing should still be present in the request
+			assertEq(req.Header.Get("User-Agent"), "Unit Tests!", t)
+			assertEq(req.Header.Get("X-Amzn-Trace-Id"), "Some trace id", t)
+		})
 	}
 
 }
@@ -920,8 +921,7 @@ func TestV4SigningDoesNotMutateBody(t *testing.T) {
 		Expiration:      time.Now().UTC().Add(time.Minute * 2)}
 
 	// force a non-random source so that we can predict the v4a signing key and, thus, signature
-	myReader := strings.NewReader("000000000000000000000000000000000")
-	aws.SetRandomSource(myReader)
+	aws.SetRandomSource(test.NewZeroReader())
 	defer func() { aws.SetRandomSource(rand.Reader) }()
 
 	tests := []struct {
