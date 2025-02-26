@@ -117,8 +117,8 @@ github.com/golang/protobuf/proto
 # github.com/google/flatbuffers v24.12.23+incompatible
 ## explicit
 github.com/google/flatbuffers/go
-# github.com/google/go-cmp v0.6.0
-## explicit; go 1.13
+# github.com/google/go-cmp v0.7.0
+## explicit; go 1.21
 github.com/google/go-cmp/cmp
 github.com/google/go-cmp/cmp/cmpopts
 github.com/google/go-cmp/cmp/internal/diff
