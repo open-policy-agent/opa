@@ -22,7 +22,7 @@ jobs:
         run: make clean generate
 
       - name: Upload generated artifacts
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: generated
           path: |
@@ -89,14 +89,14 @@ jobs:
         timeout-minutes: 30
 
       - name: Upload binaries - No Go tags
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         if: ${{ matrix.go_tags == '' }}
         with:
           name: binaries-${{ matrix.os }}-${{ matrix.arch }}
           path: _release
 
       - name: Upload binaries - Go tag variants
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         if: ${{ matrix.go_tags != '' && matrix.variant_name != '' }}
         with:
           name: binaries-variant-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.variant_name }}
