@@ -15,6 +15,9 @@ jobs:
         with:
           token: ${{ secrets.GH_PUSH_TOKEN }}
 
+      - name: Get tags
+        run: git fetch --tags origin
+
       - name: Generate
         run: make clean generate
 

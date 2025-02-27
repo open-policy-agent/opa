@@ -20,6 +20,9 @@ jobs:
         with:
           token: ${{ secrets.GH_PUSH_TOKEN }} # required to push to protected branch below
 
+      - name: Get tags
+        run: git fetch --tags origin
+
       - name: Generate
         run: make clean generate docs-generate-cli-docs
 
