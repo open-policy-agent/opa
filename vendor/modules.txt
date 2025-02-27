@@ -26,7 +26,7 @@ github.com/cenkalti/backoff/v4
 # github.com/cespare/xxhash/v2 v2.3.0
 ## explicit; go 1.11
 github.com/cespare/xxhash/v2
-# github.com/containerd/containerd v1.7.25
+# github.com/containerd/containerd v1.7.26
 ## explicit; go 1.21
 github.com/containerd/containerd/archive/compression
 github.com/containerd/containerd/content
