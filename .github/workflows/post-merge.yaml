@@ -20,9 +20,6 @@ jobs:
         with:
           token: ${{ secrets.GH_PUSH_TOKEN }} # required to push to protected branch below
 
-      - name: Get tags
-        run: git fetch --tags origin
-
       - name: Generate
         run: make clean generate docs-generate-cli-docs
 
@@ -94,6 +91,9 @@ jobs:
       - name: Check out code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
+      - name: Get tags
+        run: git fetch --tags origin
+
       - name: Build Linux and Windows
         run: make ci-go-ci-build-linux ci-go-ci-build-linux-static ci-go-ci-build-windows
         timeout-minutes: 30
@@ -121,6 +121,9 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Get tags
+        run: git fetch --tags origin
 
       - id: go_version
         name: Read go version
@@ -153,6 +156,9 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Get tags
+        run: git fetch --tags origin
 
       - name: Test
         run: make ci-release-test
