@@ -90,6 +90,7 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        fetch-tags: true
 
       - name: Build Linux and Windows
         run: make ci-go-ci-build-linux ci-go-ci-build-linux-static ci-go-ci-build-windows
@@ -118,6 +119,7 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        fetch-tags: true
 
       - id: go_version
         name: Read go version
@@ -150,6 +152,7 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        fetch-tags: true
 
       - name: Test
         run: make ci-release-test
