@@ -41,8 +41,17 @@ We can run OPA as a server using Docker:
 
 ```bash
 docker run -p 8181:8181 openpolicyagent/opa \
-    run --server --log-level debug
+    run --server --log-level debug --addr=0.0.0.0:8181
 ```
+
+{{< info >}}
+We have to use `--addr` here to bind to all interfaces to ensure OPA is
+accessible from outside the container. This is not necessary when running OPA
+in other environments.
+
+More information can be found in the
+[security documentation](../security/#interface-binding).
+{{< /info >}}
 
 Test that OPA is available:
 
