@@ -470,6 +470,30 @@ OPA binary of version 1.0 or later.
 If you run into any issues while upgrading a Rego project, please drop a message
 in the #help channel on the [OPA Slack](https://slack.openpolicyagent.org/).
 
+## Upgrading OPA Instances
+
+Prior to OPA 1.0, when running in server mode (`opa run --server/-s`), OPA would
+bind to all interfaces by default. In OPA 1.0,
+[OPA will bind to `localhost`](https://github.com/open-policy-agent/opa/issues/6286)
+by default instead. Though not inherently insecure in a trusted environment,
+it's good practice to bind OPA to localhost by default if OPA is not intended to
+be exposed to remote services.
+
+If you need to replicate the v0.x behaviour, you can use the `--addr` flag to
+bind to all interfaces. For example:
+
+```sh
+opa run --server --addr 0.0.0.0:8181
+```
+
+{{< info >}}
+When running OPA in a container, binding to all interfaces is required
+when the instance needs to be accessed by the host or another container.
+{{< /info >}}
+
+More information can be found in the
+[security documentation](../security/#interface-binding).
+
 ## Upgrading for Go Integrations
 
 Both users of the
