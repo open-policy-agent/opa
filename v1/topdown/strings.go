@@ -324,11 +324,19 @@ func builtinSubstring(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 			return iter(ast.StringTerm(sbase[startIndex:]))
 		}
 
+		if startIndex == 0 && length >= len(sbase) {
+			return iter(operands[0])
+		}
+
 		upto := startIndex + length
 		if len(sbase) < upto {
 			upto = len(sbase)
 		}
 		return iter(ast.StringTerm(sbase[startIndex:upto]))
+	}
+
+	if startIndex == 0 && length >= utf8.RuneCountInString(sbase) {
+		return iter(operands[0])
 	}
 
 	runes := []rune(base)
@@ -641,7 +649,7 @@ func builtinSprintf(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 	if s == "%d" && astArr.Len() == 1 {
 		if n, ok := astArr.Elem(0).Value.(ast.Number); ok {
 			if i, ok := n.Int(); ok {
-				return iter(ast.StringTerm(strconv.Itoa(i)))
+				return iter(ast.InternedStringTerm(strconv.Itoa(i)))
 			}
 		}
 	}
