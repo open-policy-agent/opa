@@ -29,6 +29,9 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      - name: Git Describe
+        run: git describe --tags
+
       - name: Build Linux and Windows
         run: make ci-go-ci-build-linux ci-go-ci-build-linux-static ci-go-ci-build-windows
         timeout-minutes: 30
@@ -59,6 +62,9 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
+
+      - name: Git Describe
+        run: git describe --tags
 
       - id: go_version
         name: Read go version
