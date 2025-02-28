@@ -14,7 +14,6 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           token: ${{ secrets.GH_PUSH_TOKEN }}
-          fetch-tags: true
 
       - name: Generate
         run: make clean generate
@@ -27,7 +26,11 @@ jobs:
       - name: Check out code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
+          fetch-depth: 0
           fetch-tags: true
+
+      - name: Git Describe
+        run: git describe --tags
 
       - name: Build Linux and Windows
         run: make ci-go-ci-build-linux ci-go-ci-build-linux-static ci-go-ci-build-windows
@@ -57,7 +60,11 @@ jobs:
       - name: Check out code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
+          fetch-depth: 0
           fetch-tags: true
+
+      - name: Git Describe
+        run: git describe --tags
 
       - id: go_version
         name: Read go version
