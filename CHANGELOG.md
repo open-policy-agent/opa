@@ -3,7 +3,85 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 1.2.0
+
+### Fixes
+
+- Add Additional Resource Attributes for OpenTelemetry ([#7322](https://github.com/open-policy-agent/opa/issues/7322)) authored by @briankahoot reported by @briankahoot
+- Fix: add missing `BuildAnnotationSet` to `ast` v0 (#7349) ([#7347](https://github.com/open-policy-agent/opa/issues/7347)) authored by @anderseknert
+- Handle failing tests in `opa test --bench` (#7351) ([#7205](https://github.com/open-policy-agent/opa/issues/7205)) authored by @anderseknert
+- Make oracle public under v1/ast/oracle (#7352) ([#7265](https://github.com/open-policy-agent/opa/issues/7265)) authored by @anderseknert
+- cmd+tester: Parameterized tests (#7366) ([#2176](https://github.com/open-policy-agent/opa/issues/2176)) authored by @johanfylling
+
+### Miscellaneous
+
+- Add `make test-short` task (#7364) (authored by @anderseknert)
+- Add decision ID to `opa exec` output (#7373) (authored by @anderseknert)
+- Add gocritic linter, fix a bunch of stuff (#7377) (authored by @anderseknert)
+- Add nilness linter from govet (#7335) (authored by @anderseknert)
+- Add perfsprint linter (#7334) (authored by @anderseknert)
+- Add support link to README (#7359) (authored by @anderseknert)
+- Add util.HasherMap (#7363) (authored by @anderseknert)
+- Allow passing own compiler to oracle (#7354) (authored by @anderseknert)
+- Bump golangci-lint -> 1.64.5 (#7374) (authored by @anderseknert)
+- Do not attach authorization header in bearerAuthPlugin if response is a redirect (authored by @carabasdaniel)
+- Dropping redundant dep. update (#7317) (authored by @johanfylling)
+- Eliminate allocation in Value.Find, and other improvements (#7319) (authored by @anderseknert)
+- Enable tracing for discovery plugin (#7299) (authored by @mjungsbluth)
+- Explicitly fetching fetching git tags for CI builds (#7395) (authored by @johanfylling)
+- Fix test failures with Go 1.24 (#7376) (authored by @anderseknert)
+- Go API: Allow providing custom base cache (#7329) (authored by @anderseknert)
+- Improve storage lookup performance (#7336) (authored by @anderseknert)
+- MAINTAINERS: Add Anders and Charlie as maintainers (#7318) (authored by @charlieegan3)
+- Prepare v1.2.0 development (#7316) (authored by @johanfylling)
+- Update example bundle to be v1 compatible (authored by @ashutosh-narkar)
+- Updating release docker container (authored by @)
+- Use Go 1.22+ int ranges (#7328) (authored by @anderseknert)
+- Use byte for RuleKind and DocKind (#7332) (authored by @anderseknert)
+- ast.InterfaceToValue: add test case for []byte (#7379) (authored by @dennygursky)
+- build(deps): bump actions/download-artifact from 4.1.8 to 4.1.9 (#7389) (authored by @dependabot[bot])
+- build(deps): bump actions/upload-artifact from 4.6.0 to 4.6.1 (#7385) (authored by @dependabot[bot])
+- build(deps): bump docker/setup-buildx-action from 3.8.0 to 3.9.0 (#7343) (authored by @dependabot[bot])
+- build(deps): bump docker/setup-qemu-action from 3.3.0 to 3.4.0 (#7344) (authored by @dependabot[bot])
+- build(deps): bump github.com/agnivade/levenshtein from 1.2.0 to 1.2.1 (authored by @dependabot[bot])
+- build(deps): bump github.com/containerd/containerd from 1.7.25 to 1.7.26 (#7392) (authored by @dependabot[bot])
+- build(deps): bump github.com/google/go-cmp from 0.6.0 to 0.7.0 (#7386) (authored by @dependabot[bot])
+- build(deps): bump github.com/prometheus/client_golang (#7375) (authored by @dependabot[bot])
+- build(deps): bump github.com/spf13/cobra from 1.8.1 to 1.9.1 (#7371) (authored by @dependabot[bot])
+- build(deps): bump github.com/spf13/pflag from 1.0.5 to 1.0.6 (authored by @dependabot[bot])
+- build(deps): bump github/codeql-action from 3.28.4 to 3.28.5 (authored by @dependabot[bot])
+- build(deps): bump github/codeql-action from 3.28.5 to 3.28.6 (authored by @dependabot[bot])
+- build(deps): bump github/codeql-action from 3.28.6 to 3.28.8 (authored by @dependabot[bot])
+- build(deps): bump github/codeql-action from 3.28.8 to 3.28.9 (#7345) (authored by @dependabot[bot])
+- build(deps): bump github/codeql-action from 3.28.9 to 3.28.10 (#7383) (authored by @dependabot[bot])
+- build(deps): bump golang.org/x/net from 0.34.0 to 0.35.0 (#7356) (authored by @dependabot[bot])
+- build(deps): bump golang.org/x/time from 0.9.0 to 0.10.0 (#7339) (authored by @dependabot[bot])
+- build(deps): bump ossf/scorecard-action from 2.4.0 to 2.4.1 (#7384) (authored by @dependabot[bot])
+- build(deps-dev): bump rollup in /docs/website/scripts/live-blocks (#7353) (authored by @dependabot[bot])
+- build(deps-dev): bump serialize-javascript (#7358) (authored by @dependabot[bot])
+- build: bump go to 1.23.6 (#7348) (authored by @srenatus)
+- bundle: Fixing issue where `--v0-compatible` isn't respected for custom bundles (#7338) (authored by @johanfylling)
+- ci: Adding `fetch-tags` under `with` in GHA (#7397) (authored by @johanfylling)
+- ci: Using `fetch-depth` when fetching tags (#7400) (authored by @johanfylling)
+- docs: Add note about v1.0 addr behaviour (#7398) (authored by @charlieegan3)
+- docs: Update generated CLI docs (authored by @)
+- docs: Update generated CLI docs (authored by @)
+- docs: Update homepage examples to drop v1 import (#7391) (authored by @charlieegan3)
+- docs: Updating `--v1-compatible` mentions outside the v1 upgrade guide and v0 compatibility docs (#7337) (authored by @johanfylling)
+- eval: optimize iteration (#7327) (authored by @anderseknert)
+- feat: support []string and ast.Value in ast.InterfaceToValue (#7306) (authored by @regeda)
+- links fixed (authored by @JonathanDeLaCruzEncora)
+- perf: Add ref.CopyNonGround (#7350) (authored by @anderseknert)
+- perf: `opa fmt` 3x faster formatting (#7341) (authored by @anderseknert)
+- perf: cost of indexing greatly reduced (#7370) (authored by @anderseknert)
+- perf: eval optimizations (#7367) (authored by @anderseknert)
+- perf: intern annotation terms (#7365) (authored by @anderseknert)
+- perf: slightly more efficient policy scanning (#7368) (authored by @anderseknert)
+- perf: switch to a faster xxhash package (authored by @Juneezee)
+- perf: use GetByValue to avoid boxing to interface{} (#7372) (authored by @anderseknert)
+- perf: various small improvements (#7357) (authored by @anderseknert)
+- test: Fixing broken tests (#7387) (authored by @johanfylling)
+- test: fix race in `TestIntraQueryCache_ClientError` and `TestInterQueryCache_ClientError` (#7280) (authored by @Juneezee)
 
 ## 1.1.0
 

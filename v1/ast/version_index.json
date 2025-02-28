@@ -497,6 +497,13 @@
       "PreRelease": "",
       "Metadata": ""
     },
+    "internal.test_case": {
+      "Major": 1,
+      "Minor": 2,
+      "Patch": 0,
+      "PreRelease": "",
+      "Metadata": ""
+    },
     "intersection": {
       "Major": 0,
       "Minor": 17,
