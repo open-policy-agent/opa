@@ -107,6 +107,7 @@ If you want, you can also control the HTTP status sent to the upstream or downst
 * `body` is a string which represents the response body data sent to the downstream client when a request is denied.
 * `status_code` is a number which represents the HTTP response status code sent to the downstream client when a request is denied.
 * `dynamic_metadata` is an object whose keys are strings and values can be booleans, strings, numbers, arrays, or objects. It will set the `DynamicMetadata` in the `CheckResponse` returned by the `opa-envoy-plugin` and can be consumed elsewhere in the envoy filter chain.
+* `query_parameters_to_set` is an object whose keys are strings and values can be strings or arrays of strings. It defines the query parameters to be added or modified in the request before dispatching it to the upstream when a request is allowed. When a value is an array, it represents multiple values for the same parameter key.
 
 ```live:obj_example:module:openable
 package envoy.authz
@@ -126,6 +127,11 @@ headers["x-validated-by"] := "security-checkpoint"
 request_headers_to_remove := ["one-auth-header", "another-auth-header"]
 
 response_headers_to_add["x-foo"] := "bar"
+
+query_parameters_to_set = {
+    "user-role": token.payload.role,
+    "tags": ["main-flow", "auth-enabled"]
+}
 
 status_code := 200 if {
 	allow
@@ -208,6 +214,7 @@ When Envoy receives a policy decision, it expects a JSON object with the followi
 * `body` (optional): the response body
 * `dynamic_metadata` (optional): an object representing dynamic metadata to be consumed by the next Envoy filter.
 * `query_parameters_to_remove` (optional): is an array containing the names of string query parameters to be removed.
+* `query_parameters_to_set` (optional): an object mapping parameter names to values (string) or arrays of values (for multiple values with the same key)
 
 To construct that output object using the policies demonstrated in the last section, you can use the following Rego snippet.  Notice that we are using partial object rules so that any variables with undefined values simply have no key in the `result` object.
 
@@ -220,6 +227,7 @@ result["body"] := body
 result["http_status"] := status_code
 result["dynamic_metadata"] := dynamic_metadata
 result["query_parameters_to_remove"] := query_parameters_to_remove
+result["query_parameters_to_set"] = query_parameters_to_set
 ```
 
 For a single user, including this snippet in your normal policy is fine, but when you have multiple teams writing policies, you will typically pull this bit of boilerplate into a wrapper package, so your teams can focus on writing the policies shown in the previous sections.
