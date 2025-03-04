@@ -411,6 +411,11 @@ func (w *writer) writePackage(pkg *ast.Package, comments []*ast.Comment) []*ast.
 
 	// Omit head as all packages have the DefaultRootDocument prepended at parse time.
 	path := make(ast.Ref, len(pkg.Path)-1)
+	if len(path) == 0 {
+		w.errs = append(w.errs, ast.NewError(ast.FormatErr, pkg.Location, "invalid package path: %s", pkg.Path))
+		return comments
+	}
+
 	path[0] = ast.VarTerm(string(pkg.Path[1].Value.(ast.String)))
 	copy(path[1:], pkg.Path[2:])
 
