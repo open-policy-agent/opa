@@ -242,6 +242,13 @@ func formatStdin(params *fmtCommandParams, r io.Reader, w io.Writer) error {
 		opts.ParserOptions = &ast.ParserOptions{RegoVersion: ast.RegoV0}
 	}
 
+	if params.v0Compatible {
+		// v0 takes precedence over v1
+		opts.ParserOptions = &ast.ParserOptions{RegoVersion: ast.RegoV0}
+	} else if params.v1Compatible {
+		opts.ParserOptions = &ast.ParserOptions{RegoVersion: ast.RegoV1}
+	}
+
 	formatted, err := format.SourceWithOpts("stdin", contents, opts)
 	if err != nil {
 		return err
