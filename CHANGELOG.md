@@ -3,6 +3,8 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
 ## 1.2.0
 
 This release contains a mix of features, performance improvements, and bugfixes.
