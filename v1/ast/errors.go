@@ -60,6 +60,9 @@ const (
 
 	// RecursionErr indicates recursion was found during compilation.
 	RecursionErr = "rego_recursion_error"
+
+	// FormatErr indicates an error occurred during formatting.
+	FormatErr = "rego_format_error"
 )
 
 // IsError returns true if err is an AST error with code.
