@@ -873,6 +873,15 @@ func pruneBundleEntrypoints(b *bundle.Bundle, entrypointrefs []*ast.Term) error 
 	return nil
 }
 
+type invalidEntrypointErr struct {
+	Entrypoint *ast.Term
+	Msg        string
+}
+
+func (err invalidEntrypointErr) Error() string {
+	return fmt.Sprintf("invalid entrypoint %v: %s", err.Entrypoint, err.Msg)
+}
+
 type undefinedEntrypointErr struct {
 	Entrypoint *ast.Term
 }
@@ -964,7 +973,18 @@ func (o *optimizer) Do(ctx context.Context) error {
 	// because otherwise the optimization outputs (e.g., support rules) would have to
 	// merged somehow. Instead of dealing with that, just run the optimizations in the
 	// order the user supplied the entrypoints in.
+	// FIXME: entrypoint order is not user defined when declared as annotations.
 	for i, e := range o.entrypoints {
+
+		if r := e.Value.(ast.Ref); len(r) <= 2 {
+			// To create a support module for the query, it must be possible to split the entrypoint ref into two parts;
+			// one for the package ref; and one for the rule name/ref. The package part must be two terms in size, as the first term
+			// is always the 'data' root. The rule name/ref must be at least one term in size.
+			return invalidEntrypointErr{
+				Entrypoint: e,
+				Msg:        "to create optimized support module, the entrypoint ref must have at least two components in addition to the 'data' root",
+			}
+		}
 
 		var err error
 		o.compiler, err = compile(o.capabilities, o.bundle, o.debug, o.enablePrintStatements)
@@ -1107,9 +1127,9 @@ func (o *optimizer) findUnknowns() []*ast.Term {
 	return unknowns.Sorted()
 }
 
-func (o *optimizer) getSupportForEntrypoint(queries []ast.Body, e *ast.Term, resultsym *ast.Term) *ast.Module {
+func (o *optimizer) getSupportForEntrypoint(queries []ast.Body, entrypoint *ast.Term, resultsym *ast.Term) *ast.Module {
 
-	path := e.Value.(ast.Ref)
+	path := entrypoint.Value.(ast.Ref)
 	name := ast.Var(path[len(path)-1].Value.(ast.String))
 	module := &ast.Module{Package: &ast.Package{Path: path[:len(path)-1]}}
 	module.SetRegoVersion(o.regoVersion)
@@ -1128,7 +1148,7 @@ func (o *optimizer) getSupportForEntrypoint(queries []ast.Body, e *ast.Term, res
 			return stop
 		})
 		if stop {
-			o.debug.Printf("optimizer: entrypoint: %v: discard due to self-reference", e)
+			o.debug.Printf("optimizer: entrypoint: %v: discard due to self-reference", entrypoint)
 			return nil
 		}
 		module.Rules = append(module.Rules, &ast.Rule{ // TODO(sr): use RefHead instead?

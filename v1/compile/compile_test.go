@@ -3496,6 +3496,56 @@ func TestOptimizerOutput(t *testing.T) {
 	}
 }
 
+func TestOptimizerError(t *testing.T) {
+	tests := []struct {
+		note        string
+		roots       []string
+		entrypoints []string
+		modules     map[string]string
+		expErr      string
+	}{
+		{
+			// Regression test for https://github.com/open-policy-agent/opa/issues/7321
+			note:        "short entrypoint ref",
+			roots:       []string{"test"},
+			entrypoints: []string{"data.test"},
+			modules: map[string]string{
+				"test.rego": `
+					package test
+					p = true`,
+			},
+			expErr: `invalid entrypoint data.test: to create optimized support module, the entrypoint ref must have at least two components in addition to the 'data' root`,
+		},
+		{
+			// Regression test for https://github.com/open-policy-agent/opa/issues/7321
+			note:        "data only entrypoint ref",
+			roots:       []string{"test"},
+			entrypoints: []string{"data"},
+			modules: map[string]string{
+				"test.rego": `
+					package test
+					p = true`,
+			},
+			expErr: `invalid entrypoint data: to create optimized support module, the entrypoint ref must have at least two components in addition to the 'data' root`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			popts := ast.ParserOptions{AllFutureKeywords: true}
+			o := getOptimizer(tc.modules, "", tc.entrypoints, tc.roots, "", popts)
+
+			err := o.Do(context.Background())
+			if err == nil {
+				t.Fatal("expected error but got nil")
+			}
+			if err.Error() != tc.expErr {
+				t.Fatalf("expected error to be:\n\n%v\n\nbut got:\n\n%v", tc.expErr, err)
+			}
+		})
+	}
+}
+
 func TestRefSet(t *testing.T) {
 	rs := newRefSet(ast.MustParseRef("input"), ast.MustParseRef("data.foo.bar"))
 

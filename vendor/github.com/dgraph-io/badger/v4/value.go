@@ -1,17 +1,6 @@
 /*
- * Copyright 2017 Dgraph Labs, Inc. and Contributors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: © Hypermode Inc. <hello@hypermode.com>
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 package badger
@@ -33,7 +22,8 @@ import (
 	"sync/atomic"
 
 	"github.com/pkg/errors"
-	otrace "go.opencensus.io/trace"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/dgraph-io/badger/v4/y"
 	"github.com/dgraph-io/ristretto/v2/z"
@@ -1063,8 +1053,8 @@ func discardEntry(e Entry, vs y.ValueStruct, db *DB) bool {
 }
 
 func (vlog *valueLog) doRunGC(lf *logFile) error {
-	_, span := otrace.StartSpan(context.Background(), "Badger.GC")
-	span.Annotatef(nil, "GC rewrite for: %v", lf.path)
+	_, span := otel.Tracer("").Start(context.TODO(), "Badger.GC")
+	span.SetAttributes(attribute.String("GC rewrite for", lf.path))
 	defer span.End()
 	if err := vlog.rewrite(lf); err != nil {
 		return err
