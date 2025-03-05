@@ -47,15 +47,33 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 	var failures []*Result
 
 	for tr := range ch {
-		if tr.Pass() {
-			pass++
-		} else if tr.Skip {
+		if tr.Skip {
 			skip++
 		} else if tr.Error != nil {
 			errs++
-		} else if tr.Fail {
-			fail++
-			failures = append(failures, tr)
+		} else {
+			if tr.Fail {
+				failures = append(failures, tr)
+			}
+
+			if len(tr.SubResults) > 0 {
+				for _, sr := range tr.SubResults.Iter {
+					if len(sr.SubResults) == 0 {
+						// Only count lef results
+						if sr.Fail {
+							fail++
+						} else {
+							pass++
+						}
+					}
+				}
+			} else {
+				if tr.Pass() {
+					pass++
+				} else if tr.Fail {
+					fail++
+				}
+			}
 		}
 		results = append(results, tr)
 	}
