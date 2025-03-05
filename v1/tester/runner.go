@@ -158,7 +158,7 @@ func newResult(loc *ast.Location, pkg, name string, duration time.Duration, trac
 }
 
 // Pass returns true if the test case passed.
-func (r Result) Pass() bool {
+func (r *Result) Pass() bool {
 	return !r.Fail && !r.Skip && r.Error == nil
 }
 
