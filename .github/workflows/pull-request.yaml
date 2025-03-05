@@ -13,7 +13,7 @@ jobs:
   # up for parallel runners for faster PR feedback and a nicer UX.
   generate:
     name: Generate Code
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -38,21 +38,21 @@ jobs:
       matrix:
         include:
           - os: linux
-            run: ubuntu-22.04
+            run: ubuntu-24.04
             targets: ci-go-ci-build-linux ci-go-ci-build-linux-static
             arch: amd64
           - os: linux
-            run: ubuntu-22.04
+            run: ubuntu-24.04
             targets: ci-go-ci-build-linux-static
             arch: arm64
           - os: linux
-            run: ubuntu-22.04
+            run: ubuntu-24.04
             targets: ci-go-ci-build-linux-static
             go_tags: GO_TAGS="-tags=opa_no_oci"
             variant_name: opa_no_ci
             arch: arm64
           - os: windows
-            run: ubuntu-22.04
+            run: ubuntu-24.04
             targets: ci-go-ci-build-windows
             arch: amd64
           - os: darwin
@@ -111,7 +111,7 @@ jobs:
       matrix:
         include:
           - os: linux
-            run: ubuntu-22.04
+            run: ubuntu-24.04
           - os: darwin
             run: macos-14
     steps:
@@ -138,7 +138,7 @@ jobs:
 
   go-lint:
     name: Go Lint
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -149,7 +149,7 @@ jobs:
 
   yaml-lint:
     name: YAML Lint
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -162,7 +162,7 @@ jobs:
 
   wasm:
     name: WASM
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: generate
     steps:
       - name: Check out code
@@ -203,7 +203,7 @@ jobs:
 
   check-generated:
     name: Check Generated
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: generate
     steps:
       - name: Check out code
@@ -222,7 +222,7 @@ jobs:
 
   race-detector:
     name: Go Race Detector
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: generate
     steps:
       - name: Check out code
@@ -240,7 +240,7 @@ jobs:
 
   smoke-test-docker-images:
     name: docker image smoke test
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: go-build
     steps:
       - name: Check out code
@@ -274,11 +274,11 @@ jobs:
       matrix:
         include:
           - os: linux
-            run: ubuntu-22.04
+            run: ubuntu-24.04
             exec: opa_linux_amd64
             arch: amd64
           - os: linux
-            run: ubuntu-22.04
+            run: ubuntu-24.04
             exec: opa_linux_amd64_static
             arch: amd64
             wasm: disabled
@@ -320,7 +320,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-14]
+        os: [ubuntu-24.04, macos-14]
         version: ["1.21"]
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -341,7 +341,7 @@ jobs:
   # Run PR metadata against Rego policies
   rego-check-pr:
     name: Rego PR checks
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
