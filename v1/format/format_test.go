@@ -671,6 +671,45 @@ a[_x[y][[z, w]]]`,
 	}
 }
 
+func TestFormatAST_Error(t *testing.T) {
+	cases := []struct {
+		note        string
+		regoVersion ast.RegoVersion
+		toFmt       interface{}
+		expErr      string
+	}{
+		{
+			note:   "package with only data term",
+			toFmt:  &ast.Package{Path: ast.Ref{ast.DefaultRootDocument}},
+			expErr: `rego_format_error: invalid package path: data`,
+		},
+		{
+			note: "module with package with only data term",
+			toFmt: &ast.Module{
+				Package: &ast.Package{Path: ast.Ref{ast.DefaultRootDocument}},
+			},
+			expErr: `rego_format_error: invalid package path: data`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			_, err := AstWithOpts(tc.toFmt, Opts{
+				RegoVersion: tc.regoVersion,
+				ParserOptions: &ast.ParserOptions{
+					RegoVersion: tc.regoVersion,
+				},
+			})
+			if err == nil {
+				t.Fatalf("Expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.expErr) {
+				t.Fatalf("Expected error to contain:\n\n%q\n\ngot:\n\n%q", tc.expErr, err.Error())
+			}
+		})
+	}
+}
+
 func TestFormatDeepCopy(t *testing.T) {
 
 	original := ast.Body{
