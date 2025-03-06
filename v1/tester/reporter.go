@@ -146,8 +146,15 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 			r.println(tr.string(false))
 
 			w := newIndentingWriter(r.Output)
-			if sr := tr.SubResults; len(sr) > 0 {
-				_, _ = fmt.Fprint(w, sr.string("  "))
+			if srs := tr.SubResults; len(srs) > 0 {
+				for fullName, sr := range srs.Iter {
+					if sr.Fail || r.Verbose {
+						_, _ = fmt.Fprintf(w, "%s%s\n",
+							strings.Repeat("  ", len(fullName)-1),
+							sr.String(),
+						)
+					}
+				}
 			}
 
 			if len(tr.Output) > 0 {

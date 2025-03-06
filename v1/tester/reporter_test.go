@@ -444,11 +444,7 @@ data.foo.baz.p.q.r.test_quz: FAIL (0s)
 
 policy5.rego:
 data.foo.qux.test_cases_nested: FAIL (0s)
-  one: PASS
-    bar: PASS
-    foo: PASS
   two: FAIL
-    bar: PASS
     foo: FAIL
 --------------------------------------------------------------------------------
 PASS: 5/11
@@ -621,14 +617,8 @@ data.foo.baz.p.q.r.test_quz: FAIL (0s)
 policy4.rego:
 data.foo.qux.test_cases: FAIL (0s)
   bar: FAIL
-  baz: PASS
-  foo: PASS
 data.foo.qux.test_cases_nested: FAIL (0s)
-  one: PASS
-    bar: PASS
-    foo: PASS
   two: FAIL
-    bar: PASS
     foo: FAIL
 --------------------------------------------------------------------------------
 PASS: 7/14
