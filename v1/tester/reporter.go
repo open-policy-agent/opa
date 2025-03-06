@@ -59,7 +59,7 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 			if len(tr.SubResults) > 0 {
 				for _, sr := range tr.SubResults.Iter {
 					if len(sr.SubResults) == 0 {
-						// Only count lef results
+						// Only count leaf results
 						if sr.Fail {
 							fail++
 						} else {
