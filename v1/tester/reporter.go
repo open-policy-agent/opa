@@ -149,10 +149,10 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 			if srs := tr.SubResults; len(srs) > 0 {
 				for fullName, sr := range srs.Iter {
 					if sr.Fail || r.Verbose {
-						_, _ = fmt.Fprint(w, fmt.Sprintf("%s%s\n",
+						_, _ = fmt.Fprintf(w, "%s%s\n",
 							strings.Repeat("  ", len(fullName)-1),
 							sr.String(),
-						))
+						)
 					}
 				}
 			}
