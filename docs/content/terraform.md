@@ -12,8 +12,7 @@ Terraform is about to make before it makes them. Such tests help in different wa
 * tests can auto-approve run-of-the-mill infrastructure changes and reduce the burden of peer-review
 * tests can help catch problems that arise when applying Terraform to production after applying it to staging
 
-
-Terraform is a popular integration case for OPA and there are already a number of popular tools for 
+Terraform is a popular integration case for OPA and there are already a number of popular tools for
 running policy on HCL and plan JSONs.
 {{<
   ecosystem_feature_link
@@ -38,8 +37,9 @@ This tutorial requires
 * [Terraform 0.12.6](https://releases.hashicorp.com/terraform/0.12.6/)
 * [OPA](https://github.com/open-policy-agent/opa/releases)
 
-(This tutorial *should* also work with the [latest version of Terraform](https://www.terraform.io/downloads.html), but
-it is untested.  Contributions welcome!)
+(This tutorial _should_ also work with the
+[latest version of Terraform](https://www.terraform.io/downloads.html), but
+it is untested. Contributions welcome!)
 
 # Getting Started
 
@@ -48,8 +48,8 @@ it is untested.  Contributions welcome!)
 ### 1. Create and save a Terraform plan
 
 Create a [Terraform](https://www.terraform.io/docs/index.html) file that includes an
-auto-scaling group and a server on AWS.  (You will need to modify the `shared_credentials_file`
-to point to your AWS credentials.)
+auto-scaling group and a server on AWS.
+(You will need to modify the `shared_credentials_file` to point to your AWS credentials.)
 
 ```shell
 cat >main.tf <<EOF
@@ -97,7 +97,7 @@ terraform show -json tfplan.binary > tfplan.json
 
 Here is the expected contents of `tfplan.json`.
 
-```live:terraform:input
+```json
 {
   "format_version": "0.1",
   "terraform_version": "0.12.6",
@@ -467,7 +467,7 @@ practice you would vary the threshold depending on the user.)
 
 **policy/terraform.rego**:
 
-```live:terraform:module:openable
+```rego
 package terraform.analysis
 
 import input as tfplan
@@ -502,21 +502,21 @@ authz if {
 
 # Compute the score for a Terraform plan as the weighted sum of deletions, creations, modifications
 score := s if {
-	all := [x |
-		some resource_type
-		crud := weights[resource_type]
-		del := crud["delete"] * num_deletes[resource_type]
-		new := crud["create"] * num_creates[resource_type]
-		mod := crud["modify"] * num_modifies[resource_type]
+	all_resources := [x |
+		some resource_type, crud in weights
+
+		del := crud.delete * num_deletes[resource_type]
+		new := crud.create * num_creates[resource_type]
+		mod := crud.modify * num_modifies[resource_type]
 		x := (del + new) + mod
 	]
-	s := sum(all)
+	s := sum(all_resources)
 }
 
 # Whether there is any change to IAM
 touches_iam if {
-	all := resources.aws_iam
-	count(all) > 0
+	all_resources := resources.aws_iam
+	count(all_resources) > 0
 }
 
 ####################
@@ -524,39 +524,50 @@ touches_iam if {
 ####################
 
 # list of all resources of a given type
-resources[resource_type] := all if {
-	some resource_type
-	resource_types[resource_type]
-	all := [name |
-		name := tfplan.resource_changes[_]
+resources[resource_type] := all_resources if {
+	some resource_type, _ in resource_types
+
+	all_resources := [name |
+		some name in tfplan.resource_changes
 		name.type == resource_type
 	]
 }
 
 # number of creations of resources of a given type
 num_creates[resource_type] := num if {
-	some resource_type
-	resource_types[resource_type]
-	all := resources[resource_type]
-	creates := [res | res := all[_]; res.change.actions[_] == "create"]
+	some resource_type, _ in resource_types
+
+	all_resources := resources[resource_type]
+	creates := [res |
+		some res in all_resources
+		"create" in res.change.actions
+	]
 	num := count(creates)
 }
 
 # number of deletions of resources of a given type
 num_deletes[resource_type] := num if {
-	some resource_type
-	resource_types[resource_type]
-	all := resources[resource_type]
-	deletions := [res | res := all[_]; res.change.actions[_] == "delete"]
+	some resource_type, _ in resource_types
+
+	all_resources := resources[resource_type]
+
+	deletions := [res |
+		some res in all_resources
+		"delete" in res.change.actions
+	]
 	num := count(deletions)
 }
 
 # number of modifications to resources of a given type
 num_modifies[resource_type] := num if {
-	some resource_type
-	resource_types[resource_type]
-	all := resources[resource_type]
-	modifies := [res | res := all[_]; res.change.actions[_] == "update"]
+	some resource_type, _ in resource_types
+
+	all_resources := resources[resource_type]
+
+	modifies := [res |
+		some res in all_resources
+		"update" in res.change.actions
+	]
 	num := count(modifies)
 }
 ```
@@ -569,12 +580,17 @@ ask it to evaluate `terraform/analysis/authz`.
 ```shell
 opa exec --decision terraform/analysis/authz --bundle policy/ tfplan.json
 ```
-```live:terraform/authz:query:hidden
-data.terraform.analysis.authz
-```
-```live:terraform/authz:output
-```
 
+```json
+{
+  "result": [
+    {
+      "path": "tfplan.json",
+      "result": true
+    }
+  ]
+}
+```
 
 If you're curious, you can ask for the score that the policy used to make the authorization decision.
 In our example, it is 11 (10 for the creation of the auto-scaling group and 1 for the creation of the server).
@@ -583,16 +599,21 @@ In our example, it is 11 (10 for the creation of the auto-scaling group and 1 fo
 opa exec --decision terraform/analysis/score --bundle policy/ tfplan.json
 ```
 
-```live:terraform/score:query:hidden
-data.terraform.analysis.score
-```
-```live:terraform/score:output
+```json
+{
+  "result": [
+    {
+      "path": "tfplan.json",
+      "result": 11
+    }
+  ]
+}
 ```
 
 If as suggested in the previous step, you want to modify your policy to make an authorization decision
 based on both the user and the Terraform plan, the input you would give to OPA would take the form
 `{"user": <user>, "plan": <plan>}`, and your policy would reference the user with `input.user` and
-the plan with `input.plan`.  You could even go so far as to provide the Terraform state file and the AWS
+the plan with `input.plan`. You could even go so far as to provide the Terraform state file and the AWS
 EC2 data to OPA and write policy using all of that context.
 
 ### 5. Create a Large Terraform plan and Evaluate it
@@ -697,7 +718,7 @@ You learned a number of things about Terraform Testing with OPA:
 * OPA gives you fine-grained policy control over Terraform plans.
 * You can use data other than the plan itself (e.g. the user) when writing authorization policies.
 
-Keep in mind that it's up to you to decide how to use OPA's Terraform tests and authorization decision.  Here are some ideas.
+Keep in mind that it's up to you to decide how to use OPA's Terraform tests and authorization decision. Here are some ideas.
 
 * Add it as part of your Terraform wrapper to implement unit tests on Terraform plans
 * Use it to automatically approve run-of-the-mill Terraform changes to reduce the burden of peer-review
@@ -712,7 +733,9 @@ If you'd like to explore an additional example that uses terraform modules pleas
 ### 1. Create and save Terraform module plan
 
 Create a new Terraform file that includes a
-security group and security group from a module.  (This example uses the module from https://github.com/terraform-aws-modules/terraform-aws-security-group)
+security group and security group from a module.
+(This example uses the module from
+[terraform-aws-modules](https://github.com/terraform-aws-modules/terraform-aws-security-group))
 
 ```shell
 cat >main.tf <<EOF
@@ -793,12 +816,13 @@ The policy uses the walk keyword to explore the json structure, and uses conditi
 package terraform.module
 
 deny contains msg if {
+	some r
 	desc := resources[r].values.description
 	contains(desc, "HTTP")
 	msg := sprintf("No security groups should be using HTTP. Resource in violation: %v", [r.address])
 }
 
-resources := {r |
+resources contains r if {
 	some path, value
 
 	# Walk over the JSON tree and check if the node we are
@@ -807,14 +831,11 @@ resources := {r |
 	walk(input.planned_values, [path, value])
 
 	# Look for resources in the current value based on path
-	rs := module_resources(path, value)
-
-	# Aggregate them into `resources`
-	r := rs[_]
+	some r in module_resources(path, value)
 }
 
 # Variant to match root_module resources
-module_resources(path, value) := rs if {
+module_resources(path, value) := value if {
 	# Expect something like:
 	#
 	#     {
@@ -829,11 +850,10 @@ module_resources(path, value) := rs if {
 
 	reverse_index(path, 1) == "resources"
 	reverse_index(path, 2) == "root_module"
-	rs := value
 }
 
 # Variant to match child_modules resources
-module_resources(path, value) := rs if {
+module_resources(path, value) := value if {
 	# Expect something like:
 	#
 	#     {
@@ -855,12 +875,9 @@ module_resources(path, value) := rs if {
 
 	reverse_index(path, 1) == "resources"
 	reverse_index(path, 3) == "child_modules"
-	rs := value
 }
 
-reverse_index(path, idx) := value if {
-	value := path[count(path) - idx]
-}
+reverse_index(path, idx) := path[count(path) - idx]
 ```
 
 ### 4. Evaluate the OPA policy on the Terraform module plan
