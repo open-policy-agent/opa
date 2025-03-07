@@ -117,3 +117,18 @@ cases:
         a.y := "E"
     want_result:
       - x: true
+  - note: ir/call-dynamic with ref heads and unrelated rule (issue 7399)
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := data[first].allow.see.something_else if first := "primary"
+      - |
+        package primary
+        allow[action].something if  action := "show"
+        allow.see.something_else if true
+      - |
+        package unrelated
+        allow.other.stuff if true
+    want_result:
+      - x: true

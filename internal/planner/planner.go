@@ -2363,6 +2363,10 @@ func rewrittenVar(vars map[ast.Var]ast.Var, k ast.Var) ast.Var {
 	return rw
 }
 
+func dont() ([][]*ast.Rule, []ir.Operand, int, bool) {
+	return nil, nil, 0, false
+}
+
 // optimizeLookup returns a set of rulesets and required statements planning
 // the locals (strings) needed with the used local variables, and the index
 // into ref's parth that is still to be planned; if the passed ref's vars
@@ -2379,9 +2383,6 @@ func rewrittenVar(vars map[ast.Var]ast.Var, k ast.Var) ast.Var {
 // var actually matched_ -- so we don't know which subtree to evaluate
 // with the results.
 func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.Operand, int, bool) {
-	dont := func() ([][]*ast.Rule, []ir.Operand, int, bool) {
-		return nil, nil, 0, false
-	}
 	if t == nil {
 		p.debugf("no optimization of %s: trie is nil", ref)
 		return dont()
@@ -2416,7 +2417,7 @@ outer:
 				}
 			}
 		case ast.String:
-			// take all children that either match or have a var key
+			// take all children that either match or have a var key // TODO(sr): Where's the code for the second part, having a var key?
 			for _, node := range nodes {
 				if node := node.Get(r); node != nil {
 					nextNodes = append(nextNodes, node)
@@ -2436,10 +2437,20 @@ outer:
 		// let us break, too.
 		all := 0
 		for _, node := range nodes {
-			all += node.ChildrenCount()
+			if i < len(ref)-1 {
+				// Look ahead one term to only count those children relevant to your planned ref.
+				switch ref[i+1].Value.(type) {
+				case ast.Var:
+					all += node.ChildrenCount()
+				default:
+					if relChildren := node.Get(ref[i+1].Value); relChildren != nil {
+						all++
+					}
+				}
+			}
 		}
 		if all == 0 {
-			p.debugf("ref %s: all nodes have 0 children, break", ref[0:index+1])
+			p.debugf("ref %s: all nodes have 0 relevant children, break", ref[0:index+1])
 			break
 		}
 
