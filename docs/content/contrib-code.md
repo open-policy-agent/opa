@@ -11,13 +11,12 @@ If you are contributing code, please consider the following:
 - Most changes should be accompanied with tests.
 - All commits must be signed off (see next section).
 - Related commits must be squashed before they are merged.
-- All tests must pass and there must be no warnings from the `make
-  check` target.
+- All tests must pass and there must be no warnings from the `make check` target.
 
-If you are new to Go, consider reading [Effective
-Go](https://golang.org/doc/effective_go.html) and [Go Code Review
-Comments](https://github.com/golang/go/wiki/CodeReviewComments) for
-guidance on writing idiomatic Go code.
+If you are new to Go, consider reading
+[Effective Go](https://golang.org/doc/effective_go.html) and
+[Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments)
+for guidance on writing idiomatic Go code.
 
 When you implement new features in OPA, consider whether the
 types/functions you are adding need to be exported. Prefer
@@ -35,7 +34,7 @@ OPA users (e.g., vendoring conflicts, security, debugging, etc.)
 
 ### Commit Messages
 
-Commit messages should explain *why* the changes were made and should probably
+Commit messages should explain _why_ the changes were made and should probably
 look like this:
 
 ```
@@ -62,6 +61,7 @@ format:
 ```
 
 For example, a change to the `ast` package:
+
 ```
 ast: Fix X when Y happens
 
@@ -72,6 +72,7 @@ Signed-off-by: Random J Developer <random@developer.example.org>
 ```
 
 or a change in the OPA website content (found in `./docs/content`):
+
 ```
 docs/website: Add X to homepage for Y
 
@@ -103,6 +104,16 @@ Git has a `-s` command line option to do this automatically.
 
 You can find the full text of the DCO here: https://developercertificate.org/
 
+{{< info >}}
+**Note:** If using AI or machine learning tools to assist in the authoring
+of OPA patches, you must ensure the code you produce is compliant with the
+DCO requirements, and OPA's license. All commits in your patch _must_ be signed
+off by a human author.
+
+The OPA maintainers reserve the right to request additional information about
+patches and reject PRs where code origin cannot be verified.
+{{< /info >}}
+
 ### Code Review
 
 Before a Pull Request is merged, it will undergo code review from other members
@@ -130,7 +141,7 @@ their own commit and added to the PR.
 
 If your Pull Request is small though, it is acceptable to squash changes during
 the review process. Use your judgement about what constitutes a small Pull
-Request.  If you aren't sure, send a message to the OPA slack or post a comment
+Request. If you aren't sure, send a message to the OPA slack or post a comment
 on the Pull Request.
 
 ### Vulnerability scanning
@@ -140,8 +151,7 @@ is up to standard. Part of this process is also to run vulnerability scanning
 on the code and on the generated container image.
 
 [Trivy](https://aquasecurity.github.io/trivy/) is used to run the aforementioned
-vulnerability scanning. To install, follow the [installation instructions](
-https://aquasecurity.github.io/trivy/v0.29.2/getting-started/installation/).
+vulnerability scanning. To install, follow the [installation instructions](https://aquasecurity.github.io/trivy/v0.29.2/getting-started/installation/).
 
 To run the vulnerability scanning, on the code-base, run the following command:
 
@@ -172,6 +182,6 @@ Before submitting large changes, please open an issue on GitHub outlining:
 - Alternative solutions or approaches if applicable.
 
 Use your judgement about what constitutes a large change. If you aren't sure,
-send a message in 
-[#contributors](https://openpolicyagent.slack.com/archives/C02L1TLPN59) on Slack 
+send a message in
+[#contributors](https://openpolicyagent.slack.com/archives/C02L1TLPN59) on Slack
 or submit [an issue on GitHub](https://github.com/open-policy-agent/opa/issues).
