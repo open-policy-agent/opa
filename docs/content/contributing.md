@@ -36,7 +36,8 @@ Slack.
 
 If you want to contribute code check out the
 [development reference](../contrib-development/) for pointers on how to get
-started.
+started. Please note we have some restrictions around the use of AI tooling
+which are documented here.
 
 ## I'd like to help improve the documentation
 
@@ -61,4 +62,3 @@ Sounds interesting, we'd love to hear all about it,
 drop a message in the
 [#contributors](https://openpolicyagent.slack.com/archives/C02L1TLPN59)
 channel.
-
