@@ -6,6 +6,7 @@ package ir
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 )
 
@@ -50,7 +51,11 @@ func (a *Operand) UnmarshalJSON(bs []byte) error {
 	if err := json.Unmarshal(bs, &typed); err != nil {
 		return err
 	}
-	x := valFactories[typed.Type]()
+	f, ok := valFactories[typed.Type]
+	if !ok {
+		return fmt.Errorf("unrecognized value type %q", typed.Type)
+	}
+	x := f()
 	if err := json.Unmarshal(typed.Value, &x); err != nil {
 		return err
 	}
@@ -77,7 +82,11 @@ type rawTypedStmt struct {
 }
 
 func (raw rawTypedStmt) Unmarshal() (Stmt, error) {
-	x := stmtFactories[raw.Type]()
+	f, ok := stmtFactories[raw.Type]
+	if !ok {
+		return nil, fmt.Errorf("unrecognized statement type %q", raw.Type)
+	}
+	x := f()
 	if err := json.Unmarshal(raw.Stmt, &x); err != nil {
 		return nil, err
 	}
@@ -119,6 +128,7 @@ var stmtFactories = map[string]func() Stmt{
 	"IsArrayStmt":          func() Stmt { return &IsArrayStmt{} },
 	"IsObjectStmt":         func() Stmt { return &IsObjectStmt{} },
 	"IsDefinedStmt":        func() Stmt { return &IsDefinedStmt{} },
+	"IsSetStmt":            func() Stmt { return &IsSetStmt{} },
 	"IsUndefinedStmt":      func() Stmt { return &IsUndefinedStmt{} },
 	"ArrayAppendStmt":      func() Stmt { return &ArrayAppendStmt{} },
 	"ObjectInsertStmt":     func() Stmt { return &ObjectInsertStmt{} },

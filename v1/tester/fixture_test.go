@@ -23,9 +23,9 @@ data.foo.bar.test_cases_fail: FAIL (0s)
   two: FAIL
 data.foo.bar.test_cases_ok	    2000	        61.50 ns/op
 --------------------------------------------------------------------------------
-PASS: 2/5
-FAIL: 2/5
-ERROR: 1/5
+PASS: 4/7
+FAIL: 2/7
+ERROR: 1/7
 `
 
 const fixtureReporterVerboseBenchmarkShowAllocations = `FAILURES

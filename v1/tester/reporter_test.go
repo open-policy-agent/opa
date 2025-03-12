@@ -219,10 +219,10 @@ data.foo.qux.test_cases_nested: FAIL (0s)
     bar: PASS
     foo: FAIL
 --------------------------------------------------------------------------------
-PASS: 3/8
-FAIL: 3/8
-SKIPPED: 1/8
-ERROR: 1/8
+PASS: 8/13
+FAIL: 3/13
+SKIPPED: 1/13
+ERROR: 1/13
 `
 
 	str := buf.String()
@@ -444,17 +444,13 @@ data.foo.baz.p.q.r.test_quz: FAIL (0s)
 
 policy5.rego:
 data.foo.qux.test_cases_nested: FAIL (0s)
-  one: PASS
-    bar: PASS
-    foo: PASS
   two: FAIL
-    bar: PASS
     foo: FAIL
 --------------------------------------------------------------------------------
-PASS: 2/8
-FAIL: 4/8
-SKIPPED: 1/8
-ERROR: 1/8
+PASS: 5/11
+FAIL: 4/11
+SKIPPED: 1/11
+ERROR: 1/11
 `
 
 	if exp != buf.String() {
@@ -621,20 +617,14 @@ data.foo.baz.p.q.r.test_quz: FAIL (0s)
 policy4.rego:
 data.foo.qux.test_cases: FAIL (0s)
   bar: FAIL
-  baz: PASS
-  foo: PASS
 data.foo.qux.test_cases_nested: FAIL (0s)
-  one: PASS
-    bar: PASS
-    foo: PASS
   two: FAIL
-    bar: PASS
     foo: FAIL
 --------------------------------------------------------------------------------
-PASS: 2/9
-FAIL: 5/9
-SKIPPED: 1/9
-ERROR: 1/9
+PASS: 7/14
+FAIL: 5/14
+SKIPPED: 1/14
+ERROR: 1/14
 `
 
 	if exp != buf.String() {
@@ -1001,7 +991,7 @@ func TestPrettyReporterVerboseBenchmark(t *testing.T) {
 				},
 				"two": {
 					Name: "two",
-					Fail: true,
+					Fail: false,
 				},
 			},
 			BenchmarkResult: &testing.BenchmarkResult{

@@ -47,15 +47,33 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 	var failures []*Result
 
 	for tr := range ch {
-		if tr.Pass() {
-			pass++
-		} else if tr.Skip {
+		if tr.Skip {
 			skip++
 		} else if tr.Error != nil {
 			errs++
-		} else if tr.Fail {
-			fail++
-			failures = append(failures, tr)
+		} else {
+			if tr.Fail {
+				failures = append(failures, tr)
+			}
+
+			if len(tr.SubResults) > 0 {
+				for _, sr := range tr.SubResults.Iter {
+					if len(sr.SubResults) == 0 {
+						// Only count leaf results
+						if sr.Fail {
+							fail++
+						} else {
+							pass++
+						}
+					}
+				}
+			} else {
+				if tr.Pass() {
+					pass++
+				} else if tr.Fail {
+					fail++
+				}
+			}
 		}
 		results = append(results, tr)
 	}
@@ -128,8 +146,15 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 			r.println(tr.string(false))
 
 			w := newIndentingWriter(r.Output)
-			if sr := tr.SubResults; len(sr) > 0 {
-				_, _ = fmt.Fprint(w, sr.string("  "))
+			if srs := tr.SubResults; len(srs) > 0 {
+				for fullName, sr := range srs.Iter {
+					if sr.Fail || r.Verbose {
+						_, _ = fmt.Fprintf(w, "%s%s\n",
+							strings.Repeat("  ", len(fullName)-1),
+							sr.String(),
+						)
+					}
+				}
 			}
 
 			if len(tr.Output) > 0 {
