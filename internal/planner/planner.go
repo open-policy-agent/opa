@@ -2410,6 +2410,10 @@ outer:
 			opt = true
 			// take all children, they might match
 			for _, node := range nodes {
+				if nr := node.Rules(); len(nr) > 0 {
+					p.debugf("no optimization of %s: node with rules (%v)", ref, refsOfRules(nr))
+					return dont()
+				}
 				for _, child := range node.Children() {
 					if node := node.Get(child); node != nil {
 						nextNodes = append(nextNodes, node)
@@ -2419,6 +2423,10 @@ outer:
 		case ast.String:
 			// take all children that either match or have a var key // TODO(sr): Where's the code for the second part, having a var key?
 			for _, node := range nodes {
+				if nr := node.Rules(); len(nr) > 0 {
+					p.debugf("no optimization of %s: node with rules (%v)", ref, refsOfRules(nr))
+					return dont()
+				}
 				if node := node.Get(r); node != nil {
 					nextNodes = append(nextNodes, node)
 				}
@@ -2558,4 +2566,12 @@ func (p *Planner) isFunction(r ast.Ref) bool {
 
 func op(v ir.Val) ir.Operand {
 	return ir.Operand{Value: v}
+}
+
+func refsOfRules(rs []*ast.Rule) []string {
+	refs := make([]string, len(rs))
+	for i := range rs {
+		refs[i] = rs[i].Head.Ref().String()
+	}
+	return refs
 }

@@ -132,3 +132,37 @@ cases:
         allow.other.stuff if true
     want_result:
       - x: true
+  - note: ir/call-dynamic not used with ref heads and mixed-length rules (issue 7399)
+    query: data.test.q = x
+    modules:
+      - |
+        package test
+
+        p.allow[action][resource] if { action := "list"; resource := "fruit" }
+
+        p.unrelated.eat.veggies if true
+
+        q := p[input.rule][input.action][input.resource]
+    input:
+      rule: allow
+      action: list
+      resource: fruit
+    want_result:
+      - x: true
+  - note: ir/call-dynamic not used with ref heads and mixed-length rules (issue 7399), second rule
+    query: data.test.q = x
+    modules:
+      - |
+        package test
+
+        p.allow[action][resource] if { action := "list"; resource := "fruit" }
+
+        p.unrelated.eat.veggies if true
+
+        q := p[input.rule][input.action][input.resource]
+    input:
+      rule: unrelated
+      action: eat
+      resource: veggies
+    want_result:
+      - x: true

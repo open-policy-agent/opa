@@ -1101,6 +1101,28 @@ func TestOptimizeLookup(t *testing.T) {
 			t.Fatalf("expected %d rules in ruleset[0], got %d\n", exp, act)
 		}
 	})
+
+	t.Run("ref heads, mixed-length rules in ruletrie", func(t *testing.T) {
+		r0 := ast.MustParseRule("allow[x].something { x := \"show\" }")
+		r1 := ast.MustParseRule("allow.see.something_else { true }")
+		r := newRuletrie()
+		val := r.LookupOrInsert(ref("primary.allow"))
+		val.rules = append(val.rules, r0)
+		val = r.LookupOrInsert(ref("secondary.allow.see.something_else"))
+		val.rules = append(val.rules, r1)
+
+		if testing.Verbose() {
+			t.Logf("rules: %v", r)
+		}
+
+		p := planner()
+		p.vars.Put(ast.Var("x"), p.newLocal())
+		_, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data[x].allow.see.something_else"))
+
+		if exp, act := false, opt; exp != act {
+			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
+		}
+	})
 }
 
 func TestPlannerCallDynamic(t *testing.T) {
