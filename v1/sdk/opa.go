@@ -580,7 +580,6 @@ func evaluate(ctx context.Context, args evalArgs) (interface{}, types.Provenance
 		rego.EvalTime(args.now),
 		rego.EvalParsedInput(inputAST),
 		rego.EvalTransaction(args.txn),
-		rego.EvalMetrics(args.m),
 		rego.EvalInterQueryBuiltinCache(args.interQueryCache),
 		rego.EvalInterQueryBuiltinValueCache(args.interQueryBuiltinValueCache),
 		rego.EvalNDBuiltinCache(args.ndbcache),
