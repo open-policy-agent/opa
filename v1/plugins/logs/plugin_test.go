@@ -1890,15 +1890,27 @@ func TestPluginReconfigure(t *testing.T) {
 
 	tests := []struct {
 		name                           string
-		reportingBufferType            string
+		currentBufferType              string
+		newBufferType                  string
 		reportingBufferSizeLimitEvents int64
 	}{
 		{
-			name:                "using event buffer",
-			reportingBufferType: "event",
+			name:              "Reconfigure from event to size buffer",
+			currentBufferType: "event",
+			newBufferType:     "size",
 		},
 		{
-			name: "using size buffer",
+			name:              "Reconfigure from event to size buffer",
+			currentBufferType: "size",
+			newBufferType:     "event",
+		},
+		{
+			name: "Reconfigure from size to size buffer",
+		},
+		{
+			name:              "Reconfigure from event to event buffer",
+			currentBufferType: "event",
+			newBufferType:     "event",
 		},
 	}
 
@@ -1906,7 +1918,7 @@ func TestPluginReconfigure(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 			fixture := newTestFixture(t, testFixtureOptions{
-				ReportingBufferType: tc.reportingBufferType,
+				ReportingBufferType: tc.currentBufferType,
 			})
 			defer fixture.server.stop()
 
@@ -1922,10 +1934,11 @@ func TestPluginReconfigure(t *testing.T) {
 			pluginConfig := []byte(fmt.Sprintf(`{
 			"service": "example",
 			"reporting": {
+				"buffer_type": %v,
 				"min_delay_seconds": %v,
 				"max_delay_seconds": %v
 			}
-		}`, minDelay, maxDelay))
+			}`, tc.newBufferType, minDelay, maxDelay))
 
 			config, _ := ParseConfig(pluginConfig, fixture.manager.Services(), nil)
 
