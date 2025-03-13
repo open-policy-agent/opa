@@ -126,6 +126,8 @@ type EvalContext struct {
 	strictBuiltinErrors         bool
 	virtualCache                topdown.VirtualCache
 	baseCache                   topdown.BaseCache
+	tracing                     tracing.Options
+	externalCancel              topdown.Cancel // Note(philip): If non-nil, the cancellation is handled outside of this package.
 }
 
 func (e *EvalContext) RawInput() *any {
@@ -178,6 +180,18 @@ func (e *EvalContext) Capabilities() *ast.Capabilities {
 
 func (e *EvalContext) Transaction() storage.Transaction {
 	return e.txn
+}
+
+func (e *EvalContext) TracingOpts() tracing.Options {
+	return e.tracing
+}
+
+func (e *EvalContext) ExternalCancel() topdown.Cancel {
+	return e.externalCancel
+}
+
+func (e *EvalContext) QueryTracers() []topdown.QueryTracer {
+	return e.queryTracers
 }
 
 // EvalOption defines a function to set an option on an EvalConfig
@@ -385,6 +399,14 @@ func EvalBaseCache(bc topdown.BaseCache) EvalOption {
 func EvalNondeterministicBuiltins(yes bool) EvalOption {
 	return func(e *EvalContext) {
 		e.nondeterministicBuiltins = yes
+	}
+}
+
+// EvalExternalCancel sets an external topdown.Cancel for the interpreter to use
+// for cancellation. This is useful for batch-evaluation of many rego queries.
+func EvalExternalCancel(ec topdown.Cancel) EvalOption {
+	return func(e *EvalContext) {
+		e.externalCancel = ec
 	}
 }
 
@@ -2214,13 +2236,19 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 	}
 
 	// Cancel query if context is cancelled or deadline is reached.
-	c := topdown.NewCancel()
-	q = q.WithCancel(c)
-	exit := make(chan struct{})
-	defer close(exit)
-	go waitForDone(ctx, exit, func() {
-		c.Cancel()
-	})
+	if ectx.externalCancel == nil {
+		// Create a one-off goroutine to handle cancellation for this query.
+		c := topdown.NewCancel()
+		q = q.WithCancel(c)
+		exit := make(chan struct{})
+		defer close(exit)
+		go waitForDone(ctx, exit, func() {
+			c.Cancel()
+		})
+	} else {
+		// Query cancellation is being handled elsewhere.
+		q = q.WithCancel(ectx.externalCancel)
+	}
 
 	var rs ResultSet
 	err := q.Iter(ctx, func(qr topdown.QueryResult) error {
@@ -2502,13 +2530,19 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 	}
 
 	// Cancel query if context is cancelled or deadline is reached.
-	c := topdown.NewCancel()
-	q = q.WithCancel(c)
-	exit := make(chan struct{})
-	defer close(exit)
-	go waitForDone(ctx, exit, func() {
-		c.Cancel()
-	})
+	if ectx.externalCancel == nil {
+		// Create a one-off goroutine to handle cancellation for this query.
+		c := topdown.NewCancel()
+		q = q.WithCancel(c)
+		exit := make(chan struct{})
+		defer close(exit)
+		go waitForDone(ctx, exit, func() {
+			c.Cancel()
+		})
+	} else {
+		// Query cancellation is being handled elsewhere.
+		q = q.WithCancel(ectx.externalCancel)
+	}
 
 	queries, support, err := q.PartialRun(ctx)
 	if err != nil {
