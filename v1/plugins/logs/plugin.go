@@ -965,11 +965,23 @@ func (p *Plugin) reconfigure(ctx context.Context, config interface{}) {
 				*p.config.Resource,
 				*p.config.Reporting.UploadSizeLimitBytes)
 		} else {
-			p.eventBuffer.Reconfigure(
+			errs := p.eventBuffer.Reconfigure(
 				*p.config.Reporting.BufferSizeLimitEvents,
 				p.manager.Client(p.config.Service),
 				*p.config.Resource,
 				*p.config.Reporting.UploadSizeLimitBytes)
+
+			for _, err := range errs {
+				if err == nil {
+					continue
+				}
+				if errors.Is(err, droppedNDCache{}) {
+					p.incrMetric(logNDBDropCounterName)
+				} else {
+					p.incrMetric(logEncodingFailureCounterName)
+				}
+				p.logger.Error("Log encoding failed: %v.", err)
+			}
 		}
 
 		p.runningBuffer = eventBufferType
@@ -994,7 +1006,7 @@ func (p *Plugin) reconfigure(ctx context.Context, config interface{}) {
 // run out of space, we drop the ND builtins cache, and try encoding again.
 func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 	if p.limiter != nil && !p.limiter.Allow() {
-		p.addMetric(logRateLimitExDropCounterName)
+		p.incrMetric(logRateLimitExDropCounterName)
 		p.logger.Error("Decision log dropped as rate limit exceeded. Reduce reporting interval or increase rate limit.")
 		return
 	}
@@ -1002,10 +1014,10 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 	if p.runningBuffer == eventBufferType {
 		err := p.eventBuffer.Push(event)
 		if err != nil {
-			if errors.As(err, &droppedNDCache{}) {
-				p.addMetric(logNDBDropCounterName)
+			if errors.Is(err, droppedNDCache{}) {
+				p.incrMetric(logNDBDropCounterName)
 			} else {
-				p.addMetric(logEncodingFailureCounterName)
+				p.incrMetric(logEncodingFailureCounterName)
 			}
 			p.logger.Error("Log encoding failed: %v.", err)
 		}
@@ -1021,7 +1033,7 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 			// can return an error. Should the default behaviour be to
 			// fail-closed as we do for plugins?
 
-			p.addMetric(logEncodingFailureCounterName)
+			p.incrMetric(logEncodingFailureCounterName)
 			p.logger.Error("Log encoding failed: %v.", err)
 			return
 		}
@@ -1032,14 +1044,14 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 
 		result, err = p.encodeEvent(newEvent)
 		if err != nil {
-			p.addMetric(logEncodingFailureCounterName)
+			p.incrMetric(logEncodingFailureCounterName)
 			p.logger.Error("Log encoding failed: %v.", err)
 			return
 		}
 
 		// Re-encoding was successful, but we still need to alert users.
 		p.logger.Error(droppedNDCache{}.Error())
-		p.addMetric(logNDBDropCounterName)
+		p.incrMetric(logNDBDropCounterName)
 	}
 
 	p.mtx.Lock()
@@ -1063,7 +1075,7 @@ func (p *Plugin) encodeEvent(event EventV1) ([][]byte, error) {
 func (p *Plugin) bufferChunk(buffer *logBuffer, bs []byte) {
 	dropped := buffer.Push(bs)
 	if dropped > 0 {
-		p.addMetric(logBufferSizeLimitExDropCounterName)
+		p.incrMetric(logBufferSizeLimitExDropCounterName)
 		p.logger.Error("Dropped %v chunks from buffer. Reduce reporting interval or increase buffer size.", dropped)
 	}
 }
@@ -1200,7 +1212,7 @@ func (p *Plugin) logEvent(event EventV1) error {
 	return nil
 }
 
-func (p *Plugin) addMetric(name string) {
+func (p *Plugin) incrMetric(name string) {
 	if p.metrics != nil {
 		p.metrics.Counter(name).Incr()
 	}
@@ -1220,6 +1232,6 @@ func (p *Plugin) setStatus(err error) {
 type droppedNDCache struct {
 }
 
-func (d droppedNDCache) Error() string {
+func (droppedNDCache) Error() string {
 	return "ND builtins cache dropped from this event to fit under maximum upload size limits. Increase upload size limit or change usage of non-deterministic builtins."
 }

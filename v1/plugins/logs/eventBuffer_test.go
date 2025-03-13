@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -36,7 +37,20 @@ func TestEventBuffer_Push(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.Reconfigure(limit, rest.Client{}, "", 100)
+	if int64(len(b.buffer)) != limit {
+		t.Fatalf("buffer size mismatch, expected %d, got %d", limit, len(b.buffer))
+	}
+
+	// drop all events that don't meet the upload size limit anymore
+	errs := b.Reconfigure(limit, rest.Client{}, "", 100)
+	for _, err := range errs {
+		expectedErrorMsg := "upload chunk size (195) exceeds upload_size_limit_bytes (100)"
+		if err == nil {
+			t.Fatal("error expected")
+		} else if err.Error() != expectedErrorMsg {
+			t.Fatalf("expected error %v but got %v", expectedErrorMsg, err.Error())
+		}
+	}
 	err = b.Push(newTestEvent(t, "4", false))
 	expectedErrorMsg := "upload chunk size (195) exceeds upload_size_limit_bytes (100)"
 	if err == nil {
@@ -45,33 +59,47 @@ func TestEventBuffer_Push(t *testing.T) {
 		t.Fatalf("expected error %v but got %v", expectedErrorMsg, err.Error())
 	}
 
-	b.Reconfigure(limit, rest.Client{}, "", 195)
-	err = b.Push(newTestEvent(t, "5", true))
-	expectedErrorMsg = droppedNDCache{}.Error()
-	if err == nil {
-		t.Fatal("error expected")
-	} else if err.Error() != expectedErrorMsg {
-		t.Fatalf("expected error %v but got %v", expectedErrorMsg, err.Error())
+	errs = b.Reconfigure(limit, rest.Client{}, "", 196)
+	for _, err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	err = b.Push(newTestEvent(t, "5", false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.Push(newTestEvent(t, "6", true))
+	if !errors.Is(err, droppedNDCache{}) {
+		t.Fatalf("expected error %v but got %v", droppedNDCache{}.Error(), err.Error())
+	}
+
+	if int64(len(b.buffer)) != 2 {
+		t.Fatalf("buffer size mismatch, expected %d, got %d", 2, len(b.buffer))
 	}
 
 	limit = int64(3)
-	b.Reconfigure(limit, rest.Client{}, "", 200)
-	err = b.Push(newTestEvent(t, "6", false))
+	errs = b.Reconfigure(limit, rest.Client{}, "", 200)
+	for _, err := range errs {
+		if !errors.Is(err, droppedNDCache{}) && err != nil {
+			t.Fatal(err)
+		}
+	}
+	err = b.Push(newTestEvent(t, "7", false))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	b.Reconfigure(limit, rest.Client{}, "", 194)
-	err = b.Push(newTestEvent(t, "7", true))
-	expectedErrorMsg = "upload chunk size (195) exceeds upload_size_limit_bytes (194)"
-	if err == nil {
-		t.Fatal("error expected")
-	} else if err.Error() != expectedErrorMsg {
-		t.Fatalf("expected error %v but got %v", expectedErrorMsg, err.Error())
+	// change nothing
+	errs = b.Reconfigure(limit, rest.Client{}, "", 200)
+	for _, err := range errs {
+		if !errors.Is(err, droppedNDCache{}) && err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	close(b.buffer)
-	events := make([]EventV1, 0, 2)
+	events := make([]EventV1, 0, limit)
 	for event := range b.buffer {
 		var e EventV1
 		if err := json.Unmarshal(event, &e); err != nil {

@@ -33,21 +33,23 @@ func newEventBuffer(bufferSizeLimitEvents int64, client rest.Client, uploadPath 
 }
 
 // Reconfigure updates the user configurable values
-func (b *eventBuffer) Reconfigure(bufferSizeLimitEvents int64, client rest.Client, uploadPath string, uploadSizeLimitBytes int64) {
+func (b *eventBuffer) Reconfigure(bufferSizeLimitEvents int64, client rest.Client, uploadPath string, uploadSizeLimitBytes int64) []error {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 
 	b.client = client
 	b.uploadPath = uploadPath
+	oldUploadSizeLimitBytes := b.uploadSizeLimitBytes
 	b.uploadSizeLimitBytes = uploadSizeLimitBytes
 
-	if int64(cap(b.buffer)) == bufferSizeLimitEvents {
-		return
+	if int64(cap(b.buffer)) == bufferSizeLimitEvents && uploadSizeLimitBytes == oldUploadSizeLimitBytes {
+		return nil
 	}
 
 	close(b.buffer)
 	newBuffer := make(chan []byte, bufferSizeLimitEvents)
 
+	var errs []error
 	for event := range b.buffer {
 		if int64(len(event)) < b.uploadSizeLimitBytes {
 			push(newBuffer, event)
@@ -59,17 +61,21 @@ func (b *eventBuffer) Reconfigure(bufferSizeLimitEvents int64, client rest.Clien
 			continue
 		}
 		if err := b.dropNDCache(&decoded, event); err != nil {
-			if !errors.As(err, &droppedNDCache{}) {
+			if !errors.Is(err, droppedNDCache{}) {
+				errs = append(errs, err)
 				continue
 			}
 			event, err = json.Marshal(decoded)
 			if err != nil {
+				errs = append(errs, err)
 				continue
 			}
 		}
 		push(newBuffer, event)
 	}
 	b.buffer = newBuffer
+
+	return errs
 }
 
 // Push attempts to add a new event to the buffer
@@ -119,6 +125,7 @@ func (b *eventBuffer) dropNDCache(event *EventV1, encoded []byte) error {
 	return droppedNDCache{}
 }
 
+// push attempts to add data to a channel, if the channel is full the oldest data is dropped (FIFO).
 func push[T any](ch chan T, data T) {
 	select {
 	case ch <- data:
@@ -173,8 +180,7 @@ type payloadBuffer struct {
 
 func newPayloadBuffer() *payloadBuffer {
 	p := payloadBuffer{}
-	p.buffer = new(bytes.Buffer)
-	p.writer = gzip.NewWriter(p.buffer)
+	p.reset()
 	return &p
 }
 
@@ -231,10 +237,14 @@ func (p *payloadBuffer) upload(ctx context.Context, client rest.Client, uploadPa
 		return false, err
 	}
 
+	p.reset()
+
+	return true, nil
+}
+
+func (p *payloadBuffer) reset() {
 	p.bytesWritten = 0
 	p.buffer = new(bytes.Buffer)
 	p.writer = gzip.NewWriter(p.buffer)
 	p.closed = false
-
-	return true, nil
 }
