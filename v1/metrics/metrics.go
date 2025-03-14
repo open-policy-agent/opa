@@ -178,7 +178,7 @@ func (m *metrics) Clear() {
 	m.counters = map[string]Counter{}
 }
 
-func (m *metrics) formatKey(name string, metrics interface{}) string {
+func (*metrics) formatKey(name string, metrics interface{}) string {
 	switch metrics.(type) {
 	case Timer:
 		return "timer_" + name + "_ns"

@@ -22,7 +22,7 @@ var (
 
 const globalPrefix = "opa"
 
-func (cf cmdFlagsImpl) CheckEnvironmentVariables(command *cobra.Command) error {
+func (cmdFlagsImpl) CheckEnvironmentVariables(command *cobra.Command) error {
 	var errs []string
 	v := viper.New()
 	v.AutomaticEnv()

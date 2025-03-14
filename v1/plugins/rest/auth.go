@@ -376,7 +376,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) createAuthJWT(ctx context.Context, 
 	return &jwt, nil
 }
 
-func (ap *oauth2ClientCredentialsAuthPlugin) mapKMSAlgToSign(alg string) (string, error) {
+func (*oauth2ClientCredentialsAuthPlugin) mapKMSAlgToSign(alg string) (string, error) {
 	switch alg {
 	case "ECDSA_SHA_256":
 		return "ES256", nil
@@ -758,7 +758,7 @@ func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
 	return client, nil
 }
 
-func (ap *clientTLSAuthPlugin) Prepare(_ *http.Request) error {
+func (*clientTLSAuthPlugin) Prepare(_ *http.Request) error {
 	return nil
 }
 

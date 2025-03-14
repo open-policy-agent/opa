@@ -134,7 +134,7 @@ func (c *Config) validateAndInjectDefaults(services []string, confKeys map[strin
 	return c.Config.ValidateAndInjectDefaults()
 }
 
-func (c *Config) getServiceFromList(service string, services []string) (string, error) {
+func (*Config) getServiceFromList(service string, services []string) (string, error) {
 	if service == "" {
 		if len(services) != 1 {
 			return "", errors.New("more than one service is defined")

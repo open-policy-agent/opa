@@ -3030,7 +3030,7 @@ func (qc *queryCompiler) resolveRefs(qctx *QueryContext, body Body) (Body, error
 	return resolveRefsInBody(globals, ignore, body), nil
 }
 
-func (qc *queryCompiler) rewriteComprehensionTerms(_ *QueryContext, body Body) (Body, error) {
+func (*queryCompiler) rewriteComprehensionTerms(_ *QueryContext, body Body) (Body, error) {
 	gen := newLocalVarGenerator("q", body)
 	f := newEqualityFactory(gen)
 	node, err := rewriteComprehensionTerms(f, body)
@@ -3040,13 +3040,13 @@ func (qc *queryCompiler) rewriteComprehensionTerms(_ *QueryContext, body Body) (
 	return node.(Body), nil
 }
 
-func (qc *queryCompiler) rewriteDynamicTerms(_ *QueryContext, body Body) (Body, error) {
+func (*queryCompiler) rewriteDynamicTerms(_ *QueryContext, body Body) (Body, error) {
 	gen := newLocalVarGenerator("q", body)
 	f := newEqualityFactory(gen)
 	return rewriteDynamics(f, body), nil
 }
 
-func (qc *queryCompiler) rewriteExprTerms(_ *QueryContext, body Body) (Body, error) {
+func (*queryCompiler) rewriteExprTerms(_ *QueryContext, body Body) (Body, error) {
 	gen := newLocalVarGenerator("q", body)
 	return rewriteExprTermsInBody(gen, body), nil
 }

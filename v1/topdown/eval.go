@@ -3216,7 +3216,7 @@ func (q vcKeyScope) Hash() int {
 	return hash
 }
 
-func (q vcKeyScope) IsGround() bool {
+func (vcKeyScope) IsGround() bool {
 	return false
 }
 

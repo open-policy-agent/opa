@@ -5145,7 +5145,7 @@ type queryBindingErrStore struct {
 	storage.PolicyNotSupported
 }
 
-func (s *queryBindingErrStore) Read(_ context.Context, _ storage.Transaction, _ storage.Path) (interface{}, error) {
+func (*queryBindingErrStore) Read(_ context.Context, _ storage.Transaction, _ storage.Path) (interface{}, error) {
 	return nil, errors.New("expected error")
 }
 

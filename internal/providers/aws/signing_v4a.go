@@ -280,7 +280,7 @@ func buildAuthorizationHeader(credentialStr, signedHeadersStr, signingSignature 
 	return parts.String()
 }
 
-func (s *httpSigner) buildCanonicalHeaders(host string, rule v4Internal.Rule, header http.Header, length int64) (signed http.Header, signedHeaders, canonicalHeadersStr string) {
+func (*httpSigner) buildCanonicalHeaders(host string, rule v4Internal.Rule, header http.Header, length int64) (signed http.Header, signedHeaders, canonicalHeadersStr string) {
 	signed = make(http.Header)
 
 	const hostHeader = "host"

@@ -1166,7 +1166,7 @@ func (o *optimizer) getSupportForEntrypoint(queries []ast.Body, entrypoint *ast.
 // by rules in modules in 'b' then the module from 'a' is discarded.
 // NOTE(sr): This function assumes that `b` is the result of partial eval, and thus does NOT
 // contain any rules that genuinely need their ref heads.
-func (o *optimizer) merge(a, b []bundle.ModuleFile) []bundle.ModuleFile {
+func (*optimizer) merge(a, b []bundle.ModuleFile) []bundle.ModuleFile {
 
 	prefixes := ast.NewSet()
 

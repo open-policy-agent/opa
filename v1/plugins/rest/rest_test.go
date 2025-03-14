@@ -2554,7 +2554,7 @@ func mockAuthPluginLookup(name string) HTTPAuthPlugin {
 
 type myPluginMock struct{}
 
-func (m *myPluginMock) NewClient(c Config) (*http.Client, error) {
+func (*myPluginMock) NewClient(c Config) (*http.Client, error) {
 	tlsConfig, err := DefaultTLSConfig(c)
 	if err != nil {
 		return nil, err

@@ -34,5 +34,5 @@ func (l *latch) wait() {
 	l.waitGroup.Wait()
 }
 
-func (l *latch) Close() {
+func (*latch) Close() {
 }

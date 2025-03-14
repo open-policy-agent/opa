@@ -929,7 +929,7 @@ func (w *writer) writeRefStringPath(s ast.String) {
 	}
 }
 
-func (w *writer) formatVar(v ast.Var) string {
+func (*writer) formatVar(v ast.Var) string {
 	if v.IsWildcard() {
 		return ast.Wildcard.String()
 	}

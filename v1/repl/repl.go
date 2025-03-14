@@ -451,7 +451,7 @@ func (r *REPL) cmdDumpPath(ctx context.Context, filename string) error {
 	return dumpStorage(ctx, r.store, r.txn, f)
 }
 
-func (r *REPL) cmdExit() error {
+func (*REPL) cmdExit() error {
 	return stop{}
 }
 

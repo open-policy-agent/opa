@@ -54,7 +54,7 @@ func (dt *debugTracer) TraceEvent(e topdown.Event) {
 	<-dt.waitChan
 }
 
-func (dt *debugTracer) Config() topdown.TraceConfig {
+func (*debugTracer) Config() topdown.TraceConfig {
 	return topdown.TraceConfig{
 		PlugLocalVars: true,
 	}

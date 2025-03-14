@@ -24,7 +24,7 @@ type TargetPluginEval interface {
 	Eval(context.Context, *EvalContext, ast.Value) (ast.Value, error)
 }
 
-func (r *Rego) targetPlugin(tgt string) TargetPlugin {
+func (*Rego) targetPlugin(tgt string) TargetPlugin {
 	for _, p := range targetPlugins {
 		if p.IsTarget(tgt) {
 			return p

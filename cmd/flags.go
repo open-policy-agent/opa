@@ -207,7 +207,7 @@ func newcapabilitiesFlag() *capabilitiesFlag {
 	}
 }
 
-func (f *capabilitiesFlag) Type() string {
+func (*capabilitiesFlag) Type() string {
 	return stringType
 }
 
@@ -236,7 +236,7 @@ type stringptrFlag struct {
 	isSet bool
 }
 
-func (f *stringptrFlag) Type() string {
+func (*stringptrFlag) Type() string {
 	return stringType
 }
 

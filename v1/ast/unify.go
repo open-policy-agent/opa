@@ -226,7 +226,7 @@ func (u *unifier) unifyAll(a Var, b Value) {
 	}
 }
 
-func (u *unifier) varVisitor() *VarVisitor {
+func (*unifier) varVisitor() *VarVisitor {
 	return NewVarVisitor().WithParams(VarVisitorParams{
 		SkipRefHead:    true,
 		SkipObjectKeys: true,

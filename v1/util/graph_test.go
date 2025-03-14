@@ -34,7 +34,7 @@ func (t *testTraversal) Edges(x T) []T {
 	return r
 }
 
-func (t *testTraversal) Equals(a, b T) bool {
+func (*testTraversal) Equals(a, b T) bool {
 	return a.(int) == b.(int)
 }
 

@@ -901,7 +901,7 @@ func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, rem
 	})
 }
 
-func (rt *Runtime) getBanner() string {
+func (*Runtime) getBanner() string {
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "OPA %v (commit %v, built at %v)\n", version.Version, version.Vcs, version.Timestamp)
 	fmt.Fprintf(&buf, "\n")

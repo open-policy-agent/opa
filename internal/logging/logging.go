@@ -50,7 +50,7 @@ func spaces(num int) string {
 	return strings.Repeat(" ", num)
 }
 
-func (p *prettyFormatter) Format(e *logrus.Entry) ([]byte, error) {
+func (*prettyFormatter) Format(e *logrus.Entry) ([]byte, error) {
 	b := new(bytes.Buffer)
 
 	level := strings.ToUpper(e.Level.String())

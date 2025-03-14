@@ -109,7 +109,7 @@ func unwrap(t Type) Type {
 	}
 }
 
-func (t Null) String() string {
+func (Null) String() string {
 	return typeNull
 }
 

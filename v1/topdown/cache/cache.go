@@ -325,7 +325,7 @@ func (c *cache) unsafeDelete(k ast.Value) {
 	c.l.Remove(cacheItem.keyElement)
 }
 
-func (c *cache) unsafeClone(value InterQueryCacheValue) (InterQueryCacheValue, error) {
+func (*cache) unsafeClone(value InterQueryCacheValue) (InterQueryCacheValue, error) {
 	return value.Clone()
 }
 
