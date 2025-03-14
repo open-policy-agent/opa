@@ -14,5 +14,4 @@ z if {
 }
 
 f(_, _) := true
-
 g(_) := true
