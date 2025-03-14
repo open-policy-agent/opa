@@ -24,17 +24,26 @@ func TestEventBuffer_Push(t *testing.T) {
 
 	limit := int64(2)
 	b := newEventBuffer(limit, rest.Client{}, "", 200)
-	err := b.Push(newTestEvent(t, "1", false))
+	dropped, err := b.Push(newTestEvent(t, "1", false))
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = b.Push(newTestEvent(t, "2", false))
+	if dropped {
+		t.Fatal("expected no events to be dropped")
+	}
+	dropped, err = b.Push(newTestEvent(t, "2", false))
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = b.Push(newTestEvent(t, "3", false))
+	if dropped {
+		t.Fatal("expected no events to be dropped")
+	}
+	dropped, err = b.Push(newTestEvent(t, "3", false))
 	if err != nil {
 		t.Fatal(err)
+	}
+	if !dropped {
+		t.Fatal("expected 1 event to be dropped")
 	}
 
 	if int64(len(b.buffer)) != limit {
@@ -42,7 +51,7 @@ func TestEventBuffer_Push(t *testing.T) {
 	}
 
 	// drop all events that don't meet the upload size limit anymore
-	errs := b.Reconfigure(limit, rest.Client{}, "", 100)
+	droppedCount, errs := b.Reconfigure(limit, rest.Client{}, "", 100)
 	for _, err := range errs {
 		expectedErrorMsg := "upload chunk size (195) exceeds upload_size_limit_bytes (100)"
 		if err == nil {
@@ -51,27 +60,50 @@ func TestEventBuffer_Push(t *testing.T) {
 			t.Fatalf("expected error %v but got %v", expectedErrorMsg, err.Error())
 		}
 	}
-	err = b.Push(newTestEvent(t, "4", false))
+	if droppedCount != 2 {
+		t.Fatalf("number of dropped event mismatch, expected %d, got %d", 2, droppedCount)
+	}
+	dropped, err = b.Push(newTestEvent(t, "4", false))
 	expectedErrorMsg := "upload chunk size (195) exceeds upload_size_limit_bytes (100)"
 	if err == nil {
 		t.Fatal("error expected")
 	} else if err.Error() != expectedErrorMsg {
 		t.Fatalf("expected error %v but got %v", expectedErrorMsg, err.Error())
 	}
+	if dropped {
+		t.Fatal("expected no events to be dropped")
+	}
 
-	errs = b.Reconfigure(limit, rest.Client{}, "", 196)
+	droppedCount, errs = b.Reconfigure(limit, rest.Client{}, "", 196)
 	for _, err := range errs {
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
-	err = b.Push(newTestEvent(t, "5", false))
+	if droppedCount != 0 {
+		t.Fatalf("number of dropped event mismatch, expected %d, got %d", 0, droppedCount)
+	}
+	dropped, err = b.Push(newTestEvent(t, "5", false))
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = b.Push(newTestEvent(t, "6", true))
+	if dropped {
+		t.Fatal("expected no events to be dropped")
+	}
+	dropped, err = b.Push(newTestEvent(t, "6", true))
 	if !errors.Is(err, droppedNDCache{}) {
 		t.Fatalf("expected error %v but got %v", droppedNDCache{}.Error(), err.Error())
+	}
+	if dropped {
+		t.Fatal("expected no events to be dropped")
+	}
+
+	dropped, err = b.Push(newTestEvent(t, "7", true))
+	if !errors.Is(err, droppedNDCache{}) {
+		t.Fatalf("expected error %v but got %v", droppedNDCache{}.Error(), err.Error())
+	}
+	if !dropped {
+		t.Fatal("expected 1 event to be dropped")
 	}
 
 	if int64(len(b.buffer)) != 2 {
@@ -79,23 +111,32 @@ func TestEventBuffer_Push(t *testing.T) {
 	}
 
 	limit = int64(3)
-	errs = b.Reconfigure(limit, rest.Client{}, "", 200)
+	droppedCount, errs = b.Reconfigure(limit, rest.Client{}, "", 200)
 	for _, err := range errs {
 		if !errors.Is(err, droppedNDCache{}) && err != nil {
 			t.Fatal(err)
 		}
 	}
-	err = b.Push(newTestEvent(t, "7", false))
+	if droppedCount != 0 {
+		t.Fatalf("number of dropped event mismatch, expected %d, got %d", 0, droppedCount)
+	}
+	dropped, err = b.Push(newTestEvent(t, "8", false))
 	if err != nil {
 		t.Fatal(err)
 	}
+	if dropped {
+		t.Fatal("expected no events to be dropped")
+	}
 
 	// change nothing
-	errs = b.Reconfigure(limit, rest.Client{}, "", 200)
+	droppedCount, errs = b.Reconfigure(limit, rest.Client{}, "", 200)
 	for _, err := range errs {
 		if !errors.Is(err, droppedNDCache{}) && err != nil {
 			t.Fatal(err)
 		}
+	}
+	if droppedCount != 0 {
+		t.Fatalf("number of dropped event mismatch, expected %d, got %d", 0, droppedCount)
 	}
 
 	close(b.buffer)
@@ -176,7 +217,7 @@ func TestEventBuffer_Upload(t *testing.T) {
 			e := newEventBuffer(tc.eventLimit, client, uploadPath, tc.uploadSizeLimitBytes)
 
 			for i := range tc.numberOfEvents {
-				err := e.Push(newTestEvent(t, strconv.Itoa(i), false))
+				_, err := e.Push(newTestEvent(t, strconv.Itoa(i), false))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -207,7 +248,7 @@ func TestEventBuffer_Reconfigure(t *testing.T) {
 
 	// add events that should be copied between buffers during resizing
 	for range 4 {
-		err := b.Push(newTestEvent(t, "1", true))
+		_, err := b.Push(newTestEvent(t, "1", true))
 		if err != nil {
 			t.Fatal(err)
 		}
