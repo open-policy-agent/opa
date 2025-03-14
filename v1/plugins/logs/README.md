@@ -14,7 +14,8 @@ There are two buffer implementations that can be selected by setting `decision_l
 * `decision_logs.reporting.buffer_type=event`
 
 As events are logged each event is encoded and saved in a buffer. When an upload is triggered, all the events currently
-in the buffer are uploaded in chunks (limited by `upload_size_limit_bytes`). 
+in the buffer are uploaded in chunks (limited by `upload_size_limit_bytes`). The oldest events will drop if the buffer
+is full, the limit can be configured by changing `buffer_size_limit_events`.
 
 Pros:
 * Compressing only on upload keeps the event and JSON array buffers separate so they don't have to be in sync.
@@ -49,8 +50,9 @@ flowchart LR
 
 * `decision_logs.reporting.buffer_type=size`
 
-As events are logged they are encoded and compressed into a JSON Array before being added to the buffer. 
-When an upload is triggered the current buffer is emptied, uploading each JSON Array of events in chunks.
+As events are logged they are encoded and compressed into a JSON Array before being added to the buffer. When an upload 
+is triggered the current buffer is emptied, uploading each JSON Array of events in chunks. By default, the buffer is an
+unlimited size but if `buffer_size_limit_bytes` is configured the oldest events will be dropped.
 
 Pros:
 * Uploads are quicker because each event is already encoded and compressed.

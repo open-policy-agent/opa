@@ -33,7 +33,7 @@ func newEventBuffer(bufferSizeLimitEvents int64, client rest.Client, uploadPath 
 }
 
 // Reconfigure updates the user configurable values
-func (b *eventBuffer) Reconfigure(bufferSizeLimitEvents int64, client rest.Client, uploadPath string, uploadSizeLimitBytes int64) []error {
+func (b *eventBuffer) Reconfigure(bufferSizeLimitEvents int64, client rest.Client, uploadPath string, uploadSizeLimitBytes int64) (int, []error) {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 
@@ -43,52 +43,61 @@ func (b *eventBuffer) Reconfigure(bufferSizeLimitEvents int64, client rest.Clien
 	b.uploadSizeLimitBytes = uploadSizeLimitBytes
 
 	if int64(cap(b.buffer)) == bufferSizeLimitEvents && uploadSizeLimitBytes == oldUploadSizeLimitBytes {
-		return nil
+		return 0, nil
 	}
 
 	close(b.buffer)
 	newBuffer := make(chan []byte, bufferSizeLimitEvents)
 
 	var errs []error
+	var dropped int
 	for event := range b.buffer {
 		if int64(len(event)) < b.uploadSizeLimitBytes {
-			push(newBuffer, event)
+			if push(newBuffer, event) {
+				dropped++
+			}
 			continue
 		}
 
 		var decoded EventV1
 		if err := json.Unmarshal(event, &decoded); err != nil {
+			dropped++
+			errs = append(errs, err)
 			continue
 		}
 		if err := b.dropNDCache(&decoded, event); err != nil {
 			if !errors.Is(err, droppedNDCache{}) {
+				dropped++
 				errs = append(errs, err)
 				continue
 			}
 			event, err = json.Marshal(decoded)
 			if err != nil {
+				dropped++
 				errs = append(errs, err)
 				continue
 			}
 		}
-		push(newBuffer, event)
+		if push(newBuffer, event) {
+			dropped++
+		}
 	}
 	b.buffer = newBuffer
 
-	return errs
+	return dropped, errs
 }
 
-// Push attempts to add a new event to the buffer
-func (b *eventBuffer) Push(event EventV1) error {
+// Push attempts to add a new event to the buffer, returning true if an event was dropped.
+func (b *eventBuffer) Push(event EventV1) (bool, error) {
 	encoded, err := json.Marshal(event)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	err = b.dropNDCache(&event, encoded)
 	if err != nil {
 		if !errors.As(err, &droppedNDCache{}) {
-			return err
+			return false, err
 		}
 	}
 
@@ -96,9 +105,7 @@ func (b *eventBuffer) Push(event EventV1) error {
 	b.mtx.RLock()
 	defer b.mtx.RUnlock()
 
-	push(b.buffer, encoded)
-
-	return err
+	return push(b.buffer, encoded), err
 }
 
 // dropNDCache checks if an event is bigger than UploadSizeLimitBytes and
@@ -125,13 +132,15 @@ func (b *eventBuffer) dropNDCache(event *EventV1, encoded []byte) error {
 	return droppedNDCache{}
 }
 
-// push attempts to add data to a channel, if the channel is full the oldest data is dropped (FIFO).
-func push[T any](ch chan T, data T) {
+// push adds data to a channel, if the channel is full the oldest data is dropped (FIFO).
+func push[T any](ch chan T, data T) bool {
 	select {
 	case ch <- data:
+		return false
 	default:
 		<-ch
 		ch <- data
+		return true
 	}
 }
 
