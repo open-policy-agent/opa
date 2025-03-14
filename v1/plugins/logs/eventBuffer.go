@@ -133,7 +133,7 @@ func (b *eventBuffer) dropNDCache(event *EventV1, encoded []byte) error {
 }
 
 // push adds data to a channel, if the channel is full the oldest data is dropped (FIFO).
-func push[T any](ch chan T, data T) bool {
+func push(ch chan []byte, data []byte) bool {
 	select {
 	case ch <- data:
 		return false
