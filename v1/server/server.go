@@ -980,7 +980,7 @@ func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.
 	return &results, nil
 }
 
-func (s *Server) indexGet(w http.ResponseWriter, _ *http.Request) {
+func (*Server) indexGet(w http.ResponseWriter, _ *http.Request) {
 	_ = indexHTML.Execute(w, struct {
 		Version        string
 		BuildCommit    string
@@ -1213,7 +1213,7 @@ func (s *Server) canEval(ctx context.Context) bool {
 	return false
 }
 
-func (s *Server) bundlesReady(pluginStatuses map[string]*plugins.Status) bool {
+func (*Server) bundlesReady(pluginStatuses map[string]*plugins.Status) bool {
 
 	// Look for a discovery plugin first, if it exists and isn't ready
 	// then don't bother with the others.
@@ -2470,7 +2470,7 @@ func (s *Server) getDecisionLogger(br bundleRevisions) (logger decisionLogger) {
 	return logger
 }
 
-func (s *Server) getExplainResponse(explainMode types.ExplainModeV1, trace []*topdown.Event, pretty bool) (explanation types.TraceV1) {
+func (*Server) getExplainResponse(explainMode types.ExplainModeV1, trace []*topdown.Event, pretty bool) (explanation types.TraceV1) {
 	switch explainMode {
 	case types.ExplainNotesV1:
 		var err error
@@ -2569,7 +2569,7 @@ func (s *Server) makeRego(_ context.Context,
 	return rego.New(opts...), nil
 }
 
-func (s *Server) prepareV1PatchSlice(root string, ops []types.PatchV1) (result []patchImpl, err error) {
+func (*Server) prepareV1PatchSlice(root string, ops []types.PatchV1) (result []patchImpl, err error) {
 
 	root = "/" + strings.Trim(root, "/")
 

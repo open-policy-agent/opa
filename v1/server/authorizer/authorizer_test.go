@@ -36,7 +36,7 @@ func (a appendingPrintHook) Print(_ print.Context, s string) error {
 	return nil
 }
 
-func (h *mockHandler) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
+func (*mockHandler) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(200)
 }
 

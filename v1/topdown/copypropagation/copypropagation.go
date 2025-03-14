@@ -209,7 +209,7 @@ func (p *CopyPropagator) Apply(query ast.Body) ast.Body {
 
 // plugBindings applies the binding list and union-find to x. This process
 // removes as many variables as possible.
-func (p *CopyPropagator) plugBindings(pctx *plugContext, expr *ast.Expr) *ast.Expr {
+func (*CopyPropagator) plugBindings(pctx *plugContext, expr *ast.Expr) *ast.Expr {
 
 	xform := bindingPlugTransform{
 		pctx: pctx,
@@ -244,7 +244,7 @@ func (t bindingPlugTransform) Transform(x interface{}) (interface{}, error) {
 	}
 }
 
-func (t bindingPlugTransform) plugBindingsVar(pctx *plugContext, v ast.Var) ast.Value {
+func (bindingPlugTransform) plugBindingsVar(pctx *plugContext, v ast.Var) ast.Value {
 
 	var result ast.Value = v
 
@@ -274,7 +274,7 @@ func (t bindingPlugTransform) plugBindingsVar(pctx *plugContext, v ast.Var) ast.
 	return b
 }
 
-func (t bindingPlugTransform) plugBindingsRef(pctx *plugContext, v ast.Ref) ast.Ref {
+func (bindingPlugTransform) plugBindingsRef(pctx *plugContext, v ast.Ref) ast.Ref {
 
 	// Apply union-find to remove redundant variables from input.
 	if root, ok := pctx.uf.Find(v[0].Value); ok {

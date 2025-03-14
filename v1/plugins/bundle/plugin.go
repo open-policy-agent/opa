@@ -678,7 +678,7 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle, is
 	return err
 }
 
-func (p *Plugin) persistBundle(name string, bundles map[string]*Source) bool {
+func (*Plugin) persistBundle(name string, bundles map[string]*Source) bool {
 	bundleSrc := bundles[name]
 
 	if bundleSrc == nil {

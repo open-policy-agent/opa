@@ -7,7 +7,7 @@ package test
 // ZeroReader is an io.Reader implementation that returns an infinite stream of zeros
 type ZeroReader struct{}
 
-func (z ZeroReader) Read(p []byte) (n int, err error) {
+func (ZeroReader) Read(p []byte) (n int, err error) {
 	for i := range p {
 		p[i] = 0
 	}

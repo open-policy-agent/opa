@@ -7,11 +7,11 @@ import (
 type RawMapper struct {
 }
 
-func (e *RawMapper) MapResults(pq *rego.PartialQueries) (interface{}, error) {
+func (*RawMapper) MapResults(pq *rego.PartialQueries) (interface{}, error) {
 
 	return pq, nil
 }
 
-func (e *RawMapper) ResultToJSON(results interface{}) (interface{}, error) {
+func (*RawMapper) ResultToJSON(results interface{}) (interface{}, error) {
 	return results, nil
 }
