@@ -25,7 +25,6 @@ Pros:
 Cons:
 * Upload will be slower as the events need to be compressed.
 * A buffer limit has to be set, unlimited size isn't allowed.
-* An event can be an arbitrary size making it difficult to manage the local memory consumption.
 
 ```mermaid
 ---
@@ -51,7 +50,7 @@ flowchart LR
 * `decision_logs.reporting.buffer_type=size`
 
 As events are logged they are encoded and compressed into a JSON Array before being added to the buffer. When an upload 
-is triggered the current buffer is emptied, uploading each JSON Array of events in chunks. By default, the buffer is an
+is triggered the current buffer is emptied, uploading each JSON Array of events as chunks. By default, the buffer is an
 unlimited size but if `buffer_size_limit_bytes` is configured the oldest events will be dropped.
 
 Pros:
@@ -61,6 +60,7 @@ Pros:
 Cons:
 * Events can flow between the encoder and buffer requiring a heavy use of locks.
 * Dropping an individual event requires decompressing an entire array of events.
+* Adding events to the buffer is slower as compression happens on write.
 
 ```mermaid
 ---
