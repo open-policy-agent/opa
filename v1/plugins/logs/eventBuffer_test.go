@@ -4,7 +4,6 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,6 +14,8 @@ import (
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/keys"
+	"github.com/open-policy-agent/opa/v1/logging"
+	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins/rest"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 )
@@ -24,137 +25,67 @@ func TestEventBuffer_Push(t *testing.T) {
 
 	limit := int64(2)
 	b := newEventBuffer(limit, rest.Client{}, "", 200)
-	dropped, err := b.Push(newTestEvent(t, "1", false))
-	if err != nil {
-		t.Fatal(err)
+	p := &Plugin{
+		metrics: metrics.New(),
 	}
-	if dropped {
-		t.Fatal("expected no events to be dropped")
+	b.Push(p, newTestEvent(t, "1", false))
+	dropped := p.metrics.Counter(logBufferEventLimitExDropCounterName).Value().(uint64)
+	if p.metrics.Counter(logBufferEventLimitExDropCounterName).Value().(uint64) != 0 {
+		t.Fatalf("number of dropped event mismatch, expected %d, got %d", 0, dropped)
 	}
-	dropped, err = b.Push(newTestEvent(t, "2", false))
-	if err != nil {
-		t.Fatal(err)
+	b.Push(p, newTestEvent(t, "2", false))
+	dropped = p.metrics.Counter(logBufferEventLimitExDropCounterName).Value().(uint64)
+	if p.metrics.Counter(logBufferEventLimitExDropCounterName).Value().(uint64) != 0 {
+		t.Fatalf("number of dropped event mismatch, expected %d, got %d", 0, dropped)
 	}
-	if dropped {
-		t.Fatal("expected no events to be dropped")
-	}
-	dropped, err = b.Push(newTestEvent(t, "3", false))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !dropped {
-		t.Fatal("expected 1 event to be dropped")
+	b.Push(p, newTestEvent(t, "3", false))
+	dropped = p.metrics.Counter(logBufferEventLimitExDropCounterName).Value().(uint64)
+	if p.metrics.Counter(logBufferEventLimitExDropCounterName).Value().(uint64) != 1 {
+		t.Fatalf("number of dropped event mismatch, expected %d, got %d", 1, dropped)
 	}
 
 	if int64(len(b.buffer)) != limit {
 		t.Fatalf("buffer size mismatch, expected %d, got %d", limit, len(b.buffer))
 	}
 
-	// drop all events that don't meet the upload size limit anymore
-	droppedCount, errs := b.Reconfigure(limit, rest.Client{}, "", 100)
-	for _, err := range errs {
-		expectedErrorMsg := "upload chunk size (195) exceeds upload_size_limit_bytes (100)"
-		if err == nil {
-			t.Fatal("error expected")
-		} else if err.Error() != expectedErrorMsg {
-			t.Fatalf("expected error %v but got %v", expectedErrorMsg, err.Error())
-		}
-	}
-	if droppedCount != 2 {
-		t.Fatalf("number of dropped event mismatch, expected %d, got %d", 2, droppedCount)
-	}
-	dropped, err = b.Push(newTestEvent(t, "4", false))
-	expectedErrorMsg := "upload chunk size (195) exceeds upload_size_limit_bytes (100)"
-	if err == nil {
-		t.Fatal("error expected")
-	} else if err.Error() != expectedErrorMsg {
-		t.Fatalf("expected error %v but got %v", expectedErrorMsg, err.Error())
-	}
-	if dropped {
-		t.Fatal("expected no events to be dropped")
-	}
-
-	droppedCount, errs = b.Reconfigure(limit, rest.Client{}, "", 196)
-	for _, err := range errs {
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	if droppedCount != 0 {
-		t.Fatalf("number of dropped event mismatch, expected %d, got %d", 0, droppedCount)
-	}
-	dropped, err = b.Push(newTestEvent(t, "5", false))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if dropped {
-		t.Fatal("expected no events to be dropped")
-	}
-	dropped, err = b.Push(newTestEvent(t, "6", true))
-	if !errors.Is(err, droppedNDCache{}) {
-		t.Fatalf("expected error %v but got %v", droppedNDCache{}.Error(), err.Error())
-	}
-	if dropped {
-		t.Fatal("expected no events to be dropped")
-	}
-
-	dropped, err = b.Push(newTestEvent(t, "7", true))
-	if !errors.Is(err, droppedNDCache{}) {
-		t.Fatalf("expected error %v but got %v", droppedNDCache{}.Error(), err.Error())
-	}
-	if !dropped {
-		t.Fatal("expected 1 event to be dropped")
-	}
-
-	if int64(len(b.buffer)) != 2 {
-		t.Fatalf("buffer size mismatch, expected %d, got %d", 2, len(b.buffer))
-	}
-
 	limit = int64(3)
-	droppedCount, errs = b.Reconfigure(limit, rest.Client{}, "", 200)
-	for _, err := range errs {
-		if !errors.Is(err, droppedNDCache{}) && err != nil {
-			t.Fatal(err)
-		}
+	b.Reconfigure(p, limit, rest.Client{}, "", 100)
+	dropped = p.metrics.Counter(logBufferEventLimitExDropCounterName).Value().(uint64)
+	if dropped != 1 {
+		t.Fatalf("number of dropped event mismatch, expected %d, got %d", 1, dropped)
 	}
-	if droppedCount != 0 {
-		t.Fatalf("number of dropped event mismatch, expected %d, got %d", 0, droppedCount)
+	b.Push(p, newTestEvent(t, "4", false))
+	dropped = p.metrics.Counter(logBufferEventLimitExDropCounterName).Value().(uint64)
+	if dropped != 1 {
+		t.Fatalf("number of dropped event mismatch, expected %d, got %d", 1, dropped)
 	}
-	dropped, err = b.Push(newTestEvent(t, "8", false))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if dropped {
-		t.Fatal("expected no events to be dropped")
-	}
-
-	// change nothing
-	droppedCount, errs = b.Reconfigure(limit, rest.Client{}, "", 200)
-	for _, err := range errs {
-		if !errors.Is(err, droppedNDCache{}) && err != nil {
-			t.Fatal(err)
-		}
-	}
-	if droppedCount != 0 {
-		t.Fatalf("number of dropped event mismatch, expected %d, got %d", 0, droppedCount)
+	b.Push(p, newTestEvent(t, "5", true))
+	dropped = p.metrics.Counter(logBufferEventLimitExDropCounterName).Value().(uint64)
+	if dropped != 2 {
+		t.Fatalf("number of dropped event mismatch, expected %d, got %d", 2, dropped)
 	}
 
-	close(b.buffer)
-	events := make([]EventV1, 0, limit)
-	for event := range b.buffer {
-		var e EventV1
-		if err := json.Unmarshal(event, &e); err != nil {
-			t.Fatal(err)
-		}
-		if e.DecisionID == "1" {
-			t.Fatal("got unexpected decision ID 1")
-		}
-
-		events = append(events, e)
+	if int64(len(b.buffer)) != limit {
+		t.Fatalf("buffer size mismatch, expected %d, got %d", limit, len(b.buffer))
 	}
 
-	if int64(len(events)) != limit {
-		t.Errorf("EventBuffer pushed %d events, expected %d", len(events), limit)
+	limit = int64(1)
+	b.Reconfigure(p, limit, rest.Client{}, "", 200)
+	dropped = p.metrics.Counter(logBufferEventLimitExDropCounterName).Value().(uint64)
+	if dropped != 4 {
+		t.Fatalf("number of dropped event mismatch, expected %d, got %d", 4, dropped)
+	}
+	if int64(len(b.buffer)) != limit {
+		t.Fatalf("buffer size mismatch, expected %d, got %d", limit, len(b.buffer))
+	}
+
+	b.Reconfigure(p, limit, rest.Client{}, "", 200)
+	dropped = p.metrics.Counter(logBufferEventLimitExDropCounterName).Value().(uint64)
+	if dropped != 4 {
+		t.Fatalf("number of dropped event mismatch, expected %d, got %d", 04, dropped)
+	}
+	if int64(len(b.buffer)) != limit {
+		t.Fatalf("buffer size mismatch, expected %d, got %d", limit, len(b.buffer))
 	}
 }
 
@@ -172,10 +103,10 @@ func TestEventBuffer_Upload(t *testing.T) {
 		expectedError        string
 	}{
 		{
-			name:                 "Trigger upload",
+			name:                 "Upload everything in the buffer",
 			eventLimit:           4,
 			numberOfEvents:       3,
-			uploadSizeLimitBytes: int64(32768),
+			uploadSizeLimitBytes: defaultUploadSizeLimitBytes,
 			handleFunc: func(w http.ResponseWriter, r *http.Request) {
 				events := readEventBody(t, r.Body)
 				if len(events) != 3 {
@@ -186,14 +117,14 @@ func TestEventBuffer_Upload(t *testing.T) {
 			},
 		},
 		{
-			name:                 "Trigger upload and hit upload size limit",
+			name:                 "Upload in chunks determined by upload size limit",
 			eventLimit:           4,
 			numberOfEvents:       4,
-			uploadSizeLimitBytes: 400, // Each test event is 195 bytes
+			uploadSizeLimitBytes: 200, // Each test event is 195 bytes
 			handleFunc: func(w http.ResponseWriter, r *http.Request) {
 				events := readEventBody(t, r.Body)
-				if len(events) != 2 {
-					t.Errorf("expected 2 events, got %d", len(events))
+				if len(events) != 1 {
+					t.Errorf("expected 1 events, got %d", len(events))
 				}
 				w.WriteHeader(http.StatusOK)
 			},
@@ -202,7 +133,7 @@ func TestEventBuffer_Upload(t *testing.T) {
 			name:                 "Get error from failed upload",
 			eventLimit:           1,
 			numberOfEvents:       1,
-			uploadSizeLimitBytes: int64(32768),
+			uploadSizeLimitBytes: defaultUploadSizeLimitBytes,
 			handleFunc: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusBadRequest)
 			},
@@ -215,15 +146,16 @@ func TestEventBuffer_Upload(t *testing.T) {
 			client, ts := setupTestServer(t, uploadPath, tc.handleFunc)
 			defer ts.Close()
 			e := newEventBuffer(tc.eventLimit, client, uploadPath, tc.uploadSizeLimitBytes)
-
-			for i := range tc.numberOfEvents {
-				_, err := e.Push(newTestEvent(t, strconv.Itoa(i), false))
-				if err != nil {
-					t.Fatal(err)
-				}
+			p := &Plugin{
+				metrics: metrics.New(),
+				logger:  logging.NewNoOpLogger(),
 			}
 
-			ok, err := e.Upload(context.Background())
+			for i := range tc.numberOfEvents {
+				e.Push(p, newTestEvent(t, strconv.Itoa(i), true))
+			}
+
+			ok, err := e.Upload(context.Background(), p)
 			if !ok || err != nil {
 				if tc.expectedError == "" || tc.expectedError != "" && err.Error() != tc.expectedError {
 					t.Fatal(err)
@@ -233,52 +165,7 @@ func TestEventBuffer_Upload(t *testing.T) {
 	}
 }
 
-func TestEventBuffer_Reconfigure(t *testing.T) {
-	t.Parallel()
-
-	bufferLimit := int64(3)
-	client := rest.Client{}
-	uploadPath := ""
-	uploadLimit := int64(300)
-
-	b := newEventBuffer(bufferLimit, client, uploadPath, uploadLimit)
-	if int64(cap(b.buffer)) != bufferLimit {
-		t.Fatalf("expected buffer size %d, got %d", bufferLimit, cap(b.buffer))
-	}
-
-	// add events that should be copied between buffers during resizing
-	for range 4 {
-		_, err := b.Push(newTestEvent(t, "1", true))
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	if len(b.buffer) != 3 {
-		t.Fatalf("expected 3 events, got %d", len(b.buffer))
-	}
-
-	bufferLimit = int64(1)
-	b.Reconfigure(bufferLimit, client, uploadPath, int64(195)) // size without an ND cache
-
-	if int64(cap(b.buffer)) != bufferLimit {
-		t.Fatalf("expected buffer size %d, got %d", bufferLimit, cap(b.buffer))
-	}
-	if len(b.buffer) != 1 {
-		t.Fatalf("expected 1 events, got %d", len(b.buffer))
-	}
-
-	bufferLimit = int64(4)
-	b.Reconfigure(bufferLimit, client, uploadPath, uploadLimit)
-
-	if int64(cap(b.buffer)) != bufferLimit {
-		t.Fatalf("expected buffer size %d, got %d", bufferLimit, cap(b.buffer))
-	}
-	if len(b.buffer) != 1 {
-		t.Fatalf("expected 1 events, got %d", len(b.buffer))
-	}
-}
-
-func newTestEvent(t *testing.T, id string, enableNDCache bool) EventV1 {
+func newTestEvent(t *testing.T, id string, enableNDCache bool) bufferItem {
 	var result interface{} = false
 	var expInput interface{} = map[string]interface{}{"method": "GET"}
 	timestamp, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
@@ -308,7 +195,7 @@ func newTestEvent(t *testing.T, id string, enableNDCache bool) EventV1 {
 		e.NDBuiltinCache = &ndbCacheExample
 	}
 
-	return e
+	return bufferItem{EventV1: e}
 }
 
 func setupTestServer(t *testing.T, uploadPath string, handleFunc func(w http.ResponseWriter, r *http.Request)) (rest.Client, *httptest.Server) {

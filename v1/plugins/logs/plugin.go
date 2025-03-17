@@ -450,6 +450,7 @@ type Plugin struct {
 	manager       *plugins.Manager
 	config        Config
 	runningBuffer string
+	liveReconfig  sync.RWMutex // liveReconfig blocks reads/writes on buffer reconfiguration
 	eventBuffer   *eventBuffer
 	buffer        *logBuffer
 	enc           *chunkEncoder
@@ -889,7 +890,7 @@ func (p *Plugin) doOneShot(ctx context.Context) error {
 
 func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {
 	if p.runningBuffer == eventBufferType {
-		return p.eventBuffer.Upload(ctx)
+		return p.eventBuffer.Upload(ctx, p)
 	}
 
 	// Make a local copy of the plugin's encoder and buffer and create
@@ -958,11 +959,8 @@ func (p *Plugin) reconfigure(ctx context.Context, config interface{}) {
 
 	switch newConfig.Reporting.BufferType {
 	case eventBufferType:
-		if p.runningBuffer == sizeBufferType {
-			if _, err := p.oneShot(ctx); err != nil {
-				p.setStatus(err)
-			}
-		}
+		p.liveReconfig.Lock()
+		defer p.liveReconfig.Unlock()
 
 		if p.eventBuffer == nil {
 			p.eventBuffer = newEventBuffer(
@@ -971,32 +969,26 @@ func (p *Plugin) reconfigure(ctx context.Context, config interface{}) {
 				*p.config.Resource,
 				*p.config.Reporting.UploadSizeLimitBytes)
 		} else {
-			dropped, errs := p.eventBuffer.Reconfigure(
+			p.eventBuffer.Reconfigure(p,
 				*p.config.Reporting.BufferSizeLimitEvents,
 				p.manager.Client(p.config.Service),
 				*p.config.Resource,
 				*p.config.Reporting.UploadSizeLimitBytes)
+		}
 
-			for _, err := range errs {
-				if err == nil {
-					continue
-				}
-				if errors.Is(err, droppedNDCache{}) {
-					p.incrMetric(logNDBDropCounterName)
-				} else {
-					p.incrMetric(logEncodingFailureCounterName)
-				}
-				p.logger.Error("Log encoding failed: %v.", err)
-			}
-			for range dropped {
-				p.incrMetric(logBufferEventLimitExDropCounterName)
+		if p.runningBuffer == sizeBufferType {
+			if _, err := p.oneShot(ctx); err != nil {
+				p.setStatus(err)
 			}
 		}
 
 		p.runningBuffer = eventBufferType
 	case sizeBufferType:
+		p.liveReconfig.Lock()
+		defer p.liveReconfig.Unlock()
+
 		if p.runningBuffer == eventBufferType {
-			_, err := p.eventBuffer.Upload(ctx)
+			_, err := p.eventBuffer.Upload(ctx, p)
 			if err != nil {
 				p.setStatus(err)
 			}
@@ -1020,19 +1012,12 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 		return
 	}
 
+	// only blocks when the buffer is being reconfigured
+	p.liveReconfig.RLock()
+	defer p.liveReconfig.RUnlock()
+
 	if p.runningBuffer == eventBufferType {
-		dropped, err := p.eventBuffer.Push(event)
-		if err != nil {
-			if errors.Is(err, droppedNDCache{}) {
-				p.incrMetric(logNDBDropCounterName)
-			} else {
-				p.incrMetric(logEncodingFailureCounterName)
-			}
-			p.logger.Error("Log encoding failed: %v.", err)
-		}
-		if dropped {
-			p.incrMetric(logBufferEventLimitExDropCounterName)
-		}
+		p.eventBuffer.Push(p, bufferItem{EventV1: event})
 		return
 	}
 
@@ -1062,7 +1047,7 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 		}
 
 		// Re-encoding was successful, but we still need to alert users.
-		p.logger.Error(droppedNDCache{}.Error())
+		p.logger.Error("ND builtins cache dropped from this event to fit under maximum upload size limits. Increase upload size limit or change usage of non-deterministic builtins.")
 		p.incrMetric(logNDBDropCounterName)
 	}
 
@@ -1239,11 +1224,4 @@ func (p *Plugin) setStatus(err error) {
 	if s := status.Lookup(p.manager); s != nil {
 		s.UpdateDecisionLogsStatus(*oldStatus)
 	}
-}
-
-type droppedNDCache struct {
-}
-
-func (droppedNDCache) Error() string {
-	return "ND builtins cache dropped from this event to fit under maximum upload size limits. Increase upload size limit or change usage of non-deterministic builtins."
 }
