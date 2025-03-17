@@ -725,101 +725,144 @@ func TestPluginRequeueBufferPreserved(t *testing.T) {
 func TestPluginRateLimitInt(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
-
-	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
-	if err != nil {
-		panic(err)
-	}
-
-	numDecisions := 1 // 1 decision per second
-
-	fixture := newTestFixture(t, testFixtureOptions{
-		ReportingMaxDecisionsPerSecond: float64(numDecisions),
-		ReportingUploadSizeLimitBytes:  300,
-	})
-	defer fixture.server.stop()
-
-	var input interface{} = map[string]interface{}{"method": "GET"}
-	var result interface{} = false
-
-	event1 := &server.Info{
-		DecisionID: "abc",
-		Path:       "foo/bar",
-		Input:      &input,
-		Results:    &result,
-		RemoteAddr: "test-1",
-		Timestamp:  ts,
-	}
-
-	event2 := &server.Info{
-		DecisionID: "def",
-		Path:       "foo/baz",
-		Input:      &input,
-		Results:    &result,
-		RemoteAddr: "test-2",
-		Timestamp:  ts,
-	}
-
-	_ = fixture.plugin.Log(ctx, event1) // event 1 should be written into the encoder
-
-	bytesWritten := fixture.plugin.enc.bytesWritten
-	if bytesWritten == 0 {
-		t.Fatal("Expected event to be written into the encoder")
-	}
-
-	_ = fixture.plugin.Log(ctx, event2) // event 2 should not be written into the encoder as rate limit exceeded
-
-	if fixture.plugin.enc.bytesWritten != bytesWritten {
-		t.Fatalf("Expected %v bytes written into the encoder but got %v", bytesWritten, fixture.plugin.enc.bytesWritten)
-	}
-
-	time.Sleep(1 * time.Second)
-	_ = fixture.plugin.Log(ctx, event2) // event 2 should now be written into the encoder
-
-	if fixture.plugin.buffer.Len() != 1 {
-		t.Fatalf("Expected buffer length of 1 but got %v", fixture.plugin.buffer.Len())
-	}
-
-	exp := EventV1{
-		Labels: map[string]string{
-			"id":      "test-instance-id",
-			"app":     "example-app",
-			"version": version.Version,
+	tests := []struct {
+		name       string
+		bufferType string
+	}{
+		{
+			name:       "using event buffer",
+			bufferType: eventBufferType,
 		},
-		DecisionID:  "abc",
-		Path:        "foo/bar",
-		Input:       &input,
-		Result:      &result,
-		RequestedBy: "test-1",
-		Timestamp:   ts,
-	}
-	compareLogEvent(t, fixture.plugin.buffer.Pop(), exp)
-
-	chunk, err := fixture.plugin.enc.Flush()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(chunk) != 1 {
-		t.Fatalf("Expected 1 chunk but got %v", len(chunk))
-	}
-
-	exp = EventV1{
-		Labels: map[string]string{
-			"id":      "test-instance-id",
-			"app":     "example-app",
-			"version": version.Version,
+		{
+			name: "using size buffer",
 		},
-		DecisionID:  "def",
-		Path:        "foo/baz",
-		Input:       &input,
-		Result:      &result,
-		RequestedBy: "test-2",
-		Timestamp:   ts,
 	}
 
-	compareLogEvent(t, chunk[0], exp)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+
+			ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
+			if err != nil {
+				panic(err)
+			}
+
+			numDecisions := 1 // 1 decision per second
+
+			fixture := newTestFixture(t, testFixtureOptions{
+				ReportingMaxDecisionsPerSecond: float64(numDecisions),
+				ReportingUploadSizeLimitBytes:  defaultUploadSizeLimitBytes,
+				ReportingBufferType:            tc.bufferType,
+			})
+			defer fixture.server.stop()
+
+			var input interface{} = map[string]interface{}{"method": "GET"}
+			var result interface{} = false
+
+			decisionID1 := "abc"
+			event1 := &server.Info{
+				DecisionID: decisionID1,
+				Path:       "foo/bar",
+				Input:      &input,
+				Results:    &result,
+				RemoteAddr: "test-1",
+				Timestamp:  ts,
+			}
+
+			decisionID2 := "def"
+			event2 := &server.Info{
+				DecisionID: decisionID2,
+				Path:       "foo/baz",
+				Input:      &input,
+				Results:    &result,
+				RemoteAddr: "test-2",
+				Timestamp:  ts,
+			}
+
+			_ = fixture.plugin.Log(ctx, event1) // event 1 should be written into the encoder
+
+			expectedLen := 1
+			currentLen := getBufferLen(t, fixture)
+			if currentLen != expectedLen {
+				t.Fatalf("Expected %v events to be written but got %v", expectedLen, currentLen)
+			}
+
+			_ = fixture.plugin.Log(ctx, event2) // event 2 should not be written into the encoder as rate limit exceeded
+
+			currentLen = getBufferLen(t, fixture)
+			if currentLen != expectedLen {
+				t.Fatalf("Expected %v events to be written but got %v", expectedLen, currentLen)
+			}
+
+			time.Sleep(1 * time.Second)
+			_ = fixture.plugin.Log(ctx, event2) // event 2 should now be written into the encoder
+
+			expectedLen = 2
+			currentLen = getBufferLen(t, fixture)
+			if currentLen != expectedLen {
+				t.Fatalf("Expected %v events to be written but got %v", expectedLen, currentLen)
+			}
+
+			exp := EventV1{
+				Labels: map[string]string{
+					"id":      "test-instance-id",
+					"app":     "example-app",
+					"version": version.Version,
+				},
+				DecisionID:  "abc",
+				Path:        "foo/bar",
+				Input:       &input,
+				Result:      &result,
+				RequestedBy: "test-1",
+				Timestamp:   ts,
+			}
+
+			switch fixture.plugin.runningBuffer {
+			case sizeBufferType:
+				chunk, err := fixture.plugin.enc.Flush()
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if len(chunk) != 1 {
+					t.Fatalf("Expected 1 chunk but got %v", len(chunk))
+				}
+
+				events := decodeLogEvent(t, chunk[0])
+				if len(events) != 2 {
+					t.Fatalf("Expected 2 events but got %v", len(events))
+				}
+				if events[0].DecisionID != decisionID1 {
+					t.Fatalf("Expected decision id %v but got %v", decisionID1, events[0].DecisionID)
+				}
+				if events[1].DecisionID != decisionID2 {
+					t.Fatalf("Expected decision id %v but got %v", decisionID2, events[1].DecisionID)
+				}
+			case eventBufferType:
+				event1 := (<-fixture.plugin.eventBuffer.buffer).EventV1
+				if event1.DecisionID != decisionID1 {
+					t.Fatalf("Expected event to be %v, got %v", exp, event1)
+				}
+				event2 := (<-fixture.plugin.eventBuffer.buffer).EventV1
+				if event2.DecisionID != decisionID2 {
+					t.Fatalf("Expected event to be %v, got %v", exp, event1)
+				}
+			}
+		})
+	}
+}
+
+func getBufferLen(t *testing.T, fixture testFixture) int {
+	switch fixture.plugin.runningBuffer {
+	case eventBufferType:
+		return len(fixture.plugin.eventBuffer.buffer)
+	case sizeBufferType:
+		return fixture.plugin.enc.bytesWritten / 218 // each event is 218 bytes
+	default:
+		t.Fatal("unknown buffer type")
+	}
+
+	return 0
 }
 
 func TestPluginRateLimitFloat(t *testing.T) {
@@ -1457,71 +1500,53 @@ func TestPluginRateLimitDropCountStatus(t *testing.T) {
 func TestChunkMaxUploadSizeLimitNDBCacheDropping(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name                string
-		reportingBufferType string
-	}{
-		{
-			name:                "using event buffer",
-			reportingBufferType: "event",
-		},
-		{
-			name: "using size buffer",
-		},
+	ctx := context.Background()
+	testLogger := test.New()
+
+	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
+	if err != nil {
+		panic(err)
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
-			testLogger := test.New()
+	fixture := newTestFixture(t, testFixtureOptions{
+		ConsoleLogger:                  testLogger,
+		ReportingMaxDecisionsPerSecond: float64(1), // 1 decision per second
+		ReportingUploadSizeLimitBytes:  400,
+	})
+	defer fixture.server.stop()
 
-			ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
-			if err != nil {
-				panic(err)
-			}
+	fixture.plugin.metrics = metrics.New()
 
-			fixture := newTestFixture(t, testFixtureOptions{
-				ConsoleLogger:                  testLogger,
-				ReportingMaxDecisionsPerSecond: float64(1), // 1 decision per second
-				ReportingUploadSizeLimitBytes:  400,
-				ReportingBufferType:            tc.reportingBufferType,
-			})
-			defer fixture.server.stop()
+	var input interface{} = map[string]interface{}{"method": "GET"}
+	var result interface{} = false
 
-			fixture.plugin.metrics = metrics.New()
+	// Purposely oversized NDBCache entry will force dropping during Log().
+	var ndbCacheExample interface{} = ast.MustJSON(builtins.NDBCache{
+		"test.custom_space_waster": ast.NewObject([2]*ast.Term{
+			ast.ArrayTerm(),
+			ast.StringTerm(strings.Repeat("Wasted space... ", 200)),
+		}),
+	}.AsValue())
 
-			var input interface{} = map[string]interface{}{"method": "GET"}
-			var result interface{} = false
+	event := &server.Info{
+		DecisionID:     "abc",
+		Path:           "foo/bar",
+		Input:          &input,
+		Results:        &result,
+		RemoteAddr:     "test",
+		Timestamp:      ts,
+		NDBuiltinCache: &ndbCacheExample,
+	}
 
-			// Purposely oversized NDBCache entry will force dropping during Log().
-			var ndbCacheExample interface{} = ast.MustJSON(builtins.NDBCache{
-				"test.custom_space_waster": ast.NewObject([2]*ast.Term{
-					ast.ArrayTerm(),
-					ast.StringTerm(strings.Repeat("Wasted space... ", 200)),
-				}),
-			}.AsValue())
+	beforeNDBDropCount := fixture.plugin.metrics.Counter(logNDBDropCounterName).Value().(uint64)
+	err = fixture.plugin.Log(ctx, event) // event should be written into the encoder
+	if err != nil {
+		t.Fatal(err)
+	}
+	afterNDBDropCount := fixture.plugin.metrics.Counter(logNDBDropCounterName).Value().(uint64)
 
-			event := &server.Info{
-				DecisionID:     "abc",
-				Path:           "foo/bar",
-				Input:          &input,
-				Results:        &result,
-				RemoteAddr:     "test",
-				Timestamp:      ts,
-				NDBuiltinCache: &ndbCacheExample,
-			}
-
-			beforeNDBDropCount := fixture.plugin.metrics.Counter(logNDBDropCounterName).Value().(uint64)
-			err = fixture.plugin.Log(ctx, event) // event should be written into the encoder
-			if err != nil {
-				t.Fatal(err)
-			}
-			afterNDBDropCount := fixture.plugin.metrics.Counter(logNDBDropCounterName).Value().(uint64)
-
-			if afterNDBDropCount != beforeNDBDropCount+1 {
-				t.Fatalf("Expected %v NDBCache drop events, saw %v events instead.", beforeNDBDropCount+1, afterNDBDropCount)
-			}
-		})
+	if afterNDBDropCount != beforeNDBDropCount+1 {
+		t.Fatalf("Expected %v NDBCache drop events, saw %v events instead.", beforeNDBDropCount+1, afterNDBDropCount)
 	}
 }
 
@@ -1900,7 +1925,7 @@ func TestPluginReconfigure(t *testing.T) {
 			newBufferType:     "size",
 		},
 		{
-			name:              "Reconfigure from event to size buffer",
+			name:              "Reconfigure from size to event buffer",
 			currentBufferType: "size",
 			newBufferType:     "event",
 		},
