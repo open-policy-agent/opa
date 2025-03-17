@@ -374,10 +374,6 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 
 	c.Reporting.UploadSizeLimitBytes = &uploadLimit
 
-	if c.Reporting.BufferSizeLimitBytes != nil && c.Reporting.MaxDecisionsPerSecond != nil {
-		return errors.New("invalid decision_log config, specify either 'buffer_size_limit_bytes' or 'max_decisions_per_second'")
-	}
-
 	if c.Reporting.BufferType == "" {
 		c.Reporting.BufferType = sizeBufferType
 	} else if c.Reporting.BufferType != eventBufferType && c.Reporting.BufferType != sizeBufferType {
@@ -391,9 +387,16 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 		return fmt.Errorf("invalid decision_log config, 'buffer_size_limit_events' isn't supported for the %v buffer type", sizeBufferType)
 	}
 
+	if c.Reporting.BufferSizeLimitBytes != nil && c.Reporting.MaxDecisionsPerSecond != nil {
+		return errors.New("invalid decision_log config, specify either 'buffer_size_limit_bytes' or 'max_decisions_per_second'")
+	}
+
 	// default the buffer size limit
 	sizeBufferLimit := defaultBufferSizeLimitBytes
 	if c.Reporting.BufferSizeLimitBytes != nil {
+		if *c.Reporting.BufferSizeLimitBytes <= int64(0) {
+			return errors.New("invalid decision_log config, 'buffer_size_limit_bytes' must be higher than 0")
+		}
 		sizeBufferLimit = *c.Reporting.BufferSizeLimitBytes
 	}
 	c.Reporting.BufferSizeLimitBytes = &sizeBufferLimit
@@ -956,7 +959,9 @@ func (p *Plugin) reconfigure(ctx context.Context, config interface{}) {
 	switch newConfig.Reporting.BufferType {
 	case eventBufferType:
 		if p.runningBuffer == sizeBufferType {
-			p.flushDecisions(ctx)
+			if _, err := p.oneShot(ctx); err != nil {
+				p.setStatus(err)
+			}
 		}
 
 		if p.eventBuffer == nil {
