@@ -19,7 +19,7 @@ OPA is proud to be a graduated project in the [Cloud Native Computing Foundation
 
 ## Want to talk about OPA or get support?
 
-- Join the [OPA Slack](https://slack.openpolicyagent.org) to talk to other OPA users and maintainers. See `#help` for support.
+- Join the [OPA Slack](https://inviter.co/opa) to talk to other OPA users and maintainers. See `#help` for support.
 - Check out the [Community Discussions](https://github.com/orgs/open-policy-agent/discussions) to ask questions.
 - See the [Support](https://www.openpolicyagent.org/support/) page for commercial support options.
 

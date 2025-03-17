@@ -26,7 +26,7 @@ GithubEdit = "https://github.com/open-policy-agent/opa/edit/main/docs/content/"
 [params.social]
 twitter = "OpenPolicyAgent"
 medium = "https://blog.openpolicyagent.org"
-slack = "https://slack.openpolicyagent.org"
+slack = "https://inviter.co/opa"
 github = "https://github.com/open-policy-agent/opa"
 discussions = "https://github.com/open-policy-agent/feedback/discussions"
 

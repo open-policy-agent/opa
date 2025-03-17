@@ -8,7 +8,7 @@ Thanks for your interest in contributing to the Open Policy Agent project!
 
 {{< info >}}
 Most of the discussions about OPA take place on Slack, if you haven't already,
-you can [sign up here](https://slack.openpolicyagent.org/).
+you can [sign up here](https://inviter.co/opa/).
 {{< /info >}}
 
 ## I'd like to help OPA users
@@ -58,7 +58,7 @@ If you have a talk or blog you'd like to share please feel free to post in:
 ## I'm interested in something else...
 
 Sounds interesting, we'd love to hear all about it,
-[sign up for our Slack](https://slack.openpolicyagent.org/) and
+[sign up for our Slack](https://inviter.co/opa/) and
 drop a message in the
 [#contributors](https://openpolicyagent.slack.com/archives/C02L1TLPN59)
 channel.
