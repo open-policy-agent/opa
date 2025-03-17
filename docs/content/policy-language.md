@@ -49,7 +49,7 @@ to optimize queries to improve performance.
 In while reviewing the examples below, you might find it helpful to follow along
 using the online [OPA playground](http://play.openpolicyagent.org). The
 playground also allows sharing of examples via URL which can be helpful when
-asking questions on the [OPA Slack](https://slack.openpolicyagent.org).
+asking questions on the [OPA Slack](https://inviter.co/opa).
 In addition to these official resources, you may also be interested to check
 out the community learning materials and tools.
 {{<
