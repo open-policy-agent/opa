@@ -405,7 +405,11 @@ func trimTrailingWhitespaceInComments(comments []*ast.Comment) []*ast.Comment {
 }
 
 func (w *writer) writePackage(pkg *ast.Package, comments []*ast.Comment) []*ast.Comment {
-	comments = w.insertComments(comments, pkg.Location)
+	var err error
+	comments, err = w.insertComments(comments, pkg.Location)
+	if err != nil {
+		panic(err)
+	}
 
 	w.startLine()
 
@@ -432,9 +436,41 @@ func (w *writer) writeComments(comments []*ast.Comment) {
 }
 
 func (w *writer) writeRules(rules []*ast.Rule, comments []*ast.Comment) []*ast.Comment {
+	// backup comments in case there is an error writing a rule
+	backupComments := make([]*ast.Comment, len(comments))
+	for i, c := range comments {
+		v := *c
+		backupComments[i] = &v
+	}
+
+	var err error
 	for _, rule := range rules {
-		comments = w.insertComments(comments, rule.Location)
-		comments = w.writeRule(rule, false, comments)
+		comments, err = w.insertComments(comments, rule.Location)
+		if err != nil {
+			panic(err)
+		}
+
+		// backup the current buffer in case of an error
+		var backup bytes.Buffer
+		backup.Write(w.buf.Bytes())
+		comments, err = w.writeRule(rule, false, comments)
+		if err != nil {
+			// write the unformatted rule instead
+			rawRule := string(rule.Location.Text)
+			rowNum := len(strings.Split(rawRule, "\n"))
+
+			comments = nil
+			for _, c := range backupComments {
+				// drop comments that occur within the rule raw text
+				if c.Location.Row < rule.Location.Row+rowNum-1 {
+					continue
+				}
+				comments = append(comments, c)
+			}
+			w.buf = backup
+			w.write(rawRule + " ")
+			continue
+		}
 		w.blankLine()
 	}
 	return comments
@@ -442,9 +478,9 @@ func (w *writer) writeRules(rules []*ast.Rule, comments []*ast.Comment) []*ast.C
 
 var expandedConst = ast.NewBody(ast.NewExpr(ast.InternedBooleanTerm(true)))
 
-func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment) []*ast.Comment {
+func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment) ([]*ast.Comment, error) {
 	if rule == nil {
-		return comments
+		return comments, nil
 	}
 
 	if !isElse {
@@ -461,14 +497,18 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 	// pretend that the rule has no body in this case.
 	isExpandedConst := rule.Body.Equal(expandedConst) && rule.Else == nil
 
-	comments = w.writeHead(rule.Head, rule.Default, isExpandedConst, comments)
+	var err error
+	comments, err = w.writeHead(rule.Head, rule.Default, isExpandedConst, comments)
+	if err != nil {
+		return comments, err
+	}
 
 	// this excludes partial sets UNLESS `contains` is used
 	partialSetException := w.fmtOpts.contains || rule.Head.Value != nil
 
 	if len(rule.Body) == 0 || isExpandedConst {
 		w.endLine()
-		return comments
+		return comments, nil
 	}
 
 	if (w.fmtOpts.regoV1 || w.fmtOpts.ifs) && partialSetException {
@@ -481,7 +521,7 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 				if rule.Else != nil {
 					comments = w.writeElse(rule, comments)
 				}
-				return comments
+				return comments, nil
 			}
 		}
 	}
@@ -501,7 +541,10 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 		closeLoc = closingLoc(0, 0, '{', '}', rule.Location)
 	}
 
-	comments = w.insertComments(comments, closeLoc)
+	comments, err = w.insertComments(comments, closeLoc)
+	if err != nil {
+		return nil, err
+	}
 
 	w.down()
 	w.startLine()
@@ -509,7 +552,7 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 	if rule.Else != nil {
 		comments = w.writeElse(rule, comments)
 	}
-	return comments
+	return comments, nil
 }
 
 var elseVar ast.Value = ast.Var("else")
@@ -565,7 +608,11 @@ func (w *writer) writeElse(rule *ast.Rule, comments []*ast.Comment) []*ast.Comme
 
 	rule.Else.Head.Reference = ast.Ref{elseHeadReference}
 	rule.Else.Head.Args = nil
-	comments = w.insertComments(comments, rule.Else.Head.Location)
+	var err error
+	comments, err = w.insertComments(comments, rule.Else.Head.Location)
+	if err != nil {
+		panic(err)
+	}
 
 	if hasCommentAbove && !wasInline {
 		// The comments would have ended the line, be sure to start one again
@@ -580,10 +627,14 @@ func (w *writer) writeElse(rule *ast.Rule, comments []*ast.Comment) []*ast.Comme
 		rule.Else.Head.Value.Location = rule.Else.Head.Location
 	}
 
-	return w.writeRule(rule.Else, true, comments)
+	comments, err = w.writeRule(rule.Else, true, comments)
+	if err != nil {
+		panic(err)
+	}
+	return comments
 }
 
-func (w *writer) writeHead(head *ast.Head, isDefault, isExpandedConst bool, comments []*ast.Comment) []*ast.Comment {
+func (w *writer) writeHead(head *ast.Head, isDefault, isExpandedConst bool, comments []*ast.Comment) ([]*ast.Comment, error) {
 	ref := head.Ref()
 	if head.Key != nil && head.Value == nil && !head.HasDynamicRef() {
 		ref = ref.GroundPrefix()
@@ -603,16 +654,28 @@ func (w *writer) writeHead(head *ast.Head, isDefault, isExpandedConst bool, comm
 		for _, arg := range head.Args {
 			args = append(args, arg)
 		}
-		comments = w.writeIterable(args, head.Location, closingLoc(0, 0, '(', ')', head.Location), comments, w.listWriter())
+		var err error
+		comments, err = w.writeIterable(args, head.Location, closingLoc(0, 0, '(', ')', head.Location), comments, w.listWriter())
 		w.write(")")
+		if err != nil {
+			return nil, err
+		}
 	}
 	if head.Key != nil {
 		if w.fmtOpts.contains && head.Value == nil {
 			w.write(" contains ")
-			comments = w.writeTerm(head.Key, comments)
+			var err error
+			comments, err = w.writeTerm(head.Key, comments)
+			if err != nil {
+				panic(err)
+			}
 		} else if head.Value == nil { // no `if` for p[x] notation
 			w.write("[")
-			comments = w.writeTerm(head.Key, comments)
+			var err error
+			comments, err = w.writeTerm(head.Key, comments)
+			if err != nil {
+				panic(err)
+			}
 			w.write("]")
 		}
 	}
@@ -634,7 +697,7 @@ func (w *writer) writeHead(head *ast.Head, isDefault, isExpandedConst bool, comm
 			// If the value location is the same as the location of the head,
 			// we know that the value is generated, i.e. f(1)
 			// Don't print the value (` = true`) as it is implied.
-			return comments
+			return comments, nil
 		}
 
 		if head.Assign || w.fmtOpts.regoV1 {
@@ -643,24 +706,35 @@ func (w *writer) writeHead(head *ast.Head, isDefault, isExpandedConst bool, comm
 		} else {
 			w.write(" = ")
 		}
-		comments = w.writeTerm(head.Value, comments)
+		var err error
+		comments, err = w.writeTerm(head.Value, comments)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return comments
+	return comments, nil
 }
 
-func (w *writer) insertComments(comments []*ast.Comment, loc *ast.Location) []*ast.Comment {
+func (w *writer) insertComments(comments []*ast.Comment, loc *ast.Location) ([]*ast.Comment, error) {
 	before, at, comments := partitionComments(comments, loc)
+
 	w.writeComments(before)
 	if len(before) > 0 && loc.Row-before[len(before)-1].Location.Row > 1 {
 		w.blankLine()
 	}
 
-	w.beforeLineEnd(at)
-	return comments
+	if err := w.beforeLineEnd(at); err != nil {
+		return nil, err
+	}
+	return comments, nil
 }
 
 func (w *writer) writeBody(body ast.Body, comments []*ast.Comment) []*ast.Comment {
-	comments = w.insertComments(comments, body.Loc())
+	var err error
+	comments, err = w.insertComments(comments, body.Loc())
+	if err != nil {
+		panic(err)
+	}
 	for i, expr := range body {
 		// Insert a blank line in before the expression if it was not right
 		// after the previous expression.
@@ -684,7 +758,11 @@ func (w *writer) writeBody(body ast.Body, comments []*ast.Comment) []*ast.Commen
 }
 
 func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) []*ast.Comment {
-	comments = w.insertComments(comments, expr.Location)
+	var err error
+	comments, err = w.insertComments(comments, expr.Location)
+	if err != nil {
+		panic(err)
+	}
 	if !w.inline {
 		w.startLine()
 	}
@@ -701,7 +779,10 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) []*ast.Comme
 	case []*ast.Term:
 		comments = w.writeFunctionCall(expr, comments)
 	case *ast.Term:
-		comments = w.writeTerm(t, comments)
+		comments, err = w.writeTerm(t, comments)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	var indented bool
@@ -725,7 +806,11 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) []*ast.Comme
 }
 
 func (w *writer) writeSomeDecl(decl *ast.SomeDecl, comments []*ast.Comment) []*ast.Comment {
-	comments = w.insertComments(comments, decl.Location)
+	var err error
+	comments, err = w.insertComments(comments, decl.Location)
+	if err != nil {
+		panic(err)
+	}
 	w.write("some ")
 
 	row := decl.Location.Row
@@ -742,7 +827,10 @@ func (w *writer) writeSomeDecl(decl *ast.SomeDecl, comments []*ast.Comment) []*a
 				w.write(" ")
 			}
 
-			comments = w.writeTerm(term, comments)
+			comments, err = w.writeTerm(term, comments)
+			if err != nil {
+				panic(err)
+			}
 
 			if i < len(decl.Symbols)-1 {
 				w.write(",")
@@ -756,15 +844,28 @@ func (w *writer) writeSomeDecl(decl *ast.SomeDecl, comments []*ast.Comment) []*a
 }
 
 func (w *writer) writeEvery(every *ast.Every, comments []*ast.Comment) []*ast.Comment {
-	comments = w.insertComments(comments, every.Location)
+	var err error
+	comments, err = w.insertComments(comments, every.Location)
+	if err != nil {
+		panic(err)
+	}
 	w.write("every ")
 	if every.Key != nil {
-		comments = w.writeTerm(every.Key, comments)
+		comments, err = w.writeTerm(every.Key, comments)
+		if err != nil {
+			panic(err)
+		}
 		w.write(", ")
 	}
-	comments = w.writeTerm(every.Value, comments)
+	comments, err = w.writeTerm(every.Value, comments)
+	if err != nil {
+		panic(err)
+	}
 	w.write(" in ")
-	comments = w.writeTerm(every.Domain, comments)
+	comments, err = w.writeTerm(every.Domain, comments)
+	if err != nil {
+		panic(err)
+	}
 	w.write(" {")
 	comments = w.writeComprehensionBody('{', '}', every.Body, every.Loc(), every.Loc(), comments)
 
@@ -794,18 +895,35 @@ func (w *writer) writeFunctionCall(expr *ast.Expr, comments []*ast.Comment) []*a
 	numDeclArgs := bi.Decl.Arity()
 	numCallArgs := len(terms) - 1
 
+	var err error
 	switch numCallArgs {
 	case numDeclArgs: // Print infix where result is unassigned (e.g., x != y)
-		comments = w.writeTerm(terms[1], comments)
+		comments, err = w.writeTerm(terms[1], comments)
+		if err != nil {
+			panic(err)
+		}
 		w.write(" " + bi.Infix + " ")
-		return w.writeTerm(terms[2], comments)
+		comments, err = w.writeTerm(terms[2], comments)
+		if err != nil {
+			panic(err)
+		}
+		return comments
 
 	case numDeclArgs + 1: // Print infix where result is assigned (e.g., z = x + y)
-		comments = w.writeTerm(terms[3], comments)
+		comments, err = w.writeTerm(terms[3], comments)
+		if err != nil {
+			panic(err)
+		}
 		w.write(" " + ast.Equality.Infix + " ")
-		comments = w.writeTerm(terms[1], comments)
+		comments, err = w.writeTerm(terms[1], comments)
+		if err != nil {
+			panic(err)
+		}
 		w.write(" " + bi.Infix + " ")
-		comments = w.writeTerm(terms[2], comments)
+		comments, err = w.writeTerm(terms[2], comments)
+		if err != nil {
+			panic(err)
+		}
 		return comments
 	}
 	// NOTE(Trolloldem): in this point we are operating with a built-in function with the
@@ -822,26 +940,46 @@ func (w *writer) writeFunctionCallPlain(terms []*ast.Term, comments []*ast.Comme
 		args[i] = t
 	}
 	loc := terms[0].Location
-	return w.writeIterable(args, loc, closingLoc(0, 0, '(', ')', loc), comments, w.listWriter())
+	var err error
+	comments, err = w.writeIterable(args, loc, closingLoc(0, 0, '(', ')', loc), comments, w.listWriter())
+	if err != nil {
+		panic(err)
+	}
+	return comments
 }
 
 func (w *writer) writeWith(with *ast.With, comments []*ast.Comment, indented bool) []*ast.Comment {
-	comments = w.insertComments(comments, with.Location)
+	var err error
+	comments, err = w.insertComments(comments, with.Location)
+	if err != nil {
+		panic(err)
+	}
 	if !indented {
 		w.write(" ")
 	}
 	w.write("with ")
-	comments = w.writeTerm(with.Target, comments)
+	comments, err = w.writeTerm(with.Target, comments)
+	if err != nil {
+		panic(err)
+	}
 	w.write(" as ")
-	return w.writeTerm(with.Value, comments)
+	comments, err = w.writeTerm(with.Value, comments)
+	if err != nil {
+		panic(err)
+	}
+	return comments
 }
 
-func (w *writer) writeTerm(term *ast.Term, comments []*ast.Comment) []*ast.Comment {
+func (w *writer) writeTerm(term *ast.Term, comments []*ast.Comment) ([]*ast.Comment, error) {
 	return w.writeTermParens(false, term, comments)
 }
 
-func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Comment) []*ast.Comment {
-	comments = w.insertComments(comments, term.Location)
+func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Comment) ([]*ast.Comment, error) {
+	var err error
+	comments, err = w.insertComments(comments, term.Location)
+	if err != nil {
+		return nil, err
+	}
 	if !w.inline {
 		w.startLine()
 	}
@@ -850,7 +988,10 @@ func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Co
 	case ast.Ref:
 		comments = w.writeRef(x, comments)
 	case ast.Object:
-		comments = w.writeObject(x, term.Location, comments)
+		comments, err = w.writeObject(x, term.Location, comments)
+		if err != nil {
+			return nil, err
+		}
 	case *ast.Array:
 		comments = w.writeArray(x, term.Location, comments)
 	case ast.Set:
@@ -880,7 +1021,7 @@ func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Co
 	if !w.inline {
 		w.startLine()
 	}
-	return comments
+	return comments, nil
 }
 
 func (w *writer) writeRef(x ast.Ref, comments []*ast.Comment) []*ast.Comment {
@@ -890,7 +1031,11 @@ func (w *writer) writeRef(x ast.Ref, comments []*ast.Comment) []*ast.Comment {
 		if ok {
 			parens = x[0].Location.Text[0] == 40 // Starts with "("
 		}
-		comments = w.writeTermParens(parens, x[0], comments)
+		var err error
+		comments, err = w.writeTermParens(parens, x[0], comments)
+		if err != nil {
+			panic(err)
+		}
 		path := x[1:]
 		for _, t := range path {
 			switch p := t.Value.(type) {
@@ -900,7 +1045,10 @@ func (w *writer) writeRef(x ast.Ref, comments []*ast.Comment) []*ast.Comment {
 				w.writeBracketed(w.formatVar(p))
 			default:
 				w.write("[")
-				comments = w.writeTerm(t, comments)
+				comments, err = w.writeTerm(t, comments)
+				if err != nil {
+					panic(err)
+				}
 				w.write("]")
 			}
 		}
@@ -956,9 +1104,16 @@ func (w *writer) writeCall(parens bool, x ast.Call, loc *ast.Location, comments 
 		return comments
 	}
 
-	comments = w.writeTermParens(true, x[1], comments)
+	var err error
+	comments, err = w.writeTermParens(true, x[1], comments)
+	if err != nil {
+		panic(err)
+	}
 	w.write(" " + bi.Infix + " ")
-	comments = w.writeTermParens(true, x[2], comments)
+	comments, err = w.writeTermParens(true, x[2], comments)
+	if err != nil {
+		panic(err)
+	}
 	if parens {
 		w.write(")")
 	}
@@ -978,30 +1133,46 @@ func (w *writer) writeInOperator(parens bool, operands []*ast.Term, comments []*
 		return comments
 	}
 	kw := "in"
+	var err error
 	switch len(operands) {
 	case 2:
-		comments = w.writeTermParens(true, operands[0], comments)
+		comments, err = w.writeTermParens(true, operands[0], comments)
+		if err != nil {
+			panic(err)
+		}
 		w.write(" ")
 		w.write(kw)
 		w.write(" ")
-		comments = w.writeTermParens(true, operands[1], comments)
+		comments, err = w.writeTermParens(true, operands[1], comments)
+		if err != nil {
+			panic(err)
+		}
 	case 3:
 		if parens {
 			w.write("(")
 			defer w.write(")")
 		}
-		comments = w.writeTermParens(true, operands[0], comments)
+		comments, err = w.writeTermParens(true, operands[0], comments)
+		if err != nil {
+			panic(err)
+		}
 		w.write(", ")
-		comments = w.writeTermParens(true, operands[1], comments)
+		comments, err = w.writeTermParens(true, operands[1], comments)
+		if err != nil {
+			panic(err)
+		}
 		w.write(" ")
 		w.write(kw)
 		w.write(" ")
-		comments = w.writeTermParens(true, operands[2], comments)
+		comments, err = w.writeTermParens(true, operands[2], comments)
+		if err != nil {
+			panic(err)
+		}
 	}
 	return comments
 }
 
-func (w *writer) writeObject(obj ast.Object, loc *ast.Location, comments []*ast.Comment) []*ast.Comment {
+func (w *writer) writeObject(obj ast.Object, loc *ast.Location, comments []*ast.Comment) ([]*ast.Comment, error) {
 	w.write("{")
 	defer w.write("}")
 
@@ -1020,14 +1191,24 @@ func (w *writer) writeArray(arr *ast.Array, loc *ast.Location, comments []*ast.C
 	arr.Foreach(func(t *ast.Term) {
 		s = append(s, t)
 	})
-	return w.writeIterable(s, loc, closingLoc(0, 0, '[', ']', loc), comments, w.listWriter())
+	var err error
+	comments, err = w.writeIterable(s, loc, closingLoc(0, 0, '[', ']', loc), comments, w.listWriter())
+	if err != nil {
+		panic(err)
+	}
+	return comments
 }
 
 func (w *writer) writeSet(set ast.Set, loc *ast.Location, comments []*ast.Comment) []*ast.Comment {
 
 	if set.Len() == 0 {
 		w.write("set()")
-		return w.insertComments(comments, closingLoc(0, 0, '(', ')', loc))
+		var err error
+		comments, err = w.insertComments(comments, closingLoc(0, 0, '(', ')', loc))
+		if err != nil {
+			panic(err)
+		}
+		return comments
 	}
 
 	w.write("{")
@@ -1037,7 +1218,12 @@ func (w *writer) writeSet(set ast.Set, loc *ast.Location, comments []*ast.Commen
 	set.Foreach(func(t *ast.Term) {
 		s = append(s, t)
 	})
-	return w.writeIterable(s, loc, closingLoc(0, 0, '{', '}', loc), comments, w.listWriter())
+	var err error
+	comments, err = w.writeIterable(s, loc, closingLoc(0, 0, '{', '}', loc), comments, w.listWriter())
+	if err != nil {
+		panic(err)
+	}
+	return comments
 }
 
 func (w *writer) writeArrayComprehension(arr *ast.ArrayComprehension, loc *ast.Location, comments []*ast.Comment) []*ast.Comment {
@@ -1064,7 +1250,11 @@ func (w *writer) writeObjectComprehension(object *ast.ObjectComprehension, loc *
 		w.startLine()
 	}
 
-	comments = w.writeTerm(object.Key, comments)
+	var err error
+	comments, err = w.writeTerm(object.Key, comments)
+	if err != nil {
+		panic(err)
+	}
 	w.write(": ")
 	return w.writeComprehension('{', '}', object.Value, object.Body, loc, comments)
 }
@@ -1080,7 +1270,11 @@ func (w *writer) writeComprehension(openChar, closeChar byte, term *ast.Term, bo
 	if ok {
 		parens = term.Location.Text[0] == 40 // Starts with "("
 	}
-	comments = w.writeTermParens(parens, term, comments)
+	var err error
+	comments, err = w.writeTermParens(parens, term, comments)
+	if err != nil {
+		panic(err)
+	}
 	w.write(" |")
 
 	return w.writeComprehensionBody(openChar, closeChar, body, term.Location, loc, comments)
@@ -1109,8 +1303,12 @@ func (w *writer) writeComprehensionBody(openChar, closeChar byte, body ast.Body,
 		}
 		comments = w.writeExpr(body[i], comments)
 	}
-
-	return w.insertComments(comments, closingLoc(0, 0, openChar, closeChar, compr))
+	var err error
+	comments, err = w.insertComments(comments, closingLoc(0, 0, openChar, closeChar, compr))
+	if err != nil {
+		panic(err)
+	}
+	return comments
 }
 
 func (w *writer) writeImports(imports []*ast.Import, comments []*ast.Comment) []*ast.Comment {
@@ -1118,7 +1316,11 @@ func (w *writer) writeImports(imports []*ast.Import, comments []*ast.Comment) []
 
 	groups := groupImports(imports)
 	for _, group := range groups {
-		comments = w.insertComments(comments, group[0].Loc())
+		var err error
+		comments, err = w.insertComments(comments, group[0].Loc())
+		if err != nil {
+			panic(err)
+		}
 
 		// Sort imports within a newline grouping.
 		slices.SortFunc(group, (*ast.Import).Compare)
@@ -1158,9 +1360,9 @@ func (w *writer) writeImport(imp *ast.Import) {
 	w.write(strings.Join(buf, " "))
 }
 
-type entryWriter func(interface{}, []*ast.Comment) []*ast.Comment
+type entryWriter func(interface{}, []*ast.Comment) ([]*ast.Comment, error)
 
-func (w *writer) writeIterable(elements []interface{}, last *ast.Location, close *ast.Location, comments []*ast.Comment, fn entryWriter) []*ast.Comment {
+func (w *writer) writeIterable(elements []interface{}, last *ast.Location, close *ast.Location, comments []*ast.Comment, fn entryWriter) ([]*ast.Comment, error) {
 	lines := groupIterable(elements, last)
 	if len(lines) > 1 {
 		w.delayBeforeEnd()
@@ -1169,34 +1371,49 @@ func (w *writer) writeIterable(elements []interface{}, last *ast.Location, close
 
 	i := 0
 	for ; i < len(lines)-1; i++ {
-		comments = w.writeIterableLine(lines[i], comments, fn)
+		var err error
+		comments, err = w.writeIterableLine(lines[i], comments, fn)
+		if err != nil {
+			panic(err)
+		}
 		w.write(",")
 
 		w.endLine()
 		w.startLine()
 	}
 
-	comments = w.writeIterableLine(lines[i], comments, fn)
+	var err error
+	comments, err = w.writeIterableLine(lines[i], comments, fn)
+	if err != nil {
+		return nil, err
+	}
 
 	if len(lines) > 1 {
 		w.write(",")
 		w.endLine()
-		comments = w.insertComments(comments, close)
+		comments, err = w.insertComments(comments, close)
+		if err != nil {
+			return nil, err
+		}
 		w.down()
 		w.startLine()
 	}
 
-	return comments
+	return comments, nil
 }
 
-func (w *writer) writeIterableLine(elements []interface{}, comments []*ast.Comment, fn entryWriter) []*ast.Comment {
+func (w *writer) writeIterableLine(elements []interface{}, comments []*ast.Comment, fn entryWriter) ([]*ast.Comment, error) {
 	if len(elements) == 0 {
-		return comments
+		return comments, nil
 	}
 
 	i := 0
 	for ; i < len(elements)-1; i++ {
-		comments = fn(elements[i], comments)
+		var err error
+		comments, err = fn(elements[i], comments)
+		if err != nil {
+			return nil, err
+		}
 		w.write(", ")
 	}
 
@@ -1204,7 +1421,7 @@ func (w *writer) writeIterableLine(elements []interface{}, comments []*ast.Comme
 }
 
 func (w *writer) objectWriter() entryWriter {
-	return func(x interface{}, comments []*ast.Comment) []*ast.Comment {
+	return func(x interface{}, comments []*ast.Comment) ([]*ast.Comment, error) {
 		entry := x.([2]*ast.Term)
 
 		call, isCall := entry[0].Value.(ast.Call)
@@ -1215,7 +1432,11 @@ func (w *writer) objectWriter() entryWriter {
 			w.write("(")
 		}
 
-		comments = w.writeTerm(entry[0], comments)
+		var err error
+		comments, err = w.writeTerm(entry[0], comments)
+		if err != nil {
+			panic(err)
+		}
 		if paren {
 			w.write(")")
 		}
@@ -1233,7 +1454,7 @@ func (w *writer) objectWriter() entryWriter {
 }
 
 func (w *writer) listWriter() entryWriter {
-	return func(x interface{}, comments []*ast.Comment) []*ast.Comment {
+	return func(x interface{}, comments []*ast.Comment) ([]*ast.Comment, error) {
 		t, ok := x.(*ast.Term)
 		if ok {
 			call, isCall := t.Value.(ast.Call)
@@ -1543,14 +1764,16 @@ func (w *writer) endLine() {
 }
 
 // beforeLineEnd registers a comment to be printed at the end of the current line.
-func (w *writer) beforeLineEnd(c *ast.Comment) {
+func (w *writer) beforeLineEnd(c *ast.Comment) error {
 	if w.beforeEnd != nil {
 		if c == nil {
-			return
+			return nil
 		}
-		panic("overwriting non-nil beforeEnd")
+		w.beforeEnd = nil
+		return fmt.Errorf("unexpected comment")
 	}
 	w.beforeEnd = c
+	return nil
 }
 
 func (w *writer) delayBeforeEnd() {
