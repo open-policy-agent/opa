@@ -10,6 +10,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/plugins/rest"
 )
 
+// bufferItem contains is an extended EventV1 to also hold the serialized version to avoid re-serialization.
 type bufferItem struct {
 	EventV1
 	serialized []byte
@@ -18,7 +19,8 @@ type bufferItem struct {
 // eventBuffer stores and uploads a gzip compressed JSON array of EventV1 entries
 type eventBuffer struct {
 	buffer               chan bufferItem // buffer stores JSON encoded EventV1 data
-	payload              *payloadBuffer  // payload contains the compressed JSON array to be uploaded
+	payload              *payload        // payload contains the compressed JSON array to be uploaded
+	upload               sync.Mutex      // upload controls that uploads are done sequentially
 	client               rest.Client     // client is used to upload the data to the configured service
 	uploadPath           string          // uploadPath is the configured HTTP resource path for upload
 	uploadSizeLimitBytes int64           // uploadSizeLimitBytes will enforce a maximum payload size to be uploaded
@@ -27,7 +29,7 @@ type eventBuffer struct {
 func newEventBuffer(bufferSizeLimitEvents int64, client rest.Client, uploadPath string, uploadSizeLimitBytes int64) *eventBuffer {
 	return &eventBuffer{
 		buffer:               make(chan bufferItem, bufferSizeLimitEvents),
-		payload:              newPayloadBuffer(),
+		payload:              newPayload(),
 		client:               client,
 		uploadPath:           uploadPath,
 		uploadSizeLimitBytes: uploadSizeLimitBytes,
@@ -67,8 +69,8 @@ func (b *eventBuffer) Push(p *Plugin, event bufferItem) {
 // Upload reads all the currently buffered events and uploads them as a gzip compressed JSON array to the service.
 // The events are uploaded as chunks limited by the uploadSizeLimitBytes.
 func (b *eventBuffer) Upload(ctx context.Context, p *Plugin) (bool, error) {
-	b.payload.mtx.Lock()
-	defer b.payload.mtx.Unlock()
+	b.upload.Lock()
+	defer b.upload.Unlock()
 
 	b.compress(p)
 	return b.payload.upload(ctx, b.client, b.uploadPath)
@@ -129,6 +131,7 @@ func (b *eventBuffer) compress(p *Plugin) {
 			}
 
 			if !b.payload.capacity(len(event.serialized), b.uploadSizeLimitBytes) {
+				// add the event that doesn't fit back into the buffer
 				b.Push(p, event)
 				break
 			}
@@ -154,27 +157,25 @@ func (b *eventBuffer) compress(p *Plugin) {
 	}
 }
 
-// payloadBuffer contains the compressed JSON array to be uploaded
-type payloadBuffer struct {
+// payload contains the compressed JSON array to be uploaded
+type payload struct {
 	buffer       *bytes.Buffer
-	mtx          sync.Mutex
 	writer       *gzip.Writer
-	closed       bool
 	bytesWritten int
 }
 
-func newPayloadBuffer() *payloadBuffer {
-	p := payloadBuffer{}
+func newPayload() *payload {
+	p := payload{}
 	p.reset()
 	return &p
 }
 
-func (p *payloadBuffer) capacity(eventLen int, uploadSizeLimitBytes int64) bool {
+func (p *payload) capacity(eventLen int, uploadSizeLimitBytes int64) bool {
 	return !(int64(eventLen+p.bytesWritten+1) > uploadSizeLimitBytes)
 }
 
 // add writes an event to the JSON array
-func (p *payloadBuffer) add(event bufferItem) error {
+func (p *payload) add(event bufferItem) error {
 	switch p.bytesWritten {
 	case 0: // Start new JSON array
 		n, err := p.writer.Write([]byte(`[`))
@@ -201,11 +202,12 @@ func (p *payloadBuffer) add(event bufferItem) error {
 }
 
 // close writes the closing bracket to the array
-func (p *payloadBuffer) close() error {
-	_, err := p.writer.Write([]byte(`]`))
+func (p *payload) close() error {
+	n, err := p.writer.Write([]byte(`]`))
 	if err != nil {
 		return err
 	}
+	p.bytesWritten += n
 
 	if err := p.writer.Close(); err != nil {
 		return err
@@ -215,7 +217,7 @@ func (p *payloadBuffer) close() error {
 }
 
 // upload closes the JSON array and attempts to send the data to the configured service
-func (p *payloadBuffer) upload(ctx context.Context, client rest.Client, uploadPath string) (bool, error) {
+func (p *payload) upload(ctx context.Context, client rest.Client, uploadPath string) (bool, error) {
 	if p.bytesWritten == 0 {
 		return false, nil
 	}
@@ -229,9 +231,8 @@ func (p *payloadBuffer) upload(ctx context.Context, client rest.Client, uploadPa
 	return true, nil
 }
 
-func (p *payloadBuffer) reset() {
+func (p *payload) reset() {
 	p.bytesWritten = 0
 	p.buffer = new(bytes.Buffer)
 	p.writer = gzip.NewWriter(p.buffer)
-	p.closed = false
 }

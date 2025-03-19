@@ -23,70 +23,87 @@ import (
 func TestEventBuffer_Push(t *testing.T) {
 	t.Parallel()
 
+	expectedIds := make(map[string]struct{})
+	var expectedDropped uint64
 	limit := int64(2)
-	b := newEventBuffer(limit, rest.Client{}, "", 200)
+	b := newEventBuffer(limit, rest.Client{}, "", 0)
 	p := &Plugin{
 		metrics: metrics.New(),
 	}
-	b.Push(p, newTestEvent(t, "1", false))
-	dropped := p.metrics.Counter(logBufferEventLimitExDropCounterName).Value().(uint64)
-	if p.metrics.Counter(logBufferEventLimitExDropCounterName).Value().(uint64) != 0 {
-		t.Fatalf("number of dropped event mismatch, expected %d, got %d", 0, dropped)
-	}
-	b.Push(p, newTestEvent(t, "2", false))
-	dropped = p.metrics.Counter(logBufferEventLimitExDropCounterName).Value().(uint64)
-	if p.metrics.Counter(logBufferEventLimitExDropCounterName).Value().(uint64) != 0 {
-		t.Fatalf("number of dropped event mismatch, expected %d, got %d", 0, dropped)
-	}
-	b.Push(p, newTestEvent(t, "3", false))
-	dropped = p.metrics.Counter(logBufferEventLimitExDropCounterName).Value().(uint64)
-	if p.metrics.Counter(logBufferEventLimitExDropCounterName).Value().(uint64) != 1 {
-		t.Fatalf("number of dropped event mismatch, expected %d, got %d", 1, dropped)
-	}
+
+	id := "id1"
+	expectedIds[id] = struct{}{}
+	b.Push(p, newTestEvent(t, id, false))
+	checkBufferState(t, limit, p, b, expectedDropped, expectedIds)
+
+	id = "id2"
+	expectedIds[id] = struct{}{}
+	b.Push(p, newTestEvent(t, id, false))
+	checkBufferState(t, limit, p, b, expectedDropped, expectedIds)
+
+	id = "id3"
+	expectedIds[id] = struct{}{}
+	b.Push(p, newTestEvent(t, id, false))
+	// Three events were pushed, but limit is 2 so the oldest even should have been dropped
+	delete(expectedIds, "id1")
+	expectedDropped++
+	checkBufferState(t, limit, p, b, expectedDropped, expectedIds)
 
 	if int64(len(b.buffer)) != limit {
 		t.Fatalf("buffer size mismatch, expected %d, got %d", limit, len(b.buffer))
 	}
 
+	// Increase the limit, forcing the buffer to change
 	limit = int64(3)
-	b.Reconfigure(p, limit, rest.Client{}, "", 100)
-	dropped = p.metrics.Counter(logBufferEventLimitExDropCounterName).Value().(uint64)
-	if dropped != 1 {
-		t.Fatalf("number of dropped event mismatch, expected %d, got %d", 1, dropped)
-	}
-	b.Push(p, newTestEvent(t, "4", false))
-	dropped = p.metrics.Counter(logBufferEventLimitExDropCounterName).Value().(uint64)
-	if dropped != 1 {
-		t.Fatalf("number of dropped event mismatch, expected %d, got %d", 1, dropped)
-	}
-	b.Push(p, newTestEvent(t, "5", true))
-	dropped = p.metrics.Counter(logBufferEventLimitExDropCounterName).Value().(uint64)
-	if dropped != 2 {
-		t.Fatalf("number of dropped event mismatch, expected %d, got %d", 2, dropped)
-	}
+	b.Reconfigure(p, limit, rest.Client{}, "", 0)
+	checkBufferState(t, limit, p, b, expectedDropped, expectedIds)
 
-	if int64(len(b.buffer)) != limit {
-		t.Fatalf("buffer size mismatch, expected %d, got %d", limit, len(b.buffer))
-	}
+	id = "id4"
+	expectedIds[id] = struct{}{}
+	b.Push(p, newTestEvent(t, id, false))
+	checkBufferState(t, limit, p, b, expectedDropped, expectedIds)
+
+	id = "id5"
+	expectedIds[id] = struct{}{}
+	b.Push(p, newTestEvent(t, id, true))
+	// Four events were pushed, but limit is 3 so the oldest even should have been dropped
+	expectedDropped++
+	delete(expectedIds, "id2")
+	checkBufferState(t, limit, p, b, expectedDropped, expectedIds)
 
 	limit = int64(1)
-	b.Reconfigure(p, limit, rest.Client{}, "", 200)
-	dropped = p.metrics.Counter(logBufferEventLimitExDropCounterName).Value().(uint64)
-	if dropped != 4 {
-		t.Fatalf("number of dropped event mismatch, expected %d, got %d", 4, dropped)
-	}
-	if int64(len(b.buffer)) != limit {
-		t.Fatalf("buffer size mismatch, expected %d, got %d", limit, len(b.buffer))
+	b.Reconfigure(p, limit, rest.Client{}, "", 0)
+	// Limit reconfigured from 3->1, dropping 2 more events.
+	expectedDropped = 4
+	delete(expectedIds, "id3")
+	delete(expectedIds, "id4")
+	checkBufferState(t, limit, p, b, expectedDropped, expectedIds)
+
+	// Nothing changed
+	b.Reconfigure(p, limit, rest.Client{}, "", 0)
+	checkBufferState(t, limit, p, b, expectedDropped, expectedIds)
+}
+
+func checkBufferState(t *testing.T, limit int64, p *Plugin, b *eventBuffer, expectedDropped uint64, expectedIds map[string]struct{}) {
+	dropped := p.metrics.Counter(logBufferEventLimitExDropCounterName).Value().(uint64)
+	if dropped != expectedDropped {
+		t.Fatalf("number of dropped event mismatch, expected %d, got %d", expectedDropped, dropped)
 	}
 
-	b.Reconfigure(p, limit, rest.Client{}, "", 200)
-	dropped = p.metrics.Counter(logBufferEventLimitExDropCounterName).Value().(uint64)
-	if dropped != 4 {
-		t.Fatalf("number of dropped event mismatch, expected %d, got %d", 04, dropped)
+	if len(b.buffer) != len(expectedIds) {
+		t.Fatalf("buffer size mismatch, expected %d, got %d", len(expectedIds), len(b.buffer))
 	}
-	if int64(len(b.buffer)) != limit {
-		t.Fatalf("buffer size mismatch, expected %d, got %d", limit, len(b.buffer))
+
+	close(b.buffer)
+	newBuffer := make(chan bufferItem, limit)
+	for event := range b.buffer {
+		if _, ok := expectedIds[event.DecisionID]; !ok {
+			t.Fatalf("received unexpected event %v", event)
+		}
+		newBuffer <- event
 	}
+
+	b.buffer = newBuffer
 }
 
 func TestEventBuffer_Upload(t *testing.T) {
