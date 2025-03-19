@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build slow
-// +build slow
 
 package logs
 
@@ -676,7 +675,7 @@ func TestPluginRequeue(t *testing.T) {
 	}
 }
 
-func logServerInfo(id string, input interface{}, result interface{}) *server.Info {
+func logServerInfo(id string, input any, result any) *server.Info {
 	return &server.Info{
 		DecisionID: id,
 		Path:       "data.foo.bar",
@@ -759,9 +758,9 @@ func TestPluginRateLimitInt(t *testing.T) {
 			var input interface{} = map[string]interface{}{"method": "GET"}
 			var result interface{} = false
 
-			decisionID1 := "abc"
+			eventSize := 218
 			event1 := &server.Info{
-				DecisionID: decisionID1,
+				DecisionID: "abc",
 				Path:       "foo/bar",
 				Input:      &input,
 				Results:    &result,
@@ -769,9 +768,8 @@ func TestPluginRateLimitInt(t *testing.T) {
 				Timestamp:  ts,
 			}
 
-			decisionID2 := "def"
 			event2 := &server.Info{
-				DecisionID: decisionID2,
+				DecisionID: "def",
 				Path:       "foo/baz",
 				Input:      &input,
 				Results:    &result,
@@ -782,14 +780,14 @@ func TestPluginRateLimitInt(t *testing.T) {
 			_ = fixture.plugin.Log(ctx, event1) // event 1 should be written into the encoder
 
 			expectedLen := 1
-			currentLen := getBufferLen(t, fixture)
+			currentLen := getBufferLen(t, fixture, eventSize)
 			if currentLen != expectedLen {
 				t.Fatalf("Expected %v events to be written but got %v", expectedLen, currentLen)
 			}
 
 			_ = fixture.plugin.Log(ctx, event2) // event 2 should not be written into the encoder as rate limit exceeded
 
-			currentLen = getBufferLen(t, fixture)
+			currentLen = getBufferLen(t, fixture, eventSize)
 			if currentLen != expectedLen {
 				t.Fatalf("Expected %v events to be written but got %v", expectedLen, currentLen)
 			}
@@ -798,12 +796,12 @@ func TestPluginRateLimitInt(t *testing.T) {
 			_ = fixture.plugin.Log(ctx, event2) // event 2 should now be written into the encoder
 
 			expectedLen = 2
-			currentLen = getBufferLen(t, fixture)
+			currentLen = getBufferLen(t, fixture, eventSize)
 			if currentLen != expectedLen {
 				t.Fatalf("Expected %v events to be written but got %v", expectedLen, currentLen)
 			}
 
-			exp := EventV1{
+			expectedEvent1 := EventV1{
 				Labels: map[string]string{
 					"id":      "test-instance-id",
 					"app":     "example-app",
@@ -816,203 +814,293 @@ func TestPluginRateLimitInt(t *testing.T) {
 				RequestedBy: "test-1",
 				Timestamp:   ts,
 			}
+			expectedEvent2 := EventV1{
+				Labels: map[string]string{
+					"id":      "test-instance-id",
+					"app":     "example-app",
+					"version": version.Version,
+				},
+				DecisionID:  "def",
+				Path:        "foo/baz",
+				Input:       &input,
+				Result:      &result,
+				RequestedBy: "test-2",
+				Timestamp:   ts,
+			}
 
+			var bufferEvent1, bufferEvent2 EventV1
 			switch fixture.plugin.runningBuffer {
 			case sizeBufferType:
 				chunk, err := fixture.plugin.enc.Flush()
 				if err != nil {
 					t.Fatal(err)
 				}
-
 				if len(chunk) != 1 {
 					t.Fatalf("Expected 1 chunk but got %v", len(chunk))
 				}
-
 				events := decodeLogEvent(t, chunk[0])
 				if len(events) != 2 {
 					t.Fatalf("Expected 2 events but got %v", len(events))
 				}
-				if events[0].DecisionID != decisionID1 {
-					t.Fatalf("Expected decision id %v but got %v", decisionID1, events[0].DecisionID)
-				}
-				if events[1].DecisionID != decisionID2 {
-					t.Fatalf("Expected decision id %v but got %v", decisionID2, events[1].DecisionID)
-				}
+				bufferEvent1 = events[0]
+				bufferEvent2 = events[1]
 			case eventBufferType:
-				event1 := (<-fixture.plugin.eventBuffer.buffer).EventV1
-				if event1.DecisionID != decisionID1 {
-					t.Fatalf("Expected event to be %v, got %v", exp, event1)
-				}
-				event2 := (<-fixture.plugin.eventBuffer.buffer).EventV1
-				if event2.DecisionID != decisionID2 {
-					t.Fatalf("Expected event to be %v, got %v", exp, event1)
-				}
+				bufferEvent1 = (<-fixture.plugin.eventBuffer.buffer).EventV1
+				bufferEvent1.Bundles = nil
+
+				bufferEvent2 = (<-fixture.plugin.eventBuffer.buffer).EventV1
+				bufferEvent2.Bundles = nil
+
+			}
+			bufferEvent1.inputAST = nil
+			if !reflect.DeepEqual(bufferEvent1, expectedEvent1) {
+				t.Fatalf("Expected %+v but got %+v", expectedEvent1, event1)
+			}
+			bufferEvent2.inputAST = nil
+			if !reflect.DeepEqual(bufferEvent2, expectedEvent2) {
+				t.Fatalf("Expected %+v but got %+v", expectedEvent1, event1)
 			}
 		})
 	}
 }
 
-func getBufferLen(t *testing.T, fixture testFixture) int {
+// getBufferLen returns the buffer length for either the event or size buffer.
+func getBufferLen(t *testing.T, fixture testFixture, eventSize int) int {
 	switch fixture.plugin.runningBuffer {
 	case eventBufferType:
 		return len(fixture.plugin.eventBuffer.buffer)
 	case sizeBufferType:
-		return fixture.plugin.enc.bytesWritten / 218 // each event is 218 bytes
+		// events stay in the encoder until the upload limit is reached
+		return fixture.plugin.enc.bytesWritten / eventSize
 	default:
 		t.Fatal("unknown buffer type")
+		return 0
 	}
-
-	return 0
 }
 
 func TestPluginRateLimitFloat(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
-
-	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
-	if err != nil {
-		panic(err)
-	}
-
-	numDecisions := 0.5 // 0.5 decision per second ie. 1 decision per 2 seconds
-	fixture := newTestFixture(t, testFixtureOptions{
-		ReportingMaxDecisionsPerSecond: float64(numDecisions),
-		ReportingUploadSizeLimitBytes:  300,
-	})
-	defer fixture.server.stop()
-
-	var input interface{} = map[string]interface{}{"method": "GET"}
-	var result interface{} = false
-
-	event1 := &server.Info{
-		DecisionID: "abc",
-		Path:       "foo/bar",
-		Input:      &input,
-		Results:    &result,
-		RemoteAddr: "test-1",
-		Timestamp:  ts,
-	}
-
-	event2 := &server.Info{
-		DecisionID: "def",
-		Path:       "foo/baz",
-		Input:      &input,
-		Results:    &result,
-		RemoteAddr: "test-2",
-		Timestamp:  ts,
-	}
-
-	_ = fixture.plugin.Log(ctx, event1) // event 1 should be written into the encoder
-
-	bytesWritten := fixture.plugin.enc.bytesWritten
-	if bytesWritten == 0 {
-		t.Fatal("Expected event to be written into the encoder")
-	}
-
-	_ = fixture.plugin.Log(ctx, event2) // event 2 should not be written into the encoder as rate limit exceeded
-
-	if fixture.plugin.enc.bytesWritten != bytesWritten {
-		t.Fatalf("Expected %v bytes written into the encoder but got %v", bytesWritten, fixture.plugin.enc.bytesWritten)
-	}
-
-	time.Sleep(1 * time.Second)
-	_ = fixture.plugin.Log(ctx, event2) // event 2 should not be written into the encoder as rate limit exceeded
-
-	if fixture.plugin.enc.bytesWritten != bytesWritten {
-		t.Fatalf("Expected %v bytes written into the encoder but got %v", bytesWritten, fixture.plugin.enc.bytesWritten)
-	}
-
-	time.Sleep(1 * time.Second)
-	_ = fixture.plugin.Log(ctx, event2) // event 2 should now be written into the encoder
-
-	if fixture.plugin.buffer.Len() != 1 {
-		t.Fatalf("Expected buffer length of 1 but got %v", fixture.plugin.buffer.Len())
-	}
-
-	exp := EventV1{
-		Labels: map[string]string{
-			"id":      "test-instance-id",
-			"app":     "example-app",
-			"version": version.Version,
+	tests := []struct {
+		name       string
+		bufferType string
+	}{
+		{
+			name:       "using event buffer",
+			bufferType: eventBufferType,
 		},
-		DecisionID:  "abc",
-		Path:        "foo/bar",
-		Input:       &input,
-		Result:      &result,
-		RequestedBy: "test-1",
-		Timestamp:   ts,
-	}
-
-	compareLogEvent(t, fixture.plugin.buffer.Pop(), exp)
-
-	chunk, err := fixture.plugin.enc.Flush()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(chunk) != 1 {
-		t.Fatalf("Expected 1 chunk but got %v", len(chunk))
-	}
-
-	exp = EventV1{
-		Labels: map[string]string{
-			"id":      "test-instance-id",
-			"app":     "example-app",
-			"version": version.Version,
+		{
+			name: "using size buffer",
 		},
-		DecisionID:  "def",
-		Path:        "foo/baz",
-		Input:       &input,
-		Result:      &result,
-		RequestedBy: "test-2",
-		Timestamp:   ts,
 	}
 
-	compareLogEvent(t, chunk[0], exp)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+
+			ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
+			if err != nil {
+				panic(err)
+			}
+
+			numDecisions := 0.5 // 0.5 decision per second i.e. 1 decision per 2 seconds
+			fixture := newTestFixture(t, testFixtureOptions{
+				ReportingMaxDecisionsPerSecond: numDecisions,
+				ReportingUploadSizeLimitBytes:  defaultUploadSizeLimitBytes,
+				ReportingBufferType:            tc.bufferType,
+			})
+			defer fixture.server.stop()
+
+			var input interface{} = map[string]interface{}{"method": "GET"}
+			var result interface{} = false
+
+			eventSize := 218
+			event1 := &server.Info{
+				DecisionID: "abc",
+				Path:       "foo/bar",
+				Input:      &input,
+				Results:    &result,
+				RemoteAddr: "test-1",
+				Timestamp:  ts,
+			}
+
+			event2 := &server.Info{
+				DecisionID: "def",
+				Path:       "foo/baz",
+				Input:      &input,
+				Results:    &result,
+				RemoteAddr: "test-2",
+				Timestamp:  ts,
+			}
+
+			// event 1 should be written into the encoder
+			if err := fixture.plugin.Log(ctx, event1); err != nil {
+				t.Fatal(err)
+			}
+
+			expectedLen := 1
+			currentLen := getBufferLen(t, fixture, eventSize)
+			if currentLen != expectedLen {
+				t.Fatalf("Expected %v events to be written but got %v", expectedLen, currentLen)
+			}
+
+			// event 2 should not be written into the encoder as rate limit exceeded
+			if err := fixture.plugin.Log(ctx, event2); err != nil {
+				t.Fatal(err)
+			}
+
+			currentLen = getBufferLen(t, fixture, eventSize)
+			if currentLen != expectedLen {
+				t.Fatalf("Expected %v events to be written but got %v", expectedLen, currentLen)
+			}
+
+			time.Sleep(1 * time.Second)
+			// event 2 should not be written into the encoder as rate limit exceeded
+			if err := fixture.plugin.Log(ctx, event2); err != nil {
+				t.Fatal(err)
+			}
+
+			currentLen = getBufferLen(t, fixture, eventSize)
+			if currentLen != expectedLen {
+				t.Fatalf("Expected %v events to be written but got %v", expectedLen, currentLen)
+			}
+
+			time.Sleep(1 * time.Second)
+			_ = fixture.plugin.Log(ctx, event2) // event 2 should now be written into the encoder
+
+			expectedLen = 2
+			currentLen = getBufferLen(t, fixture, eventSize)
+			if currentLen != expectedLen {
+				t.Fatalf("Expected %v events to be written but got %v", expectedLen, currentLen)
+			}
+
+			expectedEvent1 := EventV1{
+				Labels: map[string]string{
+					"id":      "test-instance-id",
+					"app":     "example-app",
+					"version": version.Version,
+				},
+				DecisionID:  "abc",
+				Path:        "foo/bar",
+				Input:       &input,
+				Result:      &result,
+				RequestedBy: "test-1",
+				Timestamp:   ts,
+			}
+			expectedEvent2 := EventV1{
+				Labels: map[string]string{
+					"id":      "test-instance-id",
+					"app":     "example-app",
+					"version": version.Version,
+				},
+				DecisionID:  "def",
+				Path:        "foo/baz",
+				Input:       &input,
+				Result:      &result,
+				RequestedBy: "test-2",
+				Timestamp:   ts,
+			}
+
+			var bufferEvent1, bufferEvent2 EventV1
+			switch fixture.plugin.runningBuffer {
+			case sizeBufferType:
+				chunk, err := fixture.plugin.enc.Flush()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(chunk) != 1 {
+					t.Fatalf("Expected 1 chunk but got %v", len(chunk))
+				}
+				events := decodeLogEvent(t, chunk[0])
+				if len(events) != 2 {
+					t.Fatalf("Expected 2 events but got %v", len(events))
+				}
+				bufferEvent1 = events[0]
+				bufferEvent2 = events[1]
+			case eventBufferType:
+				bufferEvent1 = (<-fixture.plugin.eventBuffer.buffer).EventV1
+				bufferEvent1.Bundles = nil
+
+				bufferEvent2 = (<-fixture.plugin.eventBuffer.buffer).EventV1
+				bufferEvent2.Bundles = nil
+
+			}
+			bufferEvent1.inputAST = nil
+			if !reflect.DeepEqual(bufferEvent1, expectedEvent1) {
+				t.Fatalf("Expected %+v but got %+v", expectedEvent1, event1)
+			}
+			bufferEvent2.inputAST = nil
+			if !reflect.DeepEqual(bufferEvent2, expectedEvent2) {
+				t.Fatalf("Expected %+v but got %+v", expectedEvent1, event1)
+			}
+		})
+	}
 }
 
 func TestPluginStatusUpdateHTTPError(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
-
-	fixture := newTestFixture(t, testFixtureOptions{ReportingUploadSizeLimitBytes: 300})
-	defer fixture.server.stop()
-
-	fixture.server.ch = make(chan []EventV1, 3)
-
-	var input interface{} = map[string]interface{}{"method": "GET"}
-	var result1 interface{} = false
-
-	_ = fixture.plugin.Log(ctx, logServerInfo("abc", input, result1))
-	_ = fixture.plugin.Log(ctx, logServerInfo("def", input, result1))
-	_ = fixture.plugin.Log(ctx, logServerInfo("ghi", input, result1))
-
-	bufLen := fixture.plugin.buffer.Len()
-	if bufLen < 1 {
-		t.Fatal("Expected buffer length of at least 1")
+	tests := []struct {
+		name       string
+		bufferType string
+	}{
+		{
+			name:       "using event buffer",
+			bufferType: eventBufferType,
+		},
+		{
+			name: "using size buffer",
+		},
 	}
 
-	fixture.server.expCode = 500
-	err := fixture.plugin.doOneShot(ctx)
-	if err == nil {
-		t.Fatal("Expected error")
-	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
 
-	<-fixture.server.ch
+			fixture := newTestFixture(t, testFixtureOptions{
+				ReportingUploadSizeLimitBytes: defaultUploadSizeLimitBytes,
+				ReportingBufferType:           tc.bufferType,
+			})
+			defer fixture.server.stop()
 
-	if fixture.plugin.buffer.Len() < bufLen {
-		t.Fatal("Expected buffer to be preserved")
-	}
+			fixture.server.ch = make(chan []EventV1, 3)
 
-	if fixture.plugin.status.HTTPCode != "500" {
-		t.Fatal("expected http_code to be 500 instead of ", fixture.plugin.status.HTTPCode)
-	}
+			input := map[string]interface{}{"method": "GET"}
+			var result1 bool
 
-	msg := "log upload failed, server replied with HTTP 500 Internal Server Error"
-	if fixture.plugin.status.Message != msg {
-		t.Fatalf("expected status message to be %v instead of %v", msg, fixture.plugin.status.Message)
+			if err := fixture.plugin.Log(ctx, logServerInfo("abc", input, result1)); err != nil {
+				t.Fatal(err)
+			}
+			if err := fixture.plugin.Log(ctx, logServerInfo("def", input, result1)); err != nil {
+				t.Fatal(err)
+			}
+			if err := fixture.plugin.Log(ctx, logServerInfo("ghi", input, result1)); err != nil {
+				t.Fatal(err)
+			}
+
+			eventSize := 218
+			bufLen := getBufferLen(t, fixture, eventSize)
+			if bufLen != 3 {
+				t.Fatalf("Expected buffer length of 3 but got %v", bufLen)
+			}
+
+			fixture.server.expCode = 500
+			err := fixture.plugin.doOneShot(ctx)
+			if err == nil {
+				t.Fatal("Expected error")
+			}
+
+			<-fixture.server.ch
+
+			if fixture.plugin.status.HTTPCode != "500" {
+				t.Fatal("expected http_code to be 500 instead of ", fixture.plugin.status.HTTPCode)
+			}
+
+			msg := "log upload failed, server replied with HTTP 500 Internal Server Error"
+			if fixture.plugin.status.Message != msg {
+				t.Fatalf("expected status message to be %v instead of %v", msg, fixture.plugin.status.Message)
+			}
+		})
 	}
 }
 
@@ -1334,166 +1422,233 @@ func TestPluginStatusUpdateRateLimitExceeded(t *testing.T) {
 func TestPluginRateLimitRequeue(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
-
-	numDecisions := 100 // 100 decisions per second
-
-	fixture := newTestFixture(t, testFixtureOptions{
-		ReportingMaxDecisionsPerSecond: float64(numDecisions),
-		ReportingUploadSizeLimitBytes:  300,
-	})
-	defer fixture.server.stop()
-
-	fixture.server.ch = make(chan []EventV1, 3)
-
-	var input interface{} = map[string]interface{}{"method": "GET"}
-	var result1 interface{} = false
-
-	_ = fixture.plugin.Log(ctx, logServerInfo("abc", input, result1)) // event 1
-	_ = fixture.plugin.Log(ctx, logServerInfo("def", input, result1)) // event 2
-	_ = fixture.plugin.Log(ctx, logServerInfo("ghi", input, result1)) // event 3
-
-	bufLen := fixture.plugin.buffer.Len()
-	if bufLen < 1 {
-		t.Fatal("Expected buffer length of at least 1")
+	tests := []struct {
+		name       string
+		bufferType string
+	}{
+		{
+			name:       "using event buffer",
+			bufferType: eventBufferType,
+		},
+		{
+			name: "using size buffer",
+		},
 	}
 
-	fixture.server.expCode = 500
-	_, err := fixture.plugin.oneShot(ctx)
-	if err == nil {
-		t.Fatal("Expected error")
-	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
 
-	<-fixture.server.ch
+			numDecisions := 100 // 100 decisions per second
+			fixture := newTestFixture(t, testFixtureOptions{
+				ReportingMaxDecisionsPerSecond: float64(numDecisions),
+				ReportingUploadSizeLimitBytes:  defaultUploadSizeLimitBytes,
+				ReportingBufferType:            tc.bufferType,
+			})
+			defer fixture.server.stop()
 
-	if fixture.plugin.buffer.Len() < bufLen {
-		t.Fatal("Expected buffer to be preserved")
-	}
+			fixture.server.ch = make(chan []EventV1, 3)
 
-	chunk, err := fixture.plugin.enc.Flush()
-	if err != nil {
-		t.Fatal(err)
-	}
+			var input interface{} = map[string]interface{}{"method": "GET"}
+			var result1 interface{} = false
 
-	if len(chunk) != 1 {
-		t.Fatalf("Expected 1 chunk but got %v", len(chunk))
-	}
+			if err := fixture.plugin.Log(ctx, logServerInfo("abc", input, result1)); err != nil {
+				t.Fatal(err)
+			}
+			if err := fixture.plugin.Log(ctx, logServerInfo("def", input, result1)); err != nil {
+				t.Fatal(err)
+			}
+			if err := fixture.plugin.Log(ctx, logServerInfo("ghi", input, result1)); err != nil {
+				t.Fatal(err)
+			}
 
-	events := decodeLogEvent(t, chunk[0])
+			eventSize := 220
+			bufLen := getBufferLen(t, fixture, eventSize)
+			if bufLen != 3 {
+				t.Fatal("Expected buffer length of 3 but got ", bufLen)
+			}
 
-	if len(events) != 2 {
-		t.Fatalf("Expected 2 event but got %v", len(events))
-	}
+			fixture.server.expCode = 500
+			_, err := fixture.plugin.oneShot(ctx)
+			if err == nil {
+				t.Fatal("Expected error")
+			}
+			<-fixture.server.ch
 
-	exp := "def"
-	if events[0].DecisionID != exp {
-		t.Fatalf("Expected decision log event id %v but got %v", exp, events[0].DecisionID)
-	}
+			var chunk []byte
+			switch fixture.plugin.runningBuffer {
+			case eventBufferType:
+				// event buffer will keep failed upload events in payload
+				bufLen := fixture.plugin.eventBuffer.payload.bytesWritten / eventSize
+				if bufLen != 3 {
+					t.Fatal("Expected buffer length of 3 but got ", bufLen)
+				}
+				chunk = fixture.plugin.eventBuffer.payload.buffer.Bytes()
+			case sizeBufferType:
+				// size buffer will put failed upload events back into the encoder
+				bufLen := getBufferLen(t, fixture, eventSize)
+				if bufLen != 3 {
+					t.Fatal("Expected buffer length of 3 but got ", bufLen)
+				}
+				chunks, err := fixture.plugin.enc.Flush()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(chunks) != 1 {
+					t.Fatalf("Expected 1 chunk but got %v", len(chunk))
+				}
+				chunk = chunks[0]
+			}
 
-	exp = "ghi"
-	if events[1].DecisionID != exp {
-		t.Fatalf("Expected decision log event id %v but got %v", exp, events[1].DecisionID)
+			events := decodeLogEvent(t, chunk)
+			event1 := events[0]
+			event2 := events[1]
+			event3 := events[2]
+
+			exp := "abc"
+			if event1.DecisionID != exp {
+				t.Fatalf("Expected decision log event id %v but got %v", exp, event1.DecisionID)
+			}
+
+			exp = "def"
+			if event2.DecisionID != exp {
+				t.Fatalf("Expected decision log event id %v but got %v", exp, event2.DecisionID)
+			}
+
+			exp = "ghi"
+			if event3.DecisionID != exp {
+				t.Fatalf("Expected decision log event id %v but got %v", exp, event3.DecisionID)
+			}
+
+		})
 	}
 }
 
 func TestPluginRateLimitDropCountStatus(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
-	testLogger := test.New()
-
-	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
-	if err != nil {
-		panic(err)
+	tests := []struct {
+		name       string
+		bufferType string
+	}{
+		{
+			name:       "using event buffer",
+			bufferType: eventBufferType,
+		},
+		{
+			name: "using size buffer",
+		},
 	}
 
-	numDecisions := 1 // 1 decision per second
-	fixture := newTestFixture(t, testFixtureOptions{
-		ConsoleLogger:                  testLogger,
-		ReportingMaxDecisionsPerSecond: float64(numDecisions),
-		ReportingUploadSizeLimitBytes:  300,
-	})
-	defer fixture.server.stop()
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			testLogger := test.New()
 
-	fixture.plugin.metrics = metrics.New()
+			ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	var input interface{} = map[string]interface{}{"method": "GET"}
-	var result interface{} = false
+			numDecisions := 1 // 1 decision per second
+			fixture := newTestFixture(t, testFixtureOptions{
+				ConsoleLogger:                  testLogger,
+				ReportingMaxDecisionsPerSecond: float64(numDecisions),
+				ReportingUploadSizeLimitBytes:  300,
+				ReportingBufferType:            tc.bufferType,
+			})
+			defer fixture.server.stop()
 
-	event1 := &server.Info{
-		DecisionID: "abc",
-		Path:       "foo/bar",
-		Input:      &input,
-		Results:    &result,
-		RemoteAddr: "test-1",
-		Timestamp:  ts,
-	}
+			fixture.plugin.metrics = metrics.New()
 
-	event2 := &server.Info{
-		DecisionID: "def",
-		Path:       "foo/baz",
-		Input:      &input,
-		Results:    &result,
-		RemoteAddr: "test-2",
-		Timestamp:  ts,
-	}
+			var input any = map[string]interface{}{"method": "GET"}
+			var result any = false
 
-	event3 := &server.Info{
-		DecisionID: "ghi",
-		Path:       "foo/aux",
-		Input:      &input,
-		Results:    &result,
-		RemoteAddr: "test-3",
-		Timestamp:  ts,
-	}
+			event1 := &server.Info{
+				DecisionID: "abc",
+				Path:       "foo/bar",
+				Input:      &input,
+				Results:    &result,
+				RemoteAddr: "test-1",
+				Timestamp:  ts,
+			}
 
-	_ = fixture.plugin.Log(ctx, event1) // event 1 should be written into the encoder
+			event2 := &server.Info{
+				DecisionID: "def",
+				Path:       "foo/baz",
+				Input:      &input,
+				Results:    &result,
+				RemoteAddr: "test-2",
+				Timestamp:  ts,
+			}
 
-	fixture.plugin.mtx.Lock()
-	if fixture.plugin.enc.bytesWritten == 0 {
-		t.Fatal("Expected event to be written into the encoder")
-	}
-	fixture.plugin.mtx.Unlock()
+			event3 := &server.Info{
+				DecisionID: "ghi",
+				Path:       "foo/aux",
+				Input:      &input,
+				Results:    &result,
+				RemoteAddr: "test-3",
+				Timestamp:  ts,
+			}
 
-	// Create a status plugin that logs to console
-	pluginConfig := []byte(`{
+			if err := fixture.plugin.Log(ctx, event1); err != nil {
+				t.Fatal(err)
+			}
+
+			eventSize := 218
+			expectedLen := 1
+			currentLen := getBufferLen(t, fixture, eventSize)
+			if currentLen != expectedLen {
+				t.Fatalf("Expected %v events to be written but got %v", expectedLen, currentLen)
+			}
+
+			// Create a status plugin that logs to console
+			pluginConfig := []byte(`{
 			"console": true,
 		}`)
 
-	config, _ := status.ParseConfig(pluginConfig, fixture.manager.Services(), nil)
-	p := status.New(config, fixture.manager).WithMetrics(fixture.plugin.metrics)
+			config, _ := status.ParseConfig(pluginConfig, fixture.manager.Services(), nil)
+			p := status.New(config, fixture.manager).WithMetrics(fixture.plugin.metrics)
 
-	fixture.manager.Register(status.Name, p)
-	if err := fixture.manager.Start(ctx); err != nil {
-		t.Fatal(err)
-	}
+			fixture.manager.Register(status.Name, p)
+			if err := fixture.manager.Start(ctx); err != nil {
+				t.Fatal(err)
+			}
 
-	_ = fixture.plugin.Log(ctx, event2) // event 2 should not be written into the encoder as rate limit exceeded
-	_ = fixture.plugin.Log(ctx, event3) // event 3 should not be written into the encoder as rate limit exceeded
+			// event 2 should not be written into the encoder as rate limit exceeded
+			if err := fixture.plugin.Log(ctx, event2); err != nil {
+				t.Fatal(err)
+			}
+			// event 3 should not be written into the encoder as rate limit exceeded
+			if err := fixture.plugin.Log(ctx, event3); err != nil {
+				t.Fatal(err)
+			}
 
-	// Trigger a status update
-	p.UpdateDiscoveryStatus(*testStatus())
+			// Trigger a status update
+			p.UpdateDiscoveryStatus(*testStatus())
 
-	// Give the logger / console some time to process and print the events
-	time.Sleep(10 * time.Millisecond)
-	p.Stop(ctx)
+			// Give the logger / console some time to process and print the events
+			time.Sleep(10 * time.Millisecond)
+			p.Stop(ctx)
 
-	entries := testLogger.Entries()
-	if len(entries) == 0 {
-		t.Fatal("Expected log entries but got none")
-	}
+			entries := testLogger.Entries()
+			if len(entries) == 0 {
+				t.Fatal("Expected log entries but got none")
+			}
 
-	// Pick the last entry as it should have the drop count
-	e := entries[len(entries)-1]
+			// Pick the last entry as it should have the drop count
+			e := entries[len(entries)-1]
 
-	if _, ok := e.Fields["metrics"]; !ok {
-		t.Fatal("Expected metrics")
-	}
+			if _, ok := e.Fields["metrics"]; !ok {
+				t.Fatal("Expected metrics")
+			}
 
-	exp := map[string]interface{}{"<built-in>": map[string]interface{}{"counter_decision_logs_dropped_rate_limit_exceeded": json.Number("2")}}
+			exp := map[string]interface{}{"<built-in>": map[string]interface{}{"counter_decision_logs_dropped_rate_limit_exceeded": json.Number("2")}}
 
-	if !reflect.DeepEqual(e.Fields["metrics"], exp) {
-		t.Fatalf("Expected %v but got %v", exp, e.Fields["metrics"])
+			if !reflect.DeepEqual(e.Fields["metrics"], exp) {
+				t.Fatalf("Expected %v but got %v", exp, e.Fields["metrics"])
+			}
+		})
 	}
 }
 
@@ -1553,27 +1708,59 @@ func TestChunkMaxUploadSizeLimitNDBCacheDropping(t *testing.T) {
 func TestPluginRateLimitBadConfig(t *testing.T) {
 	t.Parallel()
 
-	manager, _ := plugins.New(nil, "test-instance-id", inmem.New())
-
-	bufSize := 40000
-	numDecisions := 10
-
-	pluginConfig := []byte(fmt.Sprintf(`{
-			"console": true,
-			"reporting": {
-				"buffer_size_limit_bytes": %v,
-				"max_decisions_per_second": %v
-			}
-		}`, bufSize, numDecisions))
-
-	_, err := ParseConfig(pluginConfig, manager.Services(), nil)
-	if err == nil {
-		t.Fatal("Expected error but got nil")
+	tests := []struct {
+		name           string
+		config         []byte
+		expectedErrMsg string
+	}{
+		{
+			name: "invalid buffer_size_limit_bytes & max_decisions_per_second",
+			config: []byte(`{
+				"console": true,
+				"reporting": {
+					"buffer_size_limit_bytes": 1,
+					"max_decisions_per_second": 1
+				}
+			}`),
+			expectedErrMsg: "invalid decision_log config, specify either 'buffer_size_limit_bytes' or 'max_decisions_per_second'",
+		},
+		{
+			name: "invalid buffer_size_limit_events used with size buffer",
+			config: []byte(`{
+				"console": true,
+				"reporting": {
+					"buffer_size_limit_events": 1
+				}
+			}`),
+			expectedErrMsg: "invalid decision_log config, 'buffer_size_limit_events' isn't supported for the size buffer type",
+		},
+		{
+			name: "invalid buffer_size_limit_bytes used with event buffer",
+			config: []byte(`{
+				"console": true,
+				"reporting": {
+					"buffer_type": "event",
+					"buffer_size_limit_bytes": 1
+				}
+			}`),
+			expectedErrMsg: "invalid decision_log config, 'buffer_size_limit_bytes' isn't supported for the event buffer type",
+		},
 	}
 
-	expected := "invalid decision_log config, specify either 'buffer_size_limit_bytes' or 'max_decisions_per_second'"
-	if err.Error() != expected {
-		t.Fatalf("Expected error message %v but got %v", expected, err.Error())
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+
+			manager, _ := plugins.New(nil, "test-instance-id", inmem.New())
+
+			_, err := ParseConfig(tc.config, manager.Services(), nil)
+			if err == nil {
+				t.Fatal("Expected error but got nil")
+			}
+
+			if err.Error() != tc.expectedErrMsg {
+				t.Fatalf("Expected error message %v but got %v", tc.expectedErrMsg, err.Error())
+			}
+		})
 	}
 }
 
@@ -1622,9 +1809,8 @@ func TestPluginTriggerManual(t *testing.T) {
 		reportingBufferSizeLimitEvents int64
 	}{
 		{
-			name:                           "using event buffer",
-			reportingBufferType:            "event",
-			reportingBufferSizeLimitEvents: 400,
+			name:                "using event buffer",
+			reportingBufferType: "event",
 		},
 		{
 			name: "using size buffer",

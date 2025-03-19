@@ -252,7 +252,7 @@ const (
 	minRetryDelay                        = time.Millisecond * 100
 	defaultMinDelaySeconds               = int64(300)
 	defaultMaxDelaySeconds               = int64(600)
-	defaultBufferSizeLimitEvents         = int64(100)
+	defaultBufferSizeLimitEvents         = int64(10000)
 	defaultUploadSizeLimitBytes          = int64(32768) // 32KB limit
 	defaultBufferSizeLimitBytes          = int64(0)     // unlimited
 	defaultMaskDecisionPath              = "/system/log/mask"
@@ -450,7 +450,7 @@ type Plugin struct {
 	manager       *plugins.Manager
 	config        Config
 	runningBuffer string
-	liveReconfig  sync.RWMutex // liveReconfig blocks reads/writes on buffer reconfiguration
+	reconfigMtx   sync.RWMutex // reconfigMtx blocks reads/writes on buffer reconfiguration
 	eventBuffer   *eventBuffer
 	buffer        *logBuffer
 	enc           *chunkEncoder
@@ -959,8 +959,8 @@ func (p *Plugin) reconfigure(ctx context.Context, config interface{}) {
 
 	switch newConfig.Reporting.BufferType {
 	case eventBufferType:
-		p.liveReconfig.Lock()
-		defer p.liveReconfig.Unlock()
+		p.reconfigMtx.Lock()
+		defer p.reconfigMtx.Unlock()
 
 		if p.eventBuffer == nil {
 			p.eventBuffer = newEventBuffer(
@@ -984,8 +984,8 @@ func (p *Plugin) reconfigure(ctx context.Context, config interface{}) {
 
 		p.runningBuffer = eventBufferType
 	case sizeBufferType:
-		p.liveReconfig.Lock()
-		defer p.liveReconfig.Unlock()
+		p.reconfigMtx.Lock()
+		defer p.reconfigMtx.Unlock()
 
 		if p.runningBuffer == eventBufferType {
 			_, err := p.eventBuffer.Upload(ctx, p)
@@ -1013,8 +1013,8 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 	}
 
 	// only blocks when the buffer is being reconfigured
-	p.liveReconfig.RLock()
-	defer p.liveReconfig.RUnlock()
+	p.reconfigMtx.RLock()
+	defer p.reconfigMtx.RUnlock()
 
 	if p.runningBuffer == eventBufferType {
 		p.eventBuffer.Push(p, bufferItem{EventV1: event})
