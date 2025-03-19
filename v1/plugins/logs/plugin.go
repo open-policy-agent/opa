@@ -249,22 +249,22 @@ func roundtripJSONToAST(x interface{}) (ast.Value, error) {
 
 const (
 	// min amount of time to wait following a failure
-	minRetryDelay                        = time.Millisecond * 100
-	defaultMinDelaySeconds               = int64(300)
-	defaultMaxDelaySeconds               = int64(600)
-	defaultBufferSizeLimitEvents         = int64(10000)
-	defaultUploadSizeLimitBytes          = int64(32768) // 32KB limit
-	defaultBufferSizeLimitBytes          = int64(0)     // unlimited
-	defaultMaskDecisionPath              = "/system/log/mask"
-	defaultDropDecisionPath              = "/system/log/drop"
-	logRateLimitExDropCounterName        = "decision_logs_dropped_rate_limit_exceeded"
-	logNDBDropCounterName                = "decision_logs_nd_builtin_cache_dropped"
-	logBufferEventLimitExDropCounterName = "decision_logs_dropped_buffer_size_limit_events_exceeded"
-	logBufferSizeLimitExDropCounterName  = "decision_logs_dropped_buffer_size_limit_bytes_exceeded"
-	logEncodingFailureCounterName        = "decision_logs_encoding_failure"
-	defaultResourcePath                  = "/logs"
-	sizeBufferType                       = "size"
-	eventBufferType                      = "event"
+	minRetryDelay                       = time.Millisecond * 100
+	defaultMinDelaySeconds              = int64(300)
+	defaultMaxDelaySeconds              = int64(600)
+	defaultBufferSizeLimitEvents        = int64(10000)
+	defaultUploadSizeLimitBytes         = int64(32768) // 32KB limit
+	defaultBufferSizeLimitBytes         = int64(0)     // unlimited
+	defaultMaskDecisionPath             = "/system/log/mask"
+	defaultDropDecisionPath             = "/system/log/drop"
+	logRateLimitExDropCounterName       = "decision_logs_dropped_rate_limit_exceeded"
+	logNDBDropCounterName               = "decision_logs_nd_builtin_cache_dropped"
+	logBufferEventDropCounterName       = "decision_logs_dropped_buffer_size_limit_exceeded"
+	logBufferSizeLimitExDropCounterName = "decision_logs_dropped_buffer_size_limit_bytes_exceeded"
+	logEncodingFailureCounterName       = "decision_logs_encoding_failure"
+	defaultResourcePath                 = "/logs"
+	sizeBufferType                      = "size"
+	eventBufferType                     = "event"
 )
 
 // ReportingConfig represents configuration for the plugin's reporting behaviour.
@@ -1072,6 +1072,7 @@ func (p *Plugin) encodeEvent(event EventV1) ([][]byte, error) {
 func (p *Plugin) bufferChunk(buffer *logBuffer, bs []byte) {
 	dropped := buffer.Push(bs)
 	if dropped > 0 {
+		p.incrMetric(logBufferEventDropCounterName)
 		p.incrMetric(logBufferSizeLimitExDropCounterName)
 		p.logger.Error("Dropped %v chunks from buffer. Reduce reporting interval or increase buffer size.", dropped)
 	}

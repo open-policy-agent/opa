@@ -62,7 +62,7 @@ func (b *eventBuffer) Push(p *Plugin, event bufferItem) {
 	default:
 		<-b.buffer
 		b.buffer <- event
-		p.incrMetric(logBufferEventLimitExDropCounterName)
+		p.incrMetric(logBufferEventDropCounterName)
 	}
 }
 
