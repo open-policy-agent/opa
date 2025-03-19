@@ -85,7 +85,7 @@ func TestEventBuffer_Push(t *testing.T) {
 }
 
 func checkBufferState(t *testing.T, limit int64, p *Plugin, b *eventBuffer, expectedDropped uint64, expectedIds map[string]struct{}) {
-	dropped := p.metrics.Counter(logBufferEventLimitExDropCounterName).Value().(uint64)
+	dropped := p.metrics.Counter(logBufferEventDropCounterName).Value().(uint64)
 	if dropped != expectedDropped {
 		t.Fatalf("number of dropped event mismatch, expected %d, got %d", expectedDropped, dropped)
 	}
