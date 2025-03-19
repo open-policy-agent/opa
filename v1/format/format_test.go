@@ -907,6 +907,34 @@ p contains x if {
 	}
 }
 
+func TestGroupableOneLinerRules(t *testing.T) {
+	contents := []byte(`package test
+
+foo := 1 if input.x
+foo := 2 if not input.x
+
+a := 1
+b := 2
+
+c := 3
+
+d := 4
+
+# comment above group
+e := 5
+f := 6
+`)
+
+	formatted, err := Source("test.rego", contents)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !bytes.Equal(formatted, contents) {
+		t.Fatalf("expected %q but got %q", formatted, contents)
+	}
+}
+
 // 382	   3064960 ns/op	 4573131 B/op	   26266 allocs/op // no optimizations
 // 685	   1737719 ns/op	 1972193 B/op	   14160 allocs/op // pre-allocate partitionComments
 // 708	   1674343 ns/op	 1916700 B/op	   11556 allocs/op // static memberRef & memberWithKeyRef
