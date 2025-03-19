@@ -1303,7 +1303,10 @@ func TestPluginStatusUpdateBufferSizeExceeded(t *testing.T) {
 		t.Fatal("Expected metrics field in status update")
 	}
 
-	exp := map[string]interface{}{"<built-in>": map[string]interface{}{"counter_decision_logs_dropped_buffer_size_limit_bytes_exceeded": json.Number("1")}}
+	exp := map[string]interface{}{"<built-in>": map[string]interface{}{
+		"counter_decision_logs_dropped_buffer_size_limit_bytes_exceeded": json.Number("1"),
+		"counter_decision_logs_dropped_buffer_size_limit_exceeded":       json.Number("1"),
+	}}
 
 	if !reflect.DeepEqual(e.Fields["metrics"], exp) {
 		t.Fatalf("Expected %v but got %v", exp, e.Fields["metrics"])
