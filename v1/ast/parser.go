@@ -1642,7 +1642,7 @@ func (p *Parser) parseNumber() *Term {
 func (p *Parser) parseString() *Term {
 	if p.s.lit[0] == '"' {
 		if p.s.lit == "\"\"" {
-			return NewTerm(InternedEmptyString.Value).SetLocation(p.s.Loc())
+			return NewTerm(InternedStringTerm.GetValue("")).SetLocation(p.s.Loc())
 		}
 
 		var s string
@@ -1651,8 +1651,14 @@ func (p *Parser) parseString() *Term {
 			p.errorf(p.s.Loc(), "illegal string literal: %s", p.s.lit)
 			return nil
 		}
-		term := StringTerm(s).SetLocation(p.s.Loc())
-		return term
+
+		// Since the term is mutated, we can't use an interned one.
+		// We can however use an interned Value, if one exists.
+		if value := InternedStringTerm.GetValue(s); value != nil {
+			return NewTerm(value).SetLocation(p.s.Loc())
+		}
+
+		return StringTerm(s).SetLocation(p.s.Loc())
 	}
 	return p.parseRawString()
 }
@@ -1723,7 +1729,15 @@ func (p *Parser) parseRef(head *Term, offset int) (term *Term) {
 				p.illegal("expected %v", tokens.Ident)
 				return nil
 			}
-			ref = append(ref, StringTerm(p.s.lit).SetLocation(p.s.Loc()))
+
+			var term *Term
+			if value := InternedStringTerm.GetValue(p.s.lit); value != nil {
+				term = NewTerm(value).SetLocation(p.s.Loc())
+			} else {
+				term = StringTerm(p.s.lit).SetLocation(p.s.Loc())
+			}
+
+			ref = append(ref, term)
 			p.scanWS()
 		case tokens.LParen:
 			term = p.parseCall(p.setLoc(RefTerm(ref...), loc, offset, p.s.loc.Offset), offset)
