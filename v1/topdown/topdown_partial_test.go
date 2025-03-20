@@ -4059,6 +4059,123 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 			wantQueries: []string{`"x" = input.x`},
 		},
+
+		{
+			note:  "default function",
+			query: "data.test.p = true",
+			modules: []string{`package test
+					default f(x) := true # return true if x.size is undefined
+					f(x) if {
+						x.size < 100
+					}
+					p if {
+						f(input.x)
+					}
+				`},
+			wantQueries: []string{"data.partial.test.f(input.x)"},
+			wantSupport: []string{
+				`package partial.test
+				
+				default f(__local0__3) = true
+				f(__local1__2) = true if { __local2__2 = __local1__2.size; lt(__local2__2, 100) }`,
+			},
+		},
+		{
+			note:  "default function, result comparison (same as default)",
+			query: "data.test.p = true",
+			modules: []string{`package test
+					default f(x) := true # return true if x.size is undefined
+					f(x) if {
+						x.size < 100
+					}
+					p if {
+						f(input.x) == true
+					}
+				`},
+			wantQueries: []string{"data.partial.test.f(input.x, true)"},
+			wantSupport: []string{
+				`package partial.test
+				
+				default f(__local0__3) = true
+				f(__local1__2) = true if { __local3__2 = __local1__2.size; lt(__local3__2, 100) }`,
+			},
+		},
+		{
+			note:  "default function, result comparison (not same as default)",
+			query: "data.test.p = true",
+			modules: []string{`package test
+					default f(x) := true # return true if x.size is undefined
+					f(x) := y if {
+						y := x.size < 100
+					}
+					p if {
+						f(input.x) == false
+					}
+				`},
+			wantQueries: []string{"data.partial.test.f(input.x, false)"},
+			wantSupport: []string{
+				`package partial.test
+				
+				f(__local1__2) = __local2__2 if { __local5__2 = __local1__2.size; lt(__local5__2, 100, __local3__2); __local2__2 = __local3__2 }`,
+			},
+		},
+		{
+			note:  "default function, saved result",
+			query: "data.test.p = x",
+			modules: []string{`package test
+					default f(x) := true # return true if x.size is undefined
+					f(x) if {
+						x.size < 100
+					}
+					p := x if {
+						x := f(input.x)
+					}
+				`},
+			wantQueries: []string{"data.partial.test.f(input.x, x)"},
+			wantSupport: []string{
+				`package partial.test
+				
+				default f(__local0__3) = true
+				f(__local1__2) = true if { __local4__2 = __local1__2.size; lt(__local4__2, 100) }`,
+			},
+		},
+		{
+			// This test case is redundant, but serves as a counter example to the test above.
+			// Inlining can happen as there is no default function to consider
+			note:  "default function (no default)",
+			query: "data.test.p = true",
+			modules: []string{`package test
+					f(x) if {
+						x.size < 100
+					}
+					p if {
+						f(input)
+					}
+				`},
+			wantQueries: []string{"lt(input.size, 100)"},
+		},
+		{
+			note:  "default function, shallow inlining",
+			query: "data.test.p = true",
+			modules: []string{`package test
+					default f(x) := true # return true if x.size is undefined
+					f(x) if {
+						x.size < 100
+					}
+					p if {
+						f(input)
+					}
+				`},
+			shallow:     true,
+			wantQueries: []string{"data.partial.test.p = true"},
+			wantSupport: []string{
+				`package partial.test
+					
+					p = true if { __local3__1 = input; data.partial.test.f(__local3__1) }
+					default f(__local0__3) = true
+					f(__local1__2) = true if { __local2__2 = __local1__2.size; lt(__local2__2, 100) }`,
+			},
+		},
 	}
 
 	ctx := context.Background()
