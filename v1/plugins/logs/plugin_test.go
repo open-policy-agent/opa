@@ -845,10 +845,10 @@ func TestPluginRateLimitInt(t *testing.T) {
 				bufferEvent1 = events[0]
 				bufferEvent2 = events[1]
 			case eventBufferType:
-				bufferEvent1 = (<-fixture.plugin.eventBuffer.buffer).EventV1
+				bufferEvent1 = *(<-fixture.plugin.eventBuffer.buffer).EventV1
 				bufferEvent1.Bundles = nil
 
-				bufferEvent2 = (<-fixture.plugin.eventBuffer.buffer).EventV1
+				bufferEvent2 = *(<-fixture.plugin.eventBuffer.buffer).EventV1
 				bufferEvent2.Bundles = nil
 
 			}
@@ -1018,10 +1018,10 @@ func TestPluginRateLimitFloat(t *testing.T) {
 				bufferEvent1 = events[0]
 				bufferEvent2 = events[1]
 			case eventBufferType:
-				bufferEvent1 = (<-fixture.plugin.eventBuffer.buffer).EventV1
+				bufferEvent1 = *(<-fixture.plugin.eventBuffer.buffer).EventV1
 				bufferEvent1.Bundles = nil
 
-				bufferEvent2 = (<-fixture.plugin.eventBuffer.buffer).EventV1
+				bufferEvent2 = *(<-fixture.plugin.eventBuffer.buffer).EventV1
 				bufferEvent2.Bundles = nil
 
 			}
@@ -1465,7 +1465,7 @@ func TestPluginRateLimitRequeue(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			eventSize := 220
+			eventSize := 218
 			bufLen := getBufferLen(t, fixture, eventSize)
 			if bufLen != 3 {
 				t.Fatal("Expected buffer length of 3 but got ", bufLen)
@@ -1482,11 +1482,11 @@ func TestPluginRateLimitRequeue(t *testing.T) {
 			switch fixture.plugin.runningBuffer {
 			case eventBufferType:
 				// event buffer will keep failed upload events in payload
-				bufLen := fixture.plugin.eventBuffer.payload.bytesWritten / eventSize
+				bufLen := fixture.plugin.eventBuffer.chunk.bytesWritten / eventSize
 				if bufLen != 3 {
 					t.Fatal("Expected buffer length of 3 but got ", bufLen)
 				}
-				chunk = fixture.plugin.eventBuffer.payload.buffer.Bytes()
+				chunk = fixture.plugin.eventBuffer.chunk.buf.Bytes()
 			case sizeBufferType:
 				// size buffer will put failed upload events back into the encoder
 				bufLen := getBufferLen(t, fixture, eventSize)

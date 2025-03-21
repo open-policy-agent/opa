@@ -890,7 +890,7 @@ func (p *Plugin) doOneShot(ctx context.Context) error {
 
 func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {
 	if p.runningBuffer == eventBufferType {
-		return p.eventBuffer.Upload(ctx, p)
+		return p.eventBuffer.Upload(ctx)
 	}
 
 	// Make a local copy of the plugin's encoder and buffer and create
@@ -957,11 +957,11 @@ func (p *Plugin) reconfigure(ctx context.Context, config interface{}) {
 	p.logger.Info("Decision log uploader configuration changed.")
 	p.config = *newConfig
 
+	p.reconfigMtx.Lock()
+	defer p.reconfigMtx.Unlock()
+
 	switch newConfig.Reporting.BufferType {
 	case eventBufferType:
-		p.reconfigMtx.Lock()
-		defer p.reconfigMtx.Unlock()
-
 		if p.eventBuffer == nil {
 			p.eventBuffer = newEventBuffer(
 				*p.config.Reporting.BufferSizeLimitEvents,
@@ -969,7 +969,7 @@ func (p *Plugin) reconfigure(ctx context.Context, config interface{}) {
 				*p.config.Resource,
 				*p.config.Reporting.UploadSizeLimitBytes)
 		} else {
-			p.eventBuffer.Reconfigure(p,
+			p.eventBuffer.Reconfigure(
 				*p.config.Reporting.BufferSizeLimitEvents,
 				p.manager.Client(p.config.Service),
 				*p.config.Resource,
@@ -984,11 +984,8 @@ func (p *Plugin) reconfigure(ctx context.Context, config interface{}) {
 
 		p.runningBuffer = eventBufferType
 	case sizeBufferType:
-		p.reconfigMtx.Lock()
-		defer p.reconfigMtx.Unlock()
-
 		if p.runningBuffer == eventBufferType {
-			_, err := p.eventBuffer.Upload(ctx, p)
+			_, err := p.eventBuffer.Upload(ctx)
 			if err != nil {
 				p.setStatus(err)
 			}
@@ -1017,7 +1014,7 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 	defer p.reconfigMtx.RUnlock()
 
 	if p.runningBuffer == eventBufferType {
-		p.eventBuffer.Push(p, bufferItem{EventV1: event})
+		p.eventBuffer.Push(bufferItem{EventV1: &event})
 		return
 	}
 
