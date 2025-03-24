@@ -7,8 +7,8 @@ package format
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"github.com/pkg/errors"
 	"regexp"
 	"slices"
 	"sort"
