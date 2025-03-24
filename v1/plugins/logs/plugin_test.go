@@ -12,6 +12,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -838,7 +839,7 @@ func TestPluginRateLimitInt(t *testing.T) {
 				if len(chunk) != 1 {
 					t.Fatalf("Expected 1 chunk but got %v", len(chunk))
 				}
-				events := decodeLogEvent(t, chunk[0])
+				events := decodeLogEvent(t, bytes.NewReader(chunk[0]))
 				if len(events) != 2 {
 					t.Fatalf("Expected 2 events but got %v", len(events))
 				}
@@ -1011,7 +1012,7 @@ func TestPluginRateLimitFloat(t *testing.T) {
 				if len(chunk) != 1 {
 					t.Fatalf("Expected 1 chunk but got %v", len(chunk))
 				}
-				events := decodeLogEvent(t, chunk[0])
+				events := decodeLogEvent(t, bytes.NewReader(chunk[0]))
 				if len(events) != 2 {
 					t.Fatalf("Expected 2 events but got %v", len(events))
 				}
@@ -1503,7 +1504,7 @@ func TestPluginRateLimitRequeue(t *testing.T) {
 				chunk = chunks[0]
 			}
 
-			events := decodeLogEvent(t, chunk)
+			events := decodeLogEvent(t, bytes.NewReader(chunk))
 			event1 := events[0]
 			event2 := events[1]
 			event3 := events[2]
@@ -3631,8 +3632,8 @@ func ensurePluginState(t *testing.T, p *Plugin, state plugins.State) {
 	}
 }
 
-func decodeLogEvent(t *testing.T, bs []byte) []EventV1 {
-	gr, err := gzip.NewReader(bytes.NewReader(bs))
+func decodeLogEvent(t *testing.T, r io.Reader) []EventV1 {
+	gr, err := gzip.NewReader(r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3647,17 +3648,6 @@ func decodeLogEvent(t *testing.T, bs []byte) []EventV1 {
 	}
 
 	return events
-}
-
-func compareLogEvent(t *testing.T, actual []byte, exp EventV1) {
-	events := decodeLogEvent(t, actual)
-	if len(events) != 1 {
-		t.Fatalf("Expected 1 event but got %v", len(events))
-	}
-
-	if !reflect.DeepEqual(events[0], exp) {
-		t.Fatalf("Expected %+v but got %+v", exp, events[0])
-	}
 }
 
 func testStatus() *bundle.Status {

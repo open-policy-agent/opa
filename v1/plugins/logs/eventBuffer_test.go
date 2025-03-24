@@ -1,11 +1,8 @@
 package logs
 
 import (
-	"compress/gzip"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -124,7 +121,7 @@ func TestEventBuffer_Upload(t *testing.T) {
 			numberOfEvents:       3,
 			uploadSizeLimitBytes: defaultUploadSizeLimitBytes,
 			handleFunc: func(w http.ResponseWriter, r *http.Request) {
-				events := readEventBody(t, r.Body)
+				events := decodeLogEvent(t, r.Body)
 				if len(events) != 3 {
 					t.Errorf("expected 3 events, got %d", len(events))
 				}
@@ -138,7 +135,7 @@ func TestEventBuffer_Upload(t *testing.T) {
 			numberOfEvents:       4,
 			uploadSizeLimitBytes: 200, // Each test event is 195 bytes
 			handleFunc: func(w http.ResponseWriter, r *http.Request) {
-				events := readEventBody(t, r.Body)
+				events := decodeLogEvent(t, r.Body)
 				if len(events) != 1 {
 					t.Errorf("expected 1 events, got %d", len(events))
 				}
@@ -177,7 +174,7 @@ func TestEventBuffer_Upload(t *testing.T) {
 	}
 }
 
-func newTestEvent(t *testing.T, id string, enableNDCache bool) bufferItem {
+func newTestEvent(t *testing.T, id string, enableNDCache bool) *EventV1 {
 	var result interface{} = false
 	var expInput interface{} = map[string]interface{}{"method": "GET"}
 	timestamp, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
@@ -207,7 +204,7 @@ func newTestEvent(t *testing.T, id string, enableNDCache bool) bufferItem {
 		e.NDBuiltinCache = &ndbCacheExample
 	}
 
-	return bufferItem{EventV1: &e}
+	return &e
 }
 
 func setupTestServer(t *testing.T, uploadPath string, handleFunc func(w http.ResponseWriter, r *http.Request)) (rest.Client, *httptest.Server) {
@@ -228,20 +225,4 @@ func setupTestServer(t *testing.T, uploadPath string, handleFunc func(w http.Res
 	}
 
 	return client, ts
-}
-
-func readEventBody(t *testing.T, r io.Reader) []EventV1 {
-	gr, err := gzip.NewReader(r)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var events []EventV1
-	if err := json.NewDecoder(gr).Decode(&events); err != nil {
-		t.Fatal(err)
-	}
-	if err := gr.Close(); err != nil {
-		t.Fatal(err)
-	}
-
-	return events
 }

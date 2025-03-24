@@ -71,13 +71,17 @@ func (b *eventBuffer) Reconfigure(bufferSizeLimitEvents int64, client rest.Clien
 	b.buffer = make(chan bufferItem, bufferSizeLimitEvents)
 
 	for event := range oldBuffer {
-		b.Push(event)
+		b.push(event)
 	}
 }
 
 // Push attempts to add a new event to the buffer, returning true if an event was dropped.
 // This can be called concurrently.
-func (b *eventBuffer) Push(event bufferItem) {
+func (b *eventBuffer) Push(event *EventV1) {
+	b.push(bufferItem{EventV1: event})
+}
+
+func (b *eventBuffer) push(event bufferItem) {
 	select {
 	case b.buffer <- event:
 	default:
@@ -93,30 +97,41 @@ func (b *eventBuffer) Upload(ctx context.Context) (bool, error) {
 	b.upload.Lock()
 	defer b.upload.Unlock()
 
-	b.compress()
+	nextEvent := b.compress()
 
 	if b.chunk.bytesWritten == 0 {
 		return false, nil
 	}
 
 	if err := uploadChunk(ctx, b.client, b.uploadPath, b.chunk.buf.Bytes()); err != nil {
+		if nextEvent != nil {
+			// upload failed, the next chunk can't be made yet so push event back into the buffer.
+			b.push(*nextEvent)
+		}
 		return false, err
 	}
 	b.chunk.initialize()
+
+	if nextEvent != nil {
+		if _, err := b.chunk.WriteBytes(nextEvent.serialized); err != nil {
+			// corrupted payload, record failure and reset
+			b.chunk.initialize()
+			b.incrMetric(logEncodingFailureCounterName)
+			b.logger.Error("encoding failure: %v, dropping event with decision ID: %v.", err, nextEvent.EventV1.DecisionID)
+		}
+	}
+
 	return true, nil
 }
 
 // compress will read events from the buffer creating a gzipped compressed JSON array for upload.
 // events are dropped if it exceeds the upload size limit or there is a marshalling problem.
-func (b *eventBuffer) compress() {
-	// previous payload hasn't been sent and needs to be retried
-	if b.chunk.bytesWritten != 0 {
-		return
-	}
+func (b *eventBuffer) compress() *bufferItem {
+	var nextEvent *bufferItem
 
 	eventLen := len(b.buffer)
 	if eventLen == 0 {
-		return
+		return nil
 	}
 
 	// Uploads at most the capacity of the buffer (buffer_size_limit_events)
@@ -161,8 +176,8 @@ func (b *eventBuffer) compress() {
 			}
 
 			if int64(eventLen+b.chunk.bytesWritten+1) > b.uploadSizeLimitBytes {
-				// add the event that doesn't fit back into the buffer
-				b.Push(event)
+				// save event that doesn't fit in the current chunk to add it to the next chunk
+				nextEvent = &event
 				break
 			}
 
@@ -183,6 +198,7 @@ func (b *eventBuffer) compress() {
 		b.chunk.initialize()
 		b.incrMetric(logEncodingFailureCounterName)
 		b.logger.Error("encoding failure: %v, dropping multiple events.")
-		return
 	}
+
+	return nextEvent
 }

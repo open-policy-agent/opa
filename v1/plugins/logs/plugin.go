@@ -1014,7 +1014,7 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 	defer p.reconfigMtx.RUnlock()
 
 	if p.runningBuffer == eventBufferType {
-		p.eventBuffer.Push(bufferItem{EventV1: &event})
+		p.eventBuffer.Push(&event)
 		return
 	}
 
