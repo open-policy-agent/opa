@@ -8,6 +8,7 @@ package format
 import (
 	"bytes"
 	"fmt"
+	"github.com/pkg/errors"
 	"regexp"
 	"slices"
 	"sort"
@@ -84,9 +85,9 @@ func SourceWithOpts(filename string, src []byte, opts Opts) ([]byte, error) {
 		checkOpts.RequireIfKeyword = false
 		checkOpts.RequireContainsKeyword = false
 		checkOpts.RequireRuleBodyOrValue = false
-		errors := ast.CheckRegoV1WithOptions(module, checkOpts)
-		if len(errors) > 0 {
-			return nil, errors
+		errs := ast.CheckRegoV1WithOptions(module, checkOpts)
+		if len(errs) > 0 {
+			return nil, errs
 		}
 	}
 
@@ -268,12 +269,18 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 	case *ast.Import:
 		w.writeImports([]*ast.Import{x}, nil)
 	case *ast.Rule:
-		w.writeRule(x, false /* isElse */, nil)
+		_, err := w.writeRule(x, false /* isElse */, nil)
+		if err != nil {
+			return nil, err
+		}
 	case *ast.Head:
-		w.writeHead(x,
+		_, err := w.writeHead(x,
 			false, // isDefault
 			false, // isExpandedConst
 			nil)
+		if err != nil {
+			return nil, err
+		}
 	case ast.Body:
 		w.writeBody(x, nil)
 	case *ast.Expr:
@@ -281,9 +288,15 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 	case *ast.With:
 		w.writeWith(x, nil, false)
 	case *ast.Term:
-		w.writeTerm(x, nil)
+		_, err := w.writeTerm(x, nil)
+		if err != nil {
+			return nil, err
+		}
 	case ast.Value:
-		w.writeTerm(&ast.Term{Value: x, Location: &ast.Location{}}, nil)
+		_, err := w.writeTerm(&ast.Term{Value: x, Location: &ast.Location{}}, nil)
+		if err != nil {
+			return nil, err
+		}
 	case *ast.Comment:
 		w.writeComments([]*ast.Comment{x})
 	default:
@@ -1796,7 +1809,7 @@ func (w *writer) beforeLineEnd(c *ast.Comment) error {
 			return nil
 		}
 		w.beforeEnd = nil
-		return fmt.Errorf("unexpected comment")
+		return errors.New("unexpected comment")
 	}
 	w.beforeEnd = c
 	return nil
