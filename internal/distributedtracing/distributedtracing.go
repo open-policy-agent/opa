@@ -36,12 +36,23 @@ import (
 )
 
 const (
-	defaultGRPCAddress          = "localhost:4317"
-	defaultHTTPAddress          = "localhost:4318"
+	// default gRPC port defined in https://opentelemetry.io/docs/specs/otlp/#otlpgrpc-default-port
+	defaultGRPCAddress = "localhost:4317"
+	// default HTTP port defined in https://opentelemetry.io/docs/specs/otlp/#otlphttp-default-port
+	defaultHTTPAddress = "localhost:4318"
+
 	defaultServiceName          = "opa"
 	defaultSampleRatePercentage = float64(100)
 	defaultEncyrptionScheme     = "off"
 	defaultEncryptionSkipVerify = false
+
+	// the following default values are from the OpenTelemetry specs:
+	// https://opentelemetry.io/docs/specs/otel/trace/sdk/#batching-processor
+	defaultBatchSpanProcessorBlocking           = false
+	defaultBatchSpanProcessorBatchTimeoutMs     = 5000
+	defaultBatchSpanProcessorExportTimeoutMs    = 30000
+	defaultBatchSpanProcessorMaxExportBatchSize = 512
+	defaultBatchSpanProcessorMaxQueueSize       = 2048
 )
 
 var supportedEncryptionScheme = map[string]struct{}{
@@ -66,8 +77,8 @@ type resourceConfig struct {
 
 type batchSpanProcessorConfig struct {
 	Blocking           *bool `json:"blocking,omitempty"`
-	BatchTimeout       *int  `json:"batch_timeout_ms,omitempty"`
-	ExportTimeout      *int  `json:"export_timeout_ms,omitempty"`
+	BatchTimeoutMs     *int  `json:"batch_timeout_ms,omitempty"`
+	ExportTimeoutMs    *int  `json:"export_timeout_ms,omitempty"`
 	MaxExportBatchSize *int  `json:"max_export_batch_size,omitempty"`
 	MaxQueueSize       *int  `json:"max_queue_size,omitempty"`
 }
@@ -165,11 +176,11 @@ func Init(ctx context.Context, raw []byte, id string) (*otlptrace.Exporter, *tra
 	if distributedTracingConfig.BatchSpanProcessorOptions.Blocking != nil && *distributedTracingConfig.BatchSpanProcessorOptions.Blocking {
 		batchSpanProcessorOptions = append(batchSpanProcessorOptions, trace.WithBlocking())
 	}
-	if distributedTracingConfig.BatchSpanProcessorOptions.BatchTimeout != nil {
-		batchSpanProcessorOptions = append(batchSpanProcessorOptions, trace.WithBatchTimeout(time.Duration(*distributedTracingConfig.BatchSpanProcessorOptions.BatchTimeout)*time.Millisecond))
+	if distributedTracingConfig.BatchSpanProcessorOptions.BatchTimeoutMs != nil {
+		batchSpanProcessorOptions = append(batchSpanProcessorOptions, trace.WithBatchTimeout(time.Duration(*distributedTracingConfig.BatchSpanProcessorOptions.BatchTimeoutMs)*time.Millisecond))
 	}
-	if distributedTracingConfig.BatchSpanProcessorOptions.ExportTimeout != nil {
-		batchSpanProcessorOptions = append(batchSpanProcessorOptions, trace.WithExportTimeout(time.Duration(*distributedTracingConfig.BatchSpanProcessorOptions.ExportTimeout)*time.Millisecond))
+	if distributedTracingConfig.BatchSpanProcessorOptions.ExportTimeoutMs != nil {
+		batchSpanProcessorOptions = append(batchSpanProcessorOptions, trace.WithExportTimeout(time.Duration(*distributedTracingConfig.BatchSpanProcessorOptions.ExportTimeoutMs)*time.Millisecond))
 	}
 	if distributedTracingConfig.BatchSpanProcessorOptions.MaxExportBatchSize != nil {
 		batchSpanProcessorOptions = append(batchSpanProcessorOptions, trace.WithMaxExportBatchSize(*distributedTracingConfig.BatchSpanProcessorOptions.MaxExportBatchSize))
@@ -247,6 +258,36 @@ func (c *distributedTracingConfig) validateAndInjectDefaults() error {
 		encryptionSkipVerify := new(bool)
 		*encryptionSkipVerify = defaultEncryptionSkipVerify
 		c.EncryptionSkipVerify = encryptionSkipVerify
+	}
+
+	if c.BatchSpanProcessorOptions.Blocking == nil {
+		blocking := new(bool)
+		*blocking = defaultBatchSpanProcessorBlocking
+		c.BatchSpanProcessorOptions.Blocking = blocking
+	}
+
+	if c.BatchSpanProcessorOptions.BatchTimeoutMs == nil {
+		batchTimeoutMs := new(int)
+		*batchTimeoutMs = defaultBatchSpanProcessorBatchTimeoutMs
+		c.BatchSpanProcessorOptions.BatchTimeoutMs = batchTimeoutMs
+	}
+
+	if c.BatchSpanProcessorOptions.ExportTimeoutMs == nil {
+		exportTimeoutMs := new(int)
+		*exportTimeoutMs = defaultBatchSpanProcessorExportTimeoutMs
+		c.BatchSpanProcessorOptions.ExportTimeoutMs = exportTimeoutMs
+	}
+
+	if c.BatchSpanProcessorOptions.MaxExportBatchSize == nil {
+		maxExportBatchSize := new(int)
+		*maxExportBatchSize = defaultBatchSpanProcessorMaxExportBatchSize
+		c.BatchSpanProcessorOptions.MaxExportBatchSize = maxExportBatchSize
+	}
+
+	if c.BatchSpanProcessorOptions.MaxQueueSize == nil {
+		maxQueueSize := new(int)
+		*maxQueueSize = defaultBatchSpanProcessorMaxQueueSize
+		c.BatchSpanProcessorOptions.MaxQueueSize = maxQueueSize
 	}
 
 	if !isSupportedEncryptionScheme(c.EncryptionScheme) {
