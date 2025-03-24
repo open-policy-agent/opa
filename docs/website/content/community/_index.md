@@ -18,7 +18,7 @@ sections:
       note: |
         Primary channel for community support and OPA maintainer discussions.
         Join #help for support.
-      link: https://slack.openpolicyagent.org/
+      link: https://inviter.co/opa/
       link_text: Join us on Slack
     - title: GitHub
       icon: /img/community-logos/github.png

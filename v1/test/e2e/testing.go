@@ -460,7 +460,7 @@ func (t *TestRuntime) compileRequest(req types.CompileRequestV1, instrument bool
 	return &typedResp, nil
 }
 
-func (t *TestRuntime) request(method, url string, input io.Reader) (io.ReadCloser, error) {
+func (*TestRuntime) request(method, url string, input io.Reader) (io.ReadCloser, error) {
 	req, err := http.NewRequest(method, url, input)
 	if err != nil {
 		return nil, fmt.Errorf("unexpected error: %w", err)

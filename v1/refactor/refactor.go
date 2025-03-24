@@ -69,7 +69,7 @@ func (mqr *MoveQueryResult) validate() error {
 
 // Move rewrites Rego code by updating package paths and other references in q's modules as per
 // the mapping specified in q.
-func (r *Refactor) Move(q MoveQuery) (*MoveQueryResult, error) {
+func (*Refactor) Move(q MoveQuery) (*MoveQueryResult, error) {
 
 	for _, module := range q.Modules {
 		t := ast.NewGenericTransformer(func(x interface{}) (interface{}, error) {

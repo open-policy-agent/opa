@@ -28,12 +28,12 @@ func New() *Cover {
 }
 
 // Enabled returns true if coverage is enabled.
-func (c *Cover) Enabled() bool {
+func (*Cover) Enabled() bool {
 	return true
 }
 
 // Config returns the standard Tracer configuration for the Cover tracer
-func (c *Cover) Config() topdown.TraceConfig {
+func (*Cover) Config() topdown.TraceConfig {
 	return topdown.TraceConfig{
 		PlugLocalVars: false, // Event variable metadata is not required for the Coverage report
 	}

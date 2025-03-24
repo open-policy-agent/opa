@@ -258,7 +258,7 @@ func (l *Loader) get(ctx context.Context, tag string) (*bundle.Bundle, error) {
 
 // close closes the HTTP response gracefully, first draining it, to
 // avoid resource leaks.
-func (l *Loader) close(resp *http.Response) {
+func (*Loader) close(resp *http.Response) {
 	_, _ = io.Copy(io.Discard, resp.Body) // Ignore errors.
 	_ = resp.Body.Close()
 }

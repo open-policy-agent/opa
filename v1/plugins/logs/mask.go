@@ -201,7 +201,7 @@ func (r maskRule) Mask(event *EventV1) error {
 	return nil
 }
 
-func (r maskRule) removeValue(p []string, node interface{}) error {
+func (maskRule) removeValue(p []string, node interface{}) error {
 	if len(p) == 0 {
 		return nil
 	}
@@ -281,7 +281,7 @@ func (r maskRule) removeValue(p []string, node interface{}) error {
 	return nil
 }
 
-func (r maskRule) mkdirp(node interface{}, path []string, value interface{}) error {
+func (maskRule) mkdirp(node interface{}, path []string, value interface{}) error {
 	if len(path) == 0 {
 		return nil
 	}

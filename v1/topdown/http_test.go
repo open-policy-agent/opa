@@ -3180,19 +3180,19 @@ func (c *onlyOnceInterQueryCache) Get(_ ast.Value) (value iCache.InterQueryCache
 	return nil, false
 }
 
-func (c *onlyOnceInterQueryCache) Insert(_ ast.Value, _ iCache.InterQueryCacheValue) int {
+func (*onlyOnceInterQueryCache) Insert(_ ast.Value, _ iCache.InterQueryCacheValue) int {
 	return 0
 }
 
-func (c *onlyOnceInterQueryCache) InsertWithExpiry(_ ast.Value, _ iCache.InterQueryCacheValue, _ time.Time) int {
+func (*onlyOnceInterQueryCache) InsertWithExpiry(_ ast.Value, _ iCache.InterQueryCacheValue, _ time.Time) int {
 	return 0
 }
 
-func (c *onlyOnceInterQueryCache) Delete(_ ast.Value) {}
+func (*onlyOnceInterQueryCache) Delete(_ ast.Value) {}
 
-func (c *onlyOnceInterQueryCache) UpdateConfig(_ *iCache.Config) {}
+func (*onlyOnceInterQueryCache) UpdateConfig(_ *iCache.Config) {}
 
-func (c *onlyOnceInterQueryCache) Clone(val iCache.InterQueryCacheValue) (iCache.InterQueryCacheValue, error) {
+func (*onlyOnceInterQueryCache) Clone(val iCache.InterQueryCacheValue) (iCache.InterQueryCacheValue, error) {
 	return val, nil
 }
 

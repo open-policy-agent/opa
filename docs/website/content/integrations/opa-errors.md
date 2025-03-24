@@ -24,4 +24,4 @@ and how to fix it.
 
 If you'd like to request that a new error is listed, please drop us a message in
 the
-[Styra Slack](https://communityinviter.com/apps/styracommunity/signup).
+[Styra Slack](https://inviter.co/styra).

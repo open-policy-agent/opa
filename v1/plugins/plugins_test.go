@@ -625,7 +625,7 @@ func TestPluginManagerServerInitialized(t *testing.T) {
 
 type myAuthPluginMock struct{}
 
-func (m *myAuthPluginMock) NewClient(c rest.Config) (*http.Client, error) {
+func (*myAuthPluginMock) NewClient(c rest.Config) (*http.Client, error) {
 	tlsConfig, err := rest.DefaultTLSConfig(c)
 	if err != nil {
 		return nil, err

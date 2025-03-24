@@ -90,7 +90,7 @@ func (d *OCIDownloader) WithBundleParserOpts(opts ast.ParserOptions) *OCIDownloa
 }
 
 // ClearCache is deprecated. Use SetCache instead.
-func (d *OCIDownloader) ClearCache() {
+func (*OCIDownloader) ClearCache() {
 }
 
 // SetCache sets the etag value to the SHA of the loaded bundle

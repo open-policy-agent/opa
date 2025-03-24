@@ -230,7 +230,7 @@ func benchMain(args []string, params benchmarkCommandParams, w io.Writer, r benc
 type goBenchRunner struct {
 }
 
-func (r *goBenchRunner) run(ctx context.Context, ectx *evalContext, params benchmarkCommandParams, f func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
+func (*goBenchRunner) run(ctx context.Context, ectx *evalContext, params benchmarkCommandParams, f func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
 
 	var hist, m metrics.Metrics
 	if params.metrics {

@@ -233,7 +233,7 @@ func (c *Config) validateAndInjectDefaultsLegacy(services []string) error {
 	return nil
 }
 
-func (c *Config) getServiceFromList(service string, services []string) (string, error) {
+func (*Config) getServiceFromList(service string, services []string) (string, error) {
 	if service == "" && len(services) != 0 {
 		return services[0], nil
 	}

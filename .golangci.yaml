@@ -186,8 +186,10 @@ linters-settings:
     rules:
     # this mainly complains about us using min/max for variable names,
     # which seems like an unlikely source of actual issues
-     - name: redefines-builtin-id
-       disabled: true
+      - name: redefines-builtin-id
+        disabled: true
+      - name: unused-receiver
+        disabled: false
 
 linters:
   disable-all: true

@@ -40,7 +40,7 @@ func (pm *pathMapper) PolicyID2Key(id string) []byte {
 	return []byte(pm.policiesPrefix + id)
 }
 
-func (pm *pathMapper) DataKey2Path(key []byte) (storage.Path, error) {
+func (*pathMapper) DataKey2Path(key []byte) (storage.Path, error) {
 	p, ok := storage.ParsePathEscaped(string(key))
 	if !ok {
 		return nil, &storage.Error{Code: storage.InternalErr, Message: fmt.Sprintf("corrupt key: %s", key)}
