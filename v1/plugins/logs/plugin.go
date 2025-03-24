@@ -762,7 +762,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 	}
 
 	if p.config.Service != "" {
-		p.encodeAndBufferEvent(event)
+		p.encodeAndBufferEvent(ctx, event)
 	}
 
 	if p.config.Plugin != nil {
@@ -932,7 +932,7 @@ func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {
 				}
 
 				for i := range events {
-					p.encodeAndBufferEvent(events[i])
+					p.encodeAndBufferEvent(ctx, events[i])
 				}
 			} else {
 				// requeue the chunk
@@ -969,7 +969,7 @@ func (p *Plugin) reconfigure(ctx context.Context, config interface{}) {
 				*p.config.Resource,
 				*p.config.Reporting.UploadSizeLimitBytes)
 		} else {
-			p.eventBuffer.Reconfigure(
+			p.eventBuffer.Reconfigure(ctx,
 				*p.config.Reporting.BufferSizeLimitEvents,
 				p.manager.Client(p.config.Service),
 				*p.config.Resource,
@@ -1002,7 +1002,7 @@ func (p *Plugin) reconfigure(ctx context.Context, config interface{}) {
 // NOTE(philipc): Because ND builtins caching can cause unbounded growth in
 // decision log entry size, we do best-effort event encoding here, and when we
 // run out of space, we drop the ND builtins cache, and try encoding again.
-func (p *Plugin) encodeAndBufferEvent(event EventV1) {
+func (p *Plugin) encodeAndBufferEvent(ctx context.Context, event EventV1) {
 	if p.limiter != nil && !p.limiter.Allow() {
 		p.incrMetric(logRateLimitExDropCounterName)
 		p.logger.Error("Decision log dropped as rate limit exceeded. Reduce reporting interval or increase rate limit.")
@@ -1014,7 +1014,7 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 	defer p.reconfigMtx.RUnlock()
 
 	if p.runningBuffer == eventBufferType {
-		p.eventBuffer.Push(&event)
+		p.eventBuffer.Push(ctx, &event)
 		return
 	}
 

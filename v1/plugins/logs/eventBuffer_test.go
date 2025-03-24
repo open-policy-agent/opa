@@ -27,6 +27,7 @@ import (
 func TestEventBuffer_Push(t *testing.T) {
 	t.Parallel()
 
+	ctx := context.Background()
 	expectedIds := make(map[string]struct{})
 	var expectedDropped uint64
 	limit := int64(2)
@@ -34,17 +35,17 @@ func TestEventBuffer_Push(t *testing.T) {
 
 	id := "id1"
 	expectedIds[id] = struct{}{}
-	b.Push(newTestEvent(t, id, false))
+	b.Push(ctx, newTestEvent(t, id, false))
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 
 	id = "id2"
 	expectedIds[id] = struct{}{}
-	b.Push(newTestEvent(t, id, false))
+	b.Push(ctx, newTestEvent(t, id, false))
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 
 	id = "id3"
 	expectedIds[id] = struct{}{}
-	b.Push(newTestEvent(t, id, false))
+	b.Push(ctx, newTestEvent(t, id, false))
 	// Three events were pushed, but limit is 2 so the oldest even should have been dropped
 	delete(expectedIds, "id1")
 	expectedDropped++
@@ -56,24 +57,24 @@ func TestEventBuffer_Push(t *testing.T) {
 
 	// Increase the limit, forcing the buffer to change
 	limit = int64(3)
-	b.Reconfigure(limit, rest.Client{}, "", 0)
+	b.Reconfigure(ctx, limit, rest.Client{}, "", 0)
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 
 	id = "id4"
 	expectedIds[id] = struct{}{}
-	b.Push(newTestEvent(t, id, false))
+	b.Push(ctx, newTestEvent(t, id, false))
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 
 	id = "id5"
 	expectedIds[id] = struct{}{}
-	b.Push(newTestEvent(t, id, true))
+	b.Push(ctx, newTestEvent(t, id, true))
 	// Four events were pushed, but limit is 3 so the oldest even should have been dropped
 	expectedDropped++
 	delete(expectedIds, "id2")
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 
 	limit = int64(1)
-	b.Reconfigure(limit, rest.Client{}, "", 0)
+	b.Reconfigure(ctx, limit, rest.Client{}, "", 0)
 	// Limit reconfigured from 3->1, dropping 2 more events.
 	expectedDropped = 4
 	delete(expectedIds, "id3")
@@ -81,7 +82,7 @@ func TestEventBuffer_Push(t *testing.T) {
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 
 	// Nothing changed
-	b.Reconfigure(limit, rest.Client{}, "", 0)
+	b.Reconfigure(ctx, limit, rest.Client{}, "", 0)
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 }
 
@@ -167,8 +168,9 @@ func TestEventBuffer_Upload(t *testing.T) {
 			defer ts.Close()
 			e := newEventBuffer(tc.eventLimit, client, uploadPath, tc.uploadSizeLimitBytes).WithMetrics(metrics.New()).WithLogger(logging.NewNoOpLogger())
 
+			ctx := context.Background()
 			for i := range tc.numberOfEvents {
-				e.Push(newTestEvent(t, strconv.Itoa(i), true))
+				e.Push(ctx, newTestEvent(t, strconv.Itoa(i), true))
 			}
 
 			ok, err := e.Upload(context.Background())
@@ -235,6 +237,8 @@ func setupTestServer(t *testing.T, uploadPath string, handleFunc func(w http.Res
 }
 
 func decodeLogEvent(t *testing.T, r io.Reader) []EventV1 {
+	t.Helper()
+
 	gr, err := gzip.NewReader(r)
 	if err != nil {
 		t.Fatal(err)

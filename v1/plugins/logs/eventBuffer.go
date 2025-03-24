@@ -7,6 +7,7 @@ package logs
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sync"
 
 	"github.com/open-policy-agent/opa/v1/logging"
@@ -61,7 +62,7 @@ func (b *eventBuffer) incrMetric(name string) {
 // Reconfigure updates the user configurable values
 // This cannot be called concurrently, this could change the underlying channel.
 // Plugin manages a lock to control this so that changes to both buffer types can be managed sequentially.
-func (b *eventBuffer) Reconfigure(bufferSizeLimitEvents int64, client rest.Client, uploadPath string, uploadSizeLimitBytes int64) {
+func (b *eventBuffer) Reconfigure(ctx context.Context, bufferSizeLimitEvents int64, client rest.Client, uploadPath string, uploadSizeLimitBytes int64) {
 	b.client = client
 	b.uploadPath = uploadPath
 	b.uploadSizeLimitBytes = uploadSizeLimitBytes
@@ -75,24 +76,31 @@ func (b *eventBuffer) Reconfigure(bufferSizeLimitEvents int64, client rest.Clien
 	b.buffer = make(chan bufferItem, bufferSizeLimitEvents)
 
 	for event := range oldBuffer {
-		b.push(event)
+		b.push(ctx, event)
 	}
 }
 
 // Push attempts to add a new event to the buffer, returning true if an event was dropped.
 // This can be called concurrently.
-func (b *eventBuffer) Push(event *EventV1) {
-	b.push(bufferItem{EventV1: event})
+func (b *eventBuffer) Push(ctx context.Context, event *EventV1) {
+	b.push(ctx, bufferItem{EventV1: event})
 }
 
-func (b *eventBuffer) push(event bufferItem) {
-	select {
-	case b.buffer <- event:
-	default:
-		<-b.buffer
-		b.buffer <- event
-		b.incrMetric(logBufferEventDropCounterName)
+func (b *eventBuffer) push(ctx context.Context, event bufferItem) {
+	maxEventRetry := 1000
+
+	for range maxEventRetry {
+		select {
+		case <-ctx.Done():
+			return
+		case b.buffer <- event:
+			return
+		default:
+			<-b.buffer
+			b.incrMetric(logBufferEventDropCounterName)
+		}
 	}
+
 }
 
 // Upload reads all the currently buffered events and uploads them as a gzip compressed JSON array to the service.
@@ -107,15 +115,28 @@ func (b *eventBuffer) Upload(ctx context.Context) (bool, error) {
 		return false, nil
 	}
 
-	if err := uploadChunk(ctx, b.client, b.uploadPath, b.chunk.buf.Bytes()); err != nil {
+	currentChunk := b.chunk.buf.Bytes()
+	if err := uploadChunk(ctx, b.client, b.uploadPath, currentChunk); err != nil {
+		b.chunk.initialize()
+
 		if nextEvent != nil {
 			// upload failed, the next chunk can't be made yet so push event back into the buffer.
-			b.push(*nextEvent)
+			b.push(ctx, *nextEvent)
 		}
+
+		events, decErr := newChunkDecoder(currentChunk).decode()
+		if decErr != nil {
+			return false, fmt.Errorf("%w: %w", err, decErr)
+		}
+
+		for i := range events {
+			b.Push(ctx, &events[i])
+		}
+
 		return false, err
 	}
-	b.chunk.initialize()
 
+	b.chunk.initialize()
 	if nextEvent != nil {
 		if _, err := b.chunk.WriteBytes(nextEvent.serialized); err != nil {
 			// corrupted payload, record failure and reset
@@ -138,62 +159,29 @@ func (b *eventBuffer) compress() *bufferItem {
 		return nil
 	}
 
-	// Uploads at most the capacity of the buffer (buffer_size_limit_events)
-	for range eventLen {
-		select {
-		case event := <-b.buffer:
-			// an event could already have been serialized if an upload reached the limit or failed
-			if event.serialized == nil {
-				var err error
-				event.serialized, err = json.Marshal(event.EventV1)
-				if err != nil {
-					b.incrMetric(logEncodingFailureCounterName)
-					b.logger.Error("encoding failure: %v, dropping event with decision ID: %v.", err, event.EventV1.DecisionID)
-					continue
-				}
-			}
-
-			if int64(len(event.serialized)) >= b.uploadSizeLimitBytes {
-				if event.NDBuiltinCache == nil {
-					b.logger.Error("upload event size (%d) exceeds upload_size_limit_bytes (%d), dropping event with decision ID: %v.",
-						int64(len(event.serialized)), b.uploadSizeLimitBytes, event.EventV1.DecisionID)
-					continue
-				}
-
-				// Attempt to drop the ND cache to reduce size. If it is still too large, drop the event.
-				event.NDBuiltinCache = nil
-				var err error
-				event.serialized, err = json.Marshal(event.EventV1)
-				if err != nil {
-					b.incrMetric(logEncodingFailureCounterName)
-					b.logger.Error("encoding failure: %v, dropping event with decision ID: %v.", err, event.EventV1.DecisionID)
-					continue
-				}
-				if int64(len(event.serialized)) > b.uploadSizeLimitBytes {
-					b.logger.Error("upload event size (%d) exceeds upload_size_limit_bytes (%d), dropping event with decision ID: %v.",
-						int64(len(event.serialized)), b.uploadSizeLimitBytes, event.EventV1.DecisionID)
-					continue
-				}
-
-				b.incrMetric(logNDBDropCounterName)
-				b.logger.Error("ND builtins cache dropped from this event to fit under maximum upload size limits. Increase upload size limit or change usage of non-deterministic builtins.")
-			}
-
-			if int64(eventLen+b.chunk.bytesWritten+1) > b.uploadSizeLimitBytes {
-				// save event that doesn't fit in the current chunk to add it to the next chunk
-				nextEvent = &event
-				break
-			}
-
-			if _, err := b.chunk.WriteBytes(event.serialized); err != nil {
-				// corrupted payload, record failure and reset
-				b.chunk.initialize()
-				b.incrMetric(logEncodingFailureCounterName)
-				b.logger.Error("encoding failure: %v, dropping event with decision ID: %v.", err, event.EventV1.DecisionID)
-				continue
-			}
-		default:
+	// read until either the buffer is empty or the chunk has reached the upload limit
+	for {
+		event := b.readEvent()
+		if event == nil {
 			break
+		}
+
+		if err := b.processEvent(event); err != nil {
+			b.logger.Error("%v", err)
+		}
+
+		if int64(eventLen+b.chunk.bytesWritten+1) > b.uploadSizeLimitBytes {
+			// save event that doesn't fit in the current chunk to add it to the next chunk
+			nextEvent = event
+			break
+		}
+
+		if _, err := b.chunk.WriteBytes(event.serialized); err != nil {
+			// corrupted payload, record failure and reset
+			b.chunk.initialize()
+			b.incrMetric(logEncodingFailureCounterName)
+			b.logger.Error("encoding failure: %v, dropping event with decision ID: %v.", err, event.EventV1.DecisionID)
+			continue
 		}
 	}
 
@@ -205,4 +193,52 @@ func (b *eventBuffer) compress() *bufferItem {
 	}
 
 	return nextEvent
+}
+
+// readEvent does a nonblocking read from the event buffer
+func (b *eventBuffer) readEvent() *bufferItem {
+	select {
+	case event := <-b.buffer:
+		return &event
+	default:
+		return nil
+	}
+}
+
+// processEvent serializes the event and determines if the ND cache needs to be dropped
+func (b *eventBuffer) processEvent(event *bufferItem) error {
+	// an event could already have been serialized if an upload reached the limit or failed
+	if event.serialized == nil {
+		var err error
+		event.serialized, err = json.Marshal(event.EventV1)
+		if err != nil {
+			b.incrMetric(logEncodingFailureCounterName)
+			return fmt.Errorf("encoding failure: %w, dropping event with decision ID: %v", err, event.EventV1.DecisionID)
+		}
+	}
+
+	if int64(len(event.serialized)) >= b.uploadSizeLimitBytes {
+		if event.NDBuiltinCache == nil {
+			return fmt.Errorf("upload event size (%d) exceeds upload_size_limit_bytes (%d), dropping event with decision ID: %v",
+				int64(len(event.serialized)), b.uploadSizeLimitBytes, event.EventV1.DecisionID)
+		}
+
+		// Attempt to drop the ND cache to reduce size. If it is still too large, drop the event.
+		event.NDBuiltinCache = nil
+		var err error
+		event.serialized, err = json.Marshal(event.EventV1)
+		if err != nil {
+			b.incrMetric(logEncodingFailureCounterName)
+			return fmt.Errorf("encoding failure: %v, dropping event with decision ID: %v", err, event.EventV1.DecisionID)
+		}
+		if int64(len(event.serialized)) > b.uploadSizeLimitBytes {
+			return fmt.Errorf("upload event size (%d) exceeds upload_size_limit_bytes (%d), dropping event with decision ID: %v",
+				int64(len(event.serialized)), b.uploadSizeLimitBytes, event.EventV1.DecisionID)
+		}
+
+		b.incrMetric(logNDBDropCounterName)
+		b.logger.Error("ND builtins cache dropped from this event to fit under maximum upload size limits. Increase upload size limit or change usage of non-deterministic builtins.")
+	}
+
+	return nil
 }

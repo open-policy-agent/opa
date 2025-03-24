@@ -1478,35 +1478,31 @@ func TestPluginRateLimitRequeue(t *testing.T) {
 			}
 			<-fixture.server.ch
 
-			var chunk []byte
+			// size buffer will put failed upload events back into the encoder
+			bufLen = getBufferLen(t, fixture, eventSize)
+			if bufLen != 3 {
+				t.Fatal("Expected buffer length of 3 but got ", bufLen)
+			}
+
+			var event1, event2, event3 EventV1
 			switch fixture.plugin.runningBuffer {
 			case eventBufferType:
-				// event buffer will keep failed upload events in payload
-				bufLen := fixture.plugin.eventBuffer.chunk.bytesWritten / eventSize
-				if bufLen != 3 {
-					t.Fatal("Expected buffer length of 3 but got ", bufLen)
-				}
-				chunk = fixture.plugin.eventBuffer.chunk.buf.Bytes()
+				event1 = *(<-fixture.plugin.eventBuffer.buffer).EventV1
+				event2 = *(<-fixture.plugin.eventBuffer.buffer).EventV1
+				event3 = *(<-fixture.plugin.eventBuffer.buffer).EventV1
 			case sizeBufferType:
-				// size buffer will put failed upload events back into the encoder
-				bufLen := getBufferLen(t, fixture, eventSize)
-				if bufLen != 3 {
-					t.Fatal("Expected buffer length of 3 but got ", bufLen)
-				}
 				chunks, err := fixture.plugin.enc.Flush()
 				if err != nil {
 					t.Fatal(err)
 				}
 				if len(chunks) != 1 {
-					t.Fatalf("Expected 1 chunk but got %v", len(chunk))
+					t.Fatalf("Expected 1 chunk but got %v", len(chunks))
 				}
-				chunk = chunks[0]
+				events := decodeLogEvent(t, bytes.NewReader(chunks[0]))
+				event1 = events[0]
+				event2 = events[1]
+				event3 = events[2]
 			}
-
-			events := decodeLogEvent(t, bytes.NewReader(chunk))
-			event1 := events[0]
-			event2 := events[1]
-			event3 := events[2]
 
 			exp := "abc"
 			if event1.DecisionID != exp {
