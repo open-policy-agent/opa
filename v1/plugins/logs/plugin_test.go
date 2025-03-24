@@ -12,7 +12,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -3630,24 +3629,6 @@ func ensurePluginState(t *testing.T, p *Plugin, state plugins.State) {
 	if status.State != state {
 		t.Fatalf("Unexpected status state found in plugin manager for %s:\n\n\tFound:%+v\n\n\tExpected: %s", Name, status.State, plugins.StateOK)
 	}
-}
-
-func decodeLogEvent(t *testing.T, r io.Reader) []EventV1 {
-	gr, err := gzip.NewReader(r)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var events []EventV1
-	if err := json.NewDecoder(gr).Decode(&events); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := gr.Close(); err != nil {
-		t.Fatal(err)
-	}
-
-	return events
 }
 
 func testStatus() *bundle.Status {

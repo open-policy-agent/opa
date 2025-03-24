@@ -1,8 +1,15 @@
+// Copyright 2018 The OPA Authors.  All rights reserved.
+// Use of this source code is governed by an Apache2
+// license that can be found in the LICENSE file.
+
 package logs
 
 import (
+	"compress/gzip"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -225,4 +232,22 @@ func setupTestServer(t *testing.T, uploadPath string, handleFunc func(w http.Res
 	}
 
 	return client, ts
+}
+
+func decodeLogEvent(t *testing.T, r io.Reader) []EventV1 {
+	gr, err := gzip.NewReader(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var events []EventV1
+	if err := json.NewDecoder(gr).Decode(&events); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := gr.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	return events
 }
