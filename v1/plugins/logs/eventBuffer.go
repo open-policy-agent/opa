@@ -102,14 +102,13 @@ func (b *eventBuffer) push(event bufferItem) {
 
 // Upload reads all the currently buffered events and uploads them as a gzip compressed JSON array to the service.
 // The events are uploaded as chunks limited by the uploadSizeLimitBytes.
-func (b *eventBuffer) Upload(ctx context.Context) (bool, error) {
+func (b *eventBuffer) Upload(ctx context.Context) error {
 	b.upload.Lock()
 	defer b.upload.Unlock()
 
 	eventLen := len(b.buffer)
 	if eventLen == 0 {
-		// queue is empty, there is nothing to be uploaded. This is for logging only (see doOneShot).
-		return false, nil
+		return &bufferEmpty{}
 	}
 
 	encoder := newChunkEncoder(b.uploadSizeLimitBytes)
@@ -134,7 +133,7 @@ func (b *eventBuffer) Upload(ctx context.Context) (bool, error) {
 
 		err = b.uploadChunks(ctx, result)
 		if err != nil {
-			return false, err
+			return err
 		}
 	}
 
@@ -143,14 +142,14 @@ func (b *eventBuffer) Upload(ctx context.Context) (bool, error) {
 	if err != nil {
 		b.incrMetric(logEncodingFailureCounterName)
 		b.logger.Error("encoding failure: %v", err)
-		return false, nil
+		return nil
 	}
 
 	if err := b.uploadChunks(ctx, result); err != nil {
-		return false, err
+		return err
 	}
 
-	return true, nil
+	return nil
 }
 
 // uploadChunks attempts to upload multiple chunks to the configured client.

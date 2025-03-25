@@ -661,7 +661,7 @@ func (p *Plugin) flushDecisions(ctx context.Context) {
 
 	go func(ctx context.Context, done chan bool) {
 		for ctx.Err() == nil {
-			if _, err := p.oneShot(ctx); err != nil {
+			if err := p.oneShot(ctx); err != nil && !errors.Is(err, &bufferEmpty{}) {
 				p.logger.Error("Error flushing decisions: %s", err)
 				// Wait some before retrying, but skip incrementing interval since we are shutting down
 				time.Sleep(1 * time.Second)
@@ -874,21 +874,29 @@ func (p *Plugin) loop() {
 	}
 }
 
+type bufferEmpty struct{}
+
+func (*bufferEmpty) Error() string {
+	return "buffer is empty"
+}
+
 func (p *Plugin) doOneShot(ctx context.Context) error {
-	uploaded, err := p.oneShot(ctx)
+	err := p.oneShot(ctx)
 	p.setStatus(err)
 
 	if err != nil {
+		if errors.Is(err, &bufferEmpty{}) {
+			p.logger.Debug("Log upload queue was empty.")
+		}
 		p.logger.Error("%v.", err)
-	} else if uploaded {
-		p.logger.Info("Logs uploaded successfully.")
-	} else {
-		p.logger.Debug("Log upload queue was empty.")
+		return err
 	}
-	return err
+
+	p.logger.Info("Logs uploaded successfully.")
+	return nil
 }
 
-func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {
+func (p *Plugin) oneShot(ctx context.Context) error {
 	if p.runningBuffer == eventBufferType {
 		return p.eventBuffer.Upload(ctx)
 	}
@@ -909,7 +917,7 @@ func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {
 	// underlying writer and add to the buffer.
 	chunk, err := oldChunkEnc.Flush()
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	for _, ch := range chunk {
@@ -917,7 +925,7 @@ func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {
 	}
 
 	if oldBuffer.Len() == 0 {
-		return false, nil
+		return &bufferEmpty{}
 	}
 
 	for bs := oldBuffer.Pop(); bs != nil; bs = oldBuffer.Pop() {
@@ -943,7 +951,7 @@ func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {
 		}
 	}
 
-	return err == nil, err
+	return err
 }
 
 func (p *Plugin) reconfigure(ctx context.Context, config interface{}) {
@@ -977,7 +985,7 @@ func (p *Plugin) reconfigure(ctx context.Context, config interface{}) {
 		}
 
 		if p.runningBuffer == sizeBufferType {
-			if _, err := p.oneShot(ctx); err != nil {
+			if err := p.oneShot(ctx); err != nil && !errors.Is(err, &bufferEmpty{}) {
 				p.setStatus(err)
 			}
 		}
@@ -985,7 +993,7 @@ func (p *Plugin) reconfigure(ctx context.Context, config interface{}) {
 		p.runningBuffer = eventBufferType
 	case sizeBufferType:
 		if p.runningBuffer == eventBufferType {
-			if _, err := p.eventBuffer.Upload(ctx); err != nil {
+			if err := p.eventBuffer.Upload(ctx); err != nil && !errors.Is(err, &bufferEmpty{}) {
 				p.setStatus(err)
 			}
 		}

@@ -171,7 +171,7 @@ func TestEventBuffer_Upload(t *testing.T) {
 				e.Push(newTestEvent(t, strconv.Itoa(i), true))
 			}
 
-			_, err := e.Upload(context.Background())
+			err := e.Upload(context.Background())
 			if err != nil {
 				if tc.expectedError == "" || tc.expectedError != "" && err.Error() != tc.expectedError {
 					t.Fatal(err)
@@ -203,7 +203,7 @@ func TestEventBuffer_ShuttingDown(t *testing.T) {
 
 	// cancel ctx so the events aren't re-buffered
 	cancel()
-	_, err := e.Upload(ctx)
+	err := e.Upload(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

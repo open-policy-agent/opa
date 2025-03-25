@@ -11,11 +11,13 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -121,17 +123,18 @@ func TestPluginCustomBackendAndHTTPServiceAndConsole(t *testing.T) {
 
 	fixture.server.ch = make(chan []EventV1, 1)
 
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		if err := fixture.plugin.Log(ctx, &server.Info{
-			Revision: fmt.Sprint(i),
+			Revision: strconv.Itoa(i),
 		}); err != nil {
 			t.Fatal(err)
 		}
 	}
 	fixture.plugin.flushDecisions(ctx)
 
-	_, err := fixture.plugin.oneShot(ctx)
-	if err != nil {
+	err := fixture.plugin.oneShot(ctx)
+	fmt.Println(errors.Is(err, &bufferEmpty{}))
+	if err != nil && !errors.Is(err, &bufferEmpty{}) {
 		t.Fatal(err)
 	}
 
@@ -430,7 +433,7 @@ func TestPluginStartSameInput(t *testing.T) {
 		})
 	}
 
-	_, err = fixture.plugin.oneShot(ctx)
+	err = fixture.plugin.oneShot(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -510,7 +513,7 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 		})
 	}
 
-	_, err = fixture.plugin.oneShot(ctx)
+	err = fixture.plugin.oneShot(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -578,7 +581,7 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 		})
 	}
 
-	_, err = fixture.plugin.oneShot(ctx)
+	err = fixture.plugin.oneShot(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -647,7 +650,7 @@ func TestPluginRequeue(t *testing.T) {
 			}
 
 			fixture.server.expCode = 500
-			_, err := fixture.plugin.oneShot(ctx)
+			err := fixture.plugin.oneShot(ctx)
 			if err == nil {
 				t.Fatal("Expected error")
 			}
@@ -656,7 +659,7 @@ func TestPluginRequeue(t *testing.T) {
 
 			fixture.server.expCode = 200
 
-			_, err = fixture.plugin.oneShot(ctx)
+			err = fixture.plugin.oneShot(ctx)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -667,8 +670,8 @@ func TestPluginRequeue(t *testing.T) {
 				t.Fatalf("Expected %v but got: %v", events1, events2)
 			}
 
-			uploaded, err := fixture.plugin.oneShot(ctx)
-			if uploaded || err != nil {
+			err = fixture.plugin.oneShot(ctx)
+			if err != nil && !errors.Is(err, &bufferEmpty{}) {
 				t.Fatalf("Unexpected error or upload, err: %v", err)
 			}
 		})
@@ -709,7 +712,7 @@ func TestPluginRequeueBufferPreserved(t *testing.T) {
 	}
 
 	fixture.server.expCode = 500
-	_, err := fixture.plugin.oneShot(ctx)
+	err := fixture.plugin.oneShot(ctx)
 	if err == nil {
 		t.Fatal("Expected error")
 	}
@@ -1164,7 +1167,7 @@ func TestPluginStatusUpdateEncodingFailure(t *testing.T) {
 	// Trigger a status update
 	fixture.server.expCode = 200
 	err = fixture.plugin.doOneShot(ctx)
-	if err != nil {
+	if err != nil && !errors.Is(err, &bufferEmpty{}) {
 		t.Fatal("Unexpected error")
 	}
 
@@ -1472,7 +1475,7 @@ func TestPluginRateLimitRequeue(t *testing.T) {
 			}
 
 			fixture.server.expCode = 500
-			_, err := fixture.plugin.oneShot(ctx)
+			err := fixture.plugin.oneShot(ctx)
 			if err == nil {
 				t.Fatal("Expected error")
 			}
@@ -3408,7 +3411,7 @@ func TestPluginDefaultResourcePath(t *testing.T) {
 
 			fixture.server.expCode = 200
 
-			_, err := fixture.plugin.oneShot(ctx)
+			err := fixture.plugin.oneShot(ctx)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -3470,7 +3473,7 @@ func TestPluginResourcePathAndPartitionName(t *testing.T) {
 
 			fixture.server.expCode = 200
 
-			_, err := fixture.plugin.oneShot(ctx)
+			err := fixture.plugin.oneShot(ctx)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -3531,7 +3534,7 @@ func TestPluginResourcePath(t *testing.T) {
 
 			fixture.server.expCode = 200
 
-			_, err := fixture.plugin.oneShot(ctx)
+			err := fixture.plugin.oneShot(ctx)
 			if err != nil {
 				t.Fatal(err)
 			}
