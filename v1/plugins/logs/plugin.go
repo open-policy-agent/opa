@@ -588,7 +588,7 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 			plugin.manager.Client(plugin.config.Service),
 			*parsedConfig.Resource,
 			*parsedConfig.Reporting.UploadSizeLimitBytes,
-		)
+		).WithLogger(plugin.logger).WithMetrics(plugin.metrics)
 		plugin.runningBuffer = eventBufferType
 	case sizeBufferType:
 		plugin.buffer = newLogBuffer(*parsedConfig.Reporting.BufferSizeLimitBytes)
@@ -967,9 +967,9 @@ func (p *Plugin) reconfigure(ctx context.Context, config interface{}) {
 				*p.config.Reporting.BufferSizeLimitEvents,
 				p.manager.Client(p.config.Service),
 				*p.config.Resource,
-				*p.config.Reporting.UploadSizeLimitBytes)
+				*p.config.Reporting.UploadSizeLimitBytes).WithLogger(p.logger).WithMetrics(p.metrics)
 		} else {
-			p.eventBuffer.Reconfigure(ctx,
+			p.eventBuffer.Reconfigure(
 				*p.config.Reporting.BufferSizeLimitEvents,
 				p.manager.Client(p.config.Service),
 				*p.config.Resource,
@@ -985,8 +985,7 @@ func (p *Plugin) reconfigure(ctx context.Context, config interface{}) {
 		p.runningBuffer = eventBufferType
 	case sizeBufferType:
 		if p.runningBuffer == eventBufferType {
-			_, err := p.eventBuffer.Upload(ctx)
-			if err != nil {
+			if _, err := p.eventBuffer.Upload(ctx); err != nil {
 				p.setStatus(err)
 			}
 		}
@@ -1014,7 +1013,7 @@ func (p *Plugin) encodeAndBufferEvent(ctx context.Context, event EventV1) {
 	defer p.reconfigMtx.RUnlock()
 
 	if p.runningBuffer == eventBufferType {
-		p.eventBuffer.Push(ctx, &event)
+		p.eventBuffer.Push(&event)
 		return
 	}
 

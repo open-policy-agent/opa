@@ -64,6 +64,9 @@ func (enc *chunkEncoder) Write(event EventV1) (result [][]byte, err error) {
 	return enc.WriteBytes(buf.Bytes())
 }
 
+// WriteBytes attempts to write a serialized event to the current chunk.
+// If the upload limit is reached the chunk is closed and a result is returned.
+// If a result is returned the incoming event will not be written.
 func (enc *chunkEncoder) WriteBytes(bs []byte) (result [][]byte, err error) {
 	if len(bs) == 0 {
 		return nil, nil
@@ -232,7 +235,6 @@ func (dec *chunkDecoder) decode() ([]EventV1, error) {
 	if err := json.NewDecoder(gr).Decode(&events); err != nil {
 		return nil, err
 	}
-	gr.Close()
 
-	return events, nil
+	return events, gr.Close()
 }
