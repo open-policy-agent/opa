@@ -66,7 +66,7 @@ func (enc *chunkEncoder) Write(event EventV1) (result [][]byte, err error) {
 
 // WriteBytes attempts to write a serialized event to the current chunk.
 // If the upload limit is reached the chunk is closed and a result is returned.
-// If a result is returned the incoming event will not be written.
+// The incoming event that didn't fit is added to the next chunk.
 func (enc *chunkEncoder) WriteBytes(bs []byte) (result [][]byte, err error) {
 	if len(bs) == 0 {
 		return nil, nil
