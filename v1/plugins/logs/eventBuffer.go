@@ -69,6 +69,10 @@ func (b *eventBuffer) Reconfigure(bufferSizeLimitEvents int64, client rest.Clien
 		return
 	}
 
+	// prevent an upload from pushing events that failed to upload back into a closed buffer
+	b.upload.Lock()
+	defer b.upload.Unlock()
+
 	close(b.buffer)
 	oldBuffer := b.buffer
 	b.buffer = make(chan bufferItem, bufferSizeLimitEvents)
