@@ -882,18 +882,20 @@ func (*bufferEmpty) Error() string {
 
 func (p *Plugin) doOneShot(ctx context.Context) error {
 	err := p.oneShot(ctx)
-	p.setStatus(err)
 
 	if err != nil {
 		if errors.Is(err, &bufferEmpty{}) {
 			p.logger.Debug("Log upload queue was empty.")
+			err = nil
+		} else {
+			p.logger.Error("%v.", err)
 		}
-		p.logger.Error("%v.", err)
-		return err
+	} else {
+		p.logger.Info("Logs uploaded successfully.")
 	}
 
-	p.logger.Info("Logs uploaded successfully.")
-	return nil
+	p.setStatus(err)
+	return err
 }
 
 func (p *Plugin) oneShot(ctx context.Context) error {
