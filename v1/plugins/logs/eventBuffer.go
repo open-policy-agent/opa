@@ -94,12 +94,19 @@ func (b *eventBuffer) push(event bufferItem) {
 	maxEventRetry := 1000
 
 	for range maxEventRetry {
+		// non-blocking send to the buffer, to prevent blocking if buffer is full so room can be made.
 		select {
 		case b.buffer <- event:
 			return
 		default:
-			<-b.buffer
+		}
+
+		// non-blocking drop from the buffer to make room for incoming event.
+		// the buffer could have emptied due to an upload.
+		select {
+		case <-b.buffer:
 			b.incrMetric(logBufferEventDropCounterName)
+		default:
 		}
 	}
 }
