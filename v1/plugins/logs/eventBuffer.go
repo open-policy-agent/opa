@@ -56,6 +56,12 @@ func (b *eventBuffer) incrMetric(name string) {
 	}
 }
 
+func (b *eventBuffer) logError(fmt string, a ...interface{}) {
+	if b.logger != nil {
+		b.logger.Error(fmt, a)
+	}
+}
+
 // Reconfigure updates the user configurable values
 // This cannot be called concurrently, this could change the underlying channel.
 // Plugin manages a lock to control this so that changes to both buffer types can be managed sequentially.
@@ -136,14 +142,14 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 		} else {
 			serialized, err := b.processEvent(event.EventV1)
 			if err != nil {
-				b.logger.Error("%v", err)
+				b.logError("%v", err)
 				continue
 			}
 
 			result, err = encoder.WriteBytes(serialized)
 			if err != nil {
 				b.incrMetric(logEncodingFailureCounterName)
-				b.logger.Error("encoding failure: %v, dropping event with decision ID: %v", err, event.DecisionID)
+				b.logError("encoding failure: %v, dropping event with decision ID: %v", err, event.DecisionID)
 				continue
 			}
 		}
@@ -157,7 +163,7 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 	result, err := encoder.Flush()
 	if err != nil {
 		b.incrMetric(logEncodingFailureCounterName)
-		b.logger.Error("encoding failure: %v", err)
+		b.logError("encoding failure: %v", err)
 		return nil
 	}
 
@@ -224,7 +230,7 @@ func (b *eventBuffer) processEvent(event *EventV1) ([]byte, error) {
 		}
 
 		b.incrMetric(logNDBDropCounterName)
-		b.logger.Error("ND builtins cache dropped from this event to fit under maximum upload size limits. Increase upload size limit or change usage of non-deterministic builtins.")
+		b.logError("ND builtins cache dropped from this event to fit under maximum upload size limits. Increase upload size limit or change usage of non-deterministic builtins.")
 	}
 
 	return serialized, nil
