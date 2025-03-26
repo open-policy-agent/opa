@@ -252,20 +252,26 @@ const (
 	minRetryDelay                       = time.Millisecond * 100
 	defaultMinDelaySeconds              = int64(300)
 	defaultMaxDelaySeconds              = int64(600)
+	defaultBufferSizeLimitEvents        = int64(10000)
 	defaultUploadSizeLimitBytes         = int64(32768) // 32KB limit
 	defaultBufferSizeLimitBytes         = int64(0)     // unlimited
 	defaultMaskDecisionPath             = "/system/log/mask"
 	defaultDropDecisionPath             = "/system/log/drop"
 	logRateLimitExDropCounterName       = "decision_logs_dropped_rate_limit_exceeded"
 	logNDBDropCounterName               = "decision_logs_nd_builtin_cache_dropped"
+	logBufferEventDropCounterName       = "decision_logs_dropped_buffer_size_limit_exceeded"
 	logBufferSizeLimitExDropCounterName = "decision_logs_dropped_buffer_size_limit_bytes_exceeded"
 	logEncodingFailureCounterName       = "decision_logs_encoding_failure"
 	defaultResourcePath                 = "/logs"
+	sizeBufferType                      = "size"
+	eventBufferType                     = "event"
 )
 
 // ReportingConfig represents configuration for the plugin's reporting behaviour.
 type ReportingConfig struct {
-	BufferSizeLimitBytes  *int64               `json:"buffer_size_limit_bytes,omitempty"`  // max size of in-memory buffer
+	BufferType            string               `json:"buffer_type,omitempty"`              // toggles how the buffer stores events, defaults to using bytes
+	BufferSizeLimitBytes  *int64               `json:"buffer_size_limit_bytes,omitempty"`  // max size of in-memory size buffer
+	BufferSizeLimitEvents *int64               `json:"buffer_size_limit_events,omitempty"` // max size of in-memory event channel buffer
 	UploadSizeLimitBytes  *int64               `json:"upload_size_limit_bytes,omitempty"`  // max size of upload payload
 	MinDelaySeconds       *int64               `json:"min_delay_seconds,omitempty"`        // min amount of time to wait between successful poll attempts
 	MaxDelaySeconds       *int64               `json:"max_delay_seconds,omitempty"`        // max amount of time to wait between poll attempts
@@ -368,17 +374,41 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 
 	c.Reporting.UploadSizeLimitBytes = &uploadLimit
 
+	if c.Reporting.BufferType == "" {
+		c.Reporting.BufferType = sizeBufferType
+	} else if c.Reporting.BufferType != eventBufferType && c.Reporting.BufferType != sizeBufferType {
+		return fmt.Errorf("invalid buffer type %q, expected %q or %q", c.Reporting.BufferType, eventBufferType, sizeBufferType)
+	}
+
+	if c.Reporting.BufferType == eventBufferType && c.Reporting.BufferSizeLimitBytes != nil {
+		return fmt.Errorf("invalid decision_log config, 'buffer_size_limit_bytes' isn't supported for the %v buffer type", eventBufferType)
+	}
+	if c.Reporting.BufferType == sizeBufferType && c.Reporting.BufferSizeLimitEvents != nil {
+		return fmt.Errorf("invalid decision_log config, 'buffer_size_limit_events' isn't supported for the %v buffer type", sizeBufferType)
+	}
+
 	if c.Reporting.BufferSizeLimitBytes != nil && c.Reporting.MaxDecisionsPerSecond != nil {
 		return errors.New("invalid decision_log config, specify either 'buffer_size_limit_bytes' or 'max_decisions_per_second'")
 	}
 
 	// default the buffer size limit
-	bufferLimit := defaultBufferSizeLimitBytes
+	sizeBufferLimit := defaultBufferSizeLimitBytes
 	if c.Reporting.BufferSizeLimitBytes != nil {
-		bufferLimit = *c.Reporting.BufferSizeLimitBytes
+		if *c.Reporting.BufferSizeLimitBytes <= int64(0) {
+			return errors.New("invalid decision_log config, 'buffer_size_limit_bytes' must be higher than 0")
+		}
+		sizeBufferLimit = *c.Reporting.BufferSizeLimitBytes
 	}
+	c.Reporting.BufferSizeLimitBytes = &sizeBufferLimit
 
-	c.Reporting.BufferSizeLimitBytes = &bufferLimit
+	eventBufferLimit := defaultBufferSizeLimitEvents
+	if c.Reporting.BufferSizeLimitEvents != nil {
+		if *c.Reporting.BufferSizeLimitEvents <= int64(0) {
+			return errors.New("invalid decision_log config, 'buffer_size_limit_entries' must be higher than 0")
+		}
+		eventBufferLimit = *c.Reporting.BufferSizeLimitEvents
+	}
+	c.Reporting.BufferSizeLimitEvents = &eventBufferLimit
 
 	if c.MaskDecision == nil {
 		maskDecision := defaultMaskDecisionPath
@@ -417,20 +447,23 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 
 // Plugin implements decision log buffering and uploading.
 type Plugin struct {
-	manager      *plugins.Manager
-	config       Config
-	buffer       *logBuffer
-	enc          *chunkEncoder
-	mtx          sync.Mutex
-	statusMtx    sync.Mutex
-	stop         chan chan struct{}
-	reconfig     chan reconfigure
-	preparedMask prepareOnce
-	preparedDrop prepareOnce
-	limiter      *rate.Limiter
-	metrics      metrics.Metrics
-	logger       logging.Logger
-	status       *lstat.Status
+	manager       *plugins.Manager
+	config        Config
+	runningBuffer string
+	reconfigMtx   sync.RWMutex // reconfigMtx blocks reads/writes on buffer reconfiguration
+	eventBuffer   *eventBuffer
+	buffer        *logBuffer
+	enc           *chunkEncoder
+	mtx           sync.Mutex
+	statusMtx     sync.Mutex
+	stop          chan chan struct{}
+	reconfig      chan reconfigure
+	preparedMask  prepareOnce
+	preparedDrop  prepareOnce
+	limiter       *rate.Limiter
+	metrics       metrics.Metrics
+	logger        logging.Logger
+	status        *lstat.Status
 }
 
 type prepareOnce struct {
@@ -540,13 +573,26 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		manager:      manager,
 		config:       *parsedConfig,
 		stop:         make(chan chan struct{}),
-		buffer:       newLogBuffer(*parsedConfig.Reporting.BufferSizeLimitBytes),
 		enc:          newChunkEncoder(*parsedConfig.Reporting.UploadSizeLimitBytes),
 		reconfig:     make(chan reconfigure),
 		logger:       manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
 		status:       &lstat.Status{},
 		preparedDrop: *newPrepareOnce(),
 		preparedMask: *newPrepareOnce(),
+	}
+
+	switch parsedConfig.Reporting.BufferType {
+	case eventBufferType:
+		plugin.eventBuffer = newEventBuffer(
+			*parsedConfig.Reporting.BufferSizeLimitEvents,
+			plugin.manager.Client(plugin.config.Service),
+			*parsedConfig.Resource,
+			*parsedConfig.Reporting.UploadSizeLimitBytes,
+		).WithLogger(plugin.logger).WithMetrics(plugin.metrics)
+		plugin.runningBuffer = eventBufferType
+	case sizeBufferType:
+		plugin.buffer = newLogBuffer(*parsedConfig.Reporting.BufferSizeLimitBytes)
+		plugin.runningBuffer = sizeBufferType
 	}
 
 	if parsedConfig.Reporting.MaxDecisionsPerSecond != nil {
@@ -615,7 +661,7 @@ func (p *Plugin) flushDecisions(ctx context.Context) {
 
 	go func(ctx context.Context, done chan bool) {
 		for ctx.Err() == nil {
-			if _, err := p.oneShot(ctx); err != nil {
+			if err := p.oneShot(ctx); err != nil && !errors.Is(err, &bufferEmpty{}) {
 				p.logger.Error("Error flushing decisions: %s", err)
 				// Wait some before retrying, but skip incrementing interval since we are shutting down
 				time.Sleep(1 * time.Second)
@@ -639,7 +685,6 @@ func (p *Plugin) flushDecisions(ctx context.Context) {
 
 // Log appends a decision log event to the buffer for uploading.
 func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
-
 	bundles := map[string]BundleInfoV1{}
 	for name, info := range decision.Bundles {
 		bundles[name] = BundleInfoV1{Revision: info.Revision}
@@ -777,13 +822,11 @@ func (p *Plugin) compilerUpdated(storage.Transaction) {
 }
 
 func (p *Plugin) loop() {
-
 	ctx, cancel := context.WithCancel(context.Background())
 
 	var retry int
 
 	for {
-
 		var waitC chan struct{}
 
 		if *p.config.Reporting.Trigger == plugins.TriggerPeriodic && p.config.Service != "" {
@@ -821,7 +864,7 @@ func (p *Plugin) loop() {
 		select {
 		case <-waitC:
 		case update := <-p.reconfig:
-			p.reconfigure(update.config)
+			p.reconfigure(ctx, update.config)
 			update.done <- struct{}{}
 		case done := <-p.stop:
 			cancel()
@@ -831,31 +874,36 @@ func (p *Plugin) loop() {
 	}
 }
 
+type bufferEmpty struct{}
+
+func (*bufferEmpty) Error() string {
+	return "buffer is empty"
+}
+
 func (p *Plugin) doOneShot(ctx context.Context) error {
-	uploaded, err := p.oneShot(ctx)
-
-	// Make a local copy of the plugins's status.
-	p.statusMtx.Lock()
-	p.status.SetError(err)
-	oldStatus := p.status
-	p.statusMtx.Unlock()
-
-	if s := status.Lookup(p.manager); s != nil {
-		s.UpdateDecisionLogsStatus(*oldStatus)
-	}
+	err := p.oneShot(ctx)
 
 	if err != nil {
-		p.logger.Error("%v.", err)
-	} else if uploaded {
-		p.logger.Info("Logs uploaded successfully.")
+		if errors.Is(err, &bufferEmpty{}) {
+			p.logger.Debug("Log upload queue was empty.")
+			err = nil
+		} else {
+			p.logger.Error("%v.", err)
+		}
 	} else {
-		p.logger.Debug("Log upload queue was empty.")
+		p.logger.Info("Logs uploaded successfully.")
 	}
+
+	p.setStatus(err)
 	return err
 }
 
-func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {
-	// Make a local copy of the plugins's encoder and buffer and create
+func (p *Plugin) oneShot(ctx context.Context) error {
+	if p.runningBuffer == eventBufferType {
+		return p.eventBuffer.Upload(ctx)
+	}
+
+	// Make a local copy of the plugin's encoder and buffer and create
 	// a new encoder and buffer. This is needed as locking the buffer for
 	// the upload duration will block policy evaluation and result in
 	// increased latency for OPA clients
@@ -871,7 +919,7 @@ func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {
 	// underlying writer and add to the buffer.
 	chunk, err := oldChunkEnc.Flush()
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	for _, ch := range chunk {
@@ -879,7 +927,7 @@ func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {
 	}
 
 	if oldBuffer.Len() == 0 {
-		return false, nil
+		return &bufferEmpty{}
 	}
 
 	for bs := oldBuffer.Pop(); bs != nil; bs = oldBuffer.Pop() {
@@ -905,11 +953,10 @@ func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {
 		}
 	}
 
-	return err == nil, err
+	return err
 }
 
-func (p *Plugin) reconfigure(config interface{}) {
-
+func (p *Plugin) reconfigure(ctx context.Context, config interface{}) {
 	newConfig := config.(*Config)
 
 	if reflect.DeepEqual(p.config, *newConfig) {
@@ -919,21 +966,65 @@ func (p *Plugin) reconfigure(config interface{}) {
 
 	p.logger.Info("Decision log uploader configuration changed.")
 	p.config = *newConfig
+
+	p.reconfigMtx.Lock()
+	defer p.reconfigMtx.Unlock()
+
+	switch newConfig.Reporting.BufferType {
+	case eventBufferType:
+		if p.eventBuffer == nil {
+			p.eventBuffer = newEventBuffer(
+				*p.config.Reporting.BufferSizeLimitEvents,
+				p.manager.Client(p.config.Service),
+				*p.config.Resource,
+				*p.config.Reporting.UploadSizeLimitBytes).WithLogger(p.logger).WithMetrics(p.metrics)
+		} else {
+			p.eventBuffer.Reconfigure(
+				*p.config.Reporting.BufferSizeLimitEvents,
+				p.manager.Client(p.config.Service),
+				*p.config.Resource,
+				*p.config.Reporting.UploadSizeLimitBytes)
+		}
+
+		if p.runningBuffer == sizeBufferType {
+			if err := p.oneShot(ctx); err != nil && !errors.Is(err, &bufferEmpty{}) {
+				p.setStatus(err)
+			}
+		}
+
+		p.runningBuffer = eventBufferType
+	case sizeBufferType:
+		if p.runningBuffer == eventBufferType {
+			if err := p.eventBuffer.Upload(ctx); err != nil && !errors.Is(err, &bufferEmpty{}) {
+				p.setStatus(err)
+			}
+		}
+
+		if p.buffer == nil {
+			p.buffer = newLogBuffer(*p.config.Reporting.BufferSizeLimitBytes)
+		}
+
+		p.runningBuffer = sizeBufferType
+	}
 }
 
 // NOTE(philipc): Because ND builtins caching can cause unbounded growth in
 // decision log entry size, we do best-effort event encoding here, and when we
 // run out of space, we drop the ND builtins cache, and try encoding again.
 func (p *Plugin) encodeAndBufferEvent(event EventV1) {
-	if p.limiter != nil {
-		if !p.limiter.Allow() {
-			if p.metrics != nil {
-				p.metrics.Counter(logRateLimitExDropCounterName).Incr()
-			}
+	if p.limiter != nil && !p.limiter.Allow() {
+		p.incrMetric(logRateLimitExDropCounterName)
+		p.logger.Error("Decision log dropped as rate limit exceeded. Reduce reporting interval or increase rate limit.")
+		return
+	}
 
-			p.logger.Error("Decision log dropped as rate limit exceeded. Reduce reporting interval or increase rate limit.")
-			return
-		}
+	// only blocks when the buffer is being reconfigured
+	p.reconfigMtx.RLock()
+	defer p.reconfigMtx.RUnlock()
+
+	if p.runningBuffer == eventBufferType {
+		p.eventBuffer.Push(&event)
+		return
 	}
 
 	result, err := p.encodeEvent(event)
@@ -945,9 +1036,7 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 			// can return an error. Should the default behaviour be to
 			// fail-closed as we do for plugins?
 
-			if p.metrics != nil {
-				p.metrics.Counter(logEncodingFailureCounterName).Incr()
-			}
+			p.incrMetric(logEncodingFailureCounterName)
 			p.logger.Error("Log encoding failed: %v.", err)
 			return
 		}
@@ -958,16 +1047,14 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 
 		result, err = p.encodeEvent(newEvent)
 		if err != nil {
-			if p.metrics != nil {
-				p.metrics.Counter(logEncodingFailureCounterName).Incr()
-			}
+			p.incrMetric(logEncodingFailureCounterName)
 			p.logger.Error("Log encoding failed: %v.", err)
 			return
 		}
 
 		// Re-encoding was successful, but we still need to alert users.
 		p.logger.Error("ND builtins cache dropped from this event to fit under maximum upload size limits. Increase upload size limit or change usage of non-deterministic builtins.")
-		p.metrics.Counter(logNDBDropCounterName).Incr()
+		p.incrMetric(logNDBDropCounterName)
 	}
 
 	p.mtx.Lock()
@@ -991,9 +1078,8 @@ func (p *Plugin) encodeEvent(event EventV1) ([][]byte, error) {
 func (p *Plugin) bufferChunk(buffer *logBuffer, bs []byte) {
 	dropped := buffer.Push(bs)
 	if dropped > 0 {
-		if p.metrics != nil {
-			p.metrics.Counter(logBufferSizeLimitExDropCounterName).Incr()
-		}
+		p.incrMetric(logBufferEventDropCounterName)
+		p.incrMetric(logBufferSizeLimitExDropCounterName)
 		p.logger.Error("Dropped %v chunks from buffer. Reduce reporting interval or increase buffer size.", dropped)
 	}
 }
@@ -1128,4 +1214,21 @@ func (p *Plugin) logEvent(event EventV1) error {
 		"type": "openpolicyagent.org/decision_logs",
 	}).Info("Decision Log")
 	return nil
+}
+
+func (p *Plugin) incrMetric(name string) {
+	if p.metrics != nil {
+		p.metrics.Counter(name).Incr()
+	}
+}
+
+func (p *Plugin) setStatus(err error) {
+	p.statusMtx.Lock()
+	p.status.SetError(err)
+	oldStatus := p.status
+	p.statusMtx.Unlock()
+
+	if s := status.Lookup(p.manager); s != nil {
+		s.UpdateDecisionLogsStatus(*oldStatus)
+	}
 }
