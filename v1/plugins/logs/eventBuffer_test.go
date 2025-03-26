@@ -98,7 +98,7 @@ func checkBufferState(t *testing.T, limit int64, b *eventBuffer, expectedDropped
 	}
 
 	close(b.buffer)
-	newBuffer := make(chan bufferItem, limit)
+	newBuffer := make(chan *bufferItem, limit)
 	for event := range b.buffer {
 		if _, ok := expectedIds[event.DecisionID]; !ok {
 			t.Fatalf("received unexpected event %v", event)
@@ -178,38 +178,6 @@ func TestEventBuffer_Upload(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-func TestEventBuffer_ShuttingDown(t *testing.T) {
-	t.Parallel()
-
-	ctx, cancel := context.WithCancel(context.Background())
-
-	uploadPath := "/v1/test"
-	client, ts := setupTestServer(t, uploadPath, func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusBadRequest)
-	})
-	defer ts.Close()
-	e := newEventBuffer(defaultBufferSizeLimitEvents, client, uploadPath, defaultUploadSizeLimitBytes).WithMetrics(metrics.New()).WithLogger(logging.NewNoOpLogger())
-
-	for i := range 10 {
-		e.Push(newTestEvent(t, strconv.Itoa(i), true))
-	}
-
-	if len(e.buffer) != 10 {
-		t.Fatalf("expected 10 events, got %d", len(e.buffer))
-	}
-
-	// cancel ctx so the events aren't re-buffered
-	cancel()
-	err := e.Upload(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(e.buffer) != 0 {
-		t.Fatalf("buffer size mismatch, expected %d, got %d", 0, len(e.buffer))
 	}
 }
 

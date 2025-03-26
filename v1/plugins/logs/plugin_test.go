@@ -1481,19 +1481,32 @@ func TestPluginRateLimitRequeue(t *testing.T) {
 			}
 			<-fixture.server.ch
 
-			// size buffer will put failed upload events back into the encoder
-			bufLen = getBufferLen(t, fixture, eventSize)
-			if bufLen != 3 {
-				t.Fatal("Expected buffer length of 3 but got ", bufLen)
-			}
-
 			var event1, event2, event3 EventV1
 			switch fixture.plugin.runningBuffer {
 			case eventBufferType:
-				event1 = *(<-fixture.plugin.eventBuffer.buffer).EventV1
-				event2 = *(<-fixture.plugin.eventBuffer.buffer).EventV1
-				event3 = *(<-fixture.plugin.eventBuffer.buffer).EventV1
+				// buffer will put a single event with the failed uploaded chunk back in the buffer
+				bufLen = getBufferLen(t, fixture, eventSize)
+				if bufLen != 1 {
+					t.Fatal("Expected buffer length of 3 but got ", bufLen)
+				}
+
+				chunk := (<-fixture.plugin.eventBuffer.buffer).chunk
+
+				events, err := newChunkDecoder(chunk).decode()
+				if err != nil {
+					t.Fatal(err)
+				}
+				event1 = events[0]
+				event2 = events[1]
+				event3 = events[2]
+
 			case sizeBufferType:
+				// size buffer will put individual events with the failed uploaded chunk back in the buffer
+				bufLen = getBufferLen(t, fixture, eventSize)
+				if bufLen != 3 {
+					t.Fatal("Expected buffer length of 3 but got ", bufLen)
+				}
+
 				chunks, err := fixture.plugin.enc.Flush()
 				if err != nil {
 					t.Fatal(err)
