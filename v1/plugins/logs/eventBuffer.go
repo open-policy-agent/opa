@@ -15,10 +15,9 @@ import (
 	"github.com/open-policy-agent/opa/v1/plugins/rest"
 )
 
-// bufferItem can hold either an individual event (EventV1) or a ready to upload compressed JSON Array of events (chunk)
 type bufferItem struct {
-	*EventV1
-	chunk []byte
+	*EventV1        // an individual event
+	chunk    []byte // a ready to upload compressed JSON Array of events
 }
 
 // eventBuffer stores and uploads a gzip compressed JSON array of EventV1 entries
@@ -199,7 +198,6 @@ func (b *eventBuffer) readEvent() *bufferItem {
 
 // processEvent serializes the event and determines if the ND cache needs to be dropped
 func (b *eventBuffer) processEvent(event *EventV1) ([]byte, error) {
-	var err error
 	serialized, err := json.Marshal(event)
 	if err != nil {
 		b.incrMetric(logEncodingFailureCounterName)
