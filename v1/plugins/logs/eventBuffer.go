@@ -177,19 +177,17 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 // uploadChunks attempts to upload multiple chunks to the configured client.
 // In case of failure all the events are added back to the buffer.
 func (b *eventBuffer) uploadChunks(ctx context.Context, result [][]byte) error {
-	var err error
+	var finalErr error
 	for _, chunk := range result {
-		// only attempt an upload if there hasn't been a failure
-		if err == nil {
-			err = uploadChunk(ctx, b.client, b.uploadPath, chunk)
-		}
+		err := uploadChunk(ctx, b.client, b.uploadPath, chunk)
 
 		// if an upload failed, requeue the chunk
 		if err != nil {
+			finalErr = err
 			b.push(&bufferItem{chunk: chunk})
 		}
 	}
-	return err
+	return finalErr
 }
 
 // readEvent does a nonblocking read from the event buffer
@@ -205,12 +203,9 @@ func (b *eventBuffer) readEvent() *bufferItem {
 // processEvent serializes the event and determines if the ND cache needs to be dropped
 func (b *eventBuffer) processEvent(event *EventV1) ([]byte, error) {
 	serialized, err := json.Marshal(event)
-	if err != nil {
-		b.incrMetric(logEncodingFailureCounterName)
-		return nil, fmt.Errorf("encoding failure: %w, dropping event with decision ID: %v", err, event.DecisionID)
-	}
 
-	if int64(len(serialized)) >= b.uploadSizeLimitBytes {
+	// The non-deterministic cache (NDBuiltinCache) could cause issues, if it is too big or can't be encoded try to drop it.
+	if err != nil || int64(len(serialized)) >= b.uploadSizeLimitBytes {
 		if event.NDBuiltinCache == nil {
 			return nil, fmt.Errorf("upload event size (%d) exceeds upload_size_limit_bytes (%d), dropping event with decision ID: %v",
 				int64(len(serialized)), b.uploadSizeLimitBytes, event.DecisionID)
