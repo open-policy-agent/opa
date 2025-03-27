@@ -5,9 +5,9 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## 1.3.0
 
-This release contains a mix of features, and bugfixes.
+This release contains a mix of features, bugfixes, and dependency updates.
 
-### Event-based Decision Log Buffer ([#5724](https://github.com/open-policy-agent/opa/issues/5724))
+### New Buffer Option for Decision Logs ([#5724](https://github.com/open-policy-agent/opa/issues/5724))
 
 A new, optional, buffering mechanism has been added to decision logging. 
 The default buffer is designed around making precise memory footprint guarantees, which can produce lock contention at high loads, negatively impacting query performance.
@@ -17,20 +17,25 @@ The new event-based buffer is enabled by setting the `decision_logs.reporting.bu
 
 For more details, see the decision log plugin [README](https://github.com/open-policy-agent/opa/blob/main/v1/plugins/logs/README.md).
 
-Reported by @mjungsbluth, implemented by @sspaink
+Reported by @mjungsbluth, authored by @sspaink
+
+### OpenTelemetry: HTTP Support and Expanded Batch Span Configuration ([#7412](https://github.com/open-policy-agent/opa/issues/7412))
+
+Distributed tracing through OpenTelemetry has been extended to support HTTP collectors.
+Additionally, configuration has been expanded with fine-grained batch span processor [options](https://www.openpolicyagent.org/docs/latest/configuration/#distributed-tracing).
+
+Authored and reported by @sqyang94
 
 ### Runtime, Tooling, SDK
 
 - compile: Require multi-term entrypoint paths for optimized bundle building ([#7321](https://github.com/open-policy-agent/opa/issues/7321)) authored by @johanfylling reported by @nikpivkin
 - fmt: Allow one liner rule grouping ([#6760](https://github.com/open-policy-agent/opa/issues/6760)) authored by @anderseknert
 - fmt: Fix v0-compatible fmt with stdin ([#7409](https://github.com/open-policy-agent/opa/issues/7409)) authored and reported by @charlieegan3
-- ir: Fix nil pointer deref in Unmarshal() when handling IsSetStmt ([#7415](https://github.com/open-policy-agent/opa/issues/7415)) authored by @KrisKennawayDD reported by @KrisKennawayDD
-- planner: Address ref head issue, don't optimize if impossible ([#7439](https://github.com/open-policy-agent/opa/pull/7439)) authored by @srenatus
-- planner: Adjust check in ruletree scanning ([#7432](https://github.com/open-policy-agent/opa/pull/7432)) authored by @srenatus
+- ir: Fix nil pointer deref in Unmarshal() when handling IsSetStmt ([#7415](https://github.com/open-policy-agent/opa/issues/7415)) authored and reported by @KrisKennawayDD
+- planner: Fix Wasm vs non-Wasm evaluation difference bug related to the overeager optimization of ref head rules ([#7439](https://github.com/open-policy-agent/opa/pull/7439)) authored by @srenatus
 - sdk: Removing repeat args from sub-func call ([#7443](https://github.com/open-policy-agent/opa/pull/7443)) authored by @alingse
 - tester: Including parameterized test cases in test report counter ([#7407](https://github.com/open-policy-agent/opa/issues/7407)) authored by @johanfylling
 - tester: Only including failed sub-test cases in report summary when non-verbose ([#7426](https://github.com/open-policy-agent/opa/pull/7426)) authored by @johanfylling
-- tracing: Add more distributed tracing options ([#7412](https://github.com/open-policy-agent/opa/issues/7412)) authored and reported by @sqyang94
 
 ### Docs, Website, Ecosystem
 
