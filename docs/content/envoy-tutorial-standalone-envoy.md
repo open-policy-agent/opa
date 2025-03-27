@@ -144,7 +144,7 @@ kubectl create configmap authz-policy --from-file policy.rego
 ```
 
 Now that the policy is stored in a ConfigMap, we can spin up an HTTP server to make it
-available to as a Bundle to OPA when it's making decisions for our application:
+available as a Bundle to OPA when it's making decisions for our application:
 
 ```yaml
 # bundle-server.yaml
