@@ -5,46 +5,55 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## 1.3.0
 
-### Fixes
+This release contains a mix of features, and bugfixes.
 
-- compile: Require multi-term entrypoint paths for optimized bundle building (#7413) ([#7321](https://github.com/open-policy-agent/opa/issues/7321)) authored by @johanfylling reported by @nikpivkin
-- fmt: allow one liner rule grouping (#7453) ([#6760](https://github.com/open-policy-agent/opa/issues/6760)) authored by @anderseknert
-- ir: Fix nil pointer deref in Unmarshal() when handling IsSetStmt (#7430) ([#7415](https://github.com/open-policy-agent/opa/issues/7415)) authored by @KrisKennawayDD reported by @KrisKennawayDD
-- tester: Including parameterized test cases in test report counter (#7420) ([#7407](https://github.com/open-policy-agent/opa/issues/7407)) authored by @johanfylling
+### Event-based Decision Log Buffer ([#5724](https://github.com/open-policy-agent/opa/issues/5724))
+
+A new, optional, buffering mechanism has been added to decision logging. 
+The default buffer is designed around making precise memory footprint guarantees, which can produce lock contention at high loads, negatively impacting query performance.
+The new event-based buffer is designed to reduce lock contention and improve performance at high loads, but sacrifices the memory footprint guarantees of the default buffer.
+
+The new event-based buffer is enabled by setting the `decision_logs.reporting.buffer_type` [configuration option](https://www.openpolicyagent.org/docs/latest/configuration/#decision-logs) to `event`.
+
+For more details, see the decision log plugin [README](https://github.com/open-policy-agent/opa/blob/main/v1/plugins/logs/README.md).
+
+Reported by @mjungsbluth, implemented by @sspaink
+
+### Runtime, Tooling, SDK
+
+- compile: Require multi-term entrypoint paths for optimized bundle building ([#7321](https://github.com/open-policy-agent/opa/issues/7321)) authored by @johanfylling reported by @nikpivkin
+- fmt: Allow one liner rule grouping ([#6760](https://github.com/open-policy-agent/opa/issues/6760)) authored by @anderseknert
+- fmt: Fix v0-compatible fmt with stdin ([#7409](https://github.com/open-policy-agent/opa/issues/7409)) authored and reported by @charlieegan3
+- ir: Fix nil pointer deref in Unmarshal() when handling IsSetStmt ([#7415](https://github.com/open-policy-agent/opa/issues/7415)) authored by @KrisKennawayDD reported by @KrisKennawayDD
+- planner: Address ref head issue, don't optimize if impossible ([#7439](https://github.com/open-policy-agent/opa/pull/7439)) authored by @srenatus
+- planner: Adjust check in ruletree scanning ([#7432](https://github.com/open-policy-agent/opa/pull/7432)) authored by @srenatus
+- sdk: Removing repeat args from sub-func call ([#7443](https://github.com/open-policy-agent/opa/pull/7443)) authored by @alingse
+- tester: Including parameterized test cases in test report counter ([#7407](https://github.com/open-policy-agent/opa/issues/7407)) authored by @johanfylling
+- tester: Only including failed sub-test cases in report summary when non-verbose ([#7426](https://github.com/open-policy-agent/opa/pull/7426)) authored by @johanfylling
+- tracing: Add more distributed tracing options ([#7412](https://github.com/open-policy-agent/opa/issues/7412)) authored and reported by @sqyang94
+
+### Docs, Website, Ecosystem
+
+- docs: Add some notes about AI assisted patches ([#7436](https://github.com/open-policy-agent/opa/pull/7436)) authored by @charlieegan3
+- docs: Add query_parameters_to_set ([#7405](https://github.com/open-policy-agent/opa/pull/7405)) authored by @sedovmik
+- docs: Delete reference to license key in Envoy tutorial ([#7466](https://github.com/open-policy-agent/opa/pull/7466)) authored by @joostholslag
+- docs: Fix typo in Envoy tutorial ([#7464](https://github.com/open-policy-agent/opa/pull/7464)) authored by @joostholslag
+- docs: Update slack inviter link ([#7450](https://github.com/open-policy-agent/opa/pull/7450)) authored by @charlieegan3
+- docs: Update terraform examples ([#7429](https://github.com/open-policy-agent/opa/pull/7429)) authored by @charlieegan3
+- docs: Simplify `kind` usage instruction in Envoy tutorial ([#7465](https://github.com/open-policy-agent/opa/pull/7465)) authored by @joostholslag
 
 ### Miscellaneous
 
-- Bumping GHA runner to `ubuntu-24.04` (#7414) (authored by @johanfylling)
-- Delete reference to license key in envoy-tutorial-standalone-envoy.md (#7466) (authored by @joostholslag)
-- Enable unused-receiver linter (revive) (#7448) (authored by @anderseknert)
-- Prepare v1.3.0 development (#7404) (authored by @johanfylling)
-- Reapply "docs: Update terraform examples" (#7428) (#7429) (authored by @charlieegan3)
-- Revert "docs: Update terraform examples" (#7428) (authored by @charlieegan3)
-- Setting dependabot scheduled update interval to `monthly` (#7431) (authored by @johanfylling)
-- build(deps): bump docker/setup-buildx-action from 3.9.0 to 3.10.0 (#7393) (authored by @dependabot[bot])
-- build(deps): bump docker/setup-qemu-action from 3.4.0 to 3.6.0 (#7406) (authored by @dependabot[bot])
-- build(deps): bump github.com/containerd/containerd from 1.7.26 to 1.7.27 (#7451) (authored by @dependabot[bot])
-- build(deps): bump github.com/dgraph-io/badger/v4 from 4.5.1 to 4.6.0 (#7417) (authored by @dependabot[bot])
-- build(deps): bump github.com/opencontainers/image-spec (#7408) (authored by @dependabot[bot])
-- build(deps): bump github.com/prometheus/client_golang (#7416) (authored by @dependabot[bot])
-- build(deps): bump golang.org/x/net from 0.35.0 to 0.36.0 (#7419) (authored by @dependabot[bot])
-- build(deps): bump golang.org/x/net from 0.36.0 to 0.37.0 (#7424) (authored by @dependabot[bot])
-- build(deps): bump golang.org/x/time from 0.10.0 to 0.11.0 (#7425) (authored by @dependabot[bot])
-- build(deps): bump google.golang.org/grpc from 1.70.0 to 1.71.0 (#7418) (authored by @dependabot[bot])
-- build(deps): bump the go-opentelemetry-io group with 6 updates (#7423) (authored by @dependabot[bot])
-- docs/envoy-tutorial-standalone: fix typo (#7464) (authored by @joostholslag)
-- docs/envoy-tutorial-standalone: simplify 'kind' usage instruction (#7465) (authored by @joostholslag)
-- docs: Add some notes about AI assisted patches (#7436) (authored by @charlieegan3)
-- docs: Update slack inviter link (#7450) (authored by @charlieegan3)
-- docs: Update terraform examples (authored by @charlieegan3)
-- docs: add query_parameters_to_set (authored by @sedovmik)
-- feat: add more distributed tracing options (#7421) (authored by @sqyang94)
-- feat: new event-based decisions log buffer implementation (#7446) (authored by @sspaink)
-- fix: repeat args from sub-func call (#7443) (authored by @alingse)
-- fmt: Fix v0-compatible fmt with stdin (#7410) (authored by @charlieegan3)
-- planner: address ref head issue, don't optimize if impossible (#7439) (authored by @srenatus)
-- planner: adjust check in ruletree scanning (authored by @srenatus)
-- tester: Only including failed sub-test cases in report summary when non-verbose (#7426) (authored by @johanfylling)
+- Enable unused-receiver linter (revive) ([#7448](https://github.com/open-policy-agent/opa/pull/7448)) authored by @anderseknert
+- Dependency updates; notably:
+  - build(deps): bump github.com/containerd/containerd from 1.7.26 to 1.7.27
+  - build(deps): bump github.com/dgraph-io/badger/v4 from 4.5.1 to 4.6.0
+  - build(deps): bump github.com/opencontainers/image-spec from 1.1.0 to 1.1.1
+  - build(deps): bump github.com/prometheus/client_golang 1.21.0 to 1.21.1
+  - build(deps): bump golang.org/x/net from 0.35.0 to 0.37.0
+  - build(deps): bump golang.org/x/time from 0.10.0 to 0.11.0
+  - build(deps): bump google.golang.org/grpc from 1.70.0 to 1.71.0
+  - build(deps): bump go.opentelemetry.io deps to 1.35.0/0.60.0
 
 ## 1.2.0
 
