@@ -21,7 +21,7 @@ Reported by @mjungsbluth, authored by @sspaink
 
 ### OpenTelemetry: HTTP Support and Expanded Batch Span Configuration ([#7412](https://github.com/open-policy-agent/opa/issues/7412))
 
-Distributed tracing through OpenTelemetry has been extended to support HTTP collectors.
+Distributed tracing through OpenTelemetry has been extended to support HTTP collectors (enabled by setting the `distributed_tracing.type` configuration option to `http`).
 Additionally, configuration has been expanded with fine-grained batch span processor [options](https://www.openpolicyagent.org/docs/latest/configuration/#distributed-tracing).
 
 Authored and reported by @sqyang94
