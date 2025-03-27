@@ -3,7 +3,48 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 1.3.0
+
+### Fixes
+
+- compile: Require multi-term entrypoint paths for optimized bundle building (#7413) ([#7321](https://github.com/open-policy-agent/opa/issues/7321)) authored by @johanfylling reported by @nikpivkin
+- fmt: allow one liner rule grouping (#7453) ([#6760](https://github.com/open-policy-agent/opa/issues/6760)) authored by @anderseknert
+- ir: Fix nil pointer deref in Unmarshal() when handling IsSetStmt (#7430) ([#7415](https://github.com/open-policy-agent/opa/issues/7415)) authored by @KrisKennawayDD reported by @KrisKennawayDD
+- tester: Including parameterized test cases in test report counter (#7420) ([#7407](https://github.com/open-policy-agent/opa/issues/7407)) authored by @johanfylling
+
+### Miscellaneous
+
+- Bumping GHA runner to `ubuntu-24.04` (#7414) (authored by @johanfylling)
+- Delete reference to license key in envoy-tutorial-standalone-envoy.md (#7466) (authored by @joostholslag)
+- Enable unused-receiver linter (revive) (#7448) (authored by @anderseknert)
+- Prepare v1.3.0 development (#7404) (authored by @johanfylling)
+- Reapply "docs: Update terraform examples" (#7428) (#7429) (authored by @charlieegan3)
+- Revert "docs: Update terraform examples" (#7428) (authored by @charlieegan3)
+- Setting dependabot scheduled update interval to `monthly` (#7431) (authored by @johanfylling)
+- build(deps): bump docker/setup-buildx-action from 3.9.0 to 3.10.0 (#7393) (authored by @dependabot[bot])
+- build(deps): bump docker/setup-qemu-action from 3.4.0 to 3.6.0 (#7406) (authored by @dependabot[bot])
+- build(deps): bump github.com/containerd/containerd from 1.7.26 to 1.7.27 (#7451) (authored by @dependabot[bot])
+- build(deps): bump github.com/dgraph-io/badger/v4 from 4.5.1 to 4.6.0 (#7417) (authored by @dependabot[bot])
+- build(deps): bump github.com/opencontainers/image-spec (#7408) (authored by @dependabot[bot])
+- build(deps): bump github.com/prometheus/client_golang (#7416) (authored by @dependabot[bot])
+- build(deps): bump golang.org/x/net from 0.35.0 to 0.36.0 (#7419) (authored by @dependabot[bot])
+- build(deps): bump golang.org/x/net from 0.36.0 to 0.37.0 (#7424) (authored by @dependabot[bot])
+- build(deps): bump golang.org/x/time from 0.10.0 to 0.11.0 (#7425) (authored by @dependabot[bot])
+- build(deps): bump google.golang.org/grpc from 1.70.0 to 1.71.0 (#7418) (authored by @dependabot[bot])
+- build(deps): bump the go-opentelemetry-io group with 6 updates (#7423) (authored by @dependabot[bot])
+- docs/envoy-tutorial-standalone: fix typo (#7464) (authored by @joostholslag)
+- docs/envoy-tutorial-standalone: simplify 'kind' usage instruction (#7465) (authored by @joostholslag)
+- docs: Add some notes about AI assisted patches (#7436) (authored by @charlieegan3)
+- docs: Update slack inviter link (#7450) (authored by @charlieegan3)
+- docs: Update terraform examples (authored by @charlieegan3)
+- docs: add query_parameters_to_set (authored by @sedovmik)
+- feat: add more distributed tracing options (#7421) (authored by @sqyang94)
+- feat: new event-based decisions log buffer implementation (#7446) (authored by @sspaink)
+- fix: repeat args from sub-func call (#7443) (authored by @alingse)
+- fmt: Fix v0-compatible fmt with stdin (#7410) (authored by @charlieegan3)
+- planner: address ref head issue, don't optimize if impossible (#7439) (authored by @srenatus)
+- planner: adjust check in ruletree scanning (authored by @srenatus)
+- tester: Only including failed sub-test cases in report summary when non-verbose (#7426) (authored by @johanfylling)
 
 ## 1.2.0
 
