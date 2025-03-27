@@ -26,25 +26,7 @@ are co-located in the same pod.
 ## Running a local Kubernetes cluster
 
 To start a local Kubernetes cluster to run our demo, we'll be using
-[kind](https://kind.sigs.k8s.io/). In order to use the `kind` command,
-you'll need to have Docker installed on your machine. Running
-`docker info` is the easiest way to check if Docker is installed and
-running.
-
-You should see output similar to the following, showing information about
-the Docker client **and** server on our machine:
-
-```shell
-$ docker info
-Client:
-  ...
-
-Server:
- ...
-```
-
-If the above command shows information for both the client and server,
-then Docker is installed and running.
+[kind](https://kind.sigs.k8s.io/).
 
 {{< info >}}
 If you haven't used `kind` before, you can find installation instructions
