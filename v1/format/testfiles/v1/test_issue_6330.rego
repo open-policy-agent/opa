@@ -26,12 +26,33 @@ value := {"a":
 {"c":
 "d"}}}
 
-value := {"a":
-{"b":
-{"c": # commenting code
-"d"}}}
+f(_) := value if {
+	value := {"a": # this is
+        {"b": # my ridiculous
+        {"c": # way of
+        "d"}}} # commenting code
+}
 
-value := {"a":
-{"b": # my ridiculous
-{"c": # way of
-"d"}}}
+p := value if {
+	value := {"a": # this is
+        {"b": # my ridiculous
+        {"c": # way of
+        "d"}}} # commenting code
+}
+
+p := x if {
+	x := [v | v := {"a": # this is
+        {"b": # my ridiculous
+        {"c": # way of
+        "d"}}} # commenting code
+    ]
+}
+
+p if {
+	every x in input.foo {
+    	x == {"a": # this is
+            {"b": # my ridiculous
+            {"c": # way of
+            "d"}}} # commenting code
+    }
+}
