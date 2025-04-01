@@ -37,8 +37,9 @@ import (
 // defaultConcurrency is the default value of CopyGraphOptions.Concurrency.
 const defaultConcurrency int = 3 // This value is consistent with dockerd and containerd.
 
-// errSkipDesc signals copyNode() to stop processing a descriptor.
-var errSkipDesc = errors.New("skip descriptor")
+// SkipNode signals to stop copying a node. When returned from PreCopy the blob must exist in the target.
+// This can be used to signal that a blob has been made available in the target repository by "Mount()" or some other technique.
+var SkipNode = errors.New("skip node")
 
 // DefaultCopyOptions provides the default CopyOptions.
 var DefaultCopyOptions CopyOptions = CopyOptions{
@@ -95,13 +96,21 @@ type CopyGraphOptions struct {
 	// cached in the memory.
 	// If less than or equal to 0, a default (currently 4 MiB) is used.
 	MaxMetadataBytes int64
-	// PreCopy handles the current descriptor before copying it.
+	// PreCopy handles the current descriptor before it is copied. PreCopy can
+	// return a SkipNode to signal that desc should be skipped when it already
+	// exists in the target.
 	PreCopy func(ctx context.Context, desc ocispec.Descriptor) error
-	// PostCopy handles the current descriptor after copying it.
+	// PostCopy handles the current descriptor after it is copied.
 	PostCopy func(ctx context.Context, desc ocispec.Descriptor) error
 	// OnCopySkipped will be called when the sub-DAG rooted by the current node
 	// is skipped.
 	OnCopySkipped func(ctx context.Context, desc ocispec.Descriptor) error
+	// MountFrom returns the candidate repositories that desc may be mounted from.
+	// The OCI references will be tried in turn.  If mounting fails on all of them,
+	// then it falls back to a copy.
+	MountFrom func(ctx context.Context, desc ocispec.Descriptor) ([]string, error)
+	// OnMounted will be invoked when desc is mounted.
+	OnMounted func(ctx context.Context, desc ocispec.Descriptor) error
 	// FindSuccessors finds the successors of the current node.
 	// fetcher provides cached access to the source storage, and is suitable
 	// for fetching non-leaf nodes like manifests. Since anything fetched from
@@ -256,10 +265,83 @@ func copyGraph(ctx context.Context, src content.ReadOnlyStorage, dst content.Sto
 		if exists {
 			return copyNode(ctx, proxy.Cache, dst, desc, opts)
 		}
-		return copyNode(ctx, src, dst, desc, opts)
+		return mountOrCopyNode(ctx, src, dst, desc, opts)
 	}
 
 	return syncutil.Go(ctx, limiter, fn, root)
+}
+
+// mountOrCopyNode tries to mount the node, if not falls back to copying.
+func mountOrCopyNode(ctx context.Context, src content.ReadOnlyStorage, dst content.Storage, desc ocispec.Descriptor, opts CopyGraphOptions) error {
+	// Need MountFrom and it must be a blob
+	if opts.MountFrom == nil || descriptor.IsManifest(desc) {
+		return copyNode(ctx, src, dst, desc, opts)
+	}
+
+	mounter, ok := dst.(registry.Mounter)
+	if !ok {
+		// mounting is not supported by the destination
+		return copyNode(ctx, src, dst, desc, opts)
+	}
+
+	sourceRepositories, err := opts.MountFrom(ctx, desc)
+	if err != nil {
+		// Technically this error is not fatal, we can still attempt to copy the node
+		// But for consistency with the other callbacks we bail out.
+		return err
+	}
+
+	if len(sourceRepositories) == 0 {
+		return copyNode(ctx, src, dst, desc, opts)
+	}
+
+	skipSource := errors.New("skip source")
+	for i, sourceRepository := range sourceRepositories {
+		// try mounting this source repository
+		var mountFailed bool
+		getContent := func() (io.ReadCloser, error) {
+			// the invocation of getContent indicates that mounting has failed
+			mountFailed = true
+
+			if i < len(sourceRepositories)-1 {
+				// If this is not the last one, skip this source and try next one
+				// We want to return an error that we will test for from mounter.Mount()
+				return nil, skipSource
+			}
+			// this is the last iteration so we need to actually get the content and do the copy
+			// but first call the PreCopy function
+			if opts.PreCopy != nil {
+				if err := opts.PreCopy(ctx, desc); err != nil {
+					return nil, err
+				}
+			}
+			return src.Fetch(ctx, desc)
+		}
+
+		// Mount or copy
+		if err := mounter.Mount(ctx, desc, sourceRepository, getContent); err != nil && !errors.Is(err, skipSource) {
+			return err
+		}
+
+		if !mountFailed {
+			// mounted, success
+			if opts.OnMounted != nil {
+				if err := opts.OnMounted(ctx, desc); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}
+
+	// we copied it
+	if opts.PostCopy != nil {
+		if err := opts.PostCopy(ctx, desc); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // doCopyNode copies a single content from the source CAS to the destination CAS.
@@ -281,7 +363,7 @@ func doCopyNode(ctx context.Context, src content.ReadOnlyStorage, dst content.St
 func copyNode(ctx context.Context, src content.ReadOnlyStorage, dst content.Storage, desc ocispec.Descriptor, opts CopyGraphOptions) error {
 	if opts.PreCopy != nil {
 		if err := opts.PreCopy(ctx, desc); err != nil {
-			if err == errSkipDesc {
+			if err == SkipNode {
 				return nil
 			}
 			return err
@@ -373,7 +455,7 @@ func prepareCopy(ctx context.Context, dst Target, dstRef string, proxy *cas.Prox
 				}
 			}
 			// skip the regular copy workflow
-			return errSkipDesc
+			return SkipNode
 		}
 	} else {
 		postCopy := opts.PostCopy
