@@ -22,6 +22,7 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/internal/docker"
+	"oras.land/oras-go/v2/internal/spec"
 )
 
 // Config returns the config of desc, if present.
@@ -57,6 +58,26 @@ func Manifests(ctx context.Context, fetcher content.Fetcher, desc ocispec.Descri
 			return nil, err
 		}
 		return index.Manifests, nil
+	default:
+		return nil, nil
+	}
+}
+
+// Subject returns the subject of desc, if present.
+func Subject(ctx context.Context, fetcher content.Fetcher, desc ocispec.Descriptor) (*ocispec.Descriptor, error) {
+	switch desc.MediaType {
+	case ocispec.MediaTypeImageManifest, ocispec.MediaTypeImageIndex, spec.MediaTypeArtifactManifest:
+		content, err := content.FetchAll(ctx, fetcher, desc)
+		if err != nil {
+			return nil, err
+		}
+		var manifest struct {
+			Subject *ocispec.Descriptor `json:"subject,omitempty"`
+		}
+		if err := json.Unmarshal(content, &manifest); err != nil {
+			return nil, err
+		}
+		return manifest.Subject, nil
 	default:
 		return nil, nil
 	}

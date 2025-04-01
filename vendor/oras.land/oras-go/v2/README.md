@@ -20,7 +20,7 @@ The ORAS Go library follows [Semantic Versioning](https://semver.org/), where br
 The version `2` is actively developed in the [`main`](https://github.com/oras-project/oras-go/tree/main) branch with all new features.
 
 > [!Note]
-> The `main` branch follows [Go's Security Policy](https://github.com/golang/go/security/policy) and supports the two latest versions of Go (currently `1.20` and `1.21`).
+> The `main` branch follows [Go's Security Policy](https://github.com/golang/go/security/policy) and supports the two latest versions of Go (currently `1.21` and `1.22`).
 
 Examples for common use cases can be found below:
 
