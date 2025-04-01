@@ -1,6 +1,7 @@
 module github.com/open-policy-agent/opa
 
 go 1.23.6
+toolchain go1.24.1
 
 require (
 	github.com/agnivade/levenshtein v1.2.1
@@ -43,7 +44,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.35.0
 	go.opentelemetry.io/otel/trace v1.35.0
 	go.uber.org/automaxprocs v1.6.0
-	golang.org/x/net v0.37.0
+	golang.org/x/net v0.38.0
 	golang.org/x/time v0.11.0
 	google.golang.org/grpc v1.71.0
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
