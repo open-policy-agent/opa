@@ -1,6 +1,4 @@
 {
-  description = "Finder library for Afero";
-
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
@@ -13,19 +11,20 @@
         inputs.devenv.flakeModule
       ];
 
-      systems = [ "x86_64-linux" "aarch64-darwin" ];
+      systems = [ "x86_64-linux" "x86_64-darwin" "aarch64-darwin" ];
 
       perSystem = { config, self', inputs', pkgs, system, ... }: rec {
         devenv.shells = {
           default = {
             languages = {
               go.enable = true;
-              go.package = pkgs.lib.mkDefault pkgs.go_1_23;
+            };
+
+            pre-commit.hooks = {
+              nixpkgs-fmt.enable = true;
             };
 
             packages = with pkgs; [
-              just
-
               golangci-lint
             ];
 
@@ -34,30 +33,6 @@
           };
 
           ci = devenv.shells.default;
-
-          ci_1_21 = {
-            imports = [ devenv.shells.ci ];
-
-            languages = {
-              go.package = pkgs.go_1_21;
-            };
-          };
-
-          ci_1_22 = {
-            imports = [ devenv.shells.ci ];
-
-            languages = {
-              go.package = pkgs.go_1_22;
-            };
-          };
-
-          ci_1_23 = {
-            imports = [ devenv.shells.ci ];
-
-            languages = {
-              go.package = pkgs.go_1_23;
-            };
-          };
         };
       };
     };
