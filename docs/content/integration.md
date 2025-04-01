@@ -183,11 +183,17 @@ The [reference documentation](../rest-api) is also a good place to start.
 
 ### Integrating with the Go SDK
 
+{{< info >}}
+This section documents the v1 SDK package.
+Please see [v0 Backwards Compatibility](../v0-compatibility) for notes on using
+the v0 SDK package.
+{{< /info >}}
+
 The [SDK](https://pkg.go.dev/github.com/open-policy-agent/opa/sdk) package contains high-level APIs for embedding OPA
 inside of Go programs and obtaining the output of query evaluation. To get started, import the `sdk` package:
 
 ```go
-import "github.com/open-policy-agent/opa/sdk"
+import "github.com/open-policy-agent/opa/v1/sdk"
 ```
 
 A typical workflow when using the `sdk` package would involve first creating a new `sdk.OPA` object by calling
@@ -273,11 +279,42 @@ Setting an `ID` in `sdk.Options` is optional, but recommended. If you do not set
 for the system. While this is fine for testing, it makes it difficult to monitor the system over time, as a new ID will
 be created each time the SDK is initialized, such as when the process is restarted.
 
-{{< info >}}
-This section documents the v1 SDK package.
-Please see [v0 Backwards Compatibility](../v0-compatibility) for notes on using
-the v0 SDK package.
-{{< /info >}}
+#### Manually Triggering Bundle Reloads
+
+Users of the SDK can
+[manually trigger](./configuration/#bundles)
+the SDK's Bundle plugin to load new bundles immediately based on external
+events. When doing so, it's recommended to set `bundles[_].trigger` to `manual`
+if you want to disable periodic bundle polling.
+
+In this short example, the `bundle` plugin is loaded from the SDK instance and
+triggered to check for new bundles. Do this sparingly, it is not intended to be
+used as a replacement for periodic bundle polling. For best performance, only
+trigger the bundle plugin when you know that new bundles are available.
+
+```go
+options := sdk.Options{
+    Config: bytes.NewReader(config),
+    Logger: logger,
+    Ready:  make(chan struct{}), // <-- needed or else sdk.New will block
+}
+
+opa, err := sdk.New(ctx, options)
+if err != nil {
+    log.Fatal(err)
+}
+defer opa.Stop(ctx)
+
+bundle, ok := opa.Plugin("bundle").(*bundle.Plugin)
+if !ok {
+    log.Fatal("bundle plugin not found")
+}
+
+err = bundle.Trigger(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+```
 
 ### Integrating with the Go API
 
