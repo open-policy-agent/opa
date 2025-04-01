@@ -19,7 +19,7 @@ jobs:
         run: CGO_ENABLED=1 make ci-go-race-detector
 
       - name: Slack Notification
-        uses: 8398a7/action-slack@28ba43ae48961b90635b50953d216767a6bea486 # v3.16.2
+        uses: 8398a7/action-slack@1750b5085f3ec60384090fb7c52965ef822e869e # v3.18.0
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
         if: ${{ failure() && env.SLACK_WEBHOOK_URL }}
@@ -51,7 +51,7 @@ jobs:
         run: find ast/testdata/fuzz ! -name '*.stmt' ! -type d -print -exec cat {} \;
 
       - name: Slack Notification
-        uses: 8398a7/action-slack@28ba43ae48961b90635b50953d216767a6bea486 # v3.16.2
+        uses: 8398a7/action-slack@1750b5085f3ec60384090fb7c52965ef822e869e # v3.18.0
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
         if: ${{ failure() && env.SLACK_WEBHOOK_URL }}
@@ -73,7 +73,7 @@ jobs:
           DOCKER_RUNNING: 0
 
       - name: Slack Notification
-        uses: 8398a7/action-slack@28ba43ae48961b90635b50953d216767a6bea486 # v3.16.2
+        uses: 8398a7/action-slack@1750b5085f3ec60384090fb7c52965ef822e869e # v3.18.0
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
         if: ${{ failure() && env.SLACK_WEBHOOK_URL }}
@@ -105,7 +105,7 @@ jobs:
           TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
 
       - name: Slack Notification
-        uses: 8398a7/action-slack@28ba43ae48961b90635b50953d216767a6bea486 # v3.16.2
+        uses: 8398a7/action-slack@1750b5085f3ec60384090fb7c52965ef822e869e # v3.18.0
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
         if: ${{ failure() && env.SLACK_WEBHOOK_URL }}
@@ -135,7 +135,7 @@ jobs:
           TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
 
       - name: Slack Notification
-        uses: 8398a7/action-slack@28ba43ae48961b90635b50953d216767a6bea486 # v3.16.2
+        uses: 8398a7/action-slack@1750b5085f3ec60384090fb7c52965ef822e869e # v3.18.0
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
         if: ${{ failure() && env.SLACK_WEBHOOK_URL }}
@@ -161,7 +161,7 @@ jobs:
       - run: govulncheck ./...
 
       - name: Slack Notification
-        uses: 8398a7/action-slack@28ba43ae48961b90635b50953d216767a6bea486 # v3.16.2
+        uses: 8398a7/action-slack@1750b5085f3ec60384090fb7c52965ef822e869e # v3.18.0
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
         if: ${{ failure() && env.SLACK_WEBHOOK_URL }}
