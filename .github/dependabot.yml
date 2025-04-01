@@ -6,13 +6,18 @@ updates:
       interval: monthly
     groups:
       go.opentelemetry.io:
-          patterns:
-            - "go.opentelemetry.io/*"
+        patterns:
+          - "go.opentelemetry.io/*"
+      dependencies:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "go.opentelemetry.io/*"
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
     groups:
-      dependencies:
+      gha-dependencies:
         patterns:
           - "*"
