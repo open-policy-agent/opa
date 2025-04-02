@@ -26,25 +26,7 @@ are co-located in the same pod.
 ## Running a local Kubernetes cluster
 
 To start a local Kubernetes cluster to run our demo, we'll be using
-[kind](https://kind.sigs.k8s.io/). In order to use the `kind` command,
-you'll need to have Docker installed on your machine. Running
-`docker info` is the easiest way to check if Docker is installed and
-running.
-
-You should see output similar to the following, showing information about
-the Docker client **and** server on our machine:
-
-```shell
-$ docker info
-Client:
-  ...
-
-Server:
- ...
-```
-
-If the above command shows information for both the client and server,
-then Docker is installed and running.
+[kind](https://kind.sigs.k8s.io/).
 
 {{< info >}}
 If you haven't used `kind` before, you can find installation instructions
@@ -144,7 +126,7 @@ kubectl create configmap authz-policy --from-file policy.rego
 ```
 
 Now that the policy is stored in a ConfigMap, we can spin up an HTTP server to make it
-available to as a Bundle to OPA when it's making decisions for our application:
+available as a Bundle to OPA when it's making decisions for our application:
 
 ```yaml
 # bundle-server.yaml
@@ -336,7 +318,6 @@ There are a few things to note:
   created earlier.
 * The OPA container is configured to download policy bundles from
   the in-cluster bundle server (`bundle-server.default.svc.cluster.local`).
-* The OPA license key must be set. We show how to do this in the next step.
 
 ```yaml
 # app.yaml

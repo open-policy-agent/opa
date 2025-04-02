@@ -227,3 +227,39 @@ func BenchmarkTrimSpace(b *testing.B) {
 		})
 	}
 }
+
+// Benchmark to demonstrate the performance difference when calling lower with a string
+// that is already lowercase vs. one that is not. In the former case, the provided operand
+// is returned as-is, while in the latter case a new string is allocated and returned.
+// While this tests the 'lower' builtin, the same optimization applies to 'upper'.
+//
+// BenchmarkLower/not_lowercase-10         	 5960936	       198.6 ns/op	      88 B/op	       3 allocs/op
+// BenchmarkLower/lowercase-10             	20954871	        57.36 ns/op	       0 B/op	       0 allocs/op
+func BenchmarkLower(b *testing.B) {
+	bctx := BuiltinContext{}
+	lower := ast.StringTerm("the quick brown fox jumps over the lazy dog")
+	cases := []struct {
+		name     string
+		operands []*ast.Term
+	}{
+		{
+			name:     "not lowercase",
+			operands: []*ast.Term{ast.StringTerm("The Quick Brown Fox Jumps Over The Lazy Dog")},
+		},
+		{
+			name:     "lowercase",
+			operands: []*ast.Term{lower},
+		},
+	}
+
+	for _, c := range cases {
+		b.Run(c.name, func(b *testing.B) {
+			b.ResetTimer()
+			for range b.N {
+				if err := builtinLower(bctx, c.operands, eqIter(lower)); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
