@@ -511,11 +511,16 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 	// pretend that the rule has no body in this case.
 	isExpandedConst := rule.Body.Equal(expandedConst) && rule.Else == nil
 
-	comments, _ = w.writeHead(rule.Head, rule.Default, isExpandedConst, comments)
+	var err error
+	comments, err = w.writeHead(rule.Head, rule.Default, isExpandedConst, comments)
 
 	if len(rule.Body) == 0 || isExpandedConst {
 		w.endLine()
 		return comments
+	}
+
+	if err != nil {
+		w.write("\n")
 	}
 
 	// this excludes partial sets UNLESS `contains` is used
@@ -1823,11 +1828,23 @@ func (w *writer) beforeLineEnd(c *ast.Comment) error {
 		if c == nil {
 			return nil
 		}
+
+		existingComment := truncatedString(w.beforeEnd.String(), 100)
+		newComment := truncatedString(c.String(), 100)
 		w.beforeEnd = nil
-		return fmt.Errorf("unexpected new comment because there is already a comment registered for the current line %d", c.Location.Row)
+
+		return fmt.Errorf("unexpected new comment (%s) on line %d because there is already a comment (%s) registered for line %d",
+			existingComment, c.Location.Row, newComment, c.Location.Row)
 	}
 	w.beforeEnd = c
 	return nil
+}
+
+func truncatedString(s string, max int) string {
+	if len(s) > max {
+		return s[:max-2] + "..."
+	}
+	return s
 }
 
 func (w *writer) delayBeforeEnd() {

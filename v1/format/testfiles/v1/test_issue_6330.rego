@@ -59,3 +59,8 @@ p if {
 
 value contains {"a":  #
 "b"} #
+
+p := {"a":  #
+str} if { #
+	str := "my \n string"
+}
