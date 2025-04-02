@@ -56,3 +56,6 @@ p if {
             "d"}}} # commenting code
     }
 }
+
+value contains {"a":  #
+"b"} #

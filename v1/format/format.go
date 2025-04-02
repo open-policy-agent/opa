@@ -7,7 +7,6 @@ package format
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"regexp"
 	"slices"
@@ -279,7 +278,10 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 			return nil, err
 		}
 	case ast.Body:
-		_, _ = w.writeBody(x, nil)
+		_, err := w.writeBody(x, nil)
+		if err != nil {
+			return nil, err
+		}
 	case *ast.Expr:
 		_, err := w.writeExpr(x, nil)
 		if err != nil {
@@ -524,7 +526,11 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 		if len(rule.Body) == 1 {
 			if rule.Body[0].Location.Row == rule.Head.Location.Row {
 				w.write(" ")
-				comments, _ = w.writeExpr(rule.Body[0], comments)
+				var err error
+				comments, err = w.writeExpr(rule.Body[0], comments)
+				if err != nil {
+					panic(err)
+				}
 				w.endLine()
 				if rule.Else != nil {
 					comments = w.writeElse(rule, comments)
@@ -668,14 +674,14 @@ func (w *writer) writeHead(head *ast.Head, isDefault, isExpandedConst bool, comm
 			var err error
 			comments, err = w.writeTerm(head.Key, comments)
 			if err != nil {
-				panic(err)
+				return comments, err
 			}
 		} else if head.Value == nil { // no `if` for p[x] notation
 			w.write("[")
 			var err error
 			comments, err = w.writeTerm(head.Key, comments)
 			if err != nil {
-				panic(err)
+				return comments, err
 			}
 			w.write("]")
 		}
@@ -750,9 +756,6 @@ func (w *writer) writeBody(body ast.Body, comments []*ast.Comment) ([]*ast.Comme
 		w.startLine()
 
 		comments, err = w.writeExpr(expr, comments)
-		//if err != nil {
-		//	return nil, err
-		//}
 		w.endLine()
 	}
 	return comments, err
@@ -789,7 +792,7 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comm
 		}
 	}
 
-	var indented bool
+	var indented, down bool
 	for i, with := range expr.With {
 		if i == 0 || with.Location.Row == expr.With[i-1].Location.Row { // we're on the same line
 			comments = w.writeWith(with, comments, false)
@@ -798,12 +801,16 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comm
 				indented = true
 
 				w.up()
-				defer w.down()
+				down = true
 			}
 			w.endLine()
 			w.startLine()
 			comments = w.writeWith(with, comments, true)
 		}
+	}
+
+	if down {
+		w.down()
 	}
 
 	return comments, nil
@@ -1337,11 +1344,14 @@ func (w *writer) writeComprehensionBody(openChar, closeChar byte, body ast.Body,
 	} else {
 		w.write(" ")
 		i := 0
+		var err error
 		for ; i < len(body)-1; i++ {
-			comments, _ = w.writeExpr(body[i], comments)
+			comments, err = w.writeExpr(body[i], comments)
+			if err != nil {
+				return comments, err
+			}
 			w.write("; ")
 		}
-		var err error
 		comments, err = w.writeExpr(body[i], comments)
 		if err != nil {
 			return comments, err
@@ -1647,7 +1657,7 @@ func partitionComments(comments []*ast.Comment, l *ast.Location) ([]*ast.Comment
 			before = append(before, c)
 		case cmp > 0:
 			after = append(after, c)
-		case cmp == 0:
+		default:
 			at = c
 		}
 	}
@@ -1814,7 +1824,7 @@ func (w *writer) beforeLineEnd(c *ast.Comment) error {
 			return nil
 		}
 		w.beforeEnd = nil
-		return errors.New("unexpected comment")
+		return fmt.Errorf("unexpected new comment because there is already a comment registered for the current line %d", c.Location.Row)
 	}
 	w.beforeEnd = c
 	return nil
@@ -1915,16 +1925,16 @@ func ensureImport(imps []*ast.Import, path ast.Ref) []*ast.Import {
 	return append(imps, imp)
 }
 
-// ArgErrDetail but for `fmt` checks since compiler has not run yet.
+// ArityFormatErrDetail but for `fmt` checks since compiler has not run yet.
 type ArityFormatErrDetail struct {
 	Have []string `json:"have"`
 	Want []string `json:"want"`
 }
 
-// arityMismatchError but for `fmt` checks since the compiler has not run yet.
+// ArityFormatMismatchError but for `fmt` checks since the compiler has not run yet.
 func ArityFormatMismatchError(operands []*ast.Term, operator string, loc *ast.Location, f *types.Function) *ast.Error {
 	want := make([]string, f.Arity())
-	for i, arg := range f.Args() {
+	for i, arg := range f.FuncArgs().Args {
 		want[i] = types.Sprint(arg)
 	}
 
