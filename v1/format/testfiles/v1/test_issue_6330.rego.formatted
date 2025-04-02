@@ -61,3 +61,18 @@ str} #
  if {
 	str := "my \n string"
 }
+
+authorize := "allow" if {
+	value := {"a": # this is
+    {"b": # my ridiculous
+    {"c": # way of
+    "d"}}} # commenting code
+	input.user == "superuser" # allow 'superuser' to perform any operation.
+} else := "deny" if {
+	value := {"a": # this is
+    {"b": # my ridiculous
+    {"c": # way of
+    "d"}}} # commenting code
+	input.path[0] == value # disallow 'admin' operations...
+	input.source_network == "external" # from external networks.
+} # ... more rules
