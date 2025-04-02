@@ -21,6 +21,11 @@ value := {"a": # this is
 {"c": # way of
 "d"}}} # commenting code
 
+p := {"a":  #
+"b"} if { #
+	str := "my \n string"
+}
+
 value := {"a":
 {"b":
 {"c":
