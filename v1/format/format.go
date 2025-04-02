@@ -1009,7 +1009,7 @@ func (w *writer) writeRaw(location *ast.Location, currentComments []*ast.Comment
 
 	w.write(string(location.Text))
 
-	var comments []*ast.Comment
+	comments := make([]*ast.Comment, 0, len(currentComments))
 	for _, c := range currentComments {
 		if c.Location.Row == location.Row+rowNum-1 {
 			w.write(" " + string(c.Location.Text))
