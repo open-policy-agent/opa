@@ -1,5 +1,10 @@
 package a
 
+p[
+{"a": #
+"b"} #
+] := true
+
 value := {"a":
 {"b":
 {"c":
@@ -84,3 +89,8 @@ authorize := "allow" if {
     input.path[0] == value              # disallow 'admin' operations...
     input.source_network == "external"  # from external networks.
 } # ... more rules
+
+p[
+{"a": #
+"b"} #
+] := true

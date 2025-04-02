@@ -654,6 +654,11 @@ func (w *writer) writeHead(head *ast.Head, isDefault, isExpandedConst bool, comm
 	if w.fmtOpts.refHeads || len(ref) == 1 {
 		w.writeRef(ref, comments)
 	} else {
+		// if there are comments within the object in the rule head, don't format it
+		if len(comments) > 0 && ref[1].Location.Row == comments[0].Location.Row {
+			return w.writeRaw(head.Location, comments), nil
+		}
+
 		w.write(ref[0].String())
 		w.write("[")
 		w.write(ref[1].String())
@@ -992,29 +997,32 @@ func (w *writer) writeTerm(term *ast.Term, comments []*ast.Comment) ([]*ast.Comm
 	if err != nil {
 		w.buf = backup
 
-		// write the unformatted rule instead
-		rawRule := string(term.Location.Text)
-		rowNum := len(strings.Split(rawRule, "\n"))
-
-		w.write(string(term.Location.Text))
-		comments = nil
-		for _, c := range currentComments {
-			if c.Location.Row == term.Location.Row+rowNum-1 {
-				w.write(" " + string(c.Location.Text))
-				continue
-			}
-
-			// drop comments that occur within the rule raw text
-			if c.Location.Row < term.Location.Row+rowNum-1 {
-				continue
-			}
-			comments = append(comments, c)
-		}
-
-		return comments, err
+		return w.writeRaw(term.Location, currentComments), err
 	}
 
 	return comments, nil
+}
+
+func (w *writer) writeRaw(location *ast.Location, currentComments []*ast.Comment) []*ast.Comment {
+	rawRule := string(location.Text)
+	rowNum := len(strings.Split(rawRule, "\n"))
+
+	w.write(string(location.Text))
+
+	var comments []*ast.Comment
+	for _, c := range currentComments {
+		if c.Location.Row == location.Row+rowNum-1 {
+			w.write(" " + string(c.Location.Text))
+			continue
+		}
+
+		// drop comments that occur within the rule raw text
+		if c.Location.Row < location.Row+rowNum-1 {
+			continue
+		}
+		comments = append(comments, c)
+	}
+	return comments
 }
 
 func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Comment) ([]*ast.Comment, error) {
