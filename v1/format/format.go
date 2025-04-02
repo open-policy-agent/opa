@@ -1842,7 +1842,7 @@ func (w *writer) beforeLineEnd(c *ast.Comment) error {
 		w.beforeEnd = nil
 
 		return fmt.Errorf("unexpected new comment (%s) on line %d because there is already a comment (%s) registered for line %d",
-			existingComment, c.Location.Row, newComment, c.Location.Row)
+			newComment, c.Location.Row, existingComment, c.Location.Row)
 	}
 	w.beforeEnd = c
 	return nil
