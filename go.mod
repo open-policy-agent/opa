@@ -6,7 +6,7 @@ toolchain go1.24.1
 require (
 	github.com/agnivade/levenshtein v1.2.1
 	github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883
-	github.com/bytecodealliance/wasmtime-go/v3 v3.0.2
+	github.com/bytecodealliance/wasmtime-go/v30 v30.0.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/containerd/containerd v1.7.27
 	github.com/containerd/errdefs v1.0.0
