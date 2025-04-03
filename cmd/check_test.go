@@ -547,6 +547,18 @@ a[x] {
 	x := 42
 }`,
 			expErrs: []string{
+				"test.rego:2: rego_parse_error: `if` keyword is required before rule body",
+				"test.rego:2: rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note:         "v0 module, not v0-compatible, v0 capabilities without rego_v1 feature",
+			capabilities: capsWithoutFeat(ast.RegoV0, ast.FeatureRegoV1),
+			policy: `package test
+a[x] {
+	x := 42
+}`,
+			expErrs: []string{
 				"rego_parse_error: illegal capabilities: rego_v1 feature required for parsing v1 Rego",
 			},
 		},
@@ -609,6 +621,14 @@ a contains x if {
 		{
 			note:         "v1 module, not v0-compatible, v0 capabilities",
 			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
+			policy: `package test
+a contains x if {
+	x := 42
+}`,
+		},
+		{
+			note:         "v1 module, not v0-compatible, v0 capabilities without rego_v1 feature",
+			capabilities: capsWithoutFeat(ast.RegoV0, ast.FeatureRegoV1),
 			policy: `package test
 a contains x if {
 	x := 42

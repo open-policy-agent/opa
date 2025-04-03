@@ -202,6 +202,32 @@ p[x] {
 	x = ["a", "b", "c"][_]
 }`,
 			expErrs: []string{
+				"test.rego:3: rego_parse_error: `if` keyword is required before rule body",
+				"test.rego:3: rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note:        "v0 module, rego-v1, v0 capabilities without rego_v1 feature",
+			regoVersion: ast.RegoV1,
+			capabilities: func() *ast.Capabilities {
+				caps := ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0))
+
+				feats := make([]string, 0, len(caps.Features))
+				for _, feat := range caps.Features {
+					if feat != ast.FeatureRegoV1 {
+						feats = append(feats, feat)
+					}
+				}
+				caps.Features = feats
+
+				return caps
+			}(),
+			module: `package test
+
+p[x] {
+	x = ["a", "b", "c"][_]
+}`,
+			expErrs: []string{
 				"rego_parse_error: illegal capabilities: rego_v1 feature required for parsing v1 Rego",
 			},
 		},
@@ -273,6 +299,28 @@ p contains x if {
 			note:         "v1 module, rego-v1, v0 capabilities",
 			regoVersion:  ast.RegoV1,
 			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
+			module: `package test
+
+p contains x if {
+	some x in ["a", "b", "c"]
+}`,
+		},
+		{
+			note:        "v1 module, rego-v1, v0 capabilities without rego_v1 feature",
+			regoVersion: ast.RegoV1,
+			capabilities: func() *ast.Capabilities {
+				caps := ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0))
+
+				feats := make([]string, 0, len(caps.Features))
+				for _, feat := range caps.Features {
+					if feat != ast.FeatureRegoV1 {
+						feats = append(feats, feat)
+					}
+				}
+				caps.Features = feats
+
+				return caps
+			}(),
 			module: `package test
 
 p contains x if {

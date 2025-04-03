@@ -1511,11 +1511,20 @@ func bundleRegoVersions(bundle *Bundle, regoVersion ast.RegoVersion, usePath boo
 		if err != nil {
 			return nil, err
 		}
-		// only record the rego version if it's different from one applied globally to the result bundle
-		if regoVersion != ast.RegoUndefined && v != regoVersion {
-			// We store the rego version by the absolute path to the bundle root, as this will be the - possibly new - path
-			// to the module inside the merged bundle.
-			fileRegoVersions[bundleAbsolutePath(m, usePath)] = v.Int()
+
+		// only record the rego version if it's different from the one applied globally to the result bundle
+		if v != ast.RegoUndefined {
+			if regoVersion == ast.RegoUndefined {
+				// We store the rego version by the absolute path to the bundle root, as this will be the - possibly new - path
+				// to the module inside the merged bundle.
+				fileRegoVersions[bundleAbsolutePath(m, usePath)] = v.Int()
+			} else {
+				vInt := v.Int()
+				gVInt := regoVersion.Int()
+				if vInt != gVInt {
+					fileRegoVersions[bundleAbsolutePath(m, usePath)] = vInt
+				}
+			}
 		}
 	}
 
