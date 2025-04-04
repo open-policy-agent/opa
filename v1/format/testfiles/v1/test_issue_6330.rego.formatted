@@ -94,3 +94,21 @@ p[{"a": #
 ][{"c": #
 "d"} #
 ] := true
+
+p if {
+	x := {"a": # do
+          "b"} # re
+	1 + 2 == 3
+	y := {"c": # mi
+          "d"} # fa
+	x != y
+}
+
+p[x].r := y if {
+	x := "q"
+	y := 1
+	y := {"c": # hello
+"d"} # world
+
+	y := 1
+}

@@ -990,12 +990,11 @@ func (w *writer) writeTerm(term *ast.Term, comments []*ast.Comment) ([]*ast.Comm
 	currentComments := make([]*ast.Comment, len(comments))
 	copy(currentComments, comments)
 
-	var backup bytes.Buffer
-	backup.Write(w.buf.Bytes())
+	currentLen := w.buf.Len()
 
 	comments, err := w.writeTermParens(false, term, comments)
 	if err != nil {
-		w.buf = backup
+		w.buf.Truncate(currentLen)
 
 		return w.writeRaw(term.Location, currentComments), err
 	}
