@@ -71,7 +71,13 @@ value contains {"a":  #
 "b"} #
 
 p := {"a":  #
-str} if { #
+str} if {
+	str := "my \n string"
+}
+
+p := {"a":
+str} if {
+    #
 	str := "my \n string"
 }
 

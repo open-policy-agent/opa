@@ -272,7 +272,6 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 	case *ast.Head:
 		_, err := w.writeHead(x,
 			false, // isDefault
-			false, // isExpandedConst
 			nil)
 		if err != nil {
 			return nil, err
@@ -353,13 +352,14 @@ func defaultLocation(x ast.Node) *ast.Location {
 type writer struct {
 	buf bytes.Buffer
 
-	indent    string
-	level     int
-	inline    bool
-	beforeEnd *ast.Comment
-	delay     bool
-	errs      ast.Errors
-	fmtOpts   fmtOpts
+	indent          string
+	level           int
+	inline          bool
+	beforeEnd       *ast.Comment
+	delay           bool
+	errs            ast.Errors
+	fmtOpts         fmtOpts
+	isExpandedConst bool
 }
 
 func (w *writer) writeModule(module *ast.Module) {
@@ -512,15 +512,13 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 	isExpandedConst := rule.Body.Equal(expandedConst) && rule.Else == nil
 
 	var err error
-	comments, err = w.writeHead(rule.Head, rule.Default, isExpandedConst, comments)
+	w.isExpandedConst = isExpandedConst
+	comments, err = w.writeHead(rule.Head, rule.Default, comments)
+	w.isExpandedConst = !isExpandedConst
 
 	if len(rule.Body) == 0 || isExpandedConst {
 		w.endLine()
 		return comments
-	}
-
-	if err != nil {
-		w.write("\n")
 	}
 
 	// this excludes partial sets UNLESS `contains` is used
@@ -544,8 +542,14 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 			}
 		}
 	}
-	w.write(" {")
-	w.endLine()
+	if err != nil && len(comments) > 0 {
+		w.write(" { ")
+		comments, _ = w.insertComments(comments, rule.Location)
+	} else {
+		w.write(" {")
+		w.endLine()
+	}
+
 	w.up()
 
 	comments, _ = w.writeBody(rule.Body, comments)
@@ -646,7 +650,7 @@ func (w *writer) writeElse(rule *ast.Rule, comments []*ast.Comment) []*ast.Comme
 	return w.writeRule(rule.Else, true, comments)
 }
 
-func (w *writer) writeHead(head *ast.Head, isDefault, isExpandedConst bool, comments []*ast.Comment) ([]*ast.Comment, error) {
+func (w *writer) writeHead(head *ast.Head, isDefault bool, comments []*ast.Comment) ([]*ast.Comment, error) {
 	ref := head.Ref()
 	if head.Key != nil && head.Value == nil && !head.HasDynamicRef() {
 		ref = ref.GroundPrefix()
@@ -698,14 +702,14 @@ func (w *writer) writeHead(head *ast.Head, isDefault, isExpandedConst bool, comm
 	}
 
 	if head.Value != nil &&
-		(head.Key != nil || !ast.InternedBooleanTerm(true).Equal(head.Value) || isExpandedConst || isDefault) {
+		(head.Key != nil || !ast.InternedBooleanTerm(true).Equal(head.Value) || w.isExpandedConst || isDefault) {
 
 		// in rego v1, explicitly print value for ref-head constants that aren't partial set assignments, e.g.:
 		// * a -> parser error, won't reach here
 		// * a.b -> a contains "b"
 		// * a.b.c -> a.b.c := true
 		// * a.b.c.d -> a.b.c.d := true
-		isRegoV1RefConst := w.fmtOpts.regoV1 && isExpandedConst && head.Key == nil && len(head.Args) == 0
+		isRegoV1RefConst := w.fmtOpts.regoV1 && w.isExpandedConst && head.Key == nil && len(head.Args) == 0
 
 		if head.Location == head.Value.Location &&
 			head.Name != "else" &&
@@ -1010,7 +1014,8 @@ func (w *writer) writeRaw(location *ast.Location, currentComments []*ast.Comment
 
 	comments := make([]*ast.Comment, 0, len(currentComments))
 	for _, c := range currentComments {
-		if c.Location.Row == location.Row+rowNum-1 {
+		// if there is a body then wait to write the last comment
+		if w.isExpandedConst && c.Location.Row == location.Row+rowNum-1 {
 			w.write(" " + string(c.Location.Text))
 			continue
 		}

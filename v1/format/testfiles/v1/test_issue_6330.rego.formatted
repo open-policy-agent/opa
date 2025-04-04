@@ -19,8 +19,7 @@ value := {"a": # this is
 "d"}}} # commenting code
 
 p := {"a":  #
-"b"} #
- if {
+"b"} if { #
 	str := "my \n string"
 }
 
@@ -60,9 +59,12 @@ p if {
 value contains {"a":  #
 "b"} #
 
-p := {"a":  #
-str} #
- if {
+p := {"a": str} if { #
+	str := "my \n string"
+}
+
+p := {"a": str} if {
+	#
 	str := "my \n string"
 }
 
