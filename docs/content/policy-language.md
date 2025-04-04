@@ -2992,6 +2992,8 @@ for _, link := range chain {
 
 You can provide one or more input schema files and/or data schema files to `opa eval` to improve static type checking and get more precise error reports as you develop Rego code.
 
+Schemas can be provided to OPA in two main ways: by supplying external JSON Schema files using the `-s` command-line flag (explained below), or by embedding schema definitions directly within your Rego files using [schema annotations](#schema-annotations) (detailed further down in this document). Both methods help improve static type checking.
+
 The `-s` flag can be used to upload schemas for input and data documents in JSON Schema format. You can either load a single JSON schema file for the input document or directory of schema files.
 
 ```
