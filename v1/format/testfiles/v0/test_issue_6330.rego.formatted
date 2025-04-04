@@ -15,3 +15,17 @@ value := {"a": # this is
 "d"}}} # commenting code
 
 value := {"a": {"b": {"c": "d"}}}
+
+p[{"a": #
+"b"} #
+] := true
+
+p.foo.bar[{"a": #
+"b"} #
+] := true
+
+p[{"a": #
+"b"} #
+][{"c": #
+"d"} #
+] := true

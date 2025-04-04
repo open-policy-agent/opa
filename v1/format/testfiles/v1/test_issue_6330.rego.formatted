@@ -1,7 +1,6 @@
 package a
 
-p[
-{"a": #
+p[{"a": #
 "b"} #
 ] := true
 
@@ -82,7 +81,16 @@ authorize := "allow" if {
 	input.source_network == "external" # from external networks.
 } # ... more rules
 
-p[
-{"a": #
+p[{"a": #
 "b"} #
+] := true
+
+p.foo.bar[{"a": #
+"b"} #
+] := true
+
+p[{"a": #
+"b"} #
+][{"c": #
+"d"} #
 ] := true

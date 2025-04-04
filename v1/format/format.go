@@ -652,7 +652,7 @@ func (w *writer) writeHead(head *ast.Head, isDefault, isExpandedConst bool, comm
 		ref = ref.GroundPrefix()
 	}
 	if w.fmtOpts.refHeads || len(ref) == 1 {
-		w.writeRef(ref, comments)
+		comments = w.writeRef(ref, comments)
 	} else {
 		// if there are comments within the object in the rule head, don't format it
 		if len(comments) > 0 && ref[1].Location.Row == comments[0].Location.Row {
@@ -1101,7 +1101,7 @@ func (w *writer) writeRef(x ast.Ref, comments []*ast.Comment) []*ast.Comment {
 				w.write("[")
 				comments, err = w.writeTerm(t, comments)
 				if err != nil {
-					panic(err)
+					w.write("\n")
 				}
 				w.write("]")
 			}
