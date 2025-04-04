@@ -544,7 +544,6 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 	}
 	if err != nil && len(comments) > 0 {
 		w.write(" { ")
-		comments, _ = w.insertComments(comments, rule.Location)
 	} else {
 		w.write(" {")
 		w.endLine()
