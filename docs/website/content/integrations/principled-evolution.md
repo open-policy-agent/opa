@@ -1,8 +1,8 @@
 ---
 title: Principled Evolution (GOPAL & AICertify)
 software:
-- GOPAL
-- AICertify
+- gopal
+- aicertify
 inventors:
 - principled-evolution-ltd
 code:
