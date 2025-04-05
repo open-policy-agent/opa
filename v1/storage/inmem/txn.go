@@ -14,6 +14,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/storage/internal/errors"
 	"github.com/open-policy-agent/opa/v1/storage/internal/ptr"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // transaction implements the low-level read/write operations on the in-memory
@@ -329,6 +330,11 @@ type updateRaw struct {
 
 func (db *store) newUpdate(data interface{}, op storage.PatchOp, path storage.Path, idx int, value interface{}) (dataUpdate, error) {
 	if db.returnASTValuesOnRead {
+		keys := util.KeysRecursive(value, map[string]struct{}{})
+		if len(keys) > 0 {
+			ast.InternedStringTerm.Store(util.Keys(keys)...)
+		}
+
 		astData, err := interfaceToValue(data)
 		if err != nil {
 			return nil, err

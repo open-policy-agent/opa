@@ -3401,7 +3401,14 @@ func (b *Builtin) IsTargetPos(i int) bool {
 
 func init() {
 	BuiltinMap = map[string]*Builtin{}
-	for _, b := range &DefaultBuiltins {
-		RegisterBuiltin(b)
+	builtinNames := make([]string, 0, len(DefaultBuiltins))
+	for i := range &DefaultBuiltins {
+		RegisterBuiltin(DefaultBuiltins[i])
+		builtinNames = append(builtinNames, DefaultBuiltins[i].Name)
+		if DefaultBuiltins[i].Infix != "" {
+			builtinNames = append(builtinNames, DefaultBuiltins[i].Infix)
+		}
 	}
+
+	InternedStringTerm.Store(builtinNames...)
 }

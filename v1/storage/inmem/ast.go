@@ -154,7 +154,7 @@ func newUpdateArrayAST(data *ast.Array, op storage.PatchOp, path storage.Path, i
 }
 
 func newUpdateObjectAST(data ast.Object, op storage.PatchOp, path storage.Path, idx int, value ast.Value) (*updateAST, error) {
-	key := ast.StringTerm(path[idx])
+	key := ast.InternedStringTerm.GetOrStore(path[idx])
 	val := data.Get(key)
 
 	if idx == len(path)-1 {
@@ -200,7 +200,13 @@ func setInAst(data ast.Value, path storage.Path, value ast.Value) (ast.Value, er
 }
 
 func setInAstObject(obj ast.Object, path storage.Path, value ast.Value) (ast.Value, error) {
-	key := ast.StringTerm(path[0])
+	// Storing the same empty object everywhere is efficient, but as soon as
+	// it's no longer empty, we need to instantiate a new object.
+	if obj == ast.InternedEmptyObject.Value {
+		obj = ast.NewObject()
+	}
+
+	key := ast.InternedStringTerm.GetOrStore(path[0])
 
 	if len(path) == 1 {
 		obj.Insert(key, ast.NewTerm(value))
@@ -256,7 +262,7 @@ func removeInAst(value ast.Value, path storage.Path) (ast.Value, error) {
 }
 
 func removeInAstObject(obj ast.Object, path storage.Path) (ast.Value, error) {
-	key := ast.StringTerm(path[0])
+	key := ast.InternedStringTerm.GetOrStore(path[0])
 
 	if len(path) == 1 {
 		var items [][2]*ast.Term
