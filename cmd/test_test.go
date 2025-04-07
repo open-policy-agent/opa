@@ -2673,6 +2673,27 @@ test_l {
 }`,
 			},
 			expErrs: []string{
+				"test.rego:4: rego_parse_error: `if` keyword is required before rule body",
+				"test.rego:4: rego_parse_error: `contains` keyword is required for partial set rules",
+				"test.rego:8: rego_parse_error: `if` keyword is required before rule body",
+			},
+		},
+		{
+			note:         "v0 module, not v0-compatible, v0 capabilities without rego_v1 feature",
+			capabilities: capsWithoutFeat(ast.RegoV0, ast.FeatureRegoV1),
+			files: map[string]string{
+				"/test.rego": `package test
+
+l1 := {1, 3, 5}
+l2[v] {
+	v := l1[_]
+}
+
+test_l {
+	l1 == l2
+}`,
+			},
+			expErrs: []string{
 				"rego_parse_error: illegal capabilities: rego_v1 feature required for parsing v1 Rego",
 			},
 		},
@@ -2776,6 +2797,22 @@ test_l if {
 		{
 			note:         "v1 module, not v0-compatible, v0 capabilities",
 			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
+			files: map[string]string{
+				"/test.rego": `package test
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+		{
+			note:         "v1 module, not v0-compatible, v0 capabilities without rego_v1 feature",
+			capabilities: capsWithoutFeat(ast.RegoV0, ast.FeatureRegoV1),
 			files: map[string]string{
 				"/test.rego": `package test
 

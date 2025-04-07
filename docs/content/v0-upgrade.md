@@ -468,7 +468,7 @@ OPA binary of version 1.0 or later.
    unexpected behaviour.
 
 If you run into any issues while upgrading a Rego project, please drop a message
-in the #help channel on the [OPA Slack](https://inviter.co/opa/).
+in the #help channel on the [OPA Slack](https://slack.openpolicyagent.org/).
 
 ## Upgrading OPA Instances
 

@@ -122,7 +122,8 @@ func CapabilitiesForThisVersion(opts ...CapabilitiesOption) *Capabilities {
 		return strings.Compare(a.Name, b.Name)
 	})
 
-	if co.regoVersion == RegoV0 || co.regoVersion == RegoV0CompatV1 {
+	switch co.regoVersion {
+	case RegoV0, RegoV0CompatV1:
 		for kw := range allFutureKeywords {
 			f.FutureKeywords = append(f.FutureKeywords, kw)
 		}
@@ -131,8 +132,9 @@ func CapabilitiesForThisVersion(opts ...CapabilitiesOption) *Capabilities {
 			FeatureRefHeadStringPrefixes,
 			FeatureRefHeads,
 			FeatureRegoV1Import,
+			FeatureRegoV1, // Included in v0 capabilities to allow v1 bundles in --v0-compatible mode
 		}
-	} else {
+	default:
 		for kw := range futureKeywords {
 			f.FutureKeywords = append(f.FutureKeywords, kw)
 		}

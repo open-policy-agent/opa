@@ -3051,6 +3051,20 @@ func TestEvalPolicyWithRegoV1Capability(t *testing.T) {
 				}`,
 			},
 			expErrs: []string{
+				"test.rego:2: rego_parse_error: `if` keyword is required before rule body",
+			},
+		},
+		{
+			note:         "v0 module, not v0-compatible, v0 capabilities without rego_v1 feature",
+			v0Compatible: false,
+			capabilities: capsWithoutFeat(ast.RegoV0, ast.FeatureRegoV1),
+			modules: map[string]string{
+				"test.rego": `package test
+				allow {
+					1 < 2
+				}`,
+			},
+			expErrs: []string{
 				"rego_parse_error: illegal capabilities: rego_v1 feature required for parsing v1 Rego",
 			},
 		},
@@ -3124,6 +3138,17 @@ func TestEvalPolicyWithRegoV1Capability(t *testing.T) {
 			note:         "v1 module, not v0-compatible, v0 capabilities",
 			v0Compatible: false,
 			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
+			modules: map[string]string{
+				"test.rego": `package test
+				allow if {
+					1 < 2
+				}`,
+			},
+		},
+		{
+			note:         "v1 module, not v0-compatible, v0 capabilities without rego_v1 feature",
+			v0Compatible: false,
+			capabilities: capsWithoutFeat(ast.RegoV0, ast.FeatureRegoV1),
 			modules: map[string]string{
 				"test.rego": `package test
 				allow if {
@@ -3430,22 +3455,22 @@ p contains 2 if {
 		},
 	}
 
-	v1CompatibleFlagCases := []struct {
+	v0CompatibleFlagCases := []struct {
 		note string
 		used bool
 	}{
 		{
-			"no --v1-compatible", false,
+			"no --v0-compatible", false,
 		},
 		{
-			"--v1-compatible", true,
+			"--v0-compatible", true,
 		},
 	}
 
 	for _, bundleType := range bundleTypeCases {
-		for _, v1CompatibleFlag := range v1CompatibleFlagCases {
+		for _, v0CompatibleFlag := range v0CompatibleFlagCases {
 			for _, tc := range tests {
-				t.Run(fmt.Sprintf("%s, %s, %s", bundleType.note, v1CompatibleFlag.note, tc.note), func(t *testing.T) {
+				t.Run(fmt.Sprintf("%s, %s, %s", bundleType.note, v0CompatibleFlag.note, tc.note), func(t *testing.T) {
 					files := map[string]string{}
 
 					if bundleType.tar {
@@ -3476,7 +3501,7 @@ p contains 2 if {
 						}
 
 						params := newEvalCommandParams()
-						params.v1Compatible = v1CompatibleFlag.used
+						params.v0Compatible = v0CompatibleFlag.used
 						if err := params.bundlePaths.Set(p); err != nil {
 							t.Fatal(err)
 						}

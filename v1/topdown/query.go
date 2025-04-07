@@ -344,7 +344,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 	if q.seed == nil {
 		q.seed = rand.Reader
 	}
-	if !q.time.IsZero() {
+	if q.time.IsZero() {
 		q.time = time.Now()
 	}
 	if q.metrics == nil {
