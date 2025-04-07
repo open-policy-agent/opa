@@ -73,9 +73,11 @@ production users that have added themselves (in alphabetical order):
   Kubernetes clusters that host a mix of production and test
   workloads.
 
-* [Cloudsmith](https://www.cloudsmith.com/) uses OPA to allows organizations to define, enforce, and monitor policies across the artifact lifecycle.
-  Cloudsmith users can leverage EPSS-based logic in their .rego policies for more granular, data-informed decisions around vulnerability management.
-  For more information on how Cloudsmith uses Exploit Prediction Scoring System (EPSS) in OPA policies, check out the [Cloudsmith Blog](https://cloudsmith.com/blog/cloudsmith-introduces-epss-scoring-in-enterprise-policy-management-epm).
+* [Cloudsmith](https://www.cloudsmith.com/) uses OPA to allow organizations to define, enforce,
+  and monitor policies across the artifact lifecycle. Cloudsmith users can leverage EPSS-based logic
+  in their Rego policies for more granular, data-informed decisions around vulnerability management.
+  For more information on how Cloudsmith uses Exploit Prediction Scoring System (EPSS) in OPA policies,
+  check out the [Cloudsmith Blog](https://cloudsmith.com/blog/cloudsmith-introduces-epss-scoring-in-enterprise-policy-management-epm).
 
 * [ControlPlane](https://control-plane.io) uses OPA to enforce enterprise-friendly
   policy for safe adoption of Kubernetes, Istio, and cloud services. OPA policies
