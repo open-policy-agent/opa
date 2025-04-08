@@ -343,27 +343,33 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 	}
 	c.Reporting.Trigger = t
 
-	min := defaultMinDelaySeconds
-	max := defaultMaxDelaySeconds
+	minDelay := defaultMinDelaySeconds
+	maxDelay := defaultMaxDelaySeconds
 
-	// reject bad min/max values
-	if c.Reporting.MaxDelaySeconds != nil && c.Reporting.MinDelaySeconds != nil {
-		if *c.Reporting.MaxDelaySeconds < *c.Reporting.MinDelaySeconds {
-			return errors.New("max reporting delay must be >= min reporting delay in decision_logs")
+	if *c.Reporting.Trigger == plugins.TriggerImmediate {
+		if c.Reporting.MinDelaySeconds != nil {
+			return errors.New("reporting configuration cannot set 'min_delay_seconds' when using immediate trigger mode")
 		}
-		min = *c.Reporting.MinDelaySeconds
-		max = *c.Reporting.MaxDelaySeconds
-	} else if c.Reporting.MaxDelaySeconds == nil && c.Reporting.MinDelaySeconds != nil {
-		return errors.New("reporting configuration missing 'max_delay_seconds' in decision_logs")
-	} else if c.Reporting.MinDelaySeconds == nil && c.Reporting.MaxDelaySeconds != nil {
-		return errors.New("reporting configuration missing 'min_delay_seconds' in decision_logs")
+	} else {
+		// reject bad min/max values
+		if c.Reporting.MaxDelaySeconds != nil && c.Reporting.MinDelaySeconds != nil {
+			if *c.Reporting.MaxDelaySeconds < *c.Reporting.MinDelaySeconds {
+				return errors.New("max reporting delay must be >= min reporting delay in decision_logs")
+			}
+			minDelay = *c.Reporting.MinDelaySeconds
+			maxDelay = *c.Reporting.MaxDelaySeconds
+		} else if c.Reporting.MaxDelaySeconds == nil && c.Reporting.MinDelaySeconds != nil {
+			return errors.New("reporting configuration missing 'max_delay_seconds' in decision_logs")
+		} else if c.Reporting.MinDelaySeconds == nil && c.Reporting.MaxDelaySeconds != nil {
+			return errors.New("reporting configuration missing 'min_delay_seconds' in decision_logs")
+		}
 	}
 
 	// scale to seconds
-	minSeconds := int64(time.Duration(min) * time.Second)
+	minSeconds := int64(time.Duration(minDelay) * time.Second)
 	c.Reporting.MinDelaySeconds = &minSeconds
 
-	maxSeconds := int64(time.Duration(max) * time.Second)
+	maxSeconds := int64(time.Duration(maxDelay) * time.Second)
 	c.Reporting.MaxDelaySeconds = &maxSeconds
 
 	// default the upload size limit
@@ -447,23 +453,24 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 
 // Plugin implements decision log buffering and uploading.
 type Plugin struct {
-	manager       *plugins.Manager
-	config        Config
-	runningBuffer string
-	reconfigMtx   sync.RWMutex // reconfigMtx blocks reads/writes on buffer reconfiguration
-	eventBuffer   *eventBuffer
-	buffer        *logBuffer
-	enc           *chunkEncoder
-	mtx           sync.Mutex
-	statusMtx     sync.Mutex
-	stop          chan chan struct{}
-	reconfig      chan reconfigure
-	preparedMask  prepareOnce
-	preparedDrop  prepareOnce
-	limiter       *rate.Limiter
-	metrics       metrics.Metrics
-	logger        logging.Logger
-	status        *lstat.Status
+	manager         *plugins.Manager
+	config          Config
+	runningBuffer   string
+	reconfigMtx     sync.RWMutex // reconfigMtx blocks reads/writes on buffer reconfiguration
+	eventBuffer     *eventBuffer
+	buffer          *logBuffer
+	enc             *chunkEncoder
+	mtx             sync.Mutex
+	statusMtx       sync.Mutex
+	stop            chan chan struct{}
+	reconfig        chan reconfigure
+	preparedMask    prepareOnce
+	preparedDrop    prepareOnce
+	limiter         *rate.Limiter
+	metrics         metrics.Metrics
+	logger          logging.Logger
+	status          *lstat.Status
+	immediateResult chan [][]byte
 }
 
 type prepareOnce struct {
@@ -581,6 +588,10 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		preparedMask: *newPrepareOnce(),
 	}
 
+	if *parsedConfig.Reporting.Trigger == plugins.TriggerImmediate {
+		plugin.immediateResult = make(chan [][]byte)
+	}
+
 	switch parsedConfig.Reporting.BufferType {
 	case eventBufferType:
 		plugin.eventBuffer = newEventBuffer(
@@ -637,15 +648,16 @@ func (p *Plugin) Start(_ context.Context) error {
 func (p *Plugin) Stop(ctx context.Context) {
 	p.logger.Info("Stopping decision logger.")
 
-	if *p.config.Reporting.Trigger == plugins.TriggerPeriodic {
+	done := make(chan struct{})
+	p.stop <- done
+	<-done
+
+	switch *p.config.Reporting.Trigger {
+	case plugins.TriggerPeriodic, plugins.TriggerImmediate:
 		if _, ok := ctx.Deadline(); ok && p.config.Service != "" {
 			p.flushDecisions(ctx)
 		}
 	}
-
-	done := make(chan struct{})
-	p.stop <- done
-	<-done
 	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
 }
 
@@ -656,6 +668,19 @@ func (p *Plugin) Config() *Config {
 
 func (p *Plugin) flushDecisions(ctx context.Context) {
 	p.logger.Info("Flushing decision logs.")
+
+	if *p.config.Reporting.Trigger == plugins.TriggerImmediate && p.config.Reporting.BufferType == sizeBufferType {
+		// make sure there isn't anything left in the immediateResult channel
+		select {
+		case result := <-p.immediateResult:
+			p.mtx.Lock()
+			for _, chunk := range result {
+				p.bufferChunk(p.buffer, chunk)
+			}
+			p.mtx.Unlock()
+		default:
+		}
+	}
 
 	done := make(chan bool)
 
@@ -824,6 +849,27 @@ func (p *Plugin) compilerUpdated(storage.Transaction) {
 func (p *Plugin) loop() {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	var stopImmediateLoop chan chan struct{}
+	if *p.config.Reporting.Trigger == plugins.TriggerImmediate && p.config.Service != "" {
+		stopImmediateLoop = make(chan chan struct{})
+		switch p.config.Reporting.BufferType {
+		case sizeBufferType:
+			go immediateUpload[[][]byte](ctx,
+				stopImmediateLoop,
+				p.config.Reporting.MaxDelaySeconds,
+				p,
+				p,
+			)
+		case eventBufferType:
+			go immediateUpload[*bufferItem](ctx,
+				stopImmediateLoop,
+				p.config.Reporting.MaxDelaySeconds,
+				p.eventBuffer,
+				p,
+			)
+		}
+	}
+
 	var retry int
 
 	for {
@@ -835,9 +881,9 @@ func (p *Plugin) loop() {
 			var delay time.Duration
 
 			if err == nil {
-				min := float64(*p.config.Reporting.MinDelaySeconds)
-				max := float64(*p.config.Reporting.MaxDelaySeconds)
-				delay = time.Duration(((max - min) * rand.Float64()) + min)
+				minDelay := float64(*p.config.Reporting.MinDelaySeconds)
+				maxDelay := float64(*p.config.Reporting.MaxDelaySeconds)
+				delay = time.Duration(((maxDelay - minDelay) * rand.Float64()) + minDelay)
 			} else {
 				delay = util.DefaultBackoff(float64(minRetryDelay), float64(*p.config.Reporting.MaxDelaySeconds), retry)
 			}
@@ -867,6 +913,11 @@ func (p *Plugin) loop() {
 			p.reconfigure(ctx, update.config)
 			update.done <- struct{}{}
 		case done := <-p.stop:
+			if *p.config.Reporting.Trigger == plugins.TriggerImmediate {
+				d := make(chan struct{})
+				stopImmediateLoop <- d
+				<-d
+			}
 			cancel()
 			done <- struct{}{}
 			return
@@ -882,7 +933,11 @@ func (*bufferEmpty) Error() string {
 
 func (p *Plugin) doOneShot(ctx context.Context) error {
 	err := p.oneShot(ctx)
+	p.handleUploadError(err)
+	return err
+}
 
+func (p *Plugin) handleUploadError(err error) {
 	if err != nil {
 		if errors.Is(err, &bufferEmpty{}) {
 			p.logger.Debug("Log upload queue was empty.")
@@ -895,12 +950,11 @@ func (p *Plugin) doOneShot(ctx context.Context) error {
 	}
 
 	p.setStatus(err)
-	return err
 }
 
 func (p *Plugin) oneShot(ctx context.Context) error {
 	if p.runningBuffer == eventBufferType {
-		return p.eventBuffer.Upload(ctx)
+		return p.eventBuffer.UploadAll(ctx)
 	}
 
 	// Make a local copy of the plugin's encoder and buffer and create
@@ -995,7 +1049,7 @@ func (p *Plugin) reconfigure(ctx context.Context, config interface{}) {
 		p.runningBuffer = eventBufferType
 	case sizeBufferType:
 		if p.runningBuffer == eventBufferType {
-			if err := p.eventBuffer.Upload(ctx); err != nil && !errors.Is(err, &bufferEmpty{}) {
+			if err := p.eventBuffer.UploadAll(ctx); err != nil && !errors.Is(err, &bufferEmpty{}) {
 				p.setStatus(err)
 			}
 		}
@@ -1057,10 +1111,26 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 		p.incrMetric(logNDBDropCounterName)
 	}
 
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
-	for _, chunk := range result {
-		p.bufferChunk(p.buffer, chunk)
+	if result == nil {
+		return
+	}
+
+	if *p.config.Reporting.Trigger == plugins.TriggerImmediate {
+		select {
+		case p.immediateResult <- result:
+		default:
+			p.mtx.Lock()
+			defer p.mtx.Unlock()
+			for _, chunk := range result {
+				p.bufferChunk(p.buffer, chunk)
+			}
+		}
+	} else {
+		p.mtx.Lock()
+		defer p.mtx.Unlock()
+		for _, chunk := range result {
+			p.bufferChunk(p.buffer, chunk)
+		}
 	}
 }
 
@@ -1231,4 +1301,83 @@ func (p *Plugin) setStatus(err error) {
 	if s := status.Lookup(p.manager); s != nil {
 		s.UpdateDecisionLogsStatus(*oldStatus)
 	}
+}
+
+// buffer is used for the trigger mode "immediate"
+type buffer[T any] interface {
+	Input() <-chan T
+	Handle(T) [][]byte
+	Flush() [][]byte
+	UploadChunks(context.Context, [][]byte) error
+}
+
+// immediateUpload continuously waits to receive a chunk or event and then attempts an upload
+func immediateUpload[T any](ctx context.Context, stopImmediateLoop chan chan struct{}, maxDelay *int64, b buffer[T], p *Plugin) {
+	timer := time.NewTimer(time.Duration(*maxDelay))
+
+	for {
+		var chunks [][]byte
+
+		// wait for a signal to attempt to upload chunks of events
+		select {
+		case e := <-b.Input():
+			chunks = b.Handle(e)
+		case <-timer.C:
+			chunks = b.Flush()
+		case done := <-stopImmediateLoop:
+			done <- struct{}{}
+			return
+		}
+
+		err := b.UploadChunks(ctx, chunks)
+		if err != nil {
+			p.handleUploadError(err)
+			continue
+		}
+
+		timer.Reset(time.Duration(*maxDelay))
+	}
+}
+
+// Input returns a slice of ready to upload chunk of events
+func (p *Plugin) Input() <-chan [][]byte {
+	return p.immediateResult
+}
+
+// Handle appends the received result with anything in the chunk buffer
+// the chunk buffer is populated if the immediateResult is busy or there is an upload failure
+func (p *Plugin) Handle(result [][]byte) [][]byte {
+	return append(result, p.Flush()...)
+}
+
+// Flush will empty the chunk buffer
+func (p *Plugin) Flush() [][]byte {
+	var result [][]byte
+
+	p.mtx.Lock()
+	oldBuffer := p.buffer
+	p.mtx.Unlock()
+
+	for chunk := oldBuffer.Pop(); chunk != nil; chunk = oldBuffer.Pop() {
+		result = append(result, chunk)
+	}
+
+	return result
+}
+
+// UploadChunks uploads all the chunks within result
+func (p *Plugin) UploadChunks(ctx context.Context, result [][]byte) error {
+	var finalErr error
+	for _, chunk := range result {
+		err := uploadChunk(ctx, p.manager.Client(p.config.Service), *p.config.Resource, chunk)
+		if err != nil {
+			finalErr = err
+			// requeue the chunk that failed to upload so that it can be retried later
+			p.mtx.Lock()
+			p.bufferChunk(p.buffer, chunk)
+			p.mtx.Unlock()
+		}
+	}
+
+	return finalErr
 }

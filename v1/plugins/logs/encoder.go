@@ -126,7 +126,9 @@ func (enc *chunkEncoder) Flush() ([][]byte, error) {
 	if err := enc.writeClose(); err != nil {
 		return nil, err
 	}
-	return enc.reset()
+	// don't call enc.reset() because the uncompressed limit shouldn't be updated when forcing the buffer to be emptied
+	// the buffer could most likely be underutilized (<90%) and won't be an accurate data point
+	return enc.update(), nil
 }
 
 //nolint:unconvert
