@@ -2021,40 +2021,83 @@ func TestPluginTriggerManualWithTimeout(t *testing.T) {
 func TestPluginGracefulShutdownFlushesDecisions(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
-
-	fixture := newTestFixture(t)
-	defer fixture.server.stop()
-
-	fixture.server.ch = make(chan []EventV1, 8)
-
-	if err := fixture.plugin.Start(ctx); err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name        string
+		bufferType  string
+		triggerMode plugins.TriggerMode
+		uploadLimit int64
+	}{
+		{
+			name:        "event buffer upload immediately",
+			bufferType:  eventBufferType,
+			triggerMode: plugins.TriggerImmediate,
+		},
+		{
+			name:        "event buffer upload periodically",
+			bufferType:  eventBufferType,
+			triggerMode: plugins.TriggerPeriodic,
+		},
+		{
+			name:        "size buffer upload immediately",
+			bufferType:  sizeBufferType,
+			triggerMode: plugins.TriggerImmediate,
+		},
+		{
+			name:        "size buffer upload immediately, with smaller upload limit to trigger immediate upload",
+			bufferType:  sizeBufferType,
+			triggerMode: plugins.TriggerImmediate,
+			uploadLimit: 15000,
+		},
+		{
+			name:        "size buffer upload periodically",
+			bufferType:  sizeBufferType,
+			triggerMode: plugins.TriggerPeriodic,
+		},
 	}
 
-	var input interface{} = map[string]interface{}{"method": "GET"}
-	var result interface{} = false
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
 
-	logsSent := 200
-	for i := 0; i < logsSent; i++ {
-		input = generateInputMap(i)
-		_ = fixture.plugin.Log(ctx, logServerInfo("abc", input, result))
-	}
+			fixture := newTestFixture(t, testFixtureOptions{
+				ReportingBufferType:           tc.bufferType,
+				ReportingTrigger:              &tc.triggerMode,
+				ReportingUploadSizeLimitBytes: tc.uploadLimit,
+			})
+			defer fixture.server.stop()
 
-	fixture.server.expCode = 200
+			fixture.server.ch = make(chan []EventV1, 8)
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-	fixture.plugin.Stop(timeoutCtx)
+			if err := fixture.plugin.Start(ctx); err != nil {
+				t.Fatal(err)
+			}
 
-	close(fixture.server.ch)
-	logsReceived := 0
-	for element := range fixture.server.ch {
-		logsReceived += len(element)
-	}
+			var input any = make(map[string]interface{})
+			var result any = false
 
-	if logsReceived != logsSent {
-		t.Fatalf("Expected %v, got %v", logsSent, logsReceived)
+			logsSent := 200
+			for i := 0; i < logsSent; i++ {
+				input = generateInputMap(i)
+				err := fixture.plugin.Log(ctx, logServerInfo("abc", input, result))
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+			defer cancel()
+			fixture.plugin.Stop(timeoutCtx)
+
+			close(fixture.server.ch)
+			logsReceived := 0
+			for element := range fixture.server.ch {
+				logsReceived += len(element)
+			}
+
+			if logsReceived != logsSent {
+				t.Fatalf("Expected %v, got %v", logsSent, logsReceived)
+			}
+		})
 	}
 }
 
@@ -2915,11 +2958,14 @@ func TestPluginDropErrorHandling(t *testing.T) {
 
 type testFixtureOptions struct {
 	ConsoleLogger                  *test.Logger
+	Logger                         *test.Logger
+	ReportingTrigger               *plugins.TriggerMode
 	ReportingBufferType            string
 	ReportingBufferSizeLimitEvents int64
 	ReportingUploadSizeLimitBytes  int64
 	ReportingMaxDecisionsPerSecond float64
 	ReportingBufferSizeLimitBytes  int64
+	ReportingMaxDelay              int64
 	Resource                       *string
 	TestServerPath                 *string
 	PartitionName                  *string
@@ -2978,15 +3024,30 @@ func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
 		t.Fatal(err)
 	}
 
-	manager, err := plugins.New(
-		managerConfig,
-		"test-instance-id",
-		inmem.New(),
-		plugins.GracefulShutdownPeriod(10),
-		plugins.ConsoleLogger(options.ConsoleLogger))
-	if err != nil {
-		t.Fatal(err)
+	var manager *plugins.Manager
+	if options.Logger != nil {
+		manager, err = plugins.New(
+			managerConfig,
+			"test-instance-id",
+			inmem.New(),
+			plugins.GracefulShutdownPeriod(10),
+			plugins.ConsoleLogger(options.ConsoleLogger),
+			plugins.Logger(options.Logger))
+		if err != nil {
+			t.Fatal(err)
+		}
+	} else {
+		manager, err = plugins.New(
+			managerConfig,
+			"test-instance-id",
+			inmem.New(),
+			plugins.GracefulShutdownPeriod(10),
+			plugins.ConsoleLogger(options.ConsoleLogger))
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
+
 	if init := options.ManagerInit; init != nil {
 		init(manager)
 	}
@@ -3021,6 +3082,10 @@ func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
 		ts.path = *options.TestServerPath
 	}
 
+	if options.ReportingMaxDelay != 0 {
+		config.Reporting.MaxDelaySeconds = &options.ReportingMaxDelay
+	}
+
 	if options.ReportingMaxDecisionsPerSecond != 0 {
 		config.Reporting.MaxDecisionsPerSecond = &options.ReportingMaxDecisionsPerSecond
 	}
@@ -3039,6 +3104,10 @@ func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
 
 	if options.ReportingBufferType != "" {
 		config.Reporting.BufferType = options.ReportingBufferType
+	}
+
+	if options.ReportingTrigger != nil {
+		config.Reporting.Trigger = options.ReportingTrigger
 	}
 
 	if s, ok := manager.PluginStatus()[Name]; ok {
@@ -3138,7 +3207,7 @@ func TestParseConfigTriggerMode(t *testing.T) {
 			config:   []byte(`{"reporting": {"trigger": "foo"}}`),
 			expected: "foo",
 			wantErr:  true,
-			err:      fmt.Errorf("invalid decision_log config: invalid trigger mode \"foo\" (want \"periodic\" or \"manual\")"),
+			err:      fmt.Errorf("invalid decision_log config: invalid trigger mode \"foo\" (want \"periodic\", \"immediate\" or \"manual\")"),
 		},
 	}
 
@@ -3564,6 +3633,8 @@ type testServer struct {
 }
 
 func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
+	t.t.Helper()
+
 	gr, err := gzip.NewReader(r.Body)
 	if err != nil {
 		t.t.Fatal(err)
@@ -3581,6 +3652,7 @@ func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 
 	t.t.Logf("decision log test server received %d events at path %s", len(events), r.URL.Path)
 	t.ch <- events
+
 	w.WriteHeader(t.expCode)
 }
 
