@@ -4061,7 +4061,7 @@ func TestTopDownPartialEval(t *testing.T) {
 		},
 
 		{
-			note:  "default function",
+			note:  "default function, result not collected (non-false default value)",
 			query: "data.test.p = true",
 			modules: []string{`package test
 					default f(x) := true # return true if x.size is undefined
@@ -4079,6 +4079,20 @@ func TestTopDownPartialEval(t *testing.T) {
 				default f(__local0__3) = true
 				f(__local1__2) = true if { __local2__2 = __local1__2.size; lt(__local2__2, 100) }`,
 			},
+		},
+		{
+			note:  "default function, result not collected (false default value)",
+			query: "data.test.p = true",
+			modules: []string{`package test
+					default f(x) := false
+					f(x) if {
+						x.size < 100
+					}
+					p if {
+						f(input.x)
+					}
+				`},
+			wantQueries: []string{"lt(input.x.size, 100)"},
 		},
 		{
 			note:  "default function, result comparison (same as default)",
@@ -4116,6 +4130,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantSupport: []string{
 				`package partial.test
 				
+				default f(__local0__3) = true
 				f(__local1__2) = __local2__2 if { __local5__2 = __local1__2.size; lt(__local5__2, 100, __local3__2); __local2__2 = __local3__2 }`,
 			},
 		},

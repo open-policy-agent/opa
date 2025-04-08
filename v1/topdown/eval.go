@@ -2019,34 +2019,36 @@ func (e evalFunc) eval(iter unifyIterator) error {
 		return e.e.saveCall(argCount, e.terms, iter)
 	}
 
-	var generateSupport bool
+	if e.e.partial() {
+		var mustGenerateSupport bool
 
-	if rule := e.ir.Default; rule != nil {
-		if len(rule.Head.Args) == len(e.terms)-2 {
-			// If the output term is not constant OR it's equal to the default value, then
-			// a support rule must be produced as the default value _may_ be required. On
-			// the other hand, if the output term is constant (i.e., it does not require
-			// evaluation) and it differs from the default value then the default value is
-			// _not_ required, so partially evaluate the rule normally.
-			resultVar := e.terms[len(e.terms)-1]
-			rterm := e.e.bindings.Plug(resultVar)
-			generateSupport = !ast.IsConstant(rterm.Value) || e.ir.Default.Head.Value.Equal(rterm)
-		} else {
-			// The function is called without collecting the result in an output term,
-			// therefore any successful evaluation of the function is of interest, including the default value.
-			generateSupport = true
+		if defRule := e.ir.Default; defRule != nil {
+			// The presence of a default func might force us to generate support
+			if len(defRule.Head.Args) == len(e.terms)-1 {
+				// The function is called without collecting the result in an output term,
+				// therefore any successful evaluation of the function is of interest, including the default value ...
+				if ret := defRule.Head.Value; ret == nil || !ret.Equal(ast.InternedBooleanTerm(false)) {
+					// ... unless the default value is false,
+					mustGenerateSupport = true
+				}
+			} else {
+				// The function is called with an output term, therefore any successful evaluation of the function is of interest.
+				// NOTE: Because of how the compiler rewrites function calls, we can't know if the result value is compared
+				// to a constant value, so we can't be as clever as we are for rules.
+				mustGenerateSupport = true
+			}
 		}
-	}
 
-	if e.e.partial() && (generateSupport || e.e.inliningControl.shallow || e.e.inliningControl.Disabled(e.ref, false)) {
-		// check if the function definitions, or any of the arguments
-		// contain something unknown
-		unknown := e.e.unknown(e.ref, e.e.bindings)
-		for i := 1; !unknown && i <= argCount; i++ {
-			unknown = e.e.unknown(e.terms[i], e.e.bindings)
-		}
-		if unknown {
-			return e.partialEvalSupport(argCount, iter)
+		if mustGenerateSupport || e.e.inliningControl.shallow || e.e.inliningControl.Disabled(e.ref, false) {
+			// check if the function definitions, or any of the arguments
+			// contain something unknown
+			unknown := e.e.unknown(e.ref, e.e.bindings)
+			for i := 1; !unknown && i <= argCount; i++ {
+				unknown = e.e.unknown(e.terms[i], e.e.bindings)
+			}
+			if unknown {
+				return e.partialEvalSupport(argCount, iter)
+			}
 		}
 	}
 
