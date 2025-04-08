@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"maps"
 	"math/big"
 	"net/http"
 	"net/url"
@@ -317,9 +318,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) createAuthJWT(ctx context.Context, 
 		"iat": now.Unix(),
 		"exp": now.Add(10 * time.Minute).Unix(),
 	}
-	for k, v := range extClaims {
-		claims[k] = v
-	}
+	maps.Copy(claims, extClaims)
 
 	if len(ap.Scopes) > 0 {
 		claims["scope"] = strings.Join(ap.Scopes, " ")
@@ -354,9 +353,9 @@ func (ap *oauth2ClientCredentialsAuthPlugin) createAuthJWT(ctx context.Context, 
 			return nil, err
 		}
 		x5t := base64.URLEncoding.EncodeToString(bytes)
-		jwsHeaders = []byte(fmt.Sprintf(`{"typ":"JWT","alg":"%s","x5t":"%s"}`, signatureAlg, x5t))
+		jwsHeaders = fmt.Appendf(nil, `{"typ":"JWT","alg":"%s","x5t":"%s"}`, signatureAlg, x5t)
 	} else {
-		jwsHeaders = []byte(fmt.Sprintf(`{"typ":"JWT","alg":"%s"}`, signatureAlg))
+		jwsHeaders = fmt.Appendf(nil, `{"typ":"JWT","alg":"%s"}`, signatureAlg)
 	}
 	var jwsCompact []byte
 	if ap.AWSKmsKey == nil {
@@ -527,57 +526,8 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 	return DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
 }
 
-// requestToken tries to obtain an access token using either the client credentials flow
-// https://tools.ietf.org/html/rfc6749#section-4.4
-// or the JWT authorization grant
-// https://tools.ietf.org/html/rfc7523
-func (ap *oauth2ClientCredentialsAuthPlugin) requestToken(ctx context.Context) (*oauth2Token, error) {
+func (ap *oauth2ClientCredentialsAuthPlugin) createTokenReqBody(ctx context.Context) (url.Values, error) {
 	body := url.Values{}
-	if ap.GrantType == grantTypeJwtBearer {
-		authJwt, err := ap.createAuthJWT(ctx, ap.Claims, ap.signingKeyParsed)
-		if err != nil {
-			return nil, err
-		}
-		body.Add("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer")
-		body.Add("assertion", *authJwt)
-	} else {
-		body.Add("grant_type", grantTypeClientCredentials)
-
-		if ap.SigningKeyID != "" || ap.AWSKmsKey != nil {
-			authJwt, err := ap.createAuthJWT(ctx, ap.Claims, ap.signingKeyParsed)
-			if err != nil {
-				return nil, err
-			}
-			body.Add("client_assertion_type", defaultClientAssertionType)
-			body.Add("client_assertion", *authJwt)
-
-			if ap.ClientID != "" {
-				body.Add("client_id", ap.ClientID)
-			}
-		} else if ap.ClientAssertion != "" {
-			if ap.ClientAssertionType == "" {
-				ap.ClientAssertionType = defaultClientAssertionType
-			}
-			if ap.ClientID != "" {
-				body.Add("client_id", ap.ClientID)
-			}
-			body.Add("client_assertion_type", ap.ClientAssertionType)
-			body.Add("client_assertion", ap.ClientAssertion)
-		} else if ap.ClientAssertionPath != "" {
-			if ap.ClientAssertionType == "" {
-				ap.ClientAssertionType = defaultClientAssertionType
-			}
-			bytes, err := os.ReadFile(ap.ClientAssertionPath)
-			if err != nil {
-				return nil, err
-			}
-			if ap.ClientID != "" {
-				body.Add("client_id", ap.ClientID)
-			}
-			body.Add("client_assertion_type", ap.ClientAssertionType)
-			body.Add("client_assertion", strings.TrimSpace(string(bytes)))
-		}
-	}
 
 	if len(ap.Scopes) > 0 {
 		body.Add("scope", strings.Join(ap.Scopes, " "))
@@ -587,7 +537,67 @@ func (ap *oauth2ClientCredentialsAuthPlugin) requestToken(ctx context.Context) (
 		body.Set(k, v)
 	}
 
-	r, err := http.NewRequestWithContext(ctx, "POST", ap.TokenURL, strings.NewReader(body.Encode()))
+	if ap.GrantType == grantTypeJwtBearer {
+		authJwt, err := ap.createAuthJWT(ctx, ap.Claims, ap.signingKeyParsed)
+		if err != nil {
+			return nil, err
+		}
+		body.Add("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer")
+		body.Add("assertion", *authJwt)
+		return body, nil
+	}
+
+	body.Add("grant_type", grantTypeClientCredentials)
+
+	if ap.SigningKeyID != "" || ap.AWSKmsKey != nil {
+		authJwt, err := ap.createAuthJWT(ctx, ap.Claims, ap.signingKeyParsed)
+		if err != nil {
+			return nil, err
+		}
+		body.Add("client_assertion_type", defaultClientAssertionType)
+		body.Add("client_assertion", *authJwt)
+
+		if ap.ClientID != "" {
+			body.Add("client_id", ap.ClientID)
+		}
+	} else if ap.ClientAssertion != "" {
+		if ap.ClientAssertionType == "" {
+			ap.ClientAssertionType = defaultClientAssertionType
+		}
+		if ap.ClientID != "" {
+			body.Add("client_id", ap.ClientID)
+		}
+		body.Add("client_assertion_type", ap.ClientAssertionType)
+		body.Add("client_assertion", ap.ClientAssertion)
+	} else if ap.ClientAssertionPath != "" {
+		if ap.ClientAssertionType == "" {
+			ap.ClientAssertionType = defaultClientAssertionType
+		}
+		bytes, err := os.ReadFile(ap.ClientAssertionPath)
+		if err != nil {
+			return nil, err
+		}
+		if ap.ClientID != "" {
+			body.Add("client_id", ap.ClientID)
+		}
+		body.Add("client_assertion_type", ap.ClientAssertionType)
+		body.Add("client_assertion", strings.TrimSpace(string(bytes)))
+	}
+
+	return body, nil
+}
+
+// requestToken tries to obtain an access token using either the client credentials flow
+// https://tools.ietf.org/html/rfc6749#section-4.4
+// or the JWT authorization grant
+// https://tools.ietf.org/html/rfc7523
+func (ap *oauth2ClientCredentialsAuthPlugin) requestToken(ctx context.Context) (*oauth2Token, error) {
+	body, err := ap.createTokenReqBody(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	r, err := http.NewRequestWithContext(ctx, http.MethodPost, ap.TokenURL, strings.NewReader(body.Encode()))
 	if err != nil {
 		return nil, err
 	}

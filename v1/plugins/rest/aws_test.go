@@ -23,6 +23,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/providers/aws"
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/util/test"
+	"slices"
 )
 
 // this is usually private; but we need it here
@@ -43,10 +44,8 @@ func assertEq(expected string, actual string, t *testing.T) {
 }
 func assertIn(candidates []string, actual string, t *testing.T) {
 	t.Helper()
-	for _, expected := range candidates {
-		if actual == expected {
-			return
-		}
+	if slices.Contains(candidates, actual) {
+		return
 	}
 	t.Error("value: '", actual, "' not found in: ", candidates)
 }
@@ -1623,7 +1622,7 @@ func (t *stsTestServer) handle(w http.ResponseWriter, r *http.Request) {
 </AssumeRoleResponse>`
 	}
 
-	_, _ = w.Write([]byte(fmt.Sprintf(xmlResponse, sessionName, time.Now().Add(time.Hour).Format(time.RFC3339), t.accessKey)))
+	_, _ = w.Write(fmt.Appendf(nil, xmlResponse, sessionName, time.Now().Add(time.Hour).Format(time.RFC3339), t.accessKey))
 }
 
 func (t *stsTestServer) start() {
