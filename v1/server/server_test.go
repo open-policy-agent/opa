@@ -5145,7 +5145,7 @@ type queryBindingErrStore struct {
 	storage.PolicyNotSupported
 }
 
-func (s *queryBindingErrStore) Read(_ context.Context, _ storage.Transaction, _ storage.Path) (interface{}, error) {
+func (*queryBindingErrStore) Read(_ context.Context, _ storage.Transaction, _ storage.Path) (interface{}, error) {
 	return nil, errors.New("expected error")
 }
 
@@ -5857,7 +5857,16 @@ func TestDistributedTracingEnabled(t *testing.T) {
 	ctx := context.Background()
 	_, _, _, err := distributedtracing.Init(ctx, c, "foo")
 	if err != nil {
-		t.Fatalf("Unexpected error initializing trace exporter %v", err)
+		t.Fatalf("Unexpected error initializing gRPC trace exporter %v", err)
+	}
+
+	c = []byte(`{"distributed_tracing": {
+		"type": "http"
+		}}`)
+
+	_, _, _, err = distributedtracing.Init(ctx, c, "foo")
+	if err != nil {
+		t.Fatalf("Unexpected error initializing HTTP trace exporter %v", err)
 	}
 }
 

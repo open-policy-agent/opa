@@ -485,7 +485,7 @@ type testFactory struct {
 	p *reconfigureTestPlugin
 }
 
-func (f testFactory) Validate(*plugins.Manager, []byte) (interface{}, error) {
+func (testFactory) Validate(*plugins.Manager, []byte) (interface{}, error) {
 	return nil, nil
 }
 

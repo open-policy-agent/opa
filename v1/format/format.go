@@ -437,15 +437,37 @@ func (w *writer) writeComments(comments []*ast.Comment) {
 }
 
 func (w *writer) writeRules(rules []*ast.Rule, comments []*ast.Comment) []*ast.Comment {
-	for _, rule := range rules {
+	for i, rule := range rules {
 		comments = w.insertComments(comments, rule.Location)
 		comments = w.writeRule(rule, false, comments)
+
+		if i < len(rules)-1 && w.groupableOneLiner(rule) {
+			next := rules[i+1]
+			if w.groupableOneLiner(next) && next.Location.Row == rule.Location.Row+1 {
+				// Current rule and the next are both groupable one-liners, and
+				// adjacent in the original policy (i.e. no extra newlines between them).
+				continue
+			}
+		}
+
 		w.blankLine()
 	}
 	return comments
 }
 
 var expandedConst = ast.NewBody(ast.NewExpr(ast.InternedBooleanTerm(true)))
+
+func (w *writer) groupableOneLiner(rule *ast.Rule) bool {
+	// Location required to determine if two rules are adjacent in the policy.
+	// If not, we respect line breaks between rules.
+	if len(rule.Body) > 1 || rule.Default || rule.Location == nil {
+		return false
+	}
+
+	partialSetException := w.fmtOpts.contains || rule.Head.Value != nil
+
+	return (w.fmtOpts.regoV1 || w.fmtOpts.ifs) && partialSetException
+}
 
 func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment) []*ast.Comment {
 	if rule == nil {
@@ -468,13 +490,13 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 
 	comments = w.writeHead(rule.Head, rule.Default, isExpandedConst, comments)
 
-	// this excludes partial sets UNLESS `contains` is used
-	partialSetException := w.fmtOpts.contains || rule.Head.Value != nil
-
 	if len(rule.Body) == 0 || isExpandedConst {
 		w.endLine()
 		return comments
 	}
+
+	// this excludes partial sets UNLESS `contains` is used
+	partialSetException := w.fmtOpts.contains || rule.Head.Value != nil
 
 	if (w.fmtOpts.regoV1 || w.fmtOpts.ifs) && partialSetException {
 		w.write(" if")
@@ -929,7 +951,7 @@ func (w *writer) writeRefStringPath(s ast.String) {
 	}
 }
 
-func (w *writer) formatVar(v ast.Var) string {
+func (*writer) formatVar(v ast.Var) string {
 	if v.IsWildcard() {
 		return ast.Wildcard.String()
 	}

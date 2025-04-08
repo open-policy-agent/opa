@@ -49,7 +49,7 @@ to optimize queries to improve performance.
 In while reviewing the examples below, you might find it helpful to follow along
 using the online [OPA playground](http://play.openpolicyagent.org). The
 playground also allows sharing of examples via URL which can be helpful when
-asking questions on the [OPA Slack](https://slack.openpolicyagent.org).
+asking questions on the [OPA Slack](https://inviter.co/opa).
 In addition to these official resources, you may also be interested to check
 out the community learning materials and tools.
 {{<
@@ -2991,6 +2991,8 @@ for _, link := range chain {
 ### Using schemas to enhance the Rego type checker
 
 You can provide one or more input schema files and/or data schema files to `opa eval` to improve static type checking and get more precise error reports as you develop Rego code.
+
+Schemas can be provided to OPA in two main ways: by supplying external JSON Schema files using the `-s` command-line flag (explained below), or by embedding schema definitions directly within your Rego files using [schema annotations](#schema-annotations) (detailed further down in this document). Both methods help improve static type checking.
 
 The `-s` flag can be used to upload schemas for input and data documents in JSON Schema format. You can either load a single JSON schema file for the input document or directory of schema files.
 

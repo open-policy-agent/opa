@@ -1197,7 +1197,7 @@ func (c *interQueryCacheData) toCacheValue() (*interQueryCacheValue, error) {
 	return &interQueryCacheValue{Data: b}, nil
 }
 
-func (c *interQueryCacheData) SizeInBytes() int64 {
+func (*interQueryCacheData) SizeInBytes() int64 {
 	return 0
 }
 

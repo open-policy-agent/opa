@@ -94,7 +94,7 @@ func (p *Provider) InstrumentHandler(handler http.Handler, label string) http.Ha
 }
 
 // Info returns attributes that describe the metric provider.
-func (p *Provider) Info() metrics.Info {
+func (*Provider) Info() metrics.Info {
 	return metrics.Info{
 		Name: "prometheus",
 	}

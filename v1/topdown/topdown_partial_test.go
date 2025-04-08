@@ -4059,6 +4059,15 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 			wantQueries: []string{`"x" = input.x`},
 		},
+		{
+			note:                     "nondeterministic builtin time.now_ns() properly initiated",
+			query:                    "data.test.p",
+			nondeterministicBuiltins: true,
+			modules: []string{`package test
+			p if time.now_ns() > 0`,
+			},
+			wantQueries: []string{""}, // unconditional true
+		},
 
 		{
 			note:  "default function, result not collected (non-false default value)",

@@ -788,7 +788,7 @@ func newrepeatedStringFlag(val []string) repeatedStringFlag {
 	}
 }
 
-func (f *repeatedStringFlag) Type() string {
+func (*repeatedStringFlag) Type() string {
 	return stringType
 }
 
@@ -818,7 +818,7 @@ func newIntFlag(val int) intFlag {
 	}
 }
 
-func (f *intFlag) Type() string {
+func (*intFlag) Type() string {
 	return "int"
 }
 

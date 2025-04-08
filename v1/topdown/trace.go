@@ -199,7 +199,7 @@ func (l *legacyTracer) Enabled() bool {
 	return l.t.Enabled()
 }
 
-func (l *legacyTracer) Config() TraceConfig {
+func (*legacyTracer) Config() TraceConfig {
 	return TraceConfig{
 		PlugLocalVars: true, // For backwards compatibility old tracers will plug local variables
 	}
@@ -241,7 +241,7 @@ func (b *BufferTracer) TraceEvent(evt Event) {
 }
 
 // Config returns the Tracers standard configuration
-func (b *BufferTracer) Config() TraceConfig {
+func (*BufferTracer) Config() TraceConfig {
 	return TraceConfig{PlugLocalVars: true}
 }
 

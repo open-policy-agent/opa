@@ -311,7 +311,7 @@ type testLegacyTracer struct {
 	events []*Event
 }
 
-func (n *testLegacyTracer) Enabled() bool {
+func (*testLegacyTracer) Enabled() bool {
 	return true
 }
 

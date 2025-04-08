@@ -1985,7 +1985,7 @@ func (r *Rego) parseInput() (ast.Value, error) {
 	return r.parseRawInput(r.rawInput, r.metrics)
 }
 
-func (r *Rego) parseRawInput(rawInput *interface{}, m metrics.Metrics) (ast.Value, error) {
+func (*Rego) parseRawInput(rawInput *interface{}, m metrics.Metrics) (ast.Value, error) {
 	var input ast.Value
 
 	if rawInput == nil {
@@ -2615,7 +2615,7 @@ func (r *Rego) rewriteQueryToCaptureValue(_ ast.QueryCompiler, query ast.Body) (
 	return query, nil
 }
 
-func (r *Rego) rewriteQueryForPartialEval(_ ast.QueryCompiler, query ast.Body) (ast.Body, error) {
+func (*Rego) rewriteQueryForPartialEval(_ ast.QueryCompiler, query ast.Body) (ast.Body, error) {
 	if len(query) != 1 {
 		return nil, errors.New("partial evaluation requires single ref (not multiple expressions)")
 	}
@@ -2641,7 +2641,7 @@ func (r *Rego) rewriteQueryForPartialEval(_ ast.QueryCompiler, query ast.Body) (
 // this wouldn't be done, except for handling queries with the `Partial` API
 // where rewriting them can substantially simplify the result, and it is unlikely
 // that the caller would need expression values.
-func (r *Rego) rewriteEqualsForPartialQueryCompile(_ ast.QueryCompiler, query ast.Body) (ast.Body, error) {
+func (*Rego) rewriteEqualsForPartialQueryCompile(_ ast.QueryCompiler, query ast.Body) (ast.Body, error) {
 	doubleEq := ast.Equal.Ref()
 	unifyOp := ast.Equality.Ref()
 	ast.WalkExprs(query, func(x *ast.Expr) bool {

@@ -1048,6 +1048,7 @@ func TestBuildBundleModeWithManifestRegoVersion(t *testing.T) {
 		expErrs      []string
 		v0Compatible bool
 		v1Compatible bool
+		capabilities *ast.Capabilities
 	}{
 		{
 			note: "v0 bundle rego-version",
@@ -1181,8 +1182,47 @@ p[4] {
 	input.x == 1
 }`,
 			},
+			expManifest: `{"revision":"","roots":["test1","test2"],"rego_version":0,"file_rego_versions":{"%ROOT%/bundle1/test2.rego":1,"%ROOT%/bundle2/test3.rego":1}}`,
+		},
+		{
+			note:         "multiple bundles with different rego-versions, v0-compatible, no rego_v1 capabilities feature",
+			v0Compatible: true,
+			roots:        []string{"bundle1", "bundle2"},
+			files: map[string]string{
+				"bundle1/.manifest": `{
+	"roots": ["test1"],
+	"rego_version": 0,
+	"file_rego_versions": {
+		"*/test2.rego": 1
+	}
+}`,
+				"bundle1/test1.rego": `package test1
+p[1] {
+	input.x == 1
+}`,
+				"bundle1/test2.rego": `package test1
+p contains 2 if {
+	input.x == 1
+}`,
+				"bundle2/.manifest": `{
+	"roots": ["test2"],
+	"rego_version": 1,
+	"file_rego_versions": {
+		"*/test4.rego": 0
+	}
+}`,
+				"bundle2/test3.rego": `package test2
+p contains 3 if {
+	input.x == 1
+}`,
+				"bundle2/test4.rego": `package test2
+p[4] {
+	input.x == 1
+}`,
+			},
+			capabilities: capsWithoutFeat(ast.RegoV0, ast.FeatureRegoV1),
 			expErrs: []string{
-				// capabilities inferred from --v0-compatible doesn't include rego_v1 feature, which must be respected
+				// capabilities doesn't include rego_v1 feature, which must be respected
 				"rego_parse_error: illegal capabilities: rego_v1 feature required for parsing v1 Rego",
 			},
 		},
@@ -1282,6 +1322,11 @@ p[4] {
 				params.v0Compatible = tc.v0Compatible
 				params.v1Compatible = tc.v1Compatible
 
+				if tc.capabilities != nil {
+					params.capabilities = newcapabilitiesFlag()
+					params.capabilities.C = tc.capabilities
+				}
+
 				if _, ok := tc.files["capabilities.json"]; ok {
 					_ = params.capabilities.Set(path.Join(root, "capabilities.json"))
 				}
@@ -1352,6 +1397,27 @@ p[4] {
 			})
 		})
 	}
+}
+
+func capsWithoutFeat(regoVersion ast.RegoVersion, feat ...string) *ast.Capabilities {
+	caps := ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(regoVersion))
+
+	feats := make([]string, 0, len(caps.Features))
+	for _, f := range caps.Features {
+		skip := false
+		for _, skipF := range feat {
+			if f == skipF {
+				skip = true
+				break
+			}
+		}
+		if !skip {
+			feats = append(feats, f)
+		}
+	}
+	caps.Features = feats
+
+	return caps
 }
 
 func TestBuildBundleFromOtherBundles(t *testing.T) {
@@ -1626,37 +1692,6 @@ q contains 1 if {
 }`,
 				},
 			},
-			expErrs: []string{
-				// capabilities inferred from --v0-compatible doesn't include rego_v1 feature, which must be respected
-				"rego_parse_error: illegal capabilities: rego_v1 feature required for parsing v1 Rego",
-			},
-		},
-		{
-			note:         "single v1 bundle, v0 per-file override, --v0-compatible, rego_v1 capabilities feature",
-			v0Compatible: true,
-			capabilities: func() *ast.Capabilities {
-				caps := ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0))
-				caps.Features = append(caps.Features, ast.FeatureRegoV1)
-				return caps
-			}(),
-			bundles: map[string]bundleInfo{
-				"bundle.tar.gz": {
-					".manifest": `{
-	"rego_version": 1,
-	"file_rego_versions": {
-		"/policy_0.rego": 0
-	}
-}`,
-					"policy_0.rego": `package test
-p {
-	input.x == 1
-}`,
-					"policy_1.rego": `package test
-q contains 1 if {
-	input.x == 1
-}`,
-				},
-			},
 			expBundle: bundleInfo{
 				"/data.json": `{}
 `,
@@ -1677,37 +1712,35 @@ q contains 1 if {
 			},
 		},
 		{
-			note:         "v0 bundle + v1 bundle, --v0-compatible",
+			note:         "single v1 bundle, v0 per-file override, --v0-compatible, no rego_v1 capabilities feature",
 			v0Compatible: true,
+			capabilities: capsWithoutFeat(ast.RegoV0, ast.FeatureRegoV1),
 			bundles: map[string]bundleInfo{
-				"bundle_v0.tar.gz": {
-					".manifest": `{"roots": ["test1"], "rego_version": 0}`,
-					"policy.rego": `package test1
+				"bundle.tar.gz": {
+					".manifest": `{
+	"rego_version": 1,
+	"file_rego_versions": {
+		"/policy_0.rego": 0
+	}
+}`,
+					"policy_0.rego": `package test
 p {
 	input.x == 1
 }`,
-				},
-				"bundle_v1.tar.gz": {
-					".manifest": `{"roots": ["test2"], "rego_version": 1}`,
-					"policy.rego": `package test2
+					"policy_1.rego": `package test
 q contains 1 if {
 	input.x == 1
 }`,
 				},
 			},
 			expErrs: []string{
-				// capabilities inferred from --v0-compatible doesn't include rego_v1 feature, which must be respected
+				// capabilities doesn't include rego_v1 feature, which must be respected
 				"rego_parse_error: illegal capabilities: rego_v1 feature required for parsing v1 Rego",
 			},
 		},
 		{
-			note:         "v0 bundle + v1 bundle, --v0-compatible, rego_v1 capabilities feature",
+			note:         "v0 bundle + v1 bundle, --v0-compatible",
 			v0Compatible: true,
-			capabilities: func() *ast.Capabilities {
-				caps := ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0))
-				caps.Features = append(caps.Features, ast.FeatureRegoV1)
-				return caps
-			}(),
 			bundles: map[string]bundleInfo{
 				"bundle_v0.tar.gz": {
 					".manifest": `{"roots": ["test1"], "rego_version": 0}`,
@@ -1741,6 +1774,31 @@ q contains 1 if {
 	input.x == 1
 }
 `,
+			},
+		},
+		{
+			note:         "v0 bundle + v1 bundle, --v0-compatible, no rego_v1 capabilities feature",
+			v0Compatible: true,
+			capabilities: capsWithoutFeat(ast.RegoV0, ast.FeatureRegoV1),
+			bundles: map[string]bundleInfo{
+				"bundle_v0.tar.gz": {
+					".manifest": `{"roots": ["test1"], "rego_version": 0}`,
+					"policy.rego": `package test1
+p {
+	input.x == 1
+}`,
+				},
+				"bundle_v1.tar.gz": {
+					".manifest": `{"roots": ["test2"], "rego_version": 1}`,
+					"policy.rego": `package test2
+q contains 1 if {
+	input.x == 1
+}`,
+				},
+			},
+			expErrs: []string{
+				// capabilities inferred from --v0-compatible doesn't include rego_v1 feature, which must be respected
+				"rego_parse_error: illegal capabilities: rego_v1 feature required for parsing v1 Rego",
 			},
 		},
 		{
@@ -2099,6 +2157,20 @@ p[x] {
 				}`,
 			},
 			expErrs: []string{
+				"test.rego:2: rego_parse_error: `if` keyword is required before rule body",
+				"test.rego:2: rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note:         "v0 module, not v0-compatible, v0 capabilities without rego_v1 feature",
+			capabilities: capsWithoutFeat(ast.RegoV0, ast.FeatureRegoV1),
+			files: map[string]string{
+				"test.rego": `package test
+				p[x] {
+					x := 42
+				}`,
+			},
+			expErrs: []string{
 				"rego_parse_error: illegal capabilities: rego_v1 feature required for parsing v1 Rego",
 			},
 		},
@@ -2185,6 +2257,17 @@ p contains x if {
 		{
 			note:         "v1 module, not v0-compatible, v0 capabilities",
 			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
+			files: map[string]string{
+				"test.rego": `package test
+				
+				p contains x if {
+					x := 42
+				}`,
+			},
+		},
+		{
+			note:         "v1 module, not v0-compatible, v0 capabilities without rego_v1 feature",
+			capabilities: capsWithoutFeat(ast.RegoV0, ast.FeatureRegoV1),
 			files: map[string]string{
 				"test.rego": `package test
 				

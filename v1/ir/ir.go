@@ -106,7 +106,7 @@ const (
 	Unused
 )
 
-func (a *Policy) String() string {
+func (*Policy) String() string {
 	return "Policy"
 }
 

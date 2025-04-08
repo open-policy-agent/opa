@@ -518,7 +518,7 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 	return ch, nil
 }
 
-func (r *Runner) shouldRun(rule *ast.Rule, testRegex *regexp.Regexp) bool {
+func (*Runner) shouldRun(rule *ast.Rule, testRegex *regexp.Regexp) bool {
 	var ref ast.Ref
 
 	for _, term := range rule.Head.Ref().GroundPrefix() {

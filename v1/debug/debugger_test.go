@@ -2196,14 +2196,14 @@ func newTestStack(events ...*topdown.Event) *testStack {
 	}
 }
 
-func (ts *testStack) Enabled() bool {
+func (*testStack) Enabled() bool {
 	return true
 }
 
-func (ts *testStack) TraceEvent(_ topdown.Event) {
+func (*testStack) TraceEvent(_ topdown.Event) {
 }
 
-func (ts *testStack) Config() topdown.TraceConfig {
+func (*testStack) Config() topdown.TraceConfig {
 	return topdown.TraceConfig{}
 }
 

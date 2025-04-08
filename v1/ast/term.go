@@ -541,7 +541,7 @@ func NullTerm() *Term {
 }
 
 // Equal returns true if the other term Value is also Null.
-func (null Null) Equal(other Value) bool {
+func (Null) Equal(other Value) bool {
 	switch other.(type) {
 	case Null:
 		return true
@@ -552,7 +552,7 @@ func (null Null) Equal(other Value) bool {
 
 // Compare compares null to other, return <0, 0, or >0 if it is less than, equal to,
 // or greater than other.
-func (null Null) Compare(other Value) int {
+func (Null) Compare(other Value) int {
 	if _, ok := other.(Null); ok {
 		return 0
 	}
@@ -560,7 +560,7 @@ func (null Null) Compare(other Value) int {
 }
 
 // Find returns the current value or a not found error.
-func (null Null) Find(path Ref) (Value, error) {
+func (Null) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
 		return NullValue, nil
 	}
@@ -568,7 +568,7 @@ func (null Null) Find(path Ref) (Value, error) {
 }
 
 // Hash returns the hash code for the Value.
-func (null Null) Hash() int {
+func (Null) Hash() int {
 	return 0
 }
 
@@ -577,7 +577,7 @@ func (Null) IsGround() bool {
 	return true
 }
 
-func (null Null) String() string {
+func (Null) String() string {
 	return "null"
 }
 
@@ -3036,7 +3036,7 @@ func (c Call) Compare(other Value) int {
 }
 
 // Find returns the current value or a not found error.
-func (c Call) Find(Ref) (Value, error) {
+func (Call) Find(Ref) (Value, error) {
 	return nil, errFindNotFound
 }
 

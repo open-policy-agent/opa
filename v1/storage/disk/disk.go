@@ -461,7 +461,7 @@ func (db *Store) backupAndLoadDB() (*badger.DB, error) {
 	return newDB, wrapError(os.RemoveAll(backupDir))
 }
 
-func (db *Store) cleanup(oldDB *badger.DB) error {
+func (*Store) cleanup(oldDB *badger.DB) error {
 	err := oldDB.Close()
 	if err != nil {
 		return wrapError(err)
@@ -669,7 +669,7 @@ func (h *handle) Unregister(_ context.Context, txn storage.Transaction) {
 	delete(h.db.triggers, h)
 }
 
-func (db *Store) loadMetadata(txn *badger.Txn, m *metadata) (bool, error) {
+func (*Store) loadMetadata(txn *badger.Txn, m *metadata) (bool, error) {
 
 	item, err := txn.Get([]byte(metadataKey))
 	if err != nil {
@@ -692,7 +692,7 @@ func (db *Store) loadMetadata(txn *badger.Txn, m *metadata) (bool, error) {
 	return true, nil
 }
 
-func (db *Store) setMetadata(txn *badger.Txn, m metadata) error {
+func (*Store) setMetadata(txn *badger.Txn, m metadata) error {
 
 	bs, err := json.Marshal(m)
 	if err != nil {

@@ -99,6 +99,7 @@ func TestCapabilitiesCurrent(t *testing.T) {
 				ast.FeatureRefHeadStringPrefixes,
 				ast.FeatureRefHeads,
 				ast.FeatureRegoV1Import,
+				ast.FeatureRegoV1,
 			},
 			expFutureKeywords: []string{
 				"in",

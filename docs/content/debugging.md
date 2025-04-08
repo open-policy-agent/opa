@@ -40,7 +40,7 @@ opa run [policy-files] [data-files]
 
 The [Rego Playground](http://play.openpolicyagent.org) is a web-based Rego development environment that can be
 used to test policies with different inputs and data. If you are interested in asking for help in the
-[OPA Slack](http://slack.openpolicyagent.org), the playground is a great way to share your policy and data with
+[OPA Slack](https://inviter.co/opa), the playground is a great way to share your policy and data with
 others.
 
 ## Using the `print` Built-in Function
