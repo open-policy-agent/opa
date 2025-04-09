@@ -2,7 +2,7 @@
 # Run goversioninfo to generate the resource.syso to embed version info.
 set -eux
 
-NAME="One Policy Agent (OPA)"
+NAME="Open Policy Agent (OPA)"
 VERSION=$(./build/get-build-version.sh)
 FLAGS=()
 
