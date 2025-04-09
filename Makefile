@@ -98,15 +98,7 @@ release-dir:
 .PHONY: generate
 generate: wasm-lib-build
 ifeq ($(GOOS),windows)
-	currentOS=$(GOOS)
-	currentARCH=$(GOARCH)
 	GOOS=$(shell go env GOOS) GOARCH=$(shell go env GOARCH) go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.5.0
-	@echo $(GOOS)
-	@echo $(GOARCH)
-	GOOS=currentOS
-	GOARCH=currentARCH
-	@echo $(GOOS)
-	@echo $(GOARCH)
 endif
 	$(GO) generate
 

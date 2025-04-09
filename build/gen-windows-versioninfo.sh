@@ -22,4 +22,5 @@ goversioninfo "${FLAGS[@]}" \
     -product-version "$VERSION" \
     -skip-versioninfo \
     -icon=logo/logo.ico \
+    -64=true \
     -o resource.syso
