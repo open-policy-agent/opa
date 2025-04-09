@@ -11,6 +11,12 @@ if [ -n "${1+x}" ] && [ "$1" = "arm64" ]; then
     FLAGS=(-arm -64)
 fi
 
+if ! command -v goversioninfo &> /dev/null; then
+    # If goversioninfo isn't on the path, print an error message
+    echo "Error: goversioninfo command not found" >&2
+    exit 1
+fi
+
 goversioninfo "${FLAGS[@]}" \
     -product-name "$NAME" \
     -product-version "$VERSION" \
