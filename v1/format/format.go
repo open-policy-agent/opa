@@ -7,6 +7,7 @@ package format
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"regexp"
 	"slices"
@@ -509,17 +510,25 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 	// `foo = {"a": "b"} { true }` in the AST. We want to preserve that notation
 	// in the formatted code instead of expanding the bodies into rules, so we
 	// pretend that the rule has no body in this case.
-	isExpandedConst := rule.Body.Equal(expandedConst) && rule.Else == nil
+	w.isExpandedConst = rule.Body.Equal(expandedConst) && rule.Else == nil
 
 	var err error
-	w.isExpandedConst = isExpandedConst
+	var unexpectedComment bool
 	comments, err = w.writeHead(rule.Head, rule.Default, comments)
-	w.isExpandedConst = !isExpandedConst
+	if err != nil {
+		if errors.As(err, &unexpectedCommentError{}) {
+			unexpectedComment = true
+		} else {
+			panic(err)
+		}
+	}
 
-	if len(rule.Body) == 0 || isExpandedConst {
+	if len(rule.Body) == 0 || w.isExpandedConst {
 		w.endLine()
 		return comments
 	}
+
+	w.isExpandedConst = true
 
 	// this excludes partial sets UNLESS `contains` is used
 	partialSetException := w.fmtOpts.contains || rule.Head.Value != nil
@@ -542,7 +551,7 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 			}
 		}
 	}
-	if err != nil && len(comments) > 0 {
+	if unexpectedComment && len(comments) > 0 {
 		w.write(" { ")
 	} else {
 		w.write(" {")
@@ -1833,6 +1842,18 @@ func (w *writer) endLine() {
 	w.write("\n")
 }
 
+type unexpectedCommentError struct {
+	newComment         string
+	newCommentRow      int
+	existingComment    string
+	existingCommentRow int
+}
+
+func (u unexpectedCommentError) Error() string {
+	return fmt.Sprintf("unexpected new comment (%s) on line %d because there is already a comment (%s) registered for line %d",
+		u.newComment, u.newCommentRow, u.existingComment, u.existingCommentRow)
+}
+
 // beforeLineEnd registers a comment to be printed at the end of the current line.
 func (w *writer) beforeLineEnd(c *ast.Comment) error {
 	if w.beforeEnd != nil {
@@ -1841,11 +1862,16 @@ func (w *writer) beforeLineEnd(c *ast.Comment) error {
 		}
 
 		existingComment := truncatedString(w.beforeEnd.String(), 100)
+		existingCommentRow := w.beforeEnd.Location.Row
 		newComment := truncatedString(c.String(), 100)
 		w.beforeEnd = nil
 
-		return fmt.Errorf("unexpected new comment (%s) on line %d because there is already a comment (%s) registered for line %d",
-			newComment, c.Location.Row, existingComment, c.Location.Row)
+		return unexpectedCommentError{
+			newComment:         newComment,
+			newCommentRow:      c.Location.Row,
+			existingComment:    existingComment,
+			existingCommentRow: existingCommentRow,
+		}
 	}
 	w.beforeEnd = c
 	return nil
