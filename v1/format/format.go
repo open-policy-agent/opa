@@ -742,10 +742,10 @@ func (w *writer) writeHead(head *ast.Head, isDefault bool, comments []*ast.Comme
 	} else {
 		// if there are comments within the object in the rule head, don't format it
 		if len(comments) > 0 && ref[1].Location.Row == comments[0].Location.Row {
-			comments, _ := w.writeUnformatted(head.Location, comments)
-			//if err != nil {
-			//	return nil, err
-			//}
+			comments, err := w.writeUnformatted(head.Location, comments)
+			if err != nil {
+				return nil, err
+			}
 			return comments, nil
 		}
 
@@ -2039,9 +2039,7 @@ func (w *writer) beforeLineEnd(c *ast.Comment) error {
 		existingCommentRow := w.beforeEnd.Location.Row
 		newComment := truncatedString(c.String(), 100)
 		w.beforeEnd = nil
-		//w.unexpectedComment = true
 
-		//return nil
 		return unexpectedCommentError{
 			newComment:         newComment,
 			newCommentRow:      c.Location.Row,
