@@ -99,6 +99,26 @@ func SourceWithOpts(filename string, src []byte, opts Opts) ([]byte, error) {
 	return formatted, nil
 }
 
+// MustAst is a helper function to format a Rego AST element. If any errors
+// occur this function will panic. This is mostly used for test
+func MustAst(x interface{}) []byte {
+	bs, err := Ast(x)
+	if err != nil {
+		panic(err)
+	}
+	return bs
+}
+
+// MustAstWithOpts is a helper function to format a Rego AST element. If any errors
+// occur this function will panic. This is mostly used for test
+func MustAstWithOpts(x interface{}, opts Opts) []byte {
+	bs, err := AstWithOpts(x, opts)
+	if err != nil {
+		panic(err)
+	}
+	return bs
+}
+
 // Ast formats a Rego AST element. If the passed value is not a valid AST
 // element, Ast returns nil and an error. If AST nodes are missing locations
 // an arbitrary location will be used.
@@ -245,29 +265,29 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 		}
 		err := w.writeModule(x)
 		if err != nil {
-			return nil, err
+			w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, err.Error()))
 		}
 	case *ast.Package:
 		_, err := w.writePackage(x, nil)
 		if err != nil {
-			return nil, err
+			w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, err.Error()))
 		}
 	case *ast.Import:
 		_, err := w.writeImports([]*ast.Import{x}, nil)
 		if err != nil {
-			return nil, err
+			w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, err.Error()))
 		}
 	case *ast.Rule:
 		_, err := w.writeRule(x, false /* isElse */, nil)
 		if err != nil {
-			return nil, err
+			w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, err.Error()))
 		}
 	case *ast.Head:
 		_, err := w.writeHead(x,
 			false, // isDefault
 			nil)
 		if err != nil {
-			return nil, err
+			w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, err.Error()))
 		}
 	case ast.Body:
 		_, err := w.writeBody(x, nil)
@@ -277,27 +297,27 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 	case *ast.Expr:
 		_, err := w.writeExpr(x, nil)
 		if err != nil {
-			return nil, err
+			w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, err.Error()))
 		}
 	case *ast.With:
 		_, err := w.writeWith(x, nil, false)
 		if err != nil {
-			return nil, err
+			w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, err.Error()))
 		}
 	case *ast.Term:
 		_, err := w.writeTerm(x, nil)
 		if err != nil {
-			return nil, err
+			w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, err.Error()))
 		}
 	case ast.Value:
 		_, err := w.writeTerm(&ast.Term{Value: x, Location: &ast.Location{}}, nil)
 		if err != nil {
-			return nil, err
+			w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, err.Error()))
 		}
 	case *ast.Comment:
 		err := w.writeComments([]*ast.Comment{x})
 		if err != nil {
-			return nil, err
+			w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, err.Error()))
 		}
 	default:
 		return nil, fmt.Errorf("not an ast element: %v", x)
@@ -722,7 +742,11 @@ func (w *writer) writeHead(head *ast.Head, isDefault bool, comments []*ast.Comme
 	} else {
 		// if there are comments within the object in the rule head, don't format it
 		if len(comments) > 0 && ref[1].Location.Row == comments[0].Location.Row {
-			return w.writeRaw(head.Location, comments), nil
+			comments, _ := w.writeUnformatted(head.Location, comments)
+			//if err != nil {
+			//	return nil, err
+			//}
+			return comments, nil
 		}
 
 		w.write(ref[0].String())
@@ -835,9 +859,14 @@ func (w *writer) writeBody(body ast.Body, comments []*ast.Comment) ([]*ast.Comme
 		w.startLine()
 
 		comments, err = w.writeExpr(expr, comments)
+		if err != nil {
+			if !errors.As(err, &unexpectedCommentError{}) {
+				w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, err.Error()))
+			}
+		}
 		w.endLine()
 	}
-	return comments, err
+	return comments, nil
 }
 
 func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comment, error) {
@@ -1086,15 +1115,27 @@ func (w *writer) writeTerm(term *ast.Term, comments []*ast.Comment) ([]*ast.Comm
 
 	comments, err := w.writeTermParens(false, term, comments)
 	if err != nil {
-		w.buf.Truncate(currentLen)
+		if errors.As(err, &unexpectedCommentError{}) {
+			w.buf.Truncate(currentLen)
 
-		return w.writeRaw(term.Location, currentComments), err
+			comments, uErr := w.writeUnformatted(term.Location, currentComments)
+			if uErr != nil {
+				return nil, uErr
+			}
+			return comments, err
+		}
+		return nil, err
 	}
 
 	return comments, nil
 }
 
-func (w *writer) writeRaw(location *ast.Location, currentComments []*ast.Comment) []*ast.Comment {
+// writeUnformatted writes the unformatted text instead and updates the comment state
+func (w *writer) writeUnformatted(location *ast.Location, currentComments []*ast.Comment) ([]*ast.Comment, error) {
+	if len(location.Text) == 0 {
+		return nil, errors.New("original unformatted text is empty")
+	}
+
 	rawRule := string(location.Text)
 	rowNum := len(strings.Split(rawRule, "\n"))
 
@@ -1114,7 +1155,7 @@ func (w *writer) writeRaw(location *ast.Location, currentComments []*ast.Comment
 		}
 		comments = append(comments, c)
 	}
-	return comments
+	return comments, nil
 }
 
 func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Comment) ([]*ast.Comment, error) {
@@ -1998,7 +2039,9 @@ func (w *writer) beforeLineEnd(c *ast.Comment) error {
 		existingCommentRow := w.beforeEnd.Location.Row
 		newComment := truncatedString(c.String(), 100)
 		w.beforeEnd = nil
+		//w.unexpectedComment = true
 
+		//return nil
 		return unexpectedCommentError{
 			newComment:         newComment,
 			newCommentRow:      c.Location.Row,

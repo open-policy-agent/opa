@@ -2372,23 +2372,12 @@ func getTestNamespace() string {
 	return ""
 }
 
-// mustAst is a helper function to format a Rego AST element. If any errors occur this function will panic.
-func mustAst(t *testing.T, x interface{}) []byte {
-	t.Helper()
-
-	bs, err := format.Ast(x)
-	if err != nil {
-		panic(err)
-	}
-	return bs
-}
-
 func dump(t *testing.T, note string, modules map[string]*ast.Module, data interface{}, docpath []string, input *ast.Term, exp interface{}, requiresSort bool) {
 	t.Helper()
 
 	moduleSet := []string{}
 	for _, module := range modules {
-		moduleSet = append(moduleSet, string(bytes.ReplaceAll(mustAst(t, module), []byte("\t"), []byte("  "))))
+		moduleSet = append(moduleSet, string(bytes.ReplaceAll(format.MustAst(module), []byte("\t"), []byte("  "))))
 	}
 
 	namespace := getTestNamespace()
