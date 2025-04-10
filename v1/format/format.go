@@ -295,7 +295,10 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 			return nil, err
 		}
 	case *ast.Comment:
-		w.writeComments([]*ast.Comment{x})
+		err := w.writeComments([]*ast.Comment{x})
+		if err != nil {
+			return nil, err
+		}
 	default:
 		return nil, fmt.Errorf("not an ast element: %v", x)
 	}
@@ -465,12 +468,12 @@ func (w *writer) writePackage(pkg *ast.Package, comments []*ast.Comment) ([]*ast
 	return comments, nil
 }
 
-func (w *writer) writeComments(comments []*ast.Comment) {
+func (w *writer) writeComments(comments []*ast.Comment) error {
 	for i := range comments {
 		if i > 0 {
 			l, err := locCmp(comments[i], comments[i-1])
 			if err != nil {
-				w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, err.Error()))
+				return err
 			}
 			if l > 1 {
 				w.blankLine()
@@ -479,6 +482,8 @@ func (w *writer) writeComments(comments []*ast.Comment) {
 
 		w.writeLine(comments[i].String())
 	}
+
+	return nil
 }
 
 func (w *writer) writeRules(rules []*ast.Rule, comments []*ast.Comment) ([]*ast.Comment, error) {
@@ -593,9 +598,8 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 
 	comments, err = w.writeBody(rule.Body, comments)
 	if err != nil {
-		var u unexpectedCommentError
 		// the unexpected comment error is passed up to be handled by writeHead
-		if !errors.As(err, &u) {
+		if !errors.As(err, &unexpectedCommentError{}) {
 			return nil, err
 		}
 	}
@@ -797,7 +801,10 @@ func (w *writer) writeHead(head *ast.Head, isDefault bool, comments []*ast.Comme
 func (w *writer) insertComments(comments []*ast.Comment, loc *ast.Location) ([]*ast.Comment, error) {
 	before, at, comments := partitionComments(comments, loc)
 
-	w.writeComments(before)
+	err := w.writeComments(before)
+	if err != nil {
+		return nil, err
+	}
 	if len(before) > 0 && loc.Row-before[len(before)-1].Location.Row > 1 {
 		w.blankLine()
 	}
@@ -969,9 +976,8 @@ func (w *writer) writeEvery(every *ast.Every, comments []*ast.Comment) ([]*ast.C
 	w.write(" {")
 	comments, err = w.writeComprehensionBody('{', '}', every.Body, every.Loc(), every.Loc(), comments)
 	if err != nil {
-		var u unexpectedCommentError
 		// the unexpected comment error is passed up to be handled by writeHead
-		if !errors.As(err, &u) {
+		if !errors.As(err, &unexpectedCommentError{}) {
 			return nil, err
 		}
 	}
@@ -1205,7 +1211,12 @@ func (w *writer) writeRef(x ast.Ref, comments []*ast.Comment) ([]*ast.Comment, e
 				w.write("[")
 				comments, err = w.writeTerm(t, comments)
 				if err != nil {
-					w.write("\n")
+					if errors.As(err, &unexpectedCommentError{}) {
+						// add a new line so that the closing bracket isn't part of the unexpected comment
+						w.write("\n")
+					} else {
+						return nil, err
+					}
 				}
 				w.write("]")
 			}
