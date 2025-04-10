@@ -20,10 +20,11 @@ import (
 	"testing"
 	"time"
 
+	"slices"
+
 	"github.com/open-policy-agent/opa/internal/providers/aws"
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/util/test"
-	"slices"
 )
 
 // this is usually private; but we need it here
