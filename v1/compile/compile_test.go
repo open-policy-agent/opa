@@ -2833,12 +2833,24 @@ func TestCompilerSetRoots(t *testing.T) {
 	}
 }
 
+// mustAstWithOpts is a helper function to format a Rego AST element. If any errors
+// occur this function will panic. This is mostly used for test
+func mustAstWithOpts(t *testing.T, x interface{}, opts format.Opts) []byte {
+	t.Helper()
+
+	bs, err := format.AstWithOpts(x, opts)
+	if err != nil {
+		panic(err)
+	}
+	return bs
+}
+
 func TestCompilerOutput(t *testing.T) {
 	// NOTE(tsandall): must use format package here because the compiler formats.
 	mod := ast.MustParseModuleWithOpts(`package test
 		p { input.x = data.foo }`, ast.ParserOptions{RegoVersion: ast.RegoV0})
 	files := map[string]string{
-		"test.rego": string(format.MustAstWithOpts(mod, format.Opts{RegoVersion: ast.RegoV0})),
+		"test.rego": string(mustAstWithOpts(t, mod, format.Opts{RegoVersion: ast.RegoV0})),
 		"data.json": `{"foo": 1}`,
 		".manifest": `{"rego_version": 0}`,
 	}

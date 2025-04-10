@@ -84,9 +84,9 @@ func TestDoMoveRenamePackage(t *testing.T) {
 
 				var formatted []byte
 				if tc.v0Compatible {
-					formatted = format.MustAstWithOpts(tc.expected, format.Opts{RegoVersion: ast.RegoV0})
+					formatted = mustAstWithOpts(t, tc.expected, format.Opts{RegoVersion: ast.RegoV0})
 				} else {
-					formatted = format.MustAstWithOpts(tc.expected, format.Opts{RegoVersion: ast.RegoV1})
+					formatted = mustAstWithOpts(t, tc.expected, format.Opts{RegoVersion: ast.RegoV1})
 				}
 
 				if !bytes.Equal(formatted, buf.Bytes()) {
@@ -95,6 +95,18 @@ func TestDoMoveRenamePackage(t *testing.T) {
 			})
 		})
 	}
+}
+
+// mustAstWithOpts is a helper function to format a Rego AST element. If any errors
+// occur this function will panic. This is mostly used for test
+func mustAstWithOpts(t *testing.T, x interface{}, opts format.Opts) []byte {
+	t.Helper()
+
+	bs, err := format.AstWithOpts(x, opts)
+	if err != nil {
+		panic(err)
+	}
+	return bs
 }
 
 func TestDoMoveOverwriteFile(t *testing.T) {
