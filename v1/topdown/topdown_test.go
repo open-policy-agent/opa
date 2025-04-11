@@ -2145,7 +2145,7 @@ func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler
 			t.Fatal(err)
 		}
 
-		dump(note, compiler.Modules, data, path, inputTerm, expected, requiresSort)
+		dump(t, note, compiler.Modules, data, path, inputTerm, expected, requiresSort)
 	}
 
 	// add an inter-query cache
@@ -2372,7 +2372,8 @@ func getTestNamespace() string {
 	return ""
 }
 
-func dump(note string, modules map[string]*ast.Module, data interface{}, docpath []string, input *ast.Term, exp interface{}, requiresSort bool) {
+func dump(t *testing.T, note string, modules map[string]*ast.Module, data interface{}, docpath []string, input *ast.Term, exp interface{}, requiresSort bool) {
+	t.Helper()
 
 	moduleSet := []string{}
 	for _, module := range modules {
