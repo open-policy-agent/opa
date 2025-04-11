@@ -531,5 +531,5 @@ As of OPA 1.0, all v0 packages have been deprecated. While they will remain for
 the lifetime of OPA 1.0, you are encouraged to upgrade as soon as possible.
 
 If you need to use v0 functionality, you can still use v1 packages. Please see
-the [Backwards Compatibility](./v0-compatibility/) documentation for more
+the [Backwards Compatibility](../v0-compatibility/) documentation for more
 details.
