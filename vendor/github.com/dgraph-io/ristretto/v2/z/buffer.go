@@ -1,30 +1,18 @@
 /*
- * Copyright 2020 Dgraph Labs, Inc. and Contributors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: © Hypermode Inc. <hello@hypermode.com>
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 package z
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"sort"
 	"sync/atomic"
-
-	"github.com/pkg/errors"
 )
 
 const (
@@ -223,8 +211,8 @@ func (b *Buffer) Grow(n int) {
 	case UseMmap:
 		// Truncate and remap the underlying file.
 		if err := b.mmapFile.Truncate(int64(b.curSz)); err != nil {
-			err = errors.Wrapf(err,
-				"while trying to truncate file: %s to size: %d", b.mmapFile.Fd.Name(), b.curSz)
+			err = errors.Join(err,
+				fmt.Errorf("while trying to truncate file: %s to size: %d", b.mmapFile.Fd.Name(), b.curSz))
 			panic(err)
 		}
 		b.buf = b.mmapFile.Data
@@ -348,7 +336,7 @@ func (s *sortHelper) sortSmall(start, end int) {
 
 func assert(b bool) {
 	if !b {
-		log.Fatalf("%+v", errors.Errorf("Assertion failure"))
+		log.Fatalf("%+v", errors.New("Assertion failure"))
 	}
 }
 func check(err error) {
@@ -534,11 +522,11 @@ func (b *Buffer) Release() error {
 		}
 		path := b.mmapFile.Fd.Name()
 		if err := b.mmapFile.Close(-1); err != nil {
-			return errors.Wrapf(err, "while closing file: %s", path)
+			return errors.Join(err, fmt.Errorf("while closing file: %s", path))
 		}
 		if !b.persistent {
 			if err := os.Remove(path); err != nil {
-				return errors.Wrapf(err, "while deleting file %s", path)
+				return errors.Join(err, fmt.Errorf("while deleting file %s", path))
 			}
 		}
 	}
