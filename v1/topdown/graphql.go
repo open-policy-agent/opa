@@ -18,6 +18,7 @@ import (
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
+	"github.com/open-policy-agent/opa/v1/topdown/cache"
 )
 
 // Parses a GraphQL schema, and returns the GraphQL AST for the schema.
@@ -263,23 +264,24 @@ func builtinGraphQLParse(bctx BuiltinContext, operands []*ast.Term, iter func(*a
 
 		// Convert SchemaDoc to Object before validating and converting it to a Schema
 		// This precludes inclusion of extra definitions from the default GraphQL schema
-		schemaASTValue, err = ast.InterfaceToValue(schemaDoc)
-		if err != nil {
-			return err
+		if querySchema == nil {
+			schemaASTValue, err = ast.InterfaceToValue(schemaDoc)
+			if err != nil {
+				return err
+			}
+			querySchema = pruneIrrelevantGraphQLASTNodes(schemaASTValue.(ast.Object))
+			cacheInsertSchemaAST(bctx, schemaASTCacheKey, querySchema)
 		}
 
 		// Validate the query against the schema, erroring if there's an issue.
-		schema, err = convertSchema(schemaDoc)
-		if err != nil {
-			return err
-		}
-
-		querySchema = pruneIrrelevantGraphQLASTNodes(schemaASTValue.(ast.Object))
-
-		if bctx.InterQueryBuiltinValueCache != nil {
+		if schema == nil {
+			schema, err = convertSchema(schemaDoc)
+			if err != nil {
+				return err
+			}
 			cacheInsertSchema(bctx, schemaCacheKey, schema)
-			cacheInsertSchemaAST(bctx, schemaASTCacheKey, querySchema)
 		}
+
 	}
 	// Transform the ASTs into Objects.
 	queryASTValue, err := ast.InterfaceToValue(queryDoc)
@@ -356,25 +358,26 @@ func builtinGraphQLParseAndVerify(bctx BuiltinContext, operands []*ast.Term, ite
 
 		// Convert SchemaDoc to Object before validating and converting it to a Schema
 		// This precludes inclusion of extra definitions from the default GraphQL schema
-		schemaASTValue, err = ast.InterfaceToValue(schemaDoc)
-		if err != nil {
-			return iter(unverified)
-		}
-
-		// Validate the query against the schema, erroring if there's an issue.
-		schema, err = convertSchema(schemaDoc)
-		if err != nil {
-			return iter(unverified)
-		}
-
-		querySchema = pruneIrrelevantGraphQLASTNodes(schemaASTValue.(ast.Object))
-
-		if bctx.InterQueryBuiltinValueCache != nil {
-			cacheInsertSchema(bctx, schemaCacheKey, schema)
+		if querySchema == nil {
+			schemaASTValue, err = ast.InterfaceToValue(schemaDoc)
+			if err != nil {
+				return iter(unverified)
+			}
+			querySchema = pruneIrrelevantGraphQLASTNodes(schemaASTValue.(ast.Object))
 			cacheInsertSchemaAST(bctx, schemaASTCacheKey, querySchema)
 		}
+
+		if schema == nil {
+			schema, err = convertSchema(schemaDoc)
+			if err != nil {
+				return iter(unverified)
+			}
+			cacheInsertSchema(bctx, schemaCacheKey, schema)
+		}
+
 	}
 
+	// Validate the query against the schema, erroring if there's an issue.
 	if err := validateQuery(schema, queryDoc); err != nil {
 		return iter(unverified)
 	}
@@ -417,9 +420,6 @@ func builtinGraphQLParseQuery(_ BuiltinContext, operands []*ast.Term, iter func(
 }
 
 func builtinGraphQLParseSchema(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	var schemaDoc *gqlast.SchemaDocument
-	var err error
-
 	schemaDocCacheKey, schemaDoc := cacheGetSchemaDoc(bctx, operands)
 	if schemaDoc == nil {
 		raw, err := builtins.StringOperand(operands[0].Value, 1)
@@ -433,21 +433,23 @@ func builtinGraphQLParseSchema(bctx BuiltinContext, operands []*ast.Term, iter f
 			return err
 		}
 		// Note SchemaDoc is not validated
-		if bctx.InterQueryBuiltinValueCache != nil {
-			cacheInsertSchemaDoc(bctx, schemaDocCacheKey, schemaDoc)
+		cacheInsertSchemaDoc(bctx, schemaDocCacheKey, schemaDoc)
+	}
+
+	schemaASTCacheKey, schemaAST := cacheGetSchemaAST(bctx, operands)
+	if schemaAST == nil {
+
+		// Transform the AST into an Object.
+		value, err := ast.InterfaceToValue(schemaDoc)
+		if err != nil {
+			return err
 		}
+
+		// Recursively remove irrelevant AST structures.
+		schemaAST = pruneIrrelevantGraphQLASTNodes(value.(ast.Object))
+		cacheInsertSchemaAST(bctx, schemaASTCacheKey, schemaAST)
 	}
-
-	// Transform the AST into an Object.
-	value, err := ast.InterfaceToValue(schemaDoc)
-	if err != nil {
-		return err
-	}
-
-	// Recursively remove irrelevant AST structures.
-	result := pruneIrrelevantGraphQLASTNodes(value.(ast.Object))
-
-	return iter(ast.NewTerm(result))
+	return iter(ast.NewTerm(schemaAST))
 }
 
 func builtinGraphQLIsValid(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -489,9 +491,7 @@ func builtinGraphQLIsValid(bctx BuiltinContext, operands []*ast.Term, iter func(
 		if err != nil {
 			return iter(ast.InternedBooleanTerm(false))
 		}
-		if bctx.InterQueryBuiltinValueCache != nil {
-			cacheInsertSchema(bctx, schemaCacheKey, schema)
-		}
+		cacheInsertSchema(bctx, schemaCacheKey, schema)
 	}
 
 	if err := validateQuery(schema, queryDoc); err != nil {
@@ -526,7 +526,7 @@ func builtinGraphQLSchemaIsValid(bctx BuiltinContext, operands []*ast.Term, iter
 		// Validate the schema, this determines the result
 		// and whether there is a schema to cache
 		validatedSchema, err = convertSchema(schemaDoc)
-		if bctx.InterQueryBuiltinValueCache != nil && err == nil {
+		if err == nil {
 			cacheInsertSchema(bctx, schemaCacheKey, validatedSchema)
 		}
 	}
@@ -536,85 +536,109 @@ func builtinGraphQLSchemaIsValid(bctx BuiltinContext, operands []*ast.Term, iter
 
 // Insert Schema into cache
 func cacheInsertSchema(bctx BuiltinContext, key string, schema *gqlast.Schema) int {
-	cacheKeyAST := ast.StringTerm(key).Value
-	numDroppedEntries := bctx.InterQueryBuiltinValueCache.Insert(cacheKeyAST, schema)
+	if bctx.InterQueryBuiltinValueCache == nil || key == "" {
+		return 0
+	}
+	cacheKey := ast.StringTerm(key).Value
+	c := bctx.InterQueryBuiltinValueCache.GetCache(gqlSchemaCacheName)
+	if c == nil {
+		return 0
+	}
+	numDroppedEntries := c.Insert(cacheKey, schema)
 	return numDroppedEntries
 }
 
 // Insert SchemaAST into cache
 func cacheInsertSchemaAST(bctx BuiltinContext, key string, schemaAST ast.Value) int {
+	if bctx.InterQueryBuiltinValueCache == nil || key == "" {
+		return 0
+	}
 	cacheKeyAST := ast.StringTerm(key).Value
-	numDroppedEntries := bctx.InterQueryBuiltinValueCache.Insert(cacheKeyAST, schemaAST)
+	c := bctx.InterQueryBuiltinValueCache.GetCache(gqlSchemaAstCacheName)
+	if c == nil {
+		return 0
+	}
+	numDroppedEntries := c.Insert(cacheKeyAST, schemaAST)
 	return numDroppedEntries
 }
 
 // Insert SchemaDocument into cache
 func cacheInsertSchemaDoc(bctx BuiltinContext, key string, schemaDoc *gqlast.SchemaDocument) int {
-	cacheKeyAST := ast.StringTerm(key).Value
-	numDroppedEntries := bctx.InterQueryBuiltinValueCache.Insert(cacheKeyAST, schemaDoc)
+	if bctx.InterQueryBuiltinValueCache == nil || key == "" {
+		return 0
+	}
+	cacheKey := ast.StringTerm(key).Value
+	c := bctx.InterQueryBuiltinValueCache.GetCache(gqlSchemaDocCacheName)
+	if c == nil {
+		return 0
+	}
+	numDroppedEntries := c.Insert(cacheKey, schemaDoc)
 	return numDroppedEntries
 }
 
 // Returns the cache key and a Schema if this key already exists in the cache
 func cacheGetSchema(bctx BuiltinContext, operands []*ast.Term) (string, *gqlast.Schema) {
-	var key string
-	var schema *gqlast.Schema
-
-	if k, keyOk := cacheKeyWithPrefix(bctx, operands, "gql_schema"); keyOk {
-		key = k
-		if val, ok := bctx.InterQueryBuiltinValueCache.Get(ast.StringTerm(key).Value); ok {
-			var isSchema bool
-			schema, isSchema = val.(*gqlast.Schema)
-			if !isSchema {
+	if bctx.InterQueryBuiltinValueCache != nil {
+		if key, keyOk := cacheKey(bctx, operands); keyOk {
+			c := bctx.InterQueryBuiltinValueCache.GetCache(gqlSchemaCacheName)
+			if c == nil {
 				return key, nil
 			}
+			if val, ok := c.Get(ast.StringTerm(key).Value); ok {
+				if schema, isSchema := val.(*gqlast.Schema); isSchema {
+					return key, schema
+				}
+			}
+			return key, nil
 		}
 	}
-	return key, schema
+	return "", nil
 }
 
 // Returns the cache key and a SchemaDocument if this key already exists in the cache
 // Note: the SchemaDocument is not a validated Schema
 func cacheGetSchemaDoc(bctx BuiltinContext, operands []*ast.Term) (string, *gqlast.SchemaDocument) {
-	var key string
-	var schemaDoc *gqlast.SchemaDocument
-
-	if k, keyOk := cacheKeyWithPrefix(bctx, operands, "gql_schema_doc"); keyOk {
-		key = k
-		if val, ok := bctx.InterQueryBuiltinValueCache.Get(ast.StringTerm(key).Value); ok {
-			var isSchema bool
-			schemaDoc, isSchema = val.(*gqlast.SchemaDocument)
-			if !isSchema {
+	if bctx.InterQueryBuiltinValueCache != nil {
+		if key, keyOk := cacheKey(bctx, operands); keyOk {
+			c := bctx.InterQueryBuiltinValueCache.GetCache(gqlSchemaDocCacheName)
+			if c == nil {
 				return key, nil
 			}
+			if val, ok := c.Get(ast.StringTerm(key).Value); ok {
+				if schemaDoc, isSchemaDoc := val.(*gqlast.SchemaDocument); isSchemaDoc {
+					return key, schemaDoc
+				}
+			}
+			return key, nil
 		}
 	}
-	return key, schemaDoc
+	return "", nil
 }
 
 // Returns the cache key and a SchemaDocument if this key already exists in the cache
 // Note: the AST should be pruned
 func cacheGetSchemaAST(bctx BuiltinContext, operands []*ast.Term) (string, ast.Value) {
-	var key string
-	var schemaAST ast.Value
-
-	if k, keyOk := cacheKeyWithPrefix(bctx, operands, "gql_schema_ast"); keyOk {
-		key = k
-		if val, ok := bctx.InterQueryBuiltinValueCache.Get(ast.StringTerm(key).Value); ok {
-			var isAstValue bool
-			schemaAST, isAstValue = val.(ast.Value)
-			if !isAstValue {
+	if bctx.InterQueryBuiltinValueCache != nil {
+		if key, keyOk := cacheKey(bctx, operands); keyOk {
+			c := bctx.InterQueryBuiltinValueCache.GetCache(gqlSchemaAstCacheName)
+			if c == nil {
 				return key, nil
 			}
+			if val, ok := c.Get(ast.StringTerm(key).Value); ok {
+				if schemaAST, isSchemaAST := val.(ast.Value); isSchemaAST {
+					return key, schemaAST
+				}
+			}
+			return key, nil
 		}
 	}
-	return key, schemaAST
+	return "", nil
 }
 
 // Compute a constant size key for use with the cache
-func cacheKeyWithPrefix(bctx BuiltinContext, operands []*ast.Term, prefix string) (string, bool) {
+func cacheKey(bctx BuiltinContext, operands []*ast.Term) (string, bool) {
 	var cacheKey ast.String
-	var ok bool = false
+	var ok = false
 
 	if bctx.InterQueryBuiltinValueCache != nil {
 		switch operands[0].Value.(type) {
@@ -636,10 +660,23 @@ func cacheKeyWithPrefix(bctx BuiltinContext, operands []*ast.Term, prefix string
 		}
 	}
 
-	return prefix + "-" + string(cacheKey), ok
+	return string(cacheKey), ok
 }
 
+const gqlSchemaCacheName = "graphql_schema"
+const gqlSchemaDocCacheName = "graphql_schema_doc"
+const gqlSchemaAstCacheName = "graphql_schema_ast"
+
 func init() {
+
+	var defaultCacheEntries int = 10
+	var graphqlCacheConfig = cache.NamedValueCacheConfig{
+		MaxNumEntries: &defaultCacheEntries,
+	}
+	cache.RegisterDefaultInterQueryBuiltinValueCacheConfig(gqlSchemaCacheName, &graphqlCacheConfig)
+	cache.RegisterDefaultInterQueryBuiltinValueCacheConfig(gqlSchemaDocCacheName, &graphqlCacheConfig)
+	cache.RegisterDefaultInterQueryBuiltinValueCacheConfig(gqlSchemaAstCacheName, &graphqlCacheConfig)
+
 	RegisterBuiltinFunc(ast.GraphQLParse.Name, builtinGraphQLParse)
 	RegisterBuiltinFunc(ast.GraphQLParseAndVerify.Name, builtinGraphQLParseAndVerify)
 	RegisterBuiltinFunc(ast.GraphQLParseQuery.Name, builtinGraphQLParseQuery)

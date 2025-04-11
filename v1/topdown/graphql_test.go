@@ -92,9 +92,23 @@ func TestGraphQLParseString(t *testing.T) {
 		},
 	}
 
-	in := `{"inter_query_builtin_value_cache": {"max_num_entries": 10},}`
-	config, _ := cache.ParseCachingConfig([]byte(in))
-	valueCache := cache.NewInterQueryValueCache(context.Background(), config)
+	valueCache := cache.NewInterQueryValueCache(
+		context.Background(),
+		&cache.Config{
+			InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
+					gqlSchemaCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaDocCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaAstCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+				},
+			},
+		})
 
 	for _, tc := range cases {
 
@@ -189,9 +203,23 @@ func TestGraphQLParseObject(t *testing.T) {
 		},
 	}
 
-	in := `{"inter_query_builtin_value_cache": {"max_num_entries": 10},}`
-	config, _ := cache.ParseCachingConfig([]byte(in))
-	valueCache := cache.NewInterQueryValueCache(context.Background(), config)
+	valueCache := cache.NewInterQueryValueCache(
+		context.Background(),
+		&cache.Config{
+			InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
+					gqlSchemaCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaDocCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaAstCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+				},
+			},
+		})
 
 	for _, tc := range cases {
 
@@ -296,9 +324,23 @@ func TestGraphQLSchemaIsValid(t *testing.T) {
 		},
 	}
 
-	in := `{"inter_query_builtin_value_cache": {"max_num_entries": 10},}`
-	config, _ := cache.ParseCachingConfig([]byte(in))
-	valueCache := cache.NewInterQueryValueCache(context.Background(), config)
+	valueCache := cache.NewInterQueryValueCache(
+		context.Background(),
+		&cache.Config{
+			InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
+					gqlSchemaCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaDocCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaAstCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+				},
+			},
+		})
 
 	for _, tc := range cases {
 
@@ -430,9 +472,23 @@ func TestGraphQLParseAndVerify(t *testing.T) {
 		},
 	}
 
-	in := `{"inter_query_builtin_value_cache": {"max_num_entries": 10},}`
-	config, _ := cache.ParseCachingConfig([]byte(in))
-	valueCache := cache.NewInterQueryValueCache(context.Background(), config)
+	valueCache := cache.NewInterQueryValueCache(
+		context.Background(),
+		&cache.Config{
+			InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
+					gqlSchemaCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaDocCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaAstCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+				},
+			},
+		})
 
 	for _, tc := range cases {
 
@@ -545,9 +601,23 @@ func TestGraphQLIsValid(t *testing.T) {
 		},
 	}
 
-	in := `{"inter_query_builtin_value_cache": {"max_num_entries": 10},}`
-	config, _ := cache.ParseCachingConfig([]byte(in))
-	valueCache := cache.NewInterQueryValueCache(context.Background(), config)
+	valueCache := cache.NewInterQueryValueCache(
+		context.Background(),
+		&cache.Config{
+			InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
+					gqlSchemaCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaDocCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaAstCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+				},
+			},
+		})
 
 	for _, tc := range cases {
 
@@ -637,9 +707,23 @@ func TestGraphQLParseQuery(t *testing.T) {
 		},
 	}
 
-	in := `{"inter_query_builtin_value_cache": {"max_num_entries": 10},}`
-	config, _ := cache.ParseCachingConfig([]byte(in))
-	valueCache := cache.NewInterQueryValueCache(context.Background(), config)
+	valueCache := cache.NewInterQueryValueCache(
+		context.Background(),
+		&cache.Config{
+			InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
+					gqlSchemaCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaDocCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaAstCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+				},
+			},
+		})
 
 	for _, tc := range cases {
 
@@ -729,9 +813,23 @@ func TestGraphQLParseSchema(t *testing.T) {
 		},
 	}
 
-	in := `{"inter_query_builtin_value_cache": {"max_num_entries": 10},}`
-	config, _ := cache.ParseCachingConfig([]byte(in))
-	valueCache := cache.NewInterQueryValueCache(context.Background(), config)
+	valueCache := cache.NewInterQueryValueCache(
+		context.Background(),
+		&cache.Config{
+			InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
+					gqlSchemaCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaDocCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaAstCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+				},
+			},
+		})
 
 	for _, tc := range cases {
 

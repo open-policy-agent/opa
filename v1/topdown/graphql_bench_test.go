@@ -17,9 +17,23 @@ func BenchmarkGraphQLSchemaIsValid(b *testing.B) {
 
 	// Share an InterQueryValueCache across multiple runs
 	// Tune number of entries to exceed number of distinct GQL schemas
-	in := `{"inter_query_builtin_value_cache": {"max_num_entries": 10},}`
-	config, _ := cache.ParseCachingConfig([]byte(in))
-	valueCache := cache.NewInterQueryValueCache(context.Background(), config)
+	valueCache := cache.NewInterQueryValueCache(
+		context.Background(),
+		&cache.Config{
+			InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
+					gqlSchemaCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaDocCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaAstCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+				},
+			},
+		})
 
 	benches := []struct {
 		desc   string
@@ -27,10 +41,30 @@ func BenchmarkGraphQLSchemaIsValid(b *testing.B) {
 		cache  cache.InterQueryValueCache
 		result *ast.Term
 	}{
-		{"Trivial Schema - string", ast.NewTerm(ast.String(employeeGQLSchema)), nil, ast.BooleanTerm(true)},
-		{"Trivial Schema with cache - string", ast.NewTerm(ast.String(employeeGQLSchema)), valueCache, ast.BooleanTerm(true)},
-		{"Trivial Schema - AST object", ast.NewTerm(ast.MustParseTerm(employeeGQLSchemaAST).Value.(ast.Object)), nil, ast.BooleanTerm(true)},
-		{"Trivial Schema with cache - AST object", ast.NewTerm(ast.MustParseTerm(employeeGQLSchemaAST).Value.(ast.Object)), valueCache, ast.BooleanTerm(true)},
+		{
+			desc:   "Trivial Schema - string",
+			schema: ast.NewTerm(ast.String(employeeGQLSchema)),
+			cache:  nil,
+			result: ast.BooleanTerm(true),
+		},
+		{
+			desc:   "Trivial Schema with cache - string",
+			schema: ast.NewTerm(ast.String(employeeGQLSchema)),
+			cache:  valueCache,
+			result: ast.BooleanTerm(true),
+		},
+		{
+			desc:   "Trivial Schema - AST object",
+			schema: ast.NewTerm(ast.MustParseTerm(employeeGQLSchemaAST).Value.(ast.Object)),
+			cache:  nil,
+			result: ast.BooleanTerm(true),
+		},
+		{
+			desc:   "Trivial Schema with cache - AST object",
+			schema: ast.NewTerm(ast.MustParseTerm(employeeGQLSchemaAST).Value.(ast.Object)),
+			cache:  valueCache,
+			result: ast.BooleanTerm(true),
+		},
 	}
 
 	for _, bench := range benches {
@@ -64,9 +98,23 @@ func BenchmarkGraphQLParseSchema(b *testing.B) {
 
 	// Share an InterQueryValueCache across multiple runs
 	// Tune number of entries to exceed number of distinct GQL schemas
-	in := `{"inter_query_builtin_value_cache": {"max_num_entries": 10},}`
-	config, _ := cache.ParseCachingConfig([]byte(in))
-	valueCache := cache.NewInterQueryValueCache(context.Background(), config)
+	valueCache := cache.NewInterQueryValueCache(
+		context.Background(),
+		&cache.Config{
+			InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
+					gqlSchemaCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaDocCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaAstCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+				},
+			},
+		})
 
 	benches := []struct {
 		desc   string
@@ -74,8 +122,18 @@ func BenchmarkGraphQLParseSchema(b *testing.B) {
 		cache  cache.InterQueryValueCache
 		result *ast.Term
 	}{
-		{"Trivial Schema - string", ast.NewTerm(ast.String(employeeGQLSchema)), nil, ast.NewTerm(employeeGQLSchemaASTObj)},
-		{"Trivial Schema with cache - string", ast.NewTerm(ast.String(employeeGQLSchema)), valueCache, ast.NewTerm(employeeGQLSchemaASTObj)},
+		{
+			desc:   "Trivial Schema - string",
+			schema: ast.NewTerm(ast.String(employeeGQLSchema)),
+			cache:  nil,
+			result: ast.NewTerm(employeeGQLSchemaASTObj),
+		},
+		{
+			desc:   "Trivial Schema with cache - string",
+			schema: ast.NewTerm(ast.String(employeeGQLSchema)),
+			cache:  valueCache,
+			result: ast.NewTerm(employeeGQLSchemaASTObj),
+		},
 	}
 	for _, bench := range benches {
 		b.Run(bench.desc, func(b *testing.B) {
@@ -109,9 +167,23 @@ func BenchmarkGraphQLParseQuery(b *testing.B) {
 
 	// Share an InterQueryValueCache across multiple runs
 	// Tune number of entries to exceed number of distinct GQL schemas
-	in := `{"inter_query_builtin_value_cache": {"max_num_entries": 10},}`
-	config, _ := cache.ParseCachingConfig([]byte(in))
-	valueCache := cache.NewInterQueryValueCache(context.Background(), config)
+	valueCache := cache.NewInterQueryValueCache(
+		context.Background(),
+		&cache.Config{
+			InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
+					gqlSchemaCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaDocCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaAstCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+				},
+			},
+		})
 
 	benches := []struct {
 		desc   string
@@ -119,8 +191,18 @@ func BenchmarkGraphQLParseQuery(b *testing.B) {
 		cache  cache.InterQueryValueCache
 		result *ast.Term
 	}{
-		{"Trivial Query - string", ast.NewTerm(ast.String(`{ employeeByID(id: "alice") { salary } }`)), nil, ast.NewTerm(employeeGQLQueryASTObj)},
-		{"Trivial Query with cache - string", ast.NewTerm(ast.String(`{ employeeByID(id: "alice") { salary } }`)), valueCache, ast.NewTerm(employeeGQLQueryASTObj)},
+		{
+			desc:   "Trivial Query - string",
+			query:  ast.NewTerm(ast.String(`{ employeeByID(id: "alice") { salary } }`)),
+			cache:  nil,
+			result: ast.NewTerm(employeeGQLQueryASTObj),
+		},
+		{
+			desc:   "Trivial Query with cache - string",
+			query:  ast.NewTerm(ast.String(`{ employeeByID(id: "alice") { salary } }`)),
+			cache:  valueCache,
+			result: ast.NewTerm(employeeGQLQueryASTObj),
+		},
 	}
 	for _, bench := range benches {
 		b.Run(bench.desc, func(b *testing.B) {
@@ -154,9 +236,23 @@ func BenchmarkGraphQLIsValid(b *testing.B) {
 
 	// Share an InterQueryValueCache across multiple runs
 	// Tune number of entries to exceed number of distinct GQL schemas
-	in := `{"inter_query_builtin_value_cache": {"max_num_entries": 10},}`
-	config, _ := cache.ParseCachingConfig([]byte(in))
-	valueCache := cache.NewInterQueryValueCache(context.Background(), config)
+	valueCache := cache.NewInterQueryValueCache(
+		context.Background(),
+		&cache.Config{
+			InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
+					gqlSchemaCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaDocCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaAstCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+				},
+			},
+		})
 
 	benches := []struct {
 		desc   string
@@ -212,9 +308,23 @@ func BenchmarkGraphQLParse(b *testing.B) {
 
 	// Share an InterQueryValueCache across multiple runs
 	// Tune number of entries to exceed number of distinct GQL schemas
-	in := `{"inter_query_builtin_value_cache": {"max_num_entries": 10},}`
-	config, _ := cache.ParseCachingConfig([]byte(in))
-	valueCache := cache.NewInterQueryValueCache(context.Background(), config)
+	valueCache := cache.NewInterQueryValueCache(
+		context.Background(),
+		&cache.Config{
+			InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
+					gqlSchemaCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaDocCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaAstCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+				},
+			},
+		})
 
 	// Use this to map result item position to purpose for better error messages
 	resultItemDescription := []string{"query_ast", "schema_ast"}
@@ -288,9 +398,23 @@ func BenchmarkGraphQLParseAndVerify(b *testing.B) {
 
 	// Share an InterQueryValueCache across multiple runs
 	// Tune number of entries to exceed number of distinct GQL schemas
-	in := `{"inter_query_builtin_value_cache": {"max_num_entries": 10},}`
-	config, _ := cache.ParseCachingConfig([]byte(in))
-	valueCache := cache.NewInterQueryValueCache(context.Background(), config)
+	valueCache := cache.NewInterQueryValueCache(
+		context.Background(),
+		&cache.Config{
+			InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
+					gqlSchemaCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaDocCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+					gqlSchemaAstCacheName: {
+						MaxNumEntries: &[]int{10}[0],
+					},
+				},
+			},
+		})
 
 	// Use this to map result item position to purpose for better error messages
 	resultItemDescription := []string{"is_valid", "query_ast", "schema_ast"}
