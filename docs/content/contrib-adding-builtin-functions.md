@@ -69,8 +69,8 @@ import (
     "fmt"
     "strings"
 
-    "github.com/open-policy-agent/opa/ast"
-    "github.com/open-policy-agent/opa/topdown/builtins"
+    "github.com/open-policy-agent/opa/v1/ast"
+    "github.com/open-policy-agent/opa/v1/topdown/builtins"
 )
 
 // implements topdown.BuiltinFunc
@@ -105,7 +105,7 @@ The call to `RegisterBuiltinFunc(...)` in `init()` adds the built-in function to
 ### Test
 
 All built-in function implementations must include a test suite.
-Test cases for built-in functions are written in YAML and located under `test/cases/testdata`.
+Test cases for built-in functions are written in YAML and located under `test/cases/testdata/v1`.
 
 We create two new test cases (one positive, expecting a string output; and one negative, expecting an error) for our built-in function:
 
@@ -117,7 +117,7 @@ cases:
       - |
         package test
 
-        p := repeated {
+        p := repeated if {
           repeated := repeat(input.str, input.count)
         }
     input: {"str": "Foo", "count": 3}
@@ -129,7 +129,7 @@ cases:
       - |
         package test
 
-        p := repeated {
+        p := repeated if {
           repeated := repeat(input.str, input.count)
         }
     input: { "str": "Foo", "count": -3 }
@@ -138,7 +138,7 @@ cases:
     want_error: 'repeat: count must be a positive integer'
 ```
 
-The above test cases can be run separate from all other tests through: `go test ./topdown -v -run 'TestRego/repeat'`
+The above test cases can be run separate from all other tests through: `go test ./topdown -v -run 'TestRego/v1/repeat'`
 
 See [test/cases/testdata/helloworld](https://github.com/open-policy-agent/opa/blob/main/test/cases/testdata/helloworld)
 for a more detailed example of how to implement tests for your built-in functions.
