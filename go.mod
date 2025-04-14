@@ -1,7 +1,8 @@
 module github.com/open-policy-agent/opa
 
-go 1.23.6
-toolchain go1.24.1
+go 1.23.8
+
+toolchain go1.24.2
 
 require (
 	github.com/agnivade/levenshtein v1.2.1
@@ -10,7 +11,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/containerd/containerd v1.7.27
 	github.com/containerd/errdefs v1.0.0
-	github.com/dgraph-io/badger/v4 v4.6.0
+	github.com/dgraph-io/badger/v4 v4.7.0
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/foxcpp/go-mockdns v1.1.0
 	github.com/fsnotify/fsnotify v1.8.0
@@ -60,7 +61,7 @@ require (
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/platforms v0.2.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.6 // indirect
-	github.com/dgraph-io/ristretto/v2 v2.1.0 // indirect
+	github.com/dgraph-io/ristretto/v2 v2.2.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -77,7 +78,6 @@ require (
 	github.com/moby/locker v1.0.1 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/common v0.62.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/rogpeppe/go-internal v1.13.1 // indirect
@@ -100,7 +100,7 @@ require (
 	golang.org/x/tools v0.22.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250218202821-56aae31c358a // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250218202821-56aae31c358a // indirect
-	google.golang.org/protobuf v1.36.5 // indirect
+	google.golang.org/protobuf v1.36.6 // indirect
 )
 
 // retract directive comment below will be displayed as a warning on pkg.go.dev for the old package name. Please retain

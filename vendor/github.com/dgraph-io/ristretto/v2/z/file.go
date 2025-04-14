@@ -1,29 +1,17 @@
 /*
- * Copyright 2020 Dgraph Labs, Inc. and Contributors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: © Hypermode Inc. <hello@hypermode.com>
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 package z
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 )
 
 // MmapFile represents an mmapd file and includes both the buffer to the data
@@ -39,7 +27,7 @@ func OpenMmapFileUsing(fd *os.File, sz int, writable bool) (*MmapFile, error) {
 	filename := fd.Name()
 	fi, err := fd.Stat()
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot stat file: %s", filename)
+		return nil, errors.Join(err, fmt.Errorf("cannot stat file: %s", filename))
 	}
 
 	var rerr error
@@ -47,7 +35,7 @@ func OpenMmapFileUsing(fd *os.File, sz int, writable bool) (*MmapFile, error) {
 	if sz > 0 && fileSize == 0 {
 		// If file is empty, truncate it to sz.
 		if err := fd.Truncate(int64(sz)); err != nil {
-			return nil, errors.Wrapf(err, "error while truncation")
+			return nil, errors.Join(err, errors.New("error while truncation"))
 		}
 		fileSize = int64(sz)
 		rerr = NewFile
@@ -56,7 +44,7 @@ func OpenMmapFileUsing(fd *os.File, sz int, writable bool) (*MmapFile, error) {
 	// fmt.Printf("Mmaping file: %s with writable: %v filesize: %d\n", fd.Name(), writable, fileSize)
 	buf, err := Mmap(fd, writable, fileSize) // Mmap up to file size.
 	if err != nil {
-		return nil, errors.Wrapf(err, "while mmapping %s with size: %d", fd.Name(), fileSize)
+		return nil, errors.Join(err, fmt.Errorf("while mmapping %s with size: %d", fd.Name(), fileSize))
 	}
 
 	if fileSize == 0 {
@@ -79,7 +67,7 @@ func OpenMmapFile(filename string, flag int, maxSz int) (*MmapFile, error) {
 	// fmt.Printf("opening file %s with flag: %v\n", filename, flag)
 	fd, err := os.OpenFile(filename, flag, 0666)
 	if err != nil {
-		return nil, errors.Wrapf(err, "unable to open: %s", filename)
+		return nil, errors.Join(err, fmt.Errorf("unable to open: %s", filename))
 	}
 	writable := true
 	if flag == os.O_RDONLY {
@@ -207,13 +195,13 @@ func (m *MmapFile) Close(maxSz int64) error {
 func SyncDir(dir string) error {
 	df, err := os.Open(dir)
 	if err != nil {
-		return errors.Wrapf(err, "while opening %s", dir)
+		return errors.Join(err, fmt.Errorf("while opening %s", dir))
 	}
 	if err := df.Sync(); err != nil {
-		return errors.Wrapf(err, "while syncing %s", dir)
+		return errors.Join(err, fmt.Errorf("while syncing %s", dir))
 	}
 	if err := df.Close(); err != nil {
-		return errors.Wrapf(err, "while closing %s", dir)
+		return errors.Join(err, fmt.Errorf("while closing %s", dir))
 	}
 	return nil
 }

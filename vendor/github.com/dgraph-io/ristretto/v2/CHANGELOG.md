@@ -1,49 +1,57 @@
 # Changelog
+
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
-and this project will adhere to [Semantic Versioning](http://semver.org/spec/v2.0.0.html) starting v1.0.0.
+The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and this project will
+adhere to [Semantic Versioning](http://semver.org/spec/v2.0.0.html) starting v1.0.0.
 
+## [Unreleased]
+
+**Changed**
+
+- Remove dependency: github.com/pkg/errors (#443)
+
+**Fixed**
+
+- Switch from using a sync.Waitgroup, to closing a channel of struct{} (#442)
 
 ## [v2.0.1] - 2024-12-11
 
-### Fixed
+**Fixed**
 
 - Wait for goroutines to finish (#423)
 - Bump golang.org/x/sys from 0.27.0 to 0.28.0 in the minor group (#421)
 - Bump github.com/stretchr/testify from 1.9.0 to 1.10.0 in the minor group (#420)
 - Bump golang.org/x/sys from 0.26.0 to 0.27.0 in the minor group (#419)
 
-**Full Changelog**: https://github.com/dgraph-io/ristretto/compare/v2.0.0...v2.0.1
-
+**Full Changelog**: https://github.com/hypermodeinc/ristretto/compare/v2.0.0...v2.0.1
 
 ## [v2.0.0] - 2024-11-11
 
-### Breaking
+**Breaking**
 
-- [Support generic API](https://github.com/dgraph-io/ristretto/pull/321)
-- [Restrict generic key type to only those supported](https://github.com/dgraph-io/ristretto/pull/371)
+- [Support generic API](https://github.com/hypermodeinc/ristretto/pull/321)
+- [Restrict generic key type to only those supported](https://github.com/hypermodeinc/ristretto/pull/371)
 
-### Added
+**Added**
 
-- [Fix build with GOOS=js GOARCH=wasm](https://github.com/dgraph-io/ristretto/pull/375)
+- [Fix build with GOOS=js GOARCH=wasm](https://github.com/hypermodeinc/ristretto/pull/375)
 
-### Fixed
+**Fixed**
 
-- [Disable mmap size check on arm arch as well as arm64](https://github.com/dgraph-io/ristretto/pull/366)
-- [Upgrade xxhash dependency to v2.2.0](https://github.com/dgraph-io/ristretto/pull/367)
-- [fix: race in close](https://github.com/dgraph-io/ristretto/pull/384)
-- [Fix some memory leaks in TTL implementation](https://github.com/dgraph-io/ristretto/pull/358)
-- [stop using rand.Seed()](https://github.com/dgraph-io/ristretto/pull/385)
-- [chore(deps): bump the actions group with 4 updates](https://github.com/dgraph-io/ristretto/pull/392)
-- [chore(deps): bump the minor group with 3 updates](https://github.com/dgraph-io/ristretto/pull/391)
-- [chore(deps): bump golang.org/x/sys from 0.25.0 to 0.26.0 in the minor group](https://github.com/dgraph-io/ristretto/pull/402)
-- [Remove the policy interface](https://github.com/dgraph-io/ristretto/pull/393)
-- [Perform validation to ensure that the three parameters, NumCounters, …](https://github.com/dgraph-io/ristretto/pull/410)
-- [set min version to go 1.21 in go.mod](https://github.com/dgraph-io/ristretto/pull/411)
+- [Disable mmap size check on arm arch as well as arm64](https://github.com/hypermodeinc/ristretto/pull/366)
+- [Upgrade xxhash dependency to v2.2.0](https://github.com/hypermodeinc/ristretto/pull/367)
+- [fix: race in close](https://github.com/hypermodeinc/ristretto/pull/384)
+- [Fix some memory leaks in TTL implementation](https://github.com/hypermodeinc/ristretto/pull/358)
+- [stop using rand.Seed()](https://github.com/hypermodeinc/ristretto/pull/385)
+- [chore(deps): bump the actions group with 4 updates](https://github.com/hypermodeinc/ristretto/pull/392)
+- [chore(deps): bump the minor group with 3 updates](https://github.com/hypermodeinc/ristretto/pull/391)
+- [chore(deps): bump golang.org/x/sys from 0.25.0 to 0.26.0 in the minor group](https://github.com/hypermodeinc/ristretto/pull/402)
+- [Remove the policy interface](https://github.com/hypermodeinc/ristretto/pull/393)
+- [Perform validation to ensure that the three parameters, NumCounters, …](https://github.com/hypermodeinc/ristretto/pull/410)
+- [set min version to go 1.21 in go.mod](https://github.com/hypermodeinc/ristretto/pull/411)
 
-**Full Changelog**: https://github.com/dgraph-io/ristretto/compare/v0.2.0...v2.0.0
-
+**Full Changelog**: https://github.com/hypermodeinc/ristretto/compare/v0.2.0...v2.0.0
 
 ## [v1.0.0]
 
@@ -55,55 +63,60 @@ and this project will adhere to [Semantic Versioning](http://semver.org/spec/v2.
 
 ## [v0.2.0] - 2024-10-06
 
-### Added
+**Added**
 
-- [fix: support compilation to wasip1 by @achille-roussel](https://github.com/dgraph-io/ristretto/pull/344)
-- [add config for cleanup ticker duration by @singhvikash11](https://github.com/dgraph-io/ristretto/pull/342)
+- [fix: support compilation to wasip1 by @achille-roussel](https://github.com/hypermodeinc/ristretto/pull/344)
+- [add config for cleanup ticker duration by @singhvikash11](https://github.com/hypermodeinc/ristretto/pull/342)
 
-### Fixed
-- [docs(readme): Use new Wait method by @angadn](https://github.com/dgraph-io/ristretto/pull/327)
-- [docs: format example on readme by @rfyiamcool](https://github.com/dgraph-io/ristretto/pull/339)
-- [Fix flakes in TestDropUpdates by @evanj](https://github.com/dgraph-io/ristretto/pull/334)
-- [docs(Cache): document Wait, clarify Get by @evanj](https://github.com/dgraph-io/ristretto/pull/333)
-- [chore: fix typo error by @proost](https://github.com/dgraph-io/ristretto/pull/341)
-- [remove glog dependency by @jhawk28](https://github.com/dgraph-io/ristretto/pull/350)
-- [fix(OnEvict): Set missing Expiration field on evicted items by @0x1ee7](https://github.com/dgraph-io/ristretto/pull/345)
-- [uint32 -> uint64 in slice methods by @mocurin](https://github.com/dgraph-io/ristretto/pull/323)
-- [fix: cleanupTicker not being stopped by @IlyaFloppy](https://github.com/dgraph-io/ristretto/pull/343)
+**Fixed**
 
-**Full Changelog**: https://github.com/dgraph-io/ristretto/compare/v0.1.1...v0.2.0
+- [docs(readme): Use new Wait method by @angadn](https://github.com/hypermodeinc/ristretto/pull/327)
+- [docs: format example on readme by @rfyiamcool](https://github.com/hypermodeinc/ristretto/pull/339)
+- [Fix flakes in TestDropUpdates by @evanj](https://github.com/hypermodeinc/ristretto/pull/334)
+- [docs(Cache): document Wait, clarify Get by @evanj](https://github.com/hypermodeinc/ristretto/pull/333)
+- [chore: fix typo error by @proost](https://github.com/hypermodeinc/ristretto/pull/341)
+- [remove glog dependency by @jhawk28](https://github.com/hypermodeinc/ristretto/pull/350)
+- [fix(OnEvict): Set missing Expiration field on evicted items by @0x1ee7](https://github.com/hypermodeinc/ristretto/pull/345)
+- [uint32 -> uint64 in slice methods by @mocurin](https://github.com/hypermodeinc/ristretto/pull/323)
+- [fix: cleanupTicker not being stopped by @IlyaFloppy](https://github.com/hypermodeinc/ristretto/pull/343)
 
+**Full Changelog**: https://github.com/hypermodeinc/ristretto/compare/v0.1.1...v0.2.0
 
 ## [0.1.1] - 2022-10-12
 
-[0.1.1]: https://github.com/dgraph-io/ristretto/compare/v0.1.0..v0.1.1
-This release fixes certain arm64 build issues in the z package.  It also
-incorporates CI steps in our repository.
+[0.1.1]: https://github.com/hypermodeinc/ristretto/compare/v0.1.0..v0.1.1
 
-### Changed
-- [chore(docs): Include SpiceDB in the list of projects using Ristretto (#285)](https://github.com/dgraph-io/ristretto/pull/311)
+This release fixes certain arm64 build issues in the z package. It also incorporates CI steps in our
+repository.
 
-### Added
-- [Run CI Jobs via Github Actions #304](https://github.com/dgraph-io/ristretto/pull/304)
+**Changed**
 
-### Fixed
-- [fix(build): update x/sys dependency](https://github.com/dgraph-io/ristretto/pull/308)
-- [fix(z): Address inconsistent mremap return arguments with arm64](https://github.com/dgraph-io/ristretto/pull/309)
-- [fix(z): runtime error: index out of range for !amd64 env #287](https://github.com/dgraph-io/ristretto/pull/307)
+- [chore(docs): Include SpiceDB in the list of projects using Ristretto (#285)](https://github.com/hypermodeinc/ristretto/pull/311)
 
+**Added**
+
+- [Run CI Jobs via Github Actions #304](https://github.com/hypermodeinc/ristretto/pull/304)
+
+**Fixed**
+
+- [fix(build): update x/sys dependency](https://github.com/hypermodeinc/ristretto/pull/308)
+- [fix(z): Address inconsistent mremap return arguments with arm64](https://github.com/hypermodeinc/ristretto/pull/309)
+- [fix(z): runtime error: index out of range for !amd64 env #287](https://github.com/hypermodeinc/ristretto/pull/307)
 
 ## [0.1.0] - 2021-06-03
 
-[0.1.0]: https://github.com/dgraph-io/ristretto/compare/v0.0.3..v0.1.0
-This release contains bug fixes and improvements to Ristretto. It also contains
-major updates to the z package. The z package contains types such as Tree (B+
-tree), Buffer, Mmap file, etc. All these types are used in Badger and Dgraph to
-improve performance and reduce memory requirements.
+[0.1.0]: https://github.com/hypermodeinc/ristretto/compare/v0.0.3..v0.1.0
 
-### Changed
+This release contains bug fixes and improvements to Ristretto. It also contains major updates to the
+z package. The z package contains types such as Tree (B+ tree), Buffer, Mmap file, etc. All these
+types are used in Badger and Dgraph to improve performance and reduce memory requirements.
+
+**Changed**
+
 - Make item public. Add a new onReject call for rejected items. (#180)
 
-### Added
+**Added**
+
 - Use z.Buffer backing for B+ tree (#268)
 - expose GetTTL function (#270)
 - docs(README): Ristretto is production-ready. (#267)
@@ -120,7 +133,8 @@ improve performance and reduce memory requirements.
 - Add life expectancy histogram (#182)
 - Add mechanism to wait for items to be processed. (#184)
 
-### Fixed
+**Fixed**
+
 - change expiration type from int64 to time.Time (#277)
 - fix(buffer): make buffer capacity atleast defaultCapacity (#273)
 - Fixes for z.PersistentTree (#272)
@@ -132,7 +146,8 @@ improve performance and reduce memory requirements.
 - Use Fibonacci for latency numbers
 - cache: fix race when clearning a cache (#261)
 - Check for keys without values in superflags (#259)
-- chore(perf): using tags instead of runtime callers to improve the performance of leak detection (#255)
+- chore(perf): using tags instead of runtime callers to improve the performance of leak detection
+  (#255)
 - fix(Flags): panic on user errors (#256)
 - fix SuperFlagHelp newline (#252)
 - fix(arm): Fix crashing under ARMv6 due to memory mis-alignment (#239)
@@ -155,7 +170,7 @@ improve performance and reduce memory requirements.
 - Add a BufferFrom
 - Bring z.Allocator and z.AllocatorPool back
 - Fix(z.Allocator): Make Allocator use Go memory
-- Updated ZeroOut to use a simple for loop.  (#231)
+- Updated ZeroOut to use a simple for loop. (#231)
 - Add concurrency back
 - Add a test to check concurrency of Allocator.
 - Fix(buffer): Expose padding by z.Buffer's APIs and fix test (#222)
@@ -216,45 +231,42 @@ improve performance and reduce memory requirements.
 - Add histogram.Mean() method (#188)
 - Introduce Calloc: Manual Memory Management via jemalloc (#186)
 
-
 ## [0.0.3] - 2020-07-06
 
-[0.0.3]: https://github.com/dgraph-io/ristretto/compare/v0.0.2..v0.0.3
+[0.0.3]: https://github.com/hypermodeinc/ristretto/compare/v0.0.2..v0.0.3
 
-### Changed
+**Changed**
 
-### Added
+**Added**
 
-### Fixed
+**Fixed**
 
-- z: use MemHashString and xxhash.Sum64String ([#153][])
-- Check conflict key before updating expiration map. ([#154][])
-- Fix race condition in Cache.Clear ([#133][])
-- Improve handling of updated items ([#168][])
-- Fix droppedSets count while updating the item ([#171][])
-
+- z: use MemHashString and xxhash.Sum64String (#153)
+- Check conflict key before updating expiration map. (#154)
+- Fix race condition in Cache.Clear (#133)
+- Improve handling of updated items (#168)
+- Fix droppedSets count while updating the item (#171)
 
 ## [0.0.2] - 2020-02-24
 
-[0.0.2]: https://github.com/dgraph-io/ristretto/compare/v0.0.1..v0.0.2
+[0.0.2]: https://github.com/hypermodeinc/ristretto/compare/v0.0.1..v0.0.2
 
-### Added
+**Added**
 
 - Sets with TTL. ([#122][])
 
-### Fixed
+**Fixed**
 
 - Fix the way metrics are handled for deletions. ([#111][])
 - Support nil `*Cache` values in `Clear` and `Close`. ([#119][])
 - Delete item immediately. ([#113][])
 - Remove key from policy after TTL eviction. ([#130][])
 
-[#111]: https://github.com/dgraph-io/ristretto/issues/111
-[#113]: https://github.com/dgraph-io/ristretto/issues/113
-[#119]: https://github.com/dgraph-io/ristretto/issues/119
-[#122]: https://github.com/dgraph-io/ristretto/issues/122
-[#130]: https://github.com/dgraph-io/ristretto/issues/130
-
+[#111]: https://github.com/hypermodeinc/ristretto/issues/111
+[#113]: https://github.com/hypermodeinc/ristretto/issues/113
+[#119]: https://github.com/hypermodeinc/ristretto/issues/119
+[#122]: https://github.com/hypermodeinc/ristretto/issues/122
+[#130]: https://github.com/hypermodeinc/ristretto/issues/130
 
 ## 0.0.1
 

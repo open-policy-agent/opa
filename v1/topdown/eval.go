@@ -2019,15 +2019,36 @@ func (e evalFunc) eval(iter unifyIterator) error {
 		return e.e.saveCall(argCount, e.terms, iter)
 	}
 
-	if e.e.partial() && (e.e.inliningControl.shallow || e.e.inliningControl.Disabled(e.ref, false)) {
-		// check if the function definitions, or any of the arguments
-		// contain something unknown
-		unknown := e.e.unknown(e.ref, e.e.bindings)
-		for i := 1; !unknown && i <= argCount; i++ {
-			unknown = e.e.unknown(e.terms[i], e.e.bindings)
+	if e.e.partial() {
+		var mustGenerateSupport bool
+
+		if defRule := e.ir.Default; defRule != nil {
+			// The presence of a default func might force us to generate support
+			if len(defRule.Head.Args) == len(e.terms)-1 {
+				// The function is called without collecting the result in an output term,
+				// therefore any successful evaluation of the function is of interest, including the default value ...
+				if ret := defRule.Head.Value; ret == nil || !ret.Equal(ast.InternedBooleanTerm(false)) {
+					// ... unless the default value is false,
+					mustGenerateSupport = true
+				}
+			} else {
+				// The function is called with an output term, therefore any successful evaluation of the function is of interest.
+				// NOTE: Because of how the compiler rewrites function calls, we can't know if the result value is compared
+				// to a constant value, so we can't be as clever as we are for rules.
+				mustGenerateSupport = true
+			}
 		}
-		if unknown {
-			return e.partialEvalSupport(argCount, iter)
+
+		if mustGenerateSupport || e.e.inliningControl.shallow || e.e.inliningControl.Disabled(e.ref, false) {
+			// check if the function definitions, or any of the arguments
+			// contain something unknown
+			unknown := e.e.unknown(e.ref, e.e.bindings)
+			for i := 1; !unknown && i <= argCount; i++ {
+				unknown = e.e.unknown(e.terms[i], e.e.bindings)
+			}
+			if unknown {
+				return e.partialEvalSupport(argCount, iter)
+			}
 		}
 	}
 
@@ -2226,6 +2247,13 @@ func (e evalFunc) partialEvalSupport(declArgsLen int, iter unifyIterator) error 
 				return err
 			}
 		}
+
+		if e.ir.Default != nil {
+			err := e.partialEvalSupportRule(e.ir.Default, path)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	if !e.e.saveSupport.Exists(path) { // we haven't saved anything, nothing to call
@@ -2274,8 +2302,9 @@ func (e evalFunc) partialEvalSupportRule(rule *ast.Rule, path ast.Ref) error {
 			}
 
 			e.e.saveSupport.Insert(path, &ast.Rule{
-				Head: head,
-				Body: plugged,
+				Head:    head,
+				Body:    plugged,
+				Default: rule.Default,
 			})
 		}
 		child.traceRedo(rule)

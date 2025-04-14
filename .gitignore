@@ -38,3 +38,6 @@ man
 # generated when running local website build
 docs/website/.hugo_build.lock
 docs/website/data/versions
+
+# generated when building windows binary to add icon and product version
+resource.syso

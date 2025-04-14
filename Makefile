@@ -97,6 +97,9 @@ release-dir:
 
 .PHONY: generate
 generate: wasm-lib-build
+ifeq ($(GOOS),windows)
+	GOOS=$(shell go env GOOS) GOARCH=$(shell go env GOARCH) go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.5.0
+endif
 	$(GO) generate
 
 .PHONY: build
@@ -312,6 +315,7 @@ ci-build-windows: ensure-release-dir
 	@$(MAKE) build GOOS=windows CC=x86_64-w64-mingw32-gcc
 	mv opa_windows_$(GOARCH) $(RELEASE_DIR)/opa_windows_$(GOARCH).exe
 	cd $(RELEASE_DIR)/ && shasum -a 256 opa_windows_$(GOARCH).exe > opa_windows_$(GOARCH).exe.sha256
+	rm resource.syso
 
 .PHONY: ensure-release-dir
 ensure-release-dir:
@@ -545,6 +549,7 @@ depr-build-darwin: ensure-release-dir
 depr-build-windows: ensure-release-dir
 	@$(MAKE) build GOOS=windows CGO_ENABLED=0 WASM_ENABLED=0
 	mv opa_windows_$(GOARCH) $(RELEASE_DIR)/opa_windows_$(GOARCH).exe
+	rm resource.syso
 
 depr-release:
 	$(DOCKER) run $(DOCKER_FLAGS) \
