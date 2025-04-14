@@ -2373,6 +2373,7 @@ func getTestNamespace() string {
 }
 
 func dump(note string, modules map[string]*ast.Module, data interface{}, docpath []string, input *ast.Term, exp interface{}, requiresSort bool) {
+
 	moduleSet := []string{}
 	for _, module := range modules {
 		moduleSet = append(moduleSet, string(bytes.ReplaceAll(format.MustAst(module), []byte("\t"), []byte("  "))))
