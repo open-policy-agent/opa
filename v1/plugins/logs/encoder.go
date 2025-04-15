@@ -24,11 +24,13 @@ const (
 	encSoftLimitStableCounterName      = "enc_soft_limit_stable"
 )
 
-// chunkEncoder implements log buffer chunking and compression. Log events are
-// written to the encoder and the encoder outputs chunks that are fit to the
-// configured limit.
+// chunkEncoder implements log buffer chunking and compression.
+// Decision events are written to the encoder and the encoder outputs chunks that are fit to the configured limit.
 type chunkEncoder struct {
-	limit        int64
+	// limit is the maximum compressed payload size (configured by upload_size_limit_bytes)
+	limit int64
+	// bytesWritten is used to track if anything has been written to the buffer
+	// using this avoids working around the fact that the gzip compression adds a header
 	bytesWritten int
 	buf          *bytes.Buffer
 	w            *gzip.Writer
@@ -36,7 +38,8 @@ type chunkEncoder struct {
 
 	// The soft limit is a dynamic limit that will maximize the amount of events that fit in each chunk.
 	// After creating a chunk it will determine if it should scale up and down based on the chunk size vs the limit.
-	// If the chunk didn't reach the limit perhaps future events could have been added.
+	// If the chunk didn't reach the limit perhaps future events could have been added if the limit had been more flexible.
+	// Same as the `limit` the soft limit enforces the final compressed size of the chunk
 	softLimit                  int64
 	softLimitScaleUpExponent   float64
 	softLimitScaleDownExponent float64
@@ -71,35 +74,50 @@ func (enc *chunkEncoder) Write(event EventV1) (result [][]byte, err error) {
 // WriteBytes attempts to write a serialized event to the current chunk.
 // If the upload limit is reached the chunk is closed and a result is returned.
 // The incoming event that didn't fit is added to the next chunk.
-func (enc *chunkEncoder) WriteBytes(bs []byte) (result [][]byte, err error) {
+func (enc *chunkEncoder) WriteBytes(bs []byte) ([][]byte, error) {
+	if len(bs) == 0 {
+		return nil, nil
+	}
+
+	// Compress the incoming event by itself in order to verify its final size
+	incomingEventBuf := new(bytes.Buffer)
+	w := gzip.NewWriter(incomingEventBuf)
+	if _, err := w.Write(bs); err != nil {
+		return nil, err
+	}
+	if err := w.Flush(); err != nil {
+		return nil, err
+	}
+
+	// if the compressed incoming event is bigger than the upload size limit reject it
+	if int64(incomingEventBuf.Len()+2) > enc.limit {
+		if enc.metrics != nil {
+			enc.metrics.Counter(encLogExUploadSizeLimitCounterName).Incr()
+		}
+		return nil, fmt.Errorf("received a decision event with size %d that exceeds the upload_size_limit_bytes %d",
+			int64(incomingEventBuf.Len()), enc.limit)
+	}
+
 	if err := enc.w.Flush(); err != nil {
 		return nil, err
 	}
 
-	if len(bs) == 0 {
-		return nil, nil
-	} else if int64(len(bs)+2) > enc.limit {
-		if enc.metrics != nil {
-			enc.metrics.Counter(encLogExUploadSizeLimitCounterName).Incr()
-		}
-		return nil, fmt.Errorf("upload chunk size (%d) exceeds upload_size_limit_bytes (%d)",
-			int64(len(bs)+2), enc.limit)
-	}
-
-	// the soft limit enforces the final compressed size, therefore check against enc.buf.Len()
-	if int64(len(bs)+enc.buf.Len()+1) > enc.softLimit {
+	// If adding the compressed incoming event to the current compressed buffer exceeds the limit,
+	// close the current chunk and reset it so the incoming event can be written into the next chunk.
+	// Note that the soft limit enforces the final compressed size.
+	var result [][]byte
+	if int64(incomingEventBuf.Len()+enc.buf.Len()+1) > enc.softLimit {
 		if err := enc.writeClose(); err != nil {
 			return nil, err
 		}
 
+		var err error
 		result, err = enc.reset()
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	// the gzip format has a header before anything is written
-	// using `bytesWritten` to track if any events have been written avoids hardcoding the header length
 	if enc.bytesWritten == 0 {
 		n, err := enc.w.Write([]byte(`[`))
 		if err != nil {
@@ -118,9 +136,13 @@ func (enc *chunkEncoder) WriteBytes(bs []byte) (result [][]byte, err error) {
 	if err != nil {
 		return nil, err
 	}
-
 	enc.bytesWritten += n
-	return
+
+	if result != nil {
+		return result, nil
+	}
+
+	return nil, nil
 }
 
 func (enc *chunkEncoder) writeClose() error {
@@ -158,10 +180,8 @@ func (enc *chunkEncoder) reset() ([][]byte, error) {
 		}
 
 		mul := int64(math.Pow(float64(softLimitBaseFactor), float64(enc.softLimitScaleUpExponent+1)))
-		// this can cause enc.softLimit to overflow into a negative value
 		enc.softLimit *= mul
 		enc.softLimitScaleUpExponent += softLimitExponentScaleFactor
-
 		return enc.update(), nil
 	}
 

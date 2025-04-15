@@ -76,16 +76,14 @@ func TestChunkEncoderSizeLimit(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error as upload chunk size exceeds configured limit")
 	}
-	expected := "upload chunk size (200) exceeds upload_size_limit_bytes (1)"
+	expected := "received a decision event with size 170 that exceeds the upload_size_limit_bytes 1"
 	if err.Error() != expected {
 		t.Errorf("expected: '%s', got: '%s'", expected, err.Error())
 	}
 }
 
 func TestChunkEncoderAdaptive(t *testing.T) {
-	// limit is set to 1050, so that 90% is 945 which is larger than the event size of 936
-	// this will trigger the adaptive changing of the soft limit
-	enc := newChunkEncoder(1050).WithMetrics(metrics.New())
+	enc := newChunkEncoder(1000).WithMetrics(metrics.New())
 	var result interface{} = false
 	var expInput interface{} = map[string]interface{}{"method": "GET"}
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
@@ -149,9 +147,9 @@ func TestChunkEncoderAdaptive(t *testing.T) {
 	actualScaleDownEvents := enc.metrics.Counter(encSoftLimitScaleDownCounterName).Value().(uint64)
 	actualEquiEvents := enc.metrics.Counter(encSoftLimitStableCounterName).Value().(uint64)
 
-	expectedScaleUpEvents := uint64(10)
+	expectedScaleUpEvents := uint64(9)
 	expectedScaleDownEvents := uint64(8)
-	expectedEquiEvents := uint64(0)
+	expectedEquiEvents := uint64(1)
 
 	if actualScaleUpEvents != expectedScaleUpEvents {
 		t.Fatalf("Expected scale up events %v but got %v", expectedScaleUpEvents, actualScaleUpEvents)

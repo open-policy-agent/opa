@@ -1680,7 +1680,7 @@ func TestChunkMaxUploadSizeLimitNDBCacheDropping(t *testing.T) {
 	fixture := newTestFixture(t, testFixtureOptions{
 		ConsoleLogger:                  testLogger,
 		ReportingMaxDecisionsPerSecond: float64(1), // 1 decision per second
-		ReportingUploadSizeLimitBytes:  400,
+		ReportingUploadSizeLimitBytes:  200,
 	})
 	defer fixture.server.stop()
 
