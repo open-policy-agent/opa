@@ -151,8 +151,20 @@ func (enc *chunkEncoder) reset() ([][]byte, error) {
 		}
 
 		mul := int64(math.Pow(float64(softLimitBaseFactor), float64(enc.softLimitScaleUpExponent+1)))
+		// this can cause enc.softLimit to overflow into a negative value
 		enc.softLimit *= mul
 		enc.softLimitScaleUpExponent += softLimitExponentScaleFactor
+
+		// In Go an overflow wraps around using modulo arithmetic, so it could be negative.
+		// enc.limit*2 is the ceiling for the soft limit, unless that also overflows then it will be (math.MaxInt64 - 1).
+		if enc.softLimit < 0 || enc.softLimit > enc.limit*2 {
+			limit := enc.limit * 2
+			if limit < 0 {
+				limit = math.MaxInt64 - 1
+			}
+			enc.softLimit = limit
+			enc.softLimitScaleUpExponent = 0
+		}
 		return enc.update(), nil
 	}
 
