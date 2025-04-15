@@ -28,14 +28,18 @@ const (
 // written to the encoder and the encoder outputs chunks that are fit to the
 // configured limit.
 type chunkEncoder struct {
-	limit                      int64
+	limit        int64
+	bytesWritten int
+	buf          *bytes.Buffer
+	w            *gzip.Writer
+	metrics      metrics.Metrics
+
+	// The soft limit is a dynamic limit that will maximize the amount of events that fit in each chunk.
+	// After creating a chunk it will determine if it should scale up and down based on the chunk size vs the limit.
+	// If the chunk didn't reach the limit perhaps future events could have been added.
 	softLimit                  int64
 	softLimitScaleUpExponent   float64
 	softLimitScaleDownExponent float64
-	bytesWritten               int
-	buf                        *bytes.Buffer
-	w                          *gzip.Writer
-	metrics                    metrics.Metrics
 }
 
 func newChunkEncoder(limit int64) *chunkEncoder {
@@ -141,7 +145,7 @@ func (enc *chunkEncoder) reset() ([][]byte, error) {
 	// decisions in the last chunk.
 	// 3) Equilibrium: If the chunk size is between 90% and 100% of the user-configured limit, maintain soft limit value.
 
-	if enc.buf.Len() < int(float64(enc.limit)*encHardLimitThreshold) {
+	if enc.bytesWritten < int(float64(enc.limit)*encHardLimitThreshold) {
 		if enc.metrics != nil {
 			enc.metrics.Counter(encSoftLimitScaleUpCounterName).Incr()
 		}
@@ -152,7 +156,7 @@ func (enc *chunkEncoder) reset() ([][]byte, error) {
 		return enc.update(), nil
 	}
 
-	if int(enc.limit) > enc.buf.Len() && enc.buf.Len() >= int(float64(enc.limit)*encHardLimitThreshold) {
+	if int(enc.limit) > enc.bytesWritten && enc.bytesWritten >= int(float64(enc.limit)*encHardLimitThreshold) {
 		if enc.metrics != nil {
 			enc.metrics.Counter(encSoftLimitStableCounterName).Incr()
 		}

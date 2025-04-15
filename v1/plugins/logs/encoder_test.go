@@ -84,8 +84,9 @@ func TestChunkEncoderSizeLimit(t *testing.T) {
 }
 
 func TestChunkEncoderAdaptive(t *testing.T) {
-
-	enc := newChunkEncoder(1000).WithMetrics(metrics.New())
+	// limit is set to 1050, so that 90% is 945 which is larger than the event size of 936
+	// this will trigger the adaptive changing of the soft limit
+	enc := newChunkEncoder(1050).WithMetrics(metrics.New())
 	var result interface{} = false
 	var expInput interface{} = map[string]interface{}{"method": "GET"}
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
@@ -149,9 +150,9 @@ func TestChunkEncoderAdaptive(t *testing.T) {
 	actualScaleDownEvents := enc.metrics.Counter(encSoftLimitScaleDownCounterName).Value().(uint64)
 	actualEquiEvents := enc.metrics.Counter(encSoftLimitStableCounterName).Value().(uint64)
 
-	expectedScaleUpEvents := uint64(8)
-	expectedScaleDownEvents := uint64(3)
-	expectedEquiEvents := uint64(0)
+	expectedScaleUpEvents := uint64(25)
+	expectedScaleDownEvents := uint64(25)
+	expectedEquiEvents := uint64(75)
 
 	if actualScaleUpEvents != expectedScaleUpEvents {
 		t.Fatalf("Expected scale up events %v but got %v", expectedScaleUpEvents, actualScaleUpEvents)

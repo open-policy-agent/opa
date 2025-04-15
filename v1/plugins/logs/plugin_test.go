@@ -408,7 +408,7 @@ func TestPluginStartSameInput(t *testing.T) {
 	fixture := newTestFixture(t)
 	defer fixture.server.stop()
 
-	fixture.server.ch = make(chan []EventV1, 3)
+	fixture.server.ch = make(chan []EventV1, 4)
 	var result interface{} = false
 
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
@@ -441,12 +441,15 @@ func TestPluginStartSameInput(t *testing.T) {
 	chunk1 := <-fixture.server.ch
 	chunk2 := <-fixture.server.ch
 	chunk3 := <-fixture.server.ch
+	chunk4 := <-fixture.server.ch
 	expLen1 := 122
-	expLen2 := 242
-	expLen3 := 36
+	expLen2 := 121
+	expLen3 := 121
+	expLen4 := 36
 
-	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len(chunk3) != expLen3 {
-		t.Fatalf("Expected chunk lens %v, %v, and %v but got: %v, %v, and %v", expLen1, expLen2, expLen3, len(chunk1), len(chunk2), len(chunk3))
+	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len(chunk3) != expLen3 || len(chunk4) != expLen4 {
+		t.Fatalf("Expected chunk lens %v, %v, %v and %v but got: %v, %v, %v and %v",
+			expLen1, expLen2, expLen3, expLen4, len(chunk1), len(chunk2), len(chunk3), len(chunk4))
 	}
 
 	var expInput interface{} = map[string]interface{}{"method": "GET"}
@@ -472,8 +475,8 @@ func TestPluginStartSameInput(t *testing.T) {
 		Metrics:     msAsFloat64,
 	}
 
-	if !reflect.DeepEqual(chunk3[expLen3-1], exp) {
-		t.Fatalf("Expected %+v but got %+v", exp, chunk3[expLen3-1])
+	if !reflect.DeepEqual(chunk4[expLen4-1], exp) {
+		t.Fatalf("Expected %+v but got %+v", exp, chunk4[expLen4-1])
 	}
 
 	if fixture.plugin.status.Code != "" {
@@ -489,7 +492,7 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 	fixture := newTestFixture(t)
 	defer fixture.server.stop()
 
-	fixture.server.ch = make(chan []EventV1, 3)
+	fixture.server.ch = make(chan []EventV1, 4)
 	var result interface{} = false
 
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
@@ -521,12 +524,15 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 	chunk1 := <-fixture.server.ch
 	chunk2 := <-fixture.server.ch
 	chunk3 := <-fixture.server.ch
+	chunk4 := <-fixture.server.ch
 	expLen1 := 124
-	expLen2 := 247
-	expLen3 := 29
+	expLen2 := 123
+	expLen3 := 123
+	expLen4 := 30
 
-	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len((chunk3)) != expLen3 {
-		t.Fatalf("Expected chunk lens %v, %v and %v but got: %v, %v and %v", expLen1, expLen2, expLen3, len(chunk1), len(chunk2), len(chunk3))
+	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len(chunk3) != expLen3 || len(chunk4) != expLen4 {
+		t.Fatalf("Expected chunk lens %v, %v, %v and %v but got: %v, %v, %v and %v",
+			expLen1, expLen2, expLen3, expLen4, len(chunk1), len(chunk2), len(chunk3), len(chunk4))
 	}
 
 	exp := EventV1{
@@ -544,8 +550,8 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 		Timestamp:   ts,
 	}
 
-	if !reflect.DeepEqual(chunk3[expLen3-1], exp) {
-		t.Fatalf("Expected %+v but got %+v", exp, chunk3[expLen3-1])
+	if !reflect.DeepEqual(chunk4[expLen4-1], exp) {
+		t.Fatalf("Expected %+v but got %+v", exp, chunk4[expLen4-1])
 	}
 }
 
@@ -3564,6 +3570,8 @@ type testServer struct {
 }
 
 func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
+	t.t.Helper()
+
 	gr, err := gzip.NewReader(r.Body)
 	if err != nil {
 		t.t.Fatal(err)
