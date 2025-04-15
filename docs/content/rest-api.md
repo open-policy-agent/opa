@@ -1449,7 +1449,7 @@ Content-Type: application/json
 
 When you partially evaluate a query with the Compile API, OPA returns a new set of queries and supporting policies. However, in some cases, the result of Partial Evaluation is a conclusive, unconditional answer.
 
-For example, if you extend to policy above to include a "break glass" condition, the decision may be to allow all requests regardless of clearance level.
+For example, if you extend the policy above to include a "break glass" condition, the decision may be to allow all requests regardless of clearance level.
 
 ```live:compile_unconditional_example:module:read_only
 package example
