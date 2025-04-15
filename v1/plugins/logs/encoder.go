@@ -72,6 +72,10 @@ func (enc *chunkEncoder) Write(event EventV1) (result [][]byte, err error) {
 // If the upload limit is reached the chunk is closed and a result is returned.
 // The incoming event that didn't fit is added to the next chunk.
 func (enc *chunkEncoder) WriteBytes(bs []byte) (result [][]byte, err error) {
+	if err := enc.w.Flush(); err != nil {
+		return nil, err
+	}
+
 	if len(bs) == 0 {
 		return nil, nil
 	} else if int64(len(bs)+2) > enc.limit {
@@ -82,7 +86,8 @@ func (enc *chunkEncoder) WriteBytes(bs []byte) (result [][]byte, err error) {
 			int64(len(bs)+2), enc.limit)
 	}
 
-	if int64(len(bs)+enc.bytesWritten+1) > enc.softLimit {
+	// the soft limit enforces the final compressed size, therefore check against enc.buf.Len()
+	if int64(len(bs)+enc.buf.Len()+1) > enc.softLimit {
 		if err := enc.writeClose(); err != nil {
 			return nil, err
 		}
@@ -93,6 +98,8 @@ func (enc *chunkEncoder) WriteBytes(bs []byte) (result [][]byte, err error) {
 		}
 	}
 
+	// the gzip format has a header before anything is written
+	// using `bytesWritten` to track if any events have been written avoids hardcoding the header length
 	if enc.bytesWritten == 0 {
 		n, err := enc.w.Write([]byte(`[`))
 		if err != nil {
@@ -133,7 +140,6 @@ func (enc *chunkEncoder) Flush() ([][]byte, error) {
 	return enc.reset()
 }
 
-//nolint:unconvert
 func (enc *chunkEncoder) reset() ([][]byte, error) {
 
 	// Adjust the encoder's soft limit based on the current amount of
@@ -145,7 +151,8 @@ func (enc *chunkEncoder) reset() ([][]byte, error) {
 	// decisions in the last chunk.
 	// 3) Equilibrium: If the chunk size is between 90% and 100% of the user-configured limit, maintain soft limit value.
 
-	if enc.bytesWritten < int(float64(enc.limit)*encHardLimitThreshold) {
+	// 1) Scale Up
+	if enc.buf.Len() < int(float64(enc.limit)*encHardLimitThreshold) {
 		if enc.metrics != nil {
 			enc.metrics.Counter(encSoftLimitScaleUpCounterName).Incr()
 		}
@@ -155,20 +162,11 @@ func (enc *chunkEncoder) reset() ([][]byte, error) {
 		enc.softLimit *= mul
 		enc.softLimitScaleUpExponent += softLimitExponentScaleFactor
 
-		// In Go an overflow wraps around using modulo arithmetic, so it could be negative.
-		// enc.limit*2 is the ceiling for the soft limit, unless that also overflows then it will be (math.MaxInt64 - 1).
-		if enc.softLimit < 0 || enc.softLimit > enc.limit*2 {
-			limit := enc.limit * 2
-			if limit < 0 {
-				limit = math.MaxInt64 - 1
-			}
-			enc.softLimit = limit
-			enc.softLimitScaleUpExponent = 0
-		}
 		return enc.update(), nil
 	}
 
-	if int(enc.limit) > enc.bytesWritten && enc.bytesWritten >= int(float64(enc.limit)*encHardLimitThreshold) {
+	// 3) Equilibrium
+	if int(enc.limit) > enc.buf.Len() && enc.buf.Len() >= int(float64(enc.limit)*encHardLimitThreshold) {
 		if enc.metrics != nil {
 			enc.metrics.Counter(encSoftLimitStableCounterName).Incr()
 		}
@@ -177,6 +175,7 @@ func (enc *chunkEncoder) reset() ([][]byte, error) {
 		return enc.update(), nil
 	}
 
+	// 2) Scale Down
 	if enc.softLimit > enc.limit {
 		if enc.metrics != nil {
 			enc.metrics.Counter(encSoftLimitScaleDownCounterName).Incr()

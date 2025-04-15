@@ -5,7 +5,6 @@
 package logs
 
 import (
-	"math"
 	"strconv"
 	"testing"
 	"time"
@@ -14,7 +13,6 @@ import (
 )
 
 func TestChunkEncoder(t *testing.T) {
-
 	enc := newChunkEncoder(1000)
 	var result interface{} = false
 	var expInput interface{} = map[string]interface{}{"method": "GET"}
@@ -151,9 +149,9 @@ func TestChunkEncoderAdaptive(t *testing.T) {
 	actualScaleDownEvents := enc.metrics.Counter(encSoftLimitScaleDownCounterName).Value().(uint64)
 	actualEquiEvents := enc.metrics.Counter(encSoftLimitStableCounterName).Value().(uint64)
 
-	expectedScaleUpEvents := uint64(25)
-	expectedScaleDownEvents := uint64(25)
-	expectedEquiEvents := uint64(75)
+	expectedScaleUpEvents := uint64(10)
+	expectedScaleDownEvents := uint64(8)
+	expectedEquiEvents := uint64(0)
 
 	if actualScaleUpEvents != expectedScaleUpEvents {
 		t.Fatalf("Expected scale up events %v but got %v", expectedScaleUpEvents, actualScaleUpEvents)
@@ -180,42 +178,4 @@ func decodeChunks(t *testing.T, bs [][]byte) int {
 		numEvents += len(events)
 	}
 	return numEvents
-}
-
-func TestReset(t *testing.T) {
-	tests := []struct {
-		name              string
-		limit             int64
-		expectedSoftLimit int64
-	}{
-		{
-			name:              "limit 100",
-			limit:             100,
-			expectedSoftLimit: 200,
-		},
-		{
-			name:              "limit maxt int64 - 1 ",
-			limit:             math.MaxInt64 - 1,
-			expectedSoftLimit: math.MaxInt64 - 1,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-
-			enc := newChunkEncoder(tc.limit)
-
-			for range 100 {
-				_, err := enc.reset()
-				if err != nil {
-					t.Fatal(err)
-				}
-
-				if enc.softLimit != tc.expectedSoftLimit {
-					t.Fatalf("softLimit (%d) exceeds limit (%d)", enc.softLimit, tc.expectedSoftLimit)
-				}
-			}
-		})
-	}
-
 }

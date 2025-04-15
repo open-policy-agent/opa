@@ -408,7 +408,7 @@ func TestPluginStartSameInput(t *testing.T) {
 	fixture := newTestFixture(t)
 	defer fixture.server.stop()
 
-	fixture.server.ch = make(chan []EventV1, 4)
+	fixture.server.ch = make(chan []EventV1, 1)
 	var result interface{} = false
 
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
@@ -420,8 +420,8 @@ func TestPluginStartSameInput(t *testing.T) {
 
 	var input interface{} = map[string]interface{}{"method": "GET"}
 
-	for i := 0; i < 400; i++ {
-		fixture.plugin.Log(ctx, &server.Info{
+	for i := range 400 {
+		if err := fixture.plugin.Log(ctx, &server.Info{
 			Revision:   fmt.Sprint(i),
 			DecisionID: fmt.Sprint(i),
 			Path:       "tda/bar",
@@ -430,7 +430,9 @@ func TestPluginStartSameInput(t *testing.T) {
 			RemoteAddr: "test",
 			Timestamp:  ts,
 			Metrics:    testMetrics,
-		})
+		}); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	err = fixture.plugin.oneShot(ctx)
@@ -439,17 +441,11 @@ func TestPluginStartSameInput(t *testing.T) {
 	}
 
 	chunk1 := <-fixture.server.ch
-	chunk2 := <-fixture.server.ch
-	chunk3 := <-fixture.server.ch
-	chunk4 := <-fixture.server.ch
-	expLen1 := 122
-	expLen2 := 121
-	expLen3 := 121
-	expLen4 := 36
+	expLen1 := 400
 
-	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len(chunk3) != expLen3 || len(chunk4) != expLen4 {
-		t.Fatalf("Expected chunk lens %v, %v, %v and %v but got: %v, %v, %v and %v",
-			expLen1, expLen2, expLen3, expLen4, len(chunk1), len(chunk2), len(chunk3), len(chunk4))
+	if len(chunk1) != expLen1 {
+		t.Fatalf("Expected chunk lens %v but got: %v",
+			expLen1, len(chunk1))
 	}
 
 	var expInput interface{} = map[string]interface{}{"method": "GET"}
@@ -475,8 +471,8 @@ func TestPluginStartSameInput(t *testing.T) {
 		Metrics:     msAsFloat64,
 	}
 
-	if !reflect.DeepEqual(chunk4[expLen4-1], exp) {
-		t.Fatalf("Expected %+v but got %+v", exp, chunk4[expLen4-1])
+	if !reflect.DeepEqual(chunk1[expLen1-1], exp) {
+		t.Fatalf("Expected %+v but got %+v", exp, chunk1[expLen1-1])
 	}
 
 	if fixture.plugin.status.Code != "" {
@@ -492,7 +488,7 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 	fixture := newTestFixture(t)
 	defer fixture.server.stop()
 
-	fixture.server.ch = make(chan []EventV1, 4)
+	fixture.server.ch = make(chan []EventV1, 1)
 	var result interface{} = false
 
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
@@ -505,7 +501,7 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 	for i := 0; i < 400; i++ {
 		input = map[string]interface{}{"method": getValueForMethod(i), "path": getValueForPath(i), "user": getValueForUser(i)}
 
-		fixture.plugin.Log(ctx, &server.Info{
+		if err := fixture.plugin.Log(ctx, &server.Info{
 			Revision:   fmt.Sprint(i),
 			DecisionID: fmt.Sprint(i),
 			Path:       "foo/bar",
@@ -513,7 +509,9 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 			Results:    &result,
 			RemoteAddr: "test",
 			Timestamp:  ts,
-		})
+		}); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	err = fixture.plugin.oneShot(ctx)
@@ -522,17 +520,11 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 	}
 
 	chunk1 := <-fixture.server.ch
-	chunk2 := <-fixture.server.ch
-	chunk3 := <-fixture.server.ch
-	chunk4 := <-fixture.server.ch
-	expLen1 := 124
-	expLen2 := 123
-	expLen3 := 123
-	expLen4 := 30
+	expLen1 := 400
 
-	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len(chunk3) != expLen3 || len(chunk4) != expLen4 {
-		t.Fatalf("Expected chunk lens %v, %v, %v and %v but got: %v, %v, %v and %v",
-			expLen1, expLen2, expLen3, expLen4, len(chunk1), len(chunk2), len(chunk3), len(chunk4))
+	if len(chunk1) != expLen1 {
+		t.Fatalf("Expected chunk lens %v but got: %v",
+			expLen1, len(chunk1))
 	}
 
 	exp := EventV1{
@@ -550,8 +542,8 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 		Timestamp:   ts,
 	}
 
-	if !reflect.DeepEqual(chunk4[expLen4-1], exp) {
-		t.Fatalf("Expected %+v but got %+v", exp, chunk4[expLen4-1])
+	if !reflect.DeepEqual(chunk1[expLen1-1], exp) {
+		t.Fatalf("Expected %+v but got %+v", exp, chunk1[expLen1-1])
 	}
 }
 
@@ -563,7 +555,7 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 	fixture := newTestFixture(t)
 	defer fixture.server.stop()
 
-	fixture.server.ch = make(chan []EventV1, 5)
+	fixture.server.ch = make(chan []EventV1, 1)
 	var result interface{} = false
 
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
@@ -576,7 +568,7 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 	for i := 0; i < 250; i++ {
 		input = generateInputMap(i)
 
-		fixture.plugin.Log(ctx, &server.Info{
+		if err := fixture.plugin.Log(ctx, &server.Info{
 			Revision:   fmt.Sprint(i),
 			DecisionID: fmt.Sprint(i),
 			Path:       "foo/bar",
@@ -584,7 +576,9 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 			Results:    &result,
 			RemoteAddr: "test",
 			Timestamp:  ts,
-		})
+		}); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	err = fixture.plugin.oneShot(ctx)
@@ -592,8 +586,7 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	<-fixture.server.ch
-	chunk2 := <-fixture.server.ch
+	chunk := <-fixture.server.ch
 
 	exp := EventV1{
 		Labels: map[string]string{
@@ -610,8 +603,8 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 		Timestamp:   ts,
 	}
 
-	if !reflect.DeepEqual(chunk2[len(chunk2)-1], exp) {
-		t.Fatalf("Expected %+v but got %+v", exp, chunk2[len(chunk2)-1])
+	if !reflect.DeepEqual(chunk[len(chunk)-1], exp) {
+		t.Fatalf("Expected %+v but got %+v", exp, chunk[len(chunk)-1])
 	}
 }
 
@@ -2593,7 +2586,9 @@ func TestPluginMasking(t *testing.T) {
 			// Instantiate the plugin.
 			cfg := &Config{Service: "svc"}
 			trigger := plugins.DefaultTriggerMode
-			cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger)
+			if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, nil); err != nil {
+				t.Fatal(err)
+			}
 
 			plugin := New(cfg, manager)
 
@@ -2643,7 +2638,7 @@ func TestPluginMasking(t *testing.T) {
 				// Reconfigure and ensure that mask is invalidated.
 				maskDecision := "dead/beef"
 				newConfig := &Config{Service: "svc", MaskDecision: &maskDecision}
-				if err := newConfig.validateAndInjectDefaults([]string{"svc"}, nil, &trigger); err != nil {
+				if err := newConfig.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, nil); err != nil {
 					t.Fatal(err)
 				}
 
@@ -2743,7 +2738,9 @@ func TestPluginDrop(t *testing.T) {
 			// Instantiate the plugin.
 			cfg := &Config{Service: "svc"}
 			trigger := plugins.DefaultTriggerMode
-			cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger)
+			if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, nil); err != nil {
+				t.Fatal(err)
+			}
 
 			plugin := New(cfg, manager)
 
@@ -2814,7 +2811,9 @@ func TestPluginMaskErrorHandling(t *testing.T) {
 	// Instantiate the plugin.
 	cfg := &Config{Service: "svc"}
 	trigger := plugins.DefaultTriggerMode
-	cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger)
+	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, nil); err != nil {
+		t.Fatal(err)
+	}
 
 	plugin := New(cfg, manager)
 
@@ -2890,7 +2889,9 @@ func TestPluginDropErrorHandling(t *testing.T) {
 	// Instantiate the plugin.
 	cfg := &Config{Service: "svc"}
 	trigger := plugins.DefaultTriggerMode
-	cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger)
+	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, nil); err != nil {
+		t.Fatal(err)
+	}
 
 	plugin := New(cfg, manager)
 
@@ -3660,5 +3661,69 @@ func testStatus() *bundle.Status {
 		ActiveRevision:           "quickbrawnfaux",
 		LastSuccessfulDownload:   tDownload,
 		LastSuccessfulActivation: tActivate,
+	}
+}
+
+func TestConfigUploadLimit(t *testing.T) {
+	tests := []struct {
+		name          string
+		limit         int64
+		expectedLimit int64
+		expectedLog   string
+		expectedErr   string
+	}{
+		{
+			name:          "exceed maximum limit",
+			limit:         int64(8589934592),
+			expectedLimit: maxUploadSizeLimitBytes,
+			expectedLog:   "the configured `upload_size_limit_bytes` (8589934592) has been set to the maximum limit (4294967296)",
+		},
+		{
+			name:          "nothing changes",
+			limit:         1000,
+			expectedLimit: 1000,
+		},
+		{
+			name:        "negative limit",
+			limit:       -1,
+			expectedErr: "the configured `upload_size_limit_bytes` (-1) must be greater than 0",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+
+			testLogger := test.New()
+
+			cfg := &Config{
+				Service: "svc",
+				Reporting: ReportingConfig{
+					UploadSizeLimitBytes: &tc.limit,
+				},
+			}
+			trigger := plugins.DefaultTriggerMode
+			if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, testLogger); err != nil {
+				if tc.expectedErr != "" {
+					if tc.expectedErr != err.Error() {
+						t.Fatalf("Expected error to be `%s` but got `%s`", tc.expectedErr, err.Error())
+					} else {
+						return
+					}
+				} else {
+					t.Fatal(err)
+				}
+			}
+
+			if *cfg.Reporting.UploadSizeLimitBytes != tc.expectedLimit {
+				t.Fatalf("Expected upload limit to be %d but got %d", tc.expectedLimit, cfg.Reporting.UploadSizeLimitBytes)
+			}
+
+			if tc.expectedLog != "" {
+				e := testLogger.Entries()
+				if e[0].Message != tc.expectedLog {
+					t.Fatalf("Expected log to be %s but got %s", tc.expectedLog, e[0].Message)
+				}
+			}
+		})
 	}
 }

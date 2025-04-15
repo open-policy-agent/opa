@@ -3231,7 +3231,7 @@ bundle:
 `
 	manager := getTestManager(t, conf)
 	trigger := plugins.TriggerManual
-	_, err := getPluginSet(nil, manager, manager.Config, nil, &trigger)
+	_, err := getPluginSet(nil, manager, manager.Config, nil, nil, &trigger)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -3268,7 +3268,7 @@ bundles:
 `
 	manager := getTestManager(t, conf)
 	trigger := plugins.TriggerManual
-	_, err := getPluginSet(nil, manager, manager.Config, nil, &trigger)
+	_, err := getPluginSet(nil, manager, manager.Config, nil, nil, &trigger)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -3328,7 +3328,7 @@ bundles:
 
 			manager := getTestManager(t, tc.conf)
 			trigger := plugins.TriggerManual
-			_, err := getPluginSet(nil, manager, manager.Config, nil, &trigger)
+			_, err := getPluginSet(nil, manager, manager.Config, nil, nil, &trigger)
 
 			if tc.wantErr {
 				if err == nil {
@@ -3393,7 +3393,7 @@ decision_logs:
 
 			manager := getTestManager(t, tc.conf)
 			trigger := plugins.TriggerManual
-			_, err := getPluginSet(nil, manager, manager.Config, nil, &trigger)
+			_, err := getPluginSet(nil, manager, manager.Config, nil, nil, &trigger)
 
 			if tc.wantErr {
 				if err == nil {
@@ -3464,7 +3464,7 @@ status:
 
 			manager := getTestManager(t, tc.conf)
 			trigger := plugins.TriggerManual
-			_, err := getPluginSet(nil, manager, manager.Config, nil, &trigger)
+			_, err := getPluginSet(nil, manager, manager.Config, nil, nil, &trigger)
 
 			if tc.wantErr {
 				if err == nil {
