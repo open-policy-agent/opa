@@ -5,7 +5,6 @@
 package logs
 
 import (
-	"fmt"
 	"math"
 	"strconv"
 	"testing"
@@ -212,7 +211,6 @@ func TestReset(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				fmt.Println(enc.softLimit)
 				if enc.softLimit != tc.expectedSoftLimit {
 					t.Fatalf("softLimit (%d) exceeds limit (%d)", enc.softLimit, tc.expectedSoftLimit)
 				}
