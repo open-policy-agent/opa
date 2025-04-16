@@ -1,0 +1,160 @@
+---
+hide_table_of_contents: true
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+import SideBySideContainer from '@site/src/components/SideBySide/Container';
+import SideBySideColumn from '@site/src/components/SideBySide/Column';
+import PlaygroundExample from '@site/src/components/PlaygroundExample';
+import ImageCard from '@site/src/components/ImageCard';
+
+
+<div
+  style={{
+    backgroundColor: '#e6f4ff', // light blue
+    padding: '4rem 2rem',
+    textAlign: 'center',
+    color: '#003366',
+    marginBottom: "2rem",
+  }}
+>
+  <h1 style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>
+    Open Policy Agent
+  </h1>
+
+  <h2
+    style={{
+      fontWeight: 'normal',
+      color: '#444',
+      marginTop: 0,
+      fontSize: '1.5rem',
+    }}
+  >
+    Policy-based control for cloud native environments
+  </h2>
+
+  <p style={{ fontSize: '1.1rem', maxWidth: '700px', margin: '1rem auto' }}>
+    Stop using a different policy language, policy model, and policy API for every product and service you use.
+    Use <strong>OPA</strong> for a unified toolset and framework for policy across the cloud native stack.
+  </p>
+
+  <p style={{ fontSize: '1.1rem', maxWidth: '700px', margin: '1rem auto' }}>
+    Whether for one service or for all your services, use <strong>OPA</strong> to decouple policy
+    from the service's code so you can release, analyze, and review policies (which
+    security and compliance teams love) without sacrificing availability or
+    performance.
+  </p>
+
+  <p
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '0.5rem',
+      flexWrap: 'wrap',
+      textAlign: 'center',
+    }}
+  >
+    <strong>Created By</strong>
+    <img
+      src="/img/support-logos/styra.png"
+      alt="Styra Logo"
+      style={{ width: '6rem' }}
+    />
+  </p>
+
+  <p style={{ fontSize: '0.9rem', color: '#555', marginTop: '1rem' }}>
+    OPA is now maintained by Styra and a large community of contributors.
+  </p>
+</div>
+
+## Declarative Policy
+
+**Context-aware, Expressive, Fast, Portable**
+
+
+<PlaygroundExample dir={require.context('./_examples/admin')} />
+
+
+**Declarative.** Express policy in a high-level, declarative language that promotes safe, performant, fine-grained controls. Use a language purpose-built for policy in a world where JSON is pervasive. Iterate, traverse hierarchies, and apply 150+ built-ins like string manipulation and JWT decoding to declare the policies you want enforced.
+
+**Context-aware.** Leverage external information to write the policies you really care about. Stop inventing roles that represent complex relationships that years down the road no one will understand. Instead, write logic that adapts to the world around it and attach that logic to the systems that need it.
+
+**Learn More**
+
+- [Kubernetes](./docs/latest/kubernetes-introduction/)
+- [Envoy](./docs/latest/envoy-introduction/)
+- [Terraform](./docs/latest/terraform/)
+- [Kafka](./docs/latest/kafka-authorization/)
+- [SQL](https://blog.openpolicyagent.org/write-policy-in-opa-enforce-policy-in-sql-d9d24db93bf4)
+- [Linux](./docs/latest/ssh-and-sudo-authorization/)
+
+---
+
+## Architectural Flexibility
+
+**Balance integration, availability, consistency**
+
+<SideBySideContainer>
+  <SideBySideColumn>
+    <h3>Daemon</h3>
+    <p>Deploy OPA as a separate process on the same host as your service. Integrate OPA by changing your service’s code, importing an OPA-enabled library, or using a network proxy integrated with OPA.</p>
+    <img src="/img/index/deployment/daemon.png" alt="Deployment Options" style={{ display: 'block', margin: "0 auto", maxWidth: '15rem', height: 'auto' }} />
+  </SideBySideColumn>
+  <SideBySideColumn>
+    <h3>Library</h3>
+    <p>Embed OPA policies into your service. Integrate OPA as a Go library that evaluates policy, or integrate a WebAssembly runtime and use OPA to compile policy to WebAssembly instructions.</p>
+    <img src="/img/index/deployment/library.png" alt="Deployment Options" style={{ display: 'block', margin: "0 auto", maxWidth: '15rem', height: 'auto' }} />
+  </SideBySideColumn>
+</SideBySideContainer>
+
+**Learn More**
+
+- [Daemon](./docs/latest/deployments/)
+- [Library](./docs/latest/integration/#integrating-with-the-go-api)
+
+---
+
+## Tools for Policy Authoring
+
+
+<div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', justifyContent: 'center' }}>
+<ImageCard
+  item={{
+    image: '/img/index/uis/playground.png',
+    title: 'Rego Playground for Policy Sharing',
+    note: 'Share and test policies in an interactive playground.',
+    link: 'https://play.openpolicyagent.org/',
+    link_text: 'Open Playground',
+  }}
+/>
+<ImageCard
+  item={{
+    image: '/img/index/uis/vscode.png',
+    title: 'VS Code for Policy Authoring',
+    note: 'Author policies with syntax highlighting and IntelliSense.',
+    link: 'https://marketplace.visualstudio.com/items?itemName=tsandall.opa',
+    link_text: 'Get VS Code Extension',
+  }}
+/>
+<ImageCard
+  item={{
+    image: '/img/index/uis/cli.png',
+    title: 'CLI and REPL for complete control',
+    note: 'Use the command line interface and REPL for advanced policy management.',
+    link: '/docs/latest/#running-opa',
+    link_text: 'Learn More',
+  }}
+/>
+</div>
+
+OPA embraces policy-as-code, complete with tools that help people use and understand the policies they put in place. Integrated development environments, testing, profiling, coverage, automated performance tuning, and hot reloading aren’t just things you need for programming--you need them for policy too, and OPA delivers.
+
+**Learn More**
+
+- [VS Code](https://marketplace.visualstudio.com/items?itemName=tsandall.opa)
+- [Rego Playground](https://play.openpolicyagent.org/)
+- [General Tooling](./docs/latest/#running-opa)
+- [OPA GitHub](https://github.com/open-policy-agent)
