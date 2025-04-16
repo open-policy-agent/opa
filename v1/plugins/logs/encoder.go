@@ -74,39 +74,54 @@ func (enc *chunkEncoder) Write(event EventV1) (result [][]byte, err error) {
 // WriteBytes attempts to write a serialized event to the current chunk.
 // If the upload limit is reached the chunk is closed and a result is returned.
 // The incoming event that didn't fit is added to the next chunk.
-func (enc *chunkEncoder) WriteBytes(bs []byte) ([][]byte, error) {
-	if len(bs) == 0 {
+func (enc *chunkEncoder) WriteBytes(serializedEvent []byte) ([][]byte, error) {
+	if len(serializedEvent) == 0 {
 		return nil, nil
 	}
 
 	// Compress the incoming event by itself in order to verify its final size
-	incomingEventBuf := new(bytes.Buffer)
-	w := gzip.NewWriter(incomingEventBuf)
-	if _, err := w.Write(bs); err != nil {
+	// this buffer and gzip writer are only used temporarily to get the correct lengths
+	buf := new(bytes.Buffer)
+	w := gzip.NewWriter(buf)
+	if _, err := w.Write(serializedEvent); err != nil {
+		return nil, err
+	}
+	if _, err := w.Write([]byte(`]`)); err != nil {
 		return nil, err
 	}
 	if err := w.Flush(); err != nil {
 		return nil, err
 	}
+	// lenLastEvent is the length of the event if it was the last event added, including gzip(event+]+trailer)
+	// a gzip header is 10 bytes, a trailer 8 bytes therefore -2 to keep an extra 8 bytes without having to write the trailer
+	lenLastEvent := int64(buf.Len()) - 2
 
-	// if the compressed incoming event is bigger than the upload size limit reject it
-	if int64(incomingEventBuf.Len()+2) > enc.limit {
+	if _, err := w.Write([]byte(`[`)); err != nil {
+		return nil, err
+	}
+	if err := w.Flush(); err != nil {
+		return nil, err
+	}
+	// lenEventChunk is the length of the incoming event within a single chunk, including gzip(header+[+event+]+trailer)
+	lenEventChunk := int64(buf.Len())
+	// if the compressed incoming event is too big to even fit in a single chunk by itself then reject it
+	if lenEventChunk > enc.limit {
 		if enc.metrics != nil {
 			enc.metrics.Counter(encLogExUploadSizeLimitCounterName).Incr()
 		}
 		return nil, fmt.Errorf("received a decision event with size %d that exceeds the upload_size_limit_bytes %d",
-			int64(incomingEventBuf.Len()), enc.limit)
+			lenEventChunk, enc.limit)
 	}
 
 	if err := enc.w.Flush(); err != nil {
 		return nil, err
 	}
 
-	// If adding the compressed incoming event to the current compressed buffer exceeds the limit,
+	// If gzip(header+[+existingEvents+incomingEvent+]+trailer) exceed the limit,
 	// close the current chunk and reset it so the incoming event can be written into the next chunk.
 	// Note that the soft limit enforces the final compressed size.
 	var result [][]byte
-	if int64(incomingEventBuf.Len()+enc.buf.Len()+1) > enc.softLimit {
+	if lenLastEvent+int64(enc.buf.Len()) > enc.softLimit {
 		if err := enc.writeClose(); err != nil {
 			return nil, err
 		}
@@ -132,7 +147,8 @@ func (enc *chunkEncoder) WriteBytes(bs []byte) ([][]byte, error) {
 		enc.bytesWritten += n
 	}
 
-	n, err := enc.w.Write(bs)
+	// write the original serializedEvent to the final chunk
+	n, err := enc.w.Write(serializedEvent)
 	if err != nil {
 		return nil, err
 	}

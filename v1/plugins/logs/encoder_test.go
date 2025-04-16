@@ -76,7 +76,7 @@ func TestChunkEncoderSizeLimit(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error as upload chunk size exceeds configured limit")
 	}
-	expected := "received a decision event with size 170 that exceeds the upload_size_limit_bytes 1"
+	expected := "received a decision event with size 179 that exceeds the upload_size_limit_bytes 1"
 	if err.Error() != expected {
 		t.Errorf("expected: '%s', got: '%s'", expected, err.Error())
 	}
