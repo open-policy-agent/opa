@@ -111,7 +111,7 @@ sudo mv opa-config.yaml /etc/docker/config/
 Install the `opa-docker-authz` plugin and point it to the config file just created.
 
 ```shell
-docker plugin install openpolicyagent/opa-docker-authz-v2:0.9 opa-args="-config-file /opa/config/opa-config.yaml"
+docker plugin install --alias opa-docker-authz ghcr.io/open-policy-agent/opa-docker-authz:v0.10 opa-args="-config-file /opa/config/opa-config.yaml"
 ```
 
 You need to configure the Docker daemon to use the plugin for authorization.
@@ -119,7 +119,7 @@ You need to configure the Docker daemon to use the plugin for authorization.
 ```shell
 cat > /etc/docker/daemon.json <<EOF
 {
-    "authorization-plugins": ["openpolicyagent/opa-docker-authz-v2:0.9"]
+    "authorization-plugins": ["opa-docker-authz"]
 }
 EOF
 ```
