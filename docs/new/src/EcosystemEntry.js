@@ -3,13 +3,13 @@ import Layout from "@theme/Layout";
 import React from "react";
 import ReactMarkdown from "react-markdown";
 
-const EcosystemEntry = (props) => {
-  const data = props.route.customData;
+import entries from "@generated/ecosystem-data/default/entries.json";
 
-  console.log("EcosystemEntry data", JSON.stringify(data, null, 2));
+const EcosystemEntry = (props) => {
+  const { id } = props.route.customData;
+  const page = entries[id];
 
   const {
-    id,
     title,
     subtitle,
     labels,
@@ -20,7 +20,7 @@ const EcosystemEntry = (props) => {
     tutorials,
     content,
     logo,
-  } = data;
+  } = page;
 
   return (
     <Layout title={title}>

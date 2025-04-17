@@ -1,21 +1,17 @@
 import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
 import React from "react";
-import Card from "./components/Card";
 
-import sortPagesByRank from "./lib/sortPagesByRank";
+import Card from "../components/Card";
+import sortPagesByRank from "../lib/sortPagesByRank";
+
+import entries from "@generated/ecosystem-data/default/entries.json";
+import featureCategories from "@generated/ecosystem-data/default/feature-categories.json";
+import features from "@generated/ecosystem-data/default/features.json";
+import languages from "@generated/ecosystem-data/default/languages.json";
 
 const EcosystemIndex = (props) => {
-  const {
-    pages,
-    features,
-    featureCategories,
-    languages,
-  } = props.route.customData.content;
-
-  console.log(JSON.stringify(languages, null, 2));
-
-  const sortedPages = sortPagesByRank(pages);
+  const sortedPages = sortPagesByRank(entries);
   const title = "OPA Ecosystem";
 
   const orderedCategoryKeys = ["rego", "production", "tool", "createwithopa"];
@@ -142,7 +138,7 @@ const EcosystemIndex = (props) => {
         </div>
 
         <Heading as="h2" style={{ margin: 0 }}>
-          All Entries
+          All Entries & Integrations
         </Heading>
 
         <div
@@ -155,7 +151,7 @@ const EcosystemIndex = (props) => {
           }}
         >
           {sortedPages.map((id) => {
-            const page = pages[id];
+            const page = entries[id];
 
             const cardData = {
               title: page.title,
