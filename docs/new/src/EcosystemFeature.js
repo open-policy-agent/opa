@@ -6,8 +6,30 @@ import Card from "./components/Card";
 
 import sortPagesByRank from "./lib/sortPagesByRank";
 
+import entries from "@generated/ecosystem-data/default/entries.json";
+import featureCategories from "@generated/ecosystem-data/default/feature-categories.json";
+import features from "@generated/ecosystem-data/default/features.json";
+import languages from "@generated/ecosystem-data/default/languages.json";
+
 const EcosystemFeature = (props) => {
-  const { pages, feature, features } = props.route.customData;
+  const { feature } = props.route.customData;
+
+  const pagesByFeature = {};
+
+  for (const pageId in entries) {
+    const page = entries[pageId];
+    const features = page.docs_features || {};
+
+    for (const featureKey of Object.keys(features)) {
+      if (!pagesByFeature[featureKey]) {
+        pagesByFeature[featureKey] = [];
+      }
+
+      pagesByFeature[featureKey].push(page);
+    }
+  }
+
+  const pages = pagesByFeature[feature] || [];
 
   const sortedPages = sortPagesByRank(pages);
 
@@ -46,7 +68,7 @@ const EcosystemFeature = (props) => {
               title: page.title,
               note: page.docs_features[feature].note,
               icon: page.logo,
-              link: `/ecosystem/entry/${id}`,
+              link: `/ecosystem/entry/${page.id}`,
               link_text: "View Details",
             };
 
