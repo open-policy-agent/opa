@@ -3,7 +3,7 @@ const lightCodeTheme = themes.github;
 const darkCodeTheme = themes.dracula;
 const semver = require("semver");
 
-const fs = require("fs");
+import fs from "fs/promises";
 const path = require("path");
 
 const { loadPages, loadEcosystemPages } = require("./src/lib/loadPages");
@@ -283,7 +283,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
         };
       },
 
-      async function pluginJsonWriter(context, options) {
+      async function ecosystemData(context, options) {
         return {
           name: "ecosystem-data",
 
@@ -311,6 +311,26 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
             await createData("languages.json", JSON.stringify(languages, null, 2));
             await createData("features.json", JSON.stringify(features, null, 2));
             await createData("feature-categories.json", JSON.stringify(featureCategories, null, 2));
+          },
+        };
+      },
+
+      async function builtinData(context, options) {
+        return {
+          name: "builtin-data",
+
+          async loadContent() {
+            const filePath = path.join(context.siteDir, "src", "data", "builtin_metadata.json");
+            const fileContent = await fs.readFile(filePath, "utf-8");
+            const builtins = JSON.parse(fileContent);
+            return { builtins };
+          },
+
+          async contentLoaded({ content, actions }) {
+            const { createData } = actions;
+            const { builtins } = content;
+
+            await createData("builtins.json", JSON.stringify(builtins, null, 2));
           },
         };
       },

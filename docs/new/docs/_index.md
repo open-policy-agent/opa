@@ -28,18 +28,18 @@ structured data as input.
 
 <!--- source: https://docs.google.com/drawings/d/10_iIoQO6VgORsMpXyQ--fu8F5xSe9E4vIz5qRAIon78/edit --->
 
-![Policy Decoupling](opa-service.svg)
+{{< figure src="opa-service.svg" width="65" caption="Policy Decoupling" >}}
 
 OPA generates policy decisions by evaluating the query input against
 policies and data. OPA and Rego are domain-agnostic so you can describe almost
 any kind of invariant in your policies. For example:
 
-- Which users can access which resources.
-- Which subnets egress traffic is allowed to.
-- Which clusters a workload must be deployed to.
-- Which registries binaries can be downloaded from.
-- Which OS capabilities a container can execute with.
-- Which times of day the system can be accessed at.
+* Which users can access which resources.
+* Which subnets egress traffic is allowed to.
+* Which clusters a workload must be deployed to.
+* Which registries binaries can be downloaded from.
+* Which OS capabilities a container can execute with.
+* Which times of day the system can be accessed at.
 
 Policy decisions are not limited to simple yes/no or allow/deny answers. Like
 query inputs, your policies can generate arbitrary structured data as output.
@@ -52,13 +52,13 @@ Imagine you work for an organization with the following system:
 
 <!--- source: https://docs.google.com/drawings/d/1nPZ08-G8zEZyTlVTmLGnlnS-CdBEltiV8kds0cwd_qQ/edit --->
 
-![Example System](system.svg)
+{{< figure src="system.svg" width="65" caption="Example System" >}}
 
 There are three kinds of components in the system:
 
-- Servers expose zero or more protocols (e.g., `http`, `ssh`, etc.)
-- Networks connect servers and can be public or private. Public networks are connected to the Internet.
-- Ports attach servers to networks.
+* Servers expose zero or more protocols (e.g., `http`, `ssh`, etc.)
+* Networks connect servers and can be public or private. Public networks are connected to the Internet.
+* Ports attach servers to networks.
 
 All the servers, networks, and ports are provisioned by a script. The script
 receives a JSON representation of the system as input:
@@ -105,7 +105,8 @@ the policy.
 
 OPA policies are expressed in a high-level declarative language called Rego.
 Rego (pronounced "ray-go") is purpose-built for expressing policies over complex
-hierarchical data structures. For detailed information on Rego see the [Policy Language](policy-language) documentation.
+hierarchical data structures. For detailed information on Rego see the [Policy
+Language](policy-language) documentation.
 
 :::info
 💡 The examples below are interactive! If you edit the input data above
@@ -135,7 +136,6 @@ operator.
 ```live:example/refs/1:query:merge_down
 input.servers
 ```
-
 ```live:example/refs/1:output
 ```
 
@@ -144,7 +144,6 @@ To refer to array elements you can use the familiar square-bracket syntax:
 ```live:example/refs/array:query:merge_down
 input.servers[0].protocols[0]
 ```
-
 ```live:example/refs/array:output
 ```
 
@@ -157,7 +156,6 @@ means that OPA was not able to find any results.
 ```live:example/refs/undefined:query:merge_down
 input.deadbeef
 ```
-
 ```live:example/refs/undefined:output:expect_undefined
 ```
 
@@ -173,7 +171,6 @@ other data.
 ```live:example/exprs/eq:query:merge_down
 input.servers[0].id == "app"
 ```
-
 ```live:example/exprs/eq:output
 ```
 
@@ -184,7 +181,6 @@ aggregation, and more.
 ```live:example/exprs/builtins:query:merge_down
 count(input.servers[0].protocols) >= 1
 ```
-
 ```live:example/exprs/builtins:output
 ```
 
@@ -198,7 +194,6 @@ defined. The order of expressions does not matter.
 ```live:example/exprs/multi:query:merge_down
 input.servers[0].id == "app"; input.servers[0].protocols[0] == "https"
 ```
-
 ```live:example/exprs/multi:output
 ```
 
@@ -209,7 +204,6 @@ lines. The following query has the same meaning as the previous one:
 input.servers[0].id == "app"
 input.servers[0].protocols[0] == "https"
 ```
-
 ```live:example/exprs/multi_line:output
 ```
 
@@ -220,7 +214,6 @@ undefined. In the example below, the second expression is false:
 input.servers[0].id == "app"
 input.servers[0].protocols[0] == "telnet"
 ```
-
 ```live:example/exprs/multi_undefined:output:expect_undefined
 ```
 
@@ -239,7 +232,6 @@ s.id == "app"
 p := s.protocols[0]
 p == "https"
 ```
-
 ```live:example/vars/1:output
 ```
 
@@ -252,7 +244,6 @@ s := input.servers[0]
 s.id == "app"
 s.protocols[1] == "telnet"
 ```
-
 ```live:example/vars/undefined:output:expect_undefined
 ```
 
@@ -263,7 +254,6 @@ variable twice.
 s := input.servers[0]
 s := input.servers[1]
 ```
-
 ```live:example/vars/assign_error:output:expect_assigned_above
 ```
 
@@ -275,7 +265,6 @@ report an error.
 x := 1
 x != y  # y has not been assigned a value
 ```
-
 ```live:example/vars/unsafe:output:expect_unsafe_var
 ```
 
@@ -288,7 +277,8 @@ package example
 Like other declarative languages (e.g., SQL), iteration in Rego happens
 implicitly when you inject variables into expressions.
 
-There are explicit iteration constructs to express _FOR ALL_ and _FOR SOME_, [see below](#for-some-and-for-all).
+There are explicit iteration constructs to express _FOR ALL_ and _FOR SOME_, [see
+below](#for-some-and-for-all).
 
 To understand how iteration works in Rego, imagine you need to check if any
 networks are public. Recall that the networks are supplied inside an array:
@@ -296,7 +286,6 @@ networks are public. Recall that the networks are supplied inside an array:
 ```live:example/iter/recall:query:merge_down
 input.networks
 ```
-
 ```live:example/iter/recall:output
 ```
 
@@ -305,21 +294,16 @@ One option would be to test each network in the input:
 ```live:example/iter/check_public_0:query:merge_down
 input.networks[0].public == true
 ```
-
 ```live:example/iter/check_public_0:output:merge_down
 ```
-
 ```live:example/iter/check_public_1:query:merge_down
 input.networks[1].public == true
 ```
-
 ```live:example/iter/check_public_1:output:merge_down
 ```
-
 ```live:example/iter/check_public_2:query:merge_down
 input.networks[2].public == true
 ```
-
 ```live:example/iter/check_public_2:output
 ```
 
@@ -332,7 +316,6 @@ In Rego, the solution is to substitute the array index with a variable.
 ```live:example/iter/1:query:merge_down
 some i; input.networks[i].public == true
 ```
-
 ```live:example/iter/1:output
 ```
 
@@ -347,7 +330,6 @@ any servers expose the insecure `"http"` protocol you could write:
 ```live:example/iter/double:query:merge_down
 some i, j; input.servers[i].protocols[j] == "http"
 ```
-
 ```live:example/iter/double:output
 ```
 
@@ -361,7 +343,6 @@ id := input.ports[i].id
 input.ports[i].network == input.networks[j].id
 input.networks[j].public
 ```
-
 ```live:example/iter/join:output
 ```
 
@@ -372,7 +353,6 @@ operator. Conceptually, each instance of `_` is a unique variable.
 ```live:example/iter/wildcard:query:merge_down
 input.servers[_].protocols[_] == "http"
 ```
-
 ```live:example/iter/wildcard:output
 ```
 
@@ -383,7 +363,6 @@ the expressions, the result is undefined.
 ```live:example/iter/undefined:query:merge_down
 some i; input.servers[i].protocols[i] == "ssh"  # there is no assignment of i that satisfies the expression
 ```
-
 ```live:example/iter/undefined:output:expect_undefined
 ```
 
@@ -416,11 +395,9 @@ shell_accessible contains server.id if {
     "ssh" in server.protocols
 }
 ```
-
 ```live:example/iter/some1:query:merge_down
 shell_accessible
 ```
-
 ```live:example/iter/some1:output
 ```
 
@@ -455,7 +432,6 @@ any_telnet_exposed if {
     "telnet" in server.protocols
 }
 ```
-
 ```live:example/iter/every2:input:merge_down
 {
     "servers": [
@@ -474,11 +450,9 @@ any_telnet_exposed if {
     ]
 }
 ```
-
 ```live:example/iter/every2:query:merge_down
 no_telnet_exposed
 ```
-
 ```live:example/iter/every2:output
 ```
 
@@ -507,14 +481,14 @@ any_public_networks := true if {
 
 Every rule consists of a _head_ and a _body_. In Rego we say the rule head
 is true _if_ the rule body is true for some set of variable assignments. In
-the example above `any_public_networks := true` is the head and `some net in input.networks; net.public` is the body.
+the example above `any_public_networks := true` is the head and `some net in
+input.networks; net.public` is the body.
 
 You can query for the value generated by rules just like any other value:
 
 ```live:example/complete/1:query
 any_public_networks
 ```
-
 ```live:example/complete/1:output
 ```
 
@@ -523,7 +497,6 @@ All values generated by rules can be queried via the global `data` variable.
 ```live:example/complete/1/abs:query:merge_down
 data.example.rules.any_public_networks
 ```
-
 ```live:example/complete/1/abs:output:merge_down
 ```
 
@@ -555,7 +528,6 @@ Constants defined like this can be queried just like any other values:
 ```live:example/complete_constant:query:merge_down
 pi > 3
 ```
-
 ```live:example/complete_constant:output
 ```
 
@@ -573,11 +545,9 @@ not the same as false.) Below, OPA is given a different set of input networks
     ]
 }
 ```
-
 ```live:example/complete/1/undefined:query:merge_down
 any_public_networks
 ```
-
 ```live:example/complete/1/undefined:output:expect_undefined
 ```
 
@@ -604,7 +574,6 @@ set of values just like any other value:
 ```live:example/partial_set/1/extent:query:merge_down
 public_network
 ```
-
 ```live:example/partial_set/1/extent:output
 ```
 
@@ -613,7 +582,6 @@ Iteration over the set of values can be done with the `some ... in ...` expressi
 ```live:example/partial_set/1/iteration_some:query:merge_down
 some net in public_network
 ```
-
 ```live:example/partial_set/1/iteration_some:output
 ```
 
@@ -623,7 +591,6 @@ via `... in ...`:
 ```live:example/partial_set/1/exists_in:query:merge_down
 "net3" in public_network
 ```
-
 ```live:example/partial_set/1/exists_in:output
 ```
 
@@ -633,7 +600,6 @@ variable:
 ```live:example/partial_set/1/iteration:query:merge_down
 some n; public_network[n]
 ```
-
 ```live:example/partial_set/1/iteration:output
 ```
 
@@ -642,7 +608,6 @@ Lastly, you can check if a value exists in the set using the same syntax:
 ```live:example/partial_set/1/exists:query:merge_down
 public_network["net3"]
 ```
-
 ```live:example/partial_set/1/exists:output
 ```
 
@@ -675,7 +640,6 @@ shell_accessible if {
 	input.servers[_].protocols[_] == "ssh"
 }
 ```
-
 ```live:example/logical_or/complete:input:merge_down
 {
     "servers": [
@@ -690,11 +654,9 @@ shell_accessible if {
     ]
 }
 ```
-
 ```live:example/logical_or/complete:query:merge_down
 shell_accessible
 ```
-
 ```live:example/logical_or/complete:output
 ```
 
@@ -719,7 +681,6 @@ shell_accessible contains server.id if {
 	server.protocols[_] == "ssh"
 }
 ```
-
 ```live:example/logical_or/partial_set:input:merge_down
 {
     "servers": [
@@ -738,11 +699,9 @@ shell_accessible contains server.id if {
     ]
 }
 ```
-
 ```live:example/logical_or/partial_set:query:merge_down
 shell_accessible
 ```
-
 ```live:example/logical_or/partial_set:output
 ```
 
@@ -752,7 +711,6 @@ on this topic showing different methods to express OR in idiomatic Rego for diff
 :::
 
 <!---TBD: explain conflicts --->
-
 ### Putting It Together
 
 The sections above explain the core concepts in Rego. To put it all together
@@ -798,11 +756,9 @@ public_servers contains server if {                 # a server exists in the pub
     input_network.public                            # the network is public.
 }
 ```
-
 ```live:example/final:query:merge_down
 some x; violation[x]
 ```
-
 ```live:example/final:output
 ```
 
@@ -870,14 +826,14 @@ It is a swiss-army knife that you can use to evaluate arbitrary Rego expressions
 `opa eval` supports a large number of options for controlling evaluation.
 Commonly used flags include:
 
-| Flag             | Short | Description                                                                                                                                     |
-| ---------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--bundle`       | `-b`  | Load a [bundle file](management-bundles/#bundle-file-format) or directory into OPA. This flag can be repeated.                                  |
-| `--data`         | `-d`  | Load policy or data files into OPA. This flag can be repeated.                                                                                  |
-| `--input`        | `-i`  | Load a data file and use it as `input`. This flag cannot be repeated.                                                                           |
-| `--format`       | `-f`  | Set the output format to use. The default is `json` and is intended for programmatic use. The `pretty` format emits more human-readable output. |
-| `--fail`         | n/a   | Exit with a non-zero exit code if the query is undefined.                                                                                       |
-| `--fail-defined` | n/a   | Exit with a non-zero exit code if the query is not undefined.                                                                                   |
+| Flag | Short | Description |
+| --- | --- | --- |
+| `--bundle` | `-b`| Load a [bundle file](management-bundles/#bundle-file-format) or directory into OPA. This flag can be repeated. |
+| `--data` | `-d` | Load policy or data files into OPA. This flag can be repeated. |
+| `--input` | `-i` | Load a data file and use it as `input`. This flag cannot be repeated. |
+| `--format` | `-f` | Set the output format to use. The default is `json` and is intended for programmatic use. The `pretty` format emits more human-readable output. |
+| `--fail` | n/a | Exit with a non-zero exit code if the query is undefined. |
+| `--fail-defined` | n/a | Exit with a non-zero exit code if the query is not undefined. |
 
 For example:
 
@@ -963,6 +919,7 @@ To start the REPL just:
 
 When you enter statements in the REPL, OPA evaluates them and prints the result.
 
+
 ```ruby
 > true
 true
@@ -1011,11 +968,9 @@ Run a few queries to poke around the data:
 ```ruby
 > data.servers[0].protocols[1]
 ```
-
 ```ruby
 > data.servers[i].protocols[j]
 ```
-
 ```ruby
 > net := data.networks[_]; net.public
 ```
@@ -1052,7 +1007,8 @@ You can start OPA as a server with `-s` or `--server`:
 ./opa run --server ./example.rego
 ```
 
-By default OPA listens for HTTP connections on `localhost:8181`. See `opa run --help` for a list of options to change the listening address, enable TLS, and
+By default OPA listens for HTTP connections on `localhost:8181`. See `opa run
+--help` for a list of options to change the listening address, enable TLS, and
 more.
 
 Inside of another terminal use `curl` (or a similar tool) to access OPA's HTTP
@@ -1233,17 +1189,17 @@ as how to get OPA and run it on your own.
 
 If you have more questions about how to write policies in Rego check out:
 
-- The [Policy Reference](policy-reference) page for reference documentation on built-in functions.
-- The [Policy Language](policy-language) page for complete descriptions of all language features.
+* The [Policy Reference](policy-reference) page for reference documentation on built-in functions.
+* The [Policy Language](policy-language) page for complete descriptions of all language features.
 
 If you want to try OPA for a specific use case check out:
 
-- The [Ecosystem](ecosystem) page which showcases various of OPA integrations.
+* The [Ecosystem](ecosystem) page which showcases various of OPA integrations.
 
 Some popular tutorials include:
 
-- The [Kubernetes](kubernetes-introduction) page for how to use OPA as an admission controller in Kubernetes.
-- The [Envoy](envoy-introduction) page for how to use OPA as an external authorizer with Envoy.
-- The [Terraform](terraform) page for how to use OPA to validate Terraform plans.
+* The [Kubernetes](kubernetes-introduction) page for how to use OPA as an admission controller in Kubernetes.
+* The [Envoy](envoy-introduction) page for how to use OPA as an external authorizer with Envoy.
+* The [Terraform](terraform) page for how to use OPA to validate Terraform plans.
 
 Don't forget to install the OPA (Rego) Plugin for your favorite [IDE or Text Editor](editor-and-ide-support)
