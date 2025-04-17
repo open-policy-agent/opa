@@ -1,5 +1,6 @@
 ---
 title: App authorization for Clojure
+for_language: clojure
 software:
 - clojure
 - java
@@ -11,4 +12,5 @@ code:
 inventors:
 - styra
 ---
+
 Authorization middleware for Ring based apps and other utilities for working with OPA in Clojure.

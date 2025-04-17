@@ -1,5 +1,6 @@
 ---
 title: Java OPA Wasm SDK (Styra)
+for_language: java
 software:
 - java
 labels:

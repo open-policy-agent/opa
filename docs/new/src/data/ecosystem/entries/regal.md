@@ -12,7 +12,7 @@ blogs:
 code:
 - https://github.com/StyraInc/regal
 videos:
-- https://www.youtube.com/live/Xx8npd2TQJ0?feature=share&t=2567
+- "https://www.youtube.com/live/Xx8npd2TQJ0?feature=share&t=2567"
 tutorials:
 - https://docs.styra.com/regal#try-it-out
 docs_features:

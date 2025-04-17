@@ -1,5 +1,6 @@
 ---
 title: Wasm .NET Package (christophwille)
+for_language: csharp
 software:
 - csharp
 inventors:
@@ -18,4 +19,5 @@ docs_features:
 
 '
 ---
+
 Call Rego policies in Wasm from C# .NET Core

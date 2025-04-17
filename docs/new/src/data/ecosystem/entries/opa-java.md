@@ -1,5 +1,6 @@
 ---
 title: Java OPA SDK (Styra)
+for_language: java
 labels:
   layer: network
   category: application
@@ -16,3 +17,4 @@ inventors:
 
 The Styra-supported driver to connect to Open Policy Agent (OPA) and Enterprise
 OPA deployments from Java applications.
+

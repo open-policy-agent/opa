@@ -1,5 +1,6 @@
 ---
 title: Java Client (Bisnode)
+for_language: java
 labels:
   layer: network
   category: application
@@ -10,4 +11,5 @@ code:
 inventors:
 - bisnode
 ---
+
 Integrations for interacting with OPA from Java

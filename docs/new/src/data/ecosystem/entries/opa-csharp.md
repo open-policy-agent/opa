@@ -1,5 +1,6 @@
 ---
 title: C# OPA SDK (Styra)
+for_language: csharp
 labels:
   category: application
   layer: network

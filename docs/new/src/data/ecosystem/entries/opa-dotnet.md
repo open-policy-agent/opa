@@ -1,5 +1,6 @@
 ---
 title: Wasm .NET Package (me-viper)
+for_language: csharp
 software:
 - csharp
 inventors:
@@ -16,4 +17,5 @@ docs_features:
   wasm-integration:
     note: 'This project implements Open Policy Agent (OPA) WebAssembly .NET core SDK.'
 ---
+
 Open Policy Agent (OPA) WebAssembly .NET core SDK

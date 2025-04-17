@@ -230,51 +230,104 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
           };
         },
       }),
+      async function ecosystemLanguagePageGen(context, options) {
+        return {
+          name: "ecosystem-language-gen",
+          async loadContent() {
+            const pages = await loadEcosystemPages();
+
+            const pagesByLanguage = {};
+
+            for (const pageId in pages) {
+              const page = pages[pageId];
+              const lang = page.for_language;
+              if (!lang) continue;
+              if (!pagesByLanguage[lang]) {
+                pagesByLanguage[lang] = [];
+              }
+              pagesByLanguage[lang].push(page);
+            }
+
+            const languages = await loadPages("src/data/ecosystem/languages/*.md");
+
+            return {
+              pagesByLanguage,
+              languages,
+            };
+          },
+
+          async contentLoaded({ content, actions }) {
+            const { pagesByLanguage, languages } = content;
+            await Promise.all(
+              Object.keys(languages).map(async (language) => {
+                const routePath = `/ecosystem/by-language/${language}`;
+                return actions.addRoute({
+                  path: routePath,
+                  component: require.resolve("./src/EcosystemLanguage.js"),
+                  exact: true,
+                  modules: {},
+                  customData: { pages: pagesByLanguage[language], language, languages },
+                });
+              }),
+            );
+          },
+        };
+      },
+      async function ecosystemFeaturePageGen(context, options) {
+        return {
+          name: "ecosystem-feature-gen",
+          async loadContent() {
+            const pages = await loadEcosystemPages();
+
+            const pagesByFeature = {};
+
+            for (const pageId in pages) {
+              const page = pages[pageId];
+              const features = page.docs_features || {};
+
+              for (const featureKey of Object.keys(features)) {
+                if (!pagesByFeature[featureKey]) {
+                  pagesByFeature[featureKey] = [];
+                }
+
+                pagesByFeature[featureKey].push(page);
+              }
+            }
+
+            const features = await loadPages("src/data/ecosystem/features/*.md");
+
+            return {
+              pagesByFeature,
+              features,
+            };
+          },
+
+          async contentLoaded({ content, actions }) {
+            const { pagesByFeature, features } = content;
+            await Promise.all(
+              Object.keys(features).map(async (feature) => {
+                const routePath = `/ecosystem/by-feature/${feature}`;
+                return actions.addRoute({
+                  path: routePath,
+                  component: require.resolve("./src/EcosystemFeature.js"),
+                  exact: true,
+                  modules: {},
+                  customData: { pages: pagesByFeature[feature], feature, features },
+                });
+              }),
+            );
+          },
+        };
+      },
       async function ecosystemIndexPageGen(context, options) {
         return {
           name: "ecosystem-index-gen",
           async loadContent() {
-            const entryGlob = path.resolve(__dirname, "src/data/ecosystem/entries/*.md");
-            const logoGlobRoot = path.resolve(__dirname, "static/img/ecosystem/logos");
-
-            const files = await new Promise((resolve, reject) => {
-              glob(entryGlob, (err, matches) => {
-                if (err) reject(err);
-                else resolve(matches);
-              });
-            });
-
-            const pages = await files.reduce(async (accPromise, filePath) => {
-              const acc = await accPromise;
-              const content = await fs.readFile(filePath, "utf-8");
-              const parsed = matter(content);
-
-              const id = path.parse(filePath).name;
-
-              // Check if a matching logo file exists
-              const logoFiles = await new Promise((resolve, reject) => {
-                glob(`${logoGlobRoot}/${id}*`, (err, matches) => {
-                  if (err) reject(err);
-                  else resolve(matches);
-                });
-              });
-
-              const logoPath = logoFiles.length > 0
-                ? `/img/ecosystem/logos/${path.basename(logoFiles[0])}`
-                : "/img/logo.png";
-
-              acc[id] = {
-                ...parsed.data,
-                content: parsed.content,
-                filePath,
-                id,
-                logo: logoPath,
-              };
-
-              return acc;
-            }, Promise.resolve({}));
-
-            return { pages };
+            const pages = await loadEcosystemPages();
+            const featureCategories = await loadPages("src/data/ecosystem/feature-categories/*.md");
+            const features = await loadPages("src/data/ecosystem/features/*.md");
+            const languages = await loadPages("src/data/ecosystem/languages/*.md");
+            return { pages, featureCategories, features, languages };
           },
 
           async contentLoaded({ content, actions }) {
@@ -292,46 +345,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
         return {
           name: "ecosystem-entries-pages-gen",
           async loadContent() {
-            const entryGlob = path.resolve(__dirname, "src/data/ecosystem/entries/*.md");
-            const logoGlobRoot = path.resolve(__dirname, "static/img/ecosystem/logos");
-
-            const files = await new Promise((resolve, reject) => {
-              glob(entryGlob, (err, matches) => {
-                if (err) reject(err);
-                else resolve(matches);
-              });
-            });
-
-            const pages = await files.reduce(async (accPromise, filePath) => {
-              const acc = await accPromise;
-              const content = await fs.readFile(filePath, "utf-8");
-              const parsed = matter(content);
-
-              const id = path.parse(filePath).name;
-
-              // Check if a matching logo file exists
-              const logoFiles = await new Promise((resolve, reject) => {
-                glob(`${logoGlobRoot}/${id}*`, (err, matches) => {
-                  if (err) reject(err);
-                  else resolve(matches);
-                });
-              });
-
-              const logoPath = logoFiles.length > 0
-                ? `/img/ecosystem/logos/${path.basename(logoFiles[0])}`
-                : "/img/logo.png";
-
-              acc[id] = {
-                ...parsed.data,
-                content: parsed.content,
-                filePath,
-                id,
-                logo: logoPath,
-              };
-
-              return acc;
-            }, Promise.resolve({}));
-
+            const pages = await loadEcosystemPages();
             return { pages };
           },
 
@@ -339,7 +353,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
             const { pages } = content;
             await Promise.all(
               Object.values(pages).map(async (page) => {
-                const routePath = `/ecosystem/${page.id}`;
+                const routePath = `/ecosystem/entry/${page.id}`;
                 return actions.addRoute({
                   path: routePath,
                   component: require.resolve("./src/EcosystemEntry.js"),
@@ -370,3 +384,59 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
     ],
   }
 );
+
+async function loadPages(entryGlobPattern) {
+  const files = await new Promise((resolve, reject) => {
+    glob(entryGlobPattern, (err, matches) => {
+      if (err) reject(err);
+      else resolve(matches);
+    });
+  });
+
+  const pages = await files.reduce(async (accPromise, filePath) => {
+    const acc = await accPromise;
+    const content = await fs.readFile(filePath, "utf-8");
+    const parsed = matter(content);
+
+    const id = path.parse(filePath).name;
+
+    acc[id] = {
+      ...parsed.data,
+      content: parsed.content,
+      filePath,
+      id,
+    };
+
+    return acc;
+  }, Promise.resolve({}));
+
+  return pages;
+}
+
+let _ecosystemPagesCache = null;
+async function loadEcosystemPages() {
+  if (_ecosystemPagesCache) return _ecosystemPagesCache;
+
+  const entryGlob = path.resolve(__dirname, "src/data/ecosystem/entries/*.md");
+  const logoGlobRoot = path.resolve(__dirname, "static/img/ecosystem/logos");
+
+  const pages = await loadPages(entryGlob);
+
+  for (const id in pages) {
+    const logoFiles = await new Promise((resolve, reject) => {
+      glob(`${logoGlobRoot}/${id}*`, (err, matches) => {
+        if (err) reject(err);
+        else resolve(matches);
+      });
+    });
+
+    const logoPath = logoFiles.length > 0
+      ? `/img/ecosystem/logos/${path.basename(logoFiles[0])}`
+      : "/img/logo.png";
+
+    pages[id].logo = logoPath;
+  }
+
+  _ecosystemPagesCache = pages;
+  return pages;
+}

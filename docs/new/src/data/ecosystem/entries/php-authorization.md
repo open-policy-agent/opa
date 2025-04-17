@@ -1,5 +1,6 @@
 ---
 title: PHP OPA Library
+for_language: php
 labels:
   layer: network
   category: application
@@ -21,4 +22,5 @@ docs_features:
       [project README](https://github.com/segrax/openpolicyagent)
       for various examples.
 ---
+
 These integrations demonstrate using OPA to perform API authorization in PSR-15 and Symfony compliant frameworks.

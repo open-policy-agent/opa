@@ -1,5 +1,6 @@
 ---
 title: OPA ASP.NET Core SDK (Styra)
+for_language: csharp
 labels:
   category: application
   layer: network
@@ -18,4 +19,3 @@ The Styra-supported OPA ASP.NET Core SDK enables seamless integration of Open
 Policy Agent and Enterprise OPA deployments with ASP.NET Core applications
 through an ASP.NET `Middleware` implementation. The SDK’s installation and usage
 details are provided on [NuGet](https://www.nuget.org/packages/Styra.Opa.AspNetCore).
-

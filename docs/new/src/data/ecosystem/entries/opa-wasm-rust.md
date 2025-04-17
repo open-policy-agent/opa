@@ -1,5 +1,6 @@
 ---
 title: OPA Wasm Rust Crate
+for_language: rust
 software:
 - rust
 inventors:
@@ -18,5 +19,5 @@ docs_features:
 
 '
 ---
-A crate to use OPA policies compiled to WASM.
 
+A crate to use OPA policies compiled to WASM.

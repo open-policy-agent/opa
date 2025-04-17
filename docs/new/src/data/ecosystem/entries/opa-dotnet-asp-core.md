@@ -1,5 +1,6 @@
 ---
 title: .NET Package (me-viper)
+for_language: csharp
 labels:
   category: application
   layer: network
@@ -12,4 +13,5 @@ inventors:
 software:
 - csharp
 ---
+
 Open Policy Agent (OPA) ASP.NET core authorization infrastructure
