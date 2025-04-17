@@ -87,18 +87,22 @@ during the next upload event. OPA also performs an exponential backoff to calcul
 when the remote service responds with a non-2xx status.
 
 OPA periodically uploads decision logs to the remote service. In order to conserve network and memory resources, OPA
-attempts to fill up each upload chunk with as many events as possible while respecting the user-specified
-`upload_size_limit_bytes` config option. OPA defines an adaptive (`soft`) limit that acts as a measure for encoding
-as many decisions into each chunk as possible. It uses the below algorithm to optimize the number of log events to
-include in a chunk. The algorithm features three phases namely:
+attempts to fill up each message body with as many events as possible while respecting the user-specified
+`upload_size_limit_bytes` config option. Each message body is a gzip compressed JSON array and the `upload_size_limit_bytes`
+config option represents the gzip compressed size, it can be referred to as the compressed limit. To avoid compressing 
+each incoming event to get its compressed size to see if the compressed limit is reached, OPA tries to make an educated
+guess what the uncompressed limit could be. It does so by using an adaptive limit, referred to as the uncompressed limit,
+that gets adjusted by measuring incoming events. This does mean that initially the chunk sizes will most likely be smaller
+than the compressed limit, but as OPA consumes more decision events it will adjust the adaptive uncompressed limit to
+optimize the messages. The algorithm to adjust the uncompressed limit uses the following criteria:
 
-`Scale Up`: If the current chunk size is within 90% of the user-configured (`hard`) limit, exponentially increase the
-soft limit. The exponential function is 2^x where x has a minimum value of 1
+`Scale Up`: If the current chunk size is within 90% of the user-configured compressed limit, exponentially increase the
+uncompressed limit. The exponential function is 2^x where x has a minimum value of 1
 
-`Scale Down`: If the current chunk size exceeds the hard limit, decrease the soft limit and re-encode the decisions in
-the last chunk.
+`Scale Down`: If the current chunk size exceeds the compressed limit, decrease the uncompressed limit and re-encode the 
+decisions in the last chunk.
 
-`Equilibrium`: If the chunk size is between 90% and 100% of the user-configured limit, maintain soft limit value.
+`Equilibrium`: If the chunk size is between 90% and 100% of the user-configured limit, maintain uncompressed limit value.
 
 When an event containing `nd_builtin_cache` cannot fit into a chunk smaller than `upload_size_limit_bytes`, OPA will
 drop the `nd_builtin_cache` key from the event, and will retry encoding the chunk without the non-deterministic

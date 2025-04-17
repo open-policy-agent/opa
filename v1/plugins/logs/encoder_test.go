@@ -72,13 +72,22 @@ func TestChunkEncoderSizeLimit(t *testing.T) {
 		RequestedBy: "test",
 		Timestamp:   ts,
 	}
-	_, err = enc.Write(event)
-	if err == nil {
-		t.Error("Expected error as upload chunk size exceeds configured limit")
+	chunks, err := enc.Write(event)
+	if err != nil {
+		t.Error(err)
 	}
-	expected := "received a decision event with size 179 that exceeds the upload_size_limit_bytes 1"
-	if err.Error() != expected {
-		t.Errorf("expected: '%s', got: '%s'", expected, err.Error())
+	if len(chunks) != 0 {
+		t.Errorf("Unexpected result: %v", result)
+	}
+	if err := enc.w.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	// only the expected flush contents (header+Z_SYNC_FLUSH content) without the event is expected
+	if enc.buf.Len() != 15 {
+		t.Errorf("Unexpected buffer size: %v", enc.buf.Len())
+	}
+	if enc.bytesWritten != 0 {
+		t.Errorf("Unexpected bytes written: %v", enc.bytesWritten)
 	}
 }
 
@@ -143,13 +152,13 @@ func TestChunkEncoderAdaptive(t *testing.T) {
 		t.Fatalf("Expected %v events but got %v", numEvents, numEventsActual)
 	}
 
-	actualScaleUpEvents := enc.metrics.Counter(encSoftLimitScaleUpCounterName).Value().(uint64)
-	actualScaleDownEvents := enc.metrics.Counter(encSoftLimitScaleDownCounterName).Value().(uint64)
-	actualEquiEvents := enc.metrics.Counter(encSoftLimitStableCounterName).Value().(uint64)
+	actualScaleUpEvents := enc.metrics.Counter(encUncompressedLimitScaleUpCounterName).Value().(uint64)
+	actualScaleDownEvents := enc.metrics.Counter(encUncompressedLimitScaleDownCounterName).Value().(uint64)
+	actualEquiEvents := enc.metrics.Counter(encUncompressedLimitStableCounterName).Value().(uint64)
 
-	expectedScaleUpEvents := uint64(9)
-	expectedScaleDownEvents := uint64(8)
-	expectedEquiEvents := uint64(1)
+	expectedScaleUpEvents := uint64(5)
+	expectedScaleDownEvents := uint64(0)
+	expectedEquiEvents := uint64(0)
 
 	if actualScaleUpEvents != expectedScaleUpEvents {
 		t.Fatalf("Expected scale up events %v but got %v", expectedScaleUpEvents, actualScaleUpEvents)

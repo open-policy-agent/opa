@@ -408,7 +408,7 @@ func TestPluginStartSameInput(t *testing.T) {
 	fixture := newTestFixture(t)
 	defer fixture.server.stop()
 
-	fixture.server.ch = make(chan []EventV1, 1)
+	fixture.server.ch = make(chan []EventV1, 3)
 	var result interface{} = false
 
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
@@ -420,7 +420,7 @@ func TestPluginStartSameInput(t *testing.T) {
 
 	var input interface{} = map[string]interface{}{"method": "GET"}
 
-	for i := range 400 {
+	for i := range 800 {
 		if err := fixture.plugin.Log(ctx, &server.Info{
 			Revision:   fmt.Sprint(i),
 			DecisionID: fmt.Sprint(i),
@@ -441,11 +441,15 @@ func TestPluginStartSameInput(t *testing.T) {
 	}
 
 	chunk1 := <-fixture.server.ch
-	expLen1 := 400
+	chunk2 := <-fixture.server.ch
+	chunk3 := <-fixture.server.ch
+	// first size is smallest as the adaptive uncompressed limit increases more events can be added
+	expLen1 := 123
+	expLen2 := 244
+	expLen3 := 433
 
-	if len(chunk1) != expLen1 {
-		t.Fatalf("Expected chunk lens %v but got: %v",
-			expLen1, len(chunk1))
+	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len(chunk3) != expLen3 {
+		t.Fatalf("Expected chunk lens %v, %v, and %v but got: %v, %v, and %v", expLen1, expLen2, expLen3, len(chunk1), len(chunk2), len(chunk3))
 	}
 
 	var expInput interface{} = map[string]interface{}{"method": "GET"}
@@ -461,8 +465,8 @@ func TestPluginStartSameInput(t *testing.T) {
 			"app":     "example-app",
 			"version": version.Version,
 		},
-		Revision:    "399",
-		DecisionID:  "399",
+		Revision:    "799",
+		DecisionID:  "799",
 		Path:        "tda/bar",
 		Input:       &expInput,
 		Result:      &result,
@@ -471,8 +475,8 @@ func TestPluginStartSameInput(t *testing.T) {
 		Metrics:     msAsFloat64,
 	}
 
-	if !reflect.DeepEqual(chunk1[expLen1-1], exp) {
-		t.Fatalf("Expected %+v but got %+v", exp, chunk1[expLen1-1])
+	if !reflect.DeepEqual(chunk3[expLen3-1], exp) {
+		t.Fatalf("Expected %+v but got %+v", exp, chunk3[expLen3-1])
 	}
 
 	if fixture.plugin.status.Code != "" {
@@ -488,7 +492,7 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 	fixture := newTestFixture(t)
 	defer fixture.server.stop()
 
-	fixture.server.ch = make(chan []EventV1, 1)
+	fixture.server.ch = make(chan []EventV1, 2)
 	var result interface{} = false
 
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
@@ -498,7 +502,7 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 
 	var input interface{}
 
-	for i := 0; i < 400; i++ {
+	for i := 0; i < 350; i++ {
 		input = map[string]interface{}{"method": getValueForMethod(i), "path": getValueForPath(i), "user": getValueForUser(i)}
 
 		if err := fixture.plugin.Log(ctx, &server.Info{
@@ -520,11 +524,12 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 	}
 
 	chunk1 := <-fixture.server.ch
-	expLen1 := 400
+	chunk2 := <-fixture.server.ch
+	expLen1 := 126
+	expLen2 := 224
 
-	if len(chunk1) != expLen1 {
-		t.Fatalf("Expected chunk lens %v but got: %v",
-			expLen1, len(chunk1))
+	if len(chunk1) != expLen1 || len(chunk2) != expLen2 {
+		t.Fatalf("Expected chunk lens %v and %v but got: %v and %v", expLen1, expLen2, len(chunk1), len(chunk2))
 	}
 
 	exp := EventV1{
@@ -533,8 +538,8 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 			"app":     "example-app",
 			"version": version.Version,
 		},
-		Revision:    "399",
-		DecisionID:  "399",
+		Revision:    "349",
+		DecisionID:  "349",
 		Path:        "foo/bar",
 		Input:       &input,
 		Result:      &result,
@@ -542,8 +547,8 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 		Timestamp:   ts,
 	}
 
-	if !reflect.DeepEqual(chunk1[expLen1-1], exp) {
-		t.Fatalf("Expected %+v but got %+v", exp, chunk1[expLen1-1])
+	if !reflect.DeepEqual(chunk2[expLen2-1], exp) {
+		t.Fatalf("Expected %+v but got %+v", exp, chunk2[expLen2-1])
 	}
 }
 
@@ -565,7 +570,7 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 
 	var input interface{}
 
-	for i := 0; i < 250; i++ {
+	for i := 0; i < 146; i++ {
 		input = generateInputMap(i)
 
 		if err := fixture.plugin.Log(ctx, &server.Info{
@@ -594,8 +599,8 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 			"app":     "example-app",
 			"version": version.Version,
 		},
-		Revision:    "249",
-		DecisionID:  "249",
+		Revision:    "145",
+		DecisionID:  "145",
 		Path:        "foo/bar",
 		Input:       &input,
 		Result:      &result,
@@ -760,7 +765,7 @@ func TestPluginRateLimitInt(t *testing.T) {
 			var input interface{} = map[string]interface{}{"method": "GET"}
 			var result interface{} = false
 
-			eventSize := 218
+			eventSize := 217
 			event1 := &server.Info{
 				DecisionID: "abc",
 				Path:       "foo/bar",
@@ -916,7 +921,7 @@ func TestPluginRateLimitFloat(t *testing.T) {
 			var input interface{} = map[string]interface{}{"method": "GET"}
 			var result interface{} = false
 
-			eventSize := 218
+			eventSize := 217
 			event1 := &server.Info{
 				DecisionID: "abc",
 				Path:       "foo/bar",
@@ -1209,8 +1214,8 @@ func TestPluginStatusUpdateBufferSizeExceeded(t *testing.T) {
 
 	fixture := newTestFixture(t, testFixtureOptions{
 		ConsoleLogger:                 testLogger,
-		ReportingBufferSizeLimitBytes: 200,
-		ReportingUploadSizeLimitBytes: 300,
+		ReportingBufferSizeLimitBytes: 400,
+		ReportingUploadSizeLimitBytes: 218,
 	})
 	defer fixture.server.stop()
 
@@ -1249,13 +1254,18 @@ func TestPluginStatusUpdateBufferSizeExceeded(t *testing.T) {
 	}
 
 	// write event 1 and 2 into the encoder and check the chunk is inserted into the buffer
-	_ = fixture.plugin.Log(ctx, event1)
-	_ = fixture.plugin.Log(ctx, event2)
-
-	fixture.plugin.mtx.Lock()
+	if err := fixture.plugin.Log(ctx, event1); err != nil {
+		t.Error(err)
+	}
 	if fixture.plugin.enc.bytesWritten == 0 {
 		t.Fatal("Expected event to be written into the encoder")
 	}
+
+	if err := fixture.plugin.Log(ctx, event2); err != nil {
+		t.Error(err)
+	}
+
+	fixture.plugin.mtx.Lock()
 
 	if fixture.plugin.buffer.Len() == 0 {
 		t.Fatal("Expected one chunk to be written into the buffer")
@@ -1609,7 +1619,7 @@ func TestPluginRateLimitDropCountStatus(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			eventSize := 218
+			eventSize := 217
 			expectedLen := 1
 			currentLen := getBufferLen(t, fixture, eventSize)
 			if currentLen != expectedLen {
@@ -1669,53 +1679,178 @@ func TestPluginRateLimitDropCountStatus(t *testing.T) {
 func TestChunkMaxUploadSizeLimitNDBCacheDropping(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
-	testLogger := test.New()
-
-	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
-	if err != nil {
-		panic(err)
+	// note this only tests the size buffer type so that the encoder is used immediately on log
+	tests := []struct {
+		name                             string
+		uploadSizeLimitBytes             int64
+		numOfEventsWithNDCache           int // also the number of expected ND caches to be dropped
+		numOfEventsWithoutNDCache        int
+		expectedUncompressedBytesWritten int
+		expectedEventsInChunk            []int
+		expectedChunksLengths            []int // this will show the adaptive uncompressed limit adjusting
+		expectedUncompressedLimit        int64
+	}{
+		{
+			name:                   "logging one event with ND Cache",
+			uploadSizeLimitBytes:   220,
+			numOfEventsWithNDCache: 1,
+			// opening bracket (1 byte) + event(214 bytes)
+			// written after dropping the ND cache, otherwise the size would have been 3472
+			expectedUncompressedBytesWritten: 215,
+			expectedUncompressedLimit:        220,
+		},
+		{
+			name:                      "logging one event without ND Cache",
+			uploadSizeLimitBytes:      220,
+			numOfEventsWithoutNDCache: 1,
+			// opening bracket (1 byte) + event(214 bytes)
+			expectedUncompressedBytesWritten: 215,
+			expectedUncompressedLimit:        220,
+		},
+		{
+			name:                      "logging a combination of events with ND Cache and without",
+			uploadSizeLimitBytes:      220,
+			numOfEventsWithoutNDCache: 1,
+			numOfEventsWithNDCache:    1,
+			// opening bracket (1 byte) + event(214 bytes)
+			expectedUncompressedBytesWritten: 0,
+			// the adaptive uncompressed limit won't have increased enough
+			// so it will close the chunk early thinking the two events exceed it
+			expectedChunksLengths:     []int{196},
+			expectedEventsInChunk:     []int{2},
+			expectedUncompressedLimit: 440,
+		},
+		{
+			name:                      "logging multiple with ND Cache and without to show uncompressed limit improving",
+			uploadSizeLimitBytes:      220,
+			numOfEventsWithoutNDCache: 11,
+			// the adaptive uncompressed limit increases enough to fit in one more event before above the 90% threshold
+			expectedChunksLengths:     []int{196, 199, 199, 199},
+			expectedEventsInChunk:     []int{2, 3, 3, 3},
+			expectedUncompressedLimit: 440,
+		},
+		{
+			name:                 "logging multiple with ND Cache showing the uncompressed limit gets reset",
+			uploadSizeLimitBytes: 220,
+			// the eleventh event is still in the encoder waiting to be written into a chunk
+			expectedUncompressedBytesWritten: 215,
+			numOfEventsWithNDCache:           11,
+			// no way of telling if the ND cache is being dropped or the uncompressed limit went to high
+			// so the uncompressed limit gets reset
+			expectedChunksLengths:     []int{196, 196, 196, 196, 196},
+			expectedEventsInChunk:     []int{2, 2, 2, 2, 2},
+			expectedUncompressedLimit: 220,
+		},
+		{
+			name:                      "dropping the ND cache doesn't help, drop the event",
+			uploadSizeLimitBytes:      200,
+			expectedUncompressedLimit: 200,
+		},
 	}
 
-	fixture := newTestFixture(t, testFixtureOptions{
-		ConsoleLogger:                  testLogger,
-		ReportingMaxDecisionsPerSecond: float64(1), // 1 decision per second
-		ReportingUploadSizeLimitBytes:  200,
-	})
-	defer fixture.server.stop()
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			testLogger := test.New()
 
-	fixture.plugin.metrics = metrics.New()
+			ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
+			if err != nil {
+				panic(err)
+			}
 
-	var input interface{} = map[string]interface{}{"method": "GET"}
-	var result interface{} = false
+			fixture := newTestFixture(t, testFixtureOptions{
+				ConsoleLogger: testLogger,
+				// With the ND cache the compressed size is 259 bytes
+				// Without the ND cache the compressed size is 215 bytes
+				ReportingUploadSizeLimitBytes: tc.uploadSizeLimitBytes,
+			})
+			defer fixture.server.stop()
 
-	// Purposely oversized NDBCache entry will force dropping during Log().
-	var ndbCacheExample interface{} = ast.MustJSON(builtins.NDBCache{
-		"test.custom_space_waster": ast.NewObject([2]*ast.Term{
-			ast.ArrayTerm(),
-			ast.StringTerm(strings.Repeat("Wasted space... ", 200)),
-		}),
-	}.AsValue())
+			fixture.plugin.enc.metrics = metrics.New()
 
-	event := &server.Info{
-		DecisionID:     "abc",
-		Path:           "foo/bar",
-		Input:          &input,
-		Results:        &result,
-		RemoteAddr:     "test",
-		Timestamp:      ts,
-		NDBuiltinCache: &ndbCacheExample,
-	}
+			var input interface{} = map[string]interface{}{"method": "GET"}
+			var result interface{} = false
 
-	beforeNDBDropCount := fixture.plugin.metrics.Counter(logNDBDropCounterName).Value().(uint64)
-	err = fixture.plugin.Log(ctx, event) // event should be written into the encoder
-	if err != nil {
-		t.Fatal(err)
-	}
-	afterNDBDropCount := fixture.plugin.metrics.Counter(logNDBDropCounterName).Value().(uint64)
+			for range tc.numOfEventsWithoutNDCache {
+				event := &server.Info{
+					DecisionID: "abc",
+					Path:       "foo/bar",
+					Input:      &input,
+					Results:    &result,
+					RemoteAddr: "test",
+					Timestamp:  ts,
+				}
 
-	if afterNDBDropCount != beforeNDBDropCount+1 {
-		t.Fatalf("Expected %v NDBCache drop events, saw %v events instead.", beforeNDBDropCount+1, afterNDBDropCount)
+				err := fixture.plugin.Log(ctx, event) // event should be written into the encoder
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			// Purposely oversize NDBCache entry will force dropping during Log().
+			ndbCacheExample := ast.MustJSON(builtins.NDBCache{
+				"test.custom_space_waster": ast.NewObject([2]*ast.Term{
+					ast.ArrayTerm(),
+					ast.StringTerm(strings.Repeat("Wasted space... ", 200)),
+				}),
+			}.AsValue())
+
+			for range tc.numOfEventsWithNDCache {
+				event := &server.Info{
+					DecisionID:     "abc",
+					Path:           "foo/bar",
+					Input:          &input,
+					Results:        &result,
+					RemoteAddr:     "test",
+					Timestamp:      ts,
+					NDBuiltinCache: &ndbCacheExample,
+				}
+
+				err := fixture.plugin.Log(ctx, event)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			if tc.expectedUncompressedLimit != fixture.plugin.enc.uncompressedLimit {
+				t.Errorf("Expected %d uncompressed limit but got %d", tc.expectedUncompressedLimit, fixture.plugin.enc.uncompressedLimit)
+			}
+
+			if len(tc.expectedChunksLengths) != fixture.plugin.buffer.Len() {
+				currentBufferLen := fixture.plugin.buffer.Len()
+				var receivedChunkLens []int
+				for chunk := fixture.plugin.buffer.Pop(); chunk != nil; chunk = fixture.plugin.buffer.Pop() {
+					receivedChunkLens = append(receivedChunkLens, len(chunk))
+				}
+				t.Errorf("Expected %d chunks (%v) but got %d (%v)",
+					len(tc.expectedChunksLengths), tc.expectedChunksLengths, currentBufferLen, receivedChunkLens)
+			}
+
+			for i, c := range tc.expectedChunksLengths {
+				chunk := fixture.plugin.buffer.Pop()
+				if c != len(chunk) {
+					t.Errorf("Expected %d chunk length but got %d", c, len(chunk))
+				}
+
+				events, err := newChunkDecoder(chunk).decode()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if tc.expectedEventsInChunk[i] != len(events) {
+					t.Errorf("Expected %d events but got %d", tc.expectedEventsInChunk[i], len(events))
+				}
+			}
+
+			m := fixture.plugin.enc.metrics.Counter(logNDBDropCounterName).Value().(uint64)
+			if m != uint64(tc.numOfEventsWithNDCache) {
+				t.Errorf("Expected %d NDBCache drop events, saw %d events instead.", tc.numOfEventsWithNDCache, m)
+			}
+
+			if fixture.plugin.enc.bytesWritten != tc.expectedUncompressedBytesWritten {
+				t.Errorf("Expected %d bytes to have been written to the encoder but got %d", tc.expectedUncompressedBytesWritten, fixture.plugin.enc.bytesWritten)
+			}
+
+		})
 	}
 }
 

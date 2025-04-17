@@ -6,8 +6,6 @@ package logs
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"sync"
 
 	"github.com/open-policy-agent/opa/v1/logging"
@@ -27,6 +25,7 @@ type eventBuffer struct {
 	client               rest.Client      // client is used to upload the data to the configured service
 	uploadPath           string           // uploadPath is the configured HTTP resource path for upload
 	uploadSizeLimitBytes int64            // uploadSizeLimitBytes will enforce a maximum payload size to be uploaded
+	enc                  *chunkEncoder    // encoder appends events into the gzip compressed JSON array
 	metrics              metrics.Metrics
 	logger               logging.Logger
 }
@@ -37,11 +36,13 @@ func newEventBuffer(bufferSizeLimitEvents int64, client rest.Client, uploadPath 
 		client:               client,
 		uploadPath:           uploadPath,
 		uploadSizeLimitBytes: uploadSizeLimitBytes,
+		enc:                  newChunkEncoder(uploadSizeLimitBytes),
 	}
 }
 
 func (b *eventBuffer) WithMetrics(m metrics.Metrics) *eventBuffer {
 	b.metrics = m
+	b.enc.metrics = m
 	return b
 }
 
@@ -69,6 +70,7 @@ func (b *eventBuffer) Reconfigure(bufferSizeLimitEvents int64, client rest.Clien
 	b.client = client
 	b.uploadPath = uploadPath
 	b.uploadSizeLimitBytes = uploadSizeLimitBytes
+	b.enc.limit = uploadSizeLimitBytes
 
 	if int64(cap(b.buffer)) == bufferSizeLimitEvents {
 		return
@@ -128,8 +130,6 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 		return &bufferEmpty{}
 	}
 
-	encoder := newChunkEncoder(b.uploadSizeLimitBytes)
-
 	for range eventLen {
 		event := b.readEvent()
 		if event == nil {
@@ -140,13 +140,8 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 		if event.chunk != nil {
 			result = [][]byte{event.chunk}
 		} else {
-			serialized, err := b.processEvent(event.EventV1)
-			if err != nil {
-				b.logError("%v", err)
-				continue
-			}
-
-			result, err = encoder.WriteBytes(serialized)
+			var err error
+			result, err = b.enc.Write(*event.EventV1)
 			if err != nil {
 				b.incrMetric(logEncodingFailureCounterName)
 				b.logError("encoding failure: %v, dropping event with decision ID: %v", err, event.DecisionID)
@@ -160,7 +155,7 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 	}
 
 	// flush any chunks that didn't hit the upload limit
-	result, err := encoder.Flush()
+	result, err := b.enc.Flush()
 	if err != nil {
 		b.incrMetric(logEncodingFailureCounterName)
 		b.logError("encoding failure: %v", err)
@@ -198,35 +193,4 @@ func (b *eventBuffer) readEvent() *bufferItem {
 	default:
 		return nil
 	}
-}
-
-// processEvent serializes the event and determines if the ND cache needs to be dropped
-func (b *eventBuffer) processEvent(event *EventV1) ([]byte, error) {
-	serialized, err := json.Marshal(event)
-
-	// The non-deterministic cache (NDBuiltinCache) could cause issues, if it is too big or can't be encoded try to drop it.
-	if err != nil || int64(len(serialized)) >= b.uploadSizeLimitBytes {
-		if event.NDBuiltinCache == nil {
-			return nil, fmt.Errorf("upload event size (%d) exceeds upload_size_limit_bytes (%d), dropping event with decision ID: %v",
-				int64(len(serialized)), b.uploadSizeLimitBytes, event.DecisionID)
-		}
-
-		// Attempt to drop the ND cache to reduce size. If it is still too large, drop the event.
-		event.NDBuiltinCache = nil
-		var err error
-		serialized, err = json.Marshal(event)
-		if err != nil {
-			b.incrMetric(logEncodingFailureCounterName)
-			return nil, fmt.Errorf("encoding failure: %v, dropping event with decision ID: %v", err, event.DecisionID)
-		}
-		if int64(len(serialized)) > b.uploadSizeLimitBytes {
-			return nil, fmt.Errorf("upload event size (%d) exceeds upload_size_limit_bytes (%d), dropping event with decision ID: %v",
-				int64(len(serialized)), b.uploadSizeLimitBytes, event.DecisionID)
-		}
-
-		b.incrMetric(logNDBDropCounterName)
-		b.logError("ND builtins cache dropped from this event to fit under maximum upload size limits. Increase upload size limit or change usage of non-deterministic builtins.")
-	}
-
-	return serialized, nil
 }
