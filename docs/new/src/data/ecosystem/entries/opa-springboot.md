@@ -1,5 +1,6 @@
 ---
 title: OPA Spring Boot SDK (Styra)
+for_language: java
 labels:
   layer: network
   category: application

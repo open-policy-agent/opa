@@ -1,5 +1,6 @@
 import Link from "@docusaurus/Link";
 import Heading from "@theme/Heading";
+import ReactMarkdown from "react-markdown";
 
 export default function Card({ item }) {
   return (
@@ -20,7 +21,9 @@ export default function Card({ item }) {
         />
       )}
       <Heading as="h4">{item.title}</Heading>
-      <p>{item.note}</p>
+      <ReactMarkdown>
+        {item.note}
+      </ReactMarkdown>
       {item.links && (
         <ul>
           {item.links.map((link, idx) => (

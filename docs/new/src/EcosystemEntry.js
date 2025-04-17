@@ -6,6 +6,8 @@ import ReactMarkdown from "react-markdown";
 const EcosystemEntry = (props) => {
   const data = props.route.customData;
 
+  console.log("EcosystemEntry data", JSON.stringify(data, null, 2));
+
   const {
     id,
     title,
@@ -40,16 +42,20 @@ const EcosystemEntry = (props) => {
         {/* Subtitle */}
         {subtitle && <p style={{ fontSize: "1.2rem", color: "#555" }}>{subtitle}</p>}
 
-        {/* Labels */}
-        {labels && (
-          <div style={{ margin: "1rem 0" }}>
-            <strong>Category:</strong> {labels.category} <br />
-            <strong>Layer:</strong> {labels.layer}
+        {/* Content (Markdown) */}
+        {content && (
+          <div style={{ marginTop: "2rem" }}>
+            <div style={{ marginTop: "0.5rem" }}>
+              <ReactMarkdown>
+                {content}
+              </ReactMarkdown>
+            </div>
           </div>
         )}
 
         {/* Inventors */}
-        {inventors?.length > 0 && (
+        {/* Disabled until we have inventor pages */}
+        {false && inventors?.length > 0 && (
           <div style={{ marginBottom: "1rem" }}>
             <strong>Inventors:</strong> {inventors.join(", ")}
           </div>
@@ -89,22 +95,46 @@ const EcosystemEntry = (props) => {
 
         {/* Videos */}
         {videos?.length > 0 && (
-          <div style={{ marginBottom: "1rem" }}>
+          <div>
             <strong>Videos:</strong>
             <ul>
-              {videos.map((video, idx) => (
-                <li key={`video-${idx}`}>
-                  <a href={video.link} target="_blank" rel="noopener noreferrer">
-                    {video.title}
-                  </a>
-                  {video.venue && <span style={{ marginLeft: 8 }}>({video.venue})</span>}
-                  {video.speakers?.length > 0 && (
-                    <div style={{ fontSize: "0.9em", color: "#555" }}>
-                      {video.speakers.map((s) => `${s.name} (${s.organization})`).join(", ")}
-                    </div>
-                  )}
-                </li>
-              ))}
+              {videos.map((video, idx) => {
+                // If the video is a simple string URL
+                if (typeof video === "string") {
+                  return (
+                    <li key={`video-${idx}`}>
+                      <a href={video} target="_blank" rel="noopener noreferrer">
+                        {video}
+                      </a>
+                    </li>
+                  );
+                }
+
+                // Structured video object
+                return (
+                  <li key={`video-${idx}`}>
+                    <a href={video.link} target="_blank" rel="noopener noreferrer">
+                      {video.title}
+                      {video.venue && ` - ${video.venue}`}
+                    </a>
+                    {Array.isArray(video.speakers) && (
+                      <ul>
+                        {video.speakers.map((speaker, sIdx) => {
+                          if (typeof speaker === "string") {
+                            return <li key={`speaker-${sIdx}`}>{speaker}</li>;
+                          }
+
+                          return (
+                            <li key={`speaker-${sIdx}`}>
+                              {speaker.name} - {speaker.organization}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}
@@ -125,15 +155,11 @@ const EcosystemEntry = (props) => {
           </div>
         )}
 
-        {/* Content (Markdown) */}
-        {content && (
-          <div style={{ marginTop: "2rem" }}>
-            <strong>Description:</strong>
-            <div style={{ marginTop: "0.5rem" }}>
-              <ReactMarkdown>
-                {content}
-              </ReactMarkdown>
-            </div>
+        {/* Labels */}
+        {labels && (
+          <div style={{ margin: "1rem 0" }}>
+            <strong>Category:</strong> {labels.category} <br />
+            <strong>Layer:</strong> {labels.layer}
           </div>
         )}
       </div>

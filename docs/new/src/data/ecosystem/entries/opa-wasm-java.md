@@ -1,5 +1,6 @@
 ---
 title: Wasm Java Gradle SDK (sangkeon)
+for_language: java
 software:
 - java
 inventors:
@@ -17,4 +18,5 @@ docs_features:
 
 '
 ---
+
 SDK to illustrate how to use Wasm compiled Rego policies from a Java application

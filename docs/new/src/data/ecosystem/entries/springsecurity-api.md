@@ -1,5 +1,6 @@
 ---
 title: Authorization for Spring Security
+for_language: java
 labels:
   layer: network
   category: application
@@ -27,4 +28,5 @@ docs_features:
       See an example application in OPA's
       [contrib repo](https://github.com/open-policy-agent/contrib/tree/main/spring_authz).
 ---
-Spring Security provides a framework for securing Java applications.  These integrations provide simple implementations for Spring Security that use OPA for making API authorization decisions.  They provide support for both traditional Spring Security (MVC), as well as an implementation for Spring Reactive (Web Flux).
+
+Spring Security provides a framework for securing Java applications. These integrations provide simple implementations for Spring Security that use OPA for making API authorization decisions. They provide support for both traditional Spring Security (MVC), as well as an implementation for Spring Reactive (Web Flux).

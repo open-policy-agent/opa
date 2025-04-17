@@ -1,5 +1,6 @@
 ---
 title: OPA Wasm Javascript Module
+for_language: javascript
 software:
 - javascript
 inventors:
@@ -24,5 +25,5 @@ docs_features:
 
 '
 ---
-A small SDK for using WebAssembly (Wasm) compiled Rego policies
 
+A small SDK for using WebAssembly (Wasm) compiled Rego policies

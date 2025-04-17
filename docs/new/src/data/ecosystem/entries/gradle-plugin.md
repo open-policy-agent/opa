@@ -1,5 +1,6 @@
 ---
 title: Gradle Build Plugin (Bisnode)
+for_language: java
 labels:
   layer: cicd
   category: cicdplugin
@@ -15,4 +16,5 @@ code:
 inventors:
 - bisnode
 ---
+
 Build plugin adding various tasks to support using OPA as part of Gradle builds
