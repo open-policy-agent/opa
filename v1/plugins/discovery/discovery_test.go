@@ -1721,8 +1721,9 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 			"inter_query_builtin_cache": {"max_size_bytes": 10000000, "forced_eviction_threshold_percentage": 90},
 			"inter_query_builtin_value_cache": {
 				"named": {
-					"io_jwt": {"max_num_entries": 55}
-				} 
+					"io_jwt": {"max_num_entries": 55},
+					"graphql": {"max_num_entries": 10}
+				}
 			}
 		}
 	}`)
@@ -1888,8 +1889,9 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 					"inter_query_builtin_cache": {"max_size_bytes": 200, "stale_entry_eviction_period_seconds": 10, "forced_eviction_threshold_percentage": 200},
 					"inter_query_builtin_value_cache": {
 						"named": {
-							"io_jwt": {"max_num_entries": 10}
-						} 
+							"io_jwt": {"max_num_entries": 10},
+							"graphql": {"max_num_entries": 11}
+						}
 					}
 				}
 			}
@@ -1906,6 +1908,7 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 		"caching.inter_query_builtin_cache.max_size_bytes",
 		"caching.inter_query_builtin_cache.forced_eviction_threshold_percentage",
 		"caching.inter_query_builtin_value_cache.named.io_jwt.max_num_entries",
+		"caching.inter_query_builtin_value_cache.named.graphql.max_num_entries",
 	}
 	for _, k := range expectedOverriddenKeys {
 		if !strings.Contains(disco.status.Message, k) {
@@ -1928,6 +1931,8 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 	*maxNumEntriesInterQueryValueCache = 0
 	maxNumEntriesJWTValueCache := new(int)
 	*maxNumEntriesJWTValueCache = 55
+	maxNumEntriesGraphQLValueCache := new(int)
+	*maxNumEntriesGraphQLValueCache = 10
 
 	expectedCacheConf := &cache.Config{
 		InterQueryBuiltinCache: cache.InterQueryBuiltinCacheConfig{
@@ -1940,6 +1945,9 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 			NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
 				"io_jwt": {
 					MaxNumEntries: maxNumEntriesJWTValueCache,
+				},
+				"graphql": {
+					MaxNumEntries: maxNumEntriesGraphQLValueCache,
 				},
 			},
 		},
