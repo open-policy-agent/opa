@@ -81,6 +81,10 @@ func (enc *chunkEncoder) Write(event EventV1) (result [][]byte, err error) {
 // The incoming event that didn't fit is added to the next chunk.
 // The Non-deterministic Cache (NDBuiltinCache) can be dropped to attempt to fit the event into a chunk while adhering to the compressed limit.
 func (enc *chunkEncoder) WriteBytes(incomingEventBytes []byte) ([][]byte, error) {
+	if incomingEventBytes == nil {
+		return nil, nil
+	}
+
 	var result [][]byte
 
 	if enc.bytesWritten != 0 && int64(len(incomingEventBytes)+enc.bytesWritten+1) > enc.uncompressedLimit {

@@ -420,7 +420,7 @@ func TestPluginStartSameInput(t *testing.T) {
 
 	var input interface{} = map[string]interface{}{"method": "GET"}
 
-	for i := range 800 {
+	for i := range 400 {
 		if err := fixture.plugin.Log(ctx, &server.Info{
 			Revision:   fmt.Sprint(i),
 			DecisionID: fmt.Sprint(i),
@@ -446,7 +446,7 @@ func TestPluginStartSameInput(t *testing.T) {
 	// first size is smallest as the adaptive uncompressed limit increases more events can be added
 	expLen1 := 122
 	expLen2 := 243
-	expLen3 := 435
+	expLen3 := 35
 
 	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len(chunk3) != expLen3 {
 		t.Fatalf("Expected chunk lens %v, %v, and %v but got: %v, %v, and %v", expLen1, expLen2, expLen3, len(chunk1), len(chunk2), len(chunk3))
@@ -465,8 +465,8 @@ func TestPluginStartSameInput(t *testing.T) {
 			"app":     "example-app",
 			"version": version.Version,
 		},
-		Revision:    "799",
-		DecisionID:  "799",
+		Revision:    "399",
+		DecisionID:  "399",
 		Path:        "tda/bar",
 		Input:       &expInput,
 		Result:      &result,
@@ -492,7 +492,7 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 	fixture := newTestFixture(t)
 	defer fixture.server.stop()
 
-	fixture.server.ch = make(chan []EventV1, 2)
+	fixture.server.ch = make(chan []EventV1, 3)
 	var result interface{} = false
 
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
@@ -502,7 +502,7 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 
 	var input interface{}
 
-	for i := 0; i < 350; i++ {
+	for i := 0; i < 400; i++ {
 		input = map[string]interface{}{"method": getValueForMethod(i), "path": getValueForPath(i), "user": getValueForUser(i)}
 
 		if err := fixture.plugin.Log(ctx, &server.Info{
@@ -525,11 +525,13 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 
 	chunk1 := <-fixture.server.ch
 	chunk2 := <-fixture.server.ch
+	chunk3 := <-fixture.server.ch
 	expLen1 := 125
-	expLen2 := 225
+	expLen2 := 248
+	expLen3 := 27
 
-	if len(chunk1) != expLen1 || len(chunk2) != expLen2 {
-		t.Fatalf("Expected chunk lens %v and %v but got: %v and %v", expLen1, expLen2, len(chunk1), len(chunk2))
+	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len((chunk3)) != expLen3 {
+		t.Fatalf("Expected chunk lens %v, %v and %v but got: %v, %v and %v", expLen1, expLen2, expLen3, len(chunk1), len(chunk2), len(chunk3))
 	}
 
 	exp := EventV1{
@@ -538,8 +540,8 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 			"app":     "example-app",
 			"version": version.Version,
 		},
-		Revision:    "349",
-		DecisionID:  "349",
+		Revision:    "399",
+		DecisionID:  "399",
 		Path:        "foo/bar",
 		Input:       &input,
 		Result:      &result,
@@ -547,8 +549,8 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 		Timestamp:   ts,
 	}
 
-	if !reflect.DeepEqual(chunk2[expLen2-1], exp) {
-		t.Fatalf("Expected %+v but got %+v", exp, chunk2[expLen2-1])
+	if !reflect.DeepEqual(chunk3[expLen3-1], exp) {
+		t.Fatalf("Expected %+v but got %+v", exp, chunk3[expLen3-1])
 	}
 }
 
@@ -560,7 +562,7 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 	fixture := newTestFixture(t)
 	defer fixture.server.stop()
 
-	fixture.server.ch = make(chan []EventV1, 1)
+	fixture.server.ch = make(chan []EventV1, 2)
 	var result interface{} = false
 
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
@@ -570,7 +572,7 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 
 	var input interface{}
 
-	for i := 0; i < 145; i++ {
+	for i := 0; i < 250; i++ {
 		input = generateInputMap(i)
 
 		if err := fixture.plugin.Log(ctx, &server.Info{
@@ -591,7 +593,8 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	chunk := <-fixture.server.ch
+	<-fixture.server.ch
+	chunk2 := <-fixture.server.ch
 
 	exp := EventV1{
 		Labels: map[string]string{
@@ -599,8 +602,8 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 			"app":     "example-app",
 			"version": version.Version,
 		},
-		Revision:    "144",
-		DecisionID:  "144",
+		Revision:    "249",
+		DecisionID:  "249",
 		Path:        "foo/bar",
 		Input:       &input,
 		Result:      &result,
@@ -608,8 +611,8 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 		Timestamp:   ts,
 	}
 
-	if !reflect.DeepEqual(chunk[len(chunk)-1], exp) {
-		t.Fatalf("Expected %+v but got %+v", exp, chunk[len(chunk)-1])
+	if !reflect.DeepEqual(chunk2[len(chunk2)-1], exp) {
+		t.Fatalf("Expected %+v but got %+v", exp, chunk2[len(chunk2)-1])
 	}
 }
 
@@ -1257,15 +1260,16 @@ func TestPluginStatusUpdateBufferSizeExceeded(t *testing.T) {
 	if err := fixture.plugin.Log(ctx, event1); err != nil {
 		t.Error(err)
 	}
-	if fixture.plugin.enc.bytesWritten == 0 {
-		t.Fatal("Expected event to be written into the encoder")
-	}
 
 	if err := fixture.plugin.Log(ctx, event2); err != nil {
 		t.Error(err)
 	}
 
 	fixture.plugin.mtx.Lock()
+
+	if fixture.plugin.enc.bytesWritten == 0 {
+		t.Fatal("Expected event to be written into the encoder")
+	}
 
 	if fixture.plugin.buffer.Len() == 0 {
 		t.Fatal("Expected one chunk to be written into the buffer")
