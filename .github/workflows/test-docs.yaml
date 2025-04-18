@@ -12,13 +12,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Run PR metadata against Rego policies
-  rego-check-pr:
-    name: Rego PR checks
+  test-docs:
+    name: Test Docs
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Download OPA
+        uses: open-policy-agent/setup-opa@34a30e8a924d1b03ce2cf7abe97250bbb1f332b5 # v2.2.0
+        with:
+          version: edge
 
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@75d2e84710de30f6ff7268e08f310b60ef14033f # v3.0.0
