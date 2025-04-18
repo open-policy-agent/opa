@@ -488,11 +488,7 @@ func TestPluginStartTriggerManual(t *testing.T) {
 
 	// make sure the lastBundleStatuses has been written so the trigger sends the expected status
 	// otherwise there could be a race condition before the bundle status is written
-	for {
-		if fixture.plugin.lastBundleStatuses != nil {
-			break
-		}
-	}
+	time.Sleep(10 * time.Millisecond)
 
 	// trigger the status update
 	go func() {
