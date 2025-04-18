@@ -6,7 +6,6 @@
 package logs
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -254,7 +253,8 @@ const (
 	defaultMaxDelaySeconds              = int64(600)
 	defaultBufferSizeLimitEvents        = int64(10000)
 	defaultUploadSizeLimitBytes         = int64(32768) // 32KB limit
-	defaultBufferSizeLimitBytes         = int64(0)     // unlimited
+	maxUploadSizeLimitBytes             = int64(4294967296)
+	defaultBufferSizeLimitBytes         = int64(0) // unlimited
 	defaultMaskDecisionPath             = "/system/log/mask"
 	defaultDropDecisionPath             = "/system/log/drop"
 	logRateLimitExDropCounterName       = "decision_logs_dropped_rate_limit_exceeded"
@@ -303,7 +303,7 @@ type Config struct {
 	dropDecisionRef ast.Ref
 }
 
-func (c *Config) validateAndInjectDefaults(services []string, pluginsList []string, trigger *plugins.TriggerMode) error {
+func (c *Config) validateAndInjectDefaults(services []string, pluginsList []string, trigger *plugins.TriggerMode, l logging.Logger) error {
 
 	if c.Plugin != nil {
 		var found bool
@@ -372,7 +372,18 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 		uploadLimit = *c.Reporting.UploadSizeLimitBytes
 	}
 
-	c.Reporting.UploadSizeLimitBytes = &uploadLimit
+	maxUploadLimit := maxUploadSizeLimitBytes
+	switch {
+	case uploadLimit > maxUploadLimit:
+		c.Reporting.UploadSizeLimitBytes = &maxUploadLimit
+		if l != nil {
+			l.Warn("the configured `upload_size_limit_bytes` (%d) has been set to the maximum limit (%d)", uploadLimit, maxUploadLimit)
+		}
+	case uploadLimit <= 0:
+		return fmt.Errorf("the configured `upload_size_limit_bytes` (%d) must be greater than 0", uploadLimit)
+	default:
+		c.Reporting.UploadSizeLimitBytes = &uploadLimit
+	}
 
 	if c.Reporting.BufferType == "" {
 		c.Reporting.BufferType = sizeBufferType
@@ -511,11 +522,17 @@ type ConfigBuilder struct {
 	services []string
 	plugins  []string
 	trigger  *plugins.TriggerMode
+	logger   logging.Logger
 }
 
 // NewConfigBuilder returns a new ConfigBuilder to build and parse the plugin config.
 func NewConfigBuilder() *ConfigBuilder {
 	return &ConfigBuilder{}
+}
+
+func (b *ConfigBuilder) WithLogger(l logging.Logger) *ConfigBuilder {
+	b.logger = l
+	return b
 }
 
 // WithBytes sets the raw plugin config.
@@ -559,7 +576,7 @@ func (b *ConfigBuilder) Parse() (*Config, error) {
 		return nil, nil
 	}
 
-	if err := parsedConfig.validateAndInjectDefaults(b.services, b.plugins, b.trigger); err != nil {
+	if err := parsedConfig.validateAndInjectDefaults(b.services, b.plugins, b.trigger, b.logger); err != nil {
 		return nil, err
 	}
 
@@ -912,6 +929,11 @@ func (p *Plugin) oneShot(ctx context.Context) error {
 	oldBuffer := p.buffer
 	p.buffer = newLogBuffer(*p.config.Reporting.BufferSizeLimitBytes)
 	p.enc = newChunkEncoder(*p.config.Reporting.UploadSizeLimitBytes).WithMetrics(p.metrics)
+	// keep the adaptive uncompressed limit throughout the lifecycle of the size buffer
+	// this ensures that the uncompressed limit can grow/shrink appropriately as new data comes in
+	p.enc.uncompressedLimit = oldChunkEnc.uncompressedLimit
+	p.enc.uncompressedLimitScaleDownExponent = oldChunkEnc.uncompressedLimitScaleDownExponent
+	p.enc.uncompressedLimitScaleUpExponent = oldChunkEnc.uncompressedLimitScaleUpExponent
 	p.mtx.Unlock()
 
 	// Along with uploading the compressed events in the buffer
@@ -1027,52 +1049,15 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 		return
 	}
 
-	result, err := p.encodeEvent(event)
-	if err != nil {
-		// If there's no ND builtins cache in the event, then we don't
-		// need to retry encoding anything.
-		if event.NDBuiltinCache == nil {
-			// TODO(tsandall): revisit this now that we have an API that
-			// can return an error. Should the default behaviour be to
-			// fail-closed as we do for plugins?
-
-			p.incrMetric(logEncodingFailureCounterName)
-			p.logger.Error("Log encoding failed: %v.", err)
-			return
-		}
-
-		// Attempt to encode the event again, dropping the ND builtins cache.
-		newEvent := event
-		newEvent.NDBuiltinCache = nil
-
-		result, err = p.encodeEvent(newEvent)
-		if err != nil {
-			p.incrMetric(logEncodingFailureCounterName)
-			p.logger.Error("Log encoding failed: %v.", err)
-			return
-		}
-
-		// Re-encoding was successful, but we still need to alert users.
-		p.logger.Error("ND builtins cache dropped from this event to fit under maximum upload size limits. Increase upload size limit or change usage of non-deterministic builtins.")
-		p.incrMetric(logNDBDropCounterName)
-	}
-
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
+	result, err := p.enc.Write(event)
+	if err != nil {
+		return
+	}
 	for _, chunk := range result {
 		p.bufferChunk(p.buffer, chunk)
 	}
-}
-
-func (p *Plugin) encodeEvent(event EventV1) ([][]byte, error) {
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(event); err != nil {
-		return nil, err
-	}
-
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
-	return p.enc.WriteBytes(buf.Bytes())
 }
 
 func (p *Plugin) bufferChunk(buffer *logBuffer, bs []byte) {
