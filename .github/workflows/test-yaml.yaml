@@ -1,0 +1,28 @@
+name: Test YAML Changes
+
+on:
+  pull_request:
+    paths:
+      - '**.yaml'
+      - '**.yml'
+
+# When a new revision is pushed to a PR, cancel all in-progress CI runs for that
+# PR. See https://docs.github.com/en/actions/using-jobs/using-concurrency
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  yaml-lint:
+    name: YAML Lint
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: YAML Style and Lint Check
+        run: make check-yaml-tests
+        timeout-minutes: 30
+        env:
+          YAML_LINT_FORMAT: github
+

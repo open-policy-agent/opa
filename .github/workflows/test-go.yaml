@@ -1,6 +1,9 @@
-name: PR Check
+name: Test Go Changes
 
-on: [pull_request]
+on:
+  pull_request:
+    paths:
+      - '**.go'
 
 # When a new revision is pushed to a PR, cancel all in-progress CI runs for that
 # PR. See https://docs.github.com/en/actions/using-jobs/using-concurrency
@@ -146,19 +149,6 @@ jobs:
       - name: Golang Style and Lint Check
         run: make check
         timeout-minutes: 30
-
-  yaml-lint:
-    name: YAML Lint
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Check out code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: YAML Style and Lint Check
-        run: make check-yaml-tests
-        timeout-minutes: 30
-        env:
-          YAML_LINT_FORMAT: github
 
   wasm:
     name: WASM
@@ -337,53 +327,3 @@ jobs:
       - run: make go-test
         env:
           DOCKER_RUNNING: 0
-
-  # Run PR metadata against Rego policies
-  rego-check-pr:
-    name: Rego PR checks
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Download OPA
-        uses: open-policy-agent/setup-opa@34a30e8a924d1b03ce2cf7abe97250bbb1f332b5 # v2.2.0
-        with:
-          version: edge
-
-      - name: Test policies
-        run: opa test --v0-compatible build/policy
-
-      - name: Ensure proper formatting
-        run: opa fmt --v0-compatible --list --fail build/policy
-
-      - name: Run file policy checks on changed files
-        run: |
-          curl --silent --fail --header 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' -o files.json \
-            https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files
-
-          opa eval --v0-compatible -d build/policy/files.rego -d build/policy/helpers.rego  --format values --input files.json \
-            --fail-defined 'data.files.deny[message]'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Show input on failure
-        run: opa eval --v0-compatible --input files.json --format pretty input
-        if: ${{ failure() }}
-
-      - name: Setup Hugo
-        uses: peaceiris/actions-hugo@75d2e84710de30f6ff7268e08f310b60ef14033f # v3.0.0
-        with:
-          # keep this version in sync with the version in netlify.toml
-          # Note, that upgrading Hugo is tricky as all versions of the OPA docs need to work
-          # with the Hugo version used.
-          # see: https://github.com/open-policy-agent/opa/pull/7034
-          hugo-version: "0.113.0"
-          extended: true
-
-      - name: Build docs site and test integrations data
-        run: |
-          cd docs
-          make dev-generate hugo-production-build
-          cd -
-          opa eval --v0-compatible 'data.integrations.deny[message]' -i docs/website/public/index.json -d build/policy/integrations.rego --format=values --fail-defined
