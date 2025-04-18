@@ -23,6 +23,11 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
+const (
+	defaultStatusBufferLimit    = int64(10)
+	statusBufferDropCounterName = "status_dropped_buffer_limit_exceeded"
+)
+
 // Logger defines the interface for status plugins.
 type Logger interface {
 	plugins.Plugin
@@ -67,13 +72,14 @@ type Plugin struct {
 
 // Config contains configuration for the plugin.
 type Config struct {
-	Plugin           *string              `json:"plugin"`
-	Service          string               `json:"service"`
-	PartitionName    string               `json:"partition_name,omitempty"`
-	ConsoleLogs      bool                 `json:"console"`
-	Prometheus       bool                 `json:"prometheus"`
-	PrometheusConfig *PrometheusConfig    `json:"prometheus_config,omitempty"`
-	Trigger          *plugins.TriggerMode `json:"trigger,omitempty"` // trigger mode
+	Plugin            *string              `json:"plugin"`
+	Service           string               `json:"service"`
+	PartitionName     string               `json:"partition_name,omitempty"`
+	ConsoleLogs       bool                 `json:"console"`
+	Prometheus        bool                 `json:"prometheus"`
+	PrometheusConfig  *PrometheusConfig    `json:"prometheus_config,omitempty"`
+	Trigger           *plugins.TriggerMode `json:"trigger,omitempty"` // trigger mode
+	BufferStatusLimit *int64               `json:"buffer_status_limit"`
 }
 
 // BundleLoadDurationNanoseconds represents the configuration for the status.prometheus_config.bundle_loading_duration_ns settings
@@ -131,6 +137,14 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 	c.Trigger = t
 
 	c.PrometheusConfig = injectDefaultDurationBuckets(c.PrometheusConfig)
+
+	if c.BufferStatusLimit == nil {
+		statusLimit := defaultStatusBufferLimit
+		c.BufferStatusLimit = &statusLimit
+	}
+	if *c.BufferStatusLimit <= 0 {
+		return fmt.Errorf("the buffer status limit (%v) must be greater than 0", *c.BufferStatusLimit)
+	}
 
 	return nil
 }
@@ -207,8 +221,8 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 	p := &Plugin{
 		manager:        manager,
 		config:         *parsedConfig,
-		bundleCh:       make(chan bundle.Status),
-		bulkBundleCh:   make(chan map[string]*bundle.Status),
+		bundleCh:       make(chan bundle.Status, *parsedConfig.BufferStatusLimit),
+		bulkBundleCh:   make(chan map[string]*bundle.Status, *parsedConfig.BufferStatusLimit),
 		discoCh:        make(chan bundle.Status),
 		decisionLogsCh: make(chan lstat.Status),
 		stop:           make(chan chan struct{}),
@@ -278,12 +292,12 @@ func (p *Plugin) Stop(_ context.Context) {
 // UpdateBundleStatus notifies the plugin that the policy bundle was updated.
 // Deprecated: Use BulkUpdateBundleStatus instead.
 func (p *Plugin) UpdateBundleStatus(status bundle.Status) {
-	p.bundleCh <- status
+	util.PushFIFO(p.bundleCh, status, p.metrics, statusBufferDropCounterName)
 }
 
 // BulkUpdateBundleStatus notifies the plugin that the policy bundle was updated.
 func (p *Plugin) BulkUpdateBundleStatus(status map[string]*bundle.Status) {
-	p.bulkBundleCh <- status
+	util.PushFIFO(p.bulkBundleCh, status, p.metrics, statusBufferDropCounterName)
 }
 
 // UpdateDiscoveryStatus notifies the plugin that the discovery bundle was updated.
@@ -436,7 +450,7 @@ func (p *Plugin) oneShot(ctx context.Context) error {
 			WithJSON(req).
 			Do(ctx, "POST", fmt.Sprintf("/status/%v", p.config.PartitionName))
 		if err != nil {
-			return fmt.Errorf("Status update failed: %w", err)
+			return fmt.Errorf("status update failed: %w", err)
 		}
 
 		defer util.Close(resp)

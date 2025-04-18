@@ -14,6 +14,7 @@ import (
 	"os"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -36,6 +37,65 @@ func TestMain(m *testing.M) {
 		version.Version = "unit-test"
 	}
 	os.Exit(m.Run())
+}
+
+func TestStatusUpdateBuffer(t *testing.T) {
+
+	tests := []struct {
+		name                  string
+		statusLimit           int64
+		numberOfStatusUpdates int
+		expectedStatusUpdates int
+		expectedNameDropped   string
+	}{
+		{
+			name:                  "add one over the limit and drop oldest",
+			statusLimit:           10,
+			numberOfStatusUpdates: 11,
+			expectedStatusUpdates: 10,
+			expectedNameDropped:   "0",
+		},
+		{
+			name:                  "don't drop anything",
+			statusLimit:           10,
+			numberOfStatusUpdates: 5,
+			expectedStatusUpdates: 5,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := newTestFixture(t, nil, func(c *Config) {
+				c.BufferStatusLimit = &tc.statusLimit
+			})
+			ctx := context.Background()
+
+			err := fixture.plugin.Start(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer fixture.plugin.Stop(ctx)
+
+			for i := range tc.numberOfStatusUpdates {
+				s := bundle.Status{
+					Name: strconv.Itoa(i),
+				}
+				fixture.plugin.BulkUpdateBundleStatus(map[string]*bundle.Status{
+					"test": &s,
+				})
+			}
+
+			if len(fixture.plugin.bulkBundleCh) != tc.expectedStatusUpdates {
+				t.Fatalf("expected %d updates, got %d", tc.expectedStatusUpdates, len(fixture.plugin.bulkBundleCh))
+			}
+			for _, v := range <-fixture.plugin.bulkBundleCh {
+				if v.Name == tc.expectedNameDropped {
+					t.Fatalf("expected %s dropped", tc.expectedNameDropped)
+				}
+			}
+		})
+	}
+
 }
 
 func TestConfigValueParse(t *testing.T) {
@@ -87,17 +147,17 @@ func TestConfigValueParse(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.note, func(t *testing.T) {
-			config, err := ParseConfig([]byte(test.input), []string{}, []string{"status"})
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			config, err := ParseConfig([]byte(tc.input), []string{}, []string{"status"})
 			if err != nil {
 				t.Errorf("expected no error: %v", err)
 			}
-			if test.expectedNoConfig && config != nil {
+			if tc.expectedNoConfig && config != nil {
 				t.Errorf("expected parsed config is nil, got %v", config)
 			}
-			if !test.expectedNoConfig && !slices.Equal(config.PrometheusConfig.Collectors.BundleLoadDurationNanoseconds.Buckets, test.expectedValue) {
-				t.Errorf("expected %v, got %v", test.expectedValue, config.PrometheusConfig.Collectors.BundleLoadDurationNanoseconds.Buckets)
+			if !tc.expectedNoConfig && !slices.Equal(config.PrometheusConfig.Collectors.BundleLoadDurationNanoseconds.Buckets, tc.expectedValue) {
+				t.Errorf("expected %v, got %v", tc.expectedValue, config.PrometheusConfig.Collectors.BundleLoadDurationNanoseconds.Buckets)
 			}
 		})
 	}
@@ -425,6 +485,14 @@ func TestPluginStartTriggerManual(t *testing.T) {
 	status := testStatus()
 
 	fixture.plugin.BulkUpdateBundleStatus(map[string]*bundle.Status{"test": status})
+
+	// make sure the lastBundleStatuses has been written so the trigger sends the expected status
+	// otherwise there could be a race condition before the bundle status is written
+	for {
+		if fixture.plugin.lastBundleStatuses != nil {
+			break
+		}
+	}
 
 	// trigger the status update
 	go func() {

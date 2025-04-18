@@ -3917,8 +3917,10 @@ func TestStatusV1(t *testing.T) {
 
 	// Expect HTTP 200 after status plus is registered
 	manual := plugins.TriggerManual
+	limit := int64(1)
 	bs := pluginStatus.New(&pluginStatus.Config{
-		Trigger: &manual,
+		BufferStatusLimit: &limit,
+		Trigger:           &manual,
 		PrometheusConfig: &pluginStatus.PrometheusConfig{
 			Collectors: &pluginStatus.Collectors{
 				BundleLoadDurationNanoseconds: &pluginStatus.BundleLoadDurationNanoseconds{
@@ -4050,9 +4052,11 @@ func TestStatusV1MetricsWithSystemAuthzPolicy(t *testing.T) {
 
 	// Register Status plugin
 	manual := plugins.TriggerManual
+	limit := int64(1)
 	bs := pluginStatus.New(&pluginStatus.Config{
-		Trigger:    &manual,
-		Prometheus: true,
+		BufferStatusLimit: &limit,
+		Trigger:           &manual,
+		Prometheus:        true,
 		PrometheusConfig: &pluginStatus.PrometheusConfig{
 			Collectors: &pluginStatus.Collectors{
 				BundleLoadDurationNanoseconds: &pluginStatus.BundleLoadDurationNanoseconds{
