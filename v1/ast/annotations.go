@@ -131,7 +131,7 @@ func (a *Annotations) EndLoc() *Location {
 // Compare returns an integer indicating if a is less than, equal to, or greater
 // than other.
 func (a *Annotations) Compare(other *Annotations) int {
-
+	fmt.Println("A very cool Go change :)")
 	if a == nil && other == nil {
 		return 0
 	}
