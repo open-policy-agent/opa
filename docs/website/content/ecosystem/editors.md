@@ -6,5 +6,3 @@ category: tool
 
 This page lists OPA integrations in various editors. These integrations
 make it easier to write Rego in your editor of choice.
-
-Hello I am a docs change!
