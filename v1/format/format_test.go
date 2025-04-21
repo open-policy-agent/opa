@@ -69,7 +69,7 @@ func TestFormatNilLocationEmptyBody(t *testing.T) {
 func TestFormatNilLocationFunctionArgs(t *testing.T) {
 	b := ast.NewBody()
 	s := ast.StringTerm(" ")
-	s.SetLocation(location.NewLocation([]byte("foo"), "p.rego", 2, 2))
+	s.SetLocation(location.NewLocation([]byte("\" \""), "p.rego", 2, 2))
 	b.Append(ast.Split.Expr(ast.NewTerm(ast.Var("__local1__")), s, ast.NewTerm(ast.Var("__local2__"))))
 	exp := "split(__local1__, \" \", __local2__)\n"
 	bs, err := Ast(b)

@@ -1,0 +1,10 @@
+package test
+
+x := "\u0000"
+
+authorize = "\u0000" if {
+    input.user == "\u0000"
+} else = "\u0000" if {
+    input.path[0] == "\u0000"
+    input.source_network == "\u0000"
+}
