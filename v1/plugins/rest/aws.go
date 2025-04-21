@@ -5,7 +5,10 @@
 package rest
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -13,6 +16,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -51,6 +55,7 @@ const (
 	awsRoleArnEnvVar              = "AWS_ROLE_ARN"
 	awsWebIdentityTokenFileEnvVar = "AWS_WEB_IDENTITY_TOKEN_FILE"
 	awsCredentialsFileEnvVar      = "AWS_SHARED_CREDENTIALS_FILE"
+	awsConfigFileEnvVar           = "AWS_CONFIG_FILE"
 	awsProfileEnvVar              = "AWS_PROFILE"
 
 	// ref. https://docs.aws.amazon.com/sdkref/latest/guide/settings-global.html
@@ -93,6 +98,333 @@ func (*awsEnvironmentCredentialService) credentials(context.Context) (aws.Creden
 	}
 
 	return creds, nil
+}
+
+type ssoSessionDetails struct {
+	StartUrl              string `json:"startUrl"`
+	Region                string `json:"region"`
+	Name                  string
+	AccountID             string
+	RoleName              string
+	AccessToken           string    `json:"accessToken"`
+	ExpiresAt             time.Time `json:"expiresAt"`
+	RegistrationExpiresAt time.Time `json:"registrationExpiresAt"`
+	RefreshToken          string    `json:"refreshToken"`
+	ClientId              string    `json:"clientId"`
+	ClientSecret          string    `json:"clientSecret"`
+}
+
+type awsSSOCredentialsService struct {
+	Path         string `json:"path,omitempty"`
+	SSOCachePath string `json:"cache_path,omitempty"`
+
+	Profile string `json:"profile,omitempty"`
+
+	logger logging.Logger
+
+	creds aws.Credentials
+
+	credentialsExpiresAt time.Time
+
+	session *ssoSessionDetails
+}
+
+func (cs *awsSSOCredentialsService) configPath() (string, error) {
+	if len(cs.Path) != 0 {
+		return cs.Path, nil
+	}
+
+	if cs.Path = os.Getenv(awsConfigFileEnvVar); len(cs.Path) != 0 {
+		return cs.Path, nil
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("user home directory not found: %w", err)
+	}
+
+	cs.Path = filepath.Join(homeDir, ".aws", "config")
+
+	return cs.Path, nil
+}
+func (cs *awsSSOCredentialsService) ssoCachePath() (string, error) {
+	if len(cs.SSOCachePath) != 0 {
+		return cs.SSOCachePath, nil
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("user home directory not found: %w", err)
+	}
+
+	cs.Path = filepath.Join(homeDir, ".aws", "sso", "cache")
+
+	return cs.Path, nil
+}
+
+func (cs *awsSSOCredentialsService) cacheKeyFileName() (string, error) {
+
+	val := cs.session.StartUrl
+	if cs.session.Name != "" {
+		val = cs.session.Name
+	}
+
+	hash := sha1.New()
+	hash.Write([]byte(val))
+	cacheKey := hex.EncodeToString(hash.Sum(nil))
+
+	return cacheKey + ".json", nil
+}
+
+func (cs *awsSSOCredentialsService) loadSSOCredentials() error {
+	ssoCachePath, err := cs.ssoCachePath()
+	if err != nil {
+		return fmt.Errorf("failed to get sso cache path: %w", err)
+	}
+
+	cacheKeyFile, err := cs.cacheKeyFileName()
+	if err != nil {
+		return err
+	}
+
+	cacheFile := path.Join(ssoCachePath, cacheKeyFile)
+	cache, err := os.ReadFile(cacheFile)
+	if err != nil {
+		return fmt.Errorf("failed to load cache file: %v", err)
+	}
+
+	if err := json.Unmarshal(cache, &cs.session); err != nil {
+		return fmt.Errorf("failed to unmarshal cache file: %v", err)
+	}
+
+	return nil
+
+}
+
+func (cs *awsSSOCredentialsService) loadSession() error {
+	configPath, err := cs.configPath()
+	if err != nil {
+		return fmt.Errorf("failed to get config path: %w", err)
+	}
+	config, err := ini.Load(configPath)
+	if err != nil {
+		return fmt.Errorf("failed to load config file: %w", err)
+	}
+
+	section, err := config.GetSection("profile " + cs.Profile)
+
+	if err != nil {
+		return fmt.Errorf("failed to find profile %s", cs.Profile)
+	}
+
+	accountID, err := section.GetKey("sso_account_id")
+	if err != nil {
+		return fmt.Errorf("failed to find sso_account_id key in profile %s", cs.Profile)
+	}
+
+	region, err := section.GetKey("region")
+	if err != nil {
+		return fmt.Errorf("failed to find region key in profile %s", cs.Profile)
+	}
+
+	roleName, err := section.GetKey("sso_role_name")
+	if err != nil {
+		return fmt.Errorf("failed to find sso_role_name key in profile %s", cs.Profile)
+	}
+
+	ssoSession, err := section.GetKey("sso_session")
+	if err != nil {
+		return fmt.Errorf("failed to find sso_session key in profile %s", cs.Profile)
+	}
+
+	sessionName := ssoSession.Value()
+
+	session, err := config.GetSection("sso-session " + sessionName)
+	if err != nil {
+		return fmt.Errorf("failed to find sso-session %s", sessionName)
+	}
+
+	startUrl, err := session.GetKey("sso_start_url")
+	if err != nil {
+		return fmt.Errorf("failed to find sso_start_url key in sso-session %s", sessionName)
+	}
+
+	cs.session = &ssoSessionDetails{
+		StartUrl:  startUrl.Value(),
+		Name:      sessionName,
+		AccountID: accountID.Value(),
+		Region:    region.Value(),
+		RoleName:  roleName.Value(),
+	}
+
+	return nil
+}
+
+func (cs *awsSSOCredentialsService) tryRefreshToken() error {
+	// Check if refresh token is empty
+	if cs.session.RefreshToken == "" {
+		return errors.New("refresh token is empty")
+	}
+
+	// Use the refresh token to get a new access token
+	// using the clientId, clientSecret and refreshToken from the loaded token
+	// return the new token
+	// if error, return error
+
+	type refreshTokenRequest struct {
+		ClientId     string `json:"clientId"`
+		ClientSecret string `json:"clientSecret"`
+		RefreshToken string `json:"refreshToken"`
+		GrantType    string `json:"grantType"`
+	}
+
+	data := refreshTokenRequest{
+		ClientId:     cs.session.ClientId,
+		ClientSecret: cs.session.ClientSecret,
+		RefreshToken: cs.session.RefreshToken,
+		GrantType:    "refresh_token",
+	}
+
+	body, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("failed to marshal refresh token request: %v", err)
+	}
+
+	endpoint := fmt.Sprintf("https://oidc.%s.amazonaws.com/token", cs.session.Region)
+	r, err := http.NewRequest("POST", endpoint, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("failed to create new request: %v", err)
+	}
+
+	r.Header.Add("Content-Type", "application/json")
+	c := &http.Client{}
+	resp, err := c.Do(r)
+	if err != nil {
+		return fmt.Errorf("failed to do request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	type refreshTokenResponse struct {
+		AccessToken  string `json:"accessToken"`
+		ExpiresIn    int    `json:"expiresIn"`
+		RefreshToken string `json:"refreshToken"`
+	}
+
+	refreshedToken := refreshTokenResponse{}
+
+	if err := json.NewDecoder(resp.Body).Decode(&refreshedToken); err != nil {
+		return fmt.Errorf("failed to decode response: %v", err)
+	}
+
+	cs.session.AccessToken = refreshedToken.AccessToken
+	cs.session.ExpiresAt = time.Now().Add(time.Duration(refreshedToken.ExpiresIn) * time.Second)
+	cs.session.RefreshToken = refreshedToken.RefreshToken
+
+	return nil
+}
+
+func (cs *awsSSOCredentialsService) refreshCredentials() error {
+	url := fmt.Sprintf("https://portal.sso.%s.amazonaws.com/federation/credentials?account_id=%s&role_name=%s", cs.session.Region, cs.session.AccountID, cs.session.RoleName)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+cs.session.AccessToken)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	type roleCredentials struct {
+		AccessKeyId     string `json:"accessKeyId"`
+		SecretAccessKey string `json:"secretAccessKey"`
+		SessionToken    string `json:"sessionToken"`
+		Expiration      int64  `json:"expiration"`
+	}
+	type getRoleCredentialsResponse struct {
+		RoleCredentials roleCredentials `json:"roleCredentials"`
+	}
+
+	var result getRoleCredentialsResponse
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return fmt.Errorf("failed to decode response: %v", err)
+	}
+
+	cs.creds = aws.Credentials{
+		AccessKey:    result.RoleCredentials.AccessKeyId,
+		SecretKey:    result.RoleCredentials.SecretAccessKey,
+		SessionToken: result.RoleCredentials.SessionToken,
+		RegionName:   cs.session.Region,
+	}
+
+	cs.credentialsExpiresAt = time.Unix(result.RoleCredentials.Expiration, 0)
+
+	return nil
+}
+
+func (cs *awsSSOCredentialsService) loadProfile() {
+	if cs.Profile != "" {
+		return
+	}
+
+	cs.Profile = os.Getenv(awsProfileEnvVar)
+
+	if cs.Profile == "" {
+		cs.Profile = "default"
+	}
+
+}
+
+func (cs *awsSSOCredentialsService) init() error {
+	cs.loadProfile()
+
+	if err := cs.loadSession(); err != nil {
+		return fmt.Errorf("failed to load session: %w", err)
+	}
+
+	if err := cs.loadSSOCredentials(); err != nil {
+		return fmt.Errorf("failed to load SSO credentials: %w", err)
+	}
+
+	// this enforces fetching credentials
+	cs.credentialsExpiresAt = time.Unix(0, 0)
+	return nil
+}
+
+func (cs *awsSSOCredentialsService) credentials(context.Context) (aws.Credentials, error) {
+	if cs.session == nil {
+		if err := cs.init(); err != nil {
+			return aws.Credentials{}, err
+		}
+	}
+
+	if cs.credentialsExpiresAt.Before(time.Now().Add(5 * time.Minute)) {
+		// Check if the sso token we have is still valid,
+		// if not, try to refresh it
+		if cs.session.ExpiresAt.Before(time.Now()) {
+			// we try and get a new token if we can
+			if cs.session.RegistrationExpiresAt.Before(time.Now()) {
+				return aws.Credentials{}, errors.New("cannot refresh token, registration expired")
+			}
+
+			if err := cs.tryRefreshToken(); err != nil {
+				return aws.Credentials{}, fmt.Errorf("failed to refresh token: %w", err)
+			}
+		}
+
+		if err := cs.refreshCredentials(); err != nil {
+			return aws.Credentials{}, fmt.Errorf("failed to refresh credentials: %w", err)
+		}
+	}
+
+	return cs.creds, nil
 }
 
 // awsProfileCredentialService represents a credential provider for AWS that extracts credentials from the AWS
