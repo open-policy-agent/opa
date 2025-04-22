@@ -55,7 +55,7 @@
       <div class="dropdown-menu">
         <div class="dropdown-content has-text-left">
           {{ range $releases }}
-            {{ if ne . "latest" }}
+            {{ if and (ne . "latest") (ne . "edge") }}
               {{ $isLatest := eq . (index site.Data.releases 1) }}
                 {{ $verRef := . }}
                 {{ if $isLatest }}
@@ -73,6 +73,10 @@
                 </a>
             {{ end }}
           {{ end }}
+          <!-- edge is handled specially since we do not have a archive site for it-->
+          <a href="https://www.openpolicyagent.org/docs/edge/" class="dropdown-item">
+            edge
+          </a>
         </div>
       </div>
     </div>
