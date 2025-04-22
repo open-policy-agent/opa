@@ -440,7 +440,7 @@ func TestPluginNoLogging(t *testing.T) {
 	}
 }
 
-func TestPluginStartTriggerManual(t *testing.T) {
+func TestPluginStartTriggerManualStart(t *testing.T) {
 
 	fixture := newTestFixture(t, nil)
 	fixture.server.ch = make(chan UpdateRequestV1)
@@ -476,22 +476,45 @@ func TestPluginStartTriggerManual(t *testing.T) {
 	if !maps.Equal(result.Labels, exp.Labels) {
 		t.Fatalf("Expected: %v but got: %v", exp, result)
 	}
+}
+
+func TestPluginStartTriggerManual(t *testing.T) {
+	fixture := newTestFixture(t, nil)
+	fixture.server.ch = make(chan UpdateRequestV1)
+	defer fixture.server.stop()
+	tr := plugins.TriggerManual
+	fixture.plugin.config.Trigger = &tr
 
 	status := testStatus()
 
 	fixture.plugin.BulkUpdateBundleStatus(map[string]*bundle.Status{"test": status})
 
-	// make sure the lastBundleStatuses has been written so the trigger sends the expected status
-	// otherwise there could be a race condition before the bundle status is written
-	time.Sleep(10 * time.Millisecond)
+	statuses := <-fixture.plugin.bulkBundleCh
+	fixture.plugin.lastBundleStatuses = statuses
 
 	// trigger the status update
 	go func() {
-		_ = fixture.plugin.Trigger(ctx)
+		_ = fixture.plugin.Trigger(context.Background())
 	}()
 
-	result = <-fixture.server.ch
+	go func() {
+		update := <-fixture.plugin.trigger
+		err := fixture.plugin.oneShot(update.ctx)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+	}()
 
+	result := <-fixture.server.ch
+
+	exp := UpdateRequestV1{
+		Labels: map[string]string{
+			"id":      "test-instance-id",
+			"app":     "example-app",
+			"version": version.Version,
+		},
+	}
 	exp.Bundles = map[string]*bundle.Status{"test": status}
 
 	if !maps.EqualFunc(result.Bundles, exp.Bundles, (*bundle.Status).Equal) {
