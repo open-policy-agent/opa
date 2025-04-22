@@ -4,7 +4,6 @@ subtitle: Rego Policy Controller for Kubernetes
 labels:
   type: poweredbyopa
   layer: configuration
-no_image: true
 code:
 - https://github.com/open-policy-agent/gatekeeper
 software:

@@ -4,7 +4,6 @@ subtitle: A Docker-inspired workflow for OPA policies
 labels:
   category: containers
   layer: application
-no_image: true
 inventors:
 - aserto
 software:

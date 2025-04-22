@@ -1415,8 +1415,6 @@ Content-Length: 24
 
 ## Ecosystem Projects
 
-import EcosystemEmbed from '../../src/components/EcosystemEmbed';
-
 <EcosystemEmbed feature="opa-bundles">
 The Bundle API is great way to manage your policies and data. The following
 projects all make use of this API if you're looking for inspiration or examples

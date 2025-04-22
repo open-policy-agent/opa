@@ -8,7 +8,6 @@ inventors:
 code:
 - https://github.com/principled-evolution/gopal
 - https://github.com/principled-evolution/aicertify
-no_image: true
 blogs:
 - https://principledevolution.ai/blog/governance-policy-as-code-opa-trust-ai
 # tutorials: # Optional: Add if specific tutorials exist
