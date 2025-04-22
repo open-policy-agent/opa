@@ -43,21 +43,18 @@ func TestStatusUpdateBuffer(t *testing.T) {
 
 	tests := []struct {
 		name                  string
-		statusLimit           int64
 		numberOfStatusUpdates int
 		expectedStatusUpdates int
 		expectedNameDropped   string
 	}{
 		{
 			name:                  "add one over the limit and drop oldest",
-			statusLimit:           10,
 			numberOfStatusUpdates: 11,
 			expectedStatusUpdates: 10,
 			expectedNameDropped:   "0",
 		},
 		{
 			name:                  "don't drop anything",
-			statusLimit:           10,
 			numberOfStatusUpdates: 5,
 			expectedStatusUpdates: 5,
 		},
@@ -65,9 +62,7 @@ func TestStatusUpdateBuffer(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			fixture := newTestFixture(t, nil, func(c *Config) {
-				c.BufferStatusLimit = &tc.statusLimit
-			})
+			fixture := newTestFixture(t, nil)
 			ctx := context.Background()
 
 			err := fixture.plugin.Start(ctx)
@@ -488,7 +483,11 @@ func TestPluginStartTriggerManual(t *testing.T) {
 
 	// make sure the lastBundleStatuses has been written so the trigger sends the expected status
 	// otherwise there could be a race condition before the bundle status is written
-	time.Sleep(10 * time.Millisecond)
+	if !test.Eventually(t, 1*time.Second, func() bool {
+		return len(fixture.plugin.bulkBundleCh) >= 1
+	}) {
+		t.Fatalf("timed out waiting for bulkBundleCh to get updated")
+	}
 
 	// trigger the status update
 	go func() {

@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	defaultStatusBufferLimit    = int64(10)
+	statusBufferLimit           = int64(10)
 	statusBufferDropCounterName = "status_dropped_buffer_limit_exceeded"
 )
 
@@ -72,14 +72,13 @@ type Plugin struct {
 
 // Config contains configuration for the plugin.
 type Config struct {
-	Plugin            *string              `json:"plugin"`
-	Service           string               `json:"service"`
-	PartitionName     string               `json:"partition_name,omitempty"`
-	ConsoleLogs       bool                 `json:"console"`
-	Prometheus        bool                 `json:"prometheus"`
-	PrometheusConfig  *PrometheusConfig    `json:"prometheus_config,omitempty"`
-	Trigger           *plugins.TriggerMode `json:"trigger,omitempty"` // trigger mode
-	BufferStatusLimit *int64               `json:"buffer_status_limit"`
+	Plugin           *string              `json:"plugin"`
+	Service          string               `json:"service"`
+	PartitionName    string               `json:"partition_name,omitempty"`
+	ConsoleLogs      bool                 `json:"console"`
+	Prometheus       bool                 `json:"prometheus"`
+	PrometheusConfig *PrometheusConfig    `json:"prometheus_config,omitempty"`
+	Trigger          *plugins.TriggerMode `json:"trigger,omitempty"` // trigger mode
 }
 
 // BundleLoadDurationNanoseconds represents the configuration for the status.prometheus_config.bundle_loading_duration_ns settings
@@ -137,14 +136,6 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 	c.Trigger = t
 
 	c.PrometheusConfig = injectDefaultDurationBuckets(c.PrometheusConfig)
-
-	if c.BufferStatusLimit == nil {
-		statusLimit := defaultStatusBufferLimit
-		c.BufferStatusLimit = &statusLimit
-	}
-	if *c.BufferStatusLimit <= 0 {
-		return fmt.Errorf("the buffer status limit (%v) must be greater than 0", *c.BufferStatusLimit)
-	}
 
 	return nil
 }
@@ -221,8 +212,8 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 	p := &Plugin{
 		manager:        manager,
 		config:         *parsedConfig,
-		bundleCh:       make(chan bundle.Status, *parsedConfig.BufferStatusLimit),
-		bulkBundleCh:   make(chan map[string]*bundle.Status, *parsedConfig.BufferStatusLimit),
+		bundleCh:       make(chan bundle.Status, statusBufferLimit),
+		bulkBundleCh:   make(chan map[string]*bundle.Status, statusBufferLimit),
 		discoCh:        make(chan bundle.Status),
 		decisionLogsCh: make(chan lstat.Status),
 		stop:           make(chan chan struct{}),
