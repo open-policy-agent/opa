@@ -483,7 +483,7 @@ func TestPluginStartTriggerManual(t *testing.T) {
 
 	// make sure the lastBundleStatuses has been written so the trigger sends the expected status
 	// otherwise there could be a race condition before the bundle status is written
-	if !test.Eventually(t, 1*time.Second, func() bool {
+	if !test.Eventually(t, 10*time.Millisecond, func() bool {
 		return len(fixture.plugin.bulkBundleCh) >= 1
 	}) {
 		t.Fatalf("timed out waiting for bulkBundleCh to get updated")
