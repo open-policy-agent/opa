@@ -9,7 +9,6 @@ software:
 - kubernetes
 - docker
 - helm
-no_image: true
 tutorials:
 - https://insights.docs.fairwinds.com/features/policy/
 - https://insights.docs.fairwinds.com/reports/opa/
