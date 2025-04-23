@@ -1210,16 +1210,17 @@ func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Co
 			w.write(string(term.Location.Text))
 		} else {
 			// x.String() cannot be used by default because it can change the input string "\u0000" to "\x00"
-			var quote string
+			var after, quote string
+			var found bool
 			// term.Location.Text could contain the prefix `else :=`, remove it
 			switch term.Location.Text[len(term.Location.Text)-1] {
 			case '"':
 				quote = "\""
+				_, after, found = strings.Cut(string(term.Location.Text), quote)
 			case '`':
 				quote = "`"
+				_, after, found = strings.Cut(string(term.Location.Text), quote)
 			}
-
-			_, after, found := strings.Cut(string(term.Location.Text), quote)
 
 			if !found {
 				// If no quoted string was found, that means it is a key being formatted to a string
