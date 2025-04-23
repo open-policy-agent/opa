@@ -14,6 +14,7 @@ import (
 	"os"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -36,6 +37,60 @@ func TestMain(m *testing.M) {
 		version.Version = "unit-test"
 	}
 	os.Exit(m.Run())
+}
+
+func TestStatusUpdateBuffer(t *testing.T) {
+
+	tests := []struct {
+		name                  string
+		numberOfStatusUpdates int
+		expectedStatusUpdates int
+		expectedNameDropped   string
+	}{
+		{
+			name:                  "add one over the limit and drop oldest",
+			numberOfStatusUpdates: 11,
+			expectedStatusUpdates: 10,
+			expectedNameDropped:   "0",
+		},
+		{
+			name:                  "don't drop anything",
+			numberOfStatusUpdates: 5,
+			expectedStatusUpdates: 5,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := newTestFixture(t, nil)
+			ctx := context.Background()
+
+			err := fixture.plugin.Start(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer fixture.plugin.Stop(ctx)
+
+			for i := range tc.numberOfStatusUpdates {
+				s := bundle.Status{
+					Name: strconv.Itoa(i),
+				}
+				fixture.plugin.BulkUpdateBundleStatus(map[string]*bundle.Status{
+					"test": &s,
+				})
+			}
+
+			if len(fixture.plugin.bulkBundleCh) != tc.expectedStatusUpdates {
+				t.Fatalf("expected %d updates, got %d", tc.expectedStatusUpdates, len(fixture.plugin.bulkBundleCh))
+			}
+			for _, v := range <-fixture.plugin.bulkBundleCh {
+				if v.Name == tc.expectedNameDropped {
+					t.Fatalf("expected %s dropped", tc.expectedNameDropped)
+				}
+			}
+		})
+	}
+
 }
 
 func TestConfigValueParse(t *testing.T) {
@@ -87,17 +142,17 @@ func TestConfigValueParse(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.note, func(t *testing.T) {
-			config, err := ParseConfig([]byte(test.input), []string{}, []string{"status"})
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			config, err := ParseConfig([]byte(tc.input), []string{}, []string{"status"})
 			if err != nil {
 				t.Errorf("expected no error: %v", err)
 			}
-			if test.expectedNoConfig && config != nil {
+			if tc.expectedNoConfig && config != nil {
 				t.Errorf("expected parsed config is nil, got %v", config)
 			}
-			if !test.expectedNoConfig && !slices.Equal(config.PrometheusConfig.Collectors.BundleLoadDurationNanoseconds.Buckets, test.expectedValue) {
-				t.Errorf("expected %v, got %v", test.expectedValue, config.PrometheusConfig.Collectors.BundleLoadDurationNanoseconds.Buckets)
+			if !tc.expectedNoConfig && !slices.Equal(config.PrometheusConfig.Collectors.BundleLoadDurationNanoseconds.Buckets, tc.expectedValue) {
+				t.Errorf("expected %v, got %v", tc.expectedValue, config.PrometheusConfig.Collectors.BundleLoadDurationNanoseconds.Buckets)
 			}
 		})
 	}
@@ -385,7 +440,7 @@ func TestPluginNoLogging(t *testing.T) {
 	}
 }
 
-func TestPluginStartTriggerManual(t *testing.T) {
+func TestPluginStartTriggerManualStart(t *testing.T) {
 
 	fixture := newTestFixture(t, nil)
 	fixture.server.ch = make(chan UpdateRequestV1)
@@ -421,18 +476,45 @@ func TestPluginStartTriggerManual(t *testing.T) {
 	if !maps.Equal(result.Labels, exp.Labels) {
 		t.Fatalf("Expected: %v but got: %v", exp, result)
 	}
+}
+
+func TestPluginStartTriggerManual(t *testing.T) {
+	fixture := newTestFixture(t, nil)
+	fixture.server.ch = make(chan UpdateRequestV1)
+	defer fixture.server.stop()
+	tr := plugins.TriggerManual
+	fixture.plugin.config.Trigger = &tr
 
 	status := testStatus()
 
 	fixture.plugin.BulkUpdateBundleStatus(map[string]*bundle.Status{"test": status})
 
+	statuses := <-fixture.plugin.bulkBundleCh
+	fixture.plugin.lastBundleStatuses = statuses
+
 	// trigger the status update
 	go func() {
-		_ = fixture.plugin.Trigger(ctx)
+		_ = fixture.plugin.Trigger(context.Background())
 	}()
 
-	result = <-fixture.server.ch
+	go func() {
+		update := <-fixture.plugin.trigger
+		err := fixture.plugin.oneShot(update.ctx)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+	}()
 
+	result := <-fixture.server.ch
+
+	exp := UpdateRequestV1{
+		Labels: map[string]string{
+			"id":      "test-instance-id",
+			"app":     "example-app",
+			"version": version.Version,
+		},
+	}
 	exp.Bundles = map[string]*bundle.Status{"test": status}
 
 	if !maps.EqualFunc(result.Bundles, exp.Bundles, (*bundle.Status).Equal) {
