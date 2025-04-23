@@ -3964,6 +3964,10 @@ func TestStatusV1(t *testing.T) {
 		}
 	}
 
+	if !ok {
+		t.Fatal("plugin status never changed to 'OK' status")
+	}
+
 	// Expect HTTP 200 and updated status after bundle update occurs
 	bs.BulkUpdateBundleStatus(map[string]*pluginBundle.Status{
 		"test": {
@@ -4001,6 +4005,10 @@ func TestStatusV1(t *testing.T) {
 		} else {
 			t.Log("expected bundle name to be \"test\" but got:", resp2)
 		}
+	}
+
+	if !ok {
+		t.Fatal("plugin status never changed to 'OK' status")
 	}
 }
 
