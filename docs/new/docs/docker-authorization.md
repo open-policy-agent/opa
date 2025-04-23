@@ -26,25 +26,25 @@ prevents users from running insecure containers.
 
 This tutorial illustrates two key concepts:
 
-  1. OPA policy definition is decoupled from the implementation of the service
-     (in this case Docker). The administrator is empowered to define and manage
-     policies without requiring changes to any of the apps.
+1. OPA policy definition is decoupled from the implementation of the service
+   (in this case Docker). The administrator is empowered to define and manage
+   policies without requiring changes to any of the apps.
 
-  2. Both the data relevant to policy and the policy definitions themselves can
-     change rapidly.
+2. Both the data relevant to policy and the policy definitions themselves can
+   change rapidly.
 
 ## Prerequisites
 
 This tutorial requires:
 
-  * Docker Engine 18.06.0-ce or newer
-  * Docker API version 1.38 or newer
-  * `root` or `sudo` access
-  * Nginx, or any capable [bundle](https://www.openpolicyagent.org/docs/latest/management-bundles/) server
+- Docker Engine 18.06.0-ce or newer
+- Docker API version 1.38 or newer
+- `root` or `sudo` access
+- Nginx, or any capable [bundle](https://www.openpolicyagent.org/docs/latest/management-bundles/) server
 
 The tutorial has been tested on the following platforms:
 
-  * Ubuntu 20.04 (64-bit)
+- Ubuntu 20.04 (64-bit)
 
 If you are using a different distro, OS, or architecture, the steps will be the
 same. However, there may be slight differences in the commands you need to run.
@@ -111,7 +111,7 @@ sudo mv opa-config.yaml /etc/docker/config/
 Install the `opa-docker-authz` plugin and point it to the config file just created.
 
 ```shell
-docker plugin install openpolicyagent/opa-docker-authz-v2:0.9 opa-args="-config-file /opa/config/opa-config.yaml"
+docker plugin install --alias opa-docker-authz ghcr.io/open-policy-agent/opa-docker-authz:v0.10 opa-args="-config-file /opa/config/opa-config.yaml"
 ```
 
 You need to configure the Docker daemon to use the plugin for authorization.
@@ -119,7 +119,7 @@ You need to configure the Docker daemon to use the plugin for authorization.
 ```shell
 cat > /etc/docker/daemon.json <<EOF
 {
-    "authorization-plugins": ["openpolicyagent/opa-docker-authz-v2:0.9"]
+    "authorization-plugins": ["opa-docker-authz"]
 }
 EOF
 ```
