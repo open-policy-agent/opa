@@ -1211,14 +1211,15 @@ func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Co
 		} else {
 			// x.String() cannot be used by default because it can change the input string "\u0000" to "\x00"
 			// term.Location.Text could contain more than just the string, extract the first string it can find
-			raw := string(term.Location.Text)
-			str := regexp.MustCompile(`"[^"]*"`).FindString(raw)
-			if str == "" {
+			_, after, found := strings.Cut(string(term.Location.Text), "\"")
+			if !found {
 				// If no quoted string was found, that means it is a key being formatted to a string
 				// e.g. partial_set.y to partial_set["y"]
-				str = x.String()
+				w.write(x.String())
+			} else {
+				w.write("\"" + after)
 			}
-			w.write(str)
+
 		}
 	case ast.Var:
 		w.write(w.formatVar(x))
