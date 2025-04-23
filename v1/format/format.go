@@ -1210,14 +1210,24 @@ func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Co
 			w.write(string(term.Location.Text))
 		} else {
 			// x.String() cannot be used by default because it can change the input string "\u0000" to "\x00"
-			// term.Location.Text could contain more than just the string, extract the first string it can find
-			_, after, found := strings.Cut(string(term.Location.Text), "\"")
+			var after, quote string
+			var found bool
+			// term.Location.Text could contain the prefix `else :=`, remove it
+			switch term.Location.Text[len(term.Location.Text)-1] {
+			case '"':
+				quote = "\""
+				_, after, found = strings.Cut(string(term.Location.Text), quote)
+			case '`':
+				quote = "`"
+				_, after, found = strings.Cut(string(term.Location.Text), quote)
+			}
+
 			if !found {
 				// If no quoted string was found, that means it is a key being formatted to a string
 				// e.g. partial_set.y to partial_set["y"]
 				w.write(x.String())
 			} else {
-				w.write("\"" + after)
+				w.write(quote + after)
 			}
 
 		}

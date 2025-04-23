@@ -1,6 +1,7 @@
 package test
 
 x := "\u0000"
+x := "\u0000 \""
 
 authorize = "\u0000" if {
     input.user == "\u0000"
