@@ -88,8 +88,9 @@ provided for reference.
 
 ### Other Languages
 
-A number of other languages have OPA Wasm support too via various community SDKs.
-<EcosystemFeatureLink feature="wasm-integration" />
+A number of other languages have OPA Wasm support too <EcosystemFeatureLink
+feature="wasm-integration"> via various community SDKs </EcosystemFeatureLink>
+in the OPA Ecosystem.
 
 ### From Scratch
 

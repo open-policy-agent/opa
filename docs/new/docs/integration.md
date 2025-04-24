@@ -165,12 +165,13 @@ Content-Type: application/json
 ```
 
 For another example of how to integrate with OPA via HTTP see the [HTTP API Authorization](../http-api-authorization) tutorial.
+The [reference documentation](../rest-api) is also a good place to start.
 
 #### Ecosystem Projects
 
 The REST API is a common way to build integrations with OPA in distributed systems.
-<EcosystemFeatureLink feature="rest-api-integration"/>
-The [reference documentation](../rest-api) is also a good place to start.
+Browse the OPA Ecosystem for <EcosystemFeatureLink feature="rest-api-integration">
+examples on REST API integrations</EcosystemFeatureLink> for inspiration.
 
 ### Integrating with the Go SDK
 
@@ -429,13 +430,16 @@ the v0 Rego package.
 #### Ecosystem Projects
 
 The Go API is made available to allow other projects to build policy functionality into their
-applications. <EcosystemFeatureLink feature="go-integration" />
+applications. Browse <EcosystemFeatureLink feature="go-integration">Go
+integrations</EcosystemFeatureLink> in the OPA Ecosystem for inspiration.
 
 ### WebAssembly (Wasm)
 
 Policies can be evaluated as compiled Wasm binaries. See [OPA Wasm docs](../wasm) for more details.
 
-There are a number of projects already built on OPA Wasm, <EcosystemFeatureLink feature="wasm-integration" />
+There are a number of projects already built on OPA's Wasm support. Take a look
+in <EcosystemFeatureLink feature="wasm-integration">Wasm
+integrations</EcosystemFeatureLink> in the OPA Ecosystem for more details.
 
 ### Intermediate Representation (IR)
 

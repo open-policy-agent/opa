@@ -59,7 +59,7 @@ import ImageCard from '@site/src/components/ImageCard';
   >
     <strong>Created By</strong>
     <img
-      src="/img/support-logos/styra.png"
+      src={require('./assets/index/styra.png').default}
       alt="Styra Logo"
       style={{ width: '6rem' }}
     />
@@ -100,13 +100,21 @@ import ImageCard from '@site/src/components/ImageCard';
 <SideBySideContainer>
   <SideBySideColumn>
     <h3>Daemon</h3>
-    <p>Deploy OPA as a separate process on the same host as your service. Integrate OPA by changing your service’s code, importing an OPA-enabled library, or using a network proxy integrated with OPA.</p>
-    <img src="/img/index/deployment/daemon.png" alt="Deployment Options" style={{ display: 'block', margin: "0 auto", maxWidth: '15rem', height: 'auto' }} />
+    <p>
+      Deploy OPA as a separate process on the same host as your service. Integrate
+      OPA by changing your service’s code, importing an OPA-enabled library, or
+      using a network proxy integrated with OPA.
+    </p>
+    <img src={require('./assets/index/deployment/daemon.png').default}
+      alt="Deployment Options"
+      style={{ display: 'block', margin: "0 auto", maxWidth: '15rem', height: 'auto' }} />
   </SideBySideColumn>
   <SideBySideColumn>
     <h3>Library</h3>
     <p>Embed OPA policies into your service. Integrate OPA as a Go library that evaluates policy, or integrate a WebAssembly runtime and use OPA to compile policy to WebAssembly instructions.</p>
-    <img src="/img/index/deployment/library.png" alt="Deployment Options" style={{ display: 'block', margin: "0 auto", maxWidth: '15rem', height: 'auto' }} />
+    <img src={require('./assets/index/deployment/library.png').default}
+      alt="Deployment Options"
+      style={{ display: 'block', margin: "0 auto", maxWidth: '15rem', height: 'auto' }} />
   </SideBySideColumn>
 </SideBySideContainer>
 
@@ -123,7 +131,7 @@ import ImageCard from '@site/src/components/ImageCard';
 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', justifyContent: 'center' }}>
 <ImageCard
   item={{
-    image: '/img/index/uis/playground.png',
+    image: require('./assets/index/uis/playground.png').default,
     title: 'Rego Playground for Policy Sharing',
     note: 'Share and test policies in an interactive playground.',
     link: 'https://play.openpolicyagent.org/',
@@ -132,7 +140,7 @@ import ImageCard from '@site/src/components/ImageCard';
 />
 <ImageCard
   item={{
-    image: '/img/index/uis/vscode.png',
+    image: require('./assets/index/uis/vscode.png').default,
     title: 'VS Code for Policy Authoring',
     note: 'Author policies with syntax highlighting and IntelliSense.',
     link: 'https://marketplace.visualstudio.com/items?itemName=tsandall.opa',
@@ -141,7 +149,7 @@ import ImageCard from '@site/src/components/ImageCard';
 />
 <ImageCard
   item={{
-    image: '/img/index/uis/cli.png',
+    image: require('./assets/index/uis/cli.png').default,
     title: 'CLI and REPL for complete control',
     note: 'Use the command line interface and REPL for advanced policy management.',
     link: '/docs/latest/#running-opa',

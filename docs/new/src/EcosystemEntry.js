@@ -4,6 +4,7 @@ import React from "react";
 import ReactMarkdown from "react-markdown";
 
 import entries from "@generated/ecosystem-data/default/entries.json";
+import getLogoAsset from "./lib/ecosystem/getLogoAsset.js";
 
 const EcosystemEntry = (props) => {
   const { id } = props.route.customData;
@@ -19,27 +20,23 @@ const EcosystemEntry = (props) => {
     videos,
     tutorials,
     content,
-    logo,
   } = page;
 
   return (
     <Layout title={title}>
       <div className="container margin-vert--lg">
         <div style={{ display: "flex", alignItems: "center", marginBottom: "1rem" }}>
-          {/* Logo */}
           <img
-            src={logo}
+            src={getLogoAsset(id)}
             alt={`${title} Logo`}
             style={{ maxWidth: "150px", height: "auto", marginRight: "1rem" }}
           />
 
-          {/* Title */}
           <Heading as="h1" style={{ margin: 0 }}>
             {title}
           </Heading>
         </div>
 
-        {/* Subtitle */}
         {subtitle && <p style={{ fontSize: "1.2rem", color: "#555" }}>{subtitle}</p>}
 
         {/* Content (Markdown) */}
