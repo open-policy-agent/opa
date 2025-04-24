@@ -1,6 +1,5 @@
 ---
 title: "Introduction"
-sidebar_position: 1
 ---
 
 The Open Policy Agent (OPA, pronounced "oh-pa") is an open source,
@@ -16,11 +15,11 @@ a graduated project in the [Cloud Native Computing Foundation
 [announcement](https://www.cncf.io/announcements/2021/02/04/cloud-native-computing-foundation-announces-open-policy-agent-graduation/).
 
 Read this page to learn about the core concepts in OPA's policy language
-([Rego](policy-language)) as well as how to download, run, and integrate OPA.
+([Rego](./docs/policy-language)) as well as how to download, run, and integrate OPA.
 
 ## Overview
 
-OPA [decouples](philosophy#policy-decoupling) policy decision-making from policy
+OPA [decouples](./docs/philosophy#policy-decoupling) policy decision-making from policy
 enforcement. When your software needs to make policy decisions it **queries**
 OPA and supplies structured data (e.g., JSON) as input. OPA accepts arbitrary
 structured data as input.
@@ -104,7 +103,7 @@ the policy.
 
 OPA policies are expressed in a high-level declarative language called Rego.
 Rego (pronounced "ray-go") is purpose-built for expressing policies over complex
-hierarchical data structures. For detailed information on Rego see the [Policy Language](policy-language) documentation.
+hierarchical data structures. For detailed information on Rego see the [Policy Language](./docs/policy-language) documentation.
 
 :::info
 💡 The examples below are interactive! If you edit the input data above
@@ -118,7 +117,7 @@ and rules and observe the difference in output.
 Note that the examples in this section try to represent the best practices.
 As such, they make use of keywords that are meant to become standard keywords
 at some point in time, but have been introduced gradually.
-[See the docs on _future keywords_](./policy-language/#future-keywords) for more information.
+[See the docs on _future keywords_](./docs/policy-language/#future-keywords) for more information.
 :::
 
 ### References
@@ -188,7 +187,7 @@ count(input.servers[0].protocols) >= 1
 ```
 
 For a complete list of built-in functions supported in OPA out-of-the-box see
-the [Policy Reference](./policy-reference) page.
+the [Policy Reference](./docs/policy-reference) page.
 
 Multiple expressions are joined together with the `;` (AND) operator. For
 queries to produce results, all of the expressions in the query must be true or
@@ -423,7 +422,7 @@ shell_accessible
 ```live:example/iter/some1:output
 ```
 
-For details on `some ... in ...`, see [the documentation of the `in` operator](policy-language/#membership-and-iteration-in).
+For details on `some ... in ...`, see [the documentation of the `in` operator](./docs/policy-language/#membership-and-iteration-in).
 
 ##### FOR ALL (`every`)
 
@@ -481,7 +480,7 @@ no_telnet_exposed
 ```live:example/iter/every2:output
 ```
 
-For all the details, see [Every Keyword](policy-language/#every-keyword).
+For all the details, see [Every Keyword](./docs/policy-language/#every-keyword).
 
 ### Rules
 
@@ -864,14 +863,14 @@ shasum -c opa_darwin_amd64.sha256
 
 ### 2. Try `opa eval`
 
-The simplest way to interact with OPA is via the command-line using the [`opa eval` sub-command](cli/#opa-eval).
+The simplest way to interact with OPA is via the command-line using the [`opa eval` sub-command](./docs/cli/#opa-eval).
 It is a swiss-army knife that you can use to evaluate arbitrary Rego expressions and policies.
 `opa eval` supports a large number of options for controlling evaluation.
 Commonly used flags include:
 
 | Flag             | Short | Description                                                                                                                                     |
 | ---------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--bundle`       | `-b`  | Load a [bundle file](management-bundles/#bundle-file-format) or directory into OPA. This flag can be repeated.                                  |
+| `--bundle`       | `-b`  | Load a [bundle file](./docs/management-bundles/#bundle-file-format) or directory into OPA. This flag can be repeated.                           |
 | `--data`         | `-d`  | Load policy or data files into OPA. This flag can be repeated.                                                                                  |
 | `--input`        | `-i`  | Load a data file and use it as `input`. This flag cannot be repeated.                                                                           |
 | `--format`       | `-f`  | Set the output format to use. The default is `json` and is intended for programmatic use. The `pretty` format emits more human-readable output. |
@@ -951,7 +950,7 @@ echo $?
 ### 3. Try `opa run` (interactive)
 
 OPA includes an interactive shell or REPL (Read-Eval-Print-Loop) accessible via
-the [`opa run` sub-command](cli/#opa-run).
+the [`opa run` sub-command](./docs/cli/#opa-run).
 You can use the REPL to experiment with policies and prototype new ones.
 
 To start the REPL just:
@@ -1232,17 +1231,17 @@ as how to get OPA and run it on your own.
 
 If you have more questions about how to write policies in Rego check out:
 
-- The [Policy Reference](policy-reference) page for reference documentation on built-in functions.
-- The [Policy Language](policy-language) page for complete descriptions of all language features.
+- The [Policy Reference](./docs/policy-reference) page for reference documentation on built-in functions.
+- The [Policy Language](./docs/policy-language) page for complete descriptions of all language features.
 
 If you want to try OPA for a specific use case check out:
 
-- The [Ecosystem](ecosystem) page which showcases various of OPA integrations.
+- The [Ecosystem](./ecosystem) page which showcases various of OPA integrations.
 
 Some popular tutorials include:
 
-- The [Kubernetes](kubernetes-introduction) page for how to use OPA as an admission controller in Kubernetes.
-- The [Envoy](envoy-introduction) page for how to use OPA as an external authorizer with Envoy.
-- The [Terraform](terraform) page for how to use OPA to validate Terraform plans.
+- The [Kubernetes](./docs/kubernetes) page for how to use OPA as an admission controller in Kubernetes.
+- The [Envoy](./docs/envoy) page for how to use OPA as an external authorizer with Envoy.
+- The [Terraform](./docs/terraform) page for how to use OPA to validate Terraform plans.
 
-Don't forget to install the OPA (Rego) Plugin for your favorite [IDE or Text Editor](editor-and-ide-support)
+Don't forget to install the OPA (Rego) Plugin for your favorite [IDE or Text Editor](./docs/editor-and-ide-support)

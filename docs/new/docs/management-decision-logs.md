@@ -1,7 +1,5 @@
 ---
 title: "Decision Logs"
-kind: management
-weight: 3
 ---
 
 OPA can periodically report decision logs to remote HTTP servers, using custom
@@ -13,7 +11,7 @@ information that enables auditing and offline debugging of policy decisions.
 When decision logging is enabled the OPA server will include a `decision_id`
 field in API calls that return policy decisions.
 
-See the [Configuration Reference](../configuration) for configuration details.
+See the [Configuration Reference](./configuration) for configuration details.
 
 ### Decision Log Service API
 
@@ -75,7 +73,7 @@ Decision log updates contain the following fields:
 | `[_].requested_by`                 | `string`        | Identifier for client that executed policy query, e.g., the client address.                                                                                                                                                                                                                                                                                                                             |
 | `[_].request_context.http.headers` | `object`        | Set of key-value pairs describing HTTP headers and their corresponding values. The header keys in this object are specified by the user as part of the decision log configuration. The values in this object represent a list of values associated with the given header key.                                                                                                                           |
 | `[_].timestamp`                    | `string`        | RFC3999 timestamp of policy decision.                                                                                                                                                                                                                                                                                                                                                                   |
-| `[_].metrics`                      | `object`        | Key-value pairs of [performance metrics](../rest-api#performance-metrics).                                                                                                                                                                                                                                                                                                                              |
+| `[_].metrics`                      | `object`        | Key-value pairs of [performance metrics](./rest-api#performance-metrics).                                                                                                                                                                                                                                                                                                                               |
 | `[_].erased`                       | `array[string]` | Set of JSON Pointers specifying fields in the event that were erased.                                                                                                                                                                                                                                                                                                                                   |
 | `[_].masked`                       | `array[string]` | Set of JSON Pointers specifying fields in the event that were masked.                                                                                                                                                                                                                                                                                                                                   |
 | `[_].nd_builtin_cache`             | `object`        | Key-value pairs of non-deterministic builtin names, paired with objects specifying the input/output mappings for each unique invocation of that builtin during policy evaluation. Intended for use in debugging and decision replay. Receivers will need to decode the JSON using Rego's JSON decoders.                                                                                                 |
@@ -117,7 +115,7 @@ decision_logs:
 ```
 
 This will dump all decisions to the console. See
-[Configuration Reference](../configuration) for more details.
+[Configuration Reference](./configuration) for more details.
 
 ### Masking Sensitive Data
 

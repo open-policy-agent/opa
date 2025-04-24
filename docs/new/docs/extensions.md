@@ -219,7 +219,7 @@ appropriate.
 
 ### Putting It Together
 
-The example below shows how you can implement a custom [Decision Logger](../management-decision-logs)
+The example below shows how you can implement a custom [Decision Logger](./management-decision-logs)
 that writes events to a stream (e.g., stdout/stderr).
 
 ```golang
@@ -361,7 +361,7 @@ The source code for this example can be found
 [here](https://github.com/open-policy-agent/contrib/tree/main/decision_logger_plugin_example).
 
 :::info
-If there is a mask policy set (see [Decision Logger](../management-decision-logs)
+If there is a mask policy set (see [Decision Logger](./management-decision-logs)
 for details) the `Event` received by the demo plugin will potentially be different
 than the example documented.
 :::

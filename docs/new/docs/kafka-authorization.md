@@ -1,7 +1,5 @@
 ---
 title: Kafka
-kind: tutorial
-weight: 1
 ---
 
 [Apache Kafka](https://kafka.apache.org/) is a high-performance distributed
@@ -15,8 +13,8 @@ This tutorial shows how to enforce fine-grained access control over Kafka
 topics. In this tutorial you will use OPA to define and enforce an
 authorization policy stating:
 
-* Consumers of topics containing Personally Identifiable Information (PII) must be on allow list.
-* Producers to topics with _high fanout_ must be on allow list.
+- Consumers of topics containing Personally Identifiable Information (PII) must be on allow list.
+- Producers to topics with _high fanout_ must be on allow list.
 
 In addition, this tutorial shows how to break up a policy with small helper
 rules to reuse logic and improve overall readability.
@@ -26,7 +24,7 @@ rules to reuse logic and improve overall readability.
 This tutorial requires [Docker Compose](https://docs.docker.com/compose/install/) to run Kafka, ZooKeeper, and OPA.
 
 Additionally, we'll use Nginx for serving policy and data bundles to OPA. This component is however easily replaceable
-by any other bundle server [implementation](../management-bundles/#implementations).
+by any other bundle server [implementation](./management-bundles/#implementations).
 
 ## Steps
 
@@ -63,6 +61,7 @@ Next, download the latest version of the [Open Policy Agent plugin for Kafka aut
 plugin from the projects [release pages](https://github.com/StyraInc/opa-kafka-plugin/releases).
 
 Store the plugin in the `plugin` directory (replace `${version}` with the version number of the plugin just downloaded):
+
 ```bash
 mv opa-authorizer-${version}-all.jar plugin/
 ```
@@ -78,33 +77,33 @@ services:
   nginx:
     image: nginx:1.21.4
     volumes:
-      - "./bundles:/usr/share/nginx/html"
+    - "./bundles:/usr/share/nginx/html"
     ports:
-      - "80:80"
+    - "80:80"
   opa:
     image: openpolicyagent/opa:{{< current_docker_version >}}
     ports:
-      - "8181:8181"
+    - "8181:8181"
     command:
-      - "run"
-      - "--server"
-      - "--set=decision_logs.console=true"
-      - "--set=services.authz.url=http://nginx"
-      - "--set=bundles.authz.service=authz"
-      - "--set=bundles.authz.resource=bundle.tar.gz"
+    - "run"
+    - "--server"
+    - "--set=decision_logs.console=true"
+    - "--set=services.authz.url=http://nginx"
+    - "--set=bundles.authz.service=authz"
+    - "--set=bundles.authz.resource=bundle.tar.gz"
     depends_on:
-      - nginx
+    - nginx
   zookeeper:
     image: confluentinc/cp-zookeeper:6.2.1
     ports:
-      - "2181:2181"
+    - "2181:2181"
     environment:
-      - ALLOW_ANONYMOUS_LOGIN=yes
-      - ZOOKEEPER_CLIENT_PORT=2181
+    - ALLOW_ANONYMOUS_LOGIN=yes
+    - ZOOKEEPER_CLIENT_PORT=2181
   broker:
     image: confluentinc/cp-kafka:6.2.1
     ports:
-      - "9093:9093"
+    - "9093:9093"
     environment:
       # Set cache expiry to low value for development in order to see decisions
       KAFKA_OPA_AUTHORIZER_CACHE_EXPIRE_AFTER_SECONDS: 10
@@ -127,11 +126,11 @@ services:
       KAFKA_SSL_CLIENT_AUTH: required
       CLASSPATH: "/plugin/*"
     volumes:
-      - "./plugin:/plugin"
-      - "./cert/server:/etc/kafka/secrets"
+    - "./plugin:/plugin"
+    - "./cert/server:/etc/kafka/secrets"
     depends_on:
-      - opa
-      - zookeeper
+    - opa
+    - zookeeper
 ```
 
 #### Authentication
@@ -192,10 +191,10 @@ repository provides an [example script](https://github.com/StyraInc/opa-kafka-pl
 that demonstrates the creation of client certificates for the four different
 users used in this tutorial:
 
-* `anon_producer`
-* `anon_consumer`
-* `pii_consumer`
-* `fanout_producer`
+- `anon_producer`
+- `anon_consumer`
+- `pii_consumer`
+- `fanout_producer`
 
 Lets' download the script and run it:
 
@@ -225,7 +224,6 @@ docker-compose --project-name opa-kafka-tutorial up
 ```
 
 Now that the tutorial environment is running, we can define an authorization policy using OPA and test it.
-
 
 ### 2. Define a policy to restrict consumer access to topics containing Personally Identifiable Information (PII).
 
@@ -373,6 +371,7 @@ When the bundle under this directory change, OPA is notified via the bundle API,
 and the policies are automatically reloaded.
 
 You can update the bundle at any time by rebuilding it.
+
 ```shell
 opa build --bundle policies/ --output bundles/bundle.tar.gz
 ```
@@ -389,7 +388,6 @@ First, run `kafka-console-producer` to generate some data on the
 `credit-scores` topic.
 
 > This tutorial uses the `kafka-console-producer` and `kafka-console-consumer` scripts provided by Kafka to generate and display Kafka messages. These scripts read from STDIN and write to STDOUT and are frequently used to send and receive data via Kafka over the command line. If you are not familiar with these scripts you can learn more in Kafka's [Quick Start](https://kafka.apache.org/documentation/#quickstart) documentation.
-
 
 ```bash
 docker run -v $(pwd)/cert/client:/tmp/client --rm --network opa-kafka-tutorial_default \
@@ -474,6 +472,7 @@ topic_metadata := {
 ```
 
 Last, build a bundle from the updated policy.
+
 ```shell
 opa build --bundle policies/ --output bundles/bundle.tar.gz
 ```

@@ -1,7 +1,5 @@
 ---
 title: Privacy
-kind: operations
-weight: 50
 ---
 
 This document provides details about OPA's anonymous information reporting feature.
@@ -11,7 +9,7 @@ This document provides details about OPA's anonymous information reporting featu
 OPA periodically reports its version and specific anonymous runtime statistics to a publicly hosted, external service.
 The reports contain the OPA version number (e.g., v0.12.3), a randomly generated UUID and the following runtime statistics:
 
-* heap usage in bytes
+- heap usage in bytes
 
 This feature is only applicable to the `opa run` and `opa version` commands.
 
@@ -45,7 +43,7 @@ User-Agent: "Open Policy Agent/v0.12.3 (darwin, amd64)"
 }
 ```
 
-The *id* field in the request body above is a version 4 random UUID generated when OPA starts.
+The _id_ field in the request body above is a version 4 random UUID generated when OPA starts.
 
 The external service checks the OPA version reported by a remote OPA client and responds with information about the
 latest OPA release. This information includes a link to download the latest OPA version, release notes etc.
@@ -67,15 +65,15 @@ to the OPA release notes.
 
 ## Benefits
 
-* OPA's anonymous version reporting feature provides users with up-to-date information about new OPA versions while
-still executing the familiar OPA `run` and `version` commands. It helps users stay abreast of OPA's latest capabilities
-and hence empowers them to make informed decisions while upgrading their OPA deployments.
+- OPA's anonymous version reporting feature provides users with up-to-date information about new OPA versions while
+  still executing the familiar OPA `run` and `version` commands. It helps users stay abreast of OPA's latest capabilities
+  and hence empowers them to make informed decisions while upgrading their OPA deployments.
 
-* OPA maintainers and the [Cloud Native Computing Foundation](https://cncf.io) (CNCF) executive staff can use the version
-reports for obtaining more information about OPA usage and engagement. For example, the information can be used in 
-making better decisions about OPA's deprecation cycle.
+- OPA maintainers and the [Cloud Native Computing Foundation](https://cncf.io) (CNCF) executive staff can use the version
+  reports for obtaining more information about OPA usage and engagement. For example, the information can be used in
+  making better decisions about OPA's deprecation cycle.
 
-* Reporting a running OPA's memory usage can help to better understand how much memory an OPA instance is consuming and
-thereby drive optimization efforts around better resource utilization. Some users have concerns around OPA's memory usage
-and hence this information can help OPA maintainers quantify the number of impacted OPA deployments and also guide future
-features and priorities for the project.
+- Reporting a running OPA's memory usage can help to better understand how much memory an OPA instance is consuming and
+  thereby drive optimization efforts around better resource utilization. Some users have concerns around OPA's memory usage
+  and hence this information can help OPA maintainers quantify the number of impacted OPA deployments and also guide future
+  features and priorities for the project.

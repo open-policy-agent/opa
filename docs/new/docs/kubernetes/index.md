@@ -247,7 +247,7 @@ eventually consistent snapshot of the Kubernetes cluster as context.
 
 ![Kubernetes Watchers](./assets/kubernetes-watchers.png)
 
-See the [Policy Authoring](../kubernetes-primer) and [Tutorial: Ingress Validation](../kubernetes-tutorial) pages for more details.
+See the [Policy Authoring](./kubernetes/primer) and [Tutorial: Ingress Validation](./kubernetes/tutorial) pages for more details.
 
 ## Additional Resources
 

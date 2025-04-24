@@ -1,13 +1,10 @@
 ---
 title: Development
-kind: contrib
-weight: 4
 ---
 
 OPA is written in the [Go](https://golang.org) programming language.
 
-If you are not familiar with Go we recommend you read through the [How to Write Go
-Code](https://golang.org/doc/code.html) article to familiarize yourself with the standard Go development environment.
+If you are not familiar with Go we recommend you read through the [How to Write Go Code](https://golang.org/doc/code.html) article to familiarize yourself with the standard Go development environment.
 
 Requirements:
 
@@ -82,7 +79,6 @@ git rebase upstream/main
 > If you have Docker available, you can run `make check-yaml-tests` to
 > run `yamllint` on the tests without installing any Python dependencies.
 
-
 ### Submission
 
 Commit changes and push to your fork.
@@ -92,7 +88,7 @@ git commit -s
 git push origin somefeature
 ```
 
-> Make sure to use a [good commit message](../contrib-code/#commit-messages).
+> Make sure to use a [good commit message](./contrib-code/#commit-messages).
 
 Now, submit a Pull Request from your fork.
 See the official [GitHub Documentation](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork)
@@ -126,7 +122,7 @@ force using the `vendor` directory.
 To update a dependency ensure that `GO111MODULE` is either on, or the repository
 qualifies for `auto` to enable module mode. Then simply use `go get ..` to get
 the version desired. This should update the [go.mod](https://github.com/open-policy-agent/opa/blob/main/go.mod) and (potentially)
-[go.sum](https://github.com/open-policy-agent/opa/blob/main/go.sum) files. After this you *MUST* run `go mod vendor` to ensure
+[go.sum](https://github.com/open-policy-agent/opa/blob/main/go.sum) files. After this you _MUST_ run `go mod vendor` to ensure
 that the `vendor` directory is in sync.
 
 Example workflow for updating a dependency:
@@ -155,7 +151,7 @@ only uses `go run ./vendor/<tool pkg>` to force using the correct version.
 If you need to update the version of Go used to build OPA you must update these
 files in the root of this repository:
 
-* `.go-version`- which is used by the Makefile and CI tooling. Put the exact go
+- `.go-version`- which is used by the Makefile and CI tooling. Put the exact go
   version that OPA should use.
 
 ## Refactoring and Style Fixes
@@ -163,12 +159,12 @@ files in the root of this repository:
 If you've found some code that you think would benefit from a refactoring — either by making it more readable or more
 performant, that's great! Some things should however be considered before you submit such a change:
 
-* Avoid mixing bug fixes and feature PRs with refactorings or style fixes. These PRs are generally difficult to review.
+- Avoid mixing bug fixes and feature PRs with refactorings or style fixes. These PRs are generally difficult to review.
   Instead, split your work up in multiple, separate PRs. If a refactoring is "needed" for a feature, at least ensure to
   split the two into separate commits.
-* If you intend to work on a larger refactoring project, make sure to first create an issue for discussion. Sometimes
+- If you intend to work on a larger refactoring project, make sure to first create an issue for discussion. Sometimes
   things are the way they are for a reason, even when it's not immediately obvious.
-* Ensure that there are tests covering the code subject to change.
+- Ensure that there are tests covering the code subject to change.
 
 ## CI Configuration
 
@@ -179,18 +175,18 @@ directory.
 
 The following secrets are used by the Github Action workflows:
 
-| Name | Description |
-|------|-------------|
-| S3_RELEASE_BUCKET | AWS S3 Bucket name to upload `edge` release binaries to. Optional -- If not provided the release upload steps are skipped. |
-| AWS_ACCESS_KEY_ID | AWS credentials required to upload to the configured `S3_RELEASE_BUCKET`. Optional -- If not provided the release upload steps are skipped. |
-| AWS_SECRET_ACCESS_KEY | AWS credentials required to upload to the configured `S3_RELEASE_BUCKET`. Optional -- If not provided the release upload steps are skipped. |
-| DOCKER_IMAGE | Full docker image name (with org) to tag and publish OPA images. Optional -- If not provided the image defaults to `openpolicyagent/opa`. |
-| DOCKER_WASM_BUILDER_IMAGE | Full docker image name (with org) to tag and publish WASM builder images. Optional -- If not provided the image defaults to `openpolicyagent/opa-wasm-builder`. |
-| DOCKER_USER | Docker username for uploading release images. Will be used with `docker login`. Optional -- If not provided the image push steps are skipped. |
-| DOCKER_PASSWORD | Docker password or API token for the configured `DOCKER_USER`. Will be used with `docker login`. Optional -- If not provided the image push steps are skipped. |
-| SLACK_NOTIFICATION_WEBHOOK | Slack webhook for sending notifications. Optional -- If not provided the notification steps are skipped. |
-| TELEMETRY_URL | URL to inject at build-time for OPA version reporting. Optional -- If not provided the default value in OPA's source is used. |
-| NETLIFY_BUILD_HOOK_URL | URL to trigger Netlify (openpolicyagent.org) deploys after release. Optional -- If not provided the Netlify steps are skipped. |
+| Name                       | Description                                                                                                                                                     |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S3_RELEASE_BUCKET          | AWS S3 Bucket name to upload `edge` release binaries to. Optional -- If not provided the release upload steps are skipped.                                      |
+| AWS_ACCESS_KEY_ID          | AWS credentials required to upload to the configured `S3_RELEASE_BUCKET`. Optional -- If not provided the release upload steps are skipped.                     |
+| AWS_SECRET_ACCESS_KEY      | AWS credentials required to upload to the configured `S3_RELEASE_BUCKET`. Optional -- If not provided the release upload steps are skipped.                     |
+| DOCKER_IMAGE               | Full docker image name (with org) to tag and publish OPA images. Optional -- If not provided the image defaults to `openpolicyagent/opa`.                       |
+| DOCKER_WASM_BUILDER_IMAGE  | Full docker image name (with org) to tag and publish WASM builder images. Optional -- If not provided the image defaults to `openpolicyagent/opa-wasm-builder`. |
+| DOCKER_USER                | Docker username for uploading release images. Will be used with `docker login`. Optional -- If not provided the image push steps are skipped.                   |
+| DOCKER_PASSWORD            | Docker password or API token for the configured `DOCKER_USER`. Will be used with `docker login`. Optional -- If not provided the image push steps are skipped.  |
+| SLACK_NOTIFICATION_WEBHOOK | Slack webhook for sending notifications. Optional -- If not provided the notification steps are skipped.                                                        |
+| TELEMETRY_URL              | URL to inject at build-time for OPA version reporting. Optional -- If not provided the default value in OPA's source is used.                                   |
+| NETLIFY_BUILD_HOOK_URL     | URL to trigger Netlify (openpolicyagent.org) deploys after release. Optional -- If not provided the Netlify steps are skipped.                                  |
 
 ### Periodic Workflows
 
@@ -200,6 +196,6 @@ non-deterministic jobs (race detection tests, fuzzing, etc).
 
 Below is a list of workflows and links to their status:
 
-| Workflow | Description |
-|----------|-------------|
+| Workflow                                                                                                                                                                    | Description                    |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
 | [![Nightly](https://github.com/open-policy-agent/opa/workflows/Nightly/badge.svg?branch=main)](https://github.com/open-policy-agent/opa/actions?query=workflow%3A"Nightly") | Runs once per day at 8:00 UTC. |

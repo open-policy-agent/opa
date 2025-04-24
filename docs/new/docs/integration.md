@@ -14,24 +14,24 @@ When integrating with OPA there are two interfaces to consider:
 
 This page focuses predominantly on different ways to integrate with OPA's policy evaluation interface and how they compare. For more information about the management interface:
 
-- See the [Bundle API](../management-bundles) for distributing policy and data to OPA.
-- See the [Status API](../management-status) for collecting status reports on bundle activation and agent health.
-- See the [Decision Log API](../management-decision-logs) for collecting a log of policy decisions made by agents.
-- See the [Health API](../rest-api#health-api) for checking agent deployment readiness and health.
-- See the [Prometheus API endpoint](../monitoring/#prometheus) to obtain insight into performance and errors.
+- See the [Bundle API](./management-bundles) for distributing policy and data to OPA.
+- See the [Status API](./management-status) for collecting status reports on bundle activation and agent health.
+- See the [Decision Log API](./management-decision-logs) for collecting a log of policy decisions made by agents.
+- See the [Health API](./rest-api#health-api) for checking agent deployment readiness and health.
+- See the [Prometheus API endpoint](./monitoring/#prometheus) to obtain insight into performance and errors.
 
 ## Evaluating Policies
 
 OPA supports different ways to evaluate policies.
 
-- The [REST API](../rest-api) returns decisions as JSON over HTTP.
+- The [REST API](./rest-api) returns decisions as JSON over HTTP.
   - Also see the [Language SDKs](/ecosystem/#languages) for working with the REST API in different languages.
 - The [Go API (GoDoc)](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/rego) returns
   decisions as simple Go types (`bool`, `string`, `map[string]interface{}`,
   etc.)
-- [WebAssembly](../wasm) compiles Rego policies into Wasm instructions so they can be embedded and evaluated by any WebAssembly runtime
+- [WebAssembly](./wasm) compiles Rego policies into Wasm instructions so they can be embedded and evaluated by any WebAssembly runtime
 - Custom compilers and evaluators may be written to parse evaluation plans in the low-level
-  [Intermediate Representation](../ir) format, which can be emitted by the `opa build` command
+  [Intermediate Representation](./ir) format, which can be emitted by the `opa build` command
 - The [SDK](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/sdk) provides high-level APIs for obtaining the output
   of query evaluation as simple Go types (`bool`, `string`, `map[string]interface{}`, etc.)
 
@@ -42,13 +42,13 @@ daemon or sidecar container. Running OPA locally on the same host as your
 application or service helps ensure policy decisions are fast and highly-available.
 
 When your application or service needs to make policy decisions it can query OPA
-locally via HTTP. While it's possible to call OPA's [REST API](../rest-api) directly,
+locally via HTTP. While it's possible to call OPA's [REST API](./rest-api) directly,
 you can also find a number of [native language REST SDKs](/ecosystem/#languages)
 which make the integration easier.
 
 #### Named Policy Decisions
 
-Use the [Data API](../rest-api#data-api) to query OPA for _named_ policy decisions:
+Use the [Data API](./rest-api#data-api) to query OPA for _named_ policy decisions:
 
 ```http
 POST /v1/data/<path>
@@ -162,8 +162,8 @@ Content-Type: application/json
 {}
 ```
 
-For another example of how to integrate with OPA via HTTP see the [HTTP API Authorization](../http-api-authorization) tutorial.
-The [reference documentation](../rest-api) is also a good place to start.
+For another example of how to integrate with OPA via HTTP see the [HTTP API Authorization](./http-api-authorization) tutorial.
+The [reference documentation](./rest-api) is also a good place to start.
 
 #### Ecosystem Projects
 
@@ -175,7 +175,7 @@ examples on REST API integrations</EcosystemFeatureLink> for inspiration.
 
 :::info
 This section documents the v1 SDK package.
-Please see [v0 Backwards Compatibility](../v0-compatibility) for notes on using
+Please see [v0 Backwards Compatibility](./v0-compatibility) for notes on using
 the v0 SDK package.
 :::
 
@@ -421,7 +421,7 @@ package in the Go documentation.
 
 :::info
 This section documents the v1 Rego package.
-Please see [v0 Backwards Compatibility](../v0-compatibility) for notes on using
+Please see [v0 Backwards Compatibility](./v0-compatibility) for notes on using
 the v0 Rego package.
 :::
 
@@ -433,7 +433,7 @@ integrations</EcosystemFeatureLink> in the OPA Ecosystem for inspiration.
 
 ### WebAssembly (Wasm)
 
-Policies can be evaluated as compiled Wasm binaries. See [OPA Wasm docs](../wasm) for more details.
+Policies can be evaluated as compiled Wasm binaries. See [OPA Wasm docs](./wasm) for more details.
 
 There are a number of projects already built on OPA's Wasm support. Take a look
 in <EcosystemFeatureLink feature="wasm-integration">Wasm
@@ -444,7 +444,7 @@ integrations</EcosystemFeatureLink> in the OPA Ecosystem for more details.
 Policies may be compiled into evaluation plans using an intermediate representation format, suitable for custom
 compilers and evaluators.
 
-See [OPA IR docs](../ir) for more details.
+See [OPA IR docs](./ir) for more details.
 
 ## Comparison
 
@@ -463,7 +463,7 @@ service. Operationally this makes it easy to upgrade OPA and to configure it to
 use its management services (bundles, status, decision logs, etc.). Because it
 is a separate process it requires monitoring and logging (though this happens
 automatically for any sidecar-aware environment like Kubernetes). OPA's
-configuration and APIs must be secured according to the [security guide](../security).
+configuration and APIs must be secured according to the [security guide](./security).
 
 Integrating OPA via the Go API only works for Go software. Updates to OPA
 require re-vendoring and re-deploying the software. Evaluation has less overhead

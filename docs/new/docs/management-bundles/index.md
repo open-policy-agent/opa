@@ -1,14 +1,12 @@
 ---
 title: "Bundles"
-kind: management
-weight: 2
 ---
 
 OPA can periodically download bundles of policy and data from remote HTTP
 servers. The policies and data are loaded on the fly without requiring a
 restart of OPA. Once the policies and data have been loaded, they are enforced
 immediately. Policies and data loaded from bundles are accessible via the
-standard OPA [REST API](../rest-api).
+standard OPA [REST API](./rest-api).
 
 Bundles provide an alternative to pushing policies into OPA via the REST APIs.
 By configuring OPA to download bundles from a remote HTTP server, you can
@@ -19,11 +17,11 @@ By default, the OPA REST APIs will prevent you from modifying policy and data
 loaded via bundles. If you need to load policy and data from multiple sources,
 see the section below.
 
-See the [Configuration Reference](../configuration) for configuration details.
+See the [Configuration Reference](./configuration) for configuration details.
 
 ### Bundle build
 
-The CLI command [`opa build`](../cli/#opa-build) gives you the capability to build your own bundles.
+The CLI command [`opa build`](./cli/#opa-build) gives you the capability to build your own bundles.
 
 Here is a basic example on how to build a bundle from a folder called `foo`. The bundle will be named by default `bundle.tar.gz`.
 
@@ -46,7 +44,7 @@ Finally, you can also sign your bundle with `opa build`.
 opa build --verification-key /path/to/public_key.pem --signing-key /path/to/private_key.pem --bundle foo/
 ```
 
-For more information, see the [`opa build` command documentation.](../cli/#opa-build)
+For more information, see the [`opa build` command documentation.](./cli/#opa-build)
 
 ### Bundle Service API
 
@@ -182,7 +180,7 @@ the tarball.
 
 :::info
 The hierarchical organization indicates to OPA where to load the data files
-into the [the `data` Document](../philosophy/#the-opa-document-model).
+into the [the `data` Document](./philosophy/#the-opa-document-model).
 :::
 
 You can list the content of a bundle with `tar`.
@@ -216,7 +214,7 @@ fields:
   `string` value that identifies the bundle revision.
 
 - `rego_version` - An optional field that specifies the rego-version of the Rego source files
-  in the bundle. The value of this field is an `integer`; where `0` corresponds to v0 Rego ([OPA v0.x](../v0-compatibility/) syntax),
+  in the bundle. The value of this field is an `integer`; where `0` corresponds to v0 Rego ([OPA v0.x](./v0-compatibility/) syntax),
   and `1` corresponds to v1 Rego (current OPA v1.x syntax).
   If the field is not included in the manifest, OPA will enforce v1 syntax, or v0 if executed with
   the `--v0-compatible` flag.
@@ -296,7 +294,7 @@ expect for policy files `/policy1.rego` and those under the folder `foo`.
 - OPA will only load data files named `data.json` or `data.yaml` (which contain
   JSON or YAML respectively). Other JSON and YAML files will be ignored.
 
-- The `*.rego` policy files must be valid [Modules](../policy-language/#modules)
+- The `*.rego` policy files must be valid [Modules](./policy-language/#modules)
 
 - OPA will only load Wasm modules named `policy.wasm`. Other WebAssembly binary
   files will be ignored.
@@ -324,7 +322,7 @@ aggregation centrally, however, in some cases that's not possible
 When using multiple sources there are **no** ordering guarantees for which bundle loads first and
 takes over some root. If multiple bundles conflict, but are loaded at different
 times, OPA may go into an error state. It is highly recommended to use
-the health check and include bundle state: [Monitoring OPA](../monitoring#health-checks)
+the health check and include bundle state: [Monitoring OPA](./monitoring#health-checks)
 :::
 
 To scope bundles to a subset of OPA's policy and data cache, include
@@ -518,7 +516,7 @@ The signature verification process uses each of the fields in the JWT header and
 
 OPA supports the option to implement your own bundle signing and verification logic. This will be unnecessary
 for most and is intended for advanced use cases, such as leveraging key-related services from cloud providers.
-To implement your own signing and verification logic, you'll need to [extend OPA](../extensions). Here is
+To implement your own signing and verification logic, you'll need to [extend OPA](./extensions). Here is
 [an example](https://github.com/open-policy-agent/contrib/tree/main/custom_bundle_signing) to get you started.
 
 When registering custom signing and verification plugins, you will need to register the Signer and the Verifier
@@ -1219,7 +1217,7 @@ bundles:
 ### OCI Registry
 
 OPA is able to interact with [OCI](https://opencontainers.org/) compatible registries to be able to download and use policies stored as containers.
-To configure OPA to use an OCI repository see the [service configuration section](../configuration/#services)
+To configure OPA to use an OCI repository see the [service configuration section](./configuration/#services)
 
 **Structure**
 The bundle container is composed of 3 layers:
@@ -1228,7 +1226,7 @@ The bundle container is composed of 3 layers:
 - the bundle tarball layer - the actual bundle tarball
 - the configuration layer - currently empty
 
-For OCI compatible registries an _**oci**_ folder is created in the [persistence directory](../configuration/#miscellaneous). If this value is not set, because the OCI downloader plugin requires a storage path, the system's temporary folder location will be used instead. This folder should be maintained by the user. We recommend backing-up or cleaning up this folder periodically as this acts as a local cache for the OCI downloader.
+For OCI compatible registries an _**oci**_ folder is created in the [persistence directory](./configuration/#miscellaneous). If this value is not set, because the OCI downloader plugin requires a storage path, the system's temporary folder location will be used instead. This folder should be maintained by the user. We recommend backing-up or cleaning up this folder periodically as this acts as a local cache for the OCI downloader.
 
 **Current Limitations**
 The OCI Downloader plugin used by OPA has a couple of limitation:
@@ -1245,7 +1243,7 @@ There are multiple ways to build an image from a policy code base using differen
 
 ##### Using OPA and ORAS CLIs
 
-To build and push a policy bundle to a remote OCI registry with the [OPA CLI](../cli/) and [ORAS CLI](https://oras.land/cli/) you can use the following commands:
+To build and push a policy bundle to a remote OCI registry with the [OPA CLI](./cli/) and [ORAS CLI](https://oras.land/cli/) you can use the following commands:
 
 - `opa build <path_to_src>` will allow you to build a bundle tarball from your OPA policy and data files
 

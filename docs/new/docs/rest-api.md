@@ -12,11 +12,11 @@ groups:
 - [Compile API](#compile-api) - access Rego's [Partial Evaluation](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422) functionality.
 - [Health API](#health-api) - access instance operational health information.
 - [Config API](#config-api) - view instance configuration.
-- [Status API](#status-api) - view instance [status](../management-status) state.
+- [Status API](#status-api) - view instance [status](./management-status) state.
 
 The REST API is a common way to integrate with OPA.
 <EcosystemFeatureLink feature="rest-api-integration" />
-You may also want to review the [integration documentation](../integration) for other options
+You may also want to review the [integration documentation](./integration) for other options
 to build on OPA by embedding functionality directly into your application.
 
 :::info
@@ -39,7 +39,7 @@ It indicates the request body format. These are some values used in some APIs:
 
 #### Accept-Encoding
 
-It could have `gzip` value which indicates the server should respond with a gzip encoded body. The server will send the compressed response only if its length is above `server.encoding.gzip.min_length` value. See the [configuration section](../configuration/#server).
+It could have `gzip` value which indicates the server should respond with a gzip encoded body. The server will send the compressed response only if its length is above `server.encoding.gzip.min_length` value. See the [configuration section](./configuration/#server).
 
 #### Content-Encoding
 
@@ -750,7 +750,7 @@ Content-Type: application/json
 
 ## Data API
 
-The Data API exposes endpoints for reading and writing documents in OPA. For an explanation to the different types of documents in OPA see [How Does OPA Work?](../philosophy#how-does-opa-work)
+The Data API exposes endpoints for reading and writing documents in OPA. For an explanation to the different types of documents in OPA see [How Does OPA Work?](./philosophy#how-does-opa-work)
 
 ### Get a Document
 
@@ -860,7 +860,7 @@ Get a document that requires input.
 
 The path separator is used to access values inside object and array documents. The server attempts to convert path segments to integers. If a path element cannot be converted to an integer, the server will use its string representation.
 
-The request body contains an object that specifies a value for [The input Document](../philosophy/#the-opa-document-model).
+The request body contains an object that specifies a value for [The input Document](./philosophy/#the-opa-document-model).
 
 #### Request Headers
 
@@ -979,7 +979,7 @@ Get a document from a webhook.
 Use this API if you are enforcing policy decisions via webhooks that have pre-defined
 request/response formats. Note, the API path prefix is `/v0` instead of `/v1`.
 
-The request message body defines the content of the [input document](../philosophy/#the-opa-document-model). The request message body
+The request message body defines the content of the [input document](./philosophy/#the-opa-document-model). The request message body
 may be empty. The path separator is used to access values inside object and
 array documents.
 
@@ -1191,7 +1191,7 @@ Execute a simple query.
 
 OPA serves POST requests without a URL path by querying for the document at
 path `/data/system/main` by default. The content of that document defines the response
-entirely. This default can be overridden by the `default_decision` configuration. See the [Configuration Reference](../configuration/#miscellaneous)
+entirely. This default can be overridden by the `default_decision` configuration. See the [Configuration Reference](./configuration/#miscellaneous)
 for more information.
 
 #### Request Headers
@@ -1213,10 +1213,10 @@ If the default decision (defaulting to `/system/main`) is undefined, the server 
 
 The policy example below shows how to define a rule that will
 produce a value for the `/data/system/main` document. You can configure OPA
-to use a different URL path to serve these queries. See the [Configuration Reference](../configuration)
+to use a different URL path to serve these queries. See the [Configuration Reference](./configuration)
 for more information.
 
-The request message body is mapped to the [Input Document](../philosophy/#the-opa-document-model).
+The request message body is mapped to the [Input Document](./philosophy/#the-opa-document-model).
 
 ```http
 PUT /v1/policies/example1 HTTP/1.1
@@ -1616,7 +1616,7 @@ that the server is operational. Optionally it can account for bundle activation 
 
 :::info
 The bundle activation check is only for initial bundle activation. Subsequent
-downloads will not affect the health check. The [Status](../management-status)
+downloads will not affect the health check. The [Status](./management-status)
 API should be used for more fine-grained bundle status monitoring.
 :::
 
@@ -1787,7 +1787,7 @@ Other error messages include:
 
 The `/config` API endpoint returns OPA's active configuration. When the discovery feature is enabled, this API can be
 used to fetch the discovered configuration in the last evaluated discovery bundle. The `credentials` field in the
-[Services](../configuration#services) configuration and the `private_key` and `key` fields in the [Keys](../configuration#keys)
+[Services](./configuration#services) configuration and the `private_key` and `key` fields in the [Keys](./configuration#keys)
 configuration will be omitted from the API response.
 
 ### Get Config
@@ -1855,7 +1855,7 @@ Content-Type: application/json
 ## Status API
 
 The `/status` endpoint exposes a pull-based API for accessing OPA
-[Status](../management-status) information. Normally this information is pushed
+[Status](./management-status) information. Normally this information is pushed
 by OPA to a remote service via HTTP, console, or custom plugins. However, in
 some cases, callers may wish to poll OPA and fetch the information.
 
@@ -1932,7 +1932,7 @@ Content-Type: application/json
 
 ## Authentication
 
-The API is secured via [HTTPS, Authentication, and Authorization](../security).
+The API is secured via [HTTPS, Authentication, and Authorization](./security).
 
 ### Bearer Tokens
 

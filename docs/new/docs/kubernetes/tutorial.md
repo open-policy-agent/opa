@@ -1,7 +1,5 @@
 ---
 title: "Tutorial: Ingress Validation"
-kind: kubernetes
-weight: 10
 ---
 
 This tutorial shows how to deploy OPA as an admission controller from scratch.

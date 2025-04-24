@@ -230,7 +230,7 @@ role_perms := {
 - **App, Envoy and OPA (Header Injection policy)**
 
 This scenario is similar to the previous one expect the policy decision is an object which contains optional
-response headers. An example of such a policy can be found [here](../envoy-primer#example-policy-with-object-response).
+response headers. An example of such a policy can be found [here](../envoy/primer#example-policy-with-object-response).
 
 ### Measurements
 

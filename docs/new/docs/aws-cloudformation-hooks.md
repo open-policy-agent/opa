@@ -1,7 +1,5 @@
 ---
 title: AWS CloudFormation Hooks
-kind: tutorial
-weight: 1
 ---
 
 [AWS CloudFormation Hooks](https://docs.aws.amazon.com/cloudformation-cli/latest/userguide/hooks.html) allows users to
@@ -31,11 +29,11 @@ way that follows the domain to which they apply.
 
 In order to complete this tutorial, the following prerequisites needs to be met:
 
-* An AWS account, with permissions to deploy resources via AWS CloudFormation, and valid credentials available to the CLI commands
-* The [AWS CLI](https://aws.amazon.com/cli/) (`aws`) tool
-* The [CloudFormation CLI](https://docs.aws.amazon.com/cloudformation-cli/latest/userguide/what-is-cloudformation-cli.html) (`cfn`) tool
-* Docker
-* OPA server running at an endpoint reachable by the AWS Lambda function, either within the same AWS environment, or
+- An AWS account, with permissions to deploy resources via AWS CloudFormation, and valid credentials available to the CLI commands
+- The [AWS CLI](https://aws.amazon.com/cli/) (`aws`) tool
+- The [CloudFormation CLI](https://docs.aws.amazon.com/cloudformation-cli/latest/userguide/what-is-cloudformation-cli.html) (`cfn`) tool
+- Docker
+- OPA server running at an endpoint reachable by the AWS Lambda function, either within the same AWS environment, or
   elsewhere. While developing your CloudFormation policies, a good option is to run OPA locally, but exposed to the
   public via a service like [tunnelmole](https://tunnelmole.com/docs), an open source tunneling tool or [ngrok](https://ngrok.com/),
   a popular closed source tunneling tool.
@@ -141,16 +139,16 @@ The OPA configured to receive requests from the CFN hook will have its input pro
     "name": "AWS::S3::Bucket",
     "type": "AWS::S3::Bucket",
     "properties": {
-      "Tags": [{"Key": "Owner", "Value": "Platform Team"}],
+      "Tags": [{ "Key": "Owner", "Value": "Platform Team" }],
       "BucketName": "platform-bucket-1"
     }
   }
 }
 ```
 
-* The `action` is either `CREATE`, `UPDATE` or `DELETE`
-* The `id` is the key of the resource, as provided in the template
-* The `type` is divided by "resource domain" and the specific type, so e.g. the S3 domain may contain `Bucket`,
+- The `action` is either `CREATE`, `UPDATE` or `DELETE`
+- The `id` is the key of the resource, as provided in the template
+- The `type` is divided by "resource domain" and the specific type, so e.g. the S3 domain may contain `Bucket`,
   `BucketPolicy`, and so on.
 
 The hook expects the response to contain a boolean `allow` attribute, and a list of (potential) `violations`:
@@ -158,7 +156,10 @@ The hook expects the response to contain a boolean `allow` attribute, and a list
 ```json
 {
   "allow": false,
-  "violations": ["bucket must not be public", "bucket name must follow naming standard"]
+  "violations": [
+    "bucket must not be public",
+    "bucket name must follow naming standard"
+  ]
 }
 ```
 
@@ -168,7 +169,7 @@ Any request denied will be logged in [AWS CloudWatch](https://aws.amazon.com/clo
 
 With knowledge of the domain and the data model, we're ready to write our first CloudFormation Hook policy. Since we'll
 have a single OPA endpoint servicing requests for all types of resources, we'll use the
-[default decision](../configuration/#miscellaneous) policy, which by default queries the `system.main` rule. Let's add a
+[default decision](./configuration/#miscellaneous) policy, which by default queries the `system.main` rule. Let's add a
 simple policy to block an S3 Bucket unless it has an `AccessControl` attribute set to `Private`:
 
 ```live:example/system:module
@@ -234,6 +235,7 @@ block_public_acls if {
 	input.resource.properties.PublicAccessBlockConfiguration.BlockPublicAcls == "true"
 }
 ```
+
 :::
 
 ### 5. Policy Enforcement Testing
@@ -290,6 +292,7 @@ Congratulations! You've just successfully enforced your first CloudFormation Hoo
 template so that it passes our policy requirement:
 
 **s3bucket.yaml**
+
 ```yaml
 Resources:
   ExampleS3Bucket:
@@ -350,6 +353,7 @@ example be the resource type, allowing us to group our policies by the resource 
 take a look at what such a main policy might look like:
 
 **main.rego**
+
 ```live:example/router:module
 # METADATA
 # description: |
@@ -458,6 +462,7 @@ API, as described in the OPA [documentation](https://www.openpolicyagent.org/doc
 A simple authz policy for checking the bearer token might look something like this:
 
 **authz.rego**
+
 ```live:example/authz:module
 package system.authz
 
@@ -488,15 +493,15 @@ to limit the `HookTypePolicy` on the IAM role to the specific secret accessed, i
 
 ```json
 {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "VisualEditor0",
-            "Effect": "Allow",
-            "Action": "secretsmanager:GetSecretValue",
-            "Resource": "arn:aws:secretsmanager:eu-north-1:673240551671:secret:opa-cfn-token-l26bHK"
-        }
-    ]
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "VisualEditor0",
+      "Effect": "Allow",
+      "Action": "secretsmanager:GetSecretValue",
+      "Resource": "arn:aws:secretsmanager:eu-north-1:673240551671:secret:opa-cfn-token-l26bHK"
+    }
+  ]
 }
 ```
 

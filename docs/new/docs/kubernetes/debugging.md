@@ -1,7 +1,5 @@
 ---
 title: Debugging Tips
-kind: kubernetes
-weight: 100
 ---
 
 If you run into problems getting OPA to enforce admission control policies in
@@ -51,9 +49,9 @@ sends HTTP `POST` requests. If there are no `POST` requests contained in the
 there is a network connectivity problem between the Kubernetes API server and
 OPA.
 
-* If you have access to the Kubernetes API server logs, review them to see if
+- If you have access to the Kubernetes API server logs, review them to see if
   they indicate the cause.
-* If you are running on AWS EKS make sure your security group settings allow
+- If you are running on AWS EKS make sure your security group settings allow
   traffic from Kubernetes "master" nodes to the node(s) where OPA is running.
 
 ### Ensure the webhook is configured for the proper namespaces
@@ -63,12 +61,12 @@ it includes a namespaceSelector so that you
 can decide which namespaces to ignore.
 
 ```
-    namespaceSelector:
-      matchExpressions:
-      - key: openpolicyagent.org/webhook
-        operator: NotIn
-        values:
-        - ignore
+namespaceSelector:
+  matchExpressions:
+  - key: openpolicyagent.org/webhook
+    operator: NotIn
+    values:
+    - ignore
 ```
 
 If OPA seems to not be making the decisions you expect, check if the namespace
@@ -84,27 +82,25 @@ If you are using OPA to enforce mutating admission policies you must ensure the
 JSON Patch objects you generate escape "/" characters in the JSON Pointer. For
 example, if you are generating a JSON Patch that sets annotations like
 `acmecorp.com/myannotation` you need to escape the "/" character in the
-annotation name using `~1` (per [RFC
-6901](https://tools.ietf.org/html/rfc6901#section-3)).
+annotation name using `~1` (per [RFC 6901](https://tools.ietf.org/html/rfc6901#section-3)).
 
 **Correct**:
 
 ```json
 {
-   "op": "add",
-   "path": "/metadata/annotations/acmecorp.com~1myannotation",
-   "value": "somevalue"
+  "op": "add",
+  "path": "/metadata/annotations/acmecorp.com~1myannotation",
+  "value": "somevalue"
 }
 ```
 
 **Incorrect**:
 
-
 ```json
 {
-   "op": "add",
-   "path": "/metadata/annotations/acmecorp.com/myannotation",
-   "value": "somevalue"
+  "op": "add",
+  "path": "/metadata/annotations/acmecorp.com/myannotation",
+  "value": "somevalue"
 }
 ```
 
@@ -166,6 +162,5 @@ patches := [
 ```
 
 Also, for more examples of how to construct mutating policies and integrating
-them with validating policies, see [these
-examples](https://github.com/open-policy-agent/library/tree/master/kubernetes/mutating-admission)
+them with validating policies, see [these examples](https://github.com/open-policy-agent/library/tree/master/kubernetes/mutating-admission)
 in https://github.com/open-policy-agent/library.

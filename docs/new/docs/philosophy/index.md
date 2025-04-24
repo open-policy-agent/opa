@@ -140,18 +140,18 @@ avoid naming conflicts.
 The following table summarizes the different models for loading base documents into OPA,
 how they can be referenced inside of policies, and the actual mechanism(s) for loading.
 
-| Model             | How to access in Rego                                            | How to integrate with OPA                                              |
-| ----------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Asynchronous Push | The `data` global variable                                       | Invoke OPA's API(s), e.g., `PUT /v1/data`                              |
-| Asynchronous Pull | The `data` global variable                                       | Configure OPA's [Bundle](../management-bundles) feature                |
-| Synchronous Push  | The `input` global variable                                      | Provide data in policy query, e.g., inside the body of `POST /v1/data` |
-| Synchronous Pull  | The [built-in functions](../policy-reference), e.g., `http.send` | N/A                                                                    |
+| Model             | How to access in Rego                                           | How to integrate with OPA                                              |
+| ----------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Asynchronous Push | The `data` global variable                                      | Invoke OPA's API(s), e.g., `PUT /v1/data`                              |
+| Asynchronous Pull | The `data` global variable                                      | Configure OPA's [Bundle](./management-bundles) feature                 |
+| Synchronous Push  | The `input` global variable                                     | Provide data in policy query, e.g., inside the body of `POST /v1/data` |
+| Synchronous Pull  | The [built-in functions](./policy-reference), e.g., `http.send` | N/A                                                                    |
 
 Data loaded asynchronously into OPA is cached in-memory so that it can be read efficiently
 during policy evaluation. Similarly, policies are also cached in-memory to ensure
 high-performance and high-availability. Data _pulled_ synchronously can also be
 cached in-memory. For more information on loading external data into OPA, including tradeoffs,
-see the [External Data](../external-data) page.
+see the [External Data](./external-data) page.
 
 The following diagram illustrates the base and virtual document model described above for a
 hypothetical policy that renders authorization decisions (named `data.acme.allow`) based on:

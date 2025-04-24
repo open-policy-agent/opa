@@ -1,10 +1,8 @@
 ---
 title: "HTTP APIs"
-kind: tutorial
-weight: 1
 ---
 
-Anything that exposes an HTTP API (whether an individual microservice or an application as a whole) needs to control who can run those APIs and when.  OPA makes it easy to write fine-grained, context-aware policies to implement API authorization.
+Anything that exposes an HTTP API (whether an individual microservice or an application as a whole) needs to control who can run those APIs and when. OPA makes it easy to write fine-grained, context-aware policies to implement API authorization.
 
 ## Goals
 
@@ -15,8 +13,8 @@ web server will be run as containers.
 
 For this tutorial, our desired policy is:
 
-* People can see their own salaries (`GET /finance/salary/{user}` is permitted for `{user}`)
-* A manager can see their direct reports' salaries (`GET /finance/salary/{user}` is permitted for `{user}`'s manager)
+- People can see their own salaries (`GET /finance/salary/{user}` is permitted for `{user}`)
+- A manager can see their direct reports' salaries (`GET /finance/salary/{user}` is permitted for `{user}`'s manager)
 
 ## Prerequisites
 
@@ -29,6 +27,7 @@ This tutorial requires [Docker Compose](https://docs.docker.com/compose/install/
 Create a policy that allows users to request their own salary as well as the salary of their direct subordinates.
 
 **First** create a directory named `bundles` and cd into it.
+
 ```sh
 mkdir bundles
 cd bundles
@@ -75,7 +74,7 @@ Next, create a `docker-compose.yml` file that runs OPA, a bundle server and the 
 **docker-compose.yml**:
 
 ```yaml
-version: '2'
+version: "2"
 services:
   opa:
     image: openpolicyagent/opa:{{< current_docker_version >}}
@@ -130,11 +129,10 @@ You might find it easier to build your OPA integration using one of the
 
 Every time the demo web server receives an HTTP request, it
 asks OPA to decide whether an HTTP API is authorized or not
-using a single RESTful API call.  An example code is [here](https://github.com/open-policy-agent/contrib/blob/main/api_authz/docker/echo_server.py),
+using a single RESTful API call. An example code is [here](https://github.com/open-policy-agent/contrib/blob/main/api_authz/docker/echo_server.py),
 but the crux of the (Python) code is shown below.
 
 ```python
-
 # Grab basic information. We assume user is passed on a form.
 http_api_user = request.form['user']
 
@@ -156,7 +154,6 @@ if rsp.json()["allow"]:
   # HTTP API allowed
 else:
   # HTTP API denied
-
 ```
 
 ### 3. Check that `alice` can see her own salary.
@@ -233,7 +230,7 @@ Build a new bundle with the new policy included.
 opa build example.rego example-hr.rego
 ```
 
-The updated bundle will automatically be served by the bundle server, but note that it  might take up to the
+The updated bundle will automatically be served by the bundle server, but note that it might take up to the
 configured `max_delay_seconds` for the new bundle to be downloaded by OPA. If you plan to make frequent policy
 changes you might want to adjust this value in `docker-compose.yml` accordingly.
 
@@ -242,6 +239,7 @@ inside the policies. In real-world scenarios that information would be imported
 from external data sources.
 
 ### 7. Check that the new policy works.
+
 Check that `david` can see anyone's salary.
 
 ```shell
@@ -252,6 +250,7 @@ curl --user david:password localhost:5000/finance/salary/david
 ```
 
 ### 8. (Optional) Use JSON Web Tokens to communicate policy data.
+
 OPA supports the parsing of JSON Web Tokens via the builtin function `io.jwt.decode`.
 To get a sense of one way the subordinate and HR data might be communicated in the
 real world, let's try a similar exercise utilizing the JWT utilities of OPA.
@@ -363,13 +362,13 @@ Congratulations for finishing the tutorial!
 
 You learned a number of things about API authorization with OPA:
 
-* OPA gives you fine-grained policy control over APIs once you set up the
+- OPA gives you fine-grained policy control over APIs once you set up the
   server to ask OPA for authorization.
-* You write allow/deny policies to control which APIs can be executed by whom.
-* You can import external data into OPA and write policies that depend on
+- You write allow/deny policies to control which APIs can be executed by whom.
+- You can import external data into OPA and write policies that depend on
   that data.
-* You can use OPA data structures to define abstractions over your data.
-* You can use a remote bundle server for distributing policy and data.
+- You can use OPA data structures to define abstractions over your data.
+- You can use a remote bundle server for distributing policy and data.
 
 The code for this tutorial can be found in the
 [open-policy-agent/contrib](https://github.com/open-policy-agent/contrib)

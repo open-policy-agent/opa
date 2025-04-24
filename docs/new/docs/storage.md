@@ -1,14 +1,12 @@
 ---
 title: Storage
-kind: operations
-weight: 60
 ---
 
 ## Disk
 
 This page outlines configuration options relevant to using the disk storage
 feature of OPA.
-Configuration options are to be found in [the configuration docs](../configuration/#disk-storage).
+Configuration options are to be found in [the configuration docs](./configuration/#disk-storage).
 
 :::info
 The persistent disk storage enables OPA to work with data that does not fit
@@ -37,29 +35,29 @@ different configured partitions:
 }
 ```
 
-| Partitions | Keys | Values |
-| --- | --- | --- |
-| (1) none | `/users` | `{"alice": {"roles": ["admin"]}, "bob": {"roles": ["viewer"]}}}` |
-| --- | --- | --- |
-| (2) `/users` | `/users/alice` | `{"roles": ["admin"]}`  |
-|          | `/users/bob`   | `{"roles": ["viewer"]}` |
-| --- | --- | --- |
-| (3) `/users/*` | `/users/alice/roles` | `["admin"]`  |
-|            | `/users/bob/roles`   | `["viewer"]` |
+| Partitions     | Keys                 | Values                                                           |
+| -------------- | -------------------- | ---------------------------------------------------------------- |
+| (1) none       | `/users`             | `{"alice": {"roles": ["admin"]}, "bob": {"roles": ["viewer"]}}}` |
+| ---            | ---                  | ---                                                              |
+| (2) `/users`   | `/users/alice`       | `{"roles": ["admin"]}`                                           |
+|                | `/users/bob`         | `{"roles": ["viewer"]}`                                          |
+| ---            | ---                  | ---                                                              |
+| (3) `/users/*` | `/users/alice/roles` | `["admin"]`                                                      |
+|                | `/users/bob/roles`   | `["viewer"]`                                                     |
 
 Partitioning has consequences on performance: in the example above, the
 number of keys to retrieve from the database (and the amount of data of
 its values) varies.
 
-| Query | Partitions | Number of keys read |
-| --- | --- | --- |
-| `data.users` | (1) | 1 |
-|              | (2) | 2 |
-|              | (3) | 2 |
-| --- | --- | --- |
-| `data.users.alice` | (1) | 1 with `bob` data thrown away|
-|                    | (2) | 2 |
-|                    | (3) | 2 |
+| Query              | Partitions | Number of keys read           |
+| ------------------ | ---------- | ----------------------------- |
+| `data.users`       | (1)        | 1                             |
+|                    | (2)        | 2                             |
+|                    | (3)        | 2                             |
+| ---                | ---        | ---                           |
+| `data.users.alice` | (1)        | 1 with `bob` data thrown away |
+|                    | (2)        | 2                             |
+|                    | (3)        | 2                             |
 
 For example, retrieving the full extent of `data.users` from the disk store
 will require a single key fetch with the partitions of (1).
@@ -85,7 +83,7 @@ error.
 
 ### Metrics
 
-Using the [REST API](../rest-api/), you can include the `?metrics` query string
+Using the [REST API](./rest-api/), you can include the `?metrics` query string
 to gain insights into the disk storage access related to a certain OPA query.
 
 ```
@@ -161,8 +159,7 @@ When the embedded Badger version changes, these configurables could change,
 too.
 :::
 
-The configurables correspond to Badger options that can be set on [the library's Options
-struct](https://pkg.go.dev/github.com/dgraph-io/badger/v3#Options).
+The configurables correspond to Badger options that can be set on [the library's Options struct](https://pkg.go.dev/github.com/dgraph-io/badger/v3#Options).
 
 The following configurables can _not_ be overridden:
 

@@ -1,7 +1,5 @@
 ---
 title: How to contribute
-kind: contrib
-weight: 1
 ---
 
 Thanks for your interest in contributing to the Open Policy Agent project!
@@ -35,17 +33,17 @@ else, head over to
 Slack.
 
 If you want to contribute code check out the
-[development reference](../contrib-development/) for pointers on how to get
+[development reference](./contrib-development/) for pointers on how to get
 started. Please note we have some restrictions around the use of AI tooling
 which are documented here.
 
 ## I'd like to help improve the documentation
 
-Great! Please see our [documentation page](../contrib-docs) for more details.
+Great! Please see our [documentation page](./contrib-docs) for more details.
 
 ## I have an OPA project or talk I'd like to share
 
-Awesome! For OPA-based projects, we have our [Ecosystem page](/ecosystem/).
+Awesome! For OPA-based projects, we have our [Ecosystem page](../ecosystem/).
 This is a great place to showcase your project. See
 [the instructions](https://github.com/open-policy-agent/opa/tree/main/docs#opa-ecosystem)
 here to get it listed.

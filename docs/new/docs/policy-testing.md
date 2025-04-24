@@ -4,7 +4,7 @@ sidebar_position: 4
 ---
 
 OPA gives you a high-level declarative language
-([Rego](../policy-language)) to author fine-grained policies that
+([Rego](./policy-language)) to author fine-grained policies that
 codify important requirements in your system.
 
 To help you verify the correctness of your policies, OPA also gives you a
@@ -16,7 +16,7 @@ and reduce the amount of time it takes to modify rules as requirements evolve.
 The examples in this section try to represent the best practices. As such, they
 make use of keywords that are meant to become standard keywords at some point in
 time, but have been introduced gradually.
-[See the docs on _future keywords_](../policy-language/#future-keywords) for more information.
+[See the docs on _future keywords_](./policy-language/#future-keywords) for more information.
 :::
 
 ## Getting Started
@@ -631,7 +631,7 @@ indicates one of two things:
 - If the line refers to the head of a rule, the body of the rule was never true.
 - If the line refers to an expression in a rule, the expression was never evaluated.
 
-It is also possible that [rule indexing](../policy-performance/#use-indexed-statements)
+It is also possible that [rule indexing](./policy-performance/#use-indexed-statements)
 has determined some path unnecessary for evaluation, thereby affecting the lines
 reported as covered.
 

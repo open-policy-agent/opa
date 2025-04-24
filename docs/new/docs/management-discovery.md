@@ -1,7 +1,5 @@
 ---
 title: "Discovery"
-kind: management
-weight: 5
 ---
 
 OPA can be configured to download bundles of policy and data, report status, and
@@ -28,7 +26,7 @@ reporting **can** be configured manually. In case of conflicts, the bootstrap co
 for plugins would override the discovered configuration. **In general, the bootstrap configuration
 overrides the discovered configuration.**
 
-See the [Configuration Reference](../configuration) for configuration details.
+See the [Configuration Reference](./configuration) for configuration details.
 
 ### Discovery Service API
 
