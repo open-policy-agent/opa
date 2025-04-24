@@ -51,8 +51,9 @@ using the online [OPA playground](http://play.openpolicyagent.org). The
 playground also allows sharing of examples via URL which can be helpful when
 asking questions on the [OPA Slack](https://inviter.co/opa).
 In addition to these official resources, you may also be interested to check
-out the community learning materials and tools.
-<EcosystemFeatureLink feature="learning-rego"/>
+out the
+<EcosystemFeatureLink feature="learning-rego">community learning materials and
+tools</EcosystemFeatureLink>.
 
 ## The Basics
 

@@ -4,7 +4,8 @@ import React from "react";
 import ReactMarkdown from "react-markdown";
 import Card from "./components/Card";
 
-import sortPagesByRank from "./lib/sortPagesByRank";
+import getLogoAsset from "./lib/ecosystem/getLogoAsset.js";
+import sortPagesByRank from "./lib/ecosystem/sortPagesByRank.js";
 
 import entries from "@generated/ecosystem-data/default/entries.json";
 import featureCategories from "@generated/ecosystem-data/default/feature-categories.json";
@@ -67,7 +68,7 @@ const EcosystemFeature = (props) => {
             const cardData = {
               title: page.title,
               note: page.docs_features[feature].note,
-              icon: page.logo,
+              icon: getLogoAsset(page.id),
               link: `/ecosystem/entry/${page.id}`,
               link_text: "View Details",
             };

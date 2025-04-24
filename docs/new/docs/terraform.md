@@ -12,10 +12,10 @@ Terraform is about to make before it makes them. Such tests help in different wa
 - tests can auto-approve run-of-the-mill infrastructure changes and reduce the burden of peer-review
 - tests can help catch problems that arise when applying Terraform to production after applying it to staging
 
-Terraform is a popular integration case for OPA and there are already a number of popular tools for
-running policy on HCL and plan JSONs.
-
-<EcosystemFeatureLink feature="terraform"/>
+Terraform is a popular integration case for OPA and there are already a number
+of popular tools for running policy on HCL and plan JSONs. Browse existing
+<EcosystemFeatureLink feature="terraform"> tools using OPA and
+Terraform</EcosystemFeatureLink> in the OPA Ecosystem.
 
 ## Goals
 

@@ -3,7 +3,8 @@ import Layout from "@theme/Layout";
 import React from "react";
 
 import Card from "../components/Card";
-import sortPagesByRank from "../lib/sortPagesByRank";
+import getLogoAsset from "../lib/ecosystem/getLogoAsset.js";
+import sortPagesByRank from "../lib/ecosystem/sortPagesByRank.js";
 
 import entries from "@generated/ecosystem-data/default/entries.json";
 import featureCategories from "@generated/ecosystem-data/default/feature-categories.json";
@@ -70,7 +71,7 @@ const EcosystemIndex = (props) => {
                   return (
                     <a
                       key={lang.id}
-                      href={`/ecosystem/by-language/${lang.id}`}
+                      href={`./ecosystem/by-language/${lang.id}`}
                       style={{
                         display: "flex",
                         flexDirection: "column",
@@ -82,7 +83,7 @@ const EcosystemIndex = (props) => {
                       }}
                     >
                       <img
-                        src={`/img/ecosystem/languages/logos/${lang.id}.png`}
+                        src={require(`./assets/ecosystem/language-logos/${lang.id}.png`).default}
                         alt={`${lang.title} logo`}
                         style={{
                           width: "64px",
@@ -127,7 +128,7 @@ const EcosystemIndex = (props) => {
                   <ul>
                     {featuresInCategory.map((feature) => (
                       <li key={feature.id}>
-                        <a href={`/ecosystem/by-feature/${feature.id}`}>{feature.title}</a> – {feature.description}
+                        <a href={`./ecosystem/by-feature/${feature.id}`}>{feature.title}</a> – {feature.description}
                       </li>
                     ))}
                   </ul>
@@ -156,7 +157,7 @@ const EcosystemIndex = (props) => {
             const cardData = {
               title: page.title,
               note: page.subtitle,
-              icon: page.logo,
+              icon: getLogoAsset(page.id),
               link: `/ecosystem/entry/${id}`,
               link_text: "View Details",
             };

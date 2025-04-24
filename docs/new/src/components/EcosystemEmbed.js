@@ -1,8 +1,10 @@
+import useBaseUrl from "@docusaurus/useBaseUrl";
 import React from "react";
 import ReactMarkdown from "react-markdown";
 import Card from "./Card";
 
-import sortPagesByRank from "../lib/sortPagesByRank";
+import getLogoAsset from "../lib/ecosystem/getLogoAsset.js";
+import sortPagesByRank from "../lib/ecosystem/sortPagesByRank.js";
 
 import entries from "@generated/ecosystem-data/default/entries.json";
 
@@ -16,6 +18,16 @@ export default function EcosystemEmbed({ feature, children }) {
     if (page.docs_features && page.docs_features[feature]) {
       featurePages.push(page);
     }
+  }
+
+  // if there are too many, then we just provide a link to the page.
+  if (featurePages.length > 5) {
+    return (
+      <div className="margin-vert--lg">
+        Browse {featurePages.length} projects related to "{feature}" in the{" "}
+        <a href={useBaseUrl(`/ecosystem/by-feature/${feature}`)}>OPA Ecosystem</a>.
+      </div>
+    );
   }
 
   const sortedPages = sortPagesByRank(featurePages);
@@ -39,8 +51,8 @@ export default function EcosystemEmbed({ feature, children }) {
           const cardData = {
             title: page.title,
             note: page.docs_features[feature]?.note ?? "No note available",
-            icon: page.logo,
-            link: `/ecosystem/entry/${page.id}`,
+            icon: getLogoAsset(page.id),
+            link: useBaseUrl(`/ecosystem/entry/${page.id}`),
             link_text: "View Details",
           };
 

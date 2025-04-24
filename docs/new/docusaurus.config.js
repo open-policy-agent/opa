@@ -2,11 +2,13 @@ const { themes } = require("prism-react-renderer");
 const lightCodeTheme = themes.github;
 const darkCodeTheme = themes.dracula;
 const semver = require("semver");
-
 import fs from "fs/promises";
 const path = require("path");
 
-const { loadPages, loadEcosystemPages } = require("./src/lib/loadPages");
+const { loadPages, loadEcosystemPages } = require("./src/lib/ecosystem/loadPages");
+
+// TODO: update this to "/" when this is the main site.
+const baseUrl = "/new/";
 
 // With JSDoc @type annotations, IDEs can provide config autocompletion
 /** @type {import("@docusaurus/types").DocusaurusConfig} */
@@ -15,7 +17,7 @@ const { loadPages, loadEcosystemPages } = require("./src/lib/loadPages");
     title: "Open Policy Agent",
     tagline: "Policy-based control for cloud native environments",
     url: "https://openpolicyagent.org",
-    baseUrl: "/",
+    baseUrl: baseUrl,
     // Build-time options
     onBrokenLinks: "throw",
     onBrokenMarkdownLinks: "throw",
@@ -242,7 +244,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
             const { pagesByLanguage, languages } = content;
             await Promise.all(
               Object.keys(languages).map(async (language) => {
-                const routePath = `/ecosystem/by-language/${language}`;
+                const routePath = path.join(baseUrl, `/ecosystem/by-language/${language}`);
                 return actions.addRoute({
                   path: routePath,
                   component: require.resolve("./src/EcosystemLanguage.js"),
@@ -269,7 +271,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
             const { features } = content;
             await Promise.all(
               Object.keys(features).map(async (feature) => {
-                const routePath = `/ecosystem/by-feature/${feature}`;
+                const routePath = path.join(baseUrl, `/ecosystem/by-feature/${feature}`);
                 return actions.addRoute({
                   path: routePath,
                   component: require.resolve("./src/EcosystemFeature.js"),
@@ -288,7 +290,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
           name: "ecosystem-data",
 
           async loadContent() {
-            const entries = await loadEcosystemPages(context.siteDir);
+            const entries = await loadPages(path.join(context.siteDir, "src/data/ecosystem/entries/*.md"));
             const languages = await loadPages(path.join(context.siteDir, "src/data/ecosystem/languages/*.md"));
             const features = await loadPages(path.join(context.siteDir, "src/data/ecosystem/features/*.md"));
             const featureCategories = await loadPages(
@@ -339,22 +341,22 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
         return {
           name: "ecosystem-entries-pages-gen",
           async loadContent() {
-            const pages = await loadEcosystemPages(context.siteDir);
-            return { pages };
+            const entries = await loadPages(path.join(context.siteDir, "src/data/ecosystem/entries/*.md"));
+            return { entries };
           },
 
           async contentLoaded({ content, actions }) {
-            const { pages } = content;
+            const { entries } = content;
 
             await Promise.all(
-              Object.values(pages).map(async (page) => {
-                const routePath = `/ecosystem/entry/${page.id}`;
+              Object.values(entries).map(async (entry) => {
+                const routePath = path.join(baseUrl, `/ecosystem/entry/${entry.id}`);
                 return actions.addRoute({
                   path: routePath,
                   component: require.resolve("./src/EcosystemEntry.js"),
                   exact: true,
                   modules: {},
-                  customData: { id: page.id },
+                  customData: { id: entry.id },
                 });
               }),
             );
