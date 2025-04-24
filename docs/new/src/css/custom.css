@@ -42,3 +42,19 @@
 		width: 100%;
 	}
 }
+
+.divider-after:after {
+	content: "";
+	/* This is necessary for the pseudo element to work. */
+	display: block;
+	/* This will put the pseudo element on its own line. */
+	margin: 0 auto;
+	/* This will center the border. */
+	width: 90%;
+	/* Change this to whatever width you want. */
+	padding-top: 0.5em;
+	/* This creates some space between the element and the border. */
+	margin-bottom: 0.5em;
+	border-bottom: 1px solid var(--ifm-menu-color);
+	/* This creates the border. */
+}
