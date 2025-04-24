@@ -4000,10 +4000,10 @@ func TestStatusV1(t *testing.T) {
 		if err := util.NewJSONDecoder(f.recorder.Body).Decode(&resp2); err != nil {
 			t.Fatal(err)
 		}
-		if resp2.Result.Bundles.Test.Name == "test" {
+		if resp2.Result.Bundles.Test.HTTPCode == "403" && resp2.Result.Bundles.Test.Name == "test" {
 			ok = true
 		} else {
-			t.Log("expected bundle name to be \"test\" but got:", resp2)
+			t.Log("expected status to be 403 and bundle name to be \"test\" but got:", resp2)
 		}
 	}
 
