@@ -88,11 +88,13 @@ preview-build:
 		--buildDrafts \
 		--buildFuture \
 		--ignoreCache
-	make live-blocks-inject
+	# this is not compatible with node 22
+	# make live-blocks-inject
 
 .PHONY: new-site
 new-site:
-	cd new
-	npm ci
-	npx docusaurus build
-	cp -r build/. ../website/public/new
+	cd new && \
+		npm ci && \
+		npx docusaurus build && \
+		mkdir -p ../website/public/new && \
+		cp -r build/. ../website/public/new

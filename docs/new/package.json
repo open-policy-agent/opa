@@ -16,5 +16,8 @@
     "md-front-matter": "^1.0.4",
     "raw-loader": "^4.0.2",
     "react-markdown": "^10.1.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
   }
 }

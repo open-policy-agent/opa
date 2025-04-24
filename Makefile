@@ -466,7 +466,7 @@ endif
 netlify-prod: clean docs-clean build docs-production-build docs-new-site
 
 .PHONY: netlify-preview
-netlify-preview: clean docs-clean build docs-live-blocks-install-deps docs-live-blocks-test docs-dev-generate docs-preview-build
+netlify-preview: clean docs-clean build docs-live-blocks-install-deps docs-dev-generate docs-preview-build docs-new-site
 
 # Kept for compatibility. Use `make fuzz` instead.
 .PHONY: check-fuzz
