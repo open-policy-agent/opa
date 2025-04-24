@@ -118,7 +118,7 @@ const baseUrl = "/new/";
             type: "html",
             position: "right",
             value: `
-        <a href="https://github.com/open-policy-agent/gatekeeper"
+        <a href="https://github.com/open-policy-agent/opa"
            target="_blank"
            rel="noopener noreferrer"
            aria-label="GitHub repository">
