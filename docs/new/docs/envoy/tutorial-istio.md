@@ -1,7 +1,6 @@
 ---
 title: "Tutorial: Istio"
-kind: envoy
-weight: 11
+sidebar_position: 3
 ---
 
 [Istio](https://istio.io/latest/) is an open source service mesh for managing the different microservices that make

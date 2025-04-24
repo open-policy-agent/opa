@@ -1,7 +1,6 @@
 ---
 title: Debugging Tips
-kind: envoy
-weight: 110
+sidebar_position: 6
 ---
 
 This page provides some pointers that could assist in addressing issues encountered while using the
@@ -35,7 +34,7 @@ field will help uncover potential network issues as `403 Forbidden` is also gene
 
 This section provides examples of interacting with the Envoy External Authorization gRPC server using the [grpcurl](https://github.com/fullstorydev/grpcurl) tool.
 
-* List all services exposed by the server
+- List all services exposed by the server
 
   ```bash
   $ grpcurl -plaintext localhost:9191 list
@@ -49,7 +48,7 @@ This section provides examples of interacting with the Envoy External Authorizat
   grpc.reflection.v1alpha.ServerReflection
   ```
 
-* Invoke a v3 Check RPC on the server
+- Invoke a v3 Check RPC on the server
 
   ```bash
   $ grpcurl -plaintext -d '
@@ -70,7 +69,6 @@ This section provides examples of interacting with the Envoy External Authorizat
   ```json
   {
     "status": {
-
     },
     "okResponse": {
       "headers": [
