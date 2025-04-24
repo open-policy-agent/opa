@@ -89,3 +89,10 @@ preview-build:
 		--buildFuture \
 		--ignoreCache
 	make live-blocks-inject
+
+.PHONY: new-site
+new-site:
+	cd new
+	npm ci
+	npx docusaurus build
+	cp -r build/. ../website/public/new
