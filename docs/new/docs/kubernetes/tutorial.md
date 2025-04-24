@@ -120,9 +120,7 @@ mkdir policies && cd policies
 Create a policy that restricts the hostnames that an ingress can use. Only hostnames matching the specified regular
 expressions will be allowed.
 
-**ingress-allowlist.rego**:
-
-```live:ingress_allowlist:module:read_only
+```rego title="ingress-allowlist.rego"
 package kubernetes.admission
 
 import data.kubernetes.namespaces
@@ -167,7 +165,7 @@ namespaces from sharing the same hostname.
 
 **ingress-conflicts.rego**:
 
-```live:ingress_conflicts:module:read_only
+```rego title="ingress-conflicts.rego"
 package kubernetes.admission
 
 import data.kubernetes.ingresses
@@ -189,9 +187,7 @@ deny contains msg if {
 Let's define a main policy that imports the [Restrict Hostnames](#policy-1-restrict-hostnames) and
 [Prohibit Hostname Conflicts](#policy-2-prohibit-hostname-conflicts) policies and provides an overall policy decision.
 
-**main.rego**:
-
-```live:main:module:read_only
+```rego title="main.rego"
 package system
 
 import data.kubernetes.admission
@@ -250,9 +246,7 @@ docker run --rm --name bundle-server -d -p 8888:80 -v ${PWD}:/usr/share/nginx/ht
 
 Next, use the file below to deploy OPA as an admission controller.
 
-**`admission-controller.yaml`**:
-
-```
+```yaml title="admission-controller.yaml"
 # Grant OPA/kube-mgmt read-only access to resources. This lets kube-mgmt
 # replicate resources into OPA so they can be used in policies.
 kind: ClusterRoleBinding
@@ -327,52 +321,52 @@ spec:
       name: opa
     spec:
       containers:
-        # WARNING: OPA is NOT running with an authorization policy configured. This
-        # means that clients can read and write policies in OPA. If you are
-        # deploying OPA in an insecure environment, be sure to configure
-        # authentication and authorization on the daemon. See the Security page for
-        # details: https://www.openpolicyagent.org/docs/security.html.
-        - name: opa
-          image: openpolicyagent/opa:{{< current_docker_version >}}
-          args:
-            - "run"
-            - "--server"
-            - "--tls-cert-file=/certs/tls.crt"
-            - "--tls-private-key-file=/certs/tls.key"
-            - "--addr=0.0.0.0:8443"
-            - "--addr=http://127.0.0.1:8181"
-            - "--set=services.default.url=http://host.minikube.internal:8888"
-            - "--set=bundles.default.resource=bundle.tar.gz"
-            - "--log-format=json-pretty"
-            - "--set=status.console=true"
-            - "--set=decision_logs.console=true"
-          volumeMounts:
-            - readOnly: true
-              mountPath: /certs
-              name: opa-server
-          readinessProbe:
-            httpGet:
-              path: /health?plugins&bundle
-              scheme: HTTPS
-              port: 8443
-            initialDelaySeconds: 3
-            periodSeconds: 5
-          livenessProbe:
-            httpGet:
-              path: /health
-              scheme: HTTPS
-              port: 8443
-            initialDelaySeconds: 3
-            periodSeconds: 5
-        - name: kube-mgmt
-          image: openpolicyagent/kube-mgmt:2.0.1
-          args:
-            - "--replicate-cluster=v1/namespaces"
-            - "--replicate=networking.k8s.io/v1/ingresses"
+      # WARNING: OPA is NOT running with an authorization policy configured. This
+      # means that clients can read and write policies in OPA. If you are
+      # deploying OPA in an insecure environment, be sure to configure
+      # authentication and authorization on the daemon. See the Security page for
+      # details: https://www.openpolicyagent.org/docs/security.html.
+      - name: opa
+        image: openpolicyagent/opa:{{< current_docker_version >}}
+        args:
+        - "run"
+        - "--server"
+        - "--tls-cert-file=/certs/tls.crt"
+        - "--tls-private-key-file=/certs/tls.key"
+        - "--addr=0.0.0.0:8443"
+        - "--addr=http://127.0.0.1:8181"
+        - "--set=services.default.url=http://host.minikube.internal:8888"
+        - "--set=bundles.default.resource=bundle.tar.gz"
+        - "--log-format=json-pretty"
+        - "--set=status.console=true"
+        - "--set=decision_logs.console=true"
+        volumeMounts:
+        - readOnly: true
+          mountPath: /certs
+          name: opa-server
+        readinessProbe:
+          httpGet:
+            path: /health?plugins&bundle
+            scheme: HTTPS
+            port: 8443
+          initialDelaySeconds: 3
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /health
+            scheme: HTTPS
+            port: 8443
+          initialDelaySeconds: 3
+          periodSeconds: 5
+      - name: kube-mgmt
+        image: openpolicyagent/kube-mgmt:2.0.1
+        args:
+        - "--replicate-cluster=v1/namespaces"
+        - "--replicate=networking.k8s.io/v1/ingresses"
       volumes:
-        - name: opa-server
-          secret:
-            secretName: opa-server
+      - name: opa-server
+        secret:
+          secretName: opa-server
 ```
 
 > ⚠️ If using `kind` to run a local Kubernetes cluster, the bundle service URL should be `http://host.docker.internal:8888`.
@@ -385,7 +379,7 @@ When OPA starts, the `kube-mgmt` container will load Kubernetes Namespace and In
 configure the sidecar to load any kind of Kubernetes object into OPA. The sidecar establishes watches on the
 Kubernetes API server so that OPA has access to an eventually consistent cache of Kubernetes objects.
 
-Next, generate the manifest that will be used to register OPA as an admission controller.  This webhook will ignore
+Next, generate the manifest that will be used to register OPA as an admission controller. This webhook will ignore
 any namespace with the label `openpolicyagent.org/webhook=ignore`.
 
 ```bash
@@ -444,9 +438,7 @@ kubectl logs -l app=opa -c opa -f
 
 Now let's exercise the [Restrict Hostnames](#policy-1-restrict-hostnames) policy by creating two new namespaces.
 
-**qa-namespace.yaml**:
-
-```yaml
+```yaml title="qa-namespace.yaml"
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -455,9 +447,7 @@ metadata:
   name: qa
 ```
 
-**production-namespace.yaml**:
-
-```yaml
+```yaml title="production-namespace.yaml"
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -474,9 +464,7 @@ kubectl create -f production-namespace.yaml
 Next, define two Ingress objects. One of the Ingress objects will be permitted
 and the other will be rejected.
 
-**ingress-ok.yaml**:
-
-```yaml
+```yaml title="ingress-ok.yaml"
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -495,9 +483,7 @@ spec:
               number: 80
 ```
 
-**ingress-bad.yaml**:
-
-```yaml
+```yaml title="ingress-bad.yaml"
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -537,9 +523,7 @@ denied the request: invalid ingress host "acmecorp.com"
 Test the [Prohibit Hostname Conflicts](#policy-2-prohibit-hostname-conflicts) policy by verifying that you cannot
 create an Ingress in another namespace with the same hostname as the one created earlier.
 
-**staging-namespace.yaml**:
-
-```yaml
+```yaml title="staging-namespace.yaml"
 apiVersion: v1
 kind: Namespace
 metadata:

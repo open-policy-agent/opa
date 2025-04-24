@@ -1,7 +1,5 @@
 ---
-title: Overview & Architecture
-kind: kubernetes
-weight: 1
+title: "Overview & Architecture"
 ---
 
 In Kubernetes, [Admission Controllers](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/)
@@ -62,7 +60,7 @@ The Kubernetes API Server is configured to query OPA for admission control
 decisions when objects (e.g., Pods, Services, etc.) are created, updated, or
 deleted.
 
-![Kubernetes Admission Control Flow](kubernetes-admission-flow.png)
+![Kubernetes Admission Control Flow](./assets/kubernetes-admission-flow.png)
 
 The API Server sends the entire Kubernetes object in the webhook request to OPA.
 OPA evaluates the policies it has loaded using the admission review as `input`.
@@ -247,7 +245,7 @@ The kube-mgmt sidecar container can also load any other Kubernetes object into
 OPA as JSON under `data`. This lets you enforce policies that rely on an
 eventually consistent snapshot of the Kubernetes cluster as context.
 
-![Kubernetes Watchers](kubernetes-watchers.png)
+![Kubernetes Watchers](./assets/kubernetes-watchers.png)
 
 See the [Policy Authoring](../kubernetes-primer) and [Tutorial: Ingress Validation](../kubernetes-tutorial) pages for more details.
 
