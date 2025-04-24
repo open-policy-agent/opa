@@ -905,8 +905,8 @@ opa run [flags]
 ```
 
 -a, --addr strings set listening address of the server (e.g., `[ip]:<port>` for TCP, `unix://<path>` for UNIX domain socket) (default [localhost:8181])
---authentication {token,tls,off} set authentication scheme (default off)
---authorization {basic,off} set authorization scheme (default off)
+--authentication `{token,tls,off}` set authentication scheme (default off)
+--authorization `{basic,off}` set authorization scheme (default off)
 -b, --bundle load paths as bundle files or root directories
 -c, --config-file string set path of configuration file
 --diagnostic-addr strings set read-only diagnostic listening address of the server for /health and /metric APIs (e.g., `[ip]:<port>` for TCP, `unix://<path>` for UNIX domain socket)
@@ -917,8 +917,8 @@ opa run [flags]
 -h, --help help for run
 -H, --history string set path of history file (default "$HOME/.opa_history")
 --ignore strings set file and directory names to ignore during loading (e.g., '.*' excludes hidden files)
---log-format {text,json,json-pretty} set log format (default json)
--l, --log-level {debug,info,error} set log level (default info)
+--log-format `{text,json,json-pretty}` set log format (default json)
+-l, --log-level `{debug,info,error}` set log level (default info)
 --log-timestamp-format string set log timestamp format (OPA_LOG_TIMESTAMP_FORMAT environment variable)
 -m, --max-errors int set the number of errors to allow before compilation fails early (default 10)
 --min-tls-version {1.0,1.1,1.2,1.3} set minimum TLS version to be used by OPA's server (default 1.2)
