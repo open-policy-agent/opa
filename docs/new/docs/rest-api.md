@@ -1,8 +1,6 @@
 ---
 title: REST API
-kind: documentation
-weight: 80
-restrictedtoc: true
+sidebar_position: 10
 ---
 
 This document is the authoritative specification of the OPA REST API. The API can be broken down into the following

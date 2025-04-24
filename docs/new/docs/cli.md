@@ -1,8 +1,6 @@
 ---
 title: CLI
-kind: documentation
-weight: 90
-restrictedtoc: true
+sidebar_position: 11
 ---
 
 The OPA executable provides the following commands. Note that command line arguments may either be provided as

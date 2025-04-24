@@ -1,8 +1,6 @@
 ---
 title: Policy Reference
-kind: documentation
-weight: 3
-toc: true
+sidebar_position: 3
 ---
 
 ## Assignment and Equality

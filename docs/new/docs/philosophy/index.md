@@ -1,7 +1,6 @@
 ---
 title: Philosophy
-kind: documentation
-weight: 1
+sidebar_position: 2
 ---
 
 A [**policy**](#policy) is a set of rules that governs the behavior of a

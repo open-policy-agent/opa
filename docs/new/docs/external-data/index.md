@@ -1,8 +1,6 @@
 ---
 title: External Data
-kind: documentation
-weight: 60
-restrictedtoc: true
+sidebar_position: 6
 ---
 
 OPA was designed to let you make context-aware authorization and policy decisions by injecting external data that describes what is happening in the world and then writing policy using that data. OPA has a cache or replica of that data, just as OPA has a cache/replica of policy; OPA is not designed to be the source of truth for either.
@@ -23,7 +21,7 @@ The following diagram shows this process in more detail.
 1. The OPA-enabled software system includes that token as part of the usual `input` to OPA.
 1. OPA decodes the JWT token and uses the contents to make policy decisions.
 
-![JWT flow](data-jwt.png)
+![JWT flow](./assets/data-jwt.png)
 
 ### Updates
 
@@ -53,7 +51,7 @@ The file-ownership system may be the one that is asking for an authorization dec
 1. OPA-enabled software sends `input` to OPA including the external data
 1. Policy makes decisions based on external data included in `input`
 
-![Input flow](data-input.png)
+![Input flow](./assets/data-input.png)
 
 ### Updates
 
@@ -83,7 +81,7 @@ Three things happen independently with this kind of data integration.
 - B. OPA downloads new policy bundles including external data
 - C. Bundle server replicates data from source of truth
 
-![Bundle flow](data-bundle.png)
+![Bundle flow](./assets/data-bundle.png)
 
 ### Updates
 
@@ -125,7 +123,7 @@ Three things happen independently with this kind of data replication.
 
 Depending on the replication scheme, B and C could be tied together so that every update the data replicator gets from the source of truth it pushes into OPA, but in general those could be decoupled depending on the desired network load, the changes in the data, and so on.
 
-![Push flow](data-push.png)
+![Push flow](./assets/data-push.png)
 
 ### Updates
 
@@ -168,7 +166,7 @@ The key difference here is that every decision requires contacting the external 
 1. OPA-enabled service asks OPA for a decision
 1. During evaluation OPA asks the external data source for additional information
 
-![Pull flow](data-pull.png)
+![Pull flow](./assets/data-pull.png)
 
 ### Updates
 

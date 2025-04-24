@@ -1,7 +1,6 @@
 ---
 title: Upgrading to v1.0
-kind: documentation
-weight: 122
+sidebar_position: 14
 ---
 
 All users should plan to upgrade to OPA v1.0 eventually. Some users, with more

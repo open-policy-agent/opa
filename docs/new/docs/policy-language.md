@@ -1,8 +1,6 @@
 ---
 title: Policy Language
-kind: documentation
-weight: 2
-toc: true
+sidebar_position: 3
 ---
 
 ```live:eg:module:hidden

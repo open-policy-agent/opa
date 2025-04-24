@@ -1,7 +1,6 @@
 ---
 title: WebAssembly
-kind: documentation
-weight: 110
+sidebar_position: 13
 ---
 
 # What is WebAssembly (Wasm)?

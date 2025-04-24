@@ -2,9 +2,9 @@ import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
 import React from "react";
 
-import Card from "../components/Card";
-import getLogoAsset from "../lib/ecosystem/getLogoAsset.js";
-import sortPagesByRank from "../lib/ecosystem/sortPagesByRank.js";
+import Card from "../../components/Card";
+import getLogoAsset from "../../lib/ecosystem/getLogoAsset.js";
+import sortPagesByRank from "../../lib/ecosystem/sortPagesByRank.js";
 
 import entries from "@generated/ecosystem-data/default/entries.json";
 import featureCategories from "@generated/ecosystem-data/default/feature-categories.json";
