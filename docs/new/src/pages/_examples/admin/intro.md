@@ -1,3 +1,4 @@
 <!-- markdownlint-disable MD041 -->
 
-Here's a simple example of a Rego policy which checks if a user is an admin.
+Run your first Rego policy now! This simple example tests is a user is an admin
+and only allows them if they are.
