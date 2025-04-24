@@ -1,11 +1,9 @@
 ---
 title: Policy Primer via Examples
-kind: kubernetes
-weight: 2
 ---
 
 Read this page if you are new to Kubernetes admission control with OPA and want
-to learn how to write policies for Kubernetes.  It covers the version
+to learn how to write policies for Kubernetes. It covers the version
 that uses kube-mgmt. The [OPA Gatekeeper version](https://open-policy-agent.github.io/gatekeeper)
 has its own docs.
 
@@ -27,13 +25,13 @@ deny contains msg if {                                                      # li
 
 ### Packages
 
-In line 1 the `package kubernetes.admission` declaration gives the (hierarchical) name `kubernetes.admission` to the rules in the remainder of the policy.  The default installation of OPA as an admission controller assumes your rules are in the package `kubernetes.admission`.
+In line 1 the `package kubernetes.admission` declaration gives the (hierarchical) name `kubernetes.admission` to the rules in the remainder of the policy. The default installation of OPA as an admission controller assumes your rules are in the package `kubernetes.admission`.
 
 ### Deny Rules
 
-For admission control, you write `deny` statements.  Order does not matter.  (OPA is far more flexible than this, but we recommend writing just `deny` statements to start.)  In line 2, the *head* of the rule `deny contains msg if` says that the admission control request should be rejected and the user handed the error message `msg` if the conditions in the *body* (the statements between the `{}`) are true.
+For admission control, you write `deny` statements. Order does not matter. (OPA is far more flexible than this, but we recommend writing just `deny` statements to start.) In line 2, the _head_ of the rule `deny contains msg if` says that the admission control request should be rejected and the user handed the error message `msg` if the conditions in the _body_ (the statements between the `{}`) are true.
 
-`deny` is the *set* of error messages that should be returned to the user.  Each rule you write adds to that set of error messages.
+`deny` is the _set_ of error messages that should be returned to the user. Each rule you write adds to that set of error messages.
 
 For example, suppose you tried to create the Pod below with nginx and mysql images.
 
@@ -91,9 +89,9 @@ When the `deny` rule is evaluated with the input above, the answer is:
 
 ### Input Document
 
-In OPA, `input` is a reserved, global variable whose value is the  Kubernetes AdmissionReview object that the API server hands to any admission control webhook.
+In OPA, `input` is a reserved, global variable whose value is the Kubernetes AdmissionReview object that the API server hands to any admission control webhook.
 
-AdmissionReview objects have many fields.  The rule above uses `input.request.kind`, which includes the usual group/version/kind information.  The rule also uses `input.request.object`, which is the YAML that the user provided to `kubectl` (augmented with defaults, timestamps, etc.).  The full `input` object is 50+ lines of YAML, so below we show just the relevant parts.
+AdmissionReview objects have many fields. The rule above uses `input.request.kind`, which includes the usual group/version/kind information. The rule also uses `input.request.object`, which is the YAML that the user provided to `kubectl` (augmented with defaults, timestamps, etc.). The full `input` object is 50+ lines of YAML, so below we show just the relevant parts.
 
 ```yaml
 apiVersion: admission.k8s.io/v1
@@ -108,56 +106,64 @@ request:
       name: myapp
     spec:
       containers:
-        - image: nginx
-          name: nginx-frontend
-        - image: mysql
-          name: mysql-backend
+      - image: nginx
+        name: nginx-frontend
+      - image: mysql
+        name: mysql-backend
 ```
 
 ### Dot Notation
 
-In line 3 `input.request.kind.kind == "Pod"`, the expression `input.request.kind.kind` does the obvious thing: it descends through the YAML hierarchy.  The dot (.) operator never throws any errors; if the path does not exist the value of the expression is `undefined`.
+In line 3 `input.request.kind.kind == "Pod"`, the expression `input.request.kind.kind` does the obvious thing: it descends through the YAML hierarchy. The dot (.) operator never throws any errors; if the path does not exist the value of the expression is `undefined`.
 
 ```live:container_images/kind:query:merge_down
 input.request.kind
 ```
+
 ```live:container_images/kind:output:merge_down
 ```
+
 ```live:container_images/kind/kind:query:merge_down
 input.request.kind.kind
 ```
+
 ```live:container_images/kind/kind:output:merge_down
 ```
+
 ```live:container_images/spec:query:merge_down
 input.request.object.spec.containers
 ```
+
 ```live:container_images/spec:output
 ```
 
 ### Equality
 
-Lines 3, 4, 6 all use a form of equality.  There are 3 forms of equality in OPA.
+Lines 3, 4, 6 all use a form of equality. There are 3 forms of equality in OPA.
 
-* `x := 7` declares a local variable `x` and assigns it a value of 7.  The compiler throws an error if `x` already has a value.
-* `x == 7` returns true if `x` has a value of 7.  The compiler throws an error if `x` has no value.
-* `x = 7` either assigns the value 7 to `x` if `x` has no value or compares `x`'s value to 7 if it has a value.  The compiler never throws an error.
+- `x := 7` declares a local variable `x` and assigns it a value of 7. The compiler throws an error if `x` already has a value.
+- `x == 7` returns true if `x` has a value of 7. The compiler throws an error if `x` has no value.
+- `x = 7` either assigns the value 7 to `x` if `x` has no value or compares `x`'s value to 7 if it has a value. The compiler never throws an error.
 
-The recommendation for rule-writing is to use `:=` and `==` wherever possible.  Rules written with `:=` and `==` are easier to write and to read.  `=` is invaluable in more advanced use cases, and outside of rules is the only supported form of equality.
+The recommendation for rule-writing is to use `:=` and `==` wherever possible. Rules written with `:=` and `==` are easier to write and to read. `=` is invaluable in more advanced use cases, and outside of rules is the only supported form of equality.
 
 ### Arrays
 
-Lines 4-5 find images in the Pod that don't come from the trusted registry.  To do that, they use the `[]` operator, which does what you expect: index into the array.
+Lines 4-5 find images in the Pod that don't come from the trusted registry. To do that, they use the `[]` operator, which does what you expect: index into the array.
 
 Continuing the example from earlier:
 
 ```live:container_images/arrays:query:merge_down
 input.request.object.spec.containers[0]
 ```
+
 ```live:container_images/arrays:output:merge_down
 ```
+
 ```live:container_images/arrays/image:query:merge_down
 input.request.object.spec.containers[0].image
 ```
+
 ```live:container_images/arrays/image:output
 ```
 
@@ -166,39 +172,41 @@ The `[]` operators let you use variables to index into the array as well.
 ```live:container_images/arrays/vars:query:merge_down
 i := 0; input.request.object.spec.containers[i]
 ```
+
 ```live:container_images/arrays/vars:output
 ```
 
 ### Iteration
 
-The containers array has an unknown number of elements, so to implement an image registry check you need to iterate over them.  Iteration in OPA requires no new syntax.  In fact, OPA is always iterating--it's always searching for all variable assignments that make the conditions in the rule true. It's just that sometimes the search is so easy people don't think of it as iteration/search.
+The containers array has an unknown number of elements, so to implement an image registry check you need to iterate over them. Iteration in OPA requires no new syntax. In fact, OPA is always iterating--it's always searching for all variable assignments that make the conditions in the rule true. It's just that sometimes the search is so easy people don't think of it as iteration/search.
 
-To iterate over the indexes in the `input.request.object.spec.containers` array, you just put a variable that has no value in for the index.  OPA will do what it always does: find values for that variable that make the conditions true.
+To iterate over the indexes in the `input.request.object.spec.containers` array, you just put a variable that has no value in for the index. OPA will do what it always does: find values for that variable that make the conditions true.
 
 OPA detects when there will be multiple answers and displays all the results in a table.
 
 ```live:container_images/iteration:query:merge_down
 some j; input.request.object.spec.containers[j]
 ```
+
 ```live:container_images/iteration:output
 ```
 
-Often you don't want to invent new variable names for iteration.  OPA provides the special anonymous variable `_` for exactly that reason.  So in line (4) `image := input.request.object.spec.containers[_].image` finds all the images in the containers array and assigns each to the `image` variable one at a time.
+Often you don't want to invent new variable names for iteration. OPA provides the special anonymous variable `_` for exactly that reason. So in line (4) `image := input.request.object.spec.containers[_].image` finds all the images in the containers array and assigns each to the `image` variable one at a time.
 
 ### Builtins
 
-On line 5 the *builtin* `startswith` checks if one string is a prefix of the other.  The builtin `sprintf` on line 6 formats a string with arguments.  OPA has 150+ builtins detailed in [the Policy Reference](../policy-reference/#built-in-functions).
+On line 5 the _builtin_ `startswith` checks if one string is a prefix of the other. The builtin `sprintf` on line 6 formats a string with arguments. OPA has 150+ builtins detailed in [the Policy Reference](../policy-reference/#built-in-functions).
 Builtins let you analyze and manipulate:
 
-* Numbers, Strings, Regexs, Networks
-* Aggregates, Arrays, Sets
-* Types
-* Encodings (base64, YAML, JSON, URL, JWT)
-* Time
+- Numbers, Strings, Regexs, Networks
+- Aggregates, Arrays, Sets
+- Types
+- Encodings (base64, YAML, JSON, URL, JWT)
+- Time
 
 ## Testing Policies
 
-When you write policies, you should use the OPA unit-test framework *before* sending the policies out into the OPA that is running on your cluster.  The debugging process will be much quicker and effective.  Here's an example test for the policy from the last section.
+When you write policies, you should use the OPA unit-test framework _before_ sending the policies out into the OPA that is running on your cluster. The debugging process will be much quicker and effective. Here's an example test for the policy from the last section.
 
 ```live:container_images/test:module:read_only,openable
 package kubernetes.test_admission                         # line 1
@@ -224,19 +232,19 @@ test_image_safety if {                                    # line 3
 }
 ```
 
-**Different Package**. On line 1 the `package` directive puts these tests in a different package than admission control policy itself.  This is the recommended best practice.
+**Different Package**. On line 1 the `package` directive puts these tests in a different package than admission control policy itself. This is the recommended best practice.
 
-**Import**.  On line 2 `import data.kubernetes.admission` allows us to reference the admission control policy using the name `admission` everywhere in the test package.  `import` is not strictly necessary--it simply sets up an alias; you could instead reference `data.kubernetes.admission` inside the rules.
+**Import**. On line 2 `import data.kubernetes.admission` allows us to reference the admission control policy using the name `admission` everywhere in the test package. `import` is not strictly necessary--it simply sets up an alias; you could instead reference `data.kubernetes.admission` inside the rules.
 
-**Unit Test**.  On line 3 `test_image_safety` defines a unittest.  If the rule evaluates to true the test passes; otherwise it fails.  When you use the OPA test runner, anything in any package starting with `test` is treated as a test.
+**Unit Test**. On line 3 `test_image_safety` defines a unittest. If the rule evaluates to true the test passes; otherwise it fails. When you use the OPA test runner, anything in any package starting with `test` is treated as a test.
 
-**Assignment**. On line 4 `unsafe_image` is the input we want to use for the test.  Ideally this would be a real AdmissionReview object, though those are so long that in this example we hand-rolled a partial input.
+**Assignment**. On line 4 `unsafe_image` is the input we want to use for the test. Ideally this would be a real AdmissionReview object, though those are so long that in this example we hand-rolled a partial input.
 
-**Dot for packages**.  On line 5 we use the Dot operator on a package.  `admission.deny[expected]` runs the `deny` rule(s) in package `admission` and checks if the message is contained in the set defined by `deny`.
+**Dot for packages**. On line 5 we use the Dot operator on a package. `admission.deny[expected]` runs the `deny` rule(s) in package `admission` and checks if the message is contained in the set defined by `deny`.
 
-**Test Input**.  Also on line 5 the stanza `with input as unsafe_image` sets the value of `input` to be `unsafe_image` while evaluating `admission.deny[expected]`.
+**Test Input**. Also on line 5 the stanza `with input as unsafe_image` sets the value of `input` to be `unsafe_image` while evaluating `admission.deny[expected]`.
 
-**Running Tests**. If you've created the files *image-safety.rego* and *test-image-safety.rego* in the current directory then you run the tests by naming the files explicitly as shown below or by handing the `opa test` command the directory (and subdirectories) of files to load: `opa test .`
+**Running Tests**. If you've created the files _image-safety.rego_ and _test-image-safety.rego_ in the current directory then you run the tests by naming the files explicitly as shown below or by handing the `opa test` command the directory (and subdirectories) of files to load: `opa test .`
 
 ```
 $ opa test image-safety.rego test-image-safety.rego
@@ -247,9 +255,9 @@ PASS: 1/1
 
 The image-repository example shows an example where you can make a policy decision using just the one JSON/YAML file describing the resource in question. But sometimes you need to know what other resources exist in the cluster to make an allow/deny decision.
 
-For example, it’s possible to accidentally configure two Kubernetes ingresses so that one steals traffic from the other. The policy that prevents conflicting ingresses needs to compare the ingress that’s being created/updated with all of the existing ingresses.  Just knowing the new/updated ingress isn't enough information to make an allow/deny decision.
+For example, it’s possible to accidentally configure two Kubernetes ingresses so that one steals traffic from the other. The policy that prevents conflicting ingresses needs to compare the ingress that’s being created/updated with all of the existing ingresses. Just knowing the new/updated ingress isn't enough information to make an allow/deny decision.
 
-Below is a partial example of the input OPA sees when someone creates an ingress.  To avoid conflicts, we want to prevent two ingresses from having the same `request.object.spec.rules.host`.  If OPA has only this one ingress configuration it doesn't have enough information to make an allow/deny decision; it also needs the configurations for all of the existing ingresses.
+Below is a partial example of the input OPA sees when someone creates an ingress. To avoid conflicts, we want to prevent two ingresses from having the same `request.object.spec.rules.host`. If OPA has only this one ingress configuration it doesn't have enough information to make an allow/deny decision; it also needs the configurations for all of the existing ingresses.
 
 ```yaml
 apiVersion: admission.k8s.io/v1
@@ -292,25 +300,26 @@ deny contains msg if {
   msg := sprintf("ingress host conflicts with ingress %v/%v", [namespace, name])  # line 7
 }
 ```
-The first part of the rule you already understand:
-* Line (1) checks if the `input` is an Ingress
-* Line (2) iterates over all the rules in the `input` ingress and looks up the `host` field for each of its rules.
 
-**Existing K8s Resources** Line (3) iterates over ingresses that already exist in Kubernetes. `data` is a global variable where (among other things) OPA has a record of the current resources inside Kubernetes.  The line `oldhost := data.kubernetes.ingresses[namespace][name].spec.rules[_].host` finds all ingresses in all namespaces, iterates over all the `rules` inside each of those and assigns the `host` field to the variable `oldhost`.  Whenever `newhost == oldhost`, there's a conflict, and the OPA rule includes an appropriate error message into the `deny` set.
+The first part of the rule you already understand:
+
+- Line (1) checks if the `input` is an Ingress
+- Line (2) iterates over all the rules in the `input` ingress and looks up the `host` field for each of its rules.
+
+**Existing K8s Resources** Line (3) iterates over ingresses that already exist in Kubernetes. `data` is a global variable where (among other things) OPA has a record of the current resources inside Kubernetes. The line `oldhost := data.kubernetes.ingresses[namespace][name].spec.rules[_].host` finds all ingresses in all namespaces, iterates over all the `rules` inside each of those and assigns the `host` field to the variable `oldhost`. Whenever `newhost == oldhost`, there's a conflict, and the OPA rule includes an appropriate error message into the `deny` set.
 
 In this case the rule uses explicit variable names `namespace` and `name` for iteration so that it can use those variables again when constructing the error message in line (7).
 
-**Schema Differences**.  Both `input` and `data.kubernetes.ingresses[namespace][name]` represent ingresses, but they do it differently.
+**Schema Differences**. Both `input` and `data.kubernetes.ingresses[namespace][name]` represent ingresses, but they do it differently.
 
-* `input` is a Kubernetes AdmissionReview object.  It includes several fields in addition to the Kubernetes Ingress object itself.
-* `data.kubernetes.ingresses[namespace][name]` is a native Kubernetes Ingress object as returned by the API.
+- `input` is a Kubernetes AdmissionReview object. It includes several fields in addition to the Kubernetes Ingress object itself.
+- `data.kubernetes.ingresses[namespace][name]` is a native Kubernetes Ingress object as returned by the API.
 
 Here are two examples.
 
-<div>
-<div style="float: left; width: 49%; padding: 3px">
-<center><b>data.kubernetes.ingresses[namespace][name]</b></center>
-<pre><code>
+<SideBySideContainer>
+  <SideBySideColumn>
+```yaml title="data.kubernetes.ingresses[namespace][name]"
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -327,10 +336,10 @@ spec:
             name: banking
             port:
               number: 443
-</code></pre></div>
-<div style="float: left; width: 49%; padding 3px;">
-<center><b>input</b></center>
-<pre><code>
+```
+  </SideBySideColumn>
+  <SideBySideColumn>
+```yaml title="admission_review.yaml"
 apiVersion: admission.k8s.io/v1
 kind: AdmissionReview
 request:
@@ -357,8 +366,9 @@ request:
                 name: banking
                 port:
                   number: 443
-</code></pre></div>
-</div>
+```
+  </SideBySideColumn>
+</SideBySideContainer>
 
 ## Detailed Admission Control Flow
 
@@ -368,9 +378,7 @@ introduced in the [Introduction](../kubernetes-introduction) page.
 It starts with someone (or something) running `kubectl` (or sending a request to
 the API server.) For example, a user might run `kubectl create -f pod.yaml`:
 
-**pod.yaml**:
-
-```yaml
+```yaml title="pod.yaml"
 kind: Pod
 apiVersion: v1
 metadata:
@@ -395,13 +403,13 @@ apiVersion: admission.k8s.io/v1
 kind: AdmissionReview
 request:
   kind:
-    group: ''
+    group: ""
     kind: Pod
     version: v1
   namespace: opa
   object:
     metadata:
-      creationTimestamp: '2018-10-27T02:12:20Z'
+      creationTimestamp: "2018-10-27T02:12:20Z"
       labels:
         app: nginx
       name: nginx
@@ -445,7 +453,7 @@ request:
   oldObject:
   operation: CREATE
   resource:
-    group: ''
+    group: ""
     resource: pods
     version: v1
   uid: 8d836dfd-e0c0-4490-93ba-85ed4a04261e
@@ -483,7 +491,7 @@ the `system.main` decision (i.e., it is just another Rego policy.) A basic
 implementation of the `system.main` policy simply evaluates all deny rules that
 have been loaded into OPA and unions the results:
 
-```live:admission_main:module:read_only
+```rego
 package system
 
 import data.kubernetes.admission
@@ -532,6 +540,5 @@ response:
     message: "image fails to come from trusted registry: nginx"
 ```
 
-For more detail on how Kubernetes Admission Control works, see [this blog
-post](https://kubernetes.io/blog/2019/03/21/a-guide-to-kubernetes-admission-controllers/)
+For more detail on how Kubernetes Admission Control works, see [this blog post](https://kubernetes.io/blog/2019/03/21/a-guide-to-kubernetes-admission-controllers/)
 on kubernetes.io.
