@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	statusBufferLimit           = int64(10)
+	statusBufferLimit           = int64(1)
 	statusBufferDropCounterName = "status_dropped_buffer_limit_exceeded"
 )
 
@@ -396,6 +396,14 @@ func (p *Plugin) loop(ctx context.Context) {
 		case respCh := <-p.queryCh:
 			respCh <- p.snapshot()
 		case update := <-p.trigger:
+			// make sure the more recent status is registered
+			select {
+			case status := <-p.bulkBundleCh:
+				p.lastBundleStatuses = status
+			case status := <-p.bundleCh:
+				p.lastBundleStatus = &status
+			default:
+			}
 			err := p.oneShot(update.ctx)
 			if err != nil {
 				p.logger.Error("%v.", err)
