@@ -1,9 +1,6 @@
 ---
 title: Policy Testing
-kind: documentation
-weight: 4
-restrictedtoc: true
-has_side_notes: true
+sidebar_position: 4
 ---
 
 OPA gives you a high-level declarative language

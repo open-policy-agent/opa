@@ -1,7 +1,6 @@
 ---
 title: Policy Performance
-kind: documentation
-weight: 5
+sidebar_position: 5
 ---
 
 ## High Performance Policy Decisions
@@ -15,7 +14,7 @@ techniques to address high-performance use cases.
 For such high-performance use cases, there is a fragment of the Rego language which has been engineered to evaluate
 in near constant time. Adding more rules to the policy will not significantly increase the evaluation time.
 
-For example, the following rule has one local variable `user`, and that variable can only be assigned one value.  Intuitively, evaluating this rule requires checking each of the conditions in the body, and if there were N of these rules, evaluation would only require walking over each of them as well.
+For example, the following rule has one local variable `user`, and that variable can only be assigned one value. Intuitively, evaluating this rule requires checking each of the conditions in the body, and if there were N of these rules, evaluation would only require walking over each of them as well.
 
 ```live:linear:module:read_only,openable
 package linear
@@ -30,7 +29,7 @@ allow if {
 
 ### Use objects over arrays
 
-One common mistake people make is using arrays when they could use objects.  For example, below is an array of ID/first-name/last-names where ID is unique, and you're looking up the first-name/last-name given the ID.
+One common mistake people make is using arrays when they could use objects. For example, below is an array of ID/first-name/last-names where ID is unique, and you're looking up the first-name/last-name given the ID.
 
 ```live:prefer_objects/bad:query
 # DO NOT DO THIS.
@@ -44,7 +43,7 @@ d[i].id == "a789"
 d[i].first ...
 ```
 
-Instead, use a dictionary where the key is the ID and the value is the first-name/last-name.  Given the ID, you can look up the name information directly.
+Instead, use a dictionary where the key is the ID and the value is the first-name/last-name. Given the ID, you can look up the name information directly.
 
 ```live:prefer_objects/good:query
 # DO THIS INSTEAD OF THE ABOVE
@@ -60,9 +59,9 @@ d["a789"].first ...
 
 ### Use indexed statements
 
-The linear-time fragment ensures that the cost of evaluation is no larger than the size of the policy.  OPA lets you write non-linear policies, because sometimes you need to, and because sometimes it's convenient.  The blog on [partial evaluation](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422) describes one mechanism for converting non-linear policies into linear policies.
+The linear-time fragment ensures that the cost of evaluation is no larger than the size of the policy. OPA lets you write non-linear policies, because sometimes you need to, and because sometimes it's convenient. The blog on [partial evaluation](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422) describes one mechanism for converting non-linear policies into linear policies.
 
-But as the size of the policy grows, the cost of evaluation grows with it.  Sometimes the policy can grow large enough that even the linear-fragment fails to meet the performance budget.
+But as the size of the policy grows, the cost of evaluation grows with it. Sometimes the policy can grow large enough that even the linear-fragment fails to meet the performance budget.
 
 In the linear fragment, OPA includes special algorithms that **index rules efficiently**, sometimes making evaluation constant-time, even as the policy grows. The more effective the indexing is the fewer rules need to be evaluated.
 
@@ -117,23 +116,23 @@ allow
 
 For simple equality statements (`=` and `==`) to be indexed one side must be a non-nested reference that does not contain any variables and the other side must be a variable, scalar, or array (which may contain scalars and variables). For example:
 
-| Expression | Indexed | Reason |
-| --- | --- | --- |
-| `input.x == "foo"` | yes | n/a |
-| `input.x.y == "bar"` | yes | n/a |
-| `input.x == ["foo", i]` | yes | n/a |
-| `input.x[i] == "foo"` | no | reference contains variables |
-| `input.x[input.y] == "foo"` | no | reference is nested |
+| Expression                  | Indexed | Reason                       |
+| --------------------------- | ------- | ---------------------------- |
+| `input.x == "foo"`          | yes     | n/a                          |
+| `input.x.y == "bar"`        | yes     | n/a                          |
+| `input.x == ["foo", i]`     | yes     | n/a                          |
+| `input.x[i] == "foo"`       | no      | reference contains variables |
+| `input.x[input.y] == "foo"` | no      | reference is nested          |
 
 #### Glob statements
 
 For `glob.match(pattern, delimiter, match)` statements to be indexed the pattern must be recognized by the indexer and the match be a non-nested reference that does not contain any variables. The indexer recognizes patterns containing the normal glob (`*`) operator but not the super glob (`**`) or character pattern matching operators.
 
-| Expression | Indexed | Reason |
-| --- | --- | --- |
-| `glob.match("foo:*:bar", [":"], input.x)` | yes | n/a |
-| `glob.match("foo:**:bar", [":"], input.x)` | no | pattern contains `**` |
-| `glob.match("foo:*:bar", [":"], input.x[i])` | no | match contains variable(s) |
+| Expression                                   | Indexed | Reason                     |
+| -------------------------------------------- | ------- | -------------------------- |
+| `glob.match("foo:*:bar", [":"], input.x)`    | yes     | n/a                        |
+| `glob.match("foo:**:bar", [":"], input.x)`   | no      | pattern contains `**`      |
+| `glob.match("foo:*:bar", [":"], input.x[i])` | no      | match contains variable(s) |
 
 ### Early Exit in Rule Evaluation
 
@@ -222,9 +221,9 @@ Since there's no possibility that could change the outcome of `data.earlyexit.it
 once a variable binding is found that satisfies the conditions, no further iteration will
 occur.
 
-The check if "early exit" is applicable for a query happens *after* the indexing lookup,
-so in this contrived example, an evaluation with input `{"user": "alice"}` *would* exit
-early; an evaluation with `{"user": "bob", "group": "admins"}` *would not*:
+The check if "early exit" is applicable for a query happens _after_ the indexing lookup,
+so in this contrived example, an evaluation with input `{"user": "alice"}` _would_ exit
+early; an evaluation with `{"user": "bob", "group": "admins"}` _would not_:
 
 ```live:eeindex:module:read_only
 package earlyexit
@@ -243,7 +242,7 @@ allow if {
 ```
 
 This is because the index lookup for `{"user": "bob", "group": "admins"}` returns two complete
-document rules with *different values*, `true` and `false`, whereas the indexer query for
+document rules with _different values_, `true` and `false`, whereas the indexer query for
 `{"user": "alice"}` only returns rules with value `true`.
 
 ### Comprehension Indexing
@@ -263,19 +262,19 @@ the port->interface mapping as a JSON array under `input`:
   "exposed": [
     {
       "interface": "eth0",
-      "port": 8080,
+      "port": 8080
     },
     {
       "interface": "eth0",
-      "port": 8081,
+      "port": 8081
     },
     {
       "interface": "eth1",
-      "port": 443,
+      "port": 443
     },
     {
       "interface": "lo1",
-      "port": 5000,
+      "port": 5000
     }
   ]
 }
@@ -306,7 +305,7 @@ ports := [port | some j; input.exposed[j].interface == intf; port := input.expos
 
 Without comprehension indexing, this query would be O(n^2) where n is the size of `input.exposed`.
 However, with comprehension indexing, the query remains O(n) because OPA only computes the comprehension
-*once*. In this case, the comprehension is evaluated and all possible values of `ports` are computed
+_once_. In this case, the comprehension is evaluated and all possible values of `ports` are computed
 at once. These values are indexed by the assignments of `intf`.
 
 To implement the policy above we could write:
@@ -334,9 +333,9 @@ exposed_ports_by_interface := {intf: ports |
 Indices can be built for comprehensions (nested or not) that generate collections (i.e., arrays, sets, or objects)
 based on variables in an outer query. In the example above:
 
-* `intf` is the variable in the outer query.
-* `[port | some j; input.exposed[j].interface == intf; port := input.exposed[j].port]` is the comprehension.
-* `ports` is the variable the collection is assigned to.
+- `intf` is the variable in the outer query.
+- `[port | some j; input.exposed[j].interface == intf; port := input.exposed[j].port]` is the comprehension.
+- `ports` is the variable the collection is assigned to.
 
 In order to be indexed, comprehensions must meet the following conditions:
 
@@ -400,21 +399,21 @@ why policy evaluation is slow.
 
 The `opa eval` command provides the following profiler options:
 
-| Option | Detail | Default                                                               |
-| --- | --- |-----------------------------------------------------------------------|
-| <span class="opa-keep-it-together">`--profile`</span> | Enables expression profiling and outputs profiler results. | off                                                                   |
-| <span class="opa-keep-it-together">`--profile-sort`</span> | Criteria to sort the expression profiling results. This options implies `--profile`. | total_time_ns => num_eval => num_redo => num_gen_expr => file => line |
-| <span class="opa-keep-it-together">`--profile-limit`</span> | Desired number of profiling results sorted on the given criteria. This options implies `--profile`. | 10                                                                    |
-| <span class="opa-keep-it-together">`--count`</span> | Desired number of evaluations that profiling metrics are to be captured for. With `--format=pretty`, the output will contain min, max, mean and the 90th and 99th percentile. All collected percentiles can be found in the JSON output. | 1                                                                     |
+| Option                                                       | Detail                                                                                                                                                                                                                                   | Default                                                               |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| <span class="opa-keep-it-together"> `--profile`</span>       | Enables expression profiling and outputs profiler results.                                                                                                                                                                               | off                                                                   |
+| <span class="opa-keep-it-together"> `--profile-sort`</span>  | Criteria to sort the expression profiling results. This options implies `--profile`.                                                                                                                                                     | total_time_ns => num_eval => num_redo => num_gen_expr => file => line |
+| <span class="opa-keep-it-together"> `--profile-limit`</span> | Desired number of profiling results sorted on the given criteria. This options implies `--profile`.                                                                                                                                      | 10                                                                    |
+| <span class="opa-keep-it-together"> `--count`</span>         | Desired number of evaluations that profiling metrics are to be captured for. With `--format=pretty`, the output will contain min, max, mean and the 90th and 99th percentile. All collected percentiles can be found in the JSON output. | 1                                                                     |
 
 #### Sort criteria for the profile results
 
-* `total_time_ns` - Results are displayed is decreasing order of *expression evaluation time*
-* `num_eval`  - Results are displayed is decreasing order of *number of times an expression is evaluated*
-* `num_redo`  - Results are displayed is decreasing order of *number of times an expression is re-evaluated(redo)*
-* `num_gen_expr`  - Results are displayed is decreasing order of *number of generated expressions*
-* `file`  - Results are sorted in reverse alphabetical order based on the *rego source filename*
-* `line`  - Results are displayed is decreasing order of *expression line number* in the source file
+- `total_time_ns` - Results are displayed is decreasing order of _expression evaluation time_
+- `num_eval` - Results are displayed is decreasing order of _number of times an expression is evaluated_
+- `num_redo` - Results are displayed is decreasing order of _number of times an expression is re-evaluated(redo)_
+- `num_gen_expr` - Results are displayed is decreasing order of _number of generated expressions_
+- `file` - Results are sorted in reverse alphabetical order based on the _rego source filename_
+- `line` - Results are displayed is decreasing order of _expression line number_ in the source file
 
 When the sort criteria is not provided `total_time_ns` has the highest sort priority
 while `line` has the lowest.
@@ -452,19 +451,11 @@ ie `x = a + b * c` it's not immediately clear why this line has a `EVAL/REDO` co
 are `3` generated expressions (ie. `NUM GEN EXPR`) at line `test.rego:8`. This is because the compiler rewrites the above policy to
 something like below:
 
-`p = true if {
-  __local0__ = 1;
-  __local1__ = 2;
-  __local2__ = 3;
-  mul(__local1__, __local2__, __local3__);
-  plus(__local0__, __local3__, __local4__);
-  x = __local4__ 
-}`
+`p = true if { __local0__ = 1; __local1__ = 2; __local2__ = 3; mul(__local1__, __local2__, __local3__); plus(__local0__, __local3__, __local4__); x = __local4__  }`
 
 And that line `test.rego:8` is rewritten to `mul(__local1__, __local2__, __local3__); plus(__local0__, __local3__, __local4__); x = __local4__` which
 results in a `NUM GEN EXPR` count of `3`. Hence, the `NUM GEN EXPR` count can help to better understand the `EVAL/REDO` counts
 for a given expression and also provide more clarity into the profile results and how policy evaluation works.
-
 
 #### Example Policy
 
@@ -678,8 +669,8 @@ opa eval --data rbac.rego --profile-limit 5 --profile-sort num_eval,num_redo --f
 +---------+----------+----------+--------------+-----------------+
 ```
 
-As seen from the above table, result are first arranged based on *number of evaluations*,
-then *number of re-evaluations* and finally the default criteria is used.
+As seen from the above table, result are first arranged based on _number of evaluations_,
+then _number of re-evaluations_ and finally the default criteria is used.
 In this case, total_time_ns => file => line.
 The `--profile-sort` options accepts repeated or comma-separated values for the criteria.
 The order of the criteria on the command line determine their priority.
@@ -733,11 +724,11 @@ to evaluate (loading, parsing, compiling, etc.) is omitted.
 
 #### Options for `opa bench`
 
-| Option | Detail | Default |
-| --- | --- | --- |
-| <span class="opa-keep-it-together">`--benchmem`</span> | Report memory allocations with benchmark results. | true |
-| <span class="opa-keep-it-together">`--metrics`</span> | Report additional query performance metrics. | true |
-| <span class="opa-keep-it-together">`--count`</span> | Number of times to repeat the benchmark. | 1 |
+| Option                                                  | Detail                                            | Default |
+| ------------------------------------------------------- | ------------------------------------------------- | ------- |
+| <span class="opa-keep-it-together"> `--benchmem`</span> | Report memory allocations with benchmark results. | true    |
+| <span class="opa-keep-it-together"> `--metrics`</span>  | Report additional query performance metrics.      | true    |
+| <span class="opa-keep-it-together"> `--count`</span>    | Number of times to repeat the benchmark.          | 1       |
 
 ### Benchmarking OPA Tests
 
@@ -748,10 +739,10 @@ track relative time as policies change.
 
 #### Options for `opa test --bench`
 
-| Option | Detail | Default |
-| --- | --- | --- |
-| <span class="opa-keep-it-together">`--benchmem`</span> | Report memory allocations with benchmark results. | true |
-| <span class="opa-keep-it-together">`--count`</span> | Number of times to repeat the benchmark. | 1 |
+| Option                                                  | Detail                                            | Default |
+| ------------------------------------------------------- | ------------------------------------------------- | ------- |
+| <span class="opa-keep-it-together"> `--benchmem`</span> | Report memory allocations with benchmark results. | true    |
+| <span class="opa-keep-it-together"> `--count`</span>    | Number of times to repeat the benchmark.          | 1       |
 
 #### Example Tests
 
@@ -923,8 +914,8 @@ By default, OPA stores policy and data in-memory. OPA's disk storage feature all
 
 The `--optimize` (or `-O`) flag on the `opa build` command controls how bundles are optimized.
 
-> Optimization applies partial evaluation to precompute *known* values in the policy. The goal of
-partial evaluation is to convert non-linear-time policies into linear-time policies.
+> Optimization applies partial evaluation to precompute _known_ values in the policy. The goal of
+> partial evaluation is to convert non-linear-time policies into linear-time policies.
 
 By specifying the `--optimize` flag, users can control how much time and resources are spent
 attempting to optimize the bundle. Generally, higher optimization levels require more time
@@ -961,13 +952,13 @@ statements that would otherwise generate support rules.
 
 ### In-Memory Store Read Optimization
 
-During normal operation, data values read from storage are converted to an AST representation that is used during policy evaluation. 
-This conversion can be expensive both in execution time and in memory usage, especially for large data values. 
-The default in-memory store can be configured to optimize for read speed by precomputing the AST representation of data values during storage write operations. 
-This removes the time spent converting raw data values to AST during policy evaluation, improving performance. 
+During normal operation, data values read from storage are converted to an AST representation that is used during policy evaluation.
+This conversion can be expensive both in execution time and in memory usage, especially for large data values.
+The default in-memory store can be configured to optimize for read speed by precomputing the AST representation of data values during storage write operations.
+This removes the time spent converting raw data values to AST during policy evaluation, improving performance.
 
 The memory footprint of the store will increase, as processed AST values generally take up more space in memory than the corresponding raw data values, but overall memory usage of OPA might remain more stable over time, as pre-converted data is shared across evaluations and isn't recomputed for each evaluation, which can cause spikes in memory usage.
-Storage write operations will be slower due to the additional processing required to precompute the AST representation of data values. This can impact startup time and bundle loading/updates, especially for large data values. 
+Storage write operations will be slower due to the additional processing required to precompute the AST representation of data values. This can impact startup time and bundle loading/updates, especially for large data values.
 
 This feature can be enabled for `opa run`, `opa eval`, and `opa bench` by setting the `--optimize-store-for-read-speed` flag.
 
@@ -977,9 +968,9 @@ Users are recommended to do performance testing to determine the optimal configu
 
 For high-performance use cases:
 
-* Write your policies to minimize iteration and search.
-  * Use objects instead of arrays when you have a unique identifier for the elements of the array.
-  * Consider [partial-evaluation](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422) to compile non-linear policies to linear policies.
-* Write your policies with indexed statements so that [rule-indexing](https://blog.openpolicyagent.org/optimizing-opa-rule-indexing-59f03f17caf3) is effective.
-* Use the profiler to help identify portions of the policy that would benefit the most from improved performance.
-* Use the benchmark tools to help get real world timing data and detect policy performance changes.
+- Write your policies to minimize iteration and search.
+  - Use objects instead of arrays when you have a unique identifier for the elements of the array.
+  - Consider [partial-evaluation](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422) to compile non-linear policies to linear policies.
+- Write your policies with indexed statements so that [rule-indexing](https://blog.openpolicyagent.org/optimizing-opa-rule-indexing-59f03f17caf3) is effective.
+- Use the profiler to help identify portions of the policy that would benefit the most from improved performance.
+- Use the benchmark tools to help get real world timing data and detect policy performance changes.

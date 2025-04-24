@@ -1,7 +1,6 @@
 ---
 title: v0 Backwards Compatibility
-kind: documentation
-weight: 121
+sidebar_position: 14
 ---
 
 ## Running OPA in v0.x compatibility mode

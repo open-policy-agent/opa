@@ -1,7 +1,6 @@
 ---
 title: Debugging OPA
-kind: documentation
-weight: 75
+sidebar_position: 9
 ---
 
 This section outlines the various tools and techniques that can be used to debug OPA, both as a component in a

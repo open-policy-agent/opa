@@ -1,7 +1,6 @@
 ---
 title: Extending OPA
-kind: documentation
-weight: 70
+sidebar_position: 8
 ---
 
 OPA can be extended with custom built-in functions and plugins that
@@ -86,13 +85,13 @@ If you executed this code you the output would be:
 
 The example above highlights a few important points.
 
-* The `rego` package includes variants of `rego.Function1` for accepting
+- The `rego` package includes variants of `rego.Function1` for accepting
   different numbers of operands (e.g., `rego.Function2`, `rego.Function3`, etc.)
-* The `rego.Function#Name` struct field specifies the operator that queries can
+- The `rego.Function#Name` struct field specifies the operator that queries can
   refer to.
-* The `rego.Function#Decl` struct field specifies the function's type signature.
+- The `rego.Function#Decl` struct field specifies the function's type signature.
   In the example above the function accepts a string and returns a string.
-* The function indicates it's undefined by returning `nil` for the first return
+- The function indicates it's undefined by returning `nil` for the first return
   argument.
 
 Let's look at another example. Imagine you want to expose GitHub repository
@@ -207,6 +206,7 @@ You can register your factory with OPA by calling
 inside your main function.
 
 ### Plugin Status
+
 The plugin may (optionally) report its current status to the plugin Manager via the `plugins.Manager#UpdatePluginStatus`
 API.
 
@@ -372,12 +372,12 @@ The OPA runtime version is set statically at build-time. The following global va
 are exported by the `github.com/open-policy-agent/opa/version` package and can be
 set at build-time:
 
-| Name | Description |
-| --- | --- |
-| `Version` | Human-readable/semantic version of the OPA runtime. |
-| `Vcs` | Git SHA that the OPA runtime was built from. |
-| `Timestamp` | Date/time when the OPA runtime was built. |
-| `Hostname` | Hostname of the system where the OPA runtime was built. |
+| Name        | Description                                             |
+| ----------- | ------------------------------------------------------- |
+| `Version`   | Human-readable/semantic version of the OPA runtime.     |
+| `Vcs`       | Git SHA that the OPA runtime was built from.            |
+| `Timestamp` | Date/time when the OPA runtime was built.               |
+| `Hostname`  | Hostname of the system where the OPA runtime was built. |
 
 These values can be set on the command-line when building OPA from source:
 

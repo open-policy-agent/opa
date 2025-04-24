@@ -1,8 +1,6 @@
 ---
 title: Integrating OPA
-kind: documentation
-weight: 65
-restrictedtoc: true
+sidebar_position: 7
 ---
 
 OPA exposes domain-agnostic APIs that your service can call to manage and
