@@ -104,7 +104,7 @@ const baseUrl = "/new/";
         title: "Open Policy Agent",
         logo: {
           alt: "OPA Logo",
-          src: "img/logo.png",
+          src: "img/nav/logo.png",
         },
         items: [
           { to: "/docs/", label: "Docs", position: "right" },
@@ -122,7 +122,7 @@ const baseUrl = "/new/";
            target="_blank"
            rel="noopener noreferrer"
            aria-label="GitHub repository">
-          <img src="/img/community-logos/github.png" alt="GitHub" style="width: 24px; height: auto; margin-left: 8px;" />
+          <img src="${baseUrl}img/nav/github.png" alt="GitHub" style="width: 24px; height: auto; margin-left: 8px;" />
         </a>
       `,
           },
@@ -134,7 +134,7 @@ const baseUrl = "/new/";
            target="_blank"
            rel="noopener noreferrer"
            aria-label="Slack community">
-          <img src="/img/community-logos/slack.png" alt="Slack" style="width: 24px; height: auto; margin-left: 8px;" />
+          <img src="${baseUrl}img/nav/slack.png" alt="Slack" style="width: 24px; height: auto; margin-left: 8px;" />
         </a>
       `,
           },
