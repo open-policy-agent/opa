@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	statusBufferLimit           = int64(1)
+	statusBufferLimit           = int64(10)
 	statusBufferDropCounterName = "status_dropped_buffer_limit_exceeded"
 )
 

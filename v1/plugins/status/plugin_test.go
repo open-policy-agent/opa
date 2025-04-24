@@ -50,13 +50,13 @@ func TestStatusUpdateBuffer(t *testing.T) {
 		{
 			name:                  "add one over the limit and drop oldest",
 			numberOfStatusUpdates: 11,
-			expectedStatusUpdates: 1,
+			expectedStatusUpdates: 10,
 			expectedNameDropped:   "0",
 		},
 		{
 			name:                  "don't drop anything",
 			numberOfStatusUpdates: 5,
-			expectedStatusUpdates: 1,
+			expectedStatusUpdates: 5,
 		},
 	}
 
