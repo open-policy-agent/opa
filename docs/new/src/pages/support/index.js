@@ -3,12 +3,12 @@ import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
 import React from "react";
 
-import Card from "../components/Card";
+import Card from "../../components/Card";
 
 const vendors = [
   {
     title: "Styra",
-    icon: "/img/support-logos/styra.png",
+    icon: require.context("./assets/logos/styra.png").default,
     note:
       "Styra is the original creator of Open Policy Agent and provides support, professional services, training, and enterprise products.",
     link:
@@ -17,7 +17,7 @@ const vendors = [
   },
   {
     title: "Policy-as-Code Laboratories",
-    icon: "/img/support-logos/paclabs.png",
+    icon: require.context("./assets/logos/paclabs.png").default,
     note:
       "Policy-as-Code Laboratories provides strategic planning and integration consulting for OPA and Rego across the PaC ecosystem (Cloud, Kubernetes, OpenShift, and legacy platforms).",
     link: "https://paclabs.io/opa_support.html?utm_source=opa&utm_content=opa-support",
