@@ -33,7 +33,7 @@ Evaluating policies locally with Envoy is preferable because it
 avoids introducing a network hop (which has implications on performance and
 availability) in order to perform the authorization check.
 
-![Envoy External Authorization Flow](envoy-ext-authz-flow.png)
+![Envoy External Authorization Flow](./assets/envoy-ext-authz-flow.png)
 
 > 💡 The OPA-Envoy plugin is frequently deployed in Kubernetes environments as a sidecar container however it can also
 > be used in other environments as a standalone process running next to Envoy.

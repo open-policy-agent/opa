@@ -1,7 +1,6 @@
 ---
 title: "Tutorial: Standalone Envoy"
-kind: envoy
-weight: 10
+sidebar_position: 2
 ---
 
 The tutorial shows how Envoy’s External

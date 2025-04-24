@@ -1,7 +1,6 @@
 ---
 title: Performance
-kind: envoy
-weight: 100
+sidebar_position: 6
 ---
 
 This page provides some guidance and best practices around benchmarking the performance of the OPA-Envoy plugin in order
@@ -96,15 +95,15 @@ admin:
       port_value: 8001
 layered_runtime:
   layers:
-    - name: static_layer_0
-      static_layer:
-        envoy:
-          resource_limits:
-            listener:
-              example_listener_name:
-                connection_limit: 10000
-        overload:
-          global_downstream_max_connections: 50000
+  - name: static_layer_0
+    static_layer:
+      envoy:
+        resource_limits:
+          listener:
+            example_listener_name:
+              connection_limit: 10000
+      overload:
+        global_downstream_max_connections: 50000
 ```
 
 #### OPA-Envoy Plugin
@@ -145,11 +144,10 @@ containers:
 > 💡 Consider specifying CPU and memory resource requests and limits for the OPA and other containers to prevent
 > deployments from resource starvation.
 > You can also start OPA with the [`GOMAXPROCS`](https://golang.org/pkg/runtime)environment variable to limit the number of
-cores that OPA can consume.
+> cores that OPA can consume.
 >
 > 💡 The OPA-Envoy plugin can be configured to listen on a UNIX Domain Socket. A complete example of such a setup
 > can be found [here](https://github.com/open-policy-agent/opa-envoy-plugin/tree/main/examples/envoy-uds).
-
 
 ### Load Generator And Measurement Tool
 
@@ -162,15 +160,15 @@ implementation of such a tool can be found [here](https://github.com/ashutosh-na
 Following are some scenarios to perform benchmarks on. The results could be used to compare OPA-Envoy plugin's
 latency and resource consumption with the baseline (no-opa) case for instance.
 
-* **App Only**
+- **App Only**
 
 In this case, requests are sent directly to the application ie. no Envoy and OPA in the request path.
 
-* **App and Envoy**
+- **App and Envoy**
 
 In this case, OPA is not included in the request path but Envoy is (ie. [Envoy External Authorization API](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/ext_authz_filter.html) disabled).
 
-* **App, Envoy and OPA (NOP policy)**
+- **App, Envoy and OPA (NOP policy)**
 
 In this case, performance measurements are observed with [Envoy External Authorization API](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/ext_authz_filter.html) enabled. This means
 Envoy will make a call to OPA on every incoming request with the below NOP policy loaded into OPA.
@@ -181,7 +179,7 @@ package envoy.authz
 default allow := true
 ```
 
-* **App, Envoy and OPA (RBAC policy)**
+- **App, Envoy and OPA (RBAC policy)**
 
 In this case, performance measurements are observed with [Envoy External Authorization API](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/ext_authz_filter.html) enabled and
 a sample real-world RBAC policy as shown below loaded into OPA.
@@ -229,7 +227,7 @@ role_perms := {
 }
 ```
 
-* **App, Envoy and OPA (Header Injection policy)**
+- **App, Envoy and OPA (Header Injection policy)**
 
 This scenario is similar to the previous one expect the policy decision is an object which contains optional
 response headers. An example of such a policy can be found [here](../envoy-primer#example-policy-with-object-response).
@@ -239,19 +237,18 @@ response headers. An example of such a policy can be found [here](../envoy-prime
 This section describes some metrics that should help to measure the cost of the OPA-Envoy plugin in terms of
 CPU and memory consumed as well as latency added.
 
-* `End-to-end Latency` is the latency measured from the end user’s perspective. This includes time spent on the network,
-in the application, in OPA and so on. The sample [load tester tool](https://github.com/ashutosh-narkar/stress-opa-envoy)
-shows how to measure this metric.
+- `End-to-end Latency` is the latency measured from the end user’s perspective. This includes time spent on the network,
+  in the application, in OPA and so on. The sample [load tester tool](https://github.com/ashutosh-narkar/stress-opa-envoy)
+  shows how to measure this metric.
 
-* `OPA Evaluation` is the time taken to evaluate the policy.
+- `OPA Evaluation` is the time taken to evaluate the policy.
 
-* `gRPC Server Handler` is the total time taken to prepare the input for the policy, evaluate the policy (`OPA Evaluation`)
-and prepare the result. Basically this is time spent by the OPA-Envoy plugin to process the request. OPA's [metrics](https://pkg.go.dev/github.com/open-policy-agent/opa/metrics)
-package provides helpers to measure both `gRPC Server Handler` and `OPA Evaluation` time.
+- `gRPC Server Handler` is the total time taken to prepare the input for the policy, evaluate the policy (`OPA Evaluation`)
+  and prepare the result. Basically this is time spent by the OPA-Envoy plugin to process the request. OPA's [metrics](https://pkg.go.dev/github.com/open-policy-agent/opa/metrics)
+  package provides helpers to measure both `gRPC Server Handler` and `OPA Evaluation` time.
 
-* `Resource utilization` refers to the CPU and memory usage of the OPA-Envoy container. `kubectl top` utility can be
-leveraged to measure this.
-
+- `Resource utilization` refers to the CPU and memory usage of the OPA-Envoy container. `kubectl top` utility can be
+  leveraged to measure this.
 
 ### Features
 

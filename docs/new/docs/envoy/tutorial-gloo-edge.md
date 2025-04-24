@@ -1,7 +1,6 @@
 ---
 title: "Tutorial: Gloo Edge"
-kind: envoy
-weight: 11
+sidebar_position: 4
 ---
 
 [Gloo Edge](https://docs.solo.io/gloo-edge/latest/) is an Envoy based API Gateway that provides a Kubernetes CRD to manage Envoy configuration for performing traffic management and routing.
@@ -50,8 +49,8 @@ metadata:
 spec:
   static:
     hosts:
-      - addr: httpbin.org
-        port: 80
+    - addr: httpbin.org
+      port: 80
 ---
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
@@ -60,17 +59,17 @@ metadata:
 spec:
   virtualHost:
     domains:
-      - '*'
+    - "*"
     routes:
-      - matchers:
-         - prefix: /
-        routeAction:
-          single:
-            upstream:
-              name: httpbin
-              namespace: gloo-system
-        options:
-          autoHostRewrite: true
+    - matchers:
+      - prefix: /
+      routeAction:
+        single:
+          upstream:
+            name: httpbin
+            namespace: gloo-system
+      options:
+        autoHostRewrite: true
 ```
 
 ```bash
@@ -101,8 +100,8 @@ HTTP/1.1 200 OK
 
 The following OPA policy will work as follows:
 
-* Alice is granted a **guest** role and can perform `GET` requests.
-* Bob is granted an **admin** role and can perform `GET` and `POST` requests.
+- Alice is granted a **guest** role and can perform `GET` requests.
+- Bob is granted an **admin** role and can perform `GET` and `POST` requests.
 
 **policy.rego**
 
@@ -205,20 +204,20 @@ spec:
       - name: opa
         image: openpolicyagent/opa:{{< current_opa_envoy_docker_version >}}
         volumeMounts:
-          - readOnly: true
-            mountPath: /policy
-            name: opa-policy
+        - readOnly: true
+          mountPath: /policy
+          name: opa-policy
         args:
-          - "run"
-          - "--server"
-          - "--addr=0.0.0.0:8181"
-          - "--set=services.default.url=http://host.minikube.internal:8888"
-          - "--set=bundles.default.resource=bundle.tar.gz"
-          - "--set=plugins.envoy_ext_authz_grpc.addr=0.0.0.0:9191"
-          - "--set=plugins.envoy_ext_authz_grpc.path=envoy/authz/allow"
-          - "--set=decision_logs.console=true"
-          - "--set=status.console=true"
-          - "--ignore=.*"
+        - "run"
+        - "--server"
+        - "--addr=0.0.0.0:8181"
+        - "--set=services.default.url=http://host.minikube.internal:8888"
+        - "--set=bundles.default.resource=bundle.tar.gz"
+        - "--set=plugins.envoy_ext_authz_grpc.addr=0.0.0.0:9191"
+        - "--set=plugins.envoy_ext_authz_grpc.path=envoy/authz/allow"
+        - "--set=decision_logs.console=true"
+        - "--set=status.console=true"
+        - "--ignore=.*"
       volumes:
       - name: opa-policy
 ```
@@ -242,11 +241,12 @@ spec:
   selector:
     app: opa
   ports:
-    - name: grpc
-      protocol: TCP
-      port: 9191
-      targetPort: 9191
+  - name: grpc
+    protocol: TCP
+    port: 9191
+    targetPort: 9191
 ```
+
 **Note**: Since the name of the service port is `grpc`, `Gloo` will understand that traffic should be routed using HTTP2 protocol.
 
 `kubectl apply -f service.yaml`
@@ -305,6 +305,7 @@ Now let's verify that OPA only allows **Alice** to perform `GET` requests.
 curl -XGET -Is -H "Authorization: Bearer $ALICE_TOKEN" localhost:8080/get
 HTTP/1.1 200 OK
 ```
+
 And with a `POST` request, we get:
 
 ```bash
@@ -315,7 +316,7 @@ HTTP/1.1 403 Forbidden
 And for **Bob**, we should be able to `GET` and `POST`:
 
 ```bash
-curl -XGET -Is -H "Authorization: Bearer $BOB_TOKEN" localhost:8080/get    
+curl -XGET -Is -H "Authorization: Bearer $BOB_TOKEN" localhost:8080/get
 HTTP/1.1 200 OK
 ```
 
@@ -337,3 +338,4 @@ kubectl logs deployment/opa -n gloo-system
 Congratulations for finishing the tutorial!
 
 This tutorial showed how you can use OPA with [Gloo Edge](https://docs.solo.io/gloo-edge/latest/) to apply security policies for upstream services and how to create and test a policy that would allow `GET` or `POST` requests based on your user role.
+

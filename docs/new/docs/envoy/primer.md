@@ -1,7 +1,6 @@
 ---
 title: Policy Primer via Examples
-kind: envoy
-weight: 2
+sidebar_position: 1
 ---
 
 This page covers how to write policies for the content of the requests that are passed to OPA by Envoy's
