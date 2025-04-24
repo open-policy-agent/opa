@@ -1,7 +1,5 @@
 ---
 title: "GraphQL APIs"
-kind: tutorial
-weight: 1
 ---
 
 GraphQL APIs have become a popular way to query a variety of datastores and microservices, and any application or service providing a GraphQL API generally needs to control which users can run queries, mutations, and so on.
@@ -15,9 +13,8 @@ OPA, the bundle server, and the GraphQL server will all be run as containers.
 
 For this tutorial, our desired policy is:
 
-* People can see their own salaries (`query user($id: <user>) { salary }` is permitted for `<user>`)
-* A manager can see their direct reports' salaries (`query user($id: <user>) { salary }` is permitted for `<user>`'s manager)
-
+- People can see their own salaries (`query user($id: <user>) { salary }` is permitted for `<user>`)
+- A manager can see their direct reports' salaries (`query user($id: <user>) { salary }` is permitted for `<user>`'s manager)
 
 :::danger GraphQL API Authorization with OPA is currently experimental and the following tutorial is intended for demonstration purposes only. :::
 
@@ -32,6 +29,7 @@ This tutorial requires [Docker Compose](https://docs.docker.com/compose/install/
 Most modern GraphQL frameworks encourage starting with a schema, so we'll follow suit, and begin by defining the schema for this example.
 
 **schema.gql**:
+
 ```graphql
 type Employee {
   id: String!
@@ -48,7 +46,7 @@ type Query {
 ```
 
 Every GraphQL service has a `query` type, and may or may not have a `mutation` type.
-These types are special because they define the entry points of *every* GraphQL query for the API covered by that schema.
+These types are special because they define the entry points of _every_ GraphQL query for the API covered by that schema.
 
 For our example above, we've defined exactly one query entry point, the parameterized query `employeeByID(id: String!)`.
 
@@ -62,16 +60,18 @@ By using `graphql.parse`, we can extract an [abstract syntax tree][wikipedia-ast
 We can then use separate rules to enforce conditions around the `salary` field, and who is allowed to access it.
 
 The policy below does all of the above in parts:
- - Obtains the query AST (and validates it against our schema with `graphql.parse`).
- - Recursive traversal with `walk()` to obtain chunks of the AST with queries of interest present.
-   - Selection of nodes of interest by name and structure.
- - Salary field selected.
- - Every query of interest found has to pass one of the `allowed_query` rules, or the entire query is rejected.
-   - Constant/variable cases for both employees and their managers.
 
-   [wikipedia-ast]: https://en.wikipedia.org/wiki/Abstract_syntax_tree
+- Obtains the query AST (and validates it against our schema with `graphql.parse`).
+- Recursive traversal with `walk()` to obtain chunks of the AST with queries of interest present.
+  - Selection of nodes of interest by name and structure.
+- Salary field selected.
+- Every query of interest found has to pass one of the `allowed_query` rules, or the entire query is rejected.
+
+  [wikipedia-ast]: https://en.wikipedia.org/wiki/Abstract_syntax_tree
+  - Constant/variable cases for both employees and their managers.
 
 **example.rego**:
+
 ```live:example:module:openable
 package graphqlapi.authz
 
@@ -160,7 +160,6 @@ You should now see a policy bundle (`bundle.tar.gz`) in your working directory.
 
 Next, create a `docker-compose.yml` file that runs OPA, a bundle server and the demo GraphQL server.
 
-
 **docker-compose.yml**:
 
 ```yaml
@@ -168,34 +167,34 @@ services:
   opa:
     image: openpolicyagent/opa:{{< current_docker_version >}}
     ports:
-      - "8181:8181"
+    - "8181:8181"
     command:
-      - "run"
-      - "--server"
-      - "--log-format=json-pretty"
-      - "--set=decision_logs.console=true"
-      - "--set=services.nginx.url=http://bundle_server"
-      - "--set=bundles.nginx.service=nginx"
-      - "--set=bundles.nginx.resource=bundle.tar.gz"
-      - "--set=bundles.nginx.polling.min_delay_seconds=10"
-      - "--set=bundles.nginx.polling.max_delay_seconds=30"
+    - "run"
+    - "--server"
+    - "--log-format=json-pretty"
+    - "--set=decision_logs.console=true"
+    - "--set=services.nginx.url=http://bundle_server"
+    - "--set=bundles.nginx.service=nginx"
+    - "--set=bundles.nginx.resource=bundle.tar.gz"
+    - "--set=bundles.nginx.polling.min_delay_seconds=10"
+    - "--set=bundles.nginx.polling.max_delay_seconds=30"
     depends_on:
-      - bundle_server
+    - bundle_server
   api_server:
     image: openpolicyagent/demo-graphql-api:0.1
     ports:
-      - "6000:5000"
+    - "6000:5000"
     environment:
-      - OPA_ADDR=http://opa:8181
-      - POLICY_PATH=/v1/data/graphqlapi/authz
+    - OPA_ADDR=http://opa:8181
+    - POLICY_PATH=/v1/data/graphqlapi/authz
     depends_on:
-      - opa
+    - opa
   bundle_server:
     image: nginx:1.20.0-alpine
     ports:
-      - 8888:80
+    - 8888:80
     volumes:
-      - ./bundles/:/usr/share/nginx/html/
+    - ./bundles/:/usr/share/nginx/html/
 ```
 
 Then run `docker-compose` to pull and run the containers.
@@ -211,34 +210,33 @@ docker-compose -f docker-compose.yml up
 Every time the demo GraphQL server receives an HTTP request, it asks OPA to decide whether an GraphQL query is authorized or not using a single RESTful API call.
 An example codebase is [here][graphql-example-repo], but the crux of the (JavaScript, Apollo framework) code is shown below.
 
-   [graphql-example-repo]: https://github.com/StyraInc/graphql-apollo-example
+[graphql-example-repo]: https://github.com/StyraInc/graphql-apollo-example
 
 ```javascript
-  // we assume user is passed in as part of the request context.
-  var user = req.user;
+// we assume user is passed in as part of the request context.
+var user = req.user;
 
-  // we feed in the query and schema strings, as well as the variables object.
-  var input = {
-    input: {
-      schema: schema, // GraphQL schema text.
-      query: query, // GraphQL query text.
-      user: user,
-      variables: variables // GraphQL variable bindings.
-    }
-  };
+// we feed in the query and schema strings, as well as the variables object.
+var input = {
+  input: {
+    schema: schema, // GraphQL schema text.
+    query: query, // GraphQL query text.
+    user: user,
+    variables: variables, // GraphQL variable bindings.
+  },
+};
 
-  await axios
-    // ask OPA for a policy decision.
-    // (in reality OPA URL would be constructed from environment)
-    .post("http://127.0.0.1:8181/v1/data/graphqlapi/authz", input)
-    .then(res => {
-      // GraphQL query allowed.
-    })
-    .catch(error => {
-      // GraphQL query denied.
-    });
+await axios
+  // ask OPA for a policy decision.
+  // (in reality OPA URL would be constructed from environment)
+  .post("http://127.0.0.1:8181/v1/data/graphqlapi/authz", input)
+  .then(res => {
+    // GraphQL query allowed.
+  })
+  .catch(error => {
+    // GraphQL query denied.
+  });
 ```
-
 
 ### 4. Check that `alice` can see her own salary.
 
@@ -323,13 +321,14 @@ opa build example.rego example-hr.rego
 mv bundle.tar.gz ./bundles
 ```
 
-The updated bundle will automatically be served by the bundle server, but note that it  might take up to the configured `max_delay_seconds` for the new bundle to be downloaded by OPA.
+The updated bundle will automatically be served by the bundle server, but note that it might take up to the configured `max_delay_seconds` for the new bundle to be downloaded by OPA.
 If you plan to make frequent policy changes you might want to adjust this value in `docker-compose.yml` accordingly.
 
 For the sake of the tutorial we included `manager_of` and `hr` data directly inside the policies.
 In real-world scenarios that information would be imported from external data sources.
 
 ### 7. Check that the new policy works.
+
 Check that `david` can see anyone's salary.
 
 ```shell
@@ -340,6 +339,7 @@ gql-query david:password "localhost:6000/" '{"query":"query { employeeByID(id: \
 ```
 
 ### 8. (Optional) Use JSON Web Tokens to communicate policy data.
+
 OPA supports the parsing of JSON Web Tokens via the builtin function `io.jwt.decode`.
 To get a sense of one way the subordinate and HR data might be communicated in the real world, let's try a similar exercise utilizing the JWT utilities of OPA.
 
@@ -509,11 +509,11 @@ Congratulations for finishing the tutorial!
 
 You learned a number of things about API authorization with OPA:
 
-* OPA gives you fine-grained policy control over GraphQL APIs once you set up the server to ask OPA for authorization.
-* You write allow/deny policies to control which endpoints and fields can be accessed by whom.
-* You can import external data into OPA and write policies that depend on that data.
-* You can use OPA data structures to define abstractions over your data.
-* You can use a remote bundle server for distributing policy and data.
+- OPA gives you fine-grained policy control over GraphQL APIs once you set up the server to ask OPA for authorization.
+- You write allow/deny policies to control which endpoints and fields can be accessed by whom.
+- You can import external data into OPA and write policies that depend on that data.
+- You can use OPA data structures to define abstractions over your data.
+- You can use a remote bundle server for distributing policy and data.
 
 The code for this tutorial can be found in the
 [StyraInc/graphql-apollo-example][graphql-example-repo]

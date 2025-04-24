@@ -1,6 +1,5 @@
 ---
 title: Debugging OPA
-sidebar_position: 9
 ---
 
 This section outlines the various tools and techniques that can be used to debug OPA, both as a component in a
@@ -47,13 +46,13 @@ others.
 The `print` built-in function can be used to print values to stdout, this can be useful for checking values
 during policy evaluation as well as seeing how many times a particular line of code is executed.
 
-See the [print function documentation](../policy-reference/#debugging) for more details on how to use
+See the [print function documentation](./policy-reference/#debugging) for more details on how to use
 the `print` built-in function in different contexts.
 
 ## Performance Profiling
 
 Sometimes the issue isn't the correctness of the policy but rather the performance. The
-[Policy Performance](../policy-performance) section of the documentation outlines various techniques for
+[Policy Performance](./policy-performance) section of the documentation outlines various techniques for
 profiling and optimizing Rego policies.
 
 ## Ecosystem Projects
@@ -74,7 +73,7 @@ OPA logs are a great place to start when debugging issues. The logs can be used 
 at any given time. Common issues such as failing to load in policy or data bundles will be shown here.
 
 You can also enable debug logging to get more detailed information about what OPA is doing with `--log-level debug`.
-This is documented in the [CLI documentation](../cli/#options-10) for `opa run`.
+This is documented in the [CLI documentation](./cli/#options-10) for `opa run`.
 
 ### Decision Logging
 
@@ -88,7 +87,7 @@ decision_logs:
 ```
 
 It might be preferable to send these logs to an HTTP endpoint or other system, to learn more about decision logging,
-take a look at the [Decision Logging documentation](../management-decision-logs).
+take a look at the [Decision Logging documentation](./management-decision-logs).
 
 ## Metrics, Health and Status APIs
 
@@ -96,17 +95,17 @@ Like other cloud-native tools, OPA exposes `/metrics` and `/health` endpoints th
 state of an OPA instance at any given time.
 
 - `/metrics` - exposes Prometheus metrics about the OPA instance's memory use, bundle loading and HTTP requests.
-  Read more in the [Metrics documentation](../monitoring).
+  Read more in the [Metrics documentation](./monitoring).
 - `/health` - shows information about the instance's readiness to serve requests, there are options available to also
   show information about the loading of bundles and other plugins. Read more about the endpoint in the
-  [Health API documentation](../rest-api/#health-api).
+  [Health API documentation](./rest-api/#health-api).
 - `/status` - is a JSON formatted endpoint that shows both health and metrics information. Read more in
-  [Status API documentation](../rest-api/#status-api).
+  [Status API documentation](./rest-api/#status-api).
 
 ## Manually Querying OPA
 
 In distributed systems, it's common that an OPA instance is being invoked by another service, sometimes it can be helpful
-to isolate the OPA instance and query it directly. This can be done using the [REST API](../rest-api).
+to isolate the OPA instance and query it directly. This can be done using the [REST API](./rest-api).
 
 For example, to get a snapshot of the data that OPA has loaded, you can use the following command:
 
@@ -132,4 +131,4 @@ opa run -s https://example.com/bundles/bundle.tar.gz
 ```
 
 If you need to configure the OPA instance with other options, you can use a config file to
-make more detailed configurations. Read more in the [Configuration documentation](../configuration) documentation.
+make more detailed configurations. Read more in the [Configuration documentation](./configuration) documentation.

@@ -1,7 +1,5 @@
 ---
 title: Security
-kind: operations
-weight: 40
 ---
 
 This document provides guidelines for deploying OPA inside untrusted
@@ -14,28 +12,28 @@ authorization so that:
 - Traffic between OPA and clients is encrypted.
 - Clients verify the OPA API endpoint identity.
 - OPA verifies client identities.
-- Clients are only granted access to specific APIs or sections of [The `data` Document](../philosophy/#the-opa-document-model).
+- Clients are only granted access to specific APIs or sections of [The `data` Document](./philosophy/#the-opa-document-model).
 
 ## TLS and HTTPS
 
 HTTPS is configured by specifying TLS credentials via command line flags at
 startup:
 
-- ``--tls-cert-file=<path>`` specifies the path of the file containing the TLS certificate.
-- ``--tls-private-key-file=<path>`` specifies the path of the file containing the TLS private key.
+- `--tls-cert-file=<path>` specifies the path of the file containing the TLS certificate.
+- `--tls-private-key-file=<path>` specifies the path of the file containing the TLS private key.
 
 OPA will exit immediately with a non-zero status code if only one of these flags
 is specified.
 
 The server can track the certificate and key files' contents, and reload them if necessary:
 
-- ``--tls-cert-refresh-period=<duration>`` specifies how often OPA should check the TLS certificate and
+- `--tls-cert-refresh-period=<duration>` specifies how often OPA should check the TLS certificate and
   private key file for changes (defaults to 0s, disabling periodic refresh). This argument accepts
   any duration, such as "30s", "5m" or "24h".
 
 Note that for using TLS-based authentication, a CA cert file can be provided:
 
-- ``--tls-ca-cert-file=<path>`` specifies the path of the file containing the CA cert.
+- `--tls-ca-cert-file=<path>` specifies the path of the file containing the CA cert.
 
 If provided, it will be used to validate clients' TLS certificates when using TLS
 authentication (see below).
@@ -61,8 +59,8 @@ openssl req -new -x509 -sha256 -key private.key -out public.crt -days 1
 ```
 
 > We have generated a self-signed certificate for example purposes here. DO NOT
-rely on self-signed certificates outside of development without understanding
-the risks.
+> rely on self-signed certificates outside of development without understanding
+> the risks.
 
 ### 2. Start OPA with TLS enabled
 
@@ -115,27 +113,27 @@ Authentication and authorization allow OPA to:
 
 Both are configured via command line flags:
 
-- ``--authentication=<scheme>`` specifies the authentication scheme to use.
-- ``--authorization=<scheme>`` specifies the authorization scheme to use.
+- `--authentication=<scheme>` specifies the authentication scheme to use.
+- `--authorization=<scheme>` specifies the authorization scheme to use.
 
 By default, OPA does not perform authentication or authorization and these flags
 default to `off`.
 
 For authentication, OPA supports:
 
-- [Bearer tokens](../rest-api#bearer-tokens): Bearer tokens are enabled by
-starting OPA with ``--authentication=token``. When the `token` authentication
-mode is enabled, OPA will extract the Bearer token from incoming API requests
-and provide to the authorization handler. When you use the `token`
-authentication, you must configure an authorization policy that checks the
-tokens. If the client does not supply a Bearer token, the `input.identity`
-value will be undefined when the authorization policy is evaluated.
+- [Bearer tokens](./rest-api#bearer-tokens): Bearer tokens are enabled by
+  starting OPA with `--authentication=token`. When the `token` authentication
+  mode is enabled, OPA will extract the Bearer token from incoming API requests
+  and provide to the authorization handler. When you use the `token`
+  authentication, you must configure an authorization policy that checks the
+  tokens. If the client does not supply a Bearer token, the `input.identity`
+  value will be undefined when the authorization policy is evaluated.
 - Client TLS certificates: Client TLS authentication is enabled by starting
-OPA with ``--authentication=tls``. When this authentication mode is enabled,
-OPA will require all clients to provide a client certificate. It is verified
-against the CA certificate(s) provided via `--tls-ca-cert-file`. Upon successful
-verification, the `input.identity` value is set to the TLS certificate's
-subject.
+  OPA with `--authentication=tls`. When this authentication mode is enabled,
+  OPA will require all clients to provide a client certificate. It is verified
+  against the CA certificate(s) provided via `--tls-ca-cert-file`. Upon successful
+  verification, the `input.identity` value is set to the TLS certificate's
+  subject.
 
   Note that TLS authentication does not disable non-HTTPS listeners. To ensure
   that all your communication is secured, it should be paired with an
@@ -143,7 +141,7 @@ subject.
   (`input.identity`) to _be set_.
 
 For authorization, OPA relies on policy written in Rego. Authorization is
-enabled by starting OPA with ``--authorization=basic``.
+enabled by starting OPA with `--authorization=basic`.
 
 When the `basic` authorization scheme is enabled, a minimal authorization policy
 must be provided on startup. The authorization policy must be structured as follows:
@@ -166,10 +164,10 @@ When OPA receives a request, it executes a query against the document defined
 packages however it is recommended that administrators keep the policy under the
 `system` namespace.
 
-If the document produced by the ``allow`` rule is ``true``, the request is
-processed normally. If the document is undefined or **not** ``true``, the
+If the document produced by the `allow` rule is `true`, the request is
+processed normally. If the document is undefined or **not** `true`, the
 request is rejected immediately. The count of requests rejected by an OPA instance
-are surfaced via the performance metrics in the [Status](../management-status) information.
+are surfaced via the performance metrics in the [Status](./management-status) information.
 
 OPA provides the following `input` document when executing the authorization
 policy. Since the schema for the `input` document is known to OPA, it performs automatic type checking of this document
@@ -177,6 +175,7 @@ and reports any errors resulting from the schema check. The `--skip-known-schema
 to disable automatic type checking of this `input` document.
 
 <!-- TODO(sr): check if "jsonc" looks alright on netlify -->
+
 ```jsonc
 {
     # Identity value established by authentication scheme.
@@ -188,7 +187,7 @@ to disable automatic type checking of this `input` document.
     # Note: client certificate data is available in the
     # 'client_certificates' key.
     "identity": "",
-    
+
     # Client certificates provided by the client when calling OPA
     # over an mTLS connection. Represented in input as a list of
     # Go x509.Certificate objects marshalled as JSON.
@@ -426,7 +425,7 @@ is different. We'll use this to show our authorization policy in action.
 
 ```bash
 # CA
-openssl ecparam -out ca-key.pem -name prime256v1 -genkey 
+openssl ecparam -out ca-key.pem -name prime256v1 -genkey
 openssl req -x509 -new -nodes -key ca-key.pem -days 30 -out ca.pem -subj "/CN=my-ca"
 
 # client 1
@@ -444,8 +443,8 @@ subjectAltName = @alt_names
 [alt_names]
 URI.1 = spiffe://example.com/client-1
 EOF
-openssl ecparam -out client-key-1.pem -name prime256v1 -genkey 
-openssl req -new -key client-key-1.pem -out csr.pem -subj "/CN=client-1" -config req.cnf 
+openssl ecparam -out client-key-1.pem -name prime256v1 -genkey
+openssl req -new -key client-key-1.pem -out csr.pem -subj "/CN=client-1" -config req.cnf
 openssl x509 -req -in csr.pem -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out client-cert-1.pem -days 10 -extensions v3_req -extfile req.cnf -sha256
 
 # client 2
@@ -463,7 +462,7 @@ subjectAltName = @alt_names
 [alt_names]
 URI.1 = spiffe://example.com/client-2
 EOF
-openssl ecparam -out client-key-2.pem -name prime256v1 -genkey 
+openssl ecparam -out client-key-2.pem -name prime256v1 -genkey
 openssl req -new -key client-key-2.pem -out csr.pem -subj "/CN=client-2" -config req.cnf
 openssl x509 -req -in csr.pem -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out client-cert-2.pem -days 10 -extensions v3_req -extfile req.cnf -sha256
 
@@ -485,7 +484,7 @@ DNS.1 = opa.example.com
 IP.1 = 127.0.0.1
 URI.1 = spiffe://example.com/server
 EOF
-openssl ecparam -out server-key.pem -name prime256v1 -genkey 
+openssl ecparam -out server-key.pem -name prime256v1 -genkey
 openssl req -new -key server-key.pem -out csr.pem -subj "/CN=server" -config req.cnf
 openssl x509 -req -in csr.pem -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out server-cert.pem -days 10 -extensions v3_req -extfile req.cnf -sha256
 ```
@@ -525,6 +524,7 @@ allow := {"allowed": true} if {
 
 Now, we're ready to starting the server with `-authentication=tls` and the
 certificate-related parameters:
+
 ```console
 $ opa run -s \
   --tls-cert-file server-cert.pem \
@@ -572,6 +572,7 @@ $ curl --key client-key-2.pem \
 ```
 
 Finally, we'll attempt to query without a client certificate:
+
 ```console
 $ curl --cacert ca.pem https://127.0.0.1:8181/v1/data
 curl: (56) LibreSSL SSL_read: error:1404C412:SSL routines:ST_OK:sslv3 alert bad certificate, errno 0
@@ -596,6 +597,7 @@ $ opa run \
   --addr localhost:8181 \
   --diagnostic-addr :8282
 ```
+
 The configuration above would expose only `/health` and `/metrics` API's on port
 `8282` while keeping the normal REST API bound to `localhost:8181`.
 
@@ -607,12 +609,12 @@ The configuration above would expose only `/health` and `/metrics` API's on port
 You can run a hardened OPA deployment with minimal configuration. There are a
 few things to keep in mind:
 
-* Limit API access to host-local clients executing policy queries.
-* Configure TLS (for localhost TCP) or a UNIX domain socket.
-* Do not pass credentials as command-line arguments.
-* Run OPA as a non-root user ideally inside it's own account.
+- Limit API access to host-local clients executing policy queries.
+- Configure TLS (for localhost TCP) or a UNIX domain socket.
+- Do not pass credentials as command-line arguments.
+- Run OPA as a non-root user ideally inside it's own account.
 
-With OPA configured to fetch policies using the [Bundles](../management-bundles) feature
+With OPA configured to fetch policies using the [Bundles](./management-bundles) feature
 you can configure OPA with a restrictive authorization policy that only grants
 clients access to the default policy decision, i.e., `POST /`:
 
@@ -631,9 +633,9 @@ allow if {
 
 The example below shows flags that tell OPA to:
 
-* Authorize all API requests (`--authorization=basic`)
-* Listen on localhost for HTTPS (not HTTP!) connections (`--addr`, `--tls-cert-file`, `--tls-private-key-file`)
-* Download bundles from a remote HTTPS endpoint (`--set` flags and `--set-file` flag)
+- Authorize all API requests (`--authorization=basic`)
+- Listen on localhost for HTTPS (not HTTP!) connections (`--addr`, `--tls-cert-file`, `--tls-private-key-file`)
+- Download bundles from a remote HTTPS endpoint (`--set` flags and `--set-file` flag)
 
 ```bash
 opa run \

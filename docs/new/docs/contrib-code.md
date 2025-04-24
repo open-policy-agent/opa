@@ -1,7 +1,5 @@
 ---
 title: Contributing Code
-kind: contrib
-weight: 3
 ---
 
 ## Code Contributions

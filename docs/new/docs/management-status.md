@@ -1,12 +1,10 @@
 ---
 title: "Status"
-kind: management
-weight: 4
 ---
 
 OPA can periodically report status updates to remote HTTP servers. The
 updates contain status information for OPA itself as well as the
-[Bundles](../management-bundles) that have been downloaded and activated.
+[Bundles](./management-bundles) that have been downloaded and activated.
 
 OPA sends status reports whenever one of the following happens:
 
@@ -20,7 +18,7 @@ OPA instance. OPA automatically includes an `id` value in the label set that
 provides a globally unique identifier or the running OPA instance and a
 `version` value that provides the version of OPA.
 
-See the [Configuration Reference](../configuration) for configuration details.
+See the [Configuration Reference](./configuration) for configuration details.
 
 ## Status Service API
 
@@ -284,7 +282,7 @@ status:
 ```
 
 This will dump all status updates to the console. See
-[Configuration Reference](../configuration) for more details.
+[Configuration Reference](./configuration) for more details.
 
 > Warning: Status update messages are somewhat infrequent but can be very verbose! The
 > `metrics.prometheus` portion of the status update in particular can create a considerable
@@ -292,7 +290,7 @@ This will dump all status updates to the console. See
 
 ## Prometheus Status Metrics
 
-Prometheus status metrics can be enabled via the `prometheus` config option. (see [the configuration documentation](../configuration/#status))
+Prometheus status metrics can be enabled via the `prometheus` config option. (see [the configuration documentation](./configuration/#status))
 Example of minimal config to enable:
 
 ```yaml
@@ -304,7 +302,7 @@ status:
         buckets: [1, 1000, 10_000, 1e8]
 ```
 
-When enabled the OPA instance's Prometheus endpoint exposes the metrics described on [the monitoring documentation](../monitoring/#status-metrics).
+When enabled the OPA instance's Prometheus endpoint exposes the metrics described on [the monitoring documentation](./monitoring/#status-metrics).
 
 ## Ecosystem Projects
 

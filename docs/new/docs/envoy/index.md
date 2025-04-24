@@ -1,7 +1,5 @@
 ---
 title: Overview & Architecture
-kind: envoy
-weight: 1
 ---
 
 [Envoy](https://www.envoyproxy.io/docs/envoy/latest/intro/what_is_envoy) is a
@@ -62,7 +60,7 @@ useful for initial integration of OPA or when policies undergo large refactoring
 
 The `enable-reflection` parameter registers the Envoy External Authorization gRPC server with reflection. After enabling
 server reflection, a command line tool such as [grpcurl](https://github.com/fullstorydev/grpcurl) can be used to invoke
-RPC methods on the gRPC server. See [Interacting with the gRPC server](../envoy-debugging#interacting-with-the-grpc-server)
+RPC methods on the gRPC server. See [Interacting with the gRPC server](./envoy/debugging#interacting-with-the-grpc-server)
 section for more details.
 
 Providing a file containing a protobuf descriptor set allows the plugin to decode gRPC message payloads.

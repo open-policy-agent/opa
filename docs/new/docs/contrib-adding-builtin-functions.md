@@ -1,10 +1,8 @@
 ---
 title: Adding Built-in Functions
-kind: contrib
-weight: 5
 ---
 
-[Built-in Functions](../policy-reference/#built-in-functions)
+[Built-in Functions](./policy-reference/#built-in-functions)
 can be added inside the `topdown` package.
 
 Built-in functions may be upstreamed if they are generally useful and provide functionality that would be
@@ -12,7 +10,7 @@ impractical to implement natively in Rego (e.g., CIDR arithmetic). Implementatio
 dependencies. If absolutely necessary, consider importing the code manually into the `internal` package.
 
 :::info
-Read more about extending OPA with custom built-in functions in go [here](../extensions#custom-built-in-functions-in-go).
+Read more about extending OPA with custom built-in functions in go [here](./extensions#custom-built-in-functions-in-go).
 :::
 
 Adding a new built-in function involves the following steps:
@@ -111,31 +109,31 @@ We create two new test cases (one positive, expecting a string output; and one n
 
 ```yaml
 cases:
-  - note: repeat/positive
-    query: data.test.p = x
-    modules:
-      - |
-        package test
+- note: repeat/positive
+  query: data.test.p = x
+  modules:
+  - |
+      package test
 
-        p := repeated if {
-          repeated := repeat(input.str, input.count)
-        }
-    input: {"str": "Foo", "count": 3}
-    want_result:
-      - x: FooFooFoo
-  - note: repeat/negative
-    query: data.test.p = x
-    modules:
-      - |
-        package test
+      p := repeated if {
+        repeated := repeat(input.str, input.count)
+      }
+  input: { "str": "Foo", "count": 3 }
+  want_result:
+  - x: FooFooFoo
+- note: repeat/negative
+  query: data.test.p = x
+  modules:
+  - |
+      package test
 
-        p := repeated if {
-          repeated := repeat(input.str, input.count)
-        }
-    input: { "str": "Foo", "count": -3 }
-    strict_error: true
-    want_error_code: eval_builtin_error
-    want_error: 'repeat: count must be a positive integer'
+      p := repeated if {
+        repeated := repeat(input.str, input.count)
+      }
+  input: { "str": "Foo", "count": -3 }
+  strict_error: true
+  want_error_code: eval_builtin_error
+  want_error: "repeat: count must be a positive integer"
 ```
 
 The above test cases can be run separate from all other tests through: `go test ./topdown -v -run 'TestRego/v1/repeat'`
@@ -144,7 +142,7 @@ See [test/cases/testdata/helloworld](https://github.com/open-policy-agent/opa/bl
 for a more detailed example of how to implement tests for your built-in functions.
 
 :::info
-Note: We can manually test our new built-in function by [building](../contrib-development#getting-started)
+Note: We can manually test our new built-in function by [building](./contrib-development#getting-started)
 and running the `eval` command. E.g.: `$./opa_<OS>_<ARCH> eval 'repeat("Foo", 3)'`
 :::
 
@@ -157,10 +155,10 @@ For this example, we'll get an entry for our new function under the `Strings` se
 ### Add a capability
 
 :::info
-Read more about extending the default capabilities list for built-ins [here](../deployments/#built-ins).
+Read more about extending the default capabilities list for built-ins [here](./deployments/#built-ins).
 :::
 
-One of the security features of OPA is [capabilities](../deployments/#capabilities) checks on policies, allowing users to restrict which built-in functions will be available to policies at runtime.
+One of the security features of OPA is [capabilities](./deployments/#capabilities) checks on policies, allowing users to restrict which built-in functions will be available to policies at runtime.
 To ensure that our new `repeat` function will be available to callers, we'll need to add it to the `capabilities.json` file at the root of the repo.
 We can have this entry auto-generated for us by running `make generate`.
 

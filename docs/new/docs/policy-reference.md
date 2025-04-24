@@ -1272,7 +1272,7 @@ deny
 
 #### Metadata Merge strategies
 
-When multiple [annotations](../annotations) are declared along the path ancestry (chain) for a rule, how any given annotation should be selected, inherited or merged depends on the semantics of the annotation, the context of the rule, and the preferences of the developer.
+When multiple [annotations](./policy-language/#annotations) are declared along the path ancestry (chain) for a rule, how any given annotation should be selected, inherited or merged depends on the semantics of the annotation, the context of the rule, and the preferences of the developer.
 OPA doesn't presume what merge strategy is appropriate; instead, this lies in the hands of the developer. The following example demonstrates how some string and list type annotations in a metadata chain can be merged into a single metadata object.
 
 ```rego

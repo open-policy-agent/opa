@@ -908,7 +908,7 @@ loading 10,000 rules that implement an ACL-style authorization policy consumes a
 130MB of RAM while 100,000 rules implementing the same policy (but with 10x more tuples to check)
 consumes approximately 1.1GB of RAM.
 
-By default, OPA stores policy and data in-memory. OPA's disk storage feature allows policy and data to be stored on disk. See [this](../storage/#disk) for more details.
+By default, OPA stores policy and data in-memory. OPA's disk storage feature allows policy and data to be stored on disk. See [this](./storage/#disk) for more details.
 
 ## Optimization Levels
 

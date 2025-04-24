@@ -1,7 +1,5 @@
 ---
 title: Deployment
-kind: operations
-weight: 20
 ---
 
 This document helps you get OPA up and running in different deployment
@@ -35,7 +33,7 @@ command line arguments for OPA's server mode are:
 - `--log-format` to set the log format (default: `"json"`).
 
 By default, OPA listens for normal HTTP connections on `localhost:8181`. To make
-OPA listen for HTTPS connections, see [Security](../security).
+OPA listen for HTTPS connections, see [Security](./security).
 
 We can run OPA as a server using Docker:
 
@@ -50,7 +48,7 @@ accessible from outside the container. This is not necessary when running OPA
 in other environments.
 
 More information can be found in the
-[security documentation](../security/#interface-binding).
+[security documentation](./security/#interface-binding).
 :::
 
 Test that OPA is available:
@@ -143,7 +141,7 @@ docker run openpolicyagent/opa version
 This section shows how to quickly deploy OPA on top of Kubernetes to try it out.
 
 > If you are interested in using OPA to enforce admission control policies in
-> Kubernetes, see the [Kubernetes Admission Control Tutorial](../kubernetes-tutorial).
+> Kubernetes, see the [Kubernetes Admission Control Tutorial](./kubernetes/tutorial).
 
 > These steps assume Kubernetes is deployed with
 > [minikube](https://github.com/kubernetes/minikube). If you are using a different
@@ -310,7 +308,7 @@ containers:
     periodSeconds: 5
 ```
 
-See the [Health API](/rest-api#health-api) documentation for more detail on the `/health` API endpoint.
+See the [Health API](./rest-api#health-api) documentation for more detail on the `/health` API endpoint.
 
 ## HTTP Proxies
 
@@ -322,7 +320,7 @@ variables.
 
 ## CPU and Memory Requirements
 
-For more information see the [Resource Utilization section on the Policy Performance page](../policy-performance#resource-utilization).
+For more information see the [Resource Utilization section on the Policy Performance page](./policy-performance#resource-utilization).
 
 ## Operational Readiness and Failure Modes
 
@@ -360,9 +358,9 @@ The relevance of the discussion above depends on how you have chosen to deploy p
 
 If you deploy policies to OPA on disk (e.g. volume mounting into the OPA container on Kubernetes), then OPA will only start answering policy queries once all the policies are successfully loaded. In this case, it is impossible for OPA to answer policy queries before it has loaded policy, so the discussion above is a non-issue.
 
-On the other hand, if you use the [Bundle service](../management-bundles) OPA will start up without any policies and immediately start downloading a bundle. But even before the bundle has successfully downloaded, OPA will answer policy queries if asked (which is in every case except the bootstrap case the right thing to do). For this reason, OPA provides a `/health` [API](../rest-api/#health-api) that verifies that the server is operational and optionally that a bundle has been successfully activated. As long as no policy queries are routed to OPA until the `/health` API verifies that OPA is operational. The recommendation is to ensure the `/health` API indicates that OPA is operational before routing policy queries to it.
+On the other hand, if you use the [Bundle service](./management-bundles) OPA will start up without any policies and immediately start downloading a bundle. But even before the bundle has successfully downloaded, OPA will answer policy queries if asked (which is in every case except the bootstrap case the right thing to do). For this reason, OPA provides a `/health` [API](./rest-api/#health-api) that verifies that the server is operational and optionally that a bundle has been successfully activated. As long as no policy queries are routed to OPA until the `/health` API verifies that OPA is operational. The recommendation is to ensure the `/health` API indicates that OPA is operational before routing policy queries to it.
 
-Finally, you might choose to push policies into OPA via its [REST API](../rest-api/#create-or-update-a-policy). In this case, there is no way for OPA to know whether it has a complete policy set, and so the decision as to when to route policy queries to OPA must be handled by whatever software is pushing policies into OPA.
+Finally, you might choose to push policies into OPA via its [REST API](./rest-api/#create-or-update-a-policy). In this case, there is no way for OPA to know whether it has a complete policy set, and so the decision as to when to route policy queries to OPA must be handled by whatever software is pushing policies into OPA.
 
 ### Making Decisions before OPA is Ready
 
@@ -377,7 +375,7 @@ In Kubernetes admission control, for example, the Kubernetes admin can choose wh
 
 ## Capabilities
 
-OPA now supports a _capabilities_ check on policies. The check allows callers to restrict the [built-in](../policy-reference/#built-in-functions) functions that policies may depend on. If the policies passed to OPA require built-ins not listed in the capabilities structure, an error is returned. The capabilities check is currently supported by the `check` and `build` sub-commands and can be accessed programmatically on the `ast.Compiler` structure. The OPA repository includes a set of capabilities files for previous versions of OPA in the [capabilities](https://github.com/open-policy-agent/opa/tree/main/capabilities) folder.
+OPA now supports a _capabilities_ check on policies. The check allows callers to restrict the [built-in](./policy-reference/#built-in-functions) functions that policies may depend on. If the policies passed to OPA require built-ins not listed in the capabilities structure, an error is returned. The capabilities check is currently supported by the `check` and `build` sub-commands and can be accessed programmatically on the `ast.Compiler` structure. The OPA repository includes a set of capabilities files for previous versions of OPA in the [capabilities](https://github.com/open-policy-agent/opa/tree/main/capabilities) folder.
 
 For example, given the following policy:
 
@@ -473,14 +471,14 @@ Some features of OPA can be toggled on and off through the `features` list:
 
 Features present in the list are enabled, while features not present are disabled. The following features are available:
 
-- `rule_head_ref_string_prefixes`: Enables the use of a [reference in place of name](../policy-language/#rule-heads-containing-references) in the head of rules. This is a subset of `rule_head_refs`, and only covers references where all terms are primitive types, or where only the last element of the ref (the key in the generated object or set) is allowed to be a variable.
-- `rule_head_refs`: Enables general support for [references in rule heads](../policy-language/#rule-heads-containing-references), including [variables at arbitrary locations](../policy-language/#variables-in-rule-head-references). This feature also covers the functionality of `rule_head_ref_string_prefixes`.
+- `rule_head_ref_string_prefixes`: Enables the use of a [reference in place of name](./policy-language/#rule-heads-containing-references) in the head of rules. This is a subset of `rule_head_refs`, and only covers references where all terms are primitive types, or where only the last element of the ref (the key in the generated object or set) is allowed to be a variable.
+- `rule_head_refs`: Enables general support for [references in rule heads](./policy-language/#rule-heads-containing-references), including [variables at arbitrary locations](./policy-language/#variables-in-rule-head-references). This feature also covers the functionality of `rule_head_ref_string_prefixes`.
 - `rego_v1_import`: enables use of the `rego.v1` import.
 
 ### Future keywords
 
 :::info
-It is recommended to use the `rego.v1` import instead of `future.keywords` imports, as this will ensure that your policy is compatible with the future release of [OPA v1.0](./opa-1/).
+It is recommended to use the `rego.v1` import instead of `future.keywords` imports, as this will ensure that your policy is compatible with the future release of [OPA v1.0](./v0-upgrade/)
 If the `rego.v1` import is present in a module, then `future.keywords` and `future.keywords.*` import is implied, and not allowed.
 :::
 
@@ -493,7 +491,7 @@ The availability of future keywords in an OPA version can also be controlled usi
 ```
 
 With these capabilities, the future import `future.keywords.in` would be available. See [the documentation
-of the membership and iteration operator for details](../policy-language/#membership-and-iteration-in).
+of the membership and iteration operator for details](./policy-language/#membership-and-iteration-in).
 
 ### Wasm ABI compatibility
 
@@ -515,7 +513,7 @@ A specific OPA version's capabilities file shows which Wasm ABI versions it is c
 ```
 
 This snippet would allow for evaluating bundles containing Wasm modules of the ABI version 1.1 and 1.2.
-See [the ABI version docs](../wasm/#abi-versions) for details.
+See [the ABI version docs](./wasm/#abi-versions) for details.
 
 ### Building your own capabilities JSON
 

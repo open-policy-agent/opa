@@ -1,7 +1,5 @@
 ---
 title: "Overview & Architecture"
-kind: management
-weight: 1
 ---
 
 OPA exposes a set of APIs that enable unified, logically centralized policy
@@ -30,10 +28,10 @@ manner.
 To control and observe a set of OPAs, each OPA can be configured to connect to
 management APIs that enable:
 
-- Policy distribution ([Bundles](../management-bundles))
-- Decision telemetry ([Decision Logs](../management-decision-logs))
-- Agent telemetry ([Status](../management-status))
-- Dynamic agent configuration ([Discovery](../management-discovery))
+- Policy distribution ([Bundles](./management-bundles))
+- Decision telemetry ([Decision Logs](./management-decision-logs))
+- Agent telemetry ([Status](./management-status))
+- Dynamic agent configuration ([Discovery](./management-discovery))
 
 By configuring and implementing these management APIs you can unify control and
 visibility over OPAs in your environments. OPA does not provide a control plane

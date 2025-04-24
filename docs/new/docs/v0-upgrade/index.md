@@ -406,7 +406,7 @@ a rule or variable shadows `input` or `data` you have the unintended consequence
 of erasing information under these inside the local scope, resulting in incorrect policy decisions. In
 OPA v1.0 such scenarios are avoided by default.
 
-Note, using the [with](../policy-language/#with-keyword) keyword to insert
+Note, using the [with](./policy-language/#with-keyword) keyword to insert
 values into - or to fully replace - the `input` or `data` documents, as in
 `my_func(x) with input as {...}` does not constitute shadowing and is therefore
 allowed in OPA v1.0.
@@ -425,7 +425,7 @@ deprecated built-in.
 ### Rego-versioned bundles
 
 A bundle built with OPA `v0.64.0` or later, contain a `rego_version` attribute
-in their [manifest](../management-bundles/#bundle-file-format), which the OPA
+in their [manifest](./management-bundles/#bundle-file-format), which the OPA
 consuming that bundle will use when processing the contained modules. A bundle's
 internal rego-version takes precedence over the presence of the
 `--v1-compatible` flag; therefore, prerequisite knowledge about what Rego syntax
@@ -438,12 +438,12 @@ versioned bundles as part of an upgrade to OPA v1.0.
 
 ## Compilation Constraints and Checks
 
-Below constraints and safety checks are enforced by default in v1.0 during compilation. These checks along with the ones in [v1.0 strict mode](../policy-language/#strict-mode)
+Below constraints and safety checks are enforced by default in v1.0 during compilation. These checks along with the ones in [v1.0 strict mode](./policy-language/#strict-mode)
 were part of the compiler `strict` mode in OPA 0.x.
 
 | Name                                 | Description                                                                                                                                                                                                                                                   |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Duplicate imports                    | Duplicate [imports](../policy-language/#imports), where one import shadows another, are prohibited.                                                                                                                                                           |
+| Duplicate imports                    | Duplicate [imports](./policy-language/#imports), where one import shadows another, are prohibited.                                                                                                                                                            |
 | `input` and `data` reserved keywords | `input` and `data` are reserved keywords, and may not be used as names for rules and variable assignment.                                                                                                                                                     |
 | Use of deprecated built-ins          | Use of deprecated functions is prohibited, and these will be removed in OPA 1.0. Deprecated built-in functions: `any`, `all`, `re_match`, `net.cidr_overlap`, `set_diff`, `cast_array`, `cast_set`, `cast_string`, `cast_boolean`, `cast_null`, `cast_object` |
 
@@ -462,7 +462,7 @@ OPA binary of version 1.0 or later.
    that might make it incompatible with OPA v1.0 such as the use of deprecated
    built-ins or duplicate imports.
 3. Automatically reformat your code for OPA v1.0 with `opa fmt --write --v0-v1`.
-4. `regal lint`, the [Regal linter](/integrations/regal/) has many more rules to
+4. `regal lint`, the [Regal linter](../ecosystem/entry/regal/) has many more rules to
    test for issues in Rego code that can lead to errors, poor performance or
    unexpected behaviour.
 
@@ -530,5 +530,5 @@ As of OPA 1.0, all v0 packages have been deprecated. While they will remain for
 the lifetime of OPA 1.0, you are encouraged to upgrade as soon as possible.
 
 If you need to use v0 functionality, you can still use v1 packages. Please see
-the [Backwards Compatibility](../v0-compatibility/) documentation for more
+the [Backwards Compatibility](./v0-compatibility/) documentation for more
 details.

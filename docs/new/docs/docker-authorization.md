@@ -1,7 +1,5 @@
 ---
 title: Docker
-kind: tutorial
-weight: 1
 ---
 
 Docker’s out-of-the-box authorization model is all or nothing. But many users

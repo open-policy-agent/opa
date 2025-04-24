@@ -1,11 +1,9 @@
 ---
 title: Comparison to Other Systems
-kind: misc
-weight: 3
 ---
 
 Often the easiest way to understand a new language is by comparing
-it to languages you already know.  Here we show how policies from
+it to languages you already know. Here we show how policies from
 several existing policy systems can be implemented with the Open
 Policy Agent.
 
@@ -15,38 +13,38 @@ Role-based access control (RBAC) is pervasive today for authorization.
 To use RBAC for authorization, you write down two different kinds of
 information.
 
-* Which users have which roles
-* Which roles have which permissions
+- Which users have which roles
+- Which roles have which permissions
 
 Once you provide RBAC with both those assignments, RBAC tells you
-how to make an authorization decision.  A user is authorized for
+how to make an authorization decision. A user is authorized for
 all those permissions assigned to any of the roles she is assigned to.
 
 For example, we might have the following user/role assignments:
 
-| User | Role |
-| --- | --- |
-| ``alice`` | ``engineering`` |
-| ``alice`` | ``webdev`` |
-| ``bob`` | ``hr`` |
+| User    | Role          |
+| ------- | ------------- |
+| `alice` | `engineering` |
+| `alice` | `webdev`      |
+| `bob`   | `hr`          |
 
 And the following role/permission assignments:
 
-| Role | Permission | Resource |
-| --- | --- | --- |
-| ``engineering`` | ``read`` | ``server123`` |
-| ``webdev`` | ``write`` | ``server123`` |
-| ``webdev`` | ``read`` | ``server123`` |
-| ``hr`` | ``read`` | ``database456`` |
+| Role          | Permission | Resource      |
+| ------------- | ---------- | ------------- |
+| `engineering` | `read`     | `server123`   |
+| `webdev`      | `write`    | `server123`   |
+| `webdev`      | `read`     | `server123`   |
+| `hr`          | `read`     | `database456` |
 
 In this example, RBAC makes the following authorization decisions:
 
-| User | Operation | Resource | Decision |
-| --- | --- | --- | --- |
-| ``alice`` | ``read`` | ``server123`` | ``allow`` because ``alice`` is in ``engineering`` |
-| ``alice`` | ``write`` | ``server123`` | ``allow`` because ``alice`` is in ``webdev`` |
-| ``bob`` | ``read`` | ``database456`` | ``allow`` because ``bob`` is in ``hr`` |
-| ``bob`` | ``read`` | ``server123`` | ``deny`` because ``bob`` is not in ``engineering`` or ``webdev`` |
+| User    | Operation | Resource      | Decision                                                 |
+| ------- | --------- | ------------- | -------------------------------------------------------- |
+| `alice` | `read`    | `server123`   | `allow` because `alice` is in `engineering`              |
+| `alice` | `write`   | `server123`   | `allow` because `alice` is in `webdev`                   |
+| `bob`   | `read`    | `database456` | `allow` because `bob` is in `hr`                         |
+| `bob`   | `read`    | `server123`   | `deny` because `bob` is not in `engineering` or `webdev` |
 
 With OPA, you can write the following snippets to implement the
 example RBAC policy shown above.
@@ -110,15 +108,15 @@ combinations of permissions that no one should have at the same time.
 For example, no one should be able to both create payments and approve payments.
 
 In RBAC, that means there are some pairs of roles that no one should be
-assigned simultaneously.  For example, any user assigned both of the roles
+assigned simultaneously. For example, any user assigned both of the roles
 in each pair below would violate SOD.
 
-* create-payment and approve-payment
-* create-vendor and pay-vendor
+- create-payment and approve-payment
+- create-vendor and pay-vendor
 
 OPA's API does not yet let you enforce SOD by rejecting improper role-assignments,
 but it does let you express SOD constraints and ask for all SOD violations,
-as shown below.  (Here we assume the statements below are added to the RBAC
+as shown below. (Here we assume the statements below are added to the RBAC
 statements above.)
 
 ```live:rbac/sod:module:openable
@@ -141,7 +139,7 @@ sod_violation contains user if {
 ```
 
 (For those familiar with SOD, this is the static version since SOD violations
-happen whenever a user is assigned two conflicting roles.  The dynamic version of SOD allows
+happen whenever a user is assigned two conflicting roles. The dynamic version of SOD allows
 a single user to be assigned two conflicting roles but requires that the same user not
 utilize those roles on the same transaction, which is out of scope for this document.)
 
@@ -151,32 +149,32 @@ With attribute-based access control, you make policy decisions using the
 attributes of the users, objects, and actions involved in the request.
 It has three main components:
 
-* Attributes for users
-* Attributes for objects
-* Logic dictating which attribute combinations are authorized
+- Attributes for users
+- Attributes for objects
+- Logic dictating which attribute combinations are authorized
 
 For example, we might know the following attributes for our users
 
-* alice
-  * joined the company 15 years ago
-  * is a trader
-* bob
-  * joined the company 5 years ago
-  * is an analyst
+- alice
+  - joined the company 15 years ago
+  - is a trader
+- bob
+  - joined the company 5 years ago
+  - is an analyst
 
 We would also have attributes for the objects, in this case stock ticker symbols.
 
-* MSFT
-  * is sold on NASDAQ
-  * sells at $59.20 per share
-* AMZN
-  * is sold on NASDAQ
-  * sells at $813.64 per share
+- MSFT
+  - is sold on NASDAQ
+  - sells at $59.20 per share
+- AMZN
+  - is sold on NASDAQ
+  - sells at $813.64 per share
 
 An example ABAC policy in english might be:
 
-* Traders may purchase NASDAQ stocks for under $2M
-* Traders with 10+ years experience may purchase NASDAQ stocks for under $5M
+- Traders may purchase NASDAQ stocks for under $2M
+- Traders with 10+ years experience may purchase NASDAQ stocks for under $5M
 
 OPA supports ABAC policies as shown below.
 
@@ -242,9 +240,9 @@ Querying the `allow` rule with the input above returns the following answer:
 ```live:abac:output
 ```
 
-In OPA, there's nothing special about users and objects.  You can attach
-attributes to anything.  And the attributes can themselves be structured JSON objects
-and have attributes on attributes on attributes, etc.  Because OPA was designed to work
+In OPA, there's nothing special about users and objects. You can attach
+attributes to anything. And the attributes can themselves be structured JSON objects
+and have attributes on attributes on attributes, etc. Because OPA was designed to work
 with arbitrarily nested JSON data, it supports incredibly rich ABAC policies.
 
 ## Amazon Web Services IAM
@@ -449,7 +447,7 @@ The following policy says that users from the organization Curtiss or Packard wh
 </Policy>
 ```
 
-The same statement is shown below in OPA.  Here the inputs are assumed to be
+The same statement is shown below in OPA. Here the inputs are assumed to be
 roughly the same as for XACML: attributes of users, actions, and resources.
 
 ```live:xacml:module:openable

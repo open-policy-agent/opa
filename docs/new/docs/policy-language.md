@@ -21,13 +21,6 @@ Rego queries are assertions on data stored in OPA. These queries can be used to
 define policies that enumerate instances of data that violate the expected state
 of the system.
 
-:::info
-The examples in this section try to represent the best practices. As such, they
-make use of keywords that will become standard keywords in [OPA v1.0](../opa-1),
-but have been introduced gradually.
-[See the docs on _future keywords_](#future-keywords) for more information.
-:::
-
 ## Why use Rego?
 
 Use Rego for defining policy that is easy to read and write.
@@ -256,7 +249,7 @@ If you made it this far, congratulations!
 This section introduced the main aspects of Rego. The rest of this document
 walks through each part of the language in more detail.
 
-For a concise reference, see the [Policy Reference](../policy-reference) document.
+For a concise reference, see the [Policy Reference](./policy-reference) document.
 
 ## Scalar Values
 
@@ -284,7 +277,7 @@ These documents can be queried like any other:
 ## Strings
 
 Rego supports two different types of syntax for declaring strings. The first is likely to be the most familiar: characters surrounded by double quotes.
-In such strings, certain characters must be escaped to appear in the string, such as double quotes themselves, backslashes, etc. See the [Policy Reference](../policy-reference/#grammar) for a formal definition.
+In such strings, certain characters must be escaped to appear in the string, such as double quotes themselves, backslashes, etc. See the [Policy Reference](./policy-reference/#grammar) for a formal definition.
 
 The other type of string declaration is a raw string declaration. These are made of characters surrounded by backticks (`` ` ``), with the exception
 that raw strings may not contain backticks themselves. Raw strings are what they sound like: escape sequences are not interpreted, but instead taken
@@ -753,7 +746,7 @@ b
 
 ## Rules
 
-Rules define the content of [Virtual Documents](../philosophy#how-does-opa-work) in
+Rules define the content of [Virtual Documents](./philosophy#how-does-opa-work) in
 OPA. When OPA evaluates a rule, we say OPA _generates_ the content of the
 document that is defined by the rule.
 
@@ -786,7 +779,7 @@ First, the rule defines a set document where the contents are defined by the var
 <name> <key>? <value>? <body>?
 ```
 
-For a more formal definition of the rule syntax, see the [Policy Reference](../policy-reference/#grammar) document.
+For a more formal definition of the rule syntax, see the [Policy Reference](./policy-reference/#grammar) document.
 
 Second, the `sites[_].servers[_].hostname` fragment selects the `hostname` attribute from all the objects in the `servers` collection. From reading the fragment in isolation we cannot tell whether the fragment refers to arrays or objects. We only know that it refers to a collections of values.
 
@@ -1108,7 +1101,7 @@ As `R1` is now instead defining a value within the dynamic extent of `R2`'s refe
 
 ### Functions
 
-Rego supports user-defined functions that can be called with the same semantics as [Built-in Functions](#built-in-functions). They have access to both the [the data Document](../philosophy/#the-opa-document-model) and [the input Document](../philosophy/#the-opa-document-model).
+Rego supports user-defined functions that can be called with the same semantics as [Built-in Functions](#built-in-functions). They have access to both the [the data Document](./philosophy/#the-opa-document-model) and [the input Document](./philosophy/#the-opa-document-model).
 
 For example, the following function will return the result of trimming the spaces from a string and then splitting it by periods.
 
@@ -1303,7 +1296,7 @@ r(params) := result if {
 
 ## Negation
 
-To generate the content of a [Virtual Document](../philosophy#how-does-opa-work), OPA attempts to bind variables in the body of the rule such that all expressions in the rule evaluate to True.
+To generate the content of a [Virtual Document](./philosophy#how-does-opa-work), OPA attempts to bind variables in the body of the rule such that all expressions in the rule evaluate to True.
 
 This generates the correct result when the expressions represent assertions about what states should exist in the data stored in OPA. In some cases, you want to express that certain states _should not_ exist in the data stored in OPA. In these cases, negation must be used.
 
@@ -1513,7 +1506,7 @@ Packages group the rules defined in one or more modules into a particular namesp
 
 Modules contributing to the same package do not have to be located in the same directory.
 
-The rules defined in a module are automatically exported. That is, they can be queried under OPA’s [Data API](../rest-api#data-api) provided the appropriate package is given. For example, given the following module:
+The rules defined in a module are automatically exported. That is, they can be queried under OPA’s [Data API](./rest-api#data-api) provided the appropriate package is given. For example, given the following module:
 
 ```live:package_declaration:module:read_only
 package opa.examples
@@ -1543,7 +1536,7 @@ package 1foo        # not a variable
 package foo[1].bar  # contains non-string operand
 ```
 
-For more details see the language [Grammar](../policy-reference/#grammar).
+For more details see the language [Grammar](./policy-reference/#grammar).
 
 ### Imports
 
@@ -1552,7 +1545,7 @@ document, the identifiers exported by that document can be referenced within the
 
 All modules contain implicit statements which import the `data` and `input` documents.
 
-Modules use the same syntax to declare dependencies on [Base and Virtual Documents](../philosophy#how-does-opa-work).
+Modules use the same syntax to declare dependencies on [Base and Virtual Documents](./philosophy#how-does-opa-work).
 
 ```live:import_data:module:read_only
 package opa.examples
@@ -1778,8 +1771,8 @@ please use `some x in xs; not p(x)` instead.
 ## With Keyword
 
 The `with` keyword allows queries to programmatically specify values nested
-under the [input Document](../philosophy/#the-opa-document-model) or the
-[data Document](../philosophy/#the-opa-document-model), or built-in functions.
+under the [input Document](./philosophy/#the-opa-document-model) or the
+[data Document](./philosophy/#the-opa-document-model), or built-in functions.
 
 For example, given the simple authorization policy in the [Imports](#imports)
 section, we can write a query that checks whether a particular request would be
@@ -2386,7 +2379,7 @@ Built-ins can include "." characters in the name. This allows them to be
 namespaced. If you are adding custom built-ins to OPA, consider namespacing
 them to avoid naming conflicts, e.g., `org.example.special_func`.
 
-See the [Policy Reference](../policy-reference#built-in-functions) document for
+See the [Policy Reference](./policy-reference#built-in-functions) document for
 details on each built-in function.
 
 ### Errors
@@ -2798,7 +2791,7 @@ This value is false by default, and can only be used at `document` or `package` 
 explicit `scope` set, the presence of an `entrypoint` annotation will automatically set the scope to `document`.
 
 The `build` and `eval` CLI commands will automatically pick up annotated entrypoints; you do not have to specify them with
-[`--entrypoint`](../cli/#options-1).
+[`--entrypoint`](./cli/#options-1).
 
 :::info
 Unless the `--prune-unused` flag is used, any rule transitively referring to a
@@ -2872,7 +2865,7 @@ will output
 ```live:example/metadata/1:output
 ```
 
-If you'd like more examples and information on this, you can see more here under the [Rego](../policy-reference/#rego) policy reference.
+If you'd like more examples and information on this, you can see more here under the [Rego](./policy-reference/#rego) policy reference.
 
 #### Inspect command
 
@@ -3127,7 +3120,7 @@ allow if {
 }
 ```
 
-See the [annotations documentation](../annotations) for general information relating to annotations.
+See the [annotations documentation](./policy-language/#annotations) for general information relating to annotations.
 
 The `schemas` field specifies an array associating schemas to data values. Paths must start with `input` or `data` (i.e., they must be fully-qualified.)
 
@@ -3180,7 +3173,7 @@ Note that the second `allow` rule doesn't have a METADATA comment block attached
 
 On a different note, schema annotations can also be added to policy files part of a bundle package loaded via `opa eval --bundle` along with the `--schema` parameter for type checking a set of `*.rego` policy files.
 
-The _scope_ of the `schema` annotation can be controlled through the [scope](../annotations#scope) annotation
+The _scope_ of the `schema` annotation can be controlled through the [scope](./policy-language/#annotations) annotation
 
 In case of overlap, schema annotations override each other as follows:
 
@@ -3657,10 +3650,10 @@ Compiler Strict mode is supported by the `check` command, and can be enabled thr
 
 ### Strict Mode Constraints and Checks
 
-| Name                     | Description                                                                                                                               |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Unused local assignments | Unused arguments or [assignments](../policy-reference/#assignment-and-equality) local to a rule, function or comprehension are prohibited |
-| Unused imports           | Unused [imports](../policy-language/#imports) are prohibited.                                                                             |
+| Name                     | Description                                                                                                                              |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Unused local assignments | Unused arguments or [assignments](./policy-reference/#assignment-and-equality) local to a rule, function or comprehension are prohibited |
+| Unused imports           | Unused [imports](./policy-language/#imports) are prohibited.                                                                             |
 
 ## Ecosystem Projects
 

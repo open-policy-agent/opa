@@ -1,13 +1,10 @@
 ---
 title: Frequently Asked Questions
-navtitle: FAQ
-kind: support
-weight: 1
 ---
 
 ## How do I make user attributes stored in LDAP/AD available to OPA for making decisions?
 
-[This best-practice guide](../external-data) explains three options: JSON Web Tokens, synchronization with LDAP/AD, and calling into LDAP/AD during policy evaluation.
+[This best-practice guide](./external-data) explains three options: JSON Web Tokens, synchronization with LDAP/AD, and calling into LDAP/AD during policy evaluation.
 
 ## How does OPA do conflict resolution? {#conflict-resolution}
 
@@ -21,11 +18,11 @@ deny { input.name == "alice" }
 ```
 
 Neither `allow` nor `deny` are keywords in Rego so if you want to treat them
-as contradictory, you control which one takes precedence explicitly.  When you ask for
+as contradictory, you control which one takes precedence explicitly. When you ask for
 a policy decision from OPA, you specify both the policy name (`foo`) and the
-virtual document that names the decision within foo.  Typically in this scenario,
+virtual document that names the decision within foo. Typically in this scenario,
 you create a virtual document called `authz` and define it so that `allow`
-overrides `deny` or vice versa.  Then when asking for a policy decision, you
+overrides `deny` or vice versa. Then when asking for a policy decision, you
 ask for `foo/authz`.
 
 ```live:conflict_resolution_deny_by_default:module:read_only
@@ -45,8 +42,8 @@ the first statement applicable makes the decision), see the FAQ entry on
 
 ## Does Statement Order Matter? {#statement-order}
 
-The order in which statements occur does not matter in Rego.  Reorder any two statements
-and the policy means exactly the same thing.  For example, the following two statements
+The order in which statements occur does not matter in Rego. Reorder any two statements
+and the policy means exactly the same thing. For example, the following two statements
 mean the same thing whichever order you write them in.
 
 ```live:unordered:module:openable
@@ -69,7 +66,7 @@ ratelimit
 ```live:unordered:output
 ```
 
-Sometimes, though, you want the statement order to matter.  For example, you might put more specific statements before more general statements so that the more specific statements take precedence (e.g. for [conflict resolution](#conflict-resolution)).  Rego lets you do that using the `else` keyword.  For example, if you want to make the first statement above take precedence, you would write the following Rego.
+Sometimes, though, you want the statement order to matter. For example, you might put more specific statements before more general statements so that the more specific statements take precedence (e.g. for [conflict resolution](#conflict-resolution)). Rego lets you do that using the `else` keyword. For example, if you want to make the first statement above take precedence, you would write the following Rego.
 
 ```live:ordered:module:openable
 package ordered
@@ -119,9 +116,9 @@ x = 7               # causes x to be assigned 7
 
 ## Collaboration Using Import
 
-OPA lets multiple teams contribute independent policies that you can then combine to make an overall decision.  Each team writes their policy in a separate `package`, then you write one more policy that imports all the teams policies and makes a decision.
+OPA lets multiple teams contribute independent policies that you can then combine to make an overall decision. Each team writes their policy in a separate `package`, then you write one more policy that imports all the teams policies and makes a decision.
 
-For example, suppose there is a network team, a storage team, and a compute team.  Suppose they each write their own policy:
+For example, suppose there is a network team, a storage team, and a compute team. Suppose they each write their own policy:
 
 ```live:collab_compute:module:read_only
 package compute
@@ -138,7 +135,7 @@ package storage
 allow { ... }
 ```
 
-Now the cloud team, who is in charge of the overall decision, writes another policy that combines the decisions for each of the team policies.  In the example below, all 3 teams must allow for the overall decision to be allowed.
+Now the cloud team, who is in charge of the overall decision, writes another policy that combines the decisions for each of the team policies. In the example below, all 3 teams must allow for the overall decision to be allowed.
 
 ```live:collab_main:module:read_only
 package main
@@ -154,13 +151,13 @@ allow {
 }
 ```
 
-The cloud team could have a more sophisticated scheme for combining policies, e.g. using just the compute policy for compute-only resources or requiring the compute policy to allow the compute-relevant portions of resource.  Remember that `allow` is not special--it is just another boolean that the policy author can use to make decisions.
+The cloud team could have a more sophisticated scheme for combining policies, e.g. using just the compute policy for compute-only resources or requiring the compute policy to allow the compute-relevant portions of resource. Remember that `allow` is not special--it is just another boolean that the policy author can use to make decisions.
 
 ## Functions Versus Rules
 
 Rego lets you factor out common logic in 2 different and complementary ways.
 
-One is the *function*, which is conceptually identical to functions from most programming languages.  It takes any input and returns any output.  Importantly, a function can take infinitely many inputs, e.g. any string.
+One is the _function_, which is conceptually identical to functions from most programming languages. It takes any input and returns any output. Importantly, a function can take infinitely many inputs, e.g. any string.
 
 ```live:functions:module:openable
 package functions
@@ -178,7 +175,7 @@ trim_and_split("  hello.world  ")
 ```live:functions:output
 ```
 
-The other way to factor out common logic is with a *rule*.  Rules differ in that (i) they support automatic iteration and (ii) they are only defined for finitely many inputs.  (Those obviously go hand-in-hand.)  For example, you could define a rule that maps an application to the hostnames that app is running on:
+The other way to factor out common logic is with a _rule_. Rules differ in that (i) they support automatic iteration and (ii) they are only defined for finitely many inputs. (Those obviously go hand-in-hand.) For example, you could define a rule that maps an application to the hostnames that app is running on:
 
 ```live:rules:module:openable
 package rules
@@ -235,7 +232,7 @@ sites := [
 ]
 ```
 
-And then we can iterate over all the key/value pairs of that app-to-hostname mapping (just like we could iterate over all key/value pairs of a hardcoded JSON object).  You can also iterate over just the keys or just the values or you can look up the value for a key or lookup all the keys for a single value.
+And then we can iterate over all the key/value pairs of that app-to-hostname mapping (just like we could iterate over all key/value pairs of a hardcoded JSON object). You can also iterate over just the keys or just the values or you can look up the value for a key or lookup all the keys for a single value.
 
 ```live:rules/all_pairs:query
 # iterate over all key/value pairs
@@ -277,17 +274,17 @@ app_to_hostnames[k][_] == "carbon"
 ```live:rules/lookup_value:output
 ```
 
-Obviously with the `trim_and_split` function we cannot ask for all the inputs/outputs since there are infinitely many.  We can't provide 1 input and ask for all the other inputs that make the function return true, again, because there could be infinitely many.  The only thing we can do with a function is provide it all the inputs and ask for the output.
+Obviously with the `trim_and_split` function we cannot ask for all the inputs/outputs since there are infinitely many. We can't provide 1 input and ask for all the other inputs that make the function return true, again, because there could be infinitely many. The only thing we can do with a function is provide it all the inputs and ask for the output.
 
 Functions allow you to factor out common logic that has infinitely-many input/output pairs; rules allow you to factor out common logic with finitely many input/outputs and allow you to iterate over them in the same way as native JSON objects.
 
-To achieve automatic iteration, there is an additional syntactic requirement on a rule that is NOT present for a function: `safety`.  See the FAQ entry on safety for technical details.  Every rule must be `safe`, which guarantees that OPA can figure out a finite list of possible values for every variable in the body and head of a rule.
+To achieve automatic iteration, there is an additional syntactic requirement on a rule that is NOT present for a function: `safety`. See the FAQ entry on safety for technical details. Every rule must be `safe`, which guarantees that OPA can figure out a finite list of possible values for every variable in the body and head of a rule.
 
 We recommend using rules where possible and using functions when rules do not work.
 
 ## Safety
 
-The compiler will sometimes throw errors that say a rule is not `safe`.  The goal of safety is to ensure that every rule has finitely many inputs/outputs.  Safety ensures that every variable has finitely many possible values, so that OPA can iterate over them to find those values that make the rule true.  Technically:
+The compiler will sometimes throw errors that say a rule is not `safe`. The goal of safety is to ensure that every rule has finitely many inputs/outputs. Safety ensures that every variable has finitely many possible values, so that OPA can iterate over them to find those values that make the rule true. Technically:
 
 ```
 Safety: every variable appearing in the head or in a builtin or inside a negation must appear in a non-negated, non-builtin expression in the body of the rule.
@@ -321,9 +318,9 @@ p[x] { some x; not q[x] }
 p[x] { some x; not q[x]; r[x] }
 ```
 
-Safety has one implication about negation: you don't iterate over values NOT in a rule like `q`.  Instead, you iterate over values in another rule like `r` and then use negation to CHECK whether if that value is NOT in `q`.
+Safety has one implication about negation: you don't iterate over values NOT in a rule like `q`. Instead, you iterate over values in another rule like `r` and then use negation to CHECK whether if that value is NOT in `q`.
 
-Embedded terms like `not p[q[_]]` sometimes produce difficult to decipher error messages.  We recommend pulling the embedded terms out into the rule--the meaning is the same and often creates easier to read error messages:
+Embedded terms like `not p[q[_]]` sometimes produce difficult to decipher error messages. We recommend pulling the embedded terms out into the rule--the meaning is the same and often creates easier to read error messages:
 
 ```live:safety/nested:query:read_only
 x := q[_]
@@ -332,9 +329,9 @@ not p[x]
 
 ## JSON Web Tokens (JWTs)
 
-[JSON Web Tokens (JWTs)](https://jwt.io/) are an industry standard for exchanging information between services.  Often they are used to represent information about the users logged into a system.  OPA has special-purpose code for dealing with JWTs.
+[JSON Web Tokens (JWTs)](https://jwt.io/) are an industry standard for exchanging information between services. Often they are used to represent information about the users logged into a system. OPA has special-purpose code for dealing with JWTs.
 
-All JWTs with OPA come in as strings.  That string is a JSON Web Token encoded with JWS Compact Serialization. JWE and JWS JSON Serialization are not supported.
+All JWTs with OPA come in as strings. That string is a JSON Web Token encoded with JWS Compact Serialization. JWE and JWS JSON Serialization are not supported.
 
 You can verify tokens are properly signed.
 
@@ -385,7 +382,7 @@ io.jwt.decode_verify(input.token, {
 ```live:jwt_decode/verify:output
 ```
 
-See the [Policy Reference](../policy-reference#tokens) for additional verification constraints.
+See the [Policy Reference](./policy-reference#tokens) for additional verification constraints.
 
 To get certificates into the policy, you can either hardcode them or provide them as environmental variables to OPA and then use the `opa.runtime` builtin to retrieve those variables.
 
@@ -402,9 +399,9 @@ runtime.env.PROD_CERTIFICATE
 
 ## How do I Write Policies Securely?
 
-Depending on the use case and the integration with OPA that you are using, the style of policy you choose can impact your overall security posture.  Below we show three styles of authoring policy and compare them.
+Depending on the use case and the integration with OPA that you are using, the style of policy you choose can impact your overall security posture. Below we show three styles of authoring policy and compare them.
 
-**Default allow**.  This style of policy allows every request by default.  The rules you write dictate which requests should be rejected.
+**Default allow**. This style of policy allows every request by default. The rules you write dictate which requests should be rejected.
 
 ```rego
 package example
@@ -415,9 +412,9 @@ deny if { ... }
 deny if { ... }
 ```
 
-If you assume all of the rules you write are correct, then you know that every rejection the policy produces should truly be rejected.  However, there could be requests that are allowed that you may not truly want allowed, but you simply neglected to write the rule for.  For operations, this is often a useful style of policy authoring because it allows you to incrementally tighten the controls for a system from wherever that system starts.  For security, this style is less appropriate because it allows unknown bad actions to occur.
+If you assume all of the rules you write are correct, then you know that every rejection the policy produces should truly be rejected. However, there could be requests that are allowed that you may not truly want allowed, but you simply neglected to write the rule for. For operations, this is often a useful style of policy authoring because it allows you to incrementally tighten the controls for a system from wherever that system starts. For security, this style is less appropriate because it allows unknown bad actions to occur.
 
-**Default deny**.  This style of policy rejects every request by default.  The rules you write dictate which requests should be allowed.
+**Default deny**. This style of policy rejects every request by default. The rules you write dictate which requests should be allowed.
 
 ```rego
 package example
@@ -428,9 +425,9 @@ allow if { ... }
 allow if { ... }
 ```
 
-If you assume your rules are correct, the only requests that are accepted are known to be safe.  Any statements you leave out reject requests that in actuality are safe but which you did not know were safe.  For operations, these policies are less suitable for incrementally improving the policy posture of a system because the initial policy must explicitly allow all of the behaviors that are necessary for the system to operate correctly.  For security, these policies ensure that any request that is allowed is known to be safe (because there is a rule saying it is safe).
+If you assume your rules are correct, the only requests that are accepted are known to be safe. Any statements you leave out reject requests that in actuality are safe but which you did not know were safe. For operations, these policies are less suitable for incrementally improving the policy posture of a system because the initial policy must explicitly allow all of the behaviors that are necessary for the system to operate correctly. For security, these policies ensure that any request that is allowed is known to be safe (because there is a rule saying it is safe).
 
-**Default allow with deny override**.  This style of policy rejects every request by default.  You write  rules that dictate which requests should be allowed, and optionally you write other rules that dictate which of those allowed requests should be rejected.
+**Default allow with deny override**. This style of policy rejects every request by default. You write rules that dictate which requests should be allowed, and optionally you write other rules that dictate which of those allowed requests should be rejected.
 
 ```rego
 package example
@@ -445,6 +442,6 @@ allow if { ... }
 deny if { ... }
 ```
 
-This hybrid approach to policy authoring combines the two previous styles.  These policies allow relatively coarse grained parts of the request space and then carve out of each part what should actually be denied.  Any deny statements that you forget lead to security problems; any allow statements you forget lead to operational problems.  But since this approach allows you to implement either of the other two, it is a common pattern across use cases.
+This hybrid approach to policy authoring combines the two previous styles. These policies allow relatively coarse grained parts of the request space and then carve out of each part what should actually be denied. Any deny statements that you forget lead to security problems; any allow statements you forget lead to operational problems. But since this approach allows you to implement either of the other two, it is a common pattern across use cases.
 
-**Non-boolean policies**. The examples above focus on policies with boolean decisions.  Policies that make non-boolean decisions typically have similar tradeoffs.  Are you enumerating the conditions under which requests are permitted (e.g. the list of clusters to which an app SHOULD be deployed) or are you enumerating the conditions under which requests are prohibited (e.g. the list of clusters to which an app SHOULD NOT be deployed).  While the details differ, the concepts are often similar.
+**Non-boolean policies**. The examples above focus on policies with boolean decisions. Policies that make non-boolean decisions typically have similar tradeoffs. Are you enumerating the conditions under which requests are permitted (e.g. the list of clusters to which an app SHOULD be deployed) or are you enumerating the conditions under which requests are prohibited (e.g. the list of clusters to which an app SHOULD NOT be deployed). While the details differ, the concepts are often similar.
