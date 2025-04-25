@@ -1150,7 +1150,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 	if len(rs) == 0 {
 		ref, err := stringPathToDataRef(urlPath)
 		if err != nil {
-			writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeUndefinedDocument, "invalid path: %v", err))
+			writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "invalid path: %v", err))
 			return
 		}
 
@@ -2752,7 +2752,7 @@ func stringPathToRef(s string) (ast.Ref, error) {
 			x = y
 		}
 
-		if strings.ContainsAny(x, "\"") {
+		if strings.Contains(x, "\"") {
 			return nil, fmt.Errorf("invalid ref term '%s'", x)
 		}
 
