@@ -6811,3 +6811,73 @@ func zipString(input string) []byte {
 	}
 	return b.Bytes()
 }
+
+func TestStringPathToDataRef(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		note   string
+		path   string
+		expRef string
+		expErr string
+	}{
+		{path: "foo", expRef: `data.foo`},
+		{path: "foo/", expRef: `data.foo`},
+		{path: "foo/bar", expRef: `data.foo.bar`},
+		{path: "foo/bar/", expRef: `data.foo.bar`},
+		{path: "foo/../bar", expRef: `data.foo[".."].bar`},
+
+		// Path injection attacks
+
+		// url path: `foo%22%5D%3Bmalicious_call%28%29%3Bx%3D%5B%22`
+		// url decoded: `foo"];malicious_call();x=["`
+		// data ref: `data.foo["\"];malicious_call();x=[\""]`
+		// where ref has two parts: `data` and `foo"];malicious_call();x=["`
+		// to-string of ref: `data["foo"];malicious_call();x=[""]`, where second part is encapsulated in `["` and `"]`.
+		// The above string is used as query, which then has three statements instead of expected single ref statement:
+		// 1. `data["foo"]`
+		// 2. `malicious_call()`
+		// 3. `x=[""]`
+		//
+		// #1 is a known package by the attacker.
+		// Query fails if #2 fails (stand-in for any malicious code that expects a boolean outcome).
+		// Successful query response indicates malicious code returned `true`.
+		// No query response indicates malicious code returned `false`.
+		//
+		// Above attack is mitigated by rejecting any ref component containing string terminators `["` or `"]`.
+		{
+			note:   "string terminals inside ref term",
+			path:   "foo%22%5D%3Bmalicious_call%28%29%3Bx%3D%5B%22", // foo"];malicious_call();x=["
+			expErr: `invalid ref term 'foo"];malicious_call();x=["'`,
+		},
+	}
+
+	for _, tc := range cases {
+		note := tc.note
+		if note == "" {
+			note = strings.ReplaceAll(tc.path, "/", "_")
+		}
+
+		t.Run(note, func(t *testing.T) {
+			ref, err := stringPathToDataRef(tc.path)
+
+			if tc.expRef != "" {
+				if err != nil {
+					t.Fatalf("Expected ref:\n\n%s\n\nbut got error:\n\n%s", tc.expRef, err)
+				}
+				if refStr := ref.String(); refStr != tc.expRef {
+					t.Fatalf("Expected ref:\n\n%s\n\nbut got:\n\n%s", tc.expRef, refStr)
+				}
+			}
+
+			if tc.expErr != "" {
+				if ref != nil {
+					t.Fatalf("Expected error:\n\n%s\n\nbut got ref:\n\n%s", tc.expErr, ref.String())
+				}
+				if errStr := err.Error(); errStr != tc.expErr {
+					t.Fatalf("Expected error:\n\n%s\n\nbut got ref:\n\n%s", tc.expErr, errStr)
+				}
+			}
+		})
+	}
+}
