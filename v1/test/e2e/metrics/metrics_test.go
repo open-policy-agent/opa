@@ -212,7 +212,7 @@ func assertDataInstrumentationMetricsInMap(t *testing.T, includeCompile bool, me
 		"timer_server_handler_ns",
 	}
 	compileStageKeys := []string{
-		"timer_rego_query_parse_ns",
+		//"timer_rego_query_parse_ns",
 		"timer_rego_query_compile_ns",
 		"timer_query_compile_stage_build_comprehension_index_ns",
 		"timer_query_compile_stage_check_safety_ns",

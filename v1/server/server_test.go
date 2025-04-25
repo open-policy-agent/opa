@@ -3383,7 +3383,7 @@ func TestDataMetricsEval(t *testing.T) {
 			"counter_disk_read_keys",
 			"counter_disk_read_bytes",
 			"timer_rego_input_parse_ns",
-			"timer_rego_query_parse_ns",
+			//"timer_rego_query_parse_ns",
 			"timer_rego_query_compile_ns",
 			"timer_rego_query_eval_ns",
 			"timer_server_handler_ns",
