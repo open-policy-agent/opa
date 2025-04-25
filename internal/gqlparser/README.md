@@ -18,6 +18,13 @@ It also will add some linter ignore annotations on the validator rules, since th
 
 The script thus should alleviate around 40-60% of the linter-fixup work required during a version bump.
 
+## JSON Position Marshal script
+
+The `remove-position-marshal.sh` script can be executed from this directory.
+This script annotates gqlparser structs to exclude the Position field during JSON marshaling.
+The Position field contains a copy of the original schema for each element, potentially causing unexpectedly large memory allocations.
+OPA subsequently prunes the Position from the AST, so it makes sense not to generate it in the first place.
+
 ## Original README
 
 This is a parser for graphql, written to mirror the graphql-js reference implementation as closely while remaining idiomatic and easy to use.
