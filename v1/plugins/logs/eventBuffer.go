@@ -12,6 +12,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins/rest"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 type bufferItem struct {
@@ -97,26 +98,7 @@ func (b *eventBuffer) Push(event *EventV1) {
 }
 
 func (b *eventBuffer) push(event *bufferItem) {
-	// This prevents getting blocked forever writing to a full buffer, in case another routine fills the last space.
-	// Retrying maxEventRetry times to drop the oldest event. Dropping the incoming event if there still isn't room.
-	maxEventRetry := 1000
-
-	for range maxEventRetry {
-		// non-blocking send to the buffer, to prevent blocking if buffer is full so room can be made.
-		select {
-		case b.buffer <- event:
-			return
-		default:
-		}
-
-		// non-blocking drop from the buffer to make room for incoming event.
-		// the buffer could have emptied due to an upload.
-		select {
-		case <-b.buffer:
-			b.incrMetric(logBufferEventDropCounterName)
-		default:
-		}
-	}
+	util.PushFIFO(b.buffer, event, b.metrics, logBufferEventDropCounterName)
 }
 
 // UploadAll reads all the current events from the buffer and uploads them to the configured client.

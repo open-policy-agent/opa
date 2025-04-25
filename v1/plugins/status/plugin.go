@@ -23,6 +23,11 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
+const (
+	statusBufferLimit           = int64(1)
+	statusBufferDropCounterName = "status_dropped_buffer_limit_exceeded"
+)
+
 // Logger defines the interface for status plugins.
 type Logger interface {
 	plugins.Plugin
@@ -207,8 +212,8 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 	p := &Plugin{
 		manager:        manager,
 		config:         *parsedConfig,
-		bundleCh:       make(chan bundle.Status),
-		bulkBundleCh:   make(chan map[string]*bundle.Status),
+		bundleCh:       make(chan bundle.Status, statusBufferLimit),
+		bulkBundleCh:   make(chan map[string]*bundle.Status, statusBufferLimit),
 		discoCh:        make(chan bundle.Status),
 		decisionLogsCh: make(chan lstat.Status),
 		stop:           make(chan chan struct{}),
@@ -278,12 +283,12 @@ func (p *Plugin) Stop(_ context.Context) {
 // UpdateBundleStatus notifies the plugin that the policy bundle was updated.
 // Deprecated: Use BulkUpdateBundleStatus instead.
 func (p *Plugin) UpdateBundleStatus(status bundle.Status) {
-	p.bundleCh <- status
+	util.PushFIFO(p.bundleCh, status, p.metrics, statusBufferDropCounterName)
 }
 
 // BulkUpdateBundleStatus notifies the plugin that the policy bundle was updated.
 func (p *Plugin) BulkUpdateBundleStatus(status map[string]*bundle.Status) {
-	p.bulkBundleCh <- status
+	util.PushFIFO(p.bulkBundleCh, status, p.metrics, statusBufferDropCounterName)
 }
 
 // UpdateDiscoveryStatus notifies the plugin that the discovery bundle was updated.
@@ -389,8 +394,11 @@ func (p *Plugin) loop(ctx context.Context) {
 			p.reconfigure(update.config)
 			update.done <- struct{}{}
 		case respCh := <-p.queryCh:
+			p.readBundleStatus()
 			respCh <- p.snapshot()
 		case update := <-p.trigger:
+			// make sure the more recent status is registered
+			p.readBundleStatus()
 			err := p.oneShot(update.ctx)
 			if err != nil {
 				p.logger.Error("%v.", err)
@@ -409,6 +417,16 @@ func (p *Plugin) loop(ctx context.Context) {
 	}
 }
 
+// readBundleStatus is a non-blocking read to make sure the latest status is received
+func (p *Plugin) readBundleStatus() {
+	select {
+	case status := <-p.bulkBundleCh:
+		p.lastBundleStatuses = status
+	case status := <-p.bundleCh:
+		p.lastBundleStatus = &status
+	default:
+	}
+}
 func (p *Plugin) oneShot(ctx context.Context) error {
 	req := p.snapshot()
 
@@ -436,7 +454,7 @@ func (p *Plugin) oneShot(ctx context.Context) error {
 			WithJSON(req).
 			Do(ctx, "POST", fmt.Sprintf("/status/%v", p.config.PartitionName))
 		if err != nil {
-			return fmt.Errorf("Status update failed: %w", err)
+			return fmt.Errorf("status update failed: %w", err)
 		}
 
 		defer util.Close(resp)

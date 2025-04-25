@@ -8,6 +8,12 @@ edge_functions = "docs/website/edge"
 path = "/badge-endpoint/*"
 function = "badge"
 
+# Redirect all path based versioned requests to their new archived sites.
+# https://github.com/open-policy-agent/opa/issues/7037
+[[edge_functions]]
+path = "/docs/*"
+function = "version-redirect"
+
 [build.environment]
 # keep this version in sync with the version in .github/workflows/pull-request.yml
 # Note, that upgrading Hugo is tricky as all versions of the OPA docs need to work
