@@ -1324,16 +1324,14 @@ func (s *Server) unversionedGetHealthWithPolicy(w http.ResponseWriter, r *http.R
 	urlPath := vars["path"]
 	healthDataPath := "/system/health/" + urlPath
 
-	ref, err := stringPathToDataRef(healthDataPath)
+	healthDataPathQuery, err := stringPathToQuery(healthDataPath)
 	if err != nil {
-		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeUndefinedDocument, "invalid path: %v", err))
+		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "invalid path: %v", err))
 		return
 	}
 
-	healthDataPath = ref.String()
-
 	rego := rego.New(
-		rego.Query(healthDataPath),
+		rego.ParsedQuery(healthDataPathQuery),
 		rego.Compiler(s.getCompiler()),
 		rego.Store(s.store),
 		rego.Input(input),
@@ -1348,7 +1346,7 @@ func (s *Server) unversionedGetHealthWithPolicy(w http.ResponseWriter, r *http.R
 	}
 
 	if len(rs) == 0 {
-		writeHealthResponse(w, fmt.Errorf("health check (%v) was undefined", healthDataPath))
+		writeHealthResponse(w, fmt.Errorf("health check (%v) was undefined", healthDataPathQuery))
 		return
 	}
 
@@ -1358,7 +1356,7 @@ func (s *Server) unversionedGetHealthWithPolicy(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	writeHealthResponse(w, fmt.Errorf("health check (%v) returned unexpected value", healthDataPath))
+	writeHealthResponse(w, fmt.Errorf("health check (%v) returned unexpected value", healthDataPathQuery))
 }
 
 func writeHealthResponse(w http.ResponseWriter, err error) {
@@ -2560,17 +2558,15 @@ func (s *Server) makeRego(_ context.Context,
 	tracer topdown.QueryTracer,
 	opts []func(*rego.Rego),
 ) (*rego.Rego, error) {
-	ref, err := stringPathToDataRef(urlPath)
+	query, err := stringPathToQuery(urlPath)
 	if err != nil {
-		return nil, types.NewErrorV1(types.CodeUndefinedDocument, "invalid path: %v", err)
+		return nil, types.NewErrorV1(types.CodeInvalidParameter, "invalid path: %v", err)
 	}
-
-	queryPath := ref.String()
 
 	opts = append(
 		opts,
 		rego.Transaction(txn),
-		rego.Query(queryPath),
+		rego.ParsedQuery(query),
 		rego.ParsedInput(input),
 		rego.Metrics(m),
 		rego.QueryTracer(tracer),
@@ -2583,6 +2579,43 @@ func (s *Server) makeRego(_ context.Context,
 	)
 
 	return rego.New(opts...), nil
+}
+
+func stringPathToQuery(urlPath string) (ast.Body, error) {
+	ref, err := stringPathToDataRef(urlPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseRefQuery(ref.String())
+}
+
+// parseRefQuery parses a string into a query ast.Body.
+// The query must be comprised of a single ref, or an error will be returned.
+func parseRefQuery(str string) (ast.Body, error) {
+	query, err := ast.ParseBody(str)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse query")
+	}
+
+	// assert the query is exactly one statement
+	if l := len(query); l == 0 {
+		return nil, fmt.Errorf("no ref")
+	} else if l > 1 {
+		return nil, fmt.Errorf("complex query")
+	}
+
+	// assert the single statement is a lone ref
+	expr := query[0]
+	switch t := expr.Terms.(type) {
+	case *ast.Term:
+		switch t.Value.(type) {
+		case ast.Ref:
+			return query, nil
+		}
+	}
+
+	return nil, fmt.Errorf("complex query")
 }
 
 func (*Server) prepareV1PatchSlice(root string, ops []types.PatchV1) (result []patchImpl, err error) {
