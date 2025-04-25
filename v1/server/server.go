@@ -2595,14 +2595,14 @@ func stringPathToQuery(urlPath string) (ast.Body, error) {
 func parseRefQuery(str string) (ast.Body, error) {
 	query, err := ast.ParseBody(str)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse query")
+		return nil, errors.New("failed to parse query")
 	}
 
 	// assert the query is exactly one statement
 	if l := len(query); l == 0 {
-		return nil, fmt.Errorf("no ref")
+		return nil, errors.New("no ref")
 	} else if l > 1 {
-		return nil, fmt.Errorf("complex query")
+		return nil, errors.New("complex query")
 	}
 
 	// assert the single statement is a lone ref
@@ -2615,7 +2615,7 @@ func parseRefQuery(str string) (ast.Body, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("complex query")
+	return nil, errors.New("complex query")
 }
 
 func (*Server) prepareV1PatchSlice(root string, ops []types.PatchV1) (result []patchImpl, err error) {
