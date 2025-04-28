@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	statusBufferLimit           = int64(10)
+	statusBufferLimit           = int64(1)
 	statusBufferDropCounterName = "status_dropped_buffer_limit_exceeded"
 )
 
@@ -394,8 +394,11 @@ func (p *Plugin) loop(ctx context.Context) {
 			p.reconfigure(update.config)
 			update.done <- struct{}{}
 		case respCh := <-p.queryCh:
+			p.readBundleStatus()
 			respCh <- p.snapshot()
 		case update := <-p.trigger:
+			// make sure the more recent status is registered
+			p.readBundleStatus()
 			err := p.oneShot(update.ctx)
 			if err != nil {
 				p.logger.Error("%v.", err)
@@ -414,6 +417,16 @@ func (p *Plugin) loop(ctx context.Context) {
 	}
 }
 
+// readBundleStatus is a non-blocking read to make sure the latest status is received
+func (p *Plugin) readBundleStatus() {
+	select {
+	case status := <-p.bulkBundleCh:
+		p.lastBundleStatuses = status
+	case status := <-p.bundleCh:
+		p.lastBundleStatus = &status
+	default:
+	}
+}
 func (p *Plugin) oneShot(ctx context.Context) error {
 	req := p.snapshot()
 

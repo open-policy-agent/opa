@@ -1207,10 +1207,29 @@ func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Co
 	case ast.String:
 		if term.Location.Text[0] == '`' {
 			// To preserve raw strings, we need to output the original text,
-			// not what x.String() would give us.
 			w.write(string(term.Location.Text))
 		} else {
-			w.write(x.String())
+			// x.String() cannot be used by default because it can change the input string "\u0000" to "\x00"
+			var after, quote string
+			var found bool
+			// term.Location.Text could contain the prefix `else :=`, remove it
+			switch term.Location.Text[len(term.Location.Text)-1] {
+			case '"':
+				quote = "\""
+				_, after, found = strings.Cut(string(term.Location.Text), quote)
+			case '`':
+				quote = "`"
+				_, after, found = strings.Cut(string(term.Location.Text), quote)
+			}
+
+			if !found {
+				// If no quoted string was found, that means it is a key being formatted to a string
+				// e.g. partial_set.y to partial_set["y"]
+				w.write(x.String())
+			} else {
+				w.write(quote + after)
+			}
+
 		}
 	case ast.Var:
 		w.write(w.formatVar(x))
