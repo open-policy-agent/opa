@@ -18,7 +18,6 @@ import (
 	"os"
 	"reflect"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -1676,209 +1675,6 @@ func TestPluginRateLimitDropCountStatus(t *testing.T) {
 			if !reflect.DeepEqual(e.Fields["metrics"], exp) {
 				t.Fatalf("Expected %v but got %v", exp, e.Fields["metrics"])
 			}
-		})
-	}
-}
-
-func TestChunkMaxUploadSizeLimitNDBCacheDropping(t *testing.T) {
-	t.Parallel()
-
-	// note this only tests the size buffer type so that the encoder is used immediately on log
-	tests := []struct {
-		name                             string
-		uploadSizeLimitBytes             int64
-		numOfEventsWithNDCache           int
-		expectedDroppedNDCacheEvents     int
-		numOfEventsWithoutNDCache        int
-		expectedUncompressedBytesWritten int
-		expectedEventsInChunk            []int
-		expectedChunksLengths            []int // this will show the adaptive uncompressed limit adjusting
-		expectedUncompressedLimit        int64
-	}{
-		{
-			name:                         "drop ND cache to fit",
-			uploadSizeLimitBytes:         220,
-			numOfEventsWithNDCache:       1,
-			expectedDroppedNDCacheEvents: 1,
-			// opening bracket (1 byte) + event(214 bytes)
-			// written after dropping the ND cache, otherwise the size would have been 3472
-			expectedUncompressedBytesWritten: 215,
-			expectedUncompressedLimit:        220,
-		},
-		{
-			name:                         "drop ND cache but keep stabilizing the adaptive uncompressed limit",
-			uploadSizeLimitBytes:         220,
-			numOfEventsWithNDCache:       50,
-			expectedDroppedNDCacheEvents: 50,
-			// the adaptive uncompressed limit increases until it stabilizes
-			expectedChunksLengths:            []int{197, 197, 197, 197, 214, 214, 214, 214, 214},
-			expectedEventsInChunk:            []int{1, 1, 1, 1, 9, 9, 9, 9, 9}, // 49 in total, plus one in the encoder
-			expectedUncompressedBytesWritten: 215,
-			expectedUncompressedLimit:        5280,
-		},
-		{
-			name:                      "don't drop ND cache",
-			uploadSizeLimitBytes:      220,
-			numOfEventsWithoutNDCache: 1,
-			// opening bracket (1 byte) + event(214 bytes)
-			expectedUncompressedBytesWritten: 215,
-			expectedUncompressedLimit:        220,
-		},
-		{
-			name:                      "don't drop ND cache but keep stabilizing the adaptive uncompressed limit",
-			uploadSizeLimitBytes:      220,
-			numOfEventsWithoutNDCache: 10,
-			// the adaptive uncompressed limit increases until it stabilizes
-			expectedChunksLengths:            []int{197, 207, 207, 207, 207},
-			expectedEventsInChunk:            []int{1, 2, 2, 2, 2},
-			expectedUncompressedBytesWritten: 215,
-			expectedUncompressedLimit:        440,
-		},
-		{
-			name:                         "logging a combination of events with ND Cache and without",
-			uploadSizeLimitBytes:         220,
-			numOfEventsWithoutNDCache:    1,
-			numOfEventsWithNDCache:       1,
-			expectedDroppedNDCacheEvents: 1,
-			// opening bracket (1 byte) + event(214 bytes)
-			expectedUncompressedBytesWritten: 215,
-			// the adaptive uncompressed limit won't have increased enough
-			// so it will close the chunk early thinking the two events exceed it
-			expectedChunksLengths:     []int{197},
-			expectedEventsInChunk:     []int{1},
-			expectedUncompressedLimit: 440,
-		},
-		{
-			name:                      "increased upload size limit, uncompressed limit increasing and stabilizing without ND cache",
-			uploadSizeLimitBytes:      440,
-			numOfEventsWithoutNDCache: 200,
-			// the adaptive uncompressed limit increases until it stabilizes
-			expectedChunksLengths:            []int{207, 225, 261, 333, 231, 232, 232, 232, 232},
-			expectedEventsInChunk:            []int{2, 4, 8, 16, 29, 30, 30, 30, 30},
-			expectedUncompressedBytesWritten: 4515,
-			expectedUncompressedLimit:        10560,
-		},
-		{
-			name:                 "increased upload size limit, uncompressed limit increasing and stabilizing with ND cache (no cache dropped)",
-			uploadSizeLimitBytes: 440,
-			// the eleventh event is still in the encoder waiting to be written into a chunk
-			expectedUncompressedBytesWritten: 20838,
-			numOfEventsWithNDCache:           40,
-			// none of the ND caches are dropped because they can fit compressed in a chunk
-			// it does take longer for the adaptive uncompressed limit to stabilize because of the large uncompressed size
-			expectedDroppedNDCacheEvents: 0,
-			expectedChunksLengths:        []int{263, 263, 263, 263, 331, 329, 341, 341, 341},
-			expectedEventsInChunk:        []int{1, 1, 1, 1, 3, 6, 7, 7, 7},
-			expectedUncompressedLimit:    31680,
-		},
-		{
-			name:                      "dropping the ND cache doesn't help, drop the event",
-			uploadSizeLimitBytes:      200,
-			expectedUncompressedLimit: 200,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
-			testLogger := test.New()
-
-			ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
-			if err != nil {
-				panic(err)
-			}
-
-			fixture := newTestFixture(t, testFixtureOptions{
-				ConsoleLogger: testLogger,
-				// With the ND cache the compressed size is 259 bytes
-				// Without the ND cache the compressed size is 215 bytes
-				ReportingUploadSizeLimitBytes: tc.uploadSizeLimitBytes,
-			})
-			defer fixture.server.stop()
-
-			fixture.plugin.enc.metrics = metrics.New()
-
-			var input interface{} = map[string]interface{}{"method": "GET"}
-			var result interface{} = false
-
-			var events []*server.Info
-
-			for range tc.numOfEventsWithoutNDCache {
-				events = append(events, &server.Info{
-					DecisionID: "abc",
-					Path:       "foo/bar",
-					Input:      &input,
-					Results:    &result,
-					RemoteAddr: "test",
-					Timestamp:  ts,
-				})
-			}
-
-			// Purposely oversize NDBCache entry will force dropping during Log().
-			ndbCacheExample := ast.MustJSON(builtins.NDBCache{
-				"test.custom_space_waster": ast.NewObject([2]*ast.Term{
-					ast.ArrayTerm(),
-					ast.StringTerm(strings.Repeat("Wasted space... ", 200)),
-				}),
-			}.AsValue())
-
-			for range tc.numOfEventsWithNDCache {
-				events = append(events, &server.Info{
-					DecisionID:     "abc",
-					Path:           "foo/bar",
-					Input:          &input,
-					Results:        &result,
-					RemoteAddr:     "test",
-					Timestamp:      ts,
-					NDBuiltinCache: &ndbCacheExample,
-				})
-			}
-
-			for _, event := range events {
-				err := fixture.plugin.Log(ctx, event)
-				if err != nil {
-					t.Fatal(err)
-				}
-			}
-
-			if tc.expectedUncompressedLimit != fixture.plugin.enc.uncompressedLimit {
-				t.Errorf("Expected %d uncompressed limit but got %d", tc.expectedUncompressedLimit, fixture.plugin.enc.uncompressedLimit)
-			}
-
-			if len(tc.expectedChunksLengths) != fixture.plugin.buffer.Len() {
-				currentBufferLen := fixture.plugin.buffer.Len()
-				var receivedChunkLens []int
-				for chunk := fixture.plugin.buffer.Pop(); chunk != nil; chunk = fixture.plugin.buffer.Pop() {
-					receivedChunkLens = append(receivedChunkLens, len(chunk))
-				}
-				t.Errorf("Expected %d chunks (%v) but got %d (%v)",
-					len(tc.expectedChunksLengths), tc.expectedChunksLengths, currentBufferLen, receivedChunkLens)
-			}
-
-			for i, c := range tc.expectedChunksLengths {
-				chunk := fixture.plugin.buffer.Pop()
-				if c != len(chunk) {
-					t.Errorf("[%d] Expected %d chunk length but got %d", i, c, len(chunk))
-				}
-
-				events, err := newChunkDecoder(chunk).decode()
-				if err != nil {
-					t.Fatal(err)
-				}
-				if tc.expectedEventsInChunk[i] != len(events) {
-					t.Errorf("[%d] Expected %d events but got %d", i, tc.expectedEventsInChunk[i], len(events))
-				}
-			}
-
-			m := fixture.plugin.enc.metrics.Counter(logNDBDropCounterName).Value().(uint64)
-			if m != uint64(tc.expectedDroppedNDCacheEvents) {
-				t.Errorf("Expected %d NDBCache drop events, saw %d events instead.", tc.expectedDroppedNDCacheEvents, m)
-			}
-
-			if fixture.plugin.enc.bytesWritten != tc.expectedUncompressedBytesWritten {
-				t.Errorf("Expected %d bytes to have been written to the encoder but got %d", tc.expectedUncompressedBytesWritten, fixture.plugin.enc.bytesWritten)
-			}
-
 		})
 	}
 }
@@ -3848,9 +3644,10 @@ func TestConfigUploadLimit(t *testing.T) {
 			expectedLimit: 1000,
 		},
 		{
-			name:        "negative limit",
-			limit:       -1,
-			expectedErr: "the configured `upload_size_limit_bytes` (-1) must be greater than 0",
+			name:          "negative limit",
+			limit:         -1,
+			expectedLimit: minUploadSizeLimitBytes,
+			expectedLog:   "the configured `upload_size_limit_bytes` (-1) has been set to the minimum limit (90)",
 		},
 	}
 

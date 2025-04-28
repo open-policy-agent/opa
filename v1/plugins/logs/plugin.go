@@ -252,13 +252,13 @@ const (
 	defaultMinDelaySeconds              = int64(300)
 	defaultMaxDelaySeconds              = int64(600)
 	defaultBufferSizeLimitEvents        = int64(10000)
-	defaultUploadSizeLimitBytes         = int64(32768) // 32KB limit
-	maxUploadSizeLimitBytes             = int64(4294967296)
-	defaultBufferSizeLimitBytes         = int64(0) // unlimited
+	defaultUploadSizeLimitBytes         = int64(32768)      // 32KB limit
+	minUploadSizeLimitBytes             = int64(90)         // A single event with a decision ID (69 bytes) + empty gzip file (21 bytes)
+	maxUploadSizeLimitBytes             = int64(4294967296) // about 4GB
+	defaultBufferSizeLimitBytes         = int64(0)          // unlimited
 	defaultMaskDecisionPath             = "/system/log/mask"
 	defaultDropDecisionPath             = "/system/log/drop"
 	logRateLimitExDropCounterName       = "decision_logs_dropped_rate_limit_exceeded"
-	logNDBDropCounterName               = "decision_logs_nd_builtin_cache_dropped"
 	logBufferEventDropCounterName       = "decision_logs_dropped_buffer_size_limit_exceeded"
 	logBufferSizeLimitExDropCounterName = "decision_logs_dropped_buffer_size_limit_bytes_exceeded"
 	logEncodingFailureCounterName       = "decision_logs_encoding_failure"
@@ -372,15 +372,17 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 		uploadLimit = *c.Reporting.UploadSizeLimitBytes
 	}
 
-	maxUploadLimit := maxUploadSizeLimitBytes
 	switch {
-	case uploadLimit > maxUploadLimit:
+	case uploadLimit > maxUploadSizeLimitBytes:
+		maxUploadLimit := maxUploadSizeLimitBytes
 		c.Reporting.UploadSizeLimitBytes = &maxUploadLimit
 		if l != nil {
 			l.Warn("the configured `upload_size_limit_bytes` (%d) has been set to the maximum limit (%d)", uploadLimit, maxUploadLimit)
 		}
-	case uploadLimit <= 0:
-		return fmt.Errorf("the configured `upload_size_limit_bytes` (%d) must be greater than 0", uploadLimit)
+	case uploadLimit <= minUploadSizeLimitBytes:
+		minUploadLimit := minUploadSizeLimitBytes
+		c.Reporting.UploadSizeLimitBytes = &minUploadLimit
+		l.Warn("the configured `upload_size_limit_bytes` (%d) has been set to the minimum limit (%d)", uploadLimit, minUploadLimit)
 	default:
 		c.Reporting.UploadSizeLimitBytes = &uploadLimit
 	}
@@ -591,12 +593,14 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		config:       *parsedConfig,
 		stop:         make(chan chan struct{}),
 		enc:          newChunkEncoder(*parsedConfig.Reporting.UploadSizeLimitBytes),
-		reconfig:     make(chan reconfigure),
 		logger:       manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
+		reconfig:     make(chan reconfigure),
 		status:       &lstat.Status{},
 		preparedDrop: *newPrepareOnce(),
 		preparedMask: *newPrepareOnce(),
 	}
+
+	plugin.enc.WithLogger(plugin.logger)
 
 	switch parsedConfig.Reporting.BufferType {
 	case eventBufferType:
@@ -928,7 +932,7 @@ func (p *Plugin) oneShot(ctx context.Context) error {
 	oldChunkEnc := p.enc
 	oldBuffer := p.buffer
 	p.buffer = newLogBuffer(*p.config.Reporting.BufferSizeLimitBytes)
-	p.enc = newChunkEncoder(*p.config.Reporting.UploadSizeLimitBytes).WithMetrics(p.metrics)
+	p.enc = newChunkEncoder(*p.config.Reporting.UploadSizeLimitBytes).WithMetrics(p.metrics).WithLogger(p.logger)
 	// keep the adaptive uncompressed limit throughout the lifecycle of the size buffer
 	// this ensures that the uncompressed limit can grow/shrink appropriately as new data comes in
 	p.enc.uncompressedLimit = oldChunkEnc.uncompressedLimit
