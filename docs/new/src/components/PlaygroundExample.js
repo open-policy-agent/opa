@@ -36,12 +36,10 @@ export default function PlaygroundExample({
 
   const output = files["output.json"];
 
-  const showInput = config && config.showInput;
-  const showData = config && config.showData;
-
-  const command = config && config.command ? config.command : "data.play";
-
-  const showTitles = config && config.showTitles;
+  const showInput = config?.showInput ?? true;
+  const showData = config?.showData ?? true;
+  const showTitles = config?.showTitles ?? true;
+  const command = config?.command ?? "data.play";
 
   const state = encodeToBase64(JSON.stringify({
     i: JSON.stringify(input, null, 2),
