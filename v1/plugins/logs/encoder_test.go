@@ -214,11 +214,11 @@ func TestChunkEncoderSizeLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 	expectedBufferSize = 169
-	if enc.buf.Len() != expectedBufferSize { // only the header should have been written
+	if enc.buf.Len() != expectedBufferSize {
 		t.Errorf("Expected %v buffer size but got: %v", 15, enc.buf.Len())
 	}
 	expectedBytesWritten = 198
-	if enc.bytesWritten != expectedBytesWritten { // no bytes should have been written
+	if enc.bytesWritten != expectedBytesWritten {
 		t.Errorf("Expected %v bytes written but got: %v", 0, enc.bytesWritten)
 	}
 	if enc.eventsWritten != expectedEventsWritten {
@@ -291,7 +291,7 @@ func TestChunkEncoderAdaptive(t *testing.T) {
 			expectedEquiEvents:        31,
 		},
 		{
-			// the higher the limit the longer it takes the adaptive algorithm to stabilize
+			// it is possible to set a limit that the algorithm fails to stabilize, it is just guessing
 			name:                      "an uncompressed limit that doesn't stabilize",
 			limit:                     1000,
 			numEvents:                 1000,
@@ -300,6 +300,17 @@ func TestChunkEncoderAdaptive(t *testing.T) {
 			expectedScaleUpEvents:     14,
 			expectedScaleDownEvents:   11,
 			expectedEquiEvents:        0,
+		},
+		{
+			// a different limit can stabilize
+			name:                      "larger limit that does stabilize",
+			limit:                     3000,
+			numEvents:                 2000,
+			expectedUncompressedLimit: 108000,
+			expectedMaxEventsInChunk:  455,
+			expectedScaleUpEvents:     5,
+			expectedScaleDownEvents:   1,
+			expectedEquiEvents:        3,
 		},
 	}
 

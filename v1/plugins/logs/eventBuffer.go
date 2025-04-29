@@ -71,7 +71,7 @@ func (b *eventBuffer) Reconfigure(bufferSizeLimitEvents int64, client rest.Clien
 	b.client = client
 	b.uploadPath = uploadPath
 	b.uploadSizeLimitBytes = uploadSizeLimitBytes
-	b.enc.limit = uploadSizeLimitBytes
+	b.enc.Reconfigure(uploadSizeLimitBytes)
 
 	if int64(cap(b.buffer)) == bufferSizeLimitEvents {
 		return
