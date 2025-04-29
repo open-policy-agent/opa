@@ -334,7 +334,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
           name: "builtin-data",
 
           async loadContent() {
-            const filePath = path.join(context.siteDir, "src", "data", "builtin_metadata.json");
+            const filePath = "../../builtin_metadata.json";
             const fileContent = await fs.readFile(filePath, "utf-8");
             const builtins = JSON.parse(fileContent);
             return { builtins };
@@ -375,6 +375,50 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
           },
         };
       },
+
+      async function versionsData(context, options) {
+        return {
+          name: "versions-data",
+
+          async loadContent() {
+            const capabilitiesDir = path.resolve(__dirname, "../../capabilities");
+            let sortedVersions = [];
+
+            const dirents = await fs.readdir(capabilitiesDir, { withFileTypes: true });
+
+            const versionStrings = dirents
+              .filter(dirent => dirent.isFile() && dirent.name.endsWith(".json"))
+              .map(dirent => dirent.name.replace(".json", ""));
+
+            const validVersions = versionStrings.filter(v => semver.valid(v));
+
+            sortedVersions = semver.sort(validVersions);
+
+            return { versions: sortedVersions };
+          },
+
+          async contentLoaded({ content, actions }) {
+            const { createData } = actions;
+            const { versions } = content;
+
+            await createData("versions.json", JSON.stringify(versions, null, 2));
+          },
+        };
+      },
+
+      async function versionsPageGen(context, options) {
+        return {
+          name: "version-page-gen",
+          async contentLoaded({ content, actions }) {
+                return actions.addRoute({
+                  path: path.join(baseUrl, `/docs/archive`),
+                  component: require.resolve("./src/Archive.js"),
+                  exact: true,
+                  modules: {},
+                });
+              },
+          };
+        },
     ],
     clientModules: [
       require.resolve("./src/lib/playground.js"),
