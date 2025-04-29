@@ -94,6 +94,22 @@ module.exports = {
         "contrib-adding-builtin-functions",
       ],
     },
+    {
+      type: "link",
+      label: "Documentation Archive",
+      href: "/docs/archive",
+    },
+    "faq",
+    {
+      type: "link",
+      label: "Enterprise Support",
+      href: "/support",
+    },
+    {
+      type: "link",
+      label: "OPA Ecosystem",
+      href: "/ecosystem",
+    },
   ],
   rootSidebar: [],
 };
