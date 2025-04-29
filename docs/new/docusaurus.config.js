@@ -225,6 +225,12 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
     },
 
     plugins: [
+      [
+        require.resolve("@easyops-cn/docusaurus-search-local"),
+        {
+          indexPages: true,
+        },
+      ],
       () => ({
         name: "raw-loader",
         configureWebpack() {
