@@ -141,11 +141,17 @@ const baseUrl = "/new/";
         ],
       },
       footer: {
-        style: "dark",
+        style: "light",
         links: [],
-        copyright: `© ${
-          new Date().getFullYear()
-        } Open Policy Agent contributors. Licensed under the Apache License, Version 2.0. See the contributing documentation for information about contributing.
+        copyright:
+          `Open Policy Agent is a <a href="https://www.cncf.io/">Cloud Native Computing Foundation</a> Graduated project.
+
+<img src="${baseUrl}img/footer/cncf.svg" alt="CNCF Logo" style="max-width: 10rem; vertical-align: middle; margin: 0 10px;"><br />
+
+© ${new Date().getFullYear()}
+Open Policy Agent contributors.
+<a href="https://github.com/open-policy-agent/opa/blob/main/LICENSE">Licensed under the Apache License, Version 2.0</a>.
+See the <a href="${baseUrl}/docs/contributing">contributing documentation</a> for information about contributing.
 
 The Linux Foundation has registered trademarks and uses trademarks. For a list of trademarks of The Linux Foundation, please see our Trademark Usage page.`,
       },

@@ -5,62 +5,43 @@ hide_table_of_contents: true
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 import Link from "@docusaurus/Link";
+import useBaseUrl from "@docusaurus/useBaseUrl";
 
 import SideBySideContainer from '@site/src/components/SideBySide/Container';
 import SideBySideColumn from '@site/src/components/SideBySide/Column';
 import PlaygroundExample from '@site/src/components/PlaygroundExample';
 import ImageCard from '@site/src/components/ImageCard';
+import Card from '@site/src/components/Card';
 
 <div style={{ display: 'block', maxWidth: '75rem', width: '100%', margin: '0 auto' }}>
 
 <div style={{ display: 'flex', flexWrap: 'wrap', marginBottom: '2rem' }}>
-  <div style={{
-          flex: '1',
-          backgroundColor: '#e6f4ff',
-          padding: '4rem 2rem',
-          textAlign: 'center',
-          color: '#003366',
-          marginBottom: '2rem',
-          minWidth: '30rem',
-      }}>
-    <h1 style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>
-      Open Policy Agent
-    </h1>
-
-    <h2
-      style={{
-        fontWeight: 'normal',
-        color: '#444',
-        marginTop: 0,
-        fontSize: '1.5rem',
-      }}
-    >
-      Policy-based control for cloud native environments
-    </h2>
-
-    <p
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '0.5rem',
-        flexWrap: 'wrap',
+  <div style={{ flex: '1' }}>
+    <div style={{
+        backgroundColor: '#e6f4ff',
+        padding: '4rem 2rem',
         textAlign: 'center',
-      }}
-    >
-      <strong>Created By</strong>
-      <img
-        src={require('./assets/styra.png').default}
-        alt="Styra Logo"
-        style={{ width: '6rem' }}
-      />
-    </p>
+        color: '#003366',
+        borderRadius: '1rem',
+        marginBottom: '2rem',
+        minWidth: '30rem',
+      }}>
+    <img src={require('./assets/logo-text.png').default} alt="OPA Logo" style={{ width: '80%', marginBottom: '1rem', maxWidth: "30rem" }} />
 
-    <p style={{ fontSize: '0.9rem', color: '#555', marginTop: '1rem' }}>
-      OPA is now maintained by Styra and a large community of contributors.
-    </p>
+      <h2
+        style={{
+          fontWeight: 'normal',
+          color: '#444',
+          marginTop: 0,
+          fontSize: '1.2rem',
+        }}
+      >
+        OPA is an open source, general-purpose policy engine that unifies policy
+        enforcement across the stack.
+      </h2>
+    </div>
   </div>
-  <div style={{flex: '1.5', minWidth: '300px', padding: '0rem 1rem' }}>
+  <div style={{flex: '1.5', minWidth: '400px', padding: '0rem 1rem' }}>
     <PlaygroundExample dir={require.context('./_examples/admin')} />
   </div>
 </div>
@@ -68,15 +49,14 @@ import ImageCard from '@site/src/components/ImageCard';
 
 <div style={{ display: 'block', maxWidth: '60rem', width: '100%', margin: '0 auto' }}>
 
-
-<div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
+<div style={{ margin: '0 auto', display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'center' }}>
   {(() => {
     const logoContext = require.context('./assets/logos', false);
     return logoContext.keys().map((key) => {
       const logo = logoContext(key).default;
       const imageName = key.replace('./', '').split('.')[0]; // Extract name without extension
       return (
-        <div key={key} style={{ width: '100px', height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div key={key} style={{ width: '6rem', height: '6rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <img src={logo} alt={imageName} style={{ maxWidth: '80%', maxHeight: '80%' }} />
         </div>
       );
@@ -84,124 +64,185 @@ import ImageCard from '@site/src/components/ImageCard';
   })()}
 </div>
 
-Stop using a different policy language, policy model, and policy API for every product and service you use.
-Use **OPA** for a unified toolset and framework for policy across the cloud native stack.
+<p style={{ textAlign: 'center', fontSize: '1.1rem', marginBottom: '1rem' }}>Created by</p>
 
-Whether for one service or for all your services, use **OPA** to decouple policy
-from the service's code so you can release, analyze, and review policies (which
-security and compliance teams love) without sacrificing availability or
-performance.
+<p
+  style={{
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.5rem',
+    flexWrap: 'wrap',
+    textAlign: 'center',
+    marginBottom: '0rem',
+  }}
+>
+  <a href="https://styra.com" target="_blank" rel="noopener noreferrer">
+    <img
+      src={require('./assets/styra.png').default}
+      alt="Styra Logo"
+      style={{ width: '6rem' }}
+    />
+  </a>
+</p>
 
-## Declarative Policy
-
-_Context-aware, Expressive, Fast, Portable_
-
-**Declarative.** Express policy in a high-level, declarative language that promotes safe, performant, fine-grained controls. Use a language purpose-built for policy in a world where JSON is pervasive. Iterate, traverse hierarchies, and apply 150+ built-ins like string manipulation and JWT decoding to declare the policies you want enforced.
-
-**Context-aware.** Leverage external information to write the policies you really care about. Stop inventing roles that represent complex relationships that years down the road no one will understand. Instead, write logic that adapts to the world around it and attach that logic to the systems that need it.
-
-**Learn More**
-
-<Link className="button button--primary button--sm" to="./docs/envoy/" style={{ marginRight: '1rem' }}> Envoy </Link>
-<Link className="button button--primary button--sm" to="./docs/kubernetes/" style={{ marginRight: '1rem' }}> Kubernetes </Link>
-<Link className="button button--primary button--sm" to="./docs/terraform/" style={{ marginRight: '1rem' }}> Terraform </Link>
-<Link className="button button--primary button--sm" to="./docs/kafka-authorization/" style={{ marginRight: '1rem' }}> Kafka </Link>
-<Link className="button button--primary button--sm" to="https://blog.openpolicyagent.org/write-policy-in-opa-enforce-policy-in-sql-d9d24db93bf4" style={{ marginRight: '1rem' }}> SQL </Link>
-<Link className="button button--primary button--sm" to="./docs/ssh-and-sudo-authorization/" style={{ marginRight: '1rem' }}> Linux </Link>
-
----
-
-## Architectural Flexibility
-
-_Balance integration, availability and consistency_
+<p style={{ textAlign: 'center', fontSize: '0.8rem', color: '#555', marginTop: '1rem' }}>OPA is now maintained by Styra and a large community of contributors.</p>
 
 <div style={{
+    margin: '2rem auto',
     display: 'flex',
     flexWrap: 'wrap',
-    marginBottom: '2rem',
-    }}>
-  <div style={{ flex: '1', paddingRight: "1rem" }}>
-
-    ### Daemon
-
-    Deploy OPA as a separate process on the same host as your service. Integrate
-    OPA by changing your service’s code, importing an OPA-enabled library, or
-    using a network proxy integrated with OPA.
-
-    [Learn More](./docs/deployments/)
-
-    <img
-      src={require('./assets/deployment/daemon.png').default}
-      alt="Daemon"
-      style={{ display: "block", width: '100%', maxWidth: '15rem', margin: '0 auto' }}/>
-
-  </div>
-  <div style={{ flex: '1', paddingLeft: "1rem" }}>
-    ### Library
-
-    Embed OPA policies into your service. Integrate OPA as a Go library that
-    evaluates policy, or integrate a WebAssembly runtime and use OPA to compile
-    policy to WebAssembly instructions.
-
-    [Learn More](./docs/integration/#integrating-with-the-go-api)
-
-    <img
-      src={require('./assets/deployment/library.png').default}
-      alt="Library"
-      style={{ display: "block", width: '100%', maxWidth: '14rem', margin: '0 auto' }}/>
+    gap: '1rem',
+    justifyContent: 'center',
+    width: '100%',
+    maxWidth: '40rem'
+}}>
+<div style={{
+  display: 'grid',
+  gridTemplateColumns: '6rem 1fr',
+  gap: '1rem',
+  alignItems: 'center',
+}}>
+  <img
+    src={require('./assets/icons/productivity.png').default}
+    alt="Productivity icon"
+    style={{
+      display: 'block',
+      width: '100%',
+      height: 'auto',
+    }}
+  />
+  <div>
+    **Developer Productivity:** OPA decouples policy, letting developers focus on core features. Security & platform teams centrally manage shared policies, while developer teams extend them as needed within the same platform.
   </div>
 </div>
 
----
-
-## Tools for Policy Authoring
-
-
-<div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', justifyContent: 'center' }}>
-<ImageCard
-  item={{
-    image: require('./assets/uis/playground.png').default,
-    title: 'Rego Playground for Policy Sharing',
-    note: 'Share and test policies in an interactive playground.',
-    link: 'https://play.openpolicyagent.org/',
-    link_text: 'Open Playground',
-  }}
-/>
-<ImageCard
-  item={{
-    image: require('./assets/uis/vscode.gif').default,
-    title: 'VS Code for Policy Authoring',
-    note: 'Author policies with syntax highlighting and IntelliSense.',
-    link: 'https://marketplace.visualstudio.com/items?itemName=tsandall.opa',
-    link_text: 'Get VS Code Extension',
-  }}
-/>
-<ImageCard
-  item={{
-    image: require('./assets/uis/cli.png').default,
-    title: 'CLI and REPL for complete control',
-    note: 'Use the command line interface and REPL for advanced policy management.',
-    link: './docs/#running-opa',
-    link_text: 'Learn More',
-  }}
-/>
+<div style={{
+  display: 'grid',
+  gridTemplateColumns: '6rem 1fr',
+  gap: '1rem',
+  alignItems: 'center',
+}}>
+  <img
+    src={require('./assets/icons/performance.png').default}
+    alt="Performance icon"
+     style={{
+      display: 'block',
+      width: '100%',
+      height: 'auto',
+    }}
+  />
+  <div>
+    **Performance:** OPA is a high-performance policy decision point. Pre-loading data ensures rapid responses, aided by Rego, out purpose-built policy language.
+  </div>
 </div>
 
-OPA embraces policy-as-code, complete with tools that help people use and understand the policies they put in place. Integrated development environments, testing, profiling, coverage, automated performance tuning, and hot reloading aren’t just things you need for programming--you need them for policy too, and OPA delivers.
+<div style={{
+  display: 'grid',
+  gridTemplateColumns: '6rem 1fr',
+  gap: '1rem',
+  alignItems: 'center',
+}}>
+  <img
+    src={require('./assets/icons/audit.png').default}
+    alt="Audit icon"
+     style={{
+      display: 'block',
+      width: '100%',
+      height: 'auto',
+    }}
+  />
+  <div>
+    **Audit & Compliance:** OPA provides comprehensive audit trails of all policy decisions. This history aids auditing and compliance, allowing replay for analysis and debugging.
+  </div>
+</div>
+</div>
 
-**Learn More**
 
-<Link className="button button--primary button--sm"
-      to="https://marketplace.visualstudio.com/items?itemName=tsandall.opa"
-      style={{ marginRight: '1rem' }}>VS Code</Link>
-<Link className="button button--primary button--sm"
-      to="https://play.openpolicyagent.org/"
-      style={{ marginRight: '1rem' }}>Rego Playground</Link>
-<Link className="button button--primary button--sm"
-      to="./docs/#running-opa"
-      style={{ marginRight: '1rem' }}>General Tooling</Link>
-<Link className="button button--primary button--sm"
-      to="https://github.com/open-policy-agent"
-      style={{ marginRight: '1rem' }}>OPA GitHub</Link>
+<div
+  style={{
+    marginTop: "2rem",
+    display: "flex",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 20,
+  }}
+>
+</div>
+
+<div style={{
+  width: '100%',
+  maxWidth: '70rem',
+  margin: '2rem auto',
+  backgroundColor: '#e6f4ff',
+  padding: '2rem 2rem',
+  color: '#003366',
+  borderRadius: '1rem',
+}}>
+  <p style={{ textAlign: 'center', fontSize: '1.25rem', marginBottom: '2rem' }}>
+    Watch the OPA maintainer track session from the most recent KubeCon
+  </p>
+  <div style={{
+    position: 'relative',
+    width: '100%',
+    paddingBottom: '56.25%',
+    height: 0,
+    overflow: 'hidden'
+  }}>
+    <iframe
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        border: '0.2rem solid #003366',
+      }}
+      src="https://www.youtube.com/embed/XtA-NKoJDaI?si=kLMaOmcEqbXGig23"
+      title="YouTube video player"
+      frameborder="0"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      referrerpolicy="strict-origin-when-cross-origin"
+      allowfullscreen
+    ></iframe>
+  </div>
+</div>
+
+
+<div
+  style={{
+    marginTop: "2rem",
+    display: "flex",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: "20px", /* Added 'px' for proper CSS unit */
+  }}
+>
+  {[{
+    title: "Rego Playground",
+    note: "Write your first Rego Policy",
+    icon: require('./assets/logo.png').default,
+    link: "https://play.openpolicyagent.org/",
+    link_text: "Play with Rego",
+  },
+  {
+    title: "OPA Slack Community",
+    note: "Talk to other users and maintainers",
+    icon: require('./assets/slack.png').default,
+    link: "https://slack.openpolicyagent.org/",
+    link_text: "Instant Join Slack",
+  },
+  {
+    title: "Contribute to OPA",
+    note: "Get involved with our project",
+    icon: require('./assets/github.png').default,
+    link: useBaseUrl("/docs/contributing"),
+    link_text: "Get started",
+  }].map((cardItem, index) => (
+    <div key={index} style={{ flex: "1 1 30%", minWidth: "250px", maxWidth: "400px" }}>
+      <Card item={cardItem} />
+    </div>
+  ))}
+</div>
 
 </div>
