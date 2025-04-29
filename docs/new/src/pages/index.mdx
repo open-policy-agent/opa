@@ -68,6 +68,22 @@ import ImageCard from '@site/src/components/ImageCard';
 
 <div style={{ display: 'block', maxWidth: '60rem', width: '100%', margin: '0 auto' }}>
 
+
+<div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
+  {(() => {
+    const logoContext = require.context('./assets/logos', false);
+    return logoContext.keys().map((key) => {
+      const logo = logoContext(key).default;
+      const imageName = key.replace('./', '').split('.')[0]; // Extract name without extension
+      return (
+        <div key={key} style={{ width: '100px', height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <img src={logo} alt={imageName} style={{ maxWidth: '80%', maxHeight: '80%' }} />
+        </div>
+      );
+    });
+  })()}
+</div>
+
 Stop using a different policy language, policy model, and policy API for every product and service you use.
 Use **OPA** for a unified toolset and framework for policy across the cloud native stack.
 
