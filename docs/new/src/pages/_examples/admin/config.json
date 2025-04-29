@@ -1,4 +1,6 @@
 {
-  "showInput": true,
-  "showData": false
+  "showInput": false,
+  "showData": false,
+  "showTitles": false,
+  "command": "data.play.allow"
 }

@@ -28,7 +28,7 @@ const emojis = [
   "🥳",
 ];
 
-export default function RunSnippet({ id, files, depends, command }) {
+export default function RunSnippet({ id, files, depends, command, playgroundLink }) {
   if (!command && !files) {
     // json file
     return (
@@ -56,6 +56,7 @@ export default function RunSnippet({ id, files, depends, command }) {
           <codapi-toolbar>
             <button>Evaluate</button>
             <a href="#edit">Edit</a>
+            {playgroundLink && <a target="_blank" href={playgroundLink}>Open in Playground</a>}
             <codapi-status done={`${icon} Done in $DURATION`}></codapi-status>
           </codapi-toolbar>
         </codapi-snippet>

@@ -39,6 +39,10 @@ export default function PlaygroundExample({
   const showInput = config && config.showInput;
   const showData = config && config.showData;
 
+  const command = config && config.command ? config.command : "data.play";
+
+  const showTitles = config && config.showTitles;
+
   const state = encodeToBase64(JSON.stringify({
     i: JSON.stringify(input, null, 2),
     d: JSON.stringify(data, null, 2),
@@ -114,10 +118,10 @@ export default function PlaygroundExample({
             </CodeBlock>
             <RunSnippet id={`${id}-input.json`} />
           </div>
-          <CodeBlock language={"rego"} title="policy.rego">
+          <CodeBlock language={"rego"} title={showTitles ? "policy.rego" : ""}>
             {policy}
           </CodeBlock>
-          <RunSnippet command="data.play" id={`${id}-policy.rego`} files={snippetFiles} />
+          <RunSnippet command={command} id={`${id}-policy.rego`} files={snippetFiles} playgroundLink={url} />
         </MDXProvider>
       )}
 
