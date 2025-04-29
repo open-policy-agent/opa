@@ -109,17 +109,21 @@ func (enc *chunkEncoder) Write(event EventV1) ([][]byte, error) {
 	}
 
 	// Adjust the encoder's uncompressed limit based on the current amount of
-	// data written to the underlying buffer. The uncompressed limit decides when to flush a chunk.
+	// data written to the underlying buffer. The uncompressed limit decides when to return a chunk.
 	// The uncompressed limit is modified based on the below algorithm:
 	// 1) Scale Up: If the current chunk size is within 90% of the user-configured limit, exponentially increase
-	// the uncompressed limit. The exponential function is 2^x where x has a minimum value of 1
+	// the uncompressed limit. The exponential function is 2^x where x has a minimum value of 1.
+	// A chunk will be returned with what was already written, the buffer was underutilized but the next time it shouldn't be.
+	// The incoming event is written to the next chunk.
 	// 2) Scale Down: If the current chunk size exceeds the compressed limit, decrease the uncompressed limit and re-encode the
 	// decisions in the last chunk.
 	// 3) Equilibrium: If the chunk size is between 90% and 100% of the user-configured limit, maintain uncompressed limit value.
+	// A chunk will be returned with what was already written, the uncompressed limit is ideal.
+	// The incoming event is written to the next chunk.
 
 	// The uncompressed size is too small (it starts equal to the compressed limit)
 	// Or this is a recursive call to Write trying to split the events into separate chunks
-	if enc.eventsWritten == 0 {
+	if enc.bytesWritten == 0 {
 		// If an event is too large, there are multiple things to try before dropping the event:
 		// 1. Try to fit the incoming event into the next chunk without losing ND cache
 		err = enc.appendEvent(eventBytes)
@@ -189,7 +193,8 @@ func (enc *chunkEncoder) Write(event EventV1) ([][]byte, error) {
 		return nil, err
 	}
 
-	// 1) Scale Up
+	// 1) Scale Up: If the current chunk size is within 90% of the user-configured limit, exponentially increase
+	// the uncompressed limit. The exponential function is 2^x where x has a minimum value of 1
 	if enc.buf.Len() < int(float64(enc.limit)*encCompressedLimitThreshold) {
 		enc.scaleUp()
 
@@ -200,7 +205,7 @@ func (enc *chunkEncoder) Write(event EventV1) ([][]byte, error) {
 		return result, err
 	}
 
-	// 3) Equilibrium
+	// 3) Equilibrium: If the chunk size is between 90% and 100% of the user-configured limit, maintain uncompressed limit value.
 	if int(enc.limit) > enc.buf.Len() && enc.buf.Len() >= int(float64(enc.limit)*encCompressedLimitThreshold) {
 		enc.incrMetric(encUncompressedLimitStableCounterName)
 		enc.incrMetric(encSoftLimitStableCounterName)
@@ -213,8 +218,10 @@ func (enc *chunkEncoder) Write(event EventV1) ([][]byte, error) {
 		return result, err
 	}
 
+	// 2) Scale Down: If the current chunk size exceeds the compressed limit, decrease the uncompressed limit and re-encode the
+	// decisions in the last chunk.
 	var events []EventV1
-	if enc.eventsWritten != 0 {
+	if enc.bytesWritten != 0 {
 		if err := enc.writeClose(); err != nil {
 			return nil, err
 		}
