@@ -115,11 +115,8 @@ const EcosystemIndex = (props) => {
               if (!featuresInCategory) return null;
 
               const category = featureCategories[categoryId];
-              const categoryTitle = category?.content.match(/title: \|\n\s+(.*)/)?.[1] || categoryId;
-              const categoryDescription = category?.content.match(/description: \|\n((?:\s+.+\n?)+)/)?.[1]
-                ?.split("\n")
-                .map((line) => line.trim())
-                .join(" ") || "";
+              const categoryTitle = category?.title;
+              const categoryDescription = category?.description;
 
               return (
                 <div key={categoryId} style={{ flex: "1 1 calc(50% - 1rem)", minWidth: "300px" }}>
