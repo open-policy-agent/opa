@@ -19,7 +19,7 @@ const Index = (props) => {
     <Layout title={title}>
       <div style={{ display: "block", maxWidth: "75rem", width: "100%", margin: "0 auto" }}>
         <div style={{ display: "flex", flexWrap: "wrap", marginBottom: "2rem", padding: "1rem" }}>
-          <div style={{ flex: "1" }}>
+          <div style={{ flex: "1", minWidth: "25rem" }}>
             <div
               style={{
                 backgroundColor: "#e6f4ff",
