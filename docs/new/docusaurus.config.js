@@ -44,7 +44,8 @@ const baseUrl = "/new/";
     themeConfig: {
       colorMode: {
         disableSwitch: true,
-        respectPrefersColorScheme: true,
+        // TODO: our graphics need an update to support this
+        respectPrefersColorScheme: false,
       },
       metadata: [
         { name: "msapplication-TileColor", content: "#2b5797" },
