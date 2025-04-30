@@ -410,15 +410,15 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
         return {
           name: "version-page-gen",
           async contentLoaded({ content, actions }) {
-                return actions.addRoute({
-                  path: path.join(baseUrl, `/docs/archive`),
-                  component: require.resolve("./src/Archive.js"),
-                  exact: true,
-                  modules: {},
-                });
-              },
-          };
-        },
+            return actions.addRoute({
+              path: path.join(baseUrl, `/docs/archive`),
+              component: require.resolve("./src/Archive.js"),
+              exact: true,
+              modules: {},
+            });
+          },
+        };
+      },
     ],
     clientModules: [
       require.resolve("./src/lib/playground.js"),
