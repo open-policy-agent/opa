@@ -22,11 +22,8 @@ const Index = (props) => {
           <div style={{ flex: "1", minWidth: "25rem" }}>
             <div
               style={{
-                backgroundColor: "#e6f4ff",
                 padding: "4rem 2rem",
                 textAlign: "center",
-                color: "#003366",
-                borderRadius: "1rem",
                 marginBottom: "2rem",
               }}
             >
@@ -55,8 +52,10 @@ const Index = (props) => {
         </div>
       </div>
 
-      <div style={{ display: "block", maxWidth: "60rem", width: "100%", margin: "0 auto" }}>
-        <div style={{ margin: "0 auto", display: "flex", flexWrap: "wrap", gap: "1rem", justifyContent: "center" }}>
+      <div style={{ display: "block", maxWidth: "55rem", width: "100%", margin: "0 auto" }}>
+        <div
+          style={{ margin: "0 auto 1rem", display: "flex", flexWrap: "wrap", gap: "0.5rem", justifyContent: "center" }}
+        >
           {(() => {
             const logoContext = require.context("./assets/logos", false);
             return logoContext.keys().map((key) => {
@@ -67,7 +66,7 @@ const Index = (props) => {
                   key={key}
                   style={{
                     width: "6rem",
-                    height: "6rem",
+                    height: "2rem",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -81,7 +80,7 @@ const Index = (props) => {
         </div>
       </div>
 
-      <p style={{ textAlign: "center", fontSize: "0.9rem", marginBottom: "1rem" }}>Created by</p>
+      <p style={{ textAlign: "center", fontSize: "0.9rem", marginBottom: "0.5rem" }}>Created by</p>
 
       <p
         style={{
