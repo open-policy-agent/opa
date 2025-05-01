@@ -3,7 +3,51 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 1.4.0
+
+### Fixes
+
+- docs: fixed broken docs link (#7510) ([#7452](https://github.com/open-policy-agent/opa/issues/7452)) authored by @fvarg00 reported by @fvarg00
+- topdown: Handling default functions in Partial Eval (#7499) ([#7220](https://github.com/open-policy-agent/opa/issues/7220)) authored by @johanfylling
+- topdown: fix wall clock time init for PartialRun() ([#7490](https://github.com/open-policy-agent/opa/issues/7490)) authored by @srenatus
+
+### Miscellaneous
+
+- Add Principled Evolution integration (#7495) (authored by @kmadan)
+- Add tavo to ecosystem integration (#7511) (authored by @percyding-tavo)
+- Cloudsmith adds support for OPA (#7498) (authored by @ndouglas-cloudsmith)
+- Merge commit from fork (authored by @johanfylling)
+- Prepare v1.4.0 development (#7468) (authored by @johanfylling)
+- ast: Adding `rego_v1` feature to `--v0-compatible` capabilities (#7474) (authored by @johanfylling)
+- build(deps): bump actions/setup-go from 5.3.0 to 5.4.0 (#7475) (authored by @dependabot[bot])
+- build(deps): bump github.com/hypermodeinc/badger from v4.6.0 to v4.7.0 (#7508) (authored by @sspaink)
+- build(deps): bump the dependencies group with 4 updates (#7485) (authored by @dependabot[bot])
+- build(deps): bump the gha-dependencies group with 5 updates (#7486) (authored by @dependabot[bot])
+- build: bump go to 1.23.8 (#7502) (authored by @johanfylling)
+- deps: Grouping deps for dependabot (#7484) (authored by @johanfylling)
+- doc: update builtin function examples for v1 (#7514) (#7515) (authored by @robmyersrobmyers)
+- docs: Add link to inline schema annotations (#7496) (authored by @kmadan)
+- docs: Add manual trigger to integration docs (#7473) (authored by @charlieegan3)
+- docs: Point path versioned requests to new sites (#7531) (authored by @charlieegan3)
+- docs: Revert slack link change (authored by @charlieegan3)
+- docs: Set versioned docs links to point to archive (#7528) (authored by @charlieegan3)
+- docs: Update community slack inviter link (authored by @charlieegan3)
+- docs: Update helm-kubernetes-quickstart bundle (#7469) (authored by @johanfylling)
+- docs: Update opa-docker-authz example to use ghcr and v0.10 release tag (authored by @larhauga)
+- docs: fix post merge badge (#7532) (authored by @sspaink)
+- docs: improve request headers documentation in REST APIs (#7524) (authored by @ali-jalaal)
+- docs: update edge links to use /docs/edge/ path (#7529) (authored by @charlieegan3)
+- ecosystem: Add NACP integration (authored by @charlieegan3)
+- ecosystem: Update traefik integration docs (authored by @charlieegan3)
+- feat: add version and icon to opa_windows_amd64.exe (#7501) (authored by @sspaink)
+- fix(status plugin): make sure the latest status is read before manually triggering or returning a snapshot (#7533) (authored by @sspaink)
+- fix: don't panic on format due to unexpected comments (#7458) (authored by @sspaink)
+- fix: remove resource.syso after building windows binary (#7507) (authored by @sspaink)
+- fix: return the raw strings when formatting (#7525) (authored by @sspaink)
+- gqlparser: Add JSON annotation in internal/gqlparser/ast to Position fields (#7509) (authored by @robmyersrobmyers)
+- graphql: Cache GraphQL schema parse results (#7457) (authored by @robmyersrobmyers)
+- perf: zero alloc lower/upper unless changed (#7472) (authored by @anderseknert)
+- plugins/status: FIFO buffer channel for status events to prevent slow status API blocking (#7522) (authored by @sspaink)
 
 ## 1.3.0
 
