@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## 1.4.1
+
+This is a security fix release for the fixes published in Go [1.24.1](https://groups.google.com/g/golang-announce/c/4t3lzH3I0eI) and [1.24.2](https://groups.google.com/g/golang-announce/c/Y2uBTVKjBQk)
+
+- build: bump go to 1.24.2 (#7544) (authored by @sspaink)
+  Addressing `CVE-2025-22870` and `CVE-2025-22871` vulnerabilities in the Go runtime.
+
 ## 1.4.0
 
 This release contains a security fix addressing CVE-2025-46569.
