@@ -3,6 +3,8 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
 ## 1.4.2
 
 This is a bug fix release addressing the missing `capabilities/v1.4.1.json` in the v1.4.1 release.
