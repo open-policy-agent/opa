@@ -32,18 +32,28 @@ func init() {
 	if !ok {
 		return
 	}
-	dirty := false
+	var dirty bool
+	var binTimestamp, binVcs string
+
 	for _, s := range bi.Settings {
 		switch s.Key {
 		case "vcs.time":
-			Timestamp = s.Value
+			binTimestamp = s.Value
 		case "vcs.revision":
-			Vcs = s.Value
+			binVcs = s.Value
 		case "vcs.modified":
 			dirty = s.Value == "true"
 		}
 	}
-	if dirty {
-		Vcs += "-dirty"
+
+	if Timestamp == "" {
+		Timestamp = binTimestamp
+	}
+
+	if Vcs == "" {
+		Vcs = binVcs
+		if dirty {
+			Vcs += "-dirty"
+		}
 	}
 }
