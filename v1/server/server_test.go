@@ -3383,7 +3383,6 @@ func TestDataMetricsEval(t *testing.T) {
 			"counter_disk_read_keys",
 			"counter_disk_read_bytes",
 			"timer_rego_input_parse_ns",
-			"timer_rego_query_parse_ns",
 			"timer_rego_query_compile_ns",
 			"timer_rego_query_eval_ns",
 			"timer_server_handler_ns",
@@ -6810,4 +6809,153 @@ func zipString(input string) []byte {
 		log.Fatal(err)
 	}
 	return b.Bytes()
+}
+
+func TestStringPathToDataRef(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		note   string
+		path   string
+		expRef string
+		expErr string
+	}{
+		{path: "foo", expRef: `data.foo`},
+		{path: "foo/", expRef: `data.foo`},
+		{path: "foo/bar", expRef: `data.foo.bar`},
+		{path: "foo/bar/", expRef: `data.foo.bar`},
+		{path: "foo/../bar", expRef: `data.foo[".."].bar`},
+
+		// Path injection attack
+		// url path: `foo%22%5D%3Bmalicious_call%28%29%3Bx%3D%5B%22`
+		// url decoded: `foo"];malicious_call();x=["`
+		// data ref .String(): `data.foo["\"];malicious_call();x=[\""]`
+		// Above attack is mitigated by rejecting any ref component containing string terminators (`"`).
+		{
+			note:   "string terminals inside ref term",
+			path:   "foo%22%5D%3Bmalicious_call%28%29%3Bx%3D%5B%22", // foo"];malicious_call();x=["
+			expErr: `invalid ref term 'foo"];malicious_call();x=["'`,
+		},
+	}
+
+	for _, tc := range cases {
+		note := tc.note
+		if note == "" {
+			note = strings.ReplaceAll(tc.path, "/", "_")
+		}
+
+		t.Run(note, func(t *testing.T) {
+			ref, err := stringPathToDataRef(tc.path)
+
+			if tc.expRef != "" {
+				if err != nil {
+					t.Fatalf("Expected ref:\n\n%s\n\nbut got error:\n\n%s", tc.expRef, err)
+				}
+				if refStr := ref.String(); refStr != tc.expRef {
+					t.Fatalf("Expected ref:\n\n%s\n\nbut got:\n\n%s", tc.expRef, refStr)
+				}
+			}
+
+			if tc.expErr != "" {
+				if ref != nil {
+					t.Fatalf("Expected error:\n\n%s\n\nbut got ref:\n\n%s", tc.expErr, ref.String())
+				}
+				if errStr := err.Error(); errStr != tc.expErr {
+					t.Fatalf("Expected error:\n\n%s\n\nbut got ref:\n\n%s", tc.expErr, errStr)
+				}
+			}
+		})
+	}
+}
+
+func TestParseRefQuery(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		note    string
+		raw     string
+		expBody ast.Body
+		expErr  string
+	}{
+		{
+			note:   "unparseable",
+			raw:    `}abc{`,
+			expErr: "failed to parse query",
+		},
+		{
+			note:   "empty",
+			raw:    ``,
+			expErr: "no ref",
+		},
+		{
+			note:    "single ref",
+			raw:     `data.foo.bar`,
+			expBody: ast.MustParseBody(`data.foo.bar`),
+		},
+		{
+			note:   "multiple refs,';' separated",
+			raw:    `data.foo.bar;data.baz.qux`,
+			expErr: "complex query",
+		},
+		{
+			note: "multiple refs,newline separated",
+			raw: `data.foo.bar
+data.baz.qux`,
+			expErr: "complex query",
+		},
+		{
+			note:   "single ref + call",
+			raw:    `data.foo.bar;data.baz.qux()`,
+			expErr: "complex query",
+		},
+		{
+			note:   "single ref + assignment",
+			raw:    `data.foo.bar;x := 42`,
+			expErr: "complex query",
+		},
+		{
+			note:   "single call",
+			raw:    `data.foo.bar()`,
+			expErr: "complex query",
+		},
+		{
+			note:   "single assignment",
+			raw:    `x := 42`,
+			expErr: "complex query",
+		},
+		{
+			note:   "single unification",
+			raw:    `x = 42`,
+			expErr: "complex query",
+		},
+		{
+			note:   "single equality",
+			raw:    `x == 42`,
+			expErr: "complex query",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			body, err := parseRefQuery(tc.raw)
+
+			if tc.expBody != nil {
+				if err != nil {
+					t.Fatalf("Expected body:\n\n%s\n\nbut got error:\n\n%s", tc.expBody, err)
+				}
+				if body.String() != tc.expBody.String() {
+					t.Fatalf("Expected body:\n\n%s\n\nbut got:\n\n%s", tc.expBody, body.String())
+				}
+			}
+
+			if tc.expErr != "" {
+				if body != nil {
+					t.Fatalf("Expected error:\n\n%s\n\nbut got body:\n\n%s", tc.expErr, body.String())
+				}
+				if errStr := err.Error(); errStr != tc.expErr {
+					t.Fatalf("Expected error:\n\n%s\n\nbut got body:\n\n%s", tc.expErr, errStr)
+				}
+			}
+		})
+	}
 }
