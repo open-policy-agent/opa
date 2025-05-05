@@ -6263,7 +6263,18 @@ func TestRewriteDeclaredVars(t *testing.T) {
 					some x
 				}
 			`,
-			wantErr: errors.New("var x declared above"),
+			wantErr: errors.New("test.rego:5: rego_compile_error: var x declared above"),
+		},
+		{
+			note: "redeclare err, some/in",
+			module: `
+				package test
+				p if {
+					some x
+					some i, x in []
+				}
+			`,
+			wantErr: errors.New("test.rego:5: rego_compile_error: var x declared above"),
 		},
 		{
 			note: "redeclare assigned err",
@@ -6274,7 +6285,18 @@ func TestRewriteDeclaredVars(t *testing.T) {
 					some x
 				}
 			`,
-			wantErr: errors.New("var x assigned above"),
+			wantErr: errors.New("test.rego:5: rego_compile_error: var x assigned above"),
+		},
+		{
+			note: "redeclare assigned err, some/in",
+			module: `
+				package test
+				p if {
+					x := 1
+					some i, x in []
+				}
+			`,
+			wantErr: errors.New("test.rego:5: rego_compile_error: var x assigned above"),
 		},
 		{
 			note: "redeclare reference err",
@@ -6285,7 +6307,18 @@ func TestRewriteDeclaredVars(t *testing.T) {
 					some x
 				}
 			`,
-			wantErr: errors.New("var x referenced above"),
+			wantErr: errors.New("test.rego:5: rego_compile_error: var x referenced above"),
+		},
+		{
+			note: "redeclare reference err, some/in",
+			module: `
+				package test
+				p if {
+					data.q[x]
+					some i, x in []
+				}
+			`,
+			wantErr: errors.New("test.rego:5: rego_compile_error: var x referenced above"),
 		},
 		{
 			note: "declare unused err",
@@ -6331,7 +6364,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 					t.Fatal("Expected error but got success")
 				}
 				if !strings.Contains(err.Error(), tc.wantErr.Error()) {
-					t.Fatalf("Expected %v but got %v", tc.wantErr, err)
+					t.Fatalf("Expected:\n\n%v\n\nbut got:\n\n%v", tc.wantErr, err)
 				}
 			} else if err != nil {
 				t.Fatal(err)
