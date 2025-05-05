@@ -129,7 +129,7 @@ jobs:
           format: table
           exit-code: '1'
           ignore-unfixed: true
-          skip-dirs: vendor/,internal/gqlparser/validator/imported/
+          skip-dirs: vendor/
           severity: CRITICAL,HIGH
         env:
           TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
