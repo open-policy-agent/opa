@@ -17,6 +17,80 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 )
 
+func eventWithNDCache() EventV1 {
+	// Purposely oversize NDBCache entry will force dropping during Log().
+	ndbCacheExample := ast.MustJSON(builtins.NDBCache{
+		"test.custom_space_waster": ast.NewObject([2]*ast.Term{
+			ast.ArrayTerm(),
+			ast.StringTerm(strings.Repeat("Wasted space... ", 200)),
+		}),
+	}.AsValue())
+	var result any = false
+	var expInput any = map[string]any{"method": "GET"}
+	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
+	if err != nil {
+		panic(err)
+	}
+
+	return EventV1{
+		DecisionID:     "abc",
+		Path:           "foo/bar",
+		Input:          &expInput,
+		Result:         &result,
+		RequestedBy:    "test",
+		Timestamp:      ts,
+		NDBuiltinCache: &ndbCacheExample,
+	}
+}
+
+func TestMaxEventSize(t *testing.T) {
+	enc := newChunkEncoder(200).WithMetrics(metrics.New())
+
+	if enc.maxEventSize != 0 {
+		t.Errorf("expected 0 got %d", enc.maxEventSize)
+	}
+
+	event := eventWithNDCache()
+
+	chunk, err := enc.Write(event)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var expectedChunks int
+	if len(chunk) != expectedChunks {
+		t.Errorf("expected %v chunks, got %d", expectedChunks, len(chunk))
+	}
+
+	expectedBytesWritten := 157 // size after dropping the ND cache
+	if enc.bytesWritten != expectedBytesWritten {
+		t.Errorf("Expected %d bytes written but got %d", expectedBytesWritten, enc.bytesWritten)
+	}
+
+	expectedMaxSize := int64(3414) // size before dropping the ND cache
+	if enc.maxEventSize != expectedMaxSize {
+		t.Errorf("expected %v got %d", expectedMaxSize, enc.maxEventSize)
+	}
+
+	chunk, err = enc.Write(event)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(chunk) != expectedChunks {
+		t.Errorf("expected %v chunks, got %d", expectedChunks, len(chunk))
+	}
+
+	expectedBytesWritten = 314 // size of two events written
+	if enc.bytesWritten != expectedBytesWritten {
+		t.Errorf("Expected %d bytes written but got %d", expectedBytesWritten, enc.bytesWritten)
+	}
+
+	if enc.maxEventSize != expectedMaxSize {
+		t.Errorf("expected %v got %d", expectedMaxSize, enc.maxEventSize)
+	}
+}
+
 func TestChunkMaxUploadSizeLimitNDBCacheDropping(t *testing.T) {
 	t.Parallel()
 
@@ -35,7 +109,7 @@ func TestChunkMaxUploadSizeLimitNDBCacheDropping(t *testing.T) {
 			expectedDroppedNDCacheEvents: 1,
 			// written after dropping the ND cache, otherwise the size would have been 3472
 			expectedBytesWritten:      157,
-			expectedUncompressedLimit: 312,
+			expectedUncompressedLimit: 400,
 		},
 		{
 			name:                      "dropping the ND cache doesn't help, drop the event",
@@ -49,29 +123,7 @@ func TestChunkMaxUploadSizeLimitNDBCacheDropping(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			enc := newChunkEncoder(tc.uploadSizeLimitBytes).WithMetrics(metrics.New())
 
-			// Purposely oversize NDBCache entry will force dropping during Log().
-			ndbCacheExample := ast.MustJSON(builtins.NDBCache{
-				"test.custom_space_waster": ast.NewObject([2]*ast.Term{
-					ast.ArrayTerm(),
-					ast.StringTerm(strings.Repeat("Wasted space... ", 200)),
-				}),
-			}.AsValue())
-			var result any = false
-			var expInput any = map[string]any{"method": "GET"}
-			ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
-			if err != nil {
-				panic(err)
-			}
-
-			event := EventV1{
-				DecisionID:     "abc",
-				Path:           "foo/bar",
-				Input:          &expInput,
-				Result:         &result,
-				RequestedBy:    "test",
-				Timestamp:      ts,
-				NDBuiltinCache: &ndbCacheExample,
-			}
+			event := eventWithNDCache()
 
 			chunk, err := enc.Write(event)
 			if err != nil {
@@ -87,7 +139,7 @@ func TestChunkMaxUploadSizeLimitNDBCacheDropping(t *testing.T) {
 			}
 
 			if chunk != nil {
-				t.Errorf("expected nil result but got %v", result)
+				t.Errorf("expected nil result but got %v", chunk)
 			}
 
 			if enc.bytesWritten != tc.expectedBytesWritten {
@@ -196,6 +248,8 @@ func TestChunkEncoderSizeLimit(t *testing.T) {
 		Timestamp:   ts,
 	}
 
+	logger := testLogger.New()
+	enc.WithLogger(logger)
 	chunks, err = enc.Write(event)
 	if err != nil {
 		t.Error(err)
@@ -204,7 +258,7 @@ func TestChunkEncoderSizeLimit(t *testing.T) {
 		t.Errorf("Unexpected result: %v", result)
 	}
 	// the incoming event doesn't fit, but the previous small event size is between 90-100% capacity so chunk is returned
-	// the incoming event is too large but that won't be corrected until another event comes through and tries to adjust the adaptive limit
+	// the incoming event is too large and will be dropped
 	actualStableCounter := enc.metrics.Counter(encUncompressedLimitStableCounterName).Value().(uint64)
 	expectedStableCounter := uint64(1)
 	if actualStableCounter != expectedStableCounter {
@@ -213,32 +267,23 @@ func TestChunkEncoderSizeLimit(t *testing.T) {
 	if err := enc.w.Flush(); err != nil {
 		t.Fatal(err)
 	}
-	expectedBufferSize = 169
+	expectedBufferSize = 15
 	if enc.buf.Len() != expectedBufferSize {
-		t.Errorf("Expected %v buffer size but got: %v", 15, enc.buf.Len())
+		t.Errorf("Expected %v buffer size but got: %v", expectedBufferSize, enc.buf.Len())
 	}
-	expectedBytesWritten = 198
+	expectedBytesWritten = 0
 	if enc.bytesWritten != expectedBytesWritten {
-		t.Errorf("Expected %v bytes written but got: %v", 0, enc.bytesWritten)
+		t.Errorf("Expected %v bytes written but got: %v", expectedBytesWritten, enc.bytesWritten)
 	}
+	expectedEventsWritten = 0
 	if enc.eventsWritten != expectedEventsWritten {
 		t.Errorf("Expected %v events written but got: %v", expectedEventsWritten, enc.eventsWritten)
 	}
 
-	// another event write will drop the event that is too big
-	logger := testLogger.New()
-	enc.WithLogger(logger)
-	chunks, err = enc.Write(smallestEvent)
-	if err != nil {
-		t.Error(err)
-	}
-	if len(chunks) != 0 {
-		t.Errorf("Unexpected result: %v", result)
-	}
-
 	entries := logger.Entries()
-	if len(entries) != 1 {
-		t.Fatalf("Expected 1 log entry but got: %v", entries)
+	expectedEntries := 1
+	if len(entries) != expectedEntries {
+		t.Fatalf("Expected %v log entry but got: %v", expectedEntries, len(entries))
 	}
 	if entries[0].Level != logging.Error &&
 		entries[0].Message != "Log encoding failed: received a decision event size (176) that exceeded the upload_size_limit_bytes (25). No ND cache to drop." {

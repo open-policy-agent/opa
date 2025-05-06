@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -2996,6 +2997,8 @@ func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
 		config.Reporting.UploadSizeLimitBytes = &options.ReportingUploadSizeLimitBytes
 	}
 
+	ts.uploadLimit = *config.Reporting.UploadSizeLimitBytes
+
 	if options.ReportingBufferSizeLimitBytes != 0 {
 		config.Reporting.BufferSizeLimitBytes = &options.ReportingBufferSizeLimitBytes
 	}
@@ -3523,17 +3526,27 @@ func TestPluginResourcePath(t *testing.T) {
 }
 
 type testServer struct {
-	t       *testing.T
-	expCode int
-	server  *httptest.Server
-	ch      chan []EventV1
-	path    string
+	t           *testing.T
+	expCode     int
+	server      *httptest.Server
+	ch          chan []EventV1
+	path        string
+	uploadLimit int64
 }
 
 func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 	t.t.Helper()
 
-	gr, err := gzip.NewReader(r.Body)
+	b, err := io.ReadAll(r.Body)
+	if err != nil {
+		t.t.Fatal(err)
+	}
+
+	if int64(len(b)) > t.uploadLimit {
+		t.t.Fatalf("upload limit exceeded expected less than %d but got %d", t.uploadLimit, int64(len(b)))
+	}
+
+	gr, err := gzip.NewReader(bytes.NewReader(b))
 	if err != nil {
 		t.t.Fatal(err)
 	}

@@ -143,8 +143,8 @@ func TestEventBuffer_Upload(t *testing.T) {
 			uploadSizeLimitBytes: 196, // Each test event is 195 bytes
 			handleFunc: func(w http.ResponseWriter, r *http.Request) {
 				events := decodeLogEvent(t, r.Body)
-				if len(events) != 1 {
-					t.Errorf("expected 1 events, got %d", len(events))
+				if len(events) != 2 {
+					t.Errorf("expected 2 events, got %d", len(events))
 				}
 				w.WriteHeader(http.StatusOK)
 			},
