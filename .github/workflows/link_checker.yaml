@@ -4,7 +4,7 @@ on:
   repository_dispatch:
   workflow_dispatch:
   schedule:
-    - cron: "0 13 * * 1" # Every Monday at 1PM UTC (9AM EST)
+    - cron: "0 0 1 * *" # At 00:00 on day-of-month 1
 
 jobs:
   linkChecker:
@@ -18,7 +18,7 @@ jobs:
         id: lychee
         uses: lycheeverse/lychee-action@v2
         with:
-          args: --no-progress --exclude-path vendor --exclude-path CHANGELOG.md --accept 200..=206,403  .
+          args: --max-concurrency 1 --no-progress --exclude-path vendor --exclude-path CHANGELOG.md --scheme https --scheme http --accept 200..=206,403,429  .
           fail: false
 
       - name: Create Issue From File
