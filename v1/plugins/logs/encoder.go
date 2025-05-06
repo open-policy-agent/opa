@@ -126,6 +126,8 @@ func (enc *chunkEncoder) Write(event EventV1) ([][]byte, error) {
 
 		// re-encode the event with the ND cache removed
 		event.NDBuiltinCache = nil
+		enc.logError("ND builtins cache dropped from this event to fit under maximum upload size limits. Increase upload size limit or change usage of non-deterministic builtins.")
+		enc.incrMetric(logNDBDropCounterName)
 
 		eventBytes, err = json.Marshal(&event)
 		if err != nil {
