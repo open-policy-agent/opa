@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"math/rand"
@@ -566,6 +567,108 @@ func TestTermString(t *testing.T) {
 	// ensure that objects and sets have deterministic String() results
 	assertToString(t, SetTerm(VarTerm("y"), VarTerm("x")).Value, "{x, y}")
 	assertToString(t, ObjectTerm([2]*Term{VarTerm("y"), VarTerm("b")}, [2]*Term{VarTerm("x"), VarTerm("a")}).Value, "{x: a, y: b}")
+}
+
+func TestRefString_Escapes(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+		want  []byte
+	}{
+		{
+			name:  "Tab",
+			input: `data.policy["ma\tin"]`,
+			want: []byte{
+				100, 97, 116, 97, // data
+				46,                          // .
+				112, 111, 108, 105, 99, 121, // policy
+				91, 34, // ["
+				109, 97, // m a
+				92, 116, // \ t
+				105, 110, // i n
+				34, 93, // "]
+			},
+		},
+		{
+			name:  "NewLine",
+			input: `data.policy["ma\nin"]`,
+			want: []byte{
+				100, 97, 116, 97,
+				46,
+				112, 111, 108, 105, 99, 121,
+				91, 34,
+				109, 97,
+				92, 110, // \ n
+				105, 110,
+				34, 93,
+			},
+		},
+		{
+			name:  "CarriageReturn",
+			input: `data.policy["ma\rin"]`,
+			want: []byte{
+				100, 97, 116, 97,
+				46,
+				112, 111, 108, 105, 99, 121,
+				91, 34,
+				109, 97,
+				92, 114, // \ r
+				105, 110,
+				34, 93,
+			},
+		},
+		{
+			name:  "Backspace",
+			input: `data.policy["ma\bin"]`,
+			want: []byte{
+				100, 97, 116, 97,
+				46,
+				112, 111, 108, 105, 99, 121,
+				91, 34,
+				109, 97,
+				92, 98, // \ b
+				105, 110,
+				34, 93,
+			},
+		},
+		{
+			name:  "FormFeed",
+			input: `data.policy["ma\fin"]`,
+			want: []byte{
+				100, 97, 116, 97,
+				46,
+				112, 111, 108, 105, 99, 121,
+				91, 34,
+				109, 97,
+				92, 102, // \ f
+				105, 110,
+				34, 93,
+			},
+		},
+		{
+			name:  "LiteralBackslash",
+			input: `data.policy["ma\\in"]`,
+			want: []byte{
+				100, 97, 116, 97,
+				46,
+				112, 111, 108, 105, 99, 121,
+				91, 34,
+				109, 97,
+				92, 92, // \\
+				105, 110,
+				34, 93,
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := []byte(MustParseRef(tc.input).String())
+			if !bytes.Equal(got, tc.want) {
+				t.Errorf("%s: got  %v\nwant %v", tc.name, got, tc.want)
+			}
+		})
+	}
 }
 
 func TestRefHasPrefix(t *testing.T) {
