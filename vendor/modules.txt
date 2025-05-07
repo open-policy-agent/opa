@@ -4,9 +4,6 @@ github.com/AdaLogics/go-fuzz-headers
 # github.com/agnivade/levenshtein v1.2.1
 ## explicit; go 1.21
 github.com/agnivade/levenshtein
-# github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883
-## explicit
-github.com/andreyvit/diff
 # github.com/beorn7/perks v1.0.1
 ## explicit; go 1.11
 github.com/beorn7/perks/quantile
