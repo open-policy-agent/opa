@@ -162,13 +162,18 @@ func (enc *chunkEncoder) Write(event EventV1) ([][]byte, error) {
 			return nil, err
 		}
 
-		if err := enc.w.Flush(); err != nil {
+		result, err := enc.reset()
+		if err != nil {
 			return nil, err
 		}
 
-		if enc.buf.Len() < int(enc.limit) {
+		if len(result[0]) < int(enc.limit) {
 			// success! the incoming chunk doesn't have to lose the ND cache and can go into a chunk by itself
 			// scale up the uncompressed limit using the uncompressed event size as a base
+			err = enc.appendEvent(eventBytes)
+			if err != nil {
+				return nil, err
+			}
 			enc.uncompressedLimit = int64(len(eventBytes))
 			enc.scaleUp()
 			return nil, nil
@@ -203,11 +208,12 @@ func (enc *chunkEncoder) Write(event EventV1) ([][]byte, error) {
 			return nil, err
 		}
 
-		if err := enc.w.Flush(); err != nil {
+		result, err = enc.reset()
+		if err != nil {
 			return nil, err
 		}
 
-		if enc.buf.Len() > int(enc.limit) {
+		if len(result[0]) > int(enc.limit) {
 			enc.incrMetric(logEncodingFailureCounterName)
 			enc.logError("Log encoding failed: received a decision event size (%d) that exceeded the upload_size_limit_bytes (%d) even after dropping the ND cache.",
 				len(eventBytes), enc.limit)
@@ -216,6 +222,10 @@ func (enc *chunkEncoder) Write(event EventV1) ([][]byte, error) {
 		}
 
 		// success! the incoming event without its ND cache fits into the current chunk
+		err = enc.appendEvent(eventBytes)
+		if err != nil {
+			return nil, err
+		}
 		enc.logError("ND builtins cache dropped from this event to fit under maximum upload size limits. Increase upload size limit or change usage of non-deterministic builtins.")
 		enc.incrMetric(logNDBDropCounterName)
 		// success! the incoming chunk lost the ND cache, but it wasn't dropped entirely
@@ -227,19 +237,16 @@ func (enc *chunkEncoder) Write(event EventV1) ([][]byte, error) {
 		return nil, nil
 	}
 
-	if err := enc.w.Flush(); err != nil {
+	enc.updateMetric(encNumberOfEventsInChunkHistogramName, enc.eventsWritten)
+	result, err := enc.reset()
+	if err != nil {
 		return nil, err
 	}
 
 	// 1) Scale Up: If the current chunk size is within 90% of the user-configured limit, exponentially increase
 	// the uncompressed limit. The exponential function is 2^x where x has a minimum value of 1
-	if enc.buf.Len() < enc.threshold {
+	if len(result[0]) < enc.threshold {
 		enc.scaleUp()
-
-		result, err := enc.reset()
-		if err != nil {
-			return nil, err
-		}
 
 		r, err := enc.Write(event)
 		if err != nil {
@@ -254,15 +261,12 @@ func (enc *chunkEncoder) Write(event EventV1) ([][]byte, error) {
 	}
 
 	// 3) Equilibrium: If the chunk size is between 90% and 100% of the user-configured limit, maintain uncompressed limit value.
-	if int(enc.limit) > enc.buf.Len() && enc.buf.Len() >= enc.threshold {
+	if int(enc.limit) > len(result[0]) && len(result[0]) >= enc.threshold {
 		enc.incrMetric(encUncompressedLimitStableCounterName)
 		enc.incrMetric(encSoftLimitStableCounterName)
 
 		enc.uncompressedLimitScaleDownExponent = enc.uncompressedLimitScaleUpExponent
-		result, err := enc.reset()
-		if err != nil {
-			return nil, err
-		}
+
 		r, err := enc.Write(event)
 		if err != nil {
 			return nil, err
@@ -276,16 +280,9 @@ func (enc *chunkEncoder) Write(event EventV1) ([][]byte, error) {
 
 	// 2) Scale Down: If the current chunk size exceeds the compressed limit, decrease the uncompressed limit and re-encode the
 	// decisions in the last chunk.
-	var events []EventV1
-	if enc.bytesWritten != 0 {
-		if err := enc.writeClose(); err != nil {
-			return nil, err
-		}
-		var err error
-		events, err = newChunkDecoder(enc.buf.Bytes()).decode()
-		if err != nil {
-			return nil, err
-		}
+	events, err := newChunkDecoder(result[0]).decode()
+	if err != nil {
+		return nil, err
 	}
 
 	// add the current event so that it can be reorganized as needed
@@ -380,14 +377,14 @@ func (enc *chunkEncoder) Flush() ([][]byte, error) {
 
 	// create chunks until the current buffer is smaller than the limit
 	for {
-		if err := enc.writeClose(); err != nil {
+		r, err := enc.reset()
+		if err != nil {
 			return nil, err
 		}
-		if int64(enc.buf.Len()) < enc.limit {
-			enc.updateMetric(encNumberOfEventsInChunkHistogramName, enc.eventsWritten)
-			return append(result, enc.buf.Bytes()), nil
+		if len(r[0]) < int(enc.limit) {
+			return append(result, r[0]), nil
 		}
-		events, err := newChunkDecoder(enc.buf.Bytes()).decode()
+		events, err := newChunkDecoder(r[0]).decode()
 		if err != nil {
 			return nil, err
 		}
@@ -412,7 +409,6 @@ func (enc *chunkEncoder) reset() ([][]byte, error) {
 		return nil, err
 	}
 
-	enc.updateMetric(encNumberOfEventsInChunkHistogramName, enc.eventsWritten)
 	return [][]byte{enc.buf.Bytes()}, nil
 }
 

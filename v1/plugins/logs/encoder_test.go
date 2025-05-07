@@ -316,7 +316,7 @@ func TestChunkEncoderAdaptive(t *testing.T) {
 		{
 			// only one event can fit, after one scale up the uncompressed limit falls within the 90-100% utilization
 			name:                      "an uncompressed limit that stabilizes immediately",
-			limit:                     200,
+			limit:                     201,
 			numEvents:                 1000,
 			expectedUncompressedLimit: 464,
 			expectedMaxEventsInChunk:  1,
@@ -325,12 +325,12 @@ func TestChunkEncoderAdaptive(t *testing.T) {
 			expectedEquiEvents:        999,
 		},
 		{
-			// 30 events can fit, but takes some guessing before it gets to the uncompressed limit 7200
+			// 61 events can fit, but takes some guessing before it gets to the uncompressed limit 7200
 			name:                      "an uncompressed limit that stabilizes after a few guesses",
 			limit:                     400,
 			numEvents:                 1000,
 			expectedUncompressedLimit: 7200,
-			expectedMaxEventsInChunk:  30,
+			expectedMaxEventsInChunk:  61,
 			expectedScaleUpEvents:     5,
 			expectedScaleDownEvents:   2,
 			expectedEquiEvents:        31,
@@ -341,7 +341,7 @@ func TestChunkEncoderAdaptive(t *testing.T) {
 			limit:                     1000,
 			numEvents:                 1000,
 			expectedUncompressedLimit: 40500,
-			expectedMaxEventsInChunk:  113,
+			expectedMaxEventsInChunk:  341,
 			expectedScaleUpEvents:     14,
 			expectedScaleDownEvents:   11,
 			expectedEquiEvents:        0,
@@ -352,7 +352,7 @@ func TestChunkEncoderAdaptive(t *testing.T) {
 			limit:                     3000,
 			numEvents:                 2000,
 			expectedUncompressedLimit: 108000,
-			expectedMaxEventsInChunk:  455,
+			expectedMaxEventsInChunk:  908,
 			expectedScaleUpEvents:     5,
 			expectedScaleDownEvents:   1,
 			expectedEquiEvents:        3,
