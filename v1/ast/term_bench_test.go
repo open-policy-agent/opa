@@ -461,6 +461,7 @@ func BenchmarkSetMarshalJSON(b *testing.B) {
 	}
 }
 
+// BenchmarkRefString benchmarks the performance of parsing references from strings.
 func BenchmarkRefString(b *testing.B) {
 	b.Run("Simple", func(b *testing.B) {
 		b.ReportAllocs()
