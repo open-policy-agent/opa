@@ -1195,9 +1195,12 @@ func (ref Ref) String() string {
 				sb.WriteByte('.')
 				sb.WriteString(str)
 			} else {
+				// Determine whether we need the full JSON-escaped form
 				if strings.IndexFunc(str, isControlOrBackslash) >= 0 {
+					sb.WriteByte('[')
 					// only now pay the cost of expensive JSON-escaped form
-					sb.WriteString("[" + p.String() + "]")
+					sb.WriteString(p.String())
+					sb.WriteByte(']')
 				} else {
 					sb.WriteString(`["`)
 					sb.WriteString(str)

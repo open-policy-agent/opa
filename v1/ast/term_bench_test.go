@@ -460,3 +460,26 @@ func BenchmarkSetMarshalJSON(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkRefString(b *testing.B) {
+	b.Run("Simple", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			_ = MustParseRef(`data.policy["main"]`)
+		}
+	})
+
+	b.Run("WithControl", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			_ = MustParseRef(`data.policy["ma\tin"]`)
+		}
+	})
+
+	b.Run("LongInput", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			_ = MustParseRef(`data.policy.test1.test2.test3.test4["main1"]["main2"]["main3"]["main4"]`)
+		}
+	})
+}
