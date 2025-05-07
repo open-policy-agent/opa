@@ -19,9 +19,9 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"unicode"
 
 	"github.com/cespare/xxhash/v2"
-
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/ast/location"
 	"github.com/open-policy-agent/opa/v1/util"
@@ -1195,9 +1195,17 @@ func (ref Ref) String() string {
 				sb.WriteByte('.')
 				sb.WriteString(str)
 			} else {
-				sb.WriteString(`["`)
-				sb.WriteString(str)
-				sb.WriteString(`"]`)
+				// Determine whether we need the full JSON-escaped form
+				if strings.ContainsFunc(str, isControlOrBackslash) {
+					sb.WriteByte('[')
+					// only now pay the cost of expensive JSON-escaped form
+					sb.WriteString(p.String())
+					sb.WriteByte(']')
+				} else {
+					sb.WriteString(`["`)
+					sb.WriteString(str)
+					sb.WriteString(`"]`)
+				}
 			}
 		default:
 			sb.WriteByte('[')
@@ -3099,6 +3107,11 @@ func termSliceIsGround(a []*Term) bool {
 		}
 	}
 	return true
+}
+
+// Detect when String() need to use expensive JSON‐escaped form
+func isControlOrBackslash(r rune) bool {
+	return r == '\\' || unicode.IsControl(r)
 }
 
 // NOTE(tsandall): The unmarshalling errors in these functions are not

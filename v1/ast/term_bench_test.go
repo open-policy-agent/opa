@@ -460,3 +460,35 @@ func BenchmarkSetMarshalJSON(b *testing.B) {
 		})
 	}
 }
+
+// BenchmarkRefString benchmarks the performance of Ref.String().
+func BenchmarkRefString(b *testing.B) {
+	// prepare all the refs before timing
+	simpleRef := MustParseRef(`data.policy["main"]`)
+	controlRef := MustParseRef(`data.policy["ma\tin"]`)
+	longInputRef := MustParseRef(
+		`data.policy.test1.test2.test3.test4` +
+			`["main1"]["main2"]["main3"]["main4"]`,
+	)
+
+	b.Run("Simple", func(b *testing.B) {
+		b.ReportAllocs()
+		for range b.N {
+			_ = simpleRef.String()
+		}
+	})
+
+	b.Run("WithControl", func(b *testing.B) {
+		b.ReportAllocs()
+		for range b.N {
+			_ = controlRef.String()
+		}
+	})
+
+	b.Run("LongInput", func(b *testing.B) {
+		b.ReportAllocs()
+		for range b.N {
+			_ = longInputRef.String()
+		}
+	})
+}

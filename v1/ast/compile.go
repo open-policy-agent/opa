@@ -4421,7 +4421,10 @@ func resolveRefsInExpr(globals map[Var]*usedRef, ignore *declaredVarStack, expr 
 		cpy.Terms = buf
 	case *SomeDecl:
 		if val, ok := ts.Symbols[0].Value.(Call); ok {
-			cpy.Terms = &SomeDecl{Symbols: []*Term{CallTerm(resolveRefsInTermSlice(globals, ignore, val)...)}}
+			cpy.Terms = &SomeDecl{
+				Symbols:  []*Term{CallTerm(resolveRefsInTermSlice(globals, ignore, val)...)},
+				Location: ts.Location,
+			}
 		}
 	case *Every:
 		locals := NewVarSet()
