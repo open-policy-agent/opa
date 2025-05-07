@@ -417,11 +417,11 @@ cases:
       - |
         package test
 
+        # Copyright (c) 2015-present, Facebook, Inc.
+        #
+        # This source code is licensed under the MIT license found in the
+        # LICENSE file in the root directory of this source tree.
         gql := `
-          # Copyright (c) 2015-present, Facebook, Inc.
-          #
-          # This source code is licensed under the MIT license found in the
-          # LICENSE file in the root directory of this source tree.
           query queryName($foo: ComplexType, $site: Site = MOBILE) {
             whoever123is: node(id: [123, 456]) {
               id ,

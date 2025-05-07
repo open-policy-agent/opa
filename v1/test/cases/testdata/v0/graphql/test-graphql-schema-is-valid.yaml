@@ -398,6 +398,10 @@ cases:
       - |
         package test
         schema := `
+          type Query {
+              x: Int
+          }
+          directive @directive(a: String = "b") on SCHEMA
           extend schema @directive
         `
         p {

@@ -382,7 +382,13 @@ set at build-time:
 These values can be set on the command-line when building OPA from source:
 
 ```
-go build -o opa++ -ldflags "-X github.com/open-policy-agent/opa/version.Version=MY_VERSION" main.go
+ go build \
+   -ldflags=" \
+   -X github.com/open-policy-agent/opa/v1/version.Version=MY_VERSION\
+   -X github.com/open-policy-agent/opa/v1/version.Vcs=MY_COMMIT_HASH \
+   -X github.com/open-policy-agent/opa/v1/version.Hostname=MY_HOSTNAME \
+   -X github.com/open-policy-agent/opa/v1/version.Timestamp=MY_TIMESTAMP" \
+   -o opa++
 ```
 
 ## Appendix

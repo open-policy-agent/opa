@@ -78,6 +78,9 @@ cases:
         package test
 
         schema := `
+          type Query {
+              x: Int
+          }
           extend type Query {
               myAction(myEnum: Locale!): SomeResult!
           }
@@ -92,7 +95,6 @@ cases:
         `
 
         query := `
-          # Note: there is default enum value in variables
           query SomeOperation ($locale: Locale! = DE) {
             myAction(myEnum: $locale) {
               id
