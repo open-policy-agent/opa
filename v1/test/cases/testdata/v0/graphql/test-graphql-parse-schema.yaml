@@ -48,12 +48,14 @@ cases:
           """
           Description
           """
-          # Even with comments between them
           type Hello {
             world: String
           }
+          type Query {
+            hello: Hello
+          }
         `
-        ast := {"Definitions": [{"BuiltIn": false, "Description": "Description", "Fields": [{"Description": "", "Name": "world", "Type": {"NamedType": "String", "NonNull": false}}], "Kind": "OBJECT", "Name": "Hello"}]}
+        ast := {"Definitions":[{"BuiltIn":false,"Description":"Description","Fields":[{"Description":"","Name":"world","Type":{"NamedType":"String","NonNull":false}}],"Kind":"OBJECT","Name":"Hello"},{"BuiltIn":false,"Description":"","Fields":[{"Description":"","Name":"hello","Type":{"NamedType":"Hello","NonNull":false}}],"Kind":"OBJECT","Name":"Query"}]}
         p {
             graphql.parse_schema(gql) == ast
         }

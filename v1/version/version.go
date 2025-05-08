@@ -10,8 +10,7 @@ import (
 	"runtime/debug"
 )
 
-// Version is the canonical version of OPA.
-var Version = "1.4.0"
+var Version = "1.5.0-dev"
 
 // GoVersion is the version of Go this was built with
 var GoVersion = runtime.Version()
@@ -32,18 +31,28 @@ func init() {
 	if !ok {
 		return
 	}
-	dirty := false
+	var dirty bool
+	var binTimestamp, binVcs string
+
 	for _, s := range bi.Settings {
 		switch s.Key {
 		case "vcs.time":
-			Timestamp = s.Value
+			binTimestamp = s.Value
 		case "vcs.revision":
-			Vcs = s.Value
+			binVcs = s.Value
 		case "vcs.modified":
 			dirty = s.Value == "true"
 		}
 	}
-	if dirty {
-		Vcs += "-dirty"
+
+	if Timestamp == "" {
+		Timestamp = binTimestamp
+	}
+
+	if Vcs == "" {
+		Vcs = binVcs
+		if dirty {
+			Vcs += "-dirty"
+		}
 	}
 }

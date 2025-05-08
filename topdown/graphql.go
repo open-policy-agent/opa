@@ -9,12 +9,12 @@ import (
 	"fmt"
 	"strings"
 
-	gqlast "github.com/open-policy-agent/opa/internal/gqlparser/ast"
-	gqlparser "github.com/open-policy-agent/opa/internal/gqlparser/parser"
-	gqlvalidator "github.com/open-policy-agent/opa/internal/gqlparser/validator"
+	gqlast "github.com/vektah/gqlparser/v2/ast"
+	gqlparser "github.com/vektah/gqlparser/v2/parser"
+	gqlvalidator "github.com/vektah/gqlparser/v2/validator"
 
 	// Side-effecting import. Triggers GraphQL library's validation rule init() functions.
-	_ "github.com/open-policy-agent/opa/internal/gqlparser/validator/rules"
+	_ "github.com/vektah/gqlparser/v2/validator/rules"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
