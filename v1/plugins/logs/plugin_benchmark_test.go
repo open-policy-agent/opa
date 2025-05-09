@@ -149,7 +149,7 @@ func BenchmarkMaskingNop(b *testing.B) {
 
 	cfg := &Config{Service: "svc"}
 	t := plugins.DefaultTriggerMode
-	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &t, nil); err != nil {
+	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &t); err != nil {
 		b.Fatal(err)
 	}
 	plugin := New(cfg, manager)
@@ -187,7 +187,7 @@ func BenchmarkMaskingRuleCountsNop(b *testing.B) {
 
 	cfg := &Config{Service: "svc"}
 	t := plugins.DefaultTriggerMode
-	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &t, nil); err != nil {
+	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &t); err != nil {
 		b.Fatal(err)
 	}
 	plugin := New(cfg, manager)
@@ -240,7 +240,7 @@ func BenchmarkMaskingErase(b *testing.B) {
 
 	cfg := &Config{Service: "svc"}
 	t := plugins.DefaultTriggerMode
-	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &t, nil); err != nil {
+	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &t); err != nil {
 		b.Fatal(err)
 	}
 	plugin := New(cfg, manager)

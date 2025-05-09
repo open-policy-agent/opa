@@ -2547,7 +2547,7 @@ func TestPluginMasking(t *testing.T) {
 			// Instantiate the plugin.
 			cfg := &Config{Service: "svc"}
 			trigger := plugins.DefaultTriggerMode
-			if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, nil); err != nil {
+			if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger); err != nil {
 				t.Fatal(err)
 			}
 
@@ -2599,7 +2599,7 @@ func TestPluginMasking(t *testing.T) {
 				// Reconfigure and ensure that mask is invalidated.
 				maskDecision := "dead/beef"
 				newConfig := &Config{Service: "svc", MaskDecision: &maskDecision}
-				if err := newConfig.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, nil); err != nil {
+				if err := newConfig.validateAndInjectDefaults([]string{"svc"}, nil, &trigger); err != nil {
 					t.Fatal(err)
 				}
 
@@ -2699,7 +2699,7 @@ func TestPluginDrop(t *testing.T) {
 			// Instantiate the plugin.
 			cfg := &Config{Service: "svc"}
 			trigger := plugins.DefaultTriggerMode
-			if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, nil); err != nil {
+			if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger); err != nil {
 				t.Fatal(err)
 			}
 
@@ -2772,7 +2772,7 @@ func TestPluginMaskErrorHandling(t *testing.T) {
 	// Instantiate the plugin.
 	cfg := &Config{Service: "svc"}
 	trigger := plugins.DefaultTriggerMode
-	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, nil); err != nil {
+	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2850,7 +2850,7 @@ func TestPluginDropErrorHandling(t *testing.T) {
 	// Instantiate the plugin.
 	cfg := &Config{Service: "svc"}
 	trigger := plugins.DefaultTriggerMode
-	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, nil); err != nil {
+	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger); err != nil {
 		t.Fatal(err)
 	}
 
@@ -3634,70 +3634,5 @@ func testStatus() *bundle.Status {
 		ActiveRevision:           "quickbrawnfaux",
 		LastSuccessfulDownload:   tDownload,
 		LastSuccessfulActivation: tActivate,
-	}
-}
-
-func TestConfigUploadLimit(t *testing.T) {
-	tests := []struct {
-		name          string
-		limit         int64
-		expectedLimit int64
-		expectedLog   string
-		expectedErr   string
-	}{
-		{
-			name:          "exceed maximum limit",
-			limit:         int64(8589934592),
-			expectedLimit: maxUploadSizeLimitBytes,
-			expectedLog:   "the configured `upload_size_limit_bytes` (8589934592) has been set to the maximum limit (4294967296)",
-		},
-		{
-			name:          "nothing changes",
-			limit:         1000,
-			expectedLimit: 1000,
-		},
-		{
-			name:          "negative limit",
-			limit:         -1,
-			expectedLimit: minUploadSizeLimitBytes,
-			expectedLog:   "the configured `upload_size_limit_bytes` (-1) has been set to the minimum limit (90)",
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-
-			testLogger := test.New()
-
-			cfg := &Config{
-				Service: "svc",
-				Reporting: ReportingConfig{
-					UploadSizeLimitBytes: &tc.limit,
-				},
-			}
-			trigger := plugins.DefaultTriggerMode
-			if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, testLogger); err != nil {
-				if tc.expectedErr != "" {
-					if tc.expectedErr != err.Error() {
-						t.Fatalf("Expected error to be `%s` but got `%s`", tc.expectedErr, err.Error())
-					} else {
-						return
-					}
-				} else {
-					t.Fatal(err)
-				}
-			}
-
-			if *cfg.Reporting.UploadSizeLimitBytes != tc.expectedLimit {
-				t.Fatalf("Expected upload limit to be %d but got %d", tc.expectedLimit, cfg.Reporting.UploadSizeLimitBytes)
-			}
-
-			if tc.expectedLog != "" {
-				e := testLogger.Entries()
-				if e[0].Message != tc.expectedLog {
-					t.Fatalf("Expected log to be %s but got %s", tc.expectedLog, e[0].Message)
-				}
-			}
-		})
 	}
 }

@@ -81,6 +81,8 @@ func (enc *chunkEncoder) WithLogger(logger logging.Logger) *chunkEncoder {
 func (enc *chunkEncoder) Reconfigure(limit int64) {
 	enc.limit = limit
 	enc.uncompressedLimit = limit
+	enc.uncompressedLimitScaleUpExponent = 0
+	enc.uncompressedLimitScaleDownExponent = 0
 	enc.threshold = int(float64(limit) * encCompressedLimitThreshold)
 	enc.maxEventSize = 0
 }
@@ -119,14 +121,18 @@ func (enc *chunkEncoder) Write(event EventV1) ([][]byte, error) {
 	if enc.maxEventSize != 0 && int64(len(eventBytes)) >= enc.maxEventSize {
 		if event.NDBuiltinCache == nil {
 			enc.incrMetric(logEncodingFailureCounterName)
-			enc.logError("Log encoding failed: received a decision event size (%d) that exceeded the upload_size_limit_bytes (%d). No ND cache to drop.",
-				len(eventBytes), enc.limit)
+			if enc.logger != nil {
+				enc.logger.Error("Log encoding failed: received a decision event size (%d) that exceeded the upload_size_limit_bytes (%d). No ND cache to drop.",
+					len(eventBytes), enc.limit)
+			}
 			return nil, nil
 		}
 
 		// re-encode the event with the ND cache removed
 		event.NDBuiltinCache = nil
-		enc.logError("ND builtins cache dropped from this event to fit under maximum upload size limits. Increase upload size limit or change usage of non-deterministic builtins.")
+		if enc.logger != nil {
+			enc.logger.Error("ND builtins cache dropped from this event to fit under maximum upload size limits. Increase upload size limit or change usage of non-deterministic builtins.")
+		}
 		enc.incrMetric(logNDBDropCounterName)
 
 		eventBytes, err = json.Marshal(&event)
@@ -167,7 +173,8 @@ func (enc *chunkEncoder) Write(event EventV1) ([][]byte, error) {
 			return nil, err
 		}
 
-		if len(result[0]) < int(enc.limit) {
+		currentSize := len(result[0])
+		if currentSize < int(enc.limit) {
 			// success! the incoming chunk doesn't have to lose the ND cache and can go into a chunk by itself
 			// scale up the uncompressed limit using the uncompressed event size as a base
 			err = enc.appendEvent(eventBytes)
@@ -184,16 +191,15 @@ func (enc *chunkEncoder) Write(event EventV1) ([][]byte, error) {
 			enc.maxEventSize = int64(len(eventBytes))
 		}
 
-		currentSize := enc.buf.Len()
-
 		// 2. Drop the ND cache and see if the incoming event can fit within the current chunk without the cache (so we can maximize chunk size)
 		enc.initialize()
 		enc.incrMetric(encLogExUploadSizeLimitCounterName)
 		// If there's no ND builtins cache in the event, then we don't need to retry encoding anything.
 		if event.NDBuiltinCache == nil {
 			enc.incrMetric(logEncodingFailureCounterName)
-			enc.logError("Log encoding failed: received a decision event size (%d) that exceeded the upload_size_limit_bytes (%d). No ND cache to drop.",
-				currentSize, enc.limit)
+			if enc.logger != nil {
+				enc.logger.Error("Log encoding failed: received a decision event size (%d) that exceeded the upload_size_limit_bytes (%d). No ND cache to drop.", currentSize, enc.limit)
+			}
 			return nil, nil
 		}
 		// re-encode the event with the ND cache removed
@@ -215,8 +221,10 @@ func (enc *chunkEncoder) Write(event EventV1) ([][]byte, error) {
 
 		if len(result[0]) > int(enc.limit) {
 			enc.incrMetric(logEncodingFailureCounterName)
-			enc.logError("Log encoding failed: received a decision event size (%d) that exceeded the upload_size_limit_bytes (%d) even after dropping the ND cache.",
-				len(eventBytes), enc.limit)
+			if enc.logger != nil {
+				enc.logger.Error("Log encoding failed: received a decision event size (%d) that exceeded the upload_size_limit_bytes (%d) even after dropping the ND cache.",
+					len(eventBytes), enc.limit)
+			}
 			enc.initialize() // drop the event
 			return nil, nil
 		}
@@ -226,7 +234,9 @@ func (enc *chunkEncoder) Write(event EventV1) ([][]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		enc.logError("ND builtins cache dropped from this event to fit under maximum upload size limits. Increase upload size limit or change usage of non-deterministic builtins.")
+		if enc.logger != nil {
+			enc.logger.Error("ND builtins cache dropped from this event to fit under maximum upload size limits. Increase upload size limit or change usage of non-deterministic builtins.")
+		}
 		enc.incrMetric(logNDBDropCounterName)
 		// success! the incoming chunk lost the ND cache, but it wasn't dropped entirely
 		// scale up the uncompressed limit using the uncompressed event size as a base
@@ -417,12 +427,6 @@ func (enc *chunkEncoder) initialize() {
 	enc.bytesWritten = 0
 	enc.eventsWritten = 0
 	enc.w = gzip.NewWriter(enc.buf)
-}
-
-func (enc *chunkEncoder) logError(fmt string, a ...any) {
-	if enc.logger != nil {
-		enc.logger.Error(fmt, a)
-	}
 }
 
 func (enc *chunkEncoder) incrMetric(name string) {
