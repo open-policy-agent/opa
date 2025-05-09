@@ -198,7 +198,7 @@ func TestChunkEncoder(t *testing.T) {
 func TestChunkEncoderSizeLimit(t *testing.T) {
 	t.Parallel()
 
-	enc := newChunkEncoder(minUploadSizeLimitBytes).WithMetrics(metrics.New())
+	enc := newChunkEncoder(90).WithMetrics(metrics.New())
 	var result any = false
 	var expInput any = map[string]any{"method": "GET"}
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
