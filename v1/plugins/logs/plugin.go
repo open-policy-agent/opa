@@ -6,7 +6,6 @@
 package logs
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -258,7 +257,6 @@ const (
 	defaultMaskDecisionPath             = "/system/log/mask"
 	defaultDropDecisionPath             = "/system/log/drop"
 	logRateLimitExDropCounterName       = "decision_logs_dropped_rate_limit_exceeded"
-	logNDBDropCounterName               = "decision_logs_nd_builtin_cache_dropped"
 	logBufferEventDropCounterName       = "decision_logs_dropped_buffer_size_limit_exceeded"
 	logBufferSizeLimitExDropCounterName = "decision_logs_dropped_buffer_size_limit_bytes_exceeded"
 	logEncodingFailureCounterName       = "decision_logs_encoding_failure"
@@ -574,12 +572,14 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		config:       *parsedConfig,
 		stop:         make(chan chan struct{}),
 		enc:          newChunkEncoder(*parsedConfig.Reporting.UploadSizeLimitBytes),
-		reconfig:     make(chan reconfigure),
 		logger:       manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
+		reconfig:     make(chan reconfigure),
 		status:       &lstat.Status{},
 		preparedDrop: *newPrepareOnce(),
 		preparedMask: *newPrepareOnce(),
 	}
+
+	plugin.enc.WithLogger(plugin.logger)
 
 	switch parsedConfig.Reporting.BufferType {
 	case eventBufferType:
@@ -911,7 +911,7 @@ func (p *Plugin) oneShot(ctx context.Context) error {
 	oldChunkEnc := p.enc
 	oldBuffer := p.buffer
 	p.buffer = newLogBuffer(*p.config.Reporting.BufferSizeLimitBytes)
-	p.enc = newChunkEncoder(*p.config.Reporting.UploadSizeLimitBytes).WithMetrics(p.metrics)
+	p.enc = newChunkEncoder(*p.config.Reporting.UploadSizeLimitBytes).WithMetrics(p.metrics).WithLogger(p.logger)
 	p.mtx.Unlock()
 
 	// Along with uploading the compressed events in the buffer
@@ -1027,52 +1027,15 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 		return
 	}
 
-	result, err := p.encodeEvent(event)
-	if err != nil {
-		// If there's no ND builtins cache in the event, then we don't
-		// need to retry encoding anything.
-		if event.NDBuiltinCache == nil {
-			// TODO(tsandall): revisit this now that we have an API that
-			// can return an error. Should the default behaviour be to
-			// fail-closed as we do for plugins?
-
-			p.incrMetric(logEncodingFailureCounterName)
-			p.logger.Error("Log encoding failed: %v.", err)
-			return
-		}
-
-		// Attempt to encode the event again, dropping the ND builtins cache.
-		newEvent := event
-		newEvent.NDBuiltinCache = nil
-
-		result, err = p.encodeEvent(newEvent)
-		if err != nil {
-			p.incrMetric(logEncodingFailureCounterName)
-			p.logger.Error("Log encoding failed: %v.", err)
-			return
-		}
-
-		// Re-encoding was successful, but we still need to alert users.
-		p.logger.Error("ND builtins cache dropped from this event to fit under maximum upload size limits. Increase upload size limit or change usage of non-deterministic builtins.")
-		p.incrMetric(logNDBDropCounterName)
-	}
-
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
+	result, err := p.enc.Write(event)
+	if err != nil {
+		return
+	}
 	for _, chunk := range result {
 		p.bufferChunk(p.buffer, chunk)
 	}
-}
-
-func (p *Plugin) encodeEvent(event EventV1) ([][]byte, error) {
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(event); err != nil {
-		return nil, err
-	}
-
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
-	return p.enc.WriteBytes(buf.Bytes())
 }
 
 func (p *Plugin) bufferChunk(buffer *logBuffer, bs []byte) {
