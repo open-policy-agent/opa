@@ -139,6 +139,49 @@ func TestOauth2WithAWSKMS(t *testing.T) {
 	}
 }
 
+func TestOauthWithAzureKV(t *testing.T) {
+	cfg := `{
+		"name": "foo",
+		"url": "http://localhost",
+		"credentials": {
+			"oauth2": {
+				"grant_type": "client_credentials",
+				"azure_keyvault": {
+					"key": "tester-key",
+          "key_algorithm": "ES256",
+          "vault": "my-secret-kv"
+        },
+				"azure_signing": {
+					"service": "keyvault",
+					azure_managed_identity: {}
+				},
+				"token_url": "https://localhost",
+				"scopes": ["profile", "opa"],
+				"additional_claims": {
+					"aud": "some audience"
+				}
+			}
+		}
+	}`
+
+	client, err := New([]byte(cfg), map[string]*keys.Config{})
+	if err != nil {
+		t.Fatalf("New() = %v", err)
+	}
+
+	if _, err := client.config.Credentials.OAuth2.NewClient(client.config); err != nil {
+		t.Fatalf("OAuth2.NewClient() = %q", err)
+	}
+
+	if client.config.Credentials.OAuth2.AzureKeyVault.Key != "tester-key" {
+		t.Errorf("OAuth2.AzureKeyVault.Key = %v, want = %v", client.config.Credentials.OAuth2.AzureKeyVault.Key, "tester-key")
+	}
+
+	if client.config.Credentials.OAuth2.AzureSigningPlugin.keyVaultSignPlugin == nil {
+		t.Errorf("OAuth2.AzureSigningPlugin.keyVaultSignPlugin isn't setup")
+	}
+}
+
 func TestAssumeRoleWithNoSigningProvider(t *testing.T) {
 	conf := `{
 		"name": "foo",
