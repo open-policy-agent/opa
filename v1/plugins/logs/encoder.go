@@ -50,6 +50,13 @@ func newChunkEncoder(limit int64) *chunkEncoder {
 	return enc
 }
 
+func (enc *chunkEncoder) Reconfigure(limit int64) {
+	enc.limit = limit
+	enc.softLimit = limit
+	enc.softLimitScaleUpExponent = 0
+	enc.softLimitScaleDownExponent = 0
+}
+
 func (enc *chunkEncoder) WithMetrics(m metrics.Metrics) *chunkEncoder {
 	enc.metrics = m
 	return enc
@@ -126,7 +133,7 @@ func (enc *chunkEncoder) Flush() ([][]byte, error) {
 	if err := enc.writeClose(); err != nil {
 		return nil, err
 	}
-	return enc.reset()
+	return enc.update(), nil
 }
 
 //nolint:unconvert

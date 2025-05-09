@@ -149,8 +149,8 @@ func TestChunkEncoderAdaptive(t *testing.T) {
 	actualScaleDownEvents := enc.metrics.Counter(encSoftLimitScaleDownCounterName).Value().(uint64)
 	actualEquiEvents := enc.metrics.Counter(encSoftLimitStableCounterName).Value().(uint64)
 
-	expectedScaleUpEvents := uint64(8)
-	expectedScaleDownEvents := uint64(3)
+	expectedScaleUpEvents := uint64(5)
+	expectedScaleDownEvents := uint64(0)
 	expectedEquiEvents := uint64(0)
 
 	if actualScaleUpEvents != expectedScaleUpEvents {
