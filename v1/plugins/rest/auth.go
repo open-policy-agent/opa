@@ -769,6 +769,7 @@ type awsSigningAuthPlugin struct {
 	AWSAssumeRoleCredentials  *awsAssumeRoleCredentialService  `json:"assume_role_credentials,omitempty"`
 	AWSWebIdentityCredentials *awsWebIdentityCredentialService `json:"web_identity_credentials,omitempty"`
 	AWSProfileCredentials     *awsProfileCredentialService     `json:"profile_credentials,omitempty"`
+	AWSSSOCredentials         *awsSSOCredentialsService        `json:"sso_credentials,omitempty"`
 
 	AWSService          string `json:"service,omitempty"`
 	AWSSignatureVersion string `json:"signature_version,omitempty"`
@@ -884,6 +885,11 @@ func (ap *awsSigningAuthPlugin) awsCredentialService() awsCredentialService {
 		chain.addService(ap.AWSMetadataCredentials)
 	}
 
+	if ap.AWSSSOCredentials != nil {
+		ap.AWSSSOCredentials.logger = ap.logger
+		chain.addService(ap.AWSSSOCredentials)
+	}
+
 	return &chain
 }
 
@@ -941,6 +947,7 @@ func (ap *awsSigningAuthPlugin) validateAndSetDefaults(serviceType string) error
 	cfgs[ap.AWSAssumeRoleCredentials != nil]++
 	cfgs[ap.AWSWebIdentityCredentials != nil]++
 	cfgs[ap.AWSProfileCredentials != nil]++
+	cfgs[ap.AWSSSOCredentials != nil]++
 
 	if cfgs[true] == 0 {
 		return errors.New("a AWS credential service must be specified when S3 signing is enabled")

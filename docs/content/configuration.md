@@ -397,6 +397,18 @@ request OPA will re-read the credentials from the file and use them for authenti
 | `services[_].credentials.s3_signing.profile_credentials.profile` | `string` | No | AWS Profile to extract credentials from the credentials file. If empty, OPA will look for the `AWS_PROFILE` env variable. If the variable is not set, the `default` profile will be used |
 | `services[_].credentials.s3_signing.profile_credentials.aws_region` | `string` | No | The AWS region to use for the AWS signing service credential method. If unset, the `AWS_REGION` environment variable must be set |
 
+#### Using SSO Profile Credentials
+If specifying `sso_credentials`, OPA will expect to find an sso profile configured as explained in [SSO Profiles](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sso.html) and stored in the [config](https://docs.aws.amazon.com/sdkref/latest/guide/file-format.html) file on disk. 
+On each request, Opa will try to use cached token acquired credentials using the SSO credentials. In case the current token has expired, OPA will try to refresh the token using the SSO refresh token, assuming the SSO session is still valid. New token will be cached in memory.
+
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `services[_].credentials.s3_signing.sso_credentials.path` | `string` | No | The path to the shared config file. If empty, OPA will look for the `AWS_CONFIG_FILE` env variable. If the variable is not set, the path defaults to the current user's home directory. `~/.aws/config` (Linux & Mac) or `%USERPROFILE%\.aws\config` (Windows) |
+| `services[_].credentials.s3_signing.sso_credentials.profile` | `string` | No | AWS Profile to extract sso session from the config file. If empty, OPA will look for the `AWS_PROFILE` env variable. If the variable is not set, the `default` profile will be used |
+| `services[_].credentials.s3_signing.sso_credentials.aws_region` | `string` | No | The AWS region to use for the AWS signing service credential method. If unset, the `AWS_REGION` environment variable must be set |
+
+
 #### Using EC2 Metadata Credentials
 If specifying `metadata_credentials`, OPA will use the AWS metadata services for [EC2](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html)
 or [ECS](https://docs.aws.amazon.com/AmazonECS/latest/userguide/task-iam-roles.html)
