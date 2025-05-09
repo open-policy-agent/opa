@@ -105,7 +105,9 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 		f(result)
 	}
 
-	config, err := NewConfigBuilder().WithBytes(manager.Config.Discovery).WithServices(manager.Services()).WithKeyConfigs(manager.PublicKeys()).Parse()
+	config, err := NewConfigBuilder().WithBytes(manager.Config.Discovery).WithServices(manager.Services()).
+		WithKeyConfigs(manager.PublicKeys()).Parse()
+
 	if err != nil {
 		return nil, err
 	} else if config == nil {
@@ -138,6 +140,8 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 	result.status = &bundle.Status{
 		Name: Name,
 	}
+
+	result.logger = manager.Logger().WithFields(map[string]interface{}{"plugin": Name})
 
 	manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
 	return result, nil
