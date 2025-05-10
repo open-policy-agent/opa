@@ -37,7 +37,7 @@ func Term(params Params) (*ast.Term, error) {
 
 	if params.Config != nil {
 
-		var x interface{}
+		var x any
 		if err := util.Unmarshal(params.Config, &x); err != nil {
 			return nil, err
 		}

@@ -11,10 +11,10 @@ package tracing
 import "net/http"
 
 // Options are options for the HTTPTracingService, passed along as-is.
-type Options []interface{}
+type Options []any
 
 // NewOptions is a helper method for constructing `tracing.Options`
-func NewOptions(opts ...interface{}) Options {
+func NewOptions(opts ...any) Options {
 	return opts
 }
 

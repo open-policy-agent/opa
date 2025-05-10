@@ -219,4 +219,4 @@ func TestNetLookupIPAddr(t *testing.T) {
 
 type sink struct{}
 
-func (sink) Printf(string, ...interface{}) {}
+func (sink) Printf(string, ...any) {}

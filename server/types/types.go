@@ -27,7 +27,7 @@ const (
 type ErrorV1 = v1.ErrorV1
 
 // NewErrorV1 returns a new ErrorV1 object.
-func NewErrorV1(code, f string, a ...interface{}) *ErrorV1 {
+func NewErrorV1(code, f string, a ...any) *ErrorV1 {
 	return v1.NewErrorV1(code, f, a...)
 }
 

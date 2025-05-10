@@ -509,7 +509,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 					Manifest: bundle.Manifest{
 						Roots: &[]string{"a"},
 					},
-					Data:    map[string]interface{}{},
+					Data:    map[string]any{},
 					Modules: []bundle.ModuleFile{},
 				},
 			},
@@ -524,7 +524,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 						Roots:       &[]string{"a"},
 						RegoVersion: &regoV1,
 					},
-					Data:    map[string]interface{}{},
+					Data:    map[string]any{},
 					Modules: []bundle.ModuleFile{},
 				},
 			},
@@ -538,14 +538,14 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 					Manifest: bundle.Manifest{
 						Roots: &[]string{"a"},
 					},
-					Data:    map[string]interface{}{},
+					Data:    map[string]any{},
 					Modules: []bundle.ModuleFile{},
 				},
 				{
 					Manifest: bundle.Manifest{
 						Roots: &[]string{"b"},
 					},
-					Data:    map[string]interface{}{},
+					Data:    map[string]any{},
 					Modules: []bundle.ModuleFile{},
 				},
 			},
@@ -560,7 +560,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 						Roots:       &[]string{"a"},
 						RegoVersion: &regoV1,
 					},
-					Data: map[string]interface{}{},
+					Data: map[string]any{},
 					Modules: []bundle.ModuleFile{
 						{
 							Path:         "a/test1.rego",
@@ -575,7 +575,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 						Roots:       &[]string{"b"},
 						RegoVersion: &regoV1,
 					},
-					Data: map[string]interface{}{},
+					Data: map[string]any{},
 					Modules: []bundle.ModuleFile{
 						{
 							Path:         "b/test1.rego",
@@ -602,7 +602,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 						Roots:       &[]string{"a"},
 						RegoVersion: &regoV0,
 					},
-					Data: map[string]interface{}{},
+					Data: map[string]any{},
 					Modules: []bundle.ModuleFile{
 						{
 							Path:         "a/test1.rego",
@@ -617,7 +617,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 						Roots:       &[]string{"b"},
 						RegoVersion: &regoV0,
 					},
-					Data: map[string]interface{}{},
+					Data: map[string]any{},
 					Modules: []bundle.ModuleFile{
 						{
 							Path:         "b/test1.rego",
@@ -644,7 +644,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 						Roots:       &[]string{"a"},
 						RegoVersion: &regoV0,
 					},
-					Data: map[string]interface{}{},
+					Data: map[string]any{},
 					Modules: []bundle.ModuleFile{
 						{
 							Path:         "a/test1.rego",
@@ -659,7 +659,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 						Roots:       &[]string{"b"},
 						RegoVersion: &regoV1,
 					},
-					Data: map[string]interface{}{},
+					Data: map[string]any{},
 					Modules: []bundle.ModuleFile{
 						{
 							Path:         "b/test1.rego",
@@ -685,7 +685,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 						Roots:       &[]string{"a"},
 						RegoVersion: &regoV1,
 					},
-					Data: map[string]interface{}{},
+					Data: map[string]any{},
 					Modules: []bundle.ModuleFile{
 						{
 							Path:         "a/test1.rego",
@@ -709,7 +709,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 							"/test1.rego": 0,
 						},
 					},
-					Data: map[string]interface{}{},
+					Data: map[string]any{},
 					Modules: []bundle.ModuleFile{
 						{
 							// we don't expect this file to get an individual rego-version in the result, as
@@ -732,7 +732,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 						RegoVersion: &regoV0,
 						Roots:       &[]string{"c"},
 					},
-					Data: map[string]interface{}{},
+					Data: map[string]any{},
 					Modules: []bundle.ModuleFile{
 						// we don't expect these files to get individual rego-versions in the result,
 						// as they have the same rego-version as the global rego-version
@@ -772,7 +772,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 							"a/*": 1,
 						},
 					},
-					Data: map[string]interface{}{},
+					Data: map[string]any{},
 					Modules: []bundle.ModuleFile{
 						{
 							Path: "a/foo/test.rego",
@@ -800,7 +800,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 							"*/bar/*": 0,
 						},
 					},
-					Data: map[string]interface{}{},
+					Data: map[string]any{},
 					Modules: []bundle.ModuleFile{
 						{
 							Path: "b/foo/test.rego",
@@ -2786,7 +2786,7 @@ func TestCompilerSetMetadata(t *testing.T) {
 	for _, useMemoryFS := range []bool{false, true} {
 		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
-			metadata := map[string]interface{}{"OPA version": "0.36.1"}
+			metadata := map[string]any{"OPA version": "0.36.1"}
 			compiler := New().
 				WithFS(fsys).
 				WithPaths(root).
@@ -3605,7 +3605,7 @@ func getOptimizer(modules map[string]string, data string, entries []string, root
 	}
 
 	if data != "" {
-		b.Data = util.MustUnmarshalJSON([]byte(data)).(map[string]interface{})
+		b.Data = util.MustUnmarshalJSON([]byte(data)).(map[string]any)
 	}
 
 	if len(roots) > 0 {

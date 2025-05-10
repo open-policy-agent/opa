@@ -30,7 +30,7 @@ func newTypeEnv(f func() *typeChecker) *TypeEnv {
 
 // Get returns the type of x.
 // Deprecated: Use GetByValue or GetByRef instead, as they are more efficient.
-func (env *TypeEnv) Get(x interface{}) types.Type {
+func (env *TypeEnv) Get(x any) types.Type {
 	if term, ok := x.(*Term); ok {
 		x = term.Value
 	}

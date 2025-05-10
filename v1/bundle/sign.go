@@ -89,7 +89,7 @@ func (*DefaultSigner) GenerateSignedToken(files []FileInfo, sc *SigningConfig, k
 }
 
 func generatePayload(files []FileInfo, sc *SigningConfig, keyID string) ([]byte, error) {
-	payload := make(map[string]interface{})
+	payload := make(map[string]any)
 	payload["files"] = files
 
 	if sc.ClaimsPath != "" {

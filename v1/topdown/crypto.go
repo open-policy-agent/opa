@@ -329,7 +329,7 @@ func builtinCryptoX509ParseCertificateRequest(_ BuiltinContext, operands []*ast.
 		return err
 	}
 
-	var x interface{}
+	var x any
 	if err := util.UnmarshalJSON(bs, &x); err != nil {
 		return err
 	}
@@ -343,7 +343,7 @@ func builtinCryptoX509ParseCertificateRequest(_ BuiltinContext, operands []*ast.
 }
 
 func builtinCryptoJWKFromPrivateKey(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	var x interface{}
+	var x any
 
 	a := operands[0].Value
 	input, err := builtins.StringOperand(a, 1)
@@ -427,7 +427,7 @@ func builtinCryptoParsePrivateKeys(_ BuiltinContext, operands []*ast.Term, iter 
 		return err
 	}
 
-	var x interface{}
+	var x any
 	if err := util.UnmarshalJSON(bs, &x); err != nil {
 		return err
 	}

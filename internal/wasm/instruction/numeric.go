@@ -19,8 +19,8 @@ func (I32Const) Op() opcode.Opcode {
 }
 
 // ImmediateArgs returns the i32 value to push onto the stack.
-func (i I32Const) ImmediateArgs() []interface{} {
-	return []interface{}{i.Value}
+func (i I32Const) ImmediateArgs() []any {
+	return []any{i.Value}
 }
 
 // I64Const represents the WASM i64.const instruction.
@@ -34,8 +34,8 @@ func (I64Const) Op() opcode.Opcode {
 }
 
 // ImmediateArgs returns the i64 value to push onto the stack.
-func (i I64Const) ImmediateArgs() []interface{} {
-	return []interface{}{i.Value}
+func (i I64Const) ImmediateArgs() []any {
+	return []any{i.Value}
 }
 
 // F32Const represents the WASM f32.const instruction.
@@ -49,8 +49,8 @@ func (F32Const) Op() opcode.Opcode {
 }
 
 // ImmediateArgs returns the f32 value to push onto the stack.
-func (i F32Const) ImmediateArgs() []interface{} {
-	return []interface{}{i.Value}
+func (i F32Const) ImmediateArgs() []any {
+	return []any{i.Value}
 }
 
 // F64Const represents the WASM f64.const instruction.
@@ -64,8 +64,8 @@ func (F64Const) Op() opcode.Opcode {
 }
 
 // ImmediateArgs returns the f64 value to push onto the stack.
-func (i F64Const) ImmediateArgs() []interface{} {
-	return []interface{}{i.Value}
+func (i F64Const) ImmediateArgs() []any {
+	return []any{i.Value}
 }
 
 // I32Eqz represents the WASM i32.eqz instruction.

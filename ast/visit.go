@@ -21,68 +21,68 @@ type BeforeAndAfterVisitor = v1.BeforeAndAfterVisitor
 // Walk iterates the AST by calling the Visit function on the Visitor
 // v for x before recursing.
 // Deprecated: use GenericVisitor.Walk
-func Walk(v Visitor, x interface{}) {
+func Walk(v Visitor, x any) {
 	v1.Walk(v, x)
 }
 
 // WalkBeforeAndAfter iterates the AST by calling the Visit function on the
 // Visitor v for x before recursing.
 // Deprecated: use GenericVisitor.Walk
-func WalkBeforeAndAfter(v BeforeAndAfterVisitor, x interface{}) {
+func WalkBeforeAndAfter(v BeforeAndAfterVisitor, x any) {
 	v1.WalkBeforeAndAfter(v, x)
 }
 
 // WalkVars calls the function f on all vars under x. If the function f
 // returns true, AST nodes under the last node will not be visited.
-func WalkVars(x interface{}, f func(Var) bool) {
+func WalkVars(x any, f func(Var) bool) {
 	v1.WalkVars(x, f)
 }
 
 // WalkClosures calls the function f on all closures under x. If the function f
 // returns true, AST nodes under the last node will not be visited.
-func WalkClosures(x interface{}, f func(interface{}) bool) {
+func WalkClosures(x any, f func(any) bool) {
 	v1.WalkClosures(x, f)
 }
 
 // WalkRefs calls the function f on all references under x. If the function f
 // returns true, AST nodes under the last node will not be visited.
-func WalkRefs(x interface{}, f func(Ref) bool) {
+func WalkRefs(x any, f func(Ref) bool) {
 	v1.WalkRefs(x, f)
 }
 
 // WalkTerms calls the function f on all terms under x. If the function f
 // returns true, AST nodes under the last node will not be visited.
-func WalkTerms(x interface{}, f func(*Term) bool) {
+func WalkTerms(x any, f func(*Term) bool) {
 	v1.WalkTerms(x, f)
 }
 
 // WalkWiths calls the function f on all with modifiers under x. If the function f
 // returns true, AST nodes under the last node will not be visited.
-func WalkWiths(x interface{}, f func(*With) bool) {
+func WalkWiths(x any, f func(*With) bool) {
 	v1.WalkWiths(x, f)
 }
 
 // WalkExprs calls the function f on all expressions under x. If the function f
 // returns true, AST nodes under the last node will not be visited.
-func WalkExprs(x interface{}, f func(*Expr) bool) {
+func WalkExprs(x any, f func(*Expr) bool) {
 	v1.WalkExprs(x, f)
 }
 
 // WalkBodies calls the function f on all bodies under x. If the function f
 // returns true, AST nodes under the last node will not be visited.
-func WalkBodies(x interface{}, f func(Body) bool) {
+func WalkBodies(x any, f func(Body) bool) {
 	v1.WalkBodies(x, f)
 }
 
 // WalkRules calls the function f on all rules under x. If the function f
 // returns true, AST nodes under the last node will not be visited.
-func WalkRules(x interface{}, f func(*Rule) bool) {
+func WalkRules(x any, f func(*Rule) bool) {
 	v1.WalkRules(x, f)
 }
 
 // WalkNodes calls the function f on all nodes under x. If the function f
 // returns true, AST nodes under the last node will not be visited.
-func WalkNodes(x interface{}, f func(Node) bool) {
+func WalkNodes(x any, f func(Node) bool) {
 	v1.WalkNodes(x, f)
 }
 
@@ -93,7 +93,7 @@ type GenericVisitor = v1.GenericVisitor
 
 // NewGenericVisitor returns a new GenericVisitor that will invoke the function
 // f on AST nodes.
-func NewGenericVisitor(f func(x interface{}) bool) *GenericVisitor {
+func NewGenericVisitor(f func(x any) bool) *GenericVisitor {
 	return v1.NewGenericVisitor(f)
 }
 
@@ -105,7 +105,7 @@ type BeforeAfterVisitor = v1.BeforeAfterVisitor
 
 // NewBeforeAfterVisitor returns a new BeforeAndAfterVisitor that
 // will invoke the functions before and after AST nodes.
-func NewBeforeAfterVisitor(before func(x interface{}) bool, after func(x interface{})) *BeforeAfterVisitor {
+func NewBeforeAfterVisitor(before func(x any) bool, after func(x any)) *BeforeAfterVisitor {
 	return v1.NewBeforeAfterVisitor(before, after)
 }
 

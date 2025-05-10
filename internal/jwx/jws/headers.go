@@ -20,8 +20,8 @@ const (
 
 // Headers provides a common interface for common header parameters
 type Headers interface {
-	Get(string) (interface{}, bool)
-	Set(string, interface{}) error
+	Get(string) (any, bool)
+	Set(string, any) error
 	GetAlgorithm() jwa.SignatureAlgorithm
 }
 
@@ -33,7 +33,7 @@ type StandardHeaders struct {
 	JWK           string                 `json:"jwk,omitempty"`           // https://tools.ietf.org/html/rfc7515#section-4.1.3
 	JWKSetURL     string                 `json:"jku,omitempty"`           // https://tools.ietf.org/html/rfc7515#section-4.1.2
 	KeyID         string                 `json:"kid,omitempty"`           // https://tools.ietf.org/html/rfc7515#section-4.1.4
-	PrivateParams map[string]interface{} `json:"privateParams,omitempty"` // https://tools.ietf.org/html/rfc7515#section-4.1.9
+	PrivateParams map[string]any         `json:"privateParams,omitempty"` // https://tools.ietf.org/html/rfc7515#section-4.1.9
 	Type          string                 `json:"typ,omitempty"`           // https://tools.ietf.org/html/rfc7515#section-4.1.9
 }
 
@@ -43,7 +43,7 @@ func (h *StandardHeaders) GetAlgorithm() jwa.SignatureAlgorithm {
 }
 
 // Get is a general getter function for StandardHeaders structure
-func (h *StandardHeaders) Get(name string) (interface{}, bool) {
+func (h *StandardHeaders) Get(name string) (any, bool) {
 	switch name {
 	case AlgorithmKey:
 		v := h.Algorithm
@@ -99,7 +99,7 @@ func (h *StandardHeaders) Get(name string) (interface{}, bool) {
 }
 
 // Set is a general setter function for StandardHeaders structure
-func (h *StandardHeaders) Set(name string, value interface{}) error {
+func (h *StandardHeaders) Set(name string, value any) error {
 	switch name {
 	case AlgorithmKey:
 		if err := h.Algorithm.Accept(value); err != nil {
@@ -137,7 +137,7 @@ func (h *StandardHeaders) Set(name string, value interface{}) error {
 		}
 		return fmt.Errorf("invalid value for %s key: %T", KeyIDKey, value)
 	case PrivateParamsKey:
-		if v, ok := value.(map[string]interface{}); ok {
+		if v, ok := value.(map[string]any); ok {
 			h.PrivateParams = v
 			return nil
 		}

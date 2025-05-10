@@ -43,7 +43,7 @@ func TestFileLoader(t *testing.T) {
 	}
 
 	policy := "wasm-policy"
-	var data interface{} = map[string]interface{}{
+	var data any = map[string]any{
 		"foo": "bar",
 	}
 
@@ -60,7 +60,7 @@ func TestFileLoader(t *testing.T) {
 	// Reload with updated contents.
 
 	policy = "wasm-policy-modified"
-	data = map[string]interface{}{
+	data = map[string]any{
 		"bar": "foo",
 	}
 
@@ -75,11 +75,11 @@ func TestFileLoader(t *testing.T) {
 type testPolicyData struct {
 	sync.Mutex
 	policy  []byte
-	data    *interface{}
+	data    *any
 	updated chan struct{}
 }
 
-func (pd *testPolicyData) SetPolicyData(_ context.Context, policy []byte, data *interface{}) error {
+func (pd *testPolicyData) SetPolicyData(_ context.Context, policy []byte, data *any) error {
 	pd.Lock()
 	defer pd.Unlock()
 
@@ -92,7 +92,7 @@ func (pd *testPolicyData) SetPolicyData(_ context.Context, policy []byte, data *
 	return nil
 }
 
-func (pd *testPolicyData) CheckEqual(t *testing.T, policy string, data *interface{}) {
+func (pd *testPolicyData) CheckEqual(t *testing.T, policy string, data *any) {
 	pd.Lock()
 	defer pd.Unlock()
 
@@ -113,9 +113,9 @@ func (pd *testPolicyData) WaitUpdate() {
 	pd.Unlock()
 }
 
-func writeBundle(name string, policy string, data interface{}) {
+func writeBundle(name string, policy string, data any) {
 	b := bundle.Bundle{
-		Data: data.(map[string]interface{}),
+		Data: data.(map[string]any),
 		Wasm: []byte(policy),
 	}
 

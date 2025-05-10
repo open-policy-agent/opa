@@ -18,7 +18,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown"
 )
 
-type threadState interface{}
+type threadState any
 
 type eventAction string
 

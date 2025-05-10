@@ -17,12 +17,12 @@ func New() storage.Store {
 
 // NewFromObject returns an inmem store from the passed object, with some
 // common options set: opt-out of write roundtripping.
-func NewFromObject(x map[string]interface{}) storage.Store {
+func NewFromObject(x map[string]any) storage.Store {
 	return inmem.NewFromObjectWithOpts(x, inmem.OptRoundTripOnWrite(false))
 }
 
 // NewFromObjectWithASTRead returns an inmem store from the passed object, with
 // round-trip on write disabled and AST values returned on read.
-func NewFromObjectWithASTRead(x map[string]interface{}) storage.Store {
+func NewFromObjectWithASTRead(x map[string]any) storage.Store {
 	return inmem.NewFromObjectWithOpts(x, inmem.OptRoundTripOnWrite(false), inmem.OptReturnASTValuesOnRead(true))
 }

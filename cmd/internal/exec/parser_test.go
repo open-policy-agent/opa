@@ -25,7 +25,7 @@ func TestUtilParser_Parse(t *testing.T) {
 		Name        string
 		Reader      io.Reader
 		ShouldError bool
-		Expectation func(x interface{})
+		Expectation func(x any)
 	}{
 		{
 			Name:        "should return an error if the provided reader raises an error",
@@ -41,8 +41,8 @@ func TestUtilParser_Parse(t *testing.T) {
 			Name:        "should return a valid JSON object",
 			Reader:      bytes.NewBuffer(b),
 			ShouldError: false,
-			Expectation: func(x interface{}) {
-				if val, ok := x.(map[string]interface{})["this"]; !ok {
+			Expectation: func(x any) {
+				if val, ok := x.(map[string]any)["this"]; !ok {
 					t.Fatalf("expected returned value to have key %q, but none was found", "this")
 				} else if val != "that" {
 					t.Fatalf("expected returned value to have value %q for key %q, instead got %q", "that", "this", val)

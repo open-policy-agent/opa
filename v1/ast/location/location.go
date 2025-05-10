@@ -36,18 +36,18 @@ func (loc *Location) Equal(other *Location) bool {
 
 // Errorf returns a new error value with a message formatted to include the location
 // info (e.g., line, column, filename, etc.)
-func (loc *Location) Errorf(f string, a ...interface{}) error {
+func (loc *Location) Errorf(f string, a ...any) error {
 	return errors.New(loc.Format(f, a...))
 }
 
 // Wrapf returns a new error value that wraps an existing error with a message formatted
 // to include the location info (e.g., line, column, filename, etc.)
-func (loc *Location) Wrapf(err error, f string, a ...interface{}) error {
+func (loc *Location) Wrapf(err error, f string, a ...any) error {
 	return fmt.Errorf(loc.Format(f, a...)+": %w", err)
 }
 
 // Format returns a formatted string prefixed with the location information.
-func (loc *Location) Format(f string, a ...interface{}) string {
+func (loc *Location) Format(f string, a ...any) string {
 	if len(loc.File) > 0 {
 		f = fmt.Sprintf("%v:%v: %v", loc.File, loc.Row, f)
 	} else {

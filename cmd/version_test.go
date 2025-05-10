@@ -99,7 +99,7 @@ func expectOutputKeys(t *testing.T, stdout string, expectedKeys []string) {
 	}
 }
 
-func getTestServer(update interface{}, statusCode int) (baseURL string, teardownFn func()) {
+func getTestServer(update any, statusCode int) (baseURL string, teardownFn func()) {
 	mux := http.NewServeMux()
 	ts := httptest.NewServer(mux)
 

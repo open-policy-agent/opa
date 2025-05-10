@@ -38,11 +38,11 @@ func BenchmarkArrayPlugging(b *testing.B) {
 
 	for _, n := range sizes {
 		b.Run(strconv.Itoa(n), func(b *testing.B) {
-			data := make([]interface{}, n)
+			data := make([]any, n)
 			for i := range n {
 				data[i] = fmt.Sprintf("whatever%d", i)
 			}
-			store := inmem.NewFromObject(map[string]interface{}{"fixture": data})
+			store := inmem.NewFromObject(map[string]any{"fixture": data})
 			module := `package test
 			fixture := data.fixture
 			main if { x := fixture }`
@@ -503,17 +503,17 @@ const partialEvalBenchmarkPolicy = `package authz
 	}
 	`
 
-func generatePartialEvalBenchmarkData(numRoles int) map[string]interface{} {
-	roles := make([]interface{}, numRoles)
-	bindings := make([]interface{}, numRoles)
+func generatePartialEvalBenchmarkData(numRoles int) map[string]any {
+	roles := make([]any, numRoles)
+	bindings := make([]any, numRoles)
 	for i := range numRoles {
-		role := map[string]interface{}{
+		role := map[string]any{
 			"name":      fmt.Sprintf("role-%d", i),
 			"operation": fmt.Sprintf("operation-%d", i),
 			"resource":  fmt.Sprintf("resource-%d", i),
 		}
 		roles[i] = role
-		binding := map[string]interface{}{
+		binding := map[string]any{
 			"name":  fmt.Sprintf("binding-%d", i),
 			"iss":   fmt.Sprintf("iss-%d", i),
 			"group": fmt.Sprintf("group-%d", i),
@@ -521,7 +521,7 @@ func generatePartialEvalBenchmarkData(numRoles int) map[string]interface{} {
 		}
 		bindings[i] = binding
 	}
-	return map[string]interface{}{
+	return map[string]any{
 		"roles":    roles,
 		"bindings": bindings,
 	}
@@ -586,12 +586,12 @@ func BenchmarkWalk(b *testing.B) {
 
 }
 
-func genWalkBenchmarkData(n int) map[string]interface{} {
-	sl := make([]interface{}, n)
+func genWalkBenchmarkData(n int) map[string]any {
+	sl := make([]any, n)
 	for i := range n {
 		sl[i] = i
 	}
-	return map[string]interface{}{
+	return map[string]any{
 		"arr": sl,
 	}
 }
@@ -724,12 +724,12 @@ func moduleWithDefs(n int) string {
 	return b.String()
 }
 
-func genComprehensionIndexingData(n int) map[string]interface{} {
-	items := map[string]interface{}{}
+func genComprehensionIndexingData(n int) map[string]any {
+	items := map[string]any{}
 	for i := range n {
 		items[strconv.Itoa(i)] = strconv.Itoa(i)
 	}
-	return map[string]interface{}{"items": items}
+	return map[string]any{"items": items}
 }
 
 func BenchmarkObjectSubset(b *testing.B) {
@@ -749,7 +749,7 @@ func BenchmarkObjectSubset(b *testing.B) {
 				}
 			}
 
-			store := inmem.NewFromObject(map[string]interface{}{"all": all, "evens": evens})
+			store := inmem.NewFromObject(map[string]any{"all": all, "evens": evens})
 
 			module := `package test
 			main if {object.subset(data.all, data.evens)}`
@@ -806,7 +806,7 @@ func BenchmarkObjectSubsetSlow(b *testing.B) {
 				}
 			}
 
-			store := inmem.NewFromObject(map[string]interface{}{"all": all, "evens": evens})
+			store := inmem.NewFromObject(map[string]any{"all": all, "evens": evens})
 
 			// Code is lifted from here:
 			// https://github.com/open-policy-agent/opa/issues/4358#issue-1141145857
@@ -899,7 +899,7 @@ func BenchmarkGlob(b *testing.B) {
 			needle := haystack[needleIndex]
 			needleGlob := needle[0:length/2] + "*"
 
-			store := inmem.NewFromObject(map[string]interface{}{
+			store := inmem.NewFromObject(map[string]any{
 				"haystack":   haystack,
 				"needleGlob": needleGlob,
 			})

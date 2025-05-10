@@ -32,7 +32,7 @@ func TestOpaEvalGrowMemoryForLargeInput(t *testing.T) {
 	`
 	data := []byte(`{}`)
 	s := strings.Repeat("a", 16*wasm_util.PageSize)
-	input := interface{}([]byte(s))
+	input := any([]byte(s))
 
 	poolSize := 1
 	testPool := initPoolWithData(t, uint32(poolSize), module, "test/p", data)
@@ -115,7 +115,7 @@ func TestPoolCopyParsedDataUpdatePartial(t *testing.T) {
 	// Each case is applied in order to the original dataset
 	cases := []struct {
 		note     string
-		update   interface{}
+		update   any
 		path     []string
 		remove   bool
 		expected string
@@ -165,7 +165,7 @@ func TestPoolCopyParsedDataUpdatePartial(t *testing.T) {
 	}
 }
 
-func ensurePoolResults(t *testing.T, ctx context.Context, testPool *wasm.Pool, poolSize int, input *interface{}, expected string) {
+func ensurePoolResults(t *testing.T, ctx context.Context, testPool *wasm.Pool, poolSize int, input *any, expected string) {
 	t.Helper()
 	var toRelease []*wasm.VM
 	for i := 0; i < poolSize; i++ {

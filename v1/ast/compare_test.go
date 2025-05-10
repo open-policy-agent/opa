@@ -66,7 +66,7 @@ func TestCompare(t *testing.T) {
 		{`a = b; b = a`, `a = b`, 1},
 	}
 	for _, tc := range tests {
-		var a, b interface{}
+		var a, b any
 		if len(tc.a) > 0 {
 			a = MustParseStatement(tc.a)
 		}

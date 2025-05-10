@@ -59,7 +59,7 @@ func Error(w http.ResponseWriter, status int, err *types.ErrorV1) {
 // Deprecated: This method is problematic when using a non-200 status `code`: if
 // encoding the payload fails, it'll print "superfluous call to WriteHeader()"
 // logs.
-func JSON(w http.ResponseWriter, code int, v interface{}, pretty bool) {
+func JSON(w http.ResponseWriter, code int, v any, pretty bool) {
 	enc := json.NewEncoder(w)
 	if pretty {
 		enc.SetIndent("", "  ")
@@ -75,7 +75,7 @@ func JSON(w http.ResponseWriter, code int, v interface{}, pretty bool) {
 }
 
 // JSONOK is a helper for status "200 OK" responses
-func JSONOK(w http.ResponseWriter, v interface{}, pretty bool) {
+func JSONOK(w http.ResponseWriter, v any, pretty bool) {
 	enc := json.NewEncoder(w)
 	if pretty {
 		enc.SetIndent("", "  ")

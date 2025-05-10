@@ -60,12 +60,12 @@ func NewBasic(inner http.Handler, compiler func() *ast.Compiler, store storage.S
 
 // SetBodyOnContext adds the parsed input value to the context. This function is only
 // exposed for test purposes.
-func SetBodyOnContext(ctx context.Context, x interface{}) context.Context {
+func SetBodyOnContext(ctx context.Context, x any) context.Context {
 	return v1.SetBodyOnContext(ctx, x)
 }
 
 // GetBodyOnContext returns the parsed input from the request context if it exists.
 // The authorizer saves the parsed input on the context when it runs.
-func GetBodyOnContext(ctx context.Context) (interface{}, bool) {
+func GetBodyOnContext(ctx context.Context) (any, bool) {
 	return v1.GetBodyOnContext(ctx)
 }

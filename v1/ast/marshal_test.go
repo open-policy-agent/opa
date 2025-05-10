@@ -468,7 +468,7 @@ func TestRule_MarshalJSON(t *testing.T) {
 					Entrypoint:    true,
 					Organizations: []string{"org1"},
 					Description:   "My desc",
-					Custom: map[string]interface{}{
+					Custom: map[string]any{
 						"foo": "bar",
 					}}}
 				return r
@@ -900,7 +900,7 @@ func TestAnnotations_MarshalJSON(t *testing.T) {
 				Entrypoint:    true,
 				Organizations: []string{"org1"},
 				Description:   "My desc",
-				Custom: map[string]interface{}{
+				Custom: map[string]any{
 					"foo": "bar",
 				},
 				Location: NewLocation([]byte{}, "example.rego", 1, 4),
@@ -914,7 +914,7 @@ func TestAnnotations_MarshalJSON(t *testing.T) {
 				Entrypoint:    true,
 				Organizations: []string{"org1"},
 				Description:   "My desc",
-				Custom: map[string]interface{}{
+				Custom: map[string]any{
 					"foo": "bar",
 				},
 				Location: NewLocation([]byte{}, "example.rego", 1, 4),
@@ -933,7 +933,7 @@ func TestAnnotations_MarshalJSON(t *testing.T) {
 				Entrypoint:    true,
 				Organizations: []string{"org1"},
 				Description:   "My desc",
-				Custom: map[string]interface{}{
+				Custom: map[string]any{
 					"foo": "bar",
 				},
 				Location: NewLocation([]byte{}, "example.rego", 1, 4),

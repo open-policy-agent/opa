@@ -12,19 +12,19 @@ import (
 
 func TestHashFile(t *testing.T) {
 
-	mapInput := map[string]interface{}{
-		"key1": []interface{}{
+	mapInput := map[string]any{
+		"key1": []any{
 			"element1",
 			"element2",
 		},
-		"key2": map[string]interface{}{
+		"key2": map[string]any{
 			"a": 0,
 			"b": 1,
 			"c": json.Number("123.45678911111111111111111111111111111111111111111111111"),
 		},
 	}
 
-	arrayInput := []interface{}{
+	arrayInput := []any{
 		[]string{"foo", "bar"},
 		mapInput,
 		`package example`,
@@ -32,7 +32,7 @@ func TestHashFile(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		input     interface{}
+		input     any
 		algorithm HashingAlgorithm
 	}{
 		"map":                    {mapInput, SHA256},
@@ -69,19 +69,19 @@ func TestHashFile(t *testing.T) {
 
 func TestHashFileBytes(t *testing.T) {
 
-	mapInput := map[string]interface{}{
-		"key1": []interface{}{
+	mapInput := map[string]any{
+		"key1": []any{
 			"element1",
 			"element2",
 		},
-		"key2": map[string]interface{}{
+		"key2": map[string]any{
 			"a": 0,
 			"b": 1,
 			"c": json.Number("123.45678911111111111111111111111111111111111111111111111"),
 		},
 	}
 
-	arrayInput := []interface{}{
+	arrayInput := []any{
 		[]string{"foo", "bar"},
 		mapInput,
 		`package example`,

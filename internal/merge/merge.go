@@ -8,7 +8,7 @@ package merge
 
 // InterfaceMaps returns the result of merging a and b. If a and b cannot be
 // merged because of conflicting key-value pairs, ok is false.
-func InterfaceMaps(a map[string]interface{}, b map[string]interface{}) (map[string]interface{}, bool) {
+func InterfaceMaps(a map[string]any, b map[string]any) (map[string]any, bool) {
 
 	if a == nil {
 		return b, true
@@ -21,7 +21,7 @@ func InterfaceMaps(a map[string]interface{}, b map[string]interface{}) (map[stri
 	return merge(a, b), true
 }
 
-func merge(a, b map[string]interface{}) map[string]interface{} {
+func merge(a, b map[string]any) map[string]any {
 
 	for k := range b {
 
@@ -32,8 +32,8 @@ func merge(a, b map[string]interface{}) map[string]interface{} {
 			continue
 		}
 
-		existObj := exist.(map[string]interface{})
-		addObj := add.(map[string]interface{})
+		existObj := exist.(map[string]any)
+		addObj := add.(map[string]any)
 
 		a[k] = merge(existObj, addObj)
 	}
@@ -41,7 +41,7 @@ func merge(a, b map[string]interface{}) map[string]interface{} {
 	return a
 }
 
-func hasConflicts(a, b map[string]interface{}) bool {
+func hasConflicts(a, b map[string]any) bool {
 	for k := range b {
 
 		add := b[k]
@@ -50,8 +50,8 @@ func hasConflicts(a, b map[string]interface{}) bool {
 			continue
 		}
 
-		existObj, existOk := exist.(map[string]interface{})
-		addObj, addOk := add.(map[string]interface{})
+		existObj, existOk := exist.(map[string]any)
+		addObj, addOk := add.(map[string]any)
 		if !existOk || !addOk {
 			return true
 		}

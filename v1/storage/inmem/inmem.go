@@ -51,20 +51,20 @@ func NewWithOpts(opts ...Opt) storage.Store {
 	if s.returnASTValuesOnRead {
 		s.data = ast.NewObject()
 	} else {
-		s.data = map[string]interface{}{}
+		s.data = map[string]any{}
 	}
 
 	return s
 }
 
 // NewFromObject returns a new in-memory store from the supplied data object.
-func NewFromObject(data map[string]interface{}) storage.Store {
+func NewFromObject(data map[string]any) storage.Store {
 	return NewFromObjectWithOpts(data)
 }
 
 // NewFromObjectWithOpts returns a new in-memory store from the supplied data object, with the
 // options passed.
-func NewFromObjectWithOpts(data map[string]interface{}, opts ...Opt) storage.Store {
+func NewFromObjectWithOpts(data map[string]any, opts ...Opt) storage.Store {
 	db := NewWithOpts(opts...)
 	ctx := context.Background()
 	txn, err := db.NewTransaction(ctx, storage.WriteParams)
@@ -90,7 +90,7 @@ func NewFromReader(r io.Reader) storage.Store {
 // JSON serialized object, with extra options. This function is for test purposes.
 func NewFromReaderWithOpts(r io.Reader, opts ...Opt) storage.Store {
 	d := util.NewJSONDecoder(r)
-	var data map[string]interface{}
+	var data map[string]any
 	if err := d.Decode(&data); err != nil {
 		panic(err)
 	}
@@ -101,7 +101,7 @@ type store struct {
 	rmu      sync.RWMutex                      // reader-writer lock
 	wmu      sync.Mutex                        // writer lock
 	xid      uint64                            // last generated transaction id
-	data     interface{}                       // raw or AST data
+	data     any                               // raw or AST data
 	policies map[string][]byte                 // raw policies
 	triggers map[*handle]storage.TriggerConfig // registered triggers
 
@@ -139,7 +139,7 @@ func (db *store) NewTransaction(_ context.Context, params ...storage.Transaction
 func (db *store) Truncate(ctx context.Context, txn storage.Transaction, params storage.TransactionParams, it storage.Iterator) error {
 	var update *storage.Update
 	var err error
-	mergedData := map[string]interface{}{}
+	mergedData := map[string]any{}
 
 	underlying, err := db.underlying(txn)
 	if err != nil {
@@ -158,7 +158,7 @@ func (db *store) Truncate(ctx context.Context, txn storage.Transaction, params s
 				return err
 			}
 		} else {
-			var value interface{}
+			var value any
 			err = util.Unmarshal(update.Value, &value)
 			if err != nil {
 				return err
@@ -304,7 +304,7 @@ func (db *store) Register(_ context.Context, txn storage.Transaction, config sto
 	return h, nil
 }
 
-func (db *store) Read(_ context.Context, txn storage.Transaction, path storage.Path) (interface{}, error) {
+func (db *store) Read(_ context.Context, txn storage.Transaction, path storage.Path) (any, error) {
 	underlying, err := db.underlying(txn)
 	if err != nil {
 		return nil, err
@@ -318,7 +318,7 @@ func (db *store) Read(_ context.Context, txn storage.Transaction, path storage.P
 	return v, nil
 }
 
-func (db *store) Write(_ context.Context, txn storage.Transaction, op storage.PatchOp, path storage.Path, value interface{}) error {
+func (db *store) Write(_ context.Context, txn storage.Transaction, op storage.PatchOp, path storage.Path, value any) error {
 	underlying, err := db.underlying(txn)
 	if err != nil {
 		return err
@@ -382,7 +382,7 @@ func (db *store) runOnCommitTriggers(ctx context.Context, txn storage.Transactio
 
 type illegalResolver struct{}
 
-func (illegalResolver) Resolve(ref ast.Ref) (interface{}, error) {
+func (illegalResolver) Resolve(ref ast.Ref) (any, error) {
 	return nil, fmt.Errorf("illegal value: %v", ref)
 }
 
@@ -412,35 +412,35 @@ func (db *store) underlying(txn storage.Transaction) (*transaction, error) {
 const rootMustBeObjectMsg = "root must be object"
 const rootCannotBeRemovedMsg = "root cannot be removed"
 
-func invalidPatchError(f string, a ...interface{}) *storage.Error {
+func invalidPatchError(f string, a ...any) *storage.Error {
 	return &storage.Error{
 		Code:    storage.InvalidPatchErr,
 		Message: fmt.Sprintf(f, a...),
 	}
 }
 
-func mktree(path []string, value interface{}) (map[string]interface{}, error) {
+func mktree(path []string, value any) (map[string]any, error) {
 	if len(path) == 0 {
 		// For 0 length path the value is the full tree.
-		obj, ok := value.(map[string]interface{})
+		obj, ok := value.(map[string]any)
 		if !ok {
 			return nil, invalidPatchError(rootMustBeObjectMsg)
 		}
 		return obj, nil
 	}
 
-	dir := map[string]interface{}{}
+	dir := map[string]any{}
 	for i := len(path) - 1; i > 0; i-- {
 		dir[path[i]] = value
 		value = dir
-		dir = map[string]interface{}{}
+		dir = map[string]any{}
 	}
 	dir[path[0]] = value
 
 	return dir, nil
 }
 
-func lookup(path storage.Path, data map[string]interface{}) (interface{}, bool) {
+func lookup(path storage.Path, data map[string]any) (any, bool) {
 	if len(path) == 0 {
 		return data, true
 	}
@@ -449,7 +449,7 @@ func lookup(path storage.Path, data map[string]interface{}) (interface{}, bool) 
 		if !ok {
 			return nil, false
 		}
-		obj, ok := value.(map[string]interface{})
+		obj, ok := value.(map[string]any)
 		if !ok {
 			return nil, false
 		}

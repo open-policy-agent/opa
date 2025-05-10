@@ -96,7 +96,7 @@ func TestGenerateSignedTokenWithClaims(t *testing.T) {
 	}
 
 	test.WithTempFS(map[string]string{}, func(rootDir string) {
-		claims := make(map[string]interface{})
+		claims := make(map[string]any)
 		claims["scope"] = "read"
 
 		claimBytes, err := json.Marshal(claims)
@@ -161,7 +161,7 @@ func TestGeneratePayload(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	payload := make(map[string]interface{})
+	payload := make(map[string]any)
 	if err := util.UnmarshalJSON(bytes, &payload); err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
@@ -180,7 +180,7 @@ func TestGeneratePayload(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	payload = make(map[string]interface{})
+	payload = make(map[string]any)
 	err = util.UnmarshalJSON(bytes, &payload)
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)

@@ -355,11 +355,11 @@ func splitPackageAndRule(path ast.Ref) (ast.Ref, ast.Ref) {
 // being saved. This check allows the evaluator to evaluate statements
 // completely during partial evaluation as long as they do not depend on any
 // kind of unknown value or statements that would generate saves.
-func saveRequired(c *ast.Compiler, ic *inliningControl, icIgnoreInternal bool, ss *saveSet, b *bindings, x interface{}, rec bool) bool {
+func saveRequired(c *ast.Compiler, ic *inliningControl, icIgnoreInternal bool, ss *saveSet, b *bindings, x any, rec bool) bool {
 
 	var found bool
 
-	vis := ast.NewGenericVisitor(func(node interface{}) bool {
+	vis := ast.NewGenericVisitor(func(node any) bool {
 		if found {
 			return found
 		}

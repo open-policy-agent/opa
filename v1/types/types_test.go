@@ -230,7 +230,7 @@ func TestSelect(t *testing.T) {
 	tests := []struct {
 		note     string
 		a        Type
-		k        interface{}
+		k        any
 		expected Type
 	}{
 		{"static", NewArray([]Type{S}, nil), json.Number("0"), S},
@@ -325,8 +325,8 @@ func TestValues(t *testing.T) {
 }
 
 func TestTypeOf(t *testing.T) {
-	tpe := TypeOf(map[interface{}]interface{}{
-		"foo": []interface{}{
+	tpe := TypeOf(map[any]any{
+		"foo": []any{
 			json.Number("1"), true, nil, "hello",
 		},
 	})
@@ -345,7 +345,7 @@ func TestTypeOf(t *testing.T) {
 }
 
 func TestTypeOfMapOfString(t *testing.T) {
-	tpe := TypeOf(map[string]interface{}{
+	tpe := TypeOf(map[string]any{
 		"foo": "bar",
 		"baz": "qux",
 	})

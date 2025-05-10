@@ -10,9 +10,9 @@ import (
 
 func TestHeader(t *testing.T) {
 
-	privateHeaderParams := map[string]interface{}{"one": "1", "two": "11"}
+	privateHeaderParams := map[string]any{"one": "1", "two": "11"}
 	t.Run("RoundTrip", func(t *testing.T) {
-		values := map[string]interface{}{
+		values := map[string]any{
 			jwk.KeyIDKey:         "helloworld01",
 			jwk.KeyTypeKey:       jwa.RSA,
 			jwk.KeyOpsKey:        jwk.KeyOperationList{jwk.KeyOpSign},
@@ -49,7 +49,7 @@ func TestHeader(t *testing.T) {
 			dummy2 float64
 		}
 		dummy := &dummyStruct{1, 3.4}
-		values := map[string]interface{}{
+		values := map[string]any{
 			jwk.AlgorithmKey:     dummy,
 			jwk.KeyIDKey:         dummy,
 			jwk.KeyTypeKey:       dummy,
@@ -92,7 +92,7 @@ func TestHeader(t *testing.T) {
 			dummy2 float64
 		}
 		dummy := &dummyStruct{1, 3.4}
-		values := map[string]interface{}{
+		values := map[string]any{
 			jwk.AlgorithmKey:     jwa.SignatureAlgorithm("dummy"),
 			jwk.KeyIDKey:         1,
 			jwk.KeyTypeKey:       jwa.KeyType("dummy"),
@@ -131,7 +131,7 @@ func TestHeader(t *testing.T) {
 
 	t.Run("Algorithm", func(t *testing.T) {
 		var h jwk.StandardHeaders
-		for _, value := range []interface{}{jwa.RS256, jwa.ES256} {
+		for _, value := range []any{jwa.RS256, jwa.ES256} {
 			err := h.Set("alg", value)
 			if err != nil {
 				t.Fatalf("Failed to set algorithm value: %s", err.Error())
@@ -147,7 +147,7 @@ func TestHeader(t *testing.T) {
 	})
 	t.Run("KeyType", func(t *testing.T) {
 		var h jwk.StandardHeaders
-		for _, value := range []interface{}{jwa.RSA, "RSA"} {
+		for _, value := range []any{jwa.RSA, "RSA"} {
 			err := h.Set(jwk.KeyTypeKey, value)
 			if err != nil {
 				t.Fatalf("failed to set key type: %s", err.Error())

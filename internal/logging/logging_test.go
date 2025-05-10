@@ -143,11 +143,11 @@ public_servers[server] {
 func TestPrettyFormatterMultilineJSONFields(t *testing.T) {
 	fmtr := prettyFormatter{}
 
-	obj := map[string]interface{}{
+	obj := map[string]any{
 		"a": 123,
 		"b": nil,
 		"d": "abc",
-		"e": map[string]interface{}{
+		"e": map[string]any{
 			"test": []string{
 				"aa",
 				"bb",

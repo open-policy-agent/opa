@@ -864,13 +864,13 @@ func TestAnnotationsString(t *testing.T) {
 				Schema: MustParseRef("schema.baz"),
 			},
 		},
-		Custom: map[string]interface{}{
+		Custom: map[string]any{
 			"list": []int{
 				1, 2, 3,
 			},
-			"map": map[string]interface{}{
+			"map": map[string]any{
 				"one": 1,
-				"two": map[int]interface{}{
+				"two": map[int]any{
 					3: "three",
 				},
 			},

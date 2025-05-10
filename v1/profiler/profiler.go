@@ -281,7 +281,7 @@ type ExprStats struct {
 // ExprStatsAggregated represents the result of profiling an expression
 // by aggregating `n` profiles.
 type ExprStatsAggregated struct {
-	ExprTimeNsStats interface{}   `json:"total_time_ns_stats"`
+	ExprTimeNsStats any           `json:"total_time_ns_stats"`
 	NumEval         int           `json:"num_eval"`
 	NumRedo         int           `json:"num_redo"`
 	NumGenExpr      int           `json:"num_gen_expr"`

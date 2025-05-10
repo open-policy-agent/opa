@@ -10,7 +10,7 @@ import (
 )
 
 // All returns the list of data ast.Refs that the given AST element depends on.
-func All(x interface{}) (resolved []ast.Ref, err error) {
+func All(x any) (resolved []ast.Ref, err error) {
 	return v1.All(x)
 }
 
@@ -20,7 +20,7 @@ func All(x interface{}) (resolved []ast.Ref, err error) {
 //
 // As an example, if an element depends on data.x and data.x.y, only data.x will
 // be in the returned list.
-func Minimal(x interface{}) (resolved []ast.Ref, err error) {
+func Minimal(x any) (resolved []ast.Ref, err error) {
 	return v1.Minimal(x)
 }
 
@@ -28,7 +28,7 @@ func Minimal(x interface{}) (resolved []ast.Ref, err error) {
 //
 // The returned refs are always constant and are truncated at any point where they become
 // dynamic. That is, a ref like data.a.b[x] will be truncated to data.a.b.
-func Base(compiler *ast.Compiler, x interface{}) ([]ast.Ref, error) {
+func Base(compiler *ast.Compiler, x any) ([]ast.Ref, error) {
 	return v1.Base(compiler, x)
 }
 
@@ -37,6 +37,6 @@ func Base(compiler *ast.Compiler, x interface{}) ([]ast.Ref, error) {
 //
 // The returned refs are always constant and are truncated at any point where they become
 // dynamic. That is, a ref like data.a.b[x] will be truncated to data.a.b.
-func Virtual(compiler *ast.Compiler, x interface{}) ([]ast.Ref, error) {
+func Virtual(compiler *ast.Compiler, x any) ([]ast.Ref, error) {
 	return v1.Virtual(compiler, x)
 }

@@ -351,7 +351,7 @@ func (p *testPlugin) Stop(context.Context) {
 	p.m.UpdatePluginStatus("p1", &Status{State: StateNotReady})
 }
 
-func (p *testPlugin) Reconfigure(context.Context, interface{}) {
+func (p *testPlugin) Reconfigure(context.Context, any) {
 	p.m.UpdatePluginStatus("p1", &Status{State: StateNotReady})
 }
 
@@ -488,8 +488,8 @@ func (m *mockForInitStartOrdering) Start(_ context.Context) error {
 	return errors.New("expected manager to be initialized")
 }
 
-func (*mockForInitStartOrdering) Stop(context.Context)                     {}
-func (*mockForInitStartOrdering) Reconfigure(context.Context, interface{}) {}
+func (*mockForInitStartOrdering) Stop(context.Context)             {}
+func (*mockForInitStartOrdering) Reconfigure(context.Context, any) {}
 
 func TestPluginManagerAuthPlugin(t *testing.T) {
 	m, err := New([]byte(`{"plugins": {"someplugin": {}}}`), "test", inmem.New())
@@ -521,7 +521,7 @@ func TestPluginManagerAuthPlugin(t *testing.T) {
 
 func TestPluginManagerLogger(t *testing.T) {
 
-	logger := logging.Get().WithFields(map[string]interface{}{"context": "myloggincontext"})
+	logger := logging.Get().WithFields(map[string]any{"context": "myloggincontext"})
 
 	m, err := New([]byte(`{}`), "test", inmem.New(), Logger(logger))
 	if err != nil {
@@ -543,14 +543,14 @@ func TestPluginManagerConsoleLogger(t *testing.T) {
 
 	const fieldKey = "foo"
 	const fieldValue = "bar"
-	mgr.ConsoleLogger().WithFields(map[string]interface{}{fieldKey: fieldValue}).Info("Some message")
+	mgr.ConsoleLogger().WithFields(map[string]any{fieldKey: fieldValue}).Info("Some message")
 
 	entries := consoleLogger.Entries()
 
 	exp := []test.LogEntry{
 		{
 			Level:   logging.Info,
-			Fields:  map[string]interface{}{fieldKey: fieldValue},
+			Fields:  map[string]any{fieldKey: fieldValue},
 			Message: "Some message",
 		},
 	}
@@ -643,7 +643,7 @@ func (*myAuthPluginMock) Start(context.Context) error {
 }
 func (*myAuthPluginMock) Stop(context.Context) {
 }
-func (*myAuthPluginMock) Reconfigure(context.Context, interface{}) {
+func (*myAuthPluginMock) Reconfigure(context.Context, any) {
 }
 
 type prometheusRegisterMock struct {

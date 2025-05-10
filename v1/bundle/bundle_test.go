@@ -71,12 +71,12 @@ func TestManifestEqual(t *testing.T) {
 	m.WasmResolvers[0].Module = "yyy"
 	assertEqual()
 
-	n.Metadata = map[string]interface{}{
+	n.Metadata = map[string]any{
 		"foo": "bar",
 	}
 	assertNotEqual()
 
-	m.Metadata = map[string]interface{}{
+	m.Metadata = map[string]any{
 		"foo": "bar",
 	}
 	assertEqual()
@@ -380,19 +380,19 @@ func testReadBundle(t *testing.T, baseDir string, useMemoryFS bool) {
 
 	exp := Bundle{
 		Manifest: expManifest,
-		Data: map[string]interface{}{
-			"a": map[string]interface{}{
-				"b": map[string]interface{}{
-					"c": []interface{}{json.Number("1"), json.Number("2"), json.Number("3")},
+		Data: map[string]any{
+			"a": map[string]any{
+				"b": map[string]any{
+					"c": []any{json.Number("1"), json.Number("2"), json.Number("3")},
 					"d": true,
 					"g": json.Number("1"),
-					"y": map[string]interface{}{
+					"y": map[string]any{
 						"foo": json.Number("1"),
 					},
 					"z": true,
 				},
 			},
-			"x": map[string]interface{}{
+			"x": map[string]any{
 				"y": true,
 			},
 		},
@@ -456,7 +456,7 @@ func TestManifestMetadata(t *testing.T) {
 	if bundle.Manifest.Metadata["foo"] == nil {
 		t.Fatal("Unexpected nil metadata key")
 	}
-	data, ok := bundle.Manifest.Metadata["foo"].(map[string]interface{})
+	data, ok := bundle.Manifest.Metadata["foo"].(map[string]any)
 	if !ok {
 		t.Fatal("Unexpected structure in metadata")
 	}
@@ -475,9 +475,9 @@ func TestReadWithManifestInData(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	system := bundle.Data["system"].(map[string]interface{})
-	b := system["bundle"].(map[string]interface{})
-	m := b["manifest"].(map[string]interface{})
+	system := bundle.Data["system"].(map[string]any)
+	b := system["bundle"].(map[string]any)
+	m := b["manifest"].(map[string]any)
 
 	if m["revision"] != "quickbrownfaux" {
 		t.Fatalf("Unexpected manifest.revision value: %v. Expected: %v", m["revision"], "quickbrownfaux")
@@ -1141,9 +1141,9 @@ func TestReadErrorBadContents(t *testing.T) {
 func TestRoundtripDeprecatedWrite(t *testing.T) {
 
 	bundle := Bundle{
-		Data: map[string]interface{}{
-			"foo": map[string]interface{}{
-				"bar": []interface{}{json.Number("1"), json.Number("2"), json.Number("3")},
+		Data: map[string]any{
+			"foo": map[string]any{
+				"bar": []any{json.Number("1"), json.Number("2"), json.Number("3")},
 				"baz": true,
 				"qux": "hello",
 			},
@@ -1188,9 +1188,9 @@ func TestRoundtripDeprecatedWrite(t *testing.T) {
 func TestRoundtrip(t *testing.T) {
 
 	bundle := Bundle{
-		Data: map[string]interface{}{
-			"foo": map[string]interface{}{
-				"bar": []interface{}{json.Number("1"), json.Number("2"), json.Number("3")},
+		Data: map[string]any{
+			"foo": map[string]any{
+				"bar": []any{json.Number("1"), json.Number("2"), json.Number("3")},
 				"baz": true,
 				"qux": "hello",
 			},
@@ -1213,7 +1213,7 @@ func TestRoundtrip(t *testing.T) {
 		Manifest: Manifest{
 			Roots:    &[]string{""},
 			Revision: "quickbrownfaux",
-			Metadata: map[string]interface{}{"version": "v1", "hello": "world"},
+			Metadata: map[string]any{"version": "v1", "hello": "world"},
 		},
 	}
 
@@ -1246,7 +1246,7 @@ func TestRoundtrip(t *testing.T) {
 func TestRoundtripWithPlanModules(t *testing.T) {
 
 	b := Bundle{
-		Data: map[string]interface{}{},
+		Data: map[string]any{},
 		PlanModules: []PlanModuleFile{
 			{
 				URL:  "/plan.json",
@@ -1317,7 +1317,7 @@ func TestRoundtripDeltaBundle(t *testing.T) {
 func TestWriterUsePath(t *testing.T) {
 
 	bundle := Bundle{
-		Data: map[string]interface{}{},
+		Data: map[string]any{},
 		Modules: []ModuleFile{
 			{
 				URL:    "/url.rego",
@@ -1348,7 +1348,7 @@ func TestWriterUsePath(t *testing.T) {
 func TestWriterSkipEmptyManifest(t *testing.T) {
 
 	bundle := Bundle{
-		Data:     map[string]interface{}{},
+		Data:     map[string]any{},
 		Manifest: Manifest{},
 	}
 
@@ -1383,9 +1383,9 @@ func TestGenerateSignature(t *testing.T) {
 	signatures := SignaturesConfig{Signatures: []string{"some_token"}}
 
 	bundle := Bundle{
-		Data: map[string]interface{}{
-			"foo": map[string]interface{}{
-				"bar": []interface{}{json.Number("1"), json.Number("2"), json.Number("3")},
+		Data: map[string]any{
+			"foo": map[string]any{
+				"bar": []any{json.Number("1"), json.Number("2"), json.Number("3")},
 				"baz": true,
 				"qux": "hello",
 			},
@@ -1431,9 +1431,9 @@ func TestGenerateSignatureWithPlugin(t *testing.T) {
 	signatures := SignaturesConfig{Signatures: []string{"some_token"}, Plugin: "_foo"}
 
 	bundle := Bundle{
-		Data: map[string]interface{}{
-			"foo": map[string]interface{}{
-				"bar": []interface{}{json.Number("1"), json.Number("2"), json.Number("3")},
+		Data: map[string]any{
+			"foo": map[string]any{
+				"bar": []any{json.Number("1"), json.Number("2"), json.Number("3")},
 				"baz": true,
 				"qux": "hello",
 			},
@@ -1571,17 +1571,17 @@ func TestHashBundleFiles(t *testing.T) {
 	h, _ := NewSignatureHasher(SHA256)
 
 	tests := map[string]struct {
-		data     map[string]interface{}
+		data     map[string]any
 		manifest Manifest
 		wasm     []byte
 		plan     []byte
 		exp      int
 	}{
-		"no_content":                 {map[string]interface{}{}, Manifest{}, nil, nil, 1},
-		"data":                       {map[string]interface{}{"foo": "bar"}, Manifest{}, nil, nil, 1},
-		"data_and_manifest":          {map[string]interface{}{"foo": "bar"}, Manifest{Revision: "quickbrownfaux"}, []byte{}, nil, 2},
-		"data_and_manifest_and_wasm": {map[string]interface{}{"foo": "bar"}, Manifest{Revision: "quickbrownfaux"}, []byte("modules-compiled-as-wasm-binary"), nil, 3},
-		"data_and_plan":              {map[string]interface{}{"foo": "bar"}, Manifest{Revision: "quickbrownfaux"}, nil, []byte("not a plan but good enough"), 3},
+		"no_content":                 {map[string]any{}, Manifest{}, nil, nil, 1},
+		"data":                       {map[string]any{"foo": "bar"}, Manifest{}, nil, nil, 1},
+		"data_and_manifest":          {map[string]any{"foo": "bar"}, Manifest{Revision: "quickbrownfaux"}, []byte{}, nil, 2},
+		"data_and_manifest_and_wasm": {map[string]any{"foo": "bar"}, Manifest{Revision: "quickbrownfaux"}, []byte("modules-compiled-as-wasm-binary"), nil, 3},
+		"data_and_plan":              {map[string]any{"foo": "bar"}, Manifest{Revision: "quickbrownfaux"}, nil, []byte("not a plan but good enough"), 3},
 	}
 
 	for name, tc := range tests {
@@ -1611,7 +1611,7 @@ func TestHashBundleFiles(t *testing.T) {
 func TestWriterUseURL(t *testing.T) {
 
 	bundle := Bundle{
-		Data: map[string]interface{}{},
+		Data: map[string]any{},
 		Modules: []ModuleFile{
 			{
 				URL:    "/url.rego",
@@ -1824,7 +1824,7 @@ func TestMerge(t *testing.T) {
 					},
 					RegoVersion: &expRegoVersion,
 				},
-				Data: map[string]interface{}{},
+				Data: map[string]any{},
 			},
 		},
 		{
@@ -1883,7 +1883,7 @@ func TestMerge(t *testing.T) {
 						Raw:         []byte("not really wasm, but good enough"),
 					},
 				},
-				Data: map[string]interface{}{},
+				Data: map[string]any{},
 			},
 		},
 		{
@@ -1938,7 +1938,7 @@ func TestMerge(t *testing.T) {
 						Raw:    []byte("package baz"),
 					},
 				},
-				Data: map[string]interface{}{},
+				Data: map[string]any{},
 			},
 		},
 		{
@@ -1950,8 +1950,8 @@ func TestMerge(t *testing.T) {
 							"foo/bar",
 						},
 					},
-					Data: map[string]interface{}{
-						"foo": map[string]interface{}{
+					Data: map[string]any{
+						"foo": map[string]any{
 							"bar": "val1",
 						},
 					},
@@ -1962,7 +1962,7 @@ func TestMerge(t *testing.T) {
 							"baz",
 						},
 					},
-					Data: map[string]interface{}{
+					Data: map[string]any{
 						"baz": "val2",
 					},
 				},
@@ -1975,8 +1975,8 @@ func TestMerge(t *testing.T) {
 					},
 					RegoVersion: &expRegoVersion,
 				},
-				Data: map[string]interface{}{
-					"foo": map[string]interface{}{
+				Data: map[string]any{
+					"foo": map[string]any{
 						"bar": "val1",
 					},
 					"baz": "val2",
@@ -1992,7 +1992,7 @@ func TestMerge(t *testing.T) {
 							"foo/bar",
 						},
 					},
-					Data: map[string]interface{}{},
+					Data: map[string]any{},
 				},
 				{
 					Manifest: Manifest{
@@ -2000,7 +2000,7 @@ func TestMerge(t *testing.T) {
 							"baz",
 						},
 					},
-					Data: map[string]interface{}{},
+					Data: map[string]any{},
 				},
 			},
 			wantBundle: &Bundle{
@@ -2011,7 +2011,7 @@ func TestMerge(t *testing.T) {
 					},
 					RegoVersion: &expRegoVersion,
 				},
-				Data: map[string]interface{}{},
+				Data: map[string]any{},
 			},
 		},
 		{
@@ -2043,7 +2043,7 @@ func TestMerge(t *testing.T) {
 				},
 			},
 			wantBundle: &Bundle{
-				Data: map[string]interface{}{},
+				Data: map[string]any{},
 				Manifest: Manifest{
 					Roots:       &[]string{"a", "b"},
 					RegoVersion: &expRegoVersion,

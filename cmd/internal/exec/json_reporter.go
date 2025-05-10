@@ -64,7 +64,7 @@ func (jr *jsonReporter) StoreDecision(input *any, itemPath string) {
 
 	if jr.params.FailNonEmpty && rs.Result != nil {
 		// Check if rs.Result is an array and has one or more members
-		resultArray, isArray := rs.Result.([]interface{})
+		resultArray, isArray := rs.Result.([]any)
 		if (!isArray) || (isArray && (len(resultArray) > 0)) {
 			jr.failCount++
 		}

@@ -25,12 +25,12 @@ func TestParseTrue(t *testing.T) {
 	var tests = []struct {
 		name  string
 		input string
-		ans   map[string]interface{}
+		ans   map[string]any
 	}{
 		{
 			"Test uuid 1",
 			"c2fc67c2-47f2-11ee-b67a-9f3619c7493f",
-			map[string]interface{}{
+			map[string]any{
 				"version":       1,
 				"variant":       "RFC4122",
 				"nodeid":        "9f-36-19-c7-49-3f",
@@ -41,7 +41,7 @@ func TestParseTrue(t *testing.T) {
 		{
 			"Test uuid 2",
 			"000003e8-48b9-21ee-b200-325096b39f47",
-			map[string]interface{}{
+			map[string]any{
 				"version":       2,
 				"variant":       "RFC4122",
 				"nodeid":        "32-50-96-b3-9f-47",
@@ -55,7 +55,7 @@ func TestParseTrue(t *testing.T) {
 		{
 			"Test uuid 3",
 			"6bea8ef2-d3d3-3cd1-84e0-9bab06a52ece",
-			map[string]interface{}{
+			map[string]any{
 				"version": 3,
 				"variant": "RFC4122",
 			},
@@ -63,12 +63,12 @@ func TestParseTrue(t *testing.T) {
 		{
 			"Test uuid 4",
 			"00000000-0000-4000-8000-000000000000",
-			map[string]interface{}{"version": 4, "variant": "RFC4122"},
+			map[string]any{"version": 4, "variant": "RFC4122"},
 		},
 		{
 			"Test uuid 5",
 			"00000000-0000-5cd1-84e0-9bab06a52ece",
-			map[string]interface{}{
+			map[string]any{
 				"version": 5,
 				"variant": "RFC4122",
 			},
@@ -76,7 +76,7 @@ func TestParseTrue(t *testing.T) {
 		{
 			"Test future version and variant",
 			"00000000-0000-fcd1-f4e0-9bab06a52ece",
-			map[string]interface{}{
+			map[string]any{
 				"version": 15,
 				"variant": "Future",
 			},
@@ -84,7 +84,7 @@ func TestParseTrue(t *testing.T) {
 		{
 			"Test urn format",
 			"urn:uuid:c2fc67c2-47f2-11ee-b67a-9f3619c7493f",
-			map[string]interface{}{
+			map[string]any{
 				"version":       1,
 				"variant":       "RFC4122",
 				"nodeid":        "9f-36-19-c7-49-3f",
@@ -95,7 +95,7 @@ func TestParseTrue(t *testing.T) {
 		{
 			"Test uuid with brackets",
 			"{000003e8-48b9-21ee-b200-325096b39f47}",
-			map[string]interface{}{
+			map[string]any{
 				"version":       2,
 				"variant":       "RFC4122",
 				"nodeid":        "32-50-96-b3-9f-47",
@@ -109,7 +109,7 @@ func TestParseTrue(t *testing.T) {
 		{
 			"Test uuid without dashes",
 			"00000000000040008000000000000000",
-			map[string]interface{}{"version": 4, "variant": "RFC4122"},
+			map[string]any{"version": 4, "variant": "RFC4122"},
 		},
 	}
 	for _, tt := range tests {

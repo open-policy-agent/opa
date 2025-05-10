@@ -112,8 +112,8 @@ func (Br) Op() opcode.Opcode {
 }
 
 // ImmediateArgs returns the block index to break to.
-func (i Br) ImmediateArgs() []interface{} {
-	return []interface{}{i.Index}
+func (i Br) ImmediateArgs() []any {
+	return []any{i.Index}
 }
 
 // BrIf represents a WASM br_if instruction.
@@ -127,8 +127,8 @@ func (BrIf) Op() opcode.Opcode {
 }
 
 // ImmediateArgs returns the block index to break to.
-func (i BrIf) ImmediateArgs() []interface{} {
-	return []interface{}{i.Index}
+func (i BrIf) ImmediateArgs() []any {
+	return []any{i.Index}
 }
 
 // Call represents a WASM call instruction.
@@ -142,8 +142,8 @@ func (Call) Op() opcode.Opcode {
 }
 
 // ImmediateArgs returns the function index.
-func (i Call) ImmediateArgs() []interface{} {
-	return []interface{}{i.Index}
+func (i Call) ImmediateArgs() []any {
+	return []any{i.Index}
 }
 
 // CallIndirect represents a WASM call_indirect instruction.
@@ -158,8 +158,8 @@ func (CallIndirect) Op() opcode.Opcode {
 }
 
 // ImmediateArgs returns the function index.
-func (i CallIndirect) ImmediateArgs() []interface{} {
-	return []interface{}{i.Index, i.Reserved}
+func (i CallIndirect) ImmediateArgs() []any {
+	return []any{i.Index, i.Reserved}
 }
 
 // Return represents a WASM return instruction.

@@ -438,7 +438,7 @@ func compileRego(module string, query string) rego.PreparedEvalQuery {
 	return pq
 }
 
-func parseJSON(s string) *interface{} {
+func parseJSON(s string) *any {
 	if s == "" {
 		return nil
 	}

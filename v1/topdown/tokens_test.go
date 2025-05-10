@@ -653,7 +653,7 @@ func TestTopdownJWTVerifyOnlyVerifiesUsingApplicableKeys(t *testing.T) {
 			token := ast.MustInterfaceToValue(fmt.Sprintf("%s.%s.%s", header, payload, signature))
 
 			verifyCalls := 0
-			verifier := func(_ interface{}, _ []byte, _ []byte) error {
+			verifier := func(_ any, _ []byte, _ []byte) error {
 				verifyCalls++
 				return errors.New("fail")
 			}

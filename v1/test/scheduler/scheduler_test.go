@@ -28,7 +28,7 @@ func TestScheduler(t *testing.T) {
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
-	ws := rs[0].Expressions[0].Value.(map[string]interface{})
+	ws := rs[0].Expressions[0].Value.(map[string]any)
 	if len(ws) != 10 {
 		t.Fatal("unexpected query result:", rs)
 	}

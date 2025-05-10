@@ -22,7 +22,7 @@ const (
 	BadArgsErr string = "bad arguments"
 )
 
-func newBadArgsErr(f string, a ...interface{}) *Error {
+func newBadArgsErr(f string, a ...any) *Error {
 	return &Error{
 		Code:    BadArgsErr,
 		Message: fmt.Sprintf(f, a...),

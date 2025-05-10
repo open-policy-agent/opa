@@ -137,7 +137,7 @@ func (h *Basic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			h.inner.ServeHTTP(w, r)
 			return
 		}
-	case map[string]interface{}:
+	case map[string]any:
 		if decision, ok := allowed["allowed"]; ok {
 			if allow, ok := decision.(bool); ok && allow {
 				h.inner.ServeHTTP(w, r)
@@ -158,7 +158,7 @@ func (h *Basic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	writer.Error(w, http.StatusUnauthorized, types.NewErrorV1(types.CodeUnauthorized, types.MsgUnauthorizedError))
 }
 
-func makeInput(r *http.Request) (*http.Request, interface{}, error) {
+func makeInput(r *http.Request) (*http.Request, any, error) {
 	path, err := parsePath(r.URL.Path)
 	if err != nil {
 		return r, nil, err
@@ -177,7 +177,7 @@ func makeInput(r *http.Request) (*http.Request, interface{}, error) {
 		}
 	}
 
-	input := map[string]interface{}{
+	input := map[string]any{
 		"path":    path,
 		"method":  method,
 		"params":  query,
@@ -185,7 +185,7 @@ func makeInput(r *http.Request) (*http.Request, interface{}, error) {
 	}
 
 	if len(rawBody) > 0 {
-		var body interface{}
+		var body any
 		if expectYAML(r) {
 			if err := util.Unmarshal(rawBody, &body); err != nil {
 				return r, nil, err
@@ -219,7 +219,7 @@ var dataAPIVersions = map[string]bool{
 	"v1": true,
 }
 
-func expectBody(method string, path []interface{}) bool {
+func expectBody(method string, path []any) bool {
 	if method == http.MethodPost {
 		if len(path) == 1 {
 			s := path[0].(string)
@@ -240,9 +240,9 @@ func expectYAML(r *http.Request) bool {
 	return strings.Contains(r.Header.Get("Content-Type"), "yaml")
 }
 
-func parsePath(path string) ([]interface{}, error) {
+func parsePath(path string) ([]any, error) {
 	if len(path) == 0 {
-		return []interface{}{}, nil
+		return []any{}, nil
 	}
 	parts := strings.Split(path[1:], "/")
 	for i := range parts {
@@ -252,7 +252,7 @@ func parsePath(path string) ([]interface{}, error) {
 			return nil, err
 		}
 	}
-	sl := make([]interface{}, len(parts))
+	sl := make([]any, len(parts))
 	for i := range sl {
 		sl[i] = parts[i]
 	}
@@ -260,7 +260,7 @@ func parsePath(path string) ([]interface{}, error) {
 }
 
 type authorizerCachedBody struct {
-	parsed interface{}
+	parsed any
 }
 
 type authorizerCachedBodyKey string
@@ -269,7 +269,7 @@ const ctxkey authorizerCachedBodyKey = "authorizerCachedBodyKey"
 
 // SetBodyOnContext adds the parsed input value to the context. This function is only
 // exposed for test purposes.
-func SetBodyOnContext(ctx context.Context, x interface{}) context.Context {
+func SetBodyOnContext(ctx context.Context, x any) context.Context {
 	return context.WithValue(ctx, ctxkey, authorizerCachedBody{
 		parsed: x,
 	})
@@ -277,7 +277,7 @@ func SetBodyOnContext(ctx context.Context, x interface{}) context.Context {
 
 // GetBodyOnContext returns the parsed input from the request context if it exists.
 // The authorizer saves the parsed input on the context when it runs.
-func GetBodyOnContext(ctx context.Context) (interface{}, bool) {
+func GetBodyOnContext(ctx context.Context) (any, bool) {
 	input, ok := ctx.Value(ctxkey).(authorizerCachedBody)
 	if !ok {
 		return nil, false

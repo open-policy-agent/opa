@@ -46,7 +46,7 @@ func TestHTTPSendTimeout(t *testing.T) {
 		defaultTimeout time.Duration
 		evalTimeout    time.Duration
 		serverDelay    time.Duration
-		expected       interface{}
+		expected       any
 	}{
 		{
 			note:     "no timeout",
@@ -116,7 +116,7 @@ func TestHTTPSendTimeout(t *testing.T) {
 			e.Message = strings.ReplaceAll(e.Message, "%URL%", ts.URL)
 		}
 
-		runTopDownTestCaseWithContext(ctx, t, map[string]interface{}{}, tc.note, append(httpSendHelperRules, rule), nil, tc.input, tc.expected)
+		runTopDownTestCaseWithContext(ctx, t, map[string]any{}, tc.note, append(httpSendHelperRules, rule), nil, tc.input, tc.expected)
 
 		// Put back the default (may not have changed)
 		defaultHTTPRequestTimeout = originalDefaultTimeout

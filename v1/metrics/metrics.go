@@ -48,13 +48,13 @@ type Metrics interface {
 	Timer(name string) Timer
 	Histogram(name string) Histogram
 	Counter(name string) Counter
-	All() map[string]interface{}
+	All() map[string]any
 	Clear()
 	json.Marshaler
 }
 
 type TimerMetrics interface {
-	Timers() map[string]interface{}
+	Timers() map[string]any
 }
 
 type metrics struct {
@@ -73,7 +73,7 @@ func New() Metrics {
 
 type metric struct {
 	Key   string
-	Value interface{}
+	Value any
 }
 
 func (*metrics) Info() Info {
@@ -144,10 +144,10 @@ func (m *metrics) Counter(name string) Counter {
 	return c
 }
 
-func (m *metrics) All() map[string]interface{} {
+func (m *metrics) All() map[string]any {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	result := map[string]interface{}{}
+	result := map[string]any{}
 	for name, timer := range m.timers {
 		result[m.formatKey(name, timer)] = timer.Value()
 	}
@@ -160,10 +160,10 @@ func (m *metrics) All() map[string]interface{} {
 	return result
 }
 
-func (m *metrics) Timers() map[string]interface{} {
+func (m *metrics) Timers() map[string]any {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	ts := map[string]interface{}{}
+	ts := map[string]any{}
 	for n, t := range m.timers {
 		ts[m.formatKey(n, t)] = t.Value()
 	}
@@ -178,7 +178,7 @@ func (m *metrics) Clear() {
 	m.counters = map[string]Counter{}
 }
 
-func (*metrics) formatKey(name string, metrics interface{}) string {
+func (*metrics) formatKey(name string, metrics any) string {
 	switch metrics.(type) {
 	case Timer:
 		return "timer_" + name + "_ns"
@@ -194,7 +194,7 @@ func (*metrics) formatKey(name string, metrics interface{}) string {
 // Timer defines the interface for a restartable timer that accumulates elapsed
 // time.
 type Timer interface {
-	Value() interface{}
+	Value() any
 	Int64() int64
 	Start()
 	Stop() int64
@@ -220,7 +220,7 @@ func (t *timer) Stop() int64 {
 	return delta
 }
 
-func (t *timer) Value() interface{} {
+func (t *timer) Value() any {
 	return t.Int64()
 }
 
@@ -232,7 +232,7 @@ func (t *timer) Int64() int64 {
 
 // Histogram defines the interface for a histogram with hardcoded percentiles.
 type Histogram interface {
-	Value() interface{}
+	Value() any
 	Update(int64)
 }
 
@@ -253,8 +253,8 @@ func (h *histogram) Update(v int64) {
 	h.hist.Update(v)
 }
 
-func (h *histogram) Value() interface{} {
-	values := map[string]interface{}{}
+func (h *histogram) Value() any {
+	values := map[string]any{}
 	snap := h.hist.Snapshot()
 	percentiles := snap.Percentiles([]float64{
 		0.5,
@@ -282,7 +282,7 @@ func (h *histogram) Value() interface{} {
 
 // Counter defines the interface for a monotonic increasing counter.
 type Counter interface {
-	Value() interface{}
+	Value() any
 	Incr()
 	Add(n uint64)
 }
@@ -299,11 +299,11 @@ func (c *counter) Add(n uint64) {
 	atomic.AddUint64(&c.c, n)
 }
 
-func (c *counter) Value() interface{} {
+func (c *counter) Value() any {
 	return atomic.LoadUint64(&c.c)
 }
 
-func Statistics(num ...int64) interface{} {
+func Statistics(num ...int64) any {
 	t := newHistogram()
 	for _, n := range num {
 		t.Update(n)

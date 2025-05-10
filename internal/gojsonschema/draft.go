@@ -86,12 +86,12 @@ func (dc draftConfigs) GetSchemaURL(draft Draft) string {
 	return ""
 }
 
-func parseSchemaURL(documentNode interface{}) (string, *Draft, error) {
+func parseSchemaURL(documentNode any) (string, *Draft, error) {
 	if _, ok := documentNode.(bool); ok {
 		return "", nil, nil
 	}
 
-	m, ok := documentNode.(map[string]interface{})
+	m, ok := documentNode.(map[string]any)
 	if !ok {
 		return "", nil, errors.New("schema is invalid")
 	}

@@ -470,7 +470,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
-	var bootConfig map[string]interface{}
+	var bootConfig map[string]any
 	err = util.Unmarshal(config, &bootConfig)
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
@@ -557,7 +557,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		rt.Params.DiagnosticAddrs = &[]string{}
 	}
 
-	rt.logger.WithFields(map[string]interface{}{
+	rt.logger.WithFields(map[string]any{
 		"addrs":            *rt.Params.Addrs,
 		"diagnostic-addrs": *rt.Params.DiagnosticAddrs,
 	}).Info(serverInitializingMessage)
@@ -571,17 +571,17 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	// NOTE(tsandall): at some point, hopefully we can remove this because the
 	// Go runtime will just do the right thing. Until then, try to set
 	// GOMAXPROCS based on the CPU quota applied to the process.
-	undo, err := maxprocs.Set(maxprocs.Logger(func(f string, a ...interface{}) {
+	undo, err := maxprocs.Set(maxprocs.Logger(func(f string, a ...any) {
 		rt.logger.Debug(f, a...)
 	}))
 	if err != nil {
-		rt.logger.WithFields(map[string]interface{}{"err": err}).Debug("Failed to set GOMAXPROCS from CPU quota.")
+		rt.logger.WithFields(map[string]any{"err": err}).Debug("Failed to set GOMAXPROCS from CPU quota.")
 	}
 
 	defer undo()
 
 	if err := rt.Manager.Start(ctx); err != nil {
-		rt.logger.WithFields(map[string]interface{}{"err": err}).Error("Failed to start plugins.")
+		rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to start plugins.")
 		return err
 	}
 
@@ -589,7 +589,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 
 	if rt.traceExporter != nil {
 		if err := rt.traceExporter.Start(ctx); err != nil {
-			rt.logger.WithFields(map[string]interface{}{"err": err}).Error("Failed to start OpenTelemetry trace exporter.")
+			rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to start OpenTelemetry trace exporter.")
 			return err
 		}
 	}
@@ -648,13 +648,13 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	defer cancel()
 	rt.server, err = rt.server.Init(ctx)
 	if err != nil {
-		rt.logger.WithFields(map[string]interface{}{"err": err}).Error("Unable to initialize server.")
+		rt.logger.WithFields(map[string]any{"err": err}).Error("Unable to initialize server.")
 		return err
 	}
 
 	if rt.Params.Watch {
 		if err := rt.startWatcher(ctx, rt.Params.Paths, rt.onReloadLogger); err != nil {
-			rt.logger.WithFields(map[string]interface{}{"err": err}).Error("Unable to open watch.")
+			rt.logger.WithFields(map[string]any{"err": err}).Error("Unable to open watch.")
 			return err
 		}
 	}
@@ -678,13 +678,13 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	if err := rt.waitPluginsReady(
 		100*time.Millisecond,
 		time.Second*time.Duration(rt.Params.ReadyTimeout)); err != nil {
-		rt.logger.WithFields(map[string]interface{}{"err": err}).Error("Failed to wait for plugins activation.")
+		rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to wait for plugins activation.")
 		return err
 	}
 
 	loops, err := rt.server.Listeners()
 	if err != nil {
-		rt.logger.WithFields(map[string]interface{}{"err": err}).Error("Unable to create listeners.")
+		rt.logger.WithFields(map[string]any{"err": err}).Error("Unable to create listeners.")
 		return err
 	}
 
@@ -719,7 +719,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		case <-signalc:
 			return rt.gracefulServerShutdown(rt.server)
 		case err := <-errc:
-			rt.logger.WithFields(map[string]interface{}{"err": err}).Error("Listener failed.")
+			rt.logger.WithFields(map[string]any{"err": err}).Error("Listener failed.")
 			os.Exit(1) //nolint:gocritic
 		}
 	}
@@ -804,14 +804,14 @@ func (rt *Runtime) checkOPAUpdateLoopDurations(ctx context.Context, done chan st
 	for {
 		resp, err := rt.reporter.SendReport(ctx)
 		if err != nil {
-			rt.logger.WithFields(map[string]interface{}{"err": err}).Debug("Unable to send OPA version report.")
+			rt.logger.WithFields(map[string]any{"err": err}).Debug("Unable to send OPA version report.")
 		} else {
 			if resp.Latest.OPAUpToDate {
-				rt.logger.WithFields(map[string]interface{}{
+				rt.logger.WithFields(map[string]any{
 					"current_version": version.Version,
 				}).Debug("OPA is up to date.")
 			} else {
-				rt.logger.WithFields(map[string]interface{}{
+				rt.logger.WithFields(map[string]any{
 					"download_opa":    resp.Latest.Download,
 					"release_notes":   resp.Latest.ReleaseNotes,
 					"current_version": version.Version,
@@ -871,7 +871,7 @@ func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, p
 		removalMask := fsnotify.Remove | fsnotify.Rename
 		mask := fsnotify.Create | fsnotify.Write | removalMask
 		if (evt.Op & mask) != 0 {
-			rt.logger.WithFields(map[string]interface{}{
+			rt.logger.WithFields(map[string]any{
 				"event": evt.String(),
 			}).Debug("Registered file event.")
 			t0 := time.Now()
@@ -920,7 +920,7 @@ func (rt *Runtime) gracefulServerShutdown(s *server.Server) error {
 	defer cancel()
 	err := s.Shutdown(ctx)
 	if err != nil {
-		rt.logger.WithFields(map[string]interface{}{"err": err}).Error("Failed to shutdown server gracefully.")
+		rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to shutdown server gracefully.")
 		return err
 	}
 	rt.logger.Info("Server shutdown.")
@@ -928,7 +928,7 @@ func (rt *Runtime) gracefulServerShutdown(s *server.Server) error {
 	if rt.traceExporter != nil {
 		err = rt.traceExporter.Shutdown(ctx)
 		if err != nil {
-			rt.logger.WithFields(map[string]interface{}{"err": err}).Error("Failed to shutdown OpenTelemetry trace exporter gracefully.")
+			rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to shutdown OpenTelemetry trace exporter gracefully.")
 		}
 	}
 	return nil
@@ -955,7 +955,7 @@ func (rt *Runtime) waitPluginsReady(checkInterval, timeout time.Duration) error 
 }
 
 func (rt *Runtime) onReloadLogger(d time.Duration, err error) {
-	rt.logger.WithFields(map[string]interface{}{
+	rt.logger.WithFields(map[string]any{
 		"duration": d,
 		"err":      err,
 	}).Info("Processed file watch event.")
@@ -968,7 +968,7 @@ func (rt *Runtime) getWatcher(rootPaths []string) (*fsnotify.Watcher, error) {
 	}
 
 	for _, path := range watcher.WatchList() {
-		rt.logger.WithFields(map[string]interface{}{"path": path}).Debug("watching path")
+		rt.logger.WithFields(map[string]any{"path": path}).Debug("watching path")
 	}
 
 	return watcher, nil
@@ -993,8 +993,8 @@ func urlPathToConfigOverride(pathCount int, path string) ([]string, error) {
 	}, nil
 }
 
-func errorLogger(logger logging.Logger) func(attrs map[string]interface{}, f string, a ...interface{}) {
-	return func(attrs map[string]interface{}, f string, a ...interface{}) {
+func errorLogger(logger logging.Logger) func(attrs map[string]any, f string, a ...any) {
+	return func(attrs map[string]any, f string, a ...any) {
 		logger.WithFields(attrs).Error(f, a...)
 	}
 }

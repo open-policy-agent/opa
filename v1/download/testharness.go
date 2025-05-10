@@ -275,8 +275,8 @@ func newTestServer(t *testing.T) *testServer {
 				Manifest: bundle.Manifest{
 					Revision: "quickbrownfaux",
 				},
-				Data: map[string]interface{}{
-					"foo": map[string]interface{}{
+				Data: map[string]any{
+					"foo": map[string]any{
 						"bar": json.Number("1"),
 						"baz": "qux",
 					},
@@ -304,7 +304,7 @@ func newTestServer(t *testing.T) *testServer {
 				Manifest: bundle.Manifest{
 					Revision: "quickbrownfaux",
 				},
-				Data: map[string]interface{}{},
+				Data: map[string]any{},
 				Modules: []bundle.ModuleFile{
 					{
 						Path: `/example.rego`,
@@ -321,7 +321,7 @@ p contains 1 if {
 				Manifest: bundle.Manifest{
 					Revision: "quickbrownfaux",
 				},
-				Data: map[string]interface{}{},
+				Data: map[string]any{},
 				Modules: []bundle.ModuleFile{
 					{
 						Path: `/example.rego`,
@@ -339,7 +339,7 @@ p contains 1 if {
 				Manifest: bundle.Manifest{
 					Revision: "quickbrownfaux",
 				},
-				Data: map[string]interface{}{},
+				Data: map[string]any{},
 				Modules: []bundle.ModuleFile{
 					{
 						Path: `/example.rego`,

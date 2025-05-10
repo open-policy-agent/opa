@@ -12,8 +12,8 @@ import (
 func TestCompare(t *testing.T) {
 
 	tests := []struct {
-		a        interface{}
-		b        interface{}
+		a        any
+		b        any
 		expected int
 	}{
 		{nil, nil, 0},
@@ -32,18 +32,18 @@ func TestCompare(t *testing.T) {
 		{"", "", 0},
 		{"hello", "", 1},
 		{"hello world", "hello worldz", -1},
-		{[]interface{}{}, "", 1},
-		{[]interface{}{}, []interface{}{}, 0},
-		{[]interface{}{true, false}, []interface{}{true, nil}, 1},
-		{[]interface{}{true, true}, []interface{}{true, true}, 0},
-		{[]interface{}{true, false}, []interface{}{true, true}, -1},
-		{map[string]interface{}{}, []interface{}{}, 1},
-		{map[string]interface{}{"foo": []interface{}{true, false}, "bar": []interface{}{true, true}}, map[string]interface{}{"foo": []interface{}{true, false}, "bar": []interface{}{true, true}}, 0},
-		{map[string]interface{}{"foo": []interface{}{true, false}, "bar": []interface{}{true, nil}}, map[string]interface{}{"foo": []interface{}{true, false}, "bar": []interface{}{true, true}}, -1},
-		{map[string]interface{}{"foo": []interface{}{true, true}, "bar": []interface{}{true, true}}, map[string]interface{}{"foo": []interface{}{true, false}, "bar": []interface{}{true, true}}, 1},
-		{map[string]interface{}{"foo": true, "barr": false}, map[string]interface{}{"foo": true, "bar": false}, 1},
-		{map[string]interface{}{"foo": true, "bar": false, "qux": false}, map[string]interface{}{"foo": true, "bar": false}, 1},
-		{map[string]interface{}{"foo": true, "bar": false, "baz": false}, map[string]interface{}{"foo": true, "bar": false}, -1},
+		{[]any{}, "", 1},
+		{[]any{}, []any{}, 0},
+		{[]any{true, false}, []any{true, nil}, 1},
+		{[]any{true, true}, []any{true, true}, 0},
+		{[]any{true, false}, []any{true, true}, -1},
+		{map[string]any{}, []any{}, 1},
+		{map[string]any{"foo": []any{true, false}, "bar": []any{true, true}}, map[string]any{"foo": []any{true, false}, "bar": []any{true, true}}, 0},
+		{map[string]any{"foo": []any{true, false}, "bar": []any{true, nil}}, map[string]any{"foo": []any{true, false}, "bar": []any{true, true}}, -1},
+		{map[string]any{"foo": []any{true, true}, "bar": []any{true, true}}, map[string]any{"foo": []any{true, false}, "bar": []any{true, true}}, 1},
+		{map[string]any{"foo": true, "barr": false}, map[string]any{"foo": true, "bar": false}, 1},
+		{map[string]any{"foo": true, "bar": false, "qux": false}, map[string]any{"foo": true, "bar": false}, 1},
+		{map[string]any{"foo": true, "bar": false, "baz": false}, map[string]any{"foo": true, "bar": false}, -1},
 	}
 	for i, tc := range tests {
 		result := Compare(tc.a, tc.b)

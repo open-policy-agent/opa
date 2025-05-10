@@ -98,7 +98,7 @@ func (d *Downloader) WithCallback(f func(context.Context, Update)) *Downloader {
 
 // WithLogAttrs sets an optional set of key/value pair attributes to include in
 // log messages emitted by the downloader.
-func (d *Downloader) WithLogAttrs(attrs map[string]interface{}) *Downloader {
+func (d *Downloader) WithLogAttrs(attrs map[string]any) *Downloader {
 	d.logger = d.logger.WithFields(attrs)
 	return d
 }

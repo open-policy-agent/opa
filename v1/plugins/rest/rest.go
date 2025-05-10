@@ -133,12 +133,12 @@ func (c *Config) authPrepare(req *http.Request, lookup AuthPluginLookupFunc) err
 // services.
 type Client struct {
 	bytes                 *[]byte
-	json                  *interface{}
+	json                  *any
 	config                Config
 	headers               map[string]string
 	authPluginLookup      AuthPluginLookupFunc
 	logger                logging.Logger
-	loggerFields          map[string]interface{}
+	loggerFields          map[string]any
 	distributedTacingOpts tracing.Options
 }
 
@@ -234,7 +234,7 @@ func (c Client) Logger() logging.Logger {
 }
 
 // LoggerFields returns the fields used for log statements used by Client
-func (c Client) LoggerFields() map[string]interface{} {
+func (c Client) LoggerFields() map[string]any {
 	return c.loggerFields
 }
 
@@ -254,7 +254,7 @@ func (c Client) WithHeader(k, v string) Client {
 // WithJSON returns a shallow copy of the client with the JSON value set as the
 // message body to include the requests. This function sets the Content-Type
 // header.
-func (c Client) WithJSON(body interface{}) Client {
+func (c Client) WithJSON(body any) Client {
 	c = c.WithHeader("Content-Type", "application/json")
 	c.json = &body
 	return c
@@ -318,7 +318,7 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 	}
 
 	if c.logger.GetLevel() >= logging.Debug {
-		c.loggerFields = map[string]interface{}{
+		c.loggerFields = map[string]any{
 			"method":  method,
 			"url":     url,
 			"headers": withMaskedHeaders(req.Header),

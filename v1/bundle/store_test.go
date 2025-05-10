@@ -317,13 +317,13 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 
 	tests := []struct {
 		note               string
-		updates            []interface{}
+		updates            []any
 		runtimeRegoVersion ast.RegoVersion
 	}{
 		// single v0 bundle
 		{
 			note: "v0 bundle, lazy, read with bundle name",
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -350,7 +350,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		},
 		{
 			note: "v0 bundle, not lazy, read with bundle name",
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -377,7 +377,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		},
 		{
 			note: "v0 bundle, lazy, read with NO bundle name",
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -404,7 +404,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		},
 		{
 			note: "v0 bundle, not lazy, read with NO bundle name",
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -433,7 +433,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		{
 			note:               "v0 bundle, not lazy, --v0-compatible",
 			runtimeRegoVersion: ast.RegoV0,
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -460,7 +460,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		{
 			note:               "v0 bundle, lazy, read with bundle name, --v0-compatible",
 			runtimeRegoVersion: ast.RegoV0,
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -487,7 +487,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		{
 			note:               "v0 bundle, lazy, read with NO bundle name, --v0-compatible",
 			runtimeRegoVersion: ast.RegoV0,
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -515,7 +515,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		// single v1 bundle
 		{
 			note: "v1 bundle, lazy, read with bundle name",
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -541,7 +541,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		},
 		{
 			note: "v1 bundle, not lazy, read with bundle name",
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -567,7 +567,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		},
 		{
 			note: "v1 bundle, lazy, read with NO bundle name",
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -593,7 +593,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		},
 		{
 			note: "v1 bundle, not lazy, read with NO bundle name",
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -621,7 +621,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		{
 			note:               "v1 bundle, not lazy, --v0-compatible",
 			runtimeRegoVersion: ast.RegoV0,
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -649,7 +649,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		{
 			note:               "v1 bundle, lazy, read with bundle name, --v0-compatible",
 			runtimeRegoVersion: ast.RegoV0,
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -677,7 +677,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		{
 			note:               "v1 bundle, lazy, read with NO bundle name, --v0-compatible",
 			runtimeRegoVersion: ast.RegoV0,
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -705,7 +705,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 
 		{
 			note: "custom bundle without rego-version, lazy",
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -747,7 +747,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		{
 			note:               "custom bundle without rego-version, lazy, v1 runtime (explicit)",
 			runtimeRegoVersion: ast.RegoV1,
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -789,7 +789,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		{
 			note:               "custom bundle without rego-version, lazy, --v0-compatible",
 			runtimeRegoVersion: ast.RegoV0,
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -831,7 +831,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 
 		{
 			note: "custom bundle without rego-version, not lazy",
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -873,7 +873,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		{
 			note:               "custom bundle without rego-version, not lazy, v1 runtime (explicit)",
 			runtimeRegoVersion: ast.RegoV1,
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -915,7 +915,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		{
 			note:               "custom bundle without rego-version, not lazy, --v0-compatible",
 			runtimeRegoVersion: ast.RegoV0,
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -957,7 +957,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 
 		{
 			note: "v0, lazy replaced by non-lazy",
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -1001,7 +1001,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 
 		{
 			note: "v0 bundle replaced by v1 bundle, lazy",
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -1044,7 +1044,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		},
 		{
 			note: "v0 bundle replaced by v1 bundle, not lazy",
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -1087,7 +1087,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		},
 		{
 			note: "v0 bundle replaced by custom bundle, not lazy",
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -1131,7 +1131,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 
 		{
 			note: "v1 bundle replaced by v0 bundle, lazy",
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -1173,7 +1173,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		},
 		{
 			note: "v1 bundle replaced by v0 bundle, not lazy",
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -1215,7 +1215,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		},
 		{
 			note: "custom bundle replaced by v0 bundle, lazy",
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -1258,7 +1258,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 
 		{
 			note: "multiple v0 bundles, all dropped",
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -1293,7 +1293,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 
 		{
 			note: "multiple v0 bundles, one dropped",
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -1335,7 +1335,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 
 		{
 			note: "v0 bundle with v1 bundle added",
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -1382,7 +1382,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 
 		{
 			note: "mixed-version bundles, lazy",
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -1456,7 +1456,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		},
 		{
 			note: "mixed-version bundles, lazy, read with NO bundle name",
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -1530,7 +1530,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		},
 		{
 			note: "mixed-version bundles, not lazy",
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -1606,7 +1606,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		{
 			note:               "mixed-version bundles, lazy, --v0-compatible",
 			runtimeRegoVersion: ast.RegoV0,
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -1681,7 +1681,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		{
 			note:               "mixed-version bundles, lazy, read with NO bundle name, --v0-compatible",
 			runtimeRegoVersion: ast.RegoV0,
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -1756,7 +1756,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		{
 			note:               "mixed-version bundles, not lazy, --v0-compatible",
 			runtimeRegoVersion: ast.RegoV0,
-			updates: []interface{}{
+			updates: []any{
 				activation{
 					bundles: bundles{
 						"bundle1": {
@@ -2770,10 +2770,10 @@ func TestBundleLazyModeLifecycleNoBundleRoots(t *testing.T) {
 
 	b := Bundle{
 		Manifest: Manifest{Revision: "rev-1"},
-		Data: map[string]interface{}{
-			"a": map[string]interface{}{
+		Data: map[string]any{
+			"a": map[string]any{
 				"b": "foo",
-				"e": map[string]interface{}{
+				"e": map[string]any{
 					"f": "bar",
 				},
 				"x": []map[string]string{{"name": "john"}, {"name": "jane"}},
@@ -2863,8 +2863,8 @@ func TestBundleLazyModeLifecycleNoBundleRoots(t *testing.T) {
 	// add a new bundle with no roots. this means all the data from the currently activated should be removed
 	b = Bundle{
 		Manifest: Manifest{Revision: "rev-2"},
-		Data: map[string]interface{}{
-			"c": map[string]interface{}{
+		Data: map[string]any{
+			"c": map[string]any{
 				"hello": "world",
 			},
 		},
@@ -2958,10 +2958,10 @@ func TestBundleLazyModeLifecycleNoBundleRootsDiskStorage(t *testing.T) {
 
 		b := Bundle{
 			Manifest: Manifest{Revision: "rev-1"},
-			Data: map[string]interface{}{
-				"a": map[string]interface{}{
+			Data: map[string]any{
+				"a": map[string]any{
 					"b": "foo",
-					"e": map[string]interface{}{
+					"e": map[string]any{
 						"f": "bar",
 					},
 					"x": []map[string]string{{"name": "john"}, {"name": "jane"}},
@@ -3073,8 +3073,8 @@ func TestBundleLazyModeLifecycleNoBundleRootsDiskStorage(t *testing.T) {
 		// add a new bundle with no roots. this means all the data from the currently activated should be removed
 		b = Bundle{
 			Manifest: Manifest{Revision: "rev-2"},
-			Data: map[string]interface{}{
-				"c": map[string]interface{}{
+			Data: map[string]any{
+				"c": map[string]any{
 					"hello": "world",
 				},
 			},
@@ -3173,10 +3173,10 @@ func TestBundleLazyModeLifecycleMixBundleTypeActivationDiskStorage(t *testing.T)
 				Revision: "snap-1",
 				Roots:    &[]string{"a"},
 			},
-			Data: map[string]interface{}{
-				"a": map[string]interface{}{
+			Data: map[string]any{
+				"a": map[string]any{
 					"b": "foo",
-					"e": map[string]interface{}{
+					"e": map[string]any{
 						"f": "bar",
 					},
 					"x": []map[string]string{{"name": "john"}, {"name": "jane"}},
@@ -3323,10 +3323,10 @@ func TestBundleLazyModeLifecycleOldBundleEraseDiskStorage(t *testing.T) {
 
 		b := Bundle{
 			Manifest: Manifest{Revision: "rev-1", Roots: &[]string{"a"}},
-			Data: map[string]interface{}{
-				"a": map[string]interface{}{
+			Data: map[string]any{
+				"a": map[string]any{
 					"b": "foo",
-					"e": map[string]interface{}{
+					"e": map[string]any{
 						"f": "bar",
 					},
 					"x": []map[string]string{{"name": "john"}, {"name": "jane"}},
@@ -3438,8 +3438,8 @@ func TestBundleLazyModeLifecycleOldBundleEraseDiskStorage(t *testing.T) {
 		// add a new bundle and verify data from the currently activated is removed
 		b = Bundle{
 			Manifest: Manifest{Revision: "rev-2", Roots: &[]string{"c"}},
-			Data: map[string]interface{}{
-				"c": map[string]interface{}{
+			Data: map[string]any{
+				"c": map[string]any{
 					"hello": "world",
 				},
 			},
@@ -3535,10 +3535,10 @@ func TestBundleLazyModeLifecycleRestoreBackupDB(t *testing.T) {
 
 		b := Bundle{
 			Manifest: Manifest{Revision: "rev-1", Roots: &[]string{"a"}},
-			Data: map[string]interface{}{
-				"a": map[string]interface{}{
+			Data: map[string]any{
+				"a": map[string]any{
 					"b": "foo",
-					"e": map[string]interface{}{
+					"e": map[string]any{
 						"f": "bar",
 					},
 					"x": []map[string]string{{"name": "john"}, {"name": "jane"}},
@@ -3650,8 +3650,8 @@ func TestBundleLazyModeLifecycleRestoreBackupDB(t *testing.T) {
 		// add a new bundle but abort the transaction and verify only old the bundle data is kept in store
 		b = Bundle{
 			Manifest: Manifest{Revision: "rev-2", Roots: &[]string{"c"}},
-			Data: map[string]interface{}{
-				"c": map[string]interface{}{
+			Data: map[string]any{
+				"c": map[string]any{
 					"hello": "world",
 				},
 			},
@@ -3762,10 +3762,10 @@ func TestDeltaBundleLazyModeLifecycleDiskStorage(t *testing.T) {
 			Manifest: Manifest{
 				Roots: &[]string{"a"},
 			},
-			Data: map[string]interface{}{
-				"a": map[string]interface{}{
+			Data: map[string]any{
+				"a": map[string]any{
 					"b": "foo",
-					"e": map[string]interface{}{
+					"e": map[string]any{
 						"f": "bar",
 					},
 					"x": []map[string]string{{"name": "john"}, {"name": "jane"}},
@@ -3919,8 +3919,8 @@ func TestDeltaBundleLazyModeLifecycleDiskStorage(t *testing.T) {
 				Manifest: Manifest{
 					Roots: &[]string{"d"},
 				},
-				Data: map[string]interface{}{
-					"d": map[string]interface{}{
+				Data: map[string]any{
+					"d": map[string]any{
 						"e": "foo",
 					},
 				},
@@ -4026,10 +4026,10 @@ func TestBundleLazyModeLifecycleOverlappingBundleRoots(t *testing.T) {
 			Revision: "foo",
 			Roots:    &[]string{"a/b", "a/c", "a/d"},
 		},
-		Data: map[string]interface{}{
-			"a": map[string]interface{}{
+		Data: map[string]any{
+			"a": map[string]any{
 				"b": "foo",
-				"c": map[string]interface{}{
+				"c": map[string]any{
 					"d": "bar",
 				},
 				"d": []map[string]string{{"name": "john"}, {"name": "jane"}},
@@ -4052,9 +4052,9 @@ func TestBundleLazyModeLifecycleOverlappingBundleRoots(t *testing.T) {
 			Revision: "bar",
 			Roots:    &[]string{"a/e"},
 		},
-		Data: map[string]interface{}{
-			"a": map[string]interface{}{
-				"e": map[string]interface{}{
+		Data: map[string]any{
+			"a": map[string]any{
+				"e": map[string]any{
 					"f": "bar",
 				},
 			},
@@ -4182,9 +4182,9 @@ func TestBundleLazyModeLifecycleOverlappingBundleRootsDiskStorage(t *testing.T) 
 				Revision: "foo",
 				Roots:    &[]string{"a/b/c", "a/b/d", "a/b/e"},
 			},
-			Data: map[string]interface{}{
-				"a": map[string]interface{}{
-					"b": map[string]interface{}{
+			Data: map[string]any{
+				"a": map[string]any{
+					"b": map[string]any{
 						"c": "bar",
 						"d": []map[string]string{{"name": "john"}, {"name": "jane"}},
 						"e": []string{"foo", "bar"},
@@ -4208,10 +4208,10 @@ func TestBundleLazyModeLifecycleOverlappingBundleRootsDiskStorage(t *testing.T) 
 				Revision: "bar",
 				Roots:    &[]string{"a/b/f"},
 			},
-			Data: map[string]interface{}{
-				"a": map[string]interface{}{
-					"b": map[string]interface{}{
-						"f": map[string]interface{}{
+			Data: map[string]any{
+				"a": map[string]any{
+					"b": map[string]any{
+						"f": map[string]any{
 							"hello": "world",
 						},
 					},
@@ -4604,10 +4604,10 @@ func TestDeltaBundleLazyModeLifecycle(t *testing.T) {
 		Manifest: Manifest{
 			Roots: &[]string{"a"},
 		},
-		Data: map[string]interface{}{
-			"a": map[string]interface{}{
+		Data: map[string]any{
+			"a": map[string]any{
 				"b": "foo",
-				"e": map[string]interface{}{
+				"e": map[string]any{
 					"f": "bar",
 				},
 				"x": []map[string]string{{"name": "john"}, {"name": "jane"}},
@@ -4782,8 +4782,8 @@ func TestDeltaBundleLazyModeLifecycle(t *testing.T) {
 			Manifest: Manifest{
 				Roots: &[]string{"d"},
 			},
-			Data: map[string]interface{}{
-				"d": map[string]interface{}{
+			Data: map[string]any{
+				"d": map[string]any{
 					"e": "foo",
 				},
 			},
@@ -4890,10 +4890,10 @@ func TestDeltaBundleLazyModeWithDefaultRules(t *testing.T) {
 		Manifest: Manifest{
 			Roots: &[]string{"a"},
 		},
-		Data: map[string]interface{}{
-			"a": map[string]interface{}{
+		Data: map[string]any{
+			"a": map[string]any{
 				"b": "foo",
-				"e": map[string]interface{}{
+				"e": map[string]any{
 					"f": "bar",
 				},
 				"x": []map[string]string{{"name": "john"}, {"name": "jane"}},
@@ -5068,8 +5068,8 @@ func TestDeltaBundleLazyModeWithDefaultRules(t *testing.T) {
 			Manifest: Manifest{
 				Roots: &[]string{"d"},
 			},
-			Data: map[string]interface{}{
-				"d": map[string]interface{}{
+			Data: map[string]any{
+				"d": map[string]any{
 					"e": "foo",
 				},
 			},
@@ -5201,8 +5201,8 @@ func TestBundleLifecycle(t *testing.T) {
 					Manifest: Manifest{
 						Roots: &[]string{"a"},
 					},
-					Data: map[string]interface{}{
-						"a": map[string]interface{}{
+					Data: map[string]any{
+						"a": map[string]any{
 							"b": "foo",
 						},
 					},
@@ -5391,10 +5391,10 @@ func TestDeltaBundleLifecycle(t *testing.T) {
 					Manifest: Manifest{
 						Roots: &[]string{"a"},
 					},
-					Data: map[string]interface{}{
-						"a": map[string]interface{}{
+					Data: map[string]any{
+						"a": map[string]any{
 							"b": "foo",
-							"e": map[string]interface{}{
+							"e": map[string]any{
 								"f": "bar",
 							},
 							"x": []map[string]string{{"name": "john"}, {"name": "jane"}},
@@ -5541,8 +5541,8 @@ func TestDeltaBundleLifecycle(t *testing.T) {
 					Manifest: Manifest{
 						Roots: &[]string{"d"},
 					},
-					Data: map[string]interface{}{
-						"d": map[string]interface{}{
+					Data: map[string]any{
+						"d": map[string]any{
 							"e": "foo",
 						},
 					},
@@ -5760,7 +5760,7 @@ func TestDeltaBundleActivate(t *testing.T) {
 	}
 }
 
-func assertEqual(t *testing.T, expectAst bool, expected string, actual interface{}) {
+func assertEqual(t *testing.T, expectAst bool, expected string, actual any) {
 	t.Helper()
 
 	if expectAst {
@@ -5896,15 +5896,15 @@ func TestEraseData(t *testing.T) {
 	ctx := context.Background()
 	cases := []struct {
 		note        string
-		initialData map[string]interface{}
+		initialData map[string]any
 		roots       []string
 		expectErr   bool
 		expected    string
 	}{
 		{
 			note: "erase all",
-			initialData: map[string]interface{}{
-				"a": map[string]interface{}{
+			initialData: map[string]any{
+				"a": map[string]any{
 					"b": "foo",
 				},
 				"b": "bar",
@@ -5915,8 +5915,8 @@ func TestEraseData(t *testing.T) {
 		},
 		{
 			note: "erase none",
-			initialData: map[string]interface{}{
-				"a": map[string]interface{}{
+			initialData: map[string]any{
+				"a": map[string]any{
 					"b": "foo",
 				},
 				"b": "bar",
@@ -5927,8 +5927,8 @@ func TestEraseData(t *testing.T) {
 		},
 		{
 			note: "erase partial",
-			initialData: map[string]interface{}{
-				"a": map[string]interface{}{
+			initialData: map[string]any{
+				"a": map[string]any{
 					"b": "foo",
 				},
 				"b": "bar",
@@ -5939,10 +5939,10 @@ func TestEraseData(t *testing.T) {
 		},
 		{
 			note: "erase partial path",
-			initialData: map[string]interface{}{
-				"a": map[string]interface{}{
+			initialData: map[string]any{
+				"a": map[string]any{
 					"b": "foo",
-					"c": map[string]interface{}{
+					"c": map[string]any{
 						"d": 123,
 					},
 				},
@@ -6133,18 +6133,18 @@ func TestWriteData(t *testing.T) {
 	ctx := context.Background()
 	cases := []struct {
 		note         string
-		existingData map[string]interface{}
+		existingData map[string]any
 		roots        []string
-		data         map[string]interface{}
+		data         map[string]any
 		expected     string
 		expectErr    bool
 	}{
 		{
 			note:  "single root",
 			roots: []string{"a"},
-			data: map[string]interface{}{
-				"a": map[string]interface{}{
-					"b": map[string]interface{}{
+			data: map[string]any{
+				"a": map[string]any{
+					"b": map[string]any{
 						"c": 123,
 					},
 				},
@@ -6155,10 +6155,10 @@ func TestWriteData(t *testing.T) {
 		{
 			note:  "multiple roots",
 			roots: []string{"a", "b/c/d"},
-			data: map[string]interface{}{
+			data: map[string]any{
 				"a": "foo",
-				"b": map[string]interface{}{
-					"c": map[string]interface{}{
+				"b": map[string]any{
+					"c": map[string]any{
 						"d": "bar",
 					},
 				},
@@ -6169,10 +6169,10 @@ func TestWriteData(t *testing.T) {
 		{
 			note:  "data not in roots",
 			roots: []string{"a"},
-			data: map[string]interface{}{
+			data: map[string]any{
 				"a": "foo",
-				"b": map[string]interface{}{
-					"c": map[string]interface{}{
+				"b": map[string]any{
+					"c": map[string]any{
 						"d": "bar",
 					},
 				},
@@ -6183,30 +6183,30 @@ func TestWriteData(t *testing.T) {
 		{
 			note:         "no data",
 			roots:        []string{"a"},
-			existingData: map[string]interface{}{},
-			data:         map[string]interface{}{},
+			existingData: map[string]any{},
+			data:         map[string]any{},
 			expected:     `{}`,
 			expectErr:    false,
 		},
 		{
 			note:  "no new data",
 			roots: []string{"a"},
-			existingData: map[string]interface{}{
+			existingData: map[string]any{
 				"a": "foo",
 			},
-			data:      map[string]interface{}{},
+			data:      map[string]any{},
 			expected:  `{"a": "foo"}`,
 			expectErr: false,
 		},
 		{
 			note:  "overwrite data",
 			roots: []string{"a"},
-			existingData: map[string]interface{}{
-				"a": map[string]interface{}{
+			existingData: map[string]any{
+				"a": map[string]any{
 					"b": "foo",
 				},
 			},
-			data: map[string]interface{}{
+			data: map[string]any{
 				"a": "bar",
 			},
 			expected:  `{"a": "bar"}`,
@@ -6246,21 +6246,21 @@ func TestWriteData(t *testing.T) {
 	}
 }
 
-func loadExpectedResult(input string) interface{} {
+func loadExpectedResult(input string) any {
 	if len(input) == 0 {
 		return nil
 	}
-	var data interface{}
+	var data any
 	if err := util.UnmarshalJSON([]byte(input), &data); err != nil {
 		panic(err)
 	}
 	return data
 }
 
-func loadExpectedSortedResult(input string) interface{} {
+func loadExpectedSortedResult(input string) any {
 	data := loadExpectedResult(input)
 	switch data := data.(type) {
-	case []interface{}:
+	case []any:
 		return data
 	default:
 		return data
@@ -6272,7 +6272,7 @@ type testWriteModuleCase struct {
 	bundles      map[string]*Bundle // Only need to give raw text and path for modules
 	extraMods    map[string]*ast.Module
 	compilerMods map[string]*ast.Module
-	storeData    map[string]interface{}
+	storeData    map[string]any
 	expectErr    bool
 }
 
@@ -6363,8 +6363,8 @@ func TestWriteModules(t *testing.T) {
 					},
 				},
 			},
-			storeData: map[string]interface{}{
-				"a": map[string]interface{}{
+			storeData: map[string]any{
+				"a": map[string]any{
 					"p": "foo",
 				},
 			},
@@ -6746,7 +6746,7 @@ func TestBundleStoreHelpers(t *testing.T) {
 			Manifest: Manifest{
 				Roots:    &[]string{"a"},
 				Revision: "foo",
-				Metadata: map[string]interface{}{
+				Metadata: map[string]any{
 					"a": "b",
 				},
 				WasmResolvers: []WasmResolver{

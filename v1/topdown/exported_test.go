@@ -157,7 +157,7 @@ func testRun(t *testing.T, tc cases.TestCase, regoVersion ast.RegoVersion, opts 
 	}
 }
 
-func testAssertResultSet(t *testing.T, wantResult []map[string]interface{}, rs QueryResultSet, sortBindings bool) {
+func testAssertResultSet(t *testing.T, wantResult []map[string]any, rs QueryResultSet, sortBindings bool) {
 
 	exp := ast.NewSet()
 
@@ -179,7 +179,7 @@ func testAssertResultSet(t *testing.T, wantResult []map[string]interface{}, rs Q
 				t.Fatal(err)
 			}
 			if sortBindings {
-				sort.Sort(resultSet(v.([]interface{})))
+				sort.Sort(resultSet(v.([]any)))
 			}
 			obj.Insert(ast.StringTerm(string(k)), ast.NewTerm(ast.MustInterfaceToValue(v)))
 		}

@@ -37,7 +37,7 @@ func Hooks(hs hooks.Hooks) func(*Discovery) {
 	return v1.Hooks(hs)
 }
 
-func BootConfig(bootConfig map[string]interface{}) func(*Discovery) {
+func BootConfig(bootConfig map[string]any) func(*Discovery) {
 	return v1.BootConfig(bootConfig)
 }
 

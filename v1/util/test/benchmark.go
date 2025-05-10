@@ -110,26 +110,26 @@ func ObjectIterationBenchmarkModule(n int) string {
 
 // GenerateLargeJSONBenchmarkData returns a map of 100 keys and 100.000 key/value
 // pairs.
-func GenerateLargeJSONBenchmarkData() map[string]interface{} {
+func GenerateLargeJSONBenchmarkData() map[string]any {
 	return GenerateJSONBenchmarkData(100, 100*1000)
 }
 
 // GenerateJSONBenchmarkData returns a map of `k` keys and `v` key/value pairs.
-func GenerateJSONBenchmarkData(k, v int) map[string]interface{} {
+func GenerateJSONBenchmarkData(k, v int) map[string]any {
 
 	// create array of null values that can be iterated over
-	keys := make([]interface{}, k)
+	keys := make([]any, k)
 	for i := range keys {
 		keys[i] = nil
 	}
 
 	// create large JSON object value (100,000 entries is about 2MB on disk)
-	values := map[string]interface{}{}
+	values := map[string]any{}
 	for i := range v {
 		values[fmt.Sprintf("key%d", i)] = fmt.Sprintf("value%d", i)
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"keys":   keys,
 		"values": values,
 	}
@@ -138,7 +138,7 @@ func GenerateJSONBenchmarkData(k, v int) map[string]interface{} {
 // GenerateConcurrencyBenchmarkData returns a module and data; the module
 // checks some input parameters against that data in a simple API authz
 // scheme.
-func GenerateConcurrencyBenchmarkData() (string, map[string]interface{}) {
+func GenerateConcurrencyBenchmarkData() (string, map[string]any) {
 	obj := []byte(`
 		{
 			"objs": [
@@ -168,7 +168,7 @@ func GenerateConcurrencyBenchmarkData() (string, map[string]interface{}) {
 		}
 		`)
 
-	var data map[string]interface{}
+	var data map[string]any
 	if err := json.Unmarshal(obj, &data); err != nil {
 		panic(err)
 	}
@@ -192,7 +192,7 @@ func GenerateConcurrencyBenchmarkData() (string, map[string]interface{}) {
 // GenerateVirtualDocsBenchmarkData generates a module and input; the
 // numTotalRules and numHitRules create as many rules in the module to
 // match/miss the returned input.
-func GenerateVirtualDocsBenchmarkData(numTotalRules, numHitRules int) (string, map[string]interface{}) {
+func GenerateVirtualDocsBenchmarkData(numTotalRules, numHitRules int) (string, map[string]any) {
 
 	hitRule := `
 	allow if {
@@ -255,8 +255,8 @@ func GenerateVirtualDocsBenchmarkData(numTotalRules, numHitRules int) (string, m
 		panic(err)
 	}
 
-	input := map[string]interface{}{
-		"path":    []interface{}{"accounts", "alice"},
+	input := map[string]any{
+		"path":    []any{"accounts", "alice"},
 		"method":  "POST",
 		"user_id": "alice",
 	}

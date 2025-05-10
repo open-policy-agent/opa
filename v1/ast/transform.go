@@ -13,12 +13,12 @@ import (
 // be set to nil and no transformations will be applied to children of the
 // element.
 type Transformer interface {
-	Transform(interface{}) (interface{}, error)
+	Transform(any) (any, error)
 }
 
 // Transform iterates the AST and calls the Transform function on the
 // Transformer t for x before recursing.
-func Transform(t Transformer, x interface{}) (interface{}, error) {
+func Transform(t Transformer, x any) (any, error) {
 
 	if term, ok := x.(*Term); ok {
 		return Transform(t, term.Value)
@@ -290,8 +290,8 @@ func Transform(t Transformer, x interface{}) (interface{}, error) {
 }
 
 // TransformRefs calls the function f on all references under x.
-func TransformRefs(x interface{}, f func(Ref) (Value, error)) (interface{}, error) {
-	t := &GenericTransformer{func(x interface{}) (interface{}, error) {
+func TransformRefs(x any, f func(Ref) (Value, error)) (any, error) {
+	t := &GenericTransformer{func(x any) (any, error) {
 		if r, ok := x.(Ref); ok {
 			return f(r)
 		}
@@ -301,8 +301,8 @@ func TransformRefs(x interface{}, f func(Ref) (Value, error)) (interface{}, erro
 }
 
 // TransformVars calls the function f on all vars under x.
-func TransformVars(x interface{}, f func(Var) (Value, error)) (interface{}, error) {
-	t := &GenericTransformer{func(x interface{}) (interface{}, error) {
+func TransformVars(x any, f func(Var) (Value, error)) (any, error) {
+	t := &GenericTransformer{func(x any) (any, error) {
 		if v, ok := x.(Var); ok {
 			return f(v)
 		}
@@ -312,8 +312,8 @@ func TransformVars(x interface{}, f func(Var) (Value, error)) (interface{}, erro
 }
 
 // TransformComprehensions calls the functio nf on all comprehensions under x.
-func TransformComprehensions(x interface{}, f func(interface{}) (Value, error)) (interface{}, error) {
-	t := &GenericTransformer{func(x interface{}) (interface{}, error) {
+func TransformComprehensions(x any, f func(any) (Value, error)) (any, error) {
+	t := &GenericTransformer{func(x any) (any, error) {
 		switch x := x.(type) {
 		case *ArrayComprehension:
 			return f(x)
@@ -330,19 +330,19 @@ func TransformComprehensions(x interface{}, f func(interface{}) (Value, error)) 
 // GenericTransformer implements the Transformer interface to provide a utility
 // to transform AST nodes using a closure.
 type GenericTransformer struct {
-	f func(interface{}) (interface{}, error)
+	f func(any) (any, error)
 }
 
 // NewGenericTransformer returns a new GenericTransformer that will transform
 // AST nodes using the function f.
-func NewGenericTransformer(f func(x interface{}) (interface{}, error)) *GenericTransformer {
+func NewGenericTransformer(f func(x any) (any, error)) *GenericTransformer {
 	return &GenericTransformer{
 		f: f,
 	}
 }
 
 // Transform calls the function f on the GenericTransformer.
-func (t *GenericTransformer) Transform(x interface{}) (interface{}, error) {
+func (t *GenericTransformer) Transform(x any) (any, error) {
 	return t.f(x)
 }
 

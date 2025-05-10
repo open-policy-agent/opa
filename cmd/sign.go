@@ -237,7 +237,7 @@ func readBundleFiles(loaders []initload.BundleLoader, h bundle.SignatureHasher) 
 func hashFileContent(h bundle.SignatureHasher, data []byte, path string) (bundle.FileInfo, error) {
 
 	var fileInfo bundle.FileInfo
-	var value interface{}
+	var value any
 
 	if bundle.IsStructuredDoc(path) {
 		err := util.Unmarshal(data, &value)
@@ -257,7 +257,7 @@ func hashFileContent(h bundle.SignatureHasher, data []byte, path string) (bundle
 }
 
 func writeTokenToFile(token, fileLoc string) error {
-	content := make(map[string]interface{})
+	content := make(map[string]any)
 	content["signatures"] = []string{token}
 
 	bs, err := json.MarshalIndent(content, "", " ")

@@ -238,7 +238,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		input       string
 		unknowns    []string
 		args        []Value
-		expectedRS  interface{}
+		expectedRS  any
 		expectedDR  *Rule
 		checkResult func(*testing.T, *IndexResult)
 	}{
@@ -1043,7 +1043,7 @@ func TestBaseDocIndexResultEarlyExit(t *testing.T) {
 		module          *Module
 		input           string
 		disableIndexing bool
-		expectedRS      interface{}
+		expectedRS      any
 		expectedDR      *Rule
 		expectedEE      bool
 	}{

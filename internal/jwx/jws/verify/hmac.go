@@ -19,7 +19,7 @@ func newHMAC(alg jwa.SignatureAlgorithm) (*HMACVerifier, error) {
 }
 
 // Verify checks whether the signature for a given input and key is correct
-func (v HMACVerifier) Verify(signingInput, signature []byte, key interface{}) (err error) {
+func (v HMACVerifier) Verify(signingInput, signature []byte, key any) (err error) {
 
 	expected, err := v.signer.Sign(signingInput, key)
 	if err != nil {

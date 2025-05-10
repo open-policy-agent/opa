@@ -32,12 +32,12 @@ func New(r io.Reader) (string, error) {
 // if parsing fails, it will return an empty map. It will fill the map
 // with some decoded values with fillMap
 // ref: https://datatracker.ietf.org/doc/html/rfc4122
-func Parse(s string) (map[string]interface{}, error) {
+func Parse(s string) (map[string]any, error) {
 	uuid, err := uuid.Parse(s)
 	if err != nil {
 		return nil, err
 	}
-	out := make(map[string]interface{}, getVersionLen(int(uuid.Version())))
+	out := make(map[string]any, getVersionLen(int(uuid.Version())))
 	fillMap(out, uuid)
 	return out, nil
 }
@@ -46,7 +46,7 @@ func Parse(s string) (map[string]interface{}, error) {
 // Version 1-2 has decodable values that could be of use, version 4 is random,
 // and version 3,5 is not feasible to extract data. Generated with either MD5 or SHA1 hash
 // ref: https://datatracker.ietf.org/doc/html/rfc4122 about creation of UUIDs
-func fillMap(m map[string]interface{}, u uuid.UUID) {
+func fillMap(m map[string]any, u uuid.UUID) {
 	m["version"] = int(u.Version())
 	m["variant"] = u.Variant().String()
 	switch version := m["version"]; version {

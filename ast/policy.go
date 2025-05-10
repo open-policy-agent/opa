@@ -211,7 +211,7 @@ func NewBody(exprs ...*Expr) Body {
 }
 
 // NewExpr returns a new Expr object.
-func NewExpr(terms interface{}) *Expr {
+func NewExpr(terms any) *Expr {
 	return v1.NewExpr(terms)
 }
 
@@ -222,7 +222,7 @@ func NewBuiltinExpr(terms ...*Term) *Expr {
 }
 
 // Copy returns a deep copy of the AST node x. If x is not an AST node, x is returned unmodified.
-func Copy(x interface{}) interface{} {
+func Copy(x any) any {
 	return v1.Copy(x)
 }
 

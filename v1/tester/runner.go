@@ -107,7 +107,7 @@ func (srm SubResultMap) update(path []string, i int, trace []*topdown.Event) boo
 
 type unknownResolver struct{}
 
-func (unknownResolver) Resolve(_ ast.Ref) (interface{}, error) {
+func (unknownResolver) Resolve(_ ast.Ref) (any, error) {
 	return "UNKNOWN", nil
 }
 

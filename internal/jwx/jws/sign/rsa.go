@@ -84,7 +84,7 @@ func (s RSASigner) Algorithm() jwa.SignatureAlgorithm {
 
 // Sign creates a signature using crypto/rsa. key must be a non-nil instance of
 // `*"crypto/rsa".PrivateKey`.
-func (s RSASigner) Sign(payload []byte, key interface{}) ([]byte, error) {
+func (s RSASigner) Sign(payload []byte, key any) ([]byte, error) {
 	if key == nil {
 		return nil, errors.New(`missing private key while signing payload`)
 	}

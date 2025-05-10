@@ -40,7 +40,7 @@ func TestParse(t *testing.T) {
 			t.Fatalf("unexpected error when passing file wiith valid json: %q", err.Error())
 		} else {
 			v := *val
-			that, ok := v.(map[string]interface{})["this"]
+			that, ok := v.(map[string]any)["this"]
 			if !ok {
 				t.Fatalf("expected parsed data to have key %q with value %q, found none", "this", "that")
 			}

@@ -21,11 +21,11 @@ import (
 //
 // This function is intended to be used in place of the standard json.Marshal
 // function when json.Number is required.
-func UnmarshalJSON(bs []byte, x interface{}) error {
+func UnmarshalJSON(bs []byte, x any) error {
 	return unmarshalJSON(bs, x, true)
 }
 
-func unmarshalJSON(bs []byte, x interface{}, ext bool) error {
+func unmarshalJSON(bs []byte, x any, ext bool) error {
 	buf := bytes.NewBuffer(bs)
 	decoder := NewJSONDecoder(buf)
 	if err := decoder.Decode(x); err != nil {
@@ -61,8 +61,8 @@ func NewJSONDecoder(r io.Reader) *json.Decoder {
 //
 // If the data cannot be decoded, this function will panic. This function is for
 // test purposes.
-func MustUnmarshalJSON(bs []byte) interface{} {
-	var x interface{}
+func MustUnmarshalJSON(bs []byte) any {
+	var x any
 	if err := UnmarshalJSON(bs, &x); err != nil {
 		panic(err)
 	}
@@ -73,7 +73,7 @@ func MustUnmarshalJSON(bs []byte) interface{} {
 //
 // If the data cannot be encoded, this function will panic. This function is for
 // test purposes.
-func MustMarshalJSON(x interface{}) []byte {
+func MustMarshalJSON(x any) []byte {
 	bs, err := json.Marshal(x)
 	if err != nil {
 		panic(err)
@@ -86,7 +86,7 @@ func MustMarshalJSON(x interface{}) []byte {
 // Thereby, it is converting its argument to the representation expected by
 // rego.Input and inmem's Write operations. Works with both references and
 // values.
-func RoundTrip(x *interface{}) error {
+func RoundTrip(x *any) error {
 	bs, err := json.Marshal(x)
 	if err != nil {
 		return err
@@ -99,8 +99,8 @@ func RoundTrip(x *interface{}) error {
 //
 // Used for preparing Go types (including pointers to structs) into values to be
 // put through util.RoundTrip().
-func Reference(x interface{}) *interface{} {
-	var y interface{}
+func Reference(x any) *any {
+	var y any
 	rv := reflect.ValueOf(x)
 	if rv.Kind() == reflect.Ptr {
 		return Reference(rv.Elem().Interface())
@@ -113,7 +113,7 @@ func Reference(x interface{}) *interface{} {
 }
 
 // Unmarshal decodes a YAML, JSON or JSON extension value into the specified type.
-func Unmarshal(bs []byte, v interface{}) error {
+func Unmarshal(bs []byte, v any) error {
 	if len(bs) > 2 && bs[0] == 0xef && bs[1] == 0xbb && bs[2] == 0xbf {
 		bs = bs[3:] // Strip UTF-8 BOM, see https://www.rfc-editor.org/rfc/rfc8259#section-8.1
 	}

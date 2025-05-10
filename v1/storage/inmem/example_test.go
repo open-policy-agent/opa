@@ -38,7 +38,7 @@ func Example_read() {
     }
     `
 
-	var data map[string]interface{}
+	var data map[string]any
 
 	// OPA uses Go's standard JSON library but assumes that numbers have been
 	// decoded as json.Number instead of float64. You MUST decode with UseNumber
@@ -102,7 +102,7 @@ func Example_write() {
     }
     `
 
-	var data map[string]interface{}
+	var data map[string]any
 
 	// OPA uses Go's standard JSON library but assumes that numbers have been
 	// decoded as json.Number instead of float64. You MUST decode with UseNumber
@@ -123,7 +123,7 @@ func Example_write() {
         "latitude": -62.338889
     }`
 
-	var patch interface{}
+	var patch any
 
 	// See comment above regarding decoder usage.
 	decoder = json.NewDecoder(bytes.NewBufferString(examplePatch))

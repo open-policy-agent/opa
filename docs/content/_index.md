@@ -1103,7 +1103,7 @@ if err != nil {
     // handle error
 }
 
-var input interface{}
+var input any
 
 if err := json.Unmarshal(bs, &input); err != nil {
     // handle error
@@ -1157,7 +1157,7 @@ func main() {
 	}
 
 	// Load the input document from stdin.
-	var input interface{}
+	var input any
 	dec := json.NewDecoder(os.Stdin)
 	dec.UseNumber()
 	if err := dec.Decode(&input); err != nil {

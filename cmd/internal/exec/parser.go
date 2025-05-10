@@ -7,17 +7,17 @@ import (
 )
 
 type parser interface {
-	Parse(io.Reader) (interface{}, error)
+	Parse(io.Reader) (any, error)
 }
 
 type utilParser struct {
 }
 
-func (utilParser) Parse(r io.Reader) (interface{}, error) {
+func (utilParser) Parse(r io.Reader) (any, error) {
 	bs, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
-	var x interface{}
+	var x any
 	return x, util.Unmarshal(bs, &x)
 }

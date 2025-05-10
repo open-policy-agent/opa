@@ -90,7 +90,7 @@ func NewSet(of Type) *Set {
 type StaticProperty = v1.StaticProperty
 
 // NewStaticProperty returns a new StaticProperty object.
-func NewStaticProperty(key interface{}, value Type) *StaticProperty {
+func NewStaticProperty(key any, value Type) *StaticProperty {
 	return v1.NewStaticProperty(key, value)
 }
 
@@ -173,7 +173,7 @@ func Or(a, b Type) Type {
 }
 
 // Select returns a property or item of a.
-func Select(a Type, x interface{}) Type {
+func Select(a Type, x any) Type {
 	return v1.Select(a, x)
 }
 
@@ -195,6 +195,6 @@ func Nil(a Type) bool {
 }
 
 // TypeOf returns the type of the Golang native value.
-func TypeOf(x interface{}) Type {
+func TypeOf(x any) Type {
 	return v1.TypeOf(x)
 }

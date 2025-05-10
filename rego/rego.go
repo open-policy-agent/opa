@@ -43,7 +43,7 @@ type EvalContext = v1.EvalContext
 type EvalOption = v1.EvalOption
 
 // EvalInput configures the input for a Prepared Query's evaluation
-func EvalInput(input interface{}) EvalOption {
+func EvalInput(input any) EvalOption {
 	return v1.EvalInput(input)
 }
 
@@ -155,7 +155,7 @@ func EvalSortSets(yes bool) EvalOption {
 	return v1.EvalSortSets(yes)
 }
 
-// EvalCopyMaps causes the evaluator to copy `map[string]interface{}`s before returning them.
+// EvalCopyMaps causes the evaluator to copy `map[string]any`s before returning them.
 func EvalCopyMaps(yes bool) EvalOption {
 	return v1.EvalCopyMaps(yes)
 }
@@ -312,7 +312,7 @@ func ParsedImports(imp []*ast.Import) func(r *Rego) {
 
 // Input returns an argument that sets the Rego input document. Input should be
 // a native Go value representing the input document.
-func Input(x interface{}) func(r *Rego) {
+func Input(x any) func(r *Rego) {
 	return v1.Input(x)
 }
 
@@ -545,7 +545,7 @@ func Target(t string) func(r *Rego) {
 }
 
 // GenerateJSON sets the AST to JSON converter for the results.
-func GenerateJSON(f func(*ast.Term, *EvalContext) (interface{}, error)) func(r *Rego) {
+func GenerateJSON(f func(*ast.Term, *EvalContext) (any, error)) func(r *Rego) {
 	return v1.GenerateJSON(f)
 }
 

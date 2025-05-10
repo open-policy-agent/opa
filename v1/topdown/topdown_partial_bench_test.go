@@ -67,14 +67,14 @@ func BenchmarkInliningFullScan(b *testing.B) {
 
 }
 
-func generateInlineFullScanBenchmarkData(n int) map[string]interface{} {
+func generateInlineFullScanBenchmarkData(n int) map[string]any {
 
-	sl := make([]interface{}, n)
+	sl := make([]any, n)
 	for i := range sl {
 		sl[i] = strconv.Itoa(i)
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"a": sl,
 	}
 }

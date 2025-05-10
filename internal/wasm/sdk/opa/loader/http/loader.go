@@ -54,7 +54,7 @@ type Loader struct {
 
 // policyData captures the functions used in setting the policy and data.
 type policyData interface {
-	SetPolicyData(ctx context.Context, policy []byte, data *interface{}) error
+	SetPolicyData(ctx context.Context, policy []byte, data *any) error
 }
 
 // New constructs a new HTTP loader periodically downloading a bundle
@@ -199,9 +199,9 @@ func (l *Loader) Load(ctx context.Context) error {
 		return werrors.New(werrors.InvalidBundleErr, "missing wasm")
 	}
 
-	var data *interface{}
+	var data *any
 	if bundle.Data != nil {
-		var v interface{} = bundle.Data
+		var v any = bundle.Data
 		data = &v
 	}
 

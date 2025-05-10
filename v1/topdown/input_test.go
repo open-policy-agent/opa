@@ -17,7 +17,7 @@ func TestMergeTermWithValues(t *testing.T) {
 		note     string
 		exist    string
 		input    [][2]string
-		expected interface{}
+		expected any
 	}{
 		{
 			note:     "var",

@@ -178,7 +178,7 @@ func VerifyBundleFile(path string, data bytes.Buffer, files map[string]FileInfo)
 	// then recursively order the fields of all objects alphabetically and then apply
 	// the hash function to result to compute the hash. This ensures that the digital signature is
 	// independent of whitespace and other non-semantic JSON features.
-	var value interface{}
+	var value any
 	if IsStructuredDoc(path) {
 		err := util.Unmarshal(data.Bytes(), &value)
 		if err != nil {

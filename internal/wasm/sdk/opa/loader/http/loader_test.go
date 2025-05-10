@@ -43,7 +43,7 @@ func TestHTTPLoader(t *testing.T) {
 
 	var mutex sync.Mutex
 	policy := "wasm-policy"
-	var data interface{} = map[string]interface{}{
+	var data any = map[string]any{
 		"foo": "bar",
 	}
 
@@ -52,7 +52,7 @@ func TestHTTPLoader(t *testing.T) {
 		defer mutex.Unlock()
 
 		if err := bundle.Write(w, bundle.Bundle{
-			Data: data.(map[string]interface{}),
+			Data: data.(map[string]any),
 			Wasm: []byte(policy),
 		}); err != nil {
 			panic(err)
@@ -76,7 +76,7 @@ func TestHTTPLoader(t *testing.T) {
 
 	mutex.Lock()
 	policy = "wasm-policy-modified"
-	data = map[string]interface{}{
+	data = map[string]any{
 		"bar": "foo",
 	}
 	mutex.Unlock()
@@ -90,11 +90,11 @@ func TestHTTPLoader(t *testing.T) {
 type testPolicyData struct {
 	sync.Mutex
 	policy  []byte
-	data    *interface{}
+	data    *any
 	updated chan struct{}
 }
 
-func (pd *testPolicyData) SetPolicyData(_ context.Context, policy []byte, data *interface{}) error {
+func (pd *testPolicyData) SetPolicyData(_ context.Context, policy []byte, data *any) error {
 	pd.Lock()
 	defer pd.Unlock()
 
@@ -107,7 +107,7 @@ func (pd *testPolicyData) SetPolicyData(_ context.Context, policy []byte, data *
 	return nil
 }
 
-func (pd *testPolicyData) CheckEqual(t *testing.T, policy string, data *interface{}) {
+func (pd *testPolicyData) CheckEqual(t *testing.T, policy string, data *any) {
 	pd.Lock()
 	defer pd.Unlock()
 
