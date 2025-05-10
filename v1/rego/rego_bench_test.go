@@ -22,11 +22,11 @@ func BenchmarkPartialObjectRuleCrossModule(b *testing.B) {
 
 	for _, n := range sizes {
 		b.Run(strconv.Itoa(n), func(b *testing.B) {
-			store := inmem.NewFromObject(map[string]interface{}{})
+			store := inmem.NewFromObject(map[string]any{})
 			mods := test.PartialObjectBenchmarkCrossModule(n)
 			query := "data.test.foo"
 
-			input := make(map[string]interface{})
+			input := make(map[string]any)
 			for idx := range 4 {
 				input[fmt.Sprintf("test_input_%d", idx)] = "test_input_10"
 			}

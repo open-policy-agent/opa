@@ -179,7 +179,7 @@ func (tc *typeChecker) CheckTypes(env *TypeEnv, sorted []util.T, as *AnnotationS
 
 func (tc *typeChecker) checkClosures(env *TypeEnv, expr *Expr) Errors {
 	var result Errors
-	WalkClosures(expr, func(x interface{}) bool {
+	WalkClosures(expr, func(x any) bool {
 		switch x := x.(type) {
 		case *ArrayComprehension:
 			_, errs := tc.copy().CheckBody(env, x.Body)
@@ -702,7 +702,7 @@ func newRefChecker(env *TypeEnv, f varRewriter) *refChecker {
 	}
 }
 
-func (rc *refChecker) Visit(x interface{}) bool {
+func (rc *refChecker) Visit(x any) bool {
 	switch x := x.(type) {
 	case *ArrayComprehension, *ObjectComprehension, *SetComprehension:
 		return true
@@ -1247,8 +1247,8 @@ func override(ref Ref, t types.Type, o types.Type, rule *Rule) (types.Type, *Err
 	return types.NewObject(newStaticProps, obj.DynamicProperties()), nil
 }
 
-func getKeys(ref Ref, rule *Rule) ([]interface{}, *Error) {
-	keys := []interface{}{}
+func getKeys(ref Ref, rule *Rule) ([]any, *Error) {
+	keys := []any{}
 	for _, refElem := range ref {
 		key, err := JSON(refElem.Value)
 		if err != nil {
@@ -1259,7 +1259,7 @@ func getKeys(ref Ref, rule *Rule) ([]interface{}, *Error) {
 	return keys, nil
 }
 
-func getObjectTypeRec(keys []interface{}, o types.Type, d *types.DynamicProperty) *types.Object {
+func getObjectTypeRec(keys []any, o types.Type, d *types.DynamicProperty) *types.Object {
 	if len(keys) == 1 {
 		staticProps := []*types.StaticProperty{types.NewStaticProperty(keys[0], o)}
 		return types.NewObject(staticProps, d)
@@ -1300,7 +1300,7 @@ func getRuleAnnotation(as *AnnotationSet, rule *Rule) (result []*SchemaAnnotatio
 
 func processAnnotation(ss *SchemaSet, annot *SchemaAnnotation, rule *Rule, allowNet []string) (types.Type, *Error) {
 
-	var schema interface{}
+	var schema any
 
 	if annot.Schema != nil {
 		if ss == nil {

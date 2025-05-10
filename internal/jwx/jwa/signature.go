@@ -32,7 +32,7 @@ const (
 
 // Accept is used when conversion from values given by
 // outside sources (such as JSON payloads) is required
-func (signature *SignatureAlgorithm) Accept(value interface{}) error {
+func (signature *SignatureAlgorithm) Accept(value any) error {
 	var tmp SignatureAlgorithm
 	switch x := value.(type) {
 	case string:

@@ -13,7 +13,7 @@ import (
 )
 
 // All returns the list of data ast.Refs that the given AST element depends on.
-func All(x interface{}) (resolved []ast.Ref, err error) {
+func All(x any) (resolved []ast.Ref, err error) {
 	var rawResolved []ast.Ref
 	switch x := x.(type) {
 	case *ast.Module, *ast.Package, *ast.Import, *ast.Rule, *ast.Head, ast.Body, *ast.Expr, *ast.With, *ast.Term, ast.Ref, ast.Object, *ast.Array, ast.Set, *ast.ArrayComprehension:
@@ -21,7 +21,7 @@ func All(x interface{}) (resolved []ast.Ref, err error) {
 		return nil, fmt.Errorf("not an ast element: %v", x)
 	}
 
-	visitor := ast.NewGenericVisitor(func(x interface{}) bool {
+	visitor := ast.NewGenericVisitor(func(x any) bool {
 		switch x := x.(type) {
 		case *ast.Package, *ast.Import:
 			return true
@@ -69,7 +69,7 @@ func All(x interface{}) (resolved []ast.Ref, err error) {
 //
 // As an example, if an element depends on data.x and data.x.y, only data.x will
 // be in the returned list.
-func Minimal(x interface{}) (resolved []ast.Ref, err error) {
+func Minimal(x any) (resolved []ast.Ref, err error) {
 	rawResolved, err := All(x)
 	if err != nil {
 		return nil, err
@@ -88,7 +88,7 @@ func Minimal(x interface{}) (resolved []ast.Ref, err error) {
 //
 // The returned refs are always constant and are truncated at any point where they become
 // dynamic. That is, a ref like data.a.b[x] will be truncated to data.a.b.
-func Base(compiler *ast.Compiler, x interface{}) ([]ast.Ref, error) {
+func Base(compiler *ast.Compiler, x any) ([]ast.Ref, error) {
 	baseRefs := newRefSet()
 	err := base(compiler, x, baseRefs)
 	if err != nil {
@@ -98,7 +98,7 @@ func Base(compiler *ast.Compiler, x interface{}) ([]ast.Ref, error) {
 	return dedup(baseRefs.toSlice()), nil
 }
 
-func base(compiler *ast.Compiler, x interface{}, baseRefs *dependencies) error {
+func base(compiler *ast.Compiler, x any, baseRefs *dependencies) error {
 	refs, err := Minimal(x)
 	if err != nil {
 		return err
@@ -130,7 +130,7 @@ func base(compiler *ast.Compiler, x interface{}, baseRefs *dependencies) error {
 //
 // The returned refs are always constant and are truncated at any point where they become
 // dynamic. That is, a ref like data.a.b[x] will be truncated to data.a.b.
-func Virtual(compiler *ast.Compiler, x interface{}) ([]ast.Ref, error) {
+func Virtual(compiler *ast.Compiler, x any) ([]ast.Ref, error) {
 	virtualRefs := newRefSet()
 	err := virtual(compiler, x, virtualRefs)
 	if err != nil {
@@ -140,7 +140,7 @@ func Virtual(compiler *ast.Compiler, x interface{}) ([]ast.Ref, error) {
 	return dedup(virtualRefs.toSlice()), nil
 }
 
-func virtual(compiler *ast.Compiler, x interface{}, virtualRefs *dependencies) error {
+func virtual(compiler *ast.Compiler, x any, virtualRefs *dependencies) error {
 	refs, err := Minimal(x)
 	if err != nil {
 		return err
@@ -452,7 +452,7 @@ type skipVisitor struct {
 	skipped bool
 }
 
-func (sv *skipVisitor) Visit(v interface{}) bool {
+func (sv *skipVisitor) Visit(v any) bool {
 	if sv.skipped {
 		if r, ok := v.(ast.Ref); ok {
 			return sv.fn(r)

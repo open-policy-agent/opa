@@ -131,7 +131,7 @@ type rawobject struct {
 }
 
 type rawstaticproperty struct {
-	Key   interface{}     `json:"key"`
+	Key   any             `json:"key"`
 	Value json.RawMessage `json:"value"`
 }
 

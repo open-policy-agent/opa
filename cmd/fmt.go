@@ -273,7 +273,7 @@ func (e fmtError) Error() string {
 	return fmt.Sprintf("%s (%d)", e.msg, e.code)
 }
 
-func newError(msg string, a ...interface{}) fmtError {
+func newError(msg string, a ...any) fmtError {
 	return fmtError{
 		msg:  fmt.Sprintf(msg, a...),
 		code: 2,

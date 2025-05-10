@@ -250,7 +250,7 @@ func (p *PrintlnLogger) Stop(ctx context.Context) {
 	p.manager.UpdatePluginStatus(PluginName, &plugins.Status{State: plugins.StateNotReady})
 }
 
-func (p *PrintlnLogger) Reconfigure(ctx context.Context, config interface{}) {
+func (p *PrintlnLogger) Reconfigure(ctx context.Context, config any) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 	p.config = config.(Config)
@@ -289,7 +289,7 @@ import (
 
 type Factory struct{}
 
-func (Factory) New(m *plugins.Manager, config interface{}) plugins.Plugin {
+func (Factory) New(m *plugins.Manager, config any) plugins.Plugin {
 
 	m.UpdatePluginStatus(PluginName, &plugins.Status{State: plugins.StateNotReady})
 
@@ -299,7 +299,7 @@ func (Factory) New(m *plugins.Manager, config interface{}) plugins.Plugin {
 	}
 }
 
-func (Factory) Validate(_ *plugins.Manager, config []byte) (interface{}, error) {
+func (Factory) Validate(_ *plugins.Manager, config []byte) (any, error) {
 	parsedConfig := Config{}
 	return parsedConfig, util.Unmarshal(config, &parsedConfig)
 }

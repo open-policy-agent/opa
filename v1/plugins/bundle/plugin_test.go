@@ -62,7 +62,7 @@ func TestPluginOneShot(t *testing.T) {
 
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
-		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
+		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]any),
 		Modules: []bundle.ModuleFile{
 			{
 				Path:   "/foo/bar",
@@ -134,7 +134,7 @@ func TestPluginOneShotWithAstStore(t *testing.T) {
 
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
-		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
+		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]any),
 		Etag:     "foo",
 	}
 
@@ -234,7 +234,7 @@ corge contains 1 if {
 
 			b := bundle.Bundle{
 				Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
-				Data:     map[string]interface{}{},
+				Data:     map[string]any{},
 				Modules: []bundle.ModuleFile{
 					{
 						Path:   "/foo/bar",
@@ -482,7 +482,7 @@ corge contains 1 if {
 			}
 			b := bundle.Bundle{
 				Manifest: m,
-				Data:     map[string]interface{}{},
+				Data:     map[string]any{},
 				Modules: []bundle.ModuleFile{
 					{
 						Path:   "/foo/bar",
@@ -589,7 +589,7 @@ func TestPluginOneShotWithAuthzSchemaVerification(t *testing.T) {
 
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
-		Data:     map[string]interface{}{},
+		Data:     map[string]any{},
 		Modules: []bundle.ModuleFile{
 			{
 				URL:    "/authz.rego",
@@ -639,7 +639,7 @@ func TestPluginOneShotWithAuthzSchemaVerification(t *testing.T) {
 
 	b = bundle.Bundle{
 		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
-		Data:     map[string]interface{}{},
+		Data:     map[string]any{},
 		Modules: []bundle.ModuleFile{
 			{
 				URL:    "/authz.rego",
@@ -748,7 +748,7 @@ func TestPluginOneShotWithAuthzSchemaVerificationNonDefaultAuthzPath(t *testing.
 
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
-		Data:     map[string]interface{}{},
+		Data:     map[string]any{},
 		Modules: []bundle.ModuleFile{
 			{
 				URL:    "/authz.rego",
@@ -777,7 +777,7 @@ func TestPluginOneShotWithAuthzSchemaVerificationNonDefaultAuthzPath(t *testing.
 	// no authz policy
 	b = bundle.Bundle{
 		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
-		Data:     map[string]interface{}{},
+		Data:     map[string]any{},
 		Modules: []bundle.ModuleFile{
 			{
 				Path:   "/foo/bar",
@@ -823,7 +823,7 @@ func TestPluginStartLazyLoadInMem(t *testing.T) {
 
 			// setup fake http server with mock bundle
 			mockBundle1 := bundle.Bundle{
-				Data: map[string]interface{}{"p": "x1"},
+				Data: map[string]any{"p": "x1"},
 				Modules: []bundle.ModuleFile{
 					{
 						URL:    "/bar/policy.rego",
@@ -845,7 +845,7 @@ func TestPluginStartLazyLoadInMem(t *testing.T) {
 			}))
 
 			mockBundle2 := bundle.Bundle{
-				Data:    map[string]interface{}{"q": "x2"},
+				Data:    map[string]any{"q": "x2"},
 				Modules: []bundle.ModuleFile{},
 				Manifest: bundle.Manifest{
 					Roots: &[]string{"q"},
@@ -1011,7 +1011,7 @@ func TestPluginOneShotDiskStorageMetrics(t *testing.T) {
 
 		b := bundle.Bundle{
 			Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
-			Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
+			Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]any),
 			Modules: []bundle.ModuleFile{
 				{
 					Path:   "/foo/bar",
@@ -1110,8 +1110,8 @@ func TestPluginOneShotDeltaBundle(t *testing.T) {
 
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{Revision: "quickbrownfaux", Roots: &[]string{"a"}},
-		Data: map[string]interface{}{
-			"a": map[string]interface{}{
+		Data: map[string]any{
+			"a": map[string]any{
 				"baz": "qux",
 			},
 		},
@@ -1141,7 +1141,7 @@ func TestPluginOneShotDeltaBundle(t *testing.T) {
 	p2 := bundle.PatchOperation{
 		Op:    "upsert",
 		Path:  "/a/foo",
-		Value: []interface{}{"hello", "world"},
+		Value: []any{"hello", "world"},
 	}
 
 	b2 := bundle.Bundle{
@@ -1214,8 +1214,8 @@ func TestPluginOneShotDeltaBundleWithAstStore(t *testing.T) {
 
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{Revision: "quickbrownfaux", Roots: &[]string{"a"}},
-		Data: map[string]interface{}{
-			"a": map[string]interface{}{
+		Data: map[string]any{
+			"a": map[string]any{
 				"baz": "qux",
 			},
 		},
@@ -1245,7 +1245,7 @@ func TestPluginOneShotDeltaBundleWithAstStore(t *testing.T) {
 	p2 := bundle.PatchOperation{
 		Op:    "upsert",
 		Path:  "/a/foo",
-		Value: []interface{}{"hello", "world"},
+		Value: []any{"hello", "world"},
 	}
 
 	b2 := bundle.Bundle{
@@ -1423,7 +1423,7 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 	module := "package foo\n\ncorge=1"
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
-		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
+		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]any),
 		Modules: []bundle.ModuleFile{
 			{
 				URL:    "/foo/bar.rego",
@@ -1588,7 +1588,7 @@ corge contains 1 if {
 			// download a bundle and persist to disk. Then verify the bundle persisted to disk
 			b := bundle.Bundle{
 				Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
-				Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
+				Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]any),
 				Modules: []bundle.ModuleFile{
 					{
 						URL:    "/foo/bar.rego",
@@ -1881,7 +1881,7 @@ corge contains 1 if {
 			}
 			b := bundle.Bundle{
 				Manifest: m,
-				Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
+				Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]any),
 				Modules: []bundle.ModuleFile{
 					{
 						URL:    "/foo/bar.rego",
@@ -2118,7 +2118,7 @@ func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
-		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
+		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]any),
 		Modules: []bundle.ModuleFile{
 			{
 				URL:    "/foo/bar.rego",
@@ -2203,7 +2203,7 @@ func TestLoadAndActivateBundlesFromDiskReservedChars(t *testing.T) {
 
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
-		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
+		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]any),
 		Modules: []bundle.ModuleFile{
 			{
 				URL:    "/foo/bar.rego",
@@ -2425,7 +2425,7 @@ corge contains 2 if {
 				// persist a bundle to disk and then load it
 				b := bundle.Bundle{
 					Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
-					Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
+					Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]any),
 				}
 				for url, module := range update.modules {
 					b.Modules = append(b.Modules, bundle.ModuleFile{
@@ -2648,7 +2648,7 @@ corge contains 1 if {
 			}
 			b := bundle.Bundle{
 				Manifest: m,
-				Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
+				Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]any),
 				Modules: []bundle.ModuleFile{
 					{
 						URL:    "/foo/bar.rego",
@@ -2821,7 +2821,7 @@ is_one(x) if {
 
 	b1 := bundle.Bundle{
 		Manifest: bundle.Manifest{Revision: "quickbrownfauxbar", Roots: &[]string{"bar"}},
-		Data:     map[string]interface{}{},
+		Data:     map[string]any{},
 		Modules: []bundle.ModuleFile{
 			{
 				URL:    "/bar/policy.rego",
@@ -2836,7 +2836,7 @@ is_one(x) if {
 
 	b2 := bundle.Bundle{
 		Manifest: bundle.Manifest{Revision: "quickbrownfauxfoo", Roots: &[]string{"foo"}},
-		Data:     map[string]interface{}{},
+		Data:     map[string]any{},
 		Modules: []bundle.ModuleFile{
 			{
 				URL:    "/foo/policy.rego",
@@ -2915,7 +2915,7 @@ allow if {
 
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{Revision: "quickbrownfaux", Roots: &[]string{"bar"}},
-		Data:     map[string]interface{}{},
+		Data:     map[string]any{},
 		Modules: []bundle.ModuleFile{
 			{
 				URL:    "/bar/policy.rego",
@@ -2969,7 +2969,7 @@ import rego.v1
 p contains x if { x = 1 }`
 
 	b1 := &bundle.Bundle{
-		Data: map[string]interface{}{"a": "b"},
+		Data: map[string]any{"a": "b"},
 		Modules: []bundle.ModuleFile{
 			{
 				Path:   "/example.rego",
@@ -2985,7 +2985,7 @@ p contains x if { x = 1 }`
 	ensurePluginState(t, plugin, plugins.StateOK)
 
 	b2 := &bundle.Bundle{
-		Data: map[string]interface{}{"a": "b"},
+		Data: map[string]any{"a": "b"},
 		Modules: []bundle.ModuleFile{
 			{
 				Path: "/example2.rego",
@@ -3017,7 +3017,7 @@ p contains x`),
 	manager.Store.Abort(ctx, txn)
 
 	b3 := &bundle.Bundle{
-		Data: map[string]interface{}{"foo": map[string]interface{}{"p": "a"}},
+		Data: map[string]any{"foo": map[string]any{"p": "a"}},
 		Modules: []bundle.ModuleFile{
 			{
 				Path:   "/example3.rego",
@@ -3067,7 +3067,7 @@ func TestPluginOneShotHTTPError(t *testing.T) {
 	module := "package foo\n\ncorge=1"
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
-		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
+		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]any),
 		Modules: []bundle.ModuleFile{
 			{
 				Path:   "/foo/bar",
@@ -3102,7 +3102,7 @@ func TestPluginOneShotActivationRemovesOld(t *testing.T) {
 		p = 1`
 
 	b1 := bundle.Bundle{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"foo": "bar",
 		},
 		Modules: []bundle.ModuleFile{
@@ -3124,7 +3124,7 @@ func TestPluginOneShotActivationRemovesOld(t *testing.T) {
 		p = 2`
 
 	b2 := bundle.Bundle{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"baz": "qux",
 		},
 		Modules: []bundle.ModuleFile{
@@ -3150,10 +3150,10 @@ func TestPluginOneShotActivationRemovesOld(t *testing.T) {
 		}
 		data, err := manager.Store.Read(ctx, txn, storage.Path{})
 		// remove system key to make comparison simpler
-		delete(data.(map[string]interface{}), "system")
+		delete(data.(map[string]any), "system")
 		if err != nil {
 			return err
-		} else if !reflect.DeepEqual(data, map[string]interface{}{"baz": "qux"}) {
+		} else if !reflect.DeepEqual(data, map[string]any{"baz": "qux"}) {
 			return errors.New("expected updated data")
 		}
 		return nil
@@ -3317,7 +3317,7 @@ p contains x if { x = 1 }`
 		Manifest: bundle.Manifest{
 			Revision: "quickbrownfaux",
 		},
-		Data: map[string]interface{}{},
+		Data: map[string]any{},
 		Modules: []bundle.ModuleFile{
 			{
 				Path:   "/foo.rego",
@@ -3426,7 +3426,7 @@ func TestPluginListenerErrorClearedOn304(t *testing.T) {
 		Manifest: bundle.Manifest{
 			Revision: "quickbrownfaux",
 		},
-		Data: map[string]interface{}{"foo": "bar"},
+		Data: map[string]any{"foo": "bar"},
 	}
 
 	b.Manifest.Init()
@@ -3497,7 +3497,7 @@ p contains x if { x = 1 }`
 			Revision: "quickbrownfaux",
 			Roots:    &[]string{"gork"},
 		},
-		Data: map[string]interface{}{},
+		Data: map[string]any{},
 		Modules: []bundle.ModuleFile{
 			{
 				Path:   "/foo.rego",
@@ -3616,7 +3616,7 @@ p contains x if { x = 1 }`
 			Revision: "123",
 			Roots:    &[]string{"p1"},
 		},
-		Data: map[string]interface{}{},
+		Data: map[string]any{},
 		Modules: []bundle.ModuleFile{
 			{
 				Path:   "/foo1.rego",
@@ -3695,7 +3695,7 @@ p contains x if { x = 1 }`
 			Revision: "quickbrownfaux",
 			Roots:    &[]string{"gork"},
 		},
-		Data: map[string]interface{}{},
+		Data: map[string]any{},
 		Modules: []bundle.ModuleFile{
 			{
 				Path:   "/foo.rego",
@@ -3759,7 +3759,7 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 			// odd paths are raw JSON.
 			if err := storage.Txn(ctx, manager.Store, storage.WriteParams, func(txn storage.Transaction) error {
 
-				externalData := map[string]interface{}{"a": map[string]interface{}{"a1": "x1", "a3": "x2", "a5": "x3"}}
+				externalData := map[string]any{"a": map[string]any{"a1": "x1", "a3": "x2", "a5": "x3"}}
 
 				if err := manager.Store.Write(ctx, txn, storage.AddOp, storage.Path{}, externalData); err != nil {
 					return err
@@ -3782,8 +3782,8 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 
 			b := bundle.Bundle{
 				Manifest: bundle.Manifest{Revision: "quickbrownfaux", Roots: &[]string{"a/a1", "a/a2"}},
-				Data: map[string]interface{}{
-					"a": map[string]interface{}{
+				Data: map[string]any{
+					"a": map[string]any{
 						"a1": "foo",
 					},
 				},
@@ -3803,7 +3803,7 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 			// Ensure a/a3-6 are intact. a1-2 are overwritten by bundle, and
 			// that the manifest has been written to storage.
 			exp := `{"a1": "foo", "a3": "x2", "a5": "x3"}`
-			var expData interface{}
+			var expData any
 			if rm.readAst {
 				expData = ast.MustParseTerm(exp).Value
 			} else {
@@ -3819,14 +3819,14 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 
 			b = bundle.Bundle{
 				Manifest: bundle.Manifest{Revision: "quickbrownfaux-2", Roots: &[]string{"a/a3", "a/a4"},
-					Metadata: map[string]interface{}{
-						"a": map[string]interface{}{
+					Metadata: map[string]any{
+						"a": map[string]any{
 							"a1": "deadbeef",
 						},
 					},
 				},
-				Data: map[string]interface{}{
-					"a": map[string]interface{}{
+				Data: map[string]any{
+					"a": map[string]any{
 						"a3": "foo",
 					},
 				},
@@ -3851,8 +3851,8 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 			}
 			expIDs = []string{filepath.Join(bundleName, "bundle", "id2"), "some/id3"}
 			validateStoreState(ctx, t, manager.Store, "/a", expData, expIDs, bundleName, "quickbrownfaux-2",
-				map[string]interface{}{
-					"a": map[string]interface{}{"a1": "deadbeef"},
+				map[string]any{
+					"a": map[string]any{"a1": "deadbeef"},
 				})
 
 			// Upsert policy outside of bundle scope that depends on bundle.
@@ -3864,7 +3864,7 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 
 			b = bundle.Bundle{
 				Manifest: bundle.Manifest{Revision: "quickbrownfaux-3", Roots: &[]string{"a/a3", "a/a4"}},
-				Data:     map[string]interface{}{},
+				Data:     map[string]any{},
 				Modules:  []bundle.ModuleFile{},
 			}
 
@@ -3875,8 +3875,8 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 			// still active.
 			expIDs = []string{filepath.Join(bundleName, "bundle", "id2"), "not_scoped", "some/id3"}
 			validateStoreState(ctx, t, manager.Store, "/a", expData, expIDs, bundleName, "quickbrownfaux-2",
-				map[string]interface{}{
-					"a": map[string]interface{}{"a1": "deadbeef"},
+				map[string]any{
+					"a": map[string]any{"a1": "deadbeef"},
 				})
 		})
 	}
@@ -3905,7 +3905,7 @@ func TestPluginSetCompilerOnContext(t *testing.T) {
 
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
-		Data:     map[string]interface{}{},
+		Data:     map[string]any{},
 		Modules: []bundle.ModuleFile{
 			{
 				Path:   "/test.rego",
@@ -4563,8 +4563,8 @@ func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
 
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{Revision: "quickbrownfaux", Roots: &[]string{"a/a1", "a/a2"}},
-		Data: map[string]interface{}{
-			"a": map[string]interface{}{
+		Data: map[string]any{
+			"a": map[string]any{
 				"a2": "foo",
 			},
 		},
@@ -4684,8 +4684,8 @@ func TestUpgradeLegacyBundleToMultiBundleNewBundles(t *testing.T) {
 
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{Revision: "quickbrownfaux", Roots: &[]string{"a/a1", "a/a2"}},
-		Data: map[string]interface{}{
-			"a": map[string]interface{}{
+		Data: map[string]any{
+			"a": map[string]any{
 				"a2": "foo",
 			},
 		},
@@ -4728,8 +4728,8 @@ func TestUpgradeLegacyBundleToMultiBundleNewBundles(t *testing.T) {
 	module = "package a.c\n\nbar=1"
 	b = bundle.Bundle{
 		Manifest: bundle.Manifest{Revision: "b2-1", Roots: &[]string{"a/b2", "a/c"}},
-		Data: map[string]interface{}{
-			"a": map[string]interface{}{
+		Data: map[string]any{
+			"a": map[string]any{
 				"b2": "foo",
 			},
 		},
@@ -4841,8 +4841,8 @@ func TestLegacyBundleDataRead(t *testing.T) {
 
 			b := bundle.Bundle{
 				Manifest: bundle.Manifest{Revision: "quickbrownfaux", Roots: &[]string{"a/a1", "a/a2"}},
-				Data: map[string]interface{}{
-					"a": map[string]interface{}{
+				Data: map[string]any{
+					"a": map[string]any{
 						"a2": "foo",
 					},
 				},
@@ -4864,7 +4864,7 @@ func TestLegacyBundleDataRead(t *testing.T) {
 			plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
 
 			exp := `{"a2": "foo"}`
-			var expData interface{}
+			var expData any
 			if rm.readAst {
 				expData = ast.MustParseTerm(exp).Value
 			} else {
@@ -4947,8 +4947,8 @@ func TestSaveBundleToDiskOverWrite(t *testing.T) {
 
 	newBundle := bundle.Bundle{
 		Manifest: bundle.Manifest{Revision: "quickbrownfaux", Roots: &[]string{"a/a1", "a/a2"}},
-		Data: map[string]interface{}{
-			"a": map[string]interface{}{
+		Data: map[string]any{
+			"a": map[string]any{
 				"a2": "foo",
 			},
 		},
@@ -5080,7 +5080,7 @@ p contains 1 if {
 				Parsed: ast.MustParseModuleWithOpts(policy, popts),
 			},
 		},
-		Data: map[string]interface{}{},
+		Data: map[string]any{},
 	}
 
 	b.Manifest.Init()
@@ -5185,7 +5185,7 @@ func TestPluginUsingFileLoader(t *testing.T) {
 	test.WithTempFS(map[string]string{}, func(dir string) {
 
 		b := bundle.Bundle{
-			Data: map[string]interface{}{},
+			Data: map[string]any{},
 			Modules: []bundle.ModuleFile{
 				{
 					URL: "test.rego",
@@ -5356,7 +5356,7 @@ p contains 7 if {
 			test.WithTempFS(map[string]string{}, func(dir string) {
 
 				b := bundle.Bundle{
-					Data: map[string]interface{}{},
+					Data: map[string]any{},
 					Modules: []bundle.ModuleFile{
 						{
 							URL: "test.rego",
@@ -5669,7 +5669,7 @@ p contains 7 if {
 				manifest.SetRegoVersion(tc.bundleRegoVersion)
 				b := bundle.Bundle{
 					Manifest: manifest,
-					Data:     map[string]interface{}{},
+					Data:     map[string]any{},
 					Modules: []bundle.ModuleFile{
 						{
 							URL: "test.rego",
@@ -6239,7 +6239,7 @@ func TestPluginReadBundleEtagFromDiskStore(t *testing.T) {
 
 	// setup fake http server with mock bundle
 	mockBundle := bundle.Bundle{
-		Data:    map[string]interface{}{"p": "x1"},
+		Data:    map[string]any{"p": "x1"},
 		Modules: []bundle.ModuleFile{},
 	}
 
@@ -6418,21 +6418,21 @@ func TestPluginStateReconciliationOnReconfigure(t *testing.T) {
 	// setup fake http server with mock bundle
 	mockBundles := map[string]bundle.Bundle{
 		"b1": {
-			Data:    map[string]interface{}{"b1": "x1"},
+			Data:    map[string]any{"b1": "x1"},
 			Modules: []bundle.ModuleFile{},
 			Manifest: bundle.Manifest{
 				Roots: &[]string{"b1"},
 			},
 		},
 		"b2": {
-			Data:    map[string]interface{}{"b2": "x1"},
+			Data:    map[string]any{"b2": "x1"},
 			Modules: []bundle.ModuleFile{},
 			Manifest: bundle.Manifest{
 				Roots: &[]string{"b2"},
 			},
 		},
 		"b3_frequently_changing": {
-			Data:    map[string]interface{}{"b3": "x1"},
+			Data:    map[string]any{"b3": "x1"},
 			Modules: []bundle.ModuleFile{},
 			Manifest: bundle.Manifest{
 				Roots: &[]string{"b3"},
@@ -6618,7 +6618,7 @@ func TestPluginManualTrigger(t *testing.T) {
 
 	// setup fake http server with mock bundle
 	mockBundle := bundle.Bundle{
-		Data:    map[string]interface{}{"p": "x1"},
+		Data:    map[string]any{"p": "x1"},
 		Modules: []bundle.ModuleFile{},
 	}
 
@@ -6709,7 +6709,7 @@ func TestPluginManualTriggerMultipleDiskStorage(t *testing.T) {
 
 	// setup fake http server with mock bundle
 	mockBundle1 := bundle.Bundle{
-		Data: map[string]interface{}{"p": "x1"},
+		Data: map[string]any{"p": "x1"},
 		Modules: []bundle.ModuleFile{
 			{
 				URL:    "/bar/policy.rego",
@@ -6731,7 +6731,7 @@ func TestPluginManualTriggerMultipleDiskStorage(t *testing.T) {
 	}))
 
 	mockBundle2 := bundle.Bundle{
-		Data:    map[string]interface{}{"q": "x2"},
+		Data:    map[string]any{"q": "x2"},
 		Modules: []bundle.ModuleFile{},
 		Manifest: bundle.Manifest{
 			Roots: &[]string{"q"},
@@ -6862,7 +6862,7 @@ func TestPluginManualTriggerMultiple(t *testing.T) {
 
 	// setup fake http server with mock bundle
 	mockBundle1 := bundle.Bundle{
-		Data:    map[string]interface{}{"p": "x1"},
+		Data:    map[string]any{"p": "x1"},
 		Modules: []bundle.ModuleFile{},
 		Manifest: bundle.Manifest{
 			Roots: &[]string{"p"},
@@ -6877,7 +6877,7 @@ func TestPluginManualTriggerMultiple(t *testing.T) {
 	}))
 
 	mockBundle2 := bundle.Bundle{
-		Data:    map[string]interface{}{"q": "x2"},
+		Data:    map[string]any{"q": "x2"},
 		Modules: []bundle.ModuleFile{},
 		Manifest: bundle.Manifest{
 			Roots: &[]string{"q"},
@@ -7271,7 +7271,7 @@ func getTestBundleWithData(roots []string, data []byte, modules []testModule) bu
 	}
 
 	if len(data) > 0 {
-		b.Data = util.MustUnmarshalJSON(data).(map[string]interface{})
+		b.Data = util.MustUnmarshalJSON(data).(map[string]any)
 	}
 
 	for _, m := range modules {
@@ -7354,7 +7354,7 @@ p contains x if { x = 1 }`
 		Manifest: bundle.Manifest{
 			Revision: "quickbrownfaux",
 		},
-		Data: map[string]interface{}{},
+		Data: map[string]any{},
 		Modules: []bundle.ModuleFile{
 			{
 				Path:   "/foo.rego",
@@ -7393,7 +7393,7 @@ func getTestRawBundle(t *testing.T) io.Reader {
 	return &buf
 }
 
-func validateStoreState(ctx context.Context, t *testing.T, store storage.Store, root string, expData interface{}, expIDs []string, expBundleName string, expBundleRev string, expMetadata map[string]interface{}) {
+func validateStoreState(ctx context.Context, t *testing.T, store storage.Store, root string, expData any, expIDs []string, expBundleName string, expBundleRev string, expMetadata map[string]any) {
 	t.Helper()
 	if err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 		value, err := store.Read(ctx, txn, storage.MustParsePath(root))

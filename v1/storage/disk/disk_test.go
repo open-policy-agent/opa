@@ -623,12 +623,12 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 	tests := []struct {
 		note       string
 		partitions []string
-		sequence   []interface{}
+		sequence   []any
 	}{
 		{
 			note:       "exact-match: add",
 			partitions: []string{"/foo"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo/bar",
@@ -644,7 +644,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		{
 			note:       "exact-match: add: multi-level",
 			partitions: []string{"/foo/bar"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo/bar/baz",
@@ -660,7 +660,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		{
 			note:       "exact-match: unpartitioned",
 			partitions: []string{"/foo"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/deadbeef",
@@ -677,7 +677,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		{
 			note:       "exact-match: remove",
 			partitions: []string{"/foo"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo/bar",
@@ -701,7 +701,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		{
 			note:       "read: sub-field",
 			partitions: []string{"/foo"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo/bar",
@@ -718,7 +718,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		{
 			note:       "read-modify-write: add",
 			partitions: []string{"/foo"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo/bar",
@@ -738,7 +738,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		{
 			note:       "read-modify-write: add: unpartitioned",
 			partitions: []string{"/foo"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/deadbeef",
@@ -758,7 +758,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		{
 			note:       "read-modify-write: add: array append",
 			partitions: []string{"/foo"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo/bar",
@@ -778,7 +778,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		{
 			note:       "read-modify-write: add: array append (via last index)",
 			partitions: []string{"/foo"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo/bar",
@@ -798,7 +798,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		{
 			note:       "read-modify-write: add: array insert",
 			partitions: []string{"/foo"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo/bar",
@@ -818,7 +818,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		{
 			note:       "read-modify-write: replace",
 			partitions: []string{"/foo"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo/bar",
@@ -838,7 +838,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		{
 			note:       "read-modify-write: replace: array",
 			partitions: []string{"/foo"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo/bar",
@@ -858,7 +858,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		{
 			note:       "read-modify-write: remove",
 			partitions: []string{"/foo"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo/bar",
@@ -877,7 +877,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		{
 			note:       "read-modify-write: remove: array",
 			partitions: []string{"/foo"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo/bar",
@@ -896,7 +896,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		{
 			note:       "read-modify-write: multi-level: map",
 			partitions: []string{"/foo"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo/bar",
@@ -916,7 +916,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		{
 			note:       "read-modify-write: multi-level: array",
 			partitions: []string{"/foo"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo/bar",
@@ -936,7 +936,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		{
 			note:       "prefix",
 			partitions: []string{"/foo"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo",
@@ -960,7 +960,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		},
 		{
 			note: "prefix: unpartitioned: root",
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/deadbeef",
@@ -975,7 +975,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		{
 			note:       "prefix: unpartitioned: mixed",
 			partitions: []string{"/foo"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/",
@@ -1006,7 +1006,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		{
 			note:       "prefix: overwrite",
 			partitions: []string{"/foo"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/",
@@ -1026,7 +1026,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		{
 			note:       "prefix: remove",
 			partitions: []string{"/foo"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:   storage.AddOp,
 					path: "/",
@@ -1050,7 +1050,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		},
 		{
 			note: "issue-3711: string-to-number conversion",
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:   storage.AddOp,
 					path: "/",
@@ -1067,7 +1067,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		{
 			note:       "pattern partitions: middle wildcard: match",
 			partitions: []string{"/foo/*/bar"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo/a/bar",
@@ -1080,7 +1080,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		{
 			note:       "pattern partitions: middle wildcard: no-match",
 			partitions: []string{"/foo/*/bar"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo/b/baz",
@@ -1094,7 +1094,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		{
 			note:       "pattern partitions: middle wildcard: partial match",
 			partitions: []string{"/foo/*/bar"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo/b",
@@ -1109,7 +1109,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		{
 			note:       "pattern partitions: 2x middle wildcard: partial match",
 			partitions: []string{"/foo/*/*/bar"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo/b/c",
@@ -1124,7 +1124,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 		{
 			note:       "pattern partitions: wildcard at the end",
 			partitions: []string{"/users/*"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/users",
@@ -1176,7 +1176,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 						if err != nil {
 							t.Fatal(err)
 						}
-						var exp interface{}
+						var exp any
 						if x.exp != "" {
 							exp = util.MustUnmarshalJSON([]byte(x.exp))
 						}
@@ -1201,12 +1201,12 @@ func TestDataPartitioningReadNotFoundErrors(t *testing.T) {
 	tests := []struct {
 		note       string
 		partitions []string
-		sequence   []interface{}
+		sequence   []any
 	}{
 		{
 			note:       "unpartitioned: key",
 			partitions: []string{"/foo"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo/bar",
@@ -1220,7 +1220,7 @@ func TestDataPartitioningReadNotFoundErrors(t *testing.T) {
 		{
 			note:       "unpartitioned: nested",
 			partitions: []string{"/foo"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/deadbeef",
@@ -1234,7 +1234,7 @@ func TestDataPartitioningReadNotFoundErrors(t *testing.T) {
 		{
 			note:       "unpartitioned: nested: 2-level",
 			partitions: []string{"/foo"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/deadbeef",
@@ -1248,7 +1248,7 @@ func TestDataPartitioningReadNotFoundErrors(t *testing.T) {
 		{
 			note:       "partitioned: key",
 			partitions: []string{"/foo"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo/bar",
@@ -1262,7 +1262,7 @@ func TestDataPartitioningReadNotFoundErrors(t *testing.T) {
 		{
 			note:       "partitioned: nested",
 			partitions: []string{"/foo"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo/bar",
@@ -1276,7 +1276,7 @@ func TestDataPartitioningReadNotFoundErrors(t *testing.T) {
 		{
 			note:       "partitioned: nested: 2-level",
 			partitions: []string{"/foo"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo/bar",
@@ -1290,7 +1290,7 @@ func TestDataPartitioningReadNotFoundErrors(t *testing.T) {
 		{
 			note:       "partitioned: prefix",
 			partitions: []string{"/foo", "/bar"},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo/bar",
@@ -1349,12 +1349,12 @@ func TestDataPartitioningWriteNotFoundErrors(t *testing.T) {
 	tests := []struct {
 		note       string
 		partitions []string
-		sequence   []interface{}
+		sequence   []any
 	}{
 		{
 			note:       "patch: remove: non-existent key",
 			partitions: []string{},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo",
@@ -1369,7 +1369,7 @@ func TestDataPartitioningWriteNotFoundErrors(t *testing.T) {
 		{
 			note:       "patch: replace: non-existent key",
 			partitions: []string{},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo",
@@ -1385,7 +1385,7 @@ func TestDataPartitioningWriteNotFoundErrors(t *testing.T) {
 		{
 			note:       "patch: scalar",
 			partitions: []string{},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo",
@@ -1400,7 +1400,7 @@ func TestDataPartitioningWriteNotFoundErrors(t *testing.T) {
 		{
 			note:       "patch: array index",
 			partitions: []string{},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo",
@@ -1415,7 +1415,7 @@ func TestDataPartitioningWriteNotFoundErrors(t *testing.T) {
 		{
 			note:       "patch: array index: non-leaf",
 			partitions: []string{},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo",
@@ -1430,7 +1430,7 @@ func TestDataPartitioningWriteNotFoundErrors(t *testing.T) {
 		{
 			note:       "patch: array: non-existent key",
 			partitions: []string{},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo",
@@ -1445,7 +1445,7 @@ func TestDataPartitioningWriteNotFoundErrors(t *testing.T) {
 		{
 			note:       "patch: array: scalar",
 			partitions: []string{},
-			sequence: []interface{}{
+			sequence: []any{
 				testWrite{
 					op:    storage.AddOp,
 					path:  "/foo",
@@ -1483,7 +1483,7 @@ func TestDataPartitioningWriteNotFoundErrors(t *testing.T) {
 					case testWrite:
 						executeTestWrite(ctx, t, s, x)
 					case testWriteError:
-						var val interface{}
+						var val any
 						if x.value != "" {
 							val = util.MustUnmarshalJSON([]byte(x.value))
 						}
@@ -1554,7 +1554,7 @@ func TestDataPartitioningWriteInvalidPatchError(t *testing.T) {
 
 func executeTestWrite(ctx context.Context, t *testing.T, s storage.Store, x testWrite) {
 	t.Helper()
-	var val interface{}
+	var val any
 	if x.value != "" {
 		val = util.MustUnmarshalJSON([]byte(x.value))
 	}

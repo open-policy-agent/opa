@@ -24,7 +24,7 @@ type Key interface {
 	// RSA types would create *rsa.PublicKey or *rsa.PrivateKey,
 	// EC types would create *ecdsa.PublicKey or *ecdsa.PrivateKey,
 	// and OctetSeq types create a []byte key.
-	Materialize() (interface{}, error)
+	Materialize() (any, error)
 	GenerateKey(*RawKeyJSON) error
 }
 

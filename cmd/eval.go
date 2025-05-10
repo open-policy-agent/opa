@@ -392,7 +392,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 
 	results := make([]pr.Output, ectx.params.count)
 	profiles := make([][]profiler.ExprStats, ectx.params.count)
-	timers := make([]map[string]interface{}, ectx.params.count)
+	timers := make([]map[string]any, ectx.params.count)
 
 	for i := range ectx.params.count {
 		results[i] = evalOnce(ctx, ectx)
@@ -408,7 +408,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 		result.Profile = nil
 		result.Metrics = nil
 		result.AggregatedProfile = profiler.AggregateProfiles(profiles...)
-		timersAggregated := map[string]interface{}{}
+		timersAggregated := map[string]any{}
 		for name := range timers[0] {
 			var vals []int64
 			for _, t := range timers {
@@ -632,7 +632,7 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		return nil, err
 	}
 	if inputBytes != nil {
-		var input interface{}
+		var input any
 		err := util.Unmarshal(inputBytes, &input)
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse input: %s", err.Error())
@@ -862,7 +862,7 @@ type astLocationResetVisitor struct {
 	n int
 }
 
-func (vis *astLocationResetVisitor) visit(x interface{}) bool {
+func (vis *astLocationResetVisitor) visit(x any) bool {
 	if expr, ok := x.(*ast.Expr); ok {
 		if expr.Location != nil {
 			cpy := *expr.Location

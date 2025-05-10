@@ -28,7 +28,7 @@ func TestInMemoryRead(t *testing.T) {
 
 	var tests = []struct {
 		path     string
-		expected interface{}
+		expected any
 	}{
 		{"/a/0", json.Number("1")},
 		{"/a/3", json.Number("4")},
@@ -38,8 +38,8 @@ func TestInMemoryRead(t *testing.T) {
 		{"/c/0/y/0", nil},
 		{"/c/0/y/1", json.Number("3.14159")},
 		{"/d/e/1", "baz"},
-		{"/d/e", []interface{}{"bar", "baz"}},
-		{"/c/0/z", map[string]interface{}{"p": true, "q": false}},
+		{"/d/e", []any{"bar", "baz"}},
+		{"/c/0/z", map[string]any{"p": true, "q": false}},
 		{"/a/0/beef", storageerrors.NewNotFoundError(storage.MustParsePath("/a/0/beef"))},
 		{"/d/100", storageerrors.NewNotFoundError(storage.MustParsePath("/d/100"))},
 		{"/dead/beef", storageerrors.NewNotFoundError(storage.MustParsePath("/dead/beef"))},
@@ -78,7 +78,7 @@ func TestInMemoryReadAst(t *testing.T) {
 
 	var tests = []struct {
 		path     string
-		expected interface{}
+		expected any
 	}{
 		{"/a/0", ast.Number("1")},
 		{"/a/3", ast.Number("4")},
@@ -139,7 +139,7 @@ func TestInMemoryWrite(t *testing.T) {
 				value       string
 				expected    error
 				getPath     string
-				getExpected interface{}
+				getExpected any
 			}{
 				{"add root", "add", "/", `{"a": [1]}`, nil, "/", `{"a": [1]}`},
 				{"add", "add", "/newroot", `{"a": [[1]]}`, nil, "/newroot", `{"a": [[1]]}`},
@@ -277,13 +277,13 @@ func TestInMemoryWriteOfStruct(t *testing.T) {
 	}
 
 	cases := map[string]struct {
-		value    interface{}
+		value    any
 		expected string
 	}{
 		"nested struct":            {A{&B{10}}, `{"foo": {"bar": 10 } }`},
 		"pointer to nested struct": {&A{&B{10}}, `{"foo": {"bar": 10 } }`},
 		"pointer to pointer to nested struct": {
-			func() interface{} {
+			func() any {
 				a := &A{&B{10}}
 				return &a
 			}(), `{"foo": {"bar": 10 } }`},
@@ -322,13 +322,13 @@ func TestInMemoryWriteOfStructAst(t *testing.T) {
 	}
 
 	cases := map[string]struct {
-		value    interface{}
+		value    any
 		expected string
 	}{
 		"nested struct":            {A{&B{10}}, `{"foo": {"bar": 10 } }`},
 		"pointer to nested struct": {&A{&B{10}}, `{"foo": {"bar": 10 } }`},
 		"pointer to pointer to nested struct": {
-			func() interface{} {
+			func() any {
 				a := &A{&B{10}}
 				return &a
 			}(), `{"foo": {"bar": 10 } }`},
@@ -409,7 +409,7 @@ func TestInMemoryTxnMultipleWrites(t *testing.T) {
 	}
 
 	for _, w := range writes {
-		var jsn interface{}
+		var jsn any
 		if w.value != "" {
 			jsn = util.MustUnmarshalJSON([]byte(w.value))
 		}
@@ -491,7 +491,7 @@ func TestInMemoryTxnMultipleWritesAst(t *testing.T) {
 	}
 
 	for _, w := range writes {
-		var jsn interface{}
+		var jsn any
 		if w.value != "" {
 			jsn = util.MustUnmarshalJSON([]byte(w.value))
 		}
@@ -535,7 +535,7 @@ func TestTruncateNoExistingPath(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
 			ctx := context.Background()
-			store := NewFromObjectWithOpts(map[string]interface{}{}, OptReturnASTValuesOnRead(tc.ast))
+			store := NewFromObjectWithOpts(map[string]any{}, OptReturnASTValuesOnRead(tc.ast))
 			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
 			var archiveFiles = map[string]string{
@@ -602,7 +602,7 @@ func TestTruncateNoExistingPath(t *testing.T) {
 
 func TestTruncate(t *testing.T) {
 	ctx := context.Background()
-	store := NewFromObject(map[string]interface{}{})
+	store := NewFromObject(map[string]any{})
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
 	var archiveFiles = map[string]string{
@@ -700,7 +700,7 @@ func TestTruncate(t *testing.T) {
 
 func TestTruncateAst(t *testing.T) {
 	ctx := context.Background()
-	store := NewFromObjectWithOpts(map[string]interface{}{}, OptReturnASTValuesOnRead(true))
+	store := NewFromObjectWithOpts(map[string]any{}, OptReturnASTValuesOnRead(true))
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
 	var archiveFiles = map[string]string{
@@ -808,7 +808,7 @@ func TestTruncateDataMergeError(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
 			ctx := context.Background()
-			store := NewFromObjectWithOpts(map[string]interface{}{}, OptReturnASTValuesOnRead(tc.ast))
+			store := NewFromObjectWithOpts(map[string]any{}, OptReturnASTValuesOnRead(tc.ast))
 			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
 			var archiveFiles = map[string]string{
@@ -854,7 +854,7 @@ func TestTruncateBadRootWrite(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
 			ctx := context.Background()
-			store := NewFromObjectWithOpts(map[string]interface{}{}, OptReturnASTValuesOnRead(tc.ast))
+			store := NewFromObjectWithOpts(map[string]any{}, OptReturnASTValuesOnRead(tc.ast))
 			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
 			var archiveFiles = map[string]string{
@@ -921,7 +921,7 @@ func TestInMemoryTxnWriteFailures(t *testing.T) {
 			}
 
 			for _, w := range writes {
-				var jsn interface{}
+				var jsn any
 				if w.value != "" {
 					jsn = util.MustUnmarshalJSON([]byte(w.value))
 				}
@@ -1231,29 +1231,29 @@ func TestInMemoryContext(t *testing.T) {
 
 }
 
-func loadExpectedResult(input string) interface{} {
+func loadExpectedResult(input string) any {
 	if len(input) == 0 {
 		return nil
 	}
-	var data interface{}
+	var data any
 	if err := util.UnmarshalJSON([]byte(input), &data); err != nil {
 		panic(err)
 	}
 	return data
 }
 
-func loadExpectedSortedResult(input string) interface{} {
+func loadExpectedSortedResult(input string) any {
 	data := loadExpectedResult(input)
 	switch data := data.(type) {
-	case []interface{}:
+	case []any:
 		return data
 	default:
 		return data
 	}
 }
 
-func loadSmallTestData() map[string]interface{} {
-	var data map[string]interface{}
+func loadSmallTestData() map[string]any {
+	var data map[string]any
 	err := util.UnmarshalJSON([]byte(`{
         "a": [1,2,3,4],
         "b": {
@@ -1288,13 +1288,13 @@ func TestOptRoundTripOnWrite(t *testing.T) {
 	validObject := map[string]string{"foo": "bar"}
 
 	// self-referential objects are not serializable to JSON.
-	invalidObject := map[string]interface{}{}
+	invalidObject := map[string]any{}
 	invalidObject["foo"] = invalidObject
 
 	tests := []struct {
 		name    string
 		opts    []Opt
-		obj     interface{}
+		obj     any
 		wantErr bool
 	}{{
 		name:    "success on valid object no Opts",

@@ -195,8 +195,8 @@ func generateObjectStatement(width, depth int) string {
 	return string(util.MustMarshalJSON(o))
 }
 
-func generateObject(width, depth int) map[string]interface{} {
-	o := map[string]interface{}{}
+func generateObject(width, depth int) map[string]any {
+	o := map[string]any{}
 	for i := range width {
 		key := fmt.Sprintf("entry-%d", i)
 		if depth <= 1 {

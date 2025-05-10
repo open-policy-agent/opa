@@ -18,7 +18,7 @@ import (
 type Options = v1.Options
 
 // NewOptions is a helper method for constructing `tracing.Options`
-func NewOptions(opts ...interface{}) Options {
+func NewOptions(opts ...any) Options {
 	return v1.NewOptions(opts...)
 }
 
