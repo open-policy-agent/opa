@@ -2311,17 +2311,18 @@ func (r *Rego) generateResult(qr topdown.QueryResult, ectx *EvalContext) (Result
 
 	result := newResult()
 	for k, term := range qr {
-		v, err := r.generateJSON(term, ectx)
-		if err != nil {
-			return result, err
-		}
-
 		if rw, ok := rewritten[k]; ok {
 			k = rw
 		}
 		if isTermVar(k) || isTermWasmVar(k) || k.IsGenerated() || k.IsWildcard() {
 			continue
 		}
+
+		v, err := r.generateJSON(term, ectx)
+		if err != nil {
+			return result, err
+		}
+
 		result.Bindings[string(k)] = v
 	}
 
