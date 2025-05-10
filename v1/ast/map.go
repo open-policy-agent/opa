@@ -26,9 +26,9 @@ func NewValueMap() *ValueMap {
 // MarshalJSON provides a custom marshaller for the ValueMap which
 // will include the key, value, and value type.
 func (vs *ValueMap) MarshalJSON() ([]byte, error) {
-	var tmp []map[string]interface{}
+	var tmp []map[string]any
 	vs.Iter(func(k Value, v Value) bool {
-		tmp = append(tmp, map[string]interface{}{
+		tmp = append(tmp, map[string]any{
 			"name":  k.String(),
 			"type":  ValueName(v),
 			"value": v,

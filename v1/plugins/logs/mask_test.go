@@ -654,18 +654,18 @@ func TestMaskRuleMask(t *testing.T) {
 func TestNewMaskRuleSet(t *testing.T) {
 	tests := []struct {
 		note  string
-		value interface{}
+		value any
 		exp   *maskRuleSet
 		err   error
 	}{
 		{
-			note:  "invalid format: not []interface{}",
+			note:  "invalid format: not []any",
 			value: map[string]int{"invalid": 1},
 			err:   errors.New("unexpected rule format map[invalid:1] (map[string]int)"),
 		},
 		{
-			note: "invalid format: nested type not string or map[string]interface{}",
-			value: []interface{}{
+			note: "invalid format: nested type not string or map[string]any",
+			value: []any{
 				[]int{1, 2},
 			},
 			err: errors.New("invalid mask rule format encountered: []int"),

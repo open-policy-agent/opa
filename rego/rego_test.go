@@ -17,7 +17,7 @@ func TestRegoEval_DefaultRegoVersion(t *testing.T) {
 	tests := []struct {
 		note      string
 		module    string
-		expResult interface{}
+		expResult any
 		expErrs   []string
 	}{
 		{

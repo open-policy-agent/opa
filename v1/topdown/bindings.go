@@ -212,7 +212,7 @@ type namespacingVisitor struct {
 	caller *bindings
 }
 
-func (vis namespacingVisitor) Visit(x interface{}) bool {
+func (vis namespacingVisitor) Visit(x any) bool {
 	switch x := x.(type) {
 	case *ast.ArrayComprehension:
 		x.Term = vis.namespaceTerm(x.Term)

@@ -107,9 +107,9 @@ loopback = input
 		t.Fatal(`expected "foo" but got:`, decision)
 	}
 
-	exp := map[string]interface{}{"foo": "bar"}
+	exp := map[string]any{"foo": "bar"}
 
-	if result, err := opa.Decision(ctx, sdk.DecisionOptions{Path: "/system/loopback", Input: map[string]interface{}{"foo": "bar"}}); err != nil {
+	if result, err := opa.Decision(ctx, sdk.DecisionOptions{Path: "/system/loopback", Input: map[string]any{"foo": "bar"}}); err != nil {
 		t.Fatal(err)
 	} else if !reflect.DeepEqual(result.Result, exp) {
 		t.Fatalf("expected %v but got %v", exp, result.Result)
@@ -138,17 +138,17 @@ func (p *plugin) Stop(ctx context.Context) {
 	}
 }
 
-func (*plugin) Reconfigure(context.Context, interface{}) {
+func (*plugin) Reconfigure(context.Context, any) {
 }
 
-func (f factory) New(manager *plugins.Manager, _ interface{}) plugins.Plugin {
+func (f factory) New(manager *plugins.Manager, _ any) plugins.Plugin {
 	return &plugin{
 		manager:  manager,
 		shutdown: f.shutdown,
 	}
 }
 
-func (factory) Validate(*plugins.Manager, []byte) (interface{}, error) {
+func (factory) Validate(*plugins.Manager, []byte) (any, error) {
 	return nil, nil
 }
 
@@ -326,8 +326,8 @@ main = time.now_ns()
 
 	entries := testLogger.Entries()
 
-	if entries[0].Fields["labels"].(map[string]interface{})["id"] != "164031de-e511-11ec-8fea-0242ac120002" {
-		t.Fatalf("expected %v but got %v", "164031de-e511-11ec-8fea-0242ac120002", entries[0].Fields["labels"].(map[string]interface{})["id"])
+	if entries[0].Fields["labels"].(map[string]any)["id"] != "164031de-e511-11ec-8fea-0242ac120002" {
+		t.Fatalf("expected %v but got %v", "164031de-e511-11ec-8fea-0242ac120002", entries[0].Fields["labels"].(map[string]any)["id"])
 	}
 
 }
@@ -386,9 +386,9 @@ loopback = input
 		t.Fatal(`expected "foo" but got:`, decision)
 	}
 
-	exp := map[string]interface{}{"foo": "bar"}
+	exp := map[string]any{"foo": "bar"}
 
-	if result, err := opa.Decision(ctx, sdk.DecisionOptions{Path: "/system/loopback", Input: map[string]interface{}{"foo": "bar"}}); err != nil {
+	if result, err := opa.Decision(ctx, sdk.DecisionOptions{Path: "/system/loopback", Input: map[string]any{"foo": "bar"}}); err != nil {
 		t.Fatal(err)
 	} else if !reflect.DeepEqual(result.Result, exp) {
 		t.Fatalf("expected %v but got %v", exp, result.Result)
@@ -1016,7 +1016,7 @@ allow if {
 	defer opa.Stop(ctx)
 
 	_, err = opa.Partial(ctx, sdk.PartialOptions{
-		Input:               map[string]interface{}{},
+		Input:               map[string]any{},
 		Query:               "data.example.allow",
 		Unknowns:            []string{},
 		Mapper:              &sdk.RawMapper{},
@@ -1085,7 +1085,7 @@ main if {
 
 	tracer := topdown.NewBufferTracer()
 	_, err = opa.Partial(ctx, sdk.PartialOptions{
-		Input:    map[string]interface{}{},
+		Input:    map[string]any{},
 		Query:    "data.system.main",
 		Unknowns: []string{},
 		Mapper:   &sdk.RawMapper{},
@@ -1639,12 +1639,12 @@ mask contains "/input/dossier/1/highly"
 	defer opa.Stop(ctx)
 
 	if _, err := opa.Decision(ctx, sdk.DecisionOptions{
-		Input: map[string]interface{}{
+		Input: map[string]any{
 			"secret": "foo",
 			"top": map[string]string{
 				"secret": "bar",
 			},
-			"dossier": []map[string]interface{}{
+			"dossier": []map[string]any{
 				{
 					"very": "private",
 				},
@@ -1663,12 +1663,12 @@ mask contains "/input/dossier/1/highly"
 		t.Fatalf("expected 1 entry but got %d", len(entries))
 	}
 
-	expectedErased := []interface{}{
+	expectedErased := []any{
 		"/input/dossier/1/highly",
 		"/input/secret",
 		"/input/top/secret",
 	}
-	erased := entries[0].Fields["erased"].([]interface{})
+	erased := entries[0].Fields["erased"].([]any)
 	stringLess := func(a, b string) bool {
 		return a < b
 	}
@@ -1676,16 +1676,16 @@ mask contains "/input/dossier/1/highly"
 		t.Errorf("Did not get expected result for erased field in decision log:\n%s", cmp.Diff(expectedErased, erased, cmpopts.SortSlices(stringLess)))
 	}
 	errMsg := `Expected masked field "%s" to be removed, but it was present.`
-	input := entries[0].Fields["input"].(map[string]interface{})
+	input := entries[0].Fields["input"].(map[string]any)
 	if _, ok := input["secret"]; ok {
 		t.Errorf(errMsg, "/input/secret")
 	}
 
-	if _, ok := input["top"].(map[string]interface{})["secret"]; ok {
+	if _, ok := input["top"].(map[string]any)["secret"]; ok {
 		t.Errorf(errMsg, "/input/top/secret")
 	}
 
-	if _, ok := input["dossier"].([]interface{})[1].(map[string]interface{})["highly"]; ok {
+	if _, ok := input["dossier"].([]any)[1].(map[string]any)["highly"]; ok {
 		t.Errorf(errMsg, "/input/dossier/1/highly")
 	}
 
@@ -1752,11 +1752,11 @@ main = time.now_ns()
 	// Check the contents of the ND builtins cache.
 	if cache, ok := entries[0].Fields["nd_builtin_cache"]; ok {
 		// Ensure the original cache entry for rand.intn is still there.
-		if _, ok := cache.(map[string]interface{})["rand.intn"]; !ok {
+		if _, ok := cache.(map[string]any)["rand.intn"]; !ok {
 			t.Fatalf("ND builtins cache was not preserved during evaluation.")
 		}
 		// Ensure time.now_ns entry was picked up correctly.
-		if _, ok := cache.(map[string]interface{})["time.now_ns"]; !ok {
+		if _, ok := cache.(map[string]any)["time.now_ns"]; !ok {
 			t.Fatalf("ND builtins cache did not observe time.now_ns call during evaluation.")
 		}
 	} else {
@@ -2655,7 +2655,7 @@ result := {
 
 	defer opa.Stop(ctx)
 
-	exp := map[string]interface{}{
+	exp := map[string]any{
 		"service_url":     server.URL(),
 		"bundle_resource": testBundleResource,
 		"test_label":      testLabel,
@@ -2726,7 +2726,7 @@ authenticatedUser := a if {
 
 	exp := true
 
-	input := map[string]interface{}{}
+	input := map[string]any{}
 	input["token"] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiQWxpY2lhIFNtaXRoc29uaWFuIiwicm9sZXMiOlsicmVhZGVyIiwid3JpdGVyIl0sInVzZXJuYW1lIjoiYWxpY2UifQ.md2KPJFH9OgBq-N0RonGdf5doGYRO_1miN8ugTSeTYc"
 
 	if result, err := opa.Decision(ctx, sdk.DecisionOptions{Path: "/system/grant", Input: input}); err != nil {
@@ -2795,7 +2795,7 @@ authenticatedUser := a if {
 
 	exp := true
 
-	input := map[string]interface{}{}
+	input := map[string]any{}
 	input["token"] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiQWxpY2lhIFNtaXRoc29uaWFuIiwicm9sZXMiOlsicmVhZGVyIiwid3JpdGVyIl0sInVzZXJuYW1lIjoiYWxpY2UifQ.md2KPJFH9OgBq-N0RonGdf5doGYRO_1miN8ugTSeTYc"
 
 	if result, err := opa.Decision(ctx, sdk.DecisionOptions{Path: "/system/grant", Input: input}); err != nil {
@@ -2969,7 +2969,7 @@ func TestActivateV1Bundles(t *testing.T) {
 
 	d, err := opa.Decision(context.Background(), sdk.DecisionOptions{
 		Path: "v1bundle/authz",
-		Input: map[string]interface{}{
+		Input: map[string]any{
 			"role": "admin",
 		},
 	})

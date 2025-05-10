@@ -21,7 +21,7 @@ func BenchmarkSelect(b *testing.B) {
 	}
 }
 
-func runSelectBenchmark(b *testing.B, tpe Type, key interface{}) {
+func runSelectBenchmark(b *testing.B, tpe Type, key any) {
 	b.ResetTimer()
 	for range b.N {
 		if result := Select(tpe, key); result != nil {

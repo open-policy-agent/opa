@@ -428,13 +428,13 @@ q = 2`,
 }
 
 type cmpWalker struct {
-	needle interface{}
+	needle any
 	loc    string
 	found  bool // stop comparing after first found needle
 }
 
-func (*cmpWalker) Before(interface{}) {}
-func (*cmpWalker) After(interface{})  {}
+func (*cmpWalker) Before(any) {}
+func (*cmpWalker) After(any)  {}
 
 // Visit takes, for example,
 //
@@ -447,7 +447,7 @@ func (*cmpWalker) After(interface{})  {}
 // Caveat: If NO value of the desired type is found, there's no error
 // returned. This trap can be avoided by starting with a failing test,
 // and proceeding with caution. ;)
-func (f *cmpWalker) Visit(x interface{}) (ir.Visitor, error) {
+func (f *cmpWalker) Visit(x any) (ir.Visitor, error) {
 	if !f.found && reflect.TypeOf(f.needle) == reflect.TypeOf(x) {
 		f.found = true
 		expLoc := f.loc
@@ -459,7 +459,7 @@ func (f *cmpWalker) Visit(x interface{}) (ir.Visitor, error) {
 	return f, nil
 }
 
-func getLocation(x interface{}) string {
+func getLocation(x any) string {
 	v := reflect.ValueOf(x).Elem().FieldByName("Location")
 	li := v.Interface()
 	file := v.FieldByName("file").String()
@@ -470,7 +470,7 @@ func getLocation(x interface{}) string {
 	return "unknown"
 }
 
-func findInPolicy(needle interface{}, loc string, p interface{}) error {
+func findInPolicy(needle any, loc string, p any) error {
 	return ir.Walk(&cmpWalker{needle: needle, loc: loc}, p)
 }
 
@@ -479,7 +479,7 @@ func findInPolicy(needle interface{}, loc string, p interface{}) error {
 // counted differently in the editor vs. in code.
 func TestPlannerLocations(t *testing.T) {
 
-	funcs := func(p *ir.Policy) interface{} {
+	funcs := func(p *ir.Policy) any {
 		return p.Funcs
 	}
 
@@ -487,8 +487,8 @@ func TestPlannerLocations(t *testing.T) {
 		note    string
 		queries []string
 		modules []string
-		exps    map[ir.Stmt]string           // stmt -> expected location "file:row:col: text"
-		where   func(*ir.Policy) interface{} // where to start walking search for `exps`
+		exps    map[ir.Stmt]string   // stmt -> expected location "file:row:col: text"
+		where   func(*ir.Policy) any // where to start walking search for `exps`
 	}{
 		{
 			note:    "complete rule reference",
@@ -567,7 +567,7 @@ p = x if {
 				&ir.MakeObjectStmt{}:    `module-0.rego:3:9: p = {"foo": "bar"}`,
 				&ir.AssignVarOnceStmt{}: `module-0.rego:3:9: p = {"foo": "bar"}`,
 			},
-			where: func(p *ir.Policy) interface{} {
+			where: func(p *ir.Policy) any {
 				return p.Funcs.Funcs[0].Blocks[2] // default rule block
 			},
 		},
@@ -634,7 +634,7 @@ q = 2 if {
 				&ir.CallStmt{}:         "<query>:1:1: data",
 				&ir.ObjectInsertStmt{}: "<query>:1:1: data",
 			},
-			where: func(p *ir.Policy) interface{} {
+			where: func(p *ir.Policy) any {
 				return p.Plans.Plans[0].Blocks[0].Stmts[4]
 			},
 		},
@@ -650,7 +650,7 @@ a = true`},
 				&ir.ResultSetAddStmt{}: "<query>:1:1: data[y].a = x",
 				&ir.DotStmt{}:          "<query>:1:1: data[y].a = x",
 			},
-			where: func(p *ir.Policy) interface{} {
+			where: func(p *ir.Policy) any {
 				return p.Plans.Plans[0]
 			},
 		},
@@ -713,7 +713,7 @@ a if {
 					t.Fatal(err)
 				}
 			}
-			start := interface{}(policy)
+			start := any(policy)
 			if tc.where != nil {
 				start = tc.where(policy)
 			}
@@ -1130,17 +1130,17 @@ func TestPlannerCallDynamic(t *testing.T) {
 		note    string
 		queries []string
 		modules []string
-		path    []interface{}                // path expected on irCallDynamicStmt, string => string const, int => local
-		where   func(*ir.Policy) interface{} // where to start walking search for `exps`
-		extras  []func(interface{}) error
+		path    []any                // path expected on irCallDynamicStmt, string => string const, int => local
+		where   func(*ir.Policy) any // where to start walking search for `exps`
+		extras  []func(any) error
 	}{
 		{
 			note:    "CallDynamicStmt optimization",
 			queries: []string{`x := "a"; data.test[x] = y`},
 			modules: []string{`package test
 a if { true }`},
-			path: []interface{}{"g0", "test", 2},
-			extras: []func(interface{}) error{
+			path: []any{"g0", "test", 2},
+			extras: []func(any) error{
 				findFunc("g0.data.test.a", "g0.test.a"),
 			},
 		},
@@ -1149,8 +1149,8 @@ a if { true }`},
 			queries: []string{`x := "a"; data.test.a[x].c = y`},
 			modules: []string{`package test
 a.b.c = 1 if { true }`},
-			path: []interface{}{"g0", "test", "a", 2, "c"},
-			extras: []func(interface{}) error{
+			path: []any{"g0", "test", "a", 2, "c"},
+			extras: []func(any) error{
 				findFunc("g0.data.test.a.b.c", "g0.test.a.b.c"),
 			},
 		},
@@ -1160,8 +1160,8 @@ a.b.c = 1 if { true }`},
 			modules: []string{`package test
 a.b.c = 1 if { true }
 a.b[t] = 2 if { t := input }`},
-			path: []interface{}{"g0", "test", "a", 2},
-			extras: []func(interface{}) error{
+			path: []any{"g0", "test", "a", 2},
+			extras: []func(any) error{
 				findFunc("g0.data.test.a.b", "g0.test.a.b"),
 			},
 		},
@@ -1171,8 +1171,8 @@ a.b[t] = 2 if { t := input }`},
 			modules: []string{`package test
 a.b[1] = 1 if { true }
 a.b[t] = 2 if { t := input }`},
-			path: []interface{}{"g0", "test", "a", 2},
-			extras: []func(interface{}) error{
+			path: []any{"g0", "test", "a", 2},
+			extras: []func(any) error{
 				findFunc("g0.data.test.a.b", "g0.test.a.b"),
 			},
 		},
@@ -1181,8 +1181,8 @@ a.b[t] = 2 if { t := input }`},
 			queries: []string{`x := "a"; data.test.a[x] = y`},
 			modules: []string{`package test
 a.b[1] = 1 if { true }`},
-			path: []interface{}{"g0", "test", "a", 2},
-			extras: []func(interface{}) error{
+			path: []any{"g0", "test", "a", 2},
+			extras: []func(any) error{
 				findFunc("g0.data.test.a.b", "g0.test.a.b"),
 			},
 		},
@@ -1222,7 +1222,7 @@ a.b[1] = 1 if { true }`},
 					t.Fatal(err)
 				}
 			}
-			start := interface{}(policy)
+			start := any(policy)
 			if tc.where != nil {
 				start = tc.where(policy)
 			}
@@ -1255,13 +1255,13 @@ a.b[1] = 1 if { true }`},
 }
 
 type stmtCmpWalker struct {
-	stmt  interface{}
+	stmt  any
 	found bool // stop comparing after first found needle
 }
 
-func (*stmtCmpWalker) Before(interface{}) {}
-func (*stmtCmpWalker) After(interface{})  {}
-func (w *stmtCmpWalker) Visit(x interface{}) (ir.Visitor, error) {
+func (*stmtCmpWalker) Before(any) {}
+func (*stmtCmpWalker) After(any)  {}
+func (w *stmtCmpWalker) Visit(x any) (ir.Visitor, error) {
 	if !w.found {
 		switch s := w.stmt.(type) {
 		case *ir.CallDynamicStmt:
@@ -1285,7 +1285,7 @@ func (w *stmtCmpWalker) Visit(x interface{}) (ir.Visitor, error) {
 	return w, nil
 }
 
-func findCallDynamic(path []ir.Operand, p interface{}) error {
+func findCallDynamic(path []ir.Operand, p any) error {
 	w := &stmtCmpWalker{stmt: &ir.CallDynamicStmt{Path: path}}
 	if err := ir.Walk(w, p); err != nil {
 		return err
@@ -1296,8 +1296,8 @@ func findCallDynamic(path []ir.Operand, p interface{}) error {
 	return nil
 }
 
-func findFunc(name, path string) func(interface{}) error {
-	return func(p interface{}) error {
+func findFunc(name, path string) func(any) error {
+	return func(p any) error {
 		w := &stmtCmpWalker{stmt: &ir.Func{Name: name, Path: strings.Split(path, ".")}}
 		if err := ir.Walk(w, p); err != nil {
 			return err

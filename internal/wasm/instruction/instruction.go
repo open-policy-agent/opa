@@ -15,14 +15,14 @@ type NoImmediateArgs struct {
 }
 
 // ImmediateArgs returns the immedate arguments of an instruction.
-func (NoImmediateArgs) ImmediateArgs() []interface{} {
+func (NoImmediateArgs) ImmediateArgs() []any {
 	return nil
 }
 
 // Instruction represents a single WASM instruction.
 type Instruction interface {
 	Op() opcode.Opcode
-	ImmediateArgs() []interface{}
+	ImmediateArgs() []any
 }
 
 // StructuredInstruction represents a structured control instruction like br_if.

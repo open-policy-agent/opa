@@ -19,7 +19,7 @@ func renderTemplate(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 		return err
 	}
 
-	var templateVariables map[string]interface{}
+	var templateVariables map[string]any
 
 	if err := ast.As(templateVariablesTerm, &templateVariables); err != nil {
 		return err

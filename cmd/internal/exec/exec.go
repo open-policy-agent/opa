@@ -118,7 +118,7 @@ func listAllPaths(roots []string) chan fileListItem {
 	return ch
 }
 
-func parse(p string) (*interface{}, error) {
+func parse(p string) (*any, error) {
 	selectedParser, ok := parsers[path.Ext(p)]
 	if !ok {
 		return nil, nil

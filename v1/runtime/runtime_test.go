@@ -103,7 +103,7 @@ func testRuntimeProcessWatchEvents(t *testing.T, asBundle bool, readAst bool) {
 			t.Fatalf("Unexpected watcher init error: %v", err)
 		}
 
-		expected := map[string]interface{}{
+		expected := map[string]any{
 			"hello": "world-2",
 		}
 
@@ -116,7 +116,7 @@ func testRuntimeProcessWatchEvents(t *testing.T, asBundle bool, readAst bool) {
 
 		// In practice, reload takes ~100us on development machine.
 		maxWaitTime := time.Second * 1
-		var val interface{}
+		var val any
 
 		for time.Since(t0) < maxWaitTime {
 			time.Sleep(1 * time.Millisecond)
@@ -1437,12 +1437,12 @@ func TestUrlPathToConfigOverride(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var serviceConf map[string]interface{}
+	var serviceConf map[string]any
 	if err = json.Unmarshal(rt.Manager.Config.Services, &serviceConf); err != nil {
 		t.Fatal(err)
 	}
 
-	cliService, ok := serviceConf["cli1"].(map[string]interface{})
+	cliService, ok := serviceConf["cli1"].(map[string]any)
 	if !ok {
 		t.Fatal("excpected service configuration for 'cli1' service")
 	}
@@ -1451,12 +1451,12 @@ func TestUrlPathToConfigOverride(t *testing.T) {
 		t.Error("expected cli1 service url value: 'https://www.example.com'")
 	}
 
-	var bundleConf map[string]interface{}
+	var bundleConf map[string]any
 	if err = json.Unmarshal(rt.Manager.Config.Bundles, &bundleConf); err != nil {
 		t.Fatal(err)
 	}
 
-	cliBundle, ok := bundleConf["cli1"].(map[string]interface{})
+	cliBundle, ok := bundleConf["cli1"].(map[string]any)
 	if !ok {
 		t.Fatal("excpected bundle configuration for 'cli1' bundle")
 	}
@@ -1474,7 +1474,7 @@ func TestUrlPathToConfigOverride(t *testing.T) {
 	}
 }
 
-func getTestServer(update interface{}, statusCode int) (baseURL string, teardownFn func()) {
+func getTestServer(update any, statusCode int) (baseURL string, teardownFn func()) {
 	mux := http.NewServeMux()
 	ts := httptest.NewServer(mux)
 

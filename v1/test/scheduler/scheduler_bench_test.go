@@ -31,7 +31,7 @@ func BenchmarkScheduler10x30(b *testing.B) {
 type benchmarkParams struct {
 	store    storage.Store
 	compiler *ast.Compiler
-	input    interface{}
+	input    any
 }
 
 func runSchedulerBenchmark(b *testing.B, nodes int, pods int) {
@@ -49,7 +49,7 @@ func runSchedulerBenchmark(b *testing.B, nodes int, pods int) {
 		if err != nil {
 			b.Fatal("unexpected error:", err)
 		}
-		ws := rs[0].Expressions[0].Value.(map[string]interface{})
+		ws := rs[0].Expressions[0].Value.(map[string]any)
 		if len(ws) != nodes {
 			b.Fatal("unexpected query result:", rs)
 		}
@@ -110,7 +110,7 @@ func setupNodes(ctx context.Context, store storage.Store, txn storage.Transactio
 	if err != nil {
 		panic(err)
 	}
-	if err := store.Write(ctx, txn, storage.AddOp, storage.MustParsePath("/nodes"), map[string]interface{}{}); err != nil {
+	if err := store.Write(ctx, txn, storage.AddOp, storage.MustParsePath("/nodes"), map[string]any{}); err != nil {
 		panic(err)
 	}
 	for i := range n {
@@ -131,7 +131,7 @@ func setupRCs(ctx context.Context, store storage.Store, txn storage.Transaction,
 		panic(err)
 	}
 	path := storage.MustParsePath("/replicationcontrollers")
-	if err := store.Write(ctx, txn, storage.AddOp, path, map[string]interface{}{}); err != nil {
+	if err := store.Write(ctx, txn, storage.AddOp, path, map[string]any{}); err != nil {
 		panic(err)
 	}
 	for i := range n {
@@ -152,7 +152,7 @@ func setupPods(ctx context.Context, store storage.Store, txn storage.Transaction
 		panic(err)
 	}
 	path := storage.MustParsePath("/pods")
-	if err := store.Write(ctx, txn, storage.AddOp, path, map[string]interface{}{}); err != nil {
+	if err := store.Write(ctx, txn, storage.AddOp, path, map[string]any{}); err != nil {
 		panic(err)
 	}
 	for i := range n {
@@ -168,12 +168,12 @@ func setupPods(ctx context.Context, store storage.Store, txn storage.Transaction
 	}
 }
 
-func runTemplate(tmpl *template.Template, input interface{}) interface{} {
+func runTemplate(tmpl *template.Template, input any) any {
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, input); err != nil {
 		panic(err)
 	}
-	var v interface{}
+	var v any
 	if err := util.UnmarshalJSON(buf.Bytes(), &v); err != nil {
 		panic(err)
 	}

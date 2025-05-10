@@ -34,6 +34,6 @@ import (
 // Sets are considered equal if and only if the symmetric difference of a and b
 // is empty.
 // Other comparisons are consistent but not defined.
-func Compare(a, b interface{}) int {
+func Compare(a, b any) int {
 	return v1.Compare(a, b)
 }

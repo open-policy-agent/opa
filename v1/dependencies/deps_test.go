@@ -490,7 +490,7 @@ func TestBase(t *testing.T) {
 
 }
 
-func runDeps(t *testing.T, x interface{}) (min, full []ast.Ref) {
+func runDeps(t *testing.T, x any) (min, full []ast.Ref) {
 	min, err := Minimal(x)
 	if err != nil {
 		t.Fatalf("Unexpected dependency error: %v", err)

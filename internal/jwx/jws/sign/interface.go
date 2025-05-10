@@ -16,7 +16,7 @@ type Signer interface {
 	// for `jwa.RSXXX` and `jwa.PSXXX` types, you need to pass the
 	// `*"crypto/rsa".PrivateKey` type.
 	// Check the documentation for each signer for details
-	Sign(payload []byte, key interface{}) ([]byte, error)
+	Sign(payload []byte, key any) ([]byte, error)
 
 	Algorithm() jwa.SignatureAlgorithm
 }

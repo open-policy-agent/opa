@@ -59,7 +59,7 @@ func ExampleRego_Eval_input() {
 	// Numeric values must be represented using json.Number.
 	d.UseNumber()
 
-	var input interface{}
+	var input any
 
 	if err := d.Decode(&input); err != nil {
 		panic(err)
@@ -168,7 +168,7 @@ allow if {
 	input.open == "sesame"
 }`,
 		),
-		rego.Input(map[string]interface{}{"open": "sesame"}),
+		rego.Input(map[string]any{"open": "sesame"}),
 	)
 
 	// Run evaluation.
@@ -252,7 +252,7 @@ func ExampleRego_Eval_compiler() {
 		rego.Query("data.example.allow"),
 		rego.Compiler(compiler),
 		rego.Input(
-			map[string]interface{}{
+			map[string]any{
 				"identity": "bob",
 				"method":   "GET",
 			},
@@ -297,7 +297,7 @@ func ExampleRego_Eval_storage() {
         }
     }`
 
-	var json map[string]interface{}
+	var json map[string]any
 
 	err := util.UnmarshalJSON([]byte(data), &json)
 	if err != nil {
@@ -344,7 +344,7 @@ func ExampleRego_Eval_persistent_storage() {
         }
     }`
 
-	var json map[string]interface{}
+	var json map[string]any
 
 	err := util.UnmarshalJSON([]byte(data), &json)
 	if err != nil {
@@ -610,25 +610,25 @@ func ExampleRego_PartialResult() {
 
 	// Define example inputs (representing requests) that will be used to test
 	// the policy.
-	examples := []map[string]interface{}{
+	examples := []map[string]any{
 		{
 			"resource":  "documentA",
 			"operation": "write",
-			"subject": map[string]interface{}{
+			"subject": map[string]any{
 				"user": "bob",
 			},
 		},
 		{
 			"resource":  "documentB",
 			"operation": "write",
-			"subject": map[string]interface{}{
+			"subject": map[string]any{
 				"user": "alice",
 			},
 		},
 		{
 			"resource":  "documentB",
 			"operation": "read",
-			"subject": map[string]interface{}{
+			"subject": map[string]any{
 				"user": "alice",
 			},
 		},
@@ -769,7 +769,7 @@ func ExampleRego_PrepareForEval() {
 	}
 
 	// Raw input data that will be used in the first evaluation
-	input := map[string]interface{}{"x": 2}
+	input := map[string]any{"x": 2}
 
 	// Run the evaluation
 	rs, err := pq.Eval(ctx, rego.EvalInput(input))
@@ -1071,7 +1071,7 @@ func ExampleRego_print_statements() {
 				print("input.foo is:", input.foo, "and input.bar is:", input.bar)
 			}
 		`),
-		rego.Input(map[string]interface{}{
+		rego.Input(map[string]any{
 			"foo": 7,
 		}),
 		rego.EnablePrintStatements(true),

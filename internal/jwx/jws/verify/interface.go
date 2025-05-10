@@ -16,7 +16,7 @@ type Verifier interface {
 	// for `jwa.RSXXX` and `jwa.PSXXX` types, you need to pass the
 	// `*"crypto/rsa".PublicKey` type.
 	// Check the documentation for each verifier for details
-	Verify(payload []byte, signature []byte, key interface{}) error
+	Verify(payload []byte, signature []byte, key any) error
 }
 
 type rsaVerifyFunc func([]byte, []byte, *rsa.PublicKey) error

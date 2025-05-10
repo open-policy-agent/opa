@@ -128,7 +128,7 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.loggingEnabled(logging.Info) {
-		fields := map[string]interface{}{
+		fields := map[string]any{
 			"client_addr":   rctx.ClientAddr,
 			"req_id":        rctx.ReqID,
 			"req_method":    rctx.ReqMethod,

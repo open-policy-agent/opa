@@ -38,7 +38,7 @@ import (
 // SignLiteral generates a Signature for the given Payload and Headers, and serializes
 // it in compact serialization format. In this format you may NOT use
 // multiple signers.
-func SignLiteral(payload []byte, alg jwa.SignatureAlgorithm, key interface{}, hdrBuf []byte, rnd io.Reader) ([]byte, error) {
+func SignLiteral(payload []byte, alg jwa.SignatureAlgorithm, key any, hdrBuf []byte, rnd io.Reader) ([]byte, error) {
 	encodedHdr := base64.RawURLEncoding.EncodeToString(hdrBuf)
 	encodedPayload := base64.RawURLEncoding.EncodeToString(payload)
 	signingInput := strings.Join(
@@ -77,7 +77,7 @@ func SignLiteral(payload []byte, alg jwa.SignatureAlgorithm, key interface{}, hd
 // multiple signers.
 //
 // If you would like to pass custom Headers, use the WithHeaders option.
-func SignWithOption(payload []byte, alg jwa.SignatureAlgorithm, key interface{}) ([]byte, error) {
+func SignWithOption(payload []byte, alg jwa.SignatureAlgorithm, key any) ([]byte, error) {
 	var headers Headers = &StandardHeaders{}
 
 	err := headers.Set(AlgorithmKey, alg)
@@ -99,7 +99,7 @@ func SignWithOption(payload []byte, alg jwa.SignatureAlgorithm, key interface{})
 // Payload that was signed is returned. If you need more fine-grained
 // control of the verification process, manually call `Parse`, generate a
 // verifier, and call `Verify` on the parsed JWS message object.
-func Verify(buf []byte, alg jwa.SignatureAlgorithm, key interface{}) (ret []byte, err error) {
+func Verify(buf []byte, alg jwa.SignatureAlgorithm, key any) (ret []byte, err error) {
 
 	verifier, err := verify.New(alg)
 	if err != nil {

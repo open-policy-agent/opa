@@ -11,6 +11,6 @@ import (
 )
 
 // Pretty writes a human-readable representation of an IR object to w.
-func Pretty(w io.Writer, x interface{}) error {
+func Pretty(w io.Writer, x any) error {
 	return v1.Pretty(w, x)
 }

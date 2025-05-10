@@ -691,7 +691,7 @@ p contains 1 if {
 
 			fixture.server.bundles["custom"] = bundle.Bundle{
 				Manifest: bundle.Manifest{RegoVersion: &tc.bundleRegoVersion},
-				Data:     map[string]interface{}{},
+				Data:     map[string]any{},
 				Modules: []bundle.ModuleFile{
 					{
 						Path: "test.rego",

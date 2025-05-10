@@ -282,25 +282,25 @@ func messageDigest(message []byte, alg string) ([]byte, error) {
 // oauth2ClientCredentialsAuthPlugin represents authentication via a bearer token in the HTTP Authorization header
 // obtained through the OAuth2 client credentials flow
 type oauth2ClientCredentialsAuthPlugin struct {
-	GrantType            string                 `json:"grant_type"`
-	TokenURL             string                 `json:"token_url"`
-	ClientID             string                 `json:"client_id"`
-	ClientSecret         string                 `json:"client_secret"`
-	SigningKeyID         string                 `json:"signing_key"`
-	Thumbprint           string                 `json:"thumbprint"`
-	Claims               map[string]interface{} `json:"additional_claims"`
-	IncludeJti           bool                   `json:"include_jti_claim"`
-	Scopes               []string               `json:"scopes,omitempty"`
-	AdditionalHeaders    map[string]string      `json:"additional_headers,omitempty"`
-	AdditionalParameters map[string]string      `json:"additional_parameters,omitempty"`
-	AWSKmsKey            *awsKmsKeyConfig       `json:"aws_kms,omitempty"`
-	AWSSigningPlugin     *awsSigningAuthPlugin  `json:"aws_signing,omitempty"`
-	ClientAssertionType  string                 `json:"client_assertion_type"`
-	ClientAssertion      string                 `json:"client_assertion"`
-	ClientAssertionPath  string                 `json:"client_assertion_path"`
+	GrantType            string                `json:"grant_type"`
+	TokenURL             string                `json:"token_url"`
+	ClientID             string                `json:"client_id"`
+	ClientSecret         string                `json:"client_secret"`
+	SigningKeyID         string                `json:"signing_key"`
+	Thumbprint           string                `json:"thumbprint"`
+	Claims               map[string]any        `json:"additional_claims"`
+	IncludeJti           bool                  `json:"include_jti_claim"`
+	Scopes               []string              `json:"scopes,omitempty"`
+	AdditionalHeaders    map[string]string     `json:"additional_headers,omitempty"`
+	AdditionalParameters map[string]string     `json:"additional_parameters,omitempty"`
+	AWSKmsKey            *awsKmsKeyConfig      `json:"aws_kms,omitempty"`
+	AWSSigningPlugin     *awsSigningAuthPlugin `json:"aws_signing,omitempty"`
+	ClientAssertionType  string                `json:"client_assertion_type"`
+	ClientAssertion      string                `json:"client_assertion"`
+	ClientAssertionPath  string                `json:"client_assertion_path"`
 
 	signingKey       *keys.Config
-	signingKeyParsed interface{}
+	signingKeyParsed any
 	tokenCache       *oauth2Token
 	tlsSkipVerify    bool
 	logger           logging.Logger
@@ -311,9 +311,9 @@ type oauth2Token struct {
 	ExpiresAt time.Time
 }
 
-func (ap *oauth2ClientCredentialsAuthPlugin) createAuthJWT(ctx context.Context, extClaims map[string]interface{}, signingKey interface{}) (*string, error) {
+func (ap *oauth2ClientCredentialsAuthPlugin) createAuthJWT(ctx context.Context, extClaims map[string]any, signingKey any) (*string, error) {
 	now := time.Now()
-	claims := map[string]interface{}{
+	claims := map[string]any{
 		"iat": now.Unix(),
 		"exp": now.Add(10 * time.Minute).Unix(),
 	}

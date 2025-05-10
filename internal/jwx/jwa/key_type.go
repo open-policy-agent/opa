@@ -21,7 +21,7 @@ const (
 
 // Accept is used when conversion from values given by
 // outside sources (such as JSON payloads) is required
-func (keyType *KeyType) Accept(value interface{}) error {
+func (keyType *KeyType) Accept(value any) error {
 	var tmp KeyType
 	switch x := value.(type) {
 	case string:

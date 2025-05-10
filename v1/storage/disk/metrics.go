@@ -43,7 +43,7 @@ func newHist(name, desc string) prometheus.Histogram {
 	})
 }
 
-func forwardMetric(m map[string]interface{}, counter string, hist prometheus.Histogram) {
+func forwardMetric(m map[string]any, counter string, hist prometheus.Histogram) {
 	key := "counter_" + counter
 	if s, ok := m[key]; ok {
 		hist.Observe(float64(s.(uint64)))

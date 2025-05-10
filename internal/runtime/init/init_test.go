@@ -206,12 +206,12 @@ func TestLoadTarGzsInBundleAndNonBundleMode(t *testing.T) {
 			Manifest: bundle.Manifest{
 				Roots: &[]string{"a"},
 			},
-			Data: map[string]interface{}{
-				"a": map[string]interface{}{
+			Data: map[string]any{
+				"a": map[string]any{
 					"foo": "bar1",
-					"x": map[string]interface{}{
-						"y": map[string]interface{}{
-							"z": []interface{}{json.Number("1")},
+					"x": map[string]any{
+						"y": map[string]any{
+							"z": []any{json.Number("1")},
 						},
 					},
 				},
@@ -229,12 +229,12 @@ func TestLoadTarGzsInBundleAndNonBundleMode(t *testing.T) {
 			Manifest: bundle.Manifest{
 				Roots: &[]string{"b"},
 			},
-			Data: map[string]interface{}{
-				"b": map[string]interface{}{
+			Data: map[string]any{
+				"b": map[string]any{
 					"foo": "bar2",
-					"x": map[string]interface{}{
-						"y": map[string]interface{}{
-							"z": []interface{}{json.Number("1")},
+					"x": map[string]any{
+						"y": map[string]any{
+							"z": []any{json.Number("1")},
 						},
 					},
 				},
@@ -257,12 +257,12 @@ func TestLoadTarGzsInBundleAndNonBundleMode(t *testing.T) {
 			Manifest: bundle.Manifest{
 				Roots: &[]string{"a"},
 			},
-			Data: map[string]interface{}{
-				"a": map[string]interface{}{
+			Data: map[string]any{
+				"a": map[string]any{
 					"foo1": "bar2",
-					"x": map[string]interface{}{
-						"y": map[string]interface{}{
-							"z": []interface{}{json.Number("2")},
+					"x": map[string]any{
+						"y": map[string]any{
+							"z": []any{json.Number("2")},
 						},
 					},
 				},

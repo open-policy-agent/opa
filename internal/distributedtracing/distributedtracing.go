@@ -394,18 +394,18 @@ func (s *sink) Enabled(level int) bool {
 
 func (*sink) Init(logr.RuntimeInfo) {} // ignored
 
-func (s *sink) Info(_ int, msg string, _ ...interface{}) {
+func (s *sink) Info(_ int, msg string, _ ...any) {
 	s.logger.Info(msg)
 }
 
-func (s *sink) Error(err error, msg string, _ ...interface{}) {
-	s.logger.WithFields(map[string]interface{}{"err": err}).Error(msg)
+func (s *sink) Error(err error, msg string, _ ...any) {
+	s.logger.WithFields(map[string]any{"err": err}).Error(msg)
 }
 
 func (s *sink) WithName(name string) logr.LogSink {
-	return &sink{s.logger.WithFields(map[string]interface{}{"name": name})}
+	return &sink{s.logger.WithFields(map[string]any{"name": name})}
 }
 
-func (s *sink) WithValues(...interface{}) logr.LogSink { // ignored
+func (s *sink) WithValues(...any) logr.LogSink { // ignored
 	return s
 }

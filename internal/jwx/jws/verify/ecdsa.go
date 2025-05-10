@@ -54,7 +54,7 @@ func newECDSA(alg jwa.SignatureAlgorithm) (*ECDSAVerifier, error) {
 }
 
 // Verify checks whether the signature for a given input and key is correct
-func (v ECDSAVerifier) Verify(payload []byte, signature []byte, key interface{}) error {
+func (v ECDSAVerifier) Verify(payload []byte, signature []byte, key any) error {
 	if key == nil {
 		return errors.New(`missing public key while verifying payload`)
 	}

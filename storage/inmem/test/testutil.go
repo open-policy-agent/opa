@@ -17,6 +17,6 @@ func New() storage.Store {
 
 // NewFromObject returns an inmem store from the passed object, with some
 // common options set: opt-out of write roundtripping.
-func NewFromObject(x map[string]interface{}) storage.Store {
+func NewFromObject(x map[string]any) storage.Store {
 	return v1.NewFromObject(x)
 }

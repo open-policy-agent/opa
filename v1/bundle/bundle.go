@@ -52,7 +52,7 @@ const (
 type Bundle struct {
 	Signatures  SignaturesConfig
 	Manifest    Manifest
-	Data        map[string]interface{}
+	Data        map[string]any
 	Modules     []ModuleFile
 	Wasm        []byte // Deprecated. Use WasmModules instead
 	WasmModules []WasmModuleFile
@@ -80,9 +80,9 @@ type Patch struct {
 
 // PatchOperation models a single patch operation against a document.
 type PatchOperation struct {
-	Op    string      `json:"op"`
-	Path  string      `json:"path"`
-	Value interface{} `json:"value"`
+	Op    string `json:"op"`
+	Path  string `json:"path"`
+	Value any    `json:"value"`
 }
 
 // SignaturesConfig represents an array of JWTs that encapsulate the signatures for the bundle.
@@ -137,8 +137,8 @@ type Manifest struct {
 	RegoVersion *int `json:"rego_version,omitempty"`
 	// FileRegoVersions is a map from file paths to Rego versions.
 	// This allows individual files to override the global Rego version specified by RegoVersion.
-	FileRegoVersions map[string]int         `json:"file_rego_versions,omitempty"`
-	Metadata         map[string]interface{} `json:"metadata,omitempty"`
+	FileRegoVersions map[string]int `json:"file_rego_versions,omitempty"`
+	Metadata         map[string]any `json:"metadata,omitempty"`
 
 	compiledFileRegoVersions []fileRegoVersion
 }
@@ -233,7 +233,7 @@ func (m Manifest) Copy() Manifest {
 	metadata := m.Metadata
 
 	if metadata != nil {
-		m.Metadata = make(map[string]interface{})
+		m.Metadata = make(map[string]any)
 		for k, v := range metadata {
 			m.Metadata[k] = v
 		}
@@ -391,13 +391,13 @@ func (m *Manifest) validateAndInjectDefaults(b Bundle) error {
 	}
 
 	// Validate data in bundle.
-	return dfs(b.Data, "", func(path string, node interface{}) (bool, error) {
+	return dfs(b.Data, "", func(path string, node any) (bool, error) {
 		path = strings.Trim(path, "/")
 		if RootPathsContain(roots, path) {
 			return true, nil
 		}
 
-		if _, ok := node.(map[string]interface{}); ok {
+		if _, ok := node.(map[string]any); ok {
 			for i := range roots {
 				if RootPathsContain(strings.Split(path, "/"), roots[i]) {
 					return false, nil
@@ -599,7 +599,7 @@ func (r *Reader) Read() (Bundle, error) {
 			return bundle, err
 		}
 
-		bundle.Data = map[string]interface{}{}
+		bundle.Data = map[string]any{}
 	}
 
 	var modules []ModuleFile
@@ -669,7 +669,7 @@ func (r *Reader) Read() (Bundle, error) {
 				continue
 			}
 
-			var value interface{}
+			var value any
 
 			r.metrics.Timer(metrics.RegoDataParse).Start()
 			err := util.UnmarshalJSON(buf.Bytes(), &value)
@@ -689,7 +689,7 @@ func (r *Reader) Read() (Bundle, error) {
 				continue
 			}
 
-			var value interface{}
+			var value any
 
 			r.metrics.Timer(metrics.RegoDataParse).Start()
 			err := util.Unmarshal(buf.Bytes(), &value)
@@ -778,7 +778,7 @@ func (r *Reader) Read() (Bundle, error) {
 	}
 
 	if r.includeManifestInData {
-		var metadata map[string]interface{}
+		var metadata map[string]any
 
 		b, err := json.Marshal(&bundle.Manifest)
 		if err != nil {
@@ -1069,7 +1069,7 @@ func hashBundleFiles(hash SignatureHasher, b *Bundle) ([]FileInfo, error) {
 			return files, err
 		}
 
-		var result map[string]interface{}
+		var result map[string]any
 		if err := util.Unmarshal(mbs, &result); err != nil {
 			return files, err
 		}
@@ -1299,14 +1299,14 @@ func (b Bundle) Equal(other Bundle) bool {
 func (b Bundle) Copy() Bundle {
 
 	// Copy data.
-	var x interface{} = b.Data
+	var x any = b.Data
 
 	if err := util.RoundTrip(&x); err != nil {
 		panic(err)
 	}
 
 	if x != nil {
-		b.Data = x.(map[string]interface{})
+		b.Data = x.(map[string]any)
 	}
 
 	// Copy modules.
@@ -1323,7 +1323,7 @@ func (b Bundle) Copy() Bundle {
 	return b
 }
 
-func (b *Bundle) insertData(key []string, value interface{}) error {
+func (b *Bundle) insertData(key []string, value any) error {
 	// Build an object with the full structure for the value
 	obj, err := mktree(key, value)
 	if err != nil {
@@ -1341,13 +1341,13 @@ func (b *Bundle) insertData(key []string, value interface{}) error {
 	return nil
 }
 
-func (b *Bundle) readData(key []string) *interface{} {
+func (b *Bundle) readData(key []string) *any {
 
 	if len(key) == 0 {
 		if len(b.Data) == 0 {
 			return nil
 		}
-		var result interface{} = b.Data
+		var result any = b.Data
 		return &result
 	}
 
@@ -1360,7 +1360,7 @@ func (b *Bundle) readData(key []string) *interface{} {
 			return nil
 		}
 
-		childObj, ok := child.(map[string]interface{})
+		childObj, ok := child.(map[string]any)
 		if !ok {
 			return nil
 		}
@@ -1384,21 +1384,21 @@ func (b *Bundle) Type() string {
 	return SnapshotBundleType
 }
 
-func mktree(path []string, value interface{}) (map[string]interface{}, error) {
+func mktree(path []string, value any) (map[string]any, error) {
 	if len(path) == 0 {
 		// For 0 length path the value is the full tree.
-		obj, ok := value.(map[string]interface{})
+		obj, ok := value.(map[string]any)
 		if !ok {
 			return nil, errors.New("root value must be object")
 		}
 		return obj, nil
 	}
 
-	dir := map[string]interface{}{}
+	dir := map[string]any{}
 	for i := len(path) - 1; i > 0; i-- {
 		dir[path[i]] = value
 		value = dir
-		dir = map[string]interface{}{}
+		dir = map[string]any{}
 	}
 	dir[path[0]] = value
 
@@ -1488,7 +1488,7 @@ func MergeWithRegoVersion(bundles []*Bundle, regoVersion ast.RegoVersion, usePat
 	result.SetRegoVersion(result.RegoVersion(regoVersion))
 
 	if result.Data == nil {
-		result.Data = map[string]interface{}{}
+		result.Data = map[string]any{}
 	}
 
 	result.Manifest.Roots = &roots
@@ -1598,7 +1598,7 @@ func rootContains(root []string, other []string) bool {
 	return true
 }
 
-func insertValue(b *Bundle, path string, value interface{}) error {
+func insertValue(b *Bundle, path string, value any) error {
 	if err := b.insertData(getNormalizedPath(path), value); err != nil {
 		return fmt.Errorf("bundle load failed on %v: %w", path, err)
 	}
@@ -1619,13 +1619,13 @@ func getNormalizedPath(path string) []string {
 	return key
 }
 
-func dfs(value interface{}, path string, fn func(string, interface{}) (bool, error)) error {
+func dfs(value any, path string, fn func(string, any) (bool, error)) error {
 	if stop, err := fn(path, value); err != nil {
 		return err
 	} else if stop {
 		return nil
 	}
-	obj, ok := value.(map[string]interface{})
+	obj, ok := value.(map[string]any)
 	if !ok {
 		return nil
 	}

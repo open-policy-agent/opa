@@ -13,17 +13,17 @@ import (
 	"github.com/open-policy-agent/opa/v1/storage/internal/errors"
 )
 
-func Ptr(data interface{}, path storage.Path) (interface{}, error) {
+func Ptr(data any, path storage.Path) (any, error) {
 	node := data
 	for i := range path {
 		key := path[i]
 		switch curr := node.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			var ok bool
 			if node, ok = curr[key]; !ok {
 				return nil, errors.NewNotFoundError(path)
 			}
-		case []interface{}:
+		case []any:
 			pos, err := ValidateArrayIndex(curr, key, path)
 			if err != nil {
 				return nil, err
@@ -70,7 +70,7 @@ func ValuePtr(data ast.Value, path storage.Path) (ast.Value, error) {
 	return node, nil
 }
 
-func ValidateArrayIndex(arr []interface{}, s string, path storage.Path) (int, error) {
+func ValidateArrayIndex(arr []any, s string, path storage.Path) (int, error) {
 	idx, ok := isInt(s)
 	if !ok {
 		return 0, errors.NewNotFoundErrorWithHint(path, errors.ArrayIndexTypeMsg)
@@ -89,7 +89,7 @@ func ValidateASTArrayIndex(arr *ast.Array, s string, path storage.Path) (int, er
 // ValidateArrayIndexForWrite also checks that `s` is a valid way to address an
 // array element like `ValidateArrayIndex`, but returns a `resource_conflict` error
 // if it is not.
-func ValidateArrayIndexForWrite(arr []interface{}, s string, i int, path storage.Path) (int, error) {
+func ValidateArrayIndexForWrite(arr []any, s string, i int, path storage.Path) (int, error) {
 	idx, ok := isInt(s)
 	if !ok {
 		return 0, errors.NewWriteConflictError(path[:i-1])
@@ -102,12 +102,12 @@ func isInt(s string) (int, bool) {
 	return idx, err == nil
 }
 
-func inRange(i int, arr interface{}, path storage.Path) (int, error) {
+func inRange(i int, arr any, path storage.Path) (int, error) {
 
 	var arrLen int
 
 	switch v := arr.(type) {
-	case []interface{}:
+	case []any:
 		arrLen = len(v)
 	case *ast.Array:
 		arrLen = v.Len()

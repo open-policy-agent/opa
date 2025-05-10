@@ -18,8 +18,8 @@ func (I32Load) Op() opcode.Opcode {
 }
 
 // ImmediateArgs returns the static offset and alignment operands.
-func (i I32Load) ImmediateArgs() []interface{} {
-	return []interface{}{i.Align, i.Offset}
+func (i I32Load) ImmediateArgs() []any {
+	return []any{i.Align, i.Offset}
 }
 
 // I32Store represents the WASM i32.store instruction.
@@ -34,6 +34,6 @@ func (I32Store) Op() opcode.Opcode {
 }
 
 // ImmediateArgs returns the static offset and alignment operands.
-func (i I32Store) ImmediateArgs() []interface{} {
-	return []interface{}{i.Align, i.Offset}
+func (i I32Store) ImmediateArgs() []any {
+	return []any{i.Align, i.Offset}
 }

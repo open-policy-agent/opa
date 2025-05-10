@@ -52,7 +52,7 @@ func (s HMACSigner) Algorithm() jwa.SignatureAlgorithm {
 }
 
 // Sign signs payload with a Symmetric  key
-func (s HMACSigner) Sign(payload []byte, key interface{}) ([]byte, error) {
+func (s HMACSigner) Sign(payload []byte, key any) ([]byte, error) {
 	hmackey, ok := key.([]byte)
 	if !ok {
 		return nil, fmt.Errorf(`invalid key type %T. []byte is required`, key)

@@ -34,7 +34,7 @@ type Provider struct {
 	logger               loggerFunc
 }
 
-type loggerFunc func(attrs map[string]interface{}, f string, a ...interface{})
+type loggerFunc func(attrs map[string]any, f string, a ...any)
 
 // New returns a new Provider object.
 func New(inner metrics.Metrics, logger loggerFunc, httpRequestBuckets []float64) *Provider {
@@ -102,13 +102,13 @@ func (*Provider) Info() metrics.Info {
 
 // All returns the union of the inner metric provider and the underlying
 // prometheus registry.
-func (p *Provider) All() map[string]interface{} {
+func (p *Provider) All() map[string]any {
 
 	all := p.inner.All()
 
 	families, err := p.registry.Gather()
 	if err != nil && p.logger != nil {
-		p.logger(map[string]interface{}{
+		p.logger(map[string]any{
 			"err": err,
 		}, "Failed to gather metrics from Prometheus registry.")
 	}

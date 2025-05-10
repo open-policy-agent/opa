@@ -51,7 +51,7 @@ const (
 )
 
 // GenerateInput will use a dataset profile and desired InputMode to generate inputs for testing
-func GenerateInput(profile DataSetProfile, mode InputMode) (interface{}, interface{}) {
+func GenerateInput(profile DataSetProfile, mode InputMode) (any, any) {
 
 	var input string
 	var allow bool
@@ -95,15 +95,15 @@ func GenerateInput(profile DataSetProfile, mode InputMode) (interface{}, interfa
 }
 
 // GenerateDataset will generate a dataset for the given DatasetProfile
-func GenerateDataset(profile DataSetProfile) map[string]interface{} {
-	return map[string]interface{}{
-		"restauthz": map[string]interface{}{
+func GenerateDataset(profile DataSetProfile) map[string]any {
+	return map[string]any{
+		"restauthz": map[string]any{
 			"tokens": generateTokensJSON(profile),
 		},
 	}
 }
 
-func generateTokensJSON(profile DataSetProfile) interface{} {
+func generateTokensJSON(profile DataSetProfile) any {
 	tokens := generateTokens(profile)
 	bs, err := json.Marshal(tokens)
 	if err != nil {

@@ -4813,10 +4813,10 @@ func TestAnnotations(t *testing.T) {
 	schemaNetworks := MustParseRef("schema.networks")
 	schemaPorts := MustParseRef("schema.ports")
 
-	stringSchemaAsMap := map[string]interface{}{
+	stringSchemaAsMap := map[string]any{
 		"type": "string",
 	}
-	var stringSchema interface{} = stringSchemaAsMap
+	var stringSchema any = stringSchemaAsMap
 
 	tests := []struct {
 		note           string
@@ -5366,14 +5366,14 @@ p if { input = "str" }`,
 							Email: "jane@example.com",
 						},
 					},
-					Custom: map[string]interface{}{
-						"list": []interface{}{
+					Custom: map[string]any{
+						"list": []any{
 							"a", "b",
 						},
-						"map": map[string]interface{}{
+						"map": map[string]any{
 							"a": 1,
 							"b": 2.2,
-							"c": map[string]interface{}{
+							"c": map[string]any{
 								"3": "d",
 								"4": "e",
 							},
@@ -6096,8 +6096,8 @@ package foo`
 func TestAuthorAnnotation(t *testing.T) {
 	tests := []struct {
 		note     string
-		raw      interface{}
-		expected interface{}
+		raw      any
+		expected any
 	}{
 		{
 			note:     "no name",
@@ -6146,21 +6146,21 @@ func TestAuthorAnnotation(t *testing.T) {
 		},
 		{
 			note: "map with name",
-			raw: map[string]interface{}{
+			raw: map[string]any{
 				"name": "John Doe",
 			},
 			expected: AuthorAnnotation{Name: "John Doe"},
 		},
 		{
 			note: "map with email",
-			raw: map[string]interface{}{
+			raw: map[string]any{
 				"email": "john@example.com",
 			},
 			expected: AuthorAnnotation{Email: "john@example.com"},
 		},
 		{
 			note: "map with name and email",
-			raw: map[string]interface{}{
+			raw: map[string]any{
 				"name":  "John Doe",
 				"email": "john@example.com",
 			},
@@ -6168,7 +6168,7 @@ func TestAuthorAnnotation(t *testing.T) {
 		},
 		{
 			note: "map with extra entry",
-			raw: map[string]interface{}{
+			raw: map[string]any{
 				"name":  "John Doe",
 				"email": "john@example.com",
 				"foo":   "bar",
@@ -6177,19 +6177,19 @@ func TestAuthorAnnotation(t *testing.T) {
 		},
 		{
 			note:     "empty map",
-			raw:      map[string]interface{}{},
+			raw:      map[string]any{},
 			expected: errors.New("'name' and/or 'email' values required in object"),
 		},
 		{
 			note: "map with empty name",
-			raw: map[string]interface{}{
+			raw: map[string]any{
 				"name": "",
 			},
 			expected: errors.New("'name' and/or 'email' values required in object"),
 		},
 		{
 			note: "map with email and empty name",
-			raw: map[string]interface{}{
+			raw: map[string]any{
 				"name":  "",
 				"email": "john@example.com",
 			},
@@ -6197,14 +6197,14 @@ func TestAuthorAnnotation(t *testing.T) {
 		},
 		{
 			note: "map with empty email",
-			raw: map[string]interface{}{
+			raw: map[string]any{
 				"email": "",
 			},
 			expected: errors.New("'name' and/or 'email' values required in object"),
 		},
 		{
 			note: "map with name and empty email",
-			raw: map[string]interface{}{
+			raw: map[string]any{
 				"name":  "John Doe",
 				"email": "",
 			},
@@ -6243,8 +6243,8 @@ func TestAuthorAnnotation(t *testing.T) {
 func TestRelatedResourceAnnotation(t *testing.T) {
 	tests := []struct {
 		note     string
-		raw      interface{}
-		expected interface{}
+		raw      any
+		expected any
 	}{
 		{
 			note:     "empty ref URL",
@@ -6268,21 +6268,21 @@ func TestRelatedResourceAnnotation(t *testing.T) {
 		},
 		{
 			note: "map with only ref",
-			raw: map[string]interface{}{
+			raw: map[string]any{
 				"ref": "https://example.com/foo?bar#baz",
 			},
 			expected: RelatedResourceAnnotation{Ref: mustParseURL("https://example.com/foo?bar#baz")},
 		},
 		{
 			note: "map with only description",
-			raw: map[string]interface{}{
+			raw: map[string]any{
 				"description": "foo bar",
 			},
 			expected: errors.New("'ref' value required in object"),
 		},
 		{
 			note: "map with ref and description",
-			raw: map[string]interface{}{
+			raw: map[string]any{
 				"ref":         "https://example.com/foo?bar#baz",
 				"description": "foo bar",
 			},
@@ -6293,7 +6293,7 @@ func TestRelatedResourceAnnotation(t *testing.T) {
 		},
 		{
 			note: "map with ref and description",
-			raw: map[string]interface{}{
+			raw: map[string]any{
 				"ref":         "https://example.com/foo?bar#baz",
 				"description": "foo bar",
 				"foo":         "bar",
@@ -6305,19 +6305,19 @@ func TestRelatedResourceAnnotation(t *testing.T) {
 		},
 		{
 			note:     "empty map",
-			raw:      map[string]interface{}{},
+			raw:      map[string]any{},
 			expected: errors.New("'ref' value required in object"),
 		},
 		{
 			note: "map with empty ref",
-			raw: map[string]interface{}{
+			raw: map[string]any{
 				"ref": "",
 			},
 			expected: errors.New("'ref' value required in object"),
 		},
 		{
 			note: "map with only whitespace in ref",
-			raw: map[string]interface{}{
+			raw: map[string]any{
 				"ref": " \t",
 			},
 			expected: errors.New("'ref' value required in object"),
@@ -6429,7 +6429,7 @@ func assertParseErrorFunc(t *testing.T, msg string, input string, f func(string)
 
 func assertParseImport(t *testing.T, msg string, input string, correct *Import, opts ...ParserOptions) {
 	t.Helper()
-	assertParseOne(t, msg, input, func(parsed interface{}) {
+	assertParseOne(t, msg, input, func(parsed any) {
 		t.Helper()
 		imp := parsed.(*Import)
 		if !imp.Equal(correct) {
@@ -6465,7 +6465,7 @@ func assertParseModuleError(t *testing.T, msg, input string) {
 }
 
 func assertParsePackage(t *testing.T, msg string, input string, correct *Package) {
-	assertParseOne(t, msg, input, func(parsed interface{}) {
+	assertParseOne(t, msg, input, func(parsed any) {
 		pkg := parsed.(*Package)
 		if !pkg.Equal(correct) {
 			t.Errorf("Error on test \"%s\": packages not equal: %v (parsed), %v (correct)", msg, pkg, correct)
@@ -6473,7 +6473,7 @@ func assertParsePackage(t *testing.T, msg string, input string, correct *Package
 	})
 }
 
-func assertParseOne(t *testing.T, msg string, input string, correct func(interface{}), opts ...ParserOptions) {
+func assertParseOne(t *testing.T, msg string, input string, correct func(any), opts ...ParserOptions) {
 	t.Helper()
 	opt := ParserOptions{}
 	if len(opts) == 1 {
@@ -6504,7 +6504,7 @@ func assertParseOneBody(t *testing.T, msg string, input string, correct Body) {
 
 func assertParseOneExpr(t *testing.T, msg string, input string, correct *Expr, opts ...ParserOptions) {
 	t.Helper()
-	assertParseOne(t, msg, input, func(parsed interface{}) {
+	assertParseOne(t, msg, input, func(parsed any) {
 		t.Helper()
 		body := parsed.(Body)
 		if len(body) != 1 {
@@ -6537,7 +6537,7 @@ func assertParseOneTermNegated(t *testing.T, msg string, input string, correct *
 
 func assertParseRule(t *testing.T, msg string, input string, correct *Rule, opts ...ParserOptions) {
 	t.Helper()
-	assertParseOne(t, msg, input, func(parsed interface{}) {
+	assertParseOne(t, msg, input, func(parsed any) {
 		t.Helper()
 		rule := parsed.(*Rule)
 		if rule.Head.Name != correct.Head.Name {

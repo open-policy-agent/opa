@@ -6,13 +6,13 @@ package ir
 
 // Visitor defines the interface for visiting IR nodes.
 type Visitor interface {
-	Before(x interface{})
-	Visit(x interface{}) (Visitor, error)
-	After(x interface{})
+	Before(x any)
+	Visit(x any) (Visitor, error)
+	After(x any)
 }
 
 // Walk invokes the visitor for nodes under x.
-func Walk(vis Visitor, x interface{}) error {
+func Walk(vis Visitor, x any) error {
 	impl := walkerImpl{
 		vis: vis,
 	}
@@ -25,7 +25,7 @@ type walkerImpl struct {
 	err error
 }
 
-func (w *walkerImpl) walk(x interface{}) {
+func (w *walkerImpl) walk(x any) {
 	if w.err != nil { // abort on error
 		return
 	}

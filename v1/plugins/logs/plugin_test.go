@@ -56,7 +56,7 @@ func (p *testPlugin) Start(context.Context) error {
 func (p *testPlugin) Stop(context.Context) {
 }
 
-func (p *testPlugin) Reconfigure(context.Context, interface{}) {
+func (p *testPlugin) Reconfigure(context.Context, any) {
 }
 
 func (p *testPlugin) Log(_ context.Context, event EventV1) error {
@@ -107,10 +107,10 @@ func TestPluginCustomBackendAndHTTPServiceAndConsole(t *testing.T) {
 
 	fixture := newTestFixture(t, testFixtureOptions{
 		ConsoleLogger: testLogger,
-		ExtraManagerConfig: map[string]interface{}{
-			"plugins": map[string]interface{}{"test_plugin": struct{}{}},
+		ExtraManagerConfig: map[string]any{
+			"plugins": map[string]any{"test_plugin": struct{}{}},
 		},
-		ExtraConfig: map[string]interface{}{
+		ExtraConfig: map[string]any{
 			"plugin":  "test_plugin",
 			"console": true,
 		},
@@ -409,7 +409,7 @@ func TestPluginStartSameInput(t *testing.T) {
 	defer fixture.server.stop()
 
 	fixture.server.ch = make(chan []EventV1, 3)
-	var result interface{} = false
+	var result any = false
 
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
 	if err != nil {
@@ -418,7 +418,7 @@ func TestPluginStartSameInput(t *testing.T) {
 
 	testMetrics := getWellKnownMetrics()
 
-	var input interface{} = map[string]interface{}{"method": "GET"}
+	var input any = map[string]any{"method": "GET"}
 
 	for i := 0; i < 400; i++ {
 		fixture.plugin.Log(ctx, &server.Info{
@@ -449,9 +449,9 @@ func TestPluginStartSameInput(t *testing.T) {
 		t.Fatalf("Expected chunk lens %v, %v, and %v but got: %v, %v, and %v", expLen1, expLen2, expLen3, len(chunk1), len(chunk2), len(chunk3))
 	}
 
-	var expInput interface{} = map[string]interface{}{"method": "GET"}
+	var expInput any = map[string]any{"method": "GET"}
 
-	msAsFloat64 := map[string]interface{}{}
+	msAsFloat64 := map[string]any{}
 	for k, v := range testMetrics.All() {
 		msAsFloat64[k] = float64(v.(uint64))
 	}
@@ -490,17 +490,17 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 	defer fixture.server.stop()
 
 	fixture.server.ch = make(chan []EventV1, 3)
-	var result interface{} = false
+	var result any = false
 
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
 	if err != nil {
 		panic(err)
 	}
 
-	var input interface{}
+	var input any
 
 	for i := 0; i < 400; i++ {
-		input = map[string]interface{}{"method": getValueForMethod(i), "path": getValueForPath(i), "user": getValueForUser(i)}
+		input = map[string]any{"method": getValueForMethod(i), "path": getValueForPath(i), "user": getValueForUser(i)}
 
 		fixture.plugin.Log(ctx, &server.Info{
 			Revision:   fmt.Sprint(i),
@@ -558,14 +558,14 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 	defer fixture.server.stop()
 
 	fixture.server.ch = make(chan []EventV1, 5)
-	var result interface{} = false
+	var result any = false
 
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
 	if err != nil {
 		panic(err)
 	}
 
-	var input interface{}
+	var input any
 
 	for i := 0; i < 250; i++ {
 		input = generateInputMap(i)
@@ -635,8 +635,8 @@ func TestPluginRequeue(t *testing.T) {
 
 			fixture.server.ch = make(chan []EventV1, 1)
 
-			var input interface{} = map[string]interface{}{"method": "GET"}
-			var result1 interface{} = false
+			var input any = map[string]any{"method": "GET"}
+			var result1 any = false
 
 			if err := fixture.plugin.Log(ctx, &server.Info{
 				DecisionID: "abc",
@@ -699,8 +699,8 @@ func TestPluginRequeueBufferPreserved(t *testing.T) {
 
 	fixture.server.ch = make(chan []EventV1, 3)
 
-	var input interface{} = map[string]interface{}{"method": "GET"}
-	var result1 interface{} = false
+	var input any = map[string]any{"method": "GET"}
+	var result1 any = false
 
 	_ = fixture.plugin.Log(ctx, logServerInfo("abc", input, result1))
 	_ = fixture.plugin.Log(ctx, logServerInfo("def", input, result1))
@@ -758,8 +758,8 @@ func TestPluginRateLimitInt(t *testing.T) {
 			})
 			defer fixture.server.stop()
 
-			var input interface{} = map[string]interface{}{"method": "GET"}
-			var result interface{} = false
+			var input any = map[string]any{"method": "GET"}
+			var result any = false
 
 			eventSize := 218
 			event1 := &server.Info{
@@ -914,8 +914,8 @@ func TestPluginRateLimitFloat(t *testing.T) {
 			})
 			defer fixture.server.stop()
 
-			var input interface{} = map[string]interface{}{"method": "GET"}
-			var result interface{} = false
+			var input any = map[string]any{"method": "GET"}
+			var result any = false
 
 			eventSize := 218
 			event1 := &server.Info{
@@ -1068,7 +1068,7 @@ func TestPluginStatusUpdateHTTPError(t *testing.T) {
 
 			fixture.server.ch = make(chan []EventV1, 3)
 
-			input := map[string]interface{}{"method": "GET"}
+			input := map[string]any{"method": "GET"}
 			var result1 bool
 
 			if err := fixture.plugin.Log(ctx, logServerInfo("abc", input, result1)); err != nil {
@@ -1128,8 +1128,8 @@ func TestPluginStatusUpdateEncodingFailure(t *testing.T) {
 	fixture.plugin.metrics = m
 	fixture.plugin.enc.metrics = m
 
-	var input interface{} = map[string]interface{}{"method": "GET"}
-	var result interface{} = false
+	var input any = map[string]any{"method": "GET"}
+	var result any = false
 
 	event := &server.Info{
 		DecisionID: "abc",
@@ -1189,7 +1189,7 @@ func TestPluginStatusUpdateEncodingFailure(t *testing.T) {
 
 	fmt.Println(e.Fields["metrics"])
 
-	exp := map[string]interface{}{"<built-in>": map[string]interface{}{"counter_decision_logs_encoding_failure": json.Number("1"),
+	exp := map[string]any{"<built-in>": map[string]any{"counter_decision_logs_encoding_failure": json.Number("1"),
 		"counter_enc_log_exceeded_upload_size_limit_bytes": json.Number("1")}}
 
 	if !reflect.DeepEqual(e.Fields["metrics"], exp) {
@@ -1219,8 +1219,8 @@ func TestPluginStatusUpdateBufferSizeExceeded(t *testing.T) {
 
 	fixture.plugin.metrics = metrics.New()
 
-	var input interface{} = map[string]interface{}{"method": "GET"}
-	var result interface{} = false
+	var input any = map[string]any{"method": "GET"}
+	var result any = false
 
 	event1 := &server.Info{
 		DecisionID: "abc",
@@ -1306,7 +1306,7 @@ func TestPluginStatusUpdateBufferSizeExceeded(t *testing.T) {
 		t.Fatal("Expected metrics field in status update")
 	}
 
-	exp := map[string]interface{}{"<built-in>": map[string]interface{}{
+	exp := map[string]any{"<built-in>": map[string]any{
 		"counter_decision_logs_dropped_buffer_size_limit_bytes_exceeded": json.Number("1"),
 		"counter_decision_logs_dropped_buffer_size_limit_exceeded":       json.Number("1"),
 	}}
@@ -1339,8 +1339,8 @@ func TestPluginStatusUpdateRateLimitExceeded(t *testing.T) {
 
 	fixture.plugin.metrics = metrics.New()
 
-	var input interface{} = map[string]interface{}{"method": "GET"}
-	var result interface{} = false
+	var input any = map[string]any{"method": "GET"}
+	var result any = false
 
 	event1 := &server.Info{
 		DecisionID: "abc",
@@ -1418,7 +1418,7 @@ func TestPluginStatusUpdateRateLimitExceeded(t *testing.T) {
 		t.Fatal("Expected metrics field in status update")
 	}
 
-	exp := map[string]interface{}{"<built-in>": map[string]interface{}{"counter_decision_logs_dropped_rate_limit_exceeded": json.Number("2")}}
+	exp := map[string]any{"<built-in>": map[string]any{"counter_decision_logs_dropped_rate_limit_exceeded": json.Number("2")}}
 
 	if !reflect.DeepEqual(e.Fields["metrics"], exp) {
 		t.Fatalf("Expected %v but got %v", exp, e.Fields["metrics"])
@@ -1455,8 +1455,8 @@ func TestPluginRateLimitRequeue(t *testing.T) {
 
 			fixture.server.ch = make(chan []EventV1, 3)
 
-			var input interface{} = map[string]interface{}{"method": "GET"}
-			var result1 interface{} = false
+			var input any = map[string]any{"method": "GET"}
+			var result1 any = false
 
 			if err := fixture.plugin.Log(ctx, logServerInfo("abc", input, result1)); err != nil {
 				t.Fatal(err)
@@ -1576,7 +1576,7 @@ func TestPluginRateLimitDropCountStatus(t *testing.T) {
 
 			fixture.plugin.metrics = metrics.New()
 
-			var input any = map[string]interface{}{"method": "GET"}
+			var input any = map[string]any{"method": "GET"}
 			var result any = false
 
 			event1 := &server.Info{
@@ -1658,7 +1658,7 @@ func TestPluginRateLimitDropCountStatus(t *testing.T) {
 				t.Fatal("Expected metrics")
 			}
 
-			exp := map[string]interface{}{"<built-in>": map[string]interface{}{"counter_decision_logs_dropped_rate_limit_exceeded": json.Number("2")}}
+			exp := map[string]any{"<built-in>": map[string]any{"counter_decision_logs_dropped_rate_limit_exceeded": json.Number("2")}}
 
 			if !reflect.DeepEqual(e.Fields["metrics"], exp) {
 				t.Fatalf("Expected %v but got %v", exp, e.Fields["metrics"])
@@ -1687,11 +1687,11 @@ func TestChunkMaxUploadSizeLimitNDBCacheDropping(t *testing.T) {
 
 	fixture.plugin.metrics = metrics.New()
 
-	var input interface{} = map[string]interface{}{"method": "GET"}
-	var result interface{} = false
+	var input any = map[string]any{"method": "GET"}
+	var result any = false
 
 	// Purposely oversized NDBCache entry will force dropping during Log().
-	var ndbCacheExample interface{} = ast.MustJSON(builtins.NDBCache{
+	var ndbCacheExample any = ast.MustJSON(builtins.NDBCache{
 		"test.custom_space_waster": ast.NewObject([2]*ast.Term{
 			ast.ArrayTerm(),
 			ast.StringTerm(strings.Repeat("Wasted space... ", 200)),
@@ -1853,13 +1853,13 @@ func TestPluginTriggerManual(t *testing.T) {
 			}
 
 			testMetrics := getWellKnownMetrics()
-			msAsFloat64 := map[string]interface{}{}
+			msAsFloat64 := map[string]any{}
 			for k, v := range testMetrics.All() {
 				msAsFloat64[k] = float64(v.(uint64))
 			}
 
-			var input interface{} = map[string]interface{}{"method": "GET"}
-			var result interface{} = false
+			var input any = map[string]any{"method": "GET"}
+			var result any = false
 
 			ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
 			if err != nil {
@@ -1951,7 +1951,7 @@ func TestPluginTriggerManualWithTimeout(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pluginConfig := make(map[string]interface{})
+	pluginConfig := make(map[string]any)
 
 	pluginConfig["service"] = "example"
 	pluginConfig["resource"] = "/"
@@ -1978,8 +1978,8 @@ func TestPluginTriggerManualWithTimeout(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var input interface{} = map[string]interface{}{"method": "GET"}
-	var result interface{} = false
+	var input any = map[string]any{"method": "GET"}
+	var result any = false
 
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
 	if err != nil {
@@ -2032,8 +2032,8 @@ func TestPluginGracefulShutdownFlushesDecisions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var input interface{} = map[string]interface{}{"method": "GET"}
-	var result interface{} = false
+	var input any = map[string]any{"method": "GET"}
+	var result any = false
 
 	logsSent := 200
 	for i := 0; i < logsSent; i++ {
@@ -2073,8 +2073,8 @@ func TestPluginTerminatesAfterGracefulShutdownPeriod(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var input interface{} = map[string]interface{}{"method": "GET"}
-	var result interface{} = false
+	var input any = map[string]any{"method": "GET"}
+	var result any = false
 
 	input = generateInputMap(0)
 	_ = fixture.plugin.Log(ctx, logServerInfo("abc", input, result))
@@ -2258,10 +2258,10 @@ func TestPluginMasking(t *testing.T) {
 		expPrinted    []string
 		errManager    error
 		expErr        error
-		input         interface{}
-		expected      interface{}
-		ndbcache      interface{}
-		ndbc_expected interface{}
+		input         any
+		expected      any
+		ndbcache      any
+		ndbc_expected any
 		reconfigure   bool
 	}{
 		{
@@ -2273,11 +2273,11 @@ func TestPluginMasking(t *testing.T) {
 					input.input.is_sensitive
 				}`),
 			expErased: []string{"/input/password"},
-			input: map[string]interface{}{
+			input: map[string]any{
 				"is_sensitive": true,
 				"password":     "secret",
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"is_sensitive": true,
 			},
 		},
@@ -2290,11 +2290,11 @@ func TestPluginMasking(t *testing.T) {
 					input.input.is_sensitive
 				}`),
 			expErased: []string{"/input/password"},
-			input: map[string]interface{}{
+			input: map[string]any{
 				"is_sensitive": true,
 				"password":     "secret",
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"is_sensitive": true,
 			},
 			reconfigure: true,
@@ -2309,11 +2309,11 @@ func TestPluginMasking(t *testing.T) {
 					x := "**REDACTED**"
 				}`),
 			expMasked: []string{"/input/password"},
-			input: map[string]interface{}{
+			input: map[string]any{
 				"is_sensitive": true,
 				"password":     "mySecretPassword",
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"is_sensitive": true,
 				"password":     "**REDACTED**",
 			},
@@ -2328,11 +2328,11 @@ func TestPluginMasking(t *testing.T) {
 					x := "**REDACTED**"
 				}`),
 			expErased: []string{"/input/password"},
-			input: map[string]interface{}{
+			input: map[string]any{
 				"is_sensitive": true,
 				"password":     "mySecretPassword",
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"is_sensitive": true,
 			},
 		},
@@ -2345,11 +2345,11 @@ func TestPluginMasking(t *testing.T) {
 					input.input.password
 				}`),
 			expErased: []string{"/input/password"},
-			input: map[string]interface{}{
+			input: map[string]any{
 				"is_sensitive": true,
 				"password":     "mySecretPassword",
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"is_sensitive": true,
 			},
 		},
@@ -2370,11 +2370,11 @@ func TestPluginMasking(t *testing.T) {
 				mask["/input/password"] {
 					input.input.is_sensitive
 				}`),
-			input: map[string]interface{}{
+			input: map[string]any{
 				"is_not_sensitive": true,
 				"password":         "secret",
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"is_not_sensitive": true,
 				"password":         "secret",
 			},
@@ -2390,23 +2390,23 @@ func TestPluginMasking(t *testing.T) {
 						{"nabs": 1}
 					]
 				}`),
-			input: map[string]interface{}{
+			input: map[string]any{
 				"bar": 1,
-				"foo": []map[string]interface{}{{"baz": 1}},
+				"foo": []map[string]any{{"baz": 1}},
 			},
 			// Due to ast.JSON() parsing as part of rego.eval, internal mapped
 			// types from mask rule valuations (for numbers) will be json.Number.
-			// This affects explicitly providing the expected interface{} value.
+			// This affects explicitly providing the expected any value.
 			//
 			// See TestMaksRuleErase where tests are written to confirm json marshalled
 			// output is as expected.
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"bar": 1,
-				"foo": []interface{}{map[string]interface{}{"nabs": json.Number("1")}},
+				"foo": []any{map[string]any{"nabs": json.Number("1")}},
 			},
 		},
 		{
-			note: "upsert failure: unsupported type []map[string]interface{}",
+			note: "upsert failure: unsupported type []map[string]any",
 			rawPolicy: []byte(`
 				package system.log
 				mask[{"op": "upsert", "path": "/input/foo/boo", "value": x}] {
@@ -2414,13 +2414,13 @@ func TestPluginMasking(t *testing.T) {
 						{"nabs": 1}
 					]
 				}`),
-			input: map[string]interface{}{
+			input: map[string]any{
 				"bar": json.Number("1"),
-				"foo": []map[string]interface{}{{"baz": json.Number("1")}},
+				"foo": []map[string]any{{"baz": json.Number("1")}},
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"bar": json.Number("1"),
-				"foo": []map[string]interface{}{{"baz": json.Number("1")}},
+				"foo": []map[string]any{{"baz": json.Number("1")}},
 			},
 		},
 		{
@@ -2456,18 +2456,18 @@ func TestPluginMasking(t *testing.T) {
 						{"changed": 1}
 					]
 				}`),
-			input: map[string]interface{}{
+			input: map[string]any{
 				"is_sensitive": true,
 				"jwt":          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.cThIIoDvwdueQB468K5xDc5633seEFoqwxjF_xSJyQQ",
 				"bar":          1,
-				"foo":          []map[string]interface{}{{"baz": 1}},
+				"foo":          []map[string]any{{"baz": 1}},
 				"password":     "mySecretPassword",
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"is_sensitive": true,
 				"jwt":          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.KipSRURBQ1RFRCoq",
 				"bar":          1,
-				"foo":          []interface{}{map[string]interface{}{"changed": json.Number("1")}},
+				"foo":          []any{map[string]any{"changed": json.Number("1")}},
 			},
 		},
 		{
@@ -2480,11 +2480,11 @@ func TestPluginMasking(t *testing.T) {
 					input.input.is_sensitive
 				}`),
 			expErased: []string{"/input/password"},
-			input: map[string]interface{}{
+			input: map[string]any{
 				"is_sensitive": true,
 				"password":     "secret",
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"is_sensitive": true,
 			},
 			expPrinted: []string{"Erasing /input/password"},
@@ -2499,11 +2499,11 @@ func TestPluginMasking(t *testing.T) {
 					x := "**REDACTED**"
 				}`),
 			expMasked: []string{"/nd_builtin_cache/rand.intn"},
-			ndbcache: map[string]interface{}{
+			ndbcache: map[string]any{
 				// Simulate rand.intn("z", 15) call, with output of 7.
-				"rand.intn": map[string]interface{}{"[\"z\",15]": json.Number("7")},
+				"rand.intn": map[string]any{"[\"z\",15]": json.Number("7")},
 			},
-			ndbc_expected: map[string]interface{}{
+			ndbc_expected: map[string]any{
 				"rand.intn": "**REDACTED**",
 			},
 		},
@@ -2524,19 +2524,19 @@ func TestPluginMasking(t *testing.T) {
 				}
 				`),
 			expMasked: []string{"/nd_builtin_cache/net.lookup_ip_addr", "/nd_builtin_cache/rand.intn"},
-			ndbcache: map[string]interface{}{
+			ndbcache: map[string]any{
 				// Simulate rand.intn("z", 15) call, with output of 7.
-				"rand.intn": map[string]interface{}{"[\"z\",15]": json.Number("7")},
-				"net.lookup_ip_addr": map[string]interface{}{
+				"rand.intn": map[string]any{"[\"z\",15]": json.Number("7")},
+				"net.lookup_ip_addr": map[string]any{
 					"[\"1.1.1.1\"]": "1.1.1.1",
 					"[\"2.2.2.2\"]": "2.2.2.2",
 					"[\"3.3.3.3\"]": "3.3.3.3",
 					"[\"4.4.4.4\"]": "4.4.4.4",
 				},
 			},
-			ndbc_expected: map[string]interface{}{
+			ndbc_expected: map[string]any{
 				"rand.intn": "**REDACTED**",
-				"net.lookup_ip_addr": map[string]interface{}{
+				"net.lookup_ip_addr": map[string]any{
 					"[\"1.1.1.1\"]": "1.1.1.1",
 					"[\"2.2.2.2\"]": "2.2.2.2",
 					"[\"3.3.3.3\"]": "3.3.3.3",
@@ -2923,8 +2923,8 @@ type testFixtureOptions struct {
 	Resource                       *string
 	TestServerPath                 *string
 	PartitionName                  *string
-	ExtraConfig                    map[string]interface{}
-	ExtraManagerConfig             map[string]interface{}
+	ExtraConfig                    map[string]any
+	ExtraManagerConfig             map[string]any
 	ManagerInit                    func(*plugins.Manager)
 }
 
@@ -2965,7 +2965,7 @@ func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
 				}
 			]}`, ts.server.URL))
 
-	mgrCfg := make(map[string]interface{})
+	mgrCfg := make(map[string]any)
 	err := json.Unmarshal(managerConfig, &mgrCfg)
 	if err != nil {
 		t.Fatal(err)
@@ -2991,7 +2991,7 @@ func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
 		init(manager)
 	}
 
-	pluginConfig := map[string]interface{}{
+	pluginConfig := map[string]any{
 		"service": "example",
 	}
 
@@ -3172,13 +3172,13 @@ func TestEventV1ToAST(t *testing.T) {
 	t.Parallel()
 
 	input := `{"foo": [{"bar": 1, "baz": {"2": 3.3333333, "4": null}}]}`
-	var goInput interface{} = string(util.MustMarshalJSON(input))
+	var goInput any = string(util.MustMarshalJSON(input))
 	astInput, err := roundtripJSONToAST(goInput)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	var result interface{} = map[string]interface{}{
+	var result any = map[string]any{
 		"x": true,
 	}
 
@@ -3187,7 +3187,7 @@ func TestEventV1ToAST(t *testing.T) {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	var ndbCacheExample interface{} = ast.MustJSON(builtins.NDBCache{
+	var ndbCacheExample any = ast.MustJSON(builtins.NDBCache{
 		"time.now_ns": ast.NewObject([2]*ast.Term{
 			ast.ArrayTerm(),
 			ast.NumberTerm("1663803565571081429"),
@@ -3404,8 +3404,8 @@ func TestPluginDefaultResourcePath(t *testing.T) {
 
 			fixture.server.ch = make(chan []EventV1, 1)
 
-			var input interface{} = map[string]interface{}{"method": "GET"}
-			var result1 interface{} = false
+			var input any = map[string]any{"method": "GET"}
+			var result1 any = false
 
 			if err := fixture.plugin.Log(ctx, &server.Info{
 				DecisionID: "abc",
@@ -3466,8 +3466,8 @@ func TestPluginResourcePathAndPartitionName(t *testing.T) {
 
 			fixture.server.ch = make(chan []EventV1, 1)
 
-			var input interface{} = map[string]interface{}{"method": "GET"}
-			var result1 interface{} = false
+			var input any = map[string]any{"method": "GET"}
+			var result1 any = false
 
 			if err := fixture.plugin.Log(ctx, &server.Info{
 				DecisionID: "abc",
@@ -3527,8 +3527,8 @@ func TestPluginResourcePath(t *testing.T) {
 
 			fixture.server.ch = make(chan []EventV1, 1)
 
-			var input interface{} = map[string]interface{}{"method": "GET"}
-			var result1 interface{} = false
+			var input any = map[string]any{"method": "GET"}
+			var result1 any = false
 
 			if err := fixture.plugin.Log(ctx, &server.Info{
 				DecisionID: "abc",
@@ -3612,9 +3612,9 @@ func getValueForUser(idx int) string {
 	return users[idx%len(users)]
 }
 
-func generateInputMap(idx int) map[string]interface{} {
+func generateInputMap(idx int) map[string]any {
 	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-	result := make(map[string]interface{})
+	result := make(map[string]any)
 
 	for range 20 {
 		n := idx % len(letters)

@@ -82,10 +82,10 @@ func (uf *unionFind) Merge(a, b ast.Value) (*unionFindRoot, bool) {
 
 func (uf *unionFind) String() string {
 	o := struct {
-		Roots   map[string]interface{}
+		Roots   map[string]any
 		Parents map[string]ast.Value
 	}{
-		map[string]interface{}{},
+		map[string]any{},
 		map[string]ast.Value{},
 	}
 

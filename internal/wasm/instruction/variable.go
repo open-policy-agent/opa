@@ -17,8 +17,8 @@ func (GetLocal) Op() opcode.Opcode {
 }
 
 // ImmediateArgs returns the index of the local variable to push onto the stack.
-func (i GetLocal) ImmediateArgs() []interface{} {
-	return []interface{}{i.Index}
+func (i GetLocal) ImmediateArgs() []any {
+	return []any{i.Index}
 }
 
 // SetLocal represents the WASM set_local instruction.
@@ -33,8 +33,8 @@ func (SetLocal) Op() opcode.Opcode {
 
 // ImmediateArgs returns the index of the local variable to set with the top of
 // the stack.
-func (i SetLocal) ImmediateArgs() []interface{} {
-	return []interface{}{i.Index}
+func (i SetLocal) ImmediateArgs() []any {
+	return []any{i.Index}
 }
 
 // TeeLocal represents the WASM tee_local instruction.
@@ -49,6 +49,6 @@ func (TeeLocal) Op() opcode.Opcode {
 
 // ImmediateArgs returns the index of the local variable to "tee" with the top of
 // the stack (like set, but retaining the top of the stack).
-func (i TeeLocal) ImmediateArgs() []interface{} {
-	return []interface{}{i.Index}
+func (i TeeLocal) ImmediateArgs() []any {
+	return []any{i.Index}
 }

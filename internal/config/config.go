@@ -70,7 +70,7 @@ func ParseServicesConfig(opts ServiceOptions) (map[string]rest.Client, error) {
 // read from disk (if specified) and overrides will be applied. If no config file is
 // specified, the overrides can still be applied to an empty config.
 func Load(configFile string, overrides []string, overrideFiles []string) ([]byte, error) {
-	baseConf := map[string]interface{}{}
+	baseConf := map[string]any{}
 
 	// User specified config file
 	if configFile != "" {
@@ -88,7 +88,7 @@ func Load(configFile string, overrides []string, overrideFiles []string) ([]byte
 		}
 	}
 
-	overrideConf := map[string]interface{}{}
+	overrideConf := map[string]any{}
 
 	// User specified a config override via --set
 	for _, override := range overrides {
@@ -100,7 +100,7 @@ func Load(configFile string, overrides []string, overrideFiles []string) ([]byte
 
 	// User specified a config override value via --set-file
 	for _, override := range overrideFiles {
-		reader := func(rs []rune) (interface{}, error) {
+		reader := func(rs []rune) (any, error) {
 			bytes, err := os.ReadFile(string(rs))
 			value := strings.TrimSpace(string(bytes))
 			return value, err
@@ -141,21 +141,21 @@ func subEnvVars(s string) string {
 }
 
 // mergeValues will merge source and destination map, preferring values from the source map
-func mergeValues(dest map[string]interface{}, src map[string]interface{}) map[string]interface{} {
+func mergeValues(dest map[string]any, src map[string]any) map[string]any {
 	for k, v := range src {
 		// If the key doesn't exist already, then just set the key to that value
 		if _, exists := dest[k]; !exists {
 			dest[k] = v
 			continue
 		}
-		nextMap, ok := v.(map[string]interface{})
+		nextMap, ok := v.(map[string]any)
 		// If it isn't another map, overwrite the value
 		if !ok {
 			dest[k] = v
 			continue
 		}
 		// Edge case: If the key exists in the destination, but isn't a map
-		destMap, isMap := dest[k].(map[string]interface{})
+		destMap, isMap := dest[k].(map[string]any)
 		// If the source map has a map for this key, prefer it
 		if !isMap {
 			dest[k] = v

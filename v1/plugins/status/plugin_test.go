@@ -1011,7 +1011,7 @@ func TestMetrics(t *testing.T) {
 	fixture.plugin.BulkUpdateBundleStatus(map[string]*bundle.Status{"bundle": status})
 	result := <-fixture.server.ch
 
-	exp := map[string]interface{}{"<built-in>": map[string]interface{}{}}
+	exp := map[string]any{"<built-in>": map[string]any{}}
 
 	if !reflect.DeepEqual(result.Metrics, exp) {
 		t.Fatalf("Expected %v but got %v", exp, result.Metrics)
@@ -1247,7 +1247,7 @@ func (*testPlugin) Start(context.Context) error {
 func (*testPlugin) Stop(context.Context) {
 }
 
-func (*testPlugin) Reconfigure(context.Context, interface{}) {
+func (*testPlugin) Reconfigure(context.Context, any) {
 }
 
 func (p *testPlugin) Log(_ context.Context, req *UpdateRequestV1) error {

@@ -198,7 +198,7 @@ func SetEventHandler(handler EventHandler) DebuggerOption {
 type LaunchEvalProperties struct {
 	LaunchProperties
 	Query     string
-	Input     interface{}
+	Input     any
 	InputPath string
 }
 

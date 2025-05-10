@@ -29,7 +29,7 @@ func astValueToJSONSchemaLoader(value ast.Value) (gojsonschema.JSONLoader, error
 		loader = gojsonschema.NewStringLoader(string(x))
 	case ast.Object:
 		// In case of object serialize it to JSON representation.
-		var data interface{}
+		var data any
 		data, err = ast.JSON(value)
 		if err != nil {
 			return nil, err

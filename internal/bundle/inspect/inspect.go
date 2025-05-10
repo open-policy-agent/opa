@@ -23,12 +23,12 @@ import (
 
 // Info represents information about a bundle.
 type Info struct {
-	Manifest    *bundle.Manifest         `json:"manifest,omitempty"`
-	Signatures  bundle.SignaturesConfig  `json:"signatures_config,omitempty"`
-	WasmModules []map[string]interface{} `json:"wasm_modules,omitempty"`
-	Namespaces  map[string][]string      `json:"namespaces,omitempty"`
-	Annotations []*ast.AnnotationsRef    `json:"annotations,omitempty"`
-	Required    *ast.Capabilities        `json:"capabilities,omitempty"`
+	Manifest    *bundle.Manifest        `json:"manifest,omitempty"`
+	Signatures  bundle.SignaturesConfig `json:"signatures_config,omitempty"`
+	WasmModules []map[string]any        `json:"wasm_modules,omitempty"`
+	Namespaces  map[string][]string     `json:"namespaces,omitempty"`
+	Annotations []*ast.AnnotationsRef   `json:"annotations,omitempty"`
+	Required    *ast.Capabilities       `json:"capabilities,omitempty"`
 }
 
 func File(path string, includeAnnotations bool) (*Info, error) {
@@ -103,9 +103,9 @@ func bundleOrDirInfoForRegoVersion(regoVersion ast.RegoVersion, path string, inc
 		return nil, err
 	}
 
-	wasmModules := make([]map[string]interface{}, 0, len(b.WasmModules))
+	wasmModules := make([]map[string]any, 0, len(b.WasmModules))
 	for _, w := range b.WasmModules {
-		wasmModule := map[string]interface{}{
+		wasmModule := map[string]any{
 			"url":  w.URL,
 			"path": w.Path,
 		}

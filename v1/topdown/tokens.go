@@ -224,7 +224,7 @@ func builtinJWTVerifyPS512(bctx BuiltinContext, operands []*ast.Term, iter func(
 
 // Implements RSA JWT signature verification.
 func builtinJWTVerifyRSA(bctx BuiltinContext, jwt ast.Value, keyStr ast.Value, hasher func() hash.Hash, verify func(publicKey *rsa.PublicKey, digest []byte, signature []byte) error) (ast.Value, error) {
-	return builtinJWTVerify(bctx, jwt, keyStr, hasher, func(publicKey interface{}, digest []byte, signature []byte) error {
+	return builtinJWTVerify(bctx, jwt, keyStr, hasher, func(publicKey any, digest []byte, signature []byte) error {
 		publicKeyRsa, ok := publicKey.(*rsa.PublicKey)
 		if !ok {
 			return errors.New("incorrect public key type")
@@ -260,7 +260,7 @@ func builtinJWTVerifyES512(bctx BuiltinContext, operands []*ast.Term, iter func(
 	return err
 }
 
-func verifyES(publicKey interface{}, digest []byte, signature []byte) (err error) {
+func verifyES(publicKey any, digest []byte, signature []byte) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("ECDSA signature verification error: %v", r)
@@ -283,7 +283,7 @@ func verifyES(publicKey interface{}, digest []byte, signature []byte) (err error
 type verificationKey struct {
 	alg string
 	kid string
-	key interface{}
+	key any
 }
 
 // getKeysFromCertOrJWK returns the public key found in a X.509 certificate or JWK key(s).
@@ -346,7 +346,7 @@ func getKeyByKid(kid string, keys []verificationKey) *verificationKey {
 }
 
 // Implements JWT signature verification.
-func builtinJWTVerify(bctx BuiltinContext, jwt ast.Value, keyStr ast.Value, hasher func() hash.Hash, verify func(publicKey interface{}, digest []byte, signature []byte) error) (ast.Value, error) {
+func builtinJWTVerify(bctx BuiltinContext, jwt ast.Value, keyStr ast.Value, hasher func() hash.Hash, verify func(publicKey any, digest []byte, signature []byte) error) (ast.Value, error) {
 	if found, _, _, valid := getTokenFromCache(bctx, jwt, keyStr); found {
 		return ast.Boolean(valid), nil
 	}
@@ -701,8 +701,8 @@ func (constraints *tokenConstraints) validAudience(aud ast.Value) bool {
 // JWT algorithms
 
 type (
-	tokenVerifyFunction           func(key interface{}, hash crypto.Hash, payload []byte, signature []byte) error
-	tokenVerifyAsymmetricFunction func(key interface{}, hash crypto.Hash, digest []byte, signature []byte) error
+	tokenVerifyFunction           func(key any, hash crypto.Hash, payload []byte, signature []byte) error
+	tokenVerifyAsymmetricFunction func(key any, hash crypto.Hash, digest []byte, signature []byte) error
 )
 
 // jwtAlgorithm describes a JWS 'alg' value
@@ -730,7 +730,7 @@ var tokenAlgorithms = map[string]tokenAlgorithm{
 // errSignatureNotVerified is returned when a signature cannot be verified.
 var errSignatureNotVerified = errors.New("signature not verified")
 
-func verifyHMAC(key interface{}, hash crypto.Hash, payload []byte, signature []byte) error {
+func verifyHMAC(key any, hash crypto.Hash, payload []byte, signature []byte) error {
 	macKey, ok := key.([]byte)
 	if !ok {
 		return errors.New("incorrect symmetric key type")
@@ -746,14 +746,14 @@ func verifyHMAC(key interface{}, hash crypto.Hash, payload []byte, signature []b
 }
 
 func verifyAsymmetric(verify tokenVerifyAsymmetricFunction) tokenVerifyFunction {
-	return func(key interface{}, hash crypto.Hash, payload []byte, signature []byte) error {
+	return func(key any, hash crypto.Hash, payload []byte, signature []byte) error {
 		h := hash.New()
 		h.Write(payload)
 		return verify(key, hash, h.Sum([]byte{}), signature)
 	}
 }
 
-func verifyRSAPKCS(key interface{}, hash crypto.Hash, digest []byte, signature []byte) error {
+func verifyRSAPKCS(key any, hash crypto.Hash, digest []byte, signature []byte) error {
 	publicKeyRsa, ok := key.(*rsa.PublicKey)
 	if !ok {
 		return errors.New("incorrect public key type")
@@ -764,7 +764,7 @@ func verifyRSAPKCS(key interface{}, hash crypto.Hash, digest []byte, signature [
 	return nil
 }
 
-func verifyRSAPSS(key interface{}, hash crypto.Hash, digest []byte, signature []byte) error {
+func verifyRSAPSS(key any, hash crypto.Hash, digest []byte, signature []byte) error {
 	publicKeyRsa, ok := key.(*rsa.PublicKey)
 	if !ok {
 		return errors.New("incorrect public key type")
@@ -775,7 +775,7 @@ func verifyRSAPSS(key interface{}, hash crypto.Hash, digest []byte, signature []
 	return nil
 }
 
-func verifyECDSA(key interface{}, _ crypto.Hash, digest []byte, signature []byte) (err error) {
+func verifyECDSA(key any, _ crypto.Hash, digest []byte, signature []byte) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("ECDSA signature verification error: %v", r)

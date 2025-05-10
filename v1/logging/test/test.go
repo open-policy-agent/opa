@@ -10,14 +10,14 @@ import (
 // LogEntry represents a log message.
 type LogEntry struct {
 	Level   logging.Level
-	Fields  map[string]interface{}
+	Fields  map[string]any
 	Message string
 }
 
 // Logger implementation that buffers messages for test purposes.
 type Logger struct {
 	level   logging.Level
-	fields  map[string]interface{}
+	fields  map[string]any
 	entries *[]LogEntry
 	mtx     *sync.Mutex
 }
@@ -33,7 +33,7 @@ func New() *Logger {
 
 // WithFields provides additional fields to include in log output.
 // Implemented here primarily to be able to switch between implementations without loss of data.
-func (l *Logger) WithFields(fields map[string]interface{}) logging.Logger {
+func (l *Logger) WithFields(fields map[string]any) logging.Logger {
 	l.mtx.Lock()
 	defer l.mtx.Unlock()
 	cp := Logger{
@@ -42,7 +42,7 @@ func (l *Logger) WithFields(fields map[string]interface{}) logging.Logger {
 		fields:  l.fields,
 		mtx:     l.mtx,
 	}
-	flds := make(map[string]interface{})
+	flds := make(map[string]any)
 	for k, v := range cp.fields {
 		flds[k] = v
 	}
@@ -54,22 +54,22 @@ func (l *Logger) WithFields(fields map[string]interface{}) logging.Logger {
 }
 
 // Debug buffers a log message.
-func (l *Logger) Debug(f string, a ...interface{}) {
+func (l *Logger) Debug(f string, a ...any) {
 	l.append(logging.Debug, f, a...)
 }
 
 // Info buffers a log message.
-func (l *Logger) Info(f string, a ...interface{}) {
+func (l *Logger) Info(f string, a ...any) {
 	l.append(logging.Info, f, a...)
 }
 
 // Error buffers a log message.
-func (l *Logger) Error(f string, a ...interface{}) {
+func (l *Logger) Error(f string, a ...any) {
 	l.append(logging.Error, f, a...)
 }
 
 // Warn buffers a log message.
-func (l *Logger) Warn(f string, a ...interface{}) {
+func (l *Logger) Warn(f string, a ...any) {
 	l.append(logging.Warn, f, a...)
 }
 
@@ -90,7 +90,7 @@ func (l *Logger) Entries() []LogEntry {
 	return *l.entries
 }
 
-func (l *Logger) append(lvl logging.Level, f string, a ...interface{}) {
+func (l *Logger) append(lvl logging.Level, f string, a ...any) {
 	l.mtx.Lock()
 	defer l.mtx.Unlock()
 	*l.entries = append(*l.entries, LogEntry{

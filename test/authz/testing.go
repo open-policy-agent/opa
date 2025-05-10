@@ -33,11 +33,11 @@ const (
 )
 
 // GenerateInput will use a dataset profile and desired InputMode to generate inputs for testing
-func GenerateInput(profile DataSetProfile, mode InputMode) (interface{}, interface{}) {
+func GenerateInput(profile DataSetProfile, mode InputMode) (any, any) {
 	return v1.GenerateInput(profile, mode)
 }
 
 // GenerateDataset will generate a dataset for the given DatasetProfile
-func GenerateDataset(profile DataSetProfile) map[string]interface{} {
+func GenerateDataset(profile DataSetProfile) map[string]any {
 	return v1.GenerateDataset(profile)
 }

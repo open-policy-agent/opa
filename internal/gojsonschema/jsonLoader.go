@@ -77,8 +77,8 @@ var osFS = osFileSystem(os.Open)
 
 // JSONLoader defines the JSON loader interface
 type JSONLoader interface {
-	JSONSource() interface{}
-	LoadJSON() (interface{}, error)
+	JSONSource() any
+	LoadJSON() (any, error)
 	JSONReference() (gojsonreference.JsonReference, error)
 	LoaderFactory() JSONLoaderFactory
 }
@@ -130,7 +130,7 @@ type jsonReferenceLoader struct {
 	source string
 }
 
-func (l *jsonReferenceLoader) JSONSource() interface{} {
+func (l *jsonReferenceLoader) JSONSource() any {
 	return l.source
 }
 
@@ -160,7 +160,7 @@ func NewReferenceLoaderFileSystem(source string, fs http.FileSystem) JSONLoader 
 	}
 }
 
-func (l *jsonReferenceLoader) LoadJSON() (interface{}, error) {
+func (l *jsonReferenceLoader) LoadJSON() (any, error) {
 
 	var err error
 
@@ -207,7 +207,7 @@ func (l *jsonReferenceLoader) LoadJSON() (interface{}, error) {
 	return nil, fmt.Errorf("remote reference loading disabled: %s", reference.String())
 }
 
-func (l *jsonReferenceLoader) loadFromHTTP(address string) (interface{}, error) {
+func (l *jsonReferenceLoader) loadFromHTTP(address string) (any, error) {
 
 	resp, err := http.Get(address)
 	if err != nil {
@@ -227,7 +227,7 @@ func (l *jsonReferenceLoader) loadFromHTTP(address string) (interface{}, error) 
 	return decodeJSONUsingNumber(bytes.NewReader(bodyBuff))
 }
 
-func (l *jsonReferenceLoader) loadFromFile(path string) (interface{}, error) {
+func (l *jsonReferenceLoader) loadFromFile(path string) (any, error) {
 	f, err := l.fs.Open(path)
 	if err != nil {
 		return nil, err
@@ -249,7 +249,7 @@ type jsonStringLoader struct {
 	source string
 }
 
-func (l *jsonStringLoader) JSONSource() interface{} {
+func (l *jsonStringLoader) JSONSource() any {
 	return l.source
 }
 
@@ -266,7 +266,7 @@ func NewStringLoader(source string) JSONLoader {
 	return &jsonStringLoader{source: source}
 }
 
-func (l *jsonStringLoader) LoadJSON() (interface{}, error) {
+func (l *jsonStringLoader) LoadJSON() (any, error) {
 
 	return decodeJSONUsingNumber(strings.NewReader(l.JSONSource().(string)))
 
@@ -278,7 +278,7 @@ type jsonBytesLoader struct {
 	source []byte
 }
 
-func (l *jsonBytesLoader) JSONSource() interface{} {
+func (l *jsonBytesLoader) JSONSource() any {
 	return l.source
 }
 
@@ -295,18 +295,18 @@ func NewBytesLoader(source []byte) JSONLoader {
 	return &jsonBytesLoader{source: source}
 }
 
-func (l *jsonBytesLoader) LoadJSON() (interface{}, error) {
+func (l *jsonBytesLoader) LoadJSON() (any, error) {
 	return decodeJSONUsingNumber(bytes.NewReader(l.JSONSource().([]byte)))
 }
 
 // JSON Go (types) loader
-// used to load JSONs from the code as maps, interface{}, structs ...
+// used to load JSONs from the code as maps, any, structs ...
 
 type jsonGoLoader struct {
-	source interface{}
+	source any
 }
 
-func (l *jsonGoLoader) JSONSource() interface{} {
+func (l *jsonGoLoader) JSONSource() any {
 	return l.source
 }
 
@@ -319,11 +319,11 @@ func (l *jsonGoLoader) LoaderFactory() JSONLoaderFactory {
 }
 
 // NewGoLoader creates a new JSONLoader from a given Go struct
-func NewGoLoader(source interface{}) JSONLoader {
+func NewGoLoader(source any) JSONLoader {
 	return &jsonGoLoader{source: source}
 }
 
-func (l *jsonGoLoader) LoadJSON() (interface{}, error) {
+func (l *jsonGoLoader) LoadJSON() (any, error) {
 
 	// convert it to a compliant JSON first to avoid types "mismatches"
 
@@ -352,11 +352,11 @@ func NewWriterLoader(source io.Writer) (JSONLoader, io.Writer) {
 	return &jsonIOLoader{buf: buf}, io.MultiWriter(source, buf)
 }
 
-func (l *jsonIOLoader) JSONSource() interface{} {
+func (l *jsonIOLoader) JSONSource() any {
 	return l.buf.String()
 }
 
-func (l *jsonIOLoader) LoadJSON() (interface{}, error) {
+func (l *jsonIOLoader) LoadJSON() (any, error) {
 	return decodeJSONUsingNumber(l.buf)
 }
 
@@ -369,21 +369,21 @@ func (l *jsonIOLoader) LoaderFactory() JSONLoaderFactory {
 }
 
 // JSON raw loader
-// In case the JSON is already marshalled to interface{} use this loader
+// In case the JSON is already marshalled to any use this loader
 // This is used for testing as otherwise there is no guarantee the JSON is marshalled
 // "properly" by using https://golang.org/pkg/encoding/json/#Decoder.UseNumber
 type jsonRawLoader struct {
-	source interface{}
+	source any
 }
 
 // NewRawLoader creates a new JSON raw loader for the given source
-func NewRawLoader(source interface{}) JSONLoader {
+func NewRawLoader(source any) JSONLoader {
 	return &jsonRawLoader{source: source}
 }
-func (l *jsonRawLoader) JSONSource() interface{} {
+func (l *jsonRawLoader) JSONSource() any {
 	return l.source
 }
-func (l *jsonRawLoader) LoadJSON() (interface{}, error) {
+func (l *jsonRawLoader) LoadJSON() (any, error) {
 	return l.source, nil
 }
 func (l *jsonRawLoader) JSONReference() (gojsonreference.JsonReference, error) {
@@ -393,9 +393,9 @@ func (l *jsonRawLoader) LoaderFactory() JSONLoaderFactory {
 	return &DefaultJSONLoaderFactory{}
 }
 
-func decodeJSONUsingNumber(r io.Reader) (interface{}, error) {
+func decodeJSONUsingNumber(r io.Reader) (any, error) {
 
-	var document interface{}
+	var document any
 
 	decoder := json.NewDecoder(r)
 	decoder.UseNumber()

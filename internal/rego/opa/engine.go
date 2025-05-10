@@ -36,10 +36,10 @@ type EvalEngine interface {
 	Init() (EvalEngine, error)
 	Entrypoints(context.Context) (map[string]int32, error)
 	WithPolicyBytes([]byte) EvalEngine
-	WithDataJSON(interface{}) EvalEngine
+	WithDataJSON(any) EvalEngine
 	Eval(context.Context, EvalOpts) (*Result, error)
-	SetData(context.Context, interface{}) error
-	SetDataPath(context.Context, []string, interface{}) error
+	SetData(context.Context, any) error
+	SetDataPath(context.Context, []string, any) error
 	RemoveDataPath(context.Context, []string) error
 	Close()
 }

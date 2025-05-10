@@ -85,7 +85,7 @@ func BenchmarkLazyObjectLookup(b *testing.B) {
 	sizes := []int{5, 50, 500, 5000}
 	for _, n := range sizes {
 		b.Run(strconv.Itoa(n), func(b *testing.B) {
-			data := make(map[string]interface{}, n)
+			data := make(map[string]any, n)
 			for i := range n {
 				data[strconv.Itoa(i)] = i
 			}
@@ -107,7 +107,7 @@ func BenchmarkLazyObjectFind(b *testing.B) {
 	for _, n := range sizes {
 		for _, m := range sizes {
 			b.Run(fmt.Sprintf("%d_%d", n, m), func(b *testing.B) {
-				data := make(map[string]interface{}, n)
+				data := make(map[string]any, n)
 				for i := range n {
 					arr := make([]string, 0, m)
 					for j := range m {
@@ -245,7 +245,7 @@ var (
 // The difference between these two is relevant for feeding input into the
 // wasm vm: when calling rego.New(...) with rego.Target("wasm"), it's up to
 // the caller to provide the input in parsed form (ast.Value), or
-// raw (interface{}).
+// raw (any).
 func BenchmarkObjectString(b *testing.B) {
 	var err error
 	sizes := []int{5, 50, 500, 5000}

@@ -12,9 +12,9 @@ import (
 )
 
 func TestWithFields(t *testing.T) {
-	logger := New().WithFields(map[string]interface{}{"context": "contextvalue"})
+	logger := New().WithFields(map[string]any{"context": "contextvalue"})
 
-	var fieldvalue interface{}
+	var fieldvalue any
 	var ok bool
 
 	if fieldvalue, ok = logger.(*StandardLogger).fields["context"]; !ok {
@@ -80,10 +80,10 @@ func TestNoFormattingForSingleString(t *testing.T) {
 
 func TestWithFieldsOverrides(t *testing.T) {
 	logger := New().
-		WithFields(map[string]interface{}{"context": "contextvalue"}).
-		WithFields(map[string]interface{}{"context": "changedcontextvalue"})
+		WithFields(map[string]any{"context": "contextvalue"}).
+		WithFields(map[string]any{"context": "changedcontextvalue"})
 
-	var fieldvalue interface{}
+	var fieldvalue any
 	var ok bool
 
 	if fieldvalue, ok = logger.(*StandardLogger).fields["context"]; !ok {
@@ -97,10 +97,10 @@ func TestWithFieldsOverrides(t *testing.T) {
 
 func TestWithFieldsMerges(t *testing.T) {
 	logger := New().
-		WithFields(map[string]interface{}{"context": "contextvalue"}).
-		WithFields(map[string]interface{}{"anothercontext": "anothercontextvalue"})
+		WithFields(map[string]any{"context": "contextvalue"}).
+		WithFields(map[string]any{"anothercontext": "anothercontextvalue"})
 
-	var fieldvalue interface{}
+	var fieldvalue any
 	var ok bool
 
 	if fieldvalue, ok = logger.(*StandardLogger).fields["context"]; !ok {
@@ -128,7 +128,7 @@ func TestRequestContextFields(t *testing.T) {
 		ReqPath:    "/test",
 	}.Fields()
 
-	var fieldvalue interface{}
+	var fieldvalue any
 	var ok bool
 
 	if fieldvalue, ok = fields["client_addr"]; !ok {

@@ -15,8 +15,8 @@ import (
 func TestChunkEncoder(t *testing.T) {
 
 	enc := newChunkEncoder(1000)
-	var result interface{} = false
-	var expInput interface{} = map[string]interface{}{"method": "GET"}
+	var result any = false
+	var expInput any = map[string]any{"method": "GET"}
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
 	if err != nil {
 		panic(err)
@@ -55,8 +55,8 @@ func TestChunkEncoder(t *testing.T) {
 
 func TestChunkEncoderSizeLimit(t *testing.T) {
 	enc := newChunkEncoder(1).WithMetrics(metrics.New())
-	var result interface{} = false
-	var expInput interface{} = map[string]interface{}{"method": "GET"}
+	var result any = false
+	var expInput any = map[string]any{"method": "GET"}
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
 	if err != nil {
 		t.Fatal(err)
@@ -86,8 +86,8 @@ func TestChunkEncoderSizeLimit(t *testing.T) {
 func TestChunkEncoderAdaptive(t *testing.T) {
 
 	enc := newChunkEncoder(1000).WithMetrics(metrics.New())
-	var result interface{} = false
-	var expInput interface{} = map[string]interface{}{"method": "GET"}
+	var result any = false
+	var expInput any = map[string]any{"method": "GET"}
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
 	if err != nil {
 		panic(err)

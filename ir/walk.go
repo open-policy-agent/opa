@@ -10,6 +10,6 @@ import v1 "github.com/open-policy-agent/opa/v1/ir"
 type Visitor = v1.Visitor
 
 // Walk invokes the visitor for nodes under x.
-func Walk(vis Visitor, x interface{}) error {
+func Walk(vis Visitor, x any) error {
 	return v1.Walk(vis, x)
 }

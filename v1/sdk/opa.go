@@ -185,7 +185,7 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 		close(ready)
 	})
 
-	var bootConfig map[string]interface{}
+	var bootConfig map[string]any
 	err = util.Unmarshal(opa.config, &bootConfig)
 	if err != nil {
 		return err
@@ -310,8 +310,8 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 type DecisionOptions struct {
 	Now                 time.Time           // specifies wallclock time used for time.now_ns(), decision log timestamp, etc.
 	Path                string              // specifies name of policy decision to evaluate (e.g., example/allow)
-	Input               interface{}         // specifies value of the input document to evaluate policy with
-	NDBCache            interface{}         // specifies the non-deterministic builtins cache to use for evaluation.
+	Input               any                 // specifies value of the input document to evaluate policy with
+	NDBCache            any                 // specifies the non-deterministic builtins cache to use for evaluation.
 	StrictBuiltinErrors bool                // treat built-in function errors as fatal
 	Tracer              topdown.QueryTracer // specifies the tracer to use for evaluation, optional
 	Metrics             metrics.Metrics     // specifies the metrics to use for preparing and evaluation, optional
@@ -323,7 +323,7 @@ type DecisionOptions struct {
 // DecisionResult contains the output of query evaluation.
 type DecisionResult struct {
 	ID         string             // provides the identifier for this decision (which is included in the decision log.)
-	Result     interface{}        // provides the output of query evaluation.
+	Result     any                // provides the output of query evaluation.
 	Provenance types.ProvenanceV1 // wraps the bundle build/version information
 }
 
@@ -365,8 +365,8 @@ func (opa *OPA) executeTransaction(ctx context.Context, record *server.Info, wor
 	record.Metrics.Timer(metrics.SDKDecisionEval).Stop()
 
 	if logger := logs.Lookup(s.manager); logger != nil {
-		// Decision log masking requires the event object to be a map[string]interface{},
-		// or a []interface{}, and all internal objects referenced in the mask to be
+		// Decision log masking requires the event object to be a map[string]any,
+		// or a []any, and all internal objects referenced in the mask to be
 		// similarly generic. Convert the input AST back into a JSON-representation to
 		// ensure decision logging will work if the input Go type does not fit these requirements.
 		if record.InputAST != nil {
@@ -425,9 +425,9 @@ func (opa *OPA) Partial(ctx context.Context, options PartialOptions) (*PartialRe
 			})
 			if record.Error == nil {
 				result.Result, record.Error = options.Mapper.MapResults(pq)
-				var pqAst interface{}
+				var pqAst any
 				if record.Error == nil {
-					var mappedResults interface{}
+					var mappedResults any
 					mappedResults, record.Error = options.Mapper.ResultToJSON(result.Result)
 					record.MappedResults = &mappedResults
 					pqAst = pq
@@ -450,15 +450,15 @@ func (opa *OPA) Partial(ctx context.Context, options PartialOptions) (*PartialRe
 
 type PartialQueryMapper interface {
 	// The first interface being returned is the type that will be used for further processing
-	MapResults(pq *rego.PartialQueries) (interface{}, error)
+	MapResults(pq *rego.PartialQueries) (any, error)
 	// This should be able to take the Result object from MapResults and return a type that can be logged as JSON
-	ResultToJSON(result interface{}) (interface{}, error)
+	ResultToJSON(result any) (any, error)
 }
 
 // PartialOptions contains parameters for partial query evaluation.
 type PartialOptions struct {
 	Now                 time.Time           // specifies wallclock time used for time.now_ns(), decision log timestamp, etc.
-	Input               interface{}         // specifies value of the input document to evaluate policy with
+	Input               any                 // specifies value of the input document to evaluate policy with
 	Query               string              // specifies the query to be partially evaluated
 	Unknowns            []string            // specifies the unknown elements of the policy
 	Mapper              PartialQueryMapper  // specifies the mapper to use when processing results
@@ -472,7 +472,7 @@ type PartialOptions struct {
 
 type PartialResult struct {
 	ID         string               // decision ID
-	Result     interface{}          // mapped result
+	Result     any                  // mapped result
 	AST        *rego.PartialQueries // raw result
 	Provenance types.ProvenanceV1   // wraps the bundle build/version information
 }
@@ -516,7 +516,7 @@ type evalArgs struct {
 	interQueryBuiltinValueCache cache.InterQueryValueCache
 	now                         time.Time
 	path                        string
-	input                       interface{}
+	input                       any
 	ndbcache                    builtins.NDBCache
 	m                           metrics.Metrics
 	strictBuiltinErrors         bool
@@ -525,7 +525,7 @@ type evalArgs struct {
 	instrument                  bool
 }
 
-func evaluate(ctx context.Context, args evalArgs) (interface{}, types.ProvenanceV1, ast.Value, map[string]server.BundleInfo, error) {
+func evaluate(ctx context.Context, args evalArgs) (any, types.ProvenanceV1, ast.Value, map[string]server.BundleInfo, error) {
 
 	provenance := types.ProvenanceV1{
 		Version:   version.Version,
@@ -606,7 +606,7 @@ type partialEvalArgs struct {
 	unknowns            []string
 	query               string
 	now                 time.Time
-	input               interface{}
+	input               any
 	m                   metrics.Metrics
 	strictBuiltinErrors bool
 	tracer              topdown.QueryTracer
@@ -714,6 +714,6 @@ type loggingPrintHook struct {
 }
 
 func (h loggingPrintHook) Print(pctx print.Context, msg string) error {
-	h.logger.WithFields(map[string]interface{}{"line": pctx.Location.String()}).Info(msg)
+	h.logger.WithFields(map[string]any{"line": pctx.Location.String()}).Info(msg)
 	return nil
 }

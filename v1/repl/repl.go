@@ -990,7 +990,7 @@ func (r *REPL) loadInput(ctx context.Context, compiler *ast.Compiler) (ast.Value
 	return qrs[0][ast.Var("x")].Value, nil
 }
 
-func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
+func (r *REPL) evalStatement(ctx context.Context, stmt any) error {
 	switch stmt := stmt.(type) {
 	case ast.Body:
 		compiler, err := r.loadCompiler(ctx)

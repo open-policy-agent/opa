@@ -3,7 +3,7 @@ package server
 import "sync"
 
 type cache struct {
-	data    map[string]interface{}
+	data    map[string]any
 	keylist []string
 	idx     int
 	maxSize int
@@ -12,20 +12,20 @@ type cache struct {
 
 func newCache(maxSize int) *cache {
 	return &cache{
-		data:    map[string]interface{}{},
+		data:    map[string]any{},
 		keylist: []string{},
 		maxSize: maxSize,
 	}
 }
 
-func (c *cache) Get(k string) (interface{}, bool) {
+func (c *cache) Get(k string) (any, bool) {
 	c.mtx.RLock()
 	v, ok := c.data[k]
 	c.mtx.RUnlock()
 	return v, ok
 }
 
-func (c *cache) Insert(k string, v interface{}) {
+func (c *cache) Insert(k string, v any) {
 
 	// Short path if its already in the cache
 	_, ok := c.Get(k)

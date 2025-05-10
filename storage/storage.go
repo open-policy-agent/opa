@@ -20,14 +20,14 @@ func NewTransactionOrDie(ctx context.Context, store Store, params ...Transaction
 // ReadOne is a convenience function to read a single value from the provided Store. It
 // will create a new Transaction to perform the read with, and clean up after itself
 // should an error occur.
-func ReadOne(ctx context.Context, store Store, path Path) (interface{}, error) {
+func ReadOne(ctx context.Context, store Store, path Path) (any, error) {
 	return v1.ReadOne(ctx, store, path)
 }
 
 // WriteOne is a convenience function to write a single value to the provided Store. It
 // will create a new Transaction to perform the write with, and clean up after itself
 // should an error occur.
-func WriteOne(ctx context.Context, store Store, op PatchOp, path Path, value interface{}) error {
+func WriteOne(ctx context.Context, store Store, op PatchOp, path Path, value any) error {
 	return v1.WriteOne(ctx, store, op, path, value)
 }
 

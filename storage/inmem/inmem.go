@@ -33,13 +33,13 @@ func NewWithOpts(opts ...Opt) storage.Store {
 }
 
 // NewFromObject returns a new in-memory store from the supplied data object.
-func NewFromObject(data map[string]interface{}) storage.Store {
+func NewFromObject(data map[string]any) storage.Store {
 	return v1.NewFromObject(data)
 }
 
 // NewFromObjectWithOpts returns a new in-memory store from the supplied data object, with the
 // options passed.
-func NewFromObjectWithOpts(data map[string]interface{}, opts ...Opt) storage.Store {
+func NewFromObjectWithOpts(data map[string]any, opts ...Opt) storage.Store {
 	return v1.NewFromObjectWithOpts(data, opts...)
 }
 

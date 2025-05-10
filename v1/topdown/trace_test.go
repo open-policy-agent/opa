@@ -292,7 +292,7 @@ func TestPrettyTracePartialWithLocationTruncatedPaths(t *testing.T) {
 		},
 	})
 
-	var data map[string]interface{}
+	var data map[string]any
 	err := util.UnmarshalJSON([]byte(`{
     "roles": [
         {

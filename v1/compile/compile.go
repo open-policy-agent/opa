@@ -80,7 +80,7 @@ type Compiler struct {
 	bvc                          *bundle.VerificationConfig // represents the key configuration used to verify a signed bundle
 	bsc                          *bundle.SigningConfig      // represents the key configuration used to generate a signed bundle
 	keyID                        string                     // represents the name of the default key used to verify a signed bundle
-	metadata                     *map[string]interface{}    // represents additional data included in .manifest file
+	metadata                     *map[string]any            // represents additional data included in .manifest file
 	fsys                         fs.FS                      // file system to use when loading paths
 	ns                           string
 	regoVersion                  ast.RegoVersion
@@ -228,7 +228,7 @@ func (c *Compiler) WithFollowSymlinks(yes bool) *Compiler {
 }
 
 // WithMetadata sets the additional data to be included in .manifest
-func (c *Compiler) WithMetadata(metadata *map[string]interface{}) *Compiler {
+func (c *Compiler) WithMetadata(metadata *map[string]any) *Compiler {
 	c.metadata = metadata
 	return c
 }
@@ -960,7 +960,7 @@ func (o *optimizer) Do(ctx context.Context) error {
 	// initialize other inputs to the optimization process (store, symbols, etc.)
 	data := o.bundle.Data
 	if data == nil {
-		data = map[string]interface{}{}
+		data = map[string]any{}
 	}
 
 	store := inmem.NewFromObjectWithOpts(data, inmem.OptRoundTripOnWrite(false))

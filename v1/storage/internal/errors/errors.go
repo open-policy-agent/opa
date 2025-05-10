@@ -27,7 +27,7 @@ func NewNotFoundErrorWithHint(path storage.Path, hint string) *storage.Error {
 	}
 }
 
-func NewNotFoundErrorf(f string, a ...interface{}) *storage.Error {
+func NewNotFoundErrorf(f string, a ...any) *storage.Error {
 	msg := fmt.Sprintf(f, a...)
 	return &storage.Error{
 		Code:    storage.NotFoundErr,

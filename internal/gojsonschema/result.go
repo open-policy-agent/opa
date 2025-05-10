@@ -33,7 +33,7 @@ import (
 type (
 	// ErrorDetails is a map of details specific to each error.
 	// While the values will vary, every error will contain a "field" value
-	ErrorDetails map[string]interface{}
+	ErrorDetails map[string]any
 
 	// ResultError is the interface that library errors must implement
 	ResultError interface {
@@ -57,9 +57,9 @@ type (
 		// DescriptionFormat returns the format for the description in the default text/template format
 		DescriptionFormat() string
 		// SetValue sets the value related to the error
-		SetValue(interface{})
+		SetValue(any)
 		// Value returns the value related to the error
-		Value() interface{}
+		Value() any
 		// SetDetails sets the details specific to the error
 		SetDetails(ErrorDetails)
 		// Details returns details about the error
@@ -76,7 +76,7 @@ type (
 		context           *JSONContext // Tree like notation of the part that failed the validation. ex (root).a.b ...
 		description       string       // A human readable error message
 		descriptionFormat string       // A format for human readable error message
-		value             interface{}  // Value given by the JSON file that is the source of the error
+		value             any          // Value given by the JSON file that is the source of the error
 		details           ErrorDetails
 	}
 
@@ -136,12 +136,12 @@ func (v *ResultErrorFields) DescriptionFormat() string {
 }
 
 // SetValue sets the value related to the error
-func (v *ResultErrorFields) SetValue(value interface{}) {
+func (v *ResultErrorFields) SetValue(value any) {
 	v.value = value
 }
 
 // Value returns the value related to the error
-func (v *ResultErrorFields) Value() interface{} {
+func (v *ResultErrorFields) Value() any {
 	return v.value
 }
 
@@ -203,7 +203,7 @@ func (v *Result) AddError(err ResultError, details ErrorDetails) {
 	v.errors = append(v.errors, err)
 }
 
-func (v *Result) addInternalError(err ResultError, context *JSONContext, value interface{}, details ErrorDetails) {
+func (v *Result) addInternalError(err ResultError, context *JSONContext, value any, details ErrorDetails) {
 	newError(err, context, value, Locale, details)
 	v.errors = append(v.errors, err)
 	v.score -= 2 // results in a net -1 when added to the +1 we get at the end of the validation function

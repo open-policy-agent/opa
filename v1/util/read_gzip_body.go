@@ -14,7 +14,7 @@ import (
 )
 
 var gzipReaderPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		reader := new(gzip.Reader)
 		return reader
 	},

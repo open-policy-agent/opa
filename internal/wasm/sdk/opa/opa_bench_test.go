@@ -29,7 +29,7 @@ func BenchmarkWasmRego(b *testing.B) {
 	b.ResetTimer()
 
 	ctx := context.Background()
-	var input interface{} = make(map[string]interface{})
+	var input any = make(map[string]any)
 
 	for i := 0; i < b.N; i++ {
 		if _, err := instance.Eval(ctx, opa.EvalOpts{Input: &input}); err != nil {
@@ -47,7 +47,7 @@ a = true`, "data.p.a = x")
 	b.ResetTimer()
 
 	ctx := context.Background()
-	input := make(map[string]interface{})
+	input := make(map[string]any)
 
 	for i := 0; i < b.N; i++ {
 		if _, err := pq.Eval(ctx, rego.EvalInput(input)); err != nil {
@@ -106,7 +106,7 @@ func benchmarkIteration(b *testing.B, module string) {
 
 	b.ResetTimer()
 	ctx := context.Background()
-	var input interface{} = make(map[string]interface{})
+	var input any = make(map[string]any)
 
 	for i := 0; i < b.N; i++ {
 		r, err = instance.Eval(ctx, opa.EvalOpts{Input: &input})
@@ -147,7 +147,7 @@ func BenchmarkWASMLargeJSON(b *testing.B) {
 			}
 
 			b.ResetTimer()
-			var input interface{} = make(map[string]interface{})
+			var input any = make(map[string]any)
 
 			for i := 0; i < b.N; i++ {
 				r, err = instance.Eval(ctx, opa.EvalOpts{Input: &input})
@@ -195,7 +195,7 @@ func runVirtualDocsBenchmark(b *testing.B, numTotalRules, numHitRules int) {
 	}
 
 	b.ResetTimer()
-	var inp interface{} = input
+	var inp any = input
 
 	for i := 0; i < b.N; i++ {
 		r, err = instance.Eval(ctx, opa.EvalOpts{Input: &inp})

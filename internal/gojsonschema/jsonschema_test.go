@@ -30,13 +30,13 @@ type jsonSchemaTest struct {
 	// Some tests may not always pass, so some tests are manually edited to include
 	// an extra attribute whether that specific test should be disabled and skipped
 	Disabled bool                 `json:"disabled"`
-	Schema   interface{}          `json:"schema"`
+	Schema   any                  `json:"schema"`
 	Tests    []jsonSchemaTestCase `json:"tests"`
 }
 type jsonSchemaTestCase struct {
-	Description string      `json:"description"`
-	Data        interface{} `json:"data"`
-	Valid       bool        `json:"valid"`
+	Description string `json:"description"`
+	Data        any    `json:"data"`
+	Valid       bool   `json:"valid"`
 }
 
 // Skip any directories not named appropiately

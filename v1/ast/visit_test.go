@@ -9,10 +9,10 @@ import (
 )
 
 type testVis struct {
-	elems []interface{}
+	elems []any
 }
 
-func (vis *testVis) Visit(x interface{}) bool {
+func (vis *testVis) Visit(x any) bool {
 	vis.elems = append(vis.elems, x)
 	return false
 }
@@ -100,8 +100,8 @@ p if { false } else if { false } else if { true }
 fn([x, y]) = z if { json.unmarshal(x, z); z > y }
 `)
 
-	var elems []interface{}
-	vis := NewGenericVisitor(func(x interface{}) bool {
+	var elems []any
+	vis := NewGenericVisitor(func(x any) bool {
 		elems = append(elems, x)
 		return false
 	})
@@ -132,12 +132,12 @@ p if { false } else if { false } else if { true }
 fn([x, y]) = z if { json.unmarshal(x, z); z > y }
 `)
 
-	var before, after []interface{}
-	vis := NewBeforeAfterVisitor(func(x interface{}) bool {
+	var before, after []any
+	vis := NewBeforeAfterVisitor(func(x any) bool {
 		before = append(before, x)
 		return false
 	},
-		func(x interface{}) {
+		func(x any) {
 			after = append(after, x)
 		})
 	vis.Walk(rule)
@@ -186,7 +186,7 @@ func TestVarVisitor(t *testing.T) {
 }
 
 func TestGenericVisitorLazyObject(t *testing.T) {
-	o := LazyObject(map[string]interface{}{"foo": 3})
+	o := LazyObject(map[string]any{"foo": 3})
 	act := 0
 	WalkTerms(o, func(n *Term) bool {
 		switch n.Value {
@@ -204,9 +204,9 @@ func TestGenericVisitorLazyObject(t *testing.T) {
 }
 
 func TestGenericBeforeAfterVisitorLazyObject(t *testing.T) {
-	o := LazyObject(map[string]interface{}{"foo": 3})
+	o := LazyObject(map[string]any{"foo": 3})
 	act := 0
-	vis := NewBeforeAfterVisitor(func(x interface{}) bool {
+	vis := NewBeforeAfterVisitor(func(x any) bool {
 		t, ok := x.(*Term)
 		if !ok {
 			return false
@@ -220,7 +220,7 @@ func TestGenericBeforeAfterVisitorLazyObject(t *testing.T) {
 
 		return false
 	},
-		func(interface{}) {})
+		func(any) {})
 	vis.Walk(o)
 	if exp := 2; exp != act {
 		t.Errorf("expected %v, got %v", exp, act)

@@ -70,7 +70,7 @@ func ReadBundleRevisionFromStore(ctx context.Context, store storage.Store, txn s
 // ReadBundleMetadataFromStore returns the metadata in the specified bundle.
 // If the bundle is not activated, this function will return
 // storage NotFound error.
-func ReadBundleMetadataFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, name string) (map[string]interface{}, error) {
+func ReadBundleMetadataFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, name string) (map[string]any, error) {
 	return v1.ReadBundleMetadataFromStore(ctx, store, txn, name)
 }
 

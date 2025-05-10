@@ -80,7 +80,7 @@ func (o *OPA) Init() (*OPA, error) {
 // SetData updates the data for the subsequent Eval calls.  Returns
 // either ErrNotReady, ErrInvalidPolicyOrData, or ErrInternal if an
 // error occurs.
-func (o *OPA) SetData(ctx context.Context, v interface{}) error {
+func (o *OPA) SetData(ctx context.Context, v any) error {
 	if o.pool == nil {
 		return errNotReady
 	}
@@ -99,7 +99,7 @@ func (o *OPA) SetData(ctx context.Context, v interface{}) error {
 // SetDataPath will update the current data on the VMs by setting the value at the
 // specified path. If an error occurs the instance is still in a valid state, however
 // the data will not have been modified.
-func (o *OPA) SetDataPath(ctx context.Context, path []string, value interface{}) error {
+func (o *OPA) SetDataPath(ctx context.Context, path []string, value any) error {
 	return o.pool.SetDataPath(ctx, path, value)
 }
 
@@ -127,7 +127,7 @@ func (o *OPA) SetPolicy(ctx context.Context, p []byte) error {
 // SetPolicyData updates both the policy and data for the subsequent
 // Eval calls.  Returns either ErrNotReady, ErrInvalidPolicyOrData, or
 // ErrInternal if an error occurs.
-func (o *OPA) SetPolicyData(ctx context.Context, policy []byte, data *interface{}) error {
+func (o *OPA) SetPolicyData(ctx context.Context, policy []byte, data *any) error {
 	if o.pool == nil {
 		return errNotReady
 	}
@@ -160,7 +160,7 @@ func (o *OPA) setPolicyData(ctx context.Context, policy []byte, data []byte) err
 // EvalOpts define options for performing an evaluation
 type EvalOpts struct {
 	Entrypoint             int32
-	Input                  *interface{}
+	Input                  *any
 	Metrics                metrics.Metrics
 	Time                   time.Time
 	Seed                   io.Reader

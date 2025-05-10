@@ -10,7 +10,7 @@ import (
 )
 
 // T is a concise way to refer to T.
-type T interface{}
+type T any
 
 type Hasher interface {
 	Hash() int
@@ -64,7 +64,7 @@ func NewHashMap(eq func(T, T) bool, hash func(T) int) *HashMap {
 
 // Copy returns a shallow copy of this HashMap.
 func (h *TypedHashMap[K, V]) Copy() *TypedHashMap[K, V] {
-	cpy := NewTypedHashMap[K, V](h.keq, h.veq, h.khash, h.vhash, h.def)
+	cpy := NewTypedHashMap(h.keq, h.veq, h.khash, h.vhash, h.def)
 	h.Iter(func(k K, v V) bool {
 		cpy.Put(k, v)
 		return false

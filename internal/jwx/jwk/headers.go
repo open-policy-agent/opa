@@ -18,15 +18,15 @@ const (
 
 // Headers provides a common interface to all future possible headers
 type Headers interface {
-	Get(string) (interface{}, bool)
-	Set(string, interface{}) error
-	Walk(func(string, interface{}) error) error
+	Get(string) (any, bool)
+	Set(string, any) error
+	Walk(func(string, any) error) error
 	GetAlgorithm() jwa.SignatureAlgorithm
 	GetKeyID() string
 	GetKeyOps() KeyOperationList
 	GetKeyType() jwa.KeyType
 	GetKeyUsage() string
-	GetPrivateParams() map[string]interface{}
+	GetPrivateParams() map[string]any
 }
 
 // StandardHeaders stores the common JWK parameters
@@ -36,7 +36,7 @@ type StandardHeaders struct {
 	KeyOps        KeyOperationList        `json:"key_ops,omitempty"`       // https://tools.ietf.org/html/rfc7517#section-4.3
 	KeyType       jwa.KeyType             `json:"kty,omitempty"`           // https://tools.ietf.org/html/rfc7517#section-4.1
 	KeyUsage      string                  `json:"use,omitempty"`           // https://tools.ietf.org/html/rfc7517#section-4.2
-	PrivateParams map[string]interface{}  `json:"privateParams,omitempty"` // https://tools.ietf.org/html/rfc7515#section-4.1.4
+	PrivateParams map[string]any          `json:"privateParams,omitempty"` // https://tools.ietf.org/html/rfc7515#section-4.1.4
 }
 
 // GetAlgorithm is a convenience function to retrieve the corresponding value stored in the StandardHeaders
@@ -68,12 +68,12 @@ func (h *StandardHeaders) GetKeyUsage() string {
 }
 
 // GetPrivateParams is a convenience function to retrieve the corresponding value stored in the StandardHeaders
-func (h *StandardHeaders) GetPrivateParams() map[string]interface{} {
+func (h *StandardHeaders) GetPrivateParams() map[string]any {
 	return h.PrivateParams
 }
 
 // Get is a general getter function for JWK StandardHeaders structure
-func (h *StandardHeaders) Get(name string) (interface{}, bool) {
+func (h *StandardHeaders) Get(name string) (any, bool) {
 	switch name {
 	case AlgorithmKey:
 		alg := h.GetAlgorithm()
@@ -117,7 +117,7 @@ func (h *StandardHeaders) Get(name string) (interface{}, bool) {
 }
 
 // Set is a general getter function for JWK StandardHeaders structure
-func (h *StandardHeaders) Set(name string, value interface{}) error {
+func (h *StandardHeaders) Set(name string, value any) error {
 	switch name {
 	case AlgorithmKey:
 		var acceptor jwa.SignatureAlgorithm
@@ -149,7 +149,7 @@ func (h *StandardHeaders) Set(name string, value interface{}) error {
 		}
 		return fmt.Errorf("invalid value for %s key: %T", KeyUsageKey, value)
 	case PrivateParamsKey:
-		if v, ok := value.(map[string]interface{}); ok {
+		if v, ok := value.(map[string]any); ok {
 			h.PrivateParams = v
 			return nil
 		}
@@ -160,7 +160,7 @@ func (h *StandardHeaders) Set(name string, value interface{}) error {
 }
 
 // Walk iterates over all JWK standard headers fields while applying a function to its value.
-func (h StandardHeaders) Walk(f func(string, interface{}) error) error {
+func (h StandardHeaders) Walk(f func(string, any) error) error {
 	for _, key := range []string{AlgorithmKey, KeyIDKey, KeyOpsKey, KeyTypeKey, KeyUsageKey, PrivateParamsKey} {
 		if v, ok := h.Get(key); ok {
 			if err := f(key, v); err != nil {
