@@ -8,7 +8,7 @@ import versions from "@generated/versions-data/default/versions.json";
 const Archive = (props) => {
   const title = "OPA Documentation Archive";
 
-  const lastOldDocsVersion = "v1.3.0";
+  const lastOldDocsVersion = "v1.4.2";
   const oldDocsVersions = [
     "v0.11.0",
     "v0.12.2",
@@ -74,6 +74,7 @@ const Archive = (props) => {
     "v1.1.0",
     "v1.2.0",
     "v1.3.0",
+    "v1.4.2",
   ];
 
   const firstDocsVersion = semver.valid("0.17.2");
