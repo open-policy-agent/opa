@@ -95,7 +95,7 @@ func TestServerSpan(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		expected := []interface{}{
+		expected := []any{
 			attribute.String("net.host.name", u.Hostname()),
 			attribute.Int("net.host.port", port),
 			attribute.String("net.protocol.version", "1.1"),
@@ -143,7 +143,7 @@ func TestServerSpan(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		expected := []interface{}{
+		expected := []any{
 			attribute.String("net.host.name", u.Hostname()),
 			attribute.Int("net.host.port", port),
 			attribute.String("net.protocol.version", "1.1"),
@@ -308,7 +308,7 @@ func TestClientSpan(t *testing.T) {
 			t.Errorf("expected span to be child of %v, got parent %v", expected, got)
 		}
 
-		expected := []interface{}{
+		expected := []any{
 			attribute.String("http.method", "GET"),
 			attribute.String("http.url", testRuntime.URL()+"/health"),
 			attribute.Int("http.status_code", 200),
@@ -351,7 +351,7 @@ func TestClientSpan(t *testing.T) {
 			t.Errorf("expected span to be child of %v, got parent %v", expected, got)
 		}
 
-		expected := []interface{}{
+		expected := []any{
 			attribute.String("http.method", "GET"),
 			attribute.String("http.url", testRuntime.URL()+"/health"),
 			attribute.Int("http.status_code", 200),
@@ -362,7 +362,7 @@ func TestClientSpan(t *testing.T) {
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[1].Attributes...))
 
 		// The (parent) server span carries the decision ID
-		expected = []interface{}{
+		expected = []any{
 			attribute.String("opa.decision_id", r.DecisionID),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[2].Attributes...))
@@ -401,7 +401,7 @@ func TestClientSpan(t *testing.T) {
 			t.Errorf("expected span to be child of %v, got parent %v", expected, got)
 		}
 
-		expected := []interface{}{
+		expected := []any{
 			attribute.String("http.method", "GET"),
 			attribute.String("http.url", testRuntime.URL()+"/health"),
 			attribute.Int("http.status_code", 200),
@@ -412,7 +412,7 @@ func TestClientSpan(t *testing.T) {
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[1].Attributes...))
 
 		// The (parent) server span carries the decision ID
-		expected = []interface{}{
+		expected = []any{
 			attribute.String("opa.decision_id", r.DecisionID),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[2].Attributes...))
@@ -454,7 +454,7 @@ func TestClientSpan(t *testing.T) {
 			t.Errorf("expected span to be child of %v, got parent %v", expected, got)
 		}
 
-		expected := []interface{}{
+		expected := []any{
 			attribute.String("http.method", "GET"),
 			attribute.String("http.url", testRuntime.URL()+"/health"),
 			attribute.Int("http.status_code", 200),
@@ -659,7 +659,7 @@ allow if {
 			t.Fatal(err)
 		}
 
-		expected := []interface{}{
+		expected := []any{
 			attribute.String("net.host.name", u.Hostname()),
 			attribute.Int("net.host.port", port),
 			attribute.String("net.protocol.version", "1.1"),
@@ -780,7 +780,7 @@ func TestControlPlaneSpans(t *testing.T) {
 		u := controlPlaneURL
 		port := controlPlanePort
 
-		expected := []interface{}{
+		expected := []any{
 			attribute.String("net.peer.name", u.Hostname()),
 			attribute.Int("net.peer.port", port),
 			attribute.String("http.method", "GET"),
@@ -791,7 +791,7 @@ func TestControlPlaneSpans(t *testing.T) {
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[0].Attributes...))
 
-		expected = []interface{}{
+		expected = []any{
 			attribute.String("net.peer.name", u.Hostname()),
 			attribute.Int("net.peer.port", port),
 			attribute.String("http.method", "GET"),
@@ -802,7 +802,7 @@ func TestControlPlaneSpans(t *testing.T) {
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[1].Attributes...))
 
-		expected = []interface{}{
+		expected = []any{
 			attribute.String("net.peer.name", statusURL.Hostname()),
 			attribute.Int("net.peer.port", statusPort),
 			attribute.String("http.method", "POST"),
@@ -856,7 +856,7 @@ func TestControlPlaneSpans(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		expected = []interface{}{
+		expected = []any{
 			attribute.String("net.host.name", u.Hostname()),
 			attribute.Int("net.host.port", port),
 			attribute.String("net.protocol.version", "1.1"),
@@ -872,7 +872,7 @@ func TestControlPlaneSpans(t *testing.T) {
 
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[0].Attributes...))
 
-		expected = []interface{}{
+		expected = []any{
 			attribute.String("net.peer.name", controlPlaneURL.Hostname()),
 			attribute.Int("net.peer.port", controlPlanePort),
 			attribute.String("http.method", "POST"),
@@ -884,7 +884,7 @@ func TestControlPlaneSpans(t *testing.T) {
 	})
 }
 
-func compareSpanAttributes(t *testing.T, expectedAttributes []interface{}, spanAttributes attribute.Set) {
+func compareSpanAttributes(t *testing.T, expectedAttributes []any, spanAttributes attribute.Set) {
 	t.Helper()
 	ok := true
 	for _, exp := range expectedAttributes {

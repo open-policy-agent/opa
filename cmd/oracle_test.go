@@ -106,11 +106,11 @@ func expectJSON(t *testing.T, err error, buffer *bytes.Buffer, exp string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var x interface{}
+	var x any
 	if err := util.UnmarshalJSON(buffer.Bytes(), &x); err != nil {
 		t.Fatal(err)
 	}
-	var y interface{}
+	var y any
 	if err := util.UnmarshalJSON([]byte(exp), &y); err != nil {
 		t.Fatal(err)
 	}

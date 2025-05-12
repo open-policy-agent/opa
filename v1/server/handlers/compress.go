@@ -66,7 +66,7 @@ var gzipPool *sync.Pool
 func initGzipPool(compressionLevel int) {
 	if gzipPool == nil {
 		gzipPool = &sync.Pool{
-			New: func() interface{} {
+			New: func() any {
 				writer, _ := gzip.NewWriterLevel(io.Discard, compressionLevel)
 				return writer
 			},

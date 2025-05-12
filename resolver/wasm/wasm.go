@@ -11,7 +11,7 @@ import (
 
 // New creates a new Resolver instance which is using the Wasm module
 // policy for the given entrypoint ref.
-func New(entrypoints []ast.Ref, policy []byte, data interface{}) (*Resolver, error) {
+func New(entrypoints []ast.Ref, policy []byte, data any) (*Resolver, error) {
 	return v1.New(entrypoints, policy, data)
 }
 

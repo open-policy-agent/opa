@@ -57,7 +57,7 @@ func (b *eventBuffer) incrMetric(name string) {
 	}
 }
 
-func (b *eventBuffer) logError(fmt string, a ...interface{}) {
+func (b *eventBuffer) logError(fmt string, a ...any) {
 	if b.logger != nil {
 		b.logger.Error(fmt, a)
 	}

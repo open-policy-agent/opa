@@ -58,8 +58,8 @@ const formatSchema = `{
 
 type arrayChecker struct{}
 
-func (c arrayChecker) IsFormat(input interface{}) bool {
-	arr, ok := input.([]interface{})
+func (c arrayChecker) IsFormat(input any) bool {
+	arr, ok := input.([]any)
 	if !ok {
 		return true
 	}
@@ -73,7 +73,7 @@ func (c arrayChecker) IsFormat(input interface{}) bool {
 
 type boolChecker struct{}
 
-func (c boolChecker) IsFormat(input interface{}) bool {
+func (c boolChecker) IsFormat(input any) bool {
 	b, ok := input.(bool)
 	if !ok {
 		return true
@@ -83,7 +83,7 @@ func (c boolChecker) IsFormat(input interface{}) bool {
 
 type integerChecker struct{}
 
-func (c integerChecker) IsFormat(input interface{}) bool {
+func (c integerChecker) IsFormat(input any) bool {
 	number, ok := input.(json.Number)
 	if !ok {
 		return true
@@ -94,8 +94,8 @@ func (c integerChecker) IsFormat(input interface{}) bool {
 
 type objectChecker struct{}
 
-func (c objectChecker) IsFormat(input interface{}) bool {
-	obj, ok := input.(map[string]interface{})
+func (c objectChecker) IsFormat(input any) bool {
+	obj, ok := input.(map[string]any)
 	if !ok {
 		return true
 	}
@@ -104,7 +104,7 @@ func (c objectChecker) IsFormat(input interface{}) bool {
 
 type stringChecker struct{}
 
-func (c stringChecker) IsFormat(input interface{}) bool {
+func (c stringChecker) IsFormat(input any) bool {
 	str, ok := input.(string)
 	if !ok {
 		return true
@@ -121,7 +121,7 @@ func TestCustomFormat(t *testing.T) {
 		Add("StringChecker", stringChecker{})
 
 	sl := NewStringLoader(formatSchema)
-	validResult, err := Validate(sl, NewGoLoader(map[string]interface{}{
+	validResult, err := Validate(sl, NewGoLoader(map[string]any{
 		"arr":  []string{"x", "y", "z"},
 		"bool": true,
 		"int":  "2", // format not defined for string
@@ -138,7 +138,7 @@ func TestCustomFormat(t *testing.T) {
 		}
 	}
 
-	invalidResult, err := Validate(sl, NewGoLoader(map[string]interface{}{
+	invalidResult, err := Validate(sl, NewGoLoader(map[string]any{
 		"arr":  []string{"a", "b", "c"},
 		"bool": false,
 		"int":  1,

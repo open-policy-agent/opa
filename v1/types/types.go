@@ -62,12 +62,12 @@ type NamedType struct {
 func (n *NamedType) typeMarker() string { return n.Type.typeMarker() }
 func (n *NamedType) String() string     { return n.Name + ": " + n.Type.String() }
 func (n *NamedType) MarshalJSON() ([]byte, error) {
-	var obj map[string]interface{}
+	var obj map[string]any
 	switch x := n.Type.(type) {
-	case interface{ toMap() map[string]interface{} }:
+	case interface{ toMap() map[string]any }:
 		obj = x.toMap()
 	default:
-		obj = map[string]interface{}{
+		obj = map[string]any{
 			"type": n.Type.typeMarker(),
 		}
 	}
@@ -95,7 +95,7 @@ func Named(name string, t Type) *NamedType {
 
 // MarshalJSON returns the JSON encoding of t.
 func (t Null) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]interface{}{
+	return json.Marshal(map[string]any{
 		"type": t.typeMarker(),
 	})
 }
@@ -126,7 +126,7 @@ func NewBoolean() Boolean {
 
 // MarshalJSON returns the JSON encoding of t.
 func (t Boolean) MarshalJSON() ([]byte, error) {
-	repr := map[string]interface{}{
+	repr := map[string]any{
 		"type": t.typeMarker(),
 	}
 	return json.Marshal(repr)
@@ -149,7 +149,7 @@ func NewString() String {
 
 // MarshalJSON returns the JSON encoding of t.
 func (t String) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]interface{}{
+	return json.Marshal(map[string]any{
 		"type": t.typeMarker(),
 	})
 }
@@ -171,7 +171,7 @@ func NewNumber() Number {
 
 // MarshalJSON returns the JSON encoding of t.
 func (t Number) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]interface{}{
+	return json.Marshal(map[string]any{
 		"type": t.typeMarker(),
 	})
 }
@@ -199,8 +199,8 @@ func (t *Array) MarshalJSON() ([]byte, error) {
 	return json.Marshal(t.toMap())
 }
 
-func (t *Array) toMap() map[string]interface{} {
-	repr := map[string]interface{}{
+func (t *Array) toMap() map[string]any {
+	repr := map[string]any{
 		"type": t.typeMarker(),
 	}
 	if len(t.static) != 0 {
@@ -279,8 +279,8 @@ func (t *Set) MarshalJSON() ([]byte, error) {
 	return json.Marshal(t.toMap())
 }
 
-func (t *Set) toMap() map[string]interface{} {
-	repr := map[string]interface{}{
+func (t *Set) toMap() map[string]any {
+	repr := map[string]any{
 		"type": t.typeMarker(),
 	}
 	if t.of != nil {
@@ -296,12 +296,12 @@ func (t *Set) String() string {
 
 // StaticProperty represents a static object property.
 type StaticProperty struct {
-	Key   interface{}
+	Key   any
 	Value Type
 }
 
 // NewStaticProperty returns a new StaticProperty object.
-func NewStaticProperty(key interface{}, value Type) *StaticProperty {
+func NewStaticProperty(key any, value Type) *StaticProperty {
 	return &StaticProperty{
 		Key:   key,
 		Value: value,
@@ -310,7 +310,7 @@ func NewStaticProperty(key interface{}, value Type) *StaticProperty {
 
 // MarshalJSON returns the JSON encoding of p.
 func (p *StaticProperty) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]interface{}{
+	return json.Marshal(map[string]any{
 		"key":   p.Key,
 		"value": p.Value,
 	})
@@ -332,7 +332,7 @@ func NewDynamicProperty(key, value Type) *DynamicProperty {
 
 // MarshalJSON returns the JSON encoding of p.
 func (p *DynamicProperty) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]interface{}{
+	return json.Marshal(map[string]any{
 		"key":   p.Key,
 		"value": p.Value,
 	})
@@ -394,8 +394,8 @@ func (t *Object) StaticProperties() []*StaticProperty {
 }
 
 // Keys returns the keys of the object's static elements.
-func (t *Object) Keys() []interface{} {
-	sl := make([]interface{}, 0, len(t.static))
+func (t *Object) Keys() []any {
+	sl := make([]any, 0, len(t.static))
 	for _, p := range t.static {
 		sl = append(sl, p.Key)
 	}
@@ -407,8 +407,8 @@ func (t *Object) MarshalJSON() ([]byte, error) {
 	return json.Marshal(t.toMap())
 }
 
-func (t *Object) toMap() map[string]interface{} {
-	repr := map[string]interface{}{
+func (t *Object) toMap() map[string]any {
+	repr := map[string]any{
 		"type": t.typeMarker(),
 	}
 	if len(t.static) != 0 {
@@ -421,7 +421,7 @@ func (t *Object) toMap() map[string]interface{} {
 }
 
 // Select returns the type of the named property.
-func (t *Object) Select(name interface{}) Type {
+func (t *Object) Select(name any) Type {
 	pos := sort.Search(len(t.static), func(x int) bool {
 		return util.Compare(t.static[x].Key, name) >= 0
 	})
@@ -481,7 +481,7 @@ func mergeObjects(a, b *Object) *Object {
 		dynamicProps = b.dynamic
 	}
 
-	staticPropsMap := make(map[interface{}]Type)
+	staticPropsMap := make(map[any]Type)
 
 	for _, sp := range a.static {
 		staticPropsMap[sp.Key] = sp.Value
@@ -546,8 +546,8 @@ func (t Any) MarshalJSON() ([]byte, error) {
 	return json.Marshal(t.toMap())
 }
 
-func (t Any) toMap() map[string]interface{} {
-	repr := map[string]interface{}{
+func (t Any) toMap() map[string]any {
+	repr := map[string]any{
 		"type": t.typeMarker(),
 	}
 	if len(t) != 0 {
@@ -754,7 +754,7 @@ func (t *Function) String() string {
 
 // MarshalJSON returns the JSON encoding of t.
 func (t *Function) MarshalJSON() ([]byte, error) {
-	repr := map[string]interface{}{
+	repr := map[string]any{
 		"type": t.typeMarker(),
 	}
 	if len(t.args) > 0 {
@@ -994,7 +994,7 @@ func Or(a, b Type) Type {
 }
 
 // Select returns a property or item of a.
-func Select(a Type, x interface{}) Type {
+func Select(a Type, x any) Type {
 	switch a := unwrap(a).(type) {
 	case *Array:
 		n, ok := x.(json.Number)
@@ -1136,7 +1136,7 @@ func Nil(a Type) bool {
 }
 
 // TypeOf returns the type of the Golang native value.
-func TypeOf(x interface{}) Type {
+func TypeOf(x any) Type {
 	switch x := x.(type) {
 	case nil:
 		return Nl
@@ -1146,22 +1146,22 @@ func TypeOf(x interface{}) Type {
 		return S
 	case json.Number:
 		return N
-	case map[string]interface{}:
-		// The ast.ValueToInterface() function returns ast.Object values as map[string]interface{}
-		// so map[string]interface{} must be handled here because the type checker uses the value
+	case map[string]any:
+		// The ast.ValueToInterface() function returns ast.Object values as map[string]any
+		// so map[string]any must be handled here because the type checker uses the value
 		// to interface conversion when inferring object types.
 		static := make([]*StaticProperty, 0, len(x))
 		for k, v := range x {
 			static = append(static, NewStaticProperty(k, TypeOf(v)))
 		}
 		return NewObject(static, nil)
-	case map[interface{}]interface{}:
+	case map[any]any:
 		static := make([]*StaticProperty, 0, len(x))
 		for k, v := range x {
 			static = append(static, NewStaticProperty(k, TypeOf(v)))
 		}
 		return NewObject(static, nil)
-	case []interface{}:
+	case []any:
 		static := make([]Type, len(x))
 		for i := range x {
 			static[i] = TypeOf(x[i])

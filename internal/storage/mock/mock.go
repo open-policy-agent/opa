@@ -46,7 +46,7 @@ func (t *Transaction) safeToUse() bool {
 type Store struct {
 	inmem        storage.Store
 	storeOpts    []inmem.Opt
-	baseData     map[string]interface{}
+	baseData     map[string]any
 	Transactions []*Transaction
 	Reads        []*ReadCall
 	Writes       []*WriteCall
@@ -79,7 +79,7 @@ func New(opt ...inmem.Opt) *Store {
 }
 
 // NewWithData creates a store with some initial data
-func NewWithData(data map[string]interface{}, opt ...inmem.Opt) *Store {
+func NewWithData(data map[string]any, opt ...inmem.Opt) *Store {
 	s := &Store{
 		baseData:  data,
 		storeOpts: opt,
@@ -194,7 +194,7 @@ func (s *Store) NewTransaction(ctx context.Context, params ...storage.Transactio
 // add a new entry to the mock store Reads list. If there
 // is an error are the read is unsafe it will be noted in
 // the ReadCall.
-func (s *Store) Read(ctx context.Context, txn storage.Transaction, path storage.Path) (interface{}, error) {
+func (s *Store) Read(ctx context.Context, txn storage.Transaction, path storage.Path) (any, error) {
 	mockTxn := txn.(*Transaction)
 
 	data, err := s.inmem.Read(ctx, mockTxn.txn, path)
@@ -213,7 +213,7 @@ func (s *Store) Read(ctx context.Context, txn storage.Transaction, path storage.
 // add a new entry to the mock store Writes list. If there
 // is an error are the write is unsafe it will be noted in
 // the WriteCall.
-func (s *Store) Write(ctx context.Context, txn storage.Transaction, op storage.PatchOp, path storage.Path, value interface{}) error {
+func (s *Store) Write(ctx context.Context, txn storage.Transaction, op storage.PatchOp, path storage.Path, value any) error {
 	mockTxn := txn.(*Transaction)
 
 	err := s.inmem.Write(ctx, mockTxn.txn, op, path, value)

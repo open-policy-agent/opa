@@ -78,8 +78,8 @@ func TestMetricsEndpoint(t *testing.T) {
 }
 
 type response struct {
-	Result  bool                   `json:"result"`
-	Metrics map[string]interface{} `json:"metrics"`
+	Result  bool           `json:"result"`
+	Metrics map[string]any `json:"metrics"`
 }
 
 func TestRequestWithInstrumentationV1DataAPI(t *testing.T) {
@@ -156,7 +156,7 @@ func TestRequestWithInstrumentationV1CompileAPI(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var i interface{} = "{\"x\": 4}"
+	var i any = "{\"x\": 4}"
 	req := types.CompileRequestV1{
 		Query:    "data.test.p == true",
 		Input:    &i,
@@ -171,7 +171,7 @@ func TestRequestWithInstrumentationV1CompileAPI(t *testing.T) {
 	assertCompileInstrumentationMetricsInMap(t, true, resp.Metrics)
 }
 
-func assertCompileInstrumentationMetricsInMap(t *testing.T, _ bool, metrics map[string]interface{}) {
+func assertCompileInstrumentationMetricsInMap(t *testing.T, _ bool, metrics map[string]any) {
 	expectedKeys := []string{
 		"histogram_eval_op_plug",
 		"timer_eval_op_plug_ns",
@@ -201,7 +201,7 @@ func assertCompileInstrumentationMetricsInMap(t *testing.T, _ bool, metrics map[
 	}
 }
 
-func assertDataInstrumentationMetricsInMap(t *testing.T, includeCompile bool, metrics map[string]interface{}) {
+func assertDataInstrumentationMetricsInMap(t *testing.T, includeCompile bool, metrics map[string]any) {
 	expectedKeys := []string{
 		"counter_server_query_cache_hit",
 		"counter_eval_op_virtual_cache_miss",

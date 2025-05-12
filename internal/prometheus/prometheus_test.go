@@ -19,7 +19,7 @@ import (
 func TestJSONSerialization(t *testing.T) {
 	inner := metrics.New()
 	logger := func(logger logging.Logger) loggerFunc {
-		return func(attrs map[string]interface{}, f string, a ...interface{}) {
+		return func(attrs map[string]any, f string, a ...any) {
 			logger.WithFields(attrs).Error(f, a...)
 		}
 	}(logging.NewNoOpLogger())
@@ -32,7 +32,7 @@ func TestJSONSerialization(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	act := make(map[string]map[string]interface{}, len(m))
+	act := make(map[string]map[string]any, len(m))
 	err = json.Unmarshal(bs, &act)
 	if err != nil {
 		t.Fatal(err)

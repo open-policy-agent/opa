@@ -293,7 +293,7 @@ func TestFormatAST(t *testing.T) {
 	cases := []struct {
 		note        string
 		regoVersion ast.RegoVersion
-		toFmt       interface{}
+		toFmt       any
 		expected    string
 	}{
 		{
@@ -675,7 +675,7 @@ func TestFormatAST_Error(t *testing.T) {
 	cases := []struct {
 		note        string
 		regoVersion ast.RegoVersion
-		toFmt       interface{}
+		toFmt       any
 		expErr      string
 	}{
 		{
