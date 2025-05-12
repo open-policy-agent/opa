@@ -5,7 +5,7 @@ const semver = require("semver");
 import fs from "fs/promises";
 const path = require("path");
 
-const { loadPages, loadEcosystemPages } = require("./src/lib/ecosystem/loadPages");
+const { loadPages } = require("./src/lib/ecosystem/loadPages");
 
 // TODO: update this to "/" when this is the main site.
 const baseUrl = "/new/";
