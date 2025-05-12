@@ -178,22 +178,33 @@ const EcosystemIndex = (props) => {
             gap: 20,
           }}
         >
-          {filteredPages.map((id) => {
-            const page = entries[id];
-            const cardData = {
-              title: page.title,
-              note: page.subtitle,
-              icon: getLogoAsset(page.id),
-              link: `/ecosystem/entry/${id}`,
-              link_text: "View Details",
-            };
+          {filteredPages.length === 0
+            ? (
+              <p style={{ textAlign: "center", width: "100%" }}>
+                No integrations found. Try searching for something else or drop us a message on{" "}
+                <a href="https://slack.openpolicyagent.org/" target="_blank" rel="noopener noreferrer">
+                  Slack
+                </a>.
+              </p>
+            )
+            : (
+              filteredPages.map((id) => {
+                const page = entries[id];
+                const cardData = {
+                  title: page.title,
+                  note: page.subtitle,
+                  icon: getLogoAsset(page.id),
+                  link: `/ecosystem/entry/${id}`,
+                  link_text: "View Details",
+                };
 
-            return (
-              <div key={id} style={{ flex: "1 1 30%", minWidth: "250px", maxWidth: "400px" }}>
-                <Card item={cardData} />
-              </div>
-            );
-          })}
+                return (
+                  <div key={id} style={{ flex: "1 1 30%", minWidth: "250px", maxWidth: "400px" }}>
+                    <Card item={cardData} />
+                  </div>
+                );
+              })
+            )}
         </div>
       </div>
     </Layout>
