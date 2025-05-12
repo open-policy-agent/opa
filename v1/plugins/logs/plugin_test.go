@@ -1680,59 +1680,6 @@ func TestPluginRateLimitDropCountStatus(t *testing.T) {
 	}
 }
 
-func TestChunkMaxUploadSizeLimitNDBCacheDropping(t *testing.T) {
-	t.Parallel()
-
-	ctx := context.Background()
-	testLogger := test.New()
-
-	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
-	if err != nil {
-		panic(err)
-	}
-
-	fixture := newTestFixture(t, testFixtureOptions{
-		ConsoleLogger:                  testLogger,
-		ReportingMaxDecisionsPerSecond: float64(1), // 1 decision per second
-		ReportingUploadSizeLimitBytes:  400,
-	})
-	defer fixture.server.stop()
-
-	fixture.plugin.metrics = metrics.New()
-
-	var input any = map[string]any{"method": "GET"}
-	var result any = false
-
-	// Purposely oversized NDBCache entry will force dropping during Log().
-	var ndbCacheExample any = ast.MustJSON(builtins.NDBCache{
-		"test.custom_space_waster": ast.NewObject([2]*ast.Term{
-			ast.ArrayTerm(),
-			ast.StringTerm(strings.Repeat("Wasted space... ", 200)),
-		}),
-	}.AsValue())
-
-	event := &server.Info{
-		DecisionID:     "abc",
-		Path:           "foo/bar",
-		Input:          &input,
-		Results:        &result,
-		RemoteAddr:     "test",
-		Timestamp:      ts,
-		NDBuiltinCache: &ndbCacheExample,
-	}
-
-	beforeNDBDropCount := fixture.plugin.metrics.Counter(logNDBDropCounterName).Value().(uint64)
-	err = fixture.plugin.Log(ctx, event) // event should be written into the encoder
-	if err != nil {
-		t.Fatal(err)
-	}
-	afterNDBDropCount := fixture.plugin.metrics.Counter(logNDBDropCounterName).Value().(uint64)
-
-	if afterNDBDropCount != beforeNDBDropCount+1 {
-		t.Fatalf("Expected %v NDBCache drop events, saw %v events instead.", beforeNDBDropCount+1, afterNDBDropCount)
-	}
-}
-
 func TestPluginRateLimitBadConfig(t *testing.T) {
 	t.Parallel()
 

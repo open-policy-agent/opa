@@ -357,6 +357,7 @@ func TestChunkEncoderAdaptive(t *testing.T) {
 			expectedScaleDownEvents:   1,
 			expectedEquiEvents:        3,
 		},
+	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -403,7 +404,7 @@ func TestChunkEncoderAdaptive(t *testing.T) {
 				t.Errorf("Expected %v uncompressed limit but got %v", tc.expectedUncompressedLimit, enc.uncompressedLimit)
 			}
 
-			h := enc.metrics.Histogram(encNumberOfEventsInChunkHistogramName).Value().(map[string]interface{})
+			h := enc.metrics.Histogram(encNumberOfEventsInChunkHistogramName).Value().(map[string]any)
 			if h["max"].(int64) != tc.expectedMaxEventsInChunk {
 				t.Errorf("Expected %v max events in a chunk, got %v", tc.expectedMaxEventsInChunk, h["max"].(int64))
 			}
