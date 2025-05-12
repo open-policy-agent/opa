@@ -19,7 +19,7 @@ const Index = (props) => {
     <Layout title={title}>
       <div style={{ display: "block", maxWidth: "75rem", width: "100%", margin: "0 auto" }}>
         <div style={{ display: "flex", flexWrap: "wrap", marginBottom: "2rem", padding: "1rem" }}>
-          <div style={{ flex: "1", minWidth: "25rem" }}>
+          <div style={{ flex: "1", minWidth: "20rem" }}>
             <div
               style={{
                 padding: "4rem 2rem",
@@ -46,7 +46,7 @@ const Index = (props) => {
               </h2>
             </div>
           </div>
-          <div style={{ flex: "1.5", minWidth: "400px", padding: "0rem 1rem" }}>
+          <div style={{ flex: "1.5", minWidth: "20rem", padding: "0rem 1rem" }}>
             <PlaygroundExample dir={require.context("./_examples/admin")} />
           </div>
         </div>
@@ -204,7 +204,7 @@ const Index = (props) => {
           <div
             style={{
               flex: "1 1 40rem",
-              minWidth: "25rem",
+              minWidth: "20rem",
               width: "100%",
               backgroundColor: "#e6f4ff",
               padding: "2rem",
