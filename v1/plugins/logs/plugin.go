@@ -676,8 +676,8 @@ func (p *Plugin) flushDecisions(ctx context.Context) {
 	case <-done:
 		p.logger.Info("All decisions in buffer uploaded.")
 	case <-ctx.Done():
-		switch err := ctx.Err(); {
-		case errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled):
+		switch ctx.Err() {
+		case context.DeadlineExceeded, context.Canceled:
 			p.logger.Error("Plugin stopped with decisions possibly still in buffer.")
 		}
 	}

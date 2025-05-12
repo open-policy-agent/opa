@@ -1335,12 +1335,9 @@ func TestPluginTerminatesAfterGracefulShutdownPeriodWithStatus(t *testing.T) {
 	// simplified status loop just to return done
 	// but doesn't read from the channels
 	go func() {
-		for {
-			select {
-			case done := <-fixture.plugin.stop:
-				done <- struct{}{}
-				return
-			}
+		for done := range fixture.plugin.stop {
+			done <- struct{}{}
+			return
 		}
 	}()
 

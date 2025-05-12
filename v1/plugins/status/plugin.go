@@ -291,8 +291,8 @@ func (p *Plugin) Stop(ctx context.Context) {
 	case <-done:
 		p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
 	case <-ctx.Done():
-		switch err := ctx.Err(); {
-		case errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled):
+		switch ctx.Err() {
+		case context.DeadlineExceeded, context.Canceled:
 			p.logger.Error("Status Plugin stopped with statuses possibly not sent.")
 		}
 	}
