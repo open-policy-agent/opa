@@ -2,47 +2,6 @@
 	display: none;
 }
 
-.side-by-side {
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: space-between;
-}
-
-.side-by-side>div {
-	margin-top: 1rem;
-	width: 50%;
-}
-
-.side-by-side>div:first-child {
-	padding-right: 0.25rem;
-}
-
-.side-by-side>div:last-child {
-	padding-left: 0.25rem;
-}
-
-.side-by-side pre {
-	font-size: 0.75em;
-}
-
-.side-by-side pre code {
-	padding: 0.6rem;
-}
-
-.side-by-side-outro {
-	font-size: 0.8em;
-}
-
-@media (max-width: 1200px) {
-	.side-by-side {
-		flex-direction: column;
-	}
-
-	.side-by-side>div {
-		width: 100%;
-	}
-}
-
 .divider-after:after {
 	content: "";
 	/* This is necessary for the pseudo element to work. */
