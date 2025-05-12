@@ -18,11 +18,11 @@ const Index = (props) => {
   return (
     <Layout title={title}>
       <div style={{ display: "block", maxWidth: "75rem", width: "100%", margin: "0 auto" }}>
-        <div style={{ display: "flex", flexWrap: "wrap", marginBottom: "2rem", padding: "1rem" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", marginBottom: "1rem", marginTop: "1rem", padding: "1rem" }}>
           <div style={{ flex: "1", minWidth: "20rem" }}>
             <div
               style={{
-                padding: "4rem 2rem",
+                padding: "2rem 2rem",
                 textAlign: "center",
                 marginBottom: "2rem",
               }}
