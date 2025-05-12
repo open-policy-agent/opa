@@ -10,10 +10,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	lstat "github.com/open-policy-agent/opa/v1/plugins/logs/status"
 	"maps"
 	"net/http"
 	"reflect"
+
+	lstat "github.com/open-policy-agent/opa/v1/plugins/logs/status"
 
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/metrics"
