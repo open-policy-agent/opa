@@ -275,7 +275,7 @@ const Index = (props) => {
             note: "Talk to other users and maintainers",
             icon: require("./assets/slack.png").default,
             link: "https://slack.openpolicyagent.org/",
-            link_text: "Instant Join Slack",
+            link_text: "Join us on Slack",
           }, {
             title: "Contribute to OPA",
             note: "Get involved with our project",
