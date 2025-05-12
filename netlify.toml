@@ -22,6 +22,7 @@ function = "version-redirect"
 HUGO_VERSION = "0.113.0"
 
 [context.deploy-preview]
+environment = { NODE_VERSION = "22.15.0" }
 command = "make netlify-preview WASM_ENABLED=0 CGO_ENABLED=0"
 
 [context.branch-deploy]

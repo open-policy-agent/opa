@@ -1,0 +1,2 @@
+dev:
+	npx docusaurus start
