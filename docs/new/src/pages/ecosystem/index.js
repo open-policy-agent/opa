@@ -1,6 +1,6 @@
 import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
-import React from "react";
+import React, { useState } from "react";
 
 import Card from "../../components/Card";
 import getLogoAsset from "../../lib/ecosystem/getLogoAsset.js";
@@ -12,8 +12,20 @@ import features from "@generated/ecosystem-data/default/features.json";
 import languages from "@generated/ecosystem-data/default/languages.json";
 
 const EcosystemIndex = (props) => {
-  const sortedPages = sortPagesByRank(entries);
   const title = "OPA Ecosystem";
+  const sortedPages = sortPagesByRank(entries);
+
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredPages = sortedPages.filter((id) => {
+    const page = entries[id];
+    const query = searchQuery.toLowerCase();
+    return (
+      page.title.toLowerCase().includes(query)
+      || page.subtitle?.toLowerCase().includes(query)
+      || page.content.toLowerCase().includes(query)
+    );
+  });
 
   const orderedCategoryKeys = ["rego", "production", "tool", "createwithopa"];
   const preferredLanguageOrder = [
@@ -139,6 +151,24 @@ const EcosystemIndex = (props) => {
           All Entries & Integrations
         </Heading>
 
+        <div style={{ margin: "1.5rem 0" }}>
+          <input
+            type="text"
+            placeholder="Search entries..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              padding: "0.5rem",
+              width: "100%",
+              maxWidth: "40rem",
+              fontSize: "1rem",
+            }}
+          />
+          <p style={{ fontSize: "0.8rem", marginTop: "0.5rem" }}>
+            All integrations are ordered by the number of linked resources.
+          </p>
+        </div>
+
         <div
           style={{
             marginTop: "2rem",
@@ -148,9 +178,8 @@ const EcosystemIndex = (props) => {
             gap: 20,
           }}
         >
-          {sortedPages.map((id) => {
+          {filteredPages.map((id) => {
             const page = entries[id];
-
             const cardData = {
               title: page.title,
               note: page.subtitle,
