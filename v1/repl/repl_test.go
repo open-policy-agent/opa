@@ -269,7 +269,7 @@ r = 3 if { true }`)
 func TestDump(t *testing.T) {
 	ctx := context.Background()
 	input := `{"a": [1,2,3,4]}`
-	var data map[string]interface{}
+	var data map[string]any
 	err := util.UnmarshalJSON([]byte(input), &data)
 	if err != nil {
 		panic(err)
@@ -286,7 +286,7 @@ func TestDump(t *testing.T) {
 func TestDumpPath(t *testing.T) {
 	ctx := context.Background()
 	input := `{"a": [1,2,3,4]}`
-	var data map[string]interface{}
+	var data map[string]any
 	err := util.UnmarshalJSON([]byte(input), &data)
 	if err != nil {
 		panic(err)
@@ -309,7 +309,7 @@ func TestDumpPath(t *testing.T) {
 		t.Fatalf("Expected file read to succeed but got: %v", err)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := util.UnmarshalJSON(bs, &result); err != nil {
 		t.Fatalf("Expected json unmarshal to succeed but got: %v", err)
 	}
@@ -322,7 +322,7 @@ func TestDumpPath(t *testing.T) {
 func TestDumpPathCaseSensitive(t *testing.T) {
 	ctx := context.Background()
 	input := `{"a": [1,2,3,4]}`
-	var data map[string]interface{}
+	var data map[string]any
 	err := util.UnmarshalJSON([]byte(input), &data)
 	if err != nil {
 		panic(err)
@@ -345,7 +345,7 @@ func TestDumpPathCaseSensitive(t *testing.T) {
 		t.Fatalf("Expected file read to succeed but got: %v", err)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := util.UnmarshalJSON(bs, &result); err != nil {
 		t.Fatalf("Expected json unmarshal to succeed but got: %v", err)
 	}
@@ -1090,7 +1090,7 @@ func TestOneShotJSON(t *testing.T) {
 	if err := repl.OneShot(ctx, "data.a[i] = x"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	var expected interface{}
+	var expected any
 	if err := util.UnmarshalJSON([]byte(`{
 		"result": [
 		  {
@@ -1146,7 +1146,7 @@ func TestOneShotJSON(t *testing.T) {
 		panic(err)
 	}
 
-	var result interface{}
+	var result any
 
 	if err := util.UnmarshalJSON(buffer.Bytes(), &result); err != nil {
 		t.Errorf("Unexpected output format: %v", err)
@@ -1630,7 +1630,7 @@ p = [1, 2, 3] if { true }`)
 	result := parseJSON(buffer.String())
 
 	// Strip REPL documents out as these change depending on build settings.
-	data := result.(map[string]interface{})
+	data := result.(map[string]any)
 	delete(data, "repl")
 
 	if !reflect.DeepEqual(result, expected) {
@@ -1926,7 +1926,7 @@ func TestEvalSingleTermMultiValue(t *testing.T) {
 		]
 	  }`
 
-	var expected interface{}
+	var expected any
 	if err := util.UnmarshalJSON([]byte(input), &expected); err != nil {
 		panic(err)
 	}
@@ -1934,7 +1934,7 @@ func TestEvalSingleTermMultiValue(t *testing.T) {
 	if err := repl.OneShot(ctx, "data.a[i].b.c[_]"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	var result interface{}
+	var result any
 	if err := util.UnmarshalJSON(buffer.Bytes(), &result); err != nil {
 		t.Errorf("Expected valid JSON document: %v: %v", err, buffer.String())
 		return
@@ -3391,7 +3391,7 @@ func newTestStore() storage.Store {
         ]
     }
     `
-	var data map[string]interface{}
+	var data map[string]any
 	err := util.UnmarshalJSON([]byte(input), &data)
 	if err != nil {
 		panic(err)
@@ -3399,8 +3399,8 @@ func newTestStore() storage.Store {
 	return inmem.NewFromObject(data)
 }
 
-func parseJSON(s string) interface{} {
-	var v interface{}
+func parseJSON(s string) any {
+	var v any
 	if err := util.UnmarshalJSON([]byte(s), &v); err != nil {
 		panic(err)
 	}

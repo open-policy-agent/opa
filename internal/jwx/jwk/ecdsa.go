@@ -39,12 +39,12 @@ func newECDSAPrivateKey(key *ecdsa.PrivateKey) (*ECDSAPrivateKey, error) {
 }
 
 // Materialize returns the EC-DSA public key represented by this JWK
-func (k ECDSAPublicKey) Materialize() (interface{}, error) {
+func (k ECDSAPublicKey) Materialize() (any, error) {
 	return k.key, nil
 }
 
 // Materialize returns the EC-DSA private key represented by this JWK
-func (k ECDSAPrivateKey) Materialize() (interface{}, error) {
+func (k ECDSAPrivateKey) Materialize() (any, error) {
 	return k.key, nil
 }
 

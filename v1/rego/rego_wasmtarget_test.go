@@ -108,8 +108,8 @@ func TestPrepareAndEvalWithWasmTargetModulesOnCompiler(t *testing.T) {
 		Compiler(compiler),
 		Query("data.test.p"),
 		Target("wasm"),
-		Store(inmem.NewFromObject(map[string]interface{}{
-			"x": map[string]interface{}{"p": 1},
+		Store(inmem.NewFromObject(map[string]any{
+			"x": map[string]any{"p": 1},
 		})),
 	).PrepareForEval(ctx)
 
@@ -312,7 +312,7 @@ func TestCompatWithABIMinorVersion1(t *testing.T) {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	rs, err := pq.Eval(ctx, EvalInput(map[string]interface{}{"x": "x"}))
+	rs, err := pq.Eval(ctx, EvalInput(map[string]any{"x": "x"}))
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}

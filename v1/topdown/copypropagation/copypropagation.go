@@ -233,7 +233,7 @@ type bindingPlugTransform struct {
 	pctx *plugContext
 }
 
-func (t bindingPlugTransform) Transform(x interface{}) (interface{}, error) {
+func (t bindingPlugTransform) Transform(x any) (any, error) {
 	switch x := x.(type) {
 	case ast.Var:
 		return t.plugBindingsVar(t.pctx, x), nil
@@ -385,11 +385,11 @@ type binding struct {
 	k, v ast.Value
 }
 
-func containedIn(value ast.Value, x interface{}) bool {
+func containedIn(value ast.Value, x any) bool {
 	var stop bool
 
 	var vis *ast.GenericVisitor
-	vis = ast.NewGenericVisitor(func(x interface{}) bool {
+	vis = ast.NewGenericVisitor(func(x any) bool {
 		switch x := x.(type) {
 		case *ast.Every: // skip body
 			vis.Walk(x.Key)

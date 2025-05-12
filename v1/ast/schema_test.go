@@ -20,7 +20,7 @@ import (
 func testParseSchema(t *testing.T, schema string, expectedType types.Type, expectedError error) {
 	t.Helper()
 
-	var sch interface{}
+	var sch any
 	err := util.Unmarshal([]byte(schema), &sch)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -56,7 +56,7 @@ func TestParseSchemaObject(t *testing.T) {
 }
 
 func TestSetTypesWithSchemaRef(t *testing.T) {
-	var sch interface{}
+	var sch any
 
 	ts := kubeSchemaServer(t)
 	t.Cleanup(ts.Close)
@@ -116,7 +116,7 @@ func TestSetTypesWithSchemaRef(t *testing.T) {
 }
 
 func TestSetTypesWithPodSchema(t *testing.T) {
-	var sch interface{}
+	var sch any
 
 	ts := kubeSchemaServer(t)
 	t.Cleanup(ts.Close)
@@ -439,7 +439,7 @@ func TestParseSchemaBasics(t *testing.T) {
 
 func TestCompileSchemaEmptySchema(t *testing.T) {
 	schema := ""
-	var sch interface{}
+	var sch any
 	err := util.Unmarshal([]byte(schema), &sch)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -451,7 +451,7 @@ func TestCompileSchemaEmptySchema(t *testing.T) {
 }
 
 func TestParseSchemaWithSchemaBadSchema(t *testing.T) {
-	var sch interface{}
+	var sch any
 	err := util.Unmarshal([]byte(objectSchema), &sch)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -581,7 +581,7 @@ func kubeSchemaServer(t *testing.T) *httptest.Server {
 
 func TestCompilerCheckTypesWithSchema(t *testing.T) {
 	c := NewCompiler()
-	var schema interface{}
+	var schema any
 	err := util.Unmarshal([]byte(objectSchema), &schema)
 	if err != nil {
 		t.Fatal("Unexpected error:", err)
@@ -595,7 +595,7 @@ func TestCompilerCheckTypesWithSchema(t *testing.T) {
 
 func TestCompilerCheckTypesWithRegexPatternInSchema(t *testing.T) {
 	c := NewCompiler()
-	var schema interface{}
+	var schema any
 	// Negative lookahead is not supported in the Go regex dialect, but this is still a valid
 	// JSON schema. Since we don't rely on the "pattern" attribute for type checking, ensure
 	// that this still works (by being ignored)
@@ -734,7 +734,7 @@ func TestCompilerCheckTypesWithAllOfSchema(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			c := NewCompiler()
-			var schema interface{}
+			var schema any
 			err := util.Unmarshal([]byte(tc.schema), &schema)
 			if err != nil {
 				t.Fatal("Unexpected error:", err)

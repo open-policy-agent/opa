@@ -357,7 +357,6 @@ func TestChunkEncoderAdaptive(t *testing.T) {
 			expectedScaleDownEvents:   1,
 			expectedEquiEvents:        3,
 		},
-	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

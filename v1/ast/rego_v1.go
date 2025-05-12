@@ -23,7 +23,7 @@ func checkDuplicateImports(modules []*Module) (errors Errors) {
 	return
 }
 
-func checkRootDocumentOverrides(node interface{}) Errors {
+func checkRootDocumentOverrides(node any) Errors {
 	errors := Errors{}
 
 	WalkRules(node, func(rule *Rule) bool {
@@ -64,8 +64,8 @@ func checkRootDocumentOverrides(node interface{}) Errors {
 	return errors
 }
 
-func walkCalls(node interface{}, f func(interface{}) bool) {
-	vis := &GenericVisitor{func(x interface{}) bool {
+func walkCalls(node any, f func(any) bool) {
+	vis := &GenericVisitor{func(x any) bool {
 		switch x := x.(type) {
 		case Call:
 			return f(x)
@@ -82,10 +82,10 @@ func walkCalls(node interface{}, f func(interface{}) bool) {
 	vis.Walk(node)
 }
 
-func checkDeprecatedBuiltins(deprecatedBuiltinsMap map[string]struct{}, node interface{}) Errors {
+func checkDeprecatedBuiltins(deprecatedBuiltinsMap map[string]struct{}, node any) Errors {
 	errs := make(Errors, 0)
 
-	walkCalls(node, func(x interface{}) bool {
+	walkCalls(node, func(x any) bool {
 		var operator string
 		var loc *Location
 
@@ -113,7 +113,7 @@ func checkDeprecatedBuiltins(deprecatedBuiltinsMap map[string]struct{}, node int
 	return errs
 }
 
-func checkDeprecatedBuiltinsForCurrentVersion(node interface{}) Errors {
+func checkDeprecatedBuiltinsForCurrentVersion(node any) Errors {
 	deprecatedBuiltins := make(map[string]struct{})
 	capabilities := CapabilitiesForThisVersion()
 	for _, bi := range capabilities.Builtins {
@@ -150,11 +150,11 @@ func NewRegoCheckOptions() RegoCheckOptions {
 
 // CheckRegoV1 checks the given module or rule for errors that are specific to Rego v1.
 // Passing something other than an *ast.Rule or *ast.Module is considered a programming error, and will cause a panic.
-func CheckRegoV1(x interface{}) Errors {
+func CheckRegoV1(x any) Errors {
 	return CheckRegoV1WithOptions(x, NewRegoCheckOptions())
 }
 
-func CheckRegoV1WithOptions(x interface{}, opts RegoCheckOptions) Errors {
+func CheckRegoV1WithOptions(x any, opts RegoCheckOptions) Errors {
 	switch x := x.(type) {
 	case *Module:
 		return checkRegoV1Module(x, opts)

@@ -30,7 +30,7 @@ func ExampleQuery_Iter() {
 		// Handle error.
 	}
 
-	var data map[string]interface{}
+	var data map[string]any
 
 	// OPA uses Go's standard JSON library but assumes that numbers have been
 	// decoded as json.Number instead of float64. You MUST decode with UseNumber
@@ -63,7 +63,7 @@ func ExampleQuery_Iter() {
 		WithStore(store).
 		WithTransaction(txn)
 
-	result := []interface{}{}
+	result := []any{}
 
 	// Execute the query and provide a callback function to accumulate the results.
 	err = q.Iter(ctx, func(qr topdown.QueryResult) error {
@@ -103,7 +103,7 @@ func ExampleQuery_Run() {
 		// Handle error.
 	}
 
-	var data map[string]interface{}
+	var data map[string]any
 
 	// OPA uses Go's standard JSON library but assumes that numbers have been
 	// decoded as json.Number instead of float64. You MUST decode with UseNumber
@@ -159,7 +159,7 @@ func ExampleQuery_PartialRun() {
 	// context from an input parameter or instantiate their own.
 	ctx := context.Background()
 
-	var data map[string]interface{}
+	var data map[string]any
 	decoder := json.NewDecoder(bytes.NewBufferString(`{
 		"roles": [
 			{

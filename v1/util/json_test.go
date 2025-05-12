@@ -19,7 +19,7 @@ func TestInvalidJSONInput(t *testing.T) {
 		[]byte("{ \"k\": 1 }\n!!!}"),
 	}
 	for _, tc := range cases {
-		var x interface{}
+		var x any
 		err := util.UnmarshalJSON(tc, &x)
 		if err == nil {
 			t.Errorf("should be an error")
@@ -28,7 +28,7 @@ func TestInvalidJSONInput(t *testing.T) {
 }
 
 func TestRoundTrip(t *testing.T) {
-	cases := []interface{}{
+	cases := []any{
 		nil,
 		1,
 		1.1,
@@ -53,8 +53,8 @@ func TestRoundTrip(t *testing.T) {
 			}
 			switch x := tc.(type) {
 			// These are the output types we want, nothing else
-			case nil, bool, json.Number, int64, float64, int, string, []interface{},
-				[]string, map[string]interface{}, map[string]string:
+			case nil, bool, json.Number, int64, float64, int, string, []any,
+				[]string, map[string]any, map[string]string:
 			default:
 				t.Errorf("unexpected type %T", x)
 			}
@@ -63,27 +63,27 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestReference(t *testing.T) {
-	cases := []interface{}{
+	cases := []any{
 		nil,
-		func() interface{} { f := interface{}(nil); return &f }(),
+		func() any { f := any(nil); return &f }(),
 		1,
-		func() interface{} { f := 1; return &f }(),
+		func() any { f := 1; return &f }(),
 		1.1,
-		func() interface{} { f := 1.1; return &f }(),
+		func() any { f := 1.1; return &f }(),
 		false,
-		func() interface{} { f := false; return &f }(),
+		func() any { f := false; return &f }(),
 		[]int{1},
 		&[]int{1},
-		func() interface{} { f := &[]int{1}; return &f }(),
+		func() any { f := &[]int{1}; return &f }(),
 		[]bool{true},
 		&[]bool{true},
-		func() interface{} { f := &[]bool{true}; return &f }(),
+		func() any { f := &[]bool{true}; return &f }(),
 		[]string{"foo"},
 		&[]string{"foo"},
-		func() interface{} { f := &[]string{"foo"}; return &f }(),
+		func() any { f := &[]string{"foo"}; return &f }(),
 		map[string]string{"foo": "bar"},
 		&map[string]string{"foo": "bar"},
-		func() interface{} { f := &map[string]string{"foo": "bar"}; return &f }(),
+		func() any { f := &map[string]string{"foo": "bar"}; return &f }(),
 		struct {
 			F string `json:"foo"`
 			B int    `json:"bar"`

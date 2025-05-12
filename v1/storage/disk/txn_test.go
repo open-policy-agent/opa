@@ -27,12 +27,12 @@ func randomString(n int) string {
 	return string(s)
 }
 
-func fixture(n int) map[string]interface{} {
+func fixture(n int) map[string]any {
 	foo := map[string]string{}
 	for i := range n {
 		foo[fmt.Sprintf(`"%d%s"`, i, randomString(4))] = randomString(3)
 	}
-	return map[string]interface{}{"foo": foo}
+	return map[string]any{"foo": foo}
 }
 
 func TestSetTxnIsTooBigToFitIntoOneRequestWhenUseDiskStoreReturnsError(t *testing.T) {
@@ -105,7 +105,7 @@ func TestDeleteTxnIsTooBigToFitIntoOneRequestWhenUseDiskStore(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if exp, act := nbKeys, len(res.(map[string]interface{})); exp != act {
+		if exp, act := nbKeys, len(res.(map[string]any)); exp != act {
 			t.Fatalf("expected %d keys, read %d", exp, act)
 		}
 
@@ -125,7 +125,7 @@ func TestDeleteTxnIsTooBigToFitIntoOneRequestWhenUseDiskStore(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if exp, act := nbKeys, len(res.(map[string]interface{})); exp != act {
+		if exp, act := nbKeys, len(res.(map[string]any)); exp != act {
 			t.Fatalf("expected %d keys, read %d", exp, act)
 		}
 

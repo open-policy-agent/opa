@@ -16,22 +16,22 @@ type Transformer = v1.Transformer
 
 // Transform iterates the AST and calls the Transform function on the
 // Transformer t for x before recursing.
-func Transform(t Transformer, x interface{}) (interface{}, error) {
+func Transform(t Transformer, x any) (any, error) {
 	return v1.Transform(t, x)
 }
 
 // TransformRefs calls the function f on all references under x.
-func TransformRefs(x interface{}, f func(Ref) (Value, error)) (interface{}, error) {
+func TransformRefs(x any, f func(Ref) (Value, error)) (any, error) {
 	return v1.TransformRefs(x, f)
 }
 
 // TransformVars calls the function f on all vars under x.
-func TransformVars(x interface{}, f func(Var) (Value, error)) (interface{}, error) {
+func TransformVars(x any, f func(Var) (Value, error)) (any, error) {
 	return v1.TransformVars(x, f)
 }
 
 // TransformComprehensions calls the functio nf on all comprehensions under x.
-func TransformComprehensions(x interface{}, f func(interface{}) (Value, error)) (interface{}, error) {
+func TransformComprehensions(x any, f func(any) (Value, error)) (any, error) {
 	return v1.TransformComprehensions(x, f)
 }
 
@@ -41,6 +41,6 @@ type GenericTransformer = v1.GenericTransformer
 
 // NewGenericTransformer returns a new GenericTransformer that will transform
 // AST nodes using the function f.
-func NewGenericTransformer(f func(x interface{}) (interface{}, error)) *GenericTransformer {
+func NewGenericTransformer(f func(x any) (any, error)) *GenericTransformer {
 	return v1.NewGenericTransformer(f)
 }

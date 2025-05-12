@@ -46,8 +46,8 @@ func ToYAML(s string) (string, error) {
 // Parse parses a set line.
 //
 // A set line is of the form name1=value1,name2=value2
-func Parse(s string) (map[string]interface{}, error) {
-	vals := map[string]interface{}{}
+func Parse(s string) (map[string]any, error) {
+	vals := map[string]any{}
 	scanner := bytes.NewBufferString(s)
 	t := newParser(scanner, vals, false)
 	err := t.parse()
@@ -57,8 +57,8 @@ func Parse(s string) (map[string]interface{}, error) {
 // ParseString parses a set line and forces a string value.
 //
 // A set line is of the form name1=value1,name2=value2
-func ParseString(s string) (map[string]interface{}, error) {
-	vals := map[string]interface{}{}
+func ParseString(s string) (map[string]any, error) {
+	vals := map[string]any{}
 	scanner := bytes.NewBufferString(s)
 	t := newParser(scanner, vals, true)
 	err := t.parse()
@@ -69,7 +69,7 @@ func ParseString(s string) (map[string]interface{}, error) {
 //
 // If the strval string has a key that exists in dest, it overwrites the
 // dest version.
-func ParseInto(s string, dest map[string]interface{}) error {
+func ParseInto(s string, dest map[string]any) error {
 	scanner := bytes.NewBufferString(s)
 	t := newParser(scanner, dest, false)
 	return t.parse()
@@ -78,7 +78,7 @@ func ParseInto(s string, dest map[string]interface{}) error {
 // ParseIntoFile parses a filevals line and merges the result into dest.
 //
 // This method always returns a string as the value.
-func ParseIntoFile(s string, dest map[string]interface{}, runesToVal runesToVal) error {
+func ParseIntoFile(s string, dest map[string]any, runesToVal runesToVal) error {
 	scanner := bytes.NewBufferString(s)
 	t := newFileParser(scanner, dest, runesToVal)
 	return t.parse()
@@ -87,7 +87,7 @@ func ParseIntoFile(s string, dest map[string]interface{}, runesToVal runesToVal)
 // ParseIntoString parses a strvals line and merges the result into dest.
 //
 // This method always returns a string as the value.
-func ParseIntoString(s string, dest map[string]interface{}) error {
+func ParseIntoString(s string, dest map[string]any) error {
 	scanner := bytes.NewBufferString(s)
 	t := newParser(scanner, dest, true)
 	return t.parse()
@@ -101,20 +101,20 @@ func ParseIntoString(s string, dest map[string]interface{}) error {
 // where st is a boolean to figure out if we're forcing it to parse values as string
 type parser struct {
 	sc         *bytes.Buffer
-	data       map[string]interface{}
+	data       map[string]any
 	runesToVal runesToVal
 }
 
-type runesToVal func([]rune) (interface{}, error)
+type runesToVal func([]rune) (any, error)
 
-func newParser(sc *bytes.Buffer, data map[string]interface{}, stringBool bool) *parser {
-	rs2v := func(rs []rune) (interface{}, error) {
+func newParser(sc *bytes.Buffer, data map[string]any, stringBool bool) *parser {
+	rs2v := func(rs []rune) (any, error) {
 		return typedVal(rs, stringBool), nil
 	}
 	return &parser{sc: sc, data: data, runesToVal: rs2v}
 }
 
-func newFileParser(sc *bytes.Buffer, data map[string]interface{}, runesToVal runesToVal) *parser {
+func newFileParser(sc *bytes.Buffer, data map[string]any, runesToVal runesToVal) *parser {
 	return &parser{sc: sc, data: data, runesToVal: runesToVal}
 }
 
@@ -139,7 +139,7 @@ func runeSet(r []rune) map[rune]bool {
 	return s
 }
 
-func (t *parser) key(data map[string]interface{}) error {
+func (t *parser) key(data map[string]any) error {
 	stop := runeSet([]rune{'=', '[', ',', '.'})
 	for {
 		switch k, last, err := runesUntil(t.sc, stop); {
@@ -156,9 +156,9 @@ func (t *parser) key(data map[string]interface{}) error {
 			}
 			kk := string(k)
 			// Find or create target list
-			list := []interface{}{}
+			list := []any{}
 			if _, ok := data[kk]; ok {
-				list = data[kk].([]interface{})
+				list = data[kk].([]any)
 			}
 
 			// Now we need to get the value after the ].
@@ -194,9 +194,9 @@ func (t *parser) key(data map[string]interface{}) error {
 			return fmt.Errorf("key %q has no value (cannot end with ,)", string(k))
 		case last == '.':
 			// First, create or find the target map.
-			inner := map[string]interface{}{}
+			inner := map[string]any{}
 			if _, ok := data[string(k)]; ok {
-				inner = data[string(k)].(map[string]interface{})
+				inner = data[string(k)].(map[string]any)
 			}
 
 			// Recurse
@@ -210,7 +210,7 @@ func (t *parser) key(data map[string]interface{}) error {
 	}
 }
 
-func set(data map[string]interface{}, key string, val interface{}) {
+func set(data map[string]any, key string, val any) {
 	// If key is empty, don't set it.
 	if len(key) == 0 {
 		return
@@ -218,7 +218,7 @@ func set(data map[string]interface{}, key string, val interface{}) {
 	data[key] = val
 }
 
-func setIndex(list []interface{}, index int, val interface{}) (l2 []interface{}, err error) {
+func setIndex(list []any, index int, val any) (l2 []any, err error) {
 	// There are possible index values that are out of range on a target system
 	// causing a panic. This will catch the panic and return an error instead.
 	// The value of the index that causes a panic varies from system to system.
@@ -235,7 +235,7 @@ func setIndex(list []interface{}, index int, val interface{}) (l2 []interface{},
 		return list, fmt.Errorf("index of %d is greater than maximum supported index of %d", index, MaxIndex)
 	}
 	if len(list) <= index {
-		newlist := make([]interface{}, index+1)
+		newlist := make([]any, index+1)
 		copy(newlist, list)
 		list = newlist
 	}
@@ -254,7 +254,7 @@ func (t *parser) keyIndex() (int, error) {
 	return strconv.Atoi(string(v))
 
 }
-func (t *parser) listItem(list []interface{}, i int) ([]interface{}, error) {
+func (t *parser) listItem(list []any, i int) ([]any, error) {
 	if i < 0 {
 		return list, fmt.Errorf("negative %d index not allowed", i)
 	}
@@ -298,14 +298,14 @@ func (t *parser) listItem(list []interface{}, i int) ([]interface{}, error) {
 		return setIndex(list, i, list2)
 	case last == '.':
 		// We have a nested object. Send to t.key
-		inner := map[string]interface{}{}
+		inner := map[string]any{}
 		if len(list) > i {
 			var ok bool
-			inner, ok = list[i].(map[string]interface{})
+			inner, ok = list[i].(map[string]any)
 			if !ok {
 				// We have indices out of order. Initialize empty value.
-				list[i] = map[string]interface{}{}
-				inner = list[i].(map[string]interface{})
+				list[i] = map[string]any{}
+				inner = list[i].(map[string]any)
 			}
 		}
 
@@ -326,21 +326,21 @@ func (t *parser) val() ([]rune, error) {
 	return v, err
 }
 
-func (t *parser) valList() ([]interface{}, error) {
+func (t *parser) valList() ([]any, error) {
 	r, _, e := t.sc.ReadRune()
 	if e != nil {
-		return []interface{}{}, e
+		return []any{}, e
 	}
 
 	if r != '{' {
 		e = t.sc.UnreadRune()
 		if e != nil {
-			return []interface{}{}, e
+			return []any{}, e
 		}
-		return []interface{}{}, ErrNotList
+		return []any{}, ErrNotList
 	}
 
-	list := []interface{}{}
+	list := []any{}
 	stop := runeSet([]rune{',', '}'})
 	for {
 		switch rs, last, err := runesUntil(t.sc, stop); {
@@ -354,7 +354,7 @@ func (t *parser) valList() ([]interface{}, error) {
 			if r, _, e := t.sc.ReadRune(); e == nil && r != ',' {
 				e = t.sc.UnreadRune()
 				if e != nil {
-					return []interface{}{}, e
+					return []any{}, e
 				}
 			}
 			v, e := t.runesToVal(rs)
@@ -395,7 +395,7 @@ func inMap(k rune, m map[rune]bool) bool {
 	return ok
 }
 
-func typedVal(v []rune, st bool) interface{} {
+func typedVal(v []rune, st bool) any {
 	val := string(v)
 
 	if st {

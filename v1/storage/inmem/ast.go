@@ -28,7 +28,7 @@ func (u *updateAST) Remove() bool {
 	return u.remove
 }
 
-func (u *updateAST) Set(v interface{}) {
+func (u *updateAST) Set(v any) {
 	if v, ok := v.(ast.Value); ok {
 		u.value = v
 	} else {
@@ -36,7 +36,7 @@ func (u *updateAST) Set(v interface{}) {
 	}
 }
 
-func (u *updateAST) Value() interface{} {
+func (u *updateAST) Value() any {
 	return u.value
 }
 
@@ -46,7 +46,7 @@ func (u *updateAST) Relative(path storage.Path) dataUpdate {
 	return &cpy
 }
 
-func (u *updateAST) Apply(v interface{}) interface{} {
+func (u *updateAST) Apply(v any) any {
 	if len(u.path) == 0 {
 		return u.value
 	}
@@ -72,7 +72,7 @@ func (u *updateAST) Apply(v interface{}) interface{} {
 	return newV
 }
 
-func newUpdateAST(data interface{}, op storage.PatchOp, path storage.Path, idx int, value ast.Value) (*updateAST, error) {
+func newUpdateAST(data any, op storage.PatchOp, path storage.Path, idx int, value ast.Value) (*updateAST, error) {
 
 	switch data.(type) {
 	case ast.Null, ast.Boolean, ast.Number, ast.String:
@@ -174,7 +174,7 @@ func newUpdateObjectAST(data ast.Object, op storage.PatchOp, path storage.Path, 
 	return nil, errors.NewNotFoundError(path)
 }
 
-func interfaceToValue(v interface{}) (ast.Value, error) {
+func interfaceToValue(v any) (ast.Value, error) {
 	if v, ok := v.(ast.Value); ok {
 		return v, nil
 	}

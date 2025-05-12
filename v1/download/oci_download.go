@@ -60,7 +60,7 @@ func (d *OCIDownloader) WithCallback(f func(context.Context, Update)) *OCIDownlo
 
 // WithLogAttrs sets an optional set of key/value pair attributes to include in
 // log messages emitted by the downloader.
-func (d *OCIDownloader) WithLogAttrs(attrs map[string]interface{}) *OCIDownloader {
+func (d *OCIDownloader) WithLogAttrs(attrs map[string]any) *OCIDownloader {
 	d.logger = d.logger.WithFields(attrs)
 	return d
 }

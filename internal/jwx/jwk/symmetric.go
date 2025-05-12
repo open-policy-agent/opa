@@ -21,7 +21,7 @@ func newSymmetricKey(key []byte) (*SymmetricKey, error) {
 
 // Materialize returns the octets for this symmetric key.
 // Since this is a symmetric key, this just calls Octets
-func (s SymmetricKey) Materialize() (interface{}, error) {
+func (s SymmetricKey) Materialize() (any, error) {
 	return s.Octets(), nil
 }
 
