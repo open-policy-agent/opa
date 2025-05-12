@@ -1301,3 +1301,72 @@ func (p prometheusRegisterMock) Unregister(collector prometheus.Collector) bool 
 	delete(p.Collectors, collector)
 	return true
 }
+
+func TestPluginTerminatesAfterGracefulShutdownPeriodWithoutStatus(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	fixture := newTestFixture(t, nil)
+	defer fixture.server.stop()
+
+	if err := fixture.plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+
+	fixture.plugin.Stop(timeoutCtx)
+	if timeoutCtx.Err() != nil {
+		t.Fatal("Stop did not exit before context expiration")
+	}
+}
+
+func TestPluginTerminatesAfterGracefulShutdownPeriodWithStatus(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	fixture := newTestFixture(t, nil)
+	fixture.server.ch = make(chan UpdateRequestV1, 1)
+	defer fixture.server.stop()
+
+	// simplified status loop just to return done
+	// but doesn't read from the channels
+	go func() {
+		for {
+			select {
+			case done := <-fixture.plugin.stop:
+				done <- struct{}{}
+				return
+			}
+		}
+	}()
+
+	status := testStatus()
+	fixture.plugin.BulkUpdateBundleStatus(map[string]*bundle.Status{status.Name: status})
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+
+	fixture.plugin.Stop(timeoutCtx)
+	if timeoutCtx.Err() != nil {
+		t.Fatal("Stop did not exit before context expiration")
+	}
+
+	result := <-fixture.server.ch
+
+	exp := UpdateRequestV1{
+		Labels: map[string]string{
+			"id":      "test-instance-id",
+			"app":     "example-app",
+			"version": version.Version,
+		},
+		Bundles: map[string]*bundle.Status{status.Name: status},
+	}
+
+	if !result.Equal(exp) {
+		t.Fatalf("Expected: %v but got: %v", exp, result)
+	}
+}

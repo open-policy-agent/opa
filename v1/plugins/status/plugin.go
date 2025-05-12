@@ -10,11 +10,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	lstat "github.com/open-policy-agent/opa/v1/plugins/logs/status"
 	"maps"
 	"net/http"
 	"reflect"
-
-	lstat "github.com/open-policy-agent/opa/v1/plugins/logs/status"
 
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/metrics"
@@ -214,13 +213,13 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		config:         *parsedConfig,
 		bundleCh:       make(chan bundle.Status, statusBufferLimit),
 		bulkBundleCh:   make(chan map[string]*bundle.Status, statusBufferLimit),
-		discoCh:        make(chan bundle.Status),
-		decisionLogsCh: make(chan lstat.Status),
+		discoCh:        make(chan bundle.Status, statusBufferLimit),
+		decisionLogsCh: make(chan lstat.Status, statusBufferLimit),
 		stop:           make(chan chan struct{}),
 		reconfig:       make(chan reconfigure),
 		// we use a buffered channel here to avoid blocking other plugins
 		// when updating statuses
-		pluginStatusCh: make(chan map[string]*plugins.Status, 1),
+		pluginStatusCh: make(chan map[string]*plugins.Status, statusBufferLimit),
 		queryCh:        make(chan chan *UpdateRequestV1),
 		logger:         manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
 		trigger:        make(chan trigger),
@@ -271,13 +270,44 @@ func (p *Plugin) Start(ctx context.Context) error {
 }
 
 // Stop stops the plugin.
-func (p *Plugin) Stop(_ context.Context) {
+func (p *Plugin) Stop(ctx context.Context) {
 	p.logger.Info("Stopping status reporter.")
-	p.manager.UnregisterPluginStatusListener(Name)
+
 	done := make(chan struct{})
-	p.stop <- done
-	<-done
-	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
+
+	// stop the status plugin loop and flush any pending status updates
+	go func() {
+		p.manager.UnregisterPluginStatusListener(Name)
+		d := make(chan struct{})
+		p.stop <- d
+		<-d
+		p.flush(ctx)
+		done <- struct{}{}
+	}()
+
+	// wait for status plugin to shut down gracefully or timeout
+	select {
+	case <-done:
+		p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
+	case <-ctx.Done():
+		switch err := ctx.Err(); {
+		case errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled):
+			p.logger.Error("Status Plugin stopped with statuses possibly not sent.")
+		}
+	}
+}
+
+func (p *Plugin) flush(ctx context.Context) {
+	if !p.readBundleStatus() {
+		return
+	}
+
+	err := p.oneShot(ctx)
+	if err != nil {
+		p.logger.Error("%v.", err)
+	} else {
+		p.logger.Info("Final status update sent successfully.")
+	}
 }
 
 // UpdateBundleStatus notifies the plugin that the policy bundle was updated.
@@ -293,12 +323,12 @@ func (p *Plugin) BulkUpdateBundleStatus(status map[string]*bundle.Status) {
 
 // UpdateDiscoveryStatus notifies the plugin that the discovery bundle was updated.
 func (p *Plugin) UpdateDiscoveryStatus(status bundle.Status) {
-	p.discoCh <- status
+	util.PushFIFO(p.discoCh, status, p.metrics, statusBufferDropCounterName)
 }
 
 // UpdateDecisionLogsStatus notifies the plugin that status of a decision log upload event.
 func (p *Plugin) UpdateDecisionLogsStatus(status lstat.Status) {
-	p.decisionLogsCh <- status
+	util.PushFIFO(p.decisionLogsCh, status, p.metrics, statusBufferDropCounterName)
 }
 
 // UpdatePluginStatus notifies the plugin that a plugin status was updated.
@@ -418,15 +448,39 @@ func (p *Plugin) loop(ctx context.Context) {
 }
 
 // readBundleStatus is a non-blocking read to make sure the latest status is received
-func (p *Plugin) readBundleStatus() {
-	select {
-	case status := <-p.bulkBundleCh:
-		p.lastBundleStatuses = status
-	case status := <-p.bundleCh:
-		p.lastBundleStatus = &status
-	default:
+func (p *Plugin) readBundleStatus() bool {
+	var changed bool
+	if len(p.pluginStatusCh) != 0 {
+		p.lastPluginStatuses = <-p.pluginStatusCh
+		changed = true
 	}
+
+	if len(p.bulkBundleCh) != 0 {
+		p.lastBundleStatuses = <-p.bulkBundleCh
+		changed = true
+	}
+
+	if len(p.bundleCh) != 0 {
+		status := <-p.bundleCh
+		p.lastBundleStatus = &status
+		changed = true
+	}
+
+	if len(p.discoCh) != 0 {
+		status := <-p.discoCh
+		p.lastDiscoStatus = &status
+		changed = true
+	}
+
+	if len(p.decisionLogsCh) != 0 {
+		status := <-p.decisionLogsCh
+		p.lastDecisionLogsStatus = &status
+		changed = true
+	}
+
+	return changed
 }
+
 func (p *Plugin) oneShot(ctx context.Context) error {
 	req := p.snapshot()
 
