@@ -18,6 +18,7 @@ export default {
   EcosystemEmbed,
   EcosystemFeatureLink,
   PlaygroundExample,
+  RunSnippet,
   SideBySideColumn,
   SideBySideContainer,
   TabItem,
