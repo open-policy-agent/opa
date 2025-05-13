@@ -107,14 +107,14 @@ OPA policies are expressed in a high-level declarative language called Rego.
 Rego (pronounced "ray-go") is purpose-built for expressing policies over complex
 hierarchical data structures. For detailed information on Rego see the [Policy Language](./docs/policy-language) documentation.
 
-:::info
-💡 The examples below are interactive! If you edit the input data above
+:::tip
+The examples below are interactive! If you edit the input data above
 containing servers, networks, and ports, the output will change below.
 Similarly, if you edit the queries or rules in the examples below the output
 will change. As you read through this section, try changing the input, queries,
 and rules and observe the difference in output.
 
-💻 They can also be run locally on your machine using the [`opa eval` command, here are setup instructions.](#running-opa)
+They can also be run locally on your machine using the [`opa eval` command, here are setup instructions.](#running-opa)
 
 Note that the examples in this section try to represent the best practices.
 As such, they make use of keywords that are meant to become standard keywords
@@ -146,8 +146,10 @@ output := input.servers[0].protocols[0]
 
 <RunSnippet files="#input.json" command="data.servers.output"/>
 
-> 💡 You can use the same square bracket syntax if keys contain other than
-> `[a-zA-Z0-9_]`. E.g., `input["foo~bar"]`.
+:::tip
+You can use the same square bracket syntax if keys contain other than
+`[a-zA-Z0-9_]`. E.g., `input["foo~bar"]`.
+:::
 
 If you refer to a value that does not exist, OPA returns _undefined_. Undefined
 means that OPA was not able to find any results.
@@ -540,8 +542,8 @@ yet_another_rule := {
 
 <RunSnippet files="#input.json #public_networks.rego" command="data.another_package.yet_another_rule"/>
 
-:::info
-💡 You can query the value of any rule loaded into OPA by referring to it with an
+:::tip
+You can query the value of any rule loaded into OPA by referring to it with an
 absolute path. The path of a rule is always:
 `data.<package-path>.<rule-name>`.
 :::
@@ -697,8 +699,8 @@ shell_accessible if {
 
 <RunSnippet files="#input4.json" command="data.example.logical_or"/>
 
-:::info
-💡 The `default` keyword tells OPA to assign a value to the variable if all of
+:::tip
+The `default` keyword tells OPA to assign a value to the variable if all of
 the other rules with the same name are undefined.
 :::
 
@@ -723,8 +725,8 @@ shell_accessible contains server.id if {
 
 <RunSnippet files="#input4.json" command="data.example.logical_or"/>
 
-:::info
-💡 Check out this [blog post](https://www.styra.com/blog/how-to-express-or-in-rego/) that goes into much
+:::tip
+Check out this [blog post](https://www.styra.com/blog/how-to-express-or-in-rego/) that goes into much
 more detail on this topic showing different methods to express OR in idiomatic
 Rego for different use cases.
 :::
