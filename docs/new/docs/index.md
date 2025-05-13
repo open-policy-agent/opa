@@ -61,28 +61,30 @@ There are three kinds of components in the system:
 All the servers, networks, and ports are provisioned by a script. The script
 receives a JSON representation of the system as input:
 
-```live:example:input
+```json
 {
-    "servers": [
-        {"id": "app", "protocols": ["https", "ssh"], "ports": ["p1", "p2", "p3"]},
-        {"id": "db", "protocols": ["mysql"], "ports": ["p3"]},
-        {"id": "cache", "protocols": ["memcache"], "ports": ["p3"]},
-        {"id": "ci", "protocols": ["http"], "ports": ["p1", "p2"]},
-        {"id": "busybox", "protocols": ["telnet"], "ports": ["p1"]}
-    ],
-    "networks": [
-        {"id": "net1", "public": false},
-        {"id": "net2", "public": false},
-        {"id": "net3", "public": true},
-        {"id": "net4", "public": true}
-    ],
-    "ports": [
-        {"id": "p1", "network": "net1"},
-        {"id": "p2", "network": "net3"},
-        {"id": "p3", "network": "net2"}
-    ]
+  "servers": [
+    { "id": "app", "protocols": ["https", "ssh"], "ports": ["p1", "p2", "p3"] },
+    { "id": "db", "protocols": ["mysql"], "ports": ["p3"] },
+    { "id": "cache", "protocols": ["memcache"], "ports": ["p3"] },
+    { "id": "ci", "protocols": ["http"], "ports": ["p1", "p2"] },
+    { "id": "busybox", "protocols": ["telnet"], "ports": ["p1"] }
+  ],
+  "networks": [
+    { "id": "net1", "public": false },
+    { "id": "net2", "public": false },
+    { "id": "net3", "public": true },
+    { "id": "net4", "public": true }
+  ],
+  "ports": [
+    { "id": "p1", "network": "net1" },
+    { "id": "p2", "network": "net3" },
+    { "id": "p3", "network": "net2" }
+  ]
 }
 ```
+
+<RunSnippet id="input.json" />
 
 Earlier in the day your boss told you about a new security policy that has to be
 implemented:
@@ -122,29 +124,27 @@ at some point in time, but have been introduced gradually.
 
 ### References
 
-```live:example/refs:module:hidden
-package example
-```
-
 When OPA evaluates policies it binds data provided in the query to a global
 variable called `input`. You can refer to data in the input using the `.` (dot)
 operator.
 
-```live:example/refs/1:query:merge_down
-input.servers
+```rego
+package servers
+
+output := input.servers
 ```
 
-```live:example/refs/1:output
-```
+<RunSnippet files="#input.json" command="data.servers.output"/>
 
 To refer to array elements you can use the familiar square-bracket syntax:
 
-```live:example/refs/array:query:merge_down
-input.servers[0].protocols[0]
+```rego
+package servers
+
+output := input.servers[0].protocols[0]
 ```
 
-```live:example/refs/array:output
-```
+<RunSnippet files="#input.json" command="data.servers.output"/>
 
 > 💡 You can use the same square bracket syntax if keys contain other than
 > `[a-zA-Z0-9_]`. E.g., `input["foo~bar"]`.
@@ -152,39 +152,38 @@ input.servers[0].protocols[0]
 If you refer to a value that does not exist, OPA returns _undefined_. Undefined
 means that OPA was not able to find any results.
 
-```live:example/refs/undefined:query:merge_down
-input.deadbeef
+```rego
+package servers
+
+output := input.foobar
 ```
 
-```live:example/refs/undefined:output:expect_undefined
-```
+<RunSnippet files="#input.json" command="data.servers.output"/>
 
 ### Expressions (Logical AND)
-
-```live:example/exprs:module:hidden
-package example
-```
 
 To produce policy decisions in Rego you write expressions against input and
 other data.
 
-```live:example/exprs/eq:query:merge_down
-input.servers[0].id == "app"
+```rego
+package servers
+
+output := input.servers[0].id == "app"
 ```
 
-```live:example/exprs/eq:output
-```
+<RunSnippet files="#input.json" command="data.servers.output"/>
 
 OPA includes a set of built-in functions you can use to perform common
 operations like string manipulation, regular expression matching, arithmetic,
 aggregation, and more.
 
-```live:example/exprs/builtins:query:merge_down
-count(input.servers[0].protocols) >= 1
+```rego
+package servers
+
+output := count(input.servers[0].protocols) >= 1
 ```
 
-```live:example/exprs/builtins:output
-```
+<RunSnippet files="#input.json" command="data.servers.output"/>
 
 For a complete list of built-in functions supported in OPA out-of-the-box see
 the [Policy Reference](./docs/policy-reference) page.
@@ -193,95 +192,108 @@ Multiple expressions are joined together with the `;` (AND) operator. For
 queries to produce results, all of the expressions in the query must be true or
 defined. The order of expressions does not matter.
 
-```live:example/exprs/multi:query:merge_down
-input.servers[0].id == "app"; input.servers[0].protocols[0] == "https"
+```rego
+package servers
+
+output if {
+    input.servers[0].id == "app"; input.servers[0].protocols[0] == "https"
+}
 ```
 
-```live:example/exprs/multi:output
-```
+<RunSnippet files="#input.json" command="data.servers.output"/>
 
 You can omit the `;` (AND) operator by splitting expressions across multiple
 lines. The following query has the same meaning as the previous one:
 
-```live:example/exprs/multi_line:query:merge_down
-input.servers[0].id == "app"
-input.servers[0].protocols[0] == "https"
+```rego
+package servers
+
+output if {
+    input.servers[0].id == "app"
+    input.servers[0].protocols[0] == "https"
+}
 ```
 
-```live:example/exprs/multi_line:output
-```
+<RunSnippet files="#input.json" command="data.servers.output"/>
 
 If any of the expressions in the query are not true (or defined) the result is
 undefined. In the example below, the second expression is false:
 
-```live:example/exprs/multi_undefined:query:merge_down
-input.servers[0].id == "app"
-input.servers[0].protocols[0] == "telnet"
+```rego
+package servers
+
+output if {
+    input.servers[0].id == "app"
+    input.servers[0].protocols[0] == "telnet"
+}
 ```
 
-```live:example/exprs/multi_undefined:output:expect_undefined
-```
+<RunSnippet files="#input.json" command="data.servers.output"/>
 
 ### Variables
-
-```live:example/vars:module:hidden
-package example
-```
 
 You can store values in intermediate variables using the `:=` (assignment)
 operator. Variables can be referenced just like `input`.
 
-```live:example/vars/1:query:merge_down
-s := input.servers[0]
-s.id == "app"
-p := s.protocols[0]
-p == "https"
+```rego
+package servers
+
+output if {
+    s := input.servers[0]
+    s.id == "app"
+    p := s.protocols[0]
+    p == "https"
+}
 ```
 
-```live:example/vars/1:output
-```
+<RunSnippet files="#input.json" command="data.servers.output"/>
 
 When OPA evaluates expressions, it finds values for the variables that make all
 of the expressions true. If there are no variable assignments that make all of
 the expressions true, the result is undefined.
 
-```live:example/vars/undefined:query:merge_down
-s := input.servers[0]
-s.id == "app"
-s.protocols[1] == "telnet"
+```rego
+package servers
+
+output if {
+    s := input.servers[0]
+    s.id == "app"
+    s.protocols[1] == "telnet"
+}
 ```
 
-```live:example/vars/undefined:output:expect_undefined
-```
+<RunSnippet files="#input.json" command="data.servers.output"/>
 
 Variables are immutable. OPA reports an error if you try to assign the same
 variable twice.
 
-```live:example/vars/assign_error:query:merge_down
-s := input.servers[0]
-s := input.servers[1]
+```rego
+package servers
+
+output if {
+    s := input.servers[0]
+    s := input.servers[1]
+}
 ```
 
-```live:example/vars/assign_error:output:expect_assigned_above
-```
+<RunSnippet files="#input.json" command="data.servers.output"/>
 
 OPA must be able to enumerate the values for all variables in all expressions.
 If OPA cannot enumerate the values of a variable in any expression, OPA will
 report an error.
 
-```live:example/vars/unsafe:query:merge_down
-x := 1
-x != y  # y has not been assigned a value
+```rego
+package servers
+
+output if {
+    x := 1
+    x != y  # y has not been assigned a value
+}
 ```
 
-```live:example/vars/unsafe:output:expect_unsafe_var
-```
+<RunSnippet files="#input.json" command="data.servers.output"/>
 
 ### Iteration
-
-```live:example/iter:module:hidden
-package example
-```
 
 Like other declarative languages (e.g., SQL), iteration in Rego happens
 implicitly when you inject variables into expressions.
@@ -291,35 +303,27 @@ There are explicit iteration constructs to express _FOR ALL_ and _FOR SOME_, [se
 To understand how iteration works in Rego, imagine you need to check if any
 networks are public. Recall that the networks are supplied inside an array:
 
-```live:example/iter/recall:query:merge_down
-input.networks
+```rego
+package servers
+
+output := input.networks
 ```
 
-```live:example/iter/recall:output
+<RunSnippet files="#input.json" command="data.servers.output"/>
+
+One option would be to test each network in the input (which is undefined since
+networks 1 and 2 are not public):
+
+```rego
+package servers
+
+public_network if input.networks[0].public == true
+public_network if input.networks[1].public == true
+public_network if input.networks[2].public == true
+public_network if input.networks[3].public == true
 ```
 
-One option would be to test each network in the input:
-
-```live:example/iter/check_public_0:query:merge_down
-input.networks[0].public == true
-```
-
-```live:example/iter/check_public_0:output:merge_down
-```
-
-```live:example/iter/check_public_1:query:merge_down
-input.networks[1].public == true
-```
-
-```live:example/iter/check_public_1:output:merge_down
-```
-
-```live:example/iter/check_public_2:query:merge_down
-input.networks[2].public == true
-```
-
-```live:example/iter/check_public_2:output
-```
+<RunSnippet files="#input.json" command="data.servers.public_network"/>
 
 This approach is problematic because there may be too many networks to list
 statically, or more importantly, the number of networks may not be known in
@@ -327,12 +331,16 @@ advance.
 
 In Rego, the solution is to substitute the array index with a variable.
 
-```live:example/iter/1:query:merge_down
-some i; input.networks[i].public == true
+```rego
+package servers
+
+public_network if {
+    some i
+    input.networks[i].public == true
+}
 ```
 
-```live:example/iter/1:output
-```
+<RunSnippet files="#input.json" command="data.servers.public_network"/>
 
 Now the query asks for values of `i` that make the overall expression true. When
 you substitute variables in references, OPA automatically finds variable
@@ -342,48 +350,63 @@ intermediate variables, OPA returns the values of the variables.
 You can substitute as many variables as you want. For example, to find out if
 any servers expose the insecure `"http"` protocol you could write:
 
-```live:example/iter/double:query:merge_down
-some i, j; input.servers[i].protocols[j] == "http"
+```rego
+package servers
+
+http_server if {
+    some i, j
+    input.servers[i].protocols[j] == "http"
+}
 ```
 
-```live:example/iter/double:output
-```
-
-If variables appear multiple times the assignments satisfy all of the
-expressions. For example, to find the ids of ports connected to public networks,
-you could write:
-
-```live:example/iter/join:query:merge_down
-some i, j
-id := input.ports[i].id
-input.ports[i].network == input.networks[j].id
-input.networks[j].public
-```
-
-```live:example/iter/join:output
-```
+<RunSnippet files="#input.json" command="data.servers.http_server"/>
 
 Providing good names for variables can be hard. If you only refer to the
 variable once, you can replace it with the special `_` (wildcard variable)
 operator. Conceptually, each instance of `_` is a unique variable.
 
-```live:example/iter/wildcard:query:merge_down
-input.servers[_].protocols[_] == "http"
+```rego
+package servers
+
+http_server if {
+    input.servers[_].protocols[_] == "http"
+}
 ```
 
-```live:example/iter/wildcard:output
+<RunSnippet files="#input.json" command="data.servers.http_server"/>
+
+If variables appear multiple times the assignments satisfy all of the
+expressions. For example, to find the ids of ports connected to public networks,
+you could write:
+
+```rego
+package servers
+
+exposed_ports contains port_id if {
+    some i, j
+    port_id := input.ports[i].id
+    input.ports[i].network == input.networks[j].id
+    input.networks[j].public
+}
 ```
+
+<RunSnippet files="#input.json" command="data.servers.exposed_ports"/>
 
 Just like references that refer to non-existent fields or expressions that fail
 to match, if OPA is unable to find any variable assignments that satisfy all of
 the expressions, the result is undefined.
 
-```live:example/iter/undefined:query:merge_down
-some i; input.servers[i].protocols[i] == "ssh"  # there is no assignment of i that satisfies the expression
+```rego
+package servers
+
+ssh_server if {
+    some i
+    # there is no assignment of i that satisfies the expression
+    input.servers[i].protocols[i] == "ssh"
+}
 ```
 
-```live:example/iter/undefined:output:expect_undefined
-```
+<RunSnippet files="#input.json" command="data.servers.ssh_server"/>
 
 #### FOR SOME and FOR ALL
 
@@ -398,7 +421,9 @@ It introduces new bindings to the evaluation of the rest of the rule body.
 
 Using `some`, we can express the rules introduced above in different ways:
 
-```live:example/iter/some1:module:merge_down
+```rego
+package servers
+
 public_network contains net.id if {
     some net in input.networks # some network exists and..
     net.public                 # it is public.
@@ -415,70 +440,48 @@ shell_accessible contains server.id if {
 }
 ```
 
-```live:example/iter/some1:query:merge_down
-shell_accessible
-```
+<RunSnippet files="#input.json" command="data.servers.shell_accessible"/>
 
-```live:example/iter/some1:output
-```
-
-For details on `some ... in ...`, see [the documentation of the `in` operator](./docs/policy-language/#membership-and-iteration-in).
+For details on `some ... in ...`, see
+[the documentation of the `in` operator](./docs/policy-language/#membership-and-iteration-in).
 
 ##### FOR ALL (`every`)
 
 Expanding on the examples above, `every` allows us to succinctly express that
 a condition holds for all elements of a domain.
 
-```live:example/iter/every2:module:merge_down
-no_telnet_exposed if {
-    every server in input.servers {
-        every protocol in server.protocols {
-            "telnet" != protocol
-        }
+```json title="Edit with the input to add a 'telnet' protocol to a server"
+{
+  "servers": [
+    {
+      "id": "busybox",
+      "protocols": ["http", "ftp"]
+    },
+    {
+      "id": "db",
+      "protocols": ["mysql", "ssh"]
+    },
+    {
+      "id": "web",
+      "protocols": ["https"]
     }
+  ]
 }
+```
 
-no_telnet_exposed_alt if { # alternative: every + not-in
+<RunSnippet id="input2.json" />
+
+```rego
+package servers
+
+no_telnet_exposed if {
     every server in input.servers {
         not "telnet" in server.protocols
     }
 }
-
-no_telnet_exposed_alt2 if { # alternative: not + rule + some
-    not any_telnet_exposed
-}
-
-any_telnet_exposed if {
-    some server in input.servers
-    "telnet" in server.protocols
-}
 ```
 
-```live:example/iter/every2:input:merge_down
-{
-    "servers": [
-        {
-            "id": "busybox",
-            "protocols": ["http", "ftp"]
-        },
-        {
-            "id": "db",
-            "protocols": ["mysql", "ssh"]
-        },
-        {
-            "id": "web",
-            "protocols": ["https"]
-        }
-    ]
-}
-```
-
-```live:example/iter/every2:query:merge_down
-no_telnet_exposed
-```
-
-```live:example/iter/every2:output
-```
+<RunSnippet files="#input2.json" command="data.servers.no_telnet_exposed"/>
 
 For all the details, see [Every Keyword](./docs/policy-language/#every-keyword).
 
@@ -487,21 +490,21 @@ For all the details, see [Every Keyword](./docs/policy-language/#every-keyword).
 Rego lets you encapsulate and re-use logic with rules. Rules are just if-then
 logic statements. Rules can either be "complete" or "partial".
 
-```live:example/complete:module:hidden
-package example.rules
-```
-
 #### Complete Rules
 
 Complete rules are if-then statements that assign a single value to a variable.
 For example:
 
-```live:example/complete/1:module:openable
+```rego
+package rules
+
 any_public_networks := true if {
     some net in input.networks # some network exists and..
     net.public                 # it is public.
 }
 ```
+
+<RunSnippet files="#input.json" command="data.rules.any_public_networks"/>
 
 Every rule consists of a _head_ and a _body_. In Rego we say the rule head
 is true _if_ the rule body is true for some set of variable assignments. In
@@ -509,30 +512,44 @@ the example above `any_public_networks := true` is the head and `some net in inp
 
 You can query for the value generated by rules just like any other value:
 
-```live:example/complete/1:query
-any_public_networks
+```rego
+package rules
+
+any_public_networks := true if {
+    some net in input.networks # some network exists and..
+    net.public                 # it is public.
+}
+
+another_rule := {
+    "public_networks": any_public_networks,
+}
 ```
 
-```live:example/complete/1:output
+<RunSnippet id="public_networks.rego" files="#input.json" command="data.rules.another_rule"/>
+
+All values generated by rules can be queried via the global `data` variable from
+other packages loaded into OPA.
+
+```rego
+package another_package
+
+yet_another_rule := {
+    "public_networks": data.rules.any_public_networks,
+}
 ```
 
-All values generated by rules can be queried via the global `data` variable.
+<RunSnippet files="#input.json #public_networks.rego" command="data.another_package.yet_another_rule"/>
 
-```live:example/complete/1/abs:query:merge_down
-data.example.rules.any_public_networks
-```
-
-```live:example/complete/1/abs:output:merge_down
-```
-
-> 💡 You can query the value of any rule loaded into OPA by referring to it with an
-> absolute path. The path of a rule is always:
-> `data.<package-path>.<rule-name>`.
+:::info
+💡 You can query the value of any rule loaded into OPA by referring to it with an
+absolute path. The path of a rule is always:
+`data.<package-path>.<rule-name>`.
+:::
 
 If you omit the `= <value>` part of the rule head the value defaults to `true`.
 You could rewrite the example above as follows without changing the meaning:
 
-```live:example/complete/elided:module:read_only,openable
+```rego
 any_public_networks if {
     some net in input.networks
     net.public
@@ -542,19 +559,18 @@ any_public_networks if {
 To define constants, omit the rule body. When you omit the rule body it defaults
 to `true`. Since the rule body is true, the rule head is always true/defined.
 
-```live:example/complete_constant:module:openable
+```rego
 package example.constants
 
 pi := 3.14
 ```
 
+<RunSnippet command="data.example.constants.pi"/>
+
 Constants defined like this can be queried just like any other values:
 
-```live:example/complete_constant:query:merge_down
+```rego
 pi > 3
-```
-
-```live:example/complete_constant:output
 ```
 
 If OPA cannot find variable assignments that satisfy the rule body, we say that
@@ -563,86 +579,70 @@ include a public network then `any_public_networks` will be undefined (which is
 not the same as false.) Below, OPA is given a different set of input networks
 (none of which are public):
 
-```live:example/complete/1/undefined:input:merge_down
+```json
 {
-    "networks": [
-        {"id": "n1", "public": false},
-        {"id": "n2", "public": false}
-    ]
+  "networks": [
+    { "id": "n1", "public": false },
+    { "id": "n2", "public": false }
+  ]
 }
 ```
 
-```live:example/complete/1/undefined:query:merge_down
-any_public_networks
+<RunSnippet id="input3.json" />
+
+```rego
+package rules
+
+any_public_networks if {
+    some net in input.networks
+    net.public
+}
 ```
 
-```live:example/complete/1/undefined:output:expect_undefined
-```
+<RunSnippet files="#input3.json" command="data.rules.any_public_networks"/>
 
 #### Partial Rules
-
-```live:example/partial_set:module:hidden
-package example
-```
 
 Partial rules are if-then statements that generate a set of values and
 assign that set to a variable. For example:
 
-```live:example/partial_set/1:module:openable
+```rego
+package example
+
 public_network contains net.id if {
     some net in input.networks # some network exists and..
     net.public                 # it is public.
 }
 ```
 
+<RunSnippet id="public_network_set.rego" files="#input.json" command="data.example"/>
+
 In the example above `public_network contains net.id if` is the rule head and
 `some net in input.networks; net.public` is the rule body. You can query for the entire
-set of values just like any other value:
+set of values just like any other value. Using the `in` keyword we can use this
+list to test if some other value is in the set defined by `public_network`:
 
-```live:example/partial_set/1/extent:query:merge_down
-public_network
+```rego
+package example
+
+allow if "net3" in public_network
 ```
 
-```live:example/partial_set/1/extent:output
-```
-
-Iteration over the set of values can be done with the `some ... in ...` expression:
-
-```live:example/partial_set/1/iteration_some:query:merge_down
-some net in public_network
-```
-
-```live:example/partial_set/1/iteration_some:output
-```
-
-With a literal, or a bound variable, you can check if the value exists in the set
-via `... in ...`:
-
-```live:example/partial_set/1/exists_in:query:merge_down
-"net3" in public_network
-```
-
-```live:example/partial_set/1/exists_in:output
-```
+<RunSnippet files="#input.json #public_network_set.rego" command="data.example.allow"/>
 
 You can also iterate over the set of values by referencing the set elements with a
 variable:
 
-```live:example/partial_set/1/iteration:query:merge_down
-some n; public_network[n]
+```rego
+package example
+
+allow if {
+    some net in public_network
+    net == "net3"
+}
 ```
 
-```live:example/partial_set/1/iteration:output
-```
-
-Lastly, you can check if a value exists in the set using the same syntax:
-
-```live:example/partial_set/1/exists:query:merge_down
-public_network["net3"]
-```
-
-```live:example/partial_set/1/exists:output
-```
+<RunSnippet files="#input.json #public_network_set.rego" command="data.example.allow"/>
 
 In addition to partially defining sets, You can also partially define key/value
 pairs (aka objects). See
@@ -660,7 +660,28 @@ shell access. To determine this you could define a complete rule that declares
 `shell_accessible` to be `true` if any servers expose the `"telnet"` or `"ssh"`
 protocols:
 
-```live:example/logical_or/complete:module:openable,merge_down
+```json title="Input with telnet and ssh"
+{
+  "servers": [
+    {
+      "id": "busybox",
+      "protocols": ["http", "telnet"]
+    },
+    {
+      "id": "db",
+      "protocols": ["mysql", "ssh"]
+    },
+    {
+      "id": "web",
+      "protocols": ["https"]
+    }
+  ]
+}
+```
+
+<RunSnippet id="input4.json" />
+
+```rego
 package example.logical_or
 
 default shell_accessible := false
@@ -674,37 +695,19 @@ shell_accessible if {
 }
 ```
 
-```live:example/logical_or/complete:input:merge_down
-{
-    "servers": [
-        {
-            "id": "busybox",
-            "protocols": ["http", "telnet"]
-        },
-        {
-            "id": "web",
-            "protocols": ["https"]
-        }
-    ]
-}
-```
+<RunSnippet files="#input4.json" command="data.example.logical_or"/>
 
-```live:example/logical_or/complete:query:merge_down
-shell_accessible
-```
-
-```live:example/logical_or/complete:output
-```
-
-> 💡 The `default` keyword tells OPA to assign a value to the variable if all of
-> the other rules with the same name are undefined.
+:::info
+💡 The `default` keyword tells OPA to assign a value to the variable if all of
+the other rules with the same name are undefined.
+:::
 
 When you use logical OR with partial rules, each rule definition contributes
 to the set of values assigned to the variable. For example, the example above
 could be modified to generate a set of servers that expose `"telnet"` or
 `"ssh"`.
 
-```live:example/logical_or/partial_set:module:openable,merge_down
+```rego
 package example.logical_or
 
 shell_accessible contains server.id if {
@@ -718,35 +721,12 @@ shell_accessible contains server.id if {
 }
 ```
 
-```live:example/logical_or/partial_set:input:merge_down
-{
-    "servers": [
-        {
-            "id": "busybox",
-            "protocols": ["http", "telnet"]
-        },
-        {
-            "id": "db",
-            "protocols": ["mysql", "ssh"]
-        },
-        {
-            "id": "web",
-            "protocols": ["https"]
-        }
-    ]
-}
-```
-
-```live:example/logical_or/partial_set:query:merge_down
-shell_accessible
-```
-
-```live:example/logical_or/partial_set:output
-```
+<RunSnippet files="#input4.json" command="data.example.logical_or"/>
 
 :::info
-💡 There's a [blog post](https://www.styra.com/blog/how-to-express-or-in-rego/) that goes into much more detail
-on this topic showing different methods to express OR in idiomatic Rego for different use cases.
+💡 Check out this [blog post](https://www.styra.com/blog/how-to-express-or-in-rego/) that goes into much
+more detail on this topic showing different methods to express OR in idiomatic
+Rego for different use cases.
 :::
 
 <!---TBD: explain conflicts --->
@@ -763,46 +743,40 @@ let's review the desired policy (in English):
 
 At a high-level the policy needs to identify servers that violate some
 conditions. To implement this policy we could define rules called `violation`
-that generate a set of servers that are in violation.
+that generate a set of servers that are in violation. For example:
 
-For example:
-
-```live:example/final:module:openable,merge_down
+```rego
 package example
 
-allow if {                                          # allow is true if...
-    count(violation) == 0                           # there are zero violations.
+violation contains message if {   # a server is in the violation set if...
+    some server in public_servers # it exists in the 'public_servers' set and...
+    "http" in server.protocols    # it contains the insecure "http" protocol.
+    message := sprintf("server %s exposes http", [server.id])
 }
 
-violation contains server.id if {                   # a server is in the violation set if...
-    some server in public_servers                   # it exists in the 'public_servers' set and...
-    "http" in server.protocols                      # it contains the insecure "http" protocol.
+violation contains message if {  # a server is in the violation set if...
+    some server in input.servers # it exists in the input.servers collection and...
+    "telnet" in server.protocols # it contains the "telnet" protocol.
+    message := sprintf("server %s exposes telnet", [server.id])
 }
 
-violation contains server.id if {                   # a server is in the violation set if...
-    some server in input.servers                    # it exists in the input.servers collection and...
-    "telnet" in server.protocols                    # it contains the "telnet" protocol.
-}
+public_servers contains server if { # a server exists in the public_servers set if...
+    some server in input.servers    # it exists in the input.servers collection and...
 
-public_servers contains server if {                 # a server exists in the public_servers set if...
-    some server in input.servers                    # it exists in the input.servers collection and...
-
-    some port in server.ports                       # it references a port in the input.ports collection and...
+    some port in server.ports       # it references a port in the input.ports collection and...
     some input_port in input.ports
     port == input_port.id
 
-    some input_network in input.networks            # the port references a network in the input.networks collection and...
+    # the port references a network in the input.networks collection and...
+    some input_network in input.networks
     input_port.network == input_network.id
-    input_network.public                            # the network is public.
+
+    # the network is public.
+    input_network.public
 }
 ```
 
-```live:example/final:query:merge_down
-some x; violation[x]
-```
-
-```live:example/final:output
-```
+<RunSnippet files="#input.json" command="data.example.violation"/>
 
 ## Running OPA
 
@@ -879,34 +853,30 @@ Commonly used flags include:
 
 For example:
 
-**input.json**:
-
-```live:example/using_opa:input
+```json title="input.json"
 {
-    "servers": [
-        {"id": "app", "protocols": ["https", "ssh"], "ports": ["p1", "p2", "p3"]},
-        {"id": "db", "protocols": ["mysql"], "ports": ["p3"]},
-        {"id": "cache", "protocols": ["memcache"], "ports": ["p3"]},
-        {"id": "ci", "protocols": ["http"], "ports": ["p1", "p2"]},
-        {"id": "busybox", "protocols": ["telnet"], "ports": ["p1"]}
-    ],
-    "networks": [
-        {"id": "net1", "public": false},
-        {"id": "net2", "public": false},
-        {"id": "net3", "public": true},
-        {"id": "net4", "public": true}
-    ],
-    "ports": [
-        {"id": "p1", "network": "net1"},
-        {"id": "p2", "network": "net3"},
-        {"id": "p3", "network": "net2"}
-    ]
+  "servers": [
+    { "id": "app", "protocols": ["https", "ssh"], "ports": ["p1", "p2", "p3"] },
+    { "id": "db", "protocols": ["mysql"], "ports": ["p3"] },
+    { "id": "cache", "protocols": ["memcache"], "ports": ["p3"] },
+    { "id": "ci", "protocols": ["http"], "ports": ["p1", "p2"] },
+    { "id": "busybox", "protocols": ["telnet"], "ports": ["p1"] }
+  ],
+  "networks": [
+    { "id": "net1", "public": false },
+    { "id": "net2", "public": false },
+    { "id": "net3", "public": true },
+    { "id": "net4", "public": true }
+  ],
+  "ports": [
+    { "id": "p1", "network": "net1" },
+    { "id": "p2", "network": "net3" },
+    { "id": "p3", "network": "net2" }
+  ]
 }
 ```
 
-**example.rego**:
-
-```live:example/using_opa:module:openable,read_only
+```rego title="example.rego"
 package example
 
 default allow := false                              # unless otherwise defined, allow is false
@@ -961,7 +931,7 @@ To start the REPL just:
 
 When you enter statements in the REPL, OPA evaluates them and prints the result.
 
-```ruby
+```rego
 > true
 true
 > 3.14
@@ -977,14 +947,14 @@ Most REPLs let you define variables that you can reference later on. OPA allows
 you to do something similar. For example, you can define a `pi` constant as
 follows:
 
-```ruby
+```rego
 > pi := 3.14
 ```
 
 Once `pi` is defined, you query for the value and write expressions in terms of
 it:
 
-```ruby
+```rego
 > pi
 3.14
 > pi > 3
@@ -993,38 +963,38 @@ true
 
 Quit out of the REPL by pressing Control-D or typing `exit`:
 
-```ruby
+```rego
 > exit
 ```
 
 You can load policy and data files into the REPL by passing them on the command
 line. By default, JSON and YAML files are rooted under `data`.
 
-```
+```shell
 opa run input.json
 ```
 
 Run a few queries to poke around the data:
 
-```ruby
+```rego
 > data.servers[0].protocols[1]
 ```
 
-```ruby
+```rego
 > data.servers[i].protocols[j]
 ```
 
-```ruby
+```rego
 > net := data.networks[_]; net.public
 ```
 
 To set a data file as the `input` document in the REPL prefix the file path:
 
-```bash
+```shell
 opa run example.rego repl.input:input.json
 ```
 
-```ruby
+```rego
 > data.example.public_servers[s]
 ```
 
@@ -1037,7 +1007,7 @@ for details in the REPL.
 
 Quit out of the REPL by pressing Control-D or typing `exit`:
 
-```ruby
+```rego
 > exit
 ```
 
@@ -1107,14 +1077,14 @@ OPA can be embedded inside Go programs as a library. The simplest way to embed
 OPA as a library is to import the `github.com/open-policy-agent/opa/rego`
 package.
 
-```golang
+```go
 import "github.com/open-policy-agent/opa/rego"
 ```
 
 Call the `rego.New` function to create an object that can be prepared or
 evaluated:
 
-```golang
+```go
 r := rego.New(
     rego.Query("x = data.example.allow"),
     rego.Load([]string{"./example.rego"}, nil))
@@ -1127,7 +1097,7 @@ details. After constructing a new `rego.Rego` object you can call
 indicates one of the options passed to the `rego.New()` call was invalid (e.g.,
 parse error, compile error, etc.)
 
-```golang
+```go
 ctx := context.Background()
 query, err := r.PrepareForEval(ctx)
 if err != nil {
@@ -1139,7 +1109,7 @@ The prepared query object can be cached in-memory, shared across multiple
 goroutines, and invoked repeatedly with different inputs. Call `Eval()` to
 execute the prepared query.
 
-```golang
+```go
 bs, err := ioutil.ReadFile("./input.json")
 if err != nil {
     // handle error
@@ -1160,7 +1130,7 @@ if err != nil {
 The policy decision is contained in the results returned by the `Eval()` call.
 You can inspect the decision and handle it accordingly:
 
-```golang
+```go
 // In this example we expect a single result (stored in the variable 'x').
 fmt.Println("Result:", rs[0].Bindings["x"])
 ```
@@ -1168,9 +1138,7 @@ fmt.Println("Result:", rs[0].Bindings["x"])
 You can combine the steps above into a simple command-line program that
 evaluates policies and outputs the result:
 
-**main.go**:
-
-```golang
+```go title="main.go"
 package main
 
 import (
@@ -1180,11 +1148,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/v1/rego"
 )
 
 func main() {
-
 	ctx := context.Background()
 
 	// Construct a Rego object that can be prepared or evaluated.
@@ -1219,7 +1186,7 @@ func main() {
 
 Run the code above as follows:
 
-```bash
+```shell
 go run main.go example.rego 'data.example.violation' < input.json
 ```
 
