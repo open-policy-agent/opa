@@ -1,5 +1,6 @@
 ---
 title: "Overview & Architecture"
+sidebar_position: 1
 ---
 
 In Kubernetes, [Admission Controllers](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/)
@@ -67,7 +68,7 @@ OPA evaluates the policies it has loaded using the admission review as `input`.
 For example, the following policy denies objects that include container images
 referring to illegal registries:
 
-```live:container_image:module:openable
+```rego
 package kubernetes.admission
 
 deny contains reason if {
@@ -86,14 +87,7 @@ input_containers contains container if {
 }
 ```
 
-When `deny` is evaluated with the input defined below the answer is:
-
-```live:container_image:query:hidden
-deny
-```
-
-```live:container_image:output
-```
+<RunSnippet files="#input.json" command="data.kubernetes.admission.deny" />
 
 The `input` document contains the following fields:
 
@@ -108,7 +102,7 @@ The `input` document contains the following fields:
 
 Here is an example of a Pod being created:
 
-```live:container_image:input
+```json title="input.json"
 {
   "kind": "AdmissionReview",
   "apiVersion": "admission.k8s.io/v1",
@@ -218,11 +212,13 @@ Here is an example of a Pod being created:
 }
 ```
 
+<RunSnippet id="input.json"/>
+
 The policies you give to OPA ultimately generate an admission review response
 that is sent back to the API Server. Here is an example of the policy decision
 sent back to the API Server.
 
-```json
+```json title="response"
 {
   "kind": "AdmissionReview",
   "apiVersion": "admission.k8s.io/v1",

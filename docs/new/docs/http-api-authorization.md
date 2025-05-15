@@ -28,14 +28,12 @@ Create a policy that allows users to request their own salary as well as the sal
 
 **First** create a directory named `bundles` and cd into it.
 
-```sh
+```shell
 mkdir bundles
 cd bundles
 ```
 
-**example.rego**:
-
-```live:example:module:openable
+```rego title=example.rego"
 package httpapi.authz
 
 # bob is alice's manager, and betty is charlie's.
@@ -58,6 +56,8 @@ allow if {
 }
 ```
 
+<RunSnippet id="example.rego" />
+
 **Then**, build a bundle.
 
 ```shell
@@ -69,11 +69,9 @@ You should now see a policy bundle (`bundle.tar.gz`) in your working directory (
 
 ### 2. Bootstrap the tutorial environment using Docker Compose.
 
-Next, create a `docker-compose.yml` file that runs OPA, a bundle server and the demo web server.
+Next, create a `docker-compose.yaml` file that runs OPA, a bundle server and the demo web server.
 
-**docker-compose.yml**:
-
-```yaml
+```yaml title="docker-compose.yaml"
 version: "2"
 services:
   opa:
@@ -118,7 +116,7 @@ Then run `docker-compose` to pull and run the containers.
 **NOTE:** if running "Docker Desktop" (Mac or Windows) you may instead use the `docker compose` command.
 
 ```shell
-docker-compose -f docker-compose.yml up
+docker-compose -f docker-compose.yaml up
 ```
 
 :::info
@@ -167,7 +165,7 @@ curl --user alice:password localhost:5000/finance/salary/alice
 The webserver queries OPA to authorize the request. In the query, the webserver
 includes JSON data describing the incoming request.
 
-```live:example:input
+```json title="input.json"
 {
   "method": "GET",
   "path": ["finance", "salary", "alice"],
@@ -175,18 +173,19 @@ includes JSON data describing the incoming request.
 }
 ```
 
+<RunSnippet id="input.json" />
+
 When the webserver queries OPA it asks for a specific policy decision. In this
 case, the integration is hardcoded to ask for `/v1/data/httpapi/authz`. OPA
 translates this URL path into a query:
 
-```live:example:query
-data.httpapi.authz
+```rego
+package example
+
+result := data.httpapi.authz
 ```
 
-The answer returned by OPA for the input above is:
-
-```live:example:output
-```
+<RunSnippet files="#input.json #example.rego" command="data.example" />
 
 ### 4. Check that `bob` can see `alice`'s salary (because `bob` is `alice`'s manager.)
 
@@ -208,9 +207,7 @@ Suppose the organization now includes an HR department. The organization wants
 members of HR to be able to see any salary. Let's extend the policy to handle
 this.
 
-**example-hr.rego**:
-
-```live:hr_example:module:read_only,openable
+```rego title="example-hr.rego"
 package httpapi.authz
 
 # Allow HR members to get anyone's salary.
@@ -232,7 +229,7 @@ opa build example.rego example-hr.rego
 
 The updated bundle will automatically be served by the bundle server, but note that it might take up to the
 configured `max_delay_seconds` for the new bundle to be downloaded by OPA. If you plan to make frequent policy
-changes you might want to adjust this value in `docker-compose.yml` accordingly.
+changes you might want to adjust this value in `docker-compose.yaml` accordingly.
 
 For the sake of the tutorial we included `manager_of` and `hr` data directly
 inside the policies. In real-world scenarios that information would be imported
@@ -255,9 +252,7 @@ OPA supports the parsing of JSON Web Tokens via the builtin function `io.jwt.dec
 To get a sense of one way the subordinate and HR data might be communicated in the
 real world, let's try a similar exercise utilizing the JWT utilities of OPA.
 
-**example-jwt.rego**:
-
-```live:jwt_example:module:openable
+```rego title="example-jwt.rego"
 package httpapi.authz
 
 default allow := false
@@ -297,12 +292,13 @@ token := {"payload": payload} if {
 }
 ```
 
-```live:jwt_example:input:hidden
+```json title="input.json"
 {
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWxpY2UiLCJhenAiOiJhbGljZSIsInN1Ym9yZGluYXRlcyI6W10sImhyIjpmYWxzZX0.rz3jTY033z-NrKfwrK89_dcLF7TN4gwCMj-fVBDyLoM",
   "method": "GET",
   "path": ["finance", "salary", "alice"],
   "user": "alice"
+}
 ```
 
 Build a new bundle for the new policy.

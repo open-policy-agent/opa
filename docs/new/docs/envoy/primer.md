@@ -10,7 +10,7 @@ This page covers how to write policies for the content of the requests that are 
 
 Let's start with an example policy that restricts access to an endpoint based on a user's role and permissions.
 
-```live:bool_example:module:openable
+```rego
 package envoy.authz
 
 import input.attributes.request.http
@@ -54,6 +54,8 @@ token := {"valid": valid, "payload": payload} if {
 }
 ```
 
+<RunSnippet id="authz.rego"/>
+
 The first line `package envoy.authz` declaration gives the (hierarchical) name `envoy.authz` to the rules in the
 remainder of the policy. If the OPA-Envoy [configuration](../#configuration) does not specify the `path`
 field, `envoy/authz/allow` will be considered as the default policy decision path. `data.envoy.authz.allow` will be the
@@ -61,19 +63,23 @@ name of the policy decision to query in the default case.
 
 The above policy uses the `io.jwt.decode_verify` builtin function to parse and verify the JWT containing
 information about the user making the request. It uses other builtins like `glob.match`, `lower`, `base64url.decode` etc.
-OPA has 150+ builtins detailed at [openpolicyagent.org/docs/policy-reference](../policy-reference).
+OPA has 150+ builtins detailed in the [policy reference](../policy-reference).
 
 The dot notation seen in multiple places in the policy for ex. `input.parsed_body.firstname` simply descends through
 the hierarchy to access the requested value. The dot (.) operator never throws any errors; if the path does not exist
 the value of the expression is `undefined`.
 
-```live:bool_example:query:hidden
-data.envoy.authz.allow
+```rego
+package example
+
+result := data.envoy.authz.allow
 ```
 
-Sample input received by OPA is shown below:
+<RunSnippet files="#input.json #authz.rego" command="data.envoy.authz" />
 
-```live:bool_example:input
+Sample input received by the policy is shown below:
+
+```json
 {
   "attributes": {
     "request": {
@@ -81,7 +87,7 @@ Sample input received by OPA is shown below:
         "method": "GET",
         "path": "/people/",
         "headers": {
-          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiZ3Vlc3QiLCJzdWIiOiJZV3hwWTJVPSIsIm5iZiI6MTUxNDg1MTEzOSwiZXhwIjoxNjQxMDgxNTM5fQ.K5DnnbbIOspRbpCr2IKXE9cPVatGOCBrBQobQmBmaeU"
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiZ3Vlc3QiLCJzdWIiOiJZV3hwWTJVPSIsIm5iZiI6MTUxNDg1MTEzOSwiZXhwIjoyMDYyODQwNDY0fQ.1KwYoZe7DdhAAQ1H2J5pI9HiSKbHATIQlDTYvT-e29M"
         }
       }
     }
@@ -89,10 +95,7 @@ Sample input received by OPA is shown below:
 }
 ```
 
-With the input value above, the answer is:
-
-```live:bool_example:output
-```
+<RunSnippet id="input.json"/>
 
 ## Example Policy with Additional Controls
 
@@ -107,7 +110,7 @@ If you want, you can also control the HTTP status sent to the upstream or downst
 - `dynamic_metadata` is an object whose keys are strings and values can be booleans, strings, numbers, arrays, or objects. It will set the `DynamicMetadata` in the `CheckResponse` returned by the `opa-envoy-plugin` and can be consumed elsewhere in the envoy filter chain.
 - `query_parameters_to_set` is an object whose keys are strings and values can be strings or arrays of strings. It defines the query parameters to be added or modified in the request before dispatching it to the upstream when a request is allowed. When a value is an array, it represents multiple values for the same parameter key.
 
-```live:obj_example:module:openable
+```rego
 package envoy.authz
 
 import input.attributes.request.http
@@ -174,13 +177,11 @@ token := {"valid": valid, "payload": payload} if {
 }
 ```
 
-```live:obj_example:query:hidden
-data.envoy.authz
-```
+<RunSnippet files="#input2.json" command="data.envoy.authz" />
 
-Sample input received by OPA is shown below:
+Sample input received by the policy is shown below:
 
-```live:obj_example:input
+```json
 {
   "attributes": {
     "request": {
@@ -188,7 +189,7 @@ Sample input received by OPA is shown below:
         "method": "GET",
         "path": "/people",
         "headers": {
-          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiZ3Vlc3QiLCJzdWIiOiJZV3hwWTJVPSIsIm5iZiI6MTUxNDg1MTEzOSwiZXhwIjoxNjQxMDgxNTM5fQ.K5DnnbbIOspRbpCr2IKXE9cPVatGOCBrBQobQmBmaeU"
+          "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiZ3Vlc3QiLCJzdWIiOiJZV3hwWTJVPSIsIm5iZiI6MTUxNDg1MTEzOSwiZXhwIjoyMDYyODQwNjEwfQ.vIX2U9Mp9L5c6DS4JkqtSUrUkhxrI9zMFOr0Xs1cWPo"
         }
       }
     }
@@ -196,10 +197,7 @@ Sample input received by OPA is shown below:
 }
 ```
 
-With the input value above, the value of all the variables in the package are:
-
-```live:obj_example:output
-```
+<RunSnippet id="input2.json"/>
 
 ## Output Document
 
@@ -245,7 +243,7 @@ Also, needless nesting of `oneof` values is removed.
 
 For example, source address data that looks like this in v2,
 
-```
+```json
 "source": {
   "address": {
     "Address": {
@@ -260,9 +258,9 @@ For example, source address data that looks like this in v2,
 }
 ```
 
-becomes, in v3,
+Becomes, this in v3,
 
-```
+```json
 "source": {
   "address": {
     "socketAddress": {

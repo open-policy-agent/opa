@@ -49,7 +49,7 @@ In this example, RBAC makes the following authorization decisions:
 With OPA, you can write the following snippets to implement the
 example RBAC policy shown above.
 
-```live:rbac:module:openable
+```rego
 package rbac.authz
 
 # user-role assignments
@@ -68,6 +68,7 @@ role_permissions := {
 
 # logic that implements RBAC.
 default allow := false
+
 allow if {
     # lookup the list of roles for the user
     roles := user_roles[input.user]
@@ -82,13 +83,9 @@ allow if {
 }
 ```
 
-```live:rbac:query:hidden
-allow
-```
+<RunSnippet files="#input.json" command="data.rbac.authz" />
 
-As you can see, querying the `allow` rule with the following input
-
-```live:rbac:input
+```json
 {
   "user": "bob",
   "action": "read",
@@ -96,10 +93,7 @@ As you can see, querying the `allow` rule with the following input
 }
 ```
 
-Results in the response you'd expect.
-
-```live:rbac:output
-```
+<RunSnippet id="input.json"/>
 
 ### RBAC Separation of duty (SOD)
 
@@ -119,7 +113,7 @@ but it does let you express SOD constraints and ask for all SOD violations,
 as shown below. (Here we assume the statements below are added to the RBAC
 statements above.)
 
-```live:rbac/sod:module:openable
+```rego
 # Pairs of roles that no user can be assigned to simultaneously
 sod_roles := [
 	["create-payment", "approve-payment"],
@@ -178,7 +172,7 @@ An example ABAC policy in english might be:
 
 OPA supports ABAC policies as shown below.
 
-```live:abac:module:openable
+```rego
 package abac
 
 # User attributes
@@ -222,11 +216,9 @@ allow if {
 }
 ```
 
-```live:abac:query:hidden
-allow
-```
+<RunSnippet files="#input.abac.json" command="data.abac" />
 
-```live:abac:input
+```json
 {
   "user": "alice",
   "ticker": "MSFT",
@@ -235,10 +227,7 @@ allow
 }
 ```
 
-Querying the `allow` rule with the input above returns the following answer:
-
-```live:abac:output
-```
+<RunSnippet id="input.abac.json"/>
 
 In OPA, there's nothing special about users and objects. You can attach
 attributes to anything. And the attributes can themselves be structured JSON objects
@@ -291,7 +280,7 @@ And the above policy is attached to principal alice in AWS using
 In OPA, you write each of the AWS `allow` statements as a separate statement, and you
 expect the input to have `principal`, `action`, and `resource` fields.
 
-```live:iam:module:openable
+```rego
 package aws
 
 default allow := false
@@ -341,7 +330,9 @@ resources_match if {
 }
 ```
 
-```live:iam:input
+<RunSnippet files="#input.aws.json" command="data.aws" />
+
+```json
 {
   "principal": "alice",
   "action": "ec2:StartInstance",
@@ -349,14 +340,7 @@ resources_match if {
 }
 ```
 
-Querying `allow` with the input above returns the following answer:
-
-```live:iam:query:hidden
-allow
-```
-
-```live:iam:output
-```
+<RunSnippet id="input.aws.json"/>
 
 ## XACML
 
@@ -450,7 +434,7 @@ The following policy says that users from the organization Curtiss or Packard wh
 The same statement is shown below in OPA. Here the inputs are assumed to be
 roughly the same as for XACML: attributes of users, actions, and resources.
 
-```live:xacml:module:openable
+```rego
 package xacml
 
 # METADATA
@@ -472,7 +456,9 @@ permit if {
 }
 ```
 
-```live:xacml:input
+<RunSnippet files="#input.xacml.json" command="data.xacml" />
+
+```json
 {
   "user": {
     "name": "alice",
@@ -489,11 +475,4 @@ permit if {
 }
 ```
 
-Querying `permit` with the input above returns the following answer:
-
-```live:xacml:query:hidden
-permit
-```
-
-```live:xacml:output
-```
+<RunSnippet id="input.xacml.json"/>

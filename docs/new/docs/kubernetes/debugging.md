@@ -60,7 +60,7 @@ When you create the webhook according to the installation instructions,
 it includes a namespaceSelector so that you
 can decide which namespaces to ignore.
 
-```
+```yaml
 namespaceSelector:
   matchExpressions:
   - key: openpolicyagent.org/webhook
@@ -84,9 +84,10 @@ example, if you are generating a JSON Patch that sets annotations like
 `acmecorp.com/myannotation` you need to escape the "/" character in the
 annotation name using `~1` (per [RFC 6901](https://tools.ietf.org/html/rfc6901#section-3)).
 
-**Correct**:
+<SideBySideContainer>
+<SideBySideColumn>
 
-```json
+```json title="Correct"
 {
   "op": "add",
   "path": "/metadata/annotations/acmecorp.com~1myannotation",
@@ -94,52 +95,55 @@ annotation name using `~1` (per [RFC 6901](https://tools.ietf.org/html/rfc6901#s
 }
 ```
 
-**Incorrect**:
+</SideBySideColumn>
 
-```json
+<SideBySideColumn>
+```json title="Incorrect"
 {
   "op": "add",
   "path": "/metadata/annotations/acmecorp.com/myannotation",
   "value": "somevalue"
 }
 ```
+</SideBySideColumn>
+</SideBySideContainer>
 
 In addition, when your policy generates the response for the Kubernetes API
 server, you must use the `base64.encode` built-in function to encode the JSON
 Patch objects. DO NOT use the `base64url.encode` function because the Kubernetes
 API server will not process it:
 
-```live:patch:module:read_only,hidden
+<SideBySideContainer>
+<SideBySideColumn>
+```rego title="Correct"
 package system
-```
 
-**Correct**:
-
-```live:patch/good:module:read_only,openable
 main := {
-	"apiVersion": "admission.k8s.io/v1",
-	"kind": "AdmissionReview",
-	"response": response,
+"apiVersion": "admission.k8s.io/v1",
+"kind": "AdmissionReview",
+"response": response,
 }
 
 response := {
-  "allowed": true,
-  "patchType": "JSONPatch",
-  "patch": base64.encode(json.marshal(patches))   # <-- GOOD: uses base64.encode
+"allowed": true,
+"patchType": "JSONPatch",
+"patch": base64.encode(json.marshal(patches)) # <-- GOOD: uses base64.encode
 }
 
 patches := [
-  {
-    "op": "add",
-    "path": "/metadata/annotations/acmecorp.com~1myannotation",
-    "value": "somevalue"
-  }
+{
+"op": "add",
+"path": "/metadata/annotations/acmecorp.com~1myannotation",
+"value": "somevalue"
+}
 ]
-```
 
-**Incorrect**:
+````
+</SideBySideColumn>
+<SideBySideColumn>
+```rego title="Incorrect"
+package system
 
-```rego
 main := {
 	"apiVersion": "admission.k8s.io/v1",
 	"kind": "AdmissionReview",
@@ -159,7 +163,10 @@ patches := [
     "value": "somevalue"
   }
 ]
-```
+````
+
+</SideBySideColumn>
+</SideBySideContainer>
 
 Also, for more examples of how to construct mutating policies and integrating
 them with validating policies, see [these examples](https://github.com/open-policy-agent/library/tree/master/kubernetes/mutating-admission)

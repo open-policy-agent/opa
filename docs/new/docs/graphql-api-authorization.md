@@ -16,7 +16,9 @@ For this tutorial, our desired policy is:
 - People can see their own salaries (`query user($id: <user>) { salary }` is permitted for `<user>`)
 - A manager can see their direct reports' salaries (`query user($id: <user>) { salary }` is permitted for `<user>`'s manager)
 
-:::danger GraphQL API Authorization with OPA is currently experimental and the following tutorial is intended for demonstration purposes only. :::
+:::danger
+GraphQL API Authorization with OPA is currently experimental and the following tutorial is intended for demonstration purposes only.
+:::
 
 ## Prerequisites
 
@@ -28,9 +30,7 @@ This tutorial requires [Docker Compose](https://docs.docker.com/compose/install/
 
 Most modern GraphQL frameworks encourage starting with a schema, so we'll follow suit, and begin by defining the schema for this example.
 
-**schema.gql**:
-
-```graphql
+```graphql title="schema.gql"
 type Employee {
   id: String!
   salary: Int!
@@ -66,13 +66,9 @@ The policy below does all of the above in parts:
   - Selection of nodes of interest by name and structure.
 - Salary field selected.
 - Every query of interest found has to pass one of the `allowed_query` rules, or the entire query is rejected.
-
-  [wikipedia-ast]: https://en.wikipedia.org/wiki/Abstract_syntax_tree
   - Constant/variable cases for both employees and their managers.
 
-**example.rego**:
-
-```live:example:module:openable
+```rego title="example.rego"
 package graphqlapi.authz
 
 subordinates := {"alice": [], "charlie": [], "bob": ["alice"], "betty": ["charlie"]}
@@ -146,6 +142,8 @@ variable_arg(value, argname) := arg.Value.Raw if {
 selected_salary(value) := value.SelectionSet[_].Name == "salary"
 ```
 
+<RunSnippet id="graphqlapi.rego" />
+
 Then, build a bundle.
 
 ```shell
@@ -158,11 +156,9 @@ You should now see a policy bundle (`bundle.tar.gz`) in your working directory.
 
 ### 3. Bootstrap the tutorial environment using Docker Compose.
 
-Next, create a `docker-compose.yml` file that runs OPA, a bundle server and the demo GraphQL server.
+Next, create a `docker-compose.yaml` file that runs OPA, a bundle server and the demo GraphQL server.
 
-**docker-compose.yml**:
-
-```yaml
+```yaml title="docker-compose.yaml"
 services:
   opa:
     image: openpolicyagent/opa:{{< current_docker_version >}}
@@ -204,7 +200,7 @@ If running "Docker Desktop" (Mac or Windows) you may instead use the `docker com
 :::
 
 ```shell
-docker-compose -f docker-compose.yml up
+docker-compose -f docker-compose.yaml up
 ```
 
 Every time the demo GraphQL server receives an HTTP request, it asks OPA to decide whether an GraphQL query is authorized or not using a single RESTful API call.
@@ -257,7 +253,7 @@ gql-query alice:password "localhost:6000/" '{"query":"query { employeeByID(id: \
 The GraphQL server queries OPA to authorize the request.
 In the query, the server includes JSON data describing the incoming request.
 
-```live:example:input
+```json
 {
   "schema": "type Employee {\n  id: ...",
   "query": "query { employeeByID(id: \"alice\") { salary }}",
@@ -266,18 +262,19 @@ In the query, the server includes JSON data describing the incoming request.
 }
 ```
 
+<RunSnippet id="input.json" />
+
 When the GraphQL server queries OPA it asks for a specific policy decision.
 In this case, the integration is hardcoded to ask for `/v1/data/graphqlapi/authz`.
 OPA translates this URL path into a query:
 
-```live:example:query
-data.graphqlapi.authz
+```rego
+package example
+
+result := data.graphqlapi.authz
 ```
 
-The answer returned by OPA for the input above is:
-
-```live:example:output
-```
+<RunSnippet files="#input.json #graphqlapi.rego" command="data.example.result" />
 
 ### 4. Check that `bob` can see `alice`'s salary (because `bob` is `alice`'s manager.)
 
@@ -299,9 +296,7 @@ Suppose the organization now includes an HR department.
 The organization wants members of HR to be able to see any salary.
 Let's extend the policy to handle this.
 
-**example-hr.rego**:
-
-```live:hr_example:module:read_only,openable
+```rego title="example-hr.rego"
 package graphqlapi.authz
 
 # Allow HR members to get anyone's salary.
@@ -322,7 +317,7 @@ mv bundle.tar.gz ./bundles
 ```
 
 The updated bundle will automatically be served by the bundle server, but note that it might take up to the configured `max_delay_seconds` for the new bundle to be downloaded by OPA.
-If you plan to make frequent policy changes you might want to adjust this value in `docker-compose.yml` accordingly.
+If you plan to make frequent policy changes you might want to adjust this value in `docker-compose.yaml` accordingly.
 
 For the sake of the tutorial we included `manager_of` and `hr` data directly inside the policies.
 In real-world scenarios that information would be imported from external data sources.
@@ -343,9 +338,7 @@ gql-query david:password "localhost:6000/" '{"query":"query { employeeByID(id: \
 OPA supports the parsing of JSON Web Tokens via the builtin function `io.jwt.decode`.
 To get a sense of one way the subordinate and HR data might be communicated in the real world, let's try a similar exercise utilizing the JWT utilities of OPA.
 
-**example-jwt.rego**:
-
-```live:jwt_example:module:hidden
+```rego title="example-jwt.rego"
 package graphqlapi.authz
 
 query_ast := graphql.parse(input.query, input.schema)[0] # If validation fails, the rules depending on this will be undefined.
@@ -414,7 +407,7 @@ variable_arg(value, argname) := arg.Value.Raw if {
 selected_salary(value) := value.SelectionSet[_].Name == "salary"
 ```
 
-```live:jwt_example/new_rules:module:openable
+```rego
 default allow := false
 
 allow if {
@@ -441,7 +434,7 @@ token := {"payload": payload} if {
 }
 ```
 
-```live:jwt_example:input:hidden
+```json
 {
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWxpY2UiLCJhenAiOiJhbGljZSIsInN1Ym9yZGluYXRlcyI6W10sImhyIjpmYWxzZX0.rz3jTY033z-NrKfwrK89_dcLF7TN4gwCMj-fVBDyLoM",
   "schema": "type Employee {\n  id: ...",

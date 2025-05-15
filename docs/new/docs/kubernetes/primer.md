@@ -12,7 +12,7 @@ has its own docs.
 To get started, let's look at a common policy: ensure all images come from a
 trusted registry.
 
-```live:container_images:module:openable
+```rego showLineNumbers=true
 package kubernetes.admission                                                # line 1
 
 deny contains msg if {                                                      # line 2
@@ -22,6 +22,8 @@ deny contains msg if {                                                      # li
     msg := sprintf("image '%v' comes from untrusted registry", [image])     # line 6
 }
 ```
+
+<RunSnippet id="admission.rego"/>
 
 ### Packages
 
@@ -50,7 +52,7 @@ spec:
 
 The admission review request to be sent to OPA would look like this:
 
-```live:container_images:input
+```json title="input.json"
 {
   "kind": "AdmissionReview",
   "request": {
@@ -79,13 +81,19 @@ The admission review request to be sent to OPA would look like this:
 }
 ```
 
-When the `deny` rule is evaluated with the input above, the answer is:
+<RunSnippet id="input.json"/>
 
-```live:container_images:query:hidden
+When the `deny` rule is evaluated with the input above:
+
+```rego
+package example
+
+import data.kubernetes.admission
+
+result := admission.deny
 ```
 
-```live:container_images:output
-```
+<RunSnippet files="#input.json #admission.rego" command="data.example.result" />
 
 ### Input Document
 
@@ -116,26 +124,29 @@ request:
 
 In line 3 `input.request.kind.kind == "Pod"`, the expression `input.request.kind.kind` does the obvious thing: it descends through the YAML hierarchy. The dot (.) operator never throws any errors; if the path does not exist the value of the expression is `undefined`.
 
-```live:container_images/kind:query:merge_down
-input.request.kind
+```rego
+package example
+
+result := input.request.kind
 ```
 
-```live:container_images/kind:output:merge_down
+<RunSnippet files="#input.json" command="data.example.result" />
+
+```rego
+package example
+
+result := input.request.kind.kind
 ```
 
-```live:container_images/kind/kind:query:merge_down
-input.request.kind.kind
+<RunSnippet files="#input.json" command="data.example.result" />
+
+```rego
+package example
+
+result := input.request.object.spec.containers
 ```
 
-```live:container_images/kind/kind:output:merge_down
-```
-
-```live:container_images/spec:query:merge_down
-input.request.object.spec.containers
-```
-
-```live:container_images/spec:output
-```
+<RunSnippet files="#input.json" command="data.example.result" />
 
 ### Equality
 
@@ -153,28 +164,34 @@ Lines 4-5 find images in the Pod that don't come from the trusted registry. To d
 
 Continuing the example from earlier:
 
-```live:container_images/arrays:query:merge_down
-input.request.object.spec.containers[0]
+```rego
+package example
+
+result := input.request.object.spec.containers[0]
 ```
 
-```live:container_images/arrays:output:merge_down
+<RunSnippet files="#input.json" command="data.example.result" />
+
+```rego
+package example
+
+result := input.request.object.spec.containers[0].image
 ```
 
-```live:container_images/arrays/image:query:merge_down
-input.request.object.spec.containers[0].image
-```
-
-```live:container_images/arrays/image:output
-```
+<RunSnippet files="#input.json" command="data.example.result" />
 
 The `[]` operators let you use variables to index into the array as well.
 
-```live:container_images/arrays/vars:query:merge_down
-i := 0; input.request.object.spec.containers[i]
+```rego
+package example
+
+result contains c if {
+    i := 0
+    c := input.request.object.spec.containers[i]
+}
 ```
 
-```live:container_images/arrays/vars:output
-```
+<RunSnippet files="#input.json" command="data.example.result" />
 
 ### Iteration
 
@@ -184,12 +201,16 @@ To iterate over the indexes in the `input.request.object.spec.containers` array,
 
 OPA detects when there will be multiple answers and displays all the results in a table.
 
-```live:container_images/iteration:query:merge_down
-some j; input.request.object.spec.containers[j]
+```rego
+package example
+
+result contains c if {
+    some j
+    c := input.request.object.spec.containers[j]
+}
 ```
 
-```live:container_images/iteration:output
-```
+<RunSnippet files="#input.json" command="data.example.result" />
 
 Often you don't want to invent new variable names for iteration. OPA provides the special anonymous variable `_` for exactly that reason. So in line (4) `image := input.request.object.spec.containers[_].image` finds all the images in the containers array and assigns each to the `image` variable one at a time.
 
@@ -208,7 +229,7 @@ Builtins let you analyze and manipulate:
 
 When you write policies, you should use the OPA unit-test framework _before_ sending the policies out into the OPA that is running on your cluster. The debugging process will be much quicker and effective. Here's an example test for the policy from the last section.
 
-```live:container_images/test:module:read_only,openable
+```rego
 package kubernetes.test_admission                         # line 1
 
 import data.kubernetes.admission                          # line 2
@@ -396,9 +417,7 @@ processed by the admission controllers. When the API server's Webhook admission
 controller executes, the API server sends a webhook request to OPA containing an
 **AdmissionReview** object.
 
-**AdmissionReview**:
-
-```yaml
+```yaml title="admission_review.yaml"
 apiVersion: admission.k8s.io/v1
 kind: AdmissionReview
 request:

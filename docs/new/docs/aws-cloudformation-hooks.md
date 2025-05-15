@@ -172,7 +172,7 @@ have a single OPA endpoint servicing requests for all types of resources, we'll 
 [default decision](./configuration/#miscellaneous) policy, which by default queries the `system.main` rule. Let's add a
 simple policy to block an S3 Bucket unless it has an `AccessControl` attribute set to `Private`:
 
-```live:example/system:module
+```rego
 package system
 
 main := {
@@ -202,7 +202,7 @@ will be an `AccessControl` attribute present in the input at all. Using negation
 rules help alleviate the problem of values potentially being undefined. Compare to the following deny rule, which might
 look correct at a first glance:
 
-```live:example/fail:module
+```rego
 deny contains msg if {
 	bucket_create_or_update
 
@@ -352,9 +352,7 @@ other packages based on attributes from the input. A natural attribute to use fo
 example be the resource type, allowing us to group our policies by the resource type they're meant to act on. Let's
 take a look at what such a main policy might look like:
 
-**main.rego**
-
-```live:example/router:module
+```rego title="main.rego"
 # METADATA
 # description: |
 #   Dynamic routing to policy based in input.resource.type,
@@ -434,7 +432,7 @@ specific policies.
 
 We can now modify our original policy to verify S3 bucket resources only:
 
-```live:example/bucket:module
+```rego
 package aws.s3.bucket
 
 deny contains sprintf("S3 Bucket %s 'AccessControl' attribute value must be 'Private'", [input.resource.id]) if {
@@ -461,9 +459,7 @@ API, as described in the OPA [documentation](https://www.openpolicyagent.org/doc
 
 A simple authz policy for checking the bearer token might look something like this:
 
-**authz.rego**
-
-```live:example/authz:module
+```rego title="authz.rego"
 package system.authz
 
 default allow := false
