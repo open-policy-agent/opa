@@ -51,10 +51,10 @@ type Planner struct {
 
 // debugf prepends the planner location. We're passing callstack depth 2 because
 // it should still log the file location of p.debugf.
-func (p *Planner) debugf(format string, args ...interface{}) {
+func (p *Planner) debugf(format string, args ...any) {
 	var msg string
 	if p.loc != nil {
-		msg = fmt.Sprintf("%s: "+format, append([]interface{}{p.loc}, args...)...)
+		msg = fmt.Sprintf("%s: "+format, append([]any{p.loc}, args...)...)
 	} else {
 		msg = fmt.Sprintf(format, args...)
 	}

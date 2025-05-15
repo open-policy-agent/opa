@@ -9,12 +9,12 @@ import (
 	"fmt"
 	"strings"
 
-	gqlast "github.com/open-policy-agent/opa/internal/gqlparser/ast"
-	gqlparser "github.com/open-policy-agent/opa/internal/gqlparser/parser"
-	gqlvalidator "github.com/open-policy-agent/opa/internal/gqlparser/validator"
+	gqlast "github.com/vektah/gqlparser/v2/ast"
+	gqlparser "github.com/vektah/gqlparser/v2/parser"
+	gqlvalidator "github.com/vektah/gqlparser/v2/validator"
 
 	// Side-effecting import. Triggers GraphQL library's validation rule init() functions.
-	_ "github.com/open-policy-agent/opa/internal/gqlparser/validator/rules"
+	_ "github.com/vektah/gqlparser/v2/validator/rules"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
@@ -100,7 +100,7 @@ func convertSchema(schemaDoc *gqlast.SchemaDocument) (*gqlast.Schema, error) {
 
 // Converts an ast.Object into a gqlast.QueryDocument object.
 func objectToQueryDocument(value ast.Object) (*gqlast.QueryDocument, error) {
-	// Convert ast.Term to interface{} for JSON encoding below.
+	// Convert ast.Term to any for JSON encoding below.
 	asJSON, err := ast.JSON(value)
 	if err != nil {
 		return nil, err
@@ -121,7 +121,7 @@ func objectToQueryDocument(value ast.Object) (*gqlast.QueryDocument, error) {
 
 // Converts an ast.Object into a gqlast.SchemaDocument object.
 func objectToSchemaDocument(value ast.Object) (*gqlast.SchemaDocument, error) {
-	// Convert ast.Term to interface{} for JSON encoding below.
+	// Convert ast.Term to any for JSON encoding below.
 	asJSON, err := ast.JSON(value)
 	if err != nil {
 		return nil, err

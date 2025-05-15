@@ -34,25 +34,25 @@ func ObjectIterationBenchmarkModule(n int) string {
 
 // GenerateLargeJSONBenchmarkData returns a map of 100 keys and 100.000 key/value
 // pairs.
-func GenerateLargeJSONBenchmarkData() map[string]interface{} {
+func GenerateLargeJSONBenchmarkData() map[string]any {
 	return v1.GenerateLargeJSONBenchmarkData()
 }
 
 // GenerateJSONBenchmarkData returns a map of `k` keys and `v` key/value pairs.
-func GenerateJSONBenchmarkData(k, v int) map[string]interface{} {
+func GenerateJSONBenchmarkData(k, v int) map[string]any {
 	return v1.GenerateJSONBenchmarkData(k, v)
 }
 
 // GenerateConcurrencyBenchmarkData returns a module and data; the module
 // checks some input parameters against that data in a simple API authz
 // scheme.
-func GenerateConcurrencyBenchmarkData() (string, map[string]interface{}) {
+func GenerateConcurrencyBenchmarkData() (string, map[string]any) {
 	return v1.GenerateConcurrencyBenchmarkData()
 }
 
 // GenerateVirtualDocsBenchmarkData generates a module and input; the
 // numTotalRules and numHitRules create as many rules in the module to
 // match/miss the returned input.
-func GenerateVirtualDocsBenchmarkData(numTotalRules, numHitRules int) (string, map[string]interface{}) {
+func GenerateVirtualDocsBenchmarkData(numTotalRules, numHitRules int) (string, map[string]any) {
 	return v1.GenerateVirtualDocsBenchmarkData(numTotalRules, numHitRules)
 }

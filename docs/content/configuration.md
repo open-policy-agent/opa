@@ -397,6 +397,18 @@ request OPA will re-read the credentials from the file and use them for authenti
 | `services[_].credentials.s3_signing.profile_credentials.profile` | `string` | No | AWS Profile to extract credentials from the credentials file. If empty, OPA will look for the `AWS_PROFILE` env variable. If the variable is not set, the `default` profile will be used |
 | `services[_].credentials.s3_signing.profile_credentials.aws_region` | `string` | No | The AWS region to use for the AWS signing service credential method. If unset, the `AWS_REGION` environment variable must be set |
 
+#### Using SSO Profile Credentials
+If specifying `sso_credentials`, OPA will expect to find an sso profile configured as explained in [SSO Profiles](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sso.html) and stored in the [config](https://docs.aws.amazon.com/sdkref/latest/guide/file-format.html) file on disk. 
+On each request, Opa will try to use cached token acquired credentials using the SSO credentials. In case the current token has expired, OPA will try to refresh the token using the SSO refresh token, assuming the SSO session is still valid. New token will be cached in memory.
+
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `services[_].credentials.s3_signing.sso_credentials.path` | `string` | No | The path to the shared config file. If empty, OPA will look for the `AWS_CONFIG_FILE` env variable. If the variable is not set, the path defaults to the current user's home directory. `~/.aws/config` (Linux & Mac) or `%USERPROFILE%\.aws\config` (Windows) |
+| `services[_].credentials.s3_signing.sso_credentials.profile` | `string` | No | AWS Profile to extract sso session from the config file. If empty, OPA will look for the `AWS_PROFILE` env variable. If the variable is not set, the `default` profile will be used |
+| `services[_].credentials.s3_signing.sso_credentials.aws_region` | `string` | No | The AWS region to use for the AWS signing service credential method. If unset, the `AWS_REGION` environment variable must be set |
+
+
 #### Using EC2 Metadata Credentials
 If specifying `metadata_credentials`, OPA will use the AWS metadata services for [EC2](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html)
 or [ECS](https://docs.aws.amazon.com/AmazonECS/latest/userguide/task-iam-roles.html)
@@ -683,10 +695,10 @@ type Plugin struct {
 	manager  *plugins.Manager
 	config   Config
 	stop     chan chan struct{}
-	reconfig chan interface{}
+	reconfig chan any
 }
 
-func (p *PluginFactory) Validate(manager *plugins.Manager, config []byte) (interface{}, error) {
+func (p *PluginFactory) Validate(manager *plugins.Manager, config []byte) (any, error) {
 	var parsedConfig Config
 	if err := util.Unmarshal(config, &parsedConfig); err != nil {
 		return nil, err
@@ -694,12 +706,12 @@ func (p *PluginFactory) Validate(manager *plugins.Manager, config []byte) (inter
 	return &parsedConfig, nil
 }
 
-func (p *PluginFactory) New(manager *plugins.Manager, config interface{}) plugins.Plugin {
+func (p *PluginFactory) New(manager *plugins.Manager, config any) plugins.Plugin {
 	return &Plugin{
 		config:   *config.(*Config),
 		manager:  manager,
 		stop:     make(chan chan struct{}),
-		reconfig: make(chan interface{}),
+		reconfig: make(chan any),
 	}
 }
 
@@ -716,7 +728,7 @@ func (p *Plugin) Stop(ctx context.Context) {
 	return
 }
 
-func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
+func (p *Plugin) Reconfigure(ctx context.Context, config any) {
 	p.reconfig <- config
 	return
 }
@@ -767,15 +779,15 @@ included in the actual bundle gzipped tarball.
 
 ## Status
 
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `status.service` | `string` | Yes | Name of service to use to contact remote server. |
-| `status.partition_name` | `string` | No | Path segment to include in status updates. |
-| `status.console` | `boolean` | No (default: `false`) | Log the status updates locally to the console. When enabled alongside a remote status update API the `service` must be configured, the default `service` selection will be disabled. |
-| `status.prometheus` | `boolean` | No (default: `false`) | Export the status (bundle and plugin) metrics to prometheus (see [the monitoring documentation](../monitoring/#prometheus)). When enabled alongside a remote status update API the `service` must be configured, the default `service` selection will be disabled. |
-| `status.prometheus_config.collectors.bundle_loading_duration_ns.buckets` | `[]float64` | No, (Only use when status.prometheus true, default: [1000, 2000, 4000, 8000, 16_000, 32_000, 64_000, 128_000, 256_000, 512_000, 1_024_000, 2_048_000, 4_096_000, 8_192_000, 16_384_000, 32_768_000, 65_536_000, 131_072_000, 262_144_000, 524_288_000]) | Specifies the buckets for the `bundle_loading_duration_ns` metric. Each value is a float, it is expressed in nanoseconds. |
-| `status.plugin` | `string` | No | Use the named plugin for status updates. If this field exists, the other configuration fields are not required. |
-| `status.trigger` | `string`  (default: `periodic`) | No | Controls how status updates are reported to the remote server. Allowed values are `periodic` and `manual` (`manual` triggers are only possible when using OPA as a Go package). |
+| Field                                                                    | Type        | Required                                                                                                                                                                                                                                                | Description                                                                                                                                                                                                                                                        |
+|--------------------------------------------------------------------------|-------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `status.service`                                                         | `string`    | Yes                                                                                                                                                                                                                                                     | Name of service to use to contact remote server.                                                                                                                                                                                                                   |
+| `status.partition_name`                                                  | `string`    | No                                                                                                                                                                                                                                                      | Path segment to include in status updates.                                                                                                                                                                                                                         |
+| `status.console`                                                         | `boolean`   | No (default: `false`)                                                                                                                                                                                                                                   | Log the status updates locally to the console. When enabled alongside a remote status update API the `service` must be configured, the default `service` selection will be disabled.                                                                               |
+| `status.prometheus`                                                      | `boolean`   | No (default: `false`)                                                                                                                                                                                                                                   | Export the status (bundle and plugin) metrics to prometheus (see [the monitoring documentation](../monitoring/#prometheus)). When enabled alongside a remote status update API the `service` must be configured, the default `service` selection will be disabled. |
+| `status.prometheus_config.collectors.bundle_loading_duration_ns.buckets` | `[]float64` | No, (Only use when status.prometheus true, default: [1000, 2000, 4000, 8000, 16_000, 32_000, 64_000, 128_000, 256_000, 512_000, 1_024_000, 2_048_000, 4_096_000, 8_192_000, 16_384_000, 32_768_000, 65_536_000, 131_072_000, 262_144_000, 524_288_000]) | Specifies the buckets for the `bundle_loading_duration_ns` metric. Each value is a float, it is expressed in nanoseconds.                                                                                                                                          |
+| `status.plugin`                                                          | `string`    | No                                                                                                                                                                                                                                                      | Use the named plugin for status updates. If this field exists, the other configuration fields are not required.                                                                                                                                                    |
+| `status.trigger`                                                         | `string`    | No (default: `periodic`)                                                                                                                                                                                                                                | Controls how status updates are reported to the remote server. Allowed values are `periodic` and `manual` (`manual` triggers are only possible when using OPA as a Go package).                                                                                    |
 
 ## Decision Logs
 
@@ -863,17 +875,19 @@ Caching represents the configuration of the inter-query cache that built-in func
 functions provided by OPA, `http.send` is currently the only one to utilize the inter-query cache. See the documentation
 on the [http.send built-in function](../policy-reference/#http) for information about the available caching options.
 
-It also represents the configuration of the inter-query _value_ cache that built-in functions can utilize. Currently, 
+It also represents the configuration of the inter-query _value_ cache that built-in functions can utilize. Currently,
 this cache is utilized by the `regex` and `glob` built-in functions for compiled regex and glob match patterns
-respectively, and the `json.schema_match` built-in function for compiled JSON schemas.
+respectively, the `json.schema_match` built-in function for compiled JSON schemas, and any `graphql` built-in function
+that requires GraphQL schemas.
 
 | Field                                                                    | Type    | Required | Description                                                                                                                                                                                                                                          |
 |--------------------------------------------------------------------------|---------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `caching.inter_query_builtin_cache.max_size_bytes`                       | `int64` | No       | Inter-query cache size limit in bytes. OPA will drop old items from the cache if this limit is exceeded. By default, no limit is set.                                                                                                                |
-| `caching.inter_query_builtin_cache.forced_eviction_threshold_percentage` | `int64` | No       | Threshold limit configured as percentage of `caching.inter_query_builtin_cache.max_size_bytes`, when exceeded OPA will start dropping old items permaturely. By default, set to `100`.                                                               |
+| `caching.inter_query_builtin_cache.forced_eviction_threshold_percentage` | `int64` | No       | Threshold limit configured as percentage of `caching.inter_query_builtin_cache.max_size_bytes`, when exceeded OPA will start dropping old items prematurely. By default, set to `100`.                                                               |
 | `caching.inter_query_builtin_cache.stale_entry_eviction_period_seconds`  | `int64` | No       | Stale entry eviction period in seconds. OPA will drop expired items from the cache every `stale_entry_eviction_period_seconds`. By default, set to `0` indicating stale entry eviction is disabled.                                                  |
 | `caching.inter_query_builtin_value_cache.max_num_entries`                | `int`   | No       | Maximum number of entries in the Inter-query value cache. OPA will drop random items from the cache if this limit is exceeded. By default, set to `0` indicating unlimited size.                                                                     |
 | `caching.inter_query_builtin_value_cache.named.io_jwt.max_num_entries`   | `int`   | No       | Maximum number of entries in the `io_jwt` cache, used by the [`io.jwt` token verification](../policy-reference/#tokens) built-in functions. OPA will drop random items from the cache if this limit is exceeded. By default, this cache is disabled. |
+| `caching.inter_query_builtin_value_cache.named.graphql.max_num_entries`  | `int`   | No       | Maximum number of entries in the `graphql` cache, used by the [`graphql` builtins](../policy-reference/#graphql) built-in functions to cache parsed schemas. OPA will drop random items from the cache if this limit is exceeded. By default, this cache is set to a maximum of 10 entries. |
 
 ## Distributed tracing
 

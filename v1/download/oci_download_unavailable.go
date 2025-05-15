@@ -18,7 +18,7 @@ func (d *OCIDownloader) WithCallback(f func(context.Context, Update)) *OCIDownlo
 	panic("built without OCI support")
 }
 
-func (d *OCIDownloader) WithLogAttrs(map[string]interface{}) *OCIDownloader {
+func (d *OCIDownloader) WithLogAttrs(map[string]any) *OCIDownloader {
 	panic("built without OCI support")
 }
 

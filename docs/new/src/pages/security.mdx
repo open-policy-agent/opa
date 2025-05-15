@@ -1,0 +1,44 @@
+# Security Policy
+
+The Open Policy Agent (OPA) community has adopted this security disclosures and response policy to ensure we responsibly handle critical issues.
+
+---
+
+## Reporting a Security Bug
+
+- If you think you have found a security issue in an OPA project, please send an email to
+  [open-policy-agent-security@googlegroups.com](mailto:open-policy-agent-security@googlegroups.com).
+  This list is delivered to a small security team. We will then acknowledge receipt of your report and prioritize initial analysis of severity.
+
+- After the initial reply to your report, the security team will endeavor to keep you informed of the progress being made towards a fix and full announcement, and may ask for additional information or guidance surrounding the reported issue.
+
+- If you have not received a reply to your report within two days, please reach out on our [Slack](https://inviter.co/opa/) by posting a message in the `#contributors` channel.
+
+- Note that the `#contributors` channel is public, so please don't discuss details of your issue there. Instead, simply say that you're trying to get a hold of someone from the security team.
+
+---
+
+## Disclosure Policy
+
+1. The security report is received and is assigned a primary handler. This person will coordinate the fix and release process.
+   The problem is confirmed and a list of all affected versions is determined. Code is audited to find any potential similar problems.
+   Fixes are prepared for all releases which are still under maintenance. These fixes are not committed to the public repository but rather held locally or in a private fork pending the announcement.
+
+2. A suggested embargo date for this vulnerability is chosen and a CVE (Common Vulnerabilities and Exposures (CVE®)) is requested for the vulnerability, through the GitHub Advisory database.
+
+3. A prenotification may be published on the security announcements channels listed below, providing information about affected projects, severity, and the embargo date.
+
+4. On the embargo date, the announcement is published. The changes are pushed to the public repository and new builds are deployed.
+
+5. Typically the embargo date will be set 72 hours from the time the CVE is issued. However, this may vary depending on the severity of the bug or difficulty in applying a fix.
+
+6. This process can take some time, especially when coordination is required with maintainers of other projects. Every effort will be made to handle the bug in as timely a manner as possible; however, it’s important that we follow the release process above to ensure that the disclosure is handled in a consistent manner.
+
+---
+
+## Receiving Security Updates
+
+- [Security Advisories for OPA](https://github.com/open-policy-agent/opa/security/advisories)
+- [GitHub Discussions Announcements](https://github.com/orgs/open-policy-agent/discussions/categories/announcements)
+- [Slack](https://inviter.co/opa/) `#announcements` channel
+- [NIST Vulnerability Database: Search Results for OPA](https://nvd.nist.gov/vuln/search/results?form_type=Advanced&results_type=overview&search_type=all&isCpeNameSearch=false&cpe_vendor=cpe%3A%2F%3Aopenpolicyagent&cpe_product=cpe%3A%2F%3Aopenpolicyagent%3Aopen_policy_agent)

@@ -1776,11 +1776,11 @@ func TestConfigV1(t *testing.T) {
 
 	f.server.manager.Config = conf
 
-	expected := map[string]interface{}{
-		"result": map[string]interface{}{
-			"labels":                         map[string]interface{}{"id": "foo", "version": version.Version, "region": "west"},
-			"keys":                           map[string]interface{}{"global_key": map[string]interface{}{"algorithm": "HS256"}},
-			"services":                       map[string]interface{}{"acmecorp": map[string]interface{}{"url": "https://example.com/control-plane-api/v1"}},
+	expected := map[string]any{
+		"result": map[string]any{
+			"labels":                         map[string]any{"id": "foo", "version": version.Version, "region": "west"},
+			"keys":                           map[string]any{"global_key": map[string]any{"algorithm": "HS256"}},
+			"services":                       map[string]any{"acmecorp": map[string]any{"url": "https://example.com/control-plane-api/v1"}},
 			"default_authorization_decision": "/system/authz/allow",
 			"default_decision":               "/system/main",
 		},
@@ -1896,21 +1896,21 @@ func mustGZIPPayload(payload []byte) []byte {
 
 // generateJSONBenchmarkData returns a map of `k` keys and `v` key/value pairs.
 // Taken from topdown/topdown_bench_test.go
-func generateJSONBenchmarkData(k, v int) map[string]interface{} {
+func generateJSONBenchmarkData(k, v int) map[string]any {
 	// create array of null values that can be iterated over
-	keys := make([]interface{}, k)
+	keys := make([]any, k)
 	for i := range keys {
 		keys[i] = nil
 	}
 
 	// create large JSON object value (100,000 entries is about 2MB on disk)
-	values := map[string]interface{}{}
+	values := map[string]any{}
 	for i := range v {
 		values[fmt.Sprintf("key%d", i)] = fmt.Sprintf("value%d", i)
 	}
 
-	return map[string]interface{}{
-		"input": map[string]interface{}{
+	return map[string]any{
+		"input": map[string]any{
 			"keys":   keys,
 			"values": values,
 		},
@@ -2356,7 +2356,7 @@ hello if {
 			}
 		}
 
-		var expected interface{}
+		var expected any
 		if err := util.UnmarshalJSON([]byte(`{"hello": true}`), &expected); err != nil {
 			panic(err)
 		}
@@ -2445,7 +2445,7 @@ func TestCompileV1CompressedResponse(t *testing.T) {
 			}
 		}
 
-		var expected interface{}
+		var expected any
 		expectedStr := fmt.Sprintf(`{"queries": [%v]}`, string(util.MustMarshalJSON(ast.MustParseBody("input.x = 1"))))
 		if err := util.UnmarshalJSON([]byte(expectedStr), &expected); err != nil {
 			panic(err)
@@ -2515,7 +2515,7 @@ hello if {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
-	var expected interface{}
+	var expected any
 	if err := util.UnmarshalJSON([]byte(`{"hello": true}`), &expected); err != nil {
 		panic(err)
 	}
@@ -2567,7 +2567,7 @@ func TestCompileV1CompressedRequest(t *testing.T) {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
-	var expected interface{}
+	var expected any
 	expectedStr := fmt.Sprintf(`{"queries": [%v]}`, string(util.MustMarshalJSON(ast.MustParseBody("input.x = 1"))))
 	if err := util.UnmarshalJSON([]byte(expectedStr), &expected); err != nil {
 		panic(err)
@@ -2877,7 +2877,7 @@ func TestDataUpdate(t *testing.T) {
 				t.Fatalf("Unexpected JSON decode error: %v", err)
 			}
 
-			var expected interface{}
+			var expected any
 			if err := util.UnmarshalJSON([]byte(putData), &expected); err != nil {
 				t.Fatalf("Unexpected JSON decode error: %v", err)
 			}
@@ -2988,13 +2988,13 @@ func TestDataGetExplainFull(t *testing.T) {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
-	exp := []interface{}{
+	exp := []any{
 		`query:1     Enter data.x = _`,
 		`query:1     | Eval data.x = _`,
 		`query:1     | Exit data.x = _`,
 		`query:1     Redo data.x = _`,
 		`query:1     | Redo data.x = _`}
-	actual := util.MustUnmarshalJSON(result.Explanation).([]interface{})
+	actual := util.MustUnmarshalJSON(result.Explanation).([]any)
 	if !reflect.DeepEqual(actual, exp) {
 		t.Fatalf(`Expected pretty explanation to be %v, got %v`, exp, actual)
 	}
@@ -3028,7 +3028,7 @@ p = [1, 2, 3, 4] if { true }`, 200, "")
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
-	var expected interface{}
+	var expected any
 
 	if err := util.UnmarshalJSON([]byte(`[1,2,3,4]`), &expected); err != nil {
 		panic(err)
@@ -3069,7 +3069,7 @@ p = [1, 2, 3, 4] if { true }`, 200, "")
 		t.Fatalf("Expected exactly %d events but got %d", nexpect, len(explain))
 	}
 
-	var expected interface{}
+	var expected any
 
 	if err := util.UnmarshalJSON([]byte(`[1,2,3,4]`), &expected); err != nil {
 		panic(err)
@@ -3383,7 +3383,6 @@ func TestDataMetricsEval(t *testing.T) {
 			"counter_disk_read_keys",
 			"counter_disk_read_bytes",
 			"timer_rego_input_parse_ns",
-			"timer_rego_query_parse_ns",
 			"timer_rego_query_compile_ns",
 			"timer_rego_query_eval_ns",
 			"timer_server_handler_ns",
@@ -3527,7 +3526,7 @@ r contains x if { z[x] = 4 }`
 
 			f.server.Handler.ServeHTTP(f.recorder, req)
 
-			var response map[string]interface{}
+			var response map[string]any
 			if err := json.NewDecoder(f.recorder.Body).Decode(&response); err != nil {
 				t.Fatalf("Unexpected error while unmarshalling response: %v", err)
 			}
@@ -3538,9 +3537,9 @@ r contains x if { z[x] = 4 }`
 				}
 
 				var errs []string
-				if errors, ok := response["errors"].([]interface{}); ok {
+				if errors, ok := response["errors"].([]any); ok {
 					for _, err := range errors {
-						errs = append(errs, err.(map[string]interface{})["message"].(string))
+						errs = append(errs, err.(map[string]any)["message"].(string))
 					}
 				}
 
@@ -3598,7 +3597,7 @@ func TestPoliciesPutV1ParseError(t *testing.T) {
 		t.Fatalf("Expected bad request but got %v", f.recorder)
 	}
 
-	response := map[string]interface{}{}
+	response := map[string]any{}
 
 	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&response); err != nil {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
@@ -3654,7 +3653,7 @@ q[x] { p[x] }`,
 		t.Fatalf("Expected bad request but got %v", f.recorder)
 	}
 
-	response := map[string]interface{}{}
+	response := map[string]any{}
 
 	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&response); err != nil {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
@@ -3829,7 +3828,7 @@ func TestPoliciesDeleteV1(t *testing.T) {
 		t.Fatalf("Expected success but got %v", f.recorder)
 	}
 
-	var response map[string]interface{}
+	var response map[string]any
 	if err := json.NewDecoder(f.recorder.Body).Decode(&response); err != nil {
 		t.Fatalf("Unexpected unmarshal error: %v", err)
 	}
@@ -4029,8 +4028,8 @@ func TestStatusV1MetricsWithSystemAuthzPolicy(t *testing.T) {
 	// Add Prometheus Registerer to be used by plugins
 	inner := metrics.New()
 
-	logger := func(logger logging.Logger) func(attrs map[string]interface{}, f string, a ...interface{}) {
-		return func(attrs map[string]interface{}, f string, a ...interface{}) {
+	logger := func(logger logging.Logger) func(attrs map[string]any, f string, a ...any) {
+		return func(attrs map[string]any, f string, a ...any) {
 			logger.WithFields(attrs).Error(f, a...)
 		}
 	}(logging.NewNoOpLogger())
@@ -4131,7 +4130,7 @@ func TestStatusV1MetricsWithSystemAuthzPolicy(t *testing.T) {
 					State string
 				}
 			}
-			Metrics map[string]interface{}
+			Metrics map[string]any
 		}
 	}
 	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&resp); err != nil {
@@ -4145,30 +4144,30 @@ func TestStatusV1MetricsWithSystemAuthzPolicy(t *testing.T) {
 		t.Fatal("expected prometheus metrics to be present in status")
 	}
 
-	promMet, ok := met.(map[string]interface{})
+	promMet, ok := met.(map[string]any)
 	if !ok {
 		t.Fatal("expected prometheus metrics to be a map")
 	}
 
-	httpMet, ok := promMet["http_request_duration_seconds"].(map[string]interface{})
+	httpMet, ok := promMet["http_request_duration_seconds"].(map[string]any)
 	if !ok {
 		t.Fatal("expected http_request_duration_seconds metric to be a map")
 	}
 
-	innerMet, ok := httpMet["metric"].([]interface{})
+	innerMet, ok := httpMet["metric"].([]any)
 	if !ok {
 		t.Fatal("expected http_request_duration_seconds histogram metric to be a list")
 	}
 
-	expected := []interface{}{map[string]interface{}{"name": "code", "value": "401"},
-		map[string]interface{}{"name": "handler", "value": "authz"},
-		map[string]interface{}{"name": "method", "value": "get"}}
+	expected := []any{map[string]any{"name": "code", "value": "401"},
+		map[string]any{"name": "handler", "value": "authz"},
+		map[string]any{"name": "method", "value": "get"}}
 
 	found := false
 	for _, m := range innerMet {
-		item, ok := m.(map[string]interface{})
+		item, ok := m.(map[string]any)
 		if ok {
-			if reflect.DeepEqual(item["label"].([]interface{}), expected) {
+			if reflect.DeepEqual(item["label"].([]any), expected) {
 				found = true
 				break
 			}
@@ -5034,8 +5033,8 @@ func TestServerUsesAuthorizerParsedBody(t *testing.T) {
 	}
 
 	// Set the authorizer's parsed input to the expected message body.
-	ctx := authorizer.SetBodyOnContext(req.Context(), map[string]interface{}{
-		"input": map[string]interface{}{
+	ctx := authorizer.SetBodyOnContext(req.Context(), map[string]any{
+		"input": map[string]any{
 			"foo": "good",
 		},
 	})
@@ -5057,7 +5056,7 @@ func TestServerUsesAuthorizerParsedBody(t *testing.T) {
 	}
 
 	// Check that v0 reader function behaves correctly.
-	ctx = authorizer.SetBodyOnContext(req.Context(), map[string]interface{}{
+	ctx = authorizer.SetBodyOnContext(req.Context(), map[string]any{
 		"foo": "good",
 	})
 
@@ -5145,7 +5144,7 @@ type queryBindingErrStore struct {
 	storage.PolicyNotSupported
 }
 
-func (*queryBindingErrStore) Read(_ context.Context, _ storage.Transaction, _ storage.Path) (interface{}, error) {
+func (*queryBindingErrStore) Read(_ context.Context, _ storage.Transaction, _ storage.Path) (any, error) {
 	return nil, errors.New("expected error")
 }
 
@@ -5381,11 +5380,11 @@ func (f *fixture) executeRequestForHandler(h http.Handler, req *http.Request, co
 		return fmt.Errorf("Expected code %v from %v %v but got: %+v", code, req.Method, req.URL, f.recorder)
 	}
 	if resp != "" {
-		var result interface{}
+		var result any
 		if err := util.UnmarshalJSON(f.recorder.Body.Bytes(), &result); err != nil {
 			return fmt.Errorf("Expected JSON response from %v %v but got: %v", req.Method, req.URL, f.recorder)
 		}
-		var expected interface{}
+		var expected any
 		if err := util.UnmarshalJSON([]byte(resp), &expected); err != nil {
 			panic(err)
 		}
@@ -6810,4 +6809,153 @@ func zipString(input string) []byte {
 		log.Fatal(err)
 	}
 	return b.Bytes()
+}
+
+func TestStringPathToDataRef(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		note   string
+		path   string
+		expRef string
+		expErr string
+	}{
+		{path: "foo", expRef: `data.foo`},
+		{path: "foo/", expRef: `data.foo`},
+		{path: "foo/bar", expRef: `data.foo.bar`},
+		{path: "foo/bar/", expRef: `data.foo.bar`},
+		{path: "foo/../bar", expRef: `data.foo[".."].bar`},
+
+		// Path injection attack
+		// url path: `foo%22%5D%3Bmalicious_call%28%29%3Bx%3D%5B%22`
+		// url decoded: `foo"];malicious_call();x=["`
+		// data ref .String(): `data.foo["\"];malicious_call();x=[\""]`
+		// Above attack is mitigated by rejecting any ref component containing string terminators (`"`).
+		{
+			note:   "string terminals inside ref term",
+			path:   "foo%22%5D%3Bmalicious_call%28%29%3Bx%3D%5B%22", // foo"];malicious_call();x=["
+			expErr: `invalid ref term 'foo"];malicious_call();x=["'`,
+		},
+	}
+
+	for _, tc := range cases {
+		note := tc.note
+		if note == "" {
+			note = strings.ReplaceAll(tc.path, "/", "_")
+		}
+
+		t.Run(note, func(t *testing.T) {
+			ref, err := stringPathToDataRef(tc.path)
+
+			if tc.expRef != "" {
+				if err != nil {
+					t.Fatalf("Expected ref:\n\n%s\n\nbut got error:\n\n%s", tc.expRef, err)
+				}
+				if refStr := ref.String(); refStr != tc.expRef {
+					t.Fatalf("Expected ref:\n\n%s\n\nbut got:\n\n%s", tc.expRef, refStr)
+				}
+			}
+
+			if tc.expErr != "" {
+				if ref != nil {
+					t.Fatalf("Expected error:\n\n%s\n\nbut got ref:\n\n%s", tc.expErr, ref.String())
+				}
+				if errStr := err.Error(); errStr != tc.expErr {
+					t.Fatalf("Expected error:\n\n%s\n\nbut got ref:\n\n%s", tc.expErr, errStr)
+				}
+			}
+		})
+	}
+}
+
+func TestParseRefQuery(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		note    string
+		raw     string
+		expBody ast.Body
+		expErr  string
+	}{
+		{
+			note:   "unparseable",
+			raw:    `}abc{`,
+			expErr: "failed to parse query",
+		},
+		{
+			note:   "empty",
+			raw:    ``,
+			expErr: "no ref",
+		},
+		{
+			note:    "single ref",
+			raw:     `data.foo.bar`,
+			expBody: ast.MustParseBody(`data.foo.bar`),
+		},
+		{
+			note:   "multiple refs,';' separated",
+			raw:    `data.foo.bar;data.baz.qux`,
+			expErr: "complex query",
+		},
+		{
+			note: "multiple refs,newline separated",
+			raw: `data.foo.bar
+data.baz.qux`,
+			expErr: "complex query",
+		},
+		{
+			note:   "single ref + call",
+			raw:    `data.foo.bar;data.baz.qux()`,
+			expErr: "complex query",
+		},
+		{
+			note:   "single ref + assignment",
+			raw:    `data.foo.bar;x := 42`,
+			expErr: "complex query",
+		},
+		{
+			note:   "single call",
+			raw:    `data.foo.bar()`,
+			expErr: "complex query",
+		},
+		{
+			note:   "single assignment",
+			raw:    `x := 42`,
+			expErr: "complex query",
+		},
+		{
+			note:   "single unification",
+			raw:    `x = 42`,
+			expErr: "complex query",
+		},
+		{
+			note:   "single equality",
+			raw:    `x == 42`,
+			expErr: "complex query",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			body, err := parseRefQuery(tc.raw)
+
+			if tc.expBody != nil {
+				if err != nil {
+					t.Fatalf("Expected body:\n\n%s\n\nbut got error:\n\n%s", tc.expBody, err)
+				}
+				if body.String() != tc.expBody.String() {
+					t.Fatalf("Expected body:\n\n%s\n\nbut got:\n\n%s", tc.expBody, body.String())
+				}
+			}
+
+			if tc.expErr != "" {
+				if body != nil {
+					t.Fatalf("Expected error:\n\n%s\n\nbut got body:\n\n%s", tc.expErr, body.String())
+				}
+				if errStr := err.Error(); errStr != tc.expErr {
+					t.Fatalf("Expected error:\n\n%s\n\nbut got body:\n\n%s", tc.expErr, errStr)
+				}
+			}
+		})
+	}
 }

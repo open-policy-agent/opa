@@ -11,9 +11,9 @@ import (
 // Compare returns 0 if a equals b, -1 if a is less than b, and 1 if b is than a.
 //
 // For comparison between values of different types, the following ordering is used:
-// nil < bool < int, float64 < string < []interface{} < map[string]interface{}. Slices and maps
+// nil < bool < int, float64 < string < []any < map[string]any. Slices and maps
 // are compared recursively. If one slice or map is a subset of the other slice or map
 // it is considered "less than". Nil is always equal to nil.
-func Compare(a, b interface{}) int {
+func Compare(a, b any) int {
 	return v1.Compare(a, b)
 }

@@ -36,7 +36,7 @@ func (o *OPA) WithPolicyBytes(policy []byte) opa.EvalEngine {
 }
 
 // WithDataJSON configures the JSON data to load.
-func (o *OPA) WithDataJSON(data interface{}) opa.EvalEngine {
+func (o *OPA) WithDataJSON(data any) opa.EvalEngine {
 	o.opa = o.opa.WithDataJSON(data)
 	return o
 }
@@ -77,11 +77,11 @@ func (o *OPA) Eval(ctx context.Context, opts opa.EvalOpts) (*opa.Result, error) 
 	return &opa.Result{Result: res.Result}, nil
 }
 
-func (o *OPA) SetData(ctx context.Context, data interface{}) error {
+func (o *OPA) SetData(ctx context.Context, data any) error {
 	return o.opa.SetData(ctx, data)
 }
 
-func (o *OPA) SetDataPath(ctx context.Context, path []string, data interface{}) error {
+func (o *OPA) SetDataPath(ctx context.Context, path []string, data any) error {
 	return o.opa.SetDataPath(ctx, path, data)
 }
 

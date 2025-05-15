@@ -104,7 +104,7 @@ func TestCheckInference(t *testing.T) {
 		{"object-object-key", `x = {{{}: 1}: 1}`, map[Var]types.Type{
 			Var("x"): types.NewObject(
 				[]*types.StaticProperty{types.NewStaticProperty(
-					map[string]interface{}{
+					map[string]any{
 						"{}": json.Number("1"),
 					},
 					types.N,
@@ -115,7 +115,7 @@ func TestCheckInference(t *testing.T) {
 		{"object-composite-ref-operand", `x = {{}: 1}; x[{}] = y`, map[Var]types.Type{
 			Var("x"): types.NewObject(
 				[]*types.StaticProperty{types.NewStaticProperty(
-					map[string]interface{}{},
+					map[string]any{},
 					types.N,
 				)},
 				nil,
@@ -2402,7 +2402,7 @@ q = p`,
 				for k, v := range tc.schemas {
 
 					ref := MustParseRef(k)
-					var schema interface{}
+					var schema any
 					err = util.Unmarshal([]byte(v), &schema)
 					if err != nil {
 						t.Fatal(err)

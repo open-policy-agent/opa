@@ -16,7 +16,7 @@
 <div class="dashboard-panel left has-background-white-bis is-hidden-touch">
   <div class="dashboard-panel-header has-text-centered">
     <div class="dashboard-panel-header-logo">
-      <a href="{{ $home }}">
+      <a href="https://openpolicyagent.org">
         <img src="{{ $logo }}">
       </a>
     </div>
@@ -42,7 +42,7 @@
                 pre-release
               </span>
             {{ else }}
-              <span class="tag latest-tag {{ cond $ancient "is-danger" "is-warning"}} is-small has-text-weight-bold">
+              <span class="tag latest-tag {{ cond $ancient " is-danger" "is-warning" }} is-small has-text-weight-bold">
                 older
               </span>
             {{ end }}
@@ -54,27 +54,29 @@
 
       <div class="dropdown-menu">
         <div class="dropdown-content has-text-left">
-            {{ range $releases }}
-                {{ if ne . "latest" }}
-                    {{ $isLatest := eq . (index site.Data.releases 1) }}
-                    {{ $verRef := . }}
-                    {{ if $isLatest }}
-                        {{ $verRef = "latest" }}
-                    {{ end }}
-                    {{ $versionedLink := strings.Replace $page $version $verRef }}
-                    {{ if (eq (site.GetPage $versionedLink).Content "") }}
-                        {{ $versionedLink = printf "docs/%s" $verRef }}
-                    {{ end }}
-                    <a href="{{ printf "/%s" $versionedLink }}" class="dropdown-item">
-                        {{ . }}
-                        {{ if $isLatest }}
-                          <span class="tag latest-tag is-success is-small has-text-weight-bold">
+          {{ range $releases }}
+            {{ if and (ne . "latest") (ne . "edge") }}
+              {{ $isLatest := eq . (index site.Data.releases 1) }}
+                {{ $verRef := . }}
+                {{ if $isLatest }}
+                  {{ $verRef = "latest" }}
+                {{ end }}
+                {{ $versionSubdomain := strings.Replace . "." "-" }}
+                {{ $versionedURL := printf "https://%s--opa-docs.netlify.app/" $versionSubdomain }}
+                <a href="{{ $versionedURL }}" class="dropdown-item">
+                  {{ . }}
+                  {{ if $isLatest }}
+                  <span class="tag latest-tag is-success is-small has-text-weight-bold">
                     latest
                   </span>
-                        {{ end }}
-                    </a>
-                {{ end }}
+                  {{ end }}
+                </a>
             {{ end }}
+          {{ end }}
+          <!-- edge is handled specially since we do not have a archive site for it-->
+          <a href="https://www.openpolicyagent.org/docs/edge/" class="dropdown-item">
+            edge
+          </a>
         </div>
       </div>
     </div>

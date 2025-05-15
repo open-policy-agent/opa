@@ -36,6 +36,25 @@ OPA integration using one of the [language SDKs](/ecosystem/#languages) than wor
 with the REST API directly.
 {{< /info >}}
 
+##  Common Request Headers
+
+The following request headers are commonly used in some API endpoints:
+
+#### Content-Type
+
+It indicates the request body format. These are some values used in some APIs:
+- `application/json` for JSON encoded content, e.g. a JSON document
+- `application/yaml` for YAML encoded content, e.g. a YAML document
+- `text/plain` for plain text content, e.g. a policy
+
+#### Accept-Encoding
+
+It could have `gzip` value which indicates the server should respond with a gzip encoded body. The server will send the compressed response only if its length is above `server.encoding.gzip.min_length` value. See the [configuration section](../configuration/#server).
+
+#### Content-Encoding
+
+It could have `gzip` value which indicates the request body is a gzip encoded object.
+
 ##  Policy API
 
 The Policy API exposes CRUD endpoints for managing policy modules. Policy modules can be added, removed, and modified at any time.
@@ -649,6 +668,10 @@ Create or update a policy module.
 
 If the policy module does not exist, it is created. If the policy module already exists, it is replaced.
 
+#### Request Headers
+
+- **[Content-Type](#content-type)**: `text/plain`
+
 #### Query Parameters
 
 - **pretty** - If parameter is `true`, response will be formatted for humans.
@@ -751,6 +774,10 @@ Get a document.
 
 The path separator is used to access values inside object and array documents. The server attempts to convert path segments to integers. If a path element cannot be converted to an integer, the server will use its string representation.
 
+#### Request Headers
+
+- **[Accept-Encoding](#accept-encoding)**: `gzip`
+
 #### Query Parameters
 
 - **input** - Provide an input document. Format is a JSON value that will be used as the value for the input document.
@@ -760,10 +787,6 @@ The path separator is used to access values inside object and array documents. T
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 - **instrument** - Instrument query evaluation and return a superset of performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 - **strict-builtin-errors** - Treat built-in function call errors as fatal and return an error immediately.
-
-#### Request Headers
-
-- **Accept-Encoding: gzip**: Indicates the server should respond with a gzip encoded body. The server will send the compressed response only if its length is above `server.encoding.gzip.min_length` value. See the configuration section
 
 #### Status Codes
 
@@ -852,9 +875,9 @@ The request body contains an object that specifies a value for [The input Docume
 
 #### Request Headers
 
-- **Content-Type: application/yaml**: Indicates the request body is a YAML encoded object.
-- **Content-Encoding: gzip**: Indicates the request body is a gzip encoded object.
-- **Accept-Encoding: gzip**: Indicates the server should respond with a gzip encoded body. The server will send the compressed response only if its length is above `server.encoding.gzip.min_length` value. See the configuration section
+- **[Content-Type](#content-type)**: `application/json` or `application/yaml`
+- **[Content-Encoding](#content-encoding)**: `gzip`
+- **[Accept-Encoding](#accept-encoding)**: `gzip`
 
 #### Query Parameters
 
@@ -973,9 +996,9 @@ array documents.
 
 #### Request Headers
 
-- **Content-Type: application/yaml**: Indicates the request body is a YAML encoded object.
-- **Content-Encoding: gzip**: Indicates the request body is a gzip encoded object.
-- **Accept-Encoding: gzip**: Indicates the server should respond with a gzip encoded body. The server will send the compressed response only if its length is above `server.encoding.gzip.min_length` value. See the configuration section
+- **[Content-Type](#content-type)**: `application/json` or `application/yaml`
+- **[Content-Encoding](#content-encoding)**: `gzip`
+- **[Accept-Encoding](#accept-encoding)**: `gzip`
 
 #### Query Parameters
 
@@ -1037,7 +1060,10 @@ Create or overwrite a document.
 
 If the path does not refer to an existing document, the server will attempt to create all the necessary containing documents. This behavior is similar in principle to the Unix command `mkdir -p`.
 
-The server will respect the `If-None-Match` header if it is set to `*`. In this case, the server will not overwrite an existing document located at the path.
+#### Request Headers
+
+- **[Content-Type](#content-type)**: `application/json`
+- **If-None-Match**: `*` -  the server will not overwrite an existing document located at the path.
 
 #### Query Parameters
 
@@ -1089,6 +1115,11 @@ Update a document.
 The server accepts updates encoded as JSON Patch operations. The message body of the request should contain a JSON encoded array containing one or more JSON Patch operations. Each operation specifies the operation type, path, and an optional value. For more information on JSON Patch, see [RFC 6902](https://tools.ietf.org/html/rfc6902).
 
 The effective path of the JSON Patch operation is obtained by joining the path portion of the URL with the path value from the operation(s) contained in the message body. In all cases, the parent of the effective path MUST refer to an existing document, otherwise the server returns 404. In the case of **remove** and **replace** operations, the effective path MUST refer to an existing document, otherwise the server returns 404.
+
+#### Request Headers
+
+- **[Content-Type](#content-type)**: `application/json-patch+json`
+
 
 #### Status Codes
 
@@ -1175,7 +1206,7 @@ for more information.
 
 #### Request Headers
 
-- **Content-Type: application/yaml**: Indicates the request body is a YAML encoded object.
+- **[Content-Type](#content-type)**: `application/json` or `application/yaml`
 
 #### Query Parameters
 
@@ -1256,7 +1287,9 @@ GET /v1/query
 - **500** - server error
 - **501** - streaming not implemented
 
-For queries that have large JSON values it is recommended to use the `POST` method with the query included as the `POST` body:
+For queries that have large JSON values it is recommended to use the `POST` method with:
+- the query included as the request body
+- [Content-Type](#content-type): `application/json` request header
 
 ```
 POST /v1/query HTTP/1.1
@@ -1336,10 +1369,11 @@ Compile API requests contain the following fields:
 | `options`  | `object[string, any]`           | No | Additional options to use during partial evaluation: `disableInlining` (default: undefined) and `nondeterminsticBuiltins` (default: false). |
 | `unknowns` | `array[string]` | No | The terms to treat as unknown during partial evaluation (default: `["input"]`]). |
 
-### Request Headers
+#### Request Headers
 
-- **Content-Encoding: gzip**: Indicates the request body is a gzip encoded object.
-- **Accept-Encoding: gzip**: Indicates the server should respond with a gzip encoded body. The server will send the compressed response only if its length is above `server.encoding.gzip.min_length` value
+- **[Content-Type](#content-type)**: `application/json`
+- **[Content-Encoding](#content-encoding)**: `gzip`
+- **[Accept-Encoding](#accept-encoding)**: `gzip`
 
 #### Query Parameters
 

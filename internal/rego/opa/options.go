@@ -18,7 +18,7 @@ type Result struct {
 
 // EvalOpts define options for performing an evaluation.
 type EvalOpts struct {
-	Input                       *interface{}
+	Input                       *any
 	Metrics                     metrics.Metrics
 	Entrypoint                  int32
 	Time                        time.Time

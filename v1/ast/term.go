@@ -19,9 +19,9 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"unicode"
 
 	"github.com/cespare/xxhash/v2"
-
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/ast/location"
 	"github.com/open-policy-agent/opa/v1/util"
@@ -54,7 +54,7 @@ type Value interface {
 }
 
 // InterfaceToValue converts a native Go value x to a Value.
-func InterfaceToValue(x interface{}) (Value, error) {
+func InterfaceToValue(x any) (Value, error) {
 	switch x := x.(type) {
 	case Value:
 		return x, nil
@@ -127,7 +127,7 @@ func InterfaceToValue(x interface{}) (Value, error) {
 
 // ValueFromReader returns an AST value from a JSON serialized value in the reader.
 func ValueFromReader(r io.Reader) (Value, error) {
-	var x interface{}
+	var x any
 	if err := util.NewJSONDecoder(r).Decode(&x); err != nil {
 		return nil, err
 	}
@@ -135,13 +135,13 @@ func ValueFromReader(r io.Reader) (Value, error) {
 }
 
 // As converts v into a Go native type referred to by x.
-func As(v Value, x interface{}) error {
+func As(v Value, x any) error {
 	return util.NewJSONDecoder(strings.NewReader(v.String())).Decode(x)
 }
 
 // Resolver defines the interface for resolving references to native Go values.
 type Resolver interface {
-	Resolve(Ref) (interface{}, error)
+	Resolve(Ref) (any, error)
 }
 
 // ValueResolver defines the interface for resolving references to AST values.
@@ -165,18 +165,18 @@ func IsUnknownValueErr(err error) bool {
 
 type illegalResolver struct{}
 
-func (illegalResolver) Resolve(ref Ref) (interface{}, error) {
+func (illegalResolver) Resolve(ref Ref) (any, error) {
 	return nil, fmt.Errorf("illegal value: %v", ref)
 }
 
 // ValueToInterface returns the Go representation of an AST value.  The AST
 // value should not contain any values that require evaluation (e.g., vars,
 // comprehensions, etc.)
-func ValueToInterface(v Value, resolver Resolver) (interface{}, error) {
+func ValueToInterface(v Value, resolver Resolver) (any, error) {
 	return valueToInterface(v, resolver, JSONOpt{})
 }
 
-func valueToInterface(v Value, resolver Resolver, opt JSONOpt) (interface{}, error) {
+func valueToInterface(v Value, resolver Resolver, opt JSONOpt) (any, error) {
 	switch v := v.(type) {
 	case Null:
 		return nil, nil
@@ -187,7 +187,7 @@ func valueToInterface(v Value, resolver Resolver, opt JSONOpt) (interface{}, err
 	case String:
 		return string(v), nil
 	case *Array:
-		buf := []interface{}{}
+		buf := []any{}
 		for i := range v.Len() {
 			x1, err := valueToInterface(v.Elem(i).Value, resolver, opt)
 			if err != nil {
@@ -197,7 +197,7 @@ func valueToInterface(v Value, resolver Resolver, opt JSONOpt) (interface{}, err
 		}
 		return buf, nil
 	case *object:
-		buf := make(map[string]interface{}, v.Len())
+		buf := make(map[string]any, v.Len())
 		err := v.Iter(func(k, v *Term) error {
 			ki, err := valueToInterface(k.Value, resolver, opt)
 			if err != nil {
@@ -229,7 +229,7 @@ func valueToInterface(v Value, resolver Resolver, opt JSONOpt) (interface{}, err
 		}
 		return v.native, nil
 	case Set:
-		buf := []interface{}{}
+		buf := []any{}
 		iter := func(x *Term) error {
 			x1, err := valueToInterface(x.Value, resolver, opt)
 			if err != nil {
@@ -257,19 +257,19 @@ func valueToInterface(v Value, resolver Resolver, opt JSONOpt) (interface{}, err
 
 // JSON returns the JSON representation of v. The value must not contain any
 // refs or terms that require evaluation (e.g., vars, comprehensions, etc.)
-func JSON(v Value) (interface{}, error) {
+func JSON(v Value) (any, error) {
 	return JSONWithOpt(v, JSONOpt{})
 }
 
 // JSONOpt defines parameters for AST to JSON conversion.
 type JSONOpt struct {
 	SortSets bool // sort sets before serializing (this makes conversion more expensive)
-	CopyMaps bool // enforces copying of map[string]interface{} read from the store
+	CopyMaps bool // enforces copying of map[string]any read from the store
 }
 
 // JSONWithOpt returns the JSON representation of v. The value must not contain any
 // refs or terms that require evaluation (e.g., vars, comprehensions, etc.)
-func JSONWithOpt(v Value, opt JSONOpt) (interface{}, error) {
+func JSONWithOpt(v Value, opt JSONOpt) (any, error) {
 	return valueToInterface(v, illegalResolver{}, opt)
 }
 
@@ -277,7 +277,7 @@ func JSONWithOpt(v Value, opt JSONOpt) (interface{}, error) {
 // refs or terms that require evaluation (e.g., vars, comprehensions, etc.) If
 // the conversion fails, this function will panic. This function is mostly for
 // test purposes.
-func MustJSON(v Value) interface{} {
+func MustJSON(v Value) any {
 	r, err := JSON(v)
 	if err != nil {
 		panic(err)
@@ -288,7 +288,7 @@ func MustJSON(v Value) interface{} {
 // MustInterfaceToValue converts a native Go value x to a Value. If the
 // conversion fails, this function will panic. This function is mostly for test
 // purposes.
-func MustInterfaceToValue(x interface{}) Value {
+func MustInterfaceToValue(x any) Value {
 	v, err := InterfaceToValue(x)
 	if err != nil {
 		panic(err)
@@ -410,7 +410,7 @@ func (term *Term) IsGround() bool {
 //
 // Specialized marshalling logic is required to include a type hint for Value.
 func (term *Term) MarshalJSON() ([]byte, error) {
-	d := map[string]interface{}{
+	d := map[string]any{
 		"type":  ValueName(term.Value),
 		"value": term.Value,
 	}
@@ -430,7 +430,7 @@ func (term *Term) String() string {
 // UnmarshalJSON parses the byte array and stores the result in term.
 // Specialized unmarshalling is required to handle Value and Location.
 func (term *Term) UnmarshalJSON(bs []byte) error {
-	v := map[string]interface{}{}
+	v := map[string]any{}
 	if err := util.UnmarshalJSON(bs, &v); err != nil {
 		return err
 	}
@@ -440,7 +440,7 @@ func (term *Term) UnmarshalJSON(bs []byte) error {
 	}
 	term.Value = val
 
-	if loc, ok := v["location"].(map[string]interface{}); ok {
+	if loc, ok := v["location"].(map[string]any); ok {
 		term.Location = &Location{}
 		err := unmarshalLocation(term.Location, loc)
 		if err != nil {
@@ -461,7 +461,7 @@ func (term *Term) Vars() VarSet {
 func IsConstant(v Value) bool {
 	found := false
 	vis := GenericVisitor{
-		func(x interface{}) bool {
+		func(x any) bool {
 			switch x.(type) {
 			case Var, Ref, *ArrayComprehension, *ObjectComprehension, *SetComprehension, Call:
 				found = true
@@ -484,7 +484,7 @@ func IsComprehension(x Value) bool {
 }
 
 // ContainsRefs returns true if the Value v contains refs.
-func ContainsRefs(v interface{}) bool {
+func ContainsRefs(v any) bool {
 	found := false
 	WalkRefs(v, func(Ref) bool {
 		found = true
@@ -494,9 +494,9 @@ func ContainsRefs(v interface{}) bool {
 }
 
 // ContainsComprehensions returns true if the Value v contains comprehensions.
-func ContainsComprehensions(v interface{}) bool {
+func ContainsComprehensions(v any) bool {
 	found := false
-	WalkClosures(v, func(x interface{}) bool {
+	WalkClosures(v, func(x any) bool {
 		switch x.(type) {
 		case *ArrayComprehension, *ObjectComprehension, *SetComprehension:
 			found = true
@@ -508,9 +508,9 @@ func ContainsComprehensions(v interface{}) bool {
 }
 
 // ContainsClosures returns true if the Value v contains closures.
-func ContainsClosures(v interface{}) bool {
+func ContainsClosures(v any) bool {
 	found := false
-	WalkClosures(v, func(x interface{}) bool {
+	WalkClosures(v, func(x any) bool {
 		switch x.(type) {
 		case *ArrayComprehension, *ObjectComprehension, *SetComprehension, *Every:
 			found = true
@@ -804,7 +804,7 @@ func (str String) Equal(other Value) bool {
 func (str String) Compare(other Value) int {
 	// Optimize for the common case of one string being compared to another by
 	// using a direct comparison of values. This avoids the allocation performed
-	// when calling Compare and its interface{} argument conversion.
+	// when calling Compare and its any argument conversion.
 	if otherStr, ok := other.(String); ok {
 		if str == otherStr {
 			return 0
@@ -1195,9 +1195,17 @@ func (ref Ref) String() string {
 				sb.WriteByte('.')
 				sb.WriteString(str)
 			} else {
-				sb.WriteString(`["`)
-				sb.WriteString(str)
-				sb.WriteString(`"]`)
+				// Determine whether we need the full JSON-escaped form
+				if strings.ContainsFunc(str, isControlOrBackslash) {
+					sb.WriteByte('[')
+					// only now pay the cost of expensive JSON-escaped form
+					sb.WriteString(p.String())
+					sb.WriteByte(']')
+				} else {
+					sb.WriteString(`["`)
+					sb.WriteString(str)
+					sb.WriteString(`"]`)
+				}
 			}
 		default:
 			sb.WriteByte('[')
@@ -2000,14 +2008,14 @@ func ObjectTerm(o ...[2]*Term) *Term {
 	return &Term{Value: NewObject(o...)}
 }
 
-func LazyObject(blob map[string]interface{}) Object {
+func LazyObject(blob map[string]any) Object {
 	return &lazyObj{native: blob, cache: map[string]Value{}}
 }
 
 type lazyObj struct {
 	strict Object
 	cache  map[string]Value
-	native map[string]interface{}
+	native map[string]any
 }
 
 func (l *lazyObj) force() Object {
@@ -2104,7 +2112,7 @@ func (l *lazyObj) Get(k *Term) *Term {
 		if val, ok := l.native[string(s)]; ok {
 			var converted Value
 			switch val := val.(type) {
-			case map[string]interface{}:
+			case map[string]any:
 				converted = LazyObject(val)
 			default:
 				converted = MustInterfaceToValue(val)
@@ -2173,7 +2181,7 @@ func (l *lazyObj) Find(path Ref) (Value, error) {
 		if v, ok := l.native[string(p0)]; ok {
 			var converted Value
 			switch v := v.(type) {
-			case map[string]interface{}:
+			case map[string]any:
 				converted = LazyObject(v)
 			default:
 				converted = MustInterfaceToValue(v)
@@ -3101,6 +3109,11 @@ func termSliceIsGround(a []*Term) bool {
 	return true
 }
 
+// Detect when String() need to use expensive JSON‐escaped form
+func isControlOrBackslash(r rune) bool {
+	return r == '\\' || unicode.IsControl(r)
+}
+
 // NOTE(tsandall): The unmarshalling errors in these functions are not
 // helpful for callers because they do not identify the source of the
 // unmarshalling error. Because OPA doesn't accept JSON describing ASTs
@@ -3109,10 +3122,10 @@ func termSliceIsGround(a []*Term) bool {
 // on the happy path and treats all errors the same. If better error
 // reporting is needed, the error paths will need to be fleshed out.
 
-func unmarshalBody(b []interface{}) (Body, error) {
+func unmarshalBody(b []any) (Body, error) {
 	buf := Body{}
 	for _, e := range b {
-		if m, ok := e.(map[string]interface{}); ok {
+		if m, ok := e.(map[string]any); ok {
 			expr := &Expr{}
 			if err := unmarshalExpr(expr, m); err == nil {
 				buf = append(buf, expr)
@@ -3126,7 +3139,7 @@ unmarshal_error:
 	return nil, errors.New("ast: unable to unmarshal body")
 }
 
-func unmarshalExpr(expr *Expr, v map[string]interface{}) error {
+func unmarshalExpr(expr *Expr, v map[string]any) error {
 	if x, ok := v["negated"]; ok {
 		if b, ok := x.(bool); ok {
 			expr.Negated = b
@@ -3146,13 +3159,13 @@ func unmarshalExpr(expr *Expr, v map[string]interface{}) error {
 		return err
 	}
 	switch ts := v["terms"].(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		t, err := unmarshalTerm(ts)
 		if err != nil {
 			return err
 		}
 		expr.Terms = t
-	case []interface{}:
+	case []any:
 		terms, err := unmarshalTermSlice(ts)
 		if err != nil {
 			return err
@@ -3162,7 +3175,7 @@ func unmarshalExpr(expr *Expr, v map[string]interface{}) error {
 		return fmt.Errorf(`ast: unable to unmarshal terms field with type: %T (expected {"value": ..., "type": ...} or [{"value": ..., "type": ...}, ...])`, v["terms"])
 	}
 	if x, ok := v["with"]; ok {
-		if sl, ok := x.([]interface{}); ok {
+		if sl, ok := x.([]any); ok {
 			ws := make([]*With, len(sl))
 			for i := range sl {
 				var err error
@@ -3174,7 +3187,7 @@ func unmarshalExpr(expr *Expr, v map[string]interface{}) error {
 			expr.With = ws
 		}
 	}
-	if loc, ok := v["location"].(map[string]interface{}); ok {
+	if loc, ok := v["location"].(map[string]any); ok {
 		expr.Location = &Location{}
 		if err := unmarshalLocation(expr.Location, loc); err != nil {
 			return err
@@ -3183,7 +3196,7 @@ func unmarshalExpr(expr *Expr, v map[string]interface{}) error {
 	return nil
 }
 
-func unmarshalLocation(loc *Location, v map[string]interface{}) error {
+func unmarshalLocation(loc *Location, v map[string]any) error {
 	if x, ok := v["file"]; ok {
 		if s, ok := x.(string); ok {
 			loc.File = s
@@ -3217,7 +3230,7 @@ func unmarshalLocation(loc *Location, v map[string]interface{}) error {
 	return nil
 }
 
-func unmarshalExprIndex(expr *Expr, v map[string]interface{}) error {
+func unmarshalExprIndex(expr *Expr, v map[string]any) error {
 	if x, ok := v["index"]; ok {
 		if n, ok := x.(json.Number); ok {
 			i, err := n.Int64()
@@ -3230,7 +3243,7 @@ func unmarshalExprIndex(expr *Expr, v map[string]interface{}) error {
 	return fmt.Errorf("ast: unable to unmarshal index field with type: %T (expected integer)", v["index"])
 }
 
-func unmarshalTerm(m map[string]interface{}) (*Term, error) {
+func unmarshalTerm(m map[string]any) (*Term, error) {
 	var term Term
 
 	v, err := unmarshalValue(m)
@@ -3239,7 +3252,7 @@ func unmarshalTerm(m map[string]interface{}) (*Term, error) {
 	}
 	term.Value = v
 
-	if loc, ok := m["location"].(map[string]interface{}); ok {
+	if loc, ok := m["location"].(map[string]any); ok {
 		term.Location = &Location{}
 		if err := unmarshalLocation(term.Location, loc); err != nil {
 			return nil, err
@@ -3249,10 +3262,10 @@ func unmarshalTerm(m map[string]interface{}) (*Term, error) {
 	return &term, nil
 }
 
-func unmarshalTermSlice(s []interface{}) ([]*Term, error) {
+func unmarshalTermSlice(s []any) ([]*Term, error) {
 	buf := []*Term{}
 	for _, x := range s {
-		if m, ok := x.(map[string]interface{}); ok {
+		if m, ok := x.(map[string]any); ok {
 			t, err := unmarshalTerm(m)
 			if err == nil {
 				buf = append(buf, t)
@@ -3265,19 +3278,19 @@ func unmarshalTermSlice(s []interface{}) ([]*Term, error) {
 	return buf, nil
 }
 
-func unmarshalTermSliceValue(d map[string]interface{}) ([]*Term, error) {
-	if s, ok := d["value"].([]interface{}); ok {
+func unmarshalTermSliceValue(d map[string]any) ([]*Term, error) {
+	if s, ok := d["value"].([]any); ok {
 		return unmarshalTermSlice(s)
 	}
 	return nil, errors.New(`ast: unable to unmarshal term (expected {"value": [...], "type": ...} where type is one of: ref, array, or set)`)
 }
 
-func unmarshalWith(i interface{}) (*With, error) {
-	if m, ok := i.(map[string]interface{}); ok {
-		tgt, _ := m["target"].(map[string]interface{})
+func unmarshalWith(i any) (*With, error) {
+	if m, ok := i.(map[string]any); ok {
+		tgt, _ := m["target"].(map[string]any)
 		target, err := unmarshalTerm(tgt)
 		if err == nil {
-			val, _ := m["value"].(map[string]interface{})
+			val, _ := m["value"].(map[string]any)
 			value, err := unmarshalTerm(val)
 			if err == nil {
 				return &With{
@@ -3292,7 +3305,7 @@ func unmarshalWith(i interface{}) (*With, error) {
 	return nil, errors.New(`ast: unable to unmarshal with modifier (expected {"target": {...}, "value": {...}})`)
 }
 
-func unmarshalValue(d map[string]interface{}) (Value, error) {
+func unmarshalValue(d map[string]any) (Value, error) {
 	v := d["value"]
 	switch d["type"] {
 	case "null":
@@ -3326,10 +3339,10 @@ func unmarshalValue(d map[string]interface{}) (Value, error) {
 			return NewSet(s...), nil
 		}
 	case "object":
-		if s, ok := v.([]interface{}); ok {
+		if s, ok := v.([]any); ok {
 			buf := NewObject()
 			for _, x := range s {
-				if i, ok := x.([]interface{}); ok && len(i) == 2 {
+				if i, ok := x.([]any); ok && len(i) == 2 {
 					p, err := unmarshalTermSlice(i)
 					if err == nil {
 						buf.Insert(p[0], p[1])
@@ -3341,8 +3354,8 @@ func unmarshalValue(d map[string]interface{}) (Value, error) {
 			return buf, nil
 		}
 	case "arraycomprehension", "setcomprehension":
-		if m, ok := v.(map[string]interface{}); ok {
-			t, ok := m["term"].(map[string]interface{})
+		if m, ok := v.(map[string]any); ok {
+			t, ok := m["term"].(map[string]any)
 			if !ok {
 				goto unmarshal_error
 			}
@@ -3352,7 +3365,7 @@ func unmarshalValue(d map[string]interface{}) (Value, error) {
 				goto unmarshal_error
 			}
 
-			b, ok := m["body"].([]interface{})
+			b, ok := m["body"].([]any)
 			if !ok {
 				goto unmarshal_error
 			}
@@ -3368,8 +3381,8 @@ func unmarshalValue(d map[string]interface{}) (Value, error) {
 			return &SetComprehension{Term: term, Body: body}, nil
 		}
 	case "objectcomprehension":
-		if m, ok := v.(map[string]interface{}); ok {
-			k, ok := m["key"].(map[string]interface{})
+		if m, ok := v.(map[string]any); ok {
+			k, ok := m["key"].(map[string]any)
 			if !ok {
 				goto unmarshal_error
 			}
@@ -3379,7 +3392,7 @@ func unmarshalValue(d map[string]interface{}) (Value, error) {
 				goto unmarshal_error
 			}
 
-			v, ok := m["value"].(map[string]interface{})
+			v, ok := m["value"].(map[string]any)
 			if !ok {
 				goto unmarshal_error
 			}
@@ -3389,7 +3402,7 @@ func unmarshalValue(d map[string]interface{}) (Value, error) {
 				goto unmarshal_error
 			}
 
-			b, ok := m["body"].([]interface{})
+			b, ok := m["body"].([]any)
 			if !ok {
 				goto unmarshal_error
 			}

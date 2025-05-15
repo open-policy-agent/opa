@@ -608,7 +608,7 @@ func (s *Server) getListener(addr string, h http.Handler, t httpListenerType) ([
 		loops = []Loop{loop}
 	case "https":
 		loop, listener, err = s.getListenerForHTTPSServer(parsedURL, h, t)
-		logger := s.manager.Logger().WithFields(map[string]interface{}{
+		logger := s.manager.Logger().WithFields(map[string]any{
 			"cert-file":     s.certFile,
 			"cert-key-file": s.certKeyFile,
 		})
@@ -914,7 +914,7 @@ func (s *Server) instrumentHandler(handler func(http.ResponseWriter, *http.Reque
 	return httpHandler
 }
 
-func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.Transaction, parsedQuery ast.Body, input ast.Value, rawInput *interface{}, m metrics.Metrics, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (*types.QueryResponseV1, error) {
+func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.Transaction, parsedQuery ast.Body, input ast.Value, rawInput *any, m metrics.Metrics, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (*types.QueryResponseV1, error) {
 	results := types.QueryResponseV1{}
 	logger := s.getDecisionLogger(br)
 
@@ -973,7 +973,7 @@ func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.
 		results.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
 	}
 
-	var x interface{} = results.Result
+	var x any = results.Result
 	if err := logger.Log(ctx, txn, "", parsedQuery.String(), rawInput, input, &x, ndbCache, nil, m); err != nil {
 		return nil, err
 	}
@@ -1148,19 +1148,23 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 	}
 
 	if len(rs) == 0 {
-		ref := stringPathToDataRef(urlPath)
+		ref, err := stringPathToDataRef(urlPath)
+		if err != nil {
+			writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "invalid path: %v", err))
+			return
+		}
 
 		var messageType = types.MsgMissingError
 		if len(s.getCompiler().GetRulesForVirtualDocument(ref)) > 0 {
 			messageType = types.MsgFoundUndefinedError
 		}
-		err := types.NewErrorV1(types.CodeUndefinedDocument, "%v: %v", messageType, ref)
-		if err := logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m); err != nil {
+		errV1 := types.NewErrorV1(types.CodeUndefinedDocument, "%v: %v", messageType, ref)
+		if err := logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, errV1, m); err != nil {
 			writer.ErrorAuto(w, err)
 			return
 		}
 
-		writer.Error(w, http.StatusNotFound, err)
+		writer.Error(w, http.StatusNotFound, errV1)
 		return
 	}
 	err = logger.Log(ctx, txn, urlPath, "", goInput, input, &rs[0].Expressions[0].Value, ndbCache, nil, m)
@@ -1290,7 +1294,7 @@ func (s *Server) unversionedGetHealthWithPolicy(w http.ResponseWriter, r *http.R
 	allPluginsOk := true
 
 	// build input document for health check query
-	input := func() map[string]interface{} {
+	input := func() map[string]any {
 		s.mtx.Lock()
 		defer s.mtx.Unlock()
 
@@ -1310,7 +1314,7 @@ func (s *Server) unversionedGetHealthWithPolicy(w http.ResponseWriter, r *http.R
 			s.allPluginsOkOnce = true
 		}
 
-		return map[string]interface{}{
+		return map[string]any{
 			"plugin_state":  pluginState,
 			"plugins_ready": s.allPluginsOkOnce,
 		}
@@ -1319,10 +1323,15 @@ func (s *Server) unversionedGetHealthWithPolicy(w http.ResponseWriter, r *http.R
 	vars := mux.Vars(r)
 	urlPath := vars["path"]
 	healthDataPath := "/system/health/" + urlPath
-	healthDataPath = stringPathToDataRef(healthDataPath).String()
+
+	healthDataPathQuery, err := stringPathToQuery(healthDataPath)
+	if err != nil {
+		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "invalid path: %v", err))
+		return
+	}
 
 	rego := rego.New(
-		rego.Query(healthDataPath),
+		rego.ParsedQuery(healthDataPathQuery),
 		rego.Compiler(s.getCompiler()),
 		rego.Store(s.store),
 		rego.Input(input),
@@ -1337,7 +1346,7 @@ func (s *Server) unversionedGetHealthWithPolicy(w http.ResponseWriter, r *http.R
 	}
 
 	if len(rs) == 0 {
-		writeHealthResponse(w, fmt.Errorf("health check (%v) was undefined", healthDataPath))
+		writeHealthResponse(w, fmt.Errorf("health check (%v) was undefined", healthDataPathQuery))
 		return
 	}
 
@@ -1347,7 +1356,7 @@ func (s *Server) unversionedGetHealthWithPolicy(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	writeHealthResponse(w, fmt.Errorf("health check (%v) returned unexpected value", healthDataPath))
+	writeHealthResponse(w, fmt.Errorf("health check (%v) returned unexpected value", healthDataPathQuery))
 }
 
 func writeHealthResponse(w http.ResponseWriter, err error) {
@@ -1439,7 +1448,7 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty(r))
 	}
 
-	var i interface{} = types.PartialEvaluationResultV1{
+	var i any = types.PartialEvaluationResultV1{
 		Queries: pq.Queries,
 		Support: pq.Support,
 	}
@@ -1470,7 +1479,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	inputs := r.URL.Query()[types.ParamInputV1]
 
 	var input ast.Value
-	var goInput *interface{}
+	var goInput *any
 
 	if len(inputs) > 0 {
 		var err error
@@ -1846,7 +1855,7 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	m.Timer(metrics.RegoInputParse).Start()
-	var value interface{}
+	var value any
 	if err := util.NewJSONDecoder(r.Body).Decode(&value); err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
@@ -2381,7 +2390,7 @@ func (s *Server) v1StatusGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var st interface{} = p.Snapshot()
+	var st any = p.Snapshot()
 	writer.JSONOK(w, types.StatusResponseV1{Result: &st}, pretty(r))
 }
 
@@ -2549,12 +2558,15 @@ func (s *Server) makeRego(_ context.Context,
 	tracer topdown.QueryTracer,
 	opts []func(*rego.Rego),
 ) (*rego.Rego, error) {
-	queryPath := stringPathToDataRef(urlPath).String()
+	query, err := stringPathToQuery(urlPath)
+	if err != nil {
+		return nil, types.NewErrorV1(types.CodeInvalidParameter, "invalid path: %v", err)
+	}
 
 	opts = append(
 		opts,
 		rego.Transaction(txn),
-		rego.Query(queryPath),
+		rego.ParsedQuery(query),
 		rego.ParsedInput(input),
 		rego.Metrics(m),
 		rego.QueryTracer(tracer),
@@ -2567,6 +2579,43 @@ func (s *Server) makeRego(_ context.Context,
 	)
 
 	return rego.New(opts...), nil
+}
+
+func stringPathToQuery(urlPath string) (ast.Body, error) {
+	ref, err := stringPathToDataRef(urlPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseRefQuery(ref.String())
+}
+
+// parseRefQuery parses a string into a query ast.Body.
+// The resulting query must be comprised of a single ref, or an error will be returned.
+func parseRefQuery(str string) (ast.Body, error) {
+	query, err := ast.ParseBody(str)
+	if err != nil {
+		return nil, errors.New("failed to parse query")
+	}
+
+	// assert the query is exactly one statement
+	if l := len(query); l == 0 {
+		return nil, errors.New("no ref")
+	} else if l > 1 {
+		return nil, errors.New("complex query")
+	}
+
+	// assert the single statement is a lone ref
+	expr := query[0]
+	switch t := expr.Terms.(type) {
+	case *ast.Term:
+		switch t.Value.(type) {
+		case ast.Ref:
+			return query, nil
+		}
+	}
+
+	return nil, errors.New("complex query")
 }
 
 func (*Server) prepareV1PatchSlice(root string, ops []types.PatchV1) (result []patchImpl, err error) {
@@ -2677,23 +2726,36 @@ func (s *Server) updateNDCache(enabled bool) {
 	s.ndbCacheEnabled = enabled
 }
 
-func stringPathToDataRef(s string) (r ast.Ref) {
+func stringPathToDataRef(s string) (ast.Ref, error) {
 	result := ast.Ref{ast.DefaultRootDocument}
-	return append(result, stringPathToRef(s)...)
+	r, err := stringPathToRef(s)
+	if err != nil {
+		return nil, err
+	}
+	return append(result, r...), nil
 }
 
-func stringPathToRef(s string) (r ast.Ref) {
+func stringPathToRef(s string) (ast.Ref, error) {
+	r := ast.Ref{}
+
 	if len(s) == 0 {
-		return r
+		return r, nil
 	}
+
 	p := strings.Split(s, "/")
 	for _, x := range p {
 		if x == "" {
 			continue
 		}
+
 		if y, err := url.PathUnescape(x); err == nil {
 			x = y
 		}
+
+		if strings.Contains(x, "\"") {
+			return nil, fmt.Errorf("invalid ref term '%s'", x)
+		}
+
 		i, err := strconv.Atoi(x)
 		if err != nil {
 			r = append(r, ast.StringTerm(x))
@@ -2701,7 +2763,7 @@ func stringPathToRef(s string) (r ast.Ref) {
 			r = append(r, ast.IntNumberTerm(i))
 		}
 	}
-	return r
+	return r, nil
 }
 
 func validateQuery(query string, opts ast.ParserOptions) (ast.Body, error) {
@@ -2762,7 +2824,7 @@ func getExplain(p []string, zero types.ExplainModeV1) types.ExplainModeV1 {
 	return zero
 }
 
-func readInputV0(r *http.Request) (ast.Value, *interface{}, error) {
+func readInputV0(r *http.Request) (ast.Value, *any, error) {
 
 	parsed, ok := authorizer.GetBodyOnContext(r.Context())
 	if ok {
@@ -2776,7 +2838,7 @@ func readInputV0(r *http.Request) (ast.Value, *interface{}, error) {
 		return nil, nil, fmt.Errorf("could not decompress the body: %w", err)
 	}
 
-	var x interface{}
+	var x any
 
 	if strings.Contains(r.Header.Get("Content-Type"), "yaml") {
 		if len(bodyBytes) > 0 {
@@ -2795,8 +2857,8 @@ func readInputV0(r *http.Request) (ast.Value, *interface{}, error) {
 	return v, &x, err
 }
 
-func readInputGetV1(str string) (ast.Value, *interface{}, error) {
-	var input interface{}
+func readInputGetV1(str string) (ast.Value, *any, error) {
+	var input any
 	if err := util.UnmarshalJSON([]byte(str), &input); err != nil {
 		return nil, nil, fmt.Errorf("parameter contains malformed input document: %w", err)
 	}
@@ -2804,11 +2866,11 @@ func readInputGetV1(str string) (ast.Value, *interface{}, error) {
 	return v, &input, err
 }
 
-func readInputPostV1(r *http.Request) (ast.Value, *interface{}, error) {
+func readInputPostV1(r *http.Request) (ast.Value, *any, error) {
 
 	parsed, ok := authorizer.GetBodyOnContext(r.Context())
 	if ok {
-		if obj, ok := parsed.(map[string]interface{}); ok {
+		if obj, ok := parsed.(map[string]any); ok {
 			if input, ok := obj["input"]; ok {
 				v, err := ast.InterfaceToValue(input)
 				return v, &input, err
@@ -2974,7 +3036,7 @@ type decisionLogger struct {
 	logger    func(context.Context, *Info) error
 }
 
-func (l decisionLogger) Log(ctx context.Context, txn storage.Transaction, path string, query string, goInput *interface{}, astInput ast.Value, goResults *interface{}, ndbCache builtins.NDBCache, err error, m metrics.Metrics) error {
+func (l decisionLogger) Log(ctx context.Context, txn storage.Transaction, path string, query string, goInput *any, astInput ast.Value, goResults *any, ndbCache builtins.NDBCache, err error, m metrics.Metrics) error {
 
 	bundles := map[string]BundleInfo{}
 	for name, rev := range l.revisions {
@@ -3038,7 +3100,7 @@ func (l decisionLogger) Log(ctx context.Context, txn storage.Transaction, path s
 type patchImpl struct {
 	path  storage.Path
 	op    storage.PatchOp
-	value interface{}
+	value any
 }
 
 func parseURL(s string, useHTTPSByDefault bool) (*url.URL, error) {

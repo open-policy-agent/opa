@@ -119,17 +119,17 @@ func TestSubEnvVarsVarsSubEmptyVarName(t *testing.T) {
 }
 
 func TestMergeValuesNoOverride(t *testing.T) {
-	dest := map[string]interface{}{}
-	src := map[string]interface{}{
-		"a": map[string]interface{}{
+	dest := map[string]any{}
+	src := map[string]any{
+		"a": map[string]any{
 			"b": "foo",
 		},
 	}
 
 	actual := mergeValues(dest, src)
 
-	expected := map[string]interface{}{
-		"a": map[string]interface{}{
+	expected := map[string]any{
+		"a": map[string]any{
 			"b": "foo",
 		},
 	}
@@ -140,16 +140,16 @@ func TestMergeValuesNoOverride(t *testing.T) {
 }
 
 func TestMergeValuesOverrideSingle(t *testing.T) {
-	dest := map[string]interface{}{
+	dest := map[string]any{
 		"a": "bar",
 	}
-	src := map[string]interface{}{
+	src := map[string]any{
 		"a": "override-value",
 	}
 
 	actual := mergeValues(dest, src)
 
-	expected := map[string]interface{}{
+	expected := map[string]any{
 		"a": "override-value",
 	}
 
@@ -159,21 +159,21 @@ func TestMergeValuesOverrideSingle(t *testing.T) {
 }
 
 func TestMergeValuesOverrideSingleNested(t *testing.T) {
-	dest := map[string]interface{}{
-		"a": map[string]interface{}{
+	dest := map[string]any{
+		"a": map[string]any{
 			"b": "foo",
 		},
 	}
-	src := map[string]interface{}{
-		"a": map[string]interface{}{
+	src := map[string]any{
+		"a": map[string]any{
 			"b": "override-value",
 		},
 	}
 
 	actual := mergeValues(dest, src)
 
-	expected := map[string]interface{}{
-		"a": map[string]interface{}{
+	expected := map[string]any{
+		"a": map[string]any{
 			"b": "override-value",
 		},
 	}
@@ -184,9 +184,9 @@ func TestMergeValuesOverrideSingleNested(t *testing.T) {
 }
 
 func TestMergeValuesOverrideMultipleNested(t *testing.T) {
-	dest := map[string]interface{}{
-		"a": map[string]interface{}{
-			"b": map[string]interface{}{
+	dest := map[string]any{
+		"a": map[string]any{
+			"b": map[string]any{
 				"k1": "v1",
 				"k2": "v2",
 				"k3": "v3",
@@ -194,9 +194,9 @@ func TestMergeValuesOverrideMultipleNested(t *testing.T) {
 			},
 		},
 	}
-	src := map[string]interface{}{
-		"a": map[string]interface{}{
-			"b": map[string]interface{}{
+	src := map[string]any{
+		"a": map[string]any{
+			"b": map[string]any{
 				"k1": "v1-override",
 				"k4": "v4-override",
 			},
@@ -205,9 +205,9 @@ func TestMergeValuesOverrideMultipleNested(t *testing.T) {
 
 	actual := mergeValues(dest, src)
 
-	expected := map[string]interface{}{
-		"a": map[string]interface{}{
-			"b": map[string]interface{}{
+	expected := map[string]any{
+		"a": map[string]any{
+			"b": map[string]any{
 				"k1": "v1-override",
 				"k2": "v2",
 				"k3": "v3",
@@ -222,9 +222,9 @@ func TestMergeValuesOverrideMultipleNested(t *testing.T) {
 }
 
 func TestMergeValuesOverrideSingleList(t *testing.T) {
-	dest := map[string]interface{}{
-		"a": map[string]interface{}{
-			"b": []map[string]interface{}{
+	dest := map[string]any{
+		"a": map[string]any{
+			"b": []map[string]any{
 				{
 					"k1": "v1",
 					"k2": "v2",
@@ -232,9 +232,9 @@ func TestMergeValuesOverrideSingleList(t *testing.T) {
 			},
 		},
 	}
-	src := map[string]interface{}{
-		"a": map[string]interface{}{
-			"b": []map[string]interface{}{
+	src := map[string]any{
+		"a": map[string]any{
+			"b": []map[string]any{
 				{
 					"k3": "v3",
 				},
@@ -245,9 +245,9 @@ func TestMergeValuesOverrideSingleList(t *testing.T) {
 	actual := mergeValues(dest, src)
 
 	// The list index 0 should have been replaced instead of merging the sub objects
-	expected := map[string]interface{}{
-		"a": map[string]interface{}{
-			"b": []map[string]interface{}{
+	expected := map[string]any{
+		"a": map[string]any{
+			"b": []map[string]any{
 				{
 					"k3": "v3",
 				},
@@ -261,17 +261,17 @@ func TestMergeValuesOverrideSingleList(t *testing.T) {
 }
 
 func TestMergeValuesNoSrc(t *testing.T) {
-	dest := map[string]interface{}{
-		"a": map[string]interface{}{
+	dest := map[string]any{
+		"a": map[string]any{
 			"b": "foo",
 		},
 	}
-	src := map[string]interface{}{}
+	src := map[string]any{}
 
 	actual := mergeValues(dest, src)
 
-	expected := map[string]interface{}{
-		"a": map[string]interface{}{
+	expected := map[string]any{
+		"a": map[string]any{
 			"b": "foo",
 		},
 	}
@@ -282,12 +282,12 @@ func TestMergeValuesNoSrc(t *testing.T) {
 }
 
 func TestMergeValuesNoSrcOrDest(t *testing.T) {
-	dest := map[string]interface{}{}
-	src := map[string]interface{}{}
+	dest := map[string]any{}
+	src := map[string]any{}
 
 	actual := mergeValues(dest, src)
 
-	expected := map[string]interface{}{}
+	expected := map[string]any{}
 
 	if !reflect.DeepEqual(actual, expected) {
 		t.Errorf("merged map does not match expected:\n\nExpected: %+v\nActual: %+v", expected, actual)
@@ -314,24 +314,24 @@ discovery:
 			t.Errorf("unexpected error loading config: %s", err.Error())
 		}
 
-		config := map[string]interface{}{}
+		config := map[string]any{}
 		err = yaml.Unmarshal(configBytes, &config)
 		if err != nil {
 			t.Errorf("unexpected error unmarshalling config")
 		}
 
-		expected := map[string]interface{}{
-			"services": map[string]interface{}{
-				"acmecorp": map[string]interface{}{
+		expected := map[string]any{
+			"services": map[string]any{
+				"acmecorp": map[string]any{
 					"url": "https://example.com/control-plane-api/v1",
-					"credentials": map[string]interface{}{
-						"bearer": map[string]interface{}{
+					"credentials": map[string]any{
+						"bearer": map[string]any{
 							"token": "bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm",
 						},
 					},
 				},
 			},
-			"discovery": map[string]interface{}{
+			"discovery": map[string]any{
 				"name":   "/example/discovery",
 				"prefix": "configuration",
 			},
@@ -370,24 +370,24 @@ discovery:
 			t.Errorf("unexpected error loading config: %s", err.Error())
 		}
 
-		config := map[string]interface{}{}
+		config := map[string]any{}
 		err = yaml.Unmarshal(configBytes, &config)
 		if err != nil {
 			t.Errorf("unexpected error unmarshalling config")
 		}
 
-		expected := map[string]interface{}{
-			"services": map[string]interface{}{
-				"acmecorp": map[string]interface{}{
+		expected := map[string]any{
+			"services": map[string]any{
+				"acmecorp": map[string]any{
 					"url": "https://example.com/control-plane-api/v1",
-					"credentials": map[string]interface{}{
-						"bearer": map[string]interface{}{
+					"credentials": map[string]any{
+						"bearer": map[string]any{
 							"token": "bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm",
 						},
 					},
 				},
 			},
-			"discovery": map[string]interface{}{
+			"discovery": map[string]any{
 				"name":   "/example/discovery",
 				"prefix": "configuration",
 			},
@@ -412,24 +412,24 @@ func TestLoadConfigWithParamOverrideNoConfigFile(t *testing.T) {
 		t.Errorf("unexpected error loading config: %s", err.Error())
 	}
 
-	config := map[string]interface{}{}
+	config := map[string]any{}
 	err = yaml.Unmarshal(configBytes, &config)
 	if err != nil {
 		t.Errorf("unexpected error unmarshalling config")
 	}
 
-	expected := map[string]interface{}{
-		"services": map[string]interface{}{
-			"acmecorp": map[string]interface{}{
+	expected := map[string]any{
+		"services": map[string]any{
+			"acmecorp": map[string]any{
 				"url": "https://example.com/control-plane-api/v1",
-				"credentials": map[string]interface{}{
-					"bearer": map[string]interface{}{
+				"credentials": map[string]any{
+					"bearer": map[string]any{
 						"token": "bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm",
 					},
 				},
 			},
 		},
-		"discovery": map[string]interface{}{
+		"discovery": map[string]any{
 			"name":   "/example/discovery",
 			"prefix": "configuration",
 		},
@@ -454,29 +454,29 @@ func TestLoadConfigWithParamOverrideNoConfigFileWithEmptyObject(t *testing.T) {
 		t.Errorf("unexpected error loading config: %s", err.Error())
 	}
 
-	config := map[string]interface{}{}
+	config := map[string]any{}
 	err = yaml.Unmarshal(configBytes, &config)
 	if err != nil {
 		t.Errorf("unexpected error unmarshalling config")
 	}
 
-	expected := map[string]interface{}{
-		"services": map[string]interface{}{
-			"acmecorp": map[string]interface{}{
+	expected := map[string]any{
+		"services": map[string]any{
+			"acmecorp": map[string]any{
 				"url":     "https://example.com/control-plane-api/v1",
-				"headers": map[string]interface{}{},
-				"credentials": map[string]interface{}{
-					"s3_signing": map[string]interface{}{
-						"environment_credentials": map[string]interface{}{},
+				"headers": map[string]any{},
+				"credentials": map[string]any{
+					"s3_signing": map[string]any{
+						"environment_credentials": map[string]any{},
 					},
 				},
 			},
 		},
-		"decision_logs": map[string]interface{}{
+		"decision_logs": map[string]any{
 			"plugin": "my_plugin",
 		},
-		"plugins": map[string]interface{}{
-			"my_plugin": map[string]interface{}{},
+		"plugins": map[string]any{
+			"my_plugin": map[string]any{},
 		},
 	}
 

@@ -392,7 +392,7 @@ func TestActiveConfig(t *testing.T) {
 					t.Fatalf("Unexpected error %v", err)
 				}
 
-				var expected map[string]interface{}
+				var expected map[string]any
 				if err := util.Unmarshal(tc.expected, &expected); err != nil {
 					t.Fatal(err)
 				}

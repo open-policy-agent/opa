@@ -24,7 +24,7 @@ func TestRSA(t *testing.T) {
 			t.Fatalf("jwk.New failed: %s", err.Error())
 		}
 
-		err = key.Walk(func(k string, v interface{}) error {
+		err = key.Walk(func(k string, v any) error {
 			return newKey.Set(k, v)
 		})
 		if err != nil {

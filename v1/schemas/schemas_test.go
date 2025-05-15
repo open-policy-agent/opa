@@ -24,7 +24,7 @@ func TestSchemasEmbedded(t *testing.T) {
 		if err != nil {
 			t.Errorf("file %v: %v", ent.Name(), err)
 		}
-		var x interface{}
+		var x any
 		err = util.UnmarshalJSON(cont, &x)
 		if err != nil {
 			t.Errorf("file %v: %v", ent.Name(), err)

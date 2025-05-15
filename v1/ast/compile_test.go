@@ -2647,7 +2647,7 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 	cases := []struct {
 		note     string
 		module   string
-		expected interface{}
+		expected any
 	}{
 		{
 			note: "base",
@@ -5019,7 +5019,7 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 
 	tests := []struct {
 		module          string
-		exp             interface{}
+		exp             any
 		expRewrittenMap map[Var]Var
 		regoVersion     RegoVersion
 	}{
@@ -6263,7 +6263,18 @@ func TestRewriteDeclaredVars(t *testing.T) {
 					some x
 				}
 			`,
-			wantErr: errors.New("var x declared above"),
+			wantErr: errors.New("test.rego:5: rego_compile_error: var x declared above"),
+		},
+		{
+			note: "redeclare err, some/in",
+			module: `
+				package test
+				p if {
+					some x
+					some i, x in []
+				}
+			`,
+			wantErr: errors.New("test.rego:5: rego_compile_error: var x declared above"),
 		},
 		{
 			note: "redeclare assigned err",
@@ -6274,7 +6285,18 @@ func TestRewriteDeclaredVars(t *testing.T) {
 					some x
 				}
 			`,
-			wantErr: errors.New("var x assigned above"),
+			wantErr: errors.New("test.rego:5: rego_compile_error: var x assigned above"),
+		},
+		{
+			note: "redeclare assigned err, some/in",
+			module: `
+				package test
+				p if {
+					x := 1
+					some i, x in []
+				}
+			`,
+			wantErr: errors.New("test.rego:5: rego_compile_error: var x assigned above"),
 		},
 		{
 			note: "redeclare reference err",
@@ -6285,7 +6307,18 @@ func TestRewriteDeclaredVars(t *testing.T) {
 					some x
 				}
 			`,
-			wantErr: errors.New("var x referenced above"),
+			wantErr: errors.New("test.rego:5: rego_compile_error: var x referenced above"),
+		},
+		{
+			note: "redeclare reference err, some/in",
+			module: `
+				package test
+				p if {
+					data.q[x]
+					some i, x in []
+				}
+			`,
+			wantErr: errors.New("test.rego:5: rego_compile_error: var x referenced above"),
 		},
 		{
 			note: "declare unused err",
@@ -6331,7 +6364,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 					t.Fatal("Expected error but got success")
 				}
 				if !strings.Contains(err.Error(), tc.wantErr.Error()) {
-					t.Fatalf("Expected %v but got %v", tc.wantErr, err)
+					t.Fatalf("Expected:\n\n%v\n\nbut got:\n\n%v", tc.wantErr, err)
 				}
 			} else if err != nil {
 				t.Fatal(err)
@@ -8676,7 +8709,7 @@ p contains 2 if { true }`,
 
 	tests := []struct {
 		note     string
-		ref      interface{}
+		ref      any
 		expected []*Rule
 	}{
 		{"exact", "data.a.b.c.p", []*Rule{
@@ -8735,7 +8768,7 @@ p contains 2 if { true }`,
 
 	tests := []struct {
 		note     string
-		ref      interface{}
+		ref      any
 		expected []*Rule
 	}{
 		{"exact", "data.a.b.c.p", []*Rule{
@@ -8799,7 +8832,7 @@ q contains 3 if { true }`,
 
 	tests := []struct {
 		note     string
-		ref      interface{}
+		ref      any
 		expected []*Rule
 	}{
 		{"exact", "data.a.b.c.p", []*Rule{
@@ -9755,7 +9788,7 @@ func TestQueryCompiler(t *testing.T) {
 		imports     []string
 		input       string
 		regoVersion RegoVersion
-		expected    interface{}
+		expected    any
 	}{
 		{
 			note:     "empty query",
@@ -10340,7 +10373,7 @@ func compilerErrsToStringSlice(errors []*Error) []string {
 	return result
 }
 
-func runQueryCompilerTest(q string, popts ParserOptions, pkg string, imports []string, expected interface{}) func(*testing.T) {
+func runQueryCompilerTest(q string, popts ParserOptions, pkg string, imports []string, expected any) func(*testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
 		c := NewCompiler().WithEnablePrintStatements(false)
@@ -11040,7 +11073,7 @@ deny if {
 `
 
 	c := NewCompiler()
-	var schema interface{}
+	var schema any
 	if err := json.Unmarshal([]byte(jsonSchema), &schema); err != nil {
 		t.Fatal(err)
 	}
@@ -11104,7 +11137,7 @@ deny if {
 
 	c := NewCompiler().
 		WithUseTypeCheckAnnotations(true)
-	var schema interface{}
+	var schema any
 	if err := json.Unmarshal([]byte(jsonSchema), &schema); err != nil {
 		t.Fatal(err)
 	}
@@ -11251,7 +11284,7 @@ deny if {
 `
 
 	c := NewCompiler()
-	var schema interface{}
+	var schema any
 	if err := json.Unmarshal([]byte(jsonSchema), &schema); err != nil {
 		t.Fatal(err)
 	}

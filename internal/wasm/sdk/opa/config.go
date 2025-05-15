@@ -49,7 +49,7 @@ func (o *OPA) WithDataBytes(data []byte) *OPA {
 }
 
 // WithDataJSON configures the JSON data to load.
-func (o *OPA) WithDataJSON(data interface{}) *OPA {
+func (o *OPA) WithDataJSON(data any) *OPA {
 	v, err := json.Marshal(data)
 	if err != nil {
 		o.configErr = errors.New(errors.InvalidConfigErr, err.Error())

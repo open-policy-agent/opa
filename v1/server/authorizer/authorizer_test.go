@@ -174,7 +174,7 @@ func TestBasic(t *testing.T) {
     }
     `))
 
-	store := inmem.NewFromObject(data.(map[string]interface{}))
+	store := inmem.NewFromObject(data.(map[string]any))
 
 	tests := []struct {
 		note           string
@@ -235,7 +235,7 @@ func TestBasic(t *testing.T) {
 
 			// Check code/message if response should be error.
 			if tc.expectedStatus != http.StatusOK {
-				var x interface{}
+				var x any
 				if err := util.NewJSONDecoder(recorder.Body).Decode(&x); err != nil {
 					t.Fatalf("Expected JSON response but got: %v", recorder)
 				}
@@ -415,7 +415,7 @@ func TestMakeInputWithBody(t *testing.T) {
 
 			if tc.assertBodyExists {
 
-				var want interface{}
+				var want any
 
 				if tc.useYAML {
 					if err := util.Unmarshal([]byte(tc.body), &want); err != nil {
@@ -425,7 +425,7 @@ func TestMakeInputWithBody(t *testing.T) {
 					want = util.MustUnmarshalJSON([]byte(tc.body))
 				}
 
-				body := input.(map[string]interface{})["body"]
+				body := input.(map[string]any)["body"]
 
 				if !reflect.DeepEqual(body, want) {
 					t.Fatalf("expected parsed bodies to be equal but got %v and want %v", body, want)
@@ -438,7 +438,7 @@ func TestMakeInputWithBody(t *testing.T) {
 			}
 
 			if tc.assertBodyDoesNotExist {
-				_, ok := input.(map[string]interface{})["body"]
+				_, ok := input.(map[string]any)["body"]
 				if ok {
 					t.Fatal("expected no parsed body in input")
 				}

@@ -265,12 +265,12 @@ type (
 
 	// Expr represents a single expression contained inside the body of a rule.
 	Expr struct {
-		With      []*With     `json:"with,omitempty"`
-		Terms     interface{} `json:"terms"`
-		Index     int         `json:"index"`
-		Generated bool        `json:"generated,omitempty"`
-		Negated   bool        `json:"negated,omitempty"`
-		Location  *Location   `json:"location,omitempty"`
+		With      []*With   `json:"with,omitempty"`
+		Terms     any       `json:"terms"`
+		Index     int       `json:"index"`
+		Generated bool      `json:"generated,omitempty"`
+		Negated   bool      `json:"negated,omitempty"`
+		Location  *Location `json:"location,omitempty"`
 
 		generatedFrom *Expr
 		generates     []*Expr
@@ -537,7 +537,7 @@ func (pkg *Package) String() string {
 }
 
 func (pkg *Package) MarshalJSON() ([]byte, error) {
-	data := map[string]interface{}{
+	data := map[string]any{
 		"path": pkg.Path,
 	}
 
@@ -644,7 +644,7 @@ func (imp *Import) String() string {
 }
 
 func (imp *Import) MarshalJSON() ([]byte, error) {
-	data := map[string]interface{}{
+	data := map[string]any{
 		"path": imp.Path,
 	}
 
@@ -792,7 +792,7 @@ func (rule *Rule) isFunction() bool {
 }
 
 func (rule *Rule) MarshalJSON() ([]byte, error) {
-	data := map[string]interface{}{
+	data := map[string]any{
 		"head": rule.Head,
 		"body": rule.Body,
 	}
@@ -1256,7 +1256,7 @@ func (body Body) Vars(params VarVisitorParams) VarSet {
 }
 
 // NewExpr returns a new Expr object.
-func NewExpr(terms interface{}) *Expr {
+func NewExpr(terms any) *Expr {
 	switch terms.(type) {
 	case *SomeDecl, *Every, *Term, []*Term: // ok
 	default:
@@ -1578,7 +1578,7 @@ func (expr *Expr) String() string {
 }
 
 func (expr *Expr) MarshalJSON() ([]byte, error) {
-	data := map[string]interface{}{
+	data := map[string]any{
 		"terms": expr.Terms,
 		"index": expr.Index,
 	}
@@ -1606,7 +1606,7 @@ func (expr *Expr) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON parses the byte array and stores the result in expr.
 func (expr *Expr) UnmarshalJSON(bs []byte) error {
-	v := map[string]interface{}{}
+	v := map[string]any{}
 	if err := util.UnmarshalJSON(bs, &v); err != nil {
 		return err
 	}
@@ -1710,7 +1710,7 @@ func (d *SomeDecl) Hash() int {
 }
 
 func (d *SomeDecl) MarshalJSON() ([]byte, error) {
-	data := map[string]interface{}{
+	data := map[string]any{
 		"symbols": d.Symbols,
 	}
 
@@ -1780,7 +1780,7 @@ func (q *Every) KeyValueVars() VarSet {
 }
 
 func (q *Every) MarshalJSON() ([]byte, error) {
-	data := map[string]interface{}{
+	data := map[string]any{
 		"key":    q.Key,
 		"value":  q.Value,
 		"domain": q.Domain,
@@ -1855,7 +1855,7 @@ func (w *With) SetLoc(loc *Location) {
 }
 
 func (w *With) MarshalJSON() ([]byte, error) {
-	data := map[string]interface{}{
+	data := map[string]any{
 		"target": w.Target,
 		"value":  w.Value,
 	}
@@ -1870,7 +1870,7 @@ func (w *With) MarshalJSON() ([]byte, error) {
 }
 
 // Copy returns a deep copy of the AST node x. If x is not an AST node, x is returned unmodified.
-func Copy(x interface{}) interface{} {
+func Copy(x any) any {
 	switch x := x.(type) {
 	case *Module:
 		return x.Copy()

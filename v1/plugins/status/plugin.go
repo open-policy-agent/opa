@@ -23,6 +23,11 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
+const (
+	statusBufferLimit           = int64(1)
+	statusBufferDropCounterName = "status_dropped_buffer_limit_exceeded"
+)
+
 // Logger defines the interface for status plugins.
 type Logger interface {
 	plugins.Plugin
@@ -38,7 +43,7 @@ type UpdateRequestV1 struct {
 	Bundles      map[string]*bundle.Status  `json:"bundles,omitempty"`
 	Discovery    *bundle.Status             `json:"discovery,omitempty"`
 	DecisionLogs *lstat.Status              `json:"decision_logs,omitempty"`
-	Metrics      map[string]interface{}     `json:"metrics,omitempty"`
+	Metrics      map[string]any             `json:"metrics,omitempty"`
 	Plugins      map[string]*plugins.Status `json:"plugins,omitempty"`
 }
 
@@ -82,7 +87,7 @@ type BundleLoadDurationNanoseconds struct {
 }
 
 type reconfigure struct {
-	config interface{}
+	config any
 	done   chan struct{}
 }
 
@@ -207,8 +212,8 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 	p := &Plugin{
 		manager:        manager,
 		config:         *parsedConfig,
-		bundleCh:       make(chan bundle.Status),
-		bulkBundleCh:   make(chan map[string]*bundle.Status),
+		bundleCh:       make(chan bundle.Status, statusBufferLimit),
+		bulkBundleCh:   make(chan map[string]*bundle.Status, statusBufferLimit),
 		discoCh:        make(chan bundle.Status),
 		decisionLogsCh: make(chan lstat.Status),
 		stop:           make(chan chan struct{}),
@@ -217,7 +222,7 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		// when updating statuses
 		pluginStatusCh: make(chan map[string]*plugins.Status, 1),
 		queryCh:        make(chan chan *UpdateRequestV1),
-		logger:         manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
+		logger:         manager.Logger().WithFields(map[string]any{"plugin": Name}),
 		trigger:        make(chan trigger),
 		collectors:     newCollectors(parsedConfig.PrometheusConfig),
 	}
@@ -278,12 +283,12 @@ func (p *Plugin) Stop(_ context.Context) {
 // UpdateBundleStatus notifies the plugin that the policy bundle was updated.
 // Deprecated: Use BulkUpdateBundleStatus instead.
 func (p *Plugin) UpdateBundleStatus(status bundle.Status) {
-	p.bundleCh <- status
+	util.PushFIFO(p.bundleCh, status, p.metrics, statusBufferDropCounterName)
 }
 
 // BulkUpdateBundleStatus notifies the plugin that the policy bundle was updated.
 func (p *Plugin) BulkUpdateBundleStatus(status map[string]*bundle.Status) {
-	p.bulkBundleCh <- status
+	util.PushFIFO(p.bulkBundleCh, status, p.metrics, statusBufferDropCounterName)
 }
 
 // UpdateDiscoveryStatus notifies the plugin that the discovery bundle was updated.
@@ -302,7 +307,7 @@ func (p *Plugin) UpdatePluginStatus(status map[string]*plugins.Status) {
 }
 
 // Reconfigure notifies the plugin with a new configuration.
-func (p *Plugin) Reconfigure(_ context.Context, config interface{}) {
+func (p *Plugin) Reconfigure(_ context.Context, config any) {
 	done := make(chan struct{})
 	p.reconfig <- reconfigure{config: config, done: done}
 	<-done
@@ -389,8 +394,11 @@ func (p *Plugin) loop(ctx context.Context) {
 			p.reconfigure(update.config)
 			update.done <- struct{}{}
 		case respCh := <-p.queryCh:
+			p.readBundleStatus()
 			respCh <- p.snapshot()
 		case update := <-p.trigger:
+			// make sure the more recent status is registered
+			p.readBundleStatus()
 			err := p.oneShot(update.ctx)
 			if err != nil {
 				p.logger.Error("%v.", err)
@@ -409,6 +417,16 @@ func (p *Plugin) loop(ctx context.Context) {
 	}
 }
 
+// readBundleStatus is a non-blocking read to make sure the latest status is received
+func (p *Plugin) readBundleStatus() {
+	select {
+	case status := <-p.bulkBundleCh:
+		p.lastBundleStatuses = status
+	case status := <-p.bundleCh:
+		p.lastBundleStatus = &status
+	default:
+	}
+}
 func (p *Plugin) oneShot(ctx context.Context) error {
 	req := p.snapshot()
 
@@ -436,7 +454,7 @@ func (p *Plugin) oneShot(ctx context.Context) error {
 			WithJSON(req).
 			Do(ctx, "POST", fmt.Sprintf("/status/%v", p.config.PartitionName))
 		if err != nil {
-			return fmt.Errorf("Status update failed: %w", err)
+			return fmt.Errorf("status update failed: %w", err)
 		}
 
 		defer util.Close(resp)
@@ -448,7 +466,7 @@ func (p *Plugin) oneShot(ctx context.Context) error {
 	return nil
 }
 
-func (p *Plugin) reconfigure(config interface{}) {
+func (p *Plugin) reconfigure(config any) {
 	newConfig := config.(*Config)
 
 	if reflect.DeepEqual(p.config, *newConfig) {
@@ -482,7 +500,7 @@ func (p *Plugin) snapshot() *UpdateRequestV1 {
 	}
 
 	if p.metrics != nil {
-		s.Metrics = map[string]interface{}{p.metrics.Info().Name: p.metrics.All()}
+		s.Metrics = map[string]any{p.metrics.Info().Name: p.metrics.All()}
 	}
 
 	return s
@@ -493,12 +511,12 @@ func (p *Plugin) logUpdate(update *UpdateRequestV1) error {
 	if err != nil {
 		return err
 	}
-	fields := map[string]interface{}{}
+	fields := map[string]any{}
 	err = util.UnmarshalJSON(eventBuf, &fields)
 	if err != nil {
 		return err
 	}
-	p.manager.ConsoleLogger().WithFields(fields).WithFields(map[string]interface{}{
+	p.manager.ConsoleLogger().WithFields(fields).WithFields(map[string]any{
 		"type": "openpolicyagent.org/status",
 	}).Info("Status Log")
 	return nil
@@ -542,7 +560,7 @@ func (u UpdateRequestV1) Equal(other UpdateRequestV1) bool {
 		nullSafeDeepEqual(u.Metrics, other.Metrics)
 }
 
-func nullSafeDeepEqual(a, b interface{}) bool {
+func nullSafeDeepEqual(a, b any) bool {
 	if a == nil && b == nil {
 		return true
 	}

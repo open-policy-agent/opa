@@ -214,7 +214,7 @@ func (e *eval) partial() bool {
 	return e.saveSet != nil
 }
 
-func (e *eval) unknown(x interface{}, b *bindings) bool {
+func (e *eval) unknown(x any, b *bindings) bool {
 	if !e.partial() {
 		return false
 	}
@@ -1787,9 +1787,9 @@ func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, erro
 
 		if len(path) == 0 {
 			switch obj := blob.(type) {
-			case map[string]interface{}:
+			case map[string]any:
 				if len(obj) > 0 {
-					cpy := make(map[string]interface{}, len(obj)-1)
+					cpy := make(map[string]any, len(obj)-1)
 					for k, v := range obj {
 						if string(ast.SystemDocumentKey) != k {
 							cpy[k] = v
@@ -1808,7 +1808,7 @@ func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, erro
 		case ast.Value:
 			v = blob
 		default:
-			if blob, ok := blob.(map[string]interface{}); ok && !e.strictObjects {
+			if blob, ok := blob.(map[string]any); ok && !e.strictObjects {
 				v = ast.LazyObject(blob)
 				break
 			}
@@ -4092,7 +4092,7 @@ func newNestedCheckVisitor() *nestedCheckVisitor {
 	return v
 }
 
-func (v *nestedCheckVisitor) visit(x interface{}) bool {
+func (v *nestedCheckVisitor) visit(x any) bool {
 	switch x.(type) {
 	case ast.Ref, ast.Call:
 		v.found = true
@@ -4183,7 +4183,7 @@ func isOtherRef(term *ast.Term) bool {
 	return !ref.HasPrefix(ast.DefaultRootRef) && !ref.HasPrefix(ast.InputRootRef)
 }
 
-func isFunction(env *ast.TypeEnv, ref interface{}) bool {
+func isFunction(env *ast.TypeEnv, ref any) bool {
 	var r ast.Ref
 	switch v := ref.(type) {
 	case ast.Ref:

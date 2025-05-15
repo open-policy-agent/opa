@@ -1,0 +1,6 @@
+{
+  "method": "DELETE",
+  "email": "alice@example.com",
+  "role": "staff",
+  "path": "/users/42"
+}

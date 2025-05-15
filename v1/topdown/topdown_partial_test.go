@@ -5084,7 +5084,7 @@ func prepareTest(ctx context.Context, t *testing.T, params fixtureParams, f func
 
 		if len(params.data) > 0 {
 			j := util.MustUnmarshalJSON([]byte(params.data))
-			store = inmem.NewFromObject(j.(map[string]interface{}))
+			store = inmem.NewFromObject(j.(map[string]any))
 		} else {
 			store = inmem.New()
 		}

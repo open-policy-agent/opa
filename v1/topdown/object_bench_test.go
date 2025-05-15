@@ -34,7 +34,7 @@ func BenchmarkObjectUnionN(b *testing.B) {
 	for _, n := range sizes {
 		for _, m := range sizes {
 			b.Run(fmt.Sprintf("%dx%d", n, m), func(b *testing.B) {
-				store := inmem.NewFromObject(map[string]interface{}{"objs": genNxMObjectBenchmarkData(n, m)})
+				store := inmem.NewFromObject(map[string]any{"objs": genNxMObjectBenchmarkData(n, m)})
 				module := `package test
 
 				combined := object.union_n(data.objs)`
@@ -83,7 +83,7 @@ func BenchmarkObjectUnionNSlow(b *testing.B) {
 	for _, n := range sizes {
 		for _, m := range sizes {
 			b.Run(fmt.Sprintf("%dx%d", n, m), func(b *testing.B) {
-				store := inmem.NewFromObject(map[string]interface{}{"objs": genNxMObjectBenchmarkData(n, m)})
+				store := inmem.NewFromObject(map[string]any{"objs": genNxMObjectBenchmarkData(n, m)})
 				module := `package test
 
 				combined := {k: true | s := data.objs[_]; s[k]}`

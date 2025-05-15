@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"math/rand"
@@ -34,7 +35,7 @@ func TestInterfaceToValue(t *testing.T) {
 		]
 	}
 	`
-	var x interface{}
+	var x any
 	if err := util.UnmarshalJSON([]byte(input), &x); err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +67,7 @@ func TestInterfaceToValue(t *testing.T) {
 
 	// Test misc. types
 	tests := []struct {
-		input    interface{}
+		input    any
 		expected string
 	}{
 		{int64(100), "100"},
@@ -325,7 +326,7 @@ func TestFind(t *testing.T) {
 
 	tests := []struct {
 		path     *Term
-		expected interface{}
+		expected any
 	}{
 		{RefTerm(StringTerm("foo"), IntNumberTerm(1), StringTerm("bar")), MustParseTerm(`{2, 3, 4}`)},
 		{RefTerm(StringTerm("foo"), IntNumberTerm(1), StringTerm("bar"), IntNumberTerm(4)), MustParseTerm(`4`)},
@@ -566,6 +567,108 @@ func TestTermString(t *testing.T) {
 	// ensure that objects and sets have deterministic String() results
 	assertToString(t, SetTerm(VarTerm("y"), VarTerm("x")).Value, "{x, y}")
 	assertToString(t, ObjectTerm([2]*Term{VarTerm("y"), VarTerm("b")}, [2]*Term{VarTerm("x"), VarTerm("a")}).Value, "{x: a, y: b}")
+}
+
+func TestRefString_Escapes(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+		want  []byte
+	}{
+		{
+			name:  "Tab",
+			input: `data.policy["ma\tin"]`,
+			want: []byte{
+				100, 97, 116, 97, // data
+				46,                          // .
+				112, 111, 108, 105, 99, 121, // policy
+				91, 34, // ["
+				109, 97, // m a
+				92, 116, // \ t
+				105, 110, // i n
+				34, 93, // "]
+			},
+		},
+		{
+			name:  "NewLine",
+			input: `data.policy["ma\nin"]`,
+			want: []byte{
+				100, 97, 116, 97,
+				46,
+				112, 111, 108, 105, 99, 121,
+				91, 34,
+				109, 97,
+				92, 110, // \ n
+				105, 110,
+				34, 93,
+			},
+		},
+		{
+			name:  "CarriageReturn",
+			input: `data.policy["ma\rin"]`,
+			want: []byte{
+				100, 97, 116, 97,
+				46,
+				112, 111, 108, 105, 99, 121,
+				91, 34,
+				109, 97,
+				92, 114, // \ r
+				105, 110,
+				34, 93,
+			},
+		},
+		{
+			name:  "Backspace",
+			input: `data.policy["ma\bin"]`,
+			want: []byte{
+				100, 97, 116, 97,
+				46,
+				112, 111, 108, 105, 99, 121,
+				91, 34,
+				109, 97,
+				92, 98, // \ b
+				105, 110,
+				34, 93,
+			},
+		},
+		{
+			name:  "FormFeed",
+			input: `data.policy["ma\fin"]`,
+			want: []byte{
+				100, 97, 116, 97,
+				46,
+				112, 111, 108, 105, 99, 121,
+				91, 34,
+				109, 97,
+				92, 102, // \ f
+				105, 110,
+				34, 93,
+			},
+		},
+		{
+			name:  "LiteralBackslash",
+			input: `data.policy["ma\\in"]`,
+			want: []byte{
+				100, 97, 116, 97,
+				46,
+				112, 111, 108, 105, 99, 121,
+				91, 34,
+				109, 97,
+				92, 92, // \\
+				105, 110,
+				34, 93,
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := []byte(MustParseRef(tc.input).String())
+			if !bytes.Equal(got, tc.want) {
+				t.Errorf("%s: got  %v\nwant %v", tc.name, got, tc.want)
+			}
+		})
+	}
 }
 
 func TestRefHasPrefix(t *testing.T) {
@@ -838,7 +941,7 @@ func TestSetOperations(t *testing.T) {
 func TestSetCopy(t *testing.T) {
 	orig := MustParseTerm("{1,2,3}")
 	cpy := orig.Copy()
-	vis := NewGenericVisitor(func(x interface{}) bool {
+	vis := NewGenericVisitor(func(x any) bool {
 		if Compare(IntNumberTerm(2), x) == 0 {
 			// NOTE(sr): If we mess up the rank, our sort-on-insert approach fails us
 			x.(*Term).Value = Number("2.5")
@@ -1079,7 +1182,7 @@ func TestValueToInterface(t *testing.T) {
 		t.Fatalf("Unexpected error while converting term %v to JSON: %v", term, err)
 	}
 
-	var expected interface{}
+	var expected any
 	if err := util.UnmarshalJSON([]byte(`{"foo": [1, "two", true, null, [3]]}`), &expected); err != nil {
 		panic(err)
 	}
@@ -1141,11 +1244,11 @@ func TestValueToInterface(t *testing.T) {
 }
 
 // NOTE(sr): Without the opt-out, we don't allocate another object for
-// the conversion back to interface{} if it can be avoided. As a result,
+// the conversion back to any if it can be avoided. As a result,
 // the value held by the store could be changed.
 func TestJSONWithOptLazyObjDefault(t *testing.T) {
 	// would live in the store
-	m := map[string]interface{}{
+	m := map[string]any{
 		"foo": "bar",
 	}
 	o := LazyObject(m)
@@ -1154,7 +1257,7 @@ func TestJSONWithOptLazyObjDefault(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	n0, ok := n.(map[string]interface{})
+	n0, ok := n.(map[string]any)
 	if !ok {
 		t.Fatalf("expected %T, got %T: %[2]v", n0, n)
 	}
@@ -1167,7 +1270,7 @@ func TestJSONWithOptLazyObjDefault(t *testing.T) {
 
 func TestJSONWithOptLazyObjOptOut(t *testing.T) {
 	// would live in the store
-	m := map[string]interface{}{
+	m := map[string]any{
 		"foo": "bar",
 	}
 	o := LazyObject(m)
@@ -1176,7 +1279,7 @@ func TestJSONWithOptLazyObjOptOut(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	n0, ok := n.(map[string]interface{})
+	n0, ok := n.(map[string]any)
 	if !ok {
 		t.Fatalf("expected %T, got %T: %[2]v", n0, n)
 	}
@@ -1210,9 +1313,9 @@ func assertToString(t *testing.T, val Value, expected string) {
 }
 
 func TestLazyObjectGet(t *testing.T) {
-	x := LazyObject(map[string]interface{}{
-		"a": map[string]interface{}{
-			"b": map[string]interface{}{
+	x := LazyObject(map[string]any{
+		"a": map[string]any{
+			"b": map[string]any{
 				"c": true,
 			},
 		},
@@ -1226,10 +1329,10 @@ func TestLazyObjectGet(t *testing.T) {
 }
 
 func TestLazyObjectGetCache(t *testing.T) {
-	x := LazyObject(map[string]interface{}{
+	x := LazyObject(map[string]any{
 		"a": true,
 		"b": false,
-		"d": map[string]interface{}{
+		"d": map[string]any{
 			"e": "f",
 			"f": "g",
 		},
@@ -1267,12 +1370,12 @@ func TestLazyObjectGetCache(t *testing.T) {
 }
 
 func TestLazyObjectFind(t *testing.T) {
-	x := LazyObject(map[string]interface{}{
-		"a": map[string]interface{}{
-			"b": map[string]interface{}{
+	x := LazyObject(map[string]any{
+		"a": map[string]any{
+			"b": map[string]any{
 				"c": true,
 			},
-			"d": []interface{}{true, true, true},
+			"d": []any{true, true, true},
 		},
 	})
 	// retrieve object via Find
@@ -1298,14 +1401,14 @@ func TestLazyObjectFind(t *testing.T) {
 }
 
 func TestLazyObjectFindCache(t *testing.T) {
-	x := LazyObject(map[string]interface{}{
+	x := LazyObject(map[string]any{
 		"a": []string{
 			"b", "c", "d",
 		},
 		"c": []string{
 			"d", "e", "f",
 		},
-		"d": map[string]interface{}{
+		"d": map[string]any{
 			"e": "f",
 			"f": "g",
 		},
@@ -1356,9 +1459,9 @@ func TestLazyObjectFindCache(t *testing.T) {
 }
 
 func TestLazyObjectCopy(t *testing.T) {
-	x := LazyObject(map[string]interface{}{
-		"a": map[string]interface{}{
-			"b": map[string]interface{}{
+	x := LazyObject(map[string]any{
+		"a": map[string]any{
+			"b": map[string]any{
 				"c": true,
 			},
 		},
@@ -1372,9 +1475,9 @@ func TestLazyObjectCopy(t *testing.T) {
 }
 
 func TestLazyObjectLen(t *testing.T) {
-	x := LazyObject(map[string]interface{}{
-		"a": map[string]interface{}{
-			"b": map[string]interface{}{
+	x := LazyObject(map[string]any{
+		"a": map[string]any{
+			"b": map[string]any{
 				"c": true,
 			},
 		},
@@ -1386,9 +1489,9 @@ func TestLazyObjectLen(t *testing.T) {
 }
 
 func TestLazyObjectIsGround(t *testing.T) {
-	x := LazyObject(map[string]interface{}{
-		"a": map[string]interface{}{
-			"b": map[string]interface{}{
+	x := LazyObject(map[string]any{
+		"a": map[string]any{
+			"b": map[string]any{
 				"c": true,
 			},
 		},
@@ -1400,7 +1503,7 @@ func TestLazyObjectIsGround(t *testing.T) {
 }
 
 func TestLazyObjectInsert(t *testing.T) {
-	x := LazyObject(map[string]interface{}{
+	x := LazyObject(map[string]any{
 		"a": "b",
 	})
 	x.Insert(StringTerm("c"), StringTerm("d"))
@@ -1414,7 +1517,7 @@ func TestLazyObjectInsert(t *testing.T) {
 }
 
 func TestLazyObjectKeys(t *testing.T) {
-	x := LazyObject(map[string]interface{}{
+	x := LazyObject(map[string]any{
 		"a": "A",
 		"c": "C",
 		"b": "B",
@@ -1428,7 +1531,7 @@ func TestLazyObjectKeys(t *testing.T) {
 }
 
 func TestLazyObjectKeysIterator(t *testing.T) {
-	x := LazyObject(map[string]interface{}{
+	x := LazyObject(map[string]any{
 		"a": "A",
 		"c": "C",
 		"b": "B",
@@ -1446,9 +1549,9 @@ func TestLazyObjectKeysIterator(t *testing.T) {
 }
 
 func TestLazyObjectCompare(t *testing.T) {
-	x := LazyObject(map[string]interface{}{
-		"a": map[string]interface{}{
-			"b": map[string]interface{}{
+	x := LazyObject(map[string]any{
+		"a": map[string]any{
+			"b": map[string]any{
 				"c": true,
 			},
 		},

@@ -20,7 +20,7 @@ func main() {
 	sorted := sortedCaps()
 	sorted = append(sorted, versionedCaps{version: "edge", caps: f})
 
-	mdata := make(map[string]interface{})
+	mdata := make(map[string]any)
 	categories := make(map[string][]string)
 
 	for _, bi := range f.Builtins {
@@ -29,11 +29,11 @@ func main() {
 			categories[cat] = append(categories[cat], bi.Name)
 		}
 
-		argTypes := make([]map[string]interface{}, len(latest.Decl.FuncArgs().Args))
+		argTypes := make([]map[string]any, len(latest.Decl.FuncArgs().Args))
 
 		for i, typ := range latest.Decl.NamedFuncArgs().Args {
 			if n, ok := typ.(*types.NamedType); ok {
-				argTypes[i] = map[string]interface{}{
+				argTypes[i] = map[string]any{
 					"name": n.Name,
 					"type": n.Type.String(),
 				}
@@ -41,12 +41,12 @@ func main() {
 					argTypes[i]["description"] = n.Descr
 				}
 			} else {
-				argTypes[i] = map[string]interface{}{
+				argTypes[i] = map[string]any{
 					"type": typ.String(),
 				}
 			}
 		}
-		res := map[string]interface{}{}
+		res := map[string]any{}
 		resType := latest.Decl.NamedResult()
 		if n, ok := resType.(*types.NamedType); ok {
 			res["name"] = n.Name
@@ -58,7 +58,7 @@ func main() {
 			res["type"] = resType.String()
 		}
 		versions := getVersions(bi.Name, sorted)
-		md := map[string]interface{}{
+		md := map[string]any{
 			"introduced": versions[0],
 			"available":  versions,
 			"wasm":       getWasm(bi.Name),
