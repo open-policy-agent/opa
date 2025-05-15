@@ -254,38 +254,40 @@ const Index = (props) => {
           </div>
         </div>
 
-        <Heading as="h2" style={{ marginBottom: "1rem" }}>
-          Context-aware, Expressive, Fast, Portable
-        </Heading>
+        <div style={{ margin: "0 1rem" }}>
+          <Heading as="h2" style={{ marginBottom: "1rem" }}>
+            Context-aware, Expressive, Fast, Portable
+          </Heading>
 
-        <p>
-          OPA is a general-purpose policy engine that unifies policy enforcement across the stack. OPA provides a
-          high-level declarative language that lets you specify policy for a wide range of use cases. You can use OPA to
-          enforce policies in applications, proxies, Kubernetes, CI/CD pipelines, API gateways, and more.
-        </p>
+          <p>
+            OPA is a general-purpose policy engine that unifies policy enforcement across the stack. OPA provides a
+            high-level declarative language that lets you specify policy for a wide range of use cases. You can use OPA
+            to enforce policies in applications, proxies, Kubernetes, CI/CD pipelines, API gateways, and more.
+          </p>
 
-        <Tabs
-          defaultValue="app"
-          values={[
-            { label: "API", value: "app" },
-            { label: "Envoy", value: "envoy" },
-            { label: "Kubernetes", value: "k8s" },
-            { label: "GenAI", value: "ai" },
-          ]}
-        >
-          <TabItem value="app">
-            <PlaygroundExample dir={require.context("./_examples/app")} />
-          </TabItem>
-          <TabItem value="envoy">
-            <PlaygroundExample dir={require.context("./_examples/envoy")} />
-          </TabItem>
-          <TabItem value="k8s">
-            <PlaygroundExample dir={require.context("./_examples/k8s")} />
-          </TabItem>
-          <TabItem value="ai">
-            <PlaygroundExample dir={require.context("./_examples/ai")} />
-          </TabItem>
-        </Tabs>
+          <Tabs
+            defaultValue="app"
+            values={[
+              { label: "API", value: "app" },
+              { label: "Envoy", value: "envoy" },
+              { label: "Kubernetes", value: "k8s" },
+              { label: "GenAI", value: "ai" },
+            ]}
+          >
+            <TabItem value="app">
+              <PlaygroundExample dir={require.context("./_examples/app")} />
+            </TabItem>
+            <TabItem value="envoy">
+              <PlaygroundExample dir={require.context("./_examples/envoy")} />
+            </TabItem>
+            <TabItem value="k8s">
+              <PlaygroundExample dir={require.context("./_examples/k8s")} />
+            </TabItem>
+            <TabItem value="ai">
+              <PlaygroundExample dir={require.context("./_examples/ai")} />
+            </TabItem>
+          </Tabs>
+        </div>
 
         <div
           style={{
