@@ -267,10 +267,10 @@ const Index = (props) => {
         <Tabs
           defaultValue="app"
           values={[
-            { label: "Application Authorization", value: "app" },
+            { label: "API", value: "app" },
             { label: "Envoy", value: "envoy" },
             { label: "Kubernetes", value: "k8s" },
-            { label: "AI Model Access", value: "ai" },
+            { label: "GenAI", value: "ai" },
           ]}
         >
           <TabItem value="app">
