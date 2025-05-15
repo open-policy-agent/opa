@@ -1,10 +1,12 @@
 # Run your first Rego policy!
-package rbac
+package payments
 
-deny contains sprintf("%s cannot delete users", [input.role]) if {
-	input.method == "DELETE"
-	startswith(input.path, "/users/")
-	input.role != "admin"
+default allow := false
+
+allow if {
+	input.account.state == "open"
+	input.user.risk_score in ["low", "medium"]
+	input.transaction.amount <= 1000
 }
 
 # Open in the Rego Playground to see the full example.

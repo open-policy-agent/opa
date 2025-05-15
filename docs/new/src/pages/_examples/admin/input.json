@@ -1,6 +1,11 @@
 {
-  "method": "DELETE",
-  "email": "alice@example.com",
-  "role": "staff",
-  "path": "/users/42"
+  "account": {
+    "state": "open"
+  },
+  "user": {
+    "risk_score": "low"
+  },
+  "transaction": {
+    "amount": 950
+  }
 }
