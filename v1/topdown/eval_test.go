@@ -1572,6 +1572,24 @@ func TestPartialRule(t *testing.T) {
 	}
 }
 
+type deadlineCtx struct{}
+
+func (d *deadlineCtx) Err() error {
+	return context.DeadlineExceeded
+}
+
+func (d *deadlineCtx) Deadline() (time.Time, bool) {
+	return time.Now(), false
+}
+
+func (d *deadlineCtx) Value(_ any) any {
+	return nil
+}
+
+func (d *deadlineCtx) Done() <-chan struct{} {
+	return nil
+}
+
 func TestContextErrorHandling(t *testing.T) {
 	t.Parallel()
 
@@ -1588,10 +1606,8 @@ func TestContextErrorHandling(t *testing.T) {
 		{
 			note: "context deadline exceeded is handled",
 			before: func() context.Context {
-				ctx, cancel := context.WithTimeout(ctx, 1*time.Millisecond)
-				time.Sleep(10 * time.Millisecond)
-				cancel()
-				return ctx
+				var d deadlineCtx
+				return &d
 			},
 			module: `package test
 				p contains v if {
