@@ -74,7 +74,7 @@ export default function PlaygroundExample({
               <CodeBlock language={"rego"} title="policy.rego">
                 {policy}
               </CodeBlock>
-              <RunSnippet command="data.play" id={`${id}-policy.rego`} files={snippetFiles} />
+              <RunSnippet command={command} id={`${id}-policy.rego`} files={snippetFiles} />
             </MDXProvider>
           </SideBySideColumn>
           <SideBySideColumn>
