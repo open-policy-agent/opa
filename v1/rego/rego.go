@@ -2832,6 +2832,9 @@ func iteration(x any) bool {
 }
 
 func parseStringsToRefs(s []string) ([]ast.Ref, error) {
+	if len(s) == 0 {
+		return nil, nil
+	}
 
 	refs := make([]ast.Ref, len(s))
 	for i := range refs {
