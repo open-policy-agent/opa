@@ -139,7 +139,7 @@ patches := [
 
 **Incorrect**:
 
-```live:patch/bad:module:read_only
+```rego
 main := {
 	"apiVersion": "admission.k8s.io/v1",
 	"kind": "AdmissionReview",

@@ -79,7 +79,7 @@ fmt.Println(rs[0].Bindings["x"])
 
 If you executed this code you the output would be:
 
-```live:trivial:query:read_only
+```rego
 "hello, bob"
 ```
 

@@ -287,13 +287,13 @@ Due to those differences, it's important to know which version is used when writ
 Thus, this information is passed into the OPA evaluation under `input.version`, where you'll either
 find, for v2,
 
-```live:v2_sample:module:read_only
+```rego
 input.version == { "ext_authz": "v2", "encoding": "encoding/json" }
 ```
 
 or, for v3,
 
-```live:v3_sample:module:read_only
+```rego
 input.version == { "ext_authz": "v3", "encoding": "protojson" }
 ```
 
@@ -446,7 +446,7 @@ Envoy External Authorization `CheckRequest` message type. This field provides th
 can help policy authors perform pattern matching on the HTTP request path. The below sample policy allows anyone to
 access the path `/people`.
 
-```live:parsed_path_example:module:read_only
+```rego
 package envoy.authz
 
 default allow := false
@@ -458,7 +458,7 @@ The `parsed_query` field in the input is also generated from the `path` field in
 the HTTP URL query as a map of string array. The below sample policy allows anyone to access the path
 `/people?lang=en&id=1&id=2`.
 
-```live:parsed_query_example:module:read_only
+```rego
 package envoy.authz
 
 default allow := false
@@ -474,7 +474,7 @@ The `parsed_body` field in the input is generated from the `body` field in the H
 Envoy External Authorization `CheckRequest` message type. This field contains the deserialized JSON request body which
 can then be used in a policy as shown below.
 
-```live:parsed_body_example:module:read_only
+```rego
 package envoy.authz
 
 default allow := false

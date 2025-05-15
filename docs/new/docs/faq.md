@@ -11,7 +11,7 @@ title: Frequently Asked Questions
 In Rego (OPA's policy language), you can write statements that both allow and
 deny a request, such as
 
-```live:conflict_resolution:module:read_only
+```rego
 package foo
 allow { input.name == "alice" }
 deny { input.name == "alice" }
@@ -25,7 +25,7 @@ you create a virtual document called `authz` and define it so that `allow`
 overrides `deny` or vice versa. Then when asking for a policy decision, you
 ask for `foo/authz`.
 
-```live:conflict_resolution_deny_by_default:module:read_only
+```rego
 # deny everything by default
 default authz := false
 
@@ -96,7 +96,7 @@ ratelimit
 
 Rego supports three kinds of equality: assignment (`:=`), comparison (`==`), and unification `=`. We recommend using assignment (`:=`) and comparison (`==`) whenever possible for policies that are easier to read and write.
 
-```live:equality:query:read_only
+```rego
 # Assignment: declare local variable x and give it value 7
 # If x appears before this statement in the rule, compiler throws error.
 x := 7
@@ -120,24 +120,24 @@ OPA lets multiple teams contribute independent policies that you can then combin
 
 For example, suppose there is a network team, a storage team, and a compute team. Suppose they each write their own policy:
 
-```live:collab_compute:module:read_only
+```rego
 package compute
 allow { ... }
 ```
 
-```live:collab_network:module:read_only
+```rego
 package network
 allow { ... }
 ```
 
-```live:collab_storage:module:read_only
+```rego
 package storage
 allow { ... }
 ```
 
 Now the cloud team, who is in charge of the overall decision, writes another policy that combines the decisions for each of the team policies. In the example below, all 3 teams must allow for the overall decision to be allowed.
 
-```live:collab_main:module:read_only
+```rego
 package main
 import data.compute
 import data.storage
@@ -292,7 +292,7 @@ Safety: every variable appearing in the head or in a builtin or inside a negatio
 
 Examples:
 
-```live:safety:module:read_only
+```rego
 # Unsafe: x in head does not appear in body.
 #   There are infinitely many values that make p true
 p[x] { some y; q[y]; r[y] }
@@ -322,7 +322,7 @@ Safety has one implication about negation: you don't iterate over values NOT in 
 
 Embedded terms like `not p[q[_]]` sometimes produce difficult to decipher error messages. We recommend pulling the embedded terms out into the rule--the meaning is the same and often creates easier to read error messages:
 
-```live:safety/nested:query:read_only
+```rego
 x := q[_]
 not p[x]
 ```
@@ -335,7 +335,7 @@ All JWTs with OPA come in as strings. That string is a JSON Web Token encoded wi
 
 You can verify tokens are properly signed.
 
-```live:jwt_verify:query:read_only
+```rego
 # RS256 signature
 io.jwt.verify_rs256(string, certificate)
 
@@ -386,7 +386,7 @@ See the [Policy Reference](./policy-reference#tokens) for additional verificatio
 
 To get certificates into the policy, you can either hardcode them or provide them as environmental variables to OPA and then use the `opa.runtime` builtin to retrieve those variables.
 
-```live:runtime:query:read_only
+```rego
 # all runtime information
 runtime := opa.runtime()
 

@@ -222,14 +222,14 @@ Surprisingly, boolean values from CloudFormation Templates are provided to the h
 "true" and "false"). Policy authors must take this into account, and explicitly check for the value of these
 attributes. An example S3 bucket policy might for example want to check that public ACLs are blocked:
 
-```live:example/boolean_fail:module:read_only
+```rego
 # Wrong: will allow both "true" and "false" values as both are considered "truthy"
 block_public_acls if {
 	input.resource.properties.PublicAccessBlockConfiguration.BlockPublicAcls
 }
 ```
 
-```live:example/boolean_correct:module:read_only
+```rego
 # Correct: will allow only when property set to "true"
 block_public_acls if {
 	input.resource.properties.PublicAccessBlockConfiguration.BlockPublicAcls == "true"

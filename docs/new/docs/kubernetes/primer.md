@@ -286,7 +286,7 @@ request:
 
 To avoid conflicting ingresses, you write a policy like the one that follows.
 
-```live:ingress_conflicts:module:read_only
+```rego
 package kubernetes.admission
 
 deny contains msg if {

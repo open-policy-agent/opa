@@ -145,7 +145,7 @@ the result:
 
 The most common case for this are a set of `allow` rules:
 
-```live:ee:module:read_only
+```rego
 package earlyexit
 
 allow if {
@@ -165,7 +165,7 @@ since `allow if { ... }` is a shorthand for `allow := true if { ... }`.
 
 Intuitively, the value can be anything that does not contain a variable:
 
-```live:eeexamples:module:read_only
+```rego
 package earlyexit.examples
 
 # p, q, r and s could be evaluated with early-exit semantics:
@@ -208,7 +208,7 @@ y(z) := r if { # variable value, not ground
 When "early exit" is possible for a (set of) rules, iterations inside that rule will be
 **cancelled** as soon as one binding matches the rule body:
 
-```live:eeiteration:module:read_only
+```rego
 package earlyexit.iteration
 
 p if {
@@ -225,7 +225,7 @@ The check if "early exit" is applicable for a query happens _after_ the indexing
 so in this contrived example, an evaluation with input `{"user": "alice"}` _would_ exit
 early; an evaluation with `{"user": "bob", "group": "admins"}` _would not_:
 
-```live:eeindex:module:read_only
+```rego
 package earlyexit
 
 allow if {

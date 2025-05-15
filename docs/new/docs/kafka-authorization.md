@@ -41,7 +41,7 @@ Next, create an OPA policy that allows all requests. You will update this policy
 
 **policies/tutorial.rego**:
 
-```live:start:module:read_only
+```rego
 package kafka.authz
 
 allow := true
@@ -460,7 +460,7 @@ producer_is_allowlisted_for_large_fanout if {
 Next, update the `topic_metadata` data structure in the same file to indicate
 that the `click-stream` topic has a high fanout.
 
-```live:updated_metadata:module:read_only
+```rego
 topic_metadata := {
     "click-stream": {
         "tags": ["large-fanout"],

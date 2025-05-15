@@ -57,7 +57,7 @@ restart, you will need root access.
 
 **authz.rego**:
 
-```live:docker_authz:module:read_only
+```rego
 package docker.authz
 
 allow := true
@@ -143,7 +143,7 @@ Let’s modify our policy to **deny** all requests:
 
 **authz.rego**:
 
-```live:docker_authz_deny_all:module:read_only
+```rego
 package docker.authz
 
 allow := false
