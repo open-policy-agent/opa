@@ -305,8 +305,6 @@ that sets are unkeyed while arrays and objects are keyed, i.e., you cannot refer
 to the index of an element within a set.
 :::
 
-<RunSnippet command="data.sets.result"/>
-
 Sets share their curly-brace syntax with objects, and an empty object is
 defined with `{}`, an empty set has to be constructed with a different syntax:
 
@@ -316,7 +314,7 @@ package sets
 empty := count(set())
 not_empty :=  count({1, 2, 3})
 empty_object := count({})
-not_equal := {} == {e|
+not_equal := {} == {e| some e in []}
 ```
 
 <RunSnippet command="data.sets"/>
@@ -2064,10 +2062,8 @@ taken to be the key (object) or index (array), respectively:
 ```rego
 package example
 
-result := {
-    "object": "foo", "bar" in {"foo": "bar"}    # key, val with object
-    "array":  2, "baz" in ["foo", "bar", "baz"] # key, val with array
-}
+result.object := "foo", "bar" in {"foo": "bar"} # key, val with object
+result.array := 2, "baz" in ["foo", "bar", "baz"] # key, val with array
 ```
 
 <RunSnippet command="data.example.result"/>
