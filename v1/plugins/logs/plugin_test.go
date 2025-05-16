@@ -3680,6 +3680,16 @@ func TestConfigUploadLimit(t *testing.T) {
 			expectedLimit: minUploadSizeLimitBytes,
 			expectedLog:   "the configured `upload_size_limit_bytes` (-1) has been set to the minimum limit (90)",
 		},
+		{
+			name:          "equal to minimum",
+			limit:         minUploadSizeLimitBytes,
+			expectedLimit: minUploadSizeLimitBytes,
+		},
+		{
+			name:          "equal to maximum",
+			limit:         maxUploadSizeLimitBytes,
+			expectedLimit: maxUploadSizeLimitBytes,
+		},
 	}
 
 	for _, tc := range tests {
@@ -3714,6 +3724,10 @@ func TestConfigUploadLimit(t *testing.T) {
 				e := testLogger.Entries()
 				if e[0].Message != tc.expectedLog {
 					t.Fatalf("Expected log to be %s but got %s", tc.expectedLog, e[0].Message)
+				}
+			} else {
+				if len(testLogger.Entries()) != 0 {
+					t.Fatalf("Expected log to be empty but got %s", testLogger.Entries()[0].Message)
 				}
 			}
 		})

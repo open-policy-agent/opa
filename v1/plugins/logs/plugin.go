@@ -381,10 +381,12 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 		if l != nil {
 			l.Warn("the configured `upload_size_limit_bytes` (%d) has been set to the maximum limit (%d)", uploadLimit, maxUploadLimit)
 		}
-	case uploadLimit <= minUploadSizeLimitBytes:
+	case uploadLimit < minUploadSizeLimitBytes:
 		minUploadLimit := minUploadSizeLimitBytes
 		c.Reporting.UploadSizeLimitBytes = &minUploadLimit
-		l.Warn("the configured `upload_size_limit_bytes` (%d) has been set to the minimum limit (%d)", uploadLimit, minUploadLimit)
+		if l != nil {
+			l.Warn("the configured `upload_size_limit_bytes` (%d) has been set to the minimum limit (%d)", uploadLimit, minUploadLimit)
+		}
 	default:
 		c.Reporting.UploadSizeLimitBytes = &uploadLimit
 	}
