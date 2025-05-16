@@ -94,7 +94,7 @@ func TestChunkEncoderAdaptive(t *testing.T) {
 	}
 
 	var chunks [][]byte
-	numEvents := 400
+	numEvents := 1000
 	for i := range numEvents {
 
 		bundles := map[string]BundleInfoV1{}
@@ -149,20 +149,20 @@ func TestChunkEncoderAdaptive(t *testing.T) {
 	actualScaleDownEvents := enc.metrics.Counter(encSoftLimitScaleDownCounterName).Value().(uint64)
 	actualEquiEvents := enc.metrics.Counter(encSoftLimitStableCounterName).Value().(uint64)
 
-	expectedScaleUpEvents := uint64(8)
-	expectedScaleDownEvents := uint64(3)
+	expectedScaleUpEvents := uint64(13)
+	expectedScaleDownEvents := uint64(10)
 	expectedEquiEvents := uint64(0)
 
 	if actualScaleUpEvents != expectedScaleUpEvents {
-		t.Fatalf("Expected scale up events %v but got %v", expectedScaleUpEvents, actualScaleUpEvents)
+		t.Errorf("Expected scale up events %v but got %v", expectedScaleUpEvents, actualScaleUpEvents)
 	}
 
 	if actualScaleDownEvents != expectedScaleDownEvents {
-		t.Fatalf("Expected scale down events %v but got %v", expectedScaleDownEvents, actualScaleDownEvents)
+		t.Errorf("Expected scale down events %v but got %v", expectedScaleDownEvents, actualScaleDownEvents)
 	}
 
 	if actualEquiEvents != expectedEquiEvents {
-		t.Fatalf("Expected equilibrium events %v but got %v", expectedEquiEvents, actualEquiEvents)
+		t.Errorf("Expected equilibrium events %v but got %v", expectedEquiEvents, actualEquiEvents)
 	}
 }
 
