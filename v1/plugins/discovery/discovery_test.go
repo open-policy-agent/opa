@@ -2735,6 +2735,8 @@ func TestStatusUpdates(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	updates := make(chan status.UpdateRequestV1, 100)
+
 	ctx := context.Background()
 
 	// Enable status plugin which sends initial update.
@@ -2744,8 +2746,15 @@ func TestStatusUpdates(t *testing.T) {
 		}
 	}`)})
 
+	// status plugin updates and bundle discovery status update,
+	updates <- <-ts.updates
+	updates <- <-ts.updates
+	updates <- <-ts.updates
+
 	// Downloader error.
 	disco.oneShot(ctx, download.Update{Error: errors.New("unknown error")})
+
+	updates <- <-ts.updates
 
 	// Clear error.
 	disco.oneShot(ctx, download.Update{ETag: "etag-2", Bundle: makeDataBundle(2, `{
@@ -2754,6 +2763,8 @@ func TestStatusUpdates(t *testing.T) {
 		}
 	}`)})
 
+	updates <- <-ts.updates
+
 	// Configuration error.
 	disco.oneShot(ctx, download.Update{ETag: "etag-3", Bundle: makeDataBundle(3, `{
 		"config": {
@@ -2761,8 +2772,12 @@ func TestStatusUpdates(t *testing.T) {
 		}
 	}`)})
 
+	updates <- <-ts.updates
+
 	// Clear error (last successful reconfigure).
 	disco.oneShot(ctx, download.Update{ETag: "etag-2"})
+
+	updates <- <-ts.updates
 
 	// Check that all updates were received and active revisions are expected.
 	expectedDiscoveryUpdates := []struct {
@@ -2799,7 +2814,7 @@ func TestStatusUpdates(t *testing.T) {
 	defer cancel()
 	for {
 		select {
-		case update := <-ts.updates:
+		case update := <-updates:
 			if update.Discovery != nil {
 				matches := false
 				if update.Discovery.Code == nextExpectedDiscoveryUpdate.Code &&
