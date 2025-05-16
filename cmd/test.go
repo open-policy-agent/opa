@@ -92,21 +92,19 @@ func (p *testCommandParams) RegoVersion() ast.RegoVersion {
 	return ast.DefaultRegoVersion
 }
 
-func opaTest(args []string, testParams testCommandParams) (int, error) {
+func opaTest(args []string, testParams testCommandParams) int {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var err error
-
 	if testParams.outputFormat.String() == benchmarkGoBenchOutput && !testParams.benchmark {
 		errMsg := "cannot use output format %s without running benchmarks (--bench)\n"
-		fmt.Fprintf(testParams.errOutput, errMsg, benchmarkGoBenchOutput)
-		return 0, fmt.Errorf(errMsg, benchmarkGoBenchOutput)
+		_, _ = fmt.Fprintf(testParams.errOutput, errMsg, benchmarkGoBenchOutput)
+		return 0
 	}
 
 	if !isThresholdValid(testParams.threshold) {
-		fmt.Fprintln(testParams.errOutput, "Code coverage threshold must be between 0 and 100")
-		return 1, err
+		_, _ = fmt.Fprintln(testParams.errOutput, "Code coverage threshold must be between 0 and 100")
+		return 1
 	}
 
 	filter := loaderFilter{
@@ -123,41 +121,41 @@ func opaTest(args []string, testParams testCommandParams) (int, error) {
 		ProcessAnnotation: true,
 	}
 
+	var err error
 	if testParams.bundleMode {
 		bundles, err = tester.LoadBundlesWithParserOptions(args, filter.Apply, popts)
 		store = inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false))
 	} else {
 		modules, store, err = tester.LoadWithParserOptions(args, filter.Apply, popts)
 	}
-
 	if err != nil {
-		fmt.Fprintln(testParams.errOutput, err)
-		return 1, err
+		_, _ = fmt.Fprintln(testParams.errOutput, err)
+		return 1
 	}
 
 	txn, err := store.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
-		fmt.Fprintln(testParams.errOutput, err)
-		return 1, err
+		_, _ = fmt.Fprintln(testParams.errOutput, err)
+		return 1
 	}
 
 	runner, reporter, err := compileAndSetupTests(ctx, testParams, store, txn, modules, bundles)
 	if err != nil {
 		store.Abort(ctx, txn)
-		fmt.Fprintln(testParams.errOutput, err)
-		return 1, err
+		_, _ = fmt.Fprintln(testParams.errOutput, err)
+		return 1
 	}
 
 	success := true
 	for range testParams.count {
-		exitCode, err := runTests(ctx, txn, runner, reporter, testParams)
+		exitCode, _ := runTests(ctx, txn, runner, reporter, testParams)
 		if exitCode != 0 {
 			success = false
 			store.Abort(ctx, txn)
 			if testParams.watch {
 				break
 			}
-			return exitCode, err
+			return exitCode
 		}
 	}
 
@@ -166,7 +164,7 @@ func opaTest(args []string, testParams testCommandParams) (int, error) {
 	}
 
 	if !testParams.watch {
-		return 0, nil
+		return 0
 	}
 
 	done := make(chan struct{})
@@ -176,7 +174,7 @@ func opaTest(args []string, testParams testCommandParams) (int, error) {
 
 	<-testParams.stopChan
 	done <- struct{}{}
-	return 0, nil
+	return 0
 }
 
 func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runner, reporter tester.Reporter, testParams testCommandParams) (int, error) {
@@ -197,7 +195,7 @@ func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runne
 	}
 
 	if err != nil {
-		fmt.Fprintln(testParams.errOutput, err)
+		_, _ = fmt.Fprintln(testParams.errOutput, err)
 		return 1, err
 	}
 
@@ -218,9 +216,10 @@ func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runne
 	}()
 
 	if err := reporter.Report(dup); err != nil {
-		fmt.Fprintln(testParams.errOutput, err)
+		_, _ = fmt.Fprintln(testParams.errOutput, err)
 		if !testParams.benchmark {
-			if _, ok := err.(*cover.CoverageThresholdError); ok {
+			var coverageThresholdError *cover.CoverageThresholdError
+			if errors.As(err, &coverageThresholdError) {
 				return 2, err
 			}
 		}
@@ -263,7 +262,7 @@ func isThresholdValid(t float64) bool {
 func startWatcher(ctx context.Context, testParams testCommandParams, paths []string, store storage.Store, done chan struct{}) {
 	watcher, err := pathwatcher.CreatePathWatcher(paths)
 	if err != nil {
-		fmt.Fprintln(testParams.errOutput, "Error creating path watcher: ", err)
+		_, _ = fmt.Fprintln(testParams.errOutput, "Error creating path watcher: ", err)
 		os.Exit(1)
 	}
 	readWatcher(ctx, testParams, watcher, paths, store, done)
@@ -271,9 +270,8 @@ func startWatcher(ctx context.Context, testParams testCommandParams, paths []str
 
 func readWatcher(ctx context.Context, testParams testCommandParams, watcher *fsnotify.Watcher, paths []string, store storage.Store, done chan struct{}) {
 	for {
-
-		fmt.Fprintln(testParams.output, strings.Repeat("*", 80))
-		fmt.Fprintln(testParams.output, "Watching for changes ...")
+		_, _ = fmt.Fprintln(testParams.output, strings.Repeat("*", 80))
+		_, _ = fmt.Fprintln(testParams.output, "Watching for changes ...")
 		select {
 		case evt := <-watcher.Events:
 			removalMask := fsnotify.Remove | fsnotify.Rename
@@ -286,7 +284,7 @@ func readWatcher(ctx context.Context, testParams testCommandParams, watcher *fsn
 				processWatcherUpdate(ctx, testParams, paths, removed, store)
 			}
 		case <-done:
-			watcher.Close()
+			_ = watcher.Close()
 			return
 		}
 	}
@@ -313,7 +311,7 @@ func processWatcherUpdate(ctx context.Context, testParams testCommandParams, pat
 		})
 
 	if err != nil {
-		fmt.Fprintln(testParams.output, err)
+		_, _ = fmt.Fprintln(testParams.output, err)
 		return
 	}
 
@@ -338,7 +336,7 @@ func processWatcherUpdate(ctx context.Context, testParams testCommandParams, pat
 	})
 
 	if err != nil {
-		fmt.Fprintln(testParams.output, err)
+		_, _ = fmt.Fprintln(testParams.output, err)
 	}
 }
 
@@ -385,7 +383,7 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 	if testParams.coverage {
 		if testParams.benchmark {
 			errMsg := "coverage reporting is not supported when benchmarking tests"
-			fmt.Fprintln(testParams.errOutput, errMsg)
+			_, _ = fmt.Fprintln(testParams.errOutput, errMsg)
 			return nil, nil, errors.New(errMsg)
 		}
 		cov = cover.New()
@@ -539,8 +537,7 @@ recommended as some updates might cause them to be dropped by OPA.
 		},
 
 		Run: func(_ *cobra.Command, args []string) {
-			exitCode, _ := opaTest(args, testParams)
-			os.Exit(exitCode)
+			os.Exit(opaTest(args, testParams))
 		},
 	}
 
