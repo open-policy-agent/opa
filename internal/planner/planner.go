@@ -51,10 +51,10 @@ type Planner struct {
 
 // debugf prepends the planner location. We're passing callstack depth 2 because
 // it should still log the file location of p.debugf.
-func (p *Planner) debugf(format string, args ...interface{}) {
+func (p *Planner) debugf(format string, args ...any) {
 	var msg string
 	if p.loc != nil {
-		msg = fmt.Sprintf("%s: "+format, append([]interface{}{p.loc}, args...)...)
+		msg = fmt.Sprintf("%s: "+format, append([]any{p.loc}, args...)...)
 	} else {
 		msg = fmt.Sprintf(format, args...)
 	}
@@ -211,13 +211,15 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 	// Set the location to the rule head.
 	p.loc = rules[0].Head.Loc()
 
+	pcount := p.funcs.argVars()
+	params := make([]ir.Local, 0, pcount+len(rules[0].Head.Args))
+	for range pcount {
+		params = append(params, p.newLocal())
+	}
 	// Create function definition for rules.
 	fn := &ir.Func{
-		Name: fmt.Sprintf("g%d.%s", p.funcs.gen(), path),
-		Params: []ir.Local{
-			p.newLocal(), // input document
-			p.newLocal(), // data document
-		},
+		Name:   fmt.Sprintf("g%d.%s", p.funcs.gen(), path),
+		Params: params,
 		Return: p.newLocal(),
 		Path:   append([]string{fmt.Sprintf("g%d", p.funcs.gen())}, pathPieces...),
 	}
@@ -227,7 +229,10 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 		fn.Params = append(fn.Params, p.newLocal())
 	}
 
-	params := fn.Params[2:]
+	// only those added as formal parameters:
+	// f(x, y) is planned as f(data, input, x, y)
+	// pcount > 2 means there are vars passed along through with replacements by variables
+	params = fn.Params[pcount:]
 
 	// Initialize return value for partial set/object rules. Complete document
 	// rules assign directly to `fn.Return`.
@@ -301,10 +306,11 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 
 			// Setup planner for block.
 			p.lnext = lnext
-			p.vars = newVarstack(map[ast.Var]ir.Local{
-				ast.InputRootDocument.Value.(ast.Var):   fn.Params[0],
-				ast.DefaultRootDocument.Value.(ast.Var): fn.Params[1],
-			})
+			vs := make(map[ast.Var]ir.Local, p.funcs.argVars())
+			for i, v := range p.funcs.vars() {
+				vs[v] = fn.Params[i]
+			}
+			p.vars = newVarstack(vs)
 
 			curr := &ir.Block{}
 			*blocks = append(*blocks, curr)
@@ -672,13 +678,17 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 	values := make([]*ast.Term, 0, len(e.With)) // NOTE(sr): we could be overallocating if there are builtin replacements
 	targets := make([]ast.Ref, 0, len(e.With))
 
+	vars := []ast.Var{}
 	mocks := frame{}
 
 	for _, w := range e.With {
 		v := w.Target.Value.(ast.Ref)
 
 		switch {
-		case p.isFunction(v): // nothing to do
+		case p.isFunctionOrBuiltin(v): // track var values
+			if wvar, ok := w.Value.Value.(ast.Var); ok {
+				vars = append(vars, wvar)
+			}
 
 		case ast.DefaultRootDocument.Equal(v[0]) ||
 			ast.InputRootDocument.Equal(v[0]):
@@ -735,7 +745,7 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 		// planning of this expression (transitively).
 		shadowing := p.dataRefsShadowRuletrie(dataRefs) || len(mocks) > 0
 		if shadowing {
-			p.funcs.Push(map[string]string{})
+			p.funcs.Push(map[string]string{}, vars)
 			for _, ref := range dataRefs {
 				p.rules.Push(ref)
 			}
@@ -756,7 +766,7 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 
 				p.mocks.PushFrame(mocks)
 				if shadowing {
-					p.funcs.Push(map[string]string{})
+					p.funcs.Push(map[string]string{}, vars)
 					for _, ref := range dataRefs {
 						p.rules.Push(ref)
 					}
@@ -990,6 +1000,15 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 		op := e.Operator()
 
 		if replacement := p.mocks.Lookup(operator); replacement != nil {
+			if _, ok := replacement.Value.(ast.Var); ok {
+				var arity int
+				if node := p.rules.Lookup(op); node != nil {
+					arity = node.Arity() // NB(sr): We don't need to plan what isn't called, only lookup arity
+				} else if bi, ok := p.decls[operator]; ok {
+					arity = bi.Decl.Arity()
+				}
+				return p.planExprCallValue(replacement, arity, operands, iter)
+			}
 			if r, ok := replacement.Value.(ast.Ref); ok {
 				if !r.HasPrefix(ast.DefaultRootRef) && !r.HasPrefix(ast.InputRootRef) {
 					// replacement is builtin
@@ -1018,7 +1037,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 
 			// replacement is a value, or ref
 			if bi, ok := p.decls[operator]; ok {
-				return p.planExprCallValue(replacement, len(bi.Decl.FuncArgs().Args), operands, iter)
+				return p.planExprCallValue(replacement, bi.Decl.Arity(), operands, iter)
 			}
 			if node := p.rules.Lookup(op); node != nil {
 				return p.planExprCallValue(replacement, node.Arity(), operands, iter)
@@ -1562,9 +1581,7 @@ func (p *Planner) planString(str ast.String, iter planiter) error {
 }
 
 func (p *Planner) planVar(v ast.Var, iter planiter) error {
-	p.ltarget = op(p.vars.GetOrElse(v, func() ir.Local {
-		return p.newLocal()
-	}))
+	p.ltarget = op(p.vars.GetOrElse(v, p.newLocal))
 	return iter()
 }
 
@@ -1922,12 +1939,15 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 			if err != nil {
 				return err
 			}
-
-			p.appendStmt(&ir.CallStmt{
+			call := ir.CallStmt{
 				Func:   funcName,
-				Args:   p.defaultOperands(),
+				Args:   make([]ir.Operand, 0, p.funcs.argVars()),
 				Result: p.ltarget.Value.(ir.Local),
-			})
+			}
+			for _, v := range p.funcs.vars() {
+				call.Args = append(call.Args, p.vars.GetOpOrEmpty(v))
+			}
+			p.appendStmt(&call)
 
 			return p.planRefRec(ref, index+1, iter)
 		}
@@ -2551,17 +2571,20 @@ func (p *Planner) unseenVars(t *ast.Term) bool {
 }
 
 func (p *Planner) defaultOperands() []ir.Operand {
-	return []ir.Operand{
-		p.vars.GetOpOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
-		p.vars.GetOpOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
+	pcount := p.funcs.argVars()
+	operands := make([]ir.Operand, pcount)
+	for i, v := range p.funcs.vars() {
+		operands[i] = p.vars.GetOpOrEmpty(v)
 	}
+	return operands
 }
 
-func (p *Planner) isFunction(r ast.Ref) bool {
+func (p *Planner) isFunctionOrBuiltin(r ast.Ref) bool {
 	if node := p.rules.Lookup(r); node != nil {
 		return node.Arity() > 0
 	}
-	return false
+	_, ok := p.decls[r.String()]
+	return ok
 }
 
 func op(v ir.Val) ir.Operand {

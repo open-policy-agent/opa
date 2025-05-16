@@ -24,7 +24,7 @@ var testRuntime *e2e.TestRuntime
 var pool *x509.CertPool
 
 // print error to stderr, exit 1
-func fatal(err interface{}) {
+func fatal(err any) {
 	fmt.Fprintf(os.Stderr, "%s\n", err)
 	os.Exit(1)
 }

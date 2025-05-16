@@ -55,7 +55,7 @@ type (
 		RelatedResources []*RelatedResourceAnnotation `json:"related_resources,omitempty"`
 		Authors          []*AuthorAnnotation          `json:"authors,omitempty"`
 		Schemas          []*SchemaAnnotation          `json:"schemas,omitempty"`
-		Custom           map[string]interface{}       `json:"custom,omitempty"`
+		Custom           map[string]any               `json:"custom,omitempty"`
 		Location         *Location                    `json:"location,omitempty"`
 
 		comments []*Comment
@@ -64,9 +64,9 @@ type (
 
 	// SchemaAnnotation contains a schema declaration for the document identified by the path.
 	SchemaAnnotation struct {
-		Path       Ref          `json:"path"`
-		Schema     Ref          `json:"schema,omitempty"`
-		Definition *interface{} `json:"definition,omitempty"`
+		Path       Ref  `json:"path"`
+		Schema     Ref  `json:"schema,omitempty"`
+		Definition *any `json:"definition,omitempty"`
 	}
 
 	AuthorAnnotation struct {
@@ -203,7 +203,7 @@ func (a *Annotations) MarshalJSON() ([]byte, error) {
 		return []byte(`{"scope":""}`), nil
 	}
 
-	data := map[string]interface{}{
+	data := map[string]any{
 		"scope": a.Scope,
 	}
 
@@ -283,7 +283,7 @@ func (ar *AnnotationsRef) GetRule() *Rule {
 }
 
 func (ar *AnnotationsRef) MarshalJSON() ([]byte, error) {
-	data := map[string]interface{}{
+	data := map[string]any{
 		"path": ar.Path,
 	}
 
@@ -696,7 +696,7 @@ func (rr *RelatedResourceAnnotation) String() string {
 }
 
 func (rr *RelatedResourceAnnotation) MarshalJSON() ([]byte, error) {
-	d := map[string]interface{}{
+	d := map[string]any{
 		"ref": rr.Ref.String(),
 	}
 

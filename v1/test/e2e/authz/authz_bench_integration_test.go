@@ -86,7 +86,7 @@ func runAuthzBenchmark(b *testing.B, mode testAuthz.InputMode, numPaths int) {
 	url := testRuntime.URL() + "/v1/" + queryPath
 
 	input, expected := testAuthz.GenerateInput(profile, mode)
-	inputPayload := util.MustMarshalJSON(map[string]interface{}{
+	inputPayload := util.MustMarshalJSON(map[string]any{
 		"input": input,
 	})
 	inputReader := bytes.NewReader(inputPayload)

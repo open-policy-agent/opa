@@ -8,7 +8,7 @@ import (
 // Debug allows printing debug messages.
 type Debug interface {
 	// Printf prints, with a short file:line-number prefix
-	Printf(format string, args ...interface{})
+	Printf(format string, args ...any)
 	// Writer returns the writer being written to, which may be
 	// `io.Discard` if no debug output is requested.
 	Writer() io.Writer

@@ -36,7 +36,7 @@ import (
 // Sets are considered equal if and only if the symmetric difference of a and b
 // is empty.
 // Other comparisons are consistent but not defined.
-func Compare(a, b interface{}) int {
+func Compare(a, b any) int {
 
 	if t, ok := a.(*Term); ok {
 		if t == nil {
@@ -239,7 +239,7 @@ func (s termSlice) Less(i, j int) bool { return Compare(s[i].Value, s[j].Value) 
 func (s termSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s termSlice) Len() int           { return len(s) }
 
-func sortOrder(x interface{}) int {
+func sortOrder(x any) int {
 	switch x.(type) {
 	case Null:
 		return 0

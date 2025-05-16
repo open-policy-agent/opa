@@ -63,7 +63,7 @@ func (txn *transaction) ID() uint64 {
 	return txn.xid
 }
 
-func (txn *transaction) Write(op storage.PatchOp, path storage.Path, value interface{}) error {
+func (txn *transaction) Write(op storage.PatchOp, path storage.Path, value any) error {
 
 	if !txn.write {
 		return &storage.Error{
@@ -129,7 +129,7 @@ func (txn *transaction) Write(op storage.PatchOp, path storage.Path, value inter
 	return nil
 }
 
-func (txn *transaction) updateRoot(op storage.PatchOp, value interface{}) error {
+func (txn *transaction) updateRoot(op storage.PatchOp, value any) error {
 	if op == storage.RemoveOp {
 		return invalidPatchError(rootCannotBeRemovedMsg)
 	}
@@ -150,7 +150,7 @@ func (txn *transaction) updateRoot(op storage.PatchOp, value interface{}) error 
 			value:  valueAST,
 		}
 	} else {
-		if _, ok := value.(map[string]interface{}); !ok {
+		if _, ok := value.(map[string]any); !ok {
 			return invalidPatchError(rootMustBeObjectMsg)
 		}
 
@@ -194,14 +194,14 @@ func (txn *transaction) Commit() (result storage.TriggerEvent) {
 	return result
 }
 
-func pointer(v interface{}, path storage.Path) (interface{}, error) {
+func pointer(v any, path storage.Path) (any, error) {
 	if v, ok := v.(ast.Value); ok {
 		return ptr.ValuePtr(v, path)
 	}
 	return ptr.Ptr(v, path)
 }
 
-func deepcpy(v interface{}) interface{} {
+func deepcpy(v any) any {
 	if v, ok := v.(ast.Value); ok {
 		var cpy ast.Value
 
@@ -217,7 +217,7 @@ func deepcpy(v interface{}) interface{} {
 	return deepcopy.DeepCopy(v)
 }
 
-func (txn *transaction) Read(path storage.Path) (interface{}, error) {
+func (txn *transaction) Read(path storage.Path) (any, error) {
 
 	if !txn.write {
 		return pointer(txn.db.data, path)
@@ -313,10 +313,10 @@ func (txn *transaction) DeletePolicy(id string) error {
 type dataUpdate interface {
 	Path() storage.Path
 	Remove() bool
-	Apply(interface{}) interface{}
+	Apply(any) any
 	Relative(path storage.Path) dataUpdate
-	Set(interface{})
-	Value() interface{}
+	Set(any)
+	Value() any
 }
 
 // update contains state associated with an update to be applied to the
@@ -324,10 +324,10 @@ type dataUpdate interface {
 type updateRaw struct {
 	path   storage.Path // data path modified by update
 	remove bool         // indicates whether update removes the value at path
-	value  interface{}  // value to add/replace at path (ignored if remove is true)
+	value  any          // value to add/replace at path (ignored if remove is true)
 }
 
-func (db *store) newUpdate(data interface{}, op storage.PatchOp, path storage.Path, idx int, value interface{}) (dataUpdate, error) {
+func (db *store) newUpdate(data any, op storage.PatchOp, path storage.Path, idx int, value any) (dataUpdate, error) {
 	if db.returnASTValuesOnRead {
 		astData, err := interfaceToValue(data)
 		if err != nil {
@@ -342,7 +342,7 @@ func (db *store) newUpdate(data interface{}, op storage.PatchOp, path storage.Pa
 	return newUpdateRaw(data, op, path, idx, value)
 }
 
-func newUpdateRaw(data interface{}, op storage.PatchOp, path storage.Path, idx int, value interface{}) (dataUpdate, error) {
+func newUpdateRaw(data any, op storage.PatchOp, path storage.Path, idx int, value any) (dataUpdate, error) {
 
 	switch data.(type) {
 	case nil, bool, json.Number, string:
@@ -350,10 +350,10 @@ func newUpdateRaw(data interface{}, op storage.PatchOp, path storage.Path, idx i
 	}
 
 	switch data := data.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		return newUpdateObject(data, op, path, idx, value)
 
-	case []interface{}:
+	case []any:
 		return newUpdateArray(data, op, path, idx, value)
 	}
 
@@ -363,14 +363,14 @@ func newUpdateRaw(data interface{}, op storage.PatchOp, path storage.Path, idx i
 	}
 }
 
-func newUpdateArray(data []interface{}, op storage.PatchOp, path storage.Path, idx int, value interface{}) (dataUpdate, error) {
+func newUpdateArray(data []any, op storage.PatchOp, path storage.Path, idx int, value any) (dataUpdate, error) {
 
 	if idx == len(path)-1 {
 		if path[idx] == "-" || path[idx] == strconv.Itoa(len(data)) {
 			if op != storage.AddOp {
 				return nil, invalidPatchError("%v: invalid patch path", path)
 			}
-			cpy := make([]interface{}, len(data)+1)
+			cpy := make([]any, len(data)+1)
 			copy(cpy, data)
 			cpy[len(data)] = value
 			return &updateRaw{path[:len(path)-1], false, cpy}, nil
@@ -383,20 +383,20 @@ func newUpdateArray(data []interface{}, op storage.PatchOp, path storage.Path, i
 
 		switch op {
 		case storage.AddOp:
-			cpy := make([]interface{}, len(data)+1)
+			cpy := make([]any, len(data)+1)
 			copy(cpy[:pos], data[:pos])
 			copy(cpy[pos+1:], data[pos:])
 			cpy[pos] = value
 			return &updateRaw{path[:len(path)-1], false, cpy}, nil
 
 		case storage.RemoveOp:
-			cpy := make([]interface{}, len(data)-1)
+			cpy := make([]any, len(data)-1)
 			copy(cpy[:pos], data[:pos])
 			copy(cpy[pos:], data[pos+1:])
 			return &updateRaw{path[:len(path)-1], false, cpy}, nil
 
 		default:
-			cpy := make([]interface{}, len(data))
+			cpy := make([]any, len(data))
 			copy(cpy, data)
 			cpy[pos] = value
 			return &updateRaw{path[:len(path)-1], false, cpy}, nil
@@ -411,7 +411,7 @@ func newUpdateArray(data []interface{}, op storage.PatchOp, path storage.Path, i
 	return newUpdateRaw(data[pos], op, path, idx+1, value)
 }
 
-func newUpdateObject(data map[string]interface{}, op storage.PatchOp, path storage.Path, idx int, value interface{}) (dataUpdate, error) {
+func newUpdateObject(data map[string]any, op storage.PatchOp, path storage.Path, idx int, value any) (dataUpdate, error) {
 
 	if idx == len(path)-1 {
 		switch op {
@@ -438,7 +438,7 @@ func (u *updateRaw) Path() storage.Path {
 	return u.path
 }
 
-func (u *updateRaw) Apply(data interface{}) interface{} {
+func (u *updateRaw) Apply(data any) any {
 	if len(u.path) == 0 {
 		return u.value
 	}
@@ -448,17 +448,17 @@ func (u *updateRaw) Apply(data interface{}) interface{} {
 	}
 	key := u.path[len(u.path)-1]
 	if u.remove {
-		obj := parent.(map[string]interface{})
+		obj := parent.(map[string]any)
 		delete(obj, key)
 		return data
 	}
 	switch parent := parent.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		if parent == nil {
-			parent = make(map[string]interface{}, 1)
+			parent = make(map[string]any, 1)
 		}
 		parent[key] = u.value
-	case []interface{}:
+	case []any:
 		idx, err := strconv.Atoi(key)
 		if err != nil {
 			panic(err)
@@ -468,11 +468,11 @@ func (u *updateRaw) Apply(data interface{}) interface{} {
 	return data
 }
 
-func (u *updateRaw) Set(v interface{}) {
+func (u *updateRaw) Set(v any) {
 	u.value = v
 }
 
-func (u *updateRaw) Value() interface{} {
+func (u *updateRaw) Value() any {
 	return u.value
 }
 

@@ -9,6 +9,6 @@ import (
 )
 
 // TypeName returns a human readable name for the AST element type.
-func TypeName(x interface{}) string {
+func TypeName(x any) string {
 	return v1.TypeName(x)
 }

@@ -97,10 +97,10 @@ func TestWasmE2E(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				var input *interface{}
+				var input *any
 
 				if tc.InputTerm != nil {
-					var x interface{} = ast.MustParseTerm(*tc.InputTerm)
+					var x any = ast.MustParseTerm(*tc.InputTerm)
 					input = &x
 				} else if tc.Input != nil {
 					input = tc.Input
@@ -167,7 +167,7 @@ func (x defined) String() string {
 
 func assertDefined(t *testing.T, want defined, result *opa.Result) {
 	t.Helper()
-	var rs []interface{}
+	var rs []any
 	if err := util.NewJSONDecoder(bytes.NewReader(result.Result)).Decode(&rs); err != nil {
 		t.Fatal(err)
 	}
@@ -181,10 +181,10 @@ func assertEmptyResultSet(t *testing.T, result *opa.Result) {
 	if result == nil {
 		t.Fatal("unexpected nil result")
 	}
-	assertResultSet(t, []map[string]interface{}{}, false, result)
+	assertResultSet(t, []map[string]any{}, false, result)
 }
 
-func assertResultSet(t *testing.T, want []map[string]interface{}, sortBindings bool, result *opa.Result) {
+func assertResultSet(t *testing.T, want []map[string]any, sortBindings bool, result *opa.Result) {
 	t.Helper()
 
 	exp := ast.NewSet()
@@ -240,7 +240,7 @@ func assertErrorCode(t *testing.T, expected string, actual error) {
 	}
 }
 
-func toAST(a interface{}) *ast.Term {
+func toAST(a any) *ast.Term {
 
 	if bs, ok := a.([]byte); ok {
 		return ast.MustParseTerm(string(bs))

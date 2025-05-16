@@ -36,7 +36,7 @@ func RunDecisionLoggerBenchmark(b *testing.B, rt *e2e.TestRuntime) {
 			b.ResetTimer()
 
 			b.Run(name, func(b *testing.B) {
-				input := map[string]interface{}{
+				input := map[string]any{
 					"hit":      true,
 					"password": "$up3r$Ecr3t",
 					"ssn":      "123-45-6789",

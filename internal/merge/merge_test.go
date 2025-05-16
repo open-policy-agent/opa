@@ -26,16 +26,16 @@ func TestMergeDocs(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		a := map[string]interface{}{}
+		a := map[string]any{}
 		if err := util.UnmarshalJSON([]byte(tc.a), &a); err != nil {
 			panic(err)
 		}
-		aInitial := map[string]interface{}{}
+		aInitial := map[string]any{}
 		if err := util.UnmarshalJSON([]byte(tc.a), &aInitial); err != nil {
 			panic(err)
 		}
 
-		b := map[string]interface{}{}
+		b := map[string]any{}
 		if err := util.UnmarshalJSON([]byte(tc.b), &b); err != nil {
 			panic(err)
 		}
@@ -53,7 +53,7 @@ func TestMergeDocs(t *testing.T) {
 
 		} else {
 
-			expected := map[string]interface{}{}
+			expected := map[string]any{}
 			if err := util.UnmarshalJSON([]byte(tc.c), &expected); err != nil {
 				panic(err)
 			}

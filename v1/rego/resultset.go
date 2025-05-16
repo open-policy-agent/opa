@@ -12,7 +12,7 @@ type ResultSet []Result
 
 // Vars represents a collection of variable bindings. The keys are the variable
 // names and the values are the binding values.
-type Vars map[string]interface{}
+type Vars map[string]any
 
 // WithoutWildcards returns a copy of v with wildcard variables removed.
 func (v Vars) WithoutWildcards() Vars {
@@ -46,12 +46,12 @@ type Location struct {
 
 // ExpressionValue defines the value of an expression in a Rego query.
 type ExpressionValue struct {
-	Value    interface{} `json:"value"`
-	Text     string      `json:"text"`
-	Location *Location   `json:"location"`
+	Value    any       `json:"value"`
+	Text     string    `json:"text"`
+	Location *Location `json:"location"`
 }
 
-func newExpressionValue(expr *ast.Expr, value interface{}) *ExpressionValue {
+func newExpressionValue(expr *ast.Expr, value any) *ExpressionValue {
 	result := &ExpressionValue{
 		Value: value,
 	}

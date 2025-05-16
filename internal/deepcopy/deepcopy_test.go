@@ -10,9 +10,9 @@ import (
 )
 
 func TestDeepCopyMapRoot(t *testing.T) {
-	target := map[string]interface{}{
-		"a": map[string]interface{}{
-			"b": []interface{}{
+	target := map[string]any{
+		"a": map[string]any{
+			"b": []any{
 				"c",
 				"d",
 			},
@@ -20,7 +20,7 @@ func TestDeepCopyMapRoot(t *testing.T) {
 		},
 		"x": "y",
 	}
-	result := DeepCopy(target).(map[string]interface{})
+	result := DeepCopy(target).(map[string]any)
 	if !reflect.DeepEqual(target, result) {
 		t.Fatal("Expected result of DeepCopy to be DeepEqual with original.")
 	}

@@ -105,7 +105,7 @@ func (s *SigningConfig) WithPlugin(plugin string) *SigningConfig {
 }
 
 // GetPrivateKey returns the private key or secret from the signing config
-func (s *SigningConfig) GetPrivateKey() (interface{}, error) {
+func (s *SigningConfig) GetPrivateKey() (any, error) {
 
 	block, _ := pem.Decode([]byte(s.Key))
 	if block != nil {
@@ -129,8 +129,8 @@ func (s *SigningConfig) GetPrivateKey() (interface{}, error) {
 }
 
 // GetClaims returns the claims by reading the file specified in the signing config
-func (s *SigningConfig) GetClaims() (map[string]interface{}, error) {
-	var claims map[string]interface{}
+func (s *SigningConfig) GetClaims() (map[string]any, error) {
+	var claims map[string]any
 
 	bs, err := os.ReadFile(s.ClaimsPath)
 	if err != nil {

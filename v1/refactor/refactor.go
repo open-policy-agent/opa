@@ -72,7 +72,7 @@ func (mqr *MoveQueryResult) validate() error {
 func (*Refactor) Move(q MoveQuery) (*MoveQueryResult, error) {
 
 	for _, module := range q.Modules {
-		t := ast.NewGenericTransformer(func(x interface{}) (interface{}, error) {
+		t := ast.NewGenericTransformer(func(x any) (any, error) {
 			if s, ok := x.(ast.Ref); ok {
 				for k, v := range q.SrcDstMapping {
 					other, err := ast.ParseRef(k)
