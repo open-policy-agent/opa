@@ -50,7 +50,6 @@ module.exports = {
         "ssh-and-sudo-authorization",
         "terraform",
         "oauth-oidc",
-        "comparison-to-other-systems",
       ],
     },
     { type: "html", value: "<hr>" },
@@ -100,6 +99,7 @@ module.exports = {
       href: "/docs/archive",
     },
     "faq",
+    "comparison-to-other-systems",
     {
       type: "link",
       label: "Enterprise Support",

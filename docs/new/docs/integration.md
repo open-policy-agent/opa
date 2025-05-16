@@ -65,7 +65,7 @@ The `<path>` in the HTTP request identifies the policy decision to ask for. In
 OPA, every rule generates a policy decision. In the example below there are two
 decisions: `example/authz/allow` and `example/authz/is_admin`.
 
-```live:authz:module:openable,read_only
+```rego
 package example.authz
 
 default allow := false

@@ -94,7 +94,7 @@ docker run -v $PWD:/example openpolicyagent/opa eval -d /example 'data.example.g
 
 **policy.rego**:
 
-```live:docker_hello_world:module:read_only
+```rego
 package example
 
 greeting := msg {
@@ -156,7 +156,7 @@ we recommend you store it as a Secret.
 
 **example.rego**:
 
-```live:k8s_deployment_hello_world:module:read_only
+```rego
 package example
 
 greeting := msg {

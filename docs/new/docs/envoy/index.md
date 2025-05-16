@@ -1,5 +1,6 @@
 ---
 title: Overview & Architecture
+sidebar_position: 1
 ---
 
 [Envoy](https://www.envoyproxy.io/docs/envoy/latest/intro/what_is_envoy) is a

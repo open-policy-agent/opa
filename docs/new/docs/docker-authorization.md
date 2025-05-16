@@ -57,7 +57,7 @@ restart, you will need root access.
 
 **authz.rego**:
 
-```live:docker_authz:module:read_only
+```rego
 package docker.authz
 
 allow := true
@@ -143,7 +143,7 @@ Let’s modify our policy to **deny** all requests:
 
 **authz.rego**:
 
-```live:docker_authz_deny_all:module:read_only
+```rego
 package docker.authz
 
 allow := false
@@ -182,9 +182,7 @@ Now let's change the policy so that it's a bit more useful.
 
 ### 6. Update the policy to reject requests with the unconfined [seccomp](https://en.wikipedia.org/wiki/Seccomp) profile:
 
-**authz.rego**:
-
-```live:docker_authz_deny_unconfined:module:openable
+```rego title="authz.rego"
 package docker.authz
 
 default allow := false
@@ -204,6 +202,8 @@ seccomp_unconfined if {
 }
 ```
 
+<RunSnippet id="authz.rego" />
+
 Again, rebuild the bundle and save it in the Nginx document root directory.
 
 ```shell
@@ -213,11 +213,21 @@ opa build --bundle --output /var/www/html/bundle.tar.gz .
 The plugin queries the `allow` rule to authorize requests to Docker. The `input`
 document is set to the attributes passed from Docker.
 
-```live:docker_authz_deny_unconfined:query:hidden
-allow
+```rego
+package example
+
+result := data.docker.authz.allow
 ```
 
-```live:docker_authz_deny_unconfined:input
+<RunSnippet files="#input.json #authz.rego" command="data.example.result" />
+
+<details>
+
+<summary>Click to expand the input document</summary>
+
+Look for `SecurityOpt` and try changing it to see the result.
+
+```json title="input.json"
 {
   "AuthMethod": "",
   "Body": {
@@ -293,7 +303,7 @@ allow
         "MaximumRetryCount": 0,
         "Name": "no"
       },
-      "SecurityOpt": null,
+      "SecurityOpt": ["seccomp:unconfined"],
       "ShmSize": 0,
       "UTSMode": "",
       "Ulimits": null,
@@ -326,14 +336,9 @@ allow
 }
 ```
 
-For the input above, the value of `allow` is:
+<RunSnippet id="input.json" />
 
-```live:docker_authz_deny_unconfined:output
-```
-
-> Many of the examples in the documentation are interactive. Try editing the
-> input above by setting `Body.HostConfig.SecurityOpt` to
-> `["seccomp:unconfined"]`.
+</details>
 
 ### 7. Test the policy is working by running a simple container:
 
@@ -384,7 +389,7 @@ EOF
 
 ### 9. Update the policy to include basic user access controls.
 
-```live:docker_authz_users:module:read_only,openable
+```rego
 package docker.authz
 
 default allow := false
