@@ -8,44 +8,62 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
-	"fmt"
 	"math"
 
+	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/metrics"
 )
 
 const (
-	encHardLimitThreshold              = 0.9
-	softLimitBaseFactor                = 2
-	softLimitExponentScaleFactor       = 0.2
-	encLogExUploadSizeLimitCounterName = "enc_log_exceeded_upload_size_limit_bytes"
-	encSoftLimitScaleUpCounterName     = "enc_soft_limit_scale_up"
-	encSoftLimitScaleDownCounterName   = "enc_soft_limit_scale_down"
-	encSoftLimitStableCounterName      = "enc_soft_limit_stable"
+	encCompressedLimitThreshold              = 0.9
+	uncompressedLimitBaseFactor              = 2
+	uncompressedLimitExponentScaleFactor     = 0.2
+	logNDBDropCounterName                    = "decision_logs_nd_builtin_cache_dropped"
+	encLogExUploadSizeLimitCounterName       = "enc_log_exceeded_upload_size_limit_bytes"
+	encUncompressedLimitScaleUpCounterName   = "enc_uncompressed_limit_scale_up"
+	encUncompressedLimitScaleDownCounterName = "enc_uncompressed_limit_scale_down"
+	encUncompressedLimitStableCounterName    = "enc_uncompressed_limit_stable"
+	encSoftLimitScaleUpCounterName           = "enc_soft_limit_scale_up"   // deprecated, use uncompressed version instead
+	encSoftLimitScaleDownCounterName         = "enc_soft_limit_scale_down" // deprecated, use uncompressed version instead
+	encSoftLimitStableCounterName            = "enc_soft_limit_stable"     // deprecated, use uncompressed version instead
+	encNumberOfEventsInChunkHistogramName    = "enc_events_written_in_chunk"
 )
 
-// chunkEncoder implements log buffer chunking and compression. Log events are
-// written to the encoder and the encoder outputs chunks that are fit to the
-// configured limit.
+// chunkEncoder implements log buffer chunking and compression.
+// Decision events are written to the encoder and the encoder outputs chunks that are fit to the configured limit.
 type chunkEncoder struct {
-	limit                      int64
-	softLimit                  int64
-	softLimitScaleUpExponent   float64
-	softLimitScaleDownExponent float64
-	bytesWritten               int
-	buf                        *bytes.Buffer
-	w                          *gzip.Writer
-	metrics                    metrics.Metrics
+	// limit is the maximum compressed payload size (configured by upload_size_limit_bytes)
+	limit     int64
+	threshold int
+	// bytesWritten is used to track if anything has been written to the buffer
+	// using this avoids working around the fact that the gzip compression adds a header
+	bytesWritten  int
+	eventsWritten int64
+	buf           *bytes.Buffer
+	w             *gzip.Writer
+	metrics       metrics.Metrics
+	logger        logging.Logger
+	// maxEventSize is a known size of an individual event that would require the ND cache to be dropped
+	maxEventSize int64
+
+	// The uncompressedLimit is an adaptive limit that will attempt to guess the uncompressedLimit based on the utilization of the buffer on upload.
+	// This minimizes having to decompress all the events in case the limit is reached, needing to only do it if the guess is too large.
+	// Otherwise, you would need to compress the incoming event by itself to get an accurate size for comparison which would cause two compressions each write.
+	// This means that at first the chunks will contain fewer events until the uncompressedLimit can grow to a stable state.
+	uncompressedLimit                  int64
+	uncompressedLimitScaleUpExponent   float64
+	uncompressedLimitScaleDownExponent float64
 }
 
 func newChunkEncoder(limit int64) *chunkEncoder {
 	enc := &chunkEncoder{
-		limit:                      limit,
-		softLimit:                  limit,
-		softLimitScaleUpExponent:   0,
-		softLimitScaleDownExponent: 0,
+		limit:                              limit,
+		uncompressedLimit:                  limit,
+		threshold:                          int(float64(limit) * encCompressedLimitThreshold),
+		uncompressedLimitScaleUpExponent:   0,
+		uncompressedLimitScaleDownExponent: 0,
 	}
-	enc.update()
+	enc.initialize()
 
 	return enc
 }
@@ -55,31 +73,144 @@ func (enc *chunkEncoder) WithMetrics(m metrics.Metrics) *chunkEncoder {
 	return enc
 }
 
-func (enc *chunkEncoder) Write(event EventV1) (result [][]byte, err error) {
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(event); err != nil {
+func (enc *chunkEncoder) WithLogger(logger logging.Logger) *chunkEncoder {
+	enc.logger = logger
+	return enc
+}
+
+func (enc *chunkEncoder) Reconfigure(limit int64) {
+	enc.limit = limit
+	enc.uncompressedLimit = limit
+	enc.uncompressedLimitScaleUpExponent = 0
+	enc.uncompressedLimitScaleDownExponent = 0
+	enc.threshold = int(float64(limit) * encCompressedLimitThreshold)
+	enc.maxEventSize = 0
+}
+
+func (enc *chunkEncoder) scaleUp() {
+	enc.incrMetric(encUncompressedLimitScaleUpCounterName)
+	enc.incrMetric(encSoftLimitScaleUpCounterName)
+
+	mul := int64(math.Pow(float64(uncompressedLimitBaseFactor), enc.uncompressedLimitScaleUpExponent+1))
+	enc.uncompressedLimit *= mul
+	enc.uncompressedLimitScaleUpExponent += uncompressedLimitExponentScaleFactor
+}
+
+// WriteBytes attempts to write an encoded event to the current chunk.
+// Deprecated: use Write(event EventV1) instead
+func (enc *chunkEncoder) WriteBytes(b []byte) ([][]byte, error) {
+	var e EventV1
+	if err := json.Unmarshal(b, &e); err != nil {
 		return nil, err
 	}
 
-	return enc.WriteBytes(buf.Bytes())
+	return enc.Write(e)
 }
 
-// WriteBytes attempts to write a serialized event to the current chunk.
-// If the upload limit is reached the chunk is closed and a result is returned.
-// The incoming event that didn't fit is added to the next chunk.
-func (enc *chunkEncoder) WriteBytes(bs []byte) (result [][]byte, err error) {
-	if len(bs) == 0 {
-		return nil, nil
-	} else if int64(len(bs)+2) > enc.limit {
-		if enc.metrics != nil {
-			enc.metrics.Counter(encLogExUploadSizeLimitCounterName).Incr()
-		}
-		return nil, fmt.Errorf("upload chunk size (%d) exceeds upload_size_limit_bytes (%d)",
-			int64(len(bs)+2), enc.limit)
+// Write attempts to write an encoded event to the current chunk.
+// A chunk is returned when it reaches the uncompressed limit, the uncompressed limit is adjusted if the buffer was underutilized or exceeded.
+// An event is only dropped if it exceeds the limit after being compressed with or without dropping the Non-deterministic Cache (NDBuiltinCache).
+// An event stays in the buffer until either a new event reaches the uncompressed limit or by calling Flush.
+func (enc *chunkEncoder) Write(event EventV1) ([][]byte, error) {
+	eventBytes, err := json.Marshal(&event)
+	if err != nil {
+		return nil, err
 	}
 
-	if int64(len(bs)+enc.bytesWritten+1) > enc.softLimit {
-		if err := enc.writeClose(); err != nil {
+	// the incoming event is too big without dropping the ND cache
+	if enc.maxEventSize != 0 && int64(len(eventBytes)) >= enc.maxEventSize {
+		if event.NDBuiltinCache == nil {
+			enc.incrMetric(logEncodingFailureCounterName)
+			if enc.logger != nil {
+				enc.logger.Error("Log encoding failed: received a decision event size (%d) that exceeded the upload_size_limit_bytes (%d). No ND cache to drop.",
+					len(eventBytes), enc.limit)
+			}
+			return nil, nil
+		}
+
+		// re-encode the event with the ND cache removed
+		event.NDBuiltinCache = nil
+		if enc.logger != nil {
+			enc.logger.Error("ND builtins cache dropped from this event to fit under maximum upload size limits. Increase upload size limit or change usage of non-deterministic builtins.")
+		}
+		enc.incrMetric(logNDBDropCounterName)
+
+		eventBytes, err = json.Marshal(&event)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if int64(len(eventBytes)+enc.bytesWritten+1) <= enc.uncompressedLimit {
+		return nil, enc.appendEvent(eventBytes)
+	}
+
+	// Adjust the encoder's uncompressed limit based on the current amount of
+	// data written to the underlying buffer. The uncompressed limit decides when to return a chunk.
+	// The uncompressed limit is modified based on the below algorithm:
+	// 1) Scale Up: If the current chunk size is within 90% of the user-configured limit, exponentially increase
+	// the uncompressed limit. The exponential function is 2^x where x has a minimum value of 1.
+	// A chunk will be returned with what was already written, the buffer was underutilized but the next time it shouldn't be.
+	// The incoming event is written to the next chunk.
+	// 2) Scale Down: If the current chunk size exceeds the compressed limit, decrease the uncompressed limit and re-encode the
+	// decisions in the last chunk.
+	// 3) Equilibrium: If the chunk size is between 90% and 100% of the user-configured limit, maintain uncompressed limit value.
+	// A chunk will be returned with what was already written, the uncompressed limit is ideal.
+	// The incoming event is written to the next chunk.
+
+	// The uncompressed size is too small (it starts equal to the compressed limit)
+	// Or this is a recursive call to Write trying to split the events into separate chunks
+	if enc.bytesWritten == 0 {
+		// If an event is too large, there are multiple things to try before dropping the event:
+		// 1. Try to fit the incoming event into the next chunk without losing ND cache
+		err = enc.appendEvent(eventBytes)
+		if err != nil {
+			return nil, err
+		}
+
+		result, err := enc.reset()
+		if err != nil {
+			return nil, err
+		}
+
+		currentSize := len(result[0])
+		if currentSize < int(enc.limit) {
+			// success! the incoming chunk doesn't have to lose the ND cache and can go into a chunk by itself
+			// scale up the uncompressed limit using the uncompressed event size as a base
+			err = enc.appendEvent(eventBytes)
+			if err != nil {
+				return nil, err
+			}
+			enc.uncompressedLimit = int64(len(eventBytes))
+			enc.scaleUp()
+			return nil, nil
+		}
+
+		// The ND cache has to be dropped, record this size as a known maximum event size
+		if enc.maxEventSize == 0 || int64(len(eventBytes)) < enc.maxEventSize {
+			enc.maxEventSize = int64(len(eventBytes))
+		}
+
+		// 2. Drop the ND cache and see if the incoming event can fit within the current chunk without the cache (so we can maximize chunk size)
+		enc.initialize()
+		enc.incrMetric(encLogExUploadSizeLimitCounterName)
+		// If there's no ND builtins cache in the event, then we don't need to retry encoding anything.
+		if event.NDBuiltinCache == nil {
+			enc.incrMetric(logEncodingFailureCounterName)
+			if enc.logger != nil {
+				enc.logger.Error("Log encoding failed: received a decision event size (%d) that exceeded the upload_size_limit_bytes (%d). No ND cache to drop.", currentSize, enc.limit)
+			}
+			return nil, nil
+		}
+		// re-encode the event with the ND cache removed
+		event.NDBuiltinCache = nil
+
+		eventBytes, err = json.Marshal(&event)
+		if err != nil {
+			return nil, err
+		}
+		err = enc.appendEvent(eventBytes)
+		if err != nil {
 			return nil, err
 		}
 
@@ -87,106 +218,113 @@ func (enc *chunkEncoder) WriteBytes(bs []byte) (result [][]byte, err error) {
 		if err != nil {
 			return nil, err
 		}
-	}
 
-	if enc.bytesWritten == 0 {
-		n, err := enc.w.Write([]byte(`[`))
+		if len(result[0]) > int(enc.limit) {
+			enc.incrMetric(logEncodingFailureCounterName)
+			if enc.logger != nil {
+				enc.logger.Error("Log encoding failed: received a decision event size (%d) that exceeded the upload_size_limit_bytes (%d) even after dropping the ND cache.",
+					len(eventBytes), enc.limit)
+			}
+			enc.initialize() // drop the event
+			return nil, nil
+		}
+
+		// success! the incoming event without its ND cache fits into the current chunk
+		err = enc.appendEvent(eventBytes)
 		if err != nil {
 			return nil, err
 		}
-		enc.bytesWritten += n
-	} else {
-		n, err := enc.w.Write([]byte(`,`))
-		if err != nil {
-			return nil, err
+		if enc.logger != nil {
+			enc.logger.Error("ND builtins cache dropped from this event to fit under maximum upload size limits. Increase upload size limit or change usage of non-deterministic builtins.")
 		}
-		enc.bytesWritten += n
+		enc.incrMetric(logNDBDropCounterName)
+		// success! the incoming chunk lost the ND cache, but it wasn't dropped entirely
+		// scale up the uncompressed limit using the uncompressed event size as a base
+		if int64(len(eventBytes)) > enc.uncompressedLimit {
+			enc.uncompressedLimit = int64(len(eventBytes))
+		}
+		enc.scaleUp()
+		return nil, nil
 	}
 
-	n, err := enc.w.Write(bs)
+	enc.updateMetric(encNumberOfEventsInChunkHistogramName, enc.eventsWritten)
+	result, err := enc.reset()
 	if err != nil {
 		return nil, err
 	}
 
-	enc.bytesWritten += n
-	return
-}
+	// 1) Scale Up: If the current chunk size is within 90% of the user-configured limit, exponentially increase
+	// the uncompressed limit. The exponential function is 2^x where x has a minimum value of 1
+	if len(result[0]) < enc.threshold {
+		enc.scaleUp()
 
-func (enc *chunkEncoder) writeClose() error {
-	if _, err := enc.w.Write([]byte(`]`)); err != nil {
-		return err
-	}
-	return enc.w.Close()
-}
+		r, err := enc.Write(event)
+		if err != nil {
+			return nil, err
+		}
 
-func (enc *chunkEncoder) Flush() ([][]byte, error) {
-	if enc.bytesWritten == 0 {
-		return nil, nil
+		if r != nil {
+			result = append(result, r...)
+		}
+
+		return result, err
 	}
-	if err := enc.writeClose(); err != nil {
+
+	// 3) Equilibrium: If the chunk size is between 90% and 100% of the user-configured limit, maintain uncompressed limit value.
+	if int(enc.limit) > len(result[0]) && len(result[0]) >= enc.threshold {
+		enc.incrMetric(encUncompressedLimitStableCounterName)
+		enc.incrMetric(encSoftLimitStableCounterName)
+
+		enc.uncompressedLimitScaleDownExponent = enc.uncompressedLimitScaleUpExponent
+
+		r, err := enc.Write(event)
+		if err != nil {
+			return nil, err
+		}
+
+		if r != nil {
+			result = append(result, r...)
+		}
+		return result, err
+	}
+
+	// 2) Scale Down: If the current chunk size exceeds the compressed limit, decrease the uncompressed limit and re-encode the
+	// decisions in the last chunk.
+	events, err := newChunkDecoder(result[0]).decode()
+	if err != nil {
 		return nil, err
 	}
-	return enc.reset()
+
+	// add the current event so that it can be reorganized as needed
+	events = append(events, event)
+
+	return enc.scaleDown(events)
 }
 
-//nolint:unconvert
-func (enc *chunkEncoder) reset() ([][]byte, error) {
+func (enc *chunkEncoder) scaleDown(events []EventV1) ([][]byte, error) {
+	if enc.uncompressedLimit > enc.limit {
+		enc.incrMetric(encUncompressedLimitScaleDownCounterName)
+		enc.incrMetric(encSoftLimitScaleDownCounterName)
 
-	// Adjust the encoder's soft limit based on the current amount of
-	// data written to the underlying buffer. The soft limit decides when to flush a chunk.
-	// The soft limit is modified based on the below algorithm:
-	// 1) Scale Up: If the current chunk size is within 90% of the user-configured limit, exponentially increase
-	// the soft limit. The exponential function is 2^x where x has a minimum value of 1
-	// 2) Scale Down: If the current chunk size exceeds the hard limit, decrease the soft limit and re-encode the
-	// decisions in the last chunk.
-	// 3) Equilibrium: If the chunk size is between 90% and 100% of the user-configured limit, maintain soft limit value.
-
-	if enc.buf.Len() < int(float64(enc.limit)*encHardLimitThreshold) {
-		if enc.metrics != nil {
-			enc.metrics.Counter(encSoftLimitScaleUpCounterName).Incr()
+		if enc.uncompressedLimitScaleDownExponent < enc.uncompressedLimitScaleUpExponent {
+			enc.uncompressedLimitScaleDownExponent = enc.uncompressedLimitScaleUpExponent
 		}
 
-		mul := int64(math.Pow(float64(softLimitBaseFactor), float64(enc.softLimitScaleUpExponent+1)))
-		enc.softLimit *= mul
-		enc.softLimitScaleUpExponent += softLimitExponentScaleFactor
-		return enc.update(), nil
-	}
+		den := int64(math.Pow(float64(uncompressedLimitBaseFactor), enc.uncompressedLimitScaleDownExponent-enc.uncompressedLimitScaleUpExponent+1))
+		enc.uncompressedLimit /= den
 
-	if int(enc.limit) > enc.buf.Len() && enc.buf.Len() >= int(float64(enc.limit)*encHardLimitThreshold) {
-		if enc.metrics != nil {
-			enc.metrics.Counter(encSoftLimitStableCounterName).Incr()
-		}
-
-		enc.softLimitScaleDownExponent = enc.softLimitScaleUpExponent
-		return enc.update(), nil
-	}
-
-	if enc.softLimit > enc.limit {
-		if enc.metrics != nil {
-			enc.metrics.Counter(encSoftLimitScaleDownCounterName).Incr()
-		}
-
-		if enc.softLimitScaleDownExponent < enc.softLimitScaleUpExponent {
-			enc.softLimitScaleDownExponent = enc.softLimitScaleUpExponent
-		}
-
-		den := int64(math.Pow(float64(softLimitBaseFactor), float64(enc.softLimitScaleDownExponent-enc.softLimitScaleUpExponent+1)))
-		enc.softLimit /= den
-
-		if enc.softLimitScaleUpExponent > 0 {
-			enc.softLimitScaleUpExponent -= softLimitExponentScaleFactor
+		if enc.uncompressedLimitScaleUpExponent > 0 {
+			enc.uncompressedLimitScaleUpExponent -= uncompressedLimitExponentScaleFactor
 		}
 	}
 
-	events, decErr := newChunkDecoder(enc.buf.Bytes()).decode()
-	if decErr != nil {
-		return nil, decErr
-	}
-
+	// The uncompressed limit has grown too large the events need to be split up into multiple chunks
 	enc.initialize()
 
+	// split the events into multiple chunks
 	var result [][]byte
 	for i := range events {
+		// recursive call to make sure the chunk created adheres to the uncompressed size limit
 		chunk, err := enc.Write(events[i])
 		if err != nil {
 			return nil, err
@@ -196,22 +334,111 @@ func (enc *chunkEncoder) reset() ([][]byte, error) {
 			result = append(result, chunk...)
 		}
 	}
+
 	return result, nil
 }
 
-func (enc *chunkEncoder) update() [][]byte {
-	buf := enc.buf
-	enc.initialize()
-	if buf != nil {
-		return [][]byte{buf.Bytes()}
+func (enc *chunkEncoder) appendEvent(event []byte) error {
+	if len(event) == 0 {
+		return nil
 	}
+
+	if enc.bytesWritten == 0 {
+		n, err := enc.w.Write([]byte(`[`))
+		if err != nil {
+			return err
+		}
+		enc.bytesWritten += n
+	} else {
+		n, err := enc.w.Write([]byte(`,`))
+		if err != nil {
+			return err
+		}
+		enc.bytesWritten += n
+	}
+
+	n, err := enc.w.Write(event)
+	if err != nil {
+		return err
+	}
+	enc.bytesWritten += n
+	enc.eventsWritten++
+
 	return nil
+}
+
+func (enc *chunkEncoder) writeClose() error {
+	if _, err := enc.w.Write([]byte(`]`)); err != nil {
+		return err
+	}
+	return enc.w.Close()
+}
+
+// Flush closes the current buffer and returns all the events written in chunks limited by the compressed limit.
+// If the uncompressed size has grown too much it could require multiple decoding calls to size it down.
+func (enc *chunkEncoder) Flush() ([][]byte, error) {
+	if enc.bytesWritten == 0 {
+		return nil, nil
+	}
+
+	defer enc.initialize()
+
+	var result [][]byte
+
+	// create chunks until the current buffer is smaller than the limit
+	for {
+		r, err := enc.reset()
+		if err != nil {
+			return nil, err
+		}
+		if len(r[0]) < int(enc.limit) {
+			return append(result, r[0]), nil
+		}
+		events, err := newChunkDecoder(r[0]).decode()
+		if err != nil {
+			return nil, err
+		}
+		chunk, err := enc.scaleDown(events)
+		if err != nil {
+			return nil, err
+		}
+		if chunk != nil {
+			result = append(result, chunk...)
+		}
+	}
+}
+
+func (enc *chunkEncoder) reset() ([][]byte, error) {
+	if enc.bytesWritten == 0 {
+		return nil, nil
+	}
+
+	defer enc.initialize()
+
+	if err := enc.writeClose(); err != nil {
+		return nil, err
+	}
+
+	return [][]byte{enc.buf.Bytes()}, nil
 }
 
 func (enc *chunkEncoder) initialize() {
 	enc.buf = new(bytes.Buffer)
 	enc.bytesWritten = 0
+	enc.eventsWritten = 0
 	enc.w = gzip.NewWriter(enc.buf)
+}
+
+func (enc *chunkEncoder) incrMetric(name string) {
+	if enc.metrics != nil {
+		enc.metrics.Counter(name).Incr()
+	}
+}
+
+func (enc *chunkEncoder) updateMetric(name string, value int64) {
+	if enc.metrics != nil {
+		enc.metrics.Histogram(name).Update(value)
+	}
 }
 
 // chunkDecoder decodes the encoded chunks and outputs the log events
