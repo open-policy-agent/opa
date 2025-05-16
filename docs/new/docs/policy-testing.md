@@ -25,9 +25,7 @@ Let's use an example to get started. The file below implements a simple
 policy that allows new users to be created and users to access their own
 profile.
 
-**example.rego**:
-
-```live:example:module:read_only,openable
+```rego title="example.rego"
 package authz
 
 allow if {
@@ -43,9 +41,7 @@ allow if {
 
 To test this policy, we will create a separate Rego file that contains test cases.
 
-**example_test.rego**:
-
-```live:example/test:module:read_only
+```rego title="example_test.rego"
 package authz_test
 
 import data.authz
@@ -119,7 +115,7 @@ The `--var-values` flag can be used to enrich the test report with the exact exp
 
 Consider the following utility module:
 
-```live:example_vars:module:read_only,openable
+```rego title="authz.rego"
 package authz
 
 allowed_actions(user) := [action |
@@ -129,7 +125,7 @@ allowed_actions(user) := [action |
 
 with accompanying tests:
 
-```live:example_vars/test:module:read_only
+```rego title="authz_test.rego"
 package authz_test
 
 import data.authz
@@ -177,7 +173,7 @@ By including the failing expression and its local variable assignments in the te
 Tests are expressed as standard Rego rules with a convention that the rule
 name is prefixed with `test_`. It's a good practice for tests to be placed in a package suffixed with `_test`, but not a requirement.
 
-```live:example_format:module:read_only
+```rego
 package mypackage_test
 
 import data.mypackage
@@ -210,7 +206,7 @@ by zero condition) the test result is marked as an `ERROR`. Tests prefixed with
 
 **pass_fail_error_test.rego**:
 
-```live:example_results:module:read_only
+```rego
 package example_test
 
 import data.example
@@ -303,7 +299,7 @@ Test cases are declared by adding their name(s) to the rule as variables in its 
 
 **example_test.rego**:
 
-```live:example_test_cases:module:read_only
+```rego
 package example_test
 
 test_concat[note] if {
@@ -345,7 +341,7 @@ Just as in regular evaluation, test-case data doesn't need to be declared as inl
 
 **file_example_test.rego**:
 
-```live:example_file_test_cases:module:read_only
+```rego
 package example_test
 
 import data.test_cases
@@ -392,7 +388,7 @@ This is useful when e.g. the same set of test cases can be used for asserting th
 
 **nested_example_test.rego**:
 
-```live:example_nested_test_cases:module:read_only
+```rego
 package example_test
 
 test_sign_token[note][alg] if {
@@ -458,9 +454,7 @@ When replacing functions, built-in or otherwise, the following constraints are i
 
 Below is a simple policy that depends on the data document.
 
-**authz.rego**:
-
-```live:with_keyword:module:read_only,openable
+```rego title="authz.rego"
 package authz
 
 allow if {
@@ -474,9 +468,7 @@ matches_role(my_role) if input.user in data.roles[my_role]
 
 Below is the Rego file to test the above policy.
 
-**authz_test.rego**:
-
-```live:with_keyword/tests:module:read_only
+```rego title="authz_test.rego"
 package authz_test
 
 import data.authz
@@ -504,7 +496,7 @@ Below is an example to replace a **rule without arguments**.
 
 **authz.rego**:
 
-```live:with_keyword_rules:module:read_only
+```rego
 package authz
 
 allow1 if allow2
@@ -514,7 +506,7 @@ allow2 if 2 == 1
 
 **authz_test.rego**:
 
-```live:with_keyword_rules/tests:module:read_only
+```rego
 package authz_test
 
 import data.authz
@@ -535,7 +527,7 @@ Here is an example to replace a rule's **built-in function** with a user-defined
 
 **authz.rego**:
 
-```live:with_keyword_builtins:module:read_only
+```rego
 package authz
 
 import data.jwks.cert
@@ -547,7 +539,7 @@ allow if {
 
 **authz_test.rego**:
 
-```live:with_keyword_builtins/tests:module:read_only
+```rego
 package authz_test
 
 import data.authz
@@ -571,7 +563,7 @@ PASS: 1/1
 
 In simple cases, a function can also be replaced with a value, as in
 
-```live:with_keyword_builtins/tests/value:module:read_only
+```rego
 test_allow_value if {
 	authz.allow
 		with input.headers["x-token"] as "my-jwt"
@@ -588,7 +580,7 @@ function by a built-in function.
 
 **authz.rego**:
 
-```live:with_keyword_funcs:module:read_only
+```rego
 package authz
 
 replace_rule if {
@@ -602,7 +594,7 @@ replace(label) if {
 
 **authz_test.rego**:
 
-```live:with_keyword_funcs/tests:module:read_only
+```rego
 package authz_test
 
 import data.authz

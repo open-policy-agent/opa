@@ -45,7 +45,7 @@ The `quick_start.yaml` manifest defines the following resources:
   - alice is granted a **guest** role and can perform a `GET` request to `/productpage`.
   - bob is granted an **admin** role and can perform a `GET` to `/productpage` and `/api/v1/products`.
 
-  ```live:example:module:openable
+  ```rego title="authz.rego"
   package istio.authz
 
   default allow := false
@@ -86,34 +86,37 @@ The `quick_start.yaml` manifest defines the following resources:
   }
   ```
 
+  <RunSnippet id="authz.rego"/>
+
   OPA is configured to query for the `data.istio.authz.allow`
   decision. If the response is `true` the operation is allowed, otherwise the
   operation is denied. Sample input received by OPA is shown below:
 
-  ```live:example:query:hidden
-  data.istio.authz.allow
-  ```
-
-  ```live:example:input
+  ```json title="input.json"
   {
-      "attributes": {
-          "request": {
-              "http": {
-                  "method": "GET",
-                  "path": "/productpage",
-                  "headers": {
-                      "authorization": "Basic YWxpY2U6cGFzc3dvcmQ="
-                  }
-              }
+    "attributes": {
+      "request": {
+        "http": {
+          "method": "GET",
+          "path": "/productpage",
+          "headers": {
+            "authorization": "Basic YWxpY2U6cGFzc3dvcmQ="
           }
+        }
       }
+    }
   }
   ```
 
-  With the input value above, the answer is:
+  <RunSnippet id="input.json"/>
 
-  ```live:example:output
+  ```rego
+  package example
+
+  result := data.istio.authz.allow
   ```
+
+  <RunSnippet files="#input.json #authz.rego" command="data.example.result" />
 
   An example of the complete input received by OPA can be seen [here](https://github.com/open-policy-agent/opa-envoy-plugin/tree/main/examples/istio#example-input).
 

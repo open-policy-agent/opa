@@ -85,8 +85,6 @@ Example with bundle and input data:
 
 	opa bench -b ./policy-bundle -i input.json 'data.authz.allow'
 
-To enable more detailed analysis use the --metrics and --benchmem flags.
-
 To run benchmarks against a running OPA server to evaluate server overhead use the --e2e flag.
 
 The optional "gobench" output format conforms to the Go Benchmark Data Format.
@@ -250,7 +248,9 @@ func (*goBenchRunner) run(ctx context.Context, ectx *evalContext, params benchma
 		}
 
 		// Reset the histogram for each invocation of the bench function
-		hist.Clear()
+		if params.metrics {
+			hist.Clear()
+		}
 
 		b.ResetTimer()
 		for range b.N {

@@ -11,8 +11,9 @@ title: Frequently Asked Questions
 In Rego (OPA's policy language), you can write statements that both allow and
 deny a request, such as
 
-```live:conflict_resolution:module:read_only
+```rego
 package foo
+
 allow { input.name == "alice" }
 deny { input.name == "alice" }
 ```
@@ -25,7 +26,7 @@ you create a virtual document called `authz` and define it so that `allow`
 overrides `deny` or vice versa. Then when asking for a policy decision, you
 ask for `foo/authz`.
 
-```live:conflict_resolution_deny_by_default:module:read_only
+```rego
 # deny everything by default
 default authz := false
 
@@ -46,57 +47,51 @@ The order in which statements occur does not matter in Rego. Reorder any two sta
 and the policy means exactly the same thing. For example, the following two statements
 mean the same thing whichever order you write them in.
 
-```live:unordered:module:openable
+```rego
 package unordered
 
 ratelimit := 4 if input.name == "alice"
 ratelimit := 5 if input.name == "bob"
 ```
 
-```live:unordered:input
+<RunSnippet files="#input.unordered.json" command="data.unordered"/>
+
+```json title="input.json"
 {
   "name": "bob"
 }
 ```
 
-```live:unordered:query:hidden
-ratelimit
-```
-
-```live:unordered:output
-```
+<RunSnippet id="input.unordered.json"/>
 
 Sometimes, though, you want the statement order to matter. For example, you might put more specific statements before more general statements so that the more specific statements take precedence (e.g. for [conflict resolution](#conflict-resolution)). Rego lets you do that using the `else` keyword. For example, if you want to make the first statement above take precedence, you would write the following Rego.
 
-```live:ordered:module:openable
+```rego
 package ordered
 
 ratelimit := 4 if {
-    input.owner == "bob"
-} else := 5 if {
+    input.department == "engineering"
+} else := 3 if {
     input.name == "alice"
 }
 ```
 
-```live:ordered:input
+<RunSnippet files="#input.ordered.json" command="data.ordered"/>
+
+```json title="input.json"
 {
   "name": "alice",
-  "owner": "bob"
+  "department": "engineering"
 }
 ```
 
-```live:ordered:query:hidden
-ratelimit
-```
-
-```live:ordered:output
-```
+<RunSnippet id="input.ordered.json"/>
 
 ## Which Equality Operator Should I Use?
 
 Rego supports three kinds of equality: assignment (`:=`), comparison (`==`), and unification `=`. We recommend using assignment (`:=`) and comparison (`==`) whenever possible for policies that are easier to read and write.
 
-```live:equality:query:read_only
+```rego
 # Assignment: declare local variable x and give it value 7
 # If x appears before this statement in the rule, compiler throws error.
 x := 7
@@ -120,24 +115,24 @@ OPA lets multiple teams contribute independent policies that you can then combin
 
 For example, suppose there is a network team, a storage team, and a compute team. Suppose they each write their own policy:
 
-```live:collab_compute:module:read_only
+```rego
 package compute
 allow { ... }
 ```
 
-```live:collab_network:module:read_only
+```rego
 package network
 allow { ... }
 ```
 
-```live:collab_storage:module:read_only
+```rego
 package storage
 allow { ... }
 ```
 
 Now the cloud team, who is in charge of the overall decision, writes another policy that combines the decisions for each of the team policies. In the example below, all 3 teams must allow for the overall decision to be allowed.
 
-```live:collab_main:module:read_only
+```rego
 package main
 import data.compute
 import data.storage
@@ -159,25 +154,22 @@ Rego lets you factor out common logic in 2 different and complementary ways.
 
 One is the _function_, which is conceptually identical to functions from most programming languages. It takes any input and returns any output. Importantly, a function can take infinitely many inputs, e.g. any string.
 
-```live:functions:module:openable
+```rego
 package functions
 
 trim_and_split(s) := result if {
      t := trim(s, " ")
      result := split(t, ".")
 }
+
+result := trim_and_split("  hello.world  ")
 ```
 
-```live:functions:query
-trim_and_split("  hello.world  ")
-```
-
-```live:functions:output
-```
+<RunSnippet command="data.functions.result"/>
 
 The other way to factor out common logic is with a _rule_. Rules differ in that (i) they support automatic iteration and (ii) they are only defined for finitely many inputs. (Those obviously go hand-in-hand.) For example, you could define a rule that maps an application to the hostnames that app is running on:
 
-```live:rules:module:openable
+```rego
 package rules
 
 app_to_hostnames[app_name] := hostnames if {
@@ -232,47 +224,40 @@ sites := [
 ]
 ```
 
+<RunSnippet id="data.rego"/>
+
 And then we can iterate over all the key/value pairs of that app-to-hostname mapping (just like we could iterate over all key/value pairs of a hardcoded JSON object). You can also iterate over just the keys or just the values or you can look up the value for a key or lookup all the keys for a single value.
 
-```live:rules/all_pairs:query
+```rego
+package example
+
+import data.rules.app_to_hostnames
+
 # iterate over all key/value pairs
-app_to_hostnames[app]
-```
+result.all contains [k, v] if {
+    some k, v in app_to_hostnames
+}
 
-```live:rules/all_pairs:output
-```
-
-```live:rules/all_values:query
 # iterate over all values
-app_to_hostnames[_]
-```
+result.values := {e| some e in app_to_hostnames }
 
-```live:rules/all_values:output
-```
-
-```live:rules/all_keys:query
 # iterate over all keys
-app_to_hostnames[x] = _
-```
+result.keys contains x if {
+    some x
+    app_to_hostnames[x]
+}
 
-```live:rules/all_keys:output
-```
-
-```live:rules/lookup_key:query
 # lookup the value for key "web"
-app_to_hostnames["web"]
-```
+result.web := app_to_hostnames["web"]
 
-```live:rules/lookup_key:output
-```
-
-```live:rules/lookup_value:query
 # lookup keys where value includes "carbon"
-app_to_hostnames[k][_] == "carbon"
+result.where contains k if {
+    some k
+    app_to_hostnames[k][_] == "carbon"
+}
 ```
 
-```live:rules/lookup_value:output
-```
+<RunSnippet files="#data.rego" command="data.example.result"/>
 
 Obviously with the `trim_and_split` function we cannot ask for all the inputs/outputs since there are infinitely many. We can't provide 1 input and ask for all the other inputs that make the function return true, again, because there could be infinitely many. The only thing we can do with a function is provide it all the inputs and ask for the output.
 
@@ -292,7 +277,7 @@ Safety: every variable appearing in the head or in a builtin or inside a negatio
 
 Examples:
 
-```live:safety:module:read_only
+```rego
 # Unsafe: x in head does not appear in body.
 #   There are infinitely many values that make p true
 p[x] { some y; q[y]; r[y] }
@@ -322,7 +307,7 @@ Safety has one implication about negation: you don't iterate over values NOT in 
 
 Embedded terms like `not p[q[_]]` sometimes produce difficult to decipher error messages. We recommend pulling the embedded terms out into the rule--the meaning is the same and often creates easier to read error messages:
 
-```live:safety/nested:query:read_only
+```rego
 x := q[_]
 not p[x]
 ```
@@ -335,7 +320,7 @@ All JWTs with OPA come in as strings. That string is a JSON Web Token encoded wi
 
 You can verify tokens are properly signed.
 
-```live:jwt_verify:query:read_only
+```rego
 # RS256 signature
 io.jwt.verify_rs256(string, certificate)
 
@@ -351,42 +336,44 @@ io.jwt.verify_hs256(string, certificate)
 
 You can decode JWTs and use the contents of the JWT to make policy decisions.
 
-```live:jwt_decode:module:hidden
-package jwt_decode
-```
-
-```live:jwt_decode:input
+```json
 {
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWxpY2UiLCJhenAiOiJhbGljZSIsInN1Ym9yZGluYXRlcyI6W10sImhyIjpmYWxzZX0.rz3jTY033z-NrKfwrK89_dcLF7TN4gwCMj-fVBDyLoM"
 }
 ```
 
-```live:jwt_decode:query
-io.jwt.decode(input.token)
+<RunSnippet id="input.jwt.json" />
+
+```rego
+package jwt_decode
+
+result := io.jwt.decode(input.token)
 ```
 
-```live:jwt_decode:output
-```
+<RunSnippet files="#input.jwt.json" command="data.jwt_decode.result" />
 
-> If nested signing was used, the header, payload and signature will represent the most deeply nested token.
+:::info
+If nested signing was used, the header, payload and signature will represent the most deeply nested token.
+:::
 
 You can decode **and** verify using `io.jwt.decode_verify`.
 
-```live:jwt_decode/verify:query
-io.jwt.decode_verify(input.token, {
+```rego
+package jwt_decode
+
+result := io.jwt.decode_verify(input.token, {
   "secret": "secret",
-  "alg": "hs256",
+  "alg": "HS256",
 })
 ```
 
-```live:jwt_decode/verify:output
-```
+<RunSnippet files="#input.jwt.json" command="data.jwt_decode.result" />
 
 See the [Policy Reference](./policy-reference#tokens) for additional verification constraints.
 
 To get certificates into the policy, you can either hardcode them or provide them as environmental variables to OPA and then use the `opa.runtime` builtin to retrieve those variables.
 
-```live:runtime:query:read_only
+```rego
 # all runtime information
 runtime := opa.runtime()
 
@@ -408,6 +395,7 @@ package example
 
 # entry point is 'deny'
 default deny := false
+
 deny if { ... }
 deny if { ... }
 ```
@@ -421,6 +409,7 @@ package example
 
 # entry point is 'allow'
 default allow := false
+
 allow if { ... }
 allow if { ... }
 ```
@@ -434,11 +423,14 @@ package example
 
 # entry point is 'authz'
 default authz := false
+
 authz if {
   allow
   not deny
 }
+
 allow if { ... }
+
 deny if { ... }
 ```
 

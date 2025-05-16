@@ -234,7 +234,7 @@ The built-in function mapping will contain all of the built-in functions that
 may be required during evaluation. For example, the following query refers to
 the `http.send` built-in function which is not included in the policy module:
 
-```live:builtin:module:read_only
+```rego
 result := http.send({"method": "get", "url": "https://example.com/api/lookup/12345"})
 ```
 

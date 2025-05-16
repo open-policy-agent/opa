@@ -103,9 +103,7 @@ The following OPA policy will work as follows:
 - Alice is granted a **guest** role and can perform `GET` requests.
 - Bob is granted an **admin** role and can perform `GET` and `POST` requests.
 
-**policy.rego**
-
-```live:example:module:openable
+```rego title="policy.rego"
 package envoy.authz
 
 import input.attributes.request.http as http_request
@@ -145,9 +143,11 @@ token := {"valid": valid, "payload": payload} if {
 }
 ```
 
-A sample input can be seen below using Alice's token, Alice should be able to `GET` but not `POST`
+<RunSnippet files="#input.json" command="data.envoy.authz.allow" />
 
-```live:example:input
+The sample input can be seen below using Alice's token, Alice should be able to `GET` but not `POST`
+
+```json title="input.json"
 {
   "attributes": {
     "request": {
@@ -162,10 +162,7 @@ A sample input can be seen below using Alice's token, Alice should be able to `G
 }
 ```
 
-With the input value above, the answer is:
-
-```live:example:output
-```
+<RunSnippet id="input.json"/>
 
 Next we build an OPA bundle.
 
@@ -338,4 +335,3 @@ kubectl logs deployment/opa -n gloo-system
 Congratulations for finishing the tutorial!
 
 This tutorial showed how you can use OPA with [Gloo Edge](https://docs.solo.io/gloo-edge/latest/) to apply security policies for upstream services and how to create and test a policy that would allow `GET` or `POST` requests based on your user role.
-

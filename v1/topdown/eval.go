@@ -706,16 +706,31 @@ func (e *eval) evalWithPush(input, data *ast.Term, functionMocks [][2]*ast.Term,
 		e.data = data
 	}
 
+	if e.comprehensionCache == nil {
+		e.comprehensionCache = newComprehensionCache()
+	}
+
 	e.comprehensionCache.Push()
 	e.virtualCache.Push()
+
+	if e.targetStack == nil {
+		e.targetStack = newRefStack()
+	}
+
 	e.targetStack.Push(targets)
 	e.inliningControl.PushDisable(disable, true)
+
+	if e.functionMocks == nil {
+		e.functionMocks = newFunctionMocksStack()
+	}
+
 	e.functionMocks.PutPairs(functionMocks)
 
 	return oldInput, oldData
 }
 
 func (e *eval) evalWithPop(input, data *ast.Term) {
+	// NOTE(ae) no nil checks here as we assume evalWithPush always called first
 	e.inliningControl.PopDisable()
 	e.targetStack.Pop()
 	e.virtualCache.Pop()
@@ -1261,6 +1276,10 @@ func (e *eval) buildComprehensionCache(a *ast.Term) (*ast.Term, error) {
 	if index == nil {
 		e.instr.counterIncr(evalOpComprehensionCacheSkip)
 		return nil, nil
+	}
+
+	if e.comprehensionCache == nil {
+		e.comprehensionCache = newComprehensionCache()
 	}
 
 	cache, ok := e.comprehensionCache.Elem(a)

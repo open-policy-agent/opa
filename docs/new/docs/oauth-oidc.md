@@ -8,7 +8,7 @@ OAuth2 and OpenID Connect are both pervasive technologies in modern identity sys
 
 Rather than storing endpoints and other metadata as part of policy data, the authorization server metadata endpoint may be queried for this data.
 
-```live:oidc:module
+```rego
 package oidc
 
 issuers := {"https://issuer1.example.com", "https://issuer2.example.com"}
@@ -31,7 +31,7 @@ token_endpoint := metadata.token_endpoint
 
 Below example uses the keys published at the JWKS endpoint of the authorization server for token verification.
 
-```live:oidc2:module
+```rego
 package oidc
 
 jwks_request(url) := http.send({
@@ -50,7 +50,7 @@ verified := io.jwt.verify_rs256(input.token, jwks)
 
 Use the keys published at the JWKS endpoint of the authorization server for token verification, with [key rotation](https://openid.net/specs/openid-connect-core-1_0.html#RotateSigKeys) taken into account.
 
-```live:oidc3:module
+```rego
 package oidc
 
 jwks_request(url) := http.send({
@@ -82,7 +82,7 @@ claims_verified := jwt_verified[1]
 
 Programmatically obtain an OAuth2 access token following the client credentials or resource owner password credential flow.
 
-```live:oauth:module
+```rego
 package oauth2
 
 token := t {

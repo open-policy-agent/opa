@@ -1,0 +1,9 @@
+{
+  "role": "staff",
+  "owner": "bob@example.com",
+  "path": [
+    "pets",
+    "pet113-987"
+  ],
+  "user": "alice@example.com"
+}

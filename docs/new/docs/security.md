@@ -146,7 +146,7 @@ enabled by starting OPA with `--authorization=basic`.
 When the `basic` authorization scheme is enabled, a minimal authorization policy
 must be provided on startup. The authorization policy must be structured as follows:
 
-```live:system_ns:module:read_only
+```rego
 # The "system" namespace is reserved for internal use
 # by OPA. Authorization policy must be defined under
 # system.authz as follows:
@@ -256,7 +256,7 @@ to disable automatic type checking of this `input` document.
 At a minimum, the authorization policy should grant access to a special root
 identity:
 
-```live:system_authz_secret:module:read_only
+```rego
 package system.authz
 
 default allow := false          # Reject requests by default.
@@ -306,7 +306,7 @@ Besides boolean responses, authorization policies can change the message include
 in the deny response. Do do that, policy decisions must yield an object response as
 follows:
 
-```live:system_authz_object_resp:module:read_only
+```rego
 package system.authz
 
 default allow := {
@@ -329,7 +329,7 @@ allow := {"allowed": false, "reason": reason} if {
 When Bearer tokens are used for authentication, the policy should at minimum
 validate the identity:
 
-```live:system_authz_bearer:module:read_only
+```rego
 package system.authz
 
 # Tokens may defined in policy or pushed into OPA as data.
@@ -359,7 +359,7 @@ allow if {                      # Allow request if...
 To complete this example, the policy could further restrict tokens to specific
 documents:
 
-```live:system_authz_bearer_complete:module:read_only
+```rego
 package system.authz
 
 # Rights may be defined in policy or pushed into OPA as data.
@@ -497,7 +497,7 @@ When choosing messages to return to unauthorized clients in `system.authz` polic
 information such as which paths are allowed.
 :::
 
-```live:system_authz_x509:module:read_only
+```rego
 package system.authz
 
 id_uri := input.client_certificates[0].URIs[0]
@@ -618,7 +618,7 @@ With OPA configured to fetch policies using the [Bundles](./management-bundles) 
 you can configure OPA with a restrictive authorization policy that only grants
 clients access to the default policy decision, i.e., `POST /`:
 
-```live:hardened_example:module:read_only
+```rego
 package system.authz
 
 # Deny access by default.

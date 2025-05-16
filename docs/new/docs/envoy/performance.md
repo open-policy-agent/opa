@@ -173,7 +173,7 @@ In this case, OPA is not included in the request path but Envoy is (ie. [Envoy E
 In this case, performance measurements are observed with [Envoy External Authorization API](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/ext_authz_filter.html) enabled. This means
 Envoy will make a call to OPA on every incoming request with the below NOP policy loaded into OPA.
 
-```live:nop_example:module:read_only
+```rego
 package envoy.authz
 
 default allow := true
@@ -184,7 +184,7 @@ default allow := true
 In this case, performance measurements are observed with [Envoy External Authorization API](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/ext_authz_filter.html) enabled and
 a sample real-world RBAC policy as shown below loaded into OPA.
 
-```live:rbac_example:module:read_only
+```rego
 package envoy.authz
 
 import input.attributes.request.http as http_request

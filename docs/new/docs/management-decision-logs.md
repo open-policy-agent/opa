@@ -260,7 +260,7 @@ Drop rules filters all decisions from logging where the rule evaluates to `true`
 
 This rule will drop all requests to the _allow_ rule in the _kafka_ package, that returned _true_:
 
-```live:drop_rule_example/kafka_allow_rule:module:read_only
+```rego
 package system.log
 
 drop if {
@@ -272,7 +272,7 @@ drop if {
 Log only requests for _delete_ and _alter_ operations
 (Kafka with the [opa-kafka-plugin](https://github.com/StyraInc/opa-kafka-plugin)):
 
-```live:drop_rule_example/log_only_delete_alter_operations:module:read_only
+```rego
 package system.log
 
 drop if {

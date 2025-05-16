@@ -41,7 +41,7 @@ Next, create an OPA policy that allows all requests. You will update this policy
 
 **policies/tutorial.rego**:
 
-```live:start:module:read_only
+```rego
 package kafka.authz
 
 allow := true
@@ -229,7 +229,7 @@ Now that the tutorial environment is running, we can define an authorization pol
 
 Update the `policies/tutorial.rego` with the following content.
 
-```live:example:module:openable
+```rego
 #-----------------------------------------------------------------------------
 # High level policy for controlling access to Kafka.
 #
@@ -312,16 +312,14 @@ parse_user(user) := {key: value |
 }
 ```
 
+<RunSnippet command="data.kafka.authz.allow" files="#input.json" />
+
 The Kafka authorization plugin is configured to query for the
 `data.kafka.authz.allow` decision. If the response is `true` the operation is
 allowed, otherwise the operation is denied. When the integration queries OPA it
 supplies a JSON representation of the operation, resource, client, and principal.
 
-```live:example:query:hidden
-data.kafka.authz.allow
-```
-
-```live:example:input
+```json title="input.json"
 {
   "action": {
     "logIfAllowed": true,
@@ -361,10 +359,7 @@ data.kafka.authz.allow
 }
 ```
 
-With the input value above, the answer is:
-
-```live:example:output
-```
+<RunSnippet id="input.json"/>
 
 The `./bundles` directory is mounted into the Docker container running Nginx.
 When the bundle under this directory change, OPA is notified via the bundle API,
@@ -435,7 +430,7 @@ Processed a total of 0 messages
 
 First, add the following content to the policy file (`./policies/tutorial.rego`):
 
-```live:example/deny:module:openable
+```rego
 deny if {
 	is_write_operation
 	topic_has_large_fanout
@@ -460,7 +455,7 @@ producer_is_allowlisted_for_large_fanout if {
 Next, update the `topic_metadata` data structure in the same file to indicate
 that the `click-stream` topic has a high fanout.
 
-```live:updated_metadata:module:read_only
+```rego
 topic_metadata := {
     "click-stream": {
         "tags": ["large-fanout"],

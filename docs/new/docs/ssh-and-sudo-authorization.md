@@ -130,7 +130,7 @@ For more details on what this policy should look like, see [this documentation](
 
 **pull.rego**:
 
-```live:ssh_pull:module:read_only
+```rego
 package pull
 
 # Which files should be loaded into the context?
@@ -155,7 +155,7 @@ and non-admins to only SSH into hosts that they contributed code to.
 
 **sshd_authz.rego**:
 
-```live:sshd_authz:module:read_only
+```rego
 package sshd.authz
 
 import input.pull_responses
@@ -193,7 +193,7 @@ Create the `sudo` authorization policy. It should allow only admins to use `sudo
 
 **sudo_authz.rego**:
 
-```live:sudo_authz:module:read_only
+```rego
 package sudo.authz
 
 # By default, users are not authorized.
@@ -341,7 +341,7 @@ First, we need to make the PAM module take input from the user.
 
 **display.rego**:
 
-```live:display:module:read_only
+```rego
 package display
 
 # What should be prompted to the user?
@@ -358,7 +358,7 @@ Then we need to make sure that the authorization takes this input into account.
 
 **sudo_authz_elevated.rego**:
 
-```live:sudo_authz/elevate:module:read_only
+```rego
 # A package can be defined across multiple files.
 package sudo.authz
 

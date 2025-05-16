@@ -78,7 +78,6 @@ func NewQuery(query ast.Body) *Query {
 		genvarprefix: ast.WildcardPrefix,
 		indexing:     true,
 		earlyExit:    true,
-		external:     newResolverTrie(),
 	}
 }
 
@@ -278,6 +277,9 @@ func (q *Query) WithBuiltinErrorList(list *[]Error) *Query {
 
 // WithResolver configures an external resolver to use for the given ref.
 func (q *Query) WithResolver(ref ast.Ref, r resolver.Resolver) *Query {
+	if q.external == nil {
+		q.external = newResolverTrie()
+	}
 	q.external.Put(ref, r)
 	return q
 }
@@ -382,7 +384,6 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		compiler:                    q.compiler,
 		store:                       q.store,
 		baseCache:                   bc,
-		targetStack:                 newRefStack(),
 		txn:                         q.txn,
 		input:                       q.input,
 		external:                    q.external,
@@ -392,12 +393,10 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		instr:                       q.instr,
 		builtins:                    q.builtins,
 		builtinCache:                builtins.Cache{},
-		functionMocks:               newFunctionMocksStack(),
 		interQueryBuiltinCache:      q.interQueryBuiltinCache,
 		interQueryBuiltinValueCache: q.interQueryBuiltinValueCache,
 		ndBuiltinCache:              q.ndBuiltinCache,
 		virtualCache:                vc,
-		comprehensionCache:          newComprehensionCache(),
 		saveSet:                     newSaveSet(q.unknowns, b, q.instr),
 		saveStack:                   newSaveStack(),
 		saveSupport:                 newSaveSupport(),
@@ -580,7 +579,6 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		compiler:                    q.compiler,
 		store:                       q.store,
 		baseCache:                   bc,
-		targetStack:                 newRefStack(),
 		txn:                         q.txn,
 		input:                       q.input,
 		external:                    q.external,
@@ -590,12 +588,10 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		instr:                       q.instr,
 		builtins:                    q.builtins,
 		builtinCache:                builtins.Cache{},
-		functionMocks:               newFunctionMocksStack(),
 		interQueryBuiltinCache:      q.interQueryBuiltinCache,
 		interQueryBuiltinValueCache: q.interQueryBuiltinValueCache,
 		ndBuiltinCache:              q.ndBuiltinCache,
 		virtualCache:                vc,
-		comprehensionCache:          newComprehensionCache(),
 		genvarprefix:                q.genvarprefix,
 		runtime:                     q.runtime,
 		indexing:                    q.indexing,
