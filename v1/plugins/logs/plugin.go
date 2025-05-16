@@ -911,13 +911,8 @@ func (p *Plugin) oneShot(ctx context.Context) error {
 	oldChunkEnc := p.enc
 	oldBuffer := p.buffer
 	p.buffer = newLogBuffer(*p.config.Reporting.BufferSizeLimitBytes)
-	p.enc = newChunkEncoder(*p.config.Reporting.UploadSizeLimitBytes).WithMetrics(p.metrics)
-	p.enc = newChunkEncoder(*p.config.Reporting.UploadSizeLimitBytes).WithMetrics(p.metrics)
-	// keep the adaptive uncompressed limit throughout the lifecycle of the size buffer
-	// this ensures that the uncompressed limit can grow/shrink appropriately as new data comes in
-	p.enc.softLimit = oldChunkEnc.softLimit
-	p.enc.softLimitScaleDownExponent = oldChunkEnc.softLimitScaleDownExponent
-	p.enc.softLimitScaleUpExponent = oldChunkEnc.softLimitScaleUpExponent
+	p.enc = newChunkEncoder(*p.config.Reporting.UploadSizeLimitBytes).WithMetrics(p.metrics).
+		WithSoftLimit(oldChunkEnc.softLimit, oldChunkEnc.softLimitScaleDownExponent, oldChunkEnc.softLimitScaleUpExponent)
 	p.mtx.Unlock()
 
 	// Along with uploading the compressed events in the buffer

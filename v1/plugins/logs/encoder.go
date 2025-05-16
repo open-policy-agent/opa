@@ -57,6 +57,15 @@ func (enc *chunkEncoder) Reconfigure(limit int64) {
 	enc.softLimitScaleDownExponent = 0
 }
 
+// WithSoftLimit keep the adaptive uncompressed limit throughout the lifecycle of the size buffer
+// this ensures that the uncompressed limit can grow/shrink appropriately as new data comes in
+func (enc *chunkEncoder) WithSoftLimit(softLimit int64, softLimitScaleDownExponent float64, softLimitScaleUpExponent float64) *chunkEncoder {
+	enc.softLimit = softLimit
+	enc.softLimitScaleUpExponent = softLimitScaleUpExponent
+	enc.softLimitScaleDownExponent = softLimitScaleDownExponent
+	return enc
+}
+
 func (enc *chunkEncoder) WithMetrics(m metrics.Metrics) *chunkEncoder {
 	enc.metrics = m
 	return enc

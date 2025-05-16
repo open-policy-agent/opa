@@ -3659,22 +3659,22 @@ func TestAdaptiveSoftLimitBetweenUpload(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name                     string
-		bufferType               string
-		expectedSoftLimit        int64
-		changedExpectedSoftLimit int64
+		name             string
+		bufferType       string
+		initialSoftLimit int64
+		newSoftLimit     int64
 	}{
 		{
-			name:                     "using event buffer",
-			bufferType:               eventBufferType,
-			expectedSoftLimit:        300,
-			changedExpectedSoftLimit: 600,
+			name:             "using event buffer",
+			bufferType:       eventBufferType,
+			initialSoftLimit: 300,
+			newSoftLimit:     600,
 		},
 		{
-			name:                     "using size buffer",
-			bufferType:               sizeBufferType,
-			expectedSoftLimit:        300,
-			changedExpectedSoftLimit: 600,
+			name:             "using size buffer",
+			bufferType:       sizeBufferType,
+			initialSoftLimit: 300,
+			newSoftLimit:     600,
 		},
 	}
 
@@ -3684,14 +3684,14 @@ func TestAdaptiveSoftLimitBetweenUpload(t *testing.T) {
 
 			fixture := newTestFixture(t, testFixtureOptions{
 				ReportingBufferType:           tc.bufferType,
-				ReportingUploadSizeLimitBytes: tc.expectedSoftLimit,
+				ReportingUploadSizeLimitBytes: tc.initialSoftLimit,
 			})
 			defer fixture.server.stop()
 			defer fixture.plugin.Stop(ctx)
 
 			s := currentSoftLimit(t, fixture.plugin, tc.bufferType)
-			if s != tc.expectedSoftLimit {
-				t.Fatalf("expected %d, got %d", tc.expectedSoftLimit, s)
+			if s != tc.initialSoftLimit {
+				t.Fatalf("expected %d, got %d", tc.initialSoftLimit, s)
 			}
 
 			fixture.server.server.Config.SetKeepAlivesEnabled(false)
@@ -3737,14 +3737,14 @@ func TestAdaptiveSoftLimitBetweenUpload(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			// this should no longer reset the adaptive uncompressed limit
+			// this will increase the soft limit
 			if err := fixture.plugin.oneShot(ctx); err != nil {
 				t.Fatal(err)
 			}
 
 			s = currentSoftLimit(t, fixture.plugin, tc.bufferType)
-			if s != tc.changedExpectedSoftLimit {
-				t.Fatalf("expected %d, got %d", tc.expectedSoftLimit, s)
+			if s != tc.newSoftLimit {
+				t.Fatalf("expected %d, got %d", tc.newSoftLimit, s)
 			}
 
 			if err := fixture.plugin.Log(ctx, event); err != nil {
@@ -3755,14 +3755,14 @@ func TestAdaptiveSoftLimitBetweenUpload(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			// this should no longer reset the adaptive uncompressed limit
+			// the soft limit will stay the same and not be reset to the initial soft limit
 			if err := fixture.plugin.oneShot(ctx); err != nil {
 				t.Fatal(err)
 			}
 
 			s = currentSoftLimit(t, fixture.plugin, tc.bufferType)
-			if s != tc.changedExpectedSoftLimit {
-				t.Fatalf("expected %d, got %d", tc.expectedSoftLimit, s)
+			if s != tc.newSoftLimit {
+				t.Fatalf("expected %d, got %d", tc.newSoftLimit, s)
 			}
 		})
 	}
