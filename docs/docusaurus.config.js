@@ -408,6 +408,26 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
         };
       },
 
+      async function cliData(context, options) {
+        return {
+          name: "cli-data",
+
+          async loadContent() {
+            const filePath = path.join(context.siteDir, "src/data/cli.json");
+            const cliJson = await fs.readFile(filePath, "utf-8");
+            const parsedData = JSON.parse(cliJson);
+
+            return parsedData;
+          },
+
+          async contentLoaded({ content, actions }) {
+            const { createData } = actions;
+
+            await createData("cli.json", JSON.stringify(content, null, 2));
+          },
+        };
+      },
+
       async function versionsPageGen(context, options) {
         return {
           name: "version-page-gen",

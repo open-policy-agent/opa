@@ -1,125 +1,98 @@
 package main
 
 import (
-	"bufio"
-	"fmt"
+	"encoding/json"
 	"log"
 	"os"
-	"path/filepath"
-	"regexp"
 	"strings"
 
-	"github.com/spf13/cobra/doc"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/open-policy-agent/opa/cmd"
 )
 
-const fileHeader = `---
-title: CLI
-kind: documentation
-weight: 90
-restrictedtoc: true
----
-
-The OPA executable provides the following commands. Note that command line arguments may either be provided as
-traditional flags, or as environment variables. The expected format of environment variables used for this purpose
-follows the pattern OPA_<COMMAND>_<FLAG> where COMMAND is the command name in uppercase (like EVAL) and FLAG is the
-flag name in uppercase (like STRICT), i.e. OPA_EVAL_STRICT would be equivalent to passing the --strict flag to the
-eval command.
-
-`
-
 func main() {
-	if len(os.Args) != 2 {
-		log.Fatal("Required argument: cli docs output directory")
-	}
-	out := os.Args[1]
-
 	command := cmd.RootCommand
 	command.Use = "opa [command]"
 	command.DisableAutoGenTag = true
 
-	dir, err := os.MkdirTemp("", "opa")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	cmdData := make([]map[string]any, 0)
 
-	err = doc.GenMarkdownTree(command, dir)
-	if err != nil {
-		log.Fatal(err) //nolint: gocritic
-	}
-
-	files, err := os.ReadDir(dir)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	builder := strings.Builder{}
-
-	last := len(files) - 1
-	for i, file := range files {
-		// Skip the first "opa" document as it's rather pointless to include (only shows the --help flag)
-		if i == 0 {
+	for _, c := range command.Commands() {
+		if !showCommand(c) {
 			continue
 		}
-		path := filepath.Join(dir, file.Name())
-		document, err := fixupSection(path)
-		if err != nil {
-			log.Fatal(err)
-		}
-		builder.WriteString(document)
-		if i != last {
-			builder.WriteString("____\n\n")
-		}
+
+		cmdData = append(cmdData, cmdToData(c))
 	}
 
-	heading := regexp.MustCompile(`^[\\-]+$`)
-	lines := strings.Split(builder.String(), "\n")
-	document := make([]string, 0, len(lines))
-	removed := 0
-
-	// The document may contain "----" for headings, which will be converted to h1
-	// elements in markdown. This is undesirable, so let's remove them and prepend
-	// the line before that with ### to instead create a h3
-	for line, str := range lines {
-		if heading.MatchString(str) {
-			document[line-1-removed] = fmt.Sprintf("### %s\n", document[line-1-removed])
-			removed++
-			continue
-		}
-		document = append(document, str+"\n")
-	}
-
-	withHeader := fmt.Sprintf("%s%s", fileHeader, strings.Join(document, ""))
-	err = os.WriteFile(filepath.Join(out, "cli.md"), []byte(withHeader), 0755)
+	err := json.NewEncoder(os.Stdout).Encode(cmdData)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func fixupSection(path string) (string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-
-	scanner := bufio.NewScanner(f)
-	builder := strings.Builder{}
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		// Remove "See also" section
-		if strings.Contains(line, "### SEE ALSO") {
-			break
-		}
-		if home := os.Getenv("HOME"); home != "" {
-			line = strings.ReplaceAll(line, home, "$HOME")
-		}
-		builder.WriteString(line)
-		builder.WriteString("\n")
+func showCommand(c *cobra.Command) bool {
+	if !c.IsAvailableCommand() ||
+		c.IsAdditionalHelpTopicCommand() ||
+		c.Hidden {
+		return false
 	}
 
-	return builder.String(), scanner.Err()
+	return true
+}
+
+func cmdToID(c *cobra.Command) string {
+	parts := strings.Split(c.Use, " ")
+
+	if len(parts) == 0 {
+		return ""
+	}
+
+	return parts[0]
+}
+
+func extractFlags(flagSet *pflag.FlagSet) []map[string]any {
+	var result []map[string]any
+
+	flagSet.VisitAll(func(f *pflag.Flag) {
+		flagInfo := map[string]any{
+			"name":        "--" + f.Name,
+			"shorthand":   "",
+			"type":        f.Value.Type(),
+			"default":     f.DefValue,
+			"description": f.Usage,
+		}
+
+		if f.Shorthand != "" {
+			flagInfo["shorthand"] = "-" + f.Shorthand
+		}
+
+		result = append(result, flagInfo)
+	})
+
+	return result
+}
+
+func cmdToData(c *cobra.Command) map[string]any {
+	childData := make([]map[string]any, 0)
+	for _, childCmd := range c.Commands() {
+		if !showCommand(childCmd) {
+			continue
+		}
+		childData = append(childData, cmdToData(childCmd))
+	}
+
+	return map[string]any{
+		"id":           cmdToID(c),
+		"use":          c.Use,
+		"useline":      c.UseLine(),
+		"short":        c.Short,
+		"long":         c.Long,
+		"example":      c.Example,
+		"flags":        extractFlags(c.NonInheritedFlags()),
+		"parent_flags": extractFlags(c.InheritedFlags()),
+		"children":     childData,
+	}
 }
