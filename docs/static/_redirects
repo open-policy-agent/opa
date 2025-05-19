@@ -1,0 +1,5 @@
+# these paths are commonly requested and cause noise when detecthing real 404s
+/wp-login.php         /    301!
+/wlwmanifest.xml      /    301!
+*/wp-login.php        /    301!
+*/wlwmanifest.xml     /    301!
