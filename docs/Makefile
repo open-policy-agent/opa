@@ -17,3 +17,7 @@ build:
 .PHONY: clean
 clean:
 	rm -rf build .docusaurus
+
+.PHONY: generate-cli-docs
+generate-cli-docs:
+	$(CURDIR)/../build/gen-cli-docs.sh "$(CURDIR)/content"
