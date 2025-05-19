@@ -519,10 +519,8 @@ func (i *inliningControl) DisabledVar(v ast.Var, ignoreInternal bool) bool {
 	}
 
 	for _, frame := range i.disable {
-		if !frame.internal || !ignoreInternal {
-			if frame.v.Equal(v) {
-				return true
-			}
+		if (!frame.internal || !ignoreInternal) && frame.v.Equal(v) {
+			return true
 		}
 	}
 	return false
