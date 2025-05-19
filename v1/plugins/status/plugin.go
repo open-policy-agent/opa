@@ -13,6 +13,7 @@ import (
 	"maps"
 	"net/http"
 	"reflect"
+	"slices"
 
 	lstat "github.com/open-policy-agent/opa/v1/plugins/logs/status"
 
@@ -97,36 +98,16 @@ type trigger struct {
 }
 
 func (c *Config) validateAndInjectDefaults(services []string, pluginsList []string, trigger *plugins.TriggerMode) error {
-	if c.Plugin != nil {
-		var found bool
-		for _, other := range pluginsList {
-			if other == *c.Plugin {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return fmt.Errorf("invalid plugin name %q in status", *c.Plugin)
-		}
+	if c.Plugin != nil && !slices.Contains(pluginsList, *c.Plugin) {
+		return fmt.Errorf("invalid plugin name %q in status", *c.Plugin)
 	} else if c.Service == "" && len(services) != 0 && !(c.ConsoleLogs || c.Prometheus) {
 		// For backwards compatibility allow defaulting to the first
 		// service listed, but only if console logging is disabled. If enabled
 		// we can't tell if the deployer wanted to use only console logs or
 		// both console logs and the default service option.
 		c.Service = services[0]
-	} else if c.Service != "" {
-		found := false
-
-		for _, svc := range services {
-			if svc == c.Service {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			return fmt.Errorf("invalid service name %q in status", c.Service)
-		}
+	} else if c.Service != "" && !slices.Contains(services, c.Service) {
+		return fmt.Errorf("invalid service name %q in status", c.Service)
 	}
 
 	t, err := plugins.ValidateAndInjectDefaultsForTriggerMode(trigger, c.Trigger)

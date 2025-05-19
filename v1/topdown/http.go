@@ -19,6 +19,7 @@ import (
 	"net/url"
 	"os"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -379,10 +380,8 @@ func verifyHost(bctx BuiltinContext, host string) error {
 		return nil
 	}
 
-	for _, allowed := range bctx.Capabilities.AllowNet {
-		if allowed == host {
-			return nil
-		}
+	if slices.Contains(bctx.Capabilities.AllowNet, host) {
+		return nil
 	}
 
 	return fmt.Errorf("unallowed host: %s", host)

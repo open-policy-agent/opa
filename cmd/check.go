@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -94,9 +95,7 @@ func checkModules(params checkParams, args []string) error {
 			if err != nil {
 				return err
 			}
-			for name, mod := range b.ParsedModules(path) {
-				modules[name] = mod
-			}
+			maps.Copy(modules, b.ParsedModules(path))
 		}
 	} else {
 		f := loaderFilter{

@@ -344,14 +344,14 @@ func TestActiveConfig(t *testing.T) {
 		err      error
 	}{
 		"valid_config_with_svc_object": {
-			[]byte(fmt.Sprintf(`{ %v %v }`, serviceObj, common)),
-			[]byte(fmt.Sprintf(`{ %v %v }`, expectedServiceObj, expectedCommon)),
+			fmt.Appendf(nil, `{ %v %v }`, serviceObj, common),
+			fmt.Appendf(nil, `{ %v %v }`, expectedServiceObj, expectedCommon),
 			false,
 			nil,
 		},
 		"valid_config_with_svc_list": {
-			[]byte(fmt.Sprintf(`{ %v %v }`, servicesList, common)),
-			[]byte(fmt.Sprintf(`{ %v %v }`, expectedServicesList, expectedCommon)),
+			fmt.Appendf(nil, `{ %v %v }`, servicesList, common),
+			fmt.Appendf(nil, `{ %v %v }`, expectedServicesList, expectedCommon),
 			false,
 			nil,
 		},

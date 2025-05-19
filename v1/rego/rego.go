@@ -391,9 +391,7 @@ func EvalNondeterministicBuiltins(yes bool) EvalOption {
 func (pq preparedQuery) Modules() map[string]*ast.Module {
 	mods := make(map[string]*ast.Module)
 
-	for name, mod := range pq.r.parsedModules {
-		mods[name] = mod
-	}
+	maps.Copy(mods, pq.r.parsedModules)
 
 	for _, b := range pq.r.bundles {
 		for _, mod := range b.Modules {

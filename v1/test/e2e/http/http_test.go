@@ -72,11 +72,9 @@ func TestHttpSendInterQueryForceCache(t *testing.T) {
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				counter++
 				w.Header()["Content-Type"] = []string{"application/json"}
-				for k, v := range tc.respHeaders {
-					w.Header()[k] = v
-				}
+				maps.Copy(w.Header(), tc.respHeaders)
 				w.WriteHeader(http.StatusOK)
-				_, err := w.Write([]byte(fmt.Sprintf(`{"c": %d}`, counter)))
+				_, err := w.Write(fmt.Appendf(nil, `{"c": %d}`, counter))
 				if err != nil {
 					t.Fatal(err)
 				}

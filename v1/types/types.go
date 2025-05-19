@@ -588,10 +588,7 @@ func (t Any) Union(other Any) Any {
 		return other
 	}
 	// Prealloc the output list.
-	maxLen := lenT
-	if lenT < lenOther {
-		maxLen = lenOther
-	}
+	maxLen := max(lenT, lenOther)
 	merged := make(Any, 0, maxLen)
 	// Note(philipc): Create a merged slice, doing the minimum number of
 	// comparisons along the way. We treat this as a problem of merging two
@@ -897,10 +894,7 @@ func Compare(a, b Type) int {
 		lenStaticA := len(objA.static)
 		lenStaticB := len(objB.static)
 
-		minLen := lenStaticA
-		if lenStaticB < minLen {
-			minLen = lenStaticB
-		}
+		minLen := min(lenStaticB, lenStaticA)
 
 		for i := range minLen {
 			if cmp := util.Compare(objA.static[i].Key, objB.static[i].Key); cmp != 0 {
@@ -1105,17 +1099,13 @@ func Nil(a Type) bool {
 	case nil:
 		return true
 	case *Function:
-		for i := range a.args {
-			if Nil(a.args[i]) {
-				return true
-			}
+		if slices.ContainsFunc(a.args, Nil) {
+			return true
 		}
 		return Nil(a.result)
 	case *Array:
-		for i := range a.static {
-			if Nil(a.static[i]) {
-				return true
-			}
+		if slices.ContainsFunc(a.static, Nil) {
+			return true
 		}
 		if a.dynamic != nil {
 			return Nil(a.dynamic)
@@ -1178,10 +1168,7 @@ func (s typeSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s typeSlice) Len() int           { return len(s) }
 
 func typeSliceCompare(a, b []Type) int {
-	minLen := len(a)
-	if len(b) < minLen {
-		minLen = len(b)
-	}
+	minLen := min(len(b), len(a))
 	for i := range minLen {
 		if cmp := Compare(a[i], b[i]); cmp != 0 {
 			return cmp

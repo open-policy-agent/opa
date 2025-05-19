@@ -19,6 +19,7 @@ import (
 	"net/http/pprof"
 	"net/url"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -387,7 +388,7 @@ func (s *Server) WithRouter(router *mux.Router) *Server {
 }
 
 func (s *Server) WithMinTLSVersion(minTLSVersion uint16) *Server {
-	if isMinTLSVersionSupported(minTLSVersion) {
+	if slices.Contains(supportedTLSVersions, minTLSVersion) {
 		s.minTLSVersion = minTLSVersion
 	} else {
 		s.minTLSVersion = defaultMinTLSVersion
@@ -579,15 +580,6 @@ func (b *baseHTTPListener) Shutdown(ctx context.Context) error {
 
 func (b *baseHTTPListener) Type() httpListenerType {
 	return b.t
-}
-
-func isMinTLSVersionSupported(tlsVersion uint16) bool {
-	for _, version := range supportedTLSVersions {
-		if tlsVersion == version {
-			return true
-		}
-	}
-	return false
 }
 
 func (s *Server) getListener(addr string, h http.Handler, t httpListenerType) ([]Loop, httpListener, error) {

@@ -16,7 +16,7 @@ func ConstantTimeByteCompare(x, y []byte) (int, error) {
 
 	xLarger, yLarger := 0, 0
 
-	for i := 0; i < len(x); i++ {
+	for i := range x {
 		xByte, yByte := int(x[i]), int(y[i])
 
 		x := ((yByte - xByte) >> 8) & 1

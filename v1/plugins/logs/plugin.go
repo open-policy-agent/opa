@@ -15,6 +15,7 @@ import (
 	"math/rand"
 	"net/url"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -309,11 +310,8 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 
 	if c.Plugin != nil {
 		var found bool
-		for _, other := range pluginsList {
-			if other == *c.Plugin {
-				found = true
-				break
-			}
+		if slices.Contains(pluginsList, *c.Plugin) {
+			found = true
 		}
 		if !found {
 			return fmt.Errorf("invalid plugin name %q in decision_logs", *c.Plugin)
@@ -325,14 +323,7 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 		// both console logs and the default service option.
 		c.Service = services[0]
 	} else if c.Service != "" {
-		found := false
-
-		for _, svc := range services {
-			if svc == c.Service {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(services, c.Service)
 
 		if !found {
 			return fmt.Errorf("invalid service name %q in decision_logs", c.Service)

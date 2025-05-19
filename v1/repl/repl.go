@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"strconv"
 	"strings"
@@ -820,9 +821,7 @@ func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule) error {
 		return err
 	}
 
-	for id, mod := range r.modules {
-		policies[id] = mod
-	}
+	maps.Copy(policies, r.modules)
 
 	compiler := ast.NewCompiler().
 		SetErrorLimit(r.errLimit).
@@ -949,9 +948,7 @@ func (r *REPL) loadCompiler(ctx context.Context) (*ast.Compiler, error) {
 		return nil, err
 	}
 
-	for id, mod := range r.modules {
-		policies[id] = mod
-	}
+	maps.Copy(policies, r.modules)
 
 	compiler := ast.NewCompiler().
 		SetErrorLimit(r.errLimit).
@@ -1274,9 +1271,7 @@ func (r *REPL) loadModules(ctx context.Context, txn storage.Transaction) (map[st
 
 	if len(r.initBundles) > 0 {
 		for bundleName, b := range r.initBundles {
-			for name, module := range b.ParsedModules(bundleName) {
-				modules[name] = module
-			}
+			maps.Copy(modules, b.ParsedModules(bundleName))
 		}
 	}
 

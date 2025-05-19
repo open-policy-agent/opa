@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 
 	"github.com/open-policy-agent/opa/internal/presentation"
@@ -147,9 +148,7 @@ func deps(args []string, params depsCommandParams, w io.Writer) error {
 				return err
 			}
 
-			for name, mod := range b.ParsedModules(path) {
-				modules[name] = mod
-			}
+			maps.Copy(modules, b.ParsedModules(path))
 		}
 	}
 

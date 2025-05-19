@@ -7,6 +7,8 @@ package discovery
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/open-policy-agent/opa/v1/keys"
@@ -92,9 +94,7 @@ func (c *Config) validateAndInjectDefaults(services []string, confKeys map[strin
 
 	// make a copy of the keys map
 	cpy := map[string]*keys.Config{}
-	for key, kc := range confKeys {
-		cpy[key] = kc
-	}
+	maps.Copy(cpy, confKeys)
 
 	if c.Signing != nil {
 		err := c.Signing.ValidateAndInjectDefaults(cpy)
@@ -141,10 +141,8 @@ func (*Config) getServiceFromList(service string, services []string) (string, er
 		}
 		return services[0], nil
 	}
-	for _, svc := range services {
-		if svc == service {
-			return service, nil
-		}
+	if slices.Contains(services, service) {
+		return service, nil
 	}
 	return service, fmt.Errorf("service name %q not found", service)
 }

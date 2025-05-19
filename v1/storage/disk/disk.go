@@ -66,6 +66,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -1024,10 +1025,5 @@ func lookup(path storage.Path, data []byte) (any, bool, error) {
 }
 
 func overwriteRoot(roots []string) bool {
-	for _, root := range roots {
-		if root == "" {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(roots, "")
 }

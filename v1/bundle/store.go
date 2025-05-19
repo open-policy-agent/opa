@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"path/filepath"
 	"strings"
 
@@ -484,12 +485,8 @@ func activateBundles(opts *ActivateOpts) error {
 
 	// Compile the modules all at once to avoid having to re-do work.
 	remainingAndExtra := make(map[string]*ast.Module)
-	for name, mod := range remaining {
-		remainingAndExtra[name] = mod
-	}
-	for name, mod := range opts.ExtraModules {
-		remainingAndExtra[name] = mod
-	}
+	maps.Copy(remainingAndExtra, remaining)
+	maps.Copy(remainingAndExtra, opts.ExtraModules)
 
 	err = compileModules(opts.Compiler, opts.Metrics, snapshotBundles, remainingAndExtra, opts.legacy, opts.AuthorizationDecisionRef)
 	if err != nil {
@@ -930,14 +927,10 @@ func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[strin
 	modules := map[string]*ast.Module{}
 
 	// preserve any modules already on the compiler
-	for name, module := range compiler.Modules {
-		modules[name] = module
-	}
+	maps.Copy(modules, compiler.Modules)
 
 	// preserve any modules passed in from the store
-	for name, module := range extraModules {
-		modules[name] = module
-	}
+	maps.Copy(modules, extraModules)
 
 	// include all the new bundle modules
 	for bundleName, b := range bundles {
@@ -946,9 +939,7 @@ func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[strin
 				modules[mf.Path] = mf.Parsed
 			}
 		} else {
-			for name, module := range b.ParsedModules(bundleName) {
-				modules[name] = module
-			}
+			maps.Copy(modules, b.ParsedModules(bundleName))
 		}
 	}
 
@@ -971,14 +962,10 @@ func writeModules(ctx context.Context, store storage.Store, txn storage.Transact
 	modules := map[string]*ast.Module{}
 
 	// preserve any modules already on the compiler
-	for name, module := range compiler.Modules {
-		modules[name] = module
-	}
+	maps.Copy(modules, compiler.Modules)
 
 	// preserve any modules passed in from the store
-	for name, module := range extraModules {
-		modules[name] = module
-	}
+	maps.Copy(modules, extraModules)
 
 	// include all the new bundle modules
 	for bundleName, b := range bundles {
@@ -987,9 +974,7 @@ func writeModules(ctx context.Context, store storage.Store, txn storage.Transact
 				modules[mf.Path] = mf.Parsed
 			}
 		} else {
-			for name, module := range b.ParsedModules(bundleName) {
-				modules[name] = module
-			}
+			maps.Copy(modules, b.ParsedModules(bundleName))
 		}
 	}
 

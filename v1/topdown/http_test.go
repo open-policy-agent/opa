@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"net"
 	"net/http"
@@ -21,6 +22,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -513,8 +515,7 @@ func TestHTTPDeleteRequest(t *testing.T) {
 	var people []Person
 
 	// test data
-	people = append(people, Person{ID: "1", Firstname: "John"})
-	people = append(people, Person{ID: "2", Firstname: "Joe"})
+	people = append(people, Person{ID: "1", Firstname: "John"}, Person{ID: "2", Firstname: "Joe"})
 
 	// test server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -532,7 +533,7 @@ func TestHTTPDeleteRequest(t *testing.T) {
 		// delete person
 		for index, item := range people {
 			if item.ID == person.ID {
-				people = append(people[:index], people[index+1:]...)
+				people = slices.Delete(people, index, index+1)
 				break
 			}
 		}
@@ -1244,9 +1245,7 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 				requests = append(requests, r)
 				headers := w.Header()
 
-				for k, v := range tc.headers {
-					headers[k] = v
-				}
+				maps.Copy(headers, tc.headers)
 
 				headers.Set("Date", t0.Format(time.RFC850))
 
@@ -1404,9 +1403,7 @@ func TestHTTPSendInterQueryCaching(t *testing.T) {
 				requests = append(requests, r)
 				headers := w.Header()
 
-				for k, v := range tc.headers {
-					headers[k] = v
-				}
+				maps.Copy(headers, tc.headers)
 
 				headers.Set("Date", t0.Format(time.RFC850))
 
@@ -1575,9 +1572,7 @@ func TestHTTPSendInterQueryForceCaching(t *testing.T) {
 				requests = append(requests, r)
 				headers := w.Header()
 
-				for k, v := range tc.headers {
-					headers[k] = v
-				}
+				maps.Copy(headers, tc.headers)
 
 				headers.Set("Date", t0.Format(http.TimeFormat))
 
@@ -1659,9 +1654,7 @@ func TestHTTPSendInterQueryForceCachingRefresh(t *testing.T) {
 				requests = append(requests, r)
 				headers := w.Header()
 
-				for k, v := range tc.headers {
-					headers[k] = v
-				}
+				maps.Copy(headers, tc.headers)
 
 				if tc.skipDate {
 					headers["Date"] = nil
@@ -1809,9 +1802,7 @@ func TestHTTPSendInterQueryCachingModifiedResp(t *testing.T) {
 				requests = append(requests, r)
 				headers := w.Header()
 
-				for k, v := range tc.headers {
-					headers[k] = v
-				}
+				maps.Copy(headers, tc.headers)
 
 				headers.Set("Date", t0.Format(http.TimeFormat))
 
@@ -1887,9 +1878,7 @@ func TestHTTPSendInterQueryCachingNewResp(t *testing.T) {
 				requests = append(requests, r)
 				headers := w.Header()
 
-				for k, v := range tc.headers {
-					headers[k] = v
-				}
+				maps.Copy(headers, tc.headers)
 
 				headers.Set("Date", t0.Format(http.TimeFormat))
 
@@ -1984,9 +1973,7 @@ func TestInsertIntoHTTPSendInterQueryCacheError(t *testing.T) {
 				requests = append(requests, r)
 				headers := w.Header()
 
-				for k, v := range tc.headers {
-					headers[k] = v
-				}
+				maps.Copy(headers, tc.headers)
 
 				w.WriteHeader(http.StatusOK)
 				_, err := w.Write([]byte(tc.response))
@@ -3768,10 +3755,8 @@ type secretTransport struct {
 }
 
 func (st *secretTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	for k, v := range st.extraRequestHeaders {
-		// Set additional headers on the request not visible to the caller
-		req.Header[k] = v
-	}
+	// Set additional headers on the request not visible to the caller
+	maps.Copy(req.Header, st.extraRequestHeaders)
 	return st.Transport.RoundTrip(req)
 }
 

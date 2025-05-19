@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -265,10 +266,10 @@ func (maskRule) removeValue(p []string, node any) error {
 				return errMaskInvalidObject
 			}
 
-			nodeParent[index] = append(v[:targetIndex], v[targetIndex+1:]...)
+			nodeParent[index] = slices.Delete(v, targetIndex, targetIndex+1)
 
 		case map[string]any:
-			nodeParent[nodeKey] = append(v[:targetIndex], v[targetIndex+1:]...)
+			nodeParent[nodeKey] = slices.Delete(v, targetIndex, targetIndex+1)
 
 		default:
 			return errMaskInvalidObject
