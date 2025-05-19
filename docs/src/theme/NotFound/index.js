@@ -13,9 +13,7 @@ export default function Index() {
     <>
       <PageMetadata title={title} />
       <Layout>
-        <BrowserOnly>
-          <NotFoundContent />
-        </BrowserOnly>
+        <BrowserOnly>{() => <NotFoundContent />}</BrowserOnly>
       </Layout>
     </>
   );
