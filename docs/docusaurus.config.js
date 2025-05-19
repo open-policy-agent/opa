@@ -245,6 +245,15 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
           };
         },
       }),
+      [
+        "@docusaurus/preset-classic",
+        {
+          gtag: {
+            trackingID: "G-JNBNV64PDX",
+            anonymizeIP: true,
+          },
+        },
+      ],
       async function ecosystemLanguagePageGen(context, options) {
         return {
           name: "ecosystem-language-gen",
