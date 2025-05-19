@@ -16,7 +16,7 @@ import (
 //
 // This function is intended to be used in place of the standard json.Marshal
 // function when json.Number is required.
-func UnmarshalJSON(bs []byte, x interface{}) error {
+func UnmarshalJSON(bs []byte, x any) error {
 	return v1.UnmarshalJSON(bs, x)
 }
 
@@ -32,7 +32,7 @@ func NewJSONDecoder(r io.Reader) *json.Decoder {
 //
 // If the data cannot be decoded, this function will panic. This function is for
 // test purposes.
-func MustUnmarshalJSON(bs []byte) interface{} {
+func MustUnmarshalJSON(bs []byte) any {
 	return v1.MustUnmarshalJSON(bs)
 }
 
@@ -40,7 +40,7 @@ func MustUnmarshalJSON(bs []byte) interface{} {
 //
 // If the data cannot be encoded, this function will panic. This function is for
 // test purposes.
-func MustMarshalJSON(x interface{}) []byte {
+func MustMarshalJSON(x any) []byte {
 	return v1.MustMarshalJSON(x)
 }
 
@@ -49,7 +49,7 @@ func MustMarshalJSON(x interface{}) []byte {
 // Thereby, it is converting its argument to the representation expected by
 // rego.Input and inmem's Write operations. Works with both references and
 // values.
-func RoundTrip(x *interface{}) error {
+func RoundTrip(x *any) error {
 	return v1.RoundTrip(x)
 }
 
@@ -58,11 +58,11 @@ func RoundTrip(x *interface{}) error {
 //
 // Used for preparing Go types (including pointers to structs) into values to be
 // put through util.RoundTrip().
-func Reference(x interface{}) *interface{} {
+func Reference(x any) *any {
 	return v1.Reference(x)
 }
 
 // Unmarshal decodes a YAML, JSON or JSON extension value into the specified type.
-func Unmarshal(bs []byte, v interface{}) error {
+func Unmarshal(bs []byte, v any) error {
 	return v1.Unmarshal(bs, v)
 }

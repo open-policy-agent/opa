@@ -5,25 +5,25 @@
 package deepcopy
 
 // DeepCopy performs a recursive deep copy for nested slices/maps and
-// returns the copied object. Supports []interface{}
-// and map[string]interface{} only
-func DeepCopy(val interface{}) interface{} {
+// returns the copied object. Supports []any
+// and map[string]any only
+func DeepCopy(val any) any {
 	switch val := val.(type) {
-	case []interface{}:
-		cpy := make([]interface{}, len(val))
+	case []any:
+		cpy := make([]any, len(val))
 		for i := range cpy {
 			cpy[i] = DeepCopy(val[i])
 		}
 		return cpy
-	case map[string]interface{}:
+	case map[string]any:
 		return Map(val)
 	default:
 		return val
 	}
 }
 
-func Map(val map[string]interface{}) map[string]interface{} {
-	cpy := make(map[string]interface{}, len(val))
+func Map(val map[string]any) map[string]any {
+	cpy := make(map[string]any, len(val))
 	for k := range val {
 		cpy[k] = DeepCopy(val[k])
 	}

@@ -1,8 +1,11 @@
 [build]
-publish = "docs/website/public"
-command = "make netlify-prod WASM_ENABLED=0 CGO_ENABLED=0"
+publish = "docs/build"
+command = "make netlify"
 ignore = "./build/docs-build-needed.sh"
-edge_functions = "docs/website/edge"
+edge_functions = "docs/functions"
+
+[build.environment]
+NODE_VERSION = "22.15.0"
 
 [[edge_functions]]
 path = "/badge-endpoint/*"
@@ -13,27 +16,3 @@ function = "badge"
 [[edge_functions]]
 path = "/docs/*"
 function = "version-redirect"
-
-[build.environment]
-# keep this version in sync with the version in .github/workflows/pull-request.yml
-# Note, that upgrading Hugo is tricky as all versions of the OPA docs need to work
-# with the Hugo version used.
-# see: https://github.com/open-policy-agent/opa/pull/7034
-HUGO_VERSION = "0.113.0"
-
-[context.deploy-preview]
-command = "make netlify-preview WASM_ENABLED=0 CGO_ENABLED=0"
-
-[context.branch-deploy]
-command = "make netlify-preview WASM_ENABLED=0 CGO_ENABLED=0"
-
-[dev]
-# "netlify dev" will serve the static content using netlify locally
-# with all the redirects and other netlify specific rules in place.
-publish = "docs/website/public"
-framework = "#static"
-
-# To run the netlify dev service with hugo dev server "live" behind
-# it uncomment these lines:
-# command = "make docs-hugo-serve"
-# port = 1313

@@ -50,7 +50,7 @@ func toStringSlice(a *any) []string {
 	switch a := (*a).(type) {
 	case []string:
 		return a
-	case []interface{}:
+	case []any:
 		strSlice := make([]string, len(a))
 		for i := range a {
 			strSlice[i] = a[i].(string)

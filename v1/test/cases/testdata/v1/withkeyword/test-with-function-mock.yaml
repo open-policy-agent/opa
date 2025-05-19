@@ -162,3 +162,54 @@ cases:
         }
     want_result:
       - x: true
+  - note: "withkeyword/function: indirect call, arity 1, replacement is local variable"
+    modules:
+      - |
+        package test
+        f(1) = 2
+        p if {
+          my_var := 1
+          q with f as my_var
+        }
+        q if r
+        r if f(1) == 1
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - note: "withkeyword/function: indirect call, arity 1, replacement is local variable via scan"
+    modules:
+      - |
+        package test
+        f(1) = 2
+        p if {
+          some v in numbers.range(1, 10)
+          q with f as v
+        }
+        q if r
+        r if f(1) == 10
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - note: "withkeyword/function: indirect call, arity 1, multiple, nested replacements"
+    modules:
+      - |
+        package test
+        f(_) := 1
+        g(_) := 0
+        p if {
+        	v := 3
+        	m with f as v
+        }
+        m if {
+        	v := 300
+        	g(10) == 0 # unreplaced
+        	n with g as v
+        }
+        n if {
+        	f(input) == 3
+        	g(input) == 300
+        }
+    query: data.test.p = x
+    input: {}
+    want_result:
+      - x: true

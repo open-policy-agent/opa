@@ -214,7 +214,7 @@ func (e *eval) partial() bool {
 	return e.saveSet != nil
 }
 
-func (e *eval) unknown(x interface{}, b *bindings) bool {
+func (e *eval) unknown(x any, b *bindings) bool {
 	if !e.partial() {
 		return false
 	}
@@ -447,6 +447,11 @@ func (e *eval) evalStep(iter evalIterator) error {
 		case *ast.Term:
 			// generateVar inlined here to avoid extra allocations in hot path
 			rterm := ast.VarTerm(e.fmtVarTerm())
+
+			if e.partial() {
+				e.inliningControl.PushDisable(rterm.Value, true)
+			}
+
 			err = e.unify(terms, rterm, func() error {
 				if e.saveSet.Contains(rterm, e.bindings) {
 					return e.saveExpr(ast.NewExpr(rterm), e.bindings, func() error {
@@ -461,6 +466,10 @@ func (e *eval) evalStep(iter evalIterator) error {
 				}
 				return nil
 			})
+
+			if e.partial() {
+				e.inliningControl.PopDisable()
+			}
 		case *ast.Every:
 			eval := evalEvery{
 				Every: terms,
@@ -706,16 +715,31 @@ func (e *eval) evalWithPush(input, data *ast.Term, functionMocks [][2]*ast.Term,
 		e.data = data
 	}
 
+	if e.comprehensionCache == nil {
+		e.comprehensionCache = newComprehensionCache()
+	}
+
 	e.comprehensionCache.Push()
 	e.virtualCache.Push()
+
+	if e.targetStack == nil {
+		e.targetStack = newRefStack()
+	}
+
 	e.targetStack.Push(targets)
 	e.inliningControl.PushDisable(disable, true)
+
+	if e.functionMocks == nil {
+		e.functionMocks = newFunctionMocksStack()
+	}
+
 	e.functionMocks.PutPairs(functionMocks)
 
 	return oldInput, oldData
 }
 
 func (e *eval) evalWithPop(input, data *ast.Term) {
+	// NOTE(ae) no nil checks here as we assume evalWithPush always called first
 	e.inliningControl.PopDisable()
 	e.targetStack.Pop()
 	e.virtualCache.Pop()
@@ -1263,6 +1287,10 @@ func (e *eval) buildComprehensionCache(a *ast.Term) (*ast.Term, error) {
 		return nil, nil
 	}
 
+	if e.comprehensionCache == nil {
+		e.comprehensionCache = newComprehensionCache()
+	}
+
 	cache, ok := e.comprehensionCache.Elem(a)
 	if !ok {
 		var err error
@@ -1778,9 +1806,9 @@ func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, erro
 
 		if len(path) == 0 {
 			switch obj := blob.(type) {
-			case map[string]interface{}:
+			case map[string]any:
 				if len(obj) > 0 {
-					cpy := make(map[string]interface{}, len(obj)-1)
+					cpy := make(map[string]any, len(obj)-1)
 					for k, v := range obj {
 						if string(ast.SystemDocumentKey) != k {
 							cpy[k] = v
@@ -1799,7 +1827,7 @@ func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, erro
 		case ast.Value:
 			v = blob
 		default:
-			if blob, ok := blob.(map[string]interface{}); ok && !e.strictObjects {
+			if blob, ok := blob.(map[string]any); ok && !e.strictObjects {
 				v = ast.LazyObject(blob)
 				break
 			}
@@ -3407,13 +3435,17 @@ func (e evalVirtualComplete) eval(iter unifyIterator) error {
 	var generateSupport bool
 
 	if e.ir.Default != nil {
-		// If the other term is not constant OR it's equal to the default value, then
-		// a support rule must be produced as the default value _may_ be required. On
-		// the other hand, if the other term is constant (i.e., it does not require
-		// evaluation) and it differs from the default value then the default value is
-		// _not_ required, so partially evaluate the rule normally.
-		rterm := e.rbindings.Plug(e.rterm)
-		generateSupport = !ast.IsConstant(rterm.Value) || e.ir.Default.Head.Value.Equal(rterm)
+		// If inlining has been disabled for the rterm, and the default rule has a 'false' result value,
+		// the default value is inconsequential, and support does not need to be generated.
+		if !(e.ir.Default.Head.Value.Equal(ast.InternedBooleanTerm(false)) && e.e.inliningControl.Disabled(e.rterm.Value, false)) {
+			// If the other term is not constant OR it's equal to the default value, then
+			// a support rule must be produced as the default value _may_ be required. On
+			// the other hand, if the other term is constant (i.e., it does not require
+			// evaluation) and it differs from the default value then the default value is
+			// _not_ required, so partially evaluate the rule normally.
+			rterm := e.rbindings.Plug(e.rterm)
+			generateSupport = !ast.IsConstant(rterm.Value) || e.ir.Default.Head.Value.Equal(rterm)
+		}
 	}
 
 	if generateSupport || e.e.inliningControl.shallow || e.e.inliningControl.Disabled(e.plugged[:e.pos+1], false) {
@@ -4079,7 +4111,7 @@ func newNestedCheckVisitor() *nestedCheckVisitor {
 	return v
 }
 
-func (v *nestedCheckVisitor) visit(x interface{}) bool {
+func (v *nestedCheckVisitor) visit(x any) bool {
 	switch x.(type) {
 	case ast.Ref, ast.Call:
 		v.found = true
@@ -4170,7 +4202,7 @@ func isOtherRef(term *ast.Term) bool {
 	return !ref.HasPrefix(ast.DefaultRootRef) && !ref.HasPrefix(ast.InputRootRef)
 }
 
-func isFunction(env *ast.TypeEnv, ref interface{}) bool {
+func isFunction(env *ast.TypeEnv, ref any) bool {
 	var r ast.Ref
 	switch v := ref.(type) {
 	case ast.Ref:

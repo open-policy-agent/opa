@@ -2551,7 +2551,7 @@ test_l if {
 						}
 
 						testBundle := bundle.Bundle{
-							Data: map[string]interface{}{},
+							Data: map[string]any{},
 						}
 						for k, v := range tc.files {
 							testBundle.Modules = append(testBundle.Modules, bundle.ModuleFile{
@@ -2898,7 +2898,7 @@ test_l if {
 						}
 
 						testBundle := bundle.Bundle{
-							Data: map[string]interface{}{},
+							Data: map[string]any{},
 						}
 						for k, v := range tc.files {
 							testBundle.Modules = append(testBundle.Modules, bundle.ModuleFile{
@@ -3152,7 +3152,7 @@ test_l if {
 						}
 
 						testBundle := bundle.Bundle{
-							Data: map[string]interface{}{},
+							Data: map[string]any{},
 						}
 						for k, v := range tc.files {
 							testBundle.Modules = append(testBundle.Modules, bundle.ModuleFile{

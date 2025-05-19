@@ -34,7 +34,7 @@ func BenchmarkSetIntersection(b *testing.B) {
 	for _, n := range sizes {
 		for _, m := range sizes {
 			b.Run(fmt.Sprintf("%dx%d", n, m), func(b *testing.B) {
-				store := inmem.NewFromObject(map[string]interface{}{"sets": genNxMSetBenchmarkData(n, m)})
+				store := inmem.NewFromObject(map[string]any{"sets": genNxMSetBenchmarkData(n, m)})
 
 				module := `package test
 
@@ -81,7 +81,7 @@ func BenchmarkSetIntersectionSlow(b *testing.B) {
 	for _, n := range sizes {
 		for _, m := range sizes {
 			b.Run(fmt.Sprintf("%dx%d", n, m), func(b *testing.B) {
-				store := inmem.NewFromObject(map[string]interface{}{"sets": genNxMSetBenchmarkData(n, m)})
+				store := inmem.NewFromObject(map[string]any{"sets": genNxMSetBenchmarkData(n, m)})
 
 				module := `package test
 
@@ -133,7 +133,7 @@ func BenchmarkSetUnion(b *testing.B) {
 	for _, n := range sizes {
 		for _, m := range sizes {
 			b.Run(fmt.Sprintf("%dx%d", n, m), func(b *testing.B) {
-				store := inmem.NewFromObject(map[string]interface{}{"sets": genNxMSetBenchmarkData(n, m)})
+				store := inmem.NewFromObject(map[string]any{"sets": genNxMSetBenchmarkData(n, m)})
 
 				// Code is lifted from here:
 				// https://github.com/open-policy-agent/opa/issues/4979#issue-1332019382
@@ -186,7 +186,7 @@ func BenchmarkSetUnionSlow(b *testing.B) {
 	for _, n := range sizes {
 		for _, m := range sizes {
 			b.Run(fmt.Sprintf("%dx%d", n, m), func(b *testing.B) {
-				store := inmem.NewFromObject(map[string]interface{}{"sets": genNxMSetBenchmarkData(n, m)})
+				store := inmem.NewFromObject(map[string]any{"sets": genNxMSetBenchmarkData(n, m)})
 
 				// Code is lifted from here:
 				// https://github.com/open-policy-agent/opa/issues/4979#issue-1332019382

@@ -27,7 +27,7 @@ func (t *Tester) Start(_ context.Context) error {
 
 func (*Tester) Stop(_ context.Context) {}
 
-func (*Tester) Reconfigure(_ context.Context, _ interface{}) {}
+func (*Tester) Reconfigure(_ context.Context, _ any) {}
 
 type Config struct {
 	ConfigErr bool `json:"configerr"`
@@ -35,7 +35,7 @@ type Config struct {
 
 type Factory struct{}
 
-func (Factory) Validate(_ *plugins.Manager, config []byte) (interface{}, error) {
+func (Factory) Validate(_ *plugins.Manager, config []byte) (any, error) {
 
 	cfg := Config{}
 
@@ -50,7 +50,7 @@ func (Factory) Validate(_ *plugins.Manager, config []byte) (interface{}, error) 
 	return cfg, nil
 }
 
-func (Factory) New(_ *plugins.Manager, _ interface{}) plugins.Plugin {
+func (Factory) New(_ *plugins.Manager, _ any) plugins.Plugin {
 	return &Tester{}
 }
 

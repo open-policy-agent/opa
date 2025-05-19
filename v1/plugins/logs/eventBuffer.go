@@ -28,6 +28,7 @@ type eventBuffer struct {
 	client               rest.Client      // client is used to upload the data to the configured service
 	uploadPath           string           // uploadPath is the configured HTTP resource path for upload
 	uploadSizeLimitBytes int64            // uploadSizeLimitBytes will enforce a maximum payload size to be uploaded
+	enc                  *chunkEncoder    // encoder appends events into the gzip compressed JSON array
 	metrics              metrics.Metrics
 	logger               logging.Logger
 }
@@ -38,11 +39,13 @@ func newEventBuffer(bufferSizeLimitEvents int64, client rest.Client, uploadPath 
 		client:               client,
 		uploadPath:           uploadPath,
 		uploadSizeLimitBytes: uploadSizeLimitBytes,
+		enc:                  newChunkEncoder(uploadSizeLimitBytes),
 	}
 }
 
 func (b *eventBuffer) WithMetrics(m metrics.Metrics) *eventBuffer {
 	b.metrics = m
+	b.enc.metrics = m
 	return b
 }
 
@@ -57,7 +60,7 @@ func (b *eventBuffer) incrMetric(name string) {
 	}
 }
 
-func (b *eventBuffer) logError(fmt string, a ...interface{}) {
+func (b *eventBuffer) logError(fmt string, a ...any) {
 	if b.logger != nil {
 		b.logger.Error(fmt, a)
 	}
@@ -70,6 +73,7 @@ func (b *eventBuffer) Reconfigure(bufferSizeLimitEvents int64, client rest.Clien
 	b.client = client
 	b.uploadPath = uploadPath
 	b.uploadSizeLimitBytes = uploadSizeLimitBytes
+	b.enc.Reconfigure(uploadSizeLimitBytes)
 
 	if int64(cap(b.buffer)) == bufferSizeLimitEvents {
 		return
@@ -110,8 +114,6 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 		return &bufferEmpty{}
 	}
 
-	encoder := newChunkEncoder(b.uploadSizeLimitBytes)
-
 	for range eventLen {
 		event := b.readEvent()
 		if event == nil {
@@ -128,7 +130,7 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 				continue
 			}
 
-			result, err = encoder.WriteBytes(serialized)
+			result, err = b.enc.WriteBytes(serialized)
 			if err != nil {
 				b.incrMetric(logEncodingFailureCounterName)
 				b.logError("encoding failure: %v, dropping event with decision ID: %v", err, event.DecisionID)
@@ -142,7 +144,7 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 	}
 
 	// flush any chunks that didn't hit the upload limit
-	result, err := encoder.Flush()
+	result, err := b.enc.Flush()
 	if err != nil {
 		b.incrMetric(logEncodingFailureCounterName)
 		b.logError("encoding failure: %v", err)

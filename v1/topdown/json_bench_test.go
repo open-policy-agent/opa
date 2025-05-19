@@ -347,7 +347,7 @@ func BenchmarkJSONPatchReplace(b *testing.B) {
 			for _, p := range sizes {
 				testName := fmt.Sprintf("%dx%dx10-%dp", n, m, p)
 				b.Run(testName, func(b *testing.B) {
-					store := inmem.NewFromObject(map[string]interface{}{
+					store := inmem.NewFromObject(map[string]any{
 						"obj":     testdata[testName][0],
 						"patches": testdata[testName][1],
 					})
@@ -496,7 +496,7 @@ func BenchmarkJSONPatchPathologicalNestedAddChainSet(b *testing.B) {
 }
 
 func runJSONPatchBenchmarkTest(ctx context.Context, b *testing.B, source ast.Value, patches ast.Value) {
-	store := inmem.NewFromObject(map[string]interface{}{
+	store := inmem.NewFromObject(map[string]any{
 		"source":  source,
 		"patches": patches,
 	})

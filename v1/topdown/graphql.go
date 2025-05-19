@@ -101,7 +101,7 @@ func convertSchema(schemaDoc *gqlast.SchemaDocument) (*gqlast.Schema, error) {
 
 // Converts an ast.Object into a gqlast.QueryDocument object.
 func objectToQueryDocument(value ast.Object) (*gqlast.QueryDocument, error) {
-	// Convert ast.Term to interface{} for JSON encoding below.
+	// Convert ast.Term to any for JSON encoding below.
 	asJSON, err := ast.JSON(value)
 	if err != nil {
 		return nil, err
@@ -122,7 +122,7 @@ func objectToQueryDocument(value ast.Object) (*gqlast.QueryDocument, error) {
 
 // Converts an ast.Object into a gqlast.SchemaDocument object.
 func objectToSchemaDocument(value ast.Object) (*gqlast.SchemaDocument, error) {
-	// Convert ast.Term to interface{} for JSON encoding below.
+	// Convert ast.Term to any for JSON encoding below.
 	asJSON, err := ast.JSON(value)
 	if err != nil {
 		return nil, err

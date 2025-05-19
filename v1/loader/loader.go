@@ -30,7 +30,7 @@ import (
 
 // Result represents the result of successfully loading zero or more files.
 type Result struct {
-	Documents map[string]interface{}
+	Documents map[string]any
 	Modules   map[string]*RegoFile
 	path      []string
 }
@@ -468,13 +468,13 @@ func getSchemaSetByPathKey(path string) ast.Ref {
 	return key
 }
 
-func loadOneSchema(path string) (interface{}, error) {
+func loadOneSchema(path string) (any, error) {
 	bs, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	var schema interface{}
+	var schema any
 	if err := util.Unmarshal(bs, &schema); err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
@@ -584,7 +584,7 @@ func SplitPrefix(path string) ([]string, string) {
 	return nil, path
 }
 
-func (l *Result) merge(path string, result interface{}) error {
+func (l *Result) merge(path string, result any) error {
 	switch result := result.(type) {
 	case bundle.Bundle:
 		for _, module := range result.Modules {
@@ -603,7 +603,7 @@ func (l *Result) merge(path string, result interface{}) error {
 	}
 }
 
-func (l *Result) mergeDocument(path string, doc interface{}) error {
+func (l *Result) mergeDocument(path string, doc any) error {
 	obj, ok := makeDir(l.path, doc)
 	if !ok {
 		return unsupportedDocumentType(path)
@@ -629,7 +629,7 @@ func (l *Result) withParent(p string) *Result {
 
 func newResult() *Result {
 	return &Result{
-		Documents: map[string]interface{}{},
+		Documents: map[string]any{},
 		Modules:   map[string]*RegoFile{},
 	}
 }
@@ -719,7 +719,7 @@ func allRec(fsys fs.FS, path string, filter Filter, errors *Errors, loaded *Resu
 	}
 }
 
-func loadKnownTypes(path string, bs []byte, m metrics.Metrics, opts ast.ParserOptions) (interface{}, error) {
+func loadKnownTypes(path string, bs []byte, m metrics.Metrics, opts ast.ParserOptions) (any, error) {
 	switch filepath.Ext(path) {
 	case ".json":
 		return loadJSON(path, bs, m)
@@ -739,7 +739,7 @@ func loadKnownTypes(path string, bs []byte, m metrics.Metrics, opts ast.ParserOp
 	return nil, unrecognizedFile(path)
 }
 
-func loadFileForAnyType(path string, bs []byte, m metrics.Metrics, opts ast.ParserOptions) (interface{}, error) {
+func loadFileForAnyType(path string, bs []byte, m metrics.Metrics, opts ast.ParserOptions) (any, error) {
 	module, err := loadRego(path, bs, m, opts)
 	if err == nil {
 		return module, nil
@@ -784,9 +784,9 @@ func loadRego(path string, bs []byte, m metrics.Metrics, opts ast.ParserOptions)
 	return result, nil
 }
 
-func loadJSON(path string, bs []byte, m metrics.Metrics) (interface{}, error) {
+func loadJSON(path string, bs []byte, m metrics.Metrics) (any, error) {
 	m.Timer(metrics.RegoDataParse).Start()
-	var x interface{}
+	var x any
 	err := util.UnmarshalJSON(bs, &x)
 	m.Timer(metrics.RegoDataParse).Stop()
 
@@ -796,7 +796,7 @@ func loadJSON(path string, bs []byte, m metrics.Metrics) (interface{}, error) {
 	return x, nil
 }
 
-func loadYAML(path string, bs []byte, m metrics.Metrics) (interface{}, error) {
+func loadYAML(path string, bs []byte, m metrics.Metrics) (any, error) {
 	m.Timer(metrics.RegoDataParse).Start()
 	bs, err := yaml.YAMLToJSON(bs)
 	m.Timer(metrics.RegoDataParse).Stop()
@@ -806,15 +806,15 @@ func loadYAML(path string, bs []byte, m metrics.Metrics) (interface{}, error) {
 	return loadJSON(path, bs, m)
 }
 
-func makeDir(path []string, x interface{}) (map[string]interface{}, bool) {
+func makeDir(path []string, x any) (map[string]any, bool) {
 	if len(path) == 0 {
-		obj, ok := x.(map[string]interface{})
+		obj, ok := x.(map[string]any)
 		if !ok {
 			return nil, false
 		}
 		return obj, true
 	}
-	return makeDir(path[:len(path)-1], map[string]interface{}{path[len(path)-1]: x})
+	return makeDir(path[:len(path)-1], map[string]any{path[len(path)-1]: x})
 }
 
 // isUNC reports whether path is a UNC path.

@@ -127,7 +127,7 @@ func TestOutputJSONErrorStructuredASTErr(t *testing.T) {
 func TestOutputJSONErrorStructuredStorageErr(t *testing.T) {
 	store := inmem.New()
 	txn := storage.NewTransactionOrDie(context.Background(), store)
-	err := store.Write(context.Background(), txn, storage.AddOp, storage.Path{}, map[string]interface{}{"foo": 1})
+	err := store.Write(context.Background(), txn, storage.AddOp, storage.Path{}, map[string]any{"foo": 1})
 	expected := `{
   "errors": [
     {
@@ -470,9 +470,9 @@ func TestRaw(t *testing.T) {
 				Result: []rego.Result{
 					{
 						Expressions: []*rego.ExpressionValue{
-							{Value: []interface{}{"one"}},
-							{Value: map[string]interface{}{
-								"key": []interface{}{},
+							{Value: []any{"one"}},
+							{Value: map[string]any{
+								"key": []any{},
 							}},
 						},
 					},

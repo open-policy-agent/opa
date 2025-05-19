@@ -1621,7 +1621,7 @@ func TestDebuggerScopeVariables(t *testing.T) {
 		input        *ast.Term
 		locals       map[ast.Var]ast.Value
 		virtualCache map[string]ast.Value
-		data         map[string]interface{}
+		data         map[string]any
 		result       *rego.ResultSet
 		expScopes    map[string]scopeInfo
 	}{
@@ -1827,7 +1827,7 @@ func TestDebuggerScopeVariables(t *testing.T) {
 							Text:  "x = data.test.allow",
 						},
 					},
-					Bindings: map[string]interface{}{
+					Bindings: map[string]any{
 						"x": ast.Boolean(true),
 					},
 				},
@@ -1926,7 +1926,7 @@ func TestDebuggerScopeVariables(t *testing.T) {
 		},
 		{
 			note: "data",
-			data: map[string]interface{}{
+			data: map[string]any{
 				"foo": "bar",
 				"baz": 42,
 			},

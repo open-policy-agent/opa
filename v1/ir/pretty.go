@@ -11,7 +11,7 @@ import (
 )
 
 // Pretty writes a human-readable representation of an IR object to w.
-func Pretty(w io.Writer, x interface{}) error {
+func Pretty(w io.Writer, x any) error {
 
 	pp := &prettyPrinter{
 		depth: -1,
@@ -25,20 +25,20 @@ type prettyPrinter struct {
 	w     io.Writer
 }
 
-func (pp *prettyPrinter) Before(_ interface{}) {
+func (pp *prettyPrinter) Before(_ any) {
 	pp.depth++
 }
 
-func (pp *prettyPrinter) After(_ interface{}) {
+func (pp *prettyPrinter) After(_ any) {
 	pp.depth--
 }
 
-func (pp *prettyPrinter) Visit(x interface{}) (Visitor, error) {
+func (pp *prettyPrinter) Visit(x any) (Visitor, error) {
 	pp.writeIndent("%T %+v", x, x)
 	return pp, nil
 }
 
-func (pp *prettyPrinter) writeIndent(f string, a ...interface{}) {
+func (pp *prettyPrinter) writeIndent(f string, a ...any) {
 	pad := strings.Repeat("| ", pp.depth)
 	fmt.Fprintf(pp.w, pad+f+"\n", a...)
 }

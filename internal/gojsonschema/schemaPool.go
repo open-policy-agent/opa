@@ -34,7 +34,7 @@ import (
 )
 
 type schemaPoolDocument struct {
-	Document interface{}
+	Document any
 	Draft    *Draft
 }
 
@@ -44,7 +44,7 @@ type schemaPool struct {
 	autoDetect          *bool
 }
 
-func (p *schemaPool) parseReferences(document interface{}, ref gojsonreference.JsonReference, pooled bool) error {
+func (p *schemaPool) parseReferences(document any, ref gojsonreference.JsonReference, pooled bool) error {
 
 	var (
 		draft     *Draft
@@ -72,7 +72,7 @@ func (p *schemaPool) parseReferences(document interface{}, ref gojsonreference.J
 	return err
 }
 
-func (p *schemaPool) parseReferencesRecursive(document interface{}, ref gojsonreference.JsonReference, draft *Draft) error {
+func (p *schemaPool) parseReferencesRecursive(document any, ref gojsonreference.JsonReference, draft *Draft) error {
 	// parseReferencesRecursive parses a JSON document and resolves all $id and $ref references.
 	// For $ref references it takes into account the $id scope it is in and replaces
 	// the reference by the absolute resolved reference
@@ -80,14 +80,14 @@ func (p *schemaPool) parseReferencesRecursive(document interface{}, ref gojsonre
 	// When encountering errors it fails silently. Error handling is done when the schema
 	// is syntactically parsed and any error encountered here should also come up there.
 	switch m := document.(type) {
-	case []interface{}:
+	case []any:
 		for _, v := range m {
 			err := p.parseReferencesRecursive(v, ref, draft)
 			if err != nil {
 				return err
 			}
 		}
-	case map[string]interface{}:
+	case map[string]any:
 		localRef := &ref
 
 		keyID := KeyIDNew
@@ -129,7 +129,7 @@ func (p *schemaPool) parseReferencesRecursive(document interface{}, ref gojsonre
 			// Something like a property or a dependency is not a valid schema, as it might describe properties named "$ref", "$id" or "const", etc
 			// Therefore don't treat it like a schema.
 			if k == KeyProperties || k == KeyDependencies || k == KeyPatternProperties {
-				if child, ok := v.(map[string]interface{}); ok {
+				if child, ok := v.(map[string]any); ok {
 					for _, v := range child {
 						err := p.parseReferencesRecursive(v, *localRef, draft)
 						if err != nil {

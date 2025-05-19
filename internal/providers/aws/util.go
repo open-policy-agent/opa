@@ -18,7 +18,7 @@ func DoRequestWithClient(req *http.Request, client *http.Client, desc string, lo
 	}
 	defer resp.Body.Close()
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"url":     req.URL.String(),
 		"status":  resp.Status,
 		"headers": resp.Header,

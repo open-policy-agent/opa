@@ -13,7 +13,7 @@ import (
 // Pretty writes a pretty representation of the AST rooted at x to w.
 //
 // This is function is intended for debug purposes when inspecting ASTs.
-func Pretty(w io.Writer, x interface{}) {
+func Pretty(w io.Writer, x any) {
 	pp := &prettyPrinter{
 		depth: -1,
 		w:     w,
@@ -26,7 +26,7 @@ type prettyPrinter struct {
 	w     io.Writer
 }
 
-func (pp *prettyPrinter) Before(x interface{}) bool {
+func (pp *prettyPrinter) Before(x any) bool {
 	switch x.(type) {
 	case *Term:
 	default:
@@ -56,7 +56,7 @@ func (pp *prettyPrinter) Before(x interface{}) bool {
 	return false
 }
 
-func (pp *prettyPrinter) After(x interface{}) {
+func (pp *prettyPrinter) After(x any) {
 	switch x.(type) {
 	case *Term:
 	default:
@@ -64,19 +64,19 @@ func (pp *prettyPrinter) After(x interface{}) {
 	}
 }
 
-func (pp *prettyPrinter) writeValue(x interface{}) {
+func (pp *prettyPrinter) writeValue(x any) {
 	pp.writeIndent(fmt.Sprint(x))
 }
 
-func (pp *prettyPrinter) writeType(x interface{}) {
+func (pp *prettyPrinter) writeType(x any) {
 	pp.writeIndent(TypeName(x))
 }
 
-func (pp *prettyPrinter) writeIndent(f string, a ...interface{}) {
+func (pp *prettyPrinter) writeIndent(f string, a ...any) {
 	pad := strings.Repeat(" ", pp.depth)
 	pp.write(pad+f, a...)
 }
 
-func (pp *prettyPrinter) write(f string, a ...interface{}) {
+func (pp *prettyPrinter) write(f string, a ...any) {
 	fmt.Fprintf(pp.w, f+"\n", a...)
 }

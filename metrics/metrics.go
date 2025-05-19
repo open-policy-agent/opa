@@ -52,6 +52,6 @@ type Histogram = v1.Histogram
 // Counter defines the interface for a monotonic increasing counter.
 type Counter = v1.Counter
 
-func Statistics(num ...int64) interface{} {
+func Statistics(num ...int64) any {
 	return v1.Statistics(num...)
 }

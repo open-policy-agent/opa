@@ -72,7 +72,7 @@ func (s ECDSASigner) Algorithm() jwa.SignatureAlgorithm {
 
 // SignWithRand signs payload with a ECDSA private key and a provided randomness
 // source (such as `rand.Reader`).
-func (s ECDSASigner) SignWithRand(payload []byte, key interface{}, r io.Reader) ([]byte, error) {
+func (s ECDSASigner) SignWithRand(payload []byte, key any, r io.Reader) ([]byte, error) {
 	if key == nil {
 		return nil, errors.New("missing private key while signing payload")
 	}
@@ -85,6 +85,6 @@ func (s ECDSASigner) SignWithRand(payload []byte, key interface{}, r io.Reader) 
 }
 
 // Sign signs payload with a ECDSA private key
-func (s ECDSASigner) Sign(payload []byte, key interface{}) ([]byte, error) {
+func (s ECDSASigner) Sign(payload []byte, key any) ([]byte, error) {
 	return s.SignWithRand(payload, key, rand.Reader)
 }

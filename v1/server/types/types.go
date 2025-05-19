@@ -36,7 +36,7 @@ type ErrorV1 struct {
 }
 
 // NewErrorV1 returns a new ErrorV1 object.
-func NewErrorV1(code, f string, a ...interface{}) *ErrorV1 {
+func NewErrorV1(code, f string, a ...any) *ErrorV1 {
 	return &ErrorV1{
 		Code:    code,
 		Message: fmt.Sprintf(f, a...),
@@ -87,9 +87,9 @@ const (
 
 // PatchV1 models a single patch operation against a document.
 type PatchV1 struct {
-	Op    string      `json:"op"`
-	Path  string      `json:"path"`
-	Value interface{} `json:"value"`
+	Op    string `json:"op"`
+	Path  string `json:"path"`
+	Value any    `json:"value"`
 }
 
 // PolicyListResponseV1 models the response message for the Policy API list operation.
@@ -141,7 +141,7 @@ type ProvenanceBundleV1 struct {
 
 // DataRequestV1 models the request message for Data API POST operations.
 type DataRequestV1 struct {
-	Input *interface{} `json:"input"`
+	Input *any `json:"input"`
 }
 
 // DataResponseV1 models the response message for Data API read operations.
@@ -150,7 +150,7 @@ type DataResponseV1 struct {
 	Provenance  *ProvenanceV1 `json:"provenance,omitempty"`
 	Explanation TraceV1       `json:"explanation,omitempty"`
 	Metrics     MetricsV1     `json:"metrics,omitempty"`
-	Result      *interface{}  `json:"result,omitempty"`
+	Result      *any          `json:"result,omitempty"`
 	Warning     *Warning      `json:"warning,omitempty"`
 }
 
@@ -172,7 +172,7 @@ func NewWarning(code, message string) *Warning {
 }
 
 // MetricsV1 models a collection of performance metrics.
-type MetricsV1 map[string]interface{}
+type MetricsV1 map[string]any
 
 // QueryResponseV1 models the response message for Query API operations.
 type QueryResponseV1 struct {
@@ -182,7 +182,7 @@ type QueryResponseV1 struct {
 }
 
 // AdhocQueryResultSetV1 models the result of a Query API query.
-type AdhocQueryResultSetV1 []map[string]interface{}
+type AdhocQueryResultSetV1 []map[string]any
 
 // ExplainModeV1 defines supported values for the "explain" query parameter.
 type ExplainModeV1 string
@@ -286,13 +286,13 @@ func newPrettyTraceV1(trace []*topdown.Event) (TraceV1, error) {
 
 // TraceEventV1 represents a step in the query evaluation process.
 type TraceEventV1 struct {
-	Op       string      `json:"op"`
-	QueryID  uint64      `json:"query_id"`
-	ParentID uint64      `json:"parent_id"`
-	Type     string      `json:"type"`
-	Node     interface{} `json:"node"`
-	Locals   BindingsV1  `json:"locals"`
-	Message  string      `json:"message,omitempty"`
+	Op       string     `json:"op"`
+	QueryID  uint64     `json:"query_id"`
+	ParentID uint64     `json:"parent_id"`
+	Type     string     `json:"type"`
+	Node     any        `json:"node"`
+	Locals   BindingsV1 `json:"locals"`
+	Message  string     `json:"message,omitempty"`
 }
 
 // UnmarshalJSON deserializes a TraceEventV1 object. The Node field is
@@ -370,9 +370,9 @@ func NewBindingsV1(locals *ast.ValueMap) (result []*BindingV1) {
 
 // CompileRequestV1 models the request message for Compile API operations.
 type CompileRequestV1 struct {
-	Input    *interface{} `json:"input"`
-	Query    string       `json:"query"`
-	Unknowns *[]string    `json:"unknowns"`
+	Input    *any      `json:"input"`
+	Query    string    `json:"query"`
+	Unknowns *[]string `json:"unknowns"`
 	Options  struct {
 		DisableInlining          []string `json:"disableInlining,omitempty"`
 		NondeterministicBuiltins bool     `json:"nondeterministicBuiltins"`
@@ -381,9 +381,9 @@ type CompileRequestV1 struct {
 
 // CompileResponseV1 models the response message for Compile API operations.
 type CompileResponseV1 struct {
-	Result      *interface{} `json:"result,omitempty"`
-	Explanation TraceV1      `json:"explanation,omitempty"`
-	Metrics     MetricsV1    `json:"metrics,omitempty"`
+	Result      *any      `json:"result,omitempty"`
+	Explanation TraceV1   `json:"explanation,omitempty"`
+	Metrics     MetricsV1 `json:"metrics,omitempty"`
 }
 
 // PartialEvaluationResultV1 represents the output of partial evaluation and is
@@ -395,18 +395,18 @@ type PartialEvaluationResultV1 struct {
 
 // QueryRequestV1 models the request message for Query API operations.
 type QueryRequestV1 struct {
-	Query string       `json:"query"`
-	Input *interface{} `json:"input"`
+	Query string `json:"query"`
+	Input *any   `json:"input"`
 }
 
 // ConfigResponseV1 models the response message for Config API operations.
 type ConfigResponseV1 struct {
-	Result *interface{} `json:"result,omitempty"`
+	Result *any `json:"result,omitempty"`
 }
 
 // StatusResponseV1 models the response message for Status API (pull) operations.
 type StatusResponseV1 struct {
-	Result *interface{} `json:"result,omitempty"`
+	Result *any `json:"result,omitempty"`
 }
 
 // HealthResponseV1 models the response message for Health API operations.

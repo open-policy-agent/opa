@@ -100,7 +100,7 @@ result if {
 	}
 }
 
-func generateBulkStartsWithInput() map[string]interface{} {
+func generateBulkStartsWithInput() map[string]any {
 	strs := make([]string, 0, 1000)
 	for i := range strs {
 		strs = append(strs, fmt.Sprintf("aabbccddeeffgghhiijjkkllmmnnoopp_%d", i))
@@ -109,7 +109,7 @@ func generateBulkStartsWithInput() map[string]interface{} {
 	for i := range prefixes {
 		prefixes = append(prefixes, fmt.Sprintf("aabbccddeeffgghhiijjkkllmmnnoorr_%d", i))
 	}
-	return map[string]interface{}{
+	return map[string]any{
 		"strings":  strs,
 		"prefixes": prefixes,
 	}

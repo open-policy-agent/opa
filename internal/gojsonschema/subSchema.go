@@ -123,8 +123,8 @@ type SubSchema struct {
 	maxProperties *int
 	required      []string
 
-	dependencies         map[string]interface{}
-	additionalProperties interface{}
+	dependencies         map[string]any
+	additionalProperties any
 	patternProperties    map[string]*SubSchema
 	propertyNames        *SubSchema
 
@@ -134,7 +134,7 @@ type SubSchema struct {
 	uniqueItems bool
 	contains    *SubSchema
 
-	additionalItems interface{}
+	additionalItems any
 
 	// validation : all
 	_const *string //const is a golang keyword

@@ -5,6 +5,8 @@
 package topdown
 
 import (
+	"slices"
+
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/util"
 )
@@ -218,16 +220,17 @@ func (s *refStack) Push(refs []ast.Ref) {
 }
 
 func (s *refStack) Pop() {
+	if s == nil {
+		return
+	}
 	s.sl = s.sl[:len(s.sl)-1]
 }
 
 func (s *refStack) Prefixed(ref ast.Ref) bool {
 	if s != nil {
 		for i := len(s.sl) - 1; i >= 0; i-- {
-			for j := range s.sl[i].refs {
-				if ref.HasPrefix(s.sl[i].refs[j]) {
-					return true
-				}
+			if slices.ContainsFunc(s.sl[i].refs, ref.HasPrefix) {
+				return true
 			}
 		}
 	}
@@ -346,6 +349,10 @@ func (s *functionMocksStack) Put(el frame) {
 }
 
 func (s *functionMocksStack) Get(f ast.Ref) (*ast.Term, bool) {
+	if s == nil {
+		return nil, false
+	}
+
 	current := *s.stack[len(s.stack)-1]
 	for i := len(current) - 1; i >= 0; i-- {
 		if r, ok := current[i][f.String()]; ok {
