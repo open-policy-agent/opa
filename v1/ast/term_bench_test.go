@@ -470,25 +470,29 @@ func BenchmarkRefString(b *testing.B) {
 		`data.policy.test1.test2.test3.test4` +
 			`["main1"]["main2"]["main3"]["main4"]`,
 	)
+	singleTerm := Ref{VarTerm("is_object")}
 
 	b.Run("Simple", func(b *testing.B) {
-		b.ReportAllocs()
 		for range b.N {
 			_ = simpleRef.String()
 		}
 	})
 
 	b.Run("WithControl", func(b *testing.B) {
-		b.ReportAllocs()
 		for range b.N {
 			_ = controlRef.String()
 		}
 	})
 
 	b.Run("LongInput", func(b *testing.B) {
-		b.ReportAllocs()
 		for range b.N {
 			_ = longInputRef.String()
+		}
+	})
+
+	b.Run("SingleTerm", func(b *testing.B) {
+		for range b.N {
+			_ = singleTerm.String()
 		}
 	})
 }
