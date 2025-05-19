@@ -39,7 +39,7 @@ const (
 )
 
 // Accept determines if Key Operation is valid
-func (keyOperationList *KeyOperationList) Accept(v interface{}) error {
+func (keyOperationList *KeyOperationList) Accept(v any) error {
 	switch x := v.(type) {
 	case KeyOperationList:
 		*keyOperationList = x

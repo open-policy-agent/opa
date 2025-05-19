@@ -64,7 +64,7 @@ func TestCacheLimit(t *testing.T) {
 	}
 }
 
-func ensureCacheKey(t *testing.T, c *cache, k string, v interface{}) {
+func ensureCacheKey(t *testing.T, c *cache, k string, v any) {
 	t.Helper()
 	actual, ok := c.Get(k)
 	if !ok || v != actual {

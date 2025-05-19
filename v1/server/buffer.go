@@ -27,11 +27,11 @@ type Info struct {
 	Query              string
 	Path               string
 	Timestamp          time.Time
-	Input              *interface{}
+	Input              *any
 	InputAST           ast.Value
-	Results            *interface{}
-	MappedResults      *interface{}
-	NDBuiltinCache     *interface{}
+	Results            *any
+	MappedResults      *any
+	NDBuiltinCache     *any
 	Error              error
 	Metrics            metrics.Metrics
 	Trace              []*topdown.Event

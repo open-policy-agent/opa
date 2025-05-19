@@ -58,7 +58,7 @@ type Schema struct {
 	ReferencePool     *schemaReferencePool
 }
 
-func (d *Schema) parse(document interface{}, draft Draft) error {
+func (d *Schema) parse(document any, draft Draft) error {
 	d.RootSchema = &SubSchema{Property: StringRootSchemaProperty, Draft: &draft}
 	return d.parseSchema(document, d.RootSchema)
 }
@@ -73,7 +73,7 @@ func (d *Schema) SetRootSchemaName(name string) {
 // Pretty long function ( sorry :) )... but pretty straight forward, repetitive and boring
 // Not much magic involved here, most of the job is to validate the key names and their values,
 // then the values are copied into SubSchema struct
-func (d *Schema) parseSchema(documentNode interface{}, currentSchema *SubSchema) error {
+func (d *Schema) parseSchema(documentNode any, currentSchema *SubSchema) error {
 
 	if currentSchema.Draft == nil {
 		if currentSchema.Parent == nil {
@@ -90,7 +90,7 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *SubSchema)
 		}
 	}
 
-	m, isMap := documentNode.(map[string]interface{})
+	m, isMap := documentNode.(map[string]any)
 	if !isMap {
 		return errors.New(formatErrorDescription(
 			Locale.ParseError(),
@@ -146,10 +146,10 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *SubSchema)
 	// definitions
 	if v, ok := m[KeyDefinitions]; ok {
 		switch mt := v.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			for _, dv := range mt {
 				switch dv.(type) {
-				case bool, map[string]interface{}:
+				case bool, map[string]any:
 					newSchema := &SubSchema{Property: KeyDefinitions, Parent: currentSchema}
 					err := d.parseSchema(dv, newSchema)
 					if err != nil {
@@ -203,7 +203,7 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *SubSchema)
 			if err != nil {
 				return err
 			}
-		case []interface{}:
+		case []any:
 			for _, typeInArray := range t {
 				s, isString := typeInArray.(string)
 				if !isString {
@@ -231,7 +231,7 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *SubSchema)
 		switch v := additionalProperties.(type) {
 		case bool:
 			currentSchema.additionalProperties = v
-		case map[string]interface{}:
+		case map[string]any:
 			newSchema := &SubSchema{Property: KeyAdditionalProperties, Parent: currentSchema, Ref: currentSchema.Ref}
 			currentSchema.additionalProperties = newSchema
 			err := d.parseSchema(v, newSchema)
@@ -270,7 +270,7 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *SubSchema)
 	// propertyNames
 	if propertyNames, found := m[KeyPropertyNames]; found && *currentSchema.Draft >= Draft6 {
 		switch propertyNames.(type) {
-		case bool, map[string]interface{}:
+		case bool, map[string]any:
 			newSchema := &SubSchema{Property: KeyPropertyNames, Parent: currentSchema, Ref: currentSchema.Ref}
 			currentSchema.propertyNames = newSchema
 			err := d.parseSchema(propertyNames, newSchema)
@@ -299,10 +299,10 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *SubSchema)
 	// items
 	if items, found := m[KeyItems]; found {
 		switch i := items.(type) {
-		case []interface{}:
+		case []any:
 			for _, itemElement := range i {
 				switch itemElement.(type) {
-				case map[string]interface{}, bool:
+				case map[string]any, bool:
 					newSchema := &SubSchema{Parent: currentSchema, Property: KeyItems}
 					newSchema.Ref = currentSchema.Ref
 					currentSchema.ItemsChildren = append(currentSchema.ItemsChildren, newSchema)
@@ -315,7 +315,7 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *SubSchema)
 				}
 				currentSchema.ItemsChildrenIsSingleSchema = false
 			}
-		case map[string]interface{}, bool:
+		case map[string]any, bool:
 			newSchema := &SubSchema{Parent: currentSchema, Property: KeyItems}
 			newSchema.Ref = currentSchema.Ref
 			currentSchema.ItemsChildren = append(currentSchema.ItemsChildren, newSchema)
@@ -334,7 +334,7 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *SubSchema)
 		switch i := additionalItems.(type) {
 		case bool:
 			currentSchema.additionalItems = i
-		case map[string]interface{}:
+		case map[string]any:
 			newSchema := &SubSchema{Property: KeyAdditionalItems, Parent: currentSchema, Ref: currentSchema.Ref}
 			currentSchema.additionalItems = newSchema
 			err := d.parseSchema(additionalItems, newSchema)
@@ -717,7 +717,7 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *SubSchema)
 
 	if vNot, found := m[KeyNot]; found {
 		switch vNot.(type) {
-		case bool, map[string]interface{}:
+		case bool, map[string]any:
 			newSchema := &SubSchema{Property: KeyNot, Parent: currentSchema, Ref: currentSchema.Ref}
 			currentSchema.not = newSchema
 			err := d.parseSchema(vNot, newSchema)
@@ -735,7 +735,7 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *SubSchema)
 	if *currentSchema.Draft >= Draft7 {
 		if vIf, found := m[KeyIf]; found {
 			switch vIf.(type) {
-			case bool, map[string]interface{}:
+			case bool, map[string]any:
 				newSchema := &SubSchema{Property: KeyIf, Parent: currentSchema, Ref: currentSchema.Ref}
 				currentSchema._if = newSchema
 				err := d.parseSchema(vIf, newSchema)
@@ -752,7 +752,7 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *SubSchema)
 
 		if then, found := m[KeyThen]; found {
 			switch then.(type) {
-			case bool, map[string]interface{}:
+			case bool, map[string]any:
 				newSchema := &SubSchema{Property: KeyThen, Parent: currentSchema, Ref: currentSchema.Ref}
 				currentSchema._then = newSchema
 				err := d.parseSchema(then, newSchema)
@@ -769,7 +769,7 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *SubSchema)
 
 		if vElse, found := m[KeyElse]; found {
 			switch vElse.(type) {
-			case bool, map[string]interface{}:
+			case bool, map[string]any:
 				newSchema := &SubSchema{Property: KeyElse, Parent: currentSchema, Ref: currentSchema.Ref}
 				currentSchema._else = newSchema
 				err := d.parseSchema(vElse, newSchema)
@@ -788,9 +788,9 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *SubSchema)
 	return nil
 }
 
-func (d *Schema) parseReference(_ interface{}, currentSchema *SubSchema) error {
+func (d *Schema) parseReference(_ any, currentSchema *SubSchema) error {
 	var (
-		refdDocumentNode interface{}
+		refdDocumentNode any
 		dsp              *schemaPoolDocument
 		err              error
 	)
@@ -809,7 +809,7 @@ func (d *Schema) parseReference(_ interface{}, currentSchema *SubSchema) error {
 	newSchema.Draft = dsp.Draft
 
 	switch refdDocumentNode.(type) {
-	case bool, map[string]interface{}:
+	case bool, map[string]any:
 	// expected
 	default:
 		return errors.New(formatErrorDescription(
@@ -829,8 +829,8 @@ func (d *Schema) parseReference(_ interface{}, currentSchema *SubSchema) error {
 
 }
 
-func (d *Schema) parseProperties(documentNode interface{}, currentSchema *SubSchema) error {
-	m, isMap := documentNode.(map[string]interface{})
+func (d *Schema) parseProperties(documentNode any, currentSchema *SubSchema) error {
+	m, isMap := documentNode.(map[string]any)
 	if !isMap {
 		return errors.New(formatErrorDescription(
 			Locale.MustBeOfType(),
@@ -851,19 +851,19 @@ func (d *Schema) parseProperties(documentNode interface{}, currentSchema *SubSch
 	return nil
 }
 
-func (d *Schema) parseDependencies(documentNode interface{}, currentSchema *SubSchema) error {
-	m, isMap := documentNode.(map[string]interface{})
+func (d *Schema) parseDependencies(documentNode any, currentSchema *SubSchema) error {
+	m, isMap := documentNode.(map[string]any)
 	if !isMap {
 		return errors.New(formatErrorDescription(
 			Locale.MustBeOfType(),
 			ErrorDetails{"key": KeyDependencies, "type": TypeObject},
 		))
 	}
-	currentSchema.dependencies = make(map[string]interface{})
+	currentSchema.dependencies = make(map[string]any)
 
 	for k := range m {
 		switch values := m[k].(type) {
-		case []interface{}:
+		case []any:
 			var valuesToRegister []string
 			for _, value := range values {
 				str, isString := value.(string)
@@ -880,7 +880,7 @@ func (d *Schema) parseDependencies(documentNode interface{}, currentSchema *SubS
 				currentSchema.dependencies[k] = valuesToRegister
 			}
 
-		case bool, map[string]interface{}:
+		case bool, map[string]any:
 			depSchema := &SubSchema{Property: k, Parent: currentSchema, Ref: currentSchema.Ref}
 			err := d.parseSchema(m[k], depSchema)
 			if err != nil {
@@ -913,7 +913,7 @@ func invalidType(expected, given string) error {
 	))
 }
 
-func getString(m map[string]interface{}, key string) (*string, error) {
+func getString(m map[string]any, key string) (*string, error) {
 	v, found := m[key]
 	if !found {
 		// not found
@@ -927,13 +927,13 @@ func getString(m map[string]interface{}, key string) (*string, error) {
 	return &s, nil
 }
 
-func getMap(m map[string]interface{}, key string) (map[string]interface{}, error) {
+func getMap(m map[string]any, key string) (map[string]any, error) {
 	v, found := m[key]
 	if !found {
 		// not found
 		return nil, nil
 	}
-	s, isMap := v.(map[string]interface{})
+	s, isMap := v.(map[string]any)
 	if !isMap {
 		// wrong type
 		return nil, invalidType(StringSchema, key)
@@ -941,12 +941,12 @@ func getMap(m map[string]interface{}, key string) (map[string]interface{}, error
 	return s, nil
 }
 
-func getSlice(m map[string]interface{}, key string) ([]interface{}, error) {
+func getSlice(m map[string]any, key string) ([]any, error) {
 	v, found := m[key]
 	if !found {
 		return nil, nil
 	}
-	s, isArray := v.([]interface{})
+	s, isArray := v.([]any)
 	if !isArray {
 		return nil, errors.New(formatErrorDescription(
 			Locale.MustBeOfAn(),

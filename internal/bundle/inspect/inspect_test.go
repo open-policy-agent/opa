@@ -137,8 +137,8 @@ func TestGenerateBundleInfoWithFile(t *testing.T) {
 				Roots:    &[]string{"a", "b/c"},
 				Revision: "123",
 			},
-			Data: map[string]interface{}{
-				"a": map[string]interface{}{
+			Data: map[string]any{
+				"a": map[string]any{
 					"b": []int{4, 5, 6},
 				},
 			},
@@ -217,7 +217,7 @@ func TestGenerateBundleInfoWithBundleTarGz(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 
-		metadata := map[string]interface{}{"foo": "bar"}
+		metadata := map[string]any{"foo": "bar"}
 		wasmResolvers := []bundle.WasmResolver{{
 			Entrypoint: "http/example/authz/allow",
 			Module:     "/policy.wasm",
@@ -250,14 +250,14 @@ func TestGenerateBundleInfoWithBundleTarGz(t *testing.T) {
 			t.Fatalf("expected namespaces %v, but got %v", expectedNamespaces, info.Namespaces)
 		}
 
-		expectedWasmModules := []map[string]interface{}{}
-		expectedWasmModule1 := map[string]interface{}{
+		expectedWasmModules := []map[string]any{}
+		expectedWasmModule1 := map[string]any{
 			"path":        "/example/policy.wasm",
 			"url":         filepath.Join(bundleFile, "example", "policy.wasm"),
 			"entrypoints": []string{"data.http.example.foo.allow"},
 		}
 
-		expectedWasmModule2 := map[string]interface{}{
+		expectedWasmModule2 := map[string]any{
 			"path":        "/policy.wasm",
 			"url":         filepath.Join(bundleFile, "policy.wasm"),
 			"entrypoints": []string{"data.http.example.authz.allow"},

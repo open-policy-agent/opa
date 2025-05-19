@@ -27,7 +27,7 @@ type NDBCache = v1.NDBCache
 type ErrOperand = v1.ErrOperand
 
 // NewOperandErr returns a generic operand error.
-func NewOperandErr(pos int, f string, a ...interface{}) error {
+func NewOperandErr(pos int, f string, a ...any) error {
 	return v1.NewOperandErr(pos, f, a...)
 }
 

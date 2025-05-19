@@ -24,7 +24,7 @@ func NewTransactionOrDie(ctx context.Context, store Store, params ...Transaction
 // ReadOne is a convenience function to read a single value from the provided Store. It
 // will create a new Transaction to perform the read with, and clean up after itself
 // should an error occur.
-func ReadOne(ctx context.Context, store Store, path Path) (interface{}, error) {
+func ReadOne(ctx context.Context, store Store, path Path) (any, error) {
 	txn, err := store.NewTransaction(ctx)
 	if err != nil {
 		return nil, err
@@ -37,7 +37,7 @@ func ReadOne(ctx context.Context, store Store, path Path) (interface{}, error) {
 // WriteOne is a convenience function to write a single value to the provided Store. It
 // will create a new Transaction to perform the write with, and clean up after itself
 // should an error occur.
-func WriteOne(ctx context.Context, store Store, op PatchOp, path Path, value interface{}) error {
+func WriteOne(ctx context.Context, store Store, op PatchOp, path Path, value any) error {
 	txn, err := store.NewTransaction(ctx, WriteParams)
 	if err != nil {
 		return err
@@ -74,10 +74,10 @@ func MakeDir(ctx context.Context, store Store, txn Transaction, path Path) error
 			return err
 		}
 
-		return store.Write(ctx, txn, AddOp, path, map[string]interface{}{})
+		return store.Write(ctx, txn, AddOp, path, map[string]any{})
 	}
 
-	if _, ok := node.(map[string]interface{}); ok {
+	if _, ok := node.(map[string]any); ok {
 		return nil
 	}
 
@@ -122,7 +122,7 @@ func NonEmpty(ctx context.Context, store Store, txn Transaction) func([]string) 
 			if err != nil && !IsNotFound(err) {
 				return false, err
 			} else if err == nil {
-				if _, ok := val.(map[string]interface{}); ok {
+				if _, ok := val.(map[string]any); ok {
 					return false, nil
 				}
 				if _, ok := val.(ast.Object); ok {

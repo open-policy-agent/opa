@@ -267,11 +267,11 @@ p = 1`,
 							},
 						},
 						Schemas: []*SchemaAnnotation{
-							schemaAnnotationFromMap("input", map[string]interface{}{
+							schemaAnnotationFromMap("input", map[string]any{
 								"type": "boolean",
 							}),
 						},
-						Custom: map[string]interface{}{
+						Custom: map[string]any{
 							"pkg": "pkg",
 						},
 					},
@@ -295,11 +295,11 @@ p = 1`,
 							},
 						},
 						Schemas: []*SchemaAnnotation{
-							schemaAnnotationFromMap("input", map[string]interface{}{
+							schemaAnnotationFromMap("input", map[string]any{
 								"type": "integer",
 							}),
 						},
-						Custom: map[string]interface{}{
+						Custom: map[string]any{
 							"doc": "doc",
 						},
 					},
@@ -323,11 +323,11 @@ p = 1`,
 							},
 						},
 						Schemas: []*SchemaAnnotation{
-							schemaAnnotationFromMap("input", map[string]interface{}{
+							schemaAnnotationFromMap("input", map[string]any{
 								"type": "string",
 							}),
 						},
-						Custom: map[string]interface{}{
+						Custom: map[string]any{
 							"rule": "rule",
 						},
 					},
@@ -630,11 +630,11 @@ p = 1`,
 							},
 						},
 						Schemas: []*SchemaAnnotation{
-							schemaAnnotationFromMap("input.baz", map[string]interface{}{
+							schemaAnnotationFromMap("input.baz", map[string]any{
 								"type": "string",
 							}),
 						},
-						Custom: map[string]interface{}{
+						Custom: map[string]any{
 							"rule": "rule",
 						},
 					},
@@ -658,11 +658,11 @@ p = 1`,
 							},
 						},
 						Schemas: []*SchemaAnnotation{
-							schemaAnnotationFromMap("input.bar", map[string]interface{}{
+							schemaAnnotationFromMap("input.bar", map[string]any{
 								"type": "integer",
 							}),
 						},
-						Custom: map[string]interface{}{
+						Custom: map[string]any{
 							"doc": "doc",
 						},
 					},
@@ -686,11 +686,11 @@ p = 1`,
 							},
 						},
 						Schemas: []*SchemaAnnotation{
-							schemaAnnotationFromMap("input.foo", map[string]interface{}{
+							schemaAnnotationFromMap("input.foo", map[string]any{
 								"type": "boolean",
 							}),
 						},
-						Custom: map[string]interface{}{
+						Custom: map[string]any{
 							"pkg": "pkg",
 						},
 					},
@@ -1047,43 +1047,43 @@ func TestAnnotations_toObject(t *testing.T) {
 				Path:   MustParseRef("input.foo"),
 				Schema: MustParseRef("schema.a"),
 			},
-			schemaAnnotationFromMap("input.bar", map[string]interface{}{
+			schemaAnnotationFromMap("input.bar", map[string]any{
 				"type": "boolean",
 			}),
 		},
-		Custom: map[string]interface{}{
+		Custom: map[string]any{
 			"number": 42,
 			"float":  2.2,
 			"string": "foo bar baz",
 			"bool":   true,
-			"list": []interface{}{
+			"list": []any{
 				"a", "b",
 			},
-			"list_of_lists": []interface{}{
-				[]interface{}{
+			"list_of_lists": []any{
+				[]any{
 					"a", "b",
 				},
-				[]interface{}{
+				[]any{
 					"b", "c",
 				},
 			},
-			"list_of_maps": []interface{}{
-				map[string]interface{}{
+			"list_of_maps": []any{
+				map[string]any{
 					"one": 1,
 					"two": 2,
 				},
-				map[string]interface{}{
+				map[string]any{
 					"two":   2,
 					"three": 3,
 				},
 			},
-			"map": map[string]interface{}{
+			"map": map[string]any{
 				"nested_number": 1,
-				"nested_map": map[string]interface{}{
+				"nested_map": map[string]any{
 					"do": "re",
 					"mi": "fa",
 				},
-				"nested_list": []interface{}{
+				"nested_list": []any{
 					1, 2, 3,
 				},
 			},
@@ -1186,12 +1186,12 @@ func TestAnnotations_toObject(t *testing.T) {
 	}
 }
 
-func toJSON(v interface{}) string {
+func toJSON(v any) string {
 	b, _ := json.MarshalIndent(v, "", "  ")
 	return string(b)
 }
 
-func schemaAnnotationFromMap(path string, def map[string]interface{}) *SchemaAnnotation {
-	var p interface{} = def
+func schemaAnnotationFromMap(path string, def map[string]any) *SchemaAnnotation {
+	var p any = def
 	return &SchemaAnnotation{Path: MustParseRef(path), Definition: &p}
 }

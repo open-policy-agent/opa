@@ -277,7 +277,7 @@ func TestTopdownVirtualCache(t *testing.T) {
 		module    string
 		query     string
 		hit, miss uint64
-		exp       interface{} // if non-nil, check var `x`
+		exp       any // if non-nil, check var `x`
 	}{
 		{
 			note: "different args",
@@ -375,15 +375,15 @@ func TestTopdownVirtualCache(t *testing.T) {
 			query: `data.p.s.t = x; data.p.s.t`,
 			hit:   1,
 			miss:  1,
-			exp: map[string]interface{}{
-				"foo": map[string]interface{}{
-					"v": map[string]interface{}{
+			exp: map[string]any{
+				"foo": map[string]any{
+					"v": map[string]any{
 						"do": true,
 						"re": true,
 					},
 				},
-				"bar": map[string]interface{}{
-					"v": map[string]interface{}{
+				"bar": map[string]any{
+					"v": map[string]any{
 						"do": true,
 						"re": true,
 					},
@@ -397,8 +397,8 @@ func TestTopdownVirtualCache(t *testing.T) {
 			query: `data.p.s.t.foo = x; data.p.s.t["foo"]`,
 			hit:   1,
 			miss:  1,
-			exp: map[string]interface{}{
-				"v": map[string]interface{}{
+			exp: map[string]any{
+				"v": map[string]any{
 					"do": true,
 					"re": true,
 				},
@@ -411,7 +411,7 @@ func TestTopdownVirtualCache(t *testing.T) {
 			query: `data.p.s.t.foo.v = x; data.p.s.t["foo"].v`,
 			hit:   1,
 			miss:  1,
-			exp: map[string]interface{}{
+			exp: map[string]any{
 				"do": true,
 				"re": true,
 			},
@@ -468,8 +468,8 @@ func TestTopdownVirtualCache(t *testing.T) {
 			query: `data.p.s.t.foo = x; data.p.s.t.foo.v.do`,
 			hit:   1,
 			miss:  1,
-			exp: map[string]interface{}{
-				"v": map[string]interface{}{
+			exp: map[string]any{
+				"v": map[string]any{
 					"do": 0,
 					"re": 1,
 				},
@@ -1559,7 +1559,7 @@ func TestPartialRule(t *testing.T) {
 					t.Fatalf("Unexpected error: %v", err)
 				}
 
-				var exp []map[string]interface{}
+				var exp []map[string]any
 				if err := json.Unmarshal([]byte(tc.exp), &exp); err != nil {
 					t.Fatal("Failed to unmarshal exp")
 				}
@@ -1570,6 +1570,24 @@ func TestPartialRule(t *testing.T) {
 			}
 		})
 	}
+}
+
+type deadlineCtx struct{}
+
+func (_ *deadlineCtx) Err() error {
+	return context.DeadlineExceeded
+}
+
+func (_ *deadlineCtx) Deadline() (time.Time, bool) {
+	return time.Now(), false
+}
+
+func (_ *deadlineCtx) Value(_ any) any {
+	return nil
+}
+
+func (_ *deadlineCtx) Done() <-chan struct{} {
+	return nil
 }
 
 func TestContextErrorHandling(t *testing.T) {
@@ -1588,10 +1606,8 @@ func TestContextErrorHandling(t *testing.T) {
 		{
 			note: "context deadline exceeded is handled",
 			before: func() context.Context {
-				ctx, cancel := context.WithTimeout(ctx, 1*time.Millisecond)
-				time.Sleep(10 * time.Millisecond)
-				cancel()
-				return ctx
+				var d deadlineCtx
+				return &d
 			},
 			module: `package test
 				p contains v if {

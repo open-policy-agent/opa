@@ -1,0 +1,11 @@
+{
+  "account": {
+    "state": "open"
+  },
+  "user": {
+    "risk_score": "low"
+  },
+  "transaction": {
+    "amount": 950
+  }
+}

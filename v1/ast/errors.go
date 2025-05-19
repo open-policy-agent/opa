@@ -115,7 +115,7 @@ func (e *Error) Error() string {
 }
 
 // NewError returns a new Error object.
-func NewError(code string, loc *Location, f string, a ...interface{}) *Error {
+func NewError(code string, loc *Location, f string, a ...any) *Error {
 	return &Error{
 		Code:     code,
 		Location: loc,

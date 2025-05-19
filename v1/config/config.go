@@ -168,13 +168,13 @@ func (c Config) GetPersistenceDirectory() (string, error) {
 
 // ActiveConfig returns OPA's active configuration
 // with the credentials and crypto keys removed
-func (c *Config) ActiveConfig() (interface{}, error) {
+func (c *Config) ActiveConfig() (any, error) {
 	bs, err := json.Marshal(c)
 	if err != nil {
 		return nil, err
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := util.UnmarshalJSON(bs, &result); err != nil {
 		return nil, err
 	}
@@ -197,11 +197,11 @@ func (c *Config) ActiveConfig() (interface{}, error) {
 	return result, nil
 }
 
-func removeServiceCredentials(x interface{}) error {
+func removeServiceCredentials(x any) error {
 	switch x := x.(type) {
 	case nil:
 		return nil
-	case []interface{}:
+	case []any:
 		for _, v := range x {
 			err := removeKey(v, "credentials")
 			if err != nil {
@@ -209,7 +209,7 @@ func removeServiceCredentials(x interface{}) error {
 			}
 		}
 
-	case map[string]interface{}:
+	case map[string]any:
 		for _, v := range x {
 			err := removeKey(v, "credentials")
 			if err != nil {
@@ -223,11 +223,11 @@ func removeServiceCredentials(x interface{}) error {
 	return nil
 }
 
-func removeCryptoKeys(x interface{}) error {
+func removeCryptoKeys(x any) error {
 	switch x := x.(type) {
 	case nil:
 		return nil
-	case map[string]interface{}:
+	case map[string]any:
 		for _, v := range x {
 			err := removeKey(v, "key", "private_key")
 			if err != nil {
@@ -241,8 +241,8 @@ func removeCryptoKeys(x interface{}) error {
 	return nil
 }
 
-func removeKey(x interface{}, keys ...string) error {
-	val, ok := x.(map[string]interface{})
+func removeKey(x any, keys ...string) error {
+	val, ok := x.(map[string]any)
 	if !ok {
 		return errors.New("type assertion error")
 	}

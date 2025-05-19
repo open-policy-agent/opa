@@ -172,7 +172,7 @@ func dofindDefinition(params findDefinitionParams, stdin io.Reader, stdout io.Wr
 	})
 
 	if err != nil {
-		return presentation.JSON(stdout, map[string]interface{}{
+		return presentation.JSON(stdout, map[string]any{
 			"error": err,
 		})
 	}

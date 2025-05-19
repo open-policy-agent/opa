@@ -41,7 +41,7 @@ func main() {
 
 	// Evaluate the policy once.
 
-	var input interface{} = map[string]interface{}{
+	var input any = map[string]any{
 		"foo": true,
 		"bar": false,
 	}

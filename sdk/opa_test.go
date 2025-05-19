@@ -77,9 +77,9 @@ loopback = input
 		t.Fatal(`expected "foo" but got:`, decision)
 	}
 
-	exp := map[string]interface{}{"foo": "bar"}
+	exp := map[string]any{"foo": "bar"}
 
-	if result, err := opa.Decision(ctx, sdk.DecisionOptions{Path: "/system/loopback", Input: map[string]interface{}{"foo": "bar"}}); err != nil {
+	if result, err := opa.Decision(ctx, sdk.DecisionOptions{Path: "/system/loopback", Input: map[string]any{"foo": "bar"}}); err != nil {
 		t.Fatal(err)
 	} else if !reflect.DeepEqual(result.Result, exp) {
 		t.Fatalf("expected %v but got %v", exp, result.Result)

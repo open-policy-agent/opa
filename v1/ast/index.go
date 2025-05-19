@@ -253,7 +253,7 @@ type ruleWalker struct {
 	result *trieTraversalResult
 }
 
-func (r *ruleWalker) Do(x interface{}) trieWalker {
+func (r *ruleWalker) Do(x any) trieWalker {
 	tn := x.(*trieNode)
 	r.result.Add(tn)
 	return r
@@ -454,7 +454,7 @@ func (i *refindices) index(rule *Rule, ref Ref) *refindex {
 }
 
 type trieWalker interface {
-	Do(x interface{}) trieWalker
+	Do(x any) trieWalker
 }
 
 type trieTraversalResult struct {
@@ -850,7 +850,7 @@ func indexValue(b *Term) (Value, bool) {
 	case *Array:
 		stop := false
 		first := true
-		vis := NewGenericVisitor(func(x interface{}) bool {
+		vis := NewGenericVisitor(func(x any) bool {
 			if first {
 				first = false
 				return false

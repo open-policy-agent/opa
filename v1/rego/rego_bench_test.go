@@ -11,6 +11,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/runtime"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/loader"
+	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/storage"
 	inmem "github.com/open-policy-agent/opa/v1/storage/inmem/test"
 	"github.com/open-policy-agent/opa/v1/util/test"
@@ -22,11 +23,11 @@ func BenchmarkPartialObjectRuleCrossModule(b *testing.B) {
 
 	for _, n := range sizes {
 		b.Run(strconv.Itoa(n), func(b *testing.B) {
-			store := inmem.NewFromObject(map[string]interface{}{})
+			store := inmem.NewFromObject(map[string]any{})
 			mods := test.PartialObjectBenchmarkCrossModule(n)
 			query := "data.test.foo"
 
-			input := make(map[string]interface{})
+			input := make(map[string]any)
 			for idx := range 4 {
 				input[fmt.Sprintf("test_input_%d", idx)] = "test_input_10"
 			}
@@ -121,6 +122,7 @@ func BenchmarkCustomFunctionInHotPath(b *testing.B) {
 // https://github.com/microsoft/regorus?tab=readme-ov-file#performance
 
 // BenchmarkAciTestBuildAndEval-10    37    30700209 ns/op    16437935 B/op    384211 allocs/op
+// BenchmarkAciTestBuildAndEval-12    58    17566909 ns/op    15991409 B/op    304237 allocs/op
 func BenchmarkAciTestBuildAndEval(b *testing.B) {
 	ctx := context.Background()
 
@@ -155,6 +157,7 @@ func BenchmarkAciTestBuildAndEval(b *testing.B) {
 
 // BenchmarkAciTestOnlyEval-10    12752    92188 ns/op    50005 B/op    1062 allocs/op
 // BenchmarkAciTestOnlyEval-10    13521	   86647 ns/op	  47448 B/op	 967 allocs/op // ref.CopyNonGround
+// BenchmarkAciTestOnlyEval-12    21007	   57551 ns/op	  45323 B/op	 920 allocs/op
 func BenchmarkAciTestOnlyEval(b *testing.B) {
 	ctx := context.Background()
 
@@ -416,17 +419,16 @@ func BenchmarkStoreRead(b *testing.B) {
 	}
 }
 
-// 233337	      5730 ns/op	    5737 B/op	      93 allocs/op
-// 229280	      5222 ns/op	    5639 B/op	      89 allocs/op // ref.CopyNonGround
+// 5730 ns/op	    5737 B/op	      93 allocs/op
+// 5222 ns/op	    5639 B/op	      89 allocs/op // ref.CopyNonGround
+// 2786 ns/op	    5090 B/op	      77 allocs/op // Lazy init improvements
 func BenchmarkTrivialPolicy(b *testing.B) {
 	ctx := context.Background()
 	r := New(
 		ParsedQuery(ast.MustParseBody("data.p.r = x")),
 		ParsedModule(ast.MustParseModule(`package p
 		r := 1`)),
-		GenerateJSON(func(*ast.Term, *EvalContext) (any, error) {
-			return nil, nil
-		}),
+		GenerateJSON(noOpGenerateJSON),
 	)
 
 	pq, err := r.PrepareForEval(ctx)
@@ -444,6 +446,29 @@ func BenchmarkTrivialPolicy(b *testing.B) {
 	}
 }
 
+// 1851 ns/op       3376 B/op         53 allocs/op - main
+// 1312 ns/op	    2632 B/op	      38 allocs/op - lazy init targetStack, functionMockStack, comprehensionCache
+// ------------------------------------------------- and move newResolverTrie call from NewQuery to WithResolver
+// ...
+func BenchmarkTrivialQuery(b *testing.B) {
+	m := metrics.New()
+	r := New(ParsedQuery(ast.MustParseBody("1")), GenerateJSON(noOpGenerateJSON), Metrics(m))
+
+	ctx := context.Background()
+
+	pq, err := r.PrepareForEval(ctx)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for range b.N {
+		_, err := pq.Eval(ctx, EvalMetrics(m))
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func mustReadFileAsString(b *testing.B, path string) string {
 	b.Helper()
 
@@ -453,4 +478,8 @@ func mustReadFileAsString(b *testing.B, path string) string {
 	}
 
 	return string(bs)
+}
+
+func noOpGenerateJSON(*ast.Term, *EvalContext) (any, error) {
+	return nil, nil
 }

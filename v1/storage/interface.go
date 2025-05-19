@@ -25,10 +25,10 @@ type Store interface {
 	NewTransaction(context.Context, ...TransactionParams) (Transaction, error)
 
 	// Read is called to fetch a document referred to by path.
-	Read(context.Context, Transaction, Path) (interface{}, error)
+	Read(context.Context, Transaction, Path) (any, error)
 
 	// Write is called to modify a document referred to by path.
-	Write(context.Context, Transaction, PatchOp, Path, interface{}) error
+	Write(context.Context, Transaction, PatchOp, Path, any) error
 
 	// Commit is called to finish the transaction. If Commit returns an error, the
 	// transaction must be automatically aborted by the Store implementation.
@@ -67,18 +67,18 @@ type TransactionParams struct {
 
 // Context is a simple container for key/value pairs.
 type Context struct {
-	values map[interface{}]interface{}
+	values map[any]any
 }
 
 // NewContext returns a new context object.
 func NewContext() *Context {
 	return &Context{
-		values: map[interface{}]interface{}{},
+		values: map[any]any{},
 	}
 }
 
 // Get returns the key value in the context.
-func (ctx *Context) Get(key interface{}) interface{} {
+func (ctx *Context) Get(key any) any {
 	if ctx == nil {
 		return nil
 	}
@@ -86,7 +86,7 @@ func (ctx *Context) Get(key interface{}) interface{} {
 }
 
 // Put adds a key/value pair to the context.
-func (ctx *Context) Put(key, value interface{}) {
+func (ctx *Context) Put(key, value any) {
 	ctx.values[key] = value
 }
 
@@ -130,7 +130,7 @@ const (
 // interface which may be used if the backend does not support writes.
 type WritesNotSupported struct{}
 
-func (WritesNotSupported) Write(context.Context, Transaction, PatchOp, Path, interface{}) error {
+func (WritesNotSupported) Write(context.Context, Transaction, PatchOp, Path, any) error {
 	return writesNotSupportedError()
 }
 
@@ -176,7 +176,7 @@ type PolicyEvent struct {
 // DataEvent describes a change to a base data document.
 type DataEvent struct {
 	Path    Path
-	Data    interface{}
+	Data    any
 	Removed bool
 }
 

@@ -85,8 +85,6 @@ Example with bundle and input data:
 
 	opa bench -b ./policy-bundle -i input.json 'data.authz.allow'
 
-To enable more detailed analysis use the --metrics and --benchmem flags.
-
 To run benchmarks against a running OPA server to evaluate server overhead use the --e2e flag.
 
 The optional "gobench" output format conforms to the Go Benchmark Data Format.
@@ -165,7 +163,7 @@ func benchMain(args []string, params benchmarkCommandParams, w io.Writer, r benc
 		return 1, errRender
 	}
 
-	resultHandler := rego.GenerateJSON(func(*ast.Term, *rego.EvalContext) (interface{}, error) {
+	resultHandler := rego.GenerateJSON(func(*ast.Term, *rego.EvalContext) (any, error) {
 		// Do nothing with the result, as we are only interested in benchmarking evaluation —
 		// not the potentially slow process of rendering the result.
 		// Undefined / empty results will still be handled normally (fail the benchmark unless --fail
@@ -250,7 +248,9 @@ func (*goBenchRunner) run(ctx context.Context, ectx *evalContext, params benchma
 		}
 
 		// Reset the histogram for each invocation of the bench function
-		hist.Clear()
+		if params.metrics {
+			hist.Clear()
+		}
 
 		b.ResetTimer()
 		for range b.N {
@@ -380,7 +380,7 @@ func benchE2E(ctx context.Context, args []string, params benchmarkCommandParams,
 	}
 
 	// Wrap input in "input" attribute
-	inp := make(map[string]interface{})
+	inp := make(map[string]any)
 
 	if input != nil {
 		if err = util.Unmarshal(input, &inp); err != nil {
@@ -388,7 +388,7 @@ func benchE2E(ctx context.Context, args []string, params benchmarkCommandParams,
 		}
 	}
 
-	body := map[string]interface{}{"input": inp}
+	body := map[string]any{"input": inp}
 
 	var path string
 	if params.partial {
@@ -426,7 +426,7 @@ func benchE2E(ctx context.Context, args []string, params benchmarkCommandParams,
 	return nil
 }
 
-func runE2E(params benchmarkCommandParams, url string, input map[string]interface{}) (testing.BenchmarkResult, error) {
+func runE2E(params benchmarkCommandParams, url string, input map[string]any) (testing.BenchmarkResult, error) {
 	hist := metrics.New()
 
 	var benchErr error
@@ -482,7 +482,7 @@ func runE2E(params benchmarkCommandParams, url string, input map[string]interfac
 	return br, benchErr
 }
 
-func e2eQuery(params benchmarkCommandParams, url string, input map[string]interface{}) (types.MetricsV1, error) {
+func e2eQuery(params benchmarkCommandParams, url string, input map[string]any) (types.MetricsV1, error) {
 
 	reqBody, err := json.Marshal(input)
 	if err != nil {
@@ -507,7 +507,7 @@ func e2eQuery(params benchmarkCommandParams, url string, input map[string]interf
 	}
 
 	if resp.StatusCode != 200 {
-		var e map[string]interface{}
+		var e map[string]any
 		if err = util.Unmarshal(body, &e); err != nil {
 			return nil, err
 		}
@@ -555,7 +555,7 @@ func e2eQuery(params benchmarkCommandParams, url string, input map[string]interf
 
 		i := *result.Result
 
-		peResult, ok := i.(map[string]interface{})
+		peResult, ok := i.(map[string]any)
 		if !ok {
 			return nil, errors.New("invalid result for compile response")
 		}
@@ -565,7 +565,7 @@ func e2eQuery(params benchmarkCommandParams, url string, input map[string]interf
 		}
 
 		if val, ok := peResult["queries"]; ok {
-			queries, ok := val.([]interface{})
+			queries, ok := val.([]any)
 			if !ok {
 				return nil, errors.New("invalid result for output of partial evaluation")
 			}
@@ -666,11 +666,11 @@ func prettyFormatFloat(x float64) string {
 	return fmt.Sprintf(format, x)
 }
 
-func reportMetrics(b *testing.B, m map[string]interface{}) {
+func reportMetrics(b *testing.B, m map[string]any) {
 	// For each histogram add their values to the benchmark results.
 	// Note: If there are many metrics this gets super verbose.
 	for histName, metric := range m {
-		histValues, ok := metric.(map[string]interface{})
+		histValues, ok := metric.(map[string]any)
 		if !ok {
 			continue
 		}

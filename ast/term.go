@@ -30,7 +30,7 @@ func NewLocation(text []byte, file string, row int, col int) *Location {
 type Value = v1.Value
 
 // InterfaceToValue converts a native Go value x to a Value.
-func InterfaceToValue(x interface{}) (Value, error) {
+func InterfaceToValue(x any) (Value, error) {
 	return v1.InterfaceToValue(x)
 }
 
@@ -40,7 +40,7 @@ func ValueFromReader(r io.Reader) (Value, error) {
 }
 
 // As converts v into a Go native type referred to by x.
-func As(v Value, x interface{}) error {
+func As(v Value, x any) error {
 	return v1.As(v, x)
 }
 
@@ -62,13 +62,13 @@ func IsUnknownValueErr(err error) bool {
 // ValueToInterface returns the Go representation of an AST value.  The AST
 // value should not contain any values that require evaluation (e.g., vars,
 // comprehensions, etc.)
-func ValueToInterface(v Value, resolver Resolver) (interface{}, error) {
+func ValueToInterface(v Value, resolver Resolver) (any, error) {
 	return v1.ValueToInterface(v, resolver)
 }
 
 // JSON returns the JSON representation of v. The value must not contain any
 // refs or terms that require evaluation (e.g., vars, comprehensions, etc.)
-func JSON(v Value) (interface{}, error) {
+func JSON(v Value) (any, error) {
 	return v1.JSON(v)
 }
 
@@ -77,7 +77,7 @@ type JSONOpt = v1.JSONOpt
 
 // JSONWithOpt returns the JSON representation of v. The value must not contain any
 // refs or terms that require evaluation (e.g., vars, comprehensions, etc.)
-func JSONWithOpt(v Value, opt JSONOpt) (interface{}, error) {
+func JSONWithOpt(v Value, opt JSONOpt) (any, error) {
 	return v1.JSONWithOpt(v, opt)
 }
 
@@ -85,14 +85,14 @@ func JSONWithOpt(v Value, opt JSONOpt) (interface{}, error) {
 // refs or terms that require evaluation (e.g., vars, comprehensions, etc.) If
 // the conversion fails, this function will panic. This function is mostly for
 // test purposes.
-func MustJSON(v Value) interface{} {
+func MustJSON(v Value) any {
 	return v1.MustJSON(v)
 }
 
 // MustInterfaceToValue converts a native Go value x to a Value. If the
 // conversion fails, this function will panic. This function is mostly for test
 // purposes.
-func MustInterfaceToValue(x interface{}) Value {
+func MustInterfaceToValue(x any) Value {
 	return v1.MustInterfaceToValue(x)
 }
 
@@ -115,17 +115,17 @@ func IsComprehension(x Value) bool {
 }
 
 // ContainsRefs returns true if the Value v contains refs.
-func ContainsRefs(v interface{}) bool {
+func ContainsRefs(v any) bool {
 	return v1.ContainsRefs(v)
 }
 
 // ContainsComprehensions returns true if the Value v contains comprehensions.
-func ContainsComprehensions(v interface{}) bool {
+func ContainsComprehensions(v any) bool {
 	return v1.ContainsComprehensions(v)
 }
 
 // ContainsClosures returns true if the Value v contains closures.
-func ContainsClosures(v interface{}) bool {
+func ContainsClosures(v any) bool {
 	return v1.ContainsClosures(v)
 }
 
@@ -256,7 +256,7 @@ func ObjectTerm(o ...[2]*Term) *Term {
 	return v1.ObjectTerm(o...)
 }
 
-func LazyObject(blob map[string]interface{}) Object {
+func LazyObject(blob map[string]any) Object {
 	return v1.LazyObject(blob)
 }
 

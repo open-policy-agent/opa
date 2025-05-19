@@ -55,16 +55,16 @@ type EventV1 struct {
 	Bundles        map[string]BundleInfoV1 `json:"bundles,omitempty"`
 	Path           string                  `json:"path,omitempty"`
 	Query          string                  `json:"query,omitempty"`
-	Input          *interface{}            `json:"input,omitempty"`
-	Result         *interface{}            `json:"result,omitempty"`
-	MappedResult   *interface{}            `json:"mapped_result,omitempty"`
-	NDBuiltinCache *interface{}            `json:"nd_builtin_cache,omitempty"`
+	Input          *any                    `json:"input,omitempty"`
+	Result         *any                    `json:"result,omitempty"`
+	MappedResult   *any                    `json:"mapped_result,omitempty"`
+	NDBuiltinCache *any                    `json:"nd_builtin_cache,omitempty"`
 	Erased         []string                `json:"erased,omitempty"`
 	Masked         []string                `json:"masked,omitempty"`
 	Error          error                   `json:"error,omitempty"`
 	RequestedBy    string                  `json:"requested_by,omitempty"`
 	Timestamp      time.Time               `json:"timestamp"`
-	Metrics        map[string]interface{}  `json:"metrics,omitempty"`
+	Metrics        map[string]any          `json:"metrics,omitempty"`
 	RequestID      uint64                  `json:"req_id,omitempty"`
 	RequestContext *RequestContext         `json:"request_context,omitempty"`
 
@@ -236,10 +236,10 @@ func (e *EventV1) AST() (ast.Value, error) {
 	return event, nil
 }
 
-func roundtripJSONToAST(x interface{}) (ast.Value, error) {
+func roundtripJSONToAST(x any) (ast.Value, error) {
 	rawPtr := util.Reference(x)
 	// roundtrip through json: this turns slices (e.g. []string, []bool) into
-	// []interface{}, the only array type ast.InterfaceToValue can work with
+	// []any, the only array type ast.InterfaceToValue can work with
 	if err := util.RoundTrip(rawPtr); err != nil {
 		return nil, err
 	}
@@ -507,7 +507,7 @@ func (po *prepareOnce) prepareOnce(f func() (*rego.PreparedEvalQuery, error)) (*
 }
 
 type reconfigure struct {
-	config interface{}
+	config any
 	done   chan struct{}
 }
 
@@ -598,7 +598,7 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		stop:         make(chan chan struct{}),
 		enc:          newChunkEncoder(*parsedConfig.Reporting.UploadSizeLimitBytes),
 		reconfig:     make(chan reconfigure),
-		logger:       manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
+		logger:       manager.Logger().WithFields(map[string]any{"plugin": Name}),
 		status:       &lstat.Status{},
 		preparedDrop: *newPrepareOnce(),
 		preparedMask: *newPrepareOnce(),
@@ -800,7 +800,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 }
 
 // Reconfigure notifies the plugin with a new configuration.
-func (p *Plugin) Reconfigure(_ context.Context, config interface{}) {
+func (p *Plugin) Reconfigure(_ context.Context, config any) {
 
 	done := make(chan struct{})
 	p.reconfig <- reconfigure{config: config, done: done}
@@ -979,7 +979,7 @@ func (p *Plugin) oneShot(ctx context.Context) error {
 	return err
 }
 
-func (p *Plugin) reconfigure(ctx context.Context, config interface{}) {
+func (p *Plugin) reconfigure(ctx context.Context, config any) {
 	newConfig := config.(*Config)
 
 	if reflect.DeepEqual(p.config, *newConfig) {
@@ -1228,12 +1228,12 @@ func (p *Plugin) logEvent(event EventV1) error {
 	if err != nil {
 		return err
 	}
-	fields := map[string]interface{}{}
+	fields := map[string]any{}
 	err = util.UnmarshalJSON(eventBuf, &fields)
 	if err != nil {
 		return err
 	}
-	p.manager.ConsoleLogger().WithFields(fields).WithFields(map[string]interface{}{
+	p.manager.ConsoleLogger().WithFields(fields).WithFields(map[string]any{
 		"type": "openpolicyagent.org/decision_logs",
 	}).Info("Decision Log")
 	return nil
