@@ -11,12 +11,24 @@
 /docs/latest/envoy-introduction/ /docs/kubernetes/
 
 # -----------------------------------------------------------------------------
+# Redirects for legacy usage external resources
+# -----------------------------------------------------------------------------
+
+/bundles/helm-kubernetes-quickstart /external-resources/bundles/helm-kubernetes-quickstart 301!
+/img/logos/opa-horizontal-color.png /external-resources/opa-horizontal-color.png 301!
+/img/logos/opa-no-text-color.png /external-resources/opa-no-text-color.png 301!
+
+# -----------------------------------------------------------------------------
 # Redirects relating to client behavior
 # -----------------------------------------------------------------------------
 
 # some clients seem to load manifest.json even though the manifest is set to
 # another path.
 /manifest.json /site.webmanifest 301!
+
+# clients still seem to request the precomposed icon even though we make
+# no reference to it. We can use the same as the normal icon.
+/apple-touch-icon-precomposed.png /apple-touch-icon.png 301!
 
 # -----------------------------------------------------------------------------
 # Redirects relating to spam traffic
