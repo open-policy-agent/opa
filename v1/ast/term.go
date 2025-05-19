@@ -1180,11 +1180,17 @@ func (ref Ref) String() string {
 		return ""
 	}
 
+	if len(ref) == 1 {
+		switch p := ref[0].Value.(type) {
+		case Var:
+			return p.String()
+		}
+	}
+
 	sb := sbPool.Get()
 	defer sbPool.Put(sb)
 
 	sb.Grow(10 * len(ref))
-
 	sb.WriteString(ref[0].Value.String())
 
 	for _, p := range ref[1:] {
@@ -1195,17 +1201,17 @@ func (ref Ref) String() string {
 				sb.WriteByte('.')
 				sb.WriteString(str)
 			} else {
+				sb.WriteByte('[')
 				// Determine whether we need the full JSON-escaped form
 				if strings.ContainsFunc(str, isControlOrBackslash) {
-					sb.WriteByte('[')
 					// only now pay the cost of expensive JSON-escaped form
 					sb.WriteString(p.String())
-					sb.WriteByte(']')
 				} else {
-					sb.WriteString(`["`)
+					sb.WriteByte('"')
 					sb.WriteString(str)
-					sb.WriteString(`"]`)
+					sb.WriteByte('"')
 				}
+				sb.WriteByte(']')
 			}
 		default:
 			sb.WriteByte('[')
