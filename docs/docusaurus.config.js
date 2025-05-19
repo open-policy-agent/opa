@@ -7,8 +7,7 @@ const path = require("path");
 
 const { loadPages } = require("./src/lib/ecosystem/loadPages");
 
-// TODO: update this to "/" when this is the main site.
-const baseUrl = "/new/";
+const baseUrl = "/";
 
 // With JSDoc @type annotations, IDEs can provide config autocompletion
 /** @type {import("@docusaurus/types").DocusaurusConfig} */
@@ -36,6 +35,10 @@ const baseUrl = "/new/";
           blog: false,
           theme: {
             customCss: require.resolve("./src/css/custom.css"),
+          },
+          gtag: {
+            trackingID: "G-JNBNV64PDX",
+            anonymizeIP: true,
           },
         },
       ],
@@ -245,15 +248,6 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
           };
         },
       }),
-      [
-        "@docusaurus/preset-classic",
-        {
-          gtag: {
-            trackingID: "G-JNBNV64PDX",
-            anonymizeIP: true,
-          },
-        },
-      ],
       async function ecosystemLanguagePageGen(context, options) {
         return {
           name: "ecosystem-language-gen",
@@ -344,7 +338,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
           name: "builtin-data",
 
           async loadContent() {
-            const filePath = "../../builtin_metadata.json";
+            const filePath = "../builtin_metadata.json";
             const fileContent = await fs.readFile(filePath, "utf-8");
             const builtins = JSON.parse(fileContent);
             return { builtins };
@@ -391,7 +385,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
           name: "versions-data",
 
           async loadContent() {
-            const capabilitiesDir = path.resolve(__dirname, "../../capabilities");
+            const capabilitiesDir = path.resolve(__dirname, "../capabilities");
             let sortedVersions = [];
 
             const dirents = await fs.readdir(capabilitiesDir, { withFileTypes: true });
