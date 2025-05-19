@@ -436,15 +436,41 @@ type inliningControl struct {
 type disableInliningFrame struct {
 	internal bool
 	refs     []ast.Ref
+	v        ast.Var
 }
 
-func (i *inliningControl) PushDisable(refs []ast.Ref, internal bool) {
+func (i *inliningControl) PushDisable(x any, internal bool) {
 	if i == nil {
 		return
 	}
+
+	switch x := x.(type) {
+	case []ast.Ref:
+		i.PushDisableRefs(x, internal)
+	case ast.Var:
+		i.PushDisableVar(x, internal)
+	}
+}
+
+func (i *inliningControl) PushDisableRefs(refs []ast.Ref, internal bool) {
+	if i == nil {
+		return
+	}
+
 	i.disable = append(i.disable, disableInliningFrame{
 		internal: internal,
 		refs:     refs,
+	})
+}
+
+func (i *inliningControl) PushDisableVar(v ast.Var, internal bool) {
+	if i == nil {
+		return
+	}
+
+	i.disable = append(i.disable, disableInliningFrame{
+		internal: internal,
+		v:        v,
 	})
 }
 
@@ -455,10 +481,26 @@ func (i *inliningControl) PopDisable() {
 	i.disable = i.disable[:len(i.disable)-1]
 }
 
-func (i *inliningControl) Disabled(ref ast.Ref, ignoreInternal bool) bool {
+func (i *inliningControl) Disabled(x any, ignoreInternal bool) bool {
 	if i == nil {
 		return false
 	}
+
+	switch x := x.(type) {
+	case ast.Ref:
+		return i.DisabledRef(x, ignoreInternal)
+	case ast.Var:
+		return i.DisabledVar(x, ignoreInternal)
+	}
+
+	return false
+}
+
+func (i *inliningControl) DisabledRef(ref ast.Ref, ignoreInternal bool) bool {
+	if i == nil {
+		return false
+	}
+
 	for _, frame := range i.disable {
 		if !frame.internal || !ignoreInternal {
 			for _, other := range frame.refs {
@@ -466,6 +508,19 @@ func (i *inliningControl) Disabled(ref ast.Ref, ignoreInternal bool) bool {
 					return true
 				}
 			}
+		}
+	}
+	return false
+}
+
+func (i *inliningControl) DisabledVar(v ast.Var, ignoreInternal bool) bool {
+	if i == nil {
+		return false
+	}
+
+	for _, frame := range i.disable {
+		if (!frame.internal || !ignoreInternal) && frame.v.Equal(v) {
+			return true
 		}
 	}
 	return false

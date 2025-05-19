@@ -1,6 +1,0 @@
-{{ $file     := .Get "file" }}
-{{ $lang     := .Get "lang" }}
-{{ $version  := index (split $.Page.File.Path "/") 1 }}
-{{ $filepath := printf "docs/%s/code/%s" $version $file }}
-{{ $data     := readFile $filepath }}
-{{ highlight $data $lang "" }}

@@ -447,6 +447,11 @@ func (e *eval) evalStep(iter evalIterator) error {
 		case *ast.Term:
 			// generateVar inlined here to avoid extra allocations in hot path
 			rterm := ast.VarTerm(e.fmtVarTerm())
+
+			if e.partial() {
+				e.inliningControl.PushDisable(rterm.Value, true)
+			}
+
 			err = e.unify(terms, rterm, func() error {
 				if e.saveSet.Contains(rterm, e.bindings) {
 					return e.saveExpr(ast.NewExpr(rterm), e.bindings, func() error {
@@ -461,6 +466,10 @@ func (e *eval) evalStep(iter evalIterator) error {
 				}
 				return nil
 			})
+
+			if e.partial() {
+				e.inliningControl.PopDisable()
+			}
 		case *ast.Every:
 			eval := evalEvery{
 				Every: terms,
@@ -3426,13 +3435,17 @@ func (e evalVirtualComplete) eval(iter unifyIterator) error {
 	var generateSupport bool
 
 	if e.ir.Default != nil {
-		// If the other term is not constant OR it's equal to the default value, then
-		// a support rule must be produced as the default value _may_ be required. On
-		// the other hand, if the other term is constant (i.e., it does not require
-		// evaluation) and it differs from the default value then the default value is
-		// _not_ required, so partially evaluate the rule normally.
-		rterm := e.rbindings.Plug(e.rterm)
-		generateSupport = !ast.IsConstant(rterm.Value) || e.ir.Default.Head.Value.Equal(rterm)
+		// If inlining has been disabled for the rterm, and the default rule has a 'false' result value,
+		// the default value is inconsequential, and support does not need to be generated.
+		if !(e.ir.Default.Head.Value.Equal(ast.InternedBooleanTerm(false)) && e.e.inliningControl.Disabled(e.rterm.Value, false)) {
+			// If the other term is not constant OR it's equal to the default value, then
+			// a support rule must be produced as the default value _may_ be required. On
+			// the other hand, if the other term is constant (i.e., it does not require
+			// evaluation) and it differs from the default value then the default value is
+			// _not_ required, so partially evaluate the rule normally.
+			rterm := e.rbindings.Plug(e.rterm)
+			generateSupport = !ast.IsConstant(rterm.Value) || e.ir.Default.Head.Value.Equal(rterm)
+		}
 	}
 
 	if generateSupport || e.e.inliningControl.shallow || e.e.inliningControl.Disabled(e.plugged[:e.pos+1], false) {
