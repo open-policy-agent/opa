@@ -680,7 +680,7 @@ PUT /v1/policies/example1 HTTP/1.1
 Content-Type: text/plain
 ```
 
-```live:put_example:module:read_only
+```rego
 package opa.examples
 
 import data.networks
@@ -902,7 +902,7 @@ case, the response will not contain a `result` property.
 
 The examples below assume the following policy:
 
-```live:input_example:module:read_only
+```rego
 package opa.examples
 
 import input.example.flag
@@ -1004,7 +1004,7 @@ If the requested document is missing or undefined, the server will return 404 an
 
 The examples below assume the following policy:
 
-```live:webhook_example:module:read_only
+```rego
 package opa.examples
 
 import input.example.flag
@@ -1223,7 +1223,7 @@ PUT /v1/policies/example1 HTTP/1.1
 Content-Type: text/plain
 ```
 
-```live:system_example:module:read_only
+```rego
 package system
 
 main := msg if {
@@ -1381,7 +1381,7 @@ Compile API requests contain the following fields:
 
 The example below assumes that OPA has been given the following policy:
 
-```live:compile_example:module:read_only
+```rego
 package example
 
 allow if {
@@ -1476,7 +1476,7 @@ When you partially evaluate a query with the Compile API, OPA returns a new set 
 
 For example, if you extend to policy above to include a "break glass" condition, the decision may be to allow all requests regardless of clearance level.
 
-```live:compile_unconditional_example:module:read_only
+```rego
 package example
 
 allow if {
@@ -1554,7 +1554,7 @@ It is also possible for queries to _never_ be true. For example, the
 original policy could be extended to require that users be granted an
 exception:
 
-```live:compile_unconditional_false_example:module:read_only
+```rego
 package example
 
 allow if {
@@ -1697,7 +1697,7 @@ is defined under package `system.health`.
 Here is a basic health policy for liveness and readiness. In this example, OPA is live once it is
 able to process the `live` rule. OPA is ready once all plugins have entered the OK state at least once.
 
-```live:health_policy_example:module:read_only
+```rego
 package system.health
 
 # opa is live if it can process this rule
@@ -1715,7 +1715,7 @@ ready if {
 Note that once `input.plugins_ready` is true, it stays true. If you want to fail the ready check when
 specific a plugin leaves the OK state, try this:
 
-```live:health_policy_example_2:module:read_only
+```rego
 package system.health
 
 default live := true

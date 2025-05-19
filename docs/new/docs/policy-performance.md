@@ -16,7 +16,7 @@ in near constant time. Adding more rules to the policy will not significantly in
 
 For example, the following rule has one local variable `user`, and that variable can only be assigned one value. Intuitively, evaluating this rule requires checking each of the conditions in the body, and if there were N of these rules, evaluation would only require walking over each of them as well.
 
-```live:linear:module:read_only,openable
+```rego
 package linear
 
 allow if {
@@ -29,10 +29,10 @@ allow if {
 
 ### Use objects over arrays
 
-One common mistake people make is using arrays when they could use objects. For example, below is an array of ID/first-name/last-names where ID is unique, and you're looking up the first-name/last-name given the ID.
+<SideBySideContainer>
+<SideBySideColumn>
 
-```live:prefer_objects/bad:query
-# DO NOT DO THIS.
+```rego title="Bad"
 # Array of objects where each object has a unique identifier
 d := [{"id": "a123", "first": "alice", "last": "smith"},
       {"id": "a456", "first": "bob", "last": "jones"},
@@ -43,10 +43,14 @@ d[i].id == "a789"
 d[i].first ...
 ```
 
-Instead, use a dictionary where the key is the ID and the value is the first-name/last-name. Given the ID, you can look up the name information directly.
+One common mistake people make is using arrays when they could use objects. For
+example, below is an array of ID/first-name/last-names where ID is unique, and
+you're looking up the first-name/last-name given the ID.
 
-```live:prefer_objects/good:query
-# DO THIS INSTEAD OF THE ABOVE
+</SideBySideColumn>
+<SideBySideColumn>
+
+```rego title="Good"
 # Use object whose keys are the IDs for the objects.
 #   Looking up an object given its ID requires NO search
 d := {"a123": {"first": "alice", "last": "smith"},
@@ -56,6 +60,13 @@ d := {"a123": {"first": "alice", "last": "smith"},
 # no search required
 d["a789"].first ...
 ```
+
+Instead, use a dictionary where the key is the ID and the value is the
+first-name/last-name. Given the ID, you can look up the name information
+directly.
+
+</SideBySideColumn>
+</SideBySideContainer>
 
 ### Use indexed statements
 
@@ -67,7 +78,7 @@ In the linear fragment, OPA includes special algorithms that **index rules effic
 
 Here is an example policy from the [rule-indexing blog](https://blog.openpolicyagent.org/optimizing-opa-rule-indexing-59f03f17caf3) giving the details for these algorithms. See the rest of this section for details on indexed statements.
 
-```live:indexed:module:openable
+```rego
 package indexed
 
 default allow := false
@@ -97,11 +108,9 @@ roles := {
 }
 ```
 
-```live:indexed:query:hidden
-allow
-```
+<RunSnippet files="#input.json" command="data.indexed.allow"/>
 
-```live:indexed:input
+```json
 {
   "user": "bob",
   "path": ["accounts", "bob"],
@@ -109,8 +118,7 @@ allow
 }
 ```
 
-```live:indexed:output
-```
+<RunSnippet id="input.json"/>
 
 #### Equality statements
 
@@ -145,7 +153,7 @@ the result:
 
 The most common case for this are a set of `allow` rules:
 
-```live:ee:module:read_only
+```rego
 package earlyexit
 
 allow if {
@@ -165,7 +173,7 @@ since `allow if { ... }` is a shorthand for `allow := true if { ... }`.
 
 Intuitively, the value can be anything that does not contain a variable:
 
-```live:eeexamples:module:read_only
+```rego
 package earlyexit.examples
 
 # p, q, r and s could be evaluated with early-exit semantics:
@@ -208,7 +216,7 @@ y(z) := r if { # variable value, not ground
 When "early exit" is possible for a (set of) rules, iterations inside that rule will be
 **cancelled** as soon as one binding matches the rule body:
 
-```live:eeiteration:module:read_only
+```rego
 package earlyexit.iteration
 
 p if {
@@ -225,7 +233,7 @@ The check if "early exit" is applicable for a query happens _after_ the indexing
 so in this contrived example, an evaluation with input `{"user": "alice"}` _would_ exit
 early; an evaluation with `{"user": "bob", "group": "admins"}` _would not_:
 
-```live:eeindex:module:read_only
+```rego
 package earlyexit
 
 allow if {
@@ -462,7 +470,7 @@ for a given expression and also provide more clarity into the profile results an
 The different profiling examples shown later on this page use the below
 sample policy.
 
-```live:profile:module:read_only,openable
+```rego
 package rbac
 
 # Example input request
@@ -805,8 +813,6 @@ BenchmarkDataRbacTestUserHasRoleDev    45152      26323 ns/op      22026 timer_r
 BenchmarkDataRbacTestUserHasRoleNegative    45483      26253 ns/op      21986 timer_rego_query_eval_ns/op    12470 B/op      235 allocs/op
 --------------------------------------------------------------------------------
 PASS: 2/2
-.
-.
 ```
 
 Repeated 10 times (as specified by the `--count` flag).
@@ -848,8 +854,6 @@ BenchmarkDataRbacTestUserHasRoleDev    27415      43671 ns/op      39301 timer_r
 BenchmarkDataRbacTestUserHasRoleNegative    27583      44743 ns/op      40152 timer_rego_query_eval_ns/op    17369 B/op      385 allocs/op
 --------------------------------------------------------------------------------
 PASS: 2/2
-.
-.
 ```
 
 (Repeated 10 times)

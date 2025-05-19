@@ -121,8 +121,8 @@ func builtinObjectGet(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 	}
 
 	// if the get key is not an array, attempt to get the top level key for the operand value in the object
-	path, err := builtins.ArrayOperand(operands[1].Value, 2)
-	if err != nil {
+	path, ok := operands[1].Value.(*ast.Array)
+	if !ok {
 		if ret := object.Get(operands[1]); ret != nil {
 			return iter(ret)
 		}

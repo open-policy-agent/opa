@@ -495,8 +495,40 @@ cases:
         	q with count as [1 | true][0]
         }
 
-        q if {
-        	count([1, 2, 3]) == 1
+        q if count([1, 2, 3]) == 1
+    want_result:
+      - x: true
+  - note: "withkeyword/builtin: indirect call, arity 1, replacement is local variable via scan"
+    modules:
+      - |
+        package test
+        p if {
+          some v in numbers.range(1, 10)
+          q with count as v
         }
+        q if r
+        r if count("foo") == 10
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - note: "withkeyword/builtin: indirect call, arity 1, multiple, nested replacements"
+    modules:
+      - |
+        package test
+        p if {
+        	v := 3
+        	m with count as v
+        }
+        m if {
+        	v := "300"
+        	sprintf("x", []) == "x" # unreplaced
+        	n with sprintf as v
+        }
+        n if {
+        	count(input) == 3
+        	sprintf("", input) == "300"
+        }
+    query: data.test.p = x
+    input: {}
     want_result:
       - x: true
