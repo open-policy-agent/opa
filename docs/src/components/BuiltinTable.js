@@ -110,10 +110,36 @@ export default function BuiltinTable({
                         <span>{fn.introduced}</span>
                       </a>
                     )}
-                    {fn.introduced === "edge" && <span>edge</span>}
-                    {fn.wasm
-                      ? <span>Wasm</span>
-                      : <span>SDK-dependent</span>}
+                    {fn.introduced === "edge" && <span>edge</span>} {fn.wasm
+                      ? (
+                        <span
+                          style={{
+                            backgroundColor: "yellowgreen",
+                            color: "white",
+                            fontWeight: "bold",
+                            fontSize: "0.8rem",
+                            padding: "0.1rem 0.2rem",
+                            borderRadius: "0.2rem",
+                          }}
+                        >
+                          Wasm
+                        </span>
+                      )
+                      : (
+                        <span
+                          style={{
+                            backgroundColor: "gold",
+                            color: "white",
+                            fontWeight: "bold",
+                            fontSize: "0.8rem",
+                            padding: "0.1rem 0.2rem",
+                            borderRadius: "0.2rem",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          SDK-dependent
+                        </span>
+                      )}
                   </div>
                 </td>
               </tr>
