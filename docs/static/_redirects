@@ -11,6 +11,14 @@
 /docs/latest/envoy-introduction/ /docs/kubernetes/
 
 # -----------------------------------------------------------------------------
+# Redirects for legacy usage external resources
+# -----------------------------------------------------------------------------
+
+/bundles/helm-kubernetes-quickstart /external-resources/bundles/helm-kubernetes-quickstart 301!
+/img/logos/opa-horizontal-color.png /external-resources/opa-horizontal-color.png 301!
+/img/logos/opa-no-text-color.png /external-resources/opa-no-text-color.png 301!
+
+# -----------------------------------------------------------------------------
 # Redirects relating to client behavior
 # -----------------------------------------------------------------------------
 
