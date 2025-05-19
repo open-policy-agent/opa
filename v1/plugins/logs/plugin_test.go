@@ -3733,3 +3733,131 @@ func TestConfigUploadLimit(t *testing.T) {
 		})
 	}
 }
+
+func TestAdaptiveSoftLimitBetweenUpload(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name             string
+		bufferType       string
+		initialSoftLimit int64
+		newSoftLimit     int64
+	}{
+		{
+			name:             "using event buffer",
+			bufferType:       eventBufferType,
+			initialSoftLimit: 300,
+			newSoftLimit:     600,
+		},
+		{
+			name:             "using size buffer",
+			bufferType:       sizeBufferType,
+			initialSoftLimit: 300,
+			newSoftLimit:     600,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+
+			fixture := newTestFixture(t, testFixtureOptions{
+				ReportingBufferType:           tc.bufferType,
+				ReportingUploadSizeLimitBytes: tc.initialSoftLimit,
+			})
+			defer fixture.server.stop()
+			defer fixture.plugin.Stop(ctx)
+
+			s := currentSoftLimit(t, fixture.plugin, tc.bufferType)
+			if s != tc.initialSoftLimit {
+				t.Fatalf("expected %d, got %d", tc.initialSoftLimit, s)
+			}
+
+			fixture.server.server.Config.SetKeepAlivesEnabled(false)
+
+			fixture.server.ch = make(chan []EventV1, 4)
+			tr := plugins.TriggerManual
+			fixture.plugin.config.Reporting.Trigger = &tr
+
+			if err := fixture.plugin.Start(ctx); err != nil {
+				t.Fatal(err)
+			}
+
+			testMetrics := getWellKnownMetrics()
+			msAsFloat64 := map[string]interface{}{}
+			for k, v := range testMetrics.All() {
+				msAsFloat64[k] = float64(v.(uint64))
+			}
+
+			var input interface{} = map[string]interface{}{"method": "GET"}
+			var result interface{} = false
+
+			ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
+			if err != nil {
+				panic(err)
+			}
+
+			event := &server.Info{
+				Revision:   fmt.Sprint(1),
+				DecisionID: fmt.Sprint(1),
+				Path:       "tda/bar",
+				Input:      &input,
+				Results:    &result,
+				RemoteAddr: "test",
+				Timestamp:  ts,
+				Metrics:    testMetrics,
+			}
+
+			if err := fixture.plugin.Log(ctx, event); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := fixture.plugin.Log(ctx, event); err != nil {
+				t.Fatal(err)
+			}
+
+			// this will increase the soft limit
+			if err := fixture.plugin.oneShot(ctx); err != nil {
+				t.Fatal(err)
+			}
+
+			s = currentSoftLimit(t, fixture.plugin, tc.bufferType)
+			if s != tc.newSoftLimit {
+				t.Fatalf("expected %d, got %d", tc.newSoftLimit, s)
+			}
+
+			if err := fixture.plugin.Log(ctx, event); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := fixture.plugin.Log(ctx, event); err != nil {
+				t.Fatal(err)
+			}
+
+			// the soft limit will stay the same and not be reset to the initial soft limit
+			if err := fixture.plugin.oneShot(ctx); err != nil {
+				t.Fatal(err)
+			}
+
+			s = currentSoftLimit(t, fixture.plugin, tc.bufferType)
+			if s != tc.newSoftLimit {
+				t.Fatalf("expected %d, got %d", tc.newSoftLimit, s)
+			}
+		})
+	}
+}
+
+func currentSoftLimit(t *testing.T, plugin *Plugin, bufferType string) int64 {
+	t.Helper()
+
+	switch bufferType {
+	case eventBufferType:
+		return plugin.eventBuffer.enc.softLimit
+	case sizeBufferType:
+		return plugin.enc.softLimit
+	default:
+		t.Fatal("Unknown buffer type")
+	}
+
+	return 0
+}
