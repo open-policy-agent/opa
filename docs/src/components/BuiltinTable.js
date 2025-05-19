@@ -114,7 +114,7 @@ export default function BuiltinTable({
                       ? (
                         <span
                           style={{
-                            backgroundColor: "yellowgreen",
+                            backgroundColor: "seagreen",
                             color: "white",
                             fontWeight: "bold",
                             fontSize: "0.8rem",
@@ -128,7 +128,7 @@ export default function BuiltinTable({
                       : (
                         <span
                           style={{
-                            backgroundColor: "gold",
+                            backgroundColor: "darkgoldenrod",
                             color: "white",
                             fontWeight: "bold",
                             fontSize: "0.8rem",
