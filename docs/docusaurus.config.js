@@ -59,6 +59,23 @@ const baseUrl = "/";
           tagName: "link",
           attributes: {
             rel: "icon",
+            type: "image/png",
+            href: "/favicon-96x96.png",
+            sizes: "96x96",
+          },
+        },
+        {
+          tagName: "link",
+          attributes: {
+            rel: "icon",
+            type: "image/svg+xml",
+            href: "/favicon.svg",
+          },
+        },
+        {
+          tagName: "link",
+          attributes: {
+            rel: "shortcut icon",
             href: "/favicon.ico",
           },
         },
@@ -71,21 +88,10 @@ const baseUrl = "/";
           },
         },
         {
-          tagName: "link",
+          tagName: "meta",
           attributes: {
-            rel: "icon",
-            type: "image/png",
-            sizes: "32x32",
-            href: "/favicon-32x32.png",
-          },
-        },
-        {
-          tagName: "link",
-          attributes: {
-            rel: "icon",
-            type: "image/png",
-            sizes: "16x16",
-            href: "/favicon-16x16.png",
+            name: "apple-mobile-web-app-title",
+            content: "OPA",
           },
         },
         {
@@ -93,14 +99,6 @@ const baseUrl = "/";
           attributes: {
             rel: "manifest",
             href: "/site.webmanifest",
-          },
-        },
-        {
-          tagName: "link",
-          attributes: {
-            rel: "mask-icon",
-            href: "/safari-pinned-tab.svg",
-            color: "#5bbad5",
           },
         },
       ],
