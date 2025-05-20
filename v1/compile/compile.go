@@ -15,6 +15,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -410,11 +411,8 @@ func (c *Compiler) init() error {
 	}
 
 	var found bool
-	for _, t := range Targets {
-		if c.target == t {
-			found = true
-			break
-		}
+	if slices.Contains(Targets, c.target) {
+		found = true
 	}
 
 	if !found {
@@ -1306,12 +1304,7 @@ func (ss orderedStringSet) Append(s ...string) orderedStringSet {
 }
 
 func (ss orderedStringSet) Contains(s string) bool {
-	for _, other := range ss {
-		if s == other {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(ss, s)
 }
 
 func stringsToRefs(x []string) []ast.Ref {
@@ -1336,12 +1329,7 @@ func newRefSet(x ...ast.Ref) *refSet {
 
 // ContainsPrefix returns true if r is prefixed by any of the existing refs in the set.
 func (rs *refSet) ContainsPrefix(r ast.Ref) bool {
-	for i := range rs.s {
-		if r.HasPrefix(rs.s[i]) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(rs.s, r.HasPrefix)
 }
 
 // AddPrefix inserts r into the set if r is not prefixed by any existing

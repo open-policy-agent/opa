@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/url"
 	"path"
+	"slices"
 	"strings"
 
 	"github.com/open-policy-agent/opa/v1/plugins"
@@ -237,10 +238,8 @@ func (*Config) getServiceFromList(service string, services []string) (string, er
 	if service == "" && len(services) != 0 {
 		return services[0], nil
 	}
-	for _, svc := range services {
-		if svc == service {
-			return service, nil
-		}
+	if slices.Contains(services, service) {
+		return service, nil
 	}
 	return service, fmt.Errorf("service name %q not found", service)
 }

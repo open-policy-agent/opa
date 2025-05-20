@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -1404,13 +1405,7 @@ func capsWithoutFeat(regoVersion ast.RegoVersion, feat ...string) *ast.Capabilit
 
 	feats := make([]string, 0, len(caps.Features))
 	for _, f := range caps.Features {
-		skip := false
-		for _, skipF := range feat {
-			if f == skipF {
-				skip = true
-				break
-			}
-		}
+		skip := slices.Contains(feat, f)
 		if !skip {
 			feats = append(feats, f)
 		}

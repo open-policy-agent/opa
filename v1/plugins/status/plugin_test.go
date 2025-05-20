@@ -576,7 +576,7 @@ func TestPluginStartTriggerManualWithTimeout(t *testing.T) {
 		time.Sleep(3 * time.Second) // this should cause the context deadline to exceed
 	}))
 
-	managerConfig := []byte(fmt.Sprintf(`{
+	managerConfig := fmt.Appendf(nil, `{
 			"labels": {
 				"app": "example-app"
 			},
@@ -585,7 +585,7 @@ func TestPluginStartTriggerManualWithTimeout(t *testing.T) {
 					"name": "example",
 					"url": %q
 				}
-			]}`, s.URL))
+			]}`, s.URL)
 
 	manager, err := plugins.New(managerConfig, "test-instance-id", inmem.New())
 	if err != nil {
@@ -1138,7 +1138,7 @@ func newTestFixture(t *testing.T, m metrics.Metrics, options ...testPluginCustom
 
 	ts.start()
 
-	managerConfig := []byte(fmt.Sprintf(`{
+	managerConfig := fmt.Appendf(nil, `{
 			"labels": {
 				"app": "example-app"
 			},
@@ -1153,7 +1153,7 @@ func newTestFixture(t *testing.T, m metrics.Metrics, options ...testPluginCustom
 						}
 					}
 				}
-			]}`, ts.server.URL))
+			]}`, ts.server.URL)
 
 	registerMock := &prometheusRegisterMock{
 		Collectors: map[prometheus.Collector]bool{},

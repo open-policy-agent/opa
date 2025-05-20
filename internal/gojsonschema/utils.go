@@ -29,15 +29,11 @@ package gojsonschema
 import (
 	"encoding/json"
 	"math/big"
+	"slices"
 )
 
 func isStringInSlice(s []string, what string) bool {
-	for i := range s {
-		if s[i] == what {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s, what)
 }
 
 func marshalToJSONString(value any) (*string, error) {

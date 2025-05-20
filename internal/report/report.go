@@ -81,9 +81,9 @@ func New(id string, opts Options) (*Reporter, error) {
 		url = ExternalServiceURL
 	}
 
-	restConfig := []byte(fmt.Sprintf(`{
+	restConfig := fmt.Appendf(nil, `{
 		"url": %q,
-	}`, url))
+	}`, url)
 
 	client, err := rest.New(restConfig, map[string]*keys.Config{}, rest.Logger(opts.Logger))
 	if err != nil {

@@ -874,9 +874,7 @@ func (c *Compiler) PassesTypeCheckRules(rules []*Rule) Errors {
 			c.builtins[bi.Name] = bi
 		}
 
-		for name, bi := range c.customBuiltins {
-			c.builtins[name] = bi
-		}
+		maps.Copy(c.builtins, c.customBuiltins)
 
 		c.TypeEnv = checker.Env(c.builtins)
 	}
@@ -1701,9 +1699,7 @@ func (c *Compiler) init() {
 		}
 	}
 
-	for name, bi := range c.customBuiltins {
-		c.builtins[name] = bi
-	}
+	maps.Copy(c.builtins, c.customBuiltins)
 
 	// Load the global input schema if one was provided.
 	if c.schemaSet != nil {
@@ -5044,7 +5040,7 @@ func expandExprTermArray(gen *localVarGenerator, arr *Array) (support []*Expr) {
 }
 
 func expandExprTermSlice(gen *localVarGenerator, v []*Term) (support []*Expr) {
-	for i := 0; i < len(v); i++ {
+	for i := range v {
 		var extras []*Expr
 		extras, v[i] = expandExprTerm(gen, v[i])
 		support = append(support, extras...)

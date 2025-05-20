@@ -1,6 +1,7 @@
 package bundle
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -33,9 +34,7 @@ func BenchmarkTarballLoader(b *testing.B) {
 
 	for _, n := range sizes {
 		expectedFiles := make(map[string]string, len(benchTestArchiveFiles)+1)
-		for k, v := range benchTestArchiveFiles {
-			expectedFiles[k] = v
-		}
+		maps.Copy(expectedFiles, benchTestArchiveFiles)
 		expectedFiles["/x/data.json"] = benchTestGetFlatDataJSON(n)
 
 		// We generate the tarball once in the tempfs, and then reuse it many
@@ -69,9 +68,7 @@ func BenchmarkDirectoryLoader(b *testing.B) {
 
 	for _, n := range sizes {
 		expectedFiles := make(map[string]string, len(benchTestArchiveFiles)+1)
-		for k, v := range benchTestArchiveFiles {
-			expectedFiles[k] = v
-		}
+		maps.Copy(expectedFiles, benchTestArchiveFiles)
 		expectedFiles["/x/data.json"] = benchTestGetFlatDataJSON(n)
 
 		test.WithTempFS(expectedFiles, func(rootDir string) {

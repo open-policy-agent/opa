@@ -2717,7 +2717,7 @@ func TestStatusUpdates(t *testing.T) {
 	ts.Start()
 	defer ts.Stop()
 
-	manager, err := plugins.New([]byte(fmt.Sprintf(`{
+	manager, err := plugins.New(fmt.Appendf(nil, `{
 			"labels": {"x": "y"},
 			"services": {
 				"localhost": {
@@ -2725,7 +2725,7 @@ func TestStatusUpdates(t *testing.T) {
 				}
 			},
 			"discovery": {"name": "config"},
-		}`, ts.server.URL)), "test-id", inmem.New())
+		}`, ts.server.URL), "test-id", inmem.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2892,7 +2892,7 @@ func TestStatusUpdatesFromPersistedBundlesDontDelayBoot(t *testing.T) {
 	}
 	defer listener.Close()
 
-	manager, err := plugins.New([]byte(fmt.Sprintf(`{
+	manager, err := plugins.New(fmt.Appendf(nil, `{
             "persistence_directory": %q,
 			"services": {
 				"localhost": {
@@ -2900,7 +2900,7 @@ func TestStatusUpdatesFromPersistedBundlesDontDelayBoot(t *testing.T) {
 				}
 			},
 			"discovery": {"name": "config", "persist": true, "decision": "discovery"},
-		}`, dir, listener.Addr().String())), "test-id", inmem.New())
+		}`, dir, listener.Addr().String()), "test-id", inmem.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2943,7 +2943,7 @@ func TestStatusUpdatesTimestamp(t *testing.T) {
 	ts.Start()
 	defer ts.Stop()
 
-	manager, err := plugins.New([]byte(fmt.Sprintf(`{
+	manager, err := plugins.New(fmt.Appendf(nil, `{
 			"labels": {"x": "y"},
 			"services": {
 				"localhost": {
@@ -2951,7 +2951,7 @@ func TestStatusUpdatesTimestamp(t *testing.T) {
 				}
 			},
 			"discovery": {"name": "config"},
-		}`, ts.server.URL)), "test-id", inmem.New())
+		}`, ts.server.URL), "test-id", inmem.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3875,7 +3875,7 @@ func newTestFixture(t *testing.T) *testFixture {
 
 	ts.start()
 
-	managerConfig := []byte(fmt.Sprintf(`{
+	managerConfig := fmt.Appendf(nil, `{
 			"labels": {
 				"app": "example-app"
 			},
@@ -3885,7 +3885,7 @@ func newTestFixture(t *testing.T) *testFixture {
 					"name": "example",
 					"url": %q
 				}
-			]}`, ts.server.URL))
+			]}`, ts.server.URL)
 
 	manager, err := plugins.New(managerConfig, "test-id", inmem.New())
 	if err != nil {

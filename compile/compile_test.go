@@ -342,9 +342,7 @@ p contains "B" if {
 				if bundleType.tar {
 					files["bundle.tar"] = ""
 				} else {
-					for k, v := range tc.files {
-						files[k] = v
-					}
+					maps.Copy(files, tc.files)
 				}
 
 				test.WithTestFS(tc.files, false, func(root string, fsys fs.FS) {

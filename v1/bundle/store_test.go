@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -187,13 +188,7 @@ func verifyReadBundleNames(ctx context.Context, t *testing.T, store storage.Stor
 	}
 
 	for _, actualName := range actualNames {
-		found := false
-		for _, expectedName := range expected {
-			if actualName == expectedName {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(expected, actualName)
 		if !found {
 			t.Errorf("Found unexpecxted bundle name %s, expected names: %+v", actualName, expected)
 		}
@@ -6099,13 +6094,7 @@ func TestErasePolicies(t *testing.T) {
 					t.Fatalf("expected %d modules remaining in the store, got %d", len(tc.expectedRemaining), len(actualRemaining))
 				}
 				for _, expectedName := range tc.expectedRemaining {
-					found := false
-					for _, actualName := range actualRemaining {
-						if expectedName == actualName {
-							found = true
-							break
-						}
-					}
+					found := slices.Contains(actualRemaining, expectedName)
 					if !found {
 						t.Fatalf("expected remaining module %s not found", expectedName)
 					}

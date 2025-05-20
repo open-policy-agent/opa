@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"slices"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -417,10 +418,8 @@ func verifyCipherSuites(cipherSuites []string) (*[]uint16, error) {
 		}
 
 		// verify no TLS 1.3 cipher suites as they are not configurable
-		for _, ver := range val.SupportedVersions {
-			if ver == tls.VersionTLS13 {
-				return nil, fmt.Errorf("TLS 1.3 cipher suite \"%v\" is not configurable", c)
-			}
+		if slices.Contains(val.SupportedVersions, tls.VersionTLS13) {
+			return nil, fmt.Errorf("TLS 1.3 cipher suite \"%v\" is not configurable", c)
 		}
 
 		cipherSuitesIDs = append(cipherSuitesIDs, val.ID)

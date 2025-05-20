@@ -353,10 +353,7 @@ func (i *VM) Eval(ctx context.Context,
 	metrics.Timer("wasm_vm_eval_call").Stop()
 
 	data := i.memory.UnsafeData(i.store)[resultAddr:]
-	n := bytes.IndexByte(data, 0)
-	if n < 0 {
-		n = 0
-	}
+	n := max(bytes.IndexByte(data, 0), 0)
 
 	// Skip free'ing input and result JSON as the heap will be reset next round anyway.
 	return data[:n], nil
@@ -439,10 +436,7 @@ func (i *VM) evalCompat(ctx context.Context,
 	}
 
 	data := i.memory.UnsafeData(i.store)[serialized:]
-	n := bytes.IndexByte(data, 0)
-	if n < 0 {
-		n = 0
-	}
+	n := max(bytes.IndexByte(data, 0), 0)
 
 	metrics.Timer("wasm_vm_eval_prepare_result").Stop()
 
@@ -656,10 +650,7 @@ func (i *VM) fromRegoJSON(ctx context.Context, addr int32, free bool) (any, erro
 	}
 
 	data := i.memory.UnsafeData(i.store)[serialized:]
-	n := bytes.IndexByte(data, 0)
-	if n < 0 {
-		n = 0
-	}
+	n := max(bytes.IndexByte(data, 0), 0)
 
 	// Parse the result into go types.
 

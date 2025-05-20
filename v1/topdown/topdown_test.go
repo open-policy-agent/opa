@@ -2364,8 +2364,8 @@ func getTestNamespace() string {
 		for more := true; more; {
 			var f runtime.Frame
 			f, more = frames.Next()
-			if strings.HasPrefix(f.Function, "github.com/open-policy-agent/opa/topdown.Test") {
-				return strings.TrimPrefix(strings.ToLower(strings.TrimPrefix(strings.TrimPrefix(f.Function, "github.com/open-policy-agent/opa/topdown.Test"), "TopDown")), "builtin")
+			if after, ok := strings.CutPrefix(f.Function, "github.com/open-policy-agent/opa/topdown.Test"); ok {
+				return strings.TrimPrefix(strings.ToLower(strings.TrimPrefix(after, "TopDown")), "builtin")
 			}
 		}
 	}
