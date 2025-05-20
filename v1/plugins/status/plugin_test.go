@@ -1129,7 +1129,7 @@ type testFixture struct {
 
 type testPluginCustomizer func(c *Config)
 
-func newPlugin(t *testing.T, URL string, m metrics.Metrics, options ...testPluginCustomizer) (*plugins.Manager, *Plugin) {
+func newPlugin(t *testing.T, url string, m metrics.Metrics, options ...testPluginCustomizer) (*plugins.Manager, *Plugin) {
 
 	managerConfig := fmt.Appendf(nil, `{
 			"labels": {
@@ -1146,7 +1146,7 @@ func newPlugin(t *testing.T, URL string, m metrics.Metrics, options ...testPlugi
 						}
 					}
 				}
-			]}`, URL)
+			]}`, url)
 
 	registerMock := &prometheusRegisterMock{
 		Collectors: map[prometheus.Collector]bool{},
