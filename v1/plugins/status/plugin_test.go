@@ -1129,15 +1129,7 @@ type testFixture struct {
 
 type testPluginCustomizer func(c *Config)
 
-func newTestFixture(t *testing.T, m metrics.Metrics, options ...testPluginCustomizer) testFixture {
-
-	ts := testServer{
-		t:       t,
-		expCode: 200,
-	}
-
-	ts.start()
-
+func newPlugin(t *testing.T, URL string, m metrics.Metrics, options ...testPluginCustomizer) (*plugins.Manager, *Plugin) {
 	managerConfig := []byte(fmt.Sprintf(`{
 			"labels": {
 				"app": "example-app"
@@ -1153,7 +1145,7 @@ func newTestFixture(t *testing.T, m metrics.Metrics, options ...testPluginCustom
 						}
 					}
 				}
-			]}`, ts.server.URL))
+			]}`, URL))
 
 	registerMock := &prometheusRegisterMock{
 		Collectors: map[prometheus.Collector]bool{},
@@ -1166,6 +1158,20 @@ func newTestFixture(t *testing.T, m metrics.Metrics, options ...testPluginCustom
 	config := newConfig(manager, options...)
 
 	p := New(config, manager).WithMetrics(m)
+
+	return manager, p
+}
+
+func newTestFixture(t *testing.T, m metrics.Metrics, options ...testPluginCustomizer) testFixture {
+
+	ts := testServer{
+		t:       t,
+		expCode: 200,
+	}
+
+	ts.start()
+
+	manager, p := newPlugin(t, ts.server.URL, m, options...)
 
 	return testFixture{
 		manager: manager,
@@ -1366,4 +1372,58 @@ func TestPluginTerminatesAfterGracefulShutdownPeriodWithStatus(t *testing.T) {
 	if !result.Equal(exp) {
 		t.Fatalf("Expected: %v but got: %v", exp, result)
 	}
+}
+
+func TestSlowServer(t *testing.T) {
+	t.Parallel()
+
+	received := make(chan struct{})
+	wait := make(chan struct{})
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// notify test the server got the request
+		received <- struct{}{}
+
+		// block until the test is ready to move on, so that multiple status updates can be sent
+		<-wait
+	}))
+	defer server.Close()
+
+	_, plugin := newPlugin(t, server.URL, nil)
+
+	// just start the loop, calling Start will also send a plugin status update that isn't needed for this test
+	go plugin.loop(context.Background())
+
+	status := bundle.Status{
+		Name: "test",
+	}
+	plugin.BulkUpdateBundleStatus(map[string]*bundle.Status{status.Name: &status})
+
+	// wait for server to get stuck
+	<-received
+
+	if len(plugin.bulkBundleCh) != 0 {
+		t.Fatalf("Unexpected bulk bundle status: %v", plugin.bulkBundleCh)
+	}
+
+	status = bundle.Status{
+		Name: "I will be dropped",
+	}
+	plugin.BulkUpdateBundleStatus(map[string]*bundle.Status{status.Name: &status})
+	expectedStatusName := "I won't be dropped"
+	status = bundle.Status{
+		Name: expectedStatusName,
+	}
+	plugin.BulkUpdateBundleStatus(map[string]*bundle.Status{status.Name: &status})
+
+	currentStatus := <-plugin.bulkBundleCh
+	if len(currentStatus) > 1 {
+		t.Fatalf("Only one status expected but got: %v", currentStatus)
+	}
+	if _, ok := currentStatus[expectedStatusName]; !ok {
+		t.Fatalf("Expected status name not found: %v", currentStatus)
+	}
+
+	// stop blocking server
+	wait <- struct{}{}
 }

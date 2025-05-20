@@ -214,8 +214,8 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		config:         *parsedConfig,
 		bundleCh:       make(chan bundle.Status, statusBufferLimit),
 		bulkBundleCh:   make(chan map[string]*bundle.Status, statusBufferLimit),
-		discoCh:        make(chan bundle.Status, statusBufferLimit),
-		decisionLogsCh: make(chan lstat.Status, statusBufferLimit),
+		discoCh:        make(chan bundle.Status),
+		decisionLogsCh: make(chan lstat.Status),
 		stop:           make(chan chan struct{}),
 		reconfig:       make(chan reconfigure),
 		// we use a buffered channel here to avoid blocking other plugins
@@ -324,12 +324,12 @@ func (p *Plugin) BulkUpdateBundleStatus(status map[string]*bundle.Status) {
 
 // UpdateDiscoveryStatus notifies the plugin that the discovery bundle was updated.
 func (p *Plugin) UpdateDiscoveryStatus(status bundle.Status) {
-	util.PushFIFO(p.discoCh, status, p.metrics, statusBufferDropCounterName)
+	p.discoCh <- status
 }
 
 // UpdateDecisionLogsStatus notifies the plugin that status of a decision log upload event.
 func (p *Plugin) UpdateDecisionLogsStatus(status lstat.Status) {
-	util.PushFIFO(p.decisionLogsCh, status, p.metrics, statusBufferDropCounterName)
+	p.decisionLogsCh <- status
 }
 
 // UpdatePluginStatus notifies the plugin that a plugin status was updated.
@@ -451,32 +451,40 @@ func (p *Plugin) loop(ctx context.Context) {
 // readBundleStatus is a non-blocking read to make sure the latest status is received
 func (p *Plugin) readBundleStatus() bool {
 	var changed bool
-	if len(p.pluginStatusCh) != 0 {
-		p.lastPluginStatuses = <-p.pluginStatusCh
+
+	select {
+	case status := <-p.pluginStatusCh:
+		p.lastPluginStatuses = status
 		changed = true
+	default:
 	}
 
-	if len(p.bulkBundleCh) != 0 {
-		p.lastBundleStatuses = <-p.bulkBundleCh
+	select {
+	case status := <-p.bulkBundleCh:
+		p.lastBundleStatuses = status
 		changed = true
+	default:
 	}
 
-	if len(p.bundleCh) != 0 {
-		status := <-p.bundleCh
+	select {
+	case status := <-p.bundleCh:
 		p.lastBundleStatus = &status
 		changed = true
+	default:
 	}
 
-	if len(p.discoCh) != 0 {
-		status := <-p.discoCh
+	select {
+	case status := <-p.discoCh:
 		p.lastDiscoStatus = &status
 		changed = true
+	default:
 	}
 
-	if len(p.decisionLogsCh) != 0 {
-		status := <-p.decisionLogsCh
+	select {
+	case status := <-p.decisionLogsCh:
 		p.lastDecisionLogsStatus = &status
 		changed = true
+	default:
 	}
 
 	return changed
