@@ -169,9 +169,9 @@ func init() {
 		Short: "Check Rego source files",
 		Long: `Check Rego source files for parse and compilation errors.
 	
-	If the 'check' command succeeds in parsing and compiling the source file(s), no output
-	is produced. If the parsing or compiling fails, 'check' will output the errors
-	and exit with a non-zero exit code.`,
+If the 'check' command succeeds in parsing and compiling the source file(s), no output
+is produced. If the parsing or compiling fails, 'check' will output the errors
+and exit with a non-zero exit code.`,
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {

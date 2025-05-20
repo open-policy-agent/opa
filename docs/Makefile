@@ -20,4 +20,4 @@ clean:
 
 .PHONY: generate-cli-docs
 generate-cli-docs:
-	$(CURDIR)/../build/gen-cli-docs.sh "$(CURDIR)/content"
+	$(CURDIR)/../build/gen-cli-docs.sh > $(CURDIR)/src/data/cli.json

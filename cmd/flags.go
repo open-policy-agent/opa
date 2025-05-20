@@ -102,7 +102,7 @@ func addSigningKeyFlag(fs *pflag.FlagSet, key *string) {
 }
 
 func addSigningPluginFlag(fs *pflag.FlagSet, plugin *string) {
-	fs.StringVarP(plugin, "signing-plugin", "", "", "name of the plugin to use for signing/verification (see https://www.openpolicyagent.org/docs/latest/management-bundles/#signature-plugin")
+	fs.StringVarP(plugin, "signing-plugin", "", "", "name of the plugin to use for signing/verification (see https://www.openpolicyagent.org/docs/latest/management-bundles/#signature-plugin)")
 }
 
 func addVerificationKeyFlag(fs *pflag.FlagSet, key *string) {
@@ -228,7 +228,6 @@ func (f *capabilitiesFlag) Set(s string) error {
 		return fmt.Errorf("no such file or capabilities version found: %v", s)
 	}
 	return nil
-
 }
 
 type stringptrFlag struct {
