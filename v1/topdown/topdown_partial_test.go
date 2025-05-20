@@ -4200,6 +4200,768 @@ func TestTopDownPartialEval(t *testing.T) {
 					f(__local1__2) = true if { __local2__2 = __local1__2.size; lt(__local2__2, 100) }`,
 			},
 		},
+
+		// Default rule values should be inlined if only definition
+		{
+			note:  "default rule inlining, sole default rule (boolean false), result value presence",
+			query: "data.test.q",
+			modules: []string{`package test
+					default q := false
+				`},
+			wantQueries: []string{}, // unconditionally false
+		},
+		{
+			note:  "default rule inlining, sole default rule (boolean false), result value unification (true)",
+			query: "data.test.q = true",
+			modules: []string{`package test
+					default q := false
+				`},
+			wantQueries: []string{}, // unconditionally false
+		},
+		{
+			note:  "default rule inlining, sole default rule (boolean false), result value comparison (true)",
+			query: "data.test.q == true",
+			modules: []string{`package test
+					default q := false
+				`},
+			wantQueries: []string{}, // unconditionally false
+		},
+		{
+			note:  "default rule inlining, sole default rule (boolean false), result value unification (false)",
+			query: "data.test.q = false",
+			modules: []string{`package test
+					default q := false
+				`},
+			wantQueries: []string{""}, // unconditionally true
+		},
+		{
+			note:  "default rule inlining, sole default rule (boolean false), result value comparison (false)",
+			query: "data.test.q == false",
+			modules: []string{`package test
+					default q := false
+				`},
+			wantQueries: []string{""}, // unconditionally true
+		},
+
+		{
+			note:  "default rule inlining, sole default rule (boolean true), result value presence",
+			query: "data.test.q",
+			modules: []string{`package test
+					default q := true
+				`},
+			wantQueries: []string{""}, // unconditionally true
+		},
+		{
+			note:  "default rule inlining, sole default rule (boolean true), result value comparison (true)",
+			query: "data.test.q == true",
+			modules: []string{`package test
+					default q := true
+				`},
+			wantQueries: []string{""}, // unconditionally true
+		},
+		{
+			note:  "default rule inlining, sole default rule (boolean true), result value comparison (false)",
+			query: "data.test.q == false",
+			modules: []string{`package test
+					default q := true
+				`},
+			wantQueries: []string{}, // unconditionally false
+		},
+
+		{
+			note:  "default rule inlining, sole default rule (int), result value presence",
+			query: "data.test.q",
+			modules: []string{`package test
+					default q := 42
+				`},
+			wantQueries: []string{""}, // unconditionally true
+		},
+		{
+			note:  "default rule inlining, sole default rule (int), result value comparison (same value)",
+			query: "data.test.q == 42",
+			modules: []string{`package test
+					default q := 42
+				`},
+			wantQueries: []string{""}, // unconditionally true
+		},
+		{
+			note:  "default rule inlining, sole default rule (int), result value comparison (different value)",
+			query: "data.test.q == 40",
+			modules: []string{`package test
+					default q := 42
+				`},
+			wantQueries: []string{}, // unconditionally false
+		},
+
+		// Default rule values should be inlined if all other rules fail
+		{
+			note:  "default rule inlining, default rule (boolean false), result value presence",
+			query: "data.test.q",
+			modules: []string{`package test
+					default q := false
+
+					q if { false }
+				`},
+			wantQueries: []string{}, // unconditionally false
+		},
+		{
+			note:  "default rule inlining, default rule (boolean true), result value presence",
+			query: "data.test.q",
+			modules: []string{`package test
+					default q := true
+
+					q := false if { false }
+				`},
+			wantQueries: []string{""}, // unconditionally true
+		},
+		{
+			note:  "default rule inlining, default rule (boolean false), result value unification (true)",
+			query: "data.test.q = true",
+			modules: []string{`package test
+					default q := false
+
+					q if { false }
+				`},
+			wantQueries: []string{}, // unconditionally false
+		},
+		{
+			note:  "default rule inlining, default rule (boolean false), result value unification (false)",
+			query: "data.test.q = false",
+			modules: []string{`package test
+					default q := false
+
+					q if { false }
+				`},
+			wantQueries: []string{""}, // unconditionally true
+		},
+		{
+			note:  "default rule inlining, default rule (boolean false), result value comparison (true)",
+			query: "data.test.q == true",
+			modules: []string{`package test
+					default q := false
+
+					q if { false }
+				`},
+			wantQueries: []string{}, // unconditionally false
+		},
+		{
+			note:  "default rule inlining, default rule (boolean false), result value comparison (false)",
+			query: "data.test.q == false",
+			modules: []string{`package test
+					default q := false
+
+					q if { false }
+				`},
+			wantQueries: []string{""}, // unconditionally true
+		},
+
+		{
+			note:  "default rule inlining, default rule (int), result value presence",
+			query: "data.test.q",
+			modules: []string{`package test
+					default q := 42
+
+					q := 1 if { false }
+				`},
+			wantQueries: []string{""}, // unconditionally true (42 != false)
+		},
+		{
+			note:  "default rule inlining, default rule (int), result value unification (different value)",
+			query: "data.test.q = 1",
+			modules: []string{`package test
+					default q := 42
+
+					q := 1 if { false }
+				`},
+			wantQueries: []string{}, // unconditionally false
+		},
+		{
+			note:  "default rule inlining, default rule (int), result value unification (same value)",
+			query: "data.test.q = 42",
+			modules: []string{`package test
+					default q := 42
+
+					q := 1 if { false }
+				`},
+			wantQueries: []string{""}, // unconditionally true
+		},
+		{
+			note:  "default rule inlining, default rule (int), result value comparison (different value)",
+			query: "data.test.q == 1",
+			modules: []string{`package test
+					default q := 42
+
+					q := 1 if { false }
+				`},
+			wantQueries: []string{}, // unconditionally false
+		},
+		{
+			note:  "default rule inlining, default rule (int), result value comparison (same value)",
+			query: "data.test.q == 42",
+			modules: []string{`package test
+					default q := 42
+
+					q := 1 if { false }
+				`},
+			wantQueries: []string{""}, // unconditionally true
+		},
+
+		{
+			note:  "default rule inlining, default rule (boolean false), unknowns in undefined rule, result value presence",
+			query: "data.test.q",
+			modules: []string{`package test
+					default q := false
+
+					q if {
+						input.x == 7
+						false 
+					}
+				`},
+			wantQueries: []string{}, // unconditionally false
+		},
+		{
+			note:  "default rule inlining, default rule (boolean false), unknowns in undefined rule, result value unification (true)",
+			query: "data.test.q = true",
+			modules: []string{`package test
+					default q := false
+
+					q if {
+						input.x == 7
+						false 
+					}
+				`},
+			wantQueries: []string{}, // unconditionally false
+		},
+		{
+			note: "default rule inlining, default rule (boolean false), unknowns in undefined rule, result value comparison (true)",
+			// Compiled query:
+			// __localq0__ = data.test.q; equal(__localq0__, true)
+			query: "data.test.q == true",
+			modules: []string{`package test
+					default q := false
+
+					q if {
+						input.x == 7
+						false 
+					}
+				`},
+			// at eval-time of data.test.q, we don't know that __localq0__ is later compared with 'true' and support generation is superfluous.
+			// Can possibly be optimized into a no-support state by updating the compiler for this condition.
+			// E.g. for scalar values, replace equality (==) with unification (=): 'data.test.q == true' -> 'data.test.q = true'
+			wantQueries: []string{"data.partial.test.q == true"},
+			wantSupport: []string{`package partial.test
+					default q = false
+				`},
+		},
+		{
+			note: "default rule inlining, default rule (boolean false), unknowns in rule undefined, result value comparison (false)",
+			// Compiled query:
+			// __localq0__ = data.test.q; equal(__localq0__, false)
+			query: "data.test.q == false",
+			modules: []string{`package test
+					default q := false
+
+					q if { 
+						input.x == 7
+						false 
+					}
+				`},
+			wantQueries: []string{"data.partial.test.q == false"},
+			wantSupport: []string{`package partial.test
+					default q = false
+				`},
+		},
+
+		{
+			note:  "default rule inlining, default rule (boolean false), unknowns in rule, result value presence",
+			query: "data.test.q",
+			modules: []string{`package test
+					default q := false
+
+					q if {
+						input.x == 7
+					}
+				`},
+			wantQueries: []string{"input.x = 7"},
+		},
+		{
+			note:  "default rule inlining, default rule (boolean false), unknowns in rule, result value unification (true)",
+			query: "data.test.q = true",
+			modules: []string{`package test
+					default q := false
+
+					q if {
+						input.x == 7
+					}
+				`},
+			wantQueries: []string{"input.x = 7"},
+		},
+
+		{
+			note:  "default rule inlining, default rule (boolean true), unknowns in rule, result value presence",
+			query: "data.test.q",
+			modules: []string{`package test
+					default q := true
+
+					q := false if {
+						input.x == 7
+					}
+				`},
+			// Default rule is not inconsequential, support module must be generated
+			wantQueries: []string{"data.partial.test.q"},
+			wantSupport: []string{`package partial.test
+					default q = true
+
+					q = false if {
+						input.x = 7
+					}
+				`},
+		},
+		{
+			note:  "default rule inlining, default rule (boolean true), unknowns in rule, result value unification (true)",
+			query: "data.test.q = true",
+			modules: []string{`package test
+					default q := true
+
+					q := false if {
+						input.x == 7
+					}
+				`},
+			// Default rule is not inconsequential, support module must be generated
+			wantQueries: []string{"data.partial.test.q = true"},
+			wantSupport: []string{`package partial.test
+					default q = true
+
+					q = false if {
+						input.x = 7
+					}
+				`},
+		},
+		{
+			note:  "default rule inlining, default rule (boolean true), unknowns in rule, result value unification (false)",
+			query: "data.test.q = false",
+			modules: []string{`package test
+					default q := true
+
+					q := false if {
+						input.x == 7
+					}
+				`},
+			// Default rule is inconsequential
+			wantQueries: []string{"input.x = 7"},
+		},
+		{
+			note: "default rule inlining, default rule (boolean false), unknowns in rule, result value comparison (true)",
+			// Compiled query:
+			// __localq0__ = data.test.q; equal(__localq0__, true)
+			query: "data.test.q == true",
+			modules: []string{`package test
+					default q := false
+
+					q if {
+						input.x == 7
+					}
+				`},
+			wantQueries: []string{"data.partial.test.q == true"},
+			wantSupport: []string{`package partial.test
+					default q = false
+
+					q = true if {
+						input.x = 7
+					}
+				`},
+		},
+
+		// indirect calls
+
+		{
+			note:  "default rule inlining (boolean false), indirect, unknowns in rule, result value presence",
+			query: "data.test.p",
+			modules: []string{`package test
+					p if {
+						q
+					}
+					
+					default q := false
+					
+					q := true if { input.x = 7 }
+				`},
+			wantQueries: []string{"input.x = 7"},
+		},
+		{
+			note:  "default rule inlining (boolean false), indirect, unknowns in rule, result value unification (true)",
+			query: "data.test.p",
+			modules: []string{`package test
+					p if {
+						q = true
+					}
+					
+					default q := false
+					
+					q := true if { input.x = 7 }
+				`},
+			wantQueries: []string{"input.x = 7"},
+		},
+		{
+			note:  "default rule inlining (boolean false), indirect, unknowns in rule, result value unification (false)",
+			query: "data.test.p",
+			modules: []string{`package test
+					p if {
+						q = false
+					}
+					
+					default q := false
+					
+					q := true if { input.x = 7 }
+				`},
+			wantQueries: []string{"data.partial.test.q = false"},
+			wantSupport: []string{`package partial.test
+					default q = false
+					q = true if { input.x = 7 }
+				`},
+		},
+		{
+			note:  "default rule inlining (boolean false), indirect, unknowns in rule, result value comparison (true)",
+			query: "data.test.p",
+			modules: []string{`package test
+					p if {
+						q == true
+					}
+					
+					default q := false
+					
+					q := true if { input.x = 7 }
+				`},
+			wantQueries: []string{"input.x = 7"},
+		},
+		{
+			note:  "default rule inlining (boolean false), indirect, unknowns in rule, result value comparison (false)",
+			query: "data.test.p",
+			modules: []string{`package test
+					p if {
+						q == false
+					}
+					
+					default q := false
+					
+					q := true if { input.x = 7 }
+				`},
+			wantQueries: []string{"data.partial.test.q = false"},
+			wantSupport: []string{`package partial.test
+					default q = false
+					q = true if { input.x = 7 }
+				`},
+		},
+
+		{
+			note:  "default rule inlining (boolean true), indirect, unknowns in rule, result value presence",
+			query: "data.test.p",
+			modules: []string{`package test
+					p if {
+						q
+					}
+					
+					default q := true
+					
+					q := false if { input.x = 7 }
+				`},
+			// Default rule is not inconsequential, support module must be generated
+			wantQueries: []string{"data.partial.test.q"},
+			wantSupport: []string{`package partial.test
+					q = false if { input.x = 7 }
+					default q = true
+				`},
+		},
+		{
+			note:  "default rule inlining (boolean true), indirect, unknowns in rule, result value unification (true)",
+			query: "data.test.p",
+			modules: []string{`package test
+					p if {
+						q = true
+					}
+					
+					default q := true
+					
+					q := false if { input.x = 7 }
+				`},
+			// Default rule is not inconsequential, support module must be generated
+			wantQueries: []string{"data.partial.test.q = true"},
+			wantSupport: []string{`package partial.test
+					q = false if { input.x = 7 }
+					default q = true
+				`},
+		},
+		{
+			note:  "default rule inlining (boolean true), indirect, unknowns in rule, result value comparison (true)",
+			query: "data.test.p",
+			modules: []string{`package test
+					p if {
+						q == true
+					}
+					
+					default q := true
+					
+					q := false if { input.x = 7 }
+				`},
+			// Default rule is not inconsequential, support module must be generated
+			wantQueries: []string{"data.partial.test.q = true"},
+			wantSupport: []string{`package partial.test
+					q = false if { input.x = 7 }
+					default q = true
+				`},
+		},
+
+		{
+			note:  "default rule inlining (int), indirect, unknowns in rule, result value presence",
+			query: "data.test.p",
+			modules: []string{`package test
+					p if {
+						q
+					}
+					
+					default q := 42
+					
+					q := 1 if { input.x = 7 }
+				`},
+			// Default rule is not inconsequential, support module must be generated
+			wantQueries: []string{"data.partial.test.q"},
+			wantSupport: []string{`package partial.test
+					q = 1 if { input.x = 7 }
+					default q = 42
+				`},
+		},
+		{
+			note:  "default rule inlining (int), indirect, unknowns in rule, result value unification (value eq non-default rule)",
+			query: "data.test.p",
+			modules: []string{`package test
+					p if {
+						q = 1
+					}
+					
+					default q := 42
+					
+					q := 1 if { input.x = 7 }
+				`},
+			wantQueries: []string{"input.x = 7"},
+		},
+		{
+			note:  "default rule inlining (int), indirect, unknowns in rule, result value unification (value eq default rule)",
+			query: "data.test.p",
+			modules: []string{`package test
+					p if {
+						q = 42
+					}
+					
+					default q := 42
+					
+					q := 1 if { input.x = 7 }
+				`},
+			wantQueries: []string{"data.partial.test.q = 42"},
+			wantSupport: []string{`package partial.test
+					q = 1 if { input.x = 7 }
+					default q = 42
+				`},
+		},
+		{
+			note:  "default rule inlining (int), indirect, unknowns in rule, result value unification (value eq no rule)",
+			query: "data.test.p",
+			modules: []string{`package test
+					p if {
+						q = 20
+					}
+					
+					default q := 42
+					
+					q := 1 if { input.x = 7 }
+				`},
+			wantQueries: []string{}, // unconditionally false
+		},
+		{
+			note:  "default rule inlining (int), indirect, unknowns in rule, var result, result value unification",
+			query: "data.test.p",
+			modules: []string{`package test
+					p if {
+						q = 20
+					}
+					
+					default q := 42
+					
+					q := x if { input.x = 7; x := input.y }
+				`},
+			wantQueries: []string{"input.x = 7; 20 = input.y"},
+		},
+		{
+			note:  "default rule inlining (int), indirect, unknowns in rule, var result, result value unification (value eq default rule)",
+			query: "data.test.p",
+			modules: []string{`package test
+					p if {
+						q = 42
+					}
+					
+					default q := 42
+					
+					q := x if {
+						input.x = 7
+						x := input.y 
+					}
+				`},
+			wantQueries: []string{"data.partial.test.q = 42"},
+			wantSupport: []string{`package partial.test
+					default q = 42
+					q = __local0__2 if { 
+						input.x = 7
+						__local0__2 = input.y 
+					}
+				`},
+		},
+
+		{
+			note:  "default rule inlining (int), indirect, unknowns in multiple rules, result value presence",
+			query: "data.test.p",
+			modules: []string{`package test
+						p if {
+							q
+						}
+						
+						default q := 40
+						
+						q := 41 if { input.x = 6 }
+						q := 42 if { input.x = 7 }
+						q := 43 if { input.x = 8 }
+					`},
+			wantQueries: []string{"data.partial.test.q"}, // Should be unconditionally true?
+			wantSupport: []string{`package partial.test
+					default q = 40
+					q = 41 if { input.x = 6 }
+					q = 42 if { input.x = 7 }
+					q = 43 if { input.x = 8 }
+				`},
+		},
+		{
+			note:  "default rule inlining (int), indirect, unknowns in multiple rules, result value unification (same as default rule)",
+			query: "data.test.p",
+			modules: []string{`package test
+						p if {
+							q = 40
+						}
+						
+						default q := 40
+						
+						q := 41 if { input.x = 6 }
+						q := 42 if { input.x = 7 }
+						q := 43 if { input.x = 8 }
+					`},
+			wantQueries: []string{"data.partial.test.q = 40"},
+			wantSupport: []string{`package partial.test
+					default q = 40
+					q = 41 if { input.x = 6 }
+					q = 42 if { input.x = 7 }
+					q = 43 if { input.x = 8 }
+				`},
+		},
+		{
+			note:  "default rule inlining (int), indirect, unknowns in multiple rules, result value unification (same as rule)",
+			query: "data.test.p",
+			modules: []string{`package test
+						p if {
+							q = 42
+						}
+						
+						default q := 40
+						
+						q := 41 if { input.x = 6 }
+						q := 42 if { input.x = 7 }
+						q := 43 if { input.x = 8 }
+					`},
+			wantQueries: []string{"input.x = 7"},
+		},
+		{
+			note:  "default rule inlining (int), indirect, unknowns in multiple rules, result value unification (same as no rule)",
+			query: "data.test.p",
+			modules: []string{`package test
+						p if {
+							q = 44
+						}
+						
+						default q := 40
+						
+						q := 41 if { input.x = 6 }
+						q := 42 if { input.x = 7 }
+						q := 43 if { input.x = 8 }
+					`},
+			wantQueries: []string{}, // unconditionally false
+		},
+		{
+			note:  "default rule inlining (int), indirect, unknowns in multiple rules, var result, result value unification",
+			query: "data.test.p",
+			modules: []string{`package test
+						p if {
+							q = 44
+						}
+						
+						default q := 40
+						
+						q := 41 if { input.x = 6 }
+						q := x if { input.x = 7; x := input.y }
+						q := x if { input.x = 8; x := input.y }
+					`},
+			wantQueries: []string{
+				"input.x = 7; 44 = input.y",
+				"input.x = 8; 44 = input.y",
+			},
+		},
+
+		{
+			note:  "default rule inlining, sole ref, not",
+			query: "data.test.p",
+			modules: []string{`package test
+					p if {
+						not q
+					}
+					
+					default q := false
+					
+					q if { input.x = 7 }
+				`},
+			wantQueries: []string{"not input.x = 7"},
+		},
+
+		{ // Regression test for https://github.com/open-policy-agent/opa/issues/1418
+			note:  "regression, good",
+			query: "data.x.p_good",
+			modules: []string{`package x
+
+p_bad if {
+    q
+}
+
+p_good if {
+    q == true
+}
+
+default q := false
+
+q if { input.x = 7 }`},
+			wantQueries: []string{"input.x = 7"},
+		},
+		{ // Regression test for https://github.com/open-policy-agent/opa/issues/1418
+			note:  "regression, bad",
+			query: "data.x.p_bad",
+			modules: []string{`package x
+
+p_bad if {
+    q
+}
+
+p_good if {
+    q == true
+}
+
+default q := false
+
+q if { input.x = 7 }`},
+			wantQueries: []string{"input.x = 7"},
+		},
 	}
 
 	ctx := context.Background()
@@ -4322,7 +5084,7 @@ func prepareTest(ctx context.Context, t *testing.T, params fixtureParams, f func
 
 		if len(params.data) > 0 {
 			j := util.MustUnmarshalJSON([]byte(params.data))
-			store = inmem.NewFromObject(j.(map[string]interface{}))
+			store = inmem.NewFromObject(j.(map[string]any))
 		} else {
 			store = inmem.New()
 		}

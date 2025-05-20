@@ -28,6 +28,7 @@ package gojsonschema
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -58,13 +59,7 @@ func (t *jsonSchemaType) Add(etype string) error {
 
 func (t *jsonSchemaType) Contains(etype string) bool {
 
-	for _, v := range t.types {
-		if v == etype {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(t.types, etype)
 }
 
 func (t *jsonSchemaType) String() string {

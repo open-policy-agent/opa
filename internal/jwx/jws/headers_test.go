@@ -18,9 +18,9 @@ func TestHeader(t *testing.T) {
   "kid": "2011-04-29"
 }`
 
-	privateHeaderParams := map[string]interface{}{"one": "1", "two": "11"}
+	privateHeaderParams := map[string]any{"one": "1", "two": "11"}
 
-	values := map[string]interface{}{
+	values := map[string]any{
 		jws.AlgorithmKey:     jwa.ES256,
 		jws.ContentTypeKey:   "example",
 		jws.CriticalKey:      []string{"exp"},
@@ -81,7 +81,7 @@ func TestHeader(t *testing.T) {
 		}
 		dummy := &dummyStruct{1, 3.4}
 
-		values := map[string]interface{}{
+		values := map[string]any{
 			jws.AlgorithmKey:     dummy,
 			jws.ContentTypeKey:   dummy,
 			jws.CriticalKey:      dummy,

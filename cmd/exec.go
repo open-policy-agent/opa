@@ -65,7 +65,7 @@ e.g., opa exec --decision /foo/bar/baz ...
 			params.Paths = args
 			params.BundlePaths = bundlePaths.v
 			if err := runExec(params); err != nil {
-				logging.Get().WithFields(map[string]interface{}{"err": err}).Error("Unexpected error.")
+				logging.Get().WithFields(map[string]any{"err": err}).Error("Unexpected error.")
 				os.Exit(1)
 			}
 		},
@@ -204,7 +204,7 @@ func setupConfig(file string, overrides []string, overrideFiles []string, bundle
 		return nil, err
 	}
 
-	var root map[string]interface{}
+	var root map[string]any
 
 	if err := util.Unmarshal(bs, &root); err != nil {
 		return nil, err
@@ -221,39 +221,39 @@ func setupConfig(file string, overrides []string, overrideFiles []string, bundle
 	// that all plugins will inherit the trigger mode by default. If the plugin
 	// trigger mode is explicitly set to something other than 'manual' this will
 	// result in a configuration error.
-	if cfg, ok := root["discovery"].(map[string]interface{}); ok {
+	if cfg, ok := root["discovery"].(map[string]any); ok {
 		cfg["trigger"] = "manual"
 	}
 
-	if cfg, ok := root["bundles"].(map[string]interface{}); ok {
+	if cfg, ok := root["bundles"].(map[string]any); ok {
 		for _, x := range cfg {
-			if bcfg, ok := x.(map[string]interface{}); ok {
+			if bcfg, ok := x.(map[string]any); ok {
 				bcfg["trigger"] = "manual"
 			}
 		}
 	}
 
-	if cfg, ok := root["decision_logs"].(map[string]interface{}); ok {
-		if rcfg, ok := cfg["reporting"].(map[string]interface{}); ok {
+	if cfg, ok := root["decision_logs"].(map[string]any); ok {
+		if rcfg, ok := cfg["reporting"].(map[string]any); ok {
 			rcfg["trigger"] = "manual"
 		}
 	}
 
-	if cfg, ok := root["status"].(map[string]interface{}); ok {
+	if cfg, ok := root["status"].(map[string]any); ok {
 		cfg["trigger"] = "manual"
 	}
 
 	return json.Marshal(root)
 }
 
-func injectExplicitBundles(root map[string]interface{}, paths []string) error {
+func injectExplicitBundles(root map[string]any, paths []string) error {
 	if len(paths) == 0 {
 		return nil
 	}
 
-	bundles, ok := root["bundles"].(map[string]interface{})
+	bundles, ok := root["bundles"].(map[string]any)
 	if !ok {
-		bundles = map[string]interface{}{}
+		bundles = map[string]any{}
 		root["bundles"] = bundles
 	}
 
@@ -263,7 +263,7 @@ func injectExplicitBundles(root map[string]interface{}, paths []string) error {
 			return err
 		}
 		abspath = filepath.ToSlash(abspath)
-		bundles[fmt.Sprintf("~%d", i)] = map[string]interface{}{
+		bundles[fmt.Sprintf("~%d", i)] = map[string]any{
 			"resource": fmt.Sprintf("file://%v", abspath),
 		}
 	}

@@ -15,6 +15,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -80,7 +81,7 @@ type Compiler struct {
 	bvc                          *bundle.VerificationConfig // represents the key configuration used to verify a signed bundle
 	bsc                          *bundle.SigningConfig      // represents the key configuration used to generate a signed bundle
 	keyID                        string                     // represents the name of the default key used to verify a signed bundle
-	metadata                     *map[string]interface{}    // represents additional data included in .manifest file
+	metadata                     *map[string]any            // represents additional data included in .manifest file
 	fsys                         fs.FS                      // file system to use when loading paths
 	ns                           string
 	regoVersion                  ast.RegoVersion
@@ -228,7 +229,7 @@ func (c *Compiler) WithFollowSymlinks(yes bool) *Compiler {
 }
 
 // WithMetadata sets the additional data to be included in .manifest
-func (c *Compiler) WithMetadata(metadata *map[string]interface{}) *Compiler {
+func (c *Compiler) WithMetadata(metadata *map[string]any) *Compiler {
 	c.metadata = metadata
 	return c
 }
@@ -410,11 +411,8 @@ func (c *Compiler) init() error {
 	}
 
 	var found bool
-	for _, t := range Targets {
-		if c.target == t {
-			found = true
-			break
-		}
+	if slices.Contains(Targets, c.target) {
+		found = true
 	}
 
 	if !found {
@@ -960,7 +958,7 @@ func (o *optimizer) Do(ctx context.Context) error {
 	// initialize other inputs to the optimization process (store, symbols, etc.)
 	data := o.bundle.Data
 	if data == nil {
-		data = map[string]interface{}{}
+		data = map[string]any{}
 	}
 
 	store := inmem.NewFromObjectWithOpts(data, inmem.OptRoundTripOnWrite(false))
@@ -1306,12 +1304,7 @@ func (ss orderedStringSet) Append(s ...string) orderedStringSet {
 }
 
 func (ss orderedStringSet) Contains(s string) bool {
-	for _, other := range ss {
-		if s == other {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(ss, s)
 }
 
 func stringsToRefs(x []string) []ast.Ref {
@@ -1336,12 +1329,7 @@ func newRefSet(x ...ast.Ref) *refSet {
 
 // ContainsPrefix returns true if r is prefixed by any of the existing refs in the set.
 func (rs *refSet) ContainsPrefix(r ast.Ref) bool {
-	for i := range rs.s {
-		if r.HasPrefix(rs.s[i]) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(rs.s, r.HasPrefix)
 }
 
 // AddPrefix inserts r into the set if r is not prefixed by any existing

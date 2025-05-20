@@ -66,6 +66,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -217,16 +218,16 @@ type wrap struct {
 	l logging.Logger
 }
 
-func (w *wrap) debugDo(f func(string, ...interface{}), fmt string, as ...interface{}) {
+func (w *wrap) debugDo(f func(string, ...any), fmt string, as ...any) {
 	if w.l.GetLevel() >= logging.Debug {
 		f("badger: "+fmt, as...)
 	}
 }
 
-func (w *wrap) Debugf(f string, as ...interface{})   { w.debugDo(w.l.Debug, f, as...) }
-func (w *wrap) Infof(f string, as ...interface{})    { w.debugDo(w.l.Info, f, as...) }
-func (w *wrap) Warningf(f string, as ...interface{}) { w.debugDo(w.l.Warn, f, as...) }
-func (w *wrap) Errorf(f string, as ...interface{})   { w.debugDo(w.l.Error, f, as...) }
+func (w *wrap) Debugf(f string, as ...any)   { w.debugDo(w.l.Debug, f, as...) }
+func (w *wrap) Infof(f string, as ...any)    { w.debugDo(w.l.Info, f, as...) }
+func (w *wrap) Warningf(f string, as ...any) { w.debugDo(w.l.Warn, f, as...) }
+func (w *wrap) Errorf(f string, as ...any)   { w.debugDo(w.l.Error, f, as...) }
 
 // NewTransaction implements the storage.Store interface.
 func (db *Store) NewTransaction(_ context.Context, params ...storage.TransactionParams) (storage.Transaction, error) {
@@ -283,7 +284,7 @@ func (db *Store) Truncate(ctx context.Context, txn storage.Transaction, params s
 			return fmt.Errorf("storage path invalid: %v", newPath)
 		}
 
-		sTxn, err := db.doTruncateData(ctx, underlyingTxn, db.db, params, newPath, map[string]interface{}{})
+		sTxn, err := db.doTruncateData(ctx, underlyingTxn, db.db, params, newPath, map[string]any{})
 		if err != nil {
 			return wrapError(err)
 		}
@@ -387,7 +388,7 @@ func (db *Store) Truncate(ctx context.Context, txn storage.Transaction, params s
 }
 
 func (db *Store) doTruncateData(ctx context.Context, underlying *transaction, badgerdb *badger.DB,
-	params storage.TransactionParams, path storage.Path, value interface{}) (*transaction, error) {
+	params storage.TransactionParams, path storage.Path, value any) (*transaction, error) {
 
 	err := underlying.Write(ctx, storage.AddOp, path, value)
 	if err != nil {
@@ -606,7 +607,7 @@ func (db *Store) Register(_ context.Context, txn storage.Transaction, config sto
 }
 
 // Read implements the storage.Store interface.
-func (db *Store) Read(ctx context.Context, txn storage.Transaction, path storage.Path) (interface{}, error) {
+func (db *Store) Read(ctx context.Context, txn storage.Transaction, path storage.Path) (any, error) {
 	underlying, err := db.underlying(txn)
 	if err != nil {
 		return nil, err
@@ -615,7 +616,7 @@ func (db *Store) Read(ctx context.Context, txn storage.Transaction, path storage
 }
 
 // Write implements the storage.Store interface.
-func (db *Store) Write(ctx context.Context, txn storage.Transaction, op storage.PatchOp, path storage.Path, value interface{}) error {
+func (db *Store) Write(ctx context.Context, txn storage.Transaction, op storage.PatchOp, path storage.Path, value any) error {
 	underlying, err := db.underlying(txn)
 	if err != nil {
 		return err
@@ -993,7 +994,7 @@ func createSymlink(target, symlink string) error {
 	return lerr
 }
 
-func lookup(path storage.Path, data []byte) (interface{}, bool, error) {
+func lookup(path storage.Path, data []byte) (any, bool, error) {
 	var obj map[string]json.RawMessage
 	err := util.Unmarshal(data, &obj)
 	if err != nil {
@@ -1024,10 +1025,5 @@ func lookup(path storage.Path, data []byte) (interface{}, bool, error) {
 }
 
 func overwriteRoot(roots []string) bool {
-	for _, root := range roots {
-		if root == "" {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(roots, "")
 }

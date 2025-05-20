@@ -10,9 +10,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"math/big"
 	"net/url"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -330,9 +332,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		}
 
 		// rego-v1 includes all v0 future keywords in the default language definition
-		for k, v := range futureKeywordsV0 {
-			allowedFutureKeywords[k] = v
-		}
+		maps.Copy(allowedFutureKeywords, futureKeywordsV0)
 
 		for _, kw := range p.po.Capabilities.FutureKeywords {
 			if tok, ok := futureKeywords[kw]; ok {
@@ -380,9 +380,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
 		if p.po.Capabilities.ContainsFeature(FeatureRegoV1) {
 			// rego-v1 includes all v0 future keywords in the default language definition
-			for k, v := range futureKeywordsV0 {
-				allowedFutureKeywords[k] = v
-			}
+			maps.Copy(allowedFutureKeywords, futureKeywordsV0)
 		}
 	}
 
@@ -400,9 +398,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
 	selected := map[string]tokens.Token{}
 	if p.po.AllFutureKeywords || p.po.EffectiveRegoVersion() == RegoV1 {
-		for kw, tok := range allowedFutureKeywords {
-			selected[kw] = tok
-		}
+		maps.Copy(selected, allowedFutureKeywords)
 	} else {
 		for _, kw := range p.po.FutureKeywords {
 			tok, ok := allowedFutureKeywords[kw]
@@ -979,7 +975,7 @@ func (p *Parser) parseHead(defaultRule bool) (*Head, bool) {
 			ref = y
 		}
 		head = RefHead(ref)
-		head.Args = append([]*Term{}, args...)
+		head.Args = slices.Clone[[]*Term](args)
 
 	default:
 		return nil, false
@@ -2065,28 +2061,24 @@ func (p *Parser) parseTermPairList(end tokens.Token, r [][2]*Term) [][2]*Term {
 }
 
 func (p *Parser) parseTermOp(values ...tokens.Token) *Term {
-	for i := range values {
-		if p.s.tok == values[i] {
-			r := RefTerm(VarTerm(p.s.tok.String()).SetLocation(p.s.Loc())).SetLocation(p.s.Loc())
-			p.scan()
-			return r
-		}
+	if slices.Contains(values, p.s.tok) {
+		r := RefTerm(VarTerm(p.s.tok.String()).SetLocation(p.s.Loc())).SetLocation(p.s.Loc())
+		p.scan()
+		return r
 	}
 	return nil
 }
 
 func (p *Parser) parseTermOpName(ref Ref, values ...tokens.Token) *Term {
-	for i := range values {
-		if p.s.tok == values[i] {
-			cp := ref.Copy()
-			for _, r := range cp {
-				r.SetLocation(p.s.Loc())
-			}
-			t := RefTerm(cp...)
-			t.SetLocation(p.s.Loc())
-			p.scan()
-			return t
+	if slices.Contains(values, p.s.tok) {
+		cp := ref.Copy()
+		for _, r := range cp {
+			r.SetLocation(p.s.Loc())
 		}
+		t := RefTerm(cp...)
+		t.SetLocation(p.s.Loc())
+		p.scan()
+		return t
 	}
 	return nil
 }
@@ -2115,7 +2107,7 @@ func (p *Parser) error(loc *location.Location, reason string) {
 	p.errorf(loc, reason) //nolint:govet
 }
 
-func (p *Parser) errorf(loc *location.Location, f string, a ...interface{}) {
+func (p *Parser) errorf(loc *location.Location, f string, a ...any) {
 	msg := strings.Builder{}
 	msg.WriteString(fmt.Sprintf(f, a...))
 
@@ -2145,11 +2137,11 @@ func (p *Parser) errorf(loc *location.Location, f string, a ...interface{}) {
 	p.s.hints = nil
 }
 
-func (p *Parser) hint(f string, a ...interface{}) {
+func (p *Parser) hint(f string, a ...any) {
 	p.s.hints = append(p.s.hints, fmt.Sprintf(f, a...))
 }
 
-func (p *Parser) illegal(note string, a ...interface{}) {
+func (p *Parser) illegal(note string, a ...any) {
 	tok := p.s.tok.String()
 
 	if p.s.tok == tokens.Illegal {
@@ -2251,8 +2243,8 @@ func (p *Parser) restore(s *state) {
 	p.s = s
 }
 
-func setLocRecursive(x interface{}, loc *location.Location) {
-	NewGenericVisitor(func(x interface{}) bool {
+func setLocRecursive(x any, loc *location.Location) {
+	NewGenericVisitor(func(x any) bool {
 		if node, ok := x.(Node); ok {
 			node.SetLoc(loc)
 		}
@@ -2276,7 +2268,7 @@ func (p *Parser) validateDefaultRuleValue(rule *Rule) bool {
 	}
 
 	valid := true
-	vis := NewGenericVisitor(func(x interface{}) bool {
+	vis := NewGenericVisitor(func(x any) bool {
 		switch x.(type) {
 		case *ArrayComprehension, *ObjectComprehension, *SetComprehension: // skip closures
 			return true
@@ -2297,7 +2289,7 @@ func (p *Parser) validateDefaultRuleArgs(rule *Rule) bool {
 	valid := true
 	vars := NewVarSet()
 
-	vis := NewGenericVisitor(func(x interface{}) bool {
+	vis := NewGenericVisitor(func(x any) bool {
 		switch x := x.(type) {
 		case Var:
 			if vars.Contains(x) {
@@ -2327,15 +2319,15 @@ func (p *Parser) validateDefaultRuleArgs(rule *Rule) bool {
 // We explicitly use yaml unmarshalling, to accommodate for the '_' in 'related_resources',
 // which isn't handled properly by json for some reason.
 type rawAnnotation struct {
-	Scope            string                 `yaml:"scope"`
-	Title            string                 `yaml:"title"`
-	Entrypoint       bool                   `yaml:"entrypoint"`
-	Description      string                 `yaml:"description"`
-	Organizations    []string               `yaml:"organizations"`
-	RelatedResources []interface{}          `yaml:"related_resources"`
-	Authors          []interface{}          `yaml:"authors"`
-	Schemas          []map[string]any       `yaml:"schemas"`
-	Custom           map[string]interface{} `yaml:"custom"`
+	Scope            string           `yaml:"scope"`
+	Title            string           `yaml:"title"`
+	Entrypoint       bool             `yaml:"entrypoint"`
+	Description      string           `yaml:"description"`
+	Organizations    []string         `yaml:"organizations"`
+	RelatedResources []any            `yaml:"related_resources"`
+	Authors          []any            `yaml:"authors"`
+	Schemas          []map[string]any `yaml:"schemas"`
+	Custom           map[string]any   `yaml:"custom"`
 }
 
 type metadataParser struct {
@@ -2440,7 +2432,7 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 		result.Authors = append(result.Authors, author)
 	}
 
-	result.Custom = make(map[string]interface{})
+	result.Custom = make(map[string]any)
 	for k, v := range raw.Custom {
 		val, err := convertYAMLMapKeyTypes(v, nil)
 		if err != nil {
@@ -2503,7 +2495,7 @@ func augmentYamlError(err error, comments []*Comment) error {
 	return err
 }
 
-func unwrapPair(pair map[string]interface{}) (string, interface{}) {
+func unwrapPair(pair map[string]any) (string, any) {
 	for k, v := range pair {
 		return k, v
 	}
@@ -2534,7 +2526,7 @@ func parseSchemaRef(s string) (Ref, error) {
 	return nil, errInvalidSchemaRef
 }
 
-func parseRelatedResource(rr interface{}) (*RelatedResourceAnnotation, error) {
+func parseRelatedResource(rr any) (*RelatedResourceAnnotation, error) {
 	rr, err := convertYAMLMapKeyTypes(rr, nil)
 	if err != nil {
 		return nil, err
@@ -2550,7 +2542,7 @@ func parseRelatedResource(rr interface{}) (*RelatedResourceAnnotation, error) {
 			return &RelatedResourceAnnotation{Ref: *u}, nil
 		}
 		return nil, errors.New("ref URL may not be empty string")
-	case map[string]interface{}:
+	case map[string]any:
 		description := strings.TrimSpace(getSafeString(rr, "description"))
 		ref := strings.TrimSpace(getSafeString(rr, "ref"))
 		if len(ref) > 0 {
@@ -2566,7 +2558,7 @@ func parseRelatedResource(rr interface{}) (*RelatedResourceAnnotation, error) {
 	return nil, errors.New("invalid value type, must be string or map")
 }
 
-func parseAuthor(a interface{}) (*AuthorAnnotation, error) {
+func parseAuthor(a any) (*AuthorAnnotation, error) {
 	a, err := convertYAMLMapKeyTypes(a, nil)
 	if err != nil {
 		return nil, err
@@ -2575,7 +2567,7 @@ func parseAuthor(a interface{}) (*AuthorAnnotation, error) {
 	switch a := a.(type) {
 	case string:
 		return parseAuthorString(a)
-	case map[string]interface{}:
+	case map[string]any:
 		name := strings.TrimSpace(getSafeString(a, "name"))
 		email := strings.TrimSpace(getSafeString(a, "email"))
 		if len(name) > 0 || len(email) > 0 {
@@ -2587,7 +2579,7 @@ func parseAuthor(a interface{}) (*AuthorAnnotation, error) {
 	return nil, errors.New("invalid value type, must be string or map")
 }
 
-func getSafeString(m map[string]interface{}, k string) string {
+func getSafeString(m map[string]any, k string) string {
 	if v, found := m[k]; found {
 		if s, ok := v.(string); ok {
 			return s
@@ -2764,10 +2756,6 @@ func (p *Parser) regoV1Import(imp *Import) {
 
 func init() {
 	allFutureKeywords = map[string]tokens.Token{}
-	for k, v := range futureKeywords {
-		allFutureKeywords[k] = v
-	}
-	for k, v := range futureKeywordsV0 {
-		allFutureKeywords[k] = v
-	}
+	maps.Copy(allFutureKeywords, futureKeywords)
+	maps.Copy(allFutureKeywords, futureKeywordsV0)
 }

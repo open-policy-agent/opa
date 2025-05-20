@@ -567,8 +567,8 @@ func TestGetBundleDirectoryLoader(t *testing.T) {
 				Roots:    &[]string{"a", "b/c"},
 				Revision: "123",
 			},
-			Data: map[string]interface{}{
-				"a": map[string]interface{}{
+			Data: map[string]any{
+				"a": map[string]any{
 					"b": []int{4, 5, 6},
 				},
 			},
@@ -640,7 +640,7 @@ func TestLoadBundle(t *testing.T) {
 				p = 1`),
 				},
 			},
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"foo": "bar",
 			},
 			Manifest: bundle.Manifest{
@@ -660,7 +660,7 @@ func TestLoadBundle(t *testing.T) {
 		}
 
 		actualData := testBundle.Data
-		actualData["system"] = map[string]interface{}{"bundle": map[string]interface{}{"manifest": map[string]interface{}{"revision": "", "roots": []interface{}{""}}}}
+		actualData["system"] = map[string]any{"bundle": map[string]any{"manifest": map[string]any{"revision": "", "roots": []any{""}}}}
 
 		if !reflect.DeepEqual(actualData, loaded.Documents) {
 			t.Fatalf("Expected %v but got: %v", actualData, loaded.Documents)
@@ -685,7 +685,7 @@ func TestLoadBundleWithReader(t *testing.T) {
 				p = 1`),
 			},
 		},
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"foo": "bar",
 		},
 		Manifest: bundle.Manifest{
@@ -750,7 +750,7 @@ func TestLoadBundleSubDir(t *testing.T) {
 				p = 1`),
 				},
 			},
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"foo": "bar",
 			},
 			Manifest: bundle.Manifest{
@@ -770,9 +770,9 @@ func TestLoadBundleSubDir(t *testing.T) {
 		}
 
 		actualData := testBundle.Data
-		actualData["system"] = map[string]interface{}{"bundle": map[string]interface{}{"manifest": map[string]interface{}{"revision": "", "roots": []interface{}{""}}}}
+		actualData["system"] = map[string]any{"bundle": map[string]any{"manifest": map[string]any{"revision": "", "roots": []any{""}}}}
 
-		if !reflect.DeepEqual(map[string]interface{}{"b": testBundle.Data}, loaded.Documents) {
+		if !reflect.DeepEqual(map[string]any{"b": testBundle.Data}, loaded.Documents) {
 			t.Fatalf("Expected %v but got: %v", testBundle.Data, loaded.Documents)
 		}
 
@@ -890,8 +890,8 @@ func TestAsBundleWithFile(t *testing.T) {
 				Roots:    &[]string{"a", "b/c"},
 				Revision: "123",
 			},
-			Data: map[string]interface{}{
-				"a": map[string]interface{}{
+			Data: map[string]any{
+				"a": map[string]any{
 					"b": []int{4, 5, 6},
 				},
 			},
@@ -919,7 +919,7 @@ func TestAsBundleWithFile(t *testing.T) {
 			t.Fatalf("Unexpected error: %s", err)
 		}
 
-		var tmp interface{} = b
+		var tmp any = b
 		err = util.RoundTrip(&tmp)
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
@@ -1283,7 +1283,7 @@ func TestLoadRegos(t *testing.T) {
 	})
 }
 
-func parseJSON(x string) interface{} {
+func parseJSON(x string) any {
 	return util.MustUnmarshalJSON([]byte(x))
 }
 
@@ -1385,7 +1385,7 @@ func TestSchemas(t *testing.T) {
 						} else {
 							key = ast.MustParseRef(k)
 						}
-						var schema interface{}
+						var schema any
 						err = util.Unmarshal([]byte(v), &schema)
 						if err != nil {
 							t.Fatalf("Unexpected error: %v", err)

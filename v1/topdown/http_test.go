@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"net"
 	"net/http"
@@ -21,6 +22,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -65,19 +67,19 @@ func TestHTTPGetRequest(t *testing.T) {
 	defer ts.Close()
 
 	// expected result
-	expectedResult := make(map[string]interface{})
+	expectedResult := make(map[string]any)
 	expectedResult["status"] = "200 OK"
 	expectedResult["status_code"] = http.StatusOK
 
-	var body []interface{}
+	var body []any
 	bodyMap := map[string]string{"id": "1", "firstname": "John"}
 	body = append(body, bodyMap)
 	expectedResult["body"] = body
 	expectedResult["raw_body"] = "[{\"id\":\"1\",\"firstname\":\"John\"}]\n"
-	expectedResult["headers"] = map[string]interface{}{
-		"content-length": []interface{}{"32"},
-		"content-type":   []interface{}{"text/plain; charset=utf-8"},
-		"test-header":    []interface{}{"test-value"},
+	expectedResult["headers"] = map[string]any{
+		"content-length": []any{"32"},
+		"content-type":   []any{"text/plain; charset=utf-8"},
+		"test-header":    []any{"test-value"},
 	}
 
 	resultObj := ast.MustInterfaceToValue(expectedResult)
@@ -86,7 +88,7 @@ func TestHTTPGetRequest(t *testing.T) {
 	tests := []struct {
 		note     string
 		rules    []string
-		expected interface{}
+		expected any
 	}{
 		{"http.send", []string{fmt.Sprintf(
 			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true}, resp); x := clean_headers(resp) }`, ts.URL)}, resultObj.String()},
@@ -118,18 +120,18 @@ func TestHTTPGetRequestTlsInsecureSkipVerify(t *testing.T) {
 	defer ts.Close()
 
 	// expected result
-	expectedResult := make(map[string]interface{})
+	expectedResult := make(map[string]any)
 	expectedResult["status"] = "200 OK"
 	expectedResult["status_code"] = http.StatusOK
 
-	var body []interface{}
+	var body []any
 	bodyMap := map[string]string{"id": "1", "firstname": "John"}
 	body = append(body, bodyMap)
 	expectedResult["body"] = body
 	expectedResult["raw_body"] = "[{\"id\":\"1\",\"firstname\":\"John\"}]\n"
-	expectedResult["headers"] = map[string]interface{}{
-		"content-length": []interface{}{"32"},
-		"content-type":   []interface{}{"text/plain; charset=utf-8"},
+	expectedResult["headers"] = map[string]any{
+		"content-length": []any{"32"},
+		"content-type":   []any{"text/plain; charset=utf-8"},
 	}
 
 	resultObj := ast.MustInterfaceToValue(expectedResult)
@@ -137,7 +139,7 @@ func TestHTTPGetRequestTlsInsecureSkipVerify(t *testing.T) {
 	type httpsStruct struct {
 		note     string
 		rules    []string
-		expected interface{}
+		expected any
 	}
 
 	// run the test
@@ -186,29 +188,29 @@ func TestHTTPEnableJSONOrYAMLDecode(t *testing.T) {
 
 	defer ts.Close()
 
-	body := func(b interface{}) func(map[string]interface{}) {
-		return func(x map[string]interface{}) {
+	body := func(b any) func(map[string]any) {
+		return func(x map[string]any) {
 			x["body"] = b
 		}
 	}
-	rawBody := func(b interface{}) func(map[string]interface{}) {
-		return func(x map[string]interface{}) {
+	rawBody := func(b any) func(map[string]any) {
+		return func(x map[string]any) {
 			x["raw_body"] = b
 		}
 	}
 
-	headers := func(xs ...string) func(map[string]interface{}) {
-		hdrs := map[string]interface{}{}
+	headers := func(xs ...string) func(map[string]any) {
+		hdrs := map[string]any{}
 		for i := range len(xs) / 2 {
-			hdrs[xs[2*i]] = []interface{}{xs[2*i+1]}
+			hdrs[xs[2*i]] = []any{xs[2*i+1]}
 		}
-		return func(x map[string]interface{}) {
+		return func(x map[string]any) {
 			x["headers"] = hdrs
 		}
 	}
 
-	ok := func(and ...func(map[string]interface{})) ast.Value {
-		o := map[string]interface{}{
+	ok := func(and ...func(map[string]any)) ast.Value {
+		o := map[string]any{
 			"status":      "200 OK",
 			"status_code": http.StatusOK,
 		}
@@ -243,7 +245,7 @@ func TestHTTPEnableJSONOrYAMLDecode(t *testing.T) {
 			note: "json response, proper header",
 			rule: fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s/json"}, resp); x := clean_headers(resp) }`, ts.URL),
 			expected: ok(
-				body(map[string]interface{}{"foo": "bar"}),
+				body(map[string]any{"foo": "bar"}),
 				rawBody(`{"foo":"bar"}`),
 				headers("content-length", "13", "content-type", "application/json"),
 			),
@@ -252,7 +254,7 @@ func TestHTTPEnableJSONOrYAMLDecode(t *testing.T) {
 			note: "yaml response, proper header",
 			rule: fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s/yaml"}, resp); x := clean_headers(resp) }`, ts.URL),
 			expected: ok(
-				body(map[string]interface{}{"foo": "bar"}),
+				body(map[string]any{"foo": "bar"}),
 				rawBody(`foo: bar`),
 				headers("content-length", "8", "content-type", "application/yaml"),
 			),
@@ -261,7 +263,7 @@ func TestHTTPEnableJSONOrYAMLDecode(t *testing.T) {
 			note: "yaml response, x-yaml header",
 			rule: fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s/x-yaml"}, resp); x := clean_headers(resp) }`, ts.URL),
 			expected: ok(
-				body(map[string]interface{}{"foo": "bar"}),
+				body(map[string]any{"foo": "bar"}),
 				rawBody(`foo: bar`),
 				headers("content-length", "8", "content-type", "application/x-yaml"),
 			),
@@ -270,7 +272,7 @@ func TestHTTPEnableJSONOrYAMLDecode(t *testing.T) {
 			note: "json response, no header",
 			rule: fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s/json-no-header", "force_json_decode": true}, resp); x := clean_headers(resp) }`, ts.URL),
 			expected: ok(
-				body(map[string]interface{}{"foo": "bar"}),
+				body(map[string]any{"foo": "bar"}),
 				rawBody(`{"foo":"bar"}`),
 				headers("content-length", "13", "content-type", "text/plain; charset=utf-8"),
 			),
@@ -279,7 +281,7 @@ func TestHTTPEnableJSONOrYAMLDecode(t *testing.T) {
 			note: "yaml response, no header",
 			rule: fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s/yaml-no-header", "force_yaml_decode": true}, resp); x := clean_headers(resp) }`, ts.URL),
 			expected: ok(
-				body(map[string]interface{}{"foo": "bar"}),
+				body(map[string]any{"foo": "bar"}),
 				rawBody(`foo: bar`),
 				headers("content-length", "8", "content-type", "text/plain; charset=utf-8"),
 			),
@@ -288,7 +290,7 @@ func TestHTTPEnableJSONOrYAMLDecode(t *testing.T) {
 			note: "json response, no header, yaml decode",
 			rule: fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s/json-no-header", "force_yaml_decode": true}, resp); x := clean_headers(resp) }`, ts.URL),
 			expected: ok(
-				body(map[string]interface{}{"foo": "bar"}),
+				body(map[string]any{"foo": "bar"}),
 				rawBody(`{"foo":"bar"}`),
 				headers("content-length", "13", "content-type", "text/plain; charset=utf-8"),
 			),
@@ -296,7 +298,7 @@ func TestHTTPEnableJSONOrYAMLDecode(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, map[string]interface{}{}, tc.note, append([]string{tc.rule}, httpSendHelperRules...), tc.expected.String())
+		runTopDownTestCase(t, map[string]any{}, tc.note, append([]string{tc.rule}, httpSendHelperRules...), tc.expected.String())
 	}
 }
 
@@ -320,7 +322,7 @@ func TestHTTPSendCustomRequestHeaders(t *testing.T) {
 	defer ts.Close()
 
 	// expected result with default User-Agent
-	expectedResult := make(map[string]interface{})
+	expectedResult := make(map[string]any)
 	expectedResult["status"] = "200 OK"
 	expectedResult["status_code"] = http.StatusOK
 
@@ -350,7 +352,7 @@ func TestHTTPSendCustomRequestHeaders(t *testing.T) {
 	tests := []struct {
 		note     string
 		rules    []string
-		expected interface{}
+		expected any
 	}{
 		{"http.send custom headers", []string{fmt.Sprintf(
 			`p = x { http.send({"method": "get", "url": "%s", "headers": {"X-Foo": "ISO-8859-1,utf-8;q=0.7,*;q=0.7", "X-Opa": "server"}}, resp); x := remove_headers(resp) }`, ts.URL)}, s},
@@ -377,14 +379,14 @@ func TestHTTPHostHeader(t *testing.T) {
 
 	defer ts.Close()
 
-	expectedResult, err := json.Marshal(map[string]interface{}{
+	expectedResult, err := json.Marshal(map[string]any{
 		"status":      "200 OK",
 		"status_code": http.StatusOK,
 		"body":        t.Name(),
 		"raw_body":    fmt.Sprintf("\"%s\"\n", t.Name()),
-		"headers": map[string]interface{}{
-			"content-length": []interface{}{"21"},
-			"content-type":   []interface{}{"application/json"},
+		"headers": map[string]any{
+			"content-length": []any{"21"},
+			"content-type":   []any{"application/json"},
 		},
 	})
 	if err != nil {
@@ -430,7 +432,7 @@ func TestHTTPPostRequest(t *testing.T) {
 		note        string
 		params      string
 		respHeaders string
-		expected    interface{}
+		expected    any
 	}{
 		{
 			note: "basic",
@@ -489,7 +491,7 @@ func TestHTTPPostRequest(t *testing.T) {
 		},
 	}
 
-	data := map[string]interface{}{}
+	data := map[string]any{}
 
 	for _, tc := range tests {
 
@@ -513,8 +515,7 @@ func TestHTTPDeleteRequest(t *testing.T) {
 	var people []Person
 
 	// test data
-	people = append(people, Person{ID: "1", Firstname: "John"})
-	people = append(people, Person{ID: "2", Firstname: "Joe"})
+	people = append(people, Person{ID: "1", Firstname: "John"}, Person{ID: "2", Firstname: "Joe"})
 
 	// test server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -532,7 +533,7 @@ func TestHTTPDeleteRequest(t *testing.T) {
 		// delete person
 		for index, item := range people {
 			if item.ID == person.ID {
-				people = append(people[:index], people[index+1:]...)
+				people = slices.Delete(people, index, index+1)
 				break
 			}
 		}
@@ -545,18 +546,18 @@ func TestHTTPDeleteRequest(t *testing.T) {
 	defer ts.Close()
 
 	// expected result
-	expectedResult := make(map[string]interface{})
+	expectedResult := make(map[string]any)
 	expectedResult["status"] = "200 OK"
 	expectedResult["status_code"] = http.StatusOK
 
-	var body []interface{}
+	var body []any
 	bodyMap := map[string]string{"id": "1", "firstname": "John"}
 	body = append(body, bodyMap)
 	expectedResult["body"] = body
 	expectedResult["raw_body"] = "[{\"id\":\"1\",\"firstname\":\"John\"}]\n"
-	expectedResult["headers"] = map[string]interface{}{
-		"content-length": []interface{}{"32"},
-		"content-type":   []interface{}{"application/json"},
+	expectedResult["headers"] = map[string]any{
+		"content-length": []any{"32"},
+		"content-type":   []any{"application/json"},
 	}
 
 	resultObj := ast.MustInterfaceToValue(expectedResult)
@@ -570,7 +571,7 @@ func TestHTTPDeleteRequest(t *testing.T) {
 	tests := []struct {
 		note     string
 		rules    []string
-		expected interface{}
+		expected any
 	}{
 		{"http.send", []string{fmt.Sprintf(
 			`p = x { http.send({"method": "delete", "url": "%s", "body": %s}, resp); x := clean_headers(resp) }`, ts.URL, b)}, resultObj.String()},
@@ -592,7 +593,7 @@ func TestInvalidKeyError(t *testing.T) {
 	tests := []struct {
 		note     string
 		rules    []string
-		expected interface{}
+		expected any
 	}{
 		{"invalid keys", []string{`p = x { http.send({"method": "get", "url": "http://127.0.0.1:51113", "bad_key": "bad_value"}, x) }`}, &Error{Code: TypeErr, Message: `invalid request parameters(s): {"bad_key"}`}},
 		{"missing keys", []string{`p = x { http.send({"method": "get"}, x) }`}, &Error{Code: TypeErr, Message: `missing required request parameters(s): {"url"}`}},
@@ -612,7 +613,7 @@ func TestInvalidRetryParam(t *testing.T) {
 	tests := []struct {
 		note     string
 		rules    []string
-		expected interface{}
+		expected any
 	}{
 		{"invalid retry param", []string{`p = x { http.send({"method": "get", "url": "http://127.0.0.1:51113", "max_retry_attempts": "bad_value"}, x) }`}, &Error{Code: BuiltinErr, Message: `http.send: invalid value "bad_value" for field "max_retry_attempts"`}},
 		{"invalid number", []string{`p = x { http.send({"method": "get", "url": "http://127.0.0.1:51113", "max_retry_attempts": 1.2}, x) }`}, &Error{Code: BuiltinErr, Message: `http.send: invalid value 1.2 for field "max_retry_attempts"`}},
@@ -632,7 +633,7 @@ func TestParseTimeout(t *testing.T) {
 	tests := []struct {
 		note     string
 		raw      ast.Value
-		expected interface{}
+		expected any
 	}{
 		{
 			note:     "zero string",
@@ -732,15 +733,15 @@ func TestHTTPRedirectDisable(t *testing.T) {
 	defer teardown()
 
 	// expected result
-	expectedResult := make(map[string]interface{})
+	expectedResult := make(map[string]any)
 	expectedResult["body"] = nil
 	expectedResult["raw_body"] = "<a href=\"/test\">Moved Permanently</a>.\n\n"
 	expectedResult["status"] = "301 Moved Permanently"
 	expectedResult["status_code"] = http.StatusMovedPermanently
-	expectedResult["headers"] = map[string]interface{}{
-		"content-length": []interface{}{"40"},
-		"content-type":   []interface{}{"text/html; charset=utf-8"},
-		"location":       []interface{}{"/test"},
+	expectedResult["headers"] = map[string]any{
+		"content-length": []any{"40"},
+		"content-type":   []any{"text/html; charset=utf-8"},
+		"location":       []any{"/test"},
 	}
 
 	resultObj := ast.MustInterfaceToValue(expectedResult)
@@ -764,13 +765,13 @@ func TestHTTPRedirectEnable(t *testing.T) {
 	defer teardown()
 
 	// expected result
-	expectedResult := make(map[string]interface{})
+	expectedResult := make(map[string]any)
 	expectedResult["status"] = "200 OK"
 	expectedResult["status_code"] = http.StatusOK
 	expectedResult["body"] = nil
 	expectedResult["raw_body"] = ""
-	expectedResult["headers"] = map[string]interface{}{
-		"content-length": []interface{}{"0"},
+	expectedResult["headers"] = map[string]any{
+		"content-length": []any{"0"},
 	}
 
 	resultObj := ast.MustInterfaceToValue(expectedResult)
@@ -800,7 +801,7 @@ func TestHTTPRedirectAllowNet(t *testing.T) {
 	serverHost := strings.Split(serverURL.Host, ":")[0]
 
 	// expected result
-	expectedResult := make(map[string]interface{})
+	expectedResult := make(map[string]any)
 	expectedResult["status"] = "200 OK"
 	expectedResult["status_code"] = http.StatusOK
 	expectedResult["body"] = nil
@@ -818,7 +819,7 @@ func TestHTTPRedirectAllowNet(t *testing.T) {
 		note     string
 		rules    []string
 		options  func(*Query) *Query
-		expected interface{}
+		expected any
 	}{
 		{
 			"http.send allow_net nil",
@@ -860,29 +861,29 @@ func TestHTTPSendRaiseError(t *testing.T) {
 	baseURL, teardown := getTestServer()
 	defer teardown()
 
-	networkErrObj := make(map[string]interface{})
+	networkErrObj := make(map[string]any)
 	networkErrObj["code"] = HTTPSendNetworkErr
 	networkErrObj["message"] = "Get \"foo://foo.com\": unsupported protocol scheme \"foo\""
 
 	networkErr := ast.MustInterfaceToValue(networkErrObj)
 
-	internalErrObj := make(map[string]interface{})
+	internalErrObj := make(map[string]any)
 	internalErrObj["code"] = HTTPSendInternalErr
 	internalErrObj["message"] = fmt.Sprintf(`http.send({"method": "get", "url": "%s", "force_json_decode": true, "raise_error": false, "force_cache": true}): eval_builtin_error: http.send: 'force_cache' set but 'force_cache_duration_seconds' parameter is missing`, baseURL)
 
 	internalErr := ast.MustInterfaceToValue(internalErrObj)
 
-	responseObj := make(map[string]interface{})
+	responseObj := make(map[string]any)
 	responseObj["status_code"] = 0
 	responseObj["error"] = internalErrObj
 
 	response := ast.MustInterfaceToValue(responseObj)
 
-	inputValidationErrObj := make(map[string]interface{})
+	inputValidationErrObj := make(map[string]any)
 	inputValidationErrObj["code"] = HTTPSendInternalErr
 	inputValidationErrObj["message"] = fmt.Sprintf(`http.send({"url": "%s", "raise_error": false}): eval_type_error: http.send: operand 1 missing required request parameters(s): {"method"}`, baseURL)
 
-	responseObjInputValidationErr := make(map[string]interface{})
+	responseObjInputValidationErr := make(map[string]any)
 	responseObjInputValidationErr["status_code"] = 0
 	responseObjInputValidationErr["error"] = inputValidationErrObj
 
@@ -892,7 +893,7 @@ func TestHTTPSendRaiseError(t *testing.T) {
 		note         string
 		ruleTemplate string
 		body         string
-		response     interface{}
+		response     any
 	}{
 		{
 			note: "http.send invalid url (don't raise error, check response body)",
@@ -1244,9 +1245,7 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 				requests = append(requests, r)
 				headers := w.Header()
 
-				for k, v := range tc.headers {
-					headers[k] = v
-				}
+				maps.Copy(headers, tc.headers)
 
 				headers.Set("Date", t0.Format(time.RFC850))
 
@@ -1287,7 +1286,7 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 				t.Fatalf("Expected to get %d requests, got %d", tc.expectedReqCount, actualCount)
 			}
 
-			var x interface{}
+			var x any
 			if err := util.UnmarshalJSON([]byte(request), &x); err != nil {
 				t.Fatalf("failed to unmarshal request: %v", err)
 			}
@@ -1404,9 +1403,7 @@ func TestHTTPSendInterQueryCaching(t *testing.T) {
 				requests = append(requests, r)
 				headers := w.Header()
 
-				for k, v := range tc.headers {
-					headers[k] = v
-				}
+				maps.Copy(headers, tc.headers)
 
 				headers.Set("Date", t0.Format(time.RFC850))
 
@@ -1575,9 +1572,7 @@ func TestHTTPSendInterQueryForceCaching(t *testing.T) {
 				requests = append(requests, r)
 				headers := w.Header()
 
-				for k, v := range tc.headers {
-					headers[k] = v
-				}
+				maps.Copy(headers, tc.headers)
 
 				headers.Set("Date", t0.Format(http.TimeFormat))
 
@@ -1659,9 +1654,7 @@ func TestHTTPSendInterQueryForceCachingRefresh(t *testing.T) {
 				requests = append(requests, r)
 				headers := w.Header()
 
-				for k, v := range tc.headers {
-					headers[k] = v
-				}
+				maps.Copy(headers, tc.headers)
 
 				if tc.skipDate {
 					headers["Date"] = nil
@@ -1718,7 +1711,7 @@ func TestHTTPSendInterQueryForceCachingRefresh(t *testing.T) {
 				}
 
 				// pull the result out of the cache
-				var x interface{}
+				var x any
 				if err := util.UnmarshalJSON([]byte(request), &x); err != nil {
 					t.Fatalf("failed to unmarshal request on query %d: %v", i, err)
 				}
@@ -1809,9 +1802,7 @@ func TestHTTPSendInterQueryCachingModifiedResp(t *testing.T) {
 				requests = append(requests, r)
 				headers := w.Header()
 
-				for k, v := range tc.headers {
-					headers[k] = v
-				}
+				maps.Copy(headers, tc.headers)
 
 				headers.Set("Date", t0.Format(http.TimeFormat))
 
@@ -1887,9 +1878,7 @@ func TestHTTPSendInterQueryCachingNewResp(t *testing.T) {
 				requests = append(requests, r)
 				headers := w.Header()
 
-				for k, v := range tc.headers {
-					headers[k] = v
-				}
+				maps.Copy(headers, tc.headers)
 
 				headers.Set("Date", t0.Format(http.TimeFormat))
 
@@ -1984,9 +1973,7 @@ func TestInsertIntoHTTPSendInterQueryCacheError(t *testing.T) {
 				requests = append(requests, r)
 				headers := w.Header()
 
-				for k, v := range tc.headers {
-					headers[k] = v
-				}
+				maps.Copy(headers, tc.headers)
 
 				w.WriteHeader(http.StatusOK)
 				_, err := w.Write([]byte(tc.response))
@@ -2471,15 +2458,15 @@ func TestHTTPSClient(t *testing.T) {
 	t.Run("Server reflects Certificate CommonName", func(t *testing.T) {
 		// expected result
 		bodyMap := map[string]string{"CommonName": "my-ca"}
-		expectedResult := map[string]interface{}{
+		expectedResult := map[string]any{
 			"status":      "200 OK",
 			"status_code": http.StatusOK,
 			"raw_body":    "{\"CommonName\":\"my-ca\"}",
 		}
 		expectedResult["body"] = bodyMap
-		expectedResult["headers"] = map[string]interface{}{
-			"content-length": []interface{}{"22"},
-			"content-type":   []interface{}{"application/json"},
+		expectedResult["headers"] = map[string]any{
+			"content-length": []any{"22"},
+			"content-type":   []any{"application/json"},
 		}
 
 		resultObj, err := ast.InterfaceToValue(expectedResult)
@@ -2498,13 +2485,13 @@ func TestHTTPSClient(t *testing.T) {
 
 	t.Run("HTTPS Get with Inline Cert", func(t *testing.T) {
 		// expected result
-		expectedResult := map[string]interface{}{
+		expectedResult := map[string]any{
 			"status":      "200 OK",
 			"status_code": http.StatusOK,
 			"body":        nil,
 			"raw_body":    "",
-			"headers": map[string]interface{}{
-				"content-length": []interface{}{"0"},
+			"headers": map[string]any{
+				"content-length": []any{"0"},
 			},
 		}
 
@@ -2542,13 +2529,13 @@ func TestHTTPSClient(t *testing.T) {
 
 	t.Run("HTTPS Get with File Cert", func(t *testing.T) {
 		// expected result
-		expectedResult := map[string]interface{}{
+		expectedResult := map[string]any{
 			"status":      "200 OK",
 			"status_code": http.StatusOK,
 			"body":        nil,
 			"raw_body":    "",
-			"headers": map[string]interface{}{
-				"content-length": []interface{}{"0"},
+			"headers": map[string]any{
+				"content-length": []any{"0"},
 			},
 		}
 
@@ -2569,13 +2556,13 @@ func TestHTTPSClient(t *testing.T) {
 
 	t.Run("HTTPS Get with Env Cert", func(t *testing.T) {
 		// expected result
-		expectedResult := map[string]interface{}{
+		expectedResult := map[string]any{
 			"status":      "200 OK",
 			"status_code": http.StatusOK,
 			"body":        nil,
 			"raw_body":    "",
-			"headers": map[string]interface{}{
-				"content-length": []interface{}{"0"},
+			"headers": map[string]any{
+				"content-length": []any{"0"},
 			},
 		}
 
@@ -2596,13 +2583,13 @@ func TestHTTPSClient(t *testing.T) {
 
 	t.Run("HTTPS Get with Env and File Cert", func(t *testing.T) {
 		// expected result
-		expectedResult := map[string]interface{}{
+		expectedResult := map[string]any{
 			"status":      "200 OK",
 			"status_code": http.StatusOK,
 			"body":        nil,
 			"raw_body":    "",
-			"headers": map[string]interface{}{
-				"content-length": []interface{}{"0"},
+			"headers": map[string]any{
+				"content-length": []any{"0"},
 			},
 		}
 
@@ -2623,13 +2610,13 @@ func TestHTTPSClient(t *testing.T) {
 
 	t.Run("HTTPS Get with System Certs, Env and File Cert", func(t *testing.T) {
 		// expected result
-		expectedResult := map[string]interface{}{
+		expectedResult := map[string]any{
 			"status":      "200 OK",
 			"status_code": http.StatusOK,
 			"body":        nil,
 			"raw_body":    "",
-			"headers": map[string]interface{}{
-				"content-length": []interface{}{"0"},
+			"headers": map[string]any{
+				"content-length": []any{"0"},
 			},
 		}
 
@@ -2770,13 +2757,13 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 	})
 
 	t.Run("HTTPS Get with Inline CA Cert", func(t *testing.T) {
-		expectedResult := map[string]interface{}{
+		expectedResult := map[string]any{
 			"status":      "200 OK",
 			"status_code": http.StatusOK,
 			"body":        nil,
 			"raw_body":    "",
-			"headers": map[string]interface{}{
-				"content-length": []interface{}{"0"},
+			"headers": map[string]any{
+				"content-length": []any{"0"},
 			},
 		}
 
@@ -2801,13 +2788,13 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 
 	t.Run("HTTPS Get with CA Cert File", func(t *testing.T) {
 		// expected result
-		expectedResult := map[string]interface{}{
+		expectedResult := map[string]any{
 			"status":      "200 OK",
 			"status_code": http.StatusOK,
 			"body":        nil,
 			"raw_body":    "",
-			"headers": map[string]interface{}{
-				"content-length": []interface{}{"0"},
+			"headers": map[string]any{
+				"content-length": []any{"0"},
 			},
 		}
 
@@ -2828,13 +2815,13 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 
 	t.Run("HTTPS Get with CA Cert ENV", func(t *testing.T) {
 		// expected result
-		expectedResult := map[string]interface{}{
+		expectedResult := map[string]any{
 			"status":      "200 OK",
 			"status_code": http.StatusOK,
 			"body":        nil,
 			"raw_body":    "",
-			"headers": map[string]interface{}{
-				"content-length": []interface{}{"0"},
+			"headers": map[string]any{
+				"content-length": []any{"0"},
 			},
 		}
 
@@ -2855,13 +2842,13 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 
 	t.Run("HTTPS Get with System CA Cert Pool", func(t *testing.T) {
 		// expected result
-		expectedResult := map[string]interface{}{
+		expectedResult := map[string]any{
 			"status":      "200 OK",
 			"status_code": http.StatusOK,
 			"body":        nil,
 			"raw_body":    "",
-			"headers": map[string]interface{}{
-				"content-length": []interface{}{"0"},
+			"headers": map[string]any{
+				"content-length": []any{"0"},
 			},
 		}
 
@@ -2882,13 +2869,13 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 
 	t.Run("HTTPS Get with System Certs, Env and File Cert", func(t *testing.T) {
 		// expected result
-		expectedResult := map[string]interface{}{
+		expectedResult := map[string]any{
 			"status":      "200 OK",
 			"status_code": http.StatusOK,
 			"body":        nil,
 			"raw_body":    "",
-			"headers": map[string]interface{}{
-				"content-length": []interface{}{"0"},
+			"headers": map[string]any{
+				"content-length": []any{"0"},
 			},
 		}
 
@@ -3581,20 +3568,20 @@ func TestSocketHTTPGetRequest(t *testing.T) {
 	rawURL := fmt.Sprintf("unix://localhost/end/point?%s&param1=value1&param2=value2", path) // Send a request to the server over the socket
 
 	// expected result
-	expectedResult := make(map[string]interface{})
+	expectedResult := make(map[string]any)
 	expectedResult["status"] = "200 OK"
 	expectedResult["status_code"] = http.StatusOK
 
-	var body []interface{}
+	var body []any
 	bodyMap := map[string]string{"id": "1", "firstname": "John"}
 	body = append(body, bodyMap)
 	expectedResult["body"] = body
 	expectedResult["raw_body"] = "[{\"id\":\"1\",\"firstname\":\"John\"}]\n"
-	expectedResult["headers"] = map[string]interface{}{
-		"content-length":    []interface{}{"32"},
-		"content-type":      []interface{}{"text/plain; charset=utf-8"},
-		"test-header":       []interface{}{"test-value"},
-		"echo-query-string": []interface{}{"param1=value1&param2=value2"},
+	expectedResult["headers"] = map[string]any{
+		"content-length":    []any{"32"},
+		"content-type":      []any{"text/plain; charset=utf-8"},
+		"test-header":       []any{"test-value"},
+		"echo-query-string": []any{"param1=value1&param2=value2"},
 	}
 
 	resultObj := ast.MustInterfaceToValue(expectedResult)
@@ -3603,7 +3590,7 @@ func TestSocketHTTPGetRequest(t *testing.T) {
 	tests := []struct {
 		note     string
 		rules    []string
-		expected interface{}
+		expected any
 	}{
 		{"http.send", []string{fmt.Sprintf(
 			`p = x { http.send({"method": "get", "url": %q, "force_json_decode": true}, resp); x := clean_headers(resp) }`, rawURL)}, resultObj.String()},
@@ -3700,7 +3687,7 @@ func TestHTTPGetRequestAllowNet(t *testing.T) {
 	serverHost := strings.Split(serverURL.Host, ":")[0]
 
 	// expected result
-	expectedResult := make(map[string]interface{})
+	expectedResult := make(map[string]any)
 	expectedResult["status"] = "200 OK"
 	expectedResult["status_code"] = http.StatusOK
 
@@ -3719,7 +3706,7 @@ func TestHTTPGetRequestAllowNet(t *testing.T) {
 		note     string
 		rules    []string
 		options  func(*Query) *Query
-		expected interface{}
+		expected any
 	}{
 		{
 			"http.send allow_net nil",
@@ -3768,10 +3755,8 @@ type secretTransport struct {
 }
 
 func (st *secretTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	for k, v := range st.extraRequestHeaders {
-		// Set additional headers on the request not visible to the caller
-		req.Header[k] = v
-	}
+	// Set additional headers on the request not visible to the caller
+	maps.Copy(req.Header, st.extraRequestHeaders)
 	return st.Transport.RoundTrip(req)
 }
 
@@ -3806,7 +3791,7 @@ func TestHTTPWithCustomTransport(t *testing.T) {
 	serverHost := strings.Split(serverURL.Host, ":")[0]
 
 	// expected result
-	expectedResult := make(map[string]interface{})
+	expectedResult := make(map[string]any)
 	expectedResult["status"] = "200 OK"
 	expectedResult["status_code"] = http.StatusOK
 
@@ -3831,7 +3816,7 @@ func TestHTTPWithCustomTransport(t *testing.T) {
 		note     string
 		rules    []string
 		options  func(*Query) *Query
-		expected interface{}
+		expected any
 		calls    int
 	}{
 		{

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -50,7 +51,7 @@ func toStringSlice(a *any) []string {
 	switch a := (*a).(type) {
 	case []string:
 		return a
-	case []interface{}:
+	case []any:
 		strSlice := make([]string, len(a))
 		for i := range a {
 			strSlice[i] = a[i].(string)
@@ -854,9 +855,7 @@ main contains "hello" if {
 					if bundleType.tar {
 						files["bundle.tar.gz"] = ""
 					} else {
-						for k, v := range tc.files {
-							files[k] = v
-						}
+						maps.Copy(files, tc.files)
 					}
 
 					test.WithTempFS(files, func(root string) {

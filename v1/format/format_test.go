@@ -293,7 +293,7 @@ func TestFormatAST(t *testing.T) {
 	cases := []struct {
 		note        string
 		regoVersion ast.RegoVersion
-		toFmt       interface{}
+		toFmt       any
 		expected    string
 	}{
 		{
@@ -675,7 +675,7 @@ func TestFormatAST_Error(t *testing.T) {
 	cases := []struct {
 		note        string
 		regoVersion ast.RegoVersion
-		toFmt       interface{}
+		toFmt       any
 		expErr      string
 	}{
 		{
@@ -740,10 +740,7 @@ func differsAt(a, b []byte) (int, int) {
 	if bytes.Equal(a, b) {
 		return 0, 0
 	}
-	minLen := len(a)
-	if minLen > len(b) {
-		minLen = len(b)
-	}
+	minLen := min(len(a), len(b))
 	ln := 1
 	for i := range minLen {
 		if a[i] == '\n' {

@@ -28,7 +28,7 @@ a.b.c.this["this"] = d if { d := "this" }
 `)
 
 	result, err := Transform(&GenericTransformer{
-		func(x interface{}) (interface{}, error) {
+		func(x any) (any, error) {
 			if s, ok := x.(String); ok && s == String("this") {
 				return String("that"), nil
 			}
@@ -81,7 +81,7 @@ p := 7`, ParserOptions{ProcessAnnotation: true})
 	}
 
 	result, err := Transform(&GenericTransformer{
-		func(x interface{}) (interface{}, error) {
+		func(x any) (any, error) {
 			if s, ok := x.(*Annotations); ok {
 				cpy := *s
 				cpy.Scope = "deadbeef"

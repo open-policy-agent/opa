@@ -54,17 +54,17 @@ type Discovery struct {
 	manager              *plugins.Manager
 	config               *Config
 	factories            map[string]plugins.Factory
-	downloader           bundle.Loader                       // discovery bundle downloader
-	status               *bundle.Status                      // discovery status
-	listenersMtx         sync.Mutex                          // lock for listener map
-	listeners            map[interface{}]func(bundle.Status) // listeners for discovery update events
-	etag                 string                              // discovery bundle etag for caching purposes
+	downloader           bundle.Loader               // discovery bundle downloader
+	status               *bundle.Status              // discovery status
+	listenersMtx         sync.Mutex                  // lock for listener map
+	listeners            map[any]func(bundle.Status) // listeners for discovery update events
+	etag                 string                      // discovery bundle etag for caching purposes
 	metrics              metrics.Metrics
 	readyOnce            sync.Once
 	logger               logging.Logger
 	bundlePersistPath    string
 	hooks                hooks.Hooks
-	bootConfig           map[string]interface{}
+	bootConfig           map[string]any
 	overriddenConfigKeys []string
 }
 
@@ -89,7 +89,7 @@ func Hooks(hs hooks.Hooks) func(*Discovery) {
 	}
 }
 
-func BootConfig(bootConfig map[string]interface{}) func(*Discovery) {
+func BootConfig(bootConfig map[string]any) func(*Discovery) {
 	return func(d *Discovery) {
 		d.bootConfig = bootConfig
 	}
@@ -105,13 +105,15 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 		f(result)
 	}
 
+	result.logger = manager.Logger().WithFields(map[string]any{"plugin": Name})
+
 	config, err := NewConfigBuilder().WithBytes(manager.Config.Discovery).WithServices(manager.Services()).
 		WithKeyConfigs(manager.PublicKeys()).Parse()
 
 	if err != nil {
 		return nil, err
 	} else if config == nil {
-		if _, err := getPluginSet(result.factories, manager, manager.Config, result.metrics, nil); err != nil {
+		if _, err := getPluginSet(result.factories, manager, manager.Config, result.metrics, result.logger, nil); err != nil {
 			return nil, err
 		}
 		return result, nil
@@ -141,7 +143,7 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 		Name: Name,
 	}
 
-	result.logger = manager.Logger().WithFields(map[string]interface{}{"plugin": Name})
+	result.logger = manager.Logger().WithFields(map[string]any{"plugin": Name})
 
 	manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
 	return result, nil
@@ -177,7 +179,7 @@ func (c *Discovery) Stop(ctx context.Context) {
 }
 
 // Reconfigure is a no-op on discovery.
-func (*Discovery) Reconfigure(context.Context, interface{}) {
+func (*Discovery) Reconfigure(context.Context, any) {
 }
 
 // Lookup returns the discovery plugin registered with the manager.
@@ -202,19 +204,19 @@ func (c *Discovery) Trigger(ctx context.Context) error {
 	return c.downloader.Trigger(ctx)
 }
 
-func (c *Discovery) RegisterListener(name interface{}, f func(bundle.Status)) {
+func (c *Discovery) RegisterListener(name any, f func(bundle.Status)) {
 	c.listenersMtx.Lock()
 	defer c.listenersMtx.Unlock()
 
 	if c.listeners == nil {
-		c.listeners = map[interface{}]func(bundle.Status){}
+		c.listeners = map[any]func(bundle.Status){}
 	}
 
 	c.listeners[name] = f
 }
 
 // Unregister a listener to stop receiving status updates.
-func (c *Discovery) Unregister(name interface{}) {
+func (c *Discovery) Unregister(name any) {
 	c.listenersMtx.Lock()
 	defer c.listenersMtx.Unlock()
 
@@ -422,7 +424,7 @@ func (c *Discovery) applyLocalPluginConfigOverride(conf *config.Config) (*config
 		return nil, nil, err
 	}
 
-	var newConfig map[string]interface{}
+	var newConfig map[string]any
 	err = util.Unmarshal(raw, &newConfig)
 	if err != nil {
 		return nil, nil, err
@@ -509,7 +511,7 @@ func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pl
 		return nil, err
 	}
 
-	ps, err := getPluginSet(c.factories, c.manager, overriddenConfig, c.metrics, c.config.Trigger)
+	ps, err := getPluginSet(c.factories, c.manager, overriddenConfig, c.metrics, c.logger, c.config.Trigger)
 	if err != nil {
 		return nil, err
 	}
@@ -574,17 +576,17 @@ type pluginSet struct {
 }
 
 type pluginreconfig struct {
-	Config interface{}
+	Config any
 	Plugin plugins.Plugin
 }
 
 type pluginfactory struct {
 	name    string
 	factory plugins.Factory
-	config  interface{}
+	config  any
 }
 
-func getPluginSet(factories map[string]plugins.Factory, manager *plugins.Manager, config *config.Config, m metrics.Metrics, trigger *plugins.TriggerMode) (*pluginSet, error) {
+func getPluginSet(factories map[string]plugins.Factory, manager *plugins.Manager, config *config.Config, m metrics.Metrics, l logging.Logger, trigger *plugins.TriggerMode) (*pluginSet, error) {
 
 	// Parse and validate plugin configurations.
 	pluginNames := []string{}
@@ -628,7 +630,7 @@ func getPluginSet(factories map[string]plugins.Factory, manager *plugins.Manager
 	}
 
 	decisionLogsConfig, err := logs.NewConfigBuilder().WithBytes(config.DecisionLogs).WithServices(manager.Services()).
-		WithPlugins(pluginNames).WithTriggerMode(trigger).Parse()
+		WithPlugins(pluginNames).WithTriggerMode(trigger).WithLogger(l).Parse()
 	if err != nil {
 		return nil, err
 	}
@@ -743,7 +745,7 @@ func registerBundleStatusUpdates(m *plugins.Manager) {
 
 // mergeValuesAndListOverrides will merge source and destination map, preferring values from the source map.
 // It will also return a list of keys in the destination map which were overridden by those in the source map
-func mergeValuesAndListOverrides(dest map[string]interface{}, src map[string]interface{}, prefix string) (map[string]interface{}, []string) {
+func mergeValuesAndListOverrides(dest map[string]any, src map[string]any, prefix string) (map[string]any, []string) {
 	overriddenKeys := []string{}
 
 	for k, v := range src {
@@ -758,7 +760,7 @@ func mergeValuesAndListOverrides(dest map[string]interface{}, src map[string]int
 			fullKey = fmt.Sprintf("%v.%v", prefix, k)
 		}
 
-		nextMap, ok := v.(map[string]interface{})
+		nextMap, ok := v.(map[string]any)
 		// If it isn't another map, overwrite the value
 		if !ok {
 			if !reflect.DeepEqual(dest[k], v) {
@@ -768,7 +770,7 @@ func mergeValuesAndListOverrides(dest map[string]interface{}, src map[string]int
 			continue
 		}
 		// Edge case: If the key exists in the destination, but isn't a map
-		destMap, isMap := dest[k].(map[string]interface{})
+		destMap, isMap := dest[k].(map[string]any)
 		// If the source map has a map for this key, prefer it
 		if !isMap {
 			dest[k] = v

@@ -9,6 +9,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"maps"
 
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
 	"github.com/open-policy-agent/opa/internal/jwx/jws"
@@ -89,7 +90,7 @@ func (*DefaultSigner) GenerateSignedToken(files []FileInfo, sc *SigningConfig, k
 }
 
 func generatePayload(files []FileInfo, sc *SigningConfig, keyID string) ([]byte, error) {
-	payload := make(map[string]interface{})
+	payload := make(map[string]any)
 	payload["files"] = files
 
 	if sc.ClaimsPath != "" {
@@ -98,9 +99,7 @@ func generatePayload(files []FileInfo, sc *SigningConfig, keyID string) ([]byte,
 			return nil, err
 		}
 
-		for claim, value := range claims {
-			payload[claim] = value
-		}
+		maps.Copy(payload, claims)
 	} else if keyID != "" {
 		// keyid claim is deprecated but include it for backwards compatibility.
 		payload["keyid"] = keyID

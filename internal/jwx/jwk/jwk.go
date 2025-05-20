@@ -15,7 +15,7 @@ import (
 // For rsa key types *rsa.PublicKey is returned; for ecdsa key types *ecdsa.PublicKey;
 // for byte slice (raw) keys, the key itself is returned. If the corresponding
 // public key cannot be deduced, an error is returned
-func GetPublicKey(key interface{}) (interface{}, error) {
+func GetPublicKey(key any) (any, error) {
 	if key == nil {
 		return nil, errors.New("jwk.New requires a non-nil key")
 	}
@@ -23,7 +23,7 @@ func GetPublicKey(key interface{}) (interface{}, error) {
 	switch v := key.(type) {
 	// Mental note: although Public() is defined in both types,
 	// you can not coalesce the clauses for rsa.PrivateKey and
-	// ecdsa.PrivateKey, as then `v` becomes interface{}
+	// ecdsa.PrivateKey, as then `v` becomes any
 	// b/c the compiler cannot deduce the exact type.
 	case *rsa.PrivateKey:
 		return v.Public(), nil
@@ -37,7 +37,7 @@ func GetPublicKey(key interface{}) (interface{}, error) {
 }
 
 // GetKeyTypeFromKey creates a jwk.Key from the given key.
-func GetKeyTypeFromKey(key interface{}) jwa.KeyType {
+func GetKeyTypeFromKey(key any) jwa.KeyType {
 
 	switch key.(type) {
 	case *rsa.PrivateKey, *rsa.PublicKey:
@@ -52,7 +52,7 @@ func GetKeyTypeFromKey(key interface{}) jwa.KeyType {
 }
 
 // New creates a jwk.Key from the given key.
-func New(key interface{}) (Key, error) {
+func New(key any) (Key, error) {
 	if key == nil {
 		return nil, errors.New("jwk.New requires a non-nil key")
 	}

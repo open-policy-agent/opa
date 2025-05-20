@@ -13,6 +13,7 @@ import (
 	"maps"
 	"net/http"
 	"reflect"
+	"slices"
 
 	lstat "github.com/open-policy-agent/opa/v1/plugins/logs/status"
 
@@ -43,7 +44,7 @@ type UpdateRequestV1 struct {
 	Bundles      map[string]*bundle.Status  `json:"bundles,omitempty"`
 	Discovery    *bundle.Status             `json:"discovery,omitempty"`
 	DecisionLogs *lstat.Status              `json:"decision_logs,omitempty"`
-	Metrics      map[string]interface{}     `json:"metrics,omitempty"`
+	Metrics      map[string]any             `json:"metrics,omitempty"`
 	Plugins      map[string]*plugins.Status `json:"plugins,omitempty"`
 }
 
@@ -87,7 +88,7 @@ type BundleLoadDurationNanoseconds struct {
 }
 
 type reconfigure struct {
-	config interface{}
+	config any
 	done   chan struct{}
 }
 
@@ -97,36 +98,16 @@ type trigger struct {
 }
 
 func (c *Config) validateAndInjectDefaults(services []string, pluginsList []string, trigger *plugins.TriggerMode) error {
-	if c.Plugin != nil {
-		var found bool
-		for _, other := range pluginsList {
-			if other == *c.Plugin {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return fmt.Errorf("invalid plugin name %q in status", *c.Plugin)
-		}
+	if c.Plugin != nil && !slices.Contains(pluginsList, *c.Plugin) {
+		return fmt.Errorf("invalid plugin name %q in status", *c.Plugin)
 	} else if c.Service == "" && len(services) != 0 && !(c.ConsoleLogs || c.Prometheus) {
 		// For backwards compatibility allow defaulting to the first
 		// service listed, but only if console logging is disabled. If enabled
 		// we can't tell if the deployer wanted to use only console logs or
 		// both console logs and the default service option.
 		c.Service = services[0]
-	} else if c.Service != "" {
-		found := false
-
-		for _, svc := range services {
-			if svc == c.Service {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			return fmt.Errorf("invalid service name %q in status", c.Service)
-		}
+	} else if c.Service != "" && !slices.Contains(services, c.Service) {
+		return fmt.Errorf("invalid service name %q in status", c.Service)
 	}
 
 	t, err := plugins.ValidateAndInjectDefaultsForTriggerMode(trigger, c.Trigger)
@@ -222,7 +203,7 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		// when updating statuses
 		pluginStatusCh: make(chan map[string]*plugins.Status, statusBufferLimit),
 		queryCh:        make(chan chan *UpdateRequestV1),
-		logger:         manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
+		logger:         manager.Logger().WithFields(map[string]any{"plugin": Name}),
 		trigger:        make(chan trigger),
 		collectors:     newCollectors(parsedConfig.PrometheusConfig),
 	}
@@ -338,7 +319,7 @@ func (p *Plugin) UpdatePluginStatus(status map[string]*plugins.Status) {
 }
 
 // Reconfigure notifies the plugin with a new configuration.
-func (p *Plugin) Reconfigure(_ context.Context, config interface{}) {
+func (p *Plugin) Reconfigure(_ context.Context, config any) {
 	done := make(chan struct{})
 	p.reconfig <- reconfigure{config: config, done: done}
 	<-done
@@ -529,7 +510,7 @@ func (p *Plugin) oneShot(ctx context.Context) error {
 	return nil
 }
 
-func (p *Plugin) reconfigure(config interface{}) {
+func (p *Plugin) reconfigure(config any) {
 	newConfig := config.(*Config)
 
 	if reflect.DeepEqual(p.config, *newConfig) {
@@ -563,7 +544,7 @@ func (p *Plugin) snapshot() *UpdateRequestV1 {
 	}
 
 	if p.metrics != nil {
-		s.Metrics = map[string]interface{}{p.metrics.Info().Name: p.metrics.All()}
+		s.Metrics = map[string]any{p.metrics.Info().Name: p.metrics.All()}
 	}
 
 	return s
@@ -574,12 +555,12 @@ func (p *Plugin) logUpdate(update *UpdateRequestV1) error {
 	if err != nil {
 		return err
 	}
-	fields := map[string]interface{}{}
+	fields := map[string]any{}
 	err = util.UnmarshalJSON(eventBuf, &fields)
 	if err != nil {
 		return err
 	}
-	p.manager.ConsoleLogger().WithFields(fields).WithFields(map[string]interface{}{
+	p.manager.ConsoleLogger().WithFields(fields).WithFields(map[string]any{
 		"type": "openpolicyagent.org/status",
 	}).Info("Status Log")
 	return nil
@@ -623,7 +604,7 @@ func (u UpdateRequestV1) Equal(other UpdateRequestV1) bool {
 		nullSafeDeepEqual(u.Metrics, other.Metrics)
 }
 
-func nullSafeDeepEqual(a, b interface{}) bool {
+func nullSafeDeepEqual(a, b any) bool {
 	if a == nil && b == nil {
 		return true
 	}

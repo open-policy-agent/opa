@@ -41,6 +41,6 @@ type ErrorDetails = v1.ErrorDetails
 type Error = v1.Error
 
 // NewError returns a new Error object.
-func NewError(code string, loc *Location, f string, a ...interface{}) *Error {
+func NewError(code string, loc *Location, f string, a ...any) *Error {
 	return v1.NewError(code, loc, f, a...)
 }

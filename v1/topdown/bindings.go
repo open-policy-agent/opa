@@ -93,7 +93,7 @@ func (u *bindings) plugNamespaced(a *ast.Term, caller *bindings) *ast.Term {
 		}
 		cpy := *a
 		arr := make([]*ast.Term, v.Len())
-		for i := 0; i < len(arr); i++ {
+		for i := range arr {
 			arr[i] = u.plugNamespaced(v.Elem(i), caller)
 		}
 		cpy.Value = ast.NewArray(arr...)
@@ -119,7 +119,7 @@ func (u *bindings) plugNamespaced(a *ast.Term, caller *bindings) *ast.Term {
 	case ast.Ref:
 		cpy := *a
 		ref := make(ast.Ref, len(v))
-		for i := 0; i < len(ref); i++ {
+		for i := range ref {
 			ref[i] = u.plugNamespaced(v[i], caller)
 		}
 		cpy.Value = ref
@@ -212,7 +212,7 @@ type namespacingVisitor struct {
 	caller *bindings
 }
 
-func (vis namespacingVisitor) Visit(x interface{}) bool {
+func (vis namespacingVisitor) Visit(x any) bool {
 	switch x := x.(type) {
 	case *ast.ArrayComprehension:
 		x.Term = vis.namespaceTerm(x.Term)
@@ -254,7 +254,7 @@ func (vis namespacingVisitor) namespaceTerm(a *ast.Term) *ast.Term {
 		}
 		cpy := *a
 		arr := make([]*ast.Term, v.Len())
-		for i := 0; i < len(arr); i++ {
+		for i := range arr {
 			arr[i] = vis.namespaceTerm(v.Elem(i))
 		}
 		cpy.Value = ast.NewArray(arr...)
@@ -280,7 +280,7 @@ func (vis namespacingVisitor) namespaceTerm(a *ast.Term) *ast.Term {
 	case ast.Ref:
 		cpy := *a
 		ref := make(ast.Ref, len(v))
-		for i := 0; i < len(ref); i++ {
+		for i := range ref {
 			ref[i] = vis.namespaceTerm(v[i])
 		}
 		cpy.Value = ref

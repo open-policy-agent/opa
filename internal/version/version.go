@@ -24,7 +24,7 @@ func Write(ctx context.Context, store storage.Store, txn storage.Transaction) er
 		return err
 	}
 
-	return store.Write(ctx, txn, storage.AddOp, versionPath, map[string]interface{}{
+	return store.Write(ctx, txn, storage.AddOp, versionPath, map[string]any{
 		"version":         version.Version,
 		"build_commit":    version.Vcs,
 		"build_timestamp": version.Timestamp,

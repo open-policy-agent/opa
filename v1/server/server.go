@@ -19,6 +19,7 @@ import (
 	"net/http/pprof"
 	"net/url"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -387,7 +388,7 @@ func (s *Server) WithRouter(router *mux.Router) *Server {
 }
 
 func (s *Server) WithMinTLSVersion(minTLSVersion uint16) *Server {
-	if isMinTLSVersionSupported(minTLSVersion) {
+	if slices.Contains(supportedTLSVersions, minTLSVersion) {
 		s.minTLSVersion = minTLSVersion
 	} else {
 		s.minTLSVersion = defaultMinTLSVersion
@@ -581,15 +582,6 @@ func (b *baseHTTPListener) Type() httpListenerType {
 	return b.t
 }
 
-func isMinTLSVersionSupported(tlsVersion uint16) bool {
-	for _, version := range supportedTLSVersions {
-		if tlsVersion == version {
-			return true
-		}
-	}
-	return false
-}
-
 func (s *Server) getListener(addr string, h http.Handler, t httpListenerType) ([]Loop, httpListener, error) {
 	parsedURL, err := parseURL(addr, s.cert != nil)
 	if err != nil {
@@ -608,7 +600,7 @@ func (s *Server) getListener(addr string, h http.Handler, t httpListenerType) ([
 		loops = []Loop{loop}
 	case "https":
 		loop, listener, err = s.getListenerForHTTPSServer(parsedURL, h, t)
-		logger := s.manager.Logger().WithFields(map[string]interface{}{
+		logger := s.manager.Logger().WithFields(map[string]any{
 			"cert-file":     s.certFile,
 			"cert-key-file": s.certKeyFile,
 		})
@@ -914,7 +906,7 @@ func (s *Server) instrumentHandler(handler func(http.ResponseWriter, *http.Reque
 	return httpHandler
 }
 
-func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.Transaction, parsedQuery ast.Body, input ast.Value, rawInput *interface{}, m metrics.Metrics, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (*types.QueryResponseV1, error) {
+func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.Transaction, parsedQuery ast.Body, input ast.Value, rawInput *any, m metrics.Metrics, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (*types.QueryResponseV1, error) {
 	results := types.QueryResponseV1{}
 	logger := s.getDecisionLogger(br)
 
@@ -973,7 +965,7 @@ func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.
 		results.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
 	}
 
-	var x interface{} = results.Result
+	var x any = results.Result
 	if err := logger.Log(ctx, txn, "", parsedQuery.String(), rawInput, input, &x, ndbCache, nil, m); err != nil {
 		return nil, err
 	}
@@ -1294,7 +1286,7 @@ func (s *Server) unversionedGetHealthWithPolicy(w http.ResponseWriter, r *http.R
 	allPluginsOk := true
 
 	// build input document for health check query
-	input := func() map[string]interface{} {
+	input := func() map[string]any {
 		s.mtx.Lock()
 		defer s.mtx.Unlock()
 
@@ -1314,7 +1306,7 @@ func (s *Server) unversionedGetHealthWithPolicy(w http.ResponseWriter, r *http.R
 			s.allPluginsOkOnce = true
 		}
 
-		return map[string]interface{}{
+		return map[string]any{
 			"plugin_state":  pluginState,
 			"plugins_ready": s.allPluginsOkOnce,
 		}
@@ -1448,7 +1440,7 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty(r))
 	}
 
-	var i interface{} = types.PartialEvaluationResultV1{
+	var i any = types.PartialEvaluationResultV1{
 		Queries: pq.Queries,
 		Support: pq.Support,
 	}
@@ -1479,7 +1471,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	inputs := r.URL.Query()[types.ParamInputV1]
 
 	var input ast.Value
-	var goInput *interface{}
+	var goInput *any
 
 	if len(inputs) > 0 {
 		var err error
@@ -1855,7 +1847,7 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	m.Timer(metrics.RegoInputParse).Start()
-	var value interface{}
+	var value any
 	if err := util.NewJSONDecoder(r.Body).Decode(&value); err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
@@ -2390,7 +2382,7 @@ func (s *Server) v1StatusGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var st interface{} = p.Snapshot()
+	var st any = p.Snapshot()
 	writer.JSONOK(w, types.StatusResponseV1{Result: &st}, pretty(r))
 }
 
@@ -2824,7 +2816,7 @@ func getExplain(p []string, zero types.ExplainModeV1) types.ExplainModeV1 {
 	return zero
 }
 
-func readInputV0(r *http.Request) (ast.Value, *interface{}, error) {
+func readInputV0(r *http.Request) (ast.Value, *any, error) {
 
 	parsed, ok := authorizer.GetBodyOnContext(r.Context())
 	if ok {
@@ -2838,7 +2830,7 @@ func readInputV0(r *http.Request) (ast.Value, *interface{}, error) {
 		return nil, nil, fmt.Errorf("could not decompress the body: %w", err)
 	}
 
-	var x interface{}
+	var x any
 
 	if strings.Contains(r.Header.Get("Content-Type"), "yaml") {
 		if len(bodyBytes) > 0 {
@@ -2857,8 +2849,8 @@ func readInputV0(r *http.Request) (ast.Value, *interface{}, error) {
 	return v, &x, err
 }
 
-func readInputGetV1(str string) (ast.Value, *interface{}, error) {
-	var input interface{}
+func readInputGetV1(str string) (ast.Value, *any, error) {
+	var input any
 	if err := util.UnmarshalJSON([]byte(str), &input); err != nil {
 		return nil, nil, fmt.Errorf("parameter contains malformed input document: %w", err)
 	}
@@ -2866,11 +2858,11 @@ func readInputGetV1(str string) (ast.Value, *interface{}, error) {
 	return v, &input, err
 }
 
-func readInputPostV1(r *http.Request) (ast.Value, *interface{}, error) {
+func readInputPostV1(r *http.Request) (ast.Value, *any, error) {
 
 	parsed, ok := authorizer.GetBodyOnContext(r.Context())
 	if ok {
-		if obj, ok := parsed.(map[string]interface{}); ok {
+		if obj, ok := parsed.(map[string]any); ok {
 			if input, ok := obj["input"]; ok {
 				v, err := ast.InterfaceToValue(input)
 				return v, &input, err
@@ -3036,7 +3028,7 @@ type decisionLogger struct {
 	logger    func(context.Context, *Info) error
 }
 
-func (l decisionLogger) Log(ctx context.Context, txn storage.Transaction, path string, query string, goInput *interface{}, astInput ast.Value, goResults *interface{}, ndbCache builtins.NDBCache, err error, m metrics.Metrics) error {
+func (l decisionLogger) Log(ctx context.Context, txn storage.Transaction, path string, query string, goInput *any, astInput ast.Value, goResults *any, ndbCache builtins.NDBCache, err error, m metrics.Metrics) error {
 
 	bundles := map[string]BundleInfo{}
 	for name, rev := range l.revisions {
@@ -3100,7 +3092,7 @@ func (l decisionLogger) Log(ctx context.Context, txn storage.Transaction, path s
 type patchImpl struct {
 	path  storage.Path
 	op    storage.PatchOp
-	value interface{}
+	value any
 }
 
 func parseURL(s string, useHTTPSByDefault bool) (*url.URL, error) {

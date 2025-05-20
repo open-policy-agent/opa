@@ -13,6 +13,7 @@ import (
 	"math/rand"
 	"net/http"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -98,7 +99,7 @@ func (d *Downloader) WithCallback(f func(context.Context, Update)) *Downloader {
 
 // WithLogAttrs sets an optional set of key/value pair attributes to include in
 // log messages emitted by the downloader.
-func (d *Downloader) WithLogAttrs(attrs map[string]interface{}) *Downloader {
+func (d *Downloader) WithLogAttrs(attrs map[string]any) *Downloader {
 	d.logger = d.logger.WithFields(attrs)
 	return d
 }
@@ -361,9 +362,9 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 					"application/octet-stream",
 					"application/vnd.openpolicyagent.bundles",
 				}
-
 				contentType := resp.Header.Get("content-type")
-				if !contains(contentType, expectedBundleContentType) {
+
+				if !slices.Contains(expectedBundleContentType, contentType) {
 					d.logger.Debug("Content-Type response header set to %v. Expected one of %v. "+
 						"Possibly not a bundle being downloaded.",
 						contentType,
@@ -440,13 +441,4 @@ type HTTPError struct {
 
 func (e HTTPError) Error() string {
 	return "server replied with " + http.StatusText(e.StatusCode)
-}
-
-func contains(s string, strings []string) bool {
-	for _, str := range strings {
-		if s == str {
-			return true
-		}
-	}
-	return false
 }

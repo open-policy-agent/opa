@@ -12,10 +12,12 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -41,7 +43,7 @@ func TestRegoEval_DefaultRegoVersion(t *testing.T) {
 	tests := []struct {
 		note      string
 		module    string
-		expResult interface{}
+		expResult any
 		expErrs   []string
 	}{
 		{
@@ -143,7 +145,7 @@ func TestRegoEval_Capabilities(t *testing.T) {
 		regoVersion  ast.RegoVersion
 		capabilities *ast.Capabilities
 		module       string
-		expResult    interface{}
+		expResult    any
 		expErrs      []string
 	}{
 		{
@@ -412,10 +414,10 @@ func assertPreparedEvalQueryEval(t *testing.T, pq PreparedEvalQuery, options []E
 
 func assertResultSet(t *testing.T, rs ResultSet, expected string) {
 	t.Helper()
-	result := []interface{}{}
+	result := []any{}
 
 	for i := range rs {
-		values := []interface{}{}
+		values := []any{}
 		for j := range rs[i].Expressions {
 			values = append(values, rs[i].Expressions[j].Value)
 		}
@@ -519,7 +521,7 @@ func TestRegoEvalExpressionValue(t *testing.T) {
 
 func TestRegoInputs(t *testing.T) {
 	tests := map[string]struct {
-		input    interface{}
+		input    any
 		expected string
 	}{
 		"map":  {map[string]bool{"foo": true}, `[[{"foo": true}]]`},
@@ -532,7 +534,7 @@ func TestRegoInputs(t *testing.T) {
 			Foo string `json:"baz"`
 		}{"bar"}, `[[{"baz":"bar"}]]`},
 		"pointer to pointer to struct": {
-			func() interface{} {
+			func() any {
 				a := &struct {
 					Foo string `json:"baz"`
 				}{"bar"}
@@ -540,7 +542,7 @@ func TestRegoInputs(t *testing.T) {
 			}(), `[[{"baz":"bar"}]]`},
 		"slice":              {[]string{"a", "b"}, `[[["a", "b"]]]`},
 		"nil":                {nil, `[[null]]`},
-		"slice of interface": {[]interface{}{"a", 2, true}, `[[["a", 2, true]]]`},
+		"slice of interface": {[]any{"a", 2, true}, `[[["a", 2, true]]]`},
 	}
 
 	for desc, tc := range tests {
@@ -863,7 +865,7 @@ func TestPreparedRegoTracerNoPropagate(t *testing.T) {
 		Query("data"),
 		Module("foo.rego", mod),
 		Tracer(tracer),
-		Input(map[string]interface{}{"x": 10})).PrepareForEval(context.Background())
+		Input(map[string]any{"x": 10})).PrepareForEval(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error %s", err)
 	}
@@ -891,7 +893,7 @@ func TestPreparedRegoQueryTracerNoPropagate(t *testing.T) {
 		Query("data"),
 		Module("foo.rego", mod),
 		QueryTracer(tracer),
-		Input(map[string]interface{}{"x": 10})).PrepareForEval(context.Background())
+		Input(map[string]any{"x": 10})).PrepareForEval(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error %s", err)
 	}
@@ -932,7 +934,7 @@ func TestRegoDisableIndexing(t *testing.T) {
 		context.Background(),
 		EvalQueryTracer(tracer),
 		EvalRuleIndexing(false),
-		EvalInput(map[string]interface{}{"x": 10}),
+		EvalInput(map[string]any{"x": 10}),
 	)
 	if err != nil {
 		t.Fatalf("unexpected error %s", err)
@@ -951,13 +953,7 @@ func TestRegoDisableIndexing(t *testing.T) {
 	}
 
 	for _, expected := range expectedEvalNodes {
-		found := false
-		for _, actual := range evalNodes {
-			if actual == expected {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(evalNodes, expected)
 		if !found {
 			t.Fatalf("Missing expected eval node in trace: %q\nGot: %q\n", expected, evalNodes)
 		}
@@ -990,7 +986,7 @@ func TestRegoDisableIndexingWithMatch(t *testing.T) {
 		context.Background(),
 		EvalQueryTracer(tracer),
 		EvalRuleIndexing(false),
-		EvalInput(map[string]interface{}{"x": 1}),
+		EvalInput(map[string]any{"x": 1}),
 	)
 	if err != nil {
 		t.Fatalf("unexpected error %s", err)
@@ -1011,13 +1007,7 @@ func TestRegoDisableIndexingWithMatch(t *testing.T) {
 	}
 
 	for _, expected := range expectedEvalNodes {
-		found := false
-		for _, actual := range evalNodes {
-			if actual == expected {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(evalNodes, expected)
 		if !found {
 			t.Fatalf("Missing expected eval node in trace: %q\nGot: %q\n", expected, evalNodes)
 		}
@@ -1028,8 +1018,8 @@ func TestRegoCatchPathConflicts(t *testing.T) {
 	r := New(
 		Query("data"),
 		Module("test.rego", "package x\np=1"),
-		Store(inmem.NewFromObject(map[string]interface{}{
-			"x": map[string]interface{}{"p": 1},
+		Store(inmem.NewFromObject(map[string]any{
+			"x": map[string]any{"p": 1},
 		})),
 	)
 
@@ -1221,7 +1211,7 @@ func TestPrepareAndEvalTransaction(t *testing.T) {
 		t.Fatalf("Unexpected error writing to store: %s", err.Error())
 	}
 
-	err = store.Write(ctx, txn, storage.AddOp, path, map[string]interface{}{"y": 1})
+	err = store.Write(ctx, txn, storage.AddOp, path, map[string]any{"y": 1})
 	if err != nil {
 		t.Fatalf("Unexpected error writing to store: %s", err.Error())
 	}
@@ -1253,7 +1243,7 @@ func TestPrepareAndEvalTransaction(t *testing.T) {
 
 	// Case with an update to the store and a new transaction
 	txn = storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
-	err = store.Write(ctx, txn, storage.AddOp, path, map[string]interface{}{"y": 2})
+	err = store.Write(ctx, txn, storage.AddOp, path, map[string]any{"y": 2})
 	if err != nil {
 		t.Fatalf("Unexpected error writing to store: %s", err.Error())
 	}
@@ -1278,7 +1268,7 @@ func TestPrepareAndEvalTransaction(t *testing.T) {
 
 	// Case with no transaction provided, should create a new one and see the latest value
 	txn = storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
-	err = store.Write(ctx, txn, storage.AddOp, path, map[string]interface{}{"y": 3})
+	err = store.Write(ctx, txn, storage.AddOp, path, map[string]any{"y": 3})
 	if err != nil {
 		t.Fatalf("Unexpected error writing to store: %s", err.Error())
 	}
@@ -2576,7 +2566,7 @@ func TestRegoCustomBuiltinPartialPropagate(t *testing.T) {
 	}
 
 	rs, err := pr.Rego(
-		Input(map[string]interface{}{"foo": "/foo/bar/baz/"}),
+		Input(map[string]any{"foo": "/foo/bar/baz/"}),
 	).Eval(context.Background())
 
 	if err != nil {
@@ -2755,9 +2745,7 @@ func TestEvalWithInterQueryCache(t *testing.T) {
 		requests = append(requests, r)
 		headers := w.Header()
 
-		for k, v := range newHeaders {
-			headers[k] = v
-		}
+		maps.Copy(headers, newHeaders)
 
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"x": 1}`))
@@ -3110,7 +3098,7 @@ func TestPrepareAndCompileWithSchema(t *testing.T) {
 		"additionalProperties": false
 	}`
 
-	var schema interface{}
+	var schema any
 	err := util.Unmarshal([]byte(schemaBytes), &schema)
 	if err != nil {
 		t.Fatal(err)
@@ -3178,7 +3166,7 @@ func TestGenerateJSON(t *testing.T) {
 	r := New(
 		Query("input"),
 		Input("original-input"),
-		GenerateJSON(func(*ast.Term, *EvalContext) (interface{}, error) {
+		GenerateJSON(func(*ast.Term, *EvalContext) (any, error) {
 			return "converted-input", nil
 		}),
 	)
@@ -3186,8 +3174,8 @@ func TestGenerateJSON(t *testing.T) {
 }
 
 func TestRegoLazyObjDefault(t *testing.T) {
-	foo := map[string]interface{}{"foo": "bar", "other": 1}
-	store := inmem.NewFromObjectWithOpts(map[string]interface{}{
+	foo := map[string]any{"foo": "bar", "other": 1}
+	store := inmem.NewFromObjectWithOpts(map[string]any{
 		"stored": foo,
 	})
 	r := New(
@@ -3204,7 +3192,7 @@ func TestRegoLazyObjDefault(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected binding for \"x\", got %v", rs[0].Bindings)
 	}
-	m, ok := act.(map[string]interface{})
+	m, ok := act.(map[string]any)
 	if !ok {
 		t.Fatalf("expected %T, got %T: %[2]v", m, act)
 	}
@@ -3216,8 +3204,8 @@ func TestRegoLazyObjDefault(t *testing.T) {
 }
 
 func TestRegoLazyObjNoRoundTripOnWrite(t *testing.T) {
-	foo := map[string]interface{}{"foo": "bar", "other": 1}
-	store := inmem.NewFromObjectWithOpts(map[string]interface{}{
+	foo := map[string]any{"foo": "bar", "other": 1}
+	store := inmem.NewFromObjectWithOpts(map[string]any{
 		"stored": foo,
 	}, inmem.OptRoundTripOnWrite(false))
 	r := New(
@@ -3234,7 +3222,7 @@ func TestRegoLazyObjNoRoundTripOnWrite(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected binding for \"x\", got %v", rs[0].Bindings)
 	}
-	m, ok := act.(map[string]interface{})
+	m, ok := act.(map[string]any)
 	if !ok {
 		t.Fatalf("expected %T, got %T: %[2]v", m, act)
 	}
@@ -3246,8 +3234,8 @@ func TestRegoLazyObjNoRoundTripOnWrite(t *testing.T) {
 }
 
 func TestRegoLazyObjCopyMaps(t *testing.T) {
-	foo := map[string]interface{}{"foo": "bar", "other": 1}
-	store := inmem.NewFromObjectWithOpts(map[string]interface{}{
+	foo := map[string]any{"foo": "bar", "other": 1}
+	store := inmem.NewFromObjectWithOpts(map[string]any{
 		"stored": foo,
 	}, inmem.OptRoundTripOnWrite(false))
 	r := New(
@@ -3268,7 +3256,7 @@ func TestRegoLazyObjCopyMaps(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected binding for \"x\", got %v", rs[0].Bindings)
 	}
-	m, ok := act.(map[string]interface{})
+	m, ok := act.(map[string]any)
 	if !ok {
 		t.Fatalf("expected %T, got %T: %[2]v", m, act)
 	}

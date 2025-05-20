@@ -576,7 +576,7 @@ func TestPluginStartTriggerManualWithTimeout(t *testing.T) {
 		time.Sleep(3 * time.Second) // this should cause the context deadline to exceed
 	}))
 
-	managerConfig := []byte(fmt.Sprintf(`{
+	managerConfig := fmt.Appendf(nil, `{
 			"labels": {
 				"app": "example-app"
 			},
@@ -585,7 +585,7 @@ func TestPluginStartTriggerManualWithTimeout(t *testing.T) {
 					"name": "example",
 					"url": %q
 				}
-			]}`, s.URL))
+			]}`, s.URL)
 
 	manager, err := plugins.New(managerConfig, "test-instance-id", inmem.New())
 	if err != nil {
@@ -1011,7 +1011,7 @@ func TestMetrics(t *testing.T) {
 	fixture.plugin.BulkUpdateBundleStatus(map[string]*bundle.Status{"bundle": status})
 	result := <-fixture.server.ch
 
-	exp := map[string]interface{}{"<built-in>": map[string]interface{}{}}
+	exp := map[string]any{"<built-in>": map[string]any{}}
 
 	if !reflect.DeepEqual(result.Metrics, exp) {
 		t.Fatalf("Expected %v but got %v", exp, result.Metrics)
@@ -1130,7 +1130,8 @@ type testFixture struct {
 type testPluginCustomizer func(c *Config)
 
 func newPlugin(t *testing.T, URL string, m metrics.Metrics, options ...testPluginCustomizer) (*plugins.Manager, *Plugin) {
-	managerConfig := []byte(fmt.Sprintf(`{
+
+	managerConfig := fmt.Appendf(nil, `{
 			"labels": {
 				"app": "example-app"
 			},
@@ -1145,7 +1146,7 @@ func newPlugin(t *testing.T, URL string, m metrics.Metrics, options ...testPlugi
 						}
 					}
 				}
-			]}`, URL))
+			]}`, URL)
 
 	registerMock := &prometheusRegisterMock{
 		Collectors: map[prometheus.Collector]bool{},
@@ -1253,7 +1254,7 @@ func (*testPlugin) Start(context.Context) error {
 func (*testPlugin) Stop(context.Context) {
 }
 
-func (*testPlugin) Reconfigure(context.Context, interface{}) {
+func (*testPlugin) Reconfigure(context.Context, any) {
 }
 
 func (p *testPlugin) Log(_ context.Context, req *UpdateRequestV1) error {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"slices"
 	"sort"
 
 	cidrMerge "github.com/open-policy-agent/opa/internal/cidr/merge"
@@ -392,7 +393,7 @@ func mergeCIDRs(ranges cidrBlockRanges) cidrBlockRanges {
 			ranges[i-1] = &cidrBlockRange{First: &firstIPRange, Last: &lastIPRange, Network: nil}
 
 			// Delete ranges[i] since merged with the previous.
-			ranges = append(ranges[:i], ranges[i+1:]...)
+			ranges = slices.Delete(ranges, i, i+1)
 		}
 	}
 	return ranges

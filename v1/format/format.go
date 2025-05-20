@@ -101,7 +101,7 @@ func SourceWithOpts(filename string, src []byte, opts Opts) ([]byte, error) {
 
 // MustAst is a helper function to format a Rego AST element. If any errors
 // occur this function will panic. This is mostly used for test
-func MustAst(x interface{}) []byte {
+func MustAst(x any) []byte {
 	bs, err := Ast(x)
 	if err != nil {
 		panic(err)
@@ -111,7 +111,7 @@ func MustAst(x interface{}) []byte {
 
 // MustAstWithOpts is a helper function to format a Rego AST element. If any errors
 // occur this function will panic. This is mostly used for test
-func MustAstWithOpts(x interface{}, opts Opts) []byte {
+func MustAstWithOpts(x any, opts Opts) []byte {
 	bs, err := AstWithOpts(x, opts)
 	if err != nil {
 		panic(err)
@@ -122,7 +122,7 @@ func MustAstWithOpts(x interface{}, opts Opts) []byte {
 // Ast formats a Rego AST element. If the passed value is not a valid AST
 // element, Ast returns nil and an error. If AST nodes are missing locations
 // an arbitrary location will be used.
-func Ast(x interface{}) ([]byte, error) {
+func Ast(x any) ([]byte, error) {
 	return AstWithOpts(x, Opts{})
 }
 
@@ -156,7 +156,7 @@ func (o fmtOpts) keywords() []string {
 	return append(kws, o.futureKeywords...)
 }
 
-func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
+func AstWithOpts(x any, opts Opts) ([]byte, error) {
 	// The node has to be deep copied because it may be mutated below. Alternatively,
 	// we could avoid the copy by checking if mutation will occur first. For now,
 	// since format is not latency sensitive, just deep copy in all cases.
@@ -249,7 +249,7 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 			x.Imports = ensureRegoV1Import(x.Imports)
 		}
 
-		regoV1Imported := moduleIsRegoV1Compatible(x)
+		regoV1Imported := slices.ContainsFunc(x.Imports, isRegoV1Compatible)
 		if regoVersion == ast.RegoV0CompatV1 || regoVersion == ast.RegoV1 || regoV1Imported {
 			if !opts.DropV0Imports && !regoV1Imported {
 				for _, kw := range o.futureKeywords {
@@ -384,9 +384,9 @@ type writer struct {
 
 func (w *writer) writeModule(module *ast.Module) error {
 	var pkg *ast.Package
-	var others []interface{}
+	var others []any
 	var comments []*ast.Comment
-	visitor := ast.NewGenericVisitor(func(x interface{}) bool {
+	visitor := ast.NewGenericVisitor(func(x any) bool {
 		switch x := x.(type) {
 		case *ast.Comment:
 			comments = append(comments, x)
@@ -759,7 +759,7 @@ func (w *writer) writeHead(head *ast.Head, isDefault bool, isExpandedConst bool,
 
 	if len(head.Args) > 0 {
 		w.write("(")
-		var args []interface{}
+		var args []any
 		for _, arg := range head.Args {
 			args = append(args, arg)
 		}
@@ -1072,7 +1072,7 @@ func (w *writer) writeFunctionCall(expr *ast.Expr, comments []*ast.Comment) ([]*
 func (w *writer) writeFunctionCallPlain(terms []*ast.Term, comments []*ast.Comment) ([]*ast.Comment, error) {
 	w.write(terms[0].String() + "(")
 	defer w.write(")")
-	args := make([]interface{}, len(terms)-1)
+	args := make([]any, len(terms)-1)
 	for i, t := range terms[1:] {
 		args[i] = t
 	}
@@ -1405,7 +1405,7 @@ func (w *writer) writeObject(obj ast.Object, loc *ast.Location, comments []*ast.
 	w.write("{")
 	defer w.write("}")
 
-	var s []interface{}
+	var s []any
 	obj.Foreach(func(k, v *ast.Term) {
 		s = append(s, ast.Item(k, v))
 	})
@@ -1416,7 +1416,7 @@ func (w *writer) writeArray(arr *ast.Array, loc *ast.Location, comments []*ast.C
 	w.write("[")
 	defer w.write("]")
 
-	var s []interface{}
+	var s []any
 	arr.Foreach(func(t *ast.Term) {
 		s = append(s, t)
 	})
@@ -1443,7 +1443,7 @@ func (w *writer) writeSet(set ast.Set, loc *ast.Location, comments []*ast.Commen
 	w.write("{")
 	defer w.write("}")
 
-	var s []interface{}
+	var s []any
 	set.Foreach(func(t *ast.Term) {
 		s = append(s, t)
 	})
@@ -1510,7 +1510,7 @@ func (w *writer) writeComprehension(openChar, closeChar byte, term *ast.Term, bo
 }
 
 func (w *writer) writeComprehensionBody(openChar, closeChar byte, body ast.Body, term, compr *ast.Location, comments []*ast.Comment) ([]*ast.Comment, error) {
-	exprs := make([]interface{}, 0, len(body))
+	exprs := make([]any, 0, len(body))
 	for _, expr := range body {
 		exprs = append(exprs, expr)
 	}
@@ -1613,9 +1613,9 @@ func (w *writer) writeImport(imp *ast.Import) error {
 	return nil
 }
 
-type entryWriter func(interface{}, []*ast.Comment) ([]*ast.Comment, error)
+type entryWriter func(any, []*ast.Comment) ([]*ast.Comment, error)
 
-func (w *writer) writeIterable(elements []interface{}, last *ast.Location, close *ast.Location, comments []*ast.Comment, fn entryWriter) ([]*ast.Comment, error) {
+func (w *writer) writeIterable(elements []any, last *ast.Location, close *ast.Location, comments []*ast.Comment, fn entryWriter) ([]*ast.Comment, error) {
 	lines, err := w.groupIterable(elements, last)
 	if err != nil {
 		return nil, err
@@ -1658,7 +1658,7 @@ func (w *writer) writeIterable(elements []interface{}, last *ast.Location, close
 	return comments, nil
 }
 
-func (w *writer) writeIterableLine(elements []interface{}, comments []*ast.Comment, fn entryWriter) ([]*ast.Comment, error) {
+func (w *writer) writeIterableLine(elements []any, comments []*ast.Comment, fn entryWriter) ([]*ast.Comment, error) {
 	if len(elements) == 0 {
 		return comments, nil
 	}
@@ -1677,7 +1677,7 @@ func (w *writer) writeIterableLine(elements []interface{}, comments []*ast.Comme
 }
 
 func (w *writer) objectWriter() entryWriter {
-	return func(x interface{}, comments []*ast.Comment) ([]*ast.Comment, error) {
+	return func(x any, comments []*ast.Comment) ([]*ast.Comment, error) {
 		entry := x.([2]*ast.Term)
 
 		call, isCall := entry[0].Value.(ast.Call)
@@ -1710,7 +1710,7 @@ func (w *writer) objectWriter() entryWriter {
 }
 
 func (w *writer) listWriter() entryWriter {
-	return func(x interface{}, comments []*ast.Comment) ([]*ast.Comment, error) {
+	return func(x any, comments []*ast.Comment) ([]*ast.Comment, error) {
 		t, ok := x.(*ast.Term)
 		if ok {
 			call, isCall := t.Value.(ast.Call)
@@ -1726,7 +1726,7 @@ func (w *writer) listWriter() entryWriter {
 
 // groupIterable will group the `elements` slice into slices according to their
 // location: anything on the same line will be put into a slice.
-func (w *writer) groupIterable(elements []interface{}, last *ast.Location) ([][]interface{}, error) {
+func (w *writer) groupIterable(elements []any, last *ast.Location) ([][]any, error) {
 	// Generated vars occur in the AST when we're rendering the result of
 	// partial evaluation in a bundle build with optimization.
 	// Those variables, and wildcard variables have the "default location",
@@ -1753,7 +1753,7 @@ func (w *writer) groupIterable(elements []interface{}, last *ast.Location) ([][]
 			return false
 		})
 		if def { // return as-is
-			return [][]interface{}{elements}, nil
+			return [][]any{elements}, nil
 		}
 	}
 
@@ -1765,8 +1765,8 @@ func (w *writer) groupIterable(elements []interface{}, last *ast.Location) ([][]
 		return l
 	})
 
-	var lines [][]interface{}
-	cur := make([]interface{}, 0, len(elements))
+	var lines [][]any
+	cur := make([]any, 0, len(elements))
 	for i, t := range elements {
 		elem := t
 		loc, err := getLoc(elem)
@@ -1876,7 +1876,7 @@ func partitionComments(comments []*ast.Comment, l *ast.Location) ([]*ast.Comment
 	return before, at, after
 }
 
-func gatherImports(others []interface{}) (imports []*ast.Import, rest []interface{}) {
+func gatherImports(others []any) (imports []*ast.Import, rest []any) {
 	i := 0
 loop:
 	for ; i < len(others); i++ {
@@ -1890,7 +1890,7 @@ loop:
 	return imports, others[i:]
 }
 
-func gatherRules(others []interface{}) (rules []*ast.Rule, rest []interface{}) {
+func gatherRules(others []any) (rules []*ast.Rule, rest []any) {
 	i := 0
 loop:
 	for ; i < len(others); i++ {
@@ -1904,12 +1904,12 @@ loop:
 	return rules, others[i:]
 }
 
-func locLess(a, b interface{}) (bool, error) {
+func locLess(a, b any) (bool, error) {
 	c, err := locCmp(a, b)
 	return c < 0, err
 }
 
-func locCmp(a, b interface{}) (int, error) {
+func locCmp(a, b any) (int, error) {
 	al, err := getLoc(a)
 	if err != nil {
 		return 0, err
@@ -1934,7 +1934,7 @@ func locCmp(a, b interface{}) (int, error) {
 	return al.Col - bl.Col, nil
 }
 
-func getLoc(x interface{}) (*ast.Location, error) {
+func getLoc(x any) (*ast.Location, error) {
 	switch x := x.(type) {
 	case ast.Node: // *ast.Head, *ast.Expr, *ast.With, *ast.Term
 		return x.Loc(), nil
@@ -2204,15 +2204,6 @@ func (d *ArityFormatErrDetail) Lines() []string {
 		"have: (" + strings.Join(d.Have, ",") + ")",
 		"want: (" + strings.Join(d.Want, ",") + ")",
 	}
-}
-
-func moduleIsRegoV1Compatible(m *ast.Module) bool {
-	for _, imp := range m.Imports {
-		if isRegoV1Compatible(imp) {
-			return true
-		}
-	}
-	return false
 }
 
 var v1StringTerm = ast.StringTerm("v1")

@@ -182,8 +182,8 @@ func TestEventBuffer_Upload(t *testing.T) {
 }
 
 func newTestEvent(t *testing.T, id string, enableNDCache bool) *EventV1 {
-	var result interface{} = false
-	var expInput interface{} = map[string]interface{}{"method": "GET"}
+	var result any = false
+	var expInput any = map[string]any{"method": "GET"}
 	timestamp, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
 	if err != nil {
 		t.Fatal(err)

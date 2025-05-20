@@ -344,14 +344,14 @@ func TestActiveConfig(t *testing.T) {
 		err      error
 	}{
 		"valid_config_with_svc_object": {
-			[]byte(fmt.Sprintf(`{ %v %v }`, serviceObj, common)),
-			[]byte(fmt.Sprintf(`{ %v %v }`, expectedServiceObj, expectedCommon)),
+			fmt.Appendf(nil, `{ %v %v }`, serviceObj, common),
+			fmt.Appendf(nil, `{ %v %v }`, expectedServiceObj, expectedCommon),
 			false,
 			nil,
 		},
 		"valid_config_with_svc_list": {
-			[]byte(fmt.Sprintf(`{ %v %v }`, servicesList, common)),
-			[]byte(fmt.Sprintf(`{ %v %v }`, expectedServicesList, expectedCommon)),
+			fmt.Appendf(nil, `{ %v %v }`, servicesList, common),
+			fmt.Appendf(nil, `{ %v %v }`, expectedServicesList, expectedCommon),
 			false,
 			nil,
 		},
@@ -392,7 +392,7 @@ func TestActiveConfig(t *testing.T) {
 					t.Fatalf("Unexpected error %v", err)
 				}
 
-				var expected map[string]interface{}
+				var expected map[string]any
 				if err := util.Unmarshal(tc.expected, &expected); err != nil {
 					t.Fatal(err)
 				}

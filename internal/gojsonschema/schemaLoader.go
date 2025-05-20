@@ -45,7 +45,7 @@ func NewSchemaLoader() *SchemaLoader {
 	return ps
 }
 
-func (sl *SchemaLoader) validateMetaschema(documentNode interface{}) error {
+func (sl *SchemaLoader) validateMetaschema(documentNode any) error {
 
 	var (
 		schema string
@@ -158,7 +158,7 @@ func (sl *SchemaLoader) Compile(rootSchema JSONLoader) (*Schema, error) {
 	d.DocumentReference = ref
 	d.ReferencePool = newSchemaReferencePool()
 
-	var doc interface{}
+	var doc any
 	if ref.String() != "" {
 		// Get document from schema pool
 		spd, err := d.Pool.GetDocument(d.DocumentReference)

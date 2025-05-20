@@ -407,7 +407,7 @@ func formatEvent(event *Event, depth int) string {
 		return fmt.Sprintf("%v%v %q", padding, event.Op, event.Message)
 	}
 
-	var details interface{}
+	var details any
 	if node, ok := event.Node.(*ast.Rule); ok {
 		details = node.Path()
 	} else if event.Ref != nil {
@@ -417,7 +417,7 @@ func formatEvent(event *Event, depth int) string {
 	}
 
 	template := "%v%v %v"
-	opts := []interface{}{padding, event.Op, details}
+	opts := []any{padding, event.Op, details}
 
 	if event.Message != "" {
 		template += " %v"
@@ -640,9 +640,9 @@ type PrettyEventOpts struct {
 	PrettyVars bool
 }
 
-func walkTestTerms(x interface{}, f func(*ast.Term) bool) {
+func walkTestTerms(x any, f func(*ast.Term) bool) {
 	var vis *ast.GenericVisitor
-	vis = ast.NewGenericVisitor(func(x interface{}) bool {
+	vis = ast.NewGenericVisitor(func(x any) bool {
 		switch x := x.(type) {
 		case ast.Call:
 			for _, t := range x[1:] {
@@ -785,7 +785,7 @@ func PrettyEvent(w io.Writer, e *Event, opts PrettyEventOpts) error {
 
 func printPrettyVars(w *bytes.Buffer, exprVars map[string]varInfo) {
 	containsTabs := false
-	varRows := make(map[int]interface{})
+	varRows := make(map[int]any)
 	for _, info := range exprVars {
 		if len(info.exprLoc.Tabs) > 0 {
 			containsTabs = true
@@ -865,12 +865,9 @@ func printArrows(w *bytes.Buffer, l []varInfo, printValueAt int) {
 
 		for j := range spaces {
 			tab := false
-			for _, t := range info.exprLoc.Tabs {
-				if t == j+prevCol+1 {
-					w.WriteString("\t")
-					tab = true
-					break
-				}
+			if slices.Contains(info.exprLoc.Tabs, j+prevCol+1) {
+				w.WriteString("\t")
+				tab = true
 			}
 			if !tab {
 				w.WriteString(" ")

@@ -152,7 +152,7 @@ func newTestStore() storage.Store {
         ]
     }
     `
-	var data map[string]interface{}
+	var data map[string]any
 	err := util.UnmarshalJSON([]byte(input), &data)
 	if err != nil {
 		panic(err)

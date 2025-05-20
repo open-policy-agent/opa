@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1187,9 +1188,7 @@ a contains 4 if {
 					if bundleType.tar {
 						files["bundle.tar.gz"] = ""
 					} else {
-						for k, v := range tc.modules {
-							files[k] = v
-						}
+						maps.Copy(files, tc.modules)
 
 						manifest := bundle.Manifest{
 							RegoVersion:      &tc.bundleRegoVersion,
@@ -1211,7 +1210,7 @@ a contains 4 if {
 									RegoVersion:      &tc.bundleRegoVersion,
 									FileRegoVersions: tc.bundleFileRegoVersions,
 								},
-								Data: map[string]interface{}{},
+								Data: map[string]any{},
 							}
 							for k, v := range tc.modules {
 								b.Modules = append(b.Modules, bundle.ModuleFile{
@@ -1550,9 +1549,9 @@ func testBundle() bundle.Bundle {
 
 	return bundle.Bundle{
 		Manifest: bundle.Manifest{},
-		Data: map[string]interface{}{
-			"a": map[string]interface{}{
-				"b": map[string]interface{}{
+		Data: map[string]any{
+			"a": map[string]any{
+				"b": map[string]any{
 					"c": 42,
 				},
 			},

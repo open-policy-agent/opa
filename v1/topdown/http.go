@@ -19,6 +19,7 @@ import (
 	"net/url"
 	"os"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -242,7 +243,7 @@ func getKeyFromRequest(req ast.Object) (ast.Object, error) {
 	if err != nil {
 		return nil, err
 	}
-	var allHeaders map[string]interface{}
+	var allHeaders map[string]any
 	err = ast.As(allHeadersTerm.Value, &allHeaders)
 	if err != nil {
 		return nil, err
@@ -325,8 +326,8 @@ func validateHTTPRequestOperand(term *ast.Term, pos int) (ast.Object, error) {
 
 // canonicalizeHeaders returns a copy of the headers where the keys are in
 // canonical HTTP form.
-func canonicalizeHeaders(headers map[string]interface{}) map[string]interface{} {
-	canonicalized := map[string]interface{}{}
+func canonicalizeHeaders(headers map[string]any) map[string]any {
+	canonicalized := map[string]any{}
 
 	for k, v := range headers {
 		canonicalized[http.CanonicalHeaderKey(k)] = v
@@ -379,10 +380,8 @@ func verifyHost(bctx BuiltinContext, host string) error {
 		return nil
 	}
 
-	for _, allowed := range bctx.Capabilities.AllowNet {
-		if allowed == host {
-			return nil
-		}
+	if slices.Contains(bctx.Capabilities.AllowNet, host) {
+		return nil
 	}
 
 	return fmt.Errorf("unallowed host: %s", host)
@@ -420,7 +419,7 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 		enableRedirect, tlsInsecureSkipVerify bool
 		tlsUseSystemCerts                     *bool
 		tlsConfig                             tls.Config
-		customHeaders                         map[string]interface{}
+		customHeaders                         map[string]any
 	)
 
 	timeout := defaultHTTPRequestTimeout
@@ -518,7 +517,7 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 				return nil, nil, err
 			}
 			var ok bool
-			customHeaders, ok = headersValInterface.(map[string]interface{})
+			customHeaders, ok = headersValInterface.(map[string]any)
 			if !ok {
 				return nil, nil, errors.New("invalid type for headers key")
 			}
@@ -1387,7 +1386,7 @@ func formatHTTPResponseToAST(resp *http.Response, forceJSONDecode, forceYAMLDeco
 }
 
 func prepareASTResult(headers http.Header, forceJSONDecode, forceYAMLDecode bool, body []byte, status string, statusCode int) (ast.Value, error) {
-	var resultBody interface{}
+	var resultBody any
 
 	// If the response body cannot be JSON/YAML decoded,
 	// an error will not be returned. Instead, the "body" field
@@ -1399,7 +1398,7 @@ func prepareASTResult(headers http.Header, forceJSONDecode, forceYAMLDecode bool
 		_ = util.Unmarshal(body, &resultBody)
 	}
 
-	result := make(map[string]interface{})
+	result := make(map[string]any)
 	result["status"] = status
 	result["status_code"] = statusCode
 	result["body"] = resultBody
@@ -1414,10 +1413,10 @@ func prepareASTResult(headers http.Header, forceJSONDecode, forceYAMLDecode bool
 	return resultObj, nil
 }
 
-func getResponseHeaders(headers http.Header) map[string]interface{} {
-	respHeaders := map[string]interface{}{}
+func getResponseHeaders(headers http.Header) map[string]any {
+	respHeaders := map[string]any{}
 	for headerName, values := range headers {
-		var respValues []interface{}
+		var respValues []any
 		for _, v := range values {
 			respValues = append(respValues, v)
 		}

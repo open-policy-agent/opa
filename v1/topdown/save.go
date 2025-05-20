@@ -1,8 +1,10 @@
 package topdown
 
 import (
+	"cmp"
 	"container/list"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -355,11 +357,11 @@ func splitPackageAndRule(path ast.Ref) (ast.Ref, ast.Ref) {
 // being saved. This check allows the evaluator to evaluate statements
 // completely during partial evaluation as long as they do not depend on any
 // kind of unknown value or statements that would generate saves.
-func saveRequired(c *ast.Compiler, ic *inliningControl, icIgnoreInternal bool, ss *saveSet, b *bindings, x interface{}, rec bool) bool {
+func saveRequired(c *ast.Compiler, ic *inliningControl, icIgnoreInternal bool, ss *saveSet, b *bindings, x any, rec bool) bool {
 
 	var found bool
 
-	vis := ast.NewGenericVisitor(func(node interface{}) bool {
+	vis := ast.NewGenericVisitor(func(node any) bool {
 		if found {
 			return found
 		}
@@ -418,13 +420,7 @@ func ignoreDuringPartial(bi *ast.Builtin) bool {
 	// Note(philipc): We keep this legacy check around to avoid breaking
 	// existing library users.
 	//nolint:staticcheck // We specifically ignore our own linter warning here.
-	for _, ignore := range ast.IgnoreDuringPartialEval {
-		if bi == ignore {
-			return true
-		}
-	}
-	// Otherwise, ensure all non-deterministic builtins are thrown out.
-	return bi.Nondeterministic
+	return cmp.Or(slices.Contains(ast.IgnoreDuringPartialEval, bi), bi.Nondeterministic)
 }
 
 type inliningControl struct {
@@ -436,15 +432,41 @@ type inliningControl struct {
 type disableInliningFrame struct {
 	internal bool
 	refs     []ast.Ref
+	v        ast.Var
 }
 
-func (i *inliningControl) PushDisable(refs []ast.Ref, internal bool) {
+func (i *inliningControl) PushDisable(x any, internal bool) {
 	if i == nil {
 		return
 	}
+
+	switch x := x.(type) {
+	case []ast.Ref:
+		i.PushDisableRefs(x, internal)
+	case ast.Var:
+		i.PushDisableVar(x, internal)
+	}
+}
+
+func (i *inliningControl) PushDisableRefs(refs []ast.Ref, internal bool) {
+	if i == nil {
+		return
+	}
+
 	i.disable = append(i.disable, disableInliningFrame{
 		internal: internal,
 		refs:     refs,
+	})
+}
+
+func (i *inliningControl) PushDisableVar(v ast.Var, internal bool) {
+	if i == nil {
+		return
+	}
+
+	i.disable = append(i.disable, disableInliningFrame{
+		internal: internal,
+		v:        v,
 	})
 }
 
@@ -455,10 +477,26 @@ func (i *inliningControl) PopDisable() {
 	i.disable = i.disable[:len(i.disable)-1]
 }
 
-func (i *inliningControl) Disabled(ref ast.Ref, ignoreInternal bool) bool {
+func (i *inliningControl) Disabled(x any, ignoreInternal bool) bool {
 	if i == nil {
 		return false
 	}
+
+	switch x := x.(type) {
+	case ast.Ref:
+		return i.DisabledRef(x, ignoreInternal)
+	case ast.Var:
+		return i.DisabledVar(x, ignoreInternal)
+	}
+
+	return false
+}
+
+func (i *inliningControl) DisabledRef(ref ast.Ref, ignoreInternal bool) bool {
+	if i == nil {
+		return false
+	}
+
 	for _, frame := range i.disable {
 		if !frame.internal || !ignoreInternal {
 			for _, other := range frame.refs {
@@ -466,6 +504,19 @@ func (i *inliningControl) Disabled(ref ast.Ref, ignoreInternal bool) bool {
 					return true
 				}
 			}
+		}
+	}
+	return false
+}
+
+func (i *inliningControl) DisabledVar(v ast.Var, ignoreInternal bool) bool {
+	if i == nil {
+		return false
+	}
+
+	for _, frame := range i.disable {
+		if (!frame.internal || !ignoreInternal) && frame.v.Equal(v) {
+			return true
 		}
 	}
 	return false

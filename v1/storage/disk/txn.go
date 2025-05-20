@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strconv"
 
 	badger "github.com/dgraph-io/badger/v4"
@@ -106,7 +107,7 @@ func (txn *transaction) Abort(context.Context) {
 	txn.underlying.Discard()
 }
 
-func (txn *transaction) Read(ctx context.Context, path storage.Path) (interface{}, error) {
+func (txn *transaction) Read(ctx context.Context, path storage.Path) (any, error) {
 	txn.metrics.Timer(readTimer).Start()
 	defer txn.metrics.Timer(readTimer).Stop()
 
@@ -134,9 +135,9 @@ func (txn *transaction) Read(ctx context.Context, path storage.Path) (interface{
 	return txn.readMultiple(ctx, i, key)
 }
 
-func (txn *transaction) readMultiple(ctx context.Context, offset int, prefix []byte) (interface{}, error) {
+func (txn *transaction) readMultiple(ctx context.Context, offset int, prefix []byte) (any, error) {
 
-	result := map[string]interface{}{}
+	result := map[string]any{}
 
 	it := txn.underlying.NewIterator(badger.IteratorOptions{Prefix: prefix})
 	defer it.Close()
@@ -163,7 +164,7 @@ func (txn *transaction) readMultiple(ctx context.Context, offset int, prefix []b
 		}
 		txn.metrics.Counter(readValueBytesCounter).Add(uint64(len(valbuf)))
 
-		var value interface{}
+		var value any
 		if err := deserialize(valbuf, &value); err != nil {
 			return nil, err
 		}
@@ -173,10 +174,10 @@ func (txn *transaction) readMultiple(ctx context.Context, offset int, prefix []b
 		for i := offset; i < len(path)-1; i++ {
 			child, ok := node[path[i]]
 			if !ok {
-				child = map[string]interface{}{}
+				child = map[string]any{}
 				node[path[i]] = child
 			}
-			childObj, ok := child.(map[string]interface{})
+			childObj, ok := child.(map[string]any)
 			if !ok {
 				return nil, &storage.Error{Code: storage.InternalErr, Message: fmt.Sprintf("corrupt key-value: %s", keybuf)}
 			}
@@ -195,7 +196,7 @@ func (txn *transaction) readMultiple(ctx context.Context, offset int, prefix []b
 	return result, nil
 }
 
-func (txn *transaction) readOne(key []byte) (interface{}, error) {
+func (txn *transaction) readOne(key []byte) (any, error) {
 	txn.metrics.Counter(readKeysCounter).Add(1)
 
 	item, err := txn.underlying.Get(key)
@@ -206,7 +207,7 @@ func (txn *transaction) readOne(key []byte) (interface{}, error) {
 		return nil, wrapError(err)
 	}
 
-	var val interface{}
+	var val any
 
 	err = item.Value(func(bs []byte) error {
 		txn.metrics.Counter(readValueBytesCounter).Add(uint64(len(bs)))
@@ -219,11 +220,11 @@ func (txn *transaction) readOne(key []byte) (interface{}, error) {
 type update struct {
 	key    []byte
 	value  []byte
-	data   interface{}
+	data   any
 	delete bool
 }
 
-func (txn *transaction) Write(_ context.Context, op storage.PatchOp, path storage.Path, value interface{}) error {
+func (txn *transaction) Write(_ context.Context, op storage.PatchOp, path storage.Path, value any) error {
 	txn.metrics.Timer(writeTimer).Start()
 	defer txn.metrics.Timer(writeTimer).Stop()
 
@@ -254,7 +255,7 @@ func (txn *transaction) Write(_ context.Context, op storage.PatchOp, path storag
 	return nil
 }
 
-func (txn *transaction) partitionWrite(op storage.PatchOp, path storage.Path, value interface{}) ([]update, error) {
+func (txn *transaction) partitionWrite(op storage.PatchOp, path storage.Path, value any) ([]update, error) {
 
 	if op == storage.RemoveOp && len(path) == 0 {
 		return nil, &storage.Error{
@@ -318,12 +319,12 @@ func (txn *transaction) partitionWrite(op storage.PatchOp, path storage.Path, va
 	return txn.partitionWriteMultiple(node, path, value, updates)
 }
 
-func (txn *transaction) partitionWriteMultiple(node *partitionTrie, path storage.Path, value interface{}, result []update) ([]update, error) {
+func (txn *transaction) partitionWriteMultiple(node *partitionTrie, path storage.Path, value any, result []update) ([]update, error) {
 	// NOTE(tsandall): value must be an object so that it can be partitioned; in
 	// the future, arrays could be supported but that requires investigation.
 
 	switch v := value.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		bs, err := serialize(v)
 		if err != nil {
 			return nil, err
@@ -380,7 +381,7 @@ func (txn *transaction) doPartitionWriteMultiple(node *partitionTrie, path stora
 	return result, nil
 }
 
-func (txn *transaction) partitionWriteOne(op storage.PatchOp, path storage.Path, value interface{}) ([]update, error) {
+func (txn *transaction) partitionWriteOne(op storage.PatchOp, path storage.Path, value any) ([]update, error) {
 	key, err := txn.pm.DataPath2Key(path)
 	if err != nil {
 		return nil, err
@@ -461,7 +462,7 @@ func (txn *transaction) DeletePolicy(_ context.Context, id string) error {
 	return nil
 }
 
-func serialize(value interface{}) ([]byte, error) {
+func serialize(value any) ([]byte, error) {
 	val, ok := value.([]byte)
 	if ok {
 		return val, nil
@@ -471,12 +472,12 @@ func serialize(value interface{}) ([]byte, error) {
 	return bs, wrapError(err)
 }
 
-func deserialize(bs []byte, result interface{}) error {
+func deserialize(bs []byte, result any) error {
 	d := util.NewJSONDecoder(bytes.NewReader(bs))
 	return wrapError(d.Decode(&result))
 }
 
-func patch(data interface{}, op storage.PatchOp, path storage.Path, idx int, value interface{}) (interface{}, error) {
+func patch(data any, op storage.PatchOp, path storage.Path, idx int, value any) (any, error) {
 	if idx == len(path) {
 		panic("unreachable")
 	}
@@ -489,7 +490,7 @@ func patch(data interface{}, op storage.PatchOp, path storage.Path, idx int, val
 		if err == nil {
 			val = obj
 		} else {
-			var obj interface{}
+			var obj any
 			err := util.Unmarshal(v, &obj)
 			if err != nil {
 				return nil, err
@@ -502,7 +503,7 @@ func patch(data interface{}, op storage.PatchOp, path storage.Path, idx int, val
 		if err == nil {
 			val = obj
 		} else {
-			var obj interface{}
+			var obj any
 			err := util.Unmarshal(v, &obj)
 			if err != nil {
 				return nil, err
@@ -514,7 +515,7 @@ func patch(data interface{}, op storage.PatchOp, path storage.Path, idx int, val
 	// Base case: mutate the data value in-place.
 	if len(path) == idx+1 { // last element
 		switch x := data.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			key := path[len(path)-1]
 			switch op {
 			case storage.RemoveOp:
@@ -533,7 +534,7 @@ func patch(data interface{}, op storage.PatchOp, path storage.Path, idx int, val
 				x[key] = val
 				return x, nil
 			}
-		case []interface{}:
+		case []any:
 			switch op {
 			case storage.AddOp:
 				if path[idx] == "-" || path[idx] == strconv.Itoa(len(x)) {
@@ -544,7 +545,7 @@ func patch(data interface{}, op storage.PatchOp, path storage.Path, idx int, val
 					return nil, err
 				}
 				// insert at i
-				return append(x[:i], append([]interface{}{val}, x[i:]...)...), nil
+				return append(x[:i], append([]any{val}, x[i:]...)...), nil
 			case storage.ReplaceOp:
 				i, err := ptr.ValidateArrayIndexForWrite(x, path[idx], idx, path)
 				if err != nil {
@@ -558,12 +559,12 @@ func patch(data interface{}, op storage.PatchOp, path storage.Path, idx int, val
 					return nil, err
 
 				}
-				return append(x[:i], x[i+1:]...), nil // i is skipped
+				return slices.Delete(x, i, i+1), nil // i is skipped
 			default:
 				panic("unreachable")
 			}
 		case nil: // data wasn't set before
-			return map[string]interface{}{path[idx]: val}, nil
+			return map[string]any{path[idx]: val}, nil
 		default:
 			return nil, errors.NewNotFoundError(path)
 		}
@@ -573,14 +574,14 @@ func patch(data interface{}, op storage.PatchOp, path storage.Path, idx int, val
 	key := path[idx]
 
 	switch x := data.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		modified, err := patch(x[key], op, path, idx+1, val)
 		if err != nil {
 			return nil, err
 		}
 		x[key] = modified
 		return x, nil
-	case []interface{}:
+	case []any:
 		i, err := ptr.ValidateArrayIndexForWrite(x, path[idx], idx+1, path)
 		if err != nil {
 			return nil, err
@@ -592,7 +593,7 @@ func patch(data interface{}, op storage.PatchOp, path storage.Path, idx int, val
 		x[i] = modified
 		return x, nil
 	case nil: // data isn't there yet
-		y := make(map[string]interface{}, 1)
+		y := make(map[string]any, 1)
 		modified, err := patch(nil, op, path, idx+1, val)
 		if err != nil {
 			return nil, err

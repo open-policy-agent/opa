@@ -29,18 +29,14 @@ package gojsonschema
 import (
 	"encoding/json"
 	"math/big"
+	"slices"
 )
 
 func isStringInSlice(s []string, what string) bool {
-	for i := range s {
-		if s[i] == what {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s, what)
 }
 
-func marshalToJSONString(value interface{}) (*string, error) {
+func marshalToJSONString(value any) (*string, error) {
 
 	mBytes, err := json.Marshal(value)
 	if err != nil {
@@ -51,7 +47,7 @@ func marshalToJSONString(value interface{}) (*string, error) {
 	return &sBytes, nil
 }
 
-func marshalWithoutNumber(value interface{}) (*string, error) {
+func marshalWithoutNumber(value any) (*string, error) {
 
 	// The JSON is decoded using https://golang.org/pkg/encoding/json/#Decoder.UseNumber
 	// This means the numbers are internally still represented as strings and therefore 1.00 is unequal to 1
@@ -63,7 +59,7 @@ func marshalWithoutNumber(value interface{}) (*string, error) {
 		return nil, err
 	}
 
-	var document interface{}
+	var document any
 
 	err = json.Unmarshal([]byte(*jsonString), &document)
 	if err != nil {
@@ -73,7 +69,7 @@ func marshalWithoutNumber(value interface{}) (*string, error) {
 	return marshalToJSONString(document)
 }
 
-func isJSONNumber(what interface{}) bool {
+func isJSONNumber(what any) bool {
 
 	switch what.(type) {
 
@@ -84,7 +80,7 @@ func isJSONNumber(what interface{}) bool {
 	return false
 }
 
-func checkJSONInteger(what interface{}) (isInt bool) {
+func checkJSONInteger(what any) (isInt bool) {
 
 	jsonNumber := what.(json.Number)
 
@@ -100,7 +96,7 @@ const (
 	minJSONFloat = -float64(1<<53 - 1) //-9007199254740991.0	-2^53 - 1
 )
 
-func mustBeInteger(what interface{}) *int {
+func mustBeInteger(what any) *int {
 	number, ok := what.(json.Number)
 	if !ok {
 		return nil
@@ -123,7 +119,7 @@ func mustBeInteger(what interface{}) *int {
 	return &int32Value
 }
 
-func mustBeNumber(what interface{}) *big.Rat {
+func mustBeNumber(what any) *big.Rat {
 	number, ok := what.(json.Number)
 	if !ok {
 		return nil
@@ -136,11 +132,11 @@ func mustBeNumber(what interface{}) *big.Rat {
 	return nil
 }
 
-func convertDocumentNode(val interface{}) interface{} {
+func convertDocumentNode(val any) any {
 
-	if lval, ok := val.([]interface{}); ok {
+	if lval, ok := val.([]any); ok {
 
-		res := []interface{}{}
+		res := []any{}
 		for _, v := range lval {
 			res = append(res, convertDocumentNode(v))
 		}
@@ -149,9 +145,9 @@ func convertDocumentNode(val interface{}) interface{} {
 
 	}
 
-	if mval, ok := val.(map[interface{}]interface{}); ok {
+	if mval, ok := val.(map[any]any); ok {
 
-		res := map[string]interface{}{}
+		res := map[string]any{}
 
 		for k, v := range mval {
 			res[k.(string)] = convertDocumentNode(v)

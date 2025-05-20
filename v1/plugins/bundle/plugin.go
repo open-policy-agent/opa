@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -57,11 +58,11 @@ type Loader interface {
 // Plugin implements bundle activation.
 type Plugin struct {
 	config            Config
-	manager           *plugins.Manager                         // plugin manager for storage and service clients
-	status            map[string]*Status                       // current status for each bundle
-	etags             map[string]string                        // etag on last successful activation
-	listeners         map[interface{}]func(Status)             // listeners to send status updates to
-	bulkListeners     map[interface{}]func(map[string]*Status) // listeners to send aggregated status updates to
+	manager           *plugins.Manager                 // plugin manager for storage and service clients
+	status            map[string]*Status               // current status for each bundle
+	etags             map[string]string                // etag on last successful activation
+	listeners         map[any]func(Status)             // listeners to send status updates to
+	bulkListeners     map[any]func(map[string]*Status) // listeners to send aggregated status updates to
 	downloaders       map[string]Loader
 	logger            logging.Logger
 	mtx               sync.Mutex
@@ -133,9 +134,7 @@ func (p *Plugin) Start(ctx context.Context) error {
 func (p *Plugin) Stop(ctx context.Context) {
 	p.mtx.Lock()
 	stopDownloaders := map[string]Loader{}
-	for name, dl := range p.downloaders {
-		stopDownloaders[name] = dl
-	}
+	maps.Copy(stopDownloaders, p.downloaders)
 	p.downloaders = nil
 	p.stopped = true
 	p.mtx.Unlock()
@@ -149,7 +148,7 @@ func (p *Plugin) Stop(ctx context.Context) {
 // Reconfigure notifies the plugin that it's configuration has changed.
 // Any bundle configs that have changed or been added/removed will take
 // affect.
-func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
+func (p *Plugin) Reconfigure(ctx context.Context, config any) {
 	// Reconfiguring should not occur in parallel, lock to ensure
 	// nothing swaps underneath us with the current p.config and the updated one.
 	// Use p.cfgMtx instead of p.mtx to not block any bundle downloads/activations
@@ -262,9 +261,7 @@ func (p *Plugin) Trigger(ctx context.Context) error {
 
 	p.mtx.Lock()
 	downloaders := map[string]Loader{}
-	for name, dl := range p.downloaders {
-		downloaders[name] = dl
-	}
+	maps.Copy(downloaders, p.downloaders)
 	p.mtx.Unlock()
 
 	for name, d := range downloaders {
@@ -288,19 +285,19 @@ func (p *Plugin) Trigger(ctx context.Context) error {
 // Register a listener to receive status updates. The name must be comparable.
 // The listener will receive a status update for each bundle configured, they are
 // not going to be aggregated. For all status updates use `RegisterBulkListener`.
-func (p *Plugin) Register(name interface{}, listener func(Status)) {
+func (p *Plugin) Register(name any, listener func(Status)) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
 	if p.listeners == nil {
-		p.listeners = map[interface{}]func(Status){}
+		p.listeners = map[any]func(Status){}
 	}
 
 	p.listeners[name] = listener
 }
 
 // Unregister a listener to stop receiving status updates.
-func (p *Plugin) Unregister(name interface{}) {
+func (p *Plugin) Unregister(name any) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
@@ -308,19 +305,19 @@ func (p *Plugin) Unregister(name interface{}) {
 }
 
 // RegisterBulkListener registers a listener to receive bulk (aggregated) status updates. The name must be comparable.
-func (p *Plugin) RegisterBulkListener(name interface{}, listener func(map[string]*Status)) {
+func (p *Plugin) RegisterBulkListener(name any, listener func(map[string]*Status)) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
 	if p.bulkListeners == nil {
-		p.bulkListeners = map[interface{}]func(map[string]*Status){}
+		p.bulkListeners = map[any]func(map[string]*Status){}
 	}
 
 	p.bulkListeners[name] = listener
 }
 
 // UnregisterBulkListener unregisters a listener to stop receiving aggregated status updates.
-func (p *Plugin) UnregisterBulkListener(name interface{}) {
+func (p *Plugin) UnregisterBulkListener(name any) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
@@ -755,7 +752,7 @@ func (p *Plugin) log(name string) logging.Logger {
 	if p.logger == nil {
 		p.logger = logging.Get()
 	}
-	return p.logger.WithFields(map[string]interface{}{"name": name, "plugin": Name})
+	return p.logger.WithFields(map[string]any{"name": name, "plugin": Name})
 }
 
 func (p *Plugin) getBundlePersistPath() (string, error) {

@@ -292,7 +292,7 @@ func TestPrettyTracePartialWithLocationTruncatedPaths(t *testing.T) {
 		},
 	})
 
-	var data map[string]interface{}
+	var data map[string]any
 	err := util.UnmarshalJSON([]byte(`{
     "roles": [
         {
@@ -361,6 +361,9 @@ authz_bundle/...ternal/authz/policies/utils/user.rego:14             | | | Eval 
 authz_bundle/...ternal/authz/policies/utils/user.rego:14             | | | Save "widgets" = input.action.resource
 authz_bundle/...ternal/authz/policies/utils/user.rego:10             | | | Exit data.utils.role_has_permission
 authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:6     | | Exit data.example_rbac.allow
+query:1                                                              | Exit data.example_rbac.allow
+query:1                                                              Redo data.example_rbac.allow
+query:1                                                              | Redo data.example_rbac.allow
 authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:6     | Redo data.example_rbac.allow
 authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:9     | | Redo data.utils.role_has_permission[role_name]
 authz_bundle/...ternal/authz/policies/utils/user.rego:10             | | Redo data.utils.role_has_permission
@@ -394,6 +397,9 @@ authz_bundle/...ternal/authz/policies/utils/user.rego:14             | | | Eval 
 authz_bundle/...ternal/authz/policies/utils/user.rego:14             | | | Save "widgets" = input.action.resource
 authz_bundle/...ternal/authz/policies/utils/user.rego:10             | | | Exit data.utils.role_has_permission
 authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:6     | | Exit data.example_rbac.allow
+query:1                                                              | Exit data.example_rbac.allow
+query:1                                                              Redo data.example_rbac.allow
+query:1                                                              | Redo data.example_rbac.allow
 authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:6     | Redo data.example_rbac.allow
 authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:9     | | Redo data.utils.role_has_permission[role_name]
 authz_bundle/...ternal/authz/policies/utils/user.rego:10             | | Redo data.utils.role_has_permission
@@ -406,16 +412,6 @@ authz_bundle/...ternal/authz/policies/utils/user.rego:4              | | Redo da
 authz_bundle/...ternal/authz/policies/utils/user.rego:7              | | | Redo role_binding.user = input.subject.user
 authz_bundle/...ternal/authz/policies/utils/user.rego:6              | | | Redo role_binding.role = role_name
 authz_bundle/...ternal/authz/policies/utils/user.rego:5              | | | Redo role_binding = data.bindings[_]
-authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:4     | Enter data.example_rbac.allow
-authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:4     | | Eval true
-authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:4     | | Exit data.example_rbac.allow
-authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:4     | Redo data.example_rbac.allow
-authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:4     | | Redo true
-query:1                                                              | Save data.partial.example_rbac.allow = _
-query:1                                                              | Save _
-query:1                                                              | Exit data.example_rbac.allow
-query:1                                                              Redo data.example_rbac.allow
-query:1                                                              | Fail data.example_rbac.allow
 `
 
 	var buf bytes.Buffer

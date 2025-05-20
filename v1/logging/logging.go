@@ -3,6 +3,7 @@ package logging
 import (
 	"context"
 	"io"
+	"maps"
 	"net/http"
 
 	"github.com/sirupsen/logrus"
@@ -24,12 +25,12 @@ const (
 
 // Logger provides interface for OPA logger implementations
 type Logger interface {
-	Debug(fmt string, a ...interface{})
-	Info(fmt string, a ...interface{})
-	Error(fmt string, a ...interface{})
-	Warn(fmt string, a ...interface{})
+	Debug(fmt string, a ...any)
+	Info(fmt string, a ...any)
+	Error(fmt string, a ...any)
+	Warn(fmt string, a ...any)
 
-	WithFields(map[string]interface{}) Logger
+	WithFields(map[string]any) Logger
 
 	GetLevel() Level
 	SetLevel(Level)
@@ -38,7 +39,7 @@ type Logger interface {
 // StandardLogger is the default OPA logger implementation.
 type StandardLogger struct {
 	logger *logrus.Logger
-	fields map[string]interface{}
+	fields map[string]any
 }
 
 // New returns a new standard logger.
@@ -68,20 +69,16 @@ func (l *StandardLogger) SetFormatter(formatter logrus.Formatter) {
 }
 
 // WithFields provides additional fields to include in log output
-func (l *StandardLogger) WithFields(fields map[string]interface{}) Logger {
+func (l *StandardLogger) WithFields(fields map[string]any) Logger {
 	cp := *l
-	cp.fields = make(map[string]interface{})
-	for k, v := range l.fields {
-		cp.fields[k] = v
-	}
-	for k, v := range fields {
-		cp.fields[k] = v
-	}
+	cp.fields = make(map[string]any)
+	maps.Copy(cp.fields, l.fields)
+	maps.Copy(cp.fields, fields)
 	return &cp
 }
 
 // getFields returns additional fields of this logger
-func (l *StandardLogger) getFields() map[string]interface{} {
+func (l *StandardLogger) getFields() map[string]any {
 	return l.fields
 }
 
@@ -126,7 +123,7 @@ func (l *StandardLogger) GetLevel() Level {
 }
 
 // Debug logs at debug level
-func (l *StandardLogger) Debug(fmt string, a ...interface{}) {
+func (l *StandardLogger) Debug(fmt string, a ...any) {
 	if len(a) == 0 {
 		l.logger.WithFields(l.getFields()).Debug(fmt)
 		return
@@ -135,7 +132,7 @@ func (l *StandardLogger) Debug(fmt string, a ...interface{}) {
 }
 
 // Info logs at info level
-func (l *StandardLogger) Info(fmt string, a ...interface{}) {
+func (l *StandardLogger) Info(fmt string, a ...any) {
 	if len(a) == 0 {
 		l.logger.WithFields(l.getFields()).Info(fmt)
 		return
@@ -144,7 +141,7 @@ func (l *StandardLogger) Info(fmt string, a ...interface{}) {
 }
 
 // Error logs at error level
-func (l *StandardLogger) Error(fmt string, a ...interface{}) {
+func (l *StandardLogger) Error(fmt string, a ...any) {
 	if len(a) == 0 {
 		l.logger.WithFields(l.getFields()).Error(fmt)
 		return
@@ -153,7 +150,7 @@ func (l *StandardLogger) Error(fmt string, a ...interface{}) {
 }
 
 // Warn logs at warn level
-func (l *StandardLogger) Warn(fmt string, a ...interface{}) {
+func (l *StandardLogger) Warn(fmt string, a ...any) {
 	if len(a) == 0 {
 		l.logger.WithFields(l.getFields()).Warn(fmt)
 		return
@@ -164,7 +161,7 @@ func (l *StandardLogger) Warn(fmt string, a ...interface{}) {
 // NoOpLogger logging implementation that does nothing
 type NoOpLogger struct {
 	level  Level
-	fields map[string]interface{}
+	fields map[string]any
 }
 
 // NewNoOpLogger instantiates new NoOpLogger
@@ -176,23 +173,23 @@ func NewNoOpLogger() *NoOpLogger {
 
 // WithFields provides additional fields to include in log output.
 // Implemented here primarily to be able to switch between implementations without loss of data.
-func (l *NoOpLogger) WithFields(fields map[string]interface{}) Logger {
+func (l *NoOpLogger) WithFields(fields map[string]any) Logger {
 	cp := *l
 	cp.fields = fields
 	return &cp
 }
 
 // Debug noop
-func (*NoOpLogger) Debug(string, ...interface{}) {}
+func (*NoOpLogger) Debug(string, ...any) {}
 
 // Info noop
-func (*NoOpLogger) Info(string, ...interface{}) {}
+func (*NoOpLogger) Info(string, ...any) {}
 
 // Error noop
-func (*NoOpLogger) Error(string, ...interface{}) {}
+func (*NoOpLogger) Error(string, ...any) {}
 
 // Warn noop
-func (*NoOpLogger) Warn(string, ...interface{}) {}
+func (*NoOpLogger) Warn(string, ...any) {}
 
 // SetLevel set log level
 func (l *NoOpLogger) SetLevel(level Level) {

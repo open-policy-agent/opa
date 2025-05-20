@@ -71,10 +71,10 @@ func TestEvaluateBundle(t *testing.T) {
 		Manifest: bundleApi.Manifest{
 			Revision: "quickbrownfaux",
 		},
-		Data: map[string]interface{}{
-			"foo": map[string]interface{}{
-				"bar": map[string]interface{}{
-					"status": map[string]interface{}{},
+		Data: map[string]any{
+			"foo": map[string]any{
+				"bar": map[string]any{
+					"status": map[string]any{},
 				},
 			},
 		},
@@ -468,10 +468,10 @@ func TestProcessBundleWithActiveConfig(t *testing.T) {
 	assertConfig(t, actual, expectedConfig2)
 }
 
-func assertConfig(t *testing.T, actualConfig interface{}, expectedConfig string) {
+func assertConfig(t *testing.T, actualConfig any, expectedConfig string) {
 	t.Helper()
 
-	var expected map[string]interface{}
+	var expected map[string]any
 	if err := util.Unmarshal([]byte(expectedConfig), &expected); err != nil {
 		t.Fatal(err)
 	}
@@ -485,11 +485,11 @@ type testFactory struct {
 	p *reconfigureTestPlugin
 }
 
-func (testFactory) Validate(*plugins.Manager, []byte) (interface{}, error) {
+func (testFactory) Validate(*plugins.Manager, []byte) (any, error) {
 	return nil, nil
 }
 
-func (f testFactory) New(*plugins.Manager, interface{}) plugins.Plugin {
+func (f testFactory) New(*plugins.Manager, any) plugins.Plugin {
 	return f.p
 }
 
@@ -505,7 +505,7 @@ func (r *reconfigureTestPlugin) Start(context.Context) error {
 func (*reconfigureTestPlugin) Stop(context.Context) {
 }
 
-func (r *reconfigureTestPlugin) Reconfigure(_ context.Context, _ interface{}) {
+func (r *reconfigureTestPlugin) Reconfigure(_ context.Context, _ any) {
 	r.counts["reconfig"]++
 }
 
@@ -1733,7 +1733,7 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var bootConfig map[string]interface{}
+	var bootConfig map[string]any
 	err = util.Unmarshal(bootConfigRaw, &bootConfig)
 	if err != nil {
 		t.Fatal(err)
@@ -1966,7 +1966,7 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 
 	disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
 
-	var dtConfig map[string]interface{}
+	var dtConfig map[string]any
 	err = util.Unmarshal(manager.Config.DistributedTracing, &dtConfig)
 	if err != nil {
 		t.Fatal(err)
@@ -1985,22 +1985,22 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 func TestMergeValuesAndListOverrides(t *testing.T) {
 	tests := []struct {
 		name     string
-		dest     map[string]interface{}
-		src      map[string]interface{}
-		expected map[string]interface{}
+		dest     map[string]any
+		src      map[string]any
+		expected map[string]any
 		override []string
 	}{
 		{
 			name: "Simple merge",
-			dest: map[string]interface{}{
+			dest: map[string]any{
 				"a": 1,
 				"b": 2,
 			},
-			src: map[string]interface{}{
+			src: map[string]any{
 				"c": 3,
 				"d": 4,
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"a": 1,
 				"b": 2,
 				"c": 3,
@@ -2010,27 +2010,27 @@ func TestMergeValuesAndListOverrides(t *testing.T) {
 		},
 		{
 			name: "Nested merge",
-			dest: map[string]interface{}{
+			dest: map[string]any{
 				"a": 1,
-				"b": map[string]interface{}{
+				"b": map[string]any{
 					"ba": 10,
 				},
 			},
-			src: map[string]interface{}{
-				"b": map[string]interface{}{
+			src: map[string]any{
+				"b": map[string]any{
 					"bb": 20,
 				},
-				"c": map[string]interface{}{
+				"c": map[string]any{
 					"ca": 30,
 				},
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"a": 1,
-				"b": map[string]interface{}{
+				"b": map[string]any{
 					"ba": 10,
 					"bb": 20,
 				},
-				"c": map[string]interface{}{
+				"c": map[string]any{
 					"ca": 30,
 				},
 			},
@@ -2038,14 +2038,14 @@ func TestMergeValuesAndListOverrides(t *testing.T) {
 		},
 		{
 			name: "Simple Non-map override -1",
-			dest: map[string]interface{}{
-				"a": []interface{}{"bar"},
+			dest: map[string]any{
+				"a": []any{"bar"},
 				"b": 2,
 			},
-			src: map[string]interface{}{
+			src: map[string]any{
 				"a": 3,
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"a": 3,
 				"b": 2,
 			},
@@ -2053,29 +2053,29 @@ func TestMergeValuesAndListOverrides(t *testing.T) {
 		},
 		{
 			name: "Simple Non-map override -2",
-			dest: map[string]interface{}{
+			dest: map[string]any{
 				"a": 3,
 				"b": 2,
 			},
-			src: map[string]interface{}{
-				"a": []interface{}{"bar"},
+			src: map[string]any{
+				"a": []any{"bar"},
 			},
-			expected: map[string]interface{}{
-				"a": []interface{}{"bar"},
+			expected: map[string]any{
+				"a": []any{"bar"},
 				"b": 2,
 			},
 			override: []string{"a"},
 		},
 		{
 			name: "Non-map override -1",
-			dest: map[string]interface{}{
-				"a": []interface{}{"bar"},
+			dest: map[string]any{
+				"a": []any{"bar"},
 				"b": 2,
 			},
-			src: map[string]interface{}{
+			src: map[string]any{
 				"a": []string{"foo"},
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"a": []string{"foo"},
 				"b": 2,
 			},
@@ -2083,33 +2083,33 @@ func TestMergeValuesAndListOverrides(t *testing.T) {
 		},
 		{
 			name: "Non-map override -2",
-			dest: map[string]interface{}{
-				"a": map[string]interface{}{
+			dest: map[string]any{
+				"a": map[string]any{
 					"aa": 10,
 					"ab": 20,
 				},
 				"b": 2,
 			},
-			src: map[string]interface{}{
-				"a": []interface{}{"foo"},
+			src: map[string]any{
+				"a": []any{"foo"},
 			},
-			expected: map[string]interface{}{
-				"a": []interface{}{"foo"},
+			expected: map[string]any{
+				"a": []any{"foo"},
 				"b": 2,
 			},
 			override: []string{"a"},
 		},
 		{
 			name: "Simple overridden keys",
-			dest: map[string]interface{}{
+			dest: map[string]any{
 				"a": 1,
 				"b": 2,
 			},
-			src: map[string]interface{}{
+			src: map[string]any{
 				"b": 20,
 				"c": 3,
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"a": 1,
 				"b": 20,
 				"c": 3,
@@ -2118,30 +2118,30 @@ func TestMergeValuesAndListOverrides(t *testing.T) {
 		},
 		{
 			name: "Nested overridden keys",
-			dest: map[string]interface{}{
+			dest: map[string]any{
 				"a": 1,
-				"b": map[string]interface{}{
+				"b": map[string]any{
 					"ba": 10,
 					"bb": 20,
 				},
 			},
-			src: map[string]interface{}{
-				"b": map[string]interface{}{
+			src: map[string]any{
+				"b": map[string]any{
 					"bb": 200,
 					"bc": 300,
 				},
-				"c": map[string]interface{}{
+				"c": map[string]any{
 					"ca": 30,
 				},
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"a": 1,
-				"b": map[string]interface{}{
+				"b": map[string]any{
 					"ba": 10,
 					"bb": 200,
 					"bc": 300,
 				},
-				"c": map[string]interface{}{
+				"c": map[string]any{
 					"ca": 30,
 				},
 			},
@@ -2149,36 +2149,36 @@ func TestMergeValuesAndListOverrides(t *testing.T) {
 		},
 		{
 			name: "Multiple Nested overridden keys",
-			dest: map[string]interface{}{
+			dest: map[string]any{
 				"a": 1,
-				"b": map[string]interface{}{
+				"b": map[string]any{
 					"ba": 10,
 					"bb": 20,
 				},
-				"c": map[string]interface{}{
+				"c": map[string]any{
 					"ca": 10,
 					"cb": 20,
 					"cc": 30,
 				},
 			},
-			src: map[string]interface{}{
-				"b": map[string]interface{}{
+			src: map[string]any{
+				"b": map[string]any{
 					"bb": 200,
 					"bc": 300,
 				},
-				"c": map[string]interface{}{
+				"c": map[string]any{
 					"ca": 300,
 					"cd": 400,
 				},
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"a": 1,
-				"b": map[string]interface{}{
+				"b": map[string]any{
 					"ba": 10,
 					"bb": 200,
 					"bc": 300,
 				},
-				"c": map[string]interface{}{
+				"c": map[string]any{
 					"ca": 300,
 					"cb": 20,
 					"cc": 30,
@@ -2189,27 +2189,27 @@ func TestMergeValuesAndListOverrides(t *testing.T) {
 		},
 		{
 			name: "Nested overridden keys - 2",
-			dest: map[string]interface{}{
+			dest: map[string]any{
 				"a": 1,
-				"b": map[string]interface{}{
-					"ba": map[string]interface{}{"bba": "1"},
+				"b": map[string]any{
+					"ba": map[string]any{"bba": "1"},
 				},
 				"c": 2,
 			},
-			src: map[string]interface{}{
-				"b": map[string]interface{}{
-					"ba": map[string]interface{}{"bba": "2"},
+			src: map[string]any{
+				"b": map[string]any{
+					"ba": map[string]any{"bba": "2"},
 				},
-				"c": map[string]interface{}{
+				"c": map[string]any{
 					"ca": 30,
 				},
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"a": 1,
-				"b": map[string]interface{}{
-					"ba": map[string]interface{}{"bba": "2"},
+				"b": map[string]any{
+					"ba": map[string]any{"bba": "2"},
 				},
-				"c": map[string]interface{}{
+				"c": map[string]any{
 					"ca": 30,
 				},
 			},
@@ -2275,7 +2275,7 @@ func TestReconfigureWithUpdates(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var bootConfig map[string]interface{}
+	var bootConfig map[string]any
 	err = util.Unmarshal(bootConfigRaw, &bootConfig)
 	if err != nil {
 		t.Fatal(err)
@@ -2717,7 +2717,7 @@ func TestStatusUpdates(t *testing.T) {
 	ts.Start()
 	defer ts.Stop()
 
-	manager, err := plugins.New([]byte(fmt.Sprintf(`{
+	manager, err := plugins.New(fmt.Appendf(nil, `{
 			"labels": {"x": "y"},
 			"services": {
 				"localhost": {
@@ -2725,7 +2725,7 @@ func TestStatusUpdates(t *testing.T) {
 				}
 			},
 			"discovery": {"name": "config"},
-		}`, ts.server.URL)), "test-id", inmem.New())
+		}`, ts.server.URL), "test-id", inmem.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2842,16 +2842,16 @@ func TestStatusUpdatesFromPersistedBundlesDontDelayBoot(t *testing.T) {
 
 	// write the disco bundle to disk
 	discoBundle := bundleApi.Bundle{
-		Data: map[string]interface{}{
-			"discovery": map[string]interface{}{
-				"bundles": map[string]interface{}{
-					"main": map[string]interface{}{
+		Data: map[string]any{
+			"discovery": map[string]any{
+				"bundles": map[string]any{
+					"main": map[string]any{
 						"persist":  true,
 						"resource": "/bundle",
 						"service":  "localhost",
 					},
 				},
-				"status": map[string]interface{}{
+				"status": map[string]any{
 					"service": "localhost",
 				},
 			},
@@ -2877,7 +2877,7 @@ func TestStatusUpdatesFromPersistedBundlesDontDelayBoot(t *testing.T) {
 
 	// write an example data bundle ('main') to disk
 	mainBundle := bundleApi.Bundle{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"foo": "bar",
 		},
 	}
@@ -2907,7 +2907,7 @@ func TestStatusUpdatesFromPersistedBundlesDontDelayBoot(t *testing.T) {
 	}
 	defer listener.Close()
 
-	manager, err := plugins.New([]byte(fmt.Sprintf(`{
+	manager, err := plugins.New(fmt.Appendf(nil, `{
             "persistence_directory": %q,
 			"services": {
 				"localhost": {
@@ -2915,7 +2915,7 @@ func TestStatusUpdatesFromPersistedBundlesDontDelayBoot(t *testing.T) {
 				}
 			},
 			"discovery": {"name": "config", "persist": true, "decision": "discovery"},
-		}`, dir, listener.Addr().String())), "test-id", inmem.New())
+		}`, dir, listener.Addr().String()), "test-id", inmem.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2958,7 +2958,7 @@ func TestStatusUpdatesTimestamp(t *testing.T) {
 	ts.Start()
 	defer ts.Stop()
 
-	manager, err := plugins.New([]byte(fmt.Sprintf(`{
+	manager, err := plugins.New(fmt.Appendf(nil, `{
 			"labels": {"x": "y"},
 			"services": {
 				"localhost": {
@@ -2966,7 +2966,7 @@ func TestStatusUpdatesTimestamp(t *testing.T) {
 				}
 			},
 			"discovery": {"name": "config"},
-		}`, ts.server.URL)), "test-id", inmem.New())
+		}`, ts.server.URL), "test-id", inmem.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3078,8 +3078,8 @@ func TestStatusMetricsForLogDrops(t *testing.T) {
 		t.Fatal("Expected decision log plugin registered on manager")
 	}
 
-	var input interface{} = map[string]interface{}{"method": "GET"}
-	var result interface{} = false
+	var input any = map[string]any{"method": "GET"}
+	var result any = false
 
 	event1 := &server.Info{
 		DecisionID: "abc",
@@ -3130,8 +3130,8 @@ func TestStatusMetricsForLogDrops(t *testing.T) {
 		t.Fatal("Expected metrics")
 	}
 
-	builtInMet := e.Fields["metrics"].(map[string]interface{})["<built-in>"]
-	dropCount := builtInMet.(map[string]interface{})["counter_decision_logs_dropped_rate_limit_exceeded"]
+	builtInMet := e.Fields["metrics"].(map[string]any)["<built-in>"]
+	dropCount := builtInMet.(map[string]any)["counter_decision_logs_dropped_rate_limit_exceeded"]
 
 	actual, err := dropCount.(json.Number).Int64()
 	if err != nil {
@@ -3148,7 +3148,7 @@ func TestStatusMetricsForLogDrops(t *testing.T) {
 func makeDataBundle(n int, s string) *bundleApi.Bundle {
 	return &bundleApi.Bundle{
 		Manifest: bundleApi.Manifest{Revision: fmt.Sprintf("test-revision-%v", n)},
-		Data:     util.MustUnmarshalJSON([]byte(s)).(map[string]interface{}),
+		Data:     util.MustUnmarshalJSON([]byte(s)).(map[string]any),
 	}
 }
 
@@ -3163,7 +3163,7 @@ func makeModuleBundle(n int, s string, popts ast.ParserOptions) *bundleApi.Bundl
 				Parsed: ast.MustParseModuleWithOpts(s, popts),
 			},
 		},
-		Data: map[string]interface{}{},
+		Data: map[string]any{},
 	}
 }
 
@@ -3187,7 +3187,7 @@ func makeModuleBundleWithRegoVersion(revision int, bundle string, regoVersion in
 				Parsed: ast.MustParseModuleWithOpts(bundle, popts),
 			},
 		},
-		Data: map[string]interface{}{},
+		Data: map[string]any{},
 	}
 }
 
@@ -3203,7 +3203,7 @@ func makeBundleWithRegoVersion(revision int, bundleRegoVersion int, modules map[
 			RegoVersion:      &bundleRegoVersion,
 			FileRegoVersions: map[string]int{},
 		},
-		Data: map[string]interface{}{},
+		Data: map[string]any{},
 	}
 
 	for k, v := range modules {
@@ -3254,7 +3254,7 @@ bundle:
 `
 	manager := getTestManager(t, conf)
 	trigger := plugins.TriggerManual
-	_, err := getPluginSet(nil, manager, manager.Config, nil, &trigger)
+	_, err := getPluginSet(nil, manager, manager.Config, nil, nil, &trigger)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -3291,7 +3291,7 @@ bundles:
 `
 	manager := getTestManager(t, conf)
 	trigger := plugins.TriggerManual
-	_, err := getPluginSet(nil, manager, manager.Config, nil, &trigger)
+	_, err := getPluginSet(nil, manager, manager.Config, nil, nil, &trigger)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -3351,7 +3351,7 @@ bundles:
 
 			manager := getTestManager(t, tc.conf)
 			trigger := plugins.TriggerManual
-			_, err := getPluginSet(nil, manager, manager.Config, nil, &trigger)
+			_, err := getPluginSet(nil, manager, manager.Config, nil, nil, &trigger)
 
 			if tc.wantErr {
 				if err == nil {
@@ -3416,7 +3416,7 @@ decision_logs:
 
 			manager := getTestManager(t, tc.conf)
 			trigger := plugins.TriggerManual
-			_, err := getPluginSet(nil, manager, manager.Config, nil, &trigger)
+			_, err := getPluginSet(nil, manager, manager.Config, nil, nil, &trigger)
 
 			if tc.wantErr {
 				if err == nil {
@@ -3487,7 +3487,7 @@ status:
 
 			manager := getTestManager(t, tc.conf)
 			trigger := plugins.TriggerManual
-			_, err := getPluginSet(nil, manager, manager.Config, nil, &trigger)
+			_, err := getPluginSet(nil, manager, manager.Config, nil, nil, &trigger)
 
 			if tc.wantErr {
 				if err == nil {
@@ -3709,8 +3709,8 @@ func TestPluginManualTriggerLifecycle(t *testing.T) {
 	}
 
 	// trigger the bundle plugin
-	fixture.server.bundleData = map[string]interface{}{
-		"foo": map[string]interface{}{
+	fixture.server.bundleData = map[string]any{
+		"foo": map[string]any{
 			"bar": "hello",
 		},
 	}
@@ -3810,8 +3810,8 @@ func TestPluginManualTriggerLifecycle(t *testing.T) {
 	}
 
 	// check for error in the last update corresponding to the bad service bundle config
-	disco, _ := fixture.server.statusEvent[2].(map[string]interface{})
-	errMsg := disco["discovery"].(map[string]interface{})["message"]
+	disco, _ := fixture.server.statusEvent[2].(map[string]any)
+	errMsg := disco["discovery"].(map[string]any)["message"]
 
 	expErrMsg := "invalid configuration for bundle \"authz\": trigger mode mismatch: manual and periodic (hint: check discovery configuration)"
 	if errMsg != expErrMsg {
@@ -3884,13 +3884,13 @@ type testFixture struct {
 func newTestFixture(t *testing.T) *testFixture {
 	ts := testFixtureServer{
 		t:           t,
-		statusEvent: []interface{}{},
+		statusEvent: []any{},
 		logEvent:    []logs.EventV1{},
 	}
 
 	ts.start()
 
-	managerConfig := []byte(fmt.Sprintf(`{
+	managerConfig := fmt.Appendf(nil, `{
 			"labels": {
 				"app": "example-app"
 			},
@@ -3900,7 +3900,7 @@ func newTestFixture(t *testing.T) *testFixture {
 					"name": "example",
 					"url": %q
 				}
-			]}`, ts.server.URL))
+			]}`, ts.server.URL)
 
 	manager, err := plugins.New(managerConfig, "test-id", inmem.New())
 	if err != nil {
@@ -3963,7 +3963,7 @@ func (t *testFixture) loop(ctx context.Context) {
 	}
 }
 
-func (t *testFixture) runQuery(ctx context.Context, query string, m metrics.Metrics) (interface{}, error) {
+func (t *testFixture) runQuery(ctx context.Context, query string, m metrics.Metrics) (any, error) {
 	r := rego.New(
 		rego.Query(query),
 		rego.Store(t.manager.Store),
@@ -3983,7 +3983,7 @@ func (t *testFixture) runQuery(ctx context.Context, query string, m metrics.Metr
 	return rs[0].Expressions[0].Value, nil
 }
 
-func (t *testFixture) log(ctx context.Context, query string, m metrics.Metrics, result *interface{}) error {
+func (t *testFixture) log(ctx context.Context, query string, m metrics.Metrics, result *any) error {
 
 	record := server.Info{
 		Timestamp: time.Now(),
@@ -4001,8 +4001,8 @@ func (t *testFixture) log(ctx context.Context, query string, m metrics.Metrics, 
 }
 
 func (t *testFixture) testServiceBundleUpdateScenario(ctx context.Context, m metrics.Metrics) {
-	t.server.bundleData = map[string]interface{}{
-		"foo": map[string]interface{}{
+	t.server.bundleData = map[string]any{
+		"foo": map[string]any{
 			"bar": "world",
 		},
 	}
@@ -4055,8 +4055,8 @@ func (t *testFixture) testServiceBundleUpdateScenario(ctx context.Context, m met
 	}
 
 	// verify the updated bundle revision in the last status update
-	bundles, _ := t.server.statusEvent[1].(map[string]interface{})
-	actual := bundles["bundles"].(map[string]interface{})["authz"].(map[string]interface{})["active_revision"]
+	bundles, _ := t.server.statusEvent[1].(map[string]any)
+	actual := bundles["bundles"].(map[string]any)["authz"].(map[string]any)["active_revision"]
 
 	if actual != t.server.bundleRevision {
 		t.server.t.Fatalf("Expected revision %v but got %v", t.server.bundleRevision, actual)
@@ -4086,8 +4086,8 @@ func (t *testFixture) testDiscoReconfigurationScenario(ctx context.Context, m me
 	<-trigger
 
 	// trigger the bundle plugin
-	t.server.bundleData = map[string]interface{}{
-		"bux": map[string]interface{}{
+	t.server.bundleData = map[string]any{
+		"bux": map[string]any{
 			"qux": "hello again!",
 		},
 	}
@@ -4119,15 +4119,15 @@ func (t *testFixture) testDiscoReconfigurationScenario(ctx context.Context, m me
 	}
 
 	// verify the updated discovery and service bundle revisions in the last status update
-	bundles, _ := t.server.statusEvent[3].(map[string]interface{})
-	actual := bundles["bundles"].(map[string]interface{})["authz"].(map[string]interface{})["active_revision"]
+	bundles, _ := t.server.statusEvent[3].(map[string]any)
+	actual := bundles["bundles"].(map[string]any)["authz"].(map[string]any)["active_revision"]
 
 	if actual != t.server.bundleRevision {
 		t.server.t.Fatalf("Expected revision %v but got %v", t.server.bundleRevision, actual)
 	}
 
-	disco, _ := t.server.statusEvent[3].(map[string]interface{})
-	actual = disco["discovery"].(map[string]interface{})["active_revision"]
+	disco, _ := t.server.statusEvent[3].(map[string]any)
+	actual = disco["discovery"].(map[string]any)["active_revision"]
 
 	expectedRev := fmt.Sprintf("test-revision-%v", t.server.dicsoBundleRev)
 	if actual != expectedRev {
@@ -4148,9 +4148,9 @@ type testFixtureServer struct {
 	server         *httptest.Server
 	discoConfig    string
 	dicsoBundleRev int
-	bundleData     map[string]interface{}
+	bundleData     map[string]any
 	bundleRevision string
-	statusEvent    []interface{}
+	statusEvent    []any
 	logEvent       []logs.EventV1
 }
 
@@ -4178,7 +4178,7 @@ func (t *testFixtureServer) handle(w http.ResponseWriter, r *http.Request) {
 		}
 	} else if r.URL.Path == "/status" || r.URL.Path == "/status/new" {
 
-		var event interface{}
+		var event any
 
 		if err := util.NewJSONDecoder(r.Body).Decode(&event); err != nil {
 			t.t.Fatal(err)

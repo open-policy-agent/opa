@@ -24,6 +24,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -589,6 +590,58 @@ func TestNew(t *testing.T) {
 							"algorithm": "ECDSA_SHA_256"
 						},
 						"token_url": "https://localhost",
+						"scopes": ["profile", "opa"],
+						"additional_claims": {
+							"aud": "some audience"
+						}
+					}
+				}
+			}`, grantTypeClientCredentials),
+			wantErr: true,
+		},
+		{
+			name: "Oauth2ClientCredentialsJWTAuthentication with Azure KeyVault",
+			input: fmt.Sprintf(`{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"oauth2": {
+						"grant_type": %q,
+						"azure_keyvault": {
+            	"key": "tester-key",
+          		"key_algorithm": "ES256",
+          		"vault": "my-secret-kv"
+          	},
+            "azure_signing": {
+            	"service": "keyvault",
+              "azure_managed_identity": {}
+            },
+            "token_url": "https://localhost",
+						"scopes": ["profile", "opa"],
+						"additional_claims": {
+							"aud": "some audience"
+						}
+					}
+				}
+			}`, grantTypeClientCredentials),
+		},
+		{
+			name: "Oauth2ClientCredentialsJWTAuthentication with Azure KeyVault and missing managed identity",
+			input: fmt.Sprintf(`{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"oauth2": {
+						"grant_type": %q,
+						"azure_keyvault": {
+            	"key": "tester-key",
+          		"key_algorithm": "ES256",
+          		"vault": "my-secret-kv"
+          	},
+            "azure_signing": {
+            	"service": "keyvault",
+            },
+            "token_url": "https://localhost",
 						"scopes": ["profile", "opa"],
 						"additional_claims": {
 							"aud": "some audience"
@@ -2135,7 +2188,7 @@ type oauth2TestServer struct {
 	tokenType        string
 	tokenTTL         int64
 	invocations      int32
-	verificationKey  interface{}
+	verificationKey  any
 }
 
 func newOauth2TestClient(t *testing.T, ts *testServer, ots *oauth2TestServer, options ...testPluginCustomizer) *Client {
@@ -2503,7 +2556,7 @@ func certTemplate() (*x509.Certificate, error) {
 	return &tmpl, nil
 }
 
-func createCert(template, parent *x509.Certificate, pub interface{}, parentPriv interface{}) (
+func createCert(template, parent *x509.Certificate, pub any, parentPriv any) (
 	cert *x509.Certificate, certPEM []byte, err error) {
 
 	certDER, err := x509.CreateCertificate(rand.Reader, template, parent, pub, parentPriv)
@@ -2681,5 +2734,141 @@ func newOauth2KmsClientCredentialsTestClient(t *testing.T, ts *testServer, ots *
 
 	// setup fake KMS signer
 	client.config.Credentials.OAuth2.AWSSigningPlugin.kmsSignPlugin.kms = kms
+	return &client
+}
+
+func TestOauth2ClientCredentialsGrantTypeWithKeyVault(t *testing.T) {
+	sign := "KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
+	ts := testServer{t: t, expBearerToken: "token_1"}
+	ts.start()
+	defer ts.stop()
+
+	ots := oauth2TestServer{
+		t:                t,
+		tokenTTL:         300,
+		expScope:         &[]string{"scope1", "scope2"},
+		expJwtCredential: true,
+		expAlgorithm:     "ES256",
+		expGrantType:     grantTypeClientCredentials,
+		expSignature:     sign,
+	}
+	ots.start()
+	defer ots.stop()
+
+	kvServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Body == nil {
+			t.Fatal("got keyvault sign request but body is missing")
+		}
+		defer r.Body.Close()
+		var signRequest kvRequest
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("failed to read keyvault sign request = %v", err)
+		}
+
+		err = json.Unmarshal(bodyBytes, &signRequest)
+		if err != nil {
+			t.Fatalf("failed to unmarshal keyvault sign request = %v", err)
+		}
+
+		resp, err := json.Marshal(kvResponse{KID: "some-KID", Value: sign})
+		if err != nil {
+			t.Fatalf("json.Marshal(kvResponse{}) = %v", err)
+		}
+		w.WriteHeader(200)
+		_, err = w.Write(resp)
+		if err != nil {
+			t.Fatalf("w.Write(resp) = %v", err)
+		}
+	}))
+	defer kvServer.Close()
+
+	tokenerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, err := json.Marshal(azureManagedIdentitiesToken{AccessToken: "token1"})
+		if err != nil {
+			t.Fatalf("json.Marshal(azureManagedIdentitiesToken{}) = %v", err)
+		}
+		w.WriteHeader(200)
+		_, err = w.Write(b)
+		if err != nil {
+			t.Fatalf("w.Write(b) = %v", err)
+		}
+	}))
+
+	kvURL, err := url.Parse(kvServer.URL)
+	if err != nil {
+		t.Fatalf("url.Parse(kvServer.URL) = %v", err)
+	}
+	tokenerServerURL, err := url.Parse(tokenerServer.URL)
+	if err != nil {
+		t.Fatalf("url.Parse(tokenerServer.URL) = %v", err)
+	}
+	fakeCfg := azureKeyVaultConfig{
+		URL: kvURL,
+		Alg: "ES256",
+	}
+
+	fakePlugin := &azureSigningAuthPlugin{
+		MIAuthPlugin:   &azureManagedIdentitiesAuthPlugin{Endpoint: tokenerServerURL.String()},
+		Service:        "keyvault",
+		keyVaultConfig: &fakeCfg,
+		keyVaultSignPlugin: &azureKeyVaultSignPlugin{
+			tokener: func() (string, error) { return "azure_tkn", nil },
+			config:  fakeCfg,
+		},
+	}
+
+	client := newOauth2AzureKVClient(t, &ts, &ots, tokenerServer, fakePlugin)
+	_, err = client.Do(context.Background(), http.MethodGet, "test")
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+}
+
+func newOauth2AzureKVClient(t *testing.T, ts *testServer, ots *oauth2TestServer, tkn *httptest.Server, azureSign *azureSigningAuthPlugin) *Client {
+	cfg := fmt.Sprintf(`{
+				"name": "foo",
+				"url": %q,
+				"allow_insecure_tls": true,
+				"credentials": {
+					"oauth2": {
+            "token_url": "%v/token",
+						"grant_type": %q,
+						"azure_keyvault": {
+            	"key": "tester-key",
+          		"key_algorithm": "ES256",
+          		"vault": "my-secret-kv"
+          	},
+            "azure_signing": {
+            	"service": "keyvault",
+              "azure_managed_identity": {
+								"endpoint": "%v"
+							}
+            },
+						"scopes": ["scope1", "scope2"],
+						"additional_claims": {
+							"aud": "test-audience",
+							"iss": "client-one"
+						}
+					}
+				}
+			}`, ts.server.URL, ots.server.URL, grantTypeClientCredentials, tkn.URL)
+	client, err := New([]byte(cfg), map[string]*keys.Config{})
+
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if _, err := client.config.Credentials.OAuth2.NewClient(client.config); err != nil {
+		t.Fatalf("Oauth2.NewClient() = %q", err)
+	}
+
+	if client.config.Credentials.OAuth2.AzureSigningPlugin.keyVaultSignPlugin == nil {
+		t.Errorf("Oauth2.AzureSigningPlugin.keyVaultSignPlugin isn't setup")
+	}
+
+	// setup fake KV config and signer
+	client.config.Credentials.OAuth2.AzureKeyVault = azureSign.keyVaultConfig
+	client.config.Credentials.OAuth2.AzureSigningPlugin = azureSign
 	return &client
 }

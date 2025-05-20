@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"maps"
 	"math/big"
 	"net/http"
 	"net/url"
@@ -193,6 +194,15 @@ type awsKmsKeyConfig struct {
 	Algorithm string `json:"algorithm"`
 }
 
+type azureKeyVaultConfig struct {
+	Key        string `json:"key"`
+	KeyVersion string `json:"key_version"`
+	Alg        string `json:"key_algorithm"`
+	Vault      string `json:"vault"`
+	URL        *url.URL
+	APIVersion string `json:"api_version"`
+}
+
 func convertSignatureToBase64(alg string, der []byte) (string, error) {
 	r, s, derErr := pointsFromDER(der)
 	if derErr != nil {
@@ -265,42 +275,47 @@ func messageDigest(message []byte, alg string) ([]byte, error) {
 	var digest hash.Hash
 
 	switch alg {
-	case "ECDSA_SHA_256":
+	case "ECDSA_SHA_256", "ES256", "ES256K", "PS256", "RS256":
 		digest = sha256.New()
-	case "ECDSA_SHA_384":
+	case "ECDSA_SHA_384", "ES384", "PS384", "RS384":
 		digest = sha512.New384()
-	case "ECDSA_SHA_512":
+	case "ECDSA_SHA_512", "ES512", "PS512", "RS512":
 		digest = sha512.New()
 	default:
 		return []byte{}, fmt.Errorf("unsupported sign algorithm %s", alg)
 	}
 
-	digest.Write(message)
+	_, err := digest.Write(message)
+	if err != nil {
+		return nil, err
+	}
 	return digest.Sum(nil), nil
 }
 
 // oauth2ClientCredentialsAuthPlugin represents authentication via a bearer token in the HTTP Authorization header
 // obtained through the OAuth2 client credentials flow
 type oauth2ClientCredentialsAuthPlugin struct {
-	GrantType            string                 `json:"grant_type"`
-	TokenURL             string                 `json:"token_url"`
-	ClientID             string                 `json:"client_id"`
-	ClientSecret         string                 `json:"client_secret"`
-	SigningKeyID         string                 `json:"signing_key"`
-	Thumbprint           string                 `json:"thumbprint"`
-	Claims               map[string]interface{} `json:"additional_claims"`
-	IncludeJti           bool                   `json:"include_jti_claim"`
-	Scopes               []string               `json:"scopes,omitempty"`
-	AdditionalHeaders    map[string]string      `json:"additional_headers,omitempty"`
-	AdditionalParameters map[string]string      `json:"additional_parameters,omitempty"`
-	AWSKmsKey            *awsKmsKeyConfig       `json:"aws_kms,omitempty"`
-	AWSSigningPlugin     *awsSigningAuthPlugin  `json:"aws_signing,omitempty"`
-	ClientAssertionType  string                 `json:"client_assertion_type"`
-	ClientAssertion      string                 `json:"client_assertion"`
-	ClientAssertionPath  string                 `json:"client_assertion_path"`
+	GrantType            string                  `json:"grant_type"`
+	TokenURL             string                  `json:"token_url"`
+	ClientID             string                  `json:"client_id"`
+	ClientSecret         string                  `json:"client_secret"`
+	SigningKeyID         string                  `json:"signing_key"`
+	Thumbprint           string                  `json:"thumbprint"`
+	Claims               map[string]any          `json:"additional_claims"`
+	IncludeJti           bool                    `json:"include_jti_claim"`
+	Scopes               []string                `json:"scopes,omitempty"`
+	AdditionalHeaders    map[string]string       `json:"additional_headers,omitempty"`
+	AdditionalParameters map[string]string       `json:"additional_parameters,omitempty"`
+	AWSKmsKey            *awsKmsKeyConfig        `json:"aws_kms,omitempty"`
+	AWSSigningPlugin     *awsSigningAuthPlugin   `json:"aws_signing,omitempty"`
+	AzureKeyVault        *azureKeyVaultConfig    `json:"azure_keyvault,omitempty"`
+	AzureSigningPlugin   *azureSigningAuthPlugin `json:"azure_signing,omitempty"`
+	ClientAssertionType  string                  `json:"client_assertion_type"`
+	ClientAssertion      string                  `json:"client_assertion"`
+	ClientAssertionPath  string                  `json:"client_assertion_path"`
 
 	signingKey       *keys.Config
-	signingKeyParsed interface{}
+	signingKeyParsed any
 	tokenCache       *oauth2Token
 	tlsSkipVerify    bool
 	logger           logging.Logger
@@ -311,15 +326,13 @@ type oauth2Token struct {
 	ExpiresAt time.Time
 }
 
-func (ap *oauth2ClientCredentialsAuthPlugin) createAuthJWT(ctx context.Context, extClaims map[string]interface{}, signingKey interface{}) (*string, error) {
+func (ap *oauth2ClientCredentialsAuthPlugin) createJWSParts(extClaims map[string]any) ([]byte, []byte, string, error) {
 	now := time.Now()
-	claims := map[string]interface{}{
+	claims := map[string]any{
 		"iat": now.Unix(),
 		"exp": now.Add(10 * time.Minute).Unix(),
 	}
-	for k, v := range extClaims {
-		claims[k] = v
-	}
+	maps.Copy(claims, extClaims)
 
 	if len(ap.Scopes) > 0 {
 		claims["scope"] = strings.Join(ap.Scopes, " ")
@@ -328,50 +341,66 @@ func (ap *oauth2ClientCredentialsAuthPlugin) createAuthJWT(ctx context.Context, 
 	if ap.IncludeJti {
 		jti, err := uuid.New(rand.Reader)
 		if err != nil {
-			return nil, err
+			return nil, nil, "", err
 		}
 		claims["jti"] = jti
 	}
 
 	payload, err := json.Marshal(claims)
 	if err != nil {
-		return nil, err
+		return nil, nil, "", err
 	}
 
 	var jwsHeaders []byte
 	var signatureAlg string
-	if ap.AWSKmsKey == nil {
+	switch {
+	case ap.AWSKmsKey == nil && ap.AzureKeyVault == nil:
 		signatureAlg = ap.signingKey.Algorithm
-	} else {
+	case ap.AWSKmsKey != nil && ap.AWSKmsKey.Algorithm != "":
 		signatureAlg, err = ap.mapKMSAlgToSign(ap.AWSKmsKey.Algorithm)
 		if err != nil {
-			return nil, err
+			return nil, nil, "", err
 		}
+	case ap.AzureKeyVault != nil && ap.AzureKeyVault.Alg != "":
+		signatureAlg = ap.AzureKeyVault.Alg
 	}
 	if ap.Thumbprint != "" {
 		bytes, err := hex.DecodeString(ap.Thumbprint)
 		if err != nil {
-			return nil, err
+			return nil, nil, "", err
 		}
 		x5t := base64.URLEncoding.EncodeToString(bytes)
-		jwsHeaders = []byte(fmt.Sprintf(`{"typ":"JWT","alg":"%s","x5t":"%s"}`, signatureAlg, x5t))
+		jwsHeaders = fmt.Appendf(nil, `{"typ":"JWT","alg":"%s","x5t":"%s"}`, signatureAlg, x5t)
 	} else {
-		jwsHeaders = []byte(fmt.Sprintf(`{"typ":"JWT","alg":"%s"}`, signatureAlg))
+		jwsHeaders = fmt.Appendf(nil, `{"typ":"JWT","alg":"%s"}`, signatureAlg)
 	}
-	var jwsCompact []byte
-	if ap.AWSKmsKey == nil {
-		jwsCompact, err = jws.SignLiteral(payload,
-			jwa.SignatureAlgorithm(signatureAlg),
+
+	return jwsHeaders, payload, signatureAlg, nil
+}
+
+func (ap *oauth2ClientCredentialsAuthPlugin) createAuthJWT(ctx context.Context, extClaims map[string]any, signingKey any) (*string, error) {
+	header, payload, alg, err := ap.createJWSParts(extClaims)
+	if err != nil {
+		return nil, err
+	}
+
+	var clientAssertion []byte
+	switch {
+	case ap.AWSKmsKey != nil:
+		clientAssertion, err = ap.SignWithKMS(ctx, payload, header)
+	case ap.AzureKeyVault != nil:
+		clientAssertion, err = ap.SignWithKeyVault(ctx, payload, header)
+	default:
+		clientAssertion, err = jws.SignLiteral(payload,
+			jwa.SignatureAlgorithm(alg),
 			signingKey,
-			jwsHeaders,
+			header,
 			rand.Reader)
-	} else {
-		jwsCompact, err = ap.SignWithKMS(ctx, payload, jwsHeaders)
 	}
 	if err != nil {
 		return nil, err
 	}
-	jwt := string(jwsCompact)
+	jwt := string(clientAssertion)
 
 	return &jwt, nil
 }
@@ -418,6 +447,28 @@ func (ap *oauth2ClientCredentialsAuthPlugin) SignWithKMS(ctx context.Context, pa
 		return []byte(signedAssertion), nil
 	}
 	return nil, errors.New("missing AWS credentials, failed to sign the assertion with kms")
+}
+
+func (ap *oauth2ClientCredentialsAuthPlugin) SignWithKeyVault(ctx context.Context, payload []byte, hdrBuf []byte) ([]byte, error) {
+	if ap.AzureSigningPlugin == nil {
+		return nil, errors.New("missing Azure credentials, failed to sign the assertion with KeyVault")
+	}
+
+	encodedHdr := base64.RawURLEncoding.EncodeToString(hdrBuf)
+	encodedPayload := base64.RawURLEncoding.EncodeToString(payload)
+	input := encodedHdr + "." + encodedPayload
+	digest, err := messageDigest([]byte(input), ap.AzureSigningPlugin.keyVaultSignPlugin.config.Alg)
+	if err != nil {
+		fmt.Println("unsupported algorithm", ap.AzureSigningPlugin.keyVaultSignPlugin.config.Alg)
+		return nil, err
+	}
+
+	signature, err := ap.AzureSigningPlugin.SignDigest(ctx, digest)
+	if err != nil {
+		return nil, err
+	}
+
+	return []byte(input + "." + signature), nil
 }
 
 func (ap *oauth2ClientCredentialsAuthPlugin) parseSigningKey(c Config) (err error) {
@@ -475,6 +526,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 		clientCredentialExists["client_secret"] = ap.ClientSecret != ""
 		clientCredentialExists["signing_key"] = ap.SigningKeyID != ""
 		clientCredentialExists["aws_kms"] = ap.AWSKmsKey != nil
+		clientCredentialExists["azure_keyvault"] = ap.AzureKeyVault != nil
 		clientCredentialExists["client_assertion"] = ap.ClientAssertion != ""
 		clientCredentialExists["client_assertion_path"] = ap.ClientAssertionPath != ""
 
@@ -487,14 +539,15 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 		}
 
 		if notEmptyVarCount == 0 {
-			return nil, errors.New("please provide one of client_secret, signing_key, aws_kms, client_assertion, or client_assertion_path required")
+			return nil, errors.New("please provide one of client_secret, signing_key, aws_kms, azure_keyvault, client_assertion, or client_assertion_path required")
 		}
 
 		if notEmptyVarCount > 1 {
-			return nil, errors.New("can only use one of client_secret, signing_key, aws_kms, client_assertion, or client_assertion_path")
+			return nil, errors.New("can only use one of client_secret, signing_key, aws_kms, azure_keyvault, client_assertion, or client_assertion_path")
 		}
 
-		if clientCredentialExists["aws_kms"] {
+		switch {
+		case clientCredentialExists["aws_kms"]:
 			if ap.AWSSigningPlugin == nil {
 				return nil, errors.New("aws_kms and aws_signing required")
 			}
@@ -503,81 +556,35 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 			if err != nil {
 				return nil, err
 			}
-		} else if clientCredentialExists["client_assertion"] {
+		case clientCredentialExists["azure_keyvault"]:
+			_, err := ap.AzureSigningPlugin.NewClient(c)
+			if err != nil {
+				return nil, err
+			}
+		case clientCredentialExists["client_assertion"]:
 			if ap.ClientAssertionType == "" {
 				ap.ClientAssertionType = defaultClientAssertionType
 			}
 			if ap.ClientID == "" {
 				return nil, errors.New("client_id and client_assertion required")
 			}
-		} else if clientCredentialExists["client_assertion_path"] {
+		case clientCredentialExists["client_assertion_path"]:
 			if ap.ClientAssertionType == "" {
 				ap.ClientAssertionType = defaultClientAssertionType
 			}
 			if ap.ClientID == "" {
 				return nil, errors.New("client_id and client_assertion_path required")
 			}
-		} else if clientCredentialExists["client_secret"] {
-			if ap.ClientID == "" {
-				return nil, errors.New("client_id and client_secret required")
-			}
+		case clientCredentialExists["client_secret"] && ap.ClientID == "":
+			return nil, errors.New("client_id and client_secret required")
 		}
 	}
 
 	return DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
 }
 
-// requestToken tries to obtain an access token using either the client credentials flow
-// https://tools.ietf.org/html/rfc6749#section-4.4
-// or the JWT authorization grant
-// https://tools.ietf.org/html/rfc7523
-func (ap *oauth2ClientCredentialsAuthPlugin) requestToken(ctx context.Context) (*oauth2Token, error) {
+func (ap *oauth2ClientCredentialsAuthPlugin) createTokenReqBody(ctx context.Context) (url.Values, error) {
 	body := url.Values{}
-	if ap.GrantType == grantTypeJwtBearer {
-		authJwt, err := ap.createAuthJWT(ctx, ap.Claims, ap.signingKeyParsed)
-		if err != nil {
-			return nil, err
-		}
-		body.Add("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer")
-		body.Add("assertion", *authJwt)
-	} else {
-		body.Add("grant_type", grantTypeClientCredentials)
-
-		if ap.SigningKeyID != "" || ap.AWSKmsKey != nil {
-			authJwt, err := ap.createAuthJWT(ctx, ap.Claims, ap.signingKeyParsed)
-			if err != nil {
-				return nil, err
-			}
-			body.Add("client_assertion_type", defaultClientAssertionType)
-			body.Add("client_assertion", *authJwt)
-
-			if ap.ClientID != "" {
-				body.Add("client_id", ap.ClientID)
-			}
-		} else if ap.ClientAssertion != "" {
-			if ap.ClientAssertionType == "" {
-				ap.ClientAssertionType = defaultClientAssertionType
-			}
-			if ap.ClientID != "" {
-				body.Add("client_id", ap.ClientID)
-			}
-			body.Add("client_assertion_type", ap.ClientAssertionType)
-			body.Add("client_assertion", ap.ClientAssertion)
-		} else if ap.ClientAssertionPath != "" {
-			if ap.ClientAssertionType == "" {
-				ap.ClientAssertionType = defaultClientAssertionType
-			}
-			bytes, err := os.ReadFile(ap.ClientAssertionPath)
-			if err != nil {
-				return nil, err
-			}
-			if ap.ClientID != "" {
-				body.Add("client_id", ap.ClientID)
-			}
-			body.Add("client_assertion_type", ap.ClientAssertionType)
-			body.Add("client_assertion", strings.TrimSpace(string(bytes)))
-		}
-	}
 
 	if len(ap.Scopes) > 0 {
 		body.Add("scope", strings.Join(ap.Scopes, " "))
@@ -587,7 +594,69 @@ func (ap *oauth2ClientCredentialsAuthPlugin) requestToken(ctx context.Context) (
 		body.Set(k, v)
 	}
 
-	r, err := http.NewRequestWithContext(ctx, "POST", ap.TokenURL, strings.NewReader(body.Encode()))
+	if ap.GrantType == grantTypeJwtBearer {
+		authJWT, err := ap.createAuthJWT(ctx, ap.Claims, ap.signingKeyParsed)
+		if err != nil {
+			return nil, err
+		}
+		body.Add("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer")
+		body.Add("assertion", *authJWT)
+		return body, nil
+	}
+
+	body.Add("grant_type", grantTypeClientCredentials)
+
+	switch {
+	case ap.SigningKeyID != "" || ap.AWSKmsKey != nil || ap.AzureKeyVault != nil:
+		authJwt, err := ap.createAuthJWT(ctx, ap.Claims, ap.signingKeyParsed)
+		if err != nil {
+			return nil, err
+		}
+		body.Add("client_assertion_type", defaultClientAssertionType)
+		body.Add("client_assertion", *authJwt)
+
+		if ap.ClientID != "" {
+			body.Add("client_id", ap.ClientID)
+		}
+	case ap.ClientAssertion != "":
+		if ap.ClientAssertionType == "" {
+			ap.ClientAssertionType = defaultClientAssertionType
+		}
+		if ap.ClientID != "" {
+			body.Add("client_id", ap.ClientID)
+		}
+		body.Add("client_assertion_type", ap.ClientAssertionType)
+		body.Add("client_assertion", ap.ClientAssertion)
+
+	case ap.ClientAssertionPath != "":
+		if ap.ClientAssertionType == "" {
+			ap.ClientAssertionType = defaultClientAssertionType
+		}
+		bytes, err := os.ReadFile(ap.ClientAssertionPath)
+		if err != nil {
+			return nil, err
+		}
+		if ap.ClientID != "" {
+			body.Add("client_id", ap.ClientID)
+		}
+		body.Add("client_assertion_type", ap.ClientAssertionType)
+		body.Add("client_assertion", strings.TrimSpace(string(bytes)))
+	}
+
+	return body, nil
+}
+
+// requestToken tries to obtain an access token using either the client credentials flow
+// https://tools.ietf.org/html/rfc6749#section-4.4
+// or the JWT authorization grant
+// https://tools.ietf.org/html/rfc7523
+func (ap *oauth2ClientCredentialsAuthPlugin) requestToken(ctx context.Context) (*oauth2Token, error) {
+	body, err := ap.createTokenReqBody(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	r, err := http.NewRequestWithContext(ctx, http.MethodPost, ap.TokenURL, strings.NewReader(body.Encode()))
 	if err != nil {
 		return nil, err
 	}
@@ -769,6 +838,7 @@ type awsSigningAuthPlugin struct {
 	AWSAssumeRoleCredentials  *awsAssumeRoleCredentialService  `json:"assume_role_credentials,omitempty"`
 	AWSWebIdentityCredentials *awsWebIdentityCredentialService `json:"web_identity_credentials,omitempty"`
 	AWSProfileCredentials     *awsProfileCredentialService     `json:"profile_credentials,omitempty"`
+	AWSSSOCredentials         *awsSSOCredentialsService        `json:"sso_credentials,omitempty"`
 
 	AWSService          string `json:"service,omitempty"`
 	AWSSignatureVersion string `json:"signature_version,omitempty"`
@@ -884,6 +954,11 @@ func (ap *awsSigningAuthPlugin) awsCredentialService() awsCredentialService {
 		chain.addService(ap.AWSMetadataCredentials)
 	}
 
+	if ap.AWSSSOCredentials != nil {
+		ap.AWSSSOCredentials.logger = ap.logger
+		chain.addService(ap.AWSSSOCredentials)
+	}
+
 	return &chain
 }
 
@@ -941,6 +1016,7 @@ func (ap *awsSigningAuthPlugin) validateAndSetDefaults(serviceType string) error
 	cfgs[ap.AWSAssumeRoleCredentials != nil]++
 	cfgs[ap.AWSWebIdentityCredentials != nil]++
 	cfgs[ap.AWSProfileCredentials != nil]++
+	cfgs[ap.AWSSSOCredentials != nil]++
 
 	if cfgs[true] == 0 {
 		return errors.New("a AWS credential service must be specified when S3 signing is enabled")
@@ -1005,5 +1081,86 @@ func (ap *awsSigningAuthPlugin) SignDigest(ctx context.Context, digest []byte, k
 		return ap.kmsSignPlugin.SignDigest(ctx, digest, keyID, signingAlgorithm)
 	default:
 		return "", fmt.Errorf(`cannot use SignDigest with aws service %q`, ap.AWSService)
+	}
+}
+
+type azureSigningAuthPlugin struct {
+	MIAuthPlugin       *azureManagedIdentitiesAuthPlugin `json:"azure_managed_identity,omitempty"`
+	keyVaultSignPlugin *azureKeyVaultSignPlugin
+	keyVaultConfig     *azureKeyVaultConfig
+	host               string
+	Service            string `json:"service"`
+	logger             logging.Logger
+}
+
+func (ap *azureSigningAuthPlugin) NewClient(c Config) (*http.Client, error) {
+	t, err := DefaultTLSConfig(c)
+	if err != nil {
+		return nil, err
+	}
+
+	tknURL, err := url.Parse(c.URL)
+	if err != nil {
+		return nil, err
+	}
+
+	ap.host = tknURL.Host
+
+	if ap.logger == nil {
+		ap.logger = c.logger
+	}
+
+	if c.Credentials.OAuth2.AzureKeyVault == nil {
+		return nil, errors.New("missing keyvault config")
+	}
+	ap.keyVaultConfig = c.Credentials.OAuth2.AzureKeyVault
+
+	if err := ap.validateAndSetDefaults(); err != nil {
+		return nil, err
+	}
+
+	return DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
+}
+
+func (ap *azureSigningAuthPlugin) validateAndSetDefaults() error {
+	if ap.MIAuthPlugin == nil {
+		return errors.New("missing azure managed identity config")
+	}
+	ap.MIAuthPlugin.setDefaults()
+
+	if ap.keyVaultSignPlugin != nil {
+		return nil
+	}
+	ap.keyVaultConfig.URL = &url.URL{
+		Scheme: "https",
+		Host:   ap.keyVaultConfig.Vault + ".vault.azure.net",
+	}
+	ap.keyVaultSignPlugin = newKeyVaultSignPlugin(ap.MIAuthPlugin, ap.keyVaultConfig)
+	ap.keyVaultSignPlugin.setDefaults()
+	ap.keyVaultConfig = &ap.keyVaultSignPlugin.config
+
+	return nil
+}
+
+func (ap *azureSigningAuthPlugin) Prepare(req *http.Request) error {
+	switch ap.Service {
+	case "keyvault":
+		tkn, err := ap.keyVaultSignPlugin.tokener()
+		if err != nil {
+			return err
+		}
+		req.Header.Add("Authorization", "Bearer "+tkn)
+		return nil
+	default:
+		return fmt.Errorf("azureSigningAuthPlugin.Prepare() with %s not supported", ap.Service)
+	}
+}
+
+func (ap *azureSigningAuthPlugin) SignDigest(ctx context.Context, digest []byte) (string, error) {
+	switch ap.Service {
+	case "keyvault":
+		return ap.keyVaultSignPlugin.SignDigest(ctx, digest)
+	default:
+		return "", fmt.Errorf(`cannot use SignDigest with azure service %q`, ap.Service)
 	}
 }

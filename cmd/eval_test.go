@@ -1154,10 +1154,10 @@ func TestEvalWithStrictBuiltinErrors(t *testing.T) {
 
 func assertResultSet(t *testing.T, rs rego.ResultSet, expected string) {
 	t.Helper()
-	result := []interface{}{}
+	result := []any{}
 
 	for i := range rs {
-		values := []interface{}{}
+		values := []any{}
 		for j := range rs[i].Expressions {
 			values = append(values, rs[i].Expressions[j].Value)
 		}
@@ -1186,7 +1186,7 @@ func TestEvalErrorJSONOutput(t *testing.T) {
 
 	// Only check that it *can* be loaded as valid JSON, and that the errors
 	// are populated.
-	var output map[string]interface{}
+	var output map[string]any
 
 	if err := util.NewJSONDecoder(&buf).Decode(&output); err != nil {
 		t.Fatal(err)
@@ -1250,10 +1250,10 @@ func TestEvalDebugTraceJSONOutput(t *testing.T) {
 
 	var output struct {
 		Explanation []struct {
-			Op            string                   `json:"Op"`
-			Node          interface{}              `json:"Node"`
-			Location      *ast.Location            `json:"Location"`
-			Locals        []map[string]interface{} `json:"Locals"`
+			Op            string           `json:"Op"`
+			Node          any              `json:"Node"`
+			Location      *ast.Location    `json:"Location"`
+			Locals        []map[string]any `json:"Locals"`
 			LocalMetadata map[string]struct {
 				Name string `json:"name"`
 			} `json:"LocalMetadata"`
@@ -1802,7 +1802,7 @@ func TestResetExprLocations(t *testing.T) {
 
 	var exp int
 
-	vis := ast.NewGenericVisitor(func(x interface{}) bool {
+	vis := ast.NewGenericVisitor(func(x any) bool {
 		if expr, ok := x.(*ast.Expr); ok {
 			if expr.Location.Row != exp {
 				t.Fatalf("Expected %v to have row %v but got %v", expr, exp, expr.Location.Row)
@@ -2178,7 +2178,7 @@ func TestEvalDiscardProfilerOutput(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	var output map[string]interface{}
+	var output map[string]any
 	if err := util.NewJSONDecoder(&buf).Decode(&output); err != nil {
 		t.Fatal(err)
 	}
@@ -3476,9 +3476,7 @@ p contains 2 if {
 					if bundleType.tar {
 						files["bundle.tar.gz"] = ""
 					} else {
-						for k, v := range tc.files {
-							files[k] = v
-						}
+						maps.Copy(files, tc.files)
 					}
 
 					test.WithTempFS(files, func(root string) {

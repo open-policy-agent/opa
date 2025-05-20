@@ -35,9 +35,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
-var (
-	errIllegalUnknownsArg = errors.New("illegal argument with --unknowns, specify string with one or more --unknowns")
-)
+var errIllegalUnknownsArg = errors.New("illegal argument with --unknowns, specify string with one or more --unknowns")
 
 type evalCommandParams struct {
 	capabilities              *capabilitiesFlag
@@ -114,7 +112,6 @@ func newEvalCommandParams() evalCommandParams {
 }
 
 func validateEvalParams(p *evalCommandParams, cmdArgs []string) error {
-
 	if len(cmdArgs) > 0 && p.stdin {
 		return errors.New("specify query argument or --stdin but not both")
 	} else if len(cmdArgs) == 0 && !p.stdin {
@@ -193,16 +190,13 @@ func (regoError) Error() string {
 }
 
 func init() {
-
 	params := newEvalCommandParams()
 
 	evalCommand := &cobra.Command{
 		Use:   "eval <query>",
 		Short: "Evaluate a Rego query",
-		Long: `Evaluate a Rego query and print the result.
-
-Examples
---------
+		Long:  `Evaluate a Rego query and print the result.`,
+		Example: `
 
 To evaluate a simple query:
 
@@ -310,7 +304,6 @@ access.
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
 		Run: func(_ *cobra.Command, args []string) {
-
 			defined, err := eval(args, params, os.Stdout)
 			if err != nil {
 				if _, ok := err.(regoError); !ok {
@@ -373,7 +366,6 @@ access.
 }
 
 func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
-
 	ctx := context.Background()
 	if params.timeout != 0 {
 		var cancel func()
@@ -392,7 +384,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 
 	results := make([]pr.Output, ectx.params.count)
 	profiles := make([][]profiler.ExprStats, ectx.params.count)
-	timers := make([]map[string]interface{}, ectx.params.count)
+	timers := make([]map[string]any, ectx.params.count)
 
 	for i := range ectx.params.count {
 		results[i] = evalOnce(ctx, ectx)
@@ -408,7 +400,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 		result.Profile = nil
 		result.Metrics = nil
 		result.AggregatedProfile = profiler.AggregateProfiles(profiles...)
-		timersAggregated := map[string]interface{}{}
+		timersAggregated := map[string]any{}
 		for name := range timers[0] {
 			var vals []int64
 			for _, t := range timers {
@@ -523,7 +515,7 @@ func evalOnce(ctx context.Context, ectx *evalContext) pr.Output {
 	}
 
 	if ectx.params.profile {
-		var sortOrder = pr.DefaultProfileSortOrder
+		sortOrder := pr.DefaultProfileSortOrder
 
 		if len(ectx.params.profileCriteria.v) != 0 {
 			sortOrder = getProfileSortOrder(strings.Split(ectx.params.profileCriteria.String(), ","))
@@ -632,7 +624,7 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		return nil, err
 	}
 	if inputBytes != nil {
-		var input interface{}
+		var input any
 		err := util.Unmarshal(inputBytes, &input)
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse input: %s", err.Error())
@@ -745,7 +737,6 @@ func (r *resettableProfiler) TraceEvent(ev topdown.Event) { r.p.TraceEvent(ev) }
 func (r *resettableProfiler) Config() topdown.TraceConfig { return r.p.Config() }
 
 func getProfileSortOrder(sortOrder []string) []string {
-
 	// convert the sort order slice to a map for faster lookups
 	sortOrderMap := make(map[string]bool)
 	for _, cr := range sortOrder {
@@ -862,7 +853,7 @@ type astLocationResetVisitor struct {
 	n int
 }
 
-func (vis *astLocationResetVisitor) visit(x interface{}) bool {
+func (vis *astLocationResetVisitor) visit(x any) bool {
 	if expr, ok := x.(*ast.Expr); ok {
 		if expr.Location != nil {
 			cpy := *expr.Location

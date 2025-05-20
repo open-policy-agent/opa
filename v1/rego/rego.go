@@ -99,7 +99,7 @@ type EvalContext struct {
 	hasInput                    bool
 	time                        time.Time
 	seed                        io.Reader
-	rawInput                    *interface{}
+	rawInput                    *any
 	parsedInput                 ast.Value
 	metrics                     metrics.Metrics
 	txn                         storage.Transaction
@@ -128,7 +128,7 @@ type EvalContext struct {
 	baseCache                   topdown.BaseCache
 }
 
-func (e *EvalContext) RawInput() *interface{} {
+func (e *EvalContext) RawInput() *any {
 	return e.rawInput
 }
 
@@ -184,7 +184,7 @@ func (e *EvalContext) Transaction() storage.Transaction {
 type EvalOption func(*EvalContext)
 
 // EvalInput configures the input for a Prepared Query's evaluation
-func EvalInput(input interface{}) EvalOption {
+func EvalInput(input any) EvalOption {
 	return func(e *EvalContext) {
 		e.rawInput = &input
 		e.hasInput = true
@@ -349,7 +349,7 @@ func EvalSortSets(yes bool) EvalOption {
 	}
 }
 
-// EvalCopyMaps causes the evaluator to copy `map[string]interface{}`s before returning them.
+// EvalCopyMaps causes the evaluator to copy `map[string]any`s before returning them.
 func EvalCopyMaps(yes bool) EvalOption {
 	return func(e *EvalContext) {
 		e.copyMaps = yes
@@ -391,9 +391,7 @@ func EvalNondeterministicBuiltins(yes bool) EvalOption {
 func (pq preparedQuery) Modules() map[string]*ast.Module {
 	mods := make(map[string]*ast.Module)
 
-	for name, mod := range pq.r.parsedModules {
-		mods[name] = mod
-	}
+	maps.Copy(mods, pq.r.parsedModules)
 
 	for _, b := range pq.r.bundles {
 		for _, mod := range b.Modules {
@@ -591,7 +589,7 @@ type Rego struct {
 	parsedPackage               *ast.Package
 	imports                     []string
 	parsedImports               []*ast.Import
-	rawInput                    *interface{}
+	rawInput                    *any
 	parsedInput                 ast.Value
 	unknowns                    []string
 	parsedUnknowns              []*ast.Term
@@ -636,7 +634,7 @@ type Rego struct {
 	schemaSet                   *ast.SchemaSet
 	target                      string // target type (wasm, rego, etc.)
 	opa                         opa.EvalEngine
-	generateJSON                func(*ast.Term, *EvalContext) (interface{}, error)
+	generateJSON                func(*ast.Term, *EvalContext) (any, error)
 	printHook                   print.Hook
 	enablePrintStatements       bool
 	distributedTacingOpts       tracing.Options
@@ -904,7 +902,7 @@ func ParsedImports(imp []*ast.Import) func(r *Rego) {
 
 // Input returns an argument that sets the Rego input document. Input should be
 // a native Go value representing the input document.
-func Input(x interface{}) func(r *Rego) {
+func Input(x any) func(r *Rego) {
 	return func(r *Rego) {
 		r.rawInput = &x
 	}
@@ -1237,7 +1235,7 @@ func Target(t string) func(r *Rego) {
 }
 
 // GenerateJSON sets the AST to JSON converter for the results.
-func GenerateJSON(f func(*ast.Term, *EvalContext) (interface{}, error)) func(r *Rego) {
+func GenerateJSON(f func(*ast.Term, *EvalContext) (any, error)) func(r *Rego) {
 	return func(r *Rego) {
 		r.generateJSON = f
 	}
@@ -1985,7 +1983,7 @@ func (r *Rego) parseInput() (ast.Value, error) {
 	return r.parseRawInput(r.rawInput, r.metrics)
 }
 
-func (*Rego) parseRawInput(rawInput *interface{}, m metrics.Metrics) (ast.Value, error) {
+func (*Rego) parseRawInput(rawInput *any, m metrics.Metrics) (ast.Value, error) {
 	var input ast.Value
 
 	if rawInput == nil {
@@ -1998,7 +1996,7 @@ func (*Rego) parseRawInput(rawInput *interface{}, m metrics.Metrics) (ast.Value,
 	rawPtr := util.Reference(rawInput)
 
 	// roundtrip through json: this turns slices (e.g. []string, []bool) into
-	// []interface{}, the only array type ast.InterfaceToValue can work with
+	// []any, the only array type ast.InterfaceToValue can work with
 	if err := util.RoundTrip(rawPtr); err != nil {
 		return nil, err
 	}
@@ -2248,7 +2246,7 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 func (r *Rego) evalWasm(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 	input := ectx.rawInput
 	if ectx.parsedInput != nil {
-		i := interface{}(ectx.parsedInput)
+		i := any(ectx.parsedInput)
 		input = &i
 	}
 	result, err := r.opa.Eval(ctx, opa.EvalOpts{
@@ -2311,17 +2309,18 @@ func (r *Rego) generateResult(qr topdown.QueryResult, ectx *EvalContext) (Result
 
 	result := newResult()
 	for k, term := range qr {
-		v, err := r.generateJSON(term, ectx)
-		if err != nil {
-			return result, err
-		}
-
 		if rw, ok := rewritten[k]; ok {
 			k = rw
 		}
 		if isTermVar(k) || isTermWasmVar(k) || k.IsGenerated() || k.IsWildcard() {
 			continue
 		}
+
+		v, err := r.generateJSON(term, ectx)
+		if err != nil {
+			return result, err
+		}
+
 		result.Bindings[string(k)] = v
 	}
 
@@ -2795,11 +2794,11 @@ type refResolver struct {
 	r   resolver.Resolver
 }
 
-func iteration(x interface{}) bool {
+func iteration(x any) bool {
 
 	var stopped bool
 
-	vis := ast.NewGenericVisitor(func(x interface{}) bool {
+	vis := ast.NewGenericVisitor(func(x any) bool {
 		switch x := x.(type) {
 		case *ast.Term:
 			if ast.IsComprehension(x.Value) {
@@ -2831,6 +2830,9 @@ func iteration(x interface{}) bool {
 }
 
 func parseStringsToRefs(s []string) ([]ast.Ref, error) {
+	if len(s) == 0 {
+		return nil, nil
+	}
 
 	refs := make([]ast.Ref, len(s))
 	for i := range refs {
@@ -2895,7 +2897,7 @@ func newFunction(decl *Function, f topdown.BuiltinFunc) func(*Rego) {
 	}
 }
 
-func generateJSON(term *ast.Term, ectx *EvalContext) (interface{}, error) {
+func generateJSON(term *ast.Term, ectx *EvalContext) (any, error) {
 	return ast.JSONWithOpt(term.Value,
 		ast.JSONOpt{
 			SortSets: ectx.sortSets,

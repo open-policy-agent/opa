@@ -1,6 +1,9 @@
 package rest
 
 import (
+	"bytes"
+	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,6 +20,7 @@ var (
 	defaultResource                   = "https://storage.azure.com/"
 	timeout                           = 5 * time.Second
 	defaultAPIVersionForAppServiceMsi = "2019-08-01"
+	defaultKeyVaultAPIVersion         = "7.4"
 )
 
 // azureManagedIdentitiesToken holds a token for managed identities for Azure resources
@@ -52,11 +56,7 @@ type azureManagedIdentitiesAuthPlugin struct {
 	UseAppServiceMsi bool   `json:"use_app_service_msi,omitempty"`
 }
 
-func (ap *azureManagedIdentitiesAuthPlugin) NewClient(c Config) (*http.Client, error) {
-	if c.Type == "oci" {
-		return nil, errors.New("azure managed identities auth: OCI service not supported")
-	}
-
+func (ap *azureManagedIdentitiesAuthPlugin) setDefaults() {
 	if ap.Endpoint == "" {
 		identityEndpoint := os.Getenv("IDENTITY_ENDPOINT")
 		if identityEndpoint != "" {
@@ -79,6 +79,13 @@ func (ap *azureManagedIdentitiesAuthPlugin) NewClient(c Config) (*http.Client, e
 		}
 	}
 
+}
+
+func (ap *azureManagedIdentitiesAuthPlugin) NewClient(c Config) (*http.Client, error) {
+	if c.Type == "oci" {
+		return nil, errors.New("azure managed identities auth: OCI service not supported")
+	}
+	ap.setDefaults()
 	t, err := DefaultTLSConfig(c)
 	if err != nil {
 		return nil, err
@@ -151,7 +158,6 @@ func azureManagedIdentitiesTokenRequest(
 	if err != nil {
 		return token, err
 	}
-
 	return token, nil
 }
 
@@ -177,4 +183,105 @@ func buildAzureManagedIdentitiesRequestPath(
 	}
 
 	return endpoint + "?" + params.Encode()
+}
+
+type azureKeyVaultSignPlugin struct {
+	config  azureKeyVaultConfig
+	tokener func() (string, error)
+}
+
+func newKeyVaultSignPlugin(ap *azureManagedIdentitiesAuthPlugin, cfg *azureKeyVaultConfig) *azureKeyVaultSignPlugin {
+	resp := &azureKeyVaultSignPlugin{
+		tokener: func() (string, error) {
+			resp, err := azureManagedIdentitiesTokenRequest(
+				ap.Endpoint,
+				ap.APIVersion,
+				cfg.URL.String(),
+				ap.ObjectID,
+				ap.ClientID,
+				ap.MiResID,
+				ap.UseAppServiceMsi)
+			if err != nil {
+				return "", err
+			}
+			return resp.AccessToken, nil
+		},
+		config: *cfg,
+	}
+	return resp
+}
+
+func (akv *azureKeyVaultSignPlugin) setDefaults() {
+	if akv.config.APIVersion == "" {
+		akv.config.APIVersion = defaultKeyVaultAPIVersion
+	}
+}
+
+type kvRequest struct {
+	Alg   string `json:"alg"`
+	Value string `json:"value"`
+}
+
+type kvResponse struct {
+	KID   string `json:"kid"`
+	Value string `json:"value"`
+}
+
+// SignDigest() uses the Microsoft keyvault rest api to sign a byte digest
+// https://learn.microsoft.com/en-us/rest/api/keyvault/keys/sign/sign
+func (ap *azureKeyVaultSignPlugin) SignDigest(ctx context.Context, digest []byte) (string, error) {
+	tkn, err := ap.tokener()
+	if err != nil {
+		return "", err
+	}
+	if ap.config.URL.Host == "" {
+		return "", errors.New("keyvault host not set")
+	}
+
+	signingURL := ap.config.URL.JoinPath("keys", ap.config.Key, ap.config.KeyVersion, "sign")
+	q := signingURL.Query()
+	q.Set("api-version", ap.config.APIVersion)
+	signingURL.RawQuery = q.Encode()
+	reqBody, err := json.Marshal(kvRequest{
+		Alg:   ap.config.Alg,
+		Value: base64.StdEncoding.EncodeToString(digest)})
+	if err != nil {
+		return "", err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, signingURL.String(), bytes.NewBuffer(reqBody))
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Add("Authorization", "Bearer "+tkn)
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		if resp.Body != nil {
+			defer resp.Body.Close()
+			b, _ := io.ReadAll(resp.Body)
+			return "", fmt.Errorf("non 200 status code, got: %d. Body: %v", resp.StatusCode, string(b))
+		}
+		return "", fmt.Errorf("non 200 status code from keyvault sign, got: %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+
+	respBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", errors.New("failed to read keyvault response body")
+	}
+
+	var res kvResponse
+	err = json.Unmarshal(respBytes, &res)
+	if err != nil {
+		return "", fmt.Errorf("no valid keyvault response, got: %v", string(respBytes))
+	}
+
+	return res.Value, nil
 }

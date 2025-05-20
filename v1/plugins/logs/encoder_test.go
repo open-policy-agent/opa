@@ -15,8 +15,8 @@ import (
 func TestChunkEncoder(t *testing.T) {
 
 	enc := newChunkEncoder(1000)
-	var result interface{} = false
-	var expInput interface{} = map[string]interface{}{"method": "GET"}
+	var result any = false
+	var expInput any = map[string]any{"method": "GET"}
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
 	if err != nil {
 		panic(err)
@@ -55,8 +55,8 @@ func TestChunkEncoder(t *testing.T) {
 
 func TestChunkEncoderSizeLimit(t *testing.T) {
 	enc := newChunkEncoder(1).WithMetrics(metrics.New())
-	var result interface{} = false
-	var expInput interface{} = map[string]interface{}{"method": "GET"}
+	var result any = false
+	var expInput any = map[string]any{"method": "GET"}
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
 	if err != nil {
 		t.Fatal(err)
@@ -86,15 +86,15 @@ func TestChunkEncoderSizeLimit(t *testing.T) {
 func TestChunkEncoderAdaptive(t *testing.T) {
 
 	enc := newChunkEncoder(1000).WithMetrics(metrics.New())
-	var result interface{} = false
-	var expInput interface{} = map[string]interface{}{"method": "GET"}
+	var result any = false
+	var expInput any = map[string]any{"method": "GET"}
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
 	if err != nil {
 		panic(err)
 	}
 
 	var chunks [][]byte
-	numEvents := 400
+	numEvents := 1000
 	for i := range numEvents {
 
 		bundles := map[string]BundleInfoV1{}
@@ -149,20 +149,20 @@ func TestChunkEncoderAdaptive(t *testing.T) {
 	actualScaleDownEvents := enc.metrics.Counter(encSoftLimitScaleDownCounterName).Value().(uint64)
 	actualEquiEvents := enc.metrics.Counter(encSoftLimitStableCounterName).Value().(uint64)
 
-	expectedScaleUpEvents := uint64(8)
-	expectedScaleDownEvents := uint64(3)
+	expectedScaleUpEvents := uint64(13)
+	expectedScaleDownEvents := uint64(10)
 	expectedEquiEvents := uint64(0)
 
 	if actualScaleUpEvents != expectedScaleUpEvents {
-		t.Fatalf("Expected scale up events %v but got %v", expectedScaleUpEvents, actualScaleUpEvents)
+		t.Errorf("Expected scale up events %v but got %v", expectedScaleUpEvents, actualScaleUpEvents)
 	}
 
 	if actualScaleDownEvents != expectedScaleDownEvents {
-		t.Fatalf("Expected scale down events %v but got %v", expectedScaleDownEvents, actualScaleDownEvents)
+		t.Errorf("Expected scale down events %v but got %v", expectedScaleDownEvents, actualScaleDownEvents)
 	}
 
 	if actualEquiEvents != expectedEquiEvents {
-		t.Fatalf("Expected equilibrium events %v but got %v", expectedEquiEvents, actualEquiEvents)
+		t.Errorf("Expected equilibrium events %v but got %v", expectedEquiEvents, actualEquiEvents)
 	}
 }
 

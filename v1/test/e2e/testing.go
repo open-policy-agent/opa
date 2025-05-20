@@ -388,8 +388,8 @@ func (t *TestRuntime) UploadDataToPath(path string, data io.Reader) error {
 
 // GetDataWithInput will use the v1 data API and POST with the given input. The returned
 // value is the full response body.
-func (t *TestRuntime) GetDataWithInput(path string, input interface{}) ([]byte, error) {
-	inputPayload := util.MustMarshalJSON(map[string]interface{}{
+func (t *TestRuntime) GetDataWithInput(path string, input any) ([]byte, error) {
+	inputPayload := util.MustMarshalJSON(map[string]any{
 		"input": input,
 	})
 
@@ -477,7 +477,7 @@ func (*TestRuntime) request(method, url string, input io.Reader) (io.ReadCloser,
 }
 
 // GetDataWithInputTyped returns an unmarshalled response from GetDataWithInput.
-func (t *TestRuntime) GetDataWithInputTyped(path string, input interface{}, response interface{}) error {
+func (t *TestRuntime) GetDataWithInputTyped(path string, input any, response any) error {
 
 	bs, err := t.GetDataWithInput(path, input)
 	if err != nil {

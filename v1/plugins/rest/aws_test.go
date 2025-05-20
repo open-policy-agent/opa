@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha1"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,6 +16,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -42,10 +44,8 @@ func assertEq(expected string, actual string, t *testing.T) {
 }
 func assertIn(candidates []string, actual string, t *testing.T) {
 	t.Helper()
-	for _, expected := range candidates {
-		if actual == expected {
-			return
-		}
+	if slices.Contains(candidates, actual) {
+		return
 	}
 	t.Error("value: '", actual, "' not found in: ", candidates)
 }
@@ -1622,7 +1622,7 @@ func (t *stsTestServer) handle(w http.ResponseWriter, r *http.Request) {
 </AssumeRoleResponse>`
 	}
 
-	_, _ = w.Write([]byte(fmt.Sprintf(xmlResponse, sessionName, time.Now().Add(time.Hour).Format(time.RFC3339), t.accessKey)))
+	_, _ = w.Write(fmt.Appendf(nil, xmlResponse, sessionName, time.Now().Add(time.Hour).Format(time.RFC3339), t.accessKey))
 }
 
 func (t *stsTestServer) start() {
@@ -1755,5 +1755,266 @@ func TestECRAuthPluginReusesCachedToken(t *testing.T) {
 	want := "Basic secret"
 	if got != want {
 		t.Errorf("req.Header.Get(\"Authorization\") = %q, want %q", got, want)
+	}
+}
+
+func TestSSOCredentialService(t *testing.T) {
+	// Create a temporary directory for test files
+	tempDir := t.TempDir()
+
+	// Create test config file
+	configPath := filepath.Join(tempDir, "config")
+	configContent := `
+[profile test-profile]
+sso_account_id = 123456789012
+sso_role_name = TestRole
+sso_session = test-session
+region = us-east-1
+
+[sso-session test-session]
+sso_start_url = https://test.awsapps.com/start
+sso_region = us-east-1
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("Failed to write config file: %v", err)
+	}
+
+	// Create test cache file
+	cachePath := filepath.Join(tempDir, "sso", "cache")
+	if err := os.MkdirAll(cachePath, 0755); err != nil {
+		t.Fatalf("Failed to create cache dir: %v", err)
+	}
+
+	// Calculate the cache file name using the session name
+	sessionName := "test-session"
+	hash := sha1.New()
+	hash.Write([]byte(sessionName))
+	cacheKey := fmt.Sprintf("%x.json", hash.Sum(nil))
+	cacheFile := filepath.Join(cachePath, cacheKey)
+
+	// Set up test times
+	futureTime := time.Now().Add(24 * time.Hour)
+	expiredTime := time.Now().Add(-1 * time.Hour)
+
+	cacheContent := fmt.Sprintf(`{
+		"startUrl": "https://test.awsapps.com/start",
+		"region": "us-east-1",
+		"accessToken": "test-access-token",
+		"expiresAt": %q,
+		"registrationExpiresAt": %q,
+		"refreshToken": "test-refresh-token",
+		"clientId": "test-client-id",
+		"clientSecret": "test-client-secret"
+	}`, futureTime.Format(time.RFC3339), futureTime.Format(time.RFC3339))
+
+	if err := os.WriteFile(cacheFile, []byte(cacheContent), 0644); err != nil {
+		t.Fatalf("Failed to write cache file: %v", err)
+	}
+
+	tests := []struct {
+		name          string
+		configPath    string
+		profile       string
+		cacheFile     string
+		modifySession func(*ssoSessionDetails)
+		modifyCreds   func(*aws.Credentials)
+		expectError   bool
+		errorContains string
+		setupTest     func()
+	}{
+		{
+			name:          "missing config path",
+			configPath:    "/nonexistent/path",
+			profile:       "test-profile",
+			expectError:   true,
+			errorContains: "failed to load config file",
+		},
+		{
+			name:          "invalid profile",
+			configPath:    configPath,
+			profile:       "nonexistent-profile",
+			expectError:   true,
+			errorContains: "failed to find profile",
+		},
+		{
+			name:       "successful credentials",
+			configPath: configPath,
+			profile:    "test-profile",
+			cacheFile:  cacheFile,
+			modifyCreds: func(creds *aws.Credentials) {
+				creds.AccessKey = "test-access-key"
+				creds.SecretKey = "test-secret-key"
+				creds.SessionToken = "test-session-token"
+				creds.RegionName = "us-east-1"
+			},
+		},
+		{
+			name:       "expired access token",
+			configPath: configPath,
+			profile:    "test-profile",
+			cacheFile:  cacheFile,
+			modifySession: func(session *ssoSessionDetails) {
+				session.ExpiresAt = expiredTime
+				session.RegistrationExpiresAt = futureTime
+			},
+			modifyCreds: func(creds *aws.Credentials) {
+				creds.AccessKey = "test-access-key"
+				creds.SecretKey = "test-secret-key"
+				creds.SessionToken = "test-session-token"
+				creds.RegionName = "us-east-1"
+			},
+		},
+		{
+			name:       "expired registration",
+			configPath: configPath,
+			profile:    "test-profile",
+			cacheFile:  cacheFile,
+			modifySession: func(session *ssoSessionDetails) {
+				session.ExpiresAt = expiredTime
+				session.RegistrationExpiresAt = expiredTime
+			},
+			expectError:   true,
+			errorContains: "cannot refresh token, registration expired",
+		},
+		{
+			name:          "missing refresh token",
+			configPath:    configPath,
+			profile:       "test-profile",
+			cacheFile:     cacheFile,
+			expectError:   true,
+			errorContains: "failed to refresh token",
+			setupTest: func() {
+				// Create a session with expired access token and missing refresh token
+				session := &ssoSessionDetails{
+					StartUrl:              "https://test.awsapps.com/start",
+					Region:                "us-east-1",
+					AccessToken:           "test-access-token",
+					ExpiresAt:             expiredTime,
+					RegistrationExpiresAt: futureTime,
+					ClientId:              "test-client-id",
+					ClientSecret:          "test-client-secret",
+				}
+				modifiedContent, err := json.Marshal(session)
+				if err != nil {
+					t.Fatalf("Failed to marshal session: %v", err)
+				}
+				if err := os.WriteFile(cacheFile, modifiedContent, 0644); err != nil {
+					t.Fatalf("Failed to write modified cache file: %v", err)
+				}
+			},
+		},
+		{
+			name:       "expired credentials",
+			configPath: configPath,
+			profile:    "test-profile",
+			cacheFile:  cacheFile,
+			modifyCreds: func(creds *aws.Credentials) {
+				creds.AccessKey = "test-access-key"
+				creds.SecretKey = "test-secret-key"
+				creds.SessionToken = "test-session-token"
+				creds.RegionName = "us-east-1"
+			},
+		},
+		{
+			name:          "invalid cache file",
+			configPath:    configPath,
+			profile:       "test-profile",
+			cacheFile:     cacheFile,
+			expectError:   true,
+			errorContains: "failed to unmarshal cache file",
+			setupTest: func() {
+				// Write invalid JSON to cache file before running the test
+				if err := os.WriteFile(cacheFile, []byte("invalid json"), 0644); err != nil {
+					t.Fatalf("Failed to write invalid cache file: %v", err)
+				}
+			},
+		},
+		{
+			name:          "missing cache file",
+			configPath:    configPath,
+			profile:       "test-profile",
+			cacheFile:     filepath.Join(cachePath, "nonexistent.json"),
+			expectError:   true,
+			errorContains: "failed to load cache file",
+			setupTest: func() {
+				// Remove the cache file if it exists
+				if err := os.Remove(cacheFile); err != nil && !os.IsNotExist(err) {
+					t.Fatalf("Failed to remove cache file: %v", err)
+				}
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Reset files to initial state before each test
+			if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+				t.Fatalf("Failed to reset config file: %v", err)
+			}
+			if err := os.WriteFile(cacheFile, []byte(cacheContent), 0644); err != nil {
+				t.Fatalf("Failed to reset cache file: %v", err)
+			}
+
+			// Run any test-specific setup
+			if tc.setupTest != nil {
+				tc.setupTest()
+			}
+
+			// Create service with test configuration
+			service := &awsSSOCredentialsService{
+				Path:         tc.configPath,
+				SSOCachePath: filepath.Dir(tc.cacheFile),
+				Profile:      tc.profile,
+				logger:       logging.NewNoOpLogger(),
+			}
+
+			// Modify session details if needed
+			if tc.modifySession != nil {
+				session := &ssoSessionDetails{}
+				if err := json.Unmarshal([]byte(cacheContent), session); err != nil {
+					t.Fatalf("Failed to unmarshal session: %v", err)
+				}
+				tc.modifySession(session)
+				modifiedContent, err := json.Marshal(session)
+				if err != nil {
+					t.Fatalf("Failed to marshal modified session: %v", err)
+				}
+				if err := os.WriteFile(tc.cacheFile, modifiedContent, 0644); err != nil {
+					t.Fatalf("Failed to write modified cache file: %v", err)
+				}
+			}
+
+			// Get credentials
+			creds, err := service.credentials(context.Background())
+
+			// Verify results
+			if tc.expectError {
+				if err == nil {
+					t.Fatal("expected error but got none")
+				}
+				if !strings.Contains(err.Error(), tc.errorContains) {
+					t.Errorf("expected error to contain %q, got %q", tc.errorContains, err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if tc.modifyCreds != nil {
+					tc.modifyCreds(&creds)
+				}
+				if creds.AccessKey == "" {
+					t.Error("expected non-empty access key")
+				}
+				if creds.SecretKey == "" {
+					t.Error("expected non-empty secret key")
+				}
+				if creds.SessionToken == "" {
+					t.Error("expected non-empty session token")
+				}
+				if creds.RegionName != "us-east-1" {
+					t.Errorf("expected region us-east-1, got %q", creds.RegionName)
+				}
+			}
+		})
 	}
 }

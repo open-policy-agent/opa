@@ -136,7 +136,7 @@ func TestTopDownWithKeyword(t *testing.T) {
 		rules   []string
 		modules []string
 		input   string
-		exp     interface{}
+		exp     any
 	}{
 		{
 			// NOTE(tsandall): This case assumes that partial sets are not memoized.
@@ -200,11 +200,11 @@ func TestTopDownQueryCancellation(t *testing.T) {
 		`,
 	})
 
-	arr := make([]interface{}, 1000)
+	arr := make([]any, 1000)
 	for i := range 1000 {
 		arr[i] = i
 	}
-	data := map[string]interface{}{
+	data := map[string]any{
 		"arr": arr,
 	}
 
@@ -241,7 +241,7 @@ func TestTopDownQueryCancellationEvery(t *testing.T) {
 
 	ctx := context.Background()
 
-	module := func(ev ast.Every, _ ...interface{}) *ast.Module {
+	module := func(ev ast.Every, _ ...any) *ast.Module {
 		t.Helper()
 		m := ast.MustParseModuleWithOpts(`package test
 			p if { true }`,
@@ -282,11 +282,11 @@ func TestTopDownQueryCancellationEvery(t *testing.T) {
 				t.Fatalf("compiler: %v", compiler.Errors)
 			}
 
-			arr := make([]interface{}, 1000)
+			arr := make([]any, 1000)
 			for i := range 1000 {
 				arr[i] = i
 			}
-			data := map[string]interface{}{
+			data := map[string]any{
 				"arr": arr,
 			}
 
@@ -1514,13 +1514,13 @@ arr := [1, 2, 3, 4, 5]
 			ctx := context.Background()
 			compiler := compileModules([]string{tc.module})
 			size := 1000
-			arr := make([]interface{}, size)
-			obj := make(map[string]interface{}, size)
+			arr := make([]any, size)
+			obj := make(map[string]any, size)
 			for i := range size {
 				arr[i] = i
 				obj[strconv.Itoa(i)] = i
 			}
-			data := map[string]interface{}{
+			data := map[string]any{
 				"arr":       arr,
 				"arr_small": []int{1, 2, 3, 4, 5},
 				"obj":       obj,
@@ -1737,7 +1737,7 @@ type contextPropagationStore struct {
 	storage.WritesNotSupported
 	storage.TriggersNotSupported
 	storage.PolicyNotSupported
-	calls []interface{}
+	calls []any
 }
 
 func (*contextPropagationStore) NewTransaction(context.Context, ...storage.TransactionParams) (storage.Transaction, error) {
@@ -1755,7 +1755,7 @@ func (*contextPropagationStore) Truncate(context.Context, storage.Transaction, s
 	return nil
 }
 
-func (m *contextPropagationStore) Read(ctx context.Context, _ storage.Transaction, _ storage.Path) (interface{}, error) {
+func (m *contextPropagationStore) Read(ctx context.Context, _ storage.Transaction, _ storage.Path) (any, error) {
 	val := ctx.Value(contextPropagationMock{})
 	m.calls = append(m.calls, val)
 	return nil, nil
@@ -1786,7 +1786,7 @@ p contains x if { data.a[i] = x }`,
 		t.Fatalf("Unexpected query error: %v", err)
 	}
 
-	expectedCalls := []interface{}{"bar"}
+	expectedCalls := []any{"bar"}
 
 	if !reflect.DeepEqual(expectedCalls, mockStore.calls) {
 		t.Fatalf("Expected %v but got: %v", expectedCalls, mockStore.calls)
@@ -1816,7 +1816,7 @@ func (*astStore) Truncate(context.Context, storage.Transaction, storage.Transact
 	return nil
 }
 
-func (a *astStore) Read(_ context.Context, _ storage.Transaction, path storage.Path) (interface{}, error) {
+func (a *astStore) Read(_ context.Context, _ storage.Transaction, path storage.Path) (any, error) {
 	if path.String() == a.path {
 		return a.value, nil
 	}
@@ -1859,10 +1859,10 @@ func TestTopdownLazyObj(t *testing.T) {
 	body := ast.MustParseBody(`data.stored = x`)
 	ctx := context.Background()
 	compiler := ast.NewCompiler()
-	foo := map[string]interface{}{
+	foo := map[string]any{
 		"foo": "bar",
 	}
-	store := inmem.NewFromObject(map[string]interface{}{
+	store := inmem.NewFromObject(map[string]any{
 		"stored": foo,
 	})
 	txn := storage.NewTransactionOrDie(ctx, store)
@@ -1891,10 +1891,10 @@ func TestTopdownLazyObjOptOut(t *testing.T) {
 	body := ast.MustParseBody(`data.stored = x`)
 	ctx := context.Background()
 	compiler := ast.NewCompiler()
-	foo := map[string]interface{}{
+	foo := map[string]any{
 		"foo": "bar",
 	}
-	store := inmem.NewFromObject(map[string]interface{}{
+	store := inmem.NewFromObject(map[string]any{
 		"stored": foo,
 	})
 	txn := storage.NewTransactionOrDie(ctx, store)
@@ -1984,8 +1984,8 @@ func compileRules(imports []string, input []string, modules []string) (*ast.Comp
 //
 // Avoid the following top-level keys: i, j, k, p, q, r, v, x, y, z.
 // These are used for rule names, local variables, etc.
-func loadSmallTestData() map[string]interface{} {
-	var data map[string]interface{}
+func loadSmallTestData() map[string]any {
+	var data map[string]any
 	err := util.UnmarshalJSON([]byte(`{
         "a": [1,2,3,4],
         "b": {
@@ -2072,19 +2072,19 @@ func setRoundTripper(t CustomizeRoundTripper) func(*Query) *Query {
 	}
 }
 
-func runTopDownTestCase(t *testing.T, data map[string]interface{}, note string, rules []string, expected interface{}, options ...func(*Query) *Query) {
+func runTopDownTestCase(t *testing.T, data map[string]any, note string, rules []string, expected any, options ...func(*Query) *Query) {
 	t.Helper()
 
 	runTopDownTestCaseWithContext(context.Background(), t, data, note, rules, nil, "", expected, options...)
 }
 
-func runTopDownTestCaseWithModules(t *testing.T, data map[string]interface{}, note string, rules []string, modules []string, input string, expected interface{}) {
+func runTopDownTestCaseWithModules(t *testing.T, data map[string]any, note string, rules []string, modules []string, input string, expected any) {
 	t.Helper()
 
 	runTopDownTestCaseWithContext(context.Background(), t, data, note, rules, modules, input, expected)
 }
 
-func runTopDownTestCaseWithContext(ctx context.Context, t *testing.T, data map[string]interface{}, note string, rules []string, modules []string, input string, expected interface{},
+func runTopDownTestCaseWithContext(ctx context.Context, t *testing.T, data map[string]any, note string, rules []string, modules []string, input string, expected any,
 	options ...func(*Query) *Query) {
 	t.Helper()
 
@@ -2108,7 +2108,7 @@ func runTopDownTestCaseWithContext(ctx context.Context, t *testing.T, data map[s
 	assertTopDownWithPathAndContext(ctx, t, compiler, store, note, []string{"generated", "p"}, input, expected, options...)
 }
 
-func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler *ast.Compiler, store storage.Store, note string, path []string, input string, expected interface{},
+func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler *ast.Compiler, store storage.Store, note string, path []string, input string, expected any,
 	options ...func(*Query) *Query) {
 	t.Helper()
 
@@ -2216,8 +2216,8 @@ func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler
 			expected := util.MustUnmarshalJSON([]byte(e))
 
 			if requiresSort {
-				sort.Sort(resultSet(result.([]interface{})))
-				if sl, ok := expected.([]interface{}); ok {
+				sort.Sort(resultSet(result.([]any)))
+				if sl, ok := expected.([]any); ok {
 					sort.Sort(resultSet(sl))
 				}
 			}
@@ -2240,7 +2240,7 @@ func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler
 	})
 }
 
-func runTopDownPartialTestCase(ctx context.Context, t *testing.T, compiler *ast.Compiler, store storage.Store, txn storage.Transaction, input *ast.Term, output *ast.Term, body ast.Body, requiresSort bool, expected interface{},
+func runTopDownPartialTestCase(ctx context.Context, t *testing.T, compiler *ast.Compiler, store storage.Store, txn storage.Transaction, input *ast.Term, output *ast.Term, body ast.Body, requiresSort bool, expected any,
 	options ...func(*Query) *Query) {
 	t.Helper()
 
@@ -2310,8 +2310,8 @@ func runTopDownPartialTestCase(ctx context.Context, t *testing.T, compiler *ast.
 	}
 
 	if requiresSort {
-		sort.Sort(resultSet(result.([]interface{})))
-		if sl, ok := expected.([]interface{}); ok {
+		sort.Sort(resultSet(result.([]any)))
+		if sl, ok := expected.([]any); ok {
 			sort.Sort(resultSet(sl))
 		}
 	}
@@ -2321,7 +2321,7 @@ func runTopDownPartialTestCase(ctx context.Context, t *testing.T, compiler *ast.
 	}
 }
 
-type resultSet []interface{}
+type resultSet []any
 
 func (rs resultSet) Less(i, j int) bool {
 	return util.Compare(rs[i], rs[j]) < 0
@@ -2364,15 +2364,15 @@ func getTestNamespace() string {
 		for more := true; more; {
 			var f runtime.Frame
 			f, more = frames.Next()
-			if strings.HasPrefix(f.Function, "github.com/open-policy-agent/opa/topdown.Test") {
-				return strings.TrimPrefix(strings.ToLower(strings.TrimPrefix(strings.TrimPrefix(f.Function, "github.com/open-policy-agent/opa/topdown.Test"), "TopDown")), "builtin")
+			if after, ok := strings.CutPrefix(f.Function, "github.com/open-policy-agent/opa/topdown.Test"); ok {
+				return strings.TrimPrefix(strings.ToLower(strings.TrimPrefix(after, "TopDown")), "builtin")
 			}
 		}
 	}
 	return ""
 }
 
-func dump(note string, modules map[string]*ast.Module, data interface{}, docpath []string, input *ast.Term, exp interface{}, requiresSort bool) {
+func dump(note string, modules map[string]*ast.Module, data any, docpath []string, input *ast.Term, exp any, requiresSort bool) {
 
 	moduleSet := []string{}
 	for _, module := range modules {
@@ -2381,7 +2381,7 @@ func dump(note string, modules map[string]*ast.Module, data interface{}, docpath
 
 	namespace := getTestNamespace()
 
-	test := map[string]interface{}{
+	test := map[string]any{
 		"note":    namespace + "/" + note,
 		"data":    data,
 		"modules": moduleSet,
@@ -2394,14 +2394,14 @@ func dump(note string, modules map[string]*ast.Module, data interface{}, docpath
 
 	switch e := exp.(type) {
 	case string:
-		rs := []map[string]interface{}{}
+		rs := []map[string]any{}
 		if len(e) > 0 {
 			exp := util.MustUnmarshalJSON([]byte(e))
 			if requiresSort {
-				sl := exp.([]interface{})
+				sl := exp.([]any)
 				sort.Sort(resultSet(sl))
 			}
-			rs = append(rs, map[string]interface{}{"x": exp})
+			rs = append(rs, map[string]any{"x": exp})
 		}
 		test["want_result"] = rs
 		if requiresSort {
@@ -2414,7 +2414,7 @@ func dump(note string, modules map[string]*ast.Module, data interface{}, docpath
 		panic("Unexpected test expectation. Cowardly refusing to generate test cases.")
 	}
 
-	bs, err := yaml.Marshal(map[string]interface{}{"cases": []interface{}{test}})
+	bs, err := yaml.Marshal(map[string]any{"cases": []any{test}})
 	if err != nil {
 		panic(err)
 	}
@@ -2438,7 +2438,7 @@ func dump(note string, modules map[string]*ast.Module, data interface{}, docpath
 
 }
 
-func assertError(t *testing.T, expected interface{}, actual error) {
+func assertError(t *testing.T, expected any, actual error) {
 	t.Helper()
 	if actual == nil {
 		t.Errorf("Expected error but got: %v", actual)

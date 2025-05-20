@@ -2647,7 +2647,7 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 	cases := []struct {
 		note     string
 		module   string
-		expected interface{}
+		expected any
 	}{
 		{
 			note: "base",
@@ -5019,7 +5019,7 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 
 	tests := []struct {
 		module          string
-		exp             interface{}
+		exp             any
 		expRewrittenMap map[Var]Var
 		regoVersion     RegoVersion
 	}{
@@ -8709,7 +8709,7 @@ p contains 2 if { true }`,
 
 	tests := []struct {
 		note     string
-		ref      interface{}
+		ref      any
 		expected []*Rule
 	}{
 		{"exact", "data.a.b.c.p", []*Rule{
@@ -8737,13 +8737,7 @@ p contains 2 if { true }`,
 				t.Fatalf("Expected exactly %v rules but got: %v", len(tc.expected), rules)
 			}
 			for i := range rules {
-				found := false
-				for j := range tc.expected {
-					if rules[i].Equal(tc.expected[j]) {
-						found = true
-						break
-					}
-				}
+				found := slices.ContainsFunc(tc.expected, rules[i].Equal)
 				if !found {
 					t.Fatalf("Expected exactly %v but got: %v", tc.expected, rules)
 				}
@@ -8768,7 +8762,7 @@ p contains 2 if { true }`,
 
 	tests := []struct {
 		note     string
-		ref      interface{}
+		ref      any
 		expected []*Rule
 	}{
 		{"exact", "data.a.b.c.p", []*Rule{
@@ -8800,13 +8794,7 @@ p contains 2 if { true }`,
 				t.Fatalf("Expected exactly %v rules but got: %v", len(tc.expected), rules)
 			}
 			for i := range rules {
-				found := false
-				for j := range tc.expected {
-					if rules[i].Equal(tc.expected[j]) {
-						found = true
-						break
-					}
-				}
+				found := slices.ContainsFunc(tc.expected, rules[i].Equal)
 				if !found {
 					t.Fatalf("Expected exactly %v but got: %v", tc.expected, rules)
 				}
@@ -8832,7 +8820,7 @@ q contains 3 if { true }`,
 
 	tests := []struct {
 		note     string
-		ref      interface{}
+		ref      any
 		expected []*Rule
 	}{
 		{"exact", "data.a.b.c.p", []*Rule{
@@ -8868,13 +8856,7 @@ q contains 3 if { true }`,
 				t.Fatalf("Expected exactly %v rules but got: %v", len(tc.expected), rules)
 			}
 			for i := range rules {
-				found := false
-				for j := range tc.expected {
-					if rules[i].Equal(tc.expected[j]) {
-						found = true
-						break
-					}
-				}
+				found := slices.ContainsFunc(tc.expected, rules[i].Equal)
 				if !found {
 					t.Fatalf("Expected %v but got: %v", tc.expected, rules)
 				}
@@ -8918,13 +8900,7 @@ q["b"] = 2 if { true }`,
 			}
 
 			for i := range result {
-				found := false
-				for j := range tc.expected {
-					if result[i].Equal(tc.expected[j]) {
-						found = true
-						break
-					}
-				}
+				found := slices.ContainsFunc(tc.expected, result[i].Equal)
 				if !found {
 					t.Fatalf("Expected %v but got: %v", tc.expected, result)
 				}
@@ -8997,13 +8973,7 @@ r5.baz = 7 if { input.y }
 			}
 
 			for i := range result {
-				found := false
-				for j := range tc.expected {
-					if result[i].Equal(tc.expected[j]) {
-						found = true
-						break
-					}
-				}
+				found := slices.ContainsFunc(tc.expected, result[i].Equal)
 				if !found {
 					t.Fatalf("Expected %v but got: %v", tc.expected, result)
 				}
@@ -9788,7 +9758,7 @@ func TestQueryCompiler(t *testing.T) {
 		imports     []string
 		input       string
 		regoVersion RegoVersion
-		expected    interface{}
+		expected    any
 	}{
 		{
 			note:     "empty query",
@@ -10373,7 +10343,7 @@ func compilerErrsToStringSlice(errors []*Error) []string {
 	return result
 }
 
-func runQueryCompilerTest(q string, popts ParserOptions, pkg string, imports []string, expected interface{}) func(*testing.T) {
+func runQueryCompilerTest(q string, popts ParserOptions, pkg string, imports []string, expected any) func(*testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
 		c := NewCompiler().WithEnablePrintStatements(false)
@@ -11073,7 +11043,7 @@ deny if {
 `
 
 	c := NewCompiler()
-	var schema interface{}
+	var schema any
 	if err := json.Unmarshal([]byte(jsonSchema), &schema); err != nil {
 		t.Fatal(err)
 	}
@@ -11137,7 +11107,7 @@ deny if {
 
 	c := NewCompiler().
 		WithUseTypeCheckAnnotations(true)
-	var schema interface{}
+	var schema any
 	if err := json.Unmarshal([]byte(jsonSchema), &schema); err != nil {
 		t.Fatal(err)
 	}
@@ -11284,7 +11254,7 @@ deny if {
 `
 
 	c := NewCompiler()
-	var schema interface{}
+	var schema any
 	if err := json.Unmarshal([]byte(jsonSchema), &schema); err != nil {
 		t.Fatal(err)
 	}

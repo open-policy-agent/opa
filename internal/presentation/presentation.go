@@ -53,10 +53,7 @@ func (o DepAnalysisOutput) Pretty(w io.Writer) error {
 
 	// Fill two columns if results have base and virtual docs. Else fill one column.
 	if len(o.Base) > 0 && len(o.Virtual) > 0 {
-		maxLen := len(o.Base)
-		if len(o.Virtual) > maxLen {
-			maxLen = len(o.Virtual)
-		}
+		maxLen := max(len(o.Virtual), len(o.Base))
 		headers = []string{"Base Documents", "Virtual Documents"}
 		rows = make([][]string, maxLen)
 		for i := range rows {
@@ -114,7 +111,7 @@ type Output struct {
 	Result            rego.ResultSet                 `json:"result,omitempty"`
 	Partial           *rego.PartialQueries           `json:"partial,omitempty"`
 	Metrics           metrics.Metrics                `json:"metrics,omitempty"`
-	AggregatedMetrics map[string]interface{}         `json:"aggregated_metrics,omitempty"`
+	AggregatedMetrics map[string]any                 `json:"aggregated_metrics,omitempty"`
 	Explanation       []*topdown.Event               `json:"explanation,omitempty"`
 	Profile           []profiler.ExprStats           `json:"profile,omitempty"`
 	AggregatedProfile []profiler.ExprStatsAggregated `json:"aggregated_profile,omitempty"`
@@ -236,7 +233,7 @@ type OutputError struct {
 	Message  string        `json:"message"`
 	Code     string        `json:"code,omitempty"`
 	Location *ast.Location `json:"location,omitempty"`
-	Details  interface{}   `json:"details,omitempty"`
+	Details  any           `json:"details,omitempty"`
 	err      error
 }
 
@@ -245,7 +242,7 @@ func (j OutputError) Error() string {
 }
 
 // JSON writes x to w with indentation.
-func JSON(w io.Writer, x interface{}) error {
+func JSON(w io.Writer, x any) error {
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(x)
@@ -270,7 +267,7 @@ func Values(w io.Writer, r Output) error {
 		return prettyError(w, r.Errors)
 	}
 	for _, rs := range r.Result {
-		line := make([]interface{}, len(rs.Expressions))
+		line := make([]any, len(rs.Expressions))
 		for i := range line {
 			line[i] = rs.Expressions[i].Value
 		}
@@ -406,7 +403,7 @@ func Raw(w io.Writer, r Output) error {
 	return nil
 }
 
-func Discard(w io.Writer, x interface{}) error {
+func Discard(w io.Writer, x any) error {
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 	field, ok := x.(Output)
@@ -417,7 +414,7 @@ func Discard(w io.Writer, x interface{}) error {
 	if err != nil {
 		return err
 	}
-	var rawData map[string]interface{}
+	var rawData map[string]any
 	err = json.Unmarshal(bs, &rawData)
 	if err != nil {
 		return err
@@ -486,7 +483,7 @@ func prettyPartial(w io.Writer, pq *rego.PartialQueries) error {
 }
 
 // prettyASTNode is used for pretty-printing the result of partial eval
-func prettyASTNode(x interface{}, regoVersion ast.RegoVersion) (string, int, error) {
+func prettyASTNode(x any, regoVersion ast.RegoVersion) (string, int, error) {
 	bs, err := format.AstWithOpts(x, format.Opts{IgnoreLocations: true, RegoVersion: regoVersion})
 	if err != nil {
 		return "", 0, fmt.Errorf("format error: %w", err)
@@ -513,7 +510,7 @@ func prettyMetrics(w io.Writer, m metrics.Metrics, limit int) error {
 
 var statKeys = []string{"min", "max", "mean", "90%", "99%"}
 
-func prettyAggregatedMetrics(w io.Writer, ms map[string]interface{}, limit int) error {
+func prettyAggregatedMetrics(w io.Writer, ms map[string]any, limit int) error {
 	keys := []string{"metric"}
 	tableMetrics := generateTableWithKeys(w, append(keys, statKeys...)...)
 	populateTableAggregatedMetrics(ms, tableMetrics, limit)
@@ -548,7 +545,7 @@ func prettyAggregatedProfile(w io.Writer, profile []profiler.ExprStatsAggregated
 	for _, rs := range profile {
 		line := []string{}
 		for _, k := range statKeys {
-			v := rs.ExprTimeNsStats.(map[string]interface{})[k]
+			v := rs.ExprTimeNsStats.(map[string]any)[k]
 			if f, ok := v.(float64); ok {
 				line = append(line, time.Duration(f).String())
 			} else if i, ok := v.(int64); ok {
@@ -649,7 +646,7 @@ func generateTableProfile(writer io.Writer) *tablewriter.Table {
 func populateTableMetrics(m metrics.Metrics, table *tablewriter.Table, prettyLimit int) {
 	lines := [][]string{}
 	for varName, varValueInterface := range m.All() {
-		val, ok := varValueInterface.(map[string]interface{})
+		val, ok := varValueInterface.(map[string]any)
 		if !ok {
 			line := []string{}
 			varValue := checkStrLimit(fmt.Sprintf("%v", varValueInterface), prettyLimit)
@@ -669,11 +666,11 @@ func populateTableMetrics(m metrics.Metrics, table *tablewriter.Table, prettyLim
 	table.AppendBulk(lines)
 }
 
-func populateTableAggregatedMetrics(ms map[string]interface{}, table *tablewriter.Table, prettyLimit int) {
+func populateTableAggregatedMetrics(ms map[string]any, table *tablewriter.Table, prettyLimit int) {
 	lines := [][]string{}
 	for name, vals := range ms {
 		line := []string{name}
-		vs := vals.(map[string]interface{})
+		vs := vals.(map[string]any)
 		for _, k := range statKeys {
 			line = append(line, checkStrLimit(fmt.Sprintf("%v", vs[k]), prettyLimit))
 		}
@@ -712,7 +709,7 @@ func (rk resultKey) string() string {
 	return rk.exprText
 }
 
-func (rk resultKey) selectVarValue(result rego.Result) interface{} {
+func (rk resultKey) selectVarValue(result rego.Result) any {
 	if rk.varName != "" {
 		return result.Bindings[rk.varName]
 	}

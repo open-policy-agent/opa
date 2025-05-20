@@ -15,6 +15,7 @@ import (
 	"math/rand"
 	"net/url"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -55,16 +56,16 @@ type EventV1 struct {
 	Bundles        map[string]BundleInfoV1 `json:"bundles,omitempty"`
 	Path           string                  `json:"path,omitempty"`
 	Query          string                  `json:"query,omitempty"`
-	Input          *interface{}            `json:"input,omitempty"`
-	Result         *interface{}            `json:"result,omitempty"`
-	MappedResult   *interface{}            `json:"mapped_result,omitempty"`
-	NDBuiltinCache *interface{}            `json:"nd_builtin_cache,omitempty"`
+	Input          *any                    `json:"input,omitempty"`
+	Result         *any                    `json:"result,omitempty"`
+	MappedResult   *any                    `json:"mapped_result,omitempty"`
+	NDBuiltinCache *any                    `json:"nd_builtin_cache,omitempty"`
 	Erased         []string                `json:"erased,omitempty"`
 	Masked         []string                `json:"masked,omitempty"`
 	Error          error                   `json:"error,omitempty"`
 	RequestedBy    string                  `json:"requested_by,omitempty"`
 	Timestamp      time.Time               `json:"timestamp"`
-	Metrics        map[string]interface{}  `json:"metrics,omitempty"`
+	Metrics        map[string]any          `json:"metrics,omitempty"`
 	RequestID      uint64                  `json:"req_id,omitempty"`
 	RequestContext *RequestContext         `json:"request_context,omitempty"`
 
@@ -236,10 +237,10 @@ func (e *EventV1) AST() (ast.Value, error) {
 	return event, nil
 }
 
-func roundtripJSONToAST(x interface{}) (ast.Value, error) {
+func roundtripJSONToAST(x any) (ast.Value, error) {
 	rawPtr := util.Reference(x)
 	// roundtrip through json: this turns slices (e.g. []string, []bool) into
-	// []interface{}, the only array type ast.InterfaceToValue can work with
+	// []any, the only array type ast.InterfaceToValue can work with
 	if err := util.RoundTrip(rawPtr); err != nil {
 		return nil, err
 	}
@@ -253,8 +254,10 @@ const (
 	defaultMinDelaySeconds              = int64(300)
 	defaultMaxDelaySeconds              = int64(600)
 	defaultBufferSizeLimitEvents        = int64(10000)
-	defaultUploadSizeLimitBytes         = int64(32768) // 32KB limit
-	defaultBufferSizeLimitBytes         = int64(0)     // unlimited
+	defaultUploadSizeLimitBytes         = int64(32768)      // 32KB limit
+	minUploadSizeLimitBytes             = int64(90)         // A single event with a decision ID (69 bytes) + empty gzip file (21 bytes)
+	maxUploadSizeLimitBytes             = int64(4294967296) // about 4GB
+	defaultBufferSizeLimitBytes         = int64(0)          // unlimited
 	defaultMaskDecisionPath             = "/system/log/mask"
 	defaultDropDecisionPath             = "/system/log/drop"
 	logRateLimitExDropCounterName       = "decision_logs_dropped_rate_limit_exceeded"
@@ -303,15 +306,12 @@ type Config struct {
 	dropDecisionRef ast.Ref
 }
 
-func (c *Config) validateAndInjectDefaults(services []string, pluginsList []string, trigger *plugins.TriggerMode) error {
+func (c *Config) validateAndInjectDefaults(services []string, pluginsList []string, trigger *plugins.TriggerMode, l logging.Logger) error {
 
 	if c.Plugin != nil {
 		var found bool
-		for _, other := range pluginsList {
-			if other == *c.Plugin {
-				found = true
-				break
-			}
+		if slices.Contains(pluginsList, *c.Plugin) {
+			found = true
 		}
 		if !found {
 			return fmt.Errorf("invalid plugin name %q in decision_logs", *c.Plugin)
@@ -323,14 +323,7 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 		// both console logs and the default service option.
 		c.Service = services[0]
 	} else if c.Service != "" {
-		found := false
-
-		for _, svc := range services {
-			if svc == c.Service {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(services, c.Service)
 
 		if !found {
 			return fmt.Errorf("invalid service name %q in decision_logs", c.Service)
@@ -372,7 +365,22 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 		uploadLimit = *c.Reporting.UploadSizeLimitBytes
 	}
 
-	c.Reporting.UploadSizeLimitBytes = &uploadLimit
+	switch {
+	case uploadLimit > maxUploadSizeLimitBytes:
+		maxUploadLimit := maxUploadSizeLimitBytes
+		c.Reporting.UploadSizeLimitBytes = &maxUploadLimit
+		if l != nil {
+			l.Warn("the configured `upload_size_limit_bytes` (%d) has been set to the maximum limit (%d)", uploadLimit, maxUploadLimit)
+		}
+	case uploadLimit < minUploadSizeLimitBytes:
+		minUploadLimit := minUploadSizeLimitBytes
+		c.Reporting.UploadSizeLimitBytes = &minUploadLimit
+		if l != nil {
+			l.Warn("the configured `upload_size_limit_bytes` (%d) has been set to the minimum limit (%d)", uploadLimit, minUploadLimit)
+		}
+	default:
+		c.Reporting.UploadSizeLimitBytes = &uploadLimit
+	}
 
 	if c.Reporting.BufferType == "" {
 		c.Reporting.BufferType = sizeBufferType
@@ -490,7 +498,7 @@ func (po *prepareOnce) prepareOnce(f func() (*rego.PreparedEvalQuery, error)) (*
 }
 
 type reconfigure struct {
-	config interface{}
+	config any
 	done   chan struct{}
 }
 
@@ -511,11 +519,17 @@ type ConfigBuilder struct {
 	services []string
 	plugins  []string
 	trigger  *plugins.TriggerMode
+	logger   logging.Logger
 }
 
 // NewConfigBuilder returns a new ConfigBuilder to build and parse the plugin config.
 func NewConfigBuilder() *ConfigBuilder {
 	return &ConfigBuilder{}
+}
+
+func (b *ConfigBuilder) WithLogger(l logging.Logger) *ConfigBuilder {
+	b.logger = l
+	return b
 }
 
 // WithBytes sets the raw plugin config.
@@ -559,7 +573,7 @@ func (b *ConfigBuilder) Parse() (*Config, error) {
 		return nil, nil
 	}
 
-	if err := parsedConfig.validateAndInjectDefaults(b.services, b.plugins, b.trigger); err != nil {
+	if err := parsedConfig.validateAndInjectDefaults(b.services, b.plugins, b.trigger, b.logger); err != nil {
 		return nil, err
 	}
 
@@ -575,7 +589,7 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		stop:         make(chan chan struct{}),
 		enc:          newChunkEncoder(*parsedConfig.Reporting.UploadSizeLimitBytes),
 		reconfig:     make(chan reconfigure),
-		logger:       manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
+		logger:       manager.Logger().WithFields(map[string]any{"plugin": Name}),
 		status:       &lstat.Status{},
 		preparedDrop: *newPrepareOnce(),
 		preparedMask: *newPrepareOnce(),
@@ -777,7 +791,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 }
 
 // Reconfigure notifies the plugin with a new configuration.
-func (p *Plugin) Reconfigure(_ context.Context, config interface{}) {
+func (p *Plugin) Reconfigure(_ context.Context, config any) {
 
 	done := make(chan struct{})
 	p.reconfig <- reconfigure{config: config, done: done}
@@ -911,7 +925,8 @@ func (p *Plugin) oneShot(ctx context.Context) error {
 	oldChunkEnc := p.enc
 	oldBuffer := p.buffer
 	p.buffer = newLogBuffer(*p.config.Reporting.BufferSizeLimitBytes)
-	p.enc = newChunkEncoder(*p.config.Reporting.UploadSizeLimitBytes).WithMetrics(p.metrics)
+	p.enc = newChunkEncoder(*p.config.Reporting.UploadSizeLimitBytes).WithMetrics(p.metrics).
+		WithSoftLimit(oldChunkEnc.softLimit, oldChunkEnc.softLimitScaleDownExponent, oldChunkEnc.softLimitScaleUpExponent)
 	p.mtx.Unlock()
 
 	// Along with uploading the compressed events in the buffer
@@ -956,7 +971,7 @@ func (p *Plugin) oneShot(ctx context.Context) error {
 	return err
 }
 
-func (p *Plugin) reconfigure(ctx context.Context, config interface{}) {
+func (p *Plugin) reconfigure(ctx context.Context, config any) {
 	newConfig := config.(*Config)
 
 	if reflect.DeepEqual(p.config, *newConfig) {
@@ -1205,12 +1220,12 @@ func (p *Plugin) logEvent(event EventV1) error {
 	if err != nil {
 		return err
 	}
-	fields := map[string]interface{}{}
+	fields := map[string]any{}
 	err = util.UnmarshalJSON(eventBuf, &fields)
 	if err != nil {
 		return err
 	}
-	p.manager.ConsoleLogger().WithFields(fields).WithFields(map[string]interface{}{
+	p.manager.ConsoleLogger().WithFields(fields).WithFields(map[string]any{
 		"type": "openpolicyagent.org/decision_logs",
 	}).Info("Decision Log")
 	return nil

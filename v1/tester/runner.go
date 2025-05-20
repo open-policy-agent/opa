@@ -11,7 +11,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -107,7 +109,7 @@ func (srm SubResultMap) update(path []string, i int, trace []*topdown.Event) boo
 
 type unknownResolver struct{}
 
-func (unknownResolver) Resolve(_ ast.Ref) (interface{}, error) {
+func (unknownResolver) Resolve(_ ast.Ref) (any, error) {
 	return "UNKNOWN", nil
 }
 
@@ -479,9 +481,7 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 			r.modules = map[string]*ast.Module{}
 		}
 		for path, b := range r.bundles {
-			for name, mod := range b.ParsedModules(path) {
-				r.modules[name] = mod
-			}
+			maps.Copy(r.modules, b.ParsedModules(path))
 		}
 	}
 
@@ -790,7 +790,7 @@ func moveExpr(body ast.Body, from int, to int) (ast.Body, bool) {
 	}
 
 	expr := body[from]                                                // Save the expression to move
-	body = append(body[:from], body[from+1:]...)                      // Remove the expression from the body
+	body = slices.Delete(body, from, from+1)                          // Remove the expression from the body
 	body = append(body[:to], append(ast.Body{expr}, body[to:]...)...) // Insert the expression at the new position
 	return body, true
 }

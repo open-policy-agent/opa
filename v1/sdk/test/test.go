@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -159,7 +160,7 @@ func (s *Server) buildBundles(ref string, policies map[string]string) error {
 	bundleManifest.Init()
 
 	err := compile.New().WithOutput(buf).WithBundle(&bundle.Bundle{
-		Data:     map[string]interface{}{},
+		Data:     map[string]any{},
 		Modules:  modules,
 		Manifest: bundleManifest,
 	}).Build(context.Background())
@@ -399,7 +400,7 @@ func (s *Server) handleBundles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Prepare a mapping to store bundle data
-	data := map[string]interface{}{}
+	data := map[string]any{}
 
 	// Prepare a manifest for use if a .manifest file exists.
 	var manifest bundle.Manifest
@@ -433,7 +434,7 @@ func (s *Server) handleBundles(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			var d map[string]interface{}
+			var d map[string]any
 
 			err := json.Unmarshal([]byte(str), &d)
 			if err != nil {
@@ -442,9 +443,7 @@ func (s *Server) handleBundles(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			for k, v := range d {
-				data[k] = v
-			}
+			maps.Copy(data, d)
 		default:
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, "unexpected file in dummy bundle: %s", url)

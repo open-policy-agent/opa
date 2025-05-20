@@ -394,14 +394,8 @@ q[x.y] = 10 if {
 				}
 			}
 			buffer := tc.modules["buffer.rego"]
-			before := tc.pos - 4
-			if before < 0 {
-				before = 0
-			}
-			after := tc.pos + 5
-			if after > len(buffer) {
-				after = len(buffer)
-			}
+			before := max(tc.pos-4, 0)
+			after := min(tc.pos+5, len(buffer))
 			t.Logf("pos is %d: \"%s<%s>%s\"", tc.pos, buffer[before:tc.pos], string(buffer[tc.pos]), buffer[tc.pos+1:after])
 			o := New()
 			result, err := o.FindDefinition(DefinitionQuery{

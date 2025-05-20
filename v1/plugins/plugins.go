@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	mr "math/rand"
 	"sync"
 	"time"
@@ -85,8 +86,8 @@ import (
 // After a plugin has been created subsequent status updates can be
 // send anytime the plugin enters a ready or error state.
 type Factory interface {
-	Validate(manager *Manager, config []byte) (interface{}, error)
-	New(manager *Manager, config interface{}) Plugin
+	Validate(manager *Manager, config []byte) (any, error)
+	New(manager *Manager, config any) Plugin
 }
 
 // Plugin defines the interface OPA uses to manage your plugin.
@@ -104,7 +105,7 @@ type Factory interface {
 type Plugin interface {
 	Start(ctx context.Context) error
 	Stop(ctx context.Context)
-	Reconfigure(ctx context.Context, config interface{})
+	Reconfigure(ctx context.Context, config any)
 }
 
 // Triggerable defines the interface plugins use for manual plugin triggers.
@@ -791,9 +792,7 @@ func (m *Manager) Reconfigure(config *config.Config) error {
 	if config.Labels == nil {
 		config.Labels = m.bootstrapConfigLabels
 	} else {
-		for label, value := range m.bootstrapConfigLabels {
-			config.Labels[label] = value
-		}
+		maps.Copy(config.Labels, m.bootstrapConfigLabels)
 	}
 
 	// don't erase persistence directory
@@ -803,13 +802,9 @@ func (m *Manager) Reconfigure(config *config.Config) error {
 
 	m.Config = config
 	m.interQueryBuiltinCacheConfig = interQueryBuiltinCacheConfig
-	for name, client := range services { //nolint:gocritic
-		m.services[name] = client
-	}
 
-	for name, key := range keys {
-		m.keys[name] = key
-	}
+	maps.Copy(m.services, services)
+	maps.Copy(m.keys, keys)
 
 	for _, trigger := range m.registeredCacheTriggers {
 		trigger(interQueryBuiltinCacheConfig)
@@ -861,9 +856,7 @@ func (m *Manager) UpdatePluginStatus(pluginName string, status *Status) {
 		defer m.mtx.Unlock()
 		m.pluginStatus[pluginName] = status
 		toNotify = make(map[string]StatusListener, len(m.pluginStatusListeners))
-		for k, v := range m.pluginStatusListeners {
-			toNotify[k] = v
-		}
+		maps.Copy(toNotify, m.pluginStatusListeners)
 		statuses = m.copyPluginStatus()
 	}()
 
@@ -1097,7 +1090,7 @@ func (m *Manager) sendOPAUpdateLoop(ctx context.Context) {
 				opaReportNotify = false
 				_, err := m.reporter.SendReport(ctx)
 				if err != nil {
-					m.logger.WithFields(map[string]interface{}{"err": err}).Debug("Unable to send OPA telemetry report.")
+					m.logger.WithFields(map[string]any{"err": err}).Debug("Unable to send OPA telemetry report.")
 				}
 			}
 

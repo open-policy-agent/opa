@@ -42,7 +42,7 @@ func SourceWithOpts(filename string, src []byte, opts Opts) ([]byte, error) {
 
 // MustAst is a helper function to format a Rego AST element. If any errors
 // occurs this function will panic. This is mostly used for test
-func MustAst(x interface{}) []byte {
+func MustAst(x any) []byte {
 	bs, err := Ast(x)
 	if err != nil {
 		panic(err)
@@ -52,7 +52,7 @@ func MustAst(x interface{}) []byte {
 
 // MustAstWithOpts is a helper function to format a Rego AST element. If any errors
 // occurs this function will panic. This is mostly used for test
-func MustAstWithOpts(x interface{}, opts Opts) []byte {
+func MustAstWithOpts(x any, opts Opts) []byte {
 	bs, err := AstWithOpts(x, opts)
 	if err != nil {
 		panic(err)
@@ -63,13 +63,13 @@ func MustAstWithOpts(x interface{}, opts Opts) []byte {
 // Ast formats a Rego AST element. If the passed value is not a valid AST
 // element, Ast returns nil and an error. If AST nodes are missing locations
 // an arbitrary location will be used.
-func Ast(x interface{}) ([]byte, error) {
+func Ast(x any) ([]byte, error) {
 	return AstWithOpts(x, Opts{
 		RegoVersion: ast.DefaultRegoVersion,
 	})
 }
 
-func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
+func AstWithOpts(x any, opts Opts) ([]byte, error) {
 	if opts.RegoVersion == ast.RegoUndefined {
 		opts.RegoVersion = ast.DefaultRegoVersion
 	}
