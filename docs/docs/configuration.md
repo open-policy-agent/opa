@@ -187,21 +187,28 @@ OPA will authenticate using a bearer token obtained through the OAuth2 [client c
 Rather than providing a client secret along with the request for an access token, the client [asserts](https://tools.ietf.org/html/rfc7521#section-4.2) its identity in the form of a signed JWT.
 Following successful authentication at the token endpoint the returned token will be cached for subsequent requests for the duration of its lifetime. Note that as per the [OAuth2 standard](https://tools.ietf.org/html/rfc6749#section-2.3.1), only the HTTPS scheme is supported for the token endpoint URL.
 
-| Field                                                  | Type       | Required | Description                                                                                                                                               |
-| ------------------------------------------------------ | ---------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `services[_].credentials.oauth2.token_url`             | `string`   | Yes      | URL pointing to the token endpoint at the OAuth2 authorization server.                                                                                    |
-| `services[_].credentials.oauth2.grant_type`            | `string`   | No       | Defaults to `client_credentials`.                                                                                                                         |
-| `services[_].credentials.oauth2.client_id`             | `string`   | No       | The client ID to use for authentication.                                                                                                                  |
-| `services[_].credentials.oauth2.signing_key`           | `string`   | No       | Reference to private key used for signing the JWT. Required if `aws_kms` is not provided                                                                  |
-| `services[_].credentials.oauth2.thumbprint`            | `string`   | No       | Certificate thumbprint to use for x5t header generation.                                                                                                  |
-| `services[_].credentials.oauth2.additional_claims`     | `map`      | No       | Map of claims to include in the JWT (see notes below)                                                                                                     |
-| `services[_].credentials.oauth2.include_jti_claim`     | `bool`     | No       | Include a uniquely generated `jti` claim in any issued JWT                                                                                                |
-| `services[_].credentials.oauth2.scopes`                | `[]string` | No       | Optional list of scopes to request for the token.                                                                                                         |
-| `services[_].credentials.oauth2.aws_kms.name`          | `string`   | No       | To specify a KMS key, use its key ID, key ARN, alias name, or alias ARN. Required only for signing with AWS KMS.                                          |
-| `services[_].credentials.oauth2.aws_kms.algorithm`     | `string`   | No       | Specifies the signing algorithm used by the key `aws_kms.name` `(ECDSA_SHA_256, ECDSA_SHA_384 or ECDSA_SHA_512)`. Required only for signing with AWS KMS. |
-| `services[_].credentials.oauth2.aws_signing`           | `{}`       | No       | AWS credentials for signing requests. Required if `aws_kms` is provided.                                                                                  |
-| `services[_].credentials.oauth2.client_assertion_path` | `string`   | No       | To specify a path to find a client assertion file. Used for Azure Workload Identity.                                                                      |
-| `services[_].credentials.oauth2.client_assertion`      | `string`   | No       | To specify a client assertion. Used for Azure Workload Identity.                                                                                          |
+| Field                                                                 | Type       | Required | Description                                                                                                                                                                                                  |
+| --------------------------------------------------------------------- | ---------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `services[_].credentials.oauth2.token_url`                            | `string`   | Yes      | URL pointing to the token endpoint at the OAuth2 authorization server.                                                                                                                                       |
+| `services[_].credentials.oauth2.grant_type`                           | `string`   | No       | Defaults to `client_credentials`.                                                                                                                                                                            |
+| `services[_].credentials.oauth2.client_id`                            | `string`   | No       | The client ID to use for authentication.                                                                                                                                                                     |
+| `services[_].credentials.oauth2.signing_key`                          | `string`   | No       | Reference to private key used for signing the JWT. Required if `aws_kms` is not provided                                                                                                                     |
+| `services[_].credentials.oauth2.thumbprint`                           | `string`   | No       | Certificate thumbprint to use for x5t header generation.                                                                                                                                                     |
+| `services[_].credentials.oauth2.additional_claims`                    | `map`      | No       | Map of claims to include in the JWT (see notes below)                                                                                                                                                        |
+| `services[_].credentials.oauth2.include_jti_claim`                    | `bool`     | No       | Include a uniquely generated `jti` claim in any issued JWT                                                                                                                                                   |
+| `services[_].credentials.oauth2.scopes`                               | `[]string` | No       | Optional list of scopes to request for the token.                                                                                                                                                            |
+| `services[_].credentials.oauth2.aws_kms.name`                         | `string`   | No       | To specify a KMS key, use its key ID, key ARN, alias name, or alias ARN. Required only for signing with AWS KMS.                                                                                             |
+| `services[_].credentials.oauth2.aws_kms.algorithm`                    | `string`   | No       | Specifies the signing algorithm used by the key `aws_kms.name` `(ECDSA_SHA_256, ECDSA_SHA_384 or ECDSA_SHA_512)`. Required only for signing with AWS KMS.                                                    |
+| `services[_].credentials.oauth2.aws_signing`                          | `{}`       | No       | AWS credentials for signing requests. Required if `aws_kms` is provided.                                                                                                                                     |
+| `services[_].credentials.oauth2.azure_keyvault.key`                   | `string`   | No       | Specify what key name should be used for signing.                                                                                                                                                            |	
+| `services[_].credentials.oauth2.azure_keyvault.key_version`           | `string`   | No       | Key version that should be used for signing. Will used latest if not specified                                                                                                                               |	
+| `services[_].credentials.oauth2.azure_keyvault.key_algorithm`         | `string`   | No       | Specifies the signing algorithm used by the key `azure_keyvault.key`. `ES256, ES256K, PS256, RS256, ES384, PS384, RS384, ES512, PS512 or RS512)`                                                             |
+| `services[_].credentials.oauth2.azure_keyvault.vault`                 | `string`   | No       | The name of the azure keyvault. used for interpolation of URL.                                                                                                                                               |
+| `services[_].credentials.oauth2.azure_keyvault.api_version`           | `string`   | No       | The version of the [azure keyvault sign api](https://learn.microsoft.com/en-us/rest/api/keyvault/keys/sign/sign). Defaults to "7.4"                                                                          |
+| `services[_].credentials.oauth2.azure_signing.service`                | `string`   | No       | What azure service to use for signing. only valid service currently is "keyvault".                                                                                                                           |
+| `services[_].credentials.oauth2.azure_signing.azure_managed_identity` | `{}`       | No       | What managed identity OPA will try to use for auth in azure. Identity has to have signing rights to the key in `azure_keyvault.key`. see [managed-identity](#azure-managed-identities-token) for more info.  |
+| `services[_].credentials.oauth2.client_assertion_path`                | `string`   | No       | To specify a path to find a client assertion file. Used for Azure Workload Identity.                                                                                                                         |
+| `services[_].credentials.oauth2.client_assertion`                     | `string`   | No       | To specify a client assertion. Used for Azure Workload Identity.                                                                                                                                             |
 
 Two claims will always be included in the issued JWT: `iat` and `exp`. Any other claims will be populated from the `additional_claims` map.
 
@@ -267,6 +274,38 @@ services:
         scopes:
         - read
         - write
+        additional_claims:
+          sub: opa-client
+          iss: opa-${POD_NAME}
+
+bundles:
+  authz:
+    service: remote
+    resource: bundles/http/example/authz.tar.gz
+```
+
+The following is an example of using the client credentials grant type with JWT
+client authentication & Azure Keyvault signing of client assertions. 
+```yaml
+services:
+  remote:
+    url: ${BUNDLE_SERVICE_URL}
+    credentials:
+      oauth2:
+        token_url: ${TOKEN_URL}
+        grant_type: client_credentials
+        client_id: opa-client
+        aazure_keyvault:
+          key: ${AZURE_KEY_NAME}
+          key_algorithm: ES256
+          vault: ${AZURE_VAULT_NAME}
+        azure_signing:
+          service: keyvault
+          azure_managed_identity: {}
+        include_jti_claim: true
+        scopes:
+          - read
+          - write
         additional_claims:
           sub: opa-client
           iss: opa-${POD_NAME}
