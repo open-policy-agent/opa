@@ -14,6 +14,11 @@
 /docs/envoy-tutorial-standalone-envoy/ /docs/envoy/tutorial-standalone-envoy/
 /docs/envoy-tutorial-gloo-edge/ /docs/envoy/tutorial-gloo-edge/
 
+# point to search for old ecosystem pages
+/integrations/:entry/*  /ecosystem?q=:entry 301!
+/softwares/:entry/*  /ecosystem?q=:entry 301!
+/organizations/:entry/* /ecosystem?q=:entry 301!
+
 # -----------------------------------------------------------------------------
 # Redirects for legacy usage external resources
 # -----------------------------------------------------------------------------

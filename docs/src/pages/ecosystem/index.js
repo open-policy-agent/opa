@@ -15,7 +15,18 @@ const EcosystemIndex = (props) => {
   const title = "OPA Ecosystem";
   const sortedPages = sortPagesByRank(entries);
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const initialQuery = React.useMemo(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("q") || "";
+  }, []);
+
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
+
+  React.useEffect(() => {
+    if (initialQuery) {
+      window.location.hash = "#all-entries";
+    }
+  }, [initialQuery]);
 
   const filteredPages = sortedPages.filter((id) => {
     const page = entries[id];
@@ -147,7 +158,7 @@ const EcosystemIndex = (props) => {
           </div>
         </div>
 
-        <Heading as="h2" style={{ margin: 0 }}>
+        <Heading as="h2" id="all-entries" style={{ margin: 0 }}>
           All Entries & Integrations
         </Heading>
 
