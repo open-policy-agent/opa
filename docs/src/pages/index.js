@@ -102,7 +102,7 @@ const Index = (props) => {
         </a>
       </p>
 
-      <p style={{ textAlign: "center", fontSize: "0.8rem", color: "#555", marginTop: "1rem" }}>
+      <p style={{ textAlign: "center", fontSize: "0.8rem", color: "#555", margin: "1rem auto", maxWidth: "80%" }}>
         OPA is now maintained by Styra and a large community of contributors.
       </p>
 
