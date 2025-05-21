@@ -44,6 +44,11 @@ const baseUrl = "/";
       ],
     ],
 
+    markdown: {
+      mermaid: true,
+    },
+    themes: ["@docusaurus/theme-mermaid"],
+
     themeConfig: {
       colorMode: {
         disableSwitch: true,
@@ -240,6 +245,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
             module: {
               rules: [
                 { test: /\.rego$/, use: "raw-loader" },
+                { test: /\.mermaid$/, use: "raw-loader" },
                 { test: /\.txt$/, use: "raw-loader" },
               ],
             },

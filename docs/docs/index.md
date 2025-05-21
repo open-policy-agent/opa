@@ -24,9 +24,9 @@ enforcement. When your software needs to make policy decisions it **queries**
 OPA and supplies structured data (e.g., JSON) as input. OPA accepts arbitrary
 structured data as input.
 
-<!--- source: https://docs.google.com/drawings/d/10_iIoQO6VgORsMpXyQ--fu8F5xSe9E4vIz5qRAIon78/edit --->
+import OverviewDiagram from './assets/OverviewDiagram';
 
-![Policy Decoupling](opa-service.svg)
+<OverviewDiagram />
 
 OPA generates policy decisions by evaluating the query input against
 policies and data. OPA and Rego are domain-agnostic so you can describe almost
@@ -48,9 +48,21 @@ Let's look at an example.
 
 Imagine you work for an organization with the following system:
 
-<!--- source: https://docs.google.com/drawings/d/1nPZ08-G8zEZyTlVTmLGnlnS-CdBEltiV8kds0cwd_qQ/edit --->
+```mermaid
+graph
+    nX["Public Network X"] --> Internet
+    nY["Private Network Y"]
 
-![Example System](system.svg)
+    pW["Port W"] --> nX
+    pX["Port X"] --> nX
+    pY["Port Y"] --> nY
+    pZ["Port Z"] --> nY
+
+    sX["Server X"] --> pW
+    sY["Server Y"] --> pX
+    sY --> pY
+    sZ["Server Z"] --> pZ
+```
 
 There are three kinds of components in the system:
 
