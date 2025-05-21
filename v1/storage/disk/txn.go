@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strconv"
 
 	badger "github.com/dgraph-io/badger/v4"
@@ -558,7 +559,7 @@ func patch(data any, op storage.PatchOp, path storage.Path, idx int, value any) 
 					return nil, err
 
 				}
-				return append(x[:i], x[i+1:]...), nil // i is skipped
+				return slices.Delete(x, i, i+1), nil // i is skipped
 			default:
 				panic("unreachable")
 			}

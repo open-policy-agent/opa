@@ -8737,13 +8737,7 @@ p contains 2 if { true }`,
 				t.Fatalf("Expected exactly %v rules but got: %v", len(tc.expected), rules)
 			}
 			for i := range rules {
-				found := false
-				for j := range tc.expected {
-					if rules[i].Equal(tc.expected[j]) {
-						found = true
-						break
-					}
-				}
+				found := slices.ContainsFunc(tc.expected, rules[i].Equal)
 				if !found {
 					t.Fatalf("Expected exactly %v but got: %v", tc.expected, rules)
 				}
@@ -8800,13 +8794,7 @@ p contains 2 if { true }`,
 				t.Fatalf("Expected exactly %v rules but got: %v", len(tc.expected), rules)
 			}
 			for i := range rules {
-				found := false
-				for j := range tc.expected {
-					if rules[i].Equal(tc.expected[j]) {
-						found = true
-						break
-					}
-				}
+				found := slices.ContainsFunc(tc.expected, rules[i].Equal)
 				if !found {
 					t.Fatalf("Expected exactly %v but got: %v", tc.expected, rules)
 				}
@@ -8868,13 +8856,7 @@ q contains 3 if { true }`,
 				t.Fatalf("Expected exactly %v rules but got: %v", len(tc.expected), rules)
 			}
 			for i := range rules {
-				found := false
-				for j := range tc.expected {
-					if rules[i].Equal(tc.expected[j]) {
-						found = true
-						break
-					}
-				}
+				found := slices.ContainsFunc(tc.expected, rules[i].Equal)
 				if !found {
 					t.Fatalf("Expected %v but got: %v", tc.expected, rules)
 				}
@@ -8918,13 +8900,7 @@ q["b"] = 2 if { true }`,
 			}
 
 			for i := range result {
-				found := false
-				for j := range tc.expected {
-					if result[i].Equal(tc.expected[j]) {
-						found = true
-						break
-					}
-				}
+				found := slices.ContainsFunc(tc.expected, result[i].Equal)
 				if !found {
 					t.Fatalf("Expected %v but got: %v", tc.expected, result)
 				}
@@ -8997,13 +8973,7 @@ r5.baz = 7 if { input.y }
 			}
 
 			for i := range result {
-				found := false
-				for j := range tc.expected {
-					if result[i].Equal(tc.expected[j]) {
-						found = true
-						break
-					}
-				}
+				found := slices.ContainsFunc(tc.expected, result[i].Equal)
 				if !found {
 					t.Fatalf("Expected %v but got: %v", tc.expected, result)
 				}

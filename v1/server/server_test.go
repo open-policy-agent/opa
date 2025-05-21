@@ -31,6 +31,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -5661,14 +5662,7 @@ func TestAddrsWithMixedListenerAddr(t *testing.T) {
 	}
 
 	for _, expectedAddr := range expected {
-		found := false
-		for _, actualAddr := range a {
-			if expectedAddr == actualAddr {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if !slices.Contains(a, expectedAddr) {
 			t.Errorf("expected %q in address list, got: %+v", expectedAddr, a)
 		}
 	}
@@ -5724,14 +5718,7 @@ func TestDiagnosticAddrsWithMixedListenerAddr(t *testing.T) {
 	}
 
 	for _, expectedAddr := range expected {
-		found := false
-		for _, actualAddr := range a {
-			if expectedAddr == actualAddr {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if !slices.Contains(a, expectedAddr) {
 			t.Errorf("expected %q in address list, got: %+v", expectedAddr, a)
 		}
 	}
@@ -5880,7 +5867,7 @@ func TestDistributedTracingResourceAttributes(t *testing.T) {
 		semconv.ServiceInstanceIDKey:     "1",
 	}
 
-	c := []byte(fmt.Sprintf(`{"distributed_tracing": {
+	c := fmt.Appendf(nil, `{"distributed_tracing": {
 		"type": "grpc",
 		"service_name": "%s",
 		"resource": {
@@ -5893,7 +5880,7 @@ func TestDistributedTracingResourceAttributes(t *testing.T) {
 		attributes[semconv.ServiceNamespaceKey],
 		attributes[semconv.ServiceVersionKey],
 		attributes[semconv.ServiceInstanceIDKey],
-		attributes[semconv.DeploymentEnvironmentKey]))
+		attributes[semconv.DeploymentEnvironmentKey])
 
 	ctx := context.Background()
 	_, traceProvider, resource, err := distributedtracing.Init(ctx, c, "foo")

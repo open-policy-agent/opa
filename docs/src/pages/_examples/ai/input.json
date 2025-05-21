@@ -1,0 +1,17 @@
+{
+  "user": {
+    "email": "alice@example.com",
+    "groups": [
+      "testers"
+    ]
+  },
+  "parsed_body": {
+    "model": "model-2",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Tell me about OPA"
+      }
+    ]
+  }
+}

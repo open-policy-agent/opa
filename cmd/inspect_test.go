@@ -7,6 +7,7 @@ package cmd
 import (
 	"bytes"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -956,9 +957,7 @@ p contains 2 if {
 					if bundleType.tar {
 						files["bundle.tar.gz"] = ""
 					} else {
-						for k, v := range tc.files {
-							files[k] = v
-						}
+						maps.Copy(files, tc.files)
 					}
 
 					test.WithTempFS(files, func(root string) {

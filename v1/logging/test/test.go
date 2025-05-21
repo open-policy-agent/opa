@@ -2,6 +2,7 @@ package test
 
 import (
 	"fmt"
+	"maps"
 	"sync"
 
 	"github.com/open-policy-agent/opa/v1/logging"
@@ -43,12 +44,8 @@ func (l *Logger) WithFields(fields map[string]any) logging.Logger {
 		mtx:     l.mtx,
 	}
 	flds := make(map[string]any)
-	for k, v := range cp.fields {
-		flds[k] = v
-	}
-	for k, v := range fields {
-		flds[k] = v
-	}
+	maps.Copy(flds, cp.fields)
+	maps.Copy(flds, fields)
 	cp.fields = flds
 	return &cp
 }

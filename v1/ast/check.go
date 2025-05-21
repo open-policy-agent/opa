@@ -6,6 +6,7 @@ package ast
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -1006,12 +1007,7 @@ func (d *ArgErrDetail) Lines() []string {
 }
 
 func (d *ArgErrDetail) nilType() bool {
-	for i := range d.Have {
-		if types.Nil(d.Have[i]) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(d.Have, types.Nil)
 }
 
 // UnificationErrDetail describes a type mismatch error when two values are

@@ -932,7 +932,7 @@ func globPatternToArray(pattern *Term, delim string) *Term {
 		}
 	}
 
-	return NewTerm(NewArray(arr...))
+	return ArrayTerm(arr...)
 }
 
 // splits s on characters in delim except if delim characters have been escaped

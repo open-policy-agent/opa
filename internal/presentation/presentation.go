@@ -53,10 +53,7 @@ func (o DepAnalysisOutput) Pretty(w io.Writer) error {
 
 	// Fill two columns if results have base and virtual docs. Else fill one column.
 	if len(o.Base) > 0 && len(o.Virtual) > 0 {
-		maxLen := len(o.Base)
-		if len(o.Virtual) > maxLen {
-			maxLen = len(o.Virtual)
-		}
+		maxLen := max(len(o.Virtual), len(o.Base))
 		headers = []string{"Base Documents", "Virtual Documents"}
 		rows = make([][]string, maxLen)
 		for i := range rows {

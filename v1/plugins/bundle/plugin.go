@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -133,9 +134,7 @@ func (p *Plugin) Start(ctx context.Context) error {
 func (p *Plugin) Stop(ctx context.Context) {
 	p.mtx.Lock()
 	stopDownloaders := map[string]Loader{}
-	for name, dl := range p.downloaders {
-		stopDownloaders[name] = dl
-	}
+	maps.Copy(stopDownloaders, p.downloaders)
 	p.downloaders = nil
 	p.stopped = true
 	p.mtx.Unlock()
@@ -262,9 +261,7 @@ func (p *Plugin) Trigger(ctx context.Context) error {
 
 	p.mtx.Lock()
 	downloaders := map[string]Loader{}
-	for name, dl := range p.downloaders {
-		downloaders[name] = dl
-	}
+	maps.Copy(downloaders, p.downloaders)
 	p.mtx.Unlock()
 
 	for name, d := range downloaders {

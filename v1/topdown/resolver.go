@@ -35,6 +35,10 @@ func (t *resolverTrie) Put(ref ast.Ref, r resolver.Resolver) {
 func (t *resolverTrie) Resolve(e *eval, ref ast.Ref) (ast.Value, error) {
 	e.metrics.Timer(metrics.RegoExternalResolve).Start()
 	defer e.metrics.Timer(metrics.RegoExternalResolve).Stop()
+
+	if t == nil {
+		return nil, nil
+	}
 	node := t
 	for i, t := range ref {
 		child, ok := node.children[t.Value]

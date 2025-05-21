@@ -462,11 +462,8 @@ else
 release-ci: push-image push-manifest-list-latest
 endif
 
-.PHONY: netlify-prod
-netlify-prod: clean docs-clean build docs-production-build docs-new-site
-
-.PHONY: netlify-preview
-netlify-preview: clean docs-clean build docs-dev-generate docs-preview-build docs-new-site
+.PHONY: netlify
+netlify: docs-clean docs-ci docs-build
 
 # Kept for compatibility. Use `make fuzz` instead.
 .PHONY: check-fuzz

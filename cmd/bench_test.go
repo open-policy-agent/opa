@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1187,9 +1188,7 @@ a contains 4 if {
 					if bundleType.tar {
 						files["bundle.tar.gz"] = ""
 					} else {
-						for k, v := range tc.modules {
-							files[k] = v
-						}
+						maps.Copy(files, tc.modules)
 
 						manifest := bundle.Manifest{
 							RegoVersion:      &tc.bundleRegoVersion,

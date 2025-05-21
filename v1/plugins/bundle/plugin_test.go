@@ -859,7 +859,7 @@ func TestPluginStartLazyLoadInMem(t *testing.T) {
 				}
 			}))
 
-			config := []byte(fmt.Sprintf(`{
+			config := fmt.Appendf(nil, `{
 		"services": {
 			"default": {
 				"url": %q
@@ -868,7 +868,7 @@ func TestPluginStartLazyLoadInMem(t *testing.T) {
 				"url": %q
 			}
 		}
-	}`, s1.URL, s2.URL))
+	}`, s1.URL, s2.URL)
 
 			manager := getTestManagerWithOpts(config, inmem.NewWithOpts(inmem.OptReturnASTValuesOnRead(rm.readAst)))
 			defer manager.Stop(ctx)
@@ -1344,7 +1344,7 @@ func TestStop(t *testing.T) {
 
 	serviceName := "test-svc"
 	err := manager.Reconfigure(&config.Config{
-		Services: []byte(fmt.Sprintf("{%q:{ \"url\": %q}}", serviceName, ts.URL+tsURLBase)),
+		Services: fmt.Appendf(nil, "{%q:{ \"url\": %q}}", serviceName, ts.URL+tsURLBase),
 	})
 	if err != nil {
 		t.Fatalf("Error configuring plugin manager: %s", err)
@@ -1973,13 +1973,13 @@ corge contains 1 if {
 					}
 				}
 
-				expData := util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{
+				expData := util.MustUnmarshalJSON(fmt.Appendf(nil, `{
 					"foo": {"bar": 1, "baz": "qux"},
 					"system": {
 						"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux"%s, "roots": [""]}}}%s
 					}
 				}`,
-					manifestRegoVersion, moduleRegoVersion)))
+					manifestRegoVersion, moduleRegoVersion))
 
 				if err != nil {
 					t.Fatal(err)
@@ -2730,22 +2730,22 @@ corge contains 1 if {
 
 				var expData any
 				if moduleRegoVersion != runtimeRegoVersion {
-					expData = util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{
+					expData = util.MustUnmarshalJSON(fmt.Appendf(nil, `{
 						"foo": {"bar": 1, "baz": "qux"},
 						"system": {
 							"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux"%s, "roots": [""]}}},
 							"modules": {"test-bundle/foo/bar.rego": {"rego_version": %d}}
 						}
 					}`,
-						manifestRegoVersionStr, moduleRegoVersion)))
+						manifestRegoVersionStr, moduleRegoVersion))
 				} else {
-					expData = util.MustUnmarshalJSON([]byte(fmt.Sprintf(`{
+					expData = util.MustUnmarshalJSON(fmt.Appendf(nil, `{
 						"foo": {"bar": 1, "baz": "qux"},
 						"system": {
 							"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux"%s, "roots": [""]}}}
 						}
 					}`,
-						manifestRegoVersionStr)))
+						manifestRegoVersionStr))
 				}
 
 				if err != nil {
@@ -3978,7 +3978,7 @@ func TestPluginReconfigure(t *testing.T) {
 
 	serviceName := "test-svc"
 	err := manager.Reconfigure(&config.Config{
-		Services: []byte(fmt.Sprintf("{\"%s\":{ \"url\": \"%s\"}}", serviceName, ts.URL+tsURLBase)),
+		Services: fmt.Appendf(nil, "{\"%s\":{ \"url\": \"%s\"}}", serviceName, ts.URL+tsURLBase),
 	})
 	if err != nil {
 		t.Fatalf("Error configuring plugin manager: %s", err)
@@ -4657,7 +4657,7 @@ func TestUpgradeLegacyBundleToMultiBundleNewBundles(t *testing.T) {
 
 	serviceName := "test-svc"
 	err := manager.Reconfigure(&config.Config{
-		Services: []byte(fmt.Sprintf("{\"%s\":{ \"url\": \"%s\"}}", serviceName, ts.URL+tsURLBase)),
+		Services: fmt.Appendf(nil, "{\"%s\":{ \"url\": \"%s\"}}", serviceName, ts.URL+tsURLBase),
 	})
 	if err != nil {
 		t.Fatalf("Error configuring plugin manager: %s", err)
@@ -4814,7 +4814,7 @@ func TestLegacyBundleDataRead(t *testing.T) {
 
 			serviceName := "test-svc"
 			err := manager.Reconfigure(&config.Config{
-				Services: []byte(fmt.Sprintf("{\"%s\":{ \"url\": \"%s\"}}", serviceName, ts.URL+tsURLBase)),
+				Services: fmt.Appendf(nil, "{\"%s\":{ \"url\": \"%s\"}}", serviceName, ts.URL+tsURLBase),
 			})
 			if err != nil {
 				t.Fatalf("Error configuring plugin manager: %s", err)
@@ -6276,13 +6276,13 @@ func TestPluginReadBundleEtagFromDiskStore(t *testing.T) {
 		}
 
 		// setup plugin pointing at fake server
-		manager := getTestManagerWithOpts([]byte(fmt.Sprintf(`{
+		manager := getTestManagerWithOpts(fmt.Appendf(nil, `{
 		"services": {
 				"default": {
 					"url": %q
 				}
 			}
-		}`, s.URL)), store)
+		}`, s.URL), store)
 
 		var mode plugins.TriggerMode = "manual"
 
@@ -6460,13 +6460,13 @@ func TestPluginStateReconciliationOnReconfigure(t *testing.T) {
 	}))
 
 	// setup plugin pointing at fake server
-	manager := getTestManagerWithOpts([]byte(fmt.Sprintf(`{
+	manager := getTestManagerWithOpts(fmt.Appendf(nil, `{
 		"services": {
 				"default": {
 					"url": %q
 				}
 			}
-		}`, s.URL)))
+		}`, s.URL))
 
 	// setup manual trigger mode to simulate the downloader
 	var mode plugins.TriggerMode = "manual"
@@ -6630,13 +6630,13 @@ func TestPluginManualTrigger(t *testing.T) {
 	}))
 
 	// setup plugin pointing at fake server
-	manager := getTestManagerWithOpts([]byte(fmt.Sprintf(`{
+	manager := getTestManagerWithOpts(fmt.Appendf(nil, `{
 		"services": {
 			"default": {
 				"url": %q
 			}
 		}
-	}`, s.URL)))
+	}`, s.URL))
 
 	var mode plugins.TriggerMode = "manual"
 
@@ -6752,7 +6752,7 @@ func TestPluginManualTriggerMultipleDiskStorage(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		config := []byte(fmt.Sprintf(`{
+		config := fmt.Appendf(nil, `{
 		"services": {
 			"default": {
 				"url": %q
@@ -6761,7 +6761,7 @@ func TestPluginManualTriggerMultipleDiskStorage(t *testing.T) {
 				"url": %q
 			}
 		}
-	}`, s1.URL, s2.URL))
+	}`, s1.URL, s2.URL)
 
 		manager := getTestManagerWithOpts(config, store)
 		defer manager.Stop(ctx)
@@ -6892,7 +6892,7 @@ func TestPluginManualTriggerMultiple(t *testing.T) {
 	}))
 
 	// setup plugin pointing at fake server
-	manager := getTestManagerWithOpts([]byte(fmt.Sprintf(`{
+	manager := getTestManagerWithOpts(fmt.Appendf(nil, `{
 		"services": {
 			"default": {
 				"url": %q
@@ -6901,7 +6901,7 @@ func TestPluginManualTriggerMultiple(t *testing.T) {
 				"url": %q
 			}
 		}
-	}`, s1.URL, s2.URL)))
+	}`, s1.URL, s2.URL))
 
 	var mode plugins.TriggerMode = "manual"
 
@@ -6971,13 +6971,13 @@ func TestPluginManualTriggerWithTimeout(t *testing.T) {
 	}))
 
 	// setup plugin pointing at fake server
-	manager := getTestManagerWithOpts([]byte(fmt.Sprintf(`{
+	manager := getTestManagerWithOpts(fmt.Appendf(nil, `{
 		"services": {
 			"default": {
 				"url": %q
 			}
 		}
-	}`, s.URL)))
+	}`, s.URL))
 
 	var mode plugins.TriggerMode = "manual"
 
@@ -7032,13 +7032,13 @@ func TestPluginManualTriggerWithServerError(t *testing.T) {
 	}))
 
 	// setup plugin pointing at fake server
-	manager := getTestManagerWithOpts([]byte(fmt.Sprintf(`{
+	manager := getTestManagerWithOpts(fmt.Appendf(nil, `{
 		"services": {
 			"default": {
 				"url": %q
 			}
 		}
-	}`, s.URL)))
+	}`, s.URL))
 
 	var manual plugins.TriggerMode = "manual"
 

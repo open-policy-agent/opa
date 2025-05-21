@@ -2599,7 +2599,7 @@ func TestPluginMasking(t *testing.T) {
 				// Reconfigure and ensure that mask is invalidated.
 				maskDecision := "dead/beef"
 				newConfig := &Config{Service: "svc", MaskDecision: &maskDecision}
-				if err := newConfig.validateAndInjectDefaults([]string{"svc"}, nil, &trigger); err != nil {
+				if err := newConfig.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, nil); err != nil {
 					t.Fatal(err)
 				}
 
@@ -3635,4 +3635,211 @@ func testStatus() *bundle.Status {
 		LastSuccessfulDownload:   tDownload,
 		LastSuccessfulActivation: tActivate,
 	}
+}
+
+func TestConfigUploadLimit(t *testing.T) {
+	tests := []struct {
+		name          string
+		limit         int64
+		expectedLimit int64
+		expectedLog   string
+		expectedErr   string
+	}{
+		{
+			name:          "exceed maximum limit",
+			limit:         int64(8589934592),
+			expectedLimit: maxUploadSizeLimitBytes,
+			expectedLog:   "the configured `upload_size_limit_bytes` (8589934592) has been set to the maximum limit (4294967296)",
+		},
+		{
+			name:          "nothing changes",
+			limit:         1000,
+			expectedLimit: 1000,
+		},
+		{
+			name:          "negative limit",
+			limit:         -1,
+			expectedLimit: minUploadSizeLimitBytes,
+			expectedLog:   "the configured `upload_size_limit_bytes` (-1) has been set to the minimum limit (90)",
+		},
+		{
+			name:          "equal to minimum",
+			limit:         minUploadSizeLimitBytes,
+			expectedLimit: minUploadSizeLimitBytes,
+		},
+		{
+			name:          "equal to maximum",
+			limit:         maxUploadSizeLimitBytes,
+			expectedLimit: maxUploadSizeLimitBytes,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+
+			testLogger := test.New()
+
+			cfg := &Config{
+				Service: "svc",
+				Reporting: ReportingConfig{
+					UploadSizeLimitBytes: &tc.limit,
+				},
+			}
+			trigger := plugins.DefaultTriggerMode
+			if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, testLogger); err != nil {
+				if tc.expectedErr != "" {
+					if tc.expectedErr != err.Error() {
+						t.Fatalf("Expected error to be `%s` but got `%s`", tc.expectedErr, err.Error())
+					} else {
+						return
+					}
+				} else {
+					t.Fatal(err)
+				}
+			}
+
+			if *cfg.Reporting.UploadSizeLimitBytes != tc.expectedLimit {
+				t.Fatalf("Expected upload limit to be %d but got %d", tc.expectedLimit, cfg.Reporting.UploadSizeLimitBytes)
+			}
+
+			if tc.expectedLog != "" {
+				e := testLogger.Entries()
+				if e[0].Message != tc.expectedLog {
+					t.Fatalf("Expected log to be %s but got %s", tc.expectedLog, e[0].Message)
+				}
+			} else {
+				if len(testLogger.Entries()) != 0 {
+					t.Fatalf("Expected log to be empty but got %s", testLogger.Entries()[0].Message)
+				}
+			}
+		})
+	}
+}
+
+func TestAdaptiveSoftLimitBetweenUpload(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name             string
+		bufferType       string
+		initialSoftLimit int64
+		newSoftLimit     int64
+	}{
+		{
+			name:             "using event buffer",
+			bufferType:       eventBufferType,
+			initialSoftLimit: 300,
+			newSoftLimit:     600,
+		},
+		{
+			name:             "using size buffer",
+			bufferType:       sizeBufferType,
+			initialSoftLimit: 300,
+			newSoftLimit:     600,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+
+			fixture := newTestFixture(t, testFixtureOptions{
+				ReportingBufferType:           tc.bufferType,
+				ReportingUploadSizeLimitBytes: tc.initialSoftLimit,
+			})
+			defer fixture.server.stop()
+			defer fixture.plugin.Stop(ctx)
+
+			s := currentSoftLimit(t, fixture.plugin, tc.bufferType)
+			if s != tc.initialSoftLimit {
+				t.Fatalf("expected %d, got %d", tc.initialSoftLimit, s)
+			}
+
+			fixture.server.server.Config.SetKeepAlivesEnabled(false)
+
+			fixture.server.ch = make(chan []EventV1, 4)
+			tr := plugins.TriggerManual
+			fixture.plugin.config.Reporting.Trigger = &tr
+
+			if err := fixture.plugin.Start(ctx); err != nil {
+				t.Fatal(err)
+			}
+
+			testMetrics := getWellKnownMetrics()
+			msAsFloat64 := map[string]interface{}{}
+			for k, v := range testMetrics.All() {
+				msAsFloat64[k] = float64(v.(uint64))
+			}
+
+			var input interface{} = map[string]interface{}{"method": "GET"}
+			var result interface{} = false
+
+			ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
+			if err != nil {
+				panic(err)
+			}
+
+			event := &server.Info{
+				Revision:   fmt.Sprint(1),
+				DecisionID: fmt.Sprint(1),
+				Path:       "tda/bar",
+				Input:      &input,
+				Results:    &result,
+				RemoteAddr: "test",
+				Timestamp:  ts,
+				Metrics:    testMetrics,
+			}
+
+			if err := fixture.plugin.Log(ctx, event); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := fixture.plugin.Log(ctx, event); err != nil {
+				t.Fatal(err)
+			}
+
+			// this will increase the soft limit
+			if err := fixture.plugin.oneShot(ctx); err != nil {
+				t.Fatal(err)
+			}
+
+			s = currentSoftLimit(t, fixture.plugin, tc.bufferType)
+			if s != tc.newSoftLimit {
+				t.Fatalf("expected %d, got %d", tc.newSoftLimit, s)
+			}
+
+			if err := fixture.plugin.Log(ctx, event); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := fixture.plugin.Log(ctx, event); err != nil {
+				t.Fatal(err)
+			}
+
+			// the soft limit will stay the same and not be reset to the initial soft limit
+			if err := fixture.plugin.oneShot(ctx); err != nil {
+				t.Fatal(err)
+			}
+
+			s = currentSoftLimit(t, fixture.plugin, tc.bufferType)
+			if s != tc.newSoftLimit {
+				t.Fatalf("expected %d, got %d", tc.newSoftLimit, s)
+			}
+		})
+	}
+}
+
+func currentSoftLimit(t *testing.T, plugin *Plugin, bufferType string) int64 {
+	t.Helper()
+
+	switch bufferType {
+	case eventBufferType:
+		return plugin.eventBuffer.enc.softLimit
+	case sizeBufferType:
+		return plugin.enc.softLimit
+	default:
+		t.Fatal("Unknown buffer type")
+	}
+
+	return 0
 }

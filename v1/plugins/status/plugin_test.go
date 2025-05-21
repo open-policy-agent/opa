@@ -576,7 +576,7 @@ func TestPluginStartTriggerManualWithTimeout(t *testing.T) {
 		time.Sleep(3 * time.Second) // this should cause the context deadline to exceed
 	}))
 
-	managerConfig := []byte(fmt.Sprintf(`{
+	managerConfig := fmt.Appendf(nil, `{
 			"labels": {
 				"app": "example-app"
 			},
@@ -585,7 +585,7 @@ func TestPluginStartTriggerManualWithTimeout(t *testing.T) {
 					"name": "example",
 					"url": %q
 				}
-			]}`, s.URL))
+			]}`, s.URL)
 
 	manager, err := plugins.New(managerConfig, "test-instance-id", inmem.New())
 	if err != nil {
@@ -1129,16 +1129,9 @@ type testFixture struct {
 
 type testPluginCustomizer func(c *Config)
 
-func newTestFixture(t *testing.T, m metrics.Metrics, options ...testPluginCustomizer) testFixture {
+func newPlugin(t *testing.T, url string, m metrics.Metrics, options ...testPluginCustomizer) (*plugins.Manager, *Plugin) {
 
-	ts := testServer{
-		t:       t,
-		expCode: 200,
-	}
-
-	ts.start()
-
-	managerConfig := []byte(fmt.Sprintf(`{
+	managerConfig := fmt.Appendf(nil, `{
 			"labels": {
 				"app": "example-app"
 			},
@@ -1153,7 +1146,7 @@ func newTestFixture(t *testing.T, m metrics.Metrics, options ...testPluginCustom
 						}
 					}
 				}
-			]}`, ts.server.URL))
+			]}`, url)
 
 	registerMock := &prometheusRegisterMock{
 		Collectors: map[prometheus.Collector]bool{},
@@ -1166,6 +1159,20 @@ func newTestFixture(t *testing.T, m metrics.Metrics, options ...testPluginCustom
 	config := newConfig(manager, options...)
 
 	p := New(config, manager).WithMetrics(m)
+
+	return manager, p
+}
+
+func newTestFixture(t *testing.T, m metrics.Metrics, options ...testPluginCustomizer) testFixture {
+
+	ts := testServer{
+		t:       t,
+		expCode: 200,
+	}
+
+	ts.start()
+
+	manager, p := newPlugin(t, ts.server.URL, m, options...)
 
 	return testFixture{
 		manager: manager,
@@ -1300,4 +1307,124 @@ func (p prometheusRegisterMock) MustRegister(collector ...prometheus.Collector) 
 func (p prometheusRegisterMock) Unregister(collector prometheus.Collector) bool {
 	delete(p.Collectors, collector)
 	return true
+}
+
+func TestPluginTerminatesAfterGracefulShutdownPeriodWithoutStatus(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	fixture := newTestFixture(t, nil)
+	defer fixture.server.stop()
+
+	if err := fixture.plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+
+	fixture.plugin.Stop(timeoutCtx)
+	if timeoutCtx.Err() != nil {
+		t.Fatal("Stop did not exit before context expiration")
+	}
+}
+
+func TestPluginTerminatesAfterGracefulShutdownPeriodWithStatus(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	fixture := newTestFixture(t, nil)
+	fixture.server.ch = make(chan UpdateRequestV1, 1)
+	defer fixture.server.stop()
+
+	// simplified status loop just to return done
+	// but doesn't read from the channels
+	go func() {
+		for done := range fixture.plugin.stop {
+			done <- struct{}{}
+			return
+		}
+	}()
+
+	status := testStatus()
+	fixture.plugin.BulkUpdateBundleStatus(map[string]*bundle.Status{status.Name: status})
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+
+	fixture.plugin.Stop(timeoutCtx)
+	if timeoutCtx.Err() != nil {
+		t.Fatal("Stop did not exit before context expiration")
+	}
+
+	result := <-fixture.server.ch
+
+	exp := UpdateRequestV1{
+		Labels: map[string]string{
+			"id":      "test-instance-id",
+			"app":     "example-app",
+			"version": version.Version,
+		},
+		Bundles: map[string]*bundle.Status{status.Name: status},
+	}
+
+	if !result.Equal(exp) {
+		t.Fatalf("Expected: %v but got: %v", exp, result)
+	}
+}
+
+func TestSlowServer(t *testing.T) {
+	t.Parallel()
+
+	received := make(chan struct{})
+	wait := make(chan struct{})
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// notify test the server got the request
+		received <- struct{}{}
+
+		// block until the test is ready to move on, so that multiple status updates can be sent
+		<-wait
+	}))
+	defer server.Close()
+
+	_, plugin := newPlugin(t, server.URL, nil)
+
+	// just start the loop, calling Start will also send a plugin status update that isn't needed for this test
+	go plugin.loop(context.Background())
+
+	status := bundle.Status{
+		Name: "test",
+	}
+	plugin.BulkUpdateBundleStatus(map[string]*bundle.Status{status.Name: &status})
+
+	// wait for server to get stuck
+	<-received
+
+	if len(plugin.bulkBundleCh) != 0 {
+		t.Fatalf("Unexpected bulk bundle status: %v", plugin.bulkBundleCh)
+	}
+
+	status = bundle.Status{
+		Name: "I will be dropped",
+	}
+	plugin.BulkUpdateBundleStatus(map[string]*bundle.Status{status.Name: &status})
+	expectedStatusName := "I won't be dropped"
+	status = bundle.Status{
+		Name: expectedStatusName,
+	}
+	plugin.BulkUpdateBundleStatus(map[string]*bundle.Status{status.Name: &status})
+
+	currentStatus := <-plugin.bulkBundleCh
+	if len(currentStatus) > 1 {
+		t.Fatalf("Only one status expected but got: %v", currentStatus)
+	}
+	if _, ok := currentStatus[expectedStatusName]; !ok {
+		t.Fatalf("Expected status name not found: %v", currentStatus)
+	}
+
+	// stop blocking server
+	wait <- struct{}{}
 }

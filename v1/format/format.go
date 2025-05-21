@@ -249,7 +249,7 @@ func AstWithOpts(x any, opts Opts) ([]byte, error) {
 			x.Imports = ensureRegoV1Import(x.Imports)
 		}
 
-		regoV1Imported := moduleIsRegoV1Compatible(x)
+		regoV1Imported := slices.ContainsFunc(x.Imports, isRegoV1Compatible)
 		if regoVersion == ast.RegoV0CompatV1 || regoVersion == ast.RegoV1 || regoV1Imported {
 			if !opts.DropV0Imports && !regoV1Imported {
 				for _, kw := range o.futureKeywords {
@@ -2204,15 +2204,6 @@ func (d *ArityFormatErrDetail) Lines() []string {
 		"have: (" + strings.Join(d.Have, ",") + ")",
 		"want: (" + strings.Join(d.Want, ",") + ")",
 	}
-}
-
-func moduleIsRegoV1Compatible(m *ast.Module) bool {
-	for _, imp := range m.Imports {
-		if isRegoV1Compatible(imp) {
-			return true
-		}
-	}
-	return false
 }
 
 var v1StringTerm = ast.StringTerm("v1")

@@ -139,12 +139,7 @@ func (ps pathSet) Diff(other pathSet) pathSet {
 }
 
 func (ps pathSet) Contains(x storage.Path) bool {
-	for _, other := range ps {
-		if x.Equal(other) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(ps, x.Equal)
 }
 
 func (ps pathSet) Sorted() []storage.Path {

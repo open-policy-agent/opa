@@ -296,10 +296,7 @@ func sortOrder(x any) int {
 }
 
 func importsCompare(a, b []*Import) int {
-	minLen := len(a)
-	if len(b) < minLen {
-		minLen = len(b)
-	}
+	minLen := min(len(b), len(a))
 	for i := range minLen {
 		if cmp := a[i].Compare(b[i]); cmp != 0 {
 			return cmp
@@ -315,10 +312,7 @@ func importsCompare(a, b []*Import) int {
 }
 
 func annotationsCompare(a, b []*Annotations) int {
-	minLen := len(a)
-	if len(b) < minLen {
-		minLen = len(b)
-	}
+	minLen := min(len(b), len(a))
 	for i := range minLen {
 		if cmp := a[i].Compare(b[i]); cmp != 0 {
 			return cmp
@@ -334,10 +328,7 @@ func annotationsCompare(a, b []*Annotations) int {
 }
 
 func rulesCompare(a, b []*Rule) int {
-	minLen := len(a)
-	if len(b) < minLen {
-		minLen = len(b)
-	}
+	minLen := min(len(b), len(a))
 	for i := range minLen {
 		if cmp := a[i].Compare(b[i]); cmp != 0 {
 			return cmp
@@ -353,10 +344,7 @@ func rulesCompare(a, b []*Rule) int {
 }
 
 func termSliceCompare(a, b []*Term) int {
-	minLen := len(a)
-	if len(b) < minLen {
-		minLen = len(b)
-	}
+	minLen := min(len(b), len(a))
 	for i := range minLen {
 		if cmp := Compare(a[i], b[i]); cmp != 0 {
 			return cmp
@@ -371,10 +359,7 @@ func termSliceCompare(a, b []*Term) int {
 }
 
 func withSliceCompare(a, b []*With) int {
-	minLen := len(a)
-	if len(b) < minLen {
-		minLen = len(b)
-	}
+	minLen := min(len(b), len(a))
 	for i := range minLen {
 		if cmp := Compare(a[i], b[i]); cmp != 0 {
 			return cmp

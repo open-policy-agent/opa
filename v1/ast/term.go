@@ -928,7 +928,7 @@ func PtrRef(head *Term, s string) (Ref, error) {
 	}
 	ref := make(Ref, uint(len(parts))+1)
 	ref[0] = head
-	for i := 0; i < len(parts); i++ {
+	for i := range parts {
 		var err error
 		parts[i], err = url.PathUnescape(parts[i])
 		if err != nil {
@@ -1180,11 +1180,17 @@ func (ref Ref) String() string {
 		return ""
 	}
 
+	if len(ref) == 1 {
+		switch p := ref[0].Value.(type) {
+		case Var:
+			return p.String()
+		}
+	}
+
 	sb := sbPool.Get()
 	defer sbPool.Put(sb)
 
 	sb.Grow(10 * len(ref))
-
 	sb.WriteString(ref[0].Value.String())
 
 	for _, p := range ref[1:] {
@@ -1195,17 +1201,17 @@ func (ref Ref) String() string {
 				sb.WriteByte('.')
 				sb.WriteString(str)
 			} else {
+				sb.WriteByte('[')
 				// Determine whether we need the full JSON-escaped form
 				if strings.ContainsFunc(str, isControlOrBackslash) {
-					sb.WriteByte('[')
 					// only now pay the cost of expensive JSON-escaped form
 					sb.WriteString(p.String())
-					sb.WriteByte(']')
 				} else {
-					sb.WriteString(`["`)
+					sb.WriteByte('"')
 					sb.WriteString(str)
-					sb.WriteString(`"]`)
+					sb.WriteByte('"')
 				}
+				sb.WriteByte(']')
 			}
 		default:
 			sb.WriteByte('[')
@@ -1478,12 +1484,7 @@ func (arr *Array) Iter(f func(*Term) error) error {
 
 // Until calls f on each element in arr. If f returns true, iteration stops.
 func (arr *Array) Until(f func(*Term) bool) bool {
-	for _, term := range arr.elems {
-		if f(term) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(arr.elems, f)
 }
 
 // Foreach calls f on each element in arr.
@@ -1701,12 +1702,7 @@ func (s *set) Iter(f func(*Term) error) error {
 
 // Until calls f on each element in s. If f returns true, iteration stops.
 func (s *set) Until(f func(*Term) bool) bool {
-	for _, term := range s.sortedKeys() {
-		if f(term) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(s.sortedKeys(), f)
 }
 
 // Foreach calls f on each element in s.
