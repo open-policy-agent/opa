@@ -19,6 +19,8 @@ The page at path **${currentPath}** resulted in a 404 error.
 
 ### Additional Context:
 
+I found the broken link on https://...
+
 <!-- If you encountered an issue, please help us fix it by providing more details. -->
 `;
 
