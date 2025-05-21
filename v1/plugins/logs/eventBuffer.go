@@ -117,7 +117,7 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 			result = [][]byte{event.chunk}
 		} else {
 			var err error
-			result, err = encoder.Write(*event.EventV1)
+			result, err = b.enc.Write(*event.EventV1)
 			if err != nil {
 				b.incrMetric(logEncodingFailureCounterName)
 				if b.logger != nil {
