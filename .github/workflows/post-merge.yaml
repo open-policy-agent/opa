@@ -205,3 +205,12 @@ jobs:
         # Only run if required secrets are provided
         if: ${{ env.DOCKER_USER && env.DOCKER_PASSWORD }}
         run: make push-wasm-builder-image
+
+  website-smoke-test:
+    name : Website Smoke Test
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Run Smoke Test
+        run: make -C docs smoke-test
