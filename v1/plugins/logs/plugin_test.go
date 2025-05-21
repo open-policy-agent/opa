@@ -2547,7 +2547,7 @@ func TestPluginMasking(t *testing.T) {
 			// Instantiate the plugin.
 			cfg := &Config{Service: "svc"}
 			trigger := plugins.DefaultTriggerMode
-			if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger); err != nil {
+			if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, nil); err != nil {
 				t.Fatal(err)
 			}
 
@@ -2699,7 +2699,7 @@ func TestPluginDrop(t *testing.T) {
 			// Instantiate the plugin.
 			cfg := &Config{Service: "svc"}
 			trigger := plugins.DefaultTriggerMode
-			if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger); err != nil {
+			if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, nil); err != nil {
 				t.Fatal(err)
 			}
 
@@ -2772,7 +2772,7 @@ func TestPluginMaskErrorHandling(t *testing.T) {
 	// Instantiate the plugin.
 	cfg := &Config{Service: "svc"}
 	trigger := plugins.DefaultTriggerMode
-	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger); err != nil {
+	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2850,7 +2850,7 @@ func TestPluginDropErrorHandling(t *testing.T) {
 	// Instantiate the plugin.
 	cfg := &Config{Service: "svc"}
 	trigger := plugins.DefaultTriggerMode
-	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger); err != nil {
+	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -3834,9 +3834,9 @@ func currentSoftLimit(t *testing.T, plugin *Plugin, bufferType string) int64 {
 
 	switch bufferType {
 	case eventBufferType:
-		return plugin.eventBuffer.enc.softLimit
+		return plugin.eventBuffer.enc.uncompressedLimit
 	case sizeBufferType:
-		return plugin.enc.softLimit
+		return plugin.enc.uncompressedLimit
 	default:
 		t.Fatal("Unknown buffer type")
 	}
