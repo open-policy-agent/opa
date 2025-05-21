@@ -70,17 +70,19 @@ func newChunkEncoder(limit int64) *chunkEncoder {
 
 func (enc *chunkEncoder) Reconfigure(limit int64) {
 	enc.limit = limit
-	enc.softLimit = limit
-	enc.softLimitScaleUpExponent = 0
-	enc.softLimitScaleDownExponent = 0
+	enc.uncompressedLimit = limit
+	enc.uncompressedLimitScaleUpExponent = 0
+	enc.uncompressedLimitScaleDownExponent = 0
+	enc.threshold = int(float64(limit) * encCompressedLimitThreshold)
+	enc.maxEventSize = 0
 }
 
-// WithSoftLimit keep the adaptive uncompressed limit throughout the lifecycle of the size buffer
+// WithUncompressedLimit keep the adaptive uncompressed limit throughout the lifecycle of the size buffer
 // this ensures that the uncompressed limit can grow/shrink appropriately as new data comes in
-func (enc *chunkEncoder) WithSoftLimit(softLimit int64, softLimitScaleDownExponent float64, softLimitScaleUpExponent float64) *chunkEncoder {
-	enc.softLimit = softLimit
-	enc.softLimitScaleUpExponent = softLimitScaleUpExponent
-	enc.softLimitScaleDownExponent = softLimitScaleDownExponent
+func (enc *chunkEncoder) WithUncompressedLimit(uncompressedLimit int64, uncompressedLimitScaleDownExponent float64, uncompressedLimitScaleUpExponent float64) *chunkEncoder {
+	enc.uncompressedLimit = uncompressedLimit
+	enc.uncompressedLimitScaleUpExponent = uncompressedLimitScaleUpExponent
+	enc.uncompressedLimitScaleDownExponent = uncompressedLimitScaleDownExponent
 	return enc
 }
 
@@ -92,15 +94,6 @@ func (enc *chunkEncoder) WithMetrics(m metrics.Metrics) *chunkEncoder {
 func (enc *chunkEncoder) WithLogger(logger logging.Logger) *chunkEncoder {
 	enc.logger = logger
 	return enc
-}
-
-func (enc *chunkEncoder) Reconfigure(limit int64) {
-	enc.limit = limit
-	enc.uncompressedLimit = limit
-	enc.uncompressedLimitScaleUpExponent = 0
-	enc.uncompressedLimitScaleDownExponent = 0
-	enc.threshold = int(float64(limit) * encCompressedLimitThreshold)
-	enc.maxEventSize = 0
 }
 
 func (enc *chunkEncoder) scaleUp() {

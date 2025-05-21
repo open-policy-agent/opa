@@ -926,7 +926,7 @@ func (p *Plugin) oneShot(ctx context.Context) error {
 	oldBuffer := p.buffer
 	p.buffer = newLogBuffer(*p.config.Reporting.BufferSizeLimitBytes)
 	p.enc = newChunkEncoder(*p.config.Reporting.UploadSizeLimitBytes).WithMetrics(p.metrics).WithLogger(p.logger).
-		WithSoftLimit(oldChunkEnc.softLimit, oldChunkEnc.softLimitScaleDownExponent, oldChunkEnc.softLimitScaleUpExponent)
+		WithUncompressedLimit(oldChunkEnc.uncompressedLimit, oldChunkEnc.uncompressedLimitScaleDownExponent, oldChunkEnc.uncompressedLimitScaleUpExponent)
 	p.mtx.Unlock()
 
 	// Along with uploading the compressed events in the buffer
