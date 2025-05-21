@@ -419,7 +419,7 @@ func builtinCryptoParsePrivateKeys(_ BuiltinContext, operands []*ast.Term, iter 
 	}
 
 	if len(rawKeys) == 0 {
-		return iter(emptyArr)
+		return iter(ast.InternedEmptyArray)
 	}
 
 	bs, err := json.Marshal(rawKeys)
