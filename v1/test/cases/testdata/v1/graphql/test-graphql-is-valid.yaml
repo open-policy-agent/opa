@@ -182,3 +182,98 @@ cases:
         }
     want_result:
       - x: true
+  - note: graphql_is_valid/undefined argument
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        schema := `
+          type Query {
+            bar: String!
+          }
+          type Mutation {
+            x: String!
+          }
+        `
+
+        query := `mutation{x(a:b)}`
+
+        p if {
+          not graphql.is_valid(query, schema)
+        }
+    want_result:
+      - x: true
+
+  - note: graphql_is_valid/undefined argument schema ast
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        schema_ast := {
+          "Definitions": [
+            {
+              "BuiltIn": false,
+              "Description": "",
+              "Fields": [
+                {
+                  "Description": "",
+                  "Name": "bar",
+                  "Type": {
+                    "NamedType": "String",
+                    "NonNull": true
+                  }
+                }
+              ],
+              "Kind": "OBJECT",
+              "Name": "Query"
+            },
+            {
+              "BuiltIn": false,
+              "Description": "",
+              "Fields": [
+                {
+                  "Description": "",
+                  "Name": "x",
+                  "Type": {
+                    "NamedType": "String",
+                    "NonNull": true
+                  }
+                }
+              ],
+              "Kind": "OBJECT",
+              "Name": "Mutation"
+            }
+          ]
+        }
+
+        query_ast := {
+          "Operations": [
+            {
+              "Name": "",
+              "Operation": "mutation",
+              "SelectionSet": [
+                {
+                  "Alias": "x",
+                  "Arguments": [
+                    {
+                      "Name": "a",
+                      "Value": {
+                        "Kind": 7,
+                        "Raw": "b"
+                      }
+                    }
+                  ],
+                  "Name": "x"
+                }
+              ]
+            }
+          ]
+        }
+
+        p if {
+          not graphql.is_valid(query_ast, schema_ast)
+        }
+    want_result:
+      - x: true

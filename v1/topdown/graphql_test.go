@@ -909,6 +909,81 @@ func TestGraphQLParseSchemaAlloc(t *testing.T) {
 	}
 }
 
+func TestFormatGqlParserError(t *testing.T) {
+	testCases := []struct {
+		desc   string
+		inErr  error
+		outErr error
+	}{
+		// Expected errors based on https://github.com/vektah/gqlparser/blob/master/gqlerror/error.go#L40-L67
+		{
+			desc:   "valid gqlparser error with filename and no location",
+			inErr:  fmt.Errorf("filename.gql: error string with filename and no location"),
+			outErr: fmt.Errorf("error string with filename and no location in GraphQL string at unknown location"),
+		},
+		{
+			desc:   "valid gqlparser error with filename and location",
+			inErr:  fmt.Errorf("filename.gql:1:2: error string with filename and location"),
+			outErr: fmt.Errorf("error string with filename and location in GraphQL string at location 1:2"),
+		},
+		{
+			desc:   "valid gqlparser error without filename and no location",
+			inErr:  fmt.Errorf("input: error string without filename and no location"),
+			outErr: fmt.Errorf("error string without filename and no location in GraphQL string at unknown location"),
+		},
+		{
+			desc:   "valid gqlparser error without filename and with location",
+			inErr:  fmt.Errorf("input:1:2: error string without filename and with location"),
+			outErr: fmt.Errorf("error string without filename and with location in GraphQL string at location 1:2"),
+		},
+		// Unexpected errors
+		{
+			desc:   "Handle nil even though it is unnecessary today",
+			inErr:  nil,
+			outErr: nil,
+		},
+		{
+			desc:   "empty",
+			inErr:  fmt.Errorf(""),
+			outErr: fmt.Errorf("%s in GraphQL string at unknown location", ""),
+		},
+		{
+			desc:   "string with no :",
+			inErr:  fmt.Errorf("test"),
+			outErr: fmt.Errorf("%s in GraphQL string at unknown location", "test"),
+		},
+		{
+			desc:   "string with 2:",
+			inErr:  fmt.Errorf("x:y:z"),
+			outErr: fmt.Errorf("%s in GraphQL string at unknown location", "z"),
+		},
+		{
+			desc:   "string with 3: and alpha locations",
+			inErr:  fmt.Errorf("a:b:c:d"),
+			outErr: fmt.Errorf("d in GraphQL string at location b:c"),
+		},
+		{
+			desc:   "string with 8: and empty locations",
+			inErr:  fmt.Errorf("::::::::"),
+			outErr: fmt.Errorf("::::: in GraphQL string at location :"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			gotErr := formatGqlParserError(tc.inErr)
+			if gotErr == nil {
+				if tc.outErr != nil {
+					t.Errorf("gotErr = %v, wantErr %v", gotErr, tc.outErr)
+					return
+				}
+			} else if gotErr.Error() != tc.outErr.Error() {
+				t.Errorf("gotErr = %v, wantErr %v", gotErr, tc.outErr)
+			}
+		})
+	}
+}
+
 // Inflate GraphQL schema size with `count` extra types
 func schemaWithExtraEmployeeTypes(count int) string {
 
