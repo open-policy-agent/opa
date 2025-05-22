@@ -37,7 +37,7 @@ const EcosystemEntry = (props) => {
           </Heading>
         </div>
 
-        {subtitle && <p style={{ fontSize: "1.2rem", color: "#555" }}>{subtitle}</p>}
+        {subtitle && <p style={{ fontSize: "1.2rem", color: "var(--ifm-font-color-secondary)" }}>{subtitle}</p>}
 
         {/* Content (Markdown) */}
         {content && (
