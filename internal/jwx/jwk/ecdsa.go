@@ -62,11 +62,11 @@ func (k *ECDSAPublicKey) GenerateKey(keyJSON *RawKeyJSON) error {
 
 	var curve elliptic.Curve
 	switch keyJSON.Crv {
-	case jwa.P256:
+	case string(jwa.P256):
 		curve = elliptic.P256()
-	case jwa.P384:
+	case string(jwa.P384):
 		curve = elliptic.P384()
-	case jwa.P521:
+	case string(jwa.P521):
 		curve = elliptic.P521()
 	default:
 		return fmt.Errorf("invalid curve name %s", keyJSON.Crv)

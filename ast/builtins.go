@@ -358,6 +358,8 @@ var JWTVerifyHS384 = v1.JWTVerifyHS384
 
 var JWTVerifyHS512 = v1.JWTVerifyHS512
 
+var JWTVerifyEdDSA = v1.JWTVerifyEdDSA
+
 // Marked non-deterministic because it relies on time internally.
 var JWTDecodeVerify = v1.JWTDecodeVerify
 

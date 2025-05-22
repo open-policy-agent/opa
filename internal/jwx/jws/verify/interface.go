@@ -2,6 +2,7 @@ package verify
 
 import (
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rsa"
 
 	"github.com/open-policy-agent/opa/internal/jwx/jws/sign"
@@ -28,7 +29,7 @@ type RSAVerifier struct {
 
 type ecdsaVerifyFunc func([]byte, []byte, *ecdsa.PublicKey) error
 
-// ECDSAVerifier implements the Verifier interface
+// EdDSAVerifier implements the Verifier interface
 type ECDSAVerifier struct {
 	verify ecdsaVerifyFunc
 }
@@ -36,4 +37,11 @@ type ECDSAVerifier struct {
 // HMACVerifier implements the Verifier interface
 type HMACVerifier struct {
 	signer sign.Signer
+}
+
+type eddsaVerifyFunc func([]byte, []byte, ed25519.PublicKey) error
+
+// EDSAVerifier implements the Verifier interface
+type EdDSAVerifier struct {
+	verify eddsaVerifyFunc
 }

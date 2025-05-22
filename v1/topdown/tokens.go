@@ -7,6 +7,7 @@ package topdown
 import (
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/hmac"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -308,7 +309,6 @@ func getKeysFromCertOrJWK(certificate string) ([]verificationKey, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse a PEM public key: %w", err)
 			}
-
 			return []verificationKey{{key: key}}, nil
 		}
 
@@ -476,6 +476,96 @@ func builtinJWTVerifyHS(bctx BuiltinContext, operands []*ast.Term, hashF func() 
 
 	putTokenInCache(bctx, jwt, astSecret, nil, nil, valid)
 
+	return iter(ast.NewTerm(ast.Boolean(valid)))
+}
+
+func verifyEd25519(publicKey interface{}, msg, sig []byte) bool {
+	pubKey, ok := publicKey.(ed25519.PublicKey)
+
+	if !ok {
+		return false
+	}
+
+	return ed25519.Verify(pubKey, msg, sig)
+}
+
+// Implements EdDSA JWT signature verification
+func builtinJWTVerifyEdDSA(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	jwtVal := operands[0].Value
+	keyVal := operands[1].Value
+	// Check token cache first
+	if found, _, _, valid := getTokenFromCache(bctx, jwtVal, keyVal); found {
+		return iter(ast.NewTerm(ast.Boolean(valid)))
+	}
+
+	jwtStr, err := builtins.StringOperand(jwtVal, 1)
+	if err != nil {
+		return err
+	}
+	keyStr, err := builtins.StringOperand(keyVal, 2)
+	if err != nil {
+		return err
+	}
+
+	// Decode the JWT
+	token, err := decodeJWT(jwtStr)
+	if err != nil {
+		return err
+	}
+	err = token.decodeHeader()
+	if err != nil {
+		return err
+	}
+	header, err := parseTokenHeader(token)
+	if err != nil {
+		return err
+	}
+	// Ensure alg is EdDSA
+	if header.alg != "EdDSA" {
+		putTokenInCache(bctx, jwtVal, keyVal, nil, nil, false)
+		return iter(ast.NewTerm(ast.Boolean(false)))
+	}
+
+	// Parse key(s) from JWK/JWKS/cert
+	keys, err := getKeysFromCertOrJWK(string(keyStr))
+	if err != nil {
+		return err
+	}
+	signature, err := token.decodeSignature()
+	if err != nil {
+		return err
+	}
+	sig := []byte(signature)
+	msg := []byte(token.header + "." + token.payload)
+
+	valid := false
+
+	if header.kid != "" {
+		if key := getKeyByKid(header.kid, keys); key != nil {
+			valid = verifyEd25519(key.key, msg, sig)
+			putTokenInCache(bctx, jwtVal, keyVal, nil, nil, valid)
+			return iter(ast.NewTerm(ast.Boolean(valid)))
+		}
+	}
+
+	for _, key := range keys {
+		if key.alg == "" {
+			if verifyEd25519(key.key, msg, sig) {
+				valid = true
+				break
+			}
+		} else {
+			if header.alg != key.alg {
+				continue
+			}
+			if verifyEd25519(key.key, msg, sig) {
+				valid = true
+				break
+			}
+		}
+	}
+
+	putTokenInCache(bctx, jwtVal, keyVal, nil, nil, valid)
 	return iter(ast.NewTerm(ast.Boolean(valid)))
 }
 
@@ -725,6 +815,7 @@ var tokenAlgorithms = map[string]tokenAlgorithm{
 	"HS256": {crypto.SHA256, verifyHMAC},
 	"HS384": {crypto.SHA384, verifyHMAC},
 	"HS512": {crypto.SHA512, verifyHMAC},
+	"EdDSA": {crypto.Hash(0), verifyEdDSA}, // crypto not used
 }
 
 // errSignatureNotVerified is returned when a signature cannot be verified.
@@ -792,6 +883,18 @@ func verifyECDSA(key any, _ crypto.Hash, digest []byte, signature []byte) (err e
 	if ecdsa.Verify(publicKeyEcdsa, digest, r, s) {
 		return nil
 	}
+	return errSignatureNotVerified
+}
+
+func verifyEdDSA(key interface{}, _ crypto.Hash, payload []byte, sig []byte) error {
+	pub, ok := key.(ed25519.PublicKey)
+	if !ok {
+		return errors.New("EdDSA: invalid public key type")
+	}
+	if ed25519.Verify(pub, payload, sig) {
+		return nil
+	}
+
 	return errSignatureNotVerified
 }
 
@@ -1147,6 +1250,7 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 			return iter(unverified)
 		}
 	}
+
 	// RFC7159 4.1.4 exp
 	if exp := payload.Get(jwtExpKey); exp != nil {
 		switch v := exp.Value.(type) {
@@ -1334,6 +1438,7 @@ func init() {
 	RegisterBuiltinFunc(ast.JWTVerifyHS256.Name, builtinJWTVerifyHS256)
 	RegisterBuiltinFunc(ast.JWTVerifyHS384.Name, builtinJWTVerifyHS384)
 	RegisterBuiltinFunc(ast.JWTVerifyHS512.Name, builtinJWTVerifyHS512)
+	RegisterBuiltinFunc(ast.JWTVerifyEdDSA.Name, builtinJWTVerifyEdDSA)
 	RegisterBuiltinFunc(ast.JWTDecodeVerify.Name, builtinJWTDecodeVerify)
 	RegisterBuiltinFunc(ast.JWTEncodeSignRaw.Name, builtinJWTEncodeSignRaw)
 	RegisterBuiltinFunc(ast.JWTEncodeSign.Name, builtinJWTEncodeSign)
