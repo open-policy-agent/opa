@@ -7,8 +7,12 @@
 /docs/latest/*    /docs/:splat    301
 
 # these two pages have been moved in the creation of the new site.
-/docs/latest/kubernetes-introduction/ /docs/kubernetes/
-/docs/latest/envoy-introduction/ /docs/kubernetes/
+/docs/kubernetes-introduction/ /docs/kubernetes/
+/docs/kubernetes-tutorial/ /docs/kubernetes/tutorial/
+/docs/envoy-introduction/ /docs/envoy/
+/docs/envoy-tutorial-istio/ /docs/envoy/tutorial-istio/
+/docs/envoy-tutorial-standalone-envoy/ /docs/envoy/tutorial-standalone-envoy/
+/docs/envoy-tutorial-gloo-edge/ /docs/envoy/tutorial-gloo-edge/
 
 # -----------------------------------------------------------------------------
 # Redirects for legacy usage external resources
