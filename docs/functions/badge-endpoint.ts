@@ -10,11 +10,12 @@ const logoSvg =
 
 export default async (req: Request, context: Context) => {
   const url = new URL(req.url);
+
   const pathParts = url.pathname.split("/").filter(Boolean); // remove empty parts
   const query = url.searchParams;
 
-  // Handle /badge/config/:tag
-  if (pathParts.length === 3 && pathParts[0] === "badge" && pathParts[1] === "config") {
+  // Handle /badge-endpoint/config/:tag
+  if (pathParts.length === 3 && pathParts[0] === "badge-endpoint" && pathParts[1] === "config") {
     const tag = pathParts[2];
 
     const latest = await fetch(releases)
@@ -33,12 +34,12 @@ export default async (req: Request, context: Context) => {
     return context.json(res);
   }
 
-  // Handle /badge/:tag
-  if (pathParts.length === 2 && pathParts[0] === "badge") {
+  // Handle /badge-endpoint/:tag
+  if (pathParts.length === 2 && pathParts[0] === "badge-endpoint") {
     const tag = pathParts[1];
     const style = query.get("style");
 
-    let redirectUrl = `https://img.shields.io/endpoint?url=https://openpolicyagent.org/badge/config/${tag}`;
+    let redirectUrl = `https://img.shields.io/endpoint?url=https://openpolicyagent.org/badge-endpoint/config/${tag}`;
     if (style) {
       redirectUrl += `?style=${encodeURIComponent(style)}`;
     }
