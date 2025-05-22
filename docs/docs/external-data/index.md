@@ -21,7 +21,24 @@ The following diagram shows this process in more detail.
 1. The OPA-enabled software system includes that token as part of the usual `input` to OPA.
 1. OPA decodes the JWT token and uses the contents to make policy decisions.
 
-![JWT flow](./assets/data-jwt.png)
+```mermaid
+sequenceDiagram
+    box Authn
+    participant User
+    participant IDP
+    end
+    box OPA Enabled Software
+    participant OES as OPA Enabled Software
+    participant OPA
+    end
+    User->>+IDP: "1. username/password"
+    IDP->>+User: 2. JWT
+    User->>+OES: 3. JWT
+    OES->>+OPA: 4. JWT & Context
+    OPA->>+OPA: 5. decode JWT and<br/>evaluated in policy
+    OPA->>+OES: Policy Response
+    OES->>+User: Application Response
+```
 
 ### Updates
 
@@ -51,7 +68,15 @@ The file-ownership system may be the one that is asking for an authorization dec
 1. OPA-enabled software sends `input` to OPA including the external data
 1. Policy makes decisions based on external data included in `input`
 
-![Input flow](./assets/data-input.png)
+```mermaid
+sequenceDiagram
+    participant OES as OPA Enabled Software
+    participant OPA
+    OES->>+OES: 1. Data Loaded
+    OES->>+OPA: 2. Runtime and Releant Preloaded Data
+    OPA->>+OPA: 3. Policy decision <br/>made using data
+    OPA->>+OES: Policy Response
+```
 
 ### Updates
 
@@ -81,7 +106,17 @@ Three things happen independently with this kind of data integration.
 - B. OPA downloads new policy bundles including external data
 - C. Bundle server replicates data from source of truth
 
-![Bundle flow](./assets/data-bundle.png)
+```mermaid
+graph LR
+    OES[OPA<br>Enabled Software]
+    OPA
+    DS[Data<br>Sources]
+    BS[Bundle<br>Server]
+
+    OES <-->|A. Req/Resp<br> Policy Decision| OPA
+    OPA <-->|B. Bundles Loaded Periodically| BS
+    BS <-->|C. Data Loaded & <br> Bundled| DS
+```
 
 ### Updates
 
@@ -123,7 +158,17 @@ Three things happen independently with this kind of data replication.
 
 Depending on the replication scheme, B and C could be tied together so that every update the data replicator gets from the source of truth it pushes into OPA, but in general those could be decoupled depending on the desired network load, the changes in the data, and so on.
 
-![Push flow](./assets/data-push.png)
+```mermaid
+graph LR
+    OES[OPA<br>Enabled Software]
+    OPA
+    DS[Data<br>Sources]
+    R[Replicator]
+
+    OES <-->|A. Req/Resp<br> Policy Decision| OPA
+    R -->|B. Data Push|OPA
+    R <-->|C. Data replicated from SoT| DS
+```
 
 ### Updates
 
@@ -166,7 +211,15 @@ The key difference here is that every decision requires contacting the external 
 1. OPA-enabled service asks OPA for a decision
 1. During evaluation OPA asks the external data source for additional information
 
-![Pull flow](./assets/data-pull.png)
+```mermaid
+graph LR
+    OES[OPA<br>Enabled Software]
+    OPA
+    DS["Data<br>Sources(s)"]
+
+    OES <-->|1 Req/Resp<br> Policy Decision| OPA
+    OPA <-->|2 OPA Loads data at runtime| DS
+```
 
 ### Updates
 
