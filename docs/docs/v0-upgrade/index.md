@@ -65,9 +65,17 @@ point and we recommended you start there.
 
 ```mermaid
 graph LR
+    s2["Scenario 2"]
+    s3["Scenario 3"]
+    s4["Scenario 4"]
+    s5["Scenario 5"]
+    s6["Scenario 6"]
+    s7["Scenario 7"]
+    s8["Scenario 8"]
+    s10["Scenario 10"]
     start["Recommended<br/>Start Point"] --> s1
     style start fill:none,stroke:none
-    s10 --> s1["Scenario <br> OPA v0.x"]
+    s10 --> s1["Scenario 1<br/>All v0.x"]
     s1 --> s2
     s2 --> s3
     s3 --> s6
