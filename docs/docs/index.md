@@ -52,16 +52,10 @@ Imagine you work for an organization with the following system:
 graph
     nX["Public Network X"] --> Internet
     nY["Private Network Y"]
-
-    pW["Port W"] --> nX
-    pX["Port X"] --> nX
-    pY["Port Y"] --> nY
-    pZ["Port Z"] --> nY
-
-    sX["Server X"] --> pW
-    sY["Server Y"] --> pX
-    sY --> pY
-    sZ["Server Z"] --> pZ
+    sX["Server X"] --"Port X"--> nX
+    sY["Server Y"] --"Port X"--> nX
+    sY --"Port Y"--> nY
+    sZ["Server Z"] --"Port Z"--> nY
 ```
 
 There are three kinds of components in the system:
