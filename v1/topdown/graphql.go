@@ -228,7 +228,7 @@ func formatGqlParserError(err error) error {
 	if len(errorParts) >= 4 {
 		return fmt.Errorf("%s in GraphQL string at location %s:%s", msg, errorParts[1], errorParts[2])
 	}
-	return fmt.Errorf("%s in GraphQL string at unknown location", msg)
+	return fmt.Errorf("%s in GraphQL string", msg)
 }
 
 // Reports errors from parsing/validation.

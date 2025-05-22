@@ -6,6 +6,7 @@ package topdown
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"runtime"
@@ -918,23 +919,23 @@ func TestFormatGqlParserError(t *testing.T) {
 		// Expected errors based on https://github.com/vektah/gqlparser/blob/master/gqlerror/error.go#L40-L67
 		{
 			desc:   "valid gqlparser error with filename and no location",
-			inErr:  fmt.Errorf("filename.gql: error string with filename and no location"),
-			outErr: fmt.Errorf("error string with filename and no location in GraphQL string at unknown location"),
+			inErr:  errors.New("filename.gql: error string with filename and no location"),
+			outErr: errors.New("error string with filename and no location in GraphQL string"),
 		},
 		{
 			desc:   "valid gqlparser error with filename and location",
-			inErr:  fmt.Errorf("filename.gql:1:2: error string with filename and location"),
-			outErr: fmt.Errorf("error string with filename and location in GraphQL string at location 1:2"),
+			inErr:  errors.New("filename.gql:1:2: error string with filename and location"),
+			outErr: errors.New("error string with filename and location in GraphQL string at location 1:2"),
 		},
 		{
 			desc:   "valid gqlparser error without filename and no location",
-			inErr:  fmt.Errorf("input: error string without filename and no location"),
-			outErr: fmt.Errorf("error string without filename and no location in GraphQL string at unknown location"),
+			inErr:  errors.New("input: error string without filename and no location"),
+			outErr: errors.New("error string without filename and no location in GraphQL string"),
 		},
 		{
 			desc:   "valid gqlparser error without filename and with location",
-			inErr:  fmt.Errorf("input:1:2: error string without filename and with location"),
-			outErr: fmt.Errorf("error string without filename and with location in GraphQL string at location 1:2"),
+			inErr:  errors.New("input:1:2: error string without filename and with location"),
+			outErr: errors.New("error string without filename and with location in GraphQL string at location 1:2"),
 		},
 		// Unexpected errors
 		{
@@ -944,28 +945,28 @@ func TestFormatGqlParserError(t *testing.T) {
 		},
 		{
 			desc:   "empty",
-			inErr:  fmt.Errorf(""),
-			outErr: fmt.Errorf("%s in GraphQL string at unknown location", ""),
+			inErr:  errors.New(""),
+			outErr: errors.New(" in GraphQL string"),
 		},
 		{
 			desc:   "string with no :",
-			inErr:  fmt.Errorf("test"),
-			outErr: fmt.Errorf("%s in GraphQL string at unknown location", "test"),
+			inErr:  errors.New("test"),
+			outErr: errors.New("test in GraphQL string"),
 		},
 		{
 			desc:   "string with 2:",
-			inErr:  fmt.Errorf("x:y:z"),
-			outErr: fmt.Errorf("%s in GraphQL string at unknown location", "z"),
+			inErr:  errors.New("x:y:z"),
+			outErr: errors.New("z in GraphQL string"),
 		},
 		{
 			desc:   "string with 3: and alpha locations",
-			inErr:  fmt.Errorf("a:b:c:d"),
-			outErr: fmt.Errorf("d in GraphQL string at location b:c"),
+			inErr:  errors.New("a:b:c:d"),
+			outErr: errors.New("d in GraphQL string at location b:c"),
 		},
 		{
 			desc:   "string with 8: and empty locations",
-			inErr:  fmt.Errorf("::::::::"),
-			outErr: fmt.Errorf("::::: in GraphQL string at location :"),
+			inErr:  errors.New("::::::::"),
+			outErr: errors.New("::::: in GraphQL string at location :"),
 		},
 	}
 
