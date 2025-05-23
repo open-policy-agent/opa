@@ -6,8 +6,6 @@ package logs
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"sync"
 
 	"github.com/open-policy-agent/opa/v1/logging"
@@ -57,12 +55,6 @@ func (b *eventBuffer) WithLogger(l logging.Logger) *eventBuffer {
 func (b *eventBuffer) incrMetric(name string) {
 	if b.metrics != nil {
 		b.metrics.Counter(name).Incr()
-	}
-}
-
-func (b *eventBuffer) logError(fmt string, a ...any) {
-	if b.logger != nil {
-		b.logger.Error(fmt, a)
 	}
 }
 
@@ -124,16 +116,13 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 		if event.chunk != nil {
 			result = [][]byte{event.chunk}
 		} else {
-			serialized, err := b.processEvent(event.EventV1)
-			if err != nil {
-				b.logError("%v", err)
-				continue
-			}
-
-			result, err = b.enc.WriteBytes(serialized)
+			var err error
+			result, err = b.enc.Write(*event.EventV1)
 			if err != nil {
 				b.incrMetric(logEncodingFailureCounterName)
-				b.logError("encoding failure: %v, dropping event with decision ID: %v", err, event.DecisionID)
+				if b.logger != nil {
+					b.logger.Error("encoding failure: %v, dropping event with decision ID: %v", err, event.DecisionID)
+				}
 				continue
 			}
 		}
@@ -147,7 +136,9 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 	result, err := b.enc.Flush()
 	if err != nil {
 		b.incrMetric(logEncodingFailureCounterName)
-		b.logError("encoding failure: %v", err)
+		if b.logger != nil {
+			b.logger.Error("encoding failure: %v", err)
+		}
 		return nil
 	}
 
@@ -182,35 +173,4 @@ func (b *eventBuffer) readEvent() *bufferItem {
 	default:
 		return nil
 	}
-}
-
-// processEvent serializes the event and determines if the ND cache needs to be dropped
-func (b *eventBuffer) processEvent(event *EventV1) ([]byte, error) {
-	serialized, err := json.Marshal(event)
-
-	// The non-deterministic cache (NDBuiltinCache) could cause issues, if it is too big or can't be encoded try to drop it.
-	if err != nil || int64(len(serialized)) >= b.uploadSizeLimitBytes {
-		if event.NDBuiltinCache == nil {
-			return nil, fmt.Errorf("upload event size (%d) exceeds upload_size_limit_bytes (%d), dropping event with decision ID: %v",
-				int64(len(serialized)), b.uploadSizeLimitBytes, event.DecisionID)
-		}
-
-		// Attempt to drop the ND cache to reduce size. If it is still too large, drop the event.
-		event.NDBuiltinCache = nil
-		var err error
-		serialized, err = json.Marshal(event)
-		if err != nil {
-			b.incrMetric(logEncodingFailureCounterName)
-			return nil, fmt.Errorf("encoding failure: %v, dropping event with decision ID: %v", err, event.DecisionID)
-		}
-		if int64(len(serialized)) > b.uploadSizeLimitBytes {
-			return nil, fmt.Errorf("upload event size (%d) exceeds upload_size_limit_bytes (%d), dropping event with decision ID: %v",
-				int64(len(serialized)), b.uploadSizeLimitBytes, event.DecisionID)
-		}
-
-		b.incrMetric(logNDBDropCounterName)
-		b.logError("ND builtins cache dropped from this event to fit under maximum upload size limits. Increase upload size limit or change usage of non-deterministic builtins.")
-	}
-
-	return serialized, nil
 }
