@@ -34,8 +34,8 @@ export default async (req: Request, context: Context) => {
     return context.json(res);
   }
 
-  // Handle /badge-endpoint/:tag
-  if (pathParts.length === 2 && pathParts[0] === "badge-endpoint") {
+  // Handle /badge/:tag
+  if (pathParts.length === 2 && pathParts[0] === "badge") {
     const tag = pathParts[1];
     const style = query.get("style");
 
