@@ -44,6 +44,7 @@ const EcosystemIndex = (props) => {
     "java",
     "csharp",
     "golang",
+    "swift",
     "clojure",
     "rust",
     "php",
