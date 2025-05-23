@@ -555,7 +555,18 @@ func (p *Parser) parsePackage() *Package {
 		return nil
 	}
 
-	p.scan()
+	// This allows keywords in the first var term of the ref; should we support this, or only on subsequent terms?
+	p.scanWS()
+
+	if p.s.tok == tokens.Dot || p.s.tok == tokens.LBrack {
+		// This is a ref
+		return nil
+	}
+
+	if p.s.tok == tokens.Whitespace {
+		p.scan()
+	}
+
 	if p.s.tok != tokens.Ident {
 		p.illegalToken()
 		return nil
@@ -613,7 +624,18 @@ func (p *Parser) parseImport() *Import {
 		return nil
 	}
 
-	p.scan()
+	// This allows keywords in the first var term of the ref; should we support this, or only on subsequent terms?
+	p.scanWS()
+
+	if p.s.tok == tokens.Dot || p.s.tok == tokens.LBrack {
+		// This is a ref
+		return nil
+	}
+
+	if p.s.tok == tokens.Whitespace {
+		p.scan()
+	}
+
 	if p.s.tok != tokens.Ident {
 		p.error(p.s.Loc(), "expected ident")
 		return nil
@@ -1081,6 +1103,20 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 		}
 	}()
 
+	// This allows keywords in the first var term of the ref; should we support this, or only on subsequent terms?
+	if IsKeywordInRegoVersion(p.s.tok.String(), p.po.EffectiveRegoVersion()) {
+		// scan ahead to check if we're parsing a ref
+		s := p.save()
+		p.scanWS()
+		tok := p.s.tok
+		p.restore(s)
+
+		if tok == tokens.Dot || tok == tokens.LBrack {
+			p.s.tok = tokens.Ident
+			return p.parseLiteralExpr(false)
+		}
+	}
+
 	var negated bool
 	if p.s.tok == tokens.Not {
 		p.scan()
@@ -1101,33 +1137,37 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 		}
 		return p.parseEvery()
 	default:
-		s := p.save()
-		expr := p.parseExpr()
-		if expr != nil {
-			expr.Negated = negated
-			if p.s.tok == tokens.With {
-				if expr.With = p.parseWith(); expr.With == nil {
-					return nil
-				}
-			}
-			// If we find a plain `every` identifier, attempt to parse an every expression,
-			// add hint if it succeeds.
-			if term, ok := expr.Terms.(*Term); ok && Var("every").Equal(term.Value) {
-				var hint bool
-				t := p.save()
-				p.restore(s)
-				if expr := p.futureParser().parseEvery(); expr != nil {
-					_, hint = expr.Terms.(*Every)
-				}
-				p.restore(t)
-				if hint {
-					p.hint("`import future.keywords.every` for `every x in xs { ... }` expressions")
-				}
-			}
-			return expr
-		}
-		return nil
+		return p.parseLiteralExpr(negated)
 	}
+}
+
+func (p *Parser) parseLiteralExpr(negated bool) *Expr {
+	s := p.save()
+	expr := p.parseExpr()
+	if expr != nil {
+		expr.Negated = negated
+		if p.s.tok == tokens.With {
+			if expr.With = p.parseWith(); expr.With == nil {
+				return nil
+			}
+		}
+		// If we find a plain `every` identifier, attempt to parse an every expression,
+		// add hint if it succeeds.
+		if term, ok := expr.Terms.(*Term); ok && Var("every").Equal(term.Value) {
+			var hint bool
+			t := p.save()
+			p.restore(s)
+			if expr := p.futureParser().parseEvery(); expr != nil {
+				_, hint = expr.Terms.(*Every)
+			}
+			p.restore(t)
+			if hint {
+				p.hint("`import future.keywords.every` for `every x in xs { ... }` expressions")
+			}
+		}
+		return expr
+	}
+	return nil
 }
 
 func (p *Parser) parseWith() []*With {
@@ -1715,7 +1755,7 @@ func (p *Parser) parseRef(head *Term, offset int) (term *Term) {
 		switch p.s.tok {
 		case tokens.Dot:
 			p.scanWS()
-			if p.s.tok != tokens.Ident {
+			if p.s.tok != tokens.Ident && !IsKeywordInRegoVersion(p.s.tok.String(), p.po.EffectiveRegoVersion()) {
 				p.illegal("expected %v", tokens.Ident)
 				return nil
 			}

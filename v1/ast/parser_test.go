@@ -204,6 +204,195 @@ func TestRefTerms(t *testing.T) {
 	assertParseError(t, "invalid ref head type null", `null[0]`)
 }
 
+func TestRefTermsContainingKeywords(t *testing.T) {
+	for _, regoVersion := range []RegoVersion{RegoV0, RegoV1} {
+		popts := ParserOptions{RegoVersion: regoVersion}
+
+		t.Run(regoVersion.String(), func(t *testing.T) {
+			for _, kw := range Keywords {
+				input := fmt.Sprintf("input.%s", kw)
+				exp := RefTerm(VarTerm("input"), StringTerm(kw))
+				assertParseOneTerm(t, input, input, exp, popts)
+
+				input = fmt.Sprintf("data.%s", kw)
+				exp = RefTerm(VarTerm("data"), StringTerm(kw))
+				assertParseOneTerm(t, input, input, exp, popts)
+
+				input = fmt.Sprintf("data.%s.foo", kw)
+				exp = RefTerm(VarTerm("data"), StringTerm(kw), StringTerm("foo"))
+				assertParseOneTerm(t, input, input, exp, popts)
+
+				input = fmt.Sprintf(`data.%s["foo"]`, kw)
+				exp = RefTerm(VarTerm("data"), StringTerm(kw), StringTerm("foo"))
+				assertParseOneTerm(t, input, input, exp, popts)
+
+				input = fmt.Sprintf("data.foo.%s", kw)
+				exp = RefTerm(VarTerm("data"), StringTerm("foo"), StringTerm(kw))
+				assertParseOneTerm(t, input, input, exp, popts)
+
+				input = fmt.Sprintf(`data["foo"].%s`, kw)
+				exp = RefTerm(VarTerm("data"), StringTerm("foo"), StringTerm(kw))
+				assertParseOneTerm(t, input, input, exp, popts)
+
+				input = fmt.Sprintf("%s.foo", kw)
+				exp = RefTerm(VarTerm(kw), StringTerm("foo"))
+				assertParseOneTerm(t, input, input, exp, popts)
+
+				input = fmt.Sprintf(`%s["foo"]`, kw)
+				exp = RefTerm(VarTerm(kw), StringTerm("foo"))
+				assertParseOneTerm(t, input, input, exp, popts)
+			}
+
+			b := strings.Builder{}
+			b.WriteString(Keywords[0])
+
+			exp := make([]*Term, 0, len(Keywords))
+			exp = append(exp, VarTerm(Keywords[0]))
+
+			for _, kw := range Keywords[1:] {
+				b.WriteString(".")
+				b.WriteString(kw)
+				exp = append(exp, StringTerm(kw))
+			}
+
+			input := b.String()
+			assertParseOneTerm(t, input, input, RefTerm(exp...), popts)
+		})
+	}
+}
+
+func TestRuleHeadsContainingKeywordsV0(t *testing.T) {
+	popts := ParserOptions{RegoVersion: RegoV0}
+
+	for _, kw := range KeywordsV0 {
+		input := fmt.Sprintf("%s { true }", kw)
+		t.Run(input, func(t *testing.T) {
+			_, err := ParseRuleWithOpts(input, popts)
+			if err == nil {
+				t.Error("Expected error, got none")
+			}
+		})
+
+		input = fmt.Sprintf("%s.foo { true }", kw)
+		t.Run(input, func(t *testing.T) {
+			_, err := ParseRuleWithOpts(input, popts)
+			if err == nil {
+				t.Errorf("Expected error, got none")
+			}
+		})
+
+		input = fmt.Sprintf("foo.%s { true }", kw)
+		t.Run(input, func(t *testing.T) {
+			exp := Rule{
+				Head: NewHead(Var("foo"), StringTerm(kw)),
+				Body: MustParseBody(`true`),
+			}
+			assertParseRule(t, input, input, &exp, popts)
+		})
+
+		input = fmt.Sprintf("foo.bar.%s { true }", kw)
+		t.Run(input, func(t *testing.T) {
+			exp := Rule{
+				Head: RefHead(Ref{VarTerm("foo"), StringTerm("bar"), StringTerm(kw)}, BooleanTerm(true)),
+				Body: MustParseBody(`true`),
+			}
+			assertParseRule(t, input, input, &exp, popts)
+		})
+
+		input = fmt.Sprintf(`foo["bar"].%s { true }`, kw)
+		t.Run(input, func(t *testing.T) {
+			exp := Rule{
+				Head: RefHead(Ref{VarTerm("foo"), StringTerm("bar"), StringTerm(kw)}, BooleanTerm(true)),
+				Body: MustParseBody(`true`),
+			}
+			assertParseRule(t, input, input, &exp, popts)
+		})
+
+		input = fmt.Sprintf("foo.%s.bar { true }", kw)
+		t.Run(input, func(t *testing.T) {
+			exp := Rule{
+				Head: RefHead(Ref{VarTerm("foo"), StringTerm(kw), StringTerm("bar")}, BooleanTerm(true)),
+				Body: MustParseBody(`true`),
+			}
+			assertParseRule(t, input, input, &exp, popts)
+		})
+
+		input = fmt.Sprintf(`foo.%s["bar"] { true }`, kw)
+		t.Run(input, func(t *testing.T) {
+			exp := Rule{
+				Head: RefHead(Ref{VarTerm("foo"), StringTerm(kw), StringTerm("bar")}, BooleanTerm(true)),
+				Body: MustParseBody(`true`),
+			}
+			assertParseRule(t, input, input, &exp, popts)
+		})
+	}
+}
+
+func TestRuleHeadsContainingKeywords(t *testing.T) {
+	for _, kw := range Keywords {
+		input := fmt.Sprintf("%s if { true }", kw)
+		t.Run(input, func(t *testing.T) {
+			_, err := ParseRule(input)
+			if err == nil {
+				t.Error("Expected error, got none")
+			}
+		})
+
+		input = fmt.Sprintf("%s.foo if { true }", kw)
+		t.Run(input, func(t *testing.T) {
+			_, err := ParseRule(input)
+			if err == nil {
+				t.Errorf("Expected error, got none")
+			}
+		})
+
+		input = fmt.Sprintf("foo.%s if { true }", kw)
+		t.Run(input, func(t *testing.T) {
+			exp := Rule{
+				Head: RefHead(Ref{VarTerm("foo"), StringTerm(kw)}, BooleanTerm(true)),
+				Body: MustParseBody(`true`),
+			}
+			assertParseRule(t, input, input, &exp)
+		})
+
+		input = fmt.Sprintf("foo.bar.%s if { true }", kw)
+		t.Run(input, func(t *testing.T) {
+			exp := Rule{
+				Head: RefHead(Ref{VarTerm("foo"), StringTerm("bar"), StringTerm(kw)}, BooleanTerm(true)),
+				Body: MustParseBody(`true`),
+			}
+			assertParseRule(t, input, input, &exp)
+		})
+
+		input = fmt.Sprintf(`foo["bar"].%s if { true }`, kw)
+		t.Run(input, func(t *testing.T) {
+			exp := Rule{
+				Head: RefHead(Ref{VarTerm("foo"), StringTerm("bar"), StringTerm(kw)}, BooleanTerm(true)),
+				Body: MustParseBody(`true`),
+			}
+			assertParseRule(t, input, input, &exp)
+		})
+
+		input = fmt.Sprintf("foo.%s.bar if { true }", kw)
+		t.Run(input, func(t *testing.T) {
+			exp := Rule{
+				Head: RefHead(Ref{VarTerm("foo"), StringTerm(kw), StringTerm("bar")}, BooleanTerm(true)),
+				Body: MustParseBody(`true`),
+			}
+			assertParseRule(t, input, input, &exp)
+		})
+
+		input = fmt.Sprintf(`foo.%s["bar"] if { true }`, kw)
+		t.Run(input, func(t *testing.T) {
+			exp := Rule{
+				Head: RefHead(Ref{VarTerm("foo"), StringTerm(kw), StringTerm("bar")}, BooleanTerm(true)),
+				Body: MustParseBody(`true`),
+			}
+			assertParseRule(t, input, input, &exp)
+		})
+	}
+}
+
 func TestObjectWithScalars(t *testing.T) {
 	assertParseOneTerm(t, "number", "{\"abc\": 7, \"def\": 8}", ObjectTerm(Item(StringTerm("abc"), IntNumberTerm(7)), Item(StringTerm("def"), IntNumberTerm(8))))
 	assertParseOneTerm(t, "bool", "{\"abc\": false, \"def\": true}", ObjectTerm(Item(StringTerm("abc"), BooleanTerm(false)), Item(StringTerm("def"), BooleanTerm(true))))
@@ -6523,10 +6712,10 @@ func assertParseOneExprNegated(t *testing.T, msg string, input string, correct *
 	assertParseOneExpr(t, msg, input, correct)
 }
 
-func assertParseOneTerm(t *testing.T, msg string, input string, correct *Term) {
+func assertParseOneTerm(t *testing.T, msg string, input string, correct *Term, opts ...ParserOptions) {
 	t.Helper()
 	t.Run(msg, func(t *testing.T) {
-		assertParseOneExpr(t, msg, input, &Expr{Terms: correct})
+		assertParseOneExpr(t, msg, input, &Expr{Terms: correct}, opts...)
 	})
 }
 
