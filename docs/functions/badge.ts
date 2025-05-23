@@ -10,6 +10,7 @@ const logoSvg =
 
 export default async (req: Request, context: Context) => {
   const url = new URL(req.url);
+  const host = req.headers.get("host");
 
   const pathParts = url.pathname.split("/").filter(Boolean); // remove empty parts
   const query = url.searchParams;
@@ -34,14 +35,18 @@ export default async (req: Request, context: Context) => {
     return context.json(res);
   }
 
-  // Handle /badge-endpoint/:tag
-  if (pathParts.length === 2 && pathParts[0] === "badge-endpoint") {
+  // Handle /badge/:tag
+  if (pathParts.length === 2 && pathParts[0] === "badge") {
     const tag = pathParts[1];
     const style = query.get("style");
 
-    let redirectUrl = `https://img.shields.io/endpoint?url=https://openpolicyagent.org/badge-endpoint/config/${tag}`;
+    // Build dynamic badge endpoint URL using current host
+    const base = `https://${host}/badge-endpoint/config/${tag}`;
+    const encodedUrl = encodeURIComponent(base);
+
+    let redirectUrl = `https://img.shields.io/endpoint?url=${encodedUrl}`;
     if (style) {
-      redirectUrl += `?style=${encodeURIComponent(style)}`;
+      redirectUrl += `&style=${encodeURIComponent(style)}`;
     }
 
     return Response.redirect(redirectUrl, 302);
