@@ -3295,16 +3295,40 @@ func TestInterQueryCacheValueClone(t *testing.T) {
 	}
 }
 
-func TestIntraQueryCache_ClientError(t *testing.T) {
+func TestQueryTimeout(t *testing.T) {
 	t.Parallel()
 
 	data := loadSmallTestData()
 
 	tests := []struct {
-		note     string
-		rules    []string
-		expected string
+		note          string
+		rules         []string
+		expected      string
+		expectedError string
 	}{
+		{
+			note: "raised errors with cache",
+			rules: []string{`p["one"] {
+	not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true})
+}`,
+				`p["two"] {
+	not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true})
+}`},
+			expected:      `["one", "two"]`,
+			expectedError: `not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true}): eval_builtin_error: http.send: Get %URL%: request timed out`,
+		},
+		{
+			note: "no raised errors with cache",
+			rules: []string{`p["one"] {
+	r := http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true, "raise_error": false})
+	r.error.code == "eval_http_send_network_error"
+}`,
+				`p["two"] {
+	r := http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true, "raise_error": false})
+	r.error.code == "eval_http_send_network_error"
+}`},
+			expected: `["one", "two"]`,
+		},
 		{
 			note: "raised errors",
 			rules: []string{`p["one"] {
@@ -3313,7 +3337,8 @@ func TestIntraQueryCache_ClientError(t *testing.T) {
 				`p["two"] {
 	not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms"})
 }`},
-			expected: `["one", "two"]`,
+			expected:      `["one", "two"]`,
+			expectedError: `not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms"}): eval_builtin_error: http.send: Get %URL%: request timed out`,
 		},
 		{
 			note: "no raised errors",
@@ -3336,7 +3361,7 @@ func TestIntraQueryCache_ClientError(t *testing.T) {
 			ch := make(chan *http.Request)
 			const timeout = 20 * time.Millisecond // larger than the 10ms timeout in rules
 
-			// A HTTP server that always causes a timeout
+			// An HTTP server that always causes a timeout
 			ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 				time.Sleep(timeout)
 				ch <- r
@@ -3348,109 +3373,28 @@ func TestIntraQueryCache_ClientError(t *testing.T) {
 				rules = append(rules, strings.ReplaceAll(r, "%URL%", ts.URL))
 			}
 
-			runTopDownTestCase(t, data, tc.note, rules, tc.expected)
+			if tc.expectedError != "" {
+				tc.expectedError = strings.ReplaceAll(tc.expectedError, "%URL%", ts.URL)
+			}
 
-			// Wait 1 second for HTTP requests to arrive
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-			defer cancel()
-			requests := getAllRequests(ctx, ch)
+			var builtInErrList []Error
 
-			// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
-			// eval first), so expect 2x the total request count the test case specified.
-			actualCount := len(requests) / 2
+			runTopDownTestCase(t, data, tc.note, rules, tc.expected, func(q *Query) *Query {
+				q.WithBuiltinErrorList(&builtInErrList)
+				return q
+			})
 
-			if actualCount != 1 {
-				t.Fatalf("Expected exactly 1 call to HTTP server, got %v", actualCount)
+			for _, e := range builtInErrList {
+				if e.Error() != tc.expectedError {
+					t.Errorf("Expected error %v, but got %v", tc.expectedError, e.Error())
+				}
+			}
+
+			// each rule does a request
+			for range len(tc.rules) {
+				<-ch
 			}
 		})
-	}
-}
-
-func TestInterQueryCache_ClientError(t *testing.T) {
-	t.Parallel()
-
-	data := loadSmallTestData()
-
-	tests := []struct {
-		note     string
-		rules    []string
-		expected string
-	}{
-		{
-			note: "raised errors",
-			rules: []string{`p["one"] {
-	not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true})
-}`,
-				`p["two"] {
-	not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true})
-}`},
-			expected: `["one", "two"]`,
-		},
-		{
-			note: "no raised errors",
-			rules: []string{`p["one"] {
-	r := http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true, "raise_error": false})
-	r.error.code == "eval_http_send_network_error"
-}`,
-				`p["two"] {
-	r := http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true, "raise_error": false})
-	r.error.code == "eval_http_send_network_error"
-}`},
-			expected: `["one", "two"]`,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.note, func(t *testing.T) {
-			t.Parallel()
-
-			ch := make(chan *http.Request)
-			const timeout = 20 * time.Millisecond // larger than the 10ms timeout in rules
-
-			// A HTTP server that always causes a timeout
-			ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-				time.Sleep(timeout)
-				ch <- r
-			}))
-			defer ts.Close()
-
-			var rules []string
-			for _, r := range tc.rules {
-				rules = append(rules, strings.ReplaceAll(r, "%URL%", ts.URL))
-			}
-
-			runTopDownTestCase(t, data, tc.note, rules, tc.expected)
-
-			// Wait 1 second for HTTP requests to arrive
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-			defer cancel()
-			requests := getAllRequests(ctx, ch)
-
-			// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
-			// eval first), so expect 2x the total request count the test case specified.
-			actualCount := len(requests) / 2
-
-			if actualCount != 1 {
-				t.Fatalf("Expected exactly 1 call to HTTP server, got %v", actualCount)
-			}
-		})
-	}
-}
-
-func getAllRequests(ctx context.Context, ch chan *http.Request) []*http.Request {
-	var requests []*http.Request
-	for {
-		select {
-		case x, ok := <-ch:
-			if ok {
-				requests = append(requests, x)
-			} else {
-				return requests
-			}
-		case <-ctx.Done():
-			close(ch)
-			return requests
-		}
 	}
 }
 
