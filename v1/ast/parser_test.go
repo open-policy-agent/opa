@@ -6378,6 +6378,109 @@ allow if {
 	assertLocationText(t, "# METADATA\n# title: rule", m.Rules[0].Annotations[0].Location)
 }
 
+func init() {
+	// maxParsingRecursionDepth is set much lower for testing purposes.
+	maxParsingRecursionDepth = 100
+}
+
+func TestMaxParsingRecursionDepth(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		depthLimit  int
+		expectError bool
+	}{
+		{
+			name:        "deeply nested array exceeds default limit",
+			input:       generateDeeplyNestedArray(200),
+			expectError: true,
+		},
+		{
+			name:        "deeply nested array exceeds limit",
+			input:       generateDeeplyNestedArray(1000),
+			depthLimit:  500,
+			expectError: true,
+		},
+		{
+			name:        "deeply nested array within limit",
+			input:       generateDeeplyNestedArray(100),
+			depthLimit:  500,
+			expectError: false,
+		},
+		{
+			name:        "deeply nested object exceeds limit",
+			input:       generateDeeplyNestedObject(1000),
+			depthLimit:  500,
+			expectError: true,
+		},
+		{
+			name:        "deeply nested object within limit",
+			input:       generateDeeplyNestedObject(100),
+			depthLimit:  500,
+			expectError: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create module code
+			moduleCode := "package test\n\nvalue = " + tc.input
+
+			// Parse module
+			parser := NewParser().
+				WithFilename("test.rego").
+				WithReader(strings.NewReader(moduleCode))
+
+			if tc.depthLimit != 0 {
+				parser = parser.WithMaxRecursionDepth(tc.depthLimit)
+			}
+
+			_, _, errs := parser.Parse()
+
+			hasErr := len(errs) > 0
+			if hasErr != tc.expectError {
+				t.Errorf("Test %q: expected error: %v, got error: %v, error detail: %v", tc.name, tc.expectError, hasErr, errs)
+			}
+
+			if tc.expectError && hasErr {
+				// Verify the error contains our expected error
+				errFound := false
+				for _, e := range errs {
+					if strings.Contains(e.Message, ErrMaxParsingRecursionDepthExceeded.Error()) {
+						errFound = true
+						break
+					}
+				}
+				if !errFound {
+					t.Errorf("Expected error to contain %q, but got: %v",
+						ErrMaxParsingRecursionDepthExceeded.Error(), errs)
+				}
+			}
+		})
+	}
+}
+
+// generateDeeplyNestedArray creates a deeply nested array as a string
+// with the specified depth.
+func generateDeeplyNestedArray(depth int) string {
+	return strings.Repeat("[", depth) + "1" + strings.Repeat("]", depth)
+}
+
+// generateDeeplyNestedObject creates a deeply nested object as a string
+// with the specified depth.
+func generateDeeplyNestedObject(depth int) string {
+	var sb strings.Builder
+	for i := range depth {
+		sb.WriteString(fmt.Sprintf(`{"key%d": `, i))
+	}
+	sb.WriteString("1")
+	for range depth {
+		sb.WriteString("}")
+	}
+
+	return sb.String()
+}
+
 func assertLocationText(t *testing.T, expected string, actual *Location) {
 	t.Helper()
 	if actual == nil || actual.Text == nil {
