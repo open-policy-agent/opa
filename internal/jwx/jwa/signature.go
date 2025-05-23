@@ -9,7 +9,7 @@ import (
 // SignatureAlgorithm represents the various signature algorithms as described in https://tools.ietf.org/html/rfc7518#section-3.1
 type SignatureAlgorithm string
 
-var signatureAlg = map[string]struct{}{"ES256": {}, "ES384": {}, "ES512": {}, "HS256": {}, "HS384": {}, "HS512": {}, "PS256": {}, "PS384": {}, "PS512": {}, "RS256": {}, "RS384": {}, "RS512": {}, "none": {}}
+var signatureAlg = map[string]struct{}{"ES256": {}, "ES384": {}, "ES512": {}, "HS256": {}, "HS384": {}, "HS512": {}, "PS256": {}, "PS384": {}, "PS512": {}, "RS256": {}, "RS384": {}, "RS512": {}, "EdDSA": {}, "none": {}}
 
 // Supported values for SignatureAlgorithm
 const (
@@ -26,6 +26,7 @@ const (
 	RS256       SignatureAlgorithm = "RS256" // RSASSA-PKCS-v1.5 using SHA-256
 	RS384       SignatureAlgorithm = "RS384" // RSASSA-PKCS-v1.5 using SHA-384
 	RS512       SignatureAlgorithm = "RS512" // RSASSA-PKCS-v1.5 using SHA-512
+	EdDSA       SignatureAlgorithm = "EdDSA" // EdDSA (Ed25519) signature
 	NoValue     SignatureAlgorithm = ""      // No value is different from none
 	Unsupported SignatureAlgorithm = "unsupported"
 )

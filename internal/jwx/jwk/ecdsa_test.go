@@ -46,12 +46,12 @@ func TestECDSA(t *testing.T) {
 		if curveName != "P-256" {
 			t.Fatalf("Curve name should be P-256, not: %s ", curveName)
 		}
-		rawKeyJSON.Crv = jwa.EllipticCurveAlgorithm("dummy")
+		rawKeyJSON.Crv = string(jwa.EllipticCurveAlgorithm("dummy"))
 		_, err = rawKeyJSON.GenerateKey()
 		if err == nil {
 			t.Fatal("Key generation should fail")
 		}
-		rawKeyJSON.Crv = jwa.P256
+		rawKeyJSON.Crv = string(jwa.P256)
 		rawKeyJSON.D = buffer.Buffer("1234")
 		_, err = rawKeyJSON.GenerateKey()
 		if err == nil {

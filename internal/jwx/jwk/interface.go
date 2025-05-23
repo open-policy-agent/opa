@@ -2,6 +2,7 @@ package jwk
 
 import (
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rsa"
 
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
@@ -68,4 +69,16 @@ type ECDSAPublicKey struct {
 type ECDSAPrivateKey struct {
 	*StandardHeaders
 	key *ecdsa.PrivateKey
+}
+
+// EdDSAPublicKey is a type of JWK generated from ECDSA public keys
+type EdDSAPublicKey struct {
+	*StandardHeaders
+	key ed25519.PublicKey
+}
+
+// EdDSAPrivateKey is a type of JWK generated from ECDH-ES private keys
+type EdDSAPrivateKey struct {
+	*StandardHeaders
+	key ed25519.PrivateKey
 }

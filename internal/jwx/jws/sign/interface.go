@@ -2,6 +2,7 @@ package sign
 
 import (
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rsa"
 	"io"
 
@@ -43,4 +44,12 @@ type hmacSignFunc func([]byte, []byte) ([]byte, error)
 type HMACSigner struct {
 	alg  jwa.SignatureAlgorithm
 	sign hmacSignFunc
+}
+
+type eddsaSignFunc func([]byte, ed25519.PrivateKey) ([]byte, error)
+
+// EdDSASigner uses crypto/ecdsa to sign the payloads.
+type EdDSASigner struct {
+	alg  jwa.SignatureAlgorithm
+	sign eddsaSignFunc
 }

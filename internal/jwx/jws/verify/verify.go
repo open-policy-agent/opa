@@ -2,6 +2,7 @@ package verify
 
 import (
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
@@ -21,6 +22,8 @@ func New(alg jwa.SignatureAlgorithm) (Verifier, error) {
 		return newECDSA(alg)
 	case jwa.HS256, jwa.HS384, jwa.HS512:
 		return newHMAC(alg)
+	case jwa.EdDSA:
+		return newEdDSA(alg)
 	default:
 		return nil, fmt.Errorf(`unsupported signature algorithm: %s`, alg)
 	}
@@ -31,7 +34,7 @@ func New(alg jwa.SignatureAlgorithm) (Verifier, error) {
 // For HMAC family, it return a []byte value
 func GetSigningKey(key string, alg jwa.SignatureAlgorithm) (any, error) {
 	switch alg {
-	case jwa.RS256, jwa.RS384, jwa.RS512, jwa.PS256, jwa.PS384, jwa.PS512, jwa.ES256, jwa.ES384, jwa.ES512:
+	case jwa.RS256, jwa.RS384, jwa.RS512, jwa.PS256, jwa.PS384, jwa.PS512, jwa.ES256, jwa.ES384, jwa.ES512, jwa.EdDSA:
 		block, _ := pem.Decode([]byte(key))
 		if block == nil {
 			return nil, errors.New("failed to parse PEM block containing the key")
@@ -43,7 +46,7 @@ func GetSigningKey(key string, alg jwa.SignatureAlgorithm) (any, error) {
 		}
 
 		switch pub := pub.(type) {
-		case *rsa.PublicKey, *ecdsa.PublicKey:
+		case *rsa.PublicKey, *ecdsa.PublicKey, ed25519.PublicKey:
 			return pub, nil
 		default:
 			return nil, fmt.Errorf("invalid key type %T", pub)
