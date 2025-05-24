@@ -63,9 +63,30 @@ point and we recommended you start there.
 | **Mix Producer**  | [Scenario 2](#scenario-2)            | [Scenario 5](#scenario-5) | [Scenario 8](#scenario-8)            |
 | **v1.0 Producer** | [Scenario 3](#scenario-3)            | [Scenario 6](#scenario-6) | [Scenario 9](#scenario-9) (All v1.0) |
 
-<!-- source https://docs.google.com/drawings/d/137EObOVhMIVk9NEWOX0u_1eQOqe0MRkPQlmwKXkYWEU/edit -->
-
-![Upgrade flows to OPA v1.0](opa-v0-upgrade.png)
+```mermaid
+graph LR
+    s2["Scenario 2"]
+    s3["Scenario 3"]
+    s4["Scenario 4"]
+    s5["Scenario 5"]
+    s6["Scenario 6"]
+    s7["Scenario 7"]
+    s8["Scenario 8"]
+    s10["Scenario 10"]
+    start["Recommended<br/>Start Point"] --> s1
+    style start fill:none,stroke:none
+    s10 --> s1["Scenario 1<br/>All v0.x"]
+    s1 --> s2
+    s2 --> s3
+    s3 --> s6
+    s6 --> s9
+    s4 --> s1
+    s4 --> s6
+    s5 --> s9
+    s7 --> s9
+    s1 -->|Single step<br/>upgrade path| s9
+    s8 --> s9["Scenario 9<br/>OPA 1.0+"]
+```
 
 ## Upgrade Scenarios
 

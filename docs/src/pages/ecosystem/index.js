@@ -44,6 +44,7 @@ const EcosystemIndex = (props) => {
     "java",
     "csharp",
     "golang",
+    "swift",
     "clojure",
     "rust",
     "php",
@@ -70,7 +71,7 @@ const EcosystemIndex = (props) => {
         <Heading as="h1" style={{ margin: 0 }}>
           {title}
         </Heading>
-        <p style={{ fontSize: "1.2rem", color: "#555" }}>
+        <p style={{ fontSize: "1.2rem", color: "var(--ifm-font-color-secondary)" }}>
           Showcase of OPA integrations, use-cases, and related projects.
         </p>
 

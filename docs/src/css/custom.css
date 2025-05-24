@@ -2,6 +2,15 @@
 	display: none;
 }
 
+/* These classes are only to be used where ThemedImage is not available */
+[data-theme='dark'] .light-only {
+	display: none;
+}
+
+[data-theme='light'] .dark-only {
+	display: none;
+}
+
 .divider-after:after {
 	content: "";
 	/* This is necessary for the pseudo element to work. */
