@@ -69,7 +69,7 @@ cases:
         	graphql.parse(query, schema)
         }
     want_error_code: eval_builtin_error
-    want_error: 'graphql.parse: Field "myAction" argument "myEnum" of type "Locale!" is required, but it was not provided in GraphQL query string at location 4:5'
+    want_error: 'graphql.parse: Field "myAction" argument "myEnum" of type "Locale!" is required, but it was not provided in GraphQL string at location 4:5'
     strict_error: true
   - note: graphql_parse/success validation rules are independent case 2
     query: data.test.p = x

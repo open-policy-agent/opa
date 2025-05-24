@@ -31,9 +31,7 @@ func parseSchema(schema string) (*gqlast.SchemaDocument, error) {
 	// definitions.
 	schemaAST, err := gqlparser.ParseSchema(&gqlast.Source{Input: schema})
 	if err != nil {
-		errorParts := strings.SplitN(err.Error(), ":", 4)
-		msg := strings.TrimLeft(errorParts[3], " ")
-		return nil, fmt.Errorf("%s in GraphQL string at location %s:%s", msg, errorParts[1], errorParts[2])
+		return nil, formatGqlParserError(err)
 	}
 	return schemaAST, nil
 }
@@ -42,9 +40,7 @@ func parseSchema(schema string) (*gqlast.SchemaDocument, error) {
 func parseQuery(query string) (*gqlast.QueryDocument, error) {
 	queryAST, err := gqlparser.ParseQuery(&gqlast.Source{Input: query})
 	if err != nil {
-		errorParts := strings.SplitN(err.Error(), ":", 4)
-		msg := strings.TrimLeft(errorParts[3], " ")
-		return nil, fmt.Errorf("%s in GraphQL string at location %s:%s", msg, errorParts[1], errorParts[2])
+		return nil, formatGqlParserError(err)
 	}
 	return queryAST, nil
 }
@@ -56,15 +52,7 @@ func validateQuery(schema *gqlast.Schema, query *gqlast.QueryDocument) error {
 	// Validate the query against the schema, erroring if there's an issue.
 	err := gqlvalidator.Validate(schema, query)
 	if err != nil {
-		// We use strings.TrimSuffix to remove the '.' characters that the library
-		// authors include on most of their validation errors. This should be safe,
-		// since variable names in their error messages are usually quoted, and
-		// this affects only the last character(s) in the string.
-		// NOTE(philipc): We know the error location will be in the query string,
-		// because schema validation always happens before this function is called.
-		errorParts := strings.SplitN(err.Error(), ":", 4)
-		msg := strings.TrimSuffix(strings.TrimLeft(errorParts[3], " "), ".\n")
-		return fmt.Errorf("%s in GraphQL query string at location %s:%s", msg, errorParts[1], errorParts[2])
+		return formatGqlParserError(err)
 	}
 	return nil
 }
@@ -221,6 +209,26 @@ func pruneIrrelevantGraphQLASTNodes(value ast.Value) ast.Value {
 	default:
 		return x
 	}
+}
+
+func formatGqlParserError(err error) error {
+	// We use strings.TrimSuffix to remove the '.' characters that the library
+	// authors include on most of their validation errors. This should be safe,
+	// since variable names in their error messages are usually quoted, and
+	// this affects only the last character(s) in the string.
+	// NOTE(philipc): We know the error location will be in the query string,
+	// because schema validation always happens before this function is called.
+	// NOTE(rm): gqlparser does not _always_ return the error location
+	// so only populate location if it is available
+	if err == nil {
+		return nil
+	}
+	errorParts := strings.SplitN(err.Error(), ":", 4)
+	msg := strings.TrimSuffix(strings.TrimLeft(errorParts[len(errorParts)-1], " "), ".\n")
+	if len(errorParts) >= 4 {
+		return fmt.Errorf("%s in GraphQL string at location %s:%s", msg, errorParts[1], errorParts[2])
+	}
+	return fmt.Errorf("%s in GraphQL string", msg)
 }
 
 // Reports errors from parsing/validation.
