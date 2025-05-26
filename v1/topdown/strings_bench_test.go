@@ -189,6 +189,44 @@ func eqIter(a *ast.Term) func(*ast.Term) error {
 	}
 }
 
+// 0 allocs for numbers between 0 and 100 and base 10, 3 allocs for anything else.
+func BenchmarkFormatInt(b *testing.B) {
+	operands := []*ast.Term{
+		ast.InternedIntNumberTerm(99),
+		ast.InternedIntNumberTerm(10),
+	}
+	bctx := BuiltinContext{}
+	want := eqIter(ast.StringTerm("99"))
+
+	b.ResetTimer()
+
+	for range b.N {
+		if err := builtinFormatInt(bctx, operands, want); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// 0 allocs for numbers between 0 and 100, 3 allocs for anything else.
+func BenchmarkSprintfSingleInteger(b *testing.B) {
+	operands := []*ast.Term{
+		ast.StringTerm("%d"),
+		ast.ArrayTerm(
+			ast.InternedIntNumberTerm(99),
+		),
+	}
+	bctx := BuiltinContext{}
+	want := eqIter(ast.StringTerm("99"))
+
+	b.ResetTimer()
+
+	for range b.N {
+		if err := builtinSprintf(bctx, operands, want); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 // This benchmark is not so much about trimming space, but the optimization of returning
 // the operand as provided for string operations that don't change the string provided as
 // input, like when trimming space around a string that doesn't have any, or replacing a

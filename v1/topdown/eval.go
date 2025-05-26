@@ -923,7 +923,6 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 
 		eval := evalFunc{
 			e:     e,
-			ref:   ref,
 			terms: terms,
 			ir:    ir,
 		}
@@ -2024,7 +2023,6 @@ func (e *evalBuiltin) eval(iter unifyIterator) error {
 type evalFunc struct {
 	e     *eval
 	ir    *ast.IndexResult
-	ref   ast.Ref
 	terms []*ast.Term
 }
 
@@ -2067,10 +2065,12 @@ func (e evalFunc) eval(iter unifyIterator) error {
 			}
 		}
 
-		if mustGenerateSupport || e.e.inliningControl.shallow || e.e.inliningControl.Disabled(e.ref, false) {
+		ref := e.terms[0].Value.(ast.Ref)
+
+		if mustGenerateSupport || e.e.inliningControl.shallow || e.e.inliningControl.Disabled(ref, false) {
 			// check if the function definitions, or any of the arguments
 			// contain something unknown
-			unknown := e.e.unknown(e.ref, e.e.bindings)
+			unknown := e.e.unknown(ref, e.e.bindings)
 			for i := 1; !unknown && i <= argCount; i++ {
 				unknown = e.e.unknown(e.terms[i], e.e.bindings)
 			}
@@ -2169,11 +2169,9 @@ func (e evalFunc) evalValue(iter unifyIterator, argCount int, findOne bool) erro
 }
 
 func (e evalFunc) evalCache(argCount int, iter unifyIterator) (ast.Ref, bool, error) {
-	var plen int
-	if len(e.terms) == argCount+2 { // func name + output = 2
-		plen = len(e.terms) - 1
-	} else {
-		plen = len(e.terms)
+	plen := len(e.terms)
+	if plen == argCount+2 { // func name + output = 2
+		plen -= 1
 	}
 
 	cacheKey := make([]*ast.Term, plen)
@@ -2265,8 +2263,7 @@ func (e evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, args []*ast.Te
 }
 
 func (e evalFunc) partialEvalSupport(declArgsLen int, iter unifyIterator) error {
-
-	path := e.e.namespaceRef(e.ref)
+	path := e.e.namespaceRef(e.terms[0].Value.(ast.Ref))
 
 	if !e.e.saveSupport.Exists(path) {
 		for _, rule := range e.ir.Rules {

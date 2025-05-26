@@ -964,12 +964,7 @@ func (c *Compiler) buildComprehensionIndices() {
 	}
 }
 
-var (
-	keywordsTerm         = StringTerm("keywords")
-	pathTerm             = StringTerm("path")
-	annotationsTerm      = StringTerm("annotations")
-	futureKeywordsPrefix = Ref{FutureRootDocument, keywordsTerm}
-)
+var futureKeywordsPrefix = Ref{FutureRootDocument, InternedStringTerm("keywords")}
 
 // buildRequiredCapabilities updates the required capabilities on the compiler
 // to include any keyword and feature dependencies present in the modules. The
@@ -2534,17 +2529,15 @@ func createMetadataChain(chain []*AnnotationsRef) (*Term, *Error) {
 
 	metaArray := NewArray()
 	for _, link := range chain {
-		p := link.Path.toArray().
-			Slice(1, -1) // Dropping leading 'data' element of path
-		obj := NewObject(
-			Item(pathTerm, NewTerm(p)),
-		)
+		// Dropping leading 'data' element of path
+		p := link.Path[1:].toArray()
+		obj := NewObject(Item(InternedStringTerm("path"), NewTerm(p)))
 		if link.Annotations != nil {
 			annotObj, err := link.Annotations.toObject()
 			if err != nil {
 				return nil, err
 			}
-			obj.Insert(annotationsTerm, NewTerm(*annotObj))
+			obj.Insert(InternedStringTerm("annotations"), NewTerm(*annotObj))
 		}
 		metaArray = metaArray.Append(NewTerm(obj))
 	}
@@ -4642,6 +4635,8 @@ func rewriteComprehensionTerms(f *equalityFactory, node any) (any, error) {
 	})
 }
 
+var doubleEq = Equal.Ref()
+
 // rewriteEquals will rewrite exprs under x as unification calls instead of ==
 // calls. For example:
 //
@@ -4656,7 +4651,6 @@ func rewriteComprehensionTerms(f *equalityFactory, node any) (any, error) {
 // partial evaluation cases we do want to rewrite == to = to simplify the
 // result.
 func rewriteEquals(x any) (modified bool) {
-	doubleEq := Equal.Ref()
 	unifyOp := Equality.Ref()
 	t := NewGenericTransformer(func(x any) (any, error) {
 		if x, ok := x.(*Expr); ok && x.IsCall() {

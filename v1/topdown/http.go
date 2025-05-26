@@ -89,22 +89,13 @@ var cacheableHTTPStatusCodes = [...]int{
 }
 
 var (
-	codeTerm       = ast.StringTerm("code")
-	messageTerm    = ast.StringTerm("message")
-	statusCodeTerm = ast.StringTerm("status_code")
-	errorTerm      = ast.StringTerm("error")
-	methodTerm     = ast.StringTerm("method")
-	urlTerm        = ast.StringTerm("url")
-
 	httpSendNetworkErrTerm  = ast.StringTerm(HTTPSendNetworkErr)
 	httpSendInternalErrTerm = ast.StringTerm(HTTPSendInternalErr)
-)
 
-var (
 	allowedKeys                 = ast.NewSet()
 	keyCache                    = make(map[string]*ast.Term, len(allowedKeyNames))
 	cacheableCodes              = ast.NewSet()
-	requiredKeys                = ast.NewSet(methodTerm, urlTerm)
+	requiredKeys                = ast.NewSet(ast.InternedStringTerm("method"), ast.InternedStringTerm("url"))
 	httpSendLatencyMetricKey    = "rego_builtin_http_send"
 	httpSendInterQueryCacheHits = httpSendLatencyMetricKey + "_interquery_cache_hits"
 )
@@ -170,20 +161,20 @@ func generateRaiseErrorResult(err error) *ast.Term {
 	switch err.(type) {
 	case *url.Error:
 		errObj = ast.NewObject(
-			ast.Item(codeTerm, httpSendNetworkErrTerm),
-			ast.Item(messageTerm, ast.StringTerm(err.Error())),
+			ast.Item(ast.InternedStringTerm("code"), httpSendNetworkErrTerm),
+			ast.Item(ast.InternedStringTerm("message"), ast.StringTerm(err.Error())),
 		)
 	default:
 		errObj = ast.NewObject(
-			ast.Item(codeTerm, httpSendInternalErrTerm),
-			ast.Item(messageTerm, ast.StringTerm(err.Error())),
+			ast.Item(ast.InternedStringTerm("code"), httpSendInternalErrTerm),
+			ast.Item(ast.InternedStringTerm("message"), ast.StringTerm(err.Error())),
 		)
 	}
 
-	return ast.NewTerm(ast.NewObject(
-		ast.Item(statusCodeTerm, ast.InternedIntNumberTerm(0)),
-		ast.Item(errorTerm, ast.NewTerm(errObj)),
-	))
+	return ast.ObjectTerm(
+		ast.Item(ast.InternedStringTerm("status_code"), ast.InternedIntNumberTerm(0)),
+		ast.Item(ast.InternedStringTerm("error"), ast.NewTerm(errObj)),
+	)
 }
 
 func getHTTPResponse(bctx BuiltinContext, req ast.Object) (*ast.Term, error) {

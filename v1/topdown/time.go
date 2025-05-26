@@ -127,8 +127,8 @@ func builtinDate(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) er
 		return err
 	}
 	year, month, day := t.Date()
-	result := ast.NewArray(ast.InternedIntNumberTerm(year), ast.InternedIntNumberTerm(int(month)), ast.InternedIntNumberTerm(day))
-	return iter(ast.NewTerm(result))
+
+	return iter(ast.ArrayTerm(ast.InternedIntNumberTerm(year), ast.InternedIntNumberTerm(int(month)), ast.InternedIntNumberTerm(day)))
 }
 
 func builtinClock(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {

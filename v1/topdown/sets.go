@@ -35,7 +35,7 @@ func builtinSetIntersection(_ BuiltinContext, operands []*ast.Term, iter func(*a
 
 	// empty input set
 	if inputSet.Len() == 0 {
-		return iter(ast.NewTerm(ast.NewSet()))
+		return iter(ast.InternedEmptySet)
 	}
 
 	var result ast.Set

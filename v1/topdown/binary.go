@@ -21,7 +21,12 @@ func builtinBinaryAnd(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 		return err
 	}
 
-	return iter(ast.NewTerm(s1.Intersect(s2)))
+	i := s1.Intersect(s2)
+	if i.Len() == 0 {
+		return iter(ast.InternedEmptySet)
+	}
+
+	return iter(ast.NewTerm(i))
 }
 
 func builtinBinaryOr(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
