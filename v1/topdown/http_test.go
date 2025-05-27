@@ -3307,47 +3307,47 @@ func TestQueryTimeout(t *testing.T) {
 		expectedError string
 	}{
 		{
-			note: "raised errors with cache",
+			note: "raised errors with inter query cache",
 			rules: []string{`p["one"] {
-	not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true})
+	not http.send({"method": "GET", "url": "%URL%", "timeout": "1ms", "cache": true})
 }`,
 				`p["two"] {
-	not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true})
+	not http.send({"method": "GET", "url": "%URL%", "timeout": "1ms", "cache": true})
 }`},
 			expected:      `["one", "two"]`,
-			expectedError: `not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true}): eval_builtin_error: http.send: Get %URL%: request timed out`,
+			expectedError: `not http.send({"method": "GET", "url": "%URL%", "timeout": "1ms", "cache": true}): eval_builtin_error: http.send: Get %URL%: request timed out`,
 		},
 		{
-			note: "no raised errors with cache",
+			note: "no raised errors with inter query cache",
 			rules: []string{`p["one"] {
-	r := http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true, "raise_error": false})
+	r := http.send({"method": "GET", "url": "%URL%", "timeout": "1ms", "cache": true, "raise_error": false})
 	r.error.code == "eval_http_send_network_error"
 }`,
 				`p["two"] {
-	r := http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true, "raise_error": false})
+	r := http.send({"method": "GET", "url": "%URL%", "timeout": "1ms", "cache": true, "raise_error": false})
 	r.error.code == "eval_http_send_network_error"
 }`},
 			expected: `["one", "two"]`,
 		},
 		{
-			note: "raised errors",
+			note: "raised errors with intra query cache",
 			rules: []string{`p["one"] {
-	not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms"})
+	not http.send({"method": "GET", "url": "%URL%", "timeout": "1ms"})
 }`,
 				`p["two"] {
-	not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms"})
+	not http.send({"method": "GET", "url": "%URL%", "timeout": "1ms"})
 }`},
 			expected:      `["one", "two"]`,
-			expectedError: `not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms"}): eval_builtin_error: http.send: Get %URL%: request timed out`,
+			expectedError: `not http.send({"method": "GET", "url": "%URL%", "timeout": "1ms"}): eval_builtin_error: http.send: Get %URL%: request timed out`,
 		},
 		{
-			note: "no raised errors",
+			note: "no raised errors with intra query cache",
 			rules: []string{`p["one"] {
-	r := http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "raise_error": false})
+	r := http.send({"method": "GET", "url": "%URL%", "timeout": "1ms", "raise_error": false})
 	r.error.code == "eval_http_send_network_error"
 }`,
 				`p["two"] {
-	r := http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "raise_error": false})
+	r := http.send({"method": "GET", "url": "%URL%", "timeout": "1ms", "raise_error": false})
 	r.error.code == "eval_http_send_network_error"
 }`},
 			expected: `["one", "two"]`,
@@ -3358,13 +3358,9 @@ func TestQueryTimeout(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
-			ch := make(chan *http.Request)
-			const timeout = 20 * time.Millisecond // larger than the 10ms timeout in rules
-
 			// An HTTP server that always causes a timeout
 			ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-				time.Sleep(timeout)
-				ch <- r
+				time.Sleep(5 * time.Millisecond) // larger than the 10ms timeout in rules
 			}))
 			defer ts.Close()
 
@@ -3384,15 +3380,16 @@ func TestQueryTimeout(t *testing.T) {
 				return q
 			})
 
-			for _, e := range builtInErrList {
-				if e.Error() != tc.expectedError {
-					t.Errorf("Expected error %v, but got %v", tc.expectedError, e.Error())
-				}
+			if tc.expectedError == "" && len(builtInErrList) > 0 {
+				t.Fatalf("builtInErrList shouldn't contain an error but it does: %v", builtInErrList)
 			}
 
-			// each rule does a request
-			for range len(tc.rules) {
-				<-ch
+			if tc.expectedError != "" && len(builtInErrList) == 0 {
+				t.Fatalf("builtInErrList did not contain errors but expected: %s", tc.expectedError)
+			}
+
+			if tc.expectedError != "" && builtInErrList[0].Error() != tc.expectedError {
+				t.Errorf("Expected error %v, but got %v", tc.expectedError, builtInErrList[0].Error())
 			}
 		})
 	}
