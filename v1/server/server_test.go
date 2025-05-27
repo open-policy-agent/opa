@@ -6318,6 +6318,10 @@ func TestCertPoolReloading(t *testing.T) {
 }
 
 func TestCertReloading(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	t.Parallel()
 
 	ctx := context.Background()
