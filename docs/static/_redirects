@@ -24,6 +24,9 @@
 # -----------------------------------------------------------------------------
 
 /bundles/helm-kubernetes-quickstart /external-resources/bundles/helm-kubernetes-quickstart 301!
+/bundles/envoy/authz /external-resources/bundles/envoy/authz 301!
+/bundles/istio/authz /external-resources/bundles/istio/authz 301!
+/bundles/kubernetes/admission /external-resources/bundles/kubernetes/admission 301!
 /img/logos/opa-horizontal-color.png /external-resources/opa-horizontal-color.png 301!
 /img/logos/opa-no-text-color.png /external-resources/opa-no-text-color.png 301!
 
