@@ -9,27 +9,11 @@ import React from "react";
 import semver from "semver";
 import styled from "styled-components";
 
+// display: inline-block overrides the default and ensures the item shows on
+// mobile at the top of the page.
 const VersionWrapper = styled.div`
-  border-radius: 0.3rem;
-  font-weight: 600;
-  font-size: 0.875rem;
-  line-height: 1.2;
-
   a.navbar__item.navbar__link {
     display: inline-block;
-    padding: 0.1rem 0.6rem;
-    color: var(--ifm-color-white);
-    background-color: var(--ifm-color-success-dark);
-    border-radius: 0.3rem;
-    text-decoration: none;
-    transition: background-color 0.3s ease;
-
-    &:hover,
-    &:focus {
-      color: var(--ifm-color-white);
-      background-color: var(--ifm-color-success-dark);
-      text-decoration: none;
-    }
   }
 `;
 
