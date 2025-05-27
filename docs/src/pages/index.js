@@ -6,12 +6,15 @@ import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
 import TabItem from "@theme/TabItem";
 import Tabs from "@theme/Tabs";
+import ThemedImage from "@theme/ThemedImage";
 
 import Card from "@site/src/components/Card";
 import ImageCard from "@site/src/components/ImageCard";
 import PlaygroundExample from "@site/src/components/PlaygroundExample";
 import SideBySideColumn from "@site/src/components/SideBySide/Column";
 import SideBySideContainer from "@site/src/components/SideBySide/Container";
+
+import StyraLogo from "./assets/styra.svg";
 
 const Index = (props) => {
   const title = "Open Policy Agent - Homepage";
@@ -27,16 +30,19 @@ const Index = (props) => {
                 marginBottom: "2rem",
               }}
             >
-              <img
-                src={require("./assets/logo-text.png").default}
+              <ThemedImage
                 alt="OPA Logo"
                 style={{ width: "80%", marginBottom: "1rem", maxWidth: "30rem" }}
+                sources={{
+                  light: require("./assets/logo-text-light.png").default,
+                  dark: require("./assets/logo-text-dark.png").default,
+                }}
               />
 
               <h2
                 style={{
                   fontWeight: "normal",
-                  color: "#444",
+                  color: "var(--ifm-font-color-secondary)",
                   marginTop: 0,
                   fontSize: "1.2rem",
                 }}
@@ -58,12 +64,23 @@ const Index = (props) => {
         >
           {(() => {
             const logoContext = require.context("./assets/logos", false);
-            return logoContext.keys().map((key) => {
-              const logo = logoContext(key).default;
-              const imageName = key.replace("./", "").split(".")[0];
+            const companyNames = Array.from(
+              new Set(
+                logoContext.keys().map((key) => {
+                  return key
+                    .replace("./", "")
+                    .replace("-light", "")
+                    .replace("-dark", "")
+                    .replace(".svg", "");
+                }),
+              ),
+            );
+            return companyNames.map((name) => {
+              const logoLight = logoContext(`./${name}-light.svg`).default;
+              const logoDark = logoContext(`./${name}-dark.svg`).default;
               return (
                 <div
-                  key={key}
+                  key={name}
                   style={{
                     width: "6rem",
                     height: "2rem",
@@ -72,7 +89,14 @@ const Index = (props) => {
                     justifyContent: "center",
                   }}
                 >
-                  <img src={logo} alt={imageName} style={{ maxWidth: "80%", maxHeight: "80%" }} />
+                  <ThemedImage
+                    alt={`${name} logo`}
+                    style={{ maxWidth: "80%", maxHeight: "80%" }}
+                    sources={{
+                      light: logoLight,
+                      dark: logoDark,
+                    }}
+                  />
                 </div>
               );
             });
@@ -94,15 +118,19 @@ const Index = (props) => {
         }}
       >
         <a href="https://styra.com" target="_blank" rel="noopener noreferrer">
-          <img
-            src={require("./assets/styra.png").default}
-            alt="Styra Logo"
-            style={{ width: "6rem" }}
-          />
+          <StyraLogo style={{ width: "6rem" }} alt="Styra Logo" />
         </a>
       </p>
 
-      <p style={{ textAlign: "center", fontSize: "0.8rem", color: "#555", margin: "1rem auto", maxWidth: "80%" }}>
+      <p
+        style={{
+          textAlign: "center",
+          fontSize: "0.8rem",
+          color: "var(--ifm-font-color-secondary)",
+          margin: "1rem auto",
+          maxWidth: "80%",
+        }}
+      >
         OPA is now maintained by Styra and a large community of contributors.
       </p>
 

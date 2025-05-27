@@ -1179,7 +1179,7 @@ bundles:
 Note that the `$CLIENT_ID` is what is referred to as the "Application ID" inside your Azure account.
 Also note in particular how the `thumbprint` property is required for Azure. The value expected here can be found under "Certificates and Secrets" in your application's configuration.
 
-![Certificate thumbprint](thumbprint.png)
+![Certificate thumbprint](./assets/thumbprint.png)
 
 ### Nginx
 

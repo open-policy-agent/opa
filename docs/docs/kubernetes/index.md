@@ -61,7 +61,21 @@ The Kubernetes API Server is configured to query OPA for admission control
 decisions when objects (e.g., Pods, Services, etc.) are created, updated, or
 deleted.
 
-![Kubernetes Admission Control Flow](./assets/kubernetes-admission-flow.png)
+```mermaid
+graph TD
+    kubectl
+    cicd[CI/CD Pipelines]
+    controllers[Controllers]
+    api[API Server]
+    OPA
+
+    kubectl --> api
+    cicd --> api
+    controllers --> api
+
+    api -->|AdmissionReview<br/>Request| OPA
+    OPA -->|AdmissionReview<br/>Response| api
+```
 
 The API Server sends the entire Kubernetes object in the webhook request to OPA.
 OPA evaluates the policies it has loaded using the admission review as `input`.
@@ -241,7 +255,20 @@ The kube-mgmt sidecar container can also load any other Kubernetes object into
 OPA as JSON under `data`. This lets you enforce policies that rely on an
 eventually consistent snapshot of the Kubernetes cluster as context.
 
-![Kubernetes Watchers](./assets/kubernetes-watchers.png)
+```mermaid
+graph LR
+    policies["Rego Policies<br>(Config Map)"]
+    api[API Server]
+    kubemgmt[kube-mgmt]
+    OPA
+
+    policies --> api
+    api -->|ConfigMap| kubemgmt
+    api -->|Namespaces| kubemgmt
+    api -->|Ingresses| kubemgmt
+    api -->|...| kubemgmt
+    kubemgmt -->|Structured<br>Resource Data| OPA
+```
 
 See the [Policy Authoring](./kubernetes/primer) and [Tutorial: Ingress Validation](./kubernetes/tutorial) pages for more details.
 
