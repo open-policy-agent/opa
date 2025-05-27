@@ -12,7 +12,7 @@ OPA is proud to be a graduated project in the [Cloud Native Computing Foundation
 - Install the [VS Code extension](https://marketplace.visualstudio.com/items?itemName=tsandall.opa) to get started locally with live diagnostics, debugging and formatting. See [Editor and IDE Support](https://www.openpolicyagent.org/docs/edge/editor-and-ide-support/) for other supported editors.
 - Go to the [OPA Documentation](https://www.openpolicyagent.org/docs/latest/) to
   learn about the Rego language as well as how to deploy and integrate OPA.
-- Check out the learning resources in the [Learning Rego](https://www.openpolicyagent.org/ecosystem/learning-rego/) section of the ecosystem directory.
+- Check out the learning resources in the [Learning Rego](https://www.openpolicyagent.org/ecosystem/by-feature/learning-rego/) section of the ecosystem directory.
 - Follow the [Running OPA](https://www.openpolicyagent.org/docs/latest/#running-opa) instructions to get started with the OPA CLI locally.
 - See [Docker Hub](https://hub.docker.com/r/openpolicyagent/opa/tags/) for container images and the [GitHub releases](https://github.com/open-policy-agent/opa/releases) for binaries.
 - Check out the [OPA Roadmap](https://docs.google.com/presentation/d/16QV6gvLDOV3I0_guPC3_19g6jHkEg3X9xqMYgtoCKrs/edit?usp=sharing) to see a high-level snapshot of OPA features in-progress and planned.
