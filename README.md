@@ -9,7 +9,7 @@ OPA is proud to be a graduated project in the [Cloud Native Computing Foundation
 ## Get started with OPA
 
 - Write your first Rego policy with the [Rego Playground](https://play.openpolicyagent.org) or use it to share your work with others for feedback and support. Have a look at the [Access Control examples](https://play.openpolicyagent.org/?example-group=access-control) if you're not sure where to start.
-- Install the [VS Code extension](https://marketplace.visualstudio.com/items?itemName=tsandall.opa) to get started locally with live diagnostics, debugging and formatting. See [Editor and IDE Support](https://www.openpolicyagent.org/docs/edge/editor-and-ide-support/) for other supported editors.
+- Install the [VS Code extension](https://marketplace.visualstudio.com/items?itemName=tsandall.opa) to get started locally with live diagnostics, debugging and formatting. See [Editor and IDE Support](https://www.openpolicyagent.org/docs/editor-and-ide-support/) for other supported editors.
 - Go to the [OPA Documentation](https://www.openpolicyagent.org/docs/latest/) to
   learn about the Rego language as well as how to deploy and integrate OPA.
 - Check out the learning resources in the [Learning Rego](https://www.openpolicyagent.org/ecosystem/by-feature/learning-rego/) section of the ecosystem directory.
