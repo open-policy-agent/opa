@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -264,6 +265,7 @@ type Runner struct {
 	target                string // target type (wasm, rego, etc.)
 	customBuiltins        []*Builtin
 	defaultRegoVersion    ast.RegoVersion
+	parallel              int
 }
 
 // NewRunner returns a new runner.
@@ -271,7 +273,19 @@ func NewRunner() *Runner {
 	return &Runner{
 		timeout:            5 * time.Second,
 		defaultRegoVersion: ast.DefaultRegoVersion,
+		parallel:           1,
 	}
+}
+
+// SetParallel sets the number of tests that can run in parallel
+func (r *Runner) SetParallel(parallel int) *Runner {
+	if parallel < 1 {
+		parallel = 1
+	}
+
+	r.parallel = parallel
+
+	return r
 }
 
 // SetDefaultRegoVersion sets the default Rego version to use when compiling modules.
@@ -413,7 +427,7 @@ func (r *Runner) RunBenchmarks(ctx context.Context, txn storage.Transaction, opt
 
 type run func(context.Context, storage.Transaction, *ast.Module, *ast.Rule) (*Result, bool)
 
-func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePrintStatements bool, runFunc run) (chan *Result, error) {
+func (r *Runner) setupTestRun(ctx context.Context, txn storage.Transaction, enablePrintStatements bool) (*regexp.Regexp, error) {
 	var testRegex *regexp.Regexp
 	var err error
 
@@ -461,7 +475,7 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 		}
 
 		// Activate the bundle(s) to get their info and policies into the store
-		// the actual compiled policies will overwritten later..
+		// the actual compiled policies will be overwritten later.
 		opts := &bundle.ActivateOpts{
 			Ctx:           ctx,
 			Store:         r.store,
@@ -491,28 +505,56 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 		}
 	}
 
-	filenames := util.KeysSorted(r.compiler.Modules)
+	return testRegex, nil
+}
+
+func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePrintStatements bool, runFunc run) (chan *Result, error) {
+	testRegex, err := r.setupTestRun(ctx, txn, enablePrintStatements)
+	if err != nil {
+		return nil, err
+	}
+
 	ch := make(chan *Result)
+	var wg sync.WaitGroup
+	semaphore := make(chan struct{}, r.parallel)
 
 	go func() {
 		defer close(ch)
-		for _, name := range filenames {
-			module := r.compiler.Modules[name]
+
+		// an individual test can stop all other tests from running
+		stopRunCtx, cancelRun := context.WithCancel(ctx)
+		defer cancelRun()
+
+		for _, module := range r.compiler.Modules {
 			for _, rule := range module.Rules {
-				if !r.shouldRun(rule, testRegex) {
-					continue
-				}
-				tr, stop := func() (*Result, bool) {
-					runCtx, cancel := context.WithTimeout(ctx, r.timeout)
-					defer cancel()
-					return runFunc(runCtx, txn, module, rule)
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					semaphore <- struct{}{}
+					defer func() { <-semaphore }()
+
+					select {
+					case <-stopRunCtx.Done():
+						return
+					default:
+						if !r.shouldRun(rule, testRegex) {
+							return
+						}
+						tr, stop := func() (*Result, bool) {
+							runCtx, cancel := context.WithTimeout(ctx, r.timeout)
+							defer cancel()
+							return runFunc(runCtx, txn, module, rule)
+						}()
+						ch <- tr
+						if stop {
+							cancelRun()
+						}
+					}
 				}()
-				ch <- tr
-				if stop {
-					return
-				}
 			}
 		}
+
+		wg.Wait()
 	}()
 
 	return ch, nil

@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	goRuntime "runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -66,6 +67,7 @@ type testCommandParams struct {
 	v0Compatible bool
 	v1Compatible bool
 	varValues    bool
+	parallel     int
 }
 
 func newTestCommandParams() testCommandParams {
@@ -78,6 +80,7 @@ func newTestCommandParams() testCommandParams {
 		output:       os.Stdout,
 		errOutput:    os.Stderr,
 		stopChan:     make(chan os.Signal, 1),
+		parallel:     1,
 	}
 }
 
@@ -200,6 +203,7 @@ func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runne
 	}
 
 	exitCode := 0
+	testResults := make(map[string][]*tester.Result)
 	dup := make(chan *tester.Result)
 
 	go func() {
@@ -211,7 +215,16 @@ func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runne
 				}
 			}
 			tr.Trace = filterTrace(&testParams, tr.Trace)
-			dup <- tr
+
+			// Sort the test results by filename
+			testResults[tr.Location.File] = append(testResults[tr.Location.File], tr)
+		}
+
+		// reporter.Report expects the test results to be sent in order by filename
+		for _, results := range testResults {
+			for _, result := range results {
+				dup <- result
+			}
 		}
 	}()
 
@@ -409,7 +422,8 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 		SetBundles(bundles).
 		SetTimeout(timeout).
 		Filter(testParams.runRegex).
-		Target(testParams.target.String())
+		Target(testParams.target.String()).
+		SetParallel(testParams.parallel)
 
 	var reporter tester.Reporter
 
@@ -549,9 +563,10 @@ recommended as some updates might cause them to be dropped by OPA.
 	testCommand.Flags().BoolVarP(&testParams.coverage, "coverage", "c", false, "report coverage (overrides debug tracing)")
 	testCommand.Flags().Float64VarP(&testParams.threshold, "threshold", "", 0, "set coverage threshold and exit with non-zero status if coverage is less than threshold %")
 	testCommand.Flags().BoolVar(&testParams.benchmark, "bench", false, "benchmark the unit tests")
-	testCommand.Flags().StringVarP(&testParams.runRegex, "run", "r", "", "run only test cases matching the regular expression.")
+	testCommand.Flags().StringVarP(&testParams.runRegex, "run", "r", "", "run only test cases matching the regular expression")
 	testCommand.Flags().BoolVarP(&testParams.watch, "watch", "w", false, "watch command line files for changes")
 	testCommand.Flags().BoolVar(&testParams.varValues, "var-values", false, "show local variable values in test output")
+	testCommand.Flags().IntVarP(&testParams.parallel, "parallel", "p", goRuntime.GOMAXPROCS(0), "the number of tests that can run in parallel, defaulting to the number of CPUS")
 
 	// Shared flags
 	addBundleModeFlag(testCommand.Flags(), &testParams.bundleMode, false)
