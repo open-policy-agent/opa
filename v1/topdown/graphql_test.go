@@ -6,6 +6,7 @@ package topdown
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"runtime"
@@ -904,6 +905,81 @@ func TestGraphQLParseSchemaAlloc(t *testing.T) {
 			if allocDifference > tc.maxAlloc {
 				t.Errorf("Parsing schema '%s' expected alloc < %d, got %d", tc.note, tc.maxAlloc, allocDifference)
 				return
+			}
+		})
+	}
+}
+
+func TestFormatGqlParserError(t *testing.T) {
+	testCases := []struct {
+		desc   string
+		inErr  error
+		outErr error
+	}{
+		// Expected errors based on https://github.com/vektah/gqlparser/blob/master/gqlerror/error.go#L40-L67
+		{
+			desc:   "valid gqlparser error with filename and no location",
+			inErr:  errors.New("filename.gql: error string with filename and no location"),
+			outErr: errors.New("GraphQL parse error: filename.gql: error string with filename and no location"),
+		},
+		{
+			desc:   "valid gqlparser error with filename and location",
+			inErr:  errors.New("filename.gql:1:2: error string with filename and location"),
+			outErr: errors.New("error string with filename and location in GraphQL string at location 1:2"),
+		},
+		{
+			desc:   "valid gqlparser error without filename and no location",
+			inErr:  errors.New("input: error string without filename and no location"),
+			outErr: errors.New("GraphQL parse error: input: error string without filename and no location"),
+		},
+		{
+			desc:   "valid gqlparser error without filename and with location",
+			inErr:  errors.New("input:1:2: error string without filename and with location"),
+			outErr: errors.New("error string without filename and with location in GraphQL string at location 1:2"),
+		},
+		// Unexpected errors
+		{
+			desc:   "Handle nil even though it is unnecessary today",
+			inErr:  nil,
+			outErr: nil,
+		},
+		{
+			desc:   "empty",
+			inErr:  errors.New(""),
+			outErr: errors.New("GraphQL parse error: "),
+		},
+		{
+			desc:   "string with no :",
+			inErr:  errors.New("test"),
+			outErr: errors.New("GraphQL parse error: test"),
+		},
+		{
+			desc:   "string with 2:",
+			inErr:  errors.New("x:y:z"),
+			outErr: errors.New("GraphQL parse error: x:y:z"),
+		},
+		{
+			desc:   "string with 3: and alpha locations",
+			inErr:  errors.New("input: b:c:d"),
+			outErr: errors.New("GraphQL parse error: input: b:c:d"),
+		},
+		{
+			desc:   "string with 8: and empty locations",
+			inErr:  errors.New("::::::::"),
+			outErr: errors.New("GraphQL parse error: ::::::::"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			gotErr := formatGqlParserError(tc.inErr)
+			if gotErr == nil {
+				if tc.outErr != nil {
+					t.Errorf("gotErr = %v, wantErr %v", gotErr, tc.outErr)
+					return
+				}
+			} else if gotErr.Error() != tc.outErr.Error() {
+				t.Errorf("gotErr = %v, wantErr %v", gotErr, tc.outErr)
 			}
 		})
 	}

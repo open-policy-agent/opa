@@ -6,6 +6,57 @@ import ReactMarkdown from "react-markdown";
 import entries from "@generated/ecosystem-data/default/entries.json";
 import getLogoAsset from "./lib/ecosystem/getLogoAsset.js";
 
+function humanizeSegment(segment) {
+  const words = segment.replace(/-/g, " ").split(" ");
+
+  // Filter out words with more than 3 digits, this is a heuristic to avoid URL
+  // ids and so on.
+  const filteredWords = words.filter((word) => {
+    const digitCount = (word.match(/\d/g) || []).length;
+    return digitCount <= 3;
+  });
+
+  return filteredWords
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .map((word) => {
+      if (word.toLowerCase() === "opa") return "OPA";
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join(" ");
+}
+
+function getHumanLabelFromUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const domain = parsed.hostname.replace(/^www\./, "");
+
+    const parts = parsed.pathname
+      .split("/")
+      .filter(Boolean)
+      .map(humanizeSegment);
+
+    const label = parts.length > 0 ? parts.join(" > ") : domain;
+
+    return { domain, label };
+  } catch (err) {
+    console.error(err);
+    return { domain: "", label: url };
+  }
+}
+
+const HumanLink = ({ href }) => {
+  const { domain, label } = getHumanLabelFromUrl(href);
+
+  return (
+    <>
+      <a href={href} target="_blank" rel="noopener noreferrer">
+        {label}
+      </a>{" "}
+      ({domain})
+    </>
+  );
+};
+
 const EcosystemEntry = (props) => {
   const { id } = props.route.customData;
   const page = entries[id];
@@ -65,9 +116,7 @@ const EcosystemEntry = (props) => {
             <ul>
               {blogs.map((url, idx) => (
                 <li key={`blog-${idx}`}>
-                  <a href={url} target="_blank" rel="noopener noreferrer">
-                    {url}
-                  </a>
+                  <HumanLink href={url} />
                 </li>
               ))}
             </ul>
@@ -81,9 +130,7 @@ const EcosystemEntry = (props) => {
             <ul>
               {code.map((url, idx) => (
                 <li key={`code-${idx}`}>
-                  <a href={url} target="_blank" rel="noopener noreferrer">
-                    {url}
-                  </a>
+                  <HumanLink href={url} />
                 </li>
               ))}
             </ul>
@@ -101,7 +148,7 @@ const EcosystemEntry = (props) => {
                   return (
                     <li key={`video-${idx}`}>
                       <a href={video} target="_blank" rel="noopener noreferrer">
-                        {video}
+                        {video.replace(/https?:\/\//, "").replace(/\/$/, "")}
                       </a>
                     </li>
                   );
@@ -143,9 +190,7 @@ const EcosystemEntry = (props) => {
             <ul>
               {tutorials.map((url, idx) => (
                 <li key={`tutorial-${idx}`}>
-                  <a href={url} target="_blank" rel="noopener noreferrer">
-                    {url}
-                  </a>
+                  <HumanLink href={url} />
                 </li>
               ))}
             </ul>

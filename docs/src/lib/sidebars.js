@@ -87,8 +87,8 @@ module.exports = {
       collapsed: true,
       items: [
         "contributing",
-        "contrib-docs",
         "contrib-code",
+        "contrib-docs",
         "contrib-development",
         "contrib-adding-builtin-functions",
       ],

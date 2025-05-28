@@ -4,7 +4,7 @@ sidebar_position: 4
 ---
 
 OPA gives you a high-level declarative language
-([Rego](./policy-language)) to author fine-grained policies that
+([Rego](/docs/policy-language)) to author fine-grained policies that
 codify important requirements in your system.
 
 To help you verify the correctness of your policies, OPA also gives you a

@@ -13,6 +13,7 @@ code:
 - https://github.com/StyraInc/regal
 videos:
 - "https://www.youtube.com/live/Xx8npd2TQJ0?feature=share&t=2567"
+- "https://youtu.be/XtA-NKoJDaI?feature=shared&t=934"
 tutorials:
 - https://docs.styra.com/regal#try-it-out
 docs_features:

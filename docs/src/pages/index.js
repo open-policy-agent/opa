@@ -9,6 +9,7 @@ import Tabs from "@theme/Tabs";
 import ThemedImage from "@theme/ThemedImage";
 
 import Card from "@site/src/components/Card";
+import CardGrid from "@site/src/components/CardGrid";
 import ImageCard from "@site/src/components/ImageCard";
 import PlaygroundExample from "@site/src/components/PlaygroundExample";
 import SideBySideColumn from "@site/src/components/SideBySide/Column";
@@ -317,16 +318,7 @@ const Index = (props) => {
           </Tabs>
         </div>
 
-        <div
-          style={{
-            marginTop: "2rem",
-            display: "flex",
-            flexWrap: "wrap",
-            justifyContent: "center",
-            gap: "1rem",
-            padding: "0 1rem",
-          }}
-        >
+        <CardGrid>
           {[{
             title: "Rego Playground",
             note: "Write your first Rego Policy",
@@ -345,12 +337,8 @@ const Index = (props) => {
             icon: require("./assets/github.png").default,
             link: useBaseUrl("/docs/contributing"),
             link_text: "Get started",
-          }].map((cardItem, index) => (
-            <div key={index} style={{ flex: "1 1 30%", minWidth: "250px", maxWidth: "400px" }}>
-              <Card item={cardItem} />
-            </div>
-          ))}
-        </div>
+          }].map((cardItem, index) => <Card item={cardItem} />)}
+        </CardGrid>
       </div>
     </Layout>
   );
