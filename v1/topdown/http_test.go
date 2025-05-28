@@ -3295,7 +3295,7 @@ func TestInterQueryCacheValueClone(t *testing.T) {
 	}
 }
 
-func TestQueryTimeout(t *testing.T) {
+func TestQueryError(t *testing.T) {
 	t.Parallel()
 
 	data := loadSmallTestData()
@@ -3309,22 +3309,22 @@ func TestQueryTimeout(t *testing.T) {
 		{
 			note: "raised errors with inter query cache",
 			rules: []string{`p["one"] {
-	not http.send({"method": "GET", "url": "%URL%", "timeout": "1ms", "cache": true})
+	not http.send({"method": "GET", "url": "bad_url", "timeout": "1ms", "cache": true})
 }`,
 				`p["two"] {
-	not http.send({"method": "GET", "url": "%URL%", "timeout": "1ms", "cache": true})
+	not http.send({"method": "GET", "url": "bad_url", "timeout": "1ms", "cache": true})
 }`},
 			expected:      `["one", "two"]`,
-			expectedError: `not http.send({"method": "GET", "url": "%URL%", "timeout": "1ms", "cache": true}): eval_builtin_error: http.send: Get %URL%: request timed out`,
+			expectedError: `not http.send({"method": "GET", "url": "bad_url", "timeout": "1ms", "cache": true}): eval_builtin_error: http.send: Get "bad_url": unsupported protocol scheme ""`,
 		},
 		{
 			note: "no raised errors with inter query cache",
 			rules: []string{`p["one"] {
-	r := http.send({"method": "GET", "url": "%URL%", "timeout": "1ms", "cache": true, "raise_error": false})
+	r := http.send({"method": "GET", "url": "bad_url", "timeout": "1ms", "cache": true, "raise_error": false})
 	r.error.code == "eval_http_send_network_error"
 }`,
 				`p["two"] {
-	r := http.send({"method": "GET", "url": "%URL%", "timeout": "1ms", "cache": true, "raise_error": false})
+	r := http.send({"method": "GET", "url": "bad_url", "timeout": "1ms", "cache": true, "raise_error": false})
 	r.error.code == "eval_http_send_network_error"
 }`},
 			expected: `["one", "two"]`,
@@ -3332,22 +3332,22 @@ func TestQueryTimeout(t *testing.T) {
 		{
 			note: "raised errors with intra query cache",
 			rules: []string{`p["one"] {
-	not http.send({"method": "GET", "url": "%URL%", "timeout": "1ms"})
+	not http.send({"method": "GET", "url": "bad_url", "timeout": "1ms"})
 }`,
 				`p["two"] {
-	not http.send({"method": "GET", "url": "%URL%", "timeout": "1ms"})
+	not http.send({"method": "GET", "url": "bad_url", "timeout": "1ms"})
 }`},
 			expected:      `["one", "two"]`,
-			expectedError: `not http.send({"method": "GET", "url": "%URL%", "timeout": "1ms"}): eval_builtin_error: http.send: Get %URL%: request timed out`,
+			expectedError: `not http.send({"method": "GET", "url": "bad_url", "timeout": "1ms"}): eval_builtin_error: http.send: Get "bad_url": unsupported protocol scheme ""`,
 		},
 		{
 			note: "no raised errors with intra query cache",
 			rules: []string{`p["one"] {
-	r := http.send({"method": "GET", "url": "%URL%", "timeout": "1ms", "raise_error": false})
+	r := http.send({"method": "GET", "url": "bad_url", "timeout": "1ms", "raise_error": false})
 	r.error.code == "eval_http_send_network_error"
 }`,
 				`p["two"] {
-	r := http.send({"method": "GET", "url": "%URL%", "timeout": "1ms", "raise_error": false})
+	r := http.send({"method": "GET", "url": "bad_url", "timeout": "1ms", "raise_error": false})
 	r.error.code == "eval_http_send_network_error"
 }`},
 			expected: `["one", "two"]`,
@@ -3358,24 +3358,9 @@ func TestQueryTimeout(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
-			// An HTTP server that always causes a timeout
-			ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-				time.Sleep(5 * time.Millisecond) // larger than the 10ms timeout in rules
-			}))
-			defer ts.Close()
-
-			var rules []string
-			for _, r := range tc.rules {
-				rules = append(rules, strings.ReplaceAll(r, "%URL%", ts.URL))
-			}
-
-			if tc.expectedError != "" {
-				tc.expectedError = strings.ReplaceAll(tc.expectedError, "%URL%", ts.URL)
-			}
-
 			var builtInErrList []Error
 
-			runTopDownTestCase(t, data, tc.note, rules, tc.expected, func(q *Query) *Query {
+			runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected, func(q *Query) *Query {
 				q.WithBuiltinErrorList(&builtInErrList)
 				return q
 			})
