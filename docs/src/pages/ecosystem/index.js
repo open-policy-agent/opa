@@ -3,6 +3,7 @@ import Layout from "@theme/Layout";
 import React, { useState } from "react";
 
 import Card from "../../components/Card";
+import CardGrid from "../../components/CardGrid";
 import getLogoAsset from "../../lib/ecosystem/getLogoAsset.js";
 import sortPagesByRank from "../../lib/ecosystem/sortPagesByRank.js";
 
@@ -181,26 +182,18 @@ const EcosystemIndex = (props) => {
           </p>
         </div>
 
-        <div
-          style={{
-            marginTop: "2rem",
-            display: "flex",
-            flexWrap: "wrap",
-            justifyContent: "center",
-            gap: 20,
-          }}
-        >
-          {filteredPages.length === 0
-            ? (
-              <p style={{ textAlign: "center", width: "100%" }}>
-                No integrations found. Try searching for something else or drop us a message on{" "}
-                <a href="https://slack.openpolicyagent.org/" target="_blank" rel="noopener noreferrer">
-                  Slack
-                </a>.
-              </p>
-            )
-            : (
-              filteredPages.map((id) => {
+        {filteredPages.length === 0
+          ? (
+            <p style={{ textAlign: "center", width: "100%" }}>
+              No integrations found. Try searching for something else or drop us a message on{" "}
+              <a href="https://slack.openpolicyagent.org/" target="_blank" rel="noopener noreferrer">
+                Slack
+              </a>.
+            </p>
+          )
+          : (
+            <CardGrid>
+              {filteredPages.map((id) => {
                 const page = entries[id];
                 const cardData = {
                   title: page.title,
@@ -210,14 +203,10 @@ const EcosystemIndex = (props) => {
                   link_text: "View Details",
                 };
 
-                return (
-                  <div key={id} style={{ flex: "1 1 30%", minWidth: "250px", maxWidth: "400px" }}>
-                    <Card item={cardData} />
-                  </div>
-                );
-              })
-            )}
-        </div>
+                return <Card item={cardData} />;
+              })}
+            </CardGrid>
+          )}
       </div>
     </Layout>
   );

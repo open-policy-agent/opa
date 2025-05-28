@@ -1,5 +1,6 @@
 ---
 title: Kafka Topic Authorization
+subtitle: Build fine grained access control for Kafka topics
 software:
 - kafka
 labels:
@@ -35,4 +36,8 @@ docs_features:
       Installation and configuration instructions are available in the
       project's [README](https://github.com/StyraInc/opa-kafka-plugin#installation).
 ---
-Apache Kafka is a high-performance distributed streaming platform deployed by thousands of companies.  OPA provides fine-grained, context-aware access control of which users can read/write which Kafka topics to enforce important requirements around confidentiality and integrity.
+
+Apache Kafka is a high-performance distributed streaming platform deployed by
+thousands of companies. OPA provides fine-grained, context-aware access control
+of which users can read/write which Kafka topics to enforce important
+requirements around confidentiality and integrity.

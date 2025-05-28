@@ -4,6 +4,7 @@ import Layout from "@theme/Layout";
 import React from "react";
 
 import Card from "../../components/Card";
+import CardGrid from "../../components/CardGrid";
 
 const vendors = [
   {
@@ -35,9 +36,9 @@ export default function Support() {
           Agent.
         </p>
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "1.5rem" }}>
+        <CardGrid justifyContent="left">
           {vendors.map((item, idx) => <Card key={idx} item={item} />)}
-        </div>
+        </CardGrid>
       </div>
     </Layout>
   );

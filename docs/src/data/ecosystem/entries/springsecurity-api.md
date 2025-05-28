@@ -1,5 +1,6 @@
 ---
-title: Authorization for Spring Security
+title: Spring Security Authorization
+subtitle: Use OPA to make authorization decisions in Spring applications
 for_language: java
 labels:
   layer: network
@@ -9,7 +10,6 @@ software:
 code:
 - https://github.com/open-policy-agent/contrib/tree/master/spring_authz
 - https://github.com/Bisnode/opa-spring-security
-- https://github.com/build-security/opa-java-spring-client
 - https://github.com/massenz/jwt-opa
 - https://github.com/eugenp/tutorials/tree/master/spring-security-modules/spring-security-opa
 tutorials:
