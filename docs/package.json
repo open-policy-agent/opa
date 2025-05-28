@@ -11,9 +11,9 @@
   "description": "",
   "dependencies": {
     "@docusaurus/core": "^3.7.0",
-    "@docusaurus/plugin-google-gtag": "^3.7.0",
-    "@docusaurus/preset-classic": "^3.7.0",
-    "@docusaurus/theme-mermaid": "^3.7.0",
+    "@docusaurus/plugin-google-gtag": "^3.8.0",
+    "@docusaurus/preset-classic": "^3.8.0",
+    "@docusaurus/theme-mermaid": "^3.8.0",
     "@easyops-cn/docusaurus-search-local": "^0.49.2",
     "docusaurus-lunr-search": "^3.6.0",
     "md-front-matter": "^1.0.4",

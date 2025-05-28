@@ -114,13 +114,26 @@ const baseUrl = "/";
           src: "img/nav/logo.png",
         },
         items: [
+          {
+            // Based on implementation outlined here:
+            // https://github.com/facebook/docusaurus/issues/7227#issue-1212117180
+            type: "custom-currentVersionNavbarItem",
+            position: "left",
+          },
           { to: "/docs/", label: "Docs", position: "right" },
+          {
+            type: "dropdown",
+            label: "Resources",
+            position: "right",
+            items: [
+              { to: "/security", label: "Security" },
+              { to: "/support", label: "Support" },
+              { to: "/community", label: "Community" },
+              { href: "https://blog.openpolicyagent.org/", label: "Blog" },
+            ],
+          },
           { to: "/ecosystem/", label: "Ecosystem", position: "right" },
-          { to: "/security", label: "Security", position: "right" },
-          { to: "/support", label: "Support", position: "right" },
-          { to: "/community", label: "Community", position: "right" },
           { href: "https://play.openpolicyagent.org/", label: "Play", position: "right" },
-          { href: "https://blog.openpolicyagent.org/", label: "Blog", position: "right" },
           {
             type: "html",
             position: "right",
