@@ -10,9 +10,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"math/big"
 	"net/url"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -349,9 +351,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		}
 
 		// rego-v1 includes all v0 future keywords in the default language definition
-		for k, v := range futureKeywordsV0 {
-			allowedFutureKeywords[k] = v
-		}
+		maps.Copy(allowedFutureKeywords, futureKeywordsV0)
 
 		for _, kw := range p.po.Capabilities.FutureKeywords {
 			if tok, ok := futureKeywords[kw]; ok {
@@ -399,9 +399,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
 		if p.po.Capabilities.ContainsFeature(FeatureRegoV1) {
 			// rego-v1 includes all v0 future keywords in the default language definition
-			for k, v := range futureKeywordsV0 {
-				allowedFutureKeywords[k] = v
-			}
+			maps.Copy(allowedFutureKeywords, futureKeywordsV0)
 		}
 	}
 
@@ -419,9 +417,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
 	selected := map[string]tokens.Token{}
 	if p.po.AllFutureKeywords || p.po.EffectiveRegoVersion() == RegoV1 {
-		for kw, tok := range allowedFutureKeywords {
-			selected[kw] = tok
-		}
+		maps.Copy(selected, allowedFutureKeywords)
 	} else {
 		for _, kw := range p.po.FutureKeywords {
 			tok, ok := allowedFutureKeywords[kw]
@@ -998,7 +994,7 @@ func (p *Parser) parseHead(defaultRule bool) (*Head, bool) {
 			ref = y
 		}
 		head = RefHead(ref)
-		head.Args = append([]*Term{}, args...)
+		head.Args = slices.Clone[[]*Term](args)
 
 	default:
 		return nil, false
@@ -2165,28 +2161,24 @@ func (p *Parser) parseTermPairList(end tokens.Token, r [][2]*Term) [][2]*Term {
 }
 
 func (p *Parser) parseTermOp(values ...tokens.Token) *Term {
-	for i := range values {
-		if p.s.tok == values[i] {
-			r := RefTerm(VarTerm(p.s.tok.String()).SetLocation(p.s.Loc())).SetLocation(p.s.Loc())
-			p.scan()
-			return r
-		}
+	if slices.Contains(values, p.s.tok) {
+		r := RefTerm(VarTerm(p.s.tok.String()).SetLocation(p.s.Loc())).SetLocation(p.s.Loc())
+		p.scan()
+		return r
 	}
 	return nil
 }
 
 func (p *Parser) parseTermOpName(ref Ref, values ...tokens.Token) *Term {
-	for i := range values {
-		if p.s.tok == values[i] {
-			cp := ref.Copy()
-			for _, r := range cp {
-				r.SetLocation(p.s.Loc())
-			}
-			t := RefTerm(cp...)
-			t.SetLocation(p.s.Loc())
-			p.scan()
-			return t
+	if slices.Contains(values, p.s.tok) {
+		cp := ref.Copy()
+		for _, r := range cp {
+			r.SetLocation(p.s.Loc())
 		}
+		t := RefTerm(cp...)
+		t.SetLocation(p.s.Loc())
+		p.scan()
+		return t
 	}
 	return nil
 }
@@ -2864,12 +2856,8 @@ func (p *Parser) regoV1Import(imp *Import) {
 
 func init() {
 	allFutureKeywords = map[string]tokens.Token{}
-	for k, v := range futureKeywords {
-		allFutureKeywords[k] = v
-	}
-	for k, v := range futureKeywordsV0 {
-		allFutureKeywords[k] = v
-	}
+	maps.Copy(allFutureKeywords, futureKeywords)
+	maps.Copy(allFutureKeywords, futureKeywordsV0)
 }
 
 // enter increments the recursion depth counter and checks if it exceeds the maximum.

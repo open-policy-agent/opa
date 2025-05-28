@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/url"
 	"os"
 	"path"
@@ -234,9 +235,7 @@ func (m Manifest) Copy() Manifest {
 
 	if metadata != nil {
 		m.Metadata = make(map[string]any)
-		for k, v := range metadata {
-			m.Metadata[k] = v
-		}
+		maps.Copy(m.Metadata, metadata)
 	}
 
 	return m
@@ -1478,9 +1477,7 @@ func MergeWithRegoVersion(bundles []*Bundle, regoVersion ast.RegoVersion, usePat
 			if err != nil {
 				return nil, err
 			}
-			for k, v := range fileRegoVersions {
-				result.Manifest.FileRegoVersions[k] = v
-			}
+			maps.Copy(result.Manifest.FileRegoVersions, fileRegoVersions)
 		}
 	}
 

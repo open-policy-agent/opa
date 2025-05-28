@@ -78,10 +78,7 @@ func Compare(a, b any) int {
 		case []any:
 			bLen := len(b)
 			aLen := len(a)
-			minLen := aLen
-			if bLen < minLen {
-				minLen = bLen
-			}
+			minLen := min(bLen, aLen)
 			for i := range minLen {
 				cmp := Compare(a[i], b[i])
 				if cmp != 0 {
@@ -102,10 +99,7 @@ func Compare(a, b any) int {
 			bKeys := KeysSorted(b)
 			aLen := len(aKeys)
 			bLen := len(bKeys)
-			minLen := aLen
-			if bLen < minLen {
-				minLen = bLen
-			}
+			minLen := min(bLen, aLen)
 			for i := range minLen {
 				if aKeys[i] < bKeys[i] {
 					return -1

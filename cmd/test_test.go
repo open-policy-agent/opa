@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path"
 	"path/filepath"
@@ -335,9 +336,9 @@ FAIL: 1/1
 				testParams.varValues = tc.includeVars
 				_ = testParams.explain.Set(explainModeFull)
 
-				_, err := opaTest([]string{root}, testParams)
-				if err != nil {
-					t.Fatalf("Unexpected error: %s", err)
+				errorCode := opaTest([]string{root}, testParams)
+				if errorCode != 2 {
+					t.Fatalf("Unexpected error code: %d", errorCode)
 				}
 
 				actual := buf.String()
@@ -1484,9 +1485,9 @@ FAIL: 1/1
 				testParams.varValues = true
 				_ = testParams.explain.Set(explainModeFull)
 
-				_, err := opaTest([]string{root}, testParams)
-				if err != nil {
-					t.Fatalf("Unexpected error: %s", err)
+				exitCode := opaTest([]string{root}, testParams)
+				if exitCode != 2 {
+					t.Fatalf("Unexpected error code: %d", exitCode)
 				}
 
 				actual := r.ReplaceAllString(buf.String(), "FAIL (%TIME%)")
@@ -1520,7 +1521,7 @@ test_p if {
 		testParams.bundleMode = false
 		testParams.ignore = []string{"broken.rego"}
 
-		exitCode, _ = opaTest([]string{root}, testParams)
+		exitCode = opaTest([]string{root}, testParams)
 	})
 
 	if exitCode > 0 {
@@ -1547,7 +1548,7 @@ test_p if {
 		testParams.errOutput = io.Discard
 		testParams.bundleMode = true
 		testParams.ignore = []string{"broken.rego"}
-		exitCode, _ = opaTest([]string{root}, testParams)
+		exitCode = opaTest([]string{root}, testParams)
 	})
 
 	if exitCode > 0 {
@@ -1555,24 +1556,24 @@ test_p if {
 	}
 }
 
-func testSchemasAnnotation(rego string) (int, error) {
+func testSchemasAnnotation(rego string) (int, []byte) {
 
 	files := map[string]string{
 		"test.rego": rego,
 	}
 
 	var exitCode int
-	var err error
+	var buf bytes.Buffer
 	test.WithTempFS(files, func(path string) {
 		regoFilePath := filepath.Join(path, "test.rego")
 
 		testParams := newTestCommandParams()
 		testParams.count = 1
-		testParams.errOutput = io.Discard
+		testParams.errOutput = &buf
 
-		exitCode, err = opaTest([]string{regoFilePath}, testParams)
+		exitCode = opaTest([]string{regoFilePath}, testParams)
 	})
-	return exitCode, err
+	return exitCode, buf.Bytes()
 }
 
 // Assert that 'schemas' annotations with schema ref are ignored, but not inlined schemas
@@ -1612,17 +1613,19 @@ test_p if {
     p with input.foo as 42
 }`
 
-	exitCode, err := testSchemasAnnotation(policyWithInlinedSchema)
+	exitCode, errOutput := testSchemasAnnotation(policyWithInlinedSchema)
 	// We expect an error here, as inlined schemas are always used for type checking
 
 	if exitCode == 0 {
 		t.Fatalf("didn't get expected error when inlined schema is present")
-	} else if !strings.Contains(err.Error(), "rego_type_error: match error") {
-		t.Fatalf("didn't get expected %s error when inlined schema is present; got: %v", ast.TypeErr, err)
+	}
+
+	if !strings.Contains(string(errOutput), "rego_type_error: match error") {
+		t.Fatalf("didn't get expected %s error when inlined schema is present; got: %v", ast.TypeErr, string(errOutput))
 	}
 }
 
-func testSchemasAnnotationWithJSONFile(rego string, schema string) (int, error) {
+func testSchemasAnnotationWithJSONFile(rego string, schema string) (int, []byte) {
 
 	files := map[string]string{
 		"test.rego":        rego,
@@ -1630,18 +1633,19 @@ func testSchemasAnnotationWithJSONFile(rego string, schema string) (int, error) 
 	}
 
 	var exitCode int
-	var err error
+	var buf bytes.Buffer
 	test.WithTempFS(files, func(path string) {
 		regoFilePath := filepath.Join(path, "test.rego")
 
 		testParams := newTestCommandParams()
 		testParams.count = 1
 		testParams.schema.path = path
-		testParams.errOutput = io.Discard
+		testParams.errOutput = &buf
 
-		exitCode, err = opaTest([]string{regoFilePath}, testParams)
+		exitCode = opaTest([]string{regoFilePath}, testParams)
 	})
-	return exitCode, err
+
+	return exitCode, buf.Bytes()
 }
 func TestJSONSchemaSuccess(t *testing.T) {
 
@@ -1676,9 +1680,9 @@ test_p if {
 		"additionalProperties": false
    }`
 
-	_, err := testSchemasAnnotationWithJSONFile(regoContents, schema)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
+	errorCode, _ := testSchemasAnnotationWithJSONFile(regoContents, schema)
+	if errorCode != 0 {
+		t.Fatalf("unexpected error code: %d", errorCode)
 	}
 }
 
@@ -1715,11 +1719,13 @@ test_p if {
 "additionalProperties": false
 }`
 
-	exitCode, err := testSchemasAnnotationWithJSONFile(regoContents, schema)
+	exitCode, errOutput := testSchemasAnnotationWithJSONFile(regoContents, schema)
 	if exitCode == 0 {
 		t.Fatalf("didn't get expected error when schema is present and is defining a different type than being used.")
-	} else if !strings.Contains(err.Error(), "rego_type_error: match error") {
-		t.Fatalf("didn't get expected %s error when schema is defining a different type than being used; got: %v", ast.TypeErr, err)
+	}
+
+	if !strings.Contains(string(errOutput), "rego_type_error: match error") {
+		t.Fatalf("didn't get expected %s error when schema is defining a different type than being used; got: %v", ast.TypeErr, string(errOutput))
 	}
 }
 
@@ -1745,7 +1751,7 @@ test_p if {
 
 		done := make(chan struct{})
 		go func() {
-			_, _ = opaTest([]string{root}, testParams)
+			_ = opaTest([]string{root}, testParams)
 			<-done
 		}()
 
@@ -1763,7 +1769,10 @@ test_p if {
 		if err != nil {
 			t.Fatal(err)
 		}
-		f.Close()
+		err = f.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		r := regexp.MustCompile(`FAIL \(.*s\)`)
 		expected = `%ROOT%/policy_test.rego:
@@ -1789,7 +1798,10 @@ Watching for changes ...
 			t.Fatal(err)
 		}
 
-		f.Close()
+		err = f.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		expected = `PASS: 1/1
 ********************************************************************************
@@ -1852,7 +1864,7 @@ test_p {
 
 		done := make(chan struct{})
 		go func() {
-			_, _ = opaTest([]string{root}, testParams)
+			_ = opaTest([]string{root}, testParams)
 			<-done
 		}()
 
@@ -1870,7 +1882,10 @@ test_p {
 		if err != nil {
 			t.Fatal(err)
 		}
-		f.Close()
+		err = f.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		r := regexp.MustCompile(`FAIL \(.*s\)`)
 		expected = `%ROOT%/policy_test.rego:
@@ -1896,7 +1911,10 @@ Watching for changes ...
 			t.Fatal(err)
 		}
 
-		f.Close()
+		err = f.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		expected = `PASS: 1/1
 ********************************************************************************
@@ -1957,7 +1975,7 @@ test_p if {
 
 		done := make(chan struct{})
 		go func() {
-			_, _ = opaTest([]string{root}, testParams)
+			_ = opaTest([]string{root}, testParams)
 			<-done
 		}()
 
@@ -1975,7 +1993,10 @@ test_p if {
 		if err != nil {
 			t.Fatal(err)
 		}
-		f.Close()
+		err = f.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		r := regexp.MustCompile(`FAIL \(.*s\)`)
 		expected = `%ROOT%/policy.rego:
@@ -2001,7 +2022,10 @@ Watching for changes ...
 			t.Fatal(err)
 		}
 
-		f.Close()
+		err = f.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		expected = `PASS: 1/1
 ********************************************************************************
@@ -2041,7 +2065,7 @@ test_p if {
 
 		done := make(chan struct{})
 		go func() {
-			_, _ = opaTest([]string{root}, testParams)
+			_ = opaTest([]string{root}, testParams)
 			<-done
 		}()
 
@@ -2059,7 +2083,10 @@ test_p if {
 		if err != nil {
 			t.Fatal(err)
 		}
-		f.Close()
+		err = f.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		r := regexp.MustCompile(`FAIL \(.*s\)`)
 		expected = `%ROOT%/policy.rego:
@@ -2084,7 +2111,10 @@ Watching for changes ...
 		if err != nil {
 			t.Fatal(err)
 		}
-		f.Close()
+		err = f.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		expected = `PASS: 1/1
 ********************************************************************************
@@ -2165,7 +2195,7 @@ test_p if {
 
 				done := make(chan struct{})
 				go func() {
-					_, _ = opaTest([]string{root}, testParams)
+					_ = opaTest([]string{root}, testParams)
 					<-done
 				}()
 
@@ -2185,7 +2215,10 @@ test_p if {
 						t.Fatal(err)
 					}
 				}
-				f.Close()
+				err := f.Close()
+				if err != nil {
+					t.Fatal(err)
+				}
 
 				if !test.Eventually(t, 2*time.Second, func() bool {
 					expected := strings.ReplaceAll(tc.expectedOutput, "%ROOT%", root)
@@ -2197,11 +2230,14 @@ test_p if {
 
 				// write data to empty file
 				f, _ = os.OpenFile(path.Join(root, tc.fileName), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
-				_, err := f.WriteString(tc.fixedFile)
+				_, err = f.WriteString(tc.fixedFile)
 				if err != nil {
 					t.Fatal(err)
 				}
-				f.Close()
+				err = f.Close()
+				if err != nil {
+					t.Fatal(err)
+				}
 
 				expected = "Watching for changes ..."
 				if !test.Eventually(t, 2*time.Second, func() bool {
@@ -2219,13 +2255,12 @@ test_p if {
 	}
 }
 
-func testExitCode(rego string, skipExitZero bool) (int, error) {
+func testExitCode(rego string, skipExitZero bool) int {
 	files := map[string]string{
 		"test.rego": rego,
 	}
 
 	var exitCode int
-	var err error
 	test.WithTempFS(files, func(path string) {
 		regoFilePath := filepath.Join(path, "test.rego")
 
@@ -2235,9 +2270,9 @@ func testExitCode(rego string, skipExitZero bool) (int, error) {
 		testParams.errOutput = io.Discard
 		testParams.output = io.Discard
 
-		exitCode, err = opaTest([]string{regoFilePath}, testParams)
+		exitCode = opaTest([]string{regoFilePath}, testParams)
 	})
-	return exitCode, err
+	return exitCode
 }
 
 func TestExitCode(t *testing.T) {
@@ -2314,7 +2349,7 @@ func TestExitCode(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			exitCode, _ := testExitCode(tc.Test, tc.ExitZeroOnSkipped)
+			exitCode := testExitCode(tc.Test, tc.ExitZeroOnSkipped)
 
 			if exitCode != tc.ExpectedExitCode {
 				t.Errorf("Expected exit code to be %d but got %d", tc.ExpectedExitCode, exitCode)
@@ -2427,7 +2462,7 @@ Lines not covered:
 				testParams.count = 1
 				testParams.errOutput = &buf
 
-				exitCode, _ := opaTest([]string{root}, testParams)
+				exitCode := opaTest([]string{root}, testParams)
 				if exitCode != tc.expectedExitCode {
 					t.Fatalf("unexpected exit code: %d", exitCode)
 				}
@@ -2547,7 +2582,7 @@ test_l if {
 						paths = []string{root}
 					}
 
-					exitCode, _ := opaTest(paths, testParams)
+					exitCode := opaTest(paths, testParams)
 					if len(tc.expErrs) > 0 {
 						if exitCode == 0 {
 							t.Fatalf("expected non-zero exit code")
@@ -2896,7 +2931,7 @@ test_l if {
 						paths = []string{root}
 					}
 
-					exitCode, _ := opaTest(paths, testParams)
+					exitCode := opaTest(paths, testParams)
 					if len(tc.expErrs) > 0 {
 						if exitCode == 0 {
 							t.Fatalf("expected non-zero exit code")
@@ -3150,7 +3185,7 @@ test_l if {
 						paths = []string{root}
 					}
 
-					exitCode, _ := opaTest(paths, testParams)
+					exitCode := opaTest(paths, testParams)
 					if tc.expErr != "" {
 						if exitCode == 0 {
 							t.Fatalf("expected non-zero exit code")
@@ -3448,9 +3483,7 @@ test_l if {
 					if bundleType.tar {
 						files["bundle.tar.gz"] = ""
 					} else {
-						for k, v := range tc.files {
-							files[k] = v
-						}
+						maps.Copy(files, tc.files)
 					}
 
 					test.WithTempFS(files, func(root string) {
@@ -3482,7 +3515,7 @@ test_l if {
 						testParams.output = &buf
 						testParams.errOutput = &errBuf
 
-						exitCode, _ := opaTest([]string{p}, testParams)
+						exitCode := opaTest([]string{p}, testParams)
 						if tc.expErr != "" {
 							if exitCode == 0 {
 								t.Fatalf("expected non-zero exit code")
@@ -3526,12 +3559,9 @@ func TestTestBenchFailingTest(t *testing.T) {
 		tp.benchmark = true
 		tp.count = 1
 
-		exitCode, err := opaTest([]string{fp}, tp)
+		exitCode := opaTest([]string{fp}, tp)
 		if exitCode == 0 {
 			t.Fatalf("Expected exit code 0, got %d", exitCode)
-		}
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
 		}
 	})
 }

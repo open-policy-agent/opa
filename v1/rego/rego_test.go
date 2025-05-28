@@ -12,10 +12,12 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -951,13 +953,7 @@ func TestRegoDisableIndexing(t *testing.T) {
 	}
 
 	for _, expected := range expectedEvalNodes {
-		found := false
-		for _, actual := range evalNodes {
-			if actual == expected {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(evalNodes, expected)
 		if !found {
 			t.Fatalf("Missing expected eval node in trace: %q\nGot: %q\n", expected, evalNodes)
 		}
@@ -1011,13 +1007,7 @@ func TestRegoDisableIndexingWithMatch(t *testing.T) {
 	}
 
 	for _, expected := range expectedEvalNodes {
-		found := false
-		for _, actual := range evalNodes {
-			if actual == expected {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(evalNodes, expected)
 		if !found {
 			t.Fatalf("Missing expected eval node in trace: %q\nGot: %q\n", expected, evalNodes)
 		}
@@ -2755,9 +2745,7 @@ func TestEvalWithInterQueryCache(t *testing.T) {
 		requests = append(requests, r)
 		headers := w.Header()
 
-		for k, v := range newHeaders {
-			headers[k] = v
-		}
+		maps.Copy(headers, newHeaders)
 
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"x": 1}`))

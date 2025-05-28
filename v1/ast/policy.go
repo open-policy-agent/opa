@@ -143,12 +143,7 @@ func IsKeyword(s string) bool {
 }
 
 func IsInKeywords(s string, keywords []string) bool {
-	for _, x := range keywords {
-		if x == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(keywords, s)
 }
 
 // IsKeywordInRegoVersion returns true if s is a language keyword.
@@ -1168,10 +1163,7 @@ func (body Body) Set(expr *Expr, pos int) {
 //
 // If body is a subset of other, it is considered less than (and vice versa).
 func (body Body) Compare(other Body) int {
-	minLen := len(body)
-	if len(other) < minLen {
-		minLen = len(other)
-	}
+	minLen := min(len(other), len(body))
 	for i := range minLen {
 		if cmp := body[i].Compare(other[i]); cmp != 0 {
 			return cmp

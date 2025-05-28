@@ -865,12 +865,9 @@ func printArrows(w *bytes.Buffer, l []varInfo, printValueAt int) {
 
 		for j := range spaces {
 			tab := false
-			for _, t := range info.exprLoc.Tabs {
-				if t == j+prevCol+1 {
-					w.WriteString("\t")
-					tab = true
-					break
-				}
+			if slices.Contains(info.exprLoc.Tabs, j+prevCol+1) {
+				w.WriteString("\t")
+				tab = true
 			}
 			if !tab {
 				w.WriteString(" ")

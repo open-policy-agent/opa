@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 
 	"github.com/open-policy-agent/opa/internal/presentation"
@@ -57,7 +58,6 @@ func newDepsCommandParams() depsCommandParams {
 }
 
 func init() {
-
 	params := newDepsCommandParams()
 
 	depsCommand := &cobra.Command{
@@ -67,9 +67,9 @@ func init() {
 
 Dependencies are categorized as either base documents, which is any data loaded
 from the outside world, or virtual documents, i.e values that are computed from rules.
+`,
 
-Example
--------
+		Example: `
 Given a policy like this:
 
 	package policy
@@ -117,7 +117,6 @@ data.policy.is_admin.
 }
 
 func deps(args []string, params depsCommandParams, w io.Writer) error {
-
 	query, err := ast.ParseBody(args[0])
 	if err != nil {
 		return err
@@ -149,9 +148,7 @@ func deps(args []string, params depsCommandParams, w io.Writer) error {
 				return err
 			}
 
-			for name, mod := range b.ParsedModules(path) {
-				modules[name] = mod
-			}
+			maps.Copy(modules, b.ParsedModules(path))
 		}
 	}
 

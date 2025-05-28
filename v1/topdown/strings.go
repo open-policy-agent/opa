@@ -328,10 +328,7 @@ func builtinSubstring(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 			return iter(operands[0])
 		}
 
-		upto := startIndex + length
-		if len(sbase) < upto {
-			upto = len(sbase)
-		}
+		upto := min(len(sbase), startIndex+length)
 		return iter(ast.StringTerm(sbase[startIndex:upto]))
 	}
 
@@ -349,10 +346,7 @@ func builtinSubstring(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 	if length < 0 {
 		s = string(runes[startIndex:])
 	} else {
-		upto := startIndex + length
-		if len(runes) < upto {
-			upto = len(runes)
-		}
+		upto := min(len(runes), startIndex+length)
 		s = string(runes[startIndex:upto])
 	}
 

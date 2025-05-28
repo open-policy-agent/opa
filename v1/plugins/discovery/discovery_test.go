@@ -2717,7 +2717,7 @@ func TestStatusUpdates(t *testing.T) {
 	ts.Start()
 	defer ts.Stop()
 
-	manager, err := plugins.New([]byte(fmt.Sprintf(`{
+	manager, err := plugins.New(fmt.Appendf(nil, `{
 			"labels": {"x": "y"},
 			"services": {
 				"localhost": {
@@ -2725,7 +2725,7 @@ func TestStatusUpdates(t *testing.T) {
 				}
 			},
 			"discovery": {"name": "config"},
-		}`, ts.server.URL)), "test-id", inmem.New())
+		}`, ts.server.URL), "test-id", inmem.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2734,6 +2734,8 @@ func TestStatusUpdates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	updates := make(chan status.UpdateRequestV1, 100)
 
 	ctx := context.Background()
 
@@ -2744,8 +2746,15 @@ func TestStatusUpdates(t *testing.T) {
 		}
 	}`)})
 
+	// status plugin updates and bundle discovery status update,
+	updates <- <-ts.updates
+	updates <- <-ts.updates
+	updates <- <-ts.updates
+
 	// Downloader error.
 	disco.oneShot(ctx, download.Update{Error: errors.New("unknown error")})
+
+	updates <- <-ts.updates
 
 	// Clear error.
 	disco.oneShot(ctx, download.Update{ETag: "etag-2", Bundle: makeDataBundle(2, `{
@@ -2754,6 +2763,8 @@ func TestStatusUpdates(t *testing.T) {
 		}
 	}`)})
 
+	updates <- <-ts.updates
+
 	// Configuration error.
 	disco.oneShot(ctx, download.Update{ETag: "etag-3", Bundle: makeDataBundle(3, `{
 		"config": {
@@ -2761,8 +2772,12 @@ func TestStatusUpdates(t *testing.T) {
 		}
 	}`)})
 
+	updates <- <-ts.updates
+
 	// Clear error (last successful reconfigure).
 	disco.oneShot(ctx, download.Update{ETag: "etag-2"})
+
+	updates <- <-ts.updates
 
 	// Check that all updates were received and active revisions are expected.
 	expectedDiscoveryUpdates := []struct {
@@ -2799,7 +2814,7 @@ func TestStatusUpdates(t *testing.T) {
 	defer cancel()
 	for {
 		select {
-		case update := <-ts.updates:
+		case update := <-updates:
 			if update.Discovery != nil {
 				matches := false
 				if update.Discovery.Code == nextExpectedDiscoveryUpdate.Code &&
@@ -2892,7 +2907,7 @@ func TestStatusUpdatesFromPersistedBundlesDontDelayBoot(t *testing.T) {
 	}
 	defer listener.Close()
 
-	manager, err := plugins.New([]byte(fmt.Sprintf(`{
+	manager, err := plugins.New(fmt.Appendf(nil, `{
             "persistence_directory": %q,
 			"services": {
 				"localhost": {
@@ -2900,7 +2915,7 @@ func TestStatusUpdatesFromPersistedBundlesDontDelayBoot(t *testing.T) {
 				}
 			},
 			"discovery": {"name": "config", "persist": true, "decision": "discovery"},
-		}`, dir, listener.Addr().String())), "test-id", inmem.New())
+		}`, dir, listener.Addr().String()), "test-id", inmem.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2943,7 +2958,7 @@ func TestStatusUpdatesTimestamp(t *testing.T) {
 	ts.Start()
 	defer ts.Stop()
 
-	manager, err := plugins.New([]byte(fmt.Sprintf(`{
+	manager, err := plugins.New(fmt.Appendf(nil, `{
 			"labels": {"x": "y"},
 			"services": {
 				"localhost": {
@@ -2951,7 +2966,7 @@ func TestStatusUpdatesTimestamp(t *testing.T) {
 				}
 			},
 			"discovery": {"name": "config"},
-		}`, ts.server.URL)), "test-id", inmem.New())
+		}`, ts.server.URL), "test-id", inmem.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3239,7 +3254,7 @@ bundle:
 `
 	manager := getTestManager(t, conf)
 	trigger := plugins.TriggerManual
-	_, err := getPluginSet(nil, manager, manager.Config, nil, &trigger)
+	_, err := getPluginSet(nil, manager, manager.Config, nil, nil, &trigger)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -3276,7 +3291,7 @@ bundles:
 `
 	manager := getTestManager(t, conf)
 	trigger := plugins.TriggerManual
-	_, err := getPluginSet(nil, manager, manager.Config, nil, &trigger)
+	_, err := getPluginSet(nil, manager, manager.Config, nil, nil, &trigger)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -3336,7 +3351,7 @@ bundles:
 
 			manager := getTestManager(t, tc.conf)
 			trigger := plugins.TriggerManual
-			_, err := getPluginSet(nil, manager, manager.Config, nil, &trigger)
+			_, err := getPluginSet(nil, manager, manager.Config, nil, nil, &trigger)
 
 			if tc.wantErr {
 				if err == nil {
@@ -3401,7 +3416,7 @@ decision_logs:
 
 			manager := getTestManager(t, tc.conf)
 			trigger := plugins.TriggerManual
-			_, err := getPluginSet(nil, manager, manager.Config, nil, &trigger)
+			_, err := getPluginSet(nil, manager, manager.Config, nil, nil, &trigger)
 
 			if tc.wantErr {
 				if err == nil {
@@ -3472,7 +3487,7 @@ status:
 
 			manager := getTestManager(t, tc.conf)
 			trigger := plugins.TriggerManual
-			_, err := getPluginSet(nil, manager, manager.Config, nil, &trigger)
+			_, err := getPluginSet(nil, manager, manager.Config, nil, nil, &trigger)
 
 			if tc.wantErr {
 				if err == nil {
@@ -3875,7 +3890,7 @@ func newTestFixture(t *testing.T) *testFixture {
 
 	ts.start()
 
-	managerConfig := []byte(fmt.Sprintf(`{
+	managerConfig := fmt.Appendf(nil, `{
 			"labels": {
 				"app": "example-app"
 			},
@@ -3885,7 +3900,7 @@ func newTestFixture(t *testing.T) *testFixture {
 					"name": "example",
 					"url": %q
 				}
-			]}`, ts.server.URL))
+			]}`, ts.server.URL)
 
 	manager, err := plugins.New(managerConfig, "test-id", inmem.New())
 	if err != nil {

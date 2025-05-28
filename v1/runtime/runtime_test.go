@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -1318,9 +1319,7 @@ func TestServerInitializedWithBundleRegoVersion(t *testing.T) {
 				if bundleType.tar {
 					files["bundle.tar.gz"] = ""
 				} else {
-					for k, v := range tc.files {
-						files[k] = v
-					}
+					maps.Copy(files, tc.files)
 				}
 
 				test.WithTempFS(files, func(root string) {

@@ -8,8 +8,6 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 )
 
-var emptyArr = ast.ArrayTerm()
-
 func evalWalk(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	input := operands[0]
 
@@ -18,7 +16,7 @@ func evalWalk(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error
 		// we may skip the path construction entirely, and simply return
 		// same pointer in each iteration. This is a *much* more efficient
 		// path when only the values are needed.
-		return walkNoPath(ast.ArrayTerm(emptyArr, input), iter)
+		return walkNoPath(ast.ArrayTerm(ast.InternedEmptyArray, input), iter)
 	}
 
 	filter := getOutputPath(operands)
@@ -27,11 +25,20 @@ func evalWalk(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error
 
 func walk(filter, path *ast.Array, input *ast.Term, iter func(*ast.Term) error) error {
 	if filter == nil || filter.Len() == 0 {
+		var pathCopy *ast.Array
 		if path == nil {
-			path = ast.NewArray()
+			pathCopy = ast.InternedEmptyArrayValue
+		} else {
+			// Shallow copy, as while the array is modified, the elements are not
+			pathCopy = path.Slice(0, path.Len())
 		}
 
-		if err := iter(ast.ArrayTerm(ast.NewTerm(path.Copy()), input)); err != nil {
+		// TODO(ae): I'd *really* like these terms to be retrieved from a sync.Pool, and
+		// returned after iter is called. However, all my atttempts to do this have failed
+		// as there seems to be something holding on to these references after the call,
+		// leading to modifications that entirely alter the results. Perhaps this is not
+		// possible to do, but if it is,it would be a huge performance win.
+		if err := iter(ast.ArrayTerm(ast.NewTerm(pathCopy), input)); err != nil {
 			return err
 		}
 	}

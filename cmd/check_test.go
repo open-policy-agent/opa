@@ -7,6 +7,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path"
 	"path/filepath"
@@ -1262,9 +1263,7 @@ q contains x if {
 					if bundleType.tar {
 						files["bundle.tar.gz"] = ""
 					} else {
-						for k, v := range tc.files {
-							files[k] = v
-						}
+						maps.Copy(files, tc.files)
 					}
 
 					test.WithTempFS(files, func(root string) {

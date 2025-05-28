@@ -88,10 +88,7 @@ func TestPretty(t *testing.T) {
 		resultLines := strings.Split(result, "\n")
 		expectedLines := strings.Split(expected, "\n")
 
-		minLines := len(resultLines)
-		if minLines > len(expectedLines) {
-			minLines = len(expectedLines)
-		}
+		minLines := min(len(resultLines), len(expectedLines))
 
 		for i := range minLines {
 			if resultLines[i] != expectedLines[i] {

@@ -700,12 +700,7 @@ func (s *session) handleEvent(t *thread, stackIndex int, e *topdown.Event, ts th
 }
 
 func (s *session) skipOp(op topdown.Op) bool {
-	for _, skip := range s.properties.SkipOps {
-		if skip == op {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s.properties.SkipOps, op)
 }
 
 func (s *session) result(t *thread, rs rego.ResultSet) {

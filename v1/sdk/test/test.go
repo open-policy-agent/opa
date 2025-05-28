@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -442,9 +443,7 @@ func (s *Server) handleBundles(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			for k, v := range d {
-				data[k] = v
-			}
+			maps.Copy(data, d)
 		default:
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, "unexpected file in dummy bundle: %s", url)

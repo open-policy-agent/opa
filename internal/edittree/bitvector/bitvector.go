@@ -51,7 +51,7 @@ func shiftLower(bit byte, b []byte) byte {
 // position of the first byte in the slice.
 // This returns the bit that was shifted off the last byte.
 func shiftHigher(bit byte, b []byte) byte {
-	for i := 0; i < len(b); i++ {
+	for i := range b {
 		newByte := b[i] << 1
 		newByte |= bit
 		bit = (b[i] & 0x80) >> 7

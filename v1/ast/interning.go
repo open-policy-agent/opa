@@ -20,6 +20,9 @@ var (
 
 	InternedEmptyString = StringTerm("")
 	InternedEmptyObject = ObjectTerm()
+	InternedEmptyArray  = ArrayTerm()
+
+	InternedEmptyArrayValue = NewArray()
 )
 
 // InternedBooleanTerm returns an interned term with the given boolean value.

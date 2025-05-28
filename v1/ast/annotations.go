@@ -369,10 +369,7 @@ func compareRelatedResources(a, b []*RelatedResourceAnnotation) int {
 }
 
 func compareSchemas(a, b []*SchemaAnnotation) int {
-	maxLen := len(a)
-	if len(b) < maxLen {
-		maxLen = len(b)
-	}
+	maxLen := min(len(b), len(a))
 
 	for i := range maxLen {
 		if cmp := a[i].Compare(b[i]); cmp != 0 {
@@ -562,7 +559,7 @@ func attachRuleAnnotations(mod *Module) {
 		}
 
 		if found && j < len(cpy) {
-			cpy = append(cpy[:j], cpy[j+1:]...)
+			cpy = slices.Delete(cpy, j, j+1)
 		}
 	}
 }

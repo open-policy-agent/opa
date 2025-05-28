@@ -1,0 +1,62 @@
+# -----------------------------------------------------------------------------
+# Redirects for our content
+# -----------------------------------------------------------------------------
+
+# while we have a lot of links to /docs/latest/ in the wild, we want to
+# redirect them to /docs/
+/docs/latest/*    /docs/:splat    301
+
+# these two pages have been moved in the creation of the new site.
+/docs/kubernetes-introduction/ /docs/kubernetes/
+/docs/kubernetes-tutorial/ /docs/kubernetes/tutorial/
+/docs/envoy-introduction/ /docs/envoy/
+/docs/envoy-tutorial-istio/ /docs/envoy/tutorial-istio/
+/docs/envoy-tutorial-standalone-envoy/ /docs/envoy/tutorial-standalone-envoy/
+/docs/envoy-tutorial-gloo-edge/ /docs/envoy/tutorial-gloo-edge/
+
+# point to search for old ecosystem pages
+/integrations/:entry/*  /ecosystem?q=:entry 301!
+/softwares/:entry/*  /ecosystem?q=:entry 301!
+/organizations/:entry/* /ecosystem?q=:entry 301!
+
+# -----------------------------------------------------------------------------
+# Redirects for legacy usage external resources
+# -----------------------------------------------------------------------------
+
+/bundles/helm-kubernetes-quickstart /external-resources/bundles/helm-kubernetes-quickstart 301!
+/bundles/envoy/authz /external-resources/bundles/envoy/authz 301!
+/bundles/istio/authz /external-resources/bundles/istio/authz 301!
+/bundles/kubernetes/admission /external-resources/bundles/kubernetes/admission 301!
+/img/logos/opa-horizontal-color.png /external-resources/opa-horizontal-color.png 301!
+/img/logos/opa-no-text-color.png /external-resources/opa-no-text-color.png 301!
+
+# -----------------------------------------------------------------------------
+# Redirects relating to client behavior
+# -----------------------------------------------------------------------------
+
+# some clients seem to load manifest.json even though the manifest is set to
+# another path.
+/manifest.json /site.webmanifest 301!
+
+# clients still seem to request the precomposed icon even though we make
+# no reference to it. We can use the same as the normal icon.
+/apple-touch-icon-precomposed.png /apple-touch-icon.png 301!
+
+# -----------------------------------------------------------------------------
+# Redirects relating to spam traffic
+# -----------------------------------------------------------------------------
+
+# these paths are commonly requested and cause noise when detecthing real 404s
+/wp-login.php         /    301!
+/wlwmanifest.xml      /    301!
+*/wp-login.php        /    301!
+*/wlwmanifest.xml     /    301!
+/xmlrpc.php           /    301!
+
+# -----------------------------------------------------------------------------
+# Redirects relating to github asset downloads
+# -----------------------------------------------------------------------------
+
+/downloads/edge/*       https://opa-releases.s3.amazonaws.com/edge/:splat 200
+/downloads/latest/*     https://github.com/open-policy-agent/opa/releases/latest/download/:splat 200
+/downloads/*            https://github.com/open-policy-agent/opa/releases/download/:splat 200

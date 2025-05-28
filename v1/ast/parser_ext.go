@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"unicode"
 
@@ -731,12 +732,7 @@ func parseModule(filename string, stmts []Statement, comments []*Comment, regoCo
 }
 
 func ruleDeclarationHasKeyword(rule *Rule, keyword tokens.Token) bool {
-	for _, kw := range rule.Head.keywords {
-		if kw == keyword {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(rule.Head.keywords, keyword)
 }
 
 func newScopeAttachmentErr(a *Annotations, want string) *Error {
@@ -809,10 +805,7 @@ func newParserErrorDetail(bs []byte, offset int) *ParserErrorDetail {
 func (d ParserErrorDetail) Lines() []string {
 	line := strings.TrimLeft(d.Line, "\t") // remove leading tabs
 	tabCount := len(d.Line) - len(line)
-	indent := d.Idx - tabCount
-	if indent < 0 {
-		indent = 0
-	}
+	indent := max(d.Idx-tabCount, 0)
 	return []string{line, strings.Repeat(" ", indent) + "^"}
 }
 
