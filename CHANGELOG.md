@@ -84,6 +84,8 @@ This is a security fix release for the fixes published in Go [1.24.1](https://gr
 - build: bump go to 1.24.2 (#7544) (authored by @sspaink)
   Addressing `CVE-2025-22870` and `CVE-2025-22871` vulnerabilities in the Go runtime.
 
+## Unreleased
+
 ## 1.4.0
 
 This release contains a security fix addressing CVE-2025-46569.
