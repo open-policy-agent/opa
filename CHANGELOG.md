@@ -3,7 +3,75 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 1.5.0
+
+This release contains a mix of new features, performance improvements, and bugfixes. Among others:
+
+- Support for AWS SSO credentials provider
+- Support for signing client assertions with Azure Keyvault
+- Faster `object.get`, `walk` and builtin-function evaluation
+- Improved guardrails in the parser
+- Improvements to decision logging
+
+### Modernized OPA Website ([#7037](https://github.com/open-policy-agent/opa/issues/7037))
+
+The [OPA website](https://www.openpolicyagent.org/) has been modernized with a new design and improved user experience. 
+
+The new site is based on Docusaurus and React which makes it easier to build live functionality and add non-documentation resources. 
+This lays the groundwork for even more improvements in the future!
+
+Documentation for older OPA versions are still available in the [version archive](https://www.openpolicyagent.org/docs/archive).
+
+Authored by @charlieegan3
+
+### Runtime, Tooling, SDK
+
+- ast: Only use JSON-escaped literal when needed in ref to string convertion ([#7550](https://github.com/open-policy-agent/opa/issues/7550)) reported and authored by @xubinzheng
+- ast: Parser recursion depth guard ([#7568](https://github.com/open-policy-agent/opa/pull/7568)) authored by @thevilledev
+- ast: Retaining `SomeDecl` `Location` field when compiler resolves refs ([#7543](https://github.com/open-policy-agent/opa/issues/7543)) authored by @johanfylling
+- bundle: Setting default rego-version in bundle API ([#7588](https://github.com/open-policy-agent/opa/issues/7588)) authored by @johanfylling reported by @xubinzheng
+- perf: Improved "baseline" metrics of opa bench for trivial queries ([#7580](https://github.com/open-policy-agent/opa/pull/7580)) authored by @anderseknert
+- plugins/decision: Don't drop adaptive uncompressed size limit on upload ([#7562](https://github.com/open-policy-agent/opa/issues/7562)) authored by @sspaink
+- plugins/decision: Set config boundaries to upload_size_limit_bytes (#7563) (authored by @sspaink)
+- plugins/rest: Add support for AWS SSO credentials provider ([#7527](https://github.com/open-policy-agent/opa/pull/7527)) authored by @efiShtain
+- plugins/rest: Support signing of client assertions with Azure Keyvault ([#7462](https://github.com/open-policy-agent/opa/issues/7462)) reported and authored by @Od1nB
+- plugins/status: Support graceful shutdown timeout ([#7576](https://github.com/open-policy-agent/opa/issues/6676)) authored by @sspaink
+- rego: Don't generate JSON values for wildcard/generated keys in result set ([#7567](https://github.com/open-policy-agent/opa/pull/7567)) authored by @anderseknert
+- runtime: Don't override user set version `commit` and `timestamp` ([#7471](https://github.com/open-policy-agent/opa/issues/7471)) reported by @kastl-ars authored by @sspaink
+
+### Planner, Topdown and Rego
+
+- planner: Deal with var-for-function replacement in indirect calls ([#5311](https://github.com/open-policy-agent/opa/issues/5311)) authored by @srenatus
+- topdown: Faster `object.get` built-in function ([#7593](https://github.com/open-policy-agent/opa/pull/7593)) authored by @anderseknert
+- topdown: Faster `walk` built-in function ([#7612](https://github.com/open-policy-agent/opa/pull/7612)) authored by @anderseknert
+- topdown: Improved default rule value inlining ( ([#1418](https://github.com/open-policy-agent/opa/issues/1418)) authored by @johanfylling
+- topdown: Improved GraphQL error handling ([#7622](https://github.com/open-policy-agent/opa/issues/7622)) reported and authored by @robmyersrobmyers
+
+### Docs, Website, Ecosystem
+
+- docs: Fix helm-kubernetes-quickstart bundle ([#7606](https://github.com/open-policy-agent/opa/pull/7606)) reported and authored by @nejec
+- docs: Add Swift-OPA to the Ecosystem Page ([#7610](https://github.com/open-policy-agent/opa/pull/7610)) authored by @charlieegan3
+- docs: Add Tutorial Redirects ([#7603]https://github.com/open-policy-agent/opa/issues/7603) reported by @nataraj24 authored by @charlieegan3
+- Fix links in README ([#7633](https://github.com/open-policy-agent/opa/pull/7633)) authored by @ffjlabo
+
+### Miscellaneous
+
+- github_actions: Adding monthly check for broken hyperlinks ([#7537](https://github.com/open-policy-agent/opa/pull/7537)) authored by @sspaink
+- perf: Extended interning ([#7636](https://github.com/open-policy-agent/opa/pull/7636)) authored by @anderseknert
+- perf: `Ref.String()` shortcut on single var term ref ([#7595](https://github.com/open-policy-agent/opa/pull/7595)) authored by @anderseknert
+- refactor: Don't return error from `opaTest` ([#7560](https://github.com/open-policy-agent/opa/pull/7560)) authored by @sspaink
+- refactor: Remove internal/gqlparser and use upstream dependency instead. ([#7520](https://github.com/open-policy-agent/opa/issues/7520)) authored by @robmyersrobmyers
+- test: Fix flaky TestContextErrorHandling ([#7587](https://github.com/open-policy-agent/opa/pull/7587)) authored by @sspaink
+- Apply modernize linter fixes ([#7599](https://github.com/open-policy-agent/opa/pull/7599)) authored by @anderseknert
+- Use `any` in place of `interface{}` ([#7566](https://github.com/open-policy-agent/opa/pull/7566)) authored by @anderseknert
+- Dependency updates; notably:
+  - build: bump go from 1.24.0 to 1.24.3
+  - build(deps): bump containerd to v2.1.1 ([#7627](https://github.com/open-policy-agent/opa/issues/7627)) authored by @johanfylling reported by @robmyersrobmyers
+  - build(deps): bump github.com/fsnotify/fsnotify from 1.8.0 to 1.9.0
+  - build(deps): bump github.com/prometheus/client_golang from 1.21.1 to 1.22.0
+  - build(deps): bump github.com/prometheus/client_model from 0.6.1 to 0.6.2
+  - build(deps): bump golang.org/x/net from 0.38.0 to 0.39.0
+  - build(deps): bump google.golang.org/grpc from 1.71.1 to 1.72.0
 
 ## 1.4.2
 
