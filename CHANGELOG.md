@@ -5,87 +5,65 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## 1.5.0
 
-### Fixes
+### Modernized OPA Website ([#7037](https://github.com/open-policy-agent/opa/issues/7037))
 
-- Fix: only use JSON-escaped literal when needed in Ref.String() (#7552) ([#7550](https://github.com/open-policy-agent/opa/issues/7550)) authored by @xubinzheng reported by @xubinzheng
-- ast: Retaining `SomeDecl` `Location` field when compiler resolves refs (#7548) ([#7543](https://github.com/open-policy-agent/opa/issues/7543)) authored by @johanfylling
-- build(deps): bump containerd to v2.1.1 (#7628) ([#7627](https://github.com/open-policy-agent/opa/issues/7627)) authored by @johanfylling reported by @robmyersrobmyers
-- bundle: Setting default rego-version in bundle API (#7630) ([#7588](https://github.com/open-policy-agent/opa/issues/7588)) authored by @johanfylling reported by @xubinzheng
-- planner: deal with var-for-function replacement in indirect calls ([#5311](https://github.com/open-policy-agent/opa/issues/5311)) authored by @srenatus
-- topdown: Improved default rule value inlining (#7578) ([#1418](https://github.com/open-policy-agent/opa/issues/1418)) authored by @johanfylling
+The [OPA website](https://www.openpolicyagent.org/) has been modernized with a new design and improved user experience. 
+
+The new site is based on Docusaurus and React which makes it easier to build live functionality and add non-documentation resources. 
+This lays the groundwork for even more improvements in the future!
+
+Documentation for older OPA versions are still available in the [version archive](https://www.openpolicyagent.org/docs/archive).
+
+Authored by @charlieegan3
+
+### Runtime, Tooling, SDK
+
+- ast: Only use JSON-escaped literal when needed in ref to string convertion ([#7550](https://github.com/open-policy-agent/opa/issues/7550)) reported and authored by @xubinzheng
+- ast: Parser recursion depth guard ([#7568](https://github.com/open-policy-agent/opa/pull/7568)) authored by @thevilledev
+- ast: Retaining `SomeDecl` `Location` field when compiler resolves refs ([#7543](https://github.com/open-policy-agent/opa/issues/7543)) authored by @johanfylling
+- bundle: Setting default rego-version in bundle API ([#7588](https://github.com/open-policy-agent/opa/issues/7588)) authored by @johanfylling reported by @xubinzheng
+- perf: Improved "baseline" metrics of opa bench for trivial queries ([#7580](https://github.com/open-policy-agent/opa/pull/7580)) authored by @anderseknert
+- plugins/rest: Add support for aws sso credentials provider ([#7527](https://github.com/open-policy-agent/opa/pull/7527)) authored by @efiShtain
+- rego: Don't generate JSON values for wildcard/generated keys in result set ([#7567](https://github.com/open-policy-agent/opa/pull/7567)) authored by @anderseknert
+- plugins/decision: Don't drop adaptive uncompressed size limit on upload ([#7562](https://github.com/open-policy-agent/opa/issues/7562)) authored by @sspaink
+- plugins/decision: Set config boundaries to upload_size_limit_bytes (#7563) (authored by @sspaink)
+- plugins/rest: Support signing of client assertions with Azure Keyvault ([#7462](https://github.com/open-policy-agent/opa/issues/7462)) reported and authored by @Od1nB
+- plugins/status: Support graceful shutdown timeout ([#7576](https://github.com/open-policy-agent/opa/issues/6676)) authored by @sspaink
+- runtime: Don't override user set version `commit` and `timestamp` ([#7471](https://github.com/open-policy-agent/opa/issues/7471)) reported by @kastl-ars authored by @sspaink
+
+### Planner, Topdown and Rego
+
+- planner: Deal with var-for-function replacement in indirect calls ([#5311](https://github.com/open-policy-agent/opa/issues/5311)) authored by @srenatus
+- topdown: Faster `object.get` built-in function ([#7593](https://github.com/open-policy-agent/opa/pull/7593)) authored by @anderseknert
+- topdown: Faster `walk` built-in function ([#7612](https://github.com/open-policy-agent/opa/pull/7612)) authored by @anderseknert
+- topdown: Improved default rule value inlining ( ([#1418](https://github.com/open-policy-agent/opa/issues/1418)) authored by @johanfylling
+- topdown: Improved GraphQL error handling ([#7622](https://github.com/open-policy-agent/opa/issues/7622)) reported and authored by @robmyersrobmyers
+
+### Docs, Website, Ecosystem
+
+- docs: Fix helm-kubernetes-quickstart bundle ([#7606](https://github.com/open-policy-agent/opa/pull/7606)) reported and authored by @nejec
+- docs: Add Swift-OPA to the Ecosystem Page ([#7610](https://github.com/open-policy-agent/opa/pull/7610)) authored by @charlieegan3
+- docs: Add Tutorial Redirects ([#7603]https://github.com/open-policy-agent/opa/issues/7603) reported by @nataraj24 authored by @charlieegan3
+- Fix links in README ([#7633](https://github.com/open-policy-agent/opa/pull/7633)) authored by @ffjlabo
 
 ### Miscellaneous
 
-- Apply modernize linter fixes (#7599) (authored by @anderseknert)
-- Don't generate JSON values for wildcard/generated keys in result set (#7567) (authored by @anderseknert)
-- Fix links in README (#7633) (authored by @ffjlabo)
-- Patch release v1.4.2 (#7546) (authored by @sspaink)
-- Prepare v1.5.0 development (#7542) (authored by @johanfylling)
-- Use `any` in place of `interface{}` (#7566) (authored by @anderseknert)
-- add support for aws sso credentials provider (#7527) (authored by @efiShtain)
-- ast: Parser recursion depth guard (#7568) (authored by @thevilledev)
-- build(deps): bump the dependencies group with 5 updates (#7540) (authored by @dependabot[bot])
-- build(deps): bump the gha-dependencies group with 2 updates (#7539) (authored by @dependabot[bot])
-- build: bump go to 1.24.2 (#7544) (authored by @sspaink)
-- build: bump go to 1.24.3 (#7553) (authored by @sspaink)
-- chore: fix flaky TestContextErrorHandling (#7587) (authored by @sspaink)
-- docs: Add Swift-OPA to the Ecosystem Page (#7610) (authored by @charlieegan3)
-- docs: Add Tutorial Redirects (#7609) (authored by @charlieegan3)
-- docs: Add a HumanLink for ecosystem entries (#7635) (authored by @charlieegan3)
-- docs: Add additional context prompt in issue body (#7607) (authored by @charlieegan3)
-- docs: Add examples to the homepage (#7584) (authored by @charlieegan3)
-- docs: Add redirect for decision_logs type label (#7637) (authored by @charlieegan3)
-- docs: Add simple post-merge smoke test website (#7611) (authored by @charlieegan3)
-- docs: Adjust homepage min widths (authored by @charlieegan3)
-- docs: Allow searching of ecosystem page (#7574) (authored by @charlieegan3)
-- docs: Correct /ecosystem logo rotations (#7620) (authored by @charlieegan3)
-- docs: Deploy a new OPA website under /new (#7534) (authored by @charlieegan3)
-- docs: Fix CLI documentation generation (#7600) (authored by @charlieegan3)
-- docs: Implement dark mode for website (#7625) (authored by @charlieegan3)
-- docs: Migrate diagrams to mermaid (#7615) (authored by @charlieegan3)
-- docs: Port c50c7e CLI docs update to new docs site (#7585) (authored by @charlieegan3)
-- docs: Redirect to search for ecosystem pages (#7608) (authored by @charlieegan3)
-- docs: Reliably link to builtin anchors (#7619) (authored by @charlieegan3)
-- docs: Remove live blocks (#7572) (authored by @charlieegan3)
-- docs: Replace final live examples (#7582) (authored by @charlieegan3)
-- docs: Restore old referenced bundles (#7629) (authored by @charlieegan3)
-- docs: Return cli docs gen command (#7597) (authored by @charlieegan3)
-- docs: Revert badge endpoint to old path (authored by @charlieegan3)
-- docs: Revise card display across the site (#7634) (authored by @charlieegan3)
-- docs: Show current version in navbar (#7631) (authored by @charlieegan3)
-- docs: Switch to new OPA website (#7592) (authored by @charlieegan3)
-- docs: Update /badge/ endpoints to use same handler (#7617) (authored by @charlieegan3)
-- docs: Update contrib-docs page (#7614) (authored by @charlieegan3)
-- docs: Update contributing docs (#7632) (authored by @charlieegan3)
-- docs: Update contribution documentation (#7639) (authored by @charlieegan3)
-- docs: Update docs index examples to be live again (#7577) (authored by @charlieegan3)
-- docs: Update final png diagrams to mermaid (#7621) (authored by @charlieegan3)
-- docs: Update generated CLI docs (authored by @charlieegan3)
-- docs: Update policy-language to use RunSnippet (#7581) (authored by @charlieegan3)
-- docs: Use ABAC example on docs homepage (#7583) (authored by @charlieegan3)
-- docs: Use Node 22 for all contexts (#7570) (authored by @charlieegan3)
-- docs: Use colors on built in table (#7598) (authored by @charlieegan3)
-- docs: Use simple RBAC example for homepage (authored by @charlieegan3)
-- docs: Various minor website fixes (#7596) (authored by @charlieegan3)
-- docs: fix helm-kubernetes-quickstart bundle (#7606) (authored by @nejec)
-- fix: Improve GraphQL error handling (#7622) (#7623) (authored by @robmyersrobmyers)
-- github_actions: monthly check for broken hyperlinks (#7537) (authored by @sspaink)
-- perf: faster object.get (#7593) (authored by @anderseknert)
-- perf: greatly improved `walk` performance (#7612) (authored by @anderseknert)
-- perf: improve "baseline" metrics of opa bench for trivial queries (#7580) (authored by @anderseknert)
-- perf: more interning (#7636) (authored by @anderseknert)
-- perf: ref.String() shortcut on single var term ref (#7595) (authored by @anderseknert)
-- plugin/decision: don't drop adaptive uncompressed size limit on upload (#7561) (authored by @sspaink)
-- plugin/decision: set config boundaries to upload_size_limit_bytes (#7563) (authored by @sspaink)
-- plugin/status: support graceful shutdown timeout (#7575) (authored by @sspaink)
-- plugins/rest: keyvault sign client assertion (#7554) (authored by @Od1nB)
-- refactor: Remove internal/gqlparser and use upstream instead. (#7538) (authored by @robmyersrobmyers)
-- refactor: don't return error from opaTest (#7560) (authored by @sspaink)
-- runtime: don't override user set commit and timestamp (#7549) (authored by @sspaink)
-- test: Not modifying global recursion depth limit in parser tests init (#7641) (authored by @johanfylling)
-- test: mark TestCertReloading as slow (#7624) (authored by @sspaink)
-- website: Fix badge endpoint (#7626) (authored by @charlieegan3)
-- website: add in previous redirects (authored by @srenatus)
+- github_actions: Adding monthly check for broken hyperlinks ([#7537](https://github.com/open-policy-agent/opa/pull/7537)) authored by @sspaink
+- perf: Extended interning ([#7636](https://github.com/open-policy-agent/opa/pull/7636)) authored by @anderseknert
+- perf: `Ref.String()` shortcut on single var term ref ([#7595](https://github.com/open-policy-agent/opa/pull/7595)) authored by @anderseknert
+- refactor: Don't return error from `opaTest` ([#7560](https://github.com/open-policy-agent/opa/pull/7560)) authored by @sspaink
+- refactor: Remove internal/gqlparser and use upstream dependency instead. ([#7520](https://github.com/open-policy-agent/opa/issues/7520)) authored by @robmyersrobmyers
+- test: Fix flaky TestContextErrorHandling ([#7587](https://github.com/open-policy-agent/opa/pull/7587)) authored by @sspaink
+- Apply modernize linter fixes ([#7599](https://github.com/open-policy-agent/opa/pull/7599)) authored by @anderseknert
+- Use `any` in place of `interface{}` ([#7566](https://github.com/open-policy-agent/opa/pull/7566)) authored by @anderseknert
+- Dependency updates; notably:
+  - build: bump go from 1.24.0 to 1.24.3
+  - build(deps): bump containerd to v2.1.1 ([#7627](https://github.com/open-policy-agent/opa/issues/7627)) authored by @johanfylling reported by @robmyersrobmyers
+  - build(deps): bump github.com/fsnotify/fsnotify from 1.8.0 to 1.9.0
+  - build(deps): bump github.com/prometheus/client_golang from 1.21.1 to 1.22.0
+  - build(deps): bump github.com/prometheus/client_model from 0.6.1 to 0.6.2
+  - build(deps): bump golang.org/x/net from 0.38.0 to 0.39.0
+  - build(deps): bump google.golang.org/grpc from 1.71.1 to 1.72.0
 
 ## 1.4.2
 
