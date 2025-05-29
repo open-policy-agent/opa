@@ -3,7 +3,89 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 1.5.0
+
+### Fixes
+
+- Fix: only use JSON-escaped literal when needed in Ref.String() (#7552) ([#7550](https://github.com/open-policy-agent/opa/issues/7550)) authored by @xubinzheng reported by @xubinzheng
+- ast: Retaining `SomeDecl` `Location` field when compiler resolves refs (#7548) ([#7543](https://github.com/open-policy-agent/opa/issues/7543)) authored by @johanfylling
+- build(deps): bump containerd to v2.1.1 (#7628) ([#7627](https://github.com/open-policy-agent/opa/issues/7627)) authored by @johanfylling reported by @robmyersrobmyers
+- bundle: Setting default rego-version in bundle API (#7630) ([#7588](https://github.com/open-policy-agent/opa/issues/7588)) authored by @johanfylling reported by @xubinzheng
+- planner: deal with var-for-function replacement in indirect calls ([#5311](https://github.com/open-policy-agent/opa/issues/5311)) authored by @srenatus
+- topdown: Improved default rule value inlining (#7578) ([#1418](https://github.com/open-policy-agent/opa/issues/1418)) authored by @johanfylling
+
+### Miscellaneous
+
+- Apply modernize linter fixes (#7599) (authored by @anderseknert)
+- Don't generate JSON values for wildcard/generated keys in result set (#7567) (authored by @anderseknert)
+- Fix links in README (#7633) (authored by @ffjlabo)
+- Patch release v1.4.2 (#7546) (authored by @sspaink)
+- Prepare v1.5.0 development (#7542) (authored by @johanfylling)
+- Use `any` in place of `interface{}` (#7566) (authored by @anderseknert)
+- add support for aws sso credentials provider (#7527) (authored by @efiShtain)
+- ast: Parser recursion depth guard (#7568) (authored by @thevilledev)
+- build(deps): bump the dependencies group with 5 updates (#7540) (authored by @dependabot[bot])
+- build(deps): bump the gha-dependencies group with 2 updates (#7539) (authored by @dependabot[bot])
+- build: bump go to 1.24.2 (#7544) (authored by @sspaink)
+- build: bump go to 1.24.3 (#7553) (authored by @sspaink)
+- chore: fix flaky TestContextErrorHandling (#7587) (authored by @sspaink)
+- docs: Add Swift-OPA to the Ecosystem Page (#7610) (authored by @charlieegan3)
+- docs: Add Tutorial Redirects (#7609) (authored by @charlieegan3)
+- docs: Add a HumanLink for ecosystem entries (#7635) (authored by @charlieegan3)
+- docs: Add additional context prompt in issue body (#7607) (authored by @charlieegan3)
+- docs: Add examples to the homepage (#7584) (authored by @charlieegan3)
+- docs: Add redirect for decision_logs type label (#7637) (authored by @charlieegan3)
+- docs: Add simple post-merge smoke test website (#7611) (authored by @charlieegan3)
+- docs: Adjust homepage min widths (authored by @charlieegan3)
+- docs: Allow searching of ecosystem page (#7574) (authored by @charlieegan3)
+- docs: Correct /ecosystem logo rotations (#7620) (authored by @charlieegan3)
+- docs: Deploy a new OPA website under /new (#7534) (authored by @charlieegan3)
+- docs: Fix CLI documentation generation (#7600) (authored by @charlieegan3)
+- docs: Implement dark mode for website (#7625) (authored by @charlieegan3)
+- docs: Migrate diagrams to mermaid (#7615) (authored by @charlieegan3)
+- docs: Port c50c7e CLI docs update to new docs site (#7585) (authored by @charlieegan3)
+- docs: Redirect to search for ecosystem pages (#7608) (authored by @charlieegan3)
+- docs: Reliably link to builtin anchors (#7619) (authored by @charlieegan3)
+- docs: Remove live blocks (#7572) (authored by @charlieegan3)
+- docs: Replace final live examples (#7582) (authored by @charlieegan3)
+- docs: Restore old referenced bundles (#7629) (authored by @charlieegan3)
+- docs: Return cli docs gen command (#7597) (authored by @charlieegan3)
+- docs: Revert badge endpoint to old path (authored by @charlieegan3)
+- docs: Revise card display across the site (#7634) (authored by @charlieegan3)
+- docs: Show current version in navbar (#7631) (authored by @charlieegan3)
+- docs: Switch to new OPA website (#7592) (authored by @charlieegan3)
+- docs: Update /badge/ endpoints to use same handler (#7617) (authored by @charlieegan3)
+- docs: Update contrib-docs page (#7614) (authored by @charlieegan3)
+- docs: Update contributing docs (#7632) (authored by @charlieegan3)
+- docs: Update contribution documentation (#7639) (authored by @charlieegan3)
+- docs: Update docs index examples to be live again (#7577) (authored by @charlieegan3)
+- docs: Update final png diagrams to mermaid (#7621) (authored by @charlieegan3)
+- docs: Update generated CLI docs (authored by @charlieegan3)
+- docs: Update policy-language to use RunSnippet (#7581) (authored by @charlieegan3)
+- docs: Use ABAC example on docs homepage (#7583) (authored by @charlieegan3)
+- docs: Use Node 22 for all contexts (#7570) (authored by @charlieegan3)
+- docs: Use colors on built in table (#7598) (authored by @charlieegan3)
+- docs: Use simple RBAC example for homepage (authored by @charlieegan3)
+- docs: Various minor website fixes (#7596) (authored by @charlieegan3)
+- docs: fix helm-kubernetes-quickstart bundle (#7606) (authored by @nejec)
+- fix: Improve GraphQL error handling (#7622) (#7623) (authored by @robmyersrobmyers)
+- github_actions: monthly check for broken hyperlinks (#7537) (authored by @sspaink)
+- perf: faster object.get (#7593) (authored by @anderseknert)
+- perf: greatly improved `walk` performance (#7612) (authored by @anderseknert)
+- perf: improve "baseline" metrics of opa bench for trivial queries (#7580) (authored by @anderseknert)
+- perf: more interning (#7636) (authored by @anderseknert)
+- perf: ref.String() shortcut on single var term ref (#7595) (authored by @anderseknert)
+- plugin/decision: don't drop adaptive uncompressed size limit on upload (#7561) (authored by @sspaink)
+- plugin/decision: set config boundaries to upload_size_limit_bytes (#7563) (authored by @sspaink)
+- plugin/status: support graceful shutdown timeout (#7575) (authored by @sspaink)
+- plugins/rest: keyvault sign client assertion (#7554) (authored by @Od1nB)
+- refactor: Remove internal/gqlparser and use upstream instead. (#7538) (authored by @robmyersrobmyers)
+- refactor: don't return error from opaTest (#7560) (authored by @sspaink)
+- runtime: don't override user set commit and timestamp (#7549) (authored by @sspaink)
+- test: Not modifying global recursion depth limit in parser tests init (#7641) (authored by @johanfylling)
+- test: mark TestCertReloading as slow (#7624) (authored by @sspaink)
+- website: Fix badge endpoint (#7626) (authored by @charlieegan3)
+- website: add in previous redirects (authored by @srenatus)
 
 ## 1.4.2
 
