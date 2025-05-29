@@ -5,6 +5,14 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## 1.5.0
 
+This release contains a mix of new features, performance improvements, and bugfixes. Among others:
+
+- Support for AWS SSO credentials provider
+- Support for signing client assertions with Azure Keyvault
+- Faster `object.get`, `walk` and builtin-function evaluation
+- Improved guardrails in the parser
+- Improvements to decision logging
+
 ### Modernized OPA Website ([#7037](https://github.com/open-policy-agent/opa/issues/7037))
 
 The [OPA website](https://www.openpolicyagent.org/) has been modernized with a new design and improved user experience. 
@@ -23,12 +31,12 @@ Authored by @charlieegan3
 - ast: Retaining `SomeDecl` `Location` field when compiler resolves refs ([#7543](https://github.com/open-policy-agent/opa/issues/7543)) authored by @johanfylling
 - bundle: Setting default rego-version in bundle API ([#7588](https://github.com/open-policy-agent/opa/issues/7588)) authored by @johanfylling reported by @xubinzheng
 - perf: Improved "baseline" metrics of opa bench for trivial queries ([#7580](https://github.com/open-policy-agent/opa/pull/7580)) authored by @anderseknert
-- plugins/rest: Add support for aws sso credentials provider ([#7527](https://github.com/open-policy-agent/opa/pull/7527)) authored by @efiShtain
-- rego: Don't generate JSON values for wildcard/generated keys in result set ([#7567](https://github.com/open-policy-agent/opa/pull/7567)) authored by @anderseknert
 - plugins/decision: Don't drop adaptive uncompressed size limit on upload ([#7562](https://github.com/open-policy-agent/opa/issues/7562)) authored by @sspaink
 - plugins/decision: Set config boundaries to upload_size_limit_bytes (#7563) (authored by @sspaink)
+- plugins/rest: Add support for AWS SSO credentials provider ([#7527](https://github.com/open-policy-agent/opa/pull/7527)) authored by @efiShtain
 - plugins/rest: Support signing of client assertions with Azure Keyvault ([#7462](https://github.com/open-policy-agent/opa/issues/7462)) reported and authored by @Od1nB
 - plugins/status: Support graceful shutdown timeout ([#7576](https://github.com/open-policy-agent/opa/issues/6676)) authored by @sspaink
+- rego: Don't generate JSON values for wildcard/generated keys in result set ([#7567](https://github.com/open-policy-agent/opa/pull/7567)) authored by @anderseknert
 - runtime: Don't override user set version `commit` and `timestamp` ([#7471](https://github.com/open-policy-agent/opa/issues/7471)) reported by @kastl-ars authored by @sspaink
 
 ### Planner, Topdown and Rego
