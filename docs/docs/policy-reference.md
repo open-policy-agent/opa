@@ -447,6 +447,7 @@ The following algorithms are supported:
     RS256       "RS256" // RSASSA-PKCS-v1.5 using SHA-256
     RS384       "RS384" // RSASSA-PKCS-v1.5 using SHA-384
     RS512       "RS512" // RSASSA-PKCS-v1.5 using SHA-512
+    EdDSA       "EdDSA" // EdDDSA using Ed25519
 
 :::info
 Note that the key's provided should be base64 URL encoded (without padding) as per the specification ([RFC7517](https://tools.ietf.org/html/rfc7517)).
@@ -523,6 +524,34 @@ io.jwt.encode_sign({
     "dp": "BwKfV3Akq5_MFZDFZCnW-wzl-CCo83WoZvnLQwCTeDv8uzluRSnm71I3QCLdhrqE2e9YkxvuxdBfpT_PI7Yz-FOKnu1R6HsJeDCjn12Sk3vmAktV2zb34MCdy7cpdTh_YVr7tss2u6vneTwrA86rZtu5Mbr1C1XsmvkxHQAdYo0",
     "dq": "h_96-mK1R_7glhsum81dZxjTnYynPbZpHziZjeeHcXYsXaaMwkOlODsWa7I9xXDoRwbKgB719rrmI2oKr6N3Do9U0ajaHF-NKJnwgjMd2w9cjz3_-kyNlxAr2v4IKhGNpmM5iIgOS1VZnOZ68m6_pbLBSp3nssTdlqvd0tIiTHU",
     "qi": "IYd7DHOhrWvxkwPQsRM2tOgrjbcrfvtQJipd-DlcxyVuuM9sQLdgjVk2oy26F0EmpScGLq2MowX7fhd_QJQ3ydy5cY7YIBi87w93IKLEdfnbJtoOPLUW0ITrJReOgo1cq9SbsxYawBgfp_gh6A5603k2-ZQwVK0JKSHuLFkuQ3U"
+})
+```
+
+```rego
+```
+
+##### EdDSA Key (Ed25519 Signature)
+
+```rego
+io.jwt.encode_sign({
+    "alg": "EdDSA"
+}, {
+    "iss": "joe",
+    "exp": 1300819380,
+    "aud": ["bob", "saul"],
+    "http://example.com/is_root": true,
+    "privateParams": {
+        "private_one": "one",
+        "private_two": "two"
+    }
+},
+{
+    "kty": "OKP",
+    "alg": "EdDSA",
+    "crv": "Ed25519",
+    "d": "MC4CAQAwBQYDK2VwBCIEIEFrKpchjkEL8RoDUfE40sCNvFrnaYvODrLa0eUI0V9-",
+    "x": "MCowBQYDK2VwAyEAsD8QauV-Cgr7kPoZ3MVDDYzov7d8p8LjKOLXI3ni2ew",
+    "use": "sig"
 })
 ```
 
@@ -1066,6 +1095,8 @@ example_verify_resource {
 ```
 
 ##### Unsigned Payload Request Signing Example
+The [AWS S3 request signing API](https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html)
+supports unsigned payload signing option. This example below shows s3 request signing with payload signing disabled.
 
 The [AWS S3 request signing API](https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html)
 supports unsigned payload signing option. This example below shows s3 request signing with payload signing disabled.

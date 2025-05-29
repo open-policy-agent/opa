@@ -1815,6 +1815,23 @@
       "nondeterministic": true
     },
     {
+      "name": "io.jwt.verify_eddsa",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "type": "boolean"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "io.jwt.verify_es256",
       "decl": {
         "args": [
