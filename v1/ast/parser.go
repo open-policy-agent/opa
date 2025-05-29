@@ -32,8 +32,6 @@ import (
 // depth for the parser
 const DefaultMaxParsingRecursionDepth = 100000
 
-var maxParsingRecursionDepth = DefaultMaxParsingRecursionDepth
-
 // ErrMaxParsingRecursionDepthExceeded is returned when the parser
 // recursion exceeds the maximum allowed depth
 var ErrMaxParsingRecursionDepthExceeded = errors.New("max parsing recursion depth exceeded")
@@ -183,7 +181,7 @@ func NewParser() *Parser {
 	p := &Parser{
 		s:                 &state{},
 		po:                ParserOptions{},
-		maxRecursionDepth: maxParsingRecursionDepth,
+		maxRecursionDepth: DefaultMaxParsingRecursionDepth,
 	}
 	return p
 }

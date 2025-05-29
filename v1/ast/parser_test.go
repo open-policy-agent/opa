@@ -6378,11 +6378,6 @@ allow if {
 	assertLocationText(t, "# METADATA\n# title: rule", m.Rules[0].Annotations[0].Location)
 }
 
-func init() {
-	// maxParsingRecursionDepth is set much lower for testing purposes.
-	maxParsingRecursionDepth = 100
-}
-
 func TestMaxParsingRecursionDepth(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -6392,7 +6387,7 @@ func TestMaxParsingRecursionDepth(t *testing.T) {
 	}{
 		{
 			name:        "deeply nested array exceeds default limit",
-			input:       generateDeeplyNestedArray(200),
+			input:       generateDeeplyNestedArray(DefaultMaxParsingRecursionDepth + 1),
 			expectError: true,
 		},
 		{
