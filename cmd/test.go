@@ -66,6 +66,7 @@ type testCommandParams struct {
 	v0Compatible bool
 	v1Compatible bool
 	varValues    bool
+	parallel     uint
 }
 
 func newTestCommandParams() testCommandParams {
@@ -78,6 +79,7 @@ func newTestCommandParams() testCommandParams {
 		output:       os.Stdout,
 		errOutput:    os.Stderr,
 		stopChan:     make(chan os.Signal, 1),
+		parallel:     1,
 	}
 }
 
@@ -179,7 +181,7 @@ func opaTest(args []string, testParams testCommandParams) int {
 
 func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runner, reporter tester.Reporter, testParams testCommandParams) (int, error) {
 	var err error
-	var ch chan *tester.Result
+	var ch chan []*tester.Result
 	if testParams.benchmark {
 		// Initialize testing package for benchmarking. This is needed to set default values for some flags that may
 		// otherwise be dereferenced on some code paths causing panics, as reported in:
@@ -189,9 +191,9 @@ func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runne
 		benchOpts := tester.BenchmarkOptions{
 			ReportAllocations: testParams.benchMem,
 		}
-		ch, err = runner.RunBenchmarks(ctx, txn, benchOpts)
+		ch, err = runner.RunBenchmarksP(ctx, txn, benchOpts, testParams.parallel)
 	} else {
-		ch, err = runner.RunTests(ctx, txn)
+		ch, err = runner.RunTestsP(ctx, txn, testParams.parallel)
 	}
 
 	if err != nil {
@@ -204,14 +206,16 @@ func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runne
 
 	go func() {
 		defer close(dup)
-		for tr := range ch {
-			if !tr.Pass() {
-				if !(tr.Skip && testParams.skipExitZero) {
-					exitCode = 2
+		for results := range ch {
+			for _, tr := range results {
+				if !tr.Pass() {
+					if !(tr.Skip && testParams.skipExitZero) {
+						exitCode = 2
+					}
 				}
+				tr.Trace = filterTrace(&testParams, tr.Trace)
+				dup <- tr
 			}
-			tr.Trace = filterTrace(&testParams, tr.Trace)
-			dup <- tr
 		}
 	}()
 
@@ -549,9 +553,10 @@ recommended as some updates might cause them to be dropped by OPA.
 	testCommand.Flags().BoolVarP(&testParams.coverage, "coverage", "c", false, "report coverage (overrides debug tracing)")
 	testCommand.Flags().Float64VarP(&testParams.threshold, "threshold", "", 0, "set coverage threshold and exit with non-zero status if coverage is less than threshold %")
 	testCommand.Flags().BoolVar(&testParams.benchmark, "bench", false, "benchmark the unit tests")
-	testCommand.Flags().StringVarP(&testParams.runRegex, "run", "r", "", "run only test cases matching the regular expression.")
+	testCommand.Flags().StringVarP(&testParams.runRegex, "run", "r", "", "run only test cases matching the regular expression")
 	testCommand.Flags().BoolVarP(&testParams.watch, "watch", "w", false, "watch command line files for changes")
 	testCommand.Flags().BoolVar(&testParams.varValues, "var-values", false, "show local variable values in test output")
+	testCommand.Flags().UintVarP(&testParams.parallel, "parallel", "p", 1, "the number of modules that can be tested in parallel")
 
 	// Shared flags
 	addBundleModeFlag(testCommand.Flags(), &testParams.bundleMode, false)

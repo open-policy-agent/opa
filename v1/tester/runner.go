@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -411,9 +412,22 @@ func (r *Runner) RunBenchmarks(ctx context.Context, txn storage.Transaction, opt
 	})
 }
 
+// RunTestsP executes tests found in either modules or bundles loaded on the runner in parallel.
+func (r *Runner) RunTestsP(ctx context.Context, txn storage.Transaction, parallel uint) (chan []*Result, error) {
+	return r.runTestsP(ctx, txn, true, parallel, r.runTest)
+}
+
+// RunBenchmarksP executes tests similar to RunTestsP but will repeat
+// a number of times to get stable performance metrics.
+func (r *Runner) RunBenchmarksP(ctx context.Context, txn storage.Transaction, options BenchmarkOptions, parallel uint) (chan []*Result, error) {
+	return r.runTestsP(ctx, txn, false, parallel, func(ctx context.Context, txn storage.Transaction, module *ast.Module, rule *ast.Rule) (result *Result, b bool) {
+		return r.runBenchmark(ctx, txn, module, rule, options)
+	})
+}
+
 type run func(context.Context, storage.Transaction, *ast.Module, *ast.Rule) (*Result, bool)
 
-func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePrintStatements bool, runFunc run) (chan *Result, error) {
+func (r *Runner) setupTestRun(ctx context.Context, txn storage.Transaction, enablePrintStatements bool) (*regexp.Regexp, error) {
 	var testRegex *regexp.Regexp
 	var err error
 
@@ -461,7 +475,7 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 		}
 
 		// Activate the bundle(s) to get their info and policies into the store
-		// the actual compiled policies will overwritten later..
+		// the actual compiled policies will be overwritten later.
 		opts := &bundle.ActivateOpts{
 			Ctx:           ctx,
 			Store:         r.store,
@@ -491,6 +505,15 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 		}
 	}
 
+	return testRegex, nil
+}
+
+func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePrintStatements bool, runFunc run) (chan *Result, error) {
+	testRegex, err := r.setupTestRun(ctx, txn, enablePrintStatements)
+	if err != nil {
+		return nil, err
+	}
+
 	filenames := util.KeysSorted(r.compiler.Modules)
 	ch := make(chan *Result)
 
@@ -499,7 +522,7 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 		for _, name := range filenames {
 			module := r.compiler.Modules[name]
 			for _, rule := range module.Rules {
-				if !r.shouldRun(rule, testRegex) {
+				if !shouldRun(rule, testRegex) {
 					continue
 				}
 				tr, stop := func() (*Result, bool) {
@@ -518,7 +541,51 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 	return ch, nil
 }
 
-func (*Runner) shouldRun(rule *ast.Rule, testRegex *regexp.Regexp) bool {
+func (r *Runner) runTestsP(ctx context.Context, txn storage.Transaction, enablePrintStatements bool, parallel uint, runFunc run) (chan []*Result, error) {
+	testRegex, err := r.setupTestRun(ctx, txn, enablePrintStatements)
+	if err != nil {
+		return nil, err
+	}
+
+	ch := make(chan []*Result)
+	var wg sync.WaitGroup
+	semaphore := make(chan struct{}, parallel)
+
+	go func() {
+		for _, module := range r.compiler.Modules {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				semaphore <- struct{}{}
+				defer func() { <-semaphore }()
+
+				var result []*Result
+				for _, rule := range module.Rules {
+					if !shouldRun(rule, testRegex) {
+						continue
+					}
+					tr, stop := func() (*Result, bool) {
+						runCtx, cancel := context.WithTimeout(ctx, r.timeout)
+						defer cancel()
+						return runFunc(runCtx, txn, module, rule)
+					}()
+					result = append(result, tr)
+					if stop {
+						break
+					}
+				}
+
+				ch <- result
+			}()
+		}
+		wg.Wait()
+		close(ch)
+	}()
+
+	return ch, nil
+}
+
+func shouldRun(rule *ast.Rule, testRegex *regexp.Regexp) bool {
 	var ref ast.Ref
 
 	for _, term := range rule.Head.Ref().GroundPrefix() {
