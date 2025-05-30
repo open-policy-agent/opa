@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -181,12 +180,19 @@ func parseSrcDstMap(data []string) (map[string]string, error) {
 	result := map[string]string{}
 
 	for _, d := range data {
-		parts := strings.Split(d, ":")
-		if len(parts) != 2 {
-			return nil, errors.New("expected mapping of the form <from>:<to>")
+		term, err := ast.ParseTerm("{" + d + "}")
+		if err != nil {
+			return nil, newError("failed to parse mapping: %v", err)
 		}
-
-		result[parts[0]] = parts[1]
+		obj, ok := term.Value.(ast.Object)
+		if !ok {
+			return nil, newError("expected mapping of the form <from>:<to>")
+		}
+		keys := obj.Keys()
+		if len(keys) != 1 {
+			return nil, newError("expected mapping of the form <from>:<to>")
+		}
+		result[keys[0].String()] = obj.Get(keys[0]).String()
 	}
 	return result, nil
 }
