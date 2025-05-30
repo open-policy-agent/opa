@@ -106,26 +106,32 @@ func (enc *chunkEncoder) scaleUp() {
 }
 
 // WriteBytes attempts to write an encoded event to the current chunk.
-// Deprecated: use Write(event EventV1) instead
+// Deprecated: use Encode(event EventV1, eventBytes []byte) instead
 func (enc *chunkEncoder) WriteBytes(b []byte) ([][]byte, error) {
 	var e EventV1
 	if err := json.Unmarshal(b, &e); err != nil {
 		return nil, err
 	}
 
-	return enc.Write(e)
+	return enc.Encode(e, b)
 }
 
 // Write attempts to write an encoded event to the current chunk.
-// A chunk is returned when it reaches the uncompressed limit, the uncompressed limit is adjusted if the buffer was underutilized or exceeded.
-// An event is only dropped if it exceeds the limit after being compressed with or without dropping the Non-deterministic Cache (NDBuiltinCache).
-// An event stays in the buffer until either a new event reaches the uncompressed limit or by calling Flush.
-func (enc *chunkEncoder) Write(event EventV1) ([][]byte, error) {
-	eventBytes, err := json.Marshal(&event)
+// Deprecated: use Encode(event EventV1, eventBytes []byte) instead
+func (enc *chunkEncoder) Write(e EventV1) ([][]byte, error) {
+	b, err := json.Marshal(&e)
 	if err != nil {
 		return nil, err
 	}
 
+	return enc.Encode(e, b)
+}
+
+// Encode attempts to write an encoded event to the current chunk.
+// A chunk is returned when it reaches the uncompressed limit, the uncompressed limit is adjusted if the buffer was underutilized or exceeded.
+// An event is only dropped if it exceeds the limit after being compressed with or without dropping the Non-deterministic Cache (NDBuiltinCache).
+// An event stays in the buffer until either a new event reaches the uncompressed limit or by calling Flush.
+func (enc *chunkEncoder) Encode(event EventV1, eventBytes []byte) ([][]byte, error) {
 	// the incoming event is too big without dropping the ND cache
 	if enc.maxEventSize != 0 && int64(len(eventBytes)) >= enc.maxEventSize {
 		if event.NDBuiltinCache == nil {
@@ -144,6 +150,7 @@ func (enc *chunkEncoder) Write(event EventV1) ([][]byte, error) {
 		}
 		enc.incrMetric(logNDBDropCounterName)
 
+		var err error
 		eventBytes, err = json.Marshal(&event)
 		if err != nil {
 			return nil, err
@@ -172,8 +179,7 @@ func (enc *chunkEncoder) Write(event EventV1) ([][]byte, error) {
 	if enc.bytesWritten == 0 {
 		// If an event is too large, there are multiple things to try before dropping the event:
 		// 1. Try to fit the incoming event into the next chunk without losing ND cache
-		err = enc.appendEvent(eventBytes)
-		if err != nil {
+		if err := enc.appendEvent(eventBytes); err != nil {
 			return nil, err
 		}
 
@@ -267,7 +273,7 @@ func (enc *chunkEncoder) Write(event EventV1) ([][]byte, error) {
 	if len(result[0]) < enc.threshold {
 		enc.scaleUp()
 
-		r, err := enc.Write(event)
+		r, err := enc.Encode(event, eventBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -286,7 +292,7 @@ func (enc *chunkEncoder) Write(event EventV1) ([][]byte, error) {
 
 		enc.uncompressedLimitScaleDownExponent = enc.uncompressedLimitScaleUpExponent
 
-		r, err := enc.Write(event)
+		r, err := enc.Encode(event, eventBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -333,8 +339,13 @@ func (enc *chunkEncoder) scaleDown(events []EventV1) ([][]byte, error) {
 	// split the events into multiple chunks
 	var result [][]byte
 	for i := range events {
+		eventBytes, err := json.Marshal(&events[i])
+		if err != nil {
+			return nil, err
+		}
+
 		// recursive call to make sure the chunk created adheres to the uncompressed size limit
-		chunk, err := enc.Write(events[i])
+		chunk, err := enc.Encode(events[i], eventBytes)
 		if err != nil {
 			return nil, err
 		}

@@ -6,6 +6,7 @@ package logs
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 
 	"github.com/open-policy-agent/opa/v1/logging"
@@ -116,8 +117,12 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 		if event.chunk != nil {
 			result = [][]byte{event.chunk}
 		} else {
-			var err error
-			result, err = b.enc.Write(*event.EventV1)
+			eventBytes, err := json.Marshal(&event)
+			if err != nil {
+				return err
+			}
+
+			result, err = b.enc.Encode(*event.EventV1, eventBytes)
 			if err != nil {
 				b.incrMetric(logEncodingFailureCounterName)
 				if b.logger != nil {

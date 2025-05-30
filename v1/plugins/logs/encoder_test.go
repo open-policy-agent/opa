@@ -5,6 +5,7 @@
 package logs
 
 import (
+	"encoding/json"
 	"strconv"
 	"strings"
 	"testing"
@@ -52,7 +53,11 @@ func TestMaxEventSize(t *testing.T) {
 
 	event := eventWithNDCache()
 
-	chunk, err := enc.Write(event)
+	eventBytes, err := json.Marshal(&event)
+	if err != nil {
+		t.Fatal(err)
+	}
+	chunk, err := enc.Encode(event, eventBytes)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +77,11 @@ func TestMaxEventSize(t *testing.T) {
 		t.Errorf("expected %v got %d", expectedMaxSize, enc.maxEventSize)
 	}
 
-	chunk, err = enc.Write(event)
+	eventBytes, err = json.Marshal(&event)
+	if err != nil {
+		t.Fatal(err)
+	}
+	chunk, err = enc.Encode(event, eventBytes)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +134,11 @@ func TestChunkMaxUploadSizeLimitNDBCacheDropping(t *testing.T) {
 
 			event := eventWithNDCache()
 
-			chunk, err := enc.Write(event)
+			eventBytes, err := json.Marshal(&event)
+			if err != nil {
+				t.Fatal(err)
+			}
+			chunk, err := enc.Encode(event, eventBytes)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -178,7 +191,11 @@ func TestChunkEncoder(t *testing.T) {
 		Timestamp:   ts,
 	}
 
-	bs, err := enc.Write(event)
+	eventBytes, err := json.Marshal(&event)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bs, err := enc.Encode(event, eventBytes)
 	if bs != nil || err != nil {
 		t.Fatalf("Unexpected error or chunk produced: err: %v", err)
 	}
@@ -210,9 +227,14 @@ func TestChunkEncoderSizeLimit(t *testing.T) {
 	smallestEvent := EventV1{
 		DecisionID: "1",
 	}
-	chunks, err := enc.Write(smallestEvent)
+
+	eventBytes, err := json.Marshal(&smallestEvent)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
+	}
+	chunks, err := enc.Encode(smallestEvent, eventBytes)
+	if err != nil {
+		t.Fatal(err)
 	}
 	if len(chunks) != 0 {
 		t.Errorf("Unexpected result: %v", result)
@@ -250,9 +272,13 @@ func TestChunkEncoderSizeLimit(t *testing.T) {
 
 	logger := testLogger.New()
 	enc.WithLogger(logger)
-	chunks, err = enc.Write(event)
+	eventBytes, err = json.Marshal(&event)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
+	}
+	chunks, err = enc.Encode(event, eventBytes)
+	if err != nil {
+		t.Fatal(err)
 	}
 	if len(chunks) != 1 {
 		t.Errorf("Unexpected result: %v", result)
@@ -391,7 +417,11 @@ func TestChunkEncoderAdaptive(t *testing.T) {
 					Timestamp:   ts,
 				}
 
-				chunk, err := enc.Write(event)
+				eventBytes, err := json.Marshal(&event)
+				if err != nil {
+					t.Fatal(err)
+				}
+				chunk, err := enc.Encode(event, eventBytes)
 				if err != nil {
 					t.Fatal(err)
 				}

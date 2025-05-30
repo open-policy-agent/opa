@@ -1042,9 +1042,15 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 		return
 	}
 
+	eventBytes, err := json.Marshal(&event)
+	if err != nil {
+		p.logger.Error("Decision log dropped due to error serializing event to JSON: %v", err)
+		return
+	}
+
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
-	result, err := p.enc.Write(event)
+	result, err := p.enc.Encode(event, eventBytes)
 	if err != nil {
 		return
 	}
