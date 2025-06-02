@@ -15,8 +15,8 @@ export default async (req: Request, context: Context) => {
   const pathParts = url.pathname.split("/").filter(Boolean); // remove empty parts
   const query = url.searchParams;
 
-  // Handle /badge-endpoint/config/:tag
-  if (pathParts.length === 3 && pathParts[0] === "badge-endpoint" && pathParts[1] === "config") {
+  // Handle /badge/config/:tag
+  if (pathParts.length === 3 && pathParts[0] === "badge" && pathParts[1] === "config") {
     const tag = pathParts[2];
 
     const latest = await fetch(releases)
@@ -41,7 +41,7 @@ export default async (req: Request, context: Context) => {
     const style = query.get("style");
 
     // Build dynamic badge endpoint URL using current host
-    const base = `https://${host}/badge-endpoint/config/${tag}`;
+    const base = `https://${host}/badge/config/${tag}`;
     const encodedUrl = encodeURIComponent(base);
 
     let redirectUrl = `https://img.shields.io/endpoint?url=${encodedUrl}`;
