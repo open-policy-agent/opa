@@ -3,6 +3,7 @@ import Layout from "@theme/Layout";
 import React, { useState } from "react";
 
 import Card from "../../components/Card";
+import CardGrid from "../../components/CardGrid";
 import getLogoAsset from "../../lib/ecosystem/getLogoAsset.js";
 import sortPagesByRank from "../../lib/ecosystem/sortPagesByRank.js";
 
@@ -15,7 +16,18 @@ const EcosystemIndex = (props) => {
   const title = "OPA Ecosystem";
   const sortedPages = sortPagesByRank(entries);
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const initialQuery = React.useMemo(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("q") || "";
+  }, []);
+
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
+
+  React.useEffect(() => {
+    if (initialQuery) {
+      window.location.hash = "#all-entries";
+    }
+  }, [initialQuery]);
 
   const filteredPages = sortedPages.filter((id) => {
     const page = entries[id];
@@ -33,6 +45,7 @@ const EcosystemIndex = (props) => {
     "java",
     "csharp",
     "golang",
+    "swift",
     "clojure",
     "rust",
     "php",
@@ -59,7 +72,7 @@ const EcosystemIndex = (props) => {
         <Heading as="h1" style={{ margin: 0 }}>
           {title}
         </Heading>
-        <p style={{ fontSize: "1.2rem", color: "#555" }}>
+        <p style={{ fontSize: "1.2rem", color: "var(--ifm-font-color-secondary)" }}>
           Showcase of OPA integrations, use-cases, and related projects.
         </p>
 
@@ -147,7 +160,7 @@ const EcosystemIndex = (props) => {
           </div>
         </div>
 
-        <Heading as="h2" style={{ margin: 0 }}>
+        <Heading as="h2" id="all-entries" style={{ margin: 0 }}>
           All Entries & Integrations
         </Heading>
 
@@ -169,26 +182,18 @@ const EcosystemIndex = (props) => {
           </p>
         </div>
 
-        <div
-          style={{
-            marginTop: "2rem",
-            display: "flex",
-            flexWrap: "wrap",
-            justifyContent: "center",
-            gap: 20,
-          }}
-        >
-          {filteredPages.length === 0
-            ? (
-              <p style={{ textAlign: "center", width: "100%" }}>
-                No integrations found. Try searching for something else or drop us a message on{" "}
-                <a href="https://slack.openpolicyagent.org/" target="_blank" rel="noopener noreferrer">
-                  Slack
-                </a>.
-              </p>
-            )
-            : (
-              filteredPages.map((id) => {
+        {filteredPages.length === 0
+          ? (
+            <p style={{ textAlign: "center", width: "100%" }}>
+              No integrations found. Try searching for something else or drop us a message on{" "}
+              <a href="https://slack.openpolicyagent.org/" target="_blank" rel="noopener noreferrer">
+                Slack
+              </a>.
+            </p>
+          )
+          : (
+            <CardGrid>
+              {filteredPages.map((id) => {
                 const page = entries[id];
                 const cardData = {
                   title: page.title,
@@ -198,14 +203,10 @@ const EcosystemIndex = (props) => {
                   link_text: "View Details",
                 };
 
-                return (
-                  <div key={id} style={{ flex: "1 1 30%", minWidth: "250px", maxWidth: "400px" }}>
-                    <Card item={cardData} />
-                  </div>
-                );
-              })
-            )}
-        </div>
+                return <Card item={cardData} />;
+              })}
+            </CardGrid>
+          )}
       </div>
     </Layout>
   );

@@ -2986,7 +2986,7 @@ function query() {
 		'method': 'POST',
 		'body': body,
 	}
-	fetch(new Request('/v1/query', opts))
+	fetch(new Request('v1/query', opts))
 		.then(resp => resp.json())
 		.then(json => {
 			str = JSON.stringify(json, null, 2);

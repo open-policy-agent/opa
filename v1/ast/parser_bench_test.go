@@ -76,6 +76,31 @@ func BenchmarkParseStatementNestedObjects(b *testing.B) {
 	}
 }
 
+// BenchmarkParseDeepNesting tests the impact of recursion depth tracking
+// on parsing performance with deeply nested structures (arrays and objects).
+// Different depths are used to measure the overhead at various nesting levels.
+func BenchmarkParseDeepNesting(b *testing.B) {
+	depths := []int{10, 50, 100, 500, 2500, 12500}
+
+	b.Run("NestedArrays", func(b *testing.B) {
+		for _, depth := range depths {
+			b.Run(fmt.Sprintf("depth-%d", depth), func(b *testing.B) {
+				stmt := generateDeeplyNestedArray(depth)
+				runParseStatementBenchmark(b, stmt)
+			})
+		}
+	})
+
+	b.Run("NestedObjects", func(b *testing.B) {
+		for _, depth := range depths {
+			b.Run(fmt.Sprintf("depth-%d", depth), func(b *testing.B) {
+				stmt := generateDeeplyNestedObject(depth)
+				runParseStatementBenchmark(b, stmt)
+			})
+		}
+	})
+}
+
 func BenchmarkParseStatementNestedObjectsOrSets(b *testing.B) {
 	sizes := []int{1, 5, 10, 15, 20}
 	for _, size := range sizes {

@@ -2,19 +2,18 @@
 title: Contributing Code
 ---
 
-## Code Contributions
+We are thrilled that you're interested in contributing to OPA! This document
+outlines some of the important guidelines when getting started as a new
+contributor. For developer environment setup, please refer to the
+[Contributing Development](./contrib-development/) page.
 
-If you are contributing code, please consider the following:
+When contributing please consider the following pointers:
 
 - Most changes should be accompanied with tests.
 - All commits must be signed off (see next section).
-- Related commits must be squashed before they are merged.
+- Related commits must be squashed before they are merged (this can be done in
+  the PR UI on GitHub).
 - All tests must pass and there must be no warnings from the `make check` target.
-
-If you are new to Go, consider reading
-[Effective Go](https://golang.org/doc/effective_go.html) and
-[Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments)
-for guidance on writing idiomatic Go code.
 
 When you implement new features in OPA, consider whether the
 types/functions you are adding need to be exported. Prefer

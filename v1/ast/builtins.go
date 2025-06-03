@@ -20,6 +20,13 @@ func RegisterBuiltin(b *Builtin) {
 	BuiltinMap[b.Name] = b
 	if len(b.Infix) > 0 {
 		BuiltinMap[b.Infix] = b
+
+		InternStringTerm(b.Infix)
+	}
+
+	InternStringTerm(b.Name)
+	if strings.Contains(b.Name, ".") {
+		InternStringTerm(strings.Split(b.Name, ".")...)
 	}
 }
 
@@ -3388,7 +3395,7 @@ func (b *Builtin) Ref() Ref {
 	ref := make(Ref, len(parts))
 	ref[0] = VarTerm(parts[0])
 	for i := 1; i < len(parts); i++ {
-		ref[i] = StringTerm(parts[i])
+		ref[i] = InternedStringTerm(parts[i])
 	}
 	return ref
 }

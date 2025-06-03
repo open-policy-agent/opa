@@ -2206,12 +2206,10 @@ func (d *ArityFormatErrDetail) Lines() []string {
 	}
 }
 
-var v1StringTerm = ast.StringTerm("v1")
-
 // isRegoV1Compatible returns true if the passed *ast.Import is `rego.v1`
 func isRegoV1Compatible(imp *ast.Import) bool {
 	path := imp.Path.Value.(ast.Ref)
 	return len(path) == 2 &&
 		ast.RegoRootDocument.Equal(path[0]) &&
-		path[1].Equal(v1StringTerm)
+		path[1].Equal(ast.InternedStringTerm("v1"))
 }

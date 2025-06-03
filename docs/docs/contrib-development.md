@@ -2,15 +2,22 @@
 title: Development
 ---
 
-OPA is written in the [Go](https://golang.org) programming language.
+This page details the process for getting up and running locally for OPA
+development. If you're a first time contributor, we recommend you read through
+the [Contributing to OPA](./contrib-code) page first.
 
-If you are not familiar with Go we recommend you read through the [How to Write Go Code](https://golang.org/doc/code.html) article to familiarize yourself with the standard Go development environment.
+OPA is written in the [Go](https://golang.org) programming language.
+If you are new to Go, consider reading
+[Effective Go](https://golang.org/doc/effective_go.html),
+[Go Code Review Comments](https://go.dev/wiki/CodeReviewComments) or
+[How to Write Go Code](https://go.dev/doc/code)
+for guidance on writing idiomatic Go code.
 
 Requirements:
 
 - Git
 - GitHub account (if you are contributing)
-- Go (version 1.15+ is supported though older versions are likely to work)
+- Go (please see the project's [go.mod](https://github.com/open-policy-agent/opa/blob/main/go.mod) file for the current version in use)
 - GNU Make
 - Python3, pip, yamllint (if linting YAML files manually)
 

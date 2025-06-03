@@ -7,14 +7,32 @@
 /docs/latest/*    /docs/:splat    301
 
 # these two pages have been moved in the creation of the new site.
-/docs/latest/kubernetes-introduction/ /docs/kubernetes/
-/docs/latest/envoy-introduction/ /docs/kubernetes/
+/docs/kubernetes-introduction/ /docs/kubernetes/
+/docs/kubernetes-tutorial/ /docs/kubernetes/tutorial/
+/docs/envoy-introduction/ /docs/envoy/
+/docs/envoy-tutorial-istio/ /docs/envoy/tutorial-istio/
+/docs/envoy-tutorial-standalone-envoy/ /docs/envoy/tutorial-standalone-envoy/
+/docs/envoy-tutorial-gloo-edge/ /docs/envoy/tutorial-gloo-edge/
+
+# point to search for old ecosystem pages
+/integrations/:entry/*  /ecosystem?q=:entry 301!
+/softwares/:entry/*  /ecosystem?q=:entry 301!
+/organizations/:entry/* /ecosystem?q=:entry 301!
+
+# we have a log "type" called "openpolicyagent.org/decision_logs", we have seen
+# over 100 requests for this path in the past 24hrs at time of adding and it'd
+# be ideal if human users were redirected to the documentation for decision
+# logs.
+/decision_logs /docs/management-decision-logs
 
 # -----------------------------------------------------------------------------
 # Redirects for legacy usage external resources
 # -----------------------------------------------------------------------------
 
 /bundles/helm-kubernetes-quickstart /external-resources/bundles/helm-kubernetes-quickstart 301!
+/bundles/envoy/authz /external-resources/bundles/envoy/authz 301!
+/bundles/istio/authz /external-resources/bundles/istio/authz 301!
+/bundles/kubernetes/admission /external-resources/bundles/kubernetes/admission 301!
 /img/logos/opa-horizontal-color.png /external-resources/opa-horizontal-color.png 301!
 /img/logos/opa-no-text-color.png /external-resources/opa-no-text-color.png 301!
 

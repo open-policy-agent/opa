@@ -163,9 +163,35 @@ hypothetical policy that renders authorization decisions (named `data.acme.allow
 The entitlements and resource information is _abstracted_ by rules that generate
 virtual documents named `data.iam.user_has_role` and `data.acme.user_is_assigned` respectively.
 
-<!--- source: https://docs.google.com/drawings/d/1KerjlOGRmsZvs2tqfhLh2CGGkNRFH0GWioBsHLHAuIg/edit --->
+```mermaid
+flowchart TD
+    allow["data.acme.allow"]
+    user_has_role["data.acme.user_has_role"]
+    user_is_assigned["data.acme.user_is_assigned"]
+    input_request["input.request<br/><sub>sync/push</sub>"]
+    input_subject["input.subject<br/><sub>sync/push</sub>"]
+    data_entitlements["data.entitlements<br/><sub>async/pull</sub>"]
+    http_send["http.send(request)<br/><sub>sync/pull</sub>"]
 
-![Hypothetical Policy Document Model](data-model.svg)
+    input_request --> user_is_assigned
+    input_request --> allow
+    user_is_assigned --> allow
+    user_has_role --> allow
+
+    data_entitlements --> user_has_role
+    http_send --> user_is_assigned
+
+    subgraph Legend
+      b["Base Document"]
+      v["Virtual Document"]
+      b -->|Contributes to| v
+    end
+
+    style allow fill:#fff1c1
+    style user_has_role fill:#fff1c1
+    style user_is_assigned fill:#fff1c1
+    style v fill:#fff1c1
+```
 
 > [1] OPA has excellent support for loading JSON and YAML because they are prevalent
 > in modern systems; however, OPA is not tied to any particular data format. OPA

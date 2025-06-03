@@ -101,7 +101,7 @@ func builtinRegexSplit(bctx BuiltinContext, operands []*ast.Term, iter func(*ast
 	for i := range elems {
 		arr[i] = ast.StringTerm(elems[i])
 	}
-	return iter(ast.NewTerm(ast.NewArray(arr...)))
+	return iter(ast.ArrayTerm(arr...))
 }
 
 func getRegexp(bctx BuiltinContext, pat string) (*regexp.Regexp, error) {
@@ -203,7 +203,7 @@ func builtinRegexFind(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.
 	for i := range elems {
 		arr[i] = ast.StringTerm(elems[i])
 	}
-	return iter(ast.NewTerm(ast.NewArray(arr...)))
+	return iter(ast.ArrayTerm(arr...))
 }
 
 func builtinRegexFindAllStringSubmatch(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -232,10 +232,10 @@ func builtinRegexFindAllStringSubmatch(bctx BuiltinContext, operands []*ast.Term
 		for j := range matches[i] {
 			inner[j] = ast.StringTerm(matches[i][j])
 		}
-		outer[i] = ast.NewTerm(ast.NewArray(inner...))
+		outer[i] = ast.ArrayTerm(inner...)
 	}
 
-	return iter(ast.NewTerm(ast.NewArray(outer...)))
+	return iter(ast.ArrayTerm(outer...))
 }
 
 func builtinRegexReplace(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -264,7 +264,7 @@ func builtinRegexReplace(bctx BuiltinContext, operands []*ast.Term, iter func(*a
 		return iter(operands[0])
 	}
 
-	return iter(ast.StringTerm(res))
+	return iter(ast.InternedStringTerm(res))
 }
 
 func init() {
