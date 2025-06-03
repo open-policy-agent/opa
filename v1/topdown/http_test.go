@@ -3295,7 +3295,7 @@ func TestInterQueryCacheValueClone(t *testing.T) {
 	}
 }
 
-func TestQueryError(t *testing.T) {
+func TestRaisingHTTPClientQueryError(t *testing.T) {
 	t.Parallel()
 
 	data := loadSmallTestData()
