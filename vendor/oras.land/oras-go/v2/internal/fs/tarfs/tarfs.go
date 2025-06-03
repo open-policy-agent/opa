@@ -22,6 +22,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 
 	"oras.land/oras-go/v2/errdef"
@@ -67,7 +68,7 @@ func New(path string) (*TarFS, error) {
 // ValidPath(name), returning a *PathError with Err set to
 // ErrInvalid or ErrNotExist.
 func (tfs *TarFS) Open(name string) (file fs.File, openErr error) {
-	entry, err := tfs.getEntry(name)
+	entry, err := tfs.getEntry("open", name)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +99,7 @@ func (tfs *TarFS) Open(name string) (file fs.File, openErr error) {
 // Stat returns a FileInfo describing the file.
 // If there is an error, it should be of type *PathError.
 func (tfs *TarFS) Stat(name string) (fs.FileInfo, error) {
-	entry, err := tfs.getEntry(name)
+	entry, err := tfs.getEntry("stat", name)
 	if err != nil {
 		return nil, err
 	}
@@ -106,18 +107,18 @@ func (tfs *TarFS) Stat(name string) (fs.FileInfo, error) {
 }
 
 // getEntry returns the named entry.
-func (tfs *TarFS) getEntry(name string) (*entry, error) {
-	if !fs.ValidPath(name) {
-		return nil, &fs.PathError{Path: name, Err: fs.ErrInvalid}
+func (tfs *TarFS) getEntry(operation string, path string) (*entry, error) {
+	if !fs.ValidPath(path) {
+		return nil, &fs.PathError{Op: operation, Path: path, Err: fs.ErrInvalid}
 	}
-	entry, ok := tfs.entries[name]
+	entry, ok := tfs.entries[path]
 	if !ok {
-		return nil, &fs.PathError{Path: name, Err: fs.ErrNotExist}
+		return nil, &fs.PathError{Op: operation, Path: path, Err: fs.ErrNotExist}
 	}
 	if entry.header.Typeflag != tar.TypeReg {
 		// support regular files only
 		return nil, fmt.Errorf("%s: type flag %c is not supported: %w",
-			name, entry.header.Typeflag, errdef.ErrUnsupported)
+			path, entry.header.Typeflag, errdef.ErrUnsupported)
 	}
 	return entry, nil
 }
@@ -143,12 +144,13 @@ func (tfs *TarFS) indexEntries() error {
 		if err != nil {
 			return err
 		}
-		tfs.entries[header.Name] = &entry{
+
+		name := path.Clean(header.Name)
+		tfs.entries[name] = &entry{
 			header: header,
 			pos:    pos - blockSize,
 		}
 	}
-
 	return nil
 }
 
