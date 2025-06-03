@@ -43,7 +43,7 @@ var bufPool = sync.Pool{
 }
 
 // Storage is a CAS based on file system with the OCI-Image layout.
-// Reference: https://github.com/opencontainers/image-spec/blob/v1.1.0/image-layout.md
+// Reference: https://github.com/opencontainers/image-spec/blob/v1.1.1/image-layout.md
 type Storage struct {
 	*ReadOnlyStorage
 	// root is the root directory of the OCI layout.
@@ -141,13 +141,16 @@ func (s *Storage) ingest(expected ocispec.Descriptor, content io.Reader) (path s
 
 	path = fp.Name()
 	defer func() {
-		// remove the temp file in case of error.
-		// this executes after the file is closed.
+		// close the temp file and check close error
+		if err := fp.Close(); err != nil && ingestErr == nil {
+			ingestErr = fmt.Errorf("failed to close ingest file: %w", err)
+		}
+
+		// remove the temp file in case of error
 		if ingestErr != nil {
 			os.Remove(path)
 		}
 	}()
-	defer fp.Close()
 
 	buf := bufPool.Get().(*[]byte)
 	defer bufPool.Put(buf)
