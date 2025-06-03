@@ -185,7 +185,7 @@ func (u *bindings) namespaceVar(v *ast.Term, caller *bindings) *ast.Term {
 		// Root documents (i.e., data, input) should never be namespaced because they
 		// are globally unique.
 		if !ast.RootDocumentNames.Contains(v) {
-			return ast.NewTerm(ast.Var(string(name) + strconv.FormatUint(u.id, 10)))
+			return ast.VarTerm(string(name) + strconv.FormatUint(u.id, 10))
 		}
 	}
 	return v

@@ -14,7 +14,7 @@ limitations under the License.
 */
 
 // Package oci provides access to an OCI content store.
-// Reference: https://github.com/opencontainers/image-spec/blob/v1.1.0/image-layout.md
+// Reference: https://github.com/opencontainers/image-spec/blob/v1.1.1/image-layout.md
 package oci
 
 import (
@@ -44,7 +44,7 @@ import (
 
 // Store implements `oras.Target`, and represents a content store
 // based on file system with the OCI-Image layout.
-// Reference: https://github.com/opencontainers/image-spec/blob/v1.1.0/image-layout.md
+// Reference: https://github.com/opencontainers/image-spec/blob/v1.1.1/image-layout.md
 type Store struct {
 	// AutoSaveIndex controls if the OCI store will automatically save the index
 	// file when needed.
@@ -157,10 +157,11 @@ func (s *Store) Exists(ctx context.Context, target ocispec.Descriptor) (bool, er
 
 // Delete deletes the content matching the descriptor from the store. Delete may
 // fail on certain systems (i.e. NTFS), if there is a process (i.e. an unclosed
-// Reader) using target. If s.AutoGC is set to true, Delete will recursively
-// remove the dangling blobs caused by the current delete. If s.AutoDeleteReferrers
-// is set to true, Delete will recursively remove the referrers of the manifests
-// being deleted.
+// Reader) using target.
+//   - If s.AutoGC is set to true, Delete will recursively
+//     remove the dangling blobs caused by the current delete.
+//   - If s.AutoDeleteReferrers is set to true, Delete will recursively remove
+//     the referrers of the manifests being deleted.
 func (s *Store) Delete(ctx context.Context, target ocispec.Descriptor) error {
 	s.sync.Lock()
 	defer s.sync.Unlock()
@@ -220,9 +221,18 @@ func (s *Store) delete(ctx context.Context, target ocispec.Descriptor) ([]ocispe
 	return danglings, nil
 }
 
-// Tag tags a descriptor with a reference string.
-// reference should be a valid tag (e.g. "latest").
-// Reference: https://github.com/opencontainers/image-spec/blob/v1.1.0/image-layout.md#indexjson-file
+// Tag associates a reference string (e.g. "latest") with the descriptor.
+// The reference string is recorded in the "org.opencontainers.image.ref.name"
+// annotation of the descriptor. When saved, the updated descriptor is persisted
+// in the `index.json` file.
+//
+//   - If the same reference string is tagged multiple times on different
+//     descriptors, the descriptor from the last call will be stored.
+//   - If the same descriptor is tagged multiple times with different reference
+//     strings, multiple copies of the descriptor with different reference tags
+//     will be stored in the `index.json` file.
+//
+// Reference: https://github.com/opencontainers/image-spec/blob/v1.1.1/image-layout.md#indexjson-file
 func (s *Store) Tag(ctx context.Context, desc ocispec.Descriptor, reference string) error {
 	s.sync.RLock()
 	defer s.sync.RUnlock()
@@ -260,11 +270,11 @@ func (s *Store) tag(ctx context.Context, desc ocispec.Descriptor, reference stri
 	return nil
 }
 
-// Resolve resolves a reference to a descriptor. If the reference to be resolved
-// is a tag, the returned descriptor will be a full descriptor declared by
-// github.com/opencontainers/image-spec/specs-go/v1. If the reference is a
-// digest the returned descriptor will be a plain descriptor (containing only
-// the digest, media type and size).
+// Resolve resolves a reference to a descriptor.
+//   - If the reference to be resolved is a tag, the returned descriptor will be
+//     a full descriptor declared by github.com/opencontainers/image-spec/specs-go/v1.
+//   - If the reference is a digest, the returned descriptor will be a
+//     plain descriptor (containing only the digest, media type and size).
 func (s *Store) Resolve(ctx context.Context, reference string) (ocispec.Descriptor, error) {
 	s.sync.RLock()
 	defer s.sync.RUnlock()
@@ -290,6 +300,13 @@ func (s *Store) Resolve(ctx context.Context, reference string) (ocispec.Descript
 	return desc, nil
 }
 
+// Untag disassociates a reference string from its descriptor.
+// When saved, the descriptor entry cotanining the reference in the
+// "org.opencontainers.image.ref.name" annotation is removed from the
+// `index.json` file.
+// The actual content identified by the descriptor is NOT deleted.
+//
+// Reference: https://github.com/opencontainers/image-spec/blob/v1.1.1/image-layout.md#indexjson-file
 func (s *Store) Untag(ctx context.Context, reference string) error {
 	if reference == "" {
 		return errdef.ErrMissingReference
@@ -379,6 +396,7 @@ func (s *Store) loadIndexFile(ctx context.Context) error {
 			Versioned: specs.Versioned{
 				SchemaVersion: 2, // historical value
 			},
+			MediaType: ocispec.MediaTypeImageIndex,
 			Manifests: []ocispec.Descriptor{},
 		}
 		return s.writeIndexFile()

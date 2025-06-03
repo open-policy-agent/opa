@@ -97,19 +97,14 @@ func builtinCryptoX509ParseAndVerifyCertificates(_ BuiltinContext, operands []*a
 		return err
 	}
 
-	invalid := ast.ArrayTerm(
-		ast.InternedBooleanTerm(false),
-		ast.NewTerm(ast.NewArray()),
-	)
-
 	certs, err := getX509CertsFromString(string(input))
 	if err != nil {
-		return iter(invalid)
+		return iter(ast.ArrayTerm(ast.InternedBooleanTerm(false), ast.InternedEmptyArray))
 	}
 
 	verified, err := verifyX509CertificateChain(certs, x509.VerifyOptions{})
 	if err != nil {
-		return iter(invalid)
+		return iter(ast.ArrayTerm(ast.InternedBooleanTerm(false), ast.InternedEmptyArray))
 	}
 
 	value, err := ast.InterfaceToValue(extendCertificates(verified))
@@ -117,10 +112,7 @@ func builtinCryptoX509ParseAndVerifyCertificates(_ BuiltinContext, operands []*a
 		return err
 	}
 
-	valid := ast.ArrayTerm(
-		ast.InternedBooleanTerm(true),
-		ast.NewTerm(value),
-	)
+	valid := ast.ArrayTerm(ast.InternedBooleanTerm(true), ast.NewTerm(value))
 
 	return iter(valid)
 }
@@ -156,10 +148,7 @@ func builtinCryptoX509ParseAndVerifyCertificatesWithOptions(_ BuiltinContext, op
 
 	certs, err := getX509CertsFromString(string(input))
 	if err != nil {
-		return iter(ast.ArrayTerm(
-			ast.InternedBooleanTerm(false),
-			ast.NewTerm(ast.NewArray()),
-		))
+		return iter(ast.ArrayTerm(ast.InternedBooleanTerm(false), ast.InternedEmptyArray))
 	}
 
 	// Collect the cert verification options
@@ -170,10 +159,7 @@ func builtinCryptoX509ParseAndVerifyCertificatesWithOptions(_ BuiltinContext, op
 
 	verified, err := verifyX509CertificateChain(certs, verifyOpt)
 	if err != nil {
-		return iter(ast.ArrayTerm(
-			ast.InternedBooleanTerm(false),
-			ast.NewTerm(ast.NewArray()),
-		))
+		return iter(ast.ArrayTerm(ast.InternedBooleanTerm(false), ast.InternedEmptyArray))
 	}
 
 	value, err := ast.InterfaceToValue(verified)
@@ -181,10 +167,7 @@ func builtinCryptoX509ParseAndVerifyCertificatesWithOptions(_ BuiltinContext, op
 		return err
 	}
 
-	return iter(ast.ArrayTerm(
-		ast.InternedBooleanTerm(true),
-		ast.NewTerm(value),
-	))
+	return iter(ast.ArrayTerm(ast.InternedBooleanTerm(true), ast.NewTerm(value)))
 }
 
 func extractVerifyOpts(options ast.Object) (verifyOpt x509.VerifyOptions, err error) {

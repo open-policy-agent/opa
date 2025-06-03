@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/vektah/gqlparser/v2/ast"
@@ -106,7 +105,7 @@ func (p *parser) next() lexer.Token {
 	// Increment the token count before reading the next token
 	p.tokenCount++
 	if p.maxTokenLimit != 0 && p.tokenCount > p.maxTokenLimit {
-		p.err = fmt.Errorf("exceeded token limit of %d", p.maxTokenLimit)
+		p.err = gqlerror.Errorf("exceeded token limit of %d", p.maxTokenLimit)
 		return p.prev
 	}
 	if p.peeked {

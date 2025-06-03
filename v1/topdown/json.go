@@ -7,7 +7,6 @@ package topdown
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -103,7 +102,7 @@ func jsonRemove(a *ast.Term, b *ast.Term) (*ast.Term, error) {
 			v := aValue.Elem(i)
 			// recurse and add the diff of sub objects as needed
 			// Note: Keys in b will be strings for the index, eg path /a/1/b => {"a": {"1": {"b": null}}}
-			diffValue, err := jsonRemove(v, bObj.Get(ast.StringTerm(strconv.Itoa(i))))
+			diffValue, err := jsonRemove(v, bObj.Get(ast.InternedIntegerString(i)))
 			if err != nil {
 				return nil, err
 			}

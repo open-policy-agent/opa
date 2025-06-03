@@ -173,6 +173,11 @@ production users that have added themselves (in alphabetical order):
   integration handles ~400K QPS without caching. With caching the system
   handles ~8.5M QPS. For more information see this talk from [OPA Summit 2019](https://www.youtube.com/watch?v=LhgxFICWsA8).
 
+* [Pix4D](https://www.pix4d.com/) uses OPA to run and define RBAC authorization policies for
+  the users of its cloud platform. Defining the policies in OPA ensures a single source of
+  controls and a consistent policy enforcement for any microservices. It operates as a
+  sidecar to a Django application exposing access roles of users over resources.
+
 * [Plex Systems](https://www.plex.com) uses OPA to enforce policy throughout
   their entire release process; from local development to continuous production
   audits. The CI/CD pipelines at Plex leverage [conftest](https://github.com/instrumenta/conftest),
