@@ -556,7 +556,18 @@ func (p *Parser) parsePackage() *Package {
 	}
 
 	// This allows the 'package' keyword in the first var term of the ref
-	if !scanRefHead(p) {
+	p.scanWS()
+
+	if p.s.tok == tokens.Dot || p.s.tok == tokens.LBrack {
+		// This is a ref
+		return nil
+	}
+
+	if p.s.tok == tokens.Whitespace {
+		p.scan()
+	}
+
+	if !scanIdentIgnoreKeywords(p) {
 		return nil
 	}
 
@@ -618,7 +629,18 @@ func (p *Parser) parseImport() *Import {
 	}
 
 	// This allows the 'import' keyword in the first var term of the ref
-	if !scanRefHead(p) {
+	p.scanWS()
+
+	if p.s.tok == tokens.Dot || p.s.tok == tokens.LBrack {
+		// This is a ref
+		return nil
+	}
+
+	if p.s.tok == tokens.Whitespace {
+		p.scan()
+	}
+
+	if !scanIdentIgnoreKeywords(p) {
 		return nil
 	}
 
@@ -699,18 +721,7 @@ func (p *Parser) parseImport() *Import {
 	return &imp
 }
 
-func scanRefHead(p *Parser) bool {
-	p.scanWS()
-
-	if p.s.tok == tokens.Dot || p.s.tok == tokens.LBrack {
-		// This is a ref
-		return false
-	}
-
-	if p.s.tok == tokens.Whitespace {
-		p.scan()
-	}
-
+func scanIdentIgnoreKeywords(p *Parser) bool {
 	if p.s.tok != tokens.Ident {
 		if IsKeywordInRegoVersion(p.s.tok.String(), p.po.EffectiveRegoVersion()) {
 			p.s.tok = tokens.Ident
@@ -723,15 +734,45 @@ func scanRefHead(p *Parser) bool {
 	return true
 }
 
+func scanAheadRef(p *Parser) {
+	if IsKeywordInRegoVersion(p.s.tok.String(), p.po.EffectiveRegoVersion()) {
+		// scan ahead to check if we're parsing a ref
+		s := p.save()
+		p.scanWS()
+		tok := p.s.tok
+		p.restore(s)
+
+		if tok == tokens.Dot || tok == tokens.LBrack {
+			p.s.tok = tokens.Ident
+		}
+	}
+}
+
 func (p *Parser) parseRules() []*Rule {
 
 	var rule Rule
 	rule.SetLoc(p.s.Loc())
 
+	// This allows keywords in the first var term of the ref
+	scanAheadRef(p)
+	//if IsKeywordInRegoVersion(p.s.tok.String(), p.po.EffectiveRegoVersion()) {
+	//	// scan ahead to check if we're parsing a ref
+	//	s := p.save()
+	//	p.scanWS()
+	//	tok := p.s.tok
+	//	p.restore(s)
+	//
+	//	if tok == tokens.Dot || tok == tokens.LBrack {
+	//		p.s.tok = tokens.Ident
+	//	}
+	//}
+
 	if p.s.tok == tokens.Default {
 		p.scan()
 		rule.Default = true
 	}
+
+	scanAheadRef(p)
 
 	if p.s.tok != tokens.Ident {
 		return nil
