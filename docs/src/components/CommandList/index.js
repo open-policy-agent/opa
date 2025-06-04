@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import CommandDoc from "./CommandDoc";
+
+import CommandDoc from "../CommandDoc";
 
 function filterCommandById(command, query) {
   const lowerQuery = query.toLowerCase();

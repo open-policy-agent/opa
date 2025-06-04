@@ -1,0 +1,25 @@
+.versionBadge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    background-color: var(--ifm-color-primary);
+    color: white;
+    border-radius: 0.25rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin-left: 0.5rem;
+}
+
+.versionBadge:hover {
+    background-color: var(--ifm-color-primary-darker);
+    text-decoration: none;
+    color: white;
+}
+
+.versionWrapper {
+    display: inline-block;
+}
+
+.versionWrapper :global(a.navbar__item.navbar__link) {
+    display: inline-block;
+}
