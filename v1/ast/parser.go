@@ -556,16 +556,17 @@ func (p *Parser) parsePackage() *Package {
 	}
 
 	// This allows keywords in the first var term of the ref; should we support this, or only on subsequent terms?
-	p.scanWS()
-
-	if p.s.tok == tokens.Dot || p.s.tok == tokens.LBrack {
-		// This is a ref
-		return nil
-	}
-
-	if p.s.tok == tokens.Whitespace {
-		p.scan()
-	}
+	//p.scanWS()
+	//
+	//if p.s.tok == tokens.Dot || p.s.tok == tokens.LBrack {
+	//	// This is a ref
+	//	return nil
+	//}
+	//
+	//if p.s.tok == tokens.Whitespace {
+	//	p.scan()
+	//}
+	p.scan()
 
 	if p.s.tok != tokens.Ident {
 		p.illegalToken()
@@ -625,16 +626,17 @@ func (p *Parser) parseImport() *Import {
 	}
 
 	// This allows keywords in the first var term of the ref; should we support this, or only on subsequent terms?
-	p.scanWS()
-
-	if p.s.tok == tokens.Dot || p.s.tok == tokens.LBrack {
-		// This is a ref
-		return nil
-	}
-
-	if p.s.tok == tokens.Whitespace {
-		p.scan()
-	}
+	//p.scanWS()
+	//
+	//if p.s.tok == tokens.Dot || p.s.tok == tokens.LBrack {
+	//	// This is a ref
+	//	return nil
+	//}
+	//
+	//if p.s.tok == tokens.Whitespace {
+	//	p.scan()
+	//}
+	p.scan()
 
 	if p.s.tok != tokens.Ident {
 		p.error(p.s.Loc(), "expected ident")
@@ -696,6 +698,21 @@ func (p *Parser) parseImport() *Import {
 		}
 		p.illegal("expected var")
 		return nil
+	}
+
+	if imp.Alias != "" {
+		// Unreachable: parsing the alias var should already have generated an error.
+		name := imp.Alias.String()
+		if IsKeywordInRegoVersion(name, p.po.EffectiveRegoVersion()) {
+			p.errorf(imp.Location, "invalid import: alias cannot be a keyword: %s", name)
+		}
+	} else {
+		r := imp.Path.Value.(Ref)
+		t := r[len(r)-1]
+		name := string(t.Value.(String))
+		if IsKeywordInRegoVersion(name, p.po.EffectiveRegoVersion()) {
+			p.errorf(t.Location, "invalid import: path cannot end with a keyword: %s", name)
+		}
 	}
 
 	return &imp
@@ -1104,18 +1121,18 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 	}()
 
 	// This allows keywords in the first var term of the ref; should we support this, or only on subsequent terms?
-	if IsKeywordInRegoVersion(p.s.tok.String(), p.po.EffectiveRegoVersion()) {
-		// scan ahead to check if we're parsing a ref
-		s := p.save()
-		p.scanWS()
-		tok := p.s.tok
-		p.restore(s)
-
-		if tok == tokens.Dot || tok == tokens.LBrack {
-			p.s.tok = tokens.Ident
-			return p.parseLiteralExpr(false)
-		}
-	}
+	//if IsKeywordInRegoVersion(p.s.tok.String(), p.po.EffectiveRegoVersion()) {
+	//	// scan ahead to check if we're parsing a ref
+	//	s := p.save()
+	//	p.scanWS()
+	//	tok := p.s.tok
+	//	p.restore(s)
+	//
+	//	if tok == tokens.Dot || tok == tokens.LBrack {
+	//		p.s.tok = tokens.Ident
+	//		return p.parseLiteralExpr(false)
+	//	}
+	//}
 
 	var negated bool
 	if p.s.tok == tokens.Not {
