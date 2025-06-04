@@ -4,9 +4,9 @@ import CodeBlock from "@theme/CodeBlock";
 import * as components from "@theme/MDXComponents"; // Import default MDX components from Docusaurus theme
 import React from "react";
 
-import RunSnippet from "./runSnippet";
-import SideBySideColumn from "./SideBySide/Column";
-import SideBySideContainer from "./SideBySide/Container";
+import RunSnippet from "../RunSnippet";
+import SideBySideColumn from "../SideBySide/Column";
+import SideBySideContainer from "../SideBySide/Container";
 
 export default function PlaygroundExample({
   dir,

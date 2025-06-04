@@ -1,5 +1,5 @@
 {
-  "name": "OPA Website",
+  "name": "opa-website",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -19,8 +19,7 @@
     "docusaurus-lunr-search": "^3.6.0",
     "md-front-matter": "^1.0.4",
     "raw-loader": "^4.0.2",
-    "react-markdown": "^10.1.0",
-    "styled-components": "^6.1.18"
+    "react-markdown": "^10.1.0"
   },
   "engines": {
     "node": ">=22.0.0"

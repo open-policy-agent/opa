@@ -1,10 +1,12 @@
-import useBaseUrl from "@docusaurus/useBaseUrl";
 import React from "react";
-import Card from "./Card";
-import CardGrid from "./CardGrid";
 
-import getLogoAsset from "../lib/ecosystem/getLogoAsset.js";
-import sortPagesByRank from "../lib/ecosystem/sortPagesByRank.js";
+import useBaseUrl from "@docusaurus/useBaseUrl";
+
+import Card from "../Card";
+import CardGrid from "../CardGrid";
+
+import getLogoAsset from "../../lib/ecosystem/getLogoAsset";
+import sortPagesByRank from "../../lib/ecosystem/sortPagesByRank";
 
 import entries from "@generated/ecosystem-data/default/entries.json";
 

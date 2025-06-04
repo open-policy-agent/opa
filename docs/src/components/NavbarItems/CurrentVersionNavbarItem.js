@@ -1,22 +1,20 @@
 // Based on implementation outlined here:
 // https://github.com/facebook/docusaurus/issues/7227#issue-1212117180
 //
+import React from "react";
+
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import useBaseUrl from "@docusaurus/useBaseUrl";
-import versions from "@generated/versions-data/default/versions.json";
-import DefaultNavbarItem from "@theme/NavbarItem/DefaultNavbarItem";
-import React from "react";
 import semver from "semver";
-import styled from "styled-components";
+
+import DefaultNavbarItem from "@theme/NavbarItem/DefaultNavbarItem";
+
+import styles from "./styles.module.css";
+
+import versions from "@generated/versions-data/default/versions.json";
 
 // display: inline-block overrides the default and ensures the item shows on
 // mobile at the top of the page.
-const VersionWrapper = styled.div`
-  a.navbar__item.navbar__link {
-    display: inline-block;
-  }
-`;
-
 export default function CurrentVersionNavbarItem({ ...props }) {
   const baseUrl = useBaseUrl("/");
   const normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
@@ -36,13 +34,13 @@ export default function CurrentVersionNavbarItem({ ...props }) {
         }
 
         return (
-          <VersionWrapper>
+          <div className={styles.versionWrapper}>
             <DefaultNavbarItem
               {...props}
               label={`${latestVersion}`}
               href={href}
             />
-          </VersionWrapper>
+          </div>
         );
       }}
     </BrowserOnly>

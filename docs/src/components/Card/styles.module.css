@@ -1,0 +1,50 @@
+.card {
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+    background-color: var(--ifm-card-background-color);
+    border: 1px solid var(--ifm-color-emphasis-200);
+    border-radius: 0.5rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-0.125rem);
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.icon {
+    width: 2rem;
+    height: 2rem;
+    object-fit: contain;
+}
+
+.title {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.note {
+    margin: 0.5rem 0;
+    color: var(--ifm-color-emphasis-700);
+    font-size: 0.9rem;
+}
+
+.link {
+    margin-top: auto;
+    color: var(--ifm-color-primary);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.link:hover {
+    text-decoration: underline;
+}
