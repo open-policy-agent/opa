@@ -1243,7 +1243,10 @@ There are multiple ways to build an image from a policy code base using differen
 
 ##### Using OPA and ORAS CLIs
 
-To build and push a policy bundle to a remote OCI registry with the [OPA CLI](./cli/) and [ORAS CLI](https://oras.land/cli/) you can use the following commands:
+To build and push a policy bundle to a remote OCI registry with the
+[OPA CLI](./cli/)
+and [ORAS CLI](https://oras.land/docs/installation/) you can use the following
+commands:
 
 - `opa build <path_to_src>` will allow you to build a bundle tarball from your OPA policy and data files
 

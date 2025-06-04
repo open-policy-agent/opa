@@ -19,7 +19,7 @@ OPA is proud to be a graduated project in the [Cloud Native Computing Foundation
 
 ## Want to talk about OPA or get support?
 
-- Join the [OPA Slack](https://inviter.co/opa) to talk to other OPA users and maintainers. See `#help` for support.
+- Join the [OPA Slack](https://slack.openpolicyagent.org) to talk to other OPA users and maintainers. See `#help` for support.
 - Check out the [Community Discussions](https://github.com/orgs/open-policy-agent/discussions) to ask questions.
 - See the [Support](https://www.openpolicyagent.org/support/) page for commercial support options.
 
@@ -70,7 +70,12 @@ For example, in a simple API authorization use case:
 - OPA returns allow (or deny) decisions to your service.
 - Your service _enforces_ the decisions by accepting or rejecting requests accordingly.
 
-For concrete examples of how to integrate OPA with systems like [Kubernetes](https://www.openpolicyagent.org/docs/kubernetes-admission-control.html), [Terraform](https://www.openpolicyagent.org/docs/terraform.html), [Docker](https://www.openpolicyagent.org/docs/docker-authorization.html), [SSH](https://www.openpolicyagent.org/docs/ssh-and-sudo-authorization.html), and more, see [openpolicyagent.org](https://www.openpolicyagent.org).
+For concrete examples of how to integrate OPA with systems like
+[Kubernetes](https://www.openpolicyagent.org/docs/kubernetes),
+[Terraform](https://www.openpolicyagent.org/docs/terraform),
+[Docker](https://www.openpolicyagent.org/docs/docker-authorization),
+[SSH](https://www.openpolicyagent.org/docs/ssh-and-sudo-authorization),
+and more, see [openpolicyagent.org](https://www.openpolicyagent.org).
 
 ## Presentations
 

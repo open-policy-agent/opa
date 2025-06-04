@@ -5,7 +5,7 @@ sidebar_position: 6
 
 This page provides some pointers that could assist in addressing issues encountered while using the
 OPA-Envoy plugin. If none of these tips work, feel free to join
-[our slack](https://inviter.co/opa) and ask for help.
+[our slack](https://slack.openpolicyagent.org) and ask for help.
 
 ## Debugging Performance Issues
 

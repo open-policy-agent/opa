@@ -142,17 +142,6 @@ go mod vendor                                # Ensure the vendor directory is up
 
 If dependencies have been removed ensure to run `go mod tidy` to clean them up.
 
-### Tool Dependencies
-
-Sometimes we use some tools which are versioned and vendored
-with OPA as dependencies. For now, we have none, but any we use in the future
-should go in [tools.go](https://github.com/open-policy-agent/opa/blob/main/tools.go).
-
-More details on the pattern: [https://github.com/go-modules-by-example/index/blob/master/010_tools/README.md](https://github.com/go-modules-by-example/index/blob/master/010_tools/README.md)
-
-Update these the same way as any other Go package. Ensure that any build script
-only uses `go run ./vendor/<tool pkg>` to force using the correct version.
-
 ### Go
 
 If you need to update the version of Go used to build OPA you must update these
