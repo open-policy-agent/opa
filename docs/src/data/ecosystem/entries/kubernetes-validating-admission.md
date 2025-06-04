@@ -7,8 +7,7 @@ labels:
   category: containers
   layer: orchestration
 tutorials:
-- https://www.openpolicyagent.org/docs/kubernetes-admission-control.html
-- https://katacoda.com/austinheiman/scenarios/open-policy-agent-gatekeeper
+- "https://www.openpolicyagent.org/docs/kubernetes"
 code:
 - https://github.com/open-policy-agent/kube-mgmt
 - https://github.com/open-policy-agent/gatekeeper

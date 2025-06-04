@@ -10,13 +10,8 @@ software:
 - docker
 - helm
 tutorials:
-- https://insights.docs.fairwinds.com/features/policy/
-- https://insights.docs.fairwinds.com/reports/opa/
 - https://insights.docs.fairwinds.com/features/admission-controller/
-- https://insights.docs.fairwinds.com/features/continuous-integration/
-videos:
-- https://youtu.be/kmvPYjx1bpU
-- https://youtu.be/gxE_Tkj6d40
+- https://insights.docs.fairwinds.com/features/insights-cli
 blogs:
 - https://www.fairwinds.com/blog/managing-opa-policies-with-fairwinds-insights
 - https://www.fairwinds.com/blog/manage-open-policy-agent-opa-consistently

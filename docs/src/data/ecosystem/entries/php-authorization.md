@@ -11,7 +11,7 @@ tutorials:
 code:
 - https://github.com/segrax/opa-php-examples
 - https://github.com/segrax/openpolicyagent
-- https://github.com/build-security/opa-symfony-middleware
+- https://github.com/mdragun/opa-symfony-middleware-fork/
 inventors:
 - build-security
 docs_features:
