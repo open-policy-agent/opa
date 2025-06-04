@@ -5,9 +5,7 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## 1.5.1
 
-This is a bug fix release addressing a regression to the [walk](https://www.openpolicyagent.org/docs/policy-reference#builtin-graph-walk) built-in function, introduced in 1.5.0.
-
-- Fix issue in the `walk` built-in function, where the `path` component of the return tuple might not match the actual path to the `value` ([#7656](https://github.com/open-policy-agent/opa/issues/7656)) authored by @anderseknert reported by @robmyersrobmyers
+This is a bug fix release addressing a regression to the [walk](https://www.openpolicyagent.org/docs/policy-reference#builtin-graph-walk) built-in function, introduced in v1.5.0. See [#7656](https://github.com/open-policy-agent/opa/issues/7656) (authored by @anderseknert reported by @robmyersrobmyers)
 
 ## 1.5.0
 
