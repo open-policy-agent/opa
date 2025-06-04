@@ -83,7 +83,6 @@ func (*metrics) Info() Info {
 }
 
 func (m *metrics) String() string {
-
 	all := m.All()
 	sorted := make([]metric, 0, len(all))
 
@@ -147,7 +146,7 @@ func (m *metrics) Counter(name string) Counter {
 func (m *metrics) All() map[string]any {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	result := map[string]any{}
+	result := make(map[string]any, len(m.timers)+len(m.histograms)+len(m.counters))
 	for name, timer := range m.timers {
 		result[m.formatKey(name, timer)] = timer.Value()
 	}
@@ -163,7 +162,7 @@ func (m *metrics) All() map[string]any {
 func (m *metrics) Timers() map[string]any {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	ts := map[string]any{}
+	ts := make(map[string]any, len(m.timers))
 	for n, t := range m.timers {
 		ts[m.formatKey(n, t)] = t.Value()
 	}
@@ -254,7 +253,7 @@ func (h *histogram) Update(v int64) {
 }
 
 func (h *histogram) Value() any {
-	values := map[string]any{}
+	values := make(map[string]any, 12)
 	snap := h.hist.Snapshot()
 	percentiles := snap.Percentiles([]float64{
 		0.5,
