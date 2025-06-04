@@ -555,18 +555,10 @@ func (p *Parser) parsePackage() *Package {
 		return nil
 	}
 
-	// This allows keywords in the first var term of the ref; should we support this, or only on subsequent terms?
-	//p.scanWS()
-	//
-	//if p.s.tok == tokens.Dot || p.s.tok == tokens.LBrack {
-	//	// This is a ref
-	//	return nil
-	//}
-	//
-	//if p.s.tok == tokens.Whitespace {
-	//	p.scan()
-	//}
-	p.scan()
+	// This allows the 'package' keyword in the first var term of the ref
+	if !scanRefHead(p) {
+		return nil
+	}
 
 	if p.s.tok != tokens.Ident {
 		p.illegalToken()
@@ -625,23 +617,11 @@ func (p *Parser) parseImport() *Import {
 		return nil
 	}
 
-	// This allows keywords in the first var term of the ref; should we support this, or only on subsequent terms?
-	//p.scanWS()
-	//
-	//if p.s.tok == tokens.Dot || p.s.tok == tokens.LBrack {
-	//	// This is a ref
-	//	return nil
-	//}
-	//
-	//if p.s.tok == tokens.Whitespace {
-	//	p.scan()
-	//}
-	p.scan()
-
-	if p.s.tok != tokens.Ident {
-		p.error(p.s.Loc(), "expected ident")
+	// This allows the 'import' keyword in the first var term of the ref
+	if !scanRefHead(p) {
 		return nil
 	}
+
 	q, prev := p.presentParser()
 	term := q.parseTerm()
 	if term != nil {
@@ -704,19 +684,43 @@ func (p *Parser) parseImport() *Import {
 		// Unreachable: parsing the alias var should already have generated an error.
 		name := imp.Alias.String()
 		if IsKeywordInRegoVersion(name, p.po.EffectiveRegoVersion()) {
-			p.errorf(imp.Location, "invalid import: alias cannot be a keyword: %s", name)
+			p.errorf(imp.Location, "unexpected import alias, must not be a keyword, got: %s", name)
 		}
 	} else {
 		r := imp.Path.Value.(Ref)
 		t := r[len(r)-1]
 		name := string(t.Value.(String))
 		if IsKeywordInRegoVersion(name, p.po.EffectiveRegoVersion()) {
-			p.errorf(t.Location, "invalid import: path cannot end with a keyword: %s", name)
+			p.errorf(t.Location, "unexpected import path, must not end with a keyword, got: %s", name)
 			p.hint("import a different path or use an alias")
 		}
 	}
 
 	return &imp
+}
+
+func scanRefHead(p *Parser) bool {
+	p.scanWS()
+
+	if p.s.tok == tokens.Dot || p.s.tok == tokens.LBrack {
+		// This is a ref
+		return false
+	}
+
+	if p.s.tok == tokens.Whitespace {
+		p.scan()
+	}
+
+	if p.s.tok != tokens.Ident {
+		if IsKeywordInRegoVersion(p.s.tok.String(), p.po.EffectiveRegoVersion()) {
+			p.s.tok = tokens.Ident
+		} else {
+			p.error(p.s.Loc(), "expected ident")
+			return false
+		}
+	}
+
+	return true
 }
 
 func (p *Parser) parseRules() []*Rule {
@@ -1121,19 +1125,19 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 		}
 	}()
 
-	// This allows keywords in the first var term of the ref; should we support this, or only on subsequent terms?
-	//if IsKeywordInRegoVersion(p.s.tok.String(), p.po.EffectiveRegoVersion()) {
-	//	// scan ahead to check if we're parsing a ref
-	//	s := p.save()
-	//	p.scanWS()
-	//	tok := p.s.tok
-	//	p.restore(s)
-	//
-	//	if tok == tokens.Dot || tok == tokens.LBrack {
-	//		p.s.tok = tokens.Ident
-	//		return p.parseLiteralExpr(false)
-	//	}
-	//}
+	// This allows keywords in the first var term of the ref
+	if IsKeywordInRegoVersion(p.s.tok.String(), p.po.EffectiveRegoVersion()) {
+		// scan ahead to check if we're parsing a ref
+		s := p.save()
+		p.scanWS()
+		tok := p.s.tok
+		p.restore(s)
+
+		if tok == tokens.Dot || tok == tokens.LBrack {
+			p.s.tok = tokens.Ident
+			return p.parseLiteralExpr(false)
+		}
+	}
 
 	var negated bool
 	if p.s.tok == tokens.Not {
