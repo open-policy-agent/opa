@@ -13,7 +13,7 @@ export default function ContentWrapper(props) {
       <Content {...props} />
       {showFeedbackForm && (
         <div className="feedback-form-wrapper">
-          <FeedbackForm />
+          <FeedbackForm enablePopup={true} />
         </div>
       )}
     </>
