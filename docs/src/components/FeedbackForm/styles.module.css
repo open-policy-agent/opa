@@ -1,0 +1,64 @@
+.feedbackFormWrapper {
+	margin-top: 1rem;
+}
+
+.section {
+	margin-top: 0.5rem;
+}
+
+.feedbackFormButton {
+	opacity: 0.8;
+	width: 10rem;
+	height: 3rem;
+	border: 0.3rem solid LightGray;
+	border-radius: 0.2rem;
+	background: none;
+	cursor: pointer;
+	font-size: 1.5rem;
+}
+
+.feedbackFormSubmitButton:hover,
+.feedbackFormButton:hover {
+	opacity: 1;
+}
+
+.positive {
+	color: SeaGreen;
+	border-color: SeaGreen;
+}
+
+.negative {
+	color: Crimson;
+	border-color: Crimson;
+}
+
+.comment textarea {
+	width: 100%;
+	font-size: 1rem;
+	max-width: 30rem;
+	border-radius: 0.2rem;
+	border: 1px solid LightGray;
+	padding: 0.5rem;
+}
+
+.emailRole div {
+	width: 50%;
+	display: inline-block;
+	max-width: 15rem;
+}
+
+.emailRole div:first-child {
+	padding-right: 0.5rem;
+}
+
+.emailRole input {
+	padding: 0.5rem;
+	font-size: 1rem;
+	max-width: 15rem;
+	border-radius: 0.2rem;
+	border: 1px solid LightGray;
+}
+
+.emailNote {
+	font-size: 0.8rem;
+}
