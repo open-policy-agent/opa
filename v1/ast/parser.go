@@ -712,6 +712,7 @@ func (p *Parser) parseImport() *Import {
 		name := string(t.Value.(String))
 		if IsKeywordInRegoVersion(name, p.po.EffectiveRegoVersion()) {
 			p.errorf(t.Location, "invalid import: path cannot end with a keyword: %s", name)
+			p.hint("import a different path or use an alias")
 		}
 	}
 

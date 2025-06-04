@@ -277,7 +277,7 @@ func TestRefTermsContainingKeywords(t *testing.T) {
 	}
 }
 
-func TestImportsContainingKeywords(t *testing.T) {
+func TestImportContainingKeywords(t *testing.T) {
 	for _, regoVersion := range []RegoVersion{RegoV0, RegoV1} {
 		popts := ParserOptions{RegoVersion: regoVersion}
 
@@ -294,7 +294,7 @@ func TestImportsContainingKeywords(t *testing.T) {
 					exp = &Import{Path: RefTerm(VarTerm("data"), StringTerm(kw), StringTerm("foo"))}
 					assertParseImport(t, input, input, exp, popts)
 
-					// Keywords are not allowed as the first component of an import path.
+					// Keywords are not allowed as the first component of import paths.
 
 					input = fmt.Sprintf("import %s.foo", kw)
 					// TODO: Improve error message?
@@ -313,7 +313,8 @@ func TestImportsContainingKeywords(t *testing.T) {
 						assertParseErrorContains(t, input, input, expErr, popts)
 					})
 
-					// Keywords are not allowed as the last component of an import path.
+					// Keywords are not allowed as the last component of import paths ..
+					// FIXME: Allow these?
 
 					input = fmt.Sprintf("import input.%s", kw)
 					expErr = fmt.Sprintf(`rego_parse_error: invalid import: path cannot end with a keyword: %s
@@ -347,6 +348,16 @@ func TestImportsContainingKeywords(t *testing.T) {
 						assertParseErrorContains(t, input, input, expErr, popts)
 					})
 
+					// .. unless they have an alias.
+
+					input = fmt.Sprintf("import data.%s as foo", kw)
+					exp = &Import{Path: RefTerm(VarTerm("data"), StringTerm(kw)), Alias: "foo"}
+					assertParseImport(t, input, input, exp, popts)
+
+					input = fmt.Sprintf(`import data["%s"] as foo`, kw)
+					exp = &Import{Path: RefTerm(VarTerm("data"), StringTerm(kw)), Alias: "foo"}
+					assertParseImport(t, input, input, exp, popts)
+
 					// Keywords are not allowed as import aliases
 
 					input = fmt.Sprintf("import data.foo as %s", kw)
@@ -355,6 +366,73 @@ func TestImportsContainingKeywords(t *testing.T) {
 	                   ^`, kw, kw)
 					t.Run(input, func(t *testing.T) {
 						assertParseErrorContains(t, input, input, expErr, popts)
+					})
+				})
+			}
+		})
+	}
+}
+
+func TestPackageContainingKeywords(t *testing.T) {
+	for _, regoVersion := range []RegoVersion{RegoV0, RegoV1} {
+		popts := ParserOptions{RegoVersion: regoVersion}
+
+		t.Run(regoVersion.String(), func(t *testing.T) {
+			for _, kw := range KeywordsForRegoVersion(regoVersion) {
+				t.Run(kw, func(t *testing.T) {
+					// Keywords are allowed mid-path in package paths.
+
+					input := fmt.Sprintf("package foo.%s.bar", kw)
+					exp := &Package{Path: []*Term{VarTerm("data"), StringTerm("foo"), StringTerm(kw), StringTerm("bar")}}
+					t.Run(input, func(t *testing.T) {
+						assertParsePackage(t, input, input, exp, popts)
+					})
+
+					input = fmt.Sprintf(`package foo.%s["bar"]`, kw)
+					exp = &Package{Path: []*Term{VarTerm("data"), StringTerm("foo"), StringTerm(kw), StringTerm("bar")}}
+					t.Run(input, func(t *testing.T) {
+						assertParsePackage(t, input, input, exp, popts)
+					})
+
+					// Keywords are not allowed as the first component of package paths.
+					// FIXME: Allow these?
+
+					input = fmt.Sprintf("package %s", kw)
+					expErr := fmt.Sprintf(`rego_parse_error: unexpected %s keyword
+	package %s
+	        ^`, kw, kw)
+					t.Run(input, func(t *testing.T) {
+						assertParseErrorContains(t, input, input, expErr, popts)
+					})
+
+					input = fmt.Sprintf("package %s.foo", kw)
+					expErr = fmt.Sprintf(`rego_parse_error: unexpected %s keyword
+	package %s.foo
+	        ^`, kw, kw)
+					t.Run(input, func(t *testing.T) {
+						assertParseErrorContains(t, input, input, expErr, popts)
+					})
+
+					input = fmt.Sprintf(`package %s["foo"]`, kw)
+					expErr = fmt.Sprintf(`rego_parse_error: unexpected %s keyword
+	package %s["foo"]
+	        ^`, kw, kw)
+					t.Run(input, func(t *testing.T) {
+						assertParseErrorContains(t, input, input, expErr, popts)
+					})
+
+					// Keywords are allowed as the last component of import paths.
+
+					input = fmt.Sprintf("package foo.%s", kw)
+					exp = &Package{Path: []*Term{VarTerm("data"), StringTerm("foo"), StringTerm(kw)}}
+					t.Run(input, func(t *testing.T) {
+						assertParsePackage(t, input, input, exp, popts)
+					})
+
+					input = fmt.Sprintf(`package foo["%s"]`, kw)
+					exp = &Package{Path: []*Term{VarTerm("data"), StringTerm("foo"), StringTerm(kw)}}
+					t.Run(input, func(t *testing.T) {
+						assertParsePackage(t, input, input, exp, popts)
 					})
 				})
 			}
@@ -6756,13 +6834,13 @@ func assertParseModuleError(t *testing.T, msg, input string) {
 	}
 }
 
-func assertParsePackage(t *testing.T, msg string, input string, correct *Package) {
+func assertParsePackage(t *testing.T, msg string, input string, correct *Package, opts ...ParserOptions) {
 	assertParseOne(t, msg, input, func(parsed any) {
 		pkg := parsed.(*Package)
 		if !pkg.Equal(correct) {
 			t.Errorf("Error on test \"%s\": packages not equal: %v (parsed), %v (correct)", msg, pkg, correct)
 		}
-	})
+	}, opts...)
 }
 
 func assertParseOne(t *testing.T, msg string, input string, correct func(any), opts ...ParserOptions) {
