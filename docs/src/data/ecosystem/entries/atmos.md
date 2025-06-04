@@ -11,7 +11,7 @@ labels:
   category: Infrastructure as Code
   type: poweredbyopa
 tutorials:
-- https://atmos.tools/core-concepts/components/validation/#open-policy-agent-opa
+- https://atmos.tools/core-concepts/validate/opa/
 code:
 - https://github.com/cloudposse/atmos
 docs_features:
@@ -21,4 +21,5 @@ docs_features:
       using the `validate component` command
       [documented here](https://atmos.tools/cli/commands/validate/component).
 ---
+
 Workflow automation tool for DevOps. Keep configuration DRY with hierarchical imports of configurations, inheritance, and WAY more.

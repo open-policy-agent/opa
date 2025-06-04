@@ -799,7 +799,7 @@ To get started download an OPA binary for your platform from
 On macOS (ARM 64-bit):
 
 ```shell
-curl -L -o opa https://openpolicyagent.org/downloads/{{< current_version >}}/opa_darwin_arm64_static
+curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_darwin_arm64_static
 ```
 
 Or using Homebrew:
@@ -811,14 +811,17 @@ brew install opa
 On Linux (64-bit):
 
 ```shell
-curl -L -o opa https://openpolicyagent.org/downloads/{{< current_version >}}/opa_linux_amd64_static
+curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64_static
 ```
 
 :::info
-Windows users can obtain the OPA executable from [here](https://openpolicyagent.org/downloads/{{< current_version >}}/opa_windows_amd64.exe).
-The steps below are the same for Windows users except the executable name will be different.
-Windows executable file name is opa_windows_amd64.exe, which inclues file extension name 'exe'. The checksums file name is opa_windows_amd64.exe.sha256.
-Windows users can obtain the checksums from [here](https://openpolicyagent.org/downloads/{{< current_version >}}/opa_windows_amd64.exe.sha256).
+Windows users can obtain the OPA executable from
+[here](https://openpolicyagent.org/downloads/latest/opa_windows_amd64.exe).
+The steps below are the same for Windows users except the executable name will
+be different. Windows executable file name is `opa_windows_amd64.exe`, which
+includes file extension name 'exe'. The checksums file name is
+`opa_windows_amd64.exe.sha256`. Windows users can obtain the checksums from
+[here](https://openpolicyagent.org/downloads/latest/opa_windows_amd64.exe.sha256).
 :::
 
 Set permissions on the OPA executable:
@@ -838,8 +841,8 @@ Checksums for all binaries are available in the download path by appending `.sha
 Verify the macOS binary checksum:
 
 ```shell
-curl -L -o opa_darwin_amd64 https://openpolicyagent.org/downloads/{{< current_version >}}/opa_darwin_amd64
-curl -L -o opa_darwin_amd64.sha256 https://openpolicyagent.org/downloads/{{< current_version >}}/opa_darwin_amd64.sha256
+curl -L -o opa_darwin_amd64 https://openpolicyagent.org/downloads/latest/opa_darwin_amd64
+curl -L -o opa_darwin_amd64.sha256 https://openpolicyagent.org/downloads/latest/opa_darwin_amd64.sha256
 shasum -c opa_darwin_amd64.sha256
 ```
 

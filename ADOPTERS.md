@@ -30,7 +30,7 @@ production users that have added themselves (in alphabetical order):
   (e.g., platform, service, etc.) and distributed via S3. Custom log infrastructure
   consumes decision logs. For more information see this talk from [OPA Summit 2019](https://www.youtube.com/watch?v=nvRTO8xjmrg).
 
-* [Bisnode](https://www.bisnode.com) uses OPA for a wide range of use cases,
+* [Bisnode](https://www.bisnode.com) (Dun & Bradstreet) uses OPA for a wide range of use cases,
   including microservice authorization, fine grained kubernetes authorization,
   validating and mutating admission control and CI/CD pipeline testing. Built
   and maintains some OPA related tools and libraries, primarily to help
@@ -87,11 +87,6 @@ production users that have added themselves (in alphabetical order):
   tested as "SDLC guardrails", then re-validated at deployment time by a range of
   OPA-based admission controllers, covering single-tenant environments and hard
   multi-tenancy configurations.
-
-* [Digraph](https://www.getdigraph.com) is a developer-first cloud compliance platform
-  that uses OPA to let security teams detect and resolve non-compliant infrastructure
-  changes before they're deployed to production, and produce audit trails to eliminate
-  manual work and accelerate audit processes like SOC and ISO.
 
 * [Elastic](https://www.elastic.co/) uses OPA in its Cloud Security offering to enable CSPM and KSPM solutions, helping customers adhere to best practices
   defined in CIS benchmarks by tracking misconfigurations on AWS, GCP and Azure. the code is Open Source, see [Security Policies](https://github.com/elastic/cloudbeat/tree/main/security-policies).
@@ -231,9 +226,8 @@ production users that have added themselves (in alphabetical order):
   Kubernetes that offload policy decisions to OPA sidecars. VGS has
   implemented a synchronization protocol on top of the Bundle and
   Status APIs so that the system can determine when permission updates
-  have propagated. For more details on the VGS use case see these blog posts:
-  [part 1](https://blog.verygoodsecurity.com/posts/building-a-fine-grained-permission-system-in-a-distributed-environment),
-  [part 2](https://blog.verygoodsecurity.com/posts/building-a-fine-grained-permissions-system-in-a-distributed-environment).
+  have propagated. For more details on the VGS use case see this
+  [blog post](https://www.verygoodsecurity.com/blog/posts/building-a-fine-grained-permission-system-in-a-distributed-environment).
 
 * [VNG Cloud](https://www.vngcloud.vn/en/home) [Identity and Access Management (IAM)](https://iam.vngcloud.vn/)
   use OPA as a policy-based decision engine for authorization. IAM provides administrators with fine-grained 
@@ -249,7 +243,8 @@ production users that have added themselves (in alphabetical order):
 
 * [Xenit AB](https://www.xenit.se/) uses OPA to implement fine-grained control
   over resource formulation in its managed Kubernetes service as well as several
-  customer-specific implementations. For more information, see the Kubernetes Terraform library [OPA Gatekeeper module](https://github.com/XenitAB/terraform-modules/tree/main/modules/kubernetes/opa-gatekeeper) and
+  customer-specific implementations. For more information, see the Kubernetes Terraform library
+  [OPA Gatekeeper module](https://github.com/XenitAB/terraform-modules/tree/main/modules/kubernetes/gatekeeper) and
   [OPA Gatekeeper policy library](https://github.com/XenitAB/gatekeeper-library).
 
 * [Yelp](https://www.yelp.com/) use OPA and Envoy to enforce authorization policies
@@ -270,7 +265,7 @@ pre-production (in alphabetical order):
 * [Aserto](https://www.aserto.com/) is a venture-backed developer API company
   that helps developers easily build permissions and roles into their SaaS
   applications. Aserto uses OPA as its core engine, and has contributed projects
-  such as [Open Policy Registry](https://openpolicyregistry.io) and
+  such as [Open Policy Containers](https://openpolicycontainers.com/) and
   [OPA Runtime](https://github.com/aserto-dev/runtime) that make it easier for
   developers to incorporate OPA policies and the OPA engine into their applications.
 

@@ -5,7 +5,7 @@ title: Debugging Tips
 If you run into problems getting OPA to enforce admission control policies in
 Kubernetes there are a few things you can check to make sure everything is
 configured correctly. If none of these tips work, feel free to join
-[our slack](https://inviter.co/opa) and ask for help.
+[our slack](https://slack.openpolicyagent.org) and ask for help.
 
 The tips below cover the OPA-Kubernetes integration that uses kube-mgmt.
 The [OPA Gatekeeper version](https://open-policy-agent.github.io/gatekeeper)

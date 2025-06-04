@@ -25,6 +25,9 @@
 # logs.
 /decision_logs /docs/management-decision-logs
 
+# TODO: (charlieegan3) remove this after 2025-07-01
+/ecosystem/entry/open-policy-registry /ecosystem/entry/ocpr 301!
+
 # -----------------------------------------------------------------------------
 # Redirects for legacy usage external resources
 # -----------------------------------------------------------------------------

@@ -7,7 +7,7 @@ labels:
 software:
 - terraform
 tutorials:
-- https://iacp.docs.scalr.com/en/latest/working-with-iacp/opa.html#creating-the-opa-policy
+- https://docs.scalr.io/docs/policy-as-code
 code:
 - https://github.com/Scalr/sample-tf-opa-policies
 inventors:
@@ -28,4 +28,5 @@ docs_features:
       [the example](https://github.com/Scalr/sample-tf-opa-policies#policy-evaluation)
       in the README.
 ---
+
 Scalr allows teams to easily collaborate on Terraform through its pipeline that runs all Terraform operations, policy checks, and stores state. Scalr uses OPA to check the auto-generated Terraform JSON plan to ensure that it meets your organization standards prior to an apply.
