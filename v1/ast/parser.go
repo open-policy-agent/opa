@@ -711,7 +711,15 @@ func (p *Parser) parseImport() *Import {
 	} else {
 		r := imp.Path.Value.(Ref)
 		t := r[len(r)-1]
-		name := string(t.Value.(String))
+
+		var name string
+		switch v := t.Value.(type) {
+		case Var:
+			name = string(v)
+		case String:
+			name = string(v)
+		}
+
 		if IsKeywordInRegoVersion(name, p.po.EffectiveRegoVersion()) {
 			p.errorf(t.Location, "unexpected import path, must not end with a keyword, got: %s", name)
 			p.hint("import a different path or use an alias")
