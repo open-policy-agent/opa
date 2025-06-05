@@ -3363,7 +3363,7 @@ func TestDataProvenanceMultiBundle(t *testing.T) {
 func TestDataMetricsEval(t *testing.T) {
 	t.Parallel()
 
-	// These tests all use the POST /v1/data API with ?metrics appended.
+	// These tests all use the /v1/data API with ?metrics appended.
 	// We're setting up the disk store because that injects a few extra metrics,
 	// which storage/inmem does not.
 
@@ -3379,7 +3379,7 @@ func TestDataMetricsEval(t *testing.T) {
 		f := newFixtureWithStore(t, disk)
 
 		// Make a request to evaluate `data`
-		testDataMetrics(t, f, "/data?metrics", []string{
+		testDataMetrics(t, f, http.MethodPost, "/data?metrics", "", []string{
 			"counter_server_query_cache_hit",
 			"counter_disk_read_keys",
 			"counter_disk_read_bytes",
@@ -3393,23 +3393,50 @@ func TestDataMetricsEval(t *testing.T) {
 
 		// Repeat previous request, expect to have hit the query cache
 		// so fewer timers should have been reported.
-		testDataMetrics(t, f, "/data?metrics", []string{
+		testDataMetrics(t, f, http.MethodPost, "/data?metrics", "", []string{
 			"counter_server_query_cache_hit",
 			"counter_disk_read_keys",
 			"counter_disk_read_bytes",
+			"timer_disk_read_ns",
+			"timer_rego_external_resolve_ns",
 			"timer_rego_input_parse_ns",
 			"timer_rego_query_eval_ns",
 			"timer_server_handler_ns",
+		})
+
+		// Exercise the PUT, PATCH, and DELETE endpoints.
+		testDataMetrics(t, f, http.MethodPut, "/data/example?metrics", "{}", []string{
+			"counter_disk_read_keys",
+			"counter_disk_written_keys",
+			"timer_disk_commit_ns",
 			"timer_disk_read_ns",
-			"timer_rego_external_resolve_ns",
+			"timer_disk_write_ns",
+			"timer_rego_input_parse_ns",
+			"timer_server_handler_ns",
+		})
+
+		testDataMetrics(t, f, http.MethodPatch, "/data/example?metrics", "[]", []string{
+			"timer_disk_commit_ns",
+			"timer_rego_input_parse_ns",
+			"timer_server_handler_ns",
+		})
+
+		testDataMetrics(t, f, http.MethodDelete, "/data/example?metrics", "{}", []string{
+			"counter_disk_deleted_keys",
+			"counter_disk_read_keys",
+			"counter_disk_read_bytes",
+			"timer_disk_commit_ns",
+			"timer_disk_read_ns",
+			"timer_disk_write_ns",
+			"timer_server_handler_ns",
 		})
 	})
 }
 
-func testDataMetrics(t *testing.T, f *fixture, url string, expected []string) {
+func testDataMetrics(t *testing.T, f *fixture, method string, url string, payload string, expected []string) {
 	t.Helper()
 	f.reset()
-	req := newReqV1(http.MethodPost, url, "")
+	req := newReqV1(method, url, payload)
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
 	var result types.DataResponseV1

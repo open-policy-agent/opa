@@ -1617,7 +1617,6 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 	m := metrics.New()
 	m.Timer(metrics.ServerHandler).Start()
-	defer m.Timer(metrics.ServerHandler).Stop()
 
 	ctx := r.Context()
 	vars := mux.Vars(r)
@@ -1666,6 +1665,8 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 		writer.ErrorAuto(w, err)
 		return
 	}
+
+	m.Timer(metrics.ServerHandler).Stop()
 
 	if includeMetrics(r) {
 		result := types.DataResponseV1{
@@ -1841,7 +1842,6 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 	m := metrics.New()
 	m.Timer(metrics.ServerHandler).Start()
-	defer m.Timer(metrics.ServerHandler).Stop()
 
 	ctx := r.Context()
 	vars := mux.Vars(r)
@@ -1907,6 +1907,8 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	m.Timer(metrics.ServerHandler).Stop()
+
 	if includeMetrics(r) {
 		result := types.DataResponseV1{
 			Metrics: m.All(),
@@ -1921,7 +1923,6 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 func (s *Server) v1DataDelete(w http.ResponseWriter, r *http.Request) {
 	m := metrics.New()
 	m.Timer(metrics.ServerHandler).Start()
-	defer m.Timer(metrics.ServerHandler).Stop()
 
 	ctx := r.Context()
 	vars := mux.Vars(r)
@@ -1960,6 +1961,8 @@ func (s *Server) v1DataDelete(w http.ResponseWriter, r *http.Request) {
 		writer.ErrorAuto(w, err)
 		return
 	}
+
+	m.Timer(metrics.ServerHandler).Stop()
 
 	if includeMetrics(r) {
 		result := types.DataResponseV1{
