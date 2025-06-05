@@ -49,3 +49,19 @@ func BenchmarkMetricsMarshaling(b *testing.B) {
 
 	b.StopTimer()
 }
+
+func BenchmarkMetricsTimerStartStopRestart(b *testing.B) {
+	m := metrics.New()
+
+	b.ResetTimer()
+
+	for range b.N {
+		m.Timer("foo").Start()
+		_ = m.Timer("foo").Stop()
+		_ = m.Timer("foo").Stop() // Second stop to exercise the sync guard.
+		m.Timer("foo").Start()
+		_ = m.Timer("foo").Stop()
+	}
+
+	b.StopTimer()
+}
