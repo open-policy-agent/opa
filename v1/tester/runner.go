@@ -13,10 +13,11 @@ import (
 	"fmt"
 	"maps"
 	"regexp"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -273,7 +274,7 @@ func NewRunner() *Runner {
 	return &Runner{
 		timeout:            5 * time.Second,
 		defaultRegoVersion: ast.DefaultRegoVersion,
-		parallel:           1,
+		parallel:           runtime.NumCPU(),
 	}
 }
 
@@ -413,6 +414,7 @@ func (r *Runner) Run(ctx context.Context, modules map[string]*ast.Module) (chan 
 }
 
 // RunTests executes tests found in either modules or bundles loaded on the runner.
+// The test results will be sent in file order.
 func (r *Runner) RunTests(ctx context.Context, txn storage.Transaction) (chan *Result, error) {
 	return r.runTests(ctx, txn, true, r.runTest)
 }
@@ -420,6 +422,9 @@ func (r *Runner) RunTests(ctx context.Context, txn storage.Transaction) (chan *R
 // RunBenchmarks executes tests similar to tester.Runner#RunTests but will repeat
 // a number of times to get stable performance metrics.
 func (r *Runner) RunBenchmarks(ctx context.Context, txn storage.Transaction, options BenchmarkOptions) (chan *Result, error) {
+	// Run benchmarks sequentially
+	r.parallel = 1
+
 	return r.runTests(ctx, txn, false, func(ctx context.Context, txn storage.Transaction, module *ast.Module, rule *ast.Rule) (result *Result, b bool) {
 		return r.runBenchmark(ctx, txn, module, rule, options)
 	})
@@ -515,46 +520,68 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 	}
 
 	ch := make(chan *Result)
-	var wg sync.WaitGroup
-	semaphore := make(chan struct{}, r.parallel)
 
 	go func() {
 		defer close(ch)
 
-		// an individual test can stop all other tests from running
-		stopRunCtx, cancelRun := context.WithCancel(ctx)
-		defer cancelRun()
+		semaphore := make(chan struct{}, r.parallel)
+		results := make(chan []*Result, len(r.compiler.Modules))
+		stopCtx, cancelTests := context.WithCancel(ctx)
+		defer cancelTests()
+
+		var shutdownFlag atomic.Bool
 
 		for _, module := range r.compiler.Modules {
+
+			// group the test results together by file
+			modResult := make(chan *Result, len(module.Rules))
+			go func() {
+				var testResults []*Result
+				for range len(module.Rules) {
+					tr := <-modResult
+					if tr != nil {
+						testResults = append(testResults, tr)
+					}
+				}
+				results <- testResults
+			}()
+
 			for _, rule := range module.Rules {
-				wg.Add(1)
 				go func() {
-					defer wg.Done()
 					semaphore <- struct{}{}
 					defer func() { <-semaphore }()
 
 					select {
-					case <-stopRunCtx.Done():
+					case <-stopCtx.Done():
+						modResult <- nil
 						return
 					default:
 						if !r.shouldRun(rule, testRegex) {
+							modResult <- nil
 							return
 						}
+
 						tr, stop := func() (*Result, bool) {
 							runCtx, cancel := context.WithTimeout(ctx, r.timeout)
 							defer cancel()
 							return runFunc(runCtx, txn, module, rule)
 						}()
-						ch <- tr
+						modResult <- tr
 						if stop {
-							cancelRun()
+							shutdownFlag.Store(true)
 						}
 					}
 				}()
 			}
 		}
 
-		wg.Wait()
+		for range len(r.compiler.Modules) {
+			res := <-results
+
+			for _, tr := range res {
+				ch <- tr
+			}
+		}
 	}()
 
 	return ch, nil
