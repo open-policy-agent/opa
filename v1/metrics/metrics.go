@@ -195,7 +195,10 @@ func (*metrics) formatKey(name string, metrics any) string {
 type Timer interface {
 	Value() any
 	Int64() int64
+	// Start or resume a timer's time tracking.
 	Start()
+	// Stop a timer, and accumulate the delta (in nanoseconds) since it was last
+	// started.
 	Stop() int64
 }
 
@@ -207,15 +210,22 @@ type timer struct {
 
 func (t *timer) Start() {
 	t.mtx.Lock()
-	defer t.mtx.Unlock()
 	t.start = time.Now()
+	t.mtx.Unlock()
 }
 
 func (t *timer) Stop() int64 {
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
-	delta := time.Since(t.start).Nanoseconds()
-	t.value += delta
+
+	var delta int64
+	if !t.start.IsZero() {
+		// Add the delta to the accumulated time value so far.
+		delta = time.Since(t.start).Nanoseconds()
+		t.value += delta
+		t.start = time.Time{} // Reset the start time to zero.
+	}
+
 	return delta
 }
 
