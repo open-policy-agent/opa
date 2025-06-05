@@ -734,10 +734,11 @@ func (p *Parser) parseImport() *Import {
 
 func scanIdentIgnoreKeywords(p *Parser) bool {
 	if p.s.tok != tokens.Ident {
-		if IsKeywordInRegoVersion(p.s.tok.String(), p.po.EffectiveRegoVersion()) {
+		if isKeywordInRegoVersion(p.s.tok, p.po.EffectiveRegoVersion()) {
 			p.s.tok = tokens.Ident
 		} else {
-			p.error(p.s.Loc(), "expected ident")
+			//p.error(p.s.Loc(), "expected ident")
+			p.illegalToken()
 			return false
 		}
 	}
@@ -746,7 +747,7 @@ func scanIdentIgnoreKeywords(p *Parser) bool {
 }
 
 func scanAheadRef(p *Parser) {
-	if IsKeywordInRegoVersion(p.s.tok.String(), p.po.EffectiveRegoVersion()) {
+	if isKeywordInRegoVersion(p.s.tok, p.po.EffectiveRegoVersion()) {
 		// scan ahead to check if we're parsing a ref
 		s := p.save()
 		p.scanWS()
@@ -766,24 +767,12 @@ func (p *Parser) parseRules() []*Rule {
 
 	// This allows keywords in the first var term of the ref
 	scanAheadRef(p)
-	//if IsKeywordInRegoVersion(p.s.tok.String(), p.po.EffectiveRegoVersion()) {
-	//	// scan ahead to check if we're parsing a ref
-	//	s := p.save()
-	//	p.scanWS()
-	//	tok := p.s.tok
-	//	p.restore(s)
-	//
-	//	if tok == tokens.Dot || tok == tokens.LBrack {
-	//		p.s.tok = tokens.Ident
-	//	}
-	//}
 
 	if p.s.tok == tokens.Default {
 		p.scan()
 		rule.Default = true
+		scanAheadRef(p)
 	}
-
-	scanAheadRef(p)
 
 	if p.s.tok != tokens.Ident {
 		return nil
@@ -1178,7 +1167,7 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 	}()
 
 	// This allows keywords in the first var term of the ref
-	if IsKeywordInRegoVersion(p.s.tok.String(), p.po.EffectiveRegoVersion()) {
+	if isKeywordInRegoVersion(p.s.tok, p.po.EffectiveRegoVersion()) {
 		// scan ahead to check if we're parsing a ref
 		s := p.save()
 		p.scanWS()
@@ -1213,6 +1202,16 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 	default:
 		return p.parseLiteralExpr(negated)
 	}
+}
+
+func isKeywordInRegoVersion(t tokens.Token, regoVersion RegoVersion, ignore ...tokens.Token) bool {
+	for _, i := range ignore {
+		if t == i {
+			return false
+		}
+	}
+
+	return IsKeywordInRegoVersion(t.String(), regoVersion)
 }
 
 func (p *Parser) parseLiteralExpr(negated bool) *Expr {

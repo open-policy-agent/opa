@@ -199,9 +199,13 @@ func TestRefTerms(t *testing.T) {
 	assertParseError(t, "invalid call", "bar(..")
 	assertParseError(t, "invalid ref", "bar[..")
 	assertParseError(t, "invalid ref head type number", "0[0]")
-	assertParseError(t, "invalid ref head type boolean", "true[0]")
+	assertParseError(t, "invalid ref head type number (float)", "1.2[0]")
 	assertParseError(t, "invalid ref head type string", `"foo"[0]`)
-	assertParseError(t, "invalid ref head type null", `null[0]`)
+
+	// TODO: Is it more hurtful than helpful to allow these?
+	//assertParseError(t, "invalid ref head type boolean (true)", "true[0]")
+	//assertParseError(t, "invalid ref head type boolean (false)", "false[0]")
+	//assertParseError(t, "invalid ref head type null", `null[0]`)
 }
 
 func TestRefTermsContainingKeywords(t *testing.T) {
@@ -420,35 +424,24 @@ func TestPackageContainingKeywords(t *testing.T) {
 
 // TODO: Test call refs
 
-func TestRuleContainingRefKeywords(t *testing.T) {
-	for _, kw := range KeywordsForRegoVersion(RegoV1) {
+func TestRuleHeadsContainingKeywords(t *testing.T) {
+	for _, kw := range Keywords {
 		t.Run(kw, func(t *testing.T) {
-			note := "rule with ref in body"
-			input := fmt.Sprintf(`p if {
-							%s.foo == 1
-							foo.%s == 2
-							foo.%s.bar == 3
-						}`, kw, kw, kw)
-			exp := &Rule{
-				Head: NewHead("p", nil, BooleanTerm(true)),
-				Body: NewBody(
-					Equal.Expr(RefTerm(VarTerm(kw), StringTerm("foo")), IntNumberTerm(1)),
-					Equal.Expr(RefTerm(VarTerm("foo"), StringTerm(kw)), IntNumberTerm(2)),
-					Equal.Expr(RefTerm(VarTerm("foo"), StringTerm(kw), StringTerm("bar")), IntNumberTerm(3)),
-				),
-			}
-			t.Run(note, func(t *testing.T) {
-				assertParseRule(t, note, input, exp)
-			})
-
 			// Complete rules
 
 			// FIXME: Should we support kw rule names?
+			note := "complete rule, kw name"
+			input := fmt.Sprintf("%s if { true }", kw)
+			t.Run(note, func(t *testing.T) {
+				_, err := ParseRule(input)
+				if err == nil {
+					t.Error("Expected error, got none")
+				}
+			})
+
 			note = "complete rule with ref in head, kw in first term"
-			input = fmt.Sprintf(`%s.foo if {
-							true
-						}`, kw)
-			exp = &Rule{
+			input = fmt.Sprintf(`%s.foo if { true }`, kw)
+			exp := &Rule{
 				Head: RefHead([]*Term{VarTerm(kw), StringTerm("foo")}, BooleanTerm(true)),
 				Body: NewBody(
 					NewExpr(BooleanTerm(true)),
@@ -459,9 +452,19 @@ func TestRuleContainingRefKeywords(t *testing.T) {
 			})
 
 			note = "complete rule with ref in head, kw last term"
-			input = fmt.Sprintf(`foo.%s if {
-							true
-						}`, kw)
+			input = fmt.Sprintf(`foo.%s if { true }`, kw)
+			exp = &Rule{
+				Head: RefHead([]*Term{VarTerm("foo"), StringTerm(kw)}, BooleanTerm(true)),
+				Body: NewBody(
+					NewExpr(BooleanTerm(true)),
+				),
+			}
+			t.Run(note, func(t *testing.T) {
+				assertParseRule(t, note, input, exp)
+			})
+
+			note = "complete rule with ref in head, kw last term (bracketed)"
+			input = fmt.Sprintf(`foo["%s"] if { true }`, kw)
 			exp = &Rule{
 				Head: RefHead([]*Term{VarTerm("foo"), StringTerm(kw)}, BooleanTerm(true)),
 				Body: NewBody(
@@ -473,9 +476,19 @@ func TestRuleContainingRefKeywords(t *testing.T) {
 			})
 
 			note = "complete rule with ref in head, kw middle term"
-			input = fmt.Sprintf(`foo.%s.bar if {
-							true
-						}`, kw)
+			input = fmt.Sprintf(`foo.%s.bar if { true }`, kw)
+			exp = &Rule{
+				Head: RefHead([]*Term{VarTerm("foo"), StringTerm(kw), StringTerm("bar")}, BooleanTerm(true)),
+				Body: NewBody(
+					NewExpr(BooleanTerm(true)),
+				),
+			}
+			t.Run(note, func(t *testing.T) {
+				assertParseRule(t, note, input, exp)
+			})
+
+			note = "complete rule with ref in head, kw middle term (bracketed)"
+			input = fmt.Sprintf(`foo["%s"].bar if { true }`, kw)
 			exp = &Rule{
 				Head: RefHead([]*Term{VarTerm("foo"), StringTerm(kw), StringTerm("bar")}, BooleanTerm(true)),
 				Body: NewBody(
@@ -488,10 +501,17 @@ func TestRuleContainingRefKeywords(t *testing.T) {
 
 			// Partial set rules
 
+			note = "partial set rule, kw name"
+			input = fmt.Sprintf("%s contains { true }", kw)
+			t.Run(note, func(t *testing.T) {
+				_, err := ParseRule(input)
+				if err == nil {
+					t.Error("Expected error, got none")
+				}
+			})
+
 			note = "partial set rule with ref in head, kw in first term"
-			input = fmt.Sprintf(`%s.foo contains 1 if {
-							true
-						}`, kw)
+			input = fmt.Sprintf(`%s.foo contains 1 if { true }`, kw)
 			exp = &Rule{
 				Head: &Head{
 					Reference: []*Term{VarTerm(kw), StringTerm("foo")},
@@ -506,9 +526,22 @@ func TestRuleContainingRefKeywords(t *testing.T) {
 			})
 
 			note = "partial set rule with ref in head, kw last term"
-			input = fmt.Sprintf(`foo.%s contains 1 if {
-							true
-						}`, kw)
+			input = fmt.Sprintf(`foo.%s contains 1 if { true }`, kw)
+			exp = &Rule{
+				Head: &Head{
+					Reference: []*Term{VarTerm("foo"), StringTerm(kw)},
+					Key:       NumberTerm("1"),
+				},
+				Body: NewBody(
+					NewExpr(BooleanTerm(true)),
+				),
+			}
+			t.Run(note, func(t *testing.T) {
+				assertParseRule(t, note, input, exp)
+			})
+
+			note = "partial set rule with ref in head, kw last term (bracketed)"
+			input = fmt.Sprintf(`foo["%s"] contains 1 if { true }`, kw)
 			exp = &Rule{
 				Head: &Head{
 					Reference: []*Term{VarTerm("foo"), StringTerm(kw)},
@@ -523,9 +556,22 @@ func TestRuleContainingRefKeywords(t *testing.T) {
 			})
 
 			note = "partial set rule with ref in head, kw middle term"
-			input = fmt.Sprintf(`foo.%s.bar contains 1 if {
-							true
-						}`, kw)
+			input = fmt.Sprintf(`foo.%s.bar contains 1 if { true }`, kw)
+			exp = &Rule{
+				Head: &Head{
+					Reference: []*Term{VarTerm("foo"), StringTerm(kw), StringTerm("bar")},
+					Key:       NumberTerm("1"),
+				},
+				Body: NewBody(
+					NewExpr(BooleanTerm(true)),
+				),
+			}
+			t.Run(note, func(t *testing.T) {
+				assertParseRule(t, note, input, exp)
+			})
+
+			note = "partial set rule with ref in head, kw middle term (bracketed)"
+			input = fmt.Sprintf(`foo["%s"].bar contains 1 if { true }`, kw)
 			exp = &Rule{
 				Head: &Head{
 					Reference: []*Term{VarTerm("foo"), StringTerm(kw), StringTerm("bar")},
@@ -540,6 +586,15 @@ func TestRuleContainingRefKeywords(t *testing.T) {
 			})
 
 			// Default rules
+
+			note = "default rule, kw name"
+			input = fmt.Sprintf("default %s if { true }", kw)
+			t.Run(note, func(t *testing.T) {
+				_, err := ParseRule(input)
+				if err == nil {
+					t.Error("Expected error, got none")
+				}
+			})
 
 			note = "default rule with ref in head, kw in first term"
 			input = fmt.Sprintf(`default %s.foo := true`, kw)
@@ -575,8 +630,42 @@ func TestRuleContainingRefKeywords(t *testing.T) {
 				assertParseRule(t, note, input, exp)
 			})
 
+			note = "default rule with ref in head, kw last term (bracketed)"
+			input = fmt.Sprintf(`default foo["%s"] := true`, kw)
+			exp = &Rule{
+				Head: &Head{
+					Reference: []*Term{VarTerm("foo"), StringTerm(kw)},
+					Value:     BooleanTerm(true),
+					Assign:    true,
+				},
+				Default: true,
+				Body: NewBody(
+					NewExpr(BooleanTerm(true)),
+				),
+			}
+			t.Run(note, func(t *testing.T) {
+				assertParseRule(t, note, input, exp)
+			})
+
 			note = "default rule with ref in head, kw middle term"
 			input = fmt.Sprintf(`default foo.%s.bar := true`, kw)
+			exp = &Rule{
+				Head: &Head{
+					Reference: []*Term{VarTerm("foo"), StringTerm(kw), StringTerm("bar")},
+					Value:     BooleanTerm(true),
+					Assign:    true,
+				},
+				Default: true,
+				Body: NewBody(
+					NewExpr(BooleanTerm(true)),
+				),
+			}
+			t.Run(note, func(t *testing.T) {
+				assertParseRule(t, note, input, exp)
+			})
+
+			note = "default rule with ref in head, kw middle term (bracketed)"
+			input = fmt.Sprintf(`default foo["%s"].bar := true`, kw)
 			exp = &Rule{
 				Head: &Head{
 					Reference: []*Term{VarTerm("foo"), StringTerm(kw), StringTerm("bar")},
@@ -595,7 +684,257 @@ func TestRuleContainingRefKeywords(t *testing.T) {
 	}
 }
 
-func TestRuleContainingRefKeywords_RegoV0(t *testing.T) {
+func TestRuleHeadsContainingKeywords_RegoV0(t *testing.T) {
+	popts := ParserOptions{RegoVersion: RegoV0}
+
+	for _, kw := range KeywordsV0 {
+		t.Run(kw, func(t *testing.T) {
+			// Complete rules
+
+			// FIXME: Should we support kw rule names?
+			note := "complete rule, kw name"
+			input := fmt.Sprintf("%s { true }", kw)
+			t.Run(note, func(t *testing.T) {
+				_, err := ParseRuleWithOpts(input, popts)
+				if err == nil {
+					t.Error("Expected error, got none")
+				}
+			})
+
+			note = "complete rule with ref in head, kw in first term"
+			input = fmt.Sprintf(`%s.foo.bar { true }`, kw)
+			exp := &Rule{
+				Head: RefHead([]*Term{VarTerm(kw), StringTerm("foo"), StringTerm("bar")}, BooleanTerm(true)),
+				Body: NewBody(
+					NewExpr(BooleanTerm(true)),
+				),
+			}
+			t.Run(note, func(t *testing.T) {
+				assertParseRule(t, note, input, exp, popts)
+			})
+
+			note = "complete rule with ref in head, kw last term"
+			input = fmt.Sprintf(`foo.bar.%s { true }`, kw)
+			exp = &Rule{
+				Head: RefHead([]*Term{VarTerm("foo"), StringTerm("bar"), StringTerm(kw)}, BooleanTerm(true)),
+				Body: NewBody(
+					NewExpr(BooleanTerm(true)),
+				),
+			}
+			t.Run(note, func(t *testing.T) {
+				assertParseRule(t, note, input, exp, popts)
+			})
+
+			note = "complete rule with ref in head, kw last term (bracketed)"
+			input = fmt.Sprintf(`foo.bar["%s"] { true }`, kw)
+			exp = &Rule{
+				Head: RefHead([]*Term{VarTerm("foo"), StringTerm("bar"), StringTerm(kw)}, BooleanTerm(true)),
+				Body: NewBody(
+					NewExpr(BooleanTerm(true)),
+				),
+			}
+			t.Run(note, func(t *testing.T) {
+				assertParseRule(t, note, input, exp, popts)
+			})
+
+			note = "complete rule with ref in head, kw middle term"
+			input = fmt.Sprintf(`foo.%s.bar { true }`, kw)
+			exp = &Rule{
+				Head: RefHead([]*Term{VarTerm("foo"), StringTerm(kw), StringTerm("bar")}, BooleanTerm(true)),
+				Body: NewBody(
+					NewExpr(BooleanTerm(true)),
+				),
+			}
+			t.Run(note, func(t *testing.T) {
+				assertParseRule(t, note, input, exp, popts)
+			})
+
+			note = "complete rule with ref in head, kw middle term (bracketed)"
+			input = fmt.Sprintf(`foo["%s"].bar { true }`, kw)
+			exp = &Rule{
+				Head: RefHead([]*Term{VarTerm("foo"), StringTerm(kw), StringTerm("bar")}, BooleanTerm(true)),
+				Body: NewBody(
+					NewExpr(BooleanTerm(true)),
+				),
+			}
+			t.Run(note, func(t *testing.T) {
+				assertParseRule(t, note, input, exp, popts)
+			})
+
+			// Partial set rules
+
+			note = "partial set rule with ref in head, kw in first term (name)"
+			input = fmt.Sprintf(`%s.foo { true }`, kw)
+			exp = &Rule{
+				Head: &Head{
+					Name:      Var(kw),
+					Reference: []*Term{VarTerm(kw)},
+					Key:       StringTerm("foo"),
+				},
+				Body: NewBody(
+					NewExpr(BooleanTerm(true)),
+				),
+			}
+			t.Run(note, func(t *testing.T) {
+				assertParseRule(t, note, input, exp, popts)
+			})
+
+			note = "partial set rule with ref in head, kw last term (key)"
+			input = fmt.Sprintf(`foo.%s { true }`, kw)
+			exp = &Rule{
+				Head: &Head{
+					Name:      "foo",
+					Reference: []*Term{VarTerm("foo")},
+					Key:       StringTerm(kw),
+				},
+				Body: NewBody(
+					NewExpr(BooleanTerm(true)),
+				),
+			}
+			t.Run(note, func(t *testing.T) {
+				assertParseRule(t, note, input, exp, popts)
+			})
+
+			note = "partial set rule with ref in head, kw last term (key) (bracketed)"
+			input = fmt.Sprintf(`foo["%s"] { true }`, kw)
+			exp = &Rule{
+				Head: &Head{
+					Name:      "foo",
+					Reference: []*Term{VarTerm("foo")},
+					Key:       StringTerm(kw),
+				},
+				Body: NewBody(
+					NewExpr(BooleanTerm(true)),
+				),
+			}
+			t.Run(note, func(t *testing.T) {
+				assertParseRule(t, note, input, exp, popts)
+			})
+
+			// Default rules
+
+			note = "default rule, kw name"
+			input = fmt.Sprintf("default %s { true }", kw)
+			t.Run(note, func(t *testing.T) {
+				_, err := ParseRuleWithOpts(input, popts)
+				if err == nil {
+					t.Error("Expected error, got none")
+				}
+			})
+
+			note = "default rule with ref in head, kw in first term"
+			input = fmt.Sprintf(`default %s.foo := true`, kw)
+			exp = &Rule{
+				Head: &Head{
+					Reference: []*Term{VarTerm(kw), StringTerm("foo")},
+					Value:     BooleanTerm(true),
+					Assign:    true,
+				},
+				Default: true,
+				Body: NewBody(
+					NewExpr(BooleanTerm(true)),
+				),
+			}
+			t.Run(note, func(t *testing.T) {
+				assertParseRule(t, note, input, exp, popts)
+			})
+
+			note = "default rule with ref in head, kw last term"
+			input = fmt.Sprintf(`default foo.%s := true`, kw)
+			exp = &Rule{
+				Head: &Head{
+					Reference: []*Term{VarTerm("foo"), StringTerm(kw)},
+					Value:     BooleanTerm(true),
+					Assign:    true,
+				},
+				Default: true,
+				Body: NewBody(
+					NewExpr(BooleanTerm(true)),
+				),
+			}
+			t.Run(note, func(t *testing.T) {
+				assertParseRule(t, note, input, exp, popts)
+			})
+
+			note = "default rule with ref in head, kw last term (bracketed)"
+			input = fmt.Sprintf(`default foo["%s"] := true`, kw)
+			exp = &Rule{
+				Head: &Head{
+					Reference: []*Term{VarTerm("foo"), StringTerm(kw)},
+					Value:     BooleanTerm(true),
+					Assign:    true,
+				},
+				Default: true,
+				Body: NewBody(
+					NewExpr(BooleanTerm(true)),
+				),
+			}
+			t.Run(note, func(t *testing.T) {
+				assertParseRule(t, note, input, exp, popts)
+			})
+
+			note = "default rule with ref in head, kw middle term"
+			input = fmt.Sprintf(`default foo.%s.bar := true`, kw)
+			exp = &Rule{
+				Head: &Head{
+					Reference: []*Term{VarTerm("foo"), StringTerm(kw), StringTerm("bar")},
+					Value:     BooleanTerm(true),
+					Assign:    true,
+				},
+				Default: true,
+				Body: NewBody(
+					NewExpr(BooleanTerm(true)),
+				),
+			}
+			t.Run(note, func(t *testing.T) {
+				assertParseRule(t, note, input, exp, popts)
+			})
+
+			note = "default rule with ref in head, kw middle term (bracketed)"
+			input = fmt.Sprintf(`default foo["%s"].bar := true`, kw)
+			exp = &Rule{
+				Head: &Head{
+					Reference: []*Term{VarTerm("foo"), StringTerm(kw), StringTerm("bar")},
+					Value:     BooleanTerm(true),
+					Assign:    true,
+				},
+				Default: true,
+				Body: NewBody(
+					NewExpr(BooleanTerm(true)),
+				),
+			}
+			t.Run(note, func(t *testing.T) {
+				assertParseRule(t, note, input, exp, popts)
+			})
+		})
+	}
+}
+
+func TestRuleBodyContainingRefKeywords(t *testing.T) {
+	for _, kw := range KeywordsForRegoVersion(RegoV1) {
+		t.Run(kw, func(t *testing.T) {
+			note := "rule with ref in body"
+			input := fmt.Sprintf(`p if {
+							%s.foo == 1
+							foo.%s == 2
+							foo.%s.bar == 3
+						}`, kw, kw, kw)
+			exp := &Rule{
+				Head: NewHead("p", nil, BooleanTerm(true)),
+				Body: NewBody(
+					Equal.Expr(RefTerm(VarTerm(kw), StringTerm("foo")), IntNumberTerm(1)),
+					Equal.Expr(RefTerm(VarTerm("foo"), StringTerm(kw)), IntNumberTerm(2)),
+					Equal.Expr(RefTerm(VarTerm("foo"), StringTerm(kw), StringTerm("bar")), IntNumberTerm(3)),
+				),
+			}
+			t.Run(note, func(t *testing.T) {
+				assertParseRule(t, note, input, exp)
+			})
+		})
+	}
+}
+
+func TestRuleBodyContainingRefKeywords_RegoV0(t *testing.T) {
 	popts := ParserOptions{RegoVersion: RegoV0}
 
 	for _, kw := range KeywordsForRegoVersion(RegoV0) {
@@ -617,138 +956,6 @@ func TestRuleContainingRefKeywords_RegoV0(t *testing.T) {
 			t.Run(note, func(t *testing.T) {
 				assertParseRule(t, note, input, exp, popts)
 			})
-		})
-	}
-}
-
-func TestRuleHeadsContainingKeywordsV0(t *testing.T) {
-	popts := ParserOptions{RegoVersion: RegoV0}
-
-	for _, kw := range KeywordsV0 {
-		input := fmt.Sprintf("%s { true }", kw)
-		t.Run(input, func(t *testing.T) {
-			_, err := ParseRuleWithOpts(input, popts)
-			if err == nil {
-				t.Error("Expected error, got none")
-			}
-		})
-
-		input = fmt.Sprintf("%s.foo { true }", kw)
-		t.Run(input, func(t *testing.T) {
-			_, err := ParseRuleWithOpts(input, popts)
-			if err == nil {
-				t.Errorf("Expected error, got none")
-			}
-		})
-
-		input = fmt.Sprintf("foo.%s { true }", kw)
-		t.Run(input, func(t *testing.T) {
-			exp := Rule{
-				Head: NewHead(Var("foo"), StringTerm(kw)),
-				Body: MustParseBody(`true`),
-			}
-			assertParseRule(t, input, input, &exp, popts)
-		})
-
-		input = fmt.Sprintf("foo.bar.%s { true }", kw)
-		t.Run(input, func(t *testing.T) {
-			exp := Rule{
-				Head: RefHead(Ref{VarTerm("foo"), StringTerm("bar"), StringTerm(kw)}, BooleanTerm(true)),
-				Body: MustParseBody(`true`),
-			}
-			assertParseRule(t, input, input, &exp, popts)
-		})
-
-		input = fmt.Sprintf(`foo["bar"].%s { true }`, kw)
-		t.Run(input, func(t *testing.T) {
-			exp := Rule{
-				Head: RefHead(Ref{VarTerm("foo"), StringTerm("bar"), StringTerm(kw)}, BooleanTerm(true)),
-				Body: MustParseBody(`true`),
-			}
-			assertParseRule(t, input, input, &exp, popts)
-		})
-
-		input = fmt.Sprintf("foo.%s.bar { true }", kw)
-		t.Run(input, func(t *testing.T) {
-			exp := Rule{
-				Head: RefHead(Ref{VarTerm("foo"), StringTerm(kw), StringTerm("bar")}, BooleanTerm(true)),
-				Body: MustParseBody(`true`),
-			}
-			assertParseRule(t, input, input, &exp, popts)
-		})
-
-		input = fmt.Sprintf(`foo.%s["bar"] { true }`, kw)
-		t.Run(input, func(t *testing.T) {
-			exp := Rule{
-				Head: RefHead(Ref{VarTerm("foo"), StringTerm(kw), StringTerm("bar")}, BooleanTerm(true)),
-				Body: MustParseBody(`true`),
-			}
-			assertParseRule(t, input, input, &exp, popts)
-		})
-	}
-}
-
-func TestRuleHeadsContainingKeywords(t *testing.T) {
-	for _, kw := range Keywords {
-		input := fmt.Sprintf("%s if { true }", kw)
-		t.Run(input, func(t *testing.T) {
-			_, err := ParseRule(input)
-			if err == nil {
-				t.Error("Expected error, got none")
-			}
-		})
-
-		input = fmt.Sprintf("%s.foo if { true }", kw)
-		t.Run(input, func(t *testing.T) {
-			_, err := ParseRule(input)
-			if err == nil {
-				t.Errorf("Expected error, got none")
-			}
-		})
-
-		input = fmt.Sprintf("foo.%s if { true }", kw)
-		t.Run(input, func(t *testing.T) {
-			exp := Rule{
-				Head: RefHead(Ref{VarTerm("foo"), StringTerm(kw)}, BooleanTerm(true)),
-				Body: MustParseBody(`true`),
-			}
-			assertParseRule(t, input, input, &exp)
-		})
-
-		input = fmt.Sprintf("foo.bar.%s if { true }", kw)
-		t.Run(input, func(t *testing.T) {
-			exp := Rule{
-				Head: RefHead(Ref{VarTerm("foo"), StringTerm("bar"), StringTerm(kw)}, BooleanTerm(true)),
-				Body: MustParseBody(`true`),
-			}
-			assertParseRule(t, input, input, &exp)
-		})
-
-		input = fmt.Sprintf(`foo["bar"].%s if { true }`, kw)
-		t.Run(input, func(t *testing.T) {
-			exp := Rule{
-				Head: RefHead(Ref{VarTerm("foo"), StringTerm("bar"), StringTerm(kw)}, BooleanTerm(true)),
-				Body: MustParseBody(`true`),
-			}
-			assertParseRule(t, input, input, &exp)
-		})
-
-		input = fmt.Sprintf("foo.%s.bar if { true }", kw)
-		t.Run(input, func(t *testing.T) {
-			exp := Rule{
-				Head: RefHead(Ref{VarTerm("foo"), StringTerm(kw), StringTerm("bar")}, BooleanTerm(true)),
-				Body: MustParseBody(`true`),
-			}
-			assertParseRule(t, input, input, &exp)
-		})
-
-		input = fmt.Sprintf(`foo.%s["bar"] if { true }`, kw)
-		t.Run(input, func(t *testing.T) {
-			exp := Rule{
-				Head: RefHead(Ref{VarTerm("foo"), StringTerm(kw), StringTerm("bar")}, BooleanTerm(true)),
-				Body: MustParseBody(`true`),
-			}
-			assertParseRule(t, input, input, &exp)
 		})
 	}
 }
