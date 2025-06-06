@@ -99,9 +99,6 @@ func BenchmarkCustomFunctionInHotPath(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	b.ResetTimer()
-	b.ReportAllocs()
-
 	for range b.N {
 		res, err := pq.Eval(ctx, EvalParsedInput(input.Value))
 		if err != nil {
@@ -125,9 +122,6 @@ func BenchmarkCustomFunctionInHotPath(b *testing.B) {
 // BenchmarkAciTestBuildAndEval-12    58    17566909 ns/op    15991409 B/op    304237 allocs/op
 func BenchmarkAciTestBuildAndEval(b *testing.B) {
 	ctx := context.Background()
-
-	b.ResetTimer()
-	b.ReportAllocs()
 
 	for range b.N {
 		bundle, err := loader.NewFileLoader().
@@ -177,9 +171,6 @@ func BenchmarkAciTestOnlyEval(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	b.ResetTimer()
-	b.ReportAllocs()
-
 	for range b.N {
 		res, err := pq.Eval(ctx, EvalParsedInput(input.Value))
 		if err != nil {
@@ -214,9 +205,6 @@ func BenchmarkArrayIteration(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-
-	b.ResetTimer()
-	b.ReportAllocs()
 
 	for range b.N {
 		res, err := pq.Eval(ctx, EvalParsedInput(input))
@@ -261,9 +249,6 @@ func BenchmarkSetIteration(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	b.ResetTimer()
-	b.ReportAllocs()
-
 	for range b.N {
 		res, err := pq.Eval(ctx, EvalParsedInput(input))
 		if err != nil {
@@ -305,9 +290,6 @@ func BenchmarkObjectIteration(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-
-	b.ResetTimer()
-	b.ReportAllocs()
 
 	for range b.N {
 		res, err := pq.Eval(ctx, EvalParsedInput(input))
@@ -395,9 +377,6 @@ func BenchmarkStoreRead(b *testing.B) {
 
 	ref := ast.MustParseRef("data.foo.bar.baz")
 
-	b.ResetTimer()
-	b.ReportAllocs()
-
 	for range b.N {
 		// 1 alloc/op
 		path, err := storage.NewPathForRef(ref)
@@ -435,8 +414,6 @@ func BenchmarkTrivialPolicy(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-
-	b.ResetTimer()
 
 	for range b.N {
 		_, err := pq.Eval(ctx)
@@ -482,4 +459,54 @@ func mustReadFileAsString(b *testing.B, path string) string {
 
 func noOpGenerateJSON(*ast.Term, *EvalContext) (any, error) {
 	return nil, nil
+}
+
+// 46168 ns/op	   14627 B/op	     496 allocs/op
+// 25671 ns/op	   11488 B/op	     300 allocs/op
+// ...
+func BenchmarkGlobalVsLocalLookup(b *testing.B) {
+	ctx := context.Background()
+
+	module := ast.MustParseModule(`package p
+global := 100
+
+global_ref if {
+	some i in numbers.range(1, 100)
+	i == global
+}
+
+local_var if {
+	local := global
+	some i in numbers.range(1, 100)
+	i == local
+}`)
+
+	q1 := ast.MustParseBody("data.p.global_ref = true")
+	q2 := ast.MustParseBody("data.p.local_var = true")
+
+	r1 := New(ParsedQuery(q1), ParsedModule(module), GenerateJSON(noOpGenerateJSON))
+	r2 := New(ParsedQuery(q2), ParsedModule(module), GenerateJSON(noOpGenerateJSON))
+
+	pq1, err := r1.PrepareForEval(ctx)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	pq2, err := r2.PrepareForEval(ctx)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	names := []string{"global_ref", "local_var"}
+
+	for i, pq := range []PreparedEvalQuery{pq1, pq2} {
+		b.Run(names[i], func(b *testing.B) {
+			for range b.N {
+				_, err := pq.Eval(ctx)
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
 }

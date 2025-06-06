@@ -98,8 +98,12 @@ func generateCheapRange(operands []*ast.Term, iter func(*ast.Term) error) error 
 	step := 1
 
 	if len(operands) > 2 {
-		stepOp, err := builtins.IntOperand(operands[2].Value, 3)
-		if err == nil {
+		if n, ok := operands[2].Value.(ast.Number); ok {
+			stepOp, ok := n.Int()
+			if !ok {
+				return builtins.NewOperandErr(3, "must be integer number but got floating-point number")
+			}
+
 			step = stepOp
 		}
 	}
