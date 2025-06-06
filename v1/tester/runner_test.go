@@ -6,7 +6,6 @@ package tester_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"maps"
 	"strings"
@@ -489,16 +488,8 @@ func testCancel(t *testing.T, bench bool) {
 			results = append(results, r)
 		}
 
-		if len(results) != 1 {
-			t.Fatalf("Expected only a single test result, got: %d", len(results))
-		}
-
-		if !topdown.IsCancel(results[0].Error) {
-			t.Fatalf("Expected cancel error for first test but got: %v", results[0].Error)
-		}
-
-		if !errors.Is(results[0].Error, context.Canceled) {
-			t.Fatalf("Expected error to be of type context.Canceled but got: %v", results[0].Error)
+		if len(results) != 0 {
+			t.Fatalf("Expected no tests to be run but, got: %d", len(results))
 		}
 	})
 }
@@ -555,22 +546,15 @@ func testTimeout(t *testing.T, bench bool) {
 		for r := range ch {
 			results = append(results, r)
 		}
-		if !topdown.IsCancel(results[0].Error) {
-			t.Fatalf("Expected cancel error for first test but got: %v", results[0].Error)
-		}
 
 		if bench {
 			if !topdown.IsCancel(results[1].Error) {
 				t.Fatalf("Expected cancel error for second test but got: %v", results[1].Error)
 			}
 		} else {
-			if topdown.IsCancel(results[1].Error) {
-				t.Fatalf("Expected no error for second test, but it timed out")
+			if !topdown.IsCancel(results[1].Error) {
+				t.Fatalf("Expected test to have timed out")
 			}
-		}
-
-		if !errors.Is(results[0].Error, context.DeadlineExceeded) {
-			t.Fatalf("Expected error to be of type context.DeadlineExceeded but got: %v", results[0].Error)
 		}
 	})
 }

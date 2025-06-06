@@ -3565,3 +3565,49 @@ func TestTestBenchFailingTest(t *testing.T) {
 		}
 	})
 }
+
+func TestTestRunParallel(t *testing.T) {
+	tests := []struct {
+		note     string
+		parallel int
+	}{
+		{
+			note:     "1 workers",
+			parallel: 1,
+		},
+		{
+			note:     "2 workers",
+			parallel: 2,
+		},
+		{
+			note:     "100 workers",
+			parallel: 100,
+		},
+	}
+
+	for _, tc := range tests {
+		testParams := newTestCommandParams()
+		testParams.parallel = tc.parallel
+
+		files := map[string]string{
+			"policy1.rego": `package test
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}`,
+			"policy2.rego": `package test
+test_l if {
+	l1 == l2
+}`}
+
+		var exitCode int
+		test.WithTempFS(files, func(root string) {
+			exitCode = opaTest([]string{root}, testParams)
+		})
+
+		if exitCode > 0 {
+			t.Fatalf("unexpected exit code: %d", exitCode)
+		}
+	}
+
+}
