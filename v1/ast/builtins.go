@@ -15,6 +15,10 @@ import (
 var Builtins []*Builtin
 
 // RegisterBuiltin adds a new built-in function to the registry.
+// NOTE: The underlying map storing built-ins is **not** thread-safe,
+// and it's recommended to call this only during initialization, and never
+// later. Registering built-ins after that point is unsupported and will
+// likely lead to concurrent map read/write panics.
 func RegisterBuiltin(b *Builtin) {
 	Builtins = append(Builtins, b)
 	BuiltinMap[b.Name] = b
