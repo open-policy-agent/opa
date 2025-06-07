@@ -204,7 +204,7 @@ func allocHandler(rsp http.ResponseWriter, req *http.Request) {
 	total := m.HeapInuse + m.StackInuse + m.MCacheInuse + m.MSpanInuse
 
 	var alloc string
-	if req.URL.Query().Get("pretty") == "true" {
+	if req.URL.RawQuery != "" && req.URL.Query().Get("pretty") == "true" {
 		alloc = prettyByteSize(total)
 	} else {
 		alloc = strconv.FormatUint(total, 10)
