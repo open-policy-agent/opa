@@ -1,0 +1,87 @@
+.container {
+    margin: 2rem 0;
+}
+
+.title {
+    margin: 0;
+}
+
+.subtitle {
+    font-size: 1.2rem;
+    color: var(--ifm-font-color-secondary);
+}
+
+.section {
+    margin-top: 3rem;
+}
+
+.sectionContent {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    justify-content: space-between;
+}
+
+.languageSection {
+    flex: 1 1 calc(50% - 1rem);
+    min-width: 18.75rem;
+}
+
+.languageGrid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    margin-top: 1.5rem;
+}
+
+.languageLink {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 6.25rem;
+    text-align: center;
+    text-decoration: none;
+    color: inherit;
+}
+
+.languageLogo {
+    width: 4rem;
+    height: 4rem;
+    object-fit: contain;
+    margin-bottom: 0.5rem;
+}
+
+.languageTitle {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.categorySection {
+    flex: 1 1 calc(50% - 1rem);
+    min-width: 18.75rem;
+}
+
+.searchContainer {
+    margin: 1.5rem 0;
+}
+
+.searchInput {
+    padding: 0.5rem;
+    width: 100%;
+    max-width: 40rem;
+    font-size: 1rem;
+}
+
+.searchNote {
+    font-size: 0.8rem;
+    margin-top: 0.5rem;
+}
+
+.noResults {
+    text-align: center;
+    width: 100%;
+}
+
+.cardGridContainer {
+    margin: 2rem 0;
+}
