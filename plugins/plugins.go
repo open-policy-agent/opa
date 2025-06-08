@@ -6,11 +6,11 @@
 package plugins
 
 import (
+	"net/http"
+
 	"github.com/open-policy-agent/opa/internal/report"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/otel/sdk/trace"
-
-	"github.com/gorilla/mux"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
@@ -210,7 +210,7 @@ func PrintHook(h print.Hook) func(*Manager) {
 	return v1.PrintHook(h)
 }
 
-func WithRouter(r *mux.Router) func(*Manager) {
+func WithRouter(r *http.ServeMux) func(*Manager) {
 	return v1.WithRouter(r)
 }
 
