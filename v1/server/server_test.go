@@ -41,8 +41,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
 
-	"github.com/gorilla/mux"
-
 	"github.com/open-policy-agent/opa/internal/distributedtracing"
 	"github.com/open-policy-agent/opa/internal/prometheus"
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -5802,8 +5800,8 @@ func TestMixedAddrTypes(t *testing.T) {
 func TestCustomRoute(t *testing.T) {
 	t.Parallel()
 
-	router := mux.NewRouter()
-	router.HandleFunc("/customEndpoint", func(w http.ResponseWriter, _ *http.Request) {
+	router := http.NewServeMux()
+	router.HandleFunc("GET /customEndpoint", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"myCustomResponse": true}`)) // ignore error
 	})
 	f := newFixture(t, func(server *Server) {
