@@ -54,17 +54,6 @@ export default function BuiltinTable({
 
   return (
     <div>
-      <h2 className="anchor" id={htmlID}>
-        {htmlTitle}
-        <a
-          href={`#${htmlID}`}
-          className="hash-link"
-          aria-label={`Direct link to ${htmlTitle}`}
-          title={`Direct link to ${htmlTitle}`}
-        >
-        </a>
-      </h2>
-
       <table style={{ width: "100%", tableLayout: "fixed" }}>
         <colgroup>
           <col />
