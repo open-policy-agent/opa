@@ -1,6 +1,8 @@
+import React, { useState } from "react";
+
+import Link from "@docusaurus/Link";
 import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
-import React, { useState } from "react";
 
 import Card from "../../components/Card";
 import CardGrid from "../../components/CardGrid";
@@ -178,7 +180,8 @@ const EcosystemIndex = (props) => {
             }}
           />
           <p style={{ fontSize: "0.8rem", marginTop: "0.5rem" }}>
-            All integrations are ordered by the number of linked resources.
+            All integrations are ordered by the number of linked resources.{" "}
+            <Link to="/docs/contrib-docs#opa-ecosystem-additions">Add yours!</Link>
           </p>
         </div>
 
