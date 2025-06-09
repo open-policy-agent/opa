@@ -150,6 +150,9 @@ func builtinObjectKeys(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 	if err != nil {
 		return err
 	}
+	if object.Len() == 0 {
+		return iter(ast.InternedEmptySet)
+	}
 
 	return iter(ast.SetTerm(object.Keys()...))
 }

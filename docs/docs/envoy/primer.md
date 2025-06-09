@@ -232,7 +232,7 @@ For a single user, including this snippet in your normal policy is fine, but whe
 ## Input Document
 
 In OPA, `input` is a reserved, global variable whose value is the request sent by the Envoy External Authorization filter
-to OPA. The OPA-Envoy plugin supports both [v2](https://www.envoyproxy.io/docs/envoy/latest/api-v2/service/auth/v2/external_auth.proto#service-auth-v2-checkrequest)
+to OPA. The OPA-Envoy plugin supports both [v2](https://github.com/envoyproxy/data-plane-api/blob/main/envoy/service/auth/v2/external_auth.proto)
 and [v3](https://www.envoyproxy.io/docs/envoy/latest/api-v3/service/auth/v3/external_auth.proto#service-auth-v3-checkrequest)
 versions of the `CheckRequest` which is used to pass the request to OPA.
 

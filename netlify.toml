@@ -8,7 +8,9 @@ edge_functions = "docs/functions"
 NODE_VERSION = "22.15.0"
 
 [[edge_functions]]
-path = "/badge-endpoint/*"
+# this path should not be changed as various external sites depend on it for OPA
+# badges.
+path = "/badge/*"
 function = "badge"
 
 # Redirect all path based versioned requests to their new archived sites.

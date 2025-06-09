@@ -169,7 +169,7 @@ func builtinBase64Decode(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 	if err != nil {
 		return err
 	}
-	return iter(ast.NewTerm(ast.String(result)))
+	return iter(ast.StringTerm(string(result)))
 }
 
 func builtinBase64IsValid(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -224,7 +224,7 @@ func builtinBase64UrlDecode(_ BuiltinContext, operands []*ast.Term, iter func(*a
 	if err != nil {
 		return err
 	}
-	return iter(ast.NewTerm(ast.String(result)))
+	return iter(ast.StringTerm(string(result)))
 }
 
 func builtinURLQueryEncode(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -380,7 +380,7 @@ func builtinHexDecode(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 	if err != nil {
 		return err
 	}
-	return iter(ast.NewTerm(ast.String(val)))
+	return iter(ast.StringTerm(string(val)))
 }
 
 func init() {

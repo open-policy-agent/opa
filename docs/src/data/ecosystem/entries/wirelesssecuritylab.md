@@ -1,5 +1,6 @@
 ---
 title: ccbr
+subtitle: CIS Benchmark for Kubernetes with Rego
 labels:
   category: network
   layer: application
@@ -14,8 +15,8 @@ docs_features:
     note: 'Implements the CIS benchmark using Rego for Kubernetes workloads.'
 allow_missing_image: true
 ---
+
 CCBR is a policy management system project. It uses the policy language
-Rego to implement the CIS benchmark test of cloud native kubernetes.
+Rego to implement the CIS benchmark test of cloud native Kubernetes.
 In addition, it integrates gatekeeper, manages its constraint templates,
 constraints and policies, and supports policy deployment and audit inspection.
-

@@ -16,7 +16,7 @@ whole.
 ## Live Debugging
 
 Using the [Debug Adapter](https://docs.styra.com/regal/debug-adapter)
-based on [OPA's Debug API](https://github.com/open-policy-agent/opa/blob/main/debug/README.md),
+based on [OPA's Debug API](https://github.com/open-policy-agent/opa/blob/main/v1/debug/README.md),
 supported clients are now able to live debug Rego line by line. Breakpoints,
 variable inspection and print statements are all supported.
 
@@ -38,7 +38,7 @@ opa run [policy-files] [data-files]
 
 The [Rego Playground](http://play.openpolicyagent.org) is a web-based Rego development environment that can be
 used to test policies with different inputs and data. If you are interested in asking for help in the
-[OPA Slack](https://inviter.co/opa), the playground is a great way to share your policy and data with
+[OPA Slack](https://slack.openpolicyagent.org), the playground is a great way to share your policy and data with
 others.
 
 ## Using the `print` Built-in Function

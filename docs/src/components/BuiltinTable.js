@@ -18,6 +18,40 @@ export default function BuiltinTable({
   const htmlID = id || category;
   const htmlTitle = title || capitalize(category);
 
+  // This component is used on a page that's so large it takes some time to
+  // render. This means that something the anhor is not present on the page
+  // and the browser is unable to find the element and go there itself.
+  // Ideally, the built ins would have smaller pages but this is here to
+  // preserve the functionality for now.
+  React.useEffect(() => {
+    const path = window.location.hash;
+
+    // Exit early if there's no hash in the URL
+    if (!path || !path.includes("#")) return;
+
+    const id = path.replace("#", "");
+    let attempts = 0;
+    const maxAttempts = 15;
+    const interval = 100;
+
+    const tryScroll = () => {
+      const el = document.getElementById(id);
+
+      if (el) {
+        const r = el.getBoundingClientRect();
+        window.top.scroll({
+          top: window.pageYOffset + r.top,
+          behavior: "auto", // immediate jump
+        });
+      } else if (attempts < maxAttempts) {
+        attempts += 1;
+        setTimeout(tryScroll, interval);
+      }
+    };
+
+    tryScroll();
+  }, []);
+
   return (
     <div>
       <h2 className="anchor" id={htmlID}>
@@ -49,7 +83,9 @@ export default function BuiltinTable({
             const fn = builtins[name];
             if (!fn) return null;
 
-            const anchor = `builtin-${category}-${name}`;
+            // we have links out there in the wild that use the name without a dot
+            // this needs to be preserved for backwards compatibility.
+            const anchor = `builtin-${category}-${name.replaceAll(".", "")}`;
             const isInfix = !!fn.infix;
             const isRelation = !!fn.relation;
 

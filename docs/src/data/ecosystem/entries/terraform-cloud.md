@@ -11,7 +11,7 @@ labels:
   layer: orchestration
 tutorials:
 - https://developer.hashicorp.com/terraform/cloud-docs/policy-enforcement/opa
-- https://developer.hashicorp.com/terraform/tutorials/cloud/drift-and-opa
+- https://developer.hashicorp.com/terraform/tutorials/cloud/drift-and-policy
 - https://developer.hashicorp.com/terraform/cloud-docs/policy-enforcement/opa/vcs
 videos:
 - title: 'Terraform Cloud Learn Lab: Validate Infrastructure and Enforce OPA Policies'
@@ -30,7 +30,6 @@ docs_features:
       Terraform cloud has native support for enforcing Rego policy on plans.
       The feature is [documented here](https://developer.hashicorp.com/terraform/cloud-docs/policy-enforcement/opa).
 ---
-Policies are rules that Terraform Cloud enforces on runs.
-You use the Rego policy language to write policies for the
-Open Policy Agent (OPA) framework.
 
+Policies are rules that Terraform Cloud enforces on runs. You use the Rego
+policy language to write policies for the Open Policy Agent (OPA) framework.

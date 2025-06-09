@@ -70,8 +70,6 @@ const (
 	AuthenticationTLS
 )
 
-var supportedTLSVersions = []uint16{tls.VersionTLS10, tls.VersionTLS11, tls.VersionTLS12, tls.VersionTLS13}
-
 // AuthorizationScheme enumerates the supported authorization schemes. The authorization
 // scheme determines how access to OPA is controlled.
 type AuthorizationScheme int
@@ -82,10 +80,10 @@ const (
 	AuthorizationBasic
 )
 
-const defaultMinTLSVersion = tls.VersionTLS12
-
-// Set of handlers for use in the "handler" dimension of the duration metric.
 const (
+	defaultMinTLSVersion = tls.VersionTLS12
+
+	// Set of handlers for use in the "handler" dimension of the duration metric.
 	PromHandlerV0Data     = "v0/data"
 	PromHandlerV1Data     = "v1/data"
 	PromHandlerV1Query    = "v1/query"
@@ -97,15 +95,17 @@ const (
 	PromHandlerCatch      = "catchall"
 	PromHandlerHealth     = "health"
 	PromHandlerAPIAuthz   = "authz"
+
+	pqMaxCacheSize = 100
+
+	// OpenTelemetry attributes
+	otelDecisionIDAttr = "opa.decision_id"
 )
 
-const pqMaxCacheSize = 100
-
-// OpenTelemetry attributes
-const otelDecisionIDAttr = "opa.decision_id"
-
-// map of unsafe builtins
-var unsafeBuiltinsMap = map[string]struct{}{ast.HTTPSend.Name: {}}
+var (
+	supportedTLSVersions = []uint16{tls.VersionTLS10, tls.VersionTLS11, tls.VersionTLS12, tls.VersionTLS13}
+	unsafeBuiltinsMap    = map[string]struct{}{ast.HTTPSend.Name: {}}
+)
 
 // Server represents an instance of OPA running in server mode.
 type Server struct {
@@ -1170,9 +1170,9 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 
 func (s *Server) getCachedPreparedEvalQuery(key string, m metrics.Metrics) (*rego.PreparedEvalQuery, bool) {
 	pq, ok := s.preparedEvalQueries.Get(key)
-	m.Counter(metrics.ServerQueryCacheHit) // Creates the counter on the metrics if it doesn't exist, starts at 0
+	counter := m.Counter(metrics.ServerQueryCacheHit) // Creates the counter on m if it doesn't exist, starts at 0
 	if ok {
-		m.Counter(metrics.ServerQueryCacheHit).Incr() // Increment counter on hit
+		counter.Incr() // Increment counter on hit
 		return pq.(*rego.PreparedEvalQuery), true
 	}
 	return nil, false
@@ -1362,7 +1362,7 @@ func writeHealthResponse(w http.ResponseWriter, err error) {
 
 func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	explainMode := getExplain(r.URL.Query()[types.ParamExplainV1], types.ExplainOffV1)
+	explainMode := getExplain(r.URL, types.ExplainOffV1)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
 	m := metrics.New()
@@ -1461,7 +1461,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	urlPath := vars["path"]
-	explainMode := getExplain(r.URL.Query()["explain"], types.ExplainOffV1)
+	explainMode := getExplain(r.URL, types.ExplainOffV1)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 	provenance := getBoolParam(r.URL, types.ParamProvenanceV1, true)
 	strictBuiltinErrors := getBoolParam(r.URL, types.ParamStrictBuiltinErrors, true)
@@ -1617,7 +1617,6 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 	m := metrics.New()
 	m.Timer(metrics.ServerHandler).Start()
-	defer m.Timer(metrics.ServerHandler).Stop()
 
 	ctx := r.Context()
 	vars := mux.Vars(r)
@@ -1667,6 +1666,8 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	m.Timer(metrics.ServerHandler).Stop()
+
 	if includeMetrics(r) {
 		result := types.DataResponseV1{
 			Metrics: m.All(),
@@ -1679,19 +1680,12 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
-	m := metrics.New()
+	m := s.getMetrics(r)
 	m.Timer(metrics.ServerHandler).Start()
 
 	decisionID := s.generateDecisionID()
 	ctx := logging.WithDecisionID(r.Context(), decisionID)
 	annotateSpan(ctx, decisionID)
-
-	vars := mux.Vars(r)
-	urlPath := vars["path"]
-	explainMode := getExplain(r.URL.Query()[types.ParamExplainV1], types.ExplainOffV1)
-	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
-	provenance := getBoolParam(r.URL, types.ParamProvenanceV1, true)
-	strictBuiltinErrors := getBoolParam(r.URL, types.ParamStrictBuiltinErrors, true)
 
 	m.Timer(metrics.RegoInputParse).Start()
 
@@ -1711,28 +1705,41 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	defer s.store.Abort(ctx, txn)
 
-	br, err := getRevisions(ctx, s.store, txn)
-	if err != nil {
-		writer.ErrorAuto(w, err)
-		return
+	provenance := getBoolParam(r.URL, types.ParamProvenanceV1, true)
+
+	var logger decisionLogger
+	var br bundleRevisions
+
+	if s.logger != nil || provenance {
+		br, err = getRevisions(ctx, s.store, txn)
+		if err != nil {
+			writer.ErrorAuto(w, err)
+			return
+		}
+		if s.logger != nil {
+			logger = s.getDecisionLogger(br)
+		}
 	}
 
-	logger := s.getDecisionLogger(br)
+	var buf *topdown.BufferTracer
+
+	explainMode := getExplain(r.URL, types.ExplainOffV1)
+	if explainMode != types.ExplainOffV1 {
+		buf = topdown.NewBufferTracer()
+	}
 
 	var ndbCache builtins.NDBCache
 	if s.ndbCacheEnabled {
 		ndbCache = builtins.NDBCache{}
 	}
 
-	var buf *topdown.BufferTracer
-
-	if explainMode != types.ExplainOffV1 {
-		buf = topdown.NewBufferTracer()
-	}
+	urlPath := mux.Vars(r)["path"]
+	strictBuiltinErrors := getBoolParam(r.URL, types.ParamStrictBuiltinErrors, true)
+	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
 	pqID := "v1DataPost::"
 	if strictBuiltinErrors {
-		pqID += "strict-builtin-errors::"
+		pqID = "v1DataPost::strict-builtin-errors::"
 	}
 	pqID += urlPath
 	preparedQuery, ok := s.getCachedPreparedEvalQuery(pqID, m)
@@ -1767,7 +1774,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		s.preparedEvalQueries.Insert(pqID, preparedQuery)
 	}
 
-	evalOpts := []rego.EvalOption{
+	rs, err := preparedQuery.Eval(ctx,
 		rego.EvalTransaction(txn),
 		rego.EvalParsedInput(input),
 		rego.EvalMetrics(m),
@@ -1776,11 +1783,6 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		rego.EvalInterQueryBuiltinValueCache(s.interQueryBuiltinValueCache),
 		rego.EvalInstrument(includeInstrumentation),
 		rego.EvalNDBuiltinCache(ndbCache),
-	}
-
-	rs, err := preparedQuery.Eval(
-		ctx,
-		evalOpts...,
 	)
 
 	m.Timer(metrics.ServerHandler).Stop()
@@ -1800,7 +1802,8 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		result.Warning = types.NewWarning(types.CodeAPIUsageWarn, types.MsgInputKeyMissing)
 	}
 
-	if includeMetrics(r) || includeInstrumentation {
+	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
+	if includeMetrics || includeInstrumentation {
 		result.Metrics = m.All()
 	}
 
@@ -1810,14 +1813,12 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	if len(rs) == 0 {
 		if explainMode == types.ExplainFullV1 {
-			result.Explanation, err = types.NewTraceV1(lineage.Full(*buf), pretty(r))
-			if err != nil {
+			if result.Explanation, err = types.NewTraceV1(lineage.Full(*buf), pretty(r)); err != nil {
 				writer.ErrorAuto(w, err)
 				return
 			}
 		}
-		err = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, nil, m)
-		if err != nil {
+		if err = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, nil, m); err != nil {
 			writer.ErrorAuto(w, err)
 			return
 		}
@@ -1841,7 +1842,6 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 	m := metrics.New()
 	m.Timer(metrics.ServerHandler).Start()
-	defer m.Timer(metrics.ServerHandler).Stop()
 
 	ctx := r.Context()
 	vars := mux.Vars(r)
@@ -1907,6 +1907,8 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	m.Timer(metrics.ServerHandler).Stop()
+
 	if includeMetrics(r) {
 		result := types.DataResponseV1{
 			Metrics: m.All(),
@@ -1921,7 +1923,6 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 func (s *Server) v1DataDelete(w http.ResponseWriter, r *http.Request) {
 	m := metrics.New()
 	m.Timer(metrics.ServerHandler).Start()
-	defer m.Timer(metrics.ServerHandler).Stop()
 
 	ctx := r.Context()
 	vars := mux.Vars(r)
@@ -1960,6 +1961,8 @@ func (s *Server) v1DataDelete(w http.ResponseWriter, r *http.Request) {
 		writer.ErrorAuto(w, err)
 		return
 	}
+
+	m.Timer(metrics.ServerHandler).Stop()
 
 	if includeMetrics(r) {
 		result := types.DataResponseV1{
@@ -2258,7 +2261,7 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	explainMode := getExplain(r.URL.Query()["explain"], types.ExplainOffV1)
+	explainMode := getExplain(r.URL, types.ExplainOffV1)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
 	params := storage.TransactionParams{Context: storage.NewContext().WithMetrics(m)}
@@ -2317,7 +2320,7 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pretty := pretty(r)
-	explainMode := getExplain(r.URL.Query()["explain"], types.ExplainOffV1)
+	explainMode := getExplain(r.URL, types.ExplainOffV1)
 	includeMetrics := includeMetrics(r)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
@@ -2414,6 +2417,17 @@ func (s *Server) checkPolicyPackageScope(ctx context.Context, txn storage.Transa
 	}
 
 	return s.checkPathScope(ctx, txn, spath)
+}
+
+func (s *Server) getMetrics(r *http.Request) metrics.Metrics {
+	metricsInQuery := getBoolParam(r.URL, types.ParamMetricsV1, true)
+	instrumentationInQuery := getBoolParam(r.URL, types.ParamInstrumentV1, true)
+
+	if s.logger == nil && !metricsInQuery && !instrumentationInQuery {
+		return metrics.NoOp()
+	}
+
+	return metrics.New()
 }
 
 func (s *Server) checkPathScope(ctx context.Context, txn storage.Transaction, path storage.Path) error {
@@ -2763,6 +2777,9 @@ func validateQuery(query string, opts ast.ParserOptions) (ast.Body, error) {
 }
 
 func getBoolParam(url *url.URL, name string, ifEmpty bool) bool {
+	if url.RawQuery == "" {
+		return false
+	}
 
 	p, ok := url.Query()[name]
 	if !ok {
@@ -2800,8 +2817,12 @@ func getStringSliceParam(url *url.URL, name string) []string {
 	return p
 }
 
-func getExplain(p []string, zero types.ExplainModeV1) types.ExplainModeV1 {
-	for _, x := range p {
+func getExplain(url *url.URL, zero types.ExplainModeV1) types.ExplainModeV1 {
+	if url.RawQuery == "" {
+		return zero
+	}
+
+	for _, x := range url.Query()[types.ParamExplainV1] {
 		switch x {
 		case string(types.ExplainNotesV1):
 			return types.ExplainNotesV1
@@ -2986,7 +3007,7 @@ function query() {
 		'method': 'POST',
 		'body': body,
 	}
-	fetch(new Request('/v1/query', opts))
+	fetch(new Request('v1/query', opts))
 		.then(resp => resp.json())
 		.then(json => {
 			str = JSON.stringify(json, null, 2);
@@ -3028,7 +3049,21 @@ type decisionLogger struct {
 	logger    func(context.Context, *Info) error
 }
 
-func (l decisionLogger) Log(ctx context.Context, txn storage.Transaction, path string, query string, goInput *any, astInput ast.Value, goResults *any, ndbCache builtins.NDBCache, err error, m metrics.Metrics) error {
+func (l decisionLogger) Log(
+	ctx context.Context,
+	txn storage.Transaction,
+	path string,
+	query string,
+	goInput *any,
+	astInput ast.Value,
+	goResults *any,
+	ndbCache builtins.NDBCache,
+	err error,
+	m metrics.Metrics,
+) error {
+	if l.logger == nil {
+		return nil
+	}
 
 	bundles := map[string]BundleInfo{}
 	for name, rev := range l.revisions {
@@ -3080,10 +3115,8 @@ func (l decisionLogger) Log(ctx context.Context, txn storage.Transaction, path s
 		info.SpanID = sctx.SpanID().String()
 	}
 
-	if l.logger != nil {
-		if err := l.logger(ctx, info); err != nil {
-			return fmt.Errorf("decision_logs: %w", err)
-		}
+	if err := l.logger(ctx, info); err != nil {
+		return fmt.Errorf("decision_logs: %w", err)
 	}
 
 	return nil
@@ -3107,11 +3140,9 @@ func parseURL(s string, useHTTPSByDefault bool) (*url.URL, error) {
 }
 
 func annotateSpan(ctx context.Context, decisionID string) {
-	if decisionID == "" {
-		return
+	if decisionID != "" {
+		trace.SpanFromContext(ctx).SetAttributes(attribute.String(otelDecisionIDAttr, decisionID))
 	}
-	trace.SpanFromContext(ctx).
-		SetAttributes(attribute.String(otelDecisionIDAttr, decisionID))
 }
 
 func pretty(r *http.Request) bool {

@@ -4,6 +4,7 @@ import Layout from "@theme/Layout";
 import React from "react";
 
 import Card from "../../components/Card";
+import CardGrid from "../../components/CardGrid";
 
 const communityData = {
   title: "Community",
@@ -14,7 +15,7 @@ const communityData = {
   Leverage this list of community resources to maximize the value OPA can provide!`,
   sections: [
     {
-      title: "Community Discussions",
+      title: "Discuss OPA",
       items: [
         {
           title: "OPA Slack",
@@ -57,7 +58,7 @@ Rego files, implementing OPA, or share the configurations you are working on.`,
       ],
     },
     {
-      title: "Learn",
+      title: "Learning Resources",
       items: [
         {
           title: "Styra Academy",
@@ -80,11 +81,11 @@ Rego files, implementing OPA, or share the configurations you are working on.`,
 
 function Section({ section }) {
   return (
-    <div style={{ marginBottom: 40 }}>
+    <div style={{ marginBottom: "2rem" }}>
       <Heading as="h2">{section.title}</Heading>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 20 }}>
+      <CardGrid justifyContent="left">
         {section.items.map((item, idx) => <Card key={idx} item={item} />)}
-      </div>
+      </CardGrid>
     </div>
   );
 }

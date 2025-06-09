@@ -21,10 +21,10 @@ evaluation, policy coverage, and more.
 
 :::info
 **Your editor missing? Built a Rego integration for your editor?** Drop us a
-message on [Slack](https://inviter.co/opa)
+message on [Slack](https://slack.openpolicyagent.org)
 We also have our [Ecosystem page](/ecosystem/). This is a great place to
 showcase your project. See
-[these instructions](https://github.com/open-policy-agent/opa/tree/main/docs#opa-ecosystem)
+[these instructions](./contrib-docs#opa-ecosystem-additions)
 to get it listed.
 :::
 

@@ -6,8 +6,11 @@ labels:
 software:
 - pomerium
 blogs:
-- https://www.pomerium.io/posts/2020/04/16/release-0-7/
+- https://github.com/pomerium/pomerium/releases/tag/v0.7.0
+tutorials:
+- https://www.pomerium.com/docs/capabilities/authorization#rego-policies
 code:
 - https://github.com/pomerium/pomerium
 ---
-Pomerium is an identity-aware proxy that enables secure access to internal applications.  OPA implements authorization under the hood.
+
+Pomerium is an identity-aware proxy that enables secure access to internal applications. OPA implements authorization under the hood.

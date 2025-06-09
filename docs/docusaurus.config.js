@@ -44,11 +44,16 @@ const baseUrl = "/";
       ],
     ],
 
+    markdown: {
+      mermaid: true,
+    },
+    themes: ["@docusaurus/theme-mermaid"],
+
     themeConfig: {
       colorMode: {
-        disableSwitch: true,
-        // TODO: our graphics need an update to support this
-        respectPrefersColorScheme: false,
+        defaultMode: "light",
+        disableSwitch: false,
+        respectPrefersColorScheme: true,
       },
       metadata: [
         { name: "msapplication-TileColor", content: "#2b5797" },
@@ -109,13 +114,26 @@ const baseUrl = "/";
           src: "img/nav/logo.png",
         },
         items: [
+          {
+            // Based on implementation outlined here:
+            // https://github.com/facebook/docusaurus/issues/7227#issue-1212117180
+            type: "custom-currentVersionNavbarItem",
+            position: "left",
+          },
           { to: "/docs/", label: "Docs", position: "right" },
+          {
+            type: "dropdown",
+            label: "Resources",
+            position: "right",
+            items: [
+              { to: "/security", label: "Security" },
+              { to: "/support", label: "Support" },
+              { to: "/community", label: "Community" },
+              { href: "https://blog.openpolicyagent.org/", label: "Blog" },
+            ],
+          },
           { to: "/ecosystem/", label: "Ecosystem", position: "right" },
-          { to: "/security", label: "Security", position: "right" },
-          { to: "/support", label: "Support", position: "right" },
-          { to: "/community", label: "Community", position: "right" },
           { href: "https://play.openpolicyagent.org/", label: "Play", position: "right" },
-          { href: "https://blog.openpolicyagent.org/", label: "Blog", position: "right" },
           {
             type: "html",
             position: "right",
@@ -124,7 +142,8 @@ const baseUrl = "/";
            target="_blank"
            rel="noopener noreferrer"
            aria-label="GitHub repository">
-          <img src="${baseUrl}img/nav/github.png" alt="GitHub" style="width: 24px; height: auto; margin-left: 8px;" />
+          <img src="${baseUrl}img/nav/github-light.svg" class="light-only" alt="GitHub" style="width: 24px; height: auto; margin-left: 8px;" />
+          <img src="${baseUrl}img/nav/github-dark.svg" class="dark-only" alt="GitHub" style="width: 24px; height: auto; margin-left: 8px;" />
         </a>
       `,
           },
@@ -136,7 +155,8 @@ const baseUrl = "/";
            target="_blank"
            rel="noopener noreferrer"
            aria-label="Slack community">
-          <img src="${baseUrl}img/nav/slack.png" alt="Slack" style="width: 24px; height: auto; margin-left: 8px;" />
+          <img src="${baseUrl}img/nav/slack-light.svg" class="light-only" alt="Slack" style="width: 24px; height: auto; margin-left: 8px;" />
+          <img src="${baseUrl}img/nav/slack-dark.svg" class="dark-only" alt="Slack" style="width: 24px; height: auto; margin-left: 8px;" />
         </a>
       `,
           },
@@ -148,7 +168,9 @@ const baseUrl = "/";
         copyright:
           `Open Policy Agent is a <a href="https://www.cncf.io/">Cloud Native Computing Foundation</a> Graduated project.
 
-<img src="${baseUrl}img/footer/cncf.svg" alt="CNCF Logo" style="max-width: 10rem; vertical-align: middle; margin: 0 10px;"><br />
+<img src="${baseUrl}img/footer/cncf-light.svg" alt="CNCF Logo" class="light-only" style="max-width: 10rem; vertical-align: middle; margin: 0 10px;">
+<img src="${baseUrl}img/footer/cncf-dark.svg" alt="CNCF Logo" class="dark-only" style="max-width: 10rem; vertical-align: middle; margin: 0 10px;">
+<br />
 
 © ${new Date().getFullYear()}
 Open Policy Agent contributors.
@@ -240,6 +262,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
             module: {
               rules: [
                 { test: /\.rego$/, use: "raw-loader" },
+                { test: /\.mermaid$/, use: "raw-loader" },
                 { test: /\.txt$/, use: "raw-loader" },
               ],
             },

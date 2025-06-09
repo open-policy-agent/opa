@@ -138,7 +138,7 @@ cases:
 
 The above test cases can be run separate from all other tests through: `go test ./topdown -v -run 'TestRego/v1/repeat'`
 
-See [test/cases/testdata/helloworld](https://github.com/open-policy-agent/opa/blob/main/test/cases/testdata/helloworld)
+See [test/cases/testdata/helloworld](https://github.com/open-policy-agent/opa/tree/main/v1/test/cases/testdata/v0/helloworld)
 for a more detailed example of how to implement tests for your built-in functions.
 
 :::info

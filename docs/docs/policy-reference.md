@@ -101,11 +101,6 @@ some [x, "b", z] in a_set
 
 ## Iteration
 
-```rego
-package example
-import future.keywords
-```
-
 ### Arrays
 
 ```rego
@@ -200,11 +195,6 @@ any_not_match if {
 ## Rules
 
 In the examples below `...` represents one or more conditions.
-
-```rego
-package example
-import future.keywords
-```
 
 ### Constants
 
