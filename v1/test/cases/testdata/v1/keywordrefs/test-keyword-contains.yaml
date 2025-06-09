@@ -1,0 +1,52 @@
+---
+cases:
+  - note: keywordrefs/contains keyword in package
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.contains.bar
+
+        baz := 42
+      - |
+        package foo
+        import data.foo.contains.bar
+        
+        p if {
+          bar.baz == 42
+          data.foo.contains.bar.baz == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/contains keyword in package, import alias
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.contains
+
+        bar := 42
+      - |
+        package foo
+        import data.foo.contains as my_if
+        
+        p if {
+          my_if.bar == 42
+          data.foo.contains.bar == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/contains keyword rule refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        
+        p if {
+          contains.foo == 1
+          foo.contains == 2
+        }
+        
+        contains.foo := 1
+        
+        foo.contains := 2
+    want_result:
+      - x: true

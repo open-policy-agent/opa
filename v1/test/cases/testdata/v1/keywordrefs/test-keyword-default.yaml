@@ -1,0 +1,52 @@
+---
+cases:
+  - note: keywordrefs/default keyword in package
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.default.bar
+
+        baz := 42
+      - |
+        package foo
+        import data.foo.default.bar
+        
+        p if {
+          bar.baz == 42
+          data.foo.default.bar.baz == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/default keyword in package, import alias
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.default
+
+        bar := 42
+      - |
+        package foo
+        import data.foo.default as my_if
+        
+        p if {
+          my_if.bar == 42
+          data.foo.default.bar == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/default keyword rule refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        
+        p if {
+          default.foo == 1
+          foo.default == 2
+        }
+        
+        default.foo := 1
+        
+        foo.default := 2
+    want_result:
+      - x: true

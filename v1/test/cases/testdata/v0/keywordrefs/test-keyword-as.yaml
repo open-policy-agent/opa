@@ -1,0 +1,52 @@
+---
+cases:
+  - note: keywordrefs/as keyword in package
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.as.bar
+
+        baz := 42
+      - |
+        package foo
+        import data.foo.as.bar
+        
+        p {
+          bar.baz == 42
+          data.foo.as.bar.baz == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/as keyword in package, import alias
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.as
+
+        bar := 42
+      - |
+        package foo
+        import data.foo.as as my_if
+        
+        p {
+          my_if.bar == 42
+          data.foo.as.bar == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/as keyword rule refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        
+        p {
+          as.foo == 1
+          foo.as == 2
+        }
+        
+        as.foo := 1
+        
+        foo.as := 2
+    want_result:
+      - x: true

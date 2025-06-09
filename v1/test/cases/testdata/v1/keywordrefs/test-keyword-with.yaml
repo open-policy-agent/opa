@@ -1,0 +1,52 @@
+---
+cases:
+  - note: keywordrefs/with keyword in package
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.with.bar
+
+        baz := 42
+      - |
+        package foo
+        import data.foo.with.bar
+        
+        p if {
+          bar.baz == 42
+          data.foo.with.bar.baz == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/with keyword in package, import alias
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.with
+
+        bar := 42
+      - |
+        package foo
+        import data.foo.with as my_if
+        
+        p if {
+          my_if.bar == 42
+          data.foo.with.bar == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/with keyword rule refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        
+        p if {
+          with.foo == 1
+          foo.with == 2
+        }
+        
+        with.foo := 1
+        
+        foo.with := 2
+    want_result:
+      - x: true

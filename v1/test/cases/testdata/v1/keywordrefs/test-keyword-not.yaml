@@ -1,0 +1,52 @@
+---
+cases:
+  - note: keywordrefs/not keyword in package
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.not.bar
+
+        baz := 42
+      - |
+        package foo
+        import data.foo.not.bar
+        
+        p if {
+          bar.baz == 42
+          data.foo.not.bar.baz == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/not keyword in package, import alias
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.not
+
+        bar := 42
+      - |
+        package foo
+        import data.foo.not as my_if
+        
+        p if {
+          my_if.bar == 42
+          data.foo.not.bar == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/not keyword rule refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        
+        p if {
+          not.foo == 1
+          foo.not == 2
+        }
+        
+        not.foo := 1
+        
+        foo.not := 2
+    want_result:
+      - x: true
