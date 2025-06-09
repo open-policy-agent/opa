@@ -320,7 +320,9 @@ output := input.networks
 <RunSnippet files="#input.json" command="data.servers.output"/>
 
 One option would be to test each network in the input (which is undefined since
-networks 1 and 2 are not public):
+networks 1 and 2 are not public). Incremental definitions of a rule are
+[OR'd together](#logical-or) so if any are true, the result of the whole rule is
+true.
 
 ```rego
 package servers
