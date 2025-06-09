@@ -5381,6 +5381,14 @@ func (f *fixture) executeRequestForHandler(h http.Handler, req *http.Request, co
 		return fmt.Errorf("Expected code %v from %v %v but got: %+v", code, req.Method, req.URL, f.recorder)
 	}
 	if resp != "" {
+		body := f.recorder.Body.String()
+		if resp == body {
+			// Early return on exact match as we can avoid the cost of uunmarshalling
+			// both the expected and actual response in that case. This is particularly
+			// useful for benchmarks where you only want to measure server-sider handling.
+			return nil
+		}
+
 		var result any
 		if err := util.UnmarshalJSON(f.recorder.Body.Bytes(), &result); err != nil {
 			return fmt.Errorf("Expected JSON response from %v %v but got: %v", req.Method, req.URL, f.recorder)

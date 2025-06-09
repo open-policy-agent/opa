@@ -66,9 +66,17 @@ type metrics struct {
 
 // New returns a new Metrics object.
 func New() Metrics {
-	m := &metrics{}
-	m.Clear()
-	return m
+	return &metrics{
+		timers:     map[string]Timer{},
+		histograms: map[string]Histogram{},
+		counters:   map[string]Counter{},
+	}
+}
+
+// NoOp returns a Metrics implementation that does nothing and costs nothing.
+// Used when metrics are expected, but not of interest.
+func NoOp() Metrics {
+	return noOpMetricsInstance
 }
 
 type metric struct {
@@ -319,3 +327,38 @@ func Statistics(num ...int64) any {
 	}
 	return t.Value()
 }
+
+type noOpMetrics struct{}
+type noOpTimer struct{}
+type noOpHistogram struct{}
+type noOpCounter struct{}
+
+var (
+	noOpMetricsInstance   = &noOpMetrics{}
+	noOpTimerInstance     = &noOpTimer{}
+	noOpHistogramInstance = &noOpHistogram{}
+	noOpCounterInstance   = &noOpCounter{}
+)
+
+func (*noOpMetrics) Info() Info                      { return Info{Name: "<built-in no-op>"} }
+func (*noOpMetrics) Timer(name string) Timer         { return noOpTimerInstance }
+func (*noOpMetrics) Histogram(name string) Histogram { return noOpHistogramInstance }
+func (*noOpMetrics) Counter(name string) Counter     { return noOpCounterInstance }
+func (*noOpMetrics) All() map[string]any             { return nil }
+func (*noOpMetrics) Clear()                          {}
+func (*noOpMetrics) MarshalJSON() ([]byte, error) {
+	return []byte(`{"name": "<built-in no-op>"}`), nil
+}
+
+func (*noOpTimer) Start()       {}
+func (*noOpTimer) Stop() int64  { return 0 }
+func (*noOpTimer) Value() any   { return 0 }
+func (*noOpTimer) Int64() int64 { return 0 }
+
+func (*noOpHistogram) Update(v int64) {}
+func (*noOpHistogram) Value() any     { return nil }
+
+func (*noOpCounter) Incr()        {}
+func (*noOpCounter) Add(_ uint64) {}
+func (*noOpCounter) Value() any   { return 0 }
+func (*noOpCounter) Int64() int64 { return 0 }

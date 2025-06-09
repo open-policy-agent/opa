@@ -99,7 +99,9 @@ func (b *BundleInfoV1) AST() ast.Value {
 // mask policy to the event.
 func (e *EventV1) AST() (ast.Value, error) {
 	var err error
-	event := ast.NewObject()
+	event := ast.NewObject(
+		ast.Item(ast.InternedStringTerm("decision_id"), ast.StringTerm(e.DecisionID)),
+	)
 
 	if e.Labels != nil {
 		labelsObj := ast.NewObject()
@@ -110,8 +112,6 @@ func (e *EventV1) AST() (ast.Value, error) {
 	} else {
 		event.Insert(ast.InternedStringTerm("labels"), ast.NullTerm())
 	}
-
-	event.Insert(ast.InternedStringTerm("decision_id"), ast.StringTerm(e.DecisionID))
 
 	if len(e.Revision) > 0 {
 		event.Insert(ast.InternedStringTerm("revision"), ast.StringTerm(e.Revision))
@@ -133,12 +133,12 @@ func (e *EventV1) AST() (ast.Value, error) {
 		event.Insert(ast.InternedStringTerm("query"), ast.StringTerm(e.Query))
 	}
 
-	if e.Input != nil {
-		if e.inputAST == nil {
-			e.inputAST, err = roundtripJSONToAST(e.Input)
-			if err != nil {
-				return nil, err
-			}
+	if e.inputAST != nil {
+		event.Insert(ast.InternedStringTerm("input"), ast.NewTerm(e.inputAST))
+	} else if e.Input != nil {
+		e.inputAST, err = roundtripJSONToAST(e.Input)
+		if err != nil {
+			return nil, err
 		}
 		event.Insert(ast.InternedStringTerm("input"), ast.NewTerm(e.inputAST))
 	}

@@ -158,6 +158,8 @@ func (h *Basic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	writer.Error(w, http.StatusUnauthorized, types.NewErrorV1(types.CodeUnauthorized, types.MsgUnauthorizedError))
 }
 
+var emptyQuery = url.Values{}
+
 func makeInput(r *http.Request) (*http.Request, any, error) {
 	path, err := parsePath(r.URL.Path)
 	if err != nil {
@@ -165,7 +167,11 @@ func makeInput(r *http.Request) (*http.Request, any, error) {
 	}
 
 	method := strings.ToUpper(r.Method)
-	query := r.URL.Query()
+
+	var query = emptyQuery
+	if r.URL.RawQuery != "" {
+		query = r.URL.Query()
+	}
 
 	var rawBody []byte
 
