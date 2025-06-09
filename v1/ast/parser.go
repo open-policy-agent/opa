@@ -746,7 +746,7 @@ func scanIdentIgnoreKeywords(p *Parser) bool {
 	return true
 }
 
-func scanAheadRef(p *Parser) {
+func scanAheadRef(p *Parser) bool {
 	if isKeywordInRegoVersion(p.s.tok, p.po.EffectiveRegoVersion()) {
 		// scan ahead to check if we're parsing a ref
 		s := p.save()
@@ -756,8 +756,11 @@ func scanAheadRef(p *Parser) {
 
 		if tok == tokens.Dot || tok == tokens.LBrack {
 			p.s.tok = tokens.Ident
+			return true
 		}
 	}
+
+	return false
 }
 
 func (p *Parser) parseRules() []*Rule {
@@ -766,12 +769,12 @@ func (p *Parser) parseRules() []*Rule {
 	rule.SetLoc(p.s.Loc())
 
 	// This allows keywords in the first var term of the ref
-	scanAheadRef(p)
+	_ = scanAheadRef(p)
 
 	if p.s.tok == tokens.Default {
 		p.scan()
 		rule.Default = true
-		scanAheadRef(p)
+		_ = scanAheadRef(p)
 	}
 
 	if p.s.tok != tokens.Ident {
@@ -885,17 +888,20 @@ func (p *Parser) parseRules() []*Rule {
 	}
 
 	if p.s.tok == tokens.Else {
-		if r := rule.Head.Ref(); len(r) > 1 && !r.IsGround() {
-			p.error(p.s.Loc(), "else keyword cannot be used on rules with variables in head")
-			return nil
-		}
-		if rule.Head.Key != nil {
-			p.error(p.s.Loc(), "else keyword cannot be used on multi-value rules")
-			return nil
-		}
+		// This might just be a refhead rule with a leading 'else' term.
+		if !scanAheadRef(p) {
+			if r := rule.Head.Ref(); len(r) > 1 && !r.IsGround() {
+				p.error(p.s.Loc(), "else keyword cannot be used on rules with variables in head")
+				return nil
+			}
+			if rule.Head.Key != nil {
+				p.error(p.s.Loc(), "else keyword cannot be used on multi-value rules")
+				return nil
+			}
 
-		if rule.Else = p.parseElse(rule.Head); rule.Else == nil {
-			return nil
+			if rule.Else = p.parseElse(rule.Head); rule.Else == nil {
+				return nil
+			}
 		}
 	}
 
