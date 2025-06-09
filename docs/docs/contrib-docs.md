@@ -127,6 +127,22 @@ Reach out in the
 [#contributors](https://openpolicyagent.slack.com/archives/C02L1TLPN59)
 channel on the [OPA Slack](https://slack.openpolicyagent.org/) to ask for help.
 
+## OPA Ecosystem Additions
+
+The [OPA Ecosystem](/ecosystem/) is a showcase of projects that are built with
+or integrated with OPA. If you have a project that you would like to showcase,
+please open a PR with two files:
+
+- A markdown file in [docs/src/data/ecosystem/entries](https://github.com/open-policy-agent/opa/blob/main/docs/src/data/ecosystem/entries)
+- An icon file in [docs/static/img/ecosystem-entry-logos](https://github.com/open-policy-agent/opa/blob/main/docs/static/img/ecosystem-entry-logos)
+
+Both files should have the same 'id', e.g. if your project is called `foobar`,
+then the markdown file should be named `foobar.md` and the icon file
+is named `foobar.{png|svg}`.
+
+You will need to restart the Docusaurus dev server to see the changes if
+previewing locally.
+
 ## Sub-project Documentation
 
 Documentation for the OPA sub-projects each have their own home. Check out their
