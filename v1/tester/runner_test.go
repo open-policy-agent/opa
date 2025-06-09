@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -569,6 +570,20 @@ func TestRunnerPrintOutput(t *testing.T) {
 		test_b if { false; print("B") }
 		test_c if { print("C"); false }
 		p.q.r.test_d if { print("D") }`,
+		"/test2.rego": `package test
+		import rego.v1
+
+		test_d if { print("D") }
+		test_e if { false; print("E") }
+		test_f if { print("F"); false }
+		p.q.r.test_g if { print("G") }`,
+		"/test3.rego": `package test
+		import rego.v1
+
+		test_h if { print("H") }
+		test_i if { false; print("I") }
+		test_j if { print("J"); false }
+		p.q.r.test_k if { print("K") }`,
 	}
 
 	ctx := context.Background()
@@ -587,25 +602,49 @@ func TestRunnerPrintOutput(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		var results []*tester.Result
-		for r := range ch {
-			results = append(results, r)
-		}
-
-		exp := map[string]string{
-			"test_a":       "A\n",
-			"test_b":       "",
-			"test_c":       "C\n",
-			"p.q.r.test_d": "D\n",
+		exp := map[string]map[string]string{
+			"test.rego": {
+				"test_a":       "A\n",
+				"test_b":       "",
+				"test_c":       "C\n",
+				"p.q.r.test_d": "D\n",
+			},
+			"test2.rego": {
+				"test_d":       "D\n",
+				"test_e":       "",
+				"test_f":       "F\n",
+				"p.q.r.test_g": "G\n",
+			},
+			"test3.rego": {
+				"test_h":       "H\n",
+				"test_i":       "",
+				"test_j":       "J\n",
+				"p.q.r.test_k": "K\n",
+			},
 		}
 
 		got := map[string]string{}
+		var lastFile string
+		for r := range ch {
+			if lastFile == "" {
+				lastFile = filepath.Base(r.Location.File)
+			} else if lastFile != filepath.Base(r.Location.File) {
+				// assert that all expected results for the file has been received
+				// the individual files could be out of order, but it has to be grouped by file
+				if !maps.Equal(exp[lastFile], got) {
+					t.Fatal("expected:", exp, "got:", got)
+				}
 
-		for _, tr := range results {
-			got[tr.Name] = string(tr.Output)
+				// clear got for the next file
+				got = map[string]string{}
+				lastFile = filepath.Base(r.Location.File)
+			}
+
+			got[r.Name] = string(r.Output)
 		}
 
-		if !maps.Equal(exp, got) {
+		// check the last file
+		if !maps.Equal(exp[lastFile], got) {
 			t.Fatal("expected:", exp, "got:", got)
 		}
 	})

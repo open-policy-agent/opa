@@ -214,7 +214,6 @@ func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runne
 				}
 			}
 			tr.Trace = filterTrace(&testParams, tr.Trace)
-
 			dup <- tr
 		}
 	}()
