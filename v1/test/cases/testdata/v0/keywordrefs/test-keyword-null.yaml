@@ -50,3 +50,62 @@ cases:
         foo.null := 2
     want_result:
       - x: true
+  - note: keywordrefs/null keyword rule refhead, else bodies
+    query: data.test.p = x
+    input:
+      x: 3
+    modules:
+      - |
+        package test
+
+        p {
+          null.foo.bar == 3
+          foo.bar.null == 6
+        }
+
+        null.foo.bar := 1 {
+          input.x == 1
+        } else := 2 {
+          input.x == 2
+        } else := 3
+
+        foo.bar.null := 4 {
+          input.x == 1
+        } else := 5 {
+          input.x == 2
+        } else := 6
+    want_result:
+      - x: true
+  - note: keywordrefs/null keyword rule refhead, partial set
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.contains
+
+        p {
+          null.foo.bar == {"a", "c"}
+          foo.bar.null == {"a", "c"}
+        }
+
+        null.foo.bar contains "a"
+
+        null.foo.bar contains "b" {
+          false
+        }
+
+        null.foo.bar contains "c" {
+          true
+        }
+
+        foo.bar.null contains "a"
+
+        foo.bar.null contains "b" {
+          false
+        }
+
+        foo.bar.null contains "c" {
+          true
+        }
+    want_result:
+      - x: true

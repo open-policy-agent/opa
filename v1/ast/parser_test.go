@@ -910,6 +910,34 @@ func TestRuleHeadsContainingKeywords_RegoV0(t *testing.T) {
 	}
 }
 
+func TestRefKeywordsEdgeCases(t *testing.T) {
+	t.Run("'in' kw first term in ref head rule following 'contains'", func(t *testing.T) {
+		input := `package test
+			foo contains "a"
+
+			in.bar contains "b" if {
+			  false
+			}`
+
+		exp := &Module{
+			Package: MustParsePackage("package test"),
+			Rules: []*Rule{
+				MustParseRule(`foo contains "a"`),
+				MustParseRule(`in.bar contains "b" if { false }`),
+			},
+		}
+
+		m, err := ParseModule("", input)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if !m.Equal(exp) {
+			t.Fatalf("expected module:\n\n%v\n\ngot:\n\n%v", exp, m)
+		}
+	})
+}
+
 func TestRuleBodyContainingRefKeywords(t *testing.T) {
 	for _, kw := range KeywordsForRegoVersion(RegoV1) {
 		t.Run(kw, func(t *testing.T) {

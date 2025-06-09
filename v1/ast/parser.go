@@ -1514,6 +1514,9 @@ func (p *Parser) parseTermIn(lhs *Term, keyVal bool, offset int) *Term {
 			}
 			p.restore(s)
 		}
+
+		_ = scanAheadRef(p)
+
 		if op := p.parseTermOpName(memberRef, tokens.In); op != nil {
 			if rhs := p.parseTermRelation(nil, p.s.loc.Offset); rhs != nil {
 				call := p.setLoc(CallTerm(op, lhs, rhs), lhs.Location, offset, p.s.lastEnd)

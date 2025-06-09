@@ -50,3 +50,62 @@ cases:
         foo.import := 2
     want_result:
       - x: true
+  - note: keywordrefs/import keyword rule refhead, else bodies
+    query: data.test.p = x
+    input:
+      x: 3
+    modules:
+      - |
+        package test
+
+        p {
+          import.foo.bar == 3
+          foo.bar.import == 6
+        }
+
+        import.foo.bar := 1 {
+          input.x == 1
+        } else := 2 {
+          input.x == 2
+        } else := 3
+
+        foo.bar.import := 4 {
+          input.x == 1
+        } else := 5 {
+          input.x == 2
+        } else := 6
+    want_result:
+      - x: true
+  - note: keywordrefs/import keyword rule refhead, partial set
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.contains
+
+        p {
+          import.foo.bar == {"a", "c"}
+          foo.bar.import == {"a", "c"}
+        }
+
+        import.foo.bar contains "a"
+
+        import.foo.bar contains "b" {
+          false
+        }
+
+        import.foo.bar contains "c" {
+          true
+        }
+
+        foo.bar.import contains "a"
+
+        foo.bar.import contains "b" {
+          false
+        }
+
+        foo.bar.import contains "c" {
+          true
+        }
+    want_result:
+      - x: true

@@ -50,3 +50,61 @@ cases:
         foo.as := 2
     want_result:
       - x: true
+  - note: keywordrefs/as keyword rule refhead, else bodies
+    query: data.test.p = x
+    input:
+      x: 3
+    modules:
+      - |
+        package test
+
+        p if {
+          as.foo == 3
+          foo.as == 6
+        }
+
+        as.foo := 1 if {
+          input.x == 1
+        } else := 2 if {
+          input.x == 2
+        } else := 3
+
+        foo.as := 4 if {
+          input.x == 1
+        } else := 5 if {
+          input.x == 2
+        } else := 6
+    want_result:
+      - x: true
+  - note: keywordrefs/as keyword rule refhead, partial set
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          as.foo == {"a", "c"}
+          foo.as == {"a", "c"}
+        }
+
+        as.foo contains "a"
+
+        as.foo contains "b" if {
+          false
+        }
+
+        as.foo contains "c" if {
+          true
+        }
+
+        foo.as contains "a"
+
+        foo.as contains "b" if {
+          false
+        }
+
+        foo.as contains "c" if {
+          true
+        }
+    want_result:
+      - x: true

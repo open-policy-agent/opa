@@ -50,3 +50,61 @@ cases:
         foo.default := 2
     want_result:
       - x: true
+  - note: keywordrefs/default keyword rule refhead, else bodies
+    query: data.test.p = x
+    input:
+      x: 3
+    modules:
+      - |
+        package test
+
+        p if {
+          default.foo == 3
+          foo.default == 6
+        }
+
+        default.foo := 1 if {
+          input.x == 1
+        } else := 2 if {
+          input.x == 2
+        } else := 3
+
+        foo.default := 4 if {
+          input.x == 1
+        } else := 5 if {
+          input.x == 2
+        } else := 6
+    want_result:
+      - x: true
+  - note: keywordrefs/default keyword rule refhead, partial set
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          default.foo == {"a", "c"}
+          foo.default == {"a", "c"}
+        }
+
+        default.foo contains "a"
+
+        default.foo contains "b" if {
+          false
+        }
+
+        default.foo contains "c" if {
+          true
+        }
+
+        foo.default contains "a"
+
+        foo.default contains "b" if {
+          false
+        }
+
+        foo.default contains "c" if {
+          true
+        }
+    want_result:
+      - x: true

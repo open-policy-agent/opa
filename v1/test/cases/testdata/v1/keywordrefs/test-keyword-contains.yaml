@@ -50,3 +50,61 @@ cases:
         foo.contains := 2
     want_result:
       - x: true
+  - note: keywordrefs/contains keyword rule refhead, else bodies
+    query: data.test.p = x
+    input:
+      x: 3
+    modules:
+      - |
+        package test
+
+        p if {
+          contains.foo == 3
+          foo.contains == 6
+        }
+
+        contains.foo := 1 if {
+          input.x == 1
+        } else := 2 if {
+          input.x == 2
+        } else := 3
+
+        foo.contains := 4 if {
+          input.x == 1
+        } else := 5 if {
+          input.x == 2
+        } else := 6
+    want_result:
+      - x: true
+  - note: keywordrefs/contains keyword rule refhead, partial set
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          contains.foo == {"a", "c"}
+          foo.contains == {"a", "c"}
+        }
+
+        contains.foo contains "a"
+
+        contains.foo contains "b" if {
+          false
+        }
+
+        contains.foo contains "c" if {
+          true
+        }
+
+        foo.contains contains "a"
+
+        foo.contains contains "b" if {
+          false
+        }
+
+        foo.contains contains "c" if {
+          true
+        }
+    want_result:
+      - x: true

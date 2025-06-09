@@ -50,3 +50,61 @@ cases:
         foo.not := 2
     want_result:
       - x: true
+  - note: keywordrefs/not keyword rule refhead, else bodies
+    query: data.test.p = x
+    input:
+      x: 3
+    modules:
+      - |
+        package test
+
+        p if {
+          not.foo == 3
+          foo.not == 6
+        }
+
+        not.foo := 1 if {
+          input.x == 1
+        } else := 2 if {
+          input.x == 2
+        } else := 3
+
+        foo.not := 4 if {
+          input.x == 1
+        } else := 5 if {
+          input.x == 2
+        } else := 6
+    want_result:
+      - x: true
+  - note: keywordrefs/not keyword rule refhead, partial set
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          not.foo == {"a", "c"}
+          foo.not == {"a", "c"}
+        }
+
+        not.foo contains "a"
+
+        not.foo contains "b" if {
+          false
+        }
+
+        not.foo contains "c" if {
+          true
+        }
+
+        foo.not contains "a"
+
+        foo.not contains "b" if {
+          false
+        }
+
+        foo.not contains "c" if {
+          true
+        }
+    want_result:
+      - x: true
