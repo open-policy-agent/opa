@@ -39,6 +39,12 @@ export default function FeedbackForm({ enablePopup = false }) {
     if (typeof window !== "undefined") {
       setUrl(window.location);
       setPath(window.location.pathname);
+
+      // Check if popup has been globally dismissed
+      const popupDismissed = localStorage.getItem("documentation-feedback-popup-dismissed");
+      if (popupDismissed) {
+        setPopupEnabled(false);
+      }
     }
   }, []);
 
@@ -200,36 +206,51 @@ export default function FeedbackForm({ enablePopup = false }) {
  * the feedback form and pre-select their feedback type. The popup is automatically
  * hidden when the feedback form comes into view.
  */
-const FloatingPopup = ({ onClose, onFeedbackSelect }) => (
-  <div className={styles.popup}>
-    <button
-      className={styles.closeButton}
-      onClick={onClose}
-      aria-label="Close feedback popup"
-    >
-      <Icon icon="mdi:close" size="24px" />
-    </button>
-    <div className={styles["popup-content"]}>
-      <p>How's this page?</p>
-      <div className={styles["popup-buttons"]}>
-        <button
-          type="button"
-          onClick={() => onFeedbackSelect("positive")}
-          className={`${styles.button} ${styles.positive}`}
-        >
-          <Icon icon="mdi:thumbs-up" size="24px" />
-        </button>
-        <button
-          type="button"
-          onClick={() => onFeedbackSelect("negative")}
-          className={`${styles.button} ${styles.negative}`}
-        >
-          <Icon icon="mdi:thumbs-down" size="24px" />
-        </button>
+const FloatingPopup = ({ onClose, onFeedbackSelect }) => {
+  const handleClose = () => {
+    // Set global flag to never show popup again
+    localStorage.setItem("documentation-feedback-popup-dismissed", "true");
+    onClose();
+  };
+
+  const handleFeedbackSelect = (type) => {
+    if (type === "negative") {
+      localStorage.setItem("documentation-feedback-popup-dismissed", "true");
+    }
+    onFeedbackSelect(type);
+  };
+
+  return (
+    <div className={styles.popup}>
+      <button
+        className={styles.closeButton}
+        onClick={handleClose}
+        aria-label="Close feedback popup"
+      >
+        <Icon icon="mdi:close" size="24px" />
+      </button>
+      <div className={styles["popup-content"]}>
+        <p>How's this page?</p>
+        <div className={styles["popup-buttons"]}>
+          <button
+            type="button"
+            onClick={() => handleFeedbackSelect("positive")}
+            className={`${styles.button} ${styles.positive}`}
+          >
+            <Icon icon="mdi:thumbs-up" size="24px" />
+          </button>
+          <button
+            type="button"
+            onClick={() => handleFeedbackSelect("negative")}
+            className={`${styles.button} ${styles.negative}`}
+          >
+            <Icon icon="mdi:thumbs-down" size="24px" />
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const Form = ({
   formName,
