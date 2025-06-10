@@ -330,13 +330,29 @@ The built-in functions for the language provide basic operations to manipulate
 scalar values (e.g. numbers and strings), and aggregate functions that summarize
 complex types.
 
-<BuiltinTable category="comparison" />
-<BuiltinTable category="numbers" />
-<BuiltinTable category="aggregates" />
-<BuiltinTable category="array" id="arrays-2" />
-<BuiltinTable category="sets" id="sets-2" />
+### Comparison
 
-<BuiltinTable category="object" title="objects">
+<BuiltinTable category="comparison" />
+
+### Numbers
+
+<BuiltinTable category="numbers" />
+
+### Aggregates
+
+<BuiltinTable category="aggregates" />
+
+### Arrays
+
+<BuiltinTable category="array" />
+
+### Sets
+
+<BuiltinTable category="sets" />
+
+### Objects
+
+<BuiltinTable category="object">
 - When `keys` are provided as an object only the top level keys on the object will be used, values are ignored.
   For example: `object.remove({"a": {"b": {"c": 2}}, "x": 123}, {"a": 1}) == {"x": 123}` regardless of the value
   for key `a` in the keys object, the following `keys` object gives the same result
@@ -352,6 +368,8 @@ complex types.
 
 </BuiltinTable>
 
+### Strings
+
 <BuiltinTable category="strings">
 
 :::info
@@ -362,7 +380,12 @@ accurately evaluate the underlying type.
 
 </BuiltinTable>
 
+### Regular Expressions
+
 <BuiltinTable category="regex"/>
+
+### Glob Matching
+
 <BuiltinTable category="glob">
 
 The following table shows examples of how `glob.match` works:
@@ -393,10 +416,24 @@ The following table shows examples of how `glob.match` works:
 
 </BuiltinTable>
 
-<BuiltinTable category="bits" title="bitwise" />
+### Bitwise Operations
+
+<BuiltinTable category="bits" />
+
+### Type Conversions
+
 <BuiltinTable category="conversions" />
+
+### Units
+
 <BuiltinTable category="units" />
+
+### Types
+
 <BuiltinTable category="types" />
+
+### Encoding
+
 <BuiltinTable category="encoding">
 
 The `json.marshal_with_options` builtin's `opts` parameter accepts the following properties:
@@ -414,7 +451,9 @@ Default values will be used if:
 
 </BuiltinTable>
 
-<BuiltinTable category="tokensign" title="Token Signing">
+### Token Signing
+
+<BuiltinTable category="tokensign">
 
 OPA provides two builtins that implement JSON Web Signature [RFC7515](https://tools.ietf.org/html/rfc7515) functionality.
 
@@ -455,14 +494,12 @@ This differs from the plain text secrets provided with the algorithm specific ve
 
 #### Token Signing Examples
 
-```rego
-package jwt
-```
-
 ##### Symmetric Key (HMAC with SHA-256)
 
 ```rego
-io.jwt.encode_sign({
+package jwt
+
+result := io.jwt.encode_sign({
     "typ": "JWT",
     "alg": "HS256"
 }, {
@@ -480,13 +517,14 @@ io.jwt.encode_sign({
 })
 ```
 
-```rego
-```
+<RunSnippet command="data.jwt"/>
 
 ##### Symmetric Key with empty JSON payload
 
 ```rego
-io.jwt.encode_sign({
+package jwt
+
+result := io.jwt.encode_sign({
     "typ": "JWT",
     "alg": "HS256"},
     {}, {
@@ -495,13 +533,14 @@ io.jwt.encode_sign({
 })
 ```
 
-```rego
-```
+<RunSnippet command="data.jwt"/>
 
 ##### RSA Key (RSA Signature with SHA-256)
 
 ```rego
-io.jwt.encode_sign({
+package jwt
+
+result := io.jwt.encode_sign({
     "alg": "RS256"
 }, {
     "iss": "joe",
@@ -526,8 +565,7 @@ io.jwt.encode_sign({
 })
 ```
 
-```rego
-```
+<RunSnippet command="data.jwt"/>
 
 ##### Raw Token Signing
 
@@ -536,19 +574,22 @@ If you need to generate the signature for a serialized token you an use the
 parameters.
 
 ```rego
-io.jwt.encode_sign_raw(
+package jwt
+
+result := io.jwt.encode_sign_raw(
     `{"typ":"JWT","alg":"HS256"}`,
      `{"iss":"joe","exp":1300819380,"http://example.com/is_root":true}`,
     `{"kty":"oct","k":"AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"}`
 )
 ```
 
-```rego
-```
+<RunSnippet command="data.jwt"/>
 
 </BuiltinTable>
 
-<BuiltinTable category="tokens" title="Token Verification">
+### Token Verification
+
+<BuiltinTable category="tokens">
 
 :::info
 Note that the `io.jwt.verify_XX` built-in methods verify **only** the signature. They **do not** provide any validation for the JWT
@@ -576,8 +617,12 @@ unrecognized constraints then the token is considered invalid.
 The examples below use the following token:
 
 ```rego
+package jwt
+
 es256_token := "eyJ0eXAiOiAiSldUIiwgImFsZyI6ICJFUzI1NiJ9.eyJuYmYiOiAxNDQ0NDc4NDAwLCAiaXNzIjogInh4eCJ9.lArczfN-pIL8oUU-7PU83u-zfXougXBZj6drFeKFsPEoVhy9WAyiZlRshYqjTSXdaw8yw2L-ovt4zTUZb2PWMg"
 ```
+
+<RunSnippet id="token.rego"/>
 
 ##### Using JWKS
 
@@ -586,6 +631,8 @@ further checks of the payload content. This approach gives more flexibility in v
 the claims that the policy needs to enforce.
 
 ```rego
+package jwt
+
 jwks := `{
     "keys": [{
         "kty":"EC",
@@ -596,14 +643,17 @@ jwks := `{
 }`
 ```
 
-```rego
-io.jwt.verify_es256(es256_token, jwks)                  # Verify the token with the JWKS
-[header, payload, _] := io.jwt.decode(es256_token)      # Decode the token
-payload.iss == "xxx"                                    # Ensure the issuer (`iss`) claim is the expected value
-```
+<RunSnippet id="jwks.rego"/>
 
 ```rego
+package jwt
+
+result.verify := io.jwt.verify_es256(es256_token, jwks) # Verify the token with the JWKS
+result.payload := io.jwt.decode(es256_token)            # Decode the token
+result.check := result.payload[1].iss == "xxx"          # Ensure the issuer (`iss`) claim is the expected value
 ```
+
+<RunSnippet files="#jwks.rego #token.rego" command="data.jwt"/>
 
 The next example shows doing the token signature verification, decoding, and content checks
 all in one call using `io.jwt.decode_verify`. Note that this gives less flexibility in validating
@@ -611,14 +661,17 @@ the payload content as **all** claims defined in the JWT spec are verified with 
 constraints.
 
 ```rego
-[valid, header, payload] := io.jwt.decode_verify(es256_token, {
-    "cert": jwks,
-    "iss": "xxx",
-})
+package jwt
+
+result := [valid, header, payload] if {
+  [valid, header, payload] := io.jwt.decode_verify(es256_token, {
+      "cert": jwks,
+      "iss": "xxx",
+  })
+}
 ```
 
-```rego
-```
+<RunSnippet files="#jwks.rego #token.rego" command="data.jwt"/>
 
 ##### Using PEM encoded X.509 Certificate
 
@@ -626,6 +679,8 @@ The following examples will demonstrate verifying tokens using an X.509 Certific
 defined as:
 
 ```rego
+package jwt
+
 cert := `-----BEGIN CERTIFICATE-----
 MIIBcDCCARagAwIBAgIJAMZmuGSIfvgzMAoGCCqGSM49BAMCMBMxETAPBgNVBAMM
 CHdoYXRldmVyMB4XDTE4MDgxMDE0Mjg1NFoXDTE4MDkwOTE0Mjg1NFowEzERMA8G
@@ -638,18 +693,21 @@ OHoCIHmNX37JOqTcTzGn2u9+c8NlnvZ0uDvsd1BmKPaUmjmm
 -----END CERTIFICATE-----`
 ```
 
+<RunSnippet id="cert.rego"/>
+
 This example shows a two-step process to verify the token signature and then decode it for
 further checks of the payload content. This approach gives more flexibility in verifying only
 the claims that the policy needs to enforce.
 
 ```rego
-io.jwt.verify_es256(es256_token, cert)                # Verify the token with the certificate
-[header, payload, _] := io.jwt.decode(es256_token)    # Decode the token
-payload.iss == "xxx"                                  # Ensure the issuer claim is the expected value
+package jwt
+
+result.verify := io.jwt.verify_es256(es256_token, cert) # Verify the token with the certificate
+result.payload := io.jwt.decode(es256_token)            # Decode the token
+result.check := result.payload[1].iss == "xxx"          # Ensure the issuer (`iss`) claim is the expected value
 ```
 
-```rego
-```
+<RunSnippet files="#token.rego #cert.rego" command="data.jwt"/>
 
 The next example shows doing the same token signature verification, decoding, and content checks
 but instead with a single call to `io.jwt.decode_verify`. Note that this gives less flexibility
@@ -657,17 +715,17 @@ in validating the payload content as **all** claims defined in the JWT spec are 
 provided constraints.
 
 ```rego
-[valid, header, payload] := io.jwt.decode_verify(     # Decode and verify in one-step
-    es256_token,
-    {                                                 # With the supplied constraints:
-        "cert": cert,                                 #   Verify the token with the certificate
-        "iss": "xxx",                                 #   Ensure the issuer claim is the expected value
-    }
-)
+package jwt
+
+result := [valid, header, payload] if {
+  [valid, header, payload] := io.jwt.decode_verify(es256_token, {
+      "cert": cert,
+      "iss": "xxx",
+  })
+}
 ```
 
-```rego
-```
+<RunSnippet files="#token.rego #cert.rego" command="data.jwt"/>
 
 ##### Round Trip - Sign and Verify
 
@@ -676,29 +734,26 @@ This example shows how to encode a token, verify, and decode it with the differe
 Start with using the `io.jwt.encode_sign_raw` built-in:
 
 ```rego
-```
+package jwt
 
-```rego
 raw_result_hs256 := io.jwt.encode_sign_raw(
     `{"alg":"HS256","typ":"JWT"}`,
     `{}`,
     `{"kty":"oct","k":"Zm9v"}`  	# "Zm9v" == base64url.encode_no_pad("foo")
 )
 
-# Important!! - Use the un-encoded plain text secret to verify and decode
+# Important! - Use the un-encoded plain text secret to verify and decode
 raw_result_valid_hs256 := io.jwt.verify_hs256(raw_result_hs256, "foo")
 raw_result_parts_hs256 := io.jwt.decode_verify(raw_result_hs256, {"secret": "foo"})
 ```
 
-```rego
-```
+<RunSnippet command="data.jwt"/>
 
 Now encode the and sign the same token contents but with `io.jwt.encode_sign` instead of the `raw` variant.
 
 ```rego
-```
+package jwt
 
-```rego
 result_hs256 := io.jwt.encode_sign(
     {
         "alg":"HS256",
@@ -711,13 +766,12 @@ result_hs256 := io.jwt.encode_sign(
     }
 )
 
-# Important!! - Use the un-encoded plain text secret to verify and decode
+# Important! - Use the un-encoded plain text secret to verify and decode
 result_parts_hs256 := io.jwt.decode_verify(result_hs256, {"secret": "foo"})
 result_valid_hs256 := io.jwt.verify_hs256(result_hs256, "foo")
 ```
 
-```rego
-```
+<RunSnippet command="data.jwt"/>
 
 :::info
 Note that the resulting encoded token is different from the first example using
@@ -728,6 +782,8 @@ in. The decoded and parsed JSON values are still the same.
 :::
 
 </BuiltinTable>
+
+### Time
 
 <BuiltinTable category="time">
 
@@ -784,9 +840,13 @@ result := time.parse_ns("2006-01-02", ts)
 
 </BuiltinTable>
 
-<BuiltinTable category="crypto" title="Cryptography"/>
+### Cryptography
 
-<BuiltinTable category="graph" title="Graphs">
+<BuiltinTable category="crypto"/>
+
+### Graphs
+
+<BuiltinTable category="graph">
 
 A common class of recursive rules can be reduced to a graph reachability
 problem, so `graph.reachable` is useful for more than just graph analysis.
@@ -813,14 +873,11 @@ org_chart_permissions[entity_name] := access if {
         reachable := graph.reachable(org_chart_graph, {entity_name})
         access := {item | reachable[k]; item := org_chart_data[k].access[_]}
 }
+
+result contains org_chart_permissions[entity_name]
 ```
 
-```rego
-org_chart_permissions[entity_name]
-```
-
-```rego
-```
+<RunSnippet command="data.graph_reachable_example.result"/>
 
 It may be useful to find all reachable paths from a root element. `graph.reachable_paths` can be used for this. Note that cyclical paths will terminate on the repeated node. If an element references a nonexistent element, the path will be terminated, and excludes the nonexistent node.
 
@@ -838,18 +895,17 @@ all_paths[root] := paths if {
         path_data[root]
         paths := graph.reachable_paths(path_data, {root})
 }
+
+result contains all_paths[entity_name]
 ```
 
-```rego
-all_paths[entity_name]
-```
-
-```rego
-```
+<RunSnippet command="data.graph_reachable_paths_example.result"/>
 
 </BuiltinTable>
 
-<BuiltinTable category="graphql" title="GraphQL">
+### GraphQL
+
+<BuiltinTable category="graphql">
 
 :::info
 Custom [GraphQL `@directive`](http://spec.graphql.org/October2021/#sec-Language.Directives) definitions defined by your GraphQL framework will need to be included manually as part of your GraphQL schema string in order for validation to work correctly on GraphQL queries using those directives.
@@ -887,7 +943,9 @@ p {
 
 </BuiltinTable>
 
-<BuiltinTable category="http" title="HTTP">
+### HTTP
+
+<BuiltinTable category="http">
 
 :::info
 Similar to other built-in functions, multiple calls to the `http.send` built-in function for a given request object
@@ -1003,7 +1061,9 @@ The table below shows examples of calling `http.send`:
 
 </BuiltinTable>
 
-<BuiltinTable category="providers.aws" title="AWS">
+### AWS
+
+<BuiltinTable category="providers.aws">
 
 The AWS Request Signing builtin in OPA implements the header-based auth,
 single-chunk method described in the [AWS SigV4 docs](https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html).
@@ -1109,6 +1169,8 @@ pre_signed_req := providers.aws.sign_req(req, aws_config, signing_time))
 
 </BuiltinTable>
 
+### Networking
+
 <BuiltinTable category="net">
 
 #### Notes on Name Resolution (`net.lookup_ip_addr`)
@@ -1135,50 +1197,55 @@ the match in `a` and the second tuple element refers to the match in `b`.
 | `set`      | `set` element |
 | `object`   | `object` key  |
 
-```rego
-package netcidrcontainsmatches
-```
-
 If both operands are string values the function is similar to `net.cidr_contains`.
 
 ```rego
-net.cidr_contains_matches("1.1.1.0/24", "1.1.1.128")
+package netcidrcontainsmatches
+
+result := net.cidr_contains_matches("1.1.1.0/24", "1.1.1.128")
 ```
 
-```rego
-```
+<RunSnippet command="data.netcidrcontainsmatches.result"/>
 
 Either (or both) operand(s) may be an array, set, or object.
 
 ```rego
-net.cidr_contains_matches(["1.1.1.0/24", "1.1.2.0/24"], "1.1.1.128")
+package netcidrcontainsmatches
+
+result := net.cidr_contains_matches(["1.1.1.0/24", "1.1.2.0/24"], "1.1.1.128")
 ```
 
-```rego
-```
+<RunSnippet command="data.netcidrcontainsmatches.result"/>
 
 The array/set/object elements may be arrays. In that case, the first element must be a valid CIDR/IP.
 
 ```rego
+package netcidrcontainsmatches
+
 net.cidr_contains_matches([["1.1.0.0/16", "foo"], "1.1.2.0/24"], ["1.1.1.128", ["1.1.254.254", "bar"]])
 ```
 
-```rego
-```
+<RunSnippet command="data.netcidrcontainsmatches.result"/>
 
 If the operand is a set, the outputs are matching elements. If the operand is an object, the outputs are matching keys.
 
 ```rego
-net.cidr_contains_matches({["1.1.0.0/16", "foo"], "1.1.2.0/24"}, {"x": "1.1.1.128", "y": ["1.1.254.254", "bar"]})
+package netcidrcontainsmatches
+
+result := net.cidr_contains_matches({["1.1.0.0/16", "foo"], "1.1.2.0/24"}, {"x": "1.1.1.128", "y": ["1.1.254.254", "bar"]})
 ```
 
-```rego
-```
+<RunSnippet command="data.netcidrcontainsmatches.result"/>
 
 </BuiltinTable>
 
-<BuiltinTable category="uuid" title="UUID"/>
-<BuiltinTable category="semver" title="Semantic Versions">
+### UUID
+
+<BuiltinTable category="uuid"/>
+
+### Semantic Versions
+
+<BuiltinTable category="semver">
 
 #### Example of `semver.is_valid`
 
@@ -1186,36 +1253,30 @@ The `result := semver.is_valid(vsn)` function checks to see if a version
 string is of the form: `MAJOR.MINOR.PATCH[-PRERELEASE][+METADATA]`, where
 items in square braces are optional elements.
 
+:::warning
 When working with Go-style semantic versions, remember to remove the
 leading `v` character, or the semver string will be marked as invalid!
+:::
 
 ```rego
 package semverisvalid
+
+leadingV := semver.is_valid("v1.1.12-rc1+foo")
+
+valid := semver.is_valid("1.1.12-rc1+foo")
 ```
 
-```rego
-semver.is_valid("v1.1.12-rc1+foo")
-```
-
-```rego
-```
-
-```rego
-semver.is_valid("1.1.12-rc1+foo")
-```
-
-```rego
-```
+<RunSnippet command="data.semverisvalid"/>
 
 </BuiltinTable>
+
+### Rego
 
 <BuiltinTable category="rego">
 
 #### Example
 
-Given the input document
-
-```rego
+```rego title="input.json"
 {
     "number": 11,
     "subject": {
@@ -1225,7 +1286,12 @@ Given the input document
 }
 ```
 
-the following policy
+<RunSnippet id="input.json"/>
+
+The following policy will deny the above input because:
+
+- the `number` is greater than 5
+- the `subject` does not have the `admin` role
 
 ```rego
 package example
@@ -1251,14 +1317,7 @@ deny contains format(rego.metadata.rule()) if {
 format(meta) := {"severity": meta.custom.severity, "reason": meta.description}
 ```
 
-will output
-
-```rego
-deny
-```
-
-```rego
-```
+<RunSnippet files="#input.json" command="data.example"/>
 
 #### Metadata Merge strategies
 
@@ -1332,7 +1391,9 @@ merge_annot(chain, name) := val if {
 
 </BuiltinTable>
 
-<BuiltinTable category="opa" title="OPA">
+### OPA
+
+<BuiltinTable category="opa">
 
 :::danger
 Policies that depend on the output of `opa.runtime` may return different answers depending on how OPA was started.
@@ -1341,9 +1402,9 @@ If possible, prefer using an explicit `input` or `data` value instead of `opa.ru
 
 ### Debugging
 
-| Built-in                                                | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Details                                               |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| <span class="opa-keep-it-together"> `print(...)`</span> | `print` is used to output the values of variables for debugging purposes. `print` calls have no effect on the result of queries or rules. All variables passed to `print` must be assigned inside of the query or rule. If any of the `print` arguments are undefined, their values are represented as `<undefined>` in the output stream. Because policies can be invoked via different interfaces (e.g., CLI, HTTP API, etc.) the exact output format differs. See the table below for details. | <span className="tag is-warning">SDK-dependent</span> |
+| Built-in     | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Details                                               |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `print(...)` | `print` is used to output the values of variables for debugging purposes. `print` calls have no effect on the result of queries or rules. All variables passed to `print` must be assigned inside of the query or rule. If any of the `print` arguments are undefined, their values are represented as `<undefined>` in the output stream. Because policies can be invoked via different interfaces (e.g., CLI, HTTP API, etc.) the exact output format differs. See the table below for details. | <span className="tag is-warning">SDK-dependent</span> |
 
 | API                   | Output      | Memo                                                                                                                                                                             |
 | --------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1354,6 +1415,8 @@ If possible, prefer using an explicit `input` or `data` value instead of `opa.ru
 | Go (library)          | `io.Writer` | [https://pkg.go.dev/github.com/open-policy-agent/opa/rego#example-Rego-Print_statements](https://pkg.go.dev/github.com/open-policy-agent/opa/rego#example-Rego-Print_statements) |
 
 </BuiltinTable>
+
+### Tracing
 
 <BuiltinTable category="tracing">
 

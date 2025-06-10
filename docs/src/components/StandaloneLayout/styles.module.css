@@ -1,0 +1,20 @@
+.container header+*,
+.container article>*:first-child {
+    margin-top: 0;
+}
+
+@media (min-width: 997px) {
+    .col {
+        max-width: 80%;
+        margin: 0 auto;
+    }
+}
+
+.container {
+    width: 100%;
+}
+
+.col {
+    display: flex;
+    justify-content: center;
+}

@@ -1,0 +1,173 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    max-width: 75rem;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+.heroContainer {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+    margin-top: 2rem;
+}
+
+.heroLeft {
+    flex: 1;
+    min-width: 20rem;
+}
+
+.heroContent {
+    padding: 2rem 0;
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.logo {
+    width: 70%;
+    margin-bottom: 1rem;
+    max-width: 30rem;
+}
+
+.subtitle {
+    font-weight: normal;
+    color: var(--ifm-font-color-secondary);
+    margin-top: 0;
+    font-size: 1.2rem;
+}
+
+.heroRight {
+    flex: 1.5;
+    min-width: 20rem;
+    padding: 0rem 1rem;
+}
+
+.logoContainer {
+    margin: 0 auto 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+    max-width: 55rem;
+    width: 100%;
+}
+
+.logoWrapper {
+    width: 6rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.companyLogo {
+    max-width: 80%;
+    max-height: 80%;
+}
+
+.createdBy {
+    text-align: center;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.styraContainer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    text-align: center;
+    margin-bottom: 0rem;
+}
+
+.styraLogo {
+    width: 6rem;
+}
+
+.maintainedBy {
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--ifm-font-color-secondary);
+    margin: 1rem auto;
+    max-width: 80%;
+}
+
+.featuresContainer {
+    display: flex;
+    gap: 2rem;
+    margin: 2rem auto;
+    width: 100%;
+    padding: 0 1rem;
+}
+
+@media (max-width: 996px) {
+    .featuresContainer {
+        flex-direction: column;
+    }
+}
+
+.featuresLeft {
+    flex: 0.9;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.featureItem {
+    display: grid;
+    grid-template-columns: 6rem 1fr;
+    gap: 1rem;
+    align-items: center;
+}
+
+.featureIcon {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.featureText {
+    margin: 0;
+}
+
+.videoContainer {
+    flex: 1.1;
+    width: 100%;
+}
+
+.videoBackground {
+    background-color: #e6f4ff;
+    padding: 2rem;
+    color: #003366;
+    border-radius: 1rem;
+}
+
+.videoWrapper {
+    position: relative;
+    width: 100%;
+    padding-bottom: 56.25%;
+    height: 0;
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+
+.video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: 0.2rem solid #003366;
+}
+
+.videoText {
+    text-align: center;
+    margin: 0 auto;
+}
+
+.contentSection {
+    margin: 0;
+}

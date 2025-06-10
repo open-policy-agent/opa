@@ -1,10 +1,10 @@
-import Link from "@docusaurus/Link";
-import Heading from "@theme/Heading";
-import Layout from "@theme/Layout";
 import React from "react";
+
+import Heading from "@theme/Heading";
 
 import Card from "../../components/Card";
 import CardGrid from "../../components/CardGrid";
+import StandaloneLayout from "../../components/StandaloneLayout";
 
 const vendors = [
   {
@@ -28,18 +28,19 @@ const vendors = [
 
 export default function Support() {
   return (
-    <Layout title="Support" description="Commercial Support Options for Open Policy Agent">
-      <div className="container margin-vert--lg">
-        <Heading as="h1">Open Policy Agent Support</Heading>
-        <p className="margin-bottom--lg">
-          Below is a list of companies that offer commercial support and other enterprise offerings for Open Policy
-          Agent.
-        </p>
+    <StandaloneLayout
+      title="Support"
+      description="Commercial Support Options for Open Policy Agent"
+    >
+      <Heading as="h1">Open Policy Agent Support</Heading>
+      <p className="margin-bottom--lg">
+        Below is a list of companies that offer commercial support and other enterprise offerings for Open Policy
+        Agent.
+      </p>
 
-        <CardGrid justifyContent="left">
-          {vendors.map((item, idx) => <Card key={idx} item={item} />)}
-        </CardGrid>
-      </div>
-    </Layout>
+      <CardGrid justifyCenter={false}>
+        {vendors.map((item, idx) => <Card key={idx} item={item} />)}
+      </CardGrid>
+    </StandaloneLayout>
   );
 }
