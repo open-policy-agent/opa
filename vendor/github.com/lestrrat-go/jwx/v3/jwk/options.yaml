@@ -1,0 +1,131 @@
+package_name: jwk
+output: jwk/options_gen.go
+interfaces:
+  - name: CacheOption
+    comment: |
+      CacheOption is a type of Option that can be passed to the
+      the `jwk.NewCache()` function.
+  - name: ResourceOption
+    comment: |
+      ResourceOption is a type of Option that can be passed to the `httprc.NewResource` function
+      by way of RegisterOption.
+  - name: AssignKeyIDOption
+  - name: FetchOption
+    methods:
+      - fetchOption
+      - parseOption
+      - registerOption
+    comment: |
+      FetchOption is a type of Option that can be passed to `jwk.Fetch()`
+      FetchOption also implements the `RegisterOption`, and thus can
+      safely be passed to `(*jwk.Cache).Register()`
+  - name: ParseOption
+    methods:
+      - fetchOption
+      - registerOption
+      - readFileOption
+    comment: |
+      ParseOption is a type of Option that can be passed to `jwk.Parse()`
+      ParseOption also implements the `ReadFileOption` and `NewCacheOption`,
+      and thus safely be passed to `jwk.ReadFile` and `(*jwk.Cache).Configure()`
+  - name: ReadFileOption
+    comment: |
+      ReadFileOption is a type of `Option` that can be passed to `jwk.ReadFile`
+  - name: RegisterOption
+    comment: |
+      RegisterOption describes options that can be passed to `(jwk.Cache).Register()`
+  - name: RegisterFetchOption
+    methods:
+      - fetchOption
+      - registerOption
+      - parseOption
+    comment: |
+      RegisterFetchOption describes options that can be passed to `(jwk.Cache).Register()` and `jwk.Fetch()`
+  - name: GlobalOption
+    comment: |
+      GlobalOption is a type of Option that can be passed to the `jwk.Configure()` to
+      change the global configuration of the jwk package.
+options:
+  - ident: HTTPClient
+    interface: RegisterFetchOption
+    argument_type: HTTPClient
+    comment: |
+      WithHTTPClient allows users to specify the "net/http".Client object that
+      is used when fetching jwk.Set objects.
+  - ident: ThumbprintHash
+    interface: AssignKeyIDOption
+    argument_type: crypto.Hash
+  - ident: LocalRegistry
+    option_name: withLocalRegistry
+    interface: ParseOption
+    argument_type: '*json.Registry'
+    comment: This option is only available for internal code. Users don't get to play with it
+  - ident: PEM
+    interface: ParseOption
+    argument_type: bool
+    comment: WithPEM specifies that the input to `Parse()` is a PEM encoded key.
+  - ident: PEMDecoder
+    interface: ParseOption
+    argument_type: PEMDecoder
+    comment: |
+      WithPEMDecoder specifies the PEMDecoder object to use when decoding
+      PEM encoded keys. This option can be passed to `jwk.Parse()`
+  - ident: FetchWhitelist
+    interface: FetchOption
+    argument_type: Whitelist
+    comment: |
+      WithFetchWhitelist specifies the Whitelist object to use when
+      fetching JWKs from a remote source. This option can be passed
+      to both `jwk.Fetch()`
+  - ident: IgnoreParseError
+    interface: ParseOption
+    argument_type: bool
+    comment: |
+      WithIgnoreParseError is only applicable when used with `jwk.Parse()`
+      (i.e. to parse JWK sets). If passed to `jwk.ParseKey()`, the function
+      will return an error no matter what the input is.
+      
+      DO NOT USE WITHOUT EXHAUSTING ALL OTHER ROUTES FIRST.
+      
+      The option specifies that errors found during parsing of individual
+      keys are ignored. For example, if you had keys A, B, C where B is
+      invalid (e.g. it does not contain the required fields), then the
+      resulting JWKS will contain keys A and C only.
+      
+      This options exists as an escape hatch for those times when a
+      key in a JWKS that is irrelevant for your use case is causing
+      your JWKS parsing to fail, and you want to get to the rest of the
+      keys in the JWKS.
+      
+      Again, DO NOT USE unless you have exhausted all other routes.
+      When you use this option, you will not be able to tell if you are
+      using a faulty JWKS, except for when there are JSON syntax errors.
+  - ident: FS
+    interface: ReadFileOption
+    argument_type: fs.FS
+    comment: |
+      WithFS specifies the source `fs.FS` object to read the file from.
+  - ident: WaitReady
+    interface: RegisterOption
+    argument_type: bool
+    comment: |
+      WithWaitReady specifies that the `jwk.Cache` should wait until the
+      first fetch is done before returning from the `Register()` call.
+      
+      This option is by default true. Specify a false value if you would
+      like to return immediately from the `Register()` call.
+
+      This options is exactly the same as `httprc.WithWaitReady()`
+  - ident: StrictKeyUsage
+    interface: GlobalOption
+    argument_type: bool
+    comment: |
+      WithStrictKeyUsage specifies if during JWK parsing, the "use" field
+      should be confined to the values that have been registered via
+      `jwk.RegisterKeyType()`. By default this option is true, and the
+      initial allowed values are "use" and "enc" only.
+
+      If this option is set to false, then the "use" field can be any
+      value. If this options is set to true, then the "use" field must
+      be one of the registered values, and otherwise an error will be
+      reported during parsing / assignment to `jwk.KeyUsageType`

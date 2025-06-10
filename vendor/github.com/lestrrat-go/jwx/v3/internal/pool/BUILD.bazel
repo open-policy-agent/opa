@@ -1,0 +1,22 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "pool",
+    srcs = [
+        "big_int.go",
+        "byte_slice.go",
+        "bytes_buffer.go",
+        "key_error_map.go",
+        "map.go",
+        "pool.go",
+        "string_slice.go",
+    ],
+    importpath = "github.com/lestrrat-go/jwx/v3/internal/pool",
+    visibility = ["//:__subpackages__"],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":pool",
+    visibility = ["//:__subpackages__"],
+)
