@@ -17,7 +17,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -281,7 +280,7 @@ func NewRunner() *Runner {
 // SetParallel sets the number of tests that can run in parallel
 func (r *Runner) SetParallel(parallel int) *Runner {
 	if parallel < 1 {
-		parallel = 1
+		parallel = runtime.NumCPU()
 	}
 
 	r.parallel = parallel
@@ -416,18 +415,16 @@ func (r *Runner) Run(ctx context.Context, modules map[string]*ast.Module) (chan 
 // RunTests executes tests found in either modules or bundles loaded on the runner.
 // The test results will be sent in file order.
 func (r *Runner) RunTests(ctx context.Context, txn storage.Transaction) (chan *Result, error) {
-	return r.runTests(ctx, txn, true, r.runTest)
+	return r.runTests(ctx, txn, true, r.runTest, r.parallel)
 }
 
 // RunBenchmarks executes tests similar to tester.Runner#RunTests but will repeat
 // a number of times to get stable performance metrics.
+// Each benchmark test is run sequentially.
 func (r *Runner) RunBenchmarks(ctx context.Context, txn storage.Transaction, options BenchmarkOptions) (chan *Result, error) {
-	// Run benchmarks sequentially
-	r.parallel = 1
-
 	return r.runTests(ctx, txn, false, func(ctx context.Context, txn storage.Transaction, module *ast.Module, rule *ast.Rule) (result *Result, b bool) {
 		return r.runBenchmark(ctx, txn, module, rule, options)
-	})
+	}, 1)
 }
 
 type run func(context.Context, storage.Transaction, *ast.Module, *ast.Rule) (*Result, bool)
@@ -513,7 +510,7 @@ func (r *Runner) setupTestRun(ctx context.Context, txn storage.Transaction, enab
 	return testRegex, nil
 }
 
-func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePrintStatements bool, runFunc run) (chan *Result, error) {
+func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePrintStatements bool, runFunc run, parallel int) (chan *Result, error) {
 	testRegex, err := r.setupTestRun(ctx, txn, enablePrintStatements)
 	if err != nil {
 		return nil, err
@@ -528,8 +525,6 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 		results := make(chan []*Result, len(r.compiler.Modules))
 		stopCtx, cancelTests := context.WithCancel(ctx)
 		defer cancelTests()
-
-		var shutdownFlag atomic.Bool
 
 		for _, module := range r.compiler.Modules {
 
@@ -568,7 +563,7 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 						}()
 						modResult <- tr
 						if stop {
-							shutdownFlag.Store(true)
+							cancelTests()
 						}
 					}
 				}()
