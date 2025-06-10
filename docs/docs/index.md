@@ -238,6 +238,24 @@ output if {
 
 <RunSnippet files="#input.json" command="data.servers.output"/>
 
+:::note
+Expressions are joined together with AND only when they are in the same rule
+body. In this example, the checks against `input.servers` are OR'd since they
+are in different rule bodies. See [Logical OR](#logical-or) in the Rules section
+below for more detail.
+
+```rego
+output if {
+    input.servers[0].id == "app"
+}
+
+output if {
+    input.servers[0].protocols[0] == "telnet"
+}
+```
+
+:::
+
 ### Variables
 
 You can store values in intermediate variables using the `:=` (assignment)
