@@ -8,7 +8,6 @@ package bundle
 import (
 	"bytes"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
@@ -20,22 +19,21 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
-
-
 // parseVerificationKey converts a string key to the appropriate type for jws.Verify
 func parseVerificationKey(keyData, algorithm string) (interface{}, error) {
 	alg, ok := jwa.LookupSignatureAlgorithm(algorithm)
 	if !ok {
 		return nil, fmt.Errorf("unknown signature algorithm: %s", algorithm)
 	}
-	
+
 	// For HMAC algorithms, return the key as bytes
 	if alg == jwa.HS256() || alg == jwa.HS384() || alg == jwa.HS512() {
 		return []byte(keyData), nil
 	}
 
 	// For RSA/ECDSA algorithms, try to parse as PEM first
-	if block, _ := pem.Decode([]byte(keyData)); block != nil {
+	block, _ := pem.Decode([]byte(keyData))
+	if block != nil {
 		switch block.Type {
 		case "RSA PUBLIC KEY":
 			return x509.ParsePKCS1PublicKey(block.Bytes)
@@ -53,13 +51,10 @@ func parseVerificationKey(keyData, algorithm string) (interface{}, error) {
 				return nil, err
 			}
 			return cert.PublicKey, nil
-		default:
-			return nil, fmt.Errorf("unsupported PEM block type: %s", block.Type)
 		}
 	}
-	
-	// If it's not PEM, assume it's raw key data for HMAC
-	return []byte(keyData), nil
+
+	return nil, errors.New("failed to parse PEM block containing the key")
 }
 
 const defaultVerifierID = "_default"
@@ -127,28 +122,16 @@ func (*DefaultVerifier) VerifyBundleSignature(sc SignaturesConfig, bvc *Verifica
 func verifyJWTSignature(token string, bvc *VerificationConfig) (*DecodedSignature, error) {
 	// decode JWT to check if the header specifies the key to use and/or if claims have the scope.
 
-	headersPart, payloadPart, _, err := jws.SplitCompact([]byte(token))
+	msg, err := jws.Parse([]byte(token))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse JWT: %w", err)
 	}
 
-	var decodedHeader []byte
-	if decodedHeader, err = base64.RawURLEncoding.DecodeString(string(headersPart)); err != nil {
-		return nil, fmt.Errorf("failed to base64 decode JWT headers: %w", err)
-	}
-
-	var hdr map[string]interface{}
-	if err := json.Unmarshal(decodedHeader, &hdr); err != nil {
-		return nil, fmt.Errorf("failed to parse JWT headers: %w", err)
-	}
-
-	payload, err := base64.RawURLEncoding.DecodeString(string(payloadPart))
-	if err != nil {
-		return nil, err
-	}
+	sig := msg.Signatures()[0]
+	headers := sig.ProtectedHeaders()
 
 	var ds DecodedSignature
-	if err := json.Unmarshal(payload, &ds); err != nil {
+	if err := json.Unmarshal(msg.Payload(), &ds); err != nil {
 		return nil, err
 	}
 
@@ -156,7 +139,7 @@ func verifyJWTSignature(token string, bvc *VerificationConfig) (*DecodedSignatur
 	// first in the OPA config. If not found, then check the JWT kid.
 	keyID := bvc.KeyID
 	if keyID == "" {
-		if kid, ok := hdr["kid"].(string); ok {
+		if kid, ok := headers.KeyID(); ok {
 			keyID = kid
 		}
 	}
@@ -180,13 +163,13 @@ func verifyJWTSignature(token string, bvc *VerificationConfig) (*DecodedSignatur
 	if !ok {
 		return nil, fmt.Errorf("unknown signature algorithm: %s", keyConfig.Algorithm)
 	}
-	
+
 	// Parse the key into the appropriate type
 	parsedKey, err := parseVerificationKey(keyConfig.Key, keyConfig.Algorithm)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	_, err = jws.Verify([]byte(token), jws.WithKey(alg, parsedKey))
 	if err != nil {
 		return nil, err
