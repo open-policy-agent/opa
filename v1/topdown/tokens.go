@@ -21,13 +21,51 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/open-policy-agent/opa/internal/jwx/jwa"
-	"github.com/open-policy-agent/opa/internal/jwx/jwk"
-	"github.com/open-policy-agent/opa/internal/jwx/jws"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 	"github.com/open-policy-agent/opa/v1/topdown/cache"
 )
+
+// getSignatureAlgorithm returns the appropriate jwa.SignatureAlgorithm for known algorithms,
+// falling back to lookup for unknown ones
+func getSignatureAlgorithm(algStr string) (jwa.SignatureAlgorithm, error) {
+	switch algStr {
+	case "HS256":
+		return jwa.HS256(), nil
+	case "HS384":
+		return jwa.HS384(), nil
+	case "HS512":
+		return jwa.HS512(), nil
+	case "RS256":
+		return jwa.RS256(), nil
+	case "RS384":
+		return jwa.RS384(), nil
+	case "RS512":
+		return jwa.RS512(), nil
+	case "PS256":
+		return jwa.PS256(), nil
+	case "PS384":
+		return jwa.PS384(), nil
+	case "PS512":
+		return jwa.PS512(), nil
+	case "ES256":
+		return jwa.ES256(), nil
+	case "ES384":
+		return jwa.ES384(), nil
+	case "ES512":
+		return jwa.ES512(), nil
+	default:
+		// Fall back to lookup for unknown algorithms
+		alg, ok := jwa.LookupSignatureAlgorithm(algStr)
+		if !ok {
+			return jwa.EmptySignatureAlgorithm(), fmt.Errorf("unknown signature algorithm: %s", algStr)
+		}
+		return alg, nil
+	}
+}
 
 const headerJwt = "JWT"
 
@@ -309,15 +347,36 @@ func getKeysFromCertOrJWK(certificate string) ([]verificationKey, error) {
 		return nil, fmt.Errorf("failed to parse a JWK key (set): %w", err)
 	}
 
-	keys := make([]verificationKey, 0, len(jwks.Keys))
-	for _, k := range jwks.Keys {
-		key, err := k.Materialize()
-		if err != nil {
+	keys := make([]verificationKey, 0, jwks.Len())
+	for i := 0; i < jwks.Len(); i++ {
+		k, ok := jwks.Key(i)
+		if !ok {
+			continue
+		}
+		var key interface{}
+		if err := jwk.Export(k, &key); err != nil {
 			return nil, err
 		}
+		var alg string
+		if algInterface, ok := k.Algorithm(); ok {
+			alg = algInterface.String()
+		}
+		
+		// Skip keys with unknown/unsupported algorithms
+		if alg != "" {
+			if _, ok := tokenAlgorithms[alg]; !ok {
+				continue
+			}
+		}
+		
+		var kid string
+		if kidValue, ok := k.KeyID(); ok {
+			kid = kidValue
+		}
+		
 		keys = append(keys, verificationKey{
-			alg: k.GetAlgorithm().String(),
-			kid: k.GetKeyID(),
+			alg: alg,
+			kid: kid,
 			key: key,
 		})
 	}
@@ -887,32 +946,56 @@ func commonBuiltinJWTEncodeSign(bctx BuiltinContext, inputHeaders, jwsPayload, j
 	if err != nil {
 		return err
 	}
-	key, err := keys.Keys[0].Materialize()
-	if err != nil {
+	
+	if keys.Len() == 0 {
+		return errors.New("no keys found in JWK set")
+	}
+	
+	jwkKey, ok := keys.Key(0)
+	if !ok {
+		return errors.New("failed to get first key from JWK set")
+	}
+	
+	var key interface{}
+	if err := jwk.Export(jwkKey, &key); err != nil {
 		return err
 	}
-	if jwk.GetKeyTypeFromKey(key) != keys.Keys[0].GetKeyType() {
-		return errors.New("JWK derived key type and keyType parameter do not match")
-	}
 
-	standardHeaders := &jws.StandardHeaders{}
+	// Parse headers to get algorithm
+	var headers map[string]interface{}
 	jwsHeaders := []byte(inputHeaders)
-	err = json.Unmarshal(jwsHeaders, standardHeaders)
+	err = json.Unmarshal(jwsHeaders, &headers)
 	if err != nil {
 		return err
 	}
-	alg := standardHeaders.GetAlgorithm()
-	if alg == jwa.Unsupported {
-		return errors.New("unknown signature algorithm")
+	
+	algStr, ok := headers["alg"].(string)
+	if !ok {
+		return errors.New("missing or invalid 'alg' header")
+	}
+	
+	alg, err := getSignatureAlgorithm(algStr)
+	if err != nil {
+		return err
 	}
 
-	if (standardHeaders.Type == "" || standardHeaders.Type == headerJwt) && !json.Valid([]byte(jwsPayload)) {
-		return errors.New("type is JWT but payload is not JSON")
+	if typ, ok := headers["typ"].(string); ok {
+		if (typ == "" || typ == headerJwt) && !json.Valid([]byte(jwsPayload)) {
+			return errors.New("type is JWT but payload is not JSON")
+		}
 	}
 
-	// process payload and sign
-	var jwsCompact []byte
-	jwsCompact, err = jws.SignLiteral([]byte(jwsPayload), alg, key, jwsHeaders, bctx.Seed)
+	// Create protected headers
+	protectedHeaders := jws.NewHeaders()
+	for k, v := range headers {
+		if err := protectedHeaders.Set(k, v); err != nil {
+			return err
+		}
+	}
+
+	// Sign with the key
+	jwsCompact, err := jws.Sign([]byte(jwsPayload), 
+		jws.WithKey(alg, key, jws.WithProtectedHeaders(protectedHeaders)))
 	if err != nil {
 		return err
 	}

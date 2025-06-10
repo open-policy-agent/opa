@@ -29,14 +29,51 @@ import (
 	"strings"
 	"time"
 
-	"github.com/open-policy-agent/opa/internal/jwx/jwa"
-	"github.com/open-policy-agent/opa/internal/jwx/jws"
-	"github.com/open-policy-agent/opa/internal/jwx/jws/sign"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/open-policy-agent/opa/internal/providers/aws"
 	"github.com/open-policy-agent/opa/internal/uuid"
 	"github.com/open-policy-agent/opa/v1/keys"
 	"github.com/open-policy-agent/opa/v1/logging"
 )
+
+// getSignatureAlgorithm returns the appropriate jwa.SignatureAlgorithm for known algorithms,
+// falling back to lookup for unknown ones
+func getSignatureAlgorithm(algStr string) (jwa.SignatureAlgorithm, error) {
+	switch algStr {
+	case "HS256":
+		return jwa.HS256(), nil
+	case "HS384":
+		return jwa.HS384(), nil
+	case "HS512":
+		return jwa.HS512(), nil
+	case "RS256":
+		return jwa.RS256(), nil
+	case "RS384":
+		return jwa.RS384(), nil
+	case "RS512":
+		return jwa.RS512(), nil
+	case "PS256":
+		return jwa.PS256(), nil
+	case "PS384":
+		return jwa.PS384(), nil
+	case "PS512":
+		return jwa.PS512(), nil
+	case "ES256":
+		return jwa.ES256(), nil
+	case "ES384":
+		return jwa.ES384(), nil
+	case "ES512":
+		return jwa.ES512(), nil
+	default:
+		// Fall back to lookup for unknown algorithms
+		alg, ok := jwa.LookupSignatureAlgorithm(algStr)
+		if !ok {
+			return jwa.EmptySignatureAlgorithm(), fmt.Errorf("unknown signature algorithm: %s", algStr)
+		}
+		return alg, nil
+	}
+}
 
 const (
 	// Default to s3 when the service for sigv4 signing is not specified for backwards compatibility
@@ -391,11 +428,28 @@ func (ap *oauth2ClientCredentialsAuthPlugin) createAuthJWT(ctx context.Context, 
 	case ap.AzureKeyVault != nil:
 		clientAssertion, err = ap.SignWithKeyVault(ctx, payload, header)
 	default:
-		clientAssertion, err = jws.SignLiteral(payload,
-			jwa.SignatureAlgorithm(alg),
-			signingKey,
-			header,
-			rand.Reader)
+		// Parse the algorithm string to jwa.SignatureAlgorithm
+		algObj, err := getSignatureAlgorithm(alg)
+		if err != nil {
+			return nil, err
+		}
+		
+		// Parse headers
+		var headers map[string]interface{}
+		if err := json.Unmarshal(header, &headers); err != nil {
+			return nil, err
+		}
+		
+		// Create protected headers
+		protectedHeaders := jws.NewHeaders()
+		for k, v := range headers {
+			if err := protectedHeaders.Set(k, v); err != nil {
+				return nil, err
+			}
+		}
+		
+		clientAssertion, err = jws.Sign(payload,
+			jws.WithKey(algObj, signingKey, jws.WithProtectedHeaders(protectedHeaders)))
 	}
 	if err != nil {
 		return nil, err
@@ -485,8 +539,37 @@ func (ap *oauth2ClientCredentialsAuthPlugin) parseSigningKey(c Config) (err erro
 		return errors.New("signing_key refers to non-existent key")
 	}
 
-	alg := jwa.SignatureAlgorithm(ap.signingKey.Algorithm)
-	ap.signingKeyParsed, err = sign.GetSigningKey(ap.signingKey.PrivateKey, alg)
+	alg, err := getSignatureAlgorithm(ap.signingKey.Algorithm)
+	if err != nil {
+		return err
+	}
+	
+	// Parse the private key directly
+	keyData := ap.signingKey.PrivateKey
+	
+	// For HMAC algorithms, return the key as bytes
+	if alg == jwa.HS256() || alg == jwa.HS384() || alg == jwa.HS512() {
+		ap.signingKeyParsed = []byte(keyData)
+		return nil
+	}
+
+	// For RSA/ECDSA algorithms, parse the PEM-encoded key
+	block, _ := pem.Decode([]byte(keyData))
+	if block == nil {
+		return fmt.Errorf("failed to decode PEM key")
+	}
+
+	switch block.Type {
+	case "RSA PRIVATE KEY":
+		ap.signingKeyParsed, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+	case "PRIVATE KEY":
+		ap.signingKeyParsed, err = x509.ParsePKCS8PrivateKey(block.Bytes)
+	case "EC PRIVATE KEY":
+		ap.signingKeyParsed, err = x509.ParseECPrivateKey(block.Bytes)
+	default:
+		return fmt.Errorf("unsupported key type: %s", block.Type)
+	}
+	
 	if err != nil {
 		return err
 	}

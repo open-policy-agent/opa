@@ -16,10 +16,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/internal/jwx/jwa"
-	"github.com/open-policy-agent/opa/internal/jwx/jwk"
-	"github.com/open-policy-agent/opa/internal/jwx/jws"
-	"github.com/open-policy-agent/opa/internal/jwx/jws/sign"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/storage"
 	inmem "github.com/open-policy-agent/opa/v1/storage/inmem/test"
@@ -315,29 +314,46 @@ func TestTopDownJWTEncodeSignES256(t *testing.T) {
 	}
 	// Verification
 
-	standardHeaders := &jws.StandardHeaders{}
-	err = json.Unmarshal([]byte(es256Hdr), standardHeaders)
+	var headers map[string]interface{}
+	err = json.Unmarshal([]byte(es256Hdr), &headers)
 	if err != nil {
 		t.Fatal("Failed to parse header")
 	}
-	alg := standardHeaders.GetAlgorithm()
+	algStr, ok := headers["alg"].(string)
+	if !ok {
+		t.Fatal("Failed to get algorithm from header")
+	}
+	alg, err := getSignatureAlgorithm(algStr)
+	if err != nil {
+		t.Fatalf("Failed to get algorithm: %v", err)
+	}
 
 	keys, err := jwk.ParseString(ecKey)
 	if err != nil {
 		t.Fatal("Failed to parse JWK")
 	}
-	key, err := keys.Keys[0].Materialize()
+	jwkKey, ok := keys.Key(0)
+	if !ok {
+		t.Fatal("Failed to get first key")
+	}
+	var key interface{}
+	err = jwk.Export(jwkKey, &key)
 	if err != nil {
 		t.Fatal("Failed to create private key")
 	}
-	publicKey, err := jwk.GetPublicKey(key)
+	publicKey, err := jwk.PublicKeyOf(key)
 	if err != nil {
 		t.Fatalf("failed to get public key: %v", err)
+	}
+	var rawPublicKey interface{}
+	err = jwk.Export(publicKey, &rawPublicKey)
+	if err != nil {
+		t.Fatalf("failed to export public key: %v", err)
 	}
 
 	// Verify with vendor library
 
-	verifiedPayload, err := jws.Verify([]byte(result.(string)), alg, publicKey)
+	verifiedPayload, err := jws.Verify([]byte(result.(string)), jws.WithKey(alg, rawPublicKey))
 	if err != nil || string(verifiedPayload) != examplePayload {
 		t.Fatal("Failed to verify message")
 	}
@@ -438,29 +454,46 @@ func TestTopDownJWTEncodeSignES512(t *testing.T) {
 	}
 	// Verification
 
-	standardHeaders := &jws.StandardHeaders{}
-	err = json.Unmarshal([]byte(es512Hdr), standardHeaders)
+	var headers map[string]interface{}
+	err = json.Unmarshal([]byte(es512Hdr), &headers)
 	if err != nil {
 		t.Fatal("Failed to parse header")
 	}
-	alg := standardHeaders.GetAlgorithm()
+	algStr, ok := headers["alg"].(string)
+	if !ok {
+		t.Fatal("Failed to get algorithm from header")
+	}
+	alg, err := getSignatureAlgorithm(algStr)
+	if err != nil {
+		t.Fatalf("Failed to get algorithm: %v", err)
+	}
 
 	keys, err := jwk.ParseString(ecKey)
 	if err != nil {
 		t.Fatalf("Failed to parse JWK: %v", err)
 	}
-	key, err := keys.Keys[0].Materialize()
+	jwkKey, ok := keys.Key(0)
+	if !ok {
+		t.Fatal("Failed to get first key")
+	}
+	var key interface{}
+	err = jwk.Export(jwkKey, &key)
 	if err != nil {
 		t.Fatalf("Failed to create private key: %v", err)
 	}
-	publicKey, err := jwk.GetPublicKey(key)
+	publicKey, err := jwk.PublicKeyOf(key)
 	if err != nil {
 		t.Fatalf("Failed to get public key: %v", err)
+	}
+	var rawPublicKey interface{}
+	err = jwk.Export(publicKey, &rawPublicKey)
+	if err != nil {
+		t.Fatalf("failed to export public key: %v", err)
 	}
 
 	// Verify with vendor library
 
-	verifiedPayload, err := jws.Verify([]byte(result.(string)), alg, publicKey)
+	verifiedPayload, err := jws.Verify([]byte(result.(string)), jws.WithKey(alg, rawPublicKey))
 	if err != nil || string(verifiedPayload) != examplePayload {
 		t.Fatal("Failed to verify message")
 	}
@@ -971,32 +1004,35 @@ func createBadJwt(t *testing.T, payload string) string {
 func createJwt(payload string, privateKey string) (string, error) {
 	const hdr = `{"alg":"RS256"}`
 
-	var jwkKeySet *jwk.Set
 	jwkKeySet, err := jwk.ParseString(privateKey)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse JWK: %s", err.Error())
 	}
-	signer, err := sign.New(jwa.RS256)
-	if err != nil {
-		return "", fmt.Errorf("failed to create signer: %s", err.Error())
+	
+	jwkKey, ok := jwkKeySet.Key(0)
+	if !ok {
+		return "", fmt.Errorf("failed to get first key from JWK set")
 	}
-
-	hdrStr := base64.RawURLEncoding.EncodeToString([]byte(hdr))
-	payloadStr := base64.RawURLEncoding.EncodeToString([]byte(payload))
-	signingInput := hdrStr + "." + payloadStr
-
-	pk, err := jwkKeySet.Keys[0].Materialize()
-	if err != nil {
+	
+	var pk interface{}
+	if err := jwk.Export(jwkKey, &pk); err != nil {
 		return "", fmt.Errorf("failed to materialize key: %s", err.Error())
 	}
-	signature, err := signer.Sign([]byte(signingInput), pk)
+
+	alg := jwa.RS256()
+
+	// Create protected headers
+	protectedHeaders := jws.NewHeaders()
+	if err := protectedHeaders.Set(jws.AlgorithmKey, alg); err != nil {
+		return "", fmt.Errorf("failed to set algorithm header: %s", err.Error())
+	}
+
+	signed, err := jws.Sign([]byte(payload), jws.WithKey(alg, pk, jws.WithProtectedHeaders(protectedHeaders)))
 	if err != nil {
 		return "", fmt.Errorf("failed to sign message: %s", err.Error())
 	}
-	encSignature := base64.RawURLEncoding.EncodeToString(signature)
-	encoded := signingInput + "." + encSignature
 
-	return encoded, nil
+	return string(signed), nil
 }
 
 func TestBuiltinJWTVerify_TokenCache(t *testing.T) {
@@ -1155,3 +1191,4 @@ func TestBuiltinJWTVerify_TokenCache(t *testing.T) {
 		})
 	}
 }
+

@@ -6,14 +6,51 @@
 package bundle
 
 import (
-	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"maps"
 
-	"github.com/open-policy-agent/opa/internal/jwx/jwa"
-	"github.com/open-policy-agent/opa/internal/jwx/jws"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jws"
 )
+
+// getSignatureAlgorithm returns the appropriate jwa.SignatureAlgorithm for known algorithms,
+// falling back to lookup for unknown ones
+func getSignatureAlgorithm(algStr string) (jwa.SignatureAlgorithm, error) {
+	switch algStr {
+	case "HS256":
+		return jwa.HS256(), nil
+	case "HS384":
+		return jwa.HS384(), nil
+	case "HS512":
+		return jwa.HS512(), nil
+	case "RS256":
+		return jwa.RS256(), nil
+	case "RS384":
+		return jwa.RS384(), nil
+	case "RS512":
+		return jwa.RS512(), nil
+	case "PS256":
+		return jwa.PS256(), nil
+	case "PS384":
+		return jwa.PS384(), nil
+	case "PS512":
+		return jwa.PS512(), nil
+	case "ES256":
+		return jwa.ES256(), nil
+	case "ES384":
+		return jwa.ES384(), nil
+	case "ES512":
+		return jwa.ES512(), nil
+	default:
+		// Fall back to lookup for unknown algorithms
+		alg, ok := jwa.LookupSignatureAlgorithm(algStr)
+		if !ok {
+			return jwa.EmptySignatureAlgorithm(), fmt.Errorf("unknown signature algorithm: %s", algStr)
+		}
+		return alg, nil
+	}
+}
 
 const defaultSignerID = "_default"
 
@@ -61,28 +98,28 @@ func (*DefaultSigner) GenerateSignedToken(files []FileInfo, sc *SigningConfig, k
 		return "", err
 	}
 
-	var headers jws.StandardHeaders
-
-	if err := headers.Set(jws.AlgorithmKey, jwa.SignatureAlgorithm(sc.Algorithm)); err != nil {
-		return "", err
-	}
-
-	if keyID != "" {
-		if err := headers.Set(jws.KeyIDKey, keyID); err != nil {
-			return "", err
-		}
-	}
-
-	hdr, err := json.Marshal(headers)
+	// Parse the algorithm string to jwa.SignatureAlgorithm
+	alg, err := getSignatureAlgorithm(sc.Algorithm)
 	if err != nil {
 		return "", err
 	}
+	
+	// Create signing options
+	opts := []jws.SignOption{
+		jws.WithKey(alg, privateKey),
+	}
+	
+	if keyID != "" {
+		headers := jws.NewHeaders()
+		if err := headers.Set(jws.KeyIDKey, keyID); err != nil {
+			return "", err
+		}
+		opts = append(opts, jws.WithKey(alg, privateKey, jws.WithProtectedHeaders(headers)))
+		// Remove the previous WithKey option and replace it with one that includes headers
+		opts = []jws.SignOption{opts[len(opts)-1]}
+	}
 
-	token, err := jws.SignLiteral(payload,
-		jwa.SignatureAlgorithm(sc.Algorithm),
-		privateKey,
-		hdr,
-		rand.Reader)
+	token, err := jws.Sign(payload, opts...)
 	if err != nil {
 		return "", err
 	}

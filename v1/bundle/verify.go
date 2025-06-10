@@ -7,17 +7,96 @@ package bundle
 
 import (
 	"bytes"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 
-	"github.com/open-policy-agent/opa/internal/jwx/jwa"
-	"github.com/open-policy-agent/opa/internal/jwx/jws"
-	"github.com/open-policy-agent/opa/internal/jwx/jws/verify"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/open-policy-agent/opa/v1/util"
 )
+
+// getSignatureAlgorithm returns the appropriate jwa.SignatureAlgorithm for known algorithms,
+// falling back to lookup for unknown ones
+func getSignatureAlgorithm(algStr string) (jwa.SignatureAlgorithm, error) {
+	switch algStr {
+	case "HS256":
+		return jwa.HS256(), nil
+	case "HS384":
+		return jwa.HS384(), nil
+	case "HS512":
+		return jwa.HS512(), nil
+	case "RS256":
+		return jwa.RS256(), nil
+	case "RS384":
+		return jwa.RS384(), nil
+	case "RS512":
+		return jwa.RS512(), nil
+	case "PS256":
+		return jwa.PS256(), nil
+	case "PS384":
+		return jwa.PS384(), nil
+	case "PS512":
+		return jwa.PS512(), nil
+	case "ES256":
+		return jwa.ES256(), nil
+	case "ES384":
+		return jwa.ES384(), nil
+	case "ES512":
+		return jwa.ES512(), nil
+	default:
+		// Fall back to lookup for unknown algorithms
+		alg, ok := jwa.LookupSignatureAlgorithm(algStr)
+		if !ok {
+			return jwa.EmptySignatureAlgorithm(), fmt.Errorf("unknown signature algorithm: %s", algStr)
+		}
+		return alg, nil
+	}
+}
+
+// parseVerificationKey converts a string key to the appropriate type for jws.Verify
+func parseVerificationKey(keyData, algorithm string) (interface{}, error) {
+	alg, err := getSignatureAlgorithm(algorithm)
+	if err != nil {
+		return nil, err
+	}
+	
+	// For HMAC algorithms, return the key as bytes
+	if alg == jwa.HS256() || alg == jwa.HS384() || alg == jwa.HS512() {
+		return []byte(keyData), nil
+	}
+
+	// For RSA/ECDSA algorithms, try to parse as PEM first
+	if block, _ := pem.Decode([]byte(keyData)); block != nil {
+		switch block.Type {
+		case "RSA PUBLIC KEY":
+			return x509.ParsePKCS1PublicKey(block.Bytes)
+		case "PUBLIC KEY":
+			return x509.ParsePKIXPublicKey(block.Bytes)
+		case "RSA PRIVATE KEY":
+			return x509.ParsePKCS1PrivateKey(block.Bytes)
+		case "PRIVATE KEY":
+			return x509.ParsePKCS8PrivateKey(block.Bytes)
+		case "EC PRIVATE KEY":
+			return x509.ParseECPrivateKey(block.Bytes)
+		case "CERTIFICATE":
+			cert, err := x509.ParseCertificate(block.Bytes)
+			if err != nil {
+				return nil, err
+			}
+			return cert.PublicKey, nil
+		default:
+			return nil, fmt.Errorf("unsupported PEM block type: %s", block.Type)
+		}
+	}
+	
+	// If it's not PEM, assume it's raw key data for HMAC
+	return []byte(keyData), nil
+}
 
 const defaultVerifierID = "_default"
 
@@ -84,22 +163,22 @@ func (*DefaultVerifier) VerifyBundleSignature(sc SignaturesConfig, bvc *Verifica
 func verifyJWTSignature(token string, bvc *VerificationConfig) (*DecodedSignature, error) {
 	// decode JWT to check if the header specifies the key to use and/or if claims have the scope.
 
-	parts, err := jws.SplitCompact(token)
+	headersPart, payloadPart, _, err := jws.SplitCompact([]byte(token))
 	if err != nil {
 		return nil, err
 	}
 
 	var decodedHeader []byte
-	if decodedHeader, err = base64.RawURLEncoding.DecodeString(parts[0]); err != nil {
+	if decodedHeader, err = base64.RawURLEncoding.DecodeString(string(headersPart)); err != nil {
 		return nil, fmt.Errorf("failed to base64 decode JWT headers: %w", err)
 	}
 
-	var hdr jws.StandardHeaders
+	var hdr map[string]interface{}
 	if err := json.Unmarshal(decodedHeader, &hdr); err != nil {
 		return nil, fmt.Errorf("failed to parse JWT headers: %w", err)
 	}
 
-	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	payload, err := base64.RawURLEncoding.DecodeString(string(payloadPart))
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +192,9 @@ func verifyJWTSignature(token string, bvc *VerificationConfig) (*DecodedSignatur
 	// first in the OPA config. If not found, then check the JWT kid.
 	keyID := bvc.KeyID
 	if keyID == "" {
-		keyID = hdr.KeyID
+		if kid, ok := hdr["kid"].(string); ok {
+			keyID = kid
+		}
 	}
 	if keyID == "" {
 		// If header has no key id, check the deprecated key claim.
@@ -131,13 +212,18 @@ func verifyJWTSignature(token string, bvc *VerificationConfig) (*DecodedSignatur
 	}
 
 	// verify JWT signature
-	alg := jwa.SignatureAlgorithm(keyConfig.Algorithm)
-	key, err := verify.GetSigningKey(keyConfig.Key, alg)
+	alg, err := getSignatureAlgorithm(keyConfig.Algorithm)
 	if err != nil {
 		return nil, err
 	}
-
-	_, err = jws.Verify([]byte(token), alg, key)
+	
+	// Parse the key into the appropriate type
+	parsedKey, err := parseVerificationKey(keyConfig.Key, keyConfig.Algorithm)
+	if err != nil {
+		return nil, err
+	}
+	
+	_, err = jws.Verify([]byte(token), jws.WithKey(alg, parsedKey))
 	if err != nil {
 		return nil, err
 	}

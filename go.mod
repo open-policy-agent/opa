@@ -8,6 +8,7 @@ require (
 	github.com/bytecodealliance/wasmtime-go/v3 v3.0.2
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/containerd/containerd/v2 v2.1.1
+	github.com/lestrrat-go/jwx/v3 v3.0.4
 	github.com/containerd/errdefs v1.0.0
 	github.com/dgraph-io/badger/v4 v4.7.0
 	github.com/fortytw2/leaktest v1.3.0

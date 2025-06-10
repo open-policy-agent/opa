@@ -5,7 +5,6 @@ issues:
   max-same-issues: 0 # don't hide issues in CI runs because they are the same type
   exclude-dirs:
     - internal/gojsonschema
-    - internal/jwx
   exclude-rules:
     - path: ast/
       linters:
