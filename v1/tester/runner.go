@@ -521,7 +521,7 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 	go func() {
 		defer close(ch)
 
-		semaphore := make(chan struct{}, r.parallel)
+		semaphore := make(chan struct{}, parallel)
 		results := make(chan []*Result, len(r.compiler.Modules))
 		stopCtx, cancelTests := context.WithCancel(ctx)
 		defer cancelTests()
