@@ -323,9 +323,9 @@ func TestTopDownJWTEncodeSignES256(t *testing.T) {
 	if !ok {
 		t.Fatal("Failed to get algorithm from header")
 	}
-	alg, err := getSignatureAlgorithm(algStr)
-	if err != nil {
-		t.Fatalf("Failed to get algorithm: %v", err)
+	alg, ok := jwa.LookupSignatureAlgorithm(algStr)
+	if !ok {
+		t.Fatalf("Failed to get algorithm: %s", algStr)
 	}
 
 	keys, err := jwk.ParseString(ecKey)
@@ -463,9 +463,9 @@ func TestTopDownJWTEncodeSignES512(t *testing.T) {
 	if !ok {
 		t.Fatal("Failed to get algorithm from header")
 	}
-	alg, err := getSignatureAlgorithm(algStr)
-	if err != nil {
-		t.Fatalf("Failed to get algorithm: %v", err)
+	alg, ok := jwa.LookupSignatureAlgorithm(algStr)
+	if !ok {
+		t.Fatalf("Failed to get algorithm: %s", algStr)
 	}
 
 	keys, err := jwk.ParseString(ecKey)

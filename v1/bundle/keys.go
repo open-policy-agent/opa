@@ -128,9 +128,9 @@ func (s *SigningConfig) GetPrivateKey() (any, error) {
 		}
 	}
 
-	alg, err := getSignatureAlgorithm(s.Algorithm)
-	if err != nil {
-		return nil, err
+	alg, ok := jwa.LookupSignatureAlgorithm(s.Algorithm)
+	if !ok {
+		return nil, fmt.Errorf("unknown signature algorithm: %s", s.Algorithm)
 	}
 	
 	// For HMAC algorithms, return the key as bytes
