@@ -14,8 +14,8 @@ import (
 
 	"github.com/open-policy-agent/opa/v1/util/test"
 
-	"github.com/open-policy-agent/opa/internal/jwx/jwa"
-	"github.com/open-policy-agent/opa/internal/jwx/jws"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jws"
 )
 
 func TestGenerateSignedToken(t *testing.T) {
@@ -63,7 +63,8 @@ func TestGenerateSignedToken(t *testing.T) {
 	}
 
 	// verify the signed token
-	_, err = jws.Verify([]byte(token), jwa.SignatureAlgorithm("HS256"), []byte("secret"))
+	alg := jwa.HS256()
+	_, err = jws.Verify([]byte(token), jws.WithKey(alg, []byte("secret")))
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
@@ -120,7 +121,8 @@ func TestGenerateSignedTokenWithClaims(t *testing.T) {
 		}
 
 		// verify the signed token
-		_, err = jws.Verify([]byte(token), jwa.SignatureAlgorithm("HS256"), []byte("secret"))
+		alg := jwa.HS256()
+		_, err = jws.Verify([]byte(token), jws.WithKey(alg, []byte("secret")))
 		if err != nil {
 			t.Fatalf("Unexpected error %v", err)
 		}
@@ -131,7 +133,12 @@ func TestGenerateSignedTokenWithClaims(t *testing.T) {
 			t.Fatalf("Unexpected error %v", err)
 		}
 
-		if v, ok := m.GetSignatures()[0].ProtectedHeaders().Get(jws.KeyIDKey); !ok || v != keyid {
+		signatures := m.Signatures()
+		if len(signatures) == 0 {
+			t.Fatal("No signatures found")
+		}
+		
+		if v, ok := signatures[0].ProtectedHeaders().KeyID(); !ok || v != keyid {
 			t.Errorf("key id not set")
 		}
 	})
