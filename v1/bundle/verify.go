@@ -20,49 +20,13 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
-// getSignatureAlgorithm returns the appropriate jwa.SignatureAlgorithm for known algorithms,
-// falling back to lookup for unknown ones
-func getSignatureAlgorithm(algStr string) (jwa.SignatureAlgorithm, error) {
-	switch algStr {
-	case "HS256":
-		return jwa.HS256(), nil
-	case "HS384":
-		return jwa.HS384(), nil
-	case "HS512":
-		return jwa.HS512(), nil
-	case "RS256":
-		return jwa.RS256(), nil
-	case "RS384":
-		return jwa.RS384(), nil
-	case "RS512":
-		return jwa.RS512(), nil
-	case "PS256":
-		return jwa.PS256(), nil
-	case "PS384":
-		return jwa.PS384(), nil
-	case "PS512":
-		return jwa.PS512(), nil
-	case "ES256":
-		return jwa.ES256(), nil
-	case "ES384":
-		return jwa.ES384(), nil
-	case "ES512":
-		return jwa.ES512(), nil
-	default:
-		// Fall back to lookup for unknown algorithms
-		alg, ok := jwa.LookupSignatureAlgorithm(algStr)
-		if !ok {
-			return jwa.EmptySignatureAlgorithm(), fmt.Errorf("unknown signature algorithm: %s", algStr)
-		}
-		return alg, nil
-	}
-}
+
 
 // parseVerificationKey converts a string key to the appropriate type for jws.Verify
 func parseVerificationKey(keyData, algorithm string) (interface{}, error) {
-	alg, err := getSignatureAlgorithm(algorithm)
-	if err != nil {
-		return nil, err
+	alg, ok := jwa.LookupSignatureAlgorithm(algorithm)
+	if !ok {
+		return nil, fmt.Errorf("unknown signature algorithm: %s", algorithm)
 	}
 	
 	// For HMAC algorithms, return the key as bytes
@@ -212,9 +176,9 @@ func verifyJWTSignature(token string, bvc *VerificationConfig) (*DecodedSignatur
 	}
 
 	// verify JWT signature
-	alg, err := getSignatureAlgorithm(keyConfig.Algorithm)
-	if err != nil {
-		return nil, err
+	alg, ok := jwa.LookupSignatureAlgorithm(keyConfig.Algorithm)
+	if !ok {
+		return nil, fmt.Errorf("unknown signature algorithm: %s", keyConfig.Algorithm)
 	}
 	
 	// Parse the key into the appropriate type

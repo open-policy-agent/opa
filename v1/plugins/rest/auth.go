@@ -37,43 +37,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/logging"
 )
 
-// getSignatureAlgorithm returns the appropriate jwa.SignatureAlgorithm for known algorithms,
-// falling back to lookup for unknown ones
-func getSignatureAlgorithm(algStr string) (jwa.SignatureAlgorithm, error) {
-	switch algStr {
-	case "HS256":
-		return jwa.HS256(), nil
-	case "HS384":
-		return jwa.HS384(), nil
-	case "HS512":
-		return jwa.HS512(), nil
-	case "RS256":
-		return jwa.RS256(), nil
-	case "RS384":
-		return jwa.RS384(), nil
-	case "RS512":
-		return jwa.RS512(), nil
-	case "PS256":
-		return jwa.PS256(), nil
-	case "PS384":
-		return jwa.PS384(), nil
-	case "PS512":
-		return jwa.PS512(), nil
-	case "ES256":
-		return jwa.ES256(), nil
-	case "ES384":
-		return jwa.ES384(), nil
-	case "ES512":
-		return jwa.ES512(), nil
-	default:
-		// Fall back to lookup for unknown algorithms
-		alg, ok := jwa.LookupSignatureAlgorithm(algStr)
-		if !ok {
-			return jwa.EmptySignatureAlgorithm(), fmt.Errorf("unknown signature algorithm: %s", algStr)
-		}
-		return alg, nil
-	}
-}
+
 
 const (
 	// Default to s3 when the service for sigv4 signing is not specified for backwards compatibility
@@ -429,9 +393,9 @@ func (ap *oauth2ClientCredentialsAuthPlugin) createAuthJWT(ctx context.Context, 
 		clientAssertion, err = ap.SignWithKeyVault(ctx, payload, header)
 	default:
 		// Parse the algorithm string to jwa.SignatureAlgorithm
-		algObj, err := getSignatureAlgorithm(alg)
-		if err != nil {
-			return nil, err
+		algObj, ok := jwa.LookupSignatureAlgorithm(alg)
+		if !ok {
+			return nil, fmt.Errorf("unknown signature algorithm: %s", alg)
 		}
 		
 		// Parse headers
@@ -539,9 +503,9 @@ func (ap *oauth2ClientCredentialsAuthPlugin) parseSigningKey(c Config) (err erro
 		return errors.New("signing_key refers to non-existent key")
 	}
 
-	alg, err := getSignatureAlgorithm(ap.signingKey.Algorithm)
-	if err != nil {
-		return err
+	alg, ok := jwa.LookupSignatureAlgorithm(ap.signingKey.Algorithm)
+	if !ok {
+		return fmt.Errorf("unknown signature algorithm: %s", ap.signingKey.Algorithm)
 	}
 	
 	// Parse the private key directly
