@@ -183,13 +183,14 @@ Bundle files are gzipped tarballs (`.tar.gz`) that contain policies and/or
 data.
 
 Policy files are Rego source files with the `.rego` extension and will be
-available within rego based on their package's path,
-e.g. `package example.authz`.
+available within Rego modules based on their package's path,
+e.g. `package example.authz` is available at `data.example.authz` in the
+[`data` Document](./philosophy/#the-opa-document-model).
 
 The data files within the bundle can be organized hierarchically into
 directories inside the tarball. The hierarchical organization indicates to OPA
-where to load the data files into the
-[the `data` Document](./philosophy/#the-opa-document-model). This functionality
+where to load the data files into the `data` Document - similar to how Rego
+files can control their location using the package path. This functionality
 can be useful when:
 
 - Deploying larger bundles with policy for different callers and use cases.
@@ -217,11 +218,6 @@ http/example/authz/authz.rego
 
 In this example, the bundle contains one policy file (`authz.rego`) and two
 data files (`roles/bindings/data.json` and `roles/permissions/data.json`).
-The bundle may also contain an optional wasm binary file (`policy.wasm`).
-It stores the WebAssembly compiled version of all the Rego policy files within
-the bundle.
-
-:::info
 A data file in the root of the bundle will be loaded into the `data` Document at
 the root. For example, here we can see that the `foo` key is inserted at the
 root of the `data` document:
@@ -238,7 +234,24 @@ $ opa eval -b bundle/ data.foo --format=raw
 true
 ```
 
-:::
+The bundle may also contain an optional Wasm binary file (`policy.wasm`).
+OPA stores the WebAssembly compiled version of all the Rego policy files within
+the bundle in `policy.wasm` when building with `-t wasm`:
+
+```sh
+$ cat -p bundle/http/example/authz/authz.rego
+package http.example.authz
+
+allow := true
+$ opa build -t wasm -e http/example/authz/allow bundle
+$ tar tzf bundle.tar.gz
+/data.json
+/bundle/http/example/authz/authz.rego
+/policy.wasm
+/.manifest
+$ opa eval -b bundle.tar.gz data --format=raw
+{"http":{"example":{"authz":{"allow":true}}}}
+```
 
 Bundle files may contain an optional `.manifest` file that stores bundle
 metadata. The file should contain a JSON serialized object, with the following
