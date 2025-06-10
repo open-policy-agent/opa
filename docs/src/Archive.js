@@ -78,10 +78,40 @@ const Archive = (props) => {
   ];
 
   const firstDocsVersion = semver.valid("0.17.2");
-  const descVersions = versions.slice().reverse()
-    .filter(version => {
-      return semver.gt(version, lastOldDocsVersion) || oldDocsVersions.includes(version);
+
+  // We only show the latest patch for each minor release
+  const getLatestPatchVersions = (versions) => {
+    const versionGroups = {};
+
+    versions.forEach(version => {
+      const parsed = semver.parse(version);
+      if (!parsed) return;
+
+      const majorMinorKey = `${parsed.major}.${parsed.minor}`;
+
+      if (!versionGroups[majorMinorKey] || semver.gt(version, versionGroups[majorMinorKey])) {
+        versionGroups[majorMinorKey] = version;
+      }
     });
+
+    return Object.values(versionGroups);
+  };
+
+  // A known list of old docs versions are shown, otherwise, any newer version
+  // is shown.
+  const filteredVersions = versions.slice().filter(version => {
+    return semver.gt(version, lastOldDocsVersion) || oldDocsVersions.includes(version);
+  });
+
+  // For versions > lastOldDocsVersion, group by minor and get only latest patch
+  // For versions in oldDocsVersions, keep as is
+  const newerVersions = filteredVersions.filter(v => semver.gt(v, lastOldDocsVersion));
+  const olderVersions = filteredVersions.filter(v => oldDocsVersions.includes(v));
+
+  const latestNewerVersions = getLatestPatchVersions(newerVersions);
+
+  // Combine all selected versions, and sort them newest to oldest
+  const descVersions = [...latestNewerVersions, ...olderVersions].sort(semver.rcompare);
 
   const getArchiveUrl = (version) => {
     const urlVersionPart = version.replaceAll(".", "-");
