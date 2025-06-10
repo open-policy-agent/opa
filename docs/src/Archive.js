@@ -123,7 +123,10 @@ const Archive = (props) => {
       <div className="container margin-vert--lg">
         <Heading as="h1">{title}</Heading>
 
-        <p>Please find a list of archived OPA docs versions here:</p>
+        <p>
+          Please find links to past versions of the OPA Documentation here. Note that only the latest patch within a
+          minor release is shown.
+        </p>
 
         <div style={{ marginTop: "1rem" }}>
           <ul
