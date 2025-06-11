@@ -313,31 +313,6 @@ jobs:
       run: make ci-binary-smoke-test-wasm BINARY=${{ matrix.exec }}
       if: matrix.wasm != 'disabled'
 
-  go-version-build:
-    name: Go compat build/test
-    needs: generate
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-24.04, macos-14]
-        version: ["1.21"]
-    steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-    - name: Download generated artifacts
-      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-      with:
-        name: generated
-    - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
-      with:
-        go-version: ${{ matrix.version }}
-    - run: make build
-      env:
-        DOCKER_RUNNING: 0
-    - run: make go-test
-      env:
-        DOCKER_RUNNING: 0
-
   # Run PR metadata against Rego policies
   rego-check-pr:
     name: Rego PR checks
@@ -370,3 +345,28 @@ jobs:
     - name: Show input on failure
       run: opa eval --v0-compatible --input files.json --format pretty input
       if: ${{ failure() }}
+
+  go-version-build:
+    name: Go compat build/test
+    needs: generate
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14]
+        version: ["1.21"]
+    steps:
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+    - name: Download generated artifacts
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      with:
+        name: generated
+    - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+      with:
+        go-version: ${{ matrix.version }}
+    - run: make build
+      env:
+        DOCKER_RUNNING: 0
+    - run: make go-test
+      env:
+        DOCKER_RUNNING: 0
