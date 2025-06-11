@@ -9,9 +9,9 @@ import SideBySideColumn from "../SideBySide/Column";
 import SideBySideContainer from "../SideBySide/Container";
 
 export default function PlaygroundExample({
-  dir, infiles
+  dir, files
 }) {
-  let files = dir.keys().reduce((acc, key) => {
+  let source_files = dir.keys().reduce((acc, key) => {
     let fileName = key.replace(`./`, "");
     if (!fileName.includes(".")) {
       return acc;
@@ -23,18 +23,16 @@ export default function PlaygroundExample({
     }
     return acc;
   }, {});
+  const config = source_files["config.json"];
+  const input = (source_files["input.json"]?source_files["input.json"]:"{}");
+  const data = (source_files["data.json"]?source_files["data.json"]:"{}");
+  const policy = source_files["policy.rego"];
 
-  const config = files["config.json"];
+  const title = source_files["title.txt"];
+  const intro = source_files["intro.md"];
+  const outro = source_files["outro.md"];
 
-  const input = (files["input.json"]?files["input.json"]:"{}");
-  const data = (files["data.json"]?files["data.json"]:"{}");
-  const policy = files["policy.rego"];
-
-  const title = files["title.txt"];
-  const intro = files["intro.md"];
-  const outro = files["outro.md"];
-
-  const output = files["output.json"];
+  const output = source_files["output.json"];
 
   const showInput = config?.showInput ?? true;
   const showData = config?.showData ?? true;
@@ -46,7 +44,6 @@ export default function PlaygroundExample({
     d: JSON.stringify(data, null, 2),
     p: policy,
   }));
-
   const url = `https://play.openpolicyagent.org/?state=${state}`;
 
   const showNotes = output && output.some(rule => rule.note);
@@ -58,7 +55,8 @@ export default function PlaygroundExample({
 
   // id is used to stop contents from other examples on the same page being used
   const id = getId(state);
-  const snippetFiles = `${infiles} #${id}-input.json:input.json #${id}-data.json:data.json`;
+  const snippetFiles = files?`${files} #${id}-input.json:input.json #${id}-data.json:data.json`:`#${id}-input.json:input.json #${id}-data.json:data.json`;
+  console.log(snippetFiles);
    return (
     <div>
       {title && <h2>{title}</h2>}

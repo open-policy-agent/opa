@@ -573,14 +573,14 @@ jwks := `{
 
 <RunSnippet id="jwks.rego"/>
 
-<PlaygroundExample infiles="#jwks.rego #token.rego" dir={require.context("./_examples/tokens/verify/jwks")} />
+<PlaygroundExample files="#jwks.rego #token.rego" dir={require.context("./_examples/tokens/verify/jwks")} />
 
 The next example shows doing the token signature verification, decoding, and content checks
 all in one call using `io.jwt.decode_verify`. Note that this gives less flexibility in validating
 the payload content as **all** claims defined in the JWT spec are verified with the provided
 constraints.
 
-<PlaygroundExample infiles="#jwks.rego #token.rego" dir={require.context("./_examples/tokens/verify/jwks_single")} />
+<PlaygroundExample files="#jwks.rego #token.rego" dir={require.context("./_examples/tokens/verify/jwks_single")} />
 
 ##### Using PEM encoded X.509 Certificate
 
@@ -608,14 +608,14 @@ This example shows a two-step process to verify the token signature and then dec
 further checks of the payload content. This approach gives more flexibility in verifying only
 the claims that the policy needs to enforce.
 
-<PlaygroundExample infiles="#cert.rego #token.rego" dir={require.context("./_examples/tokens/verify/cert")} />
+<PlaygroundExample files="#cert.rego #token.rego" dir={require.context("./_examples/tokens/verify/cert")} />
 
 The next example shows doing the same token signature verification, decoding, and content checks
 but instead with a single call to `io.jwt.decode_verify`. Note that this gives less flexibility
 in validating the payload content as **all** claims defined in the JWT spec are verified with the
 provided constraints.
 
-<PlaygroundExample infiles="#cert.rego #token.rego" dir={require.context("./_examples/tokens/verify/cert_single")} />
+<PlaygroundExample files="#cert.rego #token.rego" dir={require.context("./_examples/tokens/verify/cert_single")} />
 
 ##### Round Trip - Sign and Verify
 
