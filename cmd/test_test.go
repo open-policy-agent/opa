@@ -3572,6 +3572,10 @@ func TestTestRunParallel(t *testing.T) {
 		parallel int
 	}{
 		{
+			note:     "default workers",
+			parallel: 0,
+		},
+		{
 			note:     "1 workers",
 			parallel: 1,
 		},

@@ -5,8 +5,11 @@
 package tester_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"maps"
 	"path/filepath"
 	"strings"
@@ -982,6 +985,111 @@ func TestRun_DefaultRegoVersion(t *testing.T) {
 					t.Fatalf("Expected test to pass but it failed")
 				}
 			}
+		})
+	}
+}
+
+func TestReporterFormatsWithExplicitParallel(t *testing.T) {
+	tests := []struct {
+		note     string
+		parallel int
+		r        func(writer io.Writer) tester.Reporter
+		exp      func(string)
+	}{
+		{
+			note:     "Pretty Format",
+			parallel: 10,
+			r: func(w io.Writer) tester.Reporter {
+				return tester.PrettyReporter{
+					Output: w,
+				}
+			},
+			exp: func(output string) {
+				exp := `PASS: 4/4
+`
+				if exp != output {
+					t.Fatalf("Expected (%d bytes):\n\n%v\n\nGot (%d bytes):\n\n%v", len(exp), exp, len(output), output)
+				}
+			},
+		},
+		{
+			note:     "JSON Format",
+			parallel: 10,
+			r: func(w io.Writer) tester.Reporter {
+				return tester.JSONReporter{
+					Output: w,
+				}
+			},
+			exp: func(output string) {
+				// the order of the tests and filepath and duration will be different each execution
+				var r []*tester.Result
+				if err := json.Unmarshal([]byte(output), &r); err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+				if len(r) != 4 {
+					t.Fatalf("Expected exactly 4 results but got: %v", r)
+				}
+			},
+		},
+		{
+			note:     "Go Bench Format",
+			parallel: 10,
+			r: func(w io.Writer) tester.Reporter {
+				return tester.PrettyReporter{
+					Output:                 w,
+					BenchMarkGoBenchFormat: true,
+				}
+			},
+			exp: func(output string) {
+				exp := `PASS: 4/4
+`
+				if exp != output {
+					t.Fatalf("Expected (%d bytes):\n\n%v\n\nGot (%d bytes):\n\n%v", len(exp), exp, len(output), output)
+				}
+			},
+		},
+	}
+
+	files := map[string]string{
+		"/test.rego": `package test
+		import rego.v1
+
+		test_a if { print("A") }
+		test_a if { print("A") }
+		test_a if { print("A") }
+		test_a if { print("A") }`,
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			ctx := context.Background()
+
+			test.WithTempFS(files, func(d string) {
+				paths := []string{d}
+				modules, store, err := tester.Load(paths, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				txn := storage.NewTransactionOrDie(ctx, store)
+				runner := tester.NewRunner().SetStore(store).SetModules(modules).CapturePrintOutput(true)
+				ch, err := runner.RunTests(ctx, txn)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				var buf bytes.Buffer
+
+				r := tc.r(&buf)
+
+				if err := r.Report(ch); err != nil {
+					t.Fatal(err)
+				}
+
+				str := buf.String()
+
+				tc.exp(str)
+			})
 		})
 	}
 }
