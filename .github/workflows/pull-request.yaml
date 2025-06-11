@@ -17,9 +17,6 @@ jobs:
       docs-only: ${{ steps.changes.outputs.docs-only }}
       wasm: ${{ steps.changes.outputs.wasm }}
     steps:
-    - name: Check out code
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
     - name: Check for file changes
       id: changes
       run: |
@@ -57,7 +54,18 @@ jobs:
         fi
 
         # Check for WASM-related changes
-        wasm_patterns="^(Makefile|wasm/|ast/|internal/compiler/|internal/planner/|internal/wasm/|test/wasm/|test/cases/)"
+        wasm_patterns="^(Makefile|\
+wasm/|\
+ast/|\
+internal/compiler/|\
+internal/planner/|\
+internal/wasm/|\
+test/wasm/|\
+test/cases/|\
+v1/ast/|\
+v1/test/cases/|\
+v1/test/wasm/|\
+v1/ir/)"
         if grep -E "$wasm_patterns" changed_files.txt > /dev/null 2>&1; then
           echo "wasm=true" >> $GITHUB_OUTPUT
           echo "Found WASM-related changes"
@@ -400,7 +408,7 @@ jobs:
     name: Rego PR checks
     runs-on: ubuntu-24.04
     needs: check-changes
-    if: needs.check-changes.outputs.non-docs == 'true'
+    if: needs.check-changes.outputs.docs-only == 'false'
     steps:
     - name: Checkout code
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
