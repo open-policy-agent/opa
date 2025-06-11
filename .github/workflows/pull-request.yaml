@@ -459,3 +459,43 @@ jobs:
 
     - name: Build docs
       run: make docs-build
+
+  # This job is required to complete before merging, and is set as a branch
+  # protection rule:
+  # https://github.com/open-policy-agent/opa/settings/branch_protection_rules
+  pr-check-summary:
+    name: PR Check Summary
+    runs-on: ubuntu-24.04
+    needs: [
+      check-changes,
+      generate,
+      go-build,
+      go-test,
+      go-lint,
+      yaml-lint,
+      wasm,
+      check-generated,
+      race-detector,
+      smoke-test-docker-images,
+      smoke-test-binaries,
+      go-version-build,
+      rego-check-pr,
+      docs-build,
+    ]
+    if: always()
+    steps:
+    - name: Check job results
+      run: |
+        # Check if any required job failed (not skipped)
+        if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+          echo "One or more required jobs failed"
+          exit 1
+        fi
+
+        # Check if any required job was cancelled
+        if [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+          echo "One or more required jobs were cancelled"
+          exit 1
+        fi
+
+        echo "All jobs completed successfully or were skipped"
