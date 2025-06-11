@@ -3790,3 +3790,54 @@ func TestHTTPWithCustomTransport(t *testing.T) {
 		}
 	}
 }
+
+func TestIsJSONType(t *testing.T) {
+	tests := []struct {
+		name string
+		h    http.Header
+		exp  bool
+	}{
+		{
+			h: http.Header{
+				"Content-Type": []string{"application/json"},
+			},
+			exp: true,
+		},
+		{
+			h: http.Header{
+				"Content-Type": []string{"application/json; charset=utf-8"},
+			},
+			exp: true,
+		},
+		{
+			h: http.Header{
+				"Content-Type": []string{"application/scim+json; charset=utf-8"},
+			},
+			exp: true,
+		},
+		{
+			h: http.Header{
+				"Content-Type": []string{"application/yaml"},
+			},
+			exp: false,
+		},
+		{
+			h: http.Header{
+				"Content-Type": []string{"application/x-yaml; charset=utf-8"},
+			},
+			exp: false,
+		},
+		{
+			h: http.Header{
+				"Content-Type": []string{"text/html; charset=ISO-8859-4"},
+			},
+			exp: false,
+		},
+	}
+
+	for _, tc := range tests {
+		if tc.exp != isJSONType(tc.h) {
+			t.Errorf("Expected %v for %v", tc.exp, tc.h)
+		}
+	}
+}

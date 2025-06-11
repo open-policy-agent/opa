@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"mime"
 	"net"
 	"net/http"
 	"net/url"
@@ -755,6 +756,24 @@ func executeHTTPRequest(req *http.Request, client *http.Client, inputReqObj ast.
 	return nil, err
 }
 
+func isJSONType(header http.Header) bool {
+	t, _, err := mime.ParseMediaType(header.Get("Content-Type"))
+	if err != nil {
+		return false
+	}
+
+	mediaType := strings.Split(t, "/")
+	if len(mediaType) != 2 {
+		return false
+	}
+
+	if mediaType[0] == "application" && strings.HasSuffix(mediaType[1], "json") {
+		return true
+	}
+
+	return false
+}
+
 func isContentType(header http.Header, typ ...string) bool {
 	for _, t := range typ {
 		if strings.Contains(header.Get("Content-Type"), t) {
@@ -1383,7 +1402,7 @@ func prepareASTResult(headers http.Header, forceJSONDecode, forceYAMLDecode bool
 	// an error will not be returned. Instead, the "body" field
 	// in the result will be null.
 	switch {
-	case forceJSONDecode || isContentType(headers, "application/json"):
+	case forceJSONDecode || isJSONType(headers):
 		_ = util.UnmarshalJSON(body, &resultBody)
 	case forceYAMLDecode || isContentType(headers, "application/yaml", "application/x-yaml"):
 		_ = util.Unmarshal(body, &resultBody)
