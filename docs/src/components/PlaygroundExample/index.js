@@ -26,8 +26,8 @@ export default function PlaygroundExample({
 
   const config = files["config.json"];
 
-  const input = files["input.json"];
-  const data = files["data.json"];
+  const input = (files["input.json"]?files["input.json"]:"{}");
+  const data = (files["data.json"]?files["data.json"]:"{}");
   const policy = files["policy.rego"];
 
   const title = files["title.txt"];

@@ -496,15 +496,15 @@ This differs from the plain text secrets provided with the algorithm specific ve
 
 ##### Symmetric Key (HMAC with SHA-256)
 
-<PlaygroundExample dir={require.context("./_examples/tokens/sign/jwt1")} />
+<PlaygroundExample dir={require.context("./_examples/tokens/sign/hmac")} />
 
 ##### Symmetric Key with empty JSON payload
 
-<PlaygroundExample dir={require.context("./_examples/tokens/sign/jwt2")} />
+<PlaygroundExample dir={require.context("./_examples/tokens/sign/empty_json")} />
 
 ##### RSA Key (RSA Signature with SHA-256)
 
-<PlaygroundExample dir={require.context("./_examples/tokens/sign/jwt3")} />
+<PlaygroundExample dir={require.context("./_examples/tokens/sign/rsa")} />
 
 ##### Raw Token Signing
 
@@ -512,7 +512,7 @@ If you need to generate the signature for a serialized token you an use the
 `io.jwt.encode_sign_raw` built-in function which accepts JSON serialized string
 parameters.
 
-<PlaygroundExample dir={require.context("./_examples/tokens/sign/jwt4")} />
+<PlaygroundExample dir={require.context("./_examples/tokens/sign/sign_raw")} />
 
 </BuiltinTable>
 
@@ -573,14 +573,14 @@ jwks := `{
 
 <RunSnippet id="jwks.rego"/>
 
-<PlaygroundExample infiles="#jwks.rego #token.rego" dir={require.context("./_examples/tokens/verify/jwt1")} />
+<PlaygroundExample infiles="#jwks.rego #token.rego" dir={require.context("./_examples/tokens/verify/jwks")} />
 
 The next example shows doing the token signature verification, decoding, and content checks
 all in one call using `io.jwt.decode_verify`. Note that this gives less flexibility in validating
 the payload content as **all** claims defined in the JWT spec are verified with the provided
 constraints.
 
-<PlaygroundExample infiles="#jwks.rego #token.rego" dir={require.context("./_examples/tokens/verify/jwt2")} />
+<PlaygroundExample infiles="#jwks.rego #token.rego" dir={require.context("./_examples/tokens/verify/jwks_single")} />
 
 ##### Using PEM encoded X.509 Certificate
 
@@ -608,14 +608,14 @@ This example shows a two-step process to verify the token signature and then dec
 further checks of the payload content. This approach gives more flexibility in verifying only
 the claims that the policy needs to enforce.
 
-<PlaygroundExample infiles="#cert.rego #token.rego" dir={require.context("./_examples/tokens/verify/jwt3")} />
+<PlaygroundExample infiles="#cert.rego #token.rego" dir={require.context("./_examples/tokens/verify/cert")} />
 
 The next example shows doing the same token signature verification, decoding, and content checks
 but instead with a single call to `io.jwt.decode_verify`. Note that this gives less flexibility
 in validating the payload content as **all** claims defined in the JWT spec are verified with the
 provided constraints.
 
-<PlaygroundExample infiles="#cert.rego #token.rego" dir={require.context("./_examples/tokens/verify/jwt4")} />
+<PlaygroundExample infiles="#cert.rego #token.rego" dir={require.context("./_examples/tokens/verify/cert_single")} />
 
 ##### Round Trip - Sign and Verify
 
@@ -623,11 +623,11 @@ This example shows how to encode a token, verify, and decode it with the differe
 
 Start with using the `io.jwt.encode_sign_raw` built-in:
 
-<PlaygroundExample dir={require.context("./_examples/tokens/verify/jwt5")} />
+<PlaygroundExample dir={require.context("./_examples/tokens/verify/sign_raw")} />
 
 Now encode the and sign the same token contents but with `io.jwt.encode_sign` instead of the `raw` variant.
 
-<PlaygroundExample dir={require.context("./_examples/tokens/verify/jwt6")} />
+<PlaygroundExample dir={require.context("./_examples/tokens/verify/sign")} />
 
 :::info
 Note that the resulting encoded token is different from the first example using
@@ -1060,7 +1060,7 @@ The following policy will deny the given input because:
 - the `number` is greater than 5
 - the `subject` does not have the `admin` role
 
-<PlaygroundExample dir={require.context("./_examples/rego/example")} />
+<PlaygroundExample dir={require.context("./_examples/rego/rule_metadata")} />
 
 #### Metadata Merge strategies
 
