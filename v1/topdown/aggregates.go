@@ -28,6 +28,22 @@ func builtinCount(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) e
 func builtinSum(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch a := operands[0].Value.(type) {
 	case *ast.Array:
+		// Fast path for arrays of integers
+		is := 0
+		nonInts := a.Until(func(x *ast.Term) bool {
+			if n, ok := x.Value.(ast.Number); ok {
+				if i, ok := n.Int(); ok {
+					is += i
+					return false
+				}
+			}
+			return true
+		})
+		if !nonInts {
+			return iter(ast.InternedIntNumberTerm(is))
+		}
+
+		// Non-integer values found, so we need to sum as floats.
 		sum := big.NewFloat(0)
 		err := a.Iter(func(x *ast.Term) error {
 			n, ok := x.Value.(ast.Number)
@@ -42,6 +58,21 @@ func builtinSum(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 		}
 		return iter(ast.NewTerm(builtins.FloatToNumber(sum)))
 	case ast.Set:
+		// Fast path for sets of integers
+		is := 0
+		nonInts := a.Until(func(x *ast.Term) bool {
+			if n, ok := x.Value.(ast.Number); ok {
+				if i, ok := n.Int(); ok {
+					is += i
+					return false
+				}
+			}
+			return true
+		})
+		if !nonInts {
+			return iter(ast.InternedIntNumberTerm(is))
+		}
+
 		sum := big.NewFloat(0)
 		err := a.Iter(func(x *ast.Term) error {
 			n, ok := x.Value.(ast.Number)

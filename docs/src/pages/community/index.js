@@ -1,9 +1,10 @@
-import Link from "@docusaurus/Link";
-import Heading from "@theme/Heading";
-import Layout from "@theme/Layout";
 import React from "react";
 
+import Heading from "@theme/Heading";
+
 import Card from "../../components/Card";
+import CardGrid from "../../components/CardGrid";
+import StandaloneLayout from "../../components/StandaloneLayout";
 
 const communityData = {
   title: "Community",
@@ -14,7 +15,7 @@ const communityData = {
   Leverage this list of community resources to maximize the value OPA can provide!`,
   sections: [
     {
-      title: "Community Discussions",
+      title: "Discuss OPA",
       items: [
         {
           title: "OPA Slack",
@@ -57,7 +58,7 @@ Rego files, implementing OPA, or share the configurations you are working on.`,
       ],
     },
     {
-      title: "Learn",
+      title: "Learning Resources",
       items: [
         {
           title: "Styra Academy",
@@ -80,11 +81,11 @@ Rego files, implementing OPA, or share the configurations you are working on.`,
 
 function Section({ section }) {
   return (
-    <div style={{ marginBottom: 40 }}>
+    <div style={{ marginBottom: "2rem" }}>
       <Heading as="h2">{section.title}</Heading>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 20 }}>
+      <CardGrid justifyCenter={false}>
         {section.items.map((item, idx) => <Card key={idx} item={item} />)}
-      </div>
+      </CardGrid>
     </div>
   );
 }
@@ -93,13 +94,14 @@ export default function CommunityPage() {
   const { title, intro, sections } = communityData;
 
   return (
-    <Layout title={title} description="OPA Community Resources">
-      <div className="container margin-vert--lg">
-        <Heading as="h1">{title}</Heading>
-        <p style={{ fontSize: "1.1rem", maxWidth: 700 }}>{intro}</p>
+    <StandaloneLayout
+      title={title}
+      description="OPA Community Resources"
+    >
+      <Heading as="h1">{title}</Heading>
+      <p className="margin-bottom--lg">{intro}</p>
 
-        {sections.map((section, idx) => <Section key={idx} section={section} />)}
-      </div>
-    </Layout>
+      {sections.map((section, idx) => <Section key={idx} section={section} />)}
+    </StandaloneLayout>
   );
 }

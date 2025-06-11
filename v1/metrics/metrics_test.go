@@ -23,3 +23,39 @@ func TestMetricsTimer(t *testing.T) {
 		t.Fatalf("Expected metrics to be cleared, but found %v", m.All())
 	}
 }
+
+func TestMetricsTimerDoubleStop(t *testing.T) {
+	m := New()
+	m.Timer("foo").Start()
+
+	time.Sleep(time.Millisecond)
+	m.Timer("foo").Stop()
+	t1 := m.Timer("foo").Int64()
+
+	time.Sleep(time.Millisecond)
+	m.Timer("foo").Stop()
+	t2 := m.Timer("foo").Int64()
+
+	if t1 != t2 {
+		t.Fatalf("Unexpected difference in stopped timer values: %v, %v", t1, t2)
+	}
+}
+
+func TestMetricsTimerRestart(t *testing.T) {
+	m := New()
+	m.Timer("foo").Start()
+
+	time.Sleep(time.Millisecond)
+	m.Timer("foo").Stop()
+	t1 := m.Timer("foo").Int64()
+
+	// Restart the timer.
+	m.Timer("foo").Start()
+	time.Sleep(time.Millisecond)
+	m.Timer("foo").Stop()
+	t2 := m.Timer("foo").Int64()
+
+	if t1 >= t2 {
+		t.Fatalf("Expected restarted timer to advance, but got same value.: %v, %v", t1, t2)
+	}
+}

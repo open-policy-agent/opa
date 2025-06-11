@@ -19,6 +19,15 @@
 /softwares/:entry/*  /ecosystem?q=:entry 301!
 /organizations/:entry/* /ecosystem?q=:entry 301!
 
+# we have a log "type" called "openpolicyagent.org/decision_logs", we have seen
+# over 100 requests for this path in the past 24hrs at time of adding and it'd
+# be ideal if human users were redirected to the documentation for decision
+# logs.
+/decision_logs /docs/management-decision-logs
+
+# TODO: (charlieegan3) remove this after 2025-07-01
+/ecosystem/entry/open-policy-registry /ecosystem/entry/ocpr 301!
+
 # -----------------------------------------------------------------------------
 # Redirects for legacy usage external resources
 # -----------------------------------------------------------------------------

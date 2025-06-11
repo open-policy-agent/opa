@@ -26,7 +26,7 @@ func builtinUUIDRFC4122(bctx BuiltinContext, operands []*ast.Term, iter func(*as
 		return err
 	}
 
-	result := ast.NewTerm(ast.String(s))
+	result := ast.StringTerm(s)
 	bctx.Cache.Put(key, result)
 
 	return iter(result)

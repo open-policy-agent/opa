@@ -217,7 +217,10 @@ git push origin release-0.14
 
 Open a Pull Request against the upstream release branch. Be careful to open the
 Pull Request against the correct upstream release branch. **DO NOT** open/merge
-the Pull Request into main or other release branches:
+the Pull Request into main or other release branches.
+
+When merging the Pull Request, make sure to do a rebase merge to retain all 
+cherry-picked commits (**do not squash**). 
 
 Once the Pull Request has merged fetch the latest changes and tag the commit to
 prepare for publishing. Use the same instructions as defined above in normal

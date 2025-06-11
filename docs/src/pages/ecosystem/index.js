@@ -1,8 +1,13 @@
-import Heading from "@theme/Heading";
-import Layout from "@theme/Layout";
 import React, { useState } from "react";
 
+import Link from "@docusaurus/Link";
+import Heading from "@theme/Heading";
+import Layout from "@theme/Layout";
+
+import styles from "./styles.module.css";
+
 import Card from "../../components/Card";
+import CardGrid from "../../components/CardGrid";
 import getLogoAsset from "../../lib/ecosystem/getLogoAsset.js";
 import sortPagesByRank from "../../lib/ecosystem/sortPagesByRank.js";
 
@@ -68,26 +73,19 @@ const EcosystemIndex = (props) => {
   return (
     <Layout title={title}>
       <div className="container margin-vert--lg">
-        <Heading as="h1" style={{ margin: 0 }}>
+        <Heading as="h1" className={styles.title}>
           {title}
         </Heading>
-        <p style={{ fontSize: "1.2rem", color: "var(--ifm-font-color-secondary)" }}>
+        <p className={styles.subtitle}>
           Showcase of OPA integrations, use-cases, and related projects.
         </p>
 
-        <div style={{ marginTop: "3rem" }}>
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "2rem",
-              justifyContent: "space-between",
-            }}
-          >
-            <div style={{ flex: "1 1 calc(50% - 1rem)", minWidth: "300px" }}>
+        <div className={styles.section}>
+          <div className={styles.sectionContent}>
+            <div className={styles.languageSection}>
               <Heading as="h2">Create With OPA</Heading>
               <p>Integrate with OPA from your language</p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "2rem", marginTop: "1.5rem" }}>
+              <div className={styles.languageGrid}>
                 {preferredLanguageOrder.map((langId) => {
                   const lang = languages[langId];
                   if (!lang) return null;
@@ -96,27 +94,14 @@ const EcosystemIndex = (props) => {
                     <a
                       key={lang.id}
                       href={`./ecosystem/by-language/${lang.id}`}
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        width: "100px",
-                        textAlign: "center",
-                        textDecoration: "none",
-                        color: "inherit",
-                      }}
+                      className={styles.languageLink}
                     >
                       <img
                         src={require(`./assets/ecosystem/language-logos/${lang.id}.png`).default}
                         alt={`${lang.title} logo`}
-                        style={{
-                          width: "64px",
-                          height: "64px",
-                          objectFit: "contain",
-                          marginBottom: "0.5rem",
-                        }}
+                        className={styles.languageLogo}
                       />
-                      <span style={{ fontSize: "0.9rem", fontWeight: 500 }}>{lang.title}</span>
+                      <span className={styles.languageTitle}>{lang.title}</span>
                     </a>
                   );
                 })}
@@ -125,15 +110,8 @@ const EcosystemIndex = (props) => {
           </div>
         </div>
 
-        <div style={{ marginTop: "3rem" }}>
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "2rem",
-              justifyContent: "space-between",
-            }}
-          >
+        <div className={styles.section}>
+          <div className={styles.sectionContent}>
             {allCategoryKeys.map((categoryId) => {
               const featuresInCategory = featureListByCategory[categoryId];
               if (!featuresInCategory) return null;
@@ -143,7 +121,7 @@ const EcosystemIndex = (props) => {
               const categoryDescription = category?.description;
 
               return (
-                <div key={categoryId} style={{ flex: "1 1 calc(50% - 1rem)", minWidth: "300px" }}>
+                <div key={categoryId} className={styles.categorySection}>
                   <Heading as="h2">{categoryTitle}</Heading>
                   <p>{categoryDescription}</p>
                   <ul>
@@ -159,65 +137,51 @@ const EcosystemIndex = (props) => {
           </div>
         </div>
 
-        <Heading as="h2" id="all-entries" style={{ margin: 0 }}>
+        <Heading as="h2" id="all-entries" className={styles.title}>
           All Entries & Integrations
         </Heading>
 
-        <div style={{ margin: "1.5rem 0" }}>
+        <div className={styles.searchContainer}>
           <input
             type="text"
             placeholder="Search entries..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              padding: "0.5rem",
-              width: "100%",
-              maxWidth: "40rem",
-              fontSize: "1rem",
-            }}
+            className={styles.searchInput}
           />
-          <p style={{ fontSize: "0.8rem", marginTop: "0.5rem" }}>
-            All integrations are ordered by the number of linked resources.
+          <p className={styles.searchNote}>
+            All integrations are ordered by the number of linked resources.{" "}
+            <Link to="/docs/contrib-docs#opa-ecosystem-additions">Add yours!</Link>
           </p>
         </div>
 
-        <div
-          style={{
-            marginTop: "2rem",
-            display: "flex",
-            flexWrap: "wrap",
-            justifyContent: "center",
-            gap: 20,
-          }}
-        >
-          {filteredPages.length === 0
-            ? (
-              <p style={{ textAlign: "center", width: "100%" }}>
-                No integrations found. Try searching for something else or drop us a message on{" "}
-                <a href="https://slack.openpolicyagent.org/" target="_blank" rel="noopener noreferrer">
-                  Slack
-                </a>.
-              </p>
-            )
-            : (
-              filteredPages.map((id) => {
-                const page = entries[id];
-                const cardData = {
-                  title: page.title,
-                  note: page.subtitle,
-                  icon: getLogoAsset(page.id),
-                  link: `/ecosystem/entry/${id}`,
-                  link_text: "View Details",
-                };
+        {filteredPages.length === 0
+          ? (
+            <p className={styles.noResults}>
+              No integrations found. Try searching for something else or drop us a message on{" "}
+              <a href="https://slack.openpolicyagent.org/" target="_blank" rel="noopener noreferrer">
+                Slack
+              </a>.
+            </p>
+          )
+          : (
+            <div className={styles.cardGridContainer}>
+              <CardGrid>
+                {filteredPages.map((id) => {
+                  const page = entries[id];
+                  const cardData = {
+                    title: page.title,
+                    note: page.subtitle,
+                    icon: getLogoAsset(page.id),
+                    link: `/ecosystem/entry/${id}`,
+                    link_text: "View Details",
+                  };
 
-                return (
-                  <div key={id} style={{ flex: "1 1 30%", minWidth: "250px", maxWidth: "400px" }}>
-                    <Card item={cardData} />
-                  </div>
-                );
-              })
-            )}
-        </div>
+                  return <Card key={id} item={cardData} />;
+                })}
+              </CardGrid>
+            </div>
+          )}
       </div>
     </Layout>
   );

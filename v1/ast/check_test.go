@@ -2433,6 +2433,61 @@ q = p`,
 
 }
 
+// TestSchemaCache is a regression test for https://github.com/open-policy-agent/opa/issues/7679
+func TestInlinedSchemaAnnotationIgnoredByCache(t *testing.T) {
+	policy := `
+package test
+
+# METADATA
+# schemas:
+#   - input.x: {"type": "boolean"}
+p if {
+	input.x == 42
+}
+
+# METADATA
+# schemas:
+#   - input.x: {"type": "object"}
+q if {
+	input.x == "foo"
+}`
+
+	m, err := ParseModuleWithOpts("policy.rego", policy, ParserOptions{ProcessAnnotation: true})
+	if err != nil {
+		t.Fatalf("failed to parse module: %v", err)
+	}
+
+	ms := map[string]*Module{"policy.rego": m}
+	compiler := NewCompiler().WithUseTypeCheckAnnotations(true)
+	compiler.Compile(ms)
+
+	if !compiler.Failed() {
+		t.Fatal("compiler failures expected, got none")
+	}
+
+	expErrs := []string{
+		`policy.rego:8: rego_type_error: match error
+	left  : boolean
+	right : number`,
+		`policy.rego:15: rego_type_error: match error
+	left  : object[any: any]
+	right : string`,
+	}
+
+	for _, expErr := range expErrs {
+		found := false
+		for _, err := range compiler.Errors {
+			if strings.Contains(err.Error(), expErr) {
+				found = true
+				continue
+			}
+		}
+		if !found {
+			t.Errorf("expected error:\n\n%s\n\ngot:\n\n%s", expErr, compiler.Errors.Error())
+		}
+	}
+}
+
 func TestRemoteSchema(t *testing.T) {
 	schema := `{"type": "boolean"}`
 

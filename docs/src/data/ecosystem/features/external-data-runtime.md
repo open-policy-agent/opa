@@ -5,4 +5,4 @@ category: production
 ---
 
 These projects extend OPA to support the
-[pulling of data at evaluation time](../../external-data/#option-5-pull-data-during-evaluation).
+[pulling of data at evaluation time](/docs/external-data/#option-5-pull-data-during-evaluation).

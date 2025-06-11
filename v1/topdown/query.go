@@ -400,7 +400,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		saveSet:                     newSaveSet(q.unknowns, b, q.instr),
 		saveStack:                   newSaveStack(),
 		saveSupport:                 newSaveSupport(),
-		saveNamespace:               ast.StringTerm(q.partialNamespace),
+		saveNamespace:               ast.InternedStringTerm(q.partialNamespace),
 		skipSaveNamespace:           q.skipSaveNamespace,
 		inliningControl: &inliningControl{
 			shallow:                  q.shallowInlining,

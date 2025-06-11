@@ -4,10 +4,14 @@
 
 package ast
 
-import "strconv"
+import (
+	"strconv"
+)
 
 // NOTE! Great care must be taken **not** to modify the terms returned
 // from these functions, as they are shared across all callers.
+// This package is currently considered experimental, and may change
+// at any time without notice.
 
 var (
 	booleanTrueTerm  = &Term{Value: Boolean(true)}
@@ -21,9 +25,24 @@ var (
 	InternedEmptyString = StringTerm("")
 	InternedEmptyObject = ObjectTerm()
 	InternedEmptyArray  = ArrayTerm()
+	InternedEmptySet    = SetTerm()
 
 	InternedEmptyArrayValue = NewArray()
 )
+
+// InternStringTerm interns the given strings as terms. Note that Interning is
+// considered experimental and should not be relied upon by external code.
+// WARNING: This must **only** be called at initialization time, as the
+// interned terms are shared globally, and the underlying map is not thread-safe.
+func InternStringTerm(str ...string) {
+	for _, s := range str {
+		if _, ok := internedStringTerms[s]; ok {
+			continue
+		}
+
+		internedStringTerms[s] = StringTerm(s)
+	}
+}
 
 // InternedBooleanTerm returns an interned term with the given boolean value.
 func InternedBooleanTerm(b bool) *Term {
@@ -66,6 +85,9 @@ func HasInternedIntNumberTerm(i int) bool {
 	return i >= -1 && i < len(intNumberTerms)
 }
 
+// InternedStringTerm returns an interned term with the given string value. If the
+// provided string is not interned, a new term is created for that value. It does *not*
+// modify the global interned terms map.
 func InternedStringTerm(s string) *Term {
 	if term, ok := internedStringTerms[s]; ok {
 		return term
@@ -74,19 +96,216 @@ func InternedStringTerm(s string) *Term {
 	return StringTerm(s)
 }
 
+// Returns an interned string term representing the integer value i, if
+// interned. If not, creates a new StringTerm for the integer value.
+func InternedIntegerString(i int) *Term {
+	// Cheapest option - we don't need to call strconv.Itoa
+	if HasInternedIntNumberTerm(i) {
+		if interned, ok := internedStringTerms[IntNumberTerm(i).String()]; ok {
+			return interned
+		}
+	}
+
+	// Next cheapest option — the string could still be interned if the store
+	// has been extended with more terms than we cucrrently intern.
+	s := strconv.Itoa(i)
+	if interned, ok := internedStringTerms[s]; ok {
+		return interned
+	}
+
+	// Nope, create a new term
+	return StringTerm(s)
+}
+
 var internedStringTerms = map[string]*Term{
-	"":   InternedEmptyString,
-	"0":  StringTerm("0"),
-	"1":  StringTerm("1"),
-	"2":  StringTerm("2"),
-	"3":  StringTerm("3"),
-	"4":  StringTerm("4"),
-	"5":  StringTerm("5"),
-	"6":  StringTerm("6"),
-	"7":  StringTerm("7"),
-	"8":  StringTerm("8"),
-	"9":  StringTerm("9"),
-	"10": StringTerm("10"),
+	"":    InternedEmptyString,
+	"0":   StringTerm("0"),
+	"1":   StringTerm("1"),
+	"2":   StringTerm("2"),
+	"3":   StringTerm("3"),
+	"4":   StringTerm("4"),
+	"5":   StringTerm("5"),
+	"6":   StringTerm("6"),
+	"7":   StringTerm("7"),
+	"8":   StringTerm("8"),
+	"9":   StringTerm("9"),
+	"10":  StringTerm("10"),
+	"11":  StringTerm("11"),
+	"12":  StringTerm("12"),
+	"13":  StringTerm("13"),
+	"14":  StringTerm("14"),
+	"15":  StringTerm("15"),
+	"16":  StringTerm("16"),
+	"17":  StringTerm("17"),
+	"18":  StringTerm("18"),
+	"19":  StringTerm("19"),
+	"20":  StringTerm("20"),
+	"21":  StringTerm("21"),
+	"22":  StringTerm("22"),
+	"23":  StringTerm("23"),
+	"24":  StringTerm("24"),
+	"25":  StringTerm("25"),
+	"26":  StringTerm("26"),
+	"27":  StringTerm("27"),
+	"28":  StringTerm("28"),
+	"29":  StringTerm("29"),
+	"30":  StringTerm("30"),
+	"31":  StringTerm("31"),
+	"32":  StringTerm("32"),
+	"33":  StringTerm("33"),
+	"34":  StringTerm("34"),
+	"35":  StringTerm("35"),
+	"36":  StringTerm("36"),
+	"37":  StringTerm("37"),
+	"38":  StringTerm("38"),
+	"39":  StringTerm("39"),
+	"40":  StringTerm("40"),
+	"41":  StringTerm("41"),
+	"42":  StringTerm("42"),
+	"43":  StringTerm("43"),
+	"44":  StringTerm("44"),
+	"45":  StringTerm("45"),
+	"46":  StringTerm("46"),
+	"47":  StringTerm("47"),
+	"48":  StringTerm("48"),
+	"49":  StringTerm("49"),
+	"50":  StringTerm("50"),
+	"51":  StringTerm("51"),
+	"52":  StringTerm("52"),
+	"53":  StringTerm("53"),
+	"54":  StringTerm("54"),
+	"55":  StringTerm("55"),
+	"56":  StringTerm("56"),
+	"57":  StringTerm("57"),
+	"58":  StringTerm("58"),
+	"59":  StringTerm("59"),
+	"60":  StringTerm("60"),
+	"61":  StringTerm("61"),
+	"62":  StringTerm("62"),
+	"63":  StringTerm("63"),
+	"64":  StringTerm("64"),
+	"65":  StringTerm("65"),
+	"66":  StringTerm("66"),
+	"67":  StringTerm("67"),
+	"68":  StringTerm("68"),
+	"69":  StringTerm("69"),
+	"70":  StringTerm("70"),
+	"71":  StringTerm("71"),
+	"72":  StringTerm("72"),
+	"73":  StringTerm("73"),
+	"74":  StringTerm("74"),
+	"75":  StringTerm("75"),
+	"76":  StringTerm("76"),
+	"77":  StringTerm("77"),
+	"78":  StringTerm("78"),
+	"79":  StringTerm("79"),
+	"80":  StringTerm("80"),
+	"81":  StringTerm("81"),
+	"82":  StringTerm("82"),
+	"83":  StringTerm("83"),
+	"84":  StringTerm("84"),
+	"85":  StringTerm("85"),
+	"86":  StringTerm("86"),
+	"87":  StringTerm("87"),
+	"88":  StringTerm("88"),
+	"89":  StringTerm("89"),
+	"90":  StringTerm("90"),
+	"91":  StringTerm("91"),
+	"92":  StringTerm("92"),
+	"93":  StringTerm("93"),
+	"94":  StringTerm("94"),
+	"95":  StringTerm("95"),
+	"96":  StringTerm("96"),
+	"97":  StringTerm("97"),
+	"98":  StringTerm("98"),
+	"99":  StringTerm("99"),
+	"100": StringTerm("100"),
+
+	// Types
+	"null":    StringTerm("null"),
+	"boolean": StringTerm("boolean"),
+	"number":  StringTerm("number"),
+	"string":  StringTerm("string"),
+	"array":   StringTerm("array"),
+	"object":  StringTerm("object"),
+	"set":     StringTerm("set"),
+
+	// Runtime
+	"config":                  StringTerm("config"),
+	"env":                     StringTerm("env"),
+	"version":                 StringTerm("version"),
+	"commit":                  StringTerm("commit"),
+	"authorization_enabled":   StringTerm("authorization_enabled"),
+	"skip_known_schema_check": StringTerm("skip_known_schema_check"),
+
+	// Annotations
+	"annotations":       StringTerm("annotations"),
+	"scope":             StringTerm("scope"),
+	"title":             StringTerm("title"),
+	"entrypoint":        StringTerm("entrypoint"),
+	"description":       StringTerm("description"),
+	"organizations":     StringTerm("organizations"),
+	"authors":           StringTerm("authors"),
+	"related_resources": StringTerm("related_resources"),
+	"schemas":           StringTerm("schemas"),
+	"custom":            StringTerm("custom"),
+	"ref":               StringTerm("ref"),
+	"name":              StringTerm("name"),
+	"email":             StringTerm("email"),
+	"schema":            StringTerm("schema"),
+	"definition":        StringTerm("definition"),
+	"document":          StringTerm("document"),
+	"package":           StringTerm("package"),
+	"rule":              StringTerm("rule"),
+	"subpackages":       StringTerm("subpackages"),
+
+	// Debug
+	"text":        StringTerm("text"),
+	"value":       StringTerm("value"),
+	"bindings":    StringTerm("bindings"),
+	"expressions": StringTerm("expressions"),
+
+	// Various
+	"data":     StringTerm("data"),
+	"input":    StringTerm("input"),
+	"result":   StringTerm("result"),
+	"keywords": StringTerm("keywords"),
+	"path":     StringTerm("path"),
+	"v1":       StringTerm("v1"),
+	"error":    StringTerm("error"),
+	"partial":  StringTerm("partial"),
+
+	// HTTP
+	"code":        StringTerm("code"),
+	"message":     StringTerm("message"),
+	"status_code": StringTerm("status_code"),
+	"method":      StringTerm("method"),
+	"url":         StringTerm("url"),
+
+	// JWT
+	"enc":    StringTerm("enc"),
+	"cty":    StringTerm("cty"),
+	"iss":    StringTerm("iss"),
+	"exp":    StringTerm("exp"),
+	"nbf":    StringTerm("nbf"),
+	"aud":    StringTerm("aud"),
+	"secret": StringTerm("secret"),
+	"cert":   StringTerm("cert"),
+
+	// Decisions
+	"revision":         StringTerm("revision"),
+	"labels":           StringTerm("labels"),
+	"decision_id":      StringTerm("decision_id"),
+	"bundles":          StringTerm("bundles"),
+	"query":            StringTerm("query"),
+	"mapped_result":    StringTerm("mapped_result"),
+	"nd_builtin_cache": StringTerm("nd_builtin_cache"),
+	"erased":           StringTerm("erased"),
+	"masked":           StringTerm("masked"),
+	"requested_by":     StringTerm("requested_by"),
+	"timestamp":        StringTerm("timestamp"),
+	"metrics":          StringTerm("metrics"),
+	"req_id":           StringTerm("req_id"),
 }
 
 var stringToIntNumberTermMap = map[string]*Term{

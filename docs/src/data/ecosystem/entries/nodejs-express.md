@@ -5,7 +5,7 @@ labels:
   category: application
   layer: network
 code:
-- https://github.com/build-security/opa-express-middleware
+- https://www.npmjs.com/package/@build-security/opa-express-middleware
 inventors:
 - build-security
 software:
@@ -15,7 +15,7 @@ docs_features:
     note: |
       This project provides a middleware that can query an OPA server for
       policy decisions. See the project's
-      [README](https://github.com/build-security/opa-express-middleware#simple-usage)
+      [README](https://www.npmjs.com/package/@build-security/opa-express-middleware#simple-usage)
       for a js simple example.
 aliases:
 - /softwares/nodejsexpress

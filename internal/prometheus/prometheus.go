@@ -14,9 +14,8 @@ import (
 	"runtime"
 	"strconv"
 
-	// Need to keep deprecated package for compatibility with prometheus/client_golang
-	"github.com/golang/protobuf/jsonpb" // nolint:staticcheck
-	"github.com/golang/protobuf/proto"  // nolint:staticcheck
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -122,11 +121,8 @@ func (p *Provider) All() map[string]any {
 
 type wrap struct{ family proto.Message }
 
-var marshaler = jsonpb.Marshaler{}
-
 func (w wrap) MarshalJSON() ([]byte, error) {
-	s, err := marshaler.MarshalToString(w.family)
-	return []byte(s), err
+	return protojson.Marshal(w.family)
 }
 
 // MarshalJSON returns a JSON representation of the unioned metrics.
@@ -208,7 +204,7 @@ func allocHandler(rsp http.ResponseWriter, req *http.Request) {
 	total := m.HeapInuse + m.StackInuse + m.MCacheInuse + m.MSpanInuse
 
 	var alloc string
-	if req.URL.Query().Get("pretty") == "true" {
+	if req.URL.RawQuery != "" && req.URL.Query().Get("pretty") == "true" {
 		alloc = prettyByteSize(total)
 	} else {
 		alloc = strconv.FormatUint(total, 10)

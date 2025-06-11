@@ -25,16 +25,19 @@ started by running:
 make dev
 ```
 
-Note, that the server will not restart when you change the
+:::tip
+**Note** the Docusaurus server will not restart when you change the
 `docusaurus.config.js`.
 
 If you are working on the website code (not only the documentation content)
 you might find the following command useful to reload the site when changing the
-configuration file too:
+configuration files too using [entr](https://github.com/eradman/entr):
 
 ```bash
-find . -name docusaurus.config.js -o -name sidebars.js -o -name sidebars.js | entr -c -r make dev
+find . -name docusaurus.config.js -o -name sidebars.js | entr -c -r make dev
 ```
+
+:::
 
 You can run a local build of the website using the `build`. This will also show
 a summary of any broken links or anchors.
@@ -71,13 +74,18 @@ advanced features such as:
 - Linking to relevant pages in the `/ecosystem` section
 - Mermaid diagrams containing asset references
 
-## Create a local branch
+Generally, this is not required, but feel free to ask in PRs or in Slack if you
+have questions. `src/theme/MDXComponents.js` contains a list of components that
+are available for use in any Markdown file. Additional components can be
+imported if needed on a one off basis.
+
+## Creating a Local Branch
 
 To get started, fork the OPA repository and create a local branch for your Docs changes.
 Check out the [Development Guide](./contrib-development/#fork-clone-create-a-branch)
 if you need some help setting this up.
 
-## Update Existing Docs
+## Updating Existing Documentation
 
 Navigate to the
 [docs](https://github.com/open-policy-agent/opa/blob/main/docs/docs)
@@ -96,12 +104,15 @@ from the title, you may wish to set `sidebar_position`.
 You may also wish to update `src/lib/sidebars.js` to place your new page in the
 correct location.
 
-## Test your changes
+## Testing your changes
 
 Once you have made your updates, the next step is to test that they look as
-expected. To test your changes, you can run `make dev`.
+expected. To test your changes, you can run `make dev`. Note, broken links will
+only be checked when Docusaurus builds the site, so you will need to run make
+build to check for broken links if needed. This will be done when generating the
+preview site anyway.
 
-## Submit a Pull Request
+## Submitting a Pull Request
 
 Once you've tested your changes and you're happy with how they look, commit them
 to your branch and open a pull request. If this is your first time opening a
@@ -110,11 +121,27 @@ pull request with the OPA repository, check out the
 Once your PR has been received a Netlify preview will be automatically created,
 check the PR for a unique link.
 
-## Having trouble
+## Having trouble?
 
 Reach out in the
 [#contributors](https://openpolicyagent.slack.com/archives/C02L1TLPN59)
-channel to ask for help.
+channel on the [OPA Slack](https://slack.openpolicyagent.org/) to ask for help.
+
+## OPA Ecosystem Additions
+
+The [OPA Ecosystem](/ecosystem/) is a showcase of projects that are built with
+or integrated with OPA. If you have a project that you would like to showcase,
+please open a PR with two files:
+
+- A markdown file in [docs/src/data/ecosystem/entries](https://github.com/open-policy-agent/opa/blob/main/docs/src/data/ecosystem/entries)
+- An icon file in [docs/static/img/ecosystem-entry-logos](https://github.com/open-policy-agent/opa/blob/main/docs/static/img/ecosystem-entry-logos)
+
+Both files should have the same 'id', e.g. if your project is called `foobar`,
+then the markdown file should be named `foobar.md` and the icon file
+is named `foobar.{png|svg}`.
+
+You will need to restart the Docusaurus dev server to see the changes if
+previewing locally.
 
 ## Sub-project Documentation
 

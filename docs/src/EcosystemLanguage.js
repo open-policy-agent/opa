@@ -2,7 +2,9 @@ import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
 import React from "react";
 import ReactMarkdown from "react-markdown";
+
 import Card from "./components/Card";
+import CardGrid from "./components/CardGrid";
 
 import getLogoAsset from "./lib/ecosystem/getLogoAsset.js";
 import sortPagesByRank from "./lib/ecosystem/sortPagesByRank.js";
@@ -50,15 +52,7 @@ const EcosystemFeature = (props) => {
           </div>
         )}
 
-        <div
-          style={{
-            marginTop: "2rem",
-            display: "flex",
-            flexWrap: "wrap",
-            justifyContent: "center",
-            gap: 20,
-          }}
-        >
+        <CardGrid>
           {sortedPages.map((id) => {
             const page = pages[id];
 
@@ -70,13 +64,9 @@ const EcosystemFeature = (props) => {
               link_text: "View Details",
             };
 
-            return (
-              <div key={id} style={{ flex: "1 1 30%", minWidth: "250px", maxWidth: "400px" }}>
-                <Card item={cardData} />
-              </div>
-            );
+            return <Card item={cardData} />;
           })}
-        </div>
+        </CardGrid>
       </div>
     </Layout>
   );

@@ -13,6 +13,7 @@ code:
 - https://github.com/StyraInc/regal
 videos:
 - "https://www.youtube.com/live/Xx8npd2TQJ0?feature=share&t=2567"
+- "https://youtu.be/XtA-NKoJDaI?feature=shared&t=934"
 tutorials:
 - https://docs.styra.com/regal#try-it-out
 docs_features:
@@ -37,7 +38,7 @@ docs_features:
   debugging-rego:
     note: |
       Regal can be used to debug Rego policies by identifying common mistakes.
-      See [Bugs](https://docs.styra.com/regal/category/bugs) for some example
+      See [Bugs](https://docs.styra.com/regal/rules/bugs) for some example
       issues it can identify automatically.
 
       Regal also implements a

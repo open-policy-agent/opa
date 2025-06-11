@@ -1,5 +1,6 @@
 ---
 title: Terraform Policy
+subtitle: Check resources are compliant before they're deployed.
 software:
 - terraform
 - aws
@@ -30,4 +31,8 @@ inventors:
 - docker
 - snyk
 ---
-Terraform lets you describe the infrastructure you want and automatically creates, deletes, and modifies your existing infrastructure to match. OPA makes it possible to write policies that test the changes Terraform is about to make before it makes them.
+
+Terraform lets you describe the infrastructure you want and automatically
+creates, deletes, and modifies your existing infrastructure to match. OPA makes
+it possible to write policies that test the changes Terraform is about to make
+before it makes them.

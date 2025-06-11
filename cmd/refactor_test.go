@@ -206,12 +206,35 @@ func TestParseSrcDstMap(t *testing.T) {
 		t.Fatalf("Expected mapping %v but got %v", expected, actual)
 	}
 
+	actual, err = parseSrcDstMap([]string{`data.foo:data.bar["baz:qux"]`})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected = map[string]string{"data.foo": `data.bar["baz:qux"]`}
+	if !maps.Equal(actual, expected) {
+		t.Fatalf("Expected mapping %v but got %v", expected, actual)
+	}
+
 	_, err = parseSrcDstMap([]string{"data.lib.foo:data.baz.bar", "data::data.acme"})
 	if err == nil {
 		t.Fatal("Expected error but got nil")
 	}
 
 	_, err = parseSrcDstMap([]string{"data.lib.foo:data.baz.bar", "data%data.acme:foo:bar"})
+	if err == nil {
+		t.Fatal("Expected error but got nil")
+	}
+
+	_, err = parseSrcDstMap([]string{"[1]"}) // invalid term type
+	if err == nil {
+		t.Fatal("Expected error but got nil")
+	}
+	_, err = parseSrcDstMap([]string{"[1,"}) // parse error
+	if err == nil {
+		t.Fatal("Expected error but got nil")
+	}
+	_, err = parseSrcDstMap([]string{`{"data.a:data.b, data.c:data.d}`}) // multiple mappings
 	if err == nil {
 		t.Fatal("Expected error but got nil")
 	}

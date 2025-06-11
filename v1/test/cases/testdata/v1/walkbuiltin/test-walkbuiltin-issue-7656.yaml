@@ -1,0 +1,26 @@
+---
+cases:
+  # verify fix for issue 7656
+  - note: walkbuiltin/array path not overwritten
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        x := {"a": [{"b": [{"c": [
+            {"aa": "AA"},
+            {"bb": "BB"},
+            {"cc": "CC"},
+            {"dd": "DDD"},
+        ]}]}]}
+
+        p := {path: value |
+            [path, value] := walk(x)
+            count(value) == 2
+        }
+    data: {}
+    want_result:
+      - x:
+          "[\"a\",0,\"b\",0,\"c\",0,\"aa\"]": "AA"
+          "[\"a\",0,\"b\",0,\"c\",1,\"bb\"]": "BB"
+          "[\"a\",0,\"b\",0,\"c\",2,\"cc\"]": "CC"
