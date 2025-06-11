@@ -10,11 +10,12 @@
 	opacity: 0.8;
 	width: 10rem;
 	height: 3rem;
-	border: 0.3rem solid LightGray;
+	border: 0.3rem solid var(--ifm-color-emphasis-300);
 	border-radius: 0.2rem;
 	background: none;
 	cursor: pointer;
 	font-size: 1.5rem;
+	color: var(--ifm-font-color-base);
 }
 
 .button:hover {
@@ -22,13 +23,13 @@
 }
 
 .positive {
-	color: SeaGreen;
-	border-color: SeaGreen;
+	color: var(--ifm-color-success);
+	border-color: var(--ifm-color-success);
 }
 
 .negative {
-	color: Crimson;
-	border-color: Crimson;
+	color: var(--ifm-color-danger);
+	border-color: var(--ifm-color-danger);
 }
 
 .comment textarea {
@@ -36,9 +37,11 @@
 	font-size: 1rem;
 	max-width: 25rem;
 	border-radius: 0.2rem;
-	border: 1px solid LightGray;
+	border: 1px solid var(--ifm-color-emphasis-300);
 	padding: 0.5rem 0.5rem;
 	box-sizing: border-box;
+	background-color: var(--ifm-background-color);
+	color: var(--ifm-font-color-base);
 }
 
 .email div {
@@ -57,8 +60,10 @@
 	width: 100%;
 	max-width: 25rem;
 	border-radius: 0.2rem;
-	border: 1px solid LightGray;
+	border: 1px solid var(--ifm-color-emphasis-300);
 	box-sizing: border-box;
+	background-color: var(--ifm-background-color);
+	color: var(--ifm-font-color-base);
 }
 
 .note {
@@ -69,13 +74,13 @@
 	position: fixed;
 	bottom: 1.25rem;
 	right: 1.25rem;
-	background: white;
+	background: var(--ifm-background-color);
 	border-radius: 0.5rem;
 	box-shadow: 0 0.125rem 0.625rem rgba(0, 0, 0, 0.1);
 	padding: 1rem;
 	z-index: 1000;
 	max-width: 18.75rem;
-	border: 1px solid LightGray;
+	border: 1px solid var(--ifm-color-emphasis-300);
 }
 
 .closeButton {
@@ -87,6 +92,7 @@
 	cursor: pointer;
 	padding: 0.25rem;
 	opacity: 0.6;
+	color: var(--ifm-font-color-base);
 }
 
 .closeButton:hover {
