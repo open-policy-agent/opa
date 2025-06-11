@@ -1,0 +1,6 @@
+{
+	"showInput": false,
+	"showData":  false,
+	"showTitles": false,
+	"command": "data.graph_reachable_example.result"
+}

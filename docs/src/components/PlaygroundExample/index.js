@@ -9,7 +9,7 @@ import SideBySideColumn from "../SideBySide/Column";
 import SideBySideContainer from "../SideBySide/Container";
 
 export default function PlaygroundExample({
-  dir,
+  dir, infiles
 }) {
   let files = dir.keys().reduce((acc, key) => {
     let fileName = key.replace(`./`, "");
@@ -58,10 +58,8 @@ export default function PlaygroundExample({
 
   // id is used to stop contents from other examples on the same page being used
   const id = getId(state);
-
-  const snippetFiles = `#${id}-input.json:input.json #${id}-data.json:data.json`;
-
-  return (
+  const snippetFiles = `${infiles} #${id}-input.json:input.json #${id}-data.json:data.json`;
+   return (
     <div>
       {title && <h2>{title}</h2>}
 
