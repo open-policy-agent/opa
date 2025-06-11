@@ -9,11 +9,74 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Check what types of changes this PR contains
+  check-changes:
+    name: Check what files changed
+    runs-on: ubuntu-24.04
+    outputs:
+      docs-only: ${{ steps.changes.outputs.docs-only }}
+      wasm: ${{ steps.changes.outputs.wasm }}
+    steps:
+    - name: Check out code
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+    - name: Check for file changes
+      id: changes
+      run: |
+        set -e
+
+        echo "docs-only=false" >> $GITHUB_OUTPUT
+        echo "wasm=false" >> $GITHUB_OUTPUT
+
+        if ! curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" \
+          | jq -r '.[].filename' > changed_files.txt; then
+          echo "Error: Failed to fetch changed files from GitHub API"
+          echo "Defaulting to docs-only=false, wasm=false for safety"
+          exit 0
+        fi
+
+        if [ ! -s changed_files.txt ]; then
+          echo "Warning: No changed files found"
+          echo "Defaulting to docs-only=false, wasm=false for safety"
+          exit 0
+        fi
+
+        echo "Changed files:"
+        cat changed_files.txt
+
+        # Check if all files are under docs/
+        non_docs_files=$(grep -v '^docs/' changed_files.txt || true)
+        if [ -z "$non_docs_files" ]; then
+          echo "docs-only=true" >> $GITHUB_OUTPUT
+          echo "All changes are docs-only"
+        else
+          echo "docs-only=false" >> $GITHUB_OUTPUT
+          echo "Found non-docs changes:"
+          echo "$non_docs_files"
+        fi
+
+        # Check for WASM-related changes
+        wasm_patterns="^(Makefile|wasm/|ast/|internal/compiler/|internal/planner/|internal/wasm/|test/wasm/|test/cases/)"
+        if grep -E "$wasm_patterns" changed_files.txt > /dev/null 2>&1; then
+          echo "wasm=true" >> $GITHUB_OUTPUT
+          echo "Found WASM-related changes"
+        else
+          echo "wasm=false" >> $GITHUB_OUTPUT
+          echo "No WASM-related changes"
+        fi
+
+        echo "Final outputs:"
+        echo "docs-only=$(grep '^docs-only=' $GITHUB_OUTPUT | tail -1 | cut -d'=' -f2)"
+        echo "wasm=$(grep '^wasm=' $GITHUB_OUTPUT | tail -1 | cut -d'=' -f2)"
+
   # All jobs essentially re-create the `ci-release-test` make target, but are split
   # up for parallel runners for faster PR feedback and a nicer UX.
   generate:
     name: Generate Code
     runs-on: ubuntu-24.04
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.docs-only == 'false' }}
     steps:
     - name: Check out code
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -32,7 +95,8 @@ jobs:
   go-build:
     name: Go Build (${{ matrix.os }}${{ matrix.arch && format(' {0}', matrix.arch) || '' }}${{ matrix.go_tags }})
     runs-on: ${{ matrix.run }}
-    needs: generate
+    needs: [generate, check-changes]
+    if: ${{ needs.check-changes.outputs.docs-only == 'false' }}
     strategy:
       fail-fast: false
       matrix:
@@ -105,7 +169,8 @@ jobs:
   go-test:
     name: Go Test (${{ matrix.os }})
     runs-on: ${{ matrix.run }}
-    needs: generate
+    needs: [generate, check-changes]
+    if: ${{ needs.check-changes.outputs.docs-only == 'false' }}
     strategy:
       fail-fast: false
       matrix:
@@ -139,6 +204,8 @@ jobs:
   go-lint:
     name: Go Lint
     runs-on: ubuntu-24.04
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.docs-only == 'false' }}
     steps:
     - name: Check out code
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -150,6 +217,8 @@ jobs:
   yaml-lint:
     name: YAML Lint
     runs-on: ubuntu-24.04
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.docs-only == 'false' }}
     steps:
     - name: Check out code
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -163,48 +232,32 @@ jobs:
   wasm:
     name: WASM
     runs-on: ubuntu-24.04
-    needs: generate
+    needs: [generate, check-changes]
+    if: ${{ needs.check-changes.outputs.docs-only == 'false' && needs.check-changes.outputs.wasm == 'true' }}
     steps:
     - name: Check out code
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-    - name: Check PR for changes to Wasm
-      uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
-      id: changes
-      with:
-        filters: |
-          wasm:
-            - Makefile
-            - 'wasm/**'
-            - 'ast/**'
-            - 'internal/compiler/**'
-            - 'internal/planner/**'
-            - 'internal/wasm/**'
-            - 'test/wasm/**'
-            - 'test/cases/**'
 
     - name: Download generated artifacts
       uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
       with:
         name: generated
-      if: steps.changes.outputs.wasm == 'true'
 
     - name: Build and Test Wasm
       run: make ci-wasm
       timeout-minutes: 15
-      if: steps.changes.outputs.wasm == 'true'
 
     - name: Build and Test Wasm SDK
       run: make ci-go-wasm-sdk-e2e-test
       timeout-minutes: 30
-      if: steps.changes.outputs.wasm == 'true'
       env:
         DOCKER_RUNNING: 0
 
   check-generated:
     name: Check Generated
     runs-on: ubuntu-24.04
-    needs: generate
+    needs: [generate, check-changes]
+    if: ${{ needs.check-changes.outputs.docs-only == 'false' }}
     steps:
     - name: Check out code
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -223,7 +276,8 @@ jobs:
   race-detector:
     name: Go Race Detector
     runs-on: ubuntu-24.04
-    needs: generate
+    needs: [generate, check-changes]
+    if: ${{ needs.check-changes.outputs.docs-only == 'false' }}
     steps:
     - name: Check out code
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -241,7 +295,8 @@ jobs:
   smoke-test-docker-images:
     name: docker image smoke test
     runs-on: ubuntu-24.04
-    needs: go-build
+    needs: [go-build, check-changes]
+    if: ${{ needs.check-changes.outputs.docs-only == 'false' }}
     steps:
     - name: Check out code
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -269,7 +324,8 @@ jobs:
   # Note(philipc): We only run the amd64 targets.
   smoke-test-binaries:
     runs-on: ${{ matrix.run }}
-    needs: go-build
+    needs: [go-build, check-changes]
+    if: ${{ needs.check-changes.outputs.docs-only == 'false' }}
     strategy:
       matrix:
         include:
@@ -316,6 +372,7 @@ jobs:
   go-version-build:
     name: Go compat build/test
     needs: generate
+    if: needs.check-changes.outputs.go == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -342,6 +399,8 @@ jobs:
   rego-check-pr:
     name: Rego PR checks
     runs-on: ubuntu-24.04
+    needs: check-changes
+    if: needs.check-changes.outputs.non-docs == 'true'
     steps:
     - name: Checkout code
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
