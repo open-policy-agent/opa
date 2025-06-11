@@ -56,17 +56,17 @@ jobs:
 
         # Check for WASM-related changes
         wasm_patterns="^(Makefile|\
-wasm/|\
-ast/|\
-internal/compiler/|\
-internal/planner/|\
-internal/wasm/|\
-test/wasm/|\
-test/cases/|\
-v1/ast/|\
-v1/test/cases/|\
-v1/test/wasm/|\
-v1/ir/)"
+        wasm/|\
+        ast/|\
+        internal/compiler/|\
+        internal/planner/|\
+        internal/wasm/|\
+        test/wasm/|\
+        test/cases/|\
+        v1/ast/|\
+        v1/test/cases/|\
+        v1/test/wasm/|\
+        v1/ir/)"
         if ! grep -E "$wasm_patterns" changed_files.txt > /dev/null 2>&1; then
           echo "wasm=false" >> $GITHUB_OUTPUT
           echo "No WASM-related changes detected, skipping WASM checks"
