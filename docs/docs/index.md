@@ -111,7 +111,8 @@ the policy.
 
 OPA policies are expressed in a high-level declarative language called Rego.
 Rego (pronounced "ray-go") is purpose-built for expressing policies over complex
-hierarchical data structures. For detailed information on Rego see the [Policy Language](./docs/policy-language) documentation.
+hierarchical data structures. For detailed information on Rego see the
+[Policy Language](./docs/policy-language) documentation.
 
 :::tip
 The examples below are interactive! If you edit the input data above
@@ -120,12 +121,14 @@ Similarly, if you edit the queries or rules in the examples below the output
 will change. As you read through this section, try changing the input, queries,
 and rules and observe the difference in output.
 
-They can also be run locally on your machine using the [`opa eval` command, here are setup instructions.](#running-opa)
+They can also be run locally on your machine using the
+[`opa eval` command, here are setup instructions.](#running-opa)
 
 Note that the examples in this section try to represent the best practices.
 As such, they make use of keywords that are meant to become standard keywords
 at some point in time, but have been introduced gradually.
-[See the docs on _future keywords_](./docs/policy-language/#future-keywords) for more information.
+[See the docs on _future keywords_](./docs/policy-language/#future-keywords)
+for more information.
 :::
 
 ### References
@@ -817,57 +820,151 @@ your own machine.
 
 ### 1. Download OPA
 
-To get started download an OPA binary for your platform from
-[GitHub releases](https://github.com/open-policy-agent/opa/releases):
+<Tabs queryString="current-os">
+<TabItem value="macos" label="macOS" default>
+  OPA binaries can be installed on macOS using Homebrew. The formula can be
+  reviewed on [brew.sh](https://formulae.brew.sh/formula/opa). This method
+  supports both ARM64 and AMD64 architectures.
+  ```shell
+  brew install opa
+  ```
 
-On macOS (ARM 64-bit):
+It's also possible to download the OPA binary directly:
 
-```shell
-curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_darwin_arm64_static
-```
+<Tabs>
+  <TabItem value="arm64" label="arm64 (Apple Silicon)" default>
+    ```shell
+    curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_darwin_arm64_static
+    ```
+  </TabItem>
+  <TabItem value="amd64" label="amd64 (Older Intel Macs)">
+    ```shell
+    curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_darwin_amd64
+    ```
+  </TabItem>
+</Tabs>
 
-Or using Homebrew:
-
-```shell
-brew install opa
-```
-
-On Linux (64-bit):
-
-```shell
-curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64_static
-```
-
-:::info
-Windows users can obtain the OPA executable from
-[here](https://openpolicyagent.org/downloads/latest/opa_windows_amd64.exe).
-The steps below are the same for Windows users except the executable name will
-be different. Windows executable file name is `opa_windows_amd64.exe`, which
-includes file extension name 'exe'. The checksums file name is
-`opa_windows_amd64.exe.sha256`. Windows users can obtain the checksums from
-[here](https://openpolicyagent.org/downloads/latest/opa_windows_amd64.exe.sha256).
-:::
-
-Set permissions on the OPA executable:
+After downloading the OPA binary, you must ensure it's executable:
 
 ```shell
 chmod 755 ./opa
 ```
 
-:::info
-You can also download and run OPA via Docker. The latest stable image tag is
-`openpolicyagent/opa:latest`.
-:::
+It's also recommended to move the OPA binary into a directory in your
+`PATH` so you can run OPA commands in different directories.
 
-#### Checksums
-
-Checksums for all binaries are available in the download path by appending `.sha256` to the binary filename.
-Verify the macOS binary checksum:
+You can verify the installation by running:
 
 ```shell
-curl -L -o opa_darwin_amd64 https://openpolicyagent.org/downloads/latest/opa_darwin_amd64
-curl -L -o opa_darwin_amd64.sha256 https://openpolicyagent.org/downloads/latest/opa_darwin_amd64.sha256
-shasum -c opa_darwin_amd64.sha256
+opa version
+```
+
+</TabItem>
+
+<TabItem value="linux" label="Linux/Unix">
+There are a number of packages repos that provide OPA binaries for Linux/Unix.
+For example:
+
+- [Arch](https://archlinux.org/packages/extra/x86_64/open-policy-agent/)
+- [nixpkgs](https://github.com/NixOS/nixpkgs/blob/master/pkgs/by-name/op/open-policy-agent/package.nix)
+- [Wolfi](https://github.com/wolfi-dev/os/blob/main/opa.yaml)
+- [FreeBSD](https://cgit.freebsd.org/ports/tree/sysutils/opa)
+- [NetBSB](https://pkgsrc.se/devel/opa)
+
+In order to manually install the OPA binary from the GitHub release assets,
+please run the following:
+
+<Tabs>
+  <TabItem value="linux_arm64" label="arm64" default>
+    ```shell
+    curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_arm64_static
+    ```
+  </TabItem>
+  <TabItem value="linux_amd64" label="amd64">
+    ```shell
+    curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64
+    ```
+  </TabItem>
+</Tabs>
+After downloading the OPA binary, you must ensure it's executable:
+```shell
+chmod 755 ./opa
+```
+It's also recommended to move the OPA binary into a directory in your
+`PATH` so you can run OPA commands in any directory.
+
+You can verify the installation by running:
+
+```shell
+opa version
+```
+
+</TabItem>
+
+<TabItem value="windows" label="Windows">
+Download the Windows binary using PowerShell:
+
+```powershell
+Invoke-WebRequest -Uri "https://openpolicyagent.org/downloads/latest/opa_windows_amd64.exe" -OutFile "opa.exe"
+```
+
+Or using curl (if available):
+
+```cmd
+curl -L -o opa.exe https://openpolicyagent.org/downloads/latest/opa_windows_amd64.exe
+```
+
+Add the OPA binary to your PATH by creating a Tools directory for it:
+
+```cmd
+mkdir C:\Tools\OPA
+move opa.exe C:\Tools\OPA\
+```
+
+Now we can add this to our `PATH`:
+
+Control Panel → System → Advanced system settings → Environment Variables
+
+Edit the Path variable → Add: `C:\Tools\OPA`
+
+Alternatively, run:
+
+```powershell
+[Environment]::SetEnvironmentVariable("Path", "$env:Path;C:\Tools\OPA", "User")
+```
+
+You can verify the installation by running:
+
+```cmd
+opa version
+```
+
+</TabItem>
+<TabItem value="docker" label="Docker">
+You can also download and run OPA via Docker. The latest stable image tag is
+`openpolicyagent/opa:latest`.
+
+You can verify the installation by running:
+
+```shell
+docker run --rm -it openpolicyagent/opa:latest version
+```
+
+</TabItem>
+</Tabs>
+
+See all available binaries on the
+[GitHub releases](https://github.com/open-policy-agent/opa/releases).
+Checksums for all binaries are available in the download path by appending
+`.sha256` to the binary filename.
+
+For example, verify the macOS arm64 binary checksum:
+
+```shell
+BINARY_NAME=opa_darwin_arm64_static
+curl -L -o opa_darwin_amd64 https://openpolicyagent.org/downloads/latest/$BINARY_NAME
+curl -L -o opa_darwin_amd64.sha256 https://openpolicyagent.org/downloads/latest/$BINARY_NAME.sha256
+shasum -c $BINARY_NAME.sha256
 ```
 
 ### 2. Try `opa eval`
