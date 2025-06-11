@@ -413,19 +413,6 @@ v1/ir/)"
       env:
         DOCKER_RUNNING: 0
 
-  # Run PR metadata against Rego policies
-  docs-build:
-    name: Build Docs
-    runs-on: ubuntu-24.04
-    needs: check-changes
-    if: ${{ needs.check-changes.outputs.docs == 'true' }}
-    steps:
-    - name: Check out code
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-    - name: Build docs
-      run: make docs-build
-
   rego-check-pr:
     name: Rego PR checks
     runs-on: ubuntu-24.04
@@ -459,3 +446,16 @@ v1/ir/)"
     - name: Show input on failure
       run: opa eval --v0-compatible --input files.json --format pretty input
       if: ${{ failure() }}
+
+  # Run PR metadata against Rego policies
+  docs-build:
+    name: Build Docs
+    runs-on: ubuntu-24.04
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.docs == 'true' }}
+    steps:
+    - name: Check out code
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+    - name: Build docs
+      run: make docs-build
