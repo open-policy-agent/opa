@@ -1,0 +1,6 @@
+{
+	"showInput": true,
+	"showData":  true,
+	"showTitles": false,
+	"command": "data.netcidrcontainsmatches.result"
+}

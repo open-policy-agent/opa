@@ -1206,6 +1206,7 @@ result := net.cidr_contains_matches("1.1.1.0/24", "1.1.1.128")
 ```
 
 <RunSnippet command="data.netcidrcontainsmatches.result"/>
+<PlaygroundExample dir={require.context("./_examples/net/cdir_contains")} />
 
 Either (or both) operand(s) may be an array, set, or object.
 
