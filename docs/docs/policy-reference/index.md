@@ -1199,44 +1199,19 @@ the match in `a` and the second tuple element refers to the match in `b`.
 
 If both operands are string values the function is similar to `net.cidr_contains`.
 
-```rego
-package netcidrcontainsmatches
-
-result := net.cidr_contains_matches("1.1.1.0/24", "1.1.1.128")
-```
-
-<RunSnippet command="data.netcidrcontainsmatches.result"/>
-<PlaygroundExample dir={require.context("./_examples/net/cdir_contains")} />
+<PlaygroundExample dir={require.context("./_examples/net/cdir_contains1")} />
 
 Either (or both) operand(s) may be an array, set, or object.
 
-```rego
-package netcidrcontainsmatches
-
-result := net.cidr_contains_matches(["1.1.1.0/24", "1.1.2.0/24"], "1.1.1.128")
-```
-
-<RunSnippet command="data.netcidrcontainsmatches.result"/>
+<PlaygroundExample dir={require.context("./_examples/net/cdir_contains2")} />
 
 The array/set/object elements may be arrays. In that case, the first element must be a valid CIDR/IP.
 
-```rego
-package netcidrcontainsmatches
-
-net.cidr_contains_matches([["1.1.0.0/16", "foo"], "1.1.2.0/24"], ["1.1.1.128", ["1.1.254.254", "bar"]])
-```
-
-<RunSnippet command="data.netcidrcontainsmatches.result"/>
+<PlaygroundExample dir={require.context("./_examples/net/cdir_contains3")} />
 
 If the operand is a set, the outputs are matching elements. If the operand is an object, the outputs are matching keys.
 
-```rego
-package netcidrcontainsmatches
-
-result := net.cidr_contains_matches({["1.1.0.0/16", "foo"], "1.1.2.0/24"}, {"x": "1.1.1.128", "y": ["1.1.254.254", "bar"]})
-```
-
-<RunSnippet command="data.netcidrcontainsmatches.result"/>
+<PlaygroundExample dir={require.context("./_examples/net/cdir_contains4")} />
 
 </BuiltinTable>
 
