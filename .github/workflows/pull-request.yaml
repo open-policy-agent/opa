@@ -251,7 +251,7 @@ v1/ir/)"
     name: WASM
     runs-on: ubuntu-24.04
     needs: [generate, check-changes]
-    if: ${{ needs.check-changes.outputs.go == 'true' && needs.check-changes.outputs.wasm == 'true' }}
+    if: ${{ needs.check-changes.outputs.wasm == 'true' }}
     steps:
     - name: Check out code
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -413,6 +413,7 @@ v1/ir/)"
       env:
         DOCKER_RUNNING: 0
 
+  # Run PR metadata against Rego policies
   rego-check-pr:
     name: Rego PR checks
     runs-on: ubuntu-24.04
@@ -447,7 +448,6 @@ v1/ir/)"
       run: opa eval --v0-compatible --input files.json --format pretty input
       if: ${{ failure() }}
 
-  # Run PR metadata against Rego policies
   docs-build:
     name: Build Docs
     runs-on: ubuntu-24.04
