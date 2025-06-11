@@ -496,76 +496,15 @@ This differs from the plain text secrets provided with the algorithm specific ve
 
 ##### Symmetric Key (HMAC with SHA-256)
 
-```rego
-package jwt
-
-result := io.jwt.encode_sign({
-    "typ": "JWT",
-    "alg": "HS256"
-}, {
-    "iss": "joe",
-    "exp": 1300819380,
-    "aud": ["bob", "saul"],
-    "http://example.com/is_root": true,
-    "privateParams": {
-        "private_one": "one",
-        "private_two": "two"
-    }
-}, {
-    "kty": "oct",
-    "k": "AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"
-})
-```
-
-<RunSnippet command="data.jwt"/>
+<PlaygroundExample dir={require.context("./_examples/tokens/sign/jwt1")} />
 
 ##### Symmetric Key with empty JSON payload
 
-```rego
-package jwt
-
-result := io.jwt.encode_sign({
-    "typ": "JWT",
-    "alg": "HS256"},
-    {}, {
-    "kty": "oct",
-    "k": "AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"
-})
-```
-
-<RunSnippet command="data.jwt"/>
+<PlaygroundExample dir={require.context("./_examples/tokens/sign/jwt2")} />
 
 ##### RSA Key (RSA Signature with SHA-256)
 
-```rego
-package jwt
-
-result := io.jwt.encode_sign({
-    "alg": "RS256"
-}, {
-    "iss": "joe",
-    "exp": 1300819380,
-    "aud": ["bob", "saul"],
-    "http://example.com/is_root": true,
-    "privateParams": {
-        "private_one": "one",
-        "private_two": "two"
-    }
-},
-{
-    "kty": "RSA",
-    "n": "ofgWCuLjybRlzo0tZWJjNiuSfb4p4fAkd_wWJcyQoTbji9k0l8W26mPddxHmfHQp-Vaw-4qPCJrcS2mJPMEzP1Pt0Bm4d4QlL-yRT-SFd2lZS-pCgNMsD1W_YpRPEwOWvG6b32690r2jZ47soMZo9wGzjb_7OMg0LOL-bSf63kpaSHSXndS5z5rexMdbBYUsLA9e-KXBdQOS-UTo7WTBEMa2R2CapHg665xsmtdVMTBQY4uDZlxvb3qCo5ZwKh9kG4LT6_I5IhlJH7aGhyxXFvUK-DWNmoudF8NAco9_h9iaGNj8q2ethFkMLs91kzk2PAcDTW9gb54h4FRWyuXpoQ",
-    "e": "AQAB",
-    "d": "Eq5xpGnNCivDflJsRQBXHx1hdR1k6Ulwe2JZD50LpXyWPEAeP88vLNO97IjlA7_GQ5sLKMgvfTeXZx9SE-7YwVol2NXOoAJe46sui395IW_GO-pWJ1O0BkTGoVEn2bKVRUCgu-GjBVaYLU6f3l9kJfFNS3E0QbVdxzubSu3Mkqzjkn439X0M_V51gfpRLI9JYanrC4D4qAdGcopV_0ZHHzQlBjudU2QvXt4ehNYTCBr6XCLQUShb1juUO1ZdiYoFaFQT5Tw8bGUl_x_jTj3ccPDVZFD9pIuhLhBOneufuBiB4cS98l2SR_RQyGWSeWjnczT0QU91p1DhOVRuOopznQ",
-    "p": "4BzEEOtIpmVdVEZNCqS7baC4crd0pqnRH_5IB3jw3bcxGn6QLvnEtfdUdiYrqBdss1l58BQ3KhooKeQTa9AB0Hw_Py5PJdTJNPY8cQn7ouZ2KKDcmnPGBY5t7yLc1QlQ5xHdwW1VhvKn-nXqhJTBgIPgtldC-KDV5z-y2XDwGUc",
-    "q": "uQPEfgmVtjL0Uyyx88GZFF1fOunH3-7cepKmtH4pxhtCoHqpWmT8YAmZxaewHgHAjLYsp1ZSe7zFYHj7C6ul7TjeLQeZD_YwD66t62wDmpe_HlB-TnBA-njbglfIsRLtXlnDzQkv5dTltRJ11BKBBypeeF6689rjcJIDEz9RWdc",
-    "dp": "BwKfV3Akq5_MFZDFZCnW-wzl-CCo83WoZvnLQwCTeDv8uzluRSnm71I3QCLdhrqE2e9YkxvuxdBfpT_PI7Yz-FOKnu1R6HsJeDCjn12Sk3vmAktV2zb34MCdy7cpdTh_YVr7tss2u6vneTwrA86rZtu5Mbr1C1XsmvkxHQAdYo0",
-    "dq": "h_96-mK1R_7glhsum81dZxjTnYynPbZpHziZjeeHcXYsXaaMwkOlODsWa7I9xXDoRwbKgB719rrmI2oKr6N3Do9U0ajaHF-NKJnwgjMd2w9cjz3_-kyNlxAr2v4IKhGNpmM5iIgOS1VZnOZ68m6_pbLBSp3nssTdlqvd0tIiTHU",
-    "qi": "IYd7DHOhrWvxkwPQsRM2tOgrjbcrfvtQJipd-DlcxyVuuM9sQLdgjVk2oy26F0EmpScGLq2MowX7fhd_QJQ3ydy5cY7YIBi87w93IKLEdfnbJtoOPLUW0ITrJReOgo1cq9SbsxYawBgfp_gh6A5603k2-ZQwVK0JKSHuLFkuQ3U"
-})
-```
-
-<RunSnippet command="data.jwt"/>
+<PlaygroundExample dir={require.context("./_examples/tokens/sign/jwt3")} />
 
 ##### Raw Token Signing
 
@@ -573,17 +512,7 @@ If you need to generate the signature for a serialized token you an use the
 `io.jwt.encode_sign_raw` built-in function which accepts JSON serialized string
 parameters.
 
-```rego
-package jwt
-
-result := io.jwt.encode_sign_raw(
-    `{"typ":"JWT","alg":"HS256"}`,
-     `{"iss":"joe","exp":1300819380,"http://example.com/is_root":true}`,
-    `{"kty":"oct","k":"AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"}`
-)
-```
-
-<RunSnippet command="data.jwt"/>
+<PlaygroundExample dir={require.context("./_examples/tokens/sign/jwt4")} />
 
 </BuiltinTable>
 
@@ -613,7 +542,6 @@ Exactly one of `cert` and `secret` must be present. If there are any
 unrecognized constraints then the token is considered invalid.
 
 #### Token Verification Examples
-
 The examples below use the following token:
 
 ```rego
@@ -645,33 +573,14 @@ jwks := `{
 
 <RunSnippet id="jwks.rego"/>
 
-```rego
-package jwt
-
-result.verify := io.jwt.verify_es256(es256_token, jwks) # Verify the token with the JWKS
-result.payload := io.jwt.decode(es256_token)            # Decode the token
-result.check := result.payload[1].iss == "xxx"          # Ensure the issuer (`iss`) claim is the expected value
-```
-
-<RunSnippet files="#jwks.rego #token.rego" command="data.jwt"/>
+<PlaygroundExample infiles="#jwks.rego #token.rego" dir={require.context("./_examples/tokens/verify/jwt1")} />
 
 The next example shows doing the token signature verification, decoding, and content checks
 all in one call using `io.jwt.decode_verify`. Note that this gives less flexibility in validating
 the payload content as **all** claims defined in the JWT spec are verified with the provided
 constraints.
 
-```rego
-package jwt
-
-result := [valid, header, payload] if {
-  [valid, header, payload] := io.jwt.decode_verify(es256_token, {
-      "cert": jwks,
-      "iss": "xxx",
-  })
-}
-```
-
-<RunSnippet files="#jwks.rego #token.rego" command="data.jwt"/>
+<PlaygroundExample infiles="#jwks.rego #token.rego" dir={require.context("./_examples/tokens/verify/jwt2")} />
 
 ##### Using PEM encoded X.509 Certificate
 
@@ -699,33 +608,14 @@ This example shows a two-step process to verify the token signature and then dec
 further checks of the payload content. This approach gives more flexibility in verifying only
 the claims that the policy needs to enforce.
 
-```rego
-package jwt
-
-result.verify := io.jwt.verify_es256(es256_token, cert) # Verify the token with the certificate
-result.payload := io.jwt.decode(es256_token)            # Decode the token
-result.check := result.payload[1].iss == "xxx"          # Ensure the issuer (`iss`) claim is the expected value
-```
-
-<RunSnippet files="#token.rego #cert.rego" command="data.jwt"/>
+<PlaygroundExample infiles="#cert.rego #token.rego" dir={require.context("./_examples/tokens/verify/jwt3")} />
 
 The next example shows doing the same token signature verification, decoding, and content checks
 but instead with a single call to `io.jwt.decode_verify`. Note that this gives less flexibility
 in validating the payload content as **all** claims defined in the JWT spec are verified with the
 provided constraints.
 
-```rego
-package jwt
-
-result := [valid, header, payload] if {
-  [valid, header, payload] := io.jwt.decode_verify(es256_token, {
-      "cert": cert,
-      "iss": "xxx",
-  })
-}
-```
-
-<RunSnippet files="#token.rego #cert.rego" command="data.jwt"/>
+<PlaygroundExample infiles="#cert.rego #token.rego" dir={require.context("./_examples/tokens/verify/jwt4")} />
 
 ##### Round Trip - Sign and Verify
 
@@ -733,45 +623,11 @@ This example shows how to encode a token, verify, and decode it with the differe
 
 Start with using the `io.jwt.encode_sign_raw` built-in:
 
-```rego
-package jwt
-
-raw_result_hs256 := io.jwt.encode_sign_raw(
-    `{"alg":"HS256","typ":"JWT"}`,
-    `{}`,
-    `{"kty":"oct","k":"Zm9v"}`  	# "Zm9v" == base64url.encode_no_pad("foo")
-)
-
-# Important! - Use the un-encoded plain text secret to verify and decode
-raw_result_valid_hs256 := io.jwt.verify_hs256(raw_result_hs256, "foo")
-raw_result_parts_hs256 := io.jwt.decode_verify(raw_result_hs256, {"secret": "foo"})
-```
-
-<RunSnippet command="data.jwt"/>
+<PlaygroundExample dir={require.context("./_examples/tokens/verify/jwt5")} />
 
 Now encode the and sign the same token contents but with `io.jwt.encode_sign` instead of the `raw` variant.
 
-```rego
-package jwt
-
-result_hs256 := io.jwt.encode_sign(
-    {
-        "alg":"HS256",
-        "typ":"JWT"
-    },
-    {},
-    {
-        "kty":"oct",
-        "k":"Zm9v"
-    }
-)
-
-# Important! - Use the un-encoded plain text secret to verify and decode
-result_parts_hs256 := io.jwt.decode_verify(result_hs256, {"secret": "foo"})
-result_valid_hs256 := io.jwt.verify_hs256(result_hs256, "foo")
-```
-
-<RunSnippet command="data.jwt"/>
+<PlaygroundExample dir={require.context("./_examples/tokens/verify/jwt6")} />
 
 :::info
 Note that the resulting encoded token is different from the first example using
@@ -833,10 +689,7 @@ For supported constants, formatting of nanoseconds, time zones, and other fields
 
 In OPA, we can parse a simple `YYYY-MM-DD` timestamp as follows:
 
-```rego
-ts := "1985-10-27"
-result := time.parse_ns("2006-01-02", ts)
-```
+<PlaygroundExample dir={require.context("./_examples/time/time_format")} />
 
 </BuiltinTable>
 
@@ -853,53 +706,11 @@ problem, so `graph.reachable` is useful for more than just graph analysis.
 This usually requires some pre- and postprocessing. The following example
 shows you how to "flatten" a hierarchy of access permissions.
 
-```rego
-package graph_reachable_example
-
-org_chart_data := {
-        "ceo": {},
-        "human_resources": {"owner": "ceo", "access": ["salaries", "complaints"]},
-        "staffing": {"owner": "human_resources", "access": ["interviews"]},
-        "internships": {"owner": "staffing", "access": ["blog"]},
-}
-
-org_chart_graph[entity_name] := edges if {
-        org_chart_data[entity_name]
-        edges := {neighbor | org_chart_data[neighbor].owner == entity_name}
-}
-
-org_chart_permissions[entity_name] := access if {
-        org_chart_data[entity_name]
-        reachable := graph.reachable(org_chart_graph, {entity_name})
-        access := {item | reachable[k]; item := org_chart_data[k].access[_]}
-}
-
-result contains org_chart_permissions[entity_name]
-```
-
-<RunSnippet command="data.graph_reachable_example.result"/>
+<PlaygroundExample dir={require.context("./_examples/graphs/reachable")} />
 
 It may be useful to find all reachable paths from a root element. `graph.reachable_paths` can be used for this. Note that cyclical paths will terminate on the repeated node. If an element references a nonexistent element, the path will be terminated, and excludes the nonexistent node.
 
-```rego
-package graph_reachable_paths_example
-
-path_data := {
-        "aTop": [],
-        "cMiddle": ["aTop"],
-        "bBottom": ["cMiddle"],
-        "dIgnored": [],
-}
-
-all_paths[root] := paths if {
-        path_data[root]
-        paths := graph.reachable_paths(path_data, {root})
-}
-
-result contains all_paths[entity_name]
-```
-
-<RunSnippet command="data.graph_reachable_paths_example.result"/>
+<PlaygroundExample dir={require.context("./_examples/graphs/reachable_paths")} />
 
 </BuiltinTable>
 
@@ -1234,15 +1045,7 @@ When working with Go-style semantic versions, remember to remove the
 leading `v` character, or the semver string will be marked as invalid!
 :::
 
-```rego
-package semverisvalid
-
-leadingV := semver.is_valid("v1.1.12-rc1+foo")
-
-valid := semver.is_valid("1.1.12-rc1+foo")
-```
-
-<RunSnippet command="data.semverisvalid"/>
+<PlaygroundExample dir={require.context("./_examples/semver/isvalid")} />
 
 </BuiltinTable>
 
@@ -1252,48 +1055,12 @@ valid := semver.is_valid("1.1.12-rc1+foo")
 
 #### Example
 
-```rego title="input.json"
-{
-    "number": 11,
-    "subject": {
-        "name": "John doe",
-        "role": "customer"
-    }
-}
-```
-
-<RunSnippet id="input.json"/>
-
-The following policy will deny the above input because:
+The following policy will deny the given input because:
 
 - the `number` is greater than 5
 - the `subject` does not have the `admin` role
 
-```rego
-package example
-
-# METADATA
-# title: Deny invalid numbers
-# description: Numbers may not be higher than 5
-# custom:
-#  severity: MEDIUM
-deny contains format(rego.metadata.rule()) if {
-        input.number > 5
-}
-
-# METADATA
-# title: Deny non-admin subjects
-# description: Subject must have the 'admin' role
-# custom:
-#  severity: HIGH
-deny contains format(rego.metadata.rule()) if {
-        input.subject.role != "admin"
-}
-
-format(meta) := {"severity": meta.custom.severity, "reason": meta.description}
-```
-
-<RunSnippet files="#input.json" command="data.example"/>
+<PlaygroundExample dir={require.context("./_examples/rego/example")} />
 
 #### Metadata Merge strategies
 
