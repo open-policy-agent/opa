@@ -4844,6 +4844,7 @@
     }
   ],
   "features": [
+    "keywords_in_refs",
     "rego_v1"
   ]
 }

@@ -116,6 +116,15 @@ func (s *Scanner) HasKeyword(keywords map[string]tokens.Token) bool {
 	return false
 }
 
+func (s *Scanner) IsKeyword(str string) bool {
+	for kw := range s.keywords {
+		if kw == str {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Scanner) SetRegoV1Compatible() {
 	s.regoV1Compatible = true
 }

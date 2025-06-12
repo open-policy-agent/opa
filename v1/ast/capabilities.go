@@ -55,6 +55,7 @@ const FeatureRefHeadStringPrefixes = "rule_head_ref_string_prefixes"
 const FeatureRefHeads = "rule_head_refs"
 const FeatureRegoV1 = "rego_v1"
 const FeatureRegoV1Import = "rego_v1_import"
+const FeatureKeywordsInRefs = "keywords_in_refs"
 
 // Capabilities defines a structure containing data that describes the capabilities
 // or features supported by a particular version of OPA.
@@ -133,6 +134,7 @@ func CapabilitiesForThisVersion(opts ...CapabilitiesOption) *Capabilities {
 			FeatureRefHeads,
 			FeatureRegoV1Import,
 			FeatureRegoV1, // Included in v0 capabilities to allow v1 bundles in --v0-compatible mode
+			FeatureKeywordsInRefs,
 		}
 	default:
 		for kw := range futureKeywords {
@@ -141,6 +143,7 @@ func CapabilitiesForThisVersion(opts ...CapabilitiesOption) *Capabilities {
 
 		f.Features = []string{
 			FeatureRegoV1,
+			FeatureKeywordsInRefs,
 		}
 	}
 

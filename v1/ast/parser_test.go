@@ -71,15 +71,17 @@ func TestNumberTerms(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		result, err := ParseTerm(tc.input)
-		if err != nil {
-			t.Errorf("Unexpected error for %v: %v", tc.input, err)
-		} else {
-			e := NumberTerm(json.Number(tc.expected))
-			if !result.Equal(e) {
-				t.Errorf("Expected %v for %v but got: %v", e, tc.input, result)
+		t.Run(tc.input, func(t *testing.T) {
+			result, err := ParseTerm(tc.input)
+			if err != nil {
+				t.Errorf("Unexpected error for %v: %v", tc.input, err)
+			} else {
+				e := NumberTerm(json.Number(tc.expected))
+				if !result.Equal(e) {
+					t.Errorf("Expected %v for %v but got: %v", e, tc.input, result)
+				}
 			}
-		}
+		})
 	}
 }
 
@@ -201,6 +203,7 @@ func TestRefTerms(t *testing.T) {
 	assertParseError(t, "invalid ref head type number", "0[0]")
 	assertParseError(t, "invalid ref head type number (float)", "1.2[0]")
 	assertParseError(t, "invalid ref head type string", `"foo"[0]`)
+	assertParseError(t, "invalid ref head type string (dot)", `"foo".bar`)
 
 	// TODO: Is it more hurtful than helpful to allow these?
 	//assertParseError(t, "invalid ref head type boolean (true)", "true[0]")
@@ -254,6 +257,338 @@ func TestRefTermsContainingKeywords(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("v0 with future keywords", func(t *testing.T) {
+		caps := CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV0))
+		popts := ParserOptions{RegoVersion: RegoV0, Capabilities: caps}
+
+		for kw := range futureKeywordsV0 {
+			popts.FutureKeywords = []string{kw}
+
+			t.Run(kw, func(t *testing.T) {
+				input := fmt.Sprintf("foo.%s", kw)
+				exp := RefTerm(VarTerm("foo"), StringTerm(kw))
+				assertParseOneTerm(t, input, input, exp, popts)
+
+				input = fmt.Sprintf("input.%s", kw)
+				exp = RefTerm(VarTerm("input"), StringTerm(kw))
+				assertParseOneTerm(t, input, input, exp, popts)
+
+				input = fmt.Sprintf("data.%s", kw)
+				exp = RefTerm(VarTerm("data"), StringTerm(kw))
+				assertParseOneTerm(t, input, input, exp, popts)
+
+				input = fmt.Sprintf("data.%s.foo", kw)
+				exp = RefTerm(VarTerm("data"), StringTerm(kw), StringTerm("foo"))
+				assertParseOneTerm(t, input, input, exp, popts)
+
+				input = fmt.Sprintf(`data.%s["foo"]`, kw)
+				exp = RefTerm(VarTerm("data"), StringTerm(kw), StringTerm("foo"))
+				assertParseOneTerm(t, input, input, exp, popts)
+
+				input = fmt.Sprintf("data.foo.%s", kw)
+				exp = RefTerm(VarTerm("data"), StringTerm("foo"), StringTerm(kw))
+				assertParseOneTerm(t, input, input, exp, popts)
+
+				input = fmt.Sprintf(`data["foo"].%s`, kw)
+				exp = RefTerm(VarTerm("data"), StringTerm("foo"), StringTerm(kw))
+				assertParseOneTerm(t, input, input, exp, popts)
+
+				input = fmt.Sprintf("%s.foo", kw)
+				exp = RefTerm(VarTerm(kw), StringTerm("foo"))
+				assertParseOneTerm(t, input, input, exp, popts)
+
+				input = fmt.Sprintf(`%s["foo"]`, kw)
+				exp = RefTerm(VarTerm(kw), StringTerm("foo"))
+				assertParseOneTerm(t, input, input, exp, popts)
+			})
+		}
+	})
+}
+
+func dropCapabilityFeature(caps *Capabilities, feature string) *Capabilities {
+	feats := make([]string, 0, len(caps.Features))
+	for _, f := range caps.Features {
+		if f != feature {
+			feats = append(feats, f)
+		}
+	}
+	caps.Features = feats
+	return caps
+}
+
+func TestRefTermsContainingKeywords_NoCapability(t *testing.T) {
+	for _, regoVersion := range []RegoVersion{RegoV0, RegoV1} {
+		caps := CapabilitiesForThisVersion(CapabilitiesRegoVersion(regoVersion))
+		caps = dropCapabilityFeature(caps, FeatureKeywordsInRefs)
+		popts := ParserOptions{RegoVersion: regoVersion, Capabilities: caps}
+
+		t.Run(regoVersion.String(), func(t *testing.T) {
+			for _, kw := range KeywordsForRegoVersion(regoVersion) {
+				t.Run(kw, func(t *testing.T) {
+					input := fmt.Sprintf("foo.%s", kw)
+					expErr := fmt.Sprintf(`rego_parse_error: unexpected %s keyword: expected identifier
+	foo.%s
+	    ^`, kw, kw)
+					t.Run(input, func(t *testing.T) {
+						assertParseErrorContains(t, input, input, expErr, popts)
+					})
+
+					input = fmt.Sprintf("input.%s", kw)
+					expErr = fmt.Sprintf(`rego_parse_error: unexpected %s keyword: expected identifier
+	input.%s
+	      ^`, kw, kw)
+					t.Run(input, func(t *testing.T) {
+						assertParseErrorContains(t, input, input, expErr, popts)
+					})
+
+					input = fmt.Sprintf("data.%s", kw)
+					expErr = fmt.Sprintf(`rego_parse_error: unexpected %s keyword: expected identifier
+	data.%s
+	     ^`, kw, kw)
+					t.Run(input, func(t *testing.T) {
+						assertParseErrorContains(t, input, input, expErr, popts)
+					})
+
+					input = fmt.Sprintf("data.%s.foo", kw)
+					expErr = fmt.Sprintf(`rego_parse_error: unexpected %s keyword: expected identifier
+	data.%s.foo
+	     ^`, kw, kw)
+					t.Run(input, func(t *testing.T) {
+						assertParseErrorContains(t, input, input, expErr, popts)
+					})
+
+					input = fmt.Sprintf(`data.%s["foo"]`, kw)
+					expErr = fmt.Sprintf(`rego_parse_error: unexpected %s keyword: expected identifier
+	data.%s["foo"]
+	     ^`, kw, kw)
+					t.Run(input, func(t *testing.T) {
+						assertParseErrorContains(t, input, input, expErr, popts)
+					})
+
+					input = fmt.Sprintf("data.foo.%s", kw)
+					expErr = fmt.Sprintf(`rego_parse_error: unexpected %s keyword: expected identifier
+	data.foo.%s
+	         ^`, kw, kw)
+					t.Run(input, func(t *testing.T) {
+						assertParseErrorContains(t, input, input, expErr, popts)
+					})
+
+					input = fmt.Sprintf(`data["foo"].%s`, kw)
+					expErr = fmt.Sprintf(`rego_parse_error: unexpected %s keyword: expected identifier
+	data["foo"].%s
+	            ^`, kw, kw)
+					t.Run(input, func(t *testing.T) {
+						assertParseErrorContains(t, input, input, expErr, popts)
+					})
+
+					// Special cases for leading kw in ref
+					// FIXME: The output from before the kw-in-ref change is preserved; but can be improved
+					switch kw {
+					case "null":
+						input = fmt.Sprintf("%s.foo", kw)
+						expErr = fmt.Sprintf(`rego_parse_error: illegal ref (head cannot be null)
+	%s.foo
+	^`, kw)
+						t.Run(input, func(t *testing.T) {
+							assertParseErrorContains(t, input, input, expErr, popts)
+						})
+
+						input = fmt.Sprintf(`%s["foo"]`, kw)
+						expErr = fmt.Sprintf(`rego_parse_error: illegal ref (head cannot be null)
+	%s["foo"]
+	^`, kw)
+						t.Run(input, func(t *testing.T) {
+							assertParseErrorContains(t, input, input, expErr, popts)
+						})
+					case "true", "false":
+						input = fmt.Sprintf("%s.foo", kw)
+						expErr = fmt.Sprintf(`rego_parse_error: illegal ref (head cannot be boolean)
+	%s.foo
+	^`, kw)
+						t.Run(input, func(t *testing.T) {
+							assertParseErrorContains(t, input, input, expErr, popts)
+						})
+
+						input = fmt.Sprintf(`%s["foo"]`, kw)
+						expErr = fmt.Sprintf(`rego_parse_error: illegal ref (head cannot be boolean)
+	%s["foo"]
+	^`, kw)
+						t.Run(input, func(t *testing.T) {
+							assertParseErrorContains(t, input, input, expErr, popts)
+						})
+					case "some":
+						input = fmt.Sprintf("%s.foo", kw)
+						expErr = `rego_parse_error: unexpected . token: expected var
+	some.foo
+	    ^`
+						t.Run(input, func(t *testing.T) {
+							assertParseErrorContains(t, input, input, expErr, popts)
+						})
+
+						input = fmt.Sprintf(`%s["foo"]`, kw)
+						expErr = `rego_parse_error: unexpected [ token: expected var
+	some["foo"]
+	    ^`
+						t.Run(input, func(t *testing.T) {
+							assertParseErrorContains(t, input, input, expErr, popts)
+						})
+					case "every":
+						input = fmt.Sprintf("%s.foo", kw)
+						expErr = `rego_parse_error: unexpected identifier token: expected number
+	every.foo
+	      ^`
+						t.Run(input, func(t *testing.T) {
+							assertParseErrorContains(t, input, input, expErr, popts)
+						})
+
+						input = fmt.Sprintf(`%s["foo"]`, kw)
+						expErr = `rego_parse_error: unexpected eof token: expected ` + "`" + `x[, y] in xs { ... }` + "`" + ` expression
+	every["foo"]
+	           ^`
+						t.Run(input, func(t *testing.T) {
+							assertParseErrorContains(t, input, input, expErr, popts)
+						})
+					case "contains":
+						input = fmt.Sprintf(`%s.foo`, kw)
+						exp := RefTerm(VarTerm(kw), StringTerm("foo"))
+						assertParseOneTerm(t, input, input, exp, popts)
+
+						input = fmt.Sprintf(`%s["foo"]`, kw)
+						exp = RefTerm(VarTerm(kw), StringTerm("foo"))
+						assertParseOneTerm(t, input, input, exp, popts)
+					default:
+						input = fmt.Sprintf("%s.foo", kw)
+						expErr = fmt.Sprintf(`rego_parse_error: unexpected %s keyword
+	%s.foo
+	^`, kw, kw)
+						t.Run(input, func(t *testing.T) {
+							assertParseErrorContains(t, input, input, expErr, popts)
+						})
+
+						input = fmt.Sprintf(`%s["foo"]`, kw)
+						expErr = fmt.Sprintf(`rego_parse_error: unexpected %s keyword
+	%s["foo"]
+	^`, kw, kw)
+						t.Run(input, func(t *testing.T) {
+							assertParseErrorContains(t, input, input, expErr, popts)
+						})
+					}
+				})
+			}
+		})
+	}
+
+	t.Run("v0 with future keywords", func(t *testing.T) {
+		caps := CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV0))
+		caps = dropCapabilityFeature(caps, FeatureKeywordsInRefs)
+		popts := ParserOptions{RegoVersion: RegoV0, Capabilities: caps}
+
+		for kw := range futureKeywordsV0 {
+			popts.FutureKeywords = []string{kw}
+
+			t.Run(kw, func(t *testing.T) {
+				input := fmt.Sprintf("foo.%s", kw)
+				expErr := fmt.Sprintf(`rego_parse_error: unexpected %s keyword: expected identifier
+	foo.%s
+	    ^`, kw, kw)
+				t.Run(input, func(t *testing.T) {
+					assertParseErrorContains(t, input, input, expErr, popts)
+				})
+
+				input = fmt.Sprintf("input.%s", kw)
+				expErr = fmt.Sprintf(`rego_parse_error: unexpected %s keyword: expected identifier
+	input.%s
+	      ^`, kw, kw)
+				t.Run(input, func(t *testing.T) {
+					assertParseErrorContains(t, input, input, expErr, popts)
+				})
+
+				input = fmt.Sprintf("data.%s", kw)
+				expErr = fmt.Sprintf(`rego_parse_error: unexpected %s keyword: expected identifier
+	data.%s
+	     ^`, kw, kw)
+				t.Run(input, func(t *testing.T) {
+					assertParseErrorContains(t, input, input, expErr, popts)
+				})
+
+				input = fmt.Sprintf("data.%s.foo", kw)
+				expErr = fmt.Sprintf(`rego_parse_error: unexpected %s keyword: expected identifier
+	data.%s.foo
+	     ^`, kw, kw)
+				t.Run(input, func(t *testing.T) {
+					assertParseErrorContains(t, input, input, expErr, popts)
+				})
+
+				input = fmt.Sprintf(`data.%s["foo"]`, kw)
+				expErr = fmt.Sprintf(`rego_parse_error: unexpected %s keyword: expected identifier
+	data.%s["foo"]
+	     ^`, kw, kw)
+				t.Run(input, func(t *testing.T) {
+					assertParseErrorContains(t, input, input, expErr, popts)
+				})
+
+				input = fmt.Sprintf("data.foo.%s", kw)
+				expErr = fmt.Sprintf(`rego_parse_error: unexpected %s keyword: expected identifier
+	data.foo.%s
+	         ^`, kw, kw)
+				t.Run(input, func(t *testing.T) {
+					assertParseErrorContains(t, input, input, expErr, popts)
+				})
+
+				input = fmt.Sprintf(`data["foo"].%s`, kw)
+				expErr = fmt.Sprintf(`rego_parse_error: unexpected %s keyword: expected identifier
+	data["foo"].%s
+	            ^`, kw, kw)
+				t.Run(input, func(t *testing.T) {
+					assertParseErrorContains(t, input, input, expErr, popts)
+				})
+
+				switch kw {
+				case "every":
+					input = fmt.Sprintf("%s.foo", kw)
+					expErr = `rego_parse_error: unexpected identifier token: expected number
+	every.foo
+	      ^`
+					t.Run(input, func(t *testing.T) {
+						assertParseErrorContains(t, input, input, expErr, popts)
+					})
+
+					input = fmt.Sprintf(`%s["foo"]`, kw)
+					expErr = `rego_parse_error: unexpected eof token: expected ` + "`" + `x[, y] in xs { ... }` + "`" + ` expression
+	every["foo"]
+	           ^`
+					t.Run(input, func(t *testing.T) {
+						assertParseErrorContains(t, input, input, expErr, popts)
+					})
+				case "contains":
+					input = fmt.Sprintf(`%s.foo`, kw)
+					exp := RefTerm(VarTerm(kw), StringTerm("foo"))
+					assertParseOneTerm(t, input, input, exp, popts)
+
+					input = fmt.Sprintf(`%s["foo"]`, kw)
+					exp = RefTerm(VarTerm(kw), StringTerm("foo"))
+					assertParseOneTerm(t, input, input, exp, popts)
+				default:
+					input = fmt.Sprintf("%s.foo", kw)
+					expErr = fmt.Sprintf(`rego_parse_error: unexpected %s keyword
+	%s.foo
+	^`, kw, kw)
+					t.Run(input, func(t *testing.T) {
+						assertParseErrorContains(t, input, input, expErr, popts)
+					})
+
+					input = fmt.Sprintf(`%s["foo"]`, kw)
+					expErr = fmt.Sprintf(`rego_parse_error: unexpected %s keyword
+	%s["foo"]
+	^`, kw, kw)
+					t.Run(input, func(t *testing.T) {
+						assertParseErrorContains(t, input, input, expErr, popts)
+					})
+				}
+			})
+		}
+	})
 }
 
 func TestImportContainingKeywords(t *testing.T) {

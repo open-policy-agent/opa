@@ -734,10 +734,9 @@ func (p *Parser) parseImport() *Import {
 
 func scanIdentIgnoreKeywords(p *Parser) bool {
 	if p.s.tok != tokens.Ident {
-		if isKeywordInRegoVersion(p.s.tok, p.po.EffectiveRegoVersion()) {
+		if p.isAllowedRefKeyword(p.s.tok) {
 			p.s.tok = tokens.Ident
 		} else {
-			//p.error(p.s.Loc(), "expected ident")
 			p.illegalToken()
 			return false
 		}
@@ -747,7 +746,7 @@ func scanIdentIgnoreKeywords(p *Parser) bool {
 }
 
 func scanAheadRef(p *Parser) bool {
-	if isKeywordInRegoVersion(p.s.tok, p.po.EffectiveRegoVersion()) {
+	if p.isAllowedRefKeyword(p.s.tok) {
 		// scan ahead to check if we're parsing a ref
 		s := p.save()
 		p.scanWS()
@@ -1172,9 +1171,9 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 		}
 	}()
 
-	// This allows keywords in the first var term of the ref
-	if isKeywordInRegoVersion(p.s.tok, p.po.EffectiveRegoVersion()) {
-		// scan ahead to check if we're parsing a ref
+	// Check that we're not parsing a ref
+	if p.isAllowedRefKeyword(p.s.tok) {
+		// Scan ahead
 		s := p.save()
 		p.scanWS()
 		tok := p.s.tok
@@ -1188,8 +1187,15 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 
 	var negated bool
 	if p.s.tok == tokens.Not {
-		p.scan()
-		negated = true
+		s := p.save()
+		p.scanWS()
+		tok := p.s.tok
+		p.restore(s)
+
+		if tok != tokens.Dot && tok != tokens.LBrack {
+			p.scan()
+			negated = true
+		}
 	}
 
 	switch p.s.tok {
@@ -1210,14 +1216,16 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 	}
 }
 
-func isKeywordInRegoVersion(t tokens.Token, regoVersion RegoVersion, ignore ...tokens.Token) bool {
-	for _, i := range ignore {
-		if t == i {
-			return false
-		}
+func (p *Parser) isAllowedRefKeyword(t tokens.Token) bool {
+	return p.isAllowedRefKeywordStr(t.String())
+}
+
+func (p *Parser) isAllowedRefKeywordStr(s string) bool {
+	if p.po.Capabilities.ContainsFeature(FeatureKeywordsInRefs) {
+		return IsKeywordInRegoVersion(s, p.po.EffectiveRegoVersion()) || p.s.s.IsKeyword(s)
 	}
 
-	return IsKeywordInRegoVersion(t.String(), regoVersion)
+	return false
 }
 
 func (p *Parser) parseLiteralExpr(negated bool) *Expr {
@@ -1815,6 +1823,27 @@ func (p *Parser) parseCall(operator *Term, offset int) (term *Term) {
 	return nil
 }
 
+func (p *Parser) assertNoKeywordsInRef(r Ref) bool {
+	ok := true
+	for _, t := range r {
+		var n string
+		switch v := t.Value.(type) {
+		case Var:
+			n = string(v)
+		case String:
+			n = string(v)
+		default:
+			continue
+		}
+		if IsKeywordInRegoVersion(n, p.po.EffectiveRegoVersion()) || p.s.s.IsKeyword(n) {
+			p.errorf(t.Location, "illegal ref (unexpected %s keyword)", n)
+			ok = false
+		}
+	}
+
+	return ok
+}
+
 func (p *Parser) parseRef(head *Term, offset int) (term *Term) {
 
 	loc := head.Location
@@ -1837,7 +1866,7 @@ func (p *Parser) parseRef(head *Term, offset int) (term *Term) {
 		switch p.s.tok {
 		case tokens.Dot:
 			p.scanWS()
-			if p.s.tok != tokens.Ident && !IsKeywordInRegoVersion(p.s.tok.String(), p.po.EffectiveRegoVersion()) {
+			if p.s.tok != tokens.Ident && !p.isAllowedRefKeyword(p.s.tok) {
 				p.illegal("expected %v", tokens.Ident)
 				return nil
 			}
