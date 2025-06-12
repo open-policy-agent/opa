@@ -46,7 +46,17 @@ jobs:
         cat changed_files.txt
 
         # Check for Go-related changes
-        go_patterns="^((?!docs/).+)"
+        go_patterns="^(.*\.go$|\
+        .*\.yaml$|\
+        .*\.yml$|\
+        .*\.json$|\
+        .*\.mod$|\
+        .*\.sum$|\
+        .*\.sh$|\
+        ^Makefile$|\
+        ^cmd/|\
+        ^internal/|\
+        ^v1/)"
         if ! grep -E "$go_patterns" changed_files.txt > /dev/null 2>&1; then
           echo "go=false" >> $GITHUB_OUTPUT
           echo "No Go files changed, skipping Go checks"
