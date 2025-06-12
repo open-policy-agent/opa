@@ -57,8 +57,7 @@ export default function PlaygroundExample({
   // id is used to stop contents from other examples on the same page being used
   const id = getId(state);
   const snippetFiles = files?`${files} #${id}-input.json:input.json #${id}-data.json:data.json`:`#${id}-input.json:input.json #${id}-data.json:data.json`;
-  console.log(snippetFiles);
-   return (
+  return (
     <div>
       {title && <h2>{title}</h2>}
 
