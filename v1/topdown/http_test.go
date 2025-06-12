@@ -3309,22 +3309,22 @@ func TestRaisingHTTPClientQueryError(t *testing.T) {
 		{
 			note: "raised errors with inter query cache",
 			rules: []string{`p["one"] {
-	not http.send({"method": "GET", "url": "bad_url", "timeout": "1ms", "cache": true})
+	not http.send({"method": "GET", "url": "bad_url", "cache": true})
 }`,
 				`p["two"] {
-	not http.send({"method": "GET", "url": "bad_url", "timeout": "1ms", "cache": true})
+	not http.send({"method": "GET", "url": "bad_url", "cache": true})
 }`},
 			expected:      `["one", "two"]`,
-			expectedError: `not http.send({"method": "GET", "url": "bad_url", "timeout": "1ms", "cache": true}): eval_builtin_error: http.send: Get "bad_url": unsupported protocol scheme ""`,
+			expectedError: `not http.send({"method": "GET", "url": "bad_url", "cache": true}): eval_builtin_error: http.send: Get "bad_url": unsupported protocol scheme ""`,
 		},
 		{
 			note: "no raised errors with inter query cache",
 			rules: []string{`p["one"] {
-	r := http.send({"method": "GET", "url": "bad_url", "timeout": "1ms", "cache": true, "raise_error": false})
+	r := http.send({"method": "GET", "url": "bad_url", "cache": true, "raise_error": false})
 	r.error.code == "eval_http_send_network_error"
 }`,
 				`p["two"] {
-	r := http.send({"method": "GET", "url": "bad_url", "timeout": "1ms", "cache": true, "raise_error": false})
+	r := http.send({"method": "GET", "url": "bad_url", "cache": true, "raise_error": false})
 	r.error.code == "eval_http_send_network_error"
 }`},
 			expected: `["one", "two"]`,
@@ -3332,22 +3332,22 @@ func TestRaisingHTTPClientQueryError(t *testing.T) {
 		{
 			note: "raised errors with intra query cache",
 			rules: []string{`p["one"] {
-	not http.send({"method": "GET", "url": "bad_url", "timeout": "1ms"})
+	not http.send({"method": "GET", "url": "bad_url"})
 }`,
 				`p["two"] {
-	not http.send({"method": "GET", "url": "bad_url", "timeout": "1ms"})
+	not http.send({"method": "GET", "url": "bad_url"})
 }`},
 			expected:      `["one", "two"]`,
-			expectedError: `not http.send({"method": "GET", "url": "bad_url", "timeout": "1ms"}): eval_builtin_error: http.send: Get "bad_url": unsupported protocol scheme ""`,
+			expectedError: `not http.send({"method": "GET", "url": "bad_url"}): eval_builtin_error: http.send: Get "bad_url": unsupported protocol scheme ""`,
 		},
 		{
 			note: "no raised errors with intra query cache",
 			rules: []string{`p["one"] {
-	r := http.send({"method": "GET", "url": "bad_url", "timeout": "1ms", "raise_error": false})
+	r := http.send({"method": "GET", "url": "bad_url", "raise_error": false})
 	r.error.code == "eval_http_send_network_error"
 }`,
 				`p["two"] {
-	r := http.send({"method": "GET", "url": "bad_url", "timeout": "1ms", "raise_error": false})
+	r := http.send({"method": "GET", "url": "bad_url", "raise_error": false})
 	r.error.code == "eval_http_send_network_error"
 }`},
 			expected: `["one", "two"]`,
