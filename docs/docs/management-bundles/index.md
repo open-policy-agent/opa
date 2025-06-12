@@ -2,16 +2,21 @@
 title: "Bundles"
 ---
 
-OPA can periodically download bundles of policy and data from remote HTTP
-servers. The policies and data are loaded on the fly without requiring a
-restart of OPA. Once the policies and data have been loaded, they are enforced
-immediately. Policies and data loaded from bundles are accessible via the
-standard OPA [REST API](./rest-api).
+Many use cases require that OPA reload policy and related data while serving
+requests. OPA is commonly deployed as a supporting role to applications and
+other callers, so it's often desirable to be able to update policies quicker
+than would be possible with a full redeployment.
+Frequent data updates are another driver for this functionality.
+
+Updated policies and data are loaded on the fly without requiring a restart of
+OPA. Once the policies and data have been loaded, they are enforced immediately.
+Policies and data loaded from bundles are accessible via the standard OPA
+[REST API](./rest-api) to callers.
 
 Bundles provide an alternative to pushing policies into OPA via the REST APIs.
 By configuring OPA to download bundles from a remote HTTP server, you can
 ensure that OPA has an up-to-date copy of policies and data required for
-enforcement at all times.
+enforcement at all times in an eventually consistent manner.
 
 By default, the OPA REST APIs will prevent you from modifying policy and data
 loaded via bundles. If you need to load policy and data from multiple sources,
@@ -174,16 +179,28 @@ If the server does not support `long polling`, OPA will fallback to the regular 
 
 ### Bundle File Format
 
-Bundle files are gzipped tarballs that contain policies and data. The data
-files in the bundle must be organized hierarchically into directories inside
-the tarball.
+Bundle files are gzipped tarballs (`.tar.gz`) that contain policies and/or
+data.
 
-:::info
-The hierarchical organization indicates to OPA where to load the data files
-into the [the `data` Document](./philosophy/#the-opa-document-model).
-:::
+Policy files are Rego source files with the `.rego` extension and will be
+available within Rego modules based on their package's path,
+e.g. `package example.authz` is available at `data.example.authz` in the
+[`data` Document](./philosophy/#the-opa-document-model).
 
-You can list the content of a bundle with `tar`.
+The data files within the bundle can be organized hierarchically into
+directories inside the tarball. The hierarchical organization indicates to OPA
+where to load the data files into the `data` Document - similar to how Rego
+files can control their location using the package path. This functionality
+can be useful when:
+
+- Deploying larger bundles with policy for different callers and use cases.
+- Creating bundles where different teams manage different parts of the bundle.
+  For example, some shared policy is to be loaded alongside some application
+  specific policy and data.
+- When some parts of the data are to be updated more frequently than others,
+  e.g. using [Delta Bundles](#delta-bundles).
+
+You can list the content of a bundle with `tar`:
 
 ```bash
 $ tar tzf bundle.tar.gz
@@ -201,9 +218,40 @@ http/example/authz/authz.rego
 
 In this example, the bundle contains one policy file (`authz.rego`) and two
 data files (`roles/bindings/data.json` and `roles/permissions/data.json`).
-The bundle may also contain an optional wasm binary file (`policy.wasm`).
-It stores the WebAssembly compiled version of all the Rego policy files within
-the bundle.
+A data file in the root of the bundle will be loaded into the `data` Document at
+the root. For example, here we can see that the `foo` key is inserted at the
+root of the `data` document:
+
+```sh
+$ tree bundle
+bundle
+└── data.json
+
+1 directory, 1 file
+$ cat bundle/data.json
+{ "foo": true }
+$ opa eval -b bundle/ data.foo --format=raw
+true
+```
+
+The bundle may also contain an optional Wasm binary file (`policy.wasm`).
+OPA stores the WebAssembly compiled version of all the Rego policy files within
+the bundle in `policy.wasm` when building with `-t wasm`:
+
+```sh
+$ cat -p bundle/http/example/authz/authz.rego
+package http.example.authz
+
+allow := true
+$ opa build -t wasm -e http/example/authz/allow bundle
+$ tar tzf bundle.tar.gz
+/data.json
+/bundle/http/example/authz/authz.rego
+/policy.wasm
+/.manifest
+$ opa eval -b bundle.tar.gz data --format=raw
+{"http":{"example":{"authz":{"allow":true}}}}
+```
 
 Bundle files may contain an optional `.manifest` file that stores bundle
 metadata. The file should contain a JSON serialized object, with the following
@@ -289,20 +337,19 @@ expect for policy files `/policy1.rego` and those under the folder `foo`.
 }
 ```
 
-**Some important details for bundle files:**
+Some important details for bundle files:
 
 - OPA will only load data files named `data.json` or `data.yaml` (which contain
   JSON or YAML respectively). Other JSON and YAML files will be ignored.
-
-- The `*.rego` policy files must be valid [Modules](./policy-language/#modules)
-
+- The `*.rego` policy files must be valid [Modules](./policy-language/#modules).
 - OPA will only load Wasm modules named `policy.wasm`. Other WebAssembly binary
   files will be ignored.
 
 :::info
 YAML data loaded into OPA is converted to JSON. Since JSON is a subset of
 YAML, you are not allowed to use binary or null keys in objects and boolean
-and number keys are converted to strings. Also, YAML !!binary tags are not
+and number keys are converted to strings.
+[YAML `!!binary` tags](https://ref.coddy.tech/yaml/yaml-binary-data) are not
 supported.
 :::
 

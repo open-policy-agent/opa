@@ -11,14 +11,13 @@ import (
 	"fmt"
 	"maps"
 	mr "math/rand"
+	"net/http"
 	"sync"
 	"time"
 
 	"github.com/open-policy-agent/opa/internal/report"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/otel/sdk/trace"
-
-	"github.com/gorilla/mux"
 
 	bundleUtils "github.com/open-policy-agent/opa/internal/bundle"
 	cfg "github.com/open-policy-agent/opa/internal/config"
@@ -207,7 +206,7 @@ type Manager struct {
 	serverInitializedOnce        sync.Once
 	printHook                    print.Hook
 	enablePrintStatements        bool
-	router                       *mux.Router
+	router                       *http.ServeMux
 	prometheusRegister           prometheus.Registerer
 	tracerProvider               *trace.TracerProvider
 	distributedTacingOpts        tracing.Options
@@ -370,7 +369,7 @@ func PrintHook(h print.Hook) func(*Manager) {
 	}
 }
 
-func WithRouter(r *mux.Router) func(*Manager) {
+func WithRouter(r *http.ServeMux) func(*Manager) {
 	return func(m *Manager) {
 		m.router = r
 	}
@@ -655,7 +654,7 @@ func (m *Manager) setCompiler(compiler *ast.Compiler) {
 }
 
 // GetRouter returns the managers router if set
-func (m *Manager) GetRouter() *mux.Router {
+func (m *Manager) GetRouter() *http.ServeMux {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	return m.router

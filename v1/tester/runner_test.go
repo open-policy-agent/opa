@@ -5,10 +5,13 @@
 package tester_test
 
 import (
+	"bytes"
 	"context"
-	"errors"
+	"encoding/json"
 	"fmt"
+	"io"
 	"maps"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -489,16 +492,8 @@ func testCancel(t *testing.T, bench bool) {
 			results = append(results, r)
 		}
 
-		if len(results) != 1 {
-			t.Fatalf("Expected only a single test result, got: %d", len(results))
-		}
-
-		if !topdown.IsCancel(results[0].Error) {
-			t.Fatalf("Expected cancel error for first test but got: %v", results[0].Error)
-		}
-
-		if !errors.Is(results[0].Error, context.Canceled) {
-			t.Fatalf("Expected error to be of type context.Canceled but got: %v", results[0].Error)
+		if len(results) != 0 {
+			t.Fatalf("Expected no tests to be run but, got: %d", len(results))
 		}
 	})
 }
@@ -555,22 +550,15 @@ func testTimeout(t *testing.T, bench bool) {
 		for r := range ch {
 			results = append(results, r)
 		}
-		if !topdown.IsCancel(results[0].Error) {
-			t.Fatalf("Expected cancel error for first test but got: %v", results[0].Error)
-		}
 
 		if bench {
 			if !topdown.IsCancel(results[1].Error) {
 				t.Fatalf("Expected cancel error for second test but got: %v", results[1].Error)
 			}
 		} else {
-			if topdown.IsCancel(results[1].Error) {
-				t.Fatalf("Expected no error for second test, but it timed out")
+			if !topdown.IsCancel(results[1].Error) {
+				t.Fatalf("Expected test to have timed out")
 			}
-		}
-
-		if !errors.Is(results[0].Error, context.DeadlineExceeded) {
-			t.Fatalf("Expected error to be of type context.DeadlineExceeded but got: %v", results[0].Error)
 		}
 	})
 }
@@ -585,6 +573,20 @@ func TestRunnerPrintOutput(t *testing.T) {
 		test_b if { false; print("B") }
 		test_c if { print("C"); false }
 		p.q.r.test_d if { print("D") }`,
+		"/test2.rego": `package test
+		import rego.v1
+
+		test_d if { print("D") }
+		test_e if { false; print("E") }
+		test_f if { print("F"); false }
+		p.q.r.test_g if { print("G") }`,
+		"/test3.rego": `package test
+		import rego.v1
+
+		test_h if { print("H") }
+		test_i if { false; print("I") }
+		test_j if { print("J"); false }
+		p.q.r.test_k if { print("K") }`,
 	}
 
 	ctx := context.Background()
@@ -603,25 +605,49 @@ func TestRunnerPrintOutput(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		var results []*tester.Result
-		for r := range ch {
-			results = append(results, r)
-		}
-
-		exp := map[string]string{
-			"test_a":       "A\n",
-			"test_b":       "",
-			"test_c":       "C\n",
-			"p.q.r.test_d": "D\n",
+		exp := map[string]map[string]string{
+			"test.rego": {
+				"test_a":       "A\n",
+				"test_b":       "",
+				"test_c":       "C\n",
+				"p.q.r.test_d": "D\n",
+			},
+			"test2.rego": {
+				"test_d":       "D\n",
+				"test_e":       "",
+				"test_f":       "F\n",
+				"p.q.r.test_g": "G\n",
+			},
+			"test3.rego": {
+				"test_h":       "H\n",
+				"test_i":       "",
+				"test_j":       "J\n",
+				"p.q.r.test_k": "K\n",
+			},
 		}
 
 		got := map[string]string{}
+		var lastFile string
+		for r := range ch {
+			if lastFile == "" {
+				lastFile = filepath.Base(r.Location.File)
+			} else if lastFile != filepath.Base(r.Location.File) {
+				// assert that all expected results for the file has been received
+				// the individual files could be out of order, but it has to be grouped by file
+				if !maps.Equal(exp[lastFile], got) {
+					t.Fatal("expected:", exp, "got:", got)
+				}
 
-		for _, tr := range results {
-			got[tr.Name] = string(tr.Output)
+				// clear got for the next file
+				got = map[string]string{}
+				lastFile = filepath.Base(r.Location.File)
+			}
+
+			got[r.Name] = string(r.Output)
 		}
 
-		if !maps.Equal(exp, got) {
+		// check the last file
+		if !maps.Equal(exp[lastFile], got) {
 			t.Fatal("expected:", exp, "got:", got)
 		}
 	})
@@ -959,6 +985,111 @@ func TestRun_DefaultRegoVersion(t *testing.T) {
 					t.Fatalf("Expected test to pass but it failed")
 				}
 			}
+		})
+	}
+}
+
+func TestReporterFormatsWithExplicitParallel(t *testing.T) {
+	tests := []struct {
+		note     string
+		parallel int
+		r        func(writer io.Writer) tester.Reporter
+		exp      func(string)
+	}{
+		{
+			note:     "Pretty Format",
+			parallel: 10,
+			r: func(w io.Writer) tester.Reporter {
+				return tester.PrettyReporter{
+					Output: w,
+				}
+			},
+			exp: func(output string) {
+				exp := `PASS: 4/4
+`
+				if exp != output {
+					t.Fatalf("Expected (%d bytes):\n\n%v\n\nGot (%d bytes):\n\n%v", len(exp), exp, len(output), output)
+				}
+			},
+		},
+		{
+			note:     "JSON Format",
+			parallel: 10,
+			r: func(w io.Writer) tester.Reporter {
+				return tester.JSONReporter{
+					Output: w,
+				}
+			},
+			exp: func(output string) {
+				// the order of the tests and filepath and duration will be different each execution
+				var r []*tester.Result
+				if err := json.Unmarshal([]byte(output), &r); err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+				if len(r) != 4 {
+					t.Fatalf("Expected exactly 4 results but got: %v", r)
+				}
+			},
+		},
+		{
+			note:     "Go Bench Format",
+			parallel: 10,
+			r: func(w io.Writer) tester.Reporter {
+				return tester.PrettyReporter{
+					Output:                 w,
+					BenchMarkGoBenchFormat: true,
+				}
+			},
+			exp: func(output string) {
+				exp := `PASS: 4/4
+`
+				if exp != output {
+					t.Fatalf("Expected (%d bytes):\n\n%v\n\nGot (%d bytes):\n\n%v", len(exp), exp, len(output), output)
+				}
+			},
+		},
+	}
+
+	files := map[string]string{
+		"/test.rego": `package test
+		import rego.v1
+
+		test_a if { print("A") }
+		test_a if { print("A") }
+		test_a if { print("A") }
+		test_a if { print("A") }`,
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			ctx := context.Background()
+
+			test.WithTempFS(files, func(d string) {
+				paths := []string{d}
+				modules, store, err := tester.Load(paths, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				txn := storage.NewTransactionOrDie(ctx, store)
+				runner := tester.NewRunner().SetStore(store).SetModules(modules).CapturePrintOutput(true)
+				ch, err := runner.RunTests(ctx, txn)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				var buf bytes.Buffer
+
+				r := tc.r(&buf)
+
+				if err := r.Report(ch); err != nil {
+					t.Fatal(err)
+				}
+
+				str := buf.String()
+
+				tc.exp(str)
+			})
 		})
 	}
 }

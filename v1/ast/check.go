@@ -211,8 +211,10 @@ func (tc *typeChecker) getSchemaType(schemaAnnot *SchemaAnnotation, rule *Rule) 
 		tc.schemaTypes = make(map[string]types.Type)
 	}
 
-	if refType, exists := tc.schemaTypes[schemaAnnot.Schema.String()]; exists {
-		return refType, nil
+	if len(schemaAnnot.Schema) > 0 {
+		if refType, exists := tc.schemaTypes[schemaAnnot.Schema.String()]; exists {
+			return refType, nil
+		}
 	}
 
 	refType, err := processAnnotation(tc.ss, schemaAnnot, rule, tc.allowNet)
@@ -224,7 +226,11 @@ func (tc *typeChecker) getSchemaType(schemaAnnot *SchemaAnnotation, rule *Rule) 
 		return nil, nil
 	}
 
-	tc.schemaTypes[schemaAnnot.Schema.String()] = refType
+	// Only add to cache if schema is read from file
+	if len(schemaAnnot.Schema) > 0 {
+		tc.schemaTypes[schemaAnnot.Schema.String()] = refType
+	}
+
 	return refType, nil
 
 }
