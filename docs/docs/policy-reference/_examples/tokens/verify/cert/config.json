@@ -1,0 +1,7 @@
+{
+	"showInput": false,
+	"showData":  false,
+	"showTitles": false,
+	"showPlayground": false,
+	"command": "data.jwt"
+}
