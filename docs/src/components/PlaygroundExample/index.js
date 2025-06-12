@@ -24,8 +24,8 @@ export default function PlaygroundExample({
     return acc;
   }, {});
   const config = source_files["config.json"];
-  const input = (source_files["input.json"]?source_files["input.json"]:"{}");
-  const data = (source_files["data.json"]?source_files["data.json"]:"{}");
+  const input = source_files["input.json"]||"{}";
+  const data = source_files["data.json"]||"{}";
   const policy = source_files["policy.rego"];
 
   const title = source_files["title.txt"];
@@ -37,6 +37,7 @@ export default function PlaygroundExample({
   const showInput = config?.showInput ?? true;
   const showData = config?.showData ?? true;
   const showTitles = config?.showTitles ?? true;
+  const showPlayground = config?.showPlayground ?? true;
   const command = config?.command ?? "data.play";
 
   const state = encodeToBase64(JSON.stringify({
@@ -115,11 +116,11 @@ export default function PlaygroundExample({
           <CodeBlock language={"rego"} title={showTitles ? "policy.rego" : ""}>
             {policy}
           </CodeBlock>
-          <RunSnippet command={command} id={`${id}-policy.rego`} files={snippetFiles} playgroundLink={url} />
+          <RunSnippet command={command} id={`${id}-policy.rego`} files={snippetFiles} playgroundLink={showPlayground && url} />
         </MDXProvider>
       )}
 
-      {output && (
+      {showPlayground && output && (
         <p>
           <Link to={url}>Open in OPA Playground</Link>
         </p>
