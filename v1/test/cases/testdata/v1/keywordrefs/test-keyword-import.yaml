@@ -108,3 +108,58 @@ cases:
         }
     want_result:
       - x: true
+  - note: keywordrefs/import keyword rule refhead, partial object
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          import.foo == "a"
+          import.bar.one == "a"
+          import.bar.three == "c"
+          foo.import == "a"
+          bar.baz.import == "a"
+        }
+
+        import.foo := "a"
+
+        import.foo := "b" if {
+          false
+        }
+
+        import.foo := "c" if {
+          false
+        }
+
+        import.bar.one := "a"
+
+        import.bar.two := "b" if {
+          false
+        }
+
+        import.bar.three := "c" if {
+          true
+        }
+
+        foo.import := "a"
+
+        foo.import := "b" if {
+          false
+        }
+
+        foo.import := "c" if {
+          false
+        }
+
+        bar.baz.import := "a"
+
+        bar.baz.import := "b" if {
+          false
+        }
+
+        bar.baz.import := "c" if {
+          false
+        }
+    want_result:
+      - x: true

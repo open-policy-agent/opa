@@ -108,3 +108,58 @@ cases:
         }
     want_result:
       - x: true
+  - note: keywordrefs/contains keyword rule refhead, partial object
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          contains.foo == "a"
+          contains.bar.one == "a"
+          contains.bar.three == "c"
+          foo.contains == "a"
+          bar.baz.contains == "a"
+        }
+
+        contains.foo := "a"
+
+        contains.foo := "b" if {
+          false
+        }
+
+        contains.foo := "c" if {
+          false
+        }
+
+        contains.bar.one := "a"
+
+        contains.bar.two := "b" if {
+          false
+        }
+
+        contains.bar.three := "c" if {
+          true
+        }
+
+        foo.contains := "a"
+
+        foo.contains := "b" if {
+          false
+        }
+
+        foo.contains := "c" if {
+          false
+        }
+
+        bar.baz.contains := "a"
+
+        bar.baz.contains := "b" if {
+          false
+        }
+
+        bar.baz.contains := "c" if {
+          false
+        }
+    want_result:
+      - x: true

@@ -108,3 +108,58 @@ cases:
         }
     want_result:
       - x: true
+  - note: keywordrefs/default keyword rule refhead, partial object
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          default.foo == "a"
+          default.bar.one == "a"
+          default.bar.three == "c"
+          foo.default == "a"
+          bar.baz.default == "a"
+        }
+
+        default.foo := "a"
+
+        default.foo := "b" if {
+          false
+        }
+
+        default.foo := "c" if {
+          false
+        }
+
+        default.bar.one := "a"
+
+        default.bar.two := "b" if {
+          false
+        }
+
+        default.bar.three := "c" if {
+          true
+        }
+
+        foo.default := "a"
+
+        foo.default := "b" if {
+          false
+        }
+
+        foo.default := "c" if {
+          false
+        }
+
+        bar.baz.default := "a"
+
+        bar.baz.default := "b" if {
+          false
+        }
+
+        bar.baz.default := "c" if {
+          false
+        }
+    want_result:
+      - x: true

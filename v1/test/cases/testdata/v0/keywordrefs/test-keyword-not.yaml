@@ -109,3 +109,58 @@ cases:
         }
     want_result:
       - x: true
+  - note: keywordrefs/not keyword rule refhead, partial object
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          not.foo == "a"
+          not.bar.one == "a"
+          not.bar.three == "c"
+          foo.not == "a"
+          bar.baz.not == "a"
+        }
+
+        not.foo := "a"
+
+        not.foo := "b" {
+          false
+        }
+
+        not.foo := "c" {
+          false
+        }
+
+        not.bar.one := "a"
+
+        not.bar.two := "b" {
+          false
+        }
+
+        not.bar.three := "c" {
+          true
+        }
+
+        foo.not := "a"
+
+        foo.not := "b" {
+          false
+        }
+
+        foo.not := "c" {
+          false
+        }
+
+        bar.baz.not := "a"
+
+        bar.baz.not := "b" {
+          false
+        }
+
+        bar.baz.not := "c" {
+          false
+        }
+    want_result:
+      - x: true

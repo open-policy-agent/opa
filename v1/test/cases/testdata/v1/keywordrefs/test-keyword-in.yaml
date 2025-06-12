@@ -108,3 +108,58 @@ cases:
         }
     want_result:
       - x: true
+  - note: keywordrefs/in keyword rule refhead, partial object
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          in.foo == "a"
+          in.bar.one == "a"
+          in.bar.three == "c"
+          foo.in == "a"
+          bar.baz.in == "a"
+        }
+
+        in.foo := "a"
+
+        in.foo := "b" if {
+          false
+        }
+
+        in.foo := "c" if {
+          false
+        }
+
+        in.bar.one := "a"
+
+        in.bar.two := "b" if {
+          false
+        }
+
+        in.bar.three := "c" if {
+          true
+        }
+
+        foo.in := "a"
+
+        foo.in := "b" if {
+          false
+        }
+
+        foo.in := "c" if {
+          false
+        }
+
+        bar.baz.in := "a"
+
+        bar.baz.in := "b" if {
+          false
+        }
+
+        bar.baz.in := "c" if {
+          false
+        }
+    want_result:
+      - x: true

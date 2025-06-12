@@ -108,3 +108,58 @@ cases:
         }
     want_result:
       - x: true
+  - note: keywordrefs/every keyword rule refhead, partial object
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          every.foo == "a"
+          every.bar.one == "a"
+          every.bar.three == "c"
+          foo.every == "a"
+          bar.baz.every == "a"
+        }
+
+        every.foo := "a"
+
+        every.foo := "b" if {
+          false
+        }
+
+        every.foo := "c" if {
+          false
+        }
+
+        every.bar.one := "a"
+
+        every.bar.two := "b" if {
+          false
+        }
+
+        every.bar.three := "c" if {
+          true
+        }
+
+        foo.every := "a"
+
+        foo.every := "b" if {
+          false
+        }
+
+        foo.every := "c" if {
+          false
+        }
+
+        bar.baz.every := "a"
+
+        bar.baz.every := "b" if {
+          false
+        }
+
+        bar.baz.every := "c" if {
+          false
+        }
+    want_result:
+      - x: true

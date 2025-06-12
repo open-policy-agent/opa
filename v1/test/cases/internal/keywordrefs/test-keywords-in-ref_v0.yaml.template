@@ -109,3 +109,58 @@ cases:
         }
     want_result:
       - x: true
+  - note: keywordrefs/%{KW} keyword rule refhead, partial object
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          %{KW}.foo == "a"
+          %{KW}.bar.one == "a"
+          %{KW}.bar.three == "c"
+          foo.%{KW} == "a"
+          bar.baz.%{KW} == "a"
+        }
+
+        %{KW}.foo := "a"
+
+        %{KW}.foo := "b" {
+          false
+        }
+
+        %{KW}.foo := "c" {
+          false
+        }
+
+        %{KW}.bar.one := "a"
+
+        %{KW}.bar.two := "b" {
+          false
+        }
+
+        %{KW}.bar.three := "c" {
+          true
+        }
+
+        foo.%{KW} := "a"
+
+        foo.%{KW} := "b" {
+          false
+        }
+
+        foo.%{KW} := "c" {
+          false
+        }
+
+        bar.baz.%{KW} := "a"
+
+        bar.baz.%{KW} := "b" {
+          false
+        }
+
+        bar.baz.%{KW} := "c" {
+          false
+        }
+    want_result:
+      - x: true

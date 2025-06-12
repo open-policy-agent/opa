@@ -108,3 +108,58 @@ cases:
         }
     want_result:
       - x: true
+  - note: keywordrefs/some keyword rule refhead, partial object
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          some.foo == "a"
+          some.bar.one == "a"
+          some.bar.three == "c"
+          foo.some == "a"
+          bar.baz.some == "a"
+        }
+
+        some.foo := "a"
+
+        some.foo := "b" if {
+          false
+        }
+
+        some.foo := "c" if {
+          false
+        }
+
+        some.bar.one := "a"
+
+        some.bar.two := "b" if {
+          false
+        }
+
+        some.bar.three := "c" if {
+          true
+        }
+
+        foo.some := "a"
+
+        foo.some := "b" if {
+          false
+        }
+
+        foo.some := "c" if {
+          false
+        }
+
+        bar.baz.some := "a"
+
+        bar.baz.some := "b" if {
+          false
+        }
+
+        bar.baz.some := "c" if {
+          false
+        }
+    want_result:
+      - x: true

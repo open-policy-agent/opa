@@ -109,3 +109,58 @@ cases:
         }
     want_result:
       - x: true
+  - note: keywordrefs/false keyword rule refhead, partial object
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          false.foo == "a"
+          false.bar.one == "a"
+          false.bar.three == "c"
+          foo.false == "a"
+          bar.baz.false == "a"
+        }
+
+        false.foo := "a"
+
+        false.foo := "b" {
+          false
+        }
+
+        false.foo := "c" {
+          false
+        }
+
+        false.bar.one := "a"
+
+        false.bar.two := "b" {
+          false
+        }
+
+        false.bar.three := "c" {
+          true
+        }
+
+        foo.false := "a"
+
+        foo.false := "b" {
+          false
+        }
+
+        foo.false := "c" {
+          false
+        }
+
+        bar.baz.false := "a"
+
+        bar.baz.false := "b" {
+          false
+        }
+
+        bar.baz.false := "c" {
+          false
+        }
+    want_result:
+      - x: true

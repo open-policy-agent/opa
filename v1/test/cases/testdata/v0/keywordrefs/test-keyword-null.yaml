@@ -109,3 +109,58 @@ cases:
         }
     want_result:
       - x: true
+  - note: keywordrefs/null keyword rule refhead, partial object
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          null.foo == "a"
+          null.bar.one == "a"
+          null.bar.three == "c"
+          foo.null == "a"
+          bar.baz.null == "a"
+        }
+
+        null.foo := "a"
+
+        null.foo := "b" {
+          false
+        }
+
+        null.foo := "c" {
+          false
+        }
+
+        null.bar.one := "a"
+
+        null.bar.two := "b" {
+          false
+        }
+
+        null.bar.three := "c" {
+          true
+        }
+
+        foo.null := "a"
+
+        foo.null := "b" {
+          false
+        }
+
+        foo.null := "c" {
+          false
+        }
+
+        bar.baz.null := "a"
+
+        bar.baz.null := "b" {
+          false
+        }
+
+        bar.baz.null := "c" {
+          false
+        }
+    want_result:
+      - x: true
