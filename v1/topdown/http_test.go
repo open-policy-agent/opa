@@ -3817,6 +3817,12 @@ func TestIsJSONType(t *testing.T) {
 		},
 		{
 			h: http.Header{
+				"Content-Type": []string{"application/thisisnotjson; charset=utf-8"},
+			},
+			exp: false,
+		},
+		{
+			h: http.Header{
 				"Content-Type": []string{"application/yaml"},
 			},
 			exp: false,

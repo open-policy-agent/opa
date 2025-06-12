@@ -767,8 +767,10 @@ func isJSONType(header http.Header) bool {
 		return false
 	}
 
-	if mediaType[0] == "application" && strings.HasSuffix(mediaType[1], "json") {
-		return true
+	if mediaType[0] == "application" {
+		if mediaType[1] == "json" || strings.HasSuffix(mediaType[1], "+json") {
+			return true
+		}
 	}
 
 	return false
