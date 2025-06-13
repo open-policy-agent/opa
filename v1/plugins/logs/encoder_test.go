@@ -44,11 +44,11 @@ func eventWithNDCache() EventV1 {
 	}
 }
 
-func TestMaxEventSize(t *testing.T) {
+func TestLastDroppedNDSize(t *testing.T) {
 	enc := newChunkEncoder(200).WithMetrics(metrics.New())
 
-	if enc.maxEventSize != 0 {
-		t.Errorf("expected 0 got %d", enc.maxEventSize)
+	if enc.lastDroppedNDSize != 0 {
+		t.Errorf("expected 0 got %d", enc.lastDroppedNDSize)
 	}
 
 	event := eventWithNDCache()
@@ -72,9 +72,9 @@ func TestMaxEventSize(t *testing.T) {
 		t.Errorf("Expected %d bytes written but got %d", expectedBytesWritten, enc.bytesWritten)
 	}
 
-	expectedMaxSize := int64(3414) // size before dropping the ND cache
-	if enc.maxEventSize != expectedMaxSize {
-		t.Errorf("expected %v got %d", expectedMaxSize, enc.maxEventSize)
+	expectedLastDroppedSize := int64(3414) // size before dropping the ND cache
+	if enc.lastDroppedNDSize != expectedLastDroppedSize {
+		t.Errorf("expected %v got %d", expectedLastDroppedSize, enc.lastDroppedNDSize)
 	}
 
 	eventBytes, err = json.Marshal(&event)
@@ -95,8 +95,8 @@ func TestMaxEventSize(t *testing.T) {
 		t.Errorf("Expected %d bytes written but got %d", expectedBytesWritten, enc.bytesWritten)
 	}
 
-	if enc.maxEventSize != expectedMaxSize {
-		t.Errorf("expected %v got %d", expectedMaxSize, enc.maxEventSize)
+	if enc.lastDroppedNDSize != expectedLastDroppedSize {
+		t.Errorf("expected %v got %d", expectedLastDroppedSize, enc.lastDroppedNDSize)
 	}
 }
 

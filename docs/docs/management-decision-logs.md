@@ -94,7 +94,7 @@ that gets adjusted by measuring incoming events. This does mean that initially t
 than the compressed limit, but as OPA consumes more decision events it will adjust the adaptive uncompressed limit to
 optimize the messages. The algorithm to adjust the uncompressed limit uses the following criteria:
 
-`Scale Up`: If the current chunk size is within 90% of the user-configured compressed limit, exponentially increase the
+`Scale Up`: If the current chunk size is below 90% of the user-configured compressed limit, exponentially increase the
 uncompressed limit. The exponential function is 2^x where x has a minimum value of 1
 
 `Scale Down`: If the current chunk size exceeds the compressed limit, decrease the uncompressed limit and re-encode the 
