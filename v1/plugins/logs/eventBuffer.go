@@ -22,23 +22,21 @@ type bufferItem struct {
 
 // eventBuffer stores and uploads a gzip compressed JSON array of EventV1 entries
 type eventBuffer struct {
-	buffer               chan *bufferItem // buffer stores JSON encoded EventV1 data
-	upload               sync.Mutex       // upload controls that uploads are done sequentially
-	client               rest.Client      // client is used to upload the data to the configured service
-	uploadPath           string           // uploadPath is the configured HTTP resource path for upload
-	uploadSizeLimitBytes int64            // uploadSizeLimitBytes will enforce a maximum payload size to be uploaded
-	enc                  *chunkEncoder    // encoder appends events into the gzip compressed JSON array
-	metrics              metrics.Metrics
-	logger               logging.Logger
+	buffer     chan *bufferItem // buffer stores JSON encoded EventV1 data
+	upload     sync.Mutex       // upload controls that uploads are done sequentially
+	client     rest.Client      // client is used to upload the data to the configured service
+	uploadPath string           // uploadPath is the configured HTTP resource path for upload
+	enc        *chunkEncoder    // encoder appends events into the gzip compressed JSON array
+	metrics    metrics.Metrics
+	logger     logging.Logger
 }
 
 func newEventBuffer(bufferSizeLimitEvents int64, client rest.Client, uploadPath string, uploadSizeLimitBytes int64) *eventBuffer {
 	return &eventBuffer{
-		buffer:               make(chan *bufferItem, bufferSizeLimitEvents),
-		client:               client,
-		uploadPath:           uploadPath,
-		uploadSizeLimitBytes: uploadSizeLimitBytes,
-		enc:                  newChunkEncoder(uploadSizeLimitBytes),
+		buffer:     make(chan *bufferItem, bufferSizeLimitEvents),
+		client:     client,
+		uploadPath: uploadPath,
+		enc:        newChunkEncoder(uploadSizeLimitBytes),
 	}
 }
 
@@ -63,18 +61,18 @@ func (b *eventBuffer) incrMetric(name string) {
 // This cannot be called concurrently, this could change the underlying channel.
 // Plugin manages a lock to control this so that changes to both buffer types can be managed sequentially.
 func (b *eventBuffer) Reconfigure(bufferSizeLimitEvents int64, client rest.Client, uploadPath string, uploadSizeLimitBytes int64) {
+	// prevent an upload from pushing events that failed to upload back into a closed buffer
+	b.upload.Lock()
+	defer b.upload.Unlock()
+
 	b.client = client
 	b.uploadPath = uploadPath
-	b.uploadSizeLimitBytes = uploadSizeLimitBytes
-	b.enc.Reconfigure(uploadSizeLimitBytes)
 
 	if int64(cap(b.buffer)) == bufferSizeLimitEvents {
 		return
 	}
 
-	// prevent an upload from pushing events that failed to upload back into a closed buffer
-	b.upload.Lock()
-	defer b.upload.Unlock()
+	b.enc.Reconfigure(uploadSizeLimitBytes)
 
 	close(b.buffer)
 	oldBuffer := b.buffer
