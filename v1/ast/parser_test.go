@@ -591,6 +591,101 @@ func TestRefTermsContainingKeywords_NoCapability(t *testing.T) {
 	})
 }
 
+func TestCallRefTermsContainingKeywords(t *testing.T) {
+	for _, regoVersion := range []RegoVersion{RegoV0, RegoV1} {
+		popts := ParserOptions{RegoVersion: regoVersion}
+
+		t.Run(regoVersion.String(), func(t *testing.T) {
+			for _, kw := range Keywords {
+				t.Run(kw, func(t *testing.T) {
+					input := fmt.Sprintf("foo.%s(42)", kw)
+					exp := NewExpr([]*Term{RefTerm(VarTerm("foo"), StringTerm(kw)), NumberTerm("42")})
+					assertParseOneExpr(t, input, input, exp, popts)
+
+					input = fmt.Sprintf("input.%s(42)", kw)
+					exp = NewExpr([]*Term{RefTerm(VarTerm("input"), StringTerm(kw)), NumberTerm("42")})
+					assertParseOneExpr(t, input, input, exp, popts)
+
+					input = fmt.Sprintf("data.%s(42)", kw)
+					exp = NewExpr([]*Term{RefTerm(VarTerm("data"), StringTerm(kw)), NumberTerm("42")})
+					assertParseOneExpr(t, input, input, exp, popts)
+
+					input = fmt.Sprintf("data.%s.foo(42)", kw)
+					exp = NewExpr([]*Term{RefTerm(VarTerm("data"), StringTerm(kw), StringTerm("foo")), NumberTerm("42")})
+					assertParseOneExpr(t, input, input, exp, popts)
+
+					input = fmt.Sprintf(`data.%s["foo"](42)`, kw)
+					exp = NewExpr([]*Term{RefTerm(VarTerm("data"), StringTerm(kw), StringTerm("foo")), NumberTerm("42")})
+					assertParseOneExpr(t, input, input, exp, popts)
+
+					input = fmt.Sprintf("data.foo.%s(42)", kw)
+					exp = NewExpr([]*Term{RefTerm(VarTerm("data"), StringTerm("foo"), StringTerm(kw)), NumberTerm("42")})
+					assertParseOneExpr(t, input, input, exp, popts)
+
+					input = fmt.Sprintf(`data["foo"].%s(42)`, kw)
+					exp = NewExpr([]*Term{RefTerm(VarTerm("data"), StringTerm("foo"), StringTerm(kw)), NumberTerm("42")})
+					assertParseOneExpr(t, input, input, exp, popts)
+
+					input = fmt.Sprintf("%s.foo(42)", kw)
+					exp = NewExpr([]*Term{RefTerm(VarTerm(kw), StringTerm("foo")), NumberTerm("42")})
+					assertParseOneExpr(t, input, input, exp, popts)
+
+					input = fmt.Sprintf(`%s["foo"](42)`, kw)
+					exp = NewExpr([]*Term{RefTerm(VarTerm(kw), StringTerm("foo")), NumberTerm("42")})
+					assertParseOneExpr(t, input, input, exp, popts)
+				})
+			}
+		})
+	}
+
+	t.Run("v0 with future keywords", func(t *testing.T) {
+		caps := CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV0))
+		popts := ParserOptions{RegoVersion: RegoV0, Capabilities: caps}
+
+		for kw := range futureKeywordsV0 {
+			popts.FutureKeywords = []string{kw}
+
+			t.Run(kw, func(t *testing.T) {
+				input := fmt.Sprintf("foo.%s", kw)
+				exp := RefTerm(VarTerm("foo"), StringTerm(kw))
+				assertParseOneTerm(t, input, input, exp, popts)
+
+				input = fmt.Sprintf("input.%s", kw)
+				exp = RefTerm(VarTerm("input"), StringTerm(kw))
+				assertParseOneTerm(t, input, input, exp, popts)
+
+				input = fmt.Sprintf("data.%s", kw)
+				exp = RefTerm(VarTerm("data"), StringTerm(kw))
+				assertParseOneTerm(t, input, input, exp, popts)
+
+				input = fmt.Sprintf("data.%s.foo", kw)
+				exp = RefTerm(VarTerm("data"), StringTerm(kw), StringTerm("foo"))
+				assertParseOneTerm(t, input, input, exp, popts)
+
+				input = fmt.Sprintf(`data.%s["foo"]`, kw)
+				exp = RefTerm(VarTerm("data"), StringTerm(kw), StringTerm("foo"))
+				assertParseOneTerm(t, input, input, exp, popts)
+
+				input = fmt.Sprintf("data.foo.%s", kw)
+				exp = RefTerm(VarTerm("data"), StringTerm("foo"), StringTerm(kw))
+				assertParseOneTerm(t, input, input, exp, popts)
+
+				input = fmt.Sprintf(`data["foo"].%s`, kw)
+				exp = RefTerm(VarTerm("data"), StringTerm("foo"), StringTerm(kw))
+				assertParseOneTerm(t, input, input, exp, popts)
+
+				input = fmt.Sprintf("%s.foo", kw)
+				exp = RefTerm(VarTerm(kw), StringTerm("foo"))
+				assertParseOneTerm(t, input, input, exp, popts)
+
+				input = fmt.Sprintf(`%s["foo"]`, kw)
+				exp = RefTerm(VarTerm(kw), StringTerm("foo"))
+				assertParseOneTerm(t, input, input, exp, popts)
+			})
+		}
+	})
+}
+
 func TestImportContainingKeywords(t *testing.T) {
 	for _, regoVersion := range []RegoVersion{RegoV0, RegoV1} {
 		popts := ParserOptions{RegoVersion: regoVersion}
