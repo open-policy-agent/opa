@@ -676,8 +676,8 @@ func (num Number) Equal(other Value) bool {
 	case Number:
 		if n1, ok1 := num.Int64(); ok1 {
 			n2, ok2 := other.Int64()
-			if ok1 && ok2 && n1 == n2 {
-				return true
+			if ok1 && ok2 {
+				return n1 == n2
 			}
 		}
 
