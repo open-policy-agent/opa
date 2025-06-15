@@ -152,59 +152,106 @@ func builtinFormatInt(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 }
 
 func builtinConcat(b BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-
 	join, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
 	}
 
-	var strs []string
-
-	switch b := operands[1].Value.(type) {
-	case *ast.Array:
-		var l int
-		for i := range b.Len() {
-			s, ok := b.Elem(i).Value.(ast.String)
-			if !ok {
-				return builtins.NewOperandElementErr(2, operands[1].Value, b.Elem(i).Value, "string")
-			}
-			l += len(string(s))
-		}
-
-		if b.Len() == 1 {
-			return iter(b.Elem(0))
-		}
-
-		strs = make([]string, 0, l)
-		for i := range b.Len() {
-			strs = append(strs, string(b.Elem(i).Value.(ast.String)))
-		}
-
-	case ast.Set:
-		var l int
-		terms := b.Slice()
-		for i := range terms {
-			s, ok := terms[i].Value.(ast.String)
-			if !ok {
-				return builtins.NewOperandElementErr(2, operands[1].Value, terms[i].Value, "string")
-			}
-			l += len(string(s))
-		}
-
-		if b.Len() == 1 {
-			return iter(b.Slice()[0])
-		}
-
-		strs = make([]string, 0, l)
-		for i := range b.Len() {
-			strs = append(strs, string(terms[i].Value.(ast.String)))
-		}
-
-	default:
-		return builtins.NewOperandTypeErr(2, operands[1].Value, "set", "array")
+	// fast path for empty or single string array/set, allocates no memory
+	if term, ok := zeroOrOneStringTerm(operands[1].Value); ok {
+		return iter(term)
 	}
 
-	return iter(ast.InternedStringTerm(strings.Join(strs, string(join))))
+	// NOTE(anderseknert):
+	// More or less Go's strings.Join implementation, but where we avoid
+	// creating an intermediate []string slice to pass to that function,
+	// as that's expensive (3.5x more space allocated). Instead we build
+	// the string directly using a strings.Builder to concatenate the string
+	// values from the array/set with the separator.
+	n := 0
+	switch b := operands[1].Value.(type) {
+	case *ast.Array:
+		l := b.Len()
+		for i := range l {
+			s, ok := b.Elem(i).Value.(ast.String)
+			if !ok {
+				return builtins.NewOperandElementErr(2, b, b.Elem(i).Value, "string")
+			}
+			n += len(s)
+		}
+		sep := string(join)
+		n += len(sep) * (l - 1)
+		var sb strings.Builder
+		sb.Grow(n)
+		sb.WriteString(string(b.Elem(0).Value.(ast.String)))
+		if sep == "" {
+			for i := 1; i < l; i++ {
+				sb.WriteString(string(b.Elem(i).Value.(ast.String)))
+			}
+		} else if len(sep) == 1 {
+			// when the separator is a single byte, sb.WriteByte is substantially faster
+			bsep := sep[0]
+			for i := 1; i < l; i++ {
+				sb.WriteByte(bsep)
+				sb.WriteString(string(b.Elem(i).Value.(ast.String)))
+			}
+		} else {
+			// for longer separators, there is no such difference between WriteString and Write
+			for i := 1; i < l; i++ {
+				sb.WriteString(sep)
+				sb.WriteString(string(b.Elem(i).Value.(ast.String)))
+			}
+		}
+		return iter(ast.InternedStringTerm(sb.String()))
+	case ast.Set:
+		for _, v := range b.Slice() {
+			s, ok := v.Value.(ast.String)
+			if !ok {
+				return builtins.NewOperandElementErr(2, b, v.Value, "string")
+			}
+			n += len(s)
+		}
+		sep := string(join)
+		l := b.Len()
+		n += len(sep) * (l - 1)
+		var sb strings.Builder
+		sb.Grow(n)
+		for i, v := range b.Slice() {
+			sb.WriteString(string(v.Value.(ast.String)))
+			if i < l-1 {
+				sb.WriteString(sep)
+			}
+		}
+		return iter(ast.InternedStringTerm(sb.String()))
+	}
+
+	return builtins.NewOperandTypeErr(2, operands[1].Value, "set", "array")
+}
+
+func zeroOrOneStringTerm(a ast.Value) (*ast.Term, bool) {
+	switch b := a.(type) {
+	case *ast.Array:
+		if b.Len() == 0 {
+			return ast.InternedEmptyString, true
+		}
+		if b.Len() == 1 {
+			e := b.Elem(0)
+			if _, ok := e.Value.(ast.String); ok {
+				return e, true
+			}
+		}
+	case ast.Set:
+		if b.Len() == 0 {
+			return ast.InternedEmptyString, true
+		}
+		if b.Len() == 1 {
+			e := b.Slice()[0]
+			if _, ok := e.Value.(ast.String); ok {
+				return e, true
+			}
+		}
+	}
+	return nil, false
 }
 
 func runesEqual(a, b []rune) bool {
