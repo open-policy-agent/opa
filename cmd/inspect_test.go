@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/open-policy-agent/opa/cmd/formats"
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/v1/util"
 
@@ -44,7 +45,7 @@ func TestDoInspect(t *testing.T) {
 
 		var out bytes.Buffer
 		params := newInspectCommandParams()
-		err = params.outputFormat.Set(evalJSONOutput)
+		err = params.outputFormat.Set(formats.JSON)
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
@@ -664,7 +665,7 @@ p contains v if {
 				var out bytes.Buffer
 				params := newInspectCommandParams()
 				params.v0Compatible = tc.v0Compatible
-				err = params.outputFormat.Set(evalJSONOutput)
+				err = params.outputFormat.Set(formats.JSON)
 				if err != nil {
 					t.Fatalf("Unexpected error: %s", err)
 				}
@@ -982,7 +983,7 @@ p contains 2 if {
 						var out bytes.Buffer
 						params := newInspectCommandParams()
 						params.v1Compatible = v1CompatibleFlag.used
-						err := params.outputFormat.Set(evalPrettyOutput)
+						err := params.outputFormat.Set(formats.Pretty)
 						if err != nil {
 							t.Fatalf("Unexpected error: %s", err)
 						}
@@ -1390,7 +1391,7 @@ test_p if {
 
 				var out bytes.Buffer
 				params := newInspectCommandParams()
-				err = params.outputFormat.Set(evalJSONOutput)
+				err = params.outputFormat.Set(formats.JSON)
 				if err != nil {
 					t.Fatalf("Unexpected error: %s", err)
 				}
@@ -1438,7 +1439,7 @@ p if {
 
 		var out bytes.Buffer
 		params := newInspectCommandParams()
-		err = params.outputFormat.Set(evalJSONOutput)
+		err = params.outputFormat.Set(formats.JSON)
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}

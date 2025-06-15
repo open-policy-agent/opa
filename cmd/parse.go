@@ -14,17 +14,13 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/open-policy-agent/opa/cmd/formats"
 	"github.com/open-policy-agent/opa/cmd/internal/env"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/v1/ast"
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/loader"
 	"github.com/open-policy-agent/opa/v1/util"
-)
-
-const (
-	parseFormatPretty = "pretty"
-	parseFormatJSON   = "json"
 )
 
 type parseParams struct {
@@ -46,7 +42,7 @@ func (p *parseParams) regoVersion() ast.RegoVersion {
 }
 
 var configuredParseParams = parseParams{
-	format:      util.NewEnumFlag(parseFormatPretty, []string{parseFormatPretty, parseFormatJSON}),
+	format:      formats.Flag(formats.Pretty, formats.JSON),
 	jsonInclude: "",
 }
 
@@ -124,7 +120,7 @@ func parse(args []string, params *parseParams, stdout io.Writer, stderr io.Write
 	}
 
 	switch params.format.String() {
-	case parseFormatJSON:
+	case formats.JSON:
 		bs, err := json.MarshalIndent(result.Parsed, "", "  ")
 		if err != nil {
 			_ = pr.JSON(stderr, pr.Output{Errors: pr.NewOutputErrors(err)})
@@ -140,7 +136,7 @@ func parse(args []string, params *parseParams, stdout io.Writer, stderr io.Write
 }
 
 func init() {
-	parseCommand.Flags().VarP(configuredParseParams.format, "format", "f", "set output format")
+	addOutputFormat(parseCommand.Flags(), configuredParseParams.format)
 	parseCommand.Flags().StringVarP(&configuredParseParams.jsonInclude, "json-include", "", "", "include or exclude optional elements. By default comments are included. Current options: locations, comments. E.g. --json-include locations,-comments will include locations and exclude comments.")
 	addV1CompatibleFlag(parseCommand.Flags(), &configuredParseParams.v1Compatible, false)
 	addV0CompatibleFlag(parseCommand.Flags(), &configuredParseParams.v0Compatible, false)

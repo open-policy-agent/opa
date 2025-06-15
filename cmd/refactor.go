@@ -115,25 +115,15 @@ func doMove(params moveCommandParams, args []string, out io.Writer) error {
 		return err
 	}
 
-	modules := map[string]*ast.Module{}
-
-	f := loaderFilter{
-		Ignore: params.ignore,
-	}
-
 	result, err := loader.NewFileLoader().
 		WithRegoVersion(params.regoVersion()).
-		Filtered(args, f.Apply)
+		Filtered(args, ignored(params.ignore).Apply)
 	if err != nil {
 		return err
 	}
 
-	for _, m := range result.Modules {
-		modules[m.Name] = m.Parsed
-	}
-
 	mq := refactor.MoveQuery{
-		Modules:       modules,
+		Modules:       result.ParsedModules(),
 		SrcDstMapping: srcDstMap,
 	}.WithValidation(true)
 
