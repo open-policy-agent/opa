@@ -20,6 +20,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/open-policy-agent/opa/cmd/formats"
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -1172,7 +1173,7 @@ func assertResultSet(t *testing.T, rs rego.ResultSet, expected string) {
 
 func TestEvalErrorJSONOutput(t *testing.T) {
 	params := newEvalCommandParams()
-	err := params.outputFormat.Set(evalJSONOutput)
+	err := params.outputFormat.Set(formats.JSON)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -1199,7 +1200,7 @@ func TestEvalErrorJSONOutput(t *testing.T) {
 
 func TestEvalDebugTraceJSONOutput(t *testing.T) {
 	params := newEvalCommandParams()
-	err := params.outputFormat.Set(evalJSONOutput)
+	err := params.outputFormat.Set(formats.JSON)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -1708,7 +1709,7 @@ true
 				if _, err := os.Stat(inputFile); err == nil {
 					params.inputPath = inputFile
 				}
-				_ = params.outputFormat.Set(evalPrettyOutput)
+				_ = params.outputFormat.Set(formats.Pretty)
 				_ = params.explain.Set(explainModeFull)
 				params.traceVarValues = tc.includeVars
 				params.disableIndexing = true
@@ -1843,13 +1844,13 @@ func TestEvalPartialFormattedOutput(t *testing.T) {
 		format, expected string
 	}{
 		{
-			format: evalPrettyOutput,
+			format: formats.Pretty,
 			expected: `+---------+------------------------------------------+
 | Query 1 | time.clock(input.y, time.clock(input.x)) |
 +---------+------------------------------------------+
 `},
 		{
-			format: evalSourceOutput,
+			format: formats.Source,
 			expected: `# Query 1
 time.clock(input.y, time.clock(input.x))
 
@@ -1894,7 +1895,7 @@ p[v] {
 }
 `,
 			expected: map[string]string{
-				evalSourceOutput: `# Query 1
+				formats.Source: `# Query 1
 data.partial.test.p
 
 # Module 1
@@ -1904,7 +1905,7 @@ import rego.v1
 
 p contains __local0__1 if __local0__1 = input.v
 `,
-				evalPrettyOutput: `+-----------+-------------------------------------------------+
+				formats.Pretty: `+-----------+-------------------------------------------------+
 | Query 1   | data.partial.test.p                             |
 +-----------+-------------------------------------------------+
 | Support 1 | package partial.test                            |
@@ -1928,7 +1929,7 @@ p[v] {
 }
 `,
 			expected: map[string]string{
-				evalSourceOutput: `# Query 1
+				formats.Source: `# Query 1
 data.partial.test.p
 
 # Module 1
@@ -1938,7 +1939,7 @@ p[__local0__1] {
 	__local0__1 = input.v
 }
 `,
-				evalPrettyOutput: `+-----------+-------------------------+
+				formats.Pretty: `+-----------+-------------------------+
 | Query 1   | data.partial.test.p     |
 +-----------+-------------------------+
 | Support 1 | package partial.test    |
@@ -1964,7 +1965,7 @@ p contains v if {
 }
 `,
 			expected: map[string]string{
-				evalSourceOutput: `# Query 1
+				formats.Source: `# Query 1
 data.partial.test.p
 
 # Module 1
@@ -1974,7 +1975,7 @@ import rego.v1
 
 p contains __local0__1 if __local0__1 = input.v
 `,
-				evalPrettyOutput: `+-----------+-------------------------------------------------+
+				formats.Pretty: `+-----------+-------------------------------------------------+
 | Query 1   | data.partial.test.p                             |
 +-----------+-------------------------------------------------+
 | Support 1 | package partial.test                            |
@@ -1998,7 +1999,7 @@ p contains v if {
 }
 `,
 			expected: map[string]string{
-				evalSourceOutput: `# Query 1
+				formats.Source: `# Query 1
 data.partial.test.p
 
 # Module 1
@@ -2006,7 +2007,7 @@ package partial.test
 
 p contains __local0__1 if __local0__1 = input.v
 `,
-				evalPrettyOutput: `+-----------+-------------------------------------------------+
+				formats.Pretty: `+-----------+-------------------------------------------------+
 | Query 1   | data.partial.test.p                             |
 +-----------+-------------------------------------------------+
 | Support 1 | package partial.test                            |
@@ -2030,7 +2031,7 @@ p contains v if {
 }
 `,
 			expected: map[string]string{
-				evalSourceOutput: `# Query 1
+				formats.Source: `# Query 1
 data.partial.test.p
 
 # Module 1
@@ -2038,7 +2039,7 @@ package partial.test
 
 p contains __local0__1 if __local0__1 = input.v
 `,
-				evalPrettyOutput: `+-----------+-------------------------------------------------+
+				formats.Pretty: `+-----------+-------------------------------------------------+
 | Query 1   | data.partial.test.p                             |
 +-----------+-------------------------------------------------+
 | Support 1 | package partial.test                            |
@@ -2099,7 +2100,7 @@ func TestEvalDiscardOutput(t *testing.T) {
 			query: "1*2+3",
 			params: func() evalCommandParams {
 				params := newEvalCommandParams()
-				err := params.outputFormat.Set(evalDiscardOutput)
+				err := params.outputFormat.Set(formats.Discard)
 				if err != nil {
 					t.Fatalf("unexpected error: %s", err)
 				}
@@ -2113,7 +2114,7 @@ func TestEvalDiscardOutput(t *testing.T) {
 			query: "1/0",
 			params: func() evalCommandParams {
 				params := newEvalCommandParams()
-				err := params.outputFormat.Set(evalDiscardOutput)
+				err := params.outputFormat.Set(formats.Discard)
 				if err != nil {
 					t.Fatalf("unexpected error: %s", err)
 				}
@@ -2125,7 +2126,7 @@ func TestEvalDiscardOutput(t *testing.T) {
 			query: "1/0",
 			params: func() evalCommandParams {
 				params := newEvalCommandParams()
-				err := params.outputFormat.Set(evalDiscardOutput)
+				err := params.outputFormat.Set(formats.Discard)
 				if err != nil {
 					t.Fatalf("unexpected error: %s", err)
 				}
@@ -2164,7 +2165,7 @@ func TestEvalDiscardOutput(t *testing.T) {
 
 func TestEvalDiscardProfilerOutput(t *testing.T) {
 	params := newEvalCommandParams()
-	err := params.outputFormat.Set(evalDiscardOutput)
+	err := params.outputFormat.Set(formats.Discard)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -2769,7 +2770,7 @@ a contains x if {
 			t.Run(fmt.Sprintf("%s: %s", s.name, tc.note), func(t *testing.T) {
 				test.WithTempFS(tc.modules, func(path string) {
 					params := newEvalCommandParams()
-					_ = params.outputFormat.Set(evalPrettyOutput)
+					_ = params.outputFormat.Set(formats.Pretty)
 					s.commandParams(&params, path)
 
 					var buf bytes.Buffer
@@ -3198,7 +3199,7 @@ func TestEvalPolicyWithRegoV1Capability(t *testing.T) {
 				test.WithTempFS(tc.modules, func(path string) {
 					params := newEvalCommandParams()
 					s.commandParams(&params, path)
-					_ = params.outputFormat.Set(evalPrettyOutput)
+					_ = params.outputFormat.Set(formats.Pretty)
 					params.v0Compatible = tc.v0Compatible
 					params.capabilities.C = tc.capabilities
 
@@ -3586,7 +3587,7 @@ func TestWithQueryImports(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			params := newEvalCommandParams()
-			_ = params.outputFormat.Set(evalPrettyOutput)
+			_ = params.outputFormat.Set(formats.Pretty)
 			params.imports = newrepeatedStringFlag(tc.imports)
 			params.v0Compatible = tc.v0Compatible
 			params.v1Compatible = tc.v1Compatible

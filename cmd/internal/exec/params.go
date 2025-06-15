@@ -5,6 +5,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/open-policy-agent/opa/cmd/formats"
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/util"
 )
@@ -34,7 +35,7 @@ type Params struct {
 func NewParams(w io.Writer) *Params {
 	return &Params{
 		Output:       w,
-		OutputFormat: util.NewEnumFlag("json", []string{"json"}),
+		OutputFormat: formats.Flag(formats.JSON),
 		LogLevel:     util.NewEnumFlag("error", []string{"debug", "info", "error"}),
 		LogFormat:    util.NewEnumFlag("json", []string{"text", "json", "json-pretty"}),
 	}
