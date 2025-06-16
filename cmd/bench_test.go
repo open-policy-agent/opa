@@ -16,6 +16,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/open-policy-agent/opa/cmd/formats"
 	"github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/bundle"
@@ -886,7 +887,7 @@ a contains x if {
 
 				test.WithTempFS(files, func(path string) {
 					params := testBenchParams()
-					_ = params.outputFormat.Set(evalPrettyOutput)
+					_ = params.outputFormat.Set(formats.Pretty)
 					params.e2e = mode.e2e
 
 					for n := range files {
@@ -1022,7 +1023,7 @@ a[4] {
 
 				test.WithTempFS(files, func(path string) {
 					params := testBenchParams()
-					_ = params.outputFormat.Set(evalPrettyOutput)
+					_ = params.outputFormat.Set(formats.Pretty)
 					params.v0Compatible = tc.v0Compatible
 					params.v1Compatible = tc.v1Compatible
 					params.e2e = mode.e2e
@@ -1230,7 +1231,7 @@ a contains 4 if {
 						}
 
 						params := testBenchParams()
-						_ = params.outputFormat.Set(evalPrettyOutput)
+						_ = params.outputFormat.Set(formats.Pretty)
 
 						params.e2e = mode.e2e
 						err := params.bundlePaths.Set(p)
@@ -1273,7 +1274,7 @@ func TestRenderBenchmarkResultJSONOutput(t *testing.T) {
 	t.Parallel()
 
 	params := testBenchParams()
-	err := params.outputFormat.Set(evalJSONOutput)
+	err := params.outputFormat.Set(formats.JSON)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -1317,7 +1318,7 @@ func TestRenderBenchmarkResultPrettyOutput(t *testing.T) {
 
 	params := testBenchParams()
 	params.benchMem = false
-	err := params.outputFormat.Set(evalPrettyOutput)
+	err := params.outputFormat.Set(formats.Pretty)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -1356,7 +1357,7 @@ func TestRenderBenchmarkResultPrettyOutputShowAllocs(t *testing.T) {
 
 	params := testBenchParams()
 	params.benchMem = true
-	err := params.outputFormat.Set(evalPrettyOutput)
+	err := params.outputFormat.Set(formats.Pretty)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -1397,7 +1398,7 @@ func TestRenderBenchmarkResultGoBenchOutputShowAllocs(t *testing.T) {
 
 	params := testBenchParams()
 	params.benchMem = true
-	err := params.outputFormat.Set(benchmarkGoBenchOutput)
+	err := params.outputFormat.Set(formats.GoBench)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -1422,7 +1423,7 @@ func TestRenderBenchmarkErrorJSONOutput(t *testing.T) {
 	t.Parallel()
 
 	params := testBenchParams()
-	err := params.outputFormat.Set(evalJSONOutput)
+	err := params.outputFormat.Set(formats.JSON)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -1465,7 +1466,7 @@ func TestRenderBenchmarkErrorPrettyOutput(t *testing.T) {
 	t.Parallel()
 
 	params := testBenchParams()
-	err := params.outputFormat.Set(evalPrettyOutput)
+	err := params.outputFormat.Set(formats.Pretty)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -1477,7 +1478,7 @@ func TestRenderBenchmarkErrorGoBenchOutput(t *testing.T) {
 	t.Parallel()
 
 	params := testBenchParams()
-	err := params.outputFormat.Set(benchmarkGoBenchOutput)
+	err := params.outputFormat.Set(formats.GoBench)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -1509,7 +1510,7 @@ func testBenchParams() benchmarkCommandParams {
 	params := newBenchmarkEvalParams()
 	params.benchMem = true
 	params.metrics = true
-	_ = params.outputFormat.Set(evalJSONOutput)
+	_ = params.outputFormat.Set(formats.JSON)
 	params.count = 1
 	return params
 }

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/open-policy-agent/opa/v1/util"
+	"github.com/open-policy-agent/opa/cmd/formats"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
@@ -69,7 +69,7 @@ func TestParseJSONOutput(t *testing.T) {
 		`,
 	}
 	errc, stdout, stderr, _ := testParse(t, files, &parseParams{
-		format: util.NewEnumFlag(parseFormatJSON, []string{parseFormatPretty, parseFormatJSON}),
+		format: formats.Flag(formats.JSON, formats.Pretty),
 	})
 	if errc != 0 {
 		t.Fatalf("Expected exit code 0, got %v", errc)
@@ -134,7 +134,7 @@ p = 1
 `,
 	}
 	errc, stdout, stderr, tempDirPath := testParse(t, files, &parseParams{
-		format:      util.NewEnumFlag(parseFormatJSON, []string{parseFormatPretty, parseFormatJSON}),
+		format:      formats.Flag(formats.JSON, formats.Pretty),
 		jsonInclude: "locations",
 	})
 	if errc != 0 {
@@ -267,7 +267,7 @@ func TestParseRefsJSONOutput(t *testing.T) {
 		`,
 	}
 	errc, stdout, stderr, _ := testParse(t, files, &parseParams{
-		format: util.NewEnumFlag(parseFormatJSON, []string{parseFormatPretty, parseFormatJSON}),
+		format: formats.Flag(formats.JSON, formats.Pretty),
 	})
 	if errc != 0 {
 		t.Fatalf("Expected exit code 0, got %v", errc)
@@ -340,7 +340,7 @@ a.b.c := true
 `,
 	}
 	errc, stdout, stderr, tempDirPath := testParse(t, files, &parseParams{
-		format:      util.NewEnumFlag(parseFormatJSON, []string{parseFormatPretty, parseFormatJSON}),
+		format:      formats.Flag(formats.JSON, formats.Pretty),
 		jsonInclude: "locations",
 	})
 	if errc != 0 {
@@ -498,7 +498,7 @@ allow = true if {
 `,
 	}
 	errc, stdout, stderr, tempDirPath := testParse(t, files, &parseParams{
-		format:      util.NewEnumFlag(parseFormatJSON, []string{parseFormatPretty, parseFormatJSON}),
+		format:      formats.Flag(formats.JSON, formats.Pretty),
 		jsonInclude: "locations",
 	})
 	if errc != 0 {
@@ -955,7 +955,7 @@ func TestParseJSONOutputComments(t *testing.T) {
 		`,
 	}
 	errc, stdout, stderr, _ := testParse(t, files, &parseParams{
-		format:      util.NewEnumFlag(parseFormatJSON, []string{parseFormatPretty, parseFormatJSON}),
+		format:      formats.Flag(formats.JSON, formats.Pretty),
 		jsonInclude: "comments",
 	})
 	if errc != 0 {
@@ -1005,7 +1005,7 @@ a contains x if {
 			}
 
 			_, _, stderr, _ := testParse(t, files, &parseParams{
-				format: util.NewEnumFlag(parseFormatPretty, []string{parseFormatPretty, parseFormatJSON}),
+				format: formats.Flag(formats.Pretty, formats.JSON),
 			})
 
 			if len(tc.expErrs) > 0 {
@@ -1158,7 +1158,7 @@ p contains v if {
 			}
 
 			_, _, stderr, _ := testParse(t, files, &parseParams{
-				format:       util.NewEnumFlag(parseFormatPretty, []string{parseFormatPretty, parseFormatJSON}),
+				format:       formats.Flag(formats.Pretty, formats.JSON),
 				v0Compatible: tc.v0Compatible,
 				v1Compatible: tc.v1Compatible,
 			})
