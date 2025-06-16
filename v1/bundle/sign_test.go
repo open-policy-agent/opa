@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/open-policy-agent/opa/v1/util"
-
 	"github.com/open-policy-agent/opa/v1/util/test"
 
 	"github.com/lestrrat-go/jwx/v3/jwa"
@@ -137,7 +135,7 @@ func TestGenerateSignedTokenWithClaims(t *testing.T) {
 		if len(signatures) == 0 {
 			t.Fatal("No signatures found")
 		}
-		
+
 		if v, ok := signatures[0].ProtectedHeaders().KeyID(); !ok || v != keyid {
 			t.Errorf("key id not set")
 		}
@@ -163,37 +161,27 @@ func TestGeneratePayload(t *testing.T) {
 	keyID := "default"
 
 	// non-empty key id
-	bytes, err := generatePayload(input, sc, keyID)
+	token, err := generateToken(input, sc, keyID)
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	payload := make(map[string]any)
-	if err := util.UnmarshalJSON(bytes, &payload); err != nil {
-		t.Fatalf("Unexpected error %v", err)
+	var gotKid string
+	if err := token.Get("keyid", &gotKid); err != nil {
+		t.Fatalf("Expected claim \"keyid\" in token: %s", err)
 	}
 
-	if _, ok := payload["keyid"]; !ok {
-		t.Fatal("Expected claim \"keyid\" in token")
-	}
-
-	if payload["keyid"] != keyID {
-		t.Fatalf("Expected key id %v but got %v", keyID, payload["keyid"])
+	if gotKid != keyID {
+		t.Fatalf("Expected key id %v but got %v", keyID, gotKid)
 	}
 
 	// empty key id
-	bytes, err = generatePayload(input, sc, "")
+	token, err = generateToken(input, sc, "")
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	payload = make(map[string]any)
-	err = util.UnmarshalJSON(bytes, &payload)
-	if err != nil {
-		t.Fatalf("Unexpected error %v", err)
-	}
-
-	if _, ok := payload["keyid"]; ok {
+	if err := token.Get("keyid", &gotKid); err == nil {
 		t.Fatal("Unexpected claim \"keyid\" in token")
 	}
 }
