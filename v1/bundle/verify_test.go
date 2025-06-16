@@ -24,9 +24,19 @@ func TestVerifyBundleSignature(t *testing.T) {
 		wantErr            bool
 		err                error
 	}{
-		"no_signatures":       {SignaturesConfig{}, nil, true, errors.New(".signatures.json: missing JWT (expected exactly one)")},
-		"multiple_signatures": {SignaturesConfig{Signatures: []string{signedTokenHS256, otherSignedTokenHS256}}, nil, true, errors.New(".signatures.json: multiple JWTs not supported (expected exactly one)")},
-		"invalid_token":       {SignaturesConfig{Signatures: []string{badToken}}, nil, true, errors.New("failed to parse JWT: jws.Parse: failed to parse compact format: invalid compact serialization format: jws.Parse: invalid number of segments")},
+		"no_signatures": {
+			SignaturesConfig{},
+			NewVerificationConfig(nil, "", "", nil),
+			true,
+			errors.New(".signatures.json: missing JWT (expected exactly one)"),
+		},
+		"multiple_signatures": {
+			SignaturesConfig{Signatures: []string{signedTokenHS256, otherSignedTokenHS256}},
+			NewVerificationConfig(nil, "", "", nil),
+			true,
+			errors.New(".signatures.json: multiple JWTs not supported (expected exactly one)"),
+		},
+		"invalid_token": {SignaturesConfig{Signatures: []string{badToken}}, nil, true, errors.New("failed to parse JWT: jws.Parse: failed to parse compact format: invalid compact serialization format: jws.Parse: invalid number of segments")},
 		"invalid_token_header_base64": {
 			SignaturesConfig{Signatures: []string{badTokenHeaderBase64}},
 			NewVerificationConfig(nil, "", "", nil),
@@ -37,7 +47,12 @@ func TestVerifyBundleSignature(t *testing.T) {
 			NewVerificationConfig(nil, "", "", nil),
 			true, errors.New("failed to parse JWT: jws.Parse: failed to parse compact format: failed to parse JOSE headers: unexpected EOF"),
 		},
-		"bad_token_payload": {SignaturesConfig{Signatures: []string{badTokenPayload}}, nil, true, errors.New("json: cannot unmarshal object into Go struct field DecodedSignature.files of type []bundle.FileInfo")},
+		"bad_token_payload": {
+			SignaturesConfig{Signatures: []string{badTokenPayload}},
+			NewVerificationConfig(nil, "", "", nil),
+			true,
+			errors.New("json: cannot unmarshal object into Go struct field DecodedSignature.files of type []bundle.FileInfo"),
+		},
 		"valid_token_and_scope": {
 			SignaturesConfig{Signatures: []string{signedTokenHS256}},
 			NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "write", nil),
@@ -52,7 +67,6 @@ func TestVerifyBundleSignature(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-
 			_, err := VerifyBundleSignature(tc.input, tc.readerVerifyConfig)
 
 			if tc.wantErr {
