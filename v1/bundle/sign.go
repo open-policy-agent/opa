@@ -6,15 +6,12 @@
 package bundle
 
 import (
-	"encoding/json"
 	"fmt"
-	"maps"
 
 	"github.com/lestrrat-go/jwx/v3/jwa"
-	"github.com/lestrrat-go/jwx/v3/jws"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 )
-
-
 
 const defaultSignerID = "_default"
 
@@ -52,7 +49,7 @@ type DefaultSigner struct{}
 // included in the payload and the bundle signing config. The keyID if non-empty,
 // represents the value for the "keyid" claim in the token
 func (*DefaultSigner) GenerateSignedToken(files []FileInfo, sc *SigningConfig, keyID string) (string, error) {
-	payload, err := generatePayload(files, sc, keyID)
+	token, err := generateToken(files, sc, keyID)
 	if err != nil {
 		return "", err
 	}
@@ -67,32 +64,28 @@ func (*DefaultSigner) GenerateSignedToken(files []FileInfo, sc *SigningConfig, k
 	if !ok {
 		return "", fmt.Errorf("unknown signature algorithm: %s", sc.Algorithm)
 	}
-	
-	// Create signing options
-	opts := []jws.SignOption{
-		jws.WithKey(alg, privateKey),
-	}
-	
-	if keyID != "" {
-		headers := jws.NewHeaders()
-		if err := headers.Set(jws.KeyIDKey, keyID); err != nil {
-			return "", err
-		}
-		opts = append(opts, jws.WithKey(alg, privateKey, jws.WithProtectedHeaders(headers)))
-		// Remove the previous WithKey option and replace it with one that includes headers
-		opts = []jws.SignOption{opts[len(opts)-1]}
-	}
 
-	token, err := jws.Sign(payload, opts...)
+	// In order to sign the token with a kid, we need a key ID _on_ the key
+	// (note: we might be able to make this more efficient if we just load
+	// the key as a JWK from the start)
+	jwkKey, err := jwk.Import(privateKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to import private key: %w", err)
+	}
+	jwkKey.Set(jwk.KeyIDKey, keyID)
+
+	// Since v3.0.6, jwx will take the fast path for signing the token if
+	// there's exactly one WithKey in the options with no sub-options
+	signed, err := jwt.Sign(token, jwt.WithKey(alg, jwkKey))
 	if err != nil {
 		return "", err
 	}
-	return string(token), nil
+	return string(signed), nil
 }
 
-func generatePayload(files []FileInfo, sc *SigningConfig, keyID string) ([]byte, error) {
-	payload := make(map[string]any)
-	payload["files"] = files
+func generateToken(files []FileInfo, sc *SigningConfig, keyID string) (jwt.Token, error) {
+	tb := jwt.NewBuilder()
+	tb.Claim("files", files)
 
 	if sc.ClaimsPath != "" {
 		claims, err := sc.GetClaims()
@@ -100,12 +93,14 @@ func generatePayload(files []FileInfo, sc *SigningConfig, keyID string) ([]byte,
 			return nil, err
 		}
 
-		maps.Copy(payload, claims)
+		for k, v := range claims {
+			tb.Claim(k, v)
+		}
 	} else if keyID != "" {
 		// keyid claim is deprecated but include it for backwards compatibility.
-		payload["keyid"] = keyID
+		tb.Claim("keyid", keyID)
 	}
-	return json.Marshal(payload)
+	return tb.Build()
 }
 
 // GetSigner returns the Signer registered under the given id
