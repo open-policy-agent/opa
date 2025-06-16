@@ -42,6 +42,7 @@ module.exports = {
       collapsible: true,
       collapsed: true,
       items: [
+        "cicd",
         "aws-cloudformation-hooks",
         "docker-authorization",
         "http-api-authorization",
