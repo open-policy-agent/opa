@@ -124,9 +124,6 @@ func verifyJWTSignature(token string, bvc *VerificationConfig) (*DecodedSignatur
 
 	// check for the id of the key to use for JWT signature verification
 	// first in the OPA config. If not found, then check the JWT kid.
-	if bvc == nil {
-		panic("verification config is nil")
-	}
 	keyID := bvc.KeyID
 	if keyID == "" {
 		// This is not really recommended by jwx because it relies on lower-level
