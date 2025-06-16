@@ -8,6 +8,7 @@ package bundle
 import (
 	"bytes"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
@@ -15,17 +16,12 @@ import (
 	"fmt"
 
 	"github.com/lestrrat-go/jwx/v3/jwa"
-	"github.com/lestrrat-go/jwx/v3/jws"
+	"github.com/lestrrat-go/jwx/v3/jws/jwsbb"
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // parseVerificationKey converts a string key to the appropriate type for jws.Verify
-func parseVerificationKey(keyData, algorithm string) (interface{}, error) {
-	alg, ok := jwa.LookupSignatureAlgorithm(algorithm)
-	if !ok {
-		return nil, fmt.Errorf("unknown signature algorithm: %s", algorithm)
-	}
-
+func parseVerificationKey(keyData string, alg jwa.SignatureAlgorithm) (interface{}, error) {
 	// For HMAC algorithms, return the key as bytes
 	if alg == jwa.HS256() || alg == jwa.HS384() || alg == jwa.HS512() {
 		return []byte(keyData), nil
@@ -120,34 +116,56 @@ func (*DefaultVerifier) VerifyBundleSignature(sc SignaturesConfig, bvc *Verifica
 }
 
 func verifyJWTSignature(token string, bvc *VerificationConfig) (*DecodedSignature, error) {
-	// decode JWT to check if the header specifies the key to use and/or if claims have the scope.
-
-	msg, err := jws.Parse([]byte(token))
+	tokbytes := []byte(token)
+	hdrb64, payloadb64, signatureb64, err := jwsbb.SplitCompact(tokbytes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse JWT: %w", err)
-	}
-
-	sig := msg.Signatures()[0]
-	headers := sig.ProtectedHeaders()
-
-	var ds DecodedSignature
-	if err := json.Unmarshal(msg.Payload(), &ds); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to split compact JWT: %w", err)
 	}
 
 	// check for the id of the key to use for JWT signature verification
 	// first in the OPA config. If not found, then check the JWT kid.
+	if bvc == nil {
+		panic("verification config is nil")
+	}
 	keyID := bvc.KeyID
 	if keyID == "" {
-		if kid, ok := headers.KeyID(); ok {
-			keyID = kid
+		// This is not really recommended by jwx because it relies on lower-level
+		// APIs, but here we're opting for performance.
+		//
+		// Use jwsbb.Header to access into the "kid" header field, which we will
+		// use to determine the key to use for verification.
+		hdr := jwsbb.HeaderParseCompact(hdrb64)
+		v, err := jwsbb.HeaderGetString(hdr, "kid")
+		if err == nil {
+			keyID = v
 		}
+		// if kid is not present in the header, it will still return the enpty
+		// string, so it would be the same as if we had not set it at all.
 	}
+
+	// Because we want to fallback to ds.KeyID when we can't find the
+	// keyID, we need to parse the payload here already.
+	//
+	// (lestrrat) Whoa, you're going to trust the payload before you
+	// verify the signature? Even if it's for backwrds compatibility,
+	// Is this OK?
+	decoder := base64.RawURLEncoding
+	payload := make([]byte, decoder.DecodedLen(len(payloadb64)))
+	if _, err := decoder.Decode(payload, payloadb64); err != nil {
+		return nil, fmt.Errorf("failed to base64 decode JWT payload: %w", err)
+	}
+
+	var ds DecodedSignature
+	if err := json.Unmarshal(payload, &ds); err != nil {
+		return nil, err
+	}
+
+	// If header has no key id, check the deprecated key claim.
 	if keyID == "" {
-		// If header has no key id, check the deprecated key claim.
 		keyID = ds.KeyID
 	}
 
+	// If we still don't have a keyID, we cannot proceed
 	if keyID == "" {
 		return nil, errors.New("verification key ID is empty")
 	}
@@ -158,20 +176,28 @@ func verifyJWTSignature(token string, bvc *VerificationConfig) (*DecodedSignatur
 		return nil, err
 	}
 
-	// verify JWT signature
 	alg, ok := jwa.LookupSignatureAlgorithm(keyConfig.Algorithm)
 	if !ok {
 		return nil, fmt.Errorf("unknown signature algorithm: %s", keyConfig.Algorithm)
 	}
 
 	// Parse the key into the appropriate type
-	parsedKey, err := parseVerificationKey(keyConfig.Key, keyConfig.Algorithm)
+	parsedKey, err := parseVerificationKey(keyConfig.Key, alg)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = jws.Verify([]byte(token), jws.WithKey(alg, parsedKey))
-	if err != nil {
+	signature := make([]byte, decoder.DecodedLen(len(signatureb64)))
+	if _, err = decoder.Decode(signature, signatureb64); err != nil {
+		return nil, fmt.Errorf("failed to base64 decode JWT signature: %w", err)
+	}
+
+	signbuf := make([]byte, len(hdrb64)+1+len(payloadb64))
+	copy(signbuf, hdrb64)
+	signbuf[len(hdrb64)] = '.'
+	copy(signbuf[len(hdrb64)+1:], payloadb64)
+
+	if err := jwsbb.Verify(parsedKey, alg.String(), signbuf, signature); err != nil {
 		return nil, err
 	}
 
