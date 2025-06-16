@@ -59,7 +59,7 @@ you to run OPA policies against your codebase.
 - name: Download OPA
   uses: open-policy-agent/setup-opa
   with:
-    version: edge # install the latest version
+    version: latest # install the latest version
 ```
 
 ```yaml title="Example workflow checking test coverage"
