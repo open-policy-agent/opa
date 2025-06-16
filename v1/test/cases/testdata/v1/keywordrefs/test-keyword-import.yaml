@@ -163,3 +163,37 @@ cases:
         }
     want_result:
       - x: true
+  - note: keywordrefs/import keyword function refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          import.foo(1) == 1
+          import.foo(11) == 42
+          foo.import(1) == 1
+          foo.import(11) == 42
+          bar.import.baz(1) == 1
+          bar.import.baz(11) == 42
+        }
+
+        default import.foo(_) := 42
+
+        import.foo(x) := x if {
+          x < 10
+        }
+
+        default foo.import(_) := 42
+
+        foo.import(x) := x if {
+          x < 10
+        }
+
+        default bar.import.baz(_) := 42
+
+        bar.import.baz(x) := x if {
+          x < 10
+        }
+    want_result:
+      - x: true

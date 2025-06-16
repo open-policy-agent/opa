@@ -164,3 +164,37 @@ cases:
         }
     want_result:
       - x: true
+  - note: keywordrefs/some keyword function refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          some.foo(1) == 1
+          some.foo(11) == 42
+          foo.some(1) == 1
+          foo.some(11) == 42
+          bar.some.baz(1) == 1
+          bar.some.baz(11) == 42
+        }
+
+        default some.foo(_) := 42
+
+        some.foo(x) := x {
+          x < 10
+        }
+
+        default foo.some(_) := 42
+
+        foo.some(x) := x {
+          x < 10
+        }
+
+        default bar.some.baz(_) := 42
+
+        bar.some.baz(x) := x {
+          x < 10
+        }
+    want_result:
+      - x: true

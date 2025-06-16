@@ -163,3 +163,37 @@ cases:
         }
     want_result:
       - x: true
+  - note: keywordrefs/contains keyword function refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          contains.foo(1) == 1
+          contains.foo(11) == 42
+          foo.contains(1) == 1
+          foo.contains(11) == 42
+          bar.contains.baz(1) == 1
+          bar.contains.baz(11) == 42
+        }
+
+        default contains.foo(_) := 42
+
+        contains.foo(x) := x if {
+          x < 10
+        }
+
+        default foo.contains(_) := 42
+
+        foo.contains(x) := x if {
+          x < 10
+        }
+
+        default bar.contains.baz(_) := 42
+
+        bar.contains.baz(x) := x if {
+          x < 10
+        }
+    want_result:
+      - x: true

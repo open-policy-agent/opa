@@ -164,3 +164,37 @@ cases:
         }
     want_result:
       - x: true
+  - note: keywordrefs/else keyword function refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          else.foo(1) == 1
+          else.foo(11) == 42
+          foo.else(1) == 1
+          foo.else(11) == 42
+          bar.else.baz(1) == 1
+          bar.else.baz(11) == 42
+        }
+
+        default else.foo(_) := 42
+
+        else.foo(x) := x {
+          x < 10
+        }
+
+        default foo.else(_) := 42
+
+        foo.else(x) := x {
+          x < 10
+        }
+
+        default bar.else.baz(_) := 42
+
+        bar.else.baz(x) := x {
+          x < 10
+        }
+    want_result:
+      - x: true

@@ -163,3 +163,37 @@ cases:
         }
     want_result:
       - x: true
+  - note: keywordrefs/default keyword function refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          default.foo(1) == 1
+          default.foo(11) == 42
+          foo.default(1) == 1
+          foo.default(11) == 42
+          bar.default.baz(1) == 1
+          bar.default.baz(11) == 42
+        }
+
+        default default.foo(_) := 42
+
+        default.foo(x) := x if {
+          x < 10
+        }
+
+        default foo.default(_) := 42
+
+        foo.default(x) := x if {
+          x < 10
+        }
+
+        default bar.default.baz(_) := 42
+
+        bar.default.baz(x) := x if {
+          x < 10
+        }
+    want_result:
+      - x: true

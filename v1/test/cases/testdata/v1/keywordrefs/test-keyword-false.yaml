@@ -163,3 +163,37 @@ cases:
         }
     want_result:
       - x: true
+  - note: keywordrefs/false keyword function refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          false.foo(1) == 1
+          false.foo(11) == 42
+          foo.false(1) == 1
+          foo.false(11) == 42
+          bar.false.baz(1) == 1
+          bar.false.baz(11) == 42
+        }
+
+        default false.foo(_) := 42
+
+        false.foo(x) := x if {
+          x < 10
+        }
+
+        default foo.false(_) := 42
+
+        foo.false(x) := x if {
+          x < 10
+        }
+
+        default bar.false.baz(_) := 42
+
+        bar.false.baz(x) := x if {
+          x < 10
+        }
+    want_result:
+      - x: true

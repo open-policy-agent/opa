@@ -164,3 +164,37 @@ cases:
         }
     want_result:
       - x: true
+  - note: keywordrefs/%{KW} keyword function refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          %{KW}.foo(1) == 1
+          %{KW}.foo(11) == 42
+          foo.%{KW}(1) == 1
+          foo.%{KW}(11) == 42
+          bar.%{KW}.baz(1) == 1
+          bar.%{KW}.baz(11) == 42
+        }
+
+        default %{KW}.foo(_) := 42
+
+        %{KW}.foo(x) := x {
+          x < 10
+        }
+
+        default foo.%{KW}(_) := 42
+
+        foo.%{KW}(x) := x {
+          x < 10
+        }
+
+        default bar.%{KW}.baz(_) := 42
+
+        bar.%{KW}.baz(x) := x {
+          x < 10
+        }
+    want_result:
+      - x: true

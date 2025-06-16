@@ -164,3 +164,37 @@ cases:
         }
     want_result:
       - x: true
+  - note: keywordrefs/null keyword function refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          null.foo(1) == 1
+          null.foo(11) == 42
+          foo.null(1) == 1
+          foo.null(11) == 42
+          bar.null.baz(1) == 1
+          bar.null.baz(11) == 42
+        }
+
+        default null.foo(_) := 42
+
+        null.foo(x) := x {
+          x < 10
+        }
+
+        default foo.null(_) := 42
+
+        foo.null(x) := x {
+          x < 10
+        }
+
+        default bar.null.baz(_) := 42
+
+        bar.null.baz(x) := x {
+          x < 10
+        }
+    want_result:
+      - x: true

@@ -164,3 +164,37 @@ cases:
         }
     want_result:
       - x: true
+  - note: keywordrefs/not keyword function refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          not.foo(1) == 1
+          not.foo(11) == 42
+          foo.not(1) == 1
+          foo.not(11) == 42
+          bar.not.baz(1) == 1
+          bar.not.baz(11) == 42
+        }
+
+        default not.foo(_) := 42
+
+        not.foo(x) := x {
+          x < 10
+        }
+
+        default foo.not(_) := 42
+
+        foo.not(x) := x {
+          x < 10
+        }
+
+        default bar.not.baz(_) := 42
+
+        bar.not.baz(x) := x {
+          x < 10
+        }
+    want_result:
+      - x: true

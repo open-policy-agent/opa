@@ -164,3 +164,37 @@ cases:
         }
     want_result:
       - x: true
+  - note: keywordrefs/with keyword function refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          with.foo(1) == 1
+          with.foo(11) == 42
+          foo.with(1) == 1
+          foo.with(11) == 42
+          bar.with.baz(1) == 1
+          bar.with.baz(11) == 42
+        }
+
+        default with.foo(_) := 42
+
+        with.foo(x) := x {
+          x < 10
+        }
+
+        default foo.with(_) := 42
+
+        foo.with(x) := x {
+          x < 10
+        }
+
+        default bar.with.baz(_) := 42
+
+        bar.with.baz(x) := x {
+          x < 10
+        }
+    want_result:
+      - x: true
