@@ -1,7 +1,8 @@
-package test["if"]["contains"]["in"]["every"]
+package test.if.contains.in.every
 
 import rego.v1
 
 p if {
-	data["if"]["contains"]["in"]["every"] == 42
+	data.if.contains.in.every == 1
+	data["if"]["contains"]["in"]["every"] == 2
 }
