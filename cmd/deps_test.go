@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/open-policy-agent/opa/cmd/formats"
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
@@ -54,7 +55,7 @@ a contains x if {
 
 			test.WithTempFS(files, func(rootPath string) {
 				params := newDepsCommandParams()
-				_ = params.outputFormat.Set(depsFormatPretty)
+				_ = params.outputFormat.Set(formats.Pretty)
 
 				for f := range files {
 					_ = params.dataPaths.Set(filepath.Join(rootPath, f))
@@ -231,7 +232,7 @@ p contains 3 if {
 				params := newDepsCommandParams()
 				params.v0Compatible = tc.v0Compatible
 				params.v1Compatible = tc.v1Compatible
-				_ = params.outputFormat.Set(depsFormatPretty)
+				_ = params.outputFormat.Set(formats.Pretty)
 
 				for f := range files {
 					_ = params.dataPaths.Set(filepath.Join(rootPath, f))
@@ -548,7 +549,7 @@ p contains 4 if {
 						}
 
 						params.v1Compatible = v1CompatibleFlag.used
-						_ = params.outputFormat.Set(depsFormatPretty)
+						_ = params.outputFormat.Set(formats.Pretty)
 
 						err := deps([]string{tc.query}, params, io.Discard)
 

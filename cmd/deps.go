@@ -16,6 +16,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/open-policy-agent/opa/cmd/formats"
 	"github.com/open-policy-agent/opa/cmd/internal/env"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/loader"
@@ -42,19 +43,10 @@ func (p *depsCommandParams) regoVersion() ast.RegoVersion {
 	return ast.DefaultRegoVersion
 }
 
-const (
-	depsFormatPretty = "pretty"
-	depsFormatJSON   = "json"
-)
-
 func newDepsCommandParams() depsCommandParams {
-	var params depsCommandParams
-
-	params.outputFormat = util.NewEnumFlag(depsFormatPretty, []string{
-		depsFormatPretty, depsFormatJSON,
-	})
-
-	return params
+	return depsCommandParams{
+		outputFormat: formats.Flag(formats.Pretty, formats.JSON),
+	}
 }
 
 func init() {
@@ -122,26 +114,21 @@ func deps(args []string, params depsCommandParams, w io.Writer) error {
 		return err
 	}
 
-	modules := map[string]*ast.Module{}
+	var modules map[string]*ast.Module
 
 	if len(params.dataPaths.v) > 0 {
-		f := loaderFilter{
-			Ignore: params.ignore,
-		}
-
 		result, err := loader.NewFileLoader().
 			WithRegoVersion(params.regoVersion()).
-			Filtered(params.dataPaths.v, f.Apply)
+			Filtered(params.dataPaths.v, ignored(params.ignore).Apply)
 		if err != nil {
 			return err
 		}
 
-		for _, m := range result.Modules {
-			modules[m.Name] = m.Parsed
-		}
+		modules = result.ParsedModules()
 	}
 
 	if len(params.bundlePaths.v) > 0 {
+		modules = make(map[string]*ast.Module, len(params.bundlePaths.v))
 		for _, path := range params.bundlePaths.v {
 			b, err := loader.NewFileLoader().WithSkipBundleVerification(true).AsBundle(path)
 			if err != nil {
@@ -153,9 +140,7 @@ func deps(args []string, params depsCommandParams, w io.Writer) error {
 	}
 
 	compiler := ast.NewCompiler()
-	compiler.Compile(modules)
-
-	if compiler.Failed() {
+	if compiler.Compile(modules); compiler.Failed() {
 		return compiler.Errors
 	}
 
@@ -175,7 +160,7 @@ func deps(args []string, params depsCommandParams, w io.Writer) error {
 	}
 
 	switch params.outputFormat.String() {
-	case depsFormatJSON:
+	case formats.JSON:
 		return presentation.JSON(w, output)
 	default:
 		return output.Pretty(w)
