@@ -4,7 +4,8 @@ sidebar_label: CI/CD
 
 # Using OPA in CI/CD Pipelines
 
-OPA is an great tool for implementing policy-as-code guardrails in CI/CD
+OPA is an great tool for implementing policy-as-code guardrails in
+<abbr title="continuous integration/continuous deployment">CI/CD</abbr>
 pipelines. With OPA, you can automatically verify configurations, validate
 outputs, and enforce organizational policies before code reaches production. OPA
 serves as a powerful 'swiss army knife' for implementing custom checks required
@@ -91,4 +92,3 @@ For users of other CI/CD platforms (GitLab CI, Jenkins, Azure DevOps, etc.), you
 can download OPA directly from the [official installation page](../docs?current-os=linux#1-download-opa).
 This provides installation instructions for various operating systems and
 package managers.
-
