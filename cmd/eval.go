@@ -91,7 +91,7 @@ func (p *evalCommandParams) regoVersion() ast.RegoVersion {
 
 func newEvalCommandParams() evalCommandParams {
 	return evalCommandParams{
-		capabilities: newcapabilitiesFlag(),
+		capabilities: newCapabilitiesFlag(),
 		outputFormat: util.NewEnumFlag(evalJSONOutput, []string{
 			evalJSONOutput,
 			evalValuesOutput,

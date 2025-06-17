@@ -39,7 +39,7 @@ func newCheckParams() checkParams {
 		format: util.NewEnumFlag(checkFormatPretty, []string{
 			checkFormatPretty, checkFormatJSON,
 		}),
-		capabilities: newcapabilitiesFlag(),
+		capabilities: newCapabilitiesFlag(),
 		schema:       &schemaFlags{},
 	}
 }

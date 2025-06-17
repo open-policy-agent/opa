@@ -1139,3 +1139,274 @@ q := all([true, false])
 		})
 	}
 }
+
+func TestFmtFormatStdin_KeywordsInRefs(t *testing.T) {
+	cases := []struct {
+		note        string
+		params      fmtCommandParams
+		unformatted string
+		formatted   string
+	}{
+		{
+			note:   "v0",
+			params: fmtCommandParams{v0Compatible: true},
+			unformatted: `package test.package.import
+
+p {
+	foo.if.else
+}
+
+foo.if.else {
+    true
+}`,
+			formatted: `package test.package.import
+
+p {
+	foo.if.else
+}
+
+foo.if.else = true
+`,
+		},
+		{
+			note: "v0, no capability",
+			params: func() fmtCommandParams {
+				params := newFmtCommandParams()
+				params.v0Compatible = true
+				params.capabilitiesFlag.C = dropCapabilityFeature(ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
+					ast.FeatureKeywordsInRefs)
+				return *params
+			}(),
+			unformatted: `package test.package.import
+
+p {
+	foo.if.else
+}
+
+foo.if.else {
+	true
+}`,
+			formatted: `package test["package"]["import"]
+
+p {
+	foo.if["else"]
+}
+
+foo.if["else"] = true
+`,
+		},
+
+		{
+			note:   "v1",
+			params: fmtCommandParams{},
+			unformatted: `package test.package.import
+
+p if {
+	foo.if.else
+}
+
+foo.if.else if {
+	true
+}`,
+			formatted: `package test.package.import
+
+p if {
+	foo.if.else
+}
+
+foo.if.else := true
+`,
+		},
+		{
+			note: "v1, no capability",
+			params: func() fmtCommandParams {
+				params := newFmtCommandParams()
+				params.capabilitiesFlag.C = dropCapabilityFeature(ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
+					ast.FeatureKeywordsInRefs)
+				return *params
+			}(),
+			unformatted: `package test.package.import
+
+p if {
+	foo.if.else
+}
+
+foo.if.else if {
+	true
+}`,
+			formatted: `package test["package"]["import"]
+
+p if {
+	foo["if"]["else"]
+}
+
+foo["if"]["else"] := true
+`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			var stdout bytes.Buffer
+
+			stdin := bytes.NewBufferString(tc.unformatted)
+
+			files := map[string]string{
+				"policy.rego": tc.unformatted,
+			}
+
+			test.WithTempFS(files, func(path string) {
+				err := formatStdin(&tc.params, stdin, &stdout)
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+
+				actual := stdout.String()
+				if actual != tc.formatted {
+					t.Fatalf("Expected:\n%s\n\nGot:\n%s\n\n", tc.formatted, actual)
+				}
+			})
+		})
+	}
+}
+
+func TestFmtFormatFile_KeywordsInRefs(t *testing.T) {
+	cases := []struct {
+		note        string
+		params      fmtCommandParams
+		unformatted string
+		formatted   string
+	}{
+		{
+			note:   "v0",
+			params: fmtCommandParams{v0Compatible: true},
+			unformatted: `package test.package.import
+
+p {
+	foo.if.else
+}
+
+foo.if.else {
+    true
+}`,
+			formatted: `package test.package.import
+
+p {
+	foo.if.else
+}
+
+foo.if.else = true
+`,
+		},
+		{
+			note: "v0, no capability",
+			params: func() fmtCommandParams {
+				params := newFmtCommandParams()
+				params.v0Compatible = true
+				params.capabilitiesFlag.C = dropCapabilityFeature(ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
+					ast.FeatureKeywordsInRefs)
+				return *params
+			}(),
+			unformatted: `package test.package.import
+
+p {
+	foo.if.else
+}
+
+foo.if.else {
+	true
+}`,
+			formatted: `package test["package"]["import"]
+
+p {
+	foo.if["else"]
+}
+
+foo.if["else"] = true
+`,
+		},
+
+		{
+			note:   "v1",
+			params: fmtCommandParams{},
+			unformatted: `package test.package.import
+
+p if {
+	foo.if.else
+}
+
+foo.if.else if {
+	true
+}`,
+			formatted: `package test.package.import
+
+p if {
+	foo.if.else
+}
+
+foo.if.else := true
+`,
+		},
+		{
+			note: "v1, no capability",
+			params: func() fmtCommandParams {
+				params := newFmtCommandParams()
+				params.capabilitiesFlag.C = dropCapabilityFeature(ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
+					ast.FeatureKeywordsInRefs)
+				return *params
+			}(),
+			unformatted: `package test.package.import
+
+p if {
+	foo.if.else
+}
+
+foo.if.else if {
+	true
+}`,
+			formatted: `package test["package"]["import"]
+
+p if {
+	foo["if"]["else"]
+}
+
+foo["if"]["else"] := true
+`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			var stdout bytes.Buffer
+
+			files := map[string]string{
+				"policy.rego": tc.unformatted,
+			}
+
+			test.WithTempFS(files, func(path string) {
+				policyFile := filepath.Join(path, "policy.rego")
+				info, err := os.Stat(policyFile)
+				err = formatFile(&tc.params, &stdout, policyFile, info, err)
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+
+				actual := stdout.String()
+				if actual != tc.formatted {
+					t.Fatalf("Expected:\n%s\n\nGot:\n%s\n\n", tc.formatted, actual)
+				}
+			})
+		})
+	}
+}
+
+func dropCapabilityFeature(caps *ast.Capabilities, feature string) *ast.Capabilities {
+	feats := make([]string, 0, len(caps.Features))
+	for _, f := range caps.Features {
+		if f != feature {
+			feats = append(feats, f)
+		}
+	}
+	caps.Features = feats
+	return caps
+}

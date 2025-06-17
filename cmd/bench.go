@@ -64,7 +64,7 @@ func newBenchmarkEvalParams() benchmarkCommandParams {
 			}),
 			target:       util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
 			schema:       &schemaFlags{},
-			capabilities: newcapabilitiesFlag(),
+			capabilities: newCapabilitiesFlag(),
 		},
 		gracefulShutdownPeriod: 10,
 	}
