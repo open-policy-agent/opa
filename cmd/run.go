@@ -342,10 +342,7 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string, addrSe
 		TimestampFormat: timestampFormat,
 	}
 	params.rt.Paths = args
-	params.rt.Filter = loaderFilter{
-		Ignore: params.ignore,
-	}.Apply
-
+	params.rt.Filter = ignored(params.ignore).Apply
 	params.rt.EnableVersionCheck = !params.disableTelemetry
 
 	// For backwards compatibility, check if `--skip-version-check` flag set.

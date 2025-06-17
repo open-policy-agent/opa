@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	goRuntime "runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -21,6 +22,7 @@ import (
 	initload "github.com/open-policy-agent/opa/internal/runtime/init"
 	"github.com/spf13/cobra"
 
+	"github.com/open-policy-agent/opa/cmd/formats"
 	"github.com/open-policy-agent/opa/cmd/internal/env"
 	"github.com/open-policy-agent/opa/internal/runtime"
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -34,11 +36,6 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown"
 	"github.com/open-policy-agent/opa/v1/topdown/lineage"
 	"github.com/open-policy-agent/opa/v1/util"
-)
-
-const (
-	testPrettyOutput = "pretty"
-	testJSONOutput   = "json"
 )
 
 type testCommandParams struct {
@@ -66,11 +63,12 @@ type testCommandParams struct {
 	v0Compatible bool
 	v1Compatible bool
 	varValues    bool
+	parallel     int
 }
 
 func newTestCommandParams() testCommandParams {
 	return testCommandParams{
-		outputFormat: util.NewEnumFlag(testPrettyOutput, []string{testPrettyOutput, testJSONOutput, benchmarkGoBenchOutput}),
+		outputFormat: formats.Flag(formats.Pretty, formats.JSON, formats.GoBench),
 		explain:      newExplainFlag([]string{explainModeFails, explainModeFull, explainModeNotes, explainModeDebug}),
 		target:       util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
 		capabilities: newCapabilitiesFlag(),
@@ -78,6 +76,7 @@ func newTestCommandParams() testCommandParams {
 		output:       os.Stdout,
 		errOutput:    os.Stderr,
 		stopChan:     make(chan os.Signal, 1),
+		parallel:     goRuntime.NumCPU(),
 	}
 }
 
@@ -96,19 +95,15 @@ func opaTest(args []string, testParams testCommandParams) int {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	if testParams.outputFormat.String() == benchmarkGoBenchOutput && !testParams.benchmark {
+	if testParams.outputFormat.String() == formats.GoBench && !testParams.benchmark {
 		errMsg := "cannot use output format %s without running benchmarks (--bench)\n"
-		_, _ = fmt.Fprintf(testParams.errOutput, errMsg, benchmarkGoBenchOutput)
+		_, _ = fmt.Fprintf(testParams.errOutput, errMsg, formats.GoBench)
 		return 0
 	}
 
 	if !isThresholdValid(testParams.threshold) {
 		_, _ = fmt.Fprintln(testParams.errOutput, "Code coverage threshold must be between 0 and 100")
 		return 1
-	}
-
-	filter := loaderFilter{
-		Ignore: testParams.ignore,
 	}
 
 	var modules map[string]*ast.Module
@@ -123,10 +118,10 @@ func opaTest(args []string, testParams testCommandParams) int {
 
 	var err error
 	if testParams.bundleMode {
-		bundles, err = tester.LoadBundlesWithParserOptions(args, filter.Apply, popts)
+		bundles, err = tester.LoadBundlesWithParserOptions(args, ignored(testParams.ignore).Apply, popts)
 		store = inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false))
 	} else {
-		modules, store, err = tester.LoadWithParserOptions(args, filter.Apply, popts)
+		modules, store, err = tester.LoadWithParserOptions(args, ignored(testParams.ignore).Apply, popts)
 	}
 	if err != nil {
 		_, _ = fmt.Fprintln(testParams.errOutput, err)
@@ -291,13 +286,11 @@ func readWatcher(ctx context.Context, testParams testCommandParams, watcher *fsn
 }
 
 func processWatcherUpdate(ctx context.Context, testParams testCommandParams, paths []string, removed string, store storage.Store) {
-	filter := loaderFilter{
-		Ignore: testParams.ignore,
-	}
+	filter := ignored(testParams.ignore).Apply
 
 	var loadResult *initload.LoadPathsResult
 
-	err := pathwatcher.ProcessWatcherUpdateForRegoVersion(ctx, testParams.RegoVersion(), paths, removed, store, filter.Apply, testParams.bundleMode,
+	err := pathwatcher.ProcessWatcherUpdateForRegoVersion(ctx, testParams.RegoVersion(), paths, removed, store, filter, testParams.bundleMode,
 		func(ctx context.Context, txn storage.Transaction, loaded *initload.LoadPathsResult) error {
 			if len(loaded.Files.Documents) > 0 || removed != "" {
 				if err := store.Write(ctx, txn, storage.AddOp, storage.Path{}, loaded.Files.Documents); err != nil {
@@ -409,7 +402,8 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 		SetBundles(bundles).
 		SetTimeout(timeout).
 		Filter(testParams.runRegex).
-		Target(testParams.target.String())
+		Target(testParams.target.String()).
+		SetParallel(testParams.parallel)
 
 	var reporter tester.Reporter
 
@@ -417,11 +411,11 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 
 	if !testParams.coverage {
 		switch testParams.outputFormat.String() {
-		case testJSONOutput:
+		case formats.JSON:
 			reporter = tester.JSONReporter{
 				Output: testParams.output,
 			}
-		case benchmarkGoBenchOutput:
+		case formats.GoBench:
 			goBench = true
 			fallthrough
 		default:
@@ -545,15 +539,16 @@ recommended as some updates might cause them to be dropped by OPA.
 	testCommand.Flags().BoolVarP(&testParams.skipExitZero, "exit-zero-on-skipped", "z", false, "skipped tests return status 0")
 	testCommand.Flags().BoolVarP(&testParams.verbose, "verbose", "v", false, "set verbose reporting mode")
 	testCommand.Flags().DurationVar(&testParams.timeout, "timeout", 0, "set test timeout (default 5s, 30s when benchmarking)")
-	testCommand.Flags().VarP(testParams.outputFormat, "format", "f", "set output format")
 	testCommand.Flags().BoolVarP(&testParams.coverage, "coverage", "c", false, "report coverage (overrides debug tracing)")
 	testCommand.Flags().Float64VarP(&testParams.threshold, "threshold", "", 0, "set coverage threshold and exit with non-zero status if coverage is less than threshold %")
 	testCommand.Flags().BoolVar(&testParams.benchmark, "bench", false, "benchmark the unit tests")
-	testCommand.Flags().StringVarP(&testParams.runRegex, "run", "r", "", "run only test cases matching the regular expression.")
+	testCommand.Flags().StringVarP(&testParams.runRegex, "run", "r", "", "run only test cases matching the regular expression")
 	testCommand.Flags().BoolVarP(&testParams.watch, "watch", "w", false, "watch command line files for changes")
 	testCommand.Flags().BoolVar(&testParams.varValues, "var-values", false, "show local variable values in test output")
+	testCommand.Flags().IntVarP(&testParams.parallel, "parallel", "p", goRuntime.NumCPU(), "the number of tests that can run in parallel, defaulting to the number of CPUs (explicitly set with 0). Benchmarks are always run sequentially.")
 
 	// Shared flags
+	addOutputFormat(testCommand.Flags(), testParams.outputFormat)
 	addBundleModeFlag(testCommand.Flags(), &testParams.bundleMode, false)
 	addBenchmemFlag(testCommand.Flags(), &testParams.benchMem, true)
 	addCountFlag(testCommand.Flags(), &testParams.count, "test")

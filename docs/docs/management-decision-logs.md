@@ -30,13 +30,14 @@ updates will be sent to `/logs`.
 The message body contains a gzip compressed JSON array. Each array element (event)
 represents a policy decision returned by OPA.
 
+<EvergreenCodeBlock>
 ```json
 [
   {
     "labels": {
       "app": "my-example-app",
       "id": "1780d507-aea2-45cc-ae50-fa153c8e4a5a",
-      "version": "{{< current_version >}}"
+      "version": "{{ current_version }}"
     },
     "decision_id": "4ca636c1-55e4-417a-b1d8-4aceb67960d1",
     "bundles": {
@@ -55,6 +56,7 @@ represents a policy decision returned by OPA.
   }
 ]
 ```
+</EvergreenCodeBlock>
 
 Decision log updates contain the following fields:
 

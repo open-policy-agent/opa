@@ -158,10 +158,11 @@ You should now see a policy bundle (`bundle.tar.gz`) in your working directory.
 
 Next, create a `docker-compose.yaml` file that runs OPA, a bundle server and the demo GraphQL server.
 
+<EvergreenCodeBlock>
 ```yaml title="docker-compose.yaml"
 services:
   opa:
-    image: openpolicyagent/opa:{{< current_docker_version >}}
+    image: openpolicyagent/opa:{{ current_version_docker }}
     ports:
     - "8181:8181"
     command:
@@ -192,6 +193,7 @@ services:
     volumes:
     - ./bundles/:/usr/share/nginx/html/
 ```
+</EvergreenCodeBlock>
 
 Then run `docker-compose` to pull and run the containers.
 

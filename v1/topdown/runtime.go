@@ -11,8 +11,6 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 )
 
-var configStringTerm = ast.StringTerm("config")
-
 var nothingResolver ast.Resolver = illegalResolver{}
 
 func builtinOPARuntime(bctx BuiltinContext, _ []*ast.Term, iter func(*ast.Term) error) error {
@@ -21,7 +19,7 @@ func builtinOPARuntime(bctx BuiltinContext, _ []*ast.Term, iter func(*ast.Term) 
 		return iter(ast.InternedEmptyObject)
 	}
 
-	if bctx.Runtime.Get(configStringTerm) != nil {
+	if bctx.Runtime.Get(ast.InternedStringTerm("config")) != nil {
 		iface, err := ast.ValueToInterface(bctx.Runtime.Value, nothingResolver)
 		if err != nil {
 			return err

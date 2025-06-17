@@ -29,18 +29,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown/cache"
 )
 
-var (
-	jwtEncKey = ast.StringTerm("enc")
-	jwtCtyKey = ast.StringTerm("cty")
-	jwtIssKey = ast.StringTerm("iss")
-	jwtExpKey = ast.StringTerm("exp")
-	jwtNbfKey = ast.StringTerm("nbf")
-	jwtAudKey = ast.StringTerm("aud")
-)
-
-const (
-	headerJwt = "JWT"
-)
+const headerJwt = "JWT"
 
 // JSONWebToken represent the 3 parts (header, payload & signature) of
 //
@@ -86,7 +75,7 @@ func builtinJWTDecode(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 		return fmt.Errorf("JWT payload had invalid encoding: %v", err)
 	}
 
-	if cty := token.decodedHeader.Get(jwtCtyKey); cty != nil {
+	if cty := token.decodedHeader.Get(ast.InternedStringTerm("cty")); cty != nil {
 		ctyVal := string(cty.Value.(ast.String))
 		// It is possible for the contents of a token to be another
 		// token as a result of nested signing or encryption. To handle
@@ -139,7 +128,7 @@ func builtinJWTVerifyRS256(bctx BuiltinContext, operands []*ast.Term, iter func(
 			signature)
 	})
 	if err == nil {
-		return iter(ast.NewTerm(result))
+		return iter(ast.InternedBooleanTerm(result))
 	}
 	return err
 }
@@ -154,7 +143,7 @@ func builtinJWTVerifyRS384(bctx BuiltinContext, operands []*ast.Term, iter func(
 			signature)
 	})
 	if err == nil {
-		return iter(ast.NewTerm(result))
+		return iter(ast.InternedBooleanTerm(result))
 	}
 	return err
 }
@@ -169,7 +158,7 @@ func builtinJWTVerifyRS512(bctx BuiltinContext, operands []*ast.Term, iter func(
 			signature)
 	})
 	if err == nil {
-		return iter(ast.NewTerm(result))
+		return iter(ast.InternedBooleanTerm(result))
 	}
 	return err
 }
@@ -185,7 +174,7 @@ func builtinJWTVerifyPS256(bctx BuiltinContext, operands []*ast.Term, iter func(
 			nil)
 	})
 	if err == nil {
-		return iter(ast.NewTerm(result))
+		return iter(ast.InternedBooleanTerm(result))
 	}
 	return err
 }
@@ -201,7 +190,7 @@ func builtinJWTVerifyPS384(bctx BuiltinContext, operands []*ast.Term, iter func(
 			nil)
 	})
 	if err == nil {
-		return iter(ast.NewTerm(result))
+		return iter(ast.InternedBooleanTerm(result))
 	}
 	return err
 }
@@ -217,13 +206,13 @@ func builtinJWTVerifyPS512(bctx BuiltinContext, operands []*ast.Term, iter func(
 			nil)
 	})
 	if err == nil {
-		return iter(ast.NewTerm(result))
+		return iter(ast.InternedBooleanTerm(result))
 	}
 	return err
 }
 
 // Implements RSA JWT signature verification.
-func builtinJWTVerifyRSA(bctx BuiltinContext, jwt ast.Value, keyStr ast.Value, hasher func() hash.Hash, verify func(publicKey *rsa.PublicKey, digest []byte, signature []byte) error) (ast.Value, error) {
+func builtinJWTVerifyRSA(bctx BuiltinContext, jwt ast.Value, keyStr ast.Value, hasher func() hash.Hash, verify func(publicKey *rsa.PublicKey, digest []byte, signature []byte) error) (bool, error) {
 	return builtinJWTVerify(bctx, jwt, keyStr, hasher, func(publicKey any, digest []byte, signature []byte) error {
 		publicKeyRsa, ok := publicKey.(*rsa.PublicKey)
 		if !ok {
@@ -237,7 +226,7 @@ func builtinJWTVerifyRSA(bctx BuiltinContext, jwt ast.Value, keyStr ast.Value, h
 func builtinJWTVerifyES256(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	result, err := builtinJWTVerify(bctx, operands[0].Value, operands[1].Value, sha256.New, verifyES)
 	if err == nil {
-		return iter(ast.NewTerm(result))
+		return iter(ast.InternedBooleanTerm(result))
 	}
 	return err
 }
@@ -246,7 +235,7 @@ func builtinJWTVerifyES256(bctx BuiltinContext, operands []*ast.Term, iter func(
 func builtinJWTVerifyES384(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	result, err := builtinJWTVerify(bctx, operands[0].Value, operands[1].Value, sha512.New384, verifyES)
 	if err == nil {
-		return iter(ast.NewTerm(result))
+		return iter(ast.InternedBooleanTerm(result))
 	}
 	return err
 }
@@ -255,7 +244,7 @@ func builtinJWTVerifyES384(bctx BuiltinContext, operands []*ast.Term, iter func(
 func builtinJWTVerifyES512(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	result, err := builtinJWTVerify(bctx, operands[0].Value, operands[1].Value, sha512.New, verifyES)
 	if err == nil {
-		return iter(ast.NewTerm(result))
+		return iter(ast.InternedBooleanTerm(result))
 	}
 	return err
 }
@@ -346,43 +335,43 @@ func getKeyByKid(kid string, keys []verificationKey) *verificationKey {
 }
 
 // Implements JWT signature verification.
-func builtinJWTVerify(bctx BuiltinContext, jwt ast.Value, keyStr ast.Value, hasher func() hash.Hash, verify func(publicKey any, digest []byte, signature []byte) error) (ast.Value, error) {
+func builtinJWTVerify(bctx BuiltinContext, jwt ast.Value, keyStr ast.Value, hasher func() hash.Hash, verify func(publicKey any, digest []byte, signature []byte) error) (bool, error) {
 	if found, _, _, valid := getTokenFromCache(bctx, jwt, keyStr); found {
-		return ast.Boolean(valid), nil
+		return valid, nil
 	}
 
 	token, err := decodeJWT(jwt)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
 	s, err := builtins.StringOperand(keyStr, 2)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
 	keys, err := getKeysFromCertOrJWK(string(s))
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
 	signature, err := token.decodeSignature()
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
 	err = token.decodeHeader()
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 	header, err := parseTokenHeader(token)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
-	done := func(valid bool) (ast.Boolean, error) {
+	done := func(valid bool) (bool, error) {
 		putTokenInCache(bctx, jwt, keyStr, nil, nil, valid)
-		return ast.Boolean(valid), nil
+		return valid, nil
 	}
 
 	// Validate the JWT signature
@@ -450,7 +439,7 @@ func builtinJWTVerifyHS(bctx BuiltinContext, operands []*ast.Term, hashF func() 
 	}
 
 	if found, _, _, valid := getTokenFromCache(bctx, jwt, astSecret); found {
-		return iter(ast.NewTerm(ast.Boolean(valid)))
+		return iter(ast.InternedBooleanTerm(valid))
 	}
 
 	// Decode the JSON Web Token
@@ -476,7 +465,7 @@ func builtinJWTVerifyHS(bctx BuiltinContext, operands []*ast.Term, hashF func() 
 
 	putTokenInCache(bctx, jwt, astSecret, nil, nil, valid)
 
-	return iter(ast.NewTerm(ast.Boolean(valid)))
+	return iter(ast.InternedBooleanTerm(valid))
 }
 
 // -- Full JWT verification and decoding --
@@ -1005,8 +994,8 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 
 	unverified := ast.ArrayTerm(
 		ast.InternedBooleanTerm(false),
-		ast.NewTerm(ast.NewObject()),
-		ast.NewTerm(ast.NewObject()),
+		ast.InternedEmptyObject,
+		ast.InternedEmptyObject,
 	)
 	constraints, err := parseTokenConstraints(b, bctx.Time)
 	if err != nil {
@@ -1021,8 +1010,8 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 
 	// FIXME: optimize
 	k, _ := b.Filter(ast.NewObject(
-		ast.Item(ast.StringTerm("secret"), ast.ObjectTerm()),
-		ast.Item(ast.StringTerm("cert"), ast.ObjectTerm()),
+		ast.Item(ast.InternedStringTerm("secret"), ast.InternedEmptyObject),
+		ast.Item(ast.InternedStringTerm("cert"), ast.InternedEmptyObject),
 	))
 
 	if found, th, tp, validSignature := getTokenFromCache(bctx, a, k); found {
@@ -1128,7 +1117,7 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 	// Check registered claim names against constraints or environment
 	// RFC7159 4.1.1 iss
 	if constraints.iss != "" {
-		if iss := payload.Get(jwtIssKey); iss != nil {
+		if iss := payload.Get(ast.InternedStringTerm("iss")); iss != nil {
 			issVal := string(iss.Value.(ast.String))
 			if constraints.iss != issVal {
 				return iter(unverified)
@@ -1138,7 +1127,7 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 		}
 	}
 	// RFC7159 4.1.3 aud
-	if aud := payload.Get(jwtAudKey); aud != nil {
+	if aud := payload.Get(ast.InternedStringTerm("aud")); aud != nil {
 		if !constraints.validAudience(aud.Value) {
 			return iter(unverified)
 		}
@@ -1148,7 +1137,7 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 		}
 	}
 	// RFC7159 4.1.4 exp
-	if exp := payload.Get(jwtExpKey); exp != nil {
+	if exp := payload.Get(ast.InternedStringTerm("exp")); exp != nil {
 		switch v := exp.Value.(type) {
 		case ast.Number:
 			// constraints.time is in nanoseconds but exp Value is in seconds
@@ -1161,7 +1150,7 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 		}
 	}
 	// RFC7159 4.1.5 nbf
-	if nbf := payload.Get(jwtNbfKey); nbf != nil {
+	if nbf := payload.Get(ast.InternedStringTerm("nbf")); nbf != nil {
 		switch v := nbf.Value.(type) {
 		case ast.Number:
 			// constraints.time is in nanoseconds but nbf Value is in seconds
@@ -1229,7 +1218,7 @@ func validateJWTHeader(h string) (ast.Object, error) {
 	// won't support it for now.
 	// This code checks which kind of JWT we are dealing with according to
 	// RFC 7516 Section 9: https://tools.ietf.org/html/rfc7516#section-9
-	if header.Get(jwtEncKey) != nil {
+	if header.Get(ast.InternedStringTerm("enc")) != nil {
 		return nil, errors.New("JWT is a JWE object, which is not supported")
 	}
 

@@ -16,7 +16,7 @@ version 1.20+, we recommend using [minikube](https://kubernetes.io/docs/getting-
 [KIND](https://kind.sigs.k8s.io/).
 
 The tutorial also requires Istio v1.19.0 or later. It assumes you have Istio deployed on top of Kubernetes.
-See Istio's [Quick Start](https://istio.io/docs/setup/kubernetes/install/kubernetes/) page to get started.
+See Istio's [Helm Install](https://istio.io/latest/docs/setup/install/helm/) page to get started.
 
 If you are using an earlier version of Istio (1.9+), you will have to customize the `AuthorizationPolicy` in the
 `quick_start.yaml` file to use the `security.istio.io/v1beta1` API version instead of `security.istio.io/v1`.
@@ -121,7 +121,7 @@ The `quick_start.yaml` manifest defines the following resources:
   An example of the complete input received by OPA can be seen [here](https://github.com/open-policy-agent/opa-envoy-plugin/tree/main/examples/istio#example-input).
 
   > In typical deployments the policy would either be built into the OPA container
-  > image or it would be fetched dynamically via the [Bundle API](https://www.openpolicyagent.org/docs/latest/bundles/). ConfigMaps are
+  > image or it would be fetched dynamically via the [Bundle API](../management-bundles/). ConfigMaps are
   > used in this tutorial for test purposes.
 
 ### 2. Configure the mesh to define the external authorizer

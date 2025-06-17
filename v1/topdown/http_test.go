@@ -3295,34 +3295,59 @@ func TestInterQueryCacheValueClone(t *testing.T) {
 	}
 }
 
-func TestIntraQueryCache_ClientError(t *testing.T) {
+func TestRaisingHTTPClientQueryError(t *testing.T) {
 	t.Parallel()
 
 	data := loadSmallTestData()
 
 	tests := []struct {
-		note     string
-		rules    []string
-		expected string
+		note          string
+		rules         []string
+		expected      string
+		expectedError string
 	}{
 		{
-			note: "raised errors",
+			note: "raised errors with inter query cache",
 			rules: []string{`p["one"] {
-	not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms"})
+	not http.send({"method": "GET", "url": "bad_url", "cache": true})
 }`,
 				`p["two"] {
-	not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms"})
+	not http.send({"method": "GET", "url": "bad_url", "cache": true})
+}`},
+			expected:      `["one", "two"]`,
+			expectedError: `not http.send({"method": "GET", "url": "bad_url", "cache": true}): eval_builtin_error: http.send: Get "bad_url": unsupported protocol scheme ""`,
+		},
+		{
+			note: "no raised errors with inter query cache",
+			rules: []string{`p["one"] {
+	r := http.send({"method": "GET", "url": "bad_url", "cache": true, "raise_error": false})
+	r.error.code == "eval_http_send_network_error"
+}`,
+				`p["two"] {
+	r := http.send({"method": "GET", "url": "bad_url", "cache": true, "raise_error": false})
+	r.error.code == "eval_http_send_network_error"
 }`},
 			expected: `["one", "two"]`,
 		},
 		{
-			note: "no raised errors",
+			note: "raised errors with intra query cache",
 			rules: []string{`p["one"] {
-	r := http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "raise_error": false})
+	not http.send({"method": "GET", "url": "bad_url"})
+}`,
+				`p["two"] {
+	not http.send({"method": "GET", "url": "bad_url"})
+}`},
+			expected:      `["one", "two"]`,
+			expectedError: `not http.send({"method": "GET", "url": "bad_url"}): eval_builtin_error: http.send: Get "bad_url": unsupported protocol scheme ""`,
+		},
+		{
+			note: "no raised errors with intra query cache",
+			rules: []string{`p["one"] {
+	r := http.send({"method": "GET", "url": "bad_url", "raise_error": false})
 	r.error.code == "eval_http_send_network_error"
 }`,
 				`p["two"] {
-	r := http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "raise_error": false})
+	r := http.send({"method": "GET", "url": "bad_url", "raise_error": false})
 	r.error.code == "eval_http_send_network_error"
 }`},
 			expected: `["one", "two"]`,
@@ -3333,124 +3358,25 @@ func TestIntraQueryCache_ClientError(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
-			ch := make(chan *http.Request)
-			const timeout = 20 * time.Millisecond // larger than the 10ms timeout in rules
+			var builtInErrList []Error
 
-			// A HTTP server that always causes a timeout
-			ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-				time.Sleep(timeout)
-				ch <- r
-			}))
-			defer ts.Close()
+			runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected, func(q *Query) *Query {
+				q.WithBuiltinErrorList(&builtInErrList)
+				return q
+			})
 
-			var rules []string
-			for _, r := range tc.rules {
-				rules = append(rules, strings.ReplaceAll(r, "%URL%", ts.URL))
+			if tc.expectedError == "" && len(builtInErrList) > 0 {
+				t.Fatalf("builtInErrList shouldn't contain an error but it does: %v", builtInErrList)
 			}
 
-			runTopDownTestCase(t, data, tc.note, rules, tc.expected)
+			if tc.expectedError != "" && len(builtInErrList) == 0 {
+				t.Fatalf("builtInErrList did not contain errors but expected: %s", tc.expectedError)
+			}
 
-			// Wait 1 second for HTTP requests to arrive
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-			defer cancel()
-			requests := getAllRequests(ctx, ch)
-
-			// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
-			// eval first), so expect 2x the total request count the test case specified.
-			actualCount := len(requests) / 2
-
-			if actualCount != 1 {
-				t.Fatalf("Expected exactly 1 call to HTTP server, got %v", actualCount)
+			if tc.expectedError != "" && builtInErrList[0].Error() != tc.expectedError {
+				t.Errorf("Expected error %v, but got %v", tc.expectedError, builtInErrList[0].Error())
 			}
 		})
-	}
-}
-
-func TestInterQueryCache_ClientError(t *testing.T) {
-	t.Parallel()
-
-	data := loadSmallTestData()
-
-	tests := []struct {
-		note     string
-		rules    []string
-		expected string
-	}{
-		{
-			note: "raised errors",
-			rules: []string{`p["one"] {
-	not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true})
-}`,
-				`p["two"] {
-	not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true})
-}`},
-			expected: `["one", "two"]`,
-		},
-		{
-			note: "no raised errors",
-			rules: []string{`p["one"] {
-	r := http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true, "raise_error": false})
-	r.error.code == "eval_http_send_network_error"
-}`,
-				`p["two"] {
-	r := http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true, "raise_error": false})
-	r.error.code == "eval_http_send_network_error"
-}`},
-			expected: `["one", "two"]`,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.note, func(t *testing.T) {
-			t.Parallel()
-
-			ch := make(chan *http.Request)
-			const timeout = 20 * time.Millisecond // larger than the 10ms timeout in rules
-
-			// A HTTP server that always causes a timeout
-			ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-				time.Sleep(timeout)
-				ch <- r
-			}))
-			defer ts.Close()
-
-			var rules []string
-			for _, r := range tc.rules {
-				rules = append(rules, strings.ReplaceAll(r, "%URL%", ts.URL))
-			}
-
-			runTopDownTestCase(t, data, tc.note, rules, tc.expected)
-
-			// Wait 1 second for HTTP requests to arrive
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-			defer cancel()
-			requests := getAllRequests(ctx, ch)
-
-			// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
-			// eval first), so expect 2x the total request count the test case specified.
-			actualCount := len(requests) / 2
-
-			if actualCount != 1 {
-				t.Fatalf("Expected exactly 1 call to HTTP server, got %v", actualCount)
-			}
-		})
-	}
-}
-
-func getAllRequests(ctx context.Context, ch chan *http.Request) []*http.Request {
-	var requests []*http.Request
-	for {
-		select {
-		case x, ok := <-ch:
-			if ok {
-				requests = append(requests, x)
-			} else {
-				return requests
-			}
-		case <-ctx.Done():
-			close(ch)
-			return requests
-		}
 	}
 }
 
@@ -3861,6 +3787,63 @@ func TestHTTPWithCustomTransport(t *testing.T) {
 		serverCalls := (callCount - startingCalls) / 2
 		if serverCalls != tc.calls {
 			t.Errorf("Expected %d calls to server, got %d", tc.calls, serverCalls)
+		}
+	}
+}
+
+func TestIsJSONType(t *testing.T) {
+	tests := []struct {
+		name string
+		h    http.Header
+		exp  bool
+	}{
+		{
+			h: http.Header{
+				"Content-Type": []string{"application/json"},
+			},
+			exp: true,
+		},
+		{
+			h: http.Header{
+				"Content-Type": []string{"application/json; charset=utf-8"},
+			},
+			exp: true,
+		},
+		{
+			h: http.Header{
+				"Content-Type": []string{"application/scim+json; charset=utf-8"},
+			},
+			exp: true,
+		},
+		{
+			h: http.Header{
+				"Content-Type": []string{"application/thisisnotjson; charset=utf-8"},
+			},
+			exp: false,
+		},
+		{
+			h: http.Header{
+				"Content-Type": []string{"application/yaml"},
+			},
+			exp: false,
+		},
+		{
+			h: http.Header{
+				"Content-Type": []string{"application/x-yaml; charset=utf-8"},
+			},
+			exp: false,
+		},
+		{
+			h: http.Header{
+				"Content-Type": []string{"text/html; charset=ISO-8859-4"},
+			},
+			exp: false,
+		},
+	}
+
+	for _, tc := range tests {
+		if tc.exp != isJSONType(tc.h) {
+			t.Errorf("Expected %v for %v", tc.exp, tc.h)
 		}
 	}
 }

@@ -21,3 +21,7 @@ clean:
 .PHONY: generate-cli-docs
 generate-cli-docs:
 	$(CURDIR)/../build/gen-cli-docs.sh > $(CURDIR)/src/data/cli.json
+
+.PHONY: smoke-test
+smoke-test:
+	./bin/smoke-test.sh

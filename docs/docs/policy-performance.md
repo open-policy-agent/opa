@@ -409,10 +409,10 @@ The `opa eval` command provides the following profiler options:
 
 | Option                                                       | Detail                                                                                                                                                                                                                                   | Default                                                               |
 | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| <span class="opa-keep-it-together"> `--profile`</span>       | Enables expression profiling and outputs profiler results.                                                                                                                                                                               | off                                                                   |
-| <span class="opa-keep-it-together"> `--profile-sort`</span>  | Criteria to sort the expression profiling results. This options implies `--profile`.                                                                                                                                                     | total_time_ns => num_eval => num_redo => num_gen_expr => file => line |
-| <span class="opa-keep-it-together"> `--profile-limit`</span> | Desired number of profiling results sorted on the given criteria. This options implies `--profile`.                                                                                                                                      | 10                                                                    |
-| <span class="opa-keep-it-together"> `--count`</span>         | Desired number of evaluations that profiling metrics are to be captured for. With `--format=pretty`, the output will contain min, max, mean and the 90th and 99th percentile. All collected percentiles can be found in the JSON output. | 1                                                                     |
+| `--profile`       | Enables expression profiling and outputs profiler results.                                                                                                                                                                               | off                                                                   |
+| `--profile-sort`  | Criteria to sort the expression profiling results. This options implies `--profile`.                                                                                                                                                     | total_time_ns => num_eval => num_redo => num_gen_expr => file => line |
+| `--profile-limit` | Desired number of profiling results sorted on the given criteria. This options implies `--profile`.                                                                                                                                      | 10                                                                    |
+| `--count`         | Desired number of evaluations that profiling metrics are to be captured for. With `--format=pretty`, the output will contain min, max, mean and the 90th and 99th percentile. All collected percentiles can be found in the JSON output. | 1                                                                     |
 
 #### Sort criteria for the profile results
 
@@ -734,9 +734,9 @@ to evaluate (loading, parsing, compiling, etc.) is omitted.
 
 | Option                                                  | Detail                                            | Default |
 | ------------------------------------------------------- | ------------------------------------------------- | ------- |
-| <span class="opa-keep-it-together"> `--benchmem`</span> | Report memory allocations with benchmark results. | true    |
-| <span class="opa-keep-it-together"> `--metrics`</span>  | Report additional query performance metrics.      | true    |
-| <span class="opa-keep-it-together"> `--count`</span>    | Number of times to repeat the benchmark.          | 1       |
+| `--benchmem` | Report memory allocations with benchmark results. | true    |
+| `--metrics`  | Report additional query performance metrics.      | true    |
+| `--count`    | Number of times to repeat the benchmark.          | 1       |
 
 ### Benchmarking OPA Tests
 
@@ -749,8 +749,8 @@ track relative time as policies change.
 
 | Option                                                  | Detail                                            | Default |
 | ------------------------------------------------------- | ------------------------------------------------- | ------- |
-| <span class="opa-keep-it-together"> `--benchmem`</span> | Report memory allocations with benchmark results. | true    |
-| <span class="opa-keep-it-together"> `--count`</span>    | Number of times to repeat the benchmark.          | 1       |
+| `--benchmem` | Report memory allocations with benchmark results. | true    |
+| `--count`    | Number of times to repeat the benchmark.          | 1       |
 
 #### Example Tests
 

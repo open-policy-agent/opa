@@ -229,6 +229,11 @@ func (e *eval) unknown(x any, b *bindings) bool {
 	return saveRequired(e.compiler, e.inliningControl, true, e.saveSet, b, x, false)
 }
 
+// exactly like `unknown` above` but without the cost of `any` boxing when arg is known to be a ref
+func (e *eval) unknownRef(ref ast.Ref, b *bindings) bool {
+	return e.partial() && saveRequired(e.compiler, e.inliningControl, true, e.saveSet, b, ast.NewTerm(ref), false)
+}
+
 func (e *eval) traceEnter(x ast.Node) {
 	e.traceEvent(EnterOp, x, "", nil)
 }
@@ -917,13 +922,13 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		} else {
 			ir, err = e.getRules(ref, terms[1:])
 		}
+		defer ast.IndexResultPool.Put(ir)
 		if err != nil {
 			return err
 		}
 
 		eval := evalFunc{
 			e:     e,
-			ref:   ref,
 			terms: terms,
 			ir:    ir,
 		}
@@ -1896,6 +1901,7 @@ func (e *eval) getDeclArgsLen(x *ast.Expr) (int, error) {
 	}
 
 	ir, err := e.getRules(operator, nil)
+	defer ast.IndexResultPool.Put(ir)
 	if err != nil {
 		return -1, err
 	} else if ir == nil || ir.Empty() {
@@ -2024,7 +2030,6 @@ func (e *evalBuiltin) eval(iter unifyIterator) error {
 type evalFunc struct {
 	e     *eval
 	ir    *ast.IndexResult
-	ref   ast.Ref
 	terms []*ast.Term
 }
 
@@ -2067,10 +2072,12 @@ func (e evalFunc) eval(iter unifyIterator) error {
 			}
 		}
 
-		if mustGenerateSupport || e.e.inliningControl.shallow || e.e.inliningControl.Disabled(e.ref, false) {
+		ref := e.terms[0].Value.(ast.Ref)
+
+		if mustGenerateSupport || e.e.inliningControl.shallow || e.e.inliningControl.Disabled(ref, false) {
 			// check if the function definitions, or any of the arguments
 			// contain something unknown
-			unknown := e.e.unknown(e.ref, e.e.bindings)
+			unknown := e.e.unknownRef(ref, e.e.bindings)
 			for i := 1; !unknown && i <= argCount; i++ {
 				unknown = e.e.unknown(e.terms[i], e.e.bindings)
 			}
@@ -2169,11 +2176,9 @@ func (e evalFunc) evalValue(iter unifyIterator, argCount int, findOne bool) erro
 }
 
 func (e evalFunc) evalCache(argCount int, iter unifyIterator) (ast.Ref, bool, error) {
-	var plen int
-	if len(e.terms) == argCount+2 { // func name + output = 2
-		plen = len(e.terms) - 1
-	} else {
-		plen = len(e.terms)
+	plen := len(e.terms)
+	if plen == argCount+2 { // func name + output = 2
+		plen -= 1
 	}
 
 	cacheKey := make([]*ast.Term, plen)
@@ -2265,8 +2270,7 @@ func (e evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, args []*ast.Te
 }
 
 func (e evalFunc) partialEvalSupport(declArgsLen int, iter unifyIterator) error {
-
-	path := e.e.namespaceRef(e.ref)
+	path := e.e.namespaceRef(e.terms[0].Value.(ast.Ref))
 
 	if !e.e.saveSupport.Exists(path) {
 		for _, rule := range e.ir.Rules {
@@ -2409,7 +2413,7 @@ func (e evalTree) finish(iter unifyIterator) error {
 	// In some cases, it may not be possible to PE the ref. If the path refers
 	// to virtual docs that PE does not support or base documents where inlining
 	// has been disabled, then we have to save.
-	if e.e.partial() && e.e.unknown(e.plugged, e.e.bindings) {
+	if e.e.partial() && e.e.unknownRef(e.plugged, e.e.bindings) {
 		return e.e.saveUnify(ast.NewTerm(e.plugged), e.rterm, e.bindings, e.rbindings, iter)
 	}
 
@@ -2612,13 +2616,14 @@ type evalVirtual struct {
 func (e evalVirtual) eval(iter unifyIterator) error {
 
 	ir, err := e.e.getRules(e.plugged[:e.pos+1], nil)
+	defer ast.IndexResultPool.Put(ir)
 	if err != nil {
 		return err
 	}
 
 	// Partial evaluation of ordered rules is not supported currently. Save the
 	// expression and continue. This could be revisited in the future.
-	if len(ir.Else) > 0 && e.e.unknown(e.ref, e.bindings) {
+	if len(ir.Else) > 0 && e.e.unknownRef(e.ref, e.bindings) {
 		return e.e.saveUnify(ast.NewTerm(e.ref), e.rterm, e.bindings, e.rbindings, iter)
 	}
 
@@ -3428,7 +3433,7 @@ func (e evalVirtualComplete) eval(iter unifyIterator) error {
 		return nil
 	}
 
-	if !e.e.unknown(e.ref, e.bindings) {
+	if !e.e.unknownRef(e.ref, e.bindings) {
 		return e.evalValue(iter, e.ir.EarlyExit)
 	}
 

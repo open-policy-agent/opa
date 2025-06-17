@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"fmt"
 	"slices"
+	"sync"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown"
@@ -17,6 +18,7 @@ import (
 
 // Cover computes and reports on coverage.
 type Cover struct {
+	mu   sync.Mutex
 	hits map[string]map[Position]struct{}
 }
 
@@ -126,6 +128,8 @@ func (c *Cover) TraceEvent(event topdown.Event) {
 
 func (c *Cover) setHit(loc *ast.Location) {
 	if hasFileLocation(loc) {
+		c.mu.Lock()
+		defer c.mu.Unlock()
 		hits, ok := c.hits[loc.File]
 		if !ok {
 			hits = map[Position]struct{}{}

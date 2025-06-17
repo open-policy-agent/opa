@@ -3,6 +3,7 @@ package topdown
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -189,6 +190,44 @@ func eqIter(a *ast.Term) func(*ast.Term) error {
 	}
 }
 
+// 0 allocs for numbers between 0 and 100 and base 10, 3 allocs for anything else.
+func BenchmarkFormatInt(b *testing.B) {
+	operands := []*ast.Term{
+		ast.InternedIntNumberTerm(99),
+		ast.InternedIntNumberTerm(10),
+	}
+	bctx := BuiltinContext{}
+	want := eqIter(ast.StringTerm("99"))
+
+	b.ResetTimer()
+
+	for range b.N {
+		if err := builtinFormatInt(bctx, operands, want); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// 0 allocs for numbers between 0 and 100, 3 allocs for anything else.
+func BenchmarkSprintfSingleInteger(b *testing.B) {
+	operands := []*ast.Term{
+		ast.StringTerm("%d"),
+		ast.ArrayTerm(
+			ast.InternedIntNumberTerm(99),
+		),
+	}
+	bctx := BuiltinContext{}
+	want := eqIter(ast.StringTerm("99"))
+
+	b.ResetTimer()
+
+	for range b.N {
+		if err := builtinSprintf(bctx, operands, want); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 // This benchmark is not so much about trimming space, but the optimization of returning
 // the operand as provided for string operations that don't change the string provided as
 // input, like when trimming space around a string that doesn't have any, or replacing a
@@ -262,4 +301,107 @@ func BenchmarkLower(b *testing.B) {
 			}
 		})
 	}
+}
+
+func BenchmarkConcat(b *testing.B) {
+	bctx := BuiltinContext{}
+	tests := []struct {
+		name     string
+		operands []*ast.Term
+		expected *ast.Term
+	}{
+		{
+			name:     "0 elements '.' sep",
+			operands: []*ast.Term{ast.InternedStringTerm("."), ast.InternedEmptyArray},
+			expected: ast.InternedEmptyString,
+		},
+		{
+			name:     "1 element '.' sep",
+			operands: []*ast.Term{ast.InternedStringTerm("."), ast.ArrayTerm(ast.InternedStringTerm("foobar"))},
+			expected: ast.InternedStringTerm("foobar"),
+		},
+		{
+			name:     "100 elements ',' sep",
+			operands: []*ast.Term{ast.InternedStringTerm(","), repeatTerm(ast.InternedStringTerm("foobar"), 100)},
+			expected: ast.StringTerm(strings.Repeat("foobar,", 99) + "foobar"),
+		},
+		{
+			name:     "100 elements ', ' sep",
+			operands: []*ast.Term{ast.InternedStringTerm(", "), repeatTerm(ast.InternedStringTerm("foobar"), 100)},
+			expected: ast.StringTerm(strings.Repeat("foobar, ", 99) + "foobar"),
+		},
+		{
+			name:     "100 elements blank sep",
+			operands: []*ast.Term{ast.InternedEmptyString, repeatTerm(ast.InternedStringTerm("foobar"), 100)},
+			expected: ast.StringTerm(strings.Repeat("foobar", 100)),
+		},
+	}
+
+	for _, test := range tests {
+		b.Run(test.name, func(b *testing.B) {
+			for range b.N {
+				if err := builtinConcat(bctx, test.operands, eqIter(test.expected)); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkConcatVsSprintfSimple(b *testing.B) {
+	bctx := BuiltinContext{}
+
+	foo := ast.InternedStringTerm("foo")
+	bar := ast.InternedStringTerm("bar")
+	expected := ast.InternedStringTerm("foobar")
+
+	b.Run("concat foobar", func(b *testing.B) {
+		operands := []*ast.Term{ast.InternedEmptyString, ast.ArrayTerm(foo, bar)}
+
+		for range b.N {
+			if err := builtinConcat(bctx, operands, eqIter(expected)); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+
+	b.ResetTimer()
+
+	b.Run("sprintf foobar", func(b *testing.B) {
+		operands := []*ast.Term{ast.InternedStringTerm("%s%s"), ast.ArrayTerm(foo, bar)}
+
+		for range b.N {
+			if err := builtinSprintf(bctx, operands, eqIter(expected)); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}
+
+func repeatTerm(t *ast.Term, n int) *ast.Term {
+	terms := make([]*ast.Term, 0, n)
+	for range n {
+		terms = append(terms, t)
+	}
+	return ast.ArrayTerm(terms...)
+}
+
+func BenchmarkSplitLenVsStringsCount(b *testing.B) {
+	str := "a.b.c.d.e"
+
+	b.Run("split len", func(b *testing.B) {
+		for range b.N {
+			if len(strings.Split(str, ".")) != 5 {
+				b.Fatal("expected 5 elements")
+			}
+		}
+	})
+
+	b.Run("strings count", func(b *testing.B) {
+		for range b.N {
+			if strings.Count(str, ".")+1 != 5 {
+				b.Fatal("expected 5 elements")
+			}
+		}
+	})
 }

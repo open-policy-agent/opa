@@ -9,17 +9,17 @@ OPA is proud to be a graduated project in the [Cloud Native Computing Foundation
 ## Get started with OPA
 
 - Write your first Rego policy with the [Rego Playground](https://play.openpolicyagent.org) or use it to share your work with others for feedback and support. Have a look at the [Access Control examples](https://play.openpolicyagent.org/?example-group=access-control) if you're not sure where to start.
-- Install the [VS Code extension](https://marketplace.visualstudio.com/items?itemName=tsandall.opa) to get started locally with live diagnostics, debugging and formatting. See [Editor and IDE Support](https://www.openpolicyagent.org/docs/edge/editor-and-ide-support/) for other supported editors.
+- Install the [VS Code extension](https://marketplace.visualstudio.com/items?itemName=tsandall.opa) to get started locally with live diagnostics, debugging and formatting. See [Editor and IDE Support](https://www.openpolicyagent.org/docs/editor-and-ide-support/) for other supported editors.
 - Go to the [OPA Documentation](https://www.openpolicyagent.org/docs/latest/) to
   learn about the Rego language as well as how to deploy and integrate OPA.
-- Check out the learning resources in the [Learning Rego](https://www.openpolicyagent.org/ecosystem/learning-rego/) section of the ecosystem directory.
+- Check out the learning resources in the [Learning Rego](https://www.openpolicyagent.org/ecosystem/by-feature/learning-rego/) section of the ecosystem directory.
 - Follow the [Running OPA](https://www.openpolicyagent.org/docs/latest/#running-opa) instructions to get started with the OPA CLI locally.
 - See [Docker Hub](https://hub.docker.com/r/openpolicyagent/opa/tags/) for container images and the [GitHub releases](https://github.com/open-policy-agent/opa/releases) for binaries.
 - Check out the [OPA Roadmap](https://docs.google.com/presentation/d/16QV6gvLDOV3I0_guPC3_19g6jHkEg3X9xqMYgtoCKrs/edit?usp=sharing) to see a high-level snapshot of OPA features in-progress and planned.
 
 ## Want to talk about OPA or get support?
 
-- Join the [OPA Slack](https://inviter.co/opa) to talk to other OPA users and maintainers. See `#help` for support.
+- Join the [OPA Slack](https://slack.openpolicyagent.org) to talk to other OPA users and maintainers. See `#help` for support.
 - Check out the [Community Discussions](https://github.com/orgs/open-policy-agent/discussions) to ask questions.
 - See the [Support](https://www.openpolicyagent.org/support/) page for commercial support options.
 
@@ -70,7 +70,12 @@ For example, in a simple API authorization use case:
 - OPA returns allow (or deny) decisions to your service.
 - Your service _enforces_ the decisions by accepting or rejecting requests accordingly.
 
-For concrete examples of how to integrate OPA with systems like [Kubernetes](https://www.openpolicyagent.org/docs/kubernetes-admission-control.html), [Terraform](https://www.openpolicyagent.org/docs/terraform.html), [Docker](https://www.openpolicyagent.org/docs/docker-authorization.html), [SSH](https://www.openpolicyagent.org/docs/ssh-and-sudo-authorization.html), and more, see [openpolicyagent.org](https://www.openpolicyagent.org).
+For concrete examples of how to integrate OPA with systems like
+[Kubernetes](https://www.openpolicyagent.org/docs/kubernetes),
+[Terraform](https://www.openpolicyagent.org/docs/terraform),
+[Docker](https://www.openpolicyagent.org/docs/docker-authorization),
+[SSH](https://www.openpolicyagent.org/docs/ssh-and-sudo-authorization),
+and more, see [openpolicyagent.org](https://www.openpolicyagent.org).
 
 ## Presentations
 

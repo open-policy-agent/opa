@@ -1,13 +1,13 @@
 ---
 title: Kubernetes Admission Control
+subtitle: Control cluster operations with Rego policies
 software:
 - kubernetes
 labels:
   category: containers
   layer: orchestration
 tutorials:
-- https://www.openpolicyagent.org/docs/kubernetes-admission-control.html
-- https://katacoda.com/austinheiman/scenarios/open-policy-agent-gatekeeper
+- "https://www.openpolicyagent.org/docs/kubernetes"
 code:
 - https://github.com/open-policy-agent/kube-mgmt
 - https://github.com/open-policy-agent/gatekeeper
@@ -94,4 +94,7 @@ docs_features:
       View a selection of projects and talks about integrating OPA with
       Kubernetes.
 ---
-Kubernetes automates deployment, scaling, and management of containerized applications.  OPA provides fine-grained, context-aware authorization for which application component configuration.
+
+Kubernetes automates deployment, scaling, and management of containerized
+applications. OPA provides fine-grained, context-aware authorization and
+admission control for clusters.

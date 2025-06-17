@@ -1,0 +1,36 @@
+.container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 1rem 0;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.container>* {
+    flex: 0 0 calc(50% - 0.25rem);
+    min-width: 0;
+    max-width: 100%;
+}
+
+.container>* :global(pre) {
+    overflow-x: auto;
+    white-space: pre;
+    word-wrap: normal;
+    max-width: 100%;
+    margin: 0;
+}
+
+.container>* :global(pre code) {
+    white-space: pre;
+    word-wrap: normal;
+    display: block;
+    overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+    }
+}

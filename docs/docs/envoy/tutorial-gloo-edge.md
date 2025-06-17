@@ -178,9 +178,10 @@ docker run --rm --name bundle-server -d -p 8888:80 -v ${PWD}:/usr/share/nginx/ht
 
 ### 6. Setup OPA-Envoy
 
-Create a deployment as shown below and save it in **deployments.yaml**
+Create a deployment as shown below:
 
-```yaml
+<EvergreenCodeBlock>
+```yaml title="deployments.yaml"
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -199,7 +200,7 @@ spec:
     spec:
       containers:
       - name: opa
-        image: openpolicyagent/opa:{{< current_opa_envoy_docker_version >}}
+        image: openpolicyagent/opa:{{ current_version_docker_envoy }}
         volumeMounts:
         - readOnly: true
           mountPath: /policy
@@ -218,6 +219,7 @@ spec:
       volumes:
       - name: opa-policy
 ```
+</EvergreenCodeBlock>
 
 ```bash
 kubectl apply -f deployments.yaml

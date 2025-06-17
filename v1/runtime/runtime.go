@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	mr "math/rand"
+	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
@@ -23,7 +24,6 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/gorilla/mux"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/propagation"
@@ -215,8 +215,8 @@ type Params struct {
 
 	// Router is the router to which handlers for the REST API are added.
 	// Router uses a first-matching-route-wins strategy, so no existing routes are overridden
-	// If it is nil, a new mux.Router will be created
-	Router *mux.Router
+	// If it is nil, a new http.ServeMux will be created
+	Router *http.ServeMux
 
 	// DiskStorage, if set, will make the runtime instantiate a disk-backed storage
 	// implementation (instead of the default, in-memory store).
@@ -399,7 +399,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	}
 
 	if params.Router == nil {
-		params.Router = mux.NewRouter()
+		params.Router = http.NewServeMux()
 	}
 
 	metricsConfig, parseConfigErr := extractMetricsConfig(config, params)

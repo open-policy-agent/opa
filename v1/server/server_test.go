@@ -41,8 +41,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
 
-	"github.com/gorilla/mux"
-
 	"github.com/open-policy-agent/opa/internal/distributedtracing"
 	"github.com/open-policy-agent/opa/internal/prometheus"
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -3363,7 +3361,7 @@ func TestDataProvenanceMultiBundle(t *testing.T) {
 func TestDataMetricsEval(t *testing.T) {
 	t.Parallel()
 
-	// These tests all use the POST /v1/data API with ?metrics appended.
+	// These tests all use the /v1/data API with ?metrics appended.
 	// We're setting up the disk store because that injects a few extra metrics,
 	// which storage/inmem does not.
 
@@ -3379,7 +3377,7 @@ func TestDataMetricsEval(t *testing.T) {
 		f := newFixtureWithStore(t, disk)
 
 		// Make a request to evaluate `data`
-		testDataMetrics(t, f, "/data?metrics", []string{
+		testDataMetrics(t, f, http.MethodPost, "/data?metrics", "", []string{
 			"counter_server_query_cache_hit",
 			"counter_disk_read_keys",
 			"counter_disk_read_bytes",
@@ -3393,23 +3391,50 @@ func TestDataMetricsEval(t *testing.T) {
 
 		// Repeat previous request, expect to have hit the query cache
 		// so fewer timers should have been reported.
-		testDataMetrics(t, f, "/data?metrics", []string{
+		testDataMetrics(t, f, http.MethodPost, "/data?metrics", "", []string{
 			"counter_server_query_cache_hit",
 			"counter_disk_read_keys",
 			"counter_disk_read_bytes",
+			"timer_disk_read_ns",
+			"timer_rego_external_resolve_ns",
 			"timer_rego_input_parse_ns",
 			"timer_rego_query_eval_ns",
 			"timer_server_handler_ns",
+		})
+
+		// Exercise the PUT, PATCH, and DELETE endpoints.
+		testDataMetrics(t, f, http.MethodPut, "/data/example?metrics", "{}", []string{
+			"counter_disk_read_keys",
+			"counter_disk_written_keys",
+			"timer_disk_commit_ns",
 			"timer_disk_read_ns",
-			"timer_rego_external_resolve_ns",
+			"timer_disk_write_ns",
+			"timer_rego_input_parse_ns",
+			"timer_server_handler_ns",
+		})
+
+		testDataMetrics(t, f, http.MethodPatch, "/data/example?metrics", "[]", []string{
+			"timer_disk_commit_ns",
+			"timer_rego_input_parse_ns",
+			"timer_server_handler_ns",
+		})
+
+		testDataMetrics(t, f, http.MethodDelete, "/data/example?metrics", "{}", []string{
+			"counter_disk_deleted_keys",
+			"counter_disk_read_keys",
+			"counter_disk_read_bytes",
+			"timer_disk_commit_ns",
+			"timer_disk_read_ns",
+			"timer_disk_write_ns",
+			"timer_server_handler_ns",
 		})
 	})
 }
 
-func testDataMetrics(t *testing.T, f *fixture, url string, expected []string) {
+func testDataMetrics(t *testing.T, f *fixture, method string, url string, payload string, expected []string) {
 	t.Helper()
 	f.reset()
-	req := newReqV1(http.MethodPost, url, "")
+	req := newReqV1(method, url, payload)
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
 	var result types.DataResponseV1
@@ -5381,6 +5406,14 @@ func (f *fixture) executeRequestForHandler(h http.Handler, req *http.Request, co
 		return fmt.Errorf("Expected code %v from %v %v but got: %+v", code, req.Method, req.URL, f.recorder)
 	}
 	if resp != "" {
+		body := f.recorder.Body.String()
+		if resp == body {
+			// Early return on exact match as we can avoid the cost of uunmarshalling
+			// both the expected and actual response in that case. This is particularly
+			// useful for benchmarks where you only want to measure server-sider handling.
+			return nil
+		}
+
 		var result any
 		if err := util.UnmarshalJSON(f.recorder.Body.Bytes(), &result); err != nil {
 			return fmt.Errorf("Expected JSON response from %v %v but got: %v", req.Method, req.URL, f.recorder)
@@ -5767,8 +5800,8 @@ func TestMixedAddrTypes(t *testing.T) {
 func TestCustomRoute(t *testing.T) {
 	t.Parallel()
 
-	router := mux.NewRouter()
-	router.HandleFunc("/customEndpoint", func(w http.ResponseWriter, _ *http.Request) {
+	router := http.NewServeMux()
+	router.HandleFunc("GET /customEndpoint", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"myCustomResponse": true}`)) // ignore error
 	})
 	f := newFixture(t, func(server *Server) {
@@ -6318,6 +6351,10 @@ func TestCertPoolReloading(t *testing.T) {
 }
 
 func TestCertReloading(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	t.Parallel()
 
 	ctx := context.Background()

@@ -31,10 +31,13 @@ version 1.20+, we recommend using [minikube](https://kubernetes.io/docs/getting-
 
 ### 1. Enable recommended Kubernetes Admission Controllers
 
-To implement admission control rules that validate Kubernetes resources during create, update, and delete operations,
-you must enable the [ValidatingAdmissionWebhook](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#validatingadmissionwebhook)
-when the Kubernetes API server is started. The ValidatingAdmissionWebhook admission controller is included in
-the [recommended set of admission controllers to enable](https://kubernetes.io/docs/admin/admission-controllers/#is-there-a-recommended-set-of-admission-controllers-to-use)
+To implement admission control rules that validate Kubernetes resources during
+create, update, and delete operations, you must enable the
+[ValidatingAdmissionWebhook](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#validatingadmissionwebhook)
+when the Kubernetes API server is started. The ValidatingAdmissionWebhook
+admission controller is included in the
+[recommended set of admission controllers](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#is-there-a-recommended-set-of-admission-controllers-to-use)
+to enable.
 
 Start minikube:
 
@@ -244,7 +247,8 @@ docker run --rm --name bundle-server -d -p 8888:80 -v ${PWD}:/usr/share/nginx/ht
 
 Next, use the file below to deploy OPA as an admission controller.
 
-```yaml title="admission-controller.yaml"
+<EvergreenCodeBlock>
+```
 # Grant OPA/kube-mgmt read-only access to resources. This lets kube-mgmt
 # replicate resources into OPA so they can be used in policies.
 kind: ClusterRoleBinding
@@ -325,7 +329,7 @@ spec:
       # authentication and authorization on the daemon. See the Security page for
       # details: https://www.openpolicyagent.org/docs/security.html.
       - name: opa
-        image: openpolicyagent/opa:{{< current_docker_version >}}
+        image: openpolicyagent/opa:{{ current_version_docker }}
         args:
         - "run"
         - "--server"
@@ -357,7 +361,7 @@ spec:
           initialDelaySeconds: 3
           periodSeconds: 5
       - name: kube-mgmt
-        image: openpolicyagent/kube-mgmt:2.0.1
+        image: openpolicyagent/kube-mgmt:{{ current_version_kube_mgmt }}
         args:
         - "--replicate-cluster=v1/namespaces"
         - "--replicate=networking.k8s.io/v1/ingresses"
@@ -366,6 +370,7 @@ spec:
         secret:
           secretName: opa-server
 ```
+</EvergreenCodeBlock>
 
 > ⚠️ If using `kind` to run a local Kubernetes cluster, the bundle service URL should be `http://host.docker.internal:8888`.
 

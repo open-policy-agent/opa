@@ -447,7 +447,7 @@ bucket_is_private if {
 Note how we no longer need the `bucket_create_or_update` rule, as that is already asserted by the main policy.
 Quite an improvement in terms of readability, and a good foundation for further policy authoring. If you'd like to see
 more examples of policy utilizing this pattern, check out the
-[policy directory](https://github.com/StyraInc/opa-aws-cloudformation-hook/tree/main/policy) in the OPA AWS
+[policy directory](https://github.com/StyraInc/opa-aws-cloudformation-hook/tree/main/examples/policy) in the OPA AWS
 CloudFormation Hook repo.
 
 ### OPA Authentication via AWS Secrets

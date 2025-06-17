@@ -676,8 +676,8 @@ func (num Number) Equal(other Value) bool {
 	case Number:
 		if n1, ok1 := num.Int64(); ok1 {
 			n2, ok2 := other.Int64()
-			if ok1 && ok2 && n1 == n2 {
-				return true
+			if ok1 && ok2 {
+				return n1 == n2
 			}
 		}
 
@@ -1232,15 +1232,15 @@ func (ref Ref) OutputVars() VarSet {
 }
 
 func (ref Ref) toArray() *Array {
-	a := NewArray()
+	terms := make([]*Term, 0, len(ref))
 	for _, term := range ref {
 		if _, ok := term.Value.(String); ok {
-			a = a.Append(term)
+			terms = append(terms, term)
 		} else {
-			a = a.Append(StringTerm(term.Value.String()))
+			terms = append(terms, InternedStringTerm(term.Value.String()))
 		}
 	}
-	return a
+	return NewArray(terms...)
 }
 
 // QueryIterator defines the interface for querying AST documents with references.
@@ -1644,6 +1644,10 @@ func (s *set) Find(path Ref) (Value, error) {
 
 // Diff returns elements in s that are not in other.
 func (s *set) Diff(other Set) Set {
+	if s.Compare(other) == 0 {
+		return NewSet()
+	}
+
 	terms := make([]*Term, 0, len(s.keys))
 	for _, term := range s.sortedKeys() {
 		if !other.Contains(term) {
@@ -2767,7 +2771,7 @@ func filterObject(o Value, filter Value) (Value, error) {
 	case *Array:
 		values := NewArray()
 		for i := range v.Len() {
-			subFilter := filteredObj.Get(StringTerm(strconv.Itoa(i)))
+			subFilter := filteredObj.Get(InternedIntegerString(i))
 			if subFilter != nil {
 				filteredValue, err := filterObject(v.Elem(i).Value, subFilter.Value)
 				if err != nil {

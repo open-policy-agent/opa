@@ -1,0 +1,165 @@
+.wrapper {
+	margin-top: 1rem;
+}
+
+.section {
+	margin-top: 0.5rem;
+}
+
+.button {
+	opacity: 0.8;
+	width: 10rem;
+	height: 3rem;
+	border: 0.3rem solid var(--ifm-color-emphasis-300);
+	border-radius: 0.2rem;
+	background: none;
+	cursor: pointer;
+	font-size: 1.5rem;
+	color: var(--ifm-font-color-base);
+}
+
+.button:hover {
+	opacity: 1;
+}
+
+.positive {
+	color: var(--ifm-color-success);
+	border-color: var(--ifm-color-success);
+}
+
+.negative {
+	color: var(--ifm-color-danger);
+	border-color: var(--ifm-color-danger);
+}
+
+.comment textarea {
+	width: 100%;
+	font-size: 1rem;
+	max-width: 25rem;
+	border-radius: 0.2rem;
+	border: 1px solid var(--ifm-color-emphasis-300);
+	padding: 0.5rem 0.5rem;
+	box-sizing: border-box;
+	background-color: var(--ifm-background-color);
+	color: var(--ifm-font-color-base);
+}
+
+.email div {
+	width: 100%;
+	display: inline-block;
+	max-width: 25rem;
+}
+
+.email div:first-child {
+	/* Removing padding-right to match widths */
+}
+
+.email input {
+	padding: 0.5rem 0.5rem;
+	font-size: 1rem;
+	width: 100%;
+	max-width: 25rem;
+	border-radius: 0.2rem;
+	border: 1px solid var(--ifm-color-emphasis-300);
+	box-sizing: border-box;
+	background-color: var(--ifm-background-color);
+	color: var(--ifm-font-color-base);
+}
+
+.note {
+	font-size: 0.8rem;
+}
+
+.popup {
+	position: fixed;
+	bottom: 1.25rem;
+	right: 1.25rem;
+	background: var(--ifm-background-color);
+	border-radius: 0.5rem;
+	box-shadow: 0 0.125rem 0.625rem rgba(0, 0, 0, 0.1);
+	padding: 1rem;
+	z-index: 1000;
+	max-width: 18.75rem;
+	border: 1px solid var(--ifm-color-emphasis-300);
+}
+
+.closeButton {
+	position: absolute;
+	top: 0.5rem;
+	right: 0.5rem;
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 0.25rem;
+	opacity: 0.6;
+	color: var(--ifm-font-color-base);
+}
+
+.closeButton:hover {
+	opacity: 1;
+}
+
+.popup-content {
+	text-align: center;
+	padding-top: 1rem;
+}
+
+.popup-content p {
+	margin: 0 0 0.75rem 0;
+	font-size: 0.875rem;
+}
+
+.popup-buttons {
+	display: flex;
+	gap: 0.5rem;
+	justify-content: center;
+}
+
+.popup-buttons .button {
+	width: auto;
+	height: auto;
+	padding: 0.5rem;
+	border-width: 0.125rem;
+}
+
+@media (max-width: 768px) {
+	.popup {
+		bottom: 0.75rem;
+		right: 0.75rem;
+		padding: 0.75rem;
+		max-width: 12.5rem;
+	}
+
+	.closeButton {
+		top: 0.25rem;
+		right: 0.25rem;
+		padding: 0.125rem;
+	}
+
+	.closeButton svg {
+		width: 1.25rem;
+		height: 1.25rem;
+	}
+
+	.popup-content {
+		padding-top: 0.75rem;
+	}
+
+	.popup-content p {
+		font-size: 0.75rem;
+		margin: 0 0 0.5rem 0;
+	}
+
+	.popup-buttons {
+		gap: 0.25rem;
+	}
+
+	.popup-buttons .button {
+		padding: 0.375rem;
+	}
+
+	.popup-buttons .button svg {
+		width: 1.25rem;
+		height: 1.25rem;
+	}
+}
