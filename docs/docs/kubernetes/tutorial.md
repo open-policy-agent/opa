@@ -247,7 +247,8 @@ docker run --rm --name bundle-server -d -p 8888:80 -v ${PWD}:/usr/share/nginx/ht
 
 Next, use the file below to deploy OPA as an admission controller.
 
-```yaml title="admission-controller.yaml"
+<EvergreenCodeBlock>
+```
 # Grant OPA/kube-mgmt read-only access to resources. This lets kube-mgmt
 # replicate resources into OPA so they can be used in policies.
 kind: ClusterRoleBinding
@@ -328,7 +329,7 @@ spec:
       # authentication and authorization on the daemon. See the Security page for
       # details: https://www.openpolicyagent.org/docs/security.html.
       - name: opa
-        image: openpolicyagent/opa:{{< current_docker_version >}}
+        image: openpolicyagent/opa:{{ current_version_docker }}
         args:
         - "run"
         - "--server"
@@ -360,7 +361,7 @@ spec:
           initialDelaySeconds: 3
           periodSeconds: 5
       - name: kube-mgmt
-        image: openpolicyagent/kube-mgmt:2.0.1
+        image: openpolicyagent/kube-mgmt:{{ current_version_kube_mgmt }}
         args:
         - "--replicate-cluster=v1/namespaces"
         - "--replicate=networking.k8s.io/v1/ingresses"
@@ -369,6 +370,7 @@ spec:
         secret:
           secretName: opa-server
 ```
+</EvergreenCodeBlock>
 
 > ⚠️ If using `kind` to run a local Kubernetes cluster, the bundle service URL should be `http://host.docker.internal:8888`.
 

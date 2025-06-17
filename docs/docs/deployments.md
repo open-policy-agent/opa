@@ -174,9 +174,8 @@ Next, create a Deployment to run OPA. The ConfigMap containing the policy is
 volume mounted into the container. This allows OPA to load the policy from
 the file system.
 
-**deployment-opa.yaml**:
-
-```yaml
+<EvergreenCodeBlock>
+```yaml title="deployment-opa.yaml"
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -196,7 +195,7 @@ spec:
     spec:
       containers:
       - name: opa
-        image: openpolicyagent/opa:{{< current_docker_version >}}
+        image: openpolicyagent/opa:{{ current_version_docker }}
         ports:
         - name: http
           containerPort: 8181
@@ -214,6 +213,7 @@ spec:
         configMap:
           name: example-policy
 ```
+</EvergreenCodeBlock>
 
 ```bash
 kubectl create -f deployment-opa.yaml
@@ -276,10 +276,11 @@ OPA exposes a `/health` API endpoint that you can configure Kubernetes
 [Readiness and Liveness Probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/)
 to call. For example:
 
+<EvergreenCodeBlock>
 ```yaml
 containers:
 - name: opa
-  image: openpolicyagent/opa:{{< current_docker_version >}}
+  image: openpolicyagent/opa:{{ current_version_docker }}
   ports:
   - name: http
     containerPort: 8181
@@ -307,6 +308,7 @@ containers:
     initialDelaySeconds: 5
     periodSeconds: 5
 ```
+</EvergreenCodeBlock>
 
 See the [Health API](./rest-api#health-api) documentation for more detail on the `/health` API endpoint.
 
