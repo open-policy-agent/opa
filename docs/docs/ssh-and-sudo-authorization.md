@@ -46,13 +46,12 @@ with OPA. The dummy SSH hosts are just containers running sshd inside.
 First, create a `tutorial-docker-compose.yaml` file that runs OPA and the containers that
 represent our backend and frontend hosts.
 
-**tutorial-docker-compose.yaml**:
-
-```yaml
+<EvergreenCodeBlock>
+```yaml title="tutorial-docker-compose.yaml"
 version: "2"
 services:
   opa:
-    image: openpolicyagent/opa:{{< current_docker_version >}}
+    image: openpolicyagent/opa:{{ current_version_docker }}
     ports:
     - "8181:8181"
     # WARNING: OPA is NOT running with an authorization policy configured. This
@@ -88,6 +87,7 @@ services:
     volumes:
     - ./bundles:/usr/share/nginx/html/bundles
 ```
+</EvergreenCodeBlock>
 
 The `tutorial-docker-compose.yaml` file requires two other local files:
 `frontend_host_id.json` and `backend_host_id.json`. These files are mounted

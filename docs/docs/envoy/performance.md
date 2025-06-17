@@ -110,9 +110,10 @@ layered_runtime:
 
 Now let's deploy OPA as an External Authorization server. Below is a sample configuration for the OPA-Envoy container:
 
+<EvergreenCodeBlock>
 ```yaml
 containers:
-- image: openpolicyagent/opa:{{< current_opa_envoy_docker_version >}}
+- image: openpolicyagent/opa:{{ current_version_docker_envoy }}
   imagePullPolicy: IfNotPresent
   name: opa
   resources:
@@ -140,6 +141,7 @@ containers:
       path: /health?plugins
       port: 8282
 ```
+</EvergreenCodeBlock>
 
 > 💡 Consider specifying CPU and memory resource requests and limits for the OPA and other containers to prevent
 > deployments from resource starvation.
