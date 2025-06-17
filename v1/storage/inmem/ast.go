@@ -1,17 +1,12 @@
-// Copyright 2024 The OPA Authors.  All rights reserved.
-// Use of this source code is governed by an Apache2
-// license that can be found in the LICENSE file.
-
 package inmem
 
 import (
 	"fmt"
 	"strconv"
+	"sync"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/storage"
-	"github.com/open-policy-agent/opa/v1/storage/internal/errors"
-	"github.com/open-policy-agent/opa/v1/storage/internal/ptr"
 )
 
 type updateAST struct {
@@ -76,7 +71,7 @@ func newUpdateAST(data any, op storage.PatchOp, path storage.Path, idx int, valu
 
 	switch data.(type) {
 	case ast.Null, ast.Boolean, ast.Number, ast.String:
-		return nil, errors.NewNotFoundError(path)
+		return nil, NewNotFoundError(path)
 	}
 
 	switch data := data.(type) {
@@ -93,59 +88,111 @@ func newUpdateAST(data any, op storage.PatchOp, path storage.Path, idx int, valu
 	}
 }
 
-func newUpdateArrayAST(data *ast.Array, op storage.PatchOp, path storage.Path, idx int, value ast.Value) (*updateAST, error) {
+// Pool for reusing term slices
+var termSlicePool = sync.Pool{
+	New: func() interface{} {
+		s := make([]*ast.Term, 0, 16)
+		return &s
+	},
+}
 
+func newUpdateArrayAST(data *ast.Array, op storage.PatchOp, path storage.Path, idx int, value ast.Value) (*updateAST, error) {
 	if idx == len(path)-1 {
 		if path[idx] == "-" || path[idx] == strconv.Itoa(data.Len()) {
 			if op != storage.AddOp {
 				return nil, invalidPatchError("%v: invalid patch path", path)
 			}
-
 			cpy := data.Append(ast.NewTerm(value))
 			return &updateAST{path[:len(path)-1], false, cpy}, nil
 		}
 
-		pos, err := ptr.ValidateASTArrayIndex(data, path[idx], path)
+		pos, err := ValidateASTArrayIndex(data, path[idx], path)
 		if err != nil {
 			return nil, err
 		}
 
 		switch op {
 		case storage.AddOp:
-			var results []*ast.Term
-			for i := range data.Len() {
+			resultsPtr := termSlicePool.Get().(*[]*ast.Term)
+			*resultsPtr = (*resultsPtr)[:0] // Reset length
+
+			desiredCap := data.Len() + 1
+			if cap(*resultsPtr) < desiredCap {
+				*resultsPtr = make([]*ast.Term, 0, desiredCap)
+			}
+			results := *resultsPtr
+
+
+			for i := 0; i < data.Len(); i++ {
 				if i == pos {
 					results = append(results, ast.NewTerm(value))
 				}
 				results = append(results, data.Elem(i))
 			}
+			*resultsPtr = results
 
-			return &updateAST{path[:len(path)-1], false, ast.NewArray(results...)}, nil
+			// Create final slice of required size
+			finalResults := make([]*ast.Term, len(*resultsPtr))
+			copy(finalResults, *resultsPtr)
+			termSlicePool.Put(resultsPtr)
+
+			return &updateAST{path[:len(path)-1], false, ast.NewArray(finalResults...)}, nil
 
 		case storage.RemoveOp:
-			var results []*ast.Term
-			for i := range data.Len() {
+			if data.Len() <= 1 {
+				return &updateAST{path[:len(path)-1], false, ast.NewArray()}, nil
+			}
+
+			resultsPtr := termSlicePool.Get().(*[]*ast.Term)
+			*resultsPtr = (*resultsPtr)[:0] // Reset length
+
+			desiredCap := data.Len() - 1
+			if cap(*resultsPtr) < desiredCap {
+				*resultsPtr = make([]*ast.Term, 0, desiredCap)
+			}
+			results := *resultsPtr
+
+			for i := 0; i < data.Len(); i++ {
 				if i != pos {
 					results = append(results, data.Elem(i))
 				}
 			}
-			return &updateAST{path[:len(path)-1], false, ast.NewArray(results...)}, nil
+			*resultsPtr = results
 
-		default:
-			var results []*ast.Term
-			for i := range data.Len() {
+			finalResults := make([]*ast.Term, len(*resultsPtr))
+			copy(finalResults, *resultsPtr)
+			termSlicePool.Put(resultsPtr)
+
+			return &updateAST{path[:len(path)-1], false, ast.NewArray(finalResults...)}, nil
+
+		default: // ReplaceOp
+			resultsPtr := termSlicePool.Get().(*[]*ast.Term)
+			*resultsPtr = (*resultsPtr)[:0] // Reset length
+
+			desiredCap := data.Len()
+			if cap(*resultsPtr) < desiredCap {
+				*resultsPtr = make([]*ast.Term, 0, desiredCap)
+			}
+			results := *resultsPtr
+
+			for i := 0; i < data.Len(); i++ {
 				if i == pos {
 					results = append(results, ast.NewTerm(value))
 				} else {
 					results = append(results, data.Elem(i))
 				}
 			}
+			*resultsPtr = results
 
-			return &updateAST{path[:len(path)-1], false, ast.NewArray(results...)}, nil
+			finalResults := make([]*ast.Term, len(*resultsPtr))
+			copy(finalResults, *resultsPtr)
+			termSlicePool.Put(resultsPtr)
+
+			return &updateAST{path[:len(path)-1], false, ast.NewArray(finalResults...)}, nil
 		}
 	}
 
-	pos, err := ptr.ValidateASTArrayIndex(data, path[idx], path)
+	pos, err := ValidateASTArrayIndex(data, path[idx], path)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +208,7 @@ func newUpdateObjectAST(data ast.Object, op storage.PatchOp, path storage.Path, 
 		switch op {
 		case storage.ReplaceOp, storage.RemoveOp:
 			if val == nil {
-				return nil, errors.NewNotFoundError(path)
+				return nil, NewNotFoundError(path)
 			}
 		}
 		return &updateAST{path, op == storage.RemoveOp, value}, nil
@@ -171,7 +218,7 @@ func newUpdateObjectAST(data ast.Object, op storage.PatchOp, path storage.Path, 
 		return newUpdateAST(val.Value, op, path, idx+1, value)
 	}
 
-	return nil, errors.NewNotFoundError(path)
+	return nil, NewNotFoundError(path)
 }
 
 func interfaceToValue(v any) (ast.Value, error) {
@@ -259,13 +306,16 @@ func removeInAstObject(obj ast.Object, path storage.Path) (ast.Value, error) {
 	key := ast.InternedStringTerm(path[0])
 
 	if len(path) == 1 {
-		var items [][2]*ast.Term
-		// Note: possibly expensive operation for large data.
+		if obj.Len() <= 1 {
+			return ast.NewObject(), nil
+		}
+
+		// Optimized deletion with size pre-estimation
+		items := make([][2]*ast.Term, 0, obj.Len()-1)
 		obj.Foreach(func(k *ast.Term, v *ast.Term) {
-			if k.Equal(key) {
-				return
+			if !k.Equal(key) {
+				items = append(items, [2]*ast.Term{k, v})
 			}
-			items = append(items, [2]*ast.Term{k, v})
 		})
 		return ast.NewObject(items...), nil
 	}
@@ -284,24 +334,39 @@ func removeInAstObject(obj ast.Object, path storage.Path) (ast.Value, error) {
 func removeInAstArray(arr *ast.Array, path storage.Path) (ast.Value, error) {
 	idx, err := strconv.Atoi(path[0])
 	if err != nil {
-		// We expect the path to be valid at this point.
-		return arr, nil
+		return arr, nil // Path component is not an int, cannot be an array index.
 	}
 
 	if idx < 0 || idx >= arr.Len() {
-		return arr, err
+		return arr, nil // Index out of bounds.
 	}
 
 	if len(path) == 1 {
-		var elems []*ast.Term
-		// Note: possibly expensive operation for large data.
-		for i := range arr.Len() {
-			if i == idx {
-				continue
-			}
-			elems = append(elems, arr.Elem(i))
+		if arr.Len() <= 1 {
+			return ast.NewArray(), nil
 		}
-		return ast.NewArray(elems...), nil
+
+		elemsPtr := termSlicePool.Get().(*[]*ast.Term)
+		*elemsPtr = (*elemsPtr)[:0] // Reset length
+
+		desiredCap := arr.Len() - 1
+		if cap(*elemsPtr) < desiredCap {
+			*elemsPtr = make([]*ast.Term, 0, desiredCap)
+		}
+		elems := *elemsPtr
+
+		for i := 0; i < arr.Len(); i++ {
+			if i != idx {
+				elems = append(elems, arr.Elem(i))
+			}
+		}
+		*elemsPtr = elems
+
+		finalElems := make([]*ast.Term, len(*elemsPtr))
+		copy(finalElems, *elemsPtr)
+		termSlicePool.Put(elemsPtr)
+
+		return ast.NewArray(finalElems...), nil
 	}
 
 	updatedChild, err := removeInAst(arr.Elem(idx).Value, path[1:])

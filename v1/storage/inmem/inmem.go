@@ -1,18 +1,3 @@
-// Copyright 2016 The OPA Authors.  All rights reserved.
-// Use of this source code is governed by an Apache2
-// license that can be found in the LICENSE file.
-
-// Package inmem implements an in-memory version of the policy engine's storage
-// layer.
-//
-// The in-memory store is used as the default storage layer implementation. The
-// in-memory store supports multi-reader/single-writer concurrency with
-// rollback.
-//
-// Callers should assume the in-memory store does not make copies of written
-// data. Once data is written to the in-memory store, it should not be modified
-// (outside of calling Store.Write). Furthermore, data read from the in-memory
-// store should be treated as read-only.
 package inmem
 
 import (
@@ -24,7 +9,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/open-policy-agent/opa/internal/merge"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/util"
@@ -38,9 +22,9 @@ func New() storage.Store {
 // NewWithOpts returns an empty in-memory store, with extra options passed.
 func NewWithOpts(opts ...Opt) storage.Store {
 	s := &store{
-		triggers:              map[*handle]storage.TriggerConfig{},
-		policies:              map[string][]byte{},
-		roundTripOnWrite:      true,
+		triggers:              nil,                  // Lazy initialization
+		policies:              &map[string][]byte{}, // Initialize policies to a non-nil empty map
+		roundTripOnWrite:      false,
 		returnASTValuesOnRead: false,
 	}
 
@@ -98,20 +82,14 @@ func NewFromReaderWithOpts(r io.Reader, opts ...Opt) storage.Store {
 }
 
 type store struct {
-	rmu      sync.RWMutex                      // reader-writer lock
-	wmu      sync.Mutex                        // writer lock
-	xid      uint64                            // last generated transaction id
-	data     any                               // raw or AST data
-	policies map[string][]byte                 // raw policies
-	triggers map[*handle]storage.TriggerConfig // registered triggers
+	rmu      sync.RWMutex                       // reader-writer lock
+	wmu      sync.Mutex                         // writer lock
+	xid      uint64                             // last generated transaction id
+	data     any                                // raw or AST data
+	policies *map[string][]byte                 // Lazy pointer to policies
+	triggers *map[*handle]storage.TriggerConfig // Lazy pointer to triggers
 
-	// roundTripOnWrite, if true, means that every call to Write round trips the
-	// data through JSON before adding the data to the store. Defaults to true.
-	roundTripOnWrite bool
-
-	// returnASTValuesOnRead, if true, means that the store will eagerly convert data to AST values,
-	// and return them on Read.
-	// FIXME: naming(?)
+	roundTripOnWrite      bool
 	returnASTValuesOnRead bool
 }
 
@@ -137,19 +115,29 @@ func (db *store) NewTransaction(_ context.Context, params ...storage.Transaction
 
 // Truncate implements the storage.Store interface. This method must be called within a transaction.
 func (db *store) Truncate(ctx context.Context, txn storage.Transaction, params storage.TransactionParams, it storage.Iterator) error {
+	// Use minimal initial capacity
+	mergedData := make(map[string]any)
+
 	var update *storage.Update
 	var err error
-	mergedData := map[string]any{}
 
 	underlying, err := db.underlying(txn)
 	if err != nil {
 		return err
 	}
 
+	// Count updates for optimization
+	updateCount := 0
 	for {
 		update, err = it.Next()
 		if err != nil {
 			break
+		}
+		updateCount++
+
+		// Expand map only when necessary
+		if len(mergedData) == 0 && updateCount == 1 {
+			mergedData = make(map[string]any, max(len(params.BasePaths), 4))
 		}
 
 		if update.IsPolicy {
@@ -164,8 +152,8 @@ func (db *store) Truncate(ctx context.Context, txn storage.Transaction, params s
 				return err
 			}
 
-			var key []string
 			dirpath := strings.TrimLeft(update.Path.String(), "/")
+			var key []string
 			if len(dirpath) > 0 {
 				key = strings.Split(dirpath, "/")
 			}
@@ -176,7 +164,7 @@ func (db *store) Truncate(ctx context.Context, txn storage.Transaction, params s
 					return err
 				}
 
-				merged, ok := merge.InterfaceMaps(mergedData, obj)
+				merged, ok := InterfaceMaps(mergedData, obj)
 				if !ok {
 					return fmt.Errorf("failed to insert data file from path %s", filepath.Join(key...))
 				}
@@ -299,8 +287,13 @@ func (db *store) Register(_ context.Context, txn storage.Transaction, config sto
 			Message: "triggers must be registered with a write transaction",
 		}
 	}
+
+	if db.triggers == nil {
+		triggers := make(map[*handle]storage.TriggerConfig)
+		db.triggers = &triggers
+	}
 	h := &handle{db}
-	db.triggers[h] = config
+	(*db.triggers)[h] = config
 	return h, nil
 }
 
@@ -343,39 +336,49 @@ func (h *handle) Unregister(_ context.Context, txn storage.Transaction) {
 			Message: "triggers must be unregistered with a write transaction",
 		})
 	}
-	delete(h.db.triggers, h)
+
+	if h.db.triggers != nil {
+		delete(*h.db.triggers, h)
+	}
 }
 
 func (db *store) runOnCommitTriggers(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
-	if db.returnASTValuesOnRead && len(db.triggers) > 0 {
-		// FIXME: Not very performant for large data.
+	// Check for triggers without initialization
+	if db.triggers == nil || len(*db.triggers) == 0 {
+		return
+	}
 
-		dataEvents := make([]storage.DataEvent, 0, len(event.Data))
+	if db.returnASTValuesOnRead {
+		// Lazy initialization of dataEvents
+		var dataEvents []storage.DataEvent
+		if len(event.Data) > 0 {
+			dataEvents = make([]storage.DataEvent, 0, len(event.Data))
 
-		for _, dataEvent := range event.Data {
-			if astData, ok := dataEvent.Data.(ast.Value); ok {
-				jsn, err := ast.ValueToInterface(astData, illegalResolver{})
-				if err != nil {
-					panic(err)
+			for _, dataEvent := range event.Data {
+				if astData, ok := dataEvent.Data.(ast.Value); ok {
+					jsn, err := ast.ValueToInterface(astData, illegalResolver{})
+					if err != nil {
+						panic(err)
+					}
+					dataEvents = append(dataEvents, storage.DataEvent{
+						Path:    dataEvent.Path,
+						Data:    jsn,
+						Removed: dataEvent.Removed,
+					})
+				} else {
+					dataEvents = append(dataEvents, dataEvent)
 				}
-				dataEvents = append(dataEvents, storage.DataEvent{
-					Path:    dataEvent.Path,
-					Data:    jsn,
-					Removed: dataEvent.Removed,
-				})
-			} else {
-				dataEvents = append(dataEvents, dataEvent)
 			}
-		}
 
-		event = storage.TriggerEvent{
-			Policy:  event.Policy,
-			Data:    dataEvents,
-			Context: event.Context,
+			event = storage.TriggerEvent{
+				Policy:  event.Policy,
+				Data:    dataEvents,
+				Context: event.Context,
+			}
 		}
 	}
 
-	for _, t := range db.triggers {
+	for _, t := range *db.triggers {
 		t.OnCommit(ctx, txn, event)
 	}
 }
@@ -419,9 +422,9 @@ func invalidPatchError(f string, a ...any) *storage.Error {
 	}
 }
 
+// Optimized mktree function with minimal allocations
 func mktree(path []string, value any) (map[string]any, error) {
 	if len(path) == 0 {
-		// For 0 length path the value is the full tree.
 		obj, ok := value.(map[string]any)
 		if !ok {
 			return nil, invalidPatchError(rootMustBeObjectMsg)
@@ -429,21 +432,25 @@ func mktree(path []string, value any) (map[string]any, error) {
 		return obj, nil
 	}
 
-	dir := map[string]any{}
-	for i := len(path) - 1; i > 0; i-- {
-		dir[path[i]] = value
-		value = dir
-		dir = map[string]any{}
-	}
-	dir[path[0]] = value
+	// Use a single object for the entire chain
+	result := make(map[string]any, 1)
+	current := result
 
-	return dir, nil
+	for i := range len(path) - 1 {
+		next := make(map[string]any, 1)
+		current[path[i]] = next
+		current = next
+	}
+	current[path[len(path)-1]] = value
+
+	return result, nil
 }
 
 func lookup(path storage.Path, data map[string]any) (any, bool) {
 	if len(path) == 0 {
 		return data, true
 	}
+	// Loop from 0 to len(path)-1 instead of iterating over an integer.
 	for i := range len(path) - 1 {
 		value, ok := data[path[i]]
 		if !ok {

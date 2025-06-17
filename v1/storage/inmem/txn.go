@@ -1,7 +1,3 @@
-// Copyright 2017 The OPA Authors.  All rights reserved.
-// Use of this source code is governed by an Apache2
-// license that can be found in the LICENSE file.
-
 package inmem
 
 import (
@@ -9,11 +5,8 @@ import (
 	"encoding/json"
 	"strconv"
 
-	"github.com/open-policy-agent/opa/internal/deepcopy"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/storage"
-	"github.com/open-policy-agent/opa/v1/storage/internal/errors"
-	"github.com/open-policy-agent/opa/v1/storage/internal/ptr"
 )
 
 // transaction implements the low-level read/write operations on the in-memory
@@ -39,7 +32,7 @@ type transaction struct {
 	stale    bool
 	db       *store
 	updates  *list.List
-	policies map[string]policyUpdate
+	policies *map[string]policyUpdate // Lazy pointer
 	context  *storage.Context
 }
 
@@ -53,9 +46,17 @@ func newTransaction(xid uint64, write bool, context *storage.Context, db *store)
 		xid:      xid,
 		write:    write,
 		db:       db,
-		policies: map[string]policyUpdate{},
+		policies: nil, // Lazy initialization
 		updates:  list.New(),
 		context:  context,
+	}
+}
+
+// Lazy initialization of policies
+func (txn *transaction) initPolicies() {
+	if txn.policies == nil {
+		policies := make(map[string]policyUpdate, 2) // Start with small capacity
+		txn.policies = &policies
 	}
 }
 
@@ -85,7 +86,7 @@ func (txn *transaction) Write(op storage.PatchOp, path storage.Path, value any) 
 		if update.Path().Equal(path) {
 			if update.Remove() {
 				if op != storage.AddOp {
-					return errors.NewNotFoundError(path)
+					return NewNotFoundError(path)
 				}
 			}
 			txn.updates.Remove(curr)
@@ -106,7 +107,7 @@ func (txn *transaction) Write(op storage.PatchOp, path storage.Path, value any) 
 		// existing update is mutated.
 		if path.HasPrefix(update.Path()) {
 			if update.Remove() {
-				return errors.NewNotFoundError(path)
+				return NewNotFoundError(path)
 			}
 			suffix := path[len(update.Path()):]
 			newUpdate, err := txn.db.newUpdate(update.Value(), op, suffix, 0, value)
@@ -168,37 +169,46 @@ func (txn *transaction) updateRoot(op storage.PatchOp, value any) error {
 
 func (txn *transaction) Commit() (result storage.TriggerEvent) {
 	result.Context = txn.context
-	for curr := txn.updates.Front(); curr != nil; curr = curr.Next() {
-		action := curr.Value.(dataUpdate)
-		txn.db.data = action.Apply(txn.db.data)
 
-		result.Data = append(result.Data, storage.DataEvent{
-			Path:    action.Path(),
-			Data:    action.Value(),
-			Removed: action.Remove(),
-		})
-	}
-	for id, upd := range txn.policies {
-		if upd.remove {
-			delete(txn.db.policies, id)
-		} else {
-			txn.db.policies[id] = upd.value
+	// Optimized preallocation
+	if txn.updates.Len() > 0 {
+		result.Data = make([]storage.DataEvent, 0, txn.updates.Len())
+		for curr := txn.updates.Front(); curr != nil; curr = curr.Next() {
+			action := curr.Value.(dataUpdate)
+			txn.db.data = action.Apply(txn.db.data)
+			result.Data = append(result.Data, storage.DataEvent{
+				Path:    action.Path(),
+				Data:    action.Value(),
+				Removed: action.Remove(),
+			})
 		}
-
-		result.Policy = append(result.Policy, storage.PolicyEvent{
-			ID:      id,
-			Data:    upd.value,
-			Removed: upd.remove,
-		})
 	}
+
+	if txn.policies != nil && len(*txn.policies) > 0 {
+		result.Policy = make([]storage.PolicyEvent, 0, len(*txn.policies))
+		for id, upd := range *txn.policies {
+			if upd.remove {
+				delete(*txn.db.policies, id)
+			} else {
+				(*txn.db.policies)[id] = upd.value
+			}
+
+			result.Policy = append(result.Policy, storage.PolicyEvent{
+				ID:      id,
+				Data:    upd.value,
+				Removed: upd.remove,
+			})
+		}
+	}
+
 	return result
 }
 
 func pointer(v any, path storage.Path) (any, error) {
 	if v, ok := v.(ast.Value); ok {
-		return ptr.ValuePtr(v, path)
+		return ValuePtr(v, path)
 	}
-	return ptr.Ptr(v, path)
+	return Ptr(v, path)
 }
 
 func deepcpy(v any) any {
@@ -214,45 +224,47 @@ func deepcpy(v any) any {
 
 		return cpy
 	}
-	return deepcopy.DeepCopy(v)
+	return DeepCopy(v)
 }
 
 func (txn *transaction) Read(path storage.Path) (any, error) {
-
 	if !txn.write {
 		return pointer(txn.db.data, path)
 	}
 
 	var merge []dataUpdate
+	hasUpdates := false
 
 	for curr := txn.updates.Front(); curr != nil; curr = curr.Next() {
-
 		upd := curr.Value.(dataUpdate)
 
 		if path.HasPrefix(upd.Path()) {
 			if upd.Remove() {
-				return nil, errors.NewNotFoundError(path)
+				return nil, NewNotFoundError(path)
 			}
 			return pointer(upd.Value(), path[len(upd.Path()):])
 		}
 
 		if upd.Path().HasPrefix(path) {
+			if !hasUpdates {
+				// Lazy initialization only when necessary
+				merge = make([]dataUpdate, 0, 4) // Start with small capacity
+				hasUpdates = true
+			}
 			merge = append(merge, upd)
 		}
 	}
 
 	data, err := pointer(txn.db.data, path)
-
 	if err != nil {
 		return nil, err
 	}
 
-	if len(merge) == 0 {
+	if !hasUpdates {
 		return data, nil
 	}
 
 	cpy := deepcpy(data)
-
 	for _, update := range merge {
 		cpy = update.Relative(path).Apply(cpy)
 	}
@@ -261,31 +273,66 @@ func (txn *transaction) Read(path storage.Path) (any, error) {
 }
 
 func (txn *transaction) ListPolicies() []string {
-	var ids []string
-	for id := range txn.db.policies {
-		if _, ok := txn.policies[id]; !ok {
+	dbPolicyCount := len(*txn.db.policies)
+
+	// Optimized capacity estimation
+	var capacity int
+	if txn.policies != nil {
+		activeCount := 0
+		removedCount := 0
+		for _, update := range *txn.policies {
+			if update.remove {
+				removedCount++
+			} else {
+				activeCount++
+			}
+		}
+		capacity = dbPolicyCount - removedCount + activeCount
+	} else {
+		capacity = dbPolicyCount
+	}
+
+	if capacity < 0 {
+		capacity = 0
+	}
+
+	ids := make([]string, 0, capacity)
+
+	for id := range *txn.db.policies {
+		if txn.policies == nil || !(*txn.policies)[id].remove {
+			if txn.policies != nil {
+				if _, ok := (*txn.policies)[id]; ok {
+					continue // Skip if there is an update
+				}
+			}
 			ids = append(ids, id)
 		}
 	}
-	for id, update := range txn.policies {
-		if !update.remove {
-			ids = append(ids, id)
+
+	if txn.policies != nil {
+		for id, update := range *txn.policies {
+			if !update.remove {
+				ids = append(ids, id)
+			}
 		}
 	}
+
 	return ids
 }
 
 func (txn *transaction) GetPolicy(id string) ([]byte, error) {
-	if update, ok := txn.policies[id]; ok {
-		if !update.remove {
-			return update.value, nil
+	if txn.policies != nil {
+		if update, ok := (*txn.policies)[id]; ok {
+			if !update.remove {
+				return update.value, nil
+			}
+			return nil, NewNotFoundErrorf("policy id %q", id)
 		}
-		return nil, errors.NewNotFoundErrorf("policy id %q", id)
 	}
-	if exist, ok := txn.db.policies[id]; ok {
+	if exist, ok := (*txn.db.policies)[id]; ok {
 		return exist, nil
 	}
-	return nil, errors.NewNotFoundErrorf("policy id %q", id)
+	return nil, NewNotFoundErrorf("policy id %q", id)
 }
 
 func (txn *transaction) UpsertPolicy(id string, bs []byte) error {
@@ -295,7 +342,8 @@ func (txn *transaction) UpsertPolicy(id string, bs []byte) error {
 			Message: "policy write during read transaction",
 		}
 	}
-	txn.policies[id] = policyUpdate{bs, false}
+	txn.initPolicies()
+	(*txn.policies)[id] = policyUpdate{bs, false}
 	return nil
 }
 
@@ -306,7 +354,8 @@ func (txn *transaction) DeletePolicy(id string) error {
 			Message: "policy write during read transaction",
 		}
 	}
-	txn.policies[id] = policyUpdate{nil, true}
+	txn.initPolicies()
+	(*txn.policies)[id] = policyUpdate{nil, true}
 	return nil
 }
 
@@ -346,7 +395,7 @@ func newUpdateRaw(data any, op storage.PatchOp, path storage.Path, idx int, valu
 
 	switch data.(type) {
 	case nil, bool, json.Number, string:
-		return nil, errors.NewNotFoundError(path)
+		return nil, NewNotFoundError(path)
 	}
 
 	switch data := data.(type) {
@@ -376,7 +425,7 @@ func newUpdateArray(data []any, op storage.PatchOp, path storage.Path, idx int, 
 			return &updateRaw{path[:len(path)-1], false, cpy}, nil
 		}
 
-		pos, err := ptr.ValidateArrayIndex(data, path[idx], path)
+		pos, err := ValidateArrayIndex(data, path[idx], path)
 		if err != nil {
 			return nil, err
 		}
@@ -403,7 +452,7 @@ func newUpdateArray(data []any, op storage.PatchOp, path storage.Path, idx int, 
 		}
 	}
 
-	pos, err := ptr.ValidateArrayIndex(data, path[idx], path)
+	pos, err := ValidateArrayIndex(data, path[idx], path)
 	if err != nil {
 		return nil, err
 	}
@@ -417,7 +466,7 @@ func newUpdateObject(data map[string]any, op storage.PatchOp, path storage.Path,
 		switch op {
 		case storage.ReplaceOp, storage.RemoveOp:
 			if _, ok := data[path[idx]]; !ok {
-				return nil, errors.NewNotFoundError(path)
+				return nil, NewNotFoundError(path)
 			}
 		}
 		return &updateRaw{path, op == storage.RemoveOp, value}, nil
@@ -427,7 +476,7 @@ func newUpdateObject(data map[string]any, op storage.PatchOp, path storage.Path,
 		return newUpdateRaw(data, op, path, idx+1, value)
 	}
 
-	return nil, errors.NewNotFoundError(path)
+	return nil, NewNotFoundError(path)
 }
 
 func (u *updateRaw) Remove() bool {
@@ -442,7 +491,7 @@ func (u *updateRaw) Apply(data any) any {
 	if len(u.path) == 0 {
 		return u.value
 	}
-	parent, err := ptr.Ptr(data, u.path[:len(u.path)-1])
+	parent, err := Ptr(data, u.path[:len(u.path)-1])
 	if err != nil {
 		panic(err)
 	}
