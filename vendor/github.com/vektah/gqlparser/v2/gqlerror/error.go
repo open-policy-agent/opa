@@ -164,6 +164,15 @@ func ErrorPathf(path ast.Path, message string, args ...interface{}) *Error {
 }
 
 func ErrorPosf(pos *ast.Position, message string, args ...interface{}) *Error {
+	if pos == nil {
+		return ErrorLocf(
+			"",
+			-1,
+			-1,
+			message,
+			args...,
+		)
+	}
 	return ErrorLocf(
 		pos.Src.Name,
 		pos.Line,
