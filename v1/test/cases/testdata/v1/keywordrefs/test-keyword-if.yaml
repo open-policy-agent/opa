@@ -10,7 +10,7 @@ cases:
       - |
         package foo
         import data.foo.if.bar
-        
+
         p if {
           bar.baz == 42
           data.foo.if.bar.baz == 42
@@ -27,7 +27,7 @@ cases:
       - |
         package foo
         import data.foo.if as my_if
-        
+
         p if {
           my_if.bar == 42
           data.foo.if.bar == 42
@@ -39,14 +39,14 @@ cases:
     modules:
       - |
         package test
-        
+
         p if {
           if.foo == 1
           foo.if == 2
         }
-        
+
         if.foo := 1
-        
+
         foo.if := 2
     want_result:
       - x: true
