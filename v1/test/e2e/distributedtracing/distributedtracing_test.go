@@ -17,7 +17,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/open-policy-agent/opa/internal/version"
 	"github.com/open-policy-agent/opa/v1/logging/test"
 	"github.com/open-policy-agent/opa/v1/plugins/bundle"
 	"github.com/open-policy-agent/opa/v1/plugins/discovery"
@@ -96,16 +95,16 @@ func TestServerSpan(t *testing.T) {
 			t.Fatal(err)
 		}
 		expected := []any{
-			attribute.String("net.host.name", u.Hostname()),
-			attribute.Int("net.host.port", port),
-			attribute.String("net.protocol.version", "1.1"),
-			attribute.String("net.sock.peer.addr", "127.0.0.1"),
-			attribute.Key("net.sock.peer.port"),
-			attribute.String("http.method", "POST"),
-			attribute.String("http.scheme", "http"),
-			attribute.String("http.target", "/v0/data"),
-			attribute.Int("http.status_code", 200),
-			attribute.Int("http.response_content_length", 3),
+			attribute.String("server.address", u.Hostname()),
+			attribute.Int("server.port", port),
+			attribute.String("network.protocol.version", "1.1"),
+			attribute.String("network.peer.address", "127.0.0.1"),
+			attribute.Key("network.peer.port"),
+			attribute.String("http.request.method", "POST"),
+			attribute.String("url.scheme", "http"),
+			attribute.String("url.path", "/v0/data"),
+			attribute.Int("http.response.status_code", 200),
+			attribute.Int("http.response.body.size", 3),
 			attribute.String("user_agent.original", "Go-http-client/1.1"),
 		}
 
@@ -144,16 +143,16 @@ func TestServerSpan(t *testing.T) {
 			t.Fatal(err)
 		}
 		expected := []any{
-			attribute.String("net.host.name", u.Hostname()),
-			attribute.Int("net.host.port", port),
-			attribute.String("net.protocol.version", "1.1"),
-			attribute.String("net.sock.peer.addr", "127.0.0.1"),
-			attribute.Key("net.sock.peer.port"),
-			attribute.String("http.method", "GET"),
-			attribute.String("http.scheme", "http"),
-			attribute.String("http.target", "/v1/data"),
-			attribute.Int("http.status_code", 200),
-			attribute.Int("http.response_content_length", 67),
+			attribute.String("server.address", u.Hostname()),
+			attribute.Int("server.port", port),
+			attribute.String("network.protocol.version", "1.1"),
+			attribute.String("network.peer.address", "127.0.0.1"),
+			attribute.Key("network.peer.port"),
+			attribute.String("http.request.method", "GET"),
+			attribute.String("url.scheme", "http"),
+			attribute.String("url.path", "/v1/data"),
+			attribute.Int("http.response.status_code", 200),
+			attribute.Int("http.response.body.size", 67),
 			attribute.String("user_agent.original", "Go-http-client/1.1"),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[0].Attributes...))
@@ -309,12 +308,12 @@ func TestClientSpan(t *testing.T) {
 		}
 
 		expected := []any{
-			attribute.String("http.method", "GET"),
-			attribute.String("http.url", testRuntime.URL()+"/health"),
-			attribute.Int("http.status_code", 200),
-			attribute.Int("http.response_content_length", 3),
-			attribute.String("net.peer.name", "127.0.0.1"),
-			attribute.Key("net.peer.port"),
+			attribute.String("http.request.method", "GET"),
+			attribute.String("url.full", testRuntime.URL()+"/health"),
+			attribute.Int("http.response.status_code", 200),
+			attribute.String("server.address", "127.0.0.1"),
+			attribute.Key("server.port"),
+			attribute.String("network.protocol.version", "1.1"),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[1].Attributes...))
 	})
@@ -352,12 +351,12 @@ func TestClientSpan(t *testing.T) {
 		}
 
 		expected := []any{
-			attribute.String("http.method", "GET"),
-			attribute.String("http.url", testRuntime.URL()+"/health"),
-			attribute.Int("http.status_code", 200),
-			attribute.Int("http.response_content_length", 3),
-			attribute.String("net.peer.name", "127.0.0.1"),
-			attribute.Key("net.peer.port"),
+			attribute.String("http.request.method", "GET"),
+			attribute.String("url.full", testRuntime.URL()+"/health"),
+			attribute.Int("http.response.status_code", 200),
+			attribute.String("server.address", "127.0.0.1"),
+			attribute.Key("server.port"),
+			attribute.String("network.protocol.version", "1.1"),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[1].Attributes...))
 
@@ -402,12 +401,12 @@ func TestClientSpan(t *testing.T) {
 		}
 
 		expected := []any{
-			attribute.String("http.method", "GET"),
-			attribute.String("http.url", testRuntime.URL()+"/health"),
-			attribute.Int("http.status_code", 200),
-			attribute.Int("http.response_content_length", 3),
-			attribute.String("net.peer.name", "127.0.0.1"),
-			attribute.Key("net.peer.port"),
+			attribute.String("http.request.method", "GET"),
+			attribute.String("url.full", testRuntime.URL()+"/health"),
+			attribute.Int("http.response.status_code", 200),
+			attribute.String("server.address", "127.0.0.1"),
+			attribute.Key("server.port"),
+			attribute.String("network.protocol.version", "1.1"),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[1].Attributes...))
 
@@ -455,12 +454,12 @@ func TestClientSpan(t *testing.T) {
 		}
 
 		expected := []any{
-			attribute.String("http.method", "GET"),
-			attribute.String("http.url", testRuntime.URL()+"/health"),
-			attribute.Int("http.status_code", 200),
-			attribute.Int("http.response_content_length", 3),
-			attribute.String("net.peer.name", "127.0.0.1"),
-			attribute.Key("net.peer.port"),
+			attribute.String("http.request.method", "GET"),
+			attribute.String("url.full", testRuntime.URL()+"/health"),
+			attribute.Int("http.response.status_code", 200),
+			attribute.String("server.address", "127.0.0.1"),
+			attribute.Key("server.port"),
+			attribute.String("network.protocol.version", "1.1"),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[1].Attributes...))
 	})
@@ -660,16 +659,16 @@ allow if {
 		}
 
 		expected := []any{
-			attribute.String("net.host.name", u.Hostname()),
-			attribute.Int("net.host.port", port),
-			attribute.String("net.protocol.version", "1.1"),
-			attribute.String("net.sock.peer.addr", "127.0.0.1"),
-			attribute.Key("net.sock.peer.port"),
-			attribute.String("http.method", "POST"),
-			attribute.String("http.scheme", "http"),
-			attribute.String("http.target", "/v1/data"),
-			attribute.Int("http.status_code", 401),
-			attribute.Int("http.response_content_length", 87),
+			attribute.String("server.address", u.Hostname()),
+			attribute.Int("server.port", port),
+			attribute.String("network.protocol.version", "1.1"),
+			attribute.String("network.peer.address", "127.0.0.1"),
+			attribute.Key("network.peer.port"),
+			attribute.String("http.request.method", "POST"),
+			attribute.String("url.scheme", "http"),
+			attribute.String("url.path", "/v1/data"),
+			attribute.Int("http.response.status_code", 401),
+			attribute.Int("http.response.body.size", 87),
 			attribute.String("user_agent.original", "Go-http-client/1.1"),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[0].Attributes...))
@@ -781,33 +780,31 @@ func TestControlPlaneSpans(t *testing.T) {
 		port := controlPlanePort
 
 		expected := []any{
-			attribute.String("net.peer.name", u.Hostname()),
-			attribute.Int("net.peer.port", port),
-			attribute.String("http.method", "GET"),
-			attribute.String("http.url", u.String()+"/bundles/discovery"),
-			attribute.Int("http.status_code", 200),
-			attribute.Int("http.response_content_length", 180),
-			attribute.String("user_agent.original", version.UserAgent),
+			attribute.String("server.address", u.Hostname()),
+			attribute.Int("server.port", port),
+			attribute.String("http.request.method", "GET"),
+			attribute.String("url.full", u.String()+"/bundles/discovery"),
+			attribute.Int("http.response.status_code", 200),
+			attribute.String("network.protocol.version", "1.1"),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[0].Attributes...))
 
 		expected = []any{
-			attribute.String("net.peer.name", u.Hostname()),
-			attribute.Int("net.peer.port", port),
-			attribute.String("http.method", "GET"),
-			attribute.String("http.url", u.String()+"/bundles/test"),
-			attribute.Int("http.status_code", 200),
-			attribute.Int("http.response_content_length", 164),
-			attribute.String("user_agent.original", version.UserAgent),
+			attribute.String("server.address", u.Hostname()),
+			attribute.Int("server.port", port),
+			attribute.String("http.request.method", "GET"),
+			attribute.String("url.full", u.String()+"/bundles/test"),
+			attribute.Int("http.response.status_code", 200),
+			attribute.String("network.protocol.version", "1.1"),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[1].Attributes...))
 
 		expected = []any{
-			attribute.String("net.peer.name", statusURL.Hostname()),
-			attribute.Int("net.peer.port", statusPort),
-			attribute.String("http.method", "POST"),
-			attribute.String("http.url", statusURL.String()+"/status"),
-			attribute.String("user_agent.original", version.UserAgent),
+			attribute.String("server.address", statusURL.Hostname()),
+			attribute.Int("server.port", statusPort),
+			attribute.String("http.request.method", "POST"),
+			attribute.String("url.full", statusURL.String()+"/status"),
+			attribute.String("network.protocol.version", "1.1"),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[2].Attributes...))
 
@@ -857,27 +854,29 @@ func TestControlPlaneSpans(t *testing.T) {
 		}
 
 		expected = []any{
-			attribute.String("net.host.name", u.Hostname()),
-			attribute.Int("net.host.port", port),
-			attribute.String("net.protocol.version", "1.1"),
-			attribute.String("net.sock.peer.addr", "127.0.0.1"),
-			attribute.Key("net.sock.peer.port"),
-			attribute.String("http.method", "POST"),
-			attribute.String("http.scheme", "http"),
-			attribute.String("http.target", "/v1/data/main"),
-			attribute.Int("http.status_code", 200),
-			attribute.Int("http.response_content_length", 168),
+			attribute.String("server.address", u.Hostname()),
+			attribute.Int("server.port", port),
+			attribute.String("network.protocol.version", "1.1"),
+			attribute.String("network.peer.address", "127.0.0.1"),
+			attribute.Key("network.peer.port"),
+			attribute.String("http.request.method", "POST"),
+			attribute.String("url.scheme", "http"),
+			attribute.String("url.path", "/v1/data/main"),
+			attribute.Int("http.response.status_code", 200),
+			attribute.Int("http.response.body.size", 168),
 			attribute.String("user_agent.original", "Go-http-client/1.1"),
 		}
 
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[0].Attributes...))
 
 		expected = []any{
-			attribute.String("net.peer.name", controlPlaneURL.Hostname()),
-			attribute.Int("net.peer.port", controlPlanePort),
-			attribute.String("http.method", "POST"),
-			attribute.String("http.url", controlPlaneURL.String()+"/logs"),
-			attribute.String("user_agent.original", version.UserAgent),
+			attribute.String("server.address", controlPlaneURL.Hostname()),
+			attribute.Int("server.port", controlPlanePort),
+			attribute.String("http.request.method", "POST"),
+			attribute.String("url.full", controlPlaneURL.String()+"/logs"),
+			attribute.Int("http.response.status_code", 500),
+			attribute.String("error.type", "500"),
+			attribute.String("network.protocol.version", "1.1"),
 		}
 
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[1].Attributes...))
@@ -910,6 +909,7 @@ func compareSpanAttributes(t *testing.T, expectedAttributes []any, spanAttribute
 	}
 
 	if !ok {
-		t.Fatal("Span attributes mismatch")
+		txt, _ := spanAttributes.MarshalJSON()
+		t.Fatalf("Span attributes mismatch.\n\nGot:\n\n%s", txt)
 	}
 }
