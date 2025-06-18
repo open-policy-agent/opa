@@ -1086,7 +1086,9 @@ func (w *writer) writeFunctionCall(expr *ast.Expr, comments []*ast.Comment) ([]*
 
 func (w *writer) writeFunctionCallPlain(terms []*ast.Term, comments []*ast.Comment) ([]*ast.Comment, error) {
 	if r, ok := terms[0].Value.(ast.Ref); ok {
-		w.writeRef(r, comments)
+		if c, err := w.writeRef(r, comments); err != nil {
+			return c, err
+		}
 	} else {
 		w.write(terms[0].String())
 	}

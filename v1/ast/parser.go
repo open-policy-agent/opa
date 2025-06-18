@@ -1893,27 +1893,6 @@ func (p *Parser) parseCall(operator *Term, offset int) (term *Term) {
 	return nil
 }
 
-func (p *Parser) assertNoKeywordsInRef(r Ref) bool {
-	ok := true
-	for _, t := range r {
-		var n string
-		switch v := t.Value.(type) {
-		case Var:
-			n = string(v)
-		case String:
-			n = string(v)
-		default:
-			continue
-		}
-		if IsKeywordInRegoVersion(n, p.po.EffectiveRegoVersion()) || p.s.s.IsKeyword(n) {
-			p.errorf(t.Location, "illegal ref (unexpected %s keyword)", n)
-			ok = false
-		}
-	}
-
-	return ok
-}
-
 func (p *Parser) parseRef(head *Term, offset int) (term *Term) {
 	if !p.enter() {
 		return nil
