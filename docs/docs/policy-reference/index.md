@@ -330,6 +330,10 @@ The built-in functions for the language provide basic operations to manipulate
 scalar values (e.g. numbers and strings), and aggregate functions that summarize
 complex types.
 
+import BuiltinSearch from "@site/src/components/BuiltinSearch";
+
+<BuiltinSearch entryLimit={10} />
+
 ### Comparison
 
 <BuiltinTable category="comparison" />
