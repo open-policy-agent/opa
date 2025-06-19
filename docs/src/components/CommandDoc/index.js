@@ -1,8 +1,9 @@
-import { useThemeConfig } from "@docusaurus/theme-common";
-import React from "react";
-import { useEffect } from "react";
-import ReactMarkdown from "react-markdown";
+import { React, useEffect } from "react";
 import { useLocation } from "react-router-dom";
+
+import { useThemeConfig } from "@docusaurus/theme-common";
+import ReactMarkdown from "react-markdown";
+import styles from "./styles.module.css";
 
 const capitalize = (str) => {
   return str.charAt(0).toUpperCase() + str.slice(1);
@@ -55,17 +56,17 @@ const CommandDoc = ({ command }) => {
 
   return (
     <div>
-      <div style={{ marginBottom: "0.5rem" }}>
-        <h2 id={id} style={{ display: "inline" }}>
+      <div className={styles.commandHeader}>
+        <h2 id={id} className={styles.commandTitle}>
           {id}
-          <a href={`#${id}`} style={{ marginLeft: "0.3rem" }} title={`Direct link to ${id}`}>
-            <span style={{ color: "var(--ifm-link-color)" }}>#</span>
+          <a href={`#${id}`} className={styles.directLink} title={`Direct link to ${id}`}>
+            <span className={styles.directLinkSymbol}>#</span>
           </a>
         </h2>
       </div>
 
       {useline && (
-        <pre style={{ padding: "0.5em", borderRadius: "var(--ifm-code-border-radius)" }}>
+        <pre className={styles.useline}>
           {useline}
         </pre>
       )}
@@ -75,24 +76,24 @@ const CommandDoc = ({ command }) => {
       {flags.length > 0 && (
         <>
           <h3>Flags</h3>
-          <table style={{ fontSize: "0.9em", borderCollapse: "collapse", width: "100%" }}>
+          <table className={styles.flagsTable}>
             <thead>
               <tr>
-                <th style={{ textAlign: "left", padding: "0.5em" }}>Short</th>
-                <th style={{ textAlign: "left", padding: "0.5em" }}>Flag</th>
-                <th style={{ textAlign: "left", padding: "0.5em" }}>Description</th>
+                <th className={styles.flagsTableHeader}>Short</th>
+                <th className={styles.flagsTableHeader}>Flag</th>
+                <th className={styles.flagsTableHeader}>Description</th>
               </tr>
             </thead>
             <tbody>
               {flags.map((f, idx) => (
                 <tr key={idx}>
-                  <td style={{ whiteSpace: "nowrap", padding: "0.5em" }}>
+                  <td className={styles.flagsTableCellWhitespace}>
                     {f.shorthand && <code>{f.shorthand}</code>}
                   </td>
-                  <td style={{ whiteSpace: "nowrap", padding: "0.5em" }}>
+                  <td className={styles.flagsTableCellWhitespace}>
                     <code>{f.name}</code>
                   </td>
-                  <td style={{ padding: "0.5em", width: "100%" }}>
+                  <td className={styles.flagsTableCellWide}>
                     {f.description !== "" && (
                       <ReactMarkdown>
                         {convertUrlsToMarkdownLinks(capitalize(htmlSafe(f.description)))}
@@ -100,9 +101,9 @@ const CommandDoc = ({ command }) => {
                     )}
 
                     {f.type && f.type.startsWith("{") && (
-                      <div style={{ marginTop: "0.25em" }}>
+                      <div className={styles.flagTypeContainer}>
                         Accepts:{" "}
-                        <code style={{ wordBreak: "break-word" }}>
+                        <code className={styles.flagTypeCode}>
                           {f.type.replace(/,/g, ",\u200b")}
                         </code>
                       </div>
