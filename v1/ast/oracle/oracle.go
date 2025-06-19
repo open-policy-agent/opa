@@ -71,10 +71,12 @@ func (o *Oracle) FindDefinition(q DefinitionQuery) (*DefinitionQueryResult, erro
 	if err != nil {
 		return nil, err
 	}
+
 	mod, ok := compiler.Modules[q.Filename]
 	if !ok {
 		return nil, ErrNoMatchFound
 	}
+
 	stack := findContainingNodeStack(mod, q.Pos)
 	if len(stack) == 0 {
 		return nil, ErrNoMatchFound
@@ -84,39 +86,54 @@ func (o *Oracle) FindDefinition(q DefinitionQuery) (*DefinitionQueryResult, erro
 	// references to imports or other rules. This handles intra-module, intra-package,
 	// and inter-package references.
 	for i := len(stack) - 1; i >= 0; i-- {
-		if term, ok := stack[i].(*ast.Term); ok {
-			if ref, ok := term.Value.(ast.Ref); ok {
-				prefix := ref.ConstantPrefix()
-				if rules := compiler.GetRulesExact(prefix); len(rules) > 0 {
-					return &DefinitionQueryResult{rules[0].Location}, nil
-				}
-				for _, imp := range parsed.Imports {
-					if path, ok := imp.Path.Value.(ast.Ref); ok {
-						if prefix.HasPrefix(path) {
-							return &DefinitionQueryResult{imp.Path.Location}, nil
-						}
-					}
-				}
+		term, ok := stack[i].(*ast.Term)
+		if !ok {
+			continue
+		}
+
+		ref, ok := term.Value.(ast.Ref)
+		if !ok {
+			continue
+		}
+
+		prefix := ref.ConstantPrefix()
+
+		if rules := compiler.GetRules(ref); len(rules) > 0 {
+			return &DefinitionQueryResult{rules[0].Location}, nil
+		}
+
+		for _, imp := range parsed.Imports {
+			path, ok := imp.Path.Value.(ast.Ref)
+			if !ok {
+				continue
+			}
+			if prefix.HasPrefix(path) {
+				return &DefinitionQueryResult{imp.Path.Location}, nil
 			}
 		}
 	}
 
 	// If the match is a variable, walk inward to find the first occurrence of the variable
 	// in function arguments or the body.
-	top := stack[len(stack)-1]
-	if term, ok := top.(*ast.Term); ok {
-		if name, ok := term.Value.(ast.Var); ok {
-			for i := range stack {
-				switch node := stack[i].(type) {
-				case *ast.Rule:
-					if match := walkToFirstOccurrence(node.Head.Args, name); match != nil {
-						return &DefinitionQueryResult{match.Location}, nil
-					}
-				case ast.Body:
-					if match := walkToFirstOccurrence(node, name); match != nil {
-						return &DefinitionQueryResult{match.Location}, nil
-					}
-				}
+	top, ok := stack[len(stack)-1].(*ast.Term)
+	if !ok {
+		return nil, ErrNoDefinitionFound
+	}
+
+	name, ok := top.Value.(ast.Var)
+	if !ok {
+		return nil, ErrNoDefinitionFound
+	}
+
+	for i := range stack {
+		switch node := stack[i].(type) {
+		case *ast.Rule:
+			if match := walkToFirstOccurrence(node.Head.Args, name); match != nil {
+				return &DefinitionQueryResult{match.Location}, nil
+			}
+		case ast.Body:
+			if match := walkToFirstOccurrence(node, name); match != nil {
+				return &DefinitionQueryResult{match.Location}, nil
 			}
 		}
 	}
