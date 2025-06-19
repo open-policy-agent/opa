@@ -1,0 +1,54 @@
+.commandHeader {
+	margin-bottom: 0.5rem;
+}
+
+.commandTitle {
+	display: inline;
+	scroll-margin-top: calc(var(--ifm-navbar-height) + 0.5rem);
+}
+
+.directLink {
+	margin-left: 0.3rem;
+}
+
+.directLinkSymbol {
+	color: var(--ifm-link-color);
+}
+
+.useline {
+	padding: 0.5em;
+	border-radius: var(--ifm-code-border-radius);
+}
+
+.flagsTable {
+	font-size: 0.9em;
+	border-collapse: collapse;
+	width: 100%;
+}
+
+.flagsTableHeader {
+	text-align: left;
+	padding: 0.5em;
+}
+
+.flagsTableCell {
+	padding: 0.5em;
+}
+
+.flagsTableCellWhitespace {
+	white-space: nowrap;
+	padding: 0.5em;
+}
+
+.flagsTableCellWide {
+	padding: 0.5em;
+	width: 100%;
+}
+
+.flagTypeContainer {
+	margin-top: 0.25em;
+}
+
+.flagTypeCode {
+	word-break: break-word;
+}
