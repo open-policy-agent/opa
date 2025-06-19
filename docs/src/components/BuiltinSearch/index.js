@@ -45,7 +45,7 @@ export default function BuiltinSearch({ entryLimit }) {
       })).reduce((a, b) => a.concat(b), []); // builds and flattens the function list
   });
   const filteredRows = allRows.filter((row) => (
-    (row.name.includes(searchTerm) || row.signature.includes(searchTerm) && row.infix) // filter name
+    (row.name.toLowerCase().includes(searchTerm.toLowerCase()) || row.signature.includes(searchTerm) && row.infix) // filter name
     && (!selectedCategory || row.category == selectedCategory) // filter category
     && (!isWasm || row.wasm) // filter wasm
     && isFiltered // ensures that at least one criteria is being filtered on
