@@ -331,7 +331,7 @@ func builtinGraphQLParseAndVerify(bctx BuiltinContext, operands []*ast.Term, ite
 	var err error
 
 	unverified := ast.ArrayTerm(
-		ast.InternedBooleanTerm(false),
+		ast.InternedTerm(false),
 		ast.NewTerm(ast.NewObject()),
 		ast.NewTerm(ast.NewObject()),
 	)
@@ -404,7 +404,7 @@ func builtinGraphQLParseAndVerify(bctx BuiltinContext, operands []*ast.Term, ite
 
 	// Construct return value.
 	verified := ast.ArrayTerm(
-		ast.InternedBooleanTerm(true),
+		ast.InternedTerm(true),
 		ast.NewTerm(queryResult),
 		ast.NewTerm(querySchema),
 	)
@@ -482,10 +482,10 @@ func builtinGraphQLIsValid(bctx BuiltinContext, operands []*ast.Term, iter func(
 		queryDoc, err = objectToQueryDocument(x)
 	default:
 		// Error if wrong type.
-		return iter(ast.InternedBooleanTerm(false))
+		return iter(ast.InternedTerm(false))
 	}
 	if err != nil {
-		return iter(ast.InternedBooleanTerm(false))
+		return iter(ast.InternedTerm(false))
 	}
 
 	schemaCacheKey, schema := cacheGetSchema(bctx, operands[1])
@@ -497,26 +497,26 @@ func builtinGraphQLIsValid(bctx BuiltinContext, operands []*ast.Term, iter func(
 			schemaDoc, err = objectToSchemaDocument(x)
 		default:
 			// Error if wrong type.
-			return iter(ast.InternedBooleanTerm(false))
+			return iter(ast.InternedTerm(false))
 		}
 		if err != nil {
-			return iter(ast.InternedBooleanTerm(false))
+			return iter(ast.InternedTerm(false))
 		}
 
 		// Validate the query against the schema, erroring if there's an issue.
 		schema, err = convertSchema(schemaDoc)
 		if err != nil {
-			return iter(ast.InternedBooleanTerm(false))
+			return iter(ast.InternedTerm(false))
 		}
 		cacheInsertSchema(bctx, schemaCacheKey, schema)
 	}
 
 	if err := validateQuery(schema, queryDoc); err != nil {
-		return iter(ast.InternedBooleanTerm(false))
+		return iter(ast.InternedTerm(false))
 	}
 
 	// If we got this far, the GraphQL query passed validation.
-	return iter(ast.InternedBooleanTerm(true))
+	return iter(ast.InternedTerm(true))
 }
 
 func builtinGraphQLSchemaIsValid(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -535,10 +535,10 @@ func builtinGraphQLSchemaIsValid(bctx BuiltinContext, operands []*ast.Term, iter
 			schemaDoc, err = objectToSchemaDocument(x)
 		default:
 			// Error if wrong type.
-			return iter(ast.InternedBooleanTerm(false))
+			return iter(ast.InternedTerm(false))
 		}
 		if err != nil {
-			return iter(ast.InternedBooleanTerm(false))
+			return iter(ast.InternedTerm(false))
 		}
 		// Validate the schema, this determines the result
 		// and whether there is a schema to cache
@@ -548,7 +548,7 @@ func builtinGraphQLSchemaIsValid(bctx BuiltinContext, operands []*ast.Term, iter
 		}
 	}
 
-	return iter(ast.InternedBooleanTerm(err == nil))
+	return iter(ast.InternedTerm(err == nil))
 }
 
 // Insert Schema into cache

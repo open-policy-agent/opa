@@ -3399,7 +3399,7 @@ func (b *Builtin) Ref() Ref {
 	ref := make(Ref, len(parts))
 	ref[0] = VarTerm(parts[0])
 	for i := 1; i < len(parts); i++ {
-		ref[i] = InternedStringTerm(parts[i])
+		ref[i] = InternedTerm(parts[i])
 	}
 	return ref
 }

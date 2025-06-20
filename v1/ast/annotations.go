@@ -423,28 +423,28 @@ func (a *Annotations) toObject() (*Object, *Error) {
 	if len(a.Scope) > 0 {
 		switch a.Scope {
 		case annotationScopeDocument:
-			obj.Insert(InternedStringTerm("scope"), InternedStringTerm("document"))
+			obj.Insert(InternedTerm("scope"), InternedTerm("document"))
 		case annotationScopePackage:
-			obj.Insert(InternedStringTerm("scope"), InternedStringTerm("package"))
+			obj.Insert(InternedTerm("scope"), InternedTerm("package"))
 		case annotationScopeRule:
-			obj.Insert(InternedStringTerm("scope"), InternedStringTerm("rule"))
+			obj.Insert(InternedTerm("scope"), InternedTerm("rule"))
 		case annotationScopeSubpackages:
-			obj.Insert(InternedStringTerm("scope"), InternedStringTerm("subpackages"))
+			obj.Insert(InternedTerm("scope"), InternedTerm("subpackages"))
 		default:
-			obj.Insert(InternedStringTerm("scope"), StringTerm(a.Scope))
+			obj.Insert(InternedTerm("scope"), StringTerm(a.Scope))
 		}
 	}
 
 	if len(a.Title) > 0 {
-		obj.Insert(InternedStringTerm("title"), StringTerm(a.Title))
+		obj.Insert(InternedTerm("title"), StringTerm(a.Title))
 	}
 
 	if a.Entrypoint {
-		obj.Insert(InternedStringTerm("entrypoint"), InternedBooleanTerm(true))
+		obj.Insert(InternedTerm("entrypoint"), InternedTerm(true))
 	}
 
 	if len(a.Description) > 0 {
-		obj.Insert(InternedStringTerm("description"), StringTerm(a.Description))
+		obj.Insert(InternedTerm("description"), StringTerm(a.Description))
 	}
 
 	if len(a.Organizations) > 0 {
@@ -452,19 +452,19 @@ func (a *Annotations) toObject() (*Object, *Error) {
 		for _, org := range a.Organizations {
 			orgs = append(orgs, StringTerm(org))
 		}
-		obj.Insert(InternedStringTerm("organizations"), ArrayTerm(orgs...))
+		obj.Insert(InternedTerm("organizations"), ArrayTerm(orgs...))
 	}
 
 	if len(a.RelatedResources) > 0 {
 		rrs := make([]*Term, 0, len(a.RelatedResources))
 		for _, rr := range a.RelatedResources {
-			rrObj := NewObject(Item(InternedStringTerm("ref"), StringTerm(rr.Ref.String())))
+			rrObj := NewObject(Item(InternedTerm("ref"), StringTerm(rr.Ref.String())))
 			if len(rr.Description) > 0 {
-				rrObj.Insert(InternedStringTerm("description"), StringTerm(rr.Description))
+				rrObj.Insert(InternedTerm("description"), StringTerm(rr.Description))
 			}
 			rrs = append(rrs, NewTerm(rrObj))
 		}
-		obj.Insert(InternedStringTerm("related_resources"), ArrayTerm(rrs...))
+		obj.Insert(InternedTerm("related_resources"), ArrayTerm(rrs...))
 	}
 
 	if len(a.Authors) > 0 {
@@ -472,14 +472,14 @@ func (a *Annotations) toObject() (*Object, *Error) {
 		for _, author := range a.Authors {
 			aObj := NewObject()
 			if len(author.Name) > 0 {
-				aObj.Insert(InternedStringTerm("name"), StringTerm(author.Name))
+				aObj.Insert(InternedTerm("name"), StringTerm(author.Name))
 			}
 			if len(author.Email) > 0 {
-				aObj.Insert(InternedStringTerm("email"), StringTerm(author.Email))
+				aObj.Insert(InternedTerm("email"), StringTerm(author.Email))
 			}
 			as = append(as, NewTerm(aObj))
 		}
-		obj.Insert(InternedStringTerm("authors"), ArrayTerm(as...))
+		obj.Insert(InternedTerm("authors"), ArrayTerm(as...))
 	}
 
 	if len(a.Schemas) > 0 {
@@ -487,21 +487,21 @@ func (a *Annotations) toObject() (*Object, *Error) {
 		for _, s := range a.Schemas {
 			sObj := NewObject()
 			if len(s.Path) > 0 {
-				sObj.Insert(InternedStringTerm("path"), NewTerm(s.Path.toArray()))
+				sObj.Insert(InternedTerm("path"), NewTerm(s.Path.toArray()))
 			}
 			if len(s.Schema) > 0 {
-				sObj.Insert(InternedStringTerm("schema"), NewTerm(s.Schema.toArray()))
+				sObj.Insert(InternedTerm("schema"), NewTerm(s.Schema.toArray()))
 			}
 			if s.Definition != nil {
 				def, err := InterfaceToValue(s.Definition)
 				if err != nil {
 					return nil, NewError(CompileErr, a.Location, "invalid definition in schema annotation: %s", err.Error())
 				}
-				sObj.Insert(InternedStringTerm("definition"), NewTerm(def))
+				sObj.Insert(InternedTerm("definition"), NewTerm(def))
 			}
 			ss = append(ss, NewTerm(sObj))
 		}
-		obj.Insert(InternedStringTerm("schemas"), ArrayTerm(ss...))
+		obj.Insert(InternedTerm("schemas"), ArrayTerm(ss...))
 	}
 
 	if len(a.Custom) > 0 {
@@ -509,7 +509,7 @@ func (a *Annotations) toObject() (*Object, *Error) {
 		if err != nil {
 			return nil, NewError(CompileErr, a.Location, "invalid custom annotation %s", err.Error())
 		}
-		obj.Insert(InternedStringTerm("custom"), NewTerm(c))
+		obj.Insert(InternedTerm("custom"), NewTerm(c))
 	}
 
 	return &obj, nil

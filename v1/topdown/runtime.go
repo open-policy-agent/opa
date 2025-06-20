@@ -19,7 +19,7 @@ func builtinOPARuntime(bctx BuiltinContext, _ []*ast.Term, iter func(*ast.Term) 
 		return iter(ast.InternedEmptyObject)
 	}
 
-	if bctx.Runtime.Get(ast.InternedStringTerm("config")) != nil {
+	if bctx.Runtime.Get(ast.InternedTerm("config")) != nil {
 		iface, err := ast.ValueToInterface(bctx.Runtime.Value, nothingResolver)
 		if err != nil {
 			return err

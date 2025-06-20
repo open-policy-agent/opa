@@ -144,10 +144,10 @@ func builtinJSONIsValid(_ BuiltinContext, operands []*ast.Term, iter func(*ast.T
 
 	str, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
-		return iter(ast.InternedBooleanTerm(false))
+		return iter(ast.InternedTerm(false))
 	}
 
-	return iter(ast.InternedBooleanTerm(json.Valid([]byte(str))))
+	return iter(ast.InternedTerm(json.Valid([]byte(str))))
 }
 
 func builtinBase64Encode(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -169,17 +169,17 @@ func builtinBase64Decode(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 	if err != nil {
 		return err
 	}
-	return iter(ast.StringTerm(string(result)))
+	return iter(ast.InternedTerm(string(result)))
 }
 
 func builtinBase64IsValid(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	str, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
-		return iter(ast.InternedBooleanTerm(false))
+		return iter(ast.InternedTerm(false))
 	}
 
 	_, err = base64.StdEncoding.DecodeString(string(str))
-	return iter(ast.InternedBooleanTerm(err == nil))
+	return iter(ast.InternedTerm(err == nil))
 }
 
 func builtinBase64UrlEncode(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -224,7 +224,7 @@ func builtinBase64UrlDecode(_ BuiltinContext, operands []*ast.Term, iter func(*a
 	if err != nil {
 		return err
 	}
-	return iter(ast.StringTerm(string(result)))
+	return iter(ast.InternedTerm(string(result)))
 }
 
 func builtinURLQueryEncode(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -355,12 +355,12 @@ func builtinYAMLUnmarshal(_ BuiltinContext, operands []*ast.Term, iter func(*ast
 func builtinYAMLIsValid(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	str, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
-		return iter(ast.InternedBooleanTerm(false))
+		return iter(ast.InternedTerm(false))
 	}
 
 	var x any
 	err = yaml.Unmarshal([]byte(str), &x)
-	return iter(ast.InternedBooleanTerm(err == nil))
+	return iter(ast.InternedTerm(err == nil))
 }
 
 func builtinHexEncode(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {

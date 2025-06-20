@@ -18,7 +18,7 @@ func BenchmarkNumbersRange(b *testing.B) {
 	}{
 		{
 			name:     "interned",
-			operands: []*ast.Term{ast.InternedIntNumberTerm(0), ast.InternedIntNumberTerm(99)},
+			operands: []*ast.Term{ast.InternedTerm(0), ast.InternedTerm(99)},
 		},
 		{
 			name:     "not interned",
@@ -41,14 +41,14 @@ func BenchmarkNumbersRange(b *testing.B) {
 func BenchmarkNumbersRangeStep(b *testing.B) {
 	bctx := BuiltinContext{}
 	expect100Items := expectCountIter(b, 100)
-	step := ast.InternedIntNumberTerm(2)
+	step := ast.InternedTerm(2)
 	tests := []struct {
 		name     string
 		operands []*ast.Term
 	}{
 		{
 			name:     "interned",
-			operands: []*ast.Term{ast.InternedIntNumberTerm(0), ast.InternedIntNumberTerm(199), step},
+			operands: []*ast.Term{ast.InternedTerm(0), ast.InternedTerm(199), step},
 		},
 		{
 			name:     "not interned",

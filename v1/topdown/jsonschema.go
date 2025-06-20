@@ -44,7 +44,7 @@ func astValueToJSONSchemaLoader(value ast.Value) (gojsonschema.JSONLoader, error
 }
 
 func newResultTerm(valid bool, data *ast.Term) *ast.Term {
-	return ast.ArrayTerm(ast.InternedBooleanTerm(valid), data)
+	return ast.ArrayTerm(ast.InternedTerm(valid), data)
 }
 
 // builtinJSONSchemaVerify accepts 1 argument which can be string or object and checks if it is valid JSON schema.

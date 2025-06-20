@@ -61,7 +61,7 @@ func InterfaceToValue(x any) (Value, error) {
 	case nil:
 		return NullValue, nil
 	case bool:
-		return InternedBooleanTerm(x).Value, nil
+		return InternedTerm(x).Value, nil
 	case json.Number:
 		if interned := InternedIntNumberTermFromString(string(x)); interned != nil {
 			return interned.Value, nil
@@ -587,9 +587,9 @@ type Boolean bool
 // BooleanTerm creates a new Term with a Boolean value.
 func BooleanTerm(b bool) *Term {
 	if b {
-		return &Term{Value: InternedBooleanTerm(true).Value}
+		return &Term{Value: InternedTerm(true).Value}
 	}
-	return &Term{Value: InternedBooleanTerm(false).Value}
+	return &Term{Value: InternedTerm(false).Value}
 }
 
 // Equal returns true if the other Value is a Boolean and is equal.
@@ -624,7 +624,7 @@ func (bol Boolean) Compare(other Value) int {
 // Find returns the current value or a not found error.
 func (bol Boolean) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
-		return InternedBooleanTerm(bool(bol)).Value, nil
+		return InternedTerm(bool(bol)).Value, nil
 	}
 	return nil, errFindNotFound
 }
@@ -1237,7 +1237,7 @@ func (ref Ref) toArray() *Array {
 		if _, ok := term.Value.(String); ok {
 			terms = append(terms, term)
 		} else {
-			terms = append(terms, InternedStringTerm(term.Value.String()))
+			terms = append(terms, InternedTerm(term.Value.String()))
 		}
 	}
 	return NewArray(terms...)

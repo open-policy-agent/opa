@@ -14,13 +14,13 @@ import (
 func builtinCount(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch a := operands[0].Value.(type) {
 	case *ast.Array:
-		return iter(ast.InternedIntNumberTerm(a.Len()))
+		return iter(ast.InternedTerm(a.Len()))
 	case ast.Object:
-		return iter(ast.InternedIntNumberTerm(a.Len()))
+		return iter(ast.InternedTerm(a.Len()))
 	case ast.Set:
-		return iter(ast.InternedIntNumberTerm(a.Len()))
+		return iter(ast.InternedTerm(a.Len()))
 	case ast.String:
-		return iter(ast.InternedIntNumberTerm(len([]rune(a))))
+		return iter(ast.InternedTerm(len([]rune(a))))
 	}
 	return builtins.NewOperandTypeErr(1, operands[0].Value, "array", "object", "set", "string")
 }
@@ -40,7 +40,7 @@ func builtinSum(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 			return true
 		})
 		if !nonInts {
-			return iter(ast.InternedIntNumberTerm(is))
+			return iter(ast.InternedTerm(is))
 		}
 
 		// Non-integer values found, so we need to sum as floats.
@@ -70,7 +70,7 @@ func builtinSum(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 			return true
 		})
 		if !nonInts {
-			return iter(ast.InternedIntNumberTerm(is))
+			return iter(ast.InternedTerm(is))
 		}
 
 		sum := big.NewFloat(0)
@@ -209,7 +209,7 @@ func builtinAll(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 	switch val := operands[0].Value.(type) {
 	case ast.Set:
 		res := true
-		match := ast.InternedBooleanTerm(true)
+		match := ast.InternedTerm(true)
 		val.Until(func(term *ast.Term) bool {
 			if !match.Equal(term) {
 				res = false
@@ -217,10 +217,10 @@ func builtinAll(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 			}
 			return false
 		})
-		return iter(ast.InternedBooleanTerm(res))
+		return iter(ast.InternedTerm(res))
 	case *ast.Array:
 		res := true
-		match := ast.InternedBooleanTerm(true)
+		match := ast.InternedTerm(true)
 		val.Until(func(term *ast.Term) bool {
 			if !match.Equal(term) {
 				res = false
@@ -228,7 +228,7 @@ func builtinAll(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 			}
 			return false
 		})
-		return iter(ast.InternedBooleanTerm(res))
+		return iter(ast.InternedTerm(res))
 	default:
 		return builtins.NewOperandTypeErr(1, operands[0].Value, "array", "set")
 	}
@@ -237,11 +237,11 @@ func builtinAll(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 func builtinAny(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch val := operands[0].Value.(type) {
 	case ast.Set:
-		res := val.Len() > 0 && val.Contains(ast.InternedBooleanTerm(true))
-		return iter(ast.InternedBooleanTerm(res))
+		res := val.Len() > 0 && val.Contains(ast.InternedTerm(true))
+		return iter(ast.InternedTerm(res))
 	case *ast.Array:
 		res := false
-		match := ast.InternedBooleanTerm(true)
+		match := ast.InternedTerm(true)
 		val.Until(func(term *ast.Term) bool {
 			if match.Equal(term) {
 				res = true
@@ -249,7 +249,7 @@ func builtinAny(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 			}
 			return false
 		})
-		return iter(ast.InternedBooleanTerm(res))
+		return iter(ast.InternedTerm(res))
 	default:
 		return builtins.NewOperandTypeErr(1, operands[0].Value, "array", "set")
 	}
@@ -259,20 +259,20 @@ func builtinMember(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) 
 	containee := operands[0]
 	switch c := operands[1].Value.(type) {
 	case ast.Set:
-		return iter(ast.InternedBooleanTerm(c.Contains(containee)))
+		return iter(ast.InternedTerm(c.Contains(containee)))
 	case *ast.Array:
 		for i := range c.Len() {
 			if c.Elem(i).Value.Compare(containee.Value) == 0 {
-				return iter(ast.InternedBooleanTerm(true))
+				return iter(ast.InternedTerm(true))
 			}
 		}
-		return iter(ast.InternedBooleanTerm(false))
+		return iter(ast.InternedTerm(false))
 	case ast.Object:
-		return iter(ast.InternedBooleanTerm(c.Until(func(_, v *ast.Term) bool {
+		return iter(ast.InternedTerm(c.Until(func(_, v *ast.Term) bool {
 			return v.Value.Compare(containee.Value) == 0
 		})))
 	}
-	return iter(ast.InternedBooleanTerm(false))
+	return iter(ast.InternedTerm(false))
 }
 
 func builtinMemberWithKey(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -283,9 +283,9 @@ func builtinMemberWithKey(_ BuiltinContext, operands []*ast.Term, iter func(*ast
 		if act := c.Get(key); act != nil {
 			ret = act.Value.Compare(val.Value) == 0
 		}
-		return iter(ast.InternedBooleanTerm(ret))
+		return iter(ast.InternedTerm(ret))
 	}
-	return iter(ast.InternedBooleanTerm(false))
+	return iter(ast.InternedTerm(false))
 }
 
 func init() {

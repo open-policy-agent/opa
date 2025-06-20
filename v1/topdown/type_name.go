@@ -13,19 +13,19 @@ import (
 func builtinTypeName(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch operands[0].Value.(type) {
 	case ast.Null:
-		return iter(ast.InternedStringTerm("null"))
+		return iter(ast.InternedTerm("null"))
 	case ast.Boolean:
-		return iter(ast.InternedStringTerm("boolean"))
+		return iter(ast.InternedTerm("boolean"))
 	case ast.Number:
-		return iter(ast.InternedStringTerm("number"))
+		return iter(ast.InternedTerm("number"))
 	case ast.String:
-		return iter(ast.InternedStringTerm("string"))
+		return iter(ast.InternedTerm("string"))
 	case *ast.Array:
-		return iter(ast.InternedStringTerm("array"))
+		return iter(ast.InternedTerm("array"))
 	case ast.Object:
-		return iter(ast.InternedStringTerm("object"))
+		return iter(ast.InternedTerm("object"))
 	case ast.Set:
-		return iter(ast.InternedStringTerm("set"))
+		return iter(ast.InternedTerm("set"))
 	}
 
 	return errors.New("illegal value")

@@ -38,7 +38,7 @@ func Term(params Params) (*ast.Term, error) {
 			return nil, err
 		}
 
-		obj.Insert(ast.InternedStringTerm("config"), ast.NewTerm(v))
+		obj.Insert(ast.InternedTerm("config"), ast.NewTerm(v))
 	}
 
 	env := ast.NewObject()
@@ -52,11 +52,11 @@ func Term(params Params) (*ast.Term, error) {
 		}
 	}
 
-	obj.Insert(ast.InternedStringTerm("env"), ast.NewTerm(env))
-	obj.Insert(ast.InternedStringTerm("version"), ast.StringTerm(version.Version))
-	obj.Insert(ast.InternedStringTerm("commit"), ast.StringTerm(version.Vcs))
-	obj.Insert(ast.InternedStringTerm("authorization_enabled"), ast.InternedBooleanTerm(params.IsAuthorizationEnabled))
-	obj.Insert(ast.InternedStringTerm("skip_known_schema_check"), ast.InternedBooleanTerm(params.SkipKnownSchemaCheck))
+	obj.Insert(ast.InternedTerm("env"), ast.NewTerm(env))
+	obj.Insert(ast.InternedTerm("version"), ast.StringTerm(version.Version))
+	obj.Insert(ast.InternedTerm("commit"), ast.StringTerm(version.Vcs))
+	obj.Insert(ast.InternedTerm("authorization_enabled"), ast.InternedTerm(params.IsAuthorizationEnabled))
+	obj.Insert(ast.InternedTerm("skip_known_schema_check"), ast.InternedTerm(params.SkipKnownSchemaCheck))
 
 	return ast.NewTerm(obj), nil
 }

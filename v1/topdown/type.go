@@ -11,63 +11,63 @@ import (
 func builtinIsNumber(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch operands[0].Value.(type) {
 	case ast.Number:
-		return iter(ast.InternedBooleanTerm(true))
+		return iter(ast.InternedTerm(true))
 	default:
-		return iter(ast.InternedBooleanTerm(false))
+		return iter(ast.InternedTerm(false))
 	}
 }
 
 func builtinIsString(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch operands[0].Value.(type) {
 	case ast.String:
-		return iter(ast.InternedBooleanTerm(true))
+		return iter(ast.InternedTerm(true))
 	default:
-		return iter(ast.InternedBooleanTerm(false))
+		return iter(ast.InternedTerm(false))
 	}
 }
 
 func builtinIsBoolean(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch operands[0].Value.(type) {
 	case ast.Boolean:
-		return iter(ast.InternedBooleanTerm(true))
+		return iter(ast.InternedTerm(true))
 	default:
-		return iter(ast.InternedBooleanTerm(false))
+		return iter(ast.InternedTerm(false))
 	}
 }
 
 func builtinIsArray(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch operands[0].Value.(type) {
 	case *ast.Array:
-		return iter(ast.InternedBooleanTerm(true))
+		return iter(ast.InternedTerm(true))
 	default:
-		return iter(ast.InternedBooleanTerm(false))
+		return iter(ast.InternedTerm(false))
 	}
 }
 
 func builtinIsSet(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch operands[0].Value.(type) {
 	case ast.Set:
-		return iter(ast.InternedBooleanTerm(true))
+		return iter(ast.InternedTerm(true))
 	default:
-		return iter(ast.InternedBooleanTerm(false))
+		return iter(ast.InternedTerm(false))
 	}
 }
 
 func builtinIsObject(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch operands[0].Value.(type) {
 	case ast.Object:
-		return iter(ast.InternedBooleanTerm(true))
+		return iter(ast.InternedTerm(true))
 	default:
-		return iter(ast.InternedBooleanTerm(false))
+		return iter(ast.InternedTerm(false))
 	}
 }
 
 func builtinIsNull(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch operands[0].Value.(type) {
 	case ast.Null:
-		return iter(ast.InternedBooleanTerm(true))
+		return iter(ast.InternedTerm(true))
 	default:
-		return iter(ast.InternedBooleanTerm(false))
+		return iter(ast.InternedTerm(false))
 	}
 }
 
