@@ -1,0 +1,200 @@
+---
+cases:
+  - note: keywordrefs/import keyword in package
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.import.bar
+
+        baz := 42
+      - |
+        package foo
+        import data.foo.import.bar
+
+        p {
+          bar.baz == 42
+          data.foo.import.bar.baz == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/import keyword in package, import alias
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.import
+
+        bar := 42
+      - |
+        package foo
+        import data.foo.import as my_if
+
+        p {
+          my_if.bar == 42
+          data.foo.import.bar == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/import keyword rule refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          import.foo == 1
+          foo.import == 2
+        }
+
+        import.foo := 1
+
+        foo.import := 2
+    want_result:
+      - x: true
+  - note: keywordrefs/import keyword rule refhead, else bodies
+    query: data.test.p = x
+    input:
+      x: 3
+    modules:
+      - |
+        package test
+
+        p {
+          import.foo.bar == 3
+          foo.bar.import == 6
+        }
+
+        import.foo.bar := 1 {
+          input.x == 1
+        } else := 2 {
+          input.x == 2
+        } else := 3
+
+        foo.bar.import := 4 {
+          input.x == 1
+        } else := 5 {
+          input.x == 2
+        } else := 6
+    want_result:
+      - x: true
+  - note: keywordrefs/import keyword rule refhead, partial set
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.contains
+
+        p {
+          import.foo.bar == {"a", "c"}
+          foo.bar.import == {"a", "c"}
+        }
+
+        import.foo.bar contains "a"
+
+        import.foo.bar contains "b" {
+          false
+        }
+
+        import.foo.bar contains "c" {
+          true
+        }
+
+        foo.bar.import contains "a"
+
+        foo.bar.import contains "b" {
+          false
+        }
+
+        foo.bar.import contains "c" {
+          true
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/import keyword rule refhead, partial object
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          import.foo == "a"
+          import.bar.one == "a"
+          import.bar.three == "c"
+          foo.import == "a"
+          bar.baz.import == "a"
+        }
+
+        import.foo := "a"
+
+        import.foo := "b" {
+          false
+        }
+
+        import.foo := "c" {
+          false
+        }
+
+        import.bar.one := "a"
+
+        import.bar.two := "b" {
+          false
+        }
+
+        import.bar.three := "c" {
+          true
+        }
+
+        foo.import := "a"
+
+        foo.import := "b" {
+          false
+        }
+
+        foo.import := "c" {
+          false
+        }
+
+        bar.baz.import := "a"
+
+        bar.baz.import := "b" {
+          false
+        }
+
+        bar.baz.import := "c" {
+          false
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/import keyword function refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          import.foo(1) == 1
+          import.foo(11) == 42
+          foo.import(1) == 1
+          foo.import(11) == 42
+          bar.import.baz(1) == 1
+          bar.import.baz(11) == 42
+        }
+
+        default import.foo(_) := 42
+
+        import.foo(x) := x {
+          x < 10
+        }
+
+        default foo.import(_) := 42
+
+        foo.import(x) := x {
+          x < 10
+        }
+
+        default bar.import.baz(_) := 42
+
+        bar.import.baz(x) := x {
+          x < 10
+        }
+    want_result:
+      - x: true

@@ -203,7 +203,7 @@ import rego.v1`,
 			}
 
 			test.WithTempFS(files, func(root string) {
-				caps := newcapabilitiesFlag()
+				caps := newCapabilitiesFlag()
 				if err := caps.Set(path.Join(root, "capabilities.json")); err != nil {
 					t.Fatal(err)
 				}
@@ -1324,7 +1324,7 @@ p[4] {
 				params.v1Compatible = tc.v1Compatible
 
 				if tc.capabilities != nil {
-					params.capabilities = newcapabilitiesFlag()
+					params.capabilities = newCapabilitiesFlag()
 					params.capabilities.C = tc.capabilities
 				}
 
@@ -2842,7 +2842,7 @@ foo contains __local1__1 if {
 				params.optimizationLevel = 1
 
 				if !tc.regoV1ImportCapable {
-					caps := newcapabilitiesFlag()
+					caps := newCapabilitiesFlag()
 					caps.C = ast.CapabilitiesForThisVersion()
 					caps.C.Features = []string{
 						ast.FeatureRefHeadStringPrefixes,

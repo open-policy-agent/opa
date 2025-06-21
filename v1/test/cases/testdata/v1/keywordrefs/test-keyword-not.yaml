@@ -1,0 +1,199 @@
+---
+cases:
+  - note: keywordrefs/not keyword in package
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.not.bar
+
+        baz := 42
+      - |
+        package foo
+        import data.foo.not.bar
+
+        p if {
+          bar.baz == 42
+          data.foo.not.bar.baz == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/not keyword in package, import alias
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.not
+
+        bar := 42
+      - |
+        package foo
+        import data.foo.not as my_if
+
+        p if {
+          my_if.bar == 42
+          data.foo.not.bar == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/not keyword rule refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          not.foo == 1
+          foo.not == 2
+        }
+
+        not.foo := 1
+
+        foo.not := 2
+    want_result:
+      - x: true
+  - note: keywordrefs/not keyword rule refhead, else bodies
+    query: data.test.p = x
+    input:
+      x: 3
+    modules:
+      - |
+        package test
+
+        p if {
+          not.foo == 3
+          foo.not == 6
+        }
+
+        not.foo := 1 if {
+          input.x == 1
+        } else := 2 if {
+          input.x == 2
+        } else := 3
+
+        foo.not := 4 if {
+          input.x == 1
+        } else := 5 if {
+          input.x == 2
+        } else := 6
+    want_result:
+      - x: true
+  - note: keywordrefs/not keyword rule refhead, partial set
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          not.foo == {"a", "c"}
+          foo.not == {"a", "c"}
+        }
+
+        not.foo contains "a"
+
+        not.foo contains "b" if {
+          false
+        }
+
+        not.foo contains "c" if {
+          true
+        }
+
+        foo.not contains "a"
+
+        foo.not contains "b" if {
+          false
+        }
+
+        foo.not contains "c" if {
+          true
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/not keyword rule refhead, partial object
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          not.foo == "a"
+          not.bar.one == "a"
+          not.bar.three == "c"
+          foo.not == "a"
+          bar.baz.not == "a"
+        }
+
+        not.foo := "a"
+
+        not.foo := "b" if {
+          false
+        }
+
+        not.foo := "c" if {
+          false
+        }
+
+        not.bar.one := "a"
+
+        not.bar.two := "b" if {
+          false
+        }
+
+        not.bar.three := "c" if {
+          true
+        }
+
+        foo.not := "a"
+
+        foo.not := "b" if {
+          false
+        }
+
+        foo.not := "c" if {
+          false
+        }
+
+        bar.baz.not := "a"
+
+        bar.baz.not := "b" if {
+          false
+        }
+
+        bar.baz.not := "c" if {
+          false
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/not keyword function refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          not.foo(1) == 1
+          not.foo(11) == 42
+          foo.not(1) == 1
+          foo.not(11) == 42
+          bar.not.baz(1) == 1
+          bar.not.baz(11) == 42
+        }
+
+        default not.foo(_) := 42
+
+        not.foo(x) := x if {
+          x < 10
+        }
+
+        default foo.not(_) := 42
+
+        foo.not(x) := x if {
+          x < 10
+        }
+
+        default bar.not.baz(_) := 42
+
+        bar.not.baz(x) := x if {
+          x < 10
+        }
+    want_result:
+      - x: true

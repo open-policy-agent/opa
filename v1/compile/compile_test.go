@@ -1702,12 +1702,13 @@ update {
 
 func TestCompilerOptimizationSupportRegoVersion(t *testing.T) {
 	tests := []struct {
-		note                string
-		modulesRegoVersion  ast.RegoVersion
-		regoV1ImportCapable bool
-		entrypoint          string
-		files               map[string]string
-		expected            []string
+		note                       string
+		modulesRegoVersion         ast.RegoVersion
+		noKeywordsInRefsCapability bool
+		regoV1ImportCapable        bool
+		entrypoint                 string
+		files                      map[string]string
+		expected                   []string
 	}{
 		{
 			note:                "v0 module, rego.v1 capable",
@@ -1757,6 +1758,42 @@ contains {
 			modulesRegoVersion:  ast.RegoV0,
 			regoV1ImportCapable: true,
 			entrypoint:          "test/p",
+			files: map[string]string{
+				"test.rego": `package test
+import data.foo.contains
+
+p {
+    input.x == contains
+}`,
+				"foo.rego": `package foo
+contains := 2 {
+	input.a == input.b
+}`,
+			},
+			// rego.v1 import used for data.test, since complete ref to data.foo.contains is used locally without original import
+			expected: []string{
+				`package test
+
+import rego.v1
+
+p if {
+	data.foo.contains = input.x
+}
+`,
+				`package foo
+
+contains = 2 {
+	input.a = input.b
+}
+`,
+			},
+		},
+		{
+			note:                       "v0 module, rego.v1 capable, import conflict with keyword, no capability",
+			modulesRegoVersion:         ast.RegoV0,
+			noKeywordsInRefsCapability: true,
+			regoV1ImportCapable:        true,
+			entrypoint:                 "test/p",
 			files: map[string]string{
 				"test.rego": `package test
 import data.foo.contains
@@ -1890,6 +1927,9 @@ p if {
 				}
 				if tc.regoV1ImportCapable {
 					capabilities.Features = append(capabilities.Features, ast.FeatureRegoV1Import)
+				}
+				if !tc.noKeywordsInRefsCapability {
+					capabilities.Features = append(capabilities.Features, ast.FeatureKeywordsInRefs)
 				}
 
 				compiler := New().

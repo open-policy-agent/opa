@@ -1092,31 +1092,55 @@ func (b *Bundle) FormatModules(useModulePath bool) error {
 
 // FormatModulesForRegoVersion formats Rego modules to comply with a given Rego version
 func (b *Bundle) FormatModulesForRegoVersion(version ast.RegoVersion, preserveModuleRegoVersion bool, useModulePath bool) error {
+	return b.FormatModulesWithOptions(BundleFormatOptions{
+		RegoVersion:               version,
+		PreserveModuleRegoVersion: preserveModuleRegoVersion,
+		UseModulePath:             useModulePath,
+	})
+}
+
+type BundleFormatOptions struct {
+	RegoVersion               ast.RegoVersion
+	Capabilities              *ast.Capabilities
+	PreserveModuleRegoVersion bool
+	UseModulePath             bool
+}
+
+// FormatModulesWithOptions formats Rego modules with the given options.
+func (b *Bundle) FormatModulesWithOptions(opts BundleFormatOptions) error {
 	var err error
 
 	for i, module := range b.Modules {
-		opts := format.Opts{}
-		if preserveModuleRegoVersion {
-			opts.RegoVersion = module.Parsed.RegoVersion()
-			opts.ParserOptions = &ast.ParserOptions{
-				RegoVersion: opts.RegoVersion,
+		fmtOpts := format.Opts{
+			RegoVersion:  opts.RegoVersion,
+			Capabilities: opts.Capabilities,
+		}
+
+		if module.Parsed != nil {
+			fmtOpts.ParserOptions = &ast.ParserOptions{
+				RegoVersion: module.Parsed.RegoVersion(),
 			}
-		} else {
-			opts.RegoVersion = version
+			if opts.PreserveModuleRegoVersion {
+				fmtOpts.RegoVersion = module.Parsed.RegoVersion()
+			}
+		}
+
+		if fmtOpts.Capabilities == nil {
+			fmtOpts.Capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(fmtOpts.RegoVersion))
 		}
 
 		if module.Raw == nil {
-			module.Raw, err = format.AstWithOpts(module.Parsed, opts)
+			module.Raw, err = format.AstWithOpts(module.Parsed, fmtOpts)
 			if err != nil {
 				return err
 			}
 		} else {
-			path := module.URL
-			if useModulePath {
-				path = module.Path
+			p := module.URL
+			if opts.UseModulePath {
+				p = module.Path
 			}
 
-			module.Raw, err = format.SourceWithOpts(path, module.Raw, opts)
+			module.Raw, err = format.SourceWithOpts(p, module.Raw, fmtOpts)
 			if err != nil {
 				return err
 			}

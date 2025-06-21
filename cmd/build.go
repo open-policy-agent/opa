@@ -53,7 +53,7 @@ type buildParams struct {
 
 func newBuildParams() buildParams {
 	return buildParams{
-		capabilities: newcapabilitiesFlag(),
+		capabilities: newCapabilitiesFlag(),
 		target:       util.NewEnumFlag(compile.TargetRego, compile.Targets),
 	}
 }

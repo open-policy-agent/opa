@@ -1,0 +1,199 @@
+---
+cases:
+  - note: keywordrefs/true keyword in package
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.true.bar
+
+        baz := 42
+      - |
+        package foo
+        import data.foo.true.bar
+
+        p if {
+          bar.baz == 42
+          data.foo.true.bar.baz == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/true keyword in package, import alias
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.true
+
+        bar := 42
+      - |
+        package foo
+        import data.foo.true as my_if
+
+        p if {
+          my_if.bar == 42
+          data.foo.true.bar == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/true keyword rule refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          true.foo == 1
+          foo.true == 2
+        }
+
+        true.foo := 1
+
+        foo.true := 2
+    want_result:
+      - x: true
+  - note: keywordrefs/true keyword rule refhead, else bodies
+    query: data.test.p = x
+    input:
+      x: 3
+    modules:
+      - |
+        package test
+
+        p if {
+          true.foo == 3
+          foo.true == 6
+        }
+
+        true.foo := 1 if {
+          input.x == 1
+        } else := 2 if {
+          input.x == 2
+        } else := 3
+
+        foo.true := 4 if {
+          input.x == 1
+        } else := 5 if {
+          input.x == 2
+        } else := 6
+    want_result:
+      - x: true
+  - note: keywordrefs/true keyword rule refhead, partial set
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          true.foo == {"a", "c"}
+          foo.true == {"a", "c"}
+        }
+
+        true.foo contains "a"
+
+        true.foo contains "b" if {
+          false
+        }
+
+        true.foo contains "c" if {
+          true
+        }
+
+        foo.true contains "a"
+
+        foo.true contains "b" if {
+          false
+        }
+
+        foo.true contains "c" if {
+          true
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/true keyword rule refhead, partial object
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          true.foo == "a"
+          true.bar.one == "a"
+          true.bar.three == "c"
+          foo.true == "a"
+          bar.baz.true == "a"
+        }
+
+        true.foo := "a"
+
+        true.foo := "b" if {
+          false
+        }
+
+        true.foo := "c" if {
+          false
+        }
+
+        true.bar.one := "a"
+
+        true.bar.two := "b" if {
+          false
+        }
+
+        true.bar.three := "c" if {
+          true
+        }
+
+        foo.true := "a"
+
+        foo.true := "b" if {
+          false
+        }
+
+        foo.true := "c" if {
+          false
+        }
+
+        bar.baz.true := "a"
+
+        bar.baz.true := "b" if {
+          false
+        }
+
+        bar.baz.true := "c" if {
+          false
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/true keyword function refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          true.foo(1) == 1
+          true.foo(11) == 42
+          foo.true(1) == 1
+          foo.true(11) == 42
+          bar.true.baz(1) == 1
+          bar.true.baz(11) == 42
+        }
+
+        default true.foo(_) := 42
+
+        true.foo(x) := x if {
+          x < 10
+        }
+
+        default foo.true(_) := 42
+
+        foo.true(x) := x if {
+          x < 10
+        }
+
+        default bar.true.baz(_) := 42
+
+        bar.true.baz(x) := x if {
+          x < 10
+        }
+    want_result:
+      - x: true

@@ -1,0 +1,199 @@
+---
+cases:
+  - note: keywordrefs/if keyword in package
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.if.bar
+
+        baz := 42
+      - |
+        package foo
+        import data.foo.if.bar
+
+        p if {
+          bar.baz == 42
+          data.foo.if.bar.baz == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/if keyword in package, import alias
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.if
+
+        bar := 42
+      - |
+        package foo
+        import data.foo.if as my_if
+
+        p if {
+          my_if.bar == 42
+          data.foo.if.bar == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/if keyword rule refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          if.foo == 1
+          foo.if == 2
+        }
+
+        if.foo := 1
+
+        foo.if := 2
+    want_result:
+      - x: true
+  - note: keywordrefs/if keyword rule refhead, else bodies
+    query: data.test.p = x
+    input:
+      x: 3
+    modules:
+      - |
+        package test
+
+        p if {
+          if.foo == 3
+          foo.if == 6
+        }
+
+        if.foo := 1 if {
+          input.x == 1
+        } else := 2 if {
+          input.x == 2
+        } else := 3
+
+        foo.if := 4 if {
+          input.x == 1
+        } else := 5 if {
+          input.x == 2
+        } else := 6
+    want_result:
+      - x: true
+  - note: keywordrefs/if keyword rule refhead, partial set
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          if.foo == {"a", "c"}
+          foo.if == {"a", "c"}
+        }
+
+        if.foo contains "a"
+
+        if.foo contains "b" if {
+          false
+        }
+
+        if.foo contains "c" if {
+          true
+        }
+
+        foo.if contains "a"
+
+        foo.if contains "b" if {
+          false
+        }
+
+        foo.if contains "c" if {
+          true
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/if keyword rule refhead, partial object
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          if.foo == "a"
+          if.bar.one == "a"
+          if.bar.three == "c"
+          foo.if == "a"
+          bar.baz.if == "a"
+        }
+
+        if.foo := "a"
+
+        if.foo := "b" if {
+          false
+        }
+
+        if.foo := "c" if {
+          false
+        }
+
+        if.bar.one := "a"
+
+        if.bar.two := "b" if {
+          false
+        }
+
+        if.bar.three := "c" if {
+          true
+        }
+
+        foo.if := "a"
+
+        foo.if := "b" if {
+          false
+        }
+
+        foo.if := "c" if {
+          false
+        }
+
+        bar.baz.if := "a"
+
+        bar.baz.if := "b" if {
+          false
+        }
+
+        bar.baz.if := "c" if {
+          false
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/if keyword function refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          if.foo(1) == 1
+          if.foo(11) == 42
+          foo.if(1) == 1
+          foo.if(11) == 42
+          bar.if.baz(1) == 1
+          bar.if.baz(11) == 42
+        }
+
+        default if.foo(_) := 42
+
+        if.foo(x) := x if {
+          x < 10
+        }
+
+        default foo.if(_) := 42
+
+        foo.if(x) := x if {
+          x < 10
+        }
+
+        default bar.if.baz(_) := 42
+
+        bar.if.baz(x) := x if {
+          x < 10
+        }
+    want_result:
+      - x: true

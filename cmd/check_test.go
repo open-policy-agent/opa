@@ -162,7 +162,7 @@ import rego.v1`,
 			}
 
 			test.WithTempFS(files, func(root string) {
-				caps := newcapabilitiesFlag()
+				caps := newCapabilitiesFlag()
 				if err := caps.Set(path.Join(root, "capabilities.json")); err != nil {
 					t.Fatal(err)
 				}
