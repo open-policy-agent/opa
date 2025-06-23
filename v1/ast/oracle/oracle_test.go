@@ -248,6 +248,127 @@ q[x.y] = 10 if {
 			},
 		},
 		{
+			note: "some in var",
+			modules: map[string]string{
+				"buffer.rego": `package example
+
+allow if {
+	list := input.list
+	some e in list
+}`,
+			},
+			pos: 60,
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  4,
+				Col:  2,
+				Text: []byte("list"),
+			},
+		},
+		{
+			note: "some in rule",
+			modules: map[string]string{
+				"buffer.rego": `package example
+
+list := [1,2,3]
+
+allow if {
+	some e in list
+	e == 1
+}`,
+			},
+			pos: 56,
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  3,
+				Col:  1,
+				Text: []byte("list := [1,2,3]"),
+			},
+		},
+		{
+			note: "some in rule k, v",
+			modules: map[string]string{
+				"buffer.rego": `package example
+
+list := [1,2,3]
+
+allow if {
+	some k, v in list
+	e == 1
+}`,
+			},
+			pos: 59,
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  3,
+				Col:  1,
+				Text: []byte("list := [1,2,3]"),
+			},
+		},
+		{
+			note: "every var",
+			modules: map[string]string{
+				"buffer.rego": `package example
+
+allow if {
+	list := input.list
+	every e in list {
+		e == 1
+	}
+}`,
+			},
+			pos: 60,
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  4,
+				Col:  2,
+				Text: []byte("list"),
+			},
+		},
+		{
+			note: "every rule",
+			modules: map[string]string{
+				"buffer.rego": `package example
+
+list := [1,2,3]
+
+allow if {
+	every e in list {
+		e == 1
+	}
+}`,
+			},
+			pos: 57,
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  3,
+				Col:  1,
+				Text: []byte("list := [1,2,3]"),
+			},
+		},
+		{
+			note: "every in rule k, v",
+			modules: map[string]string{
+				"buffer.rego": `package example
+
+list := [1,2,3]
+
+allow if {
+	every k, v in list {
+		k == 1
+		v == 2
+	}
+}`,
+			},
+			pos: 60,
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  3,
+				Col:  1,
+				Text: []byte("list := [1,2,3]"),
+			},
+		},
+		{
 			note: "t - embedded ref and import alias",
 			modules: map[string]string{
 				"buffer.rego": aBufferModule,
@@ -449,6 +570,14 @@ allow if bar.foo == "value"`,
 
 			buffer := tc.modules["buffer.rego"]
 
+			t.Logf(
+				"pos is %d: \"%s<%s>%s\"",
+				tc.pos,
+				buffer[max(tc.pos-4, 0):tc.pos],
+				string(buffer[tc.pos]),
+				buffer[tc.pos+1:min(tc.pos+5, len(buffer))],
+			)
+
 			result, err := New().FindDefinition(DefinitionQuery{
 				Modules:  modules,
 				Buffer:   []byte(buffer),
@@ -460,6 +589,7 @@ allow if bar.foo == "value"`,
 			}
 
 			if !tc.exp.Equal(result.Result) {
+				t.Logf("exp %q, got %q", tc.exp.Text, result.Result.Text)
 				t.Errorf(`Location mismatch:
 expected file=%q, row=%d, col=%d
 got      file=%q, row=%d, col=%d`,
