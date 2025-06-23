@@ -5,6 +5,7 @@ import React from "react";
 
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import useBaseUrl from "@docusaurus/useBaseUrl";
+import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import semver from "semver";
 
 import DefaultNavbarItem from "@theme/NavbarItem/DefaultNavbarItem";
@@ -17,6 +18,9 @@ export default function CurrentVersionNavbarItem({ ...props }) {
   const baseUrl = useBaseUrl("/");
   const normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
   const href = useBaseUrl("/docs/archive");
+
+  const { siteConfig: { customFields } } = useDocusaurusContext();
+  const version = customFields.buildVersion || "edge";
 
   // on the mobile menu, show nothing. Note, the 'Desktop' item has 'display'
   // set, so it'll appear on mobile too.
@@ -34,7 +38,7 @@ export default function CurrentVersionNavbarItem({ ...props }) {
           <div className={styles.versionWrapper}>
             <DefaultNavbarItem
               {...props}
-              label={"edge"}
+              label={`${version}`}
               href={href}
             />
           </div>
