@@ -11,15 +11,12 @@ import DefaultNavbarItem from "@theme/NavbarItem/DefaultNavbarItem";
 
 import styles from "./styles.module.css";
 
-import versions from "@generated/versions-data/default/versions.json";
-
 // display: inline-block overrides the default and ensures the item shows on
 // mobile at the top of the page.
 export default function CurrentVersionNavbarItem({ ...props }) {
   const baseUrl = useBaseUrl("/");
   const normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
   const href = useBaseUrl("/docs/archive");
-  const latestVersion = versions.filter(semver.valid).sort(semver.rcompare)[0];
 
   // on the mobile menu, show nothing. Note, the 'Desktop' item has 'display'
   // set, so it'll appear on mobile too.
@@ -37,7 +34,7 @@ export default function CurrentVersionNavbarItem({ ...props }) {
           <div className={styles.versionWrapper}>
             <DefaultNavbarItem
               {...props}
-              label={`${latestVersion}`}
+              label={"edge"}
               href={href}
             />
           </div>
