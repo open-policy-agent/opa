@@ -146,8 +146,8 @@ func BenchmarkSubstring(b *testing.B) {
 	operands := []*ast.Term{
 		// insert any non-asci character to see the difference of that optimization
 		ast.StringTerm("The quick brown fox jumps over the lazy dog"),
-		ast.InternedIntNumberTerm(6),
-		ast.InternedIntNumberTerm(10),
+		ast.InternedTerm(6),
+		ast.InternedTerm(10),
 	}
 
 	iter := eqIter(ast.StringTerm("ick brown "))
@@ -175,7 +175,7 @@ func BenchmarkIndexOf(b *testing.B) {
 	b.ResetTimer()
 
 	for range b.N {
-		if err := builtinIndexOf(BuiltinContext{}, operands, eqIter(ast.InternedIntNumberTerm(40))); err != nil {
+		if err := builtinIndexOf(BuiltinContext{}, operands, eqIter(ast.InternedTerm(40))); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -193,8 +193,8 @@ func eqIter(a *ast.Term) func(*ast.Term) error {
 // 0 allocs for numbers between 0 and 100 and base 10, 3 allocs for anything else.
 func BenchmarkFormatInt(b *testing.B) {
 	operands := []*ast.Term{
-		ast.InternedIntNumberTerm(99),
-		ast.InternedIntNumberTerm(10),
+		ast.InternedTerm(99),
+		ast.InternedTerm(10),
 	}
 	bctx := BuiltinContext{}
 	want := eqIter(ast.StringTerm("99"))
@@ -213,7 +213,7 @@ func BenchmarkSprintfSingleInteger(b *testing.B) {
 	operands := []*ast.Term{
 		ast.StringTerm("%d"),
 		ast.ArrayTerm(
-			ast.InternedIntNumberTerm(99),
+			ast.InternedTerm(99),
 		),
 	}
 	bctx := BuiltinContext{}
@@ -312,27 +312,27 @@ func BenchmarkConcat(b *testing.B) {
 	}{
 		{
 			name:     "0 elements '.' sep",
-			operands: []*ast.Term{ast.InternedStringTerm("."), ast.InternedEmptyArray},
+			operands: []*ast.Term{ast.InternedTerm("."), ast.InternedEmptyArray},
 			expected: ast.InternedEmptyString,
 		},
 		{
 			name:     "1 element '.' sep",
-			operands: []*ast.Term{ast.InternedStringTerm("."), ast.ArrayTerm(ast.InternedStringTerm("foobar"))},
-			expected: ast.InternedStringTerm("foobar"),
+			operands: []*ast.Term{ast.InternedTerm("."), ast.ArrayTerm(ast.InternedTerm("foobar"))},
+			expected: ast.InternedTerm("foobar"),
 		},
 		{
 			name:     "100 elements ',' sep",
-			operands: []*ast.Term{ast.InternedStringTerm(","), repeatTerm(ast.InternedStringTerm("foobar"), 100)},
+			operands: []*ast.Term{ast.InternedTerm(","), repeatTerm(ast.InternedTerm("foobar"), 100)},
 			expected: ast.StringTerm(strings.Repeat("foobar,", 99) + "foobar"),
 		},
 		{
 			name:     "100 elements ', ' sep",
-			operands: []*ast.Term{ast.InternedStringTerm(", "), repeatTerm(ast.InternedStringTerm("foobar"), 100)},
+			operands: []*ast.Term{ast.InternedTerm(", "), repeatTerm(ast.InternedTerm("foobar"), 100)},
 			expected: ast.StringTerm(strings.Repeat("foobar, ", 99) + "foobar"),
 		},
 		{
 			name:     "100 elements blank sep",
-			operands: []*ast.Term{ast.InternedEmptyString, repeatTerm(ast.InternedStringTerm("foobar"), 100)},
+			operands: []*ast.Term{ast.InternedEmptyString, repeatTerm(ast.InternedTerm("foobar"), 100)},
 			expected: ast.StringTerm(strings.Repeat("foobar", 100)),
 		},
 	}
@@ -351,9 +351,9 @@ func BenchmarkConcat(b *testing.B) {
 func BenchmarkConcatVsSprintfSimple(b *testing.B) {
 	bctx := BuiltinContext{}
 
-	foo := ast.InternedStringTerm("foo")
-	bar := ast.InternedStringTerm("bar")
-	expected := ast.InternedStringTerm("foobar")
+	foo := ast.InternedTerm("foo")
+	bar := ast.InternedTerm("bar")
+	expected := ast.InternedTerm("foobar")
 
 	b.Run("concat foobar", func(b *testing.B) {
 		operands := []*ast.Term{ast.InternedEmptyString, ast.ArrayTerm(foo, bar)}
@@ -368,7 +368,7 @@ func BenchmarkConcatVsSprintfSimple(b *testing.B) {
 	b.ResetTimer()
 
 	b.Run("sprintf foobar", func(b *testing.B) {
-		operands := []*ast.Term{ast.InternedStringTerm("%s%s"), ast.ArrayTerm(foo, bar)}
+		operands := []*ast.Term{ast.InternedTerm("%s%s"), ast.ArrayTerm(foo, bar)}
 
 		for range b.N {
 			if err := builtinSprintf(bctx, operands, eqIter(expected)); err != nil {

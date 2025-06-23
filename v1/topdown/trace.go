@@ -533,7 +533,7 @@ func builtinTrace(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 	}
 
 	if !bctx.TraceEnabled {
-		return iter(ast.InternedBooleanTerm(true))
+		return iter(ast.InternedTerm(true))
 	}
 
 	evt := Event{
@@ -548,7 +548,7 @@ func builtinTrace(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 		bctx.QueryTracers[i].TraceEvent(evt)
 	}
 
-	return iter(ast.InternedBooleanTerm(true))
+	return iter(ast.InternedTerm(true))
 }
 
 func rewrite(event *Event) *Event {

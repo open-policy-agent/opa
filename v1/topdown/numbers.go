@@ -117,11 +117,11 @@ func generateCheapRange(operands []*ast.Term, step int, iter func(*ast.Term) err
 
 	if x <= y {
 		for i := x; i <= y; i += step {
-			terms = append(terms, ast.InternedIntNumberTerm(i))
+			terms = append(terms, ast.InternedTerm(i))
 		}
 	} else {
 		for i := x; i >= y; i -= step {
-			terms = append(terms, ast.InternedIntNumberTerm(i))
+			terms = append(terms, ast.InternedTerm(i))
 		}
 	}
 
@@ -171,7 +171,7 @@ func builtinRandIntn(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.T
 	}
 
 	if n == 0 {
-		return iter(ast.InternedIntNumberTerm(0))
+		return iter(ast.InternedTerm(0))
 	}
 
 	if n < 0 {
@@ -188,7 +188,7 @@ func builtinRandIntn(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.T
 	if err != nil {
 		return err
 	}
-	result := ast.InternedIntNumberTerm(r.Intn(n))
+	result := ast.InternedTerm(r.Intn(n))
 	bctx.Cache.Put(key, result)
 
 	return iter(result)

@@ -19,7 +19,7 @@ func BenchmarkObjectLookup(b *testing.B) {
 		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			obj := NewObject()
 			for i := range n {
-				obj.Insert(StringTerm(strconv.Itoa(i)), InternedIntNumberTerm(i))
+				obj.Insert(StringTerm(strconv.Itoa(i)), InternedTerm(i))
 			}
 			key := StringTerm(strconv.Itoa(n - 1))
 			b.ResetTimer()

@@ -34,7 +34,7 @@ func compareEq(a, b ast.Value) bool {
 
 func builtinCompare(cmp compareFunc) BuiltinFunc {
 	return func(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-		return iter(ast.InternedBooleanTerm(cmp(operands[0].Value, operands[1].Value)))
+		return iter(ast.InternedTerm(cmp(operands[0].Value, operands[1].Value)))
 	}
 }
 

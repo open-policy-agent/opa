@@ -291,7 +291,7 @@ func gen3LayerObject(l1Keys, l2Keys, l3Keys int) ast.Value {
 		for j := range l2Keys {
 			l3Obj := ast.NewObject()
 			for k := range l3Keys {
-				l3Obj.Insert(ast.StringTerm(strconv.Itoa(k)), ast.InternedBooleanTerm(true))
+				l3Obj.Insert(ast.StringTerm(strconv.Itoa(k)), ast.InternedTerm(true))
 			}
 			l2Obj.Insert(ast.StringTerm(strconv.Itoa(j)), ast.NewTerm(l3Obj))
 		}

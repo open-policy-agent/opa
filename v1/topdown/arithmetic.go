@@ -67,7 +67,7 @@ func builtinPlus(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) er
 	y, ok2 := n2.Int()
 
 	if ok1 && ok2 && inSmallIntRange(x) && inSmallIntRange(y) {
-		return iter(ast.InternedIntNumberTerm(x + y))
+		return iter(ast.InternedTerm(x + y))
 	}
 
 	f := new(big.Float).Add(builtins.NumberToFloat(n1), builtins.NumberToFloat(n2))
@@ -89,7 +89,7 @@ func builtinMultiply(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 	y, ok2 := n2.Int()
 
 	if ok1 && ok2 && inSmallIntRange(x) && inSmallIntRange(y) {
-		return iter(ast.InternedIntNumberTerm(x * y))
+		return iter(ast.InternedTerm(x * y))
 	}
 
 	f := new(big.Float).Mul(builtins.NumberToFloat(n1), builtins.NumberToFloat(n2))
@@ -155,7 +155,7 @@ func builtinMinus(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) e
 		y, oky := n2.Int()
 
 		if okx && oky && inSmallIntRange(x) && inSmallIntRange(y) {
-			return iter(ast.InternedIntNumberTerm(x - y))
+			return iter(ast.InternedTerm(x - y))
 		}
 
 		f := new(big.Float).Sub(builtins.NumberToFloat(n1), builtins.NumberToFloat(n2))
@@ -199,7 +199,7 @@ func builtinRem(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 				return errors.New("modulo by zero")
 			}
 
-			return iter(ast.InternedIntNumberTerm(x % y))
+			return iter(ast.InternedTerm(x % y))
 		}
 
 		op1, err1 := builtins.NumberToInt(n1)

@@ -1245,10 +1245,10 @@ func TestFutureImports(t *testing.T) {
 	assertParseErrorContains(t, "keyword import + alias", "import future.keywords.in as xyz", "`future` imports cannot be aliased")
 
 	assertParseImport(t, "import kw with kw in options",
-		"import future.keywords.in", &Import{Path: RefTerm(VarTerm("future"), InternedStringTerm("keywords"), StringTerm("in"))},
+		"import future.keywords.in", &Import{Path: RefTerm(VarTerm("future"), InternedTerm("keywords"), StringTerm("in"))},
 		ParserOptions{FutureKeywords: []string{"in"}})
 	assertParseImport(t, "import kw with all kw in options",
-		"import future.keywords.in", &Import{Path: RefTerm(VarTerm("future"), InternedStringTerm("keywords"), StringTerm("in"))},
+		"import future.keywords.in", &Import{Path: RefTerm(VarTerm("future"), InternedTerm("keywords"), StringTerm("in"))},
 		ParserOptions{AllFutureKeywords: true})
 
 	mod := `
