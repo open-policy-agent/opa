@@ -126,7 +126,6 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 				if b.logger != nil {
 					b.logger.Error("encoding failure: %v, dropping event with decision ID: %v", err, event.DecisionID)
 				}
-				continue
 			}
 		}
 
