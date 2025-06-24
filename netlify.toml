@@ -1,7 +1,6 @@
 [build]
 publish = "docs/build"
 command = "make netlify"
-ignore = "./build/docs-build-needed.sh"
 edge_functions = "docs/functions"
 
 [build.environment]
