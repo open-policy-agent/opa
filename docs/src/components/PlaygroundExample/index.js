@@ -2,14 +2,45 @@ import Link from "@docusaurus/Link";
 import { MDXProvider } from "@mdx-js/react";
 import CodeBlock from "@theme/CodeBlock";
 import * as components from "@theme/MDXComponents"; // Import default MDX components from Docusaurus theme
-import React from "react";
+import React, { useState } from "react";
 
 import RunSnippet from "../RunSnippet";
 import SideBySideColumn from "../SideBySide/Column";
 import SideBySideContainer from "../SideBySide/Container";
+import styles from "./styles.module.css";
+
+const min = (x, y) => x > y ? y : x;
+const max = (x, y) => x > y ? x : y;
+
+function getTitle(titleSize, title) {
+  const ret = [
+    (<h1>{title}</h1>),
+    (<h2>{title}</h2>),
+    (<h3>{title}</h3>),
+    (<h4>{title}</h4>),
+    (<h5>{title}</h5>),
+    (<h6>{title}</h6>),
+  ][min(5, max(0, titleSize - 1))];
+  return ret;
+}
+
+function makeCollapse(contents, header, collapsible) {
+  if (!collapsible) return <div>{header}{contents}</div>;
+  return (
+    <div className={styles.detailsContainer}>
+      <details open={true}>
+        <summary>
+          <b>Example:</b> {header}
+        </summary>
+        <div style={{ overflow: "hidden" }}>{contents}</div>
+      </details>
+    </div>
+  );
+}
 
 export default function PlaygroundExample({
-  dir, files
+  dir,
+  files,
 }) {
   let source_files = dir.keys().reduce((acc, key) => {
     let fileName = key.replace(`./`, "");
@@ -24,8 +55,8 @@ export default function PlaygroundExample({
     return acc;
   }, {});
   const config = source_files["config.json"];
-  const input = source_files["input.json"]||"{}";
-  const data = source_files["data.json"]||"{}";
+  const input = source_files["input.json"] || "{}";
+  const data = source_files["data.json"] || "{}";
   const policy = source_files["policy.rego"];
 
   const title = source_files["title.txt"];
@@ -38,8 +69,11 @@ export default function PlaygroundExample({
   const showData = config?.showData ?? true;
   const showTitles = config?.showTitles ?? true;
   const showPlayground = config?.showPlayground ?? true;
+  const collapsible = config?.collapsible ?? false;
   const command = config?.command ?? "data.play";
+  const titleSize = config?.titleSize ?? 2;
 
+  const [showContent, setShowContent] = useState(true);
   const state = encodeToBase64(JSON.stringify({
     i: JSON.stringify(input, null, 2),
     d: JSON.stringify(data, null, 2),
@@ -53,15 +87,19 @@ export default function PlaygroundExample({
   if (config && config.showData && config.dataLineLimit) {
     dataString = dataString.split("\n").slice(0, config.dataLineLimit).join("\n") + "\n...";
   }
+  const introT = intro ? intro() : "";
+  const outroT = outro ? outro() : "";
 
   // id is used to stop contents from other examples on the same page being used
   const id = getId(state);
-  const snippetFiles = files?`${files} #${id}-input.json:input.json #${id}-data.json:data.json`:`#${id}-input.json:input.json #${id}-data.json:data.json`;
-  return (
-    <div>
-      {title && <h2>{title}</h2>}
+  const snippetFiles = files
+    ? `${files} #${id}-input.json:input.json #${id}-data.json:data.json`
+    : `#${id}-input.json:input.json #${id}-data.json:data.json`;
+  const header = title && getTitle(titleSize, title);
 
-      {intro && intro()}
+  const contents = (
+    <div>
+      {intro && introT}
 
       {showInput && (
         <SideBySideContainer>
@@ -115,7 +153,12 @@ export default function PlaygroundExample({
           <CodeBlock language={"rego"} title={showTitles ? "policy.rego" : ""}>
             {policy}
           </CodeBlock>
-          <RunSnippet command={command} id={`${id}-policy.rego`} files={snippetFiles} playgroundLink={showPlayground && url} />
+          <RunSnippet
+            command={command}
+            id={`${id}-policy.rego`}
+            files={snippetFiles}
+            playgroundLink={showPlayground && url}
+          />
         </MDXProvider>
       )}
 
@@ -153,7 +196,12 @@ export default function PlaygroundExample({
         </table>
       )}
 
-      {outro && outro()}
+      {outro && outroT}
+    </div>
+  );
+  return (
+    <div>
+      {makeCollapse(contents, header, collapsible)}
     </div>
   );
 }

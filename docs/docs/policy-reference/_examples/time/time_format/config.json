@@ -1,6 +1,8 @@
 {
-	"showInput": false,
-	"showData":  false,
-	"showTitles": false,
-	"command": "data.time_format"
+  "showInput": false,
+  "showData": false,
+  "showTitles": false,
+  "command": "data.time_format",
+  "collapsible": true,
+  "titleSize": 5
 }

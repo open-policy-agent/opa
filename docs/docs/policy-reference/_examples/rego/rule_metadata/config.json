@@ -1,6 +1,8 @@
 {
-	"showInput": true,
-	"showData":  false,
-	"showTitles": false,
-	"command": "data.example"
+  "showInput": true,
+  "showData": false,
+  "showTitles": false,
+  "titleSize": 5,
+  "collapsible": true,
+  "command": "data.example"
 }

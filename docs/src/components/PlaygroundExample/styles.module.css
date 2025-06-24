@@ -1,0 +1,30 @@
+summary :is(p, h1, h2, h3, h4, h5, h6) {
+	white-space: nowrap;
+	display: inline;
+}
+
+.detailsContainer {
+	background-color: var(--ifm-background-surface-color);
+	margin: 1rem;
+	margin-left: 0;
+	width: 100%;
+}
+
+details {
+	background-color: var(--ifm-background-surface-color);
+	padding: .5rem;
+	border-radius: .5rem;
+	width: 100%;
+}
+
+@keyframes details-show {
+	from {
+		opacity: 0.01;
+		margin-bottom: -80%;
+	}
+}
+
+details[open]>*:not(summary) {
+	animation: details-show 100ms ease-out;
+	overflow: hidden;
+}

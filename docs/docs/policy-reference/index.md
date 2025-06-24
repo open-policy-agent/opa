@@ -498,23 +498,11 @@ This differs from the plain text secrets provided with the algorithm specific ve
 
 #### Token Signing Examples
 
-##### Symmetric Key (HMAC with SHA-256)
-
 <PlaygroundExample dir={require.context("./_examples/tokens/sign/hmac")} />
-
-##### Symmetric Key with empty JSON payload
 
 <PlaygroundExample dir={require.context("./_examples/tokens/sign/empty_json")} />
 
-##### RSA Key (RSA Signature with SHA-256)
-
 <PlaygroundExample dir={require.context("./_examples/tokens/sign/rsa")} />
-
-##### Raw Token Signing
-
-If you need to generate the signature for a serialized token you an use the
-`io.jwt.encode_sign_raw` built-in function which accepts JSON serialized string
-parameters.
 
 <PlaygroundExample dir={require.context("./_examples/tokens/sign/sign_raw")} />
 
@@ -546,6 +534,7 @@ Exactly one of `cert` and `secret` must be present. If there are any
 unrecognized constraints then the token is considered invalid.
 
 #### Token Verification Examples
+
 The examples below use the following token:
 
 ```rego
@@ -556,7 +545,7 @@ es256_token := "eyJ0eXAiOiAiSldUIiwgImFsZyI6ICJFUzI1NiJ9.eyJuYmYiOiAxNDQ0NDc4NDA
 
 <RunSnippet id="token.rego"/>
 
-##### Using JWKS
+#### Using JWKS
 
 This example shows a two-step process to verify the token signature and then decode it for
 further checks of the payload content. This approach gives more flexibility in verifying only
@@ -579,14 +568,9 @@ jwks := `{
 
 <PlaygroundExample files="#jwks.rego #token.rego" dir={require.context("./_examples/tokens/verify/jwks")} />
 
-The next example shows doing the token signature verification, decoding, and content checks
-all in one call using `io.jwt.decode_verify`. Note that this gives less flexibility in validating
-the payload content as **all** claims defined in the JWT spec are verified with the provided
-constraints.
-
 <PlaygroundExample files="#jwks.rego #token.rego" dir={require.context("./_examples/tokens/verify/jwks_single")} />
 
-##### Using PEM encoded X.509 Certificate
+#### Using PEM encoded X.509 Certificate
 
 The following examples will demonstrate verifying tokens using an X.509 Certificate
 defined as:
@@ -608,28 +592,15 @@ OHoCIHmNX37JOqTcTzGn2u9+c8NlnvZ0uDvsd1BmKPaUmjmm
 
 <RunSnippet id="cert.rego"/>
 
-This example shows a two-step process to verify the token signature and then decode it for
-further checks of the payload content. This approach gives more flexibility in verifying only
-the claims that the policy needs to enforce.
-
 <PlaygroundExample files="#cert.rego #token.rego" dir={require.context("./_examples/tokens/verify/cert")} />
-
-The next example shows doing the same token signature verification, decoding, and content checks
-but instead with a single call to `io.jwt.decode_verify`. Note that this gives less flexibility
-in validating the payload content as **all** claims defined in the JWT spec are verified with the
-provided constraints.
 
 <PlaygroundExample files="#cert.rego #token.rego" dir={require.context("./_examples/tokens/verify/cert_single")} />
 
-##### Round Trip - Sign and Verify
+#### Round Trip - Sign and Verify
 
-This example shows how to encode a token, verify, and decode it with the different options available.
-
-Start with using the `io.jwt.encode_sign_raw` built-in:
+These examples show how to encode a token, verify, and decode it with the different options available.
 
 <PlaygroundExample dir={require.context("./_examples/tokens/verify/sign_raw")} />
-
-Now encode the and sign the same token contents but with `io.jwt.encode_sign` instead of the `raw` variant.
 
 <PlaygroundExample dir={require.context("./_examples/tokens/verify/sign")} />
 
@@ -689,10 +660,6 @@ Examples of valid values for each timestamp field:
 
 For supported constants, formatting of nanoseconds, time zones, and other fields, see the [Go `time/format` module documentation](https://cs.opensource.google/go/go/+/master:src/time/format.go;l=9-113).
 
-#### Timestamp Parsing Example
-
-In OPA, we can parse a simple `YYYY-MM-DD` timestamp as follows:
-
 <PlaygroundExample dir={require.context("./_examples/time/time_format")} />
 
 </BuiltinTable>
@@ -705,14 +672,7 @@ In OPA, we can parse a simple `YYYY-MM-DD` timestamp as follows:
 
 <BuiltinTable category="graph">
 
-A common class of recursive rules can be reduced to a graph reachability
-problem, so `graph.reachable` is useful for more than just graph analysis.
-This usually requires some pre- and postprocessing. The following example
-shows you how to "flatten" a hierarchy of access permissions.
-
 <PlaygroundExample dir={require.context("./_examples/graphs/reachable")} />
-
-It may be useful to find all reachable paths from a root element. `graph.reachable_paths` can be used for this. Note that cyclical paths will terminate on the repeated node. If an element references a nonexistent element, the path will be terminated, and excludes the nonexistent node.
 
 <PlaygroundExample dir={require.context("./_examples/graphs/reachable_paths")} />
 
@@ -1012,21 +972,13 @@ the match in `a` and the second tuple element refers to the match in `b`.
 | `set`      | `set` element |
 | `object`   | `object` key  |
 
-If both operands are string values the function is similar to `net.cidr_contains`.
+<PlaygroundExample dir={require.context("./_examples/net/cidr_contains_strings")} />
 
-<PlaygroundExample dir={require.context("./_examples/net/cdir_contains1")} />
+<PlaygroundExample dir={require.context("./_examples/net/cidr_contains_array_string")} />
 
-Either (or both) operand(s) may be an array, set, or object.
+<PlaygroundExample dir={require.context("./_examples/net/cidr_contains_arrays")} />
 
-<PlaygroundExample dir={require.context("./_examples/net/cdir_contains2")} />
-
-The array/set/object elements may be arrays. In that case, the first element must be a valid CIDR/IP.
-
-<PlaygroundExample dir={require.context("./_examples/net/cdir_contains3")} />
-
-If the operand is a set, the outputs are matching elements. If the operand is an object, the outputs are matching keys.
-
-<PlaygroundExample dir={require.context("./_examples/net/cdir_contains4")} />
+<PlaygroundExample dir={require.context("./_examples/net/cidr_contains_objects")} />
 
 </BuiltinTable>
 
@@ -1040,15 +992,6 @@ If the operand is a set, the outputs are matching elements. If the operand is an
 
 #### Example of `semver.is_valid`
 
-The `result := semver.is_valid(vsn)` function checks to see if a version
-string is of the form: `MAJOR.MINOR.PATCH[-PRERELEASE][+METADATA]`, where
-items in square braces are optional elements.
-
-:::warning
-When working with Go-style semantic versions, remember to remove the
-leading `v` character, or the semver string will be marked as invalid!
-:::
-
 <PlaygroundExample dir={require.context("./_examples/semver/isvalid")} />
 
 </BuiltinTable>
@@ -1058,11 +1001,6 @@ leading `v` character, or the semver string will be marked as invalid!
 <BuiltinTable category="rego">
 
 #### Example
-
-The following policy will deny the given input because:
-
-- the `number` is greater than 5
-- the `subject` does not have the `admin` role
 
 <PlaygroundExample dir={require.context("./_examples/rego/rule_metadata")} />
 

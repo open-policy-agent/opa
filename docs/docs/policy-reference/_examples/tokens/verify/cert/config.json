@@ -1,7 +1,9 @@
 {
-	"showInput": false,
-	"showData":  false,
-	"showTitles": false,
-	"showPlayground": false,
-	"command": "data.jwt"
+  "showInput": false,
+  "showData": false,
+  "showTitles": false,
+  "showPlayground": false,
+  "titleSize": 5,
+  "collapsible": true,
+  "command": "data.jwt"
 }

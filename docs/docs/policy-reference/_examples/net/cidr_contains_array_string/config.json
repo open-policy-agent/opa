@@ -4,5 +4,5 @@
   "showTitles": false,
   "titleSize": 5,
   "collapsible": true,
-  "command": "data.jwt"
+  "command": "data.netcidrcontainsmatches.result"
 }

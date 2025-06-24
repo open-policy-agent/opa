@@ -1,6 +1,8 @@
 {
-	"showInput": false,
-	"showData":  false,
-	"showTitles": false,
-	"command": "data.graph_reachable_paths_example.result"
+  "showInput": false,
+  "showData": false,
+  "showTitles": false,
+  "titleSize": 5,
+  "collapsible": true,
+  "command": "data.graph_reachable_paths_example.result"
 }
