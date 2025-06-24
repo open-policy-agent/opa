@@ -572,11 +572,11 @@ func (p *Parser) parsePackage() *Package {
 		return nil
 	}
 
-	// This allows the 'package' keyword in the first var term of the ref
 	p.scanWS()
 
+	// Make sure we allow the first term of refs to be the 'package' keyword.
 	if p.s.tok == tokens.Dot || p.s.tok == tokens.LBrack {
-		// This is a ref
+		// This is a ref, not a package declaration.
 		return nil
 	}
 
@@ -584,11 +584,7 @@ func (p *Parser) parsePackage() *Package {
 		p.scan()
 	}
 
-	if !scanIdentIgnoreKeywords(p) {
-		return nil
-	}
-
-	if p.s.tok != tokens.Ident {
+	if !isIdentOrAllowedRefKeyword(p) {
 		p.illegalToken()
 		return nil
 	}
@@ -645,11 +641,11 @@ func (p *Parser) parseImport() *Import {
 		return nil
 	}
 
-	// This allows the 'import' keyword in the first var term of the ref
 	p.scanWS()
 
+	// Make sure we allow the first term of refs to be the 'import' keyword.
 	if p.s.tok == tokens.Dot || p.s.tok == tokens.LBrack {
-		// This is a ref
+		// This is a ref, not an import declaration.
 		return nil
 	}
 
@@ -657,7 +653,8 @@ func (p *Parser) parseImport() *Import {
 		p.scan()
 	}
 
-	if !scanIdentIgnoreKeywords(p) {
+	if !isIdentOrAllowedRefKeyword(p) {
+		p.illegalToken()
 		return nil
 	}
 
@@ -750,17 +747,19 @@ func (p *Parser) parseImport() *Import {
 	return &imp
 }
 
-func scanIdentIgnoreKeywords(p *Parser) bool {
-	if p.s.tok != tokens.Ident {
-		if p.isAllowedRefKeyword(p.s.tok) {
-			p.s.tok = tokens.Ident
-		} else {
-			p.illegalToken()
-			return false
-		}
+// isIdentOrAllowedRefKeyword checks if the current token is an Ident or a keyword in the active rego-version.
+// If a keyword, sets p.s.token to token.Ident
+func isIdentOrAllowedRefKeyword(p *Parser) bool {
+	if p.s.tok == tokens.Ident {
+		return true
 	}
 
-	return true
+	if p.isAllowedRefKeyword(p.s.tok) {
+		p.s.tok = tokens.Ident
+		return true
+	}
+
+	return false
 }
 
 func scanAheadRef(p *Parser) bool {
