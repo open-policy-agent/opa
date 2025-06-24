@@ -20,9 +20,6 @@ import (
 	"github.com/open-policy-agent/opa/v1/types"
 )
 
-// TODO: Don't format v0 refs, to maximize compatibility
-// TODO: Add capabilities to Opts and add 'keywords_in_refs' capability; format refs depending on capability presence. (?)
-
 // Opts lets you control the code formatting via `AstWithOpts()`.
 type Opts struct {
 	// IgnoreLocations instructs the formatter not to use the AST nodes' locations
