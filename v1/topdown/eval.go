@@ -463,7 +463,7 @@ func (e *eval) evalStep(iter evalIterator) error {
 						return iter(e)
 					})
 				}
-				if !e.bindings.Plug(rterm).Equal(ast.InternedBooleanTerm(false)) {
+				if !e.bindings.Plug(rterm).Equal(ast.InternedTerm(false)) {
 					defined = true
 					err := iter(e)
 					e.traceRedo(expr)
@@ -524,7 +524,7 @@ func (e *eval) evalStep(iter evalIterator) error {
 					return iter(e)
 				})
 			}
-			if !e.bindings.Plug(rterm).Equal(ast.InternedBooleanTerm(false)) {
+			if !e.bindings.Plug(rterm).Equal(ast.InternedTerm(false)) {
 				return iter(e)
 			}
 			return nil
@@ -2060,7 +2060,7 @@ func (e evalFunc) eval(iter unifyIterator) error {
 			if len(defRule.Head.Args) == len(e.terms)-1 {
 				// The function is called without collecting the result in an output term,
 				// therefore any successful evaluation of the function is of interest, including the default value ...
-				if ret := defRule.Head.Value; ret == nil || !ret.Equal(ast.InternedBooleanTerm(false)) {
+				if ret := defRule.Head.Value; ret == nil || !ret.Equal(ast.InternedTerm(false)) {
 					// ... unless the default value is false,
 					mustGenerateSupport = true
 				}
@@ -2475,7 +2475,7 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 		switch doc := doc.(type) {
 		case *ast.Array:
 			for i := range doc.Len() {
-				k := ast.InternedIntNumberTerm(i)
+				k := ast.InternedTerm(i)
 				err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
 					return e.next(iter, k)
 				})
@@ -3442,7 +3442,7 @@ func (e evalVirtualComplete) eval(iter unifyIterator) error {
 	if e.ir.Default != nil {
 		// If inlining has been disabled for the rterm, and the default rule has a 'false' result value,
 		// the default value is inconsequential, and support does not need to be generated.
-		if !(e.ir.Default.Head.Value.Equal(ast.InternedBooleanTerm(false)) && e.e.inliningControl.Disabled(e.rterm.Value, false)) {
+		if !(e.ir.Default.Head.Value.Equal(ast.InternedTerm(false)) && e.e.inliningControl.Disabled(e.rterm.Value, false)) {
 			// If the other term is not constant OR it's equal to the default value, then
 			// a support rule must be produced as the default value _may_ be required. On
 			// the other hand, if the other term is constant (i.e., it does not require
@@ -3760,7 +3760,7 @@ func (e evalTerm) enumerate(iter unifyIterator) error {
 		// win across most policies. Those cases are however much more complex, as we need to deal with
 		// any type on either side, not just int/var as is the case here.
 		for i := range v.Len() {
-			a := ast.InternedIntNumberTerm(i)
+			a := ast.InternedTerm(i)
 			b := e.ref[e.pos]
 
 			if _, ok := b.Value.(ast.Var); ok {

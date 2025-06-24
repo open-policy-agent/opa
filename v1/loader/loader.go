@@ -462,7 +462,7 @@ func getSchemaSetByPathKey(path string) ast.Ref {
 	key := make(ast.Ref, 1+len(parts))
 	key[0] = ast.SchemaRootDocument
 	for i := range parts {
-		key[i+1] = ast.StringTerm(parts[i])
+		key[i+1] = ast.InternedTerm(parts[i])
 	}
 
 	return key

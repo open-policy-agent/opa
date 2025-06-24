@@ -2,6 +2,8 @@ import React, { useState } from "react";
 
 import CommandDoc from "../CommandDoc";
 
+import styles from "./styles.module.css";
+
 function filterCommandById(command, query) {
   const lowerQuery = query.toLowerCase();
 
@@ -45,24 +47,17 @@ const CommandList = ({ commands }) => {
         placeholder="Search by command name..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        style={{
-          width: "100%",
-          padding: "0.5rem",
-          marginBottom: "1rem",
-          fontSize: "1rem",
-          border: "1px solid #ccc",
-          borderRadius: "4px",
-        }}
+        className={styles.searchInput}
       />
 
       {filteredCommands !== totalCommands && filteredCommands > 0 && (
-        <p style={{ marginBottom: "1rem" }}>
+        <p className={styles.searchResults}>
           Showing {filteredCommands}/{totalCommands} commands
           {filtered.length > 1 && "(" + filtered.map(cmd => cmd.id).join(", ") + ")"}
         </p>
       )}
 
-      {filteredCommands === 0 ? <p>No matching commands found.</p> : (
+      {filteredCommands === 0 ? <p className={styles.noResults}>No matching commands found.</p> : (
         filtered.map((cmd, idx) => <CommandDoc key={cmd.id || idx} command={cmd} />)
       )}
     </div>

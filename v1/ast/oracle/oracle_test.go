@@ -10,7 +10,6 @@ import (
 )
 
 func TestOracleFindDefinitionErrors(t *testing.T) {
-
 	cases := []struct {
 		note    string
 		buffer  string
@@ -107,7 +106,6 @@ p = 1`,
 }
 
 func TestOracleFindDefinition(t *testing.T) {
-
 	const aBufferModule = `package test
 
 import rego.v1
@@ -175,6 +173,7 @@ q[x.y] = 10 if {
 	some z
 	z = 1
 }`
+
 	cases := []struct {
 		note    string
 		modules map[string]string
@@ -188,11 +187,10 @@ q[x.y] = 10 if {
 			},
 			pos: 84,
 			exp: &ast.Location{
-				File:   "buffer.rego",
-				Row:    14,
-				Col:    1,
-				Offset: 97,
-				Text:   []byte("q = true"),
+				File: "buffer.rego",
+				Row:  14,
+				Col:  1,
+				Text: []byte("q = true"),
 			},
 		},
 		{
@@ -202,11 +200,10 @@ q[x.y] = 10 if {
 			},
 			pos: 91,
 			exp: &ast.Location{
-				File:   "buffer.rego",
-				Row:    13,
-				Col:    1,
-				Offset: 88,
-				Text:   []byte("r = true"),
+				File: "buffer.rego",
+				Row:  13,
+				Col:  1,
+				Text: []byte("r = true"),
 			},
 		},
 		{
@@ -217,11 +214,10 @@ q[x.y] = 10 if {
 			},
 			pos: 98,
 			exp: &ast.Location{
-				File:   "foo.rego",
-				Row:    3,
-				Col:    1,
-				Offset: 13,
-				Text:   []byte("s = input"),
+				File: "foo.rego",
+				Row:  3,
+				Col:  1,
+				Text: []byte("s = input"),
 			},
 		},
 		{
@@ -232,11 +228,10 @@ q[x.y] = 10 if {
 			},
 			pos: 99, // this refers to the '[' character following 's'--this exercises the case where position does not refer to a symbol
 			exp: &ast.Location{
-				File:   "foo.rego",
-				Row:    3,
-				Col:    1,
-				Offset: 13,
-				Text:   []byte("s = input"),
+				File: "foo.rego",
+				Row:  3,
+				Col:  1,
+				Text: []byte("s = input"),
 			},
 		},
 		{
@@ -246,11 +241,131 @@ q[x.y] = 10 if {
 			},
 			pos: 98,
 			exp: &ast.Location{
-				File:   "buffer.rego",
-				Row:    4,
-				Col:    8,
-				Offset: 21,
-				Text:   []byte("data.foo.s"),
+				File: "buffer.rego",
+				Row:  4,
+				Col:  8,
+				Text: []byte("data.foo.s"),
+			},
+		},
+		{
+			note: "some in var",
+			modules: map[string]string{
+				"buffer.rego": `package example
+
+allow if {
+	list := input.list
+	some e in list
+}`,
+			},
+			pos: 60,
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  4,
+				Col:  2,
+				Text: []byte("list"),
+			},
+		},
+		{
+			note: "some in rule",
+			modules: map[string]string{
+				"buffer.rego": `package example
+
+list := [1,2,3]
+
+allow if {
+	some e in list
+	e == 1
+}`,
+			},
+			pos: 56,
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  3,
+				Col:  1,
+				Text: []byte("list := [1,2,3]"),
+			},
+		},
+		{
+			note: "some in rule k, v",
+			modules: map[string]string{
+				"buffer.rego": `package example
+
+list := [1,2,3]
+
+allow if {
+	some k, v in list
+	e == 1
+}`,
+			},
+			pos: 59,
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  3,
+				Col:  1,
+				Text: []byte("list := [1,2,3]"),
+			},
+		},
+		{
+			note: "every var",
+			modules: map[string]string{
+				"buffer.rego": `package example
+
+allow if {
+	list := input.list
+	every e in list {
+		e == 1
+	}
+}`,
+			},
+			pos: 60,
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  4,
+				Col:  2,
+				Text: []byte("list"),
+			},
+		},
+		{
+			note: "every rule",
+			modules: map[string]string{
+				"buffer.rego": `package example
+
+list := [1,2,3]
+
+allow if {
+	every e in list {
+		e == 1
+	}
+}`,
+			},
+			pos: 57,
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  3,
+				Col:  1,
+				Text: []byte("list := [1,2,3]"),
+			},
+		},
+		{
+			note: "every in rule k, v",
+			modules: map[string]string{
+				"buffer.rego": `package example
+
+list := [1,2,3]
+
+allow if {
+	every k, v in list {
+		k == 1
+		v == 2
+	}
+}`,
+			},
+			pos: 60,
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  3,
+				Col:  1,
+				Text: []byte("list := [1,2,3]"),
 			},
 		},
 		{
@@ -261,11 +376,10 @@ q[x.y] = 10 if {
 			},
 			pos: 100,
 			exp: &ast.Location{
-				File:   "foo.rego",
-				Row:    4,
-				Col:    1,
-				Offset: 17,
-				Text:   []byte("bar = 7"),
+				File: "foo.rego",
+				Row:  4,
+				Col:  1,
+				Text: []byte("bar = 7"),
 			},
 		},
 		{
@@ -275,11 +389,10 @@ q[x.y] = 10 if {
 			},
 			pos: 100,
 			exp: &ast.Location{
-				File:   "buffer.rego",
-				Row:    5,
-				Col:    8,
-				Offset: 39,
-				Text:   []byte("data.foo.bar"),
+				File: "buffer.rego",
+				Row:  5,
+				Col:  8,
+				Text: []byte("data.foo.bar"),
 			},
 		},
 		{
@@ -290,11 +403,10 @@ q[x.y] = 10 if {
 			},
 			pos: 37,
 			exp: &ast.Location{
-				File:   "test.rego",
-				Row:    14,
-				Col:    1,
-				Offset: 97,
-				Text:   []byte("q = true"),
+				File: "test.rego",
+				Row:  14,
+				Col:  1,
+				Text: []byte("q = true"),
 			},
 		},
 		{
@@ -304,11 +416,10 @@ q[x.y] = 10 if {
 			},
 			pos: 50,
 			exp: &ast.Location{
-				File:   "buffer.rego",
-				Row:    4,
-				Col:    3,
-				Offset: 16,
-				Text:   []byte("x"),
+				File: "buffer.rego",
+				Row:  4,
+				Col:  3,
+				Text: []byte("x"),
 			},
 		},
 		{
@@ -318,11 +429,10 @@ q[x.y] = 10 if {
 			},
 			pos: 72,
 			exp: &ast.Location{
-				File:   "buffer.rego",
-				Row:    9,
-				Col:    7,
-				Offset: 48,
-				Text:   []byte("x"),
+				File: "buffer.rego",
+				Row:  9,
+				Col:  7,
+				Text: []byte("x"),
 			},
 		},
 		{
@@ -332,11 +442,10 @@ q[x.y] = 10 if {
 			},
 			pos: 97,
 			exp: &ast.Location{
-				File:   "buffer.rego",
-				Row:    14,
-				Col:    2,
-				Offset: 65,
-				Text:   []byte("x"),
+				File: "buffer.rego",
+				Row:  14,
+				Col:  2,
+				Text: []byte("x"),
 			},
 		},
 		{
@@ -346,11 +455,10 @@ q[x.y] = 10 if {
 			},
 			pos: 121,
 			exp: &ast.Location{
-				File:   "buffer.rego",
-				Row:    19,
-				Col:    4,
-				Offset: 90,
-				Text:   []byte("i"),
+				File: "buffer.rego",
+				Row:  19,
+				Col:  4,
+				Text: []byte("i"),
 			},
 		},
 		{
@@ -360,11 +468,10 @@ q[x.y] = 10 if {
 			},
 			pos: 159,
 			exp: &ast.Location{
-				File:   "buffer.rego",
-				Row:    24,
-				Col:    3,
-				Offset: 109,
-				Text:   []byte("i"),
+				File: "buffer.rego",
+				Row:  24,
+				Col:  3,
+				Text: []byte("i"),
 			},
 		},
 		{
@@ -374,11 +481,77 @@ q[x.y] = 10 if {
 			},
 			pos: 66, // "z" in "z = 1"
 			exp: &ast.Location{
-				File:   "buffer.rego",
-				Row:    6,
-				Col:    7,
-				Offset: 44,
-				Text:   []byte("z"),
+				File: "buffer.rego",
+				Row:  6,
+				Col:  7,
+				Text: []byte("z"),
+			},
+		},
+		{
+			note: "intra-rule: ref object key",
+			modules: map[string]string{
+				"buffer.rego": `package foo
+
+allow if obj.key == "value"
+
+obj := {"key": "value"}`,
+			},
+			pos: 22, // "o" in "obj.key"
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  5,
+				Col:  1,
+				Text: []byte(`obj := {"key": "value"}`),
+			},
+		},
+		{
+			note: "intra-rule: ref object key missing finds object",
+			modules: map[string]string{
+				"buffer.rego": `package foo
+
+allow if obj.foobar == "value"
+
+obj := {"key": "value"}`,
+			},
+			pos: 22, // "o" in "obj.foobar"
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  5,
+				Col:  1,
+				Text: []byte(`obj := {"key": "value"}`),
+			},
+		},
+		{
+			note: "intra-rule: ref object key finds correct head",
+			modules: map[string]string{
+				"buffer.rego": `package foo
+
+allow if obj.key == "value"
+
+obj.foobar := "value"
+obj.key := "value"`,
+			},
+			pos: 22, // "o" in "obj.key"
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  6,
+				Col:  1,
+				Text: []byte(`obj.key := "value"`),
+			},
+		},
+		{
+			note: "intra-rule: ref object key non existent returns self",
+			modules: map[string]string{
+				"buffer.rego": `package foo
+
+allow if bar.foo == "value"`,
+			},
+			pos: 22, // "b" in "bar.foo"
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  3,
+				Col:  10,
+				Text: []byte(`bar`),
 			},
 		},
 	}
@@ -386,6 +559,7 @@ q[x.y] = 10 if {
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
 			modules := map[string]*ast.Module{}
+
 			for k, v := range tc.modules {
 				var err error
 				modules[k], err = ast.ParseModule(k, v)
@@ -393,12 +567,18 @@ q[x.y] = 10 if {
 					t.Fatal(err)
 				}
 			}
+
 			buffer := tc.modules["buffer.rego"]
-			before := max(tc.pos-4, 0)
-			after := min(tc.pos+5, len(buffer))
-			t.Logf("pos is %d: \"%s<%s>%s\"", tc.pos, buffer[before:tc.pos], string(buffer[tc.pos]), buffer[tc.pos+1:after])
-			o := New()
-			result, err := o.FindDefinition(DefinitionQuery{
+
+			t.Logf(
+				"pos is %d: \"%s<%s>%s\"",
+				tc.pos,
+				buffer[max(tc.pos-4, 0):tc.pos],
+				string(buffer[tc.pos]),
+				buffer[tc.pos+1:min(tc.pos+5, len(buffer))],
+			)
+
+			result, err := New().FindDefinition(DefinitionQuery{
 				Modules:  modules,
 				Buffer:   []byte(buffer),
 				Filename: "buffer.rego",
@@ -407,18 +587,43 @@ q[x.y] = 10 if {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if tc.exp.Compare(result.Result) != 0 {
-				var expText string
-				var gotText string
-				if tc.exp != nil {
-					expText = string(tc.exp.Text)
-				}
-				if result != nil {
-					gotText = string(result.Result.Text)
-				}
-				t.Fatalf("\n\nwant:\n\n\t%#v\n\ngot:\n\n\t%#v\n\nwant (text):\n\n\t%q\n\ngot (text):\n\n\t%q", tc.exp, result, expText, gotText)
+
+			if !tc.exp.Equal(result.Result) {
+				t.Logf("exp %q, got %q", tc.exp.Text, result.Result.Text)
+				t.Errorf(`Location mismatch:
+expected file=%q, row=%d, col=%d
+got      file=%q, row=%d, col=%d`,
+					tc.exp.File, tc.exp.Row, tc.exp.Col,
+					result.Result.File, result.Result.Row, result.Result.Col)
+			}
+
+			if t.Failed() {
+				showLocationContext(t, tc.modules, tc.exp, "Expected")
+				showLocationContext(t, tc.modules, result.Result, "Actual")
 			}
 		})
+	}
+}
+
+// showLocationContext is a helper that can show a row and col position within a
+// buffer. e.g.
+//
+//	oracle_test.go:469: Col mismatch: expected 11, got 10
+//	oracle_test.go:489: Expected: buffer.rego:3:11
+//	      allow if bar.foo == "value"
+//	                ^
+//	oracle_test.go:489: Actual: buffer.rego:3:10
+//	      allow if bar.foo == "value"
+//	               ^
+func showLocationContext(t *testing.T, modules map[string]string, loc *ast.Location, label string) {
+	t.Helper()
+	if content, exists := modules[loc.File]; exists {
+		lines := strings.Split(content, "\n")
+		if loc.Row > 0 && loc.Row <= len(lines) {
+			line := lines[loc.Row-1]
+			marker := strings.Repeat(" ", max(0, loc.Col-1)) + "^"
+			t.Logf("%s: %s:%d:%d\n  %s\n  %s", label, loc.File, loc.Row, loc.Col, line, marker)
+		}
 	}
 }
 
@@ -474,11 +679,9 @@ q = true`
 			t.Fatal("expected exact location pointers but found difference on i =", i, "result:", result)
 		}
 	}
-
 }
 
 func TestCompileUptoNoModules(t *testing.T) {
-
 	compiler, module, err := New().compileUpto("SetRuleTree", nil, []byte("package test\np=1"), "test.rego")
 	if err != nil {
 		t.Fatal(err)
@@ -492,11 +695,9 @@ func TestCompileUptoNoModules(t *testing.T) {
 	if module == nil {
 		t.Fatal("expected parsed module")
 	}
-
 }
 
 func TestCompileUptoNoBuffer(t *testing.T) {
-
 	compiler, module, err := New().compileUpto("SetRuleTree", map[string]*ast.Module{
 		"test.rego": ast.MustParseModule("package test\np=1"),
 	}, nil, "test.rego")
@@ -512,11 +713,9 @@ func TestCompileUptoNoBuffer(t *testing.T) {
 	if module == nil {
 		t.Fatal("expected parsed module")
 	}
-
 }
 
 func TestCompileUptoBadStageName(t *testing.T) {
-
 	_, _, err := New().compileUpto("DEADBEEF", map[string]*ast.Module{
 		"test.rego": ast.MustParseModule("package test\np=1"),
 	}, nil, "test.rego")

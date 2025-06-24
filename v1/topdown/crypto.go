@@ -99,12 +99,12 @@ func builtinCryptoX509ParseAndVerifyCertificates(_ BuiltinContext, operands []*a
 
 	certs, err := getX509CertsFromString(string(input))
 	if err != nil {
-		return iter(ast.ArrayTerm(ast.InternedBooleanTerm(false), ast.InternedEmptyArray))
+		return iter(ast.ArrayTerm(ast.InternedTerm(false), ast.InternedEmptyArray))
 	}
 
 	verified, err := verifyX509CertificateChain(certs, x509.VerifyOptions{})
 	if err != nil {
-		return iter(ast.ArrayTerm(ast.InternedBooleanTerm(false), ast.InternedEmptyArray))
+		return iter(ast.ArrayTerm(ast.InternedTerm(false), ast.InternedEmptyArray))
 	}
 
 	value, err := ast.InterfaceToValue(extendCertificates(verified))
@@ -112,7 +112,7 @@ func builtinCryptoX509ParseAndVerifyCertificates(_ BuiltinContext, operands []*a
 		return err
 	}
 
-	valid := ast.ArrayTerm(ast.InternedBooleanTerm(true), ast.NewTerm(value))
+	valid := ast.ArrayTerm(ast.InternedTerm(true), ast.NewTerm(value))
 
 	return iter(valid)
 }
@@ -148,7 +148,7 @@ func builtinCryptoX509ParseAndVerifyCertificatesWithOptions(_ BuiltinContext, op
 
 	certs, err := getX509CertsFromString(string(input))
 	if err != nil {
-		return iter(ast.ArrayTerm(ast.InternedBooleanTerm(false), ast.InternedEmptyArray))
+		return iter(ast.ArrayTerm(ast.InternedTerm(false), ast.InternedEmptyArray))
 	}
 
 	// Collect the cert verification options
@@ -159,7 +159,7 @@ func builtinCryptoX509ParseAndVerifyCertificatesWithOptions(_ BuiltinContext, op
 
 	verified, err := verifyX509CertificateChain(certs, verifyOpt)
 	if err != nil {
-		return iter(ast.ArrayTerm(ast.InternedBooleanTerm(false), ast.InternedEmptyArray))
+		return iter(ast.ArrayTerm(ast.InternedTerm(false), ast.InternedEmptyArray))
 	}
 
 	value, err := ast.InterfaceToValue(verified)
@@ -167,7 +167,7 @@ func builtinCryptoX509ParseAndVerifyCertificatesWithOptions(_ BuiltinContext, op
 		return err
 	}
 
-	return iter(ast.ArrayTerm(ast.InternedBooleanTerm(true), ast.NewTerm(value)))
+	return iter(ast.ArrayTerm(ast.InternedTerm(true), ast.NewTerm(value)))
 }
 
 func extractVerifyOpts(options ast.Object) (verifyOpt x509.VerifyOptions, err error) {
@@ -513,7 +513,7 @@ func builtinCryptoHmacEqual(_ BuiltinContext, operands []*ast.Term, iter func(*a
 
 	res := hmac.Equal([]byte(mac1), []byte(mac2))
 
-	return iter(ast.InternedBooleanTerm(res))
+	return iter(ast.InternedTerm(res))
 }
 
 func init() {

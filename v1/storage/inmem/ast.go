@@ -154,7 +154,7 @@ func newUpdateArrayAST(data *ast.Array, op storage.PatchOp, path storage.Path, i
 }
 
 func newUpdateObjectAST(data ast.Object, op storage.PatchOp, path storage.Path, idx int, value ast.Value) (*updateAST, error) {
-	key := ast.InternedStringTerm(path[idx])
+	key := ast.InternedTerm(path[idx])
 	val := data.Get(key)
 
 	if idx == len(path)-1 {
@@ -200,7 +200,7 @@ func setInAst(data ast.Value, path storage.Path, value ast.Value) (ast.Value, er
 }
 
 func setInAstObject(obj ast.Object, path storage.Path, value ast.Value) (ast.Value, error) {
-	key := ast.InternedStringTerm(path[0])
+	key := ast.InternedTerm(path[0])
 
 	if len(path) == 1 {
 		obj.Insert(key, ast.NewTerm(value))
@@ -256,7 +256,7 @@ func removeInAst(value ast.Value, path storage.Path) (ast.Value, error) {
 }
 
 func removeInAstObject(obj ast.Object, path storage.Path) (ast.Value, error) {
-	key := ast.InternedStringTerm(path[0])
+	key := ast.InternedTerm(path[0])
 
 	if len(path) == 1 {
 		var items [][2]*ast.Term

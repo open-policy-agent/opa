@@ -807,3 +807,32 @@ cases:
         }
     want_result:
       - x: false
+  - note: graphql_schema_is_valid/schema failure with object in input object
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        schema := `
+          type Mutation {
+            createPupil(pupil: PupilInput!): Pupil
+          }
+          type Query {
+            pupil(firstname: String): Pupil
+          }
+          type Pupil {
+            friends: [Pupil!]!
+          }
+          input PupilInput {
+            friends: [Pupil]
+          }
+          schema {
+            query: Query
+            mutation: Mutation
+          }`
+
+        p := x if {
+          x := graphql.schema_is_valid(graphql.parse_schema(schema))
+        }
+    want_result:
+      - x: false

@@ -499,14 +499,14 @@ func (t *thread) resultVars(rs rego.ResultSet) VarRef {
 				continue
 			}
 			expressions = expressions.Append(ast.ObjectTerm(
-				ast.Item(ast.InternedStringTerm("text"), t),
-				ast.Item(ast.InternedStringTerm("value"), ast.NewTerm(v)),
+				ast.Item(ast.InternedTerm("text"), t),
+				ast.Item(ast.InternedTerm("value"), ast.NewTerm(v)),
 			))
 		}
 
 		res := ast.NewObject(
-			ast.Item(ast.InternedStringTerm("bindings"), ast.NewTerm(bindings)),
-			ast.Item(ast.InternedStringTerm("expressions"), ast.NewTerm(expressions)),
+			ast.Item(ast.InternedTerm("bindings"), ast.NewTerm(bindings)),
+			ast.Item(ast.InternedTerm("expressions"), ast.NewTerm(expressions)),
 		)
 
 		vars = append(vars, namedVar{

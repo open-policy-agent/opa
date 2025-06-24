@@ -923,13 +923,14 @@ func TestSetOperations(t *testing.T) {
 		s2 := MustParseTerm(tc.b).Value.(Set)
 		s3 := MustParseTerm(tc.c).Value.(Set)
 		var result Set
-		if tc.op == "-" {
+		switch tc.op {
+		case "-":
 			result = s1.Diff(s2)
-		} else if tc.op == "&" {
+		case "&":
 			result = s1.Intersect(s2)
-		} else if tc.op == "|" {
+		case "|":
 			result = s1.Union(s2)
-		} else {
+		default:
 			panic("bad operation")
 		}
 		if result.Compare(s3) != 0 {

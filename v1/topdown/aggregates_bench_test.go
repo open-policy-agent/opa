@@ -11,14 +11,14 @@ import (
 func BenchmarkSumIntArray(b *testing.B) {
 	bcx := BuiltinContext{}
 	arr := ast.ArrayTerm(
-		ast.InternedIntNumberTerm(1),
-		ast.InternedIntNumberTerm(2),
-		ast.InternedIntNumberTerm(3),
-		ast.InternedIntNumberTerm(4),
-		ast.InternedIntNumberTerm(5),
-		ast.InternedIntNumberTerm(6),
+		ast.InternedTerm(1),
+		ast.InternedTerm(2),
+		ast.InternedTerm(3),
+		ast.InternedTerm(4),
+		ast.InternedTerm(5),
+		ast.InternedTerm(6),
 	)
-	exp := ast.InternedIntNumberTerm(21)
+	exp := ast.InternedTerm(21)
 
 	verify := func(x *ast.Term) error {
 		// Can do simple equality check since we are using interned terms
@@ -67,14 +67,14 @@ func BenchmarkSumFloatArray(b *testing.B) {
 func BenchmarkSumIntSet(b *testing.B) {
 	bcx := BuiltinContext{}
 	set := ast.SetTerm(
-		ast.InternedIntNumberTerm(1),
-		ast.InternedIntNumberTerm(2),
-		ast.InternedIntNumberTerm(3),
-		ast.InternedIntNumberTerm(4),
-		ast.InternedIntNumberTerm(5),
-		ast.InternedIntNumberTerm(6),
+		ast.InternedTerm(1),
+		ast.InternedTerm(2),
+		ast.InternedTerm(3),
+		ast.InternedTerm(4),
+		ast.InternedTerm(5),
+		ast.InternedTerm(6),
 	)
-	exp := ast.InternedIntNumberTerm(21)
+	exp := ast.InternedTerm(21)
 
 	verify := func(x *ast.Term) error {
 		if x != exp {

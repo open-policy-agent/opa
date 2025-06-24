@@ -61,7 +61,6 @@ func (o *Oracle) WithCompiler(compiler *ast.Compiler) *Oracle {
 // FindDefinition returns the location of the definition referred to by the symbol
 // at the position in q.
 func (o *Oracle) FindDefinition(q DefinitionQuery) (*DefinitionQueryResult, error) {
-
 	// TODO(tsandall): how can we cache the results of compilation and parsing so that
 	// multiple queries can be executed without having to re-compute the same values?
 	// Ditto for caching across runs. Avoid repeating the same work.
@@ -71,57 +70,177 @@ func (o *Oracle) FindDefinition(q DefinitionQuery) (*DefinitionQueryResult, erro
 	if err != nil {
 		return nil, err
 	}
+
 	mod, ok := compiler.Modules[q.Filename]
 	if !ok {
 		return nil, ErrNoMatchFound
 	}
+
 	stack := findContainingNodeStack(mod, q.Pos)
 	if len(stack) == 0 {
 		return nil, ErrNoMatchFound
 	}
 
+	// Handle references to rules and imports
+	if result := findRefDefinition(compiler, parsed, stack); result != nil {
+		return result, nil
+	}
+
+	// Handle variable references
+	if result := findVarDefinition(stack); result != nil {
+		return result, nil
+	}
+
+	// Handle some declarations
+	if result := handleSomeDecl(compiler, stack); result != nil {
+		return result, nil
+	}
+
+	// Handle every declarations
+	if result := handleEvery(compiler, stack); result != nil {
+		return result, nil
+	}
+
+	return nil, ErrNoDefinitionFound
+}
+
+// findRefDefinition looks for definitions of references in rules or imports
+func findRefDefinition(compiler *ast.Compiler, parsed *ast.Module, stack []ast.Node) *DefinitionQueryResult {
 	// Walk outwards from the match location, attempting to find the definition via
 	// references to imports or other rules. This handles intra-module, intra-package,
 	// and inter-package references.
 	for i := len(stack) - 1; i >= 0; i-- {
-		if term, ok := stack[i].(*ast.Term); ok {
-			if ref, ok := term.Value.(ast.Ref); ok {
-				prefix := ref.ConstantPrefix()
-				if rules := compiler.GetRulesExact(prefix); len(rules) > 0 {
-					return &DefinitionQueryResult{rules[0].Location}, nil
-				}
-				for _, imp := range parsed.Imports {
-					if path, ok := imp.Path.Value.(ast.Ref); ok {
-						if prefix.HasPrefix(path) {
-							return &DefinitionQueryResult{imp.Path.Location}, nil
-						}
-					}
-				}
+		term, ok := stack[i].(*ast.Term)
+		if !ok {
+			continue
+		}
+
+		ref, ok := term.Value.(ast.Ref)
+		if !ok {
+			continue
+		}
+
+		if rulesResult := findRulesDefinition(compiler, ref); rulesResult != nil {
+			return rulesResult
+		}
+
+		prefix := ref.ConstantPrefix()
+
+		for _, imp := range parsed.Imports {
+			path, ok := imp.Path.Value.(ast.Ref)
+			if !ok {
+				continue
+			}
+			if prefix.HasPrefix(path) {
+				return &DefinitionQueryResult{imp.Path.Location}
 			}
 		}
 	}
 
-	// If the match is a variable, walk inward to find the first occurrence of the variable
-	// in function arguments or the body.
-	top := stack[len(stack)-1]
-	if term, ok := top.(*ast.Term); ok {
-		if name, ok := term.Value.(ast.Var); ok {
-			for i := range stack {
-				switch node := stack[i].(type) {
-				case *ast.Rule:
-					if match := walkToFirstOccurrence(node.Head.Args, name); match != nil {
-						return &DefinitionQueryResult{match.Location}, nil
-					}
-				case ast.Body:
-					if match := walkToFirstOccurrence(node, name); match != nil {
-						return &DefinitionQueryResult{match.Location}, nil
-					}
-				}
+	return nil
+}
+
+// findRulesDefinition looks up rules for a given ref. Rules appear in various
+// other scenarios and this shares the rule look up logic.
+func findRulesDefinition(compiler *ast.Compiler, ref ast.Ref) *DefinitionQueryResult {
+	if rules := compiler.GetRules(ref); len(rules) > 0 {
+		return &DefinitionQueryResult{rules[0].Location}
+	}
+
+	return nil
+}
+
+// findVarDefinition handles variable definitions.
+func findVarDefinition(stack []ast.Node) *DefinitionQueryResult {
+	top, ok := stack[len(stack)-1].(*ast.Term)
+	if !ok {
+		return nil
+	}
+
+	name, ok := top.Value.(ast.Var)
+	if !ok {
+		return nil
+	}
+
+	return findVarOccurrence(stack, name)
+}
+
+// findVarOccurrence looks for the first occurrence of a variable in the node stack.
+func findVarOccurrence(stack []ast.Node, name ast.Var) *DefinitionQueryResult {
+	for i := range stack {
+		switch node := stack[i].(type) {
+		case *ast.Rule:
+			if match := walkToFirstOccurrence(node.Head.Args, name); match != nil {
+				return &DefinitionQueryResult{match.Location}
+			}
+		case ast.Body:
+			if match := walkToFirstOccurrence(node, name); match != nil {
+				return &DefinitionQueryResult{match.Location}
 			}
 		}
 	}
 
-	return nil, ErrNoDefinitionFound
+	return nil
+}
+
+// handleSomeDecl extracts variables or references from some declarations.
+func handleSomeDecl(compiler *ast.Compiler, stack []ast.Node) *DefinitionQueryResult {
+	var someDecl *ast.SomeDecl
+
+	// Extract the "some" declaration from the stack
+	if expr, ok := stack[len(stack)-1].(*ast.Expr); ok {
+		if sd, ok := expr.Terms.(*ast.SomeDecl); ok {
+			someDecl = sd
+		}
+	}
+
+	if sd, ok := stack[len(stack)-1].(*ast.SomeDecl); ok {
+		someDecl = sd
+	}
+
+	if someDecl == nil {
+		return nil
+	}
+
+	term := someDecl.Symbols[0]
+
+	call, ok := term.Value.(ast.Call)
+	if !ok || len(call) == 0 {
+		return nil
+	}
+
+	switch v := call[len(call)-1].Value.(type) {
+	case ast.Var:
+		return findVarOccurrence(stack, v)
+	case ast.Ref:
+		return findRulesDefinition(compiler, v)
+	}
+
+	return nil
+}
+
+// handleEvery extracts variables or references from every declarations.
+func handleEvery(compiler *ast.Compiler, stack []ast.Node) *DefinitionQueryResult {
+	var every *ast.Every
+
+	if expr, ok := stack[len(stack)-1].(*ast.Expr); ok {
+		if e, ok := expr.Terms.(*ast.Every); ok {
+			every = e
+		}
+	}
+
+	if every == nil {
+		return nil
+	}
+
+	switch v := every.Domain.Value.(type) {
+	case ast.Var:
+		return findVarOccurrence(stack, v)
+	case ast.Ref:
+		return findRulesDefinition(compiler, v)
+	}
+
+	return nil
 }
 
 func (o *Oracle) compileUpto(stage string, modules map[string]*ast.Module, bs []byte, filename string) (*ast.Compiler, *ast.Module, error) {
@@ -208,11 +327,9 @@ func walkToFirstOccurrence(node ast.Node, needle ast.Var) (match *ast.Term) {
 }
 
 func findContainingNodeStack(module *ast.Module, pos int) []ast.Node {
-
 	var matches []ast.Node
 
 	ast.WalkNodes(module, func(x ast.Node) bool {
-
 		minLoc, maxLoc := getLocMinMax(x)
 
 		if pos < minLoc || pos >= maxLoc {
@@ -227,7 +344,6 @@ func findContainingNodeStack(module *ast.Module, pos int) []ast.Node {
 }
 
 func getLocMinMax(x ast.Node) (int, int) {
-
 	if x.Loc() == nil {
 		return -1, -1
 	}

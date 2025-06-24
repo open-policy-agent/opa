@@ -36,7 +36,7 @@ const DefaultMaxParsingRecursionDepth = 100000
 // recursion exceeds the maximum allowed depth
 var ErrMaxParsingRecursionDepthExceeded = errors.New("max parsing recursion depth exceeded")
 
-var RegoV1CompatibleRef = Ref{VarTerm("rego"), InternedStringTerm("v1")}
+var RegoV1CompatibleRef = Ref{VarTerm("rego"), InternedTerm("v1")}
 
 // RegoVersion defines the Rego syntax requirements for a module.
 type RegoVersion int
@@ -2909,7 +2909,7 @@ func IsFutureKeywordForRegoVersion(s string, v RegoVersion) bool {
 func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]tokens.Token) {
 	path := imp.Path.Value.(Ref)
 
-	if len(path) == 1 || !path[1].Equal(InternedStringTerm("keywords")) {
+	if len(path) == 1 || !path[1].Equal(InternedTerm("keywords")) {
 		p.errorf(imp.Path.Location, "invalid import, must be `future.keywords`")
 		return
 	}

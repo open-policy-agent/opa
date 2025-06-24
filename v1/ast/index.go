@@ -402,7 +402,7 @@ func (i *refindices) updateGlobMatch(rule *Rule, expr *Expr) {
 			if ref == nil {
 				for j, arg := range args {
 					if arg.Equal(match) {
-						ref = Ref{FunctionArgRootDocument, InternedIntNumberTerm(j)}
+						ref = Ref{FunctionArgRootDocument, InternedTerm(j)}
 					}
 				}
 			}
@@ -822,7 +822,7 @@ func eqOperandsToRefAndValue(isVirtual func(Ref) bool, args []*Term, a, b *Term)
 		for i, arg := range args {
 			if arg.Value.Compare(a.Value) == 0 {
 				if bval, ok := indexValue(b); ok {
-					return &refindex{Ref: Ref{FunctionArgRootDocument, InternedIntNumberTerm(i)}, Value: bval}, true
+					return &refindex{Ref: Ref{FunctionArgRootDocument, InternedTerm(i)}, Value: bval}, true
 				}
 			}
 		}

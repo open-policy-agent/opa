@@ -69,10 +69,7 @@ func parse(args []string, params *parseParams, stdout io.Writer, stderr io.Write
 	exposeLocation := false
 	exposeComments := true
 	for _, opt := range strings.Split(params.jsonInclude, ",") {
-		value := true
-		if strings.HasPrefix(opt, "-") {
-			value = false
-		}
+		value := !strings.HasPrefix(opt, "-")
 
 		if strings.HasSuffix(opt, "locations") {
 			exposeLocation = value

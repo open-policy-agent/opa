@@ -637,7 +637,7 @@ type Rego struct {
 	generateJSON                func(*ast.Term, *EvalContext) (any, error)
 	printHook                   print.Hook
 	enablePrintStatements       bool
-	distributedTacingOpts       tracing.Options
+	distributedTracingOpts      tracing.Options
 	strict                      bool
 	pluginMgr                   *plugins.Manager
 	plugins                     []TargetPlugin
@@ -1251,7 +1251,7 @@ func PrintHook(h print.Hook) func(r *Rego) {
 // DistributedTracingOpts sets the options to be used by distributed tracing.
 func DistributedTracingOpts(tr tracing.Options) func(r *Rego) {
 	return func(r *Rego) {
-		r.distributedTacingOpts = tr
+		r.distributedTracingOpts = tr
 	}
 }
 
@@ -2185,7 +2185,7 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithBuiltinErrorList(r.builtinErrorList).
 		WithSeed(ectx.seed).
 		WithPrintHook(ectx.printHook).
-		WithDistributedTracingOpts(r.distributedTacingOpts).
+		WithDistributedTracingOpts(r.distributedTracingOpts).
 		WithVirtualCache(ectx.virtualCache).
 		WithBaseCache(ectx.baseCache)
 

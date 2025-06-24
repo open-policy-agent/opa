@@ -548,7 +548,7 @@ func (w *writer) writeRules(rules []*ast.Rule, comments []*ast.Comment) ([]*ast.
 	return comments, nil
 }
 
-var expandedConst = ast.NewBody(ast.NewExpr(ast.InternedBooleanTerm(true)))
+var expandedConst = ast.NewBody(ast.NewExpr(ast.InternedTerm(true)))
 
 func (w *writer) groupableOneLiner(rule *ast.Rule) bool {
 	// Location required to determine if two rules are adjacent in the policy.
@@ -805,7 +805,7 @@ func (w *writer) writeHead(head *ast.Head, isDefault bool, isExpandedConst bool,
 	}
 
 	if head.Value != nil &&
-		(head.Key != nil || !ast.InternedBooleanTerm(true).Equal(head.Value) || isExpandedConst || isDefault) {
+		(head.Key != nil || !ast.InternedTerm(true).Equal(head.Value) || isExpandedConst || isDefault) {
 
 		// in rego v1, explicitly print value for ref-head constants that aren't partial set assignments, e.g.:
 		// * a -> parser error, won't reach here
@@ -816,7 +816,7 @@ func (w *writer) writeHead(head *ast.Head, isDefault bool, isExpandedConst bool,
 
 		if head.Location == head.Value.Location &&
 			head.Name != "else" &&
-			ast.InternedBooleanTerm(true).Equal(head.Value) &&
+			ast.InternedTerm(true).Equal(head.Value) &&
 			!isRegoV1RefConst {
 			// If the value location is the same as the location of the head,
 			// we know that the value is generated, i.e. f(1)
@@ -2252,5 +2252,5 @@ func isRegoV1Compatible(imp *ast.Import) bool {
 	path := imp.Path.Value.(ast.Ref)
 	return len(path) == 2 &&
 		ast.RegoRootDocument.Equal(path[0]) &&
-		path[1].Equal(ast.InternedStringTerm("v1"))
+		path[1].Equal(ast.InternedTerm("v1"))
 }
