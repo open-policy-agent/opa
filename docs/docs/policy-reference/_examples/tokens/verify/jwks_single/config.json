@@ -4,6 +4,5 @@
   "showTitles": false,
   "showPlayground": false,
   "titleSize": 5,
-  "collapsible": true,
   "command": "data.jwt"
 }

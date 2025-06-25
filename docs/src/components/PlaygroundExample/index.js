@@ -2,15 +2,11 @@ import Link from "@docusaurus/Link";
 import { MDXProvider } from "@mdx-js/react";
 import CodeBlock from "@theme/CodeBlock";
 import * as components from "@theme/MDXComponents"; // Import default MDX components from Docusaurus theme
-import React, { useState } from "react";
+import React from "react";
 
 import RunSnippet from "../RunSnippet";
 import SideBySideColumn from "../SideBySide/Column";
 import SideBySideContainer from "../SideBySide/Container";
-import styles from "./styles.module.css";
-
-const min = (x, y) => x > y ? y : x;
-const max = (x, y) => x > y ? x : y;
 
 function getTitle(titleSize, title) {
   const ret = [
@@ -20,22 +16,8 @@ function getTitle(titleSize, title) {
     (<h4>{title}</h4>),
     (<h5>{title}</h5>),
     (<h6>{title}</h6>),
-  ][min(5, max(0, titleSize - 1))];
+  ][Math.min(5, Math.max(0, titleSize - 1))];
   return ret;
-}
-
-function makeCollapse(contents, header, collapsible) {
-  if (!collapsible) return <div>{header}{contents}</div>;
-  return (
-    <div className={styles.detailsContainer}>
-      <details open={true}>
-        <summary>
-          <b>Example:</b> {header}
-        </summary>
-        <div style={{ overflow: "hidden" }}>{contents}</div>
-      </details>
-    </div>
-  );
 }
 
 export default function PlaygroundExample({
@@ -69,11 +51,9 @@ export default function PlaygroundExample({
   const showData = config?.showData ?? true;
   const showTitles = config?.showTitles ?? true;
   const showPlayground = config?.showPlayground ?? true;
-  const collapsible = config?.collapsible ?? false;
   const command = config?.command ?? "data.play";
   const titleSize = config?.titleSize ?? 2;
 
-  const [showContent, setShowContent] = useState(true);
   const state = encodeToBase64(JSON.stringify({
     i: JSON.stringify(input, null, 2),
     d: JSON.stringify(data, null, 2),
@@ -201,7 +181,8 @@ export default function PlaygroundExample({
   );
   return (
     <div>
-      {makeCollapse(contents, header, collapsible)}
+      {header}
+      {contents}
     </div>
   );
 }

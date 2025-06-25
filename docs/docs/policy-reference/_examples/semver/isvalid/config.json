@@ -3,6 +3,5 @@
   "showData": false,
   "showTitles": false,
   "titleSize": 5,
-  "collapsible": true,
   "command": "data.semverisvalid"
 }

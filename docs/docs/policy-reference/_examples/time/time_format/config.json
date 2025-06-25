@@ -3,6 +3,5 @@
   "showData": false,
   "showTitles": false,
   "command": "data.time_format",
-  "collapsible": true,
   "titleSize": 5
 }

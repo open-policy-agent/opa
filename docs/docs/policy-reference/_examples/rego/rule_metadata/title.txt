@@ -1,1 +1,1 @@
-Rule Metadata Example
+Rule Metadata

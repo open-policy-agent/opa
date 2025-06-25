@@ -990,8 +990,6 @@ the match in `a` and the second tuple element refers to the match in `b`.
 
 <BuiltinTable category="semver">
 
-#### Example of `semver.is_valid`
-
 <PlaygroundExample dir={require.context("./_examples/semver/isvalid")} />
 
 </BuiltinTable>
