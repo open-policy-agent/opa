@@ -20,6 +20,7 @@ import (
 	pr "github.com/open-policy-agent/opa/internal/presentation"
 	iStrs "github.com/open-policy-agent/opa/internal/strings"
 	"github.com/open-policy-agent/opa/v1/ast"
+	astJson "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/util"
 
@@ -116,6 +117,16 @@ func doInspect(params inspectCommandParams, path string, out io.Writer) error {
 
 	switch params.outputFormat.String() {
 	case formats.JSON:
+		astJson.SetOptions(astJson.Options{
+			MarshalOptions: astJson.MarshalOptions{
+				IncludeLocation: astJson.NodeToggle{
+					// Annotation location data is only included if includeAnnotations is set
+					AnnotationsRef: params.listAnnotations,
+				},
+			},
+		})
+		defer astJson.SetOptions(astJson.Defaults())
+
 		return pr.JSON(out, info)
 
 	default:
