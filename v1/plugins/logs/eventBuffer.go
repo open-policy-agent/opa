@@ -7,7 +7,6 @@ package logs
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"sync"
 
 	"github.com/open-policy-agent/opa/v1/logging"
@@ -23,23 +22,21 @@ type bufferItem struct {
 
 // eventBuffer stores and uploads a gzip compressed JSON array of EventV1 entries
 type eventBuffer struct {
-	buffer               chan *bufferItem // buffer stores JSON encoded EventV1 data
-	upload               sync.Mutex       // upload controls that uploads are done sequentially
-	client               rest.Client      // client is used to upload the data to the configured service
-	uploadPath           string           // uploadPath is the configured HTTP resource path for upload
-	uploadSizeLimitBytes int64            // uploadSizeLimitBytes will enforce a maximum payload size to be uploaded
-	enc                  *chunkEncoder    // encoder appends events into the gzip compressed JSON array
-	metrics              metrics.Metrics
-	logger               logging.Logger
+	buffer     chan *bufferItem // buffer stores JSON encoded EventV1 data
+	upload     sync.Mutex       // upload controls that uploads are done sequentially
+	client     rest.Client      // client is used to upload the data to the configured service
+	uploadPath string           // uploadPath is the configured HTTP resource path for upload
+	enc        *chunkEncoder    // encoder appends events into the gzip compressed JSON array
+	metrics    metrics.Metrics
+	logger     logging.Logger
 }
 
 func newEventBuffer(bufferSizeLimitEvents int64, client rest.Client, uploadPath string, uploadSizeLimitBytes int64) *eventBuffer {
 	return &eventBuffer{
-		buffer:               make(chan *bufferItem, bufferSizeLimitEvents),
-		client:               client,
-		uploadPath:           uploadPath,
-		uploadSizeLimitBytes: uploadSizeLimitBytes,
-		enc:                  newChunkEncoder(uploadSizeLimitBytes),
+		buffer:     make(chan *bufferItem, bufferSizeLimitEvents),
+		client:     client,
+		uploadPath: uploadPath,
+		enc:        newChunkEncoder(uploadSizeLimitBytes),
 	}
 }
 
@@ -60,28 +57,22 @@ func (b *eventBuffer) incrMetric(name string) {
 	}
 }
 
-func (b *eventBuffer) logError(fmt string, a ...any) {
-	if b.logger != nil {
-		b.logger.Error(fmt, a)
-	}
-}
-
 // Reconfigure updates the user configurable values
 // This cannot be called concurrently, this could change the underlying channel.
 // Plugin manages a lock to control this so that changes to both buffer types can be managed sequentially.
 func (b *eventBuffer) Reconfigure(bufferSizeLimitEvents int64, client rest.Client, uploadPath string, uploadSizeLimitBytes int64) {
+	// prevent an upload from pushing events that failed to upload back into a closed buffer
+	b.upload.Lock()
+	defer b.upload.Unlock()
+
 	b.client = client
 	b.uploadPath = uploadPath
-	b.uploadSizeLimitBytes = uploadSizeLimitBytes
-	b.enc.Reconfigure(uploadSizeLimitBytes)
 
 	if int64(cap(b.buffer)) == bufferSizeLimitEvents {
 		return
 	}
 
-	// prevent an upload from pushing events that failed to upload back into a closed buffer
-	b.upload.Lock()
-	defer b.upload.Unlock()
+	b.enc.Reconfigure(uploadSizeLimitBytes)
 
 	close(b.buffer)
 	oldBuffer := b.buffer
@@ -124,17 +115,17 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 		if event.chunk != nil {
 			result = [][]byte{event.chunk}
 		} else {
-			serialized, err := b.processEvent(event.EventV1)
+			eventBytes, err := json.Marshal(&event)
 			if err != nil {
-				b.logError("%v", err)
-				continue
+				return err
 			}
 
-			result, err = b.enc.WriteBytes(serialized)
+			result, err = b.enc.Encode(*event.EventV1, eventBytes)
 			if err != nil {
 				b.incrMetric(logEncodingFailureCounterName)
-				b.logError("encoding failure: %v, dropping event with decision ID: %v", err, event.DecisionID)
-				continue
+				if b.logger != nil {
+					b.logger.Error("encoding failure: %v, dropping event with decision ID: %v", err, event.DecisionID)
+				}
 			}
 		}
 
@@ -147,7 +138,9 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 	result, err := b.enc.Flush()
 	if err != nil {
 		b.incrMetric(logEncodingFailureCounterName)
-		b.logError("encoding failure: %v", err)
+		if b.logger != nil {
+			b.logger.Error("encoding failure: %v", err)
+		}
 		return nil
 	}
 
@@ -182,35 +175,4 @@ func (b *eventBuffer) readEvent() *bufferItem {
 	default:
 		return nil
 	}
-}
-
-// processEvent serializes the event and determines if the ND cache needs to be dropped
-func (b *eventBuffer) processEvent(event *EventV1) ([]byte, error) {
-	serialized, err := json.Marshal(event)
-
-	// The non-deterministic cache (NDBuiltinCache) could cause issues, if it is too big or can't be encoded try to drop it.
-	if err != nil || int64(len(serialized)) >= b.uploadSizeLimitBytes {
-		if event.NDBuiltinCache == nil {
-			return nil, fmt.Errorf("upload event size (%d) exceeds upload_size_limit_bytes (%d), dropping event with decision ID: %v",
-				int64(len(serialized)), b.uploadSizeLimitBytes, event.DecisionID)
-		}
-
-		// Attempt to drop the ND cache to reduce size. If it is still too large, drop the event.
-		event.NDBuiltinCache = nil
-		var err error
-		serialized, err = json.Marshal(event)
-		if err != nil {
-			b.incrMetric(logEncodingFailureCounterName)
-			return nil, fmt.Errorf("encoding failure: %v, dropping event with decision ID: %v", err, event.DecisionID)
-		}
-		if int64(len(serialized)) > b.uploadSizeLimitBytes {
-			return nil, fmt.Errorf("upload event size (%d) exceeds upload_size_limit_bytes (%d), dropping event with decision ID: %v",
-				int64(len(serialized)), b.uploadSizeLimitBytes, event.DecisionID)
-		}
-
-		b.incrMetric(logNDBDropCounterName)
-		b.logError("ND builtins cache dropped from this event to fit under maximum upload size limits. Increase upload size limit or change usage of non-deterministic builtins.")
-	}
-
-	return serialized, nil
 }

@@ -13,12 +13,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"reflect"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -420,8 +420,8 @@ func TestPluginStartSameInput(t *testing.T) {
 
 	var input any = map[string]any{"method": "GET"}
 
-	for i := 0; i < 400; i++ {
-		fixture.plugin.Log(ctx, &server.Info{
+	for i := range 400 {
+		if err := fixture.plugin.Log(ctx, &server.Info{
 			Revision:   fmt.Sprint(i),
 			DecisionID: fmt.Sprint(i),
 			Path:       "tda/bar",
@@ -430,7 +430,9 @@ func TestPluginStartSameInput(t *testing.T) {
 			RemoteAddr: "test",
 			Timestamp:  ts,
 			Metrics:    testMetrics,
-		})
+		}); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	err = fixture.plugin.oneShot(ctx)
@@ -441,9 +443,10 @@ func TestPluginStartSameInput(t *testing.T) {
 	chunk1 := <-fixture.server.ch
 	chunk2 := <-fixture.server.ch
 	chunk3 := <-fixture.server.ch
+	// first size is smallest as the adaptive uncompressed limit increases more events can be added
 	expLen1 := 122
-	expLen2 := 242
-	expLen3 := 36
+	expLen2 := 243
+	expLen3 := 35
 
 	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len(chunk3) != expLen3 {
 		t.Fatalf("Expected chunk lens %v, %v, and %v but got: %v, %v, and %v", expLen1, expLen2, expLen3, len(chunk1), len(chunk2), len(chunk3))
@@ -502,7 +505,7 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 	for i := 0; i < 400; i++ {
 		input = map[string]any{"method": getValueForMethod(i), "path": getValueForPath(i), "user": getValueForUser(i)}
 
-		fixture.plugin.Log(ctx, &server.Info{
+		if err := fixture.plugin.Log(ctx, &server.Info{
 			Revision:   fmt.Sprint(i),
 			DecisionID: fmt.Sprint(i),
 			Path:       "foo/bar",
@@ -510,7 +513,9 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 			Results:    &result,
 			RemoteAddr: "test",
 			Timestamp:  ts,
-		})
+		}); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	err = fixture.plugin.oneShot(ctx)
@@ -521,9 +526,9 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 	chunk1 := <-fixture.server.ch
 	chunk2 := <-fixture.server.ch
 	chunk3 := <-fixture.server.ch
-	expLen1 := 124
-	expLen2 := 247
-	expLen3 := 29
+	expLen1 := 125
+	expLen2 := 248
+	expLen3 := 27
 
 	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len((chunk3)) != expLen3 {
 		t.Fatalf("Expected chunk lens %v, %v and %v but got: %v, %v and %v", expLen1, expLen2, expLen3, len(chunk1), len(chunk2), len(chunk3))
@@ -557,7 +562,7 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 	fixture := newTestFixture(t)
 	defer fixture.server.stop()
 
-	fixture.server.ch = make(chan []EventV1, 5)
+	fixture.server.ch = make(chan []EventV1, 2)
 	var result any = false
 
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
@@ -570,7 +575,7 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 	for i := 0; i < 250; i++ {
 		input = generateInputMap(i)
 
-		fixture.plugin.Log(ctx, &server.Info{
+		if err := fixture.plugin.Log(ctx, &server.Info{
 			Revision:   fmt.Sprint(i),
 			DecisionID: fmt.Sprint(i),
 			Path:       "foo/bar",
@@ -578,7 +583,9 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 			Results:    &result,
 			RemoteAddr: "test",
 			Timestamp:  ts,
-		})
+		}); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	err = fixture.plugin.oneShot(ctx)
@@ -761,7 +768,7 @@ func TestPluginRateLimitInt(t *testing.T) {
 			var input any = map[string]any{"method": "GET"}
 			var result any = false
 
-			eventSize := 218
+			eventSize := 217
 			event1 := &server.Info{
 				DecisionID: "abc",
 				Path:       "foo/bar",
@@ -917,7 +924,7 @@ func TestPluginRateLimitFloat(t *testing.T) {
 			var input any = map[string]any{"method": "GET"}
 			var result any = false
 
-			eventSize := 218
+			eventSize := 217
 			event1 := &server.Info{
 				DecisionID: "abc",
 				Path:       "foo/bar",
@@ -1250,10 +1257,16 @@ func TestPluginStatusUpdateBufferSizeExceeded(t *testing.T) {
 	}
 
 	// write event 1 and 2 into the encoder and check the chunk is inserted into the buffer
-	_ = fixture.plugin.Log(ctx, event1)
-	_ = fixture.plugin.Log(ctx, event2)
+	if err := fixture.plugin.Log(ctx, event1); err != nil {
+		t.Error(err)
+	}
+
+	if err := fixture.plugin.Log(ctx, event2); err != nil {
+		t.Error(err)
+	}
 
 	fixture.plugin.mtx.Lock()
+
 	if fixture.plugin.enc.bytesWritten == 0 {
 		t.Fatal("Expected event to be written into the encoder")
 	}
@@ -1610,7 +1623,7 @@ func TestPluginRateLimitDropCountStatus(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			eventSize := 218
+			eventSize := 217
 			expectedLen := 1
 			currentLen := getBufferLen(t, fixture, eventSize)
 			if currentLen != expectedLen {
@@ -1664,59 +1677,6 @@ func TestPluginRateLimitDropCountStatus(t *testing.T) {
 				t.Fatalf("Expected %v but got %v", exp, e.Fields["metrics"])
 			}
 		})
-	}
-}
-
-func TestChunkMaxUploadSizeLimitNDBCacheDropping(t *testing.T) {
-	t.Parallel()
-
-	ctx := context.Background()
-	testLogger := test.New()
-
-	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
-	if err != nil {
-		panic(err)
-	}
-
-	fixture := newTestFixture(t, testFixtureOptions{
-		ConsoleLogger:                  testLogger,
-		ReportingMaxDecisionsPerSecond: float64(1), // 1 decision per second
-		ReportingUploadSizeLimitBytes:  400,
-	})
-	defer fixture.server.stop()
-
-	fixture.plugin.metrics = metrics.New()
-
-	var input any = map[string]any{"method": "GET"}
-	var result any = false
-
-	// Purposely oversized NDBCache entry will force dropping during Log().
-	var ndbCacheExample any = ast.MustJSON(builtins.NDBCache{
-		"test.custom_space_waster": ast.NewObject([2]*ast.Term{
-			ast.ArrayTerm(),
-			ast.StringTerm(strings.Repeat("Wasted space... ", 200)),
-		}),
-	}.AsValue())
-
-	event := &server.Info{
-		DecisionID:     "abc",
-		Path:           "foo/bar",
-		Input:          &input,
-		Results:        &result,
-		RemoteAddr:     "test",
-		Timestamp:      ts,
-		NDBuiltinCache: &ndbCacheExample,
-	}
-
-	beforeNDBDropCount := fixture.plugin.metrics.Counter(logNDBDropCounterName).Value().(uint64)
-	err = fixture.plugin.Log(ctx, event) // event should be written into the encoder
-	if err != nil {
-		t.Fatal(err)
-	}
-	afterNDBDropCount := fixture.plugin.metrics.Counter(logNDBDropCounterName).Value().(uint64)
-
-	if afterNDBDropCount != beforeNDBDropCount+1 {
-		t.Fatalf("Expected %v NDBCache drop events, saw %v events instead.", beforeNDBDropCount+1, afterNDBDropCount)
 	}
 }
 
@@ -2587,7 +2547,9 @@ func TestPluginMasking(t *testing.T) {
 			// Instantiate the plugin.
 			cfg := &Config{Service: "svc"}
 			trigger := plugins.DefaultTriggerMode
-			cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, nil)
+			if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, nil); err != nil {
+				t.Fatal(err)
+			}
 
 			plugin := New(cfg, manager)
 
@@ -2737,7 +2699,9 @@ func TestPluginDrop(t *testing.T) {
 			// Instantiate the plugin.
 			cfg := &Config{Service: "svc"}
 			trigger := plugins.DefaultTriggerMode
-			cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, nil)
+			if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, nil); err != nil {
+				t.Fatal(err)
+			}
 
 			plugin := New(cfg, manager)
 
@@ -2808,7 +2772,9 @@ func TestPluginMaskErrorHandling(t *testing.T) {
 	// Instantiate the plugin.
 	cfg := &Config{Service: "svc"}
 	trigger := plugins.DefaultTriggerMode
-	cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, nil)
+	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, nil); err != nil {
+		t.Fatal(err)
+	}
 
 	plugin := New(cfg, manager)
 
@@ -2884,7 +2850,9 @@ func TestPluginDropErrorHandling(t *testing.T) {
 	// Instantiate the plugin.
 	cfg := &Config{Service: "svc"}
 	trigger := plugins.DefaultTriggerMode
-	cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, nil)
+	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, nil); err != nil {
+		t.Fatal(err)
+	}
 
 	plugin := New(cfg, manager)
 
@@ -3028,6 +2996,8 @@ func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
 	if options.ReportingUploadSizeLimitBytes != 0 {
 		config.Reporting.UploadSizeLimitBytes = &options.ReportingUploadSizeLimitBytes
 	}
+
+	ts.uploadLimit = *config.Reporting.UploadSizeLimitBytes
 
 	if options.ReportingBufferSizeLimitBytes != 0 {
 		config.Reporting.BufferSizeLimitBytes = &options.ReportingBufferSizeLimitBytes
@@ -3556,15 +3526,27 @@ func TestPluginResourcePath(t *testing.T) {
 }
 
 type testServer struct {
-	t       *testing.T
-	expCode int
-	server  *httptest.Server
-	ch      chan []EventV1
-	path    string
+	t           *testing.T
+	expCode     int
+	server      *httptest.Server
+	ch          chan []EventV1
+	path        string
+	uploadLimit int64
 }
 
 func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
-	gr, err := gzip.NewReader(r.Body)
+	t.t.Helper()
+
+	b, err := io.ReadAll(r.Body)
+	if err != nil {
+		t.t.Fatal(err)
+	}
+
+	if int64(len(b)) > t.uploadLimit {
+		t.t.Fatalf("upload limit exceeded expected less than %d but got %d", t.uploadLimit, int64(len(b)))
+	}
+
+	gr, err := gzip.NewReader(bytes.NewReader(b))
 	if err != nil {
 		t.t.Fatal(err)
 	}
@@ -3852,9 +3834,9 @@ func currentSoftLimit(t *testing.T, plugin *Plugin, bufferType string) int64 {
 
 	switch bufferType {
 	case eventBufferType:
-		return plugin.eventBuffer.enc.softLimit
+		return plugin.eventBuffer.enc.uncompressedLimit
 	case sizeBufferType:
-		return plugin.enc.softLimit
+		return plugin.enc.uncompressedLimit
 	default:
 		t.Fatal("Unknown buffer type")
 	}
