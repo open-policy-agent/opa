@@ -561,7 +561,6 @@ func (e *eval) fmtVarTerm() string {
 }
 
 func (e *eval) evalNot(iter evalIterator) error {
-
 	expr := e.query[e.index]
 
 	if e.unknown(expr, e.bindings) {
@@ -4106,8 +4105,7 @@ func canInlineNegation(safe ast.VarSet, queries []ast.Body) bool {
 					SkipClosures:    true,
 				})
 				vis.Walk(expr)
-				unsafe := vis.Vars().Diff(safe).Diff(ast.ReservedVars)
-				if len(unsafe) > 0 {
+				if vis.Vars().Diff(safe).DiffCount(ast.ReservedVars) > 0 {
 					return false
 				}
 			}

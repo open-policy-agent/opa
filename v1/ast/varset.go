@@ -50,19 +50,23 @@ func (s VarSet) Copy() VarSet {
 
 // Diff returns a VarSet containing variables in s that are not in vs.
 func (s VarSet) Diff(vs VarSet) VarSet {
-	i := 0
-	for v := range s {
-		if !vs.Contains(v) {
-			i++
-		}
-	}
-	r := NewVarSetOfSize(i)
+	r := NewVarSetOfSize(s.DiffCount(vs))
 	for v := range s {
 		if !vs.Contains(v) {
 			r.Add(v)
 		}
 	}
 	return r
+}
+
+// DiffCount returns the number of variables in s that are not in vs.
+func (s VarSet) DiffCount(vs VarSet) (i int) {
+	for v := range s {
+		if !vs.Contains(v) {
+			i++
+		}
+	}
+	return
 }
 
 // Equal returns true if s contains exactly the same elements as vs.
