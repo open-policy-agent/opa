@@ -8,8 +8,21 @@ import RunSnippet from "../RunSnippet";
 import SideBySideColumn from "../SideBySide/Column";
 import SideBySideContainer from "../SideBySide/Container";
 
+function getTitle(titleSize, title) {
+  const ret = [
+    (<h1>{title}</h1>),
+    (<h2>{title}</h2>),
+    (<h3>{title}</h3>),
+    (<h4>{title}</h4>),
+    (<h5>{title}</h5>),
+    (<h6>{title}</h6>),
+  ][Math.min(5, Math.max(0, titleSize - 1))];
+  return ret;
+}
+
 export default function PlaygroundExample({
-  dir, files
+  dir,
+  files,
 }) {
   let source_files = dir.keys().reduce((acc, key) => {
     let fileName = key.replace(`./`, "");
@@ -24,8 +37,8 @@ export default function PlaygroundExample({
     return acc;
   }, {});
   const config = source_files["config.json"];
-  const input = source_files["input.json"]||"{}";
-  const data = source_files["data.json"]||"{}";
+  const input = source_files["input.json"] || "{}";
+  const data = source_files["data.json"] || "{}";
   const policy = source_files["policy.rego"];
 
   const title = source_files["title.txt"];
@@ -39,6 +52,7 @@ export default function PlaygroundExample({
   const showTitles = config?.showTitles ?? true;
   const showPlayground = config?.showPlayground ?? true;
   const command = config?.command ?? "data.play";
+  const titleSize = config?.titleSize ?? 2;
 
   const state = encodeToBase64(JSON.stringify({
     i: JSON.stringify(input, null, 2),
@@ -53,15 +67,19 @@ export default function PlaygroundExample({
   if (config && config.showData && config.dataLineLimit) {
     dataString = dataString.split("\n").slice(0, config.dataLineLimit).join("\n") + "\n...";
   }
+  const introT = intro ? intro() : "";
+  const outroT = outro ? outro() : "";
 
   // id is used to stop contents from other examples on the same page being used
   const id = getId(state);
-  const snippetFiles = files?`${files} #${id}-input.json:input.json #${id}-data.json:data.json`:`#${id}-input.json:input.json #${id}-data.json:data.json`;
-  return (
-    <div>
-      {title && <h2>{title}</h2>}
+  const snippetFiles = files
+    ? `${files} #${id}-input.json:input.json #${id}-data.json:data.json`
+    : `#${id}-input.json:input.json #${id}-data.json:data.json`;
+  const header = title && getTitle(titleSize, title);
 
-      {intro && intro()}
+  const contents = (
+    <div>
+      {intro && introT}
 
       {showInput && (
         <SideBySideContainer>
@@ -115,7 +133,12 @@ export default function PlaygroundExample({
           <CodeBlock language={"rego"} title={showTitles ? "policy.rego" : ""}>
             {policy}
           </CodeBlock>
-          <RunSnippet command={command} id={`${id}-policy.rego`} files={snippetFiles} playgroundLink={showPlayground && url} />
+          <RunSnippet
+            command={command}
+            id={`${id}-policy.rego`}
+            files={snippetFiles}
+            playgroundLink={showPlayground && url}
+          />
         </MDXProvider>
       )}
 
@@ -153,7 +176,13 @@ export default function PlaygroundExample({
         </table>
       )}
 
-      {outro && outro()}
+      {outro && outroT}
+    </div>
+  );
+  return (
+    <div>
+      {header}
+      {contents}
     </div>
   );
 }
