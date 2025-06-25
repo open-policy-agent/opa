@@ -7,16 +7,17 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"maps"
 	"os"
 
 	"github.com/spf13/cobra"
 
+	"github.com/open-policy-agent/opa/cmd/formats"
 	"github.com/open-policy-agent/opa/cmd/internal/env"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/loader"
 	"github.com/open-policy-agent/opa/v1/util"
 )
@@ -36,10 +37,8 @@ type checkParams struct {
 
 func newCheckParams() checkParams {
 	return checkParams{
-		format: util.NewEnumFlag(checkFormatPretty, []string{
-			checkFormatPretty, checkFormatJSON,
-		}),
-		capabilities: newcapabilitiesFlag(),
+		format:       formats.Flag(formats.Pretty, formats.JSON),
+		capabilities: newCapabilitiesFlag(),
 		schema:       &schemaFlags{},
 	}
 }
@@ -59,62 +58,21 @@ func (p *checkParams) regoVersion() ast.RegoVersion {
 	return ast.DefaultRegoVersion
 }
 
-const (
-	checkFormatPretty = "pretty"
-	checkFormatJSON   = "json"
-)
-
 func checkModules(params checkParams, args []string) error {
-
-	modules := map[string]*ast.Module{}
-
-	var capabilities *ast.Capabilities
-	// if capabilities are not provided as a cmd flag,
-	// then ast.CapabilitiesForThisVersion must be called
-	// within checkModules to ensure custom builtins are properly captured
-	if params.capabilities.C != nil {
-		capabilities = params.capabilities.C
-	} else {
+	// ensure custom builtins are properly captured
+	capabilities := params.capabilities.C
+	if capabilities == nil {
 		capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(params.regoVersion()))
 	}
+
+	l := loader.NewFileLoader().
+		WithRegoVersion(params.regoVersion()).
+		WithProcessAnnotation(true).
+		WithCapabilities(capabilities)
 
 	ss, err := loader.Schemas(params.schema.path)
 	if err != nil {
 		return err
-	}
-
-	if params.bundleMode {
-		for _, path := range args {
-			b, err := loader.NewFileLoader().
-				WithRegoVersion(params.regoVersion()).
-				WithSkipBundleVerification(true).
-				WithProcessAnnotation(true).
-				WithCapabilities(capabilities).
-				WithFilter(filterFromPaths(params.ignore)).
-				AsBundle(path)
-			if err != nil {
-				return err
-			}
-			maps.Copy(modules, b.ParsedModules(path))
-		}
-	} else {
-		f := loaderFilter{
-			Ignore:   params.ignore,
-			OnlyRego: true,
-		}
-
-		result, err := loader.NewFileLoader().
-			WithRegoVersion(params.regoVersion()).
-			WithProcessAnnotation(true).
-			WithCapabilities(capabilities).
-			Filtered(args, f.Apply)
-		if err != nil {
-			return err
-		}
-
-		for _, m := range result.Modules {
-			modules[m.Name] = m.Parsed
-		}
 	}
 
 	compiler := ast.NewCompiler().
@@ -125,34 +83,88 @@ func checkModules(params checkParams, args []string) error {
 		WithStrict(params.strict).
 		WithUseTypeCheckAnnotations(true)
 
-	compiler.Compile(modules)
-	if compiler.Failed() {
+	var modules map[string]*ast.Module
+
+	if params.bundleMode {
+		bundles := make([]*bundle.Bundle, 0, len(args))
+		for _, path := range args {
+			b, err := l.WithSkipBundleVerification(true).WithFilter(filterFromPaths(params.ignore)).AsBundle(path)
+			if err != nil {
+				return err
+			}
+			bundles = append(bundles, b)
+		}
+		b, err := bundle.Merge(bundles)
+		if err != nil {
+			return err
+		}
+
+		modules = maps.Clone(b.ParsedModules(""))
+		if len(b.Data) > 0 {
+			compiler = compiler.WithPathConflictsCheck(mapFinder(b.Data))
+		}
+	} else {
+		result, err := l.Filtered(args, ignoredOnlyRego(params.ignore).Apply)
+		if err != nil {
+			return err
+		}
+
+		modules = result.ParsedModules()
+	}
+
+	if compiler.Compile(modules); compiler.Failed() {
 		return compiler.Errors
 	}
+
 	return nil
+}
+
+// emulate storage.NonEmpty without having to create storage / transaction
+// returned function returns false, nil when m or path is empty
+func mapFinder(m map[string]any) func(path []string) (bool, error) {
+	if len(m) == 0 {
+		return emptyMapFinder
+	}
+	return func(path []string) (bool, error) {
+		if len(path) == 0 {
+			return false, nil
+		}
+
+		node := m
+		for _, key := range path {
+			if val, ok := node[key]; ok {
+				if subMap, ok := val.(map[string]any); ok {
+					node = subMap
+				} else {
+					return true, nil
+				}
+			} else {
+				return false, nil
+			}
+		}
+		return true, nil
+	}
+}
+
+func emptyMapFinder(path []string) (bool, error) {
+	return false, nil
 }
 
 func filterFromPaths(paths []string) loader.Filter {
 	return func(abspath string, info fs.FileInfo, depth int) bool {
-		return loaderFilter{Ignore: paths}.Apply(abspath, info, depth)
+		return ignored(paths).Apply(abspath, info, depth)
 	}
 }
 
 func outputErrors(format string, err error) {
-	var out io.Writer
+	out := os.Stdout
 	if err != nil {
 		out = os.Stderr
-	} else {
-		out = os.Stdout
 	}
 
 	switch format {
-	case checkFormatJSON:
-		result := pr.Output{
-			Errors: pr.NewOutputErrors(err),
-		}
-		err := pr.JSON(out, result)
-		if err != nil {
+	case formats.JSON:
+		if err := pr.JSON(out, pr.Output{Errors: pr.NewOutputErrors(err)}); err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
 		}
 	default:
@@ -189,7 +201,7 @@ and exit with a non-zero exit code.`,
 
 	addMaxErrorsFlag(checkCommand.Flags(), &checkParams.errLimit)
 	addIgnoreFlag(checkCommand.Flags(), &checkParams.ignore)
-	checkCommand.Flags().VarP(checkParams.format, "format", "f", "set output format")
+	addOutputFormat(checkCommand.Flags(), checkParams.format)
 	addBundleModeFlag(checkCommand.Flags(), &checkParams.bundleMode, false)
 	addCapabilitiesFlag(checkCommand.Flags(), checkParams.capabilities)
 	addSchemaFlags(checkCommand.Flags(), checkParams.schema)

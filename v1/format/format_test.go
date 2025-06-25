@@ -932,6 +932,78 @@ f := 6
 	}
 }
 
+func TestFormatKeywordsInRefs(t *testing.T) {
+	regoVersions := map[string]ast.RegoVersion{
+		"v0": ast.RegoV0,
+		"v1": ast.RegoV1,
+	}
+
+	for versionName, regoVersion := range regoVersions {
+		t.Run(versionName, func(t *testing.T) {
+			regoFiles, err := filepath.Glob(fmt.Sprintf("testfiles/%s/*.rego.formatted_no_keywords_in_refs", versionName))
+			if err != nil {
+				panic(err)
+			}
+
+			for _, expected_rego := range regoFiles {
+				original_rego := strings.TrimSuffix(expected_rego, ".formatted_no_keywords_in_refs")
+				t.Run(original_rego, func(t *testing.T) {
+					expected, err := os.ReadFile(expected_rego)
+					if err != nil {
+						t.Fatalf("Failed to read expected rego source: %v", err)
+					}
+
+					original, err := os.ReadFile(original_rego)
+					if err != nil {
+						t.Fatalf("Failed to read rego source: %v", err)
+					}
+
+					caps := ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(regoVersion))
+					feats := []string{}
+					for _, f := range caps.Features {
+						if f != ast.FeatureKeywordsInRefs {
+							feats = append(feats, f)
+						}
+					}
+					caps.Features = feats
+
+					popts := ast.ParserOptions{
+						RegoVersion: regoVersion,
+					}
+					opts := Opts{
+						RegoVersion:   regoVersion,
+						ParserOptions: &popts,
+						Capabilities:  caps,
+					}
+
+					formatted, err := SourceWithOpts(original_rego, original, opts)
+					if err != nil {
+						t.Fatalf("Failed to format file: %v", err)
+					}
+
+					if ln, at := differsAt(formatted, expected); ln != 0 {
+						t.Fatalf("Expected formatted bytes to equal expected bytes but differed near line %d / byte %d (got: %q, expected: %q):\n%s", ln, at, formatted[at], expected[at], prefixWithLineNumbers(formatted))
+					}
+
+					if _, err := ast.ParseModuleWithOpts(original_rego+".tmp", string(formatted), popts); err != nil {
+						t.Fatalf("Failed to parse formatted bytes: %v", err)
+					}
+
+					formatted, err = SourceWithOpts(original_rego, formatted, opts)
+					if err != nil {
+						t.Fatalf("Failed to double format file")
+					}
+
+					if ln, at := differsAt(formatted, expected); ln != 0 {
+						t.Fatalf("Expected roundtripped bytes to equal expected bytes but differed near line %d / byte %d:\n%s", ln, at, prefixWithLineNumbers(formatted))
+					}
+
+				})
+			}
+		})
+	}
+}
+
 // 382	   3064960 ns/op	 4573131 B/op	   26266 allocs/op // no optimizations
 // 685	   1737719 ns/op	 1972193 B/op	   14160 allocs/op // pre-allocate partitionComments
 // 708	   1674343 ns/op	 1916700 B/op	   11556 allocs/op // static memberRef & memberWithKeyRef

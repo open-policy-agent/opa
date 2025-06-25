@@ -44,6 +44,10 @@ const baseUrl = "/";
       ],
     ],
 
+    customFields: {
+      buildVersion: process.env.BUILD_VERSION,
+    },
+
     markdown: {
       mermaid: true,
     },

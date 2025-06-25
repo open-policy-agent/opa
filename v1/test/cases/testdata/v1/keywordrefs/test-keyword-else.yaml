@@ -1,0 +1,199 @@
+---
+cases:
+  - note: keywordrefs/else keyword in package
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.else.bar
+
+        baz := 42
+      - |
+        package foo
+        import data.foo.else.bar
+
+        p if {
+          bar.baz == 42
+          data.foo.else.bar.baz == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/else keyword in package, import alias
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.else
+
+        bar := 42
+      - |
+        package foo
+        import data.foo.else as my_if
+
+        p if {
+          my_if.bar == 42
+          data.foo.else.bar == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/else keyword rule refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          else.foo == 1
+          foo.else == 2
+        }
+
+        else.foo := 1
+
+        foo.else := 2
+    want_result:
+      - x: true
+  - note: keywordrefs/else keyword rule refhead, else bodies
+    query: data.test.p = x
+    input:
+      x: 3
+    modules:
+      - |
+        package test
+
+        p if {
+          else.foo == 3
+          foo.else == 6
+        }
+
+        else.foo := 1 if {
+          input.x == 1
+        } else := 2 if {
+          input.x == 2
+        } else := 3
+
+        foo.else := 4 if {
+          input.x == 1
+        } else := 5 if {
+          input.x == 2
+        } else := 6
+    want_result:
+      - x: true
+  - note: keywordrefs/else keyword rule refhead, partial set
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          else.foo == {"a", "c"}
+          foo.else == {"a", "c"}
+        }
+
+        else.foo contains "a"
+
+        else.foo contains "b" if {
+          false
+        }
+
+        else.foo contains "c" if {
+          true
+        }
+
+        foo.else contains "a"
+
+        foo.else contains "b" if {
+          false
+        }
+
+        foo.else contains "c" if {
+          true
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/else keyword rule refhead, partial object
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          else.foo == "a"
+          else.bar.one == "a"
+          else.bar.three == "c"
+          foo.else == "a"
+          bar.baz.else == "a"
+        }
+
+        else.foo := "a"
+
+        else.foo := "b" if {
+          false
+        }
+
+        else.foo := "c" if {
+          false
+        }
+
+        else.bar.one := "a"
+
+        else.bar.two := "b" if {
+          false
+        }
+
+        else.bar.three := "c" if {
+          true
+        }
+
+        foo.else := "a"
+
+        foo.else := "b" if {
+          false
+        }
+
+        foo.else := "c" if {
+          false
+        }
+
+        bar.baz.else := "a"
+
+        bar.baz.else := "b" if {
+          false
+        }
+
+        bar.baz.else := "c" if {
+          false
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/else keyword function refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          else.foo(1) == 1
+          else.foo(11) == 42
+          foo.else(1) == 1
+          foo.else(11) == 42
+          bar.else.baz(1) == 1
+          bar.else.baz(11) == 42
+        }
+
+        default else.foo(_) := 42
+
+        else.foo(x) := x if {
+          x < 10
+        }
+
+        default foo.else(_) := 42
+
+        foo.else(x) := x if {
+          x < 10
+        }
+
+        default bar.else.baz(_) := 42
+
+        bar.else.baz(x) := x if {
+          x < 10
+        }
+    want_result:
+      - x: true

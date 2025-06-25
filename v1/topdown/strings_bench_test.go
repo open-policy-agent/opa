@@ -3,6 +3,7 @@ package topdown
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -145,8 +146,8 @@ func BenchmarkSubstring(b *testing.B) {
 	operands := []*ast.Term{
 		// insert any non-asci character to see the difference of that optimization
 		ast.StringTerm("The quick brown fox jumps over the lazy dog"),
-		ast.InternedIntNumberTerm(6),
-		ast.InternedIntNumberTerm(10),
+		ast.InternedTerm(6),
+		ast.InternedTerm(10),
 	}
 
 	iter := eqIter(ast.StringTerm("ick brown "))
@@ -174,7 +175,7 @@ func BenchmarkIndexOf(b *testing.B) {
 	b.ResetTimer()
 
 	for range b.N {
-		if err := builtinIndexOf(BuiltinContext{}, operands, eqIter(ast.InternedIntNumberTerm(40))); err != nil {
+		if err := builtinIndexOf(BuiltinContext{}, operands, eqIter(ast.InternedTerm(40))); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -192,8 +193,8 @@ func eqIter(a *ast.Term) func(*ast.Term) error {
 // 0 allocs for numbers between 0 and 100 and base 10, 3 allocs for anything else.
 func BenchmarkFormatInt(b *testing.B) {
 	operands := []*ast.Term{
-		ast.InternedIntNumberTerm(99),
-		ast.InternedIntNumberTerm(10),
+		ast.InternedTerm(99),
+		ast.InternedTerm(10),
 	}
 	bctx := BuiltinContext{}
 	want := eqIter(ast.StringTerm("99"))
@@ -212,7 +213,7 @@ func BenchmarkSprintfSingleInteger(b *testing.B) {
 	operands := []*ast.Term{
 		ast.StringTerm("%d"),
 		ast.ArrayTerm(
-			ast.InternedIntNumberTerm(99),
+			ast.InternedTerm(99),
 		),
 	}
 	bctx := BuiltinContext{}
@@ -300,4 +301,107 @@ func BenchmarkLower(b *testing.B) {
 			}
 		})
 	}
+}
+
+func BenchmarkConcat(b *testing.B) {
+	bctx := BuiltinContext{}
+	tests := []struct {
+		name     string
+		operands []*ast.Term
+		expected *ast.Term
+	}{
+		{
+			name:     "0 elements '.' sep",
+			operands: []*ast.Term{ast.InternedTerm("."), ast.InternedEmptyArray},
+			expected: ast.InternedEmptyString,
+		},
+		{
+			name:     "1 element '.' sep",
+			operands: []*ast.Term{ast.InternedTerm("."), ast.ArrayTerm(ast.InternedTerm("foobar"))},
+			expected: ast.InternedTerm("foobar"),
+		},
+		{
+			name:     "100 elements ',' sep",
+			operands: []*ast.Term{ast.InternedTerm(","), repeatTerm(ast.InternedTerm("foobar"), 100)},
+			expected: ast.StringTerm(strings.Repeat("foobar,", 99) + "foobar"),
+		},
+		{
+			name:     "100 elements ', ' sep",
+			operands: []*ast.Term{ast.InternedTerm(", "), repeatTerm(ast.InternedTerm("foobar"), 100)},
+			expected: ast.StringTerm(strings.Repeat("foobar, ", 99) + "foobar"),
+		},
+		{
+			name:     "100 elements blank sep",
+			operands: []*ast.Term{ast.InternedEmptyString, repeatTerm(ast.InternedTerm("foobar"), 100)},
+			expected: ast.StringTerm(strings.Repeat("foobar", 100)),
+		},
+	}
+
+	for _, test := range tests {
+		b.Run(test.name, func(b *testing.B) {
+			for range b.N {
+				if err := builtinConcat(bctx, test.operands, eqIter(test.expected)); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkConcatVsSprintfSimple(b *testing.B) {
+	bctx := BuiltinContext{}
+
+	foo := ast.InternedTerm("foo")
+	bar := ast.InternedTerm("bar")
+	expected := ast.InternedTerm("foobar")
+
+	b.Run("concat foobar", func(b *testing.B) {
+		operands := []*ast.Term{ast.InternedEmptyString, ast.ArrayTerm(foo, bar)}
+
+		for range b.N {
+			if err := builtinConcat(bctx, operands, eqIter(expected)); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+
+	b.ResetTimer()
+
+	b.Run("sprintf foobar", func(b *testing.B) {
+		operands := []*ast.Term{ast.InternedTerm("%s%s"), ast.ArrayTerm(foo, bar)}
+
+		for range b.N {
+			if err := builtinSprintf(bctx, operands, eqIter(expected)); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}
+
+func repeatTerm(t *ast.Term, n int) *ast.Term {
+	terms := make([]*ast.Term, 0, n)
+	for range n {
+		terms = append(terms, t)
+	}
+	return ast.ArrayTerm(terms...)
+}
+
+func BenchmarkSplitLenVsStringsCount(b *testing.B) {
+	str := "a.b.c.d.e"
+
+	b.Run("split len", func(b *testing.B) {
+		for range b.N {
+			if len(strings.Split(str, ".")) != 5 {
+				b.Fatal("expected 5 elements")
+			}
+		}
+	})
+
+	b.Run("strings count", func(b *testing.B) {
+		for range b.N {
+			if strings.Count(str, ".")+1 != 5 {
+				b.Fatal("expected 5 elements")
+			}
+		}
+	})
 }

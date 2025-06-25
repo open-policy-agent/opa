@@ -70,9 +70,9 @@ For more information on how to configure the OPA plugin for Kafka, see the plugi
 
 Next, create a `docker-compose.yaml` file that runs OPA, Nginx, ZooKeeper, and Kafka.
 
-**docker-compose.yaml**:
+<EvergreenCodeBlock>
 
-```yaml
+```yaml title="docker-compose.yaml"
 services:
   nginx:
     image: nginx:1.21.4
@@ -81,7 +81,7 @@ services:
     ports:
     - "80:80"
   opa:
-    image: openpolicyagent/opa:{{< current_docker_version >}}
+    image: openpolicyagent/opa:{{ current_version_docker }}
     ports:
     - "8181:8181"
     command:
@@ -132,6 +132,8 @@ services:
     - opa
     - zookeeper
 ```
+
+</EvergreenCodeBlock>
 
 #### Authentication
 

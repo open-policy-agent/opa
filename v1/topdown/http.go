@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"mime"
 	"net"
 	"net/http"
 	"net/url"
@@ -95,7 +96,7 @@ var (
 	allowedKeys                 = ast.NewSet()
 	keyCache                    = make(map[string]*ast.Term, len(allowedKeyNames))
 	cacheableCodes              = ast.NewSet()
-	requiredKeys                = ast.NewSet(ast.InternedStringTerm("method"), ast.InternedStringTerm("url"))
+	requiredKeys                = ast.NewSet(ast.InternedTerm("method"), ast.InternedTerm("url"))
 	httpSendLatencyMetricKey    = "rego_builtin_http_send"
 	httpSendInterQueryCacheHits = httpSendLatencyMetricKey + "_interquery_cache_hits"
 )
@@ -161,19 +162,19 @@ func generateRaiseErrorResult(err error) *ast.Term {
 	switch err.(type) {
 	case *url.Error:
 		errObj = ast.NewObject(
-			ast.Item(ast.InternedStringTerm("code"), httpSendNetworkErrTerm),
-			ast.Item(ast.InternedStringTerm("message"), ast.StringTerm(err.Error())),
+			ast.Item(ast.InternedTerm("code"), httpSendNetworkErrTerm),
+			ast.Item(ast.InternedTerm("message"), ast.StringTerm(err.Error())),
 		)
 	default:
 		errObj = ast.NewObject(
-			ast.Item(ast.InternedStringTerm("code"), httpSendInternalErrTerm),
-			ast.Item(ast.InternedStringTerm("message"), ast.StringTerm(err.Error())),
+			ast.Item(ast.InternedTerm("code"), httpSendInternalErrTerm),
+			ast.Item(ast.InternedTerm("message"), ast.StringTerm(err.Error())),
 		)
 	}
 
 	return ast.ObjectTerm(
-		ast.Item(ast.InternedStringTerm("status_code"), ast.InternedIntNumberTerm(0)),
-		ast.Item(ast.InternedStringTerm("error"), ast.NewTerm(errObj)),
+		ast.Item(ast.InternedTerm("status_code"), ast.InternedTerm(0)),
+		ast.Item(ast.InternedTerm("error"), ast.NewTerm(errObj)),
 	)
 }
 
@@ -755,6 +756,26 @@ func executeHTTPRequest(req *http.Request, client *http.Client, inputReqObj ast.
 	return nil, err
 }
 
+func isJSONType(header http.Header) bool {
+	t, _, err := mime.ParseMediaType(header.Get("Content-Type"))
+	if err != nil {
+		return false
+	}
+
+	mediaType := strings.Split(t, "/")
+	if len(mediaType) != 2 {
+		return false
+	}
+
+	if mediaType[0] == "application" {
+		if mediaType[1] == "json" || strings.HasSuffix(mediaType[1], "+json") {
+			return true
+		}
+	}
+
+	return false
+}
+
 func isContentType(header http.Header, typ ...string) bool {
 	for _, t := range typ {
 		if strings.Contains(header.Get("Content-Type"), t) {
@@ -962,7 +983,7 @@ func (c *interQueryCache) checkHTTPSendInterQueryCache() (ast.Value, error) {
 
 // insertIntoHTTPSendInterQueryCache inserts given key and value in the inter-query cache
 func insertIntoHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Value, resp *http.Response, respBody []byte, cacheParams *forceCacheParams) error {
-	if resp == nil || (!forceCaching(cacheParams) && !canStore(resp.Header)) || !cacheableCodes.Contains(ast.InternedIntNumberTerm(resp.StatusCode)) {
+	if resp == nil || (!forceCaching(cacheParams) && !canStore(resp.Header)) || !cacheableCodes.Contains(ast.InternedTerm(resp.StatusCode)) {
 		return nil
 	}
 
@@ -1006,7 +1027,7 @@ func createKeys() {
 
 func createCacheableHTTPStatusCodes() {
 	for _, element := range cacheableHTTPStatusCodes {
-		cacheableCodes.Add(ast.InternedIntNumberTerm(element))
+		cacheableCodes.Add(ast.InternedTerm(element))
 	}
 }
 
@@ -1383,7 +1404,7 @@ func prepareASTResult(headers http.Header, forceJSONDecode, forceYAMLDecode bool
 	// an error will not be returned. Instead, the "body" field
 	// in the result will be null.
 	switch {
-	case forceJSONDecode || isContentType(headers, "application/json"):
+	case forceJSONDecode || isJSONType(headers):
 		_ = util.UnmarshalJSON(body, &resultBody)
 	case forceYAMLDecode || isContentType(headers, "application/yaml", "application/x-yaml"):
 		_ = util.Unmarshal(body, &resultBody)
@@ -1548,7 +1569,7 @@ func (c *intraQueryCache) InsertIntoCache(value *http.Response) (ast.Value, erro
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}
 
-	if cacheableCodes.Contains(ast.InternedIntNumberTerm(value.StatusCode)) {
+	if cacheableCodes.Contains(ast.InternedTerm(value.StatusCode)) {
 		insertIntoHTTPSendCache(c.bctx, c.key, result)
 	}
 

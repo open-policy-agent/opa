@@ -39,7 +39,7 @@ type NDBCache map[string]ast.Object
 func (c NDBCache) AsValue() ast.Value {
 	out := ast.NewObject()
 	for bname, obj := range c {
-		out.Insert(ast.InternedStringTerm(bname), ast.NewTerm(obj))
+		out.Insert(ast.InternedTerm(bname), ast.NewTerm(obj))
 	}
 	return out
 }

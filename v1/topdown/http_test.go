@@ -3309,22 +3309,22 @@ func TestRaisingHTTPClientQueryError(t *testing.T) {
 		{
 			note: "raised errors with inter query cache",
 			rules: []string{`p["one"] {
-	not http.send({"method": "GET", "url": "bad_url", "timeout": "1ms", "cache": true})
+	not http.send({"method": "GET", "url": "bad_url", "cache": true})
 }`,
 				`p["two"] {
-	not http.send({"method": "GET", "url": "bad_url", "timeout": "1ms", "cache": true})
+	not http.send({"method": "GET", "url": "bad_url", "cache": true})
 }`},
 			expected:      `["one", "two"]`,
-			expectedError: `not http.send({"method": "GET", "url": "bad_url", "timeout": "1ms", "cache": true}): eval_builtin_error: http.send: Get "bad_url": unsupported protocol scheme ""`,
+			expectedError: `not http.send({"method": "GET", "url": "bad_url", "cache": true}): eval_builtin_error: http.send: Get "bad_url": unsupported protocol scheme ""`,
 		},
 		{
 			note: "no raised errors with inter query cache",
 			rules: []string{`p["one"] {
-	r := http.send({"method": "GET", "url": "bad_url", "timeout": "1ms", "cache": true, "raise_error": false})
+	r := http.send({"method": "GET", "url": "bad_url", "cache": true, "raise_error": false})
 	r.error.code == "eval_http_send_network_error"
 }`,
 				`p["two"] {
-	r := http.send({"method": "GET", "url": "bad_url", "timeout": "1ms", "cache": true, "raise_error": false})
+	r := http.send({"method": "GET", "url": "bad_url", "cache": true, "raise_error": false})
 	r.error.code == "eval_http_send_network_error"
 }`},
 			expected: `["one", "two"]`,
@@ -3332,22 +3332,22 @@ func TestRaisingHTTPClientQueryError(t *testing.T) {
 		{
 			note: "raised errors with intra query cache",
 			rules: []string{`p["one"] {
-	not http.send({"method": "GET", "url": "bad_url", "timeout": "1ms"})
+	not http.send({"method": "GET", "url": "bad_url"})
 }`,
 				`p["two"] {
-	not http.send({"method": "GET", "url": "bad_url", "timeout": "1ms"})
+	not http.send({"method": "GET", "url": "bad_url"})
 }`},
 			expected:      `["one", "two"]`,
-			expectedError: `not http.send({"method": "GET", "url": "bad_url", "timeout": "1ms"}): eval_builtin_error: http.send: Get "bad_url": unsupported protocol scheme ""`,
+			expectedError: `not http.send({"method": "GET", "url": "bad_url"}): eval_builtin_error: http.send: Get "bad_url": unsupported protocol scheme ""`,
 		},
 		{
 			note: "no raised errors with intra query cache",
 			rules: []string{`p["one"] {
-	r := http.send({"method": "GET", "url": "bad_url", "timeout": "1ms", "raise_error": false})
+	r := http.send({"method": "GET", "url": "bad_url", "raise_error": false})
 	r.error.code == "eval_http_send_network_error"
 }`,
 				`p["two"] {
-	r := http.send({"method": "GET", "url": "bad_url", "timeout": "1ms", "raise_error": false})
+	r := http.send({"method": "GET", "url": "bad_url", "raise_error": false})
 	r.error.code == "eval_http_send_network_error"
 }`},
 			expected: `["one", "two"]`,
@@ -3787,6 +3787,63 @@ func TestHTTPWithCustomTransport(t *testing.T) {
 		serverCalls := (callCount - startingCalls) / 2
 		if serverCalls != tc.calls {
 			t.Errorf("Expected %d calls to server, got %d", tc.calls, serverCalls)
+		}
+	}
+}
+
+func TestIsJSONType(t *testing.T) {
+	tests := []struct {
+		name string
+		h    http.Header
+		exp  bool
+	}{
+		{
+			h: http.Header{
+				"Content-Type": []string{"application/json"},
+			},
+			exp: true,
+		},
+		{
+			h: http.Header{
+				"Content-Type": []string{"application/json; charset=utf-8"},
+			},
+			exp: true,
+		},
+		{
+			h: http.Header{
+				"Content-Type": []string{"application/scim+json; charset=utf-8"},
+			},
+			exp: true,
+		},
+		{
+			h: http.Header{
+				"Content-Type": []string{"application/thisisnotjson; charset=utf-8"},
+			},
+			exp: false,
+		},
+		{
+			h: http.Header{
+				"Content-Type": []string{"application/yaml"},
+			},
+			exp: false,
+		},
+		{
+			h: http.Header{
+				"Content-Type": []string{"application/x-yaml; charset=utf-8"},
+			},
+			exp: false,
+		},
+		{
+			h: http.Header{
+				"Content-Type": []string{"text/html; charset=ISO-8859-4"},
+			},
+			exp: false,
+		},
+	}
+
+	for _, tc := range tests {
+		if tc.exp != isJSONType(tc.h) {
+			t.Errorf("Expected %v for %v", tc.exp, tc.h)
 		}
 	}
 }

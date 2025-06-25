@@ -29,6 +29,7 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 
+	"github.com/open-policy-agent/opa/cmd/formats"
 	"github.com/open-policy-agent/opa/cmd/internal/env"
 	"github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/v1/compile"
@@ -50,21 +51,13 @@ type benchmarkCommandParams struct {
 	configFile             string
 }
 
-const (
-	benchmarkGoBenchOutput = "gobench"
-)
-
 func newBenchmarkEvalParams() benchmarkCommandParams {
 	return benchmarkCommandParams{
 		evalCommandParams: evalCommandParams{
-			outputFormat: util.NewEnumFlag(evalPrettyOutput, []string{
-				evalJSONOutput,
-				evalPrettyOutput,
-				benchmarkGoBenchOutput,
-			}),
+			outputFormat: formats.Flag(formats.Pretty, formats.JSON, formats.GoBench),
 			target:       util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
 			schema:       &schemaFlags{},
-			capabilities: newcapabilitiesFlag(),
+			capabilities: newCapabilitiesFlag(),
 		},
 		gracefulShutdownPeriod: 10,
 	}
@@ -597,9 +590,9 @@ func readQuery(params benchmarkCommandParams, args []string) (string, error) {
 
 func renderBenchmarkResult(params benchmarkCommandParams, br testing.BenchmarkResult, w io.Writer) {
 	switch params.outputFormat.String() {
-	case evalJSONOutput:
+	case formats.JSON:
 		_ = presentation.JSON(w, br)
-	case benchmarkGoBenchOutput:
+	case formats.GoBench:
 		fmt.Fprintf(w, "BenchmarkOPAEval\t%s", br.String())
 		if params.benchMem {
 			fmt.Fprintf(w, "\t%s", br.MemString())
@@ -634,7 +627,7 @@ func renderBenchmarkError(params benchmarkCommandParams, err error, w io.Writer)
 	}
 
 	switch params.outputFormat.String() {
-	case evalJSONOutput:
+	case formats.JSON:
 		return presentation.JSON(w, o)
 	default:
 		return presentation.Pretty(w, o)

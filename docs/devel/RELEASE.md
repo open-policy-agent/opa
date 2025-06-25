@@ -150,14 +150,14 @@ standard GitHub fork workflow. See [OPA Dev Instructions](DEVELOPMENT.md)
   involved here.
 - The docs and website should update and be published automatically. If they are not you can
   trigger one by a couple of methods:
-	- Login to Netlify (requires permission for the project) and manually trigger a build.
-	- Post to the build webhook via:
-		```bash
-		curl -X POST -d {} https://api.netlify.com/build_hooks/612e8941ffe30d2902bcce80
-		```
-- The Algolia search index is automatically updated when the site is crawled daily at 20:30 (UTC). The
-  crawling process takes around 25 minutes to complete and can be triggered from
-  [crawler.algolia.com](https://crawler.algolia.com) (login details required). 
+  - Login to Netlify (requires permission for the project) and manually trigger a build.
+  - Post to the build webhook via:
+    ```bash
+    curl -X POST -d {} https://api.netlify.com/build_hooks/612e8941ffe30d2902bcce80
+    ```
+- A versioned release is created automatically at
+  `vX-Y-Z--opa-docs.netlify.app`, automation is configured in
+  [opa-docs-machinery](https://github.com/open-policy-agent/opa-docs-machinery/actions).
 
 # Bugfix Release Process
 

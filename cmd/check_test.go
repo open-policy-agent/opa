@@ -162,7 +162,7 @@ import rego.v1`,
 			}
 
 			test.WithTempFS(files, func(root string) {
-				caps := newcapabilitiesFlag()
+				caps := newCapabilitiesFlag()
 				if err := caps.Set(path.Join(root, "capabilities.json")); err != nil {
 					t.Fatal(err)
 				}
@@ -238,6 +238,34 @@ func TestCheckIgnoreBundleMode(t *testing.T) {
 		err := checkModules(params, []string{root})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestCheckBundleReportsPolicyVsDataConflict(t *testing.T) {
+	t.Parallel()
+
+	files := map[string]string{
+		"policy.rego": "package p\nallow := false\n",
+		"data.json":   `{"p":{"allow":false}}`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+		params := newCheckParams()
+		// Bundle mode required as the check command *should* ignore data entirely otherwise
+		params.bundleMode = true
+
+		err := checkModules(params, []string{root})
+		if err == nil {
+			t.Fatal("expected error but received none")
+		}
+
+		exp := fmt.Sprintf(
+			"1 error occurred: %s:2: rego_compile_error: conflicting rule for data path p/allow found",
+			filepath.Join(root, "policy.rego"),
+		)
+		if err.Error() != exp {
+			t.Fatalf("expected error %q, got %q", exp, err.Error())
 		}
 	})
 }

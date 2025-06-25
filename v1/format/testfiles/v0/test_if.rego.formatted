@@ -1,4 +1,4 @@
-package test["if"]
+package test.if
 
 import future.keywords.if
 

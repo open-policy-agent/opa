@@ -53,7 +53,7 @@ type buildParams struct {
 
 func newBuildParams() buildParams {
 	return buildParams{
-		capabilities: newcapabilitiesFlag(),
+		capabilities: newCapabilitiesFlag(),
 		target:       util.NewEnumFlag(compile.TargetRego, compile.Targets),
 	}
 }
@@ -297,13 +297,9 @@ func dobuild(params buildParams, args []string) error {
 		return errors.New("enable bundle mode (ie. --bundle) to verify or sign bundle files or directories")
 	}
 
-	var capabilities *ast.Capabilities
-	// if capabilities are not provided as a cmd flag,
-	// then ast.CapabilitiesForThisVersion must be called
-	// within dobuild to ensure custom builtins are properly captured
-	if params.capabilities.C != nil {
-		capabilities = params.capabilities.C
-	} else {
+	capabilities := params.capabilities.C
+	if capabilities == nil {
+		// ensure custom builtins are properly captured
 		capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(params.regoVersion()))
 	}
 
@@ -370,7 +366,7 @@ func buildCommandLoaderFilter(bundleMode bool, ignore []string) func(string, os.
 				return true
 			}
 		}
-		return loaderFilter{Ignore: ignore}.Apply(abspath, info, depth)
+		return ignored(ignore).Apply(abspath, info, depth)
 	}
 }
 

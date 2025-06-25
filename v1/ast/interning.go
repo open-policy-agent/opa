@@ -8,18 +8,16 @@ import (
 	"strconv"
 )
 
+type internable interface {
+	bool | string | int | int8 | int16 | int32 | int64 | uint | uint8 | uint16 | uint32 | uint64
+}
+
 // NOTE! Great care must be taken **not** to modify the terms returned
 // from these functions, as they are shared across all callers.
 // This package is currently considered experimental, and may change
 // at any time without notice.
 
 var (
-	booleanTrueTerm  = &Term{Value: Boolean(true)}
-	booleanFalseTerm = &Term{Value: Boolean(false)}
-
-	// since this is by far the most common negative number
-	minusOneTerm = &Term{Value: Number("-1")}
-
 	InternedNullTerm = &Term{Value: Null{}}
 
 	InternedEmptyString = StringTerm("")
@@ -28,6 +26,16 @@ var (
 	InternedEmptySet    = SetTerm()
 
 	InternedEmptyArrayValue = NewArray()
+
+	booleanTrueTerm  = &Term{Value: Boolean(true)}
+	booleanFalseTerm = &Term{Value: Boolean(false)}
+
+	// since this is by far the most common negative number
+	minusOneTerm = &Term{Value: Number("-1")}
+
+	internedStringTerms = map[string]*Term{
+		"": InternedEmptyString,
+	}
 )
 
 // InternStringTerm interns the given strings as terms. Note that Interning is
@@ -44,28 +52,37 @@ func InternStringTerm(str ...string) {
 	}
 }
 
-// InternedBooleanTerm returns an interned term with the given boolean value.
-func InternedBooleanTerm(b bool) *Term {
-	if b {
-		return booleanTrueTerm
+// Interned returns a possibly interned term for the given scalar value.
+// If the value is not interned, a new term is created for that value.
+func InternedTerm[T internable](v T) *Term {
+	switch value := any(v).(type) {
+	case bool:
+		return internedBooleanTerm(value)
+	case string:
+		return internedStringTerm(value)
+	case int:
+		return internedIntNumberTerm(value)
+	case int8:
+		return internedIntNumberTerm(int(value))
+	case int16:
+		return internedIntNumberTerm(int(value))
+	case int32:
+		return internedIntNumberTerm(int(value))
+	case int64:
+		return internedIntNumberTerm(int(value))
+	case uint:
+		return internedIntNumberTerm(int(value))
+	case uint8:
+		return internedIntNumberTerm(int(value))
+	case uint16:
+		return internedIntNumberTerm(int(value))
+	case uint32:
+		return internedIntNumberTerm(int(value))
+	case uint64:
+		return internedIntNumberTerm(int(value))
+	default:
+		panic("unreachable")
 	}
-
-	return booleanFalseTerm
-}
-
-// InternedIntNumberTerm returns a term with the given integer value. The term is
-// cached between -1 to 512, and for values outside of that range, this function
-// is equivalent to ast.IntNumberTerm.
-func InternedIntNumberTerm(i int) *Term {
-	if i >= 0 && i < len(intNumberTerms) {
-		return intNumberTerms[i]
-	}
-
-	if i == -1 {
-		return minusOneTerm
-	}
-
-	return &Term{Value: Number(strconv.Itoa(i))}
 }
 
 // InternedIntFromString returns a term with the given integer value if the string
@@ -83,17 +100,6 @@ func InternedIntNumberTermFromString(s string) *Term {
 // term, otherwise false.
 func HasInternedIntNumberTerm(i int) bool {
 	return i >= -1 && i < len(intNumberTerms)
-}
-
-// InternedStringTerm returns an interned term with the given string value. If the
-// provided string is not interned, a new term is created for that value. It does *not*
-// modify the global interned terms map.
-func InternedStringTerm(s string) *Term {
-	if term, ok := internedStringTerms[s]; ok {
-		return term
-	}
-
-	return StringTerm(s)
 }
 
 // Returns an interned string term representing the integer value i, if
@@ -117,195 +123,69 @@ func InternedIntegerString(i int) *Term {
 	return StringTerm(s)
 }
 
-var internedStringTerms = map[string]*Term{
-	"":    InternedEmptyString,
-	"0":   StringTerm("0"),
-	"1":   StringTerm("1"),
-	"2":   StringTerm("2"),
-	"3":   StringTerm("3"),
-	"4":   StringTerm("4"),
-	"5":   StringTerm("5"),
-	"6":   StringTerm("6"),
-	"7":   StringTerm("7"),
-	"8":   StringTerm("8"),
-	"9":   StringTerm("9"),
-	"10":  StringTerm("10"),
-	"11":  StringTerm("11"),
-	"12":  StringTerm("12"),
-	"13":  StringTerm("13"),
-	"14":  StringTerm("14"),
-	"15":  StringTerm("15"),
-	"16":  StringTerm("16"),
-	"17":  StringTerm("17"),
-	"18":  StringTerm("18"),
-	"19":  StringTerm("19"),
-	"20":  StringTerm("20"),
-	"21":  StringTerm("21"),
-	"22":  StringTerm("22"),
-	"23":  StringTerm("23"),
-	"24":  StringTerm("24"),
-	"25":  StringTerm("25"),
-	"26":  StringTerm("26"),
-	"27":  StringTerm("27"),
-	"28":  StringTerm("28"),
-	"29":  StringTerm("29"),
-	"30":  StringTerm("30"),
-	"31":  StringTerm("31"),
-	"32":  StringTerm("32"),
-	"33":  StringTerm("33"),
-	"34":  StringTerm("34"),
-	"35":  StringTerm("35"),
-	"36":  StringTerm("36"),
-	"37":  StringTerm("37"),
-	"38":  StringTerm("38"),
-	"39":  StringTerm("39"),
-	"40":  StringTerm("40"),
-	"41":  StringTerm("41"),
-	"42":  StringTerm("42"),
-	"43":  StringTerm("43"),
-	"44":  StringTerm("44"),
-	"45":  StringTerm("45"),
-	"46":  StringTerm("46"),
-	"47":  StringTerm("47"),
-	"48":  StringTerm("48"),
-	"49":  StringTerm("49"),
-	"50":  StringTerm("50"),
-	"51":  StringTerm("51"),
-	"52":  StringTerm("52"),
-	"53":  StringTerm("53"),
-	"54":  StringTerm("54"),
-	"55":  StringTerm("55"),
-	"56":  StringTerm("56"),
-	"57":  StringTerm("57"),
-	"58":  StringTerm("58"),
-	"59":  StringTerm("59"),
-	"60":  StringTerm("60"),
-	"61":  StringTerm("61"),
-	"62":  StringTerm("62"),
-	"63":  StringTerm("63"),
-	"64":  StringTerm("64"),
-	"65":  StringTerm("65"),
-	"66":  StringTerm("66"),
-	"67":  StringTerm("67"),
-	"68":  StringTerm("68"),
-	"69":  StringTerm("69"),
-	"70":  StringTerm("70"),
-	"71":  StringTerm("71"),
-	"72":  StringTerm("72"),
-	"73":  StringTerm("73"),
-	"74":  StringTerm("74"),
-	"75":  StringTerm("75"),
-	"76":  StringTerm("76"),
-	"77":  StringTerm("77"),
-	"78":  StringTerm("78"),
-	"79":  StringTerm("79"),
-	"80":  StringTerm("80"),
-	"81":  StringTerm("81"),
-	"82":  StringTerm("82"),
-	"83":  StringTerm("83"),
-	"84":  StringTerm("84"),
-	"85":  StringTerm("85"),
-	"86":  StringTerm("86"),
-	"87":  StringTerm("87"),
-	"88":  StringTerm("88"),
-	"89":  StringTerm("89"),
-	"90":  StringTerm("90"),
-	"91":  StringTerm("91"),
-	"92":  StringTerm("92"),
-	"93":  StringTerm("93"),
-	"94":  StringTerm("94"),
-	"95":  StringTerm("95"),
-	"96":  StringTerm("96"),
-	"97":  StringTerm("97"),
-	"98":  StringTerm("98"),
-	"99":  StringTerm("99"),
-	"100": StringTerm("100"),
+// InternedBooleanTerm returns an interned term with the given boolean value.
+func internedBooleanTerm(b bool) *Term {
+	if b {
+		return booleanTrueTerm
+	}
 
-	// Types
-	"null":    StringTerm("null"),
-	"boolean": StringTerm("boolean"),
-	"number":  StringTerm("number"),
-	"string":  StringTerm("string"),
-	"array":   StringTerm("array"),
-	"object":  StringTerm("object"),
-	"set":     StringTerm("set"),
+	return booleanFalseTerm
+}
 
-	// Runtime
-	"config":                  StringTerm("config"),
-	"env":                     StringTerm("env"),
-	"version":                 StringTerm("version"),
-	"commit":                  StringTerm("commit"),
-	"authorization_enabled":   StringTerm("authorization_enabled"),
-	"skip_known_schema_check": StringTerm("skip_known_schema_check"),
+// InternedIntNumberTerm returns a term with the given integer value. The term is
+// cached between -1 to 512, and for values outside of that range, this function
+// is equivalent to IntNumberTerm.
+func internedIntNumberTerm(i int) *Term {
+	if i >= 0 && i < len(intNumberTerms) {
+		return intNumberTerms[i]
+	}
 
-	// Annotations
-	"annotations":       StringTerm("annotations"),
-	"scope":             StringTerm("scope"),
-	"title":             StringTerm("title"),
-	"entrypoint":        StringTerm("entrypoint"),
-	"description":       StringTerm("description"),
-	"organizations":     StringTerm("organizations"),
-	"authors":           StringTerm("authors"),
-	"related_resources": StringTerm("related_resources"),
-	"schemas":           StringTerm("schemas"),
-	"custom":            StringTerm("custom"),
-	"ref":               StringTerm("ref"),
-	"name":              StringTerm("name"),
-	"email":             StringTerm("email"),
-	"schema":            StringTerm("schema"),
-	"definition":        StringTerm("definition"),
-	"document":          StringTerm("document"),
-	"package":           StringTerm("package"),
-	"rule":              StringTerm("rule"),
-	"subpackages":       StringTerm("subpackages"),
+	if i == -1 {
+		return minusOneTerm
+	}
 
-	// Debug
-	"text":        StringTerm("text"),
-	"value":       StringTerm("value"),
-	"bindings":    StringTerm("bindings"),
-	"expressions": StringTerm("expressions"),
+	return &Term{Value: Number(strconv.Itoa(i))}
+}
 
-	// Various
-	"data":     StringTerm("data"),
-	"input":    StringTerm("input"),
-	"result":   StringTerm("result"),
-	"keywords": StringTerm("keywords"),
-	"path":     StringTerm("path"),
-	"v1":       StringTerm("v1"),
-	"error":    StringTerm("error"),
-	"partial":  StringTerm("partial"),
+// InternedStringTerm returns an interned term with the given string value. If the
+// provided string is not interned, a new term is created for that value. It does *not*
+// modify the global interned terms map.
+func internedStringTerm(s string) *Term {
+	if term, ok := internedStringTerms[s]; ok {
+		return term
+	}
 
-	// HTTP
-	"code":        StringTerm("code"),
-	"message":     StringTerm("message"),
-	"status_code": StringTerm("status_code"),
-	"method":      StringTerm("method"),
-	"url":         StringTerm("url"),
+	return StringTerm(s)
+}
 
-	// JWT
-	"enc":    StringTerm("enc"),
-	"cty":    StringTerm("cty"),
-	"iss":    StringTerm("iss"),
-	"exp":    StringTerm("exp"),
-	"nbf":    StringTerm("nbf"),
-	"aud":    StringTerm("aud"),
-	"secret": StringTerm("secret"),
-	"cert":   StringTerm("cert"),
-
-	// Decisions
-	"revision":         StringTerm("revision"),
-	"labels":           StringTerm("labels"),
-	"decision_id":      StringTerm("decision_id"),
-	"bundles":          StringTerm("bundles"),
-	"query":            StringTerm("query"),
-	"mapped_result":    StringTerm("mapped_result"),
-	"nd_builtin_cache": StringTerm("nd_builtin_cache"),
-	"erased":           StringTerm("erased"),
-	"masked":           StringTerm("masked"),
-	"requested_by":     StringTerm("requested_by"),
-	"timestamp":        StringTerm("timestamp"),
-	"metrics":          StringTerm("metrics"),
-	"req_id":           StringTerm("req_id"),
+func init() {
+	InternStringTerm(
+		// Numbers
+		"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
+		"21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38",
+		"39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56",
+		"57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74",
+		"75", "76", "77", "78", "79", "80", "81", "82", "83", "84", "85", "86", "87", "88", "89", "90", "91", "92",
+		"93", "94", "95", "96", "97", "98", "99", "100",
+		// Types
+		"null", "boolean", "number", "string", "array", "object", "set", "var", "ref", "true", "false",
+		// Runtime
+		"config", "env", "version", "commit", "authorization_enabled", "skip_known_schema_check",
+		// Annotations
+		"annotations", "scope", "title", "entrypoint", "description", "organizations", "authors", "related_resources",
+		"schemas", "custom", "name", "email", "schema", "definition", "document", "package", "rule", "subpackages",
+		// Debug
+		"text", "value", "bindings", "expressions",
+		// Various
+		"data", "input", "result", "keywords", "path", "v1", "error", "partial",
+		// HTTP
+		"code", "message", "status_code", "method", "url", "uri",
+		// JWT
+		"enc", "cty", "iss", "exp", "nbf", "aud", "secret", "cert",
+		// Decisions
+		"revision", "labels", "decision_id", "bundles", "query", "mapped_result", "nd_builtin_cache",
+		"erased", "masked", "requested_by", "timestamp", "metrics", "req_id",
+	)
 }
 
 var stringToIntNumberTermMap = map[string]*Term{

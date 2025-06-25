@@ -14,11 +14,13 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/open-policy-agent/opa/cmd/formats"
 	"github.com/open-policy-agent/opa/cmd/internal/env"
 	ib "github.com/open-policy-agent/opa/internal/bundle/inspect"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
 	iStrs "github.com/open-policy-agent/opa/internal/strings"
 	"github.com/open-policy-agent/opa/v1/ast"
+	astJson "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/util"
 
@@ -26,8 +28,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const maxTableFieldLen = 50
-const pageWidth = 80
+const (
+	maxTableFieldLen = 50
+	pageWidth        = 80
+)
 
 type inspectCommandParams struct {
 	outputFormat    *util.EnumFlag
@@ -48,10 +52,7 @@ func (p *inspectCommandParams) regoVersion() ast.RegoVersion {
 
 func newInspectCommandParams() inspectCommandParams {
 	return inspectCommandParams{
-		outputFormat: util.NewEnumFlag(evalPrettyOutput, []string{
-			evalJSONOutput,
-			evalPrettyOutput,
-		}),
+		outputFormat:    formats.Flag(formats.Pretty, formats.JSON),
 		listAnnotations: false,
 	}
 }
@@ -115,7 +116,17 @@ func doInspect(params inspectCommandParams, path string, out io.Writer) error {
 	}
 
 	switch params.outputFormat.String() {
-	case evalJSONOutput:
+	case formats.JSON:
+		astJson.SetOptions(astJson.Options{
+			MarshalOptions: astJson.MarshalOptions{
+				IncludeLocation: astJson.NodeToggle{
+					// Annotation location data is only included if includeAnnotations is set
+					AnnotationsRef: params.listAnnotations,
+				},
+			},
+		})
+		defer astJson.SetOptions(astJson.Defaults())
+
 		return pr.JSON(out, info)
 
 	default:
@@ -155,7 +166,7 @@ func validateInspectParams(p *inspectCommandParams, args []string) error {
 	}
 
 	of := p.outputFormat.String()
-	if of == evalJSONOutput || of == evalPrettyOutput {
+	if of == formats.JSON || of == formats.Pretty {
 		return nil
 	}
 	return errors.New("invalid output format for inspect command")
@@ -365,13 +376,7 @@ func printTitle(out io.Writer, ref *ast.AnnotationsRef) {
 		title = dropDataPrefix(ref.Path).String()
 	}
 
-	fmt.Fprintf(out, "%s\n", title)
-
-	var underline []byte
-	for i := 0; i < len(title) && i < pageWidth; i++ {
-		underline = append(underline, '=')
-	}
-	fmt.Fprintln(out, string(underline))
+	fmt.Fprintf(out, "%s\n%s\n", title, strings.Repeat("=", min(len(title), pageWidth)))
 }
 
 func generateTableWithKeys(writer io.Writer, keys ...string) *tablewriter.Table {

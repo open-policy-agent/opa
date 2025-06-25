@@ -17,6 +17,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/open-policy-agent/opa/cmd/formats"
 	"github.com/open-policy-agent/opa/cmd/internal/env"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
@@ -91,16 +92,16 @@ func (p *evalCommandParams) regoVersion() ast.RegoVersion {
 
 func newEvalCommandParams() evalCommandParams {
 	return evalCommandParams{
-		capabilities: newcapabilitiesFlag(),
-		outputFormat: util.NewEnumFlag(evalJSONOutput, []string{
-			evalJSONOutput,
-			evalValuesOutput,
-			evalBindingsOutput,
-			evalPrettyOutput,
-			evalSourceOutput,
-			evalRawOutput,
-			evalDiscardOutput,
-		}),
+		capabilities: newCapabilitiesFlag(),
+		outputFormat: formats.Flag(
+			formats.JSON,
+			formats.Values,
+			formats.Bindings,
+			formats.Pretty,
+			formats.Source,
+			formats.Raw,
+			formats.Discard,
+		),
 		explain:         newExplainFlag([]string{explainModeOff, explainModeFull, explainModeNotes, explainModeFails, explainModeDebug}),
 		target:          util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
 		count:           1,
@@ -129,9 +130,9 @@ func validateEvalParams(p *evalCommandParams, cmdArgs []string) error {
 		return errors.New("specify --fail or --fail-defined but not both")
 	}
 	of := p.outputFormat.String()
-	if p.partial && of != evalPrettyOutput && of != evalJSONOutput && of != evalSourceOutput {
+	if p.partial && of != formats.Pretty && of != formats.JSON && of != formats.Source {
 		return errors.New("invalid output format for partial evaluation")
-	} else if !p.partial && of == evalSourceOutput {
+	} else if !p.partial && of == formats.Source {
 		return errors.New("invalid output format for evaluation")
 	}
 
@@ -169,18 +170,9 @@ func validateEvalParams(p *evalCommandParams, cmdArgs []string) error {
 }
 
 const (
-	evalJSONOutput     = "json"
-	evalValuesOutput   = "values"
-	evalBindingsOutput = "bindings"
-	evalPrettyOutput   = "pretty"
-	evalSourceOutput   = "source"
-	evalRawOutput      = "raw"
-	evalDiscardOutput  = "discard"
-
 	// number of profile results to return by default
 	defaultProfileLimit = 10
-
-	defaultPrettyLimit = 80
+	defaultPrettyLimit  = 80
 )
 
 type regoError struct{}
@@ -421,22 +413,22 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 	}
 
 	switch ectx.params.outputFormat.String() {
-	case evalBindingsOutput:
+	case formats.Bindings:
 		err = pr.Bindings(w, result)
-	case evalValuesOutput:
+	case formats.Values:
 		err = pr.Values(w, result)
-	case evalPrettyOutput:
+	case formats.Pretty:
 		err = pr.PrettyWithOptions(w, result, pr.PrettyOptions{
 			TraceOpts: topdown.PrettyTraceOptions{
 				Locations:     true,
 				ExprVariables: ectx.params.traceVarValues,
 			},
 		})
-	case evalSourceOutput:
+	case formats.Source:
 		err = pr.Source(w, result)
-	case evalRawOutput:
+	case formats.Raw:
 		err = pr.Raw(w, result)
-	case evalDiscardOutput:
+	case formats.Discard:
 		err = pr.Discard(w, result)
 	default:
 		err = pr.JSON(w, result)
@@ -583,14 +575,10 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 	}
 
 	if len(params.dataPaths.v) > 0 {
-		f := loaderFilter{
-			Ignore: params.ignore,
-		}
-
 		if params.optimizationLevel <= 0 {
-			regoArgs = append(regoArgs, rego.Load(params.dataPaths.v, f.Apply))
+			regoArgs = append(regoArgs, rego.Load(params.dataPaths.v, ignored(params.ignore).Apply))
 		} else {
-			b, err := generateOptimizedBundle(params, false, f.Apply, params.dataPaths.v)
+			b, err := generateOptimizedBundle(params, false, ignored(params.ignore).Apply, params.dataPaths.v)
 			if err != nil {
 				return nil, err
 			}
@@ -614,10 +602,7 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		}
 	}
 
-	// skip bundle verification
-	regoArgs = append(regoArgs, rego.SkipBundleVerification(true))
-
-	regoArgs = append(regoArgs, rego.Target(params.target.String()))
+	regoArgs = append(regoArgs, rego.SkipBundleVerification(true), rego.Target(params.target.String()))
 
 	inputBytes, err := readInputBytes(params)
 	if err != nil {
@@ -625,8 +610,7 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 	}
 	if inputBytes != nil {
 		var input any
-		err := util.Unmarshal(inputBytes, &input)
-		if err != nil {
+		if err := util.Unmarshal(inputBytes, &input); err != nil {
 			return nil, fmt.Errorf("unable to parse input: %s", err.Error())
 		}
 		inputValue, err := ast.InterfaceToValue(input)
@@ -738,7 +722,7 @@ func (r *resettableProfiler) Config() topdown.TraceConfig { return r.p.Config() 
 
 func getProfileSortOrder(sortOrder []string) []string {
 	// convert the sort order slice to a map for faster lookups
-	sortOrderMap := make(map[string]bool)
+	sortOrderMap := make(map[string]bool, len(sortOrder))
 	for _, cr := range sortOrder {
 		sortOrderMap[cr] = true
 	}
@@ -764,8 +748,6 @@ func readInputBytes(params evalCommandParams) ([]byte, error) {
 	}
 	return nil, nil
 }
-
-const stringType = "string"
 
 type repeatedStringFlag struct {
 	v     []string
@@ -868,12 +850,8 @@ func (vis *astLocationResetVisitor) visit(x any) bool {
 }
 
 func generateOptimizedBundle(params evalCommandParams, asBundle bool, filter loader.Filter, paths []string) (*bundle.Bundle, error) {
-	buf := bytes.NewBuffer(nil)
-
-	var capabilities *ast.Capabilities
-	if params.capabilities.C != nil {
-		capabilities = params.capabilities.C
-	} else {
+	capabilities := params.capabilities.C
+	if capabilities == nil {
 		capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(params.regoVersion()))
 	}
 
@@ -882,15 +860,14 @@ func generateOptimizedBundle(params evalCommandParams, asBundle bool, filter loa
 		WithTarget(params.target.String()).
 		WithAsBundle(asBundle).
 		WithOptimizationLevel(params.optimizationLevel).
-		WithOutput(buf).
+		WithOutput(bytes.NewBuffer(nil)).
 		WithEntrypoints(params.entrypoints.v...).
 		WithRegoAnnotationEntrypoints(true).
 		WithPaths(paths...).
 		WithFilter(filter).
 		WithRegoVersion(params.regoVersion())
 
-	err := compiler.Build(context.Background())
-	if err != nil {
+	if err := compiler.Build(context.Background()); err != nil {
 		return nil, err
 	}
 

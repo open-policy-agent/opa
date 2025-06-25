@@ -88,7 +88,7 @@ type HTTPRequestContext struct {
 func (b *BundleInfoV1) AST() ast.Value {
 	result := ast.NewObject()
 	if len(b.Revision) > 0 {
-		result.Insert(ast.InternedStringTerm("revision"), ast.StringTerm(b.Revision))
+		result.Insert(ast.InternedTerm("revision"), ast.StringTerm(b.Revision))
 	}
 	return result
 }
@@ -99,7 +99,7 @@ func (b *BundleInfoV1) AST() ast.Value {
 func (e *EventV1) AST() (ast.Value, error) {
 	var err error
 	event := ast.NewObject(
-		ast.Item(ast.InternedStringTerm("decision_id"), ast.StringTerm(e.DecisionID)),
+		ast.Item(ast.InternedTerm("decision_id"), ast.StringTerm(e.DecisionID)),
 	)
 
 	if e.Labels != nil {
@@ -107,13 +107,13 @@ func (e *EventV1) AST() (ast.Value, error) {
 		for k, v := range e.Labels {
 			labelsObj.Insert(ast.StringTerm(k), ast.StringTerm(v))
 		}
-		event.Insert(ast.InternedStringTerm("labels"), ast.NewTerm(labelsObj))
+		event.Insert(ast.InternedTerm("labels"), ast.NewTerm(labelsObj))
 	} else {
-		event.Insert(ast.InternedStringTerm("labels"), ast.NullTerm())
+		event.Insert(ast.InternedTerm("labels"), ast.NullTerm())
 	}
 
 	if len(e.Revision) > 0 {
-		event.Insert(ast.InternedStringTerm("revision"), ast.StringTerm(e.Revision))
+		event.Insert(ast.InternedTerm("revision"), ast.StringTerm(e.Revision))
 	}
 
 	if len(e.Bundles) > 0 {
@@ -121,25 +121,25 @@ func (e *EventV1) AST() (ast.Value, error) {
 		for k, v := range e.Bundles {
 			bundlesObj.Insert(ast.StringTerm(k), ast.NewTerm(v.AST()))
 		}
-		event.Insert(ast.InternedStringTerm("bundles"), ast.NewTerm(bundlesObj))
+		event.Insert(ast.InternedTerm("bundles"), ast.NewTerm(bundlesObj))
 	}
 
 	if len(e.Path) > 0 {
-		event.Insert(ast.InternedStringTerm("path"), ast.StringTerm(e.Path))
+		event.Insert(ast.InternedTerm("path"), ast.StringTerm(e.Path))
 	}
 
 	if len(e.Query) > 0 {
-		event.Insert(ast.InternedStringTerm("query"), ast.StringTerm(e.Query))
+		event.Insert(ast.InternedTerm("query"), ast.StringTerm(e.Query))
 	}
 
 	if e.inputAST != nil {
-		event.Insert(ast.InternedStringTerm("input"), ast.NewTerm(e.inputAST))
+		event.Insert(ast.InternedTerm("input"), ast.NewTerm(e.inputAST))
 	} else if e.Input != nil {
 		e.inputAST, err = roundtripJSONToAST(e.Input)
 		if err != nil {
 			return nil, err
 		}
-		event.Insert(ast.InternedStringTerm("input"), ast.NewTerm(e.inputAST))
+		event.Insert(ast.InternedTerm("input"), ast.NewTerm(e.inputAST))
 	}
 
 	if e.Result != nil {
@@ -147,7 +147,7 @@ func (e *EventV1) AST() (ast.Value, error) {
 		if err != nil {
 			return nil, err
 		}
-		event.Insert(ast.InternedStringTerm("result"), ast.NewTerm(results))
+		event.Insert(ast.InternedTerm("result"), ast.NewTerm(results))
 	}
 
 	if e.MappedResult != nil {
@@ -155,7 +155,7 @@ func (e *EventV1) AST() (ast.Value, error) {
 		if err != nil {
 			return nil, err
 		}
-		event.Insert(ast.InternedStringTerm("mapped_result"), ast.NewTerm(mResults))
+		event.Insert(ast.InternedTerm("mapped_result"), ast.NewTerm(mResults))
 	}
 
 	if e.NDBuiltinCache != nil {
@@ -163,7 +163,7 @@ func (e *EventV1) AST() (ast.Value, error) {
 		if err != nil {
 			return nil, err
 		}
-		event.Insert(ast.InternedStringTerm("nd_builtin_cache"), ast.NewTerm(ndbCache))
+		event.Insert(ast.InternedTerm("nd_builtin_cache"), ast.NewTerm(ndbCache))
 	}
 
 	if len(e.Erased) > 0 {
@@ -171,7 +171,7 @@ func (e *EventV1) AST() (ast.Value, error) {
 		for i, v := range e.Erased {
 			erased[i] = ast.StringTerm(v)
 		}
-		event.Insert(ast.InternedStringTerm("erased"), ast.ArrayTerm(erased...))
+		event.Insert(ast.InternedTerm("erased"), ast.ArrayTerm(erased...))
 	}
 
 	if len(e.Masked) > 0 {
@@ -179,7 +179,7 @@ func (e *EventV1) AST() (ast.Value, error) {
 		for i, v := range e.Masked {
 			masked[i] = ast.StringTerm(v)
 		}
-		event.Insert(ast.InternedStringTerm("masked"), ast.ArrayTerm(masked...))
+		event.Insert(ast.InternedTerm("masked"), ast.ArrayTerm(masked...))
 	}
 
 	if e.Error != nil {
@@ -187,11 +187,11 @@ func (e *EventV1) AST() (ast.Value, error) {
 		if err != nil {
 			return nil, err
 		}
-		event.Insert(ast.InternedStringTerm("error"), ast.NewTerm(evalErr))
+		event.Insert(ast.InternedTerm("error"), ast.NewTerm(evalErr))
 	}
 
 	if len(e.RequestedBy) > 0 {
-		event.Insert(ast.InternedStringTerm("requested_by"), ast.StringTerm(e.RequestedBy))
+		event.Insert(ast.InternedTerm("requested_by"), ast.StringTerm(e.RequestedBy))
 	}
 
 	// Use the timestamp JSON marshaller to ensure the format is the same as
@@ -200,18 +200,18 @@ func (e *EventV1) AST() (ast.Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	event.Insert(ast.InternedStringTerm("timestamp"), ast.StringTerm(strings.Trim(string(timeBytes), "\"")))
+	event.Insert(ast.InternedTerm("timestamp"), ast.StringTerm(strings.Trim(string(timeBytes), "\"")))
 
 	if e.Metrics != nil {
 		m, err := ast.InterfaceToValue(e.Metrics)
 		if err != nil {
 			return nil, err
 		}
-		event.Insert(ast.InternedStringTerm("metrics"), ast.NewTerm(m))
+		event.Insert(ast.InternedTerm("metrics"), ast.NewTerm(m))
 	}
 
 	if e.RequestID > 0 {
-		event.Insert(ast.InternedStringTerm("req_id"), ast.UIntNumberTerm(e.RequestID))
+		event.Insert(ast.InternedTerm("req_id"), ast.UIntNumberTerm(e.RequestID))
 	}
 
 	return event, nil

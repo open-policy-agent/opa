@@ -29,3 +29,11 @@ func (f loaderFilter) Apply(abspath string, info os.FileInfo, depth int) bool {
 	}
 	return false
 }
+
+func ignored(ignore []string) loaderFilter {
+	return loaderFilter{Ignore: ignore}
+}
+
+func ignoredOnlyRego(ignore []string) loaderFilter {
+	return loaderFilter{Ignore: ignore, OnlyRego: true}
+}

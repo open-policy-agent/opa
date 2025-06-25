@@ -964,7 +964,7 @@ func (c *Compiler) buildComprehensionIndices() {
 	}
 }
 
-var futureKeywordsPrefix = Ref{FutureRootDocument, InternedStringTerm("keywords")}
+var futureKeywordsPrefix = Ref{FutureRootDocument, InternedTerm("keywords")}
 
 // buildRequiredCapabilities updates the required capabilities on the compiler
 // to include any keyword and feature dependencies present in the modules. The
@@ -2531,13 +2531,13 @@ func createMetadataChain(chain []*AnnotationsRef) (*Term, *Error) {
 	for _, link := range chain {
 		// Dropping leading 'data' element of path
 		p := link.Path[1:].toArray()
-		obj := NewObject(Item(InternedStringTerm("path"), NewTerm(p)))
+		obj := NewObject(Item(InternedTerm("path"), NewTerm(p)))
 		if link.Annotations != nil {
 			annotObj, err := link.Annotations.toObject()
 			if err != nil {
 				return nil, err
 			}
-			obj.Insert(InternedStringTerm("annotations"), NewTerm(*annotObj))
+			obj.Insert(InternedTerm("annotations"), NewTerm(*annotObj))
 		}
 		metaArray = metaArray.Append(NewTerm(obj))
 	}

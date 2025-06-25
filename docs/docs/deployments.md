@@ -92,14 +92,15 @@ provide files via volume mounts.
 docker run -v $PWD:/example openpolicyagent/opa eval -d /example 'data.example.greeting'
 ```
 
-**policy.rego**:
-
-```rego
+```rego title="policy.rego"
 package example
 
-greeting := msg {
+greeting := msg if {
     info := opa.runtime()
-    hostname := info.env["HOSTNAME"] # Docker sets the HOSTNAME environment variable.
+
+    # Docker sets the HOSTNAME environment variable.
+    hostname := info.env["HOSTNAME"]
+
     msg := sprintf("hello from container %q!", [hostname])
 }
 ```
@@ -154,14 +155,15 @@ In this case, the policy file does not contain sensitive information so it's
 fine to store as a ConfigMap. If the file contained sensitive information, then
 we recommend you store it as a Secret.
 
-**example.rego**:
-
-```rego
+```rego title="example.rego"
 package example
 
-greeting := msg {
+greeting := msg if {
     info := opa.runtime()
-    hostname := info.env["HOSTNAME"] # Kubernetes sets the HOSTNAME environment variable.
+
+    # Kubernetes sets the HOSTNAME environment variable.
+    hostname := info.env["HOSTNAME"]
+
     msg := sprintf("hello from pod %q!", [hostname])
 }
 ```
@@ -174,9 +176,8 @@ Next, create a Deployment to run OPA. The ConfigMap containing the policy is
 volume mounted into the container. This allows OPA to load the policy from
 the file system.
 
-**deployment-opa.yaml**:
-
-```yaml
+<EvergreenCodeBlock>
+```yaml title="deployment-opa.yaml"
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -196,7 +197,7 @@ spec:
     spec:
       containers:
       - name: opa
-        image: openpolicyagent/opa:{{< current_docker_version >}}
+        image: openpolicyagent/opa:{{ current_version_docker }}
         ports:
         - name: http
           containerPort: 8181
@@ -214,6 +215,7 @@ spec:
         configMap:
           name: example-policy
 ```
+</EvergreenCodeBlock>
 
 ```bash
 kubectl create -f deployment-opa.yaml
@@ -222,9 +224,7 @@ kubectl create -f deployment-opa.yaml
 At this point OPA is up and running. Create a Service to expose the OPA API so
 that you can query it:
 
-**service-opa.yaml**:
-
-```yaml
+```yaml title="service-opa.yaml"
 kind: Service
 apiVersion: v1
 metadata:
@@ -276,10 +276,11 @@ OPA exposes a `/health` API endpoint that you can configure Kubernetes
 [Readiness and Liveness Probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/)
 to call. For example:
 
+<EvergreenCodeBlock>
 ```yaml
 containers:
 - name: opa
-  image: openpolicyagent/opa:{{< current_docker_version >}}
+  image: openpolicyagent/opa:{{ current_version_docker }}
   ports:
   - name: http
     containerPort: 8181
@@ -307,6 +308,7 @@ containers:
     initialDelaySeconds: 5
     periodSeconds: 5
 ```
+</EvergreenCodeBlock>
 
 See the [Health API](./rest-api#health-api) documentation for more detail on the `/health` API endpoint.
 
@@ -382,11 +384,11 @@ For example, given the following policy:
 ```rego
 package example
 
-deny["missing semantic version"] {
+deny contains "missing semantic version" if {
   not valid_semantic_version_tag
 }
 
-valid_semantic_version_tag {
+valid_semantic_version_tag if {
   semver.is_valid(input.version)
 }
 ```
@@ -440,9 +442,7 @@ opa build ./policies --capabilities ./capability-built-in-plus.json
 
 When passing a capabilities definition file via `--capabilities`, one can restrict which hosts remote schema definitions can be retrieved from. For example, a `capabilities.json` containing the json below would disallow fetching remote schemas from any host but "kubernetesjsonschema.dev". Setting `allow_net` to an empty array would prohibit fetching any remote schemas.
 
-**capabilities.json**
-
-```json
+```json title="capabilities.json"
 {
     "builtins": [ ... ],
     "allow_net": [ "kubernetesjsonschema.dev" ]

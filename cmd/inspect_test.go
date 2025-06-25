@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/open-policy-agent/opa/cmd/formats"
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/v1/util"
 
@@ -44,7 +45,7 @@ func TestDoInspect(t *testing.T) {
 
 		var out bytes.Buffer
 		params := newInspectCommandParams()
-		err = params.outputFormat.Set(evalJSONOutput)
+		err = params.outputFormat.Set(formats.JSON)
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
@@ -213,7 +214,7 @@ func TestInspectMultiBundleError(t *testing.T) {
 	}
 }
 
-func TestDoInspectPrettyWithAnnotations(t *testing.T) {
+func TestDoInspectWithAnnotations(t *testing.T) {
 
 	files := map[string]string{
 		"x.rego": `# METADATA
@@ -268,19 +269,20 @@ package test
 p = 1`,
 	}
 
-	test.WithTempFS(files, func(rootDir string) {
-		ps := newInspectCommandParams()
-		ps.listAnnotations = true
-		var out bytes.Buffer
-		err := doInspect(ps, rootDir, &out)
-		if err != nil {
-			t.Fatalf("Unexpected error %v", err)
-		}
+	t.Run("pretty", func(t *testing.T) {
+		test.WithTempFS(files, func(rootDir string) {
+			ps := newInspectCommandParams()
+			ps.listAnnotations = true
+			var out bytes.Buffer
+			err := doInspect(ps, rootDir, &out)
+			if err != nil {
+				t.Fatalf("Unexpected error %v", err)
+			}
 
-		bs := out.Bytes()
-		idx := bytes.Index(bs, []byte(`ANNOTATIONS`)) // skip NAMESPACE box
-		output := strings.TrimSpace(string(bs[idx:]))
-		expected := strings.TrimSpace(fmt.Sprintf(`
+			bs := out.Bytes()
+			idx := bytes.Index(bs, []byte(`ANNOTATIONS`)) // skip NAMESPACE box
+			output := strings.TrimSpace(string(bs[idx:]))
+			expected := strings.TrimSpace(fmt.Sprintf(`
 ANNOTATIONS:
 pkg-title
 =========
@@ -359,14 +361,232 @@ Related Resources:
 Custom:
  rule: "rule-custom"`, rootDir))
 
-		if output != expected {
-			t.Fatalf("Unexpected output. Expected:\n\n%q\n\nGot:\n\n%q", expected, output)
-		}
+			if output != expected {
+				t.Fatalf("Unexpected output. Expected:\n\n%q\n\nGot:\n\n%q", expected, output)
+			}
+		})
+	})
 
+	t.Run("json", func(t *testing.T) {
+		test.WithTempFS(files, func(rootDir string) {
+			ps := newInspectCommandParams()
+			ps.listAnnotations = true
+			err := ps.outputFormat.Set(formats.JSON)
+			if err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+			var out bytes.Buffer
+			err = doInspect(ps, rootDir, &out)
+			if err != nil {
+				t.Fatalf("Unexpected error %v", err)
+			}
+
+			bs := out.Bytes()
+			expected := strings.TrimSpace(fmt.Sprintf(`{
+  "manifest": {
+    "revision": "",
+    "roots": [
+      ""
+    ]
+  },
+  "signatures_config": {},
+  "namespaces": {
+    "data.test": [
+      "%[1]s/x.rego"
+    ]
+  },
+  "annotations": [
+    {
+      "annotations": {
+        "authors": [
+          {
+            "name": "pkg-author"
+          }
+        ],
+        "custom": {
+          "pkg": "pkg-custom"
+        },
+        "description": "pkg-descr",
+        "organizations": [
+          "pkg-org"
+        ],
+        "related_resources": [
+          {
+            "ref": "https://pkg"
+          },
+          {
+            "description": "rr-pkg-note",
+            "ref": "https://pkg"
+          }
+        ],
+        "schemas": [
+          {
+            "path": [
+              {
+                "type": "var",
+                "value": "input"
+              }
+            ],
+            "definition": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "scope": "package",
+        "title": "pkg-title"
+      },
+      "location": {
+        "file": "%[1]s/x.rego",
+        "row": 16,
+        "col": 1
+      },
+      "path": [
+        {
+          "type": "var",
+          "value": "data"
+        },
+        {
+          "type": "string",
+          "value": "test"
+        }
+      ]
+    },
+    {
+      "annotations": {
+        "authors": [
+          {
+            "name": "doc-author"
+          }
+        ],
+        "custom": {
+          "doc": "doc-custom"
+        },
+        "description": "doc-descr",
+        "organizations": [
+          "doc-org"
+        ],
+        "related_resources": [
+          {
+            "ref": "https://doc"
+          },
+          {
+            "description": "rr-doc-note",
+            "ref": "https://doc"
+          }
+        ],
+        "schemas": [
+          {
+            "path": [
+              {
+                "type": "var",
+                "value": "input"
+              }
+            ],
+            "definition": {
+              "type": "integer"
+            }
+          }
+        ],
+        "scope": "document",
+        "title": "doc-title"
+      },
+      "location": {
+        "file": "%[1]s/x.rego",
+        "row": 50,
+        "col": 1
+      },
+      "path": [
+        {
+          "type": "var",
+          "value": "data"
+        },
+        {
+          "type": "string",
+          "value": "test"
+        },
+        {
+          "type": "string",
+          "value": "p"
+        }
+      ]
+    },
+    {
+      "annotations": {
+        "authors": [
+          {
+            "name": "rule-author"
+          }
+        ],
+        "custom": {
+          "rule": "rule-custom"
+        },
+        "description": "rule-title",
+        "organizations": [
+          "rule-org"
+        ],
+        "related_resources": [
+          {
+            "ref": "https://rule"
+          },
+          {
+            "description": "rr-rule-note",
+            "ref": "https://rule"
+          }
+        ],
+        "schemas": [
+          {
+            "path": [
+              {
+                "type": "var",
+                "value": "input"
+              }
+            ],
+            "definition": {
+              "type": "string"
+            }
+          }
+        ],
+        "scope": "rule",
+        "title": "rule-title"
+      },
+      "location": {
+        "file": "%[1]s/x.rego",
+        "row": 50,
+        "col": 1
+      },
+      "path": [
+        {
+          "type": "var",
+          "value": "data"
+        },
+        {
+          "type": "string",
+          "value": "test"
+        },
+        {
+          "type": "string",
+          "value": "p"
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "features": [
+      "rego_v1"
+    ]
+  }
+}`, rootDir))
+
+			exp := util.MustUnmarshalJSON([]byte(expected))
+			result := util.MustUnmarshalJSON(bs)
+			if !reflect.DeepEqual(exp, result) {
+				t.Fatalf("expected inspect output to be:\n\n%v\n\ngot:\n\n%v", exp, result)
+			}
+		})
 	})
 }
 
-func TestDoInspectTarballPrettyWithAnnotations(t *testing.T) {
+func TestDoInspectTarballWithAnnotations(t *testing.T) {
 
 	files := [][2]string{
 		{"x.rego", `# METADATA
@@ -448,32 +668,33 @@ p = 1`},
 
 	buf := archive.MustWriteTarGz(files)
 
-	test.WithTempFS(nil, func(rootDir string) {
-		bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
+	t.Run("pretty", func(t *testing.T) {
+		test.WithTempFS(nil, func(rootDir string) {
+			bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
 
-		bf, err := os.Create(bundleFile)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
+			bf, err := os.Create(bundleFile)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
 
-		_, err = bf.Write(buf.Bytes())
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
+			_, err = bf.Write(buf.Bytes())
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
 
-		ps := newInspectCommandParams()
-		ps.listAnnotations = true
-		var out bytes.Buffer
+			ps := newInspectCommandParams()
+			ps.listAnnotations = true
+			var out bytes.Buffer
 
-		err = doInspect(ps, bundleFile, &out)
-		if err != nil {
-			t.Fatalf("Unexpected error %v", err)
-		}
+			err = doInspect(ps, bundleFile, &out)
+			if err != nil {
+				t.Fatalf("Unexpected error %v", err)
+			}
 
-		bs := out.Bytes()
-		idx := bytes.Index(bs, []byte(`ANNOTATIONS`)) // skip NAMESPACE box
-		output := strings.TrimSpace(string(bs[idx:]))
-		expected := strings.TrimSpace(`
+			bs := out.Bytes()
+			idx := bytes.Index(bs, []byte(`ANNOTATIONS`)) // skip NAMESPACE box
+			output := strings.TrimSpace(string(bs[idx:]))
+			expected := strings.TrimSpace(`
 ANNOTATIONS:
 pkg-title
 =========
@@ -559,10 +780,301 @@ Related Resources:
 Custom:
  rule: "rule-custom"`)
 
-		if output != expected {
-			t.Fatalf("Unexpected output. Expected:\n\n%q\n\nGot:\n\n%q", expected, output)
-		}
+			if output != expected {
+				t.Fatalf("Unexpected output. Expected:\n\n%q\n\nGot:\n\n%q", expected, output)
+			}
 
+		})
+	})
+
+	t.Run("json", func(t *testing.T) {
+		test.WithTempFS(nil, func(rootDir string) {
+			bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
+
+			bf, err := os.Create(bundleFile)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			_, err = bf.Write(buf.Bytes())
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			ps := newInspectCommandParams()
+			ps.listAnnotations = true
+			err = ps.outputFormat.Set(formats.JSON)
+			if err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+			var out bytes.Buffer
+
+			err = doInspect(ps, bundleFile, &out)
+			if err != nil {
+				t.Fatalf("Unexpected error %v", err)
+			}
+
+			expected := strings.TrimSpace(fmt.Sprintf(`{
+  "manifest": {
+    "revision": "",
+    "roots": [
+      ""
+    ],
+    "wasm": [
+      {
+        "entrypoint": "test/a",
+        "module": "/policy.wasm"
+      },
+      {
+        "entrypoint": "test/b",
+        "module": "/policy.wasm",
+        "annotations": [
+          {
+            "entrypoint": true,
+            "scope": "rule",
+            "title": "WASM RULE B"
+          }
+        ]
+      }
+    ]
+  },
+  "signatures_config": {},
+  "wasm_modules": [
+    {
+      "entrypoints": [
+        "data.test.a",
+        "data.test.b"
+      ],
+      "path": "/policy.wasm",
+      "url": "%[1]s/policy.wasm"
+    }
+  ],
+  "namespaces": {
+    "data.test": [
+      "/x.rego"
+    ],
+    "data.test.a": [
+      "/policy.wasm"
+    ],
+    "data.test.b": [
+      "/policy.wasm"
+    ]
+  },
+  "annotations": [
+    {
+      "annotations": {
+        "authors": [
+          {
+            "name": "pkg-author"
+          }
+        ],
+        "custom": {
+          "pkg": "pkg-custom"
+        },
+        "description": "pkg-descr",
+        "organizations": [
+          "pkg-org"
+        ],
+        "related_resources": [
+          {
+            "ref": "https://pkg"
+          },
+          {
+            "description": "rr-pkg-note",
+            "ref": "https://pkg"
+          }
+        ],
+        "schemas": [
+          {
+            "path": [
+              {
+                "type": "var",
+                "value": "input"
+              }
+            ],
+            "definition": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "scope": "package",
+        "title": "pkg-title"
+      },
+      "location": {
+        "file": "/x.rego",
+        "row": 16,
+        "col": 1
+      },
+      "path": [
+        {
+          "type": "var",
+          "value": "data"
+        },
+        {
+          "type": "string",
+          "value": "test"
+        }
+      ]
+    },
+    {
+      "annotations": {
+        "entrypoint": true,
+        "scope": "rule",
+        "title": "WASM RULE B"
+      },
+      "location": {
+        "file": "/policy.wasm",
+        "row": 0,
+        "col": 0
+      },
+      "path": [
+        {
+          "type": "var",
+          "value": "data"
+        },
+        {
+          "type": "string",
+          "value": "test"
+        },
+        {
+          "type": "string",
+          "value": "b"
+        }
+      ]
+    },
+    {
+      "annotations": {
+        "authors": [
+          {
+            "name": "doc-author"
+          }
+        ],
+        "custom": {
+          "doc": "doc-custom"
+        },
+        "description": "doc-descr",
+        "organizations": [
+          "doc-org"
+        ],
+        "related_resources": [
+          {
+            "ref": "https://doc"
+          },
+          {
+            "description": "rr-doc-note",
+            "ref": "https://doc"
+          }
+        ],
+        "schemas": [
+          {
+            "path": [
+              {
+                "type": "var",
+                "value": "input"
+              }
+            ],
+            "definition": {
+              "type": "integer"
+            }
+          }
+        ],
+        "scope": "document",
+        "title": "doc-title"
+      },
+      "location": {
+        "file": "/x.rego",
+        "row": 50,
+        "col": 1
+      },
+      "path": [
+        {
+          "type": "var",
+          "value": "data"
+        },
+        {
+          "type": "string",
+          "value": "test"
+        },
+        {
+          "type": "string",
+          "value": "p"
+        }
+      ]
+    },
+    {
+      "annotations": {
+        "authors": [
+          {
+            "name": "rule-author"
+          }
+        ],
+        "custom": {
+          "rule": "rule-custom"
+        },
+        "description": "rule-title",
+        "organizations": [
+          "rule-org"
+        ],
+        "related_resources": [
+          {
+            "ref": "https://rule"
+          },
+          {
+            "description": "rr-rule-note",
+            "ref": "https://rule"
+          }
+        ],
+        "schemas": [
+          {
+            "path": [
+              {
+                "type": "var",
+                "value": "input"
+              }
+            ],
+            "definition": {
+              "type": "string"
+            }
+          }
+        ],
+        "scope": "rule",
+        "title": "rule-title"
+      },
+      "location": {
+        "file": "/x.rego",
+        "row": 50,
+        "col": 1
+      },
+      "path": [
+        {
+          "type": "var",
+          "value": "data"
+        },
+        {
+          "type": "string",
+          "value": "test"
+        },
+        {
+          "type": "string",
+          "value": "p"
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "features": [
+      "rego_v1"
+    ]
+  }
+}`, bundleFile))
+			exp := util.MustUnmarshalJSON([]byte(expected))
+
+			bs := out.Bytes()
+			result := util.MustUnmarshalJSON(bs)
+			if !reflect.DeepEqual(exp, result) {
+				t.Fatalf("expected inspect output to be:\n\n%v\n\ngot:\n\n%v", exp, result)
+			}
+		})
 	})
 }
 
@@ -664,7 +1176,7 @@ p contains v if {
 				var out bytes.Buffer
 				params := newInspectCommandParams()
 				params.v0Compatible = tc.v0Compatible
-				err = params.outputFormat.Set(evalJSONOutput)
+				err = params.outputFormat.Set(formats.JSON)
 				if err != nil {
 					t.Fatalf("Unexpected error: %s", err)
 				}
@@ -982,7 +1494,7 @@ p contains 2 if {
 						var out bytes.Buffer
 						params := newInspectCommandParams()
 						params.v1Compatible = v1CompatibleFlag.used
-						err := params.outputFormat.Set(evalPrettyOutput)
+						err := params.outputFormat.Set(formats.Pretty)
 						if err != nil {
 							t.Fatalf("Unexpected error: %s", err)
 						}
@@ -1390,7 +1902,7 @@ test_p if {
 
 				var out bytes.Buffer
 				params := newInspectCommandParams()
-				err = params.outputFormat.Set(evalJSONOutput)
+				err = params.outputFormat.Set(formats.JSON)
 				if err != nil {
 					t.Fatalf("Unexpected error: %s", err)
 				}
@@ -1438,7 +1950,7 @@ p if {
 
 		var out bytes.Buffer
 		params := newInspectCommandParams()
-		err = params.outputFormat.Set(evalJSONOutput)
+		err = params.outputFormat.Set(formats.JSON)
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}

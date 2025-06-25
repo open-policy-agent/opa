@@ -36,7 +36,7 @@ const DefaultMaxParsingRecursionDepth = 100000
 // recursion exceeds the maximum allowed depth
 var ErrMaxParsingRecursionDepthExceeded = errors.New("max parsing recursion depth exceeded")
 
-var RegoV1CompatibleRef = Ref{VarTerm("rego"), InternedStringTerm("v1")}
+var RegoV1CompatibleRef = Ref{VarTerm("rego"), InternedTerm("v1")}
 
 // RegoVersion defines the Rego syntax requirements for a module.
 type RegoVersion int
@@ -572,8 +572,19 @@ func (p *Parser) parsePackage() *Package {
 		return nil
 	}
 
-	p.scan()
-	if p.s.tok != tokens.Ident {
+	p.scanWS()
+
+	// Make sure we allow the first term of refs to be the 'package' keyword.
+	if p.s.tok == tokens.Dot || p.s.tok == tokens.LBrack {
+		// This is a ref, not a package declaration.
+		return nil
+	}
+
+	if p.s.tok == tokens.Whitespace {
+		p.scan()
+	}
+
+	if !isIdentOrAllowedRefKeyword(p) {
 		p.illegalToken()
 		return nil
 	}
@@ -630,11 +641,23 @@ func (p *Parser) parseImport() *Import {
 		return nil
 	}
 
-	p.scan()
-	if p.s.tok != tokens.Ident {
-		p.error(p.s.Loc(), "expected ident")
+	p.scanWS()
+
+	// Make sure we allow the first term of refs to be the 'import' keyword.
+	if p.s.tok == tokens.Dot || p.s.tok == tokens.LBrack {
+		// This is a ref, not an import declaration.
 		return nil
 	}
+
+	if p.s.tok == tokens.Whitespace {
+		p.scan()
+	}
+
+	if !isIdentOrAllowedRefKeyword(p) {
+		p.illegalToken()
+		return nil
+	}
+
 	q, prev := p.presentParser()
 	term := q.parseTerm()
 	if term != nil {
@@ -693,7 +716,67 @@ func (p *Parser) parseImport() *Import {
 		return nil
 	}
 
+	if imp.Alias != "" {
+		// Unreachable: parsing the alias var should already have generated an error.
+		name := imp.Alias.String()
+		if IsKeywordInRegoVersion(name, p.po.EffectiveRegoVersion()) {
+			p.errorf(imp.Location, "unexpected import alias, must not be a keyword, got: %s", name)
+		}
+		return &imp
+	}
+
+	r := imp.Path.Value.(Ref)
+
+	// Don't allow keywords in the tail path term unless it's a future import
+	if len(r) == 1 {
+		t := r[0]
+		name := string(t.Value.(Var))
+		if IsKeywordInRegoVersion(name, p.po.EffectiveRegoVersion()) {
+			p.errorf(t.Location, "unexpected import path, must not end with a keyword, got: %s", name)
+			p.hint("import a different path or use an alias")
+		}
+	} else if !FutureRootDocument.Equal(r[0]) {
+		t := r[len(r)-1]
+		name := string(t.Value.(String))
+		if IsKeywordInRegoVersion(name, p.po.EffectiveRegoVersion()) {
+			p.errorf(t.Location, "unexpected import path, must not end with a keyword, got: %s", name)
+			p.hint("import a different path or use an alias")
+		}
+	}
+
 	return &imp
+}
+
+// isIdentOrAllowedRefKeyword checks if the current token is an Ident or a keyword in the active rego-version.
+// If a keyword, sets p.s.token to token.Ident
+func isIdentOrAllowedRefKeyword(p *Parser) bool {
+	if p.s.tok == tokens.Ident {
+		return true
+	}
+
+	if p.isAllowedRefKeyword(p.s.tok) {
+		p.s.tok = tokens.Ident
+		return true
+	}
+
+	return false
+}
+
+func scanAheadRef(p *Parser) bool {
+	if p.isAllowedRefKeyword(p.s.tok) {
+		// scan ahead to check if we're parsing a ref
+		s := p.save()
+		p.scanWS()
+		tok := p.s.tok
+		p.restore(s)
+
+		if tok == tokens.Dot || tok == tokens.LBrack {
+			p.s.tok = tokens.Ident
+			return true
+		}
+	}
+
+	return false
 }
 
 func (p *Parser) parseRules() []*Rule {
@@ -701,9 +784,13 @@ func (p *Parser) parseRules() []*Rule {
 	var rule Rule
 	rule.SetLoc(p.s.Loc())
 
+	// This allows keywords in the first var term of the ref
+	_ = scanAheadRef(p)
+
 	if p.s.tok == tokens.Default {
 		p.scan()
 		rule.Default = true
+		_ = scanAheadRef(p)
 	}
 
 	if p.s.tok != tokens.Ident {
@@ -817,17 +904,20 @@ func (p *Parser) parseRules() []*Rule {
 	}
 
 	if p.s.tok == tokens.Else {
-		if r := rule.Head.Ref(); len(r) > 1 && !r.IsGround() {
-			p.error(p.s.Loc(), "else keyword cannot be used on rules with variables in head")
-			return nil
-		}
-		if rule.Head.Key != nil {
-			p.error(p.s.Loc(), "else keyword cannot be used on multi-value rules")
-			return nil
-		}
+		// This might just be a refhead rule with a leading 'else' term.
+		if !scanAheadRef(p) {
+			if r := rule.Head.Ref(); len(r) > 1 && !r.IsGround() {
+				p.error(p.s.Loc(), "else keyword cannot be used on rules with variables in head")
+				return nil
+			}
+			if rule.Head.Key != nil {
+				p.error(p.s.Loc(), "else keyword cannot be used on multi-value rules")
+				return nil
+			}
 
-		if rule.Else = p.parseElse(rule.Head); rule.Else == nil {
-			return nil
+			if rule.Else = p.parseElse(rule.Head); rule.Else == nil {
+				return nil
+			}
 		}
 	}
 
@@ -1102,10 +1192,31 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 		}
 	}()
 
+	// Check that we're not parsing a ref
+	if p.isAllowedRefKeyword(p.s.tok) {
+		// Scan ahead
+		s := p.save()
+		p.scanWS()
+		tok := p.s.tok
+		p.restore(s)
+
+		if tok == tokens.Dot || tok == tokens.LBrack {
+			p.s.tok = tokens.Ident
+			return p.parseLiteralExpr(false)
+		}
+	}
+
 	var negated bool
 	if p.s.tok == tokens.Not {
-		p.scan()
-		negated = true
+		s := p.save()
+		p.scanWS()
+		tok := p.s.tok
+		p.restore(s)
+
+		if tok != tokens.Dot && tok != tokens.LBrack {
+			p.scan()
+			negated = true
+		}
 	}
 
 	switch p.s.tok {
@@ -1122,33 +1233,49 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 		}
 		return p.parseEvery()
 	default:
-		s := p.save()
-		expr := p.parseExpr()
-		if expr != nil {
-			expr.Negated = negated
-			if p.s.tok == tokens.With {
-				if expr.With = p.parseWith(); expr.With == nil {
-					return nil
-				}
-			}
-			// If we find a plain `every` identifier, attempt to parse an every expression,
-			// add hint if it succeeds.
-			if term, ok := expr.Terms.(*Term); ok && Var("every").Equal(term.Value) {
-				var hint bool
-				t := p.save()
-				p.restore(s)
-				if expr := p.futureParser().parseEvery(); expr != nil {
-					_, hint = expr.Terms.(*Every)
-				}
-				p.restore(t)
-				if hint {
-					p.hint("`import future.keywords.every` for `every x in xs { ... }` expressions")
-				}
-			}
-			return expr
-		}
-		return nil
+		return p.parseLiteralExpr(negated)
 	}
+}
+
+func (p *Parser) isAllowedRefKeyword(t tokens.Token) bool {
+	return p.isAllowedRefKeywordStr(t.String())
+}
+
+func (p *Parser) isAllowedRefKeywordStr(s string) bool {
+	if p.po.Capabilities.ContainsFeature(FeatureKeywordsInRefs) {
+		return IsKeywordInRegoVersion(s, p.po.EffectiveRegoVersion()) || p.s.s.IsKeyword(s)
+	}
+
+	return false
+}
+
+func (p *Parser) parseLiteralExpr(negated bool) *Expr {
+	s := p.save()
+	expr := p.parseExpr()
+	if expr != nil {
+		expr.Negated = negated
+		if p.s.tok == tokens.With {
+			if expr.With = p.parseWith(); expr.With == nil {
+				return nil
+			}
+		}
+		// If we find a plain `every` identifier, attempt to parse an every expression,
+		// add hint if it succeeds.
+		if term, ok := expr.Terms.(*Term); ok && Var("every").Equal(term.Value) {
+			var hint bool
+			t := p.save()
+			p.restore(s)
+			if expr := p.futureParser().parseEvery(); expr != nil {
+				_, hint = expr.Terms.(*Every)
+			}
+			p.restore(t)
+			if hint {
+				p.hint("`import future.keywords.every` for `every x in xs { ... }` expressions")
+			}
+		}
+		return expr
+	}
+	return nil
 }
 
 func (p *Parser) parseWith() []*With {
@@ -1431,6 +1558,9 @@ func (p *Parser) parseTermIn(lhs *Term, keyVal bool, offset int) *Term {
 			}
 			p.restore(s)
 		}
+
+		_ = scanAheadRef(p)
+
 		if op := p.parseTermOpName(memberRef, tokens.In); op != nil {
 			if rhs := p.parseTermRelation(nil, p.s.loc.Offset); rhs != nil {
 				call := p.setLoc(CallTerm(op, lhs, rhs), lhs.Location, offset, p.s.lastEnd)
@@ -1789,7 +1919,7 @@ func (p *Parser) parseRef(head *Term, offset int) (term *Term) {
 		switch p.s.tok {
 		case tokens.Dot:
 			p.scanWS()
-			if p.s.tok != tokens.Ident {
+			if p.s.tok != tokens.Ident && !p.isAllowedRefKeyword(p.s.tok) {
 				p.illegal("expected %v", tokens.Ident)
 				return nil
 			}
@@ -2778,7 +2908,7 @@ func IsFutureKeywordForRegoVersion(s string, v RegoVersion) bool {
 func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]tokens.Token) {
 	path := imp.Path.Value.(Ref)
 
-	if len(path) == 1 || !path[1].Equal(InternedStringTerm("keywords")) {
+	if len(path) == 1 || !path[1].Equal(InternedTerm("keywords")) {
 		p.errorf(imp.Path.Location, "invalid import, must be `future.keywords`")
 		return
 	}

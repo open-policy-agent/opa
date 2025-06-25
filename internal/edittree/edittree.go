@@ -723,7 +723,7 @@ func (e *EditTree) Unfold(path ast.Ref) (*EditTree, error) {
 			return child.Unfold(path[1:])
 		}
 
-		idxt := ast.InternedIntNumberTerm(idx)
+		idxt := ast.InternedTerm(idx)
 
 		// Fall back to looking up the key in e.value.
 		// Extend the tree if key is present. Error otherwise.
@@ -1028,7 +1028,7 @@ func (e *EditTree) Exists(path ast.Ref) bool {
 			}
 			// Fallback if child lookup failed.
 			// We have to ensure that the lookup term is a number here, or Find will fail.
-			_, err = x.Find(ast.Ref{ast.InternedIntNumberTerm(idx)}.Concat(path[1:]))
+			_, err = x.Find(ast.Ref{ast.InternedTerm(idx)}.Concat(path[1:]))
 			return err == nil
 		default:
 			// Catch all primitive types.

@@ -1,0 +1,200 @@
+---
+cases:
+  - note: keywordrefs/default keyword in package
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.default.bar
+
+        baz := 42
+      - |
+        package foo
+        import data.foo.default.bar
+
+        p {
+          bar.baz == 42
+          data.foo.default.bar.baz == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/default keyword in package, import alias
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.default
+
+        bar := 42
+      - |
+        package foo
+        import data.foo.default as my_if
+
+        p {
+          my_if.bar == 42
+          data.foo.default.bar == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/default keyword rule refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          default.foo == 1
+          foo.default == 2
+        }
+
+        default.foo := 1
+
+        foo.default := 2
+    want_result:
+      - x: true
+  - note: keywordrefs/default keyword rule refhead, else bodies
+    query: data.test.p = x
+    input:
+      x: 3
+    modules:
+      - |
+        package test
+
+        p {
+          default.foo.bar == 3
+          foo.bar.default == 6
+        }
+
+        default.foo.bar := 1 {
+          input.x == 1
+        } else := 2 {
+          input.x == 2
+        } else := 3
+
+        foo.bar.default := 4 {
+          input.x == 1
+        } else := 5 {
+          input.x == 2
+        } else := 6
+    want_result:
+      - x: true
+  - note: keywordrefs/default keyword rule refhead, partial set
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.contains
+
+        p {
+          default.foo.bar == {"a", "c"}
+          foo.bar.default == {"a", "c"}
+        }
+
+        default.foo.bar contains "a"
+
+        default.foo.bar contains "b" {
+          false
+        }
+
+        default.foo.bar contains "c" {
+          true
+        }
+
+        foo.bar.default contains "a"
+
+        foo.bar.default contains "b" {
+          false
+        }
+
+        foo.bar.default contains "c" {
+          true
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/default keyword rule refhead, partial object
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          default.foo == "a"
+          default.bar.one == "a"
+          default.bar.three == "c"
+          foo.default == "a"
+          bar.baz.default == "a"
+        }
+
+        default.foo := "a"
+
+        default.foo := "b" {
+          false
+        }
+
+        default.foo := "c" {
+          false
+        }
+
+        default.bar.one := "a"
+
+        default.bar.two := "b" {
+          false
+        }
+
+        default.bar.three := "c" {
+          true
+        }
+
+        foo.default := "a"
+
+        foo.default := "b" {
+          false
+        }
+
+        foo.default := "c" {
+          false
+        }
+
+        bar.baz.default := "a"
+
+        bar.baz.default := "b" {
+          false
+        }
+
+        bar.baz.default := "c" {
+          false
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/default keyword function refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          default.foo(1) == 1
+          default.foo(11) == 42
+          foo.default(1) == 1
+          foo.default(11) == 42
+          bar.default.baz(1) == 1
+          bar.default.baz(11) == 42
+        }
+
+        default default.foo(_) := 42
+
+        default.foo(x) := x {
+          x < 10
+        }
+
+        default foo.default(_) := 42
+
+        foo.default(x) := x {
+          x < 10
+        }
+
+        default bar.default.baz(_) := 42
+
+        bar.default.baz(x) := x {
+          x < 10
+        }
+    want_result:
+      - x: true

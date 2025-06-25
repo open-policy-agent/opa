@@ -34,12 +34,13 @@ The partition name is an optional path segment that can be used to route
 status updates to different backends. If the partition name is not configured
 on the agent, updates will be sent to `/status`.
 
+<EvergreenCodeBlock>
 ```json
 {
   "labels": {
     "app": "my-example-app",
     "id": "1780d507-aea2-45cc-ae50-fa153c8e4a5a",
-    "version": "{{< current_version >}}"
+    "version": "{{ current_version }}"
   },
   "bundles": {
     "http/example/authz": {
@@ -225,6 +226,7 @@ on the agent, updates will be sent to `/status`.
   }
 }
 ```
+</EvergreenCodeBlock>
 
 Status updates contain the following fields:
 

@@ -13,6 +13,16 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
+const (
+	explainModeOff   = "off"
+	explainModeFull  = "full"
+	explainModeNotes = "notes"
+	explainModeFails = "fails"
+	explainModeDebug = "debug"
+
+	stringType = "string"
+)
+
 func addConfigFileFlag(fs *pflag.FlagSet, file *string) {
 	fs.StringVarP(file, "config-file", "c", "", "set path of configuration file")
 }
@@ -178,14 +188,6 @@ func addE2EFlag(fs *pflag.FlagSet, e2e *bool, value bool) {
 	fs.BoolVar(e2e, "e2e", value, "run benchmarks against a running OPA server")
 }
 
-const (
-	explainModeOff   = "off"
-	explainModeFull  = "full"
-	explainModeNotes = "notes"
-	explainModeFails = "fails"
-	explainModeDebug = "debug"
-)
-
 func newExplainFlag(modes []string) *util.EnumFlag {
 	return util.NewEnumFlag(modes[0], modes)
 }
@@ -199,7 +201,7 @@ type capabilitiesFlag struct {
 	pathOrVersion string
 }
 
-func newcapabilitiesFlag() *capabilitiesFlag {
+func newCapabilitiesFlag() *capabilitiesFlag {
 	return &capabilitiesFlag{
 		// cannot call ast.CapabilitiesForThisVersion here because
 		// custom builtins cannot be registered by this point in execution

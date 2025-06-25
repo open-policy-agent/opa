@@ -21,18 +21,30 @@ import (
 )
 
 type fmtCommandParams struct {
-	overwrite     bool
-	list          bool
-	diff          bool
-	fail          bool
-	regoV1        bool
-	v0Compatible  bool
-	v1Compatible  bool
-	checkResult   bool
-	dropV0Imports bool
+	overwrite        bool
+	list             bool
+	diff             bool
+	fail             bool
+	regoV1           bool
+	v0Compatible     bool
+	v1Compatible     bool
+	checkResult      bool
+	dropV0Imports    bool
+	capabilitiesFlag *capabilitiesFlag
 }
 
-var fmtParams = fmtCommandParams{}
+func newFmtCommandParams() *fmtCommandParams {
+	return &fmtCommandParams{
+		capabilitiesFlag: newCapabilitiesFlag(),
+	}
+}
+
+func (p *fmtCommandParams) capabilities() *ast.Capabilities {
+	if p.capabilitiesFlag != nil && p.capabilitiesFlag.C != nil {
+		return p.capabilitiesFlag.C
+	}
+	return ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(p.regoVersion()))
+}
 
 func (p *fmtCommandParams) regoVersion() ast.RegoVersion {
 	// The '--rego-v1' flag takes precedence over the '--v1-compatible' flag.
@@ -49,58 +61,9 @@ func (p *fmtCommandParams) regoVersion() ast.RegoVersion {
 	return ast.DefaultRegoVersion
 }
 
-var formatCommand = &cobra.Command{
-	Use:   "fmt [path [...]]",
-	Short: "Format Rego source files",
-	Long: `Format Rego source files.
-
-The 'fmt' command takes a Rego source file and outputs a reformatted version. If no file path
-is provided - this tool will use stdin.
-The format of the output is not defined specifically; whatever this tool outputs
-is considered correct format (with the exception of bugs).
-
-If the '-w' option is supplied, the 'fmt' command will overwrite the source file
-instead of printing to stdout.
-
-If the '-d' option is supplied, the 'fmt' command will output a diff between the
-original and formatted source.
-
-If the '-l' option is supplied, the 'fmt' command will output the names of files
-that would change if formatted. The '-l' option will suppress any other output
-to stdout from the 'fmt' command.
-
-If the '--fail' option is supplied, the 'fmt' command will return a non zero exit
-code if a file would be reformatted.
-
-The 'fmt' command can be run in several compatibility modes for consuming and outputting
-different Rego versions:
-
-* ` + "`" + `opa fmt` + "`" + `:
-  * v1 Rego is formatted to v1
-  * ` + "`" + `rego.v1` + "`" + `/` + "`" + `future.keywords` + "`" + ` imports are NOT removed
-  * ` + "`" + `rego.v1` + "`" + `/` + "`" + `future.keywords` + "`" + ` imports are NOT added if missing
-  * v0 rego is rejected
-* ` + "`" + `opa fmt --v0-compatible` + "`" + `:
-  * v0 Rego is formatted to v0
-  * v1 Rego is rejected
-* ` + "`" + `opa fmt --v0-v1` + "`" + `:
-  * v0 Rego is formatted to be compatible with v0 AND v1
-  * v1 Rego is rejected
-* ` + "`" + `opa fmt --v0-v1 --v1-compatible` + "`" + `:
-  * v1 Rego is formatted to be compatible with v0 AND v1
-  * v0 Rego is rejected
-`,
-	PreRunE: func(cmd *cobra.Command, _ []string) error {
-		return env.CmdFlags.CheckEnvironmentVariables(cmd)
-	},
-	Run: func(_ *cobra.Command, args []string) {
-		os.Exit(opaFmt(args))
-	},
-}
-
-func opaFmt(args []string) int {
+func opaFmt(args []string, fmtParams *fmtCommandParams) int {
 	if len(args) == 0 {
-		if err := formatStdin(&fmtParams, os.Stdin, os.Stdout); err != nil {
+		if err := formatStdin(fmtParams, os.Stdin, os.Stdout); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 1
 		}
@@ -116,7 +79,7 @@ func opaFmt(args []string) int {
 			return 1
 		}
 		err = filepath.Walk(filename, func(path string, info os.FileInfo, err error) error {
-			return formatFile(&fmtParams, os.Stdout, path, info, err)
+			return formatFile(fmtParams, os.Stdout, path, info, err)
 		})
 		if err != nil {
 			switch err := err.(type) {
@@ -154,6 +117,7 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 	opts := format.Opts{
 		RegoVersion:   params.regoVersion(),
 		DropV0Imports: params.dropV0Imports,
+		Capabilities:  params.capabilities(),
 	}
 
 	if params.regoV1 {
@@ -235,8 +199,10 @@ func formatStdin(params *fmtCommandParams, r io.Reader, w io.Writer) error {
 		return err
 	}
 
-	opts := format.Opts{}
-	opts.RegoVersion = params.regoVersion()
+	opts := format.Opts{
+		RegoVersion:  params.regoVersion(),
+		Capabilities: params.capabilities(),
+	}
 
 	if params.regoV1 {
 		opts.ParserOptions = &ast.ParserOptions{RegoVersion: ast.RegoV0}
@@ -281,6 +247,57 @@ func newError(msg string, a ...any) fmtError {
 }
 
 func init() {
+	fmtParams := newFmtCommandParams()
+
+	var formatCommand = &cobra.Command{
+		Use:   "fmt [path [...]]",
+		Short: "Format Rego source files",
+		Long: `Format Rego source files.
+
+The 'fmt' command takes a Rego source file and outputs a reformatted version. If no file path
+is provided - this tool will use stdin.
+The format of the output is not defined specifically; whatever this tool outputs
+is considered correct format (with the exception of bugs).
+
+If the '-w' option is supplied, the 'fmt' command will overwrite the source file
+instead of printing to stdout.
+
+If the '-d' option is supplied, the 'fmt' command will output a diff between the
+original and formatted source.
+
+If the '-l' option is supplied, the 'fmt' command will output the names of files
+that would change if formatted. The '-l' option will suppress any other output
+to stdout from the 'fmt' command.
+
+If the '--fail' option is supplied, the 'fmt' command will return a non zero exit
+code if a file would be reformatted.
+
+The 'fmt' command can be run in several compatibility modes for consuming and outputting
+different Rego versions:
+
+* ` + "`" + `opa fmt` + "`" + `:
+  * v1 Rego is formatted to v1
+  * ` + "`" + `rego.v1` + "`" + `/` + "`" + `future.keywords` + "`" + ` imports are NOT removed
+  * ` + "`" + `rego.v1` + "`" + `/` + "`" + `future.keywords` + "`" + ` imports are NOT added if missing
+  * v0 rego is rejected
+* ` + "`" + `opa fmt --v0-compatible` + "`" + `:
+  * v0 Rego is formatted to v0
+  * v1 Rego is rejected
+* ` + "`" + `opa fmt --v0-v1` + "`" + `:
+  * v0 Rego is formatted to be compatible with v0 AND v1
+  * v1 Rego is rejected
+* ` + "`" + `opa fmt --v0-v1 --v1-compatible` + "`" + `:
+  * v1 Rego is formatted to be compatible with v0 AND v1
+  * v0 Rego is rejected
+`,
+		PreRunE: func(cmd *cobra.Command, _ []string) error {
+			return env.CmdFlags.CheckEnvironmentVariables(cmd)
+		},
+		Run: func(_ *cobra.Command, args []string) {
+			os.Exit(opaFmt(args, fmtParams))
+		},
+	}
+
 	formatCommand.Flags().BoolVarP(&fmtParams.overwrite, "write", "w", false, "overwrite the original source file")
 	formatCommand.Flags().BoolVarP(&fmtParams.list, "list", "l", false, "list all files who would change when formatted")
 	formatCommand.Flags().BoolVarP(&fmtParams.diff, "diff", "d", false, "only display a diff of the changes")
@@ -290,6 +307,7 @@ func init() {
 	addV1CompatibleFlag(formatCommand.Flags(), &fmtParams.v1Compatible, false)
 	formatCommand.Flags().BoolVar(&fmtParams.checkResult, "check-result", true, "assert that the formatted code is valid and can be successfully parsed")
 	formatCommand.Flags().BoolVar(&fmtParams.dropV0Imports, "drop-v0-imports", false, "drop v0 imports from the formatted code, such as 'rego.v1' and 'future.keywords'")
+	addCapabilitiesFlag(formatCommand.Flags(), fmtParams.capabilitiesFlag)
 
 	RootCommand.AddCommand(formatCommand)
 }

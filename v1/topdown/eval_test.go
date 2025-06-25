@@ -1574,19 +1574,19 @@ func TestPartialRule(t *testing.T) {
 
 type deadlineCtx struct{}
 
-func (_ *deadlineCtx) Err() error {
+func (*deadlineCtx) Err() error {
 	return context.DeadlineExceeded
 }
 
-func (_ *deadlineCtx) Deadline() (time.Time, bool) {
+func (*deadlineCtx) Deadline() (time.Time, bool) {
 	return time.Now(), false
 }
 
-func (_ *deadlineCtx) Value(_ any) any {
+func (*deadlineCtx) Value(_ any) any {
 	return nil
 }
 
-func (_ *deadlineCtx) Done() <-chan struct{} {
+func (*deadlineCtx) Done() <-chan struct{} {
 	return nil
 }
 

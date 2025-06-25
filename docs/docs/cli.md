@@ -18,3 +18,5 @@ import commands from "@generated/cli-data/default/cli.json";
 import CommandList from "@site/src/components/CommandList";
 
 <CommandList commands={commands} />
+
+export const toc = commands.map(command => ({ value: command.id, id: command.id, level: 2 }));
