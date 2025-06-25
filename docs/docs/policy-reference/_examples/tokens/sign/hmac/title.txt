@@ -1,0 +1,1 @@
+Symmetric Key (HMAC with SHA-256)

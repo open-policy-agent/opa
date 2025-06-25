@@ -15,7 +15,6 @@ import (
 
 	initload "github.com/open-policy-agent/opa/internal/runtime/init"
 	"github.com/open-policy-agent/opa/v1/ast"
-	"github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/loader"
 	"github.com/open-policy-agent/opa/v1/util"
@@ -44,16 +43,6 @@ func FileForRegoVersion(regoVersion ast.RegoVersion, path string, includeAnnotat
 }
 
 func bundleOrDirInfoForRegoVersion(regoVersion ast.RegoVersion, path string, includeAnnotations bool) (*Info, error) {
-	json.SetOptions(json.Options{
-		MarshalOptions: json.MarshalOptions{
-			IncludeLocation: json.NodeToggle{
-				// Annotation location data is only included if includeAnnotations is set
-				AnnotationsRef: includeAnnotations,
-			},
-		},
-	})
-	defer json.SetOptions(json.Defaults())
-
 	b, err := loader.NewFileLoader().
 		WithRegoVersion(regoVersion).
 		WithSkipBundleVerification(true).

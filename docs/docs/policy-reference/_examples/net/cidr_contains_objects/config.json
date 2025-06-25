@@ -3,5 +3,5 @@
   "showData": false,
   "showTitles": false,
   "titleSize": 5,
-  "command": "data.graph_reachable_paths_example.result"
+  "command": "data.netcidrcontainsmatches.result"
 }
