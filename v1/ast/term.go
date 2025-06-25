@@ -452,7 +452,7 @@ func (term *Term) UnmarshalJSON(bs []byte) error {
 
 // Vars returns a VarSet with variables contained in this term.
 func (term *Term) Vars() VarSet {
-	vis := &VarVisitor{vars: VarSet{}}
+	vis := NewVarVisitor()
 	vis.Walk(term)
 	return vis.vars
 }
@@ -1227,7 +1227,7 @@ func (ref Ref) String() string {
 // this expression in isolation.
 func (ref Ref) OutputVars() VarSet {
 	vis := NewVarVisitor().WithParams(VarVisitorParams{SkipRefHead: true})
-	vis.Walk(ref)
+	vis.WalkRef(ref)
 	return vis.Vars()
 }
 

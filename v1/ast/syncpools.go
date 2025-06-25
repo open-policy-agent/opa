@@ -17,6 +17,10 @@ type indexResultPool struct {
 	pool sync.Pool
 }
 
+type vvPool struct {
+	pool sync.Pool
+}
+
 func (p *termPtrPool) Get() *Term {
 	return p.pool.Get().(*Term)
 }
@@ -44,6 +48,17 @@ func (p *indexResultPool) Put(x *IndexResult) {
 	}
 }
 
+func (p *vvPool) Get() *VarVisitor {
+	return p.pool.Get().(*VarVisitor)
+}
+
+func (p *vvPool) Put(vv *VarVisitor) {
+	if vv != nil {
+		vv.Clear()
+		p.pool.Put(vv)
+	}
+}
+
 var TermPtrPool = &termPtrPool{
 	pool: sync.Pool{
 		New: func() any {
@@ -56,6 +71,14 @@ var sbPool = &stringBuilderPool{
 	pool: sync.Pool{
 		New: func() any {
 			return &strings.Builder{}
+		},
+	},
+}
+
+var varVisitorPool = &vvPool{
+	pool: sync.Pool{
+		New: func() any {
+			return NewVarVisitor()
 		},
 	},
 }

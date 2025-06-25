@@ -62,3 +62,14 @@ func NumDigitsUint(n uint64) int {
 
 	return int(math.Log10(float64(n))) + 1
 }
+
+// KeysCount returns the number of keys in m that satisfy predicate p.
+func KeysCount[K comparable, V any](m map[K]V, p func(K) bool) int {
+	count := 0
+	for k := range m {
+		if p(k) {
+			count++
+		}
+	}
+	return count
+}

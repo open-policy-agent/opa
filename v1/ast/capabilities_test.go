@@ -291,6 +291,16 @@ func TestCapabilitiesMinimumCompatibleVersion(t *testing.T) {
 	}
 }
 
+func BenchmarkCapabilitiesCurrentVersion(b *testing.B) {
+	var caps *Capabilities
+	for range b.N {
+		caps = CapabilitiesForThisVersion()
+	}
+	if caps == nil {
+		b.Fatal("expected capabilities to be non-nil")
+	}
+}
+
 func findBuiltinIndex(c *Capabilities, name string) int {
 	for i, bi := range c.Builtins {
 		if bi.Name == name {
