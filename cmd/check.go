@@ -38,7 +38,7 @@ type checkParams struct {
 func newCheckParams() checkParams {
 	return checkParams{
 		format:       formats.Flag(formats.Pretty, formats.JSON),
-		capabilities: newcapabilitiesFlag(),
+		capabilities: newCapabilitiesFlag(),
 		schema:       &schemaFlags{},
 	}
 }

@@ -2067,7 +2067,7 @@ p contains __local0__1 if __local0__1 = input.v
 						_ = params.outputFormat.Set(format)
 
 						if !tc.regoV1ImportCapable {
-							caps := newcapabilitiesFlag()
+							caps := newCapabilitiesFlag()
 							caps.C = ast.CapabilitiesForThisVersion()
 							caps.C.Features = []string{
 								ast.FeatureRefHeadStringPrefixes,

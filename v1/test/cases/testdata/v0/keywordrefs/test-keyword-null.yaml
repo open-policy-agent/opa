@@ -1,0 +1,200 @@
+---
+cases:
+  - note: keywordrefs/null keyword in package
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.null.bar
+
+        baz := 42
+      - |
+        package foo
+        import data.foo.null.bar
+
+        p {
+          bar.baz == 42
+          data.foo.null.bar.baz == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/null keyword in package, import alias
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.null
+
+        bar := 42
+      - |
+        package foo
+        import data.foo.null as my_if
+
+        p {
+          my_if.bar == 42
+          data.foo.null.bar == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/null keyword rule refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          null.foo == 1
+          foo.null == 2
+        }
+
+        null.foo := 1
+
+        foo.null := 2
+    want_result:
+      - x: true
+  - note: keywordrefs/null keyword rule refhead, else bodies
+    query: data.test.p = x
+    input:
+      x: 3
+    modules:
+      - |
+        package test
+
+        p {
+          null.foo.bar == 3
+          foo.bar.null == 6
+        }
+
+        null.foo.bar := 1 {
+          input.x == 1
+        } else := 2 {
+          input.x == 2
+        } else := 3
+
+        foo.bar.null := 4 {
+          input.x == 1
+        } else := 5 {
+          input.x == 2
+        } else := 6
+    want_result:
+      - x: true
+  - note: keywordrefs/null keyword rule refhead, partial set
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.contains
+
+        p {
+          null.foo.bar == {"a", "c"}
+          foo.bar.null == {"a", "c"}
+        }
+
+        null.foo.bar contains "a"
+
+        null.foo.bar contains "b" {
+          false
+        }
+
+        null.foo.bar contains "c" {
+          true
+        }
+
+        foo.bar.null contains "a"
+
+        foo.bar.null contains "b" {
+          false
+        }
+
+        foo.bar.null contains "c" {
+          true
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/null keyword rule refhead, partial object
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          null.foo == "a"
+          null.bar.one == "a"
+          null.bar.three == "c"
+          foo.null == "a"
+          bar.baz.null == "a"
+        }
+
+        null.foo := "a"
+
+        null.foo := "b" {
+          false
+        }
+
+        null.foo := "c" {
+          false
+        }
+
+        null.bar.one := "a"
+
+        null.bar.two := "b" {
+          false
+        }
+
+        null.bar.three := "c" {
+          true
+        }
+
+        foo.null := "a"
+
+        foo.null := "b" {
+          false
+        }
+
+        foo.null := "c" {
+          false
+        }
+
+        bar.baz.null := "a"
+
+        bar.baz.null := "b" {
+          false
+        }
+
+        bar.baz.null := "c" {
+          false
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/null keyword function refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          null.foo(1) == 1
+          null.foo(11) == 42
+          foo.null(1) == 1
+          foo.null(11) == 42
+          bar.null.baz(1) == 1
+          bar.null.baz(11) == 42
+        }
+
+        default null.foo(_) := 42
+
+        null.foo(x) := x {
+          x < 10
+        }
+
+        default foo.null(_) := 42
+
+        foo.null(x) := x {
+          x < 10
+        }
+
+        default bar.null.baz(_) := 42
+
+        bar.null.baz(x) := x {
+          x < 10
+        }
+    want_result:
+      - x: true

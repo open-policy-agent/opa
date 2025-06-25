@@ -71,7 +71,7 @@ func newTestCommandParams() testCommandParams {
 		outputFormat: formats.Flag(formats.Pretty, formats.JSON, formats.GoBench),
 		explain:      newExplainFlag([]string{explainModeFails, explainModeFull, explainModeNotes, explainModeDebug}),
 		target:       util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
-		capabilities: newcapabilitiesFlag(),
+		capabilities: newCapabilitiesFlag(),
 		schema:       &schemaFlags{},
 		output:       os.Stdout,
 		errOutput:    os.Stderr,

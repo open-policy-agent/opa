@@ -1,0 +1,200 @@
+---
+cases:
+  - note: keywordrefs/with keyword in package
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.with.bar
+
+        baz := 42
+      - |
+        package foo
+        import data.foo.with.bar
+
+        p {
+          bar.baz == 42
+          data.foo.with.bar.baz == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/with keyword in package, import alias
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.with
+
+        bar := 42
+      - |
+        package foo
+        import data.foo.with as my_if
+
+        p {
+          my_if.bar == 42
+          data.foo.with.bar == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/with keyword rule refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          with.foo == 1
+          foo.with == 2
+        }
+
+        with.foo := 1
+
+        foo.with := 2
+    want_result:
+      - x: true
+  - note: keywordrefs/with keyword rule refhead, else bodies
+    query: data.test.p = x
+    input:
+      x: 3
+    modules:
+      - |
+        package test
+
+        p {
+          with.foo.bar == 3
+          foo.bar.with == 6
+        }
+
+        with.foo.bar := 1 {
+          input.x == 1
+        } else := 2 {
+          input.x == 2
+        } else := 3
+
+        foo.bar.with := 4 {
+          input.x == 1
+        } else := 5 {
+          input.x == 2
+        } else := 6
+    want_result:
+      - x: true
+  - note: keywordrefs/with keyword rule refhead, partial set
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.contains
+
+        p {
+          with.foo.bar == {"a", "c"}
+          foo.bar.with == {"a", "c"}
+        }
+
+        with.foo.bar contains "a"
+
+        with.foo.bar contains "b" {
+          false
+        }
+
+        with.foo.bar contains "c" {
+          true
+        }
+
+        foo.bar.with contains "a"
+
+        foo.bar.with contains "b" {
+          false
+        }
+
+        foo.bar.with contains "c" {
+          true
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/with keyword rule refhead, partial object
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          with.foo == "a"
+          with.bar.one == "a"
+          with.bar.three == "c"
+          foo.with == "a"
+          bar.baz.with == "a"
+        }
+
+        with.foo := "a"
+
+        with.foo := "b" {
+          false
+        }
+
+        with.foo := "c" {
+          false
+        }
+
+        with.bar.one := "a"
+
+        with.bar.two := "b" {
+          false
+        }
+
+        with.bar.three := "c" {
+          true
+        }
+
+        foo.with := "a"
+
+        foo.with := "b" {
+          false
+        }
+
+        foo.with := "c" {
+          false
+        }
+
+        bar.baz.with := "a"
+
+        bar.baz.with := "b" {
+          false
+        }
+
+        bar.baz.with := "c" {
+          false
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/with keyword function refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          with.foo(1) == 1
+          with.foo(11) == 42
+          foo.with(1) == 1
+          foo.with(11) == 42
+          bar.with.baz(1) == 1
+          bar.with.baz(11) == 42
+        }
+
+        default with.foo(_) := 42
+
+        with.foo(x) := x {
+          x < 10
+        }
+
+        default foo.with(_) := 42
+
+        foo.with(x) := x {
+          x < 10
+        }
+
+        default bar.with.baz(_) := 42
+
+        bar.with.baz(x) := x {
+          x < 10
+        }
+    want_result:
+      - x: true

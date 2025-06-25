@@ -201,7 +201,7 @@ type capabilitiesFlag struct {
 	pathOrVersion string
 }
 
-func newcapabilitiesFlag() *capabilitiesFlag {
+func newCapabilitiesFlag() *capabilitiesFlag {
 	return &capabilitiesFlag{
 		// cannot call ast.CapabilitiesForThisVersion here because
 		// custom builtins cannot be registered by this point in execution
