@@ -1777,6 +1777,8 @@ func (p *Parser) parseTermFinish(head *Term, skipws bool) *Term {
 func (p *Parser) parseNumber() *Term {
 	var prefix string
 	loc := p.s.Loc()
+
+	// Handle negative sign
 	if p.s.tok == tokens.Sub {
 		prefix = "-"
 		p.scan()
@@ -1788,6 +1790,8 @@ func (p *Parser) parseNumber() *Term {
 			return nil
 		}
 	}
+
+	// Handle decimal point
 	if p.s.tok == tokens.Dot {
 		prefix += "."
 		p.scan()
@@ -1797,12 +1801,19 @@ func (p *Parser) parseNumber() *Term {
 		}
 	}
 
-	// Check for multiple leading 0's, parsed by math/big.Float.Parse as decimal 0:
-	// https://golang.org/pkg/math/big/#Float.Parse
-	if ((len(prefix) != 0 && prefix[0] == '-') || len(prefix) == 0) &&
-		len(p.s.lit) > 1 && p.s.lit[0] == '0' && p.s.lit[1] == '0' {
-		p.illegal("expected number")
-		return nil
+	// Validate leading zeros: reject numbers like "01", "007", etc.
+	// Skip validation if prefix ends with '.' (like ".123")
+	hasDecimalPrefix := len(prefix) > 0 && prefix[len(prefix)-1] == '.'
+
+	if !hasDecimalPrefix && len(p.s.lit) > 1 && p.s.lit[0] == '0' {
+		// These are the only valid cases starting with '0':
+		isDecimal := p.s.lit[1] == '.'                                               // "0.123"
+		isScientific := len(p.s.lit) > 2 && (p.s.lit[1] == 'e' || p.s.lit[1] == 'E') // "0e5", "0E-3"
+
+		if !isDecimal && !isScientific {
+			p.illegal("expected number without leading zero")
+			return nil
+		}
 	}
 
 	// Ensure that the number is valid
