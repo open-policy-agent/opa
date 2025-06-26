@@ -25,6 +25,9 @@
 # logs.
 /decision_logs /docs/management-decision-logs
 
+# 7729 and #7720 were opened relating to this but we don't know the source of the old link
+/docs/kubernetes-admission-control.html /docs/kubernetes
+
 # TODO: (charlieegan3) remove this after 2025-07-01
 /ecosystem/entry/open-policy-registry /ecosystem/entry/ocpr 301!
 
