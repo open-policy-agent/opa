@@ -3,7 +3,88 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 1.6.0
+
+### Fixes
+
+- Fix issue where path in `walk` would get mutated (#7657) ([#7656](https://github.com/open-policy-agent/opa/issues/7656)) authored by @anderseknert reported by @robmyersrobmyers
+- api: expand docs for RegisterBuiltin — no thread-safety (#7670) ([#7667](https://github.com/open-policy-agent/opa/issues/7667)) authored by @anderseknert reported by @parth-mehta-989
+- ast: Fixing type-checker schema cache race condition for inlined schemas (#7680) ([#7679](https://github.com/open-policy-agent/opa/issues/7679)) authored by @johanfylling
+- perf: improve performance when referencing "global" in loop (#7665) ([#7654](https://github.com/open-policy-agent/opa/issues/7654)) authored by @anderseknert
+
+### Miscellaneous
+
+- Added a search function for the builtins section of policy-reference (#7704) (authored by @sky3n3t)
+- Adding clarification to merge instructions when cutting a patch release (#7660) (authored by @johanfylling)
+- Fix bug where the search match respects case (#7713) (authored by @sky3n3t)
+- Integrating patch release v1.5.1 (#7659) (authored by @johanfylling)
+- Prepare v1.6.0 development (#7643) (authored by @johanfylling)
+- Replace gorilla/mux dependency with http.ServeMux (#7676) (authored by @anderseknert)
+- Revert "build: Reorder PR jobs" (authored by @charlieegan3)
+- Simplify interning (#7714) (authored by @anderseknert)
+- ast,format: Allowing keywords in Rego references (#7709) (authored by @johanfylling)
+- ast: Ensure surplus leading zeros always error (#7726) (authored by @charlieegan3)
+- build(deps): Bump gqlparser from v2.5.27 to v2.5.28 (#7700) (authored by @robmyersrobmyers)
+- build(deps): bump brace-expansion from 1.1.11 to 1.1.12 in /docs (#7695) (authored by @dependabot[bot])
+- build(deps): bump the dependencies group with 6 updates (#7652) (authored by @dependabot[bot])
+- build(deps): bump the gha-dependencies group with 3 updates (#7650) (authored by @dependabot[bot])
+- build(deps): bump the go-opentelemetry-io group with 7 updates (#7651) (authored by @dependabot[bot])
+- build: Make summary failure source clearer (#7697) (authored by @charlieegan3)
+- build: Reorder PR jobs (authored by @charlieegan3)
+- build: Skip jobs for non docs changes (#7688) (authored by @charlieegan3)
+- build: better detection of go changes (#7696) (authored by @charlieegan3)
+- build: bump golang 1.24.3 -> 1.24.4 (authored by @srenatus)
+- chore: add Pix4D as adopters for its RBAC service (#7645) (authored by @marcaurele)
+- cmd/parse: expose --v0-compatible flag (#7668) (authored by @tsandall)
+- cmd/refactor: fix src:dst parsing to deal with colons (#7648) (authored by @tsandall)
+- deps: use google.golang.org/protobuf (#7655) (authored by @sspaink)
+- docs: Add EvergreenCodeBlock for code with version (#7706) (authored by @charlieegan3)
+- docs: Add another OR note in AND section (authored by @charlieegan3)
+- docs: Add basic docs covering CI/CD use case (#7703) (authored by @charlieegan3)
+- docs: Add current ecosystem contribution docs (authored by @charlieegan3)
+- docs: Add feedback form for user reported issues (#7662) (authored by @charlieegan3)
+- docs: Address broken links (#7661) (authored by @charlieegan3)
+- docs: Archive explain that only latest patch is shown (authored by @charlieegan3)
+- docs: Bundles, add Wasm structure example (authored by @charlieegan3)
+- docs: Hide feedback pop-up forever if dismissed (#7674) (authored by @charlieegan3)
+- docs: Improve bundle structure documentation (authored by @charlieegan3)
+- docs: Improve explanations for initial examples (#7677) (authored by @charlieegan3)
+- docs: Install/Download Instruction Update (#7687) (authored by @charlieegan3)
+- docs: Move code example data inside the PlaygroundComponent (#7724) (authored by @sky3n3t)
+- docs: Redirect old admission control link (#7730) (authored by @charlieegan3)
+- docs: Refactored Networking Reference docs (#7686) (authored by @sky3n3t)
+- docs: Reworked existing policy examples to use PlaygroundExample  (#7690) (authored by @sky3n3t)
+- docs: Show TOC on CLI page (#7712) (authored by @charlieegan3)
+- docs: Show a feedback popup on the docs site (authored by @charlieegan3)
+- docs: Show edge rather than latest release (#7717) (authored by @charlieegan3)
+- docs: Update colors for feedback form in dark mode (#7691) (authored by @charlieegan3)
+- docs: Update policy-ref allowing anchor linking (authored by @charlieegan3)
+- docs: Update rego in deployment examples (authored by @charlieegan3)
+- docs: Update sidebar (#7723) (authored by @charlieegan3)
+- docs: policy-reference, update sig algs formatting (authored by @charlieegan3)
+- fix flaky TestRaisingHTTPClientQueryError (#7698) (authored by @sspaink)
+- fix: query url when opa is served not from root path (#7644) (authored by @olegKoshmeliuk)
+- inspect: Fixing missing annotations location in `opa inspect` with JSON format (#7727) (authored by @johanfylling)
+- opa check --bundle report virtual/base doc conflicts (#7701) (authored by @anderseknert)
+- opa/test: run tests in parallel (#7640) (authored by @sspaink)
+- oracle: Add support for some and every (#7716) (authored by @charlieegan3)
+- oracle: Support object refs in FindDefinition (#7711) (authored by @charlieegan3)
+- perf: Only pass built-in context to calls depending on it (#7728) (authored by @anderseknert)
+- perf: improve built-in `concat` performance (#7702) (authored by @anderseknert)
+- perf: more efficient data/v1 POST handler (#7673) (authored by @anderseknert)
+- plugin/decision: check if event is too large after compression (#7521) (authored by @sspaink)
+- test: fix flaky topdown query cache tests (#7616) (authored by @sspaink)
+- topdown/http: lenient application/json Content-Type header (#7693) (authored by @sspaink)
+- v1/metrics: Fix restartable timer bug. (#7669) (authored by @philipaconrad)
+- v1/metrics: Prealloc maps + add benchmark (#7664) (authored by @philipaconrad)
+- v1/server: Fix deferred metrics timers. (#7671) (authored by @philipaconrad)
+- website: Disable cancel script (#7719) (authored by @charlieegan3)
+- website: Explain automation in RELEASE.md (#7721) (authored by @charlieegan3)
+- website: Fix badge endpoints (#7653) (authored by @charlieegan3)
+- website: Hide feedback popup when user seen form (authored by @charlieegan3)
+- website: Only show latest patch in archive (authored by @charlieegan3)
+- website: Refactor site components with CSS modules (authored by @charlieegan3)
+- website: Update docusaurus components to 3.8.1 (#7718) (authored by @charlieegan3)
 
 ## 1.5.1
 
