@@ -5,6 +5,9 @@ edge_functions = "docs/functions"
 
 [build.environment]
 NODE_VERSION = "22.15.0"
+# some examples in v1/test/cases/testdata/v0/cryptox509* flag the netlify
+# secret scan
+SECRETS_SCAN_OMIT_PATHS = "v1/test/cases,v1/topdown/crypto_test.go"
 
 [[edge_functions]]
 # this path should not be changed as various external sites depend on it for OPA
