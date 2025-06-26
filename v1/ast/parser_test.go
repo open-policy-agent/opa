@@ -60,6 +60,11 @@ func TestNumberTerms(t *testing.T) {
 		{"1.1e6", "1.1e6"},
 		{"-1e-6", "-1e-6"},
 		{"1E6", "1E6"},
+		{"0.1E6", "0.1E6"},
+		{"0.1e6", "0.1e6"},
+		{"0.1e-6", "0.1e-6"},
+		{"0e6", "0e6"},
+		{"0e-6", "0e-6"},
 		{"0.1", "0.1"},
 		{".1", "0.1"},
 		{".0001", "0.0001"},
@@ -81,6 +86,46 @@ func TestNumberTerms(t *testing.T) {
 					t.Errorf("Expected %v for %v but got: %v", e, tc.input, result)
 				}
 			}
+		})
+	}
+
+	errorTests := map[string]struct {
+		input         string
+		expectedError string
+	}{
+		"leading 0": {
+			input:         "03",
+			expectedError: "expected number without leading zero",
+		},
+		"leading 0, many": {
+			input:         "003",
+			expectedError: "expected number without leading zero",
+		},
+		"leading 0, 'octal'": {
+			input:         "0755",
+			expectedError: "expected number without leading zero",
+		},
+		"leading 0, decimal": {
+			input:         "03.333",
+			expectedError: "expected number without leading zero",
+		},
+		"leading 0, negative": {
+			input:         "-03",
+			expectedError: "expected number without leading zero",
+		},
+		"leading 0, exp": {
+			input:         "03e6",
+			expectedError: "expected number without leading zero",
+		},
+		"leading 0, exp, negative": {
+			input:         "-03e6",
+			expectedError: "expected number without leading zero",
+		},
+	}
+
+	for name, tc := range errorTests {
+		t.Run(name, func(t *testing.T) {
+			assertParseErrorContains(t, name, tc.input, tc.expectedError)
 		})
 	}
 }
