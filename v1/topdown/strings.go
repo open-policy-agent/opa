@@ -151,7 +151,7 @@ func builtinFormatInt(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 	return iter(ast.InternedTerm(fmt.Sprintf(format, i)))
 }
 
-func builtinConcat(b BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinConcat(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	join, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
 		return err

@@ -949,36 +949,41 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		return e.saveCall(bi.Decl.Arity(), terms, iter)
 	}
 
-	var parentID uint64
-	if e.parent != nil {
-		parentID = e.parent.queryID
-	}
+	var bctx *BuiltinContext
 
-	var capabilities *ast.Capabilities
-	if e.compiler != nil {
-		capabilities = e.compiler.Capabilities()
-	}
+	// Creating a BuiltinContext is expensive, so only do it if the builtin depends on it.
+	if bi.NeedsBuiltInContext() {
+		var parentID uint64
+		if e.parent != nil {
+			parentID = e.parent.queryID
+		}
 
-	bctx := BuiltinContext{
-		Context:                     e.ctx,
-		Metrics:                     e.metrics,
-		Seed:                        e.seed,
-		Time:                        e.time,
-		Cancel:                      e.cancel,
-		Runtime:                     e.runtime,
-		Cache:                       e.builtinCache,
-		InterQueryBuiltinCache:      e.interQueryBuiltinCache,
-		InterQueryBuiltinValueCache: e.interQueryBuiltinValueCache,
-		NDBuiltinCache:              e.ndBuiltinCache,
-		Location:                    e.query[e.index].Location,
-		QueryTracers:                e.tracers,
-		TraceEnabled:                e.traceEnabled,
-		QueryID:                     e.queryID,
-		ParentID:                    parentID,
-		PrintHook:                   e.printHook,
-		DistributedTracingOpts:      e.tracingOpts,
-		Capabilities:                capabilities,
-		RoundTripper:                e.roundTripper,
+		var capabilities *ast.Capabilities
+		if e.compiler != nil {
+			capabilities = e.compiler.Capabilities()
+		}
+
+		bctx = &BuiltinContext{
+			Context:                     e.ctx,
+			Metrics:                     e.metrics,
+			Seed:                        e.seed,
+			Time:                        e.time,
+			Cancel:                      e.cancel,
+			Runtime:                     e.runtime,
+			Cache:                       e.builtinCache,
+			InterQueryBuiltinCache:      e.interQueryBuiltinCache,
+			InterQueryBuiltinValueCache: e.interQueryBuiltinValueCache,
+			NDBuiltinCache:              e.ndBuiltinCache,
+			Location:                    e.query[e.index].Location,
+			QueryTracers:                e.tracers,
+			TraceEnabled:                e.traceEnabled,
+			QueryID:                     e.queryID,
+			ParentID:                    parentID,
+			PrintHook:                   e.printHook,
+			DistributedTracingOpts:      e.tracingOpts,
+			Capabilities:                capabilities,
+			RoundTripper:                e.roundTripper,
+		}
 	}
 
 	eval := evalBuiltin{
@@ -1923,14 +1928,14 @@ func (e *eval) updateFromQuery(expr *ast.Expr) {
 type evalBuiltin struct {
 	e     *eval
 	bi    *ast.Builtin
-	bctx  BuiltinContext
+	bctx  *BuiltinContext
 	f     BuiltinFunc
 	terms []*ast.Term
 }
 
 // Is this builtin non-deterministic, and did the caller provide an NDBCache?
 func (e *evalBuiltin) canUseNDBCache(bi *ast.Builtin) bool {
-	return bi.Nondeterministic && e.bctx.NDBuiltinCache != nil
+	return bi.Nondeterministic && e.bctx != nil && e.bctx.NDBuiltinCache != nil
 }
 
 func (e *evalBuiltin) eval(iter unifyIterator) error {
@@ -1978,8 +1983,18 @@ func (e *evalBuiltin) eval(iter unifyIterator) error {
 		e.e.instr.startTimer(evalOpBuiltinCall)
 	}
 
+	var bctx BuiltinContext
+	if e.bctx == nil {
+		bctx = BuiltinContext{
+			// Location potentially needed for error reporting.
+			Location: e.e.query[e.e.index].Location,
+		}
+	} else {
+		bctx = *e.bctx
+	}
+
 	// Normal unification flow for builtins:
-	err := e.f(e.bctx, operands, func(output *ast.Term) error {
+	err := e.f(bctx, operands, func(output *ast.Term) error {
 
 		e.e.instr.stopTimer(evalOpBuiltinCall)
 
