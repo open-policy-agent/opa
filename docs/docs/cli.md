@@ -1,5 +1,5 @@
 ---
-title: CLI
+title: CLI Reference
 ---
 
 The commands exposed in the `opa` executable are listed here in alphabetical

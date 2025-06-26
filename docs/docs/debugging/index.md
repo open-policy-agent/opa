@@ -1,11 +1,11 @@
 ---
-title: Debugging OPA
+title: Debugging
 ---
+
+# Debugging Rego Policies
 
 This section outlines the various tools and techniques that can be used to debug OPA, both as a component in a
 distributed system and as a policy engine evaluating the Rego language.
-
-# Debugging Rego Policies
 
 Debugging Rego is crucial to ensuring OPA functions properly, as its policy
 engine evaluates policies written in Rego. Effective Rego debugging helps
