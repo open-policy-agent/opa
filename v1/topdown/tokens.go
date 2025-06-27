@@ -12,6 +12,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
@@ -21,15 +22,13 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
-	"github.com/lestrrat-go/jwx/v3/jws"
+	"github.com/lestrrat-go/jwx/v3/jws/jwsbb"
+
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 	"github.com/open-policy-agent/opa/v1/topdown/cache"
 )
-
-
 
 const headerJwt = "JWT"
 
@@ -325,19 +324,19 @@ func getKeysFromCertOrJWK(certificate string) ([]verificationKey, error) {
 		if algInterface, ok := k.Algorithm(); ok {
 			alg = algInterface.String()
 		}
-		
+
 		// Skip keys with unknown/unsupported algorithms
 		if alg != "" {
 			if _, ok := tokenAlgorithms[alg]; !ok {
 				continue
 			}
 		}
-		
+
 		var kid string
 		if kidValue, ok := k.KeyID(); ok {
 			kid = kidValue
 		}
-		
+
 		keys = append(keys, verificationKey{
 			alg: alg,
 			kid: kid,
@@ -905,66 +904,43 @@ func (header *tokenHeader) valid() bool {
 	return true
 }
 
-func commonBuiltinJWTEncodeSign(bctx BuiltinContext, inputHeaders, jwsPayload, jwkSrc string, iter func(*ast.Term) error) error {
-	keys, err := jwk.ParseString(jwkSrc)
+func commonBuiltinJWTEncodeSign(bctx BuiltinContext, inputHeaders, jwsPayload, jwkSrc []byte, iter func(*ast.Term) error) error {
+	keys, err := jwk.Parse(jwkSrc)
 	if err != nil {
 		return err
 	}
-	
+
 	if keys.Len() == 0 {
 		return errors.New("no keys found in JWK set")
 	}
-	
-	jwkKey, ok := keys.Key(0)
+
+	key, ok := keys.Key(0)
 	if !ok {
 		return errors.New("failed to get first key from JWK set")
 	}
-	
-	var key interface{}
-	if err := jwk.Export(jwkKey, &key); err != nil {
-		return err
-	}
 
-	// Parse headers to get algorithm
-	var headers map[string]interface{}
-	jwsHeaders := []byte(inputHeaders)
-	err = json.Unmarshal(jwsHeaders, &headers)
+	// Parse headers to get algorithm. Are we sure we don't want to check against alg="none"?
+	headers := jwsbb.HeaderParse(inputHeaders)
+	algStr, err := jwsbb.HeaderGetString(headers, "alg")
 	if err != nil {
-		return err
-	}
-	
-	algStr, ok := headers["alg"].(string)
-	if !ok {
-		return errors.New("missing or invalid 'alg' header")
-	}
-	
-	alg, ok := jwa.LookupSignatureAlgorithm(algStr)
-	if !ok {
-		return fmt.Errorf("unknown signature algorithm: %s", algStr)
+		return fmt.Errorf("missing or invalid 'alg' header: %w", err)
 	}
 
-	if typ, ok := headers["typ"].(string); ok {
-		if (typ == "" || typ == headerJwt) && !json.Valid([]byte(jwsPayload)) {
-			return errors.New("type is JWT but payload is not JSON")
-		}
+	typ, err := jwsbb.HeaderGetString(headers, "typ")
+	if (err != nil || typ == headerJwt) && !json.Valid(jwsPayload) {
+		return errors.New("type is JWT but payload is not JSON")
 	}
 
-	// Create protected headers
-	protectedHeaders := jws.NewHeaders()
-	for k, v := range headers {
-		if err := protectedHeaders.Set(k, v); err != nil {
-			return err
-		}
-	}
+	payload := jwsbb.SignBuffer(nil, inputHeaders, jwsPayload, base64.RawURLEncoding, true)
 
-	// Sign with the key
-	jwsCompact, err := jws.Sign([]byte(jwsPayload), 
-		jws.WithKey(alg, key, jws.WithProtectedHeaders(protectedHeaders)))
+	signature, err := jwsbb.Sign(key, algStr, payload, bctx.Seed)
 	if err != nil {
 		return err
 	}
 
-	return iter(ast.StringTerm(string(jwsCompact)))
+	jwsCompact := string(payload) + "." + base64.RawURLEncoding.EncodeToString(signature)
+
+	return iter(ast.StringTerm(jwsCompact))
 }
 
 func builtinJWTEncodeSign(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -1000,9 +976,9 @@ func builtinJWTEncodeSign(bctx BuiltinContext, operands []*ast.Term, iter func(*
 
 	return commonBuiltinJWTEncodeSign(
 		bctx,
-		string(inputHeadersBs),
-		string(payloadBs),
-		string(signatureBs),
+		inputHeadersBs,
+		payloadBs,
+		signatureBs,
 		iter,
 	)
 }
@@ -1020,7 +996,7 @@ func builtinJWTEncodeSignRaw(bctx BuiltinContext, operands []*ast.Term, iter fun
 	if err != nil {
 		return err
 	}
-	return commonBuiltinJWTEncodeSign(bctx, string(inputHeaders), string(jwsPayload), string(jwkSrc), iter)
+	return commonBuiltinJWTEncodeSign(bctx, []byte(inputHeaders), []byte(jwsPayload), []byte(jwkSrc), iter)
 }
 
 // Implements full JWT decoding, validation and verification.
