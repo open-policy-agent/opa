@@ -10,6 +10,46 @@ This release contains a mix of new features, performance improvements, and bugfi
 - Parallel test execution
 - Allowing keywords in Rego references
 - Faster built-in function execution
+- Improvements to the OPA website and documentation
+
+### Modernized OPA Website ([#7037](https://github.com/open-policy-agent/opa/issues/7037))
+
+We're continuing to modernize the OPA website with a new design and improved user experience.
+
+Some highlights:
+
+- [Builtins](https://www.openpolicyagent.org/docs/policy-reference#built-in-functions): You can now search them on the docs page!
+- Sidebar redesign: Making it easier to find what you're looking for in our docs
+- Feedback forms: Closing the feedback loop between docs authors and readers -- Please let us know if you dislike, or like, a docs page.
+- [Downloads page](https://www.openpolicyagent.org/docs#1-download-opa): Find your OS' installation instructions on a less cluttered page!
+
+Authored by @charlieegan3 and @sky3n3t
+
+### Allowing keywords in Rego references ([#7709](https://github.com/open-policy-agent/opa/pull/7709))
+
+Previously, Rego references could not contain terms that conflict with Rego keywords such as `if`, `else`, `not`, etc. 
+
+```rego
+package example
+
+allow if {
+    input.package.source # Not allowed since 'package' is a keyword
+    input["package"].destination # Allowed
+}
+```
+
+The constraints for valid Rego references have been relaxed to allow keywords, so the above example is now valid and will no longer cause a compilation error.
+
+authored by @johanfylling
+
+### Parallel Test Execution ([#7442](https://github.com/open-policy-agent/opa/issues/7442))
+
+By default, OPA will now run tests in parallel (defaulting to one parallel execution thread per available CPU core), significantly speeding up test execution time for large test suites.
+The performance boost is closely tied to the number of tests in your project and your selected parallelism level. For larger projects and default settings, 2-3x performance gains have been measured on a MacBook Pro. 
+
+Parallelism can be disabled to run tests sequentially by setting the `--parallel` flag to `1`. E.g. `opa test . --parallel=1`.
+
+Authored by @sspaink reported by @anderseknert
 
 ### Runtime, Tooling, SDK
 
@@ -17,7 +57,6 @@ This release contains a mix of new features, performance improvements, and bugfi
 - cmd/inspect: Fixing missing annotations location in `opa inspect` with JSON format ([#7459](https://github.com/open-policy-agent/opa/issues/7459)) authored by @johanfylling reported by @mostealth
 - cmd/parse: Expose `--v0-compatible` flag ([#7668](https://github.com/open-policy-agent/opa/pull/7668)) authored by @tsandall
 - cmd/refactor: Fix src:dst parsing to deal with colons ([#7648](https://github.com/open-policy-agent/opa/pull/7648)) authored by @tsandall
-- cmd/test: Run tests in parallel ([#7442](https://github.com/open-policy-agent/opa/issues/7442)) authored by @sspaink reported by @anderseknert
 - metrics: Fix restartable timer bug. ([#7669](https://github.com/open-policy-agent/opa/pull/7669)) authored by @philipaconrad
 - metrics: Prealloc maps + add benchmark ([#7664](https://github.com/open-policy-agent/opa/pull/7664)) authored by @philipaconrad
 - oracle: Add support for some and every ([#7716](https://github.com/open-policy-agent/opa/pull/7716)) authored by @charlieegan3
@@ -31,7 +70,6 @@ This release contains a mix of new features, performance improvements, and bugfi
 
 - ast: Ensure surplus leading zeros always error ([#7726](https://github.com/open-policy-agent/opa/pull/7726)) authored by @charlieegan3
 - ast: Fixing type-checker schema cache race condition for inlined schemas ([#7679](https://github.com/open-policy-agent/opa/issues/7679), [7571](https://github.com/open-policy-agent/opa/issues/7571)) authored by @johanfylling reported by @daniel-petrov-gig
-- ast,format: Allowing keywords in Rego references ([#7709](https://github.com/open-policy-agent/opa/pull/7709)) authored by @johanfylling
 - perf: Improve performance when referencing "global" in loop ([#7654](https://github.com/open-policy-agent/opa/issues/7654)) authored by @anderseknert
 - topdown: Fix issue where path in `walk` would get mutated ([#7656](https://github.com/open-policy-agent/opa/issues/7656)) authored by @anderseknert reported by @robmyersrobmyers
 - topdown/http: Lenient application/json Content-Type header ([#6684](https://github.com/open-policy-agent/opa/issues/6684)) authored by @sspaink reported by @mrvanes
