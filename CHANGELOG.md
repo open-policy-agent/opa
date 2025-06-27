@@ -7,10 +7,10 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 This release contains a mix of new features, performance improvements, and bugfixes. Notably:
 
-- Parallel test execution
-- Allowing keywords in Rego references
-- Faster built-in function execution
 - Improvements to the OPA website and documentation
+- Allowing keywords in Rego references
+- Parallel test execution
+- Faster built-in function execution
 
 ### Modernized OPA Website ([#7037](https://github.com/open-policy-agent/opa/issues/7037))
 
@@ -23,24 +23,26 @@ Some highlights:
 - Feedback forms: Closing the feedback loop between docs authors and readers -- Please let us know if you dislike, or like, a docs page.
 - [Downloads page](https://www.openpolicyagent.org/docs#1-download-opa): Find your OS' installation instructions on a less cluttered page!
 
-Authored by @charlieegan3 and @sky3n3t
+Authored by @sky3n3t and @charlieegan3
 
 ### Allowing keywords in Rego references ([#7709](https://github.com/open-policy-agent/opa/pull/7709))
 
-Previously, Rego references could not contain terms that conflict with Rego keywords such as `if`, `else`, `not`, etc. 
+Previously, Rego references could not contain terms that conflict with Rego keywords such as `package`, `if`, `else`, `not`, etc.
+in certain constructs:
 
 ```rego
 package example
 
 allow if {
-    input.package.source # Not allowed since 'package' is a keyword
-    input["package"].destination # Allowed
+    input.package.source         # not allowed (before v1.6.0)
+    input["package"].destination # allowed
 }
 ```
 
-The constraints for valid Rego references have been relaxed to allow keywords, so the above example is now valid and will no longer cause a compilation error.
+The constraints for valid Rego references have been relaxed to allow keywords.
+Tthe above example is now valid and will no longer cause a compilation error.
 
-authored by @johanfylling
+Authored by @johanfylling
 
 ### Parallel Test Execution ([#7442](https://github.com/open-policy-agent/opa/issues/7442))
 
@@ -50,6 +52,15 @@ The performance boost is closely tied to the number of tests in your project and
 Parallelism can be disabled to run tests sequentially by setting the `--parallel` flag to `1`. E.g. `opa test . --parallel=1`.
 
 Authored by @sspaink reported by @anderseknert
+
+### Faster Builtin Function Evaluation
+
+The builtin context, an internal construct of OPA's evaluation engine, was previously provided to every builtin function.
+As it turns out, only very few of them actually need it, for caching, cancellation, or lookups.
+Those builtins are still provided with a builtin context, but for calls to all other builtins, we save the memory required by it.
+The impact is trememdous: Even though the size of a single builtin context is only about 270 bytes, in an example application (Regal), this change brings about 360 MB of reduced memory usage!
+
+Authored by @anderseknert
 
 ### Runtime, Tooling, SDK
 
