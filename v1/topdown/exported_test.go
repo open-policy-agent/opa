@@ -203,6 +203,7 @@ func testAssertErrorCode(t *testing.T, wantErrorCode string, err error) {
 }
 
 func testAssertErrorText(t *testing.T, wantText string, err error) {
+	t.Helper()
 	if err == nil {
 		t.Fatal("expected error but got success")
 	}
