@@ -111,6 +111,7 @@ Authored by @anderseknert
 - docs: policy-reference, update sig algs formatting ([#7685](https://github.com/open-policy-agent/opa/pull/7685)) authored by @charlieegan3
 - docs: Redirect old admission control link ([#7730](https://github.com/open-policy-agent/opa/pull/7730)) authored by @charlieegan3
 - docs: Refactored Networking Reference docs ([#7686](https://github.com/open-policy-agent/opa/pull/7686)) authored by @sky3n3t
+- docs: Revise sidebar order and layout ([#7731](https://github.com/open-policy-agent/opa/pull/7731)) authored by @charlieegan3
 - docs: Reworked existing policy examples to use PlaygroundExample ([#7690](https://github.com/open-policy-agent/opa/pull/7690)) authored by @sky3n3t
 - docs: Show a feedback popup on the docs site ([#7663](https://github.com/open-policy-agent/opa/pull/7663)) authored by @charlieegan3
 - docs: Show edge rather than latest release ([#7717](https://github.com/open-policy-agent/opa/pull/7717)) authored by @charlieegan3
