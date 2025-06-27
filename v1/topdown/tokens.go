@@ -638,19 +638,13 @@ func (constraints *tokenConstraints) validate() error {
 // verify verifies a JWT using the constraints and the algorithm from the header
 func (constraints *tokenConstraints) verify(kid, alg, header, payload, signature string) error {
 	// Construct the payload
-	plaintext := []byte(header)
-	plaintext = append(plaintext, []byte(".")...)
-	plaintext = append(plaintext, payload...)
-	// Look up the algorithm
-	a, ok := tokenAlgorithms[alg]
-	if !ok {
-		return fmt.Errorf("unknown JWS algorithm: %s", alg)
-	}
+	plaintext := append(append([]byte(header), '.'), []byte(payload)...)
+
 	// If we're configured with asymmetric key(s) then only trust that
 	if constraints.keys != nil {
 		if kid != "" {
 			if key := getKeyByKid(kid, constraints.keys); key != nil {
-				err := a.verify(key.key, a.hash, plaintext, []byte(signature))
+				err := jwsbb.Verify(key.key, alg, plaintext, []byte(signature))
 				if err != nil {
 					return errSignatureNotVerified
 				}
@@ -661,7 +655,7 @@ func (constraints *tokenConstraints) verify(kid, alg, header, payload, signature
 		verified := false
 		for _, key := range constraints.keys {
 			if key.alg == "" {
-				err := a.verify(key.key, a.hash, plaintext, []byte(signature))
+				err := jwsbb.Verify(key.key, alg, plaintext, []byte(signature))
 				if err == nil {
 					verified = true
 					break
@@ -670,7 +664,7 @@ func (constraints *tokenConstraints) verify(kid, alg, header, payload, signature
 				if alg != key.alg {
 					continue
 				}
-				err := a.verify(key.key, a.hash, plaintext, []byte(signature))
+				err := jwsbb.Verify(key.key, alg, plaintext, []byte(signature))
 				if err == nil {
 					verified = true
 					break
@@ -684,7 +678,11 @@ func (constraints *tokenConstraints) verify(kid, alg, header, payload, signature
 		return nil
 	}
 	if constraints.secret != "" {
-		return a.verify([]byte(constraints.secret), a.hash, plaintext, []byte(signature))
+		err := jwsbb.Verify([]byte(constraints.secret), alg, plaintext, []byte(signature))
+		if err != nil {
+			return errSignatureNotVerified
+		}
+		return nil
 	}
 	// (*tokenConstraints)validate() should prevent this happening
 	return errors.New("unexpectedly found no keys to trust")
@@ -716,95 +714,24 @@ type (
 	tokenVerifyAsymmetricFunction func(key any, hash crypto.Hash, digest []byte, signature []byte) error
 )
 
-// jwtAlgorithm describes a JWS 'alg' value
-type tokenAlgorithm struct {
-	hash   crypto.Hash
-	verify tokenVerifyFunction
-}
-
 // tokenAlgorithms is the known JWT algorithms
-var tokenAlgorithms = map[string]tokenAlgorithm{
-	"RS256": {crypto.SHA256, verifyAsymmetric(verifyRSAPKCS)},
-	"RS384": {crypto.SHA384, verifyAsymmetric(verifyRSAPKCS)},
-	"RS512": {crypto.SHA512, verifyAsymmetric(verifyRSAPKCS)},
-	"PS256": {crypto.SHA256, verifyAsymmetric(verifyRSAPSS)},
-	"PS384": {crypto.SHA384, verifyAsymmetric(verifyRSAPSS)},
-	"PS512": {crypto.SHA512, verifyAsymmetric(verifyRSAPSS)},
-	"ES256": {crypto.SHA256, verifyAsymmetric(verifyECDSA)},
-	"ES384": {crypto.SHA384, verifyAsymmetric(verifyECDSA)},
-	"ES512": {crypto.SHA512, verifyAsymmetric(verifyECDSA)},
-	"HS256": {crypto.SHA256, verifyHMAC},
-	"HS384": {crypto.SHA384, verifyHMAC},
-	"HS512": {crypto.SHA512, verifyHMAC},
+var tokenAlgorithms = map[string]struct{}{
+	"RS256": {},
+	"RS384": {},
+	"RS512": {},
+	"PS256": {},
+	"PS384": {},
+	"PS512": {},
+	"ES256": {},
+	"ES384": {},
+	"ES512": {},
+	"HS256": {},
+	"HS384": {},
+	"HS512": {},
 }
 
 // errSignatureNotVerified is returned when a signature cannot be verified.
 var errSignatureNotVerified = errors.New("signature not verified")
-
-func verifyHMAC(key any, hash crypto.Hash, payload []byte, signature []byte) error {
-	macKey, ok := key.([]byte)
-	if !ok {
-		return errors.New("incorrect symmetric key type")
-	}
-	mac := hmac.New(hash.New, macKey)
-	if _, err := mac.Write(payload); err != nil {
-		return err
-	}
-	if !hmac.Equal(signature, mac.Sum([]byte{})) {
-		return errSignatureNotVerified
-	}
-	return nil
-}
-
-func verifyAsymmetric(verify tokenVerifyAsymmetricFunction) tokenVerifyFunction {
-	return func(key any, hash crypto.Hash, payload []byte, signature []byte) error {
-		h := hash.New()
-		h.Write(payload)
-		return verify(key, hash, h.Sum([]byte{}), signature)
-	}
-}
-
-func verifyRSAPKCS(key any, hash crypto.Hash, digest []byte, signature []byte) error {
-	publicKeyRsa, ok := key.(*rsa.PublicKey)
-	if !ok {
-		return errors.New("incorrect public key type")
-	}
-	if err := rsa.VerifyPKCS1v15(publicKeyRsa, hash, digest, signature); err != nil {
-		return errSignatureNotVerified
-	}
-	return nil
-}
-
-func verifyRSAPSS(key any, hash crypto.Hash, digest []byte, signature []byte) error {
-	publicKeyRsa, ok := key.(*rsa.PublicKey)
-	if !ok {
-		return errors.New("incorrect public key type")
-	}
-	if err := rsa.VerifyPSS(publicKeyRsa, hash, digest, signature, nil); err != nil {
-		return errSignatureNotVerified
-	}
-	return nil
-}
-
-func verifyECDSA(key any, _ crypto.Hash, digest []byte, signature []byte) (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("ECDSA signature verification error: %v", r)
-		}
-	}()
-	publicKeyEcdsa, ok := key.(*ecdsa.PublicKey)
-	if !ok {
-		return errors.New("incorrect public key type")
-	}
-	r, s := &big.Int{}, &big.Int{}
-	n := len(signature) / 2
-	r.SetBytes(signature[:n])
-	s.SetBytes(signature[n:])
-	if ecdsa.Verify(publicKeyEcdsa, digest, r, s) {
-		return nil
-	}
-	return errSignatureNotVerified
-}
 
 // JWT header parsing and parameters. See tokens_test.go for unit tests.
 
@@ -919,11 +846,16 @@ func commonBuiltinJWTEncodeSign(bctx BuiltinContext, inputHeaders, jwsPayload, j
 		return errors.New("failed to get first key from JWK set")
 	}
 
-	// Parse headers to get algorithm. Are we sure we don't want to check against alg="none"?
+	// Parse headers to get algorithm.
 	headers := jwsbb.HeaderParse(inputHeaders)
 	algStr, err := jwsbb.HeaderGetString(headers, "alg")
 	if err != nil {
 		return fmt.Errorf("missing or invalid 'alg' header: %w", err)
+	}
+	// Make sure the algorithm is supported.
+	_, ok = tokenAlgorithms[algStr]
+	if !ok {
+		return fmt.Errorf("unknown JWS algorithm: %s", algStr)
 	}
 
 	typ, err := jwsbb.HeaderGetString(headers, "typ")
