@@ -1402,6 +1402,13 @@
     }
   },
   "features": {
+    "keywords_in_refs": {
+      "Major": 1,
+      "Minor": 6,
+      "Patch": 0,
+      "PreRelease": "",
+      "Metadata": ""
+    },
     "rego_v1": {
       "Major": 1,
       "Minor": 0,
