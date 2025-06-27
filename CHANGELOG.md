@@ -22,6 +22,7 @@ Some highlights:
 - Sidebar redesign: Making it easier to find what you're looking for in our docs
 - Feedback forms: Closing the feedback loop between docs authors and readers -- Please let us know if you dislike, or like, a docs page.
 - [Downloads page](https://www.openpolicyagent.org/docs#1-download-opa): Find your OS' installation instructions on a less cluttered page!
+- And much more
 
 Authored by @sky3n3t and @charlieegan3
 
@@ -40,7 +41,7 @@ allow if {
 ```
 
 The constraints for valid Rego references have been relaxed to allow keywords.
-Tthe above example is now valid and will no longer cause a compilation error.
+The above example is now valid and will no longer cause a compilation error.
 
 Authored by @johanfylling
 
@@ -58,7 +59,7 @@ Authored by @sspaink reported by @anderseknert
 The builtin context, an internal construct of OPA's evaluation engine, was previously provided to every builtin function.
 As it turns out, only very few of them actually need it, for caching, cancellation, or lookups.
 Those builtins are still provided with a builtin context, but for calls to all other builtins, we save the memory required by it.
-The impact is trememdous: Even though the size of a single builtin context is only about 270 bytes, in an example application (Regal), this change brings about 360 MB of reduced memory usage!
+The impact is tremendous: Even though the size of a single builtin context is only about 270 bytes, in an example application (Regal), this change brings about 360 MB of reduced memory usage!
 
 Authored by @anderseknert
 
