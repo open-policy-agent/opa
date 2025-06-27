@@ -5,11 +5,11 @@ import builtins from "@generated/builtin-data/default/builtins.json";
 
 import styles from "./styles.module.css";
 
-export default function BuiltinSearch({ entryLimit }) {
+export default function BuiltinSearch({ entryLimit, alwaysShow }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [isWasm, setIsWasm] = useState(false);
-  const isFiltered = isWasm || searchTerm || selectedCategory;
+  const isFiltered = isWasm || searchTerm || selectedCategory || alwaysShow;
   const displayLimit = entryLimit;
   const allRows = useMemo(() => {
     return (Object.keys(builtins._categories).filter((a) => (a != "internal"))
@@ -19,7 +19,9 @@ export default function BuiltinSearch({ entryLimit }) {
           .map((builtin) => {
             const fn = builtins[builtin];
 
-            const anchor = `builtin-${category}-${builtin.replaceAll(".", "")}`;
+            const anchor = `/docs/policy-reference/builtins/${category}#builtin-${category}-${
+              builtin.replaceAll(".", "")
+            }`;
 
             const isInfix = !!fn.infix;
             const isRelation = !!fn.relation;
@@ -116,7 +118,7 @@ function renderRow(row) {
         </span>
       </td>
       <td>
-        <a href={`#${row.anchor}`}>{row.name}</a>
+        <a href={`${row.anchor}`}>{row.name}</a>
         <br />
         <code>{row.signature}</code>
       </td>

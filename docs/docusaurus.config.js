@@ -8,7 +8,6 @@ const path = require("path");
 const { loadPages } = require("./src/lib/ecosystem/loadPages");
 
 const baseUrl = "/";
-const policyRefUrl = "/docs/policy-reference";
 
 // With JSDoc @type annotations, IDEs can provide config autocompletion
 /** @type {import("@docusaurus/types").DocusaurusConfig} */
@@ -44,9 +43,6 @@ const policyRefUrl = "/docs/policy-reference";
 				},
 			],
 		],
-		customFields: {
-			buildVersion: process.env.BUILD_VERSION,
-		},
 
 		markdown: {
 			mermaid: true,
@@ -374,18 +370,6 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
 						const { builtins } = content;
 
 						await createData("builtins.json", JSON.stringify(builtins, null, 2));
-						await Promise.all(
-							Object.keys(builtins._categories).map(async (entry) => {
-								const routePath = path.join(policyRefUrl, `/builtins/${entry}`);
-								return actions.addRoute({
-									path: routePath,
-									component: require.resolve("./src/BuiltinsCategory.js"),
-									exact: true,
-									modules: {},
-									customData: { category: entry },
-								});
-							}),
-						);
 					},
 				};
 			},
