@@ -1,0 +1,16 @@
+---
+title: Objects
+---
+<BuiltinTable category={"object"}/>
+- When `keys` are provided as an object only the top level keys on the object will be used, values are ignored.
+  For example: `object.remove({"a": {"b": {"c": 2}}, "x": 123}, {"a": 1}) == {"x": 123}` regardless of the value
+  for key `a` in the keys object, the following `keys` object gives the same result
+  `object.remove({"a": {"b": {"c": 2}}, "x": 123}, {"a": {"b": {"foo": "bar"}}}) == {"x": 123}`.
+- The `json` string `paths` may reference into array values by using index numbers. For example with the object
+  `{"a": ["x", "y", "z"]}` the path `a/1` references `y`. Nested structures are supported as well, for example:
+  `{"a": ["x", {"y": {"y1": {"y2": ["foo", "bar"]}}}, "z"]}` the path `a/1/y1/y2/0` references `"foo"`.
+- The `json` string `paths` support `~0`, or `~1` characters for `~` and `/` characters in key names.
+  It does not support `-` for last index of an array. For example the path `/foo~1bar~0` will reference `baz`
+  in `{ "foo/bar~": "baz" }`.
+- The `json` string `paths` may be an array of string path segments rather than a `/` separated string. For example
+  the path `a/b/c` can be passed in as `["a", "b", "c"]`.

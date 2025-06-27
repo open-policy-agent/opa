@@ -1,3 +1,7 @@
+---
+title: Token Verification
+---
+<BuiltinTable category={"tokens"}/>
 :::info
 Note that the `io.jwt.verify_XX` built-in methods verify **only** the signature. They **do not** provide any validation for the JWT
 payload and any claims specified. The `io.jwt.decode_verify` built-in will verify the payload and **all** standard claims.
@@ -51,9 +55,9 @@ jwks := `{
 ```
 
 <RunSnippet id="jwks.rego"/>
-<PlaygroundExample files="#jwks.rego #token.rego" dir={require.context("../../_examples/tokens/verify/jwks")} />
+<PlaygroundExample files="#jwks.rego #token.rego" dir={require.context("../_examples/tokens/verify/jwks")} />
 
-<PlaygroundExample files="#jwks.rego #token.rego" dir={require.context("../../_examples/tokens/verify/jwks_single")} />
+<PlaygroundExample files="#jwks.rego #token.rego" dir={require.context("../_examples/tokens/verify/jwks_single")} />
 
 #### Using PEM encoded X.509 Certificate
 
@@ -77,17 +81,17 @@ OHoCIHmNX37JOqTcTzGn2u9+c8NlnvZ0uDvsd1BmKPaUmjmm
 
 <RunSnippet id="cert.rego"/>
 
-<PlaygroundExample files="#cert.rego #token.rego" dir={require.context("../../_examples/tokens/verify/cert")} />
+<PlaygroundExample files="#cert.rego #token.rego" dir={require.context("../_examples/tokens/verify/cert")} />
 
-<PlaygroundExample files="#cert.rego #token.rego" dir={require.context("../../_examples/tokens/verify/cert_single")} />
+<PlaygroundExample files="#cert.rego #token.rego" dir={require.context("../_examples/tokens/verify/cert_single")} />
 
 #### Round Trip - Sign and Verify
 
 These examples show how to encode a token, verify, and decode it with the different options available.
 
-<PlaygroundExample dir={require.context("../../_examples/tokens/verify/sign_raw")} />
+<PlaygroundExample dir={require.context("../_examples/tokens/verify/sign_raw")} />
 
-<PlaygroundExample dir={require.context("../../_examples/tokens/verify/sign")} />
+<PlaygroundExample dir={require.context("../_examples/tokens/verify/sign")} />
 
 :::info
 Note that the resulting encoded token is different from the first example using
@@ -96,11 +100,3 @@ is using canonicalized formatting for the header and payload whereas
 `io.jwt.encode_sign_raw` does not change the whitespace of the strings passed
 in. The decoded and parsed JSON values are still the same.
 :::
-
-<!--
-    DO NOT MOVE THESE!
-    Would like them at the top but MDX parsing be weird and doing that breaks everything
--->
-
-import PlaygroundExample from '@site/src/components/PlaygroundExample';
-import RunSnippet from '@site/src/components/RunSnippet';
