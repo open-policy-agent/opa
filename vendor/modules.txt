@@ -49,6 +49,9 @@ github.com/containerd/platforms
 # github.com/cpuguy83/go-md2man/v2 v2.0.6
 ## explicit; go 1.12
 github.com/cpuguy83/go-md2man/v2/md2man
+# github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0
+## explicit; go 1.17
+github.com/decred/dcrd/dcrec/secp256k1/v4
 # github.com/dgraph-io/badger/v4 v4.7.0
 ## explicit; go 1.23.0
 github.com/dgraph-io/badger/v4
@@ -104,6 +107,17 @@ github.com/gobwas/glob/syntax/ast
 github.com/gobwas/glob/syntax/lexer
 github.com/gobwas/glob/util/runes
 github.com/gobwas/glob/util/strings
+# github.com/goccy/go-json v0.10.3
+## explicit; go 1.19
+github.com/goccy/go-json
+github.com/goccy/go-json/internal/decoder
+github.com/goccy/go-json/internal/encoder
+github.com/goccy/go-json/internal/encoder/vm
+github.com/goccy/go-json/internal/encoder/vm_color
+github.com/goccy/go-json/internal/encoder/vm_color_indent
+github.com/goccy/go-json/internal/encoder/vm_indent
+github.com/goccy/go-json/internal/errors
+github.com/goccy/go-json/internal/runtime
 # github.com/google/flatbuffers v25.2.10+incompatible
 ## explicit
 github.com/google/flatbuffers/go
@@ -148,6 +162,38 @@ github.com/kr/text
 # github.com/kylelemons/godebug v1.1.0
 ## explicit; go 1.11
 github.com/kylelemons/godebug/diff
+# github.com/lestrrat-go/blackmagic v1.0.4
+## explicit; go 1.23
+github.com/lestrrat-go/blackmagic
+# github.com/lestrrat-go/httpcc v1.0.1
+## explicit; go 1.16
+github.com/lestrrat-go/httpcc
+# github.com/lestrrat-go/httprc/v3 v3.0.0
+## explicit; go 1.23
+github.com/lestrrat-go/httprc/v3
+github.com/lestrrat-go/httprc/v3/errsink
+github.com/lestrrat-go/httprc/v3/proxysink
+github.com/lestrrat-go/httprc/v3/tracesink
+# github.com/lestrrat-go/jwx/v3 v3.0.4
+## explicit; go 1.23.0
+github.com/lestrrat-go/jwx/v3/cert
+github.com/lestrrat-go/jwx/v3/internal/base64
+github.com/lestrrat-go/jwx/v3/internal/ecutil
+github.com/lestrrat-go/jwx/v3/internal/json
+github.com/lestrrat-go/jwx/v3/internal/keyconv
+github.com/lestrrat-go/jwx/v3/internal/pool
+github.com/lestrrat-go/jwx/v3/internal/tokens
+github.com/lestrrat-go/jwx/v3/jwa
+github.com/lestrrat-go/jwx/v3/jwk
+github.com/lestrrat-go/jwx/v3/jwk/ecdsa
+github.com/lestrrat-go/jwx/v3/jws
+github.com/lestrrat-go/jwx/v3/transform
+# github.com/lestrrat-go/option v1.0.1
+## explicit; go 1.16
+github.com/lestrrat-go/option
+# github.com/lestrrat-go/option/v2 v2.0.0
+## explicit; go 1.23
+github.com/lestrrat-go/option/v2
 # github.com/mattn/go-runewidth v0.0.16
 ## explicit; go 1.9
 github.com/mattn/go-runewidth
@@ -219,6 +265,15 @@ github.com/russross/blackfriday/v2
 # github.com/sagikazarmark/locafero v0.7.0
 ## explicit; go 1.21
 github.com/sagikazarmark/locafero
+# github.com/segmentio/asm v1.2.0
+## explicit; go 1.18
+github.com/segmentio/asm/base64
+github.com/segmentio/asm/cpu
+github.com/segmentio/asm/cpu/arm
+github.com/segmentio/asm/cpu/arm64
+github.com/segmentio/asm/cpu/cpuid
+github.com/segmentio/asm/cpu/x86
+github.com/segmentio/asm/internal/unsafebytes
 # github.com/sergi/go-diff v1.3.1
 ## explicit; go 1.12
 github.com/sergi/go-diff/diffmatchpatch
@@ -357,7 +412,10 @@ go.uber.org/automaxprocs/maxprocs
 # go.uber.org/multierr v1.9.0
 ## explicit; go 1.19
 go.uber.org/multierr
-# golang.org/x/mod v0.24.0
+# golang.org/x/crypto v0.39.0
+## explicit; go 1.23.0
+golang.org/x/crypto/ed25519
+# golang.org/x/mod v0.25.0
 ## explicit; go 1.23.0
 golang.org/x/mod/semver
 # golang.org/x/net v0.40.0
@@ -375,16 +433,17 @@ golang.org/x/net/internal/timeseries
 golang.org/x/net/ipv4
 golang.org/x/net/ipv6
 golang.org/x/net/trace
-# golang.org/x/sync v0.14.0
+# golang.org/x/sync v0.15.0
 ## explicit; go 1.23.0
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
 # golang.org/x/sys v0.33.0
 ## explicit; go 1.23.0
+golang.org/x/sys/cpu
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 golang.org/x/sys/windows/registry
-# golang.org/x/text v0.25.0
+# golang.org/x/text v0.26.0
 ## explicit; go 1.23.0
 golang.org/x/text/encoding
 golang.org/x/text/encoding/internal
@@ -399,12 +458,12 @@ golang.org/x/text/unicode/norm
 # golang.org/x/time v0.11.0
 ## explicit; go 1.23.0
 golang.org/x/time/rate
-# golang.org/x/tools v0.22.0
-## explicit; go 1.19
+# golang.org/x/tools v0.33.0
+## explicit; go 1.23.0
 golang.org/x/tools/go/gcexportdata
-golang.org/x/tools/go/internal/packagesdriver
 golang.org/x/tools/go/packages
 golang.org/x/tools/go/types/objectpath
+golang.org/x/tools/go/types/typeutil
 golang.org/x/tools/internal/aliases
 golang.org/x/tools/internal/event
 golang.org/x/tools/internal/event/core
@@ -415,7 +474,7 @@ golang.org/x/tools/internal/gocommand
 golang.org/x/tools/internal/packagesinternal
 golang.org/x/tools/internal/pkgbits
 golang.org/x/tools/internal/stdlib
-golang.org/x/tools/internal/tokeninternal
+golang.org/x/tools/internal/typeparams
 golang.org/x/tools/internal/typesinternal
 golang.org/x/tools/internal/versions
 # google.golang.org/genproto/googleapis/api v0.0.0-20250519155744-55703ea1f237
