@@ -869,7 +869,7 @@ For example:
 - [nixpkgs](https://github.com/NixOS/nixpkgs/blob/master/pkgs/by-name/op/open-policy-agent/package.nix)
 - [Wolfi](https://github.com/wolfi-dev/os/blob/main/opa.yaml)
 - [FreeBSD](https://cgit.freebsd.org/ports/tree/sysutils/opa)
-- [NetBSB](https://pkgsrc.se/devel/opa)
+- [NetBSD](https://pkgsrc.se/devel/opa)
 
 In order to manually install the OPA binary from the GitHub release assets,
 please run the following:
