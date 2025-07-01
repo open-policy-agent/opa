@@ -4,7 +4,7 @@ import (
 	"github.com/vektah/gqlparser/v2/ast"
 
 	//nolint:staticcheck // Validator rules each use dot imports for convenience.
-	. "github.com/vektah/gqlparser/v2/validator"
+	. "github.com/vektah/gqlparser/v2/validator/core"
 )
 
 var NoUnusedFragmentsRule = Rule{
@@ -29,8 +29,4 @@ var NoUnusedFragmentsRule = Rule{
 			}
 		})
 	},
-}
-
-func init() {
-	AddRule(NoUnusedFragmentsRule.Name, NoUnusedFragmentsRule.RuleFunc)
 }
