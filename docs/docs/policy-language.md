@@ -3528,7 +3528,9 @@ This contains samples for Envoy, Kubernetes, and Terraform including correspondi
 
 See here for the [JSON Schema Reference](https://docs.solo.io/gloo-edge/latest/guides/security/auth/extauth/opa/).
 
-For a tool that generates JSON Schema from JSON samples, [please see here](https://jsonschema.net/home).
+For a tool that generates JSON Schema from JSON samples,
+[please see here](https://app.quicktype.io/#l=schema)
+([Other Tools](https://json-schema.org/tools?query=&sortBy=name&sortOrder=ascending&groupBy=toolingTypes&licenses=&languages=&drafts=&toolingTypes=data-to-schema&environments=&showObsolete=false&supportsBowtie=false)).
 
 ## Strict Mode
 
