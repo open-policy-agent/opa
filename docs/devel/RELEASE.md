@@ -157,7 +157,7 @@ standard GitHub fork workflow. See [OPA Dev Instructions](DEVELOPMENT.md)
     ```
 - A versioned release is created automatically at
   `vX-Y-Z--opa-docs.netlify.app`, automation is configured in
-  [opa-docs-machinery](https://github.com/open-policy-agent/opa-docs-machinery/actions).
+  `github.com/open-policy-agent/opa-docs-machinery/actions`.
 
 # Bugfix Release Process
 
