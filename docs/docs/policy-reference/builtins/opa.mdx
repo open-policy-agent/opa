@@ -1,0 +1,23 @@
+---
+title: OPA
+---
+<BuiltinTable category={"opa"}/>
+:::danger
+Policies that depend on the output of `opa.runtime` may return different answers depending on how OPA was started.
+If possible, prefer using an explicit `input` or `data` value instead of `opa.runtime`.
+:::
+
+### Debugging
+
+| Built-in     | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Details                                               |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `print(...)` | `print` is used to output the values of variables for debugging purposes. `print` calls have no effect on the result of queries or rules. All variables passed to `print` must be assigned inside of the query or rule. If any of the `print` arguments are undefined, their values are represented as `<undefined>` in the output stream. Because policies can be invoked via different interfaces (e.g., CLI, HTTP API, etc.) the exact output format differs. See the table below for details. | <span className="tag is-warning">SDK-dependent</span> |
+
+| API                   | Output      | Memo                                                                                                                                                                             |
+| --------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `opa eval`            | `stderr`    |                                                                                                                                                                                  |
+| `opa run` (REPL)      | `stderr`    |                                                                                                                                                                                  |
+| `opa test`            | `stdout`    | Specify `-v` to see output for passing tests. Output for failing tests is displayed automatically.                                                                               |
+| `opa run -s` (server) | `stderr`    | Specify `--log-level=info` (default) or higher. Output is sent to the log stream. Use `--log-format=text` for pretty output.                                                     |
+| Go (library)          | `io.Writer` | [https://pkg.go.dev/github.com/open-policy-agent/opa/rego#example-Rego-Print_statements](https://pkg.go.dev/github.com/open-policy-agent/opa/rego#example-Rego-Print_statements) |
+
