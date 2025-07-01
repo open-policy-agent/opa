@@ -1,5 +1,29 @@
 package test.not.package.import.as.default.else.with.null.true.false.some
 
+import data.not as foo1
+import data.package as foo2
+import data.import as foo3
+import data.as as foo4
+import data.default as foo5
+import data.else as foo6
+import data.with as foo7
+import data.null as foo8
+import data.true as foo9
+import data.false as foo10
+import data.some as foo11
+
+import data.not.bar1
+import data.package.bar2
+import data.import.bar3
+import data.as.bar4
+import data.default.bar5
+import data.else.bar6
+import data.with.bar7
+import data.null.bar8
+import data.true.bar9
+import data.false.bar10
+import data.some.bar11
+
 p {
 	a.not == 1
 	a.package == 1
