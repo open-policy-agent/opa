@@ -1,0 +1,37 @@
+---
+title: GraphQL
+---
+<BuiltinTable category={"graphql"}/>
+:::info
+Custom [GraphQL `@directive`](http://spec.graphql.org/October2021/#sec-Language.Directives) definitions defined by your GraphQL framework will need to be included manually as part of your GraphQL schema string in order for validation to work correctly on GraphQL queries using those directives.
+
+Directives defined as part of the GraphQL specification (`@skip`, `@include`, `@deprecated`, and `@specifiedBy`) are supported by default, and do not need to be added to your schema manually.
+:::
+
+#### GraphQL Custom `@directive` Example
+
+New `@directive` definitions can be defined separately from your schema, so long as you `concat` them onto the schema definition before attempting to validate a query/schema using those custom directives.
+In the following example, a custom directive is defined, and then used in the schema to annotate an argument on one of the allowed query types.
+
+```rego
+package graphql_custom_directive_example
+
+custom_directives := `
+directive @customDeprecatedArgs(
+  reason: String
+) on ARGUMENT_DEFINITION
+`
+
+schema := `
+type Query {
+    foo(name: String! @customDeprecatedArgs(reason: "example reason")): String,
+    bar: String!
+}
+`
+
+query := `query { foo(name: "example") }`
+
+p {
+    graphql.is_valid(query,  concat("", [custom_directives, schema]))
+}
+```
