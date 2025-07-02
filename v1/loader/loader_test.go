@@ -1011,7 +1011,7 @@ func TestLoadRooted(t *testing.T) {
 	})
 }
 
-//go:embed internal/embedtest
+//go:embed testdata/embedtest
 var embedTestFS embed.FS
 
 func TestLoadFS(t *testing.T) {
@@ -1021,7 +1021,7 @@ func TestLoadFS(t *testing.T) {
 		"three:baz",
 	}
 
-	fsys, err := fs.Sub(embedTestFS, "internal/embedtest")
+	fsys, err := fs.Sub(embedTestFS, "testdata/embedtest")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -1060,7 +1060,7 @@ func TestLoadWithJSONOptions(t *testing.T) {
 		"three:baz",
 	}
 
-	fsys, err := fs.Sub(embedTestFS, "internal/embedtest")
+	fsys, err := fs.Sub(embedTestFS, "testdata/embedtest")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
