@@ -1627,7 +1627,7 @@ func (w *writer) writeImports(imports []*ast.Import, comments []*ast.Comment) ([
 func (w *writer) writeImport(imp *ast.Import) error {
 	path := imp.Path.Value.(ast.Ref)
 
-	buf := []string{"import"}
+	w.write("import ")
 
 	if _, ok := future.WhichFutureKeyword(imp); ok {
 		// We don't want to wrap future.keywords imports in parens, so we create a new writer that doesn't
@@ -1638,15 +1638,17 @@ func (w *writer) writeImport(imp *ast.Import) error {
 		if err != nil {
 			return err
 		}
-		buf = append(buf, w2.buf.String())
+		w.write(w2.buf.String())
 	} else {
-		buf = append(buf, path.String())
+		_, err := w.writeRef(path, nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	if len(imp.Alias) > 0 {
-		buf = append(buf, "as "+imp.Alias.String())
+		w.write(" as " + imp.Alias.String())
 	}
-	w.write(strings.Join(buf, " "))
 
 	return nil
 }
