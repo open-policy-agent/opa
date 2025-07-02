@@ -1,3 +1,3 @@
 package example
 
-allow = input.foo
+allow := input.foo
