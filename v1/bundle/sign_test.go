@@ -132,8 +132,8 @@ func TestGenerateSignedTokenWithClaims(t *testing.T) {
 		}
 
 		signatures := m.Signatures()
-		if len(signatures) == 0 {
-			t.Fatal("No signatures found")
+		if len(signatures) != 1 {
+			t.Fatalf("There should be exactly one signature, got %d", len(signatures))
 		}
 
 		if v, ok := signatures[0].ProtectedHeaders().KeyID(); !ok || v != keyid {
