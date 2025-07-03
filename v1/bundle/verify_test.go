@@ -40,12 +40,12 @@ func TestVerifyBundleSignature(t *testing.T) {
 		"invalid_token_header_base64": {
 			SignaturesConfig{Signatures: []string{badTokenHeaderBase64}},
 			NewVerificationConfig(nil, "", "", nil),
-			true, errors.New("failed to parse JWT: jws.Parse: failed to parse compact format: failed to decode protected headers: failed to decode source: illegal base64 data at input byte 50"),
+			true, errors.New("failed to extract key ID from headers: failed to decode source: illegal base64 data at input byte 50"),
 		},
 		"invalid_token_header_json": {
 			SignaturesConfig{Signatures: []string{badTokenHeaderJSON}},
 			NewVerificationConfig(nil, "", "", nil),
-			true, errors.New("failed to parse JWT: jws.Parse: failed to parse compact format: failed to parse JOSE headers: unexpected EOF"),
+			true, errors.New("failed to extract key ID from headers: cannot parse JSON: cannot parse object: cannot parse object value: cannot parse string: missing closing '\"'; unparsed tail: \"\""),
 		},
 		"bad_token_payload": {
 			SignaturesConfig{Signatures: []string{badTokenPayload}},
