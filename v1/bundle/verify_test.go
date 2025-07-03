@@ -190,7 +190,7 @@ yQjtQ8mbDOsiLLvh7wIDAQAB==
 		"public_key_with_invalid_HS256_sign": {
 			signedTokenHS256,
 			map[string]*KeyConfig{"foo": {Key: "bad_secret", Algorithm: "HS256"}}, "", "",
-			true, errors.New("jws.Verify: could not verify message using any of the signatures or keys: failed to match hmac signature"),
+			true, errors.New("failed to verify JWT signature: invalid HMAC signature"),
 		},
 		"public_key_with_valid_RS256_sign": {
 			signedTokenRS256,
@@ -200,7 +200,7 @@ yQjtQ8mbDOsiLLvh7wIDAQAB==
 		"public_key_with_invalid_RS256_sign": {
 			signedTokenRS256,
 			map[string]*KeyConfig{"foo": {Key: publicKeyInvalid, Algorithm: "RS256"}}, "", "",
-			true, errors.New("jws.Verify: could not verify message using any of the signatures or keys: crypto/rsa: verification error"),
+			true, errors.New("failed to verify JWT signature: crypto/rsa: verification error"),
 		},
 		"public_key_with_bad_cert_RS256": {
 			signedTokenRS256,
