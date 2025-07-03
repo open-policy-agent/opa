@@ -193,7 +193,7 @@ func verifyJWTSignature(token string, bvc *VerificationConfig) (*DecodedSignatur
 	copy(signbuf[len(hdrb64)+1:], payloadb64)
 
 	if err := jwsbb.Verify(parsedKey, alg.String(), signbuf, signature); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to verify JWT signature: %w", err)
 	}
 
 	// verify the scope
