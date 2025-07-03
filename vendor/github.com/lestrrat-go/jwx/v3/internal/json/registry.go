@@ -11,13 +11,13 @@ type CustomDecoder interface {
 	// Decode takes a JSON encoded byte slice and returns the desired
 	// decoded value,which will be used as the value for that field
 	// registered through RegisterCustomField
-	Decode([]byte) (interface{}, error)
+	Decode([]byte) (any, error)
 }
 
 // CustomDecodeFunc is a stateless, function-based implementation of CustomDecoder
-type CustomDecodeFunc func([]byte) (interface{}, error)
+type CustomDecodeFunc func([]byte) (any, error)
 
-func (fn CustomDecodeFunc) Decode(data []byte) (interface{}, error) {
+func (fn CustomDecodeFunc) Decode(data []byte) (any, error) {
 	return fn(data)
 }
 
@@ -26,7 +26,7 @@ type objectTypeDecoder struct {
 	name string
 }
 
-func (dec *objectTypeDecoder) Decode(data []byte) (interface{}, error) {
+func (dec *objectTypeDecoder) Decode(data []byte) (any, error) {
 	ptr := reflect.New(dec.typ).Interface()
 	if err := Unmarshal(data, ptr); err != nil {
 		return nil, fmt.Errorf(`failed to decode field %s: %w`, dec.name, err)
@@ -46,7 +46,7 @@ func NewRegistry() *Registry {
 	}
 }
 
-func (r *Registry) Register(name string, object interface{}) {
+func (r *Registry) Register(name string, object any) {
 	if object == nil {
 		r.mu.Lock()
 		defer r.mu.Unlock()
@@ -66,7 +66,7 @@ func (r *Registry) Register(name string, object interface{}) {
 	}
 }
 
-func (r *Registry) Decode(dec *Decoder, name string) (interface{}, error) {
+func (r *Registry) Decode(dec *Decoder, name string) (any, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -82,7 +82,7 @@ func (r *Registry) Decode(dec *Decoder, name string) (interface{}, error) {
 		return v, nil
 	}
 
-	var decoded interface{}
+	var decoded any
 	if err := dec.Decode(&decoded); err != nil {
 		return nil, fmt.Errorf(`failed to decode field %s: %w`, name, err)
 	}

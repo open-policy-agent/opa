@@ -39,11 +39,11 @@ func NewEncoder(w io.Writer) *json.Encoder {
 }
 
 // Marshal is just a proxy for "encoding/json".Marshal
-func Marshal(v interface{}) ([]byte, error) {
+func Marshal(v any) ([]byte, error) {
 	return json.Marshal(v)
 }
 
 // MarshalIndent is just a proxy for "encoding/json".MarshalIndent
-func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
+func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
 	return json.MarshalIndent(v, prefix, indent)
 }

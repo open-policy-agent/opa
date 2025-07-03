@@ -26,7 +26,7 @@ func DecoderSettings(inUseNumber bool) {
 
 // Unmarshal respects the values specified in DecoderSettings,
 // and uses a Decoder that has certain features turned on/off
-func Unmarshal(b []byte, v interface{}) error {
+func Unmarshal(b []byte, v any) error {
 	dec := NewDecoder(bytes.NewReader(b))
 	return dec.Decode(v)
 }
@@ -74,7 +74,7 @@ func AssignNextStringToken(dst **string, dec *Decoder) error {
 var FlattenAudience uint32
 
 func MarshalAudience(aud []string, flatten bool) ([]byte, error) {
-	var val interface{}
+	var val any
 	if len(aud) == 1 && flatten {
 		val = aud[0]
 	} else {
@@ -84,7 +84,7 @@ func MarshalAudience(aud []string, flatten bool) ([]byte, error) {
 }
 
 func EncodeAudience(enc *Encoder, aud []string, flatten bool) error {
-	var val interface{}
+	var val any
 	if len(aud) == 1 && flatten {
 		val = aud[0]
 	} else {
@@ -119,7 +119,7 @@ func (dc *decodeCtx) Registry() *Registry {
 	return dc.registry
 }
 
-func Dump(v interface{}) {
+func Dump(v any) {
 	enc := NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	//nolint:errchkjson

@@ -54,6 +54,9 @@ interfaces:
       - verifyOption
       - parseOption
       - readFileOption
+  - name: GlobalOption
+    comment: |
+      GlobalOption can be passed to `jws.Settings()` to set global options for the JWS package.
 options:
   - ident: Key
     skip_option: true
@@ -106,7 +109,7 @@ options:
       a successful verification.
   - ident: KeyUsed
     interface: VerifyOption
-    argument_type: 'interface{}'
+    argument_type: 'any'
     comment: |
       WithKeyUsed allows you to specify the `jws.Verify()` function to
       return the key used for verification. This may be useful when
@@ -114,7 +117,7 @@ options:
       and you want to know which key was successful at verifying the
       signature.
       
-      `v` must be a pointer to an empty `interface{}`. Do not use
+      `v` must be a pointer to an empty `any`. Do not use
       `jwk.Key` here unless you are 100% sure that all keys that you
       have provided are instances of `jwk.Key` (remember that the
       jwx API allows users to specify a raw key such as *rsa.PublicKey)
@@ -220,3 +223,12 @@ options:
     argument_type: fs.FS
     comment: |
       WithFS specifies the source `fs.FS` object to read the file from.
+  - ident: LegacySigners
+    interface: GlobalOption
+    constant_value: true
+    comment: |
+      WithLegacySigners specifies whether the JWS package should use legacy
+      signers for signing JWS messages. 
+      
+      Usually there's no need to use this option, as the new signers and
+      verifiers are loaded by default.

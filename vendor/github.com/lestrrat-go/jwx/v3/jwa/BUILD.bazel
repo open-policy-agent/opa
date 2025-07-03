@@ -15,6 +15,7 @@ go_library(
     importpath = "github.com/lestrrat-go/jwx/v3/jwa",
     visibility = ["//visibility:public"],
     deps = [
+        "//internal/tokens",
         "@com_github_lestrrat_go_option_v2//:option",
     ],
 )
@@ -33,6 +34,7 @@ go_test(
     deps = [
         ":jwa",
         "@com_github_stretchr_testify//require",
+        "@com_github_lestrrat_go_option_v2//:option",
     ],
 )
 

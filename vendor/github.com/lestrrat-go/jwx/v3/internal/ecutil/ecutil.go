@@ -14,7 +14,7 @@ const (
 )
 
 var ecpointBufferPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		// In most cases the curve bit size will be less than this length
 		// so allocate the maximum, and keep reusing
 		buf := make([]byte, 0, ec521BufferSize)

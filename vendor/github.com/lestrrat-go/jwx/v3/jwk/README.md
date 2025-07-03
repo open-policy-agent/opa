@@ -132,7 +132,7 @@ func Example_jwk_usage() {
   }
 
   for i := 0; i < set.Len(); i++ {
-    var rawkey interface{} // This is where we would like to store the raw key, like *rsa.PrivateKey or *ecdsa.PrivateKey
+    var rawkey any // This is where we would like to store the raw key, like *rsa.PrivateKey or *ecdsa.PrivateKey
     key, ok := set.Key(i)  // This retrieves the corresponding jwk.Key
     if !ok {
       log.Printf("failed to get key at index %d", i)

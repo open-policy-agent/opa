@@ -33,7 +33,7 @@ func init() {
 // OKP keys are used to represent private/public pairs of thse elliptic curve
 // keys. But note that the name just means Octet Key Pair.
 
-func (k *okpPublicKey) Import(rawKeyIf interface{}) error {
+func (k *okpPublicKey) Import(rawKeyIf any) error {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 
@@ -54,7 +54,7 @@ func (k *okpPublicKey) Import(rawKeyIf interface{}) error {
 	return nil
 }
 
-func (k *okpPrivateKey) Import(rawKeyIf interface{}) error {
+func (k *okpPrivateKey) Import(rawKeyIf any) error {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 
@@ -78,7 +78,7 @@ func (k *okpPrivateKey) Import(rawKeyIf interface{}) error {
 	return nil
 }
 
-func buildOKPPublicKey(alg jwa.EllipticCurveAlgorithm, xbuf []byte) (interface{}, error) {
+func buildOKPPublicKey(alg jwa.EllipticCurveAlgorithm, xbuf []byte) (any, error) {
 	switch alg {
 	case jwa.Ed25519():
 		return ed25519.PublicKey(xbuf), nil
@@ -94,7 +94,7 @@ func buildOKPPublicKey(alg jwa.EllipticCurveAlgorithm, xbuf []byte) (interface{}
 }
 
 // Raw returns the EC-DSA public key represented by this JWK
-func (k *okpPublicKey) Raw(v interface{}) error {
+func (k *okpPublicKey) Raw(v any) error {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
 
@@ -114,7 +114,7 @@ func (k *okpPublicKey) Raw(v interface{}) error {
 	return nil
 }
 
-func buildOKPPrivateKey(alg jwa.EllipticCurveAlgorithm, xbuf []byte, dbuf []byte) (interface{}, error) {
+func buildOKPPrivateKey(alg jwa.EllipticCurveAlgorithm, xbuf []byte, dbuf []byte) (any, error) {
 	if len(dbuf) == 0 {
 		return nil, fmt.Errorf(`cannot use empty seed`)
 	}
@@ -146,7 +146,7 @@ var okpConvertibleKeys = []reflect.Type{
 }
 
 // This is half baked. I think it will blow up if we used ecdh.* keys and/or x25519 keys
-func okpJWKToRaw(key Key, _ interface{} /* this is unused because this is half baked */) (interface{}, error) {
+func okpJWKToRaw(key Key, _ any /* this is unused because this is half baked */) (any, error) {
 	extracted, err := extractEmbeddedKey(key, okpConvertibleKeys)
 	if err != nil {
 		return nil, fmt.Errorf(`jwk.OKP: failed to extract embedded key: %w`, err)
@@ -215,7 +215,7 @@ func makeOKPPublicKey(src Key) (Key, error) {
 		case OKPDKey:
 			continue
 		default:
-			var v interface{}
+			var v any
 			if err := src.Get(k, &v); err != nil {
 				return nil, fmt.Errorf(`failed to get field %q: %w`, k, err)
 			}

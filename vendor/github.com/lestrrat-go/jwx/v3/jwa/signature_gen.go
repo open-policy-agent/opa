@@ -152,16 +152,15 @@ func EmptySignatureAlgorithm() SignatureAlgorithm {
 func NewSignatureAlgorithm(name string, options ...NewSignatureAlgorithmOption) SignatureAlgorithm {
 	var deprecated bool
 	var isSymmetric bool
-	//nolint:forcetypeassert
 	for _, option := range options {
 		switch option.Ident() {
 		case identIsSymmetric{}:
 			if err := option.Value(&isSymmetric); err != nil {
-				panic(fmt.Sprintf(`jwa: NewSignatureAlgorithm: %s`, err))
+				panic("jwa.NewSignatureAlgorithm: WithIsSymmetric option must be a boolean")
 			}
 		case identDeprecated{}:
 			if err := option.Value(&deprecated); err != nil {
-				panic(fmt.Sprintf(`jwa: NewSignatureAlgorithm: %s`, err))
+				panic("jwa.NewSignatureAlgorithm: WithDeprecated option must be a boolean")
 			}
 		}
 	}
@@ -236,7 +235,7 @@ func (s *SignatureAlgorithm) UnmarshalJSON(data []byte) error {
 	}
 	v, ok := LookupSignatureAlgorithm(name)
 	if !ok {
-		return fmt.Errorf(`unknown SignatureAlgorithm: %s`, name)
+		return fmt.Errorf(`unknown SignatureAlgorithm: %q`, name)
 	}
 	*s = v
 	return nil

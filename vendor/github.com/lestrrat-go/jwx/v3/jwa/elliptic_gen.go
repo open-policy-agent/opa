@@ -104,12 +104,11 @@ func EmptyEllipticCurveAlgorithm() EllipticCurveAlgorithm {
 // NewEllipticCurveAlgorithm creates a new EllipticCurveAlgorithm object with the given name.
 func NewEllipticCurveAlgorithm(name string, options ...NewAlgorithmOption) EllipticCurveAlgorithm {
 	var deprecated bool
-	//nolint:forcetypeassert
 	for _, option := range options {
 		switch option.Ident() {
 		case identDeprecated{}:
 			if err := option.Value(&deprecated); err != nil {
-				panic(fmt.Sprintf(`jwa: NewEllipticCurveAlgorithm: %s`, err))
+				panic("jwa.NewEllipticCurveAlgorithm: WithDeprecated option must be a boolean")
 			}
 		}
 	}
@@ -184,7 +183,7 @@ func (s *EllipticCurveAlgorithm) UnmarshalJSON(data []byte) error {
 	}
 	v, ok := LookupEllipticCurveAlgorithm(name)
 	if !ok {
-		return fmt.Errorf(`unknown EllipticCurveAlgorithm: %s`, name)
+		return fmt.Errorf(`unknown EllipticCurveAlgorithm: %q`, name)
 	}
 	*s = v
 	return nil

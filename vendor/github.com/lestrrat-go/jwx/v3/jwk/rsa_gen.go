@@ -45,7 +45,7 @@ type rsaPublicKey struct {
 	x509CertThumbprint     *string     // https://tools.ietf.org/html/rfc7515#section-4.1.7
 	x509CertThumbprintS256 *string     // https://tools.ietf.org/html/rfc7515#section-4.1.8
 	x509URL                *string     // https://tools.ietf.org/html/rfc7515#section-4.1.5
-	privateParams          map[string]interface{}
+	privateParams          map[string]any
 	mu                     *sync.RWMutex
 	dc                     json.DecodeCtx
 }
@@ -56,7 +56,7 @@ var _ Key = &rsaPublicKey{}
 func newRSAPublicKey() *rsaPublicKey {
 	return &rsaPublicKey{
 		mu:            &sync.RWMutex{},
-		privateParams: make(map[string]interface{}),
+		privateParams: make(map[string]any),
 	}
 }
 
@@ -175,7 +175,7 @@ func (h *rsaPublicKey) Has(name string) bool {
 	}
 }
 
-func (h *rsaPublicKey) Get(name string, dst interface{}) error {
+func (h *rsaPublicKey) Get(name string, dst any) error {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	switch name {
@@ -275,13 +275,13 @@ func (h *rsaPublicKey) Get(name string, dst interface{}) error {
 	return nil
 }
 
-func (h *rsaPublicKey) Set(name string, value interface{}) error {
+func (h *rsaPublicKey) Set(name string, value any) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return h.setNoLock(name, value)
 }
 
-func (h *rsaPublicKey) setNoLock(name string, value interface{}) error {
+func (h *rsaPublicKey) setNoLock(name string, value any) error {
 	switch name {
 	case "kty":
 		return nil
@@ -363,7 +363,7 @@ func (h *rsaPublicKey) setNoLock(name string, value interface{}) error {
 		return fmt.Errorf(`invalid value for %s key: %T`, X509URLKey, value)
 	default:
 		if h.privateParams == nil {
-			h.privateParams = map[string]interface{}{}
+			h.privateParams = map[string]any{}
 		}
 		h.privateParams[name] = value
 	}
@@ -443,11 +443,11 @@ LOOP:
 		switch tok := tok.(type) {
 		case json.Delim:
 			// Assuming we're doing everything correctly, we should ONLY
-			// get either '{' or '}' here.
+			// get either tokens.OpenCurlyBracket or tokens.CloseCurlyBracket here.
 			if tok == tokens.CloseCurlyBracket { // End of object
 				break LOOP
 			} else if tok != tokens.OpenCurlyBracket {
-				return fmt.Errorf(`expected '{', but got '%c'`, tok)
+				return fmt.Errorf(`expected '%c' but got '%c'`, tokens.OpenCurlyBracket, tok)
 			}
 		case string: // Objects can only have string keys
 			switch tok {
@@ -540,70 +540,68 @@ LOOP:
 }
 
 func (h rsaPublicKey) MarshalJSON() ([]byte, error) {
-	dataptr := pool.Map().Get()
-	defer pool.Map().Put(dataptr)
-	fieldsptr := pool.StringSlice().Get()
-	defer pool.StringSlice().Put(fieldsptr)
-	(*dataptr)[KeyTypeKey] = jwa.RSA()
-	*fieldsptr = append(*fieldsptr, KeyTypeKey)
+	data := make(map[string]any)
+	fields := make([]string, 0, 10)
+	data[KeyTypeKey] = jwa.RSA()
+	fields = append(fields, KeyTypeKey)
 	if h.algorithm != nil {
-		(*dataptr)[AlgorithmKey] = *(h.algorithm)
-		*fieldsptr = append(*fieldsptr, AlgorithmKey)
+		data[AlgorithmKey] = *(h.algorithm)
+		fields = append(fields, AlgorithmKey)
 	}
 	if h.e != nil {
-		(*dataptr)[RSAEKey] = h.e
-		*fieldsptr = append(*fieldsptr, RSAEKey)
+		data[RSAEKey] = h.e
+		fields = append(fields, RSAEKey)
 	}
 	if h.keyID != nil {
-		(*dataptr)[KeyIDKey] = *(h.keyID)
-		*fieldsptr = append(*fieldsptr, KeyIDKey)
+		data[KeyIDKey] = *(h.keyID)
+		fields = append(fields, KeyIDKey)
 	}
 	if h.keyOps != nil {
-		(*dataptr)[KeyOpsKey] = *(h.keyOps)
-		*fieldsptr = append(*fieldsptr, KeyOpsKey)
+		data[KeyOpsKey] = *(h.keyOps)
+		fields = append(fields, KeyOpsKey)
 	}
 	if h.keyUsage != nil {
-		(*dataptr)[KeyUsageKey] = *(h.keyUsage)
-		*fieldsptr = append(*fieldsptr, KeyUsageKey)
+		data[KeyUsageKey] = *(h.keyUsage)
+		fields = append(fields, KeyUsageKey)
 	}
 	if h.n != nil {
-		(*dataptr)[RSANKey] = h.n
-		*fieldsptr = append(*fieldsptr, RSANKey)
+		data[RSANKey] = h.n
+		fields = append(fields, RSANKey)
 	}
 	if h.x509CertChain != nil {
-		(*dataptr)[X509CertChainKey] = h.x509CertChain
-		*fieldsptr = append(*fieldsptr, X509CertChainKey)
+		data[X509CertChainKey] = h.x509CertChain
+		fields = append(fields, X509CertChainKey)
 	}
 	if h.x509CertThumbprint != nil {
-		(*dataptr)[X509CertThumbprintKey] = *(h.x509CertThumbprint)
-		*fieldsptr = append(*fieldsptr, X509CertThumbprintKey)
+		data[X509CertThumbprintKey] = *(h.x509CertThumbprint)
+		fields = append(fields, X509CertThumbprintKey)
 	}
 	if h.x509CertThumbprintS256 != nil {
-		(*dataptr)[X509CertThumbprintS256Key] = *(h.x509CertThumbprintS256)
-		*fieldsptr = append(*fieldsptr, X509CertThumbprintS256Key)
+		data[X509CertThumbprintS256Key] = *(h.x509CertThumbprintS256)
+		fields = append(fields, X509CertThumbprintS256Key)
 	}
 	if h.x509URL != nil {
-		(*dataptr)[X509URLKey] = *(h.x509URL)
-		*fieldsptr = append(*fieldsptr, X509URLKey)
+		data[X509URLKey] = *(h.x509URL)
+		fields = append(fields, X509URLKey)
 	}
 	for k, v := range h.privateParams {
-		(*dataptr)[k] = v
-		*fieldsptr = append(*fieldsptr, k)
+		data[k] = v
+		fields = append(fields, k)
 	}
 
-	sort.Strings(*fieldsptr)
+	sort.Strings(fields)
 	buf := pool.BytesBuffer().Get()
 	defer pool.BytesBuffer().Put(buf)
 	buf.WriteByte(tokens.OpenCurlyBracket)
 	enc := json.NewEncoder(buf)
-	for i, f := range *fieldsptr {
+	for i, f := range fields {
 		if i > 0 {
 			buf.WriteRune(tokens.Comma)
 		}
 		buf.WriteRune(tokens.DoubleQuote)
 		buf.WriteString(f)
 		buf.WriteString(`":`)
-		v := (*dataptr)[f]
+		v := data[f]
 		switch v := v.(type) {
 		case []byte:
 			buf.WriteRune(tokens.DoubleQuote)
@@ -692,7 +690,7 @@ type rsaPrivateKey struct {
 	x509CertThumbprint     *string     // https://tools.ietf.org/html/rfc7515#section-4.1.7
 	x509CertThumbprintS256 *string     // https://tools.ietf.org/html/rfc7515#section-4.1.8
 	x509URL                *string     // https://tools.ietf.org/html/rfc7515#section-4.1.5
-	privateParams          map[string]interface{}
+	privateParams          map[string]any
 	mu                     *sync.RWMutex
 	dc                     json.DecodeCtx
 }
@@ -703,7 +701,7 @@ var _ Key = &rsaPrivateKey{}
 func newRSAPrivateKey() *rsaPrivateKey {
 	return &rsaPrivateKey{
 		mu:            &sync.RWMutex{},
-		privateParams: make(map[string]interface{}),
+		privateParams: make(map[string]any),
 	}
 }
 
@@ -876,7 +874,7 @@ func (h *rsaPrivateKey) Has(name string) bool {
 	}
 }
 
-func (h *rsaPrivateKey) Get(name string, dst interface{}) error {
+func (h *rsaPrivateKey) Get(name string, dst any) error {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	switch name {
@@ -1024,13 +1022,13 @@ func (h *rsaPrivateKey) Get(name string, dst interface{}) error {
 	return nil
 }
 
-func (h *rsaPrivateKey) Set(name string, value interface{}) error {
+func (h *rsaPrivateKey) Set(name string, value any) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return h.setNoLock(name, value)
 }
 
-func (h *rsaPrivateKey) setNoLock(name string, value interface{}) error {
+func (h *rsaPrivateKey) setNoLock(name string, value any) error {
 	switch name {
 	case "kty":
 		return nil
@@ -1148,7 +1146,7 @@ func (h *rsaPrivateKey) setNoLock(name string, value interface{}) error {
 		return fmt.Errorf(`invalid value for %s key: %T`, X509URLKey, value)
 	default:
 		if h.privateParams == nil {
-			h.privateParams = map[string]interface{}{}
+			h.privateParams = map[string]any{}
 		}
 		h.privateParams[name] = value
 	}
@@ -1246,11 +1244,11 @@ LOOP:
 		switch tok := tok.(type) {
 		case json.Delim:
 			// Assuming we're doing everything correctly, we should ONLY
-			// get either '{' or '}' here.
+			// get either tokens.OpenCurlyBracket or tokens.CloseCurlyBracket here.
 			if tok == tokens.CloseCurlyBracket { // End of object
 				break LOOP
 			} else if tok != tokens.OpenCurlyBracket {
-				return fmt.Errorf(`expected '{', but got '%c'`, tok)
+				return fmt.Errorf(`expected '%c' but got '%c'`, tokens.OpenCurlyBracket, tok)
 			}
 		case string: // Objects can only have string keys
 			switch tok {
@@ -1370,94 +1368,92 @@ LOOP:
 }
 
 func (h rsaPrivateKey) MarshalJSON() ([]byte, error) {
-	dataptr := pool.Map().Get()
-	defer pool.Map().Put(dataptr)
-	fieldsptr := pool.StringSlice().Get()
-	defer pool.StringSlice().Put(fieldsptr)
-	(*dataptr)[KeyTypeKey] = jwa.RSA()
-	*fieldsptr = append(*fieldsptr, KeyTypeKey)
+	data := make(map[string]any)
+	fields := make([]string, 0, 16)
+	data[KeyTypeKey] = jwa.RSA()
+	fields = append(fields, KeyTypeKey)
 	if h.algorithm != nil {
-		(*dataptr)[AlgorithmKey] = *(h.algorithm)
-		*fieldsptr = append(*fieldsptr, AlgorithmKey)
+		data[AlgorithmKey] = *(h.algorithm)
+		fields = append(fields, AlgorithmKey)
 	}
 	if h.d != nil {
-		(*dataptr)[RSADKey] = h.d
-		*fieldsptr = append(*fieldsptr, RSADKey)
+		data[RSADKey] = h.d
+		fields = append(fields, RSADKey)
 	}
 	if h.dp != nil {
-		(*dataptr)[RSADPKey] = h.dp
-		*fieldsptr = append(*fieldsptr, RSADPKey)
+		data[RSADPKey] = h.dp
+		fields = append(fields, RSADPKey)
 	}
 	if h.dq != nil {
-		(*dataptr)[RSADQKey] = h.dq
-		*fieldsptr = append(*fieldsptr, RSADQKey)
+		data[RSADQKey] = h.dq
+		fields = append(fields, RSADQKey)
 	}
 	if h.e != nil {
-		(*dataptr)[RSAEKey] = h.e
-		*fieldsptr = append(*fieldsptr, RSAEKey)
+		data[RSAEKey] = h.e
+		fields = append(fields, RSAEKey)
 	}
 	if h.keyID != nil {
-		(*dataptr)[KeyIDKey] = *(h.keyID)
-		*fieldsptr = append(*fieldsptr, KeyIDKey)
+		data[KeyIDKey] = *(h.keyID)
+		fields = append(fields, KeyIDKey)
 	}
 	if h.keyOps != nil {
-		(*dataptr)[KeyOpsKey] = *(h.keyOps)
-		*fieldsptr = append(*fieldsptr, KeyOpsKey)
+		data[KeyOpsKey] = *(h.keyOps)
+		fields = append(fields, KeyOpsKey)
 	}
 	if h.keyUsage != nil {
-		(*dataptr)[KeyUsageKey] = *(h.keyUsage)
-		*fieldsptr = append(*fieldsptr, KeyUsageKey)
+		data[KeyUsageKey] = *(h.keyUsage)
+		fields = append(fields, KeyUsageKey)
 	}
 	if h.n != nil {
-		(*dataptr)[RSANKey] = h.n
-		*fieldsptr = append(*fieldsptr, RSANKey)
+		data[RSANKey] = h.n
+		fields = append(fields, RSANKey)
 	}
 	if h.p != nil {
-		(*dataptr)[RSAPKey] = h.p
-		*fieldsptr = append(*fieldsptr, RSAPKey)
+		data[RSAPKey] = h.p
+		fields = append(fields, RSAPKey)
 	}
 	if h.q != nil {
-		(*dataptr)[RSAQKey] = h.q
-		*fieldsptr = append(*fieldsptr, RSAQKey)
+		data[RSAQKey] = h.q
+		fields = append(fields, RSAQKey)
 	}
 	if h.qi != nil {
-		(*dataptr)[RSAQIKey] = h.qi
-		*fieldsptr = append(*fieldsptr, RSAQIKey)
+		data[RSAQIKey] = h.qi
+		fields = append(fields, RSAQIKey)
 	}
 	if h.x509CertChain != nil {
-		(*dataptr)[X509CertChainKey] = h.x509CertChain
-		*fieldsptr = append(*fieldsptr, X509CertChainKey)
+		data[X509CertChainKey] = h.x509CertChain
+		fields = append(fields, X509CertChainKey)
 	}
 	if h.x509CertThumbprint != nil {
-		(*dataptr)[X509CertThumbprintKey] = *(h.x509CertThumbprint)
-		*fieldsptr = append(*fieldsptr, X509CertThumbprintKey)
+		data[X509CertThumbprintKey] = *(h.x509CertThumbprint)
+		fields = append(fields, X509CertThumbprintKey)
 	}
 	if h.x509CertThumbprintS256 != nil {
-		(*dataptr)[X509CertThumbprintS256Key] = *(h.x509CertThumbprintS256)
-		*fieldsptr = append(*fieldsptr, X509CertThumbprintS256Key)
+		data[X509CertThumbprintS256Key] = *(h.x509CertThumbprintS256)
+		fields = append(fields, X509CertThumbprintS256Key)
 	}
 	if h.x509URL != nil {
-		(*dataptr)[X509URLKey] = *(h.x509URL)
-		*fieldsptr = append(*fieldsptr, X509URLKey)
+		data[X509URLKey] = *(h.x509URL)
+		fields = append(fields, X509URLKey)
 	}
 	for k, v := range h.privateParams {
-		(*dataptr)[k] = v
-		*fieldsptr = append(*fieldsptr, k)
+		data[k] = v
+		fields = append(fields, k)
 	}
 
-	sort.Strings(*fieldsptr)
+	sort.Strings(fields)
 	buf := pool.BytesBuffer().Get()
 	defer pool.BytesBuffer().Put(buf)
 	buf.WriteByte(tokens.OpenCurlyBracket)
 	enc := json.NewEncoder(buf)
-	for i, f := range *fieldsptr {
+	for i, f := range fields {
 		if i > 0 {
 			buf.WriteRune(tokens.Comma)
 		}
 		buf.WriteRune(tokens.DoubleQuote)
 		buf.WriteString(f)
 		buf.WriteString(`":`)
-		v := (*dataptr)[f]
+		v := data[f]
 		switch v := v.(type) {
 		case []byte:
 			buf.WriteRune(tokens.DoubleQuote)

@@ -15,20 +15,19 @@ func (sysFS) Open(path string) (fs.File, error) {
 }
 
 func ReadFile(path string, options ...ReadFileOption) (Set, error) {
-	parseOptions := ParseOptionListPool().Get()
-	defer ParseOptionListPool().Put(parseOptions)
+	var parseOptions []ParseOption
 	for _, option := range options {
 		if po, ok := option.(ParseOption); ok {
-			parseOptions.Add(po)
+			parseOptions = append(parseOptions, po)
 		}
 	}
 
 	var srcFS fs.FS = sysFS{}
-	for _, opt := range options {
-		switch opt.Ident() {
+	for _, option := range options {
+		switch option.Ident() {
 		case identFS{}:
-			if err := opt.Value(&srcFS); err != nil {
-				return nil, fmt.Errorf("jwk.ReadFile: %s", err.Error())
+			if err := option.Value(&srcFS); err != nil {
+				return nil, fmt.Errorf("failed to set fs.FS: %w", err)
 			}
 		}
 	}
@@ -39,5 +38,5 @@ func ReadFile(path string, options ...ReadFileOption) (Set, error) {
 	}
 
 	defer f.Close()
-	return ParseReader(f, parseOptions.List()...)
+	return ParseReader(f, parseOptions...)
 }

@@ -3,8 +3,6 @@
 package jwa
 
 import (
-	"sync"
-
 	"github.com/lestrrat-go/option/v2"
 )
 
@@ -16,14 +14,6 @@ type NewAlgorithmOption interface {
 	newSignatureAlgorithmOption()
 	newKeyEncryptionAlgorithmOption()
 	newSignatureKeyEncryptionAlgorithmOption()
-}
-
-var newAlgorithmOptionListPool = option.NewSetPool[NewAlgorithmOption](
-	&sync.Pool{New: func() any { return option.NewSet[NewAlgorithmOption]() }},
-)
-
-func NewAlgorithmOptionListPool() *option.SetPool[NewAlgorithmOption] {
-	return newAlgorithmOptionListPool
 }
 
 type newAlgorithmOption struct {
@@ -42,14 +32,6 @@ type NewKeyEncryptionAlgorithmOption interface {
 	newKeyEncryptionAlgorithmOption()
 }
 
-var newKeyEncryptionAlgorithmOptionListPool = option.NewSetPool[NewKeyEncryptionAlgorithmOption](
-	&sync.Pool{New: func() any { return option.NewSet[NewKeyEncryptionAlgorithmOption]() }},
-)
-
-func NewKeyEncryptionAlgorithmOptionListPool() *option.SetPool[NewKeyEncryptionAlgorithmOption] {
-	return newKeyEncryptionAlgorithmOptionListPool
-}
-
 type newKeyEncryptionAlgorithmOption struct {
 	Option
 }
@@ -60,14 +42,6 @@ func (*newKeyEncryptionAlgorithmOption) newKeyEncryptionAlgorithmOption() {}
 type NewSignatureAlgorithmOption interface {
 	Option
 	newSignatureAlgorithmOption()
-}
-
-var newSignatureAlgorithmOptionListPool = option.NewSetPool[NewSignatureAlgorithmOption](
-	&sync.Pool{New: func() any { return option.NewSet[NewSignatureAlgorithmOption]() }},
-)
-
-func NewSignatureAlgorithmOptionListPool() *option.SetPool[NewSignatureAlgorithmOption] {
-	return newSignatureAlgorithmOptionListPool
 }
 
 type newSignatureAlgorithmOption struct {
@@ -82,14 +56,6 @@ type NewSignatureKeyEncryptionAlgorithmOption interface {
 	Option
 	newSignatureAlgorithmOption()
 	newKeyEncryptionAlgorithmOption()
-}
-
-var newSignatureKeyEncryptionAlgorithmOptionListPool = option.NewSetPool[NewSignatureKeyEncryptionAlgorithmOption](
-	&sync.Pool{New: func() any { return option.NewSet[NewSignatureKeyEncryptionAlgorithmOption]() }},
-)
-
-func NewSignatureKeyEncryptionAlgorithmOptionListPool() *option.SetPool[NewSignatureKeyEncryptionAlgorithmOption] {
-	return newSignatureKeyEncryptionAlgorithmOptionListPool
 }
 
 type newSignatureKeyEncryptionAlgorithmOption struct {
@@ -111,27 +77,15 @@ func (identIsSymmetric) String() string {
 	return "WithIsSymmetric"
 }
 
-var trueWithDeprecated = &newAlgorithmOption{option.New(identDeprecated{}, true)}
-var falseWithDeprecated = &newAlgorithmOption{option.New(identDeprecated{}, false)}
-
 // WithDeprecated specifies that the algorithm is deprecated. In order to
 // un-deprecate an algorithm, you will have to create a new algorithm
 // with the same values but with the Deprecated option set to false, and
 // then call RegisterXXXXAlgorithm with the new algorithm.
 func WithDeprecated(v bool) NewAlgorithmOption {
-	if v {
-		return trueWithDeprecated
-	}
-	return falseWithDeprecated
+	return &newAlgorithmOption{option.New(identDeprecated{}, v)}
 }
-
-var trueWithIsSymmetric = &newSignatureKeyEncryptionAlgorithmOption{option.New(identIsSymmetric{}, true)}
-var falseWithIsSymmetric = &newSignatureKeyEncryptionAlgorithmOption{option.New(identIsSymmetric{}, false)}
 
 // IsSymmetric specifies that the algorithm is symmetric
 func WithIsSymmetric(v bool) NewSignatureKeyEncryptionAlgorithmOption {
-	if v {
-		return trueWithIsSymmetric
-	}
-	return falseWithIsSymmetric
+	return &newSignatureKeyEncryptionAlgorithmOption{option.New(identIsSymmetric{}, v)}
 }

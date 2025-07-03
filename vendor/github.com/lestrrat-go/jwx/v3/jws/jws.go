@@ -23,8 +23,6 @@ package jws
 
 import (
 	"bufio"
-	"bytes"
-	"context"
 	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -33,45 +31,21 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"strings"
 	"sync"
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/lestrrat-go/blackmagic"
 	"github.com/lestrrat-go/jwx/v3/internal/base64"
 	"github.com/lestrrat-go/jwx/v3/internal/json"
+	"github.com/lestrrat-go/jwx/v3/internal/jwxio"
 	"github.com/lestrrat-go/jwx/v3/internal/pool"
 	"github.com/lestrrat-go/jwx/v3/internal/tokens"
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
-	"github.com/lestrrat-go/option/v2"
+	"github.com/lestrrat-go/jwx/v3/jws/jwsbb"
 )
 
 var registry = json.NewRegistry()
-
-type payloadSigner struct {
-	signer    Signer
-	key       interface{}
-	protected Headers
-	public    Headers
-}
-
-func (s *payloadSigner) Sign(payload []byte) ([]byte, error) {
-	return s.signer.Sign(payload, s.key)
-}
-
-func (s *payloadSigner) Algorithm() jwa.SignatureAlgorithm {
-	return s.signer.Algorithm()
-}
-
-func (s *payloadSigner) ProtectedHeader() Headers {
-	return s.protected
-}
-
-func (s *payloadSigner) PublicHeader() Headers {
-	return s.public
-}
 
 var signers = make(map[jwa.SignatureAlgorithm]Signer)
 var muSigner = &sync.Mutex{}
@@ -82,25 +56,28 @@ func removeSigner(alg jwa.SignatureAlgorithm) {
 	delete(signers, alg)
 }
 
-func initSigner(ps *payloadSigner, alg jwa.SignatureAlgorithm, key interface{}, public, protected Headers) error {
-	muSigner.Lock()
-	signer, ok := signers[alg]
-	if !ok {
-		v, err := NewSigner(alg)
-		if err != nil {
-			muSigner.Unlock()
-			return fmt.Errorf(`failed to create payload signer: %w`, err)
-		}
-		signers[alg] = v
-		signer = v
-	}
-	muSigner.Unlock()
+type defaultSigner struct {
+	alg jwa.SignatureAlgorithm
+}
 
-	ps.signer = signer
-	ps.key = key
-	ps.public = public
-	ps.protected = protected
-	return nil
+func (s defaultSigner) Algorithm() jwa.SignatureAlgorithm {
+	return s.alg
+}
+
+func (s defaultSigner) Sign(key any, payload []byte) ([]byte, error) {
+	return jwsbb.Sign(key, s.alg.String(), payload, nil)
+}
+
+type signerAdapter struct {
+	signer Signer
+}
+
+func (s signerAdapter) Algorithm() jwa.SignatureAlgorithm {
+	return s.signer.Algorithm()
+}
+
+func (s signerAdapter) Sign(key any, payload []byte) ([]byte, error) {
+	return s.signer.Sign(payload, key)
 }
 
 const (
@@ -115,7 +92,7 @@ const (
 var _ = fmtInvalid
 var _ = fmtMax
 
-func validateKeyBeforeUse(key interface{}) error {
+func validateKeyBeforeUse(key any) error {
 	jwkKey, ok := key.(jwk.Key)
 	if !ok {
 		converted, err := jwk.Import(key)
@@ -166,205 +143,19 @@ func validateKeyBeforeUse(key interface{}) error {
 // for a complete list of options that can be passed to this function.
 //
 // You can use `errors.Is` with `jws.SignError()` to check if an error is from this function.
-func Sign(userPayload []byte, options ...SignOption) ([]byte, error) {
-	signContext := signContextPool.Get()
-	defer signContextPool.Put(signContext)
+func Sign(payload []byte, options ...SignOption) ([]byte, error) {
+	sc := signContextPool.Get()
+	defer signContextPool.Put(sc)
 
-	// note: DO NOT use userPayload after this. signContext.payload
-	// is the one that will be used for signing, as it may be modified
-	signContext.payload = userPayload
+	sc.payload = payload
 
-	if err := signContext.ProcessOptions(options); err != nil {
+	if err := sc.ProcessOptions(options); err != nil {
 		return nil, signerr(`failed to process options: %w`, err)
 	}
 
-	signed, err := signContext.Do()
-	if err != nil {
-		return nil, signerr("failed to sign payload: %w", err)
-	}
-	return signed, nil
-}
-
-type signContext struct {
-	format         int
-	detached       bool
-	validateKey    bool
-	encoder        Base64Encoder
-	signers        []*payloadSigner
-	noneSigner     *payloadSigner
-	payload        []byte
-	compactOptions *option.Set[CompactOption]
-}
-
-var signContextPool = pool.New(allocSignContext, destroySignContext)
-
-func allocSignContext() interface{} {
-	return &signContext{
-		format:         fmtCompact,
-		detached:       false,
-		validateKey:    false,
-		encoder:        base64.DefaultEncoder(),
-		signers:        make([]*payloadSigner, 0, 1),
-		noneSigner:     nil,
-		payload:        nil,
-		compactOptions: CompactOptionListPool().Get(),
-	}
-}
-
-func destroySignContext(ctx *signContext) {
-	ctx.format = fmtCompact
-	ctx.detached = false
-	ctx.validateKey = false
-	ctx.encoder = base64.DefaultEncoder()
-	for _, signer := range ctx.signers {
-		payloadSignerPool.Put(signer)
-	}
-	ctx.signers = ctx.signers[:0] // clear the slice, but do not reallocate
-	ctx.noneSigner = nil
-	ctx.payload = nil
-	ctx.compactOptions.Reset()
-}
-
-var msgPool = pool.New(allocMessage, destroyMessage)
-
-func allocMessage() interface{} {
-	return &Message{
-		payload:    nil,
-		signatures: make([]*Signature, 0, 1),
-	}
-}
-
-func destroyMessage(msg *Message) {
-	msg.payload = nil
-	for _, sig := range msg.signatures {
-		signaturePool.Put(sig)
-	}
-	msg.signatures = msg.signatures[:0] // clear the slice, but do not reallocate
-	msg.clearRaw()                      // clear the raw buffer
-	msg.b64 = false
-}
-
-var signaturePool = pool.New(allocSignature, destroySignature)
-
-func allocSignature() interface{} {
-	return &Signature{}
-}
-
-func destroySignature(sig *Signature) {
-	sig.headers = nil
-	sig.protected = nil
-	sig.signature = nil
-	sig.encoder = nil
-	sig.detached = false
-}
-
-var payloadSignerPool = pool.New(allocPayloadSigner, destroyPayloadSigner)
-
-func allocPayloadSigner() interface{} {
-	return &payloadSigner{}
-}
-
-func destroyPayloadSigner(ps *payloadSigner) {
-	ps.signer = nil
-	ps.key = nil
-	ps.protected = nil
-	ps.public = nil
-}
-
-var errNoneSignature = errors.New(`"none" (jwa.NoSignature) cannot be used with jws.WithKey`)
-var errNilPayloadRequiredWhenDetached = errors.New(`payload must be nil when jws.WithDetachedPayload() is specified`)
-var errNoSignersAvailable = errors.New(`no signers available. Specify an alogirthm and akey using jws.WithKey()`)
-var errMultipleSignersForCompactSerialization = errors.New(`cannot have multiple signers (keys) specified for compact serialization. Use only one jws.WithKey()`)
-var errInvalidSerializationFormat = errors.New(`invalid serialization format`)
-
-func (sc *signContext) ProcessOptions(options []SignOption) error {
-	for _, option := range options {
-		switch option.Ident() {
-		case identSerialization{}:
-			if err := option.Value(&sc.format); err != nil {
-				return fmt.Errorf(`invalid value for serialization : %w`, err)
-			}
-		case identInsecureNoSignature{}:
-			var data *withInsecureNoSignature
-			if err := option.Value(&data); err != nil {
-				return fmt.Errorf(`invalid value for WithInsecureNoSignature: %w`, err)
-			}
-			// only the last one is used (we overwrite previous values)
-			signer := payloadSignerPool.Get()
-
-			signer.signer = noneSigner{}
-			signer.protected = data.protected
-			sc.noneSigner = signer
-		case identKey{}:
-			var data withKey
-			if err := option.Value(&data); err != nil {
-				return fmt.Errorf(`invalid value for WithKey: %w`, err)
-			}
-
-			alg, ok := data.alg.(jwa.SignatureAlgorithm)
-			if !ok {
-				return fmt.Errorf(`expected algorithm to be of type jwa.SignatureAlgorithm but got (%[1]q, %[1]T)`, data.alg)
-			}
-
-			// No, we don't accept "none" here.
-			if alg == jwa.NoSignature() {
-				return errNoneSignature
-			}
-
-			signer := payloadSignerPool.Get()
-			if err := initSigner(signer, alg, data.key, data.public, data.protected); err != nil {
-				return fmt.Errorf(`failed to create signer: %w`, err)
-			}
-			sc.signers = append(sc.signers, signer)
-		case identDetachedPayload{}:
-			if sc.payload != nil {
-				return errNilPayloadRequiredWhenDetached
-			}
-			if err := option.Value(&sc.payload); err != nil {
-				return fmt.Errorf(`invalid value for WithDetachedPayload: %w`, err)
-			}
-			sc.compactOptions.Add(WithDetached(true))
-			sc.detached = true
-		case identValidateKey{}:
-			if err := option.Value(&sc.validateKey); err != nil {
-				return fmt.Errorf(`invalid value for WithValidateKey: %w`, err)
-			}
-		case identBase64Encoder{}:
-			if err := option.Value(&sc.encoder); err != nil {
-				return fmt.Errorf(`invalid value for WithBase64Encoder: %w`, err)
-			}
-			sc.compactOptions.Add(WithBase64Encoder(sc.encoder))
-		default:
-			if cop, ok := option.(CompactOption); ok {
-				sc.compactOptions.Add(cop)
-			}
-		}
-	}
-	return nil
-}
-
-func (sc *signContext) canUseFastPath() bool {
-	return len(sc.signers) == 1 && sc.format == fmtCompact && sc.payload != nil && !sc.detached
-}
-
-func (sc *signContext) Do() ([]byte, error) {
-	if sc.noneSigner != nil {
-		sc.signers = append(sc.signers, sc.noneSigner)
-	}
-
-	if sc.canUseFastPath() {
-		signer := sc.signers[0]
-		sig, err := sc.generateSignature(signer)
-		if err != nil {
-			return nil, fmt.Errorf(`failed to generate signature for signer #0 (alg=%s): %w`, signer.Algorithm(), err)
-		}
-		defer signaturePool.Put(sig)
-		return compactSingle(sc.payload, sig, false, sc.encoder)
-	}
-
-	lsigner := len(sc.signers)
+	lsigner := len(sc.sigbuilders)
 	if lsigner == 0 {
-		return nil, errNoSignersAvailable
+		return nil, signerr(`no signers available. Specify an algorithm and a key using jws.WithKey()`)
 	}
 
 	// Design note: while we could have easily set format = fmtJSON when
@@ -376,73 +167,37 @@ func (sc *signContext) Do() ([]byte, error) {
 	// Therefore, instead of making implicit format conversions, we force the
 	// user to spell it out as `jws.Sign(..., jws.WithJSON(), jws.WithKey(...), jws.WithKey(...))`
 	if sc.format == fmtCompact && lsigner != 1 {
-		return nil, errMultipleSignersForCompactSerialization
+		return nil, signerr(`cannot have multiple signers (keys) specified for compact serialization. Use only one jws.WithKey()`)
 	}
 
 	// Create a Message object with all the bits and bobs, and we'll
 	// serialize it in the end
-	result := msgPool.Get()
-	defer msgPool.Put(result)
+	var result Message
 
-	result.payload = sc.payload
-	for i, signer := range sc.signers {
-		sig, err := sc.generateSignature(signer)
-		if err != nil {
-			return nil, fmt.Errorf(`failed to generate signature for signer #%d (alg=%s): %w`, i, signer.Algorithm(), err)
-		}
-
-		result.signatures = append(result.signatures, sig)
+	if err := sc.PopulateMessage(&result); err != nil {
+		return nil, signerr(`failed to populate message: %w`, err)
 	}
-
 	switch sc.format {
 	case fmtJSON:
 		return json.Marshal(result)
 	case fmtJSONPretty:
 		return json.MarshalIndent(result, "", "  ")
 	case fmtCompact:
-		return Compact(result, sc.compactOptions.List()...)
-	default:
-		return nil, errInvalidSerializationFormat
-	}
-}
-
-func (sc *signContext) generateSignature(signer *payloadSigner) (*Signature, error) {
-	protected := signer.ProtectedHeader()
-	if protected == nil {
-		protected = NewHeaders()
-	}
-
-	if err := protected.Set(AlgorithmKey, signer.Algorithm()); err != nil {
-		return nil, fmt.Errorf(`failed to set "alg" header: %w`, err)
-	}
-
-	if key, ok := signer.key.(jwk.Key); ok {
-		if kid, ok := key.KeyID(); ok && kid != "" {
-			if err := protected.Set(KeyIDKey, kid); err != nil {
-				return nil, fmt.Errorf(`failed to set "kid" header: %w`, err)
+		// Take the only signature object, and convert it into a Compact
+		// serialization format
+		var compactOpts []CompactOption
+		if sc.detached {
+			compactOpts = append(compactOpts, WithDetached(true))
+		}
+		for _, option := range options {
+			if copt, ok := option.(CompactOption); ok {
+				compactOpts = append(compactOpts, copt)
 			}
 		}
+		return Compact(&result, compactOpts...)
+	default:
+		return nil, signerr(`invalid serialization format`)
 	}
-
-	// releasing is done by the message
-	sig := signaturePool.Get()
-
-	sig.headers = signer.PublicHeader()
-	sig.protected = protected
-	sig.encoder = sc.encoder
-	sig.detached = sc.detached
-
-	if sc.validateKey {
-		if err := validateKeyBeforeUse(signer.key); err != nil {
-			return nil, fmt.Errorf(`failed to validate key before signing: %w`, err)
-		}
-	}
-	_, _, err := sig.Sign(sc.payload, signer.signer, signer.key)
-	if err != nil {
-		signaturePool.Put(sig)
-		return nil, err
-	}
-	return sig, nil
 }
 
 var allowNoneWhitelist = jwk.WhitelistFunc(func(string) bool {
@@ -472,166 +227,14 @@ var allowNoneWhitelist = jwk.WhitelistFunc(func(string) bool {
 // while the former is returned when any other part of the `jws.Verify()`
 // function fails.
 func Verify(buf []byte, options ...VerifyOption) ([]byte, error) {
-	var parseOptions []ParseOption
-	var dst *Message
-	var detachedPayload []byte
-	var keyProviders []KeyProvider
-	var keyUsed interface{}
-	var validateKey bool
-	var encoder Base64Encoder = base64.DefaultEncoder()
+	vc := verifyContextPool.Get()
+	defer verifyContextPool.Put(vc)
 
-	ctx := context.Background()
-
-	//nolint:forcetypeassert
-	for _, option := range options {
-		switch option.Ident() {
-		case identMessage{}:
-			if err := option.Value(&dst); err != nil {
-				return nil, verifyerr(`invalid value for WithMessage: %w`, err)
-			}
-		case identDetachedPayload{}:
-			if err := option.Value(&detachedPayload); err != nil {
-				return nil, verifyerr(`invalid value for WithDetachedPayload: %w`, err)
-			}
-		case identKey{}:
-			var pair withKey
-			if err := option.Value(&pair); err != nil {
-				return nil, verifyerr(`invalid value for WithKey: %w`, err)
-			}
-			alg, ok := pair.alg.(jwa.SignatureAlgorithm)
-			if !ok {
-				return nil, verifyerr(`WithKey() option must be specified using jwa.SignatureAlgorithm (got %T)`, pair.alg)
-			}
-			keyProviders = append(keyProviders, &staticKeyProvider{
-				alg: alg,
-				key: pair.key,
-			})
-		case identKeyProvider{}:
-			var kp KeyProvider
-			if err := option.Value(&kp); err != nil {
-				return nil, verifyerr(`invalid value for WithKeyProvider: %w`, err)
-			}
-			keyProviders = append(keyProviders, kp)
-		case identKeyUsed{}:
-			if err := option.Value(&keyUsed); err != nil {
-				return nil, verifyerr(`invalid value for WithKeyUsed: %w`, err)
-			}
-		case identContext{}:
-			if err := option.Value(&ctx); err != nil {
-				return nil, verifyerr(`invalid value for WithContext: %w`, err)
-			}
-		case identValidateKey{}:
-			if err := option.Value(&validateKey); err != nil {
-				return nil, verifyerr(`invalid value for WithValidateKey: %w`, err)
-			}
-		case identSerialization{}:
-			parseOptions = append(parseOptions, option.(ParseOption))
-		case identBase64Encoder{}:
-			if err := option.Value(&encoder); err != nil {
-				return nil, verifyerr(`invalid value for WithBase64Encoder: %w`, err)
-			}
-		default:
-			return nil, verifyerr(`invalid jws.VerifyOption %q passed`, `With`+strings.TrimPrefix(fmt.Sprintf(`%T`, option.Ident()), `jws.ident`))
-		}
+	if err := vc.ProcessOptions(options); err != nil {
+		return nil, verifyerr(`failed to process options: %w`, err)
 	}
 
-	if len(keyProviders) < 1 {
-		return nil, verifyerr(`no key providers have been provided (see jws.WithKey(), jws.WithKeySet(), jws.WithVerifyAuto(), and jws.WithKeyProvider()`)
-	}
-
-	msg, err := Parse(buf, parseOptions...)
-	if err != nil {
-		return nil, verifyerr(`failed to parse jws: %w`, err)
-	}
-	defer msg.clearRaw()
-
-	if detachedPayload != nil {
-		if len(msg.payload) != 0 {
-			return nil, verifyerr(`can't specify detached payload for JWS with payload`)
-		}
-
-		msg.payload = detachedPayload
-	}
-
-	// Pre-compute the base64 encoded version of payload
-	var payload string
-	if msg.b64 {
-		payload = encoder.EncodeToString(msg.payload)
-	} else {
-		payload = string(msg.payload)
-	}
-
-	verifyBuf := pool.BytesBuffer().Get()
-	defer pool.BytesBuffer().Put(verifyBuf)
-
-	var errs []error
-	for i, sig := range msg.signatures {
-		verifyBuf.Reset()
-
-		var encodedProtectedHeader string
-		if rbp, ok := sig.protected.(interface{ rawBuffer() []byte }); ok {
-			if raw := rbp.rawBuffer(); raw != nil {
-				encodedProtectedHeader = encoder.EncodeToString(raw)
-			}
-		}
-
-		if encodedProtectedHeader == "" {
-			protected, err := json.Marshal(sig.protected)
-			if err != nil {
-				return nil, verifyerr(`failed to marshal "protected" for signature #%d: %w`, i+1, err)
-			}
-
-			encodedProtectedHeader = encoder.EncodeToString(protected)
-		}
-
-		verifyBuf.WriteString(encodedProtectedHeader)
-		verifyBuf.WriteByte(tokens.Period)
-		verifyBuf.WriteString(payload)
-
-		for i, kp := range keyProviders {
-			var sink algKeySink
-			if err := kp.FetchKeys(ctx, &sink, sig, msg); err != nil {
-				return nil, verifyerr(`key provider %d failed: %w`, i, err)
-			}
-
-			for _, pair := range sink.list {
-				// alg is converted here because pair.alg is of type jwa.KeyAlgorithm.
-				// this may seem ugly, but we're trying to avoid declaring separate
-				// structs for `alg jwa.KeyEncryptionAlgorithm` and `alg jwa.SignatureAlgorithm`
-				//nolint:forcetypeassert
-				alg := pair.alg.(jwa.SignatureAlgorithm)
-				key := pair.key
-
-				if validateKey {
-					if err := validateKeyBeforeUse(key); err != nil {
-						return nil, verifyerr(`failed to validate key before signing: %w`, err)
-					}
-				}
-				verifier, err := NewVerifier(alg)
-				if err != nil {
-					return nil, verifyerr(`failed to create verifier for algorithm %q: %w`, alg, err)
-				}
-
-				if err := verifier.Verify(verifyBuf.Bytes(), sig.signature, key); err != nil {
-					errs = append(errs, verificationError{err})
-					continue
-				}
-
-				if keyUsed != nil {
-					if err := blackmagic.AssignIfCompatible(keyUsed, key); err != nil {
-						return nil, verifyerr(`failed to assign used key (%T) to %T: %w`, key, keyUsed, err)
-					}
-				}
-
-				if dst != nil {
-					*(dst) = *msg
-				}
-
-				return msg.payload, nil
-			}
-		}
-	}
-	return nil, verifyerr(`could not verify message using any of the signatures or keys: %w`, errors.Join(errs...))
+	return vc.VerifyMessage(buf)
 }
 
 // get the value of b64 header field.
@@ -644,22 +247,6 @@ func getB64Value(hdr Headers) bool {
 	}
 
 	return b64
-}
-
-// This is an "optimized" io.ReadAll(). It will attempt to read
-// all of the contents from the reader IF the reader is of a certain
-// concrete type.
-func readAll(rdr io.Reader) ([]byte, bool) {
-	switch rdr.(type) {
-	case *bytes.Reader, *bytes.Buffer, *strings.Reader:
-		data, err := io.ReadAll(rdr)
-		if err != nil {
-			return nil, false
-		}
-		return data, true
-	default:
-		return nil, false
-	}
 }
 
 // Parse parses contents from the given source and creates a jws.Message
@@ -678,7 +265,7 @@ func Parse(src []byte, options ...ParseOption) (*Message, error) {
 		case identSerialization{}:
 			var v int
 			if err := option.Value(&v); err != nil {
-				return nil, parseerr(`invalid value for serialization: %w`, err)
+				return nil, parseerr(`failed to retrieve serialization option value: %w`, err)
 			}
 			switch v {
 			case fmtJSON:
@@ -742,8 +329,13 @@ func ParseString(src string) (*Message, error) {
 //
 // On error, returns a jws.ParseError.
 func ParseReader(src io.Reader) (*Message, error) {
-	if data, ok := readAll(src); ok {
+	data, err := jwxio.ReadAllFromFiniteSource(src)
+	if err == nil {
 		return Parse(data)
+	}
+
+	if !errors.Is(err, jwxio.NonFiniteSourceError()) {
+		return nil, rparseerr(`failed to read from finite source: %w`, err)
 	}
 
 	rdr := bufio.NewReader(src)
@@ -794,106 +386,46 @@ func parseJSON(data []byte) (result *Message, err error) {
 	return &m, nil
 }
 
-const tokenDelim = "."
-
-// SplitCompact splits a JWT and returns its three parts
+// SplitCompact splits a JWS in compact format and returns its three parts
 // separately: protected headers, payload and signature.
-//
 // On error, returns a jws.ParseError.
+//
+// This function will be deprecated in v4. It is a low-level API, and
+// thus will be available in the `jwsbb` package.
 func SplitCompact(src []byte) ([]byte, []byte, []byte, error) {
-	protected, s, ok := bytes.Cut(src, []byte(tokenDelim))
-	if !ok { // no period found
-		return nil, nil, nil, parseerr(`invalid number of segments`)
+	hdr, payload, signature, err := jwsbb.SplitCompact(src)
+	if err != nil {
+		return nil, nil, nil, parseerr(`%w`, err)
 	}
-	payload, s, ok := bytes.Cut(s, []byte(tokenDelim))
-	if !ok { // only one period found
-		return nil, nil, nil, parseerr(`invalid number of segments`)
-	}
-	signature, _, ok := bytes.Cut(s, []byte(tokenDelim))
-	if ok { // three periods found
-		return nil, nil, nil, parseerr(`invalid number of segments`)
-	}
-	return protected, payload, signature, nil
+	return hdr, payload, signature, nil
 }
 
 // SplitCompactString splits a JWT and returns its three parts
 // separately: protected headers, payload and signature.
-//
 // On error, returns a jws.ParseError.
+//
+// This function will be deprecated in v4. It is a low-level API, and
+// thus will be available in the `jwsbb` package.
 func SplitCompactString(src string) ([]byte, []byte, []byte, error) {
-	return SplitCompact([]byte(src))
+	hdr, payload, signature, err := jwsbb.SplitCompactString(src)
+	if err != nil {
+		return nil, nil, nil, parseerr(`%w`, err)
+	}
+	return hdr, payload, signature, nil
 }
 
 // SplitCompactReader splits a JWT and returns its three parts
 // separately: protected headers, payload and signature.
-//
 // On error, returns a jws.ParseError.
+//
+// This function will be deprecated in v4. It is a low-level API, and
+// thus will be available in the `jwsbb` package.
 func SplitCompactReader(rdr io.Reader) ([]byte, []byte, []byte, error) {
-	if data, ok := readAll(rdr); ok {
-		return SplitCompact(data)
+	hdr, payload, signature, err := jwsbb.SplitCompactReader(rdr)
+	if err != nil {
+		return nil, nil, nil, parseerr(`%w`, err)
 	}
-
-	var protected []byte
-	var payload []byte
-	var signature []byte
-	var periods int
-	var state int
-
-	buf := make([]byte, 4096)
-	var sofar []byte
-
-	for {
-		// read next bytes
-		n, err := rdr.Read(buf)
-		// return on unexpected read error
-		if err != nil && err != io.EOF {
-			return nil, nil, nil, parseerr(`unexpected end of input: %w`, err)
-		}
-
-		// append to current buffer
-		sofar = append(sofar, buf[:n]...)
-		// loop to capture multiple tokens.Period in current buffer
-		for loop := true; loop; {
-			var i = bytes.IndexByte(sofar, tokens.Period)
-			if i == -1 && err != io.EOF {
-				// no tokens.Period found -> exit and read next bytes (outer loop)
-				loop = false
-				continue
-			} else if i == -1 && err == io.EOF {
-				// no tokens.Period found -> process rest and exit
-				i = len(sofar)
-				loop = false
-			} else {
-				// tokens.Period found
-				periods++
-			}
-
-			// Reaching this point means we have found a tokens.Period or EOF and process the rest of the buffer
-			switch state {
-			case 0:
-				protected = sofar[:i]
-				state++
-			case 1:
-				payload = sofar[:i]
-				state++
-			case 2:
-				signature = sofar[:i]
-			}
-			// Shorten current buffer
-			if len(sofar) > i {
-				sofar = sofar[i+1:]
-			}
-		}
-		// Exit on EOF
-		if err == io.EOF {
-			break
-		}
-	}
-	if periods != 2 {
-		return nil, nil, nil, parseerr(`invalid number of segments`)
-	}
-
-	return protected, payload, signature, nil
+	return hdr, payload, signature, nil
 }
 
 // parseCompactReader parses a JWS value serialized via compact serialization.
@@ -967,7 +499,7 @@ type CustomDecodeFunc = json.CustomDecodeFunc
 //	jws.RegisterCustomField(`x-birthday`, time.Time{})
 //
 // Then you can use a `time.Time` variable to extract the value
-// of `x-birthday` field, instead of having to use `interface{}`
+// of `x-birthday` field, instead of having to use `any`
 // and later convert it to `time.Time`
 //
 //	var bday time.Time
@@ -977,7 +509,7 @@ type CustomDecodeFunc = json.CustomDecodeFunc
 // you can register a `CustomDecoder`. For example, below shows
 // how to register a decoder that can parse RFC1123 format string:
 //
-//	jws.RegisterCustomField(`x-birthday`, jws.CustomDecodeFunc(func(data []byte) (interface{}, error) {
+//	jws.RegisterCustomField(`x-birthday`, jws.CustomDecodeFunc(func(data []byte) (any, error) {
 //	  return time.Parse(time.RFC1123, string(data))
 //	}))
 //
@@ -990,7 +522,7 @@ type CustomDecodeFunc = json.CustomDecodeFunc
 // likes to do. To avoid this, it's always better to use a custom type
 // that wraps your desired type (in this case `time.Time`) and implement
 // MarshalJSON and UnmashalJSON.
-func RegisterCustomField(name string, object interface{}) {
+func RegisterCustomField(name string, object any) {
 	registry.Register(name, object)
 }
 
@@ -1026,7 +558,7 @@ func addAlgorithmForKeyType(kty jwa.KeyType, alg jwa.SignatureAlgorithm) {
 // be used for a given key. It only takes in consideration keys/algorithms
 // for verification purposes, as this is the only usage where one may need
 // dynamically figure out which method to use.
-func AlgorithmsForKey(key interface{}) ([]jwa.SignatureAlgorithm, error) {
+func AlgorithmsForKey(key any) ([]jwa.SignatureAlgorithm, error) {
 	var kty jwa.KeyType
 	switch key := key.(type) {
 	case jwk.Key:
@@ -1050,50 +582,77 @@ func AlgorithmsForKey(key interface{}) ([]jwa.SignatureAlgorithm, error) {
 	return algs, nil
 }
 
-// Because the keys defined in github.com/lestrrat-go/jwx/jwk may also implement
-// crypto.Signer, it would be possible for to mix up key types when signing/verifying
-// for example, when we specify jws.WithKey(jwa.RSA256, cryptoSigner), the cryptoSigner
-// can be for RSA, or any other type that implements crypto.Signer... even if it's for the
-// wrong algorithm.
-//
-// These functions are there to differentiate between the valid KNOWN key types.
-// For any other key type that is outside of the Go std library and our own code,
-// we must rely on the user to be vigilant.
-//
-// Notes: symmetric keys are obviously not part of this. for v2 OKP keys,
-// x25519 does not implement Sign()
-func isValidRSAKey(key interface{}) bool {
-	switch key.(type) {
-	case
-		ecdsa.PrivateKey, *ecdsa.PrivateKey,
-		ed25519.PrivateKey,
-		jwk.ECDSAPrivateKey, jwk.OKPPrivateKey:
-		// these are NOT ok
-		return false
+func Settings(options ...GlobalOption) {
+	for _, option := range options {
+		switch option.Ident() {
+		case identLegacySigners{}:
+			enableLegacySigners()
+		}
 	}
-	return true
 }
 
-func isValidECDSAKey(key interface{}) bool {
-	switch key.(type) {
-	case
-		ed25519.PrivateKey,
-		rsa.PrivateKey, *rsa.PrivateKey,
-		jwk.RSAPrivateKey, jwk.OKPPrivateKey:
-		// these are NOT ok
-		return false
-	}
-	return true
-}
+// VerifyCompactFast is a fast path verification function for JWS messages
+// in compact serialization format.
+//
+// This function is considered experimental, and may change or be removed
+// in the future.
+//
+// VerifyCompactFast performs signature verification on a JWS compact
+// serialization without fully parsing the message into a jws.Message object.
+// This makes it more efficient for cases where you only need to verify
+// the signature and extract the payload, without needing access to headers
+// or other JWS metadata.
+//
+// Returns the original payload that was signed if verification succeeds.
+//
+// Unlike jws.Verify(), this function requires you to specify the
+// algorithm explicitly rather than extracting it from the JWS headers.
+// This can be useful for performance-critical applications where the
+// algorithm is known in advance.
+//
+// Since this function avoids doing many checks that jws.Verify would perform,
+// you must ensure to perform the necessary checks including ensuring that algorithm is safe to use for your payload yourself.
+func VerifyCompactFast(key any, compact []byte, alg jwa.SignatureAlgorithm) ([]byte, error) {
+	algstr := alg.String()
 
-func isValidEDDSAKey(key interface{}) bool {
-	switch key.(type) {
-	case
-		ecdsa.PrivateKey, *ecdsa.PrivateKey,
-		rsa.PrivateKey, *rsa.PrivateKey,
-		jwk.RSAPrivateKey, jwk.ECDSAPrivateKey:
-		// these are NOT ok
-		return false
+	// Split the serialized JWT into its components
+	hdr, payload, encodedSig, err := jwsbb.SplitCompact(compact)
+	if err != nil {
+		return nil, fmt.Errorf("jwt.verifyFast: failed to split compact: %w", err)
 	}
-	return true
+
+	signature, err := base64.Decode(encodedSig)
+	if err != nil {
+		return nil, fmt.Errorf("jwt.verifyFast: failed to decode signature: %w", err)
+	}
+
+	// Instead of appending, copy the data from hdr/payload
+	lvb := len(hdr) + 1 + len(payload)
+	verifyBuf := pool.ByteSlice().GetCapacity(lvb)
+	verifyBuf = verifyBuf[:lvb]
+	copy(verifyBuf, hdr)
+	verifyBuf[len(hdr)] = tokens.Period
+	copy(verifyBuf[len(hdr)+1:], payload)
+	defer pool.ByteSlice().Put(verifyBuf)
+
+	// Verify the signature
+	if verifier2, err := VerifierFor(alg); err == nil {
+		if err := verifier2.Verify(key, verifyBuf, signature); err != nil {
+			return nil, verifyError{verificationError{fmt.Errorf("jwt.VerifyCompact: signature verification failed for %s: %w", algstr, err)}}
+		}
+	} else {
+		legacyVerifier, err := NewVerifier(alg)
+		if err != nil {
+			return nil, verifyerr("jwt.VerifyCompact: failed to create verifier for %s: %w", algstr, err)
+		}
+		if err := legacyVerifier.Verify(verifyBuf, signature, key); err != nil {
+			return nil, verifyError{verificationError{fmt.Errorf("jwt.VerifyCompact: signature verification failed for %s: %w", algstr, err)}}
+		}
+	}
+
+	decoded, err := base64.Decode(payload)
+	if err != nil {
+		return nil, verifyerr("jwt.VerifyCompact: failed to decode payload: %w", err)
+	}
+	return decoded, nil
 }

@@ -72,12 +72,12 @@ type KeyProvider interface {
 // KeySink is a data storage where `jws.KeyProvider` objects should
 // send their keys to.
 type KeySink interface {
-	Key(jwa.SignatureAlgorithm, interface{})
+	Key(jwa.SignatureAlgorithm, any)
 }
 
 type algKeyPair struct {
 	alg jwa.KeyAlgorithm
-	key interface{}
+	key any
 }
 
 type algKeySink struct {
@@ -85,7 +85,7 @@ type algKeySink struct {
 	list []algKeyPair
 }
 
-func (s *algKeySink) Key(alg jwa.SignatureAlgorithm, key interface{}) {
+func (s *algKeySink) Key(alg jwa.SignatureAlgorithm, key any) {
 	s.mu.Lock()
 	s.list = append(s.list, algKeyPair{alg, key})
 	s.mu.Unlock()
@@ -93,7 +93,7 @@ func (s *algKeySink) Key(alg jwa.SignatureAlgorithm, key interface{}) {
 
 type staticKeyProvider struct {
 	alg jwa.SignatureAlgorithm
-	key interface{}
+	key any
 }
 
 func (kp *staticKeyProvider) FetchKeys(_ context.Context, sink KeySink, _ *Signature, _ *Message) error {

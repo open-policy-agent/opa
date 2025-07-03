@@ -67,12 +67,11 @@ func EmptyCompressionAlgorithm() CompressionAlgorithm {
 // NewCompressionAlgorithm creates a new CompressionAlgorithm object with the given name.
 func NewCompressionAlgorithm(name string, options ...NewAlgorithmOption) CompressionAlgorithm {
 	var deprecated bool
-	//nolint:forcetypeassert
 	for _, option := range options {
 		switch option.Ident() {
 		case identDeprecated{}:
 			if err := option.Value(&deprecated); err != nil {
-				panic(fmt.Sprintf(`jwa: NewCompressionAlgorithm: %s`, err))
+				panic("jwa.NewCompressionAlgorithm: WithDeprecated option must be a boolean")
 			}
 		}
 	}
@@ -147,7 +146,7 @@ func (s *CompressionAlgorithm) UnmarshalJSON(data []byte) error {
 	}
 	v, ok := LookupCompressionAlgorithm(name)
 	if !ok {
-		return fmt.Errorf(`unknown CompressionAlgorithm: %s`, name)
+		return fmt.Errorf(`unknown CompressionAlgorithm: %q`, name)
 	}
 	*s = v
 	return nil

@@ -7,6 +7,23 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwa"
 )
 
+// Signer2 is an interface that represents a per-signature algorithm signing
+// operation.
+type Signer2 interface {
+	Algorithm() jwa.SignatureAlgorithm
+
+	// Sign takes a key and a payload, and returns the signature for the payload.
+	// The key type is restricted by the signature algorithm that this
+	// signer is associated with.
+	//
+	// (Note to users of legacy Signer interface: the method signature
+	// is different from the legacy Signer interface)
+	Sign(key any, payload []byte) ([]byte, error)
+}
+
+var muSigner2DB sync.RWMutex
+var signer2DB = make(map[jwa.SignatureAlgorithm]Signer2)
+
 type SignerFactory interface {
 	Create() (Signer, error)
 }
@@ -16,39 +33,80 @@ func (fn SignerFactoryFn) Create() (Signer, error) {
 	return fn()
 }
 
-type staticSignerFactory struct {
-	signer Signer
-}
+// SignerFor returns a Signer2 for the given signature algorithm.
+//
+// Currently, this function will never fail. It will always return a
+// valid Signer2 object. The heuristic is as follows:
+//  1. If a Signer2 is registered for the given algorithm, it will return that.
+//  2. If a legacy Signer(Factory) is registered for the given algorithm, it will
+//     return a Signer2 that wraps the legacy Signer.
+//  3. If no Signer2 or legacy Signer(Factory) is registered, it will return a
+//     default signer that uses jwsbb.Sign.
+//
+// jwsbb.Sign knows how to handle a static set of algorithms, so if the
+// algorithm is not supported, it will return an error when you call
+// `Sign` on the default signer.
+func SignerFor(alg jwa.SignatureAlgorithm) (Signer2, error) {
+	muSigner2DB.RLock()
+	defer muSigner2DB.RUnlock()
 
-func (f staticSignerFactory) Create() (Signer, error) {
-	if f.signer == nil {
-		return nil, fmt.Errorf(`static signer factory does not have a signer`)
+	signer, ok := signer2DB[alg]
+	if ok {
+		return signer, nil
 	}
-	return f.signer, nil
+
+	s1, err := legacySignerFor(alg)
+	if err == nil {
+		return signerAdapter{signer: s1}, nil
+	}
+
+	return defaultSigner{alg: alg}, nil
 }
 
 var muSignerDB sync.RWMutex
-var signerDB map[jwa.SignatureAlgorithm]SignerFactory
+var signerDB = make(map[jwa.SignatureAlgorithm]SignerFactory)
 
-// RegisterSigner is used to register a factory object that creates
-// Signer objects based on the given algorithm. Previous object instantiated
-// by the factory is discarded.
+// RegisterSigner is used to register a signer for the given
+// algorithm.
 //
-// For example, if you would like to provide a custom signer for
-// jwa.EdDSA, use this function to register a `SignerFactory`
-// (probably in your `init()`)
+// Please note that this function is intended to be passed a
+// signer object as its second argument, but due to historical
+// reasons the function signature is defined as taking `any` type.
+//
+// You should create a signer object that implements the `Signer2`
+// interface to register a signer, unless you have legacy code that
+// plugged into the `SignerFactory` interface.
 //
 // Unlike the `UnregisterSigner` function, this function automatically
 // calls `jwa.RegisterSignatureAlgorithm` to register the algorithm
 // in this module's algorithm database.
-func RegisterSigner(alg jwa.SignatureAlgorithm, f SignerFactory) {
+func RegisterSigner(alg jwa.SignatureAlgorithm, f any) error {
 	jwa.RegisterSignatureAlgorithm(alg)
-	muSignerDB.Lock()
-	signerDB[alg] = f
-	muSignerDB.Unlock()
+	switch s := f.(type) {
+	case Signer2:
+		muSigner2DB.Lock()
+		signer2DB[alg] = s
+		muSigner2DB.Unlock()
 
-	// Remove previous signer, if there was one
-	removeSigner(alg)
+		// delete the other signer, if there was one
+		muSignerDB.Lock()
+		delete(signerDB, alg)
+		muSignerDB.Unlock()
+	case SignerFactory:
+		muSignerDB.Lock()
+		signerDB[alg] = s
+		muSignerDB.Unlock()
+
+		// Remove previous signer, if there was one
+		removeSigner(alg)
+
+		muSigner2DB.Lock()
+		delete(signer2DB, alg)
+		muSigner2DB.Unlock()
+	default:
+		return fmt.Errorf(`jws.RegisterSigner: unsupported type %T for algorithm %q`, f, alg)
+	}
+	return nil
 }
 
 // UnregisterSigner removes the signer factory associated with
@@ -62,6 +120,10 @@ func RegisterSigner(alg jwa.SignatureAlgorithm, f SignerFactory) {
 // Therefore, in order to completely remove the algorithm, you must
 // call `jwa.UnregisterSignatureAlgorithm` yourself.
 func UnregisterSigner(alg jwa.SignatureAlgorithm) {
+	muSigner2DB.Lock()
+	delete(signer2DB, alg)
+	muSigner2DB.Unlock()
+
 	muSignerDB.Lock()
 	delete(signerDB, alg)
 	muSignerDB.Unlock()
@@ -69,33 +131,11 @@ func UnregisterSigner(alg jwa.SignatureAlgorithm) {
 	removeSigner(alg)
 }
 
-func init() {
-	signerDB = make(map[jwa.SignatureAlgorithm]SignerFactory)
-
-	for _, alg := range []jwa.SignatureAlgorithm{jwa.RS256(), jwa.RS384(), jwa.RS512(), jwa.PS256(), jwa.PS384(), jwa.PS512()} {
-		RegisterSigner(alg, &staticSignerFactory{
-			signer: newRSASigner(alg),
-		})
-	}
-
-	for _, alg := range []jwa.SignatureAlgorithm{jwa.ES256(), jwa.ES384(), jwa.ES512(), jwa.ES256K()} {
-		RegisterSigner(alg, &staticSignerFactory{
-			signer: newECDSASigner(alg),
-		})
-	}
-
-	for _, alg := range []jwa.SignatureAlgorithm{jwa.HS256(), jwa.HS384(), jwa.HS512()} {
-		RegisterSigner(alg, &staticSignerFactory{
-			signer: newHMACSigner(alg),
-		})
-	}
-
-	RegisterSigner(jwa.EdDSA(), &staticSignerFactory{
-		signer: newEdDSASigner(),
-	})
-}
-
 // NewSigner creates a signer that signs payloads using the given signature algorithm.
+// This function is deprecated. You should use `SignerFor()` instead.
+//
+// This function only exists for backwards compatibility, but will not work
+// unless you enable the legacy support mode by calling jws.Settings(jws.WithLegacySigners(true)).
 func NewSigner(alg jwa.SignatureAlgorithm) (Signer, error) {
 	muSignerDB.RLock()
 	f, ok := signerDB[alg]
@@ -104,7 +144,7 @@ func NewSigner(alg jwa.SignatureAlgorithm) (Signer, error) {
 	if ok {
 		return f.Create()
 	}
-	return nil, fmt.Errorf(`unsupported signature algorithm "%s"`, alg)
+	return nil, fmt.Errorf(`jws.NewSigner: unsupported signature algorithm "%s"`, alg)
 }
 
 type noneSigner struct{}
@@ -113,6 +153,6 @@ func (noneSigner) Algorithm() jwa.SignatureAlgorithm {
 	return jwa.NoSignature()
 }
 
-func (noneSigner) Sign([]byte, interface{}) ([]byte, error) {
+func (noneSigner) Sign([]byte, any) ([]byte, error) {
 	return nil, nil
 }

@@ -54,7 +54,7 @@ func (k KeyUsageType) String() string {
 	return string(k)
 }
 
-func (k *KeyUsageType) Accept(v interface{}) error {
+func (k *KeyUsageType) Accept(v any) error {
 	switch v := v.(type) {
 	case KeyUsageType:
 		if !isValidUsage(v.String()) {

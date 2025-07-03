@@ -218,7 +218,7 @@
 //
 //	 	jwk.RegisterKeyImporter(&mypkg.SuperSecretKey{}, jwk.KeyImportFunc(imnportSuperSecretKey))
 //
-//	 	func importSuperSecretKey(key interface{}) (jwk.Key, error) {
+//	 	func importSuperSecretKey(key any) (jwk.Key, error) {
 //	 	  mykey, ok := key.(*mypkg.SuperSecretKey)
 //	 	  if !ok {
 //	         // You must return jwk.ContinueError here, or otherwise
@@ -241,13 +241,13 @@
 //	jwk.RegisterKeyExporter(jwa.RSA, jwk.KeyExportFunc(exportRSAKey))
 //
 // For a given JWK, it will be passed a "destination" object to store the exported raw key. For example,
-// an RSA-based private JWK can be exported to a `*rsa.PrivateKey` or to a `*interface{}`, but not
+// an RSA-based private JWK can be exported to a `*rsa.PrivateKey` or to a `*any`, but not
 // to a `*ecdsa.PrivateKey`:
 //
 //	var dst *rsa.PrivateKey
 //	key.Raw(&dst) // OK
 //
-//	var dst interface{}
+//	var dst any
 //	key.Raw(&dst) // OK
 //
 //	var dst *ecdsa.PrivateKey
@@ -269,10 +269,10 @@
 //
 //	jwk.RegisterKeyExporter(jwk.EC, jwk.KeyExportFunc(exportMyKey))
 //
-//	func exportMyKey(key jwk.Key, hint interface{}) (interface{}, error) {
+//	func exportMyKey(key jwk.Key, hint any) (any, error) {
 //	   // check if the type of object in hint is compatible with your key
 //	   switch hint.(type) {
-//	   case *mypkg.PrivateKey, *interface{}:
+//	   case *mypkg.PrivateKey, *any:
 //	     // OK, we can proceed
 //	   default:
 //	     // Not compatible, return jwk.ContinueError

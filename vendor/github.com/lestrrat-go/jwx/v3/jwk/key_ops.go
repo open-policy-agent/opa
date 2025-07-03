@@ -9,11 +9,11 @@ func (ops *KeyOperationList) Get() KeyOperationList {
 	return *ops
 }
 
-func (ops *KeyOperationList) Accept(v interface{}) error {
+func (ops *KeyOperationList) Accept(v any) error {
 	switch x := v.(type) {
 	case string:
 		return ops.Accept([]string{x})
-	case []interface{}:
+	case []any:
 		l := make([]string, len(x))
 		for i, e := range x {
 			if es, ok := e.(string); ok {

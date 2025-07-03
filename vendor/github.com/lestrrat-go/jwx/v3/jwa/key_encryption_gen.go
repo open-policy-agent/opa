@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+
+	"github.com/lestrrat-go/jwx/v3/internal/tokens"
 )
 
 var muAllKeyEncryptionAlgorithm sync.RWMutex
@@ -18,122 +20,122 @@ var builtinKeyEncryptionAlgorithm = map[string]struct{}{}
 func init() {
 	// builtin values for KeyEncryptionAlgorithm
 	algorithms := make([]KeyEncryptionAlgorithm, 19)
-	algorithms[0] = NewKeyEncryptionAlgorithm("A128GCMKW", WithIsSymmetric(true))
-	algorithms[1] = NewKeyEncryptionAlgorithm("A128KW", WithIsSymmetric(true))
-	algorithms[2] = NewKeyEncryptionAlgorithm("A192GCMKW", WithIsSymmetric(true))
-	algorithms[3] = NewKeyEncryptionAlgorithm("A192KW", WithIsSymmetric(true))
-	algorithms[4] = NewKeyEncryptionAlgorithm("A256GCMKW", WithIsSymmetric(true))
-	algorithms[5] = NewKeyEncryptionAlgorithm("A256KW", WithIsSymmetric(true))
-	algorithms[6] = NewKeyEncryptionAlgorithm("dir", WithIsSymmetric(true))
-	algorithms[7] = NewKeyEncryptionAlgorithm("ECDH-ES")
-	algorithms[8] = NewKeyEncryptionAlgorithm("ECDH-ES+A128KW")
-	algorithms[9] = NewKeyEncryptionAlgorithm("ECDH-ES+A192KW")
-	algorithms[10] = NewKeyEncryptionAlgorithm("ECDH-ES+A256KW")
-	algorithms[11] = NewKeyEncryptionAlgorithm("PBES2-HS256+A128KW", WithIsSymmetric(true))
-	algorithms[12] = NewKeyEncryptionAlgorithm("PBES2-HS384+A192KW", WithIsSymmetric(true))
-	algorithms[13] = NewKeyEncryptionAlgorithm("PBES2-HS512+A256KW", WithIsSymmetric(true))
-	algorithms[14] = NewKeyEncryptionAlgorithm("RSA1_5", WithDeprecated(true))
-	algorithms[15] = NewKeyEncryptionAlgorithm("RSA-OAEP")
-	algorithms[16] = NewKeyEncryptionAlgorithm("RSA-OAEP-256")
-	algorithms[17] = NewKeyEncryptionAlgorithm("RSA-OAEP-384")
-	algorithms[18] = NewKeyEncryptionAlgorithm("RSA-OAEP-512")
+	algorithms[0] = NewKeyEncryptionAlgorithm(tokens.A128GCMKW, WithIsSymmetric(true))
+	algorithms[1] = NewKeyEncryptionAlgorithm(tokens.A128KW, WithIsSymmetric(true))
+	algorithms[2] = NewKeyEncryptionAlgorithm(tokens.A192GCMKW, WithIsSymmetric(true))
+	algorithms[3] = NewKeyEncryptionAlgorithm(tokens.A192KW, WithIsSymmetric(true))
+	algorithms[4] = NewKeyEncryptionAlgorithm(tokens.A256GCMKW, WithIsSymmetric(true))
+	algorithms[5] = NewKeyEncryptionAlgorithm(tokens.A256KW, WithIsSymmetric(true))
+	algorithms[6] = NewKeyEncryptionAlgorithm(tokens.DIRECT, WithIsSymmetric(true))
+	algorithms[7] = NewKeyEncryptionAlgorithm(tokens.ECDH_ES)
+	algorithms[8] = NewKeyEncryptionAlgorithm(tokens.ECDH_ES_A128KW)
+	algorithms[9] = NewKeyEncryptionAlgorithm(tokens.ECDH_ES_A192KW)
+	algorithms[10] = NewKeyEncryptionAlgorithm(tokens.ECDH_ES_A256KW)
+	algorithms[11] = NewKeyEncryptionAlgorithm(tokens.PBES2_HS256_A128KW, WithIsSymmetric(true))
+	algorithms[12] = NewKeyEncryptionAlgorithm(tokens.PBES2_HS384_A192KW, WithIsSymmetric(true))
+	algorithms[13] = NewKeyEncryptionAlgorithm(tokens.PBES2_HS512_A256KW, WithIsSymmetric(true))
+	algorithms[14] = NewKeyEncryptionAlgorithm(tokens.RSA1_5, WithDeprecated(true))
+	algorithms[15] = NewKeyEncryptionAlgorithm(tokens.RSA_OAEP)
+	algorithms[16] = NewKeyEncryptionAlgorithm(tokens.RSA_OAEP_256)
+	algorithms[17] = NewKeyEncryptionAlgorithm(tokens.RSA_OAEP_384)
+	algorithms[18] = NewKeyEncryptionAlgorithm(tokens.RSA_OAEP_512)
 
 	RegisterKeyEncryptionAlgorithm(algorithms...)
 }
 
 // A128GCMKW returns an object representing AES-GCM key wrap (128) key encryption algorithm.
 func A128GCMKW() KeyEncryptionAlgorithm {
-	return lookupBuiltinKeyEncryptionAlgorithm("A128GCMKW")
+	return lookupBuiltinKeyEncryptionAlgorithm(tokens.A128GCMKW)
 }
 
 // A128KW returns an object representing AES key wrap (128) key encryption algorithm.
 func A128KW() KeyEncryptionAlgorithm {
-	return lookupBuiltinKeyEncryptionAlgorithm("A128KW")
+	return lookupBuiltinKeyEncryptionAlgorithm(tokens.A128KW)
 }
 
 // A192GCMKW returns an object representing AES-GCM key wrap (192) key encryption algorithm.
 func A192GCMKW() KeyEncryptionAlgorithm {
-	return lookupBuiltinKeyEncryptionAlgorithm("A192GCMKW")
+	return lookupBuiltinKeyEncryptionAlgorithm(tokens.A192GCMKW)
 }
 
 // A192KW returns an object representing AES key wrap (192) key encryption algorithm.
 func A192KW() KeyEncryptionAlgorithm {
-	return lookupBuiltinKeyEncryptionAlgorithm("A192KW")
+	return lookupBuiltinKeyEncryptionAlgorithm(tokens.A192KW)
 }
 
 // A256GCMKW returns an object representing AES-GCM key wrap (256) key encryption algorithm.
 func A256GCMKW() KeyEncryptionAlgorithm {
-	return lookupBuiltinKeyEncryptionAlgorithm("A256GCMKW")
+	return lookupBuiltinKeyEncryptionAlgorithm(tokens.A256GCMKW)
 }
 
 // A256KW returns an object representing AES key wrap (256) key encryption algorithm.
 func A256KW() KeyEncryptionAlgorithm {
-	return lookupBuiltinKeyEncryptionAlgorithm("A256KW")
+	return lookupBuiltinKeyEncryptionAlgorithm(tokens.A256KW)
 }
 
 // DIRECT returns an object representing Direct key encryption algorithm.
 func DIRECT() KeyEncryptionAlgorithm {
-	return lookupBuiltinKeyEncryptionAlgorithm("dir")
+	return lookupBuiltinKeyEncryptionAlgorithm(tokens.DIRECT)
 }
 
 // ECDH_ES returns an object representing ECDH-ES key encryption algorithm.
 func ECDH_ES() KeyEncryptionAlgorithm {
-	return lookupBuiltinKeyEncryptionAlgorithm("ECDH-ES")
+	return lookupBuiltinKeyEncryptionAlgorithm(tokens.ECDH_ES)
 }
 
 // ECDH_ES_A128KW returns an object representing ECDH-ES + AES key wrap (128) key encryption algorithm.
 func ECDH_ES_A128KW() KeyEncryptionAlgorithm {
-	return lookupBuiltinKeyEncryptionAlgorithm("ECDH-ES+A128KW")
+	return lookupBuiltinKeyEncryptionAlgorithm(tokens.ECDH_ES_A128KW)
 }
 
 // ECDH_ES_A192KW returns an object representing ECDH-ES + AES key wrap (192) key encryption algorithm.
 func ECDH_ES_A192KW() KeyEncryptionAlgorithm {
-	return lookupBuiltinKeyEncryptionAlgorithm("ECDH-ES+A192KW")
+	return lookupBuiltinKeyEncryptionAlgorithm(tokens.ECDH_ES_A192KW)
 }
 
 // ECDH_ES_A256KW returns an object representing ECDH-ES + AES key wrap (256) key encryption algorithm.
 func ECDH_ES_A256KW() KeyEncryptionAlgorithm {
-	return lookupBuiltinKeyEncryptionAlgorithm("ECDH-ES+A256KW")
+	return lookupBuiltinKeyEncryptionAlgorithm(tokens.ECDH_ES_A256KW)
 }
 
 // PBES2_HS256_A128KW returns an object representing PBES2 + HMAC-SHA256 + AES key wrap (128) key encryption algorithm.
 func PBES2_HS256_A128KW() KeyEncryptionAlgorithm {
-	return lookupBuiltinKeyEncryptionAlgorithm("PBES2-HS256+A128KW")
+	return lookupBuiltinKeyEncryptionAlgorithm(tokens.PBES2_HS256_A128KW)
 }
 
 // PBES2_HS384_A192KW returns an object representing PBES2 + HMAC-SHA384 + AES key wrap (192) key encryption algorithm.
 func PBES2_HS384_A192KW() KeyEncryptionAlgorithm {
-	return lookupBuiltinKeyEncryptionAlgorithm("PBES2-HS384+A192KW")
+	return lookupBuiltinKeyEncryptionAlgorithm(tokens.PBES2_HS384_A192KW)
 }
 
 // PBES2_HS512_A256KW returns an object representing PBES2 + HMAC-SHA512 + AES key wrap (256) key encryption algorithm.
 func PBES2_HS512_A256KW() KeyEncryptionAlgorithm {
-	return lookupBuiltinKeyEncryptionAlgorithm("PBES2-HS512+A256KW")
+	return lookupBuiltinKeyEncryptionAlgorithm(tokens.PBES2_HS512_A256KW)
 }
 
 // RSA1_5 returns an object representing RSA-PKCS1v1.5 key encryption algorithm.
 func RSA1_5() KeyEncryptionAlgorithm {
-	return lookupBuiltinKeyEncryptionAlgorithm("RSA1_5")
+	return lookupBuiltinKeyEncryptionAlgorithm(tokens.RSA1_5)
 }
 
 // RSA_OAEP returns an object representing RSA-OAEP-SHA1 key encryption algorithm.
 func RSA_OAEP() KeyEncryptionAlgorithm {
-	return lookupBuiltinKeyEncryptionAlgorithm("RSA-OAEP")
+	return lookupBuiltinKeyEncryptionAlgorithm(tokens.RSA_OAEP)
 }
 
 // RSA_OAEP_256 returns an object representing RSA-OAEP-SHA256 key encryption algorithm.
 func RSA_OAEP_256() KeyEncryptionAlgorithm {
-	return lookupBuiltinKeyEncryptionAlgorithm("RSA-OAEP-256")
+	return lookupBuiltinKeyEncryptionAlgorithm(tokens.RSA_OAEP_256)
 }
 
 // RSA_OAEP_384 returns an object representing RSA-OAEP-SHA384 key encryption algorithm.
 func RSA_OAEP_384() KeyEncryptionAlgorithm {
-	return lookupBuiltinKeyEncryptionAlgorithm("RSA-OAEP-384")
+	return lookupBuiltinKeyEncryptionAlgorithm(tokens.RSA_OAEP_384)
 }
 
 // RSA_OAEP_512 returns an object representing RSA-OAEP-SHA512 key encryption algorithm.
 func RSA_OAEP_512() KeyEncryptionAlgorithm {
-	return lookupBuiltinKeyEncryptionAlgorithm("RSA-OAEP-512")
+	return lookupBuiltinKeyEncryptionAlgorithm(tokens.RSA_OAEP_512)
 }
 
 func lookupBuiltinKeyEncryptionAlgorithm(name string) KeyEncryptionAlgorithm {
@@ -176,16 +178,15 @@ func EmptyKeyEncryptionAlgorithm() KeyEncryptionAlgorithm {
 func NewKeyEncryptionAlgorithm(name string, options ...NewKeyEncryptionAlgorithmOption) KeyEncryptionAlgorithm {
 	var deprecated bool
 	var isSymmetric bool
-	//nolint:forcetypeassert
 	for _, option := range options {
 		switch option.Ident() {
 		case identIsSymmetric{}:
 			if err := option.Value(&isSymmetric); err != nil {
-				panic(fmt.Sprintf(`jwa: NewKeyEncryptionAlgorithm: %s`, err))
+				panic("jwa.NewKeyEncryptionAlgorithm: WithIsSymmetric option must be a boolean")
 			}
 		case identDeprecated{}:
 			if err := option.Value(&deprecated); err != nil {
-				panic(fmt.Sprintf(`jwa: NewKeyEncryptionAlgorithm: %s`, err))
+				panic("jwa.NewKeyEncryptionAlgorithm: WithDeprecated option must be a boolean")
 			}
 		}
 	}
@@ -260,7 +261,7 @@ func (s *KeyEncryptionAlgorithm) UnmarshalJSON(data []byte) error {
 	}
 	v, ok := LookupKeyEncryptionAlgorithm(name)
 	if !ok {
-		return fmt.Errorf(`unknown KeyEncryptionAlgorithm: %s`, name)
+		return fmt.Errorf(`unknown KeyEncryptionAlgorithm: %q`, name)
 	}
 	*s = v
 	return nil

@@ -174,19 +174,33 @@ github.com/lestrrat-go/httprc/v3
 github.com/lestrrat-go/httprc/v3/errsink
 github.com/lestrrat-go/httprc/v3/proxysink
 github.com/lestrrat-go/httprc/v3/tracesink
-# github.com/lestrrat-go/jwx/v3 v3.0.4
+# github.com/lestrrat-go/jwx/v3 v3.0.8
 ## explicit; go 1.23.0
+github.com/lestrrat-go/jwx/v3
 github.com/lestrrat-go/jwx/v3/cert
 github.com/lestrrat-go/jwx/v3/internal/base64
 github.com/lestrrat-go/jwx/v3/internal/ecutil
 github.com/lestrrat-go/jwx/v3/internal/json
+github.com/lestrrat-go/jwx/v3/internal/jwxio
 github.com/lestrrat-go/jwx/v3/internal/keyconv
 github.com/lestrrat-go/jwx/v3/internal/pool
 github.com/lestrrat-go/jwx/v3/internal/tokens
 github.com/lestrrat-go/jwx/v3/jwa
+github.com/lestrrat-go/jwx/v3/jwe
+github.com/lestrrat-go/jwx/v3/jwe/internal/aescbc
+github.com/lestrrat-go/jwx/v3/jwe/internal/cipher
+github.com/lestrrat-go/jwx/v3/jwe/internal/concatkdf
+github.com/lestrrat-go/jwx/v3/jwe/internal/content_crypt
+github.com/lestrrat-go/jwx/v3/jwe/internal/keygen
+github.com/lestrrat-go/jwx/v3/jwe/jwebb
 github.com/lestrrat-go/jwx/v3/jwk
 github.com/lestrrat-go/jwx/v3/jwk/ecdsa
 github.com/lestrrat-go/jwx/v3/jws
+github.com/lestrrat-go/jwx/v3/jws/internal/keytype
+github.com/lestrrat-go/jwx/v3/jws/jwsbb
+github.com/lestrrat-go/jwx/v3/jws/legacy
+github.com/lestrrat-go/jwx/v3/jwt
+github.com/lestrrat-go/jwx/v3/jwt/internal/types
 github.com/lestrrat-go/jwx/v3/transform
 # github.com/lestrrat-go/option v1.0.1
 ## explicit; go 1.16
@@ -315,6 +329,10 @@ github.com/subosito/gotenv
 # github.com/tchap/go-patricia/v2 v2.3.2
 ## explicit; go 1.16
 github.com/tchap/go-patricia/v2/patricia
+# github.com/valyala/fastjson v1.6.4
+## explicit; go 1.12
+github.com/valyala/fastjson
+github.com/valyala/fastjson/fastfloat
 # github.com/vektah/gqlparser/v2 v2.5.28
 ## explicit; go 1.22
 github.com/vektah/gqlparser/v2/ast
@@ -414,7 +432,7 @@ go.uber.org/automaxprocs/maxprocs
 go.uber.org/multierr
 # golang.org/x/crypto v0.39.0
 ## explicit; go 1.23.0
-golang.org/x/crypto/ed25519
+golang.org/x/crypto/pbkdf2
 # golang.org/x/mod v0.25.0
 ## explicit; go 1.23.0
 golang.org/x/mod/semver
