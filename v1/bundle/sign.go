@@ -73,7 +73,7 @@ func (*DefaultSigner) GenerateSignedToken(files []FileInfo, sc *SigningConfig, k
 		return "", fmt.Errorf("failed to import private key: %w", err)
 	}
 	if err := jwkKey.Set(jwk.KeyIDKey, keyID); err != nil {
-		return "", fmt.Errorf("failed to set key ID on JWK: %w", err
+		return "", fmt.Errorf("failed to set key ID on JWK: %w", err)
 	}
 
 	// Since v3.0.6, jwx will take the fast path for signing the token if
