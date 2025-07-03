@@ -126,18 +126,16 @@ func verifyJWTSignature(token string, bvc *VerificationConfig) (*DecodedSignatur
 	// first in the OPA config. If not found, then check the JWT kid.
 	keyID := bvc.KeyID
 	if keyID == "" {
-		// This is not really recommended by jwx because it relies on lower-level
-		// APIs, but here we're opting for performance.
-		//
 		// Use jwsbb.Header to access into the "kid" header field, which we will
 		// use to determine the key to use for verification.
 		hdr := jwsbb.HeaderParseCompact(hdrb64)
 		v, err := jwsbb.HeaderGetString(hdr, "kid")
-		if err == nil {
-			keyID = v
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract key ID from headers: %w", err)
 		}
-		// if kid is not present in the header, it will still return the enpty
+		// if kid is not present in the header, it will still return the empty
 		// string, so it would be the same as if we had not set it at all.
+		keyID = v
 	}
 
 	// Because we want to fallback to ds.KeyID when we can't find the
