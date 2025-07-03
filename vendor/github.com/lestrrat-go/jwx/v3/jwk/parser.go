@@ -96,7 +96,7 @@ type keyUnmarshaler struct {
 	localReg *json.Registry
 }
 
-func (ku *keyUnmarshaler) UnmarshalKey(data []byte, key interface{}) error {
+func (ku *keyUnmarshaler) UnmarshalKey(data []byte, key any) error {
 	if ku.localReg != nil {
 		dcKey, ok := key.(json.DecodeCtxContainer)
 		if !ok {
@@ -151,7 +151,7 @@ func (kp *keyProber) makeStructType() {
 	kp.typ = reflect.StructOf(fields)
 }
 
-func (kp *keyProber) makeStruct() interface{} {
+func (kp *keyProber) makeStruct() any {
 	return reflect.New(kp.typ)
 }
 
@@ -194,7 +194,7 @@ type KeyProbe struct {
 // `dst` must be a pointer to a value that can hold the type of
 // the value of the field, which is determined by the
 // field type registered through `jwk.RegisterProbeField()`
-func (kp *KeyProbe) Get(name string, dst interface{}) error {
+func (kp *KeyProbe) Get(name string, dst any) error {
 	f := kp.data.Elem().FieldByName(name)
 	if !f.IsValid() {
 		return fmt.Errorf(`field %s not found`, name)
@@ -240,5 +240,5 @@ func RegisterProbeField(p reflect.StructField) error {
 // exactly like json.Unmarshal, but it allows us to add extra magic that
 // is specific to this library before calling the actual json.Unmarshal.
 type KeyUnmarshaler interface {
-	UnmarshalKey(data []byte, key interface{}) error
+	UnmarshalKey(data []byte, key any) error
 }

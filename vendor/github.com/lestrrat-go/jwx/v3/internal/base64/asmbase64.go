@@ -4,6 +4,7 @@ package base64
 
 import (
 	"fmt"
+	"slices"
 
 	asmbase64 "github.com/segmentio/asm/base64"
 )
@@ -17,14 +18,11 @@ type asmEncoder struct {
 	*asmbase64.Encoding
 }
 
-func (_ asmEncoder) AppendEncode(dst, src []byte) []byte {
-	enc := asmbase64.RawURLEncoding
-
-	ntowrite := enc.EncodedLen(len(src))
-	buf := make([]byte, ntowrite)
-
-	enc.Encode(buf, src)
-	return append(dst, buf...)
+func (e asmEncoder) AppendEncode(dst, src []byte) []byte {
+	n := e.Encoding.EncodedLen(len(src))
+	dst = slices.Grow(dst, n)
+	e.Encoding.Encode(dst[len(dst):][:n], src)
+	return dst[:len(dst)+n]
 }
 
 type asmDecoder struct{}

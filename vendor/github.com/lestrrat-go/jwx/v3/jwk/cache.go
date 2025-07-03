@@ -127,26 +127,26 @@ func (c *Cache) Register(ctx context.Context, u string, options ...RegisterOptio
 	var resourceOptions []httprc.NewResourceOption
 	waitReady := true
 	for _, option := range options {
-		switch opt := option.(type) {
+		switch option := option.(type) {
 		case ParseOption:
-			parseOptions = append(parseOptions, opt)
+			parseOptions = append(parseOptions, option)
 		case ResourceOption:
-			var nropt httprc.NewResourceOption
-			if err := option.Value(&nropt); err != nil {
-				return fmt.Errorf(`jwk.Cache: Register: failed to parse ResourceOption: %w`, err)
+			var v httprc.NewResourceOption
+			if err := option.Value(&v); err != nil {
+				return fmt.Errorf(`failed to retrieve NewResourceOption option value: %w`, err)
 			}
-			resourceOptions = append(resourceOptions, nropt)
+			resourceOptions = append(resourceOptions, v)
 		default:
 			switch option.Ident() {
 			case identHTTPClient{}:
-				var httpClient HTTPClient
-				if err := option.Value(&httpClient); err != nil {
-					return fmt.Errorf(`jwk.Cache: Register: failed to parse identHTTPClient option: %w`, err)
+				var cli HTTPClient
+				if err := option.Value(&cli); err != nil {
+					return fmt.Errorf(`failed to retrieve HTTPClient option value: %w`, err)
 				}
-				resourceOptions = append(resourceOptions, httprc.WithHTTPClient(httpClient))
+				resourceOptions = append(resourceOptions, httprc.WithHTTPClient(cli))
 			case identWaitReady{}:
 				if err := option.Value(&waitReady); err != nil {
-					return fmt.Errorf(`jwk.Cache: Register: failed to parse identWaitReady option: %w`, err)
+					return fmt.Errorf(`failed to retrieve WaitReady option value: %w`, err)
 				}
 			}
 		}
@@ -277,7 +277,7 @@ func (*cachedSet) Clear() error {
 }
 
 // Set is a no-op for `jwk.CachedSet`, as the `jwk.Set` should be treated read-only
-func (*cachedSet) Set(_ string, _ interface{}) error {
+func (*cachedSet) Set(_ string, _ any) error {
 	return fmt.Errorf(`(jwk.cachedSet).Set: jwk.CachedSet is immutable`)
 }
 
@@ -302,7 +302,7 @@ func (cs *cachedSet) Clone() (Set, error) {
 }
 
 // Get returns the value of non-Key field stored in the jwk.Set
-func (cs *cachedSet) Get(name string, dst interface{}) error {
+func (cs *cachedSet) Get(name string, dst any) error {
 	set, err := cs.cached()
 	if err != nil {
 		return err

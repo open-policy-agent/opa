@@ -145,7 +145,7 @@ var ecdsaConvertibleTypes = []reflect.Type{
 	reflect.TypeOf((*ECDSAPublicKey)(nil)).Elem(),
 }
 
-func ecdsaJWKToRaw(keyif Key, hint interface{}) (interface{}, error) {
+func ecdsaJWKToRaw(keyif Key, hint any) (any, error) {
 	var isECDH bool
 
 	extracted, err := extractEmbeddedKey(keyif, ecdsaConvertibleTypes)
@@ -269,7 +269,7 @@ func makeECDSAPublicKey(src Key) (Key, error) {
 		case ECDSADKey:
 			continue
 		default:
-			var v interface{}
+			var v any
 			if err := src.Get(k, &v); err != nil {
 				return nil, fmt.Errorf(`ecdsa: makeECDSAPublicKey: failed to get field %q: %w`, k, err)
 			}

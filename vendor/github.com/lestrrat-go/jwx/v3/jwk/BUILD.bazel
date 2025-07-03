@@ -38,7 +38,7 @@ go_library(
         "//transform",
         "//internal/json",
         "//internal/pool",
-        "//internal/tokens",
+	"//internal/tokens",
         "//jwa",
         "//jwk/ecdsa",
         "@com_github_lestrrat_go_blackmagic//:blackmagic",

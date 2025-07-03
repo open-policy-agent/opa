@@ -15,7 +15,7 @@ import (
 // A PEMDecoder can be specified as an option to `jwk.Parse()` or `jwk.ParseKey()`
 // along with the `jwk.WithPEM()` option.
 type PEMDecoder interface {
-	Decode([]byte) (interface{}, []byte, error)
+	Decode([]byte) (any, []byte, error)
 }
 
 // PEMEncoder is an interface to describe an object that can encode
@@ -27,19 +27,19 @@ type PEMDecoder interface {
 // abstracting the `jwk.EncodePEM()` function using `jwk.PEMEncodeFunc`
 // along with alternate implementations, should you need them.
 type PEMEncoder interface {
-	Encode(interface{}) (string, []byte, error)
+	Encode(any) (string, []byte, error)
 }
 
-type PEMEncodeFunc func(interface{}) (string, []byte, error)
+type PEMEncodeFunc func(any) (string, []byte, error)
 
-func (f PEMEncodeFunc) Encode(v interface{}) (string, []byte, error) {
+func (f PEMEncodeFunc) Encode(v any) (string, []byte, error) {
 	return f(v)
 }
 
-func encodeX509(v interface{}) (string, []byte, error) {
+func encodeX509(v any) (string, []byte, error) {
 	// we can't import jwk, so just use the interface
 	if key, ok := v.(Key); ok {
-		var raw interface{}
+		var raw any
 		if err := Export(key, &raw); err != nil {
 			return "", nil, fmt.Errorf(`failed to get raw key out of %T: %w`, key, err)
 		}
@@ -80,7 +80,7 @@ func encodeX509(v interface{}) (string, []byte, error) {
 //
 // Internally, it uses the same routine as `jwk.EncodeX509()`, and therefore
 // the same caveats apply
-func EncodePEM(v interface{}) ([]byte, error) {
+func EncodePEM(v any) ([]byte, error) {
 	typ, marshaled, err := encodeX509(v)
 	if err != nil {
 		return nil, fmt.Errorf(`failed to encode key in x509: %w`, err)
@@ -109,7 +109,7 @@ type pemDecoder struct{}
 
 // DecodePEM decodes a key in PEM encoded ASN.1 DER format.
 // and returns a raw key
-func (pemDecoder) Decode(src []byte) (interface{}, []byte, error) {
+func (pemDecoder) Decode(src []byte) (any, []byte, error) {
 	block, rest := pem.Decode(src)
 	if block == nil {
 		return nil, nil, fmt.Errorf(`failed to decode PEM data`)

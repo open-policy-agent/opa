@@ -11,7 +11,7 @@ import (
 
 // Create is a wrapper around x509.CreateCertificate, but it additionally
 // encodes it in base64 so that it can be easily added to `x5c` fields
-func Create(rand io.Reader, template, parent *x509.Certificate, pub, priv interface{}) ([]byte, error) {
+func Create(rand io.Reader, template, parent *x509.Certificate, pub, priv any) ([]byte, error) {
 	der, err := x509.CreateCertificate(rand, template, parent, pub, priv)
 	if err != nil {
 		return nil, fmt.Errorf(`failed to create x509 certificate: %w`, err)

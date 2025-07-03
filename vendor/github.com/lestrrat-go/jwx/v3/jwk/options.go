@@ -11,7 +11,7 @@ type identTypedField struct{}
 
 type typedFieldPair struct {
 	Name  string
-	Value interface{}
+	Value any
 }
 
 // WithTypedField allows a private field to be parsed into the object type of
@@ -32,7 +32,7 @@ type typedFieldPair struct {
 // Second, specifying this option will slightly slow down the decoding process
 // as it needs to consult multiple definitions sources (global and local), so
 // be careful if you are decoding a large number of tokens, as the effects will stack up.
-func WithTypedField(name string, object interface{}) ParseOption {
+func WithTypedField(name string, object any) ParseOption {
 	return &parseOption{
 		option.New(identTypedField{},
 			typedFieldPair{Name: name, Value: object},

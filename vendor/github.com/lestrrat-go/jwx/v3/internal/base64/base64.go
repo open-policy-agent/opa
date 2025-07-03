@@ -16,7 +16,6 @@ type Encoder interface {
 	Encode([]byte, []byte)
 	EncodedLen(int) int
 	EncodeToString([]byte) string
-
 	AppendEncode([]byte, []byte) []byte
 }
 
@@ -62,10 +61,6 @@ func Encode(src []byte) []byte {
 
 func EncodeToString(src []byte) string {
 	return getEncoder().EncodeToString(src)
-}
-
-func AppendEncode(dst []byte, src []byte) []byte {
-	return getEncoder().AppendEncode(dst, src)
 }
 
 func EncodeUint64ToString(v uint64) string {

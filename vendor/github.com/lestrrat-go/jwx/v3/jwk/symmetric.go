@@ -30,7 +30,7 @@ var symmetricConvertibleKeys = []reflect.Type{
 	reflect.TypeOf((*SymmetricKey)(nil)).Elem(),
 }
 
-func octetSeqToRaw(key Key, hint interface{}) (interface{}, error) {
+func octetSeqToRaw(key Key, hint any) (any, error) {
 	extracted, err := extractEmbeddedKey(key, symmetricConvertibleKeys)
 	if err != nil {
 		return nil, fmt.Errorf(`failed to extract embedded key: %w`, err)
@@ -39,7 +39,7 @@ func octetSeqToRaw(key Key, hint interface{}) (interface{}, error) {
 	switch key := extracted.(type) {
 	case SymmetricKey:
 		switch hint.(type) {
-		case *[]byte, *interface{}:
+		case *[]byte, *any:
 		default:
 			return nil, fmt.Errorf(`invalid destination object type %T for symmetric key: %w`, hint, ContinueError())
 		}
@@ -84,7 +84,7 @@ func (k *symmetricKey) PublicKey() (Key, error) {
 	newKey := newSymmetricKey()
 
 	for _, key := range k.Keys() {
-		var v interface{}
+		var v any
 		if err := k.Get(key, &v); err != nil {
 			return nil, fmt.Errorf(`failed to get field %q: %w`, key, err)
 		}

@@ -15,11 +15,11 @@ type identInsecureNoSignature struct{}
 // you also pass this option.
 func WithJSON(options ...WithJSONSuboption) SignVerifyParseOption {
 	var pretty bool
-	for _, opt := range options {
-		switch opt.Ident() {
+	for _, option := range options {
+		switch option.Ident() {
 		case identPretty{}:
-			if err := opt.Value(&pretty); err != nil {
-				panic("jws.WithJSON() option must be a boolean value")
+			if err := option.Value(&pretty); err != nil {
+				panic(`jws.WithJSON() option must be of type bool`)
 			}
 		}
 	}
@@ -33,7 +33,7 @@ func WithJSON(options ...WithJSONSuboption) SignVerifyParseOption {
 
 type withKey struct {
 	alg       jwa.KeyAlgorithm
-	key       interface{}
+	key       any
 	protected Headers
 	public    Headers
 }
@@ -94,20 +94,20 @@ func (w *withKey) Protected(v Headers) Headers {
 // `{"b64": false}`, then the payload is not base64 encoded.
 //
 // These suboptions are ignored when the `jws.WithKey()` option is used with `jws.Verify()`.
-func WithKey(alg jwa.KeyAlgorithm, key interface{}, options ...WithKeySuboption) SignVerifyOption {
+func WithKey(alg jwa.KeyAlgorithm, key any, options ...WithKeySuboption) SignVerifyOption {
 	// Implementation note: this option is shared between Sign() and
 	// Verify(). As such we don't create a KeyProvider here because
 	// if used in Sign() we would be doing something else.
 	var protected, public Headers
-	for _, opt := range options {
-		switch opt.Ident() {
+	for _, option := range options {
+		switch option.Ident() {
 		case identProtectedHeaders{}:
-			if err := opt.Value(&protected); err != nil {
-				panic("jws.WithKey() option must be a Headers value")
+			if err := option.Value(&protected); err != nil {
+				panic(`jws.WithKey() option must be of type Headers`)
 			}
 		case identPublicHeaders{}:
-			if err := opt.Value(&public); err != nil {
-				panic("jws.WithKey() option must be a Headers value")
+			if err := option.Value(&public); err != nil {
+				panic(`jws.WithKey() option must be of type Headers`)
 			}
 		}
 	}
@@ -144,23 +144,23 @@ func WithKey(alg jwa.KeyAlgorithm, key interface{}, options ...WithKeySuboption)
 func WithKeySet(set jwk.Set, options ...WithKeySetSuboption) VerifyOption {
 	requireKid := true
 	var useDefault, inferAlgorithm, multipleKeysPerKeyID bool
-	for _, opt := range options {
-		switch opt.Ident() {
+	for _, option := range options {
+		switch option.Ident() {
 		case identRequireKid{}:
-			if err := opt.Value(&requireKid); err != nil {
-				panic("jws.WithKeySet(jws.RequireKid(...)) option must be a boolean value")
+			if err := option.Value(&requireKid); err != nil {
+				panic(`jws.WithKeySet() option must be of type bool`)
 			}
 		case identUseDefault{}:
-			if err := opt.Value(&useDefault); err != nil {
-				panic("jws.WithKeySet(jws.UseDefault(...)) option must be a boolean value")
+			if err := option.Value(&useDefault); err != nil {
+				panic(`jws.WithKeySet() option must be of type bool`)
 			}
 		case identMultipleKeysPerKeyID{}:
-			if err := opt.Value(&multipleKeysPerKeyID); err != nil {
-				panic("jws.WithKeySet(jws.MultipleKeysPerKeyID(...)) option must be a boolean value")
+			if err := option.Value(&multipleKeysPerKeyID); err != nil {
+				panic(`jws.WithKeySet() option must be of type bool`)
 			}
 		case identInferAlgorithmFromKey{}:
-			if err := opt.Value(&inferAlgorithm); err != nil {
-				panic("jws.WithKeySet(jws.InferAlgorithmFromKey(...)) option must be a boolean value")
+			if err := option.Value(&inferAlgorithm); err != nil {
+				panic(`jws.WithKeySet() option must be of type bool`)
 			}
 		}
 	}
@@ -240,11 +240,11 @@ func (w *withInsecureNoSignature) Protected(v Headers) Headers {
 // TODO: create specific suboption set for this option
 func WithInsecureNoSignature(options ...WithKeySuboption) SignOption {
 	var protected Headers
-	for _, opt := range options {
-		switch opt.Ident() {
+	for _, option := range options {
+		switch option.Ident() {
 		case identProtectedHeaders{}:
-			if err := opt.Value(&protected); err != nil {
-				panic("jws.WithInsecureNoSignature() option must be a Headers value")
+			if err := option.Value(&protected); err != nil {
+				panic(`jws.WithInsecureNoSignature() option must be of type Headers`)
 			}
 		}
 	}

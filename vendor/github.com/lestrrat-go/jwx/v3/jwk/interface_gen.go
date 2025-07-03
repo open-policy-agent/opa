@@ -39,15 +39,15 @@ type Key interface {
 	// an error if the field does not exist, or if the value cannot be assigned to
 	// the destination variable. Note that a field is considered to "exist" even if
 	// the value is empty-ish (e.g. 0, false, ""), as long as it is explicitly set.
-	Get(string, interface{}) error
+	Get(string, any) error
 
 	// Set sets the value of a single field. Note that certain fields,
 	// notably "kty", cannot be altered, but will not return an error
 	//
-	// This method, which takes an `interface{}`, exists because
+	// This method, which takes an `any`, exists because
 	// these objects can contain extra _arbitrary_ fields that users can
 	// specify, and there is no way of knowing what type they could be
-	Set(string, interface{}) error
+	Set(string, any) error
 
 	// Remove removes the field associated with the specified key.
 	// There is no way to remove the `kty` (key type). You will ALWAYS be left with one field in a jwk.Key.

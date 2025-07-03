@@ -31,7 +31,7 @@ var muKeyExporters sync.RWMutex
 // RegisterKeyImporter registers a KeyImporter for the given raw key. When `jwk.Import()` is called,
 // the library will look up the appropriate KeyImporter for the given raw key type (via `reflect`)
 // and execute the KeyImporters in succession until either one of them succeeds, or all of them fail.
-func RegisterKeyImporter(from interface{}, conv KeyImporter) {
+func RegisterKeyImporter(from any, conv KeyImporter) {
 	muKeyImporters.Lock()
 	defer muKeyImporters.Unlock()
 	keyImporters[reflect.TypeOf(from)] = conv
@@ -56,13 +56,13 @@ func RegisterKeyExporter(kty jwa.KeyType, conv KeyExporter) {
 // we're _importing_ a raw key.
 type KeyImporter interface {
 	// Import takes the raw key to be converted, and returns a `jwk.Key` or an error if the conversion fails.
-	Import(interface{}) (Key, error)
+	Import(any) (Key, error)
 }
 
 // KeyImportFunc is a convenience type to implement KeyImporter as a function.
-type KeyImportFunc func(interface{}) (Key, error)
+type KeyImportFunc func(any) (Key, error)
 
-func (f KeyImportFunc) Import(raw interface{}) (Key, error) {
+func (f KeyImportFunc) Import(raw any) (Key, error) {
 	return f(raw)
 }
 
@@ -80,18 +80,18 @@ type KeyExporter interface {
 	// receives the _value_ that this pointer points to, to make it easier to
 	// detect the type of the result.
 	//
-	// Note that the second argument may be an `interface{}` (which means that the
+	// Note that the second argument may be an `any` (which means that the
 	// user has delegated the type detection to the converter).
 	//
 	// Export must NOT modify the hint object, and should return jwk.ContinueError
 	// if the hint object is not compatible with the converter.
-	Export(Key, interface{}) (interface{}, error)
+	Export(Key, any) (any, error)
 }
 
 // KeyExportFunc is a convenience type to implement KeyExporter as a function.
-type KeyExportFunc func(Key, interface{}) (interface{}, error)
+type KeyExportFunc func(Key, any) (any, error)
 
-func (f KeyExportFunc) Export(key Key, hint interface{}) (interface{}, error) {
+func (f KeyExportFunc) Export(key Key, hint any) (any, error) {
 	return f(key, hint)
 }
 
@@ -122,32 +122,32 @@ func init() {
 	}
 	{
 		f := KeyImportFunc(okpPrivateKeyToJWK)
-		for _, k := range []interface{}{ed25519.PrivateKey(nil)} {
+		for _, k := range []any{ed25519.PrivateKey(nil)} {
 			RegisterKeyImporter(k, f)
 		}
 	}
 	{
 		f := KeyImportFunc(ecdhPrivateKeyToJWK)
-		for _, k := range []interface{}{ecdh.PrivateKey{}, &ecdh.PrivateKey{}} {
+		for _, k := range []any{ecdh.PrivateKey{}, &ecdh.PrivateKey{}} {
 			RegisterKeyImporter(k, f)
 		}
 	}
 	{
 		f := KeyImportFunc(okpPublicKeyToJWK)
-		for _, k := range []interface{}{ed25519.PublicKey(nil)} {
+		for _, k := range []any{ed25519.PublicKey(nil)} {
 			RegisterKeyImporter(k, f)
 		}
 	}
 	{
 		f := KeyImportFunc(ecdhPublicKeyToJWK)
-		for _, k := range []interface{}{ecdh.PublicKey{}, &ecdh.PublicKey{}} {
+		for _, k := range []any{ecdh.PublicKey{}, &ecdh.PublicKey{}} {
 			RegisterKeyImporter(k, f)
 		}
 	}
 	RegisterKeyImporter([]byte(nil), KeyImportFunc(bytesToKey))
 }
 
-func ecdhPrivateKeyToJWK(src interface{}) (Key, error) {
+func ecdhPrivateKeyToJWK(src any) (Key, error) {
 	var raw *ecdh.PrivateKey
 	switch src := src.(type) {
 	case *ecdh.PrivateKey:
@@ -190,7 +190,7 @@ func ecdhPrivateKeyToECJWK(raw *ecdh.PrivateKey, crv elliptic.Curve) (Key, error
 	return ecdsaPrivateKeyToJWK(&ecdsaPriv)
 }
 
-func ecdhPublicKeyToJWK(src interface{}) (Key, error) {
+func ecdhPublicKeyToJWK(src any) (Key, error) {
 	var raw *ecdh.PublicKey
 	switch src := src.(type) {
 	case *ecdh.PublicKey:
@@ -233,7 +233,7 @@ func ecdhPublicKeyToECJWK(raw *ecdh.PublicKey, crv elliptic.Curve) (Key, error) 
 // each key type has its own Import method -- for example, Import(*ecdsa.PrivateKey)
 // vs Import(*rsa.PrivateKey), and therefore they can't just be bundled into
 // a single function.
-func rsaPrivateKeyToJWK(src interface{}) (Key, error) {
+func rsaPrivateKeyToJWK(src any) (Key, error) {
 	var raw *rsa.PrivateKey
 	switch src := src.(type) {
 	case *rsa.PrivateKey:
@@ -250,7 +250,7 @@ func rsaPrivateKeyToJWK(src interface{}) (Key, error) {
 	return k, nil
 }
 
-func rsaPublicKeyToJWK(src interface{}) (Key, error) {
+func rsaPublicKeyToJWK(src any) (Key, error) {
 	var raw *rsa.PublicKey
 	switch src := src.(type) {
 	case *rsa.PublicKey:
@@ -267,7 +267,7 @@ func rsaPublicKeyToJWK(src interface{}) (Key, error) {
 	return k, nil
 }
 
-func ecdsaPrivateKeyToJWK(src interface{}) (Key, error) {
+func ecdsaPrivateKeyToJWK(src any) (Key, error) {
 	var raw *ecdsa.PrivateKey
 	switch src := src.(type) {
 	case *ecdsa.PrivateKey:
@@ -284,7 +284,7 @@ func ecdsaPrivateKeyToJWK(src interface{}) (Key, error) {
 	return k, nil
 }
 
-func ecdsaPublicKeyToJWK(src interface{}) (Key, error) {
+func ecdsaPublicKeyToJWK(src any) (Key, error) {
 	var raw *ecdsa.PublicKey
 	switch src := src.(type) {
 	case *ecdsa.PublicKey:
@@ -301,8 +301,8 @@ func ecdsaPublicKeyToJWK(src interface{}) (Key, error) {
 	return k, nil
 }
 
-func okpPrivateKeyToJWK(src interface{}) (Key, error) {
-	var raw interface{}
+func okpPrivateKeyToJWK(src any) (Key, error) {
+	var raw any
 	switch src.(type) {
 	case ed25519.PrivateKey, *ecdh.PrivateKey:
 		raw = src
@@ -318,8 +318,8 @@ func okpPrivateKeyToJWK(src interface{}) (Key, error) {
 	return k, nil
 }
 
-func okpPublicKeyToJWK(src interface{}) (Key, error) {
-	var raw interface{}
+func okpPublicKeyToJWK(src any) (Key, error) {
+	var raw any
 	switch src.(type) {
 	case ed25519.PublicKey, *ecdh.PublicKey:
 		raw = src
@@ -335,7 +335,7 @@ func okpPublicKeyToJWK(src interface{}) (Key, error) {
 	return k, nil
 }
 
-func bytesToKey(src interface{}) (Key, error) {
+func bytesToKey(src any) (Key, error) {
 	var raw []byte
 	switch src := src.(type) {
 	case []byte:
@@ -370,7 +370,7 @@ func bytesToKey(src interface{}) (Key, error) {
 // to Do The Right Thing, but it is not guaranteed to work in all cases,
 // especially when the object implements the `jwk.Key` interface via
 // embedding.
-func Export(key Key, dst interface{}) error {
+func Export(key Key, dst any) error {
 	// dst better be a pointer
 	rv := reflect.ValueOf(dst)
 	if rv.Kind() != reflect.Ptr {

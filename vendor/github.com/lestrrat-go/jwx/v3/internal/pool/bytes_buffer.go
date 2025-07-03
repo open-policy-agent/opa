@@ -1,19 +1,18 @@
 package pool
 
-import (
-	"bytes"
-)
+import "bytes"
 
-var bytesBufferPool = New(allocBytesBuffer, destroyBytesBuffer)
+var bytesBufferPool = New[*bytes.Buffer](allocBytesBuffer, freeBytesBuffer)
+
+func allocBytesBuffer() *bytes.Buffer {
+	return &bytes.Buffer{}
+}
+
+func freeBytesBuffer(b *bytes.Buffer) *bytes.Buffer {
+	b.Reset()
+	return b
+}
 
 func BytesBuffer() *Pool[*bytes.Buffer] {
 	return bytesBufferPool
-}
-
-func destroyBytesBuffer(b *bytes.Buffer) {
-	b.Reset()
-}
-
-func allocBytesBuffer() interface{} {
-	return &bytes.Buffer{}
 }

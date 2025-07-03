@@ -71,14 +71,14 @@ type Set interface {
 	// For the purposes of a key set, any field other than the "keys" field is
 	// considered to be a private field. In other words, you cannot use this
 	// method to directly access the list of keys in the set
-	Get(string, interface{}) error
+	Get(string, any) error
 
 	// Set sets the value of a single field.
 	//
-	// This method, which takes an `interface{}`, exists because
+	// This method, which takes an `any`, exists because
 	// these objects can contain extra _arbitrary_ fields that users can
 	// specify, and there is no way of knowing what type they could be.
-	Set(string, interface{}) error
+	Set(string, any) error
 
 	// Remove removes the specified non-key field from the set.
 	// Keys may not be removed using this method. See RemoveKey for
@@ -117,7 +117,7 @@ type set struct {
 	keys          []Key
 	mu            sync.RWMutex
 	dc            DecodeCtx
-	privateParams map[string]interface{}
+	privateParams map[string]any
 }
 
 type PublicKeyer interface {

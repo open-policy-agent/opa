@@ -2,8 +2,13 @@ package jws
 
 import (
 	"github.com/lestrrat-go/jwx/v3/internal/base64"
-	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jws/legacy"
 )
+
+type Signer = legacy.Signer
+type Verifier = legacy.Verifier
+type HMACSigner = legacy.HMACSigner
+type HMACVerifier = legacy.HMACVerifier
 
 // Base64Encoder is an interface that can be used when encoding JWS message
 // components to base64. This is useful when you want to use a non-standard
@@ -72,32 +77,4 @@ type Signature struct {
 	protected Headers // Protected Headers
 	signature []byte  // Signature
 	detached  bool
-}
-
-// Signer generates the signature for a given payload.
-type Signer interface {
-	// Sign creates a signature for the given payload.
-	// The second argument is the key used for signing the payload, and is usually
-	// the private key type associated with the signature method. For example,
-	// for `jwa.RSXXX` and `jwa.PSXXX` types, you need to pass the
-	// `*"crypto/rsa".PrivateKey` type.
-	// Check the documentation for each signer for details
-	Sign([]byte, interface{}) ([]byte, error)
-
-	Algorithm() jwa.SignatureAlgorithm
-}
-
-type Verifier interface {
-	// Verify checks whether the payload and signature are valid for
-	// the given key.
-	// `key` is the key used for verifying the payload, and is usually
-	// the public key associated with the signature method. For example,
-	// for `jwa.RSXXX` and `jwa.PSXXX` types, you need to pass the
-	// `*"crypto/rsa".PublicKey` type.
-	// Check the documentation for each verifier for details
-	Verify(payload []byte, signature []byte, key interface{}) error
-}
-
-type HMACVerifier struct {
-	signer Signer
 }

@@ -1,17 +1,19 @@
 package pool
 
-var bytesSlicePool = New(allocByteSlice, destroyByteSlice)
-
-func ByteSlice() *Pool[*[]byte] {
-	return bytesSlicePool
+var byteSlicePool = SlicePool[byte]{
+	pool: New[[]byte](allocByteSlice, freeByteSlice),
 }
 
-func allocByteSlice() interface{} {
-	buf := make([]byte, 0, 1024) // Preallocate a slice with a capacity of 1024 bytes
-	return &buf
+func allocByteSlice() []byte {
+	return make([]byte, 0, 64) // Default capacity of 64 bytes
 }
 
-func destroyByteSlice(b *[]byte) {
-	// Reset the slice to its zero value
-	*b = (*b)[:0]
+func freeByteSlice(b []byte) []byte {
+	clear(b)
+	b = b[:0] // Reset the slice to zero length
+	return b
+}
+
+func ByteSlice() SlicePool[byte] {
+	return byteSlicePool
 }

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+
+	"github.com/lestrrat-go/jwx/v3/internal/tokens"
 )
 
 var muAllContentEncryptionAlgorithm sync.RWMutex
@@ -18,44 +20,44 @@ var builtinContentEncryptionAlgorithm = map[string]struct{}{}
 func init() {
 	// builtin values for ContentEncryptionAlgorithm
 	algorithms := make([]ContentEncryptionAlgorithm, 6)
-	algorithms[0] = NewContentEncryptionAlgorithm("A128CBC-HS256")
-	algorithms[1] = NewContentEncryptionAlgorithm("A128GCM")
-	algorithms[2] = NewContentEncryptionAlgorithm("A192CBC-HS384")
-	algorithms[3] = NewContentEncryptionAlgorithm("A192GCM")
-	algorithms[4] = NewContentEncryptionAlgorithm("A256CBC-HS512")
-	algorithms[5] = NewContentEncryptionAlgorithm("A256GCM")
+	algorithms[0] = NewContentEncryptionAlgorithm(tokens.A128CBC_HS256)
+	algorithms[1] = NewContentEncryptionAlgorithm(tokens.A128GCM)
+	algorithms[2] = NewContentEncryptionAlgorithm(tokens.A192CBC_HS384)
+	algorithms[3] = NewContentEncryptionAlgorithm(tokens.A192GCM)
+	algorithms[4] = NewContentEncryptionAlgorithm(tokens.A256CBC_HS512)
+	algorithms[5] = NewContentEncryptionAlgorithm(tokens.A256GCM)
 
 	RegisterContentEncryptionAlgorithm(algorithms...)
 }
 
 // A128CBC_HS256 returns an object representing A128CBC-HS256. Using this value specifies that the content should be encrypted using AES-CBC + HMAC-SHA256 (128).
 func A128CBC_HS256() ContentEncryptionAlgorithm {
-	return lookupBuiltinContentEncryptionAlgorithm("A128CBC-HS256")
+	return lookupBuiltinContentEncryptionAlgorithm(tokens.A128CBC_HS256)
 }
 
 // A128GCM returns an object representing A128GCM. Using this value specifies that the content should be encrypted using AES-GCM (128).
 func A128GCM() ContentEncryptionAlgorithm {
-	return lookupBuiltinContentEncryptionAlgorithm("A128GCM")
+	return lookupBuiltinContentEncryptionAlgorithm(tokens.A128GCM)
 }
 
 // A192CBC_HS384 returns an object representing A192CBC-HS384. Using this value specifies that the content should be encrypted using AES-CBC + HMAC-SHA384 (192).
 func A192CBC_HS384() ContentEncryptionAlgorithm {
-	return lookupBuiltinContentEncryptionAlgorithm("A192CBC-HS384")
+	return lookupBuiltinContentEncryptionAlgorithm(tokens.A192CBC_HS384)
 }
 
 // A192GCM returns an object representing A192GCM. Using this value specifies that the content should be encrypted using AES-GCM (192).
 func A192GCM() ContentEncryptionAlgorithm {
-	return lookupBuiltinContentEncryptionAlgorithm("A192GCM")
+	return lookupBuiltinContentEncryptionAlgorithm(tokens.A192GCM)
 }
 
 // A256CBC_HS512 returns an object representing A256CBC-HS512. Using this value specifies that the content should be encrypted using AES-CBC + HMAC-SHA512 (256).
 func A256CBC_HS512() ContentEncryptionAlgorithm {
-	return lookupBuiltinContentEncryptionAlgorithm("A256CBC-HS512")
+	return lookupBuiltinContentEncryptionAlgorithm(tokens.A256CBC_HS512)
 }
 
 // A256GCM returns an object representing A256GCM. Using this value specifies that the content should be encrypted using AES-GCM (256).
 func A256GCM() ContentEncryptionAlgorithm {
-	return lookupBuiltinContentEncryptionAlgorithm("A256GCM")
+	return lookupBuiltinContentEncryptionAlgorithm(tokens.A256GCM)
 }
 
 func lookupBuiltinContentEncryptionAlgorithm(name string) ContentEncryptionAlgorithm {
@@ -91,12 +93,11 @@ func EmptyContentEncryptionAlgorithm() ContentEncryptionAlgorithm {
 // NewContentEncryptionAlgorithm creates a new ContentEncryptionAlgorithm object with the given name.
 func NewContentEncryptionAlgorithm(name string, options ...NewAlgorithmOption) ContentEncryptionAlgorithm {
 	var deprecated bool
-	//nolint:forcetypeassert
 	for _, option := range options {
 		switch option.Ident() {
 		case identDeprecated{}:
 			if err := option.Value(&deprecated); err != nil {
-				panic(fmt.Sprintf(`jwa: NewContentEncryptionAlgorithm: %s`, err))
+				panic("jwa.NewContentEncryptionAlgorithm: WithDeprecated option must be a boolean")
 			}
 		}
 	}
@@ -171,7 +172,7 @@ func (s *ContentEncryptionAlgorithm) UnmarshalJSON(data []byte) error {
 	}
 	v, ok := LookupContentEncryptionAlgorithm(name)
 	if !ok {
-		return fmt.Errorf(`unknown ContentEncryptionAlgorithm: %s`, name)
+		return fmt.Errorf(`unknown ContentEncryptionAlgorithm: %q`, name)
 	}
 	*s = v
 	return nil

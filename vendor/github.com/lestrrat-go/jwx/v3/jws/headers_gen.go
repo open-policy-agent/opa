@@ -61,8 +61,8 @@ type Headers interface {
 	// an error if the field does not exist, or if the value cannot be assigned to
 	// the destination variable. Note that a field is considered to "exist" even if
 	// the value is empty-ish (e.g. 0, false, ""), as long as it is explicitly set.
-	Get(string, interface{}) error
-	Set(string, interface{}) error
+	Get(string, any) error
+	Set(string, any) error
 	Remove(string) error
 	// Has returns true if the specified header has a value, even if
 	// the value is empty-ish (e.g. 0, false, "")  as long as it has been
@@ -86,7 +86,7 @@ type stdHeaders struct {
 	x509CertThumbprint     *string                 // https://tools.ietf.org/html/rfc7515#section-4.1.7
 	x509CertThumbprintS256 *string                 // https://tools.ietf.org/html/rfc7515#section-4.1.8
 	x509URL                *string                 // https://tools.ietf.org/html/rfc7515#section-4.1.5
-	privateParams          map[string]interface{}
+	privateParams          map[string]any
 	mu                     *sync.RWMutex
 	dc                     DecodeCtx
 	raw                    []byte // stores the raw version of the header so it can be used later
@@ -220,7 +220,7 @@ func (h *stdHeaders) rawBuffer() []byte {
 	return h.raw
 }
 
-func (h *stdHeaders) PrivateParams() map[string]interface{} {
+func (h *stdHeaders) PrivateParams() map[string]any {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return h.privateParams
@@ -258,7 +258,7 @@ func (h *stdHeaders) Has(name string) bool {
 	}
 }
 
-func (h *stdHeaders) Get(name string, dst interface{}) error {
+func (h *stdHeaders) Get(name string, dst any) error {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	switch name {
@@ -365,13 +365,13 @@ func (h *stdHeaders) Get(name string, dst interface{}) error {
 	return nil
 }
 
-func (h *stdHeaders) Set(name string, value interface{}) error {
+func (h *stdHeaders) Set(name string, value any) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return h.setNoLock(name, value)
 }
 
-func (h *stdHeaders) setNoLock(name string, value interface{}) error {
+func (h *stdHeaders) setNoLock(name string, value any) error {
 	switch name {
 	case AlgorithmKey:
 		alg, err := jwa.KeyAlgorithmFrom(value)
@@ -445,7 +445,7 @@ func (h *stdHeaders) setNoLock(name string, value interface{}) error {
 		return fmt.Errorf(`invalid value for %s key: %T`, X509URLKey, value)
 	default:
 		if h.privateParams == nil {
-			h.privateParams = map[string]interface{}{}
+			h.privateParams = map[string]any{}
 		}
 		h.privateParams[name] = value
 	}
@@ -498,11 +498,11 @@ LOOP:
 		switch tok := tok.(type) {
 		case json.Delim:
 			// Assuming we're doing everything correctly, we should ONLY
-			// get either '{' or '}' here.
+			// get either tokens.OpenCurlyBracket or tokens.CloseCurlyBracket here.
 			if tok == tokens.CloseCurlyBracket { // End of object
 				break LOOP
 			} else if tok != tokens.OpenCurlyBracket {
-				return fmt.Errorf(`expected '{', but got '%c'`, tok)
+				return fmt.Errorf(`expected '%c' but got '%c'`, tokens.OpenCurlyBracket, tok)
 			}
 		case string: // Objects can only have string keys
 			switch tok {
@@ -622,7 +622,7 @@ func (h *stdHeaders) Keys() []string {
 
 func (h stdHeaders) MarshalJSON() ([]byte, error) {
 	h.mu.RLock()
-	data := make(map[string]interface{})
+	data := make(map[string]any)
 	keys := make([]string, 0, 11+len(h.privateParams))
 	if h.algorithm != nil {
 		data[AlgorithmKey] = *(h.algorithm)

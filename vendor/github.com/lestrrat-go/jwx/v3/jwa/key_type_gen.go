@@ -86,12 +86,11 @@ func EmptyKeyType() KeyType {
 // NewKeyType creates a new KeyType object with the given name.
 func NewKeyType(name string, options ...NewAlgorithmOption) KeyType {
 	var deprecated bool
-	//nolint:forcetypeassert
 	for _, option := range options {
 		switch option.Ident() {
 		case identDeprecated{}:
 			if err := option.Value(&deprecated); err != nil {
-				panic(fmt.Sprintf(`jwa: NewKeyType: %s`, err))
+				panic("jwa.NewKeyType: WithDeprecated option must be a boolean")
 			}
 		}
 	}
@@ -166,7 +165,7 @@ func (s *KeyType) UnmarshalJSON(data []byte) error {
 	}
 	v, ok := LookupKeyType(name)
 	if !ok {
-		return fmt.Errorf(`unknown KeyType: %s`, name)
+		return fmt.Errorf(`unknown KeyType: %q`, name)
 	}
 	*s = v
 	return nil

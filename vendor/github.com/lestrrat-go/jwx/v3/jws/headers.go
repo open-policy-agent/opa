@@ -6,7 +6,7 @@ import (
 
 func (h *stdHeaders) Copy(dst Headers) error {
 	for _, k := range h.Keys() {
-		var v interface{}
+		var v any
 		if err := h.Get(k, &v); err != nil {
 			return fmt.Errorf(`failed to get header %q: %w`, k, err)
 		}
@@ -21,25 +21,21 @@ func (h *stdHeaders) Copy(dst Headers) error {
 // object is nil. This is not exported because ATM it felt like this
 // function is not frequently used, and MergeHeaders seemed a clunky name
 func mergeHeaders(h1, h2 Headers) (Headers, error) {
-	if h1 == nil && h2 == nil {
-		return NewHeaders(), nil
-	}
+	h3 := NewHeaders()
 
-	if h1 != nil && h2 != nil {
-		h3 := NewHeaders()
+	if h1 != nil {
 		if err := h1.Copy(h3); err != nil {
 			return nil, fmt.Errorf(`failed to copy headers from first Header: %w`, err)
 		}
+	}
+
+	if h2 != nil {
 		if err := h2.Copy(h3); err != nil {
 			return nil, fmt.Errorf(`failed to copy headers from second Header: %w`, err)
 		}
-		return h3, nil
 	}
 
-	if h1 != nil {
-		return h1, nil
-	}
-	return h2, nil
+	return h3, nil
 }
 
 func (h *stdHeaders) Merge(h2 Headers) (Headers, error) {
