@@ -21,7 +21,7 @@ import (
 )
 
 // parseVerificationKey converts a string key to the appropriate type for jws.Verify
-func parseVerificationKey(keyData string, alg jwa.SignatureAlgorithm) (interface{}, error) {
+func parseVerificationKey(keyData string, alg jwa.SignatureAlgorithm) (any, error) {
 	// For HMAC algorithms, return the key as bytes
 	if alg == jwa.HS256() || alg == jwa.HS384() || alg == jwa.HS512() {
 		return []byte(keyData), nil
