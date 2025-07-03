@@ -36,7 +36,7 @@ func TestVerifyBundleSignature(t *testing.T) {
 			true,
 			errors.New(".signatures.json: multiple JWTs not supported (expected exactly one)"),
 		},
-		"invalid_token": {SignaturesConfig{Signatures: []string{badToken}}, nil, true, errors.New("failed to parse JWT: jws.Parse: failed to parse compact format: invalid compact serialization format: jws.Parse: invalid number of segments")},
+		"invalid_token": {SignaturesConfig{Signatures: []string{badToken}}, nil, true, errors.New("failed to split compact JWT: jwsbb: invalid number of segments")},
 		"invalid_token_header_base64": {
 			SignaturesConfig{Signatures: []string{badTokenHeaderBase64}},
 			NewVerificationConfig(nil, "", "", nil),
