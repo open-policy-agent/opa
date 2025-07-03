@@ -1876,6 +1876,11 @@ func (r *Rego) parseModules(ctx context.Context, txn storage.Transaction, m metr
 	defer m.Timer(metrics.RegoModuleParse).Stop()
 	var errs Errors
 
+	popts := ast.ParserOptions{
+		RegoVersion:  r.regoVersion,
+		Capabilities: r.capabilities,
+	}
+
 	// Parse any modules that are saved to the store, but only if
 	// another compile step is going to occur (ie. we have parsed modules
 	// that need to be compiled).
@@ -1891,7 +1896,7 @@ func (r *Rego) parseModules(ctx context.Context, txn storage.Transaction, m metr
 			return err
 		}
 
-		parsed, err := ast.ParseModuleWithOpts(id, string(bs), ast.ParserOptions{RegoVersion: r.regoVersion})
+		parsed, err := ast.ParseModuleWithOpts(id, string(bs), popts)
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -1901,7 +1906,7 @@ func (r *Rego) parseModules(ctx context.Context, txn storage.Transaction, m metr
 
 	// Parse any passed in as arguments to the Rego object
 	for _, module := range r.modules {
-		p, err := module.ParseWithOpts(ast.ParserOptions{RegoVersion: r.regoVersion})
+		p, err := module.ParseWithOpts(popts)
 		if err != nil {
 			switch errorWithType := err.(type) {
 			case ast.Errors:
@@ -2022,6 +2027,8 @@ func (r *Rego) parseQuery(queryImports []*ast.Import, m metrics.Metrics) (ast.Bo
 		return nil, err
 	}
 	popts.SkipRules = true
+	popts.Capabilities = r.capabilities
+
 	return ast.ParseBodyWithOpts(r.query, popts)
 }
 
