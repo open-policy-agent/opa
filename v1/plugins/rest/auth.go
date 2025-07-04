@@ -37,8 +37,6 @@ import (
 	"github.com/open-policy-agent/opa/v1/logging"
 )
 
-
-
 const (
 	// Default to s3 when the service for sigv4 signing is not specified for backwards compatibility
 	awsSigv4SigningDefaultService = "s3"
@@ -397,13 +395,13 @@ func (ap *oauth2ClientCredentialsAuthPlugin) createAuthJWT(ctx context.Context, 
 		if !ok {
 			return nil, fmt.Errorf("unknown signature algorithm: %s", alg)
 		}
-		
+
 		// Parse headers
 		var headers map[string]interface{}
 		if err := json.Unmarshal(header, &headers); err != nil {
 			return nil, err
 		}
-		
+
 		// Create protected headers
 		protectedHeaders := jws.NewHeaders()
 		for k, v := range headers {
@@ -411,7 +409,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) createAuthJWT(ctx context.Context, 
 				return nil, err
 			}
 		}
-		
+
 		clientAssertion, err = jws.Sign(payload,
 			jws.WithKey(algObj, signingKey, jws.WithProtectedHeaders(protectedHeaders)))
 	}
@@ -507,10 +505,10 @@ func (ap *oauth2ClientCredentialsAuthPlugin) parseSigningKey(c Config) (err erro
 	if !ok {
 		return fmt.Errorf("unknown signature algorithm: %s", ap.signingKey.Algorithm)
 	}
-	
+
 	// Parse the private key directly
 	keyData := ap.signingKey.PrivateKey
-	
+
 	// For HMAC algorithms, return the key as bytes
 	if alg == jwa.HS256() || alg == jwa.HS384() || alg == jwa.HS512() {
 		ap.signingKeyParsed = []byte(keyData)
@@ -533,7 +531,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) parseSigningKey(c Config) (err erro
 	default:
 		return fmt.Errorf("unsupported key type: %s", block.Type)
 	}
-	
+
 	if err != nil {
 		return err
 	}
