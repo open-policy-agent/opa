@@ -1759,7 +1759,7 @@ func TestOauth2JwtBearerGrantTypePKCS8EncodedPrivateKey(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	keyPem := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: privateKey})
+	keyPem := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privateKey})
 	ks := map[string]*keys.Config{
 		keyID: {
 			PrivateKey: string(keyPem),
