@@ -108,7 +108,12 @@ func (s *SigningConfig) WithPlugin(plugin string) *SigningConfig {
 // GetPrivateKey returns the private key or secret from the signing config
 func (s *SigningConfig) GetPrivateKey() (any, error) {
 	var keyData string
-	
+
+	alg, ok := jwa.LookupSignatureAlgorithm(s.Algorithm)
+	if !ok {
+		return nil, fmt.Errorf("unknown signature algorithm: %s", s.Algorithm)
+	}
+
 	// Check if the key looks like PEM data first (starts with -----BEGIN)
 	if strings.HasPrefix(s.Key, "-----BEGIN") {
 		keyData = s.Key
@@ -128,11 +133,6 @@ func (s *SigningConfig) GetPrivateKey() (any, error) {
 		}
 	}
 
-	alg, ok := jwa.LookupSignatureAlgorithm(s.Algorithm)
-	if !ok {
-		return nil, fmt.Errorf("unknown signature algorithm: %s", s.Algorithm)
-	}
-	
 	// For HMAC algorithms, return the key as bytes
 	if alg == jwa.HS256() || alg == jwa.HS384() || alg == jwa.HS512() {
 		return []byte(keyData), nil
