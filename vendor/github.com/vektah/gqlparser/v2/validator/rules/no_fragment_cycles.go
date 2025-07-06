@@ -7,7 +7,7 @@ import (
 	"github.com/vektah/gqlparser/v2/ast"
 
 	//nolint:staticcheck // Validator rules each use dot imports for convenience.
-	. "github.com/vektah/gqlparser/v2/validator"
+	. "github.com/vektah/gqlparser/v2/validator/core"
 )
 
 var NoFragmentCyclesRule = Rule{
@@ -69,10 +69,6 @@ var NoFragmentCyclesRule = Rule{
 			recursive(fragment)
 		})
 	},
-}
-
-func init() {
-	AddRule(NoFragmentCyclesRule.Name, NoFragmentCyclesRule.RuleFunc)
 }
 
 func getFragmentSpreads(node ast.SelectionSet) []*ast.FragmentSpread {

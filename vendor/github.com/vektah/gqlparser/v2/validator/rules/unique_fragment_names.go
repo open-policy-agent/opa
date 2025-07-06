@@ -4,7 +4,7 @@ import (
 	"github.com/vektah/gqlparser/v2/ast"
 
 	//nolint:staticcheck // Validator rules each use dot imports for convenience.
-	. "github.com/vektah/gqlparser/v2/validator"
+	. "github.com/vektah/gqlparser/v2/validator/core"
 )
 
 var UniqueFragmentNamesRule = Rule{
@@ -22,8 +22,4 @@ var UniqueFragmentNamesRule = Rule{
 			seenFragments[fragment.Name] = true
 		})
 	},
-}
-
-func init() {
-	AddRule(UniqueFragmentNamesRule.Name, UniqueFragmentNamesRule.RuleFunc)
 }
