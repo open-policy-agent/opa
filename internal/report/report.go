@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/open-policy-agent/opa/internal/semver"
 	"github.com/open-policy-agent/opa/v1/keys"
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/version"
@@ -26,7 +27,7 @@ import (
 )
 
 // ExternalServiceURL is the base HTTP URL for a telemetry service.
-// If not otherwise specified it will use the hard coded default.
+// If not otherwise specified, it will use the hard-coded default.
 //
 // Override at build time via:
 //
@@ -34,7 +35,7 @@ import (
 //
 // This will be overridden if the OPA_TELEMETRY_SERVICE_URL environment variable
 // is provided.
-var ExternalServiceURL = "https://telemetry.openpolicyagent.org"
+var ExternalServiceURL = "https://api.github.com"
 
 // Reporter reports information such as the version, heap usage about the running OPA instance to an external service
 type Reporter struct {
@@ -47,6 +48,12 @@ type Reporter struct {
 
 // Gatherer represents a mechanism to inject additional data in the telemetry report
 type Gatherer func(ctx context.Context) (any, error)
+
+type GHResponse struct {
+	TagName      string `json:"tag_name,omitempty"`   // latest OPA release tag
+	ReleaseNotes string `json:"html_url,omitempty"`   // link to the OPA release notes
+	Download     string `json:"assets_url,omitempty"` // link to download the OPA release
+}
 
 // DataResponse represents the data returned by the external service
 type DataResponse struct {
@@ -113,7 +120,7 @@ func (r *Reporter) SendReport(ctx context.Context) (*DataResponse, error) {
 		}
 	}
 
-	resp, err := r.client.WithJSON(r.body).Do(rCtx, "POST", "/v1/version")
+	resp, err := r.client.Do(rCtx, "GET", "/repos/open-policy-agent/opa/releases/latest")
 	if err != nil {
 		return nil, err
 	}
@@ -123,17 +130,59 @@ func (r *Reporter) SendReport(ctx context.Context) (*DataResponse, error) {
 	switch resp.StatusCode {
 	case http.StatusOK:
 		if resp.Body != nil {
-			var result DataResponse
+			var result GHResponse
 			err := json.NewDecoder(resp.Body).Decode(&result)
 			if err != nil {
 				return nil, err
 			}
-			return &result, nil
+			return createDataResponse(result)
 		}
 		return nil, nil
 	default:
 		return nil, fmt.Errorf("server replied with HTTP %v", resp.StatusCode)
 	}
+}
+
+func createDataResponse(ghResp GHResponse) (*DataResponse, error) {
+	if ghResp.TagName == "" {
+		return nil, fmt.Errorf("server response does not contain tag_name")
+	}
+
+	v := strings.TrimPrefix(version.Version, "v")
+	sv, err := semver.NewVersion(v)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse current version %q: %w", v, err)
+	}
+
+	latestV := strings.TrimPrefix(ghResp.TagName, "v")
+	latestSV, err := semver.NewVersion(latestV)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse latest version %q: %w", latestV, err)
+	}
+
+	isLatest := sv.Compare(*latestSV) >= 0
+
+	// Note: alternatively, we could look through the assets in the GH API response to find a matching asset,
+	// and use its URL. However, this is not guaranteed to be more robust, and wouldn't use the 'openpolicyagent.org' domain.
+	downloadLink := fmt.Sprintf("https://openpolicyagent.org/downloads/%v/opa_%v_%v",
+		ghResp.TagName, runtime.GOOS, runtime.GOARCH)
+
+	if runtime.GOARCH == "arm64" {
+		downloadLink = fmt.Sprintf("%v_static", downloadLink)
+	}
+
+	if strings.HasPrefix(runtime.GOOS, "win") {
+		downloadLink = fmt.Sprintf("%v.exe", downloadLink)
+	}
+
+	return &DataResponse{
+		Latest: ReleaseDetails{
+			Download:      downloadLink,
+			ReleaseNotes:  ghResp.ReleaseNotes,
+			LatestRelease: ghResp.TagName,
+			OPAUpToDate:   isLatest,
+		},
+	}, nil
 }
 
 func (r *Reporter) RegisterGatherer(key string, f Gatherer) {
