@@ -8,6 +8,7 @@ package report
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -129,7 +130,7 @@ func (r *GHVersionCollector) SendReport(ctx context.Context) (*DataResponse, err
 
 func createDataResponse(ghResp GHResponse) (*DataResponse, error) {
 	if ghResp.TagName == "" {
-		return nil, fmt.Errorf("server response does not contain tag_name")
+		return nil, errors.New("server response does not contain tag_name")
 	}
 
 	v := strings.TrimPrefix(version.Version, "v")
@@ -169,7 +170,7 @@ func createDataResponse(ghResp GHResponse) (*DataResponse, error) {
 	}, nil
 }
 
-func (r *GHVersionCollector) RegisterGatherer(_ string, _ Gatherer) {
+func (*GHVersionCollector) RegisterGatherer(_ string, _ Gatherer) {
 	// no-op for this implementation
 }
 
