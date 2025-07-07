@@ -14,7 +14,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/open-policy-agent/opa/internal/semver"
@@ -38,22 +37,13 @@ import (
 var ExternalServiceURL = "https://api.github.com"
 
 // Reporter reports information such as the version, heap usage about the running OPA instance to an external service
-type Reporter struct {
-	body   map[string]any
-	client rest.Client
-
-	gatherers    map[string]Gatherer
-	gatherersMtx sync.Mutex
+type Reporter interface {
+	SendReport(ctx context.Context) (*DataResponse, error)
+	RegisterGatherer(key string, f Gatherer)
 }
 
 // Gatherer represents a mechanism to inject additional data in the telemetry report
 type Gatherer func(ctx context.Context) (any, error)
-
-type GHResponse struct {
-	TagName      string `json:"tag_name,omitempty"`   // latest OPA release tag
-	ReleaseNotes string `json:"html_url,omitempty"`   // link to the OPA release notes
-	Download     string `json:"assets_url,omitempty"` // link to download the OPA release
-}
 
 // DataResponse represents the data returned by the external service
 type DataResponse struct {
@@ -73,15 +63,19 @@ type Options struct {
 	Logger logging.Logger
 }
 
+type GHVersionCollector struct {
+	client rest.Client
+}
+
+type GHResponse struct {
+	TagName      string `json:"tag_name,omitempty"`   // latest OPA release tag
+	ReleaseNotes string `json:"html_url,omitempty"`   // link to the OPA release notes
+	Download     string `json:"assets_url,omitempty"` // link to download the OPA release
+}
+
 // New returns an instance of the Reporter
-func New(id string, opts Options) (*Reporter, error) {
-	r := Reporter{
-		gatherers: map[string]Gatherer{},
-	}
-	r.body = map[string]any{
-		"id":      id,
-		"version": version.Version,
-	}
+func New(_ string, opts Options) (Reporter, error) {
+	r := GHVersionCollector{}
 
 	url := os.Getenv("OPA_TELEMETRY_SERVICE_URL")
 	if url == "" {
@@ -106,19 +100,9 @@ func New(id string, opts Options) (*Reporter, error) {
 
 // SendReport sends the telemetry report which includes information such as the OPA version, current memory usage to
 // the external service
-func (r *Reporter) SendReport(ctx context.Context) (*DataResponse, error) {
+func (r *GHVersionCollector) SendReport(ctx context.Context) (*DataResponse, error) {
 	rCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-
-	r.gatherersMtx.Lock()
-	defer r.gatherersMtx.Unlock()
-	for key, g := range r.gatherers {
-		var err error
-		r.body[key], err = g(rCtx)
-		if err != nil {
-			return nil, fmt.Errorf("gather telemetry error for key %s: %w", key, err)
-		}
-	}
 
 	resp, err := r.client.Do(rCtx, "GET", "/repos/open-policy-agent/opa/releases/latest")
 	if err != nil {
@@ -185,10 +169,8 @@ func createDataResponse(ghResp GHResponse) (*DataResponse, error) {
 	}, nil
 }
 
-func (r *Reporter) RegisterGatherer(key string, f Gatherer) {
-	r.gatherersMtx.Lock()
-	r.gatherers[key] = f
-	r.gatherersMtx.Unlock()
+func (r *GHVersionCollector) RegisterGatherer(_ string, _ Gatherer) {
+	// no-op for this implementation
 }
 
 // IsSet returns true if dr is populated.

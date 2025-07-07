@@ -23,7 +23,7 @@ func TestNewReportDefaultURL(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	actual := reporter.client.Config().URL
+	actual := reporter.(*GHVersionCollector).client.Config().URL
 	if actual != ExternalServiceURL {
 		t.Fatalf("Expected server URL %v but got %v", ExternalServiceURL, actual)
 	}

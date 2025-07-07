@@ -215,7 +215,7 @@ type Manager struct {
 	bootstrapConfigLabels        map[string]string
 	hooks                        hooks.Hooks
 	enableTelemetry              bool
-	reporter                     *report.Reporter
+	reporter                     report.Reporter
 	opaReportNotifyCh            chan struct{}
 	stop                         chan chan struct{}
 	parserOptions                ast.ParserOptions

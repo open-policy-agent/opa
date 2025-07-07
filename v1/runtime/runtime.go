@@ -300,7 +300,7 @@ type Runtime struct {
 	logger            logging.Logger
 	server            *server.Server
 	metrics           *prometheus.Provider
-	reporter          *report.Reporter
+	reporter          report.Reporter
 	traceExporter     *otlptrace.Exporter
 	loadedPathsResult *initload.LoadPathsResult
 
@@ -368,7 +368,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
 
-	var reporter *report.Reporter
+	var reporter report.Reporter
 	if params.EnableVersionCheck {
 		var err error
 		reporter, err = report.New(params.ID, report.Options{Logger: logger})
