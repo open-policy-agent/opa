@@ -6,7 +6,6 @@
 package version
 
 import (
-	"fmt"
 	"runtime"
 	"runtime/debug"
 )
@@ -56,63 +55,4 @@ func init() {
 			Vcs += "-dirty"
 		}
 	}
-}
-
-type SemVer struct {
-	Major      int
-	Minor      int
-	Patch      int
-	PreRelease string
-}
-
-func ParseSemVer(s string) (SemVer, error) {
-	var v SemVer
-	_, err := fmt.Sscanf(s, "%d.%d.%d%s", &v.Major, &v.Minor, &v.Patch, &v.PreRelease)
-	if err != nil {
-		return v, fmt.Errorf("invalid semantic version: %w", err)
-	}
-
-	if v.Major < 0 || v.Minor < 0 || v.Patch < 0 {
-		return v, fmt.Errorf("semantic version components must be non-negative")
-	}
-
-	return v, nil
-}
-
-func (v SemVer) String() string {
-	return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Patch) + v.PreRelease
-}
-
-func (v SemVer) Compare(other SemVer) int {
-	if v.Major != other.Major {
-		if v.Major < other.Major {
-			return -1
-		}
-		return 1
-	}
-	if v.Minor != other.Minor {
-		if v.Minor < other.Minor {
-			return -1
-		}
-		return 1
-	}
-	if v.Patch != other.Patch {
-		if v.Patch < other.Patch {
-			return -1
-		}
-		return 1
-	}
-	if v.PreRelease != other.PreRelease {
-		if v.PreRelease == "" {
-			return 1 // v is a stable release, other is pre-release
-		}
-		if other.PreRelease == "" {
-			return -1 // other is stable release, v is pre-release
-		}
-		if v.PreRelease < other.PreRelease {
-			return -1
-		}
-		return 1
-	}
-	return 0
 }
