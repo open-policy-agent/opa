@@ -7,8 +7,10 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -34,14 +36,26 @@ func TestGenerateCmdOutputDisableCheckFlag(t *testing.T) {
 }
 
 func TestGenerateCmdOutputWithCheckFlagNoError(t *testing.T) {
-	exp := &report.DataResponse{Latest: report.ReleaseDetails{
-		Download:      "https://openpolicyagent.org/downloads/v100.0.0/opa_darwin_amd64",
-		ReleaseNotes:  "https://github.com/open-policy-agent/opa/releases/tag/v100.0.0",
-		LatestRelease: "v100.0.0",
-	}}
+	// to support testing on all supported platforms
+	downloadLink := fmt.Sprintf("https://openpolicyagent.org/downloads/v100.0.0/opa_%v_%v",
+		runtime.GOOS, runtime.GOARCH)
+
+	if runtime.GOARCH == "arm64" {
+		downloadLink = fmt.Sprintf("%v_static", downloadLink)
+	}
+
+	if strings.HasPrefix(runtime.GOOS, "win") {
+		downloadLink = fmt.Sprintf("%v.exe", downloadLink)
+	}
+
+	resp := &report.GHResponse{
+		TagName:      "v100.0.0",
+		Download:     downloadLink,
+		ReleaseNotes: "https://github.com/open-policy-agent/opa/releases/tag/v100.0.0",
+	}
 
 	// test server
-	baseURL, teardown := getTestServer(exp, http.StatusOK)
+	baseURL, teardown := getTestServer(resp, http.StatusOK)
 	defer teardown()
 
 	t.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
@@ -103,7 +117,7 @@ func getTestServer(update any, statusCode int) (baseURL string, teardownFn func(
 	mux := http.NewServeMux()
 	ts := httptest.NewServer(mux)
 
-	mux.HandleFunc("/v1/version", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("/repos/open-policy-agent/opa/releases/latest", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(statusCode)
 		bs, _ := json.Marshal(update)
 		w.Header().Set("Content-Type", "application/json")

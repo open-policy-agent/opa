@@ -7,20 +7,23 @@ package report
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"runtime"
+	"strings"
 	"testing"
 )
 
 func TestNewReportDefaultURL(t *testing.T) {
 
-	reporter, err := New("", Options{})
+	reporter, err := New(Options{})
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	actual := reporter.client.Config().URL
+	actual := reporter.(*GHVersionCollector).client.Config().URL
 	if actual != ExternalServiceURL {
 		t.Fatalf("Expected server URL %v but got %v", ExternalServiceURL, actual)
 	}
@@ -34,7 +37,7 @@ func TestSendReportBadRespStatus(t *testing.T) {
 
 	t.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
 
-	reporter, err := New("", Options{})
+	reporter, err := New(Options{})
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
@@ -59,7 +62,7 @@ func TestSendReportDecodeError(t *testing.T) {
 
 	t.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
 
-	reporter, err := New("", Options{})
+	reporter, err := New(Options{})
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
@@ -72,20 +75,31 @@ func TestSendReportDecodeError(t *testing.T) {
 }
 
 func TestSendReportWithOPAUpdate(t *testing.T) {
-	exp := &DataResponse{Latest: ReleaseDetails{
-		Download:      "https://openpolicyagent.org/downloads/v100.0.0/opa_darwin_amd64",
-		ReleaseNotes:  "https://github.com/open-policy-agent/opa/releases/tag/v100.0.0",
-		LatestRelease: "v100.0.0",
-		OPAUpToDate:   false,
-	}}
+	// to support testing on all supported platforms
+	downloadLink := fmt.Sprintf("https://openpolicyagent.org/downloads/v100.0.0/opa_%v_%v",
+		runtime.GOOS, runtime.GOARCH)
+
+	if runtime.GOARCH == "arm64" {
+		downloadLink = fmt.Sprintf("%v_static", downloadLink)
+	}
+
+	if strings.HasPrefix(runtime.GOOS, "win") {
+		downloadLink = fmt.Sprintf("%v.exe", downloadLink)
+	}
+
+	srvResp := &GHResponse{
+		TagName:      "v100.0.0",
+		Download:     downloadLink,
+		ReleaseNotes: "https://github.com/open-policy-agent/opa/releases/tag/v100.0.0",
+	}
 
 	// test server
-	baseURL, teardown := getTestServer(exp, http.StatusOK)
+	baseURL, teardown := getTestServer(srvResp, http.StatusOK)
 	defer teardown()
 
 	t.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
 
-	reporter, err := New("", Options{})
+	reporter, err := New(Options{})
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
@@ -96,62 +110,15 @@ func TestSendReportWithOPAUpdate(t *testing.T) {
 		t.Fatalf("Expected no error but got %v", err)
 	}
 
+	exp := &DataResponse{Latest: ReleaseDetails{
+		Download:      downloadLink,
+		ReleaseNotes:  "https://github.com/open-policy-agent/opa/releases/tag/v100.0.0",
+		LatestRelease: "v100.0.0",
+		OPAUpToDate:   false,
+	}}
+
 	if !reflect.DeepEqual(resp, exp) {
 		t.Fatalf("Expected response: %+v but got: %+v", exp, resp)
-	}
-}
-
-func TestReportWithHeapStats(t *testing.T) {
-	// test server
-	baseURL, teardown := getTestServer(nil, http.StatusOK)
-	defer teardown()
-
-	t.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
-
-	reporter, err := New("", Options{})
-	if err != nil {
-		t.Fatalf("Unexpected error %v", err)
-	}
-
-	_, err = reporter.SendReport(context.Background())
-	if err != nil {
-		t.Fatalf("Expected no error but got %v", err)
-	}
-
-	if _, ok := reporter.body["heap_usage_bytes"]; !ok {
-		t.Fatal("Expected key \"heap_usage_bytes\" in the report")
-	}
-}
-
-func TestReportWithExtraKeys(t *testing.T) {
-
-	// test server
-	baseURL, teardown := getTestServer(nil, http.StatusOK)
-	defer teardown()
-
-	t.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
-
-	reporter, err := New("", Options{})
-	if err != nil {
-		t.Fatalf("Unexpected error %v", err)
-	}
-
-	reporter.RegisterGatherer("foobear", func(_ context.Context) (any, error) {
-		return map[string]any{"baz": []string{"one", "two"}}, nil
-	})
-
-	_, err = reporter.SendReport(context.Background())
-	if err != nil {
-		t.Fatalf("Expected no error but got %v", err)
-	}
-
-	if _, ok := reporter.body["foobear"]; !ok {
-		t.Fatal("Expected key \"foobear\" in the report")
-	}
-
-	exp := map[string]any{"baz": []string{"one", "two"}}
-	if act := reporter.body["foobear"]; !reflect.DeepEqual(act, exp) {
-		t.Fatalf("Expected response: %+v but got: %+v", exp, act)
 	}
 }
 
@@ -222,7 +189,7 @@ func getTestServer(update any, statusCode int) (baseURL string, teardownFn func(
 	mux := http.NewServeMux()
 	ts := httptest.NewServer(mux)
 
-	mux.HandleFunc("/v1/version", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("/repos/open-policy-agent/opa/releases/latest", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(statusCode)
 		bs, _ := json.Marshal(update)
 		w.Header().Set("Content-Type", "application/json")

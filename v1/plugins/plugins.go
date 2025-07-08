@@ -215,7 +215,7 @@ type Manager struct {
 	bootstrapConfigLabels        map[string]string
 	hooks                        hooks.Hooks
 	enableTelemetry              bool
-	reporter                     *report.Reporter
+	reporter                     report.Reporter
 	opaReportNotifyCh            chan struct{}
 	stop                         chan chan struct{}
 	parserOptions                ast.ParserOptions
@@ -493,7 +493,7 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 	}
 
 	if m.enableTelemetry {
-		reporter, err := report.New(id, report.Options{Logger: m.logger})
+		reporter, err := report.New(report.Options{Logger: m.logger})
 		if err != nil {
 			return nil, err
 		}

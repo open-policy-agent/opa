@@ -16,6 +16,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -658,17 +659,42 @@ func TestCheckOPAUpdateBadURL(t *testing.T) {
 }
 
 func TestCheckOPAUpdateWithNewUpdate(t *testing.T) {
-	exp := &report.DataResponse{Latest: report.ReleaseDetails{
-		Download:      "https://openpolicyagent.org/downloads/v100.0.0/opa_darwin_amd64",
-		ReleaseNotes:  "https://github.com/open-policy-agent/opa/releases/tag/v100.0.0",
-		LatestRelease: "v100.0.0",
-	}}
+	tag := "v100.0.0"
+	downloadLink := createDownloadLink(tag)
+
+	resp := &report.GHResponse{
+		TagName:      tag,
+		Download:     downloadLink,
+		ReleaseNotes: "https://github.com/open-policy-agent/opa/releases/tag/v100.0.0",
+	}
 
 	// test server
-	baseURL, teardown := getTestServer(exp, http.StatusOK)
+	baseURL, teardown := getTestServer(resp, http.StatusOK)
 	defer teardown()
 
+	exp := &report.DataResponse{Latest: report.ReleaseDetails{
+		Download:      downloadLink,
+		ReleaseNotes:  "https://github.com/open-policy-agent/opa/releases/tag/v100.0.0",
+		LatestRelease: tag,
+	}}
+
 	testCheckOPAUpdate(t, baseURL, exp)
+}
+
+func createDownloadLink(tag string) string {
+	// to support testing on all supported platforms
+	downloadLink := fmt.Sprintf("https://openpolicyagent.org/downloads/%s/opa_%v_%v",
+		tag, runtime.GOOS, runtime.GOARCH)
+
+	if runtime.GOARCH == "arm64" {
+		downloadLink = fmt.Sprintf("%v_static", downloadLink)
+	}
+
+	if strings.HasPrefix(runtime.GOOS, "win") {
+		downloadLink = fmt.Sprintf("%v.exe", downloadLink)
+	}
+
+	return downloadLink
 }
 
 func TestCheckOPAUpdateLoopBadURL(t *testing.T) {
@@ -676,21 +702,21 @@ func TestCheckOPAUpdateLoopBadURL(t *testing.T) {
 }
 
 func TestCheckOPAUpdateLoopNoUpdate(t *testing.T) {
-	exp := &report.DataResponse{Latest: report.ReleaseDetails{
-		OPAUpToDate: true,
-	}}
+	srvResp := &report.GHResponse{
+		TagName: "v1.0.0",
+	}
 
 	// test server
-	baseURL, teardown := getTestServer(exp, http.StatusOK)
+	baseURL, teardown := getTestServer(srvResp, http.StatusOK)
 	defer teardown()
 
 	testCheckOPAUpdateLoop(t, baseURL, "OPA is up to date.")
 }
 
 func TestCheckOPAUpdateLoopLaterRequests(t *testing.T) {
-	resp := &report.DataResponse{Latest: report.ReleaseDetails{
-		OPAUpToDate: true,
-	}}
+	resp := &report.GHResponse{
+		TagName: "v1.0.0",
+	}
 
 	// test server
 	baseURL, teardown := getTestServer(resp, http.StatusOK)
@@ -730,15 +756,17 @@ func TestCheckOPAUpdateLoopLaterRequests(t *testing.T) {
 }
 
 func TestCheckOPAUpdateLoopWithNewUpdate(t *testing.T) {
-	exp := &report.DataResponse{Latest: report.ReleaseDetails{
-		Download:      "https://openpolicyagent.org/downloads/v100.0.0/opa_darwin_amd64",
-		ReleaseNotes:  "https://github.com/open-policy-agent/opa/releases/tag/v100.0.0",
-		LatestRelease: "v100.0.0",
-		OPAUpToDate:   false,
-	}}
+	tag := "v100.0.0"
+	downloadLink := createDownloadLink(tag)
+
+	resp := &report.GHResponse{
+		TagName:      tag,
+		Download:     downloadLink,
+		ReleaseNotes: "https://github.com/open-policy-agent/opa/releases/tag/v100.0.0",
+	}
 
 	// test server
-	baseURL, teardown := getTestServer(exp, http.StatusOK)
+	baseURL, teardown := getTestServer(resp, http.StatusOK)
 	defer teardown()
 
 	testCheckOPAUpdateLoop(t, baseURL, "OPA is out of date.")
@@ -1477,7 +1505,7 @@ func getTestServer(update any, statusCode int) (baseURL string, teardownFn func(
 	mux := http.NewServeMux()
 	ts := httptest.NewServer(mux)
 
-	mux.HandleFunc("/v1/version", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("/repos/open-policy-agent/opa/releases/latest", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(statusCode)
 		bs, _ := json.Marshal(update)
 		w.Header().Set("Content-Type", "application/json")
