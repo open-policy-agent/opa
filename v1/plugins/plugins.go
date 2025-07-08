@@ -493,7 +493,7 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 	}
 
 	if m.enableTelemetry {
-		reporter, err := report.New(id, report.Options{Logger: m.logger})
+		reporter, err := report.New(report.Options{Logger: m.logger})
 		if err != nil {
 			return nil, err
 		}

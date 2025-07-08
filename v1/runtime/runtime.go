@@ -371,7 +371,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	var reporter report.Reporter
 	if params.EnableVersionCheck {
 		var err error
-		reporter, err = report.New(params.ID, report.Options{Logger: logger})
+		reporter, err = report.New(report.Options{Logger: logger})
 		if err != nil {
 			return nil, fmt.Errorf("config error: %w", err)
 		}

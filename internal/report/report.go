@@ -75,7 +75,7 @@ type GHResponse struct {
 }
 
 // New returns an instance of the Reporter
-func New(_ string, opts Options) (Reporter, error) {
+func New(opts Options) (Reporter, error) {
 	r := GHVersionCollector{}
 
 	url := os.Getenv("OPA_TELEMETRY_SERVICE_URL")

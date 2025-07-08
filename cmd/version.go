@@ -6,7 +6,6 @@ package cmd
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
 	"io"
 	"os"
@@ -17,7 +16,6 @@ import (
 
 	"github.com/open-policy-agent/opa/cmd/internal/env"
 	"github.com/open-policy-agent/opa/internal/report"
-	"github.com/open-policy-agent/opa/internal/uuid"
 )
 
 func init() {
@@ -70,12 +68,7 @@ func generateCmdOutput(out io.Writer, check bool) {
 }
 
 func checkOPAUpdate(out io.Writer) error {
-	id, err := uuid.New(rand.Reader)
-	if err != nil {
-		return err
-	}
-
-	reporter, err := report.New(id, report.Options{})
+	reporter, err := report.New(report.Options{})
 	if err != nil {
 		return err
 	}
