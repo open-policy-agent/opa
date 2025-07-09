@@ -598,7 +598,7 @@ func TestRegoCancellation(t *testing.T) {
 		Name: "test.sleep",
 		Decl: types.NewFunction(
 			types.Args(types.S),
-			types.NewNull(),
+			types.Nl,
 		),
 	})
 
@@ -629,7 +629,7 @@ func TestRegoCustomBuiltinHalt(t *testing.T) {
 			Name: "halt_func",
 			Decl: types.NewFunction(
 				types.Args(types.S),
-				types.NewNull(),
+				types.Nl,
 			),
 		},
 		func(BuiltinContext, *ast.Term) (*ast.Term, error) {

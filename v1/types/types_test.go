@@ -15,8 +15,7 @@ import (
 var dynamicPropertyAnyAny = NewDynamicProperty(A, A)
 
 func TestAnySorted(t *testing.T) {
-	a := NewAny(S, N)
-	if Compare(a[0], N) != 0 {
+	if Compare(NewAny(S, N)[0], N) != 0 {
 		t.Fatal("expected any type to be sorted")
 	}
 }
@@ -28,7 +27,7 @@ func TestAnyMerge(t *testing.T) {
 		t.Fatal("expected number to be inserted into middle")
 	}
 
-	if Compare(x.Merge(NewNull())[0], NewNull()) != 0 {
+	if Compare(x.Merge(Nl)[0], Nl) != 0 {
 		t.Fatal("expected null to be inserted at front")
 	}
 
@@ -38,10 +37,10 @@ func TestAnyMerge(t *testing.T) {
 }
 
 func TestAnyUnion(t *testing.T) {
-	x := NewAny(NewNull(), N)
+	x := NewAny(Nl, N)
 	y := NewAny(S, B)
 	z := x.Union(y)
-	exp := []Type{NewNull(), B, N, S}
+	exp := []Type{Nl, B, N, S}
 	if len(z) != len(exp) {
 		t.Fatalf("expected %v elements in result of union", len(exp))
 	}
@@ -53,18 +52,17 @@ func TestAnyUnion(t *testing.T) {
 }
 
 func TestStrings(t *testing.T) {
-
 	tpe := NewObject([]*StaticProperty{
-		{"foo", NewNull()},
-		{"bar", NewBoolean()},
-		{"baz", NewNumber()},
-		{"qux", NewString()},
+		{"foo", Nl},
+		{"bar", B},
+		{"baz", N},
+		{"qux", S},
 		{"corge", NewArray(
 			[]Type{
-				NewAny(),
-				NewAny(NewNull(), NewString()),
-				NewSet(NewString()),
-			}, NewString(),
+				A,
+				NewAny(Nl, S),
+				NewSet(S),
+			}, S,
 		)},
 		{"nil", nil},
 	}, NewDynamicProperty(S, N))
@@ -91,77 +89,76 @@ func TestStrings(t *testing.T) {
 }
 
 func TestCompare(t *testing.T) {
-
 	tests := []struct {
 		a   Type
 		b   Type
 		cmp int
 	}{
-		{NewNull(), NewNull(), 0},
-		{NewNull(), NewBoolean(), -1},
-		{NewBoolean(), NewNull(), 1},
-		{NewBoolean(), NewBoolean(), 0},
-		{NewBoolean(), NewNumber(), -1},
-		{NewNumber(), NewNumber(), 0},
-		{NewNumber(), NewString(), -1},
-		{NewString(), NewString(), 0},
-		{NewString(), NewArray(NewAny(), nil), -1},
-		{NewArray(NewAny(), nil), NewArray(NewAny(), NewAny()), -1},
-		{NewArray(NewAny(), NewAny()), NewArray(NewAny(), NewAny()), 0},
-		{NewArray(NewAny(), NewAny()), NewArray(NewAny(), NewString()), 1},
-		{NewArray(NewAny(), NewAny()), NewArray(NewAny(), nil), 1},
-		{NewArray([]Type{NewString()}, nil), NewArray([]Type{NewNumber()}, nil), 1},
+		{Nl, Nl, 0},
+		{Nl, B, -1},
+		{B, Nl, 1},
+		{B, B, 0},
+		{B, N, -1},
+		{N, N, 0},
+		{N, S, -1},
+		{S, S, 0},
+		{S, NewArray(NewAny(), nil), -1},
+		{NewArray(NewAny(), nil), NewArray(NewAny(), A), -1},
+		{NewArray(NewAny(), A), NewArray(NewAny(), A), 0},
+		{NewArray(NewAny(), A), NewArray(NewAny(), S), 1},
+		{NewArray(NewAny(), A), NewArray(NewAny(), nil), 1},
+		{NewArray([]Type{S}, nil), NewArray([]Type{N}, nil), 1},
 		{NewObject(nil, nil), NewObject(nil, dynamicPropertyAnyAny), -1},
 		{NewObject(nil, dynamicPropertyAnyAny), NewObject(nil, nil), 1},
 		{NewObject(nil, dynamicPropertyAnyAny), NewObject(nil, dynamicPropertyAnyAny), 0},
-		{NewObject(nil, NewDynamicProperty(S, NewAny(NewString(), NewNull()))), NewObject(nil, dynamicPropertyAnyAny), -1},
-		{NewSet(NewNull()), NewSet(NewAny()), -1},
+		{NewObject(nil, NewDynamicProperty(S, NewAny(S, Nl))), NewObject(nil, dynamicPropertyAnyAny), -1},
+		{NewSet(Nl), NewSet(NewAny()), -1},
 		{
 			NewObject(
-				[]*StaticProperty{{"foo", NewString()}},
+				[]*StaticProperty{{"foo", S}},
 				nil),
 			NewObject(
-				[]*StaticProperty{{"foo", NewString()}, {"bar", NewNumber()}},
+				[]*StaticProperty{{"foo", S}, {"bar", N}},
 				nil),
 			1,
 		},
 		{
 			NewObject(
-				[]*StaticProperty{{"foo", NewString()}, {"bar", NewNumber()}},
+				[]*StaticProperty{{"foo", S}, {"bar", N}},
 				nil),
 			NewObject(
-				[]*StaticProperty{{"foo", NewString()}},
+				[]*StaticProperty{{"foo", S}},
 				nil),
 			-1,
 		},
 		{
 			NewObject(
-				[]*StaticProperty{{"foo", NewString()}},
+				[]*StaticProperty{{"foo", S}},
 				nil),
 			NewObject(
-				[]*StaticProperty{{"foo", NewNull()}},
+				[]*StaticProperty{{"foo", Nl}},
 				nil),
 			1,
 		},
 		{
 			NewObject(
-				[]*StaticProperty{{"foo", NewString()}},
+				[]*StaticProperty{{"foo", S}},
 				nil),
 			NewObject(
-				[]*StaticProperty{{"foo", NewString()}, {"foo-2", NewNumber()}},
+				[]*StaticProperty{{"foo", S}, {"foo-2", N}},
 				nil),
 			-1,
 		},
 		{
 			NewObject(
-				[]*StaticProperty{{"foo", NewString()}, {"foo-2", NewNumber()}},
+				[]*StaticProperty{{"foo", S}, {"foo-2", N}},
 				nil),
 			NewObject(
-				[]*StaticProperty{{"foo", NewString()}},
+				[]*StaticProperty{{"foo", S}},
 				nil),
 			1,
 		},
-		{NewFunction(nil, nil), NewAny(), 1},
+		{NewFunction(nil, nil), A, 1},
 		{NewFunction([]Type{B}, N), NewFunction([]Type{S}, N), -1},
 		{NewFunction(nil, S), NewFunction(nil, N), 1},
 		{NewFunction(nil, S), NewFunction([]Type{N}, S), -1},
@@ -202,17 +199,17 @@ func TestOr(t *testing.T) {
 		b        Type
 		expected Type
 	}{
-		{nil, NewString(), NewString()},
-		{NewString(), nil, NewString()},
-		{NewNull(), NewNull(), NewNull()},
-		{NewString(), NewNumber(), NewAny(NewNumber(), NewString())},
-		{NewAny(), NewNull(), NewAny()},
-		{NewNull(), NewAny(), NewAny()},
-		{NewNull(), NewAny(NewString(), NewNumber()), NewAny(NewString(), NewNumber(), NewNull())},
-		{NewAny(), NewAny(), NewAny()},
-		{NewAny(NewNull(), NewNumber()), NewAny(), NewAny()},
-		{NewAny(NewNumber(), NewString()), NewAny(NewNull(), NewBoolean()), NewAny(NewNull(), NewBoolean(), NewString(), NewNumber())},
-		{NewAny(NewNull(), NewNumber()), NewNull(), NewAny(NewNull(), NewNumber())},
+		{nil, S, S},
+		{S, nil, S},
+		{Nl, Nl, Nl},
+		{S, N, NewAny(N, S)},
+		{A, Nl, A},
+		{Nl, A, A},
+		{Nl, NewAny(S, N), NewAny(S, N, Nl)},
+		{A, A, A},
+		{NewAny(Nl, N), A, A},
+		{NewAny(N, S), NewAny(Nl, B), NewAny(Nl, B, S, N)},
+		{NewAny(Nl, N), Nl, NewAny(Nl, N)},
 		{NewFunction([]Type{S}, B), NewFunction([]Type{N}, B), NewFunction([]Type{NewAny(S, N)}, B)},
 	}
 
@@ -254,7 +251,7 @@ func TestSelect(t *testing.T) {
 		{"scalar", N, "1", nil},
 		{"scalar-2", S, "1", nil},
 		{"scalar-3", B, "1", nil},
-		{"scalar-4", NewNull(), "1", nil},
+		{"scalar-4", Nl, "1", nil},
 	}
 
 	for _, tc := range tests {
@@ -282,7 +279,7 @@ func TestKeys(t *testing.T) {
 		{"scalar-1", N, nil},
 		{"scalar-2", S, nil},
 		{"scalar-3", B, nil},
-		{"scalar-4", NewNull(), nil},
+		{"scalar-4", Nl, nil},
 	}
 
 	for _, tc := range tests {
@@ -311,7 +308,7 @@ func TestValues(t *testing.T) {
 		{"scalar-1", N, nil},
 		{"scalar-2", S, nil},
 		{"scalar-3", B, nil},
-		{"scalar-4", NewNull(), nil},
+		{"scalar-4", Nl, nil},
 	}
 
 	for _, tc := range tests {
@@ -334,7 +331,7 @@ func TestTypeOf(t *testing.T) {
 	exp := NewObject([]*StaticProperty{
 		NewStaticProperty("foo", NewArray(
 			[]Type{
-				N, B, NewNull(), S,
+				N, B, Nl, S,
 			}, nil,
 		)),
 	}, nil)
@@ -365,7 +362,7 @@ func TestNil(t *testing.T) {
 	tpe := NewObject([]*StaticProperty{
 		NewStaticProperty("foo", NewArray(
 			[]Type{
-				N, B, NewNull(), S, NewSet(nil),
+				N, B, Nl, S, NewSet(nil),
 			}, nil,
 		)),
 	}, nil)
@@ -447,7 +444,7 @@ func TestMarshalJSON(t *testing.T) {
 
 func TestRoundtripJSON(t *testing.T) {
 	tpe := NewFunction([]Type{
-		NewArray([]Type{S, NewNull()}, N),
+		NewArray([]Type{S, Nl}, N),
 		NewObject(
 			[]*StaticProperty{
 				NewStaticProperty("foo", B),
