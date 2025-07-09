@@ -213,11 +213,7 @@ func TestAllOfSchemas(t *testing.T) {
 	outerType = append(outerType, &types.StaticProperty{Key: "AddressLine", Value: types.S})
 	coreSchemaExpectedType := types.NewObject(outerType, nil)
 
-	// Tests 14-17: other types besides array and object
-	expectedStringType := types.NewString()
-	expectedIntegerType := types.NewNumber()
-	expectedBooleanType := types.NewBoolean()
-
+	// Test 14-17: other types besides array and object
 	// Test 18: array with uneven numbers of items children to merge
 	expectedUnevenArrayType := types.NewArray([]types.Type{types.N, types.N, types.S}, nil)
 
@@ -308,19 +304,19 @@ func TestAllOfSchemas(t *testing.T) {
 		{
 			note:          "allOf with mergeable String types in schema",
 			schema:        allOfStringSchema,
-			expectedType:  expectedStringType,
+			expectedType:  types.S,
 			expectedError: nil,
 		},
 		{
 			note:          "allOf with mergeable Integer types in schema",
 			schema:        allOfIntegerSchema,
-			expectedType:  expectedIntegerType,
+			expectedType:  types.N,
 			expectedError: nil,
 		},
 		{
 			note:          "allOf with mergeable Boolean types in schema",
 			schema:        allOfBooleanSchema,
-			expectedType:  expectedBooleanType,
+			expectedType:  types.B,
 			expectedError: nil,
 		},
 		{

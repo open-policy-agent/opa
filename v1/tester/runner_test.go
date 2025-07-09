@@ -71,12 +71,12 @@ func testRun(t *testing.T, conf testRunConfig) map[string]*ast.Module {
 	files := map[string]string{
 		"/a.rego": `package foo
 			import rego.v1
-		
+
 			allow if { true }
 			`,
 		"/a_test.rego": `package foo
 			import rego.v1
-		
+
 			test_pass if { allow }
 			non_test if { true }
 			test_fail if { not allow }
@@ -91,18 +91,18 @@ func testRun(t *testing.T, conf testRunConfig) map[string]*ast.Module {
 			`,
 		"/b_test.rego": `package bar
 			import rego.v1
-		
+
 			test_duplicate if { true }`,
 		"/c_test.rego": `package baz
 			import rego.v1
-		
+
 			a.b.test_duplicate if { false }
 			a.b.test_duplicate if { true }
 			a.b.test_duplicate if { true }`,
 		// Regression test for issue #5496.
 		"/d_test.rego": `package test
 			import rego.v1
-		
+
 			a[0] := 1
 			test_pass if { true }`,
 		"/e_test.rego": `package qux
@@ -658,7 +658,7 @@ func registerSleepBuiltin() {
 		Name: "test.sleep",
 		Decl: types.NewFunction(
 			types.Args(types.S),
-			types.NewNull(),
+			types.Nl,
 		),
 	})
 
