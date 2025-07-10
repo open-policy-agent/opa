@@ -7,6 +7,7 @@ package sdk
 import (
 	"fmt"
 	"io"
+	"sync"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/sirupsen/logrus"
@@ -17,6 +18,19 @@ import (
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
 )
+
+// DefaultOptions allows providing default `Options` to be used in sdk.New().
+var defaultOptions Options
+var defaultOptsMtx sync.Mutex
+
+// SetDefaultOptions allows providing default `Options` to be used in sdk.New().
+// Note that due to the way booleans work, V1Compatible and V0Compatible is ignored in default options,
+// use RegoVersion instead.
+func SetDefaultOptions(o Options) {
+	defaultOptsMtx.Lock()
+	defaultOptions = o
+	defaultOptsMtx.Unlock()
+}
 
 // Options contains parameters to setup and configure OPA.
 type Options struct {
