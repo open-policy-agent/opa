@@ -2960,12 +2960,11 @@ func TestActivateV1Bundles(t *testing.T) {
 		Logger:       logging.New(),
 		V1Compatible: true,
 	})
-
-	defer opa.Stop(ctx)
-
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	defer opa.Stop(ctx)
 
 	d, err := opa.Decision(context.Background(), sdk.DecisionOptions{
 		Path: "v1bundle/authz",

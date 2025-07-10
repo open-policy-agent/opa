@@ -49,6 +49,10 @@ func (hs Hooks) Each(fn func(Hook)) {
 	}
 }
 
+func (hs Hooks) Len() int {
+	return len(hs.m)
+}
+
 // ConfigHook allows inspecting or rewriting the configuration when the plugin
 // manager is processing it.
 // Note that this hook is not run when the plugin manager is reconfigured. This
