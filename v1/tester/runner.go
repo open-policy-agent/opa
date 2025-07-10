@@ -1141,7 +1141,18 @@ func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod 
 		}
 
 		for k, v := range m.All() {
-			fv := float64(v.(int64)) / float64(b.N)
+			var val float64
+			switch v := v.(type) {
+			case int64:
+				val = float64(v)
+			case uint64:
+				val = float64(v)
+			case float64:
+				val = v
+			default:
+				continue // skip this metric
+			}
+			fv := val / float64(b.N)
 			b.ReportMetric(fv, k+"/op")
 		}
 	})
