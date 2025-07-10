@@ -159,6 +159,7 @@ func runExecWithContext(ctx context.Context, params *exec.Params) error {
 		return fmt.Errorf("runtime error: %w", err)
 	}
 
+	opa.Stop(ctx) // shutdown plugins
 	return nil
 }
 
