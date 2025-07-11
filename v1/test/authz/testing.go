@@ -17,16 +17,15 @@ import (
 // Policy is a test rego policy for a token based authz system
 const Policy = `package policy.restauthz
 
-import rego.v1
 import data.restauthz.tokens
 
-default allow = false
+default allow := false
 
 allow if {
-	tokens[input.token_id] = token
-	token.authz_profiles[_] = authz
+	token := tokens[input.token_id]
+	some authz in token.authz_profiles
 	regex.match(authz.path, input.path)
-	authz.methods[_] = input.method
+	input.method in authz.methods
 }`
 
 // AllowQuery is the test query that goes with the Policy
@@ -52,7 +51,6 @@ const (
 
 // GenerateInput will use a dataset profile and desired InputMode to generate inputs for testing
 func GenerateInput(profile DataSetProfile, mode InputMode) (any, any) {
-
 	var input string
 	var allow bool
 
@@ -132,11 +130,10 @@ func generateTokens(profile DataSetProfile) map[string]token {
 }
 
 func generateToken(profile DataSetProfile, i int) token {
-	token := token{
+	return token{
 		ID:            generateTokenID(i),
 		AuthzProfiles: generateAuthzProfiles(profile),
 	}
-	return token
 }
 
 func generateAuthzProfiles(profile DataSetProfile) []authzProfile {

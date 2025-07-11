@@ -17,25 +17,6 @@ import (
 	inmem "github.com/open-policy-agent/opa/v1/storage/inmem/test"
 )
 
-// Tests on only single-layer composite data types.
-// func BenchmarkJSONPatchAdd(b *testing.B) {
-// 	ctx := context.Background()
-
-// 	sizes := []int{10, 100, 1000, 1000}
-// }
-
-// func BenchmarkJSONPatchRemove(b *testing.B) {
-// 	ctx := context.Background()
-
-// 	sizes := []int{10, 100, 1000, 1000}
-// }
-
-// func BenchmarkJSONPatchReplace(b *testing.B) {
-// 	ctx := context.Background()
-
-// 	sizes := []int{10, 100, 1000, 1000}
-
-// }
 func BenchmarkJSONPatchAddShallowScalar(b *testing.B) {
 	ctx := context.Background()
 
@@ -401,13 +382,13 @@ func BenchmarkJSONPatchPathologicalNestedAddChainObject(b *testing.B) {
 		path := ""
 		for i := range n {
 			patchObj := ast.NewObject(
-				[2]*ast.Term{ast.StringTerm("op"), ast.StringTerm("add")},
-				[2]*ast.Term{ast.StringTerm("value"), ast.ObjectTerm()},
+				[2]*ast.Term{ast.InternedTerm("op"), ast.InternedTerm("add")},
+				[2]*ast.Term{ast.InternedTerm("value"), ast.ObjectTerm()},
 			)
 
 			path += "/a"
 
-			patchObj.Insert(ast.StringTerm("path"), ast.StringTerm(path))
+			patchObj.Insert(ast.InternedTerm("path"), ast.InternedTerm(path))
 			patchList[i] = ast.NewTerm(patchObj)
 		}
 		testdata[strconv.Itoa(n)] = ast.NewArray(patchList...)
@@ -432,13 +413,13 @@ func BenchmarkJSONPatchPathologicalNestedAddChainArray(b *testing.B) {
 		path := ""
 		for i := range n {
 			patchObj := ast.NewObject(
-				[2]*ast.Term{ast.StringTerm("op"), ast.StringTerm("add")},
-				[2]*ast.Term{ast.StringTerm("value"), ast.ArrayTerm()},
+				[2]*ast.Term{ast.InternedTerm("op"), ast.InternedTerm("add")},
+				[2]*ast.Term{ast.InternedTerm("value"), ast.ArrayTerm()},
 			)
 
 			path += "/0"
 
-			patchObj.Insert(ast.StringTerm("path"), ast.StringTerm(path))
+			patchObj.Insert(ast.InternedTerm("path"), ast.StringTerm(path))
 			patchList[i] = ast.NewTerm(patchObj)
 		}
 		testdata[strconv.Itoa(n)] = ast.NewArray(patchList...)
@@ -464,13 +445,13 @@ func BenchmarkJSONPatchPathologicalNestedAddChainSet(b *testing.B) {
 		patchList := make([]*ast.Term, n)
 		for i := range n {
 			patchObj := ast.NewObject(
-				[2]*ast.Term{ast.StringTerm("op"), ast.StringTerm("add")},
+				[2]*ast.Term{ast.InternedTerm("op"), ast.InternedTerm("add")},
 			)
-			value := ast.SetTerm(ast.StringTerm("a"))
-			constructedPath := ast.NewArray(ast.SetTerm(ast.StringTerm("a")))
+			value := ast.SetTerm(ast.InternedTerm("a"))
+			constructedPath := ast.NewArray(ast.SetTerm(ast.InternedTerm("a")))
 			for range i {
 				constructedPath = constructedPath.Append(value)
-				value = ast.SetTerm(ast.StringTerm("a"), value)
+				value = ast.SetTerm(ast.InternedTerm("a"), value)
 			}
 
 			// Reverse the ast.Array slice.
@@ -480,8 +461,8 @@ func BenchmarkJSONPatchPathologicalNestedAddChainSet(b *testing.B) {
 				path = path.Append(constructedPath.Elem(pathLength - j))
 			}
 
-			patchObj.Insert(ast.StringTerm("value"), ast.SetTerm(ast.StringTerm("a")))
-			patchObj.Insert(ast.StringTerm("path"), ast.NewTerm(path))
+			patchObj.Insert(ast.InternedTerm("value"), ast.SetTerm(ast.InternedTerm("a")))
+			patchObj.Insert(ast.InternedTerm("path"), ast.NewTerm(path))
 			patchList[i] = ast.NewTerm(patchObj)
 		}
 		testdata[strconv.Itoa(n)] = ast.NewArray(patchList...)
@@ -513,20 +494,14 @@ func runJSONPatchBenchmarkTest(ctx context.Context, b *testing.B, source ast.Val
 	b.ResetTimer()
 
 	for range b.N {
-
 		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-
-			q := NewQuery(query).
+			_, err := NewQuery(query).
 				WithCompiler(compiler).
 				WithStore(store).
-				WithTransaction(txn)
+				WithTransaction(txn).
+				Run(ctx)
 
-			_, err := q.Run(ctx)
-			if err != nil {
-				return err
-			}
-
-			return nil
+			return err
 		})
 
 		if err != nil {

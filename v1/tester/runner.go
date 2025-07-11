@@ -1097,14 +1097,8 @@ func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod 
 			b.ReportAllocs()
 		}
 
-		// Don't count setup in the benchmark time, only evaluation time
-		b.ResetTimer()
-
 		for range b.N {
-			opts := []rego.EvalOption{
-				rego.EvalTransaction(txn),
-				rego.EvalMetrics(m),
-			}
+			opts := []rego.EvalOption{rego.EvalTransaction(txn), rego.EvalMetrics(m)}
 
 			var tracer *TestQueryTracer
 			if rule.Head.DocKind() == ast.PartialObjectDoc {
@@ -1112,16 +1106,7 @@ func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod 
 				opts = append(opts, rego.EvalQueryTracer(tracer))
 			}
 
-			// Start the timer (might already be started, but that's ok)
-			b.StartTimer()
-
-			rs, err := pq.Eval(
-				ctx,
-				opts...,
-			)
-
-			// Stop the timer so we don't count any of the error handling time
-			b.StopTimer()
+			rs, err := pq.Eval(ctx, opts...)
 
 			if err != nil {
 				tr.Error = err

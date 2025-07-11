@@ -47,20 +47,14 @@ func BenchmarkObjectUnionN(b *testing.B) {
 				b.ResetTimer()
 
 				for range b.N {
-
 					err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-
-						q := NewQuery(query).
+						_, err := NewQuery(query).
 							WithCompiler(compiler).
 							WithStore(store).
-							WithTransaction(txn)
+							WithTransaction(txn).
+							Run(ctx)
 
-						_, err := q.Run(ctx)
-						if err != nil {
-							return err
-						}
-
-						return nil
+						return err
 					})
 
 					if err != nil {
@@ -96,20 +90,14 @@ func BenchmarkObjectUnionNSlow(b *testing.B) {
 				b.ResetTimer()
 
 				for range b.N {
-
 					err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-
-						q := NewQuery(query).
+						_, err := NewQuery(query).
 							WithCompiler(compiler).
 							WithStore(store).
-							WithTransaction(txn)
+							WithTransaction(txn).
+							Run(ctx)
 
-						_, err := q.Run(ctx)
-						if err != nil {
-							return err
-						}
-
-						return nil
+						return err
 					})
 
 					if err != nil {

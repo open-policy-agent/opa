@@ -1692,9 +1692,6 @@ func TestFmtVarTerm(t *testing.T) {
 // fmt.sprintf        8093799   159.41 ns/op      56 B/op       4 allocs/op
 // formatVarTerm     20424126    50.95 ns/op      24 B/op       1 allocs/op
 func BenchmarkFormatVarTerm(b *testing.B) {
-	b.ResetTimer()
-	b.ReportAllocs()
-
 	e := &eval{
 		genvarprefix: "foobar",
 		queryID:      12345,

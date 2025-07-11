@@ -25,8 +25,7 @@ func BenchmarkProfilerBigLocalVar(b *testing.B) {
 				profiler := New()
 				module := generateModule(varCount, iterationCount)
 
-				_, err := ast.ParseModule("test.rego", module)
-				if err != nil {
+				if _, err := ast.ParseModule("test.rego", module); err != nil {
 					b.Fatal(err)
 				}
 
@@ -44,11 +43,7 @@ func BenchmarkProfilerBigLocalVar(b *testing.B) {
 				b.ResetTimer()
 
 				for range b.N {
-					b.StartTimer()
-					_, err = pq.Eval(ctx, rego.EvalQueryTracer(profiler))
-					b.StopTimer()
-
-					if err != nil {
+					if _, err = pq.Eval(ctx, rego.EvalQueryTracer(profiler)); err != nil {
 						b.Fatal(err)
 					}
 				}
