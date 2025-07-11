@@ -46,7 +46,8 @@ func bundleOrDirInfoForRegoVersion(regoVersion ast.RegoVersion, path string, inc
 	b, err := loader.NewFileLoader().
 		WithRegoVersion(regoVersion).
 		WithSkipBundleVerification(true).
-		WithProcessAnnotation(true). // Always process annotations, for enriching namespace listing
+		WithBundleLazyLoadingMode(true). // Bundle lazy loading mode skips parsing data files
+		WithProcessAnnotation(true).     // Always process annotations, for enriching namespace listing
 		AsBundle(path)
 	if err != nil {
 		return nil, err
