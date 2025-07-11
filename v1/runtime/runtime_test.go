@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"maps"
 	"net/http"
 	"net/http/httptest"
@@ -23,6 +24,7 @@ import (
 
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/v1/loader"
+	"github.com/open-policy-agent/opa/v1/plugins/discovery"
 
 	"github.com/open-policy-agent/opa/internal/report"
 	"github.com/open-policy-agent/opa/v1/logging"
@@ -1655,4 +1657,41 @@ func TestRuntimeWithExplicitBadMetricConfiguration(t *testing.T) {
 			t.Fatalf("Expected specific error to be thrown on malformed metrics config")
 		}
 	})
+}
+
+func TestExtraDiscoveryOpts(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+	defer cancel() // NOTE(sr): The timeout will have been reached by the time `done` is closed.
+
+	called := false
+	params := NewParams()
+	params.Output = io.Discard
+	params.Addrs = &[]string{"localhost:0"}
+	params.GracefulShutdownPeriod = 1
+	params.Logger = logging.NewNoOpLogger()
+	params.ExtraDiscoveryOpts = []func(*discovery.Discovery){
+		func(*discovery.Discovery) { called = true },
+	}
+
+	rt, err := NewRuntime(ctx, params)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
+	initChannel := rt.Manager.ServerInitializedChannel()
+	done := make(chan struct{})
+	go func() {
+		rt.StartServer(ctx)
+		close(done)
+	}()
+	<-done
+	select {
+	case <-initChannel:
+	default:
+		t.Fatal("expected ServerInitializedChannel to be closed")
+	}
+
+	if !called {
+		t.Error("expected extra discovery option to be called")
+	}
 }
