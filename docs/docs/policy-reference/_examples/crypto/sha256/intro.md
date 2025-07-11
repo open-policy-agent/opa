@@ -1,0 +1,1 @@
+The `crypto.sha256` function computes SHA-256 hash values, commonly used for file integrity verification, container image validation, and security checks in DevOps workflows.

@@ -1,0 +1,7 @@
+{
+  "showInput": false,
+  "showData": false,
+  "showTitles": false,
+  "command": "data.base64_encode",
+  "titleSize": 5
+}
