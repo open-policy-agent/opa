@@ -29,39 +29,39 @@ func BenchmarkGraphQLSchemaIsValid(b *testing.B) {
 	}{
 		{
 			desc:   "Trivial Schema - string",
-			schema: ast.NewTerm(ast.String(employeeGQLSchema)),
+			schema: ast.StringTerm(employeeGQLSchema),
 			cache:  nil,
-			result: ast.BooleanTerm(true),
+			result: ast.InternedTerm(true),
 		},
 		{
 			desc:   "Trivial Schema with cache - string",
-			schema: ast.NewTerm(ast.String(employeeGQLSchema)),
+			schema: ast.StringTerm(employeeGQLSchema),
 			cache:  valueCacheFactory(gqlCacheName, defaultCacheEntries),
-			result: ast.BooleanTerm(true),
+			result: ast.InternedTerm(true),
 		},
 		{
 			desc:   fmt.Sprintf("Schema w/ %d types - string", extraTypes+1),
-			schema: ast.NewTerm(ast.String(schemaWithExtraEmployeeTypes(extraTypes))),
+			schema: ast.StringTerm(schemaWithExtraEmployeeTypes(extraTypes)),
 			cache:  nil,
-			result: ast.BooleanTerm(true),
+			result: ast.InternedTerm(true),
 		},
 		{
 			desc:   fmt.Sprintf("Schema w/ %d types with cache - string", extraTypes+1),
-			schema: ast.NewTerm(ast.String(schemaWithExtraEmployeeTypes(extraTypes))),
+			schema: ast.StringTerm(schemaWithExtraEmployeeTypes(extraTypes)),
 			cache:  valueCacheFactory(gqlCacheName, defaultCacheEntries),
-			result: ast.BooleanTerm(true),
+			result: ast.InternedTerm(true),
 		},
 		{
 			desc:   "Trivial Schema - AST object",
 			schema: ast.NewTerm(ast.MustParseTerm(employeeGQLSchemaAST).Value.(ast.Object)),
 			cache:  nil,
-			result: ast.BooleanTerm(true),
+			result: ast.InternedTerm(true),
 		},
 		{
 			desc:   "Trivial Schema with cache - AST object",
 			schema: ast.NewTerm(ast.MustParseTerm(employeeGQLSchemaAST).Value.(ast.Object)),
 			cache:  valueCacheFactory(gqlCacheName, defaultCacheEntries),
-			result: ast.BooleanTerm(true),
+			result: ast.InternedTerm(true),
 		},
 	}
 
@@ -69,7 +69,6 @@ func BenchmarkGraphQLSchemaIsValid(b *testing.B) {
 		b.Run(bench.desc, func(b *testing.B) {
 			for range b.N {
 				var result *ast.Term
-				b.StartTimer()
 				err := builtinGraphQLSchemaIsValid(
 					BuiltinContext{
 						InterQueryBuiltinValueCache: bench.cache,
@@ -80,7 +79,6 @@ func BenchmarkGraphQLSchemaIsValid(b *testing.B) {
 						return nil
 					},
 				)
-				b.StopTimer()
 				if err != nil {
 					b.Fatalf("unexpected error: %s", err)
 				}
@@ -101,13 +99,13 @@ func BenchmarkGraphQLParseSchema(b *testing.B) {
 	}{
 		{
 			desc:   "Trivial Schema - string",
-			schema: ast.NewTerm(ast.String(employeeGQLSchema)),
+			schema: ast.StringTerm(employeeGQLSchema),
 			cache:  nil,
 			result: ast.NewTerm(employeeGQLSchemaASTObj),
 		},
 		{
 			desc:   "Trivial Schema with cache - string",
-			schema: ast.NewTerm(ast.String(employeeGQLSchema)),
+			schema: ast.StringTerm(employeeGQLSchema),
 			cache:  valueCacheFactory(gqlCacheName, defaultCacheEntries),
 			result: ast.NewTerm(employeeGQLSchemaASTObj),
 		},
@@ -116,7 +114,6 @@ func BenchmarkGraphQLParseSchema(b *testing.B) {
 		b.Run(bench.desc, func(b *testing.B) {
 			for range b.N {
 				var result *ast.Term
-				b.StartTimer()
 				err := builtinGraphQLParseSchema(
 					BuiltinContext{
 						InterQueryBuiltinValueCache: bench.cache,
@@ -127,7 +124,6 @@ func BenchmarkGraphQLParseSchema(b *testing.B) {
 						return nil
 					},
 				)
-				b.StopTimer()
 				if err != nil {
 					b.Fatalf("unexpected error: %s", err)
 				}
@@ -149,13 +145,13 @@ func BenchmarkGraphQLParseQuery(b *testing.B) {
 	}{
 		{
 			desc:   "Trivial Query - string",
-			query:  ast.NewTerm(ast.String(`{ employeeByID(id: "alice") { salary } }`)),
+			query:  ast.StringTerm(`{ employeeByID(id: "alice") { salary } }`),
 			cache:  nil,
 			result: ast.NewTerm(employeeGQLQueryASTObj),
 		},
 		{
 			desc:   "Trivial Query with cache - string",
-			query:  ast.NewTerm(ast.String(`{ employeeByID(id: "alice") { salary } }`)),
+			query:  ast.StringTerm(`{ employeeByID(id: "alice") { salary } }`),
 			cache:  valueCacheFactory(gqlCacheName, defaultCacheEntries),
 			result: ast.NewTerm(employeeGQLQueryASTObj),
 		},
@@ -164,7 +160,6 @@ func BenchmarkGraphQLParseQuery(b *testing.B) {
 		b.Run(bench.desc, func(b *testing.B) {
 			for range b.N {
 				var result *ast.Term
-				b.StartTimer()
 				err := builtinGraphQLParseQuery(
 					BuiltinContext{
 						InterQueryBuiltinValueCache: bench.cache,
@@ -175,7 +170,6 @@ func BenchmarkGraphQLParseQuery(b *testing.B) {
 						return nil
 					},
 				)
-				b.StopTimer()
 				if err != nil {
 					b.Fatalf("unexpected error: %s", err)
 				}
@@ -199,37 +193,36 @@ func BenchmarkGraphQLIsValid(b *testing.B) {
 		{
 			desc:   "Trivial Schema - string",
 			cache:  nil,
-			query:  ast.NewTerm(ast.String(`{ employeeByID(id: "alice") { salary } }`)),
-			schema: ast.NewTerm(ast.String(employeeGQLSchema)),
-			result: ast.BooleanTerm(true),
+			query:  ast.StringTerm(`{ employeeByID(id: "alice") { salary } }`),
+			schema: ast.StringTerm(employeeGQLSchema),
+			result: ast.InternedTerm(true),
 		},
 		{
 			desc:   "Trivial Schema with cache - string",
 			cache:  valueCacheFactory(gqlCacheName, defaultCacheEntries),
-			query:  ast.NewTerm(ast.String(`{ employeeByID(id: "alice") { salary } }`)),
-			schema: ast.NewTerm(ast.String(employeeGQLSchema)),
-			result: ast.BooleanTerm(true),
+			query:  ast.StringTerm(`{ employeeByID(id: "alice") { salary } }`),
+			schema: ast.StringTerm(employeeGQLSchema),
+			result: ast.InternedTerm(true),
 		},
 		{
 			desc:   fmt.Sprintf("Schema w/ %d types - string", extraTypes+1),
 			cache:  nil,
-			query:  ast.NewTerm(ast.String(`{ employeeByID(id: "alice") { salary } }`)),
-			schema: ast.NewTerm(ast.String(schemaWithExtraEmployeeTypes(extraTypes))),
-			result: ast.BooleanTerm(true),
+			query:  ast.StringTerm(`{ employeeByID(id: "alice") { salary } }`),
+			schema: ast.StringTerm(schemaWithExtraEmployeeTypes(extraTypes)),
+			result: ast.InternedTerm(true),
 		},
 		{
 			desc:   fmt.Sprintf("Schema w/ %d types with cache - string", extraTypes+1),
 			cache:  valueCacheFactory(gqlCacheName, defaultCacheEntries),
-			query:  ast.NewTerm(ast.String(`{ employeeByID(id: "alice") { salary } }`)),
-			schema: ast.NewTerm(ast.String(schemaWithExtraEmployeeTypes(extraTypes))),
-			result: ast.BooleanTerm(true),
+			query:  ast.StringTerm(`{ employeeByID(id: "alice") { salary } }`),
+			schema: ast.StringTerm(schemaWithExtraEmployeeTypes(extraTypes)),
+			result: ast.InternedTerm(true),
 		},
 	}
 	for _, bench := range benches {
 		b.Run(bench.desc, func(b *testing.B) {
 			for range b.N {
 				var result *ast.Term
-				b.StartTimer()
 				err := builtinGraphQLIsValid(
 					BuiltinContext{
 						InterQueryBuiltinValueCache: bench.cache,
@@ -240,7 +233,6 @@ func BenchmarkGraphQLIsValid(b *testing.B) {
 						return nil
 					},
 				)
-				b.StopTimer()
 				if err != nil {
 					b.Fatalf("unexpected error: %s", err)
 				}
@@ -267,8 +259,8 @@ func BenchmarkGraphQLParse(b *testing.B) {
 		{
 			desc:   "Trivial Schema - string",
 			cache:  nil,
-			query:  ast.NewTerm(ast.String(`{ employeeByID(id: "alice") { salary } }`)),
-			schema: ast.NewTerm(ast.String(employeeGQLSchema)),
+			query:  ast.StringTerm(`{ employeeByID(id: "alice") { salary } }`),
+			schema: ast.StringTerm(employeeGQLSchema),
 			result: ast.ArrayTerm(
 				ast.NewTerm(employeeGQLQueryASTObj),
 				ast.NewTerm(employeeGQLSchemaASTObj),
@@ -277,8 +269,8 @@ func BenchmarkGraphQLParse(b *testing.B) {
 		{
 			desc:   "Trivial Schema with cache - string",
 			cache:  valueCacheFactory(gqlCacheName, defaultCacheEntries),
-			query:  ast.NewTerm(ast.String(`{ employeeByID(id: "alice") { salary } }`)),
-			schema: ast.NewTerm(ast.String(employeeGQLSchema)),
+			query:  ast.StringTerm(`{ employeeByID(id: "alice") { salary } }`),
+			schema: ast.StringTerm(employeeGQLSchema),
 			result: ast.ArrayTerm(
 				ast.NewTerm(employeeGQLQueryASTObj),
 				ast.NewTerm(employeeGQLSchemaASTObj),
@@ -289,7 +281,6 @@ func BenchmarkGraphQLParse(b *testing.B) {
 		b.Run(bench.desc, func(b *testing.B) {
 			for range b.N {
 				var result *ast.Term
-				b.StartTimer()
 				err := builtinGraphQLParse(
 					BuiltinContext{
 						InterQueryBuiltinValueCache: bench.cache,
@@ -300,7 +291,6 @@ func BenchmarkGraphQLParse(b *testing.B) {
 						return nil
 					},
 				)
-				b.StopTimer()
 				if err != nil {
 					b.Fatalf("unexpected error: %s", err)
 				}
@@ -336,10 +326,10 @@ func BenchmarkGraphQLParseAndVerify(b *testing.B) {
 		{
 			desc:   "Trivial Schema - string",
 			cache:  nil,
-			query:  ast.NewTerm(ast.String(`{ employeeByID(id: "alice") { salary } }`)),
-			schema: ast.NewTerm(ast.String(employeeGQLSchema)),
+			query:  ast.StringTerm(`{ employeeByID(id: "alice") { salary } }`),
+			schema: ast.StringTerm(employeeGQLSchema),
 			result: ast.ArrayTerm(
-				ast.BooleanTerm(true),
+				ast.InternedTerm(true),
 				ast.NewTerm(employeeGQLQueryASTObj),
 				ast.NewTerm(employeeGQLSchemaASTObj),
 			),
@@ -347,10 +337,10 @@ func BenchmarkGraphQLParseAndVerify(b *testing.B) {
 		{
 			desc:   "Trivial Schema with cache - string",
 			cache:  valueCacheFactory(gqlCacheName, defaultCacheEntries),
-			query:  ast.NewTerm(ast.String(`{ employeeByID(id: "alice") { salary } }`)),
-			schema: ast.NewTerm(ast.String(employeeGQLSchema)),
+			query:  ast.StringTerm(`{ employeeByID(id: "alice") { salary } }`),
+			schema: ast.StringTerm(employeeGQLSchema),
 			result: ast.ArrayTerm(
-				ast.BooleanTerm(true),
+				ast.InternedTerm(true),
 				ast.NewTerm(employeeGQLQueryASTObj),
 				ast.NewTerm(employeeGQLSchemaASTObj),
 			),

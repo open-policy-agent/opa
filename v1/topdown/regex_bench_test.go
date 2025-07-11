@@ -13,6 +13,11 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 )
 
+var reuseOperands = []*ast.Term{
+	ast.NewTerm(ast.String("foo.*")),
+	ast.NewTerm(ast.String("foobar")),
+}
+
 func BenchmarkBuiltinRegexMatch(b *testing.B) {
 	iter := func(*ast.Term) error { return nil }
 	ctx := BuiltinContext{}
@@ -28,10 +33,7 @@ func BenchmarkBuiltinRegexMatch(b *testing.B) {
 					for i := range patternCount {
 						var operands []*ast.Term
 						if reusePattern {
-							operands = []*ast.Term{
-								ast.NewTerm(ast.String("foo.*")),
-								ast.NewTerm(ast.String("foobar")),
-							}
+							operands = reuseOperands
 						} else {
 							operands = []*ast.Term{
 								ast.NewTerm(ast.String(fmt.Sprintf("foo%d.*", i))),
@@ -69,10 +71,7 @@ func BenchmarkBuiltinRegexMatchAsync(b *testing.B) {
 								for j := range patternCount {
 									var operands []*ast.Term
 									if reusePattern {
-										operands = []*ast.Term{
-											ast.NewTerm(ast.String("foo.*")),
-											ast.NewTerm(ast.String("foobar")),
-										}
+										operands = reuseOperands
 									} else {
 										operands = []*ast.Term{
 											ast.NewTerm(ast.String(fmt.Sprintf("foo%d_%d.*", clientID, j))),

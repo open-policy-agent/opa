@@ -344,7 +344,6 @@ r contains true if {
 			}
 
 			b.ResetTimer()
-			b.ReportAllocs()
 
 			for range b.N {
 				res, err := pq.Eval(ctx)
@@ -416,8 +415,7 @@ func BenchmarkTrivialPolicy(b *testing.B) {
 	}
 
 	for range b.N {
-		_, err := pq.Eval(ctx)
-		if err != nil {
+		if _, err := pq.Eval(ctx); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -439,8 +437,7 @@ func BenchmarkTrivialQuery(b *testing.B) {
 	}
 
 	for range b.N {
-		_, err := pq.Eval(ctx, EvalMetrics(m))
-		if err != nil {
+		if _, err := pq.Eval(ctx, EvalMetrics(m)); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -502,8 +499,7 @@ local_var if {
 	for i, pq := range []PreparedEvalQuery{pq1, pq2} {
 		b.Run(names[i], func(b *testing.B) {
 			for range b.N {
-				_, err := pq.Eval(ctx)
-				if err != nil {
+				if _, err := pq.Eval(ctx); err != nil {
 					b.Fatal(err)
 				}
 			}

@@ -22,11 +22,9 @@ func BenchmarkCoverBigLocalVar(b *testing.B) {
 		for _, varCount := range vars {
 			name := fmt.Sprintf("%dVars%dIterations", varCount, iterationCount)
 			b.Run(name, func(b *testing.B) {
-				cover := New()
 				module := generateModule(varCount, iterationCount)
 
-				_, err := ast.ParseModule("test.rego", module)
-				if err != nil {
+				if _, err := ast.ParseModule("test.rego", module); err != nil {
 					b.Fatal(err)
 				}
 
@@ -41,14 +39,12 @@ func BenchmarkCoverBigLocalVar(b *testing.B) {
 					b.Fatal(err)
 				}
 
+				cover := New()
+
 				b.ResetTimer()
 
 				for range b.N {
-					b.StartTimer()
-					_, err = pq.Eval(ctx, rego.EvalQueryTracer(cover))
-					b.StopTimer()
-
-					if err != nil {
+					if _, err = pq.Eval(ctx, rego.EvalQueryTracer(cover)); err != nil {
 						b.Fatal(err)
 					}
 				}
