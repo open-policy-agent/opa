@@ -249,6 +249,9 @@ type Params struct {
 	// Evaluation performance is affected in that data doesn't need to be converted to AST during evaluation.
 	// Only applicable when using the default in-memory store, and not when used together with the DiskStorage option.
 	ReadAstValuesFromStore bool
+
+	// ExtraDiscoveryOpts allows for passing options to the discovery plugin, as instantiated by the runtime.
+	ExtraDiscoveryOpts []func(*discovery.Discovery)
 }
 
 func (p *Params) regoVersion() ast.RegoVersion {
@@ -476,7 +479,14 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
 
-	disco, err := discovery.New(manager, discovery.Factories(registeredPlugins), discovery.Metrics(metrics), discovery.BootConfig(bootConfig))
+	opts := make([]func(*discovery.Discovery), 0, len(params.ExtraDiscoveryOpts)+3)
+	opts = append(opts, params.ExtraDiscoveryOpts...)
+	opts = append(opts,
+		discovery.Factories(registeredPlugins),
+		discovery.Metrics(metrics),
+		discovery.BootConfig(bootConfig),
+	)
+	disco, err := discovery.New(manager, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
