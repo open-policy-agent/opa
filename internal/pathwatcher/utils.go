@@ -40,14 +40,14 @@ func CreatePathWatcher(rootPaths []string) (*fsnotify.Watcher, error) {
 }
 
 // ProcessWatcherUpdate handles an occurrence of a watcher event
-func ProcessWatcherUpdate(ctx context.Context, paths []string, removed string, store storage.Store, filter loader.Filter, asBundle bool,
+func ProcessWatcherUpdate(ctx context.Context, paths []string, removed string, store storage.Store, filter loader.Filter, asBundle bool, bundleLazyLoadingMode bool,
 	f func(context.Context, storage.Transaction, *initload.LoadPathsResult) error) error {
-	return ProcessWatcherUpdateForRegoVersion(ctx, ast.DefaultRegoVersion, paths, removed, store, filter, asBundle, f)
+	return ProcessWatcherUpdateForRegoVersion(ctx, ast.DefaultRegoVersion, paths, removed, store, filter, asBundle, bundleLazyLoadingMode, f)
 }
 
-func ProcessWatcherUpdateForRegoVersion(ctx context.Context, regoVersion ast.RegoVersion, paths []string, removed string, store storage.Store, filter loader.Filter, asBundle bool,
+func ProcessWatcherUpdateForRegoVersion(ctx context.Context, regoVersion ast.RegoVersion, paths []string, removed string, store storage.Store, filter loader.Filter, asBundle bool, bundleLazyLoadingMode bool,
 	f func(context.Context, storage.Transaction, *initload.LoadPathsResult) error) error {
-	loaded, err := initload.LoadPathsForRegoVersion(regoVersion, paths, filter, asBundle, nil, true, false, false, nil, nil)
+	loaded, err := initload.LoadPathsForRegoVersion(regoVersion, paths, filter, asBundle, nil, true, bundleLazyLoadingMode, false, false, nil, nil)
 	if err != nil {
 		return err
 	}

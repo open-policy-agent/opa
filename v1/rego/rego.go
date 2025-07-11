@@ -647,6 +647,7 @@ type Rego struct {
 	bundlePaths                 []string
 	bundles                     map[string]*bundle.Bundle
 	skipBundleVerification      bool
+	enableBundleLazyLoadingMode bool
 	interQueryBuiltinCache      cache.InterQueryCache
 	interQueryBuiltinValueCache cache.InterQueryValueCache
 	ndBuiltinCache              builtins.NDBCache
@@ -1186,6 +1187,16 @@ func UnsafeBuiltins(unsafeBuiltins map[string]struct{}) func(r *Rego) {
 func SkipBundleVerification(yes bool) func(r *Rego) {
 	return func(r *Rego) {
 		r.skipBundleVerification = yes
+	}
+}
+
+// BundleLazyLoadingMode sets the bundle loading mode. If true, bundles will be
+// read in lazy mode. In this mode, data files in the bundle will not be
+// deserialized and the check to validate that the bundle data does not contain
+// paths outside the bundle's roots will not be performed while reading the bundle.
+func BundleLazyLoadingMode(yes bool) func(r *Rego) {
+	return func(r *Rego) {
+		r.enableBundleLazyLoadingMode = yes
 	}
 }
 

@@ -877,7 +877,6 @@ func TestAsBundleWithFile(t *testing.T) {
 	mod := "package b.c\np=1"
 
 	test.WithTempFS(files, func(rootDir string) {
-
 		bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
 
 		f, err := os.Create(bundleFile)
@@ -929,6 +928,48 @@ func TestAsBundleWithFile(t *testing.T) {
 			t.Fatalf("Loaded bundle doesn't match expected.\n\nExpected: %+v\n\nActual: %+v\n\n", b, actual)
 		}
 	})
+}
+
+// Test that lazy loading mode disables data validation checks.
+func TestBundleLazyLoadingMode(t *testing.T) {
+	mod := "package b.c\np=1"
+	bundleFile := filepath.Join(t.TempDir(), "bundle.tar.gz")
+
+	f, err := os.Create(bundleFile)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	b := &bundle.Bundle{
+		Manifest: bundle.Manifest{
+			Roots:    &[]string{"a", "b/c"},
+			Revision: "123",
+		},
+		Data: nil,
+		Modules: []bundle.ModuleFile{
+			{
+				URL:    path.Join(bundleFile, "policy.rego"),
+				Path:   "/policy.rego",
+				Raw:    []byte(mod),
+				Parsed: ast.MustParseModule(mod),
+			},
+		},
+	}
+
+	err = bundle.Write(f, *b)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+	err = f.Close()
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	// Loading a nil data value normally is an error, but lazy loading mode defers it.
+	_, err = NewFileLoader().WithBundleLazyLoadingMode(true).AsBundle(bundleFile)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 }
 
 func TestCheckForUNCPath(t *testing.T) {
