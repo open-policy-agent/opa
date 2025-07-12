@@ -561,7 +561,6 @@ func (e *eval) fmtVarTerm() string {
 }
 
 func (e *eval) evalNot(iter evalIterator) error {
-
 	expr := e.query[e.index]
 
 	if e.unknown(expr, e.bindings) {
@@ -578,12 +577,12 @@ func (e *eval) evalNot(iter evalIterator) error {
 		child.traceEnter(negation)
 	}
 
-	if err := child.eval(func(*eval) error {
-		if e.traceEnabled {
-			child.traceExit(negation)
-			child.traceRedo(negation)
+	if err := child.eval(func(c *eval) error {
+		if c.traceEnabled {
+			c.traceExit(negation)
+			c.traceRedo(negation)
 		}
-		child.defined = true
+		c.defined = true
 
 		return nil
 	}); err != nil {
@@ -4106,8 +4105,7 @@ func canInlineNegation(safe ast.VarSet, queries []ast.Body) bool {
 					SkipClosures:    true,
 				})
 				vis.Walk(expr)
-				unsafe := vis.Vars().Diff(safe).Diff(ast.ReservedVars)
-				if len(unsafe) > 0 {
+				if vis.Vars().Diff(safe).DiffCount(ast.ReservedVars) > 0 {
 					return false
 				}
 			}
