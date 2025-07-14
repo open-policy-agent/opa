@@ -207,6 +207,9 @@ type Params struct {
 	// SkipBundleVerification flag controls whether OPA will verify a signed bundle
 	SkipBundleVerification bool
 
+	// BundleActivatorPlugin controls the name of the activator plugin used to load bundles into the store.
+	BundleActivatorPlugin string
+
 	// BundleLazyLoadingMode flag controls whether OPA will load bundle contents in lazy mode.
 	BundleLazyLoadingMode bool
 
@@ -482,6 +485,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.WithEnableTelemetry(params.EnableVersionCheck),
 		plugins.WithParserOptions(params.parserOptions()),
 		plugins.WithDistributedTracingOpts(params.DistributedTracingOpts),
+		plugins.WithBundleActivatorPlugin(params.BundleActivatorPlugin),
 		plugins.WithHooks(params.Hooks),
 	)
 	if err != nil {

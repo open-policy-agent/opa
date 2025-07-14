@@ -863,6 +863,7 @@ func (fl *fileLoader) oneShot(ctx context.Context) {
 	b, err := reader.
 		WithMetrics(u.Metrics).
 		WithBundleVerificationConfig(fl.bvc).
+		WithLazyLoadingMode(bundle.HasExtension()).
 		WithSizeLimitBytes(fl.sizeLimitBytes).
 		WithRegoVersion(fl.bundleParserOpts.RegoVersion).
 		Read()

@@ -220,6 +220,7 @@ type Manager struct {
 	stop                         chan chan struct{}
 	parserOptions                ast.ParserOptions
 	extraRoutes                  map[string]ExtraRoute
+	bundleActivatorPlugin        string
 }
 
 type managerContextKey string
@@ -426,6 +427,13 @@ func WithTelemetryGatherers(gs map[string]report.Gatherer) func(*Manager) {
 	}
 }
 
+// WithBundleActivatorPlugin sets the name of the activator plugin to load bundles into the store
+func WithBundleActivatorPlugin(bundleActivatorPlugin string) func(*Manager) {
+	return func(m *Manager) {
+		m.bundleActivatorPlugin = bundleActivatorPlugin
+	}
+}
+
 // New creates a new Manager using config.
 func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*Manager, error) {
 
@@ -547,6 +555,7 @@ func (m *Manager) Init(ctx context.Context) error {
 			MaxErrors:             m.maxErrors,
 			EnablePrintStatements: m.enablePrintStatements,
 			ParserOptions:         m.parserOptions,
+			BundleActivatorPlugin: m.bundleActivatorPlugin,
 		})
 
 		if err != nil {

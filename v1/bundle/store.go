@@ -13,6 +13,7 @@ import (
 	"maps"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	iCompiler "github.com/open-policy-agent/opa/internal/compiler"
 	"github.com/open-policy-agent/opa/internal/json/patch"
@@ -20,6 +21,15 @@ import (
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/util"
+)
+
+const defaultActivatorID = "_default"
+
+var (
+	activators = map[string]Activator{
+		defaultActivatorID: &DefaultActivator{},
+	}
+	activatorMtx sync.Mutex
 )
 
 // BundlesBasePath is the storage path used for storing bundle metadata
@@ -328,6 +338,11 @@ func readEtagFromStore(ctx context.Context, store storage.Store, txn storage.Tra
 	return str, nil
 }
 
+// Activator is the interface expected for implementations that activate bundles.
+type Activator interface {
+	Activate(*ActivateOpts) error
+}
+
 // ActivateOpts defines options for the Activate API call.
 type ActivateOpts struct {
 	Ctx                      context.Context
@@ -340,15 +355,39 @@ type ActivateOpts struct {
 	ExtraModules             map[string]*ast.Module // Optional
 	AuthorizationDecisionRef ast.Ref
 	ParserOptions            ast.ParserOptions
+	Plugin                   string
 
 	legacy bool
+}
+
+type DefaultActivator struct{}
+
+func (*DefaultActivator) Activate(opts *ActivateOpts) error {
+	opts.legacy = false
+	return activateBundles(opts)
 }
 
 // Activate the bundle(s) by loading into the given Store. This will load policies, data, and record
 // the manifest in storage. The compiler provided will have had the polices compiled on it.
 func Activate(opts *ActivateOpts) error {
-	opts.legacy = false
-	return activateBundles(opts)
+	plugin := opts.Plugin
+
+	// For backwards compatibility, check if there is no plugin specified, and use default.
+	if plugin == "" {
+		// Invoke extension activator if supplied. Otherwise, use default.
+		if HasExtension() {
+			plugin = bundleExtActivator
+		} else {
+			plugin = defaultActivatorID
+		}
+	}
+
+	activator, err := GetActivator(plugin)
+	if err != nil {
+		return err
+	}
+
+	return activator.Activate(opts)
 }
 
 // DeactivateOpts defines options for the Deactivate API call
@@ -1148,4 +1187,30 @@ func LegacyReadRevisionFromStore(ctx context.Context, store storage.Store, txn s
 func ActivateLegacy(opts *ActivateOpts) error {
 	opts.legacy = true
 	return activateBundles(opts)
+}
+
+// GetActivator returns the Activator registered under the given id
+func GetActivator(id string) (Activator, error) {
+	activator, ok := activators[id]
+
+	if !ok {
+		return nil, fmt.Errorf("no activator exists under id %s", id)
+	}
+
+	return activator, nil
+}
+
+// RegisterActivator registers a bundle Activator under the given id.
+// The id value can later be referenced in ActivateOpts.Plugin to specify
+// which activator should be used for that bundle activation operation.
+// Note: This must be called *before* RegisterDefaultBundleActivator.
+func RegisterActivator(id string, a Activator) {
+	activatorMtx.Lock()
+	defer activatorMtx.Unlock()
+
+	if id == defaultActivatorID {
+		panic("cannot use reserved activator id, use a different id")
+	}
+
+	activators[id] = a
 }

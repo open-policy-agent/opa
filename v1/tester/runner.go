@@ -487,7 +487,7 @@ func (r *Runner) setupTestRun(ctx context.Context, txn storage.Transaction, enab
 			Bundles:       r.bundles,
 			ParserOptions: ast.ParserOptions{RegoVersion: r.defaultRegoVersion},
 		}
-		err = bundle.Activate(opts)
+		err := bundle.Activate(opts)
 		if err != nil {
 			return nil, err
 		}
@@ -1162,12 +1162,24 @@ func LoadWithRegoVersion(args []string, filter loader.Filter, regoVersion ast.Re
 
 	loaded, err := loader.NewFileLoader().
 		WithRegoVersion(regoVersion).
+		WithBundleLazyLoadingMode(bundle.HasExtension()).
 		WithProcessAnnotation(true).
 		Filtered(args, filter)
 	if err != nil {
 		return nil, nil, err
 	}
-	store := inmem.NewFromObject(loaded.Documents)
+
+	var store storage.Store
+	if bundle.BundleExtStore != nil {
+		store = bundle.BundleExtStore()
+		// inline'd NewFromObject
+		if err := storage.WriteOne(context.Background(), store, storage.AddOp, storage.Path{}, loaded.Documents); err != nil {
+			return nil, nil, err
+		}
+	} else {
+		store = inmem.NewFromObject(loaded.Documents)
+	}
+
 	modules := make(map[string]*ast.Module, len(loaded.Modules))
 	ctx := context.Background()
 	err = storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
@@ -1194,11 +1206,23 @@ func LoadWithParserOptions(args []string, filter loader.Filter, popts ast.Parser
 		WithRegoVersion(popts.RegoVersion).
 		WithCapabilities(popts.Capabilities).
 		WithProcessAnnotation(popts.ProcessAnnotation).
+		WithBundleLazyLoadingMode(bundle.HasExtension()).
 		Filtered(args, filter)
 	if err != nil {
 		return nil, nil, err
 	}
-	store := inmem.NewFromObject(loaded.Documents)
+	var store storage.Store
+	// Plumb in storage for external bundle activation plugin, if registered with bundle.RegisterStore.
+	if bundle.BundleExtStore != nil {
+		store = bundle.BundleExtStore()
+		// inline'd NewFromObject
+		if err := storage.WriteOne(context.Background(), store, storage.AddOp, storage.Path{}, loaded.Documents); err != nil {
+			return nil, nil, err
+		}
+	} else {
+		store = inmem.NewFromObject(loaded.Documents)
+	}
+
 	modules := make(map[string]*ast.Module, len(loaded.Modules))
 	ctx := context.Background()
 	err = storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
@@ -1236,6 +1260,7 @@ func LoadBundlesWithRegoVersion(args []string, filter loader.Filter, regoVersion
 			WithRegoVersion(regoVersion).
 			WithProcessAnnotation(true).
 			WithSkipBundleVerification(true).
+			WithBundleLazyLoadingMode(bundle.HasExtension()).
 			WithFilter(filter).
 			AsBundle(bundleDir)
 		if err != nil {
@@ -1249,7 +1274,7 @@ func LoadBundlesWithRegoVersion(args []string, filter loader.Filter, regoVersion
 
 // LoadBundlesWithParserOptions will load the given args as bundles, either tarball or directory is OK.
 // Bundles are parsed in accordance with the given [ast.ParserOptions].
-func LoadBundlesWithParserOptions(args []string, filter loader.Filter, popts ast.ParserOptions) (map[string]*bundle.Bundle, error) {
+func LoadBundlesWithParserOptions(args []string, filter loader.Filter, popts ast.ParserOptions) (map[string]*bundle.Bundle, storage.Store, error) {
 	if popts.RegoVersion == ast.RegoUndefined {
 		popts.RegoVersion = ast.DefaultRegoVersion
 	}
@@ -1261,13 +1286,18 @@ func LoadBundlesWithParserOptions(args []string, filter loader.Filter, popts ast
 			WithCapabilities(popts.Capabilities).
 			WithProcessAnnotation(popts.ProcessAnnotation).
 			WithSkipBundleVerification(true).
+			WithBundleLazyLoadingMode(bundle.HasExtension()).
 			WithFilter(filter).
 			AsBundle(bundleDir)
 		if err != nil {
-			return nil, fmt.Errorf("unable to load bundle %s: %s", bundleDir, err)
+			return nil, nil, fmt.Errorf("unable to load bundle %s: %s", bundleDir, err)
 		}
 		bundles[bundleDir] = b
 	}
+	// Plumb in storage for external bundle activation plugin, if registered with bundle.RegisterStore.
+	if bundle.BundleExtStore != nil {
+		return bundles, bundle.BundleExtStore(), nil
+	}
 
-	return bundles, nil
+	return bundles, inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false)), nil
 }
