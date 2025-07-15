@@ -186,6 +186,14 @@ func (c *captureStatusResponseWriter) WriteHeader(statusCode int) {
 	c.status = statusCode
 }
 
+var _ http.Flusher = (*captureStatusResponseWriter)(nil)
+
+func (c *captureStatusResponseWriter) Flush() {
+	if h, ok := c.ResponseWriter.(http.Flusher); ok {
+		h.Flush()
+	}
+}
+
 func prettyByteSize(b uint64) string {
 	bf := float64(b)
 	for _, unit := range []string{"", "K", "M", "G", "T", "P", "E", "Z"} {
