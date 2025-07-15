@@ -34,8 +34,14 @@
 .subtitle {
     font-weight: normal;
     color: var(--ifm-font-color-secondary);
-    margin-top: 0;
+    margin: 0 auto;
     font-size: 1.2rem;
+}
+
+@media (max-width: 996px) {
+    .subtitle {
+        font-size: 1.1rem;
+    }
 }
 
 .heroRight {
