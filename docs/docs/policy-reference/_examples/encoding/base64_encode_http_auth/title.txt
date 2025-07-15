@@ -1,1 +1,1 @@
-Base64 Encoding
+HTTP Basic Auth Header Creation
