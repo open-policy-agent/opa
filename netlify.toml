@@ -20,3 +20,12 @@ function = "badge"
 [[edge_functions]]
 path = "/docs/*"
 function = "version-redirect"
+
+# /data/versions.json is used by versioned OPA deployments to determine
+# if what the latest release is, how outdated they are.
+[[headers]]
+for = "/data/versions.json"
+[headers.values]
+Access-Control-Allow-Origin = "https://*.netlify.app"
+Access-Control-Allow-Methods = "GET, OPTIONS"
+Access-Control-Allow-Headers = "Content-Type"
