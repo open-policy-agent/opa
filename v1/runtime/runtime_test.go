@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -24,7 +25,12 @@ import (
 
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/v1/loader"
+	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/plugins/discovery"
+	"github.com/open-policy-agent/opa/v1/tracing"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
 	"github.com/open-policy-agent/opa/internal/report"
 	"github.com/open-policy-agent/opa/v1/logging"
@@ -1503,7 +1509,7 @@ func TestUrlPathToConfigOverride(t *testing.T) {
 	}
 }
 
-func getTestServer(update any, statusCode int) (baseURL string, teardownFn func()) {
+func getTestServer(update any, statusCode int) (string, func()) {
 	mux := http.NewServeMux()
 	ts := httptest.NewServer(mux)
 
@@ -1693,5 +1699,137 @@ func TestExtraDiscoveryOpts(t *testing.T) {
 
 	if !called {
 		t.Error("expected extra discovery option to be called")
+	}
+}
+
+type factory struct{}
+
+func (f *factory) New(m *plugins.Manager, _ any) plugins.Plugin {
+	m.ExtraRoute("GET /v1/flusher", "v1/flusher", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("hey\n"))
+		w.(http.Flusher).Flush()
+		time.Sleep(1 * time.Second)
+		_, _ = w.Write([]byte("there\n"))
+	})
+	return f
+}
+
+func (*factory) Validate(*plugins.Manager, []byte) (any, error) {
+	return nil, nil
+}
+
+func (*factory) Start(context.Context) error {
+	return nil
+}
+
+func (*factory) Stop(context.Context) {
+}
+
+func (*factory) Reconfigure(context.Context, any) {
+}
+
+// TestCustomHandlerFlusher ensures that a handler defined through a plugin
+// can call Flush(), and that all the middlewares in between work in the
+// expected way -- passing the Flush() along. It needs to be tested through
+// the runtime package to cover all the layers of middlwares typically used
+// in OPA run as server.
+func TestCustomHandlerFlusher(t *testing.T) {
+	fact := &factory{}
+	ctx := context.Background()
+	spanExporter := tracetest.NewInMemoryExporter()
+	options := tracing.NewOptions(
+		otelhttp.WithTracerProvider(trace.NewTracerProvider(trace.WithSpanProcessor(trace.NewSimpleSpanProcessor(spanExporter)))),
+	)
+
+	RegisterPlugin("test_custom_handler_flusher", fact)
+
+	config := `plugins:
+  test_custom_handler_flusher: {}
+`
+	cfg := filepath.Join(t.TempDir(), "opa.yml")
+	if err := os.WriteFile(cfg, []byte(config), 0x755); err != nil {
+		t.Fatalf("write config %s: %v", cfg, err)
+	}
+
+	for _, tc := range []struct {
+		note string
+		otel tracing.Options
+	}{
+		{
+			note: "with otel",
+			otel: options,
+		},
+		{
+			note: "without otel",
+		},
+	} {
+		t.Run(tc.note, func(t *testing.T) {
+			testLogger := testLog.New()
+			params := NewParams()
+			params.DistributedTracingOpts = tc.otel
+			params.Logger = testLogger
+			params.Addrs = &[]string{"localhost:0"}
+			params.ConfigFile = cfg
+
+			rt, err := NewRuntime(ctx, params)
+			if err != nil {
+				t.Fatalf("Unexpected error %v", err)
+			}
+			go rt.StartServer(ctx)
+			if !test.Eventually(t, 5*time.Second, func() bool {
+				found := false
+				for _, e := range testLogger.Entries() {
+					found = strings.Contains(e.Message, "Server initialized.") || found
+				}
+				return found
+			}) {
+				t.Fatal("Timed out waiting for server to start")
+			}
+			host := rt.Addrs()[0]
+			r, err := http.NewRequest(http.MethodGet, "http://"+host+"/v1/flusher", nil)
+			if err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+			start := time.Now()
+			resp, err := http.DefaultClient.Do(r)
+			if err != nil {
+				t.Fatal("expected no error, got", err)
+			}
+			if resp.StatusCode != http.StatusOK {
+				t.Fatalf("status %d (want 200)", resp.StatusCode)
+			}
+
+			defer resp.Body.Close()
+
+			reader := bufio.NewReader(resp.Body)
+			{
+				line, err := reader.ReadString('\n')
+				if err != nil && !strings.Contains(err.Error(), "timeout") {
+					t.Fatalf("unexpected error reading: %v", err)
+				}
+				flushed := "hey\n"
+				if line != flushed {
+					t.Errorf("expected flushed line %q, got %q", flushed, line)
+				}
+				if dur := time.Since(start); dur > 100*time.Millisecond { // we're very gracious here, giving it 100ms leeway
+					t.Error("first line came too late (flush hasn't happened)", dur.String())
+				}
+			}
+			{
+				line, err := reader.ReadString('\n')
+				if err != nil && !strings.Contains(err.Error(), "timeout") {
+					t.Fatalf("unexpected error reading: %v", err)
+				}
+				rest := "there\n"
+				if line != rest {
+					t.Errorf("expected flushed line %q, got %q", rest, line)
+				}
+			}
+
+			t.Log(time.Since(start).String())
+			for _, e := range testLogger.Entries() {
+				t.Log(e.Message)
+			}
+		})
 	}
 }

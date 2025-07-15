@@ -254,6 +254,14 @@ func (r *recorder) WriteHeader(s int) {
 	r.inner.WriteHeader(s)
 }
 
+var _ http.Flusher = (*recorder)(nil)
+
+func (r *recorder) Flush() {
+	if f, ok := r.inner.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
 func readBody(r io.ReadCloser) ([]byte, io.ReadCloser, error) {
 	if r == http.NoBody {
 		return nil, r, nil

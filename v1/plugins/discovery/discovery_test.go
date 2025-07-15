@@ -3894,7 +3894,7 @@ func newTestFixture(t *testing.T) *testFixture {
 			"labels": {
 				"app": "example-app"
 			},
-            "discovery": {"name": "disco", "trigger": "manual", decision: config},
+            "discovery": {"name": "disco", "trigger": "manual", "decision": "config"},
 			"services": [
 				{
 					"name": "example",
