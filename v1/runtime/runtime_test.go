@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/internal/file/archive"
+	"github.com/open-policy-agent/opa/v1/hooks"
 	"github.com/open-policy-agent/opa/v1/loader"
 	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/plugins/discovery"
@@ -36,6 +37,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/logging"
 	testLog "github.com/open-policy-agent/opa/v1/logging/test"
 	"github.com/open-policy-agent/opa/v1/server"
+	topdown_cache "github.com/open-policy-agent/opa/v1/topdown/cache"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/storage"
@@ -1831,5 +1833,65 @@ func TestCustomHandlerFlusher(t *testing.T) {
 				t.Log(e.Message)
 			}
 		})
+	}
+}
+
+type iqcHook struct {
+	c topdown_cache.InterQueryCache
+}
+
+func (j *iqcHook) OnInterQueryCache(_ context.Context, c topdown_cache.InterQueryCache) error {
+	j.c = c
+	return nil
+}
+
+type iqvcHook struct {
+	c topdown_cache.InterQueryValueCache
+}
+
+func (j *iqvcHook) OnInterQueryValueCache(_ context.Context, c topdown_cache.InterQueryValueCache) error {
+	j.c = c
+	return nil
+}
+
+func TestCacheHooksOnServer(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+	defer cancel() // NOTE(sr): The timeout will have been reached by the time `done` is closed.
+	testLogger := testLog.New()
+
+	h1 := iqcHook{}
+	h2 := iqvcHook{}
+
+	params := NewParams()
+	params.Logger = testLogger
+	params.Addrs = &[]string{"localhost:0"}
+	params.Hooks = hooks.New(&h1, &h2)
+
+	rt, err := NewRuntime(ctx, params)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+	initChannel := rt.Manager.ServerInitializedChannel()
+	done := make(chan struct{})
+	go func() {
+		rt.StartServer(ctx)
+		close(done)
+	}()
+	<-done
+	select {
+	case <-initChannel:
+		return
+	default:
+		t.Fatal("expected ServerInitializedChannel to be closed")
+	}
+	if h1.c == nil {
+		t.Errorf("expected non-nil inter-query cache")
+	}
+	if h2.c == nil {
+		t.Errorf("expected non-nil inter-query value cache")
+	}
+
+	for _, e := range testLogger.Entries() {
+		t.Log(e.Message)
 	}
 }

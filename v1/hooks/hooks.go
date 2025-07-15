@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/open-policy-agent/opa/v1/config"
+	topdown_cache "github.com/open-policy-agent/opa/v1/topdown/cache"
 )
 
 // Hook is a hook to be called in some select places in OPA's operation.
@@ -68,10 +69,25 @@ type ConfigDiscoveryHook interface {
 	OnConfigDiscovery(context.Context, *config.Config) (*config.Config, error)
 }
 
+// InterQueryCacheHook allows access to the server's inter-query cache instance.
+// It's useful for out-of-tree handlers that also need to evaluate something.
+// Using this hook, they can share the caches with the rest of OPA.
+type InterQueryCacheHook interface {
+	OnInterQueryCache(context.Context, topdown_cache.InterQueryCache) error
+}
+
+// InterQueryValueCacheHook allows access to the server's inter-query value cache
+// instance.
+type InterQueryValueCacheHook interface {
+	OnInterQueryValueCache(context.Context, topdown_cache.InterQueryValueCache) error
+}
+
 func (hs Hooks) Validate() error {
 	for h := range hs.m {
 		switch h.(type) {
-		case ConfigHook,
+		case InterQueryCacheHook,
+			InterQueryValueCacheHook,
+			ConfigHook,
 			ConfigDiscoveryHook: // OK
 		default:
 			return fmt.Errorf("unknown hook type %T", h)

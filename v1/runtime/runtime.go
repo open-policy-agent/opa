@@ -43,6 +43,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/bundle"
 	opa_config "github.com/open-policy-agent/opa/v1/config"
+	"github.com/open-policy-agent/opa/v1/hooks"
 	"github.com/open-policy-agent/opa/v1/loader"
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/metrics"
@@ -255,6 +256,9 @@ type Params struct {
 
 	// ExtraDiscoveryOpts allows for passing options to the discovery plugin, as instantiated by the runtime.
 	ExtraDiscoveryOpts []func(*discovery.Discovery)
+
+	// Hooks is our generic extension mechanism.
+	Hooks hooks.Hooks
 }
 
 func (p *Params) regoVersion() ast.RegoVersion {
@@ -351,6 +355,10 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		stdLogger.SetLevel(level)
 		stdLogger.SetFormatter(internal_logging.GetFormatter(params.Logging.Format, params.Logging.TimestampFormat))
 		logger = stdLogger
+	}
+
+	if err := params.Hooks.Validate(); err != nil {
+		return nil, err
 	}
 
 	var filePaths []string
@@ -461,6 +469,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.WithEnableTelemetry(params.EnableVersionCheck),
 		plugins.WithParserOptions(params.parserOptions()),
 		plugins.WithDistributedTracingOpts(params.DistributedTracingOpts),
+		plugins.WithHooks(params.Hooks),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
@@ -626,7 +635,8 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithMetrics(rt.metrics).
 		WithMinTLSVersion(rt.Params.MinTLSVersion).
 		WithCipherSuites(rt.Params.CipherSuites).
-		WithDistributedTracingOpts(rt.Params.DistributedTracingOpts)
+		WithDistributedTracingOpts(rt.Params.DistributedTracingOpts).
+		WithHooks(rt.Params.Hooks)
 
 	// If decision_logging plugin enabled, check to see if we opted in to the ND builtins cache.
 	if lp := logs.Lookup(rt.Manager); lp != nil {
