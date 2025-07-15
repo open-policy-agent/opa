@@ -3,8 +3,6 @@ title: Encoding
 ---
 <BuiltinTable category={"encoding"}/>
 
-<PlaygroundExample dir={require.context("../_examples/encoding/base64_encode")} />
-
 The `json.marshal_with_options` builtin's `opts` parameter accepts the following properties:
 
 | Field    | Required | Type     | Default                                                              | Description                                                                                                                                                                                                                                                                                                                                      |
@@ -15,5 +13,9 @@ The `json.marshal_with_options` builtin's `opts` parameter accepts the following
 
 Default values will be used if:
 
-- `opts` is an empty object.
+- `opts` is an empty object.  
 - `opts` does not contain the named property.
+
+#### Examples
+
+<PlaygroundExample dir={require.context("../_examples/encoding/base64_encode_http_auth")} />

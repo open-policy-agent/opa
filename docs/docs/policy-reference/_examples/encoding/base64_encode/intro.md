@@ -1,1 +1,0 @@
-The `base64.encode` function encodes strings to Base64 format, commonly used for HTTP Basic Authentication, Kubernetes secrets, and encoding binary data for transmission.
