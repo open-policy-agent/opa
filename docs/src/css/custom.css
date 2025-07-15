@@ -2,6 +2,18 @@
 	display: none;
 }
 
+/* This is done to show more of a code example on mobile/tablet */
+pre {
+	tab-size: 4;
+}
+
+@media screen and (max-width: 996px) {
+	pre {
+		font-size: 0.8rem;
+		tab-size: 2;
+	}
+}
+
 /* These classes are only to be used where ThemedImage is not available */
 [data-theme='dark'] .light-only {
 	display: none;
