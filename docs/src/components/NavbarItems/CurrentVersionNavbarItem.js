@@ -16,7 +16,6 @@ import styles from "./styles.module.css";
 // mobile at the top of the page.
 export default function CurrentVersionNavbarItem({ ...props }) {
   const baseUrl = useBaseUrl("/");
-  const normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
   const href = useBaseUrl("/docs/archive");
 
   const { siteConfig: { customFields } } = useDocusaurusContext();
@@ -29,8 +28,9 @@ export default function CurrentVersionNavbarItem({ ...props }) {
   return (
     <BrowserOnly fallback={null}>
       {() => {
-        const path = window.location.pathname;
-        if (!path.startsWith(`${normalizedBaseUrl}docs`)) {
+        const pathname = window.location.pathname;
+        const docsPath = baseUrl + "docs";
+        if (!pathname.startsWith(docsPath)) {
           return null;
         }
 
