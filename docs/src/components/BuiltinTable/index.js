@@ -1,6 +1,9 @@
-import builtins from "@generated/builtin-data/default/builtins.json";
 import React from "react";
 import ReactMarkdown from "react-markdown";
+
+import styles from "./styles.module.css";
+
+import builtins from "@generated/builtin-data/default/builtins.json";
 
 function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
@@ -89,9 +92,22 @@ export default function BuiltinTable({
 
             return (
               <tr key={anchor} id={anchor}>
-                <td>
+                <td className={styles.functionCell}>
                   <a href={`#${anchor}`}>
-                    <code>{isInfix ? signature : name}</code>
+                    <code className={styles.functionName}>
+                      {(isInfix ? signature : name)
+                        .split(/(\.|_)/)
+                        .map((part, index) =>
+                          part === "." || part === "_"
+                            ? (
+                              <React.Fragment key={index}>
+                                {part}
+                                <wbr />
+                              </React.Fragment>
+                            )
+                            : part
+                        )}
+                    </code>
                   </a>
                 </td>
                 <td>
