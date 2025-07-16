@@ -8,7 +8,7 @@ import (
 	"github.com/vektah/gqlparser/v2/ast"
 
 	//nolint:staticcheck // Validator rules each use dot imports for convenience.
-	. "github.com/vektah/gqlparser/v2/validator"
+	. "github.com/vektah/gqlparser/v2/validator/core"
 )
 
 func ruleFuncValuesOfCorrectType(observers *Events, addError AddErrFunc, disableSuggestion bool) {
@@ -211,10 +211,6 @@ var ValuesOfCorrectTypeRuleWithoutSuggestions = Rule{
 	RuleFunc: func(observers *Events, addError AddErrFunc) {
 		ruleFuncValuesOfCorrectType(observers, addError, true)
 	},
-}
-
-func init() {
-	AddRule(ValuesOfCorrectTypeRule.Name, ValuesOfCorrectTypeRule.RuleFunc)
 }
 
 func unexpectedTypeMessage(addError AddErrFunc, v *ast.Value) {

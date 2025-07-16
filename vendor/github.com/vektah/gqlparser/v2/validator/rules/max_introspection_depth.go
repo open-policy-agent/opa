@@ -4,7 +4,7 @@ import (
 	"github.com/vektah/gqlparser/v2/ast"
 
 	//nolint:staticcheck // Validator rules each use dot imports for convenience.
-	. "github.com/vektah/gqlparser/v2/validator"
+	. "github.com/vektah/gqlparser/v2/validator/core"
 )
 
 const maxListsDepth = 3
@@ -83,8 +83,4 @@ func checkDepthFragmentSpread(fragmentSpread *ast.FragmentSpread, visitedFragmen
 	visitedFragments[fragmentName] = true
 	defer delete(visitedFragments, fragmentName)
 	return checkDepthSelectionSet(fragment.SelectionSet, visitedFragments, depth)
-}
-
-func init() {
-	AddRule(MaxIntrospectionDepth.Name, MaxIntrospectionDepth.RuleFunc)
 }
