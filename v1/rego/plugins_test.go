@@ -6,6 +6,7 @@ package rego
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -14,6 +15,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/ir"
 	"github.com/open-policy-agent/opa/v1/topdown"
+	"github.com/open-policy-agent/opa/v1/tracing"
 	"github.com/open-policy-agent/opa/v1/types"
 )
 
@@ -170,6 +172,46 @@ func TestPluginPrepareOptions(t *testing.T) {
 			t.Errorf("unexpected result (-want, +got):\n%s", diff)
 		}
 	})
+}
+
+// Warning(philipc): This test modifies package variables, which means it cannot
+// be run safely in parallel with other tests.
+func TestDistributedTracingOptsOnEvalContext(t *testing.T) {
+	tp := testPluginDT{}
+	RegisterPlugin("rego.target.foo_dt", &tp)
+	t.Cleanup(resetPlugins)
+	r := New(
+		Query("input"),
+		Target("foo_dt"),
+		Runtime(ast.StringTerm("runtime")),
+		DistributedTracingOpts(tracing.NewOptions("hey")),
+	)
+	assertEval(t, r, `[[{"x":"hey"}]]`)
+}
+
+type testPluginDT struct{}
+
+func (*testPluginDT) IsTarget(t string) bool {
+	return t == "foo_dt"
+}
+
+func (t *testPluginDT) PrepareForEval(context.Context, *ir.Policy, ...PrepareOption) (TargetPluginEval, error) {
+	return t, nil
+}
+
+func (*testPluginDT) Eval(_ context.Context, ectx *EvalContext, _ ast.Value) (ast.Value, error) {
+	if l := len(ectx.TracingOpts()); l != 1 {
+		return nil, fmt.Errorf("expected ectx.TracingOpts of len 1, got %d", l)
+	}
+	return ast.NewSet(ast.NewTerm(ast.NewObject(
+		[2]*ast.Term{
+			ast.StringTerm("^term1"),
+			ast.ObjectTerm(
+				[2]*ast.Term{
+					ast.StringTerm("x"),
+					ast.StringTerm(fmt.Sprintf("%v", ectx.TracingOpts()[0])),
+				}),
+		}))), nil
 }
 
 func resetPlugins() {

@@ -492,12 +492,12 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	}
 
 	opts := make([]func(*discovery.Discovery), 0, len(params.ExtraDiscoveryOpts)+3)
-	opts = append(opts, params.ExtraDiscoveryOpts...)
 	opts = append(opts,
 		discovery.Factories(registeredPlugins),
 		discovery.Metrics(metrics),
 		discovery.BootConfig(bootConfig),
 	)
+	opts = append(opts, params.ExtraDiscoveryOpts...)
 	disco, err := discovery.New(manager, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)

@@ -23,24 +23,25 @@ import (
 	"testing"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/v1/hooks"
 	"github.com/open-policy-agent/opa/v1/loader"
 	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/plugins/discovery"
 	"github.com/open-policy-agent/opa/v1/tracing"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
 	"github.com/open-policy-agent/opa/internal/report"
+	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/logging"
 	testLog "github.com/open-policy-agent/opa/v1/logging/test"
+	sdktest "github.com/open-policy-agent/opa/v1/sdk/test"
 	"github.com/open-policy-agent/opa/v1/server"
-	topdown_cache "github.com/open-policy-agent/opa/v1/topdown/cache"
-
-	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/storage"
+	topdown_cache "github.com/open-policy-agent/opa/v1/topdown/cache"
 	"github.com/open-policy-agent/opa/v1/util"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
@@ -1668,39 +1669,70 @@ func TestRuntimeWithExplicitBadMetricConfiguration(t *testing.T) {
 }
 
 func TestExtraDiscoveryOpts(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
-	defer cancel() // NOTE(sr): The timeout will have been reached by the time `done` is closed.
+	ctx := context.Background()
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/discovery.tar.gz", map[string]string{
+			"main.rego": `
+package config
 
-	called := false
+plugins.foobar := {}
+`,
+		}),
+	)
+	defer server.Stop()
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"discovery": {
+			"decision": "config",
+			"resource": "/bundles/discovery.tar.gz"
+		}
+	}`, server.URL())
+	cfg := filepath.Join(t.TempDir(), "opa.json")
+	if err := os.WriteFile(cfg, []byte(config), 0x755); err != nil {
+		t.Fatalf("write config %s: %v", cfg, err)
+	}
+
 	params := NewParams()
+	params.ConfigFile = cfg
 	params.Output = io.Discard
 	params.Addrs = &[]string{"localhost:0"}
 	params.GracefulShutdownPeriod = 1
-	params.Logger = logging.NewNoOpLogger()
+	testLogger := testLog.New()
+	params.Logger = testLogger
 	params.ExtraDiscoveryOpts = []func(*discovery.Discovery){
-		func(*discovery.Discovery) { called = true },
+		discovery.Factories(map[string]plugins.Factory{"foobar": &factory{}}),
 	}
 
+	// To check that the ExtraDiscoveryOpts have had an effect, we'll start the
+	// runtime and trigger a discovery update. The config it'll receive has a
+	// plugin called "foobar", which it'll only know if the factories have been
+	// set properly.
 	rt, err := NewRuntime(ctx, params)
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
-
-	initChannel := rt.Manager.ServerInitializedChannel()
-	done := make(chan struct{})
-	go func() {
-		rt.StartServer(ctx)
-		close(done)
-	}()
-	<-done
-	select {
-	case <-initChannel:
-	default:
-		t.Fatal("expected ServerInitializedChannel to be closed")
+	disco := discovery.Lookup(rt.Manager)
+	if err := disco.Trigger(ctx); err != nil {
+		t.Errorf("trigger discovery: %v", err)
 	}
 
-	if !called {
-		t.Error("expected extra discovery option to be called")
+	if !test.Eventually(t, 5*time.Second, func() bool {
+		found := false
+		for _, e := range testLogger.Entries() {
+			t.Log(e.Message)
+			if e.Message == "Discovery update processed successfully." {
+				found = true
+				break
+			}
+		}
+		return found
+	}) {
+		t.Error("discovery failed, check logs")
 	}
 }
 
