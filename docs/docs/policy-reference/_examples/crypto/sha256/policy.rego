@@ -1,5 +1,6 @@
 package crypto_sha256
 
-# Verify data integrity by comparing provided hash with computed hash
-actual_hash := crypto.sha256(input.file_content)
-hash_verified := actual_hash == input.expected_hash
+# Verify signed payload by checking JSON representation matches supplied signature
+payload_json := json.marshal(input.payload)
+computed_hash := crypto.sha256(payload_json)
+signature_valid := computed_hash == input.signature

@@ -1,4 +1,8 @@
 {
-  "file_content": "important configuration data",
-  "expected_hash": "75ff95af0d034c844a81517e2275a498d956ac860c9173e214a342b60c4216fa"
+  "payload": {
+    "user": "alice",
+    "action": "read",
+    "resource": "/api/users"
+  },
+  "signature": "d2a7c77fc6cdacc74f16657c6cf538142cf763bb57f37b686009c2034955cd08"
 }

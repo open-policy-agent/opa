@@ -1,1 +1,1 @@
-This example shows how to use `crypto.sha256` to verify data integrity by comparing a provided hash with the computed hash of the actual content.
+This example shows how to use `crypto.sha256` to verify a signed payload by checking that the JSON representation matches a supplied signature hash.

@@ -1,8 +1,13 @@
 package base64_encode_http_auth
 
-# Create Basic Auth header for downstream request (Envoy use case)
-basic_auth_header := sprintf("Basic %s", [base64.encode(sprintf("%s:%s", [input.username, input.password]))])
+# Envoy external auth response with Basic Auth header
+allow := true
 
-# Individual encoded values for reference
-encoded_username := base64.encode(input.username)
-encoded_password := base64.encode(input.password)
+response_headers_to_add := [
+    {
+        "header": {
+            "key": "Authorization",
+            "value": sprintf("Basic %s", [base64.encode(sprintf("%s:%s", [input.username, input.password]))])
+        }
+    }
+]
