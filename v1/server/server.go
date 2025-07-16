@@ -25,6 +25,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/open-policy-agent/opa/v1/hooks"
 	serverDecodingPlugin "github.com/open-policy-agent/opa/v1/plugins/server/decoding"
 	serverEncodingPlugin "github.com/open-policy-agent/opa/v1/plugins/server/encoding"
 
@@ -148,6 +149,7 @@ type Server struct {
 	ndbCacheEnabled             bool
 	unixSocketPerm              *string
 	cipherSuites                *[]uint16
+	hooks                       hooks.Hooks
 }
 
 // Metrics defines the interface that the server requires for recording HTTP
@@ -187,6 +189,22 @@ func New() *Server {
 // from s.Listeners().
 func (s *Server) Init(ctx context.Context) (*Server, error) {
 	s.initRouters(ctx)
+	var err error
+	s.hooks.Each(func(h hooks.Hook) {
+		switch h := h.(type) {
+		case hooks.InterQueryCacheHook:
+			if e := h.OnInterQueryCache(ctx, s.interQueryBuiltinCache); e != nil {
+				err = errors.Join(err, e)
+			}
+		case hooks.InterQueryValueCacheHook:
+			if e := h.OnInterQueryValueCache(ctx, s.interQueryBuiltinValueCache); e != nil {
+				err = errors.Join(err, e)
+			}
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
 
 	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
@@ -398,6 +416,12 @@ func (s *Server) WithMinTLSVersion(minTLSVersion uint16) *Server {
 // WithDistributedTracingOpts sets the options to be used by distributed tracing.
 func (s *Server) WithDistributedTracingOpts(opts tracing.Options) *Server {
 	s.distributedTracingOpts = opts
+	return s
+}
+
+// WithHooks allows passing hooks to the server.
+func (s *Server) WithHooks(hs hooks.Hooks) *Server {
+	s.hooks = hs
 	return s
 }
 
