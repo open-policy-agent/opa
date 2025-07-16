@@ -1,1 +1,1 @@
-This example shows how to use `base64.encode` to create HTTP Basic Authentication headers in Envoy external auth responses using the `response_headers_to_add` format.
+This example shows how to use `base64.encode` in Envoy external authorization to create HTTP Basic Authentication headers from request credentials and add them to downstream requests.

@@ -2,6 +2,6 @@
   "showInput": true,
   "showData": false,
   "showTitles": false,
-  "command": "data.base64_encode_http_auth",
+  "command": "data.envoy.authz",
   "titleSize": 5
 }

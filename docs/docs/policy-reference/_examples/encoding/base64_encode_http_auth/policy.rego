@@ -1,13 +1,18 @@
-package base64_encode_http_auth
+package envoy.authz
 
-# Envoy external auth response with Basic Auth header
-allow := true
+# Extract credentials from request headers (common pattern for upstream auth)
+username := input.attributes.request.http.headers["x-username"]
+password := input.attributes.request.http.headers["x-password"]
 
-response_headers_to_add := [
-    {
-        "header": {
-            "key": "Authorization",
-            "value": sprintf("Basic %s", [base64.encode(sprintf("%s:%s", [input.username, input.password]))])
-        }
-    }
-]
+# Default deny - only allow if credentials are provided
+default allow := false
+
+allow if {
+    username != ""
+    password != ""
+}
+
+# Add Authorization header to downstream request using base64 encoding
+response_headers_to_add := {
+    "Authorization": sprintf("Basic %s", [base64.encode(sprintf("%s:%s", [username, password]))])
+}
