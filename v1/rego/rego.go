@@ -449,6 +449,7 @@ func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption
 		printHook:                pq.r.printHook,
 		capabilities:             pq.r.capabilities,
 		strictBuiltinErrors:      pq.r.strictBuiltinErrors,
+		tracing:                  pq.r.distributedTracingOpts,
 	}
 
 	for _, o := range options {
