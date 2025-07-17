@@ -445,6 +445,13 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
             const { versions } = content;
 
             await createData("versions.json", JSON.stringify(versions, null, 2));
+
+            const staticDir = path.join(context.siteDir, "static", "data");
+            await fs.mkdir(staticDir, { recursive: true });
+            await fs.writeFile(
+              path.join(staticDir, "versions.json"),
+              JSON.stringify(versions, null, 2),
+            );
           },
         };
       },
