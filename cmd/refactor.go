@@ -15,6 +15,7 @@ import (
 	"github.com/open-policy-agent/opa/cmd/internal/env"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/format"
 	"github.com/open-policy-agent/opa/v1/loader"
 	"github.com/open-policy-agent/opa/v1/refactor"
@@ -116,6 +117,7 @@ func doMove(params moveCommandParams, args []string, out io.Writer) error {
 	}
 
 	result, err := loader.NewFileLoader().
+		WithBundleLazyLoadingMode(bundle.HasExtension()).
 		WithRegoVersion(params.regoVersion()).
 		Filtered(args, ignored(params.ignore).Apply)
 	if err != nil {

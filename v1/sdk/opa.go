@@ -177,12 +177,19 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 		plugins.PrintHook(loggingPrintHook{logger: opa.logger}),
 		plugins.WithHooks(opa.hooks),
 	}
-
 	opts = append(opts, opa.managerOpts...)
+
+	// Plumb in storage for external bundle activation plugin, if registered with bundle.RegisterStore.
+	var store storage.Store
+	if bundle.BundleExtStore != nil {
+		store = bundle.BundleExtStore()
+	} else {
+		store = opa.store
+	}
 	manager, err := plugins.New(
 		bs,
 		opa.id,
-		opa.store,
+		store,
 		opts...,
 	)
 	if err != nil {

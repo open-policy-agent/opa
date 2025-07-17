@@ -125,6 +125,7 @@ func dofindDefinition(params findDefinitionParams, stdin io.Reader, stdout io.Wr
 			return errors.New("not implemented: multiple bundle paths")
 		}
 		b, err = loader.NewFileLoader().
+			WithBundleLazyLoadingMode(bundle.HasExtension()).
 			WithSkipBundleVerification(true).
 			WithFilter(func(_ string, info os.FileInfo, _ int) bool {
 				// While directories may contain other things of interest for OPA (json, yaml..),

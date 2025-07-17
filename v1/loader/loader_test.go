@@ -23,6 +23,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/bundle"
+	"github.com/open-policy-agent/opa/v1/loader/extension"
 	"github.com/open-policy-agent/opa/v1/util"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
@@ -467,6 +468,49 @@ func TestLoadGuessYAML(t *testing.T) {
 		expected := parseJSON(`{"a": "b"}`)
 		if !reflect.DeepEqual(loaded.Documents, expected) {
 			t.Fatalf("Expected %v but got: %v", expected, loaded.Documents)
+		}
+	})
+}
+
+func TestLoadExtension(t *testing.T) {
+	files := map[string]string{
+		"/foo.mock": `{"a": [1,2,3]}`,
+	}
+
+	extension.RegisterExtension(".mock", util.UnmarshalJSON)
+
+	test.WithTempFS(files, func(rootDir string) {
+		loaded, err := NewFileLoader().All([]string{filepath.Join(rootDir, "foo.mock")})
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		expected := parseJSON(files["/foo.mock"])
+
+		if !reflect.DeepEqual(loaded.Documents, expected) {
+			t.Fatalf("Expected %v but got: %v", expected, loaded.Documents)
+		}
+	})
+}
+
+func TestLoadExtensionFail(t *testing.T) {
+	files := map[string]string{
+		"/foo.mock": `{"a": [1,2,3]}`,
+	}
+
+	extension.RegisterExtension(".mock", func([]byte, interface{}) error {
+		return errors.New("Load .mock file failed")
+	})
+
+	test.WithTempFS(files, func(rootDir string) {
+		_, err := NewFileLoader().All([]string{filepath.Join(rootDir, "foo.mock")})
+
+		if err == nil {
+			t.Fatal("Expected extension error")
+		}
+
+		if !strings.Contains(err.Error(), "foo.mock: Load .mock file failed") {
+			t.Fatal(err)
 		}
 	})
 }

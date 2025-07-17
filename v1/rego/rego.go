@@ -648,6 +648,7 @@ type Rego struct {
 	bundlePaths                 []string
 	bundles                     map[string]*bundle.Bundle
 	skipBundleVerification      bool
+	bundleActivationPlugin      string
 	enableBundleLazyLoadingMode bool
 	interQueryBuiltinCache      cache.InterQueryCache
 	interQueryBuiltinValueCache cache.InterQueryValueCache
@@ -1191,6 +1192,13 @@ func SkipBundleVerification(yes bool) func(r *Rego) {
 	}
 }
 
+// BundleActivatorPlugin sets the name of the activator plugin used to load bundles into the store.
+func BundleActivatorPlugin(name string) func(r *Rego) {
+	return func(r *Rego) {
+		r.bundleActivationPlugin = name
+	}
+}
+
 // BundleLazyLoadingMode sets the bundle loading mode. If true, bundles will be
 // read in lazy mode. In this mode, data files in the bundle will not be
 // deserialized and the check to validate that the bundle data does not contain
@@ -1351,7 +1359,11 @@ func New(options ...func(r *Rego)) *Rego {
 	}
 
 	if r.store == nil {
-		r.store = inmem.NewWithOpts(inmem.OptReturnASTValuesOnRead(r.ownStoreReadAst))
+		if bundle.HasExtension() {
+			r.store = bundle.BundleExtStore()
+		} else {
+			r.store = inmem.NewWithOpts(inmem.OptReturnASTValuesOnRead(r.ownStoreReadAst))
+		}
 		r.ownStore = true
 	} else {
 		r.ownStore = false
@@ -1967,6 +1979,7 @@ func (r *Rego) loadFiles(ctx context.Context, txn storage.Transaction, m metrics
 	result, err := loader.NewFileLoader().
 		WithMetrics(m).
 		WithProcessAnnotation(true).
+		WithBundleLazyLoadingMode(bundle.HasExtension()).
 		WithRegoVersion(r.regoVersion).
 		WithCapabilities(r.capabilities).
 		Filtered(r.loadPaths.paths, r.loadPaths.filter)
@@ -1998,6 +2011,7 @@ func (r *Rego) loadBundles(_ context.Context, _ storage.Transaction, m metrics.M
 		bndl, err := loader.NewFileLoader().
 			WithMetrics(m).
 			WithProcessAnnotation(true).
+			WithBundleLazyLoadingMode(bundle.HasExtension()).
 			WithSkipBundleVerification(r.skipBundleVerification).
 			WithRegoVersion(r.regoVersion).
 			WithCapabilities(r.capabilities).

@@ -29,6 +29,7 @@ type InsertAndCompileOptions struct {
 	MaxErrors             int
 	EnablePrintStatements bool
 	ParserOptions         ast.ParserOptions
+	BundleActivatorPlugin string
 }
 
 // InsertAndCompileResult contains the output of the operation.
@@ -68,6 +69,7 @@ func InsertAndCompile(ctx context.Context, opts InsertAndCompileOptions) (*Inser
 		Bundles:       opts.Bundles,
 		ExtraModules:  policies,
 		ParserOptions: opts.ParserOptions,
+		Plugin:        opts.BundleActivatorPlugin,
 	}
 
 	err := bundle.Activate(activation)

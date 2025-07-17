@@ -21,6 +21,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/bundle"
+	"github.com/open-policy-agent/opa/v1/loader/extension"
 	"github.com/open-policy-agent/opa/v1/loader/filter"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/storage"
@@ -729,7 +730,21 @@ func allRec(fsys fs.FS, path string, filter Filter, errors *Errors, loaded *Resu
 }
 
 func loadKnownTypes(path string, bs []byte, m metrics.Metrics, opts ast.ParserOptions, bundleLazyLoadingMode bool) (any, error) {
-	switch filepath.Ext(path) {
+	ext := filepath.Ext(path)
+	if handler := extension.FindExtension(ext); handler != nil {
+		m.Timer(metrics.RegoDataParse).Start()
+
+		var value any
+		err := handler(bs, &value)
+
+		m.Timer(metrics.RegoDataParse).Stop()
+		if err != nil {
+			return nil, fmt.Errorf("bundle %s: %w", path, err)
+		}
+
+		return value, nil
+	}
+	switch ext {
 	case ".json":
 		return loadJSON(path, bs, m)
 	case ".rego":

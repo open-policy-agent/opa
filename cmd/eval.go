@@ -862,6 +862,7 @@ func generateOptimizedBundle(params evalCommandParams, asBundle bool, filter loa
 		WithCapabilities(capabilities).
 		WithTarget(params.target.String()).
 		WithAsBundle(asBundle).
+		WithBundleLazyLoadingMode(bundle.HasExtension()).
 		WithOptimizationLevel(params.optimizationLevel).
 		WithOutput(bytes.NewBuffer(nil)).
 		WithEntrypoints(params.entrypoints.v...).
