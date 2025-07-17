@@ -462,8 +462,11 @@ else
 release-ci: push-image push-manifest-list-latest
 endif
 
-.PHONY: netlify
-netlify: docs-clean docs-ci docs-build
+.PHONY: netlify-latest
+netlify-latest: docs-clean docs-ci docs-build-latest
+
+.PHONY: netlify-edge
+netlify-edge: docs-clean docs-ci docs-build
 
 # Kept for compatibility. Use `make fuzz` instead.
 .PHONY: check-fuzz
