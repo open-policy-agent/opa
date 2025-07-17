@@ -1,0 +1,8 @@
+{
+  "payload": {
+    "user": "alice",
+    "action": "read", 
+    "resource": "/api/users"
+  },
+  "expected_digest": "ea99819f665c10c744cbbf8da651c37a"
+}

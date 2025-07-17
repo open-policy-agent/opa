@@ -1,0 +1,12 @@
+{
+  "attributes": {
+    "request": {
+      "http": {
+        "headers": {
+          "x-username": "alice",
+          "x-password": "secret123"
+        }
+      }
+    }
+  }
+}
