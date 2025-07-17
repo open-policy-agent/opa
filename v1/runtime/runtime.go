@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	prometheus_sdk "github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/propagation"
@@ -226,6 +227,9 @@ type Params struct {
 	// implementation (instead of the default, in-memory store).
 	// It can also be enabled via config, and this runtime field takes precedence.
 	DiskStorage *disk.Options
+
+	// StoreBuilder allows passing a storage backend builder
+	StoreBuilder func(_ context.Context, _ logging.Logger, _ prometheus_sdk.Registerer, config []byte, id string) (storage.Store, error)
 
 	DistributedTracingOpts tracing.Options
 
@@ -433,12 +437,18 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
-	if params.DiskStorage != nil {
+	switch {
+	case params.DiskStorage != nil:
 		store, err = disk.New(ctx, logger, metrics, *params.DiskStorage)
 		if err != nil {
 			return nil, fmt.Errorf("initialize disk store: %w", err)
 		}
-	} else {
+	case params.StoreBuilder != nil:
+		store, err = params.StoreBuilder(ctx, logger, metrics, config, params.ID)
+		if err != nil {
+			return nil, fmt.Errorf("initialize store: %w", err)
+		}
+	default:
 		store = inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false),
 			inmem.OptReturnASTValuesOnRead(params.ReadAstValuesFromStore))
 	}
