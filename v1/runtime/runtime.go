@@ -259,6 +259,9 @@ type Params struct {
 
 	// Hooks is our generic extension mechanism.
 	Hooks hooks.Hooks
+
+	// NDBCacheEnabled allows enabling the non-deterministic builtin cache globally.
+	NDBCacheEnabled bool
 }
 
 func (p *Params) regoVersion() ast.RegoVersion {
@@ -636,11 +639,12 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithMinTLSVersion(rt.Params.MinTLSVersion).
 		WithCipherSuites(rt.Params.CipherSuites).
 		WithDistributedTracingOpts(rt.Params.DistributedTracingOpts).
-		WithHooks(rt.Params.Hooks)
+		WithHooks(rt.Params.Hooks).
+		WithNDBCacheEnabled(rt.Params.NDBCacheEnabled)
 
 	// If decision_logging plugin enabled, check to see if we opted in to the ND builtins cache.
 	if lp := logs.Lookup(rt.Manager); lp != nil {
-		rt.server = rt.server.WithNDBCacheEnabled(rt.Manager.Config.NDBuiltinCacheEnabled())
+		rt.server = rt.server.WithNDBCacheEnabled(rt.Params.NDBCacheEnabled || rt.Manager.Config.NDBuiltinCacheEnabled())
 	}
 
 	if rt.Params.DiagnosticAddrs != nil {
