@@ -19,6 +19,9 @@ type Store = v1.Store
 // generic MakeDir functionality in storage.MakeDir
 type MakeDirer = v1.MakeDirer
 
+// NonEmptyer allows a store implemention to override NonEmpty())
+type NonEmptyer = v1.NonEmptyer
+
 // TransactionParams describes a new transaction.
 type TransactionParams = v1.TransactionParams
 

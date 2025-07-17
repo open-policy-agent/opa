@@ -19,10 +19,12 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	prometheus_sdk "github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
@@ -32,6 +34,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/loader"
 	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/plugins/discovery"
+	"github.com/open-policy-agent/opa/v1/storage/inmem"
 	"github.com/open-policy-agent/opa/v1/tracing"
 
 	"github.com/open-policy-agent/opa/internal/report"
@@ -1925,5 +1928,75 @@ func TestCacheHooksOnServer(t *testing.T) {
 
 	for _, e := range testLogger.Entries() {
 		t.Log(e.Message)
+	}
+}
+
+type fakeStore struct {
+	storage.Store
+}
+
+func (f *fakeStore) Read(ctx context.Context, txn storage.Transaction, p storage.Path) (any, error) {
+	if slices.Contains(p, "foo") {
+		return map[string]any{"fake": p}, nil
+	}
+	return f.Store.Read(ctx, txn, p)
+}
+
+func TestCustomStoreBuilder(t *testing.T) {
+	ctx := context.Background()
+	testLogger := testLog.New()
+	params := NewParams()
+	params.Logger = testLogger
+	params.Addrs = &[]string{"localhost:0"}
+	params.StoreBuilder = func(_ context.Context, logger logging.Logger, registerer prometheus_sdk.Registerer, config []byte, id string) (storage.Store, error) {
+		switch {
+		case logger == nil:
+			t.Fatal("logger empty")
+		case registerer == nil:
+			t.Fatal("registerer empty")
+		case config == nil:
+			t.Fatal("config empty")
+		case id == "":
+			t.Fatal("id empty")
+		}
+		return &fakeStore{inmem.New()}, nil
+	}
+
+	rt, err := NewRuntime(ctx, params)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+	go rt.StartServer(ctx)
+	if !test.Eventually(t, 5*time.Second, func() bool {
+		found := false
+		for _, e := range testLogger.Entries() {
+			found = strings.Contains(e.Message, "Server initialized.") || found
+		}
+		return found
+	}) {
+		t.Fatal("Timed out waiting for server to start")
+	}
+	host := rt.Addrs()[0]
+	r, err := http.NewRequest(http.MethodGet, "http://"+host+"/v1/data/foo/bar", nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+	resp, err := http.DefaultClient.Do(r)
+	if err != nil {
+		t.Fatal("expected no error, got", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status %d (want 200)", resp.StatusCode)
+	}
+
+	defer resp.Body.Close()
+	var payload struct {
+		Result map[string]any
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !reflect.DeepEqual(map[string]any{"fake": []any{"foo", "bar"}}, payload.Result) {
+		t.Errorf("unexpected result: %v", payload.Result)
 	}
 }
