@@ -2,6 +2,6 @@
   "showInput": true,
   "showData": false,
   "showTitles": false,
-  "command": "data.crypto_sha256",
+  "command": "data.crypto_digest_verification",
   "titleSize": 5
 }

@@ -1,8 +1,0 @@
-{
-  "payload": {
-    "user": "alice",
-    "action": "read",
-    "resource": "/api/users"
-  },
-  "signature": "d2a7c77fc6cdacc74f16657c6cf538142cf763bb57f37b686009c2034955cd08"
-}
