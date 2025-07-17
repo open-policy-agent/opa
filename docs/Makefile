@@ -14,6 +14,10 @@ dev:
 build:
 	npx docusaurus build
 
+.PHONY: build-latest
+build-latest:
+	./bin/build-latest.sh
+
 .PHONY: clean
 clean:
 	rm -rf build .docusaurus
