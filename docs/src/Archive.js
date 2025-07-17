@@ -1,6 +1,9 @@
+import React from "react";
+
+import Admonition from "@theme/Admonition";
 import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
-import React from "react";
+
 const semver = require("semver");
 
 import versions from "@generated/versions-data/default/versions.json";
@@ -122,6 +125,11 @@ const Archive = (props) => {
     <Layout title={title}>
       <div className="container margin-vert--lg">
         <Heading as="h1">{title}</Heading>
+
+        <Admonition type="info" title="Note">
+          Pre-release documentation is available on the{" "}
+          <a href="https://edge--opa-docs.netlify.app/">edge deployment</a>.
+        </Admonition>
 
         <p>
           Please find links to past versions of the OPA Documentation here. Note that only the latest patch within a
