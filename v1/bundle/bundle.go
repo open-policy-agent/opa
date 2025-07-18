@@ -763,7 +763,7 @@ func (r *Reader) Read() (Bundle, error) {
 			modulePopts.RegoVersion = regoVersion
 		}
 		r.metrics.Timer(metrics.RegoModuleParse).Start()
-		mf.Parsed, err = ast.ParseModuleWithOpts(mf.Path, string(mf.Raw), modulePopts)
+		mf.Parsed, err = ast.ParseModuleWithOpts(mf.Path, util.ByteSliceToString(mf.Raw), modulePopts)
 		r.metrics.Timer(metrics.RegoModuleParse).Stop()
 		if err != nil {
 			return bundle, err
