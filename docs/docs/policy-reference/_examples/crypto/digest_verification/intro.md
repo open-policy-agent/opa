@@ -2,5 +2,5 @@ This example shows how to use `crypto.md5` to verify payload integrity by comput
 
 **Why this is useful:** Content verification is essential in APIs and webhooks where you need to ensure data hasn't been tampered with during transmission. The digest acts as a fingerprint - any change to the payload will result in a different digest.
 
-**Try it yourself:** Change any value in the `payload` object (like the user name or resource path) and re-run the example. You'll see `digest_valid` becomes `false`, demonstrating how even small changes are detected.
+Change any value in the `payload` object (like the user name or resource path) and re-run the example. You'll see `digest_valid` becomes `false`, demonstrating how any change is detected.
 
