@@ -118,8 +118,7 @@ func opaTest(args []string, testParams testCommandParams) int {
 
 	var err error
 	if testParams.bundleMode {
-		bundles, err = tester.LoadBundlesWithParserOptions(args, ignored(testParams.ignore).Apply, popts)
-		store = inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false))
+		bundles, store, err = tester.LoadBundlesWithParserOptions(args, ignored(testParams.ignore).Apply, popts)
 	} else {
 		modules, store, err = tester.LoadWithParserOptions(args, ignored(testParams.ignore).Apply, popts)
 	}
@@ -163,7 +162,17 @@ func opaTest(args []string, testParams testCommandParams) int {
 	}
 
 	done := make(chan struct{})
-	go startWatcher(ctx, testParams, args, inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false)), done)
+	go func() {
+		var store storage.Store
+
+		if bundle.BundleExtStore != nil {
+			store = bundle.BundleExtStore()
+		} else {
+			store = inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false))
+		}
+
+		startWatcher(ctx, testParams, args, store, done)
+	}()
 
 	signal.Notify(testParams.stopChan, syscall.SIGINT, syscall.SIGTERM)
 

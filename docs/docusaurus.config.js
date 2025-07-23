@@ -146,8 +146,12 @@ const baseUrl = "/";
            target="_blank"
            rel="noopener noreferrer"
            aria-label="GitHub repository">
-          <img src="${baseUrl}img/nav/github-light.svg" class="light-only" alt="GitHub" style="width: 24px; height: auto; margin-left: 8px;" />
-          <img src="${baseUrl}img/nav/github-dark.svg" class="dark-only" alt="GitHub" style="width: 24px; height: auto; margin-left: 8px;" />
+          <img src="${
+              path.join(baseUrl, "img/nav/github-light.svg")
+            }" class="light-only" alt="GitHub" style="width: 24px; height: auto; margin-left: 8px;" />
+          <img src="${
+              path.join(baseUrl, "img/nav/github-dark.svg")
+            }" class="dark-only" alt="GitHub" style="width: 24px; height: auto; margin-left: 8px;" />
         </a>
       `,
           },
@@ -159,8 +163,12 @@ const baseUrl = "/";
            target="_blank"
            rel="noopener noreferrer"
            aria-label="Slack community">
-          <img src="${baseUrl}img/nav/slack-light.svg" class="light-only" alt="Slack" style="width: 24px; height: auto; margin-left: 8px;" />
-          <img src="${baseUrl}img/nav/slack-dark.svg" class="dark-only" alt="Slack" style="width: 24px; height: auto; margin-left: 8px;" />
+          <img src="${
+              path.join(baseUrl, "img/nav/slack-light.svg")
+            }" class="light-only" alt="Slack" style="width: 24px; height: auto; margin-left: 8px;" />
+          <img src="${
+              path.join(baseUrl, "img/nav/slack-dark.svg")
+            }" class="dark-only" alt="Slack" style="width: 24px; height: auto; margin-left: 8px;" />
         </a>
       `,
           },
@@ -172,14 +180,20 @@ const baseUrl = "/";
         copyright:
           `Open Policy Agent is a <a href="https://www.cncf.io/">Cloud Native Computing Foundation</a> Graduated project.
 
-<img src="${baseUrl}img/footer/cncf-light.svg" alt="CNCF Logo" class="light-only" style="max-width: 10rem; vertical-align: middle; margin: 0 10px;">
-<img src="${baseUrl}img/footer/cncf-dark.svg" alt="CNCF Logo" class="dark-only" style="max-width: 10rem; vertical-align: middle; margin: 0 10px;">
+<img src="${
+            path.join(baseUrl, "img/footer/cncf-light.svg")
+          }" alt="CNCF Logo" class="light-only" style="max-width: 10rem; vertical-align: middle; margin: 0 10px;">
+<img src="${
+            path.join(baseUrl, "img/footer/cncf-dark.svg")
+          }" alt="CNCF Logo" class="dark-only" style="max-width: 10rem; vertical-align: middle; margin: 0 10px;">
 <br />
 
 © ${new Date().getFullYear()}
 Open Policy Agent contributors.
 <a href="https://github.com/open-policy-agent/opa/blob/main/LICENSE">Licensed under the Apache License, Version 2.0</a>.
-See the <a href="${baseUrl}/docs/contributing">contributing documentation</a> for information about contributing.
+See the <a href="${
+            path.join(baseUrl, "/docs/contributing")
+          }">contributing documentation</a> for information about contributing.
 
 The Linux Foundation has registered trademarks and uses trademarks. For a list of trademarks of The Linux Foundation, please see our Trademark Usage page.`,
       },
@@ -431,6 +445,13 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
             const { versions } = content;
 
             await createData("versions.json", JSON.stringify(versions, null, 2));
+
+            const staticDir = path.join(context.siteDir, "static", "data");
+            await fs.mkdir(staticDir, { recursive: true });
+            await fs.writeFile(
+              path.join(staticDir, "versions.json"),
+              JSON.stringify(versions, null, 2),
+            );
           },
         };
       },

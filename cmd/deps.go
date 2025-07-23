@@ -19,6 +19,7 @@ import (
 	"github.com/open-policy-agent/opa/cmd/formats"
 	"github.com/open-policy-agent/opa/cmd/internal/env"
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/loader"
 	"github.com/open-policy-agent/opa/v1/util"
 )
@@ -118,6 +119,7 @@ func deps(args []string, params depsCommandParams, w io.Writer) error {
 
 	if len(params.dataPaths.v) > 0 {
 		result, err := loader.NewFileLoader().
+			WithBundleLazyLoadingMode(bundle.HasExtension()).
 			WithRegoVersion(params.regoVersion()).
 			Filtered(params.dataPaths.v, ignored(params.ignore).Apply)
 		if err != nil {
@@ -130,7 +132,7 @@ func deps(args []string, params depsCommandParams, w io.Writer) error {
 	if len(params.bundlePaths.v) > 0 {
 		modules = make(map[string]*ast.Module, len(params.bundlePaths.v))
 		for _, path := range params.bundlePaths.v {
-			b, err := loader.NewFileLoader().WithSkipBundleVerification(true).AsBundle(path)
+			b, err := loader.NewFileLoader().WithBundleLazyLoadingMode(bundle.HasExtension()).WithSkipBundleVerification(true).AsBundle(path)
 			if err != nil {
 				return err
 			}

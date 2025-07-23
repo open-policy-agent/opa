@@ -68,6 +68,7 @@ func checkModules(params checkParams, args []string) error {
 	l := loader.NewFileLoader().
 		WithRegoVersion(params.regoVersion()).
 		WithProcessAnnotation(true).
+		WithBundleLazyLoadingMode(bundle.HasExtension()).
 		WithCapabilities(capabilities)
 
 	ss, err := loader.Schemas(params.schema.path)

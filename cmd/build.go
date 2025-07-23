@@ -314,6 +314,7 @@ func dobuild(params buildParams, args []string) error {
 		WithRegoAnnotationEntrypoints(true).
 		WithPaths(args...).
 		WithFilter(buildCommandLoaderFilter(params.bundleMode, params.ignore)).
+		WithBundleLazyLoadingMode(bundle.HasExtension()).
 		WithBundleVerificationConfig(bvc).
 		WithBundleSigningConfig(bsc).
 		WithPartialNamespace(params.ns).

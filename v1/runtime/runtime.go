@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	prometheus_sdk "github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/propagation"
@@ -206,6 +207,9 @@ type Params struct {
 	// SkipBundleVerification flag controls whether OPA will verify a signed bundle
 	SkipBundleVerification bool
 
+	// BundleActivatorPlugin controls the name of the activator plugin used to load bundles into the store.
+	BundleActivatorPlugin string
+
 	// BundleLazyLoadingMode flag controls whether OPA will load bundle contents in lazy mode.
 	BundleLazyLoadingMode bool
 
@@ -226,6 +230,9 @@ type Params struct {
 	// implementation (instead of the default, in-memory store).
 	// It can also be enabled via config, and this runtime field takes precedence.
 	DiskStorage *disk.Options
+
+	// StoreBuilder allows passing a storage backend builder
+	StoreBuilder func(_ context.Context, _ logging.Logger, _ prometheus_sdk.Registerer, config []byte, id string) (storage.Store, error)
 
 	DistributedTracingOpts tracing.Options
 
@@ -259,6 +266,9 @@ type Params struct {
 
 	// Hooks is our generic extension mechanism.
 	Hooks hooks.Hooks
+
+	// NDBCacheEnabled allows enabling the non-deterministic builtin cache globally.
+	NDBCacheEnabled bool
 }
 
 func (p *Params) regoVersion() ast.RegoVersion {
@@ -430,12 +440,18 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
-	if params.DiskStorage != nil {
+	switch {
+	case params.DiskStorage != nil:
 		store, err = disk.New(ctx, logger, metrics, *params.DiskStorage)
 		if err != nil {
 			return nil, fmt.Errorf("initialize disk store: %w", err)
 		}
-	} else {
+	case params.StoreBuilder != nil:
+		store, err = params.StoreBuilder(ctx, logger, metrics, config, params.ID)
+		if err != nil {
+			return nil, fmt.Errorf("initialize store: %w", err)
+		}
+	default:
 		store = inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false),
 			inmem.OptReturnASTValuesOnRead(params.ReadAstValuesFromStore))
 	}
@@ -469,6 +485,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.WithEnableTelemetry(params.EnableVersionCheck),
 		plugins.WithParserOptions(params.parserOptions()),
 		plugins.WithDistributedTracingOpts(params.DistributedTracingOpts),
+		plugins.WithBundleActivatorPlugin(params.BundleActivatorPlugin),
 		plugins.WithHooks(params.Hooks),
 	)
 	if err != nil {
@@ -636,11 +653,12 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithMinTLSVersion(rt.Params.MinTLSVersion).
 		WithCipherSuites(rt.Params.CipherSuites).
 		WithDistributedTracingOpts(rt.Params.DistributedTracingOpts).
-		WithHooks(rt.Params.Hooks)
+		WithHooks(rt.Params.Hooks).
+		WithNDBCacheEnabled(rt.Params.NDBCacheEnabled)
 
 	// If decision_logging plugin enabled, check to see if we opted in to the ND builtins cache.
 	if lp := logs.Lookup(rt.Manager); lp != nil {
-		rt.server = rt.server.WithNDBCacheEnabled(rt.Manager.Config.NDBuiltinCacheEnabled())
+		rt.server = rt.server.WithNDBCacheEnabled(rt.Params.NDBCacheEnabled || rt.Manager.Config.NDBuiltinCacheEnabled())
 	}
 
 	if rt.Params.DiagnosticAddrs != nil {

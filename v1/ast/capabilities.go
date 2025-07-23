@@ -57,6 +57,24 @@ const FeatureRegoV1 = "rego_v1"
 const FeatureRegoV1Import = "rego_v1_import"
 const FeatureKeywordsInRefs = "keywords_in_refs"
 
+// Features carries the default features supported by this version of OPA.
+// Use RegisterFeatures to add to them.
+var Features = []string{
+	FeatureRegoV1,
+	FeatureKeywordsInRefs,
+}
+
+// RegisterFeatures lets applications wrapping OPA register features, to be
+// included in `ast.CapabilitiesForThisVersion()`.
+func RegisterFeatures(fs ...string) {
+	for i := range fs {
+		if slices.Contains(Features, fs[i]) {
+			continue
+		}
+		Features = append(Features, fs[i])
+	}
+}
+
 // Capabilities defines a structure containing data that describes the capabilities
 // or features supported by a particular version of OPA.
 type Capabilities struct {
@@ -141,10 +159,8 @@ func CapabilitiesForThisVersion(opts ...CapabilitiesOption) *Capabilities {
 			f.FutureKeywords = append(f.FutureKeywords, kw)
 		}
 
-		f.Features = []string{
-			FeatureRegoV1,
-			FeatureKeywordsInRefs,
-		}
+		f.Features = make([]string, len(Features))
+		copy(f.Features, Features)
 	}
 
 	sort.Strings(f.FutureKeywords)
