@@ -765,7 +765,8 @@ func (s *Server) initHandlerAuthz(handler http.Handler) http.Handler {
 			authorizer.PrintHook(s.manager.PrintHook()),
 			authorizer.EnablePrintStatements(s.manager.EnablePrintStatements()),
 			authorizer.InterQueryCache(s.interQueryBuiltinCache),
-			authorizer.InterQueryValueCache(s.interQueryBuiltinValueCache))
+			authorizer.InterQueryValueCache(s.interQueryBuiltinValueCache),
+			authorizer.URLPathExpectsBodyFunc(s.manager.ExtraAuthorizerRoutes()))
 
 		if s.metrics != nil {
 			handler = s.instrumentHandler(handler.ServeHTTP, PromHandlerAPIAuthz)

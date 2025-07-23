@@ -35,6 +35,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/loader"
 	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/plugins/discovery"
+	"github.com/open-policy-agent/opa/v1/server/authorizer"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
 	"github.com/open-policy-agent/opa/v1/tracing"
 
@@ -2105,6 +2106,86 @@ func TestExtraMiddleware(t *testing.T) {
 		t.Fatal(err)
 	}
 	if act, exp := string(buf), "bar"; !reflect.DeepEqual(act, exp) {
+		t.Errorf("got %v (%[1]T), want %v (%[2]T)", act, exp)
+	}
+}
+
+func TestExtraAuthorizerRoutes(t *testing.T) {
+	ctx := context.Background()
+	testLogger := testLog.New()
+	params := NewParams()
+	params.Logger = testLogger
+	params.Addrs = &[]string{"localhost:0"}
+	params.Authorization = server.AuthorizationBasic
+	authzPolicy := []byte(`
+package system.authz
+
+default allow := false # Reject requests by default.
+
+# Authorizer will deny request if it cannot see the parsed request body.
+allow if {
+	input.method == "POST"
+	input.path == ["exp", "foo"]
+	input.body.example == "A" 
+}`)
+
+	rt, err := NewRuntime(ctx, params)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+	// Add a simple authz policy for POST /exp/foo.
+	err = storage.Txn(ctx, rt.Store, storage.WriteParams, func(txn storage.Transaction) error {
+		return rt.Store.UpsertPolicy(ctx, txn, "authz.rego", authzPolicy)
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Use a basic "echo" handler here that will reflect back the request body.
+	// If the authorizer blocks the request body from being parsed, we won't see it here on the request context.
+	rt.Manager.ExtraRoute("POST /exp/foo", "exp/foo", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if body, ok := authorizer.GetBodyOnContext(r.Context()); ok {
+			bs := string(util.MustMarshalJSON(body))
+			fmt.Fprint(w, bs)
+		} else {
+			t.Fatal("No request body found on request context.")
+		}
+	}))
+	// Add POST /exp/foo to authorizer's list of routes that should have request bodies.
+	rt.Manager.ExtraAuthorizerRoute(func(method string, path []any) bool {
+		s0 := path[0].(string)
+		s1 := path[1].(string)
+		return method == "POST" && s0 == "exp" && s1 == "foo"
+	})
+	go rt.StartServer(ctx)
+	if !test.Eventually(t, 5*time.Second, func() bool {
+		found := false
+		for _, e := range testLogger.Entries() {
+			found = strings.Contains(e.Message, "Server initialized.") || found
+		}
+		return found
+	}) {
+		t.Fatal("Timed out waiting for server to start")
+	}
+	host := rt.Addrs()[0]
+	r, err := http.NewRequest(http.MethodPost, "http://"+host+"/exp/foo", strings.NewReader(`{"example": "A"}`))
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+	resp, err := http.DefaultClient.Do(r)
+	if err != nil {
+		t.Fatal("expected no error, got", err)
+	}
+	// If we get a 401 Not Authorized here, it means the authz policy could not
+	// validate the contents of the parsed request body for some reason.
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status %d (want 200)", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	buf, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if act, exp := string(buf), `{"example":"A"}`; !reflect.DeepEqual(act, exp) {
 		t.Errorf("got %v (%[1]T), want %v (%[2]T)", act, exp)
 	}
 }

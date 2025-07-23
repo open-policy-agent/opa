@@ -221,6 +221,7 @@ type Manager struct {
 	parserOptions                ast.ParserOptions
 	extraRoutes                  map[string]ExtraRoute
 	extraMiddlewares             []func(http.Handler) http.Handler
+	extraAuthorizerRoutes        []func(string, []any) bool
 	bundleActivatorPlugin        string
 }
 
@@ -678,6 +679,10 @@ func (m *Manager) ExtraMiddlewares() []func(http.Handler) http.Handler {
 	return m.extraMiddlewares
 }
 
+func (m *Manager) ExtraAuthorizerRoutes() []func(string, []any) bool {
+	return m.extraAuthorizerRoutes
+}
+
 // ExtraRoute registers an extra route to be served by the HTTP
 // server later. Using this instead of directly registering routes
 // with GetRouter() lets the server apply its handler wrapping for
@@ -702,6 +707,16 @@ func (m *Manager) ExtraRoute(path, name string, hf http.HandlerFunc) {
 // to be called from a plugin's init methods.
 func (m *Manager) ExtraMiddleware(mw ...func(http.Handler) http.Handler) {
 	m.extraMiddlewares = append(m.extraMiddlewares, mw...)
+}
+
+// ExtraAuthorizerRoute registers an extra URL path validator function for use
+// in the server authorizer. These functions designate specific methods and URL
+// prefixes or paths where the authorizer should allow request body parsing.
+// Caution: This cannot be used to dynamically register and un-
+// register path validator functions. It's meant as a late-stage
+// set up helper, to be called from a plugin's init methods.
+func (m *Manager) ExtraAuthorizerRoute(validatorFunc func(string, []any) bool) {
+	m.extraAuthorizerRoutes = append(m.extraAuthorizerRoutes, validatorFunc)
 }
 
 // GetRouter returns the managers router if set
