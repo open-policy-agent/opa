@@ -261,3 +261,14 @@ func DecisionIDFromContext(ctx context.Context) (string, bool) {
 	s, ok := ctx.Value(decisionCtxKey).(string)
 	return s, ok
 }
+
+const batchDecisionCtxKey = requestContextKey("batch_decision_id")
+
+func WithBatchDecisionID(parent context.Context, id string) context.Context {
+	return context.WithValue(parent, batchDecisionCtxKey, id)
+}
+
+func BatchDecisionIDFromContext(ctx context.Context) (string, bool) {
+	s, ok := ctx.Value(batchDecisionCtxKey).(string)
+	return s, ok
+}
