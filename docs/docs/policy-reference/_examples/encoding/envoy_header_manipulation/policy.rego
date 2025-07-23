@@ -14,5 +14,11 @@ allow if {
 
 # Add Authorization header to downstream request using base64 encoding
 response_headers_to_add := {
-    "Authorization": sprintf("Basic %s", [base64.encode(sprintf("%s:%s", [username, password]))])
+    "Authorization": sprintf(
+        "Basic %s", [
+            base64.encode(sprintf(
+                "%s:%s", [username, password])
+            )
+        ]
+    )
 }
