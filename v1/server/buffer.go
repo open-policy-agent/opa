@@ -20,6 +20,7 @@ type Info struct {
 	Revision           string // Deprecated: Use `Bundles` instead
 	Bundles            map[string]BundleInfo
 	DecisionID         string
+	BatchDecisionID    string
 	TraceID            string
 	SpanID             string
 	RemoteAddr         string
