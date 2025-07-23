@@ -1,7 +1,9 @@
 package envoy.authz
 
 # Extract credentials from request headers (common pattern for upstream auth)
-username := input.attributes.request.http.headers["x-username"]
+headers := input.attributes.request.http.headers
+
+username := headers["x-username"]
 password := headers["x-password"]
 
 # Default deny - only allow if credentials are provided
