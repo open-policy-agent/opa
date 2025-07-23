@@ -2,6 +2,7 @@
 title: Encoding
 ---
 <BuiltinTable category={"encoding"}/>
+
 The `json.marshal_with_options` builtin's `opts` parameter accepts the following properties:
 
 | Field    | Required | Type     | Default                                                              | Description                                                                                                                                                                                                                                                                                                                                      |
@@ -14,3 +15,7 @@ Default values will be used if:
 
 - `opts` is an empty object.
 - `opts` does not contain the named property.
+
+#### Examples
+
+<PlaygroundExample dir={require.context("../_examples/encoding/envoy_header_manipulation")} />

@@ -1,0 +1,7 @@
+{
+  "showInput": true,
+  "showData": false,
+  "showTitles": false,
+  "command": "data.envoy.authz",
+  "titleSize": 5
+}
