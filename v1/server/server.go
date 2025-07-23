@@ -901,8 +901,20 @@ func (s *Server) initRouters(ctx context.Context) {
 	s.DiagnosticHandler = handlerAuthzDiag
 }
 
+func createMiddleware(mw ...func(http.Handler) http.Handler) func(http.Handler) http.Handler {
+	return func(hnd http.Handler) http.Handler {
+		next := hnd
+		for k := len(mw) - 1; k >= 0; k-- {
+			next = mw[k](next)
+		}
+		return next
+	}
+}
+
 func (s *Server) instrumentHandler(handler func(http.ResponseWriter, *http.Request), label string) http.Handler {
-	httpHandler := handlers.DefaultHandler(http.HandlerFunc(handler))
+	httpHandler := handlers.DefaultHandler(createMiddleware(
+		s.manager.ExtraMiddlewares()...,
+	)(http.HandlerFunc(handler)))
 	if len(s.distributedTracingOpts) > 0 {
 		httpHandler = tracing.NewHandler(httpHandler, label, s.distributedTracingOpts)
 	}

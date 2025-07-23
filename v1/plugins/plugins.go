@@ -220,6 +220,7 @@ type Manager struct {
 	stop                         chan chan struct{}
 	parserOptions                ast.ParserOptions
 	extraRoutes                  map[string]ExtraRoute
+	extraMiddlewares             []func(http.Handler) http.Handler
 	bundleActivatorPlugin        string
 }
 
@@ -673,6 +674,10 @@ func (m *Manager) ExtraRoutes() map[string]ExtraRoute {
 	return m.extraRoutes
 }
 
+func (m *Manager) ExtraMiddlewares() []func(http.Handler) http.Handler {
+	return m.extraMiddlewares
+}
+
 // ExtraRoute registers an extra route to be served by the HTTP
 // server later. Using this instead of directly registering routes
 // with GetRouter() lets the server apply its handler wrapping for
@@ -688,6 +693,15 @@ func (m *Manager) ExtraRoute(path, name string, hf http.HandlerFunc) {
 		PromName:    name,
 		HandlerFunc: hf,
 	}
+}
+
+// ExtraMiddleware registers extra middlewares (`func(http.Handler) http.Handler`)
+// to be injected into the HTTP handler chain in the server later.
+// Caution: This cannot be used to dynamically register and un-
+// register middlewares. It's meant as a late-stage set up helper,
+// to be called from a plugin's init methods.
+func (m *Manager) ExtraMiddleware(mw ...func(http.Handler) http.Handler) {
+	m.extraMiddlewares = append(m.extraMiddlewares, mw...)
 }
 
 // GetRouter returns the managers router if set

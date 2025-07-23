@@ -2000,3 +2000,56 @@ func TestCustomStoreBuilder(t *testing.T) {
 		t.Errorf("unexpected result: %v", payload.Result)
 	}
 }
+
+func TestExtraMiddleware(t *testing.T) {
+	ctx := context.Background()
+	testLogger := testLog.New()
+	params := NewParams()
+	params.Logger = testLogger
+	params.Addrs = &[]string{"localhost:0"}
+
+	rt, err := NewRuntime(ctx, params)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+	rt.Manager.ExtraMiddleware(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := context.WithValue(r.Context(), "foo", "bar") //nolint:staticcheck,SA1029 // this is a simple example
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	})
+	rt.Manager.ExtraRoute("GET /exp/foo", "exp/foo", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, r.Context().Value("foo"))
+	}))
+	go rt.StartServer(ctx)
+	if !test.Eventually(t, 5*time.Second, func() bool {
+		found := false
+		for _, e := range testLogger.Entries() {
+			found = strings.Contains(e.Message, "Server initialized.") || found
+		}
+		return found
+	}) {
+		t.Fatal("Timed out waiting for server to start")
+	}
+	host := rt.Addrs()[0]
+	r, err := http.NewRequest(http.MethodGet, "http://"+host+"/exp/foo", nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+	resp, err := http.DefaultClient.Do(r)
+	if err != nil {
+		t.Fatal("expected no error, got", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status %d (want 200)", resp.StatusCode)
+	}
+
+	defer resp.Body.Close()
+	buf, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if act, exp := string(buf), "bar"; !reflect.DeepEqual(act, exp) {
+		t.Errorf("got %v (%[1]T), want %v (%[2]T)", act, exp)
+	}
+}
