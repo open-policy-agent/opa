@@ -6,6 +6,9 @@ on:
   schedule:
   - cron: "0 0 1 * *" # At 00:00 on day-of-month 1
 
+permissions:
+  contents: read
+
 jobs:
   linkChecker:
     runs-on: ubuntu-latest

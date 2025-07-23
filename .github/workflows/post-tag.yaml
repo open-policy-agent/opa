@@ -5,6 +5,9 @@ on:
     tags:
       - "*"
 
+permissions:
+  contents: read
+
 jobs:
   generate:
     name: Generate Code
@@ -94,6 +97,8 @@ jobs:
     name: Push Latest Release
     needs: [release-build, release-build-darwin]
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - name: Check out code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
