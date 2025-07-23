@@ -1,6 +1,6 @@
 package envoy.authz
 
-# Extract credentials from request headers (common pattern for upstream auth)
+# Extract credentials from request header
 headers := input.attributes.request.http.headers
 
 username := headers["x-username"]
