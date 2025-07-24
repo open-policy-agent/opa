@@ -454,7 +454,9 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 	return runner, reporter, nil
 }
 
-func init() {
+func initTest(root *cobra.Command, brand string) {
+	executable := root.Name()
+
 	var testParams = newTestCommandParams()
 
 	var testCommand = &cobra.Command{
@@ -515,17 +517,17 @@ Example test (example/authz_test.rego):
 
 Example test run:
 
-	$ opa test ./example/
+	$ ` + executable + ` test ./example/
 
 If used with the '--bench' option then tests will be benchmarked.
 
 Example benchmark run:
 
-	$ opa test --bench ./example/
+	$  ` + executable + ` test --bench ./example/
 
 The optional "gobench" output format conforms to the Go Benchmark Data Format.
 
-The --watch flag can be used to monitor policy and data file-system changes. When a change is detected, OPA reloads
+The --watch flag can be used to monitor policy and data file-system changes. When a change is detected, ` + brand + ` reloads
 the policy and data and then re-runs the tests. Watching individual files (rather than directories) is generally not
 recommended as some updates might cause them to be dropped by OPA.
 `,
@@ -580,5 +582,5 @@ recommended as some updates might cause them to be dropped by OPA.
 	addV0CompatibleFlag(testCommand.Flags(), &testParams.v0Compatible, false)
 	addV1CompatibleFlag(testCommand.Flags(), &testParams.v1Compatible, false)
 
-	RootCommand.AddCommand(testCommand)
+	root.AddCommand(testCommand)
 }

@@ -50,7 +50,9 @@ func newDepsCommandParams() depsCommandParams {
 	}
 }
 
-func init() {
+func initDeps(root *cobra.Command, _ string) {
+	executable := root.Name()
+
 	params := newDepsCommandParams()
 
 	depsCommand := &cobra.Command{
@@ -72,9 +74,9 @@ Given a policy like this:
 	is_admin if "admin" in input.user.roles
 
 To evaluate the dependencies of a simple query (e.g. data.policy.allow),
-we'd run opa deps like demonstrated below:
+we'd run ` + executable + ` deps like demonstrated below:
 
-	$ opa deps --data policy.rego data.policy.allow
+	$ ` + executable + ` deps --data policy.rego data.policy.allow
 	+------------------+----------------------+
 	|  BASE DOCUMENTS  |  VIRTUAL DOCUMENTS   |
 	+------------------+----------------------+
@@ -109,7 +111,7 @@ data.policy.is_admin.
 	addOutputFormat(depsCommand.Flags(), params.outputFormat)
 	addV1CompatibleFlag(depsCommand.Flags(), &params.v1Compatible, false)
 
-	RootCommand.AddCommand(depsCommand)
+	root.AddCommand(depsCommand)
 }
 
 func deps(args []string, params depsCommandParams, w io.Writer) error {

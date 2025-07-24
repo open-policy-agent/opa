@@ -23,7 +23,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	cmd := cmd.RootCommand
+	cmd := cmd.Command(nil, "OPA")
 	cmd.Use = "opa [command]"
 	cmd.DisableAutoGenTag = true
 

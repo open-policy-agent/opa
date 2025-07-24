@@ -18,14 +18,13 @@ import (
 	"github.com/open-policy-agent/opa/internal/report"
 )
 
-func init() {
-
+func initVersion(root *cobra.Command, brand string) {
 	var check bool
 	var versionCommand = &cobra.Command{
 		Use:   "version",
-		Short: "Print the version of OPA",
-		Long:  "Show version and build information for OPA.",
-		PreRunE: func(cmd *cobra.Command, _ []string) error {
+		Short: `Print the version of ` + brand,
+		Long:  `Show version and build information for ` + brand + `.`,
+		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -37,8 +36,8 @@ func init() {
 
 	// The version command can also be used to check for the latest released OPA version.
 	// Some tools could use this for feature flagging purposes and hence this option is OFF by-default.
-	versionCommand.Flags().BoolVarP(&check, "check", "c", false, "check for latest OPA release")
-	RootCommand.AddCommand(versionCommand)
+	versionCommand.Flags().BoolVarP(&check, "check", "c", false, "check for latest "+brand+" release")
+	root.AddCommand(versionCommand)
 }
 
 func generateCmdOutput(out io.Writer, check bool) error {

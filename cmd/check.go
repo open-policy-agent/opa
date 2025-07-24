@@ -173,7 +173,7 @@ func outputErrors(format string, err error) {
 	}
 }
 
-func init() {
+func initCheck(root *cobra.Command, _ string) {
 	checkParams := newCheckParams()
 
 	checkCommand := &cobra.Command{
@@ -215,5 +215,6 @@ and exit with a non-zero exit code.`,
 		"check for Rego v0 and v1 compatibility (policies must be compatible with both Rego versions)")
 	addV0CompatibleFlag(checkCommand.Flags(), &checkParams.v0Compatible, false)
 	addV1CompatibleFlag(checkCommand.Flags(), &checkParams.v1Compatible, false)
-	RootCommand.AddCommand(checkCommand)
+
+	root.AddCommand(checkCommand)
 }

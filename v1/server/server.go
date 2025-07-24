@@ -103,9 +103,12 @@ const (
 )
 
 var (
-	supportedTLSVersions = []uint16{tls.VersionTLS10, tls.VersionTLS11, tls.VersionTLS12, tls.VersionTLS13}
-	unsafeBuiltinsMap    = map[string]struct{}{ast.HTTPSend.Name: {}}
+	supportedTLSVersions       = []uint16{tls.VersionTLS10, tls.VersionTLS11, tls.VersionTLS12, tls.VersionTLS13}
+	unsafeBuiltinsMap          = map[string]struct{}{ast.HTTPSend.Name: {}}
+	intermediateResultsEnabled = os.Getenv("OPA_DECISIONS_INTERMEDIATE_RESULTS") != ""
 )
+
+type IntermediateResultsContextKey struct{}
 
 // Server represents an instance of OPA running in server mode.
 type Server struct {
@@ -765,7 +768,8 @@ func (s *Server) initHandlerAuthz(handler http.Handler) http.Handler {
 			authorizer.PrintHook(s.manager.PrintHook()),
 			authorizer.EnablePrintStatements(s.manager.EnablePrintStatements()),
 			authorizer.InterQueryCache(s.interQueryBuiltinCache),
-			authorizer.InterQueryValueCache(s.interQueryBuiltinValueCache))
+			authorizer.InterQueryValueCache(s.interQueryBuiltinValueCache),
+			authorizer.URLPathExpectsBodyFunc(s.manager.ExtraAuthorizerRoutes()))
 
 		if s.metrics != nil {
 			handler = s.instrumentHandler(handler.ServeHTTP, PromHandlerAPIAuthz)
@@ -930,7 +934,7 @@ func (s *Server) methodNotAllowedHandler() http.Handler {
 
 func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.Transaction, parsedQuery ast.Body, input ast.Value, rawInput *any, m metrics.Metrics, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (*types.QueryResponseV1, error) {
 	results := types.QueryResponseV1{}
-	logger := s.getDecisionLogger(br)
+	ctx, logger := s.getDecisionLogger(ctx, br)
 
 	var buf *topdown.BufferTracer
 	if explainMode != types.ExplainOffV1 {
@@ -1098,7 +1102,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 		urlPath = s.generateDefaultDecisionPath()
 	}
 
-	logger := s.getDecisionLogger(br)
+	ctx, logger := s.getDecisionLogger(ctx, br)
 
 	var ndbCache builtins.NDBCache
 	if s.ndbCacheEnabled {
@@ -1518,7 +1522,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger := s.getDecisionLogger(br)
+	ctx, logger := s.getDecisionLogger(ctx, br)
 
 	var ndbCache builtins.NDBCache
 	if s.ndbCacheEnabled {
@@ -1735,7 +1739,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if s.logger != nil {
-			logger = s.getDecisionLogger(br)
+			ctx, logger = s.getDecisionLogger(ctx, br)
 		}
 	}
 
@@ -2487,7 +2491,12 @@ func (s *Server) checkPathScope(ctx context.Context, txn storage.Transaction, pa
 	return nil
 }
 
-func (s *Server) getDecisionLogger(br bundleRevisions) (logger decisionLogger) {
+func (s *Server) getDecisionLogger(ctx context.Context, br bundleRevisions) (context.Context, decisionLogger) {
+	var logger decisionLogger
+	if intermediateResultsEnabled {
+		ctx = context.WithValue(ctx, IntermediateResultsContextKey{}, make(map[string]any))
+	}
+
 	// For backwards compatibility use `revision` as needed.
 	if s.hasLegacyBundle(br) {
 		logger.revision = br.LegacyRevision
@@ -2495,7 +2504,7 @@ func (s *Server) getDecisionLogger(br bundleRevisions) (logger decisionLogger) {
 		logger.revisions = br.Revisions
 	}
 	logger.logger = s.logger
-	return logger
+	return ctx, logger
 }
 
 func (*Server) getExplainResponse(explainMode types.ExplainModeV1, trace []*topdown.Event, pretty bool) (explanation types.TraceV1) {
@@ -3128,8 +3137,16 @@ func (l decisionLogger) Log(
 		info.SpanID = sctx.SpanID().String()
 	}
 
-	if err := l.logger(ctx, info); err != nil {
-		return fmt.Errorf("decision_logs: %w", err)
+	if intermediateResultsEnabled {
+		if iresults, ok := ctx.Value(IntermediateResultsContextKey{}).(map[string]any); ok {
+			info.IntermediateResults = iresults
+		}
+	}
+
+	if l.logger != nil {
+		if err := l.logger(ctx, info); err != nil {
+			return fmt.Errorf("decision_logs: %w", err)
+		}
 	}
 
 	return nil

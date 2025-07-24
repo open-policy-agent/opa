@@ -269,6 +269,8 @@ type Params struct {
 
 	// NDBCacheEnabled allows enabling the non-deterministic builtin cache globally.
 	NDBCacheEnabled bool
+
+	Brand string
 }
 
 func (p *Params) regoVersion() ast.RegoVersion {
@@ -299,6 +301,7 @@ func NewParams() Params {
 		Output:             os.Stdout,
 		BundleMode:         false,
 		EnableVersionCheck: false,
+		Brand:              "OPA", // default
 	}
 }
 
@@ -845,19 +848,19 @@ func (rt *Runtime) checkOPAUpdateLoopDurations(ctx context.Context, done chan st
 	for {
 		resp, err := rt.reporter.SendReport(ctx)
 		if err != nil {
-			rt.logger.WithFields(map[string]any{"err": err}).Debug("Unable to send OPA version report.")
+			rt.logger.WithFields(map[string]any{"err": err}).Debug("Unable to send %s version report.", rt.Params.Brand)
 		} else {
 			if resp.Latest.OPAUpToDate {
 				rt.logger.WithFields(map[string]any{
 					"current_version": version.Version,
-				}).Debug("OPA is up to date.")
+				}).Debug("%s is up to date.", rt.Params.Brand)
 			} else {
 				rt.logger.WithFields(map[string]any{
 					"download_opa":    resp.Latest.Download,
 					"release_notes":   resp.Latest.ReleaseNotes,
 					"current_version": version.Version,
 					"latest_version":  strings.TrimPrefix(resp.Latest.LatestRelease, "v"),
-				}).Info("OPA is out of date.")
+				}).Info("%s is out of date.", rt.Params.Brand)
 			}
 		}
 		select {
@@ -941,9 +944,9 @@ func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, rem
 	})
 }
 
-func (*Runtime) getBanner() string {
+func (rt *Runtime) getBanner() string {
 	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "OPA %v (commit %v, built at %v)\n", version.Version, version.Vcs, version.Timestamp)
+	fmt.Fprintf(&buf, "%s %v (commit %v, built at %v)\n", rt.Params.Brand, version.Version, version.Vcs, version.Timestamp)
 	fmt.Fprintf(&buf, "\n")
 	fmt.Fprintf(&buf, "Run 'help' to see a list of commands and check for updates.\n")
 	return buf.String()

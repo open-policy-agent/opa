@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -21,6 +22,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/logging"
@@ -95,6 +98,45 @@ func TestPluginCustomBackend(t *testing.T) {
 		if len(e.Bundles) > 0 {
 			t.Errorf("Unexpected `bundles` in event")
 		}
+	}
+}
+
+func TestLogCustomField(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	manager, _ := plugins.New(nil, "test-instance-id", inmem.New())
+
+	backend := &testPlugin{}
+	manager.Register("test_plugin", backend)
+
+	config, err := ParseConfig([]byte(`{"plugin": "test_plugin"}`), nil, []string{"test_plugin"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plugin := New(config, manager)
+	if err := plugin.Log(ctx, &server.Info{Custom: map[string]any{"abc": "xyz"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := plugin.Log(ctx, &server.Info{Custom: map[string]any{"ok": 2025}}); err != nil {
+		t.Fatal(err)
+	}
+
+	if exp, act := 2, len(backend.events); exp != act {
+		t.Fatalf("expected %d events, got %d", exp, act)
+	}
+
+	exp := []map[string]any{
+		{"abc": "xyz"},
+		{"ok": 2025},
+	}
+	act := []map[string]any{
+		backend.events[0].Custom,
+		backend.events[1].Custom,
+	}
+	if diff := cmp.Diff(exp, act); diff != "" {
+		t.Errorf("unexpected logs (-want, +got):\n%s", diff)
 	}
 }
 
@@ -211,25 +253,25 @@ func TestPluginRequestContext(t *testing.T) {
 			note:         "request context in config (single header) - request context in decision info (with header map)",
 			config:       []byte(`{"plugin": "test_plugin", "request_context": {"http": {"headers": ["foo"]}}}`),
 			decisionInfo: &server.Info{Bundles: map[string]server.BundleInfo{"b1": {Revision: "A"}}, HTTPRequestContext: logging.HTTPRequestContext{Header: h1}},
-			expected:     &RequestContext{HTTPRequest: &HTTPRequestContext{Headers: map[string][]string{"foo": []string{"bar"}}}},
+			expected:     &RequestContext{HTTPRequest: &HTTPRequestContext{Headers: map[string][]string{"foo": {"bar"}}}},
 		},
 		{
 			note:         "request context in config (multiple headers) - request context in decision info (with header map partial)",
 			config:       []byte(`{"plugin": "test_plugin", "request_context": {"http": {"headers": ["foo", "foo2"]}}}`),
 			decisionInfo: &server.Info{Bundles: map[string]server.BundleInfo{"b1": {Revision: "A"}}, HTTPRequestContext: logging.HTTPRequestContext{Header: h1}},
-			expected:     &RequestContext{HTTPRequest: &HTTPRequestContext{Headers: map[string][]string{"foo": []string{"bar"}}}},
+			expected:     &RequestContext{HTTPRequest: &HTTPRequestContext{Headers: map[string][]string{"foo": {"bar"}}}},
 		},
 		{
 			note:         "request context in config (multiple headers) - request context in decision info (with header map full)",
 			config:       []byte(`{"plugin": "test_plugin", "request_context": {"http": {"headers": ["foo", "foo2"]}}}`),
 			decisionInfo: &server.Info{Bundles: map[string]server.BundleInfo{"b1": {Revision: "A"}}, HTTPRequestContext: logging.HTTPRequestContext{Header: h2}},
-			expected:     &RequestContext{HTTPRequest: &HTTPRequestContext{Headers: map[string][]string{"foo": []string{"bar"}, "foo2": []string{"bar", "bar2"}}}},
+			expected:     &RequestContext{HTTPRequest: &HTTPRequestContext{Headers: map[string][]string{"foo": {"bar"}, "foo2": {"bar", "bar2"}}}},
 		},
 		{
 			note:         "request context in config (single header) - request context in decision info (with header map full)",
 			config:       []byte(`{"plugin": "test_plugin", "request_context": {"http": {"headers": ["foo"]}}}`),
 			decisionInfo: &server.Info{Bundles: map[string]server.BundleInfo{"b1": {Revision: "A"}}, HTTPRequestContext: logging.HTTPRequestContext{Header: h2}},
-			expected:     &RequestContext{HTTPRequest: &HTTPRequestContext{Headers: map[string][]string{"foo": []string{"bar"}}}},
+			expected:     &RequestContext{HTTPRequest: &HTTPRequestContext{Headers: map[string][]string{"foo": {"bar"}}}},
 		},
 		{
 			note:         "no request context in config - request context in decision info (with header map)",
@@ -324,7 +366,7 @@ func TestPluginErrorNoResult(t *testing.T) {
 	}
 
 	plugin := New(config, manager)
-	if err := plugin.Log(ctx, &server.Info{Error: fmt.Errorf("some error")}); err != nil {
+	if err := plugin.Log(ctx, &server.Info{Error: errors.New("some error")}); err != nil {
 		t.Fatal(err)
 	}
 	if err := plugin.Log(ctx, &server.Info{Error: ast.Errors{&ast.Error{Code: "some_error"}}}); err != nil {
@@ -422,8 +464,8 @@ func TestPluginStartSameInput(t *testing.T) {
 
 	for i := range 400 {
 		if err := fixture.plugin.Log(ctx, &server.Info{
-			Revision:   fmt.Sprint(i),
-			DecisionID: fmt.Sprint(i),
+			Revision:   strconv.Itoa(i),
+			DecisionID: strconv.Itoa(i),
 			Path:       "tda/bar",
 			Input:      &input,
 			Results:    &result,
@@ -502,12 +544,12 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 
 	var input any
 
-	for i := 0; i < 400; i++ {
+	for i := range 400 {
 		input = map[string]any{"method": getValueForMethod(i), "path": getValueForPath(i), "user": getValueForUser(i)}
 
 		if err := fixture.plugin.Log(ctx, &server.Info{
-			Revision:   fmt.Sprint(i),
-			DecisionID: fmt.Sprint(i),
+			Revision:   strconv.Itoa(i),
+			DecisionID: strconv.Itoa(i),
 			Path:       "foo/bar",
 			Input:      &input,
 			Results:    &result,
@@ -572,12 +614,12 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 
 	var input any
 
-	for i := 0; i < 250; i++ {
+	for i := range 250 {
 		input = generateInputMap(i)
 
 		if err := fixture.plugin.Log(ctx, &server.Info{
-			Revision:   fmt.Sprint(i),
-			DecisionID: fmt.Sprint(i),
+			Revision:   strconv.Itoa(i),
+			DecisionID: strconv.Itoa(i),
 			Path:       "foo/bar",
 			Input:      &input,
 			Results:    &result,
@@ -1842,8 +1884,8 @@ func TestPluginTriggerManual(t *testing.T) {
 
 			for i := range 400 {
 				if err := fixture.plugin.Log(ctx, &server.Info{
-					Revision:   fmt.Sprint(i),
-					DecisionID: fmt.Sprint(i),
+					Revision:   strconv.Itoa(i),
+					DecisionID: strconv.Itoa(i),
 					Path:       "tda/bar",
 					Input:      &input,
 					Results:    &result,
@@ -1867,8 +1909,8 @@ func TestPluginTriggerManual(t *testing.T) {
 					t.Fatalf("Expected chunk len %v but got: %v", expLen, len(chunk))
 				}
 
-				exp.Revision = fmt.Sprint(i)
-				exp.DecisionID = fmt.Sprint(i)
+				exp.Revision = strconv.Itoa(i)
+				exp.DecisionID = strconv.Itoa(i)
 
 				if !reflect.DeepEqual(chunk[0], exp) {
 					t.Fatalf("Expected %+v but got %+v", exp, chunk[0])
@@ -1891,7 +1933,7 @@ func TestPluginTriggerManualWithTimeout(t *testing.T) {
 	}))
 
 	// setup plugin pointing at fake server
-	managerConfig := []byte(fmt.Sprintf(`{
+	managerConfig := fmt.Appendf(nil, `{
 			"labels": {
 				"app": "example-app"
 			},
@@ -1900,7 +1942,7 @@ func TestPluginTriggerManualWithTimeout(t *testing.T) {
 					"name": "example",
 					"url": %q
 				}
-			]}`, s.URL))
+			]}`, s.URL)
 
 	manager, err := plugins.New(
 		managerConfig,
@@ -1992,11 +2034,11 @@ func TestPluginGracefulShutdownFlushesDecisions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var input any = map[string]any{"method": "GET"}
+	var input any
 	var result any = false
 
 	logsSent := 200
-	for i := 0; i < logsSent; i++ {
+	for i := range logsSent {
 		input = generateInputMap(i)
 		_ = fixture.plugin.Log(ctx, logServerInfo("abc", input, result))
 	}
@@ -2033,10 +2075,8 @@ func TestPluginTerminatesAfterGracefulShutdownPeriod(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var input any = map[string]any{"method": "GET"}
 	var result any = false
-
-	input = generateInputMap(0)
+	var input any = generateInputMap(0)
 	_ = fixture.plugin.Log(ctx, logServerInfo("abc", input, result))
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, 1*time.Nanosecond)
@@ -2117,14 +2157,14 @@ func TestPluginReconfigure(t *testing.T) {
 			minDelay := 2
 			maxDelay := 3
 
-			pluginConfig := []byte(fmt.Sprintf(`{
+			pluginConfig := fmt.Appendf(nil, `{
 			"service": "example",
 			"reporting": {
 				"buffer_type": %v,
 				"min_delay_seconds": %v,
 				"max_delay_seconds": %v
 			}
-			}`, tc.newBufferType, minDelay, maxDelay))
+			}`, tc.newBufferType, minDelay, maxDelay)
 
 			config, _ := ParseConfig(pluginConfig, fixture.manager.Services(), nil)
 
@@ -2176,12 +2216,12 @@ func TestPluginReconfigureUploadSizeLimit(t *testing.T) {
 
 	newLimit := int64(600)
 
-	pluginConfig := []byte(fmt.Sprintf(`{
+	pluginConfig := fmt.Appendf(nil, `{
 			"service": "example",
 			"reporting": {
 				"upload_size_limit_bytes": %v,
 			}
-		}`, newLimit))
+		}`, newLimit)
 
 	config, _ := ParseConfig(pluginConfig, fixture.manager.Services(), nil)
 
@@ -2321,7 +2361,7 @@ func TestPluginMasking(t *testing.T) {
 				mask contains {"op": "remove", "path": "/input/password", "value": x} if {
 					input.input.password
 				}`),
-			errManager: fmt.Errorf("1 error occurred: test.rego:4: rego_unsafe_var_error: var x is unsafe"),
+			errManager: errors.New("1 error occurred: test.rego:4: rego_unsafe_var_error: var x is unsafe"),
 		},
 		{
 			note: "simple erase - no match",
@@ -2740,7 +2780,7 @@ func TestPluginMaskErrorHandling(t *testing.T) {
 	ctx := context.Background()
 	store := inmem.New()
 
-	//checks if raw policy is valid and stores policy in store
+	// checks if raw policy is valid and stores policy in store
 	err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
 		if err := store.UpsertPolicy(ctx, txn, "test.rego", rawPolicy); err != nil {
 			return err
@@ -2916,7 +2956,7 @@ func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
 
 	ts.start()
 
-	managerConfig := []byte(fmt.Sprintf(`{
+	managerConfig := fmt.Appendf(nil, `{
 			"labels": {
 				"app": "example-app"
 			},
@@ -2931,16 +2971,14 @@ func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
 						}
 					}
 				}
-			]}`, ts.server.URL))
+			]}`, ts.server.URL)
 
 	mgrCfg := make(map[string]any)
 	err := json.Unmarshal(managerConfig, &mgrCfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for k, v := range options.ExtraManagerConfig {
-		mgrCfg[k] = v
-	}
+	maps.Copy(mgrCfg, options.ExtraManagerConfig)
 	managerConfig, err = json.MarshalIndent(mgrCfg, "", "  ")
 	if err != nil {
 		t.Fatal(err)
@@ -2971,9 +3009,7 @@ func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
 		pluginConfig["partition_name"] = *options.PartitionName
 	}
 
-	for k, v := range options.ExtraConfig {
-		pluginConfig[k] = v
-	}
+	maps.Copy(pluginConfig, options.ExtraConfig)
 
 	pluginConfigBytes, err := json.MarshalIndent(pluginConfig, "", "  ")
 	if err != nil {
@@ -3101,14 +3137,14 @@ func TestParseConfigTriggerMode(t *testing.T) {
 			config:   []byte(`{"reporting": {"trigger": "manual"}}`),
 			expected: plugins.TriggerPeriodic,
 			wantErr:  true,
-			err:      fmt.Errorf("invalid decision_log config: trigger mode mismatch: periodic and manual (hint: check discovery configuration)"),
+			err:      errors.New("invalid decision_log config: trigger mode mismatch: periodic and manual (hint: check discovery configuration)"),
 		},
 		{
 			note:     "bad trigger mode",
 			config:   []byte(`{"reporting": {"trigger": "foo"}}`),
 			expected: "foo",
 			wantErr:  true,
-			err:      fmt.Errorf("invalid decision_log config: invalid trigger mode \"foo\" (want \"periodic\" or \"manual\")"),
+			err:      errors.New("invalid decision_log config: invalid trigger mode \"foo\" (want \"periodic\" or \"manual\")"),
 		},
 	}
 
@@ -3338,6 +3374,26 @@ func TestEventV1ToAST(t *testing.T) {
 				Timestamp:   time.Now(),
 				RequestID:   1,
 				inputAST:    astInput,
+			},
+		},
+		{
+			note: "event with intermediate results",
+			event: EventV1{
+				Labels:     map[string]string{"foo": "1", "bar": "2"},
+				DecisionID: "1234567890",
+				Bundles: map[string]BundleInfoV1{
+					"b1": {"revision7"},
+					"b2": {"0"},
+					"b3": {},
+				},
+				Input:               &goInput,
+				Path:                "/http/authz/allow",
+				RequestedBy:         "[::1]:59943",
+				Result:              &result,
+				IntermediateResults: map[string]any{"foo": "bar"},
+				Timestamp:           time.Now(),
+				RequestID:           1,
+				inputAST:            astInput,
 			},
 		},
 	}
@@ -3621,7 +3677,7 @@ func generateInputMap(idx int) map[string]any {
 	for range 20 {
 		n := idx % len(letters)
 		key := string(letters[n])
-		result[key] = fmt.Sprint(idx)
+		result[key] = strconv.Itoa(idx)
 	}
 	return result
 
@@ -3786,13 +3842,13 @@ func TestAdaptiveSoftLimitBetweenUpload(t *testing.T) {
 			}
 
 			testMetrics := getWellKnownMetrics()
-			msAsFloat64 := map[string]interface{}{}
+			msAsFloat64 := map[string]any{}
 			for k, v := range testMetrics.All() {
 				msAsFloat64[k] = float64(v.(uint64))
 			}
 
-			var input interface{} = map[string]interface{}{"method": "GET"}
-			var result interface{} = false
+			var input any = map[string]any{"method": "GET"}
+			var result any = false
 
 			ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
 			if err != nil {
@@ -3800,8 +3856,8 @@ func TestAdaptiveSoftLimitBetweenUpload(t *testing.T) {
 			}
 
 			event := &server.Info{
-				Revision:   fmt.Sprint(1),
-				DecisionID: fmt.Sprint(1),
+				Revision:   strconv.Itoa(1),
+				DecisionID: strconv.Itoa(1),
 				Path:       "tda/bar",
 				Input:      &input,
 				Results:    &result,
