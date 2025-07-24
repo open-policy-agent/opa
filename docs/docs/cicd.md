@@ -4,7 +4,7 @@ sidebar_label: CI/CD
 
 # Using OPA in CI/CD Pipelines
 
-OPA is an great tool for implementing policy-as-code guardrails in
+OPA is a great tool for implementing policy-as-code guardrails in
 <abbr title="continuous integration/continuous deployment">CI/CD</abbr>
 pipelines. With OPA, you can automatically verify configurations, validate
 outputs, and enforce organizational policies before code reaches production. OPA

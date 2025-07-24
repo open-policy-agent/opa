@@ -165,7 +165,7 @@ We would also have attributes for the objects, in this case stock ticker symbols
   - is sold on NASDAQ
   - sells at $813.64 per share
 
-An example ABAC policy in english might be:
+An example ABAC policy in natural language might be:
 
 - Traders may purchase NASDAQ stocks for under $2M
 - Traders with 10+ years experience may purchase NASDAQ stocks for under $5M
