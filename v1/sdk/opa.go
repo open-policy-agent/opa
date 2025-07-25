@@ -179,12 +179,14 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 	}
 	opts = append(opts, opa.managerOpts...)
 
-	// Plumb in storage for external bundle activation plugin, if registered with bundle.RegisterStore.
+	// Plumb in storage for external bundle activation plugin, if registered with bundle.RegisterStore,
+	// unless the user has passed their own store already.
 	var store storage.Store
-	if bundle.BundleExtStore != nil {
-		store = bundle.BundleExtStore()
-	} else {
+	switch {
+	case opa.store != nil:
 		store = opa.store
+	case bundle.BundleExtStore != nil:
+		store = bundle.BundleExtStore()
 	}
 	manager, err := plugins.New(
 		bs,
