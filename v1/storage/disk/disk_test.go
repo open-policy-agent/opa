@@ -181,13 +181,7 @@ func TestTruncateAbsoluteStoragePath(t *testing.T) {
 func TestTruncateRelativeStoragePath(t *testing.T) {
 	t.Parallel()
 
-	dir := "foobar"
-	err := os.Mkdir(dir, 0700)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-	runTruncateTest(t, dir)
+	runTruncateTest(t, t.TempDir())
 }
 
 func runTruncateTest(t *testing.T, dir string) {

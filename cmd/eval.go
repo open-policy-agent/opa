@@ -138,6 +138,9 @@ func validateEvalParams(p *evalCommandParams, cmdArgs []string) error {
 
 	// check if illegal arguments is passed with unknowns flag
 	for _, unknwn := range p.unknowns {
+		if unknwn == "input" {
+			continue
+		}
 		term, err := ast.ParseTerm(unknwn)
 		if err != nil {
 			return err
