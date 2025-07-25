@@ -437,7 +437,7 @@ Here is the expected contents of `tfplan.json`.
 The json plan output produced by terraform contains a lot of information. For this tutorial, we will be interested by:
 
 - `.resource_changes`: array containing all the actions that terraform will apply on the infrastructure.
-- `.resource_changes[].type`: the type of resource (eg `aws_instance` , `aws_iam` ...)
+- `.resource_changes[].type`: the type of resource (e.g. `aws_instance` , `aws_iam` ...)
 - `.resource_changes[].change.actions`: array of actions applied on the resource (`create`, `update`, `delete`...)
 
 For more information about the json plan representation, please check the [terraform documentation](https://www.terraform.io/docs/internals/json-format.html#plan-representation)

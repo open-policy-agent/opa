@@ -33,7 +33,7 @@ to optimize queries to improve performance.
 
 ## Learning Rego
 
-In while reviewing the examples below, you might find it helpful to follow along
+While reviewing the examples below, you might find it helpful to follow along
 using the online [OPA playground](http://play.openpolicyagent.org). The
 playground also allows sharing of examples via URL which can be helpful when
 asking questions on the [OPA Slack](https://slack.openpolicyagent.org).

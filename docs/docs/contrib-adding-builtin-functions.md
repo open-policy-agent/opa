@@ -172,6 +172,8 @@ After running `make generate` we should see a new JSON object entry in the list 
     "args": [
       {
         "type": "string"
+      },
+      {
         "type": "number"
       }
     ],

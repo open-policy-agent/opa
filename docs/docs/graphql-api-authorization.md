@@ -13,7 +13,7 @@ In this tutorial, you'll use a simple GraphQL server that accepts any GraphQL qu
 OPA will fetch policy bundles from a simple bundle server.
 OPA, the bundle server, and the GraphQL server will run as separate containers.
 
-For this tutorial, we have the follow example scenario:
+For this tutorial, we have the following example scenario:
 
 - Staff can see their own salaries (`query user($id: <user>) { salary }` is permitted for `<user>`)
 - A manager can see their direct reports' salaries (`query user($id: <user>) { salary }` is permitted for `<user>`'s manager)
