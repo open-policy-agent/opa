@@ -1125,6 +1125,13 @@ func TestBuiltinJWTVerify_TokenCache(t *testing.T) {
 			badKey:  `{"kty":"EC","crv":"P-256","x":"z8J91ghFy5o6f2xZ4g8LsLH7u2wEpT2ntj8loahnlsE","y":"7bdeXLH61KrGWRdh7ilnbcGQACxykaPKfmBccTHIOUo"}`,
 			builtin: builtinJWTVerifyES512,
 		},
+		{
+			note:    "EdDSA",
+			jwt:     `eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.JkKWCY39IdWEQttmdqR7VdsvT-_QxheW_eb0S5wr_j83ltux_JDUIXs7a3Dtn3xuqzuhetiuJrWIvy5TzimeCg`,
+			key:     "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAwmK6SSAu2E9V7uynkCKEaj5nZJyTvNG4x0KohsRzLpg=\n-----END PUBLIC KEY-----",
+			badKey:  `{"kty":"EC","crv":"P-256","x":"z8J91ghFy5o6f2xZ4g8LsLH7u2wEpT2ntj8loahnlsE","y":"7bdeXLH61KrGWRdh7ilnbcGQACxykaPKfmBccTHIOUo"}`,
+			builtin: builtinJWTVerifyEdDSA,
+		},
 	}
 
 	ctx := context.Background()

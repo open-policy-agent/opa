@@ -1,0 +1,17 @@
+---
+cases:
+  - note: jwtverifyeddsa/success-cert
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+          io.jwt.verify_eddsa(
+            "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.JkKWCY39IdWEQttmdqR7VdsvT-_QxheW_eb0S5wr_j83ltux_JDUIXs7a3Dtn3xuqzuhetiuJrWIvy5TzimeCg", 
+            "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAwmK6SSAu2E9V7uynkCKEaj5nZJyTvNG4x0KohsRzLpg=\n-----END PUBLIC KEY-----", 
+            x)
+        }
+    data: {}
+    want_result:
+      - x: true
