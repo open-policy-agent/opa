@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"encoding/json"
 	"errors"
@@ -3116,5 +3117,93 @@ func TestBuildWithFollowSymlinksEntireDir(t *testing.T) {
 		if contents != expectedContent {
 			t.Fatalf("expected file %s to contain:\n\n%v\n\ngot:\n\n%v", name, expectedContent, contents)
 		}
+	}
+}
+
+func TestBuildManifestWarning(t *testing.T) {
+	testCases := map[string]struct {
+		files          map[string]string
+		bundleMode     bool
+		buildArgs      []string
+		expectedStderr func(root string) string
+	}{
+		"warns when manifest ignored": {
+			files: map[string]string{
+				"bundle/.manifest": `{"revision":"1.0.0","roots":["foo"]}`,
+				"bundle/data.json": `{"data": "value"}`,
+			},
+			bundleMode: false,
+			buildArgs:  []string{"bundle"},
+			expectedStderr: func(root string) string {
+				return fmt.Sprintf("Warning: .manifest file found in %q but -b flag not specified. Manifest will be ignored.\n", path.Join(root, "bundle"))
+			},
+		},
+		"no warning when bundle mode enabled": {
+			files: map[string]string{
+				"bundle/.manifest":     `{"revision":"1.0.0","roots":["foo"]}`,
+				"bundle/foo/data.json": `{"data": "value"}`,
+			},
+			bundleMode: true,
+			buildArgs:  []string{"bundle"},
+			expectedStderr: func(root string) string {
+				return ""
+			},
+		},
+		"no warning when no manifest exists": {
+			files: map[string]string{
+				"bundle/data.json": `{"data": "value"}`,
+			},
+			bundleMode: false,
+			buildArgs:  []string{"bundle"},
+			expectedStderr: func(root string) string {
+				return ""
+			},
+		},
+		"warns for multiple bundles with manifests": {
+			files: map[string]string{
+				"bundle1/.manifest":     `{"revision":"1.0.0","roots":["foo"]}`,
+				"bundle1/foo/data.json": `{"data1": "value1"}`,
+				"bundle2/.manifest":     `{"revision":"2.0.0","roots":["bar"]}`,
+				"bundle2/bar/data.json": `{"data2": "value2"}`,
+				"bundle3/baz/data.json": `{"data3": "value3"}`,
+			},
+			bundleMode: false,
+			buildArgs:  []string{"bundle1", "bundle2", "bundle3"},
+			expectedStderr: func(root string) string {
+				return fmt.Sprintf(`Warning: .manifest file found in %q but -b flag not specified. Manifest will be ignored.
+Warning: .manifest file found in %q but -b flag not specified. Manifest will be ignored.
+`,
+					path.Join(root, "bundle1"), path.Join(root, "bundle2"))
+			},
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			var stderr bytes.Buffer
+			test.WithTempFS(tc.files, func(root string) {
+				params := newBuildParams()
+				params.outputFile = path.Join(root, "output.tar.gz")
+				params.bundleMode = tc.bundleMode
+				params.stderr = &stderr
+
+				var args []string
+				for _, arg := range tc.buildArgs {
+					args = append(args, path.Join(root, arg))
+				}
+
+				err := dobuild(params, args)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				stderrOutput := stderr.String()
+				expectedStderr := tc.expectedStderr(root)
+
+				if stderrOutput != expectedStderr {
+					t.Fatalf("Expected stderr:\n%q\nGot:\n%q", expectedStderr, stderrOutput)
+				}
+			})
+		})
 	}
 }
