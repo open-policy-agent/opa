@@ -38,3 +38,13 @@ pre {
 	border-bottom: 1px solid var(--ifm-menu-color);
 	/* This creates the border. */
 }
+
+/* Custom highlighted code line styling */
+/* https://docusaurus.io/docs/markdown-features/code-blocks */
+[data-theme='light'] {
+	--docusaurus-highlighted-code-line-bg: rgb(255, 251, 219);
+}
+
+[data-theme='dark'] {
+	--docusaurus-highlighted-code-line-bg: rgb(88, 102, 18);
+}

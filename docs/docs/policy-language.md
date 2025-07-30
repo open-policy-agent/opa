@@ -1326,7 +1326,7 @@ apps_not_in_prod contains name if {
 
 Rego allows for several ways to express universal quantification.
 
-For example, imagine you want to express a policy that says (in English):
+For example, imagine you want to express a policy that says in natural language:
 
 ```
 There must be no apps named "bitcoin-miner".
