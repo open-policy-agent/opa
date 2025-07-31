@@ -56,6 +56,15 @@ The OPA SDK/API has been improved to provide better extensibility an more points
 
 ### Docs, Website
 
+**Note:** While we have been working on the new website we have been showing
+the edge documentation contents (as contents and framework changes often must
+go hand in hand). Now that the website development pace has slowed and the
+functionality is more stable, we will be returning to showing the documentation
+content from the latest release instead. Please use the
+[edge documentation site](https://edge--opa-docs.netlify.app/)
+to review new changes. PR previews are also based on the latest branch commit.
+This change will be made to show the v1.7.0 release shortly after publishing.
+
 - docs: Add examples for crypto.sha256 and base64.encode built-in functions ([#7762](https://github.com/open-policy-agent/opa/pull/7762)) authored by @ToluGIT
 - docs: Break out the built-in categories in policy ref ([#7722](https://github.com/open-policy-agent/opa/pull/7722)) authored by @sky3n3t
 - docs: Correctly spell NetBSD ([#7738](https://github.com/open-policy-agent/opa/pull/7738)) authored by @iamleot
