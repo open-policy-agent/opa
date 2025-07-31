@@ -20,29 +20,32 @@ The OPA SDK/API has been improved to provide better extensibility an more points
 - decisionlogs: Add custom fields grab bag ([#7793](https://github.com/open-policy-agent/opa/pull/7793)) authored by @srenatus
 - plugins: allow registering handlerfuncs with name+path ([#7769](https://github.com/open-policy-agent/opa/pull/7769)) authored by @srenatus
 - rego: Expose `QueryTracers`, `tracing.Options` and `Cancel` from `QueryContext` ([#7767](https://github.com/open-policy-agent/opa/pull/7767)) authored by @philipaconrad
-- rego: Pass along `TracingOpts` into `EvalContext` ([#](https://github.com/open-policy-agent/opa/pull/7778)) authored by @srenatus
+- rego: Pass along `TracingOpts` into `EvalContext` ([#7778](https://github.com/open-policy-agent/opa/pull/7778)) authored by @srenatus
 - runtime: add `ExtraDiscoveryOpts` to `runtime.Params` ([#7766](https://github.com/open-policy-agent/opa/pull/7766)) authored by @srenatus
-- sdk: Allow for setting default options for all instances ([#7760 B](https://github.com/open-policy-agent/opa/pull/7760)) authored by @srenatus
-- sdk: Options store takes precedence over ext store ([#7800](https://github.com/open-policy-agent/opa/pull/7800)) authored by @srenatus
+- sdk: Allow for setting default options for all instances ([#7760](https://github.com/open-policy-agent/opa/pull/7760)) authored by @srenatus
 - server: Add hooks wiring + new hooks for inter-query caches ([#](https://github.com/open-policy-agent/opa/pull/7775)) authored by @srenatus
 - server: Ensure that wrapped middlewares all support `http.Flusher` ([#7772](https://github.com/open-policy-agent/opa/pull/7772)) authored by @srenatus
 - server/authorizer: Allow adding paths to validator ([#7792](https://github.com/open-policy-agent/opa/pull/7792)) authored by @philipaconrad
-- server+plugins: Allow plugins to inject http handler middlewares ([#7789](https://github.com/open-policy-agent/opa/pull/7789)) authored by @srenatus
+- server+plugins: Allow plugins to inject http handler middlewares ([#7789](https://github.com/open-policy-agent/opa/pull/7789)) authored by @srenatus reported by @deeglaze
 - store+runtime: Extension points for custom stores ([#7779](https://github.com/open-policy-agent/opa/pull/7779)) authored by @srenatus
 - test+eval: Add helper to smuggle compiler through context ([#7790](https://github.com/open-policy-agent/opa/pull/7790)) authored by @srenatus
 - tester: Support `uint64` and `float64` metrics in `runBenchmark` ([#7761](https://github.com/open-policy-agent/opa/pull/7761)) authored by @srenatus
 
 ### Runtime, Tooling
 
+- build: Show a warning when .manifest is ignored ([#7807](https://github.com/open-policy-agent/opa/pull/7807)) authored by @charlieegan3
+- cli: Avoid os.Exit() in Run() funcs ([#7788](https://github.com/open-policy-agent/opa/pull/7788)) authored by @srenatus
+- cmd: Use command.RunE to return errors and perform orderly shutdown of OPA ([#7788](https://github.com/open-policy-agent/opa/pull/7788)) authored by @srenatus
 - config: Keep unknown env replacements ([#7786](https://github.com/open-policy-agent/opa/pull/7786)) authored by @srenatus
 - format: Not bracketing keywords in imports ([#7742](https://github.com/open-policy-agent/opa/issues/7742)) authored by @johanfylling
 - loader: Add bundle lazy loading mode across the runtime. ([#7768](https://github.com/open-policy-agent/opa/pull/7768)) authored by @philipaconrad
 - loader: Pass bundle name in `AsBundle()` ([#7798](https://github.com/open-policy-agent/opa/pull/7798)) authored by @srenatus
-- opa exec: stop plugins before exit ([#7760 A](https://github.com/open-policy-agent/opa/pull/7760)) authored by @srenatus
+- opa exec: stop plugins before exit ([#7760](https://github.com/open-policy-agent/opa/pull/7760)) authored by @srenatus
 - plugins/discovery: Make `Factories()` merge the factories ([#7777](https://github.com/open-policy-agent/opa/pull/7777)) authored by @srenatus
 - plugins/discovery: Replace environment variables after evaluation ([#7787](https://github.com/open-policy-agent/opa/pull/7787)) authored by @philipaconrad
 - plugins/logs: Add experimental intermediate results field ([#7796](https://github.com/open-policy-agent/opa/pull/7796)) authored by @philipaconrad
-- report: Fetching latest OPA release version from GitHub ([#7756](https://github.com/open-policy-agent/opa/pull/7756)) authored by @johanfylling
+- report: Fetching latest OPA release version from GitHub ([#7756](https://github.com/open-policy-agent/opa/pull/7756)) authored by @johanfylling  
+  OPA will no longer send telemetry data when fetching the latest release version.
 - runtime: Allow enabling NDBCache by default ([#7780](https://github.com/open-policy-agent/opa/pull/7780)) authored by @srenatus
 - server+logging: Add `BatchDecisionID` field to Decision Logs ([#7791](https://github.com/open-policy-agent/opa/pull/7791)) authored by @philipaconrad
 - store: Improve conflicting root error message ([#7806](https://github.com/open-policy-agent/opa/issues/7806)) authored by @charlieegan3
@@ -51,7 +54,7 @@ The OPA SDK/API has been improved to provide better extensibility an more points
 
 - perf: AST compiler optimizations ([#7740](https://github.com/open-policy-agent/opa/pull/7740)) authored by @anderseknert
 
-### Docs, Website, Ecosystem
+### Docs, Website
 
 - docs: Add examples for crypto.sha256 and base64.encode built-in functions ([#7762](https://github.com/open-policy-agent/opa/pull/7762)) authored by @ToluGIT
 - docs: Break out the built-in categories in policy ref ([#7722](https://github.com/open-policy-agent/opa/pull/7722)) authored by @sky3n3t
@@ -74,22 +77,11 @@ The OPA SDK/API has been improved to provide better extensibility an more points
 - Use shorthand form for types ([#7757](https://github.com/open-policy-agent/opa/pull/7757)) authored by @anderseknert
 - .github: Use types for issues ([#7751](https://github.com/open-policy-agent/opa/pull/7751)) authored by @charlieegan3
 - build: Add top-level token permissions for workflows ([#7795](https://github.com/open-policy-agent/opa/pull/7795)) authored by @timothyklee
-- build: Show a warning when .manifest is ignored ([#7807](https://github.com/open-policy-agent/opa/pull/7807)) authored by @charlieegan3
-- cli: Avoid os.Exit() in Run() funcs ([#7788](https://github.com/open-policy-agent/opa/pull/7788)) authored by @srenatus
-- cmd: Use command.RunE to return errors and perform orderly shutdown of OPA ([#7788](https://github.com/open-policy-agent/opa/pull/7788)) authored by @srenatus
+
 - docs/build: Link checker fixes ([#7743](https://github.com/open-policy-agent/opa/pull/7743)) authored by @charlieegan3
 - Dependency updates; notably:
-  - build(deps): bump github.com/go-viper/mapstructure/v2 from 2.2.1 to 2.3.0.
   - build(deps): bump github.com/containerd/containerd/v2 from 2.1.1 to 2.1.3
-  - build(deps): bump github.com/dgraph-io/badger/v4 from 4.7.0 to 4.8.0
-  - build(deps): bump github.com/sergi/go-diff from 1.3.1 to 1.4.0
-  - build(deps): bump github.com/spf13/pflag from 1.0.6 to 1.0.7
-  - build(deps): bump github.com/tchap/go-patricia/v2 from 2.3.2 to 2.3.3
-  - build(deps): bump github.com/vektah/gqlparser/v2 from 2.5.28 to 2.5.30
-  - build(deps): bump golang.org/x/net from 0.41.0 to 0.42.0
-  - build(deps): bump golang.org/x/time from 0.11.0 to 0.12.0
   - build(deps): bump google.golang.org/grpc from 1.73.0 to 1.74.2
-  - build(deps): bump sigs.k8s.io/yaml from 1.4.0 to 1.6.0
   - build(deps): bump go.opentelemetry.io deps from 1.36.0/0.61.0 to 1.37.0/0.62.0
 
 ## 1.6.0
