@@ -35,7 +35,6 @@ The OPA SDK/API has been improved to provide better extensibility an more points
 
 - build: Show a warning when .manifest is ignored ([#7807](https://github.com/open-policy-agent/opa/pull/7807)) authored by @charlieegan3
 - cli: Avoid os.Exit() in Run() funcs ([#7788](https://github.com/open-policy-agent/opa/pull/7788)) authored by @srenatus
-- cmd: Use command.RunE to return errors and perform orderly shutdown of OPA ([#7788](https://github.com/open-policy-agent/opa/pull/7788)) authored by @srenatus
 - config: Keep unknown env replacements ([#7786](https://github.com/open-policy-agent/opa/pull/7786)) authored by @srenatus
 - format: Not bracketing keywords in imports ([#7742](https://github.com/open-policy-agent/opa/issues/7742)) authored by @johanfylling
 - loader: Add bundle lazy loading mode across the runtime. ([#7768](https://github.com/open-policy-agent/opa/pull/7768)) authored by @philipaconrad
