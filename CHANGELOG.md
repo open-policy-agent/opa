@@ -69,7 +69,7 @@ This change will be made to show the v1.7.0 release shortly after publishing.
 - docs: Break out the built-in categories in policy ref ([#7722](https://github.com/open-policy-agent/opa/pull/7722)) authored by @sky3n3t
 - docs: Correctly spell NetBSD ([#7738](https://github.com/open-policy-agent/opa/pull/7738)) authored by @iamleot
 - docs: Fix a number of minor docs typos ([#7799](https://github.com/open-policy-agent/opa/pull/7799)) authored by @charlieegan3
-- docs: Fix `/docs/envoy-authorization/` `404` ([#7755]https://github.com/open-policy-agent/opa/issues/7755) authored by @charlieegan3
+- docs: Fix `/docs/envoy-authorization/` `404` ([#7755](https://github.com/open-policy-agent/opa/issues/7755) authored by @charlieegan3
 - docs: Remove link to OPA playground share ([#7750](https://github.com/open-policy-agent/opa/pull/7750)) authored by @charlieegan3
 - docs: Revise docs index page wording ([#7805](https://github.com/open-policy-agent/opa/pull/7805)) authored by @charlieegan3
 - docs: Update warning note in GraphQL API docs ([#7737](https://github.com/open-policy-agent/opa/pull/7737)) authored by @charlieegan3
