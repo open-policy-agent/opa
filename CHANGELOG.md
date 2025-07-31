@@ -3,7 +3,72 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 1.7.0
+
+### Fixes
+
+- format: Not bracketing keywords in imports (#7744) ([#7742](https://github.com/open-policy-agent/opa/issues/7742)) authored by @johanfylling
+
+### Miscellaneous
+
+- .github: Use types for issues (#7751) (authored by @charlieegan3)
+- Benchmark fixes (#7765) (authored by @anderseknert)
+- Prepare v1.7.0 development (#7736) (authored by @johanfylling)
+- Use Regal for linting Rego (#7752) (authored by @anderseknert)
+- Use shorthand form for types (#7757) (authored by @anderseknert)
+- add top-level token permissions for workflows (#7795) (authored by @timothyklee)
+- ast: add DefaultModuleLoader (authored by @srenatus)
+- ast: add feature registration from the outside (authored by @srenatus)
+- build(deps): bump github.com/go-viper/mapstructure/v2 (#7734) (authored by @dependabot[bot])
+- build(deps): bump on-headers and compression in /docs (#7785) (authored by @dependabot[bot])
+- build(deps): bump the dependencies group across 1 directory with 10 updates (#7803) (authored by @dependabot[bot])
+- build(deps): bump the gha-dependencies group with 3 updates (#7747) (authored by @dependabot[bot])
+- build(deps): bump the go-opentelemetry-io group with 7 updates (#7745) (authored by @dependabot[bot])
+- build: Show a warning when .manifest is ignored (#7807) (authored by @charlieegan3)
+- bundle: Add support for bundle store and activation plugins. (#7771) (authored by @philipaconrad)
+- cmd: allow branding (authored by @srenatus)
+- cmd: only plumb through target if it was set (authored by @srenatus)
+- cmd: use command.RunE to return errors and perform orderly shutdown of OPA (authored by @srenatus)
+- cmd: use regoError to carry compiler errors into CLI machinery (authored by @srenatus)
+- decisionlogs: add custom fields grab bag (authored by @srenatus)
+- docs/build: Link checker fixes (#7743) (authored by @charlieegan3)
+- docs: Add examples for crypto.sha256 and base64.encode built-in functions (#7762) (authored by @ToluGIT)
+- docs: Break out the built-in categories in policy ref (#7722) (authored by @sky3n3t)
+- docs: Correctly spell NetBSD (#7738) (authored by @iamleot)
+- docs: Fix /docs/envoy-authorization/ 404 (#7770) (authored by @charlieegan3)
+- docs: Fix a number of minor docs typos (#7799) (authored by @charlieegan3)
+- docs: Remove link to OPA playground share (#7750) (authored by @charlieegan3)
+- docs: Revise docs index page wording (#7805) (authored by @charlieegan3)
+- docs: Update warning note in GraphQL API docs (#7737) (authored by @charlieegan3)
+- internal/config: keep unknown env replacements (authored by @srenatus)
+- loader+internal: Add bundle lazy loading mode across the runtime. (#7768) (authored by @philipaconrad)
+- loader: pass bundle name in AsBundle() (authored by @srenatus)
+- opa exec: stop plugins before exit (authored by @srenatus)
+- perf: AST compiler optimizations (#7740) (authored by @anderseknert)
+- plugin/discovery: make Factories() merge the factories (authored by @srenatus)
+- plugins/discovery: Replace environment variables after evaluation. (authored by @philipaconrad)
+- plugins/logs: Add experimental intermediate results field. (authored by @philipaconrad)
+- plugins: allow registering handlerfuncs with name+path (authored by @srenatus)
+- rego: expose QueryTracers, tracing.Options and Cancel from QueryContext (authored by @philipaconrad)
+- rego: pass along TracingOpts into EvalContext (authored by @srenatus)
+- report: Fetching latest OPA release version from GH (#7756) (authored by @johanfylling)
+- runtime: add ExtraDiscoveryOpts to runtime.Params (authored by @srenatus)
+- runtime: allow enabling NDBCache by default (#7780) (authored by @srenatus)
+- sdk: allow for setting default options for all instances (authored by @srenatus)
+- sdk: options store takes precedence over ext store (authored by @srenatus)
+- server+logging: Add BatchDecisionID field to Decision Logs. (authored by @philipaconrad)
+- server+plugins: allow plugins to inject http handler middlewares (authored by @srenatus)
+- server/authorizer: Allow adding paths to validator. (#7792) (authored by @philipaconrad)
+- server: add hooks wiring + new hooks for inter-query caches (authored by @srenatus)
+- server: ensure that wrapped middlewares all support http.Flusher (authored by @srenatus)
+- store+runtime: extension points for custom stores (#7779) (authored by @srenatus)
+- test+eval: add helper to smuggle compiler through context (authored by @srenatus)
+- v1/tester: support uint64 and float64 metrics in runBenchmark (authored by @srenatus)
+- website: Add wildcard CORS for data/versions.json (#7784) (authored by @charlieegan3)
+- website: Ensure no hscroll on built-in tables (#7773) (authored by @charlieegan3)
+- website: Render versions under /data/versions.json (#7783) (authored by @charlieegan3)
+- website: Set mobile and desktop tab sizes (authored by @charlieegan3)
+- website: Show link to the edge release of the docs (#7776) (authored by @charlieegan3)
 
 ## 1.6.0
 
