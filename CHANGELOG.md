@@ -23,7 +23,7 @@ The OPA SDK/API has been improved to provide better extensibility an more points
 - rego: Pass along `TracingOpts` into `EvalContext` ([#7778](https://github.com/open-policy-agent/opa/pull/7778)) authored by @srenatus
 - runtime: add `ExtraDiscoveryOpts` to `runtime.Params` ([#7766](https://github.com/open-policy-agent/opa/pull/7766)) authored by @srenatus
 - sdk: Allow for setting default options for all instances ([#7760](https://github.com/open-policy-agent/opa/pull/7760)) authored by @srenatus
-- server: Add hooks wiring + new hooks for inter-query caches ([#](https://github.com/open-policy-agent/opa/pull/7775)) authored by @srenatus
+- server: Add hooks wiring + new hooks for inter-query caches ([#7775](https://github.com/open-policy-agent/opa/pull/7775)) authored by @srenatus
 - server: Ensure that wrapped middlewares all support `http.Flusher` ([#7772](https://github.com/open-policy-agent/opa/pull/7772)) authored by @srenatus
 - server/authorizer: Allow adding paths to validator ([#7792](https://github.com/open-policy-agent/opa/pull/7792)) authored by @philipaconrad
 - server+plugins: Allow plugins to inject http handler middlewares ([#7789](https://github.com/open-policy-agent/opa/pull/7789)) authored by @srenatus reported by @deeglaze
