@@ -45,6 +45,7 @@ The OPA SDK/API has been improved to provide better extensibility an more points
 - report: Fetching latest OPA release version from GitHub ([#7756](https://github.com/open-policy-agent/opa/pull/7756)) authored by @johanfylling
 - runtime: Allow enabling NDBCache by default ([#7780](https://github.com/open-policy-agent/opa/pull/7780)) authored by @srenatus
 - server+logging: Add `BatchDecisionID` field to Decision Logs ([#7791](https://github.com/open-policy-agent/opa/pull/7791)) authored by @philipaconrad
+- store: Improve conflicting root error message ([#7806](https://github.com/open-policy-agent/opa/issues/7806)) authored by @charlieegan3
 
 ### Compiler, Topdown and Rego
 
