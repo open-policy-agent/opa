@@ -232,12 +232,15 @@ func (d *Downloader) loop(ctx context.Context) {
 		}
 
 		if err != nil {
+			// when there was an error, use a delay that's based on the retry count
 			delay = util.DefaultBackoff(float64(minRetryDelay), float64(*d.config.Polling.MaxDelaySeconds), retry)
 		} else if !d.longPollingEnabled || d.config.Polling.LongPollingTimeoutSeconds == nil {
 			// revert the response header timeout value on the http client's transport
 			if *d.client.Config().ResponseHeaderTimeoutSeconds == 0 {
 				d.client = d.client.SetResponseHeaderTimeout(&d.respHdrTimeoutSec)
 			}
+
+			// when polling, use a jittered delay based on min and max delay config
 			min := float64(*d.config.Polling.MinDelaySeconds)
 			max := float64(*d.config.Polling.MaxDelaySeconds)
 			delay = time.Duration(((max - min) * rand.Float64()) + min)
@@ -263,7 +266,6 @@ func (d *Downloader) loop(ctx context.Context) {
 func (d *Downloader) oneShot(ctx context.Context) error {
 	m := metrics.New()
 	resp, err := d.download(ctx, m)
-
 	if err != nil {
 		d.etag = ""
 
