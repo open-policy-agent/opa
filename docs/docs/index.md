@@ -194,9 +194,9 @@ output := count(input.servers[0].protocols) >= 1
 
 <RunSnippet files="#input.json" command="data.servers.output"/>
 
-Multiple expressions can be combined using logical AND. For queries to produce
-results, all of the expressions in the query must be true or defined. You can
-separate expressions across multiple lines (or optionally join them with `;`):
+For queries to produce results, all of the expressions in the query must be true
+or defined. You can separate expressions across multiple lines (or optionally
+join them with `;` - meaning AND, on a single line):
 
 ```rego
 package servers
@@ -581,8 +581,10 @@ public_network contains net.id if {
 }
 ```
 
-<RunSnippet id="public_network_set.rego" files="#input.json" command="data.example"/> Using the `in` keyword we can use this
-list to test if some other value is in the set defined by `public_network`:
+<RunSnippet id="public_network_set.rego" files="#input.json" command="data.example"/>
+
+Using the `in` keyword we can use this list to test if some other value is in
+the set defined by `public_network`:
 
 ```rego
 package example
