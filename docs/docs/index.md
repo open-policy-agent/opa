@@ -17,7 +17,7 @@ a graduated project in the [Cloud Native Computing Foundation
 Read this page to learn about the core concepts in OPA's policy language
 ([Rego](./docs/policy-language)) as well as how to download, run, and integrate OPA.
 
-## Overview
+## What is OPA?
 
 OPA [decouples](./docs/philosophy#policy-decoupling) policy decision-making from policy
 enforcement. When your software needs to make policy decisions it **queries**
@@ -42,11 +42,7 @@ any kind of invariant in your policies. For example:
 Policy decisions are not limited to simple yes/no or allow/deny answers. Like
 query inputs, your policies can generate arbitrary structured data as output.
 
-Let's look at an example.
-
-## Example
-
-Imagine you work for an organization with the following system:
+Let's look at an example. Imagine you work for an organization with the following network infrastructure:
 
 ```mermaid
 graph
@@ -64,8 +60,8 @@ There are three kinds of components in the system:
 - Networks connect servers and can be public or private. Public networks are connected to the Internet.
 - Ports attach servers to networks.
 
-All the servers, networks, and ports are provisioned by a script. The script
-receives a JSON representation of the system as input:
+All the servers, networks, and ports are provisioned using infrastructure as
+code. The infrastructure configuration is specified in this JSON representation:
 
 ```json
 {
@@ -92,22 +88,18 @@ receives a JSON representation of the system as input:
 
 <RunSnippet id="input.json" />
 
-Earlier in the day your boss told you about a new security policy that has to be
-implemented:
+Your organization has established the following security policy that must be implemented:
 
-```
-1. Servers reachable from the Internet must not expose the insecure 'http' protocol.
-2. Servers are not allowed to expose the 'telnet' protocol.
-```
+> 1. Servers reachable from the Internet must not expose the insecure 'http' protocol.
+> 2. Servers are not allowed to expose the 'telnet' protocol.
 
 The policy needs to be enforced when servers, networks, and ports are
 provisioned and the compliance team wants to periodically audit the system to
 find servers that violate the policy.
 
-Your boss has asked you to determine if OPA would be a good fit for implementing
-the policy.
+Let's explore how OPA can help implement this policy.
 
-## Rego
+## Writing Policy with Rego
 
 OPA policies are expressed in a high-level declarative language called Rego.
 Rego (pronounced "ray-go") is purpose-built for expressing policies over complex
@@ -131,11 +123,18 @@ at some point in time, but have been introduced gradually.
 for more information.
 :::
 
-### References
+:::note
+This section covers the building blocks of writing policies in Rego. You can see
+how these concepts come together to solve our network security policy in the
+[Complete Example](#complete-example).
+:::
 
-When OPA evaluates policies it binds data provided in the query to a global
-variable called `input`. You can refer to data in the input using the `.` (dot)
-operator.
+### Basic Syntax
+
+To implement our security policy, we first need to access and examine the
+infrastructure data. When OPA evaluates policies, it binds data provided in the
+query to a global variable called `input`. You can refer to specific parts of
+the input data using the `.` (dot) operator.
 
 ```rego
 package servers
@@ -171,10 +170,9 @@ output := input.foobar
 
 <RunSnippet files="#input.json" command="data.servers.output"/>
 
-### Expressions (Logical AND)
-
-To produce policy decisions in Rego you write expressions against input and
-other data.
+The most simple policy decisions are made by writing expressions that perform
+logical operations on the input data. For example, we can check if a server has
+a specific ID using an equality check with `==`.
 
 ```rego
 package servers
@@ -184,9 +182,9 @@ output := input.servers[0].id == "app"
 
 <RunSnippet files="#input.json" command="data.servers.output"/>
 
-OPA includes a set of built-in functions you can use to perform common
-operations like string manipulation, regular expression matching, arithmetic,
-aggregation, and more.
+OPA includes a set of [built-in functions](./docs/policy-reference/builtins) you
+can use to perform common operations like string manipulation, regular
+expression matching, arithmetic, aggregation, and more.
 
 ```rego
 package servers
@@ -196,25 +194,9 @@ output := count(input.servers[0].protocols) >= 1
 
 <RunSnippet files="#input.json" command="data.servers.output"/>
 
-For a complete list of built-in functions supported in OPA out-of-the-box see
-the [Policy Reference](./docs/policy-reference) page.
-
-Multiple expressions are joined together with the `;` (AND) operator. For
-queries to produce results, all of the expressions in the query must be true or
-defined. The order of expressions does not matter.
-
-```rego
-package servers
-
-output if {
-    input.servers[0].id == "app"; input.servers[0].protocols[0] == "https"
-}
-```
-
-<RunSnippet files="#input.json" command="data.servers.output"/>
-
-You can omit the `;` (AND) operator by splitting expressions across multiple
-lines. The following query has the same meaning as the previous one:
+For queries to produce results, all of the expressions in the query must be true
+or defined. You can separate expressions across multiple lines (or optionally
+join them with `;` - meaning AND, on a single line):
 
 ```rego
 package servers
@@ -235,6 +217,7 @@ package servers
 
 output if {
     input.servers[0].id == "app"
+    // highlight-next-line
     input.servers[0].protocols[0] == "telnet"
 }
 ```
@@ -259,10 +242,9 @@ output if {
 
 :::
 
-### Variables
-
 You can store values in intermediate variables using the `:=` (assignment)
-operator. Variables can be referenced just like `input`.
+operator to help make more complex rules easier to read. Variables can be
+referenced just like `input` and are, like `input`, immutable.
 
 ```rego
 package servers
@@ -293,37 +275,6 @@ output if {
 
 <RunSnippet files="#input.json" command="data.servers.output"/>
 
-Variables are immutable. OPA reports an error if you try to assign the same
-variable twice.
-
-```rego
-package servers
-
-output if {
-    s := input.servers[0]
-    s := input.servers[1]
-}
-```
-
-<RunSnippet files="#input.json" command="data.servers.output"/>
-
-OPA must be able to enumerate the values for all variables in all expressions.
-If OPA cannot enumerate the values of a variable in any expression, OPA will
-report an error.
-
-```rego
-package servers
-
-output if {
-    x := 1
-    x != y  # y has not been assigned a value
-}
-```
-
-<RunSnippet files="#input.json" command="data.servers.output"/>
-
-### Iteration
-
 Like other declarative languages (e.g., SQL), iteration in Rego happens
 implicitly when you inject variables into expressions.
 
@@ -331,14 +282,7 @@ There are explicit iteration constructs to express _FOR ALL_ and _FOR SOME_, [se
 
 To understand how iteration works in Rego, imagine you need to check if any
 networks are public. Recall that the networks are supplied inside an array:
-
-```rego
-package servers
-
-output := input.networks
-```
-
-<RunSnippet files="#input.json" command="data.servers.output"/>
+`[{"id": "net1", "public": false}, {"id": "net2", "public": false}, ...]`
 
 One option would be to test each network in the input (which is undefined since
 networks 1 and 2 are not public). Incremental definitions of a rule are
@@ -362,9 +306,7 @@ exists_public_network if input.networks[3].public == true
 
 **This approach is problematic**. There may be too many networks to list
 statically, or more importantly, the number of networks may not be known in
-advance.
-
-In Rego, the solution is to substitute the array index with a variable.
+advance. In Rego, the solution is to substitute the array index with a variable.
 
 ```rego
 package servers
@@ -391,20 +333,6 @@ package servers
 http_server if {
     some i, j
     input.servers[i].protocols[j] == "http"
-}
-```
-
-<RunSnippet files="#input.json" command="data.servers.http_server"/>
-
-Providing good names for variables can be hard. If you only refer to the
-variable once, you can replace it with the special `_` (wildcard variable)
-operator. Conceptually, each instance of `_` is a unique variable.
-
-```rego
-package servers
-
-http_server if {
-    input.servers[_].protocols[_] == "http"
 }
 ```
 
@@ -485,7 +413,7 @@ For details on `some ... in ...`, see
 Expanding on the examples above, `every` allows us to succinctly express that
 a condition holds for all elements of a domain.
 
-```json title="Edit with the input to add a 'telnet' protocol to a server"
+```json title="Edit the input to add a 'telnet' protocol to a server"
 {
   "servers": [
     {
@@ -518,9 +446,9 @@ no_telnet_exposed if {
 
 <RunSnippet files="#input2.json" command="data.servers.no_telnet_exposed"/>
 
-For all the details, see [Every Keyword](./docs/policy-language/#every-keyword).
+Learn more about the [Every Keyword](./docs/policy-language/#every-keyword).
 
-### Rules
+### Policy Rules
 
 Rego lets you encapsulate and re-use logic with rules. Rules are just if-then
 logic statements. Rules can either be "complete" or "partial".
@@ -528,12 +456,15 @@ logic statements. Rules can either be "complete" or "partial".
 #### Complete Rules
 
 Complete rules are if-then statements that assign a single value to a variable.
-For example:
+Every rule consists of a _head_ and a _body_. In Rego we say the rule head
+is true _if_ the rule body is true for some set of variable assignments.
 
 ```rego
 package rules
 
+# head
 exists_public_network := true if {
+    # body
     some net in input.networks # some network exists and..
     net.public                 # it is public.
 }
@@ -541,11 +472,7 @@ exists_public_network := true if {
 
 <RunSnippet files="#input.json" command="data.rules.exists_public_network"/>
 
-Every rule consists of a _head_ and a _body_. In Rego we say the rule head
-is true _if_ the rule body is true for some set of variable assignments. In
-the example above `exists_public_network := true` is the head and `some net in input.networks; net.public` is the body.
-
-You can query for the value generated by rules just like any other value:
+You can query for the value generated by rules just like any other value (such as `input` or your own variables):
 
 ```rego
 package rules
@@ -595,17 +522,17 @@ To define constants, omit the rule body. When you omit the rule body it defaults
 to `true`. Since the rule body is true, the rule head is always true/defined.
 
 ```rego
-package example.constants
+package servers
 
-pi := 3.14
+max_allowed_protocols := 5
 ```
 
-<RunSnippet command="data.example.constants.pi"/>
+<RunSnippet command="data.servers.max_allowed_protocols"/>
 
 Constants defined like this can be queried just like any other values:
 
 ```rego
-pi > 3
+count(input.servers[0].protocols) < max_allowed_protocols
 ```
 
 If OPA cannot find variable assignments that satisfy the rule body, we say that
@@ -639,12 +566,16 @@ exists_public_network if {
 #### Partial Rules
 
 Partial rules are if-then statements that generate a set of values and
-assign that set to a variable. For example:
+assign that set to a variable. In the example below `public_network contains net.id` is the rule head and
+`some net in input.networks; net.public` is the rule body. You can query for the entire
+set of values just like any other value.
 
 ```rego
 package example
 
+# head
 public_network contains net.id if {
+    # body
     some net in input.networks # some network exists and..
     net.public                 # it is public.
 }
@@ -652,10 +583,8 @@ public_network contains net.id if {
 
 <RunSnippet id="public_network_set.rego" files="#input.json" command="data.example"/>
 
-In the example above `public_network contains net.id if` is the rule head and
-`some net in input.networks; net.public` is the rule body. You can query for the entire
-set of values just like any other value. Using the `in` keyword we can use this
-list to test if some other value is in the set defined by `public_network`:
+Using the `in` keyword we can use this list to test if some other value is in
+the set defined by `public_network`:
 
 ```rego
 package example
@@ -759,22 +688,21 @@ shell_accessible contains server.id if {
 <RunSnippet files="#input4.json" command="data.example.logical_or"/>
 
 :::tip
-Check out this [blog post](https://www.styra.com/blog/how-to-express-or-in-rego/) that goes into much
-more detail on this topic showing different methods to express OR in idiomatic
-Rego for different use cases.
+Check out this
+[blog post](https://www.styra.com/blog/how-to-express-or-in-rego/)
+that goes into much more detail on this topic showing different methods to
+express OR in idiomatic Rego for different use cases.
 :::
 
 <!---TBD: explain conflicts --->
 
-### Putting It Together
+### Complete Example
 
 The sections above explain the core concepts in Rego. To put it all together
-let's review the desired policy (in English):
+let's review the desired policy in natural language:
 
-```
-1. Servers reachable from the Internet must not expose the insecure 'http' protocol.
-2. Servers are not allowed to expose the 'telnet' protocol.
-```
+> 1. Servers reachable from the Internet must not expose the insecure 'http' protocol.
+> 2. Servers are not allowed to expose the 'telnet' protocol.
 
 At a high-level the policy needs to identify servers that violate some
 conditions. To implement this policy we could define rules called `violation`
@@ -813,10 +741,16 @@ public_servers contains server if { # a server exists in the public_servers set 
 
 <RunSnippet files="#input.json" command="data.example.violation"/>
 
+This example demonstrates how we can use Rego to create a clear list of policy
+violations that can be handed back to the infrastructure as code system to
+present to the user, making it easy for them to see what's gone wrong.
+
 ## Running OPA
 
 This section explains how you can query OPA directly and interact with it on
-your own machine.
+your own machine. If you just want to quickly get a feel for the language
+without installing anything, check out the
+[OPA Playground](https://play.openpolicyagent.org/).
 
 ### 1. Download OPA
 
@@ -1324,9 +1258,9 @@ go run main.go example.rego 'data.example.violation' < input.json
 
 ## Next Steps
 
-Congratulations on making it through the introduction to OPA. If you made it
-this far you have learned the core concepts behind OPA's policy language as well
-as how to get OPA and run it on your own.
+Congratulations on completing the introduction to OPA. You have learned the core
+concepts behind OPA's policy language as well as how to get OPA and run it on
+your own.
 
 If you have more questions about how to write policies in Rego check out:
 
@@ -1343,4 +1277,5 @@ Some popular tutorials include:
 - The [Envoy](./docs/envoy) page for how to use OPA as an external authorizer with Envoy.
 - The [Terraform](./docs/terraform) page for how to use OPA to validate Terraform plans.
 
-Don't forget to install the OPA (Rego) Plugin for your favorite [IDE or Text Editor](./docs/editor-and-ide-support)
+Don't forget to install the OPA (Rego) Plugin for your favorite
+[IDE or Text Editor](./docs/editor-and-ide-support).
