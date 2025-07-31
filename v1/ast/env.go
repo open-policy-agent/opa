@@ -53,7 +53,7 @@ func (env *TypeEnv) GetByValue(v Value) types.Type {
 		return types.B
 	case Number:
 		return types.N
-	case String:
+	case String, TemplateString:
 		return types.S
 
 	// Composites.

@@ -39,6 +39,8 @@ const (
 
 	Number
 	String
+	TemplateStringPart
+	TemplateStringEnd
 
 	LBrack
 	RBrack
@@ -67,6 +69,7 @@ const (
 	Lte
 	Dot
 	Semicolon
+	Dollar
 
 	Every
 	Contains
@@ -74,53 +77,56 @@ const (
 )
 
 var strings = [...]string{
-	Illegal:    "illegal",
-	EOF:        "eof",
-	Whitespace: "whitespace",
-	Comment:    "comment",
-	Ident:      "identifier",
-	Package:    "package",
-	Import:     "import",
-	As:         "as",
-	Default:    "default",
-	Else:       "else",
-	Not:        "not",
-	Some:       "some",
-	With:       "with",
-	Null:       "null",
-	True:       "true",
-	False:      "false",
-	Number:     "number",
-	String:     "string",
-	LBrack:     "[",
-	RBrack:     "]",
-	LBrace:     "{",
-	RBrace:     "}",
-	LParen:     "(",
-	RParen:     ")",
-	Comma:      ",",
-	Colon:      ":",
-	Add:        "plus",
-	Sub:        "minus",
-	Mul:        "mul",
-	Quo:        "div",
-	Rem:        "rem",
-	And:        "and",
-	Or:         "or",
-	Unify:      "eq",
-	Equal:      "equal",
-	Assign:     "assign",
-	In:         "in",
-	Neq:        "neq",
-	Gt:         "gt",
-	Lt:         "lt",
-	Gte:        "gte",
-	Lte:        "lte",
-	Dot:        ".",
-	Semicolon:  ";",
-	Every:      "every",
-	Contains:   "contains",
-	If:         "if",
+	Illegal:            "illegal",
+	EOF:                "eof",
+	Whitespace:         "whitespace",
+	Comment:            "comment",
+	Ident:              "identifier",
+	Package:            "package",
+	Import:             "import",
+	As:                 "as",
+	Default:            "default",
+	Else:               "else",
+	Not:                "not",
+	Some:               "some",
+	With:               "with",
+	Null:               "null",
+	True:               "true",
+	False:              "false",
+	Number:             "number",
+	String:             "string",
+	TemplateStringPart: "template-string",
+	TemplateStringEnd:  "template-string",
+	LBrack:             "[",
+	RBrack:             "]",
+	LBrace:             "{",
+	RBrace:             "}",
+	LParen:             "(",
+	RParen:             ")",
+	Comma:              ",",
+	Colon:              ":",
+	Add:                "plus",
+	Sub:                "minus",
+	Mul:                "mul",
+	Quo:                "div",
+	Rem:                "rem",
+	And:                "and",
+	Or:                 "or",
+	Unify:              "eq",
+	Equal:              "equal",
+	Assign:             "assign",
+	In:                 "in",
+	Neq:                "neq",
+	Gt:                 "gt",
+	Lt:                 "lt",
+	Gte:                "gte",
+	Lte:                "lte",
+	Dot:                ".",
+	Semicolon:          ";",
+	Dollar:             "dollar",
+	Every:              "every",
+	Contains:           "contains",
+	If:                 "if",
 }
 
 var keywords = map[string]Token{

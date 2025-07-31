@@ -158,18 +158,36 @@ func (s *Scanner) WithoutKeywords(kws map[string]tokens.Token) (*Scanner, map[st
 	return &cpy, kw
 }
 
+type ScanOptions struct {
+	continueTemplateString bool
+}
+
+type ScanOption func(*ScanOptions)
+
+// ContinueTemplateString will continue scanning a template string
+func ContinueTemplateString() ScanOption {
+	return func(opts *ScanOptions) {
+		opts.continueTemplateString = true
+	}
+}
+
 // Scan will increment the scanners position in the source
 // code until the next token is found. The token, starting position
 // of the token, string literal, and any errors encountered are
 // returned. A token will always be returned, the caller must check
 // for any errors before using the other values.
-func (s *Scanner) Scan() (tokens.Token, Position, string, []Error) {
+func (s *Scanner) Scan(opts ...ScanOption) (tokens.Token, Position, string, []Error) {
+	scanOpts := &ScanOptions{}
+	for _, opt := range opts {
+		opt(scanOpts)
+	}
 
 	pos := Position{Offset: s.offset - s.width, Row: s.row, Col: s.col, Tabs: s.tabs}
 	var tok tokens.Token
 	var lit string
-
-	if s.isWhitespace() {
+	if scanOpts.continueTemplateString {
+		lit, tok = s.scanTemplateString()
+	} else if s.isWhitespace() {
 		// string(rune) is an unnecessary heap allocation in this case as we know all
 		// the possible whitespace values, and can simply translate to string ourselves
 		switch s.curr {
@@ -275,6 +293,9 @@ func (s *Scanner) Scan() (tokens.Token, Position, string, []Error) {
 			tok = tokens.Semicolon
 		case '.':
 			tok = tokens.Dot
+		case '$':
+			s.next()
+			lit, tok = s.scanTemplateString()
 		}
 	}
 
@@ -393,6 +414,61 @@ func (s *Scanner) scanRawString() string {
 	}
 
 	return util.ByteSliceToString(s.bs[start : s.offset-1])
+}
+
+func (s *Scanner) scanTemplateString() (string, tokens.Token) {
+	//ch := s.curr
+	//s.next()
+	//
+	//switch ch {
+	//case '"':
+	//	return s.scanString()
+	//case '`':
+	//	return s.scanRawString()
+	//}
+	//
+	//s.error(fmt.Sprintf("illegal template string delimiter %q", ch))
+	//return ""
+
+	// TODO: Differentiate between raw and regular template strings.
+
+	tok := tokens.TemplateStringPart
+	start := s.literalStart()
+	for {
+		ch := s.curr
+
+		if ch == '\n' || ch < 0 {
+			s.error("non-terminated string")
+			break
+		}
+
+		s.next()
+
+		if ch == '"' {
+			tok = tokens.TemplateStringEnd
+			break
+		}
+
+		if ch == '{' {
+			break
+		}
+
+		if ch == '\\' {
+			switch s.curr {
+			case '\\', '"', '/', 'b', 'f', 'n', 'r', 't', '{', '}':
+				s.next()
+			case 'u':
+				s.next()
+				s.next()
+				s.next()
+				s.next()
+			default:
+				s.error("illegal escape sequence")
+			}
+		}
+	}
+
+	return util.ByteSliceToString(s.bs[start : s.offset-1]), tok
 }
 
 func (s *Scanner) scanComment() string {

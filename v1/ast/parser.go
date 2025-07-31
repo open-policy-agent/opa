@@ -1727,6 +1727,8 @@ func (p *Parser) parseTerm() *Term {
 		term = p.parseNumber()
 	case tokens.String:
 		term = p.parseString()
+	case tokens.TemplateStringPart, tokens.TemplateStringEnd:
+		term = p.parseTemplateString()
 	case tokens.Ident, tokens.Contains: // NOTE(sr): contains anywhere BUT in rule heads gets no special treatment
 		term = p.parseVar()
 	case tokens.LBrack:
@@ -1865,6 +1867,44 @@ func (p *Parser) parseRawString() *Term {
 		return nil
 	}
 	term := StringTerm(p.s.lit[1 : len(p.s.lit)-1]).SetLocation(p.s.Loc())
+	return term
+}
+
+func (p *Parser) parseTemplateString() *Term {
+	parts := make([]*Term, 0, 1)
+
+	for {
+		if p.s.tok == tokens.TemplateStringEnd {
+			parts = append(parts, StringTerm(p.s.lit[1:len(p.s.lit)-1]))
+			break
+		} else if p.s.tok == tokens.TemplateStringPart {
+			// Add the string part of the template string
+			parts = append(parts, StringTerm(p.s.lit[1:len(p.s.lit)-1]))
+			//p.scan()
+		} else {
+			p.error(p.s.Loc(), "expected template string")
+			return nil
+		}
+
+		p.scan()
+
+		expr := p.parseTermInfixCallInList()
+		if expr == nil {
+			return nil
+		}
+		parts = append(parts, expr)
+
+		if p.s.tok != tokens.RBrace {
+			p.errorf(p.s.Loc(), "expected %s to end template string expression", tokens.RBrace)
+			return nil
+		}
+
+		p.scanWS(scanner.ContinueTemplateString())
+	}
+
+	//term := TemplateStringTerm(parts...)
+	term := InternalStringTemplate.Call(ArrayTerm(parts...))
+	term.SetLocation(p.s.Loc())
 	return term
 }
 
@@ -2407,15 +2447,15 @@ func (p *Parser) illegalToken() {
 	p.illegal("")
 }
 
-func (p *Parser) scan() {
-	p.doScan(true)
+func (p *Parser) scan(scanOpts ...scanner.ScanOption) {
+	p.doScan(true, scanOpts...)
 }
 
-func (p *Parser) scanWS() {
-	p.doScan(false)
+func (p *Parser) scanWS(scanOpts ...scanner.ScanOption) {
+	p.doScan(false, scanOpts...)
 }
 
-func (p *Parser) doScan(skipws bool) {
+func (p *Parser) doScan(skipws bool, scanOpts ...scanner.ScanOption) {
 
 	// NOTE(tsandall): the last position is used to compute the "text" field for
 	// complex AST nodes. Whitespace never affects the last position of an AST
@@ -2428,7 +2468,7 @@ func (p *Parser) doScan(skipws bool) {
 	var errs []scanner.Error
 	for {
 		var pos scanner.Position
-		p.s.tok, pos, p.s.lit, errs = p.s.s.Scan()
+		p.s.tok, pos, p.s.lit, errs = p.s.s.Scan(scanOpts...)
 
 		p.s.tokEnd = pos.End
 		p.s.loc.Row = pos.Row

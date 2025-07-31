@@ -840,6 +840,36 @@ func (str String) Hash() int {
 	return int(xxhash.Sum64String(string(str)))
 }
 
+type TemplateString []*Term
+
+func (ts TemplateString) Compare(other Value) int {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (ts TemplateString) Find(path Ref) (Value, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (ts TemplateString) Hash() int {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (ts TemplateString) IsGround() bool {
+	return false
+}
+
+func (ts TemplateString) String() string {
+	//TODO implement me
+	panic("implement me")
+}
+
+func TemplateStringTerm(v ...*Term) *Term {
+	return &Term{Value: TemplateString(v)}
+}
+
 // Var represents a variable as defined by the language.
 type Var string
 

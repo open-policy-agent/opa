@@ -94,6 +94,7 @@
       "internal.member_2",
       "internal.member_3",
       "internal.print",
+      "internal.template",
       "internal.test_case"
     ],
     "net": [
@@ -8744,6 +8745,21 @@
     ],
     "introduced": "v0.34.0",
     "result": {},
+    "wasm": false
+  },
+  "internal.template": {
+    "args": [
+      {
+        "type": "array[any]"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "introduced": "edge",
+    "result": {
+      "type": "string"
+    },
     "wasm": false
   },
   "internal.test_case": {

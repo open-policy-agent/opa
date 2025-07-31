@@ -348,6 +348,7 @@ func NewCompiler() *Compiler {
 		{"SetGraph", "compile_stage_set_graph", c.setGraph},
 		{"RewriteComprehensionTerms", "compile_stage_rewrite_comprehension_terms", c.rewriteComprehensionTerms},
 		{"RewriteRefsInHead", "compile_stage_rewrite_refs_in_head", c.rewriteRefsInHead},
+		{"RewriteTemplateStrings", "compile_stage_rewrite_template_strings", c.rewriteTemplateStrings},
 		{"RewriteWithValues", "compile_stage_rewrite_with_values", c.rewriteWithModifiers},
 		{"CheckRuleConflicts", "compile_stage_check_rule_conflicts", c.checkRuleConflicts},
 		{"CheckUndefinedFuncs", "compile_stage_check_undefined_funcs", c.checkUndefinedFuncs},
@@ -2052,6 +2053,128 @@ func (c *Compiler) checkVoidCalls() {
 	}
 }
 
+func (c *Compiler) rewriteTemplateStrings() {
+	modified := false
+	for _, name := range c.sorted {
+		mod := c.Modules[name]
+		WalkRules(mod, func(r *Rule) bool {
+			safe := r.Head.Args.Vars()
+			//safe.Update(r.Head.Value)
+			safe.Update(ReservedVars)
+			vis := func(b Body) bool {
+				modrec, errs := rewriteTemplateStrings(c.localvargen, c.GetArity, safe, b)
+				if modrec {
+					modified = true
+				}
+				for _, err := range errs {
+					c.err(err)
+				}
+				return false
+			}
+			WalkBodies(r.Head, vis)
+			WalkBodies(r.Body, vis)
+			return false
+		})
+	}
+	if modified {
+		c.Required.addBuiltinSorted(InternalStringTemplate)
+	}
+}
+
+func rewriteTemplateStrings(gen *localVarGenerator, getArity func(Ref) int, globals VarSet, body Body) (bool, Errors) {
+
+	var errs Errors
+	var modified bool
+
+	// Visit comprehension bodies recursively to ensure print statements inside
+	// those bodies only close over variables that are safe.
+	for i := range body {
+		if ContainsClosures(body[i]) {
+			safe := outputVarsForBody(body[:i], getArity, globals)
+			safe.Update(globals)
+			WalkClosures(body[i], func(x any) bool {
+				var modrec bool
+				var errsrec Errors
+				switch x := x.(type) {
+				case *SetComprehension:
+					modrec, errsrec = rewriteTemplateStrings(gen, getArity, safe, x.Body)
+				case *ArrayComprehension:
+					modrec, errsrec = rewriteTemplateStrings(gen, getArity, safe, x.Body)
+				case *ObjectComprehension:
+					modrec, errsrec = rewriteTemplateStrings(gen, getArity, safe, x.Body)
+				case *Every:
+					safe.Update(x.KeyValueVars())
+					modrec, errsrec = rewriteTemplateStrings(gen, getArity, safe, x.Body)
+				}
+				if modrec {
+					modified = true
+				}
+				errs = append(errs, errsrec...)
+				return true
+			})
+			if len(errs) > 0 {
+				return false, errs
+			}
+		}
+	}
+
+	for i := range body {
+
+		if !isInternalStringTemplateCall(body[i]) {
+			continue
+		}
+
+		modified = true
+
+		var errs Errors
+		safe := outputVarsForBody(body[:i], getArity, globals)
+		safe.Update(globals)
+		args := body[i].Operands()
+
+		if len(args) != 2 {
+			errs = append(errs, NewError(CompileErr, body[i].Loc(), "%s call must have 2 arguments, got %d", InternalStringTemplate.Name, len(args)))
+			return false, errs
+		}
+
+		// The first argument must be an array of terms.
+		inputTerms, ok := args[0].Value.(*Array)
+		if !ok {
+			errs = append(errs, NewError(CompileErr, body[i].Loc(), "first argument of %s call must be an array", InternalStringTemplate.Name))
+			return false, errs
+		}
+
+		var vis *VarVisitor
+		for j := range inputTerms.elems {
+			vis = vis.ClearOrNew().WithParams(SafetyCheckVisitorParams)
+			vis.Walk(inputTerms.elems[j])
+			vars := vis.Vars()
+			if vars.DiffCount(safe) > 0 {
+				unsafe := vars.Diff(safe)
+				for _, v := range unsafe.Sorted() {
+					errs = append(errs, NewError(CompileErr, inputTerms.elems[j].Loc(), "var %v is undeclared", v))
+				}
+			}
+		}
+
+		rewrittenTerms := make([]*Term, 0, inputTerms.Len())
+
+		inputTerms.Foreach(func(term *Term) {
+			loc := term.Loc()
+			x := NewTerm(gen.Generate()).SetLocation(loc)
+			capture := Equality.Expr(x, term).SetLocation(loc)
+			rewrittenTerms = append(rewrittenTerms, SetComprehensionTerm(x, NewBody(capture)).SetLocation(loc))
+		})
+
+		body.Set(NewExpr([]*Term{
+			NewTerm(InternalStringTemplate.Ref()).SetLocation(body[i].Loc()),
+			ArrayTerm(rewrittenTerms...).SetLocation(body[i].Loc()),
+			args[1],
+		}).SetLocation(body[i].Loc()), i)
+	}
+
+	return modified, nil
+}
+
 func (c *Compiler) rewritePrintCalls() {
 	var modified bool
 	if !c.enablePrintStatements {
@@ -2267,6 +2390,12 @@ var printRef = Print.Ref()
 
 func isPrintCall(x *Expr) bool {
 	return x.IsCall() && x.Operator().Equal(printRef)
+}
+
+var stringTemplateRef = InternalStringTemplate.Ref()
+
+func isInternalStringTemplateCall(x *Expr) bool {
+	return x.IsCall() && x.Operator().Equal(stringTemplateRef)
 }
 
 // rewriteRefsInHead will rewrite rules so that the head does not contain any
