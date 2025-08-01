@@ -49,8 +49,9 @@ const (
 func TestPluginOneShot(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	manager := getTestManager()
+	defer manager.Stop(ctx)
 	plugin := New(&Config{}, manager)
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName, Metrics: metrics.New()}
@@ -122,9 +123,10 @@ func TestPluginOneShot(t *testing.T) {
 func TestPluginOneShotWithAstStore(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false), inmem.OptReturnASTValuesOnRead(true))
 	manager := getTestManagerWithOpts(nil, store)
+	defer manager.Stop(ctx)
 	plugin := New(&Config{}, manager)
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName, Metrics: metrics.New()}
@@ -223,8 +225,9 @@ corge contains 1 if {
 			}
 			popts := ast.ParserOptions{RegoVersion: regoVersion}
 
-			ctx := context.Background()
+			ctx := t.Context()
 			manager := getTestManager()
+			defer manager.Stop(ctx)
 			plugin := New(&Config{}, manager)
 			bundleName := "test-bundle"
 			plugin.status[bundleName] = &Status{Name: bundleName, Metrics: metrics.New()}
@@ -458,7 +461,7 @@ corge contains 1 if {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			managerPopts := ast.ParserOptions{RegoVersion: tc.managerRegoVersion}
 			manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(),
 				plugins.WithParserOptions(managerPopts))
@@ -556,9 +559,10 @@ corge contains 1 if {
 func TestPluginOneShotWithAuthzSchemaVerification(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	manager := getTestManager()
+	defer manager.Stop(ctx)
 
 	info, err := runtime.Term(runtime.Params{Config: nil, IsAuthorizationEnabled: true})
 	if err != nil {
@@ -701,9 +705,10 @@ func TestPluginOneShotWithAuthzSchemaVerification(t *testing.T) {
 func TestPluginOneShotWithAuthzSchemaVerificationNonDefaultAuthzPath(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	manager := getTestManager()
+	defer manager.Stop(ctx)
 
 	s := "/foo/authz/allow"
 	manager.Config.DefaultAuthorizationDecision = &s
@@ -817,7 +822,7 @@ func TestPluginStartLazyLoadInMem(t *testing.T) {
 
 	for _, rm := range readMode {
 		t.Run(rm.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 
 			module := "package authz\n\ncorge=1"
 
@@ -843,6 +848,7 @@ func TestPluginStartLazyLoadInMem(t *testing.T) {
 					t.Fatal(err)
 				}
 			}))
+			defer s1.Close()
 
 			mockBundle2 := bundle.Bundle{
 				Data:    map[string]any{"q": "x2"},
@@ -858,6 +864,7 @@ func TestPluginStartLazyLoadInMem(t *testing.T) {
 					t.Fatal(err)
 				}
 			}))
+			defer s2.Close()
 
 			config := fmt.Appendf(nil, `{
 		"services": {
@@ -987,7 +994,7 @@ func TestPluginOneShotDiskStorageMetrics(t *testing.T) {
 	t.Parallel()
 
 	test.WithTempFS(nil, func(dir string) {
-		ctx := context.Background()
+		ctx := t.Context()
 		met := metrics.New()
 		store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
 			Dir: dir,
@@ -1097,8 +1104,9 @@ func TestPluginOneShotDiskStorageMetrics(t *testing.T) {
 func TestPluginOneShotDeltaBundle(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	manager := getTestManager()
+	defer manager.Stop(ctx)
 	plugin := New(&Config{}, manager)
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName, Metrics: metrics.New()}
@@ -1200,9 +1208,10 @@ func TestPluginOneShotDeltaBundle(t *testing.T) {
 func TestPluginOneShotDeltaBundleWithAstStore(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false), inmem.OptReturnASTValuesOnRead(true))
 	manager := getTestManagerWithOpts(nil, store)
+	defer manager.Stop(ctx)
 	plugin := New(&Config{}, manager)
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName, Metrics: metrics.New()}
@@ -1304,8 +1313,9 @@ func TestPluginOneShotDeltaBundleWithAstStore(t *testing.T) {
 func TestPluginStart(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	manager := getTestManager()
+	defer manager.Stop(ctx)
 	bundles := map[string]*Source{}
 
 	plugin := New(&Config{Bundles: bundles}, manager)
@@ -1313,6 +1323,7 @@ func TestPluginStart(t *testing.T) {
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
+	defer plugin.Stop(ctx)
 }
 
 func TestStop(t *testing.T) {
@@ -1337,10 +1348,11 @@ func TestStop(t *testing.T) {
 		time.Sleep(time.Duration(longPollTimeout) * time.Second)
 		fmt.Fprintln(w) // Note: this is an invalid bundle and will fail the download
 	}))
-	defer ts.Close()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	manager := getTestManager()
+	defer manager.Stop(ctx)
+	defer ts.Close()
 
 	serviceName := "test-svc"
 	err := manager.Reconfigure(&config.Config{
@@ -1389,8 +1401,9 @@ func TestStop(t *testing.T) {
 func TestPluginOneShotBundlePersistence(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	manager := getTestManager()
+	defer manager.Stop(ctx)
 
 	dir := t.TempDir()
 
@@ -1552,7 +1565,7 @@ corge contains 1 if {
 			}
 			popts := ast.ParserOptions{RegoVersion: regoVersion}
 
-			ctx := context.Background()
+			ctx := t.Context()
 			manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(), plugins.WithParserOptions(popts))
 			if err != nil {
 				t.Fatal("unexpected error:", err)
@@ -1835,7 +1848,7 @@ corge contains 1 if {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			managerPopts := ast.ParserOptions{RegoVersion: tc.managerRegoVersion}
 			manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(),
 				plugins.WithParserOptions(managerPopts))
@@ -1994,8 +2007,9 @@ corge contains 1 if {
 func TestPluginOneShotSignedBundlePersistence(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	manager := getTestManager()
+	defer manager.Stop(ctx)
 
 	dir := t.TempDir()
 
@@ -2091,8 +2105,9 @@ func TestPluginOneShotSignedBundlePersistence(t *testing.T) {
 func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	manager := getTestManager()
+	defer manager.Stop(ctx)
 
 	dir := t.TempDir()
 
@@ -2178,8 +2193,9 @@ func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 // Warning: This test modifies package variables, and as
 // a result, cannot be run in parallel with other tests.
 func TestLoadAndActivateBundlesFromDiskReservedChars(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	manager := getTestManager()
+	defer manager.Stop(ctx)
 
 	dir := t.TempDir()
 
@@ -2395,7 +2411,7 @@ corge contains 2 if {
 			}
 			popts := ast.ParserOptions{RegoVersion: regoVersion}
 
-			ctx := context.Background()
+			ctx := t.Context()
 			manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(),
 				plugins.WithParserOptions(popts))
 			if err != nil {
@@ -2610,7 +2626,7 @@ corge contains 1 if {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			managerPopts := ast.ParserOptions{RegoVersion: tc.managerRegoVersion}
 			manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(),
 				plugins.WithParserOptions(managerPopts))
@@ -2777,8 +2793,9 @@ func bundleRegoVersion(v ast.RegoVersion) int {
 func TestLoadAndActivateDepBundlesFromDisk(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	manager := getTestManager()
+	defer manager.Stop(ctx)
 
 	dir := t.TempDir()
 
@@ -2885,8 +2902,9 @@ is_one(x) if {
 func TestLoadAndActivateDepBundlesFromDiskMaxAttempts(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	manager := getTestManager()
+	defer manager.Stop(ctx)
 
 	dir := t.TempDir()
 
@@ -2954,8 +2972,9 @@ allow if {
 func TestPluginOneShotCompileError(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	manager := getTestManager()
+	defer manager.Stop(ctx)
 	plugin := New(&Config{}, manager)
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
@@ -3047,8 +3066,9 @@ p contains x`),
 func TestPluginOneShotHTTPError(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	manager := getTestManager()
+	defer manager.Stop(ctx)
 	plugin := New(&Config{}, manager)
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
@@ -3088,8 +3108,9 @@ func TestPluginOneShotHTTPError(t *testing.T) {
 func TestPluginOneShotActivationRemovesOld(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	manager := getTestManager()
+	defer manager.Stop(ctx)
 	plugin := New(&Config{}, manager)
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
@@ -3166,8 +3187,9 @@ func TestPluginOneShotActivationRemovesOld(t *testing.T) {
 func TestPluginOneShotActivationConflictingRoots(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	manager := getTestManager()
+	defer manager.Stop(ctx)
 	plugin := New(&Config{}, manager)
 
 	ensurePluginState(t, plugin, plugins.StateNotReady)
@@ -3235,8 +3257,9 @@ func TestPluginOneShotActivationConflictingRoots(t *testing.T) {
 func TestPluginOneShotActivationPrefixMatchingRoots(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	manager := getTestManager()
+	defer manager.Stop(ctx)
 	plugin := Plugin{
 		manager:     manager,
 		status:      map[string]*Status{},
@@ -3291,8 +3314,9 @@ func ensureBundleOverlapStatus(t *testing.T, p *Plugin, bundleNames []string, ex
 func TestPluginListener(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	manager := getTestManager()
+	defer manager.Stop(ctx)
 	plugin := New(&Config{}, manager)
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
@@ -3405,8 +3429,9 @@ func validateStatus(t *testing.T, actual Status, expected string, expectStatusEr
 func TestPluginListenerErrorClearedOn304(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	manager := getTestManager()
+	defer manager.Stop(ctx)
 	plugin := Plugin{
 		manager:     manager,
 		status:      map[string]*Status{},
@@ -3459,8 +3484,9 @@ func TestPluginListenerErrorClearedOn304(t *testing.T) {
 func TestPluginBulkListener(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	manager := getTestManager()
+	defer manager.Stop(ctx)
 	plugin := Plugin{
 		manager:     manager,
 		status:      map[string]*Status{},
@@ -3662,8 +3688,9 @@ p contains x if { x = 1 }`
 func TestPluginBulkListenerStatusCopyOnly(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	manager := getTestManager()
+	defer manager.Stop(ctx)
 	plugin := Plugin{
 		manager:     manager,
 		status:      map[string]*Status{},
@@ -3739,7 +3766,7 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 
 	for _, rm := range readMode {
 		t.Run(rm.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			manager := getTestManagerWithOpts(nil, inmem.NewWithOpts(inmem.OptReturnASTValuesOnRead(rm.readAst)))
 			plugin := Plugin{
 				manager:     manager,
@@ -3885,8 +3912,9 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 func TestPluginSetCompilerOnContext(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	manager := getTestManager()
+	defer manager.Stop(ctx)
 	plugin := Plugin{
 		manager:     manager,
 		status:      map[string]*Status{},
@@ -3971,10 +3999,11 @@ func TestPluginReconfigure(t *testing.T) {
 		}
 		fmt.Fprintln(w, "") // Note: this is an invalid bundle and will fail the download
 	}))
-	defer ts.Close()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	manager := getTestManager()
+	defer manager.Stop(ctx)
+	defer ts.Close()
 
 	serviceName := "test-svc"
 	err := manager.Reconfigure(&config.Config{
@@ -3985,6 +4014,7 @@ func TestPluginReconfigure(t *testing.T) {
 	}
 
 	plugin := New(&Config{}, manager)
+	defer plugin.Stop(ctx)
 
 	var delay int64 = 10
 
@@ -4163,8 +4193,9 @@ func TestPluginReconfigure(t *testing.T) {
 func TestPluginRequestVsDownloadTimestamp(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	manager := getTestManager()
+	defer manager.Stop(ctx)
 	plugin := Plugin{
 		manager:     manager,
 		status:      map[string]*Status{},
@@ -4272,7 +4303,7 @@ func TestReconfigurePlugin_OneShot_BundleDeactivation(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(), plugins.WithParserOptions(ast.ParserOptions{RegoVersion: tc.runtimeRegoVersion}))
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err)
@@ -4454,7 +4485,7 @@ func TestReconfigurePlugin_ManagerInit_BundleDeactivation(t *testing.T) {
 				bundleName: &b,
 			}
 
-			ctx := context.Background()
+			ctx := t.Context()
 			manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(),
 				plugins.WithParserOptions(ast.ParserOptions{RegoVersion: tc.runtimeRegoVersion}),
 				plugins.InitBundles(bundles))
@@ -4535,8 +4566,9 @@ func TestReconfigurePlugin_ManagerInit_BundleDeactivation(t *testing.T) {
 func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	manager := getTestManager()
+	defer manager.Stop(ctx)
 	plugin := Plugin{
 		manager:     manager,
 		status:      map[string]*Status{},
@@ -4632,8 +4664,9 @@ func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
 func TestUpgradeLegacyBundleToMultiBundleNewBundles(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	manager := getTestManager()
+	defer manager.Stop(ctx)
 
 	plugin := Plugin{
 		manager:     manager,
@@ -4641,6 +4674,7 @@ func TestUpgradeLegacyBundleToMultiBundleNewBundles(t *testing.T) {
 		etags:       map[string]string{},
 		downloaders: map[string]Loader{},
 	}
+	defer plugin.Stop(ctx)
 
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
@@ -4789,7 +4823,7 @@ func TestLegacyBundleDataRead(t *testing.T) {
 
 	for _, rm := range readModes {
 		t.Run(rm.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			manager := getTestManagerWithOpts(nil, inmem.NewWithOpts(inmem.OptReturnASTValuesOnRead(rm.readAst)))
 
 			plugin := Plugin{
@@ -4881,6 +4915,7 @@ func TestSaveBundleToDiskNew(t *testing.T) {
 	t.Parallel()
 
 	manager := getTestManager()
+	defer manager.Stop(t.Context())
 
 	dir := t.TempDir()
 
@@ -4900,14 +4935,16 @@ func TestSaveBundleToDiskNewConfiguredPersistDir(t *testing.T) {
 	dir := t.TempDir()
 
 	manager := getTestManager()
+	defer manager.Stop(t.Context())
 	manager.Config.PersistenceDirectory = &dir
 	bundles := map[string]*Source{}
 	plugin := New(&Config{Bundles: bundles}, manager)
 
-	err := plugin.Start(context.Background())
+	err := plugin.Start(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
+	defer plugin.Stop(t.Context())
 
 	err = plugin.saveBundleToDisk("foo", getTestRawBundle(t))
 	if err != nil {
@@ -4925,6 +4962,7 @@ func TestSaveBundleToDiskOverWrite(t *testing.T) {
 	t.Parallel()
 
 	manager := getTestManager()
+	defer manager.Stop(t.Context())
 
 	// test to check existing bundle is replaced
 	dir := t.TempDir()
@@ -5011,6 +5049,7 @@ func TestLoadBundleFromDisk(t *testing.T) {
 	t.Parallel()
 
 	manager := getTestManager()
+	defer manager.Stop(t.Context())
 	plugin := New(&Config{}, manager)
 
 	// no bundle on disk
@@ -5108,6 +5147,7 @@ func TestLoadSignedBundleFromDisk(t *testing.T) {
 	t.Parallel()
 
 	manager := getTestManager()
+	defer manager.Stop(t.Context())
 	plugin := New(&Config{}, manager)
 
 	// no bundle on disk
@@ -5150,7 +5190,9 @@ func TestLoadSignedBundleFromDisk(t *testing.T) {
 func TestGetDefaultBundlePersistPath(t *testing.T) {
 	t.Parallel()
 
-	plugin := New(&Config{}, getTestManager())
+	manager := getTestManager()
+	defer manager.Stop(t.Context())
+	plugin := New(&Config{}, manager)
 	path, err := plugin.getBundlePersistPath()
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
@@ -5166,6 +5208,7 @@ func TestConfiguredBundlePersistPath(t *testing.T) {
 
 	persistPath := "/var/opa"
 	manager := getTestManager()
+	defer manager.Stop(t.Context())
 	manager.Config.PersistenceDirectory = &persistPath
 	plugin := New(&Config{}, manager)
 
@@ -5225,7 +5268,7 @@ func TestPluginUsingFileLoader(t *testing.T) {
 			ch <- s
 		})
 
-		if err := p.Start(context.Background()); err != nil {
+		if err := p.Start(t.Context()); err != nil {
 			t.Fatal(err)
 		}
 
@@ -5397,7 +5440,7 @@ p contains 7 if {
 					ch <- s
 				})
 
-				if err := p.Start(context.Background()); err != nil {
+				if err := p.Start(t.Context()); err != nil {
 					t.Fatal(err)
 				}
 
@@ -5712,7 +5755,7 @@ p contains 7 if {
 					ch <- s
 				})
 
-				if err := p.Start(context.Background()); err != nil {
+				if err := p.Start(t.Context()); err != nil {
 					t.Fatal(err)
 				}
 
@@ -5764,7 +5807,7 @@ func TestPluginUsingDirectoryLoader(t *testing.T) {
 			ch <- s
 		})
 
-		if err := p.Start(context.Background()); err != nil {
+		if err := p.Start(t.Context()); err != nil {
 			t.Fatal(err)
 		}
 
@@ -5915,7 +5958,7 @@ p contains 7 if {
 					ch <- s
 				})
 
-				if err := p.Start(context.Background()); err != nil {
+				if err := p.Start(t.Context()); err != nil {
 					t.Fatal(err)
 				}
 
@@ -6207,7 +6250,7 @@ p contains 7 if {
 					ch <- s
 				})
 
-				if err := p.Start(context.Background()); err != nil {
+				if err := p.Start(t.Context()); err != nil {
 					t.Fatal(err)
 				}
 
@@ -6261,9 +6304,10 @@ func TestPluginReadBundleEtagFromDiskStore(t *testing.T) {
 			t.Fatal(err)
 		}
 	}))
+	defer s.Close()
 
 	test.WithTempFS(nil, func(dir string) {
-		ctx := context.Background()
+		ctx := t.Context()
 
 		store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
 			Dir: dir,
@@ -6458,6 +6502,7 @@ func TestPluginStateReconciliationOnReconfigure(t *testing.T) {
 			t.Fatal(err)
 		}
 	}))
+	defer s.Close()
 
 	// setup plugin pointing at fake server
 	manager := getTestManagerWithOpts(fmt.Appendf(nil, `{
@@ -6491,11 +6536,12 @@ func TestPluginStateReconciliationOnReconfigure(t *testing.T) {
 		statusCh <- st
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	err := plugin.Start(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer plugin.Stop(ctx)
 
 	// manually trigger bundle download
 	go func() { _ = plugin.Loaders()["b1"].Trigger(ctx) }()
@@ -6614,7 +6660,7 @@ func TestPluginStateReconciliationOnReconfigure(t *testing.T) {
 func TestPluginManualTrigger(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// setup fake http server with mock bundle
 	mockBundle := bundle.Bundle{
@@ -6628,6 +6674,7 @@ func TestPluginManualTrigger(t *testing.T) {
 			t.Fatal(err)
 		}
 	}))
+	defer s.Close()
 
 	// setup plugin pointing at fake server
 	manager := getTestManagerWithOpts(fmt.Appendf(nil, `{
@@ -6637,6 +6684,7 @@ func TestPluginManualTrigger(t *testing.T) {
 			}
 		}
 	}`, s.URL))
+	defer manager.Stop(ctx)
 
 	var mode plugins.TriggerMode = "manual"
 
@@ -6661,6 +6709,7 @@ func TestPluginManualTrigger(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer plugin.Stop(ctx)
 
 	// manually trigger bundle download
 	go func() {
@@ -6703,7 +6752,7 @@ func TestPluginManualTrigger(t *testing.T) {
 func TestPluginManualTriggerMultipleDiskStorage(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	module := "package authz\n\ncorge=1"
 
@@ -6729,6 +6778,7 @@ func TestPluginManualTriggerMultipleDiskStorage(t *testing.T) {
 			t.Fatal(err)
 		}
 	}))
+	defer s1.Close()
 
 	mockBundle2 := bundle.Bundle{
 		Data:    map[string]any{"q": "x2"},
@@ -6744,6 +6794,7 @@ func TestPluginManualTriggerMultipleDiskStorage(t *testing.T) {
 			t.Fatal(err)
 		}
 	}))
+	defer s2.Close()
 
 	test.WithTempFS(nil, func(dir string) {
 		store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
@@ -6782,6 +6833,7 @@ func TestPluginManualTriggerMultipleDiskStorage(t *testing.T) {
 				},
 			},
 		}, manager)
+		defer plugin.Stop(ctx)
 
 		statusCh := make(chan map[string]*Status)
 
@@ -6858,7 +6910,7 @@ func TestPluginManualTriggerMultipleDiskStorage(t *testing.T) {
 func TestPluginManualTriggerMultiple(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// setup fake http server with mock bundle
 	mockBundle1 := bundle.Bundle{
@@ -6875,6 +6927,7 @@ func TestPluginManualTriggerMultiple(t *testing.T) {
 			t.Fatal(err)
 		}
 	}))
+	defer s1.Close()
 
 	mockBundle2 := bundle.Bundle{
 		Data:    map[string]any{"q": "x2"},
@@ -6890,6 +6943,7 @@ func TestPluginManualTriggerMultiple(t *testing.T) {
 			t.Fatal(err)
 		}
 	}))
+	defer s2.Close()
 
 	// setup plugin pointing at fake server
 	manager := getTestManagerWithOpts(fmt.Appendf(nil, `{
@@ -6902,6 +6956,7 @@ func TestPluginManualTriggerMultiple(t *testing.T) {
 			}
 		}
 	}`, s1.URL, s2.URL))
+	defer manager.Stop(ctx)
 
 	var mode plugins.TriggerMode = "manual"
 
@@ -6931,6 +6986,7 @@ func TestPluginManualTriggerMultiple(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer plugin.Stop(ctx)
 
 	// manually trigger bundle download on all configured bundles
 	go func() {
@@ -6963,12 +7019,13 @@ func TestPluginManualTriggerMultiple(t *testing.T) {
 func TestPluginManualTriggerWithTimeout(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 1*time.Second)
 	defer cancel()
 
 	s := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		time.Sleep(3 * time.Second) // this should cause the context deadline to exceed
 	}))
+	defer s.Close()
 
 	// setup plugin pointing at fake server
 	manager := getTestManagerWithOpts(fmt.Appendf(nil, `{
@@ -6978,6 +7035,7 @@ func TestPluginManualTriggerWithTimeout(t *testing.T) {
 			}
 		}
 	}`, s.URL))
+	defer manager.Stop(ctx)
 
 	var mode plugins.TriggerMode = "manual"
 
@@ -7003,6 +7061,7 @@ func TestPluginManualTriggerWithTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer plugin.Stop(ctx)
 
 	// manually trigger bundle download
 	go func() {
@@ -7024,12 +7083,13 @@ func TestPluginManualTriggerWithTimeout(t *testing.T) {
 func TestPluginManualTriggerWithServerError(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 	defer cancel()
 
 	s := httptest.NewServer(http.HandlerFunc(func(resp http.ResponseWriter, _ *http.Request) {
 		resp.WriteHeader(500)
 	}))
+	defer s.Close()
 
 	// setup plugin pointing at fake server
 	manager := getTestManagerWithOpts(fmt.Appendf(nil, `{
@@ -7039,6 +7099,7 @@ func TestPluginManualTriggerWithServerError(t *testing.T) {
 			}
 		}
 	}`, s.URL))
+	defer manager.Stop(ctx)
 
 	var manual plugins.TriggerMode = "manual"
 
@@ -7131,7 +7192,7 @@ func TestGetNormalizedBundleName(t *testing.T) {
 }
 
 func TestBundleActivationWithRootOverlap(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	plugin := getPluginWithExistingLoadedBundle(
 		t,
 		"policy-bundle",
@@ -7173,7 +7234,7 @@ result := true`,
 }
 
 func TestBundleActivationWithNoManifestRootsButWithPathConflict(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	plugin := getPluginWithExistingLoadedBundle(
 		t,
 		"policy-bundle",
@@ -7215,7 +7276,7 @@ result := true`,
 }
 
 func TestBundleActivationWithNoManifestRootsOverlap(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	plugin := getPluginWithExistingLoadedBundle(
 		t,
 		"policy-bundle",
@@ -7292,7 +7353,7 @@ func getTestBundleWithData(roots []string, data []byte, modules []testModule) bu
 }
 
 func getPluginWithExistingLoadedBundle(t *testing.T, bundleName string, roots []string, data []byte, modules []testModule) *Plugin {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false), inmem.OptReturnASTValuesOnRead(true))
 	manager := getTestManagerWithOpts(nil, store)
 	plugin := New(&Config{}, manager)

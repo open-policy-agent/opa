@@ -17,6 +17,8 @@ func DefaultBackoff(base, maxNS float64, retries int) time.Duration {
 
 // Backoff returns a delay with an exponential backoff based on the number of
 // retries. Same algorithm used in gRPC.
+// Note that if maxNS is smaller than base, the backoff will still be capped at
+// maxNS.
 func Backoff(base, maxNS, jitter, factor float64, retries int) time.Duration {
 	if retries == 0 {
 		return 0
