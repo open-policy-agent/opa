@@ -1,0 +1,120 @@
+---
+cases:
+  - note: stringinterpolation/empty string
+    modules:
+      - |
+        package test
+
+        p := $""
+    query: data.test.p = x
+    want_result:
+      - x: ""
+  - note: stringinterpolation/no template expression
+    modules:
+      - |
+        package test
+
+        p := $"foo bar baz"
+    query: data.test.p = x
+    want_result:
+      - x: "foo bar baz"
+  - note: stringinterpolation/escaped template expression
+    modules:
+      - |
+        package test
+
+        p := $"foo \{42} baz"
+    query: data.test.p = x
+    # FIXME: Remove escape in output
+    want_result:
+      - x: "foo {42} baz"
+  - note: stringinterpolation/template expressions with primitive values
+    modules:
+      - |
+        package test
+
+        p := $"{42}, {13.37}, {true}, {"foo"}, {null}"
+    query: data.test.p = x
+    want_result:
+      - x: "42, 13.37, true, foo, null"
+  - note: stringinterpolation/template expressions with collection values
+    modules:
+      - |
+        package test
+
+        p := $"{[42, 13.37, true, "foo", null]}, {{42, 13.37, true, "foo", null}}, {{"a": "b"}}"
+    query: data.test.p = x
+    want_result:
+      - x: "[42, 13.37, true, \"foo\", null], {null, true, 13.37, 42, \"foo\"}, {\"a\": \"b\"}"
+  - note: stringinterpolation/template expression with array comprehension
+    modules:
+      - |
+        package test
+        
+        a := ["a", "b", "c"]
+
+        p := $"{[x | some x in a]}"
+    query: data.test.p = x
+    want_result:
+      - x: "[\"a\", \"b\", \"c\"]"
+  - note: stringinterpolation/template expression with set comprehension
+    modules:
+      - |
+        package test
+        
+        a := ["a", "b", "c"]
+
+        p := $"{{x | some x in a}}"
+    query: data.test.p = x
+    want_result:
+      - x: "{\"a\", \"b\", \"c\"}"
+  - note: stringinterpolation/template expression with object comprehension
+    modules:
+      - |
+        package test
+        
+        a := ["a", "b", "c"]
+
+        p := $"{{x: x | some x in a}}"
+    query: data.test.p = x
+    want_result:
+      - x: "{\"a\": \"a\", \"b\": \"b\", \"c\": \"c\"}"
+  - note: stringinterpolation/template expressions with variables
+    modules:
+      - |
+        package test
+
+        a := "foo"
+        b := "bar"
+
+        p := $"{a} {b}"
+    query: data.test.p = x
+    want_result:
+      - x: "foo bar"
+  - note: stringinterpolation/template expressions with refs
+    modules:
+      - |
+        package test
+
+        a := "foo"
+
+        p := $"{data.test.a} {data.b} {input.c}"
+    data:
+      b: "bar"
+    input:
+      c: "baz"
+    query: data.test.p = x
+    want_result:
+      - x: "foo bar baz"
+  - note: stringinterpolation/nested template expressions
+    modules:
+      - |
+        package test
+
+        a := "foo"
+        b := "bar"
+
+        p := $"{$"{a}"} {$"{$"{b}"}"}"
+    query: data.test.p = x
+    want_result:
+      - x: "foo bar"
