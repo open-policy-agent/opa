@@ -618,11 +618,7 @@ p contains 1 if {
 				go rt.StartServer(ctx)
 
 				if !test.Eventually(t, 5*time.Second, func() bool {
-					found := false
-					for _, e := range testLogger.Entries() {
-						found = strings.Contains(e.Message, "Server initialized.") || found
-					}
-					return found
+					return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
 				}) {
 					t.Fatal("Timed out waiting for server to start")
 				}
@@ -1816,11 +1812,7 @@ func TestCustomHandlerFlusher(t *testing.T) {
 			}
 			go rt.StartServer(ctx)
 			if !test.Eventually(t, 5*time.Second, func() bool {
-				found := false
-				for _, e := range testLogger.Entries() {
-					found = strings.Contains(e.Message, "Server initialized.") || found
-				}
-				return found
+				return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
 			}) {
 				t.Fatal("Timed out waiting for server to start")
 			}
@@ -2024,11 +2016,7 @@ func TestCustomStoreBuilder(t *testing.T) {
 	}
 	go rt.StartServer(ctx)
 	if !test.Eventually(t, 5*time.Second, func() bool {
-		found := false
-		for _, e := range testLogger.Entries() {
-			found = strings.Contains(e.Message, "Server initialized.") || found
-		}
-		return found
+		return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
 	}) {
 		t.Fatal("Timed out waiting for server to start")
 	}
@@ -2079,11 +2067,7 @@ func TestExtraMiddleware(t *testing.T) {
 	}))
 	go rt.StartServer(ctx)
 	if !test.Eventually(t, 5*time.Second, func() bool {
-		found := false
-		for _, e := range testLogger.Entries() {
-			found = strings.Contains(e.Message, "Server initialized.") || found
-		}
-		return found
+		return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
 	}) {
 		t.Fatal("Timed out waiting for server to start")
 	}
@@ -2158,11 +2142,7 @@ allow if {
 	})
 	go rt.StartServer(ctx)
 	if !test.Eventually(t, 5*time.Second, func() bool {
-		found := false
-		for _, e := range testLogger.Entries() {
-			found = strings.Contains(e.Message, "Server initialized.") || found
-		}
-		return found
+		return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
 	}) {
 		t.Fatal("Timed out waiting for server to start")
 	}
