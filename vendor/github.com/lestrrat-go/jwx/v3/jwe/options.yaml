@@ -1,0 +1,172 @@
+package_name: jwe
+output: jwe/options_gen.go
+interfaces:
+  - name: GlobalOption
+    comment: |
+      GlobalOption describes options that changes global settings for this package
+  - name: GlobalDecryptOption
+    comment: |
+      GlobalDecryptOption describes options that changes global settings and for each call of the `jwe.Decrypt` function
+    methods:
+      - globalOption
+      - decryptOption
+  - name: CompactOption
+    comment: |
+      CompactOption describes options that can be passed to `jwe.Compact`
+  - name: DecryptOption
+    comment: |
+      DecryptOption describes options that can be passed to `jwe.Decrypt`
+  - name: EncryptOption
+    comment: |
+      EncryptOption describes options that can be passed to `jwe.Encrypt`
+  - name: EncryptDecryptOption
+    methods:
+      - encryptOption
+      - decryptOption
+    comment: |
+      EncryptDecryptOption describes options that can be passed to either `jwe.Encrypt` or `jwe.Decrypt`
+  - name: WithJSONSuboption
+    concrete_type: withJSONSuboption
+    comment: |
+      JSONSuboption describes suboptions that can be passed to `jwe.WithJSON()` option
+  - name: WithKeySetSuboption
+    comment: |
+      WithKeySetSuboption is a suboption passed to the WithKeySet() option
+  - name: ParseOption
+    methods:
+      - readFileOption
+    comment: |
+      ReadFileOption is a type of `Option` that can be passed to `jwe.Parse`
+  - name: ReadFileOption
+    comment: |
+      ReadFileOption is a type of `Option` that can be passed to `jwe.ReadFile`
+options:
+  - ident: Key
+    skip_option: true
+  - ident: Pretty
+    skip_option: true
+  - ident: ProtectedHeaders
+    skip_option: true
+  - ident: PerRecipientHeaders
+    skip_option: true
+  - ident: KeyProvider
+    interface: DecryptOption
+    argument_type: KeyProvider
+  - ident: Context
+    interface: DecryptOption
+    argument_type: context.Context
+    comment: |
+      WithContext specifies the context.Context object to use when decrypting a JWE message.
+      If not provided, context.Background() will be used.
+  - ident: Serialization
+    option_name: WithCompact
+    interface: EncryptOption
+    constant_value: fmtCompact
+    comment: |
+      WithCompact specifies that the result of `jwe.Encrypt()` is serialized in
+      compact format.
+      
+      By default `jwe.Encrypt()` will opt to use compact format, so you usually
+      do not need to specify this option other than to be explicit about it
+  - ident: Compress
+    interface: EncryptOption
+    argument_type: jwa.CompressionAlgorithm
+    comment: |
+      WithCompress specifies the compression algorithm to use when encrypting
+      a payload using `jwe.Encrypt` (Yes, we know it can only be "" or "DEF",
+      but the way the specification is written it could allow for more options,
+      and therefore this option takes an argument)
+  - ident: ContentEncryptionAlgorithm
+    interface: EncryptOption
+    option_name: WithContentEncryption
+    argument_type: jwa.ContentEncryptionAlgorithm
+    comment: |
+      WithContentEncryptionAlgorithm specifies the algorithm to encrypt the
+      JWE message content with. If not provided, `jwa.A256GCM` is used.
+  - ident: Message
+    interface: DecryptOption
+    argument_type: '*Message'
+    comment: |
+      WithMessage provides a message object to be populated by `jwe.Decrypt`
+      Using this option allows you to decrypt AND obtain the `jwe.Message`
+      in one go.
+  - ident: RequireKid
+    interface: WithKeySetSuboption
+    argument_type: bool
+    comment: |
+      WithRequiredKid specifies whether the keys in the jwk.Set should
+      only be matched if the target JWE message's Key ID and the Key ID
+      in the given key matches.
+  - ident: Pretty
+    interface: WithJSONSuboption
+    argument_type: bool
+    comment: |
+      WithPretty specifies whether the JSON output should be formatted and
+      indented
+  - ident: MergeProtectedHeaders
+    interface: EncryptOption
+    argument_type: bool
+    comment: |
+      WithMergeProtectedHeaders specify that when given multiple headers
+      as options to `jwe.Encrypt`, these headers should be merged instead
+      of overwritten
+  - ident: FS
+    interface: ReadFileOption
+    argument_type: fs.FS
+    comment: |
+      WithFS specifies the source `fs.FS` object to read the file from.
+  - ident: KeyUsed
+    interface: DecryptOption
+    argument_type: 'any'
+    comment: |
+      WithKeyUsed allows you to specify the `jwe.Decrypt()` function to
+      return the key used for decryption. This may be useful when
+      you specify multiple key sources or if you pass a `jwk.Set`
+      and you want to know which key was successful at decrypting the
+      CEK.
+      
+      `v` must be a pointer to an empty `any`. Do not use
+      `jwk.Key` here unless you are 100% sure that all keys that you
+      have provided are instances of `jwk.Key` (remember that the
+      jwx API allows users to specify a raw key such as *rsa.PublicKey)
+  - ident: CEK
+    interface: DecryptOption
+    argument_type: '*[]byte'
+    comment: |
+      WithCEK allows users to specify a variable to store the CEK used in the
+      message upon successful decryption. The variable must be a pointer to
+      a byte slice, and it will only be populated if the decryption is successful.
+      
+      This option is currently considered EXPERIMENTAL, and is subject to
+      future changes across minor/micro versions.
+  - ident: MaxPBES2Count
+    interface: GlobalOption
+    argument_type: int
+    comment: |
+      WithMaxPBES2Count specifies the maximum number of PBES2 iterations
+      to use when decrypting a message. If not specified, the default
+      value of 10,000 is used.
+
+      This option has a global effect.
+  - ident: MaxDecompressBufferSize
+    interface: GlobalDecryptOption
+    argument_type: int64
+    comment: |
+      WithMaxDecompressBufferSize specifies the maximum buffer size for used when
+      decompressing the payload of a JWE message. If a compressed JWE payload
+      exceeds this amount when decompressed, jwe.Decrypt will return an error.
+      The default value is 10MB.
+
+      This option can be used for `jwe.Settings()`, which changes the behavior
+      globally, or for `jwe.Decrypt()`, which changes the behavior for that
+      specific call.
+  - ident: CBCBufferSize
+    interface: GlobalOption
+    argument_type: int64
+    comment: |
+      WithCBCBufferSize specifies the maximum buffer size for internal
+      calculations, such as when AES-CBC is performed. The default value is 256MB.
+      If set to an invalid value, the default value is used.
+      In v2, this option was called MaxBufferSize.
+
+      This option has a global effect.

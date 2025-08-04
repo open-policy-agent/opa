@@ -52,6 +52,9 @@ github.com/containerd/typeurl/v2
 # github.com/cpuguy83/go-md2man/v2 v2.0.6
 ## explicit; go 1.12
 github.com/cpuguy83/go-md2man/v2/md2man
+# github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0
+## explicit; go 1.17
+github.com/decred/dcrd/dcrec/secp256k1/v4
 # github.com/dgraph-io/badger/v4 v4.8.0
 ## explicit; go 1.23.0
 github.com/dgraph-io/badger/v4
@@ -107,6 +110,17 @@ github.com/gobwas/glob/syntax/ast
 github.com/gobwas/glob/syntax/lexer
 github.com/gobwas/glob/util/runes
 github.com/gobwas/glob/util/strings
+# github.com/goccy/go-json v0.10.3
+## explicit; go 1.19
+github.com/goccy/go-json
+github.com/goccy/go-json/internal/decoder
+github.com/goccy/go-json/internal/encoder
+github.com/goccy/go-json/internal/encoder/vm
+github.com/goccy/go-json/internal/encoder/vm_color
+github.com/goccy/go-json/internal/encoder/vm_color_indent
+github.com/goccy/go-json/internal/encoder/vm_indent
+github.com/goccy/go-json/internal/errors
+github.com/goccy/go-json/internal/runtime
 # github.com/gogo/protobuf v1.3.2
 ## explicit; go 1.15
 github.com/gogo/protobuf/proto
@@ -154,6 +168,54 @@ github.com/kr/text
 # github.com/kylelemons/godebug v1.1.0
 ## explicit; go 1.11
 github.com/kylelemons/godebug/diff
+# github.com/lestrrat-go/blackmagic v1.0.4
+## explicit; go 1.23
+github.com/lestrrat-go/blackmagic
+# github.com/lestrrat-go/httpcc v1.0.1
+## explicit; go 1.16
+github.com/lestrrat-go/httpcc
+# github.com/lestrrat-go/httprc/v3 v3.0.0
+## explicit; go 1.23
+github.com/lestrrat-go/httprc/v3
+github.com/lestrrat-go/httprc/v3/errsink
+github.com/lestrrat-go/httprc/v3/proxysink
+github.com/lestrrat-go/httprc/v3/tracesink
+# github.com/lestrrat-go/jwx/v3 v3.0.10
+## explicit; go 1.23.0
+github.com/lestrrat-go/jwx/v3
+github.com/lestrrat-go/jwx/v3/cert
+github.com/lestrrat-go/jwx/v3/internal/base64
+github.com/lestrrat-go/jwx/v3/internal/ecutil
+github.com/lestrrat-go/jwx/v3/internal/json
+github.com/lestrrat-go/jwx/v3/internal/jwxio
+github.com/lestrrat-go/jwx/v3/internal/keyconv
+github.com/lestrrat-go/jwx/v3/internal/pool
+github.com/lestrrat-go/jwx/v3/internal/tokens
+github.com/lestrrat-go/jwx/v3/jwa
+github.com/lestrrat-go/jwx/v3/jwe
+github.com/lestrrat-go/jwx/v3/jwe/internal/aescbc
+github.com/lestrrat-go/jwx/v3/jwe/internal/cipher
+github.com/lestrrat-go/jwx/v3/jwe/internal/concatkdf
+github.com/lestrrat-go/jwx/v3/jwe/internal/content_crypt
+github.com/lestrrat-go/jwx/v3/jwe/internal/keygen
+github.com/lestrrat-go/jwx/v3/jwe/jwebb
+github.com/lestrrat-go/jwx/v3/jwk
+github.com/lestrrat-go/jwx/v3/jwk/ecdsa
+github.com/lestrrat-go/jwx/v3/jwk/jwkbb
+github.com/lestrrat-go/jwx/v3/jws
+github.com/lestrrat-go/jwx/v3/jws/internal/keytype
+github.com/lestrrat-go/jwx/v3/jws/jwsbb
+github.com/lestrrat-go/jwx/v3/jws/legacy
+github.com/lestrrat-go/jwx/v3/jwt
+github.com/lestrrat-go/jwx/v3/jwt/internal/errors
+github.com/lestrrat-go/jwx/v3/jwt/internal/types
+github.com/lestrrat-go/jwx/v3/transform
+# github.com/lestrrat-go/option v1.0.1
+## explicit; go 1.16
+github.com/lestrrat-go/option
+# github.com/lestrrat-go/option/v2 v2.0.0
+## explicit; go 1.23
+github.com/lestrrat-go/option/v2
 # github.com/mattn/go-runewidth v0.0.16
 ## explicit; go 1.9
 github.com/mattn/go-runewidth
@@ -225,6 +287,15 @@ github.com/russross/blackfriday/v2
 # github.com/sagikazarmark/locafero v0.7.0
 ## explicit; go 1.21
 github.com/sagikazarmark/locafero
+# github.com/segmentio/asm v1.2.0
+## explicit; go 1.18
+github.com/segmentio/asm/base64
+github.com/segmentio/asm/cpu
+github.com/segmentio/asm/cpu/arm
+github.com/segmentio/asm/cpu/arm64
+github.com/segmentio/asm/cpu/cpuid
+github.com/segmentio/asm/cpu/x86
+github.com/segmentio/asm/internal/unsafebytes
 # github.com/sergi/go-diff v1.4.0
 ## explicit; go 1.13
 github.com/sergi/go-diff/diffmatchpatch
@@ -266,6 +337,10 @@ github.com/subosito/gotenv
 # github.com/tchap/go-patricia/v2 v2.3.3
 ## explicit; go 1.16
 github.com/tchap/go-patricia/v2/patricia
+# github.com/valyala/fastjson v1.6.4
+## explicit; go 1.12
+github.com/valyala/fastjson
+github.com/valyala/fastjson/fastfloat
 # github.com/vektah/gqlparser/v2 v2.5.30
 ## explicit; go 1.22
 github.com/vektah/gqlparser/v2/ast
@@ -369,6 +444,9 @@ go.uber.org/multierr
 # go.yaml.in/yaml/v2 v2.4.2
 ## explicit; go 1.15
 go.yaml.in/yaml/v2
+# golang.org/x/crypto v0.40.0
+## explicit; go 1.23.0
+golang.org/x/crypto/pbkdf2
 # golang.org/x/mod v0.25.0
 ## explicit; go 1.23.0
 golang.org/x/mod/semver
@@ -393,6 +471,7 @@ golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
 # golang.org/x/sys v0.34.0
 ## explicit; go 1.23.0
+golang.org/x/sys/cpu
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 golang.org/x/sys/windows/registry

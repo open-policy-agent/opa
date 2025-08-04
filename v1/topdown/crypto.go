@@ -25,7 +25,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/open-policy-agent/opa/internal/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
@@ -361,7 +361,7 @@ func builtinCryptoJWKFromPrivateKey(_ BuiltinContext, operands []*ast.Term, iter
 		return iter(ast.InternedNullTerm)
 	}
 
-	key, err := jwk.New(rawKeys[0])
+	key, err := jwk.Import(rawKeys[0])
 	if err != nil {
 		return err
 	}

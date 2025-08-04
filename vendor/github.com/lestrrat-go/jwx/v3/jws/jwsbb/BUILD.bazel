@@ -1,0 +1,37 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "jwsbb",
+    srcs = [
+        "crypto_signer.go",
+        "ecdsa.go",
+        "eddsa.go",
+        "format.go",
+        "hmac.go",
+        "jwsbb.go",
+        "rsa.go",
+        "sign.go",
+        "verify.go",
+    ],
+    importpath = "github.com/lestrrat-go/jwx/v3/jws/jwsbb",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//internal/base64",
+        "//internal/ecutil",
+        "//internal/jwxio",
+        "//internal/keyconv",
+        "//internal/pool",
+        "//internal/tokens",
+        "//jws/internal/keytype",
+    ],
+)
+
+go_test(
+    name = "jwsbb_test",
+    srcs = ["jwsbb_test.go"],
+    embed = [":jwsbb"],
+    deps = [
+        "//internal/base64",
+        "@com_github_stretchr_testify//require",
+    ],
+)

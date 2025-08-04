@@ -1,0 +1,208 @@
+Changes
+=======
+
+v3 has many incompatibilities with v2. To see the full list of differences between
+v2 and v3, please read the Changes-v3.md file (https://github.com/lestrrat-go/jwx/blob/develop/v3/Changes-v3.md)
+
+v3.0.10 04 Aug 2025
+  * [jws/jwsbb] Add `jwsbb.ErrHeaderNotFound()` to return the same error type as when
+    a non-existent header is requested. via `HeaderGetXXX()` functions. Previously, this
+    function was called `jwsbb.ErrFieldNotFound()`, but it was a misnomer.
+  * [jws/jwsbb] Fix a bug where error return values from `HeaderGetXXX()` functions
+    could not be matched against `jwsbb.ErrHeaderNotFound()` using `errors.Is()`.
+
+v3.0.9 31 Jul 2025
+  * [jws/jwsbb] `HeaderGetXXX()` functions now return errors when
+    the requested header is not found, or if the value cannot be
+    converted to the requested type.
+
+  * [jwt] `(jwt.Token).Get` methods now return specific types of errors depending
+    on if a) the specified claim was not present, or b) the specified claim could
+    not be assigned to the destination variable.
+
+    You can distinguish these by using `errors.Is` against `jwt.ClaimNotFoundError()`
+    or `jwt.ClaimAssignmentFailedError()`
+
+v3.0.8 27 Jun 2025
+  * [jwe/jwebb] (EXPERIMENTAL) Add low-level functions for JWE operations.
+  * [jws/jwsbb] (EXPERIMENTAL/BREAKS COMPATIBILITY) Add io.Reader parameter
+    so your choice of source of randomness can be passed. Defaults to crypto/rand.Reader.
+    Function signatures around jwsbb.Sign() now accept an addition `rr io.Reader`,
+    which can be nil for 99% of use cases.
+  * [jws/jwsbb] Add HeaderParse([]byte), where it is expected that the header
+    is already in its base64 decoded format.
+  * misc: replace `interface{}` with `any`
+
+v3.0.7 16 Jun 2025
+  * [jws/jwsbb] (EXPERIMENTAL) Add low-level fast access to JWS headers in compact
+    serialization form.
+  * [jws] Fix error reporting when no key matched for a signature.
+  * [jws] Refactor jws signer setup.
+    * Known algorithms are now implemented completely in the jws/jwsbb package.
+    * VerifierFor and SignerFor now always succeed, and will also return a Signer2
+      or Verifier2 that wraps the legacy Signer or Verifier if one is registered.
+
+v3.0.6 13 Jun 2025
+  * This release contains various performance improvements all over the code.
+    No, this time for real. In particular, the most common case for signing
+    a JWT with a key is approx 70% more efficient based on the number of allocations.
+
+    Please read the entry for the (retracted) v3.0.4 for what else I have to
+    say about performance improvements
+
+  * [jwt] Added fast-path for token signing and verification. The fast path
+    is triggered if you only pass `jwt.Sign()` and `jwt.Parse()` one options each
+    (`jwt.WithKey()`), with no suboptions.
+
+  * [jws] Major refactoring around basic operations:
+
+    * How to work with Signer/Verifier have completely changed. Please take
+      a look at examples/jws_custom_signer_verifier_example_test.go for how
+      to do it the new way. The old way still works, but it WILL be removed
+      when v4 arrives.
+    * Related to the above, old code has been moved to `jws/legacy`.
+
+    * A new package `jws/jwsbb` has been added. `bb` stands for building blocks.
+      This package separates out the low-level JWS operations into its own
+      package. So if you are looking for just the signing of a payload with
+      a key, this is it.
+
+      `jws/jwsbb` is currently considered to be EXPERIMENTAL.
+
+v3.0.5 11 Jun 2025
+  * Retract v3.0.4
+  * Code for v3.0.3 is the same as v3.0.3
+
+v3.0.4 09 Jun 2025
+  * This release contains various performance improvements all over the code.
+
+    Because of the direction that this library is taking, we have always been
+    more focused on correctness and usability/flexibility over performance.
+
+    It just so happens that I had a moment of inspiration and decided to see
+    just how good our AI-based coding agents are in this sort of analysis-heavy tasks.
+
+    Long story short, the AI was fairly good at identifying suspicious code with
+    an okay accuracy, but completely failed to make any meaningful changes to the
+    code in a way that both did not break the code _and_ improved performance.
+    I am sure that they will get better in the near future, but for now,
+    I had to do the changes myself. I should clarify to their defence that
+    the AI was very helpful in writing cumbersome benchmark code for me.
+
+    The end result is that we have anywhere from 10 to 30% performance improvements
+    in various parts of the code that we touched, based on number of allocations.
+    We believe that this would be a significant improvement for many users.
+
+    For further improvements, we can see that there would be a clear benefit to
+    writing optimized code path that is designed to serve the most common cases.
+    For example, for the case of signing JWTs with a single key, we could provide
+    a path that skips a lot of extra processing (we kind of did that in this change,
+    but we _could_ go ever harder in this direction). However, it is a trade-off between
+    maintainability and performance, and as I am currently the sole maintainer of
+    this library for the time being, I only plan to pursue such a route where it
+    requires minimal effort on my part.
+
+    If you are interested in helping out in this area, I hereby thank you in advance.
+    However, please be perfectly clear that unlike other types of changes, for performance
+    related changes, the balance between the performance gains and maintainability is
+    top priority. If you have good ideas and code, they will always be welcome, but
+    please be prepared to justify your changes.
+
+    Finally, thank you for using this library!
+
+v3.0.3 06 Jun 2025
+  * Update some dependencies
+  * [jwe] Change some error messages to contain more context information
+
+v3.0.2 03 Jun 2025
+  * [transform] (EXPERIMENTAL) Add utility function `transform.AsMap` to convert a
+    Mappable object to a map[string]interface{}. This is useful for converting
+    objects such as `jws.Header`, `jwk.Key`, `jwt.Token`, etc. to a map that can
+    be used with other libraries that expect a map.
+  * [jwt] (EXPERIMENTAL) Added token filtering functionality through the TokenFilter interface. 
+  * [jwt/openid] (EXPERIMENTAL) Added StandardClaimsFilter() for filtering standard OpenID claims.
+  * [jws] (EXPERIMENTAL) Added header filtering functionality through the HeaderFilter interface.
+  * [jwe] (EXPERIMENTAL) Added header filtering functionality through the HeaderFilter interface.
+  * [jwk] (EXPERIMENTAL) Added key filtering functionality through the KeyFilter interface.
+  * [jwk] `jwk.Export` previously did not recognize third-party objects that implemented `jwk.Key`,
+    as it was detecting what to do by checking if the object was one of our own unexported
+    types. This caused some problems for consumers of this library that wanted to extend the
+    features of the keys.
+
+    Now `jwk.Export` checks types against interface types such as `jwk.RSAPrivateKey`, `jwk.ECDSAPrivateKey`, etc.
+    It also uses some reflect blackmagic to detect if the given object implements the `jwk.Key` interface
+    via embedding, so you should be able to embed a `jwk.Key` to another object to act as if it
+    is a legitimate `jwk.Key`, as far as `jwk.Export` is concerned.
+
+v3.0.1 29 Apr 2025
+  * [jwe] Fixed a long standing bug that could lead to degraded encryption or failure to
+    decrypt JWE messages when a very specific combination of inputs were used for
+    JWE operations.
+
+    This problem only manifested itself when the following conditions in content encryption or decryption
+    were met:
+      - Content encryption was specified to use DIRECT mode.
+      - Contentn encryption algorithm is specified as A256CBC_HS512
+      - The key was erronously constructed with a 32-byte content encryption key (CEK)
+
+    In this case, the user would be passing a mis-constructed key of 32-bytes instead
+    of the intended 64-bytes. In all other cases, this construction would cause
+    an error because `crypto/aes.NewCipher` would return an error when a key with length
+    not matching 16, 24, and 32 bytes is used. However, due to use using a the provided
+    32-bytes as half CEK and half the hash, the `crypto/aes.NewCipher` was passed
+    a 16-byte key, which is fine for AES-128. So internally `crypto/aes.NewCipher` would
+    choose to use AES-128 instead of AES-256, and happily continue. Note that no other
+    key lengths such as 48 and 128 would have worked. It had to be exactly 32.
+
+    This does indeed result in a downgraded encryption, but we believe it is unlikely that this would cause a problem in the real world,
+    as you would have to very specifically choose to use DIRECT mode, choose
+    the specific content encryption algorithm, AND also use the wrong key size of
+    exactly 32 bytes.
+
+    However, in abandunce of caution, we recommend that you upgrade to v3.0.1 or later,
+    or v2.1.6 or later if you are still on v2 series.
+
+  * [jws] Improve performance of jws.SplitCompact and jws.SplitCompactString
+  * [jwe] Improve performance of jwe.Parse
+
+v3.0.0 1 Apr 2025
+  * Release initial v3.0.0 series. Code is identical to v3.0.0-beta2, except
+    for minor documentation changes.
+
+    Please note that v1 will no longer be maintained.
+
+    Going forward v2 will receive security updates but will no longer receive
+    feature updates. Users are encouraged to migrate to v3. There is no hard-set
+    guarantee as to how long v2 will be supported, but if/when v4 comes out,
+    v2 support will be terminated then.
+
+v3.0.0-beta2 30 Mar 2025
+  * [jwk] Fix a bug where `jwk.Set`'s `Keys()` method did not return the proper
+    non-standard fields. (#1322)
+  * [jws][jwt] Implement `WithBase64Encoder()` options to pass base64 encoders
+    to use during signing/verifying signatures. This useful when the token
+    provider generates JWTs that don't follow the specification and uses base64
+    encoding other than raw url encoding (no padding), such as, apparently,
+    AWS ALB. (#1324, #1328)
+
+v3.0.0-beta1 15 Mar 2025
+  * [jwt] Token validation no longer truncates time based fields by default.
+    To restore old behavior, you can either change the global settings by
+    calling `jwt.Settings(jwt.WithTruncation(time.Second))`, or you can
+    change it by each invocation by using `jwt.Validate(..., jwt.WithTruncation(time.Second))`
+
+v3.0.0-alpha3 13 Mar 2025
+  * [jwk] Importing/Exporting from jwk.Key with P256/P386/P521 curves to
+    ecdh.PrivateKey/ecdh.PublicKey should now work. Previously these keys were not properly
+    recognized by the exporter/importer. Note that keys that use X25519 and P256/P384/P521
+    behave differently: X25519 keys can only be exported to/imported from OKP keys,
+    while P256/P384/P521 can be exported to either ecdsa or ecdh keys.
+
+v3.0.0-alpha2 25 Feb 2025
+  * Update to work with go1.24
+  * Update tests to work with latest latchset/jose
+  * Fix build pipeline to work with latest golangci-lint
+  * Require go1.23
+
+v3.0.0-alpha1 01 Nov 2024
+  * Initial release of v3 line.

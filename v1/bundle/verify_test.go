@@ -24,20 +24,35 @@ func TestVerifyBundleSignature(t *testing.T) {
 		wantErr            bool
 		err                error
 	}{
-		"no_signatures":       {SignaturesConfig{}, nil, true, errors.New(".signatures.json: missing JWT (expected exactly one)")},
-		"multiple_signatures": {SignaturesConfig{Signatures: []string{signedTokenHS256, otherSignedTokenHS256}}, nil, true, errors.New(".signatures.json: multiple JWTs not supported (expected exactly one)")},
-		"invalid_token":       {SignaturesConfig{Signatures: []string{badToken}}, nil, true, errors.New("failed to split compact serialization")},
+		"no_signatures": {
+			SignaturesConfig{},
+			NewVerificationConfig(nil, "", "", nil),
+			true,
+			errors.New(".signatures.json: missing JWT (expected exactly one)"),
+		},
+		"multiple_signatures": {
+			SignaturesConfig{Signatures: []string{signedTokenHS256, otherSignedTokenHS256}},
+			NewVerificationConfig(nil, "", "", nil),
+			true,
+			errors.New(".signatures.json: multiple JWTs not supported (expected exactly one)"),
+		},
+		"invalid_token": {SignaturesConfig{Signatures: []string{badToken}}, nil, true, errors.New("failed to split compact JWT: jwsbb: invalid number of segments")},
 		"invalid_token_header_base64": {
 			SignaturesConfig{Signatures: []string{badTokenHeaderBase64}},
 			NewVerificationConfig(nil, "", "", nil),
-			true, errors.New("failed to base64 decode JWT headers: illegal base64 data at input byte 50"),
+			true, errors.New("failed to extract key ID from headers: failed to decode source: illegal base64 data at input byte 50"),
 		},
 		"invalid_token_header_json": {
 			SignaturesConfig{Signatures: []string{badTokenHeaderJSON}},
 			NewVerificationConfig(nil, "", "", nil),
-			true, errors.New("failed to parse JWT headers: unexpected end of JSON input"),
+			true, errors.New("failed to extract key ID from headers: cannot parse JSON: cannot parse object: cannot parse object value: cannot parse string: missing closing '\"'; unparsed tail: \"\""),
 		},
-		"bad_token_payload": {SignaturesConfig{Signatures: []string{badTokenPayload}}, nil, true, errors.New("json: cannot unmarshal object into Go struct field DecodedSignature.files of type []bundle.FileInfo")},
+		"bad_token_payload": {
+			SignaturesConfig{Signatures: []string{badTokenPayload}},
+			NewVerificationConfig(nil, "", "", nil),
+			true,
+			errors.New(`json: cannot unmarshal object into Go struct field DecodedSignature.files of type []bundle.FileInfo`),
+		},
 		"valid_token_and_scope": {
 			SignaturesConfig{Signatures: []string{signedTokenHS256}},
 			NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "write", nil),
@@ -52,7 +67,6 @@ func TestVerifyBundleSignature(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-
 			_, err := VerifyBundleSignature(tc.input, tc.readerVerifyConfig)
 
 			if tc.wantErr {
@@ -156,8 +170,16 @@ yQjtQ8mbDOsiLLvh7wIDAQAB==
 		wantErr bool
 		err     error
 	}{
-		"no_public_key_id":          {signedNoKeyIDTokenHS256, map[string]*KeyConfig{}, "", "", true, errors.New("verification key ID is empty")},
-		"actual_public_key_missing": {signedTokenHS256, map[string]*KeyConfig{}, "", "", true, errors.New("verification key corresponding to ID foo not found")},
+		"no_public_key_id": {
+			signedNoKeyIDTokenHS256,
+			map[string]*KeyConfig{}, "", "",
+			true, errors.New(`verification key ID is empty`),
+		},
+		"actual_public_key_missing": {
+			signedTokenHS256,
+			map[string]*KeyConfig{}, "", "",
+			true, errors.New("verification key corresponding to ID foo not found"),
+		},
 		"deprecated_key_id_claim": {
 			signedTokenWithDeprecatedKidClaimHS256,
 			map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "write", // check valid keyId in deprecated claim is used
@@ -166,7 +188,7 @@ yQjtQ8mbDOsiLLvh7wIDAQAB==
 		"bad_public_key_algorithm": {
 			signedTokenHS256,
 			map[string]*KeyConfig{"foo": {Key: "somekey", Algorithm: "RS007"}}, "", "",
-			true, errors.New("unsupported signature algorithm: RS007"),
+			true, errors.New("unknown signature algorithm: RS007"),
 		},
 		"public_key_with_valid_HS256_sign": {
 			signedTokenWithBarKidHS256,
@@ -176,7 +198,7 @@ yQjtQ8mbDOsiLLvh7wIDAQAB==
 		"public_key_with_invalid_HS256_sign": {
 			signedTokenHS256,
 			map[string]*KeyConfig{"foo": {Key: "bad_secret", Algorithm: "HS256"}}, "", "",
-			true, errors.New("failed to verify message: failed to match hmac signature"),
+			true, errors.New("failed to verify JWT signature: invalid HMAC signature"),
 		},
 		"public_key_with_valid_RS256_sign": {
 			signedTokenRS256,
@@ -186,7 +208,7 @@ yQjtQ8mbDOsiLLvh7wIDAQAB==
 		"public_key_with_invalid_RS256_sign": {
 			signedTokenRS256,
 			map[string]*KeyConfig{"foo": {Key: publicKeyInvalid, Algorithm: "RS256"}}, "", "",
-			true, errors.New("failed to verify message: crypto/rsa: verification error"),
+			true, errors.New("failed to verify JWT signature: crypto/rsa: verification error"),
 		},
 		"public_key_with_bad_cert_RS256": {
 			signedTokenRS256,

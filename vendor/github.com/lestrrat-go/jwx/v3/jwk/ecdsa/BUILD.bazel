@@ -1,0 +1,15 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "ecdsa",
+    srcs = ["ecdsa.go"],
+    importpath = "github.com/lestrrat-go/jwx/v3/jwk/ecdsa",
+    visibility = ["//visibility:public"],
+    deps = ["//jwa"],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":ecdsa",
+    visibility = ["//visibility:public"],
+)

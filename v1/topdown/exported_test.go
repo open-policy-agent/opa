@@ -76,7 +76,7 @@ func TestRegoWithNDBCache(t *testing.T) {
 type opt func(*Query) *Query
 
 func testRun(t *testing.T, tc cases.TestCase, regoVersion ast.RegoVersion, opts ...opt) {
-
+	t.Helper()
 	for k, v := range tc.Env {
 		t.Setenv(k, v)
 	}
@@ -203,6 +203,7 @@ func testAssertErrorCode(t *testing.T, wantErrorCode string, err error) {
 }
 
 func testAssertErrorText(t *testing.T, wantText string, err error) {
+	t.Helper()
 	if err == nil {
 		t.Fatal("expected error but got success")
 	}

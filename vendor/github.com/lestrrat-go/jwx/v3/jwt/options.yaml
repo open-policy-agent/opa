@@ -1,0 +1,274 @@
+package_name: jwt
+output: jwt/options_gen.go
+interfaces:
+  - name: GlobalOption
+    comment: |
+      GlobalOption describes an Option that can be passed to `Settings()`.
+  - name: EncryptOption
+    comment: |
+      EncryptOption describes an Option that can be passed to (jwt.Serializer).Encrypt
+  - name: ParseOption
+    methods:
+      - parseOption
+      - readFileOption
+    comment: |
+      ParseOption describes an Option that can be passed to `jwt.Parse()`.
+      ParseOption also implements ReadFileOption, therefore it may be
+      safely pass them to `jwt.ReadFile()`
+  - name: SignOption
+    comment: |
+      SignOption describes an Option that can be passed to `jwt.Sign()` or
+      (jwt.Serializer).Sign
+  - name: SignParseOption
+    methods:
+      - signOption
+      - parseOption
+      - readFileOption
+    comment: |
+      SignParseOption describes an Option that can be passed to both `jwt.Sign()` or
+      `jwt.Parse()`
+  - name: SignEncryptParseOption
+    methods:
+      - parseOption
+      - encryptOption
+      - readFileOption
+      - signOption
+    comment: |
+      SignEncryptParseOption describes an Option that can be passed to both `jwt.Sign()` or
+      `jwt.Parse()`
+  - name: ValidateOption
+    methods:
+      - parseOption
+      - readFileOption
+      - validateOption
+    comment: |
+      ValidateOption describes an Option that can be passed to Validate().
+      ValidateOption also implements ParseOption, therefore it may be
+      safely passed to `Parse()` (and thus `jwt.ReadFile()`)
+  - name: ReadFileOption
+    comment: |
+      ReadFileOption is a type of `Option` that can be passed to `jws.ReadFile`
+  - name: GlobalValidateOption
+    methods:
+      - globalOption
+      - parseOption
+      - readFileOption
+      - validateOption
+    comment: |
+      GlobalValidateOption describes an Option that can be passed to `jwt.Settings()` and `jwt.Validate()`
+options:
+  - ident: AcceptableSkew
+    interface: ValidateOption
+    argument_type: time.Duration
+    comment: |
+      WithAcceptableSkew specifies the duration in which exp, iat and nbf
+      claims may differ by. This value should be positive
+  - ident: Truncation
+    interface: GlobalValidateOption
+    argument_type: time.Duration
+    comment: |
+      WithTruncation specifies the amount that should be used when
+      truncating time values used during time-based validation routines,
+      and by default this is disabled.
+
+      In v2 of this library, time values were truncated down to second accuracy, i.e.
+      1.0000001 seconds is truncated to 1 second. To restore this behavior, set
+      this value to `time.Second`
+
+      Since v3, this option can be passed to `jwt.Settings()` to set the truncation
+      value globally, as well as per invocation of `jwt.Validate()`
+  - ident: Clock
+    interface: ValidateOption
+    argument_type: Clock
+    comment: |
+      WithClock specifies the `Clock` to be used when verifying
+      exp, iat and nbf claims.
+  - ident: Context
+    interface: ValidateOption
+    argument_type: context.Context
+    comment: |
+      WithContext allows you to specify a context.Context object to be used
+      with `jwt.Validate()` option.
+      
+      Please be aware that in the next major release of this library,
+      `jwt.Validate()`'s signature will change to include an explicit
+      `context.Context` object.
+  - ident: ResetValidators
+    interface: ValidateOption
+    argument_type: bool
+    comment: |
+      WithResetValidators specifies that the default validators should be
+      reset before applying the custom validators. By default `jwt.Validate()`
+      checks for the validity of JWT by checking `exp`, `nbf`, and `iat`, even
+      when you specify more validators through other options.
+
+      You SHOULD NOT use this option unless you know exactly what you are doing,
+      as this will pose significant security issues when used incorrectly.
+
+      Using this option with the value `true` will remove all default checks, 
+      and will expect you to specify validators as options. This is useful when you
+      want to skip the default validators and only use specific validators, such as
+      for https://openid.net/specs/openid-connect-rpinitiated-1_0.html, where
+      the token could be accepted even if the token is expired.
+
+      If you set this option to true and you do not specify any validators,
+      `jwt.Validate()` will return an error.
+
+      The default value is `false` (`iat`, `exp`, and `nbf` are automatically checked).
+  - ident: FlattenAudience
+    interface: GlobalOption
+    argument_type: bool
+    comment: |
+      WithFlattenAudience specifies the the `jwt.FlattenAudience` option on
+      every token defaults to enabled. You can still disable this on a per-object
+      basis using the `jwt.Options().Disable(jwt.FlattenAudience)` method call.
+
+      See the documentation for `jwt.TokenOptionSet`, `(jwt.Token).Options`, and
+      `jwt.FlattenAudience` for more details
+  - ident: FormKey
+    interface: ParseOption
+    argument_type: string
+    comment: |
+      WithFormKey is used to specify header keys to search for tokens.
+      
+      While the type system allows this option to be passed to jwt.Parse() directly,
+      doing so will have no effect. Only use it for HTTP request parsing functions
+  - ident: HeaderKey
+    interface: ParseOption
+    argument_type: string
+    comment: |
+      WithHeaderKey is used to specify header keys to search for tokens.
+      
+      While the type system allows this option to be passed to `jwt.Parse()` directly,
+      doing so will have no effect. Only use it for HTTP request parsing functions
+  - ident: Cookie
+    interface: ParseOption
+    argument_type: '**http.Cookie'
+    comment: |
+      WithCookie is used to specify a variable to store the cookie used when `jwt.ParseCookie()`
+      is called. This allows you to inspect the cookie for additional information after a successful
+      parsing of the JWT token stored in the cookie.
+      
+      While the type system allows this option to be passed to `jwt.Parse()` directly,
+      doing so will have no effect. Only use it for HTTP request parsing functions
+  - ident: CookieKey
+    interface: ParseOption
+    argument_type: string
+    comment: |
+      WithCookieKey is used to specify cookie keys to search for tokens.
+      
+      While the type system allows this option to be passed to `jwt.Parse()` directly,
+      doing so will have no effect. Only use it for HTTP request parsing functions
+  - ident: Token
+    interface: ParseOption
+    argument_type: Token
+    comment: |
+      WithToken specifies the token instance in which the resulting JWT is stored
+      when parsing JWT tokens
+  - ident: Validate
+    interface: ParseOption
+    argument_type: bool
+    comment: |
+      WithValidate is passed to `Parse()` method to denote that the
+      validation of the JWT token should be performed (or not) after
+      a successful parsing of the incoming payload.
+
+      This option is enabled by default. 
+
+      If you would like disable validation,
+      you must use `jwt.WithValidate(false)` or use `jwt.ParseInsecure()`
+  - ident: Verify
+    interface: ParseOption
+    argument_type: bool
+    comment: |
+      WithVerify is passed to `Parse()` method to denote that the
+      signature verification should be performed after a successful
+      deserialization of the incoming payload.
+
+      This option is enabled by default.
+
+      If you do not provide any verification key sources, `jwt.Parse()`
+      would return an error.
+      
+      If you would like to only parse the JWT payload and not verify it,
+      you must use `jwt.WithVerify(false)` or use `jwt.ParseInsecure()`
+  - ident: KeyProvider
+    interface: ParseOption
+    argument_type: jws.KeyProvider
+    comment: |
+      WithKeyProvider allows users to specify an object to provide keys to
+      sign/verify tokens using arbitrary code. Please read the documentation
+      for `jws.KeyProvider` in the `jws` package for details on how this works.
+  - ident: Pedantic
+    interface: ParseOption
+    argument_type: bool
+    comment: |
+      WithPedantic enables pedantic mode for parsing JWTs. Currently this only
+      applies to checking for the correct `typ` and/or `cty` when necessary.
+  - ident: EncryptOption
+    interface: EncryptOption
+    argument_type: jwe.EncryptOption
+    comment: |
+      WithEncryptOption provides an escape hatch for cases where extra options to
+      `(jws.Serializer).Encrypt()` must be specified when using `jwt.Sign()`. Normally you do not
+      need to use this.
+  - ident: SignOption
+    interface: SignOption
+    argument_type: jws.SignOption
+    comment: |
+      WithSignOption provides an escape hatch for cases where extra options to
+      `jws.Sign()` must be specified when using `jwt.Sign()`. Normally you do not
+      need to use this.
+  - ident: Validator
+    interface: ValidateOption
+    argument_type: Validator
+    comment: |
+     WithValidator validates the token with the given Validator.
+      
+     For example, in order to validate tokens that are only valid during August, you would write
+      
+      validator := jwt.ValidatorFunc(func(_ context.Context, t jwt.Token) error {
+       if time.Now().Month() != 8 {
+        return fmt.Errorf(`tokens are only valid during August!`)
+       }
+       return nil
+      })
+      err := jwt.Validate(token, jwt.WithValidator(validator))
+  - ident: FS
+    interface: ReadFileOption
+    argument_type: fs.FS
+    comment: |
+      WithFS specifies the source `fs.FS` object to read the file from.
+  - ident: NumericDateParsePrecision
+    interface: GlobalOption
+    argument_type: int
+    comment: |
+      WithNumericDateParsePrecision sets the precision up to which the
+      library uses to parse fractional dates found in the numeric date
+      fields. Default is 0 (second, no fractions), max is 9 (nanosecond)
+  - ident: NumericDateFormatPrecision
+    interface: GlobalOption
+    argument_type: int
+    comment: |
+      WithNumericDateFormatPrecision sets the precision up to which the
+      library uses to format fractional dates found in the numeric date
+      fields. Default is 0 (second, no fractions), max is 9 (nanosecond)
+  - ident: NumericDateParsePedantic
+    interface: GlobalOption
+    argument_type: bool
+    comment: |
+      WithNumericDateParsePedantic specifies if the parser should behave
+      in a pedantic manner when parsing numeric dates. Normally this library
+      attempts to interpret timestamps as a numeric value representing
+      number of seconds (with an optional fractional part), but if that fails
+      it tries to parse using a RFC3339 parser. This allows us to parse
+      payloads from non-conforming servers.
+      
+      However, when you set WithNumericDateParePedantic to `true`, the
+      RFC3339 parser is not tried, and we expect a numeric value strictly 
+  - ident: Base64Encoder
+    interface: SignParseOption
+    argument_type: jws.Base64Encoder
+    comment: |
+      WithBase64Encoder specifies the base64 encoder to use for signing
+      tokens and verifying JWS signatures.

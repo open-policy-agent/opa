@@ -1,0 +1,11 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "keytype",
+    srcs = ["keytype.go"],
+    importpath = "github.com/lestrrat-go/jwx/v3/jws/internal/keytype",
+    visibility = ["//jws:__subpackages__"],
+    deps = [
+        "//jwk",
+    ],
+)

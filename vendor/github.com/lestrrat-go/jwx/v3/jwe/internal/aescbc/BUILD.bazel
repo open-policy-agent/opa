@@ -1,0 +1,22 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "aescbc",
+    srcs = ["aescbc.go"],
+    importpath = "github.com/lestrrat-go/jwx/v3/jwe/internal/aescbc",
+    visibility = ["//:__subpackages__"],
+    deps = ["//internal/pool"],
+)
+
+go_test(
+    name = "aescbc_test",
+    srcs = ["aescbc_test.go"],
+    embed = [":aescbc"],
+    deps = ["@com_github_stretchr_testify//require"]
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":aescbc",
+    visibility = ["//jwe:__subpackages__"],
+)

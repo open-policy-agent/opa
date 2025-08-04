@@ -1,0 +1,17 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "tokens",
+    srcs = [
+        "jwe_tokens.go",
+        "tokens.go",
+    ],
+    importpath = "github.com/lestrrat-go/jwx/v3/internal/tokens",
+    visibility = ["//:__subpackages__"],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":tokens",
+    visibility = ["//:__subpackages__"],
+)
