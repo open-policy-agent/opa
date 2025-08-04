@@ -518,7 +518,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) parseSigningKey(c Config) (err erro
 	// For RSA/ECDSA algorithms, parse the PEM-encoded key
 	block, _ := pem.Decode([]byte(keyData))
 	if block == nil {
-		return fmt.Errorf("failed to decode PEM key")
+		return errors.New("failed to decode PEM key")
 	}
 
 	switch block.Type {

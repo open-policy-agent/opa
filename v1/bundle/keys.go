@@ -8,6 +8,7 @@ package bundle
 import (
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -141,7 +142,7 @@ func (s *SigningConfig) GetPrivateKey() (any, error) {
 	// For RSA/ECDSA algorithms, parse the PEM-encoded key
 	block, _ := pem.Decode([]byte(keyData))
 	if block == nil {
-		return nil, fmt.Errorf("failed to parse PEM block containing the key")
+		return nil, errors.New("failed to parse PEM block containing the key")
 	}
 
 	switch block.Type {

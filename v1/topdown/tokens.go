@@ -311,7 +311,7 @@ func getKeysFromCertOrJWK(certificate string) ([]verificationKey, error) {
 	}
 
 	keys := make([]verificationKey, 0, jwks.Len())
-	for i := 0; i < jwks.Len(); i++ {
+	for i := range jwks.Len() {
 		k, ok := jwks.Key(i)
 		if !ok {
 			continue
@@ -708,11 +708,6 @@ func (constraints *tokenConstraints) validAudience(aud ast.Value) bool {
 }
 
 // JWT algorithms
-
-type (
-	tokenVerifyFunction           func(key any, hash crypto.Hash, payload []byte, signature []byte) error
-	tokenVerifyAsymmetricFunction func(key any, hash crypto.Hash, digest []byte, signature []byte) error
-)
 
 // tokenAlgorithms is the known JWT algorithms
 var tokenAlgorithms = map[string]struct{}{

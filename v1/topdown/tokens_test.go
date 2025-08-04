@@ -1002,18 +1002,16 @@ func createBadJwt(t *testing.T, payload string) string {
 }
 
 func createJwt(payload string, privateKey string) (string, error) {
-	const hdr = `{"alg":"RS256"}`
-
 	jwkKeySet, err := jwk.ParseString(privateKey)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse JWK: %s", err.Error())
 	}
-	
+
 	jwkKey, ok := jwkKeySet.Key(0)
 	if !ok {
-		return "", fmt.Errorf("failed to get first key from JWK set")
+		return "", errors.New("failed to get first key from JWK set")
 	}
-	
+
 	var pk interface{}
 	if err := jwk.Export(jwkKey, &pk); err != nil {
 		return "", fmt.Errorf("failed to materialize key: %s", err.Error())
@@ -1191,4 +1189,3 @@ func TestBuiltinJWTVerify_TokenCache(t *testing.T) {
 		})
 	}
 }
-
