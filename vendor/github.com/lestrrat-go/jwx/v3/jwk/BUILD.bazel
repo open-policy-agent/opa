@@ -1,4 +1,4 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "jwk",
@@ -41,6 +41,7 @@ go_library(
 	"//internal/tokens",
         "//jwa",
         "//jwk/ecdsa",
+        "//jwk/jwkbb",
         "@com_github_lestrrat_go_blackmagic//:blackmagic",
         "@com_github_lestrrat_go_httprc_v3//:httprc",
         "@com_github_lestrrat_go_option_v2//:option",
@@ -67,9 +68,12 @@ go_test(
         "//internal/jose",
         "//internal/json",
         "//internal/jwxtest",
+        "//internal/tokens",
         "//jwa",
         "//jwk/ecdsa",
         "//jws",
+        "@com_github_lestrrat_go_blackmagic//:blackmagic",
+        "@com_github_lestrrat_go_httprc_v3//:httprc",
         "@com_github_lestrrat_go_httprc_v3//tracesink",
         "@com_github_stretchr_testify//assert",
         "@com_github_stretchr_testify//require",

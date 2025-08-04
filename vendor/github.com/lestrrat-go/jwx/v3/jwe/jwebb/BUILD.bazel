@@ -1,0 +1,43 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "jwebb",
+    srcs = [
+        "content_cipher.go",
+        "key_decrypt_asymmetric.go",
+        "key_decrypt_symmetric.go",
+        "key_encrypt_asymmetric.go",
+        "key_encrypt_symmetric.go",
+        "key_encryption.go",
+        "keywrap.go",
+    ],
+    importpath = "github.com/lestrrat-go/jwx/v3/jwe/jwebb",
+    visibility = ["//jwe:__subpackages__"],
+    deps = [
+        "//internal/keyconv",
+        "//internal/pool",
+        "//jwe/internal/cipher",
+        "//jwe/internal/concatkdf",
+        "//jwe/internal/content_crypt",
+        "//jwe/internal/keygen",
+        "//internal/tokens",
+        "@org_golang_x_crypto//pbkdf2",
+    ],
+)
+
+go_test(
+    name = "jwebb_test",
+    srcs = [
+        "decrypt_test.go",
+        "jwebb_test.go",
+        "keywrap_test.go",
+    ],
+    embed = [":jwebb"],
+    deps = [
+        "//internal/jwxtest",
+        "//jwa",
+        "//jwe/internal/keygen",
+        "//internal/tokens",
+        "@com_github_stretchr_testify//require",
+    ],
+)

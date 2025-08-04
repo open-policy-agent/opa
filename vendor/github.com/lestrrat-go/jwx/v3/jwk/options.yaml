@@ -63,13 +63,25 @@ options:
   - ident: PEM
     interface: ParseOption
     argument_type: bool
-    comment: WithPEM specifies that the input to `Parse()` is a PEM encoded key.
+    comment: |
+      WithPEM specifies that the input to `Parse()` is a PEM encoded key.
+
+      This option is planned to be deprecated in the future. The plan is to
+      replace it with `jwk.WithX509(true)`
+  - ident: X509
+    interface: ParseOption
+    argument_type: bool
+    comment: |
+      WithX509 specifies that the input to `Parse()` is an X.509 encoded key
   - ident: PEMDecoder
     interface: ParseOption
     argument_type: PEMDecoder
     comment: |
       WithPEMDecoder specifies the PEMDecoder object to use when decoding
       PEM encoded keys. This option can be passed to `jwk.Parse()`
+
+      This option is planned to be deprecated in the future. The plan is to
+      use `jwk.RegisterX509Decoder()` to register a custom X.509 decoder globally.
   - ident: FetchWhitelist
     interface: FetchOption
     argument_type: Whitelist

@@ -70,7 +70,7 @@ func (k *symmetricKey) Thumbprint(hash crypto.Hash) ([]byte, error) {
 	defer k.mu.RUnlock()
 	var octets []byte
 	if err := Export(k, &octets); err != nil {
-		return nil, fmt.Errorf(`failed to materialize symmetric key: %w`, err)
+		return nil, fmt.Errorf(`failed to export symmetric key: %w`, err)
 	}
 
 	h := hash.New()

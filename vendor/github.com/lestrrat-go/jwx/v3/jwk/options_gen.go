@@ -154,6 +154,7 @@ type identPEMDecoder struct{}
 type identStrictKeyUsage struct{}
 type identThumbprintHash struct{}
 type identWaitReady struct{}
+type identX509 struct{}
 
 func (identFS) String() string {
 	return "WithFS"
@@ -193,6 +194,10 @@ func (identThumbprintHash) String() string {
 
 func (identWaitReady) String() string {
 	return "WithWaitReady"
+}
+
+func (identX509) String() string {
+	return "WithX509"
 }
 
 // WithFS specifies the source `fs.FS` object to read the file from.
@@ -242,12 +247,18 @@ func withLocalRegistry(v *json.Registry) ParseOption {
 }
 
 // WithPEM specifies that the input to `Parse()` is a PEM encoded key.
+//
+// This option is planned to be deprecated in the future. The plan is to
+// replace it with `jwk.WithX509(true)`
 func WithPEM(v bool) ParseOption {
 	return &parseOption{option.New(identPEM{}, v)}
 }
 
 // WithPEMDecoder specifies the PEMDecoder object to use when decoding
 // PEM encoded keys. This option can be passed to `jwk.Parse()`
+//
+// This option is planned to be deprecated in the future. The plan is to
+// use `jwk.RegisterX509Decoder()` to register a custom X.509 decoder globally.
 func WithPEMDecoder(v PEMDecoder) ParseOption {
 	return &parseOption{option.New(identPEMDecoder{}, v)}
 }
@@ -278,4 +289,9 @@ func WithThumbprintHash(v crypto.Hash) AssignKeyIDOption {
 // This options is exactly the same as `httprc.WithWaitReady()`
 func WithWaitReady(v bool) RegisterOption {
 	return &registerOption{option.New(identWaitReady{}, v)}
+}
+
+// WithX509 specifies that the input to `Parse()` is an X.509 encoded key
+func WithX509(v bool) ParseOption {
+	return &parseOption{option.New(identX509{}, v)}
 }

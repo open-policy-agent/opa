@@ -1,0 +1,72 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "jwt",
+    srcs = [
+        "builder_gen.go",
+        "errors.go",
+        "filter.go",
+        "fastpath.go",
+        "http.go",
+        "interface.go",
+        "io.go",
+        "jwt.go",
+        "options.go",
+        "options_gen.go",
+        "serialize.go",
+        "token_gen.go",
+        "token_options.go",
+        "token_options_gen.go",
+        "validate.go",
+    ],
+    importpath = "github.com/lestrrat-go/jwx/v3/jwt",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:jwx",
+        "//internal/base64",
+        "//transform",
+        "//internal/json",
+        "//internal/tokens",
+        "//internal/pool",
+        "//jwa",
+        "//jwe",
+        "//jwk",
+        "//jws",
+        "//jws/jwsbb",
+        "//jwt/internal/types",
+        "//jwt/internal/errors",
+        "@com_github_lestrrat_go_blackmagic//:blackmagic",
+        "@com_github_lestrrat_go_option_v2//:option",
+    ],
+)
+
+go_test(
+    name = "jwt_test",
+    srcs = [
+        "jwt_test.go",
+        "options_gen_test.go",
+        "token_options_test.go",
+        "token_test.go",
+        "validate_test.go",
+        "verify_test.go",
+    ],
+    embed = [":jwt"],
+    deps = [
+        "//internal/json",
+        "//internal/jwxtest",
+        "//jwa",
+        "//jwe",
+        "//jwk",
+        "//jwk/ecdsa",
+        "//jws",
+        "//jwt/internal/types",
+	"@com_github_lestrrat_go_httprc_v3//:httprc",
+        "@com_github_stretchr_testify//require",
+    ],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":jwt",
+    visibility = ["//visibility:public"],
+)

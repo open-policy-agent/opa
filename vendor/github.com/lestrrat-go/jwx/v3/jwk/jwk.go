@@ -177,6 +177,7 @@ func ParseRawKey(data []byte, rawkey any) error {
 
 type setDecodeCtx struct {
 	json.DecodeCtx
+
 	ignoreParseError bool
 }
 
@@ -228,12 +229,19 @@ func ParseKey(data []byte, options ...ParseOption) (Key, error) {
 	}
 
 	if parsePEM {
-		if pemDecoder == nil {
-			pemDecoder = NewPEMDecoder()
-		}
-		raw, _, err := pemDecoder.Decode(data)
-		if err != nil {
-			return nil, fmt.Errorf(`failed to parse PEM encoded key: %w`, err)
+		var raw any
+
+		// PEMDecoder should probably be deprecated, because of being a misnomer.
+		if pemDecoder != nil {
+			if err := decodeX509WithPEMDEcoder(&raw, data, pemDecoder); err != nil {
+				return nil, fmt.Errorf(`failed to decode PEM encoded key: %w`, err)
+			}
+		} else {
+			// This version takes into account the various X509 decoders that are
+			// pre-registered.
+			if err := decodeX509(&raw, data); err != nil {
+				return nil, fmt.Errorf(`failed to decode X.509 encoded key: %w`, err)
+			}
 		}
 		return Import(raw)
 	}
@@ -282,6 +290,7 @@ func ParseKey(data []byte, options ...ParseOption) (Key, error) {
 // for `jwk.ParseKey()`.
 func Parse(src []byte, options ...ParseOption) (Set, error) {
 	var parsePEM bool
+	var parseX509 bool
 	var localReg *json.Registry
 	var ignoreParseError bool
 	var pemDecoder PEMDecoder
@@ -290,6 +299,10 @@ func Parse(src []byte, options ...ParseOption) (Set, error) {
 		case identPEM{}:
 			if err := option.Value(&parsePEM); err != nil {
 				return nil, parseerr(`failed to retrieve PEM option value: %w`, err)
+			}
+		case identX509{}:
+			if err := option.Value(&parseX509); err != nil {
+				return nil, parseerr(`failed to retrieve X509 option value: %w`, err)
 			}
 		case identPEMDecoder{}:
 			if err := option.Value(&pemDecoder); err != nil {
@@ -313,7 +326,7 @@ func Parse(src []byte, options ...ParseOption) (Set, error) {
 
 	s := NewSet()
 
-	if parsePEM {
+	if parsePEM || parseX509 {
 		if pemDecoder == nil {
 			pemDecoder = NewPEMDecoder()
 		}

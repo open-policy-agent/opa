@@ -311,7 +311,7 @@ func (k ecdsaPublicKey) Thumbprint(hash crypto.Hash) ([]byte, error) {
 
 	var key ecdsa.PublicKey
 	if err := Export(&k, &key); err != nil {
-		return nil, fmt.Errorf(`failed to materialize ecdsa.PublicKey for thumbprint generation: %w`, err)
+		return nil, fmt.Errorf(`failed to export ecdsa.PublicKey for thumbprint generation: %w`, err)
 	}
 
 	xbuf := ecutil.AllocECPointBuffer(key.X, key.Curve)
@@ -335,7 +335,7 @@ func (k ecdsaPrivateKey) Thumbprint(hash crypto.Hash) ([]byte, error) {
 
 	var key ecdsa.PrivateKey
 	if err := Export(&k, &key); err != nil {
-		return nil, fmt.Errorf(`failed to materialize ecdsa.PrivateKey for thumbprint generation: %w`, err)
+		return nil, fmt.Errorf(`failed to export ecdsa.PrivateKey for thumbprint generation: %w`, err)
 	}
 
 	xbuf := ecutil.AllocECPointBuffer(key.X, key.Curve)

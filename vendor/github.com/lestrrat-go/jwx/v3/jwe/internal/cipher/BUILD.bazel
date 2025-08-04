@@ -1,0 +1,34 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "cipher",
+    srcs = [
+        "cipher.go",
+        "interface.go",
+    ],
+    importpath = "github.com/lestrrat-go/jwx/v3/jwe/internal/cipher",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//jwa",
+        "//jwe/internal/aescbc",
+        "//jwe/internal/keygen",
+        "//internal/tokens",
+    ],
+)
+
+go_test(
+    name = "cipher_test",
+    srcs = ["cipher_test.go"],
+    deps = [
+        ":cipher",
+        "//jwa",
+        "//internal/tokens",
+        "@com_github_stretchr_testify//require",
+    ],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":cipher",
+    visibility = ["//jwe:__subpackages__"],
+)

@@ -276,7 +276,7 @@ func (k rsaPrivateKey) Thumbprint(hash crypto.Hash) ([]byte, error) {
 
 	var key rsa.PrivateKey
 	if err := Export(&k, &key); err != nil {
-		return nil, fmt.Errorf(`failed to materialize RSA private key: %w`, err)
+		return nil, fmt.Errorf(`failed to export RSA private key: %w`, err)
 	}
 	return rsaThumbprint(hash, &key.PublicKey)
 }
@@ -287,7 +287,7 @@ func (k rsaPublicKey) Thumbprint(hash crypto.Hash) ([]byte, error) {
 
 	var key rsa.PublicKey
 	if err := Export(&k, &key); err != nil {
-		return nil, fmt.Errorf(`failed to materialize RSA public key: %w`, err)
+		return nil, fmt.Errorf(`failed to export RSA public key: %w`, err)
 	}
 	return rsaThumbprint(hash, &key)
 }

@@ -1,0 +1,48 @@
+package tokens
+
+// JWE Key Encryption Algorithms
+const (
+	// RSA algorithms
+	RSA1_5       = "RSA1_5"
+	RSA_OAEP     = "RSA-OAEP"
+	RSA_OAEP_256 = "RSA-OAEP-256"
+	RSA_OAEP_384 = "RSA-OAEP-384"
+	RSA_OAEP_512 = "RSA-OAEP-512"
+
+	// AES Key Wrap algorithms
+	A128KW = "A128KW"
+	A192KW = "A192KW"
+	A256KW = "A256KW"
+
+	// AES GCM Key Wrap algorithms
+	A128GCMKW = "A128GCMKW"
+	A192GCMKW = "A192GCMKW"
+	A256GCMKW = "A256GCMKW"
+
+	// ECDH-ES algorithms
+	ECDH_ES        = "ECDH-ES"
+	ECDH_ES_A128KW = "ECDH-ES+A128KW"
+	ECDH_ES_A192KW = "ECDH-ES+A192KW"
+	ECDH_ES_A256KW = "ECDH-ES+A256KW"
+
+	// PBES2 algorithms
+	PBES2_HS256_A128KW = "PBES2-HS256+A128KW"
+	PBES2_HS384_A192KW = "PBES2-HS384+A192KW"
+	PBES2_HS512_A256KW = "PBES2-HS512+A256KW"
+
+	// Direct key agreement
+	DIRECT = "dir"
+)
+
+// JWE Content Encryption Algorithms
+const (
+	// AES GCM algorithms
+	A128GCM = "A128GCM"
+	A192GCM = "A192GCM"
+	A256GCM = "A256GCM"
+
+	// AES CBC + HMAC algorithms
+	A128CBC_HS256 = "A128CBC-HS256"
+	A192CBC_HS384 = "A192CBC-HS384"
+	A256CBC_HS512 = "A256CBC-HS512"
+)
