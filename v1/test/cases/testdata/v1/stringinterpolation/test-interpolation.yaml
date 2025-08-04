@@ -118,3 +118,12 @@ cases:
     query: data.test.p = x
     want_result:
       - x: "foo bar"
+  - note: stringinterpolation/template expressions with undefined values
+    modules:
+      - |
+        package test
+
+        p := $"{input.x}, {data.y}"
+    query: data.test.p = x
+    want_result:
+      - x: "<undefined>, <undefined>"
