@@ -6,7 +6,6 @@ package cmd
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
 	"io"
 	"os"
@@ -17,31 +16,31 @@ import (
 
 	"github.com/open-policy-agent/opa/cmd/internal/env"
 	"github.com/open-policy-agent/opa/internal/report"
-	"github.com/open-policy-agent/opa/internal/uuid"
 )
 
-func init() {
-
+func initVersion(root *cobra.Command, brand string) {
 	var check bool
 	var versionCommand = &cobra.Command{
 		Use:   "version",
-		Short: "Print the version of OPA",
-		Long:  "Show version and build information for OPA.",
-		PreRunE: func(cmd *cobra.Command, _ []string) error {
+		Short: `Print the version of ` + brand,
+		Long:  `Show version and build information for ` + brand + `.`,
+		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		Run: func(_ *cobra.Command, _ []string) {
-			generateCmdOutput(os.Stdout, check)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+			return generateCmdOutput(os.Stdout, check)
 		},
 	}
 
 	// The version command can also be used to check for the latest released OPA version.
 	// Some tools could use this for feature flagging purposes and hence this option is OFF by-default.
-	versionCommand.Flags().BoolVarP(&check, "check", "c", false, "check for latest OPA release")
-	RootCommand.AddCommand(versionCommand)
+	versionCommand.Flags().BoolVarP(&check, "check", "c", false, "check for latest "+brand+" release")
+	root.AddCommand(versionCommand)
 }
 
-func generateCmdOutput(out io.Writer, check bool) {
+func generateCmdOutput(out io.Writer, check bool) error {
 	fmt.Fprintln(out, "Version: "+version2.Version)
 	fmt.Fprintln(out, "Build Commit: "+version2.Vcs)
 	fmt.Fprintln(out, "Build Timestamp: "+version2.Timestamp)
@@ -64,18 +63,14 @@ func generateCmdOutput(out io.Writer, check bool) {
 		err := checkOPAUpdate(out)
 		if err != nil {
 			fmt.Fprintf(out, "Error: %v\n", err)
-			os.Exit(1)
+			return err
 		}
 	}
+	return nil
 }
 
 func checkOPAUpdate(out io.Writer) error {
-	id, err := uuid.New(rand.Reader)
-	if err != nil {
-		return err
-	}
-
-	reporter, err := report.New(id, report.Options{})
+	reporter, err := report.New(report.Options{})
 	if err != nil {
 		return err
 	}

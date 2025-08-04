@@ -73,7 +73,7 @@ sequenceDiagram
     participant OES as OPA Enabled Software
     participant OPA
     OES->>+OES: 1. Data Loaded
-    OES->>+OPA: 2. Runtime and Releant Preloaded Data
+    OES->>+OPA: 2. Runtime and Relevant Preloaded Data
     OPA->>+OPA: 3. Policy decision <br/>made using data
     OPA->>+OES: Policy Response
 ```

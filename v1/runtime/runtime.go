@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	prometheus_sdk "github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/propagation"
@@ -43,6 +44,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/bundle"
 	opa_config "github.com/open-policy-agent/opa/v1/config"
+	"github.com/open-policy-agent/opa/v1/hooks"
 	"github.com/open-policy-agent/opa/v1/loader"
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/metrics"
@@ -205,6 +207,12 @@ type Params struct {
 	// SkipBundleVerification flag controls whether OPA will verify a signed bundle
 	SkipBundleVerification bool
 
+	// BundleActivatorPlugin controls the name of the activator plugin used to load bundles into the store.
+	BundleActivatorPlugin string
+
+	// BundleLazyLoadingMode flag controls whether OPA will load bundle contents in lazy mode.
+	BundleLazyLoadingMode bool
+
 	// SkipKnownSchemaCheck flag controls whether OPA will perform type checking on known input schemas
 	SkipKnownSchemaCheck bool
 
@@ -222,6 +230,9 @@ type Params struct {
 	// implementation (instead of the default, in-memory store).
 	// It can also be enabled via config, and this runtime field takes precedence.
 	DiskStorage *disk.Options
+
+	// StoreBuilder allows passing a storage backend builder
+	StoreBuilder func(_ context.Context, _ logging.Logger, _ prometheus_sdk.Registerer, config []byte, id string) (storage.Store, error)
 
 	DistributedTracingOpts tracing.Options
 
@@ -249,6 +260,17 @@ type Params struct {
 	// Evaluation performance is affected in that data doesn't need to be converted to AST during evaluation.
 	// Only applicable when using the default in-memory store, and not when used together with the DiskStorage option.
 	ReadAstValuesFromStore bool
+
+	// ExtraDiscoveryOpts allows for passing options to the discovery plugin, as instantiated by the runtime.
+	ExtraDiscoveryOpts []func(*discovery.Discovery)
+
+	// Hooks is our generic extension mechanism.
+	Hooks hooks.Hooks
+
+	// NDBCacheEnabled allows enabling the non-deterministic builtin cache globally.
+	NDBCacheEnabled bool
+
+	Brand string
 }
 
 func (p *Params) regoVersion() ast.RegoVersion {
@@ -279,6 +301,7 @@ func NewParams() Params {
 		Output:             os.Stdout,
 		BundleMode:         false,
 		EnableVersionCheck: false,
+		Brand:              "OPA", // default
 	}
 }
 
@@ -300,7 +323,7 @@ type Runtime struct {
 	logger            logging.Logger
 	server            *server.Server
 	metrics           *prometheus.Provider
-	reporter          *report.Reporter
+	reporter          report.Reporter
 	traceExporter     *otlptrace.Exporter
 	loadedPathsResult *initload.LoadPathsResult
 
@@ -347,6 +370,10 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		logger = stdLogger
 	}
 
+	if err := params.Hooks.Validate(); err != nil {
+		return nil, err
+	}
+
 	var filePaths []string
 	urlPathCount := 0
 	for _, path := range params.Paths {
@@ -368,10 +395,10 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
 
-	var reporter *report.Reporter
+	var reporter report.Reporter
 	if params.EnableVersionCheck {
 		var err error
-		reporter, err = report.New(params.ID, report.Options{Logger: logger})
+		reporter, err = report.New(report.Options{Logger: logger})
 		if err != nil {
 			return nil, fmt.Errorf("config error: %w", err)
 		}
@@ -379,7 +406,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 
 	regoVersion := params.regoVersion()
 
-	loaded, err := initload.LoadPathsForRegoVersion(regoVersion, params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification, false, false, nil, nil)
+	loaded, err := initload.LoadPathsForRegoVersion(regoVersion, params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification, params.BundleLazyLoadingMode, false, false, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("load error: %w", err)
 	}
@@ -416,12 +443,18 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
-	if params.DiskStorage != nil {
+	switch {
+	case params.DiskStorage != nil:
 		store, err = disk.New(ctx, logger, metrics, *params.DiskStorage)
 		if err != nil {
 			return nil, fmt.Errorf("initialize disk store: %w", err)
 		}
-	} else {
+	case params.StoreBuilder != nil:
+		store, err = params.StoreBuilder(ctx, logger, metrics, config, params.ID)
+		if err != nil {
+			return nil, fmt.Errorf("initialize store: %w", err)
+		}
+	default:
 		store = inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false),
 			inmem.OptReturnASTValuesOnRead(params.ReadAstValuesFromStore))
 	}
@@ -455,6 +488,8 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.WithEnableTelemetry(params.EnableVersionCheck),
 		plugins.WithParserOptions(params.parserOptions()),
 		plugins.WithDistributedTracingOpts(params.DistributedTracingOpts),
+		plugins.WithBundleActivatorPlugin(params.BundleActivatorPlugin),
+		plugins.WithHooks(params.Hooks),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
@@ -476,7 +511,14 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
 
-	disco, err := discovery.New(manager, discovery.Factories(registeredPlugins), discovery.Metrics(metrics), discovery.BootConfig(bootConfig))
+	opts := make([]func(*discovery.Discovery), 0, len(params.ExtraDiscoveryOpts)+3)
+	opts = append(opts,
+		discovery.Factories(registeredPlugins),
+		discovery.Metrics(metrics),
+		discovery.BootConfig(bootConfig),
+	)
+	opts = append(opts, params.ExtraDiscoveryOpts...)
+	disco, err := discovery.New(manager, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
@@ -532,7 +574,7 @@ func (rt *Runtime) ServerStatus() ServerStatus {
 }
 
 // StartServer starts the runtime in server mode. This function will block the
-// calling goroutine and will exit the program on error.
+// calling goroutine.
 func (rt *Runtime) StartServer(ctx context.Context) {
 	err := rt.Serve(ctx)
 	if err != nil {
@@ -613,11 +655,13 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithMetrics(rt.metrics).
 		WithMinTLSVersion(rt.Params.MinTLSVersion).
 		WithCipherSuites(rt.Params.CipherSuites).
-		WithDistributedTracingOpts(rt.Params.DistributedTracingOpts)
+		WithDistributedTracingOpts(rt.Params.DistributedTracingOpts).
+		WithHooks(rt.Params.Hooks).
+		WithNDBCacheEnabled(rt.Params.NDBCacheEnabled)
 
 	// If decision_logging plugin enabled, check to see if we opted in to the ND builtins cache.
 	if lp := logs.Lookup(rt.Manager); lp != nil {
-		rt.server = rt.server.WithNDBCacheEnabled(rt.Manager.Config.NDBuiltinCacheEnabled())
+		rt.server = rt.server.WithNDBCacheEnabled(rt.Params.NDBCacheEnabled || rt.Manager.Config.NDBuiltinCacheEnabled())
 	}
 
 	if rt.Params.DiagnosticAddrs != nil {
@@ -750,10 +794,10 @@ func (rt *Runtime) DiagnosticAddrs() []string {
 }
 
 // StartREPL starts the runtime in REPL mode. This function will block the calling goroutine.
-func (rt *Runtime) StartREPL(ctx context.Context) {
+func (rt *Runtime) StartREPL(ctx context.Context) error {
 	if err := rt.Manager.Start(ctx); err != nil {
 		fmt.Fprintln(rt.Params.Output, "error starting plugins:", err)
-		os.Exit(1)
+		return err
 	}
 
 	defer rt.Manager.Stop(ctx)
@@ -767,7 +811,7 @@ func (rt *Runtime) StartREPL(ctx context.Context) {
 	if rt.Params.Watch {
 		if err := rt.startWatcher(ctx, rt.Params.Paths, onReloadPrinter(rt.Params.Output)); err != nil {
 			fmt.Fprintln(rt.Params.Output, "error opening watch:", err)
-			os.Exit(1) //nolint:gocritic
+			return err
 		}
 	}
 
@@ -778,7 +822,7 @@ func (rt *Runtime) StartREPL(ctx context.Context) {
 	}
 
 	rt.repl = repl
-	repl.Loop(ctx)
+	return repl.Loop(ctx)
 }
 
 // SetDistributedTracingLogging configures the distributed tracing's ErrorHandler,
@@ -804,19 +848,19 @@ func (rt *Runtime) checkOPAUpdateLoopDurations(ctx context.Context, done chan st
 	for {
 		resp, err := rt.reporter.SendReport(ctx)
 		if err != nil {
-			rt.logger.WithFields(map[string]any{"err": err}).Debug("Unable to send OPA version report.")
+			rt.logger.WithFields(map[string]any{"err": err}).Debug("Unable to send %s version report.", rt.Params.Brand)
 		} else {
 			if resp.Latest.OPAUpToDate {
 				rt.logger.WithFields(map[string]any{
 					"current_version": version.Version,
-				}).Debug("OPA is up to date.")
+				}).Debug("%s is up to date.", rt.Params.Brand)
 			} else {
 				rt.logger.WithFields(map[string]any{
 					"download_opa":    resp.Latest.Download,
 					"release_notes":   resp.Latest.ReleaseNotes,
 					"current_version": version.Version,
 					"latest_version":  strings.TrimPrefix(resp.Latest.LatestRelease, "v"),
-				}).Info("OPA is out of date.")
+				}).Info("%s is out of date.", rt.Params.Brand)
 			}
 		}
 		select {
@@ -886,8 +930,7 @@ func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, p
 }
 
 func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, removed string) error {
-
-	return pathwatcher.ProcessWatcherUpdateForRegoVersion(ctx, rt.Manager.ParserOptions().RegoVersion, paths, removed, rt.Store, rt.Params.Filter, rt.Params.BundleMode, func(ctx context.Context, txn storage.Transaction, loaded *initload.LoadPathsResult) error {
+	return pathwatcher.ProcessWatcherUpdateForRegoVersion(ctx, rt.Manager.ParserOptions().RegoVersion, paths, removed, rt.Store, rt.Params.Filter, rt.Params.BundleMode, rt.Params.BundleLazyLoadingMode, func(ctx context.Context, txn storage.Transaction, loaded *initload.LoadPathsResult) error {
 		_, err := initload.InsertAndCompile(ctx, initload.InsertAndCompileOptions{
 			Store:         rt.Store,
 			Txn:           txn,
@@ -901,9 +944,9 @@ func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, rem
 	})
 }
 
-func (*Runtime) getBanner() string {
+func (rt *Runtime) getBanner() string {
 	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "OPA %v (commit %v, built at %v)\n", version.Version, version.Vcs, version.Timestamp)
+	fmt.Fprintf(&buf, "%s %v (commit %v, built at %v)\n", rt.Params.Brand, version.Version, version.Vcs, version.Timestamp)
 	fmt.Fprintf(&buf, "\n")
 	fmt.Fprintf(&buf, "Run 'help' to see a list of commands and check for updates.\n")
 	return buf.String()

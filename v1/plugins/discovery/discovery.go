@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -69,10 +70,15 @@ type Discovery struct {
 }
 
 // Factories provides a set of factory functions to use for
-// instantiating custom plugins.
+// instantiating custom plugins. The passed map will be merged
+// with what's already on the `Discovery` instance, overwriting
+// existing keys on clashes.
 func Factories(fs map[string]plugins.Factory) func(*Discovery) {
 	return func(d *Discovery) {
-		d.factories = fs
+		if d.factories == nil {
+			d.factories = make(map[string]plugins.Factory, len(fs))
+		}
+		maps.Copy(d.factories, fs)
 	}
 }
 
@@ -567,7 +573,8 @@ func evaluateBundle(ctx context.Context, id string, info *ast.Term, b *bundleApi
 		return nil, err
 	}
 
-	return config.ParseConfig(bs, id)
+	processedConf := cfg.SubEnvVars(string(bs))
+	return config.ParseConfig([]byte(processedConf), id)
 }
 
 type pluginSet struct {

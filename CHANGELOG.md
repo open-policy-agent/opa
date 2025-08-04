@@ -3,7 +3,240 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 1.7.0
+
+This release contains a mix of new features, performance improvements, and bugfixes. Notably:
+
+- Improved OPA SDK/API for better extensibility
+
+### SDK Improvements
+
+The OPA SDK/API has been improved to provide better extensibility an more points of integration for developers.
+
+- ast: Add `DefaultModuleLoader` ([#7794](https://github.com/open-policy-agent/opa/pull/7794)) authored by @srenatus
+- ast: Add feature registration from the outside ([#7782](https://github.com/open-policy-agent/opa/pull/7782)) authored by @srenatus
+- bundle: Add support for bundle store and activation plugins ([#7771](https://github.com/open-policy-agent/opa/pull/7771)) authored by @philipaconrad
+- cmd: Allow branding ([#7797](https://github.com/open-policy-agent/opa/pull/7797)) authored by @srenatus
+- decisionlogs: Add custom fields grab bag ([#7793](https://github.com/open-policy-agent/opa/pull/7793)) authored by @srenatus
+- plugins: allow registering handlerfuncs with name+path ([#7769](https://github.com/open-policy-agent/opa/pull/7769)) authored by @srenatus
+- rego: Expose `QueryTracers`, `tracing.Options` and `Cancel` from `QueryContext` ([#7767](https://github.com/open-policy-agent/opa/pull/7767)) authored by @philipaconrad
+- rego: Pass along `TracingOpts` into `EvalContext` ([#7778](https://github.com/open-policy-agent/opa/pull/7778)) authored by @srenatus
+- runtime: add `ExtraDiscoveryOpts` to `runtime.Params` ([#7766](https://github.com/open-policy-agent/opa/pull/7766)) authored by @srenatus
+- sdk: Allow for setting default options for all instances ([#7760](https://github.com/open-policy-agent/opa/pull/7760)) authored by @srenatus
+- server: Add hooks wiring + new hooks for inter-query caches ([#7775](https://github.com/open-policy-agent/opa/pull/7775)) authored by @srenatus
+- server: Ensure that wrapped middlewares all support `http.Flusher` ([#7772](https://github.com/open-policy-agent/opa/pull/7772)) authored by @srenatus
+- server/authorizer: Allow adding paths to validator ([#7792](https://github.com/open-policy-agent/opa/pull/7792)) authored by @philipaconrad
+- server+plugins: Allow plugins to inject http handler middlewares ([#7789](https://github.com/open-policy-agent/opa/pull/7789)) authored by @srenatus reported by @deeglaze
+- store+runtime: Extension points for custom stores ([#7779](https://github.com/open-policy-agent/opa/pull/7779)) authored by @srenatus
+- test+eval: Add helper to smuggle compiler through context ([#7790](https://github.com/open-policy-agent/opa/pull/7790)) authored by @srenatus
+- tester: Support `uint64` and `float64` metrics in `runBenchmark` ([#7761](https://github.com/open-policy-agent/opa/pull/7761)) authored by @srenatus
+
+### Runtime, Tooling
+
+- build: Show a warning when .manifest is ignored ([#7807](https://github.com/open-policy-agent/opa/pull/7807)) authored by @charlieegan3
+- cli: Avoid os.Exit() in Run() funcs ([#7788](https://github.com/open-policy-agent/opa/pull/7788)) authored by @srenatus
+- config: Keep unknown env replacements ([#7786](https://github.com/open-policy-agent/opa/pull/7786)) authored by @srenatus
+- format: Not bracketing keywords in imports ([#7742](https://github.com/open-policy-agent/opa/issues/7742)) authored by @johanfylling
+- loader: Add bundle lazy loading mode across the runtime. ([#7768](https://github.com/open-policy-agent/opa/pull/7768)) authored by @philipaconrad
+- loader: Pass bundle name in `AsBundle()` ([#7798](https://github.com/open-policy-agent/opa/pull/7798)) authored by @srenatus
+- opa exec: stop plugins before exit ([#7760](https://github.com/open-policy-agent/opa/pull/7760)) authored by @srenatus
+- plugins/discovery: Make `Factories()` merge the factories ([#7777](https://github.com/open-policy-agent/opa/pull/7777)) authored by @srenatus
+- plugins/discovery: Replace environment variables after evaluation ([#7787](https://github.com/open-policy-agent/opa/pull/7787)) authored by @philipaconrad
+- plugins/logs: Add experimental intermediate results field ([#7796](https://github.com/open-policy-agent/opa/pull/7796)) authored by @philipaconrad
+- report: Fetching latest OPA release version from GitHub ([#7756](https://github.com/open-policy-agent/opa/pull/7756)) authored by @johanfylling  
+  OPA will no longer send telemetry data when fetching the latest release version.
+- runtime: Allow enabling NDBCache by default ([#7780](https://github.com/open-policy-agent/opa/pull/7780)) authored by @srenatus
+- server+logging: Add `BatchDecisionID` field to Decision Logs ([#7791](https://github.com/open-policy-agent/opa/pull/7791)) authored by @philipaconrad
+- store: Improve conflicting root error message ([#7806](https://github.com/open-policy-agent/opa/issues/7806)) authored by @charlieegan3
+
+### Compiler, Topdown and Rego
+
+- perf: AST compiler optimizations ([#7740](https://github.com/open-policy-agent/opa/pull/7740)) authored by @anderseknert
+
+### Docs, Website
+
+**Note:** While we have been working on the new website we have been showing
+the edge documentation contents (as contents and framework changes often must
+go hand in hand). Now that the website development pace has slowed and the
+functionality is more stable, we will be returning to showing the documentation
+content from the latest release instead. Please use the
+[edge documentation site](https://edge--opa-docs.netlify.app/)
+to review new changes. PR previews are also based on the latest branch commit.
+This change will be made to show the v1.7.0 release shortly after publishing.
+
+- docs: Add examples for crypto.sha256 and base64.encode built-in functions ([#7762](https://github.com/open-policy-agent/opa/pull/7762)) authored by @ToluGIT
+- docs: Break out the built-in categories in policy ref ([#7722](https://github.com/open-policy-agent/opa/pull/7722)) authored by @sky3n3t
+- docs: Correctly spell NetBSD ([#7738](https://github.com/open-policy-agent/opa/pull/7738)) authored by @iamleot
+- docs: Fix a number of minor docs typos ([#7799](https://github.com/open-policy-agent/opa/pull/7799)) authored by @charlieegan3
+- docs: Fix `/docs/envoy-authorization/` `404` ([#7755](https://github.com/open-policy-agent/opa/issues/7755) authored by @charlieegan3
+- docs: Remove link to OPA playground share ([#7750](https://github.com/open-policy-agent/opa/pull/7750)) authored by @charlieegan3
+- docs: Revise docs index page wording ([#7805](https://github.com/open-policy-agent/opa/pull/7805)) authored by @charlieegan3
+- docs: Update warning note in GraphQL API docs ([#7737](https://github.com/open-policy-agent/opa/pull/7737)) authored by @charlieegan3
+- website: Add wildcard CORS for data/versions.json ([#7784](https://github.com/open-policy-agent/opa/pull/7784)) authored by @charlieegan3
+- website: Ensure no hscroll on built-in tables ([#7773](https://github.com/open-policy-agent/opa/pull/7773)) authored by @charlieegan3
+- website: Render versions under `/data/versions.json` ([#7783](https://github.com/open-policy-agent/opa/pull/7783)) authored by @charlieegan3
+- website: Set mobile and desktop tab sizes ([#7774](https://github.com/open-policy-agent/opa/pull/7774)) authored by @charlieegan3
+- website: Show link to the edge release of the docs ([#7776](https://github.com/open-policy-agent/opa/pull/7776)) authored by @charlieegan3
+
+### Miscellaneous
+
+- Benchmark fixes ([#7765](https://github.com/open-policy-agent/opa/pull/7765)) authored by @anderseknert
+- Use Regal for linting Rego ([#7752](https://github.com/open-policy-agent/opa/pull/7752)) authored by @anderseknert
+- Use shorthand form for types ([#7757](https://github.com/open-policy-agent/opa/pull/7757)) authored by @anderseknert
+- .github: Use types for issues ([#7751](https://github.com/open-policy-agent/opa/pull/7751)) authored by @charlieegan3
+- build: Add top-level token permissions for workflows ([#7795](https://github.com/open-policy-agent/opa/pull/7795)) authored by @timothyklee
+
+- docs/build: Link checker fixes ([#7743](https://github.com/open-policy-agent/opa/pull/7743)) authored by @charlieegan3
+- Dependency updates; notably:
+  - build(deps): bump github.com/containerd/containerd/v2 from 2.1.1 to 2.1.3
+  - build(deps): bump google.golang.org/grpc from 1.73.0 to 1.74.2
+  - build(deps): bump go.opentelemetry.io deps from 1.36.0/0.61.0 to 1.37.0/0.62.0
+
+## 1.6.0
+
+This release contains a mix of new features, performance improvements, and bugfixes. Notably:
+
+- Improvements to the OPA website and documentation
+- Allowing keywords in Rego references
+- Parallel test execution
+- Faster built-in function execution
+
+### Modernized OPA Website ([#7037](https://github.com/open-policy-agent/opa/issues/7037))
+
+We're continuing to modernize the OPA website with a new design and improved user experience.
+
+Some highlights:
+
+- [Builtins](https://www.openpolicyagent.org/docs/policy-reference#built-in-functions): You can now search them on the docs page!
+- Sidebar redesign: Making it easier to find what you're looking for in our docs
+- Feedback forms: Closing the feedback loop between docs authors and readers -- Please let us know if you dislike, or like, a docs page.
+- [Downloads page](https://www.openpolicyagent.org/docs#1-download-opa): Find your OS' installation instructions on a less cluttered page!
+- And much more
+
+Authored by @sky3n3t and @charlieegan3
+
+### Allowing keywords in Rego references ([#7709](https://github.com/open-policy-agent/opa/pull/7709))
+
+Previously, Rego references could not contain terms that conflict with Rego keywords such as `package`, `if`, `else`, `not`, etc.
+in certain constructs:
+
+```rego
+package example
+
+allow if {
+    input.package.source         # not allowed (before v1.6.0)
+    input["package"].destination # allowed
+}
+```
+
+The constraints for valid Rego references have been relaxed to allow keywords.
+The above example is now valid and will no longer cause a compilation error.
+
+Authored by @johanfylling
+
+### Parallel Test Execution ([#7442](https://github.com/open-policy-agent/opa/issues/7442))
+
+By default, OPA will now run tests in parallel (defaulting to one parallel execution thread per available CPU core), significantly speeding up test execution time for large test suites.
+The performance boost is closely tied to the number of tests in your project and your selected parallelism level. For larger projects and default settings, 2-3x performance gains have been measured on a MacBook Pro. 
+
+Parallelism can be disabled to run tests sequentially by setting the `--parallel` flag to `1`. E.g. `opa test . --parallel=1`.
+
+Authored by @sspaink reported by @anderseknert
+
+### Faster Builtin Function Evaluation
+
+The builtin context, an internal construct of OPA's evaluation engine, was previously provided to every builtin function.
+As it turns out, only very few of them actually need it, for caching, cancellation, or lookups.
+Those builtins are still provided with a builtin context, but for calls to all other builtins, we save the memory required by it.
+The impact is tremendous: Even though the size of a single builtin context is only about 270 bytes, in an example application (Regal), this change brings about 360 MB of reduced memory usage!
+
+Authored by @anderseknert
+
+### Runtime, Tooling, SDK
+
+- cmd/check: `opa check --bundle` report virtual/base doc conflicts ([#7701](https://github.com/open-policy-agent/opa/pull/7701)) authored by @anderseknert  
+  When `opa check` is used with the `--bundle` flag, an error will be reported if the provided json/yaml data has a conflicting overlap with the virtual documents generated by Rego rules. Such conflicts are ambiguous and can lead to unexpected evaluation results, and should be resolved.
+- cmd/inspect: Fixing missing annotations location in `opa inspect` with JSON format ([#7459](https://github.com/open-policy-agent/opa/issues/7459)) authored by @johanfylling reported by @mostealth
+- cmd/parse: Expose `--v0-compatible` flag ([#7668](https://github.com/open-policy-agent/opa/pull/7668)) authored by @tsandall
+- cmd/refactor: Fix src:dst parsing to deal with colons ([#7648](https://github.com/open-policy-agent/opa/pull/7648)) authored by @tsandall
+- metrics: Fix restartable timer bug. ([#7669](https://github.com/open-policy-agent/opa/pull/7669)) authored by @philipaconrad
+- metrics: Prealloc maps + add benchmark ([#7664](https://github.com/open-policy-agent/opa/pull/7664)) authored by @philipaconrad
+- oracle: Add support for some and every ([#7716](https://github.com/open-policy-agent/opa/pull/7716)) authored by @charlieegan3
+- oracle: Support object refs in FindDefinition ([#7711](https://github.com/open-policy-agent/opa/pull/7711)) authored by @charlieegan3
+- plugin/decision: Check if event is too large after compression ([#7526](https://github.com/open-policy-agent/opa/issues/7526)) authored by @sspaink
+- runtime,server: Replace gorilla/mux dependency with http.ServeMux ([#7676](https://github.com/open-policy-agent/opa/pull/7676)) authored by @anderseknert  
+  **Note**: This is a potentially breaking change for go API users directly interfacing with the OPA server's routing. 
+- server: Fix deferred metrics timers. ([#7671](https://github.com/open-policy-agent/opa/pull/7671)) authored by @philipaconrad
+- server: Fix query url when opa is served not from root path ([#7644](https://github.com/open-policy-agent/opa/pull/7644)) authored by @olegKoshmeliuk  
+  **Note**: This is only applicable for the web UI hosted by OPA on its root path (`/`) and OPA is served at some other path than root.
+
+### Compiler, Topdown and Rego
+
+- ast: Ensure surplus leading zeros always error ([#7726](https://github.com/open-policy-agent/opa/pull/7726)) authored by @charlieegan3  
+  **Note**: Primitive Rego number values with leading zeros (e.g. `0123`) are now considered invalid at time of parsing and will generate an error. If you're impacted by this change, please update your policies to not have numbers with leading zeros. E.g. `0123` should be changed to `123`.
+- ast: Fixing type-checker schema cache race condition for inlined schemas ([#7679](https://github.com/open-policy-agent/opa/issues/7679), [7571](https://github.com/open-policy-agent/opa/issues/7571)) authored by @johanfylling reported by @daniel-petrov-gig
+- perf: Improve performance when referencing "global" in loop ([#7654](https://github.com/open-policy-agent/opa/issues/7654)) authored by @anderseknert
+- topdown: Fix issue where path in `walk` would get mutated ([#7656](https://github.com/open-policy-agent/opa/issues/7656)) authored by @anderseknert reported by @robmyersrobmyers
+- topdown/http: Lenient application/json Content-Type header ([#6684](https://github.com/open-policy-agent/opa/issues/6684)) authored by @sspaink reported by @mrvanes
+
+### Docs, Website, Ecosystem
+
+- adopters: add Pix4D as adopters for its RBAC service ([#7645](https://github.com/open-policy-agent/opa/pull/7645)) authored by @marcaurele
+- api: Expand docs for RegisterBuiltin — no thread-safety ([#7667](https://github.com/open-policy-agent/opa/issues/7667)) authored by @anderseknert reported by @parth-mehta-989
+- docs: Added a search function for the builtins section of policy-reference ([#7704](https://github.com/open-policy-agent/opa/pull/7704)) authored by @sky3n3t
+- docs: Add another OR note in AND section ([#7706](https://github.com/open-policy-agent/opa/pull/7706)) authored by @charlieegan3
+- docs: Add basic docs covering CI/CD use case ([#7703](https://github.com/open-policy-agent/opa/pull/7703)) authored by @charlieegan3
+- docs: Add current ecosystem contribution docs ([#7678](https://github.com/open-policy-agent/opa/pull/7678)) authored by @charlieegan3
+- docs: Add EvergreenCodeBlock for code with version ([#7706](github.com/open-policy-agent/opa/pull/7706)) authored by @charlieegan3
+- docs: Add feedback form for user reported issues ([#7662](https://github.com/open-policy-agent/opa/pull/7662)) authored by @charlieegan3
+- docs: Address broken links ([#7661](https://github.com/open-policy-agent/opa/pull/7661)) authored by @charlieegan3
+- docs: Archive explain that only latest patch is shown ([#7682](https://github.com/open-policy-agent/opa/pull/7682))  authored by @charlieegan3
+- docs: Fix bug where the search match respects case ([#7713](https://github.com/open-policy-agent/opa/pull/7713)) authored by @sky3n3t
+- docs: Hide feedback pop-up forever if dismissed ([#7674](https://github.com/open-policy-agent/opa/pull/7674)) authored by @charlieegan3
+- docs: Improve bundle structure documentation ([#7683](https://github.com/open-policy-agent/opa/pull/7683)) authored by @charlieegan3
+- docs: Improve explanations for initial examples ([#7677](https://github.com/open-policy-agent/opa/pull/7677)) authored by @charlieegan3
+- docs: Install/Download Instruction Update ([#7687](https://github.com/open-policy-agent/opa/pull/7687)) authored by @charlieegan3
+- docs: Move code example data inside the PlaygroundComponent ([#7724](https://github.com/open-policy-agent/opa/pull/7724)) authored by @sky3n3t
+- docs: policy-reference, update sig algs formatting ([#7685](https://github.com/open-policy-agent/opa/pull/7685)) authored by @charlieegan3
+- docs: Redirect old admission control link ([#7730](https://github.com/open-policy-agent/opa/pull/7730)) authored by @charlieegan3
+- docs: Refactored Networking Reference docs ([#7686](https://github.com/open-policy-agent/opa/pull/7686)) authored by @sky3n3t
+- docs: Revise sidebar order and layout ([#7731](https://github.com/open-policy-agent/opa/pull/7731)) authored by @charlieegan3
+- docs: Reworked existing policy examples to use PlaygroundExample ([#7690](https://github.com/open-policy-agent/opa/pull/7690)) authored by @sky3n3t
+- docs: Show a feedback popup on the docs site ([#7663](https://github.com/open-policy-agent/opa/pull/7663)) authored by @charlieegan3
+- docs: Show edge rather than latest release ([#7717](https://github.com/open-policy-agent/opa/pull/7717)) authored by @charlieegan3
+- docs: Show TOC on CLI page ([#7712](https://github.com/open-policy-agent/opa/pull/7712)) authored by @charlieegan3
+- docs: Update colors for feedback form in dark mode ([#7691](https://github.com/open-policy-agent/opa/pull/7691)) authored by @charlieegan3
+- docs: Update policy-ref allowing anchor linking ([#7675](https://github.com/open-policy-agent/opa/pull/7675)) authored by @charlieegan3
+- docs: Update rego in deployment examples ([#7707](https://github.com/open-policy-agent/opa/pull/7707)) authored by @charlieegan3
+- docs: Update sidebar ([#7723](https://github.com/open-policy-agent/opa/pull/7723)) authored by @charlieegan3
+- website: Disable cancel script ([#7719](https://github.com/open-policy-agent/opa/pull/7719)) authored by @charlieegan3
+- website: Explain automation in RELEASE.md ([#7721](https://github.com/open-policy-agent/opa/pull/7721)) authored by @charlieegan3
+- website: Fix badge endpoints ([#7653](https://github.com/open-policy-agent/opa/pull/7653)) authored by @charlieegan3
+- website: Refactor site components with CSS modules ([#7666](https://github.com/open-policy-agent/opa/pull/7666)) authored by @charlieegan3
+- website: Update docusaurus components to 3.8.1 ([#7718](https://github.com/open-policy-agent/opa/pull/7718)) authored by @charlieegan3
+
+### Miscellaneous
+
+- build: Better detection of go changes ([#7696](https://github.com/open-policy-agent/opa/pull/7696)) authored by @charlieegan3
+- build: Bump golang 1.24.3 -> 1.24.4 ([#7672](https://github.com/open-policy-agent/opa/pull/7672)) authored by @srenatus
+- Adding Clarification to merge instructions when cutting a patch release ([#7660](https://github.com/open-policy-agent/opa/pull/7660)) authored by @johanfylling
+- build: Make summary failure source clearer ([#7697](https://github.com/open-policy-agent/opa/pull/7697)) authored by @charlieegan3
+- build: Skip jobs for non docs changes ([#7688](https://github.com/open-policy-agent/opa/pull/7688)) authored by @charlieegan3
+- deps: Use `google.golang.org/protobuf` ([#7655](https://github.com/open-policy-agent/opa/pull/7655)) authored by @sspaink
+- perf: Simplify interning ([#7714](https://github.com/open-policy-agent/opa/pull/7714)) authored by @anderseknert
+- perf: Only pass built-in context to calls depending on it ([#7728](https://github.com/open-policy-agent/opa/pull/7728)) authored by @anderseknert
+- perf: Improve built-in `concat` performance ([#7702](https://github.com/open-policy-agent/opa/pull/7702)) authored by @anderseknert
+- perf: More efficient data/v1 POST handler ([#7673](https://github.com/open-policy-agent/opa/pull/7673)) authored by @anderseknert
+- test: Fix flaky TestRaisingHTTPClientQueryError ([#7698](https://github.com/open-policy-agent/opa/pull/7698)) authored by @sspaink
+- test: Fix flaky topdown query cache tests ([#7590](https://github.com/open-policy-agent/opa/issues/7590)) authored by @sspaink
+- Dependency updates; notably:
+  - build(deps): Bump gqlparser from v2.5.27 to v2.5.28 ([#7699](https://github.com/open-policy-agent/opa/issues/7699)) authored by @robmyersrobmyers
+  - build(deps): bump github.com/go-logr/logr from 1.4.2 to 1.4.3
+  - build(deps): bump github.com/vektah/gqlparser/v2 from 2.5.26 to 2.5.27
+  - build(deps): bump golang.org/x/net from 0.39.0 to 0.40.0
+  - build(deps): bump google.golang.org/grpc from 1.72.0 to 1.72.2
+  - build(deps): bump oras.land/oras-go/v2 from 2.5.0 to 2.6.0
+  - build(deps): bump go.opentelemetry.io deps to 1.36.0/0.61.0
 
 ## 1.5.1
 

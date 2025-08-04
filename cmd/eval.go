@@ -138,6 +138,9 @@ func validateEvalParams(p *evalCommandParams, cmdArgs []string) error {
 
 	// check if illegal arguments is passed with unknowns flag
 	for _, unknwn := range p.unknowns {
+		if unknwn == "input" {
+			continue
+		}
 		term, err := ast.ParseTerm(unknwn)
 		if err != nil {
 			return err
@@ -175,13 +178,21 @@ const (
 	defaultPrettyLimit  = 80
 )
 
-type regoError struct{}
+type regoError struct {
+	wrapped error
+}
 
 func (regoError) Error() string {
 	return "rego"
 }
 
-func init() {
+func (r regoError) Unwrap() error {
+	return r.wrapped
+}
+
+func initEval(root *cobra.Command, _ string) {
+	executable := root.Name()
+
 	params := newEvalCommandParams()
 
 	evalCommand := &cobra.Command{
@@ -192,15 +203,15 @@ func init() {
 
 To evaluate a simple query:
 
-    $ opa eval 'x := 1; y := 2; x < y'
+    $ ` + executable + ` eval 'x := 1; y := 2; x < y'
 
 To evaluate a query against JSON data:
 
-    $ opa eval --data data.json 'name := data.names[_]'
+    $ ` + executable + ` eval --data data.json 'name := data.names[_]'
 
 To evaluate a query against JSON data supplied with a file:// URL:
 
-    $ opa eval --data file:///path/to/file.json 'data'
+    $ ` + executable + ` eval --data file:///path/to/file.json 'data'
 
 
 File & Bundle Loading
@@ -210,7 +221,7 @@ The --bundle flag will load data files and Rego files contained
 in the bundle specified by the path. It can be either a
 compressed tar archive bundle file or a directory tree.
 
-    $ opa eval --bundle /some/path 'data'
+    $ ` + executable + ` eval --bundle /some/path 'data'
 
 Where /some/path contains:
 
@@ -263,8 +274,8 @@ Schema
 The -s/--schema flag provides one or more JSON Schemas used to validate references to the input or data documents.
 Loads a single JSON file, applying it to the input document; or all the schema files under the specified directory.
 
-    $ opa eval --data policy.rego --input input.json --schema schema.json
-    $ opa eval --data policy.rego --input input.json --schema schemas/
+    $ ` + executable + ` eval --data policy.rego --input input.json --schema schema.json
+    $ ` + executable + ` eval --data policy.rego --input input.json --schema schemas/
 
 Capabilities
 ------------
@@ -295,18 +306,22 @@ access.
 			}
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		Run: func(_ *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+
 			defined, err := eval(args, params, os.Stdout)
 			if err != nil {
 				if _, ok := err.(regoError); !ok {
 					fmt.Fprintln(os.Stderr, err)
 				}
-				os.Exit(2)
+				return newExitErrorWrap(2, err)
 			}
 
 			if (params.fail && !defined) || (params.failDefined && defined) {
-				os.Exit(1)
+				return newExitError(1)
 			}
+			return nil
 		},
 	}
 
@@ -354,7 +369,7 @@ access.
 	addV1CompatibleFlag(evalCommand.Flags(), &params.v1Compatible, false)
 	addReadAstValuesFromStoreFlag(evalCommand.Flags(), &params.ReadAstValuesFromStore, false)
 
-	RootCommand.AddCommand(evalCommand)
+	root.AddCommand(evalCommand)
 }
 
 func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
@@ -444,7 +459,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 		// If the rego package returned an error, return a special error here so
 		// that the command doesn't print the same error twice. The error will
 		// have been printed above by the presentation package.
-		return false, regoError{}
+		return false, regoError{wrapped: result.Errors}
 	} else if len(result.Result) == 0 {
 		return false, nil
 	}
@@ -463,7 +478,9 @@ func evalOnce(ctx context.Context, ectx *evalContext) pr.Output {
 	if ectx.profiler != nil {
 		ectx.profiler.reset()
 	}
-	r := rego.New(ectx.regoArgs...)
+	r := rego.New(append(ectx.regoArgs, rego.CompilerHook(func(c *ast.Compiler) {
+		ctx = ast.WithCompiler(ctx, c)
+	}))...)
 
 	if !ectx.params.partial {
 		var pq rego.PreparedEvalQuery
@@ -558,6 +575,7 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		rego.Runtime(info),
 		rego.SetRegoVersion(params.regoVersion()),
 		rego.StoreReadAST(params.ReadAstValuesFromStore),
+		rego.SkipBundleVerification(true),
 	}
 
 	evalArgs := []rego.EvalOption{
@@ -602,7 +620,9 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		}
 	}
 
-	regoArgs = append(regoArgs, rego.SkipBundleVerification(true), rego.Target(params.target.String()))
+	if params.target.IsSet() {
+		regoArgs = append(regoArgs, rego.Target(params.target.String()))
+	}
 
 	inputBytes, err := readInputBytes(params)
 	if err != nil {
@@ -859,6 +879,7 @@ func generateOptimizedBundle(params evalCommandParams, asBundle bool, filter loa
 		WithCapabilities(capabilities).
 		WithTarget(params.target.String()).
 		WithAsBundle(asBundle).
+		WithBundleLazyLoadingMode(bundle.HasExtension()).
 		WithOptimizationLevel(params.optimizationLevel).
 		WithOutput(bytes.NewBuffer(nil)).
 		WithEntrypoints(params.entrypoints.v...).

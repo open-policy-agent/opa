@@ -309,7 +309,7 @@ func TestMakeInput(t *testing.T) {
 
 	req = identifier.SetIdentity(req, "bob")
 
-	_, result, err := makeInput(req)
+	_, result, err := makeInput(req, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -331,16 +331,15 @@ func TestMakeInput(t *testing.T) {
 	if !bytes.Equal(util.MustMarshalJSON(expectedResult), util.MustMarshalJSON(result)) {
 		t.Fatalf("Expected %+v but got %+v", expectedResult, result)
 	}
-
 }
 
 func TestMakeInputWithBody(t *testing.T) {
-
 	reqs := []struct {
 		method                 string
 		path                   string
 		headers                map[string]string
 		body                   string
+		extraPaths             []func(string, []any) bool
 		useYAML                bool
 		assertBodyExists       bool
 		assertBodyDoesNotExist bool
@@ -393,6 +392,16 @@ func TestMakeInputWithBody(t *testing.T) {
 			body:                   "package test\np = 7",
 			assertBodyDoesNotExist: true,
 		},
+		{
+			method: "PUT",
+			path:   "/v1/example-plugin",
+			body:   `{"example": "body must still be yaml or json"}`,
+			extraPaths: []func(string, []any) bool{func(method string, path []any) bool {
+				s1 := path[0].(string)
+				s2 := path[1].(string)
+				return dataAPIVersions[s1] && s2 == "example-plugin"
+			}},
+		},
 	}
 
 	for _, tc := range reqs {
@@ -408,7 +417,7 @@ func TestMakeInputWithBody(t *testing.T) {
 				req.Header.Set("Content-Type", "application/x-yaml")
 			}
 
-			req, input, err := makeInput(req)
+			req, input, err := makeInput(req, tc.extraPaths)
 			if err != nil {
 				t.Fatal(err)
 			}

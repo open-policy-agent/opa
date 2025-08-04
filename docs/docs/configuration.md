@@ -295,7 +295,7 @@ services:
         token_url: ${TOKEN_URL}
         grant_type: client_credentials
         client_id: opa-client
-        aazure_keyvault:
+        azure_keyvault:
           key: ${AZURE_KEY_NAME}
           key_algorithm: ES256
           vault: ${AZURE_VAULT_NAME}
@@ -409,8 +409,8 @@ The AWS signature version to sign the request with can be specified in the `sign
 
 | Field                                                  | Type     | Required | Description                                                                    |
 | ------------------------------------------------------ | -------- | -------- | ------------------------------------------------------------------------------ |
-| `services[_].credentials.s3_signing.service`           | `string` | No       | The AWS service to sign requests with, eg `execute-api` or `s3`. Default: `s3` |
-| `services[_].credentials.s3_signing.signature_version` | `string` | No       | The AWS signature version to sign requests with, eg `4` or `4a`. Default: `4`  |
+| `services[_].credentials.s3_signing.service`           | `string` | No       | The AWS service to sign requests with, e.g. `execute-api` or `s3`. Default: `s3` |
+| `services[_].credentials.s3_signing.signature_version` | `string` | No       | The AWS signature version to sign requests with, e.g. `4` or `4a`. Default: `4`  |
 
 #### Using Static Environment Credentials
 
@@ -666,7 +666,7 @@ credentials:
     token: "<PAT>"
 ```
 
-The following is a complete exmaple using an OCI service type to download a bundle from an OCI repository.
+The following is a complete example using an OCI service type to download a bundle from an OCI repository.
 
 ```yaml
 services:

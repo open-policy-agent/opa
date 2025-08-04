@@ -13,6 +13,7 @@ import (
 	"os"
 	"path"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -67,27 +68,28 @@ func newRunParams() runCmdParams {
 	}
 }
 
-func init() {
+func initRun(root *cobra.Command, brand string) {
+	executable := root.Name()
 	cmdParams := newRunParams()
 
 	runCommand := &cobra.Command{
 		Use:   "run",
-		Short: "Start OPA in interactive or server mode",
-		Long: `Start an instance of the Open Policy Agent (OPA).
+		Short: `Start ` + brand + ` in interactive or server mode`,
+		Long: `Start an instance of ` + brand + `.
 
 To run the interactive shell:
 
-    $ opa run
+    $ ` + executable + ` run
 
 To run the server:
 
-    $ opa run -s
+    $ ` + executable + ` run -s
 
-The 'run' command starts an instance of the OPA runtime. The OPA runtime can be
+The 'run' command starts an instance of the ` + brand + ` runtime. The ` + brand + ` runtime can be
 started as an interactive shell or a server.
 
 When the runtime is started as a shell, users can define rules and evaluate
-expressions interactively. When the runtime is started as a server, OPA exposes
+expressions interactively. When the runtime is started as a server, ` + brand + ` exposes
 an HTTP API for managing policies, reading and writing data, and executing
 queries.
 
@@ -95,11 +97,11 @@ The runtime can be initialized with one or more files that contain policies or
 data. If the '--bundle' option is specified the paths will be treated as policy
 bundles and loaded following standard bundle conventions. The path can be a
 compressed archive file or a directory which will be treated as a bundle.
-Without the '--bundle' flag OPA will recursively load ALL rego, JSON, and YAML
+Without the '--bundle' flag ` + brand + ` will recursively load ALL rego, JSON, and YAML
 files.
 
 When loading from directories, only files with known extensions are considered.
-The current set of file extensions that OPA will consider are:
+The current set of file extensions that ` + brand + ` will consider are:
 
     .json          # JSON data
     .yaml or .yml  # YAML data
@@ -117,7 +119,7 @@ To set a data file as the input document in the interactive shell use the
 
 Example:
 
-    $ opa run repl.input:input.json
+    $ ` + executable + ` run repl.input:input.json
 
 Which will load the "input.json" file at path "data.repl.input".
 
@@ -126,22 +128,22 @@ Use the "help input" command in the interactive shell to see more options.
 
 File paths can be specified as URLs to resolve ambiguity in paths containing colons:
 
-    $ opa run file:///c:/path/to/data.json
+    $ ` + executable + ` run file:///c:/path/to/data.json
 
 URL paths to remote public bundles (http or https) will be parsed as shorthand
 configuration equivalent of using repeated --set flags to accomplish the same:
 
-	$ opa run -s https://example.com/bundles/bundle.tar.gz
+	$ ` + executable + ` run -s https://example.com/bundles/bundle.tar.gz
 
 The above shorthand command is identical to:
 
-    $ opa run -s --set "services.cli1.url=https://example.com" \
+    $ ` + executable + ` run -s --set "services.cli1.url=https://example.com" \
                  --set "bundles.cli1.service=cli1" \
                  --set "bundles.cli1.resource=/bundles/bundle.tar.gz" \
                  --set "bundles.cli1.persist=true"
 
 The 'run' command can also verify the signature of a signed bundle.
-A signed bundle is a normal OPA bundle that includes a file
+A signed bundle is a normal ` + brand + ` bundle that includes a file
 named ".signatures.json". For more information on signed bundles
 see https://www.openpolicyagent.org/docs/latest/management-bundles/#signing.
 
@@ -162,7 +164,7 @@ bundle signature verification.
 
 Example:
 
-    $ opa run --verification-key secret --signing-alg HS256 --bundle bundle.tar.gz
+    $ ` + executable + ` run --verification-key secret --signing-alg HS256 --bundle bundle.tar.gz
 
 The 'run' command will read the bundle "bundle.tar.gz", check the
 ".signatures.json" file and perform verification using the provided key.
@@ -202,22 +204,25 @@ See https://godoc.org/crypto/tls#pkg-constants for more information.
 		PreRunE: func(cmd *cobra.Command, _ []string) error {
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+
 			ctx := context.Background()
 			addrSetByUser := cmd.Flags().Changed("addr")
 			rt, err := initRuntime(ctx, cmdParams, args, addrSetByUser)
 			if err != nil {
 				fmt.Println("error:", err)
-				os.Exit(1)
+				return err
 			}
-			startRuntime(ctx, rt, cmdParams.serverMode)
+			return startRuntime(ctx, rt, cmdParams.serverMode)
 		},
 	}
 
 	addConfigFileFlag(runCommand.Flags(), &cmdParams.rt.ConfigFile)
 	runCommand.Flags().BoolVarP(&cmdParams.serverMode, "server", "s", false, "start the runtime in server mode")
 	runCommand.Flags().IntVar(&cmdParams.rt.ReadyTimeout, "ready-timeout", 0, "wait (in seconds) for configured plugins before starting server (value <= 0 disables ready check)")
-	runCommand.Flags().StringVarP(&cmdParams.rt.HistoryPath, "history", "H", historyPath(), "set path of history file")
+	runCommand.Flags().StringVarP(&cmdParams.rt.HistoryPath, "history", "H", historyPath(brand), "set path of history file")
 	cmdParams.rt.Addrs = runCommand.Flags().StringSliceP("addr", "a", []string{defaultLocalAddr}, "set listening address of the server (e.g., [ip]:<port> for TCP, unix://<path> for UNIX domain socket)")
 	cmdParams.rt.DiagnosticAddrs = runCommand.Flags().StringSlice("diagnostic-addr", []string{}, "set read-only diagnostic listening address of the server for /health and /metric APIs (e.g., [ip]:<port> for TCP, unix://<path> for UNIX domain socket)")
 	cmdParams.rt.UnixSocketPerm = runCommand.Flags().String("unix-socket-perm", "755", "specify the permissions for the Unix domain socket if used to listen for incoming connections")
@@ -234,7 +239,7 @@ See https://godoc.org/crypto/tls#pkg-constants for more information.
 	runCommand.Flags().DurationVar(&cmdParams.tlsCertRefresh, "tls-cert-refresh-period", 0, "set certificate refresh period")
 	runCommand.Flags().Var(cmdParams.authentication, "authentication", "set authentication scheme")
 	runCommand.Flags().Var(cmdParams.authorization, "authorization", "set authorization scheme")
-	runCommand.Flags().Var(cmdParams.minTLSVersion, "min-tls-version", "set minimum TLS version to be used by OPA's server")
+	runCommand.Flags().Var(cmdParams.minTLSVersion, "min-tls-version", "set minimum TLS version to be used by "+brand+"'s server")
 	runCommand.Flags().VarP(cmdParams.logLevel, "log-level", "l", "set log level")
 	runCommand.Flags().Var(cmdParams.logFormat, "log-format", "set log format")
 	runCommand.Flags().StringVar(&cmdParams.logTimestampFormat, "log-timestamp-format", "", "set log timestamp format (OPA_LOG_TIMESTAMP_FORMAT environment variable)")
@@ -274,7 +279,7 @@ Flags:
 
 	runCommand.SetUsageTemplate(usageTemplate)
 
-	RootCommand.AddCommand(runCommand)
+	root.AddCommand(runCommand)
 }
 
 func initRuntime(ctx context.Context, params runCmdParams, args []string, addrSetByUser bool) (*runtime.Runtime, error) {
@@ -388,12 +393,11 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string, addrSe
 	return rt, nil
 }
 
-func startRuntime(ctx context.Context, rt *runtime.Runtime, serverMode bool) {
+func startRuntime(ctx context.Context, rt *runtime.Runtime, serverMode bool) error {
 	if serverMode {
-		rt.StartServer(ctx)
-	} else {
-		rt.StartREPL(ctx)
+		return rt.Serve(ctx)
 	}
+	return rt.StartREPL(ctx)
 }
 
 func verifyCipherSuites(cipherSuites []string) (*[]uint16, error) {
@@ -425,12 +429,15 @@ func verifyCipherSuites(cipherSuites []string) (*[]uint16, error) {
 	return &cipherSuitesIDs, nil
 }
 
-func historyPath() string {
+func historyPath(brand string) string {
+	b := strings.ToLower(brand)
+	historyFile := strings.Replace(defaultHistoryFile, "opa", b, 1)
+
 	home := os.Getenv("HOME")
 	if len(home) == 0 {
-		return defaultHistoryFile
+		return historyFile
 	}
-	return path.Join(home, defaultHistoryFile)
+	return path.Join(home, historyFile)
 }
 
 func loadCertificate(tlsCertFile, tlsPrivateKeyFile string) (*tls.Certificate, error) {

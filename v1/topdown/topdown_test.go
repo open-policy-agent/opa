@@ -2341,7 +2341,7 @@ func init() {
 		Name: "test.sleep",
 		Decl: types.NewFunction(
 			types.Args(types.S),
-			types.NewNull(),
+			types.Nl,
 		),
 	})
 

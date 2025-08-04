@@ -182,7 +182,7 @@ func TestCheckInference(t *testing.T) {
 				3];
 
 			x = a[1].foo[_].bar`, map[Var]types.Type{
-			Var("x"): types.NewAny(types.NewNull(), types.B),
+			Var("x"): types.NewAny(types.Nl, types.B),
 		}},
 		{"local-reference-var", `
 
@@ -390,7 +390,7 @@ func TestCheckInferenceRules(t *testing.T) {
 
 		{"complete-doc-suffix", ruleset1, `data.a.complete[0].foo`, types.N},
 
-		{"else-kw", ruleset1, "data.c.else_kw", types.NewAny(types.NewNull(), types.N, types.S)},
+		{"else-kw", ruleset1, "data.c.else_kw", types.NewAny(types.Nl, types.N, types.S)},
 
 		{"partial-set-doc", ruleset1, `data.a.partialset`, types.NewSet(
 			types.NewObject(

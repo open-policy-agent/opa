@@ -44,13 +44,14 @@ func newSignCmdParams() signCmdParams {
 	return signCmdParams{}
 }
 
-func init() {
+func initSign(root *cobra.Command, brand string) {
+	executable := root.Name()
 	cmdParams := newSignCmdParams()
 
 	var signCommand = &cobra.Command{
 		Use:   "sign <path> [<path> [...]]",
-		Short: "Generate an OPA bundle signature",
-		Long: `Generate an OPA bundle signature.
+		Short: `Generate an ` + brand + ` bundle signature`,
+		Long: `Generate an ` + brand + ` bundle signature.
 
 The 'sign' command generates a digital signature for policy bundles. It generates a
 ".signatures.json" file that dictates which files should be included in the bundle,
@@ -70,10 +71,10 @@ the private key.
 For HMAC family of algorithms (eg. HS256), the secret can be provided using
 the --signing-key flag.
 
-OPA 'sign' can ONLY be used with the --bundle flag to load paths that refer to
+` + brand + ` 'sign' can ONLY be used with the --bundle flag to load paths that refer to
 existing bundle files or directories following the bundle structure.
 
-	$ opa sign --signing-key /path/to/private_key.pem --bundle foo
+	$ ` + executable + ` sign --signing-key /path/to/private_key.pem --bundle foo
 
 Where foo has the following structure:
 
@@ -122,7 +123,7 @@ And the decoded JWT payload has the following form:
 	}
 
 The "files" field is generated from the files under the directory path(s)
-provided to the 'sign' command. During bundle signature verification, OPA will check
+provided to the 'sign' command. During bundle signature verification, ` + brand + ` will check
 each file name (ex. "foo/bar/data.json") in the "files" field
 exists in the actual bundle. The file content is hashed using SHA256.
 
@@ -139,11 +140,15 @@ https://www.openpolicyagent.org/docs/latest/management-bundles/#signature-format
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
 
-		Run: func(_ *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+
 			if err := doSign(args, cmdParams); err != nil {
 				fmt.Println("error:", err)
-				os.Exit(1)
+				return err
 			}
+			return nil
 		},
 	}
 
@@ -157,7 +162,7 @@ https://www.openpolicyagent.org/docs/latest/management-bundles/#signature-format
 
 	signCommand.Flags().StringVarP(&cmdParams.outputFilePath, "output-file-path", "o", ".", "set the location for the .signatures.json file")
 
-	RootCommand.AddCommand(signCommand)
+	root.AddCommand(signCommand)
 }
 
 func doSign(args []string, params signCmdParams) error {

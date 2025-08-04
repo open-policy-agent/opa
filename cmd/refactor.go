@@ -15,6 +15,7 @@ import (
 	"github.com/open-policy-agent/opa/cmd/internal/env"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/format"
 	"github.com/open-policy-agent/opa/v1/loader"
 	"github.com/open-policy-agent/opa/v1/refactor"
@@ -39,7 +40,8 @@ func (m *moveCommandParams) regoVersion() ast.RegoVersion {
 	return ast.DefaultRegoVersion
 }
 
-func init() {
+func initRefactor(root *cobra.Command, brand string) {
+	executable := root.Name()
 
 	var moveCommandParams moveCommandParams
 
@@ -72,7 +74,7 @@ Example:
 | default allow = false   |
 | _ _ _ _ _ _ _ _ _ _ _ _ |     
 	
-	$ opa refactor move -p data.lib.foo:data.baz.bar policy.rego
+	$ ` + executable + ` refactor move -p data.lib.foo:data.baz.bar policy.rego
 
 The 'move' command outputs the below policy to stdout with the package name rewritten as per the mapping:
 
@@ -88,11 +90,15 @@ The 'move' command outputs the below policy to stdout with the package name rewr
 			}
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		Run: func(_ *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+
 			if err := doMove(moveCommandParams, args, os.Stdout); err != nil {
 				fmt.Fprintln(os.Stderr, "error:", err)
-				os.Exit(1)
+				return err
 			}
+			return nil
 		},
 	}
 
@@ -102,7 +108,7 @@ The 'move' command outputs the below policy to stdout with the package name rewr
 	refactorCommand.AddCommand(moveCommand)
 	addV0CompatibleFlag(moveCommand.Flags(), &moveCommandParams.v0Compatible, false)
 	addV1CompatibleFlag(moveCommand.Flags(), &moveCommandParams.v1Compatible, false)
-	RootCommand.AddCommand(refactorCommand)
+	root.AddCommand(refactorCommand)
 }
 
 func doMove(params moveCommandParams, args []string, out io.Writer) error {
@@ -116,6 +122,7 @@ func doMove(params moveCommandParams, args []string, out io.Writer) error {
 	}
 
 	result, err := loader.NewFileLoader().
+		WithBundleLazyLoadingMode(bundle.HasExtension()).
 		WithRegoVersion(params.regoVersion()).
 		Filtered(args, ignored(params.ignore).Apply)
 	if err != nil {

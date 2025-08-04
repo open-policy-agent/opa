@@ -2,7 +2,7 @@
 name: Bug report
 about: Report a problem for the OPA community to investigate
 title: ''
-labels: bug
+type: Bug
 assignees: ''
 
 ---
@@ -10,7 +10,8 @@ assignees: ''
 <!-- Thanks for opening an issue to request a feature or file a bug!
 If you provide some basic information, it helps us address problems faster. -->
 
-## Short description 
+## Short description
+
 <!--
 Any information you think might be helpful. Examples include the environment
 where OPA was running (e.g., if inside Kubernetes, what resource limits did you configure
@@ -28,6 +29,7 @@ Examples:
 -->
 
 ## Steps To Reproduce
+
 <!--
 1. Go to '...'
 2. Click on '....'
@@ -36,11 +38,13 @@ Examples:
 -->
 
 ## Expected behavior
+
 <!--
 Describe what you expected to happen.
 -->
 
 ## Additional context
+
 <!--
 Add any other context about the problem here.
 -->

@@ -24,15 +24,16 @@ import (
 
 // Basic provides policy-based authorization over incoming requests.
 type Basic struct {
-	inner                 http.Handler
-	compiler              func() *ast.Compiler
-	store                 storage.Store
-	runtime               *ast.Term
-	decision              func() ast.Ref
-	printHook             print.Hook
-	enablePrintStatements bool
-	interQueryCache       cache.InterQueryCache
-	interQueryValueCache  cache.InterQueryValueCache
+	inner                  http.Handler
+	compiler               func() *ast.Compiler
+	store                  storage.Store
+	runtime                *ast.Term
+	decision               func() ast.Ref
+	printHook              print.Hook
+	enablePrintStatements  bool
+	interQueryCache        cache.InterQueryCache
+	interQueryValueCache   cache.InterQueryValueCache
+	urlPathExpectsBodyFunc []func(string, []any) bool
 }
 
 // Runtime returns an argument that sets the runtime on the authorizer.
@@ -81,6 +82,13 @@ func InterQueryValueCache(interQueryValueCache cache.InterQueryValueCache) func(
 	}
 }
 
+// URLPathValidatorFuncs allows for extensions to the allowed paths an authorizer will accept.
+func URLPathExpectsBodyFunc(urlPathExpectsBodyFunc []func(string, []any) bool) func(*Basic) {
+	return func(b *Basic) {
+		b.urlPathExpectsBodyFunc = urlPathExpectsBodyFunc
+	}
+}
+
 // NewBasic returns a new Basic object.
 func NewBasic(inner http.Handler, compiler func() *ast.Compiler, store storage.Store, opts ...func(*Basic)) http.Handler {
 	b := &Basic{
@@ -96,30 +104,28 @@ func NewBasic(inner http.Handler, compiler func() *ast.Compiler, store storage.S
 	return b
 }
 
-func (h *Basic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-
+func (b *Basic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// TODO(tsandall): Pass AST value as input instead of Go value to avoid unnecessary
 	// conversions.
-	r, input, err := makeInput(r)
+	r, input, err := makeInput(r, b.urlPathExpectsBodyFunc)
 	if err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
 	}
 
 	rego := rego.New(
-		rego.Query(h.decision().String()),
-		rego.Compiler(h.compiler()),
-		rego.Store(h.store),
+		rego.Query(b.decision().String()),
+		rego.Compiler(b.compiler()),
+		rego.Store(b.store),
 		rego.Input(input),
-		rego.Runtime(h.runtime),
-		rego.EnablePrintStatements(h.enablePrintStatements),
-		rego.PrintHook(h.printHook),
-		rego.InterQueryBuiltinCache(h.interQueryCache),
-		rego.InterQueryBuiltinValueCache(h.interQueryValueCache),
+		rego.Runtime(b.runtime),
+		rego.EnablePrintStatements(b.enablePrintStatements),
+		rego.PrintHook(b.printHook),
+		rego.InterQueryBuiltinCache(b.interQueryCache),
+		rego.InterQueryBuiltinValueCache(b.interQueryValueCache),
 	)
 
 	rs, err := rego.Eval(r.Context())
-
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -134,13 +140,13 @@ func (h *Basic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch allowed := rs[0].Expressions[0].Value.(type) {
 	case bool:
 		if allowed {
-			h.inner.ServeHTTP(w, r)
+			b.inner.ServeHTTP(w, r)
 			return
 		}
 	case map[string]any:
 		if decision, ok := allowed["allowed"]; ok {
 			if allow, ok := decision.(bool); ok && allow {
-				h.inner.ServeHTTP(w, r)
+				b.inner.ServeHTTP(w, r)
 				return
 			}
 			if reason, ok := allowed["reason"]; ok {
@@ -160,7 +166,7 @@ func (h *Basic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 var emptyQuery = url.Values{}
 
-func makeInput(r *http.Request) (*http.Request, any, error) {
+func makeInput(r *http.Request, extraPaths []func(string, []any) bool) (*http.Request, any, error) {
 	path, err := parsePath(r.URL.Path)
 	if err != nil {
 		return r, nil, err
@@ -168,14 +174,14 @@ func makeInput(r *http.Request) (*http.Request, any, error) {
 
 	method := strings.ToUpper(r.Method)
 
-	var query = emptyQuery
+	query := emptyQuery
 	if r.URL.RawQuery != "" {
 		query = r.URL.Query()
 	}
 
 	var rawBody []byte
 
-	if expectBody(r.Method, path) {
+	if expectBody(r.Method, path) || checkExtraExpectedReqBodyPaths(extraPaths, r.Method, path) {
 		var err error
 		rawBody, err = util.ReadMaybeCompressedBody(r)
 		if err != nil {
@@ -234,6 +240,15 @@ func expectBody(method string, path []any) bool {
 			s1 := path[0].(string)
 			s2 := path[1].(string)
 			return dataAPIVersions[s1] && s2 == "data"
+		}
+	}
+	return false
+}
+
+func checkExtraExpectedReqBodyPaths(validators []func(string, []any) bool, method string, path []any) bool {
+	for _, f := range validators {
+		if f(method, path) {
+			return true
 		}
 	}
 	return false

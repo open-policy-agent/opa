@@ -47,26 +47,29 @@ type Logger interface {
 // the struct. Any changes here MUST be reflected in the AST()
 // implementation below.
 type EventV1 struct {
-	Labels         map[string]string       `json:"labels"`
-	DecisionID     string                  `json:"decision_id"`
-	TraceID        string                  `json:"trace_id,omitempty"`
-	SpanID         string                  `json:"span_id,omitempty"`
-	Revision       string                  `json:"revision,omitempty"` // Deprecated: Use Bundles instead
-	Bundles        map[string]BundleInfoV1 `json:"bundles,omitempty"`
-	Path           string                  `json:"path,omitempty"`
-	Query          string                  `json:"query,omitempty"`
-	Input          *any                    `json:"input,omitempty"`
-	Result         *any                    `json:"result,omitempty"`
-	MappedResult   *any                    `json:"mapped_result,omitempty"`
-	NDBuiltinCache *any                    `json:"nd_builtin_cache,omitempty"`
-	Erased         []string                `json:"erased,omitempty"`
-	Masked         []string                `json:"masked,omitempty"`
-	Error          error                   `json:"error,omitempty"`
-	RequestedBy    string                  `json:"requested_by,omitempty"`
-	Timestamp      time.Time               `json:"timestamp"`
-	Metrics        map[string]any          `json:"metrics,omitempty"`
-	RequestID      uint64                  `json:"req_id,omitempty"`
-	RequestContext *RequestContext         `json:"request_context,omitempty"`
+	Labels              map[string]string       `json:"labels"`
+	DecisionID          string                  `json:"decision_id"`
+	BatchDecisionID     string                  `json:"batch_decision_id,omitempty"`
+	TraceID             string                  `json:"trace_id,omitempty"`
+	SpanID              string                  `json:"span_id,omitempty"`
+	Revision            string                  `json:"revision,omitempty"` // Deprecated: Use Bundles instead
+	Bundles             map[string]BundleInfoV1 `json:"bundles,omitempty"`
+	Path                string                  `json:"path,omitempty"`
+	Query               string                  `json:"query,omitempty"`
+	Input               *any                    `json:"input,omitempty"`
+	Result              *any                    `json:"result,omitempty"`
+	IntermediateResults map[string]any          `json:"intermediate_results,omitempty"`
+	MappedResult        *any                    `json:"mapped_result,omitempty"`
+	NDBuiltinCache      *any                    `json:"nd_builtin_cache,omitempty"`
+	Erased              []string                `json:"erased,omitempty"`
+	Masked              []string                `json:"masked,omitempty"`
+	Error               error                   `json:"error,omitempty"`
+	RequestedBy         string                  `json:"requested_by,omitempty"`
+	Timestamp           time.Time               `json:"timestamp"`
+	Metrics             map[string]any          `json:"metrics,omitempty"`
+	RequestID           uint64                  `json:"req_id,omitempty"`
+	RequestContext      *RequestContext         `json:"request_context,omitempty"`
+	Custom              map[string]any          `json:"custom,omitempty"`
 
 	inputAST ast.Value
 }
@@ -101,6 +104,10 @@ func (e *EventV1) AST() (ast.Value, error) {
 	event := ast.NewObject(
 		ast.Item(ast.InternedTerm("decision_id"), ast.StringTerm(e.DecisionID)),
 	)
+
+	if e.BatchDecisionID != "" {
+		event.Insert(ast.InternedTerm("batch_decision_id"), ast.StringTerm(e.BatchDecisionID))
+	}
 
 	if e.Labels != nil {
 		labelsObj := ast.NewObject()
@@ -148,6 +155,14 @@ func (e *EventV1) AST() (ast.Value, error) {
 			return nil, err
 		}
 		event.Insert(ast.InternedTerm("result"), ast.NewTerm(results))
+	}
+
+	if len(e.IntermediateResults) > 0 {
+		iresults, err := roundtripJSONToAST(e.IntermediateResults)
+		if err != nil {
+			return nil, err
+		}
+		event.Insert(ast.InternedTerm("intermediate_results"), ast.NewTerm(iresults))
 	}
 
 	if e.MappedResult != nil {
@@ -212,6 +227,14 @@ func (e *EventV1) AST() (ast.Value, error) {
 
 	if e.RequestID > 0 {
 		event.Insert(ast.InternedTerm("req_id"), ast.UIntNumberTerm(e.RequestID))
+	}
+
+	if len(e.Custom) > 0 {
+		custom, err := roundtripJSONToAST(e.Custom)
+		if err != nil {
+			return nil, err
+		}
+		event.Insert(ast.InternedTerm("custom"), ast.NewTerm(custom))
 	}
 
 	return event, nil
@@ -686,22 +709,25 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 	}
 
 	event := EventV1{
-		Labels:         p.manager.Labels(),
-		DecisionID:     decision.DecisionID,
-		TraceID:        decision.TraceID,
-		SpanID:         decision.SpanID,
-		Revision:       decision.Revision,
-		Bundles:        bundles,
-		Path:           decision.Path,
-		Query:          decision.Query,
-		Input:          decision.Input,
-		Result:         decision.Results,
-		MappedResult:   decision.MappedResults,
-		NDBuiltinCache: decision.NDBuiltinCache,
-		RequestedBy:    decision.RemoteAddr,
-		Timestamp:      decision.Timestamp,
-		RequestID:      decision.RequestID,
-		inputAST:       decision.InputAST,
+		Labels:              p.manager.Labels(),
+		DecisionID:          decision.DecisionID,
+		BatchDecisionID:     decision.BatchDecisionID,
+		TraceID:             decision.TraceID,
+		SpanID:              decision.SpanID,
+		Revision:            decision.Revision,
+		Bundles:             bundles,
+		Path:                decision.Path,
+		Query:               decision.Query,
+		Input:               decision.Input,
+		Result:              decision.Results,
+		IntermediateResults: decision.IntermediateResults,
+		MappedResult:        decision.MappedResults,
+		NDBuiltinCache:      decision.NDBuiltinCache,
+		RequestedBy:         decision.RemoteAddr,
+		Timestamp:           decision.Timestamp,
+		RequestID:           decision.RequestID,
+		inputAST:            decision.InputAST,
+		Custom:              decision.Custom,
 	}
 
 	headers := map[string][]string{}

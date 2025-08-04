@@ -19,6 +19,7 @@ import (
 	"github.com/open-policy-agent/opa/cmd/formats"
 	"github.com/open-policy-agent/opa/cmd/internal/env"
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/loader"
 	"github.com/open-policy-agent/opa/v1/util"
 )
@@ -49,7 +50,9 @@ func newDepsCommandParams() depsCommandParams {
 	}
 }
 
-func init() {
+func initDeps(root *cobra.Command, _ string) {
+	executable := root.Name()
+
 	params := newDepsCommandParams()
 
 	depsCommand := &cobra.Command{
@@ -71,9 +74,9 @@ Given a policy like this:
 	is_admin if "admin" in input.user.roles
 
 To evaluate the dependencies of a simple query (e.g. data.policy.allow),
-we'd run opa deps like demonstrated below:
+we'd run ` + executable + ` deps like demonstrated below:
 
-	$ opa deps --data policy.rego data.policy.allow
+	$ ` + executable + ` deps --data policy.rego data.policy.allow
 	+------------------+----------------------+
 	|  BASE DOCUMENTS  |  VIRTUAL DOCUMENTS   |
 	+------------------+----------------------+
@@ -91,11 +94,14 @@ data.policy.is_admin.
 			}
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		Run: func(_ *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
 			if err := deps(args, params, os.Stdout); err != nil {
 				fmt.Fprintln(os.Stderr, err)
-				os.Exit(1)
+				return err
 			}
+			return nil
 		},
 	}
 
@@ -105,7 +111,7 @@ data.policy.is_admin.
 	addOutputFormat(depsCommand.Flags(), params.outputFormat)
 	addV1CompatibleFlag(depsCommand.Flags(), &params.v1Compatible, false)
 
-	RootCommand.AddCommand(depsCommand)
+	root.AddCommand(depsCommand)
 }
 
 func deps(args []string, params depsCommandParams, w io.Writer) error {
@@ -118,6 +124,7 @@ func deps(args []string, params depsCommandParams, w io.Writer) error {
 
 	if len(params.dataPaths.v) > 0 {
 		result, err := loader.NewFileLoader().
+			WithBundleLazyLoadingMode(bundle.HasExtension()).
 			WithRegoVersion(params.regoVersion()).
 			Filtered(params.dataPaths.v, ignored(params.ignore).Apply)
 		if err != nil {
@@ -130,7 +137,7 @@ func deps(args []string, params depsCommandParams, w io.Writer) error {
 	if len(params.bundlePaths.v) > 0 {
 		modules = make(map[string]*ast.Module, len(params.bundlePaths.v))
 		for _, path := range params.bundlePaths.v {
-			b, err := loader.NewFileLoader().WithSkipBundleVerification(true).AsBundle(path)
+			b, err := loader.NewFileLoader().WithBundleLazyLoadingMode(bundle.HasExtension()).WithSkipBundleVerification(true).AsBundle(path)
 			if err != nil {
 				return err
 			}

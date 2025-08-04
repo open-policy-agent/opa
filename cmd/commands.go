@@ -5,15 +5,48 @@
 package cmd
 
 import (
-	"os"
-	"path"
-
 	"github.com/spf13/cobra"
+
+	iversion "github.com/open-policy-agent/opa/internal/version"
 )
 
-// RootCommand is the base CLI command that all subcommands are added to.
-var RootCommand = &cobra.Command{
-	Use:   path.Base(os.Args[0]),
-	Short: "Open Policy Agent (OPA)",
-	Long:  "An open source project to policy-enable your service.",
+// Backwards compatibility definition. Newer code should use Command.
+var RootCommand = Command(nil, "OPA")
+
+// UserAgent lets you override the OPA UA sent with all the HTTP requests.
+// It's another vanity thing -- if you build your own version of OPA, you
+// may want to adjust this.
+// NOTE(sr): Caution: Please consider this experimental, I have the hunch
+// that we'll find a better way to make this adjustment in the future.
+func UserAgent(agent string) {
+	iversion.UserAgent = agent
+}
+
+func Command(rootCommand *cobra.Command, brand string) *cobra.Command {
+	// rootCommand is the base CLI command that all subcommands are added to.
+	if rootCommand == nil {
+		rootCommand = &cobra.Command{
+			Use:   "opa",
+			Short: "Open Policy Agent (OPA)",
+			Long:  "An open source project to policy-enable your service.",
+		}
+	}
+
+	initBench(rootCommand, brand)
+	initBuild(rootCommand, brand)
+	initCapabilities(rootCommand, brand)
+	initCheck(rootCommand, brand)
+	initDeps(rootCommand, brand)
+	initEval(rootCommand, brand)
+	initExec(rootCommand, brand)
+	initFmt(rootCommand, brand)
+	initInspect(rootCommand, brand)
+	initOracle(rootCommand, brand)
+	initParse(rootCommand, brand)
+	initRefactor(rootCommand, brand)
+	initRun(rootCommand, brand)
+	initSign(rootCommand, brand)
+	initTest(rootCommand, brand)
+	initVersion(rootCommand, brand)
+	return rootCommand
 }

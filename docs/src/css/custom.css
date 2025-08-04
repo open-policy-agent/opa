@@ -2,6 +2,18 @@
 	display: none;
 }
 
+/* This is done to show more of a code example on mobile/tablet */
+pre {
+	tab-size: 4;
+}
+
+@media screen and (max-width: 996px) {
+	pre {
+		font-size: 0.8rem;
+		tab-size: 2;
+	}
+}
+
 /* These classes are only to be used where ThemedImage is not available */
 [data-theme='dark'] .light-only {
 	display: none;
@@ -25,4 +37,14 @@
 	margin-bottom: 0.5em;
 	border-bottom: 1px solid var(--ifm-menu-color);
 	/* This creates the border. */
+}
+
+/* Custom highlighted code line styling */
+/* https://docusaurus.io/docs/markdown-features/code-blocks */
+[data-theme='light'] {
+	--docusaurus-highlighted-code-line-bg: rgb(255, 251, 219);
+}
+
+[data-theme='dark'] {
+	--docusaurus-highlighted-code-line-bg: rgb(88, 102, 18);
 }

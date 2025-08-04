@@ -3282,7 +3282,7 @@ func ensureBundleOverlapStatus(t *testing.T, p *Plugin, bundleNames []string, ex
 			t.Fatalf("expected bundle %s to be in an error state", name)
 		} else if !expectedErrs[i] && hasErr {
 			t.Fatalf("unexpected error state for bundle %s", name)
-		} else if hasErr && expectedErrs[i] && !strings.Contains(p.status[name].Message, "detected overlapping roots") {
+		} else if hasErr && expectedErrs[i] && !strings.Contains(p.status[name].Message, "overlapping roots") {
 			t.Fatalf("expected bundle overlap error for bundle %s, got: %s", name, p.status[name].Message)
 		}
 	}
@@ -7209,8 +7209,8 @@ result := true`,
 	if status.Code != errCode {
 		t.Fatalf("Expected status code to be %s, found %s", errCode, status.Code)
 	}
-	if !strings.Contains(status.Message, "detected overlapping") {
-		t.Fatalf(`Expected status message to contain "detected overlapping roots", found %s`, status.Message)
+	if !strings.Contains(status.Message, "specify empty root paths") {
+		t.Fatalf(`Expected status message to contain "specify empty root paths", found %s`, status.Message)
 	}
 }
 

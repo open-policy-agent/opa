@@ -598,7 +598,7 @@ func TestRegoCancellation(t *testing.T) {
 		Name: "test.sleep",
 		Decl: types.NewFunction(
 			types.Args(types.S),
-			types.NewNull(),
+			types.Nl,
 		),
 	})
 
@@ -629,7 +629,7 @@ func TestRegoCustomBuiltinHalt(t *testing.T) {
 			Name: "halt_func",
 			Decl: types.NewFunction(
 				types.Args(types.S),
-				types.NewNull(),
+				types.Nl,
 			),
 		},
 		func(BuiltinContext, *ast.Term) (*ast.Term, error) {
@@ -3371,7 +3371,7 @@ func TestDescriptionRegisterBuiltinDyn(t *testing.T) {
 		),
 	}
 
-	RegisterBuiltinDyn(decl, func(_ BuiltinContext, _ []*ast.Term) (*ast.Term, error) {
+	RegisterBuiltinDyn(decl, func(BuiltinContext, []*ast.Term) (*ast.Term, error) {
 		return ast.StringTerm("bar"), nil
 	})
 	defer unregisterBuiltin("foo")
@@ -3385,12 +3385,67 @@ func TestDescriptionRegisterBuiltinDyn(t *testing.T) {
 // unregisterBuiltin removes the builtin of the given name from ast.Builtins. This assists in
 // cleaning up custom functions added as part of certain test cases.
 func unregisterBuiltin(name string) {
-	builtins := make([]*ast.Builtin, 0, len(ast.Builtins))
-	for _, builtin := range ast.Builtins {
-		if builtin.Name == name {
-			continue
+	ast.Builtins = slices.DeleteFunc(ast.Builtins, func(b *ast.Builtin) bool { return b.Name == name })
+}
+
+func TestCompilerContextViaRegoModuleBuiltin(t *testing.T) {
+	moduleSource := `package test
+
+result := test.module("policy.rego")
+`
+
+	t.Run("compiler not passed", func(t *testing.T) {
+		ctx := context.Background()
+		r := New(
+			Query("data.test.result"),
+			CompilerHook(func(c *ast.Compiler) { ctx = ast.WithCompiler(ctx, c) }),
+			Module("policy.rego", moduleSource),
+			Function1(&Function{
+				Name: "test.module",
+				Decl: types.NewFunction(types.Args(types.S), types.S),
+			}, func(bctx BuiltinContext, a *ast.Term) (*ast.Term, error) {
+				moduleName, ok := a.Value.(ast.String)
+				if !ok {
+					return nil, fmt.Errorf("bad arg type: %T", a.Value)
+				}
+
+				comp, ok := ast.CompilerFromContext(bctx.Context)
+				if !ok {
+					return nil, errors.New("no compiler on context")
+				}
+
+				return ast.StringTerm(comp.Modules[string(moduleName)].String()), nil
+			}),
+		)
+
+		rs, err := r.Eval(ctx)
+		if err != nil {
+			t.Fatalf("rego Eval error: %v", err)
 		}
-		builtins = append(builtins, builtin)
-	}
-	ast.Builtins = builtins
+		if len(rs) == 0 || len(rs[0].Expressions) == 0 {
+			t.Fatalf("No results")
+		}
+		got := rs[0].Expressions[0].Value
+		want := "package test\n\nresult := __local0__ if { true; test.module(\"policy.rego\", __local0__) }"
+		if got != want {
+			t.Errorf("Expected %q, got %q", want, got)
+		}
+	})
+
+	t.Run("compiler passed in", func(t *testing.T) { // when the compiler is passed, no hook is run
+		ctx := context.Background()
+		r := New(
+			Compiler(ast.NewCompiler()),
+			Query("data.test.result"),
+			CompilerHook(func(*ast.Compiler) { t.Fatal("unexpected hook call") }),
+			Module("policy.rego", "package test\nresult:=true"),
+		)
+		rs, err := r.Eval(ctx)
+		if err != nil {
+			t.Fatalf("rego Eval error: %v", err)
+		}
+		if act, exp := rs.Allowed(), true; exp != act {
+			t.Errorf("expected %v, got %v", exp, act)
+		}
+	})
 }

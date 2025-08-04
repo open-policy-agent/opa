@@ -104,8 +104,7 @@ func runAuthzBenchmark(b *testing.B, mode testAuthz.InputMode, numPaths int) {
 
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
-
+	for range b.N {
 		// The benchmark will include the time it takes to make the request,
 		// receive a response, and do any normal client error checking on
 		// the response. The benchmark is for the OPA server, not how
@@ -142,11 +141,11 @@ func BenchmarkRESTRemoteDecisionLogger(b *testing.B) {
 
 func BenchmarkRESTRemoteDecisionLoggerMaskApplied(b *testing.B) {
 	maskPolicy := `package system.log
-	
+
 mask["/input/password"] {
 	true
 }
-	
+
 mask[{"op": "upsert", "path": "/input/ssn", "value": x}] {
 	last4 := split(input.input.ssn, "-")[2]
 	x := sprintf("***-**-%s", [last4])

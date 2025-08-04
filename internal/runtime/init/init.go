@@ -29,6 +29,7 @@ type InsertAndCompileOptions struct {
 	MaxErrors             int
 	EnablePrintStatements bool
 	ParserOptions         ast.ParserOptions
+	BundleActivatorPlugin string
 }
 
 // InsertAndCompileResult contains the output of the operation.
@@ -68,6 +69,7 @@ func InsertAndCompile(ctx context.Context, opts InsertAndCompileOptions) (*Inser
 		Bundles:       opts.Bundles,
 		ExtraModules:  policies,
 		ParserOptions: opts.ParserOptions,
+		Plugin:        opts.BundleActivatorPlugin,
 	}
 
 	err := bundle.Activate(activation)
@@ -122,10 +124,11 @@ func LoadPaths(paths []string,
 	asBundle bool,
 	bvc *bundle.VerificationConfig,
 	skipVerify bool,
+	bundleLazyLoading bool,
 	processAnnotations bool,
 	caps *ast.Capabilities,
 	fsys fs.FS) (*LoadPathsResult, error) {
-	return LoadPathsForRegoVersion(ast.RegoV0, paths, filter, asBundle, bvc, skipVerify, processAnnotations, false, caps, fsys)
+	return LoadPathsForRegoVersion(ast.RegoV0, paths, filter, asBundle, bvc, skipVerify, bundleLazyLoading, processAnnotations, false, caps, fsys)
 }
 
 func LoadPathsForRegoVersion(regoVersion ast.RegoVersion,
@@ -134,6 +137,7 @@ func LoadPathsForRegoVersion(regoVersion ast.RegoVersion,
 	asBundle bool,
 	bvc *bundle.VerificationConfig,
 	skipVerify bool,
+	bundleLazyLoading bool,
 	processAnnotations bool,
 	followSymlinks bool,
 	caps *ast.Capabilities,
@@ -159,6 +163,7 @@ func LoadPathsForRegoVersion(regoVersion ast.RegoVersion,
 				WithFS(fsys).
 				WithBundleVerificationConfig(bvc).
 				WithSkipBundleVerification(skipVerify).
+				WithBundleLazyLoadingMode(bundleLazyLoading).
 				WithFilter(filter).
 				WithProcessAnnotation(processAnnotations).
 				WithCapabilities(caps).
@@ -177,6 +182,7 @@ func LoadPathsForRegoVersion(regoVersion ast.RegoVersion,
 
 	files, err := loader.NewFileLoader().
 		WithFS(fsys).
+		WithBundleLazyLoadingMode(bundleLazyLoading).
 		WithProcessAnnotation(processAnnotations).
 		WithCapabilities(caps).
 		WithRegoVersion(regoVersion).

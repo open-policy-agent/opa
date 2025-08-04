@@ -46,14 +46,10 @@ func BenchmarkMetricsMarshaling(b *testing.B) {
 			b.Fatalf("No output")
 		}
 	}
-
-	b.StopTimer()
 }
 
 func BenchmarkMetricsTimerStartStopRestart(b *testing.B) {
 	m := metrics.New()
-
-	b.ResetTimer()
 
 	for range b.N {
 		m.Timer("foo").Start()
@@ -62,6 +58,4 @@ func BenchmarkMetricsTimerStartStopRestart(b *testing.B) {
 		m.Timer("foo").Start()
 		_ = m.Timer("foo").Stop()
 	}
-
-	b.StopTimer()
 }

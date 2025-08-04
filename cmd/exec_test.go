@@ -19,6 +19,8 @@ import (
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/v1/ast"
 	loggingtest "github.com/open-policy-agent/opa/v1/logging/test"
+	"github.com/open-policy-agent/opa/v1/plugins"
+	"github.com/open-policy-agent/opa/v1/sdk"
 	sdk_test "github.com/open-policy-agent/opa/v1/sdk/test"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
@@ -1498,4 +1500,77 @@ func TestExecTimeoutWithMalformedRemoteBundle(t *testing.T) {
 			t.Fatalf("Expected error: %s, got %s", exp, err.Error())
 		}
 	})
+}
+
+func TestExecStopsPlugins(t *testing.T) {
+	fact := &factory{}
+
+	sdk.SetDefaultOptions(sdk.Options{
+		Plugins: map[string]plugins.Factory{
+			"test_plugin": fact,
+		},
+	})
+
+	s := sdk_test.MustNewServer(sdk_test.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+		"test.rego": `
+				package system
+				main contains "hello"
+			`,
+	}))
+	defer s.Stop()
+
+	cfg := filepath.Join(t.TempDir(), "opa.yaml")
+	if err := os.WriteFile(cfg, []byte(`
+plugins:
+  test_plugin: {}
+`), 0x777); err != nil {
+		t.Fatal(err)
+	}
+
+	var buf bytes.Buffer
+	params := exec.NewParams(&buf)
+	params.ConfigFile = cfg
+	_ = params.OutputFormat.Set("json")
+	params.ConfigOverrides = []string{
+		"services.test.url=" + s.URL(),
+		"bundles.test.resource=/bundles/bundle.tar.gz",
+	}
+
+	dir := t.TempDir()
+	params.Paths = append(params.Paths, dir)
+
+	err := runExec(params)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !fact.stopped {
+		t.Errorf("expected plugin to be stopped")
+	}
+}
+
+type factory struct {
+	stopped bool
+	m       *plugins.Manager
+}
+
+func (f *factory) New(m *plugins.Manager, _ any) plugins.Plugin {
+	f.m = m
+	return f
+}
+
+func (*factory) Validate(*plugins.Manager, []byte) (any, error) {
+	return nil, nil
+}
+
+func (f *factory) Start(context.Context) error {
+	f.m.UpdatePluginStatus("test_plugin", &plugins.Status{State: plugins.StateOK})
+	return nil
+}
+
+func (f *factory) Stop(context.Context) {
+	f.stopped = true
+}
+
+func (*factory) Reconfigure(context.Context, any) {
 }

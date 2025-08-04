@@ -288,21 +288,15 @@ func runVirtualDocsBenchmark(b *testing.B, numTotalRules, numHitRules int) {
 		b.Fatalf("Unexpected compiler error: %v", compiler.Errors)
 	}
 
-	query := ast.MustParseBody("data.a.b.c.allow = x")
+	query := NewQuery(ast.MustParseBody("data.a.b.c.allow = x")).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn).
+		WithInput(input)
 
 	b.ResetTimer()
 
 	for range b.N {
-		b.StopTimer()
-
-		query := NewQuery(query).
-			WithCompiler(compiler).
-			WithStore(store).
-			WithTransaction(txn).
-			WithInput(input)
-
-		b.StartTimer()
-
 		rs, err := query.Run(ctx)
 		if err != nil {
 			b.Fatalf("Unexpected topdown query error: %v", err)
@@ -332,14 +326,10 @@ func BenchmarkPartialEvalCompile(b *testing.B) {
 }
 
 func runPartialEvalBenchmark(b *testing.B, numRoles int) {
-
 	ctx := context.Background()
 	compiler := ast.NewCompiler()
-	compiler.Compile(map[string]*ast.Module{
-		"authz": ast.MustParseModule(partialEvalBenchmarkPolicy),
-	})
 
-	if compiler.Failed() {
+	if compiler.Compile(map[string]*ast.Module{"authz": ast.MustParseModule(partialEvalBenchmarkPolicy)}); compiler.Failed() {
 		b.Fatal(compiler.Errors)
 	}
 
@@ -559,14 +549,14 @@ func BenchmarkWalk(b *testing.B) {
 			data := genWalkBenchmarkData(n)
 			store := inmem.NewFromObject(data)
 			compiler := ast.NewCompiler()
+			query := ast.MustParseBody(fmt.Sprintf(`walk(data, [["arr", %v], x])`, n-1))
+			compiledQuery, err := compiler.QueryCompiler().Compile(query)
+			if err != nil {
+				b.Fatal(err)
+			}
 			b.ResetTimer()
 			for range b.N {
 				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-					query := ast.MustParseBody(fmt.Sprintf(`walk(data, [["arr", %v], x])`, n-1))
-					compiledQuery, err := compiler.QueryCompiler().Compile(query)
-					if err != nil {
-						b.Fatal(err)
-					}
 					q := NewQuery(compiledQuery).
 						WithStore(store).
 						WithCompiler(compiler).

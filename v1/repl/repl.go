@@ -125,7 +125,7 @@ func New(store storage.Store, historyPath string, output io.Writer, outputFormat
 		banner:       banner,
 		errLimit:     errLimit,
 		prettyLimit:  defaultPrettyLimit,
-		target:       compile.TargetRego,
+		target:       "",
 		regoVersion:  ast.DefaultRegoVersion,
 	}
 }
@@ -168,7 +168,7 @@ func (r *REPL) WithStderrWriter(w io.Writer) *REPL {
 }
 
 // Loop will run until the user enters "exit", Ctrl+C, Ctrl+D, or an unexpected error occurs.
-func (r *REPL) Loop(ctx context.Context) {
+func (r *REPL) Loop(ctx context.Context) error {
 
 	// Initialize the liner library.
 	line := liner.NewLiner()
@@ -201,7 +201,7 @@ loop:
 		// exit on unknown error
 		if err != nil {
 			fmt.Fprintln(r.output, "error (fatal):", err)
-			os.Exit(1)
+			return err
 		}
 
 		if err := r.OneShot(ctx, input); err != nil {
@@ -235,7 +235,7 @@ exitPrompt:
 		// exit on unknown error
 		if err != nil {
 			fmt.Fprintln(r.output, "error (fatal):", err)
-			os.Exit(1)
+			return err
 		}
 
 		switch strings.ToLower(input) {
@@ -248,6 +248,7 @@ exitPrompt:
 
 exit:
 	r.saveHistory(line)
+	return nil
 }
 
 // OneShot evaluates the line and prints the result. If an error occurs it is

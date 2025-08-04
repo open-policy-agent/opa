@@ -19,7 +19,6 @@ import (
 func BenchmarkCompileDynamicPolicy(b *testing.B) {
 	// This benchmarks the compiler against increasingly large numbers of dynamically-selected policies.
 	// See: https://github.com/open-policy-agent/opa/issues/5216
-
 	numPolicies := []int{1000, 2500, 5000, 7500, 10000}
 
 	for _, n := range numPolicies {
@@ -27,13 +26,12 @@ func BenchmarkCompileDynamicPolicy(b *testing.B) {
 		test.WithTestFS(testcase, true, func(root string, fileSys fs.FS) {
 			b.ResetTimer()
 			b.Run(strconv.Itoa(n), func(b *testing.B) {
-				compiler := New().
-					WithFS(fileSys).
-					WithPaths(root)
+				for range b.N {
+					compiler := New().WithFS(fileSys).WithPaths(root)
 
-				err := compiler.Build(context.Background())
-				if err != nil {
-					b.Fatal("unexpected error", err)
+					if err := compiler.Build(context.Background()); err != nil {
+						b.Fatal("unexpected error", err)
+					}
 				}
 			})
 		})
@@ -83,12 +81,12 @@ func BenchmarkLargePartialRulePolicy(b *testing.B) {
 			test.WithTempFS(testcase, func(root string) {
 				b.ResetTimer()
 
-				compiler := New().
-					WithPaths(root)
+				for range b.N {
+					compiler := New().WithPaths(root)
 
-				err := compiler.Build(context.Background())
-				if err != nil {
-					b.Fatal("unexpected error", err)
+					if err := compiler.Build(context.Background()); err != nil {
+						b.Fatal("unexpected error", err)
+					}
 				}
 			})
 		})

@@ -33,7 +33,7 @@ to optimize queries to improve performance.
 
 ## Learning Rego
 
-In while reviewing the examples below, you might find it helpful to follow along
+While reviewing the examples below, you might find it helpful to follow along
 using the online [OPA playground](http://play.openpolicyagent.org). The
 playground also allows sharing of examples via URL which can be helpful when
 asking questions on the [OPA Slack](https://slack.openpolicyagent.org).
@@ -1326,7 +1326,7 @@ apps_not_in_prod contains name if {
 
 Rego allows for several ways to express universal quantification.
 
-For example, imagine you want to express a policy that says (in English):
+For example, imagine you want to express a policy that says in natural language:
 
 ```
 There must be no apps named "bitcoin-miner".
@@ -3528,7 +3528,9 @@ This contains samples for Envoy, Kubernetes, and Terraform including correspondi
 
 See here for the [JSON Schema Reference](https://docs.solo.io/gloo-edge/latest/guides/security/auth/extauth/opa/).
 
-For a tool that generates JSON Schema from JSON samples, [please see here](https://jsonschema.net/home).
+For a tool that generates JSON Schema from JSON samples,
+[please see here](https://app.quicktype.io/#l=schema)
+([Other Tools](https://json-schema.org/tools?query=&sortBy=name&sortOrder=ascending&groupBy=toolingTypes&licenses=&languages=&drafts=&toolingTypes=data-to-schema&environments=&showObsolete=false&supportsBowtie=false)).
 
 ## Strict Mode
 

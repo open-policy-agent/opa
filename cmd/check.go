@@ -68,6 +68,7 @@ func checkModules(params checkParams, args []string) error {
 	l := loader.NewFileLoader().
 		WithRegoVersion(params.regoVersion()).
 		WithProcessAnnotation(true).
+		WithBundleLazyLoadingMode(bundle.HasExtension()).
 		WithCapabilities(capabilities)
 
 	ss, err := loader.Schemas(params.schema.path)
@@ -172,7 +173,7 @@ func outputErrors(format string, err error) {
 	}
 }
 
-func init() {
+func initCheck(root *cobra.Command, _ string) {
 	checkParams := newCheckParams()
 
 	checkCommand := &cobra.Command{
@@ -191,11 +192,15 @@ and exit with a non-zero exit code.`,
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
 
-		Run: func(_ *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+
 			if err := checkModules(checkParams, args); err != nil {
 				outputErrors(checkParams.format.String(), err)
-				os.Exit(1)
+				return err
 			}
+			return nil
 		},
 	}
 
@@ -210,5 +215,6 @@ and exit with a non-zero exit code.`,
 		"check for Rego v0 and v1 compatibility (policies must be compatible with both Rego versions)")
 	addV0CompatibleFlag(checkCommand.Flags(), &checkParams.v0Compatible, false)
 	addV1CompatibleFlag(checkCommand.Flags(), &checkParams.v1Compatible, false)
-	RootCommand.AddCommand(checkCommand)
+
+	root.AddCommand(checkCommand)
 }

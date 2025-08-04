@@ -2,27 +2,32 @@
 title: "GraphQL APIs"
 ---
 
-GraphQL APIs have become a popular way to query a variety of datastores and microservices, and any application or service providing a GraphQL API generally needs to control which users can run queries, mutations, and so on.
-OPA makes it easy to write fine-grained, context-aware policies to implement GraphQL query authorization.
+GraphQL APIs have become a popular way for clients to query the information
+they require from a range of data sources.
+Generally, services providing a [GraphQL](https://graphql.org/) API must
+authorize calls to control data access and mutations.
+OPA makes it easy to write fine-grained, context-aware policies to implement
+GraphQL query authorization.
 
-## Goals
-
-In this tutorial, you'll use a simple GraphQL server that accepts any GraphQL request that you issue, and echoes the OPA decision back as text.
+In this tutorial, you'll use a simple GraphQL server that accepts any GraphQL query that you issue, and echoes the OPA decision back as text.
 OPA will fetch policy bundles from a simple bundle server.
-OPA, the bundle server, and the GraphQL server will all be run as containers.
+OPA, the bundle server, and the GraphQL server will run as separate containers.
 
-For this tutorial, our desired policy is:
+For this tutorial, we have the following example scenario:
 
-- People can see their own salaries (`query user($id: <user>) { salary }` is permitted for `<user>`)
+- Staff can see their own salaries (`query user($id: <user>) { salary }` is permitted for `<user>`)
 - A manager can see their direct reports' salaries (`query user($id: <user>) { salary }` is permitted for `<user>`'s manager)
 
-:::danger
-GraphQL API Authorization with OPA is currently experimental and the following tutorial is intended for demonstration purposes only.
-:::
-
-## Prerequisites
-
 This tutorial requires [Docker Compose](https://docs.docker.com/compose/install/) to run a demo web server along with OPA.
+
+:::info
+Using GraphQL in Rego via the
+[GraphQL built-in functions](./policy-reference#graphql)
+can involve some cumbersome code-sharing, for example when sharing custom
+`@directive` definitions between schemas used in different rules.
+We recommend you evaluate the range of available functions and review your
+GraphQL feature use to form a plan before embarking on major migrations.
+:::
 
 ## Steps
 

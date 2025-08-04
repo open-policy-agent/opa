@@ -120,8 +120,12 @@ func Load(configFile string, overrides []string, overrideFiles []string) ([]byte
 // regex looking for ${...} notation strings
 var envRegex = regexp.MustCompile(`(?U:\${.*})`)
 
-// subEnvVars will look for any environment variables in the passed in string
+// SubEnvVars will look for any environment variables in the passed in string
 // with the syntax of ${VAR_NAME} and replace that string with ENV[VAR_NAME]
+func SubEnvVars(s string) string {
+	return subEnvVars(s)
+}
+
 func subEnvVars(s string) string {
 	updatedConfig := envRegex.ReplaceAllStringFunc(s, func(s string) string {
 		// Trim off the '${' and '}'
@@ -131,10 +135,13 @@ func subEnvVars(s string) string {
 		}
 		varName := s[2 : len(s)-1]
 
-		// Lookup the variable in the environment. We play by
-		// bash rules.. if its undefined we'll treat it as an
-		// empty string instead of raising an error.
-		return os.Getenv(varName)
+		// Lookup the variable in the environment. We do not
+		// play by bash rules: if its undefined we'll keep it
+		// as-is, it could be replaced somewhere down the line.
+		if lu := os.Getenv(varName); lu != "" {
+			return lu
+		}
+		return s
 	})
 
 	return updatedConfig

@@ -1,0 +1,36 @@
+---
+title: Networking
+---
+<BuiltinTable category={"net"}/>
+
+#### Notes on Name Resolution (`net.lookup_ip_addr`)
+
+The lookup mechanism uses either the pure-Go, or the cgo-based resolver, depending on the operating system and availability of cgo.
+The latter depends on flags that can be provided when building OPA as a Go library, and can be adjusted at runtime via the GODEBUG environment variable.
+See [these docs on the `net` package](https://pkg.go.dev/net@go1.17.3#hdr-Name_Resolution) for details.
+
+Note that the cgo-based resolver is often **preferable**: It will take advantage of host-based DNS caching in place.
+This built-in function only caches DNS lookups within _a single_ policy evaluation.
+
+#### Examples of `net.cidr_contains_matches`
+
+The `output := net.cidr_contains_matches(a, b)` function allows callers to supply
+strings, arrays, sets, or objects for either `a` or `b`. The `output` value in
+all cases is a set of tuples (2-element arrays) that identify matches, i.e.,
+elements of `b` contained by elements of `a`. The first tuple element refers to
+the match in `a` and the second tuple element refers to the match in `b`.
+
+| Input Type | Output Type   |
+| ---------- | ------------- |
+| `string`   | `string`      |
+| `array`    | `array` index |
+| `set`      | `set` element |
+| `object`   | `object` key  |
+
+<PlaygroundExample dir={require.context("../_examples/net/cidr_contains_strings")} />
+
+<PlaygroundExample dir={require.context("../_examples/net/cidr_contains_array_string")} />
+
+<PlaygroundExample dir={require.context("../_examples/net/cidr_contains_arrays")} />
+
+<PlaygroundExample dir={require.context("../_examples/net/cidr_contains_objects")} />

@@ -27,6 +27,7 @@ import (
 
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/config"
 	"github.com/open-policy-agent/opa/v1/hooks"
 	"github.com/open-policy-agent/opa/v1/logging"
@@ -38,6 +39,8 @@ import (
 	"github.com/open-policy-agent/opa/v1/sdk"
 	sdktest "github.com/open-policy-agent/opa/v1/sdk/test"
 	"github.com/open-policy-agent/opa/v1/server/types"
+	"github.com/open-policy-agent/opa/v1/storage"
+	"github.com/open-policy-agent/opa/v1/storage/inmem"
 	"github.com/open-policy-agent/opa/v1/topdown"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 	"github.com/open-policy-agent/opa/v1/topdown/lineage"
@@ -2960,12 +2963,11 @@ func TestActivateV1Bundles(t *testing.T) {
 		Logger:       logging.New(),
 		V1Compatible: true,
 	})
-
-	defer opa.Stop(ctx)
-
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	defer opa.Stop(ctx)
 
 	d, err := opa.Decision(context.Background(), sdk.DecisionOptions{
 		Path: "v1bundle/authz",
@@ -2980,4 +2982,41 @@ func TestActivateV1Bundles(t *testing.T) {
 	if d.Result != true {
 		t.Errorf("expected result to be true, got %v", d.Result)
 	}
+}
+
+// TestWithOwnStoreVSExtStore asserts that in the SDK setup, a provided
+// store always takes precedence over the extensions store.
+func TestWithOwnStoreVSExtStore(t *testing.T) {
+	bundle.RegisterStoreFunc(inmem.New)
+	t.Cleanup(func() { bundle.RegisterStoreFunc(nil) })
+	ctx := context.Background()
+	opts := sdk.Options{
+		Store: inmem.New(),
+	}
+	store := opts.Store
+	if err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
+		return store.UpsertPolicy(ctx, txn, "pkg", []byte(`package pkg
+p := true
+`))
+	}); err != nil {
+		panic(err)
+	}
+
+	o, err := sdk.New(ctx, opts)
+	if err != nil {
+		panic(err)
+	}
+
+	res, err := o.Decision(ctx, sdk.DecisionOptions{
+		Path: "pkg/p",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	exp := true
+	act := res.Result
+	if diff := cmp.Diff(exp, act); diff != "" {
+		t.Errorf("unexpected result (-want, +got):\n%s", diff)
+	}
+
 }

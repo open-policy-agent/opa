@@ -212,7 +212,7 @@ Optional Fields:
 - `"value"` -- Only required for `"upsert"` operations.
 
 > This is processed for every decision being logged, so be mindful of
-> performance when performing complex operations in the mask body, eg. crypto
+> performance when performing complex operations in the mask body, e.g. crypto
 > operations
 
 ```ruby

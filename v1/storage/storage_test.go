@@ -60,7 +60,7 @@ func TestNonEmpty(t *testing.T) {
 					t.Fatal(err)
 				}
 				if nonEmpty != tc.exp {
-					t.Errorf("Expected %v for %v on %v but got", tc.exp, tc.path, tc.content)
+					t.Errorf("Expected %v for %v on %v but got %v", tc.exp, tc.path, tc.content, nonEmpty)
 				}
 				return nil
 			})
@@ -70,4 +70,35 @@ func TestNonEmpty(t *testing.T) {
 		})
 	}
 
+}
+
+type nonEmpty struct {
+	storage.Store
+}
+
+func (*nonEmpty) NonEmpty(context.Context, storage.Transaction) func([]string) (bool, error) {
+	return func([]string) (bool, error) {
+		return true, nil
+	}
+}
+
+func TestNonEmptyer(t *testing.T) {
+	ctx := context.Background()
+	ne := &nonEmpty{inmem.New()}
+
+	for _, path := range []string{"a", "a/b/c"} {
+		err := storage.Txn(ctx, ne, storage.TransactionParams{}, func(txn storage.Transaction) error {
+			nonEmpty, err := storage.NonEmpty(ctx, ne, txn)(strings.Split(path, "/"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if nonEmpty != true {
+				t.Errorf("Expected true for %v but got false", path)
+			}
+			return nil
+		})
+		if err != nil {
+			t.Error(err)
+		}
+	}
 }

@@ -7,9 +7,11 @@ package sdk
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/rand"
 	"fmt"
+	"maps"
 	"sync"
 	"time"
 
@@ -61,7 +63,38 @@ type state struct {
 
 // New returns a new OPA object. This function should minimally be called with
 // options that specify an OPA configuration file.
-func New(ctx context.Context, opts Options) (*OPA, error) {
+func New(ctx context.Context, nopts Options) (*OPA, error) {
+	defaultOptsMtx.Lock()
+	opts := Options{
+		Plugins: make(map[string]plugins.Factory, len(nopts.Plugins)+len(defaultOptions.Plugins)),
+	}
+	opts.ID = cmp.Or(nopts.ID, defaultOptions.ID)
+	opts.Config = cmp.Or(nopts.Config, defaultOptions.Config)
+	opts.ConsoleLogger = cmp.Or(nopts.ConsoleLogger, defaultOptions.ConsoleLogger)
+
+	opts.V1Compatible = nopts.V1Compatible
+	opts.V0Compatible = nopts.V0Compatible
+	opts.RegoVersion = cmp.Or(nopts.RegoVersion, defaultOptions.RegoVersion)
+
+	opts.ManagerOpts = append(opts.ManagerOpts, defaultOptions.ManagerOpts...)
+	opts.ManagerOpts = append(opts.ManagerOpts, nopts.ManagerOpts...)
+
+	opts.Logger = cmp.Or(nopts.Logger, defaultOptions.Logger)
+	hs := make([]hooks.Hook, 0, opts.Hooks.Len()+nopts.Hooks.Len())
+	opts.Hooks.Each(func(h hooks.Hook) {
+		hs = append(hs, h)
+	})
+	nopts.Hooks.Each(func(h hooks.Hook) {
+		hs = append(hs, h)
+	})
+	opts.Hooks = hooks.New(hs...)
+
+	maps.Copy(opts.Plugins, defaultOptions.Plugins)
+	maps.Copy(opts.Plugins, nopts.Plugins)
+
+	opts.Store = cmp.Or(nopts.Store, defaultOptions.Store)
+	opts.Ready = cmp.Or(nopts.Ready, defaultOptions.Ready)
+	defaultOptsMtx.Unlock()
 
 	var err error
 
@@ -144,12 +177,21 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 		plugins.PrintHook(loggingPrintHook{logger: opa.logger}),
 		plugins.WithHooks(opa.hooks),
 	}
-
 	opts = append(opts, opa.managerOpts...)
+
+	// Plumb in storage for external bundle activation plugin, if registered with bundle.RegisterStore,
+	// unless the user has passed their own store already.
+	var store storage.Store
+	switch {
+	case opa.store != nil:
+		store = opa.store
+	case bundle.BundleExtStore != nil:
+		store = bundle.BundleExtStore()
+	}
 	manager, err := plugins.New(
 		bs,
 		opa.id,
-		opa.store,
+		store,
 		opts...,
 	)
 	if err != nil {

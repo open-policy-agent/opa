@@ -21,6 +21,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/bundle"
+	"github.com/open-policy-agent/opa/v1/loader/extension"
 	"github.com/open-policy-agent/opa/v1/loader/filter"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/storage"
@@ -98,6 +99,7 @@ type FileLoader interface {
 	WithFilter(Filter) FileLoader
 	WithBundleVerificationConfig(*bundle.VerificationConfig) FileLoader
 	WithSkipBundleVerification(bool) FileLoader
+	WithBundleLazyLoadingMode(bool) FileLoader
 	WithProcessAnnotation(bool) FileLoader
 	WithCapabilities(*ast.Capabilities) FileLoader
 	// Deprecated: Use SetOptions in the json package instead, where a longer description
@@ -116,15 +118,16 @@ func NewFileLoader() FileLoader {
 }
 
 type fileLoader struct {
-	metrics        metrics.Metrics
-	filter         Filter
-	bvc            *bundle.VerificationConfig
-	skipVerify     bool
-	files          map[string]bundle.FileInfo
-	opts           ast.ParserOptions
-	fsys           fs.FS
-	reader         io.Reader
-	followSymlinks bool
+	metrics           metrics.Metrics
+	filter            Filter
+	bvc               *bundle.VerificationConfig
+	skipVerify        bool
+	bundleLazyLoading bool
+	files             map[string]bundle.FileInfo
+	opts              ast.ParserOptions
+	fsys              fs.FS
+	reader            io.Reader
+	followSymlinks    bool
 }
 
 // WithFS provides an fs.FS to use for loading files. You can pass nil to
@@ -164,6 +167,12 @@ func (fl *fileLoader) WithBundleVerificationConfig(config *bundle.VerificationCo
 // WithSkipBundleVerification skips verification of a signed bundle
 func (fl *fileLoader) WithSkipBundleVerification(skipVerify bool) FileLoader {
 	fl.skipVerify = skipVerify
+	return fl
+}
+
+// WithBundleLazyLoadingMode enables or disables bundle lazy loading mode
+func (fl *fileLoader) WithBundleLazyLoadingMode(bundleLazyLoading bool) FileLoader {
+	fl.bundleLazyLoading = bundleLazyLoading
 	return fl
 }
 
@@ -223,7 +232,7 @@ func (fl fileLoader) Filtered(paths []string, filter Filter) (*Result, error) {
 			return err
 		}
 
-		result, err := loadKnownTypes(path, bs, fl.metrics, fl.opts)
+		result, err := loadKnownTypes(path, bs, fl.metrics, fl.opts, fl.bundleLazyLoading)
 		if err != nil {
 			if !isUnrecognizedFile(err) {
 				return err
@@ -271,10 +280,13 @@ func (fl fileLoader) AsBundle(path string) (*bundle.Bundle, error) {
 		WithMetrics(fl.metrics).
 		WithBundleVerificationConfig(fl.bvc).
 		WithSkipBundleVerification(fl.skipVerify).
+		WithLazyLoadingMode(fl.bundleLazyLoading).
 		WithProcessAnnotations(fl.opts.ProcessAnnotation).
 		WithCapabilities(fl.opts.Capabilities).
 		WithFollowSymlinks(fl.followSymlinks).
-		WithRegoVersion(fl.opts.RegoVersion)
+		WithRegoVersion(fl.opts.RegoVersion).
+		WithLazyLoadingMode(fl.bundleLazyLoading).
+		WithBundleName(path)
 
 	// For bundle directories add the full path in front of module file names
 	// to simplify debugging.
@@ -719,8 +731,22 @@ func allRec(fsys fs.FS, path string, filter Filter, errors *Errors, loaded *Resu
 	}
 }
 
-func loadKnownTypes(path string, bs []byte, m metrics.Metrics, opts ast.ParserOptions) (any, error) {
-	switch filepath.Ext(path) {
+func loadKnownTypes(path string, bs []byte, m metrics.Metrics, opts ast.ParserOptions, bundleLazyLoadingMode bool) (any, error) {
+	ext := filepath.Ext(path)
+	if handler := extension.FindExtension(ext); handler != nil {
+		m.Timer(metrics.RegoDataParse).Start()
+
+		var value any
+		err := handler(bs, &value)
+
+		m.Timer(metrics.RegoDataParse).Stop()
+		if err != nil {
+			return nil, fmt.Errorf("bundle %s: %w", path, err)
+		}
+
+		return value, nil
+	}
+	switch ext {
 	case ".json":
 		return loadJSON(path, bs, m)
 	case ".rego":
@@ -729,7 +755,7 @@ func loadKnownTypes(path string, bs []byte, m metrics.Metrics, opts ast.ParserOp
 		return loadYAML(path, bs, m)
 	default:
 		if strings.HasSuffix(path, ".tar.gz") {
-			r, err := loadBundleFile(path, bs, m, opts)
+			r, err := loadBundleFile(path, bs, m, opts, bundleLazyLoadingMode)
 			if err != nil {
 				err = fmt.Errorf("bundle %s: %w", path, err)
 			}
@@ -755,7 +781,7 @@ func loadFileForAnyType(path string, bs []byte, m metrics.Metrics, opts ast.Pars
 	return nil, unrecognizedFile(path)
 }
 
-func loadBundleFile(path string, bs []byte, m metrics.Metrics, opts ast.ParserOptions) (bundle.Bundle, error) {
+func loadBundleFile(path string, bs []byte, m metrics.Metrics, opts ast.ParserOptions, bundleLazyLoadingMode bool) (bundle.Bundle, error) {
 	tl := bundle.NewTarballLoaderWithBaseURL(bytes.NewBuffer(bs), path)
 	br := bundle.NewCustomReader(tl).
 		WithRegoVersion(opts.RegoVersion).
@@ -763,6 +789,7 @@ func loadBundleFile(path string, bs []byte, m metrics.Metrics, opts ast.ParserOp
 		WithProcessAnnotations(opts.ProcessAnnotation).
 		WithMetrics(m).
 		WithSkipBundleVerification(true).
+		WithLazyLoadingMode(bundleLazyLoadingMode).
 		IncludeManifestInData(true)
 	return br.Read()
 }

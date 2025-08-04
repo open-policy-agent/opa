@@ -17,6 +17,22 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
+var (
+	// Nl represents an instance of the null type.
+	Nl Type = NewNull()
+	// B represents an instance of the boolean type.
+	B Type = NewBoolean()
+	// S represents an instance of the string type.
+	S Type = NewString()
+	// N represents an instance of the number type.
+	N Type = NewNumber()
+	// A represents the superset of all types.
+	A Type = NewAny()
+
+	// Boxed set types.
+	SetOfAny, SetOfStr, SetOfNum Type = NewSet(A), NewSet(S), NewSet(N)
+)
+
 // Sprint returns the string representation of the type.
 func Sprint(x Type) string {
 	if x == nil {
@@ -49,8 +65,6 @@ type Null struct{}
 func NewNull() Null {
 	return Null{}
 }
-
-var Nl Type = NewNull()
 
 // NamedType represents a type alias with an arbitrary name and description.
 // This is useful for generating documentation for built-in functions.
@@ -116,9 +130,6 @@ func (Null) String() string {
 // Boolean represents the boolean type.
 type Boolean struct{}
 
-// B represents an instance of the boolean type.
-var B Type = NewBoolean()
-
 // NewBoolean returns a new Boolean type.
 func NewBoolean() Boolean {
 	return Boolean{}
@@ -139,9 +150,6 @@ func (t Boolean) String() string {
 // String represents the string type.
 type String struct{}
 
-// S represents an instance of the string type.
-var S Type = NewString()
-
 // NewString returns a new String type.
 func NewString() String {
 	return String{}
@@ -160,9 +168,6 @@ func (String) String() string {
 
 // Number represents the number type.
 type Number struct{}
-
-// N represents an instance of the number type.
-var N Type = NewNumber()
 
 // NewNumber returns a new Number type.
 func NewNumber() Number {
@@ -255,13 +260,6 @@ func (t *Array) Select(pos int) Type {
 type Set struct {
 	of Type
 }
-
-// Boxed set types.
-var (
-	SetOfAny Type = NewSet(A)
-	SetOfStr Type = NewSet(S)
-	SetOfNum Type = NewSet(N)
-)
 
 // NewSet returns a new Set type.
 func NewSet(of Type) *Set {
@@ -512,9 +510,6 @@ func mergeObjects(a, b *Object) *Object {
 
 // Any represents a dynamic type.
 type Any []Type
-
-// A represents the superset of all types.
-var A Type = NewAny()
 
 // NewAny returns a new Any type.
 func NewAny(of ...Type) Any {

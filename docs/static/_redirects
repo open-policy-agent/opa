@@ -13,6 +13,9 @@
 /docs/envoy-tutorial-istio/ /docs/envoy/tutorial-istio/
 /docs/envoy-tutorial-standalone-envoy/ /docs/envoy/tutorial-standalone-envoy/
 /docs/envoy-tutorial-gloo-edge/ /docs/envoy/tutorial-gloo-edge/
+# issue #7755 reports this too, even though it's older, we'll redirect it here
+# TODO: (charlieegan3) remove this redirect after 2025-09-01
+/docs/envoy-authorization/ /docs/envoy/
 
 # point to search for old ecosystem pages
 /integrations/:entry/*  /ecosystem?q=:entry 301!
@@ -25,11 +28,9 @@
 # logs.
 /decision_logs /docs/management-decision-logs
 
-# 7729 and #7720 were opened relating to this but we don't know the source of the old link
+# 7729 and #7720 were opened relating to this but we don't know the source of
+# the old link
 /docs/kubernetes-admission-control.html /docs/kubernetes
-
-# TODO: (charlieegan3) remove this after 2025-07-01
-/ecosystem/entry/open-policy-registry /ecosystem/entry/ocpr 301!
 
 # -----------------------------------------------------------------------------
 # Redirects for legacy usage external resources

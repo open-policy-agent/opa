@@ -25,70 +25,72 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
-func init() {
+func initExec(root *cobra.Command, brand string) {
+	executable := root.Name()
 
 	var bundlePaths repeatedStringFlag
 
 	params := exec.NewParams(os.Stdout)
 
-	var cmd = &cobra.Command{
+	execCommand := &cobra.Command{
 		Use:   `exec <path> [<path> [...]]`,
 		Short: "Execute against input files",
 		Long: `Execute against input files.
 
-The 'exec' command executes OPA against one or more input files. If the paths
-refer to directories, OPA will execute against files contained inside those
+The 'exec' command executes ` + brand + ` against one or more input files. If the paths
+refer to directories, ` + brand + ` will execute against files contained inside those
 directories, recursively.
 
 The 'exec' command accepts a --config-file/-c or series of --set options as
-arguments. These options behave the same as way as 'opa run'. Since the 'exec'
-command is intended to execute OPA in one-shot, the 'exec' command will
+arguments. These options behave the same as way as '` + executable + ` run'. Since the 'exec'
+command is intended to execute ` + brand + ` in one-shot, the 'exec' command will
 manually trigger plugins before and after policy execution:
 
 Before: Discovery -> Bundle -> Status
 After: Decision Logs
 
 By default, the 'exec' command executes the "default decision" (specified in
-the OPA configuration) against each input file. This can be overridden by
+the ` + brand + ` configuration) against each input file. This can be overridden by
 specifying the --decision argument and pointing at a specific policy decision,
-e.g., opa exec --decision /foo/bar/baz ...
+
+e.g., ` + executable + ` exec --decision /foo/bar/baz ...
 `,
 
 		Example: fmt.Sprintf(`  Loading input from stdin:
     %s exec [<path> [...]] --stdin-input [flags]
-`, RootCommand.Use),
-
+`, root.Use),
 		PreRunE: func(cmd *cobra.Command, _ []string) error {
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		Run: func(_ *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+
 			params.Paths = args
 			params.BundlePaths = bundlePaths.v
 			if err := runExec(params); err != nil {
 				logging.Get().WithFields(map[string]any{"err": err}).Error("Unexpected error.")
-				os.Exit(1)
+				return err
 			}
+			return nil
 		},
 	}
+	addBundleFlag(execCommand.Flags(), &bundlePaths)
+	addOutputFormat(execCommand.Flags(), params.OutputFormat)
+	addConfigFileFlag(execCommand.Flags(), &params.ConfigFile)
+	addConfigOverrides(execCommand.Flags(), &params.ConfigOverrides)
+	addConfigOverrideFiles(execCommand.Flags(), &params.ConfigOverrideFiles)
+	execCommand.Flags().StringVarP(&params.Decision, "decision", "", "", "set decision to evaluate")
+	execCommand.Flags().BoolVarP(&params.FailDefined, "fail-defined", "", false, "exits with non-zero exit code on defined/non-empty result and errors")
+	execCommand.Flags().BoolVarP(&params.Fail, "fail", "", false, "exits with non-zero exit code on undefined/empty result and errors")
+	execCommand.Flags().VarP(params.LogLevel, "log-level", "l", "set log level")
+	execCommand.Flags().Var(params.LogFormat, "log-format", "set log format")
+	execCommand.Flags().StringVar(&params.LogTimestampFormat, "log-timestamp-format", "", "set log timestamp format (OPA_LOG_TIMESTAMP_FORMAT environment variable)")
+	execCommand.Flags().DurationVar(&params.Timeout, "timeout", 0, "set exec timeout with a Go-style duration, such as '5m 30s'. (default unlimited)")
+	addV0CompatibleFlag(execCommand.Flags(), &params.V0Compatible, false)
+	addV1CompatibleFlag(execCommand.Flags(), &params.V1Compatible, false)
 
-	addBundleFlag(cmd.Flags(), &bundlePaths)
-	addOutputFormat(cmd.Flags(), params.OutputFormat)
-	addConfigFileFlag(cmd.Flags(), &params.ConfigFile)
-	addConfigOverrides(cmd.Flags(), &params.ConfigOverrides)
-	addConfigOverrideFiles(cmd.Flags(), &params.ConfigOverrideFiles)
-	cmd.Flags().StringVarP(&params.Decision, "decision", "", "", "set decision to evaluate")
-	cmd.Flags().BoolVarP(&params.FailDefined, "fail-defined", "", false, "exits with non-zero exit code on defined result and errors")
-	cmd.Flags().BoolVarP(&params.Fail, "fail", "", false, "exits with non-zero exit code on undefined result and errors")
-	cmd.Flags().BoolVarP(&params.FailNonEmpty, "fail-non-empty", "", false, "exits with non-zero exit code on non-empty result and errors")
-	cmd.Flags().VarP(params.LogLevel, "log-level", "l", "set log level")
-	cmd.Flags().Var(params.LogFormat, "log-format", "set log format")
-	cmd.Flags().StringVar(&params.LogTimestampFormat, "log-timestamp-format", "", "set log timestamp format (OPA_LOG_TIMESTAMP_FORMAT environment variable)")
-	cmd.Flags().BoolVarP(&params.StdIn, "stdin-input", "I", false, "read input document from stdin rather than a static file")
-	cmd.Flags().DurationVar(&params.Timeout, "timeout", 0, "set exec timeout with a Go-style duration, such as '5m 30s'. (default unlimited)")
-	addV0CompatibleFlag(cmd.Flags(), &params.V0Compatible, false)
-	addV1CompatibleFlag(cmd.Flags(), &params.V1Compatible, false)
-
-	RootCommand.AddCommand(cmd)
+	root.AddCommand(execCommand)
 }
 
 func runExec(params *exec.Params) error {
@@ -159,6 +161,7 @@ func runExecWithContext(ctx context.Context, params *exec.Params) error {
 		return fmt.Errorf("runtime error: %w", err)
 	}
 
+	opa.Stop(ctx) // shutdown plugins
 	return nil
 }
 
@@ -174,7 +177,6 @@ func triggerPlugins(ctx context.Context, opa *sdk.OPA, names []string) error {
 }
 
 func setupLogging(level, format, timestampFormat string) (logging.Logger, logging.Logger, error) {
-
 	lvl, err := internal_logging.GetLevel(level)
 	if err != nil {
 		return nil, nil, err
@@ -198,7 +200,6 @@ func setupLogging(level, format, timestampFormat string) (logging.Logger, loggin
 }
 
 func setupConfig(file string, overrides []string, overrideFiles []string, bundlePaths []string) ([]byte, error) {
-
 	bs, err := config.Load(file, overrides, overrideFiles)
 	if err != nil {
 		return nil, err

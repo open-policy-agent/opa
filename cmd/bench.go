@@ -63,7 +63,9 @@ func newBenchmarkEvalParams() benchmarkCommandParams {
 	}
 }
 
-func init() {
+func initBench(root *cobra.Command, brand string) {
+	executable := root.Name()
+
 	params := newBenchmarkEvalParams()
 
 	benchCommand := &cobra.Command{
@@ -76,9 +78,10 @@ evaluation will be repeated a number of times and performance results will be re
 
 Example with bundle and input data:
 
-	opa bench -b ./policy-bundle -i input.json 'data.authz.allow'
+	` + executable + ` bench -b ./policy-bundle -i input.json 'data.authz.allow'
 
-To run benchmarks against a running OPA server to evaluate server overhead use the --e2e flag.
+To run benchmarks against a running ` + brand + ` server to evaluate server overhead use the --e2e flag.
+To enable more detailed analysis use the --metrics and --benchmem flags.
 
 The optional "gobench" output format conforms to the Go Benchmark Data Format.
 `,
@@ -89,14 +92,20 @@ The optional "gobench" output format conforms to the Go Benchmark Data Format.
 			}
 			return validateEvalParams(&params.evalCommandParams, args)
 		},
-		Run: func(_ *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+
 			exit, err := benchMain(args, params, os.Stdout, &goBenchRunner{})
 			if err != nil {
 				// NOTE: err should only be non-nil if a (highly unlikely)
 				// presentation error occurs.
 				fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			}
-			os.Exit(exit)
+			if exit != 0 {
+				return newExitError(exit)
+			}
+			return nil
 		},
 	}
 
@@ -124,13 +133,13 @@ The optional "gobench" output format conforms to the Go Benchmark Data Format.
 	addCountFlag(benchCommand.Flags(), &params.count, "benchmark")
 	addBenchmemFlag(benchCommand.Flags(), &params.benchMem, true)
 
-	addE2EFlag(benchCommand.Flags(), &params.e2e, false)
+	addE2EFlag(benchCommand.Flags(), &params.e2e, false, brand)
 	addConfigFileFlag(benchCommand.Flags(), &params.configFile)
 
 	benchCommand.Flags().IntVar(&params.gracefulShutdownPeriod, "shutdown-grace-period", 10, "set the time (in seconds) that the server will wait to gracefully shut down. This flag is valid in 'e2e' mode only.")
 	benchCommand.Flags().IntVar(&params.shutdownWaitPeriod, "shutdown-wait-period", 0, "set the time (in seconds) that the server will wait before initiating shutdown. This flag is valid in 'e2e' mode only.")
 
-	RootCommand.AddCommand(benchCommand)
+	root.AddCommand(benchCommand)
 }
 
 type benchRunner interface {

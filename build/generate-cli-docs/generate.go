@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	command := cmd.RootCommand
+	command := cmd.Command(nil, "opa")
 	command.Use = "opa [command]"
 	command.DisableAutoGenTag = true
 

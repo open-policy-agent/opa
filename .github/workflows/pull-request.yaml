@@ -8,6 +8,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   # Check what types of changes this PR contains
   check-changes:
@@ -439,24 +442,29 @@ jobs:
         version: edge
 
     - name: Test policies
-      run: opa test --v0-compatible build/policy
+      run: opa test --schema build/policy/schema --bundle build/policy
 
     - name: Ensure proper formatting
-      run: opa fmt --v0-compatible --list --fail build/policy
+      run: opa fmt --list --fail build/policy
 
     - name: Run file policy checks on changed files
       run: |
         curl --silent --fail --header 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' -o files.json \
           https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files
 
-        opa eval --v0-compatible -d build/policy/files.rego -d build/policy/helpers.rego  --format values --input files.json \
-          --fail-defined 'data.files.deny[message]'
+        opa eval --bundle build/policy --format values --input files.json  --fail-defined 'data.files.deny[message]'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Show input on failure
-      run: opa eval --v0-compatible --input files.json --format pretty input
-      if: ${{ failure() }}
+    - name: Download Regal
+      uses: StyraInc/setup-regal@33a142b1189004e0f14bf42b15972c67eecce776 #v1.0.0
+      with:
+        version: latest
+
+    - name: Run Regal lint
+      # Current configuration ensures anything but build/policy is ignored. While this could point Regal only at that
+      # directory, this will serve as a reminder when more Rego policies are added, as they should be linted by default.
+      run: regal lint --format github .
 
   docs-build:
     name: Build Docs
@@ -504,18 +512,18 @@ jobs:
       run: |
         # Create the input file with all job results
         echo '${{ toJSON(needs) }}' > input.json
-        
+
         # Find failed or cancelled jobs using OPA
         opa eval -d .github/workflows/pull-request.yaml \
         --input=input.json \
         '{job|some _, job in data.jobs["pr-check-summary"].needs} & {job | input[job].result in {"failure", "cancelled"}}' \
         --format=raw > failed_jobs.json
-        
+
         # Check for failures and display a nice message
         if [ "$(cat failed_jobs.json)" != "[]" ]; then
           echo "The following required jobs did not complete successfully:"
           jq -r '.[]' failed_jobs.json | sed 's/^/- /'
           exit 1
         fi
-        
+
         echo "All jobs completed successfully or were skipped"

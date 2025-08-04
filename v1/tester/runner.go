@@ -487,7 +487,7 @@ func (r *Runner) setupTestRun(ctx context.Context, txn storage.Transaction, enab
 			Bundles:       r.bundles,
 			ParserOptions: ast.ParserOptions{RegoVersion: r.defaultRegoVersion},
 		}
-		err = bundle.Activate(opts)
+		err := bundle.Activate(opts)
 		if err != nil {
 			return nil, err
 		}
@@ -937,6 +937,8 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		v.Func(rg)
 	}
 
+	ctx = ast.WithCompiler(ctx, r.compiler)
+
 	t0 := time.Now()
 	rs, err := rg.Eval(ctx)
 	dt := time.Since(t0)
@@ -1097,14 +1099,8 @@ func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod 
 			b.ReportAllocs()
 		}
 
-		// Don't count setup in the benchmark time, only evaluation time
-		b.ResetTimer()
-
 		for range b.N {
-			opts := []rego.EvalOption{
-				rego.EvalTransaction(txn),
-				rego.EvalMetrics(m),
-			}
+			opts := []rego.EvalOption{rego.EvalTransaction(txn), rego.EvalMetrics(m)}
 
 			var tracer *TestQueryTracer
 			if rule.Head.DocKind() == ast.PartialObjectDoc {
@@ -1112,16 +1108,7 @@ func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod 
 				opts = append(opts, rego.EvalQueryTracer(tracer))
 			}
 
-			// Start the timer (might already be started, but that's ok)
-			b.StartTimer()
-
-			rs, err := pq.Eval(
-				ctx,
-				opts...,
-			)
-
-			// Stop the timer so we don't count any of the error handling time
-			b.StopTimer()
+			rs, err := pq.Eval(ctx, opts...)
 
 			if err != nil {
 				tr.Error = err
@@ -1141,7 +1128,18 @@ func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod 
 		}
 
 		for k, v := range m.All() {
-			fv := float64(v.(int64)) / float64(b.N)
+			var val float64
+			switch v := v.(type) {
+			case int64:
+				val = float64(v)
+			case uint64:
+				val = float64(v)
+			case float64:
+				val = v
+			default:
+				continue // skip this metric
+			}
+			fv := val / float64(b.N)
 			b.ReportMetric(fv, k+"/op")
 		}
 	})
@@ -1166,12 +1164,24 @@ func LoadWithRegoVersion(args []string, filter loader.Filter, regoVersion ast.Re
 
 	loaded, err := loader.NewFileLoader().
 		WithRegoVersion(regoVersion).
+		WithBundleLazyLoadingMode(bundle.HasExtension()).
 		WithProcessAnnotation(true).
 		Filtered(args, filter)
 	if err != nil {
 		return nil, nil, err
 	}
-	store := inmem.NewFromObject(loaded.Documents)
+
+	var store storage.Store
+	if bundle.BundleExtStore != nil {
+		store = bundle.BundleExtStore()
+		// inline'd NewFromObject
+		if err := storage.WriteOne(context.Background(), store, storage.AddOp, storage.Path{}, loaded.Documents); err != nil {
+			return nil, nil, err
+		}
+	} else {
+		store = inmem.NewFromObject(loaded.Documents)
+	}
+
 	modules := make(map[string]*ast.Module, len(loaded.Modules))
 	ctx := context.Background()
 	err = storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
@@ -1198,11 +1208,23 @@ func LoadWithParserOptions(args []string, filter loader.Filter, popts ast.Parser
 		WithRegoVersion(popts.RegoVersion).
 		WithCapabilities(popts.Capabilities).
 		WithProcessAnnotation(popts.ProcessAnnotation).
+		WithBundleLazyLoadingMode(bundle.HasExtension()).
 		Filtered(args, filter)
 	if err != nil {
 		return nil, nil, err
 	}
-	store := inmem.NewFromObject(loaded.Documents)
+	var store storage.Store
+	// Plumb in storage for external bundle activation plugin, if registered with bundle.RegisterStore.
+	if bundle.BundleExtStore != nil {
+		store = bundle.BundleExtStore()
+		// inline'd NewFromObject
+		if err := storage.WriteOne(context.Background(), store, storage.AddOp, storage.Path{}, loaded.Documents); err != nil {
+			return nil, nil, err
+		}
+	} else {
+		store = inmem.NewFromObject(loaded.Documents)
+	}
+
 	modules := make(map[string]*ast.Module, len(loaded.Modules))
 	ctx := context.Background()
 	err = storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
@@ -1240,6 +1262,7 @@ func LoadBundlesWithRegoVersion(args []string, filter loader.Filter, regoVersion
 			WithRegoVersion(regoVersion).
 			WithProcessAnnotation(true).
 			WithSkipBundleVerification(true).
+			WithBundleLazyLoadingMode(bundle.HasExtension()).
 			WithFilter(filter).
 			AsBundle(bundleDir)
 		if err != nil {
@@ -1253,7 +1276,7 @@ func LoadBundlesWithRegoVersion(args []string, filter loader.Filter, regoVersion
 
 // LoadBundlesWithParserOptions will load the given args as bundles, either tarball or directory is OK.
 // Bundles are parsed in accordance with the given [ast.ParserOptions].
-func LoadBundlesWithParserOptions(args []string, filter loader.Filter, popts ast.ParserOptions) (map[string]*bundle.Bundle, error) {
+func LoadBundlesWithParserOptions(args []string, filter loader.Filter, popts ast.ParserOptions) (map[string]*bundle.Bundle, storage.Store, error) {
 	if popts.RegoVersion == ast.RegoUndefined {
 		popts.RegoVersion = ast.DefaultRegoVersion
 	}
@@ -1265,13 +1288,18 @@ func LoadBundlesWithParserOptions(args []string, filter loader.Filter, popts ast
 			WithCapabilities(popts.Capabilities).
 			WithProcessAnnotation(popts.ProcessAnnotation).
 			WithSkipBundleVerification(true).
+			WithBundleLazyLoadingMode(bundle.HasExtension()).
 			WithFilter(filter).
 			AsBundle(bundleDir)
 		if err != nil {
-			return nil, fmt.Errorf("unable to load bundle %s: %s", bundleDir, err)
+			return nil, nil, fmt.Errorf("unable to load bundle %s: %s", bundleDir, err)
 		}
 		bundles[bundleDir] = b
 	}
+	// Plumb in storage for external bundle activation plugin, if registered with bundle.RegisterStore.
+	if bundle.BundleExtStore != nil {
+		return bundles, bundle.BundleExtStore(), nil
+	}
 
-	return bundles, nil
+	return bundles, inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false)), nil
 }

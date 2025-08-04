@@ -46,7 +46,6 @@ func BenchmarkAuthzAllow1000Paths(b *testing.B) {
 }
 
 func runAuthzBenchmark(b *testing.B, mode InputMode, numPaths int, extras ...bool) {
-
 	profile := DataSetProfile{
 		NumTokens: 1000,
 		NumPaths:  numPaths,
@@ -54,49 +53,34 @@ func runAuthzBenchmark(b *testing.B, mode InputMode, numPaths int, extras ...boo
 
 	ctx := context.Background()
 	data := GenerateDataset(profile)
-
-	useDisk := false
-	if len(extras) > 0 {
-		useDisk = extras[0]
-	}
+	useDisk := len(extras) > 0 && extras[0]
 
 	var store storage.Store
-	var err error
 	if useDisk {
-		rootDir := b.TempDir()
-		store, err = disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
-			Dir:        rootDir,
-			Partitions: nil,
-		})
-		if err != nil {
+		var err error
+		if store, err = disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: b.TempDir()}); err != nil {
 			b.Fatal(err)
 		}
 
-		err = storage.WriteOne(ctx, store, storage.AddOp, storage.Path{}, data)
-		if err != nil {
+		if err = storage.WriteOne(ctx, store, storage.AddOp, storage.Path{}, data); err != nil {
 			b.Fatal(err)
 		}
 	} else {
-		store = inmem.NewFromObject(data)
+		store = inmem.NewFromObjectWithOpts(data)
 	}
 
-	txn := storage.NewTransactionOrDie(ctx, store)
 	compiler := ast.NewCompiler()
-	module := ast.MustParseModule(Policy)
-
-	compiler.Compile(map[string]*ast.Module{"": module})
-	if compiler.Failed() {
+	if compiler.Compile(map[string]*ast.Module{"": ast.MustParseModule(Policy)}); compiler.Failed() {
 		b.Fatalf("Unexpected error(s): %v", compiler.Errors)
 	}
 
 	r := rego.New(
 		rego.Compiler(compiler),
 		rego.Store(store),
-		rego.Transaction(txn),
+		rego.Transaction(storage.NewTransactionOrDie(ctx, store)),
 		rego.Query(AllowQuery),
 	)
 
-	// Pre-process as much as we can
 	pq, err := r.PrepareForEval(ctx)
 	if err != nil {
 		b.Fatalf("Unexpected error(s): %v", err)
@@ -104,18 +88,18 @@ func runAuthzBenchmark(b *testing.B, mode InputMode, numPaths int, extras ...boo
 
 	input, expected := GenerateInput(profile, mode)
 
+	inputAST, err := ast.InterfaceToValue(input)
+	if err != nil {
+		b.Fatal(err)
+	}
+
 	b.ResetTimer()
 
 	for range b.N {
-		b.StartTimer()
-		rs, err := pq.Eval(
-			ctx,
-			rego.EvalInput(input),
-		)
+		rs, err := pq.Eval(ctx, rego.EvalParsedInput(inputAST))
 		if err != nil {
 			b.Fatalf("Unexpected error(s): %v", err)
 		}
-		b.StopTimer()
 
 		if rs.Allowed() != expected {
 			b.Fatalf("Unexpected result: %v", rs)

@@ -25,6 +25,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/open-policy-agent/opa/v1/hooks"
 	serverDecodingPlugin "github.com/open-policy-agent/opa/v1/plugins/server/decoding"
 	serverEncodingPlugin "github.com/open-policy-agent/opa/v1/plugins/server/encoding"
 
@@ -102,9 +103,12 @@ const (
 )
 
 var (
-	supportedTLSVersions = []uint16{tls.VersionTLS10, tls.VersionTLS11, tls.VersionTLS12, tls.VersionTLS13}
-	unsafeBuiltinsMap    = map[string]struct{}{ast.HTTPSend.Name: {}}
+	supportedTLSVersions       = []uint16{tls.VersionTLS10, tls.VersionTLS11, tls.VersionTLS12, tls.VersionTLS13}
+	unsafeBuiltinsMap          = map[string]struct{}{ast.HTTPSend.Name: {}}
+	intermediateResultsEnabled = os.Getenv("OPA_DECISIONS_INTERMEDIATE_RESULTS") != ""
 )
+
+type IntermediateResultsContextKey struct{}
 
 // Server represents an instance of OPA running in server mode.
 type Server struct {
@@ -148,6 +152,7 @@ type Server struct {
 	ndbCacheEnabled             bool
 	unixSocketPerm              *string
 	cipherSuites                *[]uint16
+	hooks                       hooks.Hooks
 }
 
 // Metrics defines the interface that the server requires for recording HTTP
@@ -187,6 +192,22 @@ func New() *Server {
 // from s.Listeners().
 func (s *Server) Init(ctx context.Context) (*Server, error) {
 	s.initRouters(ctx)
+	var err error
+	s.hooks.Each(func(h hooks.Hook) {
+		switch h := h.(type) {
+		case hooks.InterQueryCacheHook:
+			if e := h.OnInterQueryCache(ctx, s.interQueryBuiltinCache); e != nil {
+				err = errors.Join(err, e)
+			}
+		case hooks.InterQueryValueCacheHook:
+			if e := h.OnInterQueryValueCache(ctx, s.interQueryBuiltinValueCache); e != nil {
+				err = errors.Join(err, e)
+			}
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
 
 	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
@@ -398,6 +419,12 @@ func (s *Server) WithMinTLSVersion(minTLSVersion uint16) *Server {
 // WithDistributedTracingOpts sets the options to be used by distributed tracing.
 func (s *Server) WithDistributedTracingOpts(opts tracing.Options) *Server {
 	s.distributedTracingOpts = opts
+	return s
+}
+
+// WithHooks allows passing hooks to the server.
+func (s *Server) WithHooks(hs hooks.Hooks) *Server {
+	s.hooks = hs
 	return s
 }
 
@@ -741,7 +768,8 @@ func (s *Server) initHandlerAuthz(handler http.Handler) http.Handler {
 			authorizer.PrintHook(s.manager.PrintHook()),
 			authorizer.EnablePrintStatements(s.manager.EnablePrintStatements()),
 			authorizer.InterQueryCache(s.interQueryBuiltinCache),
-			authorizer.InterQueryValueCache(s.interQueryBuiltinValueCache))
+			authorizer.InterQueryValueCache(s.interQueryBuiltinValueCache),
+			authorizer.URLPathExpectsBodyFunc(s.manager.ExtraAuthorizerRoutes()))
 
 		if s.metrics != nil {
 			handler = s.instrumentHandler(handler.ServeHTTP, PromHandlerAPIAuthz)
@@ -822,6 +850,10 @@ func (s *Server) initRouters(ctx context.Context) {
 		router.Handle("GET /health/{path...}", s.instrumentHandler(s.unversionedGetHealthWithPolicy, PromHandlerHealth))
 	}
 
+	for p, r := range s.manager.ExtraRoutes() {
+		mainRouter.Handle(p, s.instrumentHandler(r.HandlerFunc, r.PromName))
+	}
+
 	if s.pprofEnabled {
 		mainRouter.HandleFunc("GET /debug/pprof/", pprof.Index)
 		mainRouter.Handle("GET /debug/pprof/allocs", pprof.Handler("allocs"))
@@ -873,8 +905,20 @@ func (s *Server) initRouters(ctx context.Context) {
 	s.DiagnosticHandler = handlerAuthzDiag
 }
 
+func createMiddleware(mw ...func(http.Handler) http.Handler) func(http.Handler) http.Handler {
+	return func(hnd http.Handler) http.Handler {
+		next := hnd
+		for k := len(mw) - 1; k >= 0; k-- {
+			next = mw[k](next)
+		}
+		return next
+	}
+}
+
 func (s *Server) instrumentHandler(handler func(http.ResponseWriter, *http.Request), label string) http.Handler {
-	httpHandler := handlers.DefaultHandler(http.HandlerFunc(handler))
+	httpHandler := handlers.DefaultHandler(createMiddleware(
+		s.manager.ExtraMiddlewares()...,
+	)(http.HandlerFunc(handler)))
 	if len(s.distributedTracingOpts) > 0 {
 		httpHandler = tracing.NewHandler(httpHandler, label, s.distributedTracingOpts)
 	}
@@ -890,7 +934,7 @@ func (s *Server) methodNotAllowedHandler() http.Handler {
 
 func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.Transaction, parsedQuery ast.Body, input ast.Value, rawInput *any, m metrics.Metrics, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (*types.QueryResponseV1, error) {
 	results := types.QueryResponseV1{}
-	logger := s.getDecisionLogger(br)
+	ctx, logger := s.getDecisionLogger(ctx, br)
 
 	var buf *topdown.BufferTracer
 	if explainMode != types.ExplainOffV1 {
@@ -1058,7 +1102,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 		urlPath = s.generateDefaultDecisionPath()
 	}
 
-	logger := s.getDecisionLogger(br)
+	ctx, logger := s.getDecisionLogger(ctx, br)
 
 	var ndbCache builtins.NDBCache
 	if s.ndbCacheEnabled {
@@ -1478,7 +1522,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger := s.getDecisionLogger(br)
+	ctx, logger := s.getDecisionLogger(ctx, br)
 
 	var ndbCache builtins.NDBCache
 	if s.ndbCacheEnabled {
@@ -1695,7 +1739,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if s.logger != nil {
-			logger = s.getDecisionLogger(br)
+			ctx, logger = s.getDecisionLogger(ctx, br)
 		}
 	}
 
@@ -2447,7 +2491,12 @@ func (s *Server) checkPathScope(ctx context.Context, txn storage.Transaction, pa
 	return nil
 }
 
-func (s *Server) getDecisionLogger(br bundleRevisions) (logger decisionLogger) {
+func (s *Server) getDecisionLogger(ctx context.Context, br bundleRevisions) (context.Context, decisionLogger) {
+	var logger decisionLogger
+	if intermediateResultsEnabled {
+		ctx = context.WithValue(ctx, IntermediateResultsContextKey{}, make(map[string]any))
+	}
+
 	// For backwards compatibility use `revision` as needed.
 	if s.hasLegacyBundle(br) {
 		logger.revision = br.LegacyRevision
@@ -2455,7 +2504,7 @@ func (s *Server) getDecisionLogger(br bundleRevisions) (logger decisionLogger) {
 		logger.revisions = br.Revisions
 	}
 	logger.logger = s.logger
-	return logger
+	return ctx, logger
 }
 
 func (*Server) getExplainResponse(explainMode types.ExplainModeV1, trace []*topdown.Event, pretty bool) (explanation types.TraceV1) {
@@ -3088,8 +3137,16 @@ func (l decisionLogger) Log(
 		info.SpanID = sctx.SpanID().String()
 	}
 
-	if err := l.logger(ctx, info); err != nil {
-		return fmt.Errorf("decision_logs: %w", err)
+	if intermediateResultsEnabled {
+		if iresults, ok := ctx.Value(IntermediateResultsContextKey{}).(map[string]any); ok {
+			info.IntermediateResults = iresults
+		}
+	}
+
+	if l.logger != nil {
+		if err := l.logger(ctx, info); err != nil {
+			return fmt.Errorf("decision_logs: %w", err)
+		}
 	}
 
 	return nil

@@ -21,10 +21,12 @@ func isRefSafe(ref Ref, safe VarSet) bool {
 }
 
 func isCallSafe(call Call, safe VarSet) bool {
-	vis := NewVarVisitor().WithParams(SafetyCheckVisitorParams)
+	vis := varVisitorPool.Get().WithParams(SafetyCheckVisitorParams)
 	vis.Walk(call)
-	unsafe := vis.Vars().Diff(safe)
-	return len(unsafe) == 0
+	isSafe := vis.Vars().DiffCount(safe) == 0
+	varVisitorPool.Put(vis)
+
+	return isSafe
 }
 
 // Unify returns a set of variables that will be unified when the equality expression defined by
@@ -173,11 +175,16 @@ func (u *unifier) unify(a *Term, b *Term) {
 }
 
 func (u *unifier) markAllSafe(x Value) {
-	vis := u.varVisitor()
+	vis := varVisitorPool.Get().WithParams(VarVisitorParams{
+		SkipRefHead:    true,
+		SkipObjectKeys: true,
+		SkipClosures:   true,
+	})
 	vis.Walk(x)
 	for v := range vis.Vars() {
 		u.markSafe(v)
 	}
+	varVisitorPool.Put(vis)
 }
 
 func (u *unifier) markSafe(x Var) {
@@ -204,16 +211,21 @@ func (u *unifier) markSafe(x Var) {
 
 func (u *unifier) markUnknown(a, b Var) {
 	if _, ok := u.unknown[a]; !ok {
-		u.unknown[a] = NewVarSet()
+		u.unknown[a] = NewVarSet(b)
+	} else {
+		u.unknown[a].Add(b)
 	}
-	u.unknown[a].Add(b)
 }
 
 func (u *unifier) unifyAll(a Var, b Value) {
 	if u.isSafe(a) {
 		u.markAllSafe(b)
 	} else {
-		vis := u.varVisitor()
+		vis := varVisitorPool.Get().WithParams(VarVisitorParams{
+			SkipRefHead:    true,
+			SkipObjectKeys: true,
+			SkipClosures:   true,
+		})
 		vis.Walk(b)
 		unsafe := vis.Vars().Diff(u.safe).Diff(u.unified)
 		if len(unsafe) == 0 {
@@ -223,13 +235,6 @@ func (u *unifier) unifyAll(a Var, b Value) {
 				u.markUnknown(a, v)
 			}
 		}
+		varVisitorPool.Put(vis)
 	}
-}
-
-func (*unifier) varVisitor() *VarVisitor {
-	return NewVarVisitor().WithParams(VarVisitorParams{
-		SkipRefHead:    true,
-		SkipObjectKeys: true,
-		SkipClosures:   true,
-	})
 }

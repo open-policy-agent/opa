@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 
 	"github.com/gobwas/glob"
 	"github.com/open-policy-agent/opa/internal/file/archive"
@@ -29,6 +30,7 @@ import (
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/format"
 	"github.com/open-policy-agent/opa/v1/metrics"
+	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
@@ -435,6 +437,45 @@ type PlanModuleFile struct {
 	Raw  []byte
 }
 
+var (
+	pluginMtx sync.Mutex
+
+	// The bundle activator to use by default.
+	bundleExtActivator string
+
+	// The function to use for creating a storage.Store for bundles.
+	BundleExtStore func() storage.Store
+)
+
+// RegisterDefaultBundleActivator sets the default bundle activator for OPA to use for bundle activation.
+// The id must already have been registered with RegisterActivator.
+func RegisterDefaultBundleActivator(id string) {
+	pluginMtx.Lock()
+	defer pluginMtx.Unlock()
+
+	bundleExtActivator = id
+}
+
+// RegisterStoreFunc sets the function to use for creating storage for bundles
+// in OPA. If no function is registered, OPA will use situational defaults to
+// decide on what sort of storage.Store to create when bundle storage is
+// needed. Typically the default is inmem.Store.
+func RegisterStoreFunc(s func() storage.Store) {
+	pluginMtx.Lock()
+	defer pluginMtx.Unlock()
+
+	BundleExtStore = s
+}
+
+// HasExtension returns true if a default bundle activator has been set
+// with RegisterDefaultBundleActivator.
+func HasExtension() bool {
+	pluginMtx.Lock()
+	defer pluginMtx.Unlock()
+
+	return bundleExtActivator != ""
+}
+
 // Reader contains the reader to load the bundle from.
 type Reader struct {
 	loader                DirectoryLoader
@@ -464,10 +505,11 @@ func NewReader(r io.Reader) *Reader {
 // specified DirectoryLoader.
 func NewCustomReader(loader DirectoryLoader) *Reader {
 	nr := Reader{
-		loader:         loader,
-		metrics:        metrics.New(),
-		files:          make(map[string]FileInfo),
-		sizeLimitBytes: DefaultSizeLimitBytes + 1,
+		loader:          loader,
+		metrics:         metrics.New(),
+		files:           make(map[string]FileInfo),
+		sizeLimitBytes:  DefaultSizeLimitBytes + 1,
+		lazyLoadingMode: HasExtension(),
 	}
 	return &nr
 }
@@ -721,7 +763,7 @@ func (r *Reader) Read() (Bundle, error) {
 			modulePopts.RegoVersion = regoVersion
 		}
 		r.metrics.Timer(metrics.RegoModuleParse).Start()
-		mf.Parsed, err = ast.ParseModuleWithOpts(mf.Path, string(mf.Raw), modulePopts)
+		mf.Parsed, err = ast.ParseModuleWithOpts(mf.Path, util.ByteSliceToString(mf.Raw), modulePopts)
 		r.metrics.Timer(metrics.RegoModuleParse).Stop()
 		if err != nil {
 			return bundle, err

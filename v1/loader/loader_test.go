@@ -23,6 +23,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/bundle"
+	"github.com/open-policy-agent/opa/v1/loader/extension"
 	"github.com/open-policy-agent/opa/v1/util"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
@@ -471,6 +472,49 @@ func TestLoadGuessYAML(t *testing.T) {
 	})
 }
 
+func TestLoadExtension(t *testing.T) {
+	files := map[string]string{
+		"/foo.mock": `{"a": [1,2,3]}`,
+	}
+
+	extension.RegisterExtension(".mock", util.UnmarshalJSON)
+
+	test.WithTempFS(files, func(rootDir string) {
+		loaded, err := NewFileLoader().All([]string{filepath.Join(rootDir, "foo.mock")})
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		expected := parseJSON(files["/foo.mock"])
+
+		if !reflect.DeepEqual(loaded.Documents, expected) {
+			t.Fatalf("Expected %v but got: %v", expected, loaded.Documents)
+		}
+	})
+}
+
+func TestLoadExtensionFail(t *testing.T) {
+	files := map[string]string{
+		"/foo.mock": `{"a": [1,2,3]}`,
+	}
+
+	extension.RegisterExtension(".mock", func([]byte, interface{}) error {
+		return errors.New("Load .mock file failed")
+	})
+
+	test.WithTempFS(files, func(rootDir string) {
+		_, err := NewFileLoader().All([]string{filepath.Join(rootDir, "foo.mock")})
+
+		if err == nil {
+			t.Fatal("Expected extension error")
+		}
+
+		if !strings.Contains(err.Error(), "foo.mock: Load .mock file failed") {
+			t.Fatal(err)
+		}
+	})
+}
+
 func TestLoadDirRecursive(t *testing.T) {
 	files := map[string]string{
 		"/a/data1.json": `{"a": [1,2,3]}`,
@@ -877,7 +921,6 @@ func TestAsBundleWithFile(t *testing.T) {
 	mod := "package b.c\np=1"
 
 	test.WithTempFS(files, func(rootDir string) {
-
 		bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
 
 		f, err := os.Create(bundleFile)
@@ -929,6 +972,48 @@ func TestAsBundleWithFile(t *testing.T) {
 			t.Fatalf("Loaded bundle doesn't match expected.\n\nExpected: %+v\n\nActual: %+v\n\n", b, actual)
 		}
 	})
+}
+
+// Test that lazy loading mode disables data validation checks.
+func TestBundleLazyLoadingMode(t *testing.T) {
+	mod := "package b.c\np=1"
+	bundleFile := filepath.Join(t.TempDir(), "bundle.tar.gz")
+
+	f, err := os.Create(bundleFile)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	b := &bundle.Bundle{
+		Manifest: bundle.Manifest{
+			Roots:    &[]string{"a", "b/c"},
+			Revision: "123",
+		},
+		Data: nil,
+		Modules: []bundle.ModuleFile{
+			{
+				URL:    path.Join(bundleFile, "policy.rego"),
+				Path:   "/policy.rego",
+				Raw:    []byte(mod),
+				Parsed: ast.MustParseModule(mod),
+			},
+		},
+	}
+
+	err = bundle.Write(f, *b)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+	err = f.Close()
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	// Loading a nil data value normally is an error, but lazy loading mode defers it.
+	_, err = NewFileLoader().WithBundleLazyLoadingMode(true).AsBundle(bundleFile)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 }
 
 func TestCheckForUNCPath(t *testing.T) {
@@ -1011,7 +1096,7 @@ func TestLoadRooted(t *testing.T) {
 	})
 }
 
-//go:embed internal/embedtest
+//go:embed testdata/embedtest
 var embedTestFS embed.FS
 
 func TestLoadFS(t *testing.T) {
@@ -1021,7 +1106,7 @@ func TestLoadFS(t *testing.T) {
 		"three:baz",
 	}
 
-	fsys, err := fs.Sub(embedTestFS, "internal/embedtest")
+	fsys, err := fs.Sub(embedTestFS, "testdata/embedtest")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -1060,7 +1145,7 @@ func TestLoadWithJSONOptions(t *testing.T) {
 		"three:baz",
 	}
 
-	fsys, err := fs.Sub(embedTestFS, "internal/embedtest")
+	fsys, err := fs.Sub(embedTestFS, "testdata/embedtest")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}

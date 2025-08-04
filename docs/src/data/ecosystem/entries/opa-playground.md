@@ -23,11 +23,12 @@ docs_features:
       The playground is a great place to get started with writing and testing
       your first policies. You can also share links if you're asking for
       help in the community Slack. Get started with a simple
-      [RBAC example](https://play.openpolicyagent.org/p/Bb9FqBvauC).
+      [RBAC example](https://play.openpolicyagent.org/?example-group=access-control).
   debugging-rego:
     note: |
       The playground is a great place to debug Rego policies as you can
       quickly iterate on the policy and data at the same time before sharing
       links to collaborate on a fix with others.
 ---
+
 Interactive online Rego playground for writing and sharing policies

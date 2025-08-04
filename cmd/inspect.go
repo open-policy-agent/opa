@@ -57,17 +57,18 @@ func newInspectCommandParams() inspectCommandParams {
 	}
 }
 
-func init() {
+func initInspect(root *cobra.Command, brand string) {
+	executable := root.Name()
 
 	params := newInspectCommandParams()
 
-	var inspectCommand = &cobra.Command{
+	inspectCommand := &cobra.Command{
 		Use:   "inspect <path> [<path> [...]]",
-		Short: "Inspect OPA bundle(s) or Rego files.",
-		Long: `Inspect OPA bundle(s) or Rego files.
+		Short: `Inspect ` + brand + ` bundle(s)`,
+		Long: `Inspect ` + brand + ` bundle(s).
 
-The 'inspect' command provides a summary of the contents in OPA bundle(s) or a single Rego file. Bundles are
-gzipped tarballs containing policies and data. The 'inspect' command reads bundle(s) and lists
+The 'inspect' command provides a summary of the contents in ` + brand + ` bundle(s) or a single Rego file.
+Bundles are gzipped tarballs containing policies and data. The 'inspect' command reads bundle(s) and lists
 the following:
 
 * packages that are contributed by .rego files
@@ -81,12 +82,12 @@ Example:
 
     $ ls
     bundle.tar.gz
-    $ opa inspect bundle.tar.gz
+    $ ` + executable + ` inspect bundle.tar.gz
 
-You can provide exactly one OPA bundle, path to a bundle directory, or direct path to a Rego file to the 'inspect' command
-on the command-line. If you provide a path referring to a directory, the 'inspect' command will load that path as a bundle
-and summarize its structure and contents. If you provide a path referring to a Rego file, the 'inspect' command will load
-that file and summarize its structure and contents.
+You can provide exactly one ` + brand + ` bundle, to a bundle directory, or direct path to a Rego file to the 'inspect'
+command on the command-line. If you provide a path referring to a directory, the 'inspect' command will load that path as
+a bundle and summarize its structure and contents.  If you provide a path referring to a Rego file, the 'inspect' command
+will load that file and summarize its structure and contents.
 `,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := validateInspectParams(&params, args); err != nil {
@@ -94,11 +95,15 @@ that file and summarize its structure and contents.
 			}
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		Run: func(_ *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+
 			if err := doInspect(params, args[0], os.Stdout); err != nil {
 				fmt.Fprintln(os.Stderr, "error:", err)
-				os.Exit(1)
+				return err
 			}
+			return nil
 		},
 	}
 
@@ -106,7 +111,7 @@ that file and summarize its structure and contents.
 	addListAnnotations(inspectCommand.Flags(), &params.listAnnotations)
 	addV0CompatibleFlag(inspectCommand.Flags(), &params.v0Compatible, false)
 	addV1CompatibleFlag(inspectCommand.Flags(), &params.v1Compatible, false)
-	RootCommand.AddCommand(inspectCommand)
+	root.AddCommand(inspectCommand)
 }
 
 func doInspect(params inspectCommandParams, path string, out io.Writer) error {

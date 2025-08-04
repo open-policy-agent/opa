@@ -52,31 +52,31 @@ func BenchmarkTarballLoader(b *testing.B) {
 			defer f.Close()
 
 			b.Run(strconv.Itoa(n), func(b *testing.B) {
-				// Reset the file reader.
-				if _, err := f.Seek(0, 0); err != nil {
-					b.Fatalf("Unexpected error: %s", err)
+				for range b.N {
+					// Reset the file reader.
+					if _, err := f.Seek(0, 0); err != nil {
+						b.Fatalf("Unexpected error: %s", err)
+					}
+					loader := NewTarballLoaderWithBaseURL(f, tarballFile)
+					benchTestLoader(b, loader)
 				}
-				loader := NewTarballLoaderWithBaseURL(f, tarballFile)
-				benchTestLoader(b, loader)
 			})
 		})
 	}
 }
 
 func BenchmarkDirectoryLoader(b *testing.B) {
-	sizes := []int{10000, 100000, 250000, 500000}
-
-	for _, n := range sizes {
+	for _, n := range []int{10000, 100000, 250000, 500000} {
 		expectedFiles := make(map[string]string, len(benchTestArchiveFiles)+1)
 		maps.Copy(expectedFiles, benchTestArchiveFiles)
 		expectedFiles["/x/data.json"] = benchTestGetFlatDataJSON(n)
 
 		test.WithTempFS(expectedFiles, func(rootDir string) {
 			b.ResetTimer()
-
 			b.Run(strconv.Itoa(n), func(b *testing.B) {
-				loader := NewDirectoryLoader(rootDir)
-				benchTestLoader(b, loader)
+				for range b.N {
+					benchTestLoader(b, NewDirectoryLoader(rootDir))
+				}
 			})
 		})
 	}

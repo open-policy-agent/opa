@@ -926,7 +926,7 @@ var ToNumber = &Builtin{
 				types.N,
 				types.S,
 				types.B,
-				types.NewNull(),
+				types.Nl,
 			)).Description("value to convert"),
 		),
 		types.Named("num", types.N).Description("the numeric representation of `x`"),
@@ -3172,7 +3172,7 @@ var GlobMatch = &Builtin{
 			types.Named("pattern", types.S).Description("glob pattern"),
 			types.Named("delimiters", types.NewAny(
 				types.NewArray(nil, types.S),
-				types.NewNull(),
+				types.Nl,
 			)).Description("glob pattern delimiters, e.g. `[\".\", \":\"]`, defaults to `[\".\"]` if unset. If `delimiters` is `null`, glob match without delimiter."),
 			types.Named("match", types.S).Description("string to match against `pattern`"),
 		),
@@ -3453,7 +3453,7 @@ var CastNull = &Builtin{
 	Name: "cast_null",
 	Decl: types.NewFunction(
 		types.Args(types.A),
-		types.NewNull(),
+		types.Nl,
 	),
 	deprecated:  true,
 	canSkipBctx: true,

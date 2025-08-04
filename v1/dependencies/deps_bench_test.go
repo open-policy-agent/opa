@@ -24,9 +24,10 @@ func BenchmarkBase(b *testing.B) {
 
 			b.ResetTimer()
 
-			_, err := Base(compiler, ref)
-			if err != nil {
-				b.Fatalf("Failed to compute base doc deps: %v", err)
+			for range b.N {
+				if _, err := Base(compiler, ref); err != nil {
+					b.Fatalf("Failed to compute base doc deps: %v", err)
+				}
 			}
 		})
 	}
@@ -36,8 +37,7 @@ func BenchmarkVirtual(b *testing.B) {
 	ruleCounts := []int{10, 20, 50}
 	for _, ruleCount := range ruleCounts {
 		b.Run(strconv.Itoa(ruleCount), func(b *testing.B) {
-			policy := makePolicy(ruleCount)
-			module := ast.MustParseModule(policy)
+			module := ast.MustParseModule(makePolicy(ruleCount))
 			compiler := ast.NewCompiler()
 			if compiler.Compile(map[string]*ast.Module{"test": module}); compiler.Failed() {
 				b.Fatalf("Failed to compile policy: %v", compiler.Errors)
@@ -47,9 +47,10 @@ func BenchmarkVirtual(b *testing.B) {
 
 			b.ResetTimer()
 
-			_, err := Virtual(compiler, ref)
-			if err != nil {
-				b.Fatalf("Failed to compute virtual doc deps: %v", err)
+			for range b.N {
+				if _, err := Virtual(compiler, ref); err != nil {
+					b.Fatalf("Failed to compute virtual doc deps: %v", err)
+				}
 			}
 		})
 	}

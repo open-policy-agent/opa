@@ -40,7 +40,7 @@ func (p *findDefinitionParams) regoVersion() ast.RegoVersion {
 	return ast.DefaultRegoVersion
 }
 
-func init() {
+func initOracle(root *cobra.Command, brand string) {
 
 	var findDefinitionParams findDefinitionParams
 
@@ -95,11 +95,15 @@ by the input location.`,
 			}
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		Run: func(_ *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+
 			if err := dofindDefinition(findDefinitionParams, os.Stdin, os.Stdout, args); err != nil {
 				fmt.Fprintln(os.Stderr, "error:", err)
-				os.Exit(1)
+				return err
 			}
+			return nil
 		},
 	}
 
@@ -108,7 +112,7 @@ by the input location.`,
 	oracleCommand.AddCommand(findDefinitionCommand)
 	addV0CompatibleFlag(oracleCommand.Flags(), &findDefinitionParams.v0Compatible, false)
 	addV1CompatibleFlag(oracleCommand.Flags(), &findDefinitionParams.v1Compatible, false)
-	RootCommand.AddCommand(oracleCommand)
+	root.AddCommand(oracleCommand)
 }
 
 func dofindDefinition(params findDefinitionParams, stdin io.Reader, stdout io.Writer, args []string) error {
@@ -125,6 +129,7 @@ func dofindDefinition(params findDefinitionParams, stdin io.Reader, stdout io.Wr
 			return errors.New("not implemented: multiple bundle paths")
 		}
 		b, err = loader.NewFileLoader().
+			WithBundleLazyLoadingMode(bundle.HasExtension()).
 			WithSkipBundleVerification(true).
 			WithFilter(func(_ string, info os.FileInfo, _ int) bool {
 				// While directories may contain other things of interest for OPA (json, yaml..),
