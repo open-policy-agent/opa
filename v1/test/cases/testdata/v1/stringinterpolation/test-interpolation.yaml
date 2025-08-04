@@ -118,6 +118,18 @@ cases:
     query: data.test.p = x
     want_result:
       - x: "foo bar"
+  - note: stringinterpolation/template expressions with infix operand call
+    modules:
+      - |
+        package test
+
+        a := 42
+        b := {"a", "b", "c"}
+
+        p := $"sum: {1 + 42}, join: {b | {"d", "e", "f"}}"
+    query: data.test.p = x
+    want_result:
+      - x: 'sum: 43, join: {"a", "b", "c", "d", "e", "f"}'
   - note: stringinterpolation/template expressions with undefined values
     modules:
       - |
