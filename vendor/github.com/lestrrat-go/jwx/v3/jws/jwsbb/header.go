@@ -15,10 +15,27 @@ func (e headerNotFoundError) Error() string {
 	return fmt.Sprintf(`jwsbb: header "%s" not found`, e.key)
 }
 
-// ErrFieldNotFound returns an error that can be passed to `errors.Is` to check if the error is
+func (e headerNotFoundError) Is(target error) bool {
+	switch target.(type) {
+	case headerNotFoundError, *headerNotFoundError:
+		// If the target is a headerNotFoundError or a pointer to it, we
+		// consider it a match
+		return true
+	default:
+		return false
+	}
+}
+
+// ErrHeaderdNotFound returns an error that can be passed to `errors.Is` to check if the error is
 // the result of the field not being found
-func ErrFieldNotFound() error {
+func ErrHeaderNotFound() error {
 	return headerNotFoundError{}
+}
+
+// ErrFieldNotFound is an alias for ErrHeaderNotFound, and is deprecated. It was a misnomer.
+// It will be removed in a future release.
+func ErrFieldNotFound() error {
+	return ErrHeaderNotFound()
 }
 
 // Header is an object that allows you to access the JWS header in a quick and

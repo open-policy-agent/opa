@@ -4,6 +4,13 @@ Changes
 v3 has many incompatibilities with v2. To see the full list of differences between
 v2 and v3, please read the Changes-v3.md file (https://github.com/lestrrat-go/jwx/blob/develop/v3/Changes-v3.md)
 
+v3.0.10 04 Aug 2025
+  * [jws/jwsbb] Add `jwsbb.ErrHeaderNotFound()` to return the same error type as when
+    a non-existent header is requested. via `HeaderGetXXX()` functions. Previously, this
+    function was called `jwsbb.ErrFieldNotFound()`, but it was a misnomer.
+  * [jws/jwsbb] Fix a bug where error return values from `HeaderGetXXX()` functions
+    could not be matched against `jwsbb.ErrHeaderNotFound()` using `errors.Is()`.
+
 v3.0.9 31 Jul 2025
   * [jws/jwsbb] `HeaderGetXXX()` functions now return errors when
     the requested header is not found, or if the value cannot be
