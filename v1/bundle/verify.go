@@ -130,7 +130,7 @@ func verifyJWTSignature(token string, bvc *VerificationConfig) (*DecodedSignatur
 		// use to determine the key to use for verification.
 		hdr := jwsbb.HeaderParseCompact(hdrb64)
 		v, err := jwsbb.HeaderGetString(hdr, "kid")
-		if err != nil {
+		if err != nil && err.Error() != `jwsbb: header "kid" not found` {
 			return nil, fmt.Errorf("failed to extract key ID from headers: %w", err)
 		}
 		// if kid is not present in the header, it will still return the empty

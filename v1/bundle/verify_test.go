@@ -51,7 +51,7 @@ func TestVerifyBundleSignature(t *testing.T) {
 			SignaturesConfig{Signatures: []string{badTokenPayload}},
 			NewVerificationConfig(nil, "", "", nil),
 			true,
-			errors.New("json: cannot unmarshal object into Go struct field DecodedSignature.files of type []bundle.FileInfo"),
+			errors.New(`json: cannot unmarshal object into Go struct field DecodedSignature.files of type []bundle.FileInfo`),
 		},
 		"valid_token_and_scope": {
 			SignaturesConfig{Signatures: []string{signedTokenHS256}},
@@ -170,8 +170,16 @@ yQjtQ8mbDOsiLLvh7wIDAQAB==
 		wantErr bool
 		err     error
 	}{
-		"no_public_key_id":          {signedNoKeyIDTokenHS256, map[string]*KeyConfig{}, "", "", true, errors.New("verification key ID is empty")},
-		"actual_public_key_missing": {signedTokenHS256, map[string]*KeyConfig{}, "", "", true, errors.New("verification key corresponding to ID foo not found")},
+		"no_public_key_id": {
+			signedNoKeyIDTokenHS256,
+			map[string]*KeyConfig{}, "", "",
+			true, errors.New(`verification key ID is empty`),
+		},
+		"actual_public_key_missing": {
+			signedTokenHS256,
+			map[string]*KeyConfig{}, "", "",
+			true, errors.New("verification key corresponding to ID foo not found"),
+		},
 		"deprecated_key_id_claim": {
 			signedTokenWithDeprecatedKidClaimHS256,
 			map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "write", // check valid keyId in deprecated claim is used
