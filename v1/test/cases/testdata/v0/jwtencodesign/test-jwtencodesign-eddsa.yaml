@@ -6,7 +6,7 @@ cases:
       - |
         package test
 
-        p := x if {
+        p := x {
         	io.jwt.encode_sign(
         		{"alg": "EdDSA", "typ": "JWT"},
         		{"aud": ["bob", "saul"], "exp": 1300819380, "http://example.com/is_root": true, "iss": "joe", "privateParams": {"private_one": "one", "private_two": "two"}},
