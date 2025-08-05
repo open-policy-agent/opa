@@ -9,8 +9,14 @@ import (
 	"math/rand"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
+)
+
+var (
+	str string
+	bs  []byte
 )
 
 func BenchmarkObjectLookup(b *testing.B) {
@@ -60,6 +66,61 @@ func BenchmarkObjectFind(b *testing.B) {
 			})
 		}
 	}
+}
+
+func BenchmarkObjectInsert(b *testing.B) {
+	nums := make([]*Term, 0, 100)
+	for i := range 100 {
+		nums = append(nums, InternedTerm(i))
+	}
+
+	b.Run("existing key and value", func(b *testing.B) {
+		obj := newobject(0)
+		obj.Insert(nums[0], nums[0])
+
+		for range b.N {
+			for range nums {
+				obj.Insert(nums[0], nums[0])
+			}
+		}
+	})
+
+	b.Run("existing key, new value", func(b *testing.B) {
+		obj := newobject(0)
+		obj.Insert(nums[0], StringTerm("foo"))
+
+		for range b.N {
+			for i := range nums {
+				obj.Insert(nums[0], nums[i])
+			}
+		}
+	})
+
+	b.Run("new key", func(b *testing.B) {
+		obj := newobject(0)
+
+		for range b.N {
+			for i := range nums {
+				obj.Insert(nums[i], nums[0])
+				if i >= len(nums)-1 {
+					reset(obj)
+				}
+			}
+		}
+	})
+
+	b.Run("new key, new value", func(b *testing.B) {
+		obj := newobject(0)
+
+		for range b.N {
+			for i := range nums {
+				obj.Insert(nums[i], nums[i])
+				if i >= len(nums)-1 {
+					reset(obj)
+				}
+			}
+		}
+	})
 }
 
 func BenchmarkObjectCreationAndLookup(b *testing.B) {
@@ -227,11 +288,6 @@ func BenchmarkTermHashing(b *testing.B) {
 		})
 	}
 }
-
-var (
-	str string
-	bs  []byte
-)
 
 // BenchmarkObjectString generates several objects of different sizes, and
 // marshals them to JSON via two ways:
@@ -495,4 +551,13 @@ func BenchmarkRefString(b *testing.B) {
 			_ = singleTerm.String()
 		}
 	})
+}
+
+func reset(obj *object) {
+	clear(obj.elems)
+	clear(obj.keys)
+	obj.keys = obj.keys[:0]
+	obj.ground = 0
+	obj.hash = 0
+	obj.sortGuard = sync.Once{}
 }
