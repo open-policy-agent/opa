@@ -18,16 +18,28 @@ cases:
     query: data.test.p = x
     want_result:
       - x: "foo bar baz"
-  - note: stringinterpolation/escaped template expression
+  - note: stringinterpolation/escaped template expressions
     modules:
       - |
         package test
 
-        p := $"foo \{42} baz"
-    query: data.test.p = x
-    # FIXME: Remove escape in output
+        a := $"\{42}"
+        b := $"foo \{42} bar"
+        c := $"foo \{42\}"
+        d := $"foo \{42\} bar"
+        e := $"foo \{42} bar \{43} baz"
+        f := $"\{{42}"
+        g := $"{42}\}"
+    query: data.test = x
     want_result:
-      - x: "foo {42} baz"
+      - x:
+          a: "{42}"
+          b: "foo {42} bar"
+          c: "foo {42}"
+          d: "foo {42} bar"
+          e: "foo {42} bar {43} baz"
+          f: "{42"
+          g: "42}"
   - note: stringinterpolation/template expressions with primitive values
     modules:
       - |

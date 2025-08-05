@@ -178,6 +178,140 @@ func TestLiterals(t *testing.T) {
 
 }
 
+func TestTemplateStrings(t *testing.T) {
+	tests := []struct {
+		note       string
+		input      string
+		opts       []ScanOption
+		offset     int
+		wantRow    int
+		wantOffset int
+		wantTok    tokens.Token
+		wantLit    string
+	}{
+		{
+			note:       "no template expressions",
+			input:      `$"foo bar"`,
+			wantRow:    1,
+			wantOffset: 0,
+			wantTok:    tokens.TemplateStringEnd,
+			wantLit:    `"foo bar"`,
+		},
+		{
+			note:       "with template expression",
+			input:      `$"foo {1 + 2} bar"`,
+			wantRow:    1,
+			wantOffset: 0,
+			wantTok:    tokens.TemplateStringPart,
+			wantLit:    `"foo {`,
+		},
+		{
+			note:       "with template expression, continued",
+			input:      `} bar"`,
+			opts:       []ScanOption{ContinueTemplateString()},
+			offset:     2, // the closing brace would have already been scanned as part of the template expression
+			wantRow:    1,
+			wantOffset: 1,
+			wantTok:    tokens.TemplateStringEnd,
+			wantLit:    `} bar"`,
+		},
+		{
+			note:       "with multiple template expressions, continued",
+			input:      `} bar { 1 + 2 } baz"`,
+			opts:       []ScanOption{ContinueTemplateString()},
+			offset:     2, // the closing brace would have already been scanned as part of the template expression
+			wantRow:    1,
+			wantOffset: 1,
+			wantTok:    tokens.TemplateStringPart,
+			wantLit:    `} bar {`,
+		},
+		{
+			note:       "with escaped template expression, leading",
+			input:      `$"\{1 + 2} foo"`,
+			wantRow:    1,
+			wantOffset: 0,
+			wantTok:    tokens.TemplateStringEnd,
+			wantLit:    `"{1 + 2} foo"`,
+		},
+		{
+			note:       "with escaped template expression, leading, both braces",
+			input:      `$"\{1 + 2\} foo"`,
+			wantRow:    1,
+			wantOffset: 0,
+			wantTok:    tokens.TemplateStringEnd,
+			wantLit:    `"{1 + 2} foo"`,
+		},
+		{
+			note:       "with escaped template expression, middle",
+			input:      `$"foo \{1 + 2} bar"`,
+			wantRow:    1,
+			wantOffset: 0,
+			wantTok:    tokens.TemplateStringEnd,
+			wantLit:    `"foo {1 + 2} bar"`,
+		},
+		{
+			note:       "with escaped template expression, middle, both braces",
+			input:      `$"foo \{1 + 2\} bar"`,
+			wantRow:    1,
+			wantOffset: 0,
+			wantTok:    tokens.TemplateStringEnd,
+			wantLit:    `"foo {1 + 2} bar"`,
+		},
+		{
+			note:       "with escaped template expression, trailing",
+			input:      `$"foo \{1 + 2}"`,
+			wantRow:    1,
+			wantOffset: 0,
+			wantTok:    tokens.TemplateStringEnd,
+			wantLit:    `"foo {1 + 2}"`,
+		},
+		{
+			note:       "with escaped template expression, trailing, both braces",
+			input:      `$"foo \{1 + 2\}"`,
+			wantRow:    1,
+			wantOffset: 0,
+			wantTok:    tokens.TemplateStringEnd,
+			wantLit:    `"foo {1 + 2}"`,
+		},
+		{
+			note:       "with escaped template expression, containing actual template expression",
+			input:      `$"foo \{{1} + 2}"`,
+			wantRow:    1,
+			wantOffset: 0,
+			wantTok:    tokens.TemplateStringPart,
+			wantLit:    `"foo {{`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			s, err := New(bytes.NewBufferString(tc.input))
+			if tc.offset != 0 {
+				s.offset = tc.offset
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			tok, pos, lit, errs := s.Scan(tc.opts...)
+			if pos.Row != tc.wantRow {
+				t.Errorf("Expected row %d but got %d", tc.wantRow, pos.Row)
+			}
+			if pos.Offset != tc.wantOffset {
+				t.Errorf("Expected offset %d but got %d", tc.wantOffset, pos.Offset)
+			}
+			if tok != tc.wantTok {
+				t.Errorf("Expected token %v but got %v", tc.wantTok, tok)
+			}
+			if lit != tc.wantLit {
+				t.Errorf("Expected literal %v but got %v", tc.wantLit, lit)
+			}
+			if len(errs) > 0 {
+				t.Fatal("Unexpected error(s):", errs)
+			}
+		})
+	}
+}
+
 func TestIllegalTokens(t *testing.T) {
 
 	tests := []struct {

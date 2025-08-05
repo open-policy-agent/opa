@@ -1880,7 +1880,6 @@ func (p *Parser) parseTemplateString() *Term {
 		} else if p.s.tok == tokens.TemplateStringPart {
 			// Add the string part of the template string
 			parts = append(parts, StringTerm(p.s.lit[1:len(p.s.lit)-1]))
-			//p.scan()
 		} else {
 			p.error(p.s.Loc(), "expected template string")
 			return nil

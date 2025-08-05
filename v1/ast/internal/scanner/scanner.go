@@ -417,23 +417,11 @@ func (s *Scanner) scanRawString() string {
 }
 
 func (s *Scanner) scanTemplateString() (string, tokens.Token) {
-	//ch := s.curr
-	//s.next()
-	//
-	//switch ch {
-	//case '"':
-	//	return s.scanString()
-	//case '`':
-	//	return s.scanRawString()
-	//}
-	//
-	//s.error(fmt.Sprintf("illegal template string delimiter %q", ch))
-	//return ""
-
 	// TODO: Differentiate between raw and regular template strings.
 
 	tok := tokens.TemplateStringPart
 	start := s.literalStart()
+	var escapes []int
 	for {
 		ch := s.curr
 
@@ -455,7 +443,10 @@ func (s *Scanner) scanTemplateString() (string, tokens.Token) {
 
 		if ch == '\\' {
 			switch s.curr {
-			case '\\', '"', '/', 'b', 'f', 'n', 'r', 't', '{', '}':
+			case '\\', '"', '/', 'b', 'f', 'n', 'r', 't':
+				s.next()
+			case '{', '}':
+				escapes = append(escapes, s.offset-1)
 				s.next()
 			case 'u':
 				s.next()
@@ -466,6 +457,29 @@ func (s *Scanner) scanTemplateString() (string, tokens.Token) {
 				s.error("illegal escape sequence")
 			}
 		}
+	}
+
+	// Lazily remove escapes to not unnecessarily allocate a new byte slice
+	if len(escapes) > 0 {
+		// If there are escapes, we need to remove them from the string.
+		from := start
+		bs := make([]byte, 0, s.offset-start-len(escapes))
+
+		for _, escape := range escapes {
+			// Append the bytes before the escape sequence.
+			if escape > from {
+				bs = append(bs, s.bs[from:escape-1]...)
+			}
+			// Skip the escape character.
+			from = escape
+		}
+
+		// Append the remaining bytes after the last escape sequence.
+		if from < s.offset-1 {
+			bs = append(bs, s.bs[from:s.offset-1]...)
+		}
+
+		return util.ByteSliceToString(bs), tok
 	}
 
 	return util.ByteSliceToString(s.bs[start : s.offset-1]), tok
