@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
+## 1.7.1
+
+This is a bug fix release addressing two issues for users that include OPA's CLI in their own application's CLI:
+- A missing symbol in the `cmd` package (`cmd.RootCommand`)
+- A possible panic in the `opa parse` command
+
 ## 1.7.0
 
 This release contains a mix of new features, performance improvements, and bugfixes. Notably:
