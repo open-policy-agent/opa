@@ -749,6 +749,7 @@ var tokenAlgorithms = map[string]struct{}{
 	"HS256": {},
 	"HS384": {},
 	"HS512": {},
+	"EdDSA": {},
 }
 
 // errSignatureNotVerified is returned when a signature cannot be verified.
