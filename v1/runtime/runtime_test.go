@@ -1481,7 +1481,7 @@ func TestUrlPathToConfigOverride(t *testing.T) {
 	}
 
 	var serviceConf map[string]any
-	if err = json.Unmarshal(rt.Manager.Config.Services, &serviceConf); err != nil {
+	if err = json.Unmarshal(rt.Manager.GetConfig().Services, &serviceConf); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1495,7 +1495,7 @@ func TestUrlPathToConfigOverride(t *testing.T) {
 	}
 
 	var bundleConf map[string]any
-	if err = json.Unmarshal(rt.Manager.Config.Bundles, &bundleConf); err != nil {
+	if err = json.Unmarshal(rt.Manager.GetConfig().Bundles, &bundleConf); err != nil {
 		t.Fatal(err)
 	}
 

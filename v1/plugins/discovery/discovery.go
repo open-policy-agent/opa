@@ -113,13 +113,13 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 
 	result.logger = manager.Logger().WithFields(map[string]any{"plugin": Name})
 
-	config, err := NewConfigBuilder().WithBytes(manager.Config.Discovery).WithServices(manager.Services()).
+	config, err := NewConfigBuilder().WithBytes(manager.GetConfig().Discovery).WithServices(manager.Services()).
 		WithKeyConfigs(manager.PublicKeys()).Parse()
 
 	if err != nil {
 		return nil, err
 	} else if config == nil {
-		if _, err := getPluginSet(result.factories, manager, manager.Config, result.metrics, result.logger, nil); err != nil {
+		if _, err := getPluginSet(result.factories, manager, manager.GetConfig(), result.metrics, result.logger, nil); err != nil {
 			return nil, err
 		}
 		return result, nil
@@ -129,8 +129,8 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 	restClient := manager.Client(config.service)
 	if strings.ToLower(restClient.Config().Type) == "oci" {
 		ociStorePath := filepath.Join(os.TempDir(), "opa", "oci") // use temporary folder /tmp/opa/oci
-		if manager.Config.PersistenceDirectory != nil {
-			ociStorePath = filepath.Join(*manager.Config.PersistenceDirectory, "oci")
+		if manager.GetConfig().PersistenceDirectory != nil {
+			ociStorePath = filepath.Join(*manager.GetConfig().PersistenceDirectory, "oci")
 		}
 		result.downloader = download.NewOCI(config.Config, restClient, config.path, ociStorePath).
 			WithCallback(result.oneShot).
@@ -230,7 +230,7 @@ func (c *Discovery) Unregister(name any) {
 }
 
 func (c *Discovery) getBundlePersistPath() (string, error) {
-	persistDir, err := c.manager.Config.GetPersistenceDirectory()
+	persistDir, err := c.manager.GetConfig().GetPersistenceDirectory()
 	if err != nil {
 		return "", err
 	}
@@ -474,7 +474,7 @@ func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pl
 	// Note: We don't currently support changes to the discovery
 	// configuration. These changes are risky because errors would be
 	// unrecoverable (without keeping track of changes and rolling back...)
-	config.Discovery = c.manager.Config.Discovery
+	config.Discovery = c.manager.GetConfig().Discovery
 
 	// check for updates to the discovery service
 	opts := c.manager.DefaultServiceOpts(config)

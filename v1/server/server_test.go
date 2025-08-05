@@ -1750,9 +1750,7 @@ func TestDataV1Metrics(t *testing.T) {
 func TestConfigV1(t *testing.T) {
 	t.Parallel()
 
-	f := newFixture(t)
-
-	c := []byte(`{"services": {
+	c := `{"services": {
 			"acmecorp": {
 				"url": "https://example.com/control-plane-api/v1",
 				"credentials": {"bearer": {"token": "test"}}
@@ -1763,21 +1761,16 @@ func TestConfigV1(t *testing.T) {
 		},
 		"keys": {
 			"global_key": {
-				"algorithm": HS256,
+				"algorithm": "HS256",
 				"key": "secret"
 			}
-		}}`)
+		}}`
 
-	conf, err := config.ParseConfig(c, "foo")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	f.server.manager.Config = conf
+	f := newFixtureWithConfig(t, c)
 
 	expected := map[string]any{
 		"result": map[string]any{
-			"labels":                         map[string]any{"id": "foo", "version": version.Version, "region": "west"},
+			"labels":                         map[string]any{"id": "test", "version": version.Version, "region": "west"},
 			"keys":                           map[string]any{"global_key": map[string]any{"algorithm": "HS256"}},
 			"services":                       map[string]any{"acmecorp": map[string]any{"url": "https://example.com/control-plane-api/v1"}},
 			"default_authorization_decision": "/system/authz/allow",
@@ -1799,12 +1792,12 @@ func TestConfigV1(t *testing.T) {
 		}
 	}`)
 
-	conf, err = config.ParseConfig(badServicesConfig, "foo")
+	conf, err := config.ParseConfig(badServicesConfig, "foo")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	f.server.manager.Config = conf
+	f.server.manager.SetConfig(conf)
 
 	if err := f.v1(http.MethodGet, "/config", "", 500, `{
 				"code": "internal_error",
@@ -4774,7 +4767,7 @@ func TestUnversionedPost(t *testing.T) {
 
 	// update the default decision path
 	s := "http/authz"
-	f.server.manager.Config.DefaultDecision = &s
+	f.server.manager.GetConfig().DefaultDecision = &s
 
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, post())

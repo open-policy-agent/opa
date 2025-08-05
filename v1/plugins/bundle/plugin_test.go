@@ -706,7 +706,7 @@ func TestPluginOneShotWithAuthzSchemaVerificationNonDefaultAuthzPath(t *testing.
 	manager := getTestManager()
 
 	s := "/foo/authz/allow"
-	manager.Config.DefaultAuthorizationDecision = &s
+	manager.GetConfig().DefaultAuthorizationDecision = &s
 
 	info, err := runtime.Term(runtime.Params{Config: nil, IsAuthorizationEnabled: true})
 	if err != nil {
@@ -4900,7 +4900,7 @@ func TestSaveBundleToDiskNewConfiguredPersistDir(t *testing.T) {
 	dir := t.TempDir()
 
 	manager := getTestManager()
-	manager.Config.PersistenceDirectory = &dir
+	manager.GetConfig().PersistenceDirectory = &dir
 	bundles := map[string]*Source{}
 	plugin := New(&Config{Bundles: bundles}, manager)
 
@@ -5166,7 +5166,7 @@ func TestConfiguredBundlePersistPath(t *testing.T) {
 
 	persistPath := "/var/opa"
 	manager := getTestManager()
-	manager.Config.PersistenceDirectory = &persistPath
+	manager.GetConfig().PersistenceDirectory = &persistPath
 	plugin := New(&Config{}, manager)
 
 	path, err := plugin.getBundlePersistPath()

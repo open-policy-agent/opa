@@ -394,7 +394,7 @@ func (opa *OPA) executeTransaction(ctx context.Context, record *server.Info, wor
 	}
 
 	if record.Path == "" {
-		record.Path = *s.manager.Config.DefaultDecision
+		record.Path = *s.manager.GetConfig().DefaultDecision
 	}
 
 	record.Txn, record.Error = s.manager.Store.NewTransaction(ctx, storage.TransactionParams{})

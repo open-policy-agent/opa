@@ -764,7 +764,7 @@ func (s *Server) initHandlerAuthz(handler http.Handler) http.Handler {
 			s.getCompiler,
 			s.store,
 			authorizer.Runtime(s.runtime),
-			authorizer.Decision(s.manager.Config.DefaultAuthorizationDecisionRef),
+			authorizer.Decision(s.manager.GetConfig().DefaultAuthorizationDecisionRef),
 			authorizer.PrintHook(s.manager.PrintHook()),
 			authorizer.EnablePrintStatements(s.manager.EnablePrintStatements()),
 			authorizer.InterQueryCache(s.interQueryBuiltinCache),
@@ -784,7 +784,7 @@ func (s *Server) initHandlerAuthz(handler http.Handler) http.Handler {
 // context.
 func (s *Server) initHandlerDecodingLimits(handler http.Handler) (http.Handler, error) {
 	var decodingRawConfig json.RawMessage
-	serverConfig := s.manager.Config.Server
+	serverConfig := s.manager.GetConfig().Server
 	if serverConfig != nil {
 		decodingRawConfig = serverConfig.Decoding
 	}
@@ -799,7 +799,7 @@ func (s *Server) initHandlerDecodingLimits(handler http.Handler) (http.Handler, 
 
 func (s *Server) initHandlerCompression(handler http.Handler) (http.Handler, error) {
 	var encodingRawConfig json.RawMessage
-	serverConfig := s.manager.Config.Server
+	serverConfig := s.manager.GetConfig().Server
 	if serverConfig != nil {
 		encodingRawConfig = serverConfig.Encoding
 	}
@@ -2387,7 +2387,7 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) v1ConfigGet(w http.ResponseWriter, r *http.Request) {
-	result, err := s.manager.Config.ActiveConfig()
+	result, err := s.manager.GetConfig().ActiveConfig()
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -2730,7 +2730,7 @@ func (s *Server) hasLegacyBundle(br bundleRevisions) bool {
 
 func (s *Server) generateDefaultDecisionPath() string {
 	// Assume the path is safe to transition back to a url
-	p, _ := s.manager.Config.DefaultDecisionRef().Ptr()
+	p, _ := s.manager.GetConfig().DefaultDecisionRef().Ptr()
 	return p
 }
 

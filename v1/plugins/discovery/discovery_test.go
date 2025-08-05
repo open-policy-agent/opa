@@ -230,7 +230,7 @@ func TestEnvVarSubstitution(t *testing.T) {
 		t.Fatalf("Expected exactly three start events but got %v", ps)
 	}
 
-	actualConfig, err := manager.Config.ActiveConfig()
+	actualConfig, err := manager.GetConfig().ActiveConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -290,7 +290,7 @@ decision_logs := {} if { 3 == 3 }
 		t.Fatalf("Expected exactly three start events but got %v", ps)
 	}
 
-	actualConfig, err := manager.Config.ActiveConfig()
+	actualConfig, err := manager.GetConfig().ActiveConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -329,7 +329,7 @@ decision_logs.partition_name := "bar" if { 3 == 3 }
 		t.Fatalf("Expected exactly three start events but got %v", ps)
 	}
 
-	actualConfig, err = manager.Config.ActiveConfig()
+	actualConfig, err = manager.GetConfig().ActiveConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -431,7 +431,7 @@ func TestProcessBundleWithActiveConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	actual, err := manager.Config.ActiveConfig()
+	actual, err := manager.GetConfig().ActiveConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -496,7 +496,7 @@ func TestProcessBundleWithActiveConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	actual, err = manager.Config.ActiveConfig()
+	actual, err = manager.GetConfig().ActiveConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -619,7 +619,7 @@ func TestStartWithBundlePersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	manager.Config.PersistenceDirectory = &dir
+	manager.GetConfig().PersistenceDirectory = &dir
 
 	testPlugin := &reconfigureTestPlugin{counts: map[string]int{}}
 	testFactory := testFactory{p: testPlugin}
@@ -1370,7 +1370,7 @@ func TestSaveBundleToDiskNewConfiguredPersistDir(t *testing.T) {
 	}
 
 	// configure persistence dir instead of using the default. Discover plugin should pick this up
-	manager.Config.PersistenceDirectory = &dir
+	manager.GetConfig().PersistenceDirectory = &dir
 
 	testPlugin := &reconfigureTestPlugin{counts: map[string]int{}}
 	testFactory := testFactory{p: testPlugin}
@@ -1474,11 +1474,11 @@ func TestReconfigure(t *testing.T) {
 	// Verify decision ids set
 	expDecision := ast.MustParseTerm("data.bar.baz")
 	expAuthzDecision := ast.MustParseTerm("data.baz.qux")
-	if !manager.Config.DefaultDecisionRef().Equal(expDecision.Value) {
-		t.Errorf("Expected default decision to be %v but got %v", expDecision, manager.Config.DefaultDecisionRef())
+	if !manager.GetConfig().DefaultDecisionRef().Equal(expDecision.Value) {
+		t.Errorf("Expected default decision to be %v but got %v", expDecision, manager.GetConfig().DefaultDecisionRef())
 	}
-	if !manager.Config.DefaultAuthorizationDecisionRef().Equal(expAuthzDecision.Value) {
-		t.Errorf("Expected default authz decision to be %v but got %v", expAuthzDecision, manager.Config.DefaultAuthorizationDecisionRef())
+	if !manager.GetConfig().DefaultAuthorizationDecisionRef().Equal(expAuthzDecision.Value) {
+		t.Errorf("Expected default authz decision to be %v but got %v", expAuthzDecision, manager.GetConfig().DefaultAuthorizationDecisionRef())
 	}
 
 	// Verify plugins started
@@ -1576,11 +1576,11 @@ plugins.test_plugin := v if {
 	// Verify decision ids set
 	expDecision := ast.MustParseTerm("data.bar.baz")
 	expAuthzDecision := ast.MustParseTerm("data.baz.qux")
-	if !manager.Config.DefaultDecisionRef().Equal(expDecision.Value) {
-		t.Errorf("Expected default decision to be %v but got %v", expDecision, manager.Config.DefaultDecisionRef())
+	if !manager.GetConfig().DefaultDecisionRef().Equal(expDecision.Value) {
+		t.Errorf("Expected default decision to be %v but got %v", expDecision, manager.GetConfig().DefaultDecisionRef())
 	}
-	if !manager.Config.DefaultAuthorizationDecisionRef().Equal(expAuthzDecision.Value) {
-		t.Errorf("Expected default authz decision to be %v but got %v", expAuthzDecision, manager.Config.DefaultAuthorizationDecisionRef())
+	if !manager.GetConfig().DefaultAuthorizationDecisionRef().Equal(expAuthzDecision.Value) {
+		t.Errorf("Expected default authz decision to be %v but got %v", expAuthzDecision, manager.GetConfig().DefaultAuthorizationDecisionRef())
 	}
 
 	// Verify plugins started
@@ -1717,11 +1717,11 @@ plugins.test_plugin := v if {
 	// Verify decision ids set
 	expDecision := ast.MustParseTerm("data.bar.baz")
 	expAuthzDecision := ast.MustParseTerm("data.baz.qux")
-	if !manager.Config.DefaultDecisionRef().Equal(expDecision.Value) {
-		t.Errorf("Expected default decision to be %v but got %v", expDecision, manager.Config.DefaultDecisionRef())
+	if !manager.GetConfig().DefaultDecisionRef().Equal(expDecision.Value) {
+		t.Errorf("Expected default decision to be %v but got %v", expDecision, manager.GetConfig().DefaultDecisionRef())
 	}
-	if !manager.Config.DefaultAuthorizationDecisionRef().Equal(expAuthzDecision.Value) {
-		t.Errorf("Expected default authz decision to be %v but got %v", expAuthzDecision, manager.Config.DefaultAuthorizationDecisionRef())
+	if !manager.GetConfig().DefaultAuthorizationDecisionRef().Equal(expAuthzDecision.Value) {
+		t.Errorf("Expected default authz decision to be %v but got %v", expAuthzDecision, manager.GetConfig().DefaultAuthorizationDecisionRef())
 	}
 
 	// Verify plugins started
@@ -1842,8 +1842,8 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 	disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
 
 	expAuthzRule := "/http/example/system/allow"
-	if *manager.Config.DefaultAuthorizationDecision != expAuthzRule {
-		t.Errorf("Expected default authorization decision %v but got %v", expAuthzRule, *manager.Config.DefaultAuthorizationDecision)
+	if *manager.GetConfig().DefaultAuthorizationDecision != expAuthzRule {
+		t.Errorf("Expected default authorization decision %v but got %v", expAuthzRule, *manager.GetConfig().DefaultAuthorizationDecision)
 	}
 
 	// `default_decision` is specified in both boot and service config. The former should take precedence.
@@ -1864,8 +1864,8 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 	}
 
 	expAuthzRule = "/http/example/authz/allow"
-	if *manager.Config.DefaultDecision != expAuthzRule {
-		t.Fatalf("Expected default decision %v but got %v", expAuthzRule, *manager.Config.DefaultDecision)
+	if *manager.GetConfig().DefaultDecision != expAuthzRule {
+		t.Fatalf("Expected default decision %v but got %v", expAuthzRule, *manager.GetConfig().DefaultDecision)
 	}
 
 	// `nd_builtin_cache` is specified in both boot and service config. The former should take precedence.
@@ -1885,7 +1885,7 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 		t.Fatal("expected key \"nd_builtin_cache\" to be overridden")
 	}
 
-	if manager.Config.NDBuiltinCache {
+	if manager.GetConfig().NDBuiltinCache {
 		t.Fatal("Expected nd_builtin_cache value to be false")
 	}
 
@@ -1900,7 +1900,7 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 
 	disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
 
-	if manager.Config.PersistenceDirectory == nil || *manager.Config.PersistenceDirectory != "test" {
+	if manager.GetConfig().PersistenceDirectory == nil || *manager.GetConfig().PersistenceDirectory != "test" {
 		t.Fatal("Unexpected update to persistence directory")
 	}
 
@@ -1979,7 +1979,7 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 		}
 	}
 
-	cacheConf, err := cache.ParseCachingConfig(manager.Config.Caching)
+	cacheConf, err := cache.ParseCachingConfig(manager.GetConfig().Caching)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2030,7 +2030,7 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 	disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
 
 	var dtConfig map[string]any
-	err = util.Unmarshal(manager.Config.DistributedTracing, &dtConfig)
+	err = util.Unmarshal(manager.GetConfig().DistributedTracing, &dtConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2644,10 +2644,10 @@ func TestReconfigureWithUpdates(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	if manager.Config.PersistenceDirectory == nil {
+	if manager.GetConfig().PersistenceDirectory == nil {
 		t.Fatal("Erased persistence directory configuration")
 	}
-	if manager.Config.Discovery == nil {
+	if manager.GetConfig().Discovery == nil {
 		t.Fatal("Erased discovery plugin configuration")
 	}
 
@@ -2665,7 +2665,7 @@ func TestReconfigureWithUpdates(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	if manager.Config.PersistenceDirectory == nil || *manager.Config.PersistenceDirectory == "my_bundles" {
+	if manager.GetConfig().PersistenceDirectory == nil || *manager.GetConfig().PersistenceDirectory == "my_bundles" {
 		t.Fatal("Unexpected update to persistence directory")
 	}
 }
@@ -3317,7 +3317,7 @@ bundle:
 `
 	manager := getTestManager(t, conf)
 	trigger := plugins.TriggerManual
-	_, err := getPluginSet(nil, manager, manager.Config, nil, nil, &trigger)
+	_, err := getPluginSet(nil, manager, manager.GetConfig(), nil, nil, &trigger)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -3354,7 +3354,7 @@ bundles:
 `
 	manager := getTestManager(t, conf)
 	trigger := plugins.TriggerManual
-	_, err := getPluginSet(nil, manager, manager.Config, nil, nil, &trigger)
+	_, err := getPluginSet(nil, manager, manager.GetConfig(), nil, nil, &trigger)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -3414,7 +3414,7 @@ bundles:
 
 			manager := getTestManager(t, tc.conf)
 			trigger := plugins.TriggerManual
-			_, err := getPluginSet(nil, manager, manager.Config, nil, nil, &trigger)
+			_, err := getPluginSet(nil, manager, manager.GetConfig(), nil, nil, &trigger)
 
 			if tc.wantErr {
 				if err == nil {
@@ -3479,7 +3479,7 @@ decision_logs:
 
 			manager := getTestManager(t, tc.conf)
 			trigger := plugins.TriggerManual
-			_, err := getPluginSet(nil, manager, manager.Config, nil, nil, &trigger)
+			_, err := getPluginSet(nil, manager, manager.GetConfig(), nil, nil, &trigger)
 
 			if tc.wantErr {
 				if err == nil {
@@ -3550,7 +3550,7 @@ status:
 
 			manager := getTestManager(t, tc.conf)
 			trigger := plugins.TriggerManual
-			_, err := getPluginSet(nil, manager, manager.Config, nil, nil, &trigger)
+			_, err := getPluginSet(nil, manager, manager.GetConfig(), nil, nil, &trigger)
 
 			if tc.wantErr {
 				if err == nil {

@@ -177,7 +177,8 @@ type StatusListener func(status map[string]*Status)
 // Manager implements lifecycle management of plugins and gives plugins access
 // to engine-wide components like storage.
 type Manager struct {
-	Store  storage.Store
+	Store storage.Store
+	// Config should be accessed using GetConfig()
 	Config *config.Config
 	Info   *ast.Term
 	ID     string
@@ -592,9 +593,7 @@ func (m *Manager) Init(ctx context.Context) error {
 
 // Labels returns the set of labels from the configuration.
 func (m *Manager) Labels() map[string]string {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-	return m.Config.Labels
+	return m.GetConfig().Labels
 }
 
 // InterQueryBuiltinCacheConfig returns the configuration for the inter-query caches.
@@ -602,6 +601,22 @@ func (m *Manager) InterQueryBuiltinCacheConfig() *cache.Config {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	return m.interQueryBuiltinCacheConfig
+}
+
+// GetConfig returns the manager's configuration.
+// This is locked and is the supported way to access the manager's config.
+func (m *Manager) GetConfig() *config.Config {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	return m.Config
+}
+
+// SetConfig sets the manager's configuration.
+// This is locked and is the supported way to set the manager's config.
+func (m *Manager) SetConfig(config *config.Config) {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	m.Config = config
 }
 
 // Register adds a plugin to the manager. When the manager is started, all of
@@ -862,7 +877,7 @@ func (m *Manager) Reconfigure(config *config.Config) error {
 
 	// don't erase persistence directory
 	if config.PersistenceDirectory == nil {
-		config.PersistenceDirectory = m.Config.PersistenceDirectory
+		config.PersistenceDirectory = m.GetConfig().PersistenceDirectory
 	}
 
 	m.Config = config
