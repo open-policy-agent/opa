@@ -1,0 +1,31 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "keyconv",
+    srcs = ["keyconv.go"],
+    importpath = "github.com/lestrrat-go/jwx/v3/internal/keyconv",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//jwk",
+        "@com_github_lestrrat_go_blackmagic//:blackmagic",
+        "@org_golang_x_crypto//ed25519",
+    ],
+)
+
+go_test(
+    name = "keyconv_test",
+    srcs = ["keyconv_test.go"],
+    deps = [
+        ":keyconv",
+        "//internal/jwxtest",
+        "//jwa",
+        "//jwk",
+        "@com_github_stretchr_testify//require",
+    ],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":keyconv",
+    visibility = ["//:__subpackages__"],
+)

@@ -1,0 +1,76 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "jws",
+    srcs = [
+        "errors.go",
+        "filter.go",
+        "headers.go",
+        "headers_gen.go",
+        "interface.go",
+        "io.go",
+        "jws.go",
+        "key_provider.go",
+        "legacy.go",
+        "message.go",
+        "options.go",
+        "options_gen.go",
+        "signer.go",
+        "sign_context.go",
+        "signature_builder.go",
+        "verifier.go",
+        "verify_context.go",
+    ],
+    importpath = "github.com/lestrrat-go/jwx/v3/jws",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//cert",
+        "//internal/base64",
+        "//internal/ecutil",
+        "//internal/json",
+        "//internal/jwxio",
+        "//internal/tokens",
+        "//internal/keyconv",
+        "//internal/pool",
+        "//jwa",
+        "//jwk",
+        "//jws/internal/keytype",
+        "//jws/jwsbb",
+        "//jws/legacy",
+        "//transform",
+        "@com_github_lestrrat_go_blackmagic//:blackmagic",
+        "@com_github_lestrrat_go_option_v2//:option",
+    ],
+)
+
+go_test(
+    name = "jws_test",
+    srcs = [
+        "es256k_test.go",
+        "filter_test.go",
+        "headers_test.go",
+        "jws_test.go",
+        "message_test.go",
+        "options_gen_test.go",
+        "signer_test.go",
+    ],
+    embed = [":jws"],
+    deps = [
+        "//cert",
+        "//internal/base64",
+        "//internal/ecutil",
+        "//internal/json",
+        "//internal/jwxtest",
+        "//jwa",
+        "//jwk",
+        "//jwt",
+        "@com_github_lestrrat_go_httprc_v3//:httprc",
+        "@com_github_stretchr_testify//require",
+    ],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":jws",
+    visibility = ["//visibility:public"],
+)

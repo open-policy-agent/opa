@@ -1,0 +1,35 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "types",
+    srcs = [
+        "date.go",
+        "string.go",
+    ],
+    importpath = "github.com/lestrrat-go/jwx/v3/jwt/internal/types",
+    visibility = ["//jwt:__subpackages__"],
+    deps = [
+        "//internal/json",
+        "//internal/tokens",
+    ],
+)
+
+go_test(
+    name = "types_test",
+    srcs = [
+        "date_test.go",
+        "string_test.go",
+    ],
+    deps = [
+        ":types",
+        "//internal/json",
+        "//jwt",
+        "@com_github_stretchr_testify//require",
+    ],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":types",
+    visibility = ["//jwt:__subpackages__"],
+)

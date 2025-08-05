@@ -33,8 +33,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/internal/jwx/jwa"
-	"github.com/open-policy-agent/opa/internal/jwx/jws"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/open-policy-agent/opa/internal/providers/aws"
 	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/keys"
@@ -1730,7 +1730,7 @@ func TestOauth2JwtBearerGrantType(t *testing.T) {
 		expGrantType:     "urn:ietf:params:oauth:grant-type:jwt-bearer",
 		expScope:         &[]string{"scope1", "scope2"},
 		expJwtCredential: true,
-		expAlgorithm:     jwa.RS256,
+		expAlgorithm:     jwa.RS256(),
 		verificationKey:  &key.PublicKey,
 	}
 	ots.start()
@@ -1759,7 +1759,7 @@ func TestOauth2JwtBearerGrantTypePKCS8EncodedPrivateKey(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	keyPem := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: privateKey})
+	keyPem := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privateKey})
 	ks := map[string]*keys.Config{
 		keyID: {
 			PrivateKey: string(keyPem),
@@ -1777,7 +1777,7 @@ func TestOauth2JwtBearerGrantTypePKCS8EncodedPrivateKey(t *testing.T) {
 		expGrantType:     "urn:ietf:params:oauth:grant-type:jwt-bearer",
 		expScope:         &[]string{"scope1", "scope2"},
 		expJwtCredential: true,
-		expAlgorithm:     jwa.RS256,
+		expAlgorithm:     jwa.RS256(),
 		verificationKey:  &key.PublicKey,
 	}
 	ots.start()
@@ -1823,7 +1823,7 @@ func TestOauth2JwtBearerGrantTypeEllipticCurveAlgorithm(t *testing.T) {
 		expGrantType:     "urn:ietf:params:oauth:grant-type:jwt-bearer",
 		expScope:         &[]string{"scope1", "scope2"},
 		expJwtCredential: true,
-		expAlgorithm:     jwa.ES256,
+		expAlgorithm:     jwa.ES256(),
 		verificationKey:  &key.PublicKey,
 	}
 	ots.start()
@@ -1871,7 +1871,7 @@ func TestOauth2ClientCredentialsJwtAuthentication(t *testing.T) {
 		expScope:         &[]string{"scope1", "scope2"},
 		expX5t:           "jxvd3pmCKZ5idJwg7duqxX9hnQQ=",
 		expJwtCredential: true,
-		expAlgorithm:     jwa.RS256,
+		expAlgorithm:     jwa.RS256(),
 		verificationKey:  &key.PublicKey,
 	}
 	ots.start()
@@ -2386,7 +2386,7 @@ func (t *oauth2TestServer) handle(w http.ResponseWriter, r *http.Request) {
 				t.t.Errorf("Expected expSignature %v, got %v", t.expSignature, signature)
 			}
 		} else {
-			_, err := jws.Verify([]byte(token), t.expAlgorithm, t.verificationKey)
+			_, err := jws.Verify([]byte(token), jws.WithKey(t.expAlgorithm, t.verificationKey))
 			if err != nil {
 				t.t.Fatalf("Unexpected signature verification error %v", err)
 			}
@@ -2639,7 +2639,7 @@ func TestOauth2ClientCredentialsGrantTypeWithKms(t *testing.T) {
 		tokenTTL:         300,
 		expScope:         &[]string{"scope1", "scope2"},
 		expJwtCredential: true,
-		expAlgorithm:     jwa.ES256,
+		expAlgorithm:     jwa.ES256(),
 		expGrantType:     grantTypeClientCredentials,
 		expSignature:     jwtSignature,
 	}
@@ -2748,7 +2748,7 @@ func TestOauth2ClientCredentialsGrantTypeWithKeyVault(t *testing.T) {
 		tokenTTL:         300,
 		expScope:         &[]string{"scope1", "scope2"},
 		expJwtCredential: true,
-		expAlgorithm:     "ES256",
+		expAlgorithm:     jwa.ES256(),
 		expGrantType:     grantTypeClientCredentials,
 		expSignature:     sign,
 	}

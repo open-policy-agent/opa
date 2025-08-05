@@ -1,0 +1,41 @@
+package_name: jwa
+output: jwa/options_gen.go
+interfaces:
+  - name: NewAlgorithmOption
+    methods:
+      - newSignatureAlgorithmOption
+      - newKeyEncryptionAlgorithmOption
+      - newSignatureKeyEncryptionAlgorithmOption
+    comment: |
+      NewAlgorithmOption represents an option that can be passed to any of the constructor functions
+  - name: NewSignatureAlgorithmOption
+    methods:
+      - newSignatureAlgorithmOption
+    comment: |
+      NewSignatureAlgorithmOption represents an option that can be passed to the NewSignatureAlgorithm
+  - name: NewKeyEncryptionAlgorithmOption
+    methods:
+      - newKeyEncryptionAlgorithmOption
+    comment: |
+      NewKeyEncryptionAlgorithmOption represents an option that can be passed to the NewKeyEncryptionAlgorithm
+  - name: NewSignatureKeyEncryptionAlgorithmOption
+    comment: |
+      NewSignatureKeyEncryptionAlgorithmOption represents an option that can be passed to both
+      NewSignatureAlgorithm and NewKeyEncryptionAlgorithm
+    methods:
+      - newSignatureAlgorithmOption
+      - newKeyEncryptionAlgorithmOption
+options:
+  - ident: IsSymmetric
+    interface: NewSignatureKeyEncryptionAlgorithmOption
+    argument_type: bool
+    comment: |
+      IsSymmetric specifies that the algorithm is symmetric
+  - ident: Deprecated
+    interface: NewAlgorithmOption
+    argument_type: bool
+    comment: |
+      WithDeprecated specifies that the algorithm is deprecated. In order to
+      un-deprecate an algorithm, you will have to create a new algorithm
+      with the same values but with the Deprecated option set to false, and
+      then call RegisterXXXXAlgorithm with the new algorithm.

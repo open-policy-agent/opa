@@ -1,0 +1,45 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "jwa",
+    srcs = [
+        "compression_gen.go",
+        "content_encryption_gen.go",
+        "elliptic_gen.go",
+        "jwa.go",
+        "key_encryption_gen.go",
+        "key_type_gen.go",
+        "options_gen.go",
+        "signature_gen.go",
+    ],
+    importpath = "github.com/lestrrat-go/jwx/v3/jwa",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//internal/tokens",
+        "@com_github_lestrrat_go_option_v2//:option",
+    ],
+)
+
+go_test(
+    name = "jwa_test",
+    srcs = [
+        "compression_gen_test.go",
+        "content_encryption_gen_test.go",
+        "elliptic_gen_test.go",
+        "jwa_test.go",
+        "key_encryption_gen_test.go",
+        "key_type_gen_test.go",
+        "signature_gen_test.go",
+    ],
+    deps = [
+        ":jwa",
+        "@com_github_stretchr_testify//require",
+        "@com_github_lestrrat_go_option_v2//:option",
+    ],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":jwa",
+    visibility = ["//visibility:public"],
+)
