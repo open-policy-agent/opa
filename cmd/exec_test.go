@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -1460,13 +1461,14 @@ func TestExecWithInvalidInputOptions(t *testing.T) {
 
 func TestExecTimeoutWithMalformedRemoteBundle(t *testing.T) {
 	test.WithTempFS(map[string]string{}, func(dir string) {
+		bundlePath := "/bundles/bundle.tar.gz"
 		// Note(philipc): We add the "raw bundles" flag so that we can stuff a
 		// malformed bundle into the mock bundle server. Otherwise, the server
 		// will just return 503 errors forever, because it won't be able to
 		// build the bundle on its end.
 		s := sdk_test.MustNewServer(
 			sdk_test.RawBundles(true),
-			sdk_test.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			sdk_test.MockBundle(bundlePath, map[string]string{
 				"example.rego": `
 				package example
 
@@ -1476,12 +1478,22 @@ func TestExecTimeoutWithMalformedRemoteBundle(t *testing.T) {
 
 		defer s.Stop()
 
+		// Wait for the bundle server to be ready before running exec
+		bundleURL := s.URL() + bundlePath
+		test.EventuallyOrFatal(t, 1*time.Second, func() bool {
+			resp, err := http.Get(bundleURL)
+			if resp != nil {
+				defer resp.Body.Close()
+			}
+			return err == nil && resp.StatusCode == 200
+		})
+
 		var buf bytes.Buffer
 		params := exec.NewParams(&buf)
 		_ = params.OutputFormat.Set("json")
 		params.ConfigOverrides = []string{
 			"services.test.url=" + s.URL(),
-			"bundles.test.resource=/bundles/bundle.tar.gz",
+			"bundles.test.resource=" + bundlePath,
 		}
 
 		// Note(philipc): We can set this timeout almost arbitrarily high or
