@@ -2161,10 +2161,14 @@ func rewriteTemplateStrings(gen *localVarGenerator, getArity func(Ref) int, glob
 		rewrittenTerms := make([]*Term, 0, inputTerms.Len())
 
 		inputTerms.Foreach(func(term *Term) {
-			loc := term.Loc()
-			x := NewTerm(gen.Generate()).SetLocation(loc)
-			capture := Equality.Expr(x, term).SetLocation(loc)
-			rewrittenTerms = append(rewrittenTerms, SetComprehensionTerm(x, NewBody(capture)).SetLocation(loc))
+			if _, ok := term.Value.(String); ok {
+				rewrittenTerms = append(rewrittenTerms, term)
+			} else {
+				loc := term.Loc()
+				x := NewTerm(gen.Generate()).SetLocation(loc)
+				capture := Equality.Expr(x, term).SetLocation(loc)
+				rewrittenTerms = append(rewrittenTerms, SetComprehensionTerm(x, NewBody(capture)).SetLocation(loc))
+			}
 		})
 
 		if len(args) == 1 {

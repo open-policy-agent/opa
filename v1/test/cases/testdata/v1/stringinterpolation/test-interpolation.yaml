@@ -1,6 +1,6 @@
 ---
 cases:
-  - note: stringinterpolation/empty string
+  - note: /empty string
     modules:
       - |
         package test

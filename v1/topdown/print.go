@@ -60,6 +60,13 @@ func builtinPrintCrossProductOperands(bctx BuiltinContext, buf []string, operand
 		return f(buf)
 	}
 
+	// We allow strings ...
+	if s, ok := operands.Elem(i).Value.(ast.String); ok {
+		buf[i] = string(s)
+		return builtinPrintCrossProductOperands(bctx, buf, operands, i+1, f)
+	}
+
+	// ... but all other operand types must be sets.
 	xs, ok := operands.Elem(i).Value.(ast.Set)
 	if !ok {
 		return Halt{Err: internalErr(bctx.Location, fmt.Sprintf("illegal argument type: %v", ast.ValueName(operands.Elem(i).Value)))}

@@ -7532,7 +7532,6 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 		module string
 		exp    string
 	}{
-		// FIXME: don't wrap string args in comprehensions
 		{
 			note: "empty template string, head value",
 			module: `package test
@@ -7540,7 +7539,7 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 			exp: `package test
 			p := __local0__ if { 
 				true
-				__local2__ = {__local1__ | __local1__ = ""}; internal.template_string([__local2__], __local0__) 
+				internal.template_string([""], __local0__) 
 			}`,
 		},
 		{
@@ -7550,7 +7549,7 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 			exp: `package test
 			p contains __local0__ if { 
 				true
-				__local2__ = {__local1__ | __local1__ = ""}; internal.template_string([__local2__], __local0__) 
+				internal.template_string([""], __local0__) 
 			}`,
 		},
 		{
@@ -7560,7 +7559,19 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 			exp: `package test
 			p[__local0__] := true if { 
 				true
-				__local3__ = {__local2__ | __local2__ = ""}; internal.template_string([__local3__], __local1__)
+				internal.template_string([""], __local1__)
+				__local0__ = __local1__
+			}`,
+		},
+		{
+			note: "empty template string, in body",
+			module: `package test
+			p := x if {
+				x := $""
+			}`,
+			exp: `package test
+			p := __local0__ if { 
+				internal.template_string([""], __local1__)
 				__local0__ = __local1__
 			}`,
 		},
@@ -7571,9 +7582,63 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 				$""
 			}`,
 			exp: `package test
-			p = true if { 
-				__local1__ = {__local0__ | __local0__ = ""}
-				internal.template_string([__local1__])
+			p = true if {
+				internal.template_string([""])
+			}`,
+		},
+
+		{
+			note: "non-empty template string, no template expression, head value",
+			module: `package test
+			p := $"foo bar"`,
+			exp: `package test
+			p := __local0__ if { 
+				true
+				internal.template_string(["foo bar"], __local0__) 
+			}`,
+		},
+		{
+			note: "non-empty template string, no template expression, head set value",
+			module: `package test
+			p contains $"foo bar"`,
+			exp: `package test
+			p contains __local0__ if { 
+				true
+				internal.template_string(["foo bar"], __local0__) 
+			}`,
+		},
+		{
+			note: "non-empty template string, no template expression, head map key",
+			module: `package test
+			p[$"foo bar"] := true`,
+			exp: `package test
+			p[__local0__] := true if { 
+				true
+				internal.template_string(["foo bar"], __local1__)
+				__local0__ = __local1__
+			}`,
+		},
+		{
+			note: "non-empty template string, no template expression, in body",
+			module: `package test
+			p := x if {
+				x := $"foo bar"
+			}`,
+			exp: `package test
+			p := __local0__ if { 
+				internal.template_string(["foo bar"], __local1__)
+				__local0__ = __local1__
+			}`,
+		},
+		{
+			note: "non-empty template string, no template expression, in body, no output arg",
+			module: `package test
+			p if {
+				$"foo bar"
+			}`,
+			exp: `package test
+			p = true if {
+				internal.template_string(["foo bar"])
 			}`,
 		},
 
@@ -7584,11 +7649,8 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 			p := $"{input.x}"`,
 			exp: `package test
 			p := __local0__ if { 
-				true
-				__local4__ = {__local1__ | __local1__ = ""}
-				__local5__ = {__local2__ | __local2__ = input.x}
-				__local6__ = {__local3__ | __local3__ = ""}
-				internal.template_string([__local4__, __local5__, __local6__], __local0__) 
+				true 
+				__local2__ = {__local1__ | __local1__ = input.x}; internal.template_string(["", __local2__, ""], __local0__)
 			}`,
 		},
 		{
@@ -7598,10 +7660,8 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 			exp: `package test
 			p contains __local0__ if { 
 				true
-				__local4__ = {__local1__ | __local1__ = ""}
-				__local5__ = {__local2__ | __local2__ = input.x}
-				__local6__ = {__local3__ | __local3__ = ""}
-				internal.template_string([__local4__, __local5__, __local6__], __local0__) 
+				__local2__ = {__local1__ | __local1__ = input.x}
+				internal.template_string(["", __local2__, ""], __local0__)
 			}`,
 		},
 		{
@@ -7611,10 +7671,21 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 			exp: `package test
 			p[__local0__] := true if { 
 				true
-				__local5__ = {__local2__ | __local2__ = ""}
-				__local6__ = {__local3__ | __local3__ = input.x}
-				__local7__ = {__local4__ | __local4__ = ""}
-				internal.template_string([__local5__, __local6__, __local7__], __local1__)
+				__local3__ = {__local2__ | __local2__ = input.x}
+				internal.template_string(["", __local3__, ""], __local1__)
+				__local0__ = __local1__
+			}`,
+		},
+		{
+			note: "single template expression, ref, in body",
+			module: `package test
+			p := x if {
+				x := $"{input.x}"
+			}`,
+			exp: `package test
+			p := __local0__ if { 
+				__local3__ = {__local2__ | __local2__ = input.x}
+				internal.template_string(["", __local3__, ""], __local1__)
 				__local0__ = __local1__
 			}`,
 		},
@@ -7626,10 +7697,8 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 			}`,
 			exp: `package test
 			p = true if { 
-				__local3__ = {__local0__ | __local0__ = ""}
-				__local4__ = {__local1__ | __local1__ = input.x}
-				__local5__ = {__local2__ | __local2__ = ""}
-				internal.template_string([__local3__, __local4__, __local5__])
+				__local1__ = {__local0__ | __local0__ = input.x}
+				internal.template_string(["", __local1__, ""])
 			}`,
 		},
 
@@ -7642,10 +7711,21 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 			exp: `package test
 			p := __local1__ if { 
 				__local0__ = 42
-				__local5__ = {__local2__ | __local2__ = ""}
-				__local6__ = {__local3__ | __local3__ = __local0__}
-				__local7__ = {__local4__ | __local4__ = ""}
-				internal.template_string([__local5__, __local6__, __local7__], __local1__)
+				__local3__ = {__local2__ | __local2__ = __local0__}
+				internal.template_string(["", __local3__, ""], __local1__)
+			}`,
+		},
+		{
+			note: "single template expression, var, indirection, head value",
+			module: `package test
+			p := $"{x}" if {
+				x := input.x
+			}`,
+			exp: `package test
+			p := __local1__ if { 
+				__local0__ = input.x
+				__local3__ = {__local2__ | __local2__ = __local0__}
+				internal.template_string(["", __local3__, ""], __local1__)
 			}`,
 		},
 		{
@@ -7657,10 +7737,8 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 			exp: `package test
 			p contains __local1__ if { 
 				__local0__ = 42
-				__local5__ = {__local2__ | __local2__ = ""}
-				__local6__ = {__local3__ | __local3__ = __local0__}
-				__local7__ = {__local4__ | __local4__ = ""}
-				internal.template_string([__local5__, __local6__, __local7__], __local1__)
+				__local3__ = {__local2__ | __local2__ = __local0__}
+				internal.template_string(["", __local3__, ""], __local1__)
 			}`,
 		},
 		{
@@ -7672,11 +7750,24 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 			exp: `package test
 			p[__local0__] := true if { 
 				__local1__ = 42
-				__local6__ = {__local3__ | __local3__ = ""}
-				__local7__ = {__local4__ | __local4__ = __local1__}
-				__local8__ = {__local5__ | __local5__ = ""}
-				internal.template_string([__local6__, __local7__, __local8__], __local2__)
+				__local4__ = {__local3__ | __local3__ = __local1__}
+				internal.template_string(["", __local4__, ""], __local2__)
 				__local0__ = __local2__
+			}`,
+		},
+		{
+			note: "single template expression, var, in body",
+			module: `package test
+			p := y if {
+				x := 42
+				y := $"{x}"
+			}`,
+			exp: `package test
+			p := __local1__ if { 
+				__local0__ = 42
+				__local4__ = {__local3__ | __local3__ = __local0__}
+				internal.template_string(["", __local4__, ""], __local2__)
+				__local1__ = __local2__
 			}`,
 		},
 		{
@@ -7689,39 +7780,42 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 			exp: `package test
 			p = true if { 
 				__local0__ = 42
-				__local4__ = {__local1__ | __local1__ = ""}
-				__local5__ = {__local2__ | __local2__ = __local0__}
-				__local6__ = {__local3__ | __local3__ = ""}
-				internal.template_string([__local4__, __local5__, __local6__])
+				__local2__ = {__local1__ | __local1__ = __local0__}
+				internal.template_string(["", __local2__, ""])
 			}`,
 		},
 
-		// FIXME: Optimize, don't wrap in comprehension?
+		// FIXME: Optimization, don't wrap in primitive expression values in comprehensions?
 		{
 			note: "primitives",
 			module: `package test
-			p := $"{false} {42}, {13.37} {"foo"} {` + "`bar`" + `} {null}"`,
+			p := $"{false}, {42}, {13.37}, {"foo"}, {` + "`bar`" + `}, {null}"`,
 			exp: `package test
 			p := __local0__ if { 
 				true
-				__local14__ = {__local1__ | __local1__ = ""}
-				__local15__ = {__local2__ | __local2__ = false}
-				__local16__ = {__local3__ | __local3__ = " "}
-				__local17__ = {__local4__ | __local4__ = 42}
-				__local18__ = {__local5__ | __local5__ = ", "}
-				__local19__ = {__local6__ | __local6__ = 13.37}
-				__local20__ = {__local7__ | __local7__ = " "}
-				__local21__ = {__local8__ | __local8__ = "foo"}
-				__local22__ = {__local9__ | __local9__ = " "}
-				__local23__ = {__local10__ | __local10__ = "bar"}
-				__local24__ = {__local11__ | __local11__ = " "}
-				__local25__ = {__local12__ | __local12__ = null}
-				__local26__ = {__local13__ | __local13__ = ""}
-				internal.template_string([__local14__, __local15__, __local16__, __local17__, __local18__, __local19__, __local20__, __local21__, __local22__, __local23__, __local24__, __local25__, __local26__], __local0__)
+				__local5__ = {__local1__ | __local1__ = false}
+				__local6__ = {__local2__ | __local2__ = 42}
+				__local7__ = {__local3__ | __local3__ = 13.37}
+				__local8__ = {__local4__ | __local4__ = null}
+				internal.template_string(["", __local5__, ", ", __local6__, ", ", __local7__, ", ", "foo", ", ", "bar", ", ", __local8__, ""], __local0__)
 			}`,
 		},
 
-		// FIXME
+		{
+			note: "collections",
+			module: `package test
+			p := $"{[1, 2, 3]}, {{false, true}}, {{"a": "b"}}"`,
+			exp: `package test
+			p := __local0__ if { 
+				true
+				__local4__ = {__local1__ | __local1__ = [1, 2, 3]}
+				__local5__ = {__local2__ | __local2__ = {false, true}}
+				__local6__ = {__local3__ | __local3__ = {"a": "b"}}
+				internal.template_string(["", __local4__, ", ", __local5__, ", ", __local6__, ""], __local0__)
+			}`,
+		},
+
+		// FIXME: input.x should not be be referenced outside of generated comprehension.
 		{
 			note: "single template expression, call",
 			module: `package test
@@ -7731,36 +7825,67 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 			f(__local0__) := __local0__ if { true }
 			p := __local2__ if { 
 				true
-				__local6__ = input.x
-				data.test.f(__local6__, __local1__)
-				__local7__ = {__local3__ | __local3__ = ""}
-				__local8__ = {__local4__ | __local4__ = __local1__}
-				__local9__ = {__local5__ | __local5__ = ""}
-				internal.template_string([__local7__, __local8__, __local9__], __local2__)
+				__local4__ = input.x
+				data.test.f(__local4__, __local1__)
+				__local5__ = {__local3__ | __local3__ = __local1__}
+				internal.template_string(["", __local5__, ""], __local2__)
 			}`,
 		},
 
-		// TODO: infix operands
-
-		// TODO: inside comprehensions
+		// FIXME: Extra nested comprehension?
 		{
 			note: "inside set comprehension",
 			module: `package test
 			p if {
 				{x | x := $"{input.x}"}
 			}`,
-			// FIXME
 			exp: `package test
 			p = true if { 
 				{__local0__ | 
-					__local8__ = {__local5__ | __local5__ = {__local2__ | __local2__ = ""}}
-					__local9__ = {__local6__ | __local6__ = {__local3__ | __local3__ = input.x}}
-					__local10__ = {__local7__ | __local7__ = {__local4__ | __local4__ = ""}}
-					internal.template_string([__local8__, __local9__, __local10__], __local1__)
+					__local4__ = {__local3__ | __local3__ = {__local2__ | __local2__ = input.x}}
+					internal.template_string(["", __local4__, ""], __local1__)
 					__local0__ = __local1__
-				} 
+				}
 			}`,
 		},
+		{
+			note: "inside array comprehension",
+			module: `package test
+			p if {
+				[x | x := $"{input.x}"]
+			}`,
+			exp: `package test
+			p = true if { 
+				[__local0__ | 
+					__local4__ = {__local3__ | __local3__ = {__local2__ | __local2__ = input.x}}
+					internal.template_string(["", __local4__, ""], __local1__)
+					__local0__ = __local1__
+				]
+			}`,
+		},
+		{
+			note: "inside map comprehension",
+			module: `package test
+			p if {
+				{x: y | 
+					x := $"{input.x}"
+					y := $"{input.y}"
+				}
+			}`,
+			exp: `package test
+			p = true if { 
+				{__local0__: __local1__ | 
+					__local8__ = {__local6__ | __local6__ = {__local4__ | __local4__ = input.x}}
+					internal.template_string(["", __local8__, ""], __local2__)
+					__local0__ = __local2__
+					__local9__ = {__local7__ | __local7__ = {__local5__ | __local5__ = input.y}}
+					internal.template_string(["", __local9__, ""], __local3__)
+					__local1__ = __local3__
+				}
+			}`,
+		},
+
+		// TODO: infix operands
 	}
 
 	for _, tc := range tests {
