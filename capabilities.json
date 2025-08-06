@@ -1618,7 +1618,7 @@
       }
     },
     {
-      "name": "internal.template",
+      "name": "internal.template_string",
       "decl": {
         "args": [
           {

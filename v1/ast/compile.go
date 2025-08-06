@@ -2059,7 +2059,6 @@ func (c *Compiler) rewriteTemplateStrings() {
 		mod := c.Modules[name]
 		WalkRules(mod, func(r *Rule) bool {
 			safe := r.Head.Args.Vars()
-			//safe.Update(r.Head.Value)
 			safe.Update(ReservedVars)
 			vis := func(b Body) bool {
 				modrec, errs := rewriteTemplateStrings(c.localvargen, c.GetArity, safe, b)
@@ -2069,7 +2068,10 @@ func (c *Compiler) rewriteTemplateStrings() {
 				for _, err := range errs {
 					c.err(err)
 				}
-				return false
+
+				// Don't continue walking deeper into the body to avoid re-writing the same string template multiple times
+				// if it appears inside a nested body, e.g. in a comprehension.
+				return true
 			}
 			WalkBodies(r.Head, vis)
 			WalkBodies(r.Body, vis)

@@ -7832,22 +7832,6 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 			}`,
 		},
 
-		// FIXME: Extra nested comprehension?
-		{
-			note: "inside set comprehension",
-			module: `package test
-			p if {
-				{x | x := $"{input.x}"}
-			}`,
-			exp: `package test
-			p = true if { 
-				{__local0__ | 
-					__local4__ = {__local3__ | __local3__ = {__local2__ | __local2__ = input.x}}
-					internal.template_string(["", __local4__, ""], __local1__)
-					__local0__ = __local1__
-				}
-			}`,
-		},
 		{
 			note: "inside array comprehension",
 			module: `package test
@@ -7857,10 +7841,25 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 			exp: `package test
 			p = true if { 
 				[__local0__ | 
-					__local4__ = {__local3__ | __local3__ = {__local2__ | __local2__ = input.x}}
-					internal.template_string(["", __local4__, ""], __local1__)
+					__local3__ = {__local2__ | __local2__ = input.x}
+					internal.template_string(["", __local3__, ""], __local1__)
 					__local0__ = __local1__
 				]
+			}`,
+		},
+		{
+			note: "inside set comprehension",
+			module: `package test
+			p if {
+				{x | x := $"{input.x}"}
+			}`,
+			exp: `package test
+			p = true if { 
+				{__local0__ | 
+					__local3__ = {__local2__ | __local2__ = input.x}
+					internal.template_string(["", __local3__, ""], __local1__)
+					__local0__ = __local1__
+				}
 			}`,
 		},
 		{
@@ -7875,17 +7874,38 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 			exp: `package test
 			p = true if { 
 				{__local0__: __local1__ | 
-					__local8__ = {__local6__ | __local6__ = {__local4__ | __local4__ = input.x}}
-					internal.template_string(["", __local8__, ""], __local2__)
+					__local6__ = {__local4__ | __local4__ = input.x}
+					internal.template_string(["", __local6__, ""], __local2__)
 					__local0__ = __local2__
-					__local9__ = {__local7__ | __local7__ = {__local5__ | __local5__ = input.y}}
-					internal.template_string(["", __local9__, ""], __local3__)
+					__local7__ = {__local5__ | __local5__ = input.y}
+					internal.template_string(["", __local7__, ""], __local3__)
 					__local1__ = __local3__
 				}
 			}`,
 		},
 
+		{
+			note: "inside every expression",
+			module: `package test
+			p if {
+				every i, x in input.l1 {
+					x == $"<{input.l2[i]}>"
+				}
+			}`,
+			exp: `package test
+			p = true if { 
+				__local2__ = input.l1
+				every __local0__, __local1__ in __local2__ { 
+					__local5__ = {__local4__ | __local4__ = input.l2[__local0__]}
+					internal.template_string(["<", __local5__, ">"], __local3__)
+					__local1__ = __local3__ 
+				}
+			}`,
+		},
+
 		// TODO: infix operands
+
+		// TODO: else bodies
 	}
 
 	for _, tc := range tests {

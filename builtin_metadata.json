@@ -94,7 +94,7 @@
       "internal.member_2",
       "internal.member_3",
       "internal.print",
-      "internal.template",
+      "internal.template_string",
       "internal.test_case"
     ],
     "net": [
@@ -8747,7 +8747,7 @@
     "result": {},
     "wasm": false
   },
-  "internal.template": {
+  "internal.template_string": {
     "args": [
       {
         "type": "array[any]"

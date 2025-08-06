@@ -1,6 +1,6 @@
 ---
 cases:
-  - note: /empty string
+  - note: stringinterpolation/empty string
     modules:
       - |
         package test
@@ -151,3 +151,63 @@ cases:
     query: data.test.p = x
     want_result:
       - x: "<undefined>, <undefined>"
+  - note: stringinterpolation/inside array comprehension
+    modules:
+      - |
+        package test
+
+        a := "foo"
+        b := "bar"
+
+        p := [x | x = $"{a} {b}"]
+    query: data.test.p = x
+    want_result:
+      - x:
+        - "foo bar"
+  - note: stringinterpolation/inside set comprehension
+    modules:
+      - |
+        package test
+
+        a := "foo"
+        b := "bar"
+
+        p := {x | x = $"{a} {b}"}
+    query: data.test.p = x
+    want_result:
+      - x:
+        - "foo bar"
+  - note: stringinterpolation/inside map comprehension
+    modules:
+      - |
+        package test
+
+        a := "foo"
+        b := "bar"
+
+        p := {x: y | x = $"<{a}>"; y = $"<{b}>"}
+    query: data.test.p = x
+    want_result:
+      - x:
+          "<foo>": "<bar>"
+  - note: stringinterpolation/inside every expression
+    modules:
+      - |
+        package test
+        p if {
+          every i, x in input.l1 {
+            input.l2[i] == $"<{x}>"
+          }
+        }
+    input:
+      l1:
+        - "a"
+        - "b"
+        - "c"
+      l2:
+        - "<a>"
+        - "<b>"
+        - "<c>"
+    query: data.test.p = x
+    want_result:
+      - x: true
