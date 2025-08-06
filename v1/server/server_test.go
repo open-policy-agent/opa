@@ -47,6 +47,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/config"
 	"github.com/open-policy-agent/opa/v1/logging"
+	loggingtest "github.com/open-policy-agent/opa/v1/logging/test"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
 	pluginBundle "github.com/open-policy-agent/opa/v1/plugins/bundle"
@@ -154,7 +155,6 @@ func TestUnversionedGetHealthCheckBundleActivationSingleLegacy(t *testing.T) {
 			Revision: "a",
 		})
 	})
-
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -1863,7 +1863,6 @@ main = data.testmod.gt1`, 200, ""); err != nil {
 	if err := f.executeRequest(req, 200, `true`); err != nil {
 		t.Fatalf("Unexpected error from POST with yaml: %v", err)
 	}
-
 }
 
 func TestDataPutV1IfNoneMatch(t *testing.T) {
@@ -2992,7 +2991,8 @@ func TestDataGetExplainFull(t *testing.T) {
 		`query:1     | Eval data.x = _`,
 		`query:1     | Exit data.x = _`,
 		`query:1     Redo data.x = _`,
-		`query:1     | Redo data.x = _`}
+		`query:1     | Redo data.x = _`,
+	}
 	actual := util.MustUnmarshalJSON(result.Explanation).([]any)
 	if !reflect.DeepEqual(actual, exp) {
 		t.Fatalf(`Expected pretty explanation to be %v, got %v`, exp, actual)
@@ -3077,7 +3077,6 @@ p = [1, 2, 3, 4] if { true }`, 200, "")
 	if result.Result == nil || !reflect.DeepEqual(*result.Result, expected) {
 		t.Fatalf("Expected %v but got: %v", expected, result.Result)
 	}
-
 }
 
 func TestDataPostExplainNotes(t *testing.T) {
@@ -3660,7 +3659,6 @@ func TestPoliciesPutV1ParseError(t *testing.T) {
 	if f.recorder.Code != 200 {
 		t.Fatalf("Expected ok but got %v", f.recorder)
 	}
-
 }
 
 func TestPoliciesPutV1CompileError(t *testing.T) {
@@ -3746,7 +3744,6 @@ func TestPoliciesPutV1Noop(t *testing.T) {
 	if _, ok := resp2.Metrics["timer_rego_module_parse_ns"]; !ok {
 		t.Fatalf("Expected parse module metric in response but got %v", resp2)
 	}
-
 }
 
 func TestPoliciesListV1(t *testing.T) {
@@ -3887,7 +3884,7 @@ func TestPoliciesUrlEncoded(t *testing.T) {
 	t.Parallel()
 
 	const expectedPolicyID = "/a policy/another-component"
-	var urlEscapedPolicyID = url.PathEscape(expectedPolicyID)
+	urlEscapedPolicyID := url.PathEscape(expectedPolicyID)
 	f := newFixture(t)
 
 	// PUT policy with URL encoded ID
@@ -4185,9 +4182,11 @@ func TestStatusV1MetricsWithSystemAuthzPolicy(t *testing.T) {
 		t.Fatal("expected http_request_duration_seconds histogram metric to be a list")
 	}
 
-	expected := []any{map[string]any{"name": "code", "value": "401"},
+	expected := []any{
+		map[string]any{"name": "code", "value": "401"},
 		map[string]any{"name": "handler", "value": "authz"},
-		map[string]any{"name": "method", "value": "get"}}
+		map[string]any{"name": "method", "value": "get"},
+	}
 
 	found := false
 	for _, m := range innerMet {
@@ -4520,7 +4519,6 @@ func TestDecisionLogging(t *testing.T) {
 			}
 		}
 	}
-
 }
 
 func TestDecisionLogErrorMessage(t *testing.T) {
@@ -4880,7 +4878,6 @@ func TestAuthorization(t *testing.T) {
 		WithManager(m).
 		WithAuthorization(AuthorizationBasic).
 		Init(ctx)
-
 	if err != nil {
 		panic(err)
 	}
@@ -5014,7 +5011,6 @@ allow if {
 		WithManager(m).
 		WithAuthorization(AuthorizationBasic).
 		Init(ctx)
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -5187,7 +5183,6 @@ func (queryBindingErrStore) Commit(_ context.Context, _ storage.Transaction) err
 }
 
 func (queryBindingErrStore) Abort(_ context.Context, _ storage.Transaction) {
-
 }
 
 func (queryBindingErrStore) Truncate(context.Context, storage.Transaction, storage.TransactionParams, storage.Iterator) error {
@@ -5199,7 +5194,6 @@ func (queryBindingErrStore) Register(context.Context, storage.Transaction, stora
 }
 
 func (queryBindingErrStore) Unregister(context.Context, storage.Transaction, string) {
-
 }
 
 func TestQueryBindingIterationError(t *testing.T) {
@@ -5920,7 +5914,6 @@ func TestDiagnosticRoutes(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestDistributedTracingEnabled(t *testing.T) {
@@ -5992,7 +5985,6 @@ func TestDistributedTracingResourceAttributes(t *testing.T) {
 			t.Fatalf("Unexpected resource attribute. Expected: %v, Got: %v", attributes[value.Key], value)
 		}
 	}
-
 }
 
 func TestCertPoolReloading(t *testing.T) {
@@ -6404,7 +6396,6 @@ func TestCertPoolReloading(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error shutting down server: %s", err)
 	}
-
 }
 
 func TestCertReloading(t *testing.T) {
@@ -6468,7 +6459,6 @@ func TestCertReloading(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-
 			tempDir := t.TempDir()
 
 			serverCert1Path := filepath.Join(tempDir, "serverCert1.pem")
@@ -6661,12 +6651,21 @@ func TestCertReloading(t *testing.T) {
 				t.Fatalf("Unexpected error closing listener to free port: %s", err)
 			}
 
-			t.Log("server address:", serverAddress)
-
 			server := tc.Server(serverAddress, &initialCert, certPool, serverCert1Path, serverCert1KeyPath, caCertPath)
 
+			tl := loggingtest.New()
+
+			// only log the server's verbose logs if the test fails.
+			t.Cleanup(func() {
+				if t.Failed() {
+					for _, e := range tl.Entries() {
+						t.Log(e.Message, e.Fields)
+					}
+				}
+			})
+
 			// start the server referencing the certs
-			m, err := plugins.New([]byte{}, "test", server.store)
+			m, err := plugins.New([]byte{}, "test", server.store, plugins.Logger(tl))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -6694,31 +6693,19 @@ func TestCertReloading(t *testing.T) {
 			}
 
 			// wait for the server to start
-			retries := 10
-			for {
-				if retries == 0 {
-					t.Fatal("failed to start server before deadline")
-				}
-				_, err = tls.Dial("tcp", serverAddress, &tls.Config{RootCAs: certPool})
-				if err != nil {
-					retries--
-					time.Sleep(300 * time.Millisecond)
-					continue
-				}
-				t.Log("server started")
-				break
-			}
+			test.EventuallyOrFatal(t, 3*time.Second, func() bool {
+				_, err := tls.Dial("tcp", serverAddress, &tls.Config{RootCAs: certPool})
+
+				return err == nil
+			})
 
 			// make the first connection, check that the server 1 cert is returned
-			retries = 10
-			for {
-				if retries == 0 {
-					t.Fatal("failed to get serverCert1 before deadline")
-				}
+			test.EventuallyOrFatal(t, 3*time.Second, func() bool {
 				conn, err := tls.Dial("tcp", serverAddress, &tls.Config{RootCAs: certPool})
 				if err != nil {
 					t.Fatal(err)
 				}
+
 				err = conn.Close()
 				if err != nil {
 					t.Fatal(err)
@@ -6729,16 +6716,8 @@ func TestCertReloading(t *testing.T) {
 					t.Fatalf("expected 1 cert, got %d", len(certs))
 				}
 
-				servedCert := certs[0]
-				if !bytes.Equal(servedCert.Raw, serverCert1Data) {
-					retries--
-					time.Sleep(300 * time.Millisecond)
-					t.Logf("expected serverCert1, got %s", servedCert.Subject)
-					continue
-				}
-
-				break
-			}
+				return bytes.Equal(certs[0].Raw, serverCert1Data)
+			})
 
 			// update the cert and key files by moving the second cert into place instead
 			err = os.Rename(serverCert2Path, serverCert1Path)
@@ -6751,35 +6730,24 @@ func TestCertReloading(t *testing.T) {
 			}
 
 			// make another connection, check that the server 2 cert is returned
-			retries = 10
-			for {
-				if retries == 0 {
-					t.Fatal("failed to get serverCert2 before deadline")
-				}
-
+			test.EventuallyOrFatal(t, 3*time.Second, func() bool {
 				conn, err := tls.Dial("tcp", serverAddress, &tls.Config{RootCAs: certPool})
 				if err != nil {
 					t.Fatal(err)
 				}
+
 				err = conn.Close()
 				if err != nil {
 					t.Fatal(err)
 				}
+
 				certs := conn.ConnectionState().PeerCertificates
 				if len(certs) != 1 {
 					t.Fatalf("expected 1 cert, got %d", len(certs))
 				}
 
-				servedCert := certs[0]
-				if !bytes.Equal(servedCert.Raw, serverCert2Data) {
-					retries--
-					time.Sleep(300 * time.Millisecond)
-					t.Logf("expected serverCert2, got %s", servedCert.Subject)
-					continue
-				}
-
-				break
-			}
+				return bytes.Equal(certs[0].Raw, serverCert2Data)
+			})
 
 			// remove the certs on disk, and check that the server still serves the previous certs
 			err = os.Remove(serverCert1Path)
@@ -6792,16 +6760,12 @@ func TestCertReloading(t *testing.T) {
 			}
 
 			// make a third connection, and check that the server 2 cert is still returned despite the certs being removed
-			retries = 10
-			for {
-				if retries == 0 {
-					t.Fatal("failed to get serverCert2 before deadline")
-				}
-
+			test.EventuallyOrFatal(t, 3*time.Second, func() bool {
 				conn, err := tls.Dial("tcp", serverAddress, &tls.Config{RootCAs: certPool})
 				if err != nil {
 					t.Fatal(err)
 				}
+
 				err = conn.Close()
 				if err != nil {
 					t.Fatal(err)
@@ -6812,16 +6776,8 @@ func TestCertReloading(t *testing.T) {
 					t.Fatalf("expected 1 cert, got %d", len(certs))
 				}
 
-				servedCert := certs[0]
-				if !bytes.Equal(servedCert.Raw, serverCert2Data) {
-					retries--
-					time.Sleep(300 * time.Millisecond)
-					t.Logf("expected serverCert2, got %s", servedCert.Subject)
-					continue
-				}
-
-				break
-			}
+				return bytes.Equal(certs[0].Raw, serverCert2Data)
+			})
 
 			err = server.Shutdown(ctx)
 			if err != nil {
@@ -6829,7 +6785,6 @@ func TestCertReloading(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 type mockHTTPHandler struct{}
