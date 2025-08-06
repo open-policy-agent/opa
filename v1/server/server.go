@@ -26,8 +26,6 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/v1/hooks"
-	serverDecodingPlugin "github.com/open-policy-agent/opa/v1/plugins/server/decoding"
-	serverEncodingPlugin "github.com/open-policy-agent/opa/v1/plugins/server/encoding"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -764,7 +762,7 @@ func (s *Server) initHandlerAuthz(handler http.Handler) http.Handler {
 			s.getCompiler,
 			s.store,
 			authorizer.Runtime(s.runtime),
-			authorizer.Decision(s.manager.Config.DefaultAuthorizationDecisionRef),
+			authorizer.Decision(s.manager.DefaultAuthorizationDecisionRef),
 			authorizer.PrintHook(s.manager.PrintHook()),
 			authorizer.EnablePrintStatements(s.manager.EnablePrintStatements()),
 			authorizer.InterQueryCache(s.interQueryBuiltinCache),
@@ -783,12 +781,7 @@ func (s *Server) initHandlerAuthz(handler http.Handler) http.Handler {
 // it passes the size limit down the body-reading method via the request
 // context.
 func (s *Server) initHandlerDecodingLimits(handler http.Handler) (http.Handler, error) {
-	var decodingRawConfig json.RawMessage
-	serverConfig := s.manager.Config.Server
-	if serverConfig != nil {
-		decodingRawConfig = serverConfig.Decoding
-	}
-	decodingConfig, err := serverDecodingPlugin.NewConfigBuilder().WithBytes(decodingRawConfig).Parse()
+	decodingConfig, err := s.manager.ServerDecodingConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -798,12 +791,7 @@ func (s *Server) initHandlerDecodingLimits(handler http.Handler) (http.Handler, 
 }
 
 func (s *Server) initHandlerCompression(handler http.Handler) (http.Handler, error) {
-	var encodingRawConfig json.RawMessage
-	serverConfig := s.manager.Config.Server
-	if serverConfig != nil {
-		encodingRawConfig = serverConfig.Encoding
-	}
-	encodingConfig, err := serverEncodingPlugin.NewConfigBuilder().WithBytes(encodingRawConfig).Parse()
+	encodingConfig, err := s.manager.ServerEncodingConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -2387,12 +2375,13 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) v1ConfigGet(w http.ResponseWriter, r *http.Request) {
-	result, err := s.manager.Config.ActiveConfig()
+	result, err := s.manager.ActiveConfig()
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
 	}
-	writer.JSONOK(w, types.ConfigResponseV1{Result: &result}, pretty(r))
+	resultAny := any(result)
+	writer.JSONOK(w, types.ConfigResponseV1{Result: &resultAny}, pretty(r))
 }
 
 func (s *Server) v1StatusGet(w http.ResponseWriter, r *http.Request) {
@@ -2730,7 +2719,7 @@ func (s *Server) hasLegacyBundle(br bundleRevisions) bool {
 
 func (s *Server) generateDefaultDecisionPath() string {
 	// Assume the path is safe to transition back to a url
-	p, _ := s.manager.Config.DefaultDecisionRef().Ptr()
+	p, _ := s.manager.DefaultDecisionRef().Ptr()
 	return p
 }
 

@@ -706,7 +706,15 @@ func TestPluginOneShotWithAuthzSchemaVerificationNonDefaultAuthzPath(t *testing.
 	manager := getTestManager()
 
 	s := "/foo/authz/allow"
-	manager.Config.DefaultAuthorizationDecision = &s
+	cfg, err := manager.GetConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.DefaultAuthorizationDecision = &s
+	err = manager.Reconfigure(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	info, err := runtime.Term(runtime.Params{Config: nil, IsAuthorizationEnabled: true})
 	if err != nil {
@@ -4900,11 +4908,19 @@ func TestSaveBundleToDiskNewConfiguredPersistDir(t *testing.T) {
 	dir := t.TempDir()
 
 	manager := getTestManager()
-	manager.Config.PersistenceDirectory = &dir
+	cfg, err := manager.GetConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.PersistenceDirectory = &dir
+	err = manager.Reconfigure(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	bundles := map[string]*Source{}
 	plugin := New(&Config{Bundles: bundles}, manager)
 
-	err := plugin.Start(context.Background())
+	err = plugin.Start(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -5166,7 +5182,15 @@ func TestConfiguredBundlePersistPath(t *testing.T) {
 
 	persistPath := "/var/opa"
 	manager := getTestManager()
-	manager.Config.PersistenceDirectory = &persistPath
+	cfg, err := manager.GetConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.PersistenceDirectory = &persistPath
+	err = manager.Reconfigure(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	plugin := New(&Config{}, manager)
 
 	path, err := plugin.getBundlePersistPath()
