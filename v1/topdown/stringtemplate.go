@@ -11,7 +11,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 )
 
-func builtinStringTemplate(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinTemplateString(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	arr, err := builtins.ArrayOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
@@ -32,5 +32,5 @@ func builtinStringTemplate(bctx BuiltinContext, operands []*ast.Term, iter func(
 }
 
 func init() {
-	RegisterBuiltinFunc(ast.InternalStringTemplate.Name, builtinStringTemplate)
+	RegisterBuiltinFunc(ast.InternalTemplateString.Name, builtinTemplateString)
 }

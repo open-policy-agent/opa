@@ -7526,6 +7526,299 @@ func TestCompilerRewritePrintCalls(t *testing.T) {
 	}
 }
 
+func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
+	tests := []struct {
+		note   string
+		module string
+		exp    string
+	}{
+		// FIXME: don't wrap string args in comprehensions
+		{
+			note: "empty template string, head value",
+			module: `package test
+			p := $""`,
+			exp: `package test
+			p := __local0__ if { 
+				true
+				__local2__ = {__local1__ | __local1__ = ""}; internal.template_string([__local2__], __local0__) 
+			}`,
+		},
+		{
+			note: "empty template string, head set value",
+			module: `package test
+			p contains $""`,
+			exp: `package test
+			p contains __local0__ if { 
+				true
+				__local2__ = {__local1__ | __local1__ = ""}; internal.template_string([__local2__], __local0__) 
+			}`,
+		},
+		{
+			note: "empty template string, head map key",
+			module: `package test
+			p[$""] := true`,
+			exp: `package test
+			p[__local0__] := true if { 
+				true
+				__local3__ = {__local2__ | __local2__ = ""}; internal.template_string([__local3__], __local1__)
+				__local0__ = __local1__
+			}`,
+		},
+		{
+			note: "empty template string, in body, no output arg",
+			module: `package test
+			p if {
+				$""
+			}`,
+			exp: `package test
+			p = true if { 
+				__local1__ = {__local0__ | __local0__ = ""}
+				internal.template_string([__local1__])
+			}`,
+		},
+
+		// FIXME: Drop empty string args?
+		{
+			note: "single template expression, ref, head value",
+			module: `package test
+			p := $"{input.x}"`,
+			exp: `package test
+			p := __local0__ if { 
+				true
+				__local4__ = {__local1__ | __local1__ = ""}
+				__local5__ = {__local2__ | __local2__ = input.x}
+				__local6__ = {__local3__ | __local3__ = ""}
+				internal.template_string([__local4__, __local5__, __local6__], __local0__) 
+			}`,
+		},
+		{
+			note: "single template expression, ref, head set value",
+			module: `package test
+			p contains $"{input.x}"`,
+			exp: `package test
+			p contains __local0__ if { 
+				true
+				__local4__ = {__local1__ | __local1__ = ""}
+				__local5__ = {__local2__ | __local2__ = input.x}
+				__local6__ = {__local3__ | __local3__ = ""}
+				internal.template_string([__local4__, __local5__, __local6__], __local0__) 
+			}`,
+		},
+		{
+			note: "single template expression, ref, head map key",
+			module: `package test
+			p[$"{input.x}"] := true`,
+			exp: `package test
+			p[__local0__] := true if { 
+				true
+				__local5__ = {__local2__ | __local2__ = ""}
+				__local6__ = {__local3__ | __local3__ = input.x}
+				__local7__ = {__local4__ | __local4__ = ""}
+				internal.template_string([__local5__, __local6__, __local7__], __local1__)
+				__local0__ = __local1__
+			}`,
+		},
+		{
+			note: "single template expression, ref, in body, no output arg",
+			module: `package test
+			p if {
+				$"{input.x}"
+			}`,
+			exp: `package test
+			p = true if { 
+				__local3__ = {__local0__ | __local0__ = ""}
+				__local4__ = {__local1__ | __local1__ = input.x}
+				__local5__ = {__local2__ | __local2__ = ""}
+				internal.template_string([__local3__, __local4__, __local5__])
+			}`,
+		},
+
+		{
+			note: "single template expression, var, head value",
+			module: `package test
+			p := $"{x}" if {
+				x := 42
+			}`,
+			exp: `package test
+			p := __local1__ if { 
+				__local0__ = 42
+				__local5__ = {__local2__ | __local2__ = ""}
+				__local6__ = {__local3__ | __local3__ = __local0__}
+				__local7__ = {__local4__ | __local4__ = ""}
+				internal.template_string([__local5__, __local6__, __local7__], __local1__)
+			}`,
+		},
+		{
+			note: "single template expression, var, head set value",
+			module: `package test
+			p contains $"{x}" if {
+				x := 42
+			}`,
+			exp: `package test
+			p contains __local1__ if { 
+				__local0__ = 42
+				__local5__ = {__local2__ | __local2__ = ""}
+				__local6__ = {__local3__ | __local3__ = __local0__}
+				__local7__ = {__local4__ | __local4__ = ""}
+				internal.template_string([__local5__, __local6__, __local7__], __local1__)
+			}`,
+		},
+		{
+			note: "single template expression, var, head map key",
+			module: `package test
+			p[$"{x}"] := true if {
+				x := 42
+			}`,
+			exp: `package test
+			p[__local0__] := true if { 
+				__local1__ = 42
+				__local6__ = {__local3__ | __local3__ = ""}
+				__local7__ = {__local4__ | __local4__ = __local1__}
+				__local8__ = {__local5__ | __local5__ = ""}
+				internal.template_string([__local6__, __local7__, __local8__], __local2__)
+				__local0__ = __local2__
+			}`,
+		},
+		{
+			note: "single template expression, var, in body, no output arg",
+			module: `package test
+			p if {
+				x := 42
+				$"{x}"
+			}`,
+			exp: `package test
+			p = true if { 
+				__local0__ = 42
+				__local4__ = {__local1__ | __local1__ = ""}
+				__local5__ = {__local2__ | __local2__ = __local0__}
+				__local6__ = {__local3__ | __local3__ = ""}
+				internal.template_string([__local4__, __local5__, __local6__])
+			}`,
+		},
+
+		// FIXME: Optimize, don't wrap in comprehension?
+		{
+			note: "primitives",
+			module: `package test
+			p := $"{false} {42}, {13.37} {"foo"} {` + "`bar`" + `} {null}"`,
+			exp: `package test
+			p := __local0__ if { 
+				true
+				__local14__ = {__local1__ | __local1__ = ""}
+				__local15__ = {__local2__ | __local2__ = false}
+				__local16__ = {__local3__ | __local3__ = " "}
+				__local17__ = {__local4__ | __local4__ = 42}
+				__local18__ = {__local5__ | __local5__ = ", "}
+				__local19__ = {__local6__ | __local6__ = 13.37}
+				__local20__ = {__local7__ | __local7__ = " "}
+				__local21__ = {__local8__ | __local8__ = "foo"}
+				__local22__ = {__local9__ | __local9__ = " "}
+				__local23__ = {__local10__ | __local10__ = "bar"}
+				__local24__ = {__local11__ | __local11__ = " "}
+				__local25__ = {__local12__ | __local12__ = null}
+				__local26__ = {__local13__ | __local13__ = ""}
+				internal.template_string([__local14__, __local15__, __local16__, __local17__, __local18__, __local19__, __local20__, __local21__, __local22__, __local23__, __local24__, __local25__, __local26__], __local0__)
+			}`,
+		},
+
+		// FIXME
+		{
+			note: "single template expression, call",
+			module: `package test
+			f(x) := x
+			p := $"{f(input.x)}"`,
+			exp: `package test
+			f(__local0__) := __local0__ if { true }
+			p := __local2__ if { 
+				true
+				__local6__ = input.x
+				data.test.f(__local6__, __local1__)
+				__local7__ = {__local3__ | __local3__ = ""}
+				__local8__ = {__local4__ | __local4__ = __local1__}
+				__local9__ = {__local5__ | __local5__ = ""}
+				internal.template_string([__local7__, __local8__, __local9__], __local2__)
+			}`,
+		},
+
+		// TODO: infix operands
+
+		// TODO: inside comprehensions
+		{
+			note: "inside set comprehension",
+			module: `package test
+			p if {
+				{x | x := $"{input.x}"}
+			}`,
+			// FIXME
+			exp: `package test
+			p = true if { 
+				{__local0__ | 
+					__local8__ = {__local5__ | __local5__ = {__local2__ | __local2__ = ""}}
+					__local9__ = {__local6__ | __local6__ = {__local3__ | __local3__ = input.x}}
+					__local10__ = {__local7__ | __local7__ = {__local4__ | __local4__ = ""}}
+					internal.template_string([__local8__, __local9__, __local10__], __local1__)
+					__local0__ = __local1__
+				} 
+			}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Compile(map[string]*Module{
+				"test.rego": module(tc.module),
+			})
+			if c.Failed() {
+				t.Fatal(c.Errors)
+			}
+			exp := module(tc.exp)
+			if !exp.Equal(c.Modules["test.rego"]) {
+				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, c.Modules["test.rego"])
+			}
+		})
+	}
+}
+
+func TestCompilerRewriteTemplateStringCallsErrors(t *testing.T) {
+	cases := []struct {
+		note   string
+		module string
+		exp    error
+	}{
+		{
+			note: "non-existent var",
+			module: `package test
+			p := $"{x}"`,
+			exp: errors.New("var x is undeclared"),
+		},
+		{
+			note: "declared after template string",
+			module: `package test
+			p := msg if { 
+				msg = $"{x}"
+				x = 7
+			}`,
+			exp: errors.New("var x is undeclared"),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler().WithEnablePrintStatements(true)
+			c.Compile(map[string]*Module{
+				"test.rego": module(tc.module),
+			})
+			if !c.Failed() {
+				t.Fatal("expected error")
+			}
+			if c.Errors[0].Code != CompileErr || c.Errors[0].Message != tc.exp.Error() {
+				t.Fatal("unexpected error:", c.Errors)
+			}
+		})
+	}
+}
+
 func TestRewritePrintCallsWithElseImplicitArgs(t *testing.T) {
 
 	mod := `package test

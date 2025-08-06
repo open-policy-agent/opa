@@ -1902,7 +1902,7 @@ func (p *Parser) parseTemplateString() *Term {
 	}
 
 	//term := TemplateStringTerm(parts...)
-	term := InternalStringTemplate.Call(ArrayTerm(parts...))
+	term := InternalTemplateString.Call(ArrayTerm(parts...))
 	term.SetLocation(p.s.Loc())
 	return term
 }

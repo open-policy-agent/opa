@@ -2077,12 +2077,11 @@ func (c *Compiler) rewriteTemplateStrings() {
 		})
 	}
 	if modified {
-		c.Required.addBuiltinSorted(InternalStringTemplate)
+		c.Required.addBuiltinSorted(InternalTemplateString)
 	}
 }
 
 func rewriteTemplateStrings(gen *localVarGenerator, getArity func(Ref) int, globals VarSet, body Body) (bool, Errors) {
-
 	var errs Errors
 	var modified bool
 
@@ -2119,8 +2118,7 @@ func rewriteTemplateStrings(gen *localVarGenerator, getArity func(Ref) int, glob
 	}
 
 	for i := range body {
-
-		if !isInternalStringTemplateCall(body[i]) {
+		if !isInternalTemplateStringCall(body[i]) {
 			continue
 		}
 
@@ -2131,15 +2129,15 @@ func rewriteTemplateStrings(gen *localVarGenerator, getArity func(Ref) int, glob
 		safe.Update(globals)
 		args := body[i].Operands()
 
-		if len(args) != 2 {
-			errs = append(errs, NewError(CompileErr, body[i].Loc(), "%s call must have 2 arguments, got %d", InternalStringTemplate.Name, len(args)))
+		if l := len(args); l < 1 || l > 2 {
+			errs = append(errs, NewError(CompileErr, body[i].Loc(), "%s call must have 1 or 2 arguments, got %d", InternalTemplateString.Name, len(args)))
 			return false, errs
 		}
 
 		// The first argument must be an array of terms.
 		inputTerms, ok := args[0].Value.(*Array)
 		if !ok {
-			errs = append(errs, NewError(CompileErr, body[i].Loc(), "first argument of %s call must be an array", InternalStringTemplate.Name))
+			errs = append(errs, NewError(CompileErr, body[i].Loc(), "first argument of %s call must be an array", InternalTemplateString.Name))
 			return false, errs
 		}
 
@@ -2156,6 +2154,10 @@ func rewriteTemplateStrings(gen *localVarGenerator, getArity func(Ref) int, glob
 			}
 		}
 
+		if len(errs) > 0 {
+			return false, errs
+		}
+
 		rewrittenTerms := make([]*Term, 0, inputTerms.Len())
 
 		inputTerms.Foreach(func(term *Term) {
@@ -2165,11 +2167,18 @@ func rewriteTemplateStrings(gen *localVarGenerator, getArity func(Ref) int, glob
 			rewrittenTerms = append(rewrittenTerms, SetComprehensionTerm(x, NewBody(capture)).SetLocation(loc))
 		})
 
-		body.Set(NewExpr([]*Term{
-			NewTerm(InternalStringTemplate.Ref()).SetLocation(body[i].Loc()),
-			ArrayTerm(rewrittenTerms...).SetLocation(body[i].Loc()),
-			args[1],
-		}).SetLocation(body[i].Loc()), i)
+		if len(args) == 1 {
+			body.Set(NewExpr([]*Term{
+				NewTerm(InternalTemplateString.Ref()).SetLocation(body[i].Loc()),
+				ArrayTerm(rewrittenTerms...).SetLocation(body[i].Loc()),
+			}).SetLocation(body[i].Loc()), i)
+		} else {
+			body.Set(NewExpr([]*Term{
+				NewTerm(InternalTemplateString.Ref()).SetLocation(body[i].Loc()),
+				ArrayTerm(rewrittenTerms...).SetLocation(body[i].Loc()),
+				args[1],
+			}).SetLocation(body[i].Loc()), i)
+		}
 	}
 
 	return modified, nil
@@ -2392,10 +2401,10 @@ func isPrintCall(x *Expr) bool {
 	return x.IsCall() && x.Operator().Equal(printRef)
 }
 
-var stringTemplateRef = InternalStringTemplate.Ref()
+var TemplateStringRef = InternalTemplateString.Ref()
 
-func isInternalStringTemplateCall(x *Expr) bool {
-	return x.IsCall() && x.Operator().Equal(stringTemplateRef)
+func isInternalTemplateStringCall(x *Expr) bool {
+	return x.IsCall() && x.Operator().Equal(TemplateStringRef)
 }
 
 // rewriteRefsInHead will rewrite rules so that the head does not contain any
