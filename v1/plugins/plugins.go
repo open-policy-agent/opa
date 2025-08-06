@@ -7,6 +7,7 @@ package plugins
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -30,11 +31,14 @@ import (
 	"github.com/open-policy-agent/opa/v1/loader"
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/plugins/rest"
+	serverDecodingPlugin "github.com/open-policy-agent/opa/v1/plugins/server/decoding"
+	serverEncodingPlugin "github.com/open-policy-agent/opa/v1/plugins/server/encoding"
 	"github.com/open-policy-agent/opa/v1/resolver/wasm"
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/topdown/cache"
 	"github.com/open-policy-agent/opa/v1/topdown/print"
 	"github.com/open-policy-agent/opa/v1/tracing"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // Factory defines the interface OPA uses to instantiate your plugin.
@@ -177,7 +181,8 @@ type StatusListener func(status map[string]*Status)
 // Manager implements lifecycle management of plugins and gives plugins access
 // to engine-wide components like storage.
 type Manager struct {
-	Store  storage.Store
+	Store storage.Store
+	// Config values should be accessed from the thread-safe getters for individual fields.
 	Config *config.Config
 	Info   *ast.Term
 	ID     string
@@ -225,11 +230,15 @@ type Manager struct {
 	bundleActivatorPlugin        string
 }
 
-type managerContextKey string
-type managerWasmResolverKey string
+type (
+	managerContextKey      string
+	managerWasmResolverKey string
+)
 
-const managerCompilerContextKey = managerContextKey("compiler")
-const managerWasmResolverContextKey = managerWasmResolverKey("wasmResolvers")
+const (
+	managerCompilerContextKey     = managerContextKey("compiler")
+	managerWasmResolverContextKey = managerWasmResolverKey("wasmResolvers")
+)
 
 // SetCompilerOnContext puts the compiler into the storage context. Calling this
 // function before committing updated policies to storage allows the manager to
@@ -276,7 +285,6 @@ func validateTriggerMode(mode TriggerMode) error {
 
 // ValidateAndInjectDefaultsForTriggerMode validates the trigger mode and injects default values
 func ValidateAndInjectDefaultsForTriggerMode(a, b *TriggerMode) (*TriggerMode, error) {
-
 	if a == nil && b != nil {
 		err := validateTriggerMode(*b)
 		if err != nil {
@@ -438,7 +446,6 @@ func WithBundleActivatorPlugin(bundleActivatorPlugin string) func(*Manager) {
 
 // New creates a new Manager using config.
 func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*Manager, error) {
-
 	parsedConfig, err := config.ParseConfig(raw, id)
 	if err != nil {
 		return nil, err
@@ -531,7 +538,6 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 // Init returns an error if the manager could not initialize itself. Init() should
 // be called before Start(). Init() is idempotent.
 func (m *Manager) Init(ctx context.Context) error {
-
 	if m.initialized {
 		return nil
 	}
@@ -548,7 +554,6 @@ func (m *Manager) Init(ctx context.Context) error {
 	}
 
 	err := storage.Txn(ctx, m.Store, params, func(txn storage.Transaction) error {
-
 		result, err := initload.InsertAndCompile(ctx, initload.InsertAndCompileOptions{
 			Store:                 m.Store,
 			Txn:                   txn,
@@ -559,7 +564,6 @@ func (m *Manager) Init(ctx context.Context) error {
 			ParserOptions:         m.parserOptions,
 			BundleActivatorPlugin: m.bundleActivatorPlugin,
 		})
-
 		if err != nil {
 			return err
 		}
@@ -575,7 +579,6 @@ func (m *Manager) Init(ctx context.Context) error {
 		_, err = m.Store.Register(ctx, txn, storage.TriggerConfig{OnCommit: m.onCommit})
 		return err
 	})
-
 	if err != nil {
 		if m.stop != nil {
 			done := make(chan struct{})
@@ -594,14 +597,147 @@ func (m *Manager) Init(ctx context.Context) error {
 func (m *Manager) Labels() map[string]string {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	return m.Config.Labels
+
+	if m.Config.Labels == nil {
+		return make(map[string]string)
+	}
+
+	return maps.Clone(m.Config.Labels)
 }
 
 // InterQueryBuiltinCacheConfig returns the configuration for the inter-query caches.
 func (m *Manager) InterQueryBuiltinCacheConfig() *cache.Config {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	return m.interQueryBuiltinCacheConfig
+	if m.interQueryBuiltinCacheConfig == nil {
+		return nil
+	}
+	// Return a copy of the cache config
+	copied := *m.interQueryBuiltinCacheConfig
+	return &copied
+}
+
+// GetConfig returns a deep copy of the manager's configuration.
+func (m *Manager) GetConfig() (*config.Config, error) {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+
+	bytes, err := json.Marshal(m.Config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	var cfgCp config.Config
+	if err := util.Unmarshal(bytes, &cfgCp); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+	}
+
+	return &cfgCp, nil
+}
+
+// PersistenceDirectory returns the persistence directory from the configuration.
+func (m *Manager) PersistenceDirectory() string {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+
+	if m.Config.PersistenceDirectory != nil {
+		return *m.Config.PersistenceDirectory
+	}
+
+	return ""
+}
+
+// DefaultAuthorizationDecision returns the default authorization decision from the configuration.
+func (m *Manager) DefaultAuthorizationDecision() string {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	if m.Config.DefaultAuthorizationDecision != nil {
+		return *m.Config.DefaultAuthorizationDecision
+	}
+	return ""
+}
+
+// DefaultAuthorizationDecisionRef returns the default authorization decision reference from the configuration.
+func (m *Manager) DefaultAuthorizationDecisionRef() ast.Ref {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	return m.Config.DefaultAuthorizationDecisionRef()
+}
+
+// DefaultDecision returns the default decision from the configuration.
+func (m *Manager) DefaultDecision() string {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	if m.Config.DefaultDecision != nil {
+		return *m.Config.DefaultDecision
+	}
+	return ""
+}
+
+// DefaultDecisionRef returns the default decision reference from the configuration.
+func (m *Manager) DefaultDecisionRef() ast.Ref {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	return m.Config.DefaultDecisionRef()
+}
+
+// Discovery returns the raw discovery configuration from the manager's config.
+func (m *Manager) Discovery() []byte {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	return []byte(m.Config.Discovery)
+}
+
+// NDBuiltinCacheEnabled returns whether non-deterministic builtin cache is enabled.
+func (m *Manager) NDBuiltinCacheEnabled() bool {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	return m.Config.NDBuiltinCacheEnabled()
+}
+
+// ServerDecodingConfig returns the parsed server decoding configuration.
+func (m *Manager) ServerDecodingConfig() (*serverDecodingPlugin.Config, error) {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+
+	var decodingRawConfig []byte
+	if m.Config.Server != nil {
+		decodingRawConfig = []byte(m.Config.Server.Decoding)
+	}
+
+	return serverDecodingPlugin.NewConfigBuilder().WithBytes(decodingRawConfig).Parse()
+}
+
+// ServerEncodingConfig returns the parsed server encoding configuration.
+func (m *Manager) ServerEncodingConfig() (*serverEncodingPlugin.Config, error) {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+
+	var encodingRawConfig []byte
+	if m.Config.Server != nil {
+		encodingRawConfig = []byte(m.Config.Server.Encoding)
+	}
+
+	return serverEncodingPlugin.NewConfigBuilder().WithBytes(encodingRawConfig).Parse()
+}
+
+// ActiveConfig returns the loaded config with secrets and sensitive data redacted.
+// The returned config is a copy of the config and so is safe.
+func (m *Manager) ActiveConfig() (map[string]any, error) {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	result, err := m.Config.ActiveConfig()
+	if err != nil {
+		return nil, err
+	}
+	return result.(map[string]any), nil
+}
+
+// GetPersistenceDirectory returns the persistence directory from the configuration.
+func (m *Manager) GetPersistenceDirectory() (string, error) {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	return m.Config.GetPersistenceDirectory()
 }
 
 // Register adds a plugin to the manager. When the manager is started, all of
@@ -749,7 +885,6 @@ func (m *Manager) setWasmResolvers(rs []*wasm.Resolver) {
 
 // Start starts the manager. Init() should be called once before Start().
 func (m *Manager) Start(ctx context.Context) error {
-
 	if m == nil {
 		return nil
 	}
@@ -862,6 +997,7 @@ func (m *Manager) Reconfigure(config *config.Config) error {
 
 	// don't erase persistence directory
 	if config.PersistenceDirectory == nil {
+		// update is ok since we have the lock
 		config.PersistenceDirectory = m.Config.PersistenceDirectory
 	}
 
@@ -912,7 +1048,6 @@ func (m *Manager) UnregisterPluginStatusListener(name string) {
 // listeners will be called with a copy of the new state of all
 // plugins.
 func (m *Manager) UpdatePluginStatus(pluginName string, status *Status) {
-
 	var toNotify map[string]StatusListener
 	var statuses map[string]*Status
 
@@ -946,7 +1081,6 @@ func (m *Manager) copyPluginStatus() map[string]*Status {
 }
 
 func (m *Manager) onCommit(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
-
 	compiler := GetCompilerOnContext(event.Context)
 
 	// If the context does not contain the compiler fallback to loading the
@@ -974,7 +1108,6 @@ func (m *Manager) onCommit(ctx context.Context, txn storage.Transaction, event s
 	resolvers := getWasmResolversOnContext(event.Context)
 	if resolvers != nil {
 		m.setWasmResolvers(resolvers)
-
 	} else if event.DataChanged() {
 		if requiresWasmResolverReload(event) {
 			resolvers, err := bundleUtils.LoadWasmResolversFromStore(ctx, m.Store, txn, nil)
@@ -1057,7 +1190,19 @@ func (m *Manager) updateWasmResolversData(ctx context.Context, event storage.Tri
 func (m *Manager) PublicKeys() map[string]*keys.Config {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	return m.keys
+
+	if m.keys == nil {
+		return make(map[string]*keys.Config)
+	}
+
+	result := make(map[string]*keys.Config, len(m.keys))
+	for k, v := range m.keys {
+		if v != nil {
+			copied := *v
+			result[k] = &copied
+		}
+	}
+	return result
 }
 
 // Client returns a client for communicating with a remote service.

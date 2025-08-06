@@ -49,7 +49,11 @@ func TestManagerCacheTriggers(t *testing.T) {
 		t.Fatal("Listeners should not be called yet")
 	}
 
-	err = m.Reconfigure(m.Config)
+	cfg, err := m.GetConfig()
+	if err != nil {
+		t.Fatalf("Failed to get config: %s", err)
+	}
+	err = m.Reconfigure(cfg)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -87,7 +91,11 @@ func TestManagerNDCacheTriggers(t *testing.T) {
 		t.Fatal("Listeners should not be called yet")
 	}
 
-	err = m.Reconfigure(m.Config)
+	cfg, err := m.GetConfig()
+	if err != nil {
+		t.Fatalf("Failed to get config: %s", err)
+	}
+	err = m.Reconfigure(cfg)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -309,9 +317,13 @@ func TestManagerWithNDCachingConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	cfg, err := m.GetConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
 	expected := true
-	if !m.Config.NDBuiltinCache == expected {
-		t.Fatalf("want %+v got %+v", expected, m.Config.NDBuiltinCache)
+	if !cfg.NDBuiltinCache == expected {
+		t.Fatalf("want %+v got %+v", expected, cfg.NDBuiltinCache)
 	}
 
 	// config error

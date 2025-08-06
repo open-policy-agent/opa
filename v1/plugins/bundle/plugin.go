@@ -451,8 +451,8 @@ func (p *Plugin) newDownloader(name string, source *Source, bundles map[string]*
 	}
 	if strings.ToLower(client.Config().Type) == "oci" {
 		ociStorePath := filepath.Join(os.TempDir(), "opa", "oci") // use temporary folder /tmp/opa/oci
-		if p.manager.Config.PersistenceDirectory != nil {
-			ociStorePath = filepath.Join(*p.manager.Config.PersistenceDirectory, "oci")
+		if persistDir := p.manager.PersistenceDirectory(); persistDir != "" {
+			ociStorePath = filepath.Join(persistDir, "oci")
 		}
 		return download.NewOCI(conf, client, path, ociStorePath).
 			WithCallback(callback).
@@ -646,7 +646,7 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle, is
 			isAuthzEnabled := p.manager.Info.Get(ast.StringTerm("authorization_enabled"))
 
 			if ast.BooleanTerm(true).Equal(isAuthzEnabled) && ast.BooleanTerm(false).Equal(skipKnownSchemaCheck) {
-				authorizationDecisionRef, err := ref.ParseDataPath(*p.manager.Config.DefaultAuthorizationDecision)
+				authorizationDecisionRef, err := ref.ParseDataPath(p.manager.DefaultAuthorizationDecision())
 				if err != nil {
 					return err
 				}
@@ -756,7 +756,7 @@ func (p *Plugin) log(name string) logging.Logger {
 }
 
 func (p *Plugin) getBundlePersistPath() (string, error) {
-	persistDir, err := p.manager.Config.GetPersistenceDirectory()
+	persistDir, err := p.manager.GetPersistenceDirectory()
 	if err != nil {
 		return "", err
 	}
