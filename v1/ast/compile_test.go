@@ -7642,7 +7642,7 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 			}`,
 		},
 
-		// FIXME: Drop empty string args?
+		// FIXME: Optimization: Drop empty string args?
 		{
 			note: "single template expression, ref, head value",
 			module: `package test
@@ -7785,7 +7785,7 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 			}`,
 		},
 
-		// FIXME: Optimization, don't wrap in primitive expression values in comprehensions?
+		// FIXME: Optimization: Don't wrap in primitive expression values in comprehensions?
 		{
 			note: "primitives",
 			module: `package test
@@ -7903,9 +7903,40 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 			}`,
 		},
 
-		// TODO: infix operands
+		{
+			note: "in else body",
+			module: `package test
+			p if {
+				false
+			} else := msg if {
+				msg := $"foo: {input.y}"
+			}`,
+			exp: `package test
+			p = true if {
+				false
+			} else := __local0__ if {
+				__local3__ = {__local2__ | __local2__ = input.y}
+				internal.template_string(["foo: ", __local3__, ""], __local1__)
+				__local0__ = __local1__
+			}`,
+		},
+		{
+			note: "in else head",
+			module: `package test
+			p if {
+				false
+			} else := $"foo: {input.y}"`,
+			exp: `package test
+			p = true if {
+				false 
+			} else := __local0__ if {
+				true
+				__local2__ = {__local1__ | __local1__ = input.y}
+				internal.template_string(["foo: ", __local2__, ""], __local0__)
+			}`,
+		},
 
-		// TODO: else bodies
+		// TODO: infix operands
 	}
 
 	for _, tc := range tests {
@@ -7938,13 +7969,22 @@ func TestCompilerRewriteTemplateStringCallsErrors(t *testing.T) {
 			exp: errors.New("var x is undeclared"),
 		},
 		{
-			note: "declared after template string",
+			note: "var declared after template string",
 			module: `package test
 			p := msg if { 
 				msg = $"{x}"
 				x = 7
 			}`,
 			exp: errors.New("var x is undeclared"),
+		},
+		{
+			note: "wildcard",
+			module: `package test
+			p := msg if {
+				a := ["a", "b"]
+				msg := $"{a[_]}"
+			}`,
+			exp: errors.New("var _ is undeclared"),
 		},
 	}
 

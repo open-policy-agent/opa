@@ -126,10 +126,10 @@ cases:
         a := "foo"
         b := "bar"
 
-        p := $"{$"{a}"} {$"{$"{b}"}"}"
+        p := $"{$"{a}"} {$"{$"{b}"} baz"}"
     query: data.test.p = x
     want_result:
-      - x: "foo bar"
+      - x: "foo bar baz"
   - note: stringinterpolation/template expressions with infix operand call
     modules:
       - |
@@ -156,40 +156,53 @@ cases:
       - |
         package test
 
-        a := "foo"
-        b := "bar"
+        a := ["foo", "bar"]
 
-        p := [x | x = $"{a} {b}"]
+        p := [x | some y in a; x := $"<{y}>"]
     query: data.test.p = x
     want_result:
       - x:
-        - "foo bar"
+        - "<foo>"
+        - "<bar>"
   - note: stringinterpolation/inside set comprehension
     modules:
       - |
         package test
 
         a := "foo"
-        b := "bar"
 
-        p := {x | x = $"{a} {b}"}
+        # Only generate one entry to avoid non-deterministic ordering.
+        p := {x | x = $"<{a}>"}
     query: data.test.p = x
     want_result:
       - x:
-        - "foo bar"
+        - "<foo>"
   - note: stringinterpolation/inside map comprehension
     modules:
       - |
         package test
 
-        a := "foo"
-        b := "bar"
+        a := ["foo", "bar"]
 
-        p := {x: y | x = $"<{a}>"; y = $"<{b}>"}
+        p := {x: y | some k, v in a; x = $"<{k}>"; y = $"<{v}>"}
     query: data.test.p = x
     want_result:
       - x:
-          "<foo>": "<bar>"
+          "<0>": "<foo>"
+          "<1>": "<bar>"
+  - note: stringinterpolation/inside map comprehension head
+    modules:
+      - |
+        package test
+
+        a := ["foo", "bar"]
+
+        p := {$"<{k}>": $"<{v}>" | some k, v in a}
+    query: data.test.p = x
+    want_result:
+      - x:
+          "<0>": "<foo>"
+          "<1>": "<bar>"
   - note: stringinterpolation/inside every expression
     modules:
       - |
