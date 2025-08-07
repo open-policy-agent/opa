@@ -1478,10 +1478,7 @@ func TestUrlPathToConfigOverride(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg, err := rt.Manager.GetConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
+	cfg := rt.Manager.GetConfig()
 
 	var servicesConfig map[string]map[string]any
 	if len(cfg.Services) > 0 {

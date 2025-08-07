@@ -14,6 +14,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/open-policy-agent/opa/v1/util"
 	"github.com/open-policy-agent/opa/v1/version"
 )
@@ -175,7 +176,6 @@ func TestPersistDirectory(t *testing.T) {
 }
 
 func TestActiveConfig(t *testing.T) {
-
 	common := `"labels": {
 			"region": "west"
 		},
@@ -371,7 +371,6 @@ func TestActiveConfig(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-
 			conf, err := ParseConfig(tc.raw, "foo")
 			if err != nil {
 				t.Fatal(err)
@@ -403,7 +402,6 @@ func TestActiveConfig(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestExtraConfigFieldsRoundtrip(t *testing.T) {
@@ -437,4 +435,95 @@ bar:
 	if !reflect.DeepEqual(actual, expected) {
 		t.Fatalf("want %v got %v", expected, actual)
 	}
+}
+
+func TestConfigClone(t *testing.T) {
+	// test nil config
+	var nilConfig *Config
+	cloned := nilConfig.Clone()
+	if cloned != nil {
+		t.Fatal("expected nil clone for nil config")
+	}
+
+	// test empty config
+	emptyConfig := &Config{}
+	clonedEmpty := emptyConfig.Clone()
+	if clonedEmpty == nil {
+		t.Fatal("clone returned nil for empty config")
+	}
+	if clonedEmpty == emptyConfig {
+		t.Fatal("clone should be a different instance")
+	}
+	if diff := cmp.Diff(emptyConfig, clonedEmpty); diff != "" {
+		t.Errorf("empty clone differs:\n%s", diff)
+	}
+
+	// test config with all fields populated using reflection
+	original := populateConfigFields(t)
+
+	cloned = original.Clone()
+	if cloned == nil {
+		t.Fatal("clone returned nil")
+	}
+
+	if cloned == original {
+		t.Fatal("clone should be different instance")
+	}
+
+	if diff := cmp.Diff(original, cloned); diff != "" {
+		t.Errorf("clone differs:\n%s", diff)
+	}
+}
+
+// populateConfigFields uses reflection to populate all fields with dummy data.
+func populateConfigFields(t *testing.T) *Config {
+	config := &Config{}
+	configType := reflect.TypeOf(*config)
+	configValue := reflect.ValueOf(config).Elem()
+
+	sampleJSON := []byte(`{"test": "value"}`)
+	testString := "test-value"
+
+	for i := range configType.NumField() {
+		field := configType.Field(i)
+		fieldValue := configValue.Field(i)
+
+		if !fieldValue.CanSet() {
+			continue
+		}
+
+		switch field.Type {
+		case reflect.TypeOf(json.RawMessage{}):
+			fieldValue.Set(reflect.ValueOf(sampleJSON))
+		case reflect.TypeOf((*string)(nil)):
+			fieldValue.Set(reflect.ValueOf(&testString))
+		case reflect.TypeOf(bool(false)):
+			fieldValue.SetBool(true)
+		case reflect.TypeOf(map[string]string{}):
+			m := map[string]string{"env": "test", "version": "1.0"}
+			fieldValue.Set(reflect.ValueOf(m))
+		case reflect.TypeOf(map[string]json.RawMessage{}):
+			m := map[string]json.RawMessage{
+				"key1": sampleJSON,
+				"key2": []byte(`{"config": "value"}`),
+			}
+			fieldValue.Set(reflect.ValueOf(m))
+		case reflect.TypeOf((*ServerConfig)(nil)):
+			server := &ServerConfig{
+				Encoding: []byte(`{"encoding": "gzip"}`),
+				Decoding: []byte(`{"decoding": "json"}`),
+				Metrics:  []byte(`{"metrics": true}`),
+			}
+			fieldValue.Set(reflect.ValueOf(server))
+		case reflect.TypeOf((*StorageConfig)(nil)):
+			storage := &StorageConfig{
+				Disk: []byte(`{"disk": {"path": "/tmp"}}`),
+			}
+			fieldValue.Set(reflect.ValueOf(storage))
+		default:
+			t.Fatalf("Unknown field type %s for field %s - update populateConfigFields()", field.Type, field.Name)
+		}
+	}
+
+	return config
 }
