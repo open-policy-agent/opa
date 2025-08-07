@@ -1790,17 +1790,7 @@ func TestConfigV1(t *testing.T) {
 func TestConfigV1WithInvalidConfig(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
-	server := New().
-		WithAddresses([]string{"localhost:8182"}).
-		WithStore(inmem.New())
-
-	m, err := plugins.New([]byte{}, "test", server.store)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// set invalid services configuration before starting manager since it's not possible with New and Reconfigure
+	// build some invalid config to forcibly load
 	badServicesConfig := []byte(`{
 		"services": {
 			"acmecorp": ["foo"]
@@ -1812,6 +1802,23 @@ func TestConfigV1WithInvalidConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// create a new server and manager
+	ctx := context.Background()
+	server := New().
+		WithAddresses([]string{"localhost:8182"}).
+		WithStore(inmem.New())
+
+	m, err := plugins.New([]byte{}, "test", server.store)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// NOTE: This is the only place we update the manager config directly.
+	// We do this to create an invalid configuration that would be impossible
+	// to set through normal Reconfigure call. This is done without
+	// starting/running the manager to be thread-safe. The manager does not
+	// need to be running in this test as the server just needs to access the
+	// manager config value.
 	m.Config = conf
 
 	server = server.WithManager(m)
@@ -4796,12 +4803,11 @@ func TestUnversionedPost(t *testing.T) {
 
 	// update the default decision path
 	s := "http/authz"
-	cfg, err := f.server.manager.GetConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
+
+	cfg := f.server.manager.GetConfig()
 	cfg.DefaultDecision = &s
-	err = f.server.manager.Reconfigure(cfg)
+
+	err := f.server.manager.Reconfigure(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}

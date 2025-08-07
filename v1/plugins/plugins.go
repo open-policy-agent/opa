@@ -7,7 +7,6 @@ package plugins
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -31,14 +30,11 @@ import (
 	"github.com/open-policy-agent/opa/v1/loader"
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/plugins/rest"
-	serverDecodingPlugin "github.com/open-policy-agent/opa/v1/plugins/server/decoding"
-	serverEncodingPlugin "github.com/open-policy-agent/opa/v1/plugins/server/encoding"
 	"github.com/open-policy-agent/opa/v1/resolver/wasm"
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/topdown/cache"
 	"github.com/open-policy-agent/opa/v1/topdown/print"
 	"github.com/open-policy-agent/opa/v1/tracing"
-	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // Factory defines the interface OPA uses to instantiate your plugin.
@@ -182,7 +178,7 @@ type StatusListener func(status map[string]*Status)
 // to engine-wide components like storage.
 type Manager struct {
 	Store storage.Store
-	// Config values should be accessed from the thread-safe getters for individual fields.
+	// Config values should be accessed from the thread-safe GetConfig method.
 	Config *config.Config
 	Info   *ast.Term
 	ID     string
@@ -598,10 +594,6 @@ func (m *Manager) Labels() map[string]string {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
-	if m.Config.Labels == nil {
-		return make(map[string]string)
-	}
-
 	return maps.Clone(m.Config.Labels)
 }
 
@@ -609,135 +601,21 @@ func (m *Manager) Labels() map[string]string {
 func (m *Manager) InterQueryBuiltinCacheConfig() *cache.Config {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
+
 	if m.interQueryBuiltinCacheConfig == nil {
 		return nil
 	}
-	// Return a copy of the cache config
-	copied := *m.interQueryBuiltinCacheConfig
-	return &copied
+
+	clone := *m.interQueryBuiltinCacheConfig
+	return &clone
 }
 
 // GetConfig returns a deep copy of the manager's configuration.
-func (m *Manager) GetConfig() (*config.Config, error) {
+func (m *Manager) GetConfig() *config.Config {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
-	bytes, err := json.Marshal(m.Config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal config: %w", err)
-	}
-
-	var cfgCp config.Config
-	if err := util.Unmarshal(bytes, &cfgCp); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
-	}
-
-	return &cfgCp, nil
-}
-
-// PersistenceDirectory returns the persistence directory from the configuration.
-func (m *Manager) PersistenceDirectory() string {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-
-	if m.Config.PersistenceDirectory != nil {
-		return *m.Config.PersistenceDirectory
-	}
-
-	return ""
-}
-
-// DefaultAuthorizationDecision returns the default authorization decision from the configuration.
-func (m *Manager) DefaultAuthorizationDecision() string {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-	if m.Config.DefaultAuthorizationDecision != nil {
-		return *m.Config.DefaultAuthorizationDecision
-	}
-	return ""
-}
-
-// DefaultAuthorizationDecisionRef returns the default authorization decision reference from the configuration.
-func (m *Manager) DefaultAuthorizationDecisionRef() ast.Ref {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-	return m.Config.DefaultAuthorizationDecisionRef()
-}
-
-// DefaultDecision returns the default decision from the configuration.
-func (m *Manager) DefaultDecision() string {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-	if m.Config.DefaultDecision != nil {
-		return *m.Config.DefaultDecision
-	}
-	return ""
-}
-
-// DefaultDecisionRef returns the default decision reference from the configuration.
-func (m *Manager) DefaultDecisionRef() ast.Ref {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-	return m.Config.DefaultDecisionRef()
-}
-
-// Discovery returns the raw discovery configuration from the manager's config.
-func (m *Manager) Discovery() []byte {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-	return []byte(m.Config.Discovery)
-}
-
-// NDBuiltinCacheEnabled returns whether non-deterministic builtin cache is enabled.
-func (m *Manager) NDBuiltinCacheEnabled() bool {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-	return m.Config.NDBuiltinCacheEnabled()
-}
-
-// ServerDecodingConfig returns the parsed server decoding configuration.
-func (m *Manager) ServerDecodingConfig() (*serverDecodingPlugin.Config, error) {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-
-	var decodingRawConfig []byte
-	if m.Config.Server != nil {
-		decodingRawConfig = []byte(m.Config.Server.Decoding)
-	}
-
-	return serverDecodingPlugin.NewConfigBuilder().WithBytes(decodingRawConfig).Parse()
-}
-
-// ServerEncodingConfig returns the parsed server encoding configuration.
-func (m *Manager) ServerEncodingConfig() (*serverEncodingPlugin.Config, error) {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-
-	var encodingRawConfig []byte
-	if m.Config.Server != nil {
-		encodingRawConfig = []byte(m.Config.Server.Encoding)
-	}
-
-	return serverEncodingPlugin.NewConfigBuilder().WithBytes(encodingRawConfig).Parse()
-}
-
-// ActiveConfig returns the loaded config with secrets and sensitive data redacted.
-// The returned config is a copy of the config and so is safe.
-func (m *Manager) ActiveConfig() (map[string]any, error) {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-	result, err := m.Config.ActiveConfig()
-	if err != nil {
-		return nil, err
-	}
-	return result.(map[string]any), nil
-}
-
-// GetPersistenceDirectory returns the persistence directory from the configuration.
-func (m *Manager) GetPersistenceDirectory() (string, error) {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-	return m.Config.GetPersistenceDirectory()
+	return m.Config.Clone()
 }
 
 // Register adds a plugin to the manager. When the manager is started, all of
