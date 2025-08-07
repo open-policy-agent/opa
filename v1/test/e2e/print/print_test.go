@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/open-policy-agent/opa/v1/logging"
 	test_sdk "github.com/open-policy-agent/opa/v1/sdk/test"
@@ -29,7 +30,7 @@ func TestEnablePrintStatementsForFilesystemPolicies(t *testing.T) {
 		params := e2e.NewAPIServerTestParams()
 		params.Paths = []string{dir}
 
-		buf := bytes.NewBuffer(nil)
+		buf := &test.BlockingWriter{}
 
 		logger := logging.New()
 		logger.SetOutput(buf)
@@ -69,7 +70,7 @@ func TestEnablePrintStatementsForHTTPAPIPushedPolicies(t *testing.T) {
 
 	params := e2e.NewAPIServerTestParams()
 
-	buf := bytes.NewBuffer(nil)
+	buf := &test.BlockingWriter{}
 
 	logger := logging.New()
 	logger.SetOutput(buf)
@@ -93,9 +94,9 @@ func TestEnablePrintStatementsForHTTPAPIPushedPolicies(t *testing.T) {
 
 		expContains := "hello world"
 
-		if !strings.Contains(buf.String(), expContains) {
-			t.Fatalf("expected logs to contain %q but got: %v", expContains, buf.String())
-		}
+		test.EventuallyOrFatal(t, 100*time.Millisecond, func() bool {
+			return strings.Contains(buf.String(), expContains)
+		})
 	})
 
 }
@@ -117,7 +118,7 @@ func TestEnablePrintStatementsForBundles(t *testing.T) {
 
 	params := e2e.NewAPIServerTestParams()
 
-	buf := bytes.NewBuffer(nil)
+	buf := &test.BlockingWriter{}
 
 	logger := logging.New()
 	logger.SetOutput(buf)
@@ -142,8 +143,8 @@ func TestEnablePrintStatementsForBundles(t *testing.T) {
 
 		expContains := "hello world"
 
-		if !strings.Contains(buf.String(), expContains) {
-			t.Fatalf("expected logs to contain %q but got: %v", expContains, buf.String())
-		}
+		test.EventuallyOrFatal(t, 100*time.Millisecond, func() bool {
+			return strings.Contains(buf.String(), expContains)
+		})
 	})
 }
