@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -20,6 +21,59 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 	"github.com/open-policy-agent/opa/v1/version"
 )
+
+// ServerConfig represents the different server configuration options.
+type ServerConfig struct {
+	Metrics json.RawMessage `json:"metrics,omitempty"`
+
+	Encoding json.RawMessage `json:"encoding,omitempty"`
+	Decoding json.RawMessage `json:"decoding,omitempty"`
+}
+
+// Clone creates a deep copy of ServerConfig.
+func (s *ServerConfig) Clone() *ServerConfig {
+	if s == nil {
+		return nil
+	}
+
+	clone := &ServerConfig{}
+
+	if s.Encoding != nil {
+		clone.Encoding = make(json.RawMessage, len(s.Encoding))
+		copy(clone.Encoding, s.Encoding)
+	}
+	if s.Decoding != nil {
+		clone.Decoding = make(json.RawMessage, len(s.Decoding))
+		copy(clone.Decoding, s.Decoding)
+	}
+	if s.Metrics != nil {
+		clone.Metrics = make(json.RawMessage, len(s.Metrics))
+		copy(clone.Metrics, s.Metrics)
+	}
+
+	return clone
+}
+
+// StorageConfig represents Config's storage options.
+type StorageConfig struct {
+	Disk json.RawMessage `json:"disk,omitempty"`
+}
+
+// Clone creates a deep copy of StorageConfig.
+func (s *StorageConfig) Clone() *StorageConfig {
+	if s == nil {
+		return nil
+	}
+
+	clone := &StorageConfig{}
+
+	if s.Disk != nil {
+		clone.Disk = make(json.RawMessage, len(s.Disk))
+		copy(clone.Disk, s.Disk)
+	}
+
+	return clone
+}
 
 // Config represents the configuration file that OPA can be started with.
 type Config struct {
@@ -38,15 +92,9 @@ type Config struct {
 	NDBuiltinCache               bool                       `json:"nd_builtin_cache,omitempty"`
 	PersistenceDirectory         *string                    `json:"persistence_directory,omitempty"`
 	DistributedTracing           json.RawMessage            `json:"distributed_tracing,omitempty"`
-	Server                       *struct {
-		Encoding json.RawMessage `json:"encoding,omitempty"`
-		Decoding json.RawMessage `json:"decoding,omitempty"`
-		Metrics  json.RawMessage `json:"metrics,omitempty"`
-	} `json:"server,omitempty"`
-	Storage *struct {
-		Disk json.RawMessage `json:"disk,omitempty"`
-	} `json:"storage,omitempty"`
-	Extra map[string]json.RawMessage `json:"-"`
+	Server                       *ServerConfig              `json:"server,omitempty"`
+	Storage                      *StorageConfig             `json:"storage,omitempty"`
+	Extra                        map[string]json.RawMessage `json:"-"`
 }
 
 // ParseConfig returns a valid Config object with defaults injected. The id
@@ -122,38 +170,6 @@ func (c Config) NDBuiltinCacheEnabled() bool {
 	return c.NDBuiltinCache
 }
 
-func (c *Config) validateAndInjectDefaults(id string) error {
-
-	if c.DefaultDecision == nil {
-		s := defaultDecisionPath
-		c.DefaultDecision = &s
-	}
-
-	_, err := ref.ParseDataPath(*c.DefaultDecision)
-	if err != nil {
-		return err
-	}
-
-	if c.DefaultAuthorizationDecision == nil {
-		s := defaultAuthorizationDecisionPath
-		c.DefaultAuthorizationDecision = &s
-	}
-
-	_, err = ref.ParseDataPath(*c.DefaultAuthorizationDecision)
-	if err != nil {
-		return err
-	}
-
-	if c.Labels == nil {
-		c.Labels = map[string]string{}
-	}
-
-	c.Labels["id"] = id
-	c.Labels["version"] = version.Version
-
-	return nil
-}
-
 // GetPersistenceDirectory returns the configured persistence directory, or $PWD/.opa if none is configured
 func (c Config) GetPersistenceDirectory() (string, error) {
 	if c.PersistenceDirectory == nil {
@@ -195,6 +211,123 @@ func (c *Config) ActiveConfig() (any, error) {
 	}
 
 	return result, nil
+}
+
+// Clone creates a deep copy of the Config struct
+func (c *Config) Clone() *Config {
+	if c == nil {
+		return nil
+	}
+
+	clone := &Config{
+		NDBuiltinCache: c.NDBuiltinCache,
+		Server:         c.Server.Clone(),
+		Storage:        c.Storage.Clone(),
+		Labels:         maps.Clone(c.Labels),
+	}
+
+	if c.Services != nil {
+		clone.Services = make(json.RawMessage, len(c.Services))
+		copy(clone.Services, c.Services)
+	}
+	if c.Discovery != nil {
+		clone.Discovery = make(json.RawMessage, len(c.Discovery))
+		copy(clone.Discovery, c.Discovery)
+	}
+	if c.Bundle != nil {
+		clone.Bundle = make(json.RawMessage, len(c.Bundle))
+		copy(clone.Bundle, c.Bundle)
+	}
+	if c.Bundles != nil {
+		clone.Bundles = make(json.RawMessage, len(c.Bundles))
+		copy(clone.Bundles, c.Bundles)
+	}
+	if c.DecisionLogs != nil {
+		clone.DecisionLogs = make(json.RawMessage, len(c.DecisionLogs))
+		copy(clone.DecisionLogs, c.DecisionLogs)
+	}
+	if c.Status != nil {
+		clone.Status = make(json.RawMessage, len(c.Status))
+		copy(clone.Status, c.Status)
+	}
+	if c.Keys != nil {
+		clone.Keys = make(json.RawMessage, len(c.Keys))
+		copy(clone.Keys, c.Keys)
+	}
+	if c.Caching != nil {
+		clone.Caching = make(json.RawMessage, len(c.Caching))
+		copy(clone.Caching, c.Caching)
+	}
+	if c.DistributedTracing != nil {
+		clone.DistributedTracing = make(json.RawMessage, len(c.DistributedTracing))
+		copy(clone.DistributedTracing, c.DistributedTracing)
+	}
+
+	if c.DefaultDecision != nil {
+		s := *c.DefaultDecision
+		clone.DefaultDecision = &s
+	}
+	if c.DefaultAuthorizationDecision != nil {
+		s := *c.DefaultAuthorizationDecision
+		clone.DefaultAuthorizationDecision = &s
+	}
+	if c.PersistenceDirectory != nil {
+		s := *c.PersistenceDirectory
+		clone.PersistenceDirectory = &s
+	}
+
+	if c.Plugins != nil {
+		clone.Plugins = make(map[string]json.RawMessage, len(c.Plugins))
+		for k, v := range c.Plugins {
+			if v != nil {
+				clone.Plugins[k] = make(json.RawMessage, len(v))
+				copy(clone.Plugins[k], v)
+			}
+		}
+	}
+
+	if c.Extra != nil {
+		clone.Extra = make(map[string]json.RawMessage, len(c.Extra))
+		for k, v := range c.Extra {
+			if v != nil {
+				clone.Extra[k] = make(json.RawMessage, len(v))
+				copy(clone.Extra[k], v)
+			}
+		}
+	}
+
+	return clone
+}
+
+func (c *Config) validateAndInjectDefaults(id string) error {
+	if c.DefaultDecision == nil {
+		s := defaultDecisionPath
+		c.DefaultDecision = &s
+	}
+
+	_, err := ref.ParseDataPath(*c.DefaultDecision)
+	if err != nil {
+		return err
+	}
+
+	if c.DefaultAuthorizationDecision == nil {
+		s := defaultAuthorizationDecisionPath
+		c.DefaultAuthorizationDecision = &s
+	}
+
+	_, err = ref.ParseDataPath(*c.DefaultAuthorizationDecision)
+	if err != nil {
+		return err
+	}
+
+	if c.Labels == nil {
+		c.Labels = map[string]string{}
+	}
+
+	c.Labels["id"] = id
+	c.Labels["version"] = version.Version
+
+	return nil
 }
 
 func removeServiceCredentials(x any) error {

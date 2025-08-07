@@ -542,7 +542,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 
 // extractMetricsConfig returns the configuration for server metrics and parsing errors if any
 func extractMetricsConfig(config []byte, params Params) (*metrics_config.Config, error) {
-	var opaParsedConfig, opaParsedConfigErr = opa_config.ParseConfig(config, params.ID)
+	opaParsedConfig, opaParsedConfigErr := opa_config.ParseConfig(config, params.ID)
 	if opaParsedConfigErr != nil {
 		return nil, opaParsedConfigErr
 	}
@@ -552,8 +552,8 @@ func extractMetricsConfig(config []byte, params Params) (*metrics_config.Config,
 		serverMetricsData = opaParsedConfig.Server.Metrics
 	}
 
-	var configBuilder = metrics_config.NewConfigBuilder()
-	var metricsParsedConfig, metricsParsedConfigErr = configBuilder.WithBytes(serverMetricsData).Parse()
+	configBuilder := metrics_config.NewConfigBuilder()
+	metricsParsedConfig, metricsParsedConfigErr := configBuilder.WithBytes(serverMetricsData).Parse()
 	if metricsParsedConfigErr != nil {
 		return nil, fmt.Errorf("server metrics configuration parse error: %w", metricsParsedConfigErr)
 	}
@@ -661,7 +661,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 
 	// If decision_logging plugin enabled, check to see if we opted in to the ND builtins cache.
 	if lp := logs.Lookup(rt.Manager); lp != nil {
-		rt.server = rt.server.WithNDBCacheEnabled(rt.Params.NDBCacheEnabled || rt.Manager.Config.NDBuiltinCacheEnabled())
+		rt.server = rt.server.WithNDBCacheEnabled(rt.Params.NDBCacheEnabled || rt.Manager.GetConfig().NDBuiltinCacheEnabled())
 	}
 
 	if rt.Params.DiagnosticAddrs != nil {
@@ -1065,7 +1065,7 @@ func generateDecisionID() string {
 }
 
 func verifyAuthorizationPolicySchema(m *plugins.Manager) error {
-	authorizationDecisionRef, err := ref.ParseDataPath(*m.Config.DefaultAuthorizationDecision)
+	authorizationDecisionRef, err := ref.ParseDataPath(*m.GetConfig().DefaultAuthorizationDecision)
 	if err != nil {
 		return err
 	}

@@ -1750,9 +1750,7 @@ func TestDataV1Metrics(t *testing.T) {
 func TestConfigV1(t *testing.T) {
 	t.Parallel()
 
-	f := newFixture(t)
-
-	c := []byte(`{"services": {
+	c := `{"services": {
 			"acmecorp": {
 				"url": "https://example.com/control-plane-api/v1",
 				"credentials": {"bearer": {"token": "test"}}
@@ -1763,21 +1761,16 @@ func TestConfigV1(t *testing.T) {
 		},
 		"keys": {
 			"global_key": {
-				"algorithm": HS256,
+				"algorithm": "HS256",
 				"key": "secret"
 			}
-		}}`)
+		}}`
 
-	conf, err := config.ParseConfig(c, "foo")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	f.server.manager.Config = conf
+	f := newFixtureWithConfig(t, c)
 
 	expected := map[string]any{
 		"result": map[string]any{
-			"labels":                         map[string]any{"id": "foo", "version": version.Version, "region": "west"},
+			"labels":                         map[string]any{"id": "test", "version": version.Version, "region": "west"},
 			"keys":                           map[string]any{"global_key": map[string]any{"algorithm": "HS256"}},
 			"services":                       map[string]any{"acmecorp": map[string]any{"url": "https://example.com/control-plane-api/v1"}},
 			"default_authorization_decision": "/system/authz/allow",
@@ -1792,23 +1785,61 @@ func TestConfigV1(t *testing.T) {
 	if err := f.v1(http.MethodGet, "/config", "", 200, string(bs)); err != nil {
 		t.Fatal(err)
 	}
+}
 
+func TestConfigV1WithInvalidConfig(t *testing.T) {
+	t.Parallel()
+
+	// build some invalid config to forcibly load
 	badServicesConfig := []byte(`{
 		"services": {
 			"acmecorp": ["foo"]
 		}
 	}`)
 
-	conf, err = config.ParseConfig(badServicesConfig, "foo")
+	conf, err := config.ParseConfig(badServicesConfig, "foo")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	f.server.manager.Config = conf
+	// create a new server and manager
+	ctx := context.Background()
+	server := New().
+		WithAddresses([]string{"localhost:8182"}).
+		WithStore(inmem.New())
+
+	m, err := plugins.New([]byte{}, "test", server.store)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// NOTE: This is the only place we update the manager config directly.
+	// We do this to create an invalid configuration that would be impossible
+	// to set through normal Reconfigure call. This is done without
+	// starting/running the manager to be thread-safe. The manager does not
+	// need to be running in this test as the server just needs to access the
+	// manager config value.
+	m.Config = conf
+
+	server = server.WithManager(m)
+	if err := m.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	server, err = server.Init(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f := &fixture{
+		server:   server,
+		recorder: httptest.NewRecorder(),
+		t:        t,
+	}
 
 	if err := f.v1(http.MethodGet, "/config", "", 500, `{
-				"code": "internal_error",
-				"message": "type assertion error"}`); err != nil {
+		"code": "internal_error",
+		"message": "type assertion error"}`); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -4772,7 +4803,14 @@ func TestUnversionedPost(t *testing.T) {
 
 	// update the default decision path
 	s := "http/authz"
-	f.server.manager.Config.DefaultDecision = &s
+
+	cfg := f.server.manager.GetConfig()
+	cfg.DefaultDecision = &s
+
+	err := f.server.manager.Reconfigure(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, post())

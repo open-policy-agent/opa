@@ -113,13 +113,14 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 
 	result.logger = manager.Logger().WithFields(map[string]any{"plugin": Name})
 
-	config, err := NewConfigBuilder().WithBytes(manager.Config.Discovery).WithServices(manager.Services()).
+	managerConfig := manager.GetConfig()
+	config, err := NewConfigBuilder().WithBytes([]byte(managerConfig.Discovery)).WithServices(manager.Services()).
 		WithKeyConfigs(manager.PublicKeys()).Parse()
 
 	if err != nil {
 		return nil, err
 	} else if config == nil {
-		if _, err := getPluginSet(result.factories, manager, manager.Config, result.metrics, result.logger, nil); err != nil {
+		if _, err := getPluginSet(result.factories, manager, managerConfig, result.metrics, result.logger, nil); err != nil {
 			return nil, err
 		}
 		return result, nil
@@ -129,8 +130,8 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 	restClient := manager.Client(config.service)
 	if strings.ToLower(restClient.Config().Type) == "oci" {
 		ociStorePath := filepath.Join(os.TempDir(), "opa", "oci") // use temporary folder /tmp/opa/oci
-		if manager.Config.PersistenceDirectory != nil {
-			ociStorePath = filepath.Join(*manager.Config.PersistenceDirectory, "oci")
+		if managerConfig.PersistenceDirectory != nil {
+			ociStorePath = filepath.Join(*managerConfig.PersistenceDirectory, "oci")
 		}
 		result.downloader = download.NewOCI(config.Config, restClient, config.path, ociStorePath).
 			WithCallback(result.oneShot).
@@ -157,7 +158,6 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 
 // Start starts the dynamic discovery process if configured.
 func (c *Discovery) Start(ctx context.Context) error {
-
 	bundlePersistPath, err := c.getBundlePersistPath()
 	if err != nil {
 		return err
@@ -230,7 +230,7 @@ func (c *Discovery) Unregister(name any) {
 }
 
 func (c *Discovery) getBundlePersistPath() (string, error) {
-	persistDir, err := c.manager.Config.GetPersistenceDirectory()
+	persistDir, err := c.manager.GetConfig().GetPersistenceDirectory()
 	if err != nil {
 		return "", err
 	}
@@ -239,7 +239,6 @@ func (c *Discovery) getBundlePersistPath() (string, error) {
 }
 
 func (c *Discovery) loadAndActivateBundleFromDisk(ctx context.Context) {
-
 	if c.config != nil && c.config.Persist {
 		b, err := c.loadBundleFromDisk()
 		if err != nil {
@@ -293,7 +292,6 @@ func (c *Discovery) loadBundleFromDisk() (*bundleApi.Bundle, error) {
 }
 
 func (c *Discovery) saveBundleToDisk(raw io.Reader) error {
-
 	bundleDir := filepath.Join(c.bundlePersistPath, c.discoveryBundleDirName())
 	bundleFile := filepath.Join(bundleDir, "bundle.tar.gz")
 
@@ -320,7 +318,6 @@ func saveCurrentBundleToDisk(path string, raw io.Reader) (string, error) {
 }
 
 func (c *Discovery) oneShot(ctx context.Context, u download.Update) {
-
 	c.processUpdate(ctx, u)
 
 	if p := status.Lookup(c.manager); p != nil {
@@ -405,7 +402,6 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 }
 
 func (c *Discovery) reconfigure(ctx context.Context, u download.Update) error {
-
 	ps, err := c.processBundle(ctx, u.Bundle)
 	if err != nil {
 		return err
@@ -452,7 +448,6 @@ func (c *Discovery) applyLocalPluginConfigOverride(conf *config.Config) (*config
 }
 
 func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pluginSet, error) {
-
 	config, err := evaluateBundle(ctx, c.manager.ID, c.manager.Info, b, c.config.query)
 	if err != nil {
 		return nil, err
@@ -474,7 +469,7 @@ func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pl
 	// Note: We don't currently support changes to the discovery
 	// configuration. These changes are risky because errors would be
 	// unrecoverable (without keeping track of changes and rolling back...)
-	config.Discovery = c.manager.Config.Discovery
+	config.Discovery = c.manager.GetConfig().Discovery
 
 	// check for updates to the discovery service
 	opts := c.manager.DefaultServiceOpts(config)
@@ -537,7 +532,6 @@ func (c *Discovery) discoveryBundleDirName() string {
 }
 
 func evaluateBundle(ctx context.Context, id string, info *ast.Term, b *bundleApi.Bundle, query string) (*config.Config, error) {
-
 	modules := b.ParsedModules("discovery")
 
 	compiler := ast.NewCompiler()
@@ -593,11 +587,18 @@ type pluginfactory struct {
 	config  any
 }
 
-func getPluginSet(factories map[string]plugins.Factory, manager *plugins.Manager, config *config.Config, m metrics.Metrics, l logging.Logger, trigger *plugins.TriggerMode) (*pluginSet, error) {
-
+func getPluginSet(
+	factories map[string]plugins.Factory,
+	manager *plugins.Manager,
+	config *config.Config,
+	m metrics.Metrics,
+	l logging.Logger,
+	trigger *plugins.TriggerMode,
+) (*pluginSet, error) {
 	// Parse and validate plugin configurations.
 	pluginNames := []string{}
 	pluginFactories := []pluginfactory{}
+	serviceNames := manager.Services()
 
 	for k := range config.Plugins {
 		f, ok := factories[k]
@@ -622,12 +623,12 @@ func getPluginSet(factories map[string]plugins.Factory, manager *plugins.Manager
 	// Parse and validate bundle/logs/status configurations.
 
 	// If `bundle` was configured use that, otherwise try the new `bundles` option
-	bundleConfig, err := bundle.ParseConfig(config.Bundle, manager.Services())
+	bundleConfig, err := bundle.ParseConfig(config.Bundle, serviceNames)
 	if err != nil {
 		return nil, err
 	}
 	if bundleConfig == nil {
-		bundleConfig, err = bundle.NewConfigBuilder().WithBytes(config.Bundles).WithServices(manager.Services()).
+		bundleConfig, err = bundle.NewConfigBuilder().WithBytes(config.Bundles).WithServices(serviceNames).
 			WithKeyConfigs(manager.PublicKeys()).WithTriggerMode(trigger).Parse()
 		if err != nil {
 			return nil, err
@@ -636,13 +637,13 @@ func getPluginSet(factories map[string]plugins.Factory, manager *plugins.Manager
 		manager.Logger().Warn("Deprecated 'bundle' configuration specified. Use 'bundles' instead. See https://www.openpolicyagent.org/docs/latest/configuration/#bundles")
 	}
 
-	decisionLogsConfig, err := logs.NewConfigBuilder().WithBytes(config.DecisionLogs).WithServices(manager.Services()).
+	decisionLogsConfig, err := logs.NewConfigBuilder().WithBytes(config.DecisionLogs).WithServices(serviceNames).
 		WithPlugins(pluginNames).WithTriggerMode(trigger).WithLogger(l).Parse()
 	if err != nil {
 		return nil, err
 	}
 
-	statusConfig, err := status.NewConfigBuilder().WithBytes(config.Status).WithServices(manager.Services()).
+	statusConfig, err := status.NewConfigBuilder().WithBytes(config.Status).WithServices(serviceNames).
 		WithPlugins(pluginNames).WithTriggerMode(trigger).Parse()
 	if err != nil {
 		return nil, err
@@ -657,7 +658,7 @@ func getPluginSet(factories map[string]plugins.Factory, manager *plugins.Manager
 		if created {
 			starts = append(starts, p)
 		} else if p != nil {
-			reconfigs = append(reconfigs, pluginreconfig{bundleConfig, p})
+			reconfigs = append(reconfigs, pluginreconfig{Config: bundleConfig, Plugin: p})
 		}
 	}
 
@@ -666,7 +667,7 @@ func getPluginSet(factories map[string]plugins.Factory, manager *plugins.Manager
 		if created {
 			starts = append(starts, p)
 		} else if p != nil {
-			reconfigs = append(reconfigs, pluginreconfig{decisionLogsConfig, p})
+			reconfigs = append(reconfigs, pluginreconfig{Config: decisionLogsConfig, Plugin: p})
 		}
 	}
 
@@ -675,11 +676,11 @@ func getPluginSet(factories map[string]plugins.Factory, manager *plugins.Manager
 		if created {
 			starts = append(starts, p)
 		} else if p != nil {
-			reconfigs = append(reconfigs, pluginreconfig{statusConfig, p})
+			reconfigs = append(reconfigs, pluginreconfig{Config: statusConfig, Plugin: p})
 		}
 	}
 
-	result := &pluginSet{starts, reconfigs}
+	result := &pluginSet{Start: starts, Reconfig: reconfigs}
 
 	getCustomPlugins(manager, pluginFactories, result)
 
@@ -708,7 +709,6 @@ func getDecisionLogsPlugin(m *plugins.Manager, config *logs.Config, metrics metr
 }
 
 func getStatusPlugin(m *plugins.Manager, config *status.Config, metrics metrics.Metrics) (plugin *status.Plugin, created bool) {
-
 	plugin = status.Lookup(m)
 
 	if plugin == nil {
@@ -724,7 +724,7 @@ func getStatusPlugin(m *plugins.Manager, config *status.Config, metrics metrics.
 func getCustomPlugins(manager *plugins.Manager, factories []pluginfactory, result *pluginSet) {
 	for _, pf := range factories {
 		if plugin := manager.Plugin(pf.name); plugin != nil {
-			result.Reconfig = append(result.Reconfig, pluginreconfig{pf.config, plugin})
+			result.Reconfig = append(result.Reconfig, pluginreconfig{Config: pf.config, Plugin: plugin})
 		} else {
 			plugin := pf.factory.New(manager, pf.config)
 			manager.Register(pf.name, plugin)
