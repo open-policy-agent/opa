@@ -1322,6 +1322,12 @@ apps_not_in_prod contains name if {
 
 <RunSnippet files="#example_data.rego" command="data.negation.apps_not_in_prod"/>
 
+:::info
+Logical OR/AND in Rego is structured differently from other languages you might
+be familiar with. See the notes here on [Logical OR](../docs/#logical-or) or
+here for [Logical AND](../docs/#basic-syntax) for more details.
+:::
+
 ## Universal Quantification (FOR ALL)
 
 Rego allows for several ways to express universal quantification.
