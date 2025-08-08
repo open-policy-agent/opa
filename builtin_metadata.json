@@ -207,6 +207,7 @@
     "tokens": [
       "io.jwt.decode",
       "io.jwt.decode_verify",
+      "io.jwt.verify_eddsa",
       "io.jwt.verify_es256",
       "io.jwt.verify_es384",
       "io.jwt.verify_es512",
@@ -9255,7 +9256,7 @@
       "v1.7.0",
       "edge"
     ],
-    "description": "Verifies a JWT signature under parameterized constraints and decodes the claims if it is valid.\nSupports the following algorithms: HS256, HS384, HS512, RS256, RS384, RS512, ES256, ES384, ES512, PS256, PS384 and PS512.",
+    "description": "Verifies a JWT signature under parameterized constraints and decodes the claims if it is valid.\nSupports the following algorithms: HS256, HS384, HS512, RS256, RS384, RS512, ES256, ES384, ES512, PS256, PS384, PS512, and EdDSA.",
     "introduced": "v0.17.0",
     "result": {
       "description": "`[valid, header, payload]`:  if the input token is verified and meets the requirements of `constraints` then `valid` is `true`; `header` and `payload` are objects containing the JOSE header and the JWT claim set; otherwise, `valid` is `false`, `header` and `payload` are `{}`",
@@ -9561,6 +9562,31 @@
       "description": "signed JWT",
       "name": "output",
       "type": "string"
+    },
+    "wasm": false
+  },
+  "io.jwt.verify_eddsa": {
+    "args": [
+      {
+        "description": "JWT token whose signature is to be verified",
+        "name": "jwt",
+        "type": "string"
+      },
+      {
+        "description": "PEM encoded certificate, PEM encoded public key, or the JWK key (set) used to verify the signature",
+        "name": "certificate",
+        "type": "string"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Verifies if an EdDSA JWT signature is valid.",
+    "introduced": "edge",
+    "result": {
+      "description": "`true` if the signature is valid, `false` otherwise",
+      "name": "result",
+      "type": "boolean"
     },
     "wasm": false
   },
