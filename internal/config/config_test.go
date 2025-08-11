@@ -96,7 +96,7 @@ func TestSubEnvVarsVarsSubMissingEnvVar(t *testing.T) {
 	envKey := setTestEnvVar(t, "var1", "foo")
 	configYaml := fmt.Sprintf("field1: '${%s}'", envKey)
 
-	// Remove the env var and expect the system to sub in ""
+	// Remove the env var and expect the system to keep the key as-is
 	os.Unsetenv(envKey)
 	expected := configYaml // untouched
 
@@ -109,6 +109,20 @@ func TestSubEnvVarsVarsSubMissingEnvVar(t *testing.T) {
 
 func TestSubEnvVarsVarsSubEmptyVarName(t *testing.T) {
 	configYaml := "field1: '${}'"
+	expected := "field1: ''"
+
+	actual := subEnvVars(configYaml)
+
+	if actual != expected {
+		t.Errorf("Expected: '%s'\nActual: '%s'", expected, actual)
+	}
+}
+
+func TestSubEnvVarsVarsSubEmptyEnvVar(t *testing.T) {
+	envKey := setTestEnvVar(t, "var1", "foo")
+	configYaml := fmt.Sprintf("field1: '${%s}'", envKey)
+
+	t.Setenv(envKey, "")
 	expected := "field1: ''"
 
 	actual := subEnvVars(configYaml)
