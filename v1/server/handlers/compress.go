@@ -61,17 +61,35 @@ type compressResponseWriter struct {
 	minlength     int
 }
 
-var gzipPool *sync.Pool
+var (
+	gzipPool                 *sync.Pool
+	gzipPoolMutex            sync.RWMutex
+	gzipPoolCompressionLevel int
+)
 
 func initGzipPool(compressionLevel int) {
-	if gzipPool == nil {
-		gzipPool = &sync.Pool{
-			New: func() any {
-				writer, _ := gzip.NewWriterLevel(io.Discard, compressionLevel)
-				return writer
-			},
-		}
+	gzipPoolMutex.RLock()
+	if gzipPool != nil && gzipPoolCompressionLevel == compressionLevel {
+		gzipPoolMutex.RUnlock()
+		return
 	}
+	gzipPoolMutex.RUnlock()
+
+	gzipPoolMutex.Lock()
+	defer gzipPoolMutex.Unlock()
+
+	if gzipPool != nil && gzipPoolCompressionLevel == compressionLevel {
+		return
+	}
+
+	gzipPool = &sync.Pool{
+		New: func() any {
+			writer, _ := gzip.NewWriterLevel(io.Discard, compressionLevel)
+			return writer
+		},
+	}
+
+	gzipPoolCompressionLevel = compressionLevel
 }
 
 func (w *compressResponseWriter) WriteHeader(statusCode int) {
