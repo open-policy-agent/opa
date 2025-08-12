@@ -3088,10 +3088,18 @@ func (c Call) IsGround() bool {
 	return termSliceIsGround(c)
 }
 
-// MakeExpr returns an ew Expr from this call.
+// MakeExpr returns a new Expr from this call.
 func (c Call) MakeExpr(output *Term) *Expr {
 	terms := []*Term(c)
 	return NewExpr(append(terms, output))
+}
+
+func (c Call) Operator() Ref {
+	if len(c) == 0 {
+		return nil
+	}
+
+	return c[0].Value.(Ref)
 }
 
 func (c Call) String() string {

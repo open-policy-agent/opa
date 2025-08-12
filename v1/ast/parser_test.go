@@ -8270,3 +8270,6 @@ func assertParseRule(t *testing.T, msg string, input string, correct *Rule, opts
 	},
 		opts...)
 }
+
+// TODO: Test string interpolation
+// TODO: Test multi-line expression inside single-line template string. Should we allow this?
