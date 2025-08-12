@@ -7317,30 +7317,42 @@ func TestCompilerRewritePrintCallsErasure(t *testing.T) {
 
 func TestCompilerRewritePrintCallsErrors(t *testing.T) {
 	cases := []struct {
-		note   string
-		module string
-		exp    error
+		note    string
+		module  string
+		exp     error
+		errCode string
 	}{
 		{
 			note: "non-existent var",
 			module: `package test
 
 			p if { print(x) }`,
-			exp: errors.New("var x is undeclared"),
+			exp:     errors.New("var x is undeclared"),
+			errCode: CompileErr,
 		},
 		{
 			note: "declared after print",
 			module: `package test
 
 			p if { print(x); x = 7 }`,
-			exp: errors.New("var x is undeclared"),
+			exp:     errors.New("var x is undeclared"),
+			errCode: CompileErr,
 		},
 		{
 			note: "inside comprehension",
 			module: `package test
 			p if { {1 | print(x)} = {1 | print(7)} }
 			`,
-			exp: errors.New("var x is undeclared"),
+			exp:     errors.New("var x is undeclared"),
+			errCode: CompileErr,
+		},
+		{
+			note: "inside template-string",
+			module: `package test
+			p if { $"<{print(42)}>" }
+			`,
+			exp:     errors.New("print(42) used as value"),
+			errCode: TypeErr,
 		},
 	}
 
@@ -7353,7 +7365,7 @@ func TestCompilerRewritePrintCallsErrors(t *testing.T) {
 			if !c.Failed() {
 				t.Fatal("expected error")
 			}
-			if c.Errors[0].Code != CompileErr || c.Errors[0].Message != tc.exp.Error() {
+			if c.Errors[0].Code != tc.errCode || c.Errors[0].Message != tc.exp.Error() {
 				t.Fatal("unexpected error:", c.Errors)
 			}
 		})
@@ -7888,6 +7900,70 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 		},
 
 		{
+			note: "single template expression, infix, head value",
+			module: `package test
+				p := $"{input.x + 2}"`,
+			exp: `package test
+				p := __local0__ if { 
+					true
+					__local4__ = {__local1__ | 
+						__local3__ = input.x
+						plus(__local3__, 2, __local2__)
+						__local1__ = __local2__
+					}
+					internal.template_string(["", __local4__, ""], __local0__)
+				}`,
+		},
+		{
+			note: "single template expression, infix, head set value",
+			module: `package test
+				p contains $"{input.x + 2}"`,
+			exp: `package test
+				p contains __local0__ if { 
+					true
+					__local4__ = {__local1__ | 
+						__local3__ = input.x
+						plus(__local3__, 2, __local2__)
+						__local1__ = __local2__
+					}
+					internal.template_string(["", __local4__, ""], __local0__)
+				}`,
+		},
+		{
+			note: "single template expression, infix, head map key",
+			module: `package test
+				p[$"{input.x + 2}"] := true`,
+			exp: `package test
+				p[__local0__] := true if {
+					true
+					__local5__ = {__local2__ | 
+						__local4__ = input.x
+						plus(__local4__, 2, __local3__)
+						__local2__ = __local3__
+					}
+					internal.template_string(["", __local5__, ""], __local1__)
+					__local0__ = __local1__
+				}`,
+		},
+		{
+			note: "single template expression, infix, in body",
+			module: `package test
+				p := x if {
+					x := $"{input.x + 2}"
+				}`,
+			exp: `package test
+				p := __local0__ if { 
+					__local5__ = {__local2__ |
+						__local4__ = input.x
+						plus(__local4__, 2, __local3__)
+						__local2__ = __local3__
+					}
+					internal.template_string(["", __local5__, ""], __local1__)
+					__local0__ = __local1__
+				}`,
+		},
+
+		{
 			note: "inside array comprehension, body",
 			module: `package test
 			p if {
@@ -8008,8 +8084,8 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 		},
 
 		// TODO: infix operands
-
 		// TODO: inside 'with' expressions
+		// TODO: nested templates
 	}
 
 	for _, tc := range tests {
