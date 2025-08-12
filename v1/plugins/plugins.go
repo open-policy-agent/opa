@@ -602,10 +602,6 @@ func (m *Manager) InterQueryBuiltinCacheConfig() *cache.Config {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
-	if m.interQueryBuiltinCacheConfig == nil {
-		return nil
-	}
-
 	return m.interQueryBuiltinCacheConfig.Clone()
 }
 
@@ -843,7 +839,9 @@ func (m *Manager) DefaultServiceOpts(config *config.Config) cfg.ServiceOptions {
 }
 
 // Reconfigure updates the configuration on the manager.
-func (m *Manager) Reconfigure(config *config.Config) error {
+func (m *Manager) Reconfigure(newCfg *config.Config) error {
+	config := newCfg.Clone()
+
 	opts := m.DefaultServiceOpts(config)
 
 	keys, err := keys.ParseKeysConfig(config.Keys)

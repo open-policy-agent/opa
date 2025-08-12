@@ -478,7 +478,6 @@ func TestConcurrentInsert(t *testing.T) {
 
 			cacheValue2 := newInterQueryCacheValue(ast.String("bar2"), 5)
 			cache.Insert(ast.String("foo2"), cacheValue2)
-
 		}()
 	}
 	wg.Wait()
@@ -774,7 +773,6 @@ func TestCancelNewInterQueryCacheWithContext(t *testing.T) {
 	if fetchedCacheValue, found := cache.Get(ast.StringTerm("foo").Value); !found {
 		t.Fatalf("Expected cache entry with value %v for foo, found %v", cacheValue, fetchedCacheValue)
 	}
-
 }
 
 func TestUpdateConfig(t *testing.T) {
@@ -885,4 +883,3 @@ func TestConfigClone(t *testing.T) {
 		t.Errorf("modifying clone affected original")
 	}
 }
-
