@@ -5,6 +5,8 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+- topdown: Add support for EdDSA in `io.jwt` built-ins ([#<PR>](<PR link>)) authored by @johanfylling reported by @aromeyer
+
 ## 1.7.1
 
 This is a bug fix release addressing two issues for users that include OPA's CLI in their own application's CLI:

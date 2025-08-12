@@ -7,6 +7,7 @@ package topdown
 import (
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/hmac"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -265,6 +266,31 @@ func verifyES(publicKey any, digest []byte, signature []byte) (err error) {
 	r.SetBytes(signature[:n])
 	s.SetBytes(signature[n:])
 	if ecdsa.Verify(publicKeyEcdsa, digest, r, s) {
+		return nil
+	}
+	return errors.New("ECDSA signature verification error")
+}
+
+// Implements EdDSA JWT signature verification
+func builtinJWTVerifyEdDSA(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	result, err := builtinJWTVerify(bctx, operands[0].Value, operands[1].Value, nil, verifyEd25519)
+	if err == nil {
+		return iter(ast.InternedTerm(result))
+	}
+	return err
+}
+
+func verifyEd25519(publicKey any, digest []byte, signature []byte) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("EdDSA signature verification error: %v", r)
+		}
+	}()
+	publicKeyEcdsa, ok := publicKey.(ed25519.PublicKey)
+	if !ok {
+		return errors.New("incorrect public key type")
+	}
+	if ed25519.Verify(publicKeyEcdsa, digest, signature) {
 		return nil
 	}
 	return errors.New("ECDSA signature verification error")
@@ -723,6 +749,7 @@ var tokenAlgorithms = map[string]struct{}{
 	"HS256": {},
 	"HS384": {},
 	"HS512": {},
+	"EdDSA": {},
 }
 
 // errSignatureNotVerified is returned when a signature cannot be verified.
@@ -1198,6 +1225,10 @@ func extractJSONObject(s string) (ast.Object, error) {
 
 // getInputSha returns the SHA checksum of the input
 func getInputSHA(input []byte, h func() hash.Hash) []byte {
+	if h == nil {
+		return input
+	}
+
 	hasher := h()
 	hasher.Write(input)
 	return hasher.Sum(nil)
@@ -1270,6 +1301,7 @@ func init() {
 	RegisterBuiltinFunc(ast.JWTVerifyES256.Name, builtinJWTVerifyES256)
 	RegisterBuiltinFunc(ast.JWTVerifyES384.Name, builtinJWTVerifyES384)
 	RegisterBuiltinFunc(ast.JWTVerifyES512.Name, builtinJWTVerifyES512)
+	RegisterBuiltinFunc(ast.JWTVerifyEdDSA.Name, builtinJWTVerifyEdDSA)
 	RegisterBuiltinFunc(ast.JWTVerifyHS256.Name, builtinJWTVerifyHS256)
 	RegisterBuiltinFunc(ast.JWTVerifyHS384.Name, builtinJWTVerifyHS384)
 	RegisterBuiltinFunc(ast.JWTVerifyHS512.Name, builtinJWTVerifyHS512)
