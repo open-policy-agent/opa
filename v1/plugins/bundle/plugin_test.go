@@ -5220,24 +5220,16 @@ func TestConfiguredBundlePersistPath(t *testing.T) {
 
 	persistPath := "/var/opa"
 	manager := getTestManager()
-<<<<<<< HEAD
-<<<<<<< HEAD
 	defer manager.Stop(context.Background())
-	manager.Config.PersistenceDirectory = &persistPath
-=======
-	cfg, err := manager.GetConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-=======
+
 	cfg := manager.GetConfig()
->>>>>>> c00d04743 (v1/config: Use add Clone to config)
 	cfg.PersistenceDirectory = &persistPath
+
 	err := manager.Reconfigure(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
->>>>>>> ba695ed75 (v1/plugins: Address race in config access)
+
 	plugin := New(&Config{}, manager)
 
 	path, err := plugin.getBundlePersistPath()

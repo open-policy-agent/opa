@@ -606,8 +606,7 @@ func (m *Manager) InterQueryBuiltinCacheConfig() *cache.Config {
 		return nil
 	}
 
-	clone := *m.interQueryBuiltinCacheConfig
-	return &clone
+	return m.interQueryBuiltinCacheConfig.Clone()
 }
 
 // GetConfig returns a deep copy of the manager's configuration.

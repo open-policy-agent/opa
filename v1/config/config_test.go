@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/open-policy-agent/opa/v1/util"
+	"github.com/open-policy-agent/opa/v1/util/test"
 	"github.com/open-policy-agent/opa/v1/version"
 )
 
@@ -459,7 +460,7 @@ func TestConfigClone(t *testing.T) {
 	}
 
 	// test config with all fields populated using reflection
-	original := populateConfigFields(t)
+	original := test.PopulateAllFields[Config](t)
 
 	cloned = original.Clone()
 	if cloned == nil {
@@ -473,57 +474,4 @@ func TestConfigClone(t *testing.T) {
 	if diff := cmp.Diff(original, cloned); diff != "" {
 		t.Errorf("clone differs:\n%s", diff)
 	}
-}
-
-// populateConfigFields uses reflection to populate all fields with dummy data.
-func populateConfigFields(t *testing.T) *Config {
-	config := &Config{}
-	configType := reflect.TypeOf(*config)
-	configValue := reflect.ValueOf(config).Elem()
-
-	sampleJSON := []byte(`{"test": "value"}`)
-	testString := "test-value"
-
-	for i := range configType.NumField() {
-		field := configType.Field(i)
-		fieldValue := configValue.Field(i)
-
-		if !fieldValue.CanSet() {
-			continue
-		}
-
-		switch field.Type {
-		case reflect.TypeOf(json.RawMessage{}):
-			fieldValue.Set(reflect.ValueOf(sampleJSON))
-		case reflect.TypeOf((*string)(nil)):
-			fieldValue.Set(reflect.ValueOf(&testString))
-		case reflect.TypeOf(bool(false)):
-			fieldValue.SetBool(true)
-		case reflect.TypeOf(map[string]string{}):
-			m := map[string]string{"env": "test", "version": "1.0"}
-			fieldValue.Set(reflect.ValueOf(m))
-		case reflect.TypeOf(map[string]json.RawMessage{}):
-			m := map[string]json.RawMessage{
-				"key1": sampleJSON,
-				"key2": []byte(`{"config": "value"}`),
-			}
-			fieldValue.Set(reflect.ValueOf(m))
-		case reflect.TypeOf((*ServerConfig)(nil)):
-			server := &ServerConfig{
-				Encoding: []byte(`{"encoding": "gzip"}`),
-				Decoding: []byte(`{"decoding": "json"}`),
-				Metrics:  []byte(`{"metrics": true}`),
-			}
-			fieldValue.Set(reflect.ValueOf(server))
-		case reflect.TypeOf((*StorageConfig)(nil)):
-			storage := &StorageConfig{
-				Disk: []byte(`{"disk": {"path": "/tmp"}}`),
-			}
-			fieldValue.Set(reflect.ValueOf(storage))
-		default:
-			t.Fatalf("Unknown field type %s for field %s - update populateConfigFields()", field.Type, field.Name)
-		}
-	}
-
-	return config
 }
