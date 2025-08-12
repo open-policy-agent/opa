@@ -67,6 +67,8 @@ var (
 	gzipPoolCompressionLevel int
 )
 
+// initGzipPool initializes the gzip pool with the specified compression level.
+// Note that this is not called when OPA's configuration is reloaded, only at startup.
 func initGzipPool(compressionLevel int) {
 	gzipPoolMutex.RLock()
 	if gzipPool != nil && gzipPoolCompressionLevel == compressionLevel {
@@ -139,7 +141,9 @@ func (w *compressResponseWriter) Close() error {
 	}
 
 	err := w.gzipWriter.Close()
+	gzipPoolMutex.RLock()
 	defer gzipPool.Put(w.gzipWriter)
+	gzipPoolMutex.RUnlock()
 	w.gzipWriter = nil
 	return err
 }
@@ -152,7 +156,9 @@ func (w *compressResponseWriter) doCompressedResponse() error {
 	if len(w.buffer) == 0 {
 		return nil
 	}
+	gzipPoolMutex.RLock()
 	gzipWriter := gzipPool.Get().(*gzip.Writer)
+	gzipPoolMutex.RUnlock()
 	gzipWriter.Reset(w.ResponseWriter)
 	w.gzipWriter = gzipWriter
 	_, err := w.gzipWriter.Write(w.buffer)
