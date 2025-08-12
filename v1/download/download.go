@@ -61,8 +61,8 @@ type Downloader struct {
 	respHdrTimeoutSec  int64
 	wg                 sync.WaitGroup
 	logger             logging.Logger
-	mtx                sync.Mutex
 	stopped            bool
+	stopOnce           sync.Once
 	persist            bool
 	longPollingEnabled bool
 	lazyLoadingMode    bool
@@ -204,16 +204,11 @@ func (d *Downloader) Stop(context.Context) {
 		return
 	}
 
-	d.mtx.Lock()
-	defer d.mtx.Unlock()
-
-	if d.stopped {
-		return
-	}
-
-	done := make(chan struct{})
-	d.stop <- done
-	<-done
+	d.stopOnce.Do(func() {
+		done := make(chan struct{})
+		d.stop <- done
+		<-done
+	})
 }
 
 func (d *Downloader) loop(ctx context.Context) {
@@ -231,13 +226,18 @@ func (d *Downloader) loop(ctx context.Context) {
 			return
 		}
 
+		// Note: MaxDelaySeconds, MinDelaySeconds and LongPollingTimeoutSeconds
+		// are scaled from int seconds to ns in ValidateAndInjectDefaults.
 		if err != nil {
+			// when there was an error, use a delay that's based on the retry count
 			delay = util.DefaultBackoff(float64(minRetryDelay), float64(*d.config.Polling.MaxDelaySeconds), retry)
 		} else if !d.longPollingEnabled || d.config.Polling.LongPollingTimeoutSeconds == nil {
 			// revert the response header timeout value on the http client's transport
 			if *d.client.Config().ResponseHeaderTimeoutSeconds == 0 {
 				d.client = d.client.SetResponseHeaderTimeout(&d.respHdrTimeoutSec)
 			}
+
+			// when polling, use a jittered delay based on min and max delay config
 			min := float64(*d.config.Polling.MinDelaySeconds)
 			max := float64(*d.config.Polling.MaxDelaySeconds)
 			delay = time.Duration(((max - min) * rand.Float64()) + min)
@@ -263,7 +263,6 @@ func (d *Downloader) loop(ctx context.Context) {
 func (d *Downloader) oneShot(ctx context.Context) error {
 	m := metrics.New()
 	resp, err := d.download(ctx, m)
-
 	if err != nil {
 		d.etag = ""
 

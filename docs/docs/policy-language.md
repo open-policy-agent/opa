@@ -1322,6 +1322,12 @@ apps_not_in_prod contains name if {
 
 <RunSnippet files="#example_data.rego" command="data.negation.apps_not_in_prod"/>
 
+:::info
+Logical OR/AND in Rego is structured differently from other languages you might
+be familiar with. See the notes here on [Logical OR](../docs/#logical-or) or
+here for [Logical AND](../docs/#basic-syntax) for more details.
+:::
+
 ## Universal Quantification (FOR ALL)
 
 Rego allows for several ways to express universal quantification.
@@ -2454,19 +2460,19 @@ comment block containing the YAML document is finished
 
 ### Annotations
 
-| Name              | Type                                                        | Description                                                                                               |
-| ----------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| scope             | string; one of `package`, `rule`, `document`, `subpackages` | The scope for which the metadata applies. Read more [here](./#scope).                                     |
-| title             | string                                                      | A human-readable name for the annotation target. Read more [here](#title).                                |
-| description       | string                                                      | A description of the annotation target. Read more [here](#description).                                   |
-| related_resources | list of URLs                                                | A list of URLs pointing to related resources/documentation. Read more [here](#related-resources).         |
-| authors           | list of strings                                             | A list of authors for the annotation target. Read more [here](#authors).                                  |
-| organizations     | list of strings                                             | A list of organizations related to the annotation target. Read more [here](#organizations).               |
-| schemas           | list of object                                              | A list of associations between value paths and schema definitions. Read more [here](#schemas).            |
-| entrypoint        | boolean                                                     | Whether or not the annotation target is to be used as a policy entrypoint. Read more [here](#entrypoint). |
-| custom            | mapping of arbitrary data                                   | A custom mapping of named parameters holding arbitrary data. Read more [here](#custom).                   |
+| Name              | Type                                                        | Description                                                                                                        |
+| ----------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| scope             | string; one of `package`, `rule`, `document`, `subpackages` | The scope for which the metadata applies. Read more [here](#metadata-scope).                                       |
+| title             | string                                                      | A human-readable name for the annotation target. Read more [here](#metadata-title).                                |
+| description       | string                                                      | A description of the annotation target. Read more [here](#metadata-description).                                   |
+| related_resources | list of URLs                                                | A list of URLs pointing to related resources/documentation. Read more [here](#metadata-related_resources).         |
+| authors           | list of strings                                             | A list of authors for the annotation target. Read more [here](#metadata-authors).                                  |
+| organizations     | list of strings                                             | A list of organizations related to the annotation target. Read more [here](#metadata-organizations).               |
+| schemas           | list of object                                              | A list of associations between value paths and schema definitions. Read more [here](#metadata-schemas).            |
+| entrypoint        | boolean                                                     | Whether or not the annotation target is to be used as a policy entrypoint. Read more [here](#metadata-entrypoint). |
+| custom            | mapping of arbitrary data                                   | A custom mapping of named parameters holding arbitrary data. Read more [here](#metadata-custom).                   |
 
-### Scope
+### Metadata `Scope`
 
 Annotations can be defined at the rule or package level. The `scope` annotation in
 a metadata block determines how that metadata block will be applied. If the

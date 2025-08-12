@@ -155,6 +155,7 @@ func TestJSONSerialization(t *testing.T) {
 			"go_godebug_non_default_behavior_x509rsacrt_events_total",
 			"go_godebug_non_default_behavior_gotestjsonbuildtext_events_total",
 			"go_godebug_non_default_behavior_rsa1024min_events_total",
+			"go_godebug_non_default_behavior_allowmultiplevcs_events_total", // added in 1.24.6
 		},
 		"SUMMARY": {
 			"go_gc_duration_seconds",
