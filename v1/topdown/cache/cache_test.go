@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
 func TestParseCachingConfig(t *testing.T) {
@@ -477,7 +478,6 @@ func TestConcurrentInsert(t *testing.T) {
 
 			cacheValue2 := newInterQueryCacheValue(ast.String("bar2"), 5)
 			cache.Insert(ast.String("foo2"), cacheValue2)
-
 		}()
 	}
 	wg.Wait()
@@ -773,7 +773,6 @@ func TestCancelNewInterQueryCacheWithContext(t *testing.T) {
 	if fetchedCacheValue, found := cache.Get(ast.StringTerm("foo").Value); !found {
 		t.Fatalf("Expected cache entry with value %v for foo, found %v", cacheValue, fetchedCacheValue)
 	}
-
 }
 
 func TestUpdateConfig(t *testing.T) {
@@ -852,4 +851,35 @@ func (p testInterQueryCacheValue) SizeInBytes() int64 {
 
 func (p testInterQueryCacheValue) Clone() (InterQueryCacheValue, error) {
 	return &testInterQueryCacheValue{value: p.value, size: p.size}, nil
+}
+
+func TestConfigClone(t *testing.T) {
+	// test nil config
+	var nilConfig *Config
+	cloned := nilConfig.Clone()
+	if cloned != nil {
+		t.Fatal("expected nil clone for nil config")
+	}
+
+	// test config with all fields populated using reflection
+	original := test.PopulateAllFields[Config](t)
+
+	cloned = original.Clone()
+	if cloned == nil {
+		t.Fatal("clone returned nil")
+	}
+
+	if cloned == original {
+		t.Fatal("clone should be different instance")
+	}
+
+	if !reflect.DeepEqual(original, cloned) {
+		t.Errorf("clone differs from original")
+	}
+
+	// Test that modifying the clone doesn't affect the original
+	*cloned.InterQueryBuiltinCache.MaxSizeBytes = 999
+	if *original.InterQueryBuiltinCache.MaxSizeBytes == 999 {
+		t.Errorf("modifying clone affected original")
+	}
 }

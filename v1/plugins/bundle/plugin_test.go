@@ -711,7 +711,12 @@ func TestPluginOneShotWithAuthzSchemaVerificationNonDefaultAuthzPath(t *testing.
 	defer manager.Stop(ctx)
 
 	s := "/foo/authz/allow"
-	manager.Config.DefaultAuthorizationDecision = &s
+	cfg := manager.GetConfig()
+	cfg.DefaultAuthorizationDecision = &s
+	err := manager.Reconfigure(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	info, err := runtime.Term(runtime.Params{Config: nil, IsAuthorizationEnabled: true})
 	if err != nil {
@@ -3785,7 +3790,6 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 			// The test data claims a/{a1-6} where even paths are policy and
 			// odd paths are raw JSON.
 			if err := storage.Txn(ctx, manager.Store, storage.WriteParams, func(txn storage.Transaction) error {
-
 				externalData := map[string]any{"a": map[string]any{"a1": "x1", "a3": "x2", "a5": "x3"}}
 
 				if err := manager.Store.Write(ctx, txn, storage.AddOp, storage.Path{}, externalData); err != nil {
@@ -3845,7 +3849,8 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 			module = "package a.a4\n\nbar=1\n\nfunc(x) = x"
 
 			b = bundle.Bundle{
-				Manifest: bundle.Manifest{Revision: "quickbrownfaux-2", Roots: &[]string{"a/a3", "a/a4"},
+				Manifest: bundle.Manifest{
+					Revision: "quickbrownfaux-2", Roots: &[]string{"a/a3", "a/a4"},
 					Metadata: map[string]any{
 						"a": map[string]any{
 							"a1": "deadbeef",
@@ -4156,7 +4161,6 @@ func TestPluginReconfigure(t *testing.T) {
 
 	for _, stage := range stages {
 		t.Run(stage.name, func(t *testing.T) {
-
 			plugin.Reconfigure(ctx, stage.cfg)
 
 			var expectedNumBundles int
@@ -4936,11 +4940,19 @@ func TestSaveBundleToDiskNewConfiguredPersistDir(t *testing.T) {
 
 	manager := getTestManager()
 	defer manager.Stop(context.Background())
-	manager.Config.PersistenceDirectory = &dir
+
+	cfg := manager.GetConfig()
+	cfg.PersistenceDirectory = &dir
+
+	err := manager.Reconfigure(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	bundles := map[string]*Source{}
 	plugin := New(&Config{Bundles: bundles}, manager)
 
-	err := plugin.Start(context.Background())
+	err = plugin.Start(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -5129,7 +5141,7 @@ p contains 1 if {
 		t.Fatalf("unexpected error %v", err)
 	}
 
-	if err := os.WriteFile(filepath.Join(bundleDir, "bundle.tar.gz"), buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(bundleDir, "bundle.tar.gz"), buf.Bytes(), 0o644); err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
 
@@ -5209,7 +5221,15 @@ func TestConfiguredBundlePersistPath(t *testing.T) {
 	persistPath := "/var/opa"
 	manager := getTestManager()
 	defer manager.Stop(context.Background())
-	manager.Config.PersistenceDirectory = &persistPath
+
+	cfg := manager.GetConfig()
+	cfg.PersistenceDirectory = &persistPath
+
+	err := manager.Reconfigure(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	plugin := New(&Config{}, manager)
 
 	path, err := plugin.getBundlePersistPath()
@@ -5226,7 +5246,6 @@ func TestPluginUsingFileLoader(t *testing.T) {
 	t.Parallel()
 
 	test.WithTempFS(map[string]string{}, func(dir string) {
-
 		b := bundle.Bundle{
 			Data: map[string]any{},
 			Modules: []bundle.ModuleFile{
@@ -5397,7 +5416,6 @@ p contains 7 if {
 			popts := ast.ParserOptions{RegoVersion: regoVersion}
 
 			test.WithTempFS(map[string]string{}, func(dir string) {
-
 				b := bundle.Bundle{
 					Data: map[string]any{},
 					Modules: []bundle.ModuleFile{
@@ -5707,7 +5725,6 @@ p contains 7 if {
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			test.WithTempFS(map[string]string{}, func(dir string) {
-
 				manifest := bundle.Manifest{}
 				manifest.SetRegoVersion(tc.bundleRegoVersion)
 				b := bundle.Bundle{
@@ -5790,7 +5807,6 @@ func TestPluginUsingDirectoryLoader(t *testing.T) {
 
 		p := 7`,
 	}, func(dir string) {
-
 		mgr := getTestManager()
 		url := "file://" + dir
 
@@ -5938,7 +5954,6 @@ p contains 7 if {
 			test.WithTempFS(map[string]string{
 				"test.rego": tc.module,
 			}, func(dir string) {
-
 				manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(), plugins.WithParserOptions(popts))
 				if err != nil {
 					t.Fatal("unexpected error:", err)
@@ -6228,7 +6243,6 @@ p contains 7 if {
 				"test.rego": tc.module,
 				".manifest": fmt.Sprintf(`{"rego_version": %d}`, bundleRegoVersion(tc.bundleRegoVersion)),
 			}, func(dir string) {
-
 				managerPopts := ast.ParserOptions{RegoVersion: tc.managerRegoVersion}
 				manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(),
 					plugins.WithParserOptions(managerPopts))
@@ -6288,7 +6302,6 @@ func TestPluginReadBundleEtagFromDiskStore(t *testing.T) {
 
 	notModifiedCount := 0
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 		etag := r.Header.Get("If-None-Match")
 		if etag == "foo" {
 			notModifiedCount++
@@ -7395,7 +7408,7 @@ func writeTestBundleToDisk(t *testing.T, srcDir string, signed bool) bundle.Bund
 		t.Fatalf("unexpected error %v", err)
 	}
 
-	if err := os.WriteFile(filepath.Join(srcDir, "bundle.tar.gz"), buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(srcDir, "bundle.tar.gz"), buf.Bytes(), 0o644); err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
 
@@ -7502,7 +7515,6 @@ func validateStoreState(ctx context.Context, t *testing.T, store storage.Store, 
 		}
 
 		return nil
-
 	}); err != nil {
 		t.Fatal(err)
 	}

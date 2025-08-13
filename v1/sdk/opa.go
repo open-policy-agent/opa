@@ -143,7 +143,6 @@ func (opa *OPA) Plugin(name string) plugins.Plugin {
 // function is atomic. If the configuration update cannot be successfully
 // applied, the old configuration will remain intact.
 func (opa *OPA) Configure(ctx context.Context, opts ConfigOptions) error {
-
 	if err := opts.init(); err != nil {
 		return err
 	}
@@ -205,7 +204,6 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 	})
 
 	manager.RegisterPluginStatusListener("sdk", func(status map[string]*plugins.Status) {
-
 		select {
 		case <-ready:
 			return
@@ -283,7 +281,6 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 
 // Stop closes the OPA. The OPA cannot be restarted.
 func (opa *OPA) Stop(ctx context.Context) {
-
 	opa.mtx.Lock()
 	mgr := opa.state.manager
 	opa.mtx.Unlock()
@@ -295,7 +292,6 @@ func (opa *OPA) Stop(ctx context.Context) {
 
 // Decision returns a named decision. This function is threadsafe.
 func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*DecisionResult, error) {
-
 	record := server.Info{
 		Timestamp:      options.Now,
 		Path:           options.Path,
@@ -394,7 +390,7 @@ func (opa *OPA) executeTransaction(ctx context.Context, record *server.Info, wor
 	}
 
 	if record.Path == "" {
-		record.Path = *s.manager.Config.DefaultDecision
+		record.Path = *s.manager.GetConfig().DefaultDecision
 	}
 
 	record.Txn, record.Error = s.manager.Store.NewTransaction(ctx, storage.TransactionParams{})
@@ -429,7 +425,6 @@ func (opa *OPA) executeTransaction(ctx context.Context, record *server.Info, wor
 // Note(philipc): The NDBCache is unused here, because non-deterministic
 // builtins are not run during partial evaluation.
 func (opa *OPA) Partial(ctx context.Context, options PartialOptions) (*PartialResult, error) {
-
 	if options.Mapper == nil {
 		options.Mapper = &RawMapper{}
 	}
@@ -568,7 +563,6 @@ type evalArgs struct {
 }
 
 func evaluate(ctx context.Context, args evalArgs) (any, types.ProvenanceV1, ast.Value, map[string]server.BundleInfo, error) {
-
 	provenance := types.ProvenanceV1{
 		Version:   version.Version,
 		Vcs:       version.Vcs,
@@ -657,7 +651,6 @@ type partialEvalArgs struct {
 }
 
 func partial(ctx context.Context, args partialEvalArgs) (*rego.PartialQueries, types.ProvenanceV1, ast.Value, map[string]server.BundleInfo, error) {
-
 	provenance := types.ProvenanceV1{
 		Version: version.Version,
 		Bundles: make(map[string]types.ProvenanceBundleV1),

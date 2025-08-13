@@ -125,7 +125,7 @@ func testRuntimeProcessWatchEvents(t *testing.T, asBundle bool, readAst bool) {
 			"hello": "world-2",
 		}
 
-		if err := os.WriteFile(path.Join(rootDir, "some/data.json"), util.MustMarshalJSON(expected), 0644); err != nil {
+		if err := os.WriteFile(path.Join(rootDir, "some/data.json"), util.MustMarshalJSON(expected), 0o644); err != nil {
 			panic(err)
 		}
 
@@ -222,7 +222,7 @@ func testRuntimeProcessWatchEventPolicyError(t *testing.T, asBundle bool) {
 
 		default x = 2`)
 
-		if err := os.WriteFile(path.Join(rootDir, "y.rego"), newModule, 0644); err != nil {
+		if err := os.WriteFile(path.Join(rootDir, "y.rego"), newModule, 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -280,7 +280,6 @@ func testRuntimeProcessWatchEventPolicyError(t *testing.T, asBundle bool) {
 		if err != nil {
 			t.Fatalf("Expected result to succeed before %v. Last error: %v", maxWait, err)
 		}
-
 	})
 }
 
@@ -470,7 +469,7 @@ p contains 1 if {
 				output.Reset()
 
 				// write new policy to disk, to trigger the watcher
-				if err := os.WriteFile(path.Join(rootDir, "authz.rego"), []byte(tc.policy), 0644); err != nil {
+				if err := os.WriteFile(path.Join(rootDir, "authz.rego"), []byte(tc.policy), 0o644); err != nil {
 					t.Fatal(err)
 				}
 
@@ -624,7 +623,7 @@ p contains 1 if {
 				}
 
 				// write new policy to disk, to trigger the watcher
-				if err := os.WriteFile(path.Join(rootDir, "authz.rego"), []byte(tc.policy), 0644); err != nil {
+				if err := os.WriteFile(path.Join(rootDir, "authz.rego"), []byte(tc.policy), 0o644); err != nil {
 					t.Fatal(err)
 				}
 
@@ -819,7 +818,7 @@ func TestRuntimeWithAuthzSchemaVerification(t *testing.T) {
            input.identty = "foo"
 		}`)
 
-		if err := os.WriteFile(path.Join(rootDir, "authz.rego"), badModule, 0644); err != nil {
+		if err := os.WriteFile(path.Join(rootDir, "authz.rego"), badModule, 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -917,7 +916,6 @@ func TestCheckAuthIneffective(t *testing.T) {
 	if !strings.Contains(stdout.String(), expected) {
 		t.Fatalf("Expected output to contain: \"%v\" but got \"%v\"", expected, stdout.String())
 	}
-
 }
 
 func TestServerInitialized(t *testing.T) {
@@ -1476,26 +1474,38 @@ func TestUrlPathToConfigOverride(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var serviceConf map[string]any
-	if err = json.Unmarshal(rt.Manager.Config.Services, &serviceConf); err != nil {
-		t.Fatal(err)
+	cfg := rt.Manager.GetConfig()
+
+	var servicesConfig map[string]map[string]any
+	if len(cfg.Services) > 0 {
+		if err := json.Unmarshal([]byte(cfg.Services), &servicesConfig); err != nil {
+			t.Fatal(err)
+		}
 	}
 
-	cliService, ok := serviceConf["cli1"].(map[string]any)
+	cliService, ok := servicesConfig["cli1"]
 	if !ok {
-		t.Fatal("excpected service configuration for 'cli1' service")
+		t.Fatal("expected service configuration for 'cli1' service")
 	}
 
 	if cliService["url"] != "https://www.example.com" {
 		t.Error("expected cli1 service url value: 'https://www.example.com'")
 	}
 
-	var bundleConf map[string]any
-	if err = json.Unmarshal(rt.Manager.Config.Bundles, &bundleConf); err != nil {
-		t.Fatal(err)
+	bundleConf := make(map[string]map[string]any)
+	if len(cfg.Bundles) > 0 {
+		var bundleConfRaw map[string]any
+		if err := json.Unmarshal([]byte(cfg.Bundles), &bundleConfRaw); err != nil {
+			t.Fatal(err)
+		}
+		for k, v := range bundleConfRaw {
+			if bundleMap, ok := v.(map[string]any); ok {
+				bundleConf[k] = bundleMap
+			}
+		}
 	}
 
-	cliBundle, ok := bundleConf["cli1"].(map[string]any)
+	cliBundle, ok := bundleConf["cli1"]
 	if !ok {
 		t.Fatal("excpected bundle configuration for 'cli1' bundle")
 	}
@@ -1882,7 +1892,7 @@ func TestConfigHookAndNonReplacedEnvVars(t *testing.T) {
 	hk := configHook{}
 
 	cf := filepath.Join(t.TempDir(), "opa.yaml")
-	if err := os.WriteFile(cf, []byte("some: ${thing}\n"), 0755); err != nil {
+	if err := os.WriteFile(cf, []byte("some: ${thing}\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2110,7 +2120,7 @@ default allow := false # Reject requests by default.
 allow if {
 	input.method == "POST"
 	input.path == ["exp", "foo"]
-	input.body.example == "A" 
+	input.body.example == "A"
 }`)
 
 	rt, err := NewRuntime(ctx, params)

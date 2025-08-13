@@ -49,7 +49,7 @@ func TestManagerCacheTriggers(t *testing.T) {
 		t.Fatal("Listeners should not be called yet")
 	}
 
-	err = m.Reconfigure(m.Config)
+	err = m.Reconfigure(m.GetConfig())
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -87,7 +87,7 @@ func TestManagerNDCacheTriggers(t *testing.T) {
 		t.Fatal("Listeners should not be called yet")
 	}
 
-	err = m.Reconfigure(m.Config)
+	err = m.Reconfigure(m.GetConfig())
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -202,7 +202,6 @@ func (p *testPlugin) Reconfigure(context.Context, any) {
 }
 
 func TestPluginManagerLazyInitBeforePluginStart(t *testing.T) {
-
 	m, err := New([]byte(`{"plugins": {"someplugin": {"enabled": true}}}`), "test", inmem.New())
 	if err != nil {
 		t.Fatal(err)
@@ -219,11 +218,9 @@ func TestPluginManagerLazyInitBeforePluginStart(t *testing.T) {
 	if !mock.Started {
 		t.Fatal("expected plugin to be started")
 	}
-
 }
 
 func TestPluginManagerInitBeforePluginStart(t *testing.T) {
-
 	m, err := New([]byte(`{"plugins": {"someplugin": {}}}`), "test", inmem.New())
 	if err != nil {
 		t.Fatal(err)
@@ -244,11 +241,9 @@ func TestPluginManagerInitBeforePluginStart(t *testing.T) {
 	if !mock.Started {
 		t.Fatal("expected plugin to be started")
 	}
-
 }
 
 func TestPluginManagerInitIdempotence(t *testing.T) {
-
 	mockStore := mock.New()
 
 	m, err := New([]byte(`{"plugins": {"someplugin": {}}}`), "test", mockStore)
@@ -271,7 +266,6 @@ func TestPluginManagerInitIdempotence(t *testing.T) {
 	if len(mockStore.Transactions) != exp {
 		t.Fatal("expected num txns to be:", exp, "but got:", len(mockStore.Transactions))
 	}
-
 }
 
 func TestManagerWithCachingConfig(t *testing.T) {
@@ -310,8 +304,8 @@ func TestManagerWithNDCachingConfig(t *testing.T) {
 	}
 
 	expected := true
-	if !m.Config.NDBuiltinCache == expected {
-		t.Fatalf("want %+v got %+v", expected, m.Config.NDBuiltinCache)
+	if cfg := m.GetConfig(); !cfg.NDBuiltinCache == expected {
+		t.Fatalf("want %+v got %+v", expected, cfg.NDBuiltinCache)
 	}
 
 	// config error
@@ -366,7 +360,6 @@ func TestPluginManagerAuthPlugin(t *testing.T) {
 }
 
 func TestPluginManagerLogger(t *testing.T) {
-
 	logger := logging.Get().WithFields(map[string]any{"context": "myloggincontext"})
 
 	m, err := New([]byte(`{}`), "test", inmem.New(), Logger(logger))
@@ -436,6 +429,7 @@ func TestPluginManagerTracerProvider(t *testing.T) {
 		t.Fatal("TracerProvider was not configured on plugin manager")
 	}
 }
+
 func TestPluginManagerServerInitialized(t *testing.T) {
 	// Verify that ServerInitializedChannel is closed when
 	// ServerInitialized is called.
@@ -481,14 +475,18 @@ func (*myAuthPluginMock) NewClient(c rest.Config) (*http.Client, error) {
 		10,
 	), nil
 }
+
 func (*myAuthPluginMock) Prepare(*http.Request) error {
 	return nil
 }
+
 func (*myAuthPluginMock) Start(context.Context) error {
 	return nil
 }
+
 func (*myAuthPluginMock) Stop(context.Context) {
 }
+
 func (*myAuthPluginMock) Reconfigure(context.Context, any) {
 }
 

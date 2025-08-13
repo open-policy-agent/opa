@@ -26,8 +26,6 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/v1/hooks"
-	serverDecodingPlugin "github.com/open-policy-agent/opa/v1/plugins/server/decoding"
-	serverEncodingPlugin "github.com/open-policy-agent/opa/v1/plugins/server/encoding"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -42,6 +40,8 @@ import (
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
 	bundlePlugin "github.com/open-policy-agent/opa/v1/plugins/bundle"
+	serverDecodingPlugin "github.com/open-policy-agent/opa/v1/plugins/server/decoding"
+	serverEncodingPlugin "github.com/open-policy-agent/opa/v1/plugins/server/encoding"
 	"github.com/open-policy-agent/opa/v1/plugins/status"
 	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/open-policy-agent/opa/v1/server/authorizer"
@@ -661,7 +661,6 @@ func (s *Server) getListenerForHTTPServer(u *url.URL, h http.Handler, t httpList
 }
 
 func (s *Server) getListenerForHTTPSServer(u *url.URL, h http.Handler, t httpListenerType) (Loop, httpListener, error) {
-
 	if s.cert == nil {
 		return nil, nil, errors.New("TLS certificate required but not supplied")
 	}
@@ -764,7 +763,7 @@ func (s *Server) initHandlerAuthz(handler http.Handler) http.Handler {
 			s.getCompiler,
 			s.store,
 			authorizer.Runtime(s.runtime),
-			authorizer.Decision(s.manager.Config.DefaultAuthorizationDecisionRef),
+			authorizer.Decision(s.manager.GetConfig().DefaultAuthorizationDecisionRef),
 			authorizer.PrintHook(s.manager.PrintHook()),
 			authorizer.EnablePrintStatements(s.manager.EnablePrintStatements()),
 			authorizer.InterQueryCache(s.interQueryBuiltinCache),
@@ -783,10 +782,10 @@ func (s *Server) initHandlerAuthz(handler http.Handler) http.Handler {
 // it passes the size limit down the body-reading method via the request
 // context.
 func (s *Server) initHandlerDecodingLimits(handler http.Handler) (http.Handler, error) {
-	var decodingRawConfig json.RawMessage
-	serverConfig := s.manager.Config.Server
-	if serverConfig != nil {
-		decodingRawConfig = serverConfig.Decoding
+	cfg := s.manager.GetConfig()
+	var decodingRawConfig []byte
+	if cfg.Server != nil {
+		decodingRawConfig = []byte(cfg.Server.Decoding)
 	}
 	decodingConfig, err := serverDecodingPlugin.NewConfigBuilder().WithBytes(decodingRawConfig).Parse()
 	if err != nil {
@@ -798,10 +797,10 @@ func (s *Server) initHandlerDecodingLimits(handler http.Handler) (http.Handler, 
 }
 
 func (s *Server) initHandlerCompression(handler http.Handler) (http.Handler, error) {
-	var encodingRawConfig json.RawMessage
-	serverConfig := s.manager.Config.Server
-	if serverConfig != nil {
-		encodingRawConfig = serverConfig.Encoding
+	cfg := s.manager.GetConfig()
+	var encodingRawConfig []byte
+	if cfg.Server != nil {
+		encodingRawConfig = []byte(cfg.Server.Encoding)
 	}
 	encodingConfig, err := serverEncodingPlugin.NewConfigBuilder().WithBytes(encodingRawConfig).Parse()
 	if err != nil {
@@ -1018,7 +1017,6 @@ type bundleRevisions struct {
 }
 
 func getRevisions(ctx context.Context, store storage.Store, txn storage.Transaction) (bundleRevisions, error) {
-
 	var err error
 	var br bundleRevisions
 	br.Revisions = map[string]string{}
@@ -1047,7 +1045,6 @@ func getRevisions(ctx context.Context, store storage.Store, txn storage.Transact
 }
 
 func (s *Server) reload(context.Context, storage.Transaction, storage.TriggerEvent) {
-
 	// NOTE(tsandall): We currently rely on the storage txn to provide
 	// critical sections in the server.
 	//
@@ -1172,7 +1169,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 			return
 		}
 
-		var messageType = types.MsgMissingError
+		messageType := types.MsgMissingError
 		if len(s.getCompiler().GetRulesForVirtualDocument(ref)) > 0 {
 			messageType = types.MsgFoundUndefinedError
 		}
@@ -1236,7 +1233,6 @@ func (s *Server) canEval(ctx context.Context) bool {
 }
 
 func (*Server) bundlesReady(pluginStatuses map[string]*plugins.Status) bool {
-
 	// Look for a discovery plugin first, if it exists and isn't ready
 	// then don't bother with the others.
 	// Note: use "discovery" instead of `discovery.Name` to avoid import
@@ -2099,7 +2095,6 @@ func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) v1PoliciesList(w http.ResponseWriter, r *http.Request) {
-
 	ctx := r.Context()
 
 	txn, err := s.store.NewTransaction(ctx)
@@ -2387,11 +2382,12 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) v1ConfigGet(w http.ResponseWriter, r *http.Request) {
-	result, err := s.manager.Config.ActiveConfig()
+	result, err := s.manager.GetConfig().ActiveConfig()
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
 	}
+
 	writer.JSONOK(w, types.ConfigResponseV1{Result: &result}, pretty(r))
 }
 
@@ -2407,7 +2403,6 @@ func (s *Server) v1StatusGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) checkPolicyIDScope(ctx context.Context, txn storage.Transaction, id string) error {
-
 	bs, err := s.store.GetPolicy(ctx, txn, id)
 	if err != nil {
 		return err
@@ -2422,7 +2417,6 @@ func (s *Server) checkPolicyIDScope(ctx context.Context, txn storage.Transaction
 }
 
 func (s *Server) checkPolicyPackageScope(ctx context.Context, txn storage.Transaction, pkg *ast.Package) error {
-
 	path, err := pkg.Path.Ptr()
 	if err != nil {
 		return err
@@ -2448,7 +2442,6 @@ func (s *Server) getMetrics(r *http.Request) metrics.Metrics {
 }
 
 func (s *Server) checkPathScope(ctx context.Context, txn storage.Transaction, path storage.Path) error {
-
 	names, err := bundle.ReadBundleNamesFromStore(ctx, s.store, txn)
 	if err != nil {
 		if !storage.IsNotFound(err) {
@@ -2547,7 +2540,6 @@ func (s *Server) abortAuto(ctx context.Context, txn storage.Transaction, w http.
 }
 
 func (s *Server) loadModules(ctx context.Context, txn storage.Transaction) (map[string]*ast.Module, error) {
-
 	ids, err := s.store.ListPolicies(ctx, txn)
 	if err != nil {
 		return nil, err
@@ -2647,7 +2639,6 @@ func parseRefQuery(str string) (ast.Body, error) {
 }
 
 func (*Server) prepareV1PatchSlice(root string, ops []types.PatchV1) (result []patchImpl, err error) {
-
 	root = "/" + strings.Trim(root, "/")
 
 	for _, op := range ops {
@@ -2700,7 +2691,6 @@ func (s *Server) generateDecisionID() string {
 }
 
 func (s *Server) getProvenance(br bundleRevisions) *types.ProvenanceV1 {
-
 	p := &types.ProvenanceV1{
 		Version:   version.Version,
 		Vcs:       version.Vcs,
@@ -2730,7 +2720,7 @@ func (s *Server) hasLegacyBundle(br bundleRevisions) bool {
 
 func (s *Server) generateDefaultDecisionPath() string {
 	// Assume the path is safe to transition back to a url
-	p, _ := s.manager.Config.DefaultDecisionRef().Ptr()
+	p, _ := s.manager.GetConfig().DefaultDecisionRef().Ptr()
 	return p
 }
 
@@ -2824,7 +2814,6 @@ func getBoolParam(url *url.URL, name string, ifEmpty bool) bool {
 }
 
 func getStringSliceParam(url *url.URL, name string) []string {
-
 	p, ok := url.Query()[name]
 	if !ok {
 		return nil
@@ -2860,7 +2849,6 @@ func getExplain(url *url.URL, zero types.ExplainModeV1) types.ExplainModeV1 {
 }
 
 func readInputV0(r *http.Request) (ast.Value, *any, error) {
-
 	parsed, ok := authorizer.GetBodyOnContext(r.Context())
 	if ok {
 		v, err := ast.InterfaceToValue(parsed)
@@ -2902,7 +2890,6 @@ func readInputGetV1(str string) (ast.Value, *any, error) {
 }
 
 func readInputPostV1(r *http.Request) (ast.Value, *any, error) {
-
 	parsed, ok := authorizer.GetBodyOnContext(r.Context())
 	if ok {
 		if obj, ok := parsed.(map[string]any); ok {
