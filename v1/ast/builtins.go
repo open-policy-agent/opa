@@ -770,7 +770,7 @@ var aggregates = category("aggregates")
 
 var Count = &Builtin{
 	Name:        "count",
-	Description: " Count takes a collection or string and returns the number of elements (or characters) in it.",
+	Description: "Count takes a collection or string and returns the number of elements (or characters) in it.",
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("collection", types.NewAny(
@@ -2588,6 +2588,7 @@ var CryptoX509ParseKeyPair = &Builtin{
 	),
 	canSkipBctx: true,
 }
+
 var CryptoX509ParseRSAPrivateKey = &Builtin{
 	Name:        "crypto.x509.parse_rsa_private_key",
 	Description: "Returns a JWK for signing a JWT from the given PEM-encoded RSA private key.",
