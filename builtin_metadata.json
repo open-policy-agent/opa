@@ -4314,7 +4314,7 @@
       "v1.7.0",
       "edge"
     ],
-    "description": " Count takes a collection or string and returns the number of elements (or characters) in it.",
+    "description": "Count takes a collection or string and returns the number of elements (or characters) in it.",
     "introduced": "v0.17.0",
     "result": {
       "description": "the count of elements, key/val pairs, or characters, respectively.",
