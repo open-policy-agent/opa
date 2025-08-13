@@ -2894,6 +2894,60 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 		runTopDownTestCase(t, data, "http.send", rules, resultObj.String())
 	})
 
+	t.Run("Host header populates TLS server name", func(t *testing.T) {
+		const hostname = "my-server"
+
+		var requestedServerName []string
+		s := getTLSTestServer()
+		s.TLS = &tls.Config{
+			GetCertificate: func(ch *tls.ClientHelloInfo) (*tls.Certificate, error) {
+				requestedServerName = append(requestedServerName, ch.ServerName)
+				return nil, fmt.Errorf("requested host: %s", ch.ServerName)
+			},
+		}
+		s.StartTLS()
+		t.Cleanup(s.Close)
+
+		expected := &Error{Code: BuiltinErr, Message: "tls: internal error"}
+
+		data := loadSmallTestData()
+		rule := []string{fmt.Sprintf(
+			`p = x { http.send({"method": "get", "url": "%s", "tls_use_system_certs": false, "headers": {"host": "%s"}}, x) }`, s.URL, hostname)}
+
+		// run the test
+		runTopDownTestCase(t, data, "http.send", rule, expected)
+		if !slices.Equal(requestedServerName, []string{hostname}) {
+			t.Errorf("got SNI server name %v, want SNI server name %v", requestedServerName, hostname)
+		}
+	})
+
+	t.Run("tls_server_name sets server name and overrides host header", func(t *testing.T) {
+		const hostname = "my-server"
+
+		var requestedServerName []string
+		s := getTLSTestServer()
+		s.TLS = &tls.Config{
+			GetCertificate: func(ch *tls.ClientHelloInfo) (*tls.Certificate, error) {
+				requestedServerName = append(requestedServerName, ch.ServerName)
+				return nil, fmt.Errorf("requested host: %s", ch.ServerName)
+			},
+		}
+		s.StartTLS()
+		t.Cleanup(s.Close)
+
+		expected := &Error{Code: BuiltinErr, Message: "tls: internal error"}
+
+		data := loadSmallTestData()
+		rule := []string{fmt.Sprintf(
+			`p = x { http.send({"method": "get", "url": "%s", "tls_use_system_certs": false, "tls_server_name": "%s", "headers": {"host": "ignored"}}, x) }`, s.URL, hostname)}
+
+		// run the test
+		runTopDownTestCase(t, data, "http.send", rule, expected)
+		if !slices.Equal(requestedServerName, []string{hostname}) {
+			t.Errorf("got SNI server name %v, want SNI server name %v", requestedServerName, hostname)
+		}
+	})
+
 	t.Run("Negative Test: System Certs do not include local rootCA", func(t *testing.T) {
 		expectedResult := &Error{Code: BuiltinErr, Message: fixupDarwinGo118("x509: certificate signed by unknown authority", `“my-server” certificate is not standards compliant`), Location: nil}
 		data := loadSmallTestData()

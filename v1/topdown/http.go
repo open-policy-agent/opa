@@ -533,6 +533,10 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 		}
 	}
 
+	if len(customHeaders) != 0 {
+		customHeaders = canonicalizeHeaders(customHeaders)
+	}
+
 	isTLS := false
 	client := &http.Client{
 		Timeout: timeout,
@@ -629,6 +633,23 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 		tlsConfig.RootCAs = pool
 	}
 
+	// If Host header is set, use it for TLS server name.
+	if host, hasHost := customHeaders["Host"]; hasHost {
+		// Only default the ServerName if the caller has
+		// specified the host. If we don't specify anything,
+		// Go will default to the target hostname. This name
+		// is not the same as the default that Go populates
+		// `req.Host` with, which is why we don't just set
+		// this unconditionally.
+		isTLS = true
+		tlsConfig.ServerName, _ = host.(string)
+	}
+
+	if tlsServerName != "" {
+		isTLS = true
+		tlsConfig.ServerName = tlsServerName
+	}
+
 	var transport *http.Transport
 	if isTLS {
 		if ok, parsedURL, tr := useSocket(url, &tlsConfig); ok {
@@ -676,8 +697,6 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 
 	// Add custom headers
 	if len(customHeaders) != 0 {
-		customHeaders = canonicalizeHeaders(customHeaders)
-
 		for k, v := range customHeaders {
 			header, ok := v.(string)
 			if !ok {
@@ -697,19 +716,7 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 		if host, hasHost := customHeaders["Host"]; hasHost {
 			host := host.(string) // We already checked that it's a string.
 			req.Host = host
-
-			// Only default the ServerName if the caller has
-			// specified the host. If we don't specify anything,
-			// Go will default to the target hostname. This name
-			// is not the same as the default that Go populates
-			// `req.Host` with, which is why we don't just set
-			// this unconditionally.
-			tlsConfig.ServerName = host
 		}
-	}
-
-	if tlsServerName != "" {
-		tlsConfig.ServerName = tlsServerName
 	}
 
 	if len(bctx.DistributedTracingOpts) > 0 {
