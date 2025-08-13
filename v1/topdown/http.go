@@ -333,7 +333,7 @@ func canonicalizeHeaders(headers map[string]any) map[string]any {
 // a DialContext that opens a socket (specified in the http call).
 // The url is expected to contain socket=/path/to/socket (url encoded)
 // Ex. "unix://localhost/end/point?socket=%2Ftmp%2Fhttp.sock"
-func useSocket(rawURL string, tlsConfig *tls.Config) (bool, string, *http.Transport) {
+func useSocket(rawURL string) (bool, string, *http.Transport) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return false, "", nil
@@ -362,7 +362,6 @@ func useSocket(rawURL string, tlsConfig *tls.Config) (bool, string, *http.Transp
 	tr.DialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
 		return http.DefaultTransport.(*http.Transport).DialContext(ctx, "unix", socket)
 	}
-	tr.TLSClientConfig = tlsConfig
 	tr.DisableKeepAlives = true
 
 	return true, u.String(), tr
@@ -651,20 +650,13 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 	}
 
 	var transport *http.Transport
-	if isTLS {
-		if ok, parsedURL, tr := useSocket(url, &tlsConfig); ok {
-			transport = tr
-			url = parsedURL
-		} else {
-			transport = http.DefaultTransport.(*http.Transport).Clone()
-			transport.TLSClientConfig = &tlsConfig
-			transport.DisableKeepAlives = true
-		}
-	} else {
-		if ok, parsedURL, tr := useSocket(url, nil); ok {
-			transport = tr
-			url = parsedURL
-		}
+	if ok, parsedURL, tr := useSocket(url); ok {
+		transport = tr
+		url = parsedURL
+	} else if isTLS {
+		transport = http.DefaultTransport.(*http.Transport).Clone()
+		transport.TLSClientConfig = &tlsConfig
+		transport.DisableKeepAlives = true
 	}
 
 	if bctx.RoundTripper != nil {
@@ -1199,7 +1191,8 @@ func newInterQueryCacheData(bctx BuiltinContext, resp *http.Response, respBody [
 		RespBody:   respBody,
 		Status:     resp.Status,
 		StatusCode: resp.StatusCode,
-		Headers:    resp.Header}
+		Headers:    resp.Header,
+	}
 
 	return &cv, nil
 }
@@ -1229,7 +1222,8 @@ func (c *interQueryCacheData) Clone() (cache.InterQueryCacheValue, error) {
 		RespBody:   dup,
 		Status:     c.Status,
 		StatusCode: c.StatusCode,
-		Headers:    c.Headers.Clone()}, nil
+		Headers:    c.Headers.Clone(),
+	}, nil
 }
 
 type responseHeaders struct {
