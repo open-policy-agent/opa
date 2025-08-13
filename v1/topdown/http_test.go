@@ -3034,7 +3034,7 @@ func TestCertSelectionLogic(t *testing.T) {
 			msg:      "Expected TLS config to use system certs",
 		},
 		{
-			note:     "tls_use_system_certs set to nil",
+			note:     "tls_use_system_certs set to false",
 			input:    map[*ast.Term]*ast.Term{ast.StringTerm("tls_use_system_certs"): ast.BooleanTerm(false)},
 			expected: nil,
 			msg:      "Expected no TLS config",
@@ -3042,7 +3042,7 @@ func TestCertSelectionLogic(t *testing.T) {
 		{
 			note:     "no CAs specified",
 			input:    nil,
-			expected: systemCertsPool.Subjects(), // nolint:staticcheck // ignoring the deprecated (*CertPool).Subjects() call here because it's in a test.
+			expected: nil,
 			msg:      "Expected TLS config to use system certs",
 		},
 		{
@@ -3165,7 +3165,6 @@ func TestHTTPSendCacheDefaultStatusCodesInterQueryCache(t *testing.T) {
 	defer ts.Close()
 
 	t.Run("non-cacheable status code: inter-query cache", func(t *testing.T) {
-
 		// add an inter-query cache
 		config, _ := iCache.ParseCachingConfig([]byte(`{"inter_query_builtin_cache": {"max_size_bytes": 500, "stale_entry_eviction_period_seconds": 1, "forced_eviction_threshold_percentage": 80},}`))
 		interQueryCache := iCache.NewInterQueryCacheWithContext(t.Context(), config)
@@ -3639,49 +3638,51 @@ func (*tracemock) NewHandler(http.Handler, string, tracing.Options) http.Handler
 
 // Warning(philipc): This test modifies package variables in tracing, which
 // means it cannot be run in parallel with other tests.
-func TestDistributedTracingEnableDisable(t *testing.T) {
-	t.Run("TestDistributedTracingEnabled", func(t *testing.T) {
-		mock := tracemock{}
-		tracing.RegisterHTTPTracing(&mock)
+func TestDistributedTracing(t *testing.T) {
+	tests := []struct {
+		name            string
+		opts            tracing.Options
+		obj             ast.Object
+		expectedCalls   int
+		expectTransport bool
+	}{
+		{name: "Disabled", opts: nil, expectedCalls: 0},
+		{name: "Enabled", opts: tracing.NewOptions(true), expectedCalls: 1},
+		{
+			name: "EnabledWithConfigured", opts: tracing.NewOptions(true), expectedCalls: 1,
+			obj: ast.NewObject( // Force TLS configuration for SNI
+				[2]*ast.Term{ast.StringTerm("tls_server_name"), ast.StringTerm("test-server")},
+			),
+			expectTransport: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Cleanup(func() { tracing.RegisterHTTPTracing(nil) })
+			mock := tracemock{}
+			tracing.RegisterHTTPTracing(&mock)
 
-		builtinContext := BuiltinContext{
-			Context:                t.Context(),
-			DistributedTracingOpts: tracing.NewOptions(true), // any option means it's enabled
-		}
+			if tt.obj == nil {
+				tt.obj = ast.NewObject()
+			}
 
-		_, client, err := createHTTPRequest(builtinContext, ast.NewObject())
-		if err != nil {
-			t.Fatalf("Unexpected error creating HTTP request %v", err)
-		}
-		if client.Transport == nil {
-			t.Fatal("No Transport defined")
-		}
+			builtinContext := BuiltinContext{
+				Context:                t.Context(),
+				DistributedTracingOpts: tt.opts,
+			}
 
-		if exp, act := 1, mock.called; exp != act {
-			t.Errorf("calls to NewTransport: expected %d, got %d", exp, act)
-		}
-	})
-
-	t.Run("TestDistributedTracingDisabled", func(t *testing.T) {
-		mock := tracemock{}
-		tracing.RegisterHTTPTracing(&mock)
-
-		builtinContext := BuiltinContext{
-			Context: t.Context(),
-		}
-
-		_, client, err := createHTTPRequest(builtinContext, ast.NewObject())
-		if err != nil {
-			t.Fatalf("Unexpected error creating HTTP request %v", err)
-		}
-		if client.Transport == nil {
-			t.Fatal("No Transport defined")
-		}
-
-		if exp, act := 0, mock.called; exp != act {
-			t.Errorf("calls to NewTransported: expected %d, got %d", exp, act)
-		}
-	})
+			_, client, err := createHTTPRequest(builtinContext, tt.obj)
+			if err != nil {
+				t.Fatalf("Unexpected error creating HTTP request %v", err)
+			}
+			if exp, act := tt.expectedCalls, mock.called; exp != act {
+				t.Errorf("calls to NewTransport: expected %d, got %d", exp, act)
+			}
+			if exp, act := tt.expectTransport, client.Transport != nil; exp != act {
+				t.Errorf("client transport present: expected %t, got %t", exp, act)
+			}
+		})
+	}
 }
 
 func TestHTTPGetRequestAllowNet(t *testing.T) {
@@ -3780,6 +3781,10 @@ func (st *secretTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 }
 
 func (st *secretTransport) Transform(t *http.Transport) http.RoundTripper {
+	// Transport may be nil when the http.DefaultTransport is used
+	if t == nil {
+		t = http.DefaultTransport.(*http.Transport)
+	}
 	st.Transport = t.Clone()
 	return st
 }
