@@ -314,7 +314,6 @@ func validateHTTPRequestOperand(term *ast.Term, pos int) (ast.Object, error) {
 	}
 
 	return obj, nil
-
 }
 
 // canonicalizeHeaders returns a copy of the headers where the keys are in
@@ -580,13 +579,6 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 
 		isTLS = true
 		tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
-	}
-
-	// Use system certs if no CA cert is provided
-	// or system certs flag is not set
-	if len(tlsCaCert) == 0 && tlsCaCertFile == "" && tlsCaCertEnvVar == "" && tlsUseSystemCerts == nil {
-		trueValue := true
-		tlsUseSystemCerts = &trueValue
 	}
 
 	// Check the system certificates config first so that we
@@ -1385,7 +1377,6 @@ func parseMaxAgeCacheDirective(cc map[string]string) (deltaSeconds, error) {
 }
 
 func formatHTTPResponseToAST(resp *http.Response, forceJSONDecode, forceYAMLDecode bool) (ast.Value, []byte, error) {
-
 	resultRawBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, nil, err
