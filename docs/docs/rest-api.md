@@ -49,7 +49,14 @@ It could have `gzip` value which indicates the request body is a gzip encoded ob
 
 The Policy API exposes CRUD endpoints for managing policy modules. Policy modules can be added, removed, and modified at any time.
 
-The identifiers given to policy modules are only used for management purposes. They are not used outside the Policy API.
+The identifiers given to policy modules are only used for management purposes in
+the REST API and are not used outside the Policy API. OPA uses identifiers
+to refer to individual policy files loaded into OPA. These might come
+from a bundle, a file or from the policy path fragment (`<id>`) used when
+inserting via the API. They are unrelated to the file's package and if you are
+unsure of a value to use, you can use the name of the file containing the
+policy, e.g. `authz.rego`. Note that `opa run -s file.rego` will have
+`file.rego` as the ID in the Policy API.
 
 ### List Policies
 
@@ -655,6 +662,13 @@ Content-Type: text/plain
 Create or update a policy module.
 
 If the policy module does not exist, it is created. If the policy module already exists, it is replaced.
+
+:::info
+[Bundles](./management-bundles) are the preferred way to update policies and are best suited for most use cases. Bundles provide eventually consistent updates and better support for deployments with many OPA instances than manual API calls to set policies.
+
+Note that if a package path is owned by a loaded Bundle, you will not be able to
+update this path using the Policy API.
+:::
 
 #### Request Headers
 
