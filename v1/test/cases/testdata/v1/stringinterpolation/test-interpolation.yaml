@@ -130,6 +130,28 @@ cases:
     query: data.test.p = x
     want_result:
       - x: "foo bar baz"
+  - note: stringinterpolation/nested template expressions, undefined outer expression
+    modules:
+      - |
+        package test
+
+        p := $"{$"{data.a}"} {$"{$"{data.b}"} baz"}"
+    data:
+      b: "bar"
+    query: data.test.p = x
+    want_result:
+      - x: "<undefined> bar baz"
+  - note: stringinterpolation/nested template expressions, undefined inner expression
+    modules:
+      - |
+        package test
+
+        p := $"{$"{data.a}"} {$"{$"{data.b}"} baz"}"
+    data:
+      a: "foo"
+    query: data.test.p = x
+    want_result:
+      - x: "foo <undefined> baz"
   - note: stringinterpolation/template expressions with infix operand call
     modules:
       - |

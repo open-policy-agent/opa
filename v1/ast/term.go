@@ -3102,6 +3102,14 @@ func (c Call) Operator() Ref {
 	return c[0].Value.(Ref)
 }
 
+func (c Call) Operands() []*Term {
+	if len(c) < 1 {
+		return nil
+	}
+
+	return c[1:]
+}
+
 func (c Call) String() string {
 	args := make([]string, len(c)-1)
 	for i := 1; i < len(c); i++ {

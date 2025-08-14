@@ -341,7 +341,6 @@ func NewCompiler() *Compiler {
 		{"RewriteLocalVars", "compile_stage_rewrite_local_vars", c.rewriteLocalVars},
 		{"CheckVoidCalls", "compile_stage_check_void_calls", c.checkVoidCalls},
 		{"RewritePrintCalls", "compile_stage_rewrite_print_calls", c.rewritePrintCalls},
-		{"MoveTemplateStrings", "compile_stage_move_template_strings", c.moveTemplateStrings},
 		{"RewriteTemplateStrings", "compile_stage_rewrite_template_strings", c.rewriteTemplateStrings},
 		{"RewriteExprTerms", "compile_stage_rewrite_expr_terms", c.rewriteExprTerms},
 		{"ParseMetadataBlocks", "compile_stage_parse_metadata_blocks", c.parseMetadataBlocks},
@@ -2058,7 +2057,7 @@ func (c *Compiler) checkVoidCalls() {
 // function call arguments or in the head of comprehensions.
 // Free-standing, "naked" template-string calls are not expanded, as they are expected to be rewritten in a later compiler stage.
 type templateStringExpander struct {
-	c *Compiler
+	localvargen *localVarGenerator
 }
 
 func (e *templateStringExpander) filter(expr *Expr) bool {
@@ -2080,26 +2079,12 @@ func (e *templateStringExpander) filter(expr *Expr) bool {
 
 func (e *templateStringExpander) expandExprTerm(t *Term) ([]*Expr, *Term, bool) {
 	if call, ok := t.Value.(Call); ok && call.Operator().Equal(TemplateStringRef) {
-		output := NewTerm(e.c.localvargen.Generate()).SetLocation(t.Location)
+		output := NewTerm(e.localvargen.Generate()).SetLocation(t.Location)
 		expr := call.MakeExpr(output).SetLocation(t.Location)
 		expr.Generated = true
 		return []*Expr{expr}, output, true
 	}
 	return nil, nil, false
-}
-
-// moveTemplateStrings moves all template-string calls into the body of its scope, e.g. rule, comprehension, etc.
-func (c *Compiler) moveTemplateStrings() {
-	expander := &templateStringExpander{c: c}
-
-	for _, name := range c.sorted {
-		mod := c.Modules[name]
-		WalkRules(mod, func(rule *Rule) bool {
-			rewriteExprTermsInHead(c.localvargen, rule, expander)
-			rule.Body = rewriteExprTermsInBody(c.localvargen, rule.Body, expander)
-			return false
-		})
-	}
 }
 
 // rewriteTemplateStrings rewrites template-string calls as they appear in bodies; e.g. rules, comprehensions, etc.
@@ -2110,8 +2095,8 @@ func (c *Compiler) rewriteTemplateStrings() {
 		WalkRules(mod, func(r *Rule) bool {
 			safe := r.Head.Args.Vars()
 			safe.Update(ReservedVars)
-			vis := func(b Body) bool {
-				modrec, errs := rewriteTemplateStrings(c.localvargen, c.GetArity, safe, b)
+			vis := func(v any) bool {
+				modrec, errs := rewriteTemplateStrings(c.localvargen, c.GetArity, safe, v)
 				if modrec {
 					modified = true
 				}
@@ -2119,13 +2104,12 @@ func (c *Compiler) rewriteTemplateStrings() {
 					c.err(err)
 				}
 
-				// FIXME?
-				// Don't continue walking deeper into the body to avoid re-writing the same string template multiple times
-				// if it appears inside a nested body, e.g. in a comprehension.
-				return true
+				return false
 			}
-			WalkBodies(r.Head, vis) // We still need to walk the head, as the template-string call could be inside an enclosed body, such as a comprehension.
-			WalkBodies(r.Body, vis)
+
+			// Walk the head and body separately to ensure that we don't rewrite the same template string multiple times when it appears inside an else-body
+			walkCalls(r.Head, vis)
+			walkCalls(r.Body, vis)
 			return false
 		})
 	}
@@ -2134,111 +2118,47 @@ func (c *Compiler) rewriteTemplateStrings() {
 	}
 }
 
-func rewriteTemplateStrings(gen *localVarGenerator, getArity func(Ref) int, globals VarSet, body Body) (bool, Errors) {
+func rewriteTemplateStrings(gen *localVarGenerator, getArity func(Ref) int, globals VarSet, c any) (bool, Errors) {
+	switch c := c.(type) {
+	case Call:
+		if c.Operator().Equal(TemplateStringRef) {
+			return rewriteTemplateStringArgs(gen, c[0].Loc(), c.Operands())
+		}
+	case *Expr:
+		if isInternalTemplateStringCall(c) {
+			return rewriteTemplateStringArgs(gen, c.Loc(), c.Operands())
+		}
+	}
+	return false, nil
+}
+
+func rewriteTemplateStringArgs(gen *localVarGenerator, loc *Location, args []*Term) (bool, Errors) {
 	var errs Errors
-	var modified bool
 
-	// Visit comprehension bodies recursively to ensure print statements inside
-	// those bodies only close over variables that are safe.
-	for i := range body {
-		if ContainsClosures(body[i]) {
-			safe := outputVarsForBody(body[:i], getArity, globals)
-			safe.Update(globals)
-			WalkClosures(body[i], func(x any) bool {
-				var modrec bool
-				var errsrec Errors
-				switch x := x.(type) {
-				case *SetComprehension:
-					modrec, errsrec = rewriteTemplateStrings(gen, getArity, safe, x.Body)
-				case *ArrayComprehension:
-					modrec, errsrec = rewriteTemplateStrings(gen, getArity, safe, x.Body)
-				case *ObjectComprehension:
-					modrec, errsrec = rewriteTemplateStrings(gen, getArity, safe, x.Body)
-				case *Every:
-					safe.Update(x.KeyValueVars())
-					modrec, errsrec = rewriteTemplateStrings(gen, getArity, safe, x.Body)
-				}
-				if modrec {
-					modified = true
-				}
-				errs = append(errs, errsrec...)
-				return true
-			})
-			if len(errs) > 0 {
-				return false, errs
-			}
+	if l := len(args); l < 1 || l > 2 {
+		errs = append(errs, NewError(CompileErr, loc, "%s call must have 1 or 2 arguments, got %d", InternalTemplateString.Name, len(args)))
+		return false, errs
+	}
+
+	// The first argument must be an array of terms.
+	inputTerms, ok := args[0].Value.(*Array)
+	if !ok {
+		errs = append(errs, NewError(CompileErr, loc, "first argument of %s call must be an array", InternalTemplateString.Name))
+		return false, errs
+	}
+
+	// TODO: Detect and error on enumeration/cross-product
+
+	for i, term := range inputTerms.elems {
+		if _, ok := term.Value.(String); !ok {
+			loc := term.Loc()
+			x := NewTerm(gen.Generate()).SetLocation(loc)
+			capture := Equality.Expr(x, term).SetLocation(loc)
+			inputTerms.elems[i] = SetComprehensionTerm(x, NewBody(capture)).SetLocation(loc)
 		}
 	}
 
-	for i := range body {
-		if !isInternalTemplateStringCall(body[i]) {
-			continue
-		}
-
-		modified = true
-
-		var errs Errors
-		safe := outputVarsForBody(body[:i], getArity, globals)
-		safe.Update(globals)
-		args := body[i].Operands()
-
-		if l := len(args); l < 1 || l > 2 {
-			errs = append(errs, NewError(CompileErr, body[i].Loc(), "%s call must have 1 or 2 arguments, got %d", InternalTemplateString.Name, len(args)))
-			return false, errs
-		}
-
-		// The first argument must be an array of terms.
-		inputTerms, ok := args[0].Value.(*Array)
-		if !ok {
-			errs = append(errs, NewError(CompileErr, body[i].Loc(), "first argument of %s call must be an array", InternalTemplateString.Name))
-			return false, errs
-		}
-
-		var vis *VarVisitor
-		for j := range inputTerms.elems {
-			vis = vis.ClearOrNew().WithParams(SafetyCheckVisitorParams)
-			vis.Walk(inputTerms.elems[j])
-			vars := vis.Vars()
-			if vars.DiffCount(safe) > 0 {
-				unsafe := vars.Diff(safe)
-				for _, v := range unsafe.Sorted() {
-					errs = append(errs, NewError(CompileErr, inputTerms.elems[j].Loc(), "var %v is undeclared", v))
-				}
-			}
-		}
-
-		if len(errs) > 0 {
-			return false, errs
-		}
-
-		rewrittenTerms := make([]*Term, 0, inputTerms.Len())
-
-		inputTerms.Foreach(func(term *Term) {
-			if _, ok := term.Value.(String); ok {
-				rewrittenTerms = append(rewrittenTerms, term)
-			} else {
-				loc := term.Loc()
-				x := NewTerm(gen.Generate()).SetLocation(loc)
-				capture := Equality.Expr(x, term).SetLocation(loc)
-				rewrittenTerms = append(rewrittenTerms, SetComprehensionTerm(x, NewBody(capture)).SetLocation(loc))
-			}
-		})
-
-		if len(args) == 1 {
-			body.Set(NewExpr([]*Term{
-				NewTerm(InternalTemplateString.Ref()).SetLocation(body[i].Loc()),
-				ArrayTerm(rewrittenTerms...).SetLocation(body[i].Loc()),
-			}).SetLocation(body[i].Loc()), i)
-		} else {
-			body.Set(NewExpr([]*Term{
-				NewTerm(InternalTemplateString.Ref()).SetLocation(body[i].Loc()),
-				ArrayTerm(rewrittenTerms...).SetLocation(body[i].Loc()),
-				args[1],
-			}).SetLocation(body[i].Loc()), i)
-		}
-	}
-
-	return modified, nil
+	return true, errs
 }
 
 func (c *Compiler) rewritePrintCalls() {
@@ -5164,6 +5084,7 @@ func rewriteExprTermsInBody(gen *localVarGenerator, body Body, expander expressi
 	return cpy
 }
 
+// TODO: drop this
 type expressionExpander interface {
 	filter(expr *Expr) bool
 	expandExprTerm(t *Term) ([]*Expr, *Term, bool)
