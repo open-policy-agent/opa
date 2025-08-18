@@ -6,7 +6,6 @@ package init
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"io"
 	"io/fs"
@@ -109,7 +108,7 @@ p = true { 1 = 2 }`
 		},
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	for _, useMemoryFS := range []bool{false, true} {
 		for _, tc := range tests {

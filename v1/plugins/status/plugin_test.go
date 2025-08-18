@@ -63,7 +63,7 @@ func TestStatusUpdateBuffer(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			fixture := newTestFixture(t, nil)
-			ctx := context.Background()
+			ctx := t.Context()
 
 			err := fixture.plugin.Start(ctx)
 			if err != nil {
@@ -165,7 +165,7 @@ func TestPluginPrometheus(t *testing.T) {
 	fixture.server.ch = make(chan UpdateRequestV1)
 	defer fixture.server.stop()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	err := fixture.plugin.Start(ctx)
 	if err != nil {
@@ -335,7 +335,7 @@ func TestMetricsBundleWithoutRevision(t *testing.T) {
 	fixture.server.ch = make(chan UpdateRequestV1)
 	defer fixture.server.stop()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	err := fixture.plugin.Start(ctx)
 	if err != nil {
@@ -367,7 +367,7 @@ func TestPluginStart(t *testing.T) {
 	fixture.server.ch = make(chan UpdateRequestV1)
 	defer fixture.server.stop()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	err := fixture.plugin.Start(ctx)
 	if err != nil {
@@ -446,7 +446,7 @@ func TestPluginStartTriggerManualStart(t *testing.T) {
 	fixture.server.ch = make(chan UpdateRequestV1)
 	defer fixture.server.stop()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	tr := plugins.TriggerManual
 	fixture.plugin.config.Trigger = &tr
 
@@ -494,7 +494,7 @@ func TestPluginStartTriggerManual(t *testing.T) {
 
 	// trigger the status update
 	go func() {
-		_ = fixture.plugin.Trigger(context.Background())
+		_ = fixture.plugin.Trigger(t.Context())
 	}()
 
 	go func() {
@@ -528,7 +528,7 @@ func TestPluginStartTriggerManualMultiple(t *testing.T) {
 	fixture.server.ch = make(chan UpdateRequestV1)
 	defer fixture.server.stop()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	tr := plugins.TriggerManual
 	fixture.plugin.config.Trigger = &tr
 
@@ -569,7 +569,7 @@ func TestPluginStartTriggerManualMultiple(t *testing.T) {
 }
 
 func TestPluginStartTriggerManualWithTimeout(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 1*time.Second)
 	defer cancel()
 
 	s := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
@@ -630,7 +630,7 @@ func TestPluginStartTriggerManualWithTimeout(t *testing.T) {
 }
 
 func TestPluginStartTriggerManualWithError(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	managerConfig := []byte(`{
 			"labels": {
@@ -685,7 +685,7 @@ func TestPluginStartBulkUpdate(t *testing.T) {
 	fixture.server.ch = make(chan UpdateRequestV1)
 	defer fixture.server.stop()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	err := fixture.plugin.Start(ctx)
 	if err != nil {
@@ -726,7 +726,7 @@ func TestPluginStartBulkUpdateMultiple(t *testing.T) {
 	fixture.server.ch = make(chan UpdateRequestV1)
 	defer fixture.server.stop()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	err := fixture.plugin.Start(ctx)
 	if err != nil {
@@ -784,7 +784,7 @@ func TestPluginStartDiscovery(t *testing.T) {
 	fixture.server.ch = make(chan UpdateRequestV1)
 	defer fixture.server.stop()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	err := fixture.plugin.Start(ctx)
 	if err != nil {
@@ -823,7 +823,7 @@ func TestPluginStartDecisionLogs(t *testing.T) {
 	fixture.server.ch = make(chan UpdateRequestV1)
 	defer fixture.server.stop()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	err := fixture.plugin.Start(ctx)
 	if err != nil {
@@ -862,7 +862,7 @@ func TestPluginStartDecisionLogs(t *testing.T) {
 
 func TestPluginBadAuth(t *testing.T) {
 	fixture := newTestFixture(t, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	fixture.server.expCode = 401
 	defer fixture.server.stop()
 	fixture.plugin.lastBundleStatuses = map[string]*bundle.Status{}
@@ -877,7 +877,7 @@ func TestPluginBadAuth(t *testing.T) {
 
 func TestPluginBadPath(t *testing.T) {
 	fixture := newTestFixture(t, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	fixture.server.expCode = 404
 	defer fixture.server.stop()
 	fixture.plugin.lastBundleStatuses = map[string]*bundle.Status{}
@@ -892,7 +892,7 @@ func TestPluginBadPath(t *testing.T) {
 
 func TestPluginBadStatus(t *testing.T) {
 	fixture := newTestFixture(t, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	fixture.server.expCode = 500
 	defer fixture.server.stop()
 	fixture.plugin.lastBundleStatuses = map[string]*bundle.Status{}
@@ -907,7 +907,7 @@ func TestPluginBadStatus(t *testing.T) {
 
 func TestPluginNonstandardStatus(t *testing.T) {
 	fixture := newTestFixture(t, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	fixture.server.expCode = 599
 	defer fixture.server.stop()
 	fixture.plugin.lastBundleStatuses = map[string]*bundle.Status{}
@@ -922,7 +922,7 @@ func TestPluginNonstandardStatus(t *testing.T) {
 
 func TestPlugin2xxStatus(t *testing.T) {
 	fixture := newTestFixture(t, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	fixture.server.expCode = 204
 	defer fixture.server.stop()
 	fixture.plugin.lastBundleStatuses = map[string]*bundle.Status{}
@@ -933,7 +933,7 @@ func TestPlugin2xxStatus(t *testing.T) {
 }
 
 func TestPluginReconfigure(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	fixture := newTestFixture(t, nil, func(c *Config) {
 		c.Prometheus = true
 	})
@@ -995,7 +995,7 @@ func TestMetrics(t *testing.T) {
 	fixture.server.ch = make(chan UpdateRequestV1)
 	defer fixture.server.stop()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	err := fixture.plugin.Start(ctx)
 	if err != nil {
@@ -1263,7 +1263,7 @@ func (p *testPlugin) Log(_ context.Context, req *UpdateRequestV1) error {
 }
 
 func TestPluginCustomBackend(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	manager, _ := plugins.New(nil, "test-instance-id", inmem.New())
 
 	backend := &testPlugin{}
@@ -1312,7 +1312,7 @@ func (p prometheusRegisterMock) Unregister(collector prometheus.Collector) bool 
 func TestPluginTerminatesAfterGracefulShutdownPeriodWithoutStatus(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	fixture := newTestFixture(t, nil)
 	defer fixture.server.stop()
@@ -1333,7 +1333,7 @@ func TestPluginTerminatesAfterGracefulShutdownPeriodWithoutStatus(t *testing.T) 
 func TestPluginTerminatesAfterGracefulShutdownPeriodWithStatus(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	fixture := newTestFixture(t, nil)
 	fixture.server.ch = make(chan UpdateRequestV1, 1)
@@ -1393,7 +1393,7 @@ func TestSlowServer(t *testing.T) {
 	_, plugin := newPlugin(t, server.URL, nil)
 
 	// just start the loop, calling Start will also send a plugin status update that isn't needed for this test
-	go plugin.loop(context.Background())
+	go plugin.loop(t.Context())
 
 	status := bundle.Status{
 		Name: "test",

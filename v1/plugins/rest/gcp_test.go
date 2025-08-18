@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -36,7 +35,7 @@ func TestGCPMetadataAuthPlugin(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err = client.Do(ctx, "GET", "test")
 
 	if err != nil {

@@ -5,7 +5,6 @@
 package report
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -42,7 +41,7 @@ func TestSendReportBadRespStatus(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	_, err = reporter.SendReport(context.Background())
+	_, err = reporter.SendReport(t.Context())
 
 	if err == nil {
 		t.Fatal("Expected error but got nil")
@@ -67,7 +66,7 @@ func TestSendReportDecodeError(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	_, err = reporter.SendReport(context.Background())
+	_, err = reporter.SendReport(t.Context())
 
 	if err == nil {
 		t.Fatal("Expected error but got nil")
@@ -104,7 +103,7 @@ func TestSendReportWithOPAUpdate(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	resp, err := reporter.SendReport(context.Background())
+	resp, err := reporter.SendReport(t.Context())
 
 	if err != nil {
 		t.Fatalf("Expected no error but got %v", err)

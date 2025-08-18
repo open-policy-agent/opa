@@ -2,7 +2,6 @@ package logging
 
 import (
 	"bytes"
-	"context"
 	"crypto/rand"
 	"net/url"
 	"strings"
@@ -169,7 +168,7 @@ func TestDecsionIDFromContext(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx := WithDecisionID(context.Background(), id)
+	ctx := WithDecisionID(t.Context(), id)
 
 	act, ok := DecisionIDFromContext(ctx)
 	if !ok {

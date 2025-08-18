@@ -85,7 +85,7 @@ func TestRuntimeProcessWatchEvents(t *testing.T) {
 func testRuntimeProcessWatchEvents(t *testing.T, asBundle bool, readAst bool) {
 	t.Helper()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	fs := map[string]string{
 		"test/some/data.json": `{
 			"hello": "world"
@@ -177,7 +177,7 @@ func TestRuntimeProcessWatchEventPolicyErrorWithBundle(t *testing.T) {
 }
 
 func testRuntimeProcessWatchEventPolicyError(t *testing.T, asBundle bool) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	fs := map[string]string{
 		"test/x.rego": `package test
@@ -284,7 +284,7 @@ func testRuntimeProcessWatchEventPolicyError(t *testing.T, asBundle bool) {
 }
 
 func TestRuntimeReplWithBundleBuiltWithV1Compatibility(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	test.WithTempFS(nil, func(rootDir string) {
 		p := filepath.Join(rootDir, "bundle.tar.gz")
@@ -436,7 +436,7 @@ p contains 1 if {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 
 			test.WithTempFS(fs, func(rootDir string) {
@@ -589,7 +589,7 @@ p contains 1 if {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 
 			test.WithTempFS(fs, func(rootDir string) {
@@ -735,7 +735,7 @@ func TestCheckOPAUpdateLoopLaterRequests(t *testing.T) {
 
 	t.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	logger := logging.New()
 	stdout := bytes.NewBuffer(nil)
@@ -784,7 +784,7 @@ func TestCheckOPAUpdateLoopWithNewUpdate(t *testing.T) {
 }
 
 func TestRuntimeWithAuthzSchemaVerification(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	fs := map[string]string{
 		"test/authz.rego": `package system.authz
@@ -841,7 +841,7 @@ func TestRuntimeWithAuthzSchemaVerification(t *testing.T) {
 }
 
 func TestRuntimeWithAuthzSchemaVerificationTransitive(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	fs := map[string]string{
 		"test/authz.rego": `package system.authz
@@ -886,7 +886,7 @@ func TestRuntimeWithAuthzSchemaVerificationTransitive(t *testing.T) {
 }
 
 func TestCheckAuthIneffective(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Millisecond)
 	defer cancel() // NOTE(sr): The timeout will have been reached by the time `done` is closed.
 
 	params := NewParams()
@@ -919,7 +919,7 @@ func TestCheckAuthIneffective(t *testing.T) {
 }
 
 func TestServerInitialized(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Millisecond)
 	defer cancel() // NOTE(sr): The timeout will have been reached by the time `done` is closed.
 	var output bytes.Buffer
 
@@ -1059,7 +1059,7 @@ func TestServerInitializedWithRegoV1(t *testing.T) {
 		for _, b := range bundle {
 			t.Run(fmt.Sprintf("%s; bundle=%v", tc.note, b), func(t *testing.T) {
 				test.WithTempFS(tc.files, func(root string) {
-					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+					ctx, cancel := context.WithTimeout(t.Context(), 2*time.Millisecond)
 					defer cancel()
 					var output bytes.Buffer
 
@@ -1379,7 +1379,7 @@ func TestServerInitializedWithBundleRegoVersion(t *testing.T) {
 						}
 					}
 
-					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+					ctx, cancel := context.WithTimeout(t.Context(), 2*time.Millisecond)
 					defer cancel()
 					var output bytes.Buffer
 
@@ -1431,7 +1431,7 @@ func TestGracefulTracerShutdown(t *testing.T) {
 	}
 
 	test.WithTempFS(fs, func(testDirRoot string) {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+		ctx, cancel := context.WithTimeout(t.Context(), 2*time.Millisecond)
 		defer cancel() // NOTE(sr): The timeout will have been reached by the time `done` is closed.
 
 		logger := testLog.New()
@@ -1468,7 +1468,7 @@ func TestGracefulTracerShutdown(t *testing.T) {
 func TestUrlPathToConfigOverride(t *testing.T) {
 	params := NewParams()
 	params.Paths = []string{"https://www.example.com/bundles/bundle.tar.gz"}
-	ctx := context.Background()
+	ctx := t.Context()
 	rt, err := NewRuntime(ctx, params)
 	if err != nil {
 		t.Fatal(err)
@@ -1540,7 +1540,7 @@ func testCheckOPAUpdate(t *testing.T, url string, expected *report.DataResponse)
 	t.Helper()
 	t.Setenv("OPA_TELEMETRY_SERVICE_URL", url)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	rt := getTestRuntime(ctx, t, logging.NewNoOpLogger())
 	result := rt.checkOPAUpdate(ctx)
 
@@ -1553,7 +1553,7 @@ func testCheckOPAUpdateLoop(t *testing.T, url, expected string) {
 	t.Helper()
 	t.Setenv("OPA_TELEMETRY_SERVICE_URL", url)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	logger := logging.New()
 	stdout := bytes.NewBuffer(nil)
@@ -1604,7 +1604,7 @@ func TestAddrWarningMessage(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+			ctx, cancel := context.WithTimeout(t.Context(), 2*time.Millisecond)
 			defer cancel()
 
 			params := NewParams()
@@ -1652,7 +1652,7 @@ func TestRuntimeWithExplicitMetricConfiguration(t *testing.T) {
 		params := NewParams()
 		params.ConfigFile = filepath.Join(testDirRoot, "config.yaml")
 
-		_, err := NewRuntime(context.Background(), params)
+		_, err := NewRuntime(t.Context(), params)
 		if err != nil {
 			t.Fatal(err.Error())
 		}
@@ -1668,7 +1668,7 @@ func TestRuntimeWithExplicitBadMetricConfiguration(t *testing.T) {
 		params := NewParams()
 		params.ConfigFile = filepath.Join(testDirRoot, "config.yaml")
 
-		_, err := NewRuntime(context.Background(), params)
+		_, err := NewRuntime(t.Context(), params)
 		if err == nil {
 			t.Fatalf("Expected error to be thrown on malformed metrics config")
 		}
@@ -1680,7 +1680,7 @@ func TestRuntimeWithExplicitBadMetricConfiguration(t *testing.T) {
 }
 
 func TestExtraDiscoveryOpts(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/discovery.tar.gz", map[string]string{
 			"main.rego": `
@@ -1780,7 +1780,7 @@ func (*factory) Reconfigure(context.Context, any) {
 // in OPA run as server.
 func TestCustomHandlerFlusher(t *testing.T) {
 	fact := &factory{}
-	ctx := context.Background()
+	ctx := t.Context()
 	spanExporter := tracetest.NewInMemoryExporter()
 	options := tracing.NewOptions(
 		otelhttp.WithTracerProvider(trace.NewTracerProvider(trace.WithSpanProcessor(trace.NewSimpleSpanProcessor(spanExporter)))),
@@ -1885,7 +1885,7 @@ func (ch *configHook) OnConfig(_ context.Context, c *config.Config) (*config.Con
 }
 
 func TestConfigHookAndNonReplacedEnvVars(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Millisecond)
 	defer cancel() // NOTE(sr): The timeout will have been reached by the time `done` is closed.
 	testLogger := testLog.New()
 
@@ -1948,7 +1948,7 @@ func (j *iqvcHook) OnInterQueryValueCache(_ context.Context, c topdown_cache.Int
 }
 
 func TestCacheHooksOnServer(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Millisecond)
 	defer cancel() // NOTE(sr): The timeout will have been reached by the time `done` is closed.
 	testLogger := testLog.New()
 
@@ -2001,7 +2001,7 @@ func (f *fakeStore) Read(ctx context.Context, txn storage.Transaction, p storage
 }
 
 func TestCustomStoreBuilder(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	testLogger := testLog.New()
 	params := NewParams()
 	params.Logger = testLogger
@@ -2056,7 +2056,7 @@ func TestCustomStoreBuilder(t *testing.T) {
 }
 
 func TestExtraMiddleware(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	testLogger := testLog.New()
 	params := NewParams()
 	params.Logger = testLogger
@@ -2105,7 +2105,7 @@ func TestExtraMiddleware(t *testing.T) {
 }
 
 func TestExtraAuthorizerRoutes(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	testLogger := testLog.New()
 	params := NewParams()
 	params.Logger = testLogger

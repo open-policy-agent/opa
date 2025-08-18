@@ -2,7 +2,6 @@ package topdown
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -122,7 +121,7 @@ func TestTopDownPrint(t *testing.T) {
 				WithPrintHook(NewPrintHook(buf)).
 				WithCompiler(c)
 
-			qrs, err := q.Run(context.Background())
+			qrs, err := q.Run(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -147,7 +146,7 @@ func TestTopDownPrintInternalError(t *testing.T) {
 
 	q := NewQuery(ast.MustParseBody("internal.print([1])")).WithPrintHook(NewPrintHook(buf))
 
-	_, err := q.Run(context.Background())
+	_, err := q.Run(t.Context())
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -169,7 +168,7 @@ func TestTopDownPrintHookNotSupplied(t *testing.T) {
 	// in set comprehensions to avoid short-circuiting on undefined.
 	q := NewQuery(ast.MustParseBody(`x = 1; internal.print({1})`))
 
-	qrs, err := q.Run(context.Background())
+	qrs, err := q.Run(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +192,7 @@ func TestTopDownPrintWithStrictBuiltinErrors(t *testing.T) {
 		WithStrictBuiltinErrors(true).
 		WithCompiler(ast.NewCompiler())
 
-	_, err := q.Run(context.Background())
+	_, err := q.Run(t.Context())
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -228,7 +227,7 @@ func TestTopDownPrintHookErrorPropagation(t *testing.T) {
 		WithStrictBuiltinErrors(true).
 		WithCompiler(ast.NewCompiler())
 
-	_, err := q.Run(context.Background())
+	_, err := q.Run(t.Context())
 	if err == nil {
 		t.Fatal("expected error")
 	} else if !strings.Contains(err.Error(), "print hook error") {

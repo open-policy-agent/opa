@@ -115,7 +115,7 @@ func TestRegisterBundleActivatorWithStore(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			var store storage.Store
-			ctx = context.Background()
+			ctx = t.Context()
 
 			// Plumb in the bundle store if func provided.
 			if tc.storeFunc != nil {
