@@ -1,0 +1,15 @@
+{
+    "user": {
+        "id": "user789",
+        "roles": ["developer", "organization_member"],
+        "organization": "acme_corp"
+    },
+    "action": "read",
+    "resource": {
+        "id": "api123",
+        "type": "api",
+        "owner": "user456",
+        "organization": "acme_corp",
+        "public": false
+    }
+}
