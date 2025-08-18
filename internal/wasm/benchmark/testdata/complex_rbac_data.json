@@ -1,0 +1,8 @@
+{
+    "role_permissions": {
+        "admin": ["read:api", "write:api", "delete:api", "read:document", "write:document"],
+        "developer": ["read:api", "write:api", "read:document"],
+        "viewer": ["read:api", "read:document"],
+        "organization_member": ["read:api"]
+    }
+}

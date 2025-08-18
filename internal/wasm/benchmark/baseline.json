@@ -1,0 +1,22 @@
+[
+  {
+    "Name": "simple_authz",
+    "Iterations": 100,
+    "TotalTime": 45000000000,
+    "AvgTime": 450000000,
+    "MinTime": 400000000,
+    "MaxTime": 500000000,
+    "MemAllocs": 0,
+    "MemBytes": 0
+  },
+  {
+    "Name": "complex_rbac",
+    "Iterations": 100,
+    "TotalTime": 120000000000,
+    "AvgTime": 1200000000,
+    "MinTime": 1100000000,
+    "MaxTime": 1300000000,
+    "MemAllocs": 0,
+    "MemBytes": 0
+  }
+]
