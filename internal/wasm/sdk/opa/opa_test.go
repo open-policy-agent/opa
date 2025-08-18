@@ -294,19 +294,19 @@ a = "c" if { input > 2 }`,
 					policy := compileRegoToWasm(eval.NewPolicy, test.Query, dump)
 					data := parseJSON(eval.NewData)
 					if err := instance.SetPolicyData(ctx, policy, data); err != nil {
-						t.Errorf(err.Error())
+						t.Errorf("%s", err.Error()) //nolint:govet
 					}
 
 				case eval.NewPolicy != "":
 					policy := compileRegoToWasm(eval.NewPolicy, test.Query, dump)
 					if err := instance.SetPolicy(ctx, policy); err != nil {
-						t.Errorf(err.Error())
+						t.Errorf("%s", err.Error()) //nolint:govet
 					}
 
 				case eval.NewData != "":
 					data := parseJSON(eval.NewData)
 					if err := instance.SetData(ctx, *data); err != nil {
-						t.Errorf(err.Error())
+						t.Errorf("%s", err.Error()) //nolint:govet
 					}
 				}
 

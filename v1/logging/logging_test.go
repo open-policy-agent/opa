@@ -55,10 +55,10 @@ func TestNoFormattingForSingleString(t *testing.T) {
 	// a format string but no args, the golang linters would yell. The indirection
 	// taken here is enough to not trigger linters.
 	x := url.PathEscape("/foo/bar/bar")
-	logger.Debug(x) //nolint:govet
-	logger.Info(x)  //nolint:govet
-	logger.Warn(x)  //nolint:govet
-	logger.Error(x) //nolint:govet
+	logger.Debug("%s", x) //nolint:govet
+	logger.Info("%s", x)  //nolint:govet
+	logger.Warn("%s", x)  //nolint:govet
+	logger.Error("%s", x) //nolint:govet
 
 	exp := `"%2Ffoo%2Fbar%2Fbar"`
 	expected := []string{
