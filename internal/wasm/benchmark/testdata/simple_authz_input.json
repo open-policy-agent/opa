@@ -1,0 +1,10 @@
+{
+    "user": {
+        "id": "user123",
+        "role": "editor"
+    },
+    "resource": {
+        "id": "doc456",
+        "owner": "user123"
+    }
+}
