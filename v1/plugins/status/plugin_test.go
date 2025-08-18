@@ -497,16 +497,17 @@ func TestPluginStartTriggerManual(t *testing.T) {
 		_ = fixture.plugin.Trigger(t.Context())
 	}()
 
+	errCh := make(chan error, 1)
 	go func() {
 		update := <-fixture.plugin.trigger
 		err := fixture.plugin.oneShot(update.ctx)
-		if err != nil {
-			t.Error(err)
-			return
-		}
+		errCh <- err
 	}()
 
 	result := <-fixture.server.ch
+	if err := <-errCh; err != nil {
+		t.Fatal(err)
+	}
 
 	exp := UpdateRequestV1{
 		Labels: map[string]string{
