@@ -73,32 +73,24 @@
     max-height: 80%;
 }
 
-.createdBy {
+
+
+.cncfContainer {
     text-align: center;
     font-size: 0.9rem;
-    margin-bottom: 0.5rem;
-}
-
-.styraContainer {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    text-align: center;
-    margin-bottom: 0rem;
-}
-
-.styraLogo {
-    width: 6rem;
-}
-
-.maintainedBy {
-    text-align: center;
-    font-size: 0.8rem;
     color: var(--ifm-font-color-secondary);
-    margin: 1rem auto;
+    margin: 1.5rem auto 1rem;
     max-width: 80%;
+}
+
+.cncfLogo {
+    margin-top: 0;
+}
+
+.cncfLogo img {
+    max-width: 10rem;
+    vertical-align: middle;
+    margin: 0.625rem;
 }
 
 .featuresContainer {
