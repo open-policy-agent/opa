@@ -291,22 +291,9 @@ jobs:
       env:
         DOCKER_RUNNING: 0
 
-    - name: Run WASM Performance Benchmarks
-      run: |
-        if [ -f "internal/wasm/benchmark/testdata/simple_authz.rego" ]; then
-          make bench-wasm-ci
-        else
-          echo "Benchmark files not found, skipping benchmarks"
-        fi
-      timeout-minutes: 10
-
-    - name: Upload benchmark results
-      if: always()
-      uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
-      with:
-        name: wasm-benchmark-results
-        path: benchmark-results.json
-        if-no-files-found: ignore
+    - name: Run WASM Benchmarks
+      run: make bench-wasm
+      timeout-minutes: 5
 
   check-generated:
     name: Check Generated

@@ -254,18 +254,7 @@ wasm-rego-testgen-install:
 
 .PHONY: bench-wasm
 bench-wasm: generate
-	$(GO) build -o bench-wasm ./cmd/bench-wasm
-	./bench-wasm -iterations 100 ./internal/wasm/benchmark/testdata/*.rego
-
-.PHONY: bench-wasm-ci
-bench-wasm-ci: generate
-	$(GO) build -o bench-wasm ./cmd/bench-wasm
-	./bench-wasm -iterations 50 -baseline ./internal/wasm/benchmark/baseline.json -output benchmark-results.json ./internal/wasm/benchmark/testdata/*.rego
-
-.PHONY: bench-wasm-baseline
-bench-wasm-baseline: generate
-	$(GO) build -o bench-wasm ./cmd/bench-wasm
-	./bench-wasm -iterations 100 -output ./internal/wasm/benchmark/baseline.json ./internal/wasm/benchmark/testdata/*.rego
+	$(GO) test $(GO_TAGS),opa_wasm -bench=BenchmarkWASM -benchmem ./topdown
 
 ######################################################
 #
