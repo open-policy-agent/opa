@@ -3428,6 +3428,45 @@ func TestHTTPSendMetrics(t *testing.T) {
 			t.Fatalf("expected %d cache hits, got %d", exp, act)
 		}
 	})
+
+	t.Run("network requests", func(t *testing.T) {
+		// Test that network requests counter is incremented correctly
+		m := metrics.New()
+
+		// Test 1: Single request - verify counter increments
+		q := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q})`, ts.URL))).WithMetrics(m)
+		_, err := q.Run(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if exp, act := uint64(1), m.Counter(httpSendNetworkRequests).Value(); exp != act {
+			t.Fatalf("expected %d network requests, got %d", exp, act)
+		}
+
+		// Test 2: Another request to different URL
+		q2 := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q})`, ts.URL+"/other"))).WithMetrics(m)
+		_, err = q2.Run(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if exp, act := uint64(2), m.Counter(httpSendNetworkRequests).Value(); exp != act {
+			t.Fatalf("expected %d network requests, got %d", exp, act)
+		}
+
+		// Test 3: Request with error should still increment counter
+		badURL := "http://localhost:1" // Port 1 should fail quickly
+		q3 := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q, "raise_error": false})`, badURL))).WithMetrics(m)
+		_, err = q3.Run(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if exp, act := uint64(3), m.Counter(httpSendNetworkRequests).Value(); exp != act {
+			t.Fatalf("expected %d network requests including failed one, got %d", exp, act)
+		}
+	})
 }
 
 // Warning(philipc): This test cannot be run in parallel with other tests, due
