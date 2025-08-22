@@ -47,7 +47,7 @@ tools</EcosystemFeatureLink>.
 This section introduces the main aspects of Rego.
 
 The simplest rule is a single expression and is defined in terms of a
-[Scalar Value](#scalar-values). This `example` package defines a rule
+[Scalar Value](#scalar-values). This `example` [package](#packages) defines a rule
 called `pi` that contains the value of pi:
 
 ```rego
@@ -68,7 +68,7 @@ rect := {"width": 2, "height": 4}
 
 <RunSnippet id="rect.rego" command="data.example"/>
 
-You can compare two scalar or composite values, and when you do so you are
+You can [compare](#equality-assignment-comparison-and-unification) two scalar or composite values, and when you do so you are
 checking if the two values are the same JSON value.
 
 ```rego
@@ -138,7 +138,7 @@ If the **value** is not specified, it defaults to the boolean value of **true**.
 
 Rego [references](#references) help you refer to nested documents.
 The rule `prod_exists` asserts that there exists (at least) one document
-within `sites` where the `name` attribute equals `"prod"`.
+within `sites` where the `name` attribute equals `"prod"` using the [`some` keyword](#some-keyword).
 
 ```rego
 package sites
@@ -320,7 +320,7 @@ not_equal := {} == {e| some e in []}
 <RunSnippet command="data.sets"/>
 
 :::danger
-`count({})` will still return `0` because `{}` is an empty object. However,
+The [built-in function](#built-in-functions) `count({})` will still return `0` because `{}` is an empty object. However,
 since `{}` is not a set, it will not equal `set()` or something that evaluates
 to an empty set.
 :::
@@ -578,7 +578,7 @@ result := {
 
 ### Multiple Expressions
 
-Rules are often written in terms of multiple expressions that contain references to documents. In the following example, the rule defines a set of arrays where each array contains an application name and a hostname of a server where the application is deployed.
+Rules are often written in terms of multiple expressions that contain references to documents. In the following example, the rule defines a set of arrays where each array [contains](#contains-keyword) an application name and a hostname of a server where the application is deployed.
 
 ```rego
 package multiple_exprs
@@ -1338,7 +1338,7 @@ For example, imagine you want to express a policy that says in natural language:
 There must be no apps named "bitcoin-miner".
 ```
 
-The most expressive way to state this in Rego is using the `every` keyword:
+The most expressive way to state this in Rego is using the [`every` keyword](#every-keyword):
 
 ```rego
 no_bitcoin_miners_using_every if {
@@ -1361,9 +1361,9 @@ expressions are simultaneously satisfied.
 Therefore, there are other ways to express the desired policy.
 
 For this policy, you can also define a rule that finds if there exists a bitcoin-mining
-app (which is easy using the `some` keyword). And then you use negation to check
-that there is NO bitcoin-mining app. Technically, you're using 2 negations and
-an existential quantifier, which is logically the same as a universal
+app (which is easy using the [`some` keyword](#some-keyword)). And then you use negation to check
+that there is NO bitcoin-mining app. Technically, you're using 2 [negations](#negation) and
+an [existential quantifier](#in-keyword), which is logically the same as a universal
 quantifier.
 
 For example:
@@ -1450,7 +1450,7 @@ no_bitcoin_miners_using_comprehension if {
 
 :::info
 Whether you use negation, comprehensions, or `every` to express FOR ALL is up to you.
-The `every` keyword should lend itself nicely to a rule formulation that closely
+The [`every` keyword](#every-keyword) should lend itself nicely to a rule formulation that closely
 follows how requirements are stated, and thus enhances your policy's readability.
 
 The comprehension version is more concise than the negation variant, and does not
@@ -1519,6 +1519,30 @@ All modules contain implicit statements which import the `data` and `input` docu
 
 Modules use the same syntax to declare dependencies on [Base and Virtual Documents](./philosophy#how-does-opa-work).
 
+For example, the following document can be imported and used as follows:
+
+```rego
+package example
+
+servers := [
+    {
+        "id": "app",
+        "protocols": ["https", "ssh"],
+        "ports": ["p1", "p2", "p3"]
+    },
+    {   
+        "id": "db", 
+        "protocols": ["mysql"], 
+        "ports": ["p3"] 
+    },
+    { 
+        "id": "ci", 
+        "protocols": ["http"], 
+        "ports": ["p1", "p2"] 
+    }
+]
+```
+
 ```rego
 package opa.examples
 
@@ -1531,6 +1555,26 @@ http_servers contains server if {
 ```
 
 Similarly, modules can declare dependencies on query arguments by specifying an import path that starts with `input`.
+
+```json title="input.json"
+{
+  "user": "paul",
+  "method": "GET"
+}
+```
+
+```json title="data.json"
+{
+  "roles": {
+    "dev": [
+      "paul",
+      "jack",
+      "lisa"
+    ]
+  }
+}
+```
+
 
 ```rego
 package examples
@@ -1580,6 +1624,15 @@ http_servers contains server if {
 
 More expressive membership and existential quantification keyword:
 
+```json title="input.json"
+{
+  "roles": [
+    "denylisted-role",
+    "another-role"
+  ]
+}
+```
+
 ```rego
 deny {
     some x in input.roles # iteration
@@ -1596,6 +1649,12 @@ See [the keywords docs](#membership-and-iteration-in) for details.
 ## If Keyword
 
 This keyword allows more expressive rule heads:
+
+```json title="input.json"
+{
+  "token": "secret"
+}
+```
 
 ```rego
 deny if input.token != "secret"
@@ -1723,7 +1782,7 @@ please use `some x in xs; not p(x)` instead.
 
 The `with` keyword allows queries to programmatically specify values nested
 under the [input Document](./philosophy/#the-opa-document-model) or the
-[data Document](./philosophy/#the-opa-document-model), or built-in functions.
+[data Document](./philosophy/#the-opa-document-model), or [built-in functions](#built-in-functions).
 
 For example, given the simple authorization policy in the [Imports](#imports)
 section, we can write a query that checks whether a particular request would be
