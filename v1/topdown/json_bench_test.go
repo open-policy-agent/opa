@@ -18,7 +18,7 @@ import (
 )
 
 func BenchmarkJSONPatchAddShallowScalar(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	sizes := []int{10, 100, 1000, 10000}
 
@@ -83,7 +83,7 @@ func BenchmarkJSONPatchAddShallowScalar(b *testing.B) {
 }
 
 func BenchmarkJSONPatchAddShallowComposite(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	sizes := []int{10, 100, 1000, 10000}
 
@@ -148,7 +148,7 @@ func BenchmarkJSONPatchAddShallowComposite(b *testing.B) {
 }
 
 func BenchmarkJSONPatchAddRemove(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	sizes := []int{10, 100, 1000, 10000}
 
@@ -308,7 +308,7 @@ func genRandom3LayerObjectJSONPatchListData(l1Keys, l2Keys, l3Keys, p int) ast.V
 }
 
 func BenchmarkJSONPatchReplace(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	sizes := []int{10, 100, 1000}
 
@@ -372,7 +372,7 @@ func BenchmarkJSONPatchReplace(b *testing.B) {
 }
 
 func BenchmarkJSONPatchPathologicalNestedAddChainObject(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	sizes := []int{10, 100, 500, 1000, 5000, 10000}
 	// Pre-generate the test datasets/patches.
@@ -403,7 +403,7 @@ func BenchmarkJSONPatchPathologicalNestedAddChainObject(b *testing.B) {
 }
 
 func BenchmarkJSONPatchPathologicalNestedAddChainArray(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	sizes := []int{10, 100, 500, 1000, 5000, 10000}
 	// Pre-generate the test datasets/patches.
@@ -436,7 +436,7 @@ func BenchmarkJSONPatchPathologicalNestedAddChainArray(b *testing.B) {
 // This one is tricky, because sets used content-based addressing.
 // That means our sets for the path have to be recursively constructed!
 func BenchmarkJSONPatchPathologicalNestedAddChainSet(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 	sizes := []int{10, 100, 500, 1000}
 
 	// Pre-generate the test datasets/patches.

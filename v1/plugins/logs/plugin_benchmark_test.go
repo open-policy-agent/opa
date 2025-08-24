@@ -1,7 +1,6 @@
 package logs
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -137,7 +136,7 @@ const largeEvent = `{
 
 func BenchmarkMaskingNop(b *testing.B) {
 
-	ctx := context.Background()
+	ctx := b.Context()
 	store := inmem.New()
 
 	manager, err := plugins.New(nil, "test", store)
@@ -175,7 +174,7 @@ func BenchmarkMaskingNop(b *testing.B) {
 func BenchmarkMaskingRuleCountsNop(b *testing.B) {
 	numRules := []int{1, 10, 100, 1000}
 
-	ctx := context.Background()
+	ctx := b.Context()
 	store := inmem.New()
 
 	manager, err := plugins.New(nil, "test", store)
@@ -215,7 +214,7 @@ func BenchmarkMaskingRuleCountsNop(b *testing.B) {
 
 func BenchmarkMaskingErase(b *testing.B) {
 
-	ctx := context.Background()
+	ctx := b.Context()
 	store := inmem.New()
 
 	err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {

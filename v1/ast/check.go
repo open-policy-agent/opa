@@ -310,7 +310,7 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 				var err error
 				tpe, err = nestedObject(cpy, objPath, typeV)
 				if err != nil {
-					tc.err([]*Error{NewError(TypeErr, rule.Head.Location, err.Error())}) //nolint:govet
+					tc.err([]*Error{NewError(TypeErr, rule.Head.Location, "%s", err.Error())})
 					tpe = nil
 				}
 			} else if typeV != nil {
@@ -1318,7 +1318,7 @@ func processAnnotation(ss *SchemaSet, annot *SchemaAnnotation, rule *Rule, allow
 
 	tpe, err := loadSchema(schema, allowNet)
 	if err != nil {
-		return nil, NewError(TypeErr, rule.Location, err.Error()) //nolint:govet
+		return nil, NewError(TypeErr, rule.Location, "%s", err.Error())
 	}
 
 	return tpe, nil

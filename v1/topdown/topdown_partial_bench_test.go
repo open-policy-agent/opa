@@ -1,7 +1,6 @@
 package topdown
 
 import (
-	"context"
 	"strconv"
 	"testing"
 
@@ -12,7 +11,7 @@ import (
 
 func BenchmarkInliningFullScan(b *testing.B) {
 
-	ctx := context.Background()
+	ctx := b.Context()
 	body := ast.MustParseBody("data.test.p = true")
 	unknowns := []*ast.Term{ast.MustParseTerm("input")}
 	compiler := ast.MustCompileModules(map[string]string{

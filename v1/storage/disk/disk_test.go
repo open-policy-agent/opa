@@ -108,7 +108,7 @@ func TestPolicies(t *testing.T) {
 	t.Parallel()
 
 	test.WithTempFS(map[string]string{}, func(dir string) {
-		ctx := context.Background()
+		ctx := t.Context()
 		s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: nil})
 		if err != nil {
 			t.Fatal(err)
@@ -185,7 +185,7 @@ func TestTruncateRelativeStoragePath(t *testing.T) {
 }
 
 func runTruncateTest(t *testing.T, dir string) {
-	ctx := context.Background()
+	ctx := t.Context()
 	s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: nil})
 	if err != nil {
 		t.Fatal(err)
@@ -312,7 +312,7 @@ func TestTruncateMultipleTxn(t *testing.T) {
 	t.Parallel()
 
 	test.WithTempFS(map[string]string{}, func(dir string) {
-		ctx := context.Background()
+		ctx := t.Context()
 		s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: nil, Badger: "memtablesize=4000;valuethreshold=600"})
 		if err != nil {
 			t.Fatal(err)
@@ -411,7 +411,7 @@ func TestDataPartitioningValidation(t *testing.T) {
 
 	test.WithTempFS(map[string]string{}, func(dir string) {
 
-		ctx := context.Background()
+		ctx := t.Context()
 
 		_, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
 			storage.MustParsePath("/foo/bar"),
@@ -593,7 +593,7 @@ func TestDataPartitioningValidation(t *testing.T) {
 func TestDataPartitioningSystemPartitions(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	dir := "unused"
 
 	for _, part := range []string{
@@ -1152,7 +1152,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 					partitions[i] = storage.MustParsePath(tc.partitions[i])
 				}
 
-				ctx := context.Background()
+				ctx := t.Context()
 				s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: partitions})
 				if err != nil {
 					t.Fatal(err)
@@ -1308,7 +1308,7 @@ func TestDataPartitioningReadNotFoundErrors(t *testing.T) {
 					partitions[i] = storage.MustParsePath(tc.partitions[i])
 				}
 
-				ctx := context.Background()
+				ctx := t.Context()
 				s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: partitions})
 				if err != nil {
 					t.Fatal(err)
@@ -1464,7 +1464,7 @@ func TestDataPartitioningWriteNotFoundErrors(t *testing.T) {
 					partitions[i] = storage.MustParsePath(tc.partitions[i])
 				}
 
-				ctx := context.Background()
+				ctx := t.Context()
 				s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: partitions})
 
 				if err != nil {
@@ -1506,7 +1506,7 @@ func TestDataPartitioningWriteInvalidPatchError(t *testing.T) {
 			t.Parallel()
 
 			test.WithTempFS(map[string]string{}, func(dir string) {
-				ctx := context.Background()
+				ctx := t.Context()
 				s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
 					storage.MustParsePath("/foo"),
 				}})
@@ -1562,7 +1562,7 @@ func TestDiskTriggers(t *testing.T) {
 	t.Parallel()
 
 	test.WithTempFS(map[string]string{}, func(dir string) {
-		ctx := context.Background()
+		ctx := t.Context()
 		store, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
 			storage.MustParsePath("/foo"),
 		}})
@@ -1702,7 +1702,7 @@ func TestLookup(t *testing.T) {
 func TestDiskDiagnostics(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("no partitions", func(t *testing.T) {
 		t.Parallel()

@@ -35,7 +35,7 @@ type benchmarkParams struct {
 }
 
 func runSchedulerBenchmark(b *testing.B, nodes int, pods int) {
-	ctx := context.Background()
+	ctx := b.Context()
 	params := setupBenchmark(nodes, pods)
 	b.ResetTimer()
 	for range b.N {

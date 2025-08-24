@@ -68,12 +68,12 @@ func TestRegisterPlugin(t *testing.T) {
 
 		params.ConfigFile = filepath.Join(testDirRoot, "config.yaml")
 
-		rt, err := NewRuntime(context.Background(), params)
+		rt, err := NewRuntime(t.Context(), params)
 		if err != nil {
 			t.Fatal(err.Error())
 		}
 
-		if err := rt.Manager.Start(context.Background()); err != nil {
+		if err := rt.Manager.Start(t.Context()); err != nil {
 			t.Fatalf("Unable to initialize plugins: %v", err.Error())
 		}
 
@@ -100,12 +100,12 @@ func TestRegisterPluginNotStartedWithoutConfig(t *testing.T) {
 
 		params.ConfigFile = filepath.Join(testDirRoot, "config.yaml")
 
-		rt, err := NewRuntime(context.Background(), params)
+		rt, err := NewRuntime(t.Context(), params)
 		if err != nil {
 			t.Fatal(err.Error())
 		}
 
-		if err := rt.Manager.Start(context.Background()); err != nil {
+		if err := rt.Manager.Start(t.Context()); err != nil {
 			t.Fatalf("Unable to initialize plugins: %v", err.Error())
 		}
 
@@ -132,7 +132,7 @@ func TestRegisterPluginBadBootConfig(t *testing.T) {
 
 		params.ConfigFile = filepath.Join(testDirRoot, "config.yaml")
 
-		_, err := NewRuntime(context.Background(), params)
+		_, err := NewRuntime(t.Context(), params)
 		if err == nil || !strings.Contains(err.Error(), "config error: test") {
 			t.Fatal("expected config error but got:", err)
 		}
@@ -153,12 +153,12 @@ func TestWaitPluginsReady(t *testing.T) {
 		params := NewParams()
 		params.ConfigFile = filepath.Join(testDirRoot, "config.yaml")
 
-		rt, err := NewRuntime(context.Background(), params)
+		rt, err := NewRuntime(t.Context(), params)
 		if err != nil {
 			t.Fatal(err.Error())
 		}
 
-		if err := rt.Manager.Start(context.Background()); err != nil {
+		if err := rt.Manager.Start(t.Context()); err != nil {
 			t.Fatalf("Unable to initialize plugins: %v", err.Error())
 		}
 

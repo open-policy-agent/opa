@@ -34,7 +34,7 @@ func TestJsonReporter_Close(t *testing.T) {
 
 func TestJsonReporter_StoreDecision(t *testing.T) {
 	testString := "test"
-	ctx := context.TODO()
+	ctx := t.Context()
 	tcs := []struct {
 		Name                 string
 		Path                 string
@@ -142,7 +142,7 @@ func TestJsonReporter_ReportFailure(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.Name, func(t *testing.T) {
 			wr := bytes.NewBuffer([]byte{})
-			ctx := context.Background()
+			ctx := t.Context()
 			j := jsonReporter{
 				w:   wr,
 				buf: []result{},

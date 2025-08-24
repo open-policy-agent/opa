@@ -5,7 +5,6 @@
 package topdown
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -35,7 +34,7 @@ const publicKey = `{
 const keys = `{"keys": [` + publicKey + `]}`
 
 func BenchmarkTokens(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 	iter := func(*ast.Term) error { return nil }
 
 	bctx := BuiltinContext{
@@ -94,7 +93,7 @@ func BenchmarkTokens(b *testing.B) {
 }
 
 func BenchmarkTokens_Cache(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 	iter := func(*ast.Term) error { return nil }
 
 	bctx := BuiltinContext{

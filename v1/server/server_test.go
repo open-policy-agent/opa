@@ -144,7 +144,7 @@ func TestUnversionedGetHealthCheckBundleActivationSingleLegacy(t *testing.T) {
 
 	f := newFixture(t)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// The server doesn't know about any bundles, so return a healthy status
 	req := newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
@@ -611,7 +611,7 @@ func TestUnversionedGetHealthWithPolicyMissing(t *testing.T) {
 func TestUnversionedGetHealthWithPolicyUpdates(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 	healthPolicy := `package system.health
@@ -653,7 +653,7 @@ func TestUnversionedGetHealthWithPolicyUpdates(t *testing.T) {
 func TestUnversionedGetHealthWithPolicyUsingPlugins(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 	healthPolicy := `package system.health
@@ -1183,7 +1183,7 @@ func TestCompileV1(t *testing.T) {
 func TestCompileV1Observability(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	test.WithTempFS(nil, func(root string) {
 		disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
@@ -1687,7 +1687,7 @@ p = true if { false }`
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			test.WithTempFS(nil, func(root string) {
-				ctx, cancel := context.WithCancel(context.Background())
+				ctx, cancel := context.WithCancel(t.Context())
 				defer cancel()
 				disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
 				if err != nil {
@@ -1710,7 +1710,7 @@ p = true if { false }`
 func TestDataV1Metrics(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	test.WithTempFS(nil, func(root string) {
 		disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
@@ -1803,7 +1803,7 @@ func TestConfigV1WithInvalidConfig(t *testing.T) {
 	}
 
 	// create a new server and manager
-	ctx := context.Background()
+	ctx := t.Context()
 	server := New().
 		WithAddresses([]string{"localhost:8182"}).
 		WithStore(inmem.New())
@@ -1993,7 +1993,7 @@ func TestDataGetV1CompressedRequestWithAuthorizer(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			store := inmem.New()
 			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 			authzPolicy := `package system.authz
@@ -2162,7 +2162,7 @@ func TestDataPostV1CompressedDecodingLimits(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			store := inmem.New()
 			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 			examplePolicy := `package example.authz
@@ -2610,7 +2610,7 @@ func TestCompileV1CompressedRequest(t *testing.T) {
 func TestBundleScope(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	test.WithTempFS(nil, func(root string) {
 		disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
@@ -2736,7 +2736,7 @@ func TestBundleScope(t *testing.T) {
 func TestBundleScopeMultiBundle(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f := newFixture(t)
 
@@ -2802,7 +2802,7 @@ func TestBundleScopeMultiBundle(t *testing.T) {
 func TestBundleNoRoots(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f := newFixture(t)
 
@@ -3045,7 +3045,7 @@ p = [1, 2, 3, 4] if { true }`, 200, "")
 
 	// open write transaction on the store and execute a query.
 	// Then check the query is processed
-	ctx := context.Background()
+	ctx := t.Context()
 	_ = storage.NewTransactionOrDie(ctx, f.server.store, storage.WriteParams)
 
 	req := newReqV1(http.MethodPost, "/data/test/p", "")
@@ -3198,7 +3198,7 @@ func TestDataProvenanceSingleBundle(t *testing.T) {
 		t.Errorf("Unexpected provenance data: \n\n%+v\n\nExpected:\n%+v\n\n", result.Provenance, expectedProvenance)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Update bundle revision and request again
 	err := storage.Txn(ctx, f.server.store, storage.WriteParams, func(txn storage.Transaction) error {
@@ -3241,7 +3241,7 @@ func TestDataProvenanceSingleFileBundle(t *testing.T) {
 	version.Hostname = "foo.bar.com"
 
 	// No bundle plugin initialized, just a legacy revision set
-	ctx := context.Background()
+	ctx := t.Context()
 
 	err := storage.Txn(ctx, f.server.store, storage.WriteParams, func(txn storage.Transaction) error {
 		return bundle.LegacyWriteManifestToStore(ctx, f.server.store, txn, bundle.Manifest{Revision: "r1"})
@@ -3321,7 +3321,7 @@ func TestDataProvenanceMultiBundle(t *testing.T) {
 	}
 
 	// Update bundle revision for a single bundle and make the request again
-	ctx := context.Background()
+	ctx := t.Context()
 
 	err := storage.Txn(ctx, f.server.store, storage.WriteParams, func(txn storage.Transaction) error {
 		return bundle.WriteManifestToStore(ctx, f.server.store, txn, "b1", bundle.Manifest{Revision: "r1"})
@@ -3395,7 +3395,7 @@ func TestDataMetricsEval(t *testing.T) {
 	// We're setting up the disk store because that injects a few extra metrics,
 	// which storage/inmem does not.
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	test.WithTempFS(nil, func(root string) {
 		disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
@@ -3980,7 +3980,7 @@ func TestStatusV1(t *testing.T) {
 			},
 		},
 	}, f.server.manager)
-	err := bs.Start(context.Background())
+	err := bs.Start(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4058,7 +4058,7 @@ func TestStatusV1(t *testing.T) {
 func TestStatusV1MetricsWithSystemAuthzPolicy(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Add the authz policy
 	store := inmem.New()
@@ -4114,7 +4114,7 @@ func TestStatusV1MetricsWithSystemAuthzPolicy(t *testing.T) {
 			},
 		},
 	}, f.server.manager).WithMetrics(prom)
-	err := bs.Start(context.Background())
+	err := bs.Start(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4245,7 +4245,7 @@ func TestQueryPostBasic(t *testing.T) {
 		WithAddresses([]string{"localhost:8182"}).
 		WithStore(f.server.store).
 		WithManager(f.server.manager).
-		Init(context.Background())
+		Init(t.Context())
 
 	setup := []tr{
 		{http.MethodPost, "/query", `{"query": "a=data.k.x with data.k as {\"x\" : 7}"}`, 200, `{"result":[{"a":7}]}`},
@@ -4602,7 +4602,7 @@ func TestQueryV1(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 			test.WithTempFS(nil, func(root string) {
 				disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
@@ -4877,7 +4877,7 @@ func TestQueryV1Explain(t *testing.T) {
 func TestAuthorization(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	m, err := plugins.New([]byte{}, "test", store)
 	if err != nil {
@@ -4998,7 +4998,7 @@ func TestAuthorization(t *testing.T) {
 func TestAuthorizationUsesInterQueryCache(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	m, err := plugins.New([]byte{}, "test", store)
 	if err != nil {
@@ -5139,7 +5139,7 @@ func TestServerReloadTrigger(t *testing.T) {
 
 	f := newFixture(t)
 	store := f.server.store
-	ctx := context.Background()
+	ctx := t.Context()
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 	if err := store.UpsertPolicy(ctx, txn, "test", []byte("package test\np = 1")); err != nil {
 		panic(err)
@@ -5161,7 +5161,7 @@ func TestServerClearsCompilerConflictCheck(t *testing.T) {
 
 	f := newFixture(t)
 	store := f.server.store
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Make a new transaction
 	params := storage.WriteParams
@@ -5237,7 +5237,7 @@ func (queryBindingErrStore) Unregister(context.Context, storage.Transaction, str
 func TestQueryBindingIterationError(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	mock := &queryBindingErrStore{}
 	m, err := plugins.New([]byte{}, "test", mock)
 	if err != nil {
@@ -5292,7 +5292,7 @@ type fixture struct {
 }
 
 func newFixture(t *testing.T, opts ...any) *fixture {
-	ctx := context.Background()
+	ctx := t.Context()
 	server := New().
 		WithAddresses([]string{"localhost:8182"}).
 		WithStore(inmem.New()) // potentially overridden via opts
@@ -5332,7 +5332,7 @@ func newFixture(t *testing.T, opts ...any) *fixture {
 }
 
 func newFixtureWithConfig(t *testing.T, config string, opts ...func(*Server)) *fixture {
-	ctx := context.Background()
+	ctx := t.Context()
 	server := New().
 		WithAddresses([]string{"localhost:8182"}).
 		WithStore(inmem.New()) // potentially overridden via opts
@@ -5362,7 +5362,7 @@ func newFixtureWithConfig(t *testing.T, config string, opts ...func(*Server)) *f
 }
 
 func newFixtureWithStore(t *testing.T, store storage.Store, opts ...any) *fixture {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	var mOpts []func(*plugins.Manager)
 	for _, opt := range opts {
@@ -5607,7 +5607,7 @@ func TestShutdown(t *testing.T) {
 		}(loop)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5)*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Duration(5)*time.Second)
 	defer cancel()
 	err = f.server.Shutdown(ctx)
 	if err != nil {
@@ -5632,7 +5632,7 @@ func TestShutdownError(t *testing.T) {
 	}
 	f.server.httpListeners = []httpListener{m}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5)*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Duration(5)*time.Second)
 	defer cancel()
 	err := f.server.Shutdown(ctx)
 	if err == nil {
@@ -5663,7 +5663,7 @@ func TestShutdownMultipleErrors(t *testing.T) {
 		f.server.httpListeners = append(f.server.httpListeners, m)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5)*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Duration(5)*time.Second)
 	defer cancel()
 	err := f.server.Shutdown(ctx)
 	if err == nil {
@@ -5961,7 +5961,7 @@ func TestDistributedTracingEnabled(t *testing.T) {
 		"type": "grpc"
 		}}`)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, _, _, err := distributedtracing.Init(ctx, c, "foo")
 	if err != nil {
 		t.Fatalf("Unexpected error initializing gRPC trace exporter %v", err)
@@ -6003,7 +6003,7 @@ func TestDistributedTracingResourceAttributes(t *testing.T) {
 		attributes[semconv.ServiceInstanceIDKey],
 		attributes[semconv.DeploymentEnvironmentKey])
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, traceProvider, resource, err := distributedtracing.Init(ctx, c, "foo")
 	if err != nil {
 		t.Fatalf("Unexpected error initializing trace exporter %v", err)
@@ -6028,7 +6028,7 @@ func TestDistributedTracingResourceAttributes(t *testing.T) {
 func TestCertPoolReloading(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tempDir := t.TempDir()
 
@@ -6443,7 +6443,7 @@ func TestCertReloading(t *testing.T) {
 
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	testCases := map[string]struct {
 		Server func(

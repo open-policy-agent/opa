@@ -4964,7 +4964,7 @@ q if { input.x = 7 }`},
 		},
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	for _, tc := range tests {
 		params := fixtureParams{

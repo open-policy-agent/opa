@@ -5,7 +5,6 @@
 package topdown
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"sort"
@@ -81,7 +80,7 @@ func testRun(t *testing.T, tc cases.TestCase, regoVersion ast.RegoVersion, opts 
 		t.Setenv(k, v)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	modules := map[string]string{}
 	for i, module := range tc.Modules {

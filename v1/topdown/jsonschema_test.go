@@ -5,7 +5,6 @@
 package topdown
 
 import (
-	"context"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/topdown/cache"
@@ -303,7 +302,7 @@ func TestBuiltinJSONMatchSchemaCache(t *testing.T) {
 }
 `)
 
-	valueCache := cache.NewInterQueryValueCache(context.Background(), nil)
+	valueCache := cache.NewInterQueryValueCache(t.Context(), nil)
 	document := ast.String(`{ "id": 5 }`)
 
 	var result ast.Value
