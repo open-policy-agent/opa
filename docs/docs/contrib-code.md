@@ -145,6 +145,18 @@ the review process. Use your judgement about what constitutes a small Pull
 Request. If you aren't sure, send a message to the OPA slack or post a comment
 on the Pull Request.
 
+:::note
+**Do not** use LLMs to generate responses to maintainer review comments. Reviewers
+are interested in knowing **your** reasoning about the code you submitted for review.
+Even if an LLM helped you write that code, it's yours to own and explain. Engaging an
+AI in discussions with people who took the time to review your code and provide you
+with personal feedback is considered disrespectful and will have your PR rejected.
+
+Don't be afraid to ask for help or clarification during the review process. Don't be
+afraid to get something wrong, or to let us know when you think we are wrong. That's
+how we all learn and grow.
+:::
+
 ### Vulnerability scanning
 
 On each Pull Request, a series of tests will be run to ensure that the code
