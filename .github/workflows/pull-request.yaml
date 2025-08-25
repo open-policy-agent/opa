@@ -291,10 +291,6 @@ jobs:
       env:
         DOCKER_RUNNING: 0
 
-    - name: Run WASM Benchmarks
-      run: make bench-wasm
-      timeout-minutes: 5
-
   check-generated:
     name: Check Generated
     runs-on: ubuntu-24.04
