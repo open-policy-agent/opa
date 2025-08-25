@@ -387,15 +387,34 @@ jobs:
     - name: Check out code
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
+    - name: Install Go
+      uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+      with:
+        go-version: stable
+
     - name: Download release binaries
       uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
       with:
         name: binaries-${{ matrix.os }}-${{ matrix.arch }}
         path: _release
 
+    - name: Prep tests
+      run: go install github.com/rogpeppe/go-internal/cmd/testscript@latest
+
+    - name: CLI E2E tests
+      run: |
+        matches=($BINARY_PATH_GLOB) # expand glob
+        export OPA="$(pwd)/${matches[0]}"
+        chmod +x "$OPA"
+        find . -type f -name '*.txtar' -path '*/script/*' -print0 \
+          | xargs -0 -I{} testscript -e OPA {}
+      shell: bash
+      env:
+        BINARY_PATH_GLOB: _release/*/${{ matrix.exec }}
+
+    # TODO(sr): port these tests below to testscript
     - name: Test binaries (Rego)
       run: make ci-binary-smoke-test-rego BINARY=${{ matrix.exec }}
-
     - name: Test binaries (Wasm)
       run: make ci-binary-smoke-test-wasm BINARY=${{ matrix.exec }}
       if: matrix.wasm != 'disabled'
