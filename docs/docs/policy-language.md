@@ -534,11 +534,11 @@ Conceptually, this is the same as the following imperative code:
 
 ```python
 def hostnames(sites):
-    result = []
+    result = set()
 
     for site in sites:
         for server in site.servers:
-            result.append(server.hostname)
+            result.add(server.hostname)
 
     return result
 ```
