@@ -1,7 +1,6 @@
 package topdown
 
 import (
-	"context"
 	"math/rand"
 	"testing"
 
@@ -11,7 +10,7 @@ import (
 func TestRandIntnZero(t *testing.T) {
 	t.Parallel()
 
-	qrs, err := NewQuery(ast.MustParseBody(`rand.intn("x", 0, out)`)).Run(context.Background())
+	qrs, err := NewQuery(ast.MustParseBody(`rand.intn("x", 0, out)`)).Run(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	} else if len(qrs) != 1 {
@@ -30,7 +29,7 @@ func TestRandIntnZero(t *testing.T) {
 func TestRandIntnNegative(t *testing.T) {
 	t.Parallel()
 
-	qrs, err := NewQuery(ast.MustParseBody(`rand.intn("x", -100, out)`)).Run(context.Background())
+	qrs, err := NewQuery(ast.MustParseBody(`rand.intn("x", -100, out)`)).Run(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	} else if len(qrs) != 1 {
@@ -54,7 +53,7 @@ func TestRandIntnSeedingAndCaching(t *testing.T) {
 
 	q := NewQuery(ast.MustParseBody(query)).WithSeed(rand.New(rand.NewSource(0))).WithCompiler(ast.NewCompiler())
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	qrs, err := q.Run(ctx)
 	if err != nil {
@@ -92,7 +91,7 @@ func TestRandIntnSavingDuringPartialEval(t *testing.T) {
 
 	q := NewQuery(ast.MustParseBody(query)).WithSeed(rand.New(rand.NewSource(0))).WithCompiler(c)
 
-	queries, modules, err := q.PartialRun(context.Background())
+	queries, modules, err := q.PartialRun(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	} else if len(modules) > 0 {

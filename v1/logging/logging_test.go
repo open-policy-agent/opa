@@ -2,7 +2,6 @@ package logging
 
 import (
 	"bytes"
-	"context"
 	"crypto/rand"
 	"net/url"
 	"strings"
@@ -56,10 +55,10 @@ func TestNoFormattingForSingleString(t *testing.T) {
 	// a format string but no args, the golang linters would yell. The indirection
 	// taken here is enough to not trigger linters.
 	x := url.PathEscape("/foo/bar/bar")
-	logger.Debug(x) //nolint:govet
-	logger.Info(x)  //nolint:govet
-	logger.Warn(x)  //nolint:govet
-	logger.Error(x) //nolint:govet
+	logger.Debug("%s", x)
+	logger.Info("%s", x)
+	logger.Warn("%s", x)
+	logger.Error("%s", x)
 
 	exp := `"%2Ffoo%2Fbar%2Fbar"`
 	expected := []string{
@@ -169,7 +168,7 @@ func TestDecsionIDFromContext(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx := WithDecisionID(context.Background(), id)
+	ctx := WithDecisionID(t.Context(), id)
 
 	act, ok := DecisionIDFromContext(ctx)
 	if !ok {

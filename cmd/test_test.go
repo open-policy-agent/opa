@@ -216,7 +216,7 @@ func failTrace(t *testing.T) []*topdown.Event {
 		rego.Trace(true),
 		rego.QueryTracer(tracer),
 		rego.Query("data.testing.test_p"),
-	).Eval(context.Background())
+	).Eval(t.Context())
 
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
@@ -3655,7 +3655,7 @@ func TestWithDefaultRegoPlugin(t *testing.T) {
 	})
 
 	t.Run("repl", func(t *testing.T) {
-		ctx := context.Background()
+		ctx := t.Context()
 		store := inmem.New()
 		var buffer bytes.Buffer
 		repl := repl.New(store, "", &buffer, "", 0, "")

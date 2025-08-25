@@ -79,16 +79,13 @@ const Index = (props) => {
         </div>
       </div>
 
-      <p className={styles.createdBy}>Created by</p>
+      <p className={styles.cncfContainer}>
+        Open Policy Agent is a <a href="https://www.cncf.io/">Cloud Native Computing Foundation</a> Graduated project.
 
-      <p className={styles.styraContainer}>
-        <a href="https://styra.com" target="_blank" rel="noopener noreferrer">
-          <StyraLogo className={styles.styraLogo} alt="Styra Logo" />
-        </a>
-      </p>
-
-      <p className={styles.maintainedBy}>
-        OPA is now maintained by Styra and a large community of contributors.
+        <div className={styles.cncfLogo}>
+          <img src={useBaseUrl("img/footer/cncf-light.svg")} alt="CNCF Logo" class="light-only" />
+          <img src={useBaseUrl("img/footer/cncf-dark.svg")} alt="CNCF Logo" class="dark-only" />
+        </div>
       </p>
 
       <div className={styles.container}>

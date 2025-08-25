@@ -1,7 +1,6 @@
 package topdown
 
 import (
-	"context"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -32,7 +31,7 @@ func TestCustomBuiltinIterator(t *testing.T) {
 		},
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	rs, err := query.Run(ctx)
 	if err != nil {

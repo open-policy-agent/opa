@@ -5,7 +5,6 @@
 package disk
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -39,7 +38,7 @@ func TestSetTxnIsTooBigToFitIntoOneRequestWhenUseDiskStoreReturnsError(t *testin
 	t.Parallel()
 
 	test.WithTempFS(nil, func(dir string) {
-		ctx := context.Background()
+		ctx := t.Context()
 		s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
 			storage.MustParsePath("/foo"),
 		}})
@@ -81,7 +80,7 @@ func TestDeleteTxnIsTooBigToFitIntoOneRequestWhenUseDiskStore(t *testing.T) {
 	t.Parallel()
 
 	test.WithTempFS(nil, func(dir string) {
-		ctx := context.Background()
+		ctx := t.Context()
 		s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
 			storage.MustParsePath("/foo"),
 		}})

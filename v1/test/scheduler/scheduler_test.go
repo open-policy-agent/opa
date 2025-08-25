@@ -20,7 +20,7 @@ import (
 )
 
 func TestScheduler(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	rego := setup(ctx, t, "data_10nodes_30pods.json")
 
 	rs, err := rego.Eval(ctx)

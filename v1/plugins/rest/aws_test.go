@@ -61,15 +61,15 @@ func TestEnvironmentCredentialService(t *testing.T) {
 	cs := &awsEnvironmentCredentialService{}
 
 	// wrong path: some required environment is missing
-	_, err := cs.credentials(context.Background())
+	_, err := cs.credentials(t.Context())
 	assertErr("no AWS_ACCESS_KEY_ID set in environment", err, t)
 
 	t.Setenv("AWS_ACCESS_KEY_ID", "MYAWSACCESSKEYGOESHERE")
-	_, err = cs.credentials(context.Background())
+	_, err = cs.credentials(t.Context())
 	assertErr("no AWS_SECRET_ACCESS_KEY set in environment", err, t)
 
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "MYAWSSECRETACCESSKEYGOESHERE")
-	_, err = cs.credentials(context.Background())
+	_, err = cs.credentials(t.Context())
 	assertErr("no AWS_REGION set in environment", err, t)
 
 	t.Setenv("AWS_REGION", "us-east-1")
@@ -98,7 +98,7 @@ func TestEnvironmentCredentialService(t *testing.T) {
 		}
 		expectedCreds.SessionToken = testCase.tokenValue
 
-		envCreds, err := cs.credentials(context.Background())
+		envCreds, err := cs.credentials(t.Context())
 		if err != nil {
 			t.Error("unexpected error: " + err.Error())
 		}
@@ -142,7 +142,7 @@ aws_secret_access_key=%v
 			Profile:    "foo",
 			RegionName: fooRegion,
 		}
-		creds, err := cs.credentials(context.Background())
+		creds, err := cs.credentials(t.Context())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -165,7 +165,7 @@ aws_secret_access_key=%v
 			RegionName: defaultRegion,
 		}
 
-		creds, err = cs.credentials(context.Background())
+		creds, err = cs.credentials(t.Context())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -208,7 +208,7 @@ aws_session_token=%s
 		t.Setenv(awsRegionEnvVar, defaultRegion)
 
 		cs := &awsProfileCredentialService{}
-		creds, err := cs.credentials(context.Background())
+		creds, err := cs.credentials(t.Context())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -257,7 +257,7 @@ aws_session_token=%s
 		}
 
 		cs := &awsProfileCredentialService{RegionName: defaultRegion}
-		creds, err := cs.credentials(context.Background())
+		creds, err := cs.credentials(t.Context())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -314,7 +314,7 @@ aws_access_key_id=accessKey
 				cs := &awsProfileCredentialService{
 					Path: cfgPath,
 				}
-				_, err := cs.credentials(context.Background())
+				_, err := cs.credentials(t.Context())
 				if err == nil {
 					t.Fatal("Expected error but got nil")
 				}
@@ -339,7 +339,7 @@ func TestMetadataCredentialService(t *testing.T) {
 		tokenPath:       ts.server.URL + "/latest/api/token",
 		logger:          logging.Get(),
 	}
-	_, err := cs.credentials(context.Background())
+	_, err := cs.credentials(t.Context())
 	assertErr("unsupported protocol scheme \"\"", err, t)
 
 	// wrong path: no role set but no ECS URI in environment
@@ -348,13 +348,13 @@ func TestMetadataCredentialService(t *testing.T) {
 		RegionName: "us-east-1",
 		logger:     logging.Get(),
 	}
-	_, err = cs.credentials(context.Background())
+	_, err = cs.credentials(t.Context())
 	assertErr("metadata endpoint cannot be determined from settings and environment", err, t)
 
 	// wrong path: missing token
 	t.Setenv(ecsFullPathEnvVar, "fullPath")
 	os.Unsetenv(ecsAuthorizationTokenEnvVar)
-	_, err = cs.credentials(context.Background())
+	_, err = cs.credentials(t.Context())
 	assertErr("unable to get ECS metadata authorization token", err, t)
 	os.Unsetenv(ecsFullPathEnvVar)
 
@@ -362,7 +362,7 @@ func TestMetadataCredentialService(t *testing.T) {
 		// wrong path: bad file token
 		t.Setenv(ecsFullPathEnvVar, "fullPath")
 		t.Setenv(ecsAuthorizationTokenFileEnvVar, filepath.Join(path, "bad-file"))
-		_, err = cs.credentials(context.Background())
+		_, err = cs.credentials(t.Context())
 		assertErr("failed to read ECS metadata authorization token from file", err, t)
 		os.Unsetenv(ecsFullPathEnvVar)
 		os.Unsetenv(ecsAuthorizationTokenFileEnvVar)
@@ -376,7 +376,7 @@ func TestMetadataCredentialService(t *testing.T) {
 		tokenPath:       ts.server.URL + "/latest/api/token",
 		logger:          logging.Get(),
 	}
-	_, err = cs.credentials(context.Background())
+	_, err = cs.credentials(t.Context())
 	assertErr("metadata HTTP request returned unexpected status: 404 Not Found", err, t)
 
 	// wrong path: malformed JSON body
@@ -387,7 +387,7 @@ func TestMetadataCredentialService(t *testing.T) {
 		tokenPath:       ts.server.URL + "/latest/api/token",
 		logger:          logging.Get(),
 	}
-	_, err = cs.credentials(context.Background())
+	_, err = cs.credentials(t.Context())
 	assertErr("failed to parse credential response from metadata service: invalid character 'T' looking for beginning of value", err, t)
 
 	// wrong path: token service error
@@ -398,7 +398,7 @@ func TestMetadataCredentialService(t *testing.T) {
 		tokenPath:       ts.server.URL + "/latest/api/missing_token",
 		logger:          logging.Get(),
 	} // will 404
-	_, err = cs.credentials(context.Background())
+	_, err = cs.credentials(t.Context())
 	assertErr("metadata token HTTP request returned unexpected status: 404 Not Found", err, t)
 
 	// wrong path: token service returns bad token
@@ -409,7 +409,7 @@ func TestMetadataCredentialService(t *testing.T) {
 		tokenPath:       ts.server.URL + "/latest/api/bad_token",
 		logger:          logging.Get(),
 	} // not good
-	_, err = cs.credentials(context.Background())
+	_, err = cs.credentials(t.Context())
 	assertErr("metadata HTTP request returned unexpected status: 401 Unauthorized", err, t)
 
 	// wrong path: bad result code from EC2 metadata service
@@ -426,7 +426,7 @@ func TestMetadataCredentialService(t *testing.T) {
 		tokenPath:       ts.server.URL + "/latest/api/token",
 		logger:          logging.Get(),
 	}
-	_, err = cs.credentials(context.Background())
+	_, err = cs.credentials(t.Context())
 	assertErr("metadata service query did not succeed: Failure", err, t)
 
 	// happy path: base case
@@ -444,7 +444,7 @@ func TestMetadataCredentialService(t *testing.T) {
 		logger:          logging.Get(),
 	}
 	var creds aws.Credentials
-	creds, err = cs.credentials(context.Background())
+	creds, err = cs.credentials(t.Context())
 	if err != nil {
 		// Cannot proceed with test if unable to fetch credentials.
 		t.Fatal(err)
@@ -457,7 +457,7 @@ func TestMetadataCredentialService(t *testing.T) {
 
 	// happy path: verify credentials are cached based on expiry
 	ts.payload.AccessKeyID = "ICHANGEDTHISBUTWEWONTSEEIT"
-	creds, err = cs.credentials(context.Background())
+	creds, err = cs.credentials(t.Context())
 	if err != nil {
 		// Cannot proceed with test if unable to fetch credentials.
 		t.Fatal(err)
@@ -484,7 +484,7 @@ func TestMetadataCredentialService(t *testing.T) {
 		Token:           "MYAWSSECURITYTOKENGOESHERE",
 		Expiration:      time.Now().UTC().Add(time.Minute * 2)} // short time
 
-	creds, err = cs.credentials(context.Background())
+	creds, err = cs.credentials(t.Context())
 	if err != nil {
 		// Cannot proceed with test if unable to fetch credentials.
 		t.Fatal(err)
@@ -497,7 +497,7 @@ func TestMetadataCredentialService(t *testing.T) {
 
 	// second time through, with changes
 	ts.payload.AccessKeyID = "ICHANGEDTHISANDWEWILLSEEIT"
-	creds, err = cs.credentials(context.Background())
+	creds, err = cs.credentials(t.Context())
 	if err != nil {
 		// Cannot proceed with test if unable to fetch credentials.
 		t.Fatal(err)
@@ -523,7 +523,7 @@ func TestMetadataCredentialService(t *testing.T) {
 	t.Setenv(ecsFullPathEnvVar, ts.server.URL+"/fullPath")
 	t.Setenv(ecsAuthorizationTokenEnvVar, "THIS_IS_A_GOOD_TOKEN")
 
-	creds, err = cs.credentials(context.Background())
+	creds, err = cs.credentials(t.Context())
 	if err != nil {
 		// Cannot proceed with test if unable to fetch credentials.
 		t.Fatal(err)
@@ -555,7 +555,7 @@ func TestMetadataCredentialService(t *testing.T) {
 			Expiration:      time.Now().UTC().Add(time.Minute * 2)} // short time
 		t.Setenv(ecsFullPathEnvVar, ts.server.URL+"/fullPath")
 		t.Setenv(ecsAuthorizationTokenFileEnvVar, filepath.Join(path, "good_token_file"))
-		creds, err = cs.credentials(context.Background())
+		creds, err = cs.credentials(t.Context())
 		if err != nil {
 			// Cannot proceed with test if unable to fetch credentials.
 			t.Fatal(err)
@@ -584,7 +584,7 @@ func TestMetadataServiceErrorHandled(t *testing.T) {
 		logger:          logging.Get(),
 	}
 
-	_, err := cs.credentials(context.Background())
+	_, err := cs.credentials(t.Context())
 	assertErr("metadata HTTP request returned unexpected status: 404 Not Found", err, t)
 }
 
@@ -642,7 +642,7 @@ func TestV4Signing(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.sigVersion, func(t *testing.T) {
-			creds, err := cs.credentials(context.Background())
+			creds, err := cs.credentials(t.Context())
 			if err != nil {
 				t.Fatal("unexpected error getting credentials")
 			}
@@ -711,7 +711,7 @@ func TestV4SigningUnsignedPayload(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		creds, err := cs.credentials(context.Background())
+		creds, err := cs.credentials(t.Context())
 		if err != nil {
 			t.Fatal("unexpected error getting credentials")
 		}
@@ -761,7 +761,7 @@ func TestV4SigningForApiGateway(t *testing.T) {
 		strings.NewReader("{ \"payload\": 42 }"))
 	req.Header.Set("Content-Type", "application/json")
 
-	creds, err := cs.credentials(context.Background())
+	creds, err := cs.credentials(t.Context())
 	if err != nil {
 		t.Fatal("unexpected error getting credentials")
 	}
@@ -841,7 +841,7 @@ func TestV4SigningOmitsIgnoredHeaders(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.sigVersion, func(t *testing.T) {
-			creds, err := cs.credentials(context.Background())
+			creds, err := cs.credentials(t.Context())
 			if err != nil {
 				t.Fatal("unexpected error getting credentials")
 			}
@@ -880,7 +880,7 @@ func TestV4SigningCustomPort(t *testing.T) {
 		Expiration:      time.Now().UTC().Add(time.Minute * 2)}
 	req, _ := http.NewRequest("GET", "https://custom.s3.server:9000/bundle.tar.gz", strings.NewReader(""))
 
-	creds, err := cs.credentials(context.Background())
+	creds, err := cs.credentials(t.Context())
 	if err != nil {
 		t.Fatal("unexpected error getting credentials")
 	}
@@ -935,7 +935,7 @@ func TestV4SigningDoesNotMutateBody(t *testing.T) {
 		req, _ := http.NewRequest("POST", "https://myrestapi.execute-api.us-east-1.amazonaws.com/prod/logs",
 			strings.NewReader("{ \"payload\": 42 }"))
 
-		creds, err := cs.credentials(context.Background())
+		creds, err := cs.credentials(t.Context())
 		if err != nil {
 			t.Fatal("unexpected error getting credentials")
 		}
@@ -1007,7 +1007,7 @@ func TestV4SigningWithMultiValueHeaders(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.sigVersion, func(t *testing.T) {
-			creds, err := cs.credentials(context.Background())
+			creds, err := cs.credentials(t.Context())
 			if err != nil {
 				t.Fatal("unexpected error getting credentials")
 			}
@@ -1133,43 +1133,43 @@ func TestWebIdentityCredentialService(t *testing.T) {
 		}
 
 		// wrong path: refresh with invalid web token file
-		err = cs.refreshFromService(context.Background())
+		err = cs.refreshFromService(t.Context())
 		assertErr("unable to read web token for sts HTTP request: open /nonsense: no such file or directory", err, t)
 
 		// wrong path: refresh with "bad token"
 		t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", badTokenFile)
 		_ = cs.populateFromEnv()
-		err = cs.refreshFromService(context.Background())
+		err = cs.refreshFromService(t.Context())
 		assertErr("STS HTTP request returned unexpected status: 401 Unauthorized", err, t)
 
 		// happy path: refresh with "good token"
 		t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", goodTokenFile)
 		_ = cs.populateFromEnv()
-		err = cs.refreshFromService(context.Background())
+		err = cs.refreshFromService(t.Context())
 		if err != nil {
 			t.Fatalf("Unexpected err: %s", err)
 		}
 
 		// happy path: refresh and get credentials
-		creds, _ := cs.credentials(context.Background())
+		creds, _ := cs.credentials(t.Context())
 		assertEq(creds.AccessKey, testAccessKey, t)
 
 		// happy path: refresh with session and get credentials
 		cs.expiration = time.Now()
 		cs.SessionName = "TEST_SESSION"
-		creds, _ = cs.credentials(context.Background())
+		creds, _ = cs.credentials(t.Context())
 		assertEq(creds.AccessKey, testAccessKey, t)
 
 		// happy path: don't refresh, but get credentials
 		ts.accessKey = "OTHERKEY"
-		creds, _ = cs.credentials(context.Background())
+		creds, _ = cs.credentials(t.Context())
 		assertEq(creds.AccessKey, testAccessKey, t)
 
 		// happy/wrong path: refresh with "bad token" but return previous credentials
 		t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", badTokenFile)
 		_ = cs.populateFromEnv()
 		cs.expiration = time.Now()
-		creds, err = cs.credentials(context.Background())
+		creds, err = cs.credentials(t.Context())
 		assertEq(creds.AccessKey, testAccessKey, t)
 		assertErr("STS HTTP request returned unexpected status: 401 Unauthorized", err, t)
 
@@ -1178,7 +1178,7 @@ func TestWebIdentityCredentialService(t *testing.T) {
 		t.Setenv("AWS_ROLE_ARN", "BrokenRole")
 		_ = cs.populateFromEnv()
 		cs.expiration = time.Now()
-		creds, err = cs.credentials(context.Background())
+		creds, err = cs.credentials(t.Context())
 		assertErr("failed to parse credential response from STS service: EOF", err, t)
 	})
 }
@@ -1247,36 +1247,36 @@ func TestAssumeRoleCredentialServiceUsingEnvCredentialsProvider(t *testing.T) {
 	}
 
 	// wrong path: refresh and get credentials but signing credentials not set via env variables
-	_, err = cs.credentials(context.Background())
+	_, err = cs.credentials(t.Context())
 	assertErr("no AWS_ACCESS_KEY_ID set in environment", err, t)
 
 	t.Setenv("AWS_ACCESS_KEY_ID", "MYAWSACCESSKEYGOESHERE")
 
-	_, err = cs.credentials(context.Background())
+	_, err = cs.credentials(t.Context())
 	assertErr("no AWS_SECRET_ACCESS_KEY set in environment", err, t)
 
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "MYAWSSECRETACCESSKEYGOESHERE")
 
 	// happy path: refresh and get credentials
-	creds, _ := cs.credentials(context.Background())
+	creds, _ := cs.credentials(t.Context())
 	assertEq(creds.AccessKey, testAccessKey, t)
 
 	// happy path: refresh with session and get credentials
 	cs.expiration = time.Now()
 	cs.SessionName = "TEST_SESSION"
-	creds, _ = cs.credentials(context.Background())
+	creds, _ = cs.credentials(t.Context())
 	assertEq(creds.AccessKey, testAccessKey, t)
 
 	// happy path: don't refresh as credentials not expired so STS not called
 	// verify existing credentials haven't changed
 	ts.accessKey = "OTHERKEY"
-	creds, _ = cs.credentials(context.Background())
+	creds, _ = cs.credentials(t.Context())
 	assertEq(creds.AccessKey, testAccessKey, t)
 
 	// happy path: refresh expired credentials
 	// verify new credentials are set
 	cs.expiration = time.Now()
-	creds, _ = cs.credentials(context.Background())
+	creds, _ = cs.credentials(t.Context())
 	assertEq(creds.AccessKey, ts.accessKey, t)
 }
 
@@ -1337,25 +1337,25 @@ aws_session_token=%v
 		}
 
 		// happy path: refresh and get credentials
-		creds, _ := cs.credentials(context.Background())
+		creds, _ := cs.credentials(t.Context())
 		assertEq(creds.AccessKey, testAccessKey, t)
 
 		// happy path: refresh with session and get credentials
 		cs.expiration = time.Now()
 		cs.SessionName = "TEST_SESSION"
-		creds, _ = cs.credentials(context.Background())
+		creds, _ = cs.credentials(t.Context())
 		assertEq(creds.AccessKey, testAccessKey, t)
 
 		// happy path: don't refresh as credentials not expired so STS not called
 		// verify existing credentials haven't changed
 		ts.accessKey = "OTHERKEY"
-		creds, _ = cs.credentials(context.Background())
+		creds, _ = cs.credentials(t.Context())
 		assertEq(creds.AccessKey, testAccessKey, t)
 
 		// happy path: refresh expired credentials
 		// verify new credentials are set
 		cs.expiration = time.Now()
-		creds, _ = cs.credentials(context.Background())
+		creds, _ = cs.credentials(t.Context())
 		assertEq(creds.AccessKey, ts.accessKey, t)
 	})
 }
@@ -1410,25 +1410,25 @@ func TestAssumeRoleCredentialServiceUsingMetadataCredentialsProvider(t *testing.
 	}
 
 	// happy path: refresh and get credentials
-	creds, _ := cs.credentials(context.Background())
+	creds, _ := cs.credentials(t.Context())
 	assertEq(creds.AccessKey, testAccessKey, t)
 
 	// happy path: refresh with session and get credentials
 	cs.expiration = time.Now()
 	cs.SessionName = "TEST_SESSION"
-	creds, _ = cs.credentials(context.Background())
+	creds, _ = cs.credentials(t.Context())
 	assertEq(creds.AccessKey, testAccessKey, t)
 
 	// happy path: don't refresh as credentials not expired so STS not called
 	// verify existing credentials haven't changed
 	ts.accessKey = "OTHERKEY"
-	creds, _ = cs.credentials(context.Background())
+	creds, _ = cs.credentials(t.Context())
 	assertEq(creds.AccessKey, testAccessKey, t)
 
 	// happy path: refresh expired credentials
 	// verify new credentials are set
 	cs.expiration = time.Now()
-	creds, _ = cs.credentials(context.Background())
+	creds, _ = cs.credentials(t.Context())
 	assertEq(creds.AccessKey, ts.accessKey, t)
 }
 
@@ -1985,7 +1985,7 @@ sso_region = us-east-1
 			}
 
 			// Get credentials
-			creds, err := service.credentials(context.Background())
+			creds, err := service.credentials(t.Context())
 
 			// Verify results
 			if tc.expectError {

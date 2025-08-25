@@ -1,7 +1,6 @@
 package sdk
 
 import (
-	"context"
 	"fmt"
 	"reflect"
 	"strings"
@@ -11,7 +10,7 @@ import (
 )
 
 func TestDefaultOptions(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"main.rego": `

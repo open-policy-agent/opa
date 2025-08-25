@@ -5,7 +5,6 @@
 package rego
 
 import (
-	"context"
 	"reflect"
 	"strings"
 	"testing"
@@ -85,7 +84,7 @@ p contains x if {
 			}
 
 			test.WithTempFS(files, func(root string) {
-				ctx := context.Background()
+				ctx := t.Context()
 
 				pq, err := New(
 					Load([]string{root}, nil),

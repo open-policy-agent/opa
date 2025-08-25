@@ -5,7 +5,6 @@
 package distributedtracing
 
 import (
-	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -816,7 +815,7 @@ func TestControlPlaneSpans(t *testing.T) {
 		}
 		defer mr.Body.Close()
 
-		_ = logs.Lookup(rt.Runtime.Manager).Trigger(context.Background())
+		_ = logs.Lookup(rt.Runtime.Manager).Trigger(t.Context())
 
 		spans = spanExp.GetSpans()
 		// Expect 2 spans:

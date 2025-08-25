@@ -1,7 +1,6 @@
 package rego
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -18,7 +17,7 @@ import (
 )
 
 func BenchmarkPartialObjectRuleCrossModule(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 	sizes := []int{10, 100, 1000}
 
 	for _, n := range sizes {
@@ -76,7 +75,7 @@ func BenchmarkPartialObjectRuleCrossModule(b *testing.B) {
 }
 
 func BenchmarkCustomFunctionInHotPath(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 	input := ast.MustParseTerm(mustReadFileAsString(b, "testdata/ast.json"))
 	module := ast.MustParseModule(`package test
 
@@ -121,7 +120,7 @@ func BenchmarkCustomFunctionInHotPath(b *testing.B) {
 // BenchmarkAciTestBuildAndEval-10    37    30700209 ns/op    16437935 B/op    384211 allocs/op
 // BenchmarkAciTestBuildAndEval-12    58    17566909 ns/op    15991409 B/op    304237 allocs/op
 func BenchmarkAciTestBuildAndEval(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	for range b.N {
 		bundle, err := loader.NewFileLoader().
@@ -153,7 +152,7 @@ func BenchmarkAciTestBuildAndEval(b *testing.B) {
 // BenchmarkAciTestOnlyEval-10    13521	   86647 ns/op	  47448 B/op	 967 allocs/op // ref.CopyNonGround
 // BenchmarkAciTestOnlyEval-12    21007	   57551 ns/op	  45323 B/op	 920 allocs/op
 func BenchmarkAciTestOnlyEval(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	bundle, err := loader.NewFileLoader().
 		WithRegoVersion(ast.RegoV0).
@@ -184,7 +183,7 @@ func BenchmarkAciTestOnlyEval(b *testing.B) {
 // 15574    77121 ns/op    67249 B/op    1115 allocs/op    // handleErr wrapping, not inlined
 // 33862    35864 ns/op     5768 B/op      93 allocs/op    // handleErr only on error, inlined
 func BenchmarkArrayIteration(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	at := make([]*ast.Term, 512)
 	for i := range 511 {
@@ -226,7 +225,7 @@ func BenchmarkArrayIteration(b *testing.B) {
 // 4800    272403 ns/op    80875 B/op    1193 allocs/op    // handleErr wrapping, not inlined
 // 4933	   223234 ns/op	   76772 B/op	  681 allocs/op    // handleErr only on error, not inlined
 func BenchmarkSetIteration(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	at := make([]*ast.Term, 512)
 	for i := range 512 {
@@ -267,7 +266,7 @@ func BenchmarkSetIteration(b *testing.B) {
 // 12067    99582 ns/op    72830 B/op   1126 allocs/op    // handleErr wrapping, not inlined
 // 15358    85080 ns/op    27752 B/op    615 allocs/op    // handleErr only on error, not inlined
 func BenchmarkObjectIteration(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	at := make([][2]*ast.Term, 512)
 	for i := range 512 {
@@ -310,7 +309,7 @@ func BenchmarkObjectIteration(b *testing.B) {
 // BenchmarkStoreRefNotFound/inmem-go-10         5208    212288 ns/op    160609 B/op     2936 allocs/op
 // BenchmarkStoreRefNotFound/inmem-ast-10       13929     90053 ns/op     39614 B/op     1012 allocs/op
 func BenchmarkStoreRefNotFound(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	things := make(map[string]map[string]string, 100)
 	for i := range 100 {
@@ -360,7 +359,7 @@ r contains true if {
 // 242.5 ns/op     168 B/op      7 allocs/op  // original implementation
 // 176.7 ns/op      96 B/op      4 allocs/op  // sync.Pool in ptr.ValuePtr (saving 1 alloc/op per path part)
 func BenchmarkStoreRead(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 	store := inmem.NewFromObjectWithASTRead(map[string]any{
 		"foo": map[string]any{
 			"bar": map[string]any{
@@ -401,7 +400,7 @@ func BenchmarkStoreRead(b *testing.B) {
 // 5222 ns/op	    5639 B/op	      89 allocs/op // ref.CopyNonGround
 // 2786 ns/op	    5090 B/op	      77 allocs/op // Lazy init improvements
 func BenchmarkTrivialPolicy(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 	r := New(
 		ParsedQuery(ast.MustParseBody("data.p.r = x")),
 		ParsedModule(ast.MustParseModule(`package p
@@ -429,7 +428,7 @@ func BenchmarkTrivialQuery(b *testing.B) {
 	m := metrics.New()
 	r := New(ParsedQuery(ast.MustParseBody("1")), GenerateJSON(noOpGenerateJSON), Metrics(m))
 
-	ctx := context.Background()
+	ctx := b.Context()
 
 	pq, err := r.PrepareForEval(ctx)
 	if err != nil {
@@ -462,7 +461,7 @@ func noOpGenerateJSON(*ast.Term, *EvalContext) (any, error) {
 // 25671 ns/op	   11488 B/op	     300 allocs/op
 // ...
 func BenchmarkGlobalVsLocalLookup(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	module := ast.MustParseModule(`package p
 global := 100

@@ -49,7 +49,7 @@ func TestInMemoryRead(t *testing.T) {
 	}
 
 	store := NewFromObject(data)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	for idx, tc := range tests {
 		result, err := storage.ReadOne(ctx, store, storage.MustParsePath(tc.path))
@@ -99,7 +99,7 @@ func TestInMemoryReadAst(t *testing.T) {
 	}
 
 	store := NewFromObjectWithOpts(data, OptReturnASTValuesOnRead(true))
-	ctx := context.Background()
+	ctx := t.Context()
 
 	for idx, tc := range tests {
 		result, err := storage.ReadOne(ctx, store, storage.MustParsePath(tc.path))
@@ -188,7 +188,7 @@ func TestInMemoryWrite(t *testing.T) {
 				{"err: replace missing", "replace", "/dead/beef/1", "1", storageerrors.NewNotFoundError(storage.MustParsePath("/dead/beef/1")), "", nil},
 			}
 
-			ctx := context.Background()
+			ctx := t.Context()
 
 			for i, tc := range tests {
 				data := loadSmallTestData()
@@ -292,7 +292,7 @@ func TestInMemoryWriteOfStruct(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			store := New()
-			ctx := context.Background()
+			ctx := t.Context()
 
 			err := storage.WriteOne(ctx, store, storage.AddOp, storage.MustParsePath("/x"), tc.value)
 			if err != nil {
@@ -337,7 +337,7 @@ func TestInMemoryWriteOfStructAst(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			store := NewWithOpts(OptReturnASTValuesOnRead(true))
-			ctx := context.Background()
+			ctx := t.Context()
 
 			// Written non-AST values are expected to be converted to AST values
 			err := storage.WriteOne(ctx, store, storage.AddOp, storage.MustParsePath("/x"), tc.value)
@@ -361,7 +361,7 @@ func TestInMemoryWriteOfStructAst(t *testing.T) {
 
 func TestInMemoryTxnMultipleWrites(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := NewFromObject(loadSmallTestData())
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
@@ -443,7 +443,7 @@ func TestInMemoryTxnMultipleWrites(t *testing.T) {
 
 func TestInMemoryTxnMultipleWritesAst(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := NewFromObjectWithOpts(loadSmallTestData(), OptReturnASTValuesOnRead(true))
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
@@ -534,7 +534,7 @@ func TestTruncateNoExistingPath(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			store := NewFromObjectWithOpts(map[string]any{}, OptReturnASTValuesOnRead(tc.ast))
 			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
@@ -601,7 +601,7 @@ func TestTruncateNoExistingPath(t *testing.T) {
 }
 
 func TestTruncate(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := NewFromObject(map[string]any{})
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
@@ -699,7 +699,7 @@ func TestTruncate(t *testing.T) {
 }
 
 func TestTruncateAst(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := NewFromObjectWithOpts(map[string]any{}, OptReturnASTValuesOnRead(true))
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
@@ -807,7 +807,7 @@ func TestTruncateDataMergeError(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			store := NewFromObjectWithOpts(map[string]any{}, OptReturnASTValuesOnRead(tc.ast))
 			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
@@ -853,7 +853,7 @@ func TestTruncateBadRootWrite(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			store := NewFromObjectWithOpts(map[string]any{}, OptReturnASTValuesOnRead(tc.ast))
 			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
@@ -900,7 +900,7 @@ func TestInMemoryTxnWriteFailures(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			store := NewFromObjectWithOpts(loadSmallTestData(), OptReturnASTValuesOnRead(tc.ast))
 			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
@@ -945,7 +945,7 @@ func TestInMemoryTxnReadFailures(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			store := NewFromObjectWithOpts(loadSmallTestData(), OptReturnASTValuesOnRead(tc.ast))
 			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
@@ -969,7 +969,7 @@ func TestInMemoryTxnReadFailures(t *testing.T) {
 }
 
 func TestInMemoryTxnBadWrite(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := NewFromObject(loadSmallTestData())
 	txn := storage.NewTransactionOrDie(ctx, store)
 	if err := store.Write(ctx, txn, storage.RemoveOp, storage.MustParsePath("/a"), nil); !storage.IsInvalidTransaction(err) {
@@ -979,7 +979,7 @@ func TestInMemoryTxnBadWrite(t *testing.T) {
 
 func TestInMemoryTxnPolicies(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := New()
 
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
@@ -1082,7 +1082,7 @@ func TestInMemoryTriggers(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			store := NewFromObjectWithOpts(loadSmallTestData(), OptReturnASTValuesOnRead(tc.ast))
 			writeTxn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 			readTxn := storage.NewTransactionOrDie(ctx, store)
@@ -1151,7 +1151,7 @@ func TestInMemoryTriggers(t *testing.T) {
 }
 
 func TestInMemoryTriggersUnregister(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := NewFromObject(loadSmallTestData())
 	writeTxn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 	modifiedPath := storage.MustParsePath("/a")
@@ -1201,7 +1201,7 @@ func TestInMemoryTriggersUnregister(t *testing.T) {
 
 func TestInMemoryContext(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := New()
 	params := storage.WriteParams
 	params.Context = storage.NewContext()
@@ -1334,7 +1334,7 @@ func TestOptRoundTripOnWrite(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			db := NewWithOpts(tt.opts...)
-			ctx := context.Background()
+			ctx := t.Context()
 
 			txn, err := db.NewTransaction(ctx, storage.WriteParams)
 			if err != nil {

@@ -8,7 +8,6 @@ package cmd
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"maps"
@@ -1793,7 +1792,7 @@ func TestResetExprLocations(t *testing.T) {
 
 		q contains 1
 		q contains 2
-		`)).Partial(context.Background())
+		`)).Partial(t.Context())
 
 	if err != nil {
 		t.Fatal(err)

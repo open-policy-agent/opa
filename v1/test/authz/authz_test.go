@@ -5,7 +5,6 @@
 package authz
 
 import (
-	"context"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -21,7 +20,7 @@ func TestAuthz(t *testing.T) {
 		NumPaths:  10,
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	data := GenerateDataset(profile)
 	store := inmem.NewFromObject(data)
 	txn := storage.NewTransactionOrDie(ctx, store)

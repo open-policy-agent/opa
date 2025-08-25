@@ -101,7 +101,7 @@ func TestTargetViaDefaultPlugin(t *testing.T) {
 // Warning(philipc): This test modifies package variables, which means it cannot
 // be run safely in parallel with other tests.
 func TestPluginPrepareOptions(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	tp := testPlugin{}
 	RegisterPlugin("rego.target.foo", &tp)
 	t.Cleanup(resetPlugins)

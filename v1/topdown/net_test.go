@@ -59,7 +59,7 @@ func TestNetLookupIPAddr(t *testing.T) {
 		"v4-v6.org": ast.NewSet(ast.StringTerm("1.2.3.4"), ast.StringTerm("1:2:3::4")),
 	} {
 		t.Run(addr, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 			bctx := BuiltinContext{
 				Context: ctx,
@@ -101,7 +101,7 @@ func TestNetLookupIPAddr(t *testing.T) {
 
 	for _, addr := range []string{"error.org", "nosuch.org"} {
 		t.Run(addr, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 			bctx := BuiltinContext{
 				Context: ctx,
@@ -122,12 +122,12 @@ func TestNetLookupIPAddr(t *testing.T) {
 	}
 
 	cancelled := func() (context.Context, func()) {
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		cancel()
 		return ctx, cancel
 	}
 	timedOut := func() (context.Context, func()) {
-		return context.WithTimeout(context.Background(), time.Nanosecond)
+		return context.WithTimeout(t.Context(), time.Nanosecond)
 	}
 
 	for name, ctx := range map[string]func() (context.Context, func()){
@@ -167,7 +167,7 @@ func TestNetLookupIPAddr(t *testing.T) {
 		"allow_net match + additional host": {addr, "example.com"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 			capabilities := ast.CapabilitiesForThisVersion()
 			capabilities.AllowNet = allowNet
@@ -195,7 +195,7 @@ func TestNetLookupIPAddr(t *testing.T) {
 		"allow_net no match": {"example.com"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 			capabilities := ast.CapabilitiesForThisVersion()
 			capabilities.AllowNet = allowNet

@@ -6,7 +6,6 @@ package repl
 
 import (
 	"bytes"
-	"context"
 	"strings"
 	"testing"
 
@@ -94,7 +93,7 @@ func TestOneShot_DefaultRegoVersion(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			store := newTestStore()
 			var buffer bytes.Buffer
 			repl := newRepl(store, &buffer)

@@ -176,12 +176,12 @@ func TestPluginStatusUpdateOnStartAndStop(t *testing.T) {
 
 	m.Register("p1", &testPlugin{m})
 
-	err = m.Start(context.Background())
+	err = m.Start(t.Context())
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	m.Stop(context.Background())
+	m.Stop(t.Context())
 }
 
 type testPlugin struct {
@@ -211,7 +211,7 @@ func TestPluginManagerLazyInitBeforePluginStart(t *testing.T) {
 
 	m.Register("someplugin", mock)
 
-	if err := m.Start(context.Background()); err != nil {
+	if err := m.Start(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -226,7 +226,7 @@ func TestPluginManagerInitBeforePluginStart(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := m.Init(context.Background()); err != nil {
+	if err := m.Init(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -234,7 +234,7 @@ func TestPluginManagerInitBeforePluginStart(t *testing.T) {
 
 	m.Register("someplugin", mock)
 
-	if err := m.Start(context.Background()); err != nil {
+	if err := m.Start(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -251,7 +251,7 @@ func TestPluginManagerInitIdempotence(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	if err := m.Init(ctx); err != nil {
 		t.Fatal(err)
@@ -337,7 +337,7 @@ func TestPluginManagerAuthPlugin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := m.Init(context.Background()); err != nil {
+	if err := m.Init(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -416,7 +416,7 @@ func TestPluginManagerPrometheusRegister(t *testing.T) {
 }
 
 func TestPluginManagerTracerProvider(t *testing.T) {
-	_, tracerProvider, _, err := internal_tracing.Init(context.TODO(), []byte(`{ "distributed_tracing": { "type": "grpc" } }`), "test")
+	_, tracerProvider, _, err := internal_tracing.Init(t.Context(), []byte(`{ "distributed_tracing": { "type": "grpc" } }`), "test")
 	if err != nil {
 		t.Fatal(err)
 	}

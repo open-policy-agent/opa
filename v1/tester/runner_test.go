@@ -168,7 +168,7 @@ func testRun(t *testing.T, conf testRunConfig) map[string]*ast.Module {
 func doTestRunWithTmpDir(t *testing.T, dir string, conf testRunConfig) ([]*tester.Result, map[string]*ast.Module) {
 	t.Helper()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	paths := []string{dir}
 	modules, store, err := tester.Load(paths, nil)
@@ -453,7 +453,7 @@ func testCancel(t *testing.T, bench bool) {
 
 	registerSleepBuiltin()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	module := `package foo
 	import rego.v1
@@ -510,7 +510,7 @@ func TestRunnerTimeoutBenchmark(t *testing.T) {
 func testTimeout(t *testing.T, bench bool) {
 	registerSleepBuiltin()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	files := map[string]string{
 		"/a_test.rego": `package foo
@@ -589,7 +589,7 @@ func TestRunnerPrintOutput(t *testing.T) {
 		p.q.r.test_k if { print("K") }`,
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	test.WithTempFS(files, func(d string) {
 		paths := []string{d}
@@ -711,7 +711,7 @@ func TestRunnerWithCustomBuiltin(t *testing.T) {
 		test_c if { my_sum(4,1.0) == 5 }`,
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	test.WithTempFS(files, func(d string) {
 		paths := []string{d}
@@ -782,7 +782,7 @@ func TestRunnerWithBuiltinErrors(t *testing.T) {
 		},
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -940,7 +940,7 @@ func TestRun_DefaultRegoVersion(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 
 			modules := map[string]*ast.Module{
 				"test": &tc.module,
@@ -1062,7 +1062,7 @@ func TestReporterFormatsWithExplicitParallel(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 
 			test.WithTempFS(files, func(d string) {
 				paths := []string{d}

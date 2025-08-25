@@ -525,7 +525,7 @@ package references
 
 import data.example.sites
 
-result := {h| h := sites[i].servers[j].hostname }
+result := {h| h := sites[i].servers[j].hostname}
 ```
 
 <RunSnippet files="#example_data.rego" command="data.references.result"/>
@@ -534,11 +534,11 @@ Conceptually, this is the same as the following imperative code:
 
 ```python
 def hostnames(sites):
-    result = []
+    result = set()
 
     for site in sites:
         for server in site.servers:
-            result.append(server.hostname)
+            result.add(server.hostname)
 
     return result
 ```

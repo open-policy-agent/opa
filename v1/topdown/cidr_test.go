@@ -1,7 +1,6 @@
 package topdown
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -13,7 +12,7 @@ import (
 func TestNetCIDRExpandCancellation(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	compiler := compileModules([]string{
 		`

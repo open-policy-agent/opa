@@ -301,7 +301,7 @@ main contains "hello" if {
 					testLogger := loggingtest.New()
 					params.Logger = testLogger
 
-					ctx, cancel := context.WithCancel(context.Background())
+					ctx, cancel := context.WithCancel(t.Context())
 					defer cancel()
 					go func(expectedErrors []string) {
 						err := runExecWithContext(ctx, params)
@@ -531,7 +531,7 @@ main contains "hello" if {
 					testLogger := loggingtest.New()
 					params.Logger = testLogger
 
-					ctx, cancel := context.WithCancel(context.Background())
+					ctx, cancel := context.WithCancel(t.Context())
 					defer cancel()
 					go func(expectedErrors []string) {
 						err := runExecWithContext(ctx, params)
@@ -891,7 +891,7 @@ main contains "hello" if {
 							testLogger := loggingtest.New()
 							params.Logger = testLogger
 
-							ctx, cancel := context.WithCancel(context.Background())
+							ctx, cancel := context.WithCancel(t.Context())
 							defer cancel()
 							go func() {
 								err := runExecWithContext(ctx, params)
@@ -950,7 +950,7 @@ func TestInvalidConfig(t *testing.T) {
 	params.Fail = true
 	params.FailDefined = true
 
-	err := exec.Exec(context.TODO(), nil, params)
+	err := exec.Exec(t.Context(), nil, params)
 	if err == nil || err.Error() != "specify --fail or --fail-defined but not both" {
 		t.Fatalf("Expected error '%s' but got '%s'", "specify --fail or --fail-defined but not both", err.Error())
 	}
@@ -963,7 +963,7 @@ func TestInvalidConfigAllThree(t *testing.T) {
 	params.FailDefined = true
 	params.FailNonEmpty = true
 
-	err := exec.Exec(context.TODO(), nil, params)
+	err := exec.Exec(t.Context(), nil, params)
 	if err == nil || err.Error() != "specify --fail or --fail-defined but not both" {
 		t.Fatalf("Expected error '%s' but got '%s'", "specify --fail or --fail-defined but not both", err.Error())
 	}
@@ -975,7 +975,7 @@ func TestInvalidConfigNonEmptyAndFail(t *testing.T) {
 	params.FailNonEmpty = true
 	params.Fail = true
 
-	err := exec.Exec(context.TODO(), nil, params)
+	err := exec.Exec(t.Context(), nil, params)
 	if err == nil || err.Error() != "specify --fail-non-empty or --fail but not both" {
 		t.Fatalf("Expected error '%s' but got '%s'", "specify --fail-non-empty or --fail but not both", err.Error())
 	}
@@ -987,7 +987,7 @@ func TestInvalidConfigNonEmptyAndFailDefined(t *testing.T) {
 	params.FailNonEmpty = true
 	params.FailDefined = true
 
-	err := exec.Exec(context.TODO(), nil, params)
+	err := exec.Exec(t.Context(), nil, params)
 	if err == nil || err.Error() != "specify --fail-non-empty or --fail-defined but not both" {
 		t.Fatalf("Expected error '%s' but got '%s'", "specify --fail-non-empty or --fail-defined but not both", err.Error())
 	}

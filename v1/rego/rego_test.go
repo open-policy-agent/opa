@@ -99,7 +99,7 @@ p contains x if {
 			}
 
 			test.WithTempFS(files, func(root string) {
-				ctx := context.Background()
+				ctx := t.Context()
 
 				pq, err := New(
 					Load([]string{root}, nil),
@@ -352,7 +352,7 @@ p contains x if {
 			}
 
 			test.WithTempFS(files, func(root string) {
-				ctx := context.Background()
+				ctx := t.Context()
 
 				pq, err := New(
 					SetRegoVersion(tc.regoVersion),
@@ -396,7 +396,7 @@ p contains x if {
 
 func assertEval(t *testing.T, r *Rego, expected string) {
 	t.Helper()
-	rs, err := r.Eval(context.Background())
+	rs, err := r.Eval(t.Context())
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err.Error())
 	}
@@ -405,7 +405,7 @@ func assertEval(t *testing.T, r *Rego, expected string) {
 
 func assertPreparedEvalQueryEval(t *testing.T, pq PreparedEvalQuery, options []EvalOption, expected string) {
 	t.Helper()
-	rs, err := pq.Eval(context.Background(), options...)
+	rs, err := pq.Eval(t.Context(), options...)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err.Error())
 	}
@@ -559,7 +559,7 @@ func TestRegoInputs(t *testing.T) {
 
 func TestRegoRewrittenVarsCapture(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	r := New(
 		Query("a := 1; a != 0; a"),
@@ -578,7 +578,7 @@ func TestRegoRewrittenVarsCapture(t *testing.T) {
 
 func TestRegoDoNotCaptureVoidCalls(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	r := New(Query("print(1)"))
 
@@ -608,7 +608,7 @@ func TestRegoCancellation(t *testing.T) {
 		return iter(ast.NullTerm())
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*10)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Millisecond*10)
 	r := New(Query(`test.sleep("1s")`))
 	rs, err := r.Eval(ctx)
 	cancel()
@@ -637,7 +637,7 @@ func TestRegoCustomBuiltinHalt(t *testing.T) {
 		},
 	)
 	r := New(Query(`halt_func("")`), funOpt)
-	rs, err := r.Eval(context.Background())
+	rs, err := r.Eval(t.Context())
 	if err == nil {
 		t.Fatalf("Expected halt error but got: %v", rs)
 	}
@@ -652,7 +652,7 @@ func TestRegoCustomBuiltinHalt(t *testing.T) {
 func TestRegoMetrics(t *testing.T) {
 	m := metrics.New()
 	r := New(Query("foo = 1"), Module("foo.rego", "package x"), Metrics(m))
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err := r.Eval(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -670,7 +670,7 @@ func TestRegoMetrics(t *testing.T) {
 func TestPreparedRegoMetrics(t *testing.T) {
 	m := metrics.New()
 	r := New(Query("foo = 1"), Module("foo.rego", "package x"), Metrics(m))
-	ctx := context.Background()
+	ctx := t.Context()
 	pq, err := r.PrepareForEval(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -693,7 +693,7 @@ func TestPreparedRegoMetrics(t *testing.T) {
 func TestPreparedRegoMetricsPrepareOnly(t *testing.T) {
 	m := metrics.New()
 	r := New(Query("foo = 1"), Module("foo.rego", "package x"), Metrics(m))
-	ctx := context.Background()
+	ctx := t.Context()
 	pq, err := r.PrepareForEval(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -715,7 +715,7 @@ func TestPreparedRegoMetricsPrepareOnly(t *testing.T) {
 func TestPreparedRegoMetricsEvalOnly(t *testing.T) {
 	m := metrics.New()
 	r := New(Query("foo = 1"), Module("foo.rego", "package x")) // No Metrics() passed in
-	ctx := context.Background()
+	ctx := t.Context()
 	pq, err := r.PrepareForEval(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -750,7 +750,7 @@ func validateRegoMetrics(t *testing.T, m metrics.Metrics, expectedFields []strin
 func TestRegoInstrumentExtraEvalCompilerStage(t *testing.T) {
 	m := metrics.New()
 	r := New(Query("foo = 1"), Module("foo.rego", "package x"), Metrics(m), Instrument(true))
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err := r.Eval(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -772,7 +772,7 @@ func TestRegoInstrumentExtraEvalCompilerStage(t *testing.T) {
 func TestPreparedRegoInstrumentExtraEvalCompilerStage(t *testing.T) {
 	m := metrics.New()
 	r := New(Query("foo = 1"), Module("foo.rego", "package x"), Metrics(m), Instrument(true))
-	ctx := context.Background()
+	ctx := t.Context()
 	pq, err := r.PrepareForEval(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -811,7 +811,7 @@ func TestPreparedRegoInstrumentExtraEvalCompilerStage(t *testing.T) {
 func TestRegoInstrumentExtraPartialCompilerStage(t *testing.T) {
 	m := metrics.New()
 	r := New(Query("foo = 1"), Module("foo.rego", "package x"), Metrics(m), Instrument(true))
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err := r.Partial(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -833,7 +833,7 @@ func TestRegoInstrumentExtraPartialCompilerStage(t *testing.T) {
 func TestRegoInstrumentExtraPartialResultCompilerStage(t *testing.T) {
 	m := metrics.New()
 	r := New(Query("input.x"), Module("foo.rego", "package x"), Metrics(m), Instrument(true))
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err := r.PartialResult(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -865,12 +865,12 @@ func TestPreparedRegoTracerNoPropagate(t *testing.T) {
 		Query("data"),
 		Module("foo.rego", mod),
 		Tracer(tracer),
-		Input(map[string]any{"x": 10})).PrepareForEval(context.Background())
+		Input(map[string]any{"x": 10})).PrepareForEval(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error %s", err)
 	}
 
-	_, err = pq.Eval(context.Background()) // no EvalTracer option
+	_, err = pq.Eval(t.Context()) // no EvalTracer option
 	if err != nil {
 		t.Fatalf("unexpected error %s", err)
 	}
@@ -893,12 +893,12 @@ func TestPreparedRegoQueryTracerNoPropagate(t *testing.T) {
 		Query("data"),
 		Module("foo.rego", mod),
 		QueryTracer(tracer),
-		Input(map[string]any{"x": 10})).PrepareForEval(context.Background())
+		Input(map[string]any{"x": 10})).PrepareForEval(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error %s", err)
 	}
 
-	_, err = pq.Eval(context.Background()) // no EvalQueryTracer option
+	_, err = pq.Eval(t.Context()) // no EvalQueryTracer option
 	if err != nil {
 		t.Fatalf("unexpected error %s", err)
 	}
@@ -925,13 +925,13 @@ func TestRegoDisableIndexing(t *testing.T) {
 	pq, err := New(
 		Query("data"),
 		Module("foo.rego", mod),
-	).PrepareForEval(context.Background())
+	).PrepareForEval(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error %s", err)
 	}
 
 	_, err = pq.Eval(
-		context.Background(),
+		t.Context(),
 		EvalQueryTracer(tracer),
 		EvalRuleIndexing(false),
 		EvalInput(map[string]any{"x": 10}),
@@ -977,13 +977,13 @@ func TestRegoDisableIndexingWithMatch(t *testing.T) {
 	pq, err := New(
 		Query("data"),
 		Module("foo.rego", mod),
-	).PrepareForEval(context.Background())
+	).PrepareForEval(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error %s", err)
 	}
 
 	rs, err := pq.Eval(
-		context.Background(),
+		t.Context(),
 		EvalQueryTracer(tracer),
 		EvalRuleIndexing(false),
 		EvalInput(map[string]any{"x": 1}),
@@ -1023,7 +1023,7 @@ func TestRegoCatchPathConflicts(t *testing.T) {
 		})),
 	)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err := r.Eval(ctx)
 
 	if err == nil {
@@ -1046,7 +1046,7 @@ func TestPartialRewriteEquals(t *testing.T) {
 		Module("test.rego", mod),
 	)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	pq, err := r.Partial(ctx)
 
 	if err != nil {
@@ -1106,7 +1106,7 @@ func TestPrepareAndEvalRaceConditions(t *testing.T) {
 				Package("foo"),
 			)
 
-			pq, err := r.PrepareForEval(context.Background())
+			pq, err := r.PrepareForEval(t.Context())
 			if err != nil {
 				t.Fatalf("Unexpected error: %s", err.Error())
 			}
@@ -1138,7 +1138,7 @@ func TestPrepareAndEvalNewInput(t *testing.T) {
 		Package("foo"),
 	)
 
-	pq, err := r.PrepareForEval(context.Background())
+	pq, err := r.PrepareForEval(t.Context())
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err.Error())
 	}
@@ -1163,7 +1163,7 @@ func TestPrepareAndEvalNewMetrics(t *testing.T) {
 		Metrics(originalMetrics),
 	)
 
-	pq, err := r.PrepareForEval(context.Background())
+	pq, err := r.PrepareForEval(t.Context())
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err.Error())
 	}
@@ -1197,7 +1197,7 @@ func TestPrepareAndEvalTransaction(t *testing.T) {
 	package test
 	x = data.foo.y
 	`
-	ctx := context.Background()
+	ctx := t.Context()
 	store := mock.New()
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
@@ -1305,7 +1305,7 @@ func TestPrepareAndEvalIdempotent(t *testing.T) {
 		Package("foo"),
 	)
 
-	pq, err := r.PrepareForEval(context.Background())
+	pq, err := r.PrepareForEval(t.Context())
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err.Error())
 	}
@@ -1332,7 +1332,7 @@ func TestPrepareAndEvalOriginal(t *testing.T) {
 		Input(map[string]int{"y": 2}),
 	)
 
-	pq, err := r.PrepareForEval(context.Background())
+	pq, err := r.PrepareForEval(t.Context())
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err.Error())
 	}
@@ -1362,7 +1362,7 @@ func TestPrepareAndEvalOnlyOneErrorOccurredPrintOnce(t *testing.T) {
 		Input(map[string]int{"y": 2}),
 	)
 
-	_, err := r.PrepareForEval(context.Background())
+	_, err := r.PrepareForEval(t.Context())
 	if err == nil {
 		t.Fatal("Expected error but got nil")
 	}
@@ -1385,7 +1385,7 @@ func TestPrepareAndEvalNewPrintHook(t *testing.T) {
 		EnablePrintStatements(true),
 	)
 
-	pq, err := r.PrepareForEval(context.Background())
+	pq, err := r.PrepareForEval(t.Context())
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err.Error())
 	}
@@ -1427,7 +1427,7 @@ func TestPrepareAndPartialResult(t *testing.T) {
 		Input(map[string]int{"y": 2}),
 	)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	pq, err := r.PrepareForEval(ctx)
 	if err != nil {
@@ -1465,7 +1465,7 @@ func TestPrepareWithPartialEval(t *testing.T) {
 		Package("foo"),
 	)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Prepare the query and partially evaluate it
 	pq, err := r.PrepareForEval(ctx, WithPartialEval())
@@ -1493,7 +1493,7 @@ func TestPrepareAndPartial(t *testing.T) {
 		Module("test.rego", mod),
 	)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	pq, err := r.PrepareForEval(ctx)
 	if err != nil {
@@ -1577,7 +1577,7 @@ foo contains __local1__1 if { __local1__1 = input.v }`,
 				SetRegoVersion(ast.RegoV1),
 			)
 
-			ctx := context.Background()
+			ctx := t.Context()
 
 			partialQuery, err := r.Partial(ctx)
 			if err != nil {
@@ -1612,7 +1612,7 @@ func TestPartialNamespace(t *testing.T) {
 		`),
 	)
 
-	pq, err := r.Partial(context.Background())
+	pq, err := r.Partial(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1648,7 +1648,7 @@ func TestPrepareAndCompile(t *testing.T) {
 		Package("foo"),
 	)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	pq, err := r.PrepareForEval(ctx)
 	if err != nil {
@@ -1682,7 +1682,7 @@ func TestPartialResultWithInput(t *testing.T) {
 		Module("test.rego", mod),
 	)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	pr, err := r.PartialResult(ctx)
 
 	if err != nil {
@@ -1713,7 +1713,7 @@ func TestPartialResultWithNamespace(t *testing.T) {
 		Compiler(c),
 	)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	pr, err := r.PartialResult(ctx)
 
 	if err != nil {
@@ -1756,7 +1756,7 @@ func TestPreparedPartialResultWithTracer(t *testing.T) {
 
 	tracer := topdown.NewBufferTracer()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	pq, err := r.PrepareForPartial(ctx)
 	if err != nil {
 		t.Fatalf("unexpected error from Rego.PrepareForPartial(): %s", err.Error())
@@ -1798,7 +1798,7 @@ func TestPreparedPartialResultWithQueryTracer(t *testing.T) {
 
 	tracer := topdown.NewBufferTracer()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	pq, err := r.PrepareForPartial(ctx)
 	if err != nil {
 		t.Fatalf("unexpected error from Rego.PrepareForPartial(): %s", err.Error())
@@ -1845,7 +1845,7 @@ func TestPartialResultSetsValidConflictChecker(t *testing.T) {
 		Compiler(c),
 	)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	pr, err := r.PartialResult(ctx)
 
 	if err != nil {
@@ -1862,7 +1862,7 @@ func TestMissingLocation(t *testing.T) {
 	// Create a query programmatically and evaluate it. The Location information
 	// is not set so the resulting expression value will not have it.
 	r := New(ParsedQuery(ast.NewBody(ast.NewExpr(ast.BooleanTerm(true)))))
-	rs, err := r.Eval(context.Background())
+	rs, err := r.Eval(t.Context())
 
 	if err != nil {
 		t.Fatal(err)
@@ -1896,7 +1896,7 @@ func TestBundlePassing(t *testing.T) {
 		Query("x = data.foo.allow"),
 	)
 
-	res, err := r.Eval(context.Background())
+	res, err := r.Eval(t.Context())
 
 	if err != nil {
 		t.Fatal(err)
@@ -1931,7 +1931,7 @@ func TestModulePassing(t *testing.T) {
 		p = 4`)),
 	)
 
-	rs, err := r.Eval(context.Background())
+	rs, err := r.Eval(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1957,7 +1957,7 @@ func TestModulePassing(t *testing.T) {
 
 func TestUnsafeBuiltins(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	unsafeCountExpr := "unsafe built-in function calls in expression: count"
 	unsafeCountExprWith := `with keyword replacing built-in function: target must not be unsafe: "count"`
@@ -2083,7 +2083,7 @@ func TestUnsafeBuiltins(t *testing.T) {
 
 			p = count([])`),
 		)
-		rs, err := r.Eval(context.Background())
+		rs, err := r.Eval(t.Context())
 		if err != nil || len(rs) != 1 {
 			log.Fatalf("Unexpected error or result. Result: %v. Error: %v", rs, err)
 		}
@@ -2105,7 +2105,7 @@ func TestPreparedQueryGetModules(t *testing.T) {
 
 	regoArgs = append(regoArgs, Query("data"))
 
-	ctx := context.Background()
+	ctx := t.Context()
 	pq, err := New(regoArgs...).PrepareForEval(ctx)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
@@ -2136,7 +2136,7 @@ func TestRegoEvalWithFile(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(path string) {
-		ctx := context.Background()
+		ctx := t.Context()
 
 		pq, err := New(
 			Load([]string{path}, nil),
@@ -2164,7 +2164,7 @@ func TestRegoEvalWithBundle(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(path string) {
-		ctx := context.Background()
+		ctx := t.Context()
 
 		pq, err := New(
 			LoadBundle(path),
@@ -2200,7 +2200,7 @@ func TestRegoEvalWithBundleURL(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(path string) {
-		ctx := context.Background()
+		ctx := t.Context()
 		pq, err := New(
 			LoadBundle("file://"+path),
 			Query("data.x.p"),
@@ -2223,7 +2223,7 @@ func TestRegoEvalWithBundleURL(t *testing.T) {
 
 func TestRegoEvalPoliciesInStore(t *testing.T) {
 	store := mock.New()
-	ctx := context.Background()
+	ctx := t.Context()
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
 	err := store.UpsertPolicy(ctx, txn, "a.rego", []byte("package a\np=1"))
@@ -2264,7 +2264,7 @@ func TestRegoEvalModulesOnCompiler(t *testing.T) {
 		t.Fatalf("Unexpected compile errors: %s", compiler.Errors)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	pq, err := New(
 		Compiler(compiler),
@@ -2426,7 +2426,7 @@ func TestRegoEvalWithRegoV1(t *testing.T) {
 		for _, tc := range tests {
 			t.Run(fmt.Sprintf("%s: %s", s.name, tc.note), func(t *testing.T) {
 				test.WithTempFS(tc.policies, func(path string) {
-					ctx := context.Background()
+					ctx := t.Context()
 
 					options := append(s.options(path, tc.policies, t, ctx),
 						Query("data.test"),
@@ -2467,7 +2467,7 @@ func TestRegoEvalWithRegoV1(t *testing.T) {
 }
 
 func TestRegoLoadFilesWithProvidedStore(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := mock.New()
 
 	files := map[string]string{
@@ -2492,7 +2492,7 @@ func TestRegoLoadFilesWithProvidedStore(t *testing.T) {
 }
 
 func TestRegoLoadBundleWithProvidedStore(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := mock.New()
 
 	files := map[string]string{
@@ -2560,14 +2560,14 @@ func TestRegoCustomBuiltinPartialPropagate(t *testing.T) {
 		),
 	)
 
-	pr, err := originalRego.PartialResult(context.Background())
+	pr, err := originalRego.PartialResult(t.Context())
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
 	rs, err := pr.Rego(
 		Input(map[string]any{"foo": "/foo/bar/baz/"}),
-	).Eval(context.Background())
+	).Eval(t.Context())
 
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
@@ -2584,7 +2584,7 @@ func TestRegoPartialResultRecursiveRefs(t *testing.T) {
 
 	p if { input.x = 1 }`))
 
-	_, err := r.PartialResult(context.Background())
+	_, err := r.PartialResult(t.Context())
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -2605,7 +2605,7 @@ func TestSkipPartialNamespaceOption(t *testing.T) {
 		p = true if { input }
 	`), SkipPartialNamespace(true))
 
-	pq, err := r.Partial(context.Background())
+	pq, err := r.Partial(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2637,7 +2637,7 @@ func TestShallowInliningOption(t *testing.T) {
 		`),
 		ShallowInlining(true))
 
-	pq, err := r.Partial(context.Background())
+	pq, err := r.Partial(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2679,7 +2679,7 @@ func TestRegoPartialResultSortedRules(t *testing.T) {
 			s = 100
 	`))
 
-	pq, err := r.Partial(context.Background())
+	pq, err := r.Partial(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2706,7 +2706,7 @@ func TestPrepareWithEmptyModule(t *testing.T) {
 	_, err := New(
 		Query("d"),
 		Module("example.rego", ""),
-	).PrepareForEval(context.Background())
+	).PrepareForEval(t.Context())
 
 	expected := "1 error occurred: example.rego:0: rego_parse_error: empty module"
 	if err == nil || err.Error() != expected {
@@ -2722,7 +2722,7 @@ func TestPrepareWithWasmTargetNotSupported(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(path string) {
-		ctx := context.Background()
+		ctx := t.Context()
 
 		_, err := New(
 			LoadBundle(path),
@@ -2757,7 +2757,7 @@ func TestEvalWithInterQueryCache(t *testing.T) {
 	config, _ := cache.ParseCachingConfig(nil)
 	interQueryCache := cache.NewInterQueryCache(config)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err := New(Query(query), InterQueryBuiltinCache(interQueryCache)).Eval(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -2776,7 +2776,7 @@ func TestEvalWithInterQueryCache(t *testing.T) {
 }
 
 func TestEvalWithInterQueryValueCache(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// add an inter-query value cache
 	config, _ := cache.ParseCachingConfig(nil)
@@ -2841,7 +2841,7 @@ func TestEvalWithNDCache(t *testing.T) {
 	ndBC.Put("arbitrary_experiment", arbitraryKey, arbitraryValue)
 
 	// Query execution of http.send should add an entry to the NDBuiltinCache.
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err := New(Query(query), NDBuiltinCache(ndBC)).Eval(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -2891,7 +2891,7 @@ func TestEvalWithPrebuiltNDCache(t *testing.T) {
 	// Timestamp ns value will be: 1451311705000000000
 	ndBC.Put("time.now_ns", ast.NewArray(), ast.Number(json.Number(strconv.FormatInt(timeValue.UnixNano(), 10))))
 	// time.now_ns should use the cached entry instead of the current time.
-	ctx := context.Background()
+	ctx := t.Context()
 	rs, err := New(Query(query), NDBuiltinCache(ndBC)).Eval(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -2902,7 +2902,7 @@ func TestEvalWithPrebuiltNDCache(t *testing.T) {
 }
 
 func TestNDBCacheWithRuleBody(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	ts := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	defer ts.Close()
 
@@ -2928,7 +2928,7 @@ p if {
 
 // Catches issues around iteration with ND builtins.
 func TestNDBCacheWithRuleBodyAndIteration(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	ts := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 	}))
 	defer ts.Close()
@@ -2999,7 +2999,7 @@ func TestNDBCacheMarshalUnmarshalJSON(t *testing.T) {
 }
 
 func TestStrictBuiltinErrors(t *testing.T) {
-	_, err := New(Query("1/0"), StrictBuiltinErrors(true)).Eval(context.Background())
+	_, err := New(Query("1/0"), StrictBuiltinErrors(true)).Eval(t.Context())
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -3020,7 +3020,7 @@ func TestStrictBuiltinErrors(t *testing.T) {
 func TestBuiltinErrorList(t *testing.T) {
 	var buf []topdown.Error
 
-	_, err := New(Query("1/0"), BuiltinErrorList(&buf)).Eval(context.Background())
+	_, err := New(Query("1/0"), BuiltinErrorList(&buf)).Eval(t.Context())
 	if err != nil {
 		t.Fatal("unexpected error")
 	}
@@ -3036,7 +3036,7 @@ func TestBuiltinErrorList(t *testing.T) {
 
 func TestTimeSeedingOptions(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 	clock := time.Now()
 
 	// Check expected time is returned.
@@ -3114,7 +3114,7 @@ func TestPrepareAndCompileWithSchema(t *testing.T) {
 		Schemas(schemaSet),
 	)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	pq, err := r.PrepareForEval(ctx)
 	if err != nil {
@@ -3145,7 +3145,7 @@ x contains v if {
 		SetRegoVersion(ast.RegoV1),
 	)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	pq, err := r.PrepareForEval(ctx)
 	if err != nil {
@@ -3183,7 +3183,7 @@ func TestRegoLazyObjDefault(t *testing.T) {
 		Store(store),
 	)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	rs, err := r.Eval(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -3213,7 +3213,7 @@ func TestRegoLazyObjNoRoundTripOnWrite(t *testing.T) {
 		Store(store),
 	)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	rs, err := r.Eval(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -3243,7 +3243,7 @@ func TestRegoLazyObjCopyMaps(t *testing.T) {
 		Store(store),
 	)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	pq, err := r.PrepareForEval(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -3395,7 +3395,7 @@ result := test.module("policy.rego")
 `
 
 	t.Run("compiler not passed", func(t *testing.T) {
-		ctx := context.Background()
+		ctx := t.Context()
 		r := New(
 			Query("data.test.result"),
 			CompilerHook(func(c *ast.Compiler) { ctx = ast.WithCompiler(ctx, c) }),
@@ -3433,7 +3433,7 @@ result := test.module("policy.rego")
 	})
 
 	t.Run("compiler passed in", func(t *testing.T) { // when the compiler is passed, no hook is run
-		ctx := context.Background()
+		ctx := t.Context()
 		r := New(
 			Compiler(ast.NewCompiler()),
 			Query("data.test.result"),

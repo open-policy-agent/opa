@@ -2343,7 +2343,7 @@ func (p *Parser) genwildcard() string {
 }
 
 func (p *Parser) error(loc *location.Location, reason string) {
-	p.errorf(loc, reason) //nolint:govet
+	p.errorf(loc, "%s", reason)
 }
 
 func (p *Parser) errorf(loc *location.Location, f string, a ...any) {

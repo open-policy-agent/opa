@@ -50,7 +50,7 @@ import (
 
 func TestDefaultRegoVersion(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.RawBundles(true),
@@ -156,7 +156,7 @@ func (factory) Validate(*plugins.Manager, []byte) (any, error) {
 }
 
 func TestPlugins(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	config := `{
         "plugins": {
             "test_plugin": {}
@@ -176,7 +176,7 @@ func TestPlugins(t *testing.T) {
 }
 
 func TestHookOnConfig(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// We're setting up two hooks that smuggle in some new labels, and hold on
 	// to their config.
@@ -209,7 +209,7 @@ func TestHookOnConfig(t *testing.T) {
 }
 
 func TestHookOnConfigDiscovery(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	th0 := &testhook{k: "foo", v: "baz"}
 	th1 := &testhook{k: "fox", v: "quz"}
 	disco := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -269,7 +269,7 @@ func (h *testhook) OnConfigDiscovery(_ context.Context, c *config.Config) (*conf
 }
 
 func TestPluginPanic(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	opa, err := sdk.New(ctx, sdk.Options{})
 	if err != nil {
@@ -279,7 +279,7 @@ func TestPluginPanic(t *testing.T) {
 }
 
 func TestSDKConfigurableID(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -337,7 +337,7 @@ main = time.now_ns()
 
 func TestDecision(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -400,7 +400,7 @@ loopback = input
 
 func TestDecisionWithStrictBuiltinErrors(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -463,7 +463,7 @@ allow if {
 
 func TestDecisionWithTrace(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -538,7 +538,7 @@ main if {
 
 func TestDecisionWithMetrics(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -611,7 +611,7 @@ main = true
 
 func TestDecisionWithIntrumentationAndProfile(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -703,7 +703,7 @@ main = true
 
 func TestDecisionWithProvenance(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -769,7 +769,7 @@ main = true
 
 func TestDecisionWithBundleData(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -819,7 +819,7 @@ main = data.foo
 }
 
 func TestDecisionWithConfigurableID(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -890,7 +890,7 @@ main = time.now_ns()
 
 func TestPartial(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -970,7 +970,7 @@ allow if {
 
 func TestPartialWithStrictBuiltinErrors(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -1042,7 +1042,7 @@ allow if {
 
 func TestPartialWithTrace(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -1124,7 +1124,7 @@ main if {
 
 func TestPartialWithMetrics(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -1209,7 +1209,7 @@ allow if {
 
 func TestPartialWithInstrumentationAndProfile(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -1315,7 +1315,7 @@ allow if {
 
 func TestPartialWithProvenance(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -1391,7 +1391,7 @@ allow if {
 
 func TestPartialWithConfigurableID(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -1477,7 +1477,7 @@ allow if {
 
 func TestUndefinedError(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -1522,7 +1522,7 @@ func TestUndefinedError(t *testing.T) {
 
 func TestDecisionLogging(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -1588,7 +1588,7 @@ main = time.now_ns()
 
 func TestDecisionLoggingWithMasking(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -1696,7 +1696,7 @@ mask contains "/input/dossier/1/highly"
 
 func TestDecisionLoggingWithNDBCache(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -1770,7 +1770,7 @@ main = time.now_ns()
 
 func TestQueryCaching(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -1836,7 +1836,7 @@ main = 7
 
 func TestDiscovery(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/discovery.tar.gz", map[string]string{
@@ -2090,7 +2090,7 @@ main := v { v := 7 }`,
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 
 			serverOpts := []func(*sdktest.Server) error{
 				sdktest.MockBundle("/bundles/discovery.tar.gz", tc.discoveryBundle),
@@ -2279,7 +2279,7 @@ bundles:
 					readyCh = make(chan struct{})
 				}
 
-				ctx := context.Background()
+				ctx := t.Context()
 				opa, err := sdk.New(ctx, sdk.Options{
 					Logger:       logger,
 					Ready:        readyCh,
@@ -2319,7 +2319,7 @@ bundles:
 
 func TestAsync(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	callerReadyCh := make(chan struct{})
 	readyCh := make(chan struct{})
@@ -2396,7 +2396,7 @@ func TestCancelStartup(t *testing.T) {
 		}`, server.URL())
 
 	// Server will return 404 responses because bundle does not exist. OPA should timeout.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Millisecond*100)
 	defer cancel()
 
 	_, err := sdk.New(ctx, sdk.Options{
@@ -2410,7 +2410,7 @@ func TestCancelStartup(t *testing.T) {
 // TestStopWithDeadline asserts that a graceful shutdown of the SDK is possible.
 func TestStopWithDeadline(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 	opa, err := sdk.New(ctx, sdk.Options{
 		Config: strings.NewReader(`{
 			"plugins": {
@@ -2459,7 +2459,7 @@ bundles:
   test:
     resource: "/bundles/bundle.tar.gz"`, server.URL())
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err := sdk.New(ctx, sdk.Options{
 		Config: strings.NewReader(config),
 	})
@@ -2503,7 +2503,7 @@ main = 8
 		}
 	}`, server.URL())
 
-	ctx := context.Background()
+	ctx := t.Context()
 	opa, err := sdk.New(ctx, sdk.Options{
 		Config: strings.NewReader(config1),
 	})
@@ -2564,7 +2564,7 @@ main = 8
 }
 
 func TestOpaVersion(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -2610,7 +2610,7 @@ opa_version := opa.runtime().version
 }
 
 func TestOpaRuntimeConfig(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -2674,7 +2674,7 @@ result := {
 func TestOpaRuntimeEnvironmentVariableDefinedInOS(t *testing.T) {
 	t.Setenv("TOKEN_VERIFY_KEY", "B41BD5F462719C6D6118E673A2389")
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -2740,7 +2740,7 @@ authenticatedUser := a if {
 }
 
 func TestOpaRuntimeEnvironmentVariableDefinedInConfig(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -2810,7 +2810,7 @@ authenticatedUser := a if {
 
 func TestPrintStatements(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	s := sdktest.MustNewServer(
 		sdktest.RawBundles(true), // non-raw bundles will be compiled server-side, which will change print location depending on parser rego-version (v1 drops rego.v1 import).
@@ -2868,7 +2868,7 @@ p if { print("XXX") }
 }
 
 func TestConfigurableManagerOpts(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
@@ -2937,7 +2937,7 @@ func toMetricMap(metrics []*promdto.MetricFamily) map[string]bool {
 }
 
 func TestActivateV1Bundles(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Millisecond*100)
 	defer cancel()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2969,7 +2969,7 @@ func TestActivateV1Bundles(t *testing.T) {
 
 	defer opa.Stop(ctx)
 
-	d, err := opa.Decision(context.Background(), sdk.DecisionOptions{
+	d, err := opa.Decision(t.Context(), sdk.DecisionOptions{
 		Path: "v1bundle/authz",
 		Input: map[string]any{
 			"role": "admin",
@@ -2989,7 +2989,7 @@ func TestActivateV1Bundles(t *testing.T) {
 func TestWithOwnStoreVSExtStore(t *testing.T) {
 	bundle.RegisterStoreFunc(inmem.New)
 	t.Cleanup(func() { bundle.RegisterStoreFunc(nil) })
-	ctx := context.Background()
+	ctx := t.Context()
 	opts := sdk.Options{
 		Store: inmem.New(),
 	}

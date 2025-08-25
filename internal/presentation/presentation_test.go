@@ -6,7 +6,6 @@ package presentation
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -126,8 +125,8 @@ func TestOutputJSONErrorStructuredASTErr(t *testing.T) {
 
 func TestOutputJSONErrorStructuredStorageErr(t *testing.T) {
 	store := inmem.New()
-	txn := storage.NewTransactionOrDie(context.Background(), store)
-	err := store.Write(context.Background(), txn, storage.AddOp, storage.Path{}, map[string]any{"foo": 1})
+	txn := storage.NewTransactionOrDie(t.Context(), store)
+	err := store.Write(t.Context(), txn, storage.AddOp, storage.Path{}, map[string]any{"foo": 1})
 	expected := `{
   "errors": [
     {
@@ -156,7 +155,7 @@ func TestOutputJSONErrorStructuredTopdownErr(t *testing.T) {
 	_, err := rego.New(
 		rego.Module("test.rego", mod),
 		rego.Query("data.test.z"),
-	).Eval(context.Background())
+	).Eval(t.Context())
 
 	expected := `{
   "errors": [
@@ -177,7 +176,7 @@ func TestOutputJSONErrorStructuredTopdownErr(t *testing.T) {
 }
 
 func TestOutputJSONErrorStructuredAstErr(t *testing.T) {
-	_, err := rego.New(rego.Query("count(0)")).Eval(context.Background())
+	_, err := rego.New(rego.Query("count(0)")).Eval(t.Context())
 	expected := `{
 		"errors": [
 		  {
@@ -249,7 +248,7 @@ func TestOutputJSONErrorStructuredAstParseErr(t *testing.T) {
 	_, err := rego.New(
 		rego.Module("parse-err.rego", "!!!"),
 		rego.Query("!!!"),
-	).Eval(context.Background())
+	).Eval(t.Context())
 
 	expected := `{
   "errors": [
@@ -359,7 +358,7 @@ q if {
 	_, err := rego.New(
 		rego.Module("error.rego", mod),
 		rego.Query("data"),
-	).PrepareForEval(context.Background())
+	).PrepareForEval(t.Context())
 
 	expected := `{
   "errors": [

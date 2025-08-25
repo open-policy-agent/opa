@@ -1268,7 +1268,7 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 			defer ts.Close()
 
 			config, _ := iCache.ParseCachingConfig([]byte(`{"inter_query_builtin_cache": {"max_size_bytes": 500, "stale_entry_eviction_period_seconds": 1, "forced_eviction_threshold_percentage": 80},}`))
-			interQueryCache := iCache.NewInterQueryCacheWithContext(context.Background(), config)
+			interQueryCache := iCache.NewInterQueryCacheWithContext(t.Context(), config)
 
 			opts := []func(*Query) *Query{
 				setTime(t0),
@@ -1429,7 +1429,7 @@ func TestHTTPSendInterQueryCaching(t *testing.T) {
 			q := newQuery(qStr, t0)
 
 			for i := range 3 {
-				res, err := q.Run(context.Background())
+				res, err := q.Run(t.Context())
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -1588,7 +1588,7 @@ func TestHTTPSendInterQueryForceCaching(t *testing.T) {
 			q := newQuery(qStr, t0)
 
 			for i := range 3 {
-				res, err := q.Run(context.Background())
+				res, err := q.Run(t.Context())
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -1684,7 +1684,7 @@ func TestHTTPSendInterQueryForceCachingRefresh(t *testing.T) {
 			request = strings.ReplaceAll(request, "%CACHE%", strconv.Itoa(cacheTime))
 			full := fmt.Sprintf("http.send(%s, x)", request)
 			config, _ := iCache.ParseCachingConfig([]byte(`{"inter_query_builtin_cache": {"max_size_bytes": 500, "stale_entry_eviction_period_seconds": 1, "forced_eviction_threshold_percentage": 80},}`))
-			interQueryCache := iCache.NewInterQueryCacheWithContext(context.Background(), config)
+			interQueryCache := iCache.NewInterQueryCacheWithContext(t.Context(), config)
 			q := NewQuery(ast.MustParseBody(full)).
 				WithInterQueryBuiltinCache(interQueryCache).
 				WithTime(t0)
@@ -1694,7 +1694,7 @@ func TestHTTPSendInterQueryForceCachingRefresh(t *testing.T) {
 			   expired cache
 			*/
 			for i := range 2 {
-				resp, err := q.Run(context.Background())
+				resp, err := q.Run(t.Context())
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -1826,7 +1826,7 @@ func TestHTTPSendInterQueryCachingModifiedResp(t *testing.T) {
 			q := newQuery(qStr, t0)
 
 			for i := range 3 {
-				res, err := q.Run(context.Background())
+				res, err := q.Run(t.Context())
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -1901,7 +1901,7 @@ func TestHTTPSendInterQueryCachingNewResp(t *testing.T) {
 			q := newQuery(qStr, t0)
 
 			for i := range 3 {
-				res, err := q.Run(context.Background())
+				res, err := q.Run(t.Context())
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -1987,7 +1987,7 @@ func TestInsertIntoHTTPSendInterQueryCacheError(t *testing.T) {
 			q := newQuery(qStr, t0)
 
 			for i := range 3 {
-				res, err := q.Run(context.Background())
+				res, err := q.Run(t.Context())
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -2298,7 +2298,7 @@ func TestInterQueryCheckCacheError(t *testing.T) {
 	input := ast.MustParseTerm(`{"force_cache": true}`)
 	inputObj := input.Value.(ast.Object)
 
-	_, err := newHTTPRequestExecutor(BuiltinContext{Context: context.Background()}, inputObj, inputObj)
+	_, err := newHTTPRequestExecutor(BuiltinContext{Context: t.Context()}, inputObj, inputObj)
 	if err == nil {
 		t.Fatal("expected error but got nil")
 	}
@@ -2943,7 +2943,7 @@ func TestCertSelectionLogic(t *testing.T) {
 	t.Setenv("CLIENT_CA_ENV", string(caCertPEM))
 
 	getClientTLSConfig := func(obj ast.Object) *tls.Config {
-		_, client, err := createHTTPRequest(BuiltinContext{Context: context.Background()}, obj)
+		_, client, err := createHTTPRequest(BuiltinContext{Context: t.Context()}, obj)
 		if err != nil {
 			t.Fatalf("Unexpected error creating HTTP request %v", err)
 		}
@@ -3080,7 +3080,7 @@ func TestHTTPSendCacheDefaultStatusCodesIntraQueryCache(t *testing.T) {
 		// out to the server again and getting a http.StatusOK response status code.
 		// The third request should now be served from the cache.
 
-		_, err := q.Run(context.Background())
+		_, err := q.Run(t.Context())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -3114,7 +3114,7 @@ func TestHTTPSendCacheDefaultStatusCodesInterQueryCache(t *testing.T) {
 
 		// add an inter-query cache
 		config, _ := iCache.ParseCachingConfig([]byte(`{"inter_query_builtin_cache": {"max_size_bytes": 500, "stale_entry_eviction_period_seconds": 1, "forced_eviction_threshold_percentage": 80},}`))
-		interQueryCache := iCache.NewInterQueryCacheWithContext(context.Background(), config)
+		interQueryCache := iCache.NewInterQueryCacheWithContext(t.Context(), config)
 
 		m := metrics.New()
 
@@ -3127,17 +3127,17 @@ func TestHTTPSendCacheDefaultStatusCodesInterQueryCache(t *testing.T) {
 		// out to the server again and getting a http.StatusOK response status code.
 		// The third request should now be served from the cache.
 
-		_, err := q.Run(context.Background())
+		_, err := q.Run(t.Context())
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		_, err = q.Run(context.Background())
+		_, err = q.Run(t.Context())
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		_, err = q.Run(context.Background())
+		_, err = q.Run(t.Context())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -3212,7 +3212,7 @@ func TestInterQueryCacheConcurrentModification(t *testing.T) {
 	}
 
 	qStr := "x = data.test.p; y = data.test.q"
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	txn := storage.NewTransactionOrDie(ctx, store)
 	q := NewQuery(ast.MustParseBody(qStr)).
@@ -3222,7 +3222,7 @@ func TestInterQueryCacheConcurrentModification(t *testing.T) {
 		WithInterQueryBuiltinCache(&interQueryCache).
 		WithTime(clock)
 
-	res, err := q.Run(context.Background())
+	res, err := q.Run(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3394,7 +3394,7 @@ func TestHTTPSendMetrics(t *testing.T) {
 		// Execute query and verify http.send latency shows up in metrics registry.
 		m := metrics.New()
 		q := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q})`, ts.URL))).WithMetrics(m)
-		_, err := q.Run(context.Background())
+		_, err := q.Run(t.Context())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -3407,19 +3407,19 @@ func TestHTTPSendMetrics(t *testing.T) {
 	t.Run("cache hits", func(t *testing.T) {
 		// add an inter-query cache
 		config, _ := iCache.ParseCachingConfig([]byte(`{"inter_query_builtin_cache": {"max_size_bytes": 500, "stale_entry_eviction_period_seconds": 1, "forced_eviction_threshold_percentage": 80},}`))
-		interQueryCache := iCache.NewInterQueryCacheWithContext(context.Background(), config)
+		interQueryCache := iCache.NewInterQueryCacheWithContext(t.Context(), config)
 
 		// Execute query twice and verify http.send inter-query cache hit metric is incremented.
 		m := metrics.New()
 		q := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q, "cache": true})`, ts.URL))).
 			WithInterQueryBuiltinCache(interQueryCache).
 			WithMetrics(m)
-		_, err := q.Run(context.Background())
+		_, err := q.Run(t.Context())
 		if err != nil {
 			t.Fatal(err)
 		}
 		// cache hit
-		_, err = q.Run(context.Background())
+		_, err = q.Run(t.Context())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -3552,7 +3552,7 @@ func TestDistributedTracingEnableDisable(t *testing.T) {
 		tracing.RegisterHTTPTracing(&mock)
 
 		builtinContext := BuiltinContext{
-			Context:                context.Background(),
+			Context:                t.Context(),
 			DistributedTracingOpts: tracing.NewOptions(true), // any option means it's enabled
 		}
 
@@ -3574,7 +3574,7 @@ func TestDistributedTracingEnableDisable(t *testing.T) {
 		tracing.RegisterHTTPTracing(&mock)
 
 		builtinContext := BuiltinContext{
-			Context: context.Background(),
+			Context: t.Context(),
 		}
 
 		_, client, err := createHTTPRequest(builtinContext, ast.NewObject())

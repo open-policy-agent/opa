@@ -35,10 +35,15 @@ If you have an idea for a new feature, we also **request that you file an
 issue** to discuss it first. This again allows you to get feedback from
 the maintainer team and the community before you start working on it.
 
+If you'd like to work on an existing issue that's been stale for quite some time,
+it's a good idea to comment on the issue first to check if it's still relevant, and
+if there are additional details that might have emerged since it was last updated.
+
 If you want to chat to the maintainers before opening an issue or about anything
 else, head over to
 [#contributors](https://openpolicyagent.slack.com/archives/C02L1TLPN59) in
-Slack.
+Slack. This is also a great place to ask for ideas if you want to contribute, but
+aren't sure what to work on!
 
 If you are ready to start contributing code, please see our
 [Contributing Code](./contrib-code/) guide for pointers on how to get

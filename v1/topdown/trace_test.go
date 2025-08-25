@@ -6,7 +6,6 @@ package topdown
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"maps"
 	"reflect"
@@ -63,7 +62,7 @@ func TestPrettyTrace(t *testing.T) {
 	p if { q[x]; plus(x, 1, n) }
 	q contains x if { x = data.a[_] }`
 
-	ctx := context.Background()
+	ctx := t.Context()
 	compiler := compileModules([]string{module})
 	data := loadSmallTestData()
 	store := inmem.NewFromObject(data)
@@ -125,7 +124,7 @@ func TestPrettyTraceWithLocation(t *testing.T) {
 	p if { q[x]; plus(x, 1, n) }
 	q contains x if { x = data.a[_] }`
 
-	ctx := context.Background()
+	ctx := t.Context()
 	compiler := compileModules([]string{module})
 	data := loadSmallTestData()
 	store := inmem.NewFromObject(data)
@@ -182,7 +181,7 @@ query:3     | | Redo data.test.q[x]
 func TestPrettyTraceWithLocationTruncatedPaths(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	compiler := ast.MustCompileModulesWithOpts(map[string]string{
 		"authz_bundle/com/foo/bar/baz/qux/acme/corp/internal/authz/policies/abac/v1/beta/policy.rego": `package test
@@ -255,7 +254,7 @@ authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:5     | | Redo da
 func TestPrettyTracePartialWithLocationTruncatedPaths(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	compiler := ast.MustCompileModulesWithOpts(map[string]string{
 		"authz_bundle/com/foo/bar/baz/qux/acme/corp/internal/authz/policies/rbac/v1/beta/policy.rego": `
@@ -435,7 +434,7 @@ func TestTraceDuplicate(t *testing.T) {
 	p contains 1
 	`
 
-	ctx := context.Background()
+	ctx := t.Context()
 	compiler := compileModules([]string{module})
 	data := loadSmallTestData()
 	store := inmem.NewFromObject(data)
@@ -474,7 +473,7 @@ func TestTraceNote(t *testing.T) {
 	p if { q[x]; plus(x, 1, n); trace(sprintf("n=%v", [n])) }
 	q contains x if { x = data.a[_] }`
 
-	ctx := context.Background()
+	ctx := t.Context()
 	compiler := compileModules([]string{module})
 	data := loadSmallTestData()
 	store := inmem.NewFromObject(data)
@@ -541,7 +540,7 @@ func TestTraceNoteWithLocation(t *testing.T) {
 	p if { q[x]; plus(x, 1, n); trace(sprintf("n=%v", [n])) }
 	q contains x if { x = data.a[_] }`
 
-	ctx := context.Background()
+	ctx := t.Context()
 	compiler := compileModules([]string{module})
 	data := loadSmallTestData()
 	store := inmem.NewFromObject(data)
@@ -603,7 +602,7 @@ query:3     | | Redo data.test.q[x]
 func TestMultipleTracers(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	buf1 := NewBufferTracer()
 	buf2 := NewBufferTracer()
@@ -635,7 +634,7 @@ func TestTraceRewrittenQueryVars(t *testing.T) {
 
 	y = [1, 2, 3]`
 
-	ctx := context.Background()
+	ctx := t.Context()
 	compiler := compileModules([]string{module})
 	queryCompiler := compiler.QueryCompiler()
 	data := loadSmallTestData()
@@ -771,7 +770,7 @@ func TestTraceRewrittenVars(t *testing.T) {
 func TestTraceEveryEvaluation(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	events := func(es ...string) []string {
 		return es
@@ -1058,7 +1057,7 @@ func TestBufferTracerTraceConfig(t *testing.T) {
 func TestTraceInput(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	module := `
 		package test
 
@@ -1102,7 +1101,7 @@ func TestTraceInput(t *testing.T) {
 func TestTracePlug(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	module := `
 		package test
 
@@ -1210,7 +1209,7 @@ chain_with_output_var if {
 	foo == []
 }`
 
-	ctx := context.Background()
+	ctx := t.Context()
 	compiler := compileModules([]string{module})
 	data := loadSmallTestData()
 	store := inmem.NewFromObject(data)
@@ -1292,7 +1291,7 @@ func TestPrettyTraceWithUnifyOps(t *testing.T) {
 		x = 1
 	}`
 
-	ctx := context.Background()
+	ctx := t.Context()
 	compiler := compileModules([]string{module})
 	store := inmem.NewFromObject(nil)
 	txn := storage.NewTransactionOrDie(ctx, store)
@@ -1360,7 +1359,7 @@ do_math(a, b) := c if {
 }
 `
 
-		ctx := context.Background()
+		ctx := t.Context()
 		compiler := compileModules([]string{module})
 		data := loadSmallTestData()
 		store := inmem.NewFromObject(data)
@@ -1446,7 +1445,7 @@ do_math(a, b) := c if {
 }
 `
 
-		ctx := context.Background()
+		ctx := t.Context()
 		compiler := compileModules([]string{module})
 		data := loadSmallTestData()
 		store := inmem.NewFromObject(data)
