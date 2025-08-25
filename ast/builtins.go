@@ -324,6 +324,12 @@ var YAMLUnmarshal = v1.YAMLUnmarshal
 // YAMLIsValid verifies the input string is a valid YAML document.
 var YAMLIsValid = v1.YAMLIsValid
 
+// PurlIsValid validates that the input is a valid Package URL (PURL).
+var PurlIsValid = v1.PurlIsValid
+
+// PurlParse parses a Package URL (PURL) string into its components.
+var PurlParse = v1.PurlParse
+
 var HexEncode = v1.HexEncode
 
 var HexDecode = v1.HexDecode
