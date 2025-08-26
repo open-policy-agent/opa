@@ -501,8 +501,18 @@ endif
 #
 ######################################################
 
+PATCH_CONTAINER_LABEL ?= opa-release-patcher
+
+.PHONY: patch-container
+patch-container:
+ifeq ($(shell docker images -q $(PATCH_CONTAINER_LABEL) 2> /dev/null),)
+	@$(DOCKER) build \
+		-t $(PATCH_CONTAINER_LABEL) \
+		-f build/release-patcher-Dockerfile .
+endif
+
 .PHONY: release-patch
-release-patch:
+release-patch: patch-container
 ifeq ($(GITHUB_TOKEN),)
 	@echo "\033[0;31mGITHUB_TOKEN environment variable missing.\033[33m Provide a GitHub Personal Access Token (PAT) with the 'read:org' scope.\033[0m"
 endif
@@ -510,14 +520,14 @@ endif
 		-e GITHUB_TOKEN=$(GITHUB_TOKEN) \
 		-e LAST_VERSION=$(LAST_VERSION) \
 		-v $(PWD):/_src:Z \
-		opa_release_patcher:latest \
+		$(PATCH_CONTAINER_LABEL):latest \
 		/_src/build/gen-release-patch.sh --version=$(VERSION) --source-url=/_src
 
 .PHONY: dev-patch
-dev-patch:
+dev-patch: patch-container
 	@$(DOCKER) run $(DOCKER_FLAGS) \
 		-v $(PWD):/_src:Z \
-		ashtalk/python-go-perl:v2 \
+		$(PATCH_CONTAINER_LABEL):latest \
 		/_src/build/gen-dev-patch.sh --version=$(VERSION) --source-url=/_src
 
 # Deprecated targets. To be removed.
