@@ -14,6 +14,13 @@ stdout '"result": true'
 stdout '"result": true'
 stderr '"exec error: there were 1 failures and 0 errors counted in the results list, and --fail-non-empty is set"'
 
+# with bundle
+exec $OPA build --bundle policy/
+stdin input.json
+exec $OPA exec --bundle bundle.tar.gz --decision /pkg/p --stdin-input
+stdout '"result": true'
+! stderr .
+
 -- policy/pkg.rego --
 package pkg
 p if input.foo == "bar"

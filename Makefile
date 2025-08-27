@@ -428,12 +428,6 @@ ifneq ($(GOARCH),arm64) # we build only static images for arm64
 endif
 	$(DOCKER) run --platform linux/$* $(DOCKER_IMAGE):$(VERSION)-static version
 
-# % = rego/wasm
-.PHONY: ci-binary-smoke-test-%
-ci-binary-smoke-test-%:
-	chmod +x "$(RELEASE_DIR)/$(BINARY)"
-	./build/binary-smoke-test.sh "$(RELEASE_DIR)/$(BINARY)" "$*"
-
 .PHONY: push-binary-edge
 push-binary-edge:
 	aws s3 sync $(RELEASE_DIR) s3://$(S3_RELEASE_BUCKET)/edge/ --no-progress --region us-west-1
