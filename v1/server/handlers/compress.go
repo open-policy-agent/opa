@@ -141,10 +141,16 @@ func (w *compressResponseWriter) Close() error {
 	}
 
 	err := w.gzipWriter.Close()
+	if err != nil {
+		return err
+	}
+
 	gzipPoolMutex.RLock()
-	defer gzipPool.Put(w.gzipWriter)
+	gzipPool.Put(w.gzipWriter)
 	gzipPoolMutex.RUnlock()
+
 	w.gzipWriter = nil
+
 	return err
 }
 
