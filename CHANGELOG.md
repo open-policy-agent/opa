@@ -37,7 +37,7 @@ Authored by @johanfylling reported by @aromeyer
 
 ### Topdown
 
-- perf: Fix issue in `Object.Insert` on existing key ([#7820](https://github.com/open-policy-agent/opa/pull/7820)) authored by @anderseknert
+- perf: Performance greatly improved for `Object.Insert` on existing key ([#7820](https://github.com/open-policy-agent/opa/pull/7820)) authored by @anderseknert
 - topdown,bundle,plugins: Upgrade interned jwx (0.9.x) with `github.com/lestrrat-go/jwx/v3` ([#7638](https://github.com/open-policy-agent/opa/issues/7638)) authored by @lestrrat
 
 ### Docs, Website
