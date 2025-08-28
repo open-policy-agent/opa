@@ -7,7 +7,21 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 This release contains a mix of new features, performance improvements, and bugfixes. Notably:'
 
-- Support for EdDSA signatures in `io.jwt` built-ins
+- Support for EdDSA signatures in `io.jwt` built-ins, including a new `io.jwt.verify_eddsa` built-in.
+
+### EdDSA Support in built-ins ([#7824](https://github.com/open-policy-agent/opa/pull/7824))
+
+Support for the EdDSA signing algorithm has been added to built-in functions in the `io.jwt` namespace.
+
+This introduces the new [io.jwt.verify_eddsa](https://www.openpolicyagent.org/docs/policy-reference/builtins/tokens#builtin-tokens-iojwtverify_eddsa) built-in function, and adds EdDSA support for the following built-ins:
+
+- [io.jwt.decode_verify](https://www.openpolicyagent.org/docs/policy-reference/builtins/tokens#builtin-tokens-iojwtdecode_verify)
+- [io.jwt.encode_sign](https://www.openpolicyagent.org/docs/policy-reference/builtins/tokensign#builtin-tokensign-iojwtencode_sign)
+- [io.jwt.encode_sign_raw](https://www.openpolicyagent.org/docs/policy-reference/builtins/tokensign#builtin-tokensign-iojwtencode_sign_raw)
+
+This feature benefited greatly from the groundwork laid by @lestrrat in ([#7638](https://github.com/open-policy-agent/opa/issues/7638)).
+
+Authored by @johanfylling reported by @aromeyer
 
 ### Runtime
 
@@ -25,7 +39,6 @@ This release contains a mix of new features, performance improvements, and bugfi
 
 - perf: Fix issue in `Object.Insert` on existing key ([#7820](https://github.com/open-policy-agent/opa/pull/7820)) authored by @anderseknert
 - topdown,bundle,plugins: Upgrade interned jwx (0.9.x) with `github.com/lestrrat-go/jwx/v3` ([#7638](https://github.com/open-policy-agent/opa/issues/7638)) authored by @lestrrat
-- topdown: Add support for EdDSA in `io.jwt` built-ins ([#7824](https://github.com/open-policy-agent/opa/pull/7824)) authored by @johanfylling reported by @aromeyer
 
 ### Docs, Website
 
