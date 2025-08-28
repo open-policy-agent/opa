@@ -5,7 +5,7 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## 1.8.0
 
-This release contains a mix of new features, performance improvements, and bugfixes. Notably:'
+This release contains a mix of new features, performance improvements, and bugfixes. Notably:
 
 - Support for EdDSA signatures in `io.jwt` built-ins, including a new `io.jwt.verify_eddsa` built-in.
 
