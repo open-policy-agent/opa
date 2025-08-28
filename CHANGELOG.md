@@ -19,7 +19,7 @@ This introduces the new [io.jwt.verify_eddsa](https://www.openpolicyagent.org/do
 - [io.jwt.encode_sign](https://www.openpolicyagent.org/docs/policy-reference/builtins/tokensign#builtin-tokensign-iojwtencode_sign)
 - [io.jwt.encode_sign_raw](https://www.openpolicyagent.org/docs/policy-reference/builtins/tokensign#builtin-tokensign-iojwtencode_sign_raw)
 
-This feature benefited greatly from the groundwork laid by @lestrrat in ([#7638](https://github.com/open-policy-agent/opa/issues/7638)).
+This feature benefited greatly from the groundwork laid by @lestrrat in ([#7638](https://github.com/open-policy-agent/opa/issues/7638)). 👏 🎉 🥳 
 
 Authored by @johanfylling reported by @aromeyer
 
