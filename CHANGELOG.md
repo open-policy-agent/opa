@@ -60,6 +60,7 @@ Authored by @johanfylling reported by @aromeyer
 - cmd: Exec test wait for bundle server to start ([#7821](https://github.com/open-policy-agent/opa/pull/7821)) authored by @charlieegan3
 - cmd: Update tests to run sync when ready ([#7835](https://github.com/open-policy-agent/opa/pull/7835)) authored by @charlieegan3
 - cmd: Move accidental pkg var to local var ([#7813](https://github.com/open-policy-agent/opa/pull/7813)) authored by @philipaconrad
+- internal/report: Allow overriding GitHub repo ([#7867](https://github.com/open-policy-agent/opa/pull/7867)) authored by @srenatus
 - release: Adding Dockerfile for image used in `*-patch` build targets ([#7864](https://github.com/open-policy-agent/opa/pull/7864)) authored by @johanfylling
 - Dependency updates; notably:
   - build: Bump go to 1.24.6 ([#7834](https://github.com/open-policy-agent/opa/pull/7834), [#7839](https://github.com/open-policy-agent/opa/pull/7839)) authored by @johanfylling and @thevilledev
