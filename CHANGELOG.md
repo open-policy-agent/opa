@@ -3,7 +3,46 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 1.8.0
+
+### Fixes
+
+- Upgrade interned jwx (0.9.x) with github.com/lestrrat-go/jwx/v3 (#7733) ([#7638](https://github.com/open-policy-agent/opa/issues/7638)) authored by @lestrrat
+- config: accept env vars set to "", discern from unset ([#7831](https://github.com/open-policy-agent/opa/issues/7831)) authored by @srenatus reported by @ManuelNowackConfinale
+
+### Miscellaneous
+
+-  docs: Use set in the Python code example for consistence (#7860) (authored by @durnik-ivo)
+- Adding EdDSA support for `io.jwt` built-ins (#7824) (authored by @johanfylling)
+- Avoid port exhaustion in concurrent tests (#7862) (authored by @anderseknert)
+- Prepare v1.8.0 development (#7810) (authored by @johanfylling)
+- Update go-viper/mapstructure/v2 (#7857) (authored by @deeglaze)
+- Update organization affiliations (authored by @)
+- Update website to build from tip of main (authored by @)
+- ast/builtins: Remove space from count desc (#7836) (authored by @)
+- bugfix: Add back default cmd.RootCommand definition. (#7811) (authored by @philipaconrad)
+- build(deps): bump mermaid from 11.6.0 to 11.10.1 in /docs (#7858) (authored by @dependabot[bot])
+- build(deps): bump the dependencies group with 2 updates (#7817) (authored by @dependabot[bot])
+- build(deps): bump the gha-dependencies group across 1 directory with 3 updates (#7829) (authored by @dependabot[bot])
+- build: Bump go to 1.24.6 (1.23.12) (#7834) (authored by @johanfylling)
+- build: bump Go version requirement to 1.24 (#7839) (authored by @thevilledev)
+- cli: fix 'opa exec' parameters (authored by @srenatus)
+- cmd/exec: Update tests to run sync when ready (#7835) (authored by @charlieegan3)
+- cmd/parse: Move accidental pkg var to local var. (#7813) (authored by @philipaconrad)
+- cmd: Exec test wait for bundle server to start (#7821) (authored by @)
+- docs/rest-api: Add notes about policy IDs (#7837) (authored by @)
+- docs: Add note on using LLM in PR discussions (#7859) (authored by @anderseknert)
+- docs: Fix broken anchor links in annotations (#7827) (authored by @)
+- docs: add link to logic-or/and on docs index (#7826) (authored by @)
+- docs: update frontpage (authored by @)
+- handlers: add thread-safe initialization for gzipPool (#7828) (authored by @charlieegan3)
+- perf: fix issue in Object.Insert on existing key (#7820) (authored by @anderseknert)
+- plugin/bundle: Correct bundle delay behavior (#7812) (authored by @)
+- release: Adding Dockerfile for image used in `*-patch` build targets (#7864) (authored by @johanfylling)
+- runtime: Update server init check (#7818) (authored by @)
+- server_test: Make TestCertReloading less verbose (#7823) (authored by @)
+- v1/plugins: Address race in config access (#7825) (authored by @)
+- website: Use latest release rather than edge (#7781) (authored by @)
 
 - topdown: Add support for EdDSA in `io.jwt` built-ins ([#<PR>](<PR link>)) authored by @johanfylling reported by @aromeyer
 

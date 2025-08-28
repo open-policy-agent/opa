@@ -539,6 +539,13 @@
       "PreRelease": "",
       "Metadata": ""
     },
+    "io.jwt.verify_eddsa": {
+      "Major": 1,
+      "Minor": 8,
+      "Patch": 0,
+      "PreRelease": "",
+      "Metadata": ""
+    },
     "io.jwt.verify_es256": {
       "Major": 0,
       "Minor": 17,
