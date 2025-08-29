@@ -268,7 +268,7 @@ func (d *Downloader) oneShot(ctx context.Context) error {
 		d.etag = ""
 
 		if d.f != nil {
-			errors.Join(err, d.f(ctx, Update{ETag: "", Bundle: nil, Error: err, Metrics: m, Raw: nil}))
+			err = errors.Join(err, d.f(ctx, Update{ETag: "", Bundle: nil, Error: err, Metrics: m, Raw: nil}))
 		}
 		return err
 	}

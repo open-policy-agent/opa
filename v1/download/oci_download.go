@@ -207,7 +207,7 @@ func (d *OCIDownloader) oneShot(ctx context.Context) error {
 	resp, err := d.download(ctx, m)
 	if err != nil {
 		if d.f != nil {
-			errors.Join(d.f(ctx, Update{ETag: "", Bundle: nil, Error: err, Metrics: m, Raw: nil}))
+			err = errors.Join(err, d.f(ctx, Update{ETag: "", Bundle: nil, Error: err, Metrics: m, Raw: nil}))
 		}
 		return err
 	}
