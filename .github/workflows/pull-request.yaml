@@ -224,6 +224,13 @@ jobs:
       with:
         go-version: ${{ steps.go_version.outputs.go_version }}
 
+    - name: Install Node
+      uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+
+    - name: Prep e2e prisma tests
+      run: npm ci
+      working-directory: v1/test/e2e/compile/prisma
+      
     - name: Download generated artifacts
       uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
       with:
