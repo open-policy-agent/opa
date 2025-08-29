@@ -37,8 +37,9 @@ func TestStartStop(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d := New(config, fixture.client, "/bundles/test/bundle1").WithCallback(func(_ context.Context, u Update) {
+	d := New(config, fixture.client, "/bundles/test/bundle1").WithCallback(func(_ context.Context, u Update) error {
 		updates <- &u
+		return nil
 	})
 
 	d.Start(ctx)
@@ -76,8 +77,9 @@ func TestStartStopWithBundlePersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d := New(config, fixture.client, "/bundles/test/bundle1").WithCallback(func(_ context.Context, u Update) {
+	d := New(config, fixture.client, "/bundles/test/bundle1").WithCallback(func(_ context.Context, u Update) error {
 		updates <- &u
+		return nil
 	}).WithBundlePersistence(true)
 
 	d.Start(ctx)
@@ -134,8 +136,9 @@ func TestStopWithMultipleCalls(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d := New(config, fixture.client, "/bundles/test/bundle1").WithCallback(func(_ context.Context, u Update) {
+	d := New(config, fixture.client, "/bundles/test/bundle1").WithCallback(func(_ context.Context, u Update) error {
 		updates <- &u
+		return nil
 	})
 
 	d.Start(ctx)
@@ -176,8 +179,9 @@ func TestStartStopWithLazyLoadingMode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d := New(config, fixture.client, "/bundles/test/bundle1").WithCallback(func(_ context.Context, u Update) {
+	d := New(config, fixture.client, "/bundles/test/bundle1").WithCallback(func(_ context.Context, u Update) error {
 		updates <- &u
+		return nil
 	}).WithLazyLoadingMode(true)
 
 	d.Start(ctx)
@@ -221,8 +225,9 @@ func TestStartStopWithDeltaBundleMode(t *testing.T) {
 
 	fixture := newTestFixture(t)
 
-	d := New(config, fixture.client, "/bundles/test/bundle2").WithCallback(func(_ context.Context, u Update) {
+	d := New(config, fixture.client, "/bundles/test/bundle2").WithCallback(func(_ context.Context, u Update) error {
 		updates <- &u
+		return nil
 	})
 
 	d.Start(ctx)
@@ -430,8 +435,8 @@ func TestEtagCachingLifecycle(t *testing.T) {
 	fixture.mockBundleActivationError = true
 	fixture.server.expEtag = "some newer etag value - 3"
 	err = fixture.d.oneShot(ctx)
-	if err != nil {
-		t.Fatal("Unexpected:", err)
+	if err == nil {
+		t.Fatal("Expected an activation error")
 	} else if len(fixture.updates) != 4 {
 		t.Fatal("expected update")
 	} else if fixture.d.etag != "some etag value - 2" {
@@ -904,8 +909,9 @@ func TestTriggerManual(t *testing.T) {
 	updates := make(chan *Update)
 
 	d := New(config, fixture.client, "/bundles/test/bundle1").
-		WithCallback(func(_ context.Context, u Update) {
+		WithCallback(func(_ context.Context, u Update) error {
 			updates <- &u
+			return nil
 		})
 
 	d.Start(ctx)
@@ -952,8 +958,9 @@ func TestTriggerManualWithTimeout(t *testing.T) {
 	}
 
 	d := New(config, fixture.client, "/bundles/test/bundle1").
-		WithCallback(func(context.Context, Update) {
+		WithCallback(func(context.Context, Update) error {
 			time.Sleep(3 * time.Second) // this should cause the context deadline to exceed
+			return nil
 		})
 
 	d.Start(ctx)

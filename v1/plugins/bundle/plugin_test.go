@@ -1379,8 +1379,8 @@ func TestStop(t *testing.T) {
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
 
-	callback := func(ctx context.Context, u download.Update) {
-		plugin.oneShot(ctx, bundleName, u)
+	callback := func(ctx context.Context, u download.Update) error {
+		return plugin.oneShot(ctx, bundleName, u)
 	}
 	plugin.downloaders[bundleName] = download.New(baseConf, plugin.manager.Client(serviceName), bundleName).WithCallback(callback)
 
@@ -6667,6 +6667,125 @@ func TestPluginStateReconciliationOnReconfigure(t *testing.T) {
 			// reconcile to StateOK, if there are no errors
 			ensurePluginState(t, plugin, plugins.StateOK)
 		})
+	}
+}
+
+func TestPluginManualTriggerActivationErrorFile(t *testing.T) {
+	t.Parallel()
+
+	test.WithTempFS(map[string]string{}, func(dir string) {
+		mockBundle := bundle.Bundle{
+			Data: map[string]any{},
+			Modules: []bundle.ModuleFile{
+				{
+					URL: "policy.rego",
+					Raw: []byte(`package test
+					res := unknown.function(unknown.input)`),
+				},
+			},
+		}
+
+		name := path.Join(dir, "bundle.tar.gz")
+
+		f, err := os.Create(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err := bundle.NewWriter(f).Write(mockBundle); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := f.Close(); err != nil {
+			t.Fatal(err)
+		}
+
+		mgr := getTestManager()
+		url := "file://" + name
+
+		var mode plugins.TriggerMode = "manual"
+		plugin := New(&Config{Bundles: map[string]*Source{
+			"test": {
+				SizeLimitBytes: 1e5,
+				Resource:       url,
+				Config:         download.Config{Trigger: &mode},
+			},
+		}}, mgr)
+
+		ctx := t.Context()
+		err = plugin.Start(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer plugin.Stop(ctx)
+
+		err = plugin.Loaders()["test"].Trigger(ctx)
+
+		expectedError := "1 error occurred: /policy.rego:2: rego_type_error: undefined function unknown.function"
+		if err.Error() != expectedError {
+			t.Fatalf("Expected the error: %s but got %s", expectedError, err.Error())
+		}
+	})
+}
+
+func TestPluginManualTriggerActivationErrorServer(t *testing.T) {
+	t.Parallel()
+
+	// bundle with an unknown function to cause an AST parsing failure
+	mockBundle := bundle.Bundle{
+		Modules: []bundle.ModuleFile{
+			{
+				Path: "policy.rego",
+				URL:  "policy.rego",
+				Raw: []byte(`package foo
+				res := unknown.function(unknown.input)`),
+			},
+		},
+		Manifest: bundle.Manifest{Revision: "test", Roots: &[]string{"/"}},
+	}
+
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		err := bundle.NewWriter(w).Write(mockBundle)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}))
+	defer s.Close()
+
+	// setup plugin pointing at fake server
+	manager := getTestManagerWithOpts(fmt.Appendf(nil, `{
+		"services": {
+			"default": {
+				"url": %q
+			}
+		}
+	}`, s.URL))
+	ctx := t.Context()
+	defer manager.Stop(ctx)
+
+	var mode plugins.TriggerMode = "manual"
+
+	plugin := New(&Config{
+		Bundles: map[string]*Source{
+			"test": {
+				Service:        "default",
+				SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
+				Config:         download.Config{Trigger: &mode},
+			},
+		},
+	}, manager)
+
+	err := plugin.Start(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer plugin.Stop(ctx)
+
+	err = plugin.Loaders()["test"].Trigger(ctx)
+
+	expectedError := "1 error occurred: /policy.rego:2: rego_type_error: undefined function unknown.function"
+	if err.Error() != expectedError {
+		t.Fatalf("Expected the error: %s but got %s", expectedError, err.Error())
 	}
 }
 
