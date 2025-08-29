@@ -1,0 +1,24 @@
+/.idea
+/.connstr
+.vscode
+.terraform
+*.tfstate*
+*.log
+*.swp
+*~
+coverage.json
+coverage.txt
+coverage.xml
+testresults.xml
+.azureconnstr
+
+# Example binaries  
+examples/*/simple
+examples/*/azuread-service-principal
+examples/*/tsql
+examples/*/bulk
+examples/*/routine
+examples/*/tvp
+examples/*/aws-rds-proxy-iam-auth
+examples/*/azuread-accesstoken
+examples/*/azuread-service-principal-authtoken
