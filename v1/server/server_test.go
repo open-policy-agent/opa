@@ -41,6 +41,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/open-policy-agent/opa/internal/distributedtracing"
 	"github.com/open-policy-agent/opa/internal/prometheus"
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -1834,7 +1835,6 @@ func TestConfigV1WithInvalidConfig(t *testing.T) {
 	f := &fixture{
 		server:   server,
 		recorder: httptest.NewRecorder(),
-		t:        t,
 	}
 
 	if err := f.v1(http.MethodGet, "/config", "", 500, `{
@@ -5253,7 +5253,6 @@ func TestQueryBindingIterationError(t *testing.T) {
 	f := &fixture{
 		server:   server,
 		recorder: recorder,
-		t:        t,
 	}
 
 	get := newReqV1(http.MethodGet, `/query?q=a=data.foo.bar`, "")
@@ -5288,7 +5287,6 @@ r contains x if { z[x] = 4 }`
 type fixture struct {
 	server   *Server
 	recorder *httptest.ResponseRecorder
-	t        *testing.T
 }
 
 func newFixture(t *testing.T, opts ...any) *fixture {
@@ -5327,7 +5325,6 @@ func newFixture(t *testing.T, opts ...any) *fixture {
 	return &fixture{
 		server:   server,
 		recorder: recorder,
-		t:        t,
 	}
 }
 
@@ -5357,11 +5354,10 @@ func newFixtureWithConfig(t *testing.T, config string, opts ...func(*Server)) *f
 	return &fixture{
 		server:   server,
 		recorder: recorder,
-		t:        t,
 	}
 }
 
-func newFixtureWithStore(t *testing.T, store storage.Store, opts ...any) *fixture {
+func newFixtureWithStore(t testing.TB, store storage.Store, opts ...any) *fixture {
 	ctx := t.Context()
 
 	var mOpts []func(*plugins.Manager)
@@ -5400,7 +5396,6 @@ func newFixtureWithStore(t *testing.T, store storage.Store, opts ...any) *fixtur
 	return &fixture{
 		server:   server,
 		recorder: recorder,
-		t:        t,
 	}
 }
 
@@ -5431,7 +5426,7 @@ func (f *fixture) v0(method string, path string, body string, code int, resp str
 	return f.executeRequest(newReqV0(method, path, body), code, resp)
 }
 
-func (f *fixture) executeRequestForHandler(h http.Handler, req *http.Request, code int, resp string) error {
+func (f *fixture) executeRequestForHandler(h http.Handler, req *http.Request, code int, resp string, opts ...executeOpts) error {
 	f.reset()
 	h.ServeHTTP(f.recorder, req)
 	if f.recorder.Code != code {
@@ -5454,27 +5449,21 @@ func (f *fixture) executeRequestForHandler(h http.Handler, req *http.Request, co
 		if err := util.UnmarshalJSON([]byte(resp), &expected); err != nil {
 			panic(err)
 		}
-		if !reflect.DeepEqual(result, expected) {
-			a, err := json.MarshalIndent(expected, "", "  ")
-			if err != nil {
-				panic(err)
-			}
-			b, err := json.MarshalIndent(result, "", "  ")
-			if err != nil {
-				panic(err)
-			}
-			return fmt.Errorf("Expected JSON response from %v %v to equal:\n\n%s\n\nGot:\n\n%s", req.Method, req.URL, a, b)
+		if diff := cmp.Diff(expected, result, opts...); diff != "" {
+			return fmt.Errorf("unexpected JSON from %v %v (-want, +got):\n%s", req.Method, req.URL, diff)
 		}
 	}
 	return nil
 }
 
-func (f *fixture) executeRequest(req *http.Request, code int, resp string) error {
-	return f.executeRequestForHandler(f.server.Handler, req, code, resp)
+type executeOpts = cmp.Option
+
+func (f *fixture) executeRequest(req *http.Request, code int, resp string, opts ...executeOpts) error {
+	return f.executeRequestForHandler(f.server.Handler, req, code, resp, opts...)
 }
 
-func (f *fixture) executeDiagnosticRequest(req *http.Request, code int, resp string) error {
-	return f.executeRequestForHandler(f.server.DiagnosticHandler, req, code, resp)
+func (f *fixture) executeDiagnosticRequest(req *http.Request, code int, resp string, opts ...executeOpts) error {
+	return f.executeRequestForHandler(f.server.DiagnosticHandler, req, code, resp, opts...)
 }
 
 func (f *fixture) reset() {

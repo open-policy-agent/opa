@@ -1,0 +1,18 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Turns out using multiple databases is actually not simple:
+// https://github.com/prisma/prisma/issues/2443
+// So let's test only PG for now, as it keeps the code generation simpler.
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model fruit {
+  id     Int    @id @default(autoincrement())
+  name   String @db.VarChar(100)
+  colour String @db.VarChar(100)
+  price  Int?
+}
