@@ -126,7 +126,7 @@ go-build: generate
 
 .PHONY: go-test
 go-test: generate
-	go1.24.6 test $(GO_TAGS),slow ./...
+	$(GO) test $(GO_TAGS),slow ./...
 
 .PHONY: go-test-short
 go-test-short: generate
