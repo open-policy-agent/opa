@@ -1,0 +1,17 @@
+.container {
+	display: flex;
+	align-items: center;
+}
+
+.column:first-child {
+	width: 20%;
+}
+
+.column:last-child {
+	width: 80%;
+}
+
+.logo {
+	width: 10rem;
+	height: 10rem;
+}

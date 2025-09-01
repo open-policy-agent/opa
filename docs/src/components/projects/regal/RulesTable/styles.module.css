@@ -1,0 +1,24 @@
+.searchContainer {
+	margin: 1.5rem 0;
+}
+
+.searchInput {
+	padding: 0.5rem;
+	width: 100%;
+	max-width: 40rem;
+	font-size: 1rem;
+}
+
+.table {
+	width: 100%;
+	border-collapse: collapse;
+	table-layout: auto;
+}
+
+.table tbody td:first-child {
+	width: 1;
+}
+
+.table tbody td:last-child {
+	width: 100%;
+}
