@@ -47,7 +47,7 @@ tools</EcosystemFeatureLink>.
 This section introduces the main aspects of Rego.
 
 The simplest rule is a single expression and is defined in terms of a
-[Scalar Value](#scalar-values). This `example` package defines a rule
+[scalar value](#scalar-values). This `example` [package](#packages) defines a rule
 called `pi` that contains the value of pi:
 
 ```rego
@@ -58,7 +58,7 @@ pi := 3.14159
 
 <RunSnippet command="data.example"/>
 
-Rules can also be defined in terms of [Composite Values](#composite-values):
+Rules can also be defined in terms of [composite values](#composite-values):
 
 ```rego
 package example
@@ -68,7 +68,7 @@ rect := {"width": 2, "height": 4}
 
 <RunSnippet id="rect.rego" command="data.example"/>
 
-You can compare two scalar or composite values, and when you do so you are
+You can [compare](#equality-assignment-comparison-and-unification) two scalar or composite values, and when you do so you are
 checking if the two values are the same JSON value.
 
 ```rego
@@ -138,7 +138,7 @@ If the **value** is not specified, it defaults to the boolean value of **true**.
 
 Rego [references](#references) help you refer to nested documents.
 The rule `prod_exists` asserts that there exists (at least) one document
-within `sites` where the `name` attribute equals `"prod"`.
+within `sites` where the `name` attribute equals `"prod"` using the [`some` keyword](#some-keyword).
 
 ```rego
 package sites
@@ -206,7 +206,7 @@ A simple example is a regex to match a valid Rego variable. With a regular strin
 
 ## Composite Values
 
-Composite values define collections. In simple cases, composite values can be treated as constants like [Scalar Values](#scalar-values):
+Composite values define collections. In simple cases, composite values can be treated as constants like [scalar values](#scalar-values):
 
 ```rego
 package composite
@@ -319,8 +319,8 @@ not_equal := {} == {e| some e in []}
 
 <RunSnippet command="data.sets"/>
 
-:::danger
-`count({})` will still return `0` because `{}` is an empty object. However,
+:::warning
+The [built-in function](#built-in-functions) `count({})` will still return `0` because `{}` is an empty object. However,
 since `{}` is not a set, it will not equal `set()` or something that evaluates
 to an empty set.
 :::
@@ -630,9 +630,9 @@ same_site contains apps[k].name if {
 
 ## Comprehensions
 
-Comprehensions provide a concise way of building [Composite Values](#composite-values) from sub-queries.
+Comprehensions provide a concise way of building [composite values](#composite-values) from sub-queries.
 
-Like [Rules](#rules), comprehensions consist of a head and a body. The body of a comprehension can be understood in exactly the same way as the body of a rule, that is, one or more expressions that must all be true in order for the overall body to be true. When the body evaluates to true, the head of the comprehension is evaluated to produce an element in the result.
+Like [rules](#rules), comprehensions consist of a head and a body. The body of a comprehension can be understood in exactly the same way as the body of a rule, that is, one or more expressions that must all be true in order for the overall body to be true. When the body evaluates to true, the head of the comprehension is evaluated to produce an element in the result.
 
 The body of a comprehension is able to refer to variables defined in the outer body. For example:
 
@@ -648,7 +648,7 @@ names := [name | sites[i].region == region; name := sites[i].name]
 
 <RunSnippet files="#example_data.rego" command="data.comprehensions.names"/>
 
-In the above query, the second expression contains an [Array Comprehension](#array-comprehensions) that refers to the `region` variable. The region variable will be bound in the outer body.
+In the above query, the second expression contains an [array comprehension](#array-comprehensions) that refers to the `region` variable. The region variable will be bound in the outer body.
 
 > When a comprehension refers to a variable in an outer body, OPA will reorder expressions in the outer body so that variables referred to in the comprehension are bound by the time the comprehension is evaluated.
 
@@ -663,7 +663,7 @@ Comprehensions are often used to group elements by some key. A common use case f
 
 ### Array Comprehensions
 
-Array Comprehensions build array values out of sub-queries. Array Comprehensions have the form:
+Array comprehensions build array values out of sub-queries. Array comprehensions have the form:
 
 ```
 [ <term> | <body> ]
@@ -691,13 +691,13 @@ app_to_hostnames[app_name] := hostnames if {
 
 ### Object Comprehensions
 
-Object Comprehensions build object values out of sub-queries. Object Comprehensions have the form:
+Object comprehensions build object values out of sub-queries. Object comprehensions have the form:
 
 ```
 { <key>: <term> | <body> }
 ```
 
-We can use Object Comprehensions to write the rule from above as a comprehension instead:
+We can use object comprehensions to write the rule from above as a comprehension instead:
 
 ```rego
 package comprehensions
@@ -752,7 +752,7 @@ my_set := {e | some e in my_array}
 
 ## Rules
 
-Rules define the content of [Virtual Documents](./philosophy#how-does-opa-work) in
+Rules define the content of [virtual documents](./philosophy#how-does-opa-work) in
 OPA. When OPA evaluates a rule, we say OPA _generates_ the content of the
 document that is defined by the rule.
 
@@ -1264,7 +1264,7 @@ result := [r([10]), r([10, 1])]
 
 ## Negation
 
-To generate the content of a [Virtual Document](./philosophy#how-does-opa-work), OPA attempts to bind variables in the body of the rule such that all expressions in the rule evaluate to True.
+To generate the content of a [virtual document](./philosophy#how-does-opa-work), OPA attempts to bind variables in the body of the rule such that all expressions in the rule evaluate to True.
 
 This generates the correct result when the expressions represent assertions about what states should exist in the data stored in OPA. In some cases, you want to express that certain states _should not_ exist in the data stored in OPA. In these cases, negation must be used.
 
@@ -1324,8 +1324,8 @@ apps_not_in_prod contains name if {
 
 :::info
 Logical OR/AND in Rego is structured differently from other languages you might
-be familiar with. See the notes here on [Logical OR](../docs/#logical-or) or
-here for [Logical AND](../docs/#basic-syntax) for more details.
+be familiar with. See the notes here on [logical OR](../docs/#logical-or) or
+here for [logical AND](../docs/#basic-syntax) for more details.
 :::
 
 ## Universal Quantification (FOR ALL)
@@ -1338,7 +1338,7 @@ For example, imagine you want to express a policy that says in natural language:
 There must be no apps named "bitcoin-miner".
 ```
 
-The most expressive way to state this in Rego is using the `every` keyword:
+The most expressive way to state this in Rego is using the [`every` keyword](#every-keyword):
 
 ```rego
 no_bitcoin_miners_using_every if {
@@ -1361,9 +1361,9 @@ expressions are simultaneously satisfied.
 Therefore, there are other ways to express the desired policy.
 
 For this policy, you can also define a rule that finds if there exists a bitcoin-mining
-app (which is easy using the `some` keyword). And then you use negation to check
-that there is NO bitcoin-mining app. Technically, you're using 2 negations and
-an existential quantifier, which is logically the same as a universal
+app (which is easy using the [`some` keyword](#some-keyword)). And then you use negation to check
+that there is NO bitcoin-mining app. Technically, you're using a [negation](#negation) and
+an [existential quantifier](#in-keyword), which is logically the same as a universal
 quantifier.
 
 For example:
@@ -1439,7 +1439,7 @@ ALL. To express FOR ALL in Rego complement the logic in the rule body (e.g.,
 `no_bitcoin_miners` becomes `not any_bitcoin_miners`).
 
 Alternatively, we can implement the same kind of logic inside a single rule
-using [Comprehensions](#comprehensions).
+using [comprehensions](#comprehensions).
 
 ```rego
 no_bitcoin_miners_using_comprehension if {
@@ -1450,7 +1450,7 @@ no_bitcoin_miners_using_comprehension if {
 
 :::info
 Whether you use negation, comprehensions, or `every` to express FOR ALL is up to you.
-The `every` keyword should lend itself nicely to a rule formulation that closely
+The [`every` keyword](#every-keyword) should lend itself nicely to a rule formulation that closely
 follows how requirements are stated, and thus enhances your policy's readability.
 
 The comprehension version is more concise than the negation variant, and does not
@@ -1462,9 +1462,9 @@ and allows for more complex ORs.
 
 In Rego, policies are defined inside _modules_. Modules consist of:
 
-- Exactly one [Package](#packages) declaration.
-- Zero or more [Import](#imports) statements.
-- Zero or more [Rule](#rules) definitions.
+- Exactly one [package](#packages) declaration.
+- Zero or more [import](#imports) statements.
+- Zero or more [rule](#rules) definitions.
 
 Modules are typically represented in Unicode text and encoded in UTF-8.
 
@@ -1508,7 +1508,7 @@ package 1foo        # not a variable
 package foo[1].bar  # contains non-string operand
 ```
 
-For more details see the language [Grammar](./policy-reference/#grammar).
+For more details see the language [grammar](./policy-reference/#grammar).
 
 ### Imports
 
@@ -1517,7 +1517,28 @@ document, the identifiers exported by that document can be referenced within the
 
 All modules contain implicit statements which import the `data` and `input` documents.
 
-Modules use the same syntax to declare dependencies on [Base and Virtual Documents](./philosophy#how-does-opa-work).
+Modules use the same syntax to declare dependencies on [base and virtual documents](./philosophy#how-does-opa-work).
+
+For example, the following document can be imported and used as follows:
+
+```rego
+package example
+
+servers := [
+    {
+        "id": "app",
+        "protocols": ["https", "ssh"]
+    },
+    {   
+        "id": "db", 
+        "protocols": ["mysql"]
+    },
+    { 
+        "id": "ci", 
+        "protocols": ["http"]
+    }
+]
+```
 
 ```rego
 package opa.examples
@@ -1531,6 +1552,13 @@ http_servers contains server if {
 ```
 
 Similarly, modules can declare dependencies on query arguments by specifying an import path that starts with `input`.
+
+```json title="input.json"
+{
+  "user": "paul",
+  "method": "GET"
+}
+```
 
 ```rego
 package examples
@@ -1580,13 +1608,17 @@ http_servers contains server if {
 
 More expressive membership and existential quantification keyword:
 
+```json title="input.json"
+{"roles": ["denylisted-role", "another-role"]}
+```
+
 ```rego
-deny {
+deny if {
     some x in input.roles # iteration
     x == "denylisted-role"
 }
 
-deny {
+deny if {
     "denylisted-role" in input.roles # membership check
 }
 ```
@@ -1597,6 +1629,12 @@ See [the keywords docs](#membership-and-iteration-in) for details.
 
 This keyword allows more expressive rule heads:
 
+```json title="input.json"
+{
+  "token": "secret"
+}
+```
+
 ```rego
 deny if input.token != "secret"
 ```
@@ -1606,7 +1644,7 @@ deny if input.token != "secret"
 This keyword allows more expressive rule heads for partial set rules:
 
 ```rego
-deny contains msg { msg := "forbidden" }
+deny contains msg if { msg := "forbidden" }
 ```
 
 ## Some Keyword
@@ -1645,7 +1683,7 @@ Since we have declared `i`, `j`, and `server` to be local, we can introduce
 rules in the same package without affecting the result above:
 
 ```rego
-# Define a rule called 'i', has no impact on the tubples rule
+# Define a rule called 'i', has no impact on the tuples rule
 i := 1
 ```
 
@@ -1722,10 +1760,10 @@ please use `some x in xs; not p(x)` instead.
 ## With Keyword
 
 The `with` keyword allows queries to programmatically specify values nested
-under the [input Document](./philosophy/#the-opa-document-model) or the
-[data Document](./philosophy/#the-opa-document-model), or built-in functions.
+under the [input document](./philosophy/#the-opa-document-model) or the
+[data document](./philosophy/#the-opa-document-model), or [built-in functions](#built-in-functions).
 
-For example, given the simple authorization policy in the [Imports](#imports)
+For example, given the simple authorization policy in the [imports](#imports)
 section, we can write a query that checks whether a particular request would be
 allowed:
 
@@ -1883,7 +1921,7 @@ function arguments: if running `f(input.x), and`input.x`is undefined, the replac
 ## Default Keyword
 
 The `default` keyword allows policies to define a default value for documents
-produced by rules with [Complete Definitions](#complete-definitions). The
+produced by rules with [complete definitions](#complete-definitions). The
 default value is used when all the rules sharing the same name are undefined.
 
 For example:
