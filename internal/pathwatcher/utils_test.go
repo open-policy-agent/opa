@@ -48,22 +48,14 @@ func TestWatchPaths(t *testing.T) {
 }
 
 func TestProcessWatcherUpdateForRegoVersion(t *testing.T) {
-	files := map[string]string{
-		"policy.rego": `package x
-
-p = 1`,
-	}
+	files := map[string]string{}
 
 	test.WithTempFS(files, func(rootDir string) {
 		regoVersion := ast.RegoV1
 
 		// create a tar-ball bundle
 		tar := filepath.Join(rootDir, "bundle.tar.gz")
-		files := make([][2]string, 0, len(files))
-		for _, v := range files {
-			files = append(files, v)
-		}
-		buf := archive.MustWriteTarGz(files)
+		buf := archive.MustWriteTarGz(make([][2]string, 0, len(files)))
 		bf, err := os.Create(tar)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
@@ -81,6 +73,10 @@ p = 1`,
 			return false
 		}
 		f := func(ctx context.Context, txn storage.Transaction, loaded *initload.LoadPathsResult) error {
+			if loaded.Files.Modules == nil {
+				t.Fatalf("Unexpected nil loaded modules")
+			}
+
 			return nil
 		}
 
