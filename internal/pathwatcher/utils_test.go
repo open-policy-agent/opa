@@ -5,11 +5,18 @@
 package pathwatcher
 
 import (
+	"context"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/open-policy-agent/opa/internal/file/archive"
+	initload "github.com/open-policy-agent/opa/internal/runtime/init"
+	"github.com/open-policy-agent/opa/internal/storage/mock"
+	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
@@ -36,6 +43,65 @@ func TestWatchPaths(t *testing.T) {
 		}
 		if !slices.Equal(expected, result) {
 			t.Fatalf("Expected %q but got: %q", expected, result)
+		}
+	})
+}
+
+func TestProcessWatcherUpdateForRegoVersion(t *testing.T) {
+	files := map[string]string{
+		"policy.rego": `package x
+
+p = 1`,
+	}
+
+	test.WithTempFS(files, func(rootDir string) {
+		regoVersion := ast.RegoV1
+
+		// create a tar-ball bundle
+		tar := filepath.Join(rootDir, "bundle.tar.gz")
+		files := make([][2]string, 0, len(files))
+		for _, v := range files {
+			files = append(files, v)
+		}
+		buf := archive.MustWriteTarGz(files)
+		bf, err := os.Create(tar)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		_, err = bf.Write(buf.Bytes())
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		// add only the bundle in the paths
+		paths := []string{
+			tar,
+		}
+		filter := func(string, os.FileInfo, int) bool {
+			return false
+		}
+		f := func(ctx context.Context, txn storage.Transaction, loaded *initload.LoadPathsResult) error {
+			return nil
+		}
+
+		store := mock.New()
+
+		// add a file that isn't registered in one of the paths
+		err = storage.Txn(t.Context(), store, storage.WriteParams, func(txn storage.Transaction) error {
+			err := store.UpsertPolicy(t.Context(), txn, "foo.rego", []byte(`package foo`))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = ProcessWatcherUpdateForRegoVersion(t.Context(), regoVersion, paths, "", store, filter, false, false, f)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
 		}
 	})
 }

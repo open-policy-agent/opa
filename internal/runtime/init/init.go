@@ -176,7 +176,7 @@ func LoadPathsForRegoVersion(regoVersion ast.RegoVersion,
 		}
 	}
 
-	if len(nonBundlePaths) == 0 {
+	if asBundle {
 		return &result, nil
 	}
 
