@@ -144,6 +144,7 @@ const baseUrl = "/";
             items: [
               { to: "/docs", label: "OPA" },
               { to: "/projects/regal", label: "Regal" },
+              { to: "/projects/ocp", label: "OPA Control Plane" },
               {
                 type: "html",
                 value: "<hr style=\"margin: 0.3rem 1rem\">",
@@ -289,7 +290,16 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
           id: "regal",
           path: "projects/regal",
           routeBasePath: "projects/regal",
-          sidebarPath: require.resolve("./src/lib/sidebar-regal.js"),
+          sidebarPath: require.resolve("./src/lib/sidebar-auto.js"),
+        },
+      ],
+      [
+        "@docusaurus/plugin-content-docs",
+        {
+          id: "ocp",
+          path: "projects/ocp",
+          routeBasePath: "projects/ocp",
+          sidebarPath: require.resolve("./src/lib/sidebar-auto.js"),
         },
       ],
       [

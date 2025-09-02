@@ -76,6 +76,11 @@ module.exports = {
         "storage",
       ],
     },
+    {
+      type: "link",
+      href: "/projects/ocp",
+      label: "Control Plane",
+    },
     SidebarTitle("Developers"),
     {
       type: "category",
