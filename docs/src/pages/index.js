@@ -12,7 +12,6 @@ import Card from "@site/src/components/Card";
 import CardGrid from "@site/src/components/CardGrid";
 import PlaygroundExample from "@site/src/components/PlaygroundExample";
 
-import StyraLogo from "./assets/styra.svg";
 import styles from "./index.module.css";
 
 const Index = (props) => {
@@ -83,8 +82,8 @@ const Index = (props) => {
         Open Policy Agent is a <a href="https://www.cncf.io/">Cloud Native Computing Foundation</a> Graduated project.
 
         <div className={styles.cncfLogo}>
-          <img src={useBaseUrl("img/footer/cncf-light.svg")} alt="CNCF Logo" class="light-only" />
-          <img src={useBaseUrl("img/footer/cncf-dark.svg")} alt="CNCF Logo" class="dark-only" />
+          <img src={useBaseUrl("img/footer/cncf-light.svg")} alt="CNCF Logo" className="light-only" />
+          <img src={useBaseUrl("img/footer/cncf-dark.svg")} alt="CNCF Logo" className="dark-only" />
         </div>
       </p>
 
@@ -216,7 +215,7 @@ const Index = (props) => {
           }].map((cardItem, index) => <Card key={index} item={cardItem} />)}
         </CardGrid>
       </div>
-    </Layout >
+    </Layout>
   );
 };
 
