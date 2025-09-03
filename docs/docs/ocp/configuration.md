@@ -1,4 +1,7 @@
-# Configuration
+---
+sidebar_position: 4
+title: Configuration
+---
 
 ## Database Configuration
 
@@ -8,10 +11,10 @@ OCP uses a SQL-compatible database to store its internal state. By default, OCP 
 
 OCP supports the following database drivers:
 
-* `sqlite3` (in-memory or file-based)
-* `postgres`
-* `mysql`
-* `aws_rds` (PostgreSQL or MySQL)
+- `sqlite3` (in-memory or file-based)
+- `postgres`
+- `mysql`
+- `aws_rds` (PostgreSQL or MySQL)
 
 ### **Basic SQL Database Configuration**
 
@@ -26,8 +29,8 @@ database:
 
 Replace:
 
-* `driver` with `postgres`, `mysql`, or `sqlite3`
-* `dsn` with your database connection string
+- `driver` with `postgres`, `mysql`, or `sqlite3`
+- `dsn` with your database connection string
 
 **Example: SQLite3 (file-based)**
 
@@ -57,13 +60,13 @@ database:
 
 **Key fields:**
 
-* `region`: AWS region of the RDS instance
-* `endpoint`: Hostname and port for your RDS cluster or instance
-* `driver`: `postgres, pgx` or `mysql`
-* `database_user`: Database user for OCP
-* `database_name`: Database name for OCP
-* `credentials`: Reference to a secret containing the password or AWS credentials
-* `root_certificates`: Optional PEM-encoded root certificate bundle for TLS connections to RDS
+- `region`: AWS region of the RDS instance
+- `endpoint`: Hostname and port for your RDS cluster or instance
+- `driver`: `postgres, pgx` or `mysql`
+- `database_user`: Database user for OCP
+- `database_name`: Database name for OCP
+- `credentials`: Reference to a secret containing the password or AWS credentials
+- `root_certificates`: Optional PEM-encoded root certificate bundle for TLS connections to RDS
 
 ### High Availability with AWS RDS
 
@@ -73,7 +76,7 @@ To run OCP with a highly available RDS setup:
    In the AWS Console or via Terraform/CloudFormation, enable Multi-AZ when creating your RDS instance or cluster. This provisions standby replicas in a different Availability Zone and enables automatic failover.
 2. **Cluster Endpoints**
    Use the **RDS cluster endpoint** rather than an instance-specific endpoint. This ensures that OCP always connects to the primary writer node, even after a failover.
-    Example:
+   Example:
 
 ```yaml
 endpoint: mydb.cluster-abcdefghijkl.us-east-1.rds.amazonaws.com:5432
@@ -94,8 +97,8 @@ secrets:
 
 **Additional References:**
 
-* [Amazon RDS Multi-AZ Deployments](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.MultiAZ.html)
+- [Amazon RDS Multi-AZ Deployments](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.MultiAZ.html)
 
-* [Amazon RDS Cluster Endpoints](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Overview.Endpoints.html)
+- [Amazon RDS Cluster Endpoints](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Overview.Endpoints.html)
 
-* [Amazon RDS SSL Support](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html)
+- [Amazon RDS SSL Support](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html)
