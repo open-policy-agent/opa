@@ -8,15 +8,6 @@ import StandaloneLayout from "../../components/StandaloneLayout";
 
 const vendors = [
   {
-    title: "Styra",
-    icon: require.context("./assets/logos/styra.png").default,
-    note:
-      "Styra is the original creator of Open Policy Agent and provides support, professional services, training, and enterprise products.",
-    link:
-      "https://www.styra.com/styra-opa-support?utm_medium=partner&utm_source=opa&utm_campaign=dmge&utm_content=opa-support",
-    link_text: "Learn more",
-  },
-  {
     title: "Policy-as-Code Laboratories",
     icon: require.context("./assets/logos/paclabs.png").default,
     note:

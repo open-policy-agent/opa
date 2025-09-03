@@ -15,4 +15,5 @@ software:
 - csharp
 ---
 
-The Styra-supported driver to connect to Open Policy Agent (OPA) and Enterprise OPA deployments from C# applications.
+The driver to connect to Open Policy Agent (OPA) deployments from C#
+applications.

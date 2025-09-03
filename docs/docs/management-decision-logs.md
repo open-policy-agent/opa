@@ -89,7 +89,7 @@ when the remote service responds with a non-2xx status.
 OPA periodically uploads decision logs to the remote service. In order to conserve network and memory resources, OPA
 attempts to fill up each message body with as many events as possible while respecting the user-specified
 `upload_size_limit_bytes` config option. Each message body is a gzip compressed JSON array and the `upload_size_limit_bytes`
-config option represents the gzip compressed size, it can be referred to as the compressed limit. To avoid compressing 
+config option represents the gzip compressed size, it can be referred to as the compressed limit. To avoid compressing
 each incoming event to get its compressed size to see if the compressed limit is reached, OPA tries to make an educated
 guess what the uncompressed limit could be. It does so by using an adaptive limit, referred to as the uncompressed limit,
 that gets adjusted by measuring incoming events. This does mean that initially the chunk sizes will most likely be smaller
@@ -99,7 +99,7 @@ optimize the messages. The algorithm to adjust the uncompressed limit uses the f
 `Scale Up`: If the current chunk size is below 90% of the user-configured compressed limit, exponentially increase the
 uncompressed limit. The exponential function is 2^x where x has a minimum value of 1
 
-`Scale Down`: If the current chunk size exceeds the compressed limit, decrease the uncompressed limit and re-encode the 
+`Scale Down`: If the current chunk size exceeds the compressed limit, decrease the uncompressed limit and re-encode the
 decisions in the last chunk.
 
 `Equilibrium`: If the chunk size is between 90% and 100% of the user-configured limit, maintain uncompressed limit value.
@@ -276,7 +276,7 @@ drop if {
 ```
 
 Log only requests for _delete_ and _alter_ operations
-(Kafka with the [opa-kafka-plugin](https://github.com/StyraInc/opa-kafka-plugin)):
+(Kafka with the [opa-kafka-plugin](https://github.com/StyraOSS/opa-kafka-plugin)):
 
 ```rego
 package system.log
