@@ -353,14 +353,14 @@ func (t *TestRuntime) DeletePolicy(name string) error {
 func (t *TestRuntime) UploadPolicy(name string, policy io.Reader) error {
 	req, err := http.NewRequest("PUT", t.URL()+"/v1/policies/"+name, policy)
 	if err != nil {
-		return fmt.Errorf("Unexpected error creating request: %s", err)
+		return fmt.Errorf("unexpected error creating request: %s", err)
 	}
 	resp, err := t.Client.Do(req)
 	if err != nil {
-		return fmt.Errorf("Failed to PUT the test policy: %s", err)
+		return fmt.Errorf("failed to PUT the test policy: %s", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Unexpected response: %d %s", resp.StatusCode, resp.Status)
+		return fmt.Errorf("unexpected response: %d %s", resp.StatusCode, resp.Status)
 	}
 	return nil
 }

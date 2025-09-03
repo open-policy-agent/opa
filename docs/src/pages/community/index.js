@@ -61,13 +61,6 @@ Rego files, implementing OPA, or share the configurations you are working on.`,
       title: "Learning Resources",
       items: [
         {
-          title: "Styra Academy",
-          icon: require.context("./assets/logos/styra-academy.png").default,
-          note: `Learning portal with courses on OPA and Rego.`,
-          link: "https://academy.styra.com",
-          link_text: "Visit Styra Academy",
-        },
-        {
           title: "Awesome OPA",
           icon: require.context("./assets/logos/opa.png").default,
           note: `Curated list of OPA links and resources.`,

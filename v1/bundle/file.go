@@ -462,7 +462,7 @@ func (it *iterator) Next() (*storage.Update, error) {
 	f := it.files[it.idx]
 	it.idx++
 
-	isPolicy := false
+	var isPolicy bool
 	if strings.HasSuffix(f.name, RegoExt) {
 		isPolicy = true
 	}

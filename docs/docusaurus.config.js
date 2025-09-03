@@ -6,6 +6,7 @@ import fs from "fs/promises";
 const path = require("path");
 
 const { loadPages } = require("./src/lib/ecosystem/loadPages");
+const { loadRules } = require("./src/lib/projects/regal/loadRules");
 
 const baseUrl = "/";
 
@@ -136,13 +137,28 @@ const baseUrl = "/";
               { href: "https://blog.openpolicyagent.org/", label: "Blog" },
             ],
           },
+          {
+            type: "dropdown",
+            label: "Projects",
+            position: "right",
+            items: [
+              { to: "/docs", label: "OPA" },
+              { to: "/projects/regal", label: "Regal" },
+              {
+                type: "html",
+                value: "<hr style=\"margin: 0.3rem 1rem\">",
+              },
+              { href: "https://open-policy-agent.github.io/gatekeeper/website/", label: "OPA Gatekeeper" },
+              { href: "https://www.conftest.dev", label: "Conftest" },
+            ],
+          },
           { to: "/ecosystem/", label: "Ecosystem", position: "right" },
           { href: "https://play.openpolicyagent.org/", label: "Play", position: "right" },
           {
             type: "html",
             position: "right",
             value: `
-        <a href="https://github.com/open-policy-agent/opa"
+        <a href="https://github.com/open-policy-agent"
            target="_blank"
            rel="noopener noreferrer"
            aria-label="GitHub repository">
@@ -267,6 +283,15 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
     },
 
     plugins: [
+      [
+        "@docusaurus/plugin-content-docs",
+        {
+          id: "regal",
+          path: "projects/regal",
+          routeBasePath: "projects/regal",
+          sidebarPath: require.resolve("./src/lib/sidebar-auto.js"),
+        },
+      ],
       [
         require.resolve("@easyops-cn/docusaurus-search-local"),
         {
@@ -486,6 +511,22 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
               exact: true,
               modules: {},
             });
+          },
+        };
+      },
+
+      async function ecosystemData(context, options) {
+        return {
+          name: "regal",
+
+          async loadContent() {
+            const rules = await loadRules();
+
+            return { rules };
+          },
+
+          async contentLoaded({ content, actions }) {
+            await actions.createData("rules.json", JSON.stringify(content.rules, null, 2));
           },
         };
       },
