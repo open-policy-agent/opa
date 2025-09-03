@@ -52,7 +52,7 @@ Install the opactl tool using one of the install methods [listed below](#install
 
 The bundle is defined by a configuration file normally in the `config.d` directory. More details can be found in the [Concepts](#concepts) section, but for now lets use this configuration. In your working directory add the following to `./config.d/hello.yaml`
 
-```yaml title="./config.d/hello.yaml"
+```yaml title="config.d/hello.yaml"
 bundles:
   hello-world:
     object_storage:
@@ -70,7 +70,7 @@ sources:
 We also will want to define a simple policy for this bundle. Add the following
 to `./files/sources/hello-world/rules/rules.rego`
 
-```rego title="./files/sources/hello-world/rules/rules.rego"
+```rego title="files/sources/hello-world/rules/rules.rego"
 package rules
 
 import rego.v1
@@ -86,7 +86,9 @@ allow if {
 
 In your working directory run the `build` command:
 
-`opactl build`
+```shell
+opactl build
+```
 
 ## 4. Configure OPA to use the bundle
 
@@ -101,13 +103,15 @@ opa run -s -w ./bundles/hello-world/bundle.tar.gz
 You should now be able to test the policy running in OPA. Using the following curl:
 
 ```shell
-curl localhost:8181/v1/data/rules/allow -d \
-'{"input":{"user":"alice"}}'
+curl localhost:8181/v1/data/rules/allow -d '{"input":{"user":"alice"}}'
 ```
 
 You can also try changing the policy in `./files/sources/hello-world/rules/rules.rego`. After you make the change, rerun the build command from above to see the changes reflected in OPA.
 
 ## Installation
+
+There are a number of installation options for `opactl`, choose the most
+suitable one for your use case below.
 
 ### Download the OCP Binary
 
@@ -147,38 +151,13 @@ curl -L -o opactl.exe https://openpolicyagent.org/downloads/latest/opactl_window
 .\opactl.exe version
 ```
 
-### Docker image {#docker-image}
+### Docker image
 
 OCP Docker images are available on Docker Hub.
 
 ```shell
 openpolicyagent/opactl
 ```
-
-### Adding `opactl` to PATH (Optional)
-
-For easier usage, you can move the binary to a directory in your PATH:
-
-**macOS/Linux:**
-
-```shell
-# Move to /usr/local/bin (requires sudo)
-sudo mv opactl /usr/local/bin/
-
-# Or move to a user directory (create if it doesn't exist)
-mkdir -p ~/bin
-mv opactl ~/bin/
-export PATH="$HOME/bin:$PATH"  # Add to ~/.bashrc or ~/.zshrc for persistence
-```
-
-**Windows:**
-
-```shell
-# Move to a directory in your PATH or add current directory to PATH
-move opactl.exe C:\Windows\System32\
-```
-
-After adding to PATH, you can run `opactl version` from anywhere.
 
 ### Build from source
 
@@ -191,10 +170,29 @@ make build
 
 The binary will be created in the form `opactl_<OS>_<ARCH>` (e.g., `opactl_darwin_amd64`, `opactl_linux_amd64`).
 
-**Verify the build:**
-
-```shell
+```shell title="Verify the build"
 # Example for macOS/Linux (adjust filename for your platform)
 chmod +x ./opactl_darwin_amd64
 ./opactl_darwin_amd64 version
 ```
+
+### Adding `opactl` to PATH (Optional)
+
+For easier usage, you can move the binary to a directory in your PATH:
+
+```shell title="macOS/Linux"
+# Move to /usr/local/bin (requires sudo)
+sudo mv opactl /usr/local/bin/
+
+# Or move to a user directory (create if it doesn't exist)
+mkdir -p ~/bin
+mv opactl ~/bin/
+export PATH="$HOME/bin:$PATH"  # Add to ~/.bashrc or ~/.zshrc for persistence
+```
+
+```shell title="Windows"
+# Move to a directory in your PATH or add current directory to PATH
+move opactl.exe C:\Windows\System32\
+```
+
+After adding to PATH, you can run `opactl version` from anywhere.
