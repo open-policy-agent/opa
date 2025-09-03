@@ -289,7 +289,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
           id: "regal",
           path: "projects/regal",
           routeBasePath: "projects/regal",
-          sidebarPath: require.resolve("./src/lib/sidebar-regal.js"),
+          sidebarPath: require.resolve("./src/lib/sidebar-auto.js"),
         },
       ],
       [
