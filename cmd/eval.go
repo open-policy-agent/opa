@@ -310,7 +310,7 @@ access.
 			cmd.SilenceErrors = true
 			cmd.SilenceUsage = true
 
-			defined, err := eval(args, params, os.Stdout)
+			defined, err := eval(args, params, os.Stdout, os.Stderr)
 			if err != nil {
 				if _, ok := err.(regoError); !ok {
 					fmt.Fprintln(os.Stderr, err)
@@ -372,7 +372,7 @@ access.
 	root.AddCommand(evalCommand)
 }
 
-func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
+func eval(args []string, params evalCommandParams, w io.Writer, stderr io.Writer) (bool, error) {
 	ctx := context.Background()
 	if params.timeout != 0 {
 		var cancel func()
@@ -429,20 +429,20 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 
 	switch ectx.params.outputFormat.String() {
 	case formats.Bindings:
-		err = pr.Bindings(w, result)
+		err = pr.Bindings(w, stderr, result)
 	case formats.Values:
-		err = pr.Values(w, result)
+		err = pr.Values(w, stderr, result)
 	case formats.Pretty:
-		err = pr.PrettyWithOptions(w, result, pr.PrettyOptions{
+		err = pr.PrettyWithOptions(w, stderr, result, pr.PrettyOptions{
 			TraceOpts: topdown.PrettyTraceOptions{
 				Locations:     true,
 				ExprVariables: ectx.params.traceVarValues,
 			},
 		})
 	case formats.Source:
-		err = pr.Source(w, result)
+		err = pr.Source(w, stderr, result)
 	case formats.Raw:
-		err = pr.Raw(w, result)
+		err = pr.Raw(w, stderr, result)
 	case formats.Discard:
 		err = pr.Discard(w, result)
 	default:
