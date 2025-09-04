@@ -98,7 +98,7 @@ release-dir:
 .PHONY: generate
 generate: wasm-lib-build
 ifeq ($(GOOS),windows)
-	GOOS=$(shell go env GOOS) GOARCH=$(shell go env GOARCH) go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.5.0
+	GOOS=linux go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.5.0
 endif
 	$(GO) generate
 
