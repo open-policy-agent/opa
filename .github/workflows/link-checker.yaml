@@ -19,18 +19,20 @@ jobs:
 
     - name: Link Checker
       id: lychee
-      uses: lycheeverse/lychee-action@v2
+      uses: lycheeverse/lychee-action@885c65f3dc543b57c898c8099f4e08c8afd178a2 # v2.6.1
       with:
-        workingDirectory: .
-        args: |
-          --max-concurrency 1 \
-          --no-progress \
-          --exclude-path vendor \
-          --exclude-path internal \
-          --exclude-path CHANGELOG.md \
-          --scheme https \
-          --scheme http \
+        args: >
+          --max-concurrency 1
+          --no-progress
+          --exclude-path vendor
+          --exclude-path internal
+          --exclude-path CHANGELOG.md
+          --scheme https
+          --scheme http
           --accept 200..=206,403,429
+          --retry-wait-time 5
+          --max-retries 1
+          .
         fail: false
 
     - name: Show Report
