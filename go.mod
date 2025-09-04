@@ -1,6 +1,6 @@
 module github.com/open-policy-agent/opa
 
-go 1.24.6
+go 1.24.0
 
 require (
 	github.com/bytecodealliance/wasmtime-go/v3 v3.0.2
