@@ -65,7 +65,7 @@ TELEMETRY_URL ?= #Default empty
 
 BUILD_HOSTNAME := $(shell ./build/get-build-hostname.sh)
 
-RELEASE_BUILD_IMAGE := golang:$(GOVERSION)-bullseye
+RELEASE_BUILD_IMAGE := golang:$(GOVERSION)-trixie
 
 RELEASE_DIR ?= _release/$(VERSION)
 
