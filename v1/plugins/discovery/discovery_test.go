@@ -3111,11 +3111,24 @@ func TestStatusUpdatesTimestamp(t *testing.T) {
 }
 
 func TestStatusMetricsForLogDrops(t *testing.T) {
-	ctx := t.Context()
+	tests := []struct {
+		bufferType string
+	}{
+		{
+			bufferType: "size",
+		},
+		{
+			bufferType: "event",
+		},
+	}
 
-	testLogger := test.New()
+	for _, tc := range tests {
+		t.Run(tc.bufferType, func(t *testing.T) {
+			ctx := t.Context()
 
-	manager, err := plugins.New([]byte(`{
+			testLogger := test.New()
+
+			manager, err := plugins.New([]byte(`{
 		"services": {
 			"localhost": {
 				"url": "http://localhost:9999"
@@ -3123,110 +3136,113 @@ func TestStatusMetricsForLogDrops(t *testing.T) {
 		},
 		"discovery": {"name": "config"},
 	}`), "test-id", inmem.New(), plugins.ConsoleLogger(testLogger))
-	if err != nil {
-		t.Fatal(err)
-	}
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	initialBundle := makeDataBundle(1, `
+			initialBundle := makeDataBundle(1, fmt.Sprintf(`
 		{
 			"config": {
 				"status": {"console": true},
 				"decision_logs": {
 					"service": "localhost",
 					"reporting": {
+						"buffer_type": "%s",
 						"max_decisions_per_second": 1
 					}
 				}
 			}
 		}
-	`)
+	`, tc.bufferType))
 
-	disco, err := New(manager, Metrics(metrics.New()))
-	if err != nil {
-		t.Fatal(err)
-	}
+			disco, err := New(manager, Metrics(metrics.New()))
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	ps, err := disco.processBundle(ctx, initialBundle)
-	if err != nil {
-		t.Fatal(err)
-	}
+			ps, err := disco.processBundle(ctx, initialBundle)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	// start the decision log and status plugins
-	for _, p := range ps.Start {
-		if err := p.Start(ctx); err != nil {
-			t.Fatal(err)
-		}
-	}
+			// start the decision log and status plugins
+			for _, p := range ps.Start {
+				if err := p.Start(ctx); err != nil {
+					t.Fatal(err)
+				}
+			}
 
-	plugin := logs.Lookup(manager)
-	if plugin == nil {
-		t.Fatal("Expected decision log plugin registered on manager")
-	}
+			plugin := logs.Lookup(manager)
+			if plugin == nil {
+				t.Fatal("Expected decision log plugin registered on manager")
+			}
 
-	var input any = map[string]any{"method": "GET"}
-	var result any = false
+			var input any = map[string]any{"method": "GET"}
+			var result any = false
 
-	event1 := &server.Info{
-		DecisionID: "abc",
-		Path:       "foo/bar",
-		Input:      &input,
-		Results:    &result,
-		RemoteAddr: "test-1",
-	}
+			event1 := &server.Info{
+				DecisionID: "abc",
+				Path:       "foo/bar",
+				Input:      &input,
+				Results:    &result,
+				RemoteAddr: "test-1",
+			}
 
-	event2 := &server.Info{
-		DecisionID: "def",
-		Path:       "foo/baz",
-		Input:      &input,
-		Results:    &result,
-		RemoteAddr: "test-2",
-	}
+			event2 := &server.Info{
+				DecisionID: "def",
+				Path:       "foo/baz",
+				Input:      &input,
+				Results:    &result,
+				RemoteAddr: "test-2",
+			}
 
-	event3 := &server.Info{
-		DecisionID: "ghi",
-		Path:       "foo/aux",
-		Input:      &input,
-		Results:    &result,
-		RemoteAddr: "test-3",
-	}
+			event3 := &server.Info{
+				DecisionID: "ghi",
+				Path:       "foo/aux",
+				Input:      &input,
+				Results:    &result,
+				RemoteAddr: "test-3",
+			}
 
-	_ = plugin.Log(ctx, event1) // event 1 should be written into the decision log encoder
-	_ = plugin.Log(ctx, event2) // event 2 should not be written into the decision log encoder as rate limit exceeded
-	_ = plugin.Log(ctx, event3) // event 3 should not be written into the decision log encoder as rate limit exceeded
+			_ = plugin.Log(ctx, event1) // event 1 should be written into the decision log encoder
+			_ = plugin.Log(ctx, event2) // event 2 should not be written into the decision log encoder as rate limit exceeded
+			_ = plugin.Log(ctx, event3) // event 3 should not be written into the decision log encoder as rate limit exceeded
 
-	// trigger a status update
-	disco.oneShot(ctx, download.Update{ETag: "etag-1", Bundle: makeDataBundle(1, `{
+			// trigger a status update
+			disco.oneShot(ctx, download.Update{ETag: "etag-1", Bundle: makeDataBundle(1, `{
 		"config": {
 			"bundles": {"test-bundle": {"service": "localhost"}}
 		}
 	}`)})
 
-	status.Lookup(manager).Stop(ctx)
+			status.Lookup(manager).Stop(ctx)
 
-	entries := testLogger.Entries()
-	if len(entries) == 0 {
-		t.Fatal("Expected log entries but got none")
-	}
+			entries := testLogger.Entries()
+			if len(entries) == 0 {
+				t.Fatal("Expected log entries but got none")
+			}
 
-	// Pick the last entry as it should have the drop count
-	e := entries[len(entries)-1]
+			// Pick the last entry as it should have the drop count
+			e := entries[len(entries)-1]
 
-	if _, ok := e.Fields["metrics"]; !ok {
-		t.Fatal("Expected metrics")
-	}
+			if _, ok := e.Fields["metrics"]; !ok {
+				t.Fatal("Expected metrics")
+			}
 
-	builtInMet := e.Fields["metrics"].(map[string]any)["<built-in>"]
-	dropCount := builtInMet.(map[string]any)["counter_decision_logs_dropped_rate_limit_exceeded"]
+			builtInMet := e.Fields["metrics"].(map[string]any)["<built-in>"]
+			dropCount := builtInMet.(map[string]any)["counter_decision_logs_dropped_rate_limit_exceeded"]
 
-	actual, err := dropCount.(json.Number).Int64()
-	if err != nil {
-		t.Fatal(err)
-	}
+			actual, err := dropCount.(json.Number).Int64()
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	// Along with event 2 and event 3, event 1 could also get dropped. This happens when the decision log plugin
-	// tries to requeue event 1 after a failed upload attempt to a non-existent remote endpoint
-	if actual < 2 {
-		t.Fatal("Expected at least 2 events to be dropped")
+			// Along with event 2 and event 3, event 1 could also get dropped. This happens when the decision log plugin
+			// tries to requeue event 1 after a failed upload attempt to a non-existent remote endpoint
+			if actual < 2 {
+				t.Fatal("Expected at least 2 events to be dropped")
+			}
+		})
 	}
 }
 

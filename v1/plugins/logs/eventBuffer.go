@@ -7,12 +7,14 @@ package logs
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"sync"
 
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins/rest"
 	"github.com/open-policy-agent/opa/v1/util"
+	"golang.org/x/time/rate"
 )
 
 type bufferItem struct {
@@ -27,6 +29,7 @@ type eventBuffer struct {
 	client     rest.Client      // client is used to upload the data to the configured service
 	uploadPath string           // uploadPath is the configured HTTP resource path for upload
 	enc        *chunkEncoder    // encoder appends events into the gzip compressed JSON array
+	limiter    *rate.Limiter
 	metrics    metrics.Metrics
 	logger     logging.Logger
 }
@@ -40,14 +43,22 @@ func newEventBuffer(bufferSizeLimitEvents int64, client rest.Client, uploadPath 
 	}
 }
 
+func (b *eventBuffer) WithLimiter(maxDecisionsPerSecond *float64) *eventBuffer {
+	if maxDecisionsPerSecond != nil {
+		b.limiter = rate.NewLimiter(rate.Limit(*maxDecisionsPerSecond), int(math.Max(1, *maxDecisionsPerSecond)))
+	}
+	return b
+}
+
 func (b *eventBuffer) WithMetrics(m metrics.Metrics) *eventBuffer {
 	b.metrics = m
-	b.enc.metrics = m
+	b.enc = b.enc.WithMetrics(m)
 	return b
 }
 
 func (b *eventBuffer) WithLogger(l logging.Logger) *eventBuffer {
 	b.logger = l
+	b.enc = b.enc.WithLogger(l)
 	return b
 }
 
@@ -60,19 +71,26 @@ func (b *eventBuffer) incrMetric(name string) {
 // Reconfigure updates the user configurable values
 // This cannot be called concurrently, this could change the underlying channel.
 // Plugin manages a lock to control this so that changes to both buffer types can be managed sequentially.
-func (b *eventBuffer) Reconfigure(bufferSizeLimitEvents int64, client rest.Client, uploadPath string, uploadSizeLimitBytes int64) {
+func (b *eventBuffer) Reconfigure(bufferSizeLimitEvents int64, client rest.Client, uploadPath string, uploadSizeLimitBytes int64, maxDecisionsPerSecond *float64) {
 	// prevent an upload from pushing events that failed to upload back into a closed buffer
 	b.upload.Lock()
 	defer b.upload.Unlock()
 
 	b.client = client
 	b.uploadPath = uploadPath
+	if maxDecisionsPerSecond != nil {
+		b.limiter = rate.NewLimiter(rate.Limit(*maxDecisionsPerSecond), int(math.Max(1, *maxDecisionsPerSecond)))
+	} else if b.limiter != nil {
+		b.limiter = nil
+	}
+
+	if b.enc.limit != uploadSizeLimitBytes {
+		b.enc.Reconfigure(uploadSizeLimitBytes)
+	}
 
 	if int64(cap(b.buffer)) == bufferSizeLimitEvents {
 		return
 	}
-
-	b.enc.Reconfigure(uploadSizeLimitBytes)
 
 	close(b.buffer)
 	oldBuffer := b.buffer
@@ -90,6 +108,12 @@ func (b *eventBuffer) Push(event *EventV1) {
 }
 
 func (b *eventBuffer) push(event *bufferItem) {
+	if b.limiter != nil && !b.limiter.Allow() {
+		b.incrMetric(logRateLimitExDropCounterName)
+		b.logger.Error("Decision log dropped as rate limit exceeded. Reduce reporting interval or increase rate limit.")
+		return
+	}
+
 	util.PushFIFO(b.buffer, event, b.metrics, logBufferEventDropCounterName)
 }
 
