@@ -38,11 +38,12 @@ func TestOCIDownloaderWithBundleVerificationConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d := NewOCI(config, fixture.client, "ghcr.io/org/repo:signed", "/tmp/opa/").WithCallback(func(_ context.Context, u Update) {
+	d := NewOCI(config, fixture.client, "ghcr.io/org/repo:signed", "/tmp/opa/").WithCallback(func(_ context.Context, u Update) error {
 		if u.Error != nil {
 			t.Fatalf("expected no error but got: %v", u.Error)
 		}
 		updates <- &u
+		return nil
 	}).WithBundleVerificationConfig(vc)
 
 	d.Start(ctx)
@@ -97,11 +98,12 @@ func TestOCIDownloaderWithRegoV1Bundle(t *testing.T) {
 
 			d := NewOCI(config, fixture.client, "ghcr.io/org/repo:rego_v1", "/tmp/opa/").
 				WithBundleParserOpts(ast.ParserOptions{RegoVersion: tc.regoVersion}).
-				WithCallback(func(_ context.Context, u Update) {
+				WithCallback(func(_ context.Context, u Update) error {
 					// We might get multiple updates before the test ends, and we don't want to block indefinitely.
 					select {
 					case updates <- &u:
 					}
+					return nil
 				}).WithBundleVerificationConfig(vc)
 
 			d.Start(ctx)
@@ -151,8 +153,9 @@ func TestOCIStartStop(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d := NewOCI(config, fixture.client, "ghcr.io/org/repo:latest", "/tmp/opa/").WithCallback(func(_ context.Context, u Update) {
+	d := NewOCI(config, fixture.client, "ghcr.io/org/repo:latest", "/tmp/opa/").WithCallback(func(_ context.Context, u Update) error {
 		updates <- &u
+		return nil
 	})
 
 	d.Start(ctx)
@@ -256,15 +259,16 @@ func TestOCIEtag(t *testing.T) {
 	}
 
 	firstResponse := Update{ETag: ""}
-	d := NewOCI(config, fixture.client, "ghcr.io/org/repo:latest", "/tmp/oci").WithCallback(func(_ context.Context, u Update) {
+	d := NewOCI(config, fixture.client, "ghcr.io/org/repo:latest", "/tmp/oci").WithCallback(func(_ context.Context, u Update) error {
 		if firstResponse.ETag == "" {
 			firstResponse = u
-			return
+			return nil
 		}
 
 		if u.ETag != firstResponse.ETag || u.Bundle != nil {
 			t.Fatal("expected nil bundle and same etag but got:", u)
 		}
+		return nil
 	})
 
 	// fill firstResponse
@@ -396,8 +400,9 @@ func TestOCIValidateAndInjectDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d := NewOCI(config, fixture.client, "ghcr.io/org/repo:latest", t.TempDir()).WithCallback(func(_ context.Context, u Update) {
+	d := NewOCI(config, fixture.client, "ghcr.io/org/repo:latest", t.TempDir()).WithCallback(func(_ context.Context, u Update) error {
 		updates <- &u
+		return nil
 	}).WithBundlePersistence(true)
 
 	d.Start(ctx)
