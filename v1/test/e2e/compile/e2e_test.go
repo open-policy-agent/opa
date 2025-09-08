@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
 	"slices"
 	"strings"
@@ -289,11 +290,18 @@ func toFruitRows(xs []fruitJSON) []fruitRow {
 }
 
 // In these test, we test the compile API end-to-end. We start an instance of
-// EOPA, load a policy, and then run a series of tests that compile a query and
+// OPA, load a policy, and then run a series of tests that compile a query and
 // then execute it against a database. The query is a simple "include" query
 // that filters rows from a table based on some conditions. The conditions are
 // defined in the data policy.
 func TestCompileHappyPathE2E(t *testing.T) {
+	// NOTE(sr): Technically, we don't need a "docker" binary for these tests to use
+	// docker via testcontainers. But being able to run "docker ps" is an acceptable litmus
+	// test. By relying on the Makefile checking this for us, we don't have to adjust all
+	// the test runs (basic linux/windows, go-compat, race-detector).
+	if os.Getenv("DOCKER_RUNNING") != "1" {
+		t.Skip("docker-dependant tests are not runnable")
+	}
 	ctx, cancel := context.WithCancel(t.Context())
 
 	params := e2e.NewAPIServerTestParams()
