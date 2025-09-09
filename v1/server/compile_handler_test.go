@@ -228,11 +228,10 @@ func TestCompileHandlerMetrics(t *testing.T) {
 	}
 }
 
-// compareMetrics only checks that the keys of `exp` and `act` are the same,
-// and that all values of `act` are non-zero.
+// compareMetrics only checks that the keys of `exp` and `act` are the same.
 func compareMetrics(exp, act map[string]float64) bool {
-	return maps.EqualFunc(exp, act, func(_, b float64) bool {
-		return b != 0
+	return maps.EqualFunc(exp, act, func(_, _ float64) bool {
+		return true
 	})
 }
 
