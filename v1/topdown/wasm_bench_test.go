@@ -1,4 +1,4 @@
-// Copyright 2024 The OPA Authors. All rights reserved.
+// Copyright 2025 The OPA Authors. All rights reserved.
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
@@ -35,8 +35,8 @@ func BenchmarkSimpleAuthzTargets(b *testing.B) {
 
 		policy := `package authz
 		default allow = false
-		allow { input.user.role == "admin" }
-		allow { input.user.id == input.resource.owner }`
+		allow if input.user.role == "admin"
+		allow if input.user.id == input.resource.owner`
 
 		input := map[string]interface{}{
 			"user": map[string]interface{}{
@@ -142,7 +142,7 @@ func BenchmarkDataSizesTargets(b *testing.B) {
 				data["users"] = users
 
 				policy := `package authz
-				allow {
+				allow if {
 					some i
 					data.users[i].id == input.user_id
 				}`
@@ -195,7 +195,7 @@ func BenchmarkPolicyComplexityTargets(b *testing.B) {
 				// Generate policy with n permission rules
 				var rules []string
 				for i := 0; i < n; i++ {
-					rules = append(rules, fmt.Sprintf("allow { input.permissions[_] == \"perm_%d\" }", i))
+					rules = append(rules, fmt.Sprintf("allow if input.permissions[_] == \"perm_%d\"", i))
 				}
 
 				policy := fmt.Sprintf(`package authz
