@@ -23,7 +23,7 @@ in the examples below.
 
 :::note
 If you're looking for the built-in function `contains` for substring checking, you can read
-about it in the [built-ins section](/opa/rego-by-example/builtins/contains).
+about it in the [built-ins section](/docs/policy-reference/builtins/strings#builtin-strings-contains).
 :::
 
 ## Examples

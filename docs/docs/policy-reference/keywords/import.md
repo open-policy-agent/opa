@@ -106,5 +106,5 @@ deny contains "not admin" if input.user.role != "admin"
 
 ## Further Reading
 
-- Read about [imports](https://www.openpolicyagent.org/docs/policy-language/#imports) in the documentation.
-- Make sure you're using `import` correctly with Regal's [import rules](/regal/rules/imports).
+- Read about [imports](/docs/policy-language/#imports) in the documentation.
+- Make sure you're using `import` correctly with Regal's [import rules](/projects/regal/rules/imports).
