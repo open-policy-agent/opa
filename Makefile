@@ -254,7 +254,7 @@ wasm-rego-testgen-install:
 
 .PHONY: bench-wasm
 bench-wasm: generate
-	$(GO) test $(GO_TAGS),opa_wasm -bench=BenchmarkWASM -benchmem ./topdown
+	$(GO) test $(GO_TAGS),opa_wasm -bench=. -benchmem ./v1/topdown ./v1/rego
 
 ######################################################
 #
