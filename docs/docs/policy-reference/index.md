@@ -1,6 +1,7 @@
 ---
 title: Policy Reference
-sidebar_position: 3
+sidebar_label: Overview
+sidebar_position: 1
 ---
 
 import BuiltinLegacyRedirect from "@site/src/components/BuiltinLegacyRedirect";
