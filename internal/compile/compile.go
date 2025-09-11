@@ -4,11 +4,13 @@
 package compile
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
 
 	"github.com/open-policy-agent/opa/internal/levenshtein"
+	"github.com/open-policy-agent/opa/internal/ucast"
 	"github.com/open-policy-agent/opa/v1/ast"
 )
 
@@ -17,12 +19,29 @@ const (
 	invalidMaskRuleCode = "invalid_mask_rule"
 )
 
-func QueriesToUCAST(queries []ast.Body, mappings map[string]any) any {
-	ucast := BodiesToUCAST(queries, &Opts{Translations: mappings})
-	if ucast == nil { // ucast == nil means unconditional YES
-		return struct{}{}
+type UCASTNode struct {
+	internal *ucast.UCASTNode
+}
+
+func (u *UCASTNode) Map() map[string]any {
+	if u.internal == nil { // unconditional YES
+		return map[string]any{}
 	}
-	return ucast
+
+	// TODO(sr): find a better way
+	ret := map[string]any{}
+	bs, err := json.Marshal(u.internal)
+	if err != nil {
+		panic(err)
+	}
+	if err := json.Unmarshal(bs, &ret); err != nil {
+		panic(err)
+	}
+	return ret
+}
+
+func QueriesToUCAST(queries []ast.Body, mappings map[string]any) *UCASTNode {
+	return &UCASTNode{internal: BodiesToUCAST(queries, &Opts{Translations: mappings})}
 }
 
 func QueriesToSQL(queries []ast.Body, mappings map[string]any, dialect string) (string, error) {
