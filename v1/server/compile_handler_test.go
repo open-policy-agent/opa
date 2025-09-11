@@ -201,6 +201,7 @@ func TestCompileHandlerMetrics(t *testing.T) {
 					"timer_rego_partial_eval_ns":                    0,
 					"timer_rego_query_compile_ns":                   0,
 					"timer_rego_query_parse_ns":                     0,
+					"timer_rego_query_eval_ns":                      0,
 					"timer_server_handler_ns":                       0,
 					"timer_compile_translate_queries_ns":            0,
 				}, resp.Metrics; !compareMetrics(exp, act) {
