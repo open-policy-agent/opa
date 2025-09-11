@@ -83,11 +83,10 @@ type CompileFiltersRequestV1 struct {
 	Query    string    `json:"query"`
 	Unknowns *[]string `json:"unknowns"`
 	Options  struct {
-		DisableInlining          []string       `json:"disableInlining,omitempty"`
-		NondeterministicBuiltins bool           `json:"nondeterministicBuiltins"`
-		Mappings                 map[string]any `json:"targetSQLTableMappings,omitempty"`
-		TargetDialects           []string       `json:"targetDialects,omitempty"`
-		MaskRule                 string         `json:"maskRule,omitempty"`
+		DisableInlining []string       `json:"disableInlining,omitempty"`
+		Mappings        map[string]any `json:"targetSQLTableMappings,omitempty"`
+		TargetDialects  []string       `json:"targetDialects,omitempty"`
+		MaskRule        string         `json:"maskRule,omitempty"`
 	} `json:"options"`
 }
 
