@@ -168,7 +168,6 @@ default mask.fruits.supplier := {"replace": {"value": "***"}}
 		"type":   "openpolicyagent.org/decision_logs",
 		"custom": map[string]any{
 			"options": map[string]any{
-				"nondeterministicBuiltins": true,
 				"targetSQLTableMappings": map[string]any{
 					"postgresql": map[string]any{
 						"fruits": map[string]any{
