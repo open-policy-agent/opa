@@ -907,7 +907,7 @@ a contains x if {
 							t.Fatalf("Expected non-zero return code")
 						}
 
-						output := buf.String()
+						output := errBuf.String()
 						for _, expErr := range tc.expErrs {
 							if !strings.Contains(output, expErr) {
 								t.Fatalf("Expected error:\n\n%s\n\ngot:\n\n%s", expErr, output)
@@ -1249,7 +1249,7 @@ a contains 4 if {
 								t.Fatalf("Expected non-zero return code")
 							}
 
-							output := buf.String()
+							output := errBuf.String()
 							for _, expErr := range tc.expErrs {
 								if !strings.Contains(output, expErr) {
 									t.Fatalf("Expected error:\n\n%s\n\ngot:\n\n%s", expErr, output)
