@@ -167,6 +167,10 @@ const Index = (props) => {
             high-level declarative language that lets you specify policy for a wide range of use cases. You can use OPA
             to enforce policies in applications, proxies, Kubernetes, CI/CD pipelines, API gateways, and more.
           </p>
+          <p>
+            The examples below are interactive! Use the <b>Evaluate</b> button to see output for the given rego and input.
+            Then edit the rego or the input (or both) to see how the output changes.
+          </p>
 
           <Tabs
             defaultValue="app"

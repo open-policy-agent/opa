@@ -65,7 +65,7 @@ TELEMETRY_URL ?= #Default empty
 
 BUILD_HOSTNAME := $(shell ./build/get-build-hostname.sh)
 
-RELEASE_BUILD_IMAGE := golang:$(GOVERSION)-bullseye
+RELEASE_BUILD_IMAGE := golang:$(GOVERSION)-trixie
 
 RELEASE_DIR ?= _release/$(VERSION)
 
@@ -98,7 +98,7 @@ release-dir:
 .PHONY: generate
 generate: wasm-lib-build
 ifeq ($(GOOS),windows)
-	GOOS=$(shell go env GOOS) GOARCH=$(shell go env GOARCH) go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.5.0
+	GOOS=linux go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.5.0
 endif
 	$(GO) generate
 
