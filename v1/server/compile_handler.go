@@ -5,7 +5,6 @@ package server
 
 import (
 	"bytes"
-	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -18,6 +17,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/rego"
+	rego_compile "github.com/open-policy-agent/opa/v1/rego/compile"
 	"github.com/open-policy-agent/opa/v1/server/failtracer"
 	"github.com/open-policy-agent/opa/v1/server/types"
 	"github.com/open-policy-agent/opa/v1/server/writer"
@@ -35,11 +35,8 @@ const (
 
 	// Timer names
 	timerPrepPartial                = metrics.CompilePrepPartial
-	timerEvalConstraints            = metrics.CompileEvalConstraints
-	timerTranslateQueries           = metrics.CompileTranslateQueries
 	timerExtractAnnotationsUnknowns = metrics.CompileExtractAnnotationsUnknowns
 	timerExtractAnnotationsMask     = metrics.CompileExtractAnnotationsMask
-	timerEvalMaskRule               = metrics.CompileEvalMaskRule
 
 	unknownsCacheSize    = 500
 	maskingRuleCacheSize = 500
@@ -127,7 +124,6 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 	m := metrics.New()
 	m.Timer(metrics.ServerHandler).Start()
 	m.Timer(metrics.RegoQueryParse).Start()
-
 	// decompress the input if sent as zip
 	body, err := util.ReadMaybeCompressedBody(r)
 	if err != nil {
@@ -145,7 +141,6 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 		writer.Error(w, http.StatusBadRequest, reqErr)
 		return
 	}
-
 	m.Timer(metrics.RegoQueryParse).Stop()
 
 	c := storage.NewContext().WithMetrics(m)
@@ -205,49 +200,6 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 		ndbCache = builtins.NDBCache{}
 	}
 
-	var maskResult map[string]any
-	var maskResultValue ast.Value
-
-	if maskingRule != nil {
-		m.Timer(timerEvalMaskRule).Start()
-
-		opts := []func(*rego.Rego){
-			rego.Compiler(comp),
-			rego.Store(s.store),
-			rego.Transaction(txn), // piggyback on previously opened read transaction.
-			rego.Query(maskingRule.String()),
-			rego.Instrument(includeInstrumentation),
-			rego.Metrics(m),
-			rego.Runtime(s.runtime),
-			rego.UnsafeBuiltins(unsafeBuiltinsMap),
-			rego.InterQueryBuiltinCache(s.interQueryBuiltinCache),
-			rego.InterQueryBuiltinValueCache(s.interQueryBuiltinValueCache),
-			rego.PrintHook(s.manager.PrintHook()),
-			rego.NDBuiltinCache(ndbCache),
-			// rego.QueryTracer(tracer),
-			rego.DistributedTracingOpts(s.distributedTracingOpts),
-		}
-
-		maskResultValue, err = evalMaskingRule(ctx, txn, request.Input, opts)
-		if err != nil {
-			switch err := err.(type) {
-			case ast.Errors:
-				writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgCompileModuleError).WithASTErrors(err))
-			default:
-				writer.ErrorAuto(w, err)
-			}
-			return
-		}
-		if maskResultValue != nil {
-			if err := util.Unmarshal([]byte(maskResultValue.String()), &maskResult); err != nil {
-				writer.Error(w, http.StatusInternalServerError, types.NewErrorV1(types.CodeEvaluation, "failed to round-trip mask body: %v", err))
-				return
-			}
-		}
-
-		m.Timer(timerEvalMaskRule).Stop()
-	}
-
 	contentType, err := sanitizeHeader(r.Header.Get("Accept"))
 	if err != nil {
 		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "Accept header: %s", err.Error()))
@@ -256,37 +208,47 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 
 	target, dialect := targetDialect(contentType)
 
-	// We require evaluating non-det builtins for the translated targets:
-	// We're not able to meaningfully tanslate things like http.send, sql.send, or
-	// io.jwt.decode_verify into SQL or UCAST, so we try to eval them out where possible.
-	orig.Options.NondeterministicBuiltins = cmp.Or(
-		target == "ucast",
-		target == "sql",
-		target == "multi",
-		orig.Options.NondeterministicBuiltins,
-	)
+	targetOption := []rego_compile.CompileOption{}
+	multi := make([][2]string, len(orig.Options.TargetDialects))
 
-	opts := []func(*rego.Rego){
-		rego.Compiler(comp),
-		rego.Store(s.store),
-		rego.Transaction(txn),
-		rego.ParsedQuery(request.Query),
-		rego.DisableInlining(orig.Options.DisableInlining),
-		rego.QueryTracer(buf),
-		rego.Instrument(includeInstrumentation),
-		rego.Metrics(m),
-		rego.NondeterministicBuiltins(orig.Options.NondeterministicBuiltins),
-		rego.NDBuiltinCache(ndbCache),
-		rego.Runtime(s.runtime),
-		rego.UnsafeBuiltins(unsafeBuiltinsMap),
-		rego.InterQueryBuiltinCache(s.interQueryBuiltinCache),
-		rego.InterQueryBuiltinValueCache(s.interQueryBuiltinValueCache),
-		rego.PrintHook(s.manager.PrintHook()),
+	switch target {
+	case "multi":
+		for i, targetTuple := range orig.Options.TargetDialects {
+			s := strings.Split(targetTuple, "+")
+			target, dialect := s[0], s[1]
+			multi[i] = [2]string{target, dialect}
+			targetOption = append(targetOption, rego_compile.Target(target, dialect))
+		}
+	default:
+		targetOption = append(targetOption, rego_compile.Target(target, dialect))
 	}
 
 	m.Timer(timerPrepPartial).Start()
-
-	prep, err := rego.New(opts...).PrepareForPartial(ctx)
+	// NB(sr): just cache preparedCompile by path?
+	preparedCompile, err := rego_compile.New(
+		append(targetOption,
+			rego_compile.ParsedUnknowns(unknowns...),
+			rego_compile.ParsedQuery(request.Query),
+			rego_compile.Metrics(m),
+			rego_compile.Mappings(orig.Options.Mappings),
+			rego_compile.MaskRule(maskingRule),
+			rego_compile.Rego(
+				rego.Compiler(comp),
+				rego.Store(s.store),
+				rego.Transaction(txn),
+				rego.DisableInlining(orig.Options.DisableInlining),
+				rego.QueryTracer(buf),
+				rego.Instrument(includeInstrumentation),
+				rego.NDBuiltinCache(ndbCache),
+				rego.Runtime(s.runtime),
+				rego.UnsafeBuiltins(unsafeBuiltinsMap),
+				rego.InterQueryBuiltinCache(s.interQueryBuiltinCache),
+				rego.InterQueryBuiltinValueCache(s.interQueryBuiltinValueCache),
+				rego.PrintHook(s.manager.PrintHook()),
+				rego.DistributedTracingOpts(s.distributedTracingOpts),
+			),
+		)...,
+	).Prepare(ctx)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
@@ -295,28 +257,25 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 			writer.ErrorAuto(w, err)
 		}
 		return
-	}
 
+	}
 	m.Timer(timerPrepPartial).Stop()
 
 	qt := failtracer.New()
-	pq, err := prep.Partial(ctx,
+
+	filters, err := preparedCompile.Compile(ctx,
 		rego.EvalTransaction(txn),
-		rego.EvalMetrics(m),
 		rego.EvalParsedInput(request.Input),
-		rego.EvalParsedUnknowns(unknowns),
 		rego.EvalPrintHook(s.manager.PrintHook()),
-		rego.EvalNondeterministicBuiltins(orig.Options.NondeterministicBuiltins),
 		rego.EvalNDBuiltinCache(ndbCache),
 		rego.EvalInterQueryBuiltinCache(s.interQueryBuiltinCache),
 		rego.EvalInterQueryBuiltinValueCache(s.interQueryBuiltinValueCache),
 		rego.EvalQueryTracer(qt),
-		rego.EvalRuleIndexing(false),
 	)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
-			writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgCompileModuleError).WithASTErrors(err))
+			writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeEvaluation, types.MsgEvaluationError).WithASTErrors(err))
 		default:
 			writer.ErrorAuto(w, err)
 		}
@@ -327,59 +286,6 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 		Hints: qt.Hints(unknowns),
 	}
 
-	if target == "" { // "legacy" PE request
-		var i any = types.PartialEvaluationResultV1{
-			Queries: pq.Queries,
-			Support: pq.Support,
-		}
-		result.Result = &i
-		fin(w, result, applicationJSON, m, includeMetrics(r), includeInstrumentation, pretty(r))
-		return
-	}
-
-	// build ConstraintSet for single- and multi-target requests
-	m.Timer(timerEvalConstraints).Start()
-	multi := make([][2]string, len(orig.Options.TargetDialects))
-	var constr *compile.ConstraintSet
-	switch target {
-	case "multi":
-		constrs := make([]*compile.Constraint, len(orig.Options.TargetDialects))
-		for i, targetTuple := range orig.Options.TargetDialects {
-			s := strings.Split(targetTuple, "+")
-			target, dialect := s[0], s[1]
-			multi[i] = [2]string{target, dialect}
-
-			constrs[i], err = compile.NewConstraints(target, dialect) // NewConstraints validates the tuples
-			if err != nil {
-				writer.Error(w, http.StatusBadRequest,
-					types.NewErrorV1(types.CodeInvalidParameter, "multi-target request: %s", err.Error()))
-				return
-			}
-		}
-		constr = compile.NewConstraintSet(constrs...)
-	default:
-		c, err := compile.NewConstraints(target, dialect)
-		if err != nil {
-			writer.ErrorAuto(w, types.BadRequestErr(err.Error()))
-			return
-		}
-		constr = compile.NewConstraintSet(c)
-	}
-
-	// We collect all the mapped short names -- not per-dialect or per-target, since if
-	// you use a short, you need to provide a mapping for every target.
-	shorts := compile.ShortsFromMappings(orig.Options.Mappings)
-
-	// check PE queries against constraints
-	if errs := compile.Check(pq, constr, shorts).ASTErrors(); errs != nil {
-		writer.Error(w, http.StatusBadRequest,
-			types.NewErrorV1(types.CodeEvaluation, types.MsgEvaluationError).
-				WithASTErrors(errs))
-		return
-	}
-	m.Timer(timerEvalConstraints).Stop()
-
-	m.Timer(timerTranslateQueries).Start()
 	switch target {
 	case "multi":
 		targets := struct {
@@ -392,33 +298,27 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 
 		for _, targetTuple := range multi {
 			target, dialect := targetTuple[0], targetTuple[1]
-			mappings, err := lookupMappings(orig.Options.Mappings, target, dialect)
-			if err != nil {
-				writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "invalid mappings"))
-				return
+			f := filters.For(target, dialect)
+			var cr *CompileResult
+			if f.Query != nil {
+				cr = &CompileResult{Query: f.Query, Masks: f.Masks}
 			}
 			switch target {
 			case "ucast":
 				if targets.UCAST != nil {
 					continue // there's only one UCAST representation, don't translate that twice
 				}
-				r := compile.QueriesToUCAST(pq.Queries, mappings)
-				targets.UCAST = &CompileResult{Query: r, Masks: maskResult}
+				targets.UCAST = cr
 			case "sql":
-				sql, err := compile.QueriesToSQL(pq.Queries, mappings, dialect)
-				if err != nil {
-					writer.ErrorAuto(w, err) // TODO(sr): this isn't the best error we can create -- it'll be a 500 in the end, I think.
-					return
-				}
 				switch dialect {
 				case "postgresql":
-					targets.Postgres = &CompileResult{Query: sql, Masks: maskResult}
+					targets.Postgres = cr
 				case "mysql":
-					targets.MySQL = &CompileResult{Query: sql, Masks: maskResult}
+					targets.MySQL = cr
 				case "sqlserver":
-					targets.MSSQL = &CompileResult{Query: sql, Masks: maskResult}
+					targets.MSSQL = cr
 				case "sqlite":
-					targets.SQLite = &CompileResult{Query: sql, Masks: maskResult}
+					targets.SQLite = cr
 				}
 			}
 		}
@@ -427,31 +327,12 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 		result.Result = &t0
 
 	default:
-		mappings, err := lookupMappings(orig.Options.Mappings, target, dialect)
-		if err != nil {
-			writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "invalid mappings"))
-			return
-		}
-
-		if pq.Queries != nil { // not unconditional NO
-			switch target {
-			case "ucast":
-				r := compile.QueriesToUCAST(pq.Queries, mappings)
-				r0 := any(CompileResult{Query: r, Masks: maskResult})
-				result.Result = &r0
-			case "sql":
-				sql, err := compile.QueriesToSQL(pq.Queries, mappings, dialect)
-				if err != nil {
-					writer.ErrorAuto(w, err) // TODO(sr): this isn't the best error we can create -- it'll be a 500 in the end, I think.
-					return
-				}
-				s0 := any(CompileResult{Query: sql, Masks: maskResult})
-				result.Result = &s0
-			}
+		f := filters.For(target, dialect)
+		if f.Query != nil {
+			s0 := any(&CompileResult{Query: f.Query, Masks: f.Masks})
+			result.Result = &s0
 		}
 	}
-
-	m.Timer(timerTranslateQueries).Stop()
 
 	m.Timer(metrics.ServerHandler).Stop()
 	fin(w, result, contentType, m, includeMetrics(r), includeInstrumentation, pretty(r))
@@ -675,59 +556,6 @@ func targetDialect(accept string) (string, string) {
 	panic("unreachable")
 }
 
-func evalMaskingRule(ctx context.Context, txn storage.Transaction, input ast.Value, opts []func(*rego.Rego)) (ast.Value, error) {
-	rr := rego.New(opts...)
-
-	pq, err := rr.PrepareForEval(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	evalOpts := []rego.EvalOption{
-		rego.EvalTransaction(txn),
-		rego.EvalParsedInput(input),
-	}
-
-	rs, err := pq.Eval(
-		ctx,
-		evalOpts...,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(rs) == 0 {
-		return nil, nil
-	}
-
-	return ast.InterfaceToValue(rs[0].Expressions[0].Value)
-}
-
-func lookupMappings(mappings map[string]any, target, dialect string) (map[string]any, error) {
-	if mappings == nil {
-		return nil, nil
-	}
-
-	if md := mappings[dialect]; md != nil {
-		m, ok := md.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("invalid mappings for dialect %s", dialect)
-		}
-		if m != nil {
-			return m, nil
-		}
-	}
-
-	if mt := mappings[target]; mt != nil {
-		n, ok := mt.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("invalid mappings for target %s", target)
-		}
-		return n, nil
-	}
-	return nil, nil
-}
-
 func cloneCompiler(c *ast.Compiler) *ast.Compiler {
 	return ast.NewCompiler().
 		WithDefaultRegoVersion(c.DefaultRegoVersion()).
@@ -775,26 +603,4 @@ func prepareAnnotations(
 		return nil, comp0.Errors
 	}
 	return comp0, nil
-}
-
-// aerrs is a wrapper giving us an `error` from `ast.Errors`
-type aerrs struct {
-	errs []*ast.Error
-}
-
-func FromASTErrors(errs ...*ast.Error) error {
-	return &aerrs{errs}
-}
-
-func (es *aerrs) Error() string {
-	s := strings.Builder{}
-	if x := len(es.errs); x > 1 {
-		fmt.Fprintf(&s, "%d errors occurred during compilation:\n", x)
-	} else {
-		s.WriteString("1 error occurred during compilation:\n")
-	}
-	for i := range es.errs {
-		s.WriteString(es.errs[i].Error())
-	}
-	return s.String()
 }
