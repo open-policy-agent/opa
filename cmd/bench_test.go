@@ -899,8 +899,8 @@ a contains x if {
 
 					args := []string{tc.query}
 
-					var buf bytes.Buffer
-					rc, err := benchMain(args, params, &buf, &buf, &goBenchRunner{})
+					var buf, errBuf bytes.Buffer
+					rc, err := benchMain(args, params, &buf, &errBuf, &goBenchRunner{})
 
 					if len(tc.expErrs) > 0 {
 						if rc == 0 {
@@ -1037,15 +1037,15 @@ a[4] {
 
 					args := []string{tc.query}
 
-					var buf bytes.Buffer
-					rc, err := benchMain(args, params, &buf, &buf, &goBenchRunner{})
+					var buf, errBuf bytes.Buffer
+					rc, err := benchMain(args, params, &buf, &errBuf, &goBenchRunner{})
 
 					if len(tc.expErrs) > 0 {
 						if rc == 0 {
 							t.Fatalf("Expected non-zero return code")
 						}
 
-						output := buf.String()
+						output := errBuf.String()
 						for _, expErr := range tc.expErrs {
 							if !strings.Contains(output, expErr) {
 								t.Fatalf("Expected error:\n\n%s\n\ngot:\n\n%s", expErr, output)
@@ -1241,8 +1241,8 @@ a contains 4 if {
 
 						args := []string{tc.query}
 
-						var buf bytes.Buffer
-						rc, err := benchMain(args, params, &buf, &buf, &goBenchRunner{})
+						var buf, errBuf bytes.Buffer
+						rc, err := benchMain(args, params, &buf, &errBuf, &goBenchRunner{})
 
 						if len(tc.expErrs) > 0 {
 							if rc == 0 {
