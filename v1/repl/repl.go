@@ -164,7 +164,7 @@ func (r *REPL) initModule(ctx context.Context) error {
 
 func (r *REPL) WithStderrWriter(w io.Writer) *REPL {
 	r.stderr = w
-	return nil
+	return r
 }
 
 // Loop will run until the user enters "exit", Ctrl+C, Ctrl+D, or an unexpected error occurs.
@@ -1092,7 +1092,7 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 	case "json":
 		return pr.JSON(r.output, output)
 	default:
-		return pr.Pretty(r.output, output)
+		return pr.Pretty(r.output, r.stderr, output)
 	}
 }
 
@@ -1145,7 +1145,7 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 	case "json":
 		return pr.JSON(r.output, output)
 	default:
-		return pr.Pretty(r.output, output)
+		return pr.Pretty(r.output, r.stderr, output)
 	}
 }
 

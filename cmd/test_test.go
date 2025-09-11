@@ -3645,7 +3645,7 @@ func TestWithDefaultRegoPlugin(t *testing.T) {
 		params.fail = true
 		query := "2+2 = 5" // unification will fail ("2+2 == 5" would be false, but defined)
 
-		defined, err := eval([]string{query}, params, io.Discard)
+		defined, err := eval([]string{query}, params, io.Discard, nil)
 		if err != nil {
 			t.Fatal("unexpected error", err)
 		}
