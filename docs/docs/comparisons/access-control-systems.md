@@ -1,11 +1,16 @@
 ---
-title: Comparison to Other Systems
+title: Access Control Systems
 ---
 
-Often the easiest way to understand a new language is by comparing
-it to languages you already know. Here we show how policies from
-several existing policy systems can be implemented with the Open
-Policy Agent.
+Often the easiest way to understand a new tool or language is by comparing it to
+what you already know. Here we show how policies from several existing policy
+systems can be implemented with the Open Policy Agent and Rego.
+
+:::tip
+Looking for comparisons between OPA's Rego language and languages like Go, Java
+and Python? Head to our [language comparison](../comparisons/languages)
+documentation.
+:::
 
 ## Role-based access control (RBAC)
 
