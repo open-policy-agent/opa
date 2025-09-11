@@ -29,7 +29,8 @@ export async function loadRules() {
       const id = filePath.replace(rootPath + "/", "").replace(".md", "");
 
       acc.push({
-        summary,
+        filePath,
+        content,
         id,
       });
 
