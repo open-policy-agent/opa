@@ -9,11 +9,14 @@ By default, Regal will lint your policies using the
 [capabilities](https://www.openpolicyagent.org/docs/deployments/#capabilities) of the latest version of OPA
 known to Regal (i.e. the latest version of OPA at the time Regal was released). Sometimes you might want to tell Regal
 that some rules aren't applicable to your project (yet!). As an example, if you're running OPA v0.46.0, you likely won't
-be helped by the [custom-has-key](https://openpolicyagent.org/projects/regal/rules/idiomatic/custom-has-key-construct) rule, as it
-suggests using the `object.keys` built-in function introduced in OPA v0.47.0. The opposite could also be true —
+be helped by the
+[custom-has-key](https://openpolicyagent.org/projects/regal/rules/idiomatic/custom-has-key-construct)
+rule, as it suggests using the `object.keys` built-in function introduced in OPA
+v0.47.0. The opposite could also be true —
 sometimes new versions of OPA will invalidate rules that applied to older versions. An example of this is the upcoming
 introduction of `import rego.v1`, which will make
-[implicit-future-keywords](https://openpolicyagent.org/projects/regal/rules/imports/implicit-future-keywords) obsolete, as importing
+[implicit-future-keywords](https://openpolicyagent.org/projects/regal/rules/imports/implicit-future-keywords)
+obsolete, as importing
 `rego.v1` automatically imports all "future" functions.
 
 Capabilities help you tell Regal which features to take into account, and rules with dependencies to capabilities

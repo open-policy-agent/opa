@@ -1,0 +1,20 @@
+{
+  "user_roles": {
+    "c2655539-8422-476d-9430-a26a4efa51b2": [
+      "developer"
+    ]
+  },
+  "role_permissions": {
+    "developer": [
+      "dns.*",
+      "compute.*"
+    ]
+  },
+  "action_requirements": {
+    "tenant.create": [
+      "dns.records.create",
+      "compute.containers.create",
+      "compute.containers.scale.*"
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "path": "/users/1234567890",
+  "method": "GET",
+  "token": {
+    "header": {
+      "alg": "HS256",
+      "typ": "JWT"
+    },
+    "payload": {
+      "sub": "1234567890",
+      "name": "John Doe",
+      "iat": 1516239022,
+      "scopes": "read:users write:posts delete:comments"
+    },
+    "signature": "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+  }
+}

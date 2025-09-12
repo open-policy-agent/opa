@@ -37,8 +37,8 @@ export default function PlaygroundExample({
     return acc;
   }, {});
   const config = source_files["config.json"];
-  const input = source_files["input.json"] || "{}";
-  const data = source_files["data.json"] || "{}";
+  const input = source_files["input.json"] || {};
+  const data = source_files["data.json"] || {};
   const policy = source_files["policy.rego"];
 
   const title = source_files["title.txt"];
@@ -47,8 +47,8 @@ export default function PlaygroundExample({
 
   const output = source_files["output.json"];
 
-  const showInput = config?.showInput ?? true;
-  const showData = config?.showData ?? true;
+  const showInput = config?.showInput ?? Object.keys(input).length != 0;
+  const showData = config?.showData ?? Object.keys(data).length != 0;
   const showTitles = config?.showTitles ?? true;
   const showPlayground = config?.showPlayground ?? true;
   const command = config?.command ?? "data.play";
@@ -64,9 +64,6 @@ export default function PlaygroundExample({
   const showNotes = output && output.some(rule => rule.note);
 
   let dataString = JSON.stringify(data, null, 2);
-  if (config && config.showData && config.dataLineLimit) {
-    dataString = dataString.split("\n").slice(0, config.dataLineLimit).join("\n") + "\n...";
-  }
   const introT = intro ? intro() : "";
   const outroT = outro ? outro() : "";
 
@@ -142,7 +139,7 @@ export default function PlaygroundExample({
         </MDXProvider>
       )}
 
-      {showPlayground && output && (
+      {showPlayground && showInput && (
         <p>
           <Link to={url}>Open in OPA Playground</Link>
         </p>

@@ -2,6 +2,6 @@
   "showInput": true,
   "showData": false,
   "showTitles": false,
-  "titleSize": 5,
+  "titleSize": 4,
   "command": "data.example"
 }
