@@ -3289,15 +3289,15 @@ func TestStatusMetricsForLogDrops(t *testing.T) {
 			_ = plugin.Log(ctx, event2) // event 2 should not be written into the decision log encoder as rate limit exceeded
 			_ = plugin.Log(ctx, event3) // event 3 should not be written into the decision log encoder as rate limit exceeded
 
-      // trigger a status update
-      err = disco.oneShot(ctx, download.Update{ETag: "etag-1", Bundle: makeDataBundle(1, `{
+			// trigger a status update
+			err = disco.oneShot(ctx, download.Update{ETag: "etag-1", Bundle: makeDataBundle(1, `{
           "config": {
             "bundles": {"test-bundle": {"service": "localhost"}}
           }
         }`)})
-      if err != nil {
-        t.Fatal(err)
-      }
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			status.Lookup(manager).Stop(ctx)
 
