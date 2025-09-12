@@ -17,22 +17,18 @@ type sizeBuffer struct {
 	buffer               *logBuffer
 	BufferSizeLimitBytes int64
 	UploadSizeLimitBytes int64
-	uploadPath           string        // uploadPath is the configured HTTP resource path for upload
-	client               rest.Client   // client is used to upload the data to the configured service
 	enc                  *chunkEncoder // encoder appends events into the gzip compressed JSON array
 	limiter              *rate.Limiter
 	metrics              metrics.Metrics
 	logger               logging.Logger
 }
 
-func newSizeBuffer(bufferSizeLimitBytes int64, client rest.Client, uploadPath string, uploadSizeLimitBytes int64) *sizeBuffer {
+func newSizeBuffer(bufferSizeLimitBytes int64, uploadSizeLimitBytes int64) *sizeBuffer {
 	return &sizeBuffer{
 		enc:                  newChunkEncoder(uploadSizeLimitBytes),
 		buffer:               newLogBuffer(bufferSizeLimitBytes),
 		BufferSizeLimitBytes: uploadSizeLimitBytes,
 		UploadSizeLimitBytes: uploadSizeLimitBytes,
-		client:               client,
-		uploadPath:           uploadPath,
 	}
 }
 
@@ -43,16 +39,19 @@ func (b *sizeBuffer) WithLimiter(maxDecisionsPerSecond *float64) *sizeBuffer {
 	return b
 }
 
-func (b *sizeBuffer) WithMetrics(m metrics.Metrics) *sizeBuffer {
+func (b *sizeBuffer) WithMetrics(m metrics.Metrics) {
 	b.metrics = m
 	b.enc.metrics = m
-	return b
 }
 
 func (b *sizeBuffer) WithLogger(l logging.Logger) *sizeBuffer {
 	b.logger = l
 	b.enc.logger = l
 	return b
+}
+
+func (*sizeBuffer) Name() string {
+	return sizeBufferType
 }
 
 func (b *sizeBuffer) incrMetric(name string) {
@@ -65,8 +64,6 @@ func (b *sizeBuffer) Reconfigure(bufferSizeLimitBytes int64, client rest.Client,
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 
-	b.client = client
-	b.uploadPath = uploadPath
 	if maxDecisionsPerSecond != nil {
 		b.limiter = rate.NewLimiter(rate.Limit(*maxDecisionsPerSecond), int(math.Max(1, *maxDecisionsPerSecond)))
 	} else if b.limiter != nil {
@@ -102,7 +99,7 @@ func (b *sizeBuffer) Push(event *EventV1) {
 	}
 }
 
-func (b *sizeBuffer) Upload(ctx context.Context) error {
+func (b *sizeBuffer) Upload(ctx context.Context, client rest.Client, uploadPath string) error {
 	// Make a local copy of the plugin's encoder and buffer and create
 	// a new encoder and buffer. This is needed as locking the buffer for
 	// the upload duration will block policy evaluation and result in
@@ -133,7 +130,7 @@ func (b *sizeBuffer) Upload(ctx context.Context) error {
 
 	for bs := oldBuffer.Pop(); bs != nil; bs = oldBuffer.Pop() {
 		if err == nil {
-			err = uploadChunk(ctx, b.client, b.uploadPath, bs)
+			err = uploadChunk(ctx, client, uploadPath, bs)
 		}
 		if err != nil {
 			if b.limiter != nil {
