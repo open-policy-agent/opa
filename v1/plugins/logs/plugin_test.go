@@ -1137,7 +1137,7 @@ func TestPluginStatusUpdateHTTPError(t *testing.T) {
 			}
 
 			fixture.server.expCode = 500
-			err := fixture.plugin.b.Upload(ctx, fixture.plugin.manager.Client(fixture.plugin.config.Service), *fixture.plugin.config.Resource)
+			err := fixture.plugin.doOneShot(ctx)
 			if err == nil {
 				t.Fatal("Expected error")
 			}
@@ -1215,7 +1215,7 @@ func TestPluginStatusUpdateEncodingFailure(t *testing.T) {
 
 	// Trigger a status update
 	fixture.server.expCode = 200
-	err = fixture.plugin.b.Upload(ctx, fixture.plugin.manager.Client(fixture.plugin.config.Service), *fixture.plugin.config.Resource)
+	err = fixture.plugin.doOneShot(ctx)
 	if err != nil && !errors.Is(err, &bufferEmpty{}) {
 		t.Fatal("Unexpected error")
 	}
@@ -1337,7 +1337,7 @@ func TestPluginStatusUpdateBufferSizeExceeded(t *testing.T) {
 
 	// Trigger a status update
 	fixture.server.expCode = 200
-	err = fixture.plugin.b.Upload(ctx, fixture.plugin.manager.Client(fixture.plugin.config.Service), *fixture.plugin.config.Resource)
+	err = fixture.plugin.doOneShot(ctx)
 	if err != nil {
 		t.Fatal("Unexpected error")
 	}
