@@ -1,7 +1,6 @@
 package topdown
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -13,7 +12,7 @@ import (
 
 func BenchmarkBulkStartsWithNaive(b *testing.B) {
 	data := generateBulkStartsWithInput()
-	ctx := context.Background()
+	ctx := b.Context()
 	store := inmem.NewFromObject(data)
 
 	compiler := ast.MustCompileModules(map[string]string{
@@ -52,7 +51,7 @@ result if {
 
 func BenchmarkBulkStartsWithOptimized(b *testing.B) {
 	data := generateBulkStartsWithInput()
-	ctx := context.Background()
+	ctx := b.Context()
 	store := inmem.NewFromObject(data)
 
 	compiler := ast.MustCompileModules(map[string]string{

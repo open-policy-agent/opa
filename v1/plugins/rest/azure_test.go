@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -198,7 +197,7 @@ func TestAzureManagedIdentitiesAuthPlugin(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 
-		ctx := context.Background()
+		ctx := t.Context()
 		_, _ = client.Do(ctx, "GET", "test")
 		ts.stop()
 	}

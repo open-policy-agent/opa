@@ -1,0 +1,9 @@
+{
+  "required_paths": [
+    "request.method",
+    "request.path",
+    "request.headers",
+    "role",
+    "email"
+  ]
+}

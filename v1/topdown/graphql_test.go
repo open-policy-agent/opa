@@ -5,7 +5,6 @@
 package topdown
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -96,7 +95,7 @@ func TestGraphQLParseString(t *testing.T) {
 	}
 
 	valueCache := cache.NewInterQueryValueCache(
-		context.Background(),
+		t.Context(),
 		&cache.Config{
 			InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
 				NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
@@ -201,7 +200,7 @@ func TestGraphQLParseObject(t *testing.T) {
 	}
 
 	valueCache := cache.NewInterQueryValueCache(
-		context.Background(),
+		t.Context(),
 		&cache.Config{
 			InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
 				NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
@@ -316,7 +315,7 @@ func TestGraphQLSchemaIsValid(t *testing.T) {
 	}
 
 	valueCache := cache.NewInterQueryValueCache(
-		context.Background(),
+		t.Context(),
 		&cache.Config{
 			InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
 				NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
@@ -458,7 +457,7 @@ func TestGraphQLParseAndVerify(t *testing.T) {
 	}
 
 	valueCache := cache.NewInterQueryValueCache(
-		context.Background(),
+		t.Context(),
 		&cache.Config{
 			InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
 				NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
@@ -581,7 +580,7 @@ func TestGraphQLIsValid(t *testing.T) {
 	}
 
 	valueCache := cache.NewInterQueryValueCache(
-		context.Background(),
+		t.Context(),
 		&cache.Config{
 			InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
 				NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
@@ -681,7 +680,7 @@ func TestGraphQLParseQuery(t *testing.T) {
 	}
 
 	valueCache := cache.NewInterQueryValueCache(
-		context.Background(),
+		t.Context(),
 		&cache.Config{
 			InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
 				NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
@@ -781,7 +780,7 @@ func TestGraphQLParseSchema(t *testing.T) {
 	}
 
 	valueCache := cache.NewInterQueryValueCache(
-		context.Background(),
+		t.Context(),
 		&cache.Config{
 			InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
 				NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{

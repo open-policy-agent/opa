@@ -6,7 +6,6 @@ package logs
 
 import (
 	"compress/gzip"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -171,7 +170,7 @@ func TestEventBuffer_Upload(t *testing.T) {
 				e.Push(newTestEvent(t, strconv.Itoa(i), true))
 			}
 
-			err := e.Upload(context.Background())
+			err := e.Upload(t.Context())
 			if err != nil {
 				if tc.expectedError == "" || tc.expectedError != "" && err.Error() != tc.expectedError {
 					t.Fatal(err)

@@ -1,0 +1,22 @@
+{
+  "items": [
+    {
+      "id": "1bd91655",
+      "name": "Lunch with James",
+      "amount": 57.5
+    },
+    {
+      "id": "226c3910",
+      "name": "Flight to Berlin",
+      "amount": 389.78,
+      "category": "conferences"
+    },
+    {
+      "id": "db5a4b23",
+      "name": "Recurring SaaS Subscription",
+      "amount": 30,
+      "category": "saas",
+      "approved_by": "90400852"
+    }
+  ]
+}

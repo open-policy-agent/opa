@@ -10,52 +10,55 @@ blogs:
 - https://www.styra.com/blog/guarding-the-guardrails-introducing-regal-the-rego-linter/
 - https://thenewstack.io/scaling-open-source-community-by-getting-closer-to-users/
 code:
-- https://github.com/StyraInc/regal
+- https://github.com/open-policy-agent/regal
 videos:
 - "https://www.youtube.com/live/Xx8npd2TQJ0?feature=share&t=2567"
 - "https://youtu.be/XtA-NKoJDaI?feature=shared&t=934"
 tutorials:
-- https://docs.styra.com/regal#try-it-out
+- https://www.openpolicyagent.org/projects/regal#try-it-out
 docs_features:
   learning-rego:
     note: |
       Regal can automatically check for common Rego mistakes as you code.
       Each violation is accompanied by a detailed explanation which can be a
       great learning tool for new Rego users. See the
-      [Supported Rules](https://github.com/StyraInc/regal/tree/main#rules).
+      [Supported Rules](https://www.openpolicyagent.org/projects/regal/rules).
   go-integration:
     note: |
       Regal is built using the Go Rego API. Regal evaluates linting rules
       defined in Rego against the Rego AST of policy files. The
-      [linter package](https://github.com/StyraInc/regal/blob/main/pkg/linter/linter.go)
+      [linter package](https://github.com/open-policy-agent/regal/blob/main/pkg/linter/linter.go)
       is a good place to see how OPA is used in the project.
   policy-testing:
     note: |
       Regal is a useful step to use when testing Rego policies to ensure
       code is correct and free of common errors. See
-      [the README](https://github.com/StyraInc/regal#try-it-out)
+      [the README](https://www.openpolicyagent.org/projects/regal#try-it-out)
       to get started.
   debugging-rego:
     note: |
       Regal can be used to debug Rego policies by identifying common mistakes.
-      See [Bugs](https://docs.styra.com/regal/rules/bugs) for some example
-      issues it can identify automatically.
+      See [Bugs](https://www.openpolicyagent.org/projects/regal/rules/bugs) for
+      some example issues it can identify automatically.
 
       Regal also implements a
-      [language server](https://docs.styra.com/regal/language-server) and
-      [debug adapter](https://docs.styra.com/regal/debug-adapter) for Rego to
+      [language server](https://www.openpolicyagent.org/projects/regal/language-server) and
+      [debug adapter](https://www.openpolicyagent.org/projects/regal/debug-adapter) for Rego to
       allow clients to debug Rego code as users type.
 ---
 
-Regal is a linter for Rego, with the goal of making your Rego magnificent!
+Regal is the official linter for Rego, with the goal of making your Rego
+magnificent!
 
 Regal can:
 
-- Identify common mistakes, bugs and inefficiencies in Rego policies, and suggest better approaches
+- Identify common mistakes, bugs and inefficiencies in Rego policies, and
+  suggest better approaches
 - Provide advice on best practices, coding style, and tooling
-- Allow users, teams and organizations to enforce custom rules on their policy code
+- Allow users, teams and organizations to enforce custom rules on their policy
+  code
 
 Regal also implements a
-[language server](https://docs.styra.com/regal/language-server) and
-[debug adapter](https://docs.styra.com/regal/debug-adapter) for Rego to
+[language server](https://www.openpolicyagent.org/projects/regal/language-server) and
+[debug adapter](https://www.openpolicyagent.org/projects/regal/debug-adapter) for Rego to
 allow clients to debug Rego code as users type.

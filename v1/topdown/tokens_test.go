@@ -1,7 +1,6 @@
 package topdown
 
 import (
-	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rsa"
@@ -267,7 +266,7 @@ func TestTopDownJWTEncodeSignES256(t *testing.T) {
 	path := []string{"generated", "p"}
 	var inputTerm *ast.Term
 
-	ctx := context.Background()
+	ctx := t.Context()
 	txn := storage.NewTransactionOrDie(ctx, store)
 
 	defer store.Abort(ctx, txn)
@@ -407,7 +406,7 @@ func TestTopDownJWTEncodeSignES512(t *testing.T) {
 	path := []string{"generated", "p"}
 	var inputTerm *ast.Term
 
-	ctx := context.Background()
+	ctx := t.Context()
 	txn := storage.NewTransactionOrDie(ctx, store)
 
 	defer store.Abort(ctx, txn)
@@ -539,7 +538,7 @@ func TestTopdownJWTEncodeSignECWithSeedReturnsSameSignature(t *testing.T) {
 			WithStrictBuiltinErrors(true).
 			WithCompiler(ast.NewCompiler())
 
-		qrs, err := q.Run(context.Background())
+		qrs, err := q.Run(t.Context())
 		if err != nil {
 			t.Fatal(err)
 		} else if len(qrs) != 1 {
@@ -769,7 +768,7 @@ func TestTopdownJWTDecodeVerifyIgnoresKeysOfUnknownAlgInJWKS(t *testing.T) {
 }
 
 func TestBuiltinJWTDecodeVerify_TokenCache(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	const privateKey = `{
 		"kty":"RSA",
@@ -1134,7 +1133,7 @@ func TestBuiltinJWTVerify_TokenCache(t *testing.T) {
 		},
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	cacheConfig := cache.Config{
 		InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
@@ -1284,7 +1283,7 @@ func TestBuiltinJWTDecodeVerify(t *testing.T) {
 		},
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {

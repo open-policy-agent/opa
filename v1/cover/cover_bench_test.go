@@ -5,7 +5,6 @@
 package cover
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -28,7 +27,7 @@ func BenchmarkCoverBigLocalVar(b *testing.B) {
 					b.Fatal(err)
 				}
 
-				ctx := context.Background()
+				ctx := b.Context()
 
 				pq, err := rego.New(
 					rego.Module("test.rego", module),

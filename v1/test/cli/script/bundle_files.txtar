@@ -1,0 +1,13 @@
+# correct paths in tarball
+exec $OPA build a/b/c/bundle
+exec tar tf bundle.tar.gz
+stdout '/data\.json'
+stdout '/a/b/c/bundle/test\.rego'
+stdout '/\.manifest'
+
+-- a/b/c/bundle/data.json --
+{}
+-- a/b/c/bundle/test.rego --
+package test
+
+result if input.yay

@@ -1,7 +1,6 @@
 package aws
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -44,7 +43,7 @@ func TestKMS_SignDigest(t *testing.T) {
 		kms := NewKMSWithURLClient(server.URL, server.Client(), logger)
 
 		creds := Credentials{}
-		signature, err := kms.SignDigest(context.Background(), []byte(tc.request.Message), tc.request.KeyID, tc.request.SigningAlgorithm, creds, "v4")
+		signature, err := kms.SignDigest(t.Context(), []byte(tc.request.Message), tc.request.KeyID, tc.request.SigningAlgorithm, creds, "v4")
 		if err != nil && tc.wantErr == false {
 			t.Fatalf("expected no error, got: %s", err)
 		}

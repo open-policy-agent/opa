@@ -1,0 +1,34 @@
+# unoptimized
+exec $OPA build --bundle bundle
+exec $OPA eval --format pretty --bundle bundle.tar.gz --input input.json data.test.result --fail
+stdout '^true$'
+! stderr .
+
+# unoptimized, stdin
+stdin input.json
+exec $OPA eval --format pretty --bundle bundle.tar.gz -I data.test.result --fail
+stdout '^true$'
+! stderr .
+
+# o=1, stdin
+exec $OPA build --output o1.tar.gz --optimize 1 --bundle bundle --entrypoint test/result
+stdin input.json
+exec $OPA eval --format pretty --bundle o1.tar.gz -I data.test.result --fail
+stdout '^true$'
+! stderr .
+
+# o=2, stdin
+exec $OPA build --output o2.tar.gz --optimize 2 --bundle bundle --entrypoint test/result
+stdin input.json
+exec $OPA eval --format pretty --bundle o1.tar.gz -I data.test.result --fail
+stdout '^true$'
+! stderr .
+
+-- bundle/data.json --
+{}
+-- bundle/test.rego --
+package test
+
+result if input.yay
+-- input.json --
+{"yay": true}

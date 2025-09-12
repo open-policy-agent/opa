@@ -6,7 +6,6 @@
 package profiler
 
 import (
-	"context"
 	_ "encoding/json"
 	"reflect"
 	"testing"
@@ -67,7 +66,7 @@ p if {
 		rego.QueryTracer(profiler),
 	)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err = eval.Eval(ctx)
 
 	if err != nil {
@@ -144,7 +143,7 @@ func TestProfileCheckExprDuration(t *testing.T) {
 		rego.QueryTracer(profiler),
 	)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err = eval.Eval(ctx)
 
 	if err != nil {
@@ -212,7 +211,7 @@ baz if {
 		rego.QueryTracer(profiler),
 	)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err = eval.Eval(ctx)
 
 	if err != nil {
@@ -267,7 +266,7 @@ baz if {
 		rego.QueryTracer(profiler),
 	)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err = eval.Eval(ctx)
 
 	if err != nil {
@@ -328,7 +327,7 @@ baz if {
 		rego.QueryTracer(profiler),
 	)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err = eval.Eval(ctx)
 
 	if err != nil {
@@ -396,7 +395,7 @@ baz if {
 		rego.QueryTracer(profiler),
 	)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err = eval.Eval(ctx)
 
 	if err != nil {
@@ -454,7 +453,7 @@ allowed_operations = [
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	pq, err := rego.New(
 		rego.Module("test.rego", module),

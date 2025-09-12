@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -248,10 +247,10 @@ func JSON(w io.Writer, x any) error {
 	return encoder.Encode(x)
 }
 
-// Bindings prints the bindings from r to w.
-func Bindings(w io.Writer, r Output) error {
+// Bindings prints the bindings from r to w, errors are written to errW
+func Bindings(w io.Writer, errW io.Writer, r Output) error {
 	if r.Errors != nil {
-		return prettyError(w, r.Errors)
+		return prettyError(errW, r.Errors)
 	}
 	for _, rs := range r.Result {
 		if err := JSON(w, rs.Bindings); err != nil {
@@ -261,26 +260,26 @@ func Bindings(w io.Writer, r Output) error {
 	return nil
 }
 
-// Values prints the values from r to w.
-func Values(w io.Writer, r Output) error {
+// Values prints the values from r to w, errors are written to errW
+func Values(w io.Writer, errW io.Writer, r Output) error {
 	if r.Errors != nil {
-		return prettyError(w, r.Errors)
+		return prettyError(errW, r.Errors)
 	}
 	for _, rs := range r.Result {
 		line := make([]any, len(rs.Expressions))
 		for i := range line {
 			line[i] = rs.Expressions[i].Value
 		}
-		if err := JSON(os.Stdout, line); err != nil {
+		if err := JSON(w, line); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// Pretty prints all of r to w in a human-readable format.
-func Pretty(w io.Writer, r Output) error {
-	return PrettyWithOptions(w, r, PrettyOptions{
+// Pretty prints all of r to w in a human-readable format, errors are written to errW
+func Pretty(w io.Writer, errW io.Writer, r Output) error {
+	return PrettyWithOptions(w, errW, r, PrettyOptions{
 		TraceOpts: topdown.PrettyTraceOptions{
 			Locations: true,
 		},
@@ -291,15 +290,15 @@ type PrettyOptions struct {
 	TraceOpts topdown.PrettyTraceOptions
 }
 
-// PrettyWithOptions prints all of r to w in a human-readable format.
-func PrettyWithOptions(w io.Writer, r Output, opts PrettyOptions) error {
+// PrettyWithOptions prints all of r to w in a human-readable format, errors are written to errW
+func PrettyWithOptions(w io.Writer, errW io.Writer, r Output, opts PrettyOptions) error {
 	if len(r.Explanation) > 0 {
 		if err := prettyExplanation(w, r.Explanation, opts.TraceOpts); err != nil {
 			return err
 		}
 	}
 	if r.Errors != nil {
-		if err := prettyError(w, r.Errors); err != nil {
+		if err := prettyError(errW, r.Errors); err != nil {
 			return err
 		}
 	} else if r.undefined() {
@@ -342,11 +341,11 @@ func PrettyWithOptions(w io.Writer, r Output, opts PrettyOptions) error {
 }
 
 // Source prints partial evaluation results in r to w in a source file friendly
-// format.
-func Source(w io.Writer, r Output) error {
+// format, errors are written to errW
+func Source(w io.Writer, errW io.Writer, r Output) error {
 
 	if r.Errors != nil {
-		return prettyError(w, r.Errors)
+		return prettyError(errW, r.Errors)
 	}
 
 	for i := range r.Partial.Queries {
@@ -370,13 +369,13 @@ func Source(w io.Writer, r Output) error {
 	return nil
 }
 
-// Raw prints the values from r to w.  Each result is written on a separate
+// Raw prints the values from r to w, errors are written to errW. Each result is written on a separate
 // line, and the expressions are separated by spaces.  If the values are
 // strings, they are written directly rather than formatted as compact
 // JSON strings.  This output format makes OPA useful in a scripting context.
-func Raw(w io.Writer, r Output) error {
+func Raw(w io.Writer, errW io.Writer, r Output) error {
 	if r.Errors != nil {
-		return prettyError(w, r.Errors)
+		return prettyError(errW, r.Errors)
 	}
 
 	for _, rs := range r.Result {

@@ -1,7 +1,6 @@
 package rego_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/rego"
@@ -66,7 +65,7 @@ resp = { "allow": true } if { true }
 				rego.Query(tc.query),
 				rego.Module("", tc.module),
 			)
-			rs, err := r.Eval(context.Background())
+			rs, err := r.Eval(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			}

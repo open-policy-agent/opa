@@ -102,7 +102,7 @@ func TestValidateMetricsUrl(t *testing.T) {
 }
 
 func TestRequestErrorLoggingWithHTTPRequestContext(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	t.Cleanup(cancel)
 
 	logger := test.New()
@@ -164,7 +164,7 @@ func TestRequestErrorLoggingWithHTTPRequestContext(t *testing.T) {
 }
 
 func TestRequestLogging(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	t.Cleanup(cancel)
 
 	logger := test.New()

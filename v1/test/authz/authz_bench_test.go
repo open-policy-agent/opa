@@ -5,7 +5,6 @@
 package authz
 
 import (
-	"context"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -51,7 +50,7 @@ func runAuthzBenchmark(b *testing.B, mode InputMode, numPaths int, extras ...boo
 		NumPaths:  numPaths,
 	}
 
-	ctx := context.Background()
+	ctx := b.Context()
 	data := GenerateDataset(profile)
 	useDisk := len(extras) > 0 && extras[0]
 

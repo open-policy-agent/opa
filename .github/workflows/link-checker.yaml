@@ -15,22 +15,24 @@ jobs:
     permissions:
       issues: write # required for peter-evans/create-issue-from-file
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
     - name: Link Checker
       id: lychee
-      uses: lycheeverse/lychee-action@v2
+      uses: lycheeverse/lychee-action@885c65f3dc543b57c898c8099f4e08c8afd178a2 # v2.6.1
       with:
-        workingDirectory: .
-        args: |
-          --max-concurrency 1 \
-          --no-progress \
-          --exclude-path vendor \
-          --exclude-path internal \
-          --exclude-path CHANGELOG.md \
-          --scheme https \
-          --scheme http \
+        args: >
+          --max-concurrency 1
+          --no-progress
+          --exclude-path vendor
+          --exclude-path internal
+          --exclude-path CHANGELOG.md
+          --scheme https
+          --scheme http
           --accept 200..=206,403,429
+          --retry-wait-time 5
+          --max-retries 1
+          .
         fail: false
 
     - name: Show Report
@@ -38,7 +40,7 @@ jobs:
 
     - name: Create Issue From File
       if: steps.lychee.outputs.exit_code != 0
-      uses: peter-evans/create-issue-from-file@v5
+      uses: peter-evans/create-issue-from-file@e8ef132d6df98ed982188e460ebb3b5d4ef3a9cd # v5.0.1
       with:
         title: "docs: Link Checker Report"
         content-filepath: ./lychee/out.md

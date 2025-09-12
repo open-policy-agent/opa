@@ -674,6 +674,9 @@ func FloatNumberTerm(f float64) *Term {
 func (num Number) Equal(other Value) bool {
 	switch other := other.(type) {
 	case Number:
+		if num == other {
+			return true
+		}
 		if n1, ok1 := num.Int64(); ok1 {
 			n2, ok2 := other.Int64()
 			if ok1 && ok2 {
@@ -718,6 +721,11 @@ func (num Number) Find(path Ref) (Value, error) {
 
 // Hash returns the hash code for the Value.
 func (num Number) Hash() int {
+	if len(num) < 4 {
+		if i, err := strconv.Atoi(string(num)); err == nil {
+			return i
+		}
+	}
 	f, err := json.Number(num).Float64()
 	if err != nil {
 		bs := []byte(num)
@@ -1331,10 +1339,7 @@ func (arr *Array) Find(path Ref) (Value, error) {
 		return nil, errFindNotFound
 	}
 	i, ok := num.Int()
-	if !ok {
-		return nil, errFindNotFound
-	}
-	if i < 0 || i >= arr.Len() {
+	if !ok || i < 0 || i >= arr.Len() {
 		return nil, errFindNotFound
 	}
 
@@ -1355,12 +1360,7 @@ func (arr *Array) Get(pos *Term) *Term {
 		return nil
 	}
 
-	i, ok := num.Int()
-	if !ok {
-		return nil
-	}
-
-	if i >= 0 && i < len(arr.elems) {
+	if i, ok := num.Int(); ok && i >= 0 && i < len(arr.elems) {
 		return arr.elems[i]
 	}
 
@@ -2194,24 +2194,21 @@ func (l *lazyObj) Find(path Ref) (Value, error) {
 }
 
 type object struct {
-	elems  map[int]*objectElem
-	keys   objectElemSlice
-	ground int // number of key and value grounds. Counting is
-	// required to support insert's key-value replace.
+	elems     map[int]*objectElem
+	keys      []*objectElem
+	ground    int // number of key and value grounds. Counting is required to support insert's key-value replace.
 	hash      int
 	sortGuard sync.Once // Prevents race condition around sorting.
 }
 
 func newobject(n int) *object {
-	var keys objectElemSlice
+	var keys []*objectElem
 	if n > 0 {
-		keys = make(objectElemSlice, 0, n)
+		keys = make([]*objectElem, 0, n)
 	}
 	return &object{
 		elems:     make(map[int]*objectElem, n),
 		keys:      keys,
-		ground:    0,
-		hash:      0,
 		sortGuard: sync.Once{},
 	}
 }
@@ -2222,19 +2219,13 @@ type objectElem struct {
 	next  *objectElem
 }
 
-type objectElemSlice []*objectElem
-
-func (s objectElemSlice) Less(i, j int) bool { return Compare(s[i].key.Value, s[j].key.Value) < 0 }
-func (s objectElemSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s objectElemSlice) Len() int           { return len(s) }
-
 // Item is a helper for constructing an tuple containing two Terms
 // representing a key/value pair in an Object.
 func Item(key, value *Term) [2]*Term {
 	return [2]*Term{key, value}
 }
 
-func (obj *object) sortedKeys() objectElemSlice {
+func (obj *object) sortedKeys() []*objectElem {
 	obj.sortGuard.Do(func() {
 		slices.SortFunc(obj.keys, func(a, b *objectElem) int {
 			return a.key.Value.Compare(b.key.Value)
@@ -2540,6 +2531,9 @@ func (obj *object) get(k *Term) *objectElem {
 	case Number:
 		if xi, ok := x.Int64(); ok {
 			equal = func(y Value) bool {
+				if x == y {
+					return true
+				}
 				if y, ok := y.(Number); ok {
 					if yi, ok := y.Int64(); ok {
 						return xi == yi
@@ -2630,6 +2624,9 @@ func (obj *object) insert(k, v *Term, resetSortGuard bool) {
 	case Number:
 		if xi, err := json.Number(x).Int64(); err == nil {
 			equal = func(y Value) bool {
+				if x == y {
+					return true
+				}
 				if y, ok := y.(Number); ok {
 					if yi, err := json.Number(y).Int64(); err == nil {
 						return xi == yi
@@ -2697,10 +2694,6 @@ func (obj *object) insert(k, v *Term, resetSortGuard bool) {
 
 	for curr := head; curr != nil; curr = curr.next {
 		if equal(curr.key.Value) {
-			// The ground bit of the value may change in
-			// replace, hence adjust the counter per old
-			// and new value.
-
 			if curr.value.IsGround() {
 				obj.ground--
 			}
@@ -2708,20 +2701,21 @@ func (obj *object) insert(k, v *Term, resetSortGuard bool) {
 				obj.ground++
 			}
 
+			// Update hash based on the new value
 			curr.value = v
+			obj.elems[hash] = curr
+			obj.hash = 0
+			for ehash := range obj.elems {
+				obj.hash += ehash + obj.elems[ehash].value.Hash()
+			}
 
-			obj.rehash()
 			return
 		}
 	}
-	elem := &objectElem{
-		key:   k,
-		value: v,
-		next:  head,
-	}
-	obj.elems[hash] = elem
+
+	obj.elems[hash] = &objectElem{key: k, value: v, next: head}
 	// O(1) insertion, but we'll have to re-sort the keys later.
-	obj.keys = append(obj.keys, elem)
+	obj.keys = append(obj.keys, obj.elems[hash])
 
 	if resetSortGuard {
 		// Reset the sync.Once instance.
@@ -2739,19 +2733,6 @@ func (obj *object) insert(k, v *Term, resetSortGuard bool) {
 	}
 	if v.IsGround() {
 		obj.ground++
-	}
-}
-
-func (obj *object) rehash() {
-	// obj.keys is considered truth, from which obj.hash and obj.elems are recalculated.
-
-	obj.hash = 0
-	obj.elems = make(map[int]*objectElem, len(obj.keys))
-
-	for _, elem := range obj.keys {
-		hash := elem.key.Hash()
-		obj.hash += hash + elem.value.Hash()
-		obj.elems[hash] = elem
 	}
 }
 

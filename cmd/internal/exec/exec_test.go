@@ -2,7 +2,6 @@ package exec
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -227,7 +226,7 @@ func TestExec(t *testing.T) {
 					params.Paths = append(params.Paths, dir+"/files/")
 				}
 
-				ctx := context.Background()
+				ctx := t.Context()
 				opa, _ := sdk.New(ctx, sdk.Options{
 					Config:        bytes.NewReader([]byte{}),
 					Logger:        logging.NewNoOpLogger(),

@@ -1,0 +1,7 @@
+{
+  "user_id": "c2655539-8422-476d-9430-a26a4efa51b2",
+  "action": "tenant.create",
+  "props": {
+    "name": "my-new-tenant"
+  }
+}

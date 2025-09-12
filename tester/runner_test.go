@@ -5,7 +5,6 @@
 package tester
 
 import (
-	"context"
 	"strings"
 	"testing"
 	"time"
@@ -134,7 +133,7 @@ func TestRun_DefaultRegoVersion(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 
 			modules := map[string]*ast.Module{
 				"test": &tc.module,

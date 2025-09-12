@@ -90,7 +90,7 @@ func setup(u string, token string) error {
 			WithURL(url.String()).
 			WithPrepareRequest(func(req *gohttp.Request) error {
 				if token != "" {
-					req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+					req.Header.Add("Authorization", "Bearer "+token)
 				}
 				return nil
 			}).

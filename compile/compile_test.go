@@ -5,7 +5,6 @@
 package compile
 
 import (
-	"context"
 	"fmt"
 	"io/fs"
 	"maps"
@@ -77,7 +76,7 @@ func TestCompilerDefaultRegoVersion(t *testing.T) {
 						WithFS(fsys).
 						WithPaths(root)
 
-					err := compiler.Build(context.Background())
+					err := compiler.Build(t.Context())
 
 					if len(tc.expErrs) > 0 {
 						if err == nil {
@@ -336,7 +335,7 @@ p contains "B" if {
 
 	for _, bundleType := range bundleTypeCases {
 		for _, tc := range tests {
-			ctx := context.Background()
+			ctx := t.Context()
 			t.Run(fmt.Sprintf("%s, %s", bundleType.note, tc.note), func(t *testing.T) {
 				files := map[string]string{}
 				if bundleType.tar {

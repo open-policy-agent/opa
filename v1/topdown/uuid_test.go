@@ -5,7 +5,6 @@
 package topdown
 
 import (
-	"context"
 	"errors"
 	"math/rand"
 	"testing"
@@ -20,7 +19,7 @@ func TestUUIDRFC4122SeedingAndCaching(t *testing.T) {
 
 	q := NewQuery(ast.MustParseBody(query)).WithSeed(rand.New(rand.NewSource(0))).WithCompiler(ast.NewCompiler())
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	qrs, err := q.Run(ctx)
 	if err != nil {
@@ -59,7 +58,7 @@ func TestUUIDRFC4122SeedError(t *testing.T) {
 
 	q := NewQuery(ast.MustParseBody(query)).WithSeed(fakeSeedErrorReader{}).WithCompiler(ast.NewCompiler()).WithStrictBuiltinErrors(true)
 
-	_, err := q.Run(context.Background())
+	_, err := q.Run(t.Context())
 
 	if topdownErr, ok := err.(*Error); !ok || topdownErr.Code != BuiltinErr {
 		t.Fatal("unexpected error (or lack of error):", err)
@@ -77,7 +76,7 @@ func TestUUIDRFC4122SavingDuringPartialEval(t *testing.T) {
 
 	q := NewQuery(ast.MustParseBody(query)).WithSeed(rand.New(rand.NewSource(0))).WithCompiler(c)
 
-	queries, modules, err := q.PartialRun(context.Background())
+	queries, modules, err := q.PartialRun(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	} else if len(modules) > 0 {

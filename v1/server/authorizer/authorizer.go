@@ -152,7 +152,7 @@ func (b *Basic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if reason, ok := allowed["reason"]; ok {
 				message, ok := reason.(string)
 				if ok {
-					writer.Error(w, http.StatusUnauthorized, types.NewErrorV1(types.CodeUnauthorized, message)) //nolint:govet
+					writer.Error(w, http.StatusUnauthorized, types.NewErrorV1(types.CodeUnauthorized, "%s", message))
 					return
 				}
 			}

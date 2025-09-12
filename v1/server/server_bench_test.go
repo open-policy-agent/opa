@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -33,7 +32,7 @@ hello if input.message == "world"
 }
 
 func newBenchFixture(b *testing.B, opts ...any) *fixture {
-	ctx := context.Background()
+	ctx := b.Context()
 	server := New().
 		WithAddresses([]string{"localhost:8182"}).
 		WithStore(inmem.New()) // potentially overridden via opts

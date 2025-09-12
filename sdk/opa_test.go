@@ -5,7 +5,6 @@
 package sdk_test
 
 import (
-	"context"
 	"fmt"
 	"reflect"
 	"strings"
@@ -17,7 +16,7 @@ import (
 
 func TestDefaultRegoVersion(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	server := sdktest.MustNewServer(
 		sdktest.RawBundles(true),

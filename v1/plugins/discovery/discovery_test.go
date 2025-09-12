@@ -88,7 +88,7 @@ func TestEvaluateBundle(t *testing.T) {
 
 	info := ast.MustParseTerm(`{"name": "test/bundle1"}`)
 
-	config, err := evaluateBundle(context.Background(), "test-id", info, b, "data.foo.bar")
+	config, err := evaluateBundle(t.Context(), "test-id", info, b, "data.foo.bar")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +114,7 @@ func TestEvaluateBundle(t *testing.T) {
 }
 
 func TestProcessBundle(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	manager, err := plugins.New([]byte(`{
 		"services": {
@@ -186,7 +186,7 @@ func TestProcessBundle(t *testing.T) {
 }
 
 func TestEnvVarSubstitution(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	manager, err := plugins.New([]byte(`{
 		"services": {
@@ -249,7 +249,7 @@ func TestEnvVarSubstitution(t *testing.T) {
 }
 
 func TestProcessBundleV1Compatible(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	popts := ast.ParserOptions{RegoVersion: ast.RegoV1}
 
 	manager, err := plugins.New([]byte(`{
@@ -371,7 +371,7 @@ decision_logs.partition_name := "bar" if { 3 == 3 }
 }
 
 func TestProcessBundleWithActiveConfig(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	manager, err := plugins.New([]byte(`{
 		"labels": {"x": "y"},
@@ -629,7 +629,7 @@ func TestStartWithBundlePersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = disco.Start(context.Background())
+	err = disco.Start(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -676,7 +676,7 @@ func TestOneShotWithBundlePersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	disco.bundlePersistPath = filepath.Join(dir, ".opa")
 
@@ -766,7 +766,7 @@ func TestLoadAndActivateBundleFromDisk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	disco.bundlePersistPath = filepath.Join(dir, ".opa")
 
@@ -857,7 +857,7 @@ func TestLoadAndActivateSignedBundleFromDisk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	disco.bundlePersistPath = filepath.Join(dir, ".opa")
 	disco.config.Signing = bundleApi.NewVerificationConfig(map[string]*bundleApi.KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "foo", "", nil)
@@ -953,7 +953,7 @@ func TestLoadAndActivateBundleFromDiskMaxAttempts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	disco.bundlePersistPath = filepath.Join(dir, ".opa")
 
@@ -1083,7 +1083,7 @@ bundles.authz.service := v if {
 				t.Fatal(err)
 			}
 
-			ctx := context.Background()
+			ctx := t.Context()
 
 			disco.bundlePersistPath = filepath.Join(dir, ".opa")
 
@@ -1253,7 +1253,7 @@ bundles.authz.service := v if {
 				t.Fatal(err)
 			}
 
-			ctx := context.Background()
+			ctx := t.Context()
 
 			disco.bundlePersistPath = filepath.Join(dir, ".opa")
 
@@ -1385,7 +1385,7 @@ func TestSaveBundleToDiskNewConfiguredPersistDir(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = disco.Start(context.Background())
+	err = disco.Start(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -1444,7 +1444,7 @@ func TestReconfigure(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	initialBundle := makeDataBundle(1, `
 		{
@@ -1550,7 +1550,7 @@ func TestReconfigureV1Compatible(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	initialBundle := makeModuleBundle(1, `package config
 labels := v if {
@@ -1692,7 +1692,7 @@ func TestReconfigureWithBundleRegoVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	initialBundle := makeModuleBundleWithRegoVersion(1, `package config
 labels := v if {
@@ -1767,7 +1767,7 @@ plugins.test_plugin := v if {
 }
 
 func TestReconfigureWithLocalOverride(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	bootConfigRaw := []byte(`{
 		"labels": {"x": "y"},
@@ -2326,7 +2326,7 @@ func TestMergeValuesAndListOverrides(t *testing.T) {
 }
 
 func TestReconfigureWithUpdates(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	bootConfigRaw := []byte(`{
 		"labels": {"x": "y"},
@@ -2700,7 +2700,7 @@ func TestReconfigureWithUpdates(t *testing.T) {
 }
 
 func TestProcessBundleWithSigning(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	manager, err := plugins.New([]byte(`{
 		"labels": {"x": "y"},
@@ -2739,7 +2739,7 @@ func TestProcessBundleWithSigning(t *testing.T) {
 }
 
 func TestProcessBundleWithNoSigningConfig(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	manager, err := plugins.New([]byte(`{
 		"labels": {"x": "y"},
@@ -2826,7 +2826,7 @@ func TestStatusUpdates(t *testing.T) {
 
 	updates := make(chan status.UpdateRequestV1, 100)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Enable status plugin which sends initial update.
 	disco.oneShot(ctx, download.Update{ETag: "etag-1", Bundle: makeDataBundle(1, `{
@@ -3008,7 +3008,7 @@ func TestStatusUpdatesFromPersistedBundlesDontDelayBoot(t *testing.T) {
 	}
 
 	// allow 2s of time to start before failing
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 	defer cancel()
 
 	// start Discovery instance, wait for it to complete Start()
@@ -3062,7 +3062,7 @@ func TestStatusUpdatesTimestamp(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// simulate HTTP 200 response from downloader
 	disco.oneShot(ctx, download.Update{ETag: "etag-1", Bundle: makeDataBundle(1, `{
@@ -3111,7 +3111,7 @@ func TestStatusUpdatesTimestamp(t *testing.T) {
 }
 
 func TestStatusMetricsForLogDrops(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	testLogger := test.New()
 
@@ -3617,7 +3617,7 @@ func TestInterQueryBuiltinCacheConfigUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	initialBundle := makeDataBundle(1, `{
     "config": {
@@ -3689,7 +3689,7 @@ func TestNDBuiltinCacheConfigUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	initialBundle := makeDataBundle(1, `{
 		"config": {
@@ -3719,7 +3719,7 @@ func TestNDBuiltinCacheConfigUpdate(t *testing.T) {
 }
 
 func TestPluginManualTriggerLifecycle(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	m := metrics.New()
 
 	fixture := newTestFixture(t)
@@ -3925,7 +3925,7 @@ func TestListeners(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	ensurePluginState(t, disco, plugins.StateNotReady)
 
@@ -4006,7 +4006,7 @@ func newTestFixture(t *testing.T) *testFixture {
 		stopCh:             make(chan chan struct{}),
 	}
 
-	go tf.loop(context.Background())
+	go tf.loop(t.Context())
 
 	return &tf
 }

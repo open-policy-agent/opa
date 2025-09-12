@@ -6,7 +6,6 @@ package topdown
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -32,7 +31,7 @@ func BenchmarkArrayIteration(b *testing.B) {
 }
 
 func BenchmarkArrayPlugging(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	sizes := []int{10, 100, 1000, 10000}
 
@@ -98,7 +97,7 @@ func BenchmarkObjectIteration(b *testing.B) {
 }
 
 func benchmarkIteration(b *testing.B, module string) {
-	ctx := context.Background()
+	ctx := b.Context()
 	query := ast.MustParseBody("data.test.main")
 	compiler := ast.MustCompileModules(map[string]string{
 		"test.rego": module,
@@ -118,7 +117,7 @@ func benchmarkIteration(b *testing.B, module string) {
 
 func BenchmarkLargeJSON(b *testing.B) {
 	data := test.GenerateLargeJSONBenchmarkData()
-	ctx := context.Background()
+	ctx := b.Context()
 	store := inmem.NewFromObject(data)
 	compiler := ast.NewCompiler()
 
@@ -182,7 +181,7 @@ func BenchmarkConcurrency8Writers(b *testing.B) {
 func benchmarkConcurrency(b *testing.B, params []storage.TransactionParams) {
 
 	mod, data := test.GenerateConcurrencyBenchmarkData()
-	ctx := context.Background()
+	ctx := b.Context()
 	store := inmem.NewFromObject(data)
 	mods := map[string]*ast.Module{"module": ast.MustParseModule(mod)}
 	compiler := ast.NewCompiler()
@@ -278,7 +277,7 @@ func BenchmarkVirtualDocs1000x1000(b *testing.B) {
 func runVirtualDocsBenchmark(b *testing.B, numTotalRules, numHitRules int) {
 
 	mod, inp := test.GenerateVirtualDocsBenchmarkData(numTotalRules, numHitRules)
-	ctx := context.Background()
+	ctx := b.Context()
 	compiler := ast.NewCompiler()
 	mods := map[string]*ast.Module{"module": ast.MustParseModule(mod)}
 	input := ast.NewTerm(ast.MustInterfaceToValue(inp))
@@ -326,7 +325,7 @@ func BenchmarkPartialEvalCompile(b *testing.B) {
 }
 
 func runPartialEvalBenchmark(b *testing.B, numRoles int) {
-	ctx := context.Background()
+	ctx := b.Context()
 	compiler := ast.NewCompiler()
 
 	if compiler.Compile(map[string]*ast.Module{"authz": ast.MustParseModule(partialEvalBenchmarkPolicy)}); compiler.Failed() {
@@ -401,7 +400,7 @@ func runPartialEvalBenchmark(b *testing.B, numRoles int) {
 
 func runPartialEvalCompileBenchmark(b *testing.B, numRoles int) {
 
-	ctx := context.Background()
+	ctx := b.Context()
 	data := generatePartialEvalBenchmarkData(numRoles)
 	store := inmem.NewFromObject(data)
 
@@ -541,7 +540,7 @@ func generatePartialEvalBenchmarkInput(numRoles int) *ast.Term {
 
 func BenchmarkWalk(b *testing.B) {
 
-	ctx := context.Background()
+	ctx := b.Context()
 	sizes := []int{100, 1000, 2000, 3000}
 
 	for _, n := range sizes {
@@ -587,7 +586,7 @@ func genWalkBenchmarkData(n int) map[string]any {
 }
 
 func BenchmarkComprehensionIndexing(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 	cases := []struct {
 		note   string
 		module string
@@ -670,7 +669,7 @@ func BenchmarkComprehensionIndexing(b *testing.B) {
 }
 
 func BenchmarkFunctionArgumentIndex(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	sizes := []int{10, 100, 1000}
 
@@ -723,7 +722,7 @@ func genComprehensionIndexingData(n int) map[string]any {
 }
 
 func BenchmarkObjectSubset(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	sizes := []int{10, 100, 1000, 10000}
 
@@ -780,7 +779,7 @@ func BenchmarkObjectSubsetSlow(b *testing.B) {
 	// This benchmarks the suggested means to implement object.subset
 	// without using the builtin, to give us an idea of whether or not
 	// the builtin is actually making things any faster.
-	ctx := context.Background()
+	ctx := b.Context()
 
 	sizes := []int{10, 100, 1000, 10000}
 
@@ -854,7 +853,7 @@ func randomString(symbols []rune, length int) string {
 }
 
 func BenchmarkGlob(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	// Benchmark Strategy:
 	//
@@ -939,7 +938,7 @@ func BenchmarkMemberWithKeyFromBaseDoc(b *testing.B) {
 	main if { "key99", "value99" in data.values }
 	`
 
-	ctx := context.Background()
+	ctx := b.Context()
 	query := ast.MustParseBody("data.test.main")
 	compiler := ast.MustCompileModules(map[string]string{
 		"test.rego": mod,
@@ -964,7 +963,7 @@ func BenchmarkObjectGetFromBaseDoc(b *testing.B) {
 	main if { object.get(data.values, "key99", false) == "value99" }
 	`
 
-	ctx := context.Background()
+	ctx := b.Context()
 	query := ast.MustParseBody("data.test.main")
 	compiler := ast.MustCompileModules(map[string]string{
 		"test.rego": mod,

@@ -1,8 +1,6 @@
 module github.com/open-policy-agent/opa
 
-go 1.23.12
-
-toolchain go1.24.6
+go 1.24.6
 
 require (
 	github.com/bytecodealliance/wasmtime-go/v3 v3.0.2
@@ -66,7 +64,7 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-viper/mapstructure/v2 v2.3.0 // indirect
+	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/goccy/go-json v0.10.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/flatbuffers v25.2.10+incompatible // indirect
