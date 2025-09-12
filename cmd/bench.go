@@ -96,7 +96,7 @@ The optional "gobench" output format conforms to the Go Benchmark Data Format.
 			cmd.SilenceErrors = true
 			cmd.SilenceUsage = true
 
-			exit, err := benchMain(args, params, os.Stdout, &goBenchRunner{})
+			exit, err := benchMain(args, params, os.Stdout, os.Stderr, &goBenchRunner{})
 			if err != nil {
 				// NOTE: err should only be non-nil if a (highly unlikely)
 				// presentation error occurs.
@@ -146,14 +146,14 @@ type benchRunner interface {
 	run(ctx context.Context, ectx *evalContext, params benchmarkCommandParams, f func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error)
 }
 
-func benchMain(args []string, params benchmarkCommandParams, w io.Writer, r benchRunner) (int, error) {
+func benchMain(args []string, params benchmarkCommandParams, w io.Writer, stderr io.Writer, r benchRunner) (int, error) {
 
 	ctx := context.Background()
 
 	if params.e2e {
 		err := benchE2E(ctx, args, params, w)
 		if err != nil {
-			errRender := renderBenchmarkError(params, err, w)
+			errRender := renderBenchmarkError(params, err, w, stderr)
 			return 1, errRender
 		}
 		return 0, nil
@@ -161,7 +161,7 @@ func benchMain(args []string, params benchmarkCommandParams, w io.Writer, r benc
 
 	ectx, err := setupEval(args, params.evalCommandParams)
 	if err != nil {
-		errRender := renderBenchmarkError(params, err, w)
+		errRender := renderBenchmarkError(params, err, w, stderr)
 		return 1, errRender
 	}
 
@@ -182,7 +182,7 @@ func benchMain(args []string, params benchmarkCommandParams, w io.Writer, r benc
 		// Take the eval context and prepare anything else we possible can before benchmarking the evaluation
 		pq, err := rg.PrepareForEval(ctx)
 		if err != nil {
-			errRender := renderBenchmarkError(params, err, w)
+			errRender := renderBenchmarkError(params, err, w, stderr)
 			return 1, errRender
 		}
 
@@ -199,7 +199,7 @@ func benchMain(args []string, params benchmarkCommandParams, w io.Writer, r benc
 		// As with normal evaluation, prepare as much as possible up front.
 		pq, err := rg.PrepareForPartial(ctx)
 		if err != nil {
-			errRender := renderBenchmarkError(params, err, w)
+			errRender := renderBenchmarkError(params, err, w, stderr)
 			return 1, errRender
 		}
 
@@ -218,7 +218,7 @@ func benchMain(args []string, params benchmarkCommandParams, w io.Writer, r benc
 	for range params.count {
 		br, err := r.run(ctx, ectx, params, benchFunc)
 		if err != nil {
-			errRender := renderBenchmarkError(params, err, w)
+			errRender := renderBenchmarkError(params, err, w, stderr)
 			return 1, errRender
 		}
 		renderBenchmarkResult(params, br, w)
@@ -630,7 +630,7 @@ func renderBenchmarkResult(params benchmarkCommandParams, br testing.BenchmarkRe
 	}
 }
 
-func renderBenchmarkError(params benchmarkCommandParams, err error, w io.Writer) error {
+func renderBenchmarkError(params benchmarkCommandParams, err error, w io.Writer, stderr io.Writer) error {
 	o := presentation.Output{
 		Errors: presentation.NewOutputErrors(err),
 	}
@@ -639,7 +639,7 @@ func renderBenchmarkError(params benchmarkCommandParams, err error, w io.Writer)
 	case formats.JSON:
 		return presentation.JSON(w, o)
 	default:
-		return presentation.Pretty(w, o)
+		return presentation.Pretty(w, stderr, o)
 	}
 }
 

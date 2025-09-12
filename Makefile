@@ -28,7 +28,7 @@ ifeq ($(WASM_ENABLED),1)
 GO_TAGS = -tags=opa_wasm
 endif
 
-GOLANGCI_LINT_VERSION := v1.64.5
+GOLANGCI_LINT_VERSION := v2.4.0
 YAML_LINT_VERSION := 0.29.0
 YAML_LINT_FORMAT ?= auto
 
@@ -65,7 +65,7 @@ TELEMETRY_URL ?= #Default empty
 
 BUILD_HOSTNAME := $(shell ./build/get-build-hostname.sh)
 
-RELEASE_BUILD_IMAGE := golang:$(GOVERSION)-bullseye
+RELEASE_BUILD_IMAGE := golang:$(GOVERSION)-trixie
 
 RELEASE_DIR ?= _release/$(VERSION)
 
@@ -98,7 +98,7 @@ release-dir:
 .PHONY: generate
 generate: wasm-lib-build
 ifeq ($(GOOS),windows)
-	GOOS=$(shell go env GOOS) GOARCH=$(shell go env GOARCH) go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.5.0
+	GOOS=linux go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.5.0
 endif
 	$(GO) generate
 
@@ -428,12 +428,6 @@ ifneq ($(GOARCH),arm64) # we build only static images for arm64
 endif
 	$(DOCKER) run --platform linux/$* $(DOCKER_IMAGE):$(VERSION)-static version
 
-# % = rego/wasm
-.PHONY: ci-binary-smoke-test-%
-ci-binary-smoke-test-%:
-	chmod +x "$(RELEASE_DIR)/$(BINARY)"
-	./build/binary-smoke-test.sh "$(RELEASE_DIR)/$(BINARY)" "$*"
-
 .PHONY: push-binary-edge
 push-binary-edge:
 	aws s3 sync $(RELEASE_DIR) s3://$(S3_RELEASE_BUCKET)/edge/ --no-progress --region us-west-1
@@ -501,8 +495,18 @@ endif
 #
 ######################################################
 
+PATCH_CONTAINER_LABEL ?= opa-release-patcher
+
+.PHONY: patch-container
+patch-container:
+ifeq ($(shell docker images -q $(PATCH_CONTAINER_LABEL) 2> /dev/null),)
+	@$(DOCKER) build \
+		-t $(PATCH_CONTAINER_LABEL) \
+		-f build/release-patcher-Dockerfile .
+endif
+
 .PHONY: release-patch
-release-patch:
+release-patch: patch-container
 ifeq ($(GITHUB_TOKEN),)
 	@echo "\033[0;31mGITHUB_TOKEN environment variable missing.\033[33m Provide a GitHub Personal Access Token (PAT) with the 'read:org' scope.\033[0m"
 endif
@@ -510,14 +514,14 @@ endif
 		-e GITHUB_TOKEN=$(GITHUB_TOKEN) \
 		-e LAST_VERSION=$(LAST_VERSION) \
 		-v $(PWD):/_src:Z \
-		ashtalk/python-go-perl:v2 \
+		$(PATCH_CONTAINER_LABEL):latest \
 		/_src/build/gen-release-patch.sh --version=$(VERSION) --source-url=/_src
 
 .PHONY: dev-patch
-dev-patch:
+dev-patch: patch-container
 	@$(DOCKER) run $(DOCKER_FLAGS) \
 		-v $(PWD):/_src:Z \
-		ashtalk/python-go-perl:v2 \
+		$(PATCH_CONTAINER_LABEL):latest \
 		/_src/build/gen-dev-patch.sh --version=$(VERSION) --source-url=/_src
 
 # Deprecated targets. To be removed.

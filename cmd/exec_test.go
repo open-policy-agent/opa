@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"maps"
 	"net/http"
@@ -13,12 +12,12 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/open-policy-agent/opa/cmd/internal/exec"
 	"github.com/open-policy-agent/opa/internal/file/archive"
-	"github.com/open-policy-agent/opa/v1/ast"
 	loggingtest "github.com/open-policy-agent/opa/v1/logging/test"
 	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/sdk"
@@ -108,7 +107,6 @@ func resultSliceEquals(t *testing.T, expected, output []execResultItem) {
 var uuidPattern = regexp.MustCompile(`^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$`)
 
 func TestExecBasic(t *testing.T) {
-
 	files := map[string]string{
 		"test.json":  `{"foo": 7}`,
 		"test2.yaml": `bar: 8`,
@@ -117,7 +115,6 @@ func TestExecBasic(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(dir string) {
-
 		s := sdk_test.MustNewServer(sdk_test.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"test.rego": `
 				package system
@@ -164,17 +161,15 @@ func TestExecBasic(t *testing.T) {
 }
 
 func TestExecDecisionOption(t *testing.T) {
-
 	files := map[string]string{
 		"test.json": `{"foo": 7}`,
 	}
 
 	test.WithTempFS(files, func(dir string) {
-
 		s := sdk_test.MustNewServer(sdk_test.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"test.rego": `
 				package foo
-				
+
 				main contains "hello"
 			`,
 		}))
@@ -208,20 +203,17 @@ func TestExecDecisionOption(t *testing.T) {
 			},
 		}, output.Result)
 	})
-
 }
 
 func TestExecBundleFlag(t *testing.T) {
-
 	files := map[string]string{
 		"files/test.json": `{"foo": 7}`,
 		"bundle/x.rego": `package system
-		
+
 		main contains "hello"`,
 	}
 
 	test.WithTempFS(files, func(dir string) {
-
 		var buf bytes.Buffer
 		params := exec.NewParams(&buf)
 		_ = params.OutputFormat.Set("json")
@@ -301,51 +293,30 @@ main contains "hello" if {
 					testLogger := loggingtest.New()
 					params.Logger = testLogger
 
-					ctx, cancel := context.WithCancel(t.Context())
-					defer cancel()
-					go func(expectedErrors []string) {
-						err := runExecWithContext(ctx, params)
-						// Note(philipc): Catch the expected cancellation
-						// errors, allowing unexpected test failures through.
-						if err != context.Canceled {
-							var errs ast.Errors
-							if errors.As(err, &errs) {
-								for _, expErr := range expectedErrors {
-									found := false
-									for _, e := range errs {
-										if strings.Contains(e.Error(), expErr) {
-											found = true
-											break
-										}
-									}
-									if !found {
-										t.Errorf("Could not find expected error: %s in %v", expErr, errs)
-										return
-									}
-								}
-							} else {
-								t.Error(err)
-								return
-							}
+					// Wait for bundle server to be ready
+					bundleURL := s.URL() + "/bundles/bundle.tar.gz"
+					test.EventuallyOrFatal(t, 1*time.Second, func() bool {
+						resp, err := http.Get(bundleURL)
+						if resp != nil {
+							defer resp.Body.Close()
 						}
-					}(tc.expErrs)
+						return err == nil && resp.StatusCode == 200
+					})
 
-					if !test.Eventually(t, 5*time.Second, func() bool {
-						for _, expErr := range tc.expErrs {
-							found := false
-							for _, e := range testLogger.Entries() {
-								if strings.Contains(e.Message, expErr) {
-									found = true
-									break
-								}
-							}
-							if !found {
-								return false
+					_ = runExec(params)
+
+					// Check logged errors
+					for _, expErr := range tc.expErrs {
+						found := false
+						for _, e := range testLogger.Entries() {
+							if strings.Contains(e.Message, expErr) {
+								found = true
+								break
 							}
 						}
-						return true
-					}) {
-						t.Fatalf("timed out waiting for logged errors:\n\n%v\n\ngot\n\n%v:", tc.expErrs, testLogger.Entries())
+						if !found {
+							t.Errorf("Could not find expected logged error: %s in %v", expErr, testLogger.Entries())
+						}
 					}
 				} else {
 					err := runExec(params)
@@ -531,51 +502,30 @@ main contains "hello" if {
 					testLogger := loggingtest.New()
 					params.Logger = testLogger
 
-					ctx, cancel := context.WithCancel(t.Context())
-					defer cancel()
-					go func(expectedErrors []string) {
-						err := runExecWithContext(ctx, params)
-						// Note(philipc): Catch the expected cancellation
-						// errors, allowing unexpected test failures through.
-						if err != context.Canceled {
-							var errs ast.Errors
-							if errors.As(err, &errs) {
-								for _, expErr := range expectedErrors {
-									found := false
-									for _, e := range errs {
-										if strings.Contains(e.Error(), expErr) {
-											found = true
-											break
-										}
-									}
-									if !found {
-										t.Errorf("Could not find expected error: %s in %v", expErr, errs)
-										return
-									}
-								}
-							} else {
-								t.Error(err)
-								return
-							}
+					// Wait for bundle server to be ready
+					bundleURL := s.URL() + "/bundles/bundle.tar.gz"
+					test.EventuallyOrFatal(t, 1*time.Second, func() bool {
+						resp, err := http.Get(bundleURL)
+						if resp != nil {
+							defer resp.Body.Close()
 						}
-					}(tc.expErrs)
+						return err == nil && resp.StatusCode == 200
+					})
 
-					if !test.Eventually(t, 5*time.Second, func() bool {
-						for _, expErr := range tc.expErrs {
-							found := false
-							for _, e := range testLogger.Entries() {
-								if strings.Contains(e.Message, expErr) {
-									found = true
-									break
-								}
-							}
-							if !found {
-								return false
+					_ = runExec(params)
+
+					// Check logged errors
+					for _, expErr := range tc.expErrs {
+						found := false
+						for _, e := range testLogger.Entries() {
+							if strings.Contains(e.Message, expErr) {
+								found = true
+								break
 							}
 						}
-						return true
-					}) {
-						t.Fatalf("timed out waiting for logged errors:\n\n%v\n\ngot\n\n%v:", tc.expErrs, testLogger.Entries())
+						if !found {
+							t.Errorf("Could not find expected logged error: %s in %v", expErr, testLogger.Entries())
+						}
 					}
 				} else {
 					err := runExec(params)
@@ -893,7 +843,14 @@ main contains "hello" if {
 
 							ctx, cancel := context.WithCancel(t.Context())
 							defer cancel()
+
+							// when bundles fail to parse, OPA never signals the ready channel, causing
+							// runExec to hang indefinitely. WithContext allows us to cancel the context
+							// when we have the required errors logged.
+							var wg sync.WaitGroup
+							wg.Add(1)
 							go func() {
+								defer wg.Done()
 								err := runExecWithContext(ctx, params)
 								// we cancelled the context, so we expect that error
 								if err != nil && err.Error() != "context canceled" {
@@ -909,7 +866,7 @@ main contains "hello" if {
 								}
 							}()
 
-							if !test.Eventually(t, 5*time.Second, func() bool {
+							test.EventuallyOrFatal(t, 5*time.Second, func() bool {
 								for _, expErr := range tc.expErrs {
 									found := false
 									for _, e := range testLogger.Entries() {
@@ -923,9 +880,10 @@ main contains "hello" if {
 									}
 								}
 								return true
-							}) {
-								t.Fatalf("timed out waiting for logged errors:\n\n%v\n\ngot\n\n%v:", tc.expErrs, testLogger.Entries())
-							}
+							})
+
+							cancel()
+							wg.Wait()
 						} else {
 							err := runExec(params)
 							if err != nil {
@@ -1001,8 +959,7 @@ func TestInvalidConfigNonEmptyAndFailDefined(t *testing.T) {
 }
 
 func TestFailFlagCases(t *testing.T) {
-
-	var tests = []struct {
+	tests := []struct {
 		description  string
 		files        map[string]string
 		decision     string
@@ -1018,12 +975,12 @@ func TestFailFlagCases(t *testing.T) {
 				"files/test.json": `{"foo": 7}`,
 				"bundle/x.rego": `package system
 				import rego.v1
-				
+
 				test_fun := x if {
 					x = false
 					x
 				}
-				
+
 				undefined_test if {
 					test_fun
 				}`,
@@ -1044,7 +1001,7 @@ func TestFailFlagCases(t *testing.T) {
 				"files/test.json": `{"foo": 7}`,
 				"bundle/x.rego": `package system
 				import rego.v1
-				
+
 				main contains "hello"`,
 			},
 			decision:    "",
@@ -1065,7 +1022,7 @@ func TestFailFlagCases(t *testing.T) {
 				some_function if {
 					  input.foo == 7
 				}
-				
+
 				default fail_test := false
 				fail_test if {
 					  some_function
@@ -1110,7 +1067,7 @@ func TestFailFlagCases(t *testing.T) {
 					x = false
 					x
 				}
-		
+
 				undefined_test if {
 					test_fun
 				}`,
@@ -1131,7 +1088,7 @@ func TestFailFlagCases(t *testing.T) {
 				"files/test.json": `{"foo": 7}`,
 				"bundle/x.rego": `package system
 				import rego.v1
-				
+
 			main contains "hello"`,
 			},
 			expectError: false,
@@ -1151,7 +1108,7 @@ func TestFailFlagCases(t *testing.T) {
 				some_function if {
 					input.foo == 7
 				}
-				
+
 				default fail_test := false
 				fail_test if {
 					some_function
@@ -1196,7 +1153,7 @@ func TestFailFlagCases(t *testing.T) {
 					x = false
 					x
 				}
-		
+
 				undefined_test if {
 					test_fun
 				}`,
@@ -1238,7 +1195,7 @@ func TestFailFlagCases(t *testing.T) {
 				some_function if {
 					input.foo == 7
 				}
-				
+
 				default fail_test := false
 				fail_test if {
 					some_function
@@ -1373,7 +1330,7 @@ func TestExecWithInvalidInputOptions(t *testing.T) {
 					x = false
 					x
 				}
-		
+
 				undefined_test if {
 					test_fun
 				}`,
@@ -1391,7 +1348,7 @@ func TestExecWithInvalidInputOptions(t *testing.T) {
 					x = false
 					x
 				}
-		
+
 				undefined_test if {
 					test_fun
 				}`,
@@ -1409,7 +1366,7 @@ func TestExecWithInvalidInputOptions(t *testing.T) {
 					x = false
 					x
 				}
-		
+
 				undefined_test if {
 					test_fun
 				}`,

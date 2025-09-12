@@ -8,7 +8,10 @@ ci:
 
 .PHONY: dev
 dev:
-	npx docusaurus start
+	# --no-open means that the browser will not be opened on start.
+	# This is done to avoid opening many tabs repeatedly when editing
+	# docusaurus.config.js.
+	npx docusaurus start --no-open
 
 .PHONY: build
 build:

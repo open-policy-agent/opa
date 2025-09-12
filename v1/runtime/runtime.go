@@ -806,7 +806,8 @@ func (rt *Runtime) StartREPL(ctx context.Context) error {
 	repl := repl.New(rt.Store, rt.Params.HistoryPath, rt.Params.Output, rt.Params.OutputFormat, rt.Params.ErrorLimit, banner).
 		WithRuntime(rt.Manager.Info).
 		WithRegoVersion(rt.Params.regoVersion()).
-		WithInitBundles(rt.loadedPathsResult.Bundles)
+		WithInitBundles(rt.loadedPathsResult.Bundles).
+		WithStderrWriter(rt.Params.Output)
 
 	if rt.Params.Watch {
 		if err := rt.startWatcher(ctx, rt.Params.Paths, onReloadPrinter(rt.Params.Output)); err != nil {

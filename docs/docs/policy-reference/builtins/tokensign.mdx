@@ -39,12 +39,18 @@ Note that the key's provided should be base64 URL encoded (without padding) as p
 This differs from the plain text secrets provided with the algorithm specific verify built-ins described below.
 :::
 
-#### Token Signing Examples
+## Examples
 
-<PlaygroundExample dir={require.context("../_examples/tokens/sign/hmac")} />
+### `encode_sign`
 
-<PlaygroundExample dir={require.context("../_examples/tokens/sign/empty_json")} />
+<PlaygroundExample dir={require.context("../_examples/io.jwt/encode_sign/sign")} />
 
-<PlaygroundExample dir={require.context("../_examples/tokens/sign/rsa")} />
+<PlaygroundExample dir={require.context("../_examples/io.jwt/encode_sign/hmac")} />
 
-<PlaygroundExample dir={require.context("../_examples/tokens/sign/sign_raw")} />
+<PlaygroundExample dir={require.context("../_examples/io.jwt/encode_sign/empty_json")} />
+
+<PlaygroundExample dir={require.context("../_examples/io.jwt/encode_sign/rsa")} />
+
+### `encode_sign_raw`
+
+<PlaygroundExample dir={require.context("../_examples/io.jwt/encode_sign_raw/sign_raw")} />

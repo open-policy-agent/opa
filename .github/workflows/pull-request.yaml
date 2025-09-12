@@ -57,6 +57,7 @@ jobs:
         .*\.sum$|\
         .*\.sh$|\
         ^Makefile$|\
+        ^\.go-version$|\
         ^cmd/|\
         ^internal/|\
         ^v1/)"
@@ -412,11 +413,9 @@ jobs:
       env:
         BINARY_PATH_GLOB: _release/*/${{ matrix.exec }}
 
-    # TODO(sr): port these tests below to testscript
-    - name: Test binaries (Rego)
-      run: make ci-binary-smoke-test-rego BINARY=${{ matrix.exec }}
-    - name: Test binaries (Wasm)
-      run: make ci-binary-smoke-test-wasm BINARY=${{ matrix.exec }}
+    - name: wasm smoke test
+      run: _release/*/${{ matrix.exec }} eval --target wasm 'time.now_ns()'
+      shell: bash
       if: matrix.wasm != 'disabled'
 
   go-version-build:
