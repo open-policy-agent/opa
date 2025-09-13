@@ -854,6 +854,13 @@ main contains "hello" if {
 								err := runExecWithContext(ctx, params)
 								// we cancelled the context, so we expect that error
 								if err != nil && err.Error() != "context canceled" {
+									// make sure it isn't an expected error
+									for _, msg := range tc.expErrs {
+										if strings.Contains(err.Error(), msg) {
+											return
+										}
+									}
+
 									t.Error(err)
 									return
 								}
@@ -1416,7 +1423,7 @@ func TestExecWithInvalidInputOptions(t *testing.T) {
 	}
 }
 
-func TestExecTimeoutWithMalformedRemoteBundle(t *testing.T) {
+func TestExecMalformedRemoteBundle(t *testing.T) {
 	test.WithTempFS(map[string]string{}, func(dir string) {
 		bundlePath := "/bundles/bundle.tar.gz"
 		// Note(philipc): We add the "raw bundles" flag so that we can stuff a
@@ -1464,7 +1471,7 @@ func TestExecTimeoutWithMalformedRemoteBundle(t *testing.T) {
 			t.Fatalf("Expected error, got nil instead.")
 		}
 
-		exp := "exec error: timed out before OPA was ready."
+		exp := "runtime error: Bundle name: test, Code: bundle_error, HTTPCode: -1, Message: 1 error occurred: /example.rego:4: rego_type_error: undefined function bits.sand"
 		if !strings.HasPrefix(err.Error(), exp) {
 			t.Fatalf("Expected error: %s, got %s", exp, err.Error())
 		}

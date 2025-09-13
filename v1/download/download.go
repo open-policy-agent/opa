@@ -8,6 +8,7 @@ package download
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -49,14 +50,14 @@ type Update struct {
 // updates from the remote HTTP endpoint that the client is configured to
 // connect to.
 type Downloader struct {
-	config             Config                        // downloader configuration for tuning polling and other downloader behaviour
-	client             rest.Client                   // HTTP client to use for bundle downloading
-	path               string                        // path to use in bundle download request
-	trigger            chan chan struct{}            // channel to signal downloads when manual triggering is enabled
-	stop               chan chan struct{}            // used to signal plugin to stop running
-	f                  func(context.Context, Update) // callback function invoked when download updates occur
-	etag               string                        // HTTP Etag for caching purposes
-	sizeLimitBytes     *int64                        // max bundle file size in bytes (passed to reader)
+	config             Config                              // downloader configuration for tuning polling and other downloader behaviour
+	client             rest.Client                         // HTTP client to use for bundle downloading
+	path               string                              // path to use in bundle download request
+	trigger            chan chan struct{}                  // channel to signal downloads when manual triggering is enabled
+	stop               chan chan struct{}                  // used to signal plugin to stop running
+	f                  func(context.Context, Update) error // callback function invoked when download updates occur
+	etag               string                              // HTTP Etag for caching purposes
+	sizeLimitBytes     *int64                              // max bundle file size in bytes (passed to reader)
 	bvc                *bundle.VerificationConfig
 	respHdrTimeoutSec  int64
 	wg                 sync.WaitGroup
@@ -92,7 +93,7 @@ func New(config Config, client rest.Client, path string) *Downloader {
 }
 
 // WithCallback registers a function f to be called when download updates occur.
-func (d *Downloader) WithCallback(f func(context.Context, Update)) *Downloader {
+func (d *Downloader) WithCallback(f func(context.Context, Update) error) *Downloader {
 	d.f = f
 	return d
 }
@@ -267,7 +268,7 @@ func (d *Downloader) oneShot(ctx context.Context) error {
 		d.etag = ""
 
 		if d.f != nil {
-			d.f(ctx, Update{ETag: "", Bundle: nil, Error: err, Metrics: m, Raw: nil})
+			err = errors.Join(err, d.f(ctx, Update{ETag: "", Bundle: nil, Error: err, Metrics: m, Raw: nil}))
 		}
 		return err
 	}
@@ -276,7 +277,9 @@ func (d *Downloader) oneShot(ctx context.Context) error {
 	d.longPollingEnabled = resp.longPoll
 
 	if d.f != nil {
-		d.f(ctx, Update{ETag: resp.etag, Bundle: resp.b, Error: nil, Metrics: m, Raw: resp.raw, Size: resp.size})
+		if err := d.f(ctx, Update{ETag: resp.etag, Bundle: resp.b, Error: nil, Metrics: m, Raw: resp.raw, Size: resp.size}); err != nil {
+			return err
+		}
 	}
 	return nil
 }
