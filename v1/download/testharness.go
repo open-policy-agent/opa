@@ -227,25 +227,27 @@ func (t *testFixture) setClient(client rest.Client) {
 	t.client = client
 }
 
-func (t *testFixture) oneShot(ctx context.Context, u Update) {
+func (t *testFixture) oneShot(_ context.Context, u Update) error {
 
 	t.updates = append(t.updates, u)
 
 	if u.Error != nil {
 		etag := t.etags["test/bundle1"]
 		t.d.SetCache(etag)
-		return
+		return u.Error
 	}
 
 	if u.Bundle != nil {
 		if t.mockBundleActivationError {
 			etag := t.etags["test/bundle1"]
 			t.d.SetCache(etag)
-			return
+			return errors.New("activation error")
 		}
 	}
 
 	t.etags["test/bundle1"] = u.ETag
+
+	return nil
 }
 
 type fileInfo struct {

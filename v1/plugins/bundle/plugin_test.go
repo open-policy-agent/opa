@@ -76,7 +76,10 @@ func TestPluginOneShot(t *testing.T) {
 
 	b.Manifest.Init()
 
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Size: snapshotBundleSize})
+	err := plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Size: snapshotBundleSize})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -142,7 +145,10 @@ func TestPluginOneShotWithAstStore(t *testing.T) {
 
 	b.Manifest.Init()
 
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Size: snapshotBundleSize})
+	err := plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Size: snapshotBundleSize})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -250,7 +256,7 @@ corge contains 1 if {
 
 			b.Manifest.Init()
 
-			plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Size: snapshotBundleSize})
+			_ = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Size: snapshotBundleSize})
 
 			if tc.expErrs != nil {
 				ensurePluginState(t, plugin, plugins.StateNotReady)
@@ -498,7 +504,7 @@ corge contains 1 if {
 
 			b.Manifest.Init()
 
-			plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Size: snapshotBundleSize})
+			_ = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Size: snapshotBundleSize})
 
 			if tc.expErrs != nil {
 				ensurePluginState(t, plugin, plugins.StateNotReady)
@@ -611,7 +617,10 @@ func TestPluginOneShotWithAuthzSchemaVerification(t *testing.T) {
 
 	b.Manifest.Init()
 
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+	err = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -661,7 +670,10 @@ func TestPluginOneShotWithAuthzSchemaVerification(t *testing.T) {
 
 	b.Manifest.Init()
 
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+	err = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+	if err != nil && !strings.Contains(err.Error(), "rego_type_error") {
+		t.Fatal(err)
+	}
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -678,7 +690,10 @@ func TestPluginOneShotWithAuthzSchemaVerification(t *testing.T) {
 	}
 	plugin.manager.Info = info
 
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+	err = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if status, ok := plugin.status[bundleName]; !ok {
 		t.Fatalf("Expected to find status for %s, found nil", bundleName)
@@ -693,7 +708,10 @@ func TestPluginOneShotWithAuthzSchemaVerification(t *testing.T) {
 	}
 	plugin.manager.Info = info
 
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+	err = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if status, ok := plugin.status[bundleName]; !ok {
 		t.Fatalf("Expected to find status for %s, found nil", bundleName)
@@ -776,7 +794,10 @@ func TestPluginOneShotWithAuthzSchemaVerificationNonDefaultAuthzPath(t *testing.
 
 	b.Manifest.Init()
 
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+	err = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+	if err != nil && !strings.Contains(err.Error(), "rego_type_error") {
+		t.Fatal(err)
+	}
 
 	if status, ok := plugin.status[bundleName]; !ok {
 		t.Fatalf("Expected to find status for %s, found nil", bundleName)
@@ -799,7 +820,10 @@ func TestPluginOneShotWithAuthzSchemaVerificationNonDefaultAuthzPath(t *testing.
 
 	b.Manifest.Init()
 
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+	err = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if status, ok := plugin.status[bundleName]; !ok {
 		t.Fatalf("Expected to find status for %s, found nil", bundleName)
@@ -1036,7 +1060,10 @@ func TestPluginOneShotDiskStorageMetrics(t *testing.T) {
 		b.Manifest.Init()
 
 		met = metrics.New()
-		plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: met})
+		err = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: met})
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -1137,8 +1164,10 @@ func TestPluginOneShotDeltaBundle(t *testing.T) {
 		},
 	}
 
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
-
+	err := plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+	if err != nil {
+		t.Fatal(err)
+	}
 	ensurePluginState(t, plugin, plugins.StateOK)
 
 	// simulate a delta bundle download
@@ -1163,7 +1192,10 @@ func TestPluginOneShotDeltaBundle(t *testing.T) {
 		Etag:     "foo",
 	}
 
-	plugin.process(ctx, bundleName, download.Update{Bundle: &b2, Metrics: metrics.New(), Size: deltaBundleSize})
+	err = plugin.process(ctx, bundleName, download.Update{Bundle: &b2, Metrics: metrics.New(), Size: deltaBundleSize})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -1242,7 +1274,10 @@ func TestPluginOneShotDeltaBundleWithAstStore(t *testing.T) {
 		},
 	}
 
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+	err := plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -1268,7 +1303,10 @@ func TestPluginOneShotDeltaBundleWithAstStore(t *testing.T) {
 		Etag:     "foo",
 	}
 
-	plugin.process(ctx, bundleName, download.Update{Bundle: &b2, Metrics: metrics.New(), Size: deltaBundleSize})
+	err = plugin.process(ctx, bundleName, download.Update{Bundle: &b2, Metrics: metrics.New(), Size: deltaBundleSize})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -1379,8 +1417,8 @@ func TestStop(t *testing.T) {
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
 
-	callback := func(ctx context.Context, u download.Update) {
-		plugin.oneShot(ctx, bundleName, u)
+	callback := func(ctx context.Context, u download.Update) error {
+		return plugin.oneShot(ctx, bundleName, u)
 	}
 	plugin.downloaders[bundleName] = download.New(baseConf, plugin.manager.Client(serviceName), bundleName).WithCallback(callback)
 
@@ -1429,7 +1467,7 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 	ensurePluginState(t, plugin, plugins.StateNotReady)
 
 	// simulate a bundle download error with no bundle on disk
-	plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
+	_ = plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
 
 	if plugin.status[bundleName].Message == "" {
 		t.Fatal("expected error but got none")
@@ -1461,7 +1499,7 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Raw: &buf})
+	_ = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Raw: &buf})
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -1475,7 +1513,7 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 	}
 
 	// simulate a bundle download error and verify that the bundle on disk is activated
-	plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
+	_ = plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -1595,7 +1633,7 @@ corge contains 1 if {
 			ensurePluginState(t, plugin, plugins.StateNotReady)
 
 			// simulate a bundle download error with no bundle on disk
-			plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
+			_ = plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
 
 			if plugin.status[bundleName].Message == "" {
 				t.Fatal("expected error but got none")
@@ -1626,7 +1664,7 @@ corge contains 1 if {
 				t.Fatal("unexpected error:", err)
 			}
 
-			plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Raw: &buf})
+			_ = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Raw: &buf})
 
 			if tc.expErrs != nil {
 				ensurePluginState(t, plugin, plugins.StateNotReady)
@@ -1664,7 +1702,7 @@ corge contains 1 if {
 				}
 
 				// simulate a bundle download error and verify that the bundle on disk is activated
-				plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
+				_ = plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
 
 				ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -1880,7 +1918,7 @@ corge contains 1 if {
 			ensurePluginState(t, plugin, plugins.StateNotReady)
 
 			// simulate a bundle download error with no bundle on disk
-			plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
+			_ = plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
 
 			if plugin.status[bundleName].Message == "" {
 				t.Fatal("expected error but got none")
@@ -1919,7 +1957,7 @@ corge contains 1 if {
 				t.Fatal("unexpected error:", err)
 			}
 
-			plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Raw: &buf})
+			_ = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Raw: &buf})
 
 			if tc.expErrs != nil {
 				ensurePluginState(t, plugin, plugins.StateNotReady)
@@ -1957,7 +1995,7 @@ corge contains 1 if {
 				}
 
 				// simulate a bundle download error and verify that the bundle on disk is activated
-				plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
+				_ = plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
 
 				ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -2037,7 +2075,10 @@ func TestPluginOneShotSignedBundlePersistence(t *testing.T) {
 	ensurePluginState(t, plugin, plugins.StateNotReady)
 
 	// simulate a bundle download error with no bundle on disk
-	plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
+	err := plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
+	if err != nil && err.Error() != "unknown error" {
+		t.Fatal(err)
+	}
 
 	if plugin.status[bundleName].Message == "" {
 		t.Fatal("expected error but got none")
@@ -2067,7 +2108,10 @@ func TestPluginOneShotSignedBundlePersistence(t *testing.T) {
 	// We've opted out of having storage/inmem roundtrip our data, so we need to copy ourselves.
 	expBndl := b.Copy()
 
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Raw: &dup})
+	err = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Raw: &dup})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -2082,7 +2126,10 @@ func TestPluginOneShotSignedBundlePersistence(t *testing.T) {
 	}
 
 	// simulate a bundle download error and verify that the bundle on disk is activated
-	plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
+	err = plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("unknown error")})
+	if err != nil && err.Error() != "unknown error" {
+		t.Fatal(err)
+	}
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -3004,7 +3051,7 @@ p contains x if { x = 1 }`
 	}
 
 	b1.Manifest.Init()
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: b1, Metrics: metrics.New()})
+	_ = plugin.oneShot(ctx, bundleName, download.Update{Bundle: b1, Metrics: metrics.New()})
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -3022,7 +3069,7 @@ p contains x`),
 	}
 
 	b2.Manifest.Init()
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: b2})
+	_ = plugin.oneShot(ctx, bundleName, download.Update{Bundle: b2})
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -3051,7 +3098,7 @@ p contains x`),
 	}
 
 	b3.Manifest.Init()
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: b3})
+	_ = plugin.oneShot(ctx, bundleName, download.Update{Bundle: b3})
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -3083,7 +3130,9 @@ func TestPluginOneShotHTTPError(t *testing.T) {
 	plugin.Register(listenerName, func(status Status) {
 		ch <- status
 	})
-	go plugin.oneShot(ctx, bundleName, download.Update{Error: download.HTTPError{StatusCode: 403}})
+	go func() {
+		_ = plugin.oneShot(ctx, bundleName, download.Update{Error: download.HTTPError{StatusCode: 403}})
+	}()
 	s := <-ch
 	if s.HTTPCode != "403" {
 		t.Fatal("expected http_code to be 403 instead of ", s.HTTPCode)
@@ -3103,7 +3152,9 @@ func TestPluginOneShotHTTPError(t *testing.T) {
 	}
 
 	b.Manifest.Init()
-	go plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+	go func() {
+		_ = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+	}()
 	s = <-ch
 	if s.HTTPCode != "" {
 		t.Fatal("expected http_code to be empty instead of ", s.HTTPCode)
@@ -3141,7 +3192,10 @@ func TestPluginOneShotActivationRemovesOld(t *testing.T) {
 	}
 
 	b1.Manifest.Init()
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b1})
+	err := plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b1})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -3163,11 +3217,14 @@ func TestPluginOneShotActivationRemovesOld(t *testing.T) {
 	}
 
 	b2.Manifest.Init()
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b2})
+	err = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b2})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
-	err := storage.Txn(ctx, manager.Store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+	err = storage.Txn(ctx, manager.Store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 		ids, err := manager.Store.ListPolicies(ctx, txn)
 		if err != nil {
 			return err
@@ -3207,7 +3264,7 @@ func TestPluginOneShotActivationConflictingRoots(t *testing.T) {
 	}
 
 	// Start with non-conflicting updates
-	plugin.oneShot(ctx, bundleNames[0], download.Update{Bundle: &bundle.Bundle{
+	_ = plugin.oneShot(ctx, bundleNames[0], download.Update{Bundle: &bundle.Bundle{
 		Manifest: bundle.Manifest{
 			Roots: &[]string{"a/b"},
 		},
@@ -3215,7 +3272,7 @@ func TestPluginOneShotActivationConflictingRoots(t *testing.T) {
 
 	ensurePluginState(t, plugin, plugins.StateNotReady)
 
-	plugin.oneShot(ctx, bundleNames[1], download.Update{Bundle: &bundle.Bundle{
+	_ = plugin.oneShot(ctx, bundleNames[1], download.Update{Bundle: &bundle.Bundle{
 		Manifest: bundle.Manifest{
 			Roots: &[]string{"a/c"},
 		},
@@ -3227,7 +3284,7 @@ func TestPluginOneShotActivationConflictingRoots(t *testing.T) {
 	ensureBundleOverlapStatus(t, plugin, bundleNames, []bool{false, false, false})
 
 	// Add a third bundle that conflicts with one
-	plugin.oneShot(ctx, bundleNames[2], download.Update{Bundle: &bundle.Bundle{
+	_ = plugin.oneShot(ctx, bundleNames[2], download.Update{Bundle: &bundle.Bundle{
 		Manifest: bundle.Manifest{
 			Roots: &[]string{"a/b/aa"},
 		},
@@ -3239,7 +3296,7 @@ func TestPluginOneShotActivationConflictingRoots(t *testing.T) {
 	ensureBundleOverlapStatus(t, plugin, bundleNames, []bool{false, false, true})
 
 	// Update to fix conflict
-	plugin.oneShot(ctx, bundleNames[2], download.Update{Bundle: &bundle.Bundle{
+	_ = plugin.oneShot(ctx, bundleNames[2], download.Update{Bundle: &bundle.Bundle{
 		Manifest: bundle.Manifest{
 			Roots: &[]string{"b"},
 		},
@@ -3249,7 +3306,7 @@ func TestPluginOneShotActivationConflictingRoots(t *testing.T) {
 	ensureBundleOverlapStatus(t, plugin, bundleNames, []bool{false, false, false})
 
 	// Ensure empty roots conflict with all roots
-	plugin.oneShot(ctx, bundleNames[2], download.Update{Bundle: &bundle.Bundle{
+	_ = plugin.oneShot(ctx, bundleNames[2], download.Update{Bundle: &bundle.Bundle{
 		Manifest: bundle.Manifest{
 			Roots: &[]string{""},
 		},
@@ -3278,26 +3335,35 @@ func TestPluginOneShotActivationPrefixMatchingRoots(t *testing.T) {
 		plugin.downloaders[name] = download.New(download.Config{}, plugin.manager.Client(""), name)
 	}
 
-	plugin.oneShot(ctx, bundleNames[0], download.Update{Bundle: &bundle.Bundle{
+	err := plugin.oneShot(ctx, bundleNames[0], download.Update{Bundle: &bundle.Bundle{
 		Manifest: bundle.Manifest{
 			Roots: &[]string{"a/b/c"},
 		},
 	}})
+	if err != nil && err.Error() != " bundles [test-bundle1, test-bundle2] have overlapping roots and cannot be activated simultaneously because bundle(s) [test-bundle2] specify empty root paths ('') which overlap with any other bundle root" {
+		t.Fatal(err)
+	}
 
-	plugin.oneShot(ctx, bundleNames[1], download.Update{Bundle: &bundle.Bundle{
+	err = plugin.oneShot(ctx, bundleNames[1], download.Update{Bundle: &bundle.Bundle{
 		Manifest: bundle.Manifest{
 			Roots: &[]string{"a/b/cat"},
 		},
 	}})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ensureBundleOverlapStatus(t, &plugin, bundleNames, []bool{false, false})
 
 	// Ensure that empty roots conflict
-	plugin.oneShot(ctx, bundleNames[1], download.Update{Bundle: &bundle.Bundle{
+	err = plugin.oneShot(ctx, bundleNames[1], download.Update{Bundle: &bundle.Bundle{
 		Manifest: bundle.Manifest{
 			Roots: &[]string{""},
 		},
 	}})
+	if err != nil && err.Error() != "bundles [test-bundle1, test-bundle2] have overlapping roots and cannot be activated simultaneously because bundle(s) [test-bundle2] specify empty root paths ('') which overlap with any other bundle root" {
+		t.Fatal(err)
+	}
 
 	ensureBundleOverlapStatus(t, &plugin, bundleNames, []bool{false, true})
 }
@@ -3360,7 +3426,9 @@ p contains x if { x = 1 }`
 
 	// Test that initial bundle is ok. Defer to separate goroutine so we can
 	// check result with channel.
-	go plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+	go func() {
+		_ = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+	}()
 	s1 := <-ch
 
 	validateStatus(t, s1, "quickbrownfaux", false)
@@ -3378,7 +3446,9 @@ p contains x`
 	}
 
 	// Test that next update is failed.
-	go plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+	go func() {
+		_ = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+	}()
 	s2 := <-ch
 
 	validateStatus(t, s2, "quickbrownfaux", true)
@@ -3395,13 +3465,17 @@ p contains 1`
 	}
 
 	// Test that the new update is successful.
-	go plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+	go func() {
+		_ = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+	}()
 	s3 := <-ch
 
 	validateStatus(t, s3, "fancybluederg", false)
 
 	// Test that empty download update results in status update.
-	go plugin.oneShot(ctx, bundleName, download.Update{})
+	go func() {
+		_ = plugin.oneShot(ctx, bundleName, download.Update{})
+	}()
 	s4 := <-ch
 
 	// Nothing should have changed in the update
@@ -3462,7 +3536,9 @@ func TestPluginListenerErrorClearedOn304(t *testing.T) {
 	b.Manifest.Init()
 
 	// Test that initial bundle is ok.
-	go plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+	go func() {
+		_ = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+	}()
 	s1 := <-ch
 
 	if s1.ActiveRevision != "quickbrownfaux" || s1.Code != "" {
@@ -3470,7 +3546,9 @@ func TestPluginListenerErrorClearedOn304(t *testing.T) {
 	}
 
 	// Test that service error triggers failure notification.
-	go plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("some error")})
+	go func() {
+		_ = plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("some error")})
+	}()
 	s2 := <-ch
 
 	if s2.ActiveRevision != "quickbrownfaux" || s2.Code == "" {
@@ -3478,7 +3556,9 @@ func TestPluginListenerErrorClearedOn304(t *testing.T) {
 	}
 
 	// Test that service recovery triggers healthy notification.
-	go plugin.oneShot(ctx, bundleName, download.Update{})
+	go func() {
+		_ = plugin.oneShot(ctx, bundleName, download.Update{})
+	}()
 	s3 := <-ch
 
 	if s3.ActiveRevision != "quickbrownfaux" || s3.Code != "" {
@@ -3542,7 +3622,9 @@ p contains x if { x = 1 }`
 
 	// Test that initial bundle is ok. Defer to separate goroutine so we can
 	// check result with channel.
-	go plugin.oneShot(ctx, bundleNames[0], download.Update{Bundle: &b})
+	go func() {
+		_ = plugin.oneShot(ctx, bundleNames[0], download.Update{Bundle: &b})
+	}()
 	s1 := <-bulkChan
 
 	s := s1[bundleNames[0]]
@@ -3575,7 +3657,9 @@ p contains x`
 	}
 
 	// Test that next update is failed.
-	go plugin.oneShot(ctx, bundleNames[0], download.Update{Bundle: &b})
+	go func() {
+		_ = plugin.oneShot(ctx, bundleNames[0], download.Update{Bundle: &b})
+	}()
 	s2 := <-bulkChan
 
 	s = s2[bundleNames[0]]
@@ -3607,7 +3691,9 @@ p contains 1`
 	}
 
 	// Test that new update is successful.
-	go plugin.oneShot(ctx, bundleNames[0], download.Update{Bundle: &b})
+	go func() {
+		_ = plugin.oneShot(ctx, bundleNames[0], download.Update{Bundle: &b})
+	}()
 	s3 := <-bulkChan
 
 	s = s3[bundleNames[0]]
@@ -3628,7 +3714,9 @@ p contains 1`
 	}
 
 	// Test that empty download update results in status update.
-	go plugin.oneShot(ctx, bundleNames[0], download.Update{})
+	go func() {
+		_ = plugin.oneShot(ctx, bundleNames[0], download.Update{})
+	}()
 	s4 := <-bulkChan
 
 	s = s4[bundleNames[0]]
@@ -3660,7 +3748,9 @@ p contains x if { x = 1 }`
 	b1.Manifest.Init()
 
 	// Test that new update is successful.
-	go plugin.oneShot(ctx, bundleNames[1], download.Update{Bundle: &b1})
+	go func() {
+		_ = plugin.oneShot(ctx, bundleNames[1], download.Update{Bundle: &b1})
+	}()
 	s5 := <-bulkChan
 
 	s = s5[bundleNames[1]]
@@ -3741,7 +3831,9 @@ p contains x if { x = 1 }`
 
 	// Test that initial bundle is ok. Defer to separate goroutine so we can
 	// check result with channel.
-	go plugin.oneShot(ctx, bundleNames[0], download.Update{Bundle: &b})
+	go func() {
+		_ = plugin.oneShot(ctx, bundleNames[0], download.Update{Bundle: &b})
+	}()
 	s1 := <-bulkChan
 
 	// Modify the status map received and ensure it doesn't affect the one on the plugin
@@ -3829,7 +3921,7 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 
 			b.Manifest.Init()
 
-			plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+			_ = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
 
 			// Ensure a/a3-6 are intact. a1-2 are overwritten by bundle, and
 			// that the manifest has been written to storage.
@@ -3872,7 +3964,7 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 			}
 
 			b.Manifest.Init()
-			plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+			_ = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
 
 			// Ensure a/a5-a6 are intact. a3 and a4 are overwritten by bundle.
 			exp = `{"a3": "foo", "a5": "x3"}`
@@ -3901,7 +3993,7 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 			}
 
 			b.Manifest.Init()
-			plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+			_ = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
 
 			// Ensure bundle activation failed by checking that previous revision is
 			// still active.
@@ -3963,7 +4055,10 @@ func TestPluginSetCompilerOnContext(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+	err := plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	exp := ast.MustParseModule(module)
 
@@ -4214,7 +4309,7 @@ func TestPluginRequestVsDownloadTimestamp(t *testing.T) {
 	b.Manifest.Init()
 
 	// simulate HTTP 200 response from downloader
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: b})
+	_ = plugin.oneShot(ctx, bundleName, download.Update{Bundle: b})
 
 	if plugin.status[bundleName].LastSuccessfulDownload != plugin.status[bundleName].LastSuccessfulRequest || plugin.status[bundleName].LastSuccessfulDownload != plugin.status[bundleName].LastRequest {
 		t.Fatal("expected last successful request to be same as download and request")
@@ -4224,21 +4319,21 @@ func TestPluginRequestVsDownloadTimestamp(t *testing.T) {
 	time.Sleep(time.Millisecond)
 
 	// simulate HTTP 304 response from downloader.
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: nil})
+	_ = plugin.oneShot(ctx, bundleName, download.Update{Bundle: nil})
 
 	if plugin.status[bundleName].LastSuccessfulDownload == plugin.status[bundleName].LastSuccessfulRequest || plugin.status[bundleName].LastSuccessfulDownload == plugin.status[bundleName].LastRequest {
 		t.Fatal("expected last successful request to differ from download and request")
 	}
 
 	// simulate HTTP 200 response from downloader
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: b})
+	_ = plugin.oneShot(ctx, bundleName, download.Update{Bundle: b})
 
 	if plugin.status[bundleName].LastSuccessfulDownload != plugin.status[bundleName].LastSuccessfulRequest || plugin.status[bundleName].LastSuccessfulDownload != plugin.status[bundleName].LastRequest {
 		t.Fatal("expected last successful request to be same as download and request")
 	}
 
 	// simulate error response from downloader
-	plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("xxx")})
+	_ = plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("xxx")})
 
 	if plugin.status[bundleName].LastSuccessfulDownload != plugin.status[bundleName].LastSuccessfulRequest || plugin.status[bundleName].LastSuccessfulDownload == plugin.status[bundleName].LastRequest {
 		t.Fatal("expected last successful request to be same as download but different from request")
@@ -4351,7 +4446,10 @@ func TestReconfigurePlugin_OneShot_BundleDeactivation(t *testing.T) {
 
 			b.Manifest.Init()
 
-			plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+			err = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			// Ensure it has been activated
 
@@ -4615,7 +4713,10 @@ func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
 
 	b.Manifest.Init()
 
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+	err := plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Ensure it has been activated
 	expData := util.MustUnmarshalJSON([]byte(`{"a2": "foo"}`))
@@ -4637,7 +4738,10 @@ func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
 
 	plugin.Reconfigure(ctx, multiBundleConf)
 	b.Manifest.Revision = "quickbrownfaux-2"
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+	err = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// The only thing that should have changed is the store id for the policy
 	expIDs = []string{"test-bundle/bundle/id1"}
@@ -4645,7 +4749,7 @@ func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
 
 	// Make sure the legacy path is gone now that we are in multi-bundle mode
 	var actual string
-	err := storage.Txn(ctx, plugin.manager.Store, storage.WriteParams, func(txn storage.Transaction) error {
+	err = storage.Txn(ctx, plugin.manager.Store, storage.WriteParams, func(txn storage.Transaction) error {
 		var err error
 		if actual, err = bundle.LegacyReadRevisionFromStore(ctx, plugin.manager.Store, txn); err != nil && !storage.IsNotFound(err) {
 			t.Fatalf("Failed to read manifest revision from store: %s", err)
@@ -4738,7 +4842,10 @@ func TestUpgradeLegacyBundleToMultiBundleNewBundles(t *testing.T) {
 
 	b.Manifest.Init()
 
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+	err = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Ensure it has been activated
 	expData := util.MustUnmarshalJSON([]byte(`{"a2": "foo"}`))
@@ -4780,7 +4887,10 @@ func TestUpgradeLegacyBundleToMultiBundleNewBundles(t *testing.T) {
 		},
 	}
 	b.Manifest.Init()
-	plugin.oneShot(ctx, "b2", download.Update{Bundle: &b})
+	err = plugin.oneShot(ctx, "b2", download.Update{Bundle: &b})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	expData = util.MustUnmarshalJSON([]byte(`{"b2": "foo"}`))
 	expIDs = []string{"b2/id1"}
@@ -4899,7 +5009,10 @@ func TestLegacyBundleDataRead(t *testing.T) {
 				t.Fatalf("Expected plugin to be in non-multi bundle config mode")
 			}
 
-			plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+			err = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			exp := `{"a2": "foo"}`
 			var expData any
@@ -6670,6 +6783,125 @@ func TestPluginStateReconciliationOnReconfigure(t *testing.T) {
 	}
 }
 
+func TestPluginManualTriggerActivationErrorFile(t *testing.T) {
+	t.Parallel()
+
+	test.WithTempFS(map[string]string{}, func(dir string) {
+		mockBundle := bundle.Bundle{
+			Data: map[string]any{},
+			Modules: []bundle.ModuleFile{
+				{
+					URL: "policy.rego",
+					Raw: []byte(`package test
+					res := unknown.function(unknown.input)`),
+				},
+			},
+		}
+
+		name := path.Join(dir, "bundle.tar.gz")
+
+		f, err := os.Create(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err := bundle.NewWriter(f).Write(mockBundle); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := f.Close(); err != nil {
+			t.Fatal(err)
+		}
+
+		mgr := getTestManager()
+		url := "file://" + name
+
+		var mode plugins.TriggerMode = "manual"
+		plugin := New(&Config{Bundles: map[string]*Source{
+			"test": {
+				SizeLimitBytes: 1e5,
+				Resource:       url,
+				Config:         download.Config{Trigger: &mode},
+			},
+		}}, mgr)
+
+		ctx := t.Context()
+		err = plugin.Start(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer plugin.Stop(ctx)
+
+		err = plugin.Loaders()["test"].Trigger(ctx)
+
+		expectedError := "1 error occurred: /policy.rego:2: rego_type_error: undefined function unknown.function"
+		if err.Error() != expectedError {
+			t.Fatalf("Expected the error: %s but got %s", expectedError, err.Error())
+		}
+	})
+}
+
+func TestPluginManualTriggerActivationErrorServer(t *testing.T) {
+	t.Parallel()
+
+	// bundle with an unknown function to cause an AST parsing failure
+	mockBundle := bundle.Bundle{
+		Modules: []bundle.ModuleFile{
+			{
+				Path: "policy.rego",
+				URL:  "policy.rego",
+				Raw: []byte(`package foo
+				res := unknown.function(unknown.input)`),
+			},
+		},
+		Manifest: bundle.Manifest{Revision: "test", Roots: &[]string{"/"}},
+	}
+
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		err := bundle.NewWriter(w).Write(mockBundle)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}))
+	defer s.Close()
+
+	// setup plugin pointing at fake server
+	manager := getTestManagerWithOpts(fmt.Appendf(nil, `{
+		"services": {
+			"default": {
+				"url": %q
+			}
+		}
+	}`, s.URL))
+	ctx := t.Context()
+	defer manager.Stop(ctx)
+
+	var mode plugins.TriggerMode = "manual"
+
+	plugin := New(&Config{
+		Bundles: map[string]*Source{
+			"test": {
+				Service:        "default",
+				SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
+				Config:         download.Config{Trigger: &mode},
+			},
+		},
+	}, manager)
+
+	err := plugin.Start(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer plugin.Stop(ctx)
+
+	err = plugin.Loaders()["test"].Trigger(ctx)
+
+	expectedError := "1 error occurred: /policy.rego:2: rego_type_error: undefined function unknown.function"
+	if err.Error() != expectedError {
+		t.Fatalf("Expected the error: %s but got %s", expectedError, err.Error())
+	}
+}
+
 func TestPluginManualTrigger(t *testing.T) {
 	t.Parallel()
 
@@ -7231,7 +7463,10 @@ result := true`,
 	)
 
 	b.Manifest.Init()
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Size: snapshotBundleSize})
+	err := plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Size: snapshotBundleSize})
+	if err != nil && err.Error() != "detected overlapping roots in manifests for these bundles: [new-bundle, policy-bundle] (foo/bar overlaps foo/bar/baz)" {
+		t.Fatal(err)
+	}
 
 	// "foo/bar" and "foo/bar/baz" overlap with each other; activation will fail
 	status, ok := plugin.status[bundleName]
@@ -7273,7 +7508,10 @@ result := true`,
 	)
 
 	b.Manifest.Init()
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Size: snapshotBundleSize})
+	err := plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Size: snapshotBundleSize})
+	if err != nil && err.Error() != "bundles [new-bundle, policy-bundle] have overlapping roots and cannot be activated simultaneously because bundle(s) [new-bundle] specify empty root paths ('') which overlap with any other bundle root" {
+		t.Fatal(err)
+	}
 
 	// new bundle has path "foo/bar" which overlaps with existing bundle with path "foo/bar"; activation will fail
 	status, ok := plugin.status[bundleName]
@@ -7321,7 +7559,10 @@ result := true`,
 	)
 
 	b.Manifest.Init()
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Size: snapshotBundleSize})
+	err := plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Size: snapshotBundleSize})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	status, ok := plugin.status[bundleName]
 	if !ok {
@@ -7377,7 +7618,10 @@ func getPluginWithExistingLoadedBundle(t *testing.T, bundleName string, roots []
 
 	b := getTestBundleWithData(roots, data, modules)
 
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Size: snapshotBundleSize})
+	err := plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Size: snapshotBundleSize})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
