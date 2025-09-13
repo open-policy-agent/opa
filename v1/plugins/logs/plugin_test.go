@@ -1447,7 +1447,7 @@ func TestPluginStatusUpdateRateLimitExceeded(t *testing.T) {
 
 	// Trigger a status update
 	fixture.server.expCode = 200
-	err = fixture.plugin.b.Upload(ctx, fixture.plugin.manager.Client(fixture.plugin.config.Service), *fixture.plugin.config.Resource)
+	err = fixture.plugin.doOneShot(ctx)
 	if err != nil {
 		t.Fatal("Unexpected error")
 	}
