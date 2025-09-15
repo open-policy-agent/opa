@@ -1,7 +1,0 @@
-
-decision_logs:
-  plugin: eopa_dl
-plugins:
-  eopa_dl:
-    output:
-      type: console
