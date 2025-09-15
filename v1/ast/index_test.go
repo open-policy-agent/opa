@@ -149,6 +149,12 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		input.y == 3
 	}
 
+	naked if {
+		input.x
+	} {
+		input.y
+	}
+
 	# filtering ruleset contains rules that cannot be indexed (for different reasons).
 	filtering if {
 		count([], x)
@@ -379,6 +385,29 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			note:       "miss ==",
 			ruleset:    "equal",
 			input:      `{"x": 1000, "y": 1000}`,
+			expectedRS: []string{},
+		},
+		{
+			note:    "hit both",
+			ruleset: "naked",
+			input:   `{"x": 1000, "y": 1000}`,
+			expectedRS: []string{
+				"naked if { input.y }",
+				"naked if { input.x }",
+			},
+		},
+		{
+			note:    "hit one",
+			ruleset: "naked",
+			input:   `{"x": false}`,
+			expectedRS: []string{
+				"naked if { input.x }",
+			},
+		},
+		{
+			note:       "miss",
+			ruleset:    "naked",
+			input:      `{"z": "onk"}`,
 			expectedRS: []string{},
 		},
 		{
