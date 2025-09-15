@@ -1,0 +1,48 @@
+---
+sidebar_label: Google Cloud
+sidebar_position: 4
+title: Deploying OPA on Google Cloud
+---
+
+Open Policy Agent (OPA) is easily integrated with systems running in Google
+Cloud Platform (GCP). OPA exposes APIs for policy evaluation and can be invoked
+over the network from a range of GCP services.
+
+OPA can be deployed on a range of different GCP services. Choosing the right one
+for your use case depends on:
+
+- Where the calling service is running
+- The latency requirements of the calling service
+- The data volume required at policy evaluation time
+
+The table below outlines different use cases and the recommended deployment
+options for OPA on GCP.
+
+| **Use Case**               | **Deployment Method**                    |
+|----------------------------|------------------------------------------|
+| GKE application            | Local OPA Sidecar or Centralized Service |
+| Compute Engine application | Local Node Agent or Centralized Service  |
+| Cloud Run application      | Local OPA Instance or Centralized Service|
+| Cloud Functions            | Centralized Service on GKE or Cloud Run  |
+| Other custom applications  | Centralized Service on GKE or Cloud Run  |
+
+<CardGrid>
+  <Card key={"gke"} item={{
+    title: "GKE",
+    icon: require('../assets/images/google-cloud/gke.png').default,
+    link: "../deploy/google-cloud/gke",
+    link_text: "Deploy on GKE",
+  }} />
+  <Card key={"cr"} item={{
+    title: "Cloud Run",
+    icon: require('../assets/images/google-cloud/cloud-run.png').default,
+    link: "../deploy/google-cloud/cloud-run",
+    link_text: "Deploy on Cloud Run",
+  }} />
+  <Card key={"gce"} item={{
+    title: "Compute Engine",
+    icon: require('../assets/images/google-cloud/gce.png').default,
+    link: "../deploy/google-cloud/gce",
+    link_text: "Deploy on Compute Engine",
+  }} />
+</CardGrid>

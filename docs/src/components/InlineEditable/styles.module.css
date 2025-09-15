@@ -1,0 +1,36 @@
+.inlineEditable {
+	display: inline-flex;
+	align-items: center;
+}
+
+.input {
+	background: transparent;
+	border: none;
+	border-bottom: 1px dotted var(--ifm-color-emphasis-300);
+	color: inherit;
+	font-family: inherit;
+	font-size: inherit;
+	font-weight: bold;
+	padding: 0;
+	margin: 0;
+	outline: none;
+	width: auto;
+}
+
+.icon {
+	margin-left: 0.25rem;
+	cursor: pointer;
+	color: var(--ifm-color-emphasis-600);
+}
+
+.icon:hover {
+	color: var(--ifm-color-primary);
+}
+
+.icon:focus {
+	outline: none;
+}
+
+.icon:active {
+	color: var(--ifm-color-primary-dark);
+}

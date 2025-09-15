@@ -1,0 +1,67 @@
+---
+sidebar_label: GKE
+sidebar_position: 2
+title: Deploying OPA on GKE
+---
+
+:::tip
+This page contains details in addition to the
+[base Kubernetes documentation](../k8s) for deploying OPA. Please see
+that page for details on how to deploy OPA on K8s and return here for more GKE
+specific notes.
+:::
+
+
+## Creating a Load Balancer for and OPA Cluster service
+
+If running OPA as a cluster service, you might be interested in exposing the
+service to the internet or other, internal, off-cluster PEPs. Generally, OPA is
+invoked by other PEP applications rather than clients, and so a public IP is
+generally not required.
+
+
+```yaml title="Internal Load Balancer Service"
+apiVersion: v1
+kind: Service
+metadata:
+  name: opa
+  annotations:
+    // highlight-next-line
+    networking.gke.io/load-balancer-type: "Internal"
+spec:
+  selector:
+    app: opa
+  ports:
+    - protocol: TCP
+      port: 8181
+      targetPort: 8181
+  type: LoadBalancer
+```
+
+:::warning
+If you are exposing and OPA service to the public internet, you are advised to
+make use of OPA's build in
+[authentication and authorization](../../security/#authentication-and-authorization)
+features if not running OPA behind another service that provides these
+functions.
+:::
+
+```yaml title="External Load Balancer Service"
+apiVersion: v1
+kind: Service
+metadata:
+  name: opa
+spec:
+  selector:
+    app: opa
+  ports:
+    - protocol: TCP
+      port: 8181
+      targetPort: 8181
+  // highlight-next-line
+  type: LoadBalancer
+```
+
+For more information, please see the GKE
+[Load Balancer](https://cloud.google.com/kubernetes-engine/docs/concepts/service-load-balancer)
+documentation.

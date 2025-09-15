@@ -1,11 +1,8 @@
 ---
-title: Deployment
+sidebar_label: Docker
+sidebar_position: 2
+title: Deploying OPA on Docker
 ---
-
-This document helps you get OPA up and running in different deployment
-environments. You should read this document if you are planning to deploy OPA.
-
-## Docker
 
 Docker makes OPA easy to deploy in different types of environments.
 
@@ -32,7 +29,7 @@ command line arguments for OPA's server mode are:
 - `--log-format` to set the log format (default: `"json"`).
 
 By default, OPA listens for normal HTTP connections on `localhost:8181`. To make
-OPA listen for HTTPS connections, see [Security](./security).
+OPA listen for HTTPS connections, see [Security](../../security).
 
 We can run OPA as a server using Docker:
 
@@ -47,7 +44,7 @@ accessible from outside the container. This is not necessary when running OPA
 in other environments.
 
 More information can be found in the
-[security documentation](./security/#interface-binding).
+[security documentation](../../security/#interface-binding).
 :::
 
 Test that OPA is available:
@@ -134,14 +131,12 @@ the version with the following command:
 docker run openpolicyagent/opa version
 ```
 
-## Kubernetes
-
-### Kicking the Tires
+## Running in Kubernetes
 
 This section shows how to quickly deploy OPA on top of Kubernetes to try it out.
 
 > If you are interested in using OPA to enforce admission control policies in
-> Kubernetes, see the [Kubernetes Admission Control Tutorial](./kubernetes/tutorial).
+> Kubernetes, see the [Kubernetes Admission Control Tutorial](../kubernetes/tutorial).
 
 > These steps assume Kubernetes is deployed with
 > [minikube](https://github.com/kubernetes/minikube). If you are using a different
@@ -309,4 +304,4 @@ containers:
 ```
 </EvergreenCodeBlock>
 
-See the [Health API](./rest-api#health-api) documentation for more detail on the `/health` API endpoint.
+See the [Health API](../../docs/rest-api#health-api) documentation for more detail on the `/health` API endpoint.
