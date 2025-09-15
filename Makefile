@@ -32,7 +32,7 @@ GOLANGCI_LINT_VERSION := v2.4.0
 YAML_LINT_VERSION := 0.29.0
 YAML_LINT_FORMAT ?= auto
 
-DOCKER_RUNNING ?= $(shell docker ps >/dev/null 2>&1 && echo 1 || echo 0)
+export DOCKER_RUNNING ?= $(shell docker ps >/dev/null 2>&1 && echo 1 || echo 0)
 
 # We use root because the windows build, invoked through the ci-go-build-windows
 # target, installs the gcc mingw32 cross-compiler.
