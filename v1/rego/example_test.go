@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/open-policy-agent/opa/v1/logging"
@@ -804,6 +805,21 @@ func ExampleRego_PrepareForPartial() {
 
 	ctx := context.Background()
 
+	// This is typically not needed, but we do it here to ensure that our
+	// example output is stable. We sort the result bodies, and rename the
+	// variable that's `userX` for some number X to `user`.
+	makeStable := func(bodies []ast.Body) {
+		for i := range bodies {
+			ast.WalkTerms(bodies[i], func(t *ast.Term) bool {
+				if v, ok := t.Value.(ast.Var); ok && strings.HasPrefix(string(v), "user") {
+					t.Value = ast.Var("user")
+				}
+				return false // go on
+			})
+		}
+		sort.Slice(bodies, func(i, j int) bool { return bodies[i].Compare(bodies[j]) < 0 })
+	}
+
 	// Define a simple policy for example purposes.
 	module := `package test
 
@@ -825,7 +841,7 @@ func ExampleRego_PrepareForPartial() {
 	`
 
 	r := rego.New(
-		rego.Query("data.test.allow == true"),
+		rego.Query("data.test.allow"),
 		rego.Module("example.rego", module),
 	)
 
@@ -838,6 +854,7 @@ func ExampleRego_PrepareForPartial() {
 	if err != nil {
 		// Handle error.
 	}
+	makeStable(pqs.Queries)
 
 	// Inspect result
 	fmt.Println("First evaluation")
@@ -858,6 +875,7 @@ func ExampleRego_PrepareForPartial() {
 	if err != nil {
 		// Handle error.
 	}
+	makeStable(pqs.Queries)
 
 	// Inspect result
 	fmt.Println("Second evaluation")
@@ -869,10 +887,10 @@ func ExampleRego_PrepareForPartial() {
 	//
 	// First evaluation
 	// Query #1: "GET" = input.method; input.path = ["reviews", _]; input.is_admin
-	// Query #2: "GET" = input.method; input.path = ["reviews", user3]; user3 = input.user
+	// Query #2: "GET" = input.method; input.path = ["reviews", user]; user = input.user
 	// Second evaluation
 	// Query #1: input.path = ["reviews", _]; input.is_admin
-	// Query #2: input.path = ["reviews", user3]; user3 = input.user
+	// Query #2: input.path = ["reviews", user]; user = input.user
 }
 
 func ExampleRego_custom_functional_builtin() {
