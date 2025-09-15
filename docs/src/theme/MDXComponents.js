@@ -8,6 +8,10 @@ import CardGrid from "@site/src/components/CardGrid";
 import EcosystemEmbed from "@site/src/components/EcosystemEmbed";
 import EcosystemFeatureLink from "@site/src/components/EcosystemFeatureLink";
 import EvergreenCodeBlock from "@site/src/components/EvergreenCodeBlock";
+import InlineEditable from "@site/src/components/InlineEditable";
+import ParamCodeBlock from "@site/src/components/ParamCodeBlock";
+import ParamContext from "@site/src/components/ParamContext";
+import ParamProvider from "@site/src/components/ParamProvider";
 import PlaygroundExample from "@site/src/components/PlaygroundExample";
 import RunSnippet from "@site/src/components/RunSnippet";
 import SideBySideColumn from "@site/src/components/SideBySide/Column";
@@ -25,6 +29,10 @@ export default {
   EcosystemEmbed,
   EcosystemFeatureLink,
   EvergreenCodeBlock,
+  InlineEditable,
+  ParamContext,
+  ParamCodeBlock,
+  ParamProvider,
   PlaygroundExample,
   RunSnippet,
   SideBySideColumn,

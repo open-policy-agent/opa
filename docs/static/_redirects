@@ -9,6 +9,10 @@
 # TODO remove after 2025-12-01
 # comparison-to-other-systems has been moved into a new section
 /docs/comparison-to-other-systems /docs/comparisons/access-control-systems
+# TODO remove after 2025-12-01
+# deployments page has been broken down into docker, k8s and operations.
+# /deploy is the best entry point now
+/docs/deployments /docs/deploy
 
 # these two pages have been moved in the creation of the new site.
 /docs/kubernetes-introduction/ /docs/kubernetes/
