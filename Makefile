@@ -117,6 +117,13 @@ install: generate
 .PHONY: test
 test: go-test wasm-test
 
+.PHONY: e2e e2e-prep
+e2e: e2e-prep
+	cd e2e/ && $(GO) test $(GO_TAGS) -v ./...
+
+e2e-prep:
+	cd e2e/api/compile/prisma && npm ci
+
 .PHONY: test-short
 test-short: go-test-short
 
