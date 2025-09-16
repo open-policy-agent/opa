@@ -59,6 +59,10 @@ func (b *failTracer) Hints(unknowns []*ast.Term) []Hint {
 	seenRefs := map[string]struct{}{}
 	candidates := make([]string, 0, len(unknowns))
 	for i := range unknowns {
+		ref, ok := unknowns[i].Value.(ast.Ref)
+		if !ok || len(ref) < 2 {
+			continue
+		}
 		candidates = append(candidates, string(unknowns[i].Value.(ast.Ref)[1].Value.(ast.String)))
 	}
 
@@ -91,13 +95,11 @@ func (b *failTracer) Hints(unknowns []*ast.Term) []Hint {
 		closestStrings := levenshtein.ClosestStrings(maxDistanceForHint, miss, slices.Values(candidates))
 		proposals := make([]ast.Ref, len(closestStrings))
 		for i := range closestStrings {
-			if len(ref) >= 1 {
-				prop := make([]*ast.Term, 2, len(ref))
-				prop[0] = ast.InputRootDocument
-				prop[1] = ast.StringTerm(closestStrings[i])
-				prop = append(prop, ref[2:]...)
-				proposals[i] = prop
-			}
+			prop := make([]*ast.Term, 2, len(ref))
+			prop[0] = ast.InputRootDocument
+			prop[1] = ast.StringTerm(closestStrings[i])
+			prop = append(prop, ref[2:]...)
+			proposals[i] = prop
 		}
 		var msg string
 		switch len(proposals) {

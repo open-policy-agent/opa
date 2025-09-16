@@ -39,6 +39,14 @@ func TestHints(t *testing.T) {
 			},
 		},
 		{
+			note: "all of input unknown, ignored",
+			evts: []topdown.Event{
+				evtFromExpr(`__local1__ = input.fruit.price`),
+			},
+			unknowns: []string{"input"},
+			exp:      nil,
+		},
+		{
 			note: "simple typo, short ref",
 			evts: []topdown.Event{
 				evtFromExpr(`__local1__ = input.prize`),
