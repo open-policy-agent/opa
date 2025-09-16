@@ -1050,7 +1050,7 @@ func getRevisions(ctx context.Context, store storage.Store, txn storage.Transact
 	return br, nil
 }
 
-func (s *Server) reload(ctx context.Context, txn storage.Transaction, evt storage.TriggerEvent) {
+func (s *Server) reload(_ context.Context, _ storage.Transaction, evt storage.TriggerEvent) {
 	// NOTE(tsandall): We currently rely on the storage txn to provide
 	// critical sections in the server.
 	//

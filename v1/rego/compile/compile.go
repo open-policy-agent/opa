@@ -175,7 +175,7 @@ func (c *Compile) timer(t string) minimetrics {
 	return n
 }
 
-// Prepare evaluates as much as possible without known the (known) input yet
+// Prepare evaluates as much as possible without knowing the (known) input yet
 func (c *Compile) Prepare(ctx context.Context, po ...PrepareOption) (*Prepared, error) {
 	p := &Prepared{
 		compile: c,
