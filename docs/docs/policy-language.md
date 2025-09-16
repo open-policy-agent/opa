@@ -1286,7 +1286,7 @@ t if {
 <RunSnippet command="data.negation.t"/>
 
 Negation is required to check whether some value _does not_ exist in a collection: `not p["foo"]`. That is not the same as complementing the `==` operator in an expression `p[_] == "foo"` which yields `p[_] != "foo"`
-which means for any item in `p`, return true if the item is not `"foo"`. See more details [here](https://docs.styra.com/regal/rules/bugs/not-equals-in-loop).
+which means for any item in `p`, return true if the item is not `"foo"`. See more details [here](/projects/regal/rules/bugs/not-equals-in-loop).
 
 For example, we can write a rule that defines a document containing names of
 apps not deployed on the `"prod"` site:
@@ -1326,6 +1326,12 @@ apps_not_in_prod contains name if {
 Logical OR/AND in Rego is structured differently from other languages you might
 be familiar with. See the notes here on [logical OR](../docs/#logical-or) or
 here for [logical AND](../docs/#basic-syntax) for more details.
+:::
+
+:::tip
+Have a look at the other examples for
+[`not`](./policy-reference/keywords/not) in the examples section to learn more
+about using this keyword.
 :::
 
 ## Universal Quantification (FOR ALL)
@@ -1458,6 +1464,12 @@ require a helper rule while the negation version is more verbose but a bit simpl
 and allows for more complex ORs.
 :::
 
+:::tip
+Have a look at the other examples for
+[`some`](./policy-reference/keywords/some) and
+[`every`](./policy-reference/keywords/every) in the examples section.
+:::
+
 ## Modules
 
 In Rego, policies are defined inside _modules_. Modules consist of:
@@ -1529,12 +1541,12 @@ servers := [
         "id": "app",
         "protocols": ["https", "ssh"]
     },
-    {   
-        "id": "db", 
+    {
+        "id": "db",
         "protocols": ["mysql"]
     },
-    { 
-        "id": "ci", 
+    {
+        "id": "ci",
         "protocols": ["http"]
     }
 ]
@@ -1609,7 +1621,7 @@ http_servers contains server if {
 More expressive membership and existential quantification keyword:
 
 ```json title="input.json"
-{"roles": ["denylisted-role", "another-role"]}
+{ "roles": ["denylisted-role", "another-role"] }
 ```
 
 ```rego
@@ -2000,6 +2012,11 @@ function satisfies the following properties:
 A `default` function will still fail (as in not evaluate, even to the default value) if any of the arguments provided in
 the call are **undefined**. The reason for this is that the arguments are evaluated before the function is even called,
 and an undefined argument halts evaluation at that point.
+:::
+
+:::tip
+Have a look at the other examples for
+[`default`](./policy-reference/keywords/default) in the examples section to learn more.
 :::
 
 ## Else Keyword

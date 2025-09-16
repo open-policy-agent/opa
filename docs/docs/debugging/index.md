@@ -15,13 +15,13 @@ whole.
 
 ## Live Debugging
 
-Using the [Debug Adapter](https://docs.styra.com/regal/debug-adapter)
+Using the [Debug Adapter](/projects/regal/debug-adapter)
 based on [OPA's Debug API](https://github.com/open-policy-agent/opa/blob/main/v1/debug/README.md),
 supported clients are now able to live debug Rego line by line. Breakpoints,
 variable inspection and print statements are all supported.
 
 Read more about the supported editors of this debugging method in the
-[Regal Editor Support Page](https://docs.styra.com/regal/editor-support).
+[Regal Editor Support Page](/projects/regal/editor-support).
 
 ![Debugging Rego in VS Code](debugging-dap.gif)
 
