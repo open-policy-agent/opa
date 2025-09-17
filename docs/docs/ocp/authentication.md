@@ -23,7 +23,7 @@ using YAML configuration, see the example below:
 ```yaml
 tokens:
   admin:
-    api-key: 7lPLBKKpmiljMa0J9GwyYWLDJKEVFXEO6ZGAjmDf5eQ=
+    api_key: 7lPLBKKpmiljMa0J9GwyYWLDJKEVFXEO6ZGAjmDf5eQ=
     scopes:
     - role: administrator
 ```
