@@ -122,8 +122,8 @@ sources:
       - .*/*
       credentials: github-token
   global-data:
-    files:
-      data/common.json
+    paths:
+      - global/common.json
 ```
 
 ## Stacks
