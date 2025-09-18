@@ -2381,6 +2381,8 @@ func TestSomeDeclExpr(t *testing.T) {
 		"unexpected identifier token: expected \\n or ; or } (hint: `import future.keywords.in` for `some x in xs` expressions)",
 		ParserOptions{RegoVersion: RegoV0})
 
+	assertNoParseError(t, `p contains x if some x in {"foo": "bar"}`, ParserOptions{RegoVersion: RegoV1})
+
 	assertParseRule(t, "whitespace terminated", `
 
 	p[x] {
@@ -2472,6 +2474,10 @@ func TestEvery(t *testing.T) {
 	}`,
 		"unexpected identifier token: expected \\n or ; or } (hint: `import future.keywords.every` for `every x in xs { ... }` expressions)",
 		ParserOptions{RegoVersion: RegoV0})
+
+	assertNoParseError(t, `p if {
+		every x, y in {"foo": "bar"} { is_string(x); is_string(y) }
+	}`, ParserOptions{RegoVersion: RegoV1})
 
 	// Only relevant for v0, as the 'in' keyword is included in v1.
 	assertParseErrorContains(t, "not every 'every' gets a hint", `
@@ -8111,6 +8117,14 @@ func assertParseError(t *testing.T, msg string, input string, opts ...ParserOpti
 	})
 }
 
+func assertNoParseError(t *testing.T, input string, opts ...ParserOptions) {
+	t.Helper()
+	assertParseErrorFunc(t, "", input, func(result string) {
+		t.Helper()
+		t.Fatalf("expected no parser error, got %s", result)
+	}, opts...)
+}
+
 func assertParseErrorContains(t *testing.T, msg string, input string, expected string, opts ...ParserOptions) {
 	t.Helper()
 	assertParseErrorFunc(t, msg, input, func(result string) {
@@ -8132,6 +8146,9 @@ func assertParseErrorFunc(t *testing.T, msg string, input string, f func(string)
 		err = errors.New("expected exactly one statement")
 	}
 	if err == nil {
+		if msg == "" {
+			return
+		}
 		t.Errorf("Error on test \"%s\": expected parse error on %s: expected no statements, got %d: %v", msg, input, len(stmts), stmts)
 		return
 	}
