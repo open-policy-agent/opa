@@ -68,6 +68,7 @@ Bundles are collections of policies and data that can be distributed to OPA inst
 {
   "result": [
     {
+      "name": "main-bundle",
       "labels": {
         "env": "production",
         "team": "platform"
@@ -111,6 +112,7 @@ Bundles are collections of policies and data that can be distributed to OPA inst
 ```json
 {
   "result": {
+    "name": "my-app-bundle",
     "labels": {
       "env": "production",
       "version": "1.0.0"
@@ -206,6 +208,7 @@ Sources define where policies and data come from (Git repositories, local files,
 {
   "result": [
     {
+      "name": "myorg-git-policies",
       "git": {
         "repo": "https://github.com/myorg/policies.git",
         "reference": "refs/heads/main",
@@ -221,6 +224,7 @@ Sources define where policies and data come from (Git repositories, local files,
       ]
     },
     {
+      "name": "local-policies",
       "directory": "/local/policies",
       "paths": [
         "authz.rego",
@@ -256,6 +260,7 @@ Sources define where policies and data come from (Git repositories, local files,
 ```json
 {
   "result": {
+    "name": "entitlements",
     "builtin": "styra.entitlements.v1",
     "requirements": [
       {
@@ -433,6 +438,7 @@ Stacks define how bundles are distributed to different environments or services 
 {
   "result": [
     {
+      "name": "prod-stack",
       "selector": {
         "environment": ["production"],
         "service": ["auth-service", "api-gateway"]
@@ -467,6 +473,7 @@ Stacks define how bundles are distributed to different environments or services 
 ```json
 {
   "result": {
+    "name": "default-stack",
     "selector": {
       "team": ["platform", "security"],
       "environment": ["staging", "production"]
