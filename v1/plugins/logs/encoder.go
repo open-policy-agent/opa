@@ -135,7 +135,7 @@ func (enc *chunkEncoder) Encode(event EventV1, eventBytes []byte) ([][]byte, err
 		}
 	}
 
-	if int64(len(eventBytes)+enc.bytesWritten+1) <= enc.uncompressedLimit {
+	if int64(len(eventBytes)+enc.bytesWritten+1) < enc.uncompressedLimit {
 		return nil, enc.appendEvent(eventBytes)
 	}
 
@@ -167,16 +167,12 @@ func (enc *chunkEncoder) Encode(event EventV1, eventBytes []byte) ([][]byte, err
 		}
 
 		currentSize := len(result)
-		if currentSize < int(enc.limit) {
-			// success! the incoming chunk doesn't have to lose the ND cache and can go into a chunk by itself
-			// scale up the uncompressed limit using the uncompressed event size as a base
-			err = enc.appendEvent(eventBytes)
-			if err != nil {
-				return nil, err
-			}
+		if currentSize <= int(enc.limit) {
 			enc.uncompressedLimit = int64(len(eventBytes))
 			enc.scaleUp()
-			return nil, nil
+			// success! the incoming chunk doesn't have to lose the ND cache and can go into a chunk by itself
+			// scale up the uncompressed limit using the uncompressed event size as a base
+			return [][]byte{result}, nil
 		}
 
 		// The ND cache has to be dropped, record this size as a known maximum event size
@@ -266,7 +262,7 @@ func (enc *chunkEncoder) Encode(event EventV1, eventBytes []byte) ([][]byte, err
 	}
 
 	// 3) Equilibrium: If the chunk size is between 90% and 100% of the user-configured limit, maintain uncompressed limit value.
-	if int(enc.limit) > len(result) && len(result) >= enc.threshold {
+	if int(enc.limit) >= len(result) && len(result) >= enc.threshold {
 		enc.incrMetric(encUncompressedLimitStableCounterName)
 		enc.incrMetric(encSoftLimitStableCounterName)
 

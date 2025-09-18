@@ -348,7 +348,7 @@ func TestChunkEncoderAdaptive(t *testing.T) {
 			expectedMaxEventsInChunk:  1,
 			expectedScaleUpEvents:     1,
 			expectedScaleDownEvents:   0,
-			expectedEquiEvents:        999,
+			expectedEquiEvents:        998,
 		},
 		{
 			// 61 events can fit, but takes some guessing before it gets to the uncompressed limit 7200

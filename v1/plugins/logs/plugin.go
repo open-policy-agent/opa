@@ -335,27 +335,31 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 	}
 	c.Reporting.Trigger = t
 
-	min := defaultMinDelaySeconds
-	max := defaultMaxDelaySeconds
+	minDelay := defaultMinDelaySeconds
+	maxDelay := defaultMaxDelaySeconds
 
-	// reject bad min/max values
-	if c.Reporting.MaxDelaySeconds != nil && c.Reporting.MinDelaySeconds != nil {
-		if *c.Reporting.MaxDelaySeconds < *c.Reporting.MinDelaySeconds {
-			return errors.New("max reporting delay must be >= min reporting delay in decision_logs")
+	if *c.Reporting.Trigger == plugins.TriggerImmediate && c.Reporting.MinDelaySeconds != nil {
+		return errors.New("reporting configuration cannot set 'min_delay_seconds' when using immediate trigger mode")
+	} else {
+		// reject bad min/max values
+		if c.Reporting.MaxDelaySeconds != nil && c.Reporting.MinDelaySeconds != nil {
+			if *c.Reporting.MaxDelaySeconds < *c.Reporting.MinDelaySeconds {
+				return errors.New("max reporting delay must be >= min reporting delay in decision_logs")
+			}
+			minDelay = *c.Reporting.MinDelaySeconds
+			maxDelay = *c.Reporting.MaxDelaySeconds
+		} else if c.Reporting.MaxDelaySeconds == nil && c.Reporting.MinDelaySeconds != nil {
+			return errors.New("reporting configuration missing 'max_delay_seconds' in decision_logs")
+		} else if c.Reporting.MinDelaySeconds == nil && c.Reporting.MaxDelaySeconds != nil {
+			return errors.New("reporting configuration missing 'min_delay_seconds' in decision_logs")
 		}
-		min = *c.Reporting.MinDelaySeconds
-		max = *c.Reporting.MaxDelaySeconds
-	} else if c.Reporting.MaxDelaySeconds == nil && c.Reporting.MinDelaySeconds != nil {
-		return errors.New("reporting configuration missing 'max_delay_seconds' in decision_logs")
-	} else if c.Reporting.MinDelaySeconds == nil && c.Reporting.MaxDelaySeconds != nil {
-		return errors.New("reporting configuration missing 'min_delay_seconds' in decision_logs")
 	}
 
 	// scale to seconds
-	minSeconds := int64(time.Duration(min) * time.Second)
+	minSeconds := int64(time.Duration(minDelay) * time.Second)
 	c.Reporting.MinDelaySeconds = &minSeconds
 
-	maxSeconds := int64(time.Duration(max) * time.Second)
+	maxSeconds := int64(time.Duration(maxDelay) * time.Second)
 	c.Reporting.MaxDelaySeconds = &maxSeconds
 
 	// default the upload size limit
@@ -400,6 +404,12 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 
 	// default the buffer size limit
 	sizeBufferLimit := defaultBufferSizeLimitBytes
+
+	if *c.Reporting.Trigger == plugins.TriggerImmediate && c.Reporting.BufferSizeLimitBytes == nil {
+		return errors.New("invalid decision_log config, " +
+			"using immediate mode requires 'buffer_size_limit_bytes' to be set and cannot be unlimited")
+	}
+
 	if c.Reporting.BufferSizeLimitBytes != nil {
 		if *c.Reporting.BufferSizeLimitBytes <= int64(0) {
 			return errors.New("invalid decision_log config, 'buffer_size_limit_bytes' must be higher than 0")
@@ -454,26 +464,35 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 
 type buffer interface {
 	Name() string
-	Push(*EventV1)
+	Push(*EventV1) bool
 	Upload(context.Context, rest.Client, string) error
-	Reconfigure(int64, rest.Client, string, int64, *float64)
+	Reconfigure(int64, int64, *float64)
 	WithMetrics(metrics.Metrics)
 }
 
+type loopType int
+
+const (
+	manual loopType = iota
+	timer
+)
+
 // Plugin implements decision log buffering and uploading.
 type Plugin struct {
-	manager      *plugins.Manager
-	config       Config
-	reconfigMtx  sync.RWMutex // reconfigMtx blocks reads/writes on buffer reconfiguration
-	b            buffer
-	statusMtx    sync.Mutex
-	stop         chan chan struct{}
-	reconfig     chan reconfigure
-	preparedMask prepareOnce
-	preparedDrop prepareOnce
-	metrics      metrics.Metrics
-	logger       logging.Logger
-	status       *lstat.Status
+	manager       *plugins.Manager
+	config        Config
+	reconfigMtx   sync.RWMutex // reconfigMtx blocks reads/writes on buffer reconfiguration
+	b             buffer
+	statusMtx     sync.Mutex
+	stop          chan chan struct{}
+	reconfig      chan reconfigure
+	preparedMask  prepareOnce
+	preparedDrop  prepareOnce
+	metrics       metrics.Metrics
+	logger        logging.Logger
+	status        *lstat.Status
+	runningLoop   loopType
+	triggerUpload chan struct{}
 }
 
 type prepareOnce struct {
@@ -635,24 +654,47 @@ func Lookup(manager *plugins.Manager) *Plugin {
 // Start starts the plugin.
 func (p *Plugin) Start(_ context.Context) error {
 	p.logger.Info("Starting decision logger.")
-	go p.loop()
+	p.startLoop()
 	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateOK})
 	return nil
+}
+
+func (p *Plugin) startLoop() {
+	p.setLoopType()
+
+	switch p.runningLoop {
+	case manual:
+		go p.manualLoop()
+	case timer:
+		if p.triggerUpload == nil {
+			p.triggerUpload = make(chan struct{})
+		}
+		go p.timerLoop()
+	}
+}
+
+func (p *Plugin) setLoopType() {
+	if p.config.Service == "" || *p.config.Reporting.Trigger == plugins.TriggerManual {
+		p.runningLoop = manual
+	} else {
+		p.runningLoop = timer
+	}
 }
 
 // Stop stops the plugin.
 func (p *Plugin) Stop(ctx context.Context) {
 	p.logger.Info("Stopping decision logger.")
 
-	if *p.config.Reporting.Trigger == plugins.TriggerPeriodic {
+	done := make(chan struct{})
+	p.stop <- done
+	<-done
+
+	if *p.config.Reporting.Trigger != plugins.TriggerManual {
 		if _, ok := ctx.Deadline(); ok && p.config.Service != "" {
 			p.flushDecisions(ctx)
 		}
 	}
 
-	done := make(chan struct{})
-	p.stop <- done
-	<-done
 	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
 }
 
@@ -830,56 +872,74 @@ func (p *Plugin) compilerUpdated(storage.Transaction) {
 	p.preparedDrop.drop()
 }
 
-func (p *Plugin) loop() {
+// manualLoop waits for a signal to update the config
+// used when in manual trigger mode or there is no service configured
+func (p *Plugin) manualLoop() {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	for {
+		select {
+		case update := <-p.reconfig:
+			stop := p.reconfigure(ctx, update.config)
+			update.done <- struct{}{}
+			if stop {
+				cancel()
+				return
+			}
+		case done := <-p.stop:
+			done <- struct{}{}
+			cancel()
+			return
+		}
+	}
+}
+
+// loop waits to upload the data in the buffer or update the config
+// used in periodic or immediate mode and only if a service is configured
+func (p *Plugin) timerLoop() {
+	ctx, cancel := context.WithCancel(context.Background())
+	uploadTimer := time.NewTimer(time.Duration(*p.config.Reporting.MaxDelaySeconds))
 	var retry int
 
 	for {
-		var waitC chan struct{}
-
-		if *p.config.Reporting.Trigger == plugins.TriggerPeriodic && p.config.Service != "" {
-			err := p.doOneShot(ctx)
-
-			var delay time.Duration
-
-			if err == nil {
-				min := float64(*p.config.Reporting.MinDelaySeconds)
-				max := float64(*p.config.Reporting.MaxDelaySeconds)
-				delay = time.Duration(((max - min) * rand.Float64()) + min)
-			} else {
-				delay = util.DefaultBackoff(float64(minRetryDelay), float64(*p.config.Reporting.MaxDelaySeconds), retry)
-			}
-
-			p.logger.Debug("Waiting %v before next upload/retry.", delay)
-
-			waitC = make(chan struct{})
-			go func() {
-				timer, timerCancel := util.TimerWithCancel(delay)
-				select {
-				case <-timer.C:
-					if err != nil {
-						retry++
-					} else {
-						retry = 0
-					}
-					close(waitC)
-				case <-ctx.Done():
-					timerCancel() // explicitly cancel the timer.
-				}
-			}()
-		}
-
 		select {
-		case <-waitC:
+		case <-uploadTimer.C:
+		case <-p.triggerUpload: // triggered if the buffer is full, only used in immediate trigger mode
 		case update := <-p.reconfig:
-			p.reconfigure(ctx, update.config)
+			stop := p.reconfigure(ctx, update.config)
 			update.done <- struct{}{}
+			if stop {
+				cancel()
+				return
+			}
 		case done := <-p.stop:
 			cancel()
 			done <- struct{}{}
 			return
 		}
+
+		// this error is logged within p.doOneShot, it is used here to increment retries for exponential backoff
+		err := p.doOneShot(ctx)
+
+		var delay time.Duration
+		switch *p.config.Reporting.Trigger {
+		case plugins.TriggerPeriodic:
+			// the delay will be a value between the configured min and max to create a jitter effect
+			if err == nil {
+				retry = 0
+				minDelay := float64(*p.config.Reporting.MinDelaySeconds)
+				maxDelay := float64(*p.config.Reporting.MaxDelaySeconds)
+				delay = time.Duration(((maxDelay - minDelay) * rand.Float64()) + minDelay)
+			} else {
+				retry++
+				delay = util.DefaultBackoff(float64(minRetryDelay), float64(*p.config.Reporting.MaxDelaySeconds), retry)
+			}
+		case plugins.TriggerImmediate:
+			// always the max delay because in this mode it is expected the buffer will fill up faster
+			delay = time.Duration(*p.config.Reporting.MaxDelaySeconds)
+		}
+
+		uploadTimer.Reset(delay)
 	}
 }
 
@@ -906,28 +966,32 @@ func (p *Plugin) doOneShot(ctx context.Context) error {
 	return err
 }
 
-func (p *Plugin) reconfigure(ctx context.Context, config any) {
+func (p *Plugin) reconfigure(ctx context.Context, config any) bool {
 	newConfig := config.(*Config)
+
+	// stop signals the loop to stop
+	var stop bool
 
 	if reflect.DeepEqual(p.config, *newConfig) {
 		p.logger.Debug("Decision log uploader configuration unchanged.")
-		return
+		return stop
 	}
 
 	p.logger.Info("Decision log uploader configuration changed.")
+
 	p.config = *newConfig
 
 	p.reconfigMtx.Lock()
 	defer p.reconfigMtx.Unlock()
 
 	// User reconfigured the type of buffer
-	if p.b.Name() != newConfig.Reporting.BufferType {
+	if p.b.Name() != p.config.Reporting.BufferType {
 		// upload all events in the current buffer type
 		if err := p.b.Upload(ctx, p.manager.Client(p.config.Service), *p.config.Resource); err != nil && !errors.Is(err, &bufferEmpty{}) {
 			p.setStatus(err)
 		}
 
-		switch newConfig.Reporting.BufferType {
+		switch p.config.Reporting.BufferType {
 		case eventBufferType:
 			p.b = newEventBuffer(
 				*p.config.Reporting.BufferSizeLimitEvents,
@@ -941,17 +1005,31 @@ func (p *Plugin) reconfigure(ctx context.Context, config any) {
 		}
 
 		p.b.WithMetrics(p.metrics)
-
-		return
+	} else {
+		var limit int64
+		switch p.config.Reporting.BufferType {
+		case eventBufferType:
+			limit = *p.config.Reporting.BufferSizeLimitEvents
+		case sizeBufferType:
+			limit = *p.config.Reporting.UploadSizeLimitBytes
+		}
+		p.b.Reconfigure(
+			limit,
+			*p.config.Reporting.UploadSizeLimitBytes,
+			p.config.Reporting.MaxDecisionsPerSecond,
+		)
 	}
 
-	p.b.Reconfigure(
-		*p.config.Reporting.BufferSizeLimitEvents,
-		p.manager.Client(p.config.Service),
-		*p.config.Resource,
-		*p.config.Reporting.UploadSizeLimitBytes,
-		p.config.Reporting.MaxDecisionsPerSecond,
-	)
+	currentLoopType := p.runningLoop
+	p.setLoopType()
+	if currentLoopType != p.runningLoop {
+		// let the loop that called this reconfigure know to stop
+		stop = true
+		// start the new loop type
+		p.startLoop()
+	}
+
+	return stop
 }
 
 func (p *Plugin) push(event EventV1) {
@@ -959,7 +1037,14 @@ func (p *Plugin) push(event EventV1) {
 	p.reconfigMtx.RLock()
 	defer p.reconfigMtx.RUnlock()
 
-	p.b.Push(&event)
+	full := p.b.Push(&event)
+
+	if full && *p.config.Reporting.Trigger == plugins.TriggerImmediate {
+		select {
+		case p.triggerUpload <- struct{}{}:
+		default:
+		}
+	}
 }
 
 func (p *Plugin) maskEvent(ctx context.Context, txn storage.Transaction, input ast.Value, event *EventV1) error {

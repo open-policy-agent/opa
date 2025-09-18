@@ -13,7 +13,7 @@ func TestLogBuffer(t *testing.T) {
 
 	buffer := newLogBuffer(int64(20)) // 20 byte limit for test purposes
 
-	dropped := buffer.Push(make([]byte, 20))
+	dropped, _ := buffer.Push(make([]byte, 20))
 	if dropped != 0 {
 		t.Fatal("Expected dropped to be zero")
 	}
@@ -28,17 +28,17 @@ func TestLogBuffer(t *testing.T) {
 		t.Fatal("Expected buffer to be nil")
 	}
 
-	dropped = buffer.Push(bytes.Repeat([]byte(`1`), 10))
+	dropped, _ = buffer.Push(bytes.Repeat([]byte(`1`), 10))
 	if dropped != 0 {
 		t.Fatal("Expected dropped to be zero")
 	}
 
-	dropped = buffer.Push(bytes.Repeat([]byte(`2`), 10))
+	dropped, _ = buffer.Push(bytes.Repeat([]byte(`2`), 10))
 	if dropped != 0 {
 		t.Fatal("Expected dropped to be zero")
 	}
 
-	dropped = buffer.Push(bytes.Repeat([]byte(`3`), 10))
+	dropped, _ = buffer.Push(bytes.Repeat([]byte(`3`), 10))
 	if dropped != 1 {
 		t.Fatal("Expected dropped to be 1")
 	}

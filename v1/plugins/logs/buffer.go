@@ -29,7 +29,7 @@ func newLogBuffer(limit int64) *logBuffer {
 	}
 }
 
-func (lb *logBuffer) Push(bs []byte) (dropped int) {
+func (lb *logBuffer) Push(bs []byte) (dropped int, full bool) {
 	size := int64(len(bs))
 
 	if lb.limit > 0 {
@@ -45,7 +45,7 @@ func (lb *logBuffer) Push(bs []byte) (dropped int) {
 
 	lb.l.PushBack(elem)
 	lb.usage += size
-	return dropped
+	return dropped, lb.usage >= lb.limit
 }
 
 func (lb *logBuffer) Pop() []byte {

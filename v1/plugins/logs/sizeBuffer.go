@@ -13,9 +13,13 @@ import (
 )
 
 type sizeBuffer struct {
-	mtx                  sync.Mutex
-	buffer               *logBuffer
+	mtx sync.Mutex
+	// BufferSizeLimitBytes limits in bytes the amount of chunks the *logBuffer can hold
+	// the limit can be exceeded by an individual chunk as long as it is lower than UploadSizeLimitBytes
 	BufferSizeLimitBytes int64
+	buffer               *logBuffer
+	// UploadSizeLimitBytes limits in bytes the compressed size of the chunk the encoder creates
+	// events will be dropped if they exceed this limit
 	UploadSizeLimitBytes int64
 	enc                  *chunkEncoder // encoder appends events into the gzip compressed JSON array
 	limiter              *rate.Limiter
@@ -60,7 +64,7 @@ func (b *sizeBuffer) incrMetric(name string) {
 	}
 }
 
-func (b *sizeBuffer) Reconfigure(bufferSizeLimitBytes int64, client rest.Client, uploadPath string, uploadSizeLimitBytes int64, maxDecisionsPerSecond *float64) {
+func (b *sizeBuffer) Reconfigure(bufferSizeLimitBytes int64, uploadSizeLimitBytes int64, maxDecisionsPerSecond *float64) {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 
@@ -75,28 +79,32 @@ func (b *sizeBuffer) Reconfigure(bufferSizeLimitBytes int64, client rest.Client,
 	b.BufferSizeLimitBytes = bufferSizeLimitBytes
 }
 
-func (b *sizeBuffer) Push(event *EventV1) {
+func (b *sizeBuffer) Push(event *EventV1) bool {
+	var full bool
+
 	if b.limiter != nil && !b.limiter.Allow() {
 		b.incrMetric(logRateLimitExDropCounterName)
 		b.logger.Error("Decision log dropped as rate limit exceeded. Reduce reporting interval or increase rate limit.")
-		return
+		return full
 	}
 
 	eventBytes, err := json.Marshal(&event)
 	if err != nil {
 		b.logger.Error("Decision log dropped due to error serializing event to JSON: %v", err)
-		return
+		return full
 	}
 
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 	result, err := b.enc.Encode(*event, eventBytes)
 	if err != nil {
-		return
+		return full
 	}
 	for _, chunk := range result {
-		b.bufferChunk(b.buffer, chunk)
+		full = b.bufferChunk(b.buffer, chunk)
 	}
+
+	return full
 }
 
 func (b *sizeBuffer) Upload(ctx context.Context, client rest.Client, uploadPath string) error {
@@ -154,11 +162,13 @@ func (b *sizeBuffer) Upload(ctx context.Context, client rest.Client, uploadPath 
 	return err
 }
 
-func (b *sizeBuffer) bufferChunk(buffer *logBuffer, bs []byte) {
-	dropped := buffer.Push(bs)
+func (b *sizeBuffer) bufferChunk(buffer *logBuffer, bs []byte) bool {
+	dropped, full := buffer.Push(bs)
 	if dropped > 0 {
 		b.incrMetric(logBufferEventDropCounterName)
 		b.incrMetric(logBufferSizeLimitExDropCounterName)
 		b.logger.Error("Dropped %v chunks from buffer. Reduce reporting interval or increase buffer size.", dropped)
 	}
+
+	return full
 }
