@@ -408,7 +408,7 @@ jobs:
         export OPA="$(pwd)/${matches[0]}"
         chmod +x "$OPA"
         find . -type f -name '*.txtar' -path '*/script/*' -print0 \
-          | xargs -0 -I{} testscript -e OPA {}
+          | xargs -0 -I{} testscript -v -e OPA {}
       shell: bash
       env:
         BINARY_PATH_GLOB: _release/*/${{ matrix.exec }}
