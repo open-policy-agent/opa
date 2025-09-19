@@ -338,8 +338,10 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 	minDelay := defaultMinDelaySeconds
 	maxDelay := defaultMaxDelaySeconds
 
-	if *c.Reporting.Trigger == plugins.TriggerImmediate && c.Reporting.MinDelaySeconds != nil {
-		return errors.New("reporting configuration cannot set 'min_delay_seconds' when using immediate trigger mode")
+	if *c.Reporting.Trigger == plugins.TriggerImmediate {
+		if c.Reporting.MinDelaySeconds != nil {
+			return errors.New("reporting configuration cannot set 'min_delay_seconds' when using immediate trigger mode")
+		}
 	} else {
 		// reject bad min/max values
 		if c.Reporting.MaxDelaySeconds != nil && c.Reporting.MinDelaySeconds != nil {
@@ -405,7 +407,9 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 	// default the buffer size limit
 	sizeBufferLimit := defaultBufferSizeLimitBytes
 
-	if *c.Reporting.Trigger == plugins.TriggerImmediate && c.Reporting.BufferSizeLimitBytes == nil {
+	if c.Reporting.BufferType == sizeBufferType &&
+		*c.Reporting.Trigger == plugins.TriggerImmediate &&
+		c.Reporting.BufferSizeLimitBytes == nil {
 		return errors.New("invalid decision_log config, " +
 			"using immediate mode requires 'buffer_size_limit_bytes' to be set and cannot be unlimited")
 	}
