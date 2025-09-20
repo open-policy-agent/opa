@@ -2020,40 +2020,83 @@ func TestPluginTriggerManualWithTimeout(t *testing.T) {
 func TestPluginGracefulShutdownFlushesDecisions(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
-
-	fixture := newTestFixture(t)
-	defer fixture.server.stop()
-
-	fixture.server.ch = make(chan []EventV1, 8)
-
-	if err := fixture.plugin.Start(ctx); err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name        string
+		bufferType  string
+		triggerMode plugins.TriggerMode
+		uploadLimit int64
+	}{
+		{
+			name:        "event buffer upload immediately",
+			bufferType:  eventBufferType,
+			triggerMode: plugins.TriggerImmediate,
+		},
+		{
+			name:        "event buffer upload periodically",
+			bufferType:  eventBufferType,
+			triggerMode: plugins.TriggerPeriodic,
+		},
+		{
+			name:        "size buffer upload immediately",
+			bufferType:  sizeBufferType,
+			triggerMode: plugins.TriggerImmediate,
+		},
+		{
+			name:        "size buffer upload immediately, with smaller upload limit to trigger immediate upload",
+			bufferType:  sizeBufferType,
+			triggerMode: plugins.TriggerImmediate,
+			uploadLimit: 15000,
+		},
+		{
+			name:        "size buffer upload periodically",
+			bufferType:  sizeBufferType,
+			triggerMode: plugins.TriggerPeriodic,
+		},
 	}
 
-	var input any
-	var result any = false
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
 
-	logsSent := 200
-	for i := range logsSent {
-		input = generateInputMap(i)
-		_ = fixture.plugin.Log(ctx, logServerInfo("abc", input, result))
-	}
+			fixture := newTestFixture(t, testFixtureOptions{
+				ReportingBufferType:           tc.bufferType,
+				ReportingTrigger:              &tc.triggerMode,
+				ReportingUploadSizeLimitBytes: tc.uploadLimit,
+			})
+			defer fixture.server.stop()
 
-	fixture.server.expCode = 200
+			fixture.server.ch = make(chan []EventV1, 8)
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-	fixture.plugin.Stop(timeoutCtx)
+			if err := fixture.plugin.Start(ctx); err != nil {
+				t.Fatal(err)
+			}
 
-	close(fixture.server.ch)
-	logsReceived := 0
-	for element := range fixture.server.ch {
-		logsReceived += len(element)
-	}
+			var input any = make(map[string]interface{})
+			var result any = false
 
-	if logsReceived != logsSent {
-		t.Fatalf("Expected %v, got %v", logsSent, logsReceived)
+			logsSent := 200
+			for i := range logsSent {
+				input = generateInputMap(i)
+				err := fixture.plugin.Log(ctx, logServerInfo("abc", input, result))
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+			defer cancel()
+			fixture.plugin.Stop(timeoutCtx)
+
+			close(fixture.server.ch)
+			logsReceived := 0
+			for element := range fixture.server.ch {
+				logsReceived += len(element)
+			}
+
+			if logsReceived != logsSent {
+				t.Fatalf("Expected %v, got %v", logsSent, logsReceived)
+			}
+		})
 	}
 }
 
@@ -2108,7 +2151,57 @@ func TestPluginTerminatesAfterGracefulShutdownPeriodWithoutLogs(t *testing.T) {
 	}
 }
 
-func TestPluginReconfigure(t *testing.T) {
+func TestPluginReconfigureLoop(t *testing.T) {
+	trigger := plugins.TriggerImmediate
+	fixture := newTestFixture(t, testFixtureOptions{
+		ReportingTrigger: &trigger,
+	})
+	defer fixture.server.stop()
+	ctx := t.Context()
+	if err := fixture.plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	if fixture.plugin.runningLoop != timer {
+		t.Fatalf("Expected %v, got %v", "timer", "manual")
+	}
+
+	// reconfigure with a config that has empty services
+	var config Config
+	config.Reporting.BufferType = sizeBufferType
+	limit := int64(1)
+	config.Reporting.BufferSizeLimitBytes = &limit
+	config.Reporting.UploadSizeLimitBytes = &limit
+	decisions := float64(1)
+	config.Reporting.MaxDecisionsPerSecond = &decisions
+	resource := "random"
+	config.Resource = &resource
+
+	fixture.plugin.Reconfigure(ctx, &config)
+
+	if fixture.plugin.runningLoop != manual {
+		t.Fatalf("Expected %v, got %v", "manual", "timer")
+	}
+
+	config.Service = "example"
+	config.Reporting.Trigger = &trigger
+	config.Reporting.MaxDelaySeconds = &limit
+	fixture.plugin.Reconfigure(ctx, &config)
+
+	if fixture.plugin.runningLoop != timer {
+		t.Fatalf("Expected %v, got %v", "timer", "manual")
+	}
+
+	trigger2 := plugins.TriggerManual
+	config.Reporting.Trigger = &trigger2
+	fixture.plugin.Reconfigure(ctx, &config)
+
+	if fixture.plugin.runningLoop != manual {
+		t.Fatalf("Expected %v, got %v", "manual", "timer")
+	}
+}
+
+func TestPluginReconfigureBufferType(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -2139,7 +2232,7 @@ func TestPluginReconfigure(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			fixture := newTestFixture(t, testFixtureOptions{
 				ReportingBufferType: tc.currentBufferType,
 			})
@@ -2920,6 +3013,8 @@ func TestPluginDropErrorHandling(t *testing.T) {
 
 type testFixtureOptions struct {
 	ConsoleLogger                  *test.Logger
+	ReportingMaxDelay              int64
+	ReportingTrigger               *plugins.TriggerMode
 	ReportingBufferType            string
 	ReportingBufferSizeLimitEvents int64
 	ReportingUploadSizeLimitBytes  int64
@@ -3044,6 +3139,15 @@ func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
 		config.Reporting.BufferType = options.ReportingBufferType
 	}
 
+	if options.ReportingTrigger != nil {
+		config.Reporting.Trigger = options.ReportingTrigger
+	}
+
+	if options.ReportingMaxDelay != 0 {
+		maxSeconds := int64(time.Duration(options.ReportingMaxDelay) * time.Second)
+		config.Reporting.MaxDelaySeconds = &maxSeconds
+	}
+
 	if s, ok := manager.PluginStatus()[Name]; ok {
 		t.Fatalf("Unexpected status found in plugin manager for %s: %+v", Name, s)
 	}
@@ -3140,7 +3244,7 @@ func TestParseConfigTriggerMode(t *testing.T) {
 			config:   []byte(`{"reporting": {"trigger": "foo"}}`),
 			expected: "foo",
 			wantErr:  true,
-			err:      errors.New("invalid decision_log config: invalid trigger mode \"foo\" (want \"periodic\" or \"manual\")"),
+			err:      errors.New("invalid decision_log config: invalid trigger mode \"foo\" (want \"periodic\", \"manual\" or \"immediate\")"),
 		},
 	}
 
@@ -3914,4 +4018,71 @@ func currentSoftLimit(t *testing.T, plugin *Plugin, bufferType string) int64 {
 	}
 
 	return 0
+}
+
+func TestImmediateTriggerModeBufferFull(t *testing.T) {
+	tests := []struct {
+		name       string
+		bufferType string
+	}{
+		{
+			name:       "event",
+			bufferType: eventBufferType,
+		},
+		{
+			name:       "size",
+			bufferType: sizeBufferType,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			triggerMode := plugins.TriggerImmediate
+			maxDelaySeconds := int64(300)
+			fixture := newTestFixture(t, testFixtureOptions{
+				ReportingBufferType:            tc.bufferType,
+				ReportingTrigger:               &triggerMode,
+				ReportingMaxDelay:              maxDelaySeconds, // long time to make sure the immediate trigger is used
+				ReportingBufferSizeLimitEvents: 1,
+				// size buffer type is complicated, and uses an encoder buffer and a chunk buffer
+				// the UploadSizeLimitBytes is used in the encoder to create chunks of events at a certain limit
+				// the BufferSizeLimitBytes is used in the chunk buffer (logBuffer) to determine how many chunks it can hold
+				// the chunk buffer can hold a chunk larger than the limit, if the upload limit allows it, but it will be the only one
+				ReportingBufferSizeLimitBytes: 129,
+				ReportingUploadSizeLimitBytes: 129,
+			})
+			defer fixture.server.stop()
+
+			fixture.server.ch = make(chan []EventV1, 1)
+
+			startTime := time.Now()
+
+			if err := fixture.plugin.Start(ctx); err != nil {
+				t.Fatal(err)
+			}
+
+			// event buffer type can detect if the buffer is full immediately
+			if err := fixture.plugin.Log(ctx, &server.Info{DecisionID: "abc"}); err != nil {
+				t.Fatal(err)
+			}
+
+			// event buffer type can detect if the buffer is full immediately
+			if err := fixture.plugin.Log(ctx, &server.Info{DecisionID: "abc"}); err != nil {
+				t.Fatal(err)
+			}
+
+			receivedEvents := <-fixture.server.ch
+
+			if len(receivedEvents) != 1 {
+				t.Fatalf("Expected %d events, got %d", 1, len(receivedEvents))
+			}
+
+			endTime := time.Now()
+
+			if endTime.Sub(startTime) > time.Duration(maxDelaySeconds)*time.Second {
+				t.Fatal("Exceeded max delay limit")
+			}
+		})
+	}
 }
