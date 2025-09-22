@@ -23,6 +23,7 @@ go_library(
         "//internal/pool",
         "//internal/tokens",
         "//jws/internal/keytype",
+        "@com_github_lestrrat_go_dsig//:dsig",
     ],
 )
 

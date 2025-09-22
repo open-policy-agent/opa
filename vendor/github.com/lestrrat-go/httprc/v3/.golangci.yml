@@ -29,6 +29,7 @@ linters:
     - nakedret
     - nestif
     - nlreturn
+    - noinlineerr
     - nonamedreturns
     - paralleltest
     - tagliatelle
@@ -37,6 +38,7 @@ linters:
     - varnamelen
     - wrapcheck
     - wsl
+    - wsl_v5
   settings:
     govet:
       disable:

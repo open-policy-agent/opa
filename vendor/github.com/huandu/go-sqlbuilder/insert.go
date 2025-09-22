@@ -6,6 +6,8 @@ package sqlbuilder
 import (
 	"fmt"
 	"strings"
+
+	"github.com/huandu/go-clone"
 )
 
 const (
@@ -29,6 +31,12 @@ func newInsertBuilder() *InsertBuilder {
 		args:      args,
 		injection: newInjection(),
 	}
+}
+
+// Clone returns a deep copy of InsertBuilder.
+// It's useful when you want to create a base builder and clone it to build similar queries.
+func (ib *InsertBuilder) Clone() *InsertBuilder {
+	return clone.Clone(ib).(*InsertBuilder)
 }
 
 // InsertBuilder is a builder to build INSERT.
