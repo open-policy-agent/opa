@@ -322,7 +322,7 @@ Sources define where policies and data come from (Git repositories, local files,
         }
       },
       "credentials": "api-credentials",
-      "transform_query": "users[user.id] = user { user := input.users[_] }"
+      "transform_query": "{user.id: user | user := input.users[_]}"
     }
   ]
 }
@@ -699,7 +699,7 @@ Unauthorized
         }
       },
       "credentials": "api-credentials",
-      "transform_query": "users[user.id] = user { user := input.users[_] }"
+      "transform_query": "{user.id: user | user := input.users[_]}"
     }
   ]
 }
