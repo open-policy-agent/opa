@@ -2112,10 +2112,11 @@ func TestPluginReconfigure(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name                           string
-		currentBufferType              string
-		newBufferType                  string
-		reportingBufferSizeLimitEvents int64
+		name              string
+		currentBufferType string
+		newBufferType     string
+		limitEvents       int64
+		limitBytes        int64
 	}{
 		{
 			name:              "Reconfigure from event to size buffer",
@@ -2128,12 +2129,16 @@ func TestPluginReconfigure(t *testing.T) {
 			newBufferType:     "event",
 		},
 		{
-			name: "Reconfigure from size to size buffer",
+			name:              "Reconfigure from size to size buffer",
+			currentBufferType: "size",
+			newBufferType:     "size",
+			limitBytes:        100,
 		},
 		{
 			name:              "Reconfigure from event to event buffer",
 			currentBufferType: "event",
 			newBufferType:     "event",
+			limitEvents:       200,
 		},
 	}
 
@@ -2151,38 +2156,47 @@ func TestPluginReconfigure(t *testing.T) {
 
 			ensurePluginState(t, fixture.plugin, plugins.StateOK)
 
-			minDelay := 2
-			maxDelay := 3
+			var config Config
+			resource := ""
+			config.Resource = &resource
+			trigger := plugins.TriggerPeriodic
+			config.Reporting.Trigger = &trigger
+			config.Reporting.BufferType = tc.newBufferType
+			config.Reporting.BufferSizeLimitBytes = &tc.limitBytes
+			config.Reporting.BufferSizeLimitEvents = &tc.limitEvents
 
-			pluginConfig := fmt.Appendf(nil, `{
-			"service": "example",
-			"reporting": {
-				"buffer_type": %v,
-				"min_delay_seconds": %v,
-				"max_delay_seconds": %v
-			}
-			}`, tc.newBufferType, minDelay, maxDelay)
+			minDelay := int64(2)
+			maxDelay := int64(3)
+			config.Reporting.MinDelaySeconds = &minDelay
+			config.Reporting.MaxDelaySeconds = &maxDelay
 
-			config, _ := ParseConfig(pluginConfig, fixture.manager.Services(), nil)
+			uploadLimit := int64(100)
+			config.Reporting.UploadSizeLimitBytes = &uploadLimit
 
-			fixture.plugin.Reconfigure(ctx, config)
+			fixture.plugin.Reconfigure(ctx, &config)
 			ensurePluginState(t, fixture.plugin, plugins.StateOK)
 
 			fixture.plugin.Stop(ctx)
 			ensurePluginState(t, fixture.plugin, plugins.StateNotReady)
 
-			actualMin := time.Duration(*fixture.plugin.config.Reporting.MinDelaySeconds) / time.Nanosecond
-			expectedMin := time.Duration(minDelay) * time.Second
-
-			if actualMin != expectedMin {
-				t.Fatalf("Expected minimum polling interval: %v but got %v", expectedMin, actualMin)
+			if *fixture.plugin.config.Reporting.MinDelaySeconds != minDelay {
+				t.Fatalf("Expected minimum polling interval: %v but got %v", minDelay, *fixture.plugin.config.Reporting.MinDelaySeconds)
 			}
 
-			actualMax := time.Duration(*fixture.plugin.config.Reporting.MaxDelaySeconds) / time.Nanosecond
-			expectedMax := time.Duration(maxDelay) * time.Second
+			if *fixture.plugin.config.Reporting.MaxDelaySeconds != maxDelay {
+				t.Fatalf("Expected maximum polling interval: %v but got %v", maxDelay, *fixture.plugin.config.Reporting.MaxDelaySeconds)
+			}
 
-			if actualMax != expectedMax {
-				t.Fatalf("Expected maximum polling interval: %v but got %v", expectedMax, actualMax)
+			if *fixture.plugin.config.Reporting.BufferSizeLimitEvents != tc.limitEvents {
+				t.Fatalf("Expected limit events %v, but got %v", tc.limitEvents, *fixture.plugin.config.Reporting.BufferSizeLimitEvents)
+			}
+
+			if *fixture.plugin.config.Reporting.BufferSizeLimitBytes != tc.limitBytes {
+				t.Fatalf("Expected limit bytes %v, but got %v", tc.limitBytes, *fixture.plugin.config.Reporting.BufferSizeLimitBytes)
+			}
+
+			if *fixture.plugin.config.Reporting.UploadSizeLimitBytes != uploadLimit {
+				t.Fatalf("Expected upload limit %v, but got %v", uploadLimit, *fixture.plugin.config.Reporting.UploadSizeLimitBytes)
 			}
 		})
 	}
