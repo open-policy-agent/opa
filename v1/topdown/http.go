@@ -99,6 +99,7 @@ var (
 	requiredKeys                = ast.NewSet(ast.InternedTerm("method"), ast.InternedTerm("url"))
 	httpSendLatencyMetricKey    = "rego_builtin_http_send"
 	httpSendInterQueryCacheHits = httpSendLatencyMetricKey + "_interquery_cache_hits"
+	httpSendNetworkRequests     = httpSendLatencyMetricKey + "_network_requests"
 )
 
 type httpSendKey string
@@ -1535,6 +1536,9 @@ func (c *interQueryCache) ExecuteHTTPRequest() (*http.Response, error) {
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}
 
+	// Increment counter for actual network requests
+	c.bctx.Metrics.Counter(httpSendNetworkRequests).Incr()
+
 	return executeHTTPRequest(c.httpReq, c.httpClient, c.req)
 }
 
@@ -1586,6 +1590,10 @@ func (c *intraQueryCache) ExecuteHTTPRequest() (*http.Response, error) {
 	if err != nil {
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}
+
+	// Increment counter for actual network requests
+	c.bctx.Metrics.Counter(httpSendNetworkRequests).Incr()
+
 	return executeHTTPRequest(httpReq, httpClient, c.req)
 }
 
