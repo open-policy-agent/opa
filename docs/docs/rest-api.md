@@ -1684,7 +1684,6 @@ Accept: application/vnd.opa.sql.postgresql+json
 {
   "input": {
     "favorite": "pineapple"
-    }
   }
 }
 ```
