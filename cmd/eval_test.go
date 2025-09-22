@@ -98,7 +98,7 @@ func TestEvalExitCode(t *testing.T) {
 	writer := bufio.NewWriter(&b)
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			defined, err := eval([]string{tc.query}, params, writer)
+			defined, err := eval([]string{tc.query}, params, writer, nil)
 			if tc.wantErr && err == nil {
 				t.Fatal("wanted error but got success")
 			} else if !tc.wantErr && err != nil {
@@ -131,7 +131,7 @@ q if {
 
 		var buf bytes.Buffer
 
-		defined, err := eval([]string{"data.x"}, params, &buf)
+		defined, err := eval([]string{"data.x"}, params, &buf, nil)
 		if !defined || err != nil {
 			t.Fatalf("unexpected undefined or error: %v", err)
 		}
@@ -200,7 +200,7 @@ p if {
 
 		var buf bytes.Buffer
 
-		defined, err := eval([]string{"data"}, params, &buf)
+		defined, err := eval([]string{"data"}, params, &buf, nil)
 		if !defined || err != nil {
 			t.Fatalf("Unexpected undefined or error: %v", err)
 		}
@@ -256,7 +256,7 @@ p = 1`,
 
 		var buf bytes.Buffer
 
-		defined, err := eval([]string{"data"}, params, &buf)
+		defined, err := eval([]string{"data"}, params, &buf, nil)
 		if !defined || err != nil {
 			t.Fatalf("Unexpected undefined or error: %v", err)
 		}
@@ -305,7 +305,7 @@ p = 1`,
 
 		var buf bytes.Buffer
 
-		_, err = eval([]string{"data.test"}, params, &buf)
+		_, err = eval([]string{"data.test"}, params, &buf, nil)
 		if err == nil {
 			t.Fatal("Expected error but got nil")
 		}
@@ -338,7 +338,7 @@ func TestEvalWithOptimize(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		defined, err := eval([]string{"data.test.p"}, params, &buf)
+		defined, err := eval([]string{"data.test.p"}, params, &buf, nil)
 		if !defined || err != nil {
 			t.Fatalf("Unexpected undefined or error: %v", err)
 		}
@@ -379,7 +379,7 @@ main := results if {
 
 		var buf bytes.Buffer
 
-		defined, err := eval([]string{"data.system.main"}, params, &buf)
+		defined, err := eval([]string{"data.system.main"}, params, &buf, nil)
 		if !defined || err != nil {
 			t.Fatalf("Unexpected undefined or error: %v", err)
 		}
@@ -409,7 +409,7 @@ func TestEvalWithOptimizeBundleData(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		defined, err := eval([]string{"data.test.p"}, params, &buf)
+		defined, err := eval([]string{"data.test.p"}, params, &buf, nil)
 		if !defined || err != nil {
 			t.Fatalf("Unexpected undefined or error: %v", err)
 		}
@@ -428,7 +428,7 @@ func testEvalWithInputFile(t *testing.T, input string, query string, params eval
 
 		var buf bytes.Buffer
 		var defined bool
-		defined, err = eval([]string{query}, params, &buf)
+		defined, err = eval([]string{query}, params, &buf, nil)
 		if !defined || err != nil {
 			err = fmt.Errorf("Unexpected error or undefined from evaluation: %v", err)
 			return
@@ -480,7 +480,7 @@ func testEvalWithSchemaFile(t *testing.T, input string, query string, schema str
 		params.schema = &schemaFlags{path: filepath.Join(path, "schema.json")}
 
 		var buf bytes.Buffer
-		defined, evalErr := eval([]string{query}, params, &buf)
+		defined, evalErr := eval([]string{query}, params, &buf, nil)
 		if !expTypeErr && (!defined || evalErr != nil) {
 			err = fmt.Errorf("unexpected error or undefined from evaluation: %v", evalErr)
 			return
@@ -523,7 +523,7 @@ func testEvalWithInvalidSchemaFile(input string, query string, schema string) er
 
 		var buf bytes.Buffer
 		var defined bool
-		defined, err = eval([]string{query}, params, &buf)
+		defined, err = eval([]string{query}, params, &buf, nil)
 		if !defined || err != nil {
 			err = fmt.Errorf("Unexpected error or undefined from evaluation: %v", err)
 			return
@@ -552,7 +552,7 @@ func testEvalWithSchemasAnnotationButNoSchemaFlag(policy string) error {
 
 		var buf bytes.Buffer
 		var defined bool
-		defined, err = eval([]string{query}, params, &buf)
+		defined, err = eval([]string{query}, params, &buf, nil)
 		if !defined || err != nil {
 			err = errors.New(buf.String())
 		}
@@ -821,7 +821,7 @@ r if {
 			_ = params.dataPaths.Set(filepath.Join(path, "p.rego"))
 
 			var buf bytes.Buffer
-			_, err := eval([]string{query}, params, &buf)
+			_, err := eval([]string{query}, params, &buf, nil)
 			if err == nil {
 				t.Fatal("expected error, got nil")
 			}
@@ -846,7 +846,7 @@ r if {
 			_ = params.dataPaths.Set(filepath.Join(path, "p.rego"))
 
 			var buf bytes.Buffer
-			defined, err := eval([]string{query}, params, &buf)
+			defined, err := eval([]string{query}, params, &buf, nil)
 			if err != nil {
 				t.Fatalf("expected no error, got %v", err)
 			}
@@ -866,7 +866,7 @@ r if {
 			_ = params.dataPaths.Set(filepath.Join(path, "p.rego"))
 
 			var buf bytes.Buffer
-			_, err := eval([]string{query}, params, &buf)
+			_, err := eval([]string{query}, params, &buf, nil)
 			if err == nil {
 				t.Fatal("expected error, got nil")
 			}
@@ -893,7 +893,7 @@ r if {
 			_ = params.dataPaths.Set(filepath.Join(path, "p.rego"))
 
 			var buf bytes.Buffer
-			defined, err := eval([]string{query}, params, &buf)
+			defined, err := eval([]string{query}, params, &buf, nil)
 			if err != nil {
 				t.Fatalf("expected no error, got %v", err)
 			}
@@ -946,7 +946,7 @@ func TestBuiltinsCapabilities(t *testing.T) {
 				_ = params.dataPaths.Set(filepath.Join(path, "p.rego"))
 
 				var buf bytes.Buffer
-				_, err := eval([]string{tc.query}, params, &buf)
+				_, err := eval([]string{tc.query}, params, &buf, nil)
 				if err == nil {
 					t.Fatal("expected error, got nil")
 				}
@@ -1003,7 +1003,7 @@ q if { input.x = data.foo }`,
 
 		var buf bytes.Buffer
 
-		defined, err := eval([]string{"data.test.p"}, params, &buf)
+		defined, err := eval([]string{"data.test.p"}, params, &buf, nil)
 		if !defined || err != nil {
 			t.Fatalf("Unexpected undefined or error: %v", err)
 		}
@@ -1012,7 +1012,7 @@ q if { input.x = data.foo }`,
 
 func TestEvalReturnsRegoError(t *testing.T) {
 	buf := new(bytes.Buffer)
-	_, err := eval([]string{`{k: v | k = ["a", "a"][_]; v = [0,1][_]}`}, newEvalCommandParams(), buf)
+	_, err := eval([]string{`{k: v | k = ["a", "a"][_]; v = [0,1][_]}`}, newEvalCommandParams(), buf, nil)
 	if _, ok := err.(regoError); !ok {
 		t.Fatal("expected regoError but got:", err)
 	}
@@ -1034,7 +1034,7 @@ func TestEvalWithBundleData(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		defined, err := eval([]string{"data"}, params, &buf)
+		defined, err := eval([]string{"data"}, params, &buf, nil)
 		if !defined || err != nil {
 			t.Fatalf("Unexpected undefined or error: %v", err)
 		}
@@ -1072,7 +1072,7 @@ func TestEvalWithBundleDuplicateFileNames(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		defined, err := eval([]string{"data"}, params, &buf)
+		defined, err := eval([]string{"data"}, params, &buf, nil)
 		if !defined || err != nil {
 			t.Fatalf("Unexpected undefined or error: %v", err)
 		}
@@ -1120,7 +1120,7 @@ func TestEvalWithReadASTValuesFromStore(t *testing.T) {
 
 				var buf bytes.Buffer
 
-				defined, err := eval([]string{"data.test.p"}, params, &buf)
+				defined, err := eval([]string{"data.test.p"}, params, &buf, nil)
 				if !defined || err != nil {
 					t.Fatalf("Unexpected undefined or error: %v", err)
 				}
@@ -1134,7 +1134,7 @@ func TestEvalWithStrictBuiltinErrors(t *testing.T) {
 	params.strictBuiltinErrors = true
 
 	var buf bytes.Buffer
-	_, err := eval([]string{"1/0"}, params, &buf)
+	_, err := eval([]string{"1/0"}, params, &buf, nil)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -1142,7 +1142,7 @@ func TestEvalWithStrictBuiltinErrors(t *testing.T) {
 	params.strictBuiltinErrors = false
 	buf.Reset()
 
-	_, err = eval([]string{"1/0"}, params, &buf)
+	_, err = eval([]string{"1/0"}, params, &buf, nil)
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -1179,7 +1179,7 @@ func TestEvalErrorJSONOutput(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	defined, err := eval([]string{"{1,2,3} == {1,x,3}"}, params, &buf)
+	defined, err := eval([]string{"{1,2,3} == {1,x,3}"}, params, &buf, nil)
 	if defined && err == nil {
 		t.Fatalf("Expected an error")
 	}
@@ -1242,7 +1242,7 @@ func TestEvalDebugTraceJSONOutput(t *testing.T) {
 			t.Fatalf("Unexpected error: %s", err)
 		}
 
-		_, err = eval([]string{"data.x.p"}, params, &buf)
+		_, err = eval([]string{"data.x.p"}, params, &buf, nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
@@ -1714,7 +1714,7 @@ true
 				params.disableIndexing = true
 				_ = params.bundlePaths.Set(path)
 
-				_, err := eval([]string{tc.query}, params, &buf)
+				_, err := eval([]string{tc.query}, params, &buf, nil)
 				if err != nil {
 					t.Fatalf("Unexpected error: %s\n\n%s", err, buf.String())
 				}
@@ -1862,7 +1862,7 @@ time.clock(input.y, time.clock(input.x))
 			params := newEvalCommandParams()
 			params.partial = true
 			_ = params.outputFormat.Set(tc.format)
-			_, err := eval([]string{query}, params, buf)
+			_, err := eval([]string{query}, params, buf, nil)
 			if err != nil {
 				t.Fatal("unexpected error:", err)
 			}
@@ -2076,7 +2076,7 @@ p contains __local0__1 if __local0__1 = input.v
 						}
 
 						buf := new(bytes.Buffer)
-						_, err := eval([]string{tc.query}, params, buf)
+						_, err := eval([]string{tc.query}, params, buf, nil)
 						if err != nil {
 							t.Fatal("unexpected error:", err)
 						}
@@ -2151,7 +2151,7 @@ func TestEvalDiscardOutput(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			var buf bytes.Buffer
-			_, err := eval([]string{tc.query}, tc.params, &buf)
+			_, err := eval([]string{tc.query}, tc.params, &buf, nil)
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err)
 			}
@@ -2173,7 +2173,7 @@ func TestEvalDiscardProfilerOutput(t *testing.T) {
 	query := "1*2+3"
 
 	var buf bytes.Buffer
-	_, err = eval([]string{query}, params, &buf)
+	_, err = eval([]string{query}, params, &buf, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -2268,7 +2268,7 @@ func TestPolicyWithStrictFlag(t *testing.T) {
 					_ = params.dataPaths.Set(filepath.Join(path, "test.rego"))
 
 					var buf bytes.Buffer
-					_, err := eval([]string{tc.query}, params, &buf)
+					_, err := eval([]string{tc.query}, params, &buf, nil)
 
 					if strict {
 						if err == nil {
@@ -2329,7 +2329,7 @@ func TestPolicyWithStrictFlag(t *testing.T) {
 				params.strict = true
 
 				var buf bytes.Buffer
-				_, err := eval([]string{tc.query}, params, &buf)
+				_, err := eval([]string{tc.query}, params, &buf, nil)
 				if err != nil {
 					t.Errorf("Should not error, got error: '%v'", err)
 				}
@@ -2406,7 +2406,7 @@ func TestBundleWithStrictFlag(t *testing.T) {
 					params.v0Compatible = tc.v0Compatible
 
 					var buf bytes.Buffer
-					_, err := eval([]string{tc.query}, params, &buf)
+					_, err := eval([]string{tc.query}, params, &buf, nil)
 
 					if strict {
 						if err == nil {
@@ -2470,7 +2470,7 @@ func TestBundleWithStrictFlag(t *testing.T) {
 				params.strict = true
 
 				var buf bytes.Buffer
-				_, err := eval([]string{tc.query}, params, &buf)
+				_, err := eval([]string{tc.query}, params, &buf, nil)
 				if err != nil {
 					t.Errorf("Should not error, got error: '%v'", err)
 				}
@@ -2498,7 +2498,7 @@ func TestIfElseIfElseNoBrace(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		defined, err := eval([]string{"data.bug.p"}, params, &buf)
+		defined, err := eval([]string{"data.bug.p"}, params, &buf, nil)
 		if !defined || err != nil {
 			t.Fatalf("Unexpected undefined or error: %v", err)
 		}
@@ -2523,7 +2523,7 @@ func TestIfElseIfElseBrace(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		defined, err := eval([]string{"data.bug.p"}, params, &buf)
+		defined, err := eval([]string{"data.bug.p"}, params, &buf, nil)
 		if !defined || err != nil {
 			t.Fatalf("Unexpected undefined or error: %v", err)
 		}
@@ -2547,7 +2547,7 @@ func TestIfElse(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		defined, err := eval([]string{"data.bug.p"}, params, &buf)
+		defined, err := eval([]string{"data.bug.p"}, params, &buf, nil)
 		if !defined || err != nil {
 			t.Fatalf("Unexpected undefined or error: %v", err)
 		}
@@ -2575,7 +2575,7 @@ func TestElseNoIfV0(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		defined, err := eval([]string{"data.bug.p"}, params, &buf)
+		defined, err := eval([]string{"data.bug.p"}, params, &buf, nil)
 		if !defined || err != nil {
 			t.Fatalf("Unexpected undefined or error: %v", err)
 		}
@@ -2601,7 +2601,7 @@ func TestElseIf(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		defined, err := eval([]string{"data.bug.p"}, params, &buf)
+		defined, err := eval([]string{"data.bug.p"}, params, &buf, nil)
 		if !defined || err != nil {
 			t.Fatalf("Unexpected undefined or error: %v", err)
 		}
@@ -2632,7 +2632,7 @@ func TestElseIfElseV0(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		defined, err := eval([]string{"data.bug.p"}, params, &buf)
+		defined, err := eval([]string{"data.bug.p"}, params, &buf, nil)
 		if !defined || err != nil {
 			t.Fatalf("Unexpected undefined or error: %v", err)
 		}
@@ -2661,7 +2661,7 @@ func TestUnexpectedElseIfElseErr(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		_, err := eval([]string{"data.bug.p"}, params, &buf)
+		_, err := eval([]string{"data.bug.p"}, params, &buf, nil)
 
 		// Check if there was an error
 		if err == nil {
@@ -2695,7 +2695,7 @@ func TestUnexpectedElseIfErr(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		_, err := eval([]string{"data.bug.p"}, params, &buf)
+		_, err := eval([]string{"data.bug.p"}, params, &buf, nil)
 
 		// Check if there was an error
 		if err == nil {
@@ -2774,7 +2774,7 @@ a contains x if {
 
 					var buf bytes.Buffer
 
-					defined, err := eval([]string{tc.query}, params, &buf)
+					defined, err := eval([]string{tc.query}, params, &buf, &buf)
 
 					if len(tc.expErrs) > 0 {
 						if err == nil {
@@ -2963,7 +2963,7 @@ func TestEvalPolicyWithCompatibleFlags(t *testing.T) {
 
 					var buf bytes.Buffer
 
-					defined, err := eval([]string{tc.query}, params, &buf)
+					defined, err := eval([]string{tc.query}, params, &buf, nil)
 
 					if tc.expectedErr == "" {
 						if err != nil {
@@ -3204,7 +3204,7 @@ func TestEvalPolicyWithRegoV1Capability(t *testing.T) {
 
 					var buf bytes.Buffer
 
-					defined, err := eval([]string{"data.test.allow"}, params, &buf)
+					defined, err := eval([]string{"data.test.allow"}, params, &buf, &buf)
 
 					if len(tc.expErrs) > 0 {
 						if err == nil {
@@ -3506,7 +3506,7 @@ p contains 2 if {
 
 						var buf bytes.Buffer
 
-						defined, err := eval([]string{tc.query}, params, &buf)
+						defined, err := eval([]string{tc.query}, params, &buf, nil)
 
 						if tc.expectedErr == "" {
 							if err != nil {
@@ -3593,7 +3593,7 @@ func TestWithQueryImports(t *testing.T) {
 
 			var buf bytes.Buffer
 
-			defined, err := eval([]string{tc.query}, params, &buf)
+			defined, err := eval([]string{tc.query}, params, &buf, &buf)
 
 			if len(tc.expErrs) == 0 {
 				if err != nil {

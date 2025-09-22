@@ -1,0 +1,133 @@
+---
+sidebar_label: Cloud Run
+sidebar_position: 3
+title: Deploying OPA on Google Cloud Run
+---
+
+Google Cloud Run is a fully managed platform for deploying and scaling
+containerized applications. It is well-suited for running off-the-shelf software
+packaged as containers, such as OPA, and it handles scaling, networking, and
+infrastructure, allowing you to focus on delivering value with your own apps.
+
+A cloud run service is best suited to running a centralized OPA Policy Decision
+Point (PDP) which is called from Policy Enforcement Points (PEPs) running
+elsewhere. However, Cloud Run also supports running OPA as a sidecar to other
+application containers too.
+
+This guide will walk you through the steps and considerations when using Cloud
+Run to deploy OPA.
+
+
+## Selecting a Container Image
+
+It is recommended to use the `openpolicyagent/opa:<version>` variant. These are
+available on [Docker Hub](https://hub.docker.com/r/openpolicyagent/opa) and
+are updated as OPA is released.
+
+Users without access to pull from Docker Hub might need to request to have these
+images mirrored to a private registry.
+
+
+:::warning
+**Note**: It is not recommended to use the `latest` tag in production.
+:::
+
+
+## Public vs. Private Endpoints
+
+A Cloud Run service can either be run with a public endpoint URL or a private
+one where callers are authenticated using Cloud IAM. Generally, as PEPs calling
+OPA are other internal services rather than end users, avoiding the use of a
+public endpoint is recommended. If your callers are not able to use
+Cloud IAM then a public endpoint may be necessary.
+
+You may also wish to use `Ingress control` to ensure callers are from your VPC.
+
+
+## Authentication & Authorization Considerations
+
+While OPA's role is often to provide authorization decisions, OPA itself needs
+to authorize callers to ensure that the PEPs calling it only use the policies
+and endpoints they have access to.
+
+If PEP callers are being authenticated using Cloud IAM, then they can use their
+token in calls to OPA to identify themselves. If not using Cloud IAM, then
+callers should either use a client certificate or a token. See more details here
+on certificate and token based authentication with OPA in
+[the security documentation](../../security/).
+
+For OPA PDP services serving many PEPs, authorization is also important.
+Authorizing callers ensures that the expected policies are being used by each
+application. Review [security](../../security/) for notes of how to authorize
+callers.
+
+## CPU Scaling & Memory Allocation
+
+OPA is a lightweight service and generally does not require a lot of resources.
+However, in order to get low latency responses on a container platform like
+Cloud Run, it is recommended to run a minimum of 1 OPA instance with 1 vCPU and
+512MB of available memory.
+
+:::warning
+OPA services should also use: `CPU is always allocated` so that the service is
+always ready to handle requests. Without this, decisions can be delayed while
+OPA starts causing a bad user experience.
+
+It is also recommended to use the `Second generation` execution environment for
+for reduced latency.
+:::
+
+If you require a large amount of data to be loaded into OPA for policy
+evaluation then you may need to increase the memory allocation. It is always
+recommended to test an OPA deployment with realistic data and traffic to ensure
+that the service will perform well in production.
+
+
+## Startup and Health Checks
+
+Cloud Run has functionality to run HTTP health checks on containers to ensure
+readiness and health of the service. It is recommended to use the
+`/health?bundles` endpoint as the startup check. This ensures that OPA has
+loaded the policy bundles.
+
+The same `/health` endpoint (with no query parameters) should be used as the
+health check endpoint to ensure that OPA is running correctly after startup.
+
+
+## Loading OPA Configuration
+
+OPA needs a configuration file to operate. Most importantly, this file
+instructs OPA on where to find policy bundles. When running OPA in Cloud Run,
+it is recommended to store the OPA configuration file using Cloud Secret
+Manager. This can then be mounted into the running containers as a file.
+
+Create a file called `opa-conf.yaml` based on the
+[configuration documentation](../../configuration).
+
+Now use this file `opa-conf.yaml` to create
+[a new secret](https://console.cloud.google.com/security/secret-manager/create)
+in Cloud Secret Manager. This will be used in the next step when creating the
+service's containers.
+
+
+## Creating the OPA Service
+
+This can be done using the `gcloud` CLI, the Google Cloud Console or a tool like
+Terraform. Below the required settings are listed for use in your preferred
+method:
+
+- **Container Image URL**: `openpolicyagent/opa:<version>`
+- **CPU is always allocated**: `true`
+- **Minimum number of instances**: `1`
+- Under `Volumes`, create a new volume for the secret created above.
+- Under `Containers`...
+  - **Container Port**: `8181`
+  - **Container Arguments**: (ensure separate arg for each word)
+    - `run` `--server` `--addr=:8181` `--config-file=/run/secrets/YOUR_SECRET_NAME`
+  - Under `Volume Mounts`, mount the secret to `/run/secrets/YOUR_SECRET_NAME`
+- **Execution environment**: `Second generation`
+
+Once the instance is running, you can access the OPA service by sending HTTP
+requests to the
+[REST API](../../rest-api).
+

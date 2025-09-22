@@ -1,6 +1,6 @@
 ---
 sidebar_label: import
-title: 'Rego Keyword: import'
+title: 'Rego Keyword Examples: import'
 ---
 
 In Rego, the `import` keyword is used to include references in the current file
@@ -8,7 +8,7 @@ from other places, namely other Rego packages. However, the `import` keyword is
 also used to change the Rego syntax available in the current file. Let's cover
 this case first.
 
-# Importing packages
+## Importing packages
 
 Most importantly, the `import` keyword is used to make the rules defined in one
 package, available in another.

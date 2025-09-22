@@ -71,6 +71,7 @@ func (c *ctrlBackend) refreshResource(ctx context.Context, req refreshRequest) {
 	c.traceSink.Put(ctx, fmt.Sprintf("httprc controller: [refresh] START %q", req.u))
 	defer c.traceSink.Put(ctx, fmt.Sprintf("httprc controller: [refresh] END   %q", req.u))
 	u := req.u
+
 	r, ok := c.items[u]
 	if !ok {
 		c.traceSink.Put(ctx, fmt.Sprintf("httprc controller: [refresh] %s is not registered", req.u))
@@ -78,12 +79,9 @@ func (c *ctrlBackend) refreshResource(ctx context.Context, req refreshRequest) {
 		return
 	}
 
-	// Make sure it's ready
-	if err := r.Ready(ctx); err != nil {
-		c.traceSink.Put(ctx, fmt.Sprintf("httprc controller: [refresh] %s did not become ready: %v", req.u, err))
-		sendReply(ctx, req.reply, struct{}{}, err)
-		return
-	}
+	// Note: We don't wait for r.Ready() here because refresh should work
+	// regardless of whether the resource has been fetched before. This allows
+	// refresh to work with resources registered using WithWaitReady(false).
 
 	r.SetNext(time.Unix(0, 0))
 	sendWorkerSynchronous(ctx, c.syncoutgoing, synchronousRequest{

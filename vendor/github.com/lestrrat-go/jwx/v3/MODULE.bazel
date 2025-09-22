@@ -9,9 +9,9 @@ bazel_dep(name = "rules_go", version = "0.55.1")
 bazel_dep(name = "gazelle", version = "0.44.0")
 bazel_dep(name = "aspect_bazel_lib", version = "2.11.0")
 
-# Go SDK setup - using Go 1.23.6 to match the toolchain in go.mod
+# Go SDK setup - using Go 1.24.4 to match the toolchain in go.mod
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
-go_sdk.download(version = "1.23.6")
+go_sdk.download(version = "1.24.4")
 
 # Go dependencies from go.mod
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
@@ -23,6 +23,8 @@ use_repo(
     "com_github_decred_dcrd_dcrec_secp256k1_v4",
     "com_github_goccy_go_json",
     "com_github_lestrrat_go_blackmagic",
+    "com_github_lestrrat_go_dsig",
+    "com_github_lestrrat_go_dsig_secp256k1",
     "com_github_lestrrat_go_httprc_v3",
     "com_github_lestrrat_go_option_v2",
     "com_github_segmentio_asm",

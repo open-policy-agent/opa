@@ -1,6 +1,6 @@
 ---
 sidebar_label: contains
-title: 'Rego Keyword: contains'
+title: 'Rego Keyword Examples: contains'
 ---
 
 Rego's `contains` keyword is used to incrementally build

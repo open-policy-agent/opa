@@ -2,6 +2,6 @@
   "showInput": false,
   "showData": false,
   "showTitles": false,
-  "titleSize": 5,
+  "titleSize": 4,
   "command": "data.netcidrcontainsmatches.result"
 }

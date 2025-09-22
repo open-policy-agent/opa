@@ -300,6 +300,11 @@ if !ok {
     log.Fatal("bundle plugin not found")
 }
 
+// Monitor the status of the bundle download and activation by registering a listener function
+bundle.Register("test", func(status bundle.Status) {
+// handle the status
+})
+
 err = bundle.Trigger(ctx)
 if err != nil {
     log.Fatal(err)

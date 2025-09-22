@@ -1,24 +1,64 @@
-.searchContainer {
-	margin: 1.5rem 0;
-}
-
-.searchInput {
-	padding: 0.5rem;
-	width: 100%;
-	max-width: 40rem;
-	font-size: 1rem;
-}
-
 .table {
 	width: 100%;
 	border-collapse: collapse;
 	table-layout: auto;
 }
 
-.table tbody td:first-child {
-	width: 1;
+.th {
+	text-align: left;
+	padding: 0.5rem;
+	border-bottom: 0.125rem solid #ccc;
 }
 
-.table tbody td:last-child {
+.td {
+	padding: 0.5rem;
+	border-bottom: 0.0625rem solid #eee;
+	vertical-align: top;
+}
+
+.categoryCell {
+	padding: 0.5rem;
+	border-bottom: 0.0625rem solid #eee;
+	vertical-align: top;
+	white-space: nowrap;
+	width: 1px;
+}
+
+.idCell {
+	padding: 0.5rem;
+	border-bottom: 0.0625rem solid #eee;
+	vertical-align: top;
+	white-space: nowrap;
+	width: 1px;
+}
+
+.summaryCell {
+	padding: 0.5rem;
+	border-bottom: 0.0625rem solid #eee;
+	vertical-align: top;
 	width: 100%;
+}
+
+.controls {
+	margin-bottom: 1rem;
+	display: flex;
+	gap: 1rem;
+	align-items: center;
+}
+
+.input {
+	padding: 0.5rem;
+	font-size: 1rem;
+	width: 100%;
+}
+
+.select {
+	padding: 0.5rem;
+	font-size: 1rem;
+}
+
+.contentMatchIndicator {
+	margin-left: 0.5rem;
+	font-style: italic;
+	color: #666;
 }

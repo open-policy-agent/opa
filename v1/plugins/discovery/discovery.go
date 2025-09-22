@@ -317,7 +317,7 @@ func saveCurrentBundleToDisk(path string, raw io.Reader) (string, error) {
 	return bundleUtils.SaveBundleToDisk(path, raw)
 }
 
-func (c *Discovery) oneShot(ctx context.Context, u download.Update) {
+func (c *Discovery) oneShot(ctx context.Context, u download.Update) error {
 	c.processUpdate(ctx, u)
 
 	if p := status.Lookup(c.manager); p != nil {
@@ -330,6 +330,8 @@ func (c *Discovery) oneShot(ctx context.Context, u download.Update) {
 	for _, f := range c.listeners {
 		f(*c.status)
 	}
+
+	return nil
 }
 
 func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {

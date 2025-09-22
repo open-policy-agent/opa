@@ -1,0 +1,175 @@
+---
+sidebar_label: Virtual Machines
+sidebar_position: 1
+title: Deploying OPA on Azure Virtual Machines
+---
+
+In this section, we'll cover deployment Open Policy Agent (OPA) on Azure Virtual
+Machines (VMs). Azure VMs offer a versatile platform to run an OPA Policy
+Decision Point (PDP) outside of containerized environments. Running OPA on an
+Azure VM is a common pattern for the following scenarios:
+
+- OPA needs to run alongside an existing application or Policy Enforcement Point
+  (PEP) on the same VM to ensure low latency for policy evaluations.
+- Your organization already has a well-defined Azure deployment process, and you
+  are adding OPA to your toolset.
+- You want a straightforward way to set up OPA quickly for testing or
+  development on Azure.
+
+This guide will cover the steps to set up and manage OPA as a PDP on an Azure
+VM.
+
+
+## Choosing a VM Image
+
+While OPA can run on nearly any Azure VM image, a x64 Linux-based image is
+recommended. Additionally, using a service manager is recommended to ensure it
+starts at boot time and restarts if it crashes. This guide uses Systemd, which
+is included in most commonly used Linux-based images on Azure. Please note that
+older operating systems like Ubuntu 12.04, Ubuntu 14.04, and CentOS 6 do not
+support Systemd and are not covered in this guide.
+
+If uncertain about the image to use, the latest Debian or Ubuntu images on Azure
+are suitable for running OPA.
+
+
+## Selecting a VM Size
+
+The VM size you choose will depend on the expected load and memory requirements
+of the data needed for policy evaluation. Although OPA itself is lightweight,
+data requirements for policy evaluation can vary significantly, especially with
+larger datasets of users, roles, and other entities.
+
+Users are encouraged to benchmark memory usage for OPA with their specific data.
+For more information, refer to
+[OPA Resource Utilization](../../policy-performance/#resource-utilization).
+
+Using a VM smaller than `DS1_v2` (1 vCPU and 3.5GB RAM) is generally not
+recommended.
+
+:::info
+If you intend to run OPA alongside another application within the same
+VM, consider testing performance to ensure OPA does not impact the application.
+Choose a larger VM size as needed.
+:::
+
+
+## Networking Considerations
+
+**Public IP Addresses**: OPA deployments usually do not require public IP
+addresses. PEPs calling OPA are generally other internal Azure services rather
+than end-user devices. If you need to expose OPA on the internet, secure it with
+OPA's
+[Authentication and Authorization](../../security/#authentication-and-authorization)
+features, and consider using Azure's Application Gateway as a reverse proxy.
+
+**Network Security Group (NSG) Rules**: If other services running on Azure need
+to access OPA, allow inbound traffic on OPA’s listening port (default `8181`)
+within the NSG rules. Restrict the source IP addresses to only those that need
+access.
+
+:::info
+If OPA only needs to be accessible from within the same VM, configure it to
+listen on `localhost` instead of `0.0.0.0` (all interfaces) below.
+:::
+
+
+## User Data Script
+
+After selecting the VM specifications, you can use Azure’s user data script
+to install and run OPA upon VM startup. This is under the 'Advanced'
+tab, if creating a VM through the Azure portal web UI. The script will only
+be run after opting to 'Enable user data'.
+
+Using a user data script is recommended approach if you do not have a custom VM
+image with OPA pre-installed. This script will:
+
+- Download the OPA binary for the latest release.
+- Place the config for the instance in the credstore
+- Start OPA using Systemd with this configuration file listening on port `8181`.
+
+<!-- markdownlint-disable MD044 -->
+<!-- markdownlint-disable MD034 -->
+<ParamProvider
+  initialParams={{
+    token: '7AnU3j1R1MQN9N...',
+    version: '...',
+  }}
+>
+
+Before continuing, please ensure you have the following information:
+
+- Bundle Service Token: <InlineEditable paramKey="token"/> (if the bundle server
+  requires a static token, see [configuration](../../configuration) for more
+  information).
+- OPA Version: <InlineEditable paramKey="version"/>, e.g. `X.Y.Z` not `latest`
+  or `vX.Y.Z`. Review the
+  [OPA releases](https://github.com/open-policy-agent/opa/releases) on GitHub.
+
+Please use the user data shell script below to install and run OPA:
+
+<!-- markdownlint-disable MD044 -->
+<!-- markdownlint-disable MD034 -->
+<ParamCodeBlock>
+{`#!/bin/bash
+
+curl -L -o /usr/local/bin/opa https://github.com/open-policy-agent/opa/releases/download/v{{version}}/opa_linux_amd64
+chmod 755 /usr/local/bin/opa
+
+cat <<EOF > /etc/credstore/opa.service/config
+# example configuration
+
+services:
+  acmecorp:
+    url: https://example.com/control-plane-api/v1
+    response_header_timeout_seconds: 5
+    credentials:
+      bearer:
+        token: "{{token}}"
+
+labels:
+  app: myapp
+  region: west
+  environment: production
+
+bundles:
+  authz:
+    service: acmecorp
+    resource: bundles/http/example/authz.tar.gz
+
+EOF
+
+cat <<EOF > /etc/systemd/system/opa.service
+[Unit]
+Description=Open Policy Agent
+After=network.target
+StartLimitInterval=60
+StartLimitBurst=4
+
+[Service]
+ExecStart=/usr/local/bin/opa run --server --addr=0.0.0.0:8181 --config-file=$CREDENTIALS_DIRECTORY/config
+LoadCredential=config:/etc/credstore/opa.service/config
+
+
+RuntimeDirectory=opa
+WorkingDirectory=/run/opa
+
+Restart=always
+RestartSec=5
+Restart=on-failure
+
+DynamicUser=yes
+ProtectSystem=full
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable opa.service
+systemctl start opa.service
+`}
+</ParamCodeBlock>
+
+</ParamProvider>

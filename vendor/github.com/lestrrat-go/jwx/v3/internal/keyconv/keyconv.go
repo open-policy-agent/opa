@@ -5,8 +5,10 @@ import (
 	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/rsa"
 	"fmt"
+	"math/big"
 
 	"github.com/lestrrat-go/blackmagic"
 	"github.com/lestrrat-go/jwx/v3/jwk"
@@ -262,4 +264,91 @@ func ECDHPublicKey(dst, src any) error {
 	}
 
 	return blackmagic.AssignIfCompatible(dst, pubECDH)
+}
+
+// ecdhCurveToElliptic maps ECDH curves to elliptic curves
+func ecdhCurveToElliptic(ecdhCurve ecdh.Curve) (elliptic.Curve, error) {
+	switch ecdhCurve {
+	case ecdh.P256():
+		return elliptic.P256(), nil
+	case ecdh.P384():
+		return elliptic.P384(), nil
+	case ecdh.P521():
+		return elliptic.P521(), nil
+	default:
+		return nil, fmt.Errorf(`keyconv: unsupported ECDH curve: %v`, ecdhCurve)
+	}
+}
+
+// ecdhPublicKeyToECDSA converts an ECDH public key to an ECDSA public key
+func ecdhPublicKeyToECDSA(ecdhPubKey *ecdh.PublicKey) (*ecdsa.PublicKey, error) {
+	curve, err := ecdhCurveToElliptic(ecdhPubKey.Curve())
+	if err != nil {
+		return nil, err
+	}
+
+	pubBytes := ecdhPubKey.Bytes()
+
+	// Parse the uncompressed point format (0x04 prefix + X + Y coordinates)
+	if len(pubBytes) == 0 || pubBytes[0] != 0x04 {
+		return nil, fmt.Errorf(`keyconv: invalid ECDH public key format`)
+	}
+
+	keyLen := (len(pubBytes) - 1) / 2
+	if len(pubBytes) != 1+2*keyLen {
+		return nil, fmt.Errorf(`keyconv: invalid ECDH public key length`)
+	}
+
+	x := new(big.Int).SetBytes(pubBytes[1 : 1+keyLen])
+	y := new(big.Int).SetBytes(pubBytes[1+keyLen:])
+
+	return &ecdsa.PublicKey{
+		Curve: curve,
+		X:     x,
+		Y:     y,
+	}, nil
+}
+
+func ECDHToECDSA(dst, src any) error {
+	// convert ecdh.PublicKey to ecdsa.PublicKey, ecdh.PrivateKey to ecdsa.PrivateKey
+
+	// First, handle value types by converting to pointers
+	switch s := src.(type) {
+	case ecdh.PrivateKey:
+		src = &s
+	case ecdh.PublicKey:
+		src = &s
+	}
+
+	var privBytes []byte
+	var pubkey *ecdh.PublicKey
+	// Now handle the actual conversion with pointer types
+	switch src := src.(type) {
+	case *ecdh.PrivateKey:
+		pubkey = src.PublicKey()
+		privBytes = src.Bytes()
+	case *ecdh.PublicKey:
+		pubkey = src
+	default:
+		return fmt.Errorf(`keyconv: expected ecdh.PrivateKey, *ecdh.PrivateKey, ecdh.PublicKey, or *ecdh.PublicKey, got %T`, src)
+	}
+
+	// convert the public key
+	ecdsaPubKey, err := ecdhPublicKeyToECDSA(pubkey)
+	if err != nil {
+		return fmt.Errorf(`keyconv.ECDHToECDSA: failed to convert ECDH public key to ECDSA public key: %w`, err)
+	}
+
+	// return if we were being asked to convert *ecdh.PublicKey
+	if privBytes == nil {
+		return blackmagic.AssignIfCompatible(dst, ecdsaPubKey)
+	}
+
+	// Then create the private key with the public key embedded
+	ecdsaPrivKey := &ecdsa.PrivateKey{
+		D:         new(big.Int).SetBytes(privBytes),
+		PublicKey: *ecdsaPubKey,
+	}
+
+	return blackmagic.AssignIfCompatible(dst, ecdsaPrivKey)
 }

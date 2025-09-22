@@ -1,0 +1,183 @@
+---
+sidebar_label: EC2
+sidebar_position: 1
+title: Deploying OPA on AWS EC2
+---
+
+In this section, we'll explore how to deploy OPA on AWS EC2 instances.
+EC2 provides a flexible way to run OPA outside of a containerized environment,
+making it well suited for various use cases where integration with existing EC2
+applications is required.
+When not running OPA as a container, running OPA on EC2 instances is a common
+pattern for the following use cases:
+
+- You need to run OPA adjacent to an existing Policy Enforcement Point (PEP,
+  e.g. an application) running on EC2 and need OPA to be on the same host to
+  ensure low latency policy evaluations.
+- You have mature tooling to aid the deployment of services to EC2 and
+  OPA is a new addition to your stack.
+- You just need to get an OPA instance up and running quickly for testing or
+  development purposes.
+
+This guide will walk you through the steps for setting up and managing OPA as a
+Policy Decision Point (PDP) on Amazon's EC2 service.
+
+
+## Choosing a Machine Image
+
+While OPA can run on almost any EC2 instance type, a Linux-based machine image
+is recommended.
+
+It also is recommended to use a service manager to run OPA. This will ensure
+that OPA is started at boot time and restarted if it crashes. This guide will
+use Systemd as the service manager as this is what is used on the most commonly
+used AMIs in EC2. The following older operating systems do not use Systemd:
+Amazon Linux 1, Ubuntu 12.04, Ubuntu 14.04, CentOS 6, RHEL 6, Alpine Linux and
+are not covered in this guide.
+
+If you are unsure of which AMI to use, then please run OPA on the latest Amazon
+Linux AMI.
+
+
+## Choosing an Instance Type
+
+The instance type you choose is based on the expected load and memory
+requirements of the data needed for policy evaluation once loaded into OPA.
+While OPA itself is lightweight, in some cases, the data required for policy
+evaluation is large datasets of users, roles and other information that may
+be required to make a decision.
+
+Users are always recommended to benchmark the memory performance of OPA with
+their data loaded. Read more about
+[OPA Resource Utilization](../../policy-performance/#resource-utilization).
+
+Using an instance size smaller than `t3.small` is not recommended.
+
+:::info
+For readers looking to add an OPA process to run alongside their existing
+EC2 application within the same instance, it is recommended to verify that also
+running OPA will not cause performance issues on the instance before selecting
+an instance type for production use.
+:::
+
+
+## Networking Considerations
+
+**Public IP Addresses**: are typically not required for OPA deployments. PEP
+callers of OPA are generally other services acting as a Policy Enforcement
+Point, rather than end user devices. If exposing an OPA instance running on EC2
+to the internet, it is recommended to use OPA's own
+[Authentication and Authorization](../../security/#authentication-and-authorization)
+functionality to secure the API and to run OPA behind a reverse proxy or load
+balancer.
+
+**Security Group Rules**: If OPA to be accessed from PEPs running in
+AWS, then you will need to permit inbound traffic on the port that OPA is
+listening on. The default port for OPA is `8181`. It is also recommended to
+restrict the source IP addresses to only those that need to access OPA.
+
+:::info
+When OPA need only be accessed from the virtual machine it is running on, OPA
+should be configured to listen on `localhost` instead.
+:::
+
+
+## User Data Script
+
+Once you have chosen the specifications for your EC2 instance, it's time to
+install and run OPA.
+
+Setting a user data script when creating an EC2 instance to install and run OPA
+is the recommended way to create a new EC2 instance with OPA installed if you
+are not creating a custom AMI with OPA pre-installed. This section shows a
+user data script that will install and run OPA. In summary, the script will:
+
+- Download the OPA binary for the latest release.
+- Place the config for the instance in the credstore
+- Start OPA using Systemd with this configuration file listening on port `8181`.
+
+<!-- markdownlint-disable MD044 -->
+<!-- markdownlint-disable MD034 -->
+<ParamProvider
+  initialParams={{
+    token: '7AnU3j1R1MQN9N...',
+    version: '...',
+  }}
+>
+
+Before continuing, please ensure you have the following information:
+
+- Bundle Service Token: <InlineEditable paramKey="token"/> (if the bundle server
+  requires a static token, see [configuration](../../configuration) for more
+  information).
+- OPA Version: <InlineEditable paramKey="version"/>, e.g. `X.Y.Z` not `latest`
+  or `vX.Y.Z`. Review the
+  [OPA releases](https://github.com/open-policy-agent/opa/releases) on GitHub.
+
+Please use the user data shell script below to install and run OPA:
+
+<!-- markdownlint-disable MD044 -->
+<!-- markdownlint-disable MD034 -->
+<ParamCodeBlock>
+{`#!/bin/bash
+
+curl -L -o /usr/local/bin/opa https://github.com/open-policy-agent/opa/releases/download/v{{version}}/opa_linux_amd64
+chmod 755 /usr/local/bin/opa
+
+cat <<EOF > /etc/credstore/opa.service/config
+# example configuration
+
+services:
+  acmecorp:
+    url: https://example.com/control-plane-api/v1
+    response_header_timeout_seconds: 5
+    credentials:
+      bearer:
+        token: "{{token}}"
+
+labels:
+  app: myapp
+  region: west
+  environment: production
+
+bundles:
+  authz:
+    service: acmecorp
+    resource: bundles/http/example/authz.tar.gz
+
+EOF
+
+cat <<EOF > /etc/systemd/system/opa.service
+[Unit]
+Description=Open Policy Agent
+After=network.target
+StartLimitInterval=60
+StartLimitBurst=4
+
+[Service]
+ExecStart=/usr/local/bin/opa run --server --addr=0.0.0.0:8181 --config-file=$CREDENTIALS_DIRECTORY/config
+LoadCredential=config:/etc/credstore/opa.service/config
+
+
+RuntimeDirectory=opa
+WorkingDirectory=/run/opa
+
+Restart=always
+RestartSec=5
+Restart=on-failure
+
+DynamicUser=yes
+ProtectSystem=full
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable opa.service
+systemctl start opa.service
+`}
+</ParamCodeBlock>
+
+</ParamProvider>

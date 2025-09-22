@@ -3369,7 +3369,7 @@ func expectOutput(t *testing.T, output string, expected string) {
 }
 
 func newRepl(store storage.Store, buffer *bytes.Buffer) *REPL {
-	return New(store, "", buffer, "", 0, "")
+	return New(store, "", buffer, "", 0, "").WithStderrWriter(buffer)
 }
 
 func newTestStore() storage.Store {

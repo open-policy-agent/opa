@@ -1,7 +1,9 @@
 ---
 title: Time
 ---
+
 <BuiltinTable category={"time"}/>
+
 :::info
 Multiple calls to the `time.now_ns` built-in function within a single policy
 evaluation query will always return the same value.
@@ -44,4 +46,72 @@ Examples of valid values for each timestamp field:
 
 For supported constants, formatting of nanoseconds, time zones, and other fields, see the [Go `time/format` module documentation](https://cs.opensource.google/go/go/+/master:src/time/format.go;l=9-113).
 
-<PlaygroundExample dir={require.context("../_examples/time/time_format")} />
+## Examples
+
+
+### `clock`
+
+`time.clock` is Rego's built-in function that returns the 'clock time'
+(hours, minutes, seconds) for a given time in nanoseconds and timezone.
+
+This is most useful for creating policy that's relative to a user's local
+time, or showing time-based information in a human-readable format
+in error messages that are shown to the user.
+
+<PlaygroundExample dir={require.context('../_examples/time/clock/local_business_hours')} />
+
+### `format`
+
+`time.format` is Rego's built-in function that takes a time in
+nanoseconds since the Unix epoch and formats it as a string.
+This is useful for displaying timestamps in a human-readable format
+and presenting times in a given timezone.
+
+The function accepts arguments in three formats, making it slightly more complicated to use. These are either:
+
+- A single value representing the nanoseconds since the Unix epoch
+  ```rego
+  time.format(1720021249361794300)
+  time.format(1712345679361794300)
+  ```
+- A two-element array consisting of:
+  - The number of nanoseconds since the [Unix epoch](https://en.wikipedia.org/wiki/Unix_time)
+  - A timezone ([TZ identifier](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones))
+  ```rego
+  # Using a named timezone identifier
+  time.format([1720021249361794300, "Europe/Paris"])
+  # Using a timezone code
+  time.format([1720021249361794300, "PDT"])
+  ```
+- A three-element array consisting of:
+  - The number of nanoseconds since the [Unix epoch](https://en.wikipedia.org/wiki/Unix_time)
+  - A timezone ([TZ identifier](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones))
+  - Golang time layout string or formatting constant, see [time package documentation](https://pkg.go.dev/time#pkg-constants).
+
+  ```rego
+  # Using time format constant
+  time.format([1720021249361794300, "Europe/Paris", "RFC822Z"])
+  # Using a custom time layout string
+  time.format([1720021249361794300, "Europe/Paris", "2006_01_02_15_04_05"])
+  ```
+
+<PlaygroundExample dir={require.context('../_examples/time/format/local_time')} />
+
+### `parse_ns`
+
+`time.parse_ns` is Rego's built-in function that parses a string into
+a timestamp in nanoseconds since the Unix epoch.
+This is useful converting input data to a format that can be compared with
+other timestamps or used in time calculations.
+
+<PlaygroundExample dir={require.context('../_examples/time/parse_ns/period')} />
+
+<PlaygroundExample dir={require.context("../_examples/time/parse_ns/time_format")} />
+
+### `now_ns`
+
+`time.now_ns` is Rego's built-in function that returns the current time
+in nanoseconds since the Unix epoch. This is useful for comparing
+timestamps or calculating time differences.
+
+<PlaygroundExample dir={require.context('../_examples/time/now_ns/past')} />

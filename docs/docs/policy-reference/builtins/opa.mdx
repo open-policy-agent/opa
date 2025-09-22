@@ -1,13 +1,16 @@
 ---
 title: OPA
 ---
+
+## Runtime
+
 <BuiltinTable category={"opa"}/>
 :::danger
 Policies that depend on the output of `opa.runtime` may return different answers depending on how OPA was started.
 If possible, prefer using an explicit `input` or `data` value instead of `opa.runtime`.
 :::
 
-### Debugging
+## Debugging
 
 | Built-in     | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Details                                               |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
@@ -21,3 +24,135 @@ If possible, prefer using an explicit `input` or `data` value instead of `opa.ru
 | `opa run -s` (server) | `stderr`    | Specify `--log-level=info` (default) or higher. Output is sent to the log stream. Use `--log-format=text` for pretty output.                                                     |
 | Go (library)          | `io.Writer` | [https://pkg.go.dev/github.com/open-policy-agent/opa/rego#example-Rego-Print_statements](https://pkg.go.dev/github.com/open-policy-agent/opa/rego#example-Rego-Print_statements) |
 
+
+### `print` function
+
+The `print` function is used in Rego to log messages to the console for
+debugging purposes. The function accepts one or more arguments and prints them
+to the console.
+
+```rego
+print(1) # prints 1
+
+# use multiple arguments
+print(1, 2, 3) # prints 1 2 3
+
+# use arguments of different types
+print("hello", "world", { "foo": "bar"}) # prints hello world {"foo": "bar"}
+```
+
+#### Determining if or how many times a line of code has run
+
+Sometimes when working on a policy it can be helpful to know if a line of code
+is even being run at all. Take the following example where the `allow` rule
+depends on the contents of the `my_data` rule.
+
+```rego
+package example
+
+import rego.v1
+
+my_data["numbers"] := [1,2,3]
+
+allow if {
+    some number in my_data.nummers
+    # highlight-next-line
+    print(number)
+    number == 3
+}
+```
+
+Due to the typo in this example, the print statement will never run. After
+correcting the typo, the print statement will run and print the numbers 1, 2,
+and 3.
+This information can be helpful in getting to the source of an unexpected
+result.
+
+
+#### Checking the value of a variable at a specific point
+
+In a policy, sometimes the value of a variable might not be known until runtime.
+Using print statements can be a good way to check what a value is.
+
+```rego
+package example
+
+import rego.v1
+
+allow if {
+    # highlight-next-line
+    print(input.user)
+
+    input.user == "alice"
+}
+```
+
+
+#### Checking the values of variables in tests
+
+Using `print` when running `opa test` can help you quickly identify what values
+are and make adjustments as needed.
+
+
+```rego title="policy.rego"
+package example
+
+import rego.v1
+
+default allow := false
+
+allow if {
+    # highlight-next-line
+    print("user", input.user)
+
+    input.user == "alice"
+}
+```
+
+```rego title="policy_test.rego"
+package example
+
+import rego.v1
+
+test_allow_with_bob if {
+    allow with input as {"user": "bob"}
+}
+```
+
+Now, when we run our tests, we can see the value of `input.user` in the console.
+
+```sh
+$ opa test policy.rego policy_test.rego
+policy_test.rego:
+data.example.test_allow_with_bob: FAIL (2.20725ms)
+
+# highlight-next-line
+  user bob
+
+--------------------------------------------------------------------------------
+FAIL: 1/1
+```
+
+
+#### When not to use `print`
+
+As we've seen, `print` comes in handy in lots of different places but it's not
+appropriate for all situations.
+
+- Printing in production: It's generally not a good idea to leave print
+  statements in your policy when it's running in production as this can expose
+  sensitive information
+  (see [print-or-trace-call](/projects/regal/rules/testing/print-or-trace-call)).
+
+  In production, you are likely looking for [Decision Logging](/docs/management-decision-logs/)
+  which has support for redacting information.
+- Showing information to users or callers of OPA. Print output is only visible
+  during evaluation and isn't shared in any way as part of the response from
+  OPA. In these cases, you should look into returning a message or set of
+  messages as part of the response.
+
+
+#### Further Reading
+
+- [print-or-trace-call](/projects/regal/rules/testing/print-or-trace-call) Regal Rule
+- [Introducing the OPA print function](https://blog.openpolicyagent.org/introducing-the-opa-print-function-809da6a13aee)

@@ -20,8 +20,8 @@ When running Regal against a directory, like `regal lint my-policies/`, Regal do
 - Each linter rule (and there are almost 40 of them at the time of writing this) uses the **input**, which contains
   information such as the package name, what imports are used, and all the rules and the expressions they contain, to
   determine whether the Rego policy linted contains any violations against the rule. An example could be a rule that
-  [forbids shadowing](https://openpolicyagent.org/projects/regal/rules/bugs/rule-shadows-builtin) (i.e. using the same name as)
-  built-in functions and operators.
+  [forbids shadowing](https://openpolicyagent.org/projects/regal/rules/bugs/rule-shadows-builtin)
+  (i.e. using the same name as) built-in functions and operators.
 - Since rule bodies aren’t necessarily flat, but may contain nested bodies of constructs such as
   [comprehensions](https://www.openpolicyagent.org/docs/policy-language/#comprehensions) or
   [every](https://www.openpolicyagent.org/docs/policy-language/#every-keyword) blocks, many linter rules need to

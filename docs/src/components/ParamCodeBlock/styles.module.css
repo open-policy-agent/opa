@@ -1,0 +1,23 @@
+.codeBlockContainer {
+	position: relative;
+	margin: 1rem 0;
+}
+
+.codeBlock {
+	position: relative;
+}
+
+.copyBtn {
+	float: right;
+	margin-right: 1rem;
+	z-index: 100;
+	position: relative;
+}
+
+.pre {
+	margin: 0;
+	padding: var(--ifm-pre-padding);
+	background-color: var(--ifm-pre-background);
+	border-radius: var(--ifm-pre-border-radius);
+	overflow: auto;
+}

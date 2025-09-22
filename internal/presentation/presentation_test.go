@@ -391,7 +391,7 @@ func TestSource(t *testing.T) {
 
 	buf := new(bytes.Buffer)
 
-	err := Source(buf, Output{
+	err := Source(buf, nil, Output{
 		Partial: &rego.PartialQueries{
 			Queries: []ast.Body{
 				ast.MustParseBody("a = 1; b = 2"),
@@ -426,9 +426,10 @@ p := 1
 
 func TestRaw(t *testing.T) {
 	tests := []struct {
-		note   string
-		output Output
-		want   string
+		note    string
+		output  Output
+		want    string
+		wantErr string
 	}{
 		{
 			note: "simple single string",
@@ -484,7 +485,7 @@ func TestRaw(t *testing.T) {
 			output: Output{
 				Errors: NewOutputErrors(errors.New("boom")),
 			},
-			want: "1 error occurred: boom\n",
+			wantErr: "1 error occurred: boom\n",
 		},
 		{
 			// NOTE(sr): The presentation package outputs whatever Error() on
@@ -495,19 +496,23 @@ func TestRaw(t *testing.T) {
 			output: Output{
 				Errors: NewOutputErrors(&testErrorWithDetails{}),
 			},
-			want: "1 error occurred: something went wrong\noh\nso\nwrong\n",
+			wantErr: "1 error occurred: something went wrong\noh\nso\nwrong\n",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			buf := new(bytes.Buffer)
-			err := Raw(buf, tc.output)
+			output := new(bytes.Buffer)
+			stderr := new(bytes.Buffer)
+			err := Raw(output, stderr, tc.output)
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err)
 			}
-			if buf.String() != tc.want {
-				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", tc.want, buf.String())
+			if output.String() != tc.want {
+				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", tc.want, output.String())
+			}
+			if stderr.String() != tc.wantErr {
+				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", tc.wantErr, stderr.String())
 			}
 		})
 	}

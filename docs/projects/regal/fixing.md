@@ -6,7 +6,8 @@ sidebar_position: 3
 # Fixing Violations
 
 For each violation Regal is able to detect, there is a documentation page explaining the issue in detail and how to fix
-it. For example, here's the one for the [`prefer-some-in-iteration`](https://openpolicyagent.org/projects/regal/rules/style/prefer-some-in-iteration) rule.
+it. For example, here's the one for the
+[`prefer-some-in-iteration`](https://openpolicyagent.org/projects/regal/rules/style/prefer-some-in-iteration) rule.
 
 Some rules are **automatically** fixable, meaning that Regal can fix the violation for you. Note that while most fixes
 will make minor changes to the code, some fixes make more significant modifications. As an example, the

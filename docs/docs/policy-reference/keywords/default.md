@@ -1,6 +1,6 @@
 ---
 sidebar_label: default
-title: 'Rego Keyword: default'
+title: 'Rego Keyword Examples: default'
 ---
 
 The `default` keyword is used to provide a default value for rules and
@@ -9,7 +9,6 @@ value will be used.
 
 It is often helpful to have know that a value will _always_ be defined so that
 policy or callers do not also need to handle undefined values.
-
 
 ## Examples
 

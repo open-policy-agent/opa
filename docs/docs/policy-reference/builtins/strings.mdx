@@ -1,9 +1,47 @@
 ---
 title: Strings
 ---
+
 <BuiltinTable category={"strings"}/>
+
 :::info
 When using `sprintf`, values are pre-processed and may have an unexpected type. For example,
 `%T` evaluates to `string` for both `string` and `boolean` types. In such cases, use `type_name` to
 accurately evaluate the underlying type.
 :::
+
+## Examples
+
+### `contains`
+
+`contains` is a commonly used Rego built-in function that checks if a string contains a substring. The function returns `true` if the string contains the substring and `false` otherwise.
+
+Some examples of policy use cases where `contains` might be used include:
+
+- Simple validation, such as checking if an email contains a `@` symbol.
+- Checking if user input contains restricted words or phrases for content moderation.
+
+:::caution
+
+If you're looking to check a string that's expected to be at the start or end of a value, you might be better served by one of the following functions:
+
+- [Starts With](#builtin-strings-startswith): Checks if a string starts with a specified prefix.
+- [Any Prefix Match](#builtin-strings-stringsany_prefix_match): Checks if a string starts with any of the specified prefixes.
+- [Ends With](#builtin-strings-endswith): Checks if a string ends with a specified suffix.
+- [Any Suffix Match](#builtin-strings-stringsany_suffix_match): Checks if a string ends with any of the specified suffixes.
+
+These are safer and potentially faster too.
+:::
+
+:::danger
+`contains` only operates on strings, if you're looking to check for the presence of a value in a list you cannot use this function.
+:::
+
+:::note
+If you're looking for the Rego keyword `contains` for building multi-value rules, you can read
+about it in the [keywords section](/docs/policy-reference/keywords/contains).
+:::
+
+<PlaygroundExample dir={require.context('../_examples/strings/contains/email-validation')} />
+
+<PlaygroundExample dir={require.context('../_examples/strings/contains/content-moderation')} />

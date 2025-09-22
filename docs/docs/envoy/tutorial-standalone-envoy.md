@@ -35,9 +35,9 @@ in the [project documentation](https://kind.sigs.k8s.io/#installation-and-usage)
 Create a cluster with the following command:
 
 ```shell
-$ kind create cluster --name opa-envoy --image kindest/node:v1.27.3
+$ kind create cluster --name opa-envoy --image kindest/node:v1.33.1
 Creating cluster "opa-envoy" ...
- ✓ Ensuring node image (kindest/node:v1.27.3) 🖼
+ ✓ Ensuring node image (kindest/node:v1.33.1) 🖼
  ✓ Preparing nodes 📦
  ✓ Writing configuration 📜
  ✓ Starting control-plane 🕹️
@@ -61,7 +61,7 @@ Listing the cluster nodes, should show something like this:
 ```shell
 $ kubectl get nodes
 NAME                       STATUS   ROLES           AGE     VERSION
-opa-envoy-control-plane   Ready    control-plane   2m35s   v1.27.3
+opa-envoy-control-plane   Ready    control-plane   2m35s   v1.33.1
 ```
 
 ## Creating & Serving our Policy Bundle
@@ -369,7 +369,7 @@ spec:
         - name: ENVOY_UID
           value: "1111"
       - name: opa
-        image: openpolicyagent/opa:latest-envoy
+        image: openpolicyagent/opa:latest-envoy-static
         args:
         - "run"
         - "--server"

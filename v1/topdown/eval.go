@@ -1646,12 +1646,11 @@ func (e *eval) getRules(ref ast.Ref, args []*ast.Term) (*ast.IndexResult, error)
 
 	var result *ast.IndexResult
 	var err error
+	resolver.e = e
 	if e.indexing {
-		resolver.e = e
 		resolver.args = args
 		result, err = index.Lookup(resolver)
 	} else {
-		resolver.e = e
 		result, err = index.AllRules(resolver)
 	}
 	if err != nil {
