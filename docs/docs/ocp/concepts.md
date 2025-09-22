@@ -55,7 +55,24 @@ If you are interested in seeing this restriction relaxed please leave a comment 
 - **Excluded\_files**: (optional)
   A list of files to be excluded from the bundle during build for example any hidden files
 
-**Example:**
+#### Examples:
+
+**Filesystem:**
+
+```yaml
+bundles:
+  prod-app:
+    object_storage:
+      filesystem:
+        path: bundles/prod-app.tar.gz
+    labels:
+      environment: prod
+      team: payments
+    requirements:
+    - source: app-policy
+```
+
+**Amazon S3 (aws):**
 
 ```yaml
 bundles:
@@ -67,11 +84,32 @@ bundles:
         url: https://s3.amazonaws.com
         region: us-east-1
         credentials: s3-prod-creds
-    labels:
-      environment: prod
-      team: payments
-    requirements:
-    - source: app-policy
+```
+
+**GCP Cloud Storage (gcp):**
+
+```yaml
+bundles:
+  prod-app:
+    object_storage:
+      gcp:
+        project: my-gcp-project
+        bucket: policy-bundles
+        object: bundles/my-app/bundle.tar.gz
+        credentials: gcp-service-account
+```
+
+**Azure Blob Storage (azure):**
+
+```yaml
+bundles:
+  prod-app:
+    object_storage:
+      azure:
+        account_url: https://mystorageaccount.blob.core.windows.net
+        container: policy-bundles
+        key: bundles/my-app/bundle.tar.gz
+        credentials: azure-credentials
 ```
 
 ## Sources

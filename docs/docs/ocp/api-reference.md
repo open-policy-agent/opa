@@ -641,9 +641,9 @@ Unauthorized
 {
   "object_storage": {
     "azure": {
-      "account": "mystorageaccount",
+      "account_url": "https://mystorageaccount.blob.core.windows.net",
       "container": "policy-bundles",
-      "key": "bundles/my-app/bundle.tar.gz",
+      "path": "bundles/my-app/bundle.tar.gz",
       "credentials": "azure-credentials"
     }
   }
