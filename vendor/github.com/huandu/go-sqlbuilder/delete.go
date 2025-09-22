@@ -3,6 +3,12 @@
 
 package sqlbuilder
 
+import (
+	"reflect"
+
+	"github.com/huandu/go-clone"
+)
+
 const (
 	deleteMarkerInit injectionMarker = iota
 	deleteMarkerAfterWith
@@ -31,6 +37,24 @@ func newDeleteBuilder() *DeleteBuilder {
 		args:      args,
 		injection: newInjection(),
 	}
+}
+
+// Clone returns a deep copy of DeleteBuilder.
+// It's useful when you want to create a base builder and clone it to build similar queries.
+func (db *DeleteBuilder) Clone() *DeleteBuilder {
+	return clone.Clone(db).(*DeleteBuilder)
+}
+
+func init() {
+	t := reflect.TypeOf(DeleteBuilder{})
+	clone.SetCustomFunc(t, func(allocator *clone.Allocator, old, new reflect.Value) {
+		cloned := allocator.CloneSlowly(old)
+		new.Set(cloned)
+
+		db := cloned.Addr().Interface().(*DeleteBuilder)
+		db.args.Replace(db.whereClauseExpr, db.whereClauseProxy)
+		db.args.Replace(db.cteBuilderVar, db.cteBuilder)
+	})
 }
 
 // DeleteBuilder is a builder to build DELETE.
