@@ -6,9 +6,12 @@ package sqlbuilder
 import (
 	"database/sql"
 	"fmt"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/huandu/go-clone"
 )
 
 // Args stores arguments associated with a SQL.
@@ -17,7 +20,7 @@ type Args struct {
 	Flavor Flavor
 
 	indexBase    int
-	argValues    []interface{}
+	argValues    *valueStore
 	namedArgs    map[string]int
 	sqlNamedArgs map[string]int
 	onlyNamed    bool
@@ -48,7 +51,7 @@ func (args *Args) Add(arg interface{}) string {
 }
 
 func (args *Args) add(arg interface{}) int {
-	idx := len(args.argValues) + args.indexBase
+	idx := args.argValues.Len() + args.indexBase
 
 	switch a := arg.(type) {
 	case sql.NamedArg:
@@ -57,7 +60,7 @@ func (args *Args) add(arg interface{}) int {
 		}
 
 		if p, ok := args.sqlNamedArgs[a.Name]; ok {
-			arg = args.argValues[p]
+			arg = args.argValues.Load(p)
 			break
 		}
 
@@ -68,7 +71,7 @@ func (args *Args) add(arg interface{}) int {
 		}
 
 		if p, ok := args.namedArgs[a.name]; ok {
-			arg = args.argValues[p]
+			arg = args.argValues.Load(p)
 			break
 		}
 
@@ -78,8 +81,29 @@ func (args *Args) add(arg interface{}) int {
 		return idx
 	}
 
-	args.argValues = append(args.argValues, arg)
+	if args.argValues == nil {
+		args.argValues = &valueStore{}
+	}
+
+	args.argValues.Add(arg)
 	return idx
+}
+
+// Replace replaces the placeholder with arg.
+//
+// The placeholder must be the value returned by `Add`, e.g. "$1".
+// If the placeholder is not found, this method does nothing.
+func (args *Args) Replace(placeholder string, arg interface{}) {
+	dollar := strings.IndexRune(placeholder, '$')
+
+	if dollar != 0 {
+		return
+	}
+
+	if i, err := strconv.Atoi(placeholder[1:]); err == nil {
+		i -= args.indexBase
+		args.argValues.Set(i, arg)
+	}
 }
 
 // Compile compiles builder's format to standard sql and returns associated args.
@@ -201,14 +225,14 @@ func (args *Args) compileDigits(ctx *argsCompileContext, format string, offset i
 }
 
 func (args *Args) compileSuccessive(ctx *argsCompileContext, format string, offset int) (string, int) {
-	if offset < 0 || offset >= len(args.argValues) {
+	if offset < 0 || offset >= args.argValues.Len() {
 		ctx.WriteString("/* INVALID ARG $")
 		ctx.WriteString(strconv.Itoa(offset))
 		ctx.WriteString(" */")
 		return format, offset
 	}
 
-	arg := args.argValues[offset]
+	arg := args.argValues.Load(offset)
 	ctx.WriteValue(arg)
 
 	return format, offset + 1
@@ -245,7 +269,7 @@ func (args *Args) mergeSQLNamedArgs(ctx *argsCompileContext) []interface{} {
 	sort.Ints(ints)
 
 	for _, i := range ints {
-		values = append(values, args.argValues[i])
+		values = append(values, args.argValues.Load(i))
 	}
 
 	return values
@@ -363,4 +387,51 @@ func (ctx *argsCompileContext) WriteValues(values []interface{}, sep string) {
 		ctx.WriteString(sep)
 		ctx.WriteValue(v)
 	}
+}
+
+type valueStore struct {
+	Values []interface{}
+}
+
+func init() {
+	// The values in valueStore should be shadow-copied to avoid unnecessary cost.
+	t := reflect.TypeOf(valueStore{})
+	clone.SetCustomFunc(t, func(allocator *clone.Allocator, old, new reflect.Value) {
+		values := old.FieldByName("Values")
+		newValues := allocator.Clone(values)
+		new.FieldByName("Values").Set(newValues)
+	})
+}
+
+func (as *valueStore) Len() int {
+	if as == nil {
+		return 0
+	}
+
+	return len(as.Values)
+}
+
+// Add adds an arg to argsValues and returns its index.
+func (as *valueStore) Add(arg interface{}) int {
+	as.Values = append(as.Values, arg)
+	return len(as.Values) - 1
+}
+
+// Set sets the arg value by index.
+func (as *valueStore) Set(index int, arg interface{}) {
+	if as == nil || index < 0 || index >= len(as.Values) {
+		return
+	}
+
+	as.Values[index] = arg
+}
+
+// Load returns the arg value by index.
+// Returns nil if index is out of range or as itself is nil.
+func (as *valueStore) Load(index int) interface{} {
+	if as == nil || index < 0 || index >= len(as.Values) {
+		return nil
+	}
+
+	return as.Values[index]
 }

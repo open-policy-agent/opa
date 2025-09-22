@@ -17,6 +17,7 @@
   - [Use `sql.Named` in a builder](#use-sqlnamed-in-a-builder)
   - [Argument modifiers](#argument-modifiers)
   - [Freestyle builder](#freestyle-builder)
+  - [Clone builders](#clone-builders)
   - [Using special syntax to build SQL](#using-special-syntax-to-build-sql)
   - [Interpolate `args` in the `sql`](#interpolate-args-in-the-sql)
 - [License](#license)
@@ -380,6 +381,51 @@ fmt.Println(args)
 // EXPLAIN SELECT id FROM user LEFT JOIN SELECT * FROM banned WHERE state IN (?, ?)
 // [1 2]
 ```
+
+### Clone builders
+
+The `Clone` methods make any builder reusable as a template. You can create a partially initialized builder once (even as a global), then call `Clone()` to get an independent copy to customize per request. This avoids repeated setup while keeping shared templates immutable and safe for concurrent use.
+
+Supported builders with `Clone`:
+
+- [CreateTableBuilder](https://pkg.go.dev/github.com/huandu/go-sqlbuilder#CreateTableBuilder)
+- [CTEBuilder](https://pkg.go.dev/github.com/huandu/go-sqlbuilder#CTEBuilder)
+- [CTEQueryBuilder](https://pkg.go.dev/github.com/huandu/go-sqlbuilder#CTEQueryBuilder)
+- [DeleteBuilder](https://pkg.go.dev/github.com/huandu/go-sqlbuilder#DeleteBuilder)
+- [InsertBuilder](https://pkg.go.dev/github.com/huandu/go-sqlbuilder#InsertBuilder)
+- [SelectBuilder](https://pkg.go.dev/github.com/huandu/go-sqlbuilder#SelectBuilder)
+- [UnionBuilder](https://pkg.go.dev/github.com/huandu/go-sqlbuilder#UnionBuilder)
+- [UpdateBuilder](https://pkg.go.dev/github.com/huandu/go-sqlbuilder#UpdateBuilder)
+
+Example: define a global SELECT template and clone it per call
+
+```go
+package yourpkg
+
+import "github.com/huandu/go-sqlbuilder"
+
+// Global template — safe to reuse by cloning.
+var baseUserSelect = sqlbuilder.NewSelectBuilder().
+    Select("id", "name", "email").
+    From("users").
+    Where("deleted_at IS NULL")
+
+func ListActiveUsers(limit, offset int) (string, []interface{}) {
+    sb := baseUserSelect.Clone() // independent copy
+    sb.OrderBy("id").Asc()
+    sb.Limit(limit).Offset(offset)
+    return sb.Build()
+}
+
+func GetActiveUserByID(id int64) (string, []interface{}) {
+    sb := baseUserSelect.Clone() // start from the same template
+    sb.Where(sb.Equal("id", id))
+    sb.Limit(1)
+    return sb.Build()
+}
+```
+
+The same template pattern applies to other builders. For example, keep a base `UpdateBuilder` with the table and common `SET` clauses, or a base `CTEBuilder` defining reusable CTEs, then `Clone()` and add query-specific `WHERE`/`ORDER BY`/`LIMIT`/`RETURNING` as needed.
 
 ### Using special syntax to build SQL
 

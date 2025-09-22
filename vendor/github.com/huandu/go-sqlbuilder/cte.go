@@ -3,6 +3,12 @@
 
 package sqlbuilder
 
+import (
+	"reflect"
+
+	"github.com/huandu/go-clone"
+)
+
 const (
 	cteMarkerInit injectionMarker = iota
 	cteMarkerAfterWith
@@ -23,6 +29,25 @@ func newCTEBuilder() *CTEBuilder {
 		args:      &Args{},
 		injection: newInjection(),
 	}
+}
+
+// Clone returns a deep copy of CTEBuilder.
+// It's useful when you want to create a base builder and clone it to build similar queries.
+func (cteb *CTEBuilder) Clone() *CTEBuilder {
+	return clone.Clone(cteb).(*CTEBuilder)
+}
+
+func init() {
+	t := reflect.TypeOf(CTEBuilder{})
+	clone.SetCustomFunc(t, func(allocator *clone.Allocator, old, new reflect.Value) {
+		cloned := allocator.CloneSlowly(old)
+		new.Set(cloned)
+
+		cteb := cloned.Addr().Interface().(*CTEBuilder)
+		for i, b := range cteb.queries {
+			cteb.args.Replace(cteb.queryBuilderVars[i], b)
+		}
+	})
 }
 
 // CTEBuilder is a CTE (Common Table Expression) builder.
@@ -47,7 +72,7 @@ func (cteb *CTEBuilder) With(queries ...*CTEQueryBuilder) *CTEBuilder {
 		queryBuilderVars = append(queryBuilderVars, cteb.args.Add(query))
 	}
 
-	cteb.queries = queries
+	cteb.queries = append([]*CTEQueryBuilder(nil), queries...)
 	cteb.queryBuilderVars = queryBuilderVars
 	cteb.marker = cteMarkerAfterWith
 	return cteb

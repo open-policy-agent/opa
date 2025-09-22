@@ -1,7 +1,10 @@
 Changes
 =======
 
-v3.0.0 UNRELEASED
+v3.0.1  18 Aug 2025
+* Refresh() no longer requires the resource to be ready.
+
+v3.0.0 5 Jun 2025
 [Breaking Changes]
   * The entire API has been re-imagined for Go versions that allow typed parameters
 

@@ -102,13 +102,13 @@ func Fetch(ctx context.Context, u string, options ...FetchOption) (Set, error) {
 	if err != nil {
 		return nil, fmt.Errorf(`jwk.Fetch: request failed: %w`, err)
 	}
+	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf(`jwk.Fetch: request returned status %d, expected 200`, res.StatusCode)
 	}
 
 	buf, err := io.ReadAll(res.Body)
-	defer res.Body.Close()
 	if err != nil {
 		return nil, fmt.Errorf(`jwk.Fetch: failed to read response body for %q: %w`, u, err)
 	}
