@@ -281,7 +281,7 @@ func TestChunkEncoderSizeLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(chunks) != 1 {
-		t.Errorf("Unexpected result: %v", result)
+		t.Errorf("Unexpected chunk: %v", chunks)
 	}
 	// the incoming event doesn't fit, but the previous small event size is between 90-100% capacity so chunk is returned
 	// the incoming event is too large and will be dropped
@@ -324,6 +324,15 @@ func TestChunkEncoderSizeLimit(t *testing.T) {
 	if enc.metrics.Counter(logEncodingFailureCounterName).Value().(uint64) != 1 {
 		t.Errorf("Expected one encoding failure but got: %v", enc.metrics.Counter(logEncodingFailureCounterName).Value().(uint64))
 	}
+
+	enc = newChunkEncoder(179).WithMetrics(metrics.New())
+	chunks, err = enc.Encode(event, eventBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(chunks) != 1 {
+		t.Errorf("Unexpected chunk: %v", chunks)
+	}
 }
 
 func TestChunkEncoderAdaptive(t *testing.T) {
@@ -348,7 +357,7 @@ func TestChunkEncoderAdaptive(t *testing.T) {
 			expectedMaxEventsInChunk:  1,
 			expectedScaleUpEvents:     1,
 			expectedScaleDownEvents:   0,
-			expectedEquiEvents:        999,
+			expectedEquiEvents:        998,
 		},
 		{
 			// 61 events can fit, but takes some guessing before it gets to the uncompressed limit 7200

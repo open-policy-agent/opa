@@ -136,7 +136,7 @@ func (b *eventBuffer) Upload(ctx context.Context, client rest.Client, uploadPath
 		if event.chunk != nil {
 			result = [][]byte{event.chunk}
 		} else {
-			eventBytes, err := json.Marshal(&event)
+			eventBytes, err := json.Marshal(&event.EventV1)
 			if err != nil {
 				return err
 			}
