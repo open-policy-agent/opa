@@ -4,6 +4,20 @@ Changes
 v3 has many incompatibilities with v2. To see the full list of differences between
 v2 and v3, please read the Changes-v3.md file (https://github.com/lestrrat-go/jwx/blob/develop/v3/Changes-v3.md)
 
+v3.0.11 14 Sep 2025
+  * [jwk] Add `(jwk.Cache).Shutdown()` method that delegates to the httprc controller
+    object, to shutdown the cache.
+  * [jwk] Change timing of `res.Body.Close()` call
+  * [jwe] Previously, ecdh.PrivateKey/ecdh.PublicKey were not properly handled
+    when used for encryption, which has been fixed.
+  * [jws/jwsbb] (EXPERIMENTAL/BREAKS COMPATIBILITY) Convert most functions into
+    thin wrappers around functions from github.com/lestrrat-go/dsig package.
+    As a related change, HAMCHashFuncFor/RSAHashFuncFor/ECDSAHashFuncFor/RSAPSSOptions
+    have been removed or unexported.
+    Users of this module should be using jwsbb.Sign() and jwsbb.Verify() instead of
+    algorithm specific jwsbb.SignRSA()/jwsbb.VerifyRSA() and such. If you feel the
+    need to use these functions, you should use github.com/lestrrat-go/dsig directly.
+
 v3.0.10 04 Aug 2025
   * [jws/jwsbb] Add `jwsbb.ErrHeaderNotFound()` to return the same error type as when
     a non-existent header is requested. via `HeaderGetXXX()` functions. Previously, this

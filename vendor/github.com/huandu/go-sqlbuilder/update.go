@@ -5,6 +5,9 @@ package sqlbuilder
 
 import (
 	"fmt"
+	"reflect"
+
+	"github.com/huandu/go-clone"
 )
 
 const (
@@ -36,6 +39,24 @@ func newUpdateBuilder() *UpdateBuilder {
 		args:      args,
 		injection: newInjection(),
 	}
+}
+
+// Clone returns a deep copy of UpdateBuilder.
+// It's useful when you want to create a base builder and clone it to build similar queries.
+func (ub *UpdateBuilder) Clone() *UpdateBuilder {
+	return clone.Clone(ub).(*UpdateBuilder)
+}
+
+func init() {
+	t := reflect.TypeOf(UpdateBuilder{})
+	clone.SetCustomFunc(t, func(allocator *clone.Allocator, old, new reflect.Value) {
+		cloned := allocator.CloneSlowly(old)
+		new.Set(cloned)
+
+		ub := cloned.Addr().Interface().(*UpdateBuilder)
+		ub.args.Replace(ub.whereClauseExpr, ub.whereClauseProxy)
+		ub.args.Replace(ub.cteBuilderVar, ub.cteBuilder)
+	})
 }
 
 // UpdateBuilder is a builder to build UPDATE.

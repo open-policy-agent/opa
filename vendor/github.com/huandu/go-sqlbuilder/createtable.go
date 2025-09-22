@@ -5,6 +5,8 @@ package sqlbuilder
 
 import (
 	"strings"
+
+	"github.com/huandu/go-clone"
 )
 
 const (
@@ -27,6 +29,12 @@ func newCreateTableBuilder() *CreateTableBuilder {
 		injection: newInjection(),
 		marker:    createTableMarkerInit,
 	}
+}
+
+// Clone returns a deep copy of CreateTableBuilder.
+// It's useful when you want to create a base builder and clone it to build similar queries.
+func (ctb *CreateTableBuilder) Clone() *CreateTableBuilder {
+	return clone.Clone(ctb).(*CreateTableBuilder)
 }
 
 // CreateTableBuilder is a builder to build CREATE TABLE.

@@ -39,10 +39,12 @@ func (w worker) Run(ctx context.Context, readywg *sync.WaitGroup, donewg *sync.W
 		case sr := <-w.nextsync:
 			w.traceSink.Put(ctx, fmt.Sprintf("httprc worker: syncing %q (synchronous)", sr.resource.URL()))
 			if err := sr.resource.Sync(ctx); err != nil {
+				w.traceSink.Put(ctx, fmt.Sprintf("httprc worker: FAILED to sync %q (synchronous): %s", sr.resource.URL(), err))
 				sendReply(ctx, sr.reply, struct{}{}, err)
 				sr.resource.SetBusy(false)
 				return
 			}
+			w.traceSink.Put(ctx, fmt.Sprintf("httprc worker: SUCCESS syncing %q (synchronous)", sr.resource.URL()))
 			sr.resource.SetBusy(false)
 			sendReply(ctx, sr.reply, struct{}{}, nil)
 			w.sendAdjustIntervalRequest(ctx, sr.resource)

@@ -1,67 +1,52 @@
 package jwsbb
 
 import (
-	"crypto/hmac"
-	"crypto/sha256"
-	"crypto/sha512"
 	"fmt"
 	"hash"
 
-	"github.com/lestrrat-go/jwx/v3/internal/keyconv"
+	"github.com/lestrrat-go/dsig"
 )
 
-var hmacHashFuncs = map[string]func() hash.Hash{
-	"HS256": sha256.New,
-	"HS384": sha512.New384,
-	"HS512": sha512.New,
-}
-
-func isSupportedHMACAlgorithm(alg string) bool {
-	_, ok := hmacHashFuncs[alg]
-	return ok
-}
-
-// HMACHashFuncFor returns the appropriate hash function for the given HMAC algorithm.
-// Supported algorithms: HS256 (SHA-256), HS384 (SHA-384), HS512 (SHA-512).
-// Returns the hash function constructor and an error if the algorithm is unsupported.
-func HMACHashFuncFor(alg string) (func() hash.Hash, error) {
-	if h, ok := hmacHashFuncs[alg]; ok {
-		return h, nil
+// hmacHashToDsigAlgorithm maps HMAC hash function sizes to dsig algorithm constants
+func hmacHashToDsigAlgorithm(hfunc func() hash.Hash) (string, error) {
+	h := hfunc()
+	switch h.Size() {
+	case 32: // SHA256
+		return dsig.HMACWithSHA256, nil
+	case 48: // SHA384
+		return dsig.HMACWithSHA384, nil
+	case 64: // SHA512
+		return dsig.HMACWithSHA512, nil
+	default:
+		return "", fmt.Errorf("unsupported HMAC hash function: size=%d", h.Size())
 	}
-	return nil, fmt.Errorf("unsupported HMAC algorithm %s", alg)
-}
-
-func toHMACKey(dst *[]byte, key any) error {
-	if err := keyconv.ByteSliceKey(dst, key); err != nil {
-		return fmt.Errorf(`jws.toHMACKey: invalid key type %T. []byte is required: %w`, key, err)
-	}
-
-	if len(*dst) == 0 {
-		return fmt.Errorf(`jws.toHMACKey: missing key while signing payload`)
-	}
-	return nil
 }
 
 // SignHMAC generates an HMAC signature for the given payload using the specified hash function and key.
 // The raw parameter should be the pre-computed signing input (typically header.payload).
+//
+// This function is now a thin wrapper around dsig.SignHMAC. For new projects, you should
+// consider using dsig instead of this function.
 func SignHMAC(key, payload []byte, hfunc func() hash.Hash) ([]byte, error) {
-	h := hmac.New(hfunc, key)
-	if _, err := h.Write(payload); err != nil {
-		return nil, fmt.Errorf(`failed to write payload using hmac: %w`, err)
+	dsigAlg, err := hmacHashToDsigAlgorithm(hfunc)
+	if err != nil {
+		return nil, fmt.Errorf("jwsbb.SignHMAC: %w", err)
 	}
-	return h.Sum(nil), nil
+
+	return dsig.Sign(key, dsigAlg, payload, nil)
 }
 
 // VerifyHMAC verifies an HMAC signature for the given payload.
 // This function verifies the signature using the specified key and hash function.
 // The payload parameter should be the pre-computed signing input (typically header.payload).
+//
+// This function is now a thin wrapper around dsig.VerifyHMAC. For new projects, you should
+// consider using dsig instead of this function.
 func VerifyHMAC(key, payload, signature []byte, hfunc func() hash.Hash) error {
-	expected, err := SignHMAC(key, payload, hfunc)
+	dsigAlg, err := hmacHashToDsigAlgorithm(hfunc)
 	if err != nil {
-		return fmt.Errorf("failed to sign payload for verification: %w", err)
+		return fmt.Errorf("jwsbb.VerifyHMAC: %w", err)
 	}
-	if !hmac.Equal(signature, expected) {
-		return fmt.Errorf("invalid HMAC signature")
-	}
-	return nil
+
+	return dsig.Verify(key, dsigAlg, payload, signature)
 }

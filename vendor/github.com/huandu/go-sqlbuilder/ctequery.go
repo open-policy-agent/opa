@@ -3,6 +3,12 @@
 
 package sqlbuilder
 
+import (
+	"reflect"
+
+	"github.com/huandu/go-clone"
+)
+
 const (
 	cteQueryMarkerInit injectionMarker = iota
 	cteQueryMarkerAfterTable
@@ -29,10 +35,28 @@ func newCTEQueryBuilder() *CTEQueryBuilder {
 	}
 }
 
+// Clone returns a deep copy of CTEQueryBuilder.
+// It's useful when you want to create a base builder and clone it to build similar queries.
+func (ctetb *CTEQueryBuilder) Clone() *CTEQueryBuilder {
+	return clone.Clone(ctetb).(*CTEQueryBuilder)
+}
+
+func init() {
+	t := reflect.TypeOf(CTEQueryBuilder{})
+	clone.SetCustomFunc(t, func(allocator *clone.Allocator, old, new reflect.Value) {
+		cloned := allocator.CloneSlowly(old)
+		new.Set(cloned)
+
+		ctetb := cloned.Addr().Interface().(*CTEQueryBuilder)
+		ctetb.args.Replace(ctetb.builderVar, ctetb.builder)
+	})
+}
+
 // CTEQueryBuilder is a builder to build one table in CTE (Common Table Expression).
 type CTEQueryBuilder struct {
 	name       string
 	cols       []string
+	builder    Builder
 	builderVar string
 
 	// if true, this query's table name will be automatically added to the table list
@@ -62,6 +86,7 @@ func (ctetb *CTEQueryBuilder) Table(name string, cols ...string) *CTEQueryBuilde
 
 // As sets the builder to select data.
 func (ctetb *CTEQueryBuilder) As(builder Builder) *CTEQueryBuilder {
+	ctetb.builder = builder
 	ctetb.builderVar = ctetb.args.Add(builder)
 	ctetb.marker = cteQueryMarkerAfterAs
 	return ctetb

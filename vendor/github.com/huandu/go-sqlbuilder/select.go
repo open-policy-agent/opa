@@ -5,7 +5,10 @@ package sqlbuilder
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
+
+	"github.com/huandu/go-clone"
 )
 
 const (
@@ -53,6 +56,24 @@ func newSelectBuilder() *SelectBuilder {
 		args:      args,
 		injection: newInjection(),
 	}
+}
+
+// Clone returns a deep copy of SelectBuilder.
+// It's useful when you want to create a base builder and clone it to build similar queries.
+func (sb *SelectBuilder) Clone() *SelectBuilder {
+	return clone.Clone(sb).(*SelectBuilder)
+}
+
+func init() {
+	t := reflect.TypeOf(SelectBuilder{})
+	clone.SetCustomFunc(t, func(allocator *clone.Allocator, old, new reflect.Value) {
+		cloned := allocator.CloneSlowly(old)
+		new.Set(cloned)
+
+		sb := cloned.Addr().Interface().(*SelectBuilder)
+		sb.args.Replace(sb.whereClauseExpr, sb.whereClauseProxy)
+		sb.args.Replace(sb.cteBuilderVar, sb.cteBuilder)
+	})
 }
 
 // SelectBuilder is a builder to build SELECT.
