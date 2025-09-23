@@ -568,6 +568,3 @@ depr-release-local:
 		$(RELEASE_BUILD_IMAGE) \
 		/_src/build/build-release.sh --output-dir=/$(RELEASE_DIR) --source-url=/_src
 
-.PHONY: generate-metrics-docs
-generate-metrics-docs:
-	@$(GO) run cmd/metrics-docs/main.go > docs/docs/metrics-registry.md
