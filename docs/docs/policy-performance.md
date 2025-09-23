@@ -979,7 +979,12 @@ Users are recommended to do performance testing to determine the optimal configu
 
 ## Performance Metrics
 
-OPA exposes metrics for each phase of policy evaluation. For a complete list of all available metrics, see [Metrics Registry](./metrics-registry).
+OPA exposes metrics for each phase of policy evaluation:
+
+- **System-wide metrics** are available at the `/metrics` Prometheus endpoint
+- **Per-query metrics** are returned with individual API responses when `?metrics=true` is specified
+
+See [Monitoring](./monitoring#metrics-overview) for the distinction between these metric types.
 
 ### Query Evaluation Metrics
 
@@ -1089,7 +1094,7 @@ High-level evaluation:
 Access metrics via:
 - REST API: Add `?metrics=true` to policy evaluation requests
 - CLI: Use `--metrics` flag with `opa eval` or `opa bench`
-- Prometheus: Configure metrics exporters (see [Monitoring](./monitoring#prometheus))
+- Prometheus: See [Monitoring](./monitoring#prometheus) for system-wide metrics
 
 ## Key Takeaways
 

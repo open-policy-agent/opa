@@ -2271,6 +2271,8 @@ restarts, a **Redo** Trace Event is emitted.
 
 ## Performance Metrics
 
+**Note**: These are per-query metrics returned inline with API responses. For system-wide aggregated metrics, see the `/metrics` Prometheus endpoint described in [Monitoring](./monitoring#prometheus).
+
 OPA can report detailed performance metrics at runtime. Performance metrics can
 be requested on individual API calls and are returned inline with the API
 response. To enable performance metric collection on an API call, specify the
@@ -2323,15 +2325,7 @@ OPA provides the following query performance metrics:
 - **timer_server_handler_ns**: time taken (in nanoseconds) to handle the API request.
 - **counter_server_query_cache_hit**: number of cache hits for the query.
 
-### Additional Metrics
-
-- **Evaluation operations**: `timer_eval_op_*` metrics for detailed evaluation timing
-- **Compilation phases**: `timer_compile_*` metrics for compilation optimization tracking
-- **Cache performance**: `counter_eval_op_*_cache_*` metrics for cache effectiveness
-- **Built-in functions**: `timer_rego_builtin_*` metrics for built-in performance
-- **External data**: `timer_rego_external_resolve_ns` for external data resolution
-
-See the [Metrics Registry](./metrics-registry) for the complete list.
+When query instrumentation is enabled (`instrument=true`), additional evaluation metrics are included. See [Policy Performance](./policy-performance#performance-metrics) for details on interpreting these metrics.
 
 The `counter_server_query_cache_hit` counter gives an indication about whether OPA creates a new Rego query
 or it uses a pre-processed query which holds some prepared state to serve the API request. A pre-processed query will be
