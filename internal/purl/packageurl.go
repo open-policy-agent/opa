@@ -20,8 +20,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-// Package packageurl implements the package-url spec
-package packageurl
+// Package purl implements the package-url spec
+// This package has been vendored from:
+// https://github.com/package-url/packageurl-go
+// Only the required functions for OPA built-ins have been retained.
+package purl
 
 import (
 	"errors"
@@ -125,6 +128,7 @@ var (
 		TypeComposer:    {},
 		TypeConan:       {},
 		TypeConda:       {},
+		TypeCpan:        {},
 		TypeCran:        {},
 		TypeDebian:      {},
 		TypeDocker:      {},
@@ -212,7 +216,6 @@ var (
 		TypeChocolatey:  {},
 		TypeClojars:     {},
 		TypeCoreos:      {},
-		TypeCpan:        {},
 		TypeCtan:        {},
 		TypeCrystal:     {},
 		TypeDrupal:      {},
@@ -566,7 +569,6 @@ func typeAdjustNamespace(purlType, ns string) string {
 		TypeDebian,
 		TypeGithub,
 		TypeGolang,
-		TypeNPM,
 		TypeRPM,
 		TypeQpkg:
 		return strings.ToLower(ns)
@@ -586,8 +588,7 @@ func typeAdjustName(purlType, name string, qualifiers Qualifiers) string {
 		TypeComposer,
 		TypeDebian,
 		TypeGithub,
-		TypeGolang,
-		TypeNPM:
+		TypeGolang:
 		return strings.ToLower(name)
 	case TypePyPi:
 		return strings.ToLower(strings.ReplaceAll(name, "_", "-"))
@@ -655,6 +656,24 @@ func validCustomRules(p PackageURL) error {
 				if val != "" {
 					return errors.New("namespace is required if channel is non empty")
 				}
+			}
+		}
+	case TypeCpan:
+		if p.Namespace != "" {
+			// The purl refers to a CPAN distribution.
+			publisher := p.Namespace
+			if publisher != strings.ToUpper(publisher) {
+				return errors.New("a cpan distribution namespace must be all uppercase")
+			}
+			distName := p.Name
+			if strings.Contains(distName, "::") {
+				return errors.New("a cpan distribution name must not contain '::'")
+			}
+		} else {
+			// The purl refers to a CPAN module.
+			moduleName := p.Name
+			if strings.Contains(moduleName, "-") {
+				return errors.New("a cpan module name may not contain dashes")
 			}
 		}
 	case TypeSwift:

@@ -7,8 +7,7 @@ package topdown
 import (
 	"fmt"
 
-	"github.com/package-url/packageurl-go"
-
+	"github.com/open-policy-agent/opa/internal/purl"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 )
@@ -19,7 +18,7 @@ func builtinPurlIsValid(_ BuiltinContext, operands []*ast.Term, iter func(*ast.T
 		return iter(ast.InternedTerm(false))
 	}
 
-	_, err = packageurl.FromString(string(str))
+	_, err = purl.FromString(string(str))
 	return iter(ast.InternedTerm(err == nil))
 }
 
@@ -29,32 +28,32 @@ func builtinPurlParse(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 		return err
 	}
 
-	purl, err := packageurl.FromString(string(str))
+	parsedPurl, err := purl.FromString(string(str))
 	if err != nil {
 		return fmt.Errorf("invalid PURL %q: %w", str, err)
 	}
 
 	// Create object with required fields
 	obj := ast.NewObject(
-		[2]*ast.Term{ast.InternedTerm("type"), ast.StringTerm(purl.Type)},
-		[2]*ast.Term{ast.InternedTerm("name"), ast.StringTerm(purl.Name)},
+		[2]*ast.Term{ast.InternedTerm("type"), ast.StringTerm(parsedPurl.Type)},
+		[2]*ast.Term{ast.InternedTerm("name"), ast.StringTerm(parsedPurl.Name)},
 	)
 
 	// Add optional fields only if present
-	if purl.Namespace != "" {
-		obj.Insert(ast.InternedTerm("namespace"), ast.StringTerm(purl.Namespace))
+	if parsedPurl.Namespace != "" {
+		obj.Insert(ast.InternedTerm("namespace"), ast.StringTerm(parsedPurl.Namespace))
 	}
-	if purl.Version != "" {
-		obj.Insert(ast.InternedTerm("version"), ast.StringTerm(purl.Version))
+	if parsedPurl.Version != "" {
+		obj.Insert(ast.InternedTerm("version"), ast.StringTerm(parsedPurl.Version))
 	}
-	if purl.Subpath != "" {
-		obj.Insert(ast.InternedTerm("subpath"), ast.StringTerm(purl.Subpath))
+	if parsedPurl.Subpath != "" {
+		obj.Insert(ast.InternedTerm("subpath"), ast.StringTerm(parsedPurl.Subpath))
 	}
 
 	// Add qualifiers only if present
-	if len(purl.Qualifiers) > 0 {
+	if len(parsedPurl.Qualifiers) > 0 {
 		qualifiers := ast.NewObject()
-		for _, q := range purl.Qualifiers {
+		for _, q := range parsedPurl.Qualifiers {
 			qualifiers.Insert(ast.StringTerm(q.Key), ast.StringTerm(q.Value))
 		}
 		obj.Insert(ast.InternedTerm("qualifiers"), ast.NewTerm(qualifiers))

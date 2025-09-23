@@ -6,7 +6,7 @@ cases:
       - |
         package generated
         p := x if {
-          purl.is_valid("pkg:npm/foobar@12.3.1", x)
+          x := purl.is_valid("pkg:npm/foobar@12.3.1")
         }
     want_result:
       - x: true
@@ -17,7 +17,7 @@ cases:
       - |
         package generated
         p := x if {
-          purl.is_valid("pkg:maven/org.apache.xmlgraphics/batik-anim@1.9.1", x)
+          x := purl.is_valid("pkg:maven/org.apache.xmlgraphics/batik-anim@1.9.1")
         }
     want_result:
       - x: true
@@ -28,7 +28,7 @@ cases:
       - |
         package generated
         p := x if {
-          purl.is_valid("not-a-purl", x)
+          x := purl.is_valid("not-a-purl")
         }
     want_result:
       - x: false
@@ -39,7 +39,7 @@ cases:
       - |
         package generated
         p := x if {
-          purl.is_valid("", x)
+          x := purl.is_valid("")
         }
     want_result:
       - x: false
