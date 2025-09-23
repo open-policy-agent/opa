@@ -104,6 +104,7 @@ module.exports = {
         "editor-and-ide-support",
         "oauth-oidc",
         "cheatsheet",
+        "style-guide",
       ],
     },
     {
