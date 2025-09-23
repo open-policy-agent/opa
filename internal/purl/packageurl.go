@@ -299,7 +299,7 @@ func QualifiersFromMap(mm map[string]string) Qualifiers {
 func (qq Qualifiers) Map() map[string]string {
 	m := make(map[string]string)
 
-	for i := 0; i < len(qq); i++ {
+	for i := range len(qq) {
 		k := qq[i].Key
 		v := qq[i].Value
 		m[k] = v
@@ -309,7 +309,7 @@ func (qq Qualifiers) Map() map[string]string {
 }
 
 func (qq Qualifiers) String() string {
-	var kvPairs []string
+	kvPairs := make([]string, 0, len(qq))
 	for _, q := range qq {
 		kvPairs = append(kvPairs, q.String())
 	}
@@ -419,7 +419,7 @@ func FromString(purl string) (PackageURL, error) {
 
 	typ, p, ok := strings.Cut(p, "/")
 	if !ok {
-		return PackageURL{}, fmt.Errorf("purl is missing type or name")
+		return PackageURL{}, errors.New("purl is missing type or name")
 	}
 	typ = strings.ToLower(typ)
 
@@ -514,7 +514,7 @@ func separateNamespaceNameVersion(path string) (ns, name, version string, err er
 	}
 
 	if name == "" {
-		return "", "", "", fmt.Errorf("purl is missing name")
+		return "", "", "", errors.New("purl is missing name")
 	}
 
 	return ns, name, version, nil
@@ -530,7 +530,7 @@ func parseQualifiers(rawQuery string) (Qualifiers, error) {
 		var key string
 		key, rawQuery, _ = strings.Cut(rawQuery, "&")
 		if strings.Contains(key, ";") {
-			return nil, fmt.Errorf("invalid semicolon separator in query")
+			return nil, errors.New("invalid semicolon separator in query")
 		}
 		if key == "" {
 			continue
