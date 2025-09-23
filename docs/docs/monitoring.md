@@ -86,6 +86,77 @@ When Prometheus is enabled in the status plugin (see [Configuration](./configura
 | last_success_bundle_request    | gauge       | Last successful bundle request in UNIX nanoseconds.    | STABLE |
 | bundle_loading_duration_ns     | histogram   | A histogram of duration for bundle loading.            | STABLE |
 
+## Operational Metrics
+
+OPA exposes operational metrics for system monitoring.
+
+### Server and Request Metrics
+
+- `timer_server_handler_ns` - Total time to handle API request
+- `timer_server_read_bytes_ns` - Time spent reading request body
+
+
+### Bundle Management Metrics
+
+- `timer_bundle_request_ns` - Time spent downloading bundles from remote servers
+- `timer_rego_load_bundles_ns` - Time to load and activate bundles
+
+Use these to detect slow bundle servers or compilation issues.
+
+### Cache Performance Metrics
+
+- `counter_server_query_cache_hit` - Query results served from cache
+- `counter_rego_builtin_http_send_interquery_cache_hits` - HTTP responses served from inter-query cache
+- `counter_rego_builtin_http_send_network_requests` - Actual network requests made
+- `counter_rego_builtin_glob_interquery_value_cache_hits` - Glob pattern cache hits
+- `counter_rego_builtin_regex_interquery_value_cache_hits` - Regex pattern cache hits
+
+#### Evaluation Cache Metrics
+- `counter_eval_op_virtual_cache_hit` - Virtual document cache hits
+- `counter_eval_op_virtual_cache_miss` - Virtual document cache misses
+- `counter_eval_op_base_cache_hit` - Base document cache hits
+- `counter_eval_op_base_cache_miss` - Base document cache misses
+- `counter_eval_op_comprehension_cache_hit` - Comprehension cache hits
+- `counter_eval_op_comprehension_cache_miss` - Comprehension cache misses
+- `counter_eval_op_comprehension_cache_build` - Comprehension cache builds
+- `counter_eval_op_comprehension_cache_skip` - Comprehension cache skips
+
+Higher cache hit ratios mean better performance.
+
+### Disk Storage Metrics
+
+- `timer_disk_read_ns` - Time to read from disk storage
+- `timer_disk_write_ns` - Time to write to disk storage
+- `timer_disk_commit_ns` - Time to commit disk transactions
+- `counter_disk_read_keys` - Number of keys read from disk
+- `counter_disk_read_bytes` - Bytes read from disk
+- `counter_disk_written_keys` - Number of keys written to disk
+- `counter_disk_deleted_keys` - Number of keys deleted from disk
+
+### WASM Runtime Metrics
+
+- `timer_wasm_pool_acquire_ns` - Time to acquire WASM instance from pool
+- `timer_wasm_pool_release_ns` - Time to release WASM instance to pool
+- `timer_wasm_vm_eval_ns` - Total WASM evaluation time
+- `timer_wasm_vm_eval_prepare_input_ns` - Time preparing input for WASM
+- `timer_wasm_vm_eval_call_ns` - Time calling WASM function
+- `timer_wasm_vm_eval_execute_ns` - Time executing WASM code
+- `timer_wasm_vm_eval_prepare_result_ns` - Time preparing WASM result
+
+### Accessing Metrics
+
+1. **Prometheus endpoint**: `/metrics` - HTTP GET endpoint that exports all metrics in Prometheus format
+   - URL: `http://localhost:8181/metrics` (when OPA runs with default settings)
+   - Format: Prometheus text format (compatible with Prometheus scrapers)
+   - Includes: All timers, counters, histograms, plus Go runtime metrics
+2. **Status API**: Includes subset of metrics in status reports
+3. **Decision logs**: Can include request-level metrics
+4. **Query API**: Add `?metrics=true` to policy evaluation requests
+
+For a complete list of all available metrics, see [Metrics Registry](./metrics-registry).
+
+For policy evaluation metrics, see [Policy Performance](./policy-performance#performance-metrics).
+
 ## Health Checks
 
 OPA exposes a `/health` API endpoint that can be used to perform health checks.

@@ -95,6 +95,7 @@ version:
 release-dir:
 	@echo $(RELEASE_DIR)
 
+
 .PHONY: generate
 generate: wasm-lib-build
 ifeq ($(GOOS),windows)
@@ -577,3 +578,7 @@ depr-release-local:
 		-e TELEMETRY_URL=$(TELEMETRY_URL) \
 		$(RELEASE_BUILD_IMAGE) \
 		/_src/build/build-release.sh --output-dir=/$(RELEASE_DIR) --source-url=/_src
+
+.PHONY: generate-metrics-docs
+generate-metrics-docs:
+	@$(GO) run cmd/metrics-docs/main.go > docs/docs/metrics-registry.md
