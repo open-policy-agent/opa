@@ -91,9 +91,9 @@ var (
 	TypeHackage = "hackage"
 	// TypeHex is a pkg:hex purl.
 	TypeHex = "hex"
-	// TypeHuggingface is pkg:huggingface purl.
+	// TypeHuggingface is a pkg:huggingface purl.
 	TypeHuggingface = "huggingface"
-	// TypeMLflow is pkg:mlflow purl.
+	// TypeMLFlow is a pkg:mlflow purl.
 	TypeMLFlow = "mlflow"
 	// TypeMaven is a pkg:maven purl.
 	TypeMaven = "maven"
@@ -299,7 +299,7 @@ func QualifiersFromMap(mm map[string]string) Qualifiers {
 func (qq Qualifiers) Map() map[string]string {
 	m := make(map[string]string)
 
-	for i := range len(qq) {
+	for i := range qq {
 		k := qq[i].Key
 		v := qq[i].Value
 		m[k] = v
