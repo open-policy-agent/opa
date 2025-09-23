@@ -2311,16 +2311,27 @@ Content-Type: application/json
 }
 ```
 
-OPA currently supports the following query performance metrics:
+OPA provides the following query performance metrics:
 
+### Core Query Metrics
 - **timer_rego_input_parse_ns**: time taken (in nanoseconds) to parse the input
 - **timer_rego_query_parse_ns**: time taken (in nanoseconds) to parse the query.
 - **timer_rego_query_compile_ns**: time taken (in nanoseconds) to compile the query.
 - **timer_rego_query_eval_ns**: time taken (in nanoseconds) to evaluate the query.
 - **timer_rego_module_parse_ns**: time taken (in nanoseconds) to parse the input policy module.
 - **timer_rego_module_compile_ns**: time taken (in nanoseconds) to compile the loaded policy modules.
-- **timer_server_handler_ns**: time take (in nanoseconds) to handle the API request.
+- **timer_server_handler_ns**: time taken (in nanoseconds) to handle the API request.
 - **counter_server_query_cache_hit**: number of cache hits for the query.
+
+### Additional Metrics
+
+- **Evaluation operations**: `timer_eval_op_*` metrics for detailed evaluation timing
+- **Compilation phases**: `timer_compile_*` metrics for compilation optimization tracking
+- **Cache performance**: `counter_eval_op_*_cache_*` metrics for cache effectiveness
+- **Built-in functions**: `timer_rego_builtin_*` metrics for built-in performance
+- **External data**: `timer_rego_external_resolve_ns` for external data resolution
+
+See the [Metrics Registry](./metrics-registry) for the complete list.
 
 The `counter_server_query_cache_hit` counter gives an indication about whether OPA creates a new Rego query
 or it uses a pre-processed query which holds some prepared state to serve the API request. A pre-processed query will be

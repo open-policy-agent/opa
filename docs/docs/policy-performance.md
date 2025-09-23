@@ -977,6 +977,120 @@ This feature can be enabled for `opa run`, `opa eval`, and `opa bench` by settin
 
 Users are recommended to do performance testing to determine the optimal configuration for their use case.
 
+## Performance Metrics
+
+OPA exposes metrics for each phase of policy evaluation. For a complete list of all available metrics, see [Metrics Registry](./metrics-registry).
+
+### Query Evaluation Metrics
+
+Query evaluation phases:
+
+- `timer_rego_query_parse_ns` - Time spent parsing the query string into AST
+- `timer_rego_query_compile_ns` - Time spent compiling the query for evaluation
+- `timer_rego_query_eval_ns` - Time spent executing the compiled query
+
+Compilation time often dominates in complex policies.
+
+### Module and Policy Metrics
+
+Policy compilation and parsing:
+
+- `timer_rego_module_parse_ns` - Time to parse policy modules from source
+- `timer_rego_module_compile_ns` - Time to compile parsed modules into evaluation form
+- `timer_rego_data_parse_ns` - Time to parse data documents
+- `timer_rego_input_parse_ns` - Time to parse input documents
+
+Module compilation runs once at load time. Slow compilation impacts bundle updates.
+
+### File and Bundle Loading
+
+Policy and data loading:
+
+- `timer_rego_load_files_ns` - Time to load policy files from disk
+- `timer_rego_load_bundles_ns` - Time to load and activate bundles
+- `timer_bundle_request_ns` - Time spent downloading bundles
+
+### Compilation and Partial Evaluation Metrics
+
+Compilation and partial evaluation:
+
+- `timer_rego_partial_eval_ns` - Total partial evaluation time
+- `timer_compile_prep_partial_ns` - Time preparing for partial evaluation
+- `timer_compile_eval_constraints_ns` - Time evaluating constraints
+- `timer_compile_translate_queries_ns` - Time translating queries
+- `timer_compile_extract_annotations_unknowns_ns` - Time extracting unknowns
+- `timer_compile_extract_annotations_mask_ns` - Time extracting masks
+- `timer_compile_eval_mask_rule_ns` - Time evaluating mask rules
+- `timer_compile_stage_check_imports_ns` - Time checking imports
+- `counter_compile_stage_comprehension_index_build` - Comprehension indices built
+
+High partial evaluation times indicate optimization opportunities.
+
+### Evaluation Operation Metrics
+
+Evaluation operations produce both timer and histogram metrics:
+
+**Timers** (measure total time):
+- `timer_eval_op_plug_ns` - Time spent in plugging operations
+- `timer_eval_op_resolve_ns` - Time resolving references
+- `timer_eval_op_rule_index_ns` - Time spent in rule indexing
+- `timer_eval_op_builtin_call_ns` - Time spent calling built-in functions
+- `timer_partial_op_save_unify_ns` - Time saving unification in partial eval
+- `timer_partial_op_save_set_contains_ns` - Time for set contains in partial eval
+- `timer_partial_op_save_set_contains_rec_ns` - Time for recursive set contains
+- `timer_partial_op_copy_propagation_ns` - Time for copy propagation optimization
+
+**Histograms** (track time distribution):
+- `histogram_eval_op_plug` - Distribution of plugging operation times
+- `histogram_eval_op_resolve` - Distribution of reference resolution times
+- `histogram_eval_op_rule_index` - Distribution of rule indexing times
+- `histogram_eval_op_builtin_call` - Distribution of built-in function call times
+- `histogram_partial_op_save_unify` - Distribution of unification save times
+- `histogram_partial_op_save_set_contains` - Distribution of set contains times
+- `histogram_partial_op_save_set_contains_rec` - Distribution of recursive set contains times
+- `histogram_partial_op_copy_propagation` - Distribution of copy propagation times
+
+Histograms show percentiles: 50%, 75%, 90%, 95%, 99%, 99.9%, 99.99%.
+
+### Built-in Function Metrics
+
+#### HTTP Built-ins
+
+`http.send` metrics:
+
+- `timer_rego_builtin_http_send_ns` - Total time spent in http.send calls
+- `counter_rego_builtin_http_send_interquery_cache_hits` - Inter-query cache hits
+- `counter_rego_builtin_http_send_network_requests` - Actual network requests made
+
+High cache hit ratios indicate effective caching.
+
+#### External Data Resolution
+
+External data resolution:
+
+- `timer_rego_external_resolve_ns` - Time resolving external data references
+
+### SDK and Server Metrics
+
+High-level evaluation:
+
+- `timer_server_handler_ns` - Total request handler execution time
+- `timer_sdk_decision_eval_ns` - SDK decision evaluation time
+- `counter_server_query_cache_hit` - Server-level query cache hits
+
+### Using Metrics
+
+1. Compare parse, compile, and eval times to find slow phases
+2. High operation counts indicate complex queries
+3. Low cache hit rates suggest tuning opportunities
+4. High `http.send` counts indicate I/O bottlenecks
+5. Bundle activation times show deployment latency
+
+Access metrics via:
+- REST API: Add `?metrics=true` to policy evaluation requests
+- CLI: Use `--metrics` flag with `opa eval` or `opa bench`
+- Prometheus: Configure metrics exporters (see [Monitoring](./monitoring#prometheus))
+
 ## Key Takeaways
 
 For high-performance use cases:
@@ -987,3 +1101,4 @@ For high-performance use cases:
 - Write your policies with indexed statements so that [rule-indexing](https://blog.openpolicyagent.org/optimizing-opa-rule-indexing-59f03f17caf3) is effective.
 - Use the profiler to help identify portions of the policy that would benefit the most from improved performance.
 - Use the benchmark tools to help get real world timing data and detect policy performance changes.
+- Monitor performance metrics to track optimization impact and identify bottlenecks.
