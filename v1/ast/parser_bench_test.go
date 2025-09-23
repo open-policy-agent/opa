@@ -76,6 +76,22 @@ func BenchmarkParseStatementNestedObjects(b *testing.B) {
 	}
 }
 
+func BenchmarkParseSome(b *testing.B) {
+	b.Run("parse some", func(b *testing.B) {
+		for range b.N {
+			_ = MustParseStatement("some foo")
+		}
+	})
+}
+
+func BenchmarkParseEvery(b *testing.B) {
+	b.Run("parse every", func(b *testing.B) {
+		for range b.N {
+			_ = MustParseStatement("every x, y in input { x == y}")
+		}
+	})
+}
+
 // BenchmarkParseDeepNesting tests the impact of recursion depth tracking
 // on parsing performance with deeply nested structures (arrays and objects).
 // Different depths are used to measure the overhead at various nesting levels.

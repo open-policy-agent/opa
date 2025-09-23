@@ -168,10 +168,10 @@ func (enc *chunkEncoder) Encode(event EventV1, eventBytes []byte) ([][]byte, err
 
 		currentSize := len(result)
 		if currentSize <= int(enc.limit) {
-			enc.uncompressedLimit = int64(len(eventBytes))
-			enc.scaleUp()
 			// success! the incoming chunk doesn't have to lose the ND cache and can go into a chunk by itself
 			// scale up the uncompressed limit using the uncompressed event size as a base
+			enc.uncompressedLimit = int64(len(eventBytes))
+			enc.scaleUp()
 			return [][]byte{result}, nil
 		}
 
@@ -181,7 +181,6 @@ func (enc *chunkEncoder) Encode(event EventV1, eventBytes []byte) ([][]byte, err
 		}
 
 		// 2. Drop the ND cache and see if the incoming event can fit within the current chunk without the cache (so we can maximize chunk size)
-		enc.initialize()
 		enc.incrMetric(encLogExUploadSizeLimitCounterName)
 		// If there's no ND builtins cache in the event, then we don't need to retry encoding anything.
 		if event.NDBuiltinCache == nil {

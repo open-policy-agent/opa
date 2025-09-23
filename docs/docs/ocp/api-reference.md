@@ -322,7 +322,7 @@ Sources define where policies and data come from (Git repositories, local files,
         }
       },
       "credentials": "api-credentials",
-      "transform_query": "users[user.id] = user { user := input.users[_] }"
+      "transform_query": "{user.id: user | user := input.users[_]}"
     }
   ]
 }
@@ -641,9 +641,9 @@ Unauthorized
 {
   "object_storage": {
     "azure": {
-      "account": "mystorageaccount",
+      "account_url": "https://mystorageaccount.blob.core.windows.net",
       "container": "policy-bundles",
-      "key": "bundles/my-app/bundle.tar.gz",
+      "path": "bundles/my-app/bundle.tar.gz",
       "credentials": "azure-credentials"
     }
   }
@@ -699,7 +699,7 @@ Unauthorized
         }
       },
       "credentials": "api-credentials",
-      "transform_query": "users[user.id] = user { user := input.users[_] }"
+      "transform_query": "{user.id: user | user := input.users[_]}"
     }
   ]
 }

@@ -103,6 +103,8 @@ module.exports = {
         "cli",
         "editor-and-ide-support",
         "oauth-oidc",
+        "cheatsheet",
+        "style-guide",
       ],
     },
     {

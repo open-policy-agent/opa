@@ -96,23 +96,48 @@ func (e *encrypter) EncryptKey(cek []byte) (keygen.ByteSource, error) {
 			keyToUse = e.pubkey
 		}
 
-		// Handle ecdsa.PublicKey by value - convert to pointer
-		if pk, ok := keyToUse.(ecdsa.PublicKey); ok {
-			keyToUse = &pk
+		switch key := keyToUse.(type) {
+		case *ecdsa.PublicKey:
+			// no op
+		case ecdsa.PublicKey:
+			keyToUse = &key
+		case *ecdsa.PrivateKey:
+			keyToUse = &key.PublicKey
+		case ecdsa.PrivateKey:
+			keyToUse = &key.PublicKey
+		case *ecdh.PublicKey:
+			// no op
+		case ecdh.PublicKey:
+			keyToUse = &key
+		case ecdh.PrivateKey:
+			keyToUse = key.PublicKey()
+		case *ecdh.PrivateKey:
+			keyToUse = key.PublicKey()
 		}
 
 		// Determine key type and call appropriate function
+		switch key := keyToUse.(type) {
+		case *ecdh.PublicKey:
+			if key.Curve() == ecdh.X25519() {
+				if !keywrap {
+					return jwebb.KeyEncryptECDHESX25519(cek, e.keyalg.String(), e.apu, e.apv, key, keysize, e.ctalg.String())
+				}
+				return jwebb.KeyEncryptECDHESKeyWrapX25519(cek, e.keyalg.String(), e.apu, e.apv, key, keysize, e.ctalg.String())
+			}
+
+			var ecdsaKey *ecdsa.PublicKey
+			if err := keyconv.ECDHToECDSA(&ecdsaKey, key); err != nil {
+				return nil, fmt.Errorf(`encrypt: failed to convert ECDH public key to ECDSA: %w`, err)
+			}
+			keyToUse = ecdsaKey
+		}
+
 		switch key := keyToUse.(type) {
 		case *ecdsa.PublicKey:
 			if !keywrap {
 				return jwebb.KeyEncryptECDHESECDSA(cek, e.keyalg.String(), e.apu, e.apv, key, keysize, e.ctalg.String())
 			}
 			return jwebb.KeyEncryptECDHESKeyWrapECDSA(cek, e.keyalg.String(), e.apu, e.apv, key, keysize, e.ctalg.String())
-		case *ecdh.PublicKey:
-			if !keywrap {
-				return jwebb.KeyEncryptECDHESX25519(cek, e.keyalg.String(), e.apu, e.apv, key, keysize, e.ctalg.String())
-			}
-			return jwebb.KeyEncryptECDHESKeyWrapX25519(cek, e.keyalg.String(), e.apu, e.apv, key, keysize, e.ctalg.String())
 		default:
 			return nil, fmt.Errorf(`encrypt: unsupported key type for ECDH-ES: %T`, keyToUse)
 		}

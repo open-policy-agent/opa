@@ -129,21 +129,22 @@ func (b *eventBuffer) Upload(ctx context.Context, client rest.Client, uploadPath
 	}
 
 	for range eventLen {
-		event := b.readEvent()
-		if event == nil {
+		bufItem := b.readBufItem()
+		if bufItem == nil {
 			break
 		}
 
 		var result [][]byte
-		if event.chunk != nil {
-			result = [][]byte{event.chunk}
+		if bufItem.chunk != nil {
+			result = [][]byte{bufItem.chunk}
 		} else {
+			event := bufItem.EventV1
 			eventBytes, err := json.Marshal(&event)
 			if err != nil {
 				return err
 			}
 
-			result, err = b.enc.Encode(*event.EventV1, eventBytes)
+			result, err = b.enc.Encode(*event, eventBytes)
 			if err != nil {
 				b.incrMetric(logEncodingFailureCounterName)
 				if b.logger != nil {
@@ -191,7 +192,7 @@ func (b *eventBuffer) uploadChunks(ctx context.Context, result [][]byte, client 
 }
 
 // readEvent does a nonblocking read from the event buffer
-func (b *eventBuffer) readEvent() *bufferItem {
+func (b *eventBuffer) readBufItem() *bufferItem {
 	select {
 	case event := <-b.buffer:
 		return event

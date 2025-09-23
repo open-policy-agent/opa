@@ -7,6 +7,7 @@ import (
 	"crypto/rsa"
 	"fmt"
 
+	"github.com/lestrrat-go/dsig"
 	"github.com/lestrrat-go/jwx/v3/internal/keyconv"
 )
 
@@ -15,113 +16,90 @@ import (
 // This function loads the verifier registered in the jwsbb package _ONLY_.
 // It does not support custom verifiers that the user might have registered.
 func Verify(key any, alg string, payload, signature []byte) error {
-	switch {
-	case isSupportedHMACAlgorithm(alg):
-		return dispatchHMACVerify(key, alg, payload, signature)
-	case isSuppotedRSAAlgorithm(alg):
-		return dispatchRSAVerify(key, alg, payload, signature)
-	case isSuppotedECDSAAlgorithm(alg):
-		return dispatchECDSAVerify(key, alg, payload, signature)
-	case isSupportedEdDSAAlgorithm(alg):
-		return dispatchEdDSAVerify(key, alg, payload, signature)
+	dsigAlg, ok := getDsigAlgorithm(alg)
+	if !ok {
+		return fmt.Errorf(`jwsbb.Verify: unsupported signature algorithm %q`, alg)
 	}
 
-	return fmt.Errorf(`jwsbb.Verify: unsupported signature algorithm %q`, alg)
+	// Get dsig algorithm info to determine key conversion strategy
+	dsigInfo, ok := dsig.GetAlgorithmInfo(dsigAlg)
+	if !ok {
+		return fmt.Errorf(`jwsbb.Verify: dsig algorithm %q not registered`, dsigAlg)
+	}
+
+	switch dsigInfo.Family {
+	case dsig.HMAC:
+		return dispatchHMACVerify(key, dsigAlg, payload, signature)
+	case dsig.RSA:
+		return dispatchRSAVerify(key, dsigAlg, payload, signature)
+	case dsig.ECDSA:
+		return dispatchECDSAVerify(key, dsigAlg, payload, signature)
+	case dsig.EdDSAFamily:
+		return dispatchEdDSAVerify(key, dsigAlg, payload, signature)
+	default:
+		return fmt.Errorf(`jwsbb.Verify: unsupported dsig algorithm family %q`, dsigInfo.Family)
+	}
 }
 
-func dispatchHMACVerify(key any, alg string, payload, signature []byte) error {
-	h, err := HMACHashFuncFor(alg)
-	if err != nil {
-		return fmt.Errorf(`jwsbb.Verify: failed to get hash function for %s: %w`, alg, err)
-	}
-
+func dispatchHMACVerify(key any, dsigAlg string, payload, signature []byte) error {
 	var hmackey []byte
-	if err := toHMACKey(&hmackey, key); err != nil {
-		return fmt.Errorf(`jwsbb.Verify: %w`, err)
+	if err := keyconv.ByteSliceKey(&hmackey, key); err != nil {
+		return fmt.Errorf(`jwsbb.Verify: invalid key type %T. []byte is required: %w`, key, err)
 	}
-	return VerifyHMAC(hmackey, payload, signature, h)
+
+	return dsig.Verify(hmackey, dsigAlg, payload, signature)
 }
 
-func dispatchRSAVerify(key any, alg string, payload, signature []byte) error {
-	h, pss, err := RSAHashFuncFor(alg)
-	if err != nil {
-		return fmt.Errorf(`jwsbb.Verify: failed to get hash function for %s: %w`, alg, err)
+func dispatchRSAVerify(key any, dsigAlg string, payload, signature []byte) error {
+	// Try crypto.Signer first (dsig can handle it directly)
+	if signer, ok := key.(crypto.Signer); ok {
+		// Verify it's an RSA key
+		if _, ok := signer.Public().(*rsa.PublicKey); ok {
+			return dsig.Verify(signer, dsigAlg, payload, signature)
+		}
 	}
 
+	// Fall back to concrete key types
 	var pubkey *rsa.PublicKey
-
-	if cs, ok := key.(crypto.Signer); ok {
-		cpub := cs.Public()
-		switch cpub := cpub.(type) {
-		case rsa.PublicKey:
-			pubkey = &cpub
-		case *rsa.PublicKey:
-			pubkey = cpub
-		default:
-			return fmt.Errorf(`jwsbb.Verify: failed to retrieve rsa.PublicKey out of crypto.Signer %T`, key)
-		}
-	} else {
-		if err := keyconv.RSAPublicKey(&pubkey, key); err != nil {
-			return fmt.Errorf(`jwsbb.Verify: failed to retrieve rsa.PublicKey out of %T: %w`, key, err)
-		}
+	if err := keyconv.RSAPublicKey(&pubkey, key); err != nil {
+		return fmt.Errorf(`jwsbb.Verify: invalid key type %T. *rsa.PublicKey is required: %w`, key, err)
 	}
 
-	return VerifyRSA(pubkey, payload, signature, h, pss)
+	return dsig.Verify(pubkey, dsigAlg, payload, signature)
 }
 
-func dispatchECDSAVerify(key any, alg string, payload, signature []byte) error {
-	h, err := ECDSAHashFuncFor(alg)
-	if err != nil {
-		return fmt.Errorf(`jwsbb.Verify: failed to get hash function for %s: %w`, alg, err)
-	}
-
-	pubkey, cs, isCryptoSigner, err := ecdsaGetVerifierKey(key)
-	if err != nil {
-		return fmt.Errorf(`jwsbb.Verify: %w`, err)
-	}
-	if isCryptoSigner {
-		return VerifyECDSACryptoSigner(cs, payload, signature, h)
-	}
-	return VerifyECDSA(pubkey, payload, signature, h)
-}
-
-func dispatchEdDSAVerify(key any, _ string, payload, signature []byte) error {
-	var pubkey ed25519.PublicKey
-	signer, ok := key.(crypto.Signer)
-	if ok {
-		v := signer.Public()
-		pubkey, ok = v.(ed25519.PublicKey)
-		if !ok {
-			return fmt.Errorf(`jwsbb.Verify: expected crypto.Signer.Public() to return ed25519.PublicKey, but got %T`, v)
-		}
-	} else {
-		if err := keyconv.Ed25519PublicKey(&pubkey, key); err != nil {
-			return fmt.Errorf(`jwsbb.Verify: failed to retrieve ed25519.PublicKey out of %T: %w`, key, err)
+func dispatchECDSAVerify(key any, dsigAlg string, payload, signature []byte) error {
+	// Try crypto.Signer first (dsig can handle it directly)
+	if signer, ok := key.(crypto.Signer); ok {
+		// Verify it's an ECDSA key
+		if _, ok := signer.Public().(*ecdsa.PublicKey); ok {
+			return dsig.Verify(signer, dsigAlg, payload, signature)
 		}
 	}
 
-	return VerifyEdDSA(pubkey, payload, signature)
-}
-
-func ecdsaGetVerifierKey(key any) (*ecdsa.PublicKey, crypto.Signer, bool, error) {
-	cs, isCryptoSigner := key.(crypto.Signer)
-	if isCryptoSigner {
-		switch key.(type) {
-		case ecdsa.PublicKey, *ecdsa.PublicKey:
-			// if it's ecdsa.PublicKey, it's more efficient to
-			// go through the non-crypto.Signer route. Set isCryptoSigner to false
-			isCryptoSigner = false
-		}
-	}
-
-	if isCryptoSigner {
-		return nil, cs, true, nil
-	}
-
+	// Fall back to concrete key types
 	var pubkey *ecdsa.PublicKey
 	if err := keyconv.ECDSAPublicKey(&pubkey, key); err != nil {
-		return nil, nil, false, fmt.Errorf(`invalid key type %T. ecdsa.PublicKey is required: %w`, key, err)
+		return fmt.Errorf(`jwsbb.Verify: invalid key type %T. *ecdsa.PublicKey is required: %w`, key, err)
 	}
 
-	return pubkey, nil, false, nil
+	return dsig.Verify(pubkey, dsigAlg, payload, signature)
+}
+
+func dispatchEdDSAVerify(key any, dsigAlg string, payload, signature []byte) error {
+	// Try crypto.Signer first (dsig can handle it directly)
+	if signer, ok := key.(crypto.Signer); ok {
+		// Verify it's an EdDSA key
+		if _, ok := signer.Public().(ed25519.PublicKey); ok {
+			return dsig.Verify(signer, dsigAlg, payload, signature)
+		}
+	}
+
+	// Fall back to concrete key types
+	var pubkey ed25519.PublicKey
+	if err := keyconv.Ed25519PublicKey(&pubkey, key); err != nil {
+		return fmt.Errorf(`jwsbb.Verify: invalid key type %T. ed25519.PublicKey is required: %w`, key, err)
+	}
+
+	return dsig.Verify(pubkey, dsigAlg, payload, signature)
 }
