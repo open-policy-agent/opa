@@ -70,7 +70,7 @@ func (b *eventBuffer) incrMetric(name string) {
 // Reconfigure updates the user configurable values
 // This cannot be called concurrently, this could change the underlying channel.
 // Plugin manages a lock to control this so that changes to both buffer types can be managed sequentially.
-func (b *eventBuffer) Reconfigure(bufferSizeLimitEvents int64, client rest.Client, uploadPath string, uploadSizeLimitBytes int64, maxDecisionsPerSecond *float64) {
+func (b *eventBuffer) Reconfigure(bufferSizeLimitEvents int64, uploadSizeLimitBytes int64, maxDecisionsPerSecond *float64) {
 	// prevent an upload from pushing events that failed to upload back into a closed buffer
 	b.upload.Lock()
 	defer b.upload.Unlock()

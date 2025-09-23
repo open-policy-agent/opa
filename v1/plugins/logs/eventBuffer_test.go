@@ -56,7 +56,7 @@ func TestEventBuffer_Push(t *testing.T) {
 
 	// Increase the limit, forcing the buffer to change
 	limit = int64(3)
-	b.Reconfigure(limit, rest.Client{}, "", 0, nil)
+	b.Reconfigure(limit, 0, nil)
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 
 	id = "id4"
@@ -73,7 +73,7 @@ func TestEventBuffer_Push(t *testing.T) {
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 
 	limit = int64(1)
-	b.Reconfigure(limit, rest.Client{}, "", 0, nil)
+	b.Reconfigure(limit, 0, nil)
 	// Limit reconfigured from 3->1, dropping 2 more events.
 	expectedDropped = 4
 	delete(expectedIds, "id3")
@@ -81,7 +81,7 @@ func TestEventBuffer_Push(t *testing.T) {
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 
 	// Nothing changed
-	b.Reconfigure(limit, rest.Client{}, "", 0, nil)
+	b.Reconfigure(limit, 0, nil)
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 }
 

@@ -456,7 +456,7 @@ type buffer interface {
 	Name() string
 	Push(*EventV1)
 	Upload(context.Context, rest.Client, string) error
-	Reconfigure(int64, rest.Client, string, int64, *float64)
+	Reconfigure(int64, int64, *float64)
 	WithMetrics(metrics.Metrics)
 }
 
@@ -945,10 +945,16 @@ func (p *Plugin) reconfigure(ctx context.Context, config any) {
 		return
 	}
 
+	var limit int64
+
+	switch p.config.Reporting.BufferType {
+	case eventBufferType:
+		limit = *p.config.Reporting.BufferSizeLimitEvents
+	case sizeBufferType:
+		limit = *p.config.Reporting.UploadSizeLimitBytes
+	}
 	p.b.Reconfigure(
-		*p.config.Reporting.BufferSizeLimitEvents,
-		p.manager.Client(p.config.Service),
-		*p.config.Resource,
+		limit,
 		*p.config.Reporting.UploadSizeLimitBytes,
 		p.config.Reporting.MaxDecisionsPerSecond,
 	)
