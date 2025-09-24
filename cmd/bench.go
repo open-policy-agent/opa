@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/olekukonko/tablewriter/tw"
+
 	"github.com/open-policy-agent/opa/v1/ast"
 
 	"github.com/open-policy-agent/opa/v1/server/types"
@@ -624,8 +626,8 @@ func renderBenchmarkResult(params benchmarkCommandParams, br testing.BenchmarkRe
 			data = append(data, []string{k, prettyFormatFloat(br.Extra[k])})
 		}
 
-		table := tablewriter.NewWriter(w)
-		table.AppendBulk(data)
+		table := tablewriter.NewTable(w, tablewriter.WithAlignment(tw.Alignment{tw.AlignLeft, tw.AlignRight}))
+		table.Bulk(data)
 		table.Render()
 	}
 }
