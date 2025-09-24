@@ -7008,6 +7008,78 @@ p if { input = "str" }`,
 				},
 			},
 		},
+		{
+			note: "compile annotation, short mask_rule",
+			module: `
+package opa.examples
+
+# METADATA
+# scope: document
+# compile:
+#   unknowns:
+#   - input.fruits
+#   mask_rule: mask
+include if input.fruits.name == "banana"
+mask.fruits.owner.replace.value := "___"
+`,
+			expNumComments: 6,
+			expAnnotations: []*Annotations{
+				{
+					Scope: annotationScopeDocument,
+					Compile: &CompileAnnotation{
+						Unknowns: []Ref{MustParseRef("input.fruits")},
+						MaskRule: EmptyRef().Append(VarTerm("mask")),
+					},
+				},
+			},
+		},
+		{
+			note: "compile annotation, full mask_rule",
+			module: `
+package opa.examples
+
+# METADATA
+# scope: document
+# compile:
+#   unknowns:
+#   - input.fruits
+#   mask_rule: data.filtering.mask
+include if input.fruits.name == "banana"
+mask.fruits.owner.replace.value := "___"
+`,
+			expNumComments: 6,
+			expAnnotations: []*Annotations{
+				{
+					Scope: annotationScopeDocument,
+					Compile: &CompileAnnotation{
+						Unknowns: []Ref{MustParseRef("input.fruits")},
+						MaskRule: MustParseRef("data.filtering.mask"),
+					},
+				},
+			},
+		},
+		{
+			note: "compile annotation, no mask_rule",
+			module: `
+package opa.examples
+
+# METADATA
+# scope: document
+# compile:
+#   unknowns:
+#   - input.fruits
+include if input.fruits.name == "banana"
+`,
+			expNumComments: 5,
+			expAnnotations: []*Annotations{
+				{
+					Scope: annotationScopeDocument,
+					Compile: &CompileAnnotation{
+						Unknowns: []Ref{MustParseRef("input.fruits")},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {

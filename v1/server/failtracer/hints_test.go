@@ -95,9 +95,9 @@ func TestHints(t *testing.T) {
 			for i := range tc.evts {
 				ft.TraceEvent(tc.evts[i])
 			}
-			unk := make([]*ast.Term, len(tc.unknowns))
+			unk := make([]ast.Ref, len(tc.unknowns))
 			for i := range tc.unknowns {
-				unk[i] = ast.MustParseTerm(tc.unknowns[i])
+				unk[i] = ast.MustParseRef(tc.unknowns[i])
 			}
 
 			hints := ft.Hints(unk)
