@@ -2570,6 +2570,7 @@ type rawAnnotation struct {
 	RelatedResources []any            `yaml:"related_resources"`
 	Authors          []any            `yaml:"authors"`
 	Schemas          []map[string]any `yaml:"schemas"`
+	Compile          map[string]any   `yaml:"compile"`
 	Custom           map[string]any   `yaml:"custom"`
 }
 
@@ -2635,6 +2636,40 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 			return nil, fmt.Errorf("invalid related-resource definition %s: %w", v, err)
 		}
 		result.RelatedResources = append(result.RelatedResources, rr)
+	}
+
+	if raw.Compile != nil {
+		result.Compile = &CompileAnnotation{}
+		if unknowns, ok := raw.Compile["unknowns"]; ok {
+			if unknowns, ok := unknowns.([]any); ok {
+				result.Compile.Unknowns = make([]Ref, len(unknowns))
+				for i := range unknowns {
+					if unknown, ok := unknowns[i].(string); ok {
+						ref, err := ParseRef(unknown)
+						if err != nil {
+							return nil, fmt.Errorf("invalid unknowns element %q: %w", unknown, err)
+						}
+						result.Compile.Unknowns[i] = ref
+					}
+				}
+			}
+		}
+		if mask, ok := raw.Compile["mask_rule"]; ok {
+			if mask, ok := mask.(string); ok {
+				maskTerm, err := ParseTerm(mask)
+				if err != nil {
+					return nil, fmt.Errorf("invalid mask_rule annotation %q: %w", mask, err)
+				}
+				switch v := maskTerm.Value.(type) {
+				case Var, String:
+					result.Compile.MaskRule = Ref{maskTerm}
+				case Ref:
+					result.Compile.MaskRule = v
+				default:
+					return nil, fmt.Errorf("invalid mask_rule annotation type %q: %[1]T", mask)
+				}
+			}
+		}
 	}
 
 	for _, pair := range raw.Schemas {
