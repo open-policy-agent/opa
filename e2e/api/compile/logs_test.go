@@ -37,7 +37,7 @@ func TestDecisionLogsCompileAPIResult(t *testing.T) {
 package filters
 
 # METADATA
-# custom:
+# compile:
 #   unknowns: [input.fruits]
 #   mask_rule: data.filters.mask
 include if input.fruits.name in input.favorites

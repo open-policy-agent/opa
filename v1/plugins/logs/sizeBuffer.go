@@ -60,7 +60,7 @@ func (b *sizeBuffer) incrMetric(name string) {
 	}
 }
 
-func (b *sizeBuffer) Reconfigure(bufferSizeLimitBytes int64, client rest.Client, uploadPath string, uploadSizeLimitBytes int64, maxDecisionsPerSecond *float64) {
+func (b *sizeBuffer) Reconfigure(bufferSizeLimitBytes int64, uploadSizeLimitBytes int64, maxDecisionsPerSecond *float64) {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 

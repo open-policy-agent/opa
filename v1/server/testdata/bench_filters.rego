@@ -1,6 +1,6 @@
 # METADATA
 # scope: package
-# custom:
+# compile:
 #   unknowns:
 #     - input.tickets
 #     - input.users

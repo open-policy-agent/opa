@@ -93,7 +93,7 @@ type CompileFiltersRequestV1 struct {
 type compileFiltersRequest struct {
 	Query    ast.Body
 	Input    ast.Value
-	Unknowns []*ast.Term
+	Unknowns []ast.Ref
 	Options  compileFiltersRequestOptions
 }
 
@@ -222,11 +222,15 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 		targetOption = append(targetOption, rego_compile.Target(target, dialect))
 	}
 
+	unks := make([]*ast.Term, len(unknowns))
+	for i := range unknowns {
+		unks[i] = ast.NewTerm(unknowns[i])
+	}
 	m.Timer(timerPrepPartial).Start()
 	// NB(sr): just cache preparedCompile by path?
 	preparedCompile, err := rego_compile.New(
 		append(targetOption,
-			rego_compile.ParsedUnknowns(unknowns...),
+			rego_compile.ParsedUnknowns(unks...),
 			rego_compile.ParsedQuery(request.Query),
 			rego_compile.Metrics(m),
 			rego_compile.Mappings(orig.Options.Mappings),
@@ -356,7 +360,7 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) compileFiltersUnknowns(m metrics.Metrics, comp *ast.Compiler, path string, query ast.Body) ([]*ast.Term, []*ast.Error) {
+func (s *Server) compileFiltersUnknowns(m metrics.Metrics, comp *ast.Compiler, path string, query ast.Body) ([]ast.Ref, []*ast.Error) {
 	key := path
 	unknowns, ok := s.compileUnknownsCache.Get(key)
 	if ok {
@@ -374,11 +378,10 @@ func (s *Server) compileFiltersUnknowns(m metrics.Metrics, comp *ast.Compiler, p
 	if !ok {
 		return nil, nil
 	}
-	parsedUnknowns, errs := compile.ExtractUnknownsFromAnnotations(comp, queryRef)
+	unknowns, errs := compile.ExtractUnknownsFromAnnotations(comp, queryRef)
 	if errs != nil {
 		return nil, errs
 	}
-	unknowns = parsedUnknowns
 	m.Timer(timerExtractAnnotationsUnknowns).Stop()
 
 	s.compileUnknownsCache.Add(key, unknowns)
@@ -452,11 +455,11 @@ func readInputCompileFiltersV1(comp *ast.Compiler, reqBytes []byte, urlPath stri
 		}
 	}
 
-	var unknowns []*ast.Term
+	var unknowns []ast.Ref
 	if request.Unknowns != nil {
-		unknowns = make([]*ast.Term, len(*request.Unknowns))
+		unknowns = make([]ast.Ref, len(*request.Unknowns))
 		for i, s := range *request.Unknowns {
-			unknowns[i], err = ast.ParseTerm(s)
+			unknowns[i], err = ast.ParseRef(s)
 			if err != nil {
 				return nil, nil, types.NewErrorV1(types.CodeInvalidParameter, "error(s) occurred while parsing unknowns: %v", err)
 			}

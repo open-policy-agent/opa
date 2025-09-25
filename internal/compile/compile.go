@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
-	"strings"
 
 	"github.com/open-policy-agent/opa/internal/levenshtein"
 	"github.com/open-policy-agent/opa/internal/ucast"
@@ -15,8 +14,7 @@ import (
 )
 
 const (
-	invalidUnknownCode  = "invalid_unknown"
-	invalidMaskRuleCode = "invalid_mask_rule"
+	invalidUnknownCode = "invalid_unknown"
 )
 
 type UCASTNode struct {
@@ -58,7 +56,7 @@ func QueriesToSQL(queries []ast.Body, mappings map[string]any, dialect string) (
 	return sql, nil
 }
 
-func ExtractUnknownsFromAnnotations(comp *ast.Compiler, ref ast.Ref) ([]*ast.Term, []*ast.Error) {
+func ExtractUnknownsFromAnnotations(comp *ast.Compiler, ref ast.Ref) ([]ast.Ref, []*ast.Error) {
 	// find ast.Rule for ref
 	rules := comp.GetRulesExact(ref)
 	if len(rules) == 0 {
@@ -68,36 +66,22 @@ func ExtractUnknownsFromAnnotations(comp *ast.Compiler, ref ast.Ref) ([]*ast.Ter
 	return unknownsFromAnnotationsSet(comp.GetAnnotationSet(), rule)
 }
 
-func unknownsFromAnnotationsSet(as *ast.AnnotationSet, rule *ast.Rule) ([]*ast.Term, []*ast.Error) {
+func unknownsFromAnnotationsSet(as *ast.AnnotationSet, rule *ast.Rule) ([]ast.Ref, []*ast.Error) {
 	if as == nil {
 		return nil, nil
 	}
-	var unknowns []*ast.Term
+	var unknowns []ast.Ref
 	var errs []*ast.Error
 
 	for _, ar := range as.Chain(rule) {
 		ann := ar.Annotations
-		if ann == nil {
+		if ann == nil || ann.Compile == nil {
 			continue
 		}
-		unk, ok := ann.Custom["unknowns"]
-		if !ok {
-			continue
-		}
-		unkArray, ok := unk.([]any)
-		if !ok {
-			continue
-		}
-		for _, u := range unkArray {
-			s, ok := u.(string)
-			if !ok {
-				continue
-			}
-			ref, err := ast.ParseRef(s)
-			if err != nil {
-				errs = append(errs, ast.NewError(invalidUnknownCode, ann.Loc(), "unknowns must be valid refs: %s", s))
-			} else if ref.HasPrefix(ast.DefaultRootRef) || ref.HasPrefix(ast.InputRootRef) {
-				unknowns = append(unknowns, ast.NewTerm(ref))
+		unkArray := ann.Compile.Unknowns
+		for _, ref := range unkArray {
+			if ref.HasPrefix(ast.DefaultRootRef) || ref.HasPrefix(ast.InputRootRef) {
+				unknowns = append(unknowns, ref)
 			} else {
 				errs = append(errs, ast.NewError(invalidUnknownCode, ann.Loc(), "unknowns must be prefixed with `input` or `data`: %v", ref))
 			}
@@ -114,35 +98,25 @@ func ExtractMaskRuleRefFromAnnotations(comp *ast.Compiler, ref ast.Ref) (ast.Ref
 		return nil, nil
 	}
 	rule := rules[0] // rule scope doesn't make sense here, so it doesn't matter which rule we use
-	return maskRuleFromAnnotationsSet(comp.GetAnnotationSet(), comp, rule)
+	return maskRuleFromAnnotationsSet(comp.GetAnnotationSet(), rule)
 }
 
-func maskRuleFromAnnotationsSet(as *ast.AnnotationSet, comp *ast.Compiler, rule *ast.Rule) (ast.Ref, *ast.Error) {
+func maskRuleFromAnnotationsSet(as *ast.AnnotationSet, rule *ast.Rule) (ast.Ref, *ast.Error) {
 	if as == nil {
 		return nil, nil
 	}
 
 	for _, ar := range as.Chain(rule) {
 		ann := ar.Annotations
-		if ann == nil {
+		if ann == nil || ann.Compile == nil {
 			continue
 		}
-		// If the mask_rule key is present, validate and parse it.
-		if maskRule, ok := ann.Custom["mask_rule"]; ok {
-			if s, ok := maskRule.(string); ok {
-				maskPath := s
-				if !strings.HasPrefix(s, "data.") {
-					// If the mask_rule is not a data ref try adding package prefix.
-					maskPath = rule.Module.Package.Path.String() + "." + s
-				}
-				maskRuleRef, err := ast.ParseRef(maskPath)
-				if err != nil {
-					hint := FuzzyRuleNameMatchHint(comp, s)
-					return nil, ast.NewError(invalidMaskRuleCode, ann.Loc(), "mask_rule was not a valid ref: %s", hint)
-				}
-				return maskRuleRef, nil
+		if maskRule := ann.Compile.MaskRule; maskRule != nil {
+			if !maskRule.HasPrefix(ast.DefaultRootRef) {
+				// If the mask_rule is not a data ref, add package prefix.
+				maskRule = rule.Module.Package.Path.Extend(maskRule)
 			}
-			return nil, ast.NewError(invalidMaskRuleCode, ann.Loc(), "mask_rule must be a valid ref string: %v", maskRule)
+			return maskRule, nil
 		}
 	}
 

@@ -28,7 +28,7 @@ type FailTracer interface {
 	Enabled() bool
 	TraceEvent(topdown.Event)
 	Config() topdown.TraceConfig
-	Hints([]*ast.Term) []Hint
+	Hints([]ast.Ref) []Hint
 }
 
 func New() FailTracer {
@@ -54,16 +54,15 @@ func (*failTracer) Config() topdown.TraceConfig {
 	return topdown.TraceConfig{PlugLocalVars: true}
 }
 
-func (b *failTracer) Hints(unknowns []*ast.Term) []Hint {
+func (b *failTracer) Hints(unknowns []ast.Ref) []Hint {
 	var hints []Hint //nolint:prealloc
 	seenRefs := map[string]struct{}{}
 	candidates := make([]string, 0, len(unknowns))
-	for i := range unknowns {
-		ref, ok := unknowns[i].Value.(ast.Ref)
-		if !ok || len(ref) < 2 {
+	for _, ref := range unknowns {
+		if len(ref) < 2 {
 			continue
 		}
-		candidates = append(candidates, string(unknowns[i].Value.(ast.Ref)[1].Value.(ast.String)))
+		candidates = append(candidates, string(ref[1].Value.(ast.String)))
 	}
 
 	for _, expr := range b.exprs {

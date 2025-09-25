@@ -566,7 +566,7 @@ func TestPrometheusMetrics(t *testing.T) {
 	policy := `package filters
 # METADATA
 # scope: document
-# custom:
+# compile:
 #   unknowns: [input.fruits]
 include if input.fruits.name == "banana"
 `

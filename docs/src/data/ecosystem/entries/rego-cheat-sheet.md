@@ -3,22 +3,20 @@ title: Rego Cheat Sheet
 subtitle: Quick reference for learning Rego
 labels:
   category: learning
-inventors:
-- styra
 code:
-- https://github.com/StyraInc/rego-cheat-sheet
+- https://github.com/open-policy-agent/rego-cheat-sheet
 tutorials:
-- https://docs.styra.com/opa/rego-cheat-sheet
+- https://openpolicyagent.org/docs/cheatsheet
 docs_features:
   learning-rego:
     note: |
-      The [Rego Cheat Sheet](https://docs.styra.com/opa/rego-cheat-sheet)
+      The [Rego Cheat Sheet](https://openpolicyagent.org/docs/cheatsheet)
       was designed as a language reference, featuring common contact points,
       with Rego learners in mind.
 ---
 
-The [Rego Cheat Sheet](https://docs.styra.com/opa/rego-cheat-sheet) has been
+The [Rego Cheat Sheet](https://openpolicyagent.org/docs/cheatsheet) has been
 designed to be a reference for Rego learners and users documenting the common
 contact points with the language. There is also a
-[PDF version](https://docs.styra.com/rego-cheat-sheet.pdf) for those looking for
+[PDF version](https://openpolicyagent.org/cheatsheet.pdf) for those looking for
 a printable reference.
