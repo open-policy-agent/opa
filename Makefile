@@ -252,10 +252,6 @@ wasm-lib-clean:
 wasm-rego-testgen-install:
 	$(GO) install ./v1/test/wasm/cmd/wasm-rego-testgen
 
-.PHONY: bench-wasm
-bench-wasm: generate
-	$(GO) test $(GO_TAGS),opa_wasm -bench=. -benchmem ./v1/topdown ./v1/rego
-
 ######################################################
 #
 # CI targets
