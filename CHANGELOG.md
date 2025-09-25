@@ -5,63 +5,75 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## 1.9.0
 
-### Fixes
+This release contains a mix of new features, performance improvements, and bugfixes. Notably:
 
-- docs: Add missing anchors and example data (#7856) ([#6205](https://github.com/open-policy-agent/opa/issues/6205)) authored by @mmzzuu
+- Compile API extensions ported from EOPA
+
+### Port Compile API extensions from EOPA ([#7887](https://github.com/open-policy-agent/opa/pull/7887))
+
+Compile API extensions with support for SQL filter generation previously exclusive to EOPA has been ported into OPA.
+
+Authored by @srenatus and @philipaconrad
+
+### Runtime, Tooling
+
+- cmd: Print eval errors to stderr ([#6749](https://github.com/open-policy-agent/opa/issues/6749)) authored by @sspaink reported by @janorn
+- plugin/decision: Encoder immediately returns when event same size as limit ([#7928](https://github.com/open-policy-agent/opa/pull/7928)) authored by @sspaink
+- plugin/decision: Refactor size buffer into its own type ([#7884](https://github.com/open-policy-agent/opa/pull/7884)) authored by @sspaink
+- plugins/bundle: Return callback error for manually triggered bundle downloads through the SDK ([#7869](https://github.com/open-policy-agent/opa/issues/7869)) authored by @sspaink reported by @victoraugustolls
+- runtime: Fix possible panic in `opa run` when loading bundles in watch-mode (`--watch`) ([#7870](https://github.com/open-policy-agent/opa/issues/7870)) authored by @sspaink reported by @johanfylling
+
+### Compiler, Topdown and Rego
+
+- ast: supported naked refs in rule indexer ([#7897](https://github.com/open-policy-agent/opa/pull/7897)) authored by @srenatus
+- perf: Don't invoke future parser for Rego v1 ([#7909](https://github.com/open-policy-agent/opa/pull/7909)) authored by @anderseknert
+- topdown: Add counter metric for http.send network requests ([#7851](https://github.com/open-policy-agent/opa/pull/7851)) authored by @anivar
+- topdown: Update `numbers.range_step` built-in error message ([#7882](https://github.com/open-policy-agent/opa/pull/7882)) authored by @charlieegan3
+
+### Docs, Website
+
+- docs: Add `every` and `not` examples ([#7901](https://github.com/open-policy-agent/opa/pull/7901)) authored by @charlieegan3
+- docs: Add examples for `io.jwt` and `time` built-ins ([#7892](https://github.com/open-policy-agent/opa/pull/7892)) authored by @charlieegan3
+- docs: Add examples for `regex` and `string` built-ins ([#7890](https://github.com/open-policy-agent/opa/pull/7890)) authored by @charlieegan3
+- docs: Add guide for common Rego errors ([#7896](https://github.com/open-policy-agent/opa/pull/7896)) authored by @charlieegan3
+- docs: Add missing anchors and example data ([#6205](https://github.com/open-policy-agent/opa/issues/6205)) authored by @mmzzuu reported by @johanfylling
+- docs: Add Rego keyword examples ([#7889](https://github.com/open-policy-agent/opa/pull/7889)) authored by @charlieegan3
+- docs: Add Rego language comparison pages ([#7893](https://github.com/open-policy-agent/opa/pull/7893)) authored by @charlieegan3
+- docs: Add Style Guide to policy authoring docs ([#7932](https://github.com/open-policy-agent/opa/pull/7932)) authored by @charlieegan3
+- docs: Generative AI policy example fix ([#7885](https://github.com/open-policy-agent/opa/pull/7885)) authored by @msorens
+- docs: Remove integration from build-security ([#7899](https://github.com/open-policy-agent/opa/pull/7899)) authored by @ieugen
+- docs: Update Envoy tutorial for new versions and images ([#7911](https://github.com/open-policy-agent/opa/pull/7911)) authored by @CharlieTLe
+- docs: Update references to cheat sheet and awesome-opa ([#7930](https://github.com/open-policy-agent/opa/pull/7930)) authored by @charlieegan3
+- docs: Add OCP docs ([#7875](https://github.com/open-policy-agent/opa/pull/7875)) authored by @charlieegan3
+  - docs/ocp: Update docs on Azure object storage ([#7921](https://github.com/open-policy-agent/opa/pull/7921)) authored by @minajevs
+  - docs/ocp: Fix inline-transform example ([#7913](https://github.com/open-policy-agent/opa/pull/7913)) authored by @srenatus
+  - docs/ocp: Fix wrong example on concepts page ([#7907](https://github.com/open-policy-agent/opa/pull/7907)) authored by @srenatus
+  - docs/ocp: Update API reference ([#7906](https://github.com/open-policy-agent/opa/pull/7906)) authored by @srenatus
+  - docs/ocp: Update OCP api-key ([#7904](https://github.com/open-policy-agent/opa/pull/7904)) authored by @charlieegan3
+  - docs/ocp: Update OCP install instructions ([#7910](https://github.com/open-policy-agent/opa/pull/7910)) authored by @ashutosh-narkar
+- docs: Add Regal docs to OPA site ([#7874](https://github.com/open-policy-agent/opa/pull/7874)) authored by @charlieegan3
+  - docs/regal: Update docs following 0.36.0 ([#7891](https://github.com/open-policy-agent/opa/pull/7891)) authored by @charlieegan3
+- docs/deploy: Add OPA deployment docs ([#7898](https://github.com/open-policy-agent/opa/pull/7898)) authored by @charlieegan3
+- docs/website: Update references to Styra ([#7877](https://github.com/open-policy-agent/opa/pull/7877)) authored by @charlieegan3
 
 ### Miscellaneous
 
-- Bump golangci-lint to v2.4.0 (#7878) (authored by @sspaink)
-- COMMUNITY_GUIDELINES: update email, list (#7900) (authored by @srenatus)
-- Compile API: switch to compile annotation key (#7936) (authored by @srenatus)
-- Port Compile API extensions from EOPA (#7887) (authored by @philipaconrad)
-- Prepare v1.9.0 development (authored by @johanfylling)
-- Remove integration from build-security (authored by @ieugen)
-- Update Envoy tutorial for new versions and images (authored by @CharlieTLe)
-- Updating e2e go deps together with core OPA deps (#7923) (authored by @johanfylling)
-- ast: supported naked refs in rule indexer (authored by @srenatus)
-- build(deps): bump github.com/docker/docker in /e2e (authored by @dependabot[bot])
-- build(deps): bump the dependencies group across 2 directories with 12 updates (authored by @dependabot[bot])
-- build(deps): bump the e2e-prisma group (authored by @dependabot[bot])
-- build(deps): bump the gha-dependencies group with 5 updates (authored by @dependabot[bot])
-- build(deps): bump the go-opentelemetry-io group across 1 directory with 7 updates (#7933) (authored by @dependabot[bot])
-- build+ci: fix go versions (authored by @srenatus)
-- build: bump go (1.24.6 -> 1.24.7) (#7881) (authored by @srenatus)
-- ci: port binary tests to testscript (authored by @srenatus)
-- docs/deploy: Add OPA deployment docs (authored by @charlieegan3)
-- docs/ocp: Update docs on Azure object storage (#7921) (authored by @minajevs)
-- docs/ocp: fix inline-transform example (#7913) (authored by @srenatus)
-- docs/ocp: fix wrong example on concepts page (#7907) (authored by @srenatus)
-- docs/ocp: update API reference (#7906) (authored by @srenatus)
-- docs/regal: Update docs following 0.36.0 (#7891) (authored by @charlieegan3)
-- docs/rest-api: add basic Compile API docs (#7922) (authored by @srenatus)
-- docs/website: Update references to Styra (#7877) (authored by @charlieegan3)
-- docs: Add OCP docs (#7875) (authored by @charlieegan3)
-- docs: Add Regal docs to OPA site (#7874) (authored by @charlieegan3)
-- docs: Add Rego keyword examples (#7889) (authored by @charlieegan3)
-- docs: Add Rego language comparison pages (authored by @charlieegan3)
-- docs: Add Style Guide to policy authoring docs (#7932) (authored by @charlieegan3)
-- docs: Add every and not examples (authored by @charlieegan3)
-- docs: Add examples for io.jwt and time (authored by @charlieegan3)
-- docs: Add examples for regex and string built-ins (#7890) (authored by @charlieegan3)
-- docs: Add guide for common Rego errors (#7896) (authored by @charlieegan3)
-- docs: Update OCP api-key (authored by @charlieegan3)
-- docs: Update OCP install instructions (authored by @ashutosh-narkar)
-- docs: Update references to cheat sheet and awesome-opa (#7930) (authored by @charlieegan3)
-- feat: Add counter metric for http.send network requests (#7851) (authored by @anivar)
-- fix: only skip initializing file loader in bundle-mode (#7876) (authored by @sspaink)
-- fix: print eval errors to stderr (#7880) (authored by @sspaink)
-- github_actions: add working directory in arguments (authored by @sspaink)
-- home page example fix (#7885) (authored by @msorens)
-- link-checker: fix pinned actions (authored by @srenatus)
-- perf: Don't invoke future parser for Rego v1 (#7909) (authored by @anderseknert)
-- plugin/decision: correctly reconfigure limit based on buffer type (#7926) (authored by @sspaink)
-- plugin/decision: encoder return event same size as limit immediately (#7928) (authored by @sspaink)
-- plugin/decision: refactor size buffer into its own type (#7884) (authored by @sspaink)
-- plugins/bundle: return callback error (#7871) (authored by @sspaink)
-- rego: Add comprehensive WASM performance benchmarks (#7841) (authored by @anivar)
-- topdown: Update step error message (#7882) (authored by @charlieegan3)
-- v1/rego/example: make ExampleRego_Partial not flaky (authored by @srenatus)
+- Bump golangci-lint to v2.4.0 ([#7878](https://github.com/open-policy-agent/opa/pull/7878)) authored by @sspaink
+- Community Guidelines: update email list ([#7900](https://github.com/open-policy-agent/opa/pull/7900)) authored by @srenatus
+- ci: port binary tests to testscript ([#7865](https://github.com/open-policy-agent/opa/pull/7865)) authored by @srenatus
+- dependabot: Updating e2e go deps together with core OPA deps ([#7923](https://github.com/open-policy-agent/opa/pull/7923)) authored by @johanfylling
+- github_actions: Add working directory in arguments for Link Checker ([#7883](https://github.com/open-policy-agent/opa/pull/7883)) authored by @sspaink
+- rego: Add comprehensive WASM performance benchmarks ([#7841](https://github.com/open-policy-agent/opa/pull/7841)) authored by @anivar
+- Dependency updates; notably:
+  - build: Bump go to 1.25.1
+  - build(deps): Add github.com/huandu/go-sqlbuilder 1.37.0
+  - build(deps): Bump github.com/lestrrat-go/jwx/v3 from 3.0.10 to 3.0.11
+  - build(deps): Bump github.com/prometheus/client_golang from 1.23.0 to 1.23.2
+  - build(deps): Bump golang.org/x/net from 0.43.0 to 0.44.0
+  - build(deps): Bump golang.org/x/time from 0.12.0 to 0.13.0
+  - build(deps): Bump google.golang.org/grpc from 1.75.0 to 1.75.1
+  - build(deps): Bump google.golang.org/protobuf from 1.36.8 to 1.36.9
+  - build(deps): bump go.opentelemetry.io deps from 1.37.0/0.62.0 to 1.38.0/0.63.0
 
 ## 1.8.0
 
