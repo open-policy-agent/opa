@@ -8,8 +8,9 @@ project adheres to [Semantic Versioning](http://semver.org/).
 This release contains a mix of new features, performance improvements, and bugfixes. Notably:
 
 - Compile API extensions ported from EOPA
+- Improved rule indexing
 
-### Compile Rego queries into SQL filters ([#7887](https://github.com/open-policy-agent/opa/pull/7887))
+### Compile Rego Queries Into SQL Filters ([#7887](https://github.com/open-policy-agent/opa/pull/7887))
 
 Compile API extensions with support for SQL filter generation previously exclusive to EOPA has been ported into OPA.
 
@@ -65,6 +66,62 @@ See the [documentation](https://www.openpolicyagent.org/docs/rest-api#compling-a
 
 Authored by @srenatus and @philipaconrad
 
+### Improved Rule Indexing For "Naked" Refs ([#7897](https://github.com/open-policy-agent/opa/pull/7897))
+
+OPA's [rule indexer](https://blog.openpolicyagent.org/optimizing-opa-rule-indexing-59f03f17caf3) is a means by which OPA can optimize evaluation performance.
+Briefly, the indexer can in some cases determine that a rule won't successfully evaluate _before_ it's evaluated based on the query input.
+The indexer previously only considered the value of a term, not its mere presence; e.g. an expression containing a sole "naked" ref. This has now changed!
+
+#### Example
+
+Given a policy with an `allow` rule containing two "naked" refs: `input.foo` and `input.bar`:
+
+```rego
+package example
+
+allow if {
+    input.foo
+    input.bar
+}
+```
+
+and the input document:
+
+```json
+{
+    "foo": 1
+}
+```
+
+before this improvement, when evaluating the query `data.example.allow`, we get the trace log:
+
+```
+query:1           Enter data.example.allow = _
+query:1           | Eval data.example.allow = _
+query:1           | Index data.example.allow (matched 1 rule, early exit)
+policy.rego:3     | Enter data.example.allow
+policy.rego:5     | | Eval input.foo
+policy.rego:6     | | Eval input.bar
+policy.rego:6     | | Fail input.bar
+policy.rego:5     | | Redo input.foo
+query:1           | Fail data.example.allow = _
+```
+
+Here, we can see that the `allow` rule is evaluated, but fails on the `input.bar` expression, as it's referencing an `undefined` value.
+
+With the improvement to the indexer, we instead get:
+
+```
+query:1     Enter data.example.allow = _
+query:1     | Eval data.example.allow = _
+query:1     | Index data.example.allow (matched 0 rules, early exit)
+query:1     | Fail data.example.allow = _
+```
+
+Where we can see that the `allow` rule was never evaluated, since the input doesn't meet the conditions established by the indexer; i.e. both `input.foo` and `input.bar` must have `defined` values.
+
+Authored by @srenatus
+
 ### Runtime, Tooling
 
 - cmd: Print eval errors to stderr ([#6749](https://github.com/open-policy-agent/opa/issues/6749)) authored by @sspaink reported by @janorn
@@ -75,7 +132,6 @@ Authored by @srenatus and @philipaconrad
 
 ### Compiler, Topdown and Rego
 
-- ast: supported naked refs in rule indexer ([#7897](https://github.com/open-policy-agent/opa/pull/7897)) authored by @srenatus
 - perf: Don't invoke future parser for Rego v1 ([#7909](https://github.com/open-policy-agent/opa/pull/7909)) authored by @anderseknert
 - topdown: Add counter metric for http.send network requests ([#7851](https://github.com/open-policy-agent/opa/pull/7851)) authored by @anivar
 - topdown: Update `numbers.range_step` built-in error message ([#7882](https://github.com/open-policy-agent/opa/pull/7882)) authored by @charlieegan3
