@@ -124,11 +124,12 @@ roles := {
 
 For simple equality statements (`=` and `==`) to be indexed one side must be a non-nested reference that does not contain any variables and the other side must be a variable, scalar, or array (which may contain scalars and variables). For example:
 
-| Expression                  | Indexed | Reason                       |
+| Expression                  | Indexed | Reason (for not indexing)    |
 | --------------------------- | ------- | ---------------------------- |
-| `input.x == "foo"`          | yes     | n/a                          |
-| `input.x.y == "bar"`        | yes     | n/a                          |
-| `input.x == ["foo", i]`     | yes     | n/a                          |
+| `input.x`                   | yes     |                              |
+| `input.x == "foo"`          | yes     |                              |
+| `input.x.y == "bar"`        | yes     |                              |
+| `input.x == ["foo", i]`     | yes     |                              |
 | `input.x[i] == "foo"`       | no      | reference contains variables |
 | `input.x[input.y] == "foo"` | no      | reference is nested          |
 
@@ -136,9 +137,9 @@ For simple equality statements (`=` and `==`) to be indexed one side must be a n
 
 For `glob.match(pattern, delimiter, match)` statements to be indexed the pattern must be recognized by the indexer and the match be a non-nested reference that does not contain any variables. The indexer recognizes patterns containing the normal glob (`*`) operator but not the super glob (`**`) or character pattern matching operators.
 
-| Expression                                   | Indexed | Reason                     |
+| Expression                                   | Indexed | Reason (for not indexing)  |
 | -------------------------------------------- | ------- | -------------------------- |
-| `glob.match("foo:*:bar", [":"], input.x)`    | yes     | n/a                        |
+| `glob.match("foo:*:bar", [":"], input.x)`    | yes     |                            |
 | `glob.match("foo:**:bar", [":"], input.x)`   | no      | pattern contains `**`      |
 | `glob.match("foo:*:bar", [":"], input.x[i])` | no      | match contains variable(s) |
 
