@@ -627,8 +627,8 @@ func renderBenchmarkResult(params benchmarkCommandParams, br testing.BenchmarkRe
 		}
 
 		table := tablewriter.NewTable(w, tablewriter.WithAlignment(tw.Alignment{tw.AlignLeft, tw.AlignRight}))
-		table.Bulk(data)
-		table.Render()
+		_ = table.Bulk(data)
+		_ = table.Render()
 	}
 }
 

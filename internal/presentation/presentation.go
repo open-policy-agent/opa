@@ -471,7 +471,7 @@ func prettyPartial(w io.Writer, pq *rego.PartialQueries) error {
 		tablewriter.WithTrimSpace(tw.Off),
 		tablewriter.WithTrimLine(tw.Off),
 	)
-	rows := make([][]string, 0)
+
 	for i := range pq.Queries {
 		f, _, err := prettyASTNode(pq.Queries[i], ast.DefaultRegoVersion)
 		if err != nil {
@@ -480,7 +480,6 @@ func prettyPartial(w io.Writer, pq *rego.PartialQueries) error {
 		if err := table.Append([]string{fmt.Sprintf("Query %d", i+1), f}); err != nil {
 			return err
 		}
-		rows = append(rows, []string{fmt.Sprintf("Query %d", i+1), f})
 	}
 
 	for i, s := range pq.Support {
@@ -491,15 +490,9 @@ func prettyPartial(w io.Writer, pq *rego.PartialQueries) error {
 		if err := table.Append([]string{fmt.Sprintf("Support %d", i+1), f}); err != nil {
 			return err
 		}
-		rows = append(rows, []string{fmt.Sprintf("Support %d", i+1), f})
-
 	}
 
-	if err := table.Render(); err != nil {
-		return err
-	}
-
-	return nil
+	return table.Render()
 }
 
 // prettyASTNode is used for pretty-printing the result of partial eval
@@ -610,11 +603,8 @@ func prettyCoverage(w io.Writer, report *cover.Report) error {
 	if err := table.Append([]string{"Overall Coverage", fmt.Sprintf("%.02f", report.Coverage)}); err != nil {
 		return err
 	}
-	if err := table.Render(); err != nil {
-		return err
-	}
 
-	return nil
+	return table.Render()
 }
 
 func checkStrLimit(input string, limit int) string {
