@@ -9,9 +9,59 @@ This release contains a mix of new features, performance improvements, and bugfi
 
 - Compile API extensions ported from EOPA
 
-### Port Compile API extensions from EOPA ([#7887](https://github.com/open-policy-agent/opa/pull/7887))
+### Compile Rego queries into SQL filters ([#7887](https://github.com/open-policy-agent/opa/pull/7887))
 
 Compile API extensions with support for SQL filter generation previously exclusive to EOPA has been ported into OPA.
+
+#### Example
+
+With OPA running with this policy, we'll compile the query `data.filters.include` into SQL filters:
+
+```rego
+package filters
+
+# METADATA
+# scope: document
+# compile:
+#   unknowns: [input.fruits]
+include if input.fruits.name == input.favorite
+
+include if {
+	input.fruits.name == "apple"
+	not input.favorite
+}
+```
+
+##### Example Request
+
+```
+POST /v1/compile/filters/include HTTP/1.1
+Content-Type: application/json
+Accept: application/vnd.opa.sql.postgresql+json
+```
+```json
+{
+  "input": {
+    "favorite": "pineapple"
+  }
+}
+```
+
+##### Example Response
+
+```
+HTTP/1.1 200 OK
+Content-Type: application/vnd.opa.sql.postgresql+json
+```
+```json
+{
+  "result": {
+    "query": "WHERE fruits.name = E'pineapple'"
+  }
+}
+```
+
+See the [documentation](https://www.openpolicyagent.org/docs/rest-api#compling-a-rego-policy-and-query-into-data-filters) for more details.
 
 Authored by @srenatus and @philipaconrad
 
