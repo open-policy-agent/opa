@@ -607,8 +607,13 @@ func prettyExplanation(w io.Writer, explanation []*topdown.Event, opts topdown.P
 
 func prettyCoverage(w io.Writer, report *cover.Report) error {
 	table := tablewriter.NewWriter(w)
-	table.Append([]string{"Overall Coverage", fmt.Sprintf("%.02f", report.Coverage)})
-	table.Render()
+	if err := table.Append([]string{"Overall Coverage", fmt.Sprintf("%.02f", report.Coverage)}); err != nil {
+		return err
+	}
+	if err := table.Render(); err != nil {
+		return err
+	}
+
 	return nil
 }
 

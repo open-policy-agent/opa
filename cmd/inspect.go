@@ -213,10 +213,10 @@ func populateManifest(out io.Writer, m *bundle.Manifest) error {
 		lines = append(lines, []string{"Metadata", truncateTableStr(string(metadata))})
 	}
 
-	if err := t.Bulk(lines); err != nil {
-		return err
-	}
 	if len(lines) > 0 {
+		if err := t.Bulk(lines); err != nil {
+			return err
+		}
 		fmt.Fprintln(out, "MANIFEST:")
 		if err := t.Render(); err != nil {
 			return err
