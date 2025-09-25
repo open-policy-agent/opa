@@ -979,117 +979,58 @@ Users are recommended to do performance testing to determine the optimal configu
 
 ## Performance Metrics
 
-OPA exposes metrics for each phase of policy evaluation:
+OPA exposes metrics for policy evaluation performance. These are available through:
 
-- **System-wide metrics** are available at the `/metrics` Prometheus endpoint
-- **Per-query metrics** are returned with individual API responses when `?metrics=true` is specified
+- **System-wide metrics** at the `/metrics` Prometheus endpoint
+- **Per-query metrics** with individual API responses when `?metrics=true` is specified
 
-See [Monitoring](./monitoring#metrics-overview) for the distinction between these metric types.
+See [Monitoring](./monitoring#metrics-overview) for more details.
 
-### Query Evaluation Metrics
-
-Query evaluation phases:
-
-- `timer_rego_query_parse_ns` - Time spent parsing the query string into AST
-- `timer_rego_query_compile_ns` - Time spent compiling the query for evaluation
-- `timer_rego_query_eval_ns` - Time spent executing the compiled query
-
-Compilation time often dominates in complex policies.
-
-### Module and Policy Metrics
-
-Policy compilation and parsing:
-
-- `timer_rego_module_parse_ns` - Time to parse policy modules from source
-- `timer_rego_module_compile_ns` - Time to compile parsed modules into evaluation form
-- `timer_rego_data_parse_ns` - Time to parse data documents
-- `timer_rego_input_parse_ns` - Time to parse input documents
-
-Module compilation runs once at load time. Slow compilation impacts bundle updates.
-
-### File and Bundle Loading
-
-Policy and data loading:
-
-- `timer_rego_load_files_ns` - Time to load policy files from disk
-- `timer_rego_load_bundles_ns` - Time to load and activate bundles
-- `timer_bundle_request_ns` - Time spent downloading bundles
-
-### Compilation and Partial Evaluation Metrics
-
-Compilation and partial evaluation:
-
-- `timer_rego_partial_eval_ns` - Total partial evaluation time
-- `timer_compile_prep_partial_ns` - Time preparing for partial evaluation
-- `timer_compile_eval_constraints_ns` - Time evaluating constraints
-- `timer_compile_translate_queries_ns` - Time translating queries
-- `timer_compile_extract_annotations_unknowns_ns` - Time extracting unknowns
-- `timer_compile_extract_annotations_mask_ns` - Time extracting masks
-- `timer_compile_eval_mask_rule_ns` - Time evaluating mask rules
-- `timer_compile_stage_check_imports_ns` - Time checking imports
-- `counter_compile_stage_comprehension_index_build` - Comprehension indices built
-
-High partial evaluation times indicate optimization opportunities.
-
-### Evaluation Operation Metrics
-
-Evaluation operations produce both timer and histogram metrics:
-
-**Timers** (measure total time):
-- `timer_eval_op_plug_ns` - Time spent in plugging operations
-- `timer_eval_op_resolve_ns` - Time resolving references
-- `timer_eval_op_rule_index_ns` - Time spent in rule indexing
-- `timer_eval_op_builtin_call_ns` - Time spent calling built-in functions
-- `timer_partial_op_save_unify_ns` - Time saving unification in partial eval
-- `timer_partial_op_save_set_contains_ns` - Time for set contains in partial eval
-- `timer_partial_op_save_set_contains_rec_ns` - Time for recursive set contains
-- `timer_partial_op_copy_propagation_ns` - Time for copy propagation optimization
-
-**Histograms** (track time distribution):
-- `histogram_eval_op_plug` - Distribution of plugging operation times
-- `histogram_eval_op_resolve` - Distribution of reference resolution times
-- `histogram_eval_op_rule_index` - Distribution of rule indexing times
-- `histogram_eval_op_builtin_call` - Distribution of built-in function call times
-- `histogram_partial_op_save_unify` - Distribution of unification save times
-- `histogram_partial_op_save_set_contains` - Distribution of set contains times
-- `histogram_partial_op_save_set_contains_rec` - Distribution of recursive set contains times
-- `histogram_partial_op_copy_propagation` - Distribution of copy propagation times
-
-Histograms show percentiles: 50%, 75%, 90%, 95%, 99%, 99.9%, 99.99%.
-
-### Built-in Function Metrics
+### Common Built-in Function Metrics
 
 #### HTTP Built-ins
 
-`http.send` metrics:
+`http.send` metrics help identify I/O bottlenecks:
 
 - `timer_rego_builtin_http_send_ns` - Total time spent in http.send calls
 - `counter_rego_builtin_http_send_interquery_cache_hits` - Inter-query cache hits
 - `counter_rego_builtin_http_send_network_requests` - Actual network requests made
 
-High cache hit ratios indicate effective caching.
+High cache hit ratios indicate effective caching and reduced network overhead.
 
-#### External Data Resolution
+#### Regex Built-ins
 
-External data resolution:
+Regex operation metrics help optimize pattern matching:
 
-- `timer_rego_external_resolve_ns` - Time resolving external data references
+- `timer_rego_builtin_regex_interquery_ns` - Time spent in regex operations
+- `counter_rego_builtin_regex_interquery_cache_hits` - Regex pattern cache hits
+- `counter_rego_builtin_regex_interquery_value_cache_hits` - Regex value cache hits
 
-### SDK and Server Metrics
+Effective regex caching improves performance when the same patterns are used repeatedly.
 
-High-level evaluation:
+### Core Query Metrics
+
+Basic query evaluation phases:
+
+- `timer_rego_query_parse_ns` - Time parsing the query string
+- `timer_rego_query_compile_ns` - Time compiling the query
+- `timer_rego_query_eval_ns` - Time executing the compiled query
+
+Compilation time often dominates in complex policies.
+
+### High-Level Metrics
+
+Server-level metrics for overall performance:
 
 - `timer_server_handler_ns` - Total request handler execution time
-- `timer_sdk_decision_eval_ns` - SDK decision evaluation time
 - `counter_server_query_cache_hit` - Server-level query cache hits
 
-### Using Metrics
+### Using Metrics for Optimization
 
-1. Compare parse, compile, and eval times to find slow phases
-2. High operation counts indicate complex queries
-3. Low cache hit rates suggest tuning opportunities
-4. High `http.send` counts indicate I/O bottlenecks
-5. Bundle activation times show deployment latency
+1. **Query phases**: Compare parse, compile, and eval times to identify bottlenecks
+2. **Cache effectiveness**: Low cache hit rates suggest tuning opportunities
+3. **I/O bottlenecks**: High `http.send` network request counts indicate caching issues
+4. **Pattern matching**: Monitor regex cache hits for frequently used patterns
 
 Access metrics via:
 - REST API: Add `?metrics=true` to policy evaluation requests

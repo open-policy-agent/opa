@@ -2271,8 +2271,6 @@ restarts, a **Redo** Trace Event is emitted.
 
 ## Performance Metrics
 
-**Note**: These are per-query metrics returned inline with API responses. For system-wide aggregated metrics, see the `/metrics` Prometheus endpoint described in [Monitoring](./monitoring#prometheus).
-
 OPA can report detailed performance metrics at runtime. Performance metrics can
 be requested on individual API calls and are returned inline with the API
 response. To enable performance metric collection on an API call, specify the
@@ -2312,6 +2310,8 @@ Content-Type: application/json
   }
 }
 ```
+
+> **Note**: These are per-query metrics returned inline with API responses. For system-wide instance metrics, see the `/metrics` Prometheus endpoint described in [Monitoring](./monitoring#prometheus).
 
 OPA provides the following query performance metrics:
 

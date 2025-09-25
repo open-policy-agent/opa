@@ -90,42 +90,28 @@ When Prometheus is enabled in the status plugin (see [Configuration](./configura
 
 OPA provides two ways to access performance metrics:
 
-1. **System-wide metrics** via the `/metrics` Prometheus endpoint - Aggregated metrics across all OPA operations
+1. **System-wide metrics** via the `/metrics` Prometheus endpoint - Instance-level metrics across all OPA operations
 2. **Per-query metrics** via API responses with `?metrics=true` - Metrics for individual query executions
 
-These serve different purposes: system metrics for monitoring and alerting, per-query metrics for debugging and optimization.
+These serve different purposes: system metrics for OPA instance monitoring and alerting, per-query metrics for debugging and optimization.
 
 
 ## Accessing Metrics
 
 ### System-Wide Metrics (Prometheus Endpoint)
 
-Access aggregated metrics across all OPA operations:
+Access instance-level metrics across all OPA operations:
 
 - **URL**: `http://localhost:8181/metrics` (default configuration)
 - **Method**: HTTP GET
 - **Format**: Prometheus text format
-- **Contents**: All counters, timers, histograms, Go runtime metrics
+- **Contents**: Instance-level counters, timers, histograms, Go runtime metrics
 - **Use case**: Monitoring dashboards, alerting, performance trends
 
-### Per-Query Metrics
+### Additional Resources
 
-Get metrics for individual policy evaluations:
-
-- **Method**: Add `?metrics=true` parameter to API requests
-- **Supported APIs**: `/v1/data`, `/v0/data`, `/v1/query`, `/v1/compile`
-- **Contents**: Query-specific parse, compile, and eval timers
-- **Use case**: Debugging slow queries, performance optimization
-
-Example:
-```http
-POST /v1/data/example?metrics=true HTTP/1.1
-```
-
-For details on interpreting per-query metrics, see [REST API Performance Metrics](./rest-api#performance-metrics).
-
-### Other Metric Sources
-
+- **Per-query metrics**: See [REST API Performance Metrics](./rest-api#performance-metrics) for debugging individual queries
+- **Policy performance**: See [Policy Performance](./policy-performance#performance-metrics) for optimization guidance
 - **Status API**: Includes subset of metrics in status reports
 - **Decision logs**: Can include request-level metrics when configured
 - **CLI tools**: `opa eval --metrics` and `opa bench --metrics`
