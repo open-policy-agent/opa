@@ -3,7 +3,65 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 1.9.0
+
+### Fixes
+
+- docs: Add missing anchors and example data (#7856) ([#6205](https://github.com/open-policy-agent/opa/issues/6205)) authored by @mmzzuu
+
+### Miscellaneous
+
+- Bump golangci-lint to v2.4.0 (#7878) (authored by @sspaink)
+- COMMUNITY_GUIDELINES: update email, list (#7900) (authored by @srenatus)
+- Compile API: switch to compile annotation key (#7936) (authored by @srenatus)
+- Port Compile API extensions from EOPA (#7887) (authored by @philipaconrad)
+- Prepare v1.9.0 development (authored by @johanfylling)
+- Remove integration from build-security (authored by @ieugen)
+- Update Envoy tutorial for new versions and images (authored by @CharlieTLe)
+- Updating e2e go deps together with core OPA deps (#7923) (authored by @johanfylling)
+- ast: supported naked refs in rule indexer (authored by @srenatus)
+- build(deps): bump github.com/docker/docker in /e2e (authored by @dependabot[bot])
+- build(deps): bump the dependencies group across 2 directories with 12 updates (authored by @dependabot[bot])
+- build(deps): bump the e2e-prisma group (authored by @dependabot[bot])
+- build(deps): bump the gha-dependencies group with 5 updates (authored by @dependabot[bot])
+- build(deps): bump the go-opentelemetry-io group across 1 directory with 7 updates (#7933) (authored by @dependabot[bot])
+- build+ci: fix go versions (authored by @srenatus)
+- build: bump go (1.24.6 -> 1.24.7) (#7881) (authored by @srenatus)
+- ci: port binary tests to testscript (authored by @srenatus)
+- docs/deploy: Add OPA deployment docs (authored by @charlieegan3)
+- docs/ocp: Update docs on Azure object storage (#7921) (authored by @minajevs)
+- docs/ocp: fix inline-transform example (#7913) (authored by @srenatus)
+- docs/ocp: fix wrong example on concepts page (#7907) (authored by @srenatus)
+- docs/ocp: update API reference (#7906) (authored by @srenatus)
+- docs/regal: Update docs following 0.36.0 (#7891) (authored by @charlieegan3)
+- docs/rest-api: add basic Compile API docs (#7922) (authored by @srenatus)
+- docs/website: Update references to Styra (#7877) (authored by @charlieegan3)
+- docs: Add OCP docs (#7875) (authored by @charlieegan3)
+- docs: Add Regal docs to OPA site (#7874) (authored by @charlieegan3)
+- docs: Add Rego keyword examples (#7889) (authored by @charlieegan3)
+- docs: Add Rego language comparison pages (authored by @charlieegan3)
+- docs: Add Style Guide to policy authoring docs (#7932) (authored by @charlieegan3)
+- docs: Add every and not examples (authored by @charlieegan3)
+- docs: Add examples for io.jwt and time (authored by @charlieegan3)
+- docs: Add examples for regex and string built-ins (#7890) (authored by @charlieegan3)
+- docs: Add guide for common Rego errors (#7896) (authored by @charlieegan3)
+- docs: Update OCP api-key (authored by @charlieegan3)
+- docs: Update OCP install instructions (authored by @ashutosh-narkar)
+- docs: Update references to cheat sheet and awesome-opa (#7930) (authored by @charlieegan3)
+- feat: Add counter metric for http.send network requests (#7851) (authored by @anivar)
+- fix: only skip initializing file loader in bundle-mode (#7876) (authored by @sspaink)
+- fix: print eval errors to stderr (#7880) (authored by @sspaink)
+- github_actions: add working directory in arguments (authored by @sspaink)
+- home page example fix (#7885) (authored by @msorens)
+- link-checker: fix pinned actions (authored by @srenatus)
+- perf: Don't invoke future parser for Rego v1 (#7909) (authored by @anderseknert)
+- plugin/decision: correctly reconfigure limit based on buffer type (#7926) (authored by @sspaink)
+- plugin/decision: encoder return event same size as limit immediately (#7928) (authored by @sspaink)
+- plugin/decision: refactor size buffer into its own type (#7884) (authored by @sspaink)
+- plugins/bundle: return callback error (#7871) (authored by @sspaink)
+- rego: Add comprehensive WASM performance benchmarks (#7841) (authored by @anivar)
+- topdown: Update step error message (#7882) (authored by @charlieegan3)
+- v1/rego/example: make ExampleRego_Partial not flaky (authored by @srenatus)
 
 ## 1.8.0
 
