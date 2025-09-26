@@ -26,11 +26,6 @@ package filters
 # compile:
 #   unknowns: [input.fruits]
 include if input.fruits.name == input.favorite
-
-include if {
-	input.fruits.name == "apple"
-	not input.favorite
-}
 ```
 
 ##### Example Request
