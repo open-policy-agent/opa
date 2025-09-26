@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/olekukonko/tablewriter/tw"
+
 	"github.com/open-policy-agent/opa/cmd/formats"
 	"github.com/open-policy-agent/opa/cmd/internal/env"
 	ib "github.com/open-policy-agent/opa/internal/bundle/inspect"
@@ -211,10 +213,14 @@ func populateManifest(out io.Writer, m *bundle.Manifest) error {
 		lines = append(lines, []string{"Metadata", truncateTableStr(string(metadata))})
 	}
 
-	t.AppendBulk(lines)
-	if t.NumLines() > 0 {
+	if len(lines) > 0 {
+		if err := t.Bulk(lines); err != nil {
+			return err
+		}
 		fmt.Fprintln(out, "MANIFEST:")
-		t.Render()
+		if err := t.Render(); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -223,8 +229,11 @@ func populateManifest(out io.Writer, m *bundle.Manifest) error {
 func populateNamespaces(out io.Writer, n map[string][]string) error {
 	t := generateTableWithKeys(out, "namespace", "file")
 	// only auto-merge the namespace column
-	t.SetAutoMergeCells(false)
-	t.SetAutoMergeCellsByColumnIndex([]int{0})
+	t = t.Options(tablewriter.WithConfig(tablewriter.NewConfigBuilder().
+		ForColumn(0).Build().Row().Formatting().WithMergeMode(tw.MergeVertical). // vertical merge column 0.
+		Build().Build().Build(),                                                 //  build the table config.
+	))
+
 	var lines [][]string
 
 	for _, k := range util.KeysSorted(n) {
@@ -233,10 +242,14 @@ func populateNamespaces(out io.Writer, n map[string][]string) error {
 		}
 	}
 
-	t.AppendBulk(lines)
-	if t.NumLines() > 0 {
+	if err := t.Bulk(lines); err != nil {
+		return err
+	}
+	if len(lines) > 0 {
 		fmt.Fprintln(out, "NAMESPACES:")
-		t.Render()
+		if err := t.Render(); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -385,20 +398,31 @@ func printTitle(out io.Writer, ref *ast.AnnotationsRef) {
 }
 
 func generateTableWithKeys(writer io.Writer, keys ...string) *tablewriter.Table {
-	table := tablewriter.NewWriter(writer)
-	aligns := []int{}
-	hdrs := make([]string, 0, len(keys))
-	for _, k := range keys {
-		hdrs = append(hdrs, strings.Title(k)) //nolint:staticcheck // SA1019, no unicode
-		aligns = append(aligns, tablewriter.ALIGN_LEFT)
+	hdrs := make([]any, len(keys))
+	for i, k := range keys {
+		hdrs[i] = pr.TitleCase.String(k)
 	}
-	table.SetHeader(hdrs)
-	table.SetAlignment(tablewriter.ALIGN_CENTER)
-	table.SetAutoMergeCells(true)
-	table.SetColumnAlignment(aligns)
-	table.SetRowLine(false)
-	table.SetAutoWrapText(false)
-	return table
+
+	t := tablewriter.NewTable(
+		writer,
+		tablewriter.WithConfig(tablewriter.Config{
+			Header: tw.CellConfig{
+				Formatting: tw.CellFormatting{AutoFormat: tw.On},
+				Alignment:  tw.CellAlignment{Global: tw.AlignCenter},
+			},
+			Row: tw.CellConfig{
+				Alignment: tw.CellAlignment{Global: tw.AlignLeft},
+				Formatting: tw.CellFormatting{
+					AutoWrap:  tw.WrapNone,
+					MergeMode: tw.MergeBoth,
+				},
+			},
+		}),
+		tablewriter.WithTrimLine(tw.Off),
+	)
+
+	t.Header(hdrs...)
+	return t
 }
 
 func truncateTableStr(s string) string {

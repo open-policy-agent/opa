@@ -1330,22 +1330,22 @@ func TestRenderBenchmarkResultPrettyOutput(t *testing.T) {
 
 	actual := buf.String()
 
-	expected := `+-------------------------------------------+------------+
-| samples                                   |     134844 |
-| ns/op                                     |       8071 |
-| histogram_timer_rego_query_eval_ns_75%    |       4954 |
-| histogram_timer_rego_query_eval_ns_90%    |       6310 |
-| histogram_timer_rego_query_eval_ns_95%    |       7873 |
-| histogram_timer_rego_query_eval_ns_99%    |      14947 |
-| histogram_timer_rego_query_eval_ns_99.9%  |     174377 |
-| histogram_timer_rego_query_eval_ns_99.99% |     176301 |
-| histogram_timer_rego_query_eval_ns_count  |     134844 |
-| histogram_timer_rego_query_eval_ns_max    |     176301 |
-| histogram_timer_rego_query_eval_ns_mean   |       5118 |
-| histogram_timer_rego_query_eval_ns_median |       4312 |
-| histogram_timer_rego_query_eval_ns_min    |       3553 |
-| histogram_timer_rego_query_eval_ns_stddev |       6588 |
-+-------------------------------------------+------------+
+	expected := `┌───────────────────────────────────────────┬────────┐
+│ samples                                   │ 134844 │
+│ ns/op                                     │   8071 │
+│ histogram_timer_rego_query_eval_ns_75%    │   4954 │
+│ histogram_timer_rego_query_eval_ns_90%    │   6310 │
+│ histogram_timer_rego_query_eval_ns_95%    │   7873 │
+│ histogram_timer_rego_query_eval_ns_99%    │  14947 │
+│ histogram_timer_rego_query_eval_ns_99.9%  │ 174377 │
+│ histogram_timer_rego_query_eval_ns_99.99% │ 176301 │
+│ histogram_timer_rego_query_eval_ns_count  │ 134844 │
+│ histogram_timer_rego_query_eval_ns_max    │ 176301 │
+│ histogram_timer_rego_query_eval_ns_mean   │   5118 │
+│ histogram_timer_rego_query_eval_ns_median │   4312 │
+│ histogram_timer_rego_query_eval_ns_min    │   3553 │
+│ histogram_timer_rego_query_eval_ns_stddev │   6588 │
+└───────────────────────────────────────────┴────────┘
 `
 	if actual != expected {
 		t.Fatalf("\nExpected:\n%s\n\nGot:\n%s\n", expected, actual)
@@ -1369,24 +1369,24 @@ func TestRenderBenchmarkResultPrettyOutputShowAllocs(t *testing.T) {
 
 	actual := buf.String()
 
-	expected := `+-------------------------------------------+------------+
-| samples                                   |     134844 |
-| ns/op                                     |       8071 |
-| B/op                                      |       3336 |
-| allocs/op                                 |         62 |
-| histogram_timer_rego_query_eval_ns_75%    |       4954 |
-| histogram_timer_rego_query_eval_ns_90%    |       6310 |
-| histogram_timer_rego_query_eval_ns_95%    |       7873 |
-| histogram_timer_rego_query_eval_ns_99%    |      14947 |
-| histogram_timer_rego_query_eval_ns_99.9%  |     174377 |
-| histogram_timer_rego_query_eval_ns_99.99% |     176301 |
-| histogram_timer_rego_query_eval_ns_count  |     134844 |
-| histogram_timer_rego_query_eval_ns_max    |     176301 |
-| histogram_timer_rego_query_eval_ns_mean   |       5118 |
-| histogram_timer_rego_query_eval_ns_median |       4312 |
-| histogram_timer_rego_query_eval_ns_min    |       3553 |
-| histogram_timer_rego_query_eval_ns_stddev |       6588 |
-+-------------------------------------------+------------+
+	expected := `┌───────────────────────────────────────────┬────────┐
+│ samples                                   │ 134844 │
+│ ns/op                                     │   8071 │
+│ B/op                                      │   3336 │
+│ allocs/op                                 │     62 │
+│ histogram_timer_rego_query_eval_ns_75%    │   4954 │
+│ histogram_timer_rego_query_eval_ns_90%    │   6310 │
+│ histogram_timer_rego_query_eval_ns_95%    │   7873 │
+│ histogram_timer_rego_query_eval_ns_99%    │  14947 │
+│ histogram_timer_rego_query_eval_ns_99.9%  │ 174377 │
+│ histogram_timer_rego_query_eval_ns_99.99% │ 176301 │
+│ histogram_timer_rego_query_eval_ns_count  │ 134844 │
+│ histogram_timer_rego_query_eval_ns_max    │ 176301 │
+│ histogram_timer_rego_query_eval_ns_mean   │   5118 │
+│ histogram_timer_rego_query_eval_ns_median │   4312 │
+│ histogram_timer_rego_query_eval_ns_min    │   3553 │
+│ histogram_timer_rego_query_eval_ns_stddev │   6588 │
+└───────────────────────────────────────────┴────────┘
 `
 	if actual != expected {
 		t.Fatalf("\nExpected:\n%s\n\nGot:\n%s\n", expected, actual)

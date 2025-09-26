@@ -13,9 +13,9 @@ package test
 result if input.yay
 -- expected_stdout --
 NAMESPACES:
-+----------------+----------------------------------+
-|   NAMESPACE    |               FILE               |
-+----------------+----------------------------------+
-| data.namespace | a/b/c/bundle/namespace/data.json |
-| data.test      | a/b/c/bundle/test.rego           |
-+----------------+----------------------------------+
+┌────────────────┬──────────────────────────────────┐
+│   NAMESPACE    │               FILE               │
+├────────────────┼──────────────────────────────────┤
+│ data.namespace │ a/b/c/bundle/namespace/data.json │
+│ data.test      │ a/b/c/bundle/test.rego           │
+└────────────────┴──────────────────────────────────┘
