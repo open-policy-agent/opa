@@ -20,9 +20,16 @@ for all OpenTelemetry-related configurables.
 
 ## Prometheus
 
-OPA exposes an HTTP endpoint that can be used to collect performance metrics
+OPA exposes an HTTP endpoint at `/metrics` that can be used to collect performance metrics
 for all API calls. The Prometheus endpoint is enabled by default when you run
 OPA as a server.
+
+OPA provides two ways to access performance metrics:
+
+1. **System-wide metrics** via the `/metrics` Prometheus endpoint - Instance-level metrics across all OPA operations
+2. **Per-query metrics** via API responses with `?metrics=true` - Metrics for individual query executions
+
+These serve different purposes: system metrics for OPA instance monitoring and alerting, per-query metrics for debugging and optimization.
 
 You can enable metric collection from OPA with the following `prometheus.yml` config:
 
@@ -86,21 +93,9 @@ When Prometheus is enabled in the status plugin (see [Configuration](./configura
 | last_success_bundle_request    | gauge       | Last successful bundle request in UNIX nanoseconds.    | STABLE |
 | bundle_loading_duration_ns     | histogram   | A histogram of duration for bundle loading.            | STABLE |
 
-## Metrics Overview
+## Available Metrics
 
-OPA provides two ways to access performance metrics:
-
-1. **System-wide metrics** via the `/metrics` Prometheus endpoint - Instance-level metrics across all OPA operations
-2. **Per-query metrics** via API responses with `?metrics=true` - Metrics for individual query executions
-
-These serve different purposes: system metrics for OPA instance monitoring and alerting, per-query metrics for debugging and optimization.
-
-
-## Accessing Metrics
-
-### System-Wide Metrics (Prometheus Endpoint)
-
-Access instance-level metrics across all OPA operations:
+The Prometheus `/metrics` endpoint exposes the following instance-level metrics:
 
 - **URL**: `http://localhost:8181/metrics` (default configuration)
 - **Method**: HTTP GET
@@ -112,9 +107,9 @@ Access instance-level metrics across all OPA operations:
 
 - **Per-query metrics**: See [REST API Performance Metrics](./rest-api#performance-metrics) for debugging individual queries
 - **Policy performance**: See [Policy Performance](./policy-performance#performance-metrics) for optimization guidance
-- **Status API**: Includes subset of metrics in status reports
-- **Decision logs**: Can include request-level metrics when configured
-- **CLI tools**: `opa eval --metrics` and `opa bench --metrics`
+- **Status API**: See [Status API](./management-status) for metrics reporting via status updates
+- **Decision logs**: See [Decision Logs](./management-decision-logs) for including metrics in decision logs
+- **CLI tools**: See [opa eval](./cli#eval) and [opa bench](./cli#bench) for command-line metric collection
 
 ## Health Checks
 

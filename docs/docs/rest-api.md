@@ -2325,7 +2325,13 @@ OPA provides the following query performance metrics:
 - **timer_server_handler_ns**: time taken (in nanoseconds) to handle the API request.
 - **counter_server_query_cache_hit**: number of cache hits for the query.
 
-When query instrumentation is enabled (`instrument=true`), additional evaluation metrics are included. See [Policy Performance](./policy-performance#performance-metrics) for details on interpreting these metrics.
+When query instrumentation is enabled (`instrument=true`), the following additional detailed evaluation metrics are included:
+- **timer_eval_op_***: Various evaluation operation timers (e.g., `timer_eval_op_plug_ns`, `timer_eval_op_resolve_ns`)
+- **histogram_eval_op_***: Histograms tracking evaluation operation time distributions
+- **timer_rego_builtin_***: Built-in function execution times
+- **counter_rego_builtin_***: Built-in function call counts and cache hits
+
+See [Policy Performance](./policy-performance#performance-metrics) for details on interpreting these metrics.
 
 The `counter_server_query_cache_hit` counter gives an indication about whether OPA creates a new Rego query
 or it uses a pre-processed query which holds some prepared state to serve the API request. A pre-processed query will be
