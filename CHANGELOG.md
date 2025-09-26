@@ -70,7 +70,7 @@ Authored by @srenatus and @philipaconrad
 
 OPA's [rule indexer](https://blog.openpolicyagent.org/optimizing-opa-rule-indexing-59f03f17caf3) is a means by which OPA can optimize evaluation performance.
 Briefly, the indexer can in some cases determine that a rule won't successfully evaluate _before_ it's evaluated based on the query input.
-The indexer previously only considered the value of a term, not its mere presence; e.g. an expression containing a sole "naked" ref. This has now changed!
+The indexer previously only considered terms in certain compound expressions, ignoring single terms; e.g. an expression containing a sole "naked" ref. This has now changed!
 
 #### Example
 
