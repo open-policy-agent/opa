@@ -1187,12 +1187,17 @@ func (r *REPL) evalPackage(p *ast.Package) error {
 	return nil
 }
 
+// interpretAsRule attempts to interpret the supplied query as a rule
+// definition. If the query is a single := or = statement and it can be
+// converted into a rule and compiled, then it will be interpreted as such. This
+// allows users to define constants in the REPL. For example:
+//
+//		> a = 1
+//	 > a
+//	 1
+//
 // If the expression is a = statement, then an additional check on the left
 // hand side occurs. For example:
-//
-//	if len(rule.Head.Ref()) > 1 {
-//		return false, nil
-//	}
 //
 //		> b = 2
 //	 > b = 2

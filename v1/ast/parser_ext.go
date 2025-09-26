@@ -246,7 +246,7 @@ func parseCompleteRuleFromEq(module *Module, expr *Expr) (rule *Rule, err error)
 
 // ParseCompleteDocRuleFromAssignmentExpr returns a rule if the expression can
 // be interpreted as a complete document definition declared with the assignment
-// operator, including with keyword.
+// operator.
 func ParseCompleteDocRuleFromAssignmentExpr(module *Module, lhs, rhs *Term) (*Rule, error) {
 
 	rule, err := ParseCompleteDocRuleFromEqExpr(module, lhs, rhs)
@@ -260,7 +260,7 @@ func ParseCompleteDocRuleFromAssignmentExpr(module *Module, lhs, rhs *Term) (*Ru
 }
 
 // ParseCompleteDocRuleFromEqExpr returns a rule if the expression can be
-// interpreted as a complete document definition, including with keyword.
+// interpreted as a complete document definition.
 func ParseCompleteDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule, error) {
 	var head *Head
 
