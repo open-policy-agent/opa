@@ -2163,6 +2163,18 @@ func rewritePrintCalls(gen *localVarGenerator, getArity func(Ref) int, globals V
 		var errs Errors
 		safe := outputVarsForBody(body[:i], getArity, globals)
 		safe.Update(globals)
+
+		// Fixes Issue #7647 by adding generated variables to the safe set
+		for k := range body[:i] {
+			vis := NewVarVisitor().WithParams(SafetyCheckVisitorParams)
+			vis.Walk(body[k])
+			for v := range vis.Vars() {
+				if v.IsGenerated() {
+					safe.Add(v)
+				}
+			}
+		}
+
 		args := body[i].Operands()
 
 		var vis *VarVisitor
