@@ -3424,7 +3424,7 @@ func TestWith(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 	if err.Error() != expectedErr {
-		t.Fatalf("expected error: %v but got %v", expectedErr, err.Error())
+		t.Fatalf("expected error: %q but got %q", expectedErr, err.Error())
 	}
 
 	// add valid with expression used in body
