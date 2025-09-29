@@ -241,7 +241,7 @@ func TestCompileHandlerHints(t *testing.T) {
 	typoRego := `package filters
 # METADATA
 # scope: document
-# custom:
+# compile:
 #   unknowns: [input.fruits]
 include if input.fruits.name == "apple"
 include if input.fruit.cost < input.max

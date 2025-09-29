@@ -34,6 +34,7 @@ type (
 		RelatedResources []*RelatedResourceAnnotation `json:"related_resources,omitempty"`
 		Authors          []*AuthorAnnotation          `json:"authors,omitempty"`
 		Schemas          []*SchemaAnnotation          `json:"schemas,omitempty"`
+		Compile          *CompileAnnotation           `json:"compile,omitempty"`
 		Custom           map[string]any               `json:"custom,omitempty"`
 		Location         *Location                    `json:"location,omitempty"`
 
@@ -46,6 +47,11 @@ type (
 		Path       Ref  `json:"path"`
 		Schema     Ref  `json:"schema,omitempty"`
 		Definition *any `json:"definition,omitempty"`
+	}
+
+	CompileAnnotation struct {
+		Unknowns []Ref `json:"unknowns,omitempty"`
+		MaskRule Ref   `json:"mask_rule,omitempty"` // NOTE: This doesn't need to start with "data.package", it can be relative
 	}
 
 	AuthorAnnotation struct {
@@ -148,6 +154,10 @@ func (a *Annotations) Compare(other *Annotations) int {
 	}
 
 	if cmp := compareSchemas(a.Schemas, other.Schemas); cmp != 0 {
+		return cmp
+	}
+
+	if cmp := a.Compile.Compare(other.Compile); cmp != 0 {
 		return cmp
 	}
 
@@ -402,6 +412,8 @@ func (a *Annotations) Copy(node Node) *Annotations {
 	for i := range a.Schemas {
 		cpy.Schemas[i] = a.Schemas[i].Copy()
 	}
+
+	cpy.Compile = a.Compile.Copy()
 
 	if a.Custom != nil {
 		cpy.Custom = deepcopy.Map(a.Custom)
@@ -713,6 +725,44 @@ func (s *SchemaAnnotation) Compare(other *SchemaAnnotation) int {
 
 func (s *SchemaAnnotation) String() string {
 	bs, _ := json.Marshal(s)
+	return string(bs)
+}
+
+// Copy returns a deep copy of s.
+func (c *CompileAnnotation) Copy() *CompileAnnotation {
+	if c == nil {
+		return nil
+	}
+	cpy := *c
+	for i := range c.Unknowns {
+		cpy.Unknowns[i] = c.Unknowns[i].Copy()
+	}
+	return &cpy
+}
+
+// Compare returns an integer indicating if s is less than, equal to, or greater
+// than other.
+func (c *CompileAnnotation) Compare(other *CompileAnnotation) int {
+	switch {
+	case c == nil && other == nil:
+		return 0
+	case c != nil && other == nil:
+		return 1
+	case c == nil && other != nil:
+		return -1
+	}
+
+	if cmp := slices.CompareFunc(c.Unknowns, other.Unknowns,
+		func(x, y Ref) int {
+			return x.Compare(y)
+		}); cmp != 0 {
+		return cmp
+	}
+	return c.MaskRule.Compare(other.MaskRule)
+}
+
+func (c *CompileAnnotation) String() string {
+	bs, _ := json.Marshal(c)
 	return string(bs)
 }
 
