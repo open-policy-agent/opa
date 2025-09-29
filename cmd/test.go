@@ -302,7 +302,7 @@ func processWatcherUpdate(ctx context.Context, testParams testCommandParams, pat
 	err := pathwatcher.ProcessWatcherUpdateForRegoVersion(ctx, testParams.RegoVersion(), paths, removed, store, filter, testParams.bundleMode, false,
 		func(ctx context.Context, txn storage.Transaction, loaded *initload.LoadPathsResult) error {
 			if len(loaded.Files.Documents) > 0 || removed != "" {
-				if err := store.Write(ctx, txn, storage.AddOp, storage.Path{}, loaded.Files.Documents); err != nil {
+				if err := store.Write(ctx, txn, storage.AddOp, storage.RootPath, loaded.Files.Documents); err != nil {
 					return fmt.Errorf("storage error: %w", err)
 				}
 			}

@@ -195,7 +195,7 @@ func TestInMemoryWrite(t *testing.T) {
 				store := NewFromObjectWithOpts(data, OptReturnASTValuesOnRead(rvt.ast))
 
 				// Perform patch and check result
-				value := loadExpectedSortedResult(tc.value)
+				value := loadExpectedResult(tc.value)
 
 				var op storage.PatchOp
 				switch tc.op {
@@ -304,7 +304,7 @@ func TestInMemoryWriteOfStruct(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			expected := loadExpectedSortedResult(tc.expected)
+			expected := loadExpectedResult(tc.expected)
 			if !reflect.DeepEqual(expected, actual) {
 				t.Errorf("expected %v, got %v", tc.expected, actual)
 			}
@@ -1235,21 +1235,8 @@ func loadExpectedResult(input string) any {
 	if len(input) == 0 {
 		return nil
 	}
-	var data any
-	if err := util.UnmarshalJSON([]byte(input), &data); err != nil {
-		panic(err)
-	}
-	return data
-}
 
-func loadExpectedSortedResult(input string) any {
-	data := loadExpectedResult(input)
-	switch data := data.(type) {
-	case []any:
-		return data
-	default:
-		return data
-	}
+	return util.MustUnmarshalJSON([]byte(input))
 }
 
 func loadSmallTestData() map[string]any {

@@ -71,7 +71,7 @@ func NewFromObjectWithOpts(data map[string]any, opts ...Opt) storage.Store {
 	if err != nil {
 		panic(err)
 	}
-	if err := db.Write(ctx, txn, storage.AddOp, storage.Path{}, data); err != nil {
+	if err := db.Write(ctx, txn, storage.AddOp, storage.RootPath, data); err != nil {
 		panic(err)
 	}
 	if err := db.Commit(ctx, txn); err != nil {
@@ -120,19 +120,23 @@ type handle struct {
 }
 
 func (db *store) NewTransaction(_ context.Context, params ...storage.TransactionParams) (storage.Transaction, error) {
-	var write bool
-	var ctx *storage.Context
-	if len(params) > 0 {
-		write = params[0].Write
-		ctx = params[0].Context
+	txn := &transaction{
+		xid: atomic.AddUint64(&db.xid, uint64(1)),
+		db:  db,
 	}
-	xid := atomic.AddUint64(&db.xid, uint64(1))
-	if write {
+
+	if len(params) > 0 {
+		txn.write = params[0].Write
+		txn.context = params[0].Context
+	}
+
+	if txn.write {
 		db.wmu.Lock()
 	} else {
 		db.rmu.RLock()
 	}
-	return newTransaction(xid, write, ctx, db), nil
+
+	return txn, nil
 }
 
 // Truncate implements the storage.Store interface. This method must be called within a transaction.
@@ -193,11 +197,7 @@ func (db *store) Truncate(ctx context.Context, txn storage.Transaction, params s
 
 	// For backwards compatibility, check if `RootOverwrite` was configured.
 	if params.RootOverwrite {
-		newPath, ok := storage.ParsePathEscaped("/")
-		if !ok {
-			return fmt.Errorf("storage path invalid: %v", newPath)
-		}
-		return underlying.Write(storage.AddOp, newPath, mergedData)
+		return underlying.Write(storage.AddOp, storage.RootPath, mergedData)
 	}
 
 	for _, root := range params.BasePaths {

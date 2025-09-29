@@ -42,7 +42,7 @@ type InsertAndCompileResult struct {
 // store contents.
 func InsertAndCompile(ctx context.Context, opts InsertAndCompileOptions) (*InsertAndCompileResult, error) {
 	if len(opts.Files.Documents) > 0 {
-		if err := opts.Store.Write(ctx, opts.Txn, storage.AddOp, storage.Path{}, opts.Files.Documents); err != nil {
+		if err := opts.Store.Write(ctx, opts.Txn, storage.AddOp, storage.RootPath, opts.Files.Documents); err != nil {
 			return nil, fmt.Errorf("storage error: %w", err)
 		}
 	}
