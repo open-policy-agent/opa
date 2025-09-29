@@ -3404,3 +3404,48 @@ func parseJSON(s string) any {
 	}
 	return v
 }
+
+func TestWith(t *testing.T) {
+	ctx := t.Context()
+	store := inmem.New()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	if err := repl.OneShot(ctx, "package main"); err != nil {
+		t.Fatal(err)
+	}
+	if err := repl.OneShot(ctx, "n = 5"); err != nil {
+		t.Fatal(err)
+	}
+
+	// add invalid expression using with in rule head
+	expectedErr := "expressions using with keyword cannot be used for rule head"
+	err := repl.OneShot(ctx, "even := n % 2 == 0 with n as 4")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if err.Error() != expectedErr {
+		t.Fatalf("expected error: %q but got %q", expectedErr, err.Error())
+	}
+
+	// add valid with expression used in body
+	if err := repl.OneShot(ctx, "even if {\n z := n % 2 == 0 with n as 4 \n z }"); err != nil {
+		t.Fatal(err)
+	}
+
+	buffer.Reset()
+
+	if err := repl.OneShot(ctx, "show"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	expected := `package main
+
+n := 5
+
+even if {
+	z := (n % 2) == 0 with n as 4
+	z
+}` + "\n"
+
+	assertREPLText(t, buffer, expected)
+}
