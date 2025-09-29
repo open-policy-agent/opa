@@ -3421,7 +3421,7 @@ func TestWith(t *testing.T) {
 	expectedErr := "expressions using with keyword cannot be used for rule head"
 	err := repl.OneShot(ctx, "even := n % 2 == 0 with n as 4")
 	if err == nil {
-		t.Fatal("Expected error")
+		t.Fatal("expected error, got nil")
 	}
 	if err.Error() != expectedErr {
 		t.Fatalf("expected error: %v but got %v", expectedErr, err.Error())
