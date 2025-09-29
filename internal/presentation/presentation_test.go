@@ -126,7 +126,7 @@ func TestOutputJSONErrorStructuredASTErr(t *testing.T) {
 func TestOutputJSONErrorStructuredStorageErr(t *testing.T) {
 	store := inmem.New()
 	txn := storage.NewTransactionOrDie(t.Context(), store)
-	err := store.Write(t.Context(), txn, storage.AddOp, storage.Path{}, map[string]any{"foo": 1})
+	err := store.Write(t.Context(), txn, storage.AddOp, storage.RootPath, map[string]any{"foo": 1})
 	expected := `{
   "errors": [
     {

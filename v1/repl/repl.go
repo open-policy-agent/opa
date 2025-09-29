@@ -1410,7 +1410,7 @@ func newCommand(line string) *command {
 }
 
 func dumpStorage(ctx context.Context, store storage.Store, txn storage.Transaction, w io.Writer) error {
-	data, err := store.Read(ctx, txn, storage.Path{})
+	data, err := store.Read(ctx, txn, storage.RootPath)
 	if err != nil {
 		return err
 	}

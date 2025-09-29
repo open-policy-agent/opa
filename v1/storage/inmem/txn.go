@@ -34,13 +34,13 @@ import (
 // Read transactions do not require any special handling and simply passthrough
 // to the underlying store. Read transactions do not support upgrade.
 type transaction struct {
+	db       *store
+	updates  *list.List
+	context  *storage.Context
+	policies map[string]policyUpdate
 	xid      uint64
 	write    bool
 	stale    bool
-	db       *store
-	updates  *list.List
-	policies map[string]policyUpdate
-	context  *storage.Context
 }
 
 type policyUpdate struct {
@@ -48,28 +48,17 @@ type policyUpdate struct {
 	remove bool
 }
 
-func newTransaction(xid uint64, write bool, context *storage.Context, db *store) *transaction {
-	return &transaction{
-		xid:      xid,
-		write:    write,
-		db:       db,
-		policies: map[string]policyUpdate{},
-		updates:  list.New(),
-		context:  context,
-	}
-}
-
 func (txn *transaction) ID() uint64 {
 	return txn.xid
 }
 
 func (txn *transaction) Write(op storage.PatchOp, path storage.Path, value any) error {
-
 	if !txn.write {
-		return &storage.Error{
-			Code:    storage.InvalidTransactionErr,
-			Message: "data write during read transaction",
-		}
+		return &storage.Error{Code: storage.InvalidTransactionErr, Message: "data write during read transaction"}
+	}
+
+	if txn.updates == nil {
+		txn.updates = list.New()
 	}
 
 	if len(path) == 0 {
@@ -145,7 +134,7 @@ func (txn *transaction) updateRoot(op storage.PatchOp, value any) error {
 		}
 
 		update = &updateAST{
-			path:   storage.Path{},
+			path:   storage.RootPath,
 			remove: false,
 			value:  valueAST,
 		}
@@ -155,7 +144,7 @@ func (txn *transaction) updateRoot(op storage.PatchOp, value any) error {
 		}
 
 		update = &updateRaw{
-			path:   storage.Path{},
+			path:   storage.RootPath,
 			remove: false,
 			value:  value,
 		}
@@ -163,20 +152,23 @@ func (txn *transaction) updateRoot(op storage.PatchOp, value any) error {
 
 	txn.updates.Init()
 	txn.updates.PushFront(update)
+
 	return nil
 }
 
 func (txn *transaction) Commit() (result storage.TriggerEvent) {
 	result.Context = txn.context
-	for curr := txn.updates.Front(); curr != nil; curr = curr.Next() {
-		action := curr.Value.(dataUpdate)
-		txn.db.data = action.Apply(txn.db.data)
+	if txn.updates != nil {
+		for curr := txn.updates.Front(); curr != nil; curr = curr.Next() {
+			action := curr.Value.(dataUpdate)
+			txn.db.data = action.Apply(txn.db.data)
 
-		result.Data = append(result.Data, storage.DataEvent{
-			Path:    action.Path(),
-			Data:    action.Value(),
-			Removed: action.Remove(),
-		})
+			result.Data = append(result.Data, storage.DataEvent{
+				Path:    action.Path(),
+				Data:    action.Value(),
+				Removed: action.Remove(),
+			})
+		}
 	}
 	for id, upd := range txn.policies {
 		if upd.remove {
@@ -218,8 +210,7 @@ func deepcpy(v any) any {
 }
 
 func (txn *transaction) Read(path storage.Path) (any, error) {
-
-	if !txn.write {
+	if !txn.write || txn.updates == nil {
 		return pointer(txn.db.data, path)
 	}
 
@@ -260,8 +251,7 @@ func (txn *transaction) Read(path storage.Path) (any, error) {
 	return cpy, nil
 }
 
-func (txn *transaction) ListPolicies() []string {
-	var ids []string
+func (txn *transaction) ListPolicies() (ids []string) {
 	for id := range txn.db.policies {
 		if _, ok := txn.policies[id]; !ok {
 			ids = append(ids, id)
@@ -276,11 +266,13 @@ func (txn *transaction) ListPolicies() []string {
 }
 
 func (txn *transaction) GetPolicy(id string) ([]byte, error) {
-	if update, ok := txn.policies[id]; ok {
-		if !update.remove {
-			return update.value, nil
+	if txn.policies != nil {
+		if update, ok := txn.policies[id]; ok {
+			if !update.remove {
+				return update.value, nil
+			}
+			return nil, errors.NewNotFoundErrorf("policy id %q", id)
 		}
-		return nil, errors.NewNotFoundErrorf("policy id %q", id)
 	}
 	if exist, ok := txn.db.policies[id]; ok {
 		return exist, nil
@@ -289,24 +281,24 @@ func (txn *transaction) GetPolicy(id string) ([]byte, error) {
 }
 
 func (txn *transaction) UpsertPolicy(id string, bs []byte) error {
-	if !txn.write {
-		return &storage.Error{
-			Code:    storage.InvalidTransactionErr,
-			Message: "policy write during read transaction",
-		}
-	}
-	txn.policies[id] = policyUpdate{bs, false}
-	return nil
+	return txn.updatePolicy(id, policyUpdate{bs, false})
 }
 
 func (txn *transaction) DeletePolicy(id string) error {
+	return txn.updatePolicy(id, policyUpdate{nil, true})
+}
+
+func (txn *transaction) updatePolicy(id string, update policyUpdate) error {
 	if !txn.write {
-		return &storage.Error{
-			Code:    storage.InvalidTransactionErr,
-			Message: "policy write during read transaction",
-		}
+		return &storage.Error{Code: storage.InvalidTransactionErr, Message: "policy write during read transaction"}
 	}
-	txn.policies[id] = policyUpdate{nil, true}
+
+	if txn.policies == nil {
+		txn.policies = map[string]policyUpdate{id: update}
+	} else {
+		txn.policies[id] = update
+	}
+
 	return nil
 }
 
