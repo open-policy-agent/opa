@@ -1,11 +1,7 @@
 ---
-title: Writing valid data filtering policies
-description: Writing valid data filtering policies
+title: Writing valid Data Filtering Policies
 sidebar_position: 3
 ---
-
-import SideBySideContainer from '@site/src/components/SideBySide/Container';
-import SideBySideColumn from '@site/src/components/SideBySide/Column';
 
 To be able to use Rego for data filtering, the policy needs to be constructed to
 

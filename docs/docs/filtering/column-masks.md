@@ -4,9 +4,6 @@ description: Writing valid data column masking policies
 sidebar_position: 4
 ---
 
-import SideBySideContainer from '@site/src/components/SideBySide/Container';
-import SideBySideColumn from '@site/src/components/SideBySide/Column';
-
 Column masking rules in Rego are used to generate an object that specifies exactly how an application should handle masking particular columns returned by the database.
 
 :::info What you will learn
@@ -100,7 +97,6 @@ We will be generating data filters and column masks for the `data.filters.includ
 <TabItem value="rego" label="filters.rego" default>
 
 ```rego
-
 package filters
 
 import rego.v1
@@ -139,10 +135,7 @@ masks.tickets.description.replace.value := {} if {
 
 A Reader should be able to only see the masked value for the `tickets.description` field, because they are not an Admin, and so they get the default rule's result.
 
-
-#### Request
-
-```http
+```http title="Request"
 POST /v1/compile/filters/include
 Content-Type: application/json
 Accept: application/vnd.opa.ucast.all+json
@@ -155,10 +148,7 @@ Accept: application/vnd.opa.ucast.all+json
 }
 ```
 
-
-#### Response
-
-```http
+```http title="Response"
 HTTP/1.1 200 OK
 Content-Type: application/json
 
@@ -183,10 +173,7 @@ Content-Type: application/json
 
 An Admin should be able to see every field of every ticket, since their role triggers a dedicated rule body that removes the masking function.
 
-
-#### Request
-
-```http
+```http title="Request"
 POST /v1/compile/filters/include
 Content-Type: application/json
 Accept: application/vnd.opa.ucast.all+json
@@ -199,10 +186,7 @@ Accept: application/vnd.opa.ucast.all+json
 }
 ```
 
-
-#### Response
-
-```http
+```http title="Response"
 HTTP/1.1 200 OK
 Content-Type: application/json
 
@@ -264,10 +248,7 @@ masks.tickets.description.replace.value := "<description>" if {
 
 A Reader should see the masked value for the `tickets.description` field.
 
-
-#### Request
-
-```http
+```http title="Request"
 POST /v1/compile/filters/include
 Content-Type: application/json
 Accept: application/vnd.opa.ucast.all+json
@@ -280,10 +261,7 @@ Accept: application/vnd.opa.ucast.all+json
 }
 ```
 
-
-#### Response
-
-```http
+```http title="Response"
 HTTP/1.1 200 OK
 Content-Type: application/json
 
@@ -308,10 +286,7 @@ Content-Type: application/json
 
 A Resolver should be able to see every field of every ticket, since they're not one of the targeted roles.
 
-
-#### Request
-
-```http
+```http title="Request"
 POST /v1/compile/filters/include
 Content-Type: application/json
 Accept: application/vnd.opa.ucast.all+json
@@ -324,10 +299,7 @@ Accept: application/vnd.opa.ucast.all+json
 }
 ```
 
-
-#### Response
-
-```http
+```http title="Response"
 HTTP/1.1 200 OK
 Content-Type: application/json
 

@@ -1,10 +1,7 @@
 ---
-title: Evaluating a data filter policy
+title: Evaluating a Data Filter Policy
 sidebar_position: 2
 ---
-
-import SideBySideContainer from '@site/src/components/SideBySide/Container';
-import SideBySideColumn from '@site/src/components/SideBySide/Column';
 
 To understand how SQL WHERE clauses can be derived from a partially evaluated Rego policy, it's beneficial to have a basic idea about how _partial evaluation_ (PE) works.
 In this walk-through of a PE run, we'll start with a basic filter policy:
