@@ -13,13 +13,13 @@ To get started, let's look at a common policy: ensure all images come from a
 trusted registry.
 
 ```rego showLineNumbers=true
-package kubernetes.admission                                                # line 1
+package kubernetes.admission
 
-deny contains msg if {                                                      # line 2
-    input.request.kind.kind == "Pod"                                        # line 3
-    image := input.request.object.spec.containers[_].image                  # line 4
-    not startswith(image, "hooli.com/")                                     # line 5
-    msg := sprintf("image '%v' comes from untrusted registry", [image])     # line 6
+deny contains msg if {
+    input.request.kind.kind == "Pod"
+    image := input.request.object.spec.containers[_].image
+    not startswith(image, "hooli.com/")
+    msg := sprintf("image '%v' comes from untrusted registry", [image])
 }
 ```
 
@@ -27,11 +27,11 @@ deny contains msg if {                                                      # li
 
 ### Packages
 
-In line 1 the `package kubernetes.admission` declaration gives the (hierarchical) name `kubernetes.admission` to the rules in the remainder of the policy. The default installation of OPA as an admission controller assumes your rules are in the package `kubernetes.admission`.
+In **line 1** the `package kubernetes.admission` declaration gives the (hierarchical) name `kubernetes.admission` to the rules in the remainder of the policy. The default installation of OPA as an admission controller assumes your rules are in the package `kubernetes.admission`.
 
 ### Deny Rules
 
-For admission control, you write `deny` statements. Order does not matter. (OPA is far more flexible than this, but we recommend writing just `deny` statements to start.) In line 2, the _head_ of the rule `deny contains msg if` says that the admission control request should be rejected and the user handed the error message `msg` if the conditions in the _body_ (the statements between the `{}`) are true.
+For admission control, you write `deny` statements. Order does not matter. (OPA is far more flexible than this, but we recommend writing just `deny` statements to start.) In **line 2**, the _head_ of the rule `deny contains msg if` says that the admission control request should be rejected and the user handed the error message `msg` if the conditions in the _body_ (the statements between the `{}`) are true.
 
 `deny` is the _set_ of error messages that should be returned to the user. Each rule you write adds to that set of error messages.
 
