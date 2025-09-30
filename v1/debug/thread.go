@@ -471,7 +471,7 @@ func (t *thread) inputVars(e *topdown.Event) VarRef {
 func (t *thread) dataVars() VarRef {
 	return t.varManager.addVars(func() []namedVar {
 		ctx := context.Background()
-		d, err := storage.ReadOne(ctx, t.store, storage.Path{})
+		d, err := storage.ReadOne(ctx, t.store, storage.RootPath)
 		if err != nil {
 			return nil
 		}

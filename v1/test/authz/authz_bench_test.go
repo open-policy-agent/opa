@@ -61,7 +61,7 @@ func runAuthzBenchmark(b *testing.B, mode InputMode, numPaths int, extras ...boo
 			b.Fatal(err)
 		}
 
-		if err = storage.WriteOne(ctx, store, storage.AddOp, storage.Path{}, data); err != nil {
+		if err = storage.WriteOne(ctx, store, storage.AddOp, storage.RootPath, data); err != nil {
 			b.Fatal(err)
 		}
 	} else {

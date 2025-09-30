@@ -372,7 +372,7 @@ func ExampleRego_Eval_persistent_storage() {
 		// Handle error.
 	}
 
-	err = storage.WriteOne(ctx, store, storage.AddOp, storage.Path{}, json)
+	err = storage.WriteOne(ctx, store, storage.AddOp, storage.RootPath, json)
 	if err != nil {
 		// Handle error
 	}
