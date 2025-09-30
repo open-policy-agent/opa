@@ -1,6 +1,6 @@
 import Link from "@docusaurus/Link";
 import useBaseUrl from "@docusaurus/useBaseUrl";
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
@@ -22,7 +22,7 @@ const Index = (props) => {
         <div className={styles.heroContainer}>
           <div className={styles.heroLeft}>
             <div className={styles.heroContent}>
-              <ThemedImage
+              <ThemedImageLoader
                 alt="OPA Logo"
                 className={styles.logo}
                 sources={{
@@ -82,8 +82,13 @@ const Index = (props) => {
         Open Policy Agent is a <a href="https://www.cncf.io/">Cloud Native Computing Foundation</a> Graduated project.
 
         <div className={styles.cncfLogo}>
-          <img src={useBaseUrl("img/footer/cncf-light.svg")} alt="CNCF Logo" className="light-only" />
-          <img src={useBaseUrl("img/footer/cncf-dark.svg")} alt="CNCF Logo" className="dark-only" />
+          <ThemedImageLoader
+            alt="CNCF Logo"
+            sources={{
+              light: useBaseUrl("img/footer/cncf-light.svg"),
+              dark: useBaseUrl("img/footer/cncf-dark.svg"),
+            }}
+          />
         </div>
       </p>
 
@@ -168,8 +173,9 @@ const Index = (props) => {
             to enforce policies in applications, proxies, Kubernetes, CI/CD pipelines, API gateways, and more.
           </p>
           <p>
-            The examples below are interactive! Use the <b>Evaluate</b> button to see output for the given rego and input.
-            Then edit the rego or the input (or both) to see how the output changes.
+            The examples below are interactive! Use the <b>Evaluate</b>{" "}
+            button to see output for the given rego and input. Then edit the rego or the input (or both) to see how the
+            output changes.
           </p>
 
           <Tabs
@@ -220,6 +226,32 @@ const Index = (props) => {
         </CardGrid>
       </div>
     </Layout>
+  );
+};
+
+const ThemedImageLoader = ({ alt, className, sources }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsLoaded(true);
+  }, []);
+
+  return (
+    <div
+      style={{
+        width: "auto",
+        height: "auto",
+        opacity: isLoaded ? 1 : 0,
+        transition: "opacity 0.1s ease-in-out",
+      }}
+    >
+      <ThemedImage
+        className={className}
+        alt={alt}
+        sources={sources}
+        onLoad={() => setIsLoaded(true)}
+      />
+    </div>
   );
 };
 
