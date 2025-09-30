@@ -18,9 +18,6 @@ const baseUrl = "/";
     tagline: "Policy-based control for cloud native environments",
     url: "https://openpolicyagent.org",
     baseUrl: baseUrl,
-    // Build-time options
-    onBrokenLinks: "throw",
-    onBrokenMarkdownLinks: "throw",
     trailingSlash: false,
     presets: [
       [
@@ -50,6 +47,7 @@ const baseUrl = "/";
     },
 
     markdown: {
+      hooks: { onBrokenMarkdownLinks: "throw" },
       mermaid: true,
     },
     themes: ["@docusaurus/theme-mermaid"],
