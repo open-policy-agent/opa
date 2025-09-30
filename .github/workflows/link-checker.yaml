@@ -20,6 +20,8 @@ jobs:
     - name: Link Checker
       id: lychee
       uses: lycheeverse/lychee-action@885c65f3dc543b57c898c8099f4e08c8afd178a2 # v2.6.1
+      # ignored domains are a source of false positives in
+      # https://github.com/open-policy-agent/opa/issues/7888 for example
       with:
         args: >
           --max-concurrency 1
@@ -29,6 +31,9 @@ jobs:
           --exclude-path CHANGELOG.md
           --scheme https
           --scheme http
+          --exclude medium.com
+          --exclude blog.openpolicyagent.org
+          --exclude itnext.io
           --accept 200..=206,403,429
           --retry-wait-time 5
           --max-retries 1
