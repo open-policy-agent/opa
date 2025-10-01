@@ -700,19 +700,19 @@ func TestUnknown(t *testing.T) {
 
 	output := strings.TrimSpace(buffer.String())
 	expected := strings.TrimSpace(`
-+---------+-------------+
-| Query 1 | input.x = 1 |
-|         | i = 0       |
-|         | x = 1       |
-+---------+-------------+
-| Query 2 | input.x = 2 |
-|         | i = 1       |
-|         | x = 2       |
-+---------+-------------+
-| Query 3 | input.x = 3 |
-|         | i = 2       |
-|         | x = 3       |
-+---------+-------------+
+┌─────────┬─────────────┐
+│ Query 1 │ input.x = 1 │
+│         │ i = 0       │
+│         │ x = 1       │
+├─────────┼─────────────┤
+│ Query 2 │ input.x = 2 │
+│         │ i = 1       │
+│         │ x = 2       │
+├─────────┼─────────────┤
+│ Query 3 │ input.x = 3 │
+│         │ i = 2       │
+│         │ x = 3       │
+└─────────┴─────────────┘
 `)
 
 	if output != expected {
@@ -745,19 +745,19 @@ func TestUnknownMetrics(t *testing.T) {
 
 	output := strings.TrimSpace(buffer.String())
 	expected := strings.TrimSpace(`
-+---------+-------------+
-| Query 1 | input.x = 1 |
-|         | i = 0       |
-|         | x = 1       |
-+---------+-------------+
-| Query 2 | input.x = 2 |
-|         | i = 1       |
-|         | x = 2       |
-+---------+-------------+
-| Query 3 | input.x = 3 |
-|         | i = 2       |
-|         | x = 3       |
-+---------+-------------+
+┌─────────┬─────────────┐
+│ Query 1 │ input.x = 1 │
+│         │ i = 0       │
+│         │ x = 1       │
+├─────────┼─────────────┤
+│ Query 2 │ input.x = 2 │
+│         │ i = 1       │
+│         │ x = 2       │
+├─────────┼─────────────┤
+│ Query 3 │ input.x = 3 │
+│         │ i = 2       │
+│         │ x = 3       │
+└─────────┴─────────────┘
 `)
 
 	if !strings.HasPrefix(output, expected) {
@@ -981,7 +981,12 @@ func TestOneShotEmptyBufferOneExpr(t *testing.T) {
 	if err := repl.OneShot(ctx, "data.a[i].b.c[j] = 2"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	expectOutput(t, buffer.String(), "+---+---+\n| i | j |\n+---+---+\n| 0 | 1 |\n+---+---+\n")
+	expectOutput(t, buffer.String(), `┌───┬───┐
+│ i │ j │
+├───┼───┤
+│ 0 │ 1 │
+└───┴───┘
+`)
 	buffer.Reset()
 	if err := repl.OneShot(ctx, "data.a[i].b.c[j] = \"deadbeef\""); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -1035,7 +1040,12 @@ func TestOneShotBufferedExpr(t *testing.T) {
 	if err := repl.OneShot(ctx, ""); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	expectOutput(t, buffer.String(), "+---+---+\n| i | j |\n+---+---+\n| 0 | 1 |\n+---+---+\n")
+	expectOutput(t, buffer.String(), `┌───┬───┐
+│ i │ j │
+├───┼───┤
+│ 0 │ 1 │
+└───┴───┘
+`)
 }
 
 func TestOneShotBufferedRule(t *testing.T) {
@@ -1708,12 +1718,12 @@ func TestEvalBooleanFlags(t *testing.T) {
 	}
 	expected := strings.TrimSpace(`
 Rule 'flags' defined in package repl. Type 'show' to see rules.
-+----------+
-| flags[_] |
-+----------+
-| true     |
-| true     |
-+----------+`)
+┌──────────┐
+│ flags[_] │
+├──────────┤
+│ true     │
+│ true     │
+└──────────┘`)
 	result := strings.TrimSpace(buffer.String())
 	if result != expected {
 		t.Errorf("Expected a single column with boolean output but got:\n%v", result)
@@ -1728,13 +1738,13 @@ Rule 'flags' defined in package repl. Type 'show' to see rules.
 	}
 	expected = strings.TrimSpace(`
 Rule 'flags2' defined in package repl. Type 'show' to see rules.
-+-----------+
-| flags2[_] |
-+-----------+
-| true      |
-| "x"       |
-| 1         |
-+-----------+`)
+┌───────────┐
+│ flags2[_] │
+├───────────┤
+│ true      │
+│ "x"       │
+│ 1         │
+└───────────┘`)
 	result = strings.TrimSpace(buffer.String())
 	if result != expected {
 		t.Errorf("Expected a single column with boolean output but got:\n%v", result)
@@ -2334,16 +2344,16 @@ func TestEvalBodyContainingWildCards(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 	expected := strings.TrimSpace(`
-+-------+
-|   x   |
-+-------+
-| true  |
-| 2     |
-| false |
-| false |
-| true  |
-| 1     |
-+-------+`)
+┌───────┐
+│   x   │
+├───────┤
+│ true  │
+│ 2     │
+│ false │
+│ false │
+│ true  │
+│ 1     │
+└───────┘`)
 	result := strings.TrimSpace(buffer.String())
 	if result != expected {
 		t.Errorf("Expected only a single column of output but got:\n%v", result)
@@ -3196,11 +3206,11 @@ query:1     | Redo data.a[i].b.c[j] = x
 query:1     | Eval data.a[k].b.c[x] = 1
 query:1     | Fail data.a[k].b.c[x] = 1
 query:1     | Redo data.a[i].b.c[j] = x
-+---+---+---+---+
-| i | j | k | x |
-+---+---+---+---+
-| 0 | 1 | 1 | 2 |
-+---+---+---+---+`)
+┌───┬───┬───┬───┐
+│ i │ j │ k │ x │
+├───┼───┼───┼───┤
+│ 0 │ 1 │ 1 │ 2 │
+└───┴───┴───┴───┘`)
 	expected += "\n"
 
 	if expected != buffer.String() {
