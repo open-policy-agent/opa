@@ -190,6 +190,21 @@ Bundles are collections of policies and data that can be distributed to OPA inst
 {}
 ```
 
+
+### `DELETE /v1/bundles/{bundle}`
+
+**Description**: Delete a bundle
+
+**Path Parameters**:
+
+- `bundle`: URL-encoded bundle name
+
+**Example Response**:
+
+```json
+{}
+```
+
 ---
 
 ## Source Management
@@ -327,6 +342,25 @@ Sources define where policies and data come from (Git repositories, local files,
   ]
 }
 ```
+
+**Example Response**:
+
+```json
+{}
+```
+
+
+### `DELETE /v1/sources/{source}`
+
+**Description**: Delete a source
+
+**Path Parameters**:
+
+- `source`: URL-encoded source name
+
+**Validation**:
+
+- Source may not be in use by a bundle or a stack or another source
 
 **Example Response**:
 
@@ -519,6 +553,112 @@ Stacks define how bundles are distributed to different environments or services 
   ]
 }
 ```
+
+**Example Response**:
+
+```json
+{}
+```
+
+
+### `DELETE /v1/stacks/{stack}`
+
+**Description**: Delete a stack
+
+**Path Parameters**:
+
+- `stack`: URL-encoded stack name
+
+**Example Response**:
+
+```json
+{}
+```
+
+---
+
+## Secrets Management
+
+Secrets can be used in HTTP datasources or Git references.
+As a rule, the HTTP API will **never return** a secret value, it only allows authorized requests to get (lists of) their name(s).
+
+### `GET /v1/secrets`
+
+**Description**: List all secrets with pagination support, omitting values
+
+**Query Parameters**: Same as bundles endpoint
+
+**Example Response**:
+
+```json
+{
+  "result": [
+    "api-token",
+    "github-ssh-key"
+  ],
+  "next_cursor": "eyJpZCI6IjQ1NiIsInRzIjoxNjkwMjM0NTY3fQ=="
+}
+```
+
+### `GET /v1/secrets/{secret}`
+
+**Description**: Get a specific secret by name
+
+**Path Parameters**:
+
+- `secret`: URL-encoded secret name
+
+**Example Response**:
+
+```json
+{
+  "result":  "api-token"
+}
+```
+
+### `PUT /v1/secrets/{secret}`
+
+**Description**: Create or update a secret
+
+**Path Parameters**:
+
+- `secret`: URL-encoded secret name
+
+**Validation**:
+
+- Secret name in path must match name in body (if provided)
+- If no name in body, path name is used
+
+**Example Request**:
+
+```json
+{
+  "name": "api-token-2",
+  "value": {
+    "type": "token_auth",
+    "token": "open-sesame"
+  }
+}
+```
+
+**Example Response**:
+
+```json
+{}
+```
+
+
+### `DELETE /v1/secrets/{secret}`
+
+**Description**: Delete a secret
+
+**Path Parameters**:
+
+- `secret`: URL-encoded secret name
+
+** Validation **
+
+- The secret may not be in use.
 
 **Example Response**:
 
