@@ -577,6 +577,97 @@ Stacks define how bundles are distributed to different environments or services 
 
 ---
 
+## Secrets Management
+
+Secrets can be used in HTTP datasources or Git references.
+As a rule, the HTTP API will **never return** a secret value, it only allows authorized requests to get (lists of) their name(s).
+
+### `GET /v1/secrets`
+
+**Description**: List all secrets with pagination support, omitting values
+
+**Query Parameters**: Same as bundles endpoint
+
+**Example Response**:
+
+```json
+{
+  "result": [
+    "api-token",
+    "github-ssh-key"
+  ],
+  "next_cursor": "eyJpZCI6IjQ1NiIsInRzIjoxNjkwMjM0NTY3fQ=="
+}
+```
+
+### `GET /v1/secrets/{secret}`
+
+**Description**: Get a specific secret by name
+
+**Path Parameters**:
+
+- `secret`: URL-encoded secret name
+
+**Example Response**:
+
+```json
+{
+  "result":  "api-token"
+}
+```
+
+### `PUT /v1/secrets/{secret}`
+
+**Description**: Create or update a secret
+
+**Path Parameters**:
+
+- `secret`: URL-encoded secret name
+
+**Validation**:
+
+- Secret name in path must match name in body (if provided)
+- If no name in body, path name is used
+
+**Example Request**:
+
+```json
+{
+  "name": "api-token-2",
+  "value": {
+    "type": "token_auth",
+    "token": "open-sesame"
+  }
+}
+```
+
+**Example Response**:
+
+```json
+{}
+```
+
+
+### `DELETE /v1/secrets/{secret}`
+
+**Description**: Delete a secret
+
+**Path Parameters**:
+
+- `secret`: URL-encoded secret name
+
+** Validation **
+
+- The secret may not be in use.
+
+**Example Response**:
+
+```json
+{}
+```
+
+---
+
 ## Error Responses
 
 ### Standard Error Format
