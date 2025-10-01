@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/util"
@@ -33,6 +34,7 @@ func TestRoundTrip(t *testing.T) {
 		1,
 		1.1,
 		false,
+		"string",
 		[]int{1},
 		[]bool{true},
 		[]string{"foo"},
@@ -53,8 +55,7 @@ func TestRoundTrip(t *testing.T) {
 			}
 			switch x := tc.(type) {
 			// These are the output types we want, nothing else
-			case nil, bool, json.Number, int64, float64, int, string, []any,
-				[]string, map[string]any, map[string]string:
+			case nil, bool, json.Number, string, []any, []string, map[string]any, map[string]string:
 			default:
 				t.Errorf("unexpected type %T", x)
 			}
@@ -135,4 +136,78 @@ func TestUnmarshalJSONUTF8BOM(t *testing.T) {
 	if err != nil {
 		t.Fatal("expected BOM to be stripped", err)
 	}
+}
+
+// Costs below include cost of slices.Clone which is needed since we modify in place.
+// Without NeedsRoundTrip and json.Number optimizations:
+// -----------------------------------------------------
+// BenchmarkRoundTrip/zero-allocs-16                     596457      1797 ns/op   12250 B/op      29 allocs/op
+// BenchmarkRoundTrip/less-allocs_to_json.Number-16     1000000      1187 ns/op    7398 B/op      22 allocs/op
+// BenchmarkRoundTrip/full-allocs_collections-16        1410703       857 ns/op    2473 B/op      28 allocs/op
+//
+// With NeedsRoundTrip and json.Number optimizations:
+// --------------------------------------------------
+// BenchmarkRoundTrip/zero-allocs-16                    4078965     27.36 ns/op      80 B/op       1 allocs/op
+// BenchmarkRoundTrip/less-allocs_to_json.Number-16    10147891     118.6 ns/op     108 B/op       7 allocs/op
+// BenchmarkRoundTrip/full-allocs_collections-16        1475988       813 ns/op    2473 B/op      28 allocs/op
+func BenchmarkRoundTrip(b *testing.B) {
+	b.Run("zero-allocs", func(b *testing.B) {
+		act := []any{nil, false, true, "string", json.Number("1")}
+		exp := slices.Clone(act)
+
+		var cpy []any
+
+		for b.Loop() {
+			cpy = slices.Clone(act)
+			for i := range cpy {
+				if err := util.RoundTrip(&cpy[i]); err != nil {
+					b.Fatalf("expected error=nil, got %s", err.Error())
+				}
+			}
+		}
+
+		if !slices.Equal(exp, cpy) {
+			b.Fatalf("expected inputs to be unchanged")
+		}
+	})
+
+	b.Run("less-allocs with cheap number to json.Number", func(b *testing.B) {
+		act := []any{1.1, 1000, -22}
+		exp := []any{json.Number("1.1"), json.Number("1000"), json.Number("-22")}
+
+		var cpy []any
+
+		for b.Loop() {
+			cpy = slices.Clone(act)
+			for i := range cpy {
+				if err := util.RoundTrip(&cpy[i]); err != nil {
+					b.Fatalf("expected error=nil, got %s", err.Error())
+				}
+			}
+		}
+
+		if !slices.Equal(exp, cpy) {
+			b.Fatalf("unexpected: %v", cpy)
+		}
+	})
+
+	b.Run("full-allocs collections", func(b *testing.B) {
+		exp := []any{[]any{json.Number("1"), json.Number("2"), json.Number("3")}, map[string]any{"foo": "bar"}}
+		act := []any{[]int{1, 2, 3}, map[string]string{"foo": "bar"}}
+
+		var cpy []any
+
+		for b.Loop() {
+			cpy = slices.Clone(act)
+			for i := range act {
+				if err := util.RoundTrip(&cpy[i]); err != nil {
+					b.Fatalf("expected error=nil, got %s", err.Error())
+				}
+			}
+		}
+
+		if !reflect.DeepEqual(exp, cpy) {
+			b.Fatalf("expected %v, got %v", exp, cpy)
+		}
+	})
 }

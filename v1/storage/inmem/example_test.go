@@ -76,7 +76,7 @@ func Example_read() {
 	// v1: wine
 	// err1: <nil>
 	// v2: <nil>
-	// err2: storage_not_found_error: /users/0/age: document does not exist
+	// err2: storage_not_found_error: document does not exist
 	// err2 is not found: true
 }
 
@@ -156,6 +156,6 @@ func Example_write() {
 	// err0: <nil>
 	// v1: -62.338889
 	// err1: <nil>
-	// err2: storage_not_found_error: /users/1/color: document does not exist
+	// err2: storage_not_found_error: document does not exist
 
 }

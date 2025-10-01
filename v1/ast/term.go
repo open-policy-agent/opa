@@ -61,20 +61,20 @@ func InterfaceToValue(x any) (Value, error) {
 	case nil:
 		return NullValue, nil
 	case bool:
-		return InternedTerm(x).Value, nil
+		return InternedValue(x), nil
 	case json.Number:
 		if interned := InternedIntNumberTermFromString(string(x)); interned != nil {
 			return interned.Value, nil
 		}
 		return Number(x), nil
+	case int:
+		return InternedValueOr(x, newIntNumberValue), nil
 	case int64:
-		return int64Number(x), nil
+		return InternedValueOr(x, newInt64NumberValue), nil
 	case uint64:
-		return uint64Number(x), nil
+		return InternedValueOr(x, newUint64NumberValue), nil
 	case float64:
 		return floatNumber(x), nil
-	case int:
-		return intNumber(x), nil
 	case string:
 		return String(x), nil
 	case []any:
@@ -586,10 +586,7 @@ type Boolean bool
 
 // BooleanTerm creates a new Term with a Boolean value.
 func BooleanTerm(b bool) *Term {
-	if b {
-		return &Term{Value: InternedTerm(true).Value}
-	}
-	return &Term{Value: InternedTerm(false).Value}
+	return &Term{Value: internedBooleanValue(b)}
 }
 
 // Equal returns true if the other Value is a Boolean and is equal.
@@ -656,12 +653,12 @@ func NumberTerm(n json.Number) *Term {
 
 // IntNumberTerm creates a new Term with an integer Number value.
 func IntNumberTerm(i int) *Term {
-	return &Term{Value: Number(strconv.Itoa(i))}
+	return &Term{Value: newIntNumberValue(i)}
 }
 
 // UIntNumberTerm creates a new Term with an unsigned integer Number value.
 func UIntNumberTerm(u uint64) *Term {
-	return &Term{Value: uint64Number(u)}
+	return &Term{Value: newUint64NumberValue(u)}
 }
 
 // FloatNumberTerm creates a new Term with a floating point Number value.
@@ -773,15 +770,15 @@ func (num Number) String() string {
 	return string(num)
 }
 
-func intNumber(i int) Number {
+func newIntNumberValue(i int) Value {
 	return Number(strconv.Itoa(i))
 }
 
-func int64Number(i int64) Number {
+func newInt64NumberValue(i int64) Value {
 	return Number(strconv.FormatInt(i, 10))
 }
 
-func uint64Number(u uint64) Number {
+func newUint64NumberValue(u uint64) Value {
 	return Number(strconv.FormatUint(u, 10))
 }
 
