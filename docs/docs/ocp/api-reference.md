@@ -190,6 +190,21 @@ Bundles are collections of policies and data that can be distributed to OPA inst
 {}
 ```
 
+
+### `DELETE /v1/bundles/{bundle}`
+
+**Description**: Delete a bundle
+
+**Path Parameters**:
+
+- `bundle`: URL-encoded bundle name
+
+**Example Response**:
+
+```json
+{}
+```
+
 ---
 
 ## Source Management
@@ -327,6 +342,25 @@ Sources define where policies and data come from (Git repositories, local files,
   ]
 }
 ```
+
+**Example Response**:
+
+```json
+{}
+```
+
+
+### `DELETE /v1/sources/{source}`
+
+**Description**: Delete a source
+
+**Path Parameters**:
+
+- `source`: URL-encoded source name
+
+**Validation**:
+
+- Source may not be in use by a bundle or a stack or another source
 
 **Example Response**:
 
@@ -519,6 +553,21 @@ Stacks define how bundles are distributed to different environments or services 
   ]
 }
 ```
+
+**Example Response**:
+
+```json
+{}
+```
+
+
+### `DELETE /v1/stacks/{stack}`
+
+**Description**: Delete a stack
+
+**Path Parameters**:
+
+- `stack`: URL-encoded stack name
 
 **Example Response**:
 
