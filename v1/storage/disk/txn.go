@@ -520,13 +520,13 @@ func patch(data any, op storage.PatchOp, path storage.Path, idx int, value any) 
 			switch op {
 			case storage.RemoveOp:
 				if _, ok := x[key]; !ok {
-					return nil, errors.NewNotFoundError(path)
+					return nil, errors.NotFoundErr
 				}
 				delete(x, key)
 				return x, nil
 			case storage.ReplaceOp:
 				if _, ok := x[key]; !ok {
-					return nil, errors.NewNotFoundError(path)
+					return nil, errors.NotFoundErr
 				}
 				x[key] = val
 				return x, nil
@@ -566,7 +566,7 @@ func patch(data any, op storage.PatchOp, path storage.Path, idx int, value any) 
 		case nil: // data wasn't set before
 			return map[string]any{path[idx]: val}, nil
 		default:
-			return nil, errors.NewNotFoundError(path)
+			return nil, errors.NotFoundErr
 		}
 	}
 
@@ -601,6 +601,6 @@ func patch(data any, op storage.PatchOp, path storage.Path, idx int, value any) 
 		y[key] = modified
 		return y, nil
 	default:
-		return nil, errors.NewNotFoundError(path)
+		return nil, errors.NotFoundErr
 	}
 }

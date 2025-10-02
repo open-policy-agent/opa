@@ -177,7 +177,7 @@ func builtinMin(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 			// The null term is considered to be less than any other term,
 			// so in order for min of a set to make sense, we need to check
 			// for it.
-			if min.Value.Compare(ast.InternedNullTerm.Value) == 0 {
+			if min.Value.Compare(ast.InternedNullValue) == 0 {
 				return elem, nil
 			}
 

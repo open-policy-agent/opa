@@ -7,6 +7,7 @@ package inmem
 import (
 	"container/list"
 	"encoding/json"
+	"slices"
 	"strconv"
 
 	"github.com/open-policy-agent/opa/internal/deepcopy"
@@ -74,9 +75,20 @@ func (txn *transaction) Write(op storage.PatchOp, path storage.Path, value any) 
 		if update.Path().Equal(path) {
 			if update.Remove() {
 				if op != storage.AddOp {
-					return errors.NewNotFoundError(path)
+					return errors.NotFoundErr
 				}
 			}
+			// If the last update has the same path and value, we have nothing to do.
+			if txn.db.returnASTValuesOnRead {
+				if astValue, ok := update.Value().(ast.Value); ok {
+					if equalsValue(value, astValue) {
+						return nil
+					}
+				}
+			} else if comparableEquals(update.Value(), value) {
+				return nil
+			}
+
 			txn.updates.Remove(curr)
 			break
 		}
@@ -95,7 +107,7 @@ func (txn *transaction) Write(op storage.PatchOp, path storage.Path, value any) 
 		// existing update is mutated.
 		if path.HasPrefix(update.Path()) {
 			if update.Remove() {
-				return errors.NewNotFoundError(path)
+				return errors.NotFoundErr
 			}
 			suffix := path[len(update.Path()):]
 			newUpdate, err := txn.db.newUpdate(update.Value(), op, suffix, 0, value)
@@ -118,19 +130,39 @@ func (txn *transaction) Write(op storage.PatchOp, path storage.Path, value any) 
 	return nil
 }
 
+func comparableEquals(a, b any) bool {
+	switch a := a.(type) {
+	case nil:
+		return b == nil
+	case bool:
+		if vb, ok := b.(bool); ok {
+			return vb == a
+		}
+	case string:
+		if vs, ok := b.(string); ok {
+			return vs == a
+		}
+	case json.Number:
+		if vn, ok := b.(json.Number); ok {
+			return vn == a
+		}
+	}
+	return false
+}
+
 func (txn *transaction) updateRoot(op storage.PatchOp, value any) error {
 	if op == storage.RemoveOp {
-		return invalidPatchError(rootCannotBeRemovedMsg)
+		return errors.RootCannotBeRemovedErr
 	}
 
 	var update any
 	if txn.db.returnASTValuesOnRead {
-		valueAST, err := interfaceToValue(value)
+		valueAST, err := ast.InterfaceToValue(value)
 		if err != nil {
 			return err
 		}
 		if _, ok := valueAST.(ast.Object); !ok {
-			return invalidPatchError(rootMustBeObjectMsg)
+			return errors.RootMustBeObjectErr
 		}
 
 		update = &updateAST{
@@ -140,7 +172,7 @@ func (txn *transaction) updateRoot(op storage.PatchOp, value any) error {
 		}
 	} else {
 		if _, ok := value.(map[string]any); !ok {
-			return invalidPatchError(rootMustBeObjectMsg)
+			return errors.RootMustBeObjectErr
 		}
 
 		update = &updateRaw{
@@ -158,18 +190,30 @@ func (txn *transaction) updateRoot(op storage.PatchOp, value any) error {
 
 func (txn *transaction) Commit() (result storage.TriggerEvent) {
 	result.Context = txn.context
+
 	if txn.updates != nil {
+		if len(txn.db.triggers) > 0 {
+			result.Data = slices.Grow(result.Data, txn.updates.Len())
+		}
+
 		for curr := txn.updates.Front(); curr != nil; curr = curr.Next() {
 			action := curr.Value.(dataUpdate)
 			txn.db.data = action.Apply(txn.db.data)
 
-			result.Data = append(result.Data, storage.DataEvent{
-				Path:    action.Path(),
-				Data:    action.Value(),
-				Removed: action.Remove(),
-			})
+			if len(txn.db.triggers) > 0 {
+				result.Data = append(result.Data, storage.DataEvent{
+					Path:    action.Path(),
+					Data:    action.Value(),
+					Removed: action.Remove(),
+				})
+			}
 		}
 	}
+
+	if len(txn.policies) > 0 && len(txn.db.triggers) > 0 {
+		result.Policy = slices.Grow(result.Policy, len(txn.policies))
+	}
+
 	for id, upd := range txn.policies {
 		if upd.remove {
 			delete(txn.db.policies, id)
@@ -177,11 +221,13 @@ func (txn *transaction) Commit() (result storage.TriggerEvent) {
 			txn.db.policies[id] = upd.value
 		}
 
-		result.Policy = append(result.Policy, storage.PolicyEvent{
-			ID:      id,
-			Data:    upd.value,
-			Removed: upd.remove,
-		})
+		if len(txn.db.triggers) > 0 {
+			result.Policy = append(result.Policy, storage.PolicyEvent{
+				ID:      id,
+				Data:    upd.value,
+				Removed: upd.remove,
+			})
+		}
 	}
 	return result
 }
@@ -222,7 +268,7 @@ func (txn *transaction) Read(path storage.Path) (any, error) {
 
 		if path.HasPrefix(upd.Path()) {
 			if upd.Remove() {
-				return nil, errors.NewNotFoundError(path)
+				return nil, errors.NotFoundErr
 			}
 			return pointer(upd.Value(), path[len(upd.Path()):])
 		}
@@ -319,13 +365,33 @@ type updateRaw struct {
 	value  any          // value to add/replace at path (ignored if remove is true)
 }
 
+func equalsValue(a any, v ast.Value) bool {
+	if a, ok := a.(ast.Value); ok {
+		return a.Compare(v) == 0
+	}
+	switch a := a.(type) {
+	case nil:
+		return v == ast.NullValue
+	case bool:
+		if vb, ok := v.(ast.Boolean); ok {
+			return bool(vb) == a
+		}
+	case string:
+		if vs, ok := v.(ast.String); ok {
+			return string(vs) == a
+		}
+	}
+
+	return false
+}
+
 func (db *store) newUpdate(data any, op storage.PatchOp, path storage.Path, idx int, value any) (dataUpdate, error) {
 	if db.returnASTValuesOnRead {
-		astData, err := interfaceToValue(data)
+		astData, err := ast.InterfaceToValue(data)
 		if err != nil {
 			return nil, err
 		}
-		astValue, err := interfaceToValue(value)
+		astValue, err := ast.InterfaceToValue(value)
 		if err != nil {
 			return nil, err
 		}
@@ -335,10 +401,9 @@ func (db *store) newUpdate(data any, op storage.PatchOp, path storage.Path, idx 
 }
 
 func newUpdateRaw(data any, op storage.PatchOp, path storage.Path, idx int, value any) (dataUpdate, error) {
-
 	switch data.(type) {
 	case nil, bool, json.Number, string:
-		return nil, errors.NewNotFoundError(path)
+		return nil, errors.NotFoundErr
 	}
 
 	switch data := data.(type) {
@@ -356,11 +421,10 @@ func newUpdateRaw(data any, op storage.PatchOp, path storage.Path, idx int, valu
 }
 
 func newUpdateArray(data []any, op storage.PatchOp, path storage.Path, idx int, value any) (dataUpdate, error) {
-
 	if idx == len(path)-1 {
 		if path[idx] == "-" || path[idx] == strconv.Itoa(len(data)) {
 			if op != storage.AddOp {
-				return nil, invalidPatchError("%v: invalid patch path", path)
+				return nil, errors.NewInvalidPatchError("%v: invalid patch path", path)
 			}
 			cpy := make([]any, len(data)+1)
 			copy(cpy, data)
@@ -409,7 +473,7 @@ func newUpdateObject(data map[string]any, op storage.PatchOp, path storage.Path,
 		switch op {
 		case storage.ReplaceOp, storage.RemoveOp:
 			if _, ok := data[path[idx]]; !ok {
-				return nil, errors.NewNotFoundError(path)
+				return nil, errors.NotFoundErr
 			}
 		}
 		return &updateRaw{path, op == storage.RemoveOp, value}, nil
@@ -419,7 +483,7 @@ func newUpdateObject(data map[string]any, op storage.PatchOp, path storage.Path,
 		return newUpdateRaw(data, op, path, idx+1, value)
 	}
 
-	return nil, errors.NewNotFoundError(path)
+	return nil, errors.NotFoundErr
 }
 
 func (u *updateRaw) Remove() bool {

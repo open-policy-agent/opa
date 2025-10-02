@@ -86,6 +86,12 @@ func moduleInfoPath(id string) storage.Path {
 func read(ctx context.Context, store storage.Store, txn storage.Transaction, path storage.Path) (any, error) {
 	value, err := store.Read(ctx, txn, path)
 	if err != nil {
+		if storage.IsNotFound(err) {
+			return nil, &storage.Error{
+				Code:    storage.NotFoundErr,
+				Message: strings.TrimPrefix(path.String(), "/system") + ": document does not exist",
+			}
+		}
 		return nil, err
 	}
 

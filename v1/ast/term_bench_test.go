@@ -561,3 +561,33 @@ func reset(obj *object) {
 	obj.hash = 0
 	obj.sortGuard = sync.Once{}
 }
+
+func BenchmarkInterfaceToValueInt(b *testing.B) {
+	// 0 allocs
+	b.Run("interned int value", func(b *testing.B) {
+		exp := newIntNumberValue(123)
+		var act Value
+
+		for b.Loop() {
+			act = MustInterfaceToValue(123)
+		}
+
+		if exp.Compare(act) != 0 {
+			b.Fatalf("expected %v but got %v", exp, act)
+		}
+	})
+
+	// 2 allocs
+	b.Run("non-interned int value", func(b *testing.B) {
+		exp := newIntNumberValue(12345)
+		var act Value
+
+		for b.Loop() {
+			act = MustInterfaceToValue(12345)
+		}
+
+		if exp.Compare(act) != 0 {
+			b.Fatalf("expected %v but got %v", exp, act)
+		}
+	})
+}

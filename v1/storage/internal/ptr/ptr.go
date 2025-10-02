@@ -21,7 +21,7 @@ func Ptr(data any, path storage.Path) (any, error) {
 		case map[string]any:
 			var ok bool
 			if node, ok = curr[key]; !ok {
-				return nil, errors.NewNotFoundError(path)
+				return nil, errors.NotFoundErr
 			}
 		case []any:
 			pos, err := ValidateArrayIndex(curr, key, path)
@@ -30,7 +30,7 @@ func Ptr(data any, path storage.Path) (any, error) {
 			}
 			node = curr[pos]
 		default:
-			return nil, errors.NewNotFoundError(path)
+			return nil, errors.NotFoundErr
 		}
 	}
 
@@ -53,7 +53,7 @@ func ValuePtr(data ast.Value, path storage.Path) (ast.Value, error) {
 			val := curr.Get(keyTerm)
 			ast.TermPtrPool.Put(keyTerm)
 			if val == nil {
-				return nil, errors.NewNotFoundError(path)
+				return nil, errors.NotFoundErr
 			}
 			node = val.Value
 		case *ast.Array:
@@ -63,7 +63,7 @@ func ValuePtr(data ast.Value, path storage.Path) (ast.Value, error) {
 			}
 			node = curr.Elem(pos).Value
 		default:
-			return nil, errors.NewNotFoundError(path)
+			return nil, errors.NotFoundErr
 		}
 	}
 
