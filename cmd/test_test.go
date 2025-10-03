@@ -2278,6 +2278,26 @@ func testExitCode(rego string, skipExitZero bool) int {
 	return exitCode
 }
 
+func testExitCodeWithFailOnEmpty(rego string, failOnEmpty bool) int {
+	files := map[string]string{
+		"test.rego": rego,
+	}
+
+	var exitCode int
+	test.WithTempFS(files, func(path string) {
+		regoFilePath := filepath.Join(path, "test.rego")
+
+		testParams := newTestCommandParams()
+		testParams.count = 1
+		testParams.failOnEmpty = failOnEmpty
+		testParams.errOutput = io.Discard
+		testParams.output = io.Discard
+
+		exitCode = opaTest([]string{regoFilePath}, testParams)
+	})
+	return exitCode
+}
+
 func TestExitCode(t *testing.T) {
 	testCases := map[string]struct {
 		Test              string
@@ -3667,6 +3687,49 @@ func TestWithDefaultRegoPlugin(t *testing.T) {
 			t.Errorf("Expected result to be false but got: %v", result)
 		}
 	})
+}
+
+func TestFailOnEmpty(t *testing.T) {
+	testCases := map[string]struct {
+		Test             string
+		FailOnEmpty      bool
+		ExpectedExitCode int
+	}{
+		"pass when no tests and fail-on-empty disabled": {
+			Test: `package foo
+
+			p := 1
+			`,
+			FailOnEmpty:      false,
+			ExpectedExitCode: 0,
+		},
+		"fail when no tests and fail-on-empty enabled": {
+			Test: `package foo
+
+			p := 1
+			`,
+			FailOnEmpty:      true,
+			ExpectedExitCode: 1,
+		},
+		"pass when tests exist and fail-on-empty enabled": {
+			Test: `package foo
+
+			test_pass if { true }
+			`,
+			FailOnEmpty:      true,
+			ExpectedExitCode: 0,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			exitCode := testExitCodeWithFailOnEmpty(tc.Test, tc.FailOnEmpty)
+
+			if exitCode != tc.ExpectedExitCode {
+				t.Errorf("Expected exit code to be %d but got %d", tc.ExpectedExitCode, exitCode)
+			}
+		})
+	}
 }
 
 type testPlugin struct {

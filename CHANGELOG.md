@@ -5,6 +5,11 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Optionally fail when `opa test` did not run any tests
+
+With the new `--fail-on-empty` flag, accidentally running `opa test` in a directory without any tests or 
+with a `-r` that did not match any test names, can be caught by making the test fail instead.
+
 ## 1.9.0
 
 This release contains a mix of new features, performance improvements, and bugfixes. Notably:
