@@ -196,6 +196,11 @@ The `opa test` subcommand supports a `--run`/`-r` regex option to further
 specify which of the discovered tests should be evaluated. The option supports
 [re2 syntax](https://github.com/google/re2/wiki/Syntax)
 
+### Failing on No Tests Run
+
+When misspelling a test name or running no test by accident, `opa test` will still succeed, use `--fail-on-empty` to make it fail instead.
+This is also useful in CI/CD pipelines to ensure that tests are actually being executed.
+
 ## Test Results
 
 If the test rule is undefined or generates a non-`true` value the test result
