@@ -969,6 +969,66 @@ This feature can be enabled for `opa run`, `opa eval`, and `opa bench` by settin
 
 Users are recommended to do performance testing to determine the optimal configuration for their use case.
 
+## Performance Metrics
+
+OPA exposes metrics for policy evaluation performance. These are available through:
+
+- **System-wide metrics** at the `/metrics` Prometheus endpoint
+- **Per-query metrics** with individual API responses when `?metrics=true` is specified
+
+See [Monitoring](./monitoring#metrics-overview) for more details.
+
+### Common Built-in Function Metrics
+
+#### HTTP Built-ins
+
+`http.send` metrics help identify I/O bottlenecks:
+
+- `timer_rego_builtin_http_send_ns` - Total time spent in http.send calls
+- `counter_rego_builtin_http_send_interquery_cache_hits` - Inter-query cache hits
+- `counter_rego_builtin_http_send_network_requests` - Actual network requests made
+
+High cache hit ratios indicate effective caching and reduced network overhead.
+
+#### Regex Built-ins
+
+Regex operation metrics help optimize pattern matching:
+
+- `timer_rego_builtin_regex_interquery_ns` - Time spent in regex operations
+- `counter_rego_builtin_regex_interquery_cache_hits` - Regex pattern cache hits
+- `counter_rego_builtin_regex_interquery_value_cache_hits` - Regex value cache hits
+
+Effective regex caching improves performance when the same patterns are used repeatedly.
+
+### Core Query Metrics
+
+Basic query evaluation phases:
+
+- `timer_rego_query_parse_ns` - Time parsing the query string
+- `timer_rego_query_compile_ns` - Time compiling the query
+- `timer_rego_query_eval_ns` - Time executing the compiled query
+
+Compilation time often dominates in complex policies.
+
+### High-Level Metrics
+
+Server-level metrics for overall performance:
+
+- `timer_server_handler_ns` - Total request handler execution time
+- `counter_server_query_cache_hit` - Server-level query cache hits
+
+### Using Metrics for Optimization
+
+1. **Query phases**: Compare parse, compile, and eval times to identify bottlenecks
+2. **Cache effectiveness**: Low cache hit rates suggest tuning opportunities
+3. **I/O bottlenecks**: High `http.send` network request counts indicate caching issues
+4. **Pattern matching**: Monitor regex cache hits for frequently used patterns
+
+Access metrics via:
+- REST API: Add `?metrics=true` to policy evaluation requests
+- CLI: Use `--metrics` flag with `opa eval` or `opa bench`
+- Prometheus: See [Monitoring](./monitoring#prometheus) for system-wide metrics
+
 ## Key Takeaways
 
 For high-performance use cases:
@@ -979,3 +1039,4 @@ For high-performance use cases:
 - Write your policies with indexed statements so that [rule-indexing](https://blog.openpolicyagent.org/optimizing-opa-rule-indexing-59f03f17caf3) is effective.
 - Use the profiler to help identify portions of the policy that would benefit the most from improved performance.
 - Use the benchmark tools to help get real world timing data and detect policy performance changes.
+- Monitor performance metrics to track optimization impact and identify bottlenecks.
