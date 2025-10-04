@@ -12,6 +12,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 var (
@@ -517,40 +519,76 @@ func BenchmarkSetMarshalJSON(b *testing.B) {
 	}
 }
 
+func BenchmarkIsVarCompatibleString(b *testing.B) {
+	tests := map[string]bool{
+		"hello":    true,
+		"5heel":    false,
+		"h\nllo":   false,
+		"h\tllo":   false,
+		"h\x00llo": false,
+		"h\"llo":   false,
+		"h\\llo":   false,
+		"":         false,
+	}
+
+	for _, name := range util.KeysSorted(tests) {
+		exp := tests[name]
+		b.Run(name, func(b *testing.B) {
+			for b.Loop() {
+				if IsVarCompatibleString(name) != exp {
+					b.Fatalf("expected %t but got %t", exp, !exp)
+				}
+			}
+		})
+	}
+}
+
 // BenchmarkRefString benchmarks the performance of Ref.String().
 func BenchmarkRefString(b *testing.B) {
-	// prepare all the refs before timing
-	simpleRef := MustParseRef(`data.policy["main"]`)
-	controlRef := MustParseRef(`data.policy["ma\tin"]`)
-	longInputRef := MustParseRef(
-		`data.policy.test1.test2.test3.test4` +
-			`["main1"]["main2"]["main3"]["main4"]`,
-	)
-	singleTerm := Ref{VarTerm("is_object")}
+	tests := map[string]struct {
+		inp string
+		exp string
+		ref Ref
+	}{
+		"simple ref": {
+			inp: `data.policy["main"]`,
+			exp: `data.policy.main`,
+		},
+		"scalars ref": {
+			inp: `data.policy[1234].test1[true].test2[null].test3[3.14]`,
+			exp: `data.policy[1234].test1[true].test2[null].test3[3.14]`,
+		},
+		"with escape": {
+			inp: `data.policy["ma\tin"]`,
+			exp: `data.policy["ma\tin"]`,
+		},
+		"really long": {
+			inp: `data.policy.test1.test2.test3.test4["main1"]["main2"]["main3"]["main4"]`,
+			exp: `data.policy.test1.test2.test3.test4.main1.main2.main3.main4`,
+		},
+		"var term": {
+			ref: Ref{VarTerm(`is_object`)},
+			exp: `is_object`,
+		},
+		"dot builtin": {
+			inp: `io.jwt.decode`,
+			exp: `io.jwt.decode`,
+		},
+	}
 
-	b.Run("Simple", func(b *testing.B) {
-		for range b.N {
-			_ = simpleRef.String()
+	for _, name := range util.KeysSorted(tests) {
+		tc := tests[name]
+		if tc.ref == nil {
+			tc.ref = MustParseRef(tc.inp)
 		}
-	})
-
-	b.Run("WithControl", func(b *testing.B) {
-		for range b.N {
-			_ = controlRef.String()
-		}
-	})
-
-	b.Run("LongInput", func(b *testing.B) {
-		for range b.N {
-			_ = longInputRef.String()
-		}
-	})
-
-	b.Run("SingleTerm", func(b *testing.B) {
-		for range b.N {
-			_ = singleTerm.String()
-		}
-	})
+		b.Run(name, func(b *testing.B) {
+			for b.Loop() {
+				if tc.ref.String() != tc.exp {
+					b.Fatalf("expected %s but got %s", tc.exp, tc.ref.String())
+				}
+			}
+		})
+	}
 }
 
 func reset(obj *object) {
