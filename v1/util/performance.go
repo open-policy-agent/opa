@@ -3,6 +3,7 @@ package util
 import (
 	"math"
 	"slices"
+	"strings"
 	"unsafe"
 )
 
@@ -72,4 +73,21 @@ func KeysCount[K comparable, V any](m map[K]V, p func(K) bool) int {
 		}
 	}
 	return count
+}
+
+// SplitMap calls fn for each delim-separated part of text and returns a slice of the results.
+// Cheaper than calling fn on strings.Split(text, delim), as it avoids allocating an intermediate slice of strings.
+func SplitMap[T any](text string, delim string, fn func(string) T) []T {
+	before, after, found := strings.Cut(text, delim)
+	if !found {
+		return []T{fn(text)}
+	}
+
+	sl := append(make([]T, 0, strings.Count(text, delim)+1), fn(before))
+	for found {
+		before, after, found = strings.Cut(after, delim)
+		sl = append(sl, fn(before))
+	}
+
+	return sl
 }
