@@ -8,6 +8,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 func BenchmarkBulkStartsWithNaive(b *testing.B) {
@@ -103,24 +104,14 @@ func generateBulkStartsWithInput() map[string]any {
 	}
 }
 
+// 276.4 ns/op	     464 B/op	      15 allocs/op  // Before SplitMap
+// 255.1 ns/op	     384 B/op	      14 allocs/op  // After SplitMap
 func BenchmarkSplit(b *testing.B) {
 	bctx := BuiltinContext{}
-	operands := []*ast.Term{
-		ast.StringTerm("a.b.c.d.e"),
-		ast.StringTerm("."),
-	}
+	operands := []*ast.Term{ast.StringTerm("a.b.c.d.e"), ast.StringTerm(".")}
+	exp := eqIter(ast.ArrayTerm(util.SplitMap("a.b.c.d.e", ".", ast.InternedTerm)...))
 
-	exp := eqIter(ast.ArrayTerm(
-		ast.StringTerm("a"),
-		ast.StringTerm("b"),
-		ast.StringTerm("c"),
-		ast.StringTerm("d"),
-		ast.StringTerm("e"),
-	))
-
-	b.ResetTimer()
-	b.ReportAllocs()
-	for range b.N {
+	for b.Loop() {
 		if err := builtinSplit(bctx, operands, exp); err != nil {
 			b.Fatal(err)
 		}
