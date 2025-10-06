@@ -142,6 +142,7 @@ func TestPluginPrepareOptions(t *testing.T) {
 		cpy := ast.BuiltinMap["count"]
 		cpy.Description = ""
 		cpy.Categories = nil
+		cpy.CanSkipBctx = false
 		bi := map[string]*topdown.Builtin{
 			"count": {
 				Decl: cpy,

@@ -1180,52 +1180,68 @@ func IsVarCompatibleString(s string) bool {
 	return varRegexp.MatchString(s)
 }
 
+var bbPool = &sync.Pool{
+	New: func() any {
+		return new(bytes.Buffer)
+	},
+}
+
 func (ref Ref) String() string {
-	if len(ref) == 0 {
+	// Note(anderseknert):
+	// Options tried in the order of cheapness, where after some effort,
+	// only the last option now requires a (single) allocation:
+	// 1. empty ref
+	// 2. single var ref
+	// 3. built-in function ref
+	// 4. concatenated parts
+	reflen := len(ref)
+	if reflen == 0 {
 		return ""
 	}
-
-	if len(ref) == 1 {
-		switch p := ref[0].Value.(type) {
-		case Var:
-			return p.String()
-		}
+	if reflen == 1 {
+		return ref[0].Value.String()
+	}
+	if name, ok := BuiltinNameFromRef(ref); ok {
+		return name
 	}
 
-	sb := sbPool.Get()
-	defer sbPool.Put(sb)
+	_var := ref[0].Value.String()
 
-	sb.Grow(10 * len(ref))
-	sb.WriteString(ref[0].Value.String())
+	bb := bbPool.Get().(*bytes.Buffer)
+	bb.Reset()
+
+	defer bbPool.Put(bb)
+
+	bb.Grow(len(_var) + len(ref[1:])*7) // rough estimate
+	bb.WriteString(_var)
 
 	for _, p := range ref[1:] {
 		switch p := p.Value.(type) {
 		case String:
 			str := string(p)
-			if varRegexp.MatchString(str) && !IsKeyword(str) {
-				sb.WriteByte('.')
-				sb.WriteString(str)
+			if IsVarCompatibleString(str) && !IsKeyword(str) {
+				bb.WriteByte('.')
+				bb.WriteString(str)
 			} else {
-				sb.WriteByte('[')
+				bb.WriteByte('[')
 				// Determine whether we need the full JSON-escaped form
 				if strings.ContainsFunc(str, isControlOrBackslash) {
-					// only now pay the cost of expensive JSON-escaped form
-					sb.WriteString(p.String())
+					bb.Write(strconv.AppendQuote(bb.AvailableBuffer(), str))
 				} else {
-					sb.WriteByte('"')
-					sb.WriteString(str)
-					sb.WriteByte('"')
+					bb.WriteByte('"')
+					bb.WriteString(str)
+					bb.WriteByte('"')
 				}
-				sb.WriteByte(']')
+				bb.WriteByte(']')
 			}
 		default:
-			sb.WriteByte('[')
-			sb.WriteString(p.String())
-			sb.WriteByte(']')
+			bb.WriteByte('[')
+			bb.WriteString(p.String())
+			bb.WriteByte(']')
 		}
 	}
 
-	return sb.String()
+	return bb.String()
 }
 
 // OutputVars returns a VarSet containing variables that would be bound by evaluating
