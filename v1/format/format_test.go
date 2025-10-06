@@ -1017,9 +1017,7 @@ func BenchmarkFormatLargePolicy(b *testing.B) {
 	}
 	module := ast.MustParseModule(string(contents))
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		_, err := AstWithOpts(module, Opts{RegoVersion: ast.RegoV1})
 		if err != nil {
 			b.Fatal(err)

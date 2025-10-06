@@ -91,9 +91,7 @@ func runAuthzBenchmark(b *testing.B, mode testAuthz.InputMode, numPaths int) {
 	})
 	inputReader := bytes.NewReader(inputPayload)
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 
 		// The benchmark will include the time it takes to make the request,
 		// receive a response, and do any normal client error checking on

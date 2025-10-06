@@ -1316,7 +1316,7 @@ func parseCacheControlHeader(headers http.Header) map[string]string {
 	ccDirectives := map[string]string{}
 	ccHeader := headers.Get("cache-control")
 
-	for _, part := range strings.Split(ccHeader, ",") {
+	for part := range strings.SplitSeq(ccHeader, ",") {
 		part = strings.Trim(part, " ")
 		if part == "" {
 			continue

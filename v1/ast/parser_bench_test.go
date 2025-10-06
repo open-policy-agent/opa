@@ -77,19 +77,15 @@ func BenchmarkParseStatementNestedObjects(b *testing.B) {
 }
 
 func BenchmarkParseSome(b *testing.B) {
-	b.Run("parse some", func(b *testing.B) {
-		for range b.N {
-			_ = MustParseStatement("some foo")
-		}
-	})
+	for b.Loop() {
+		_ = MustParseStatement("some foo")
+	}
 }
 
 func BenchmarkParseEvery(b *testing.B) {
-	b.Run("parse every", func(b *testing.B) {
-		for range b.N {
-			_ = MustParseStatement("every x, y in input { x == y}")
-		}
-	})
+	for b.Loop() {
+		_ = MustParseStatement("every x, y in input { x == y}")
+	}
 }
 
 // BenchmarkParseDeepNesting tests the impact of recursion depth tracking
@@ -186,8 +182,7 @@ func BenchmarkParseBasicABACModule(b *testing.B) {
 }
 
 func runParseModuleBenchmark(b *testing.B, mod string) {
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		_, err := ParseModuleWithOpts("", mod, ParserOptions{AllFutureKeywords: true})
 		if err != nil {
 			b.Fatalf("Unexpected error: %s", err)
@@ -196,8 +191,7 @@ func runParseModuleBenchmark(b *testing.B, mod string) {
 }
 
 func runParseStatementBenchmark(b *testing.B, stmt string) {
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		_, err := ParseStatement(stmt)
 		if err != nil {
 			b.Fatalf("Unexpected error: %s", err)
@@ -206,8 +200,7 @@ func runParseStatementBenchmark(b *testing.B, stmt string) {
 }
 
 func runParseStatementBenchmarkWithError(b *testing.B, stmt string) {
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		_, err := ParseStatement(stmt)
 		if err == nil {
 			b.Fatalf("Expected error: %s", err)

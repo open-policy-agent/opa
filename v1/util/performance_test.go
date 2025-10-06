@@ -12,8 +12,7 @@ type testStruct struct {
 }
 
 func BenchmarkNewPtrSlice(b *testing.B) {
-	b.ReportAllocs()
-	for range b.N {
+	for b.Loop() {
 		s := NewPtrSlice[testStruct](100)
 		for j := range 100 {
 			s[j].foo = j
