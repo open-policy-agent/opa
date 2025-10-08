@@ -113,3 +113,15 @@ The table below shows examples of calling `http.send`:
 | Files containing TLS material                 | `http.send({"method": "get", "url": "https://127.0.0.1:65331", "tls_ca_cert_file": "testdata/ca.pem", "tls_client_cert_file": "testdata/client-cert.pem", "tls_client_key_file": "testdata/client-key.pem"})`     |
 | Environment variables containing TLS material | `http.send({"method": "get", "url": "https://127.0.0.1:65360", "tls_ca_cert_env_variable": "CLIENT_CA_ENV", "tls_client_cert_env_variable": "CLIENT_CERT_ENV", "tls_client_key_env_variable": "CLIENT_KEY_ENV"})` |
 | Unix Socket URL Format                        | `http.send({"method": "get", "url": "unix://localhost/?socket=%F2path%F2file.socket"})`                                                                                                                           |
+
+## Performance Metrics
+
+When OPA is configured with metrics enabled, `http.send` operations expose the following metrics in per-query metrics (accessible when `?metrics=true` is specified in API requests):
+
+| Metric | Description |
+| ------ | ----------- |
+| `timer_rego_builtin_http_send_ns` | Total time spent in `http.send` calls during query evaluation |
+| `counter_rego_builtin_http_send_interquery_cache_hits` | Number of inter-query cache hits for `http.send` requests |
+| `counter_rego_builtin_http_send_network_requests` | Number of actual network requests made by `http.send` |
+
+High cache hit ratios indicate effective caching and reduced network overhead. These metrics help identify I/O bottlenecks in policies that make external HTTP requests.

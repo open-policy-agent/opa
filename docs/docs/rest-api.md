@@ -2311,27 +2311,16 @@ Content-Type: application/json
 }
 ```
 
-> **Note**: These are per-query metrics returned inline with API responses. For system-wide instance metrics, see the `/metrics` Prometheus endpoint described in [Monitoring](./monitoring#prometheus).
+OPA currently supports the following query performance metrics:
 
-OPA provides the following query performance metrics:
-
-### Core Query Metrics
 - **timer_rego_input_parse_ns**: time taken (in nanoseconds) to parse the input
 - **timer_rego_query_parse_ns**: time taken (in nanoseconds) to parse the query.
 - **timer_rego_query_compile_ns**: time taken (in nanoseconds) to compile the query.
 - **timer_rego_query_eval_ns**: time taken (in nanoseconds) to evaluate the query.
 - **timer_rego_module_parse_ns**: time taken (in nanoseconds) to parse the input policy module.
 - **timer_rego_module_compile_ns**: time taken (in nanoseconds) to compile the loaded policy modules.
-- **timer_server_handler_ns**: time taken (in nanoseconds) to handle the API request.
+- **timer_server_handler_ns**: time take (in nanoseconds) to handle the API request.
 - **counter_server_query_cache_hit**: number of cache hits for the query.
-
-When query instrumentation is enabled (`instrument=true`), the following additional detailed evaluation metrics are included:
-- **timer_eval_op_***: Various evaluation operation timers (e.g., `timer_eval_op_plug_ns`, `timer_eval_op_resolve_ns`)
-- **histogram_eval_op_***: Histograms tracking evaluation operation time distributions
-- **timer_rego_builtin_***: Built-in function execution times
-- **counter_rego_builtin_***: Built-in function call counts and cache hits
-
-See [Policy Performance](./policy-performance#performance-metrics) for details on interpreting these metrics.
 
 The `counter_server_query_cache_hit` counter gives an indication about whether OPA creates a new Rego query
 or it uses a pre-processed query which holds some prepared state to serve the API request. A pre-processed query will be
@@ -2344,9 +2333,12 @@ Query instrumentation can help diagnose performance problems, however, it can
 add significant overhead to query evaluation. We recommend leaving query
 instrumentation off unless you are debugging a performance problem.
 
-When instrumentation is enabled there are several additional performance metrics
-for the compilation stages. They follow the format of `timer_compile_stage_*_ns`
-and `timer_query_compile_stage_*_ns` for the query and module compilation stages.
+When query instrumentation is enabled (`instrument=true`), the following additional detailed evaluation metrics are included:
+- **timer_eval_op_***: Various evaluation operation timers (e.g., `timer_eval_op_plug_ns`, `timer_eval_op_resolve_ns`)
+- **histogram_eval_op_***: Histograms tracking evaluation operation time distributions
+- **timer_rego_builtin_***: Built-in function execution times
+- **counter_rego_builtin_***: Built-in function call counts and cache hits
+- **timer_compile_stage_*_ns**: Compilation stage timers for the query and module compilation stages
 
 ## Provenance
 

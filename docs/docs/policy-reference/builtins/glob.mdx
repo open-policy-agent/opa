@@ -27,3 +27,13 @@ The following table shows examples of how `glob.match` works:
 | `output := glob.match("{cat,bat,[fr]at}", [], "bat")`            | `true`   | A glob with pattern-alternatives matchers.    |
 | `output := glob.match("{cat,bat,[fr]at}", [], "rat")`            | `true`   | A glob with pattern-alternatives matchers.    |
 | `output := glob.match("{cat,bat,[fr]at}", [], "at")`             | `false`  | A glob with pattern-alternatives matchers.    |
+
+## Performance Metrics
+
+When OPA is configured with metrics enabled, `glob.match` operations expose the following metrics in per-query metrics (accessible when `?metrics=true` is specified in API requests):
+
+| Metric | Description |
+| ------ | ----------- |
+| `counter_rego_builtin_glob_interquery_value_cache_hits` | Number of inter-query cache hits for compiled glob patterns |
+
+Effective glob pattern caching improves performance when the same patterns are used repeatedly across queries. High cache hit ratios indicate that glob compilation overhead is being minimized through caching.
