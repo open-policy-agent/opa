@@ -106,6 +106,7 @@ type eval struct {
 	tracers                     []QueryTracer
 	tracingOpts                 tracing.Options
 	queryID                     uint64
+	timeStart                   int64
 	index                       int
 	genvarid                    int
 	indexing                    bool
@@ -961,6 +962,10 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		var capabilities *ast.Capabilities
 		if e.compiler != nil {
 			capabilities = e.compiler.Capabilities()
+		}
+
+		if e.time == nil {
+			e.time = ast.NumberTerm(int64ToJSONNumber(e.timeStart))
 		}
 
 		bctx = &BuiltinContext{

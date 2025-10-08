@@ -229,7 +229,7 @@ func BenchmarkSetIteration(b *testing.B) {
 
 	at := make([]*ast.Term, 512)
 	for i := range 512 {
-		at[i] = ast.StringTerm(strconv.Itoa(i))
+		at[i] = ast.InternedIntegerString(i)
 	}
 
 	input := ast.NewObject(ast.Item(ast.StringTerm("foo"), ast.ArrayTerm(at...)))
@@ -420,10 +420,10 @@ func BenchmarkTrivialPolicy(b *testing.B) {
 	}
 }
 
-// 1851 ns/op       3376 B/op         53 allocs/op - main
+// 1851 ns/op       3376 B/op         53 allocs/op - first measurement
 // 1312 ns/op	    2632 B/op	      38 allocs/op - lazy init targetStack, functionMockStack, comprehensionCache
 // ------------------------------------------------- and move newResolverTrie call from NewQuery to WithResolver
-// ...
+// 1212 ns/op	    2568 B/op	      33 allocs/op - lazy init eval.Time
 func BenchmarkTrivialQuery(b *testing.B) {
 	m := metrics.New()
 	r := New(ParsedQuery(ast.MustParseBody("1")), GenerateJSON(noOpGenerateJSON), Metrics(m))
@@ -435,7 +435,7 @@ func BenchmarkTrivialQuery(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	for range b.N {
+	for b.Loop() {
 		if _, err := pq.Eval(ctx, EvalMetrics(m)); err != nil {
 			b.Fatal(err)
 		}
