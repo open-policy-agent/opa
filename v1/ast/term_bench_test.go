@@ -41,6 +41,136 @@ func BenchmarkObjectLookup(b *testing.B) {
 	}
 }
 
+// Before NumberCompare refactor:
+// // --- FAIL: BenchmarkObjectGet/existing_float_number_key_as_int
+//     /Users/anderseknert/git/opa/opa/v1/ast/term_bench_test.go:111: expected hit
+
+// BenchmarkObjectGet/lookup_in_empty_object-16         	219916140	         5.323 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/existing_interned_key-16          	149059920	         8.011 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/existing_string_key-16            	144672567	         8.314 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/existing_int_number_key-16        	 62073110	         17.62 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/existing_int_number_key_as_float-16     2310716	         519.5 ns/op	     504 B/op	      24 allocs/op
+// BenchmarkObjectGet/existing_float_key-16                   1966604	         611.5 ns/op	     632 B/op	      29 allocs/op
+// BenchmarkObjectGet/missing_string_key-16                 164003106	         7.293 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/missing_int_number_key-16              74759754	         15.25 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/missing_float_key-16                    4059250	         295.8 ns/op	     296 B/op	      15 allocs/op
+
+// After NumberCompare refactor:
+// BenchmarkObjectGet/lookup_in_empty_object-16         	680466268	         1.767 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/existing_interned_key-16          	263787909	         4.498 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/existing_string_key-16            	156048259	         7.646 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/existing_int_number_key-16        	 99076318	         12.40 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/existing_float_number_key_as_int-16    98104674	         12.47 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/existing_int_number_key_as_float-16    53441701	         22.83 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/existing_float_key-16                  53429703	         20.98 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/missing_string_key-16                	193661902	         6.084 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/missing_int_number_key-16             156364982	         7.695 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/missing_float_key-16                   67888981	         16.26 ns/op	       0 B/op	       0 allocs/op
+
+// But do note that this was not done to improve performance, but to improve our code. The faster float comparisons
+// are a nice side effect.
+
+func BenchmarkObjectGet(b *testing.B) {
+	obj := NewObject(
+		Item(InternedTerm("env"), InternedTerm("production")), // known interned string key
+		Item(StringTerm("a"), InternedTerm(1)),
+		Item(IntNumberTerm(222), InternedTerm("b")),
+		Item(NumberTerm("3.14"), InternedTerm("c")),
+		Item(NumberTerm("2.0"), InternedTerm("d")),
+	)
+
+	empty := NewObject()
+	b.Run("lookup in empty object", func(b *testing.B) {
+		key := StringTerm("a")
+		for b.Loop() {
+			if empty.Get(key) != nil {
+				b.Fatal("expected miss")
+			}
+		}
+	})
+
+	b.Run("existing interned key", func(b *testing.B) {
+		key := InternedTerm("env")
+		for b.Loop() {
+			if obj.Get(key) == nil {
+				b.Fatal("expected hit")
+			}
+		}
+	})
+
+	b.Run("existing string key", func(b *testing.B) {
+		key := StringTerm("a")
+		for b.Loop() {
+			if obj.Get(key) == nil {
+				b.Fatal("expected hit")
+			}
+		}
+	})
+
+	b.Run("existing int number key", func(b *testing.B) {
+		key := IntNumberTerm(222)
+		for b.Loop() {
+			if obj.Get(key) == nil {
+				b.Fatal("expected hit")
+			}
+		}
+	})
+
+	b.Run("existing float number key as int", func(b *testing.B) {
+		key := IntNumberTerm(2)
+		for b.Loop() {
+			if obj.Get(key) == nil {
+				b.Fatal("expected hit")
+			}
+		}
+	})
+
+	b.Run("existing int number key as float", func(b *testing.B) {
+		key := NumberTerm("222.0")
+		for b.Loop() {
+			if obj.Get(key) == nil {
+				b.Fatal("expected hit")
+			}
+		}
+	})
+
+	b.Run("existing float key", func(b *testing.B) {
+		key := NumberTerm("3.14")
+		for b.Loop() {
+			if obj.Get(key) == nil {
+				b.Fatal("expected hit")
+			}
+		}
+	})
+
+	b.Run("missing string key", func(b *testing.B) {
+		key := StringTerm("missing")
+		for b.Loop() {
+			if obj.Get(key) != nil {
+				b.Fatal("expected miss")
+			}
+		}
+	})
+
+	b.Run("missing int number key", func(b *testing.B) {
+		key := IntNumberTerm(999)
+		for b.Loop() {
+			if obj.Get(key) != nil {
+				b.Fatal("expected miss")
+			}
+		}
+	})
+
+	b.Run("missing float key", func(b *testing.B) {
+		key := NumberTerm("9.99")
+		for b.Loop() {
+			if obj.Get(key) != nil {
+				b.Fatal("expected miss")
+			}
+		}
+	})
+}
+
 func BenchmarkObjectFind(b *testing.B) {
 	sizes := []int{5, 50, 500, 5000}
 	for _, n := range sizes {
