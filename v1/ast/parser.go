@@ -1126,6 +1126,8 @@ func (p *Parser) parseHead(defaultRule bool) (*Head, bool) {
 				p.illegal("expected rule value term (e.g., %s := <VALUE> { ... })", name)
 			}
 		}
+	case tokens.Sub:
+		p.illegalToken()
 	}
 
 	if head.Value == nil && head.Key == nil {
