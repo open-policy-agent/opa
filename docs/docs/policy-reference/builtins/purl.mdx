@@ -1,0 +1,197 @@
+---
+title: Package URL (PURL)
+---
+
+<BuiltinTable category={"purl"}/>
+
+Package URLs (PURLs) are a standard way to identify software packages across different package management systems. They're commonly used in Software Bill of Materials (SBOMs) to identify dependencies and components.
+
+A PURL follows the format: `pkg:type/namespace/name@version?qualifiers#subpath`
+
+Where:
+- **type** (required): Package type (npm, maven, docker, github, etc.)
+- **namespace** (optional): Package namespace/group/owner
+- **name** (required): Package name
+- **version** (optional): Package version
+- **qualifiers** (optional): Key-value pairs for additional package data
+- **subpath** (optional): Path within the package
+
+## Examples
+
+### Validating PURLs
+
+Use `purl.is_valid()` to check if a string is a valid PURL:
+
+```rego
+package example
+
+# Basic validation
+valid_npm := purl.is_valid("pkg:npm/lodash@4.17.21")  # true
+invalid := purl.is_valid("not-a-purl")                # false
+```
+
+### Parsing PURLs
+
+Use `purl.parse()` to extract components from a PURL:
+
+```rego
+package example
+
+# Parse a simple NPM package
+npm_pkg := purl.parse("pkg:npm/lodash@4.17.21")
+# Returns: {"type": "npm", "name": "lodash", "version": "4.17.21"}
+
+# Parse a Maven package with namespace
+maven_pkg := purl.parse("pkg:maven/org.apache.logging/log4j@2.14.0")
+# Returns: {"type": "maven", "namespace": "org.apache.logging", "name": "log4j", "version": "2.14.0"}
+
+# Parse with qualifiers
+rpm_pkg := purl.parse("pkg:rpm/fedora/curl@7.50.3-1.fc25?arch=i386&distro=fedora-25")
+# Returns: {
+#   "type": "rpm",
+#   "namespace": "fedora",
+#   "name": "curl",
+#   "version": "7.50.3-1.fc25",
+#   "qualifiers": {"arch": "i386", "distro": "fedora-25"}
+# }
+```
+
+## SBOM Policy Examples
+
+### Detecting Vulnerable Packages
+
+```rego
+package security.sbom
+
+import rego.v1
+
+# Known vulnerable packages
+vulnerable_packages := [
+    {"type": "npm", "name": "lodash", "version": "4.17.19"},
+    {"type": "maven", "namespace": "org.apache.logging.log4j", "name": "log4j-core", "version": "2.14.0"},
+    {"type": "pypi", "name": "tensorflow", "version": "2.5.0"}
+]
+
+# Check if SBOM contains vulnerable packages
+deny contains msg if {
+    some component in input.components
+    pkg := purl.parse(component.purl)
+
+    some vuln in vulnerable_packages
+    pkg.type == vuln.type
+    pkg.name == vuln.name
+    pkg.namespace == vuln.namespace  # Will be undefined if not present
+    pkg.version == vuln.version
+
+    msg := sprintf("Vulnerable package detected: %s", [component.purl])
+}
+```
+
+### Enforcing Package Policies
+
+```rego
+package security.sbom
+
+import rego.v1
+
+# Allowed package registries
+allowed_registries := {
+    "npm": ["registry.npmjs.org", "npm.company.com"],
+    "docker": ["docker.io", "gcr.io", "company-registry.io"]
+}
+
+# Check packages come from approved registries
+deny contains msg if {
+    some component in input.components
+    purl.is_valid(component.purl)
+    pkg := purl.parse(component.purl)
+
+    # Check if package type has registry restrictions
+    pkg.type in allowed_registries
+
+    # Extract registry from qualifiers (if present)
+    registry := pkg.qualifiers.repository_url
+
+    # Verify registry is allowed
+    not registry_allowed(pkg.type, registry)
+
+    msg := sprintf("Package from unapproved registry: %s", [component.purl])
+}
+
+registry_allowed(pkg_type, registry) if {
+    some allowed in allowed_registries[pkg_type]
+    contains(registry, allowed)
+}
+```
+
+### License Compliance
+
+```rego
+package compliance.licenses
+
+import rego.v1
+
+# Licenses incompatible with proprietary distribution
+incompatible_licenses := {"BUSL-1.1", "CC-BY-NC-4.0", "Elastic-2.0"}
+
+# Check for license compatibility issues
+violations contains msg if {
+    some component in input.components
+    pkg := purl.parse(component.purl)
+
+    some license in component.licenses
+    license.id in incompatible_licenses
+
+    msg := sprintf("Package %s/%s@%s uses license %s incompatible with distribution model",
+                   [pkg.type, pkg.name, pkg.version, license.id])
+}
+```
+
+### Supply Chain Verification
+
+```rego
+package supply_chain
+
+import rego.v1
+
+# Verify packages are signed or have checksums
+require_verification contains msg if {
+    some component in input.components
+    pkg := purl.parse(component.purl)
+
+    # Check if package has verification data
+    not component.hashes
+    not pkg.qualifiers.checksum
+
+    msg := sprintf("Package lacks verification: %s", [component.purl])
+}
+
+# Check for specific package types that require additional scrutiny
+high_risk_packages contains pkg if {
+    some component in input.components
+    pkg := purl.parse(component.purl)
+
+    # Flag packages from public registries without namespaces
+    pkg.type in {"npm", "pypi", "gem"}
+    not pkg.namespace
+}
+```
+
+## Common PURL Types
+
+| Type | Description | Example |
+| ---- | ----------- | ------- |
+| `npm` | NPM packages | `pkg:npm/@angular/core@12.0.0` |
+| `maven` | Maven/Java packages | `pkg:maven/org.springframework/spring-core@5.3.0` |
+| `pypi` | Python packages | `pkg:pypi/django@3.2.0` |
+| `docker` | Container images | `pkg:docker/ubuntu@20.04` |
+| `github` | GitHub repositories | `pkg:github/open-policy-agent/opa@v0.45.0` |
+| `gem` | Ruby gems | `pkg:gem/rails@6.1.0` |
+| `cargo` | Rust packages | `pkg:cargo/serde@1.0.0` |
+| `golang` | Go modules | `pkg:golang/github.com/gorilla/mux@v1.8.0` |
+
+## Notes
+
+- The `purl.parse()` function omits empty optional fields rather than returning empty strings
+- Invalid PURLs will cause `purl.parse()` to fail with an error
+- The PURL specification is maintained at https://github.com/package-url/purl-spec

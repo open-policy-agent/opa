@@ -1,0 +1,88 @@
+---
+cases:
+  - note: purlbuiltins/parse_simple
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+        p := x if {
+          x := purl.parse("pkg:npm/foobar@12.3.1")
+        }
+    want_result:
+      - x:
+          type: "npm"
+          name: "foobar"
+          version: "12.3.1"
+
+  - note: purlbuiltins/parse_with_namespace
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+        p := x if {
+          x := purl.parse("pkg:maven/org.apache.xmlgraphics/batik-anim@1.9.1")
+        }
+    want_result:
+      - x:
+          type: "maven"
+          namespace: "org.apache.xmlgraphics"
+          name: "batik-anim"
+          version: "1.9.1"
+
+  - note: purlbuiltins/parse_with_qualifiers
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+        p := x if {
+          x := purl.parse("pkg:rpm/fedora/curl@7.50.3-1.fc25?arch=i386&distro=fedora-25")
+        }
+    want_result:
+      - x:
+          type: "rpm"
+          namespace: "fedora"
+          name: "curl"
+          version: "7.50.3-1.fc25"
+          qualifiers:
+            arch: "i386"
+            distro: "fedora-25"
+
+  - note: purlbuiltins/parse_with_subpath
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+        p := x if {
+          x := purl.parse("pkg:github/owner/repo@v1.0.0#path/to/file.js")
+        }
+    want_result:
+      - x:
+          type: "github"
+          namespace: "owner"
+          name: "repo"
+          version: "v1.0.0"
+          subpath: "path/to/file.js"
+
+  - note: purlbuiltins/parse_minimal
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+        p := x if {
+          x := purl.parse("pkg:npm/lodash")
+        }
+    want_result:
+      - x:
+          type: "npm"
+          name: "lodash"
+
+  - note: purlbuiltins/parse_invalid
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+        p := x if {
+          x := purl.parse("not-a-purl")
+        }
+    want_error: 'purl.parse: invalid PURL'
+    strict_error: true

@@ -175,6 +175,8 @@ var DefaultBuiltins = [...]*Builtin{
 	YAMLMarshal,
 	YAMLUnmarshal,
 	YAMLIsValid,
+	PurlIsValid,
+	PurlParse,
 	HexEncode,
 	HexDecode,
 
@@ -2063,6 +2065,41 @@ var YAMLIsValid = &Builtin{
 			types.Named("x", types.S).Description("a YAML string"),
 		),
 		types.Named("result", types.B).Description("`true` if `x` is valid YAML, `false` otherwise"),
+	),
+	Categories:  encoding,
+	CanSkipBctx: true,
+}
+
+var PurlIsValid = &Builtin{
+	Name:        "purl.is_valid",
+	Description: "Validates that the input is a valid Package URL (PURL).",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("purl", types.S).Description("Package URL string to validate"),
+		),
+		types.Named("result", types.B).Description("`true` if `purl` is a valid Package URL; `false` otherwise"),
+	),
+	Categories:  encoding,
+	CanSkipBctx: true,
+}
+
+var PurlParse = &Builtin{
+	Name:        "purl.parse",
+	Description: "Parses a Package URL (PURL) string into its components.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("purl", types.S).Description("Package URL string to parse"),
+		),
+		types.Named("result", types.NewObject(
+			[]*types.StaticProperty{
+				{Key: "type", Value: types.S},
+				{Key: "name", Value: types.S},
+			},
+			types.NewDynamicProperty(types.S, types.Or(
+				types.S,
+				types.NewObject(nil, types.NewDynamicProperty(types.S, types.S)),
+			)),
+		)).Description("object with required fields (type, name) and optional fields (namespace, version, qualifiers, subpath)"),
 	),
 	Categories:  encoding,
 	CanSkipBctx: true,
