@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -79,8 +80,17 @@ func newVM(opts vmOpts, engine *wasmtime.Engine) (*VM, error) {
 	v := &VM{engine: engine}
 	store := wasmtime.NewStore(engine)
 	store.SetEpochDeadline(1)
-	memorytype := wasmtime.NewMemoryType(opts.memoryMin, true, opts.memoryMax)
-	memory, err := wasmtime.NewMemory(store, memorytype)
+
+	// Use Memory64 for large policies when enabled
+	var memory *wasmtime.Memory
+	var err error
+	if os.Getenv("OPA_WASM_MEMORY64") == "true" && opts.memoryMax > 65536 { // > 4GB in pages
+		memorytype := wasmtime.NewMemoryType64(uint64(opts.memoryMin), true, uint64(opts.memoryMax))
+		memory, err = wasmtime.NewMemory(store, memorytype)
+	} else {
+		memorytype := wasmtime.NewMemoryType(opts.memoryMin, true, opts.memoryMax)
+		memory, err = wasmtime.NewMemory(store, memorytype)
+	}
 	if err != nil {
 		return nil, err
 	}

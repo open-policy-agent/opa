@@ -7,6 +7,7 @@ package wasm
 import (
 	"bytes"
 	"context"
+	"os"
 	"sync"
 
 	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
@@ -42,6 +43,11 @@ func NewPool(poolSize, memoryMinPages, memoryMaxPages uint32) *Pool {
 
 	cfg := wasmtime.NewConfig()
 	cfg.SetEpochInterruption(true)
+
+	// Enable WASM Memory64 for large policies when requested
+	if os.Getenv("OPA_WASM_MEMORY64") == "true" {
+		cfg.SetWasmMemory64(true)
+	}
 
 	available := make(chan struct{}, poolSize)
 	for range poolSize {
