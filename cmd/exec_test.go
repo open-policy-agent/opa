@@ -32,7 +32,7 @@ type execOutput struct {
 type execResultItem struct {
 	DecisionID string              `json:"decision_id,omitempty"`
 	Path       string              `json:"path"`
-	Error      execResultItemError `json:"error,omitempty"`
+	Error      execResultItemError `json:"error"`
 	Result     *any                `json:"result,omitempty"`
 }
 

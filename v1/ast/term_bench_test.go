@@ -31,7 +31,7 @@ func BenchmarkObjectLookup(b *testing.B) {
 			}
 			key := StringTerm(strconv.Itoa(n - 1))
 			b.ResetTimer()
-			for range b.N {
+			for b.Loop() {
 				value := obj.Get(key)
 				if value == nil {
 					b.Fatal("expected hit")
@@ -56,7 +56,7 @@ func BenchmarkObjectFind(b *testing.B) {
 				}
 				key := Ref{StringTerm(strconv.Itoa(n - 1)), IntNumberTerm(m - 1)}
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					value, err := obj.Find(key)
 					if err != nil {
 						b.Fatal(err)
@@ -80,7 +80,7 @@ func BenchmarkObjectInsert(b *testing.B) {
 		obj := newobject(0)
 		obj.Insert(nums[0], nums[0])
 
-		for range b.N {
+		for b.Loop() {
 			for range nums {
 				obj.Insert(nums[0], nums[0])
 			}
@@ -91,7 +91,7 @@ func BenchmarkObjectInsert(b *testing.B) {
 		obj := newobject(0)
 		obj.Insert(nums[0], StringTerm("foo"))
 
-		for range b.N {
+		for b.Loop() {
 			for i := range nums {
 				obj.Insert(nums[0], nums[i])
 			}
@@ -101,7 +101,7 @@ func BenchmarkObjectInsert(b *testing.B) {
 	b.Run("new key", func(b *testing.B) {
 		obj := newobject(0)
 
-		for range b.N {
+		for b.Loop() {
 			for i := range nums {
 				obj.Insert(nums[i], nums[0])
 				if i >= len(nums)-1 {
@@ -114,7 +114,7 @@ func BenchmarkObjectInsert(b *testing.B) {
 	b.Run("new key, new value", func(b *testing.B) {
 		obj := newobject(0)
 
-		for range b.N {
+		for b.Loop() {
 			for i := range nums {
 				obj.Insert(nums[i], nums[i])
 				if i >= len(nums)-1 {
@@ -134,7 +134,7 @@ func BenchmarkObjectCreationAndLookup(b *testing.B) {
 				obj.Insert(StringTerm(strconv.Itoa(i)), IntNumberTerm(i))
 			}
 			key := StringTerm(strconv.Itoa(n - 1))
-			for range b.N {
+			for b.Loop() {
 				value := obj.Get(key)
 				if value == nil {
 					b.Fatal("expected hit")
@@ -155,7 +155,7 @@ func BenchmarkLazyObjectLookup(b *testing.B) {
 			obj := LazyObject(data)
 			key := StringTerm(strconv.Itoa(n - 1))
 			b.ResetTimer()
-			for range b.N {
+			for b.Loop() {
 				value := obj.Get(key)
 				if value == nil {
 					b.Fatal("expected hit")
@@ -181,7 +181,7 @@ func BenchmarkLazyObjectFind(b *testing.B) {
 				obj := LazyObject(data)
 				key := Ref{StringTerm(strconv.Itoa(n - 1)), IntNumberTerm(m - 1)}
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					value, err := obj.Find(key)
 					if err != nil {
 						b.Fatal(err)
@@ -204,7 +204,7 @@ func BenchmarkSetCreationAndLookup(b *testing.B) {
 				set.Add(StringTerm(strconv.Itoa(i)))
 			}
 			key := StringTerm(strconv.Itoa(n - 1))
-			for range b.N {
+			for b.Loop() {
 				present := set.Contains(key)
 				if !present {
 					b.Fatal("expected hit")
@@ -225,7 +225,7 @@ func BenchmarkSetIntersection(b *testing.B) {
 				setB.Add(IntNumberTerm(i))
 			}
 			b.ResetTimer()
-			for range b.N {
+			for b.Loop() {
 				setC := setA.Intersect(setB)
 				if setC.Len() != setA.Len() || setC.Len() != setB.Len() {
 					b.Fatal("expected equal")
@@ -249,7 +249,7 @@ func BenchmarkSetIntersectionDifferentSize(b *testing.B) {
 			}
 			setB.Add(IntNumberTerm(-1))
 			b.ResetTimer()
-			for range b.N {
+			for b.Loop() {
 				setC := setA.Intersect(setB)
 				if setC.Len() != sizes[0] {
 					b.Fatal("expected size to be equal")
@@ -269,7 +269,7 @@ func BenchmarkSetMembership(b *testing.B) {
 			}
 			key := IntNumberTerm(n - 1)
 			b.ResetTimer()
-			for range b.N {
+			for b.Loop() {
 				if !setA.Contains(key) {
 					b.Fatal("expected hit")
 				}
@@ -284,7 +284,7 @@ func BenchmarkTermHashing(b *testing.B) {
 		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			s := String(strings.Repeat("a", n))
 			b.ResetTimer()
-			for range b.N {
+			for b.Loop() {
 				_ = s.Hash()
 			}
 		})
@@ -318,13 +318,13 @@ func BenchmarkObjectString(b *testing.B) {
 
 			b.Run("String()", func(b *testing.B) {
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					str = val.String()
 				}
 			})
 			b.Run("json.Marshal", func(b *testing.B) {
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					bs, err = json.Marshal(obj)
 					if err != nil {
 						b.Fatal(err)
@@ -354,13 +354,13 @@ func BenchmarkObjectStringInterfaces(b *testing.B) {
 
 			b.Run("String()", func(b *testing.B) {
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					str = valString.String()
 				}
 			})
 			b.Run("json.Marshal", func(b *testing.B) {
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					bs, err = json.Marshal(valJSON)
 					if err != nil {
 						b.Fatal(err)
@@ -385,7 +385,7 @@ func BenchmarkObjectConstruction(b *testing.B) {
 				r := rand.New(rand.NewSource(seed)) // Seed the PRNG.
 				r.Shuffle(len(es), func(i, j int) { es[i], es[j] = es[j], es[i] })
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					obj := NewObject()
 					for _, e := range es {
 						obj.Insert(IntNumberTerm(e.k), IntNumberTerm(e.v))
@@ -402,7 +402,7 @@ func BenchmarkObjectConstruction(b *testing.B) {
 					es = append(es, struct{ k, v int }{v, v})
 				}
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					obj := NewObject()
 					for _, e := range es {
 						obj.Insert(IntNumberTerm(e.k), IntNumberTerm(e.v))
@@ -430,13 +430,13 @@ func BenchmarkArrayString(b *testing.B) {
 
 			b.Run("String()", func(b *testing.B) {
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					str = val.String()
 				}
 			})
 			b.Run("json.Marshal", func(b *testing.B) {
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					bs, err = json.Marshal(obj)
 					if err != nil {
 						b.Fatal(err)
@@ -466,7 +466,7 @@ func BenchmarkArrayEquality(b *testing.B) {
 			arrB = arrB.Append(IntNumberTerm(10000))
 			b.ResetTimer()
 			b.ReportAllocs()
-			for range b.N {
+			for b.Loop() {
 				if arrA.Equal(arrB) {
 					b.Fatal("expected not equal")
 				}
@@ -487,7 +487,7 @@ func BenchmarkSetString(b *testing.B) {
 
 			b.Run("String()", func(b *testing.B) {
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					str = val.String()
 				}
 			})
@@ -508,7 +508,7 @@ func BenchmarkSetMarshalJSON(b *testing.B) {
 
 			b.Run("json.Marshal", func(b *testing.B) {
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					bs, err = json.Marshal(set)
 					if err != nil {
 						b.Fatal(err)

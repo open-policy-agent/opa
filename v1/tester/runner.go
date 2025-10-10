@@ -1099,7 +1099,7 @@ func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod 
 			b.ReportAllocs()
 		}
 
-		for range b.N {
+		for b.Loop() {
 			opts := []rego.EvalOption{rego.EvalTransaction(txn), rego.EvalMetrics(m)}
 
 			var tracer *TestQueryTracer

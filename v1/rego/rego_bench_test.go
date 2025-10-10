@@ -58,7 +58,7 @@ func BenchmarkPartialObjectRuleCrossModule(b *testing.B) {
 
 			b.ResetTimer()
 
-			for range b.N {
+			for b.Loop() {
 				_, err = pq.Eval(
 					ctx,
 					EvalParsedInput(inputAST),
@@ -98,7 +98,7 @@ func BenchmarkCustomFunctionInHotPath(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	for range b.N {
+	for b.Loop() {
 		res, err := pq.Eval(ctx, EvalParsedInput(input.Value))
 		if err != nil {
 			b.Fatal(err)
@@ -122,7 +122,7 @@ func BenchmarkCustomFunctionInHotPath(b *testing.B) {
 func BenchmarkAciTestBuildAndEval(b *testing.B) {
 	ctx := b.Context()
 
-	for range b.N {
+	for b.Loop() {
 		bundle, err := loader.NewFileLoader().
 			WithRegoVersion(ast.RegoV0).
 			AsBundle("testdata/aci")
@@ -170,7 +170,7 @@ func BenchmarkAciTestOnlyEval(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	for range b.N {
+	for b.Loop() {
 		res, err := pq.Eval(ctx, EvalParsedInput(input.Value))
 		if err != nil {
 			b.Fatal(err)
@@ -205,7 +205,7 @@ func BenchmarkArrayIteration(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	for range b.N {
+	for b.Loop() {
 		res, err := pq.Eval(ctx, EvalParsedInput(input))
 		if err != nil {
 			b.Fatal(err)
@@ -248,7 +248,7 @@ func BenchmarkSetIteration(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	for range b.N {
+	for b.Loop() {
 		res, err := pq.Eval(ctx, EvalParsedInput(input))
 		if err != nil {
 			b.Fatal(err)
@@ -290,7 +290,7 @@ func BenchmarkObjectIteration(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	for range b.N {
+	for b.Loop() {
 		res, err := pq.Eval(ctx, EvalParsedInput(input))
 		if err != nil {
 			b.Fatal(err)
@@ -344,7 +344,7 @@ r contains true if {
 
 			b.ResetTimer()
 
-			for range b.N {
+			for b.Loop() {
 				res, err := pq.Eval(ctx)
 				if err != nil {
 					b.Fatal(err)
@@ -375,7 +375,7 @@ func BenchmarkStoreRead(b *testing.B) {
 
 	ref := ast.MustParseRef("data.foo.bar.baz")
 
-	for range b.N {
+	for b.Loop() {
 		// 1 alloc/op
 		path, err := storage.NewPathForRef(ref)
 		if err != nil {
@@ -413,7 +413,7 @@ func BenchmarkTrivialPolicy(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	for range b.N {
+	for b.Loop() {
 		if _, err := pq.Eval(ctx); err != nil {
 			b.Fatal(err)
 		}
@@ -497,7 +497,7 @@ local_var if {
 
 	for i, pq := range []PreparedEvalQuery{pq1, pq2} {
 		b.Run(names[i], func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				if _, err := pq.Eval(ctx); err != nil {
 					b.Fatal(err)
 				}

@@ -162,9 +162,7 @@ func BenchmarkMaskingNop(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		if err := plugin.maskEvent(ctx, nil, input, &event); err != nil {
 			b.Fatal(err)
 		}
@@ -203,7 +201,7 @@ func BenchmarkMaskingRuleCountsNop(b *testing.B) {
 	for _, ruleCount := range numRules {
 		b.Run(fmt.Sprintf("%dRules", ruleCount), func(b *testing.B) {
 			b.ResetTimer()
-			for range b.N {
+			for b.Loop() {
 				if err := plugin.maskEvent(ctx, nil, input, &event); err != nil {
 					b.Fatal(err)
 				}
@@ -252,9 +250,7 @@ func BenchmarkMaskingErase(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		if err := plugin.maskEvent(ctx, nil, input, &event); err != nil {
 			b.Fatal(err)
 		}

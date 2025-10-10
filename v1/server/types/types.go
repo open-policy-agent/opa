@@ -376,7 +376,7 @@ type CompileRequestV1 struct {
 	Options  struct {
 		DisableInlining          []string `json:"disableInlining,omitempty"`
 		NondeterministicBuiltins bool     `json:"nondeterministicBuiltins"`
-	} `json:"options,omitempty"`
+	} `json:"options"`
 }
 
 // CompileResponseV1 models the response message for Compile API operations.

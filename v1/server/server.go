@@ -2770,8 +2770,7 @@ func stringPathToRef(s string) (ast.Ref, error) {
 		return r, nil
 	}
 
-	p := strings.Split(s, "/")
-	for _, x := range p {
+	for x := range strings.SplitSeq(s, "/") {
 		if x == "" {
 			continue
 		}
