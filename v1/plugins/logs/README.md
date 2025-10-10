@@ -104,10 +104,10 @@ It is recommended to use this trigger mode to prevent overloading the service wi
 
 ### Immediate
 
-As soon as enough events are received that fill the buffer the plugin will trigger an upload. When using this
-trigger mode the `min_delay_seconds` cannot be set as it can be considered to be 0. The `max_delay_seconds` is still
-configurable in case not enough events are received to hit the upload limit. Configure `max_delay_seconds` to be larger
-than the average amount of time it takes to fill up the buffer.
+As soon as enough events are received that fill the buffer the plugin will trigger an upload. The `min_delay_seconds`
+and
+`max_delay_seconds` can still be configured, but if the buffer fills up the contents could upload before
+`min_delay_seconds`.
 
 It is recommended to use this trigger mode if you want a constant stream of incoming data. Minimizes amount of events
 dropped during peak traffic hours.

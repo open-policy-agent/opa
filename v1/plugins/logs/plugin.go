@@ -338,23 +338,17 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 	minDelay := defaultMinDelaySeconds
 	maxDelay := defaultMaxDelaySeconds
 
-	if *c.Reporting.Trigger == plugins.TriggerImmediate {
-		if c.Reporting.MinDelaySeconds != nil {
-			return errors.New("reporting configuration cannot set 'min_delay_seconds' when using immediate trigger mode")
+	// reject bad min/max values
+	if c.Reporting.MaxDelaySeconds != nil && c.Reporting.MinDelaySeconds != nil {
+		if *c.Reporting.MaxDelaySeconds < *c.Reporting.MinDelaySeconds {
+			return errors.New("max reporting delay must be >= min reporting delay in decision_logs")
 		}
-	} else {
-		// reject bad min/max values
-		if c.Reporting.MaxDelaySeconds != nil && c.Reporting.MinDelaySeconds != nil {
-			if *c.Reporting.MaxDelaySeconds < *c.Reporting.MinDelaySeconds {
-				return errors.New("max reporting delay must be >= min reporting delay in decision_logs")
-			}
-			minDelay = *c.Reporting.MinDelaySeconds
-			maxDelay = *c.Reporting.MaxDelaySeconds
-		} else if c.Reporting.MaxDelaySeconds == nil && c.Reporting.MinDelaySeconds != nil {
-			return errors.New("reporting configuration missing 'max_delay_seconds' in decision_logs")
-		} else if c.Reporting.MinDelaySeconds == nil && c.Reporting.MaxDelaySeconds != nil {
-			return errors.New("reporting configuration missing 'min_delay_seconds' in decision_logs")
-		}
+		minDelay = *c.Reporting.MinDelaySeconds
+		maxDelay = *c.Reporting.MaxDelaySeconds
+	} else if c.Reporting.MaxDelaySeconds == nil && c.Reporting.MinDelaySeconds != nil {
+		return errors.New("reporting configuration missing 'max_delay_seconds' in decision_logs")
+	} else if c.Reporting.MinDelaySeconds == nil && c.Reporting.MaxDelaySeconds != nil {
+		return errors.New("reporting configuration missing 'min_delay_seconds' in decision_logs")
 	}
 
 	// scale to seconds
@@ -922,25 +916,17 @@ func (p *Plugin) timerLoop() {
 			return
 		}
 
+		var delay time.Duration
 		// this error is logged within p.doOneShot, it is used here to increment retries for exponential backoff
 		err := p.doOneShot(ctx)
-
-		var delay time.Duration
-		switch *p.config.Reporting.Trigger {
-		case plugins.TriggerPeriodic:
-			// the delay will be a value between the configured min and max to create a jitter effect
-			if err == nil {
-				retry = 0
-				minDelay := float64(*p.config.Reporting.MinDelaySeconds)
-				maxDelay := float64(*p.config.Reporting.MaxDelaySeconds)
-				delay = time.Duration(((maxDelay - minDelay) * rand.Float64()) + minDelay)
-			} else {
-				retry++
-				delay = util.DefaultBackoff(float64(minRetryDelay), float64(*p.config.Reporting.MaxDelaySeconds), retry)
-			}
-		case plugins.TriggerImmediate:
-			// always the max delay because in this mode it is expected the buffer will fill up faster
-			delay = time.Duration(*p.config.Reporting.MaxDelaySeconds)
+		if err != nil {
+			retry++
+			delay = util.DefaultBackoff(float64(minRetryDelay), float64(*p.config.Reporting.MaxDelaySeconds), retry)
+		} else {
+			retry = 0
+			minDelay := float64(*p.config.Reporting.MinDelaySeconds)
+			maxDelay := float64(*p.config.Reporting.MaxDelaySeconds)
+			delay = time.Duration(((maxDelay - minDelay) * rand.Float64()) + minDelay)
 		}
 
 		uploadTimer.Reset(delay)

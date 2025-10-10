@@ -2172,6 +2172,9 @@ func TestPluginReconfigureLoop(t *testing.T) {
 	limit := int64(1)
 	config.Reporting.BufferSizeLimitBytes = &limit
 	config.Reporting.UploadSizeLimitBytes = &limit
+	config.Reporting.MinDelaySeconds = &limit
+	config.Reporting.MaxDelaySeconds = &limit
+
 	decisions := float64(1)
 	config.Reporting.MaxDecisionsPerSecond = &decisions
 	resource := "random"
@@ -2185,6 +2188,7 @@ func TestPluginReconfigureLoop(t *testing.T) {
 
 	config.Service = "example"
 	config.Reporting.Trigger = &trigger
+	config.Reporting.MinDelaySeconds = &limit
 	config.Reporting.MaxDelaySeconds = &limit
 	fixture.plugin.Reconfigure(ctx, &config)
 
@@ -3027,6 +3031,7 @@ func TestPluginDropErrorHandling(t *testing.T) {
 
 type testFixtureOptions struct {
 	ConsoleLogger                  *test.Logger
+	ReportingMinDelay              int64
 	ReportingMaxDelay              int64
 	ReportingTrigger               *plugins.TriggerMode
 	ReportingBufferType            string
@@ -3157,6 +3162,10 @@ func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
 		config.Reporting.Trigger = options.ReportingTrigger
 	}
 
+	if options.ReportingMinDelay != 0 {
+		minSeconds := int64(time.Duration(options.ReportingMinDelay) * time.Second)
+		config.Reporting.MinDelaySeconds = &minSeconds
+	}
 	if options.ReportingMaxDelay != 0 {
 		maxSeconds := int64(time.Duration(options.ReportingMaxDelay) * time.Second)
 		config.Reporting.MaxDelaySeconds = &maxSeconds
@@ -4057,6 +4066,7 @@ func TestImmediateTriggerModeBufferFull(t *testing.T) {
 			fixture := newTestFixture(t, testFixtureOptions{
 				ReportingBufferType:            tc.bufferType,
 				ReportingTrigger:               &triggerMode,
+				ReportingMinDelay:              maxDelaySeconds,
 				ReportingMaxDelay:              maxDelaySeconds, // long time to make sure the immediate trigger is used
 				ReportingBufferSizeLimitEvents: 1,
 				// size buffer type is complicated, and uses an encoder buffer and a chunk buffer
@@ -4076,12 +4086,6 @@ func TestImmediateTriggerModeBufferFull(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			// event buffer type can detect if the buffer is full immediately
-			if err := fixture.plugin.Log(ctx, &server.Info{DecisionID: "abc"}); err != nil {
-				t.Fatal(err)
-			}
-
-			// event buffer type can detect if the buffer is full immediately
 			if err := fixture.plugin.Log(ctx, &server.Info{DecisionID: "abc"}); err != nil {
 				t.Fatal(err)
 			}

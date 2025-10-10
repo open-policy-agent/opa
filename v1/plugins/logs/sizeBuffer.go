@@ -80,26 +80,26 @@ func (b *sizeBuffer) Reconfigure(bufferSizeLimitBytes int64, uploadSizeLimitByte
 }
 
 func (b *sizeBuffer) Push(event *EventV1) bool {
-	var full bool
-
 	if b.limiter != nil && !b.limiter.Allow() {
 		b.incrMetric(logRateLimitExDropCounterName)
 		b.logger.Error("Decision log dropped as rate limit exceeded. Reduce reporting interval or increase rate limit.")
-		return full
+		return false
 	}
 
 	eventBytes, err := json.Marshal(&event)
 	if err != nil {
 		b.logger.Error("Decision log dropped due to error serializing event to JSON: %v", err)
-		return full
+		return false
 	}
 
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 	result, err := b.enc.Encode(*event, eventBytes)
 	if err != nil {
-		return full
+		return false
 	}
+
+	var full bool
 	for _, chunk := range result {
 		full = b.bufferChunk(b.buffer, chunk)
 	}
