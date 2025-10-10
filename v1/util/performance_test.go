@@ -58,6 +58,15 @@ func BenchmarkSplitMap(b *testing.B) {
 	})
 }
 
+// Zero allocations
+func BenchmarkSlicePoolGetPut(b *testing.B) {
+	sp := NewSlicePool[int](4)
+	for b.Loop() {
+		s := sp.Get(4)
+		sp.Put(s)
+	}
+}
+
 func mustAtoi(s string) int {
 	v, _ := strconv.Atoi(s)
 	return v

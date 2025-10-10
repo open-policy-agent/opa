@@ -1004,22 +1004,26 @@ func TestFormatKeywordsInRefs(t *testing.T) {
 	}
 }
 
-// 382	   3064960 ns/op	 4573131 B/op	   26266 allocs/op // no optimizations
-// 685	   1737719 ns/op	 1972193 B/op	   14160 allocs/op // pre-allocate partitionComments
-// 708	   1674343 ns/op	 1916700 B/op	   11556 allocs/op // static memberRef & memberWithKeyRef
-// 746	   1594546 ns/op	 1882652 B/op	   10644 allocs/op // various minor fixes
-// 1250	    853508 ns/op	  441730 B/op	    8895 allocs/op // partitionComments early return if unchanged
-// 1396	    812859 ns/op	  362651 B/op	    8811 allocs/op // partitionComments reuse backing array
+// 3064960 ns/op	 4573131 B/op	   26266 allocs/op // no optimizations
+// 1737719 ns/op	 1972193 B/op	   14160 allocs/op // pre-allocate partitionComments
+// 1674343 ns/op	 1916700 B/op	   11556 allocs/op // static memberRef & memberWithKeyRef
+// 1594546 ns/op	 1882652 B/op	   10644 allocs/op // various minor fixes
+// _853508 ns/op	  441730 B/op	    8895 allocs/op // partitionComments early return if unchanged
+// _812859 ns/op	  362651 B/op	    8811 allocs/op // partitionComments reuse backing array
+// _676179 ns/op	  995204 B/op	    8850 allocs/op // regression in 0fb7526
+// _513570 ns/op	  378787 B/op	    8775 allocs/op // addressed regression with sync.Pool
+// _481681 ns/op	  352130 B/op	    7954 allocs/op // new util.NewSlicePool using only pointers
+// _365116 ns/op	  160528 B/op	    2098 allocs/op // new SkipDefensiveCopying option
 func BenchmarkFormatLargePolicy(b *testing.B) {
 	contents, err := os.ReadFile("testdata/bench.rego")
 	if err != nil {
 		b.Fatalf("Failed to read rego source: %v", err)
 	}
 	module := ast.MustParseModule(string(contents))
+	opts := Opts{RegoVersion: ast.RegoV1, SkipDefensiveCopying: true}
 
 	for b.Loop() {
-		_, err := AstWithOpts(module, Opts{RegoVersion: ast.RegoV1})
-		if err != nil {
+		if _, err := AstWithOpts(module, opts); err != nil {
 			b.Fatal(err)
 		}
 	}
