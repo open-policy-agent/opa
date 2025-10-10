@@ -143,6 +143,10 @@ const (
 	// TriggerPeriodic represents periodic polling mechanism
 	TriggerPeriodic TriggerMode = "periodic"
 
+	// TriggerImmediate represents immediate triggering mechanism
+	// uploading a chunk of events as soon as it is ready
+	TriggerImmediate TriggerMode = "immediate"
+
 	// TriggerManual represents manual triggering mechanism
 	TriggerManual TriggerMode = "manual"
 
@@ -272,10 +276,10 @@ func getWasmResolversOnContext(context *storage.Context) []*wasm.Resolver {
 
 func validateTriggerMode(mode TriggerMode) error {
 	switch mode {
-	case TriggerPeriodic, TriggerManual:
+	case TriggerPeriodic, TriggerManual, TriggerImmediate:
 		return nil
 	default:
-		return fmt.Errorf("invalid trigger mode %q (want %q or %q)", mode, TriggerPeriodic, TriggerManual)
+		return fmt.Errorf("invalid trigger mode %q (want %q, %q or %q)", mode, TriggerPeriodic, TriggerManual, TriggerImmediate)
 	}
 }
 
