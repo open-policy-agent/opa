@@ -48,6 +48,21 @@ database:
     dsn: "postgres://opactl:password@postgres-service:5432/opactl?sslmode=disable"
 ```
 
+### Database Migrations
+
+The initial schema and incremental updates need to be applied to the database.
+For simple setups, like OCP running as a single server, with full control over its database, pass `--apply-migrations` to `opactl run`.
+That will make OCP apply all pending migrations on server startup.
+
+For more complex scenarios, you can run `opactl db migrate` during rollout.
+It uses the same configuration format as `opactl run`, see `opactl db migrate --help`.
+Notably, it comes with a `--dry-run` flag for _not actually applying_ the migrations.
+
+When OCP starts without `--apply-migrations`, it will
+1. warn if there are un-applied migrations known to the binary
+2. warn if the binary appears to be stale (database's migration state is newer than the binary's migrations)
+3. finally, attempt to use the database as-is.
+
 ## OCP Server
 
 The OCP server is fairly straightforward to setup, there is a docker [image](#docker-image) provided and you can configure it with one or more configuration files. In this case we will use multiple configuration files in a configmap to do the configuration. One important piece of configuration is the token setup for accessing the OCP API. Details of this configuration can be found in the [Authentication and permissions](./authentication.md) section, we will do a basic setup adds an admin and viewer API token:
