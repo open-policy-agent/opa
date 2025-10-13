@@ -60,7 +60,7 @@ Notably, it comes with a `--dry-run` flag for _not actually applying_ the migrat
 
 When OCP starts without `--apply-migrations`, it will
 1. warn if there are un-applied migrations known to the binary
-2. warn if the binary appears to be stale (migration state surpasses the binary's migrations)
+2. warn if the binary appears to be stale (database's migration state is newer than the binary's migrations)
 3. finally, attempt to use the database as-is.
 
 ## OCP Server
