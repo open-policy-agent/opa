@@ -50,7 +50,7 @@ database:
 
 ### Database Migrations
 
-The initial schema and incremental updates needs to be applied to the database.
+The initial schema and incremental updates need to be applied to the database.
 For simple setups, like OCP running as a single server, with full control over its database, pass `--apply-migrations` to `opactl run`.
 That will make OCP apply all pending migrations on server startup.
 
