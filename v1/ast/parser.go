@@ -1853,13 +1853,11 @@ func (p *Parser) parseString() *Term {
 		}
 
 		var s string
-		err := json.Unmarshal([]byte(p.s.lit), &s)
-		if err != nil {
+		if err := json.Unmarshal([]byte(p.s.lit), &s); err != nil {
 			p.errorf(p.s.Loc(), "illegal string literal: %s", p.s.lit)
 			return nil
 		}
-		term := StringTerm(s).SetLocation(p.s.Loc())
-		return term
+		return StringTerm(s).SetLocation(p.s.Loc())
 	}
 	return p.parseRawString()
 }
@@ -1868,8 +1866,7 @@ func (p *Parser) parseRawString() *Term {
 	if len(p.s.lit) < 2 {
 		return nil
 	}
-	term := StringTerm(p.s.lit[1 : len(p.s.lit)-1]).SetLocation(p.s.Loc())
-	return term
+	return StringTerm(p.s.lit[1 : len(p.s.lit)-1]).SetLocation(p.s.Loc())
 }
 
 // this is the name to use for instantiating an empty set, e.g., `set()`.
