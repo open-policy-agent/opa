@@ -139,7 +139,7 @@ jobs:
           arch: amd64
         - os: linux
           run: ubuntu-24.04
-          targets: ci-go-ci-build-linux-static
+          targets: ci-go-ci-build-linux ci-go-ci-build-linux-static
           arch: arm64
         - os: linux
           run: ubuntu-24.04
@@ -157,7 +157,7 @@ jobs:
           arch: amd64
         - os: darwin
           run: macos-14
-          targets: ci-build-darwin-arm64-static
+          targets: ci-build-darwin ci-build-darwin-arm64-static
           arch: arm64
     steps:
     - name: Check out code
