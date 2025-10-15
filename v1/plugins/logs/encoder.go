@@ -261,7 +261,7 @@ func (enc *chunkEncoder) Encode(event EventV1, eventBytes []byte) ([][]byte, err
 	}
 
 	// 3) Equilibrium: If the chunk size is between 90% and 100% of the user-configured limit, maintain uncompressed limit value.
-	if int(enc.limit) > len(result) && len(result) >= enc.threshold {
+	if int(enc.limit) >= len(result) && len(result) >= enc.threshold {
 		enc.incrMetric(encUncompressedLimitStableCounterName)
 		enc.incrMetric(encSoftLimitStableCounterName)
 
