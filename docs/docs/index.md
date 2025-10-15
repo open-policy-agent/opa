@@ -768,7 +768,7 @@ It's also possible to download the OPA binary directly:
 <Tabs>
   <TabItem value="arm64" label="arm64 (Apple Silicon)" default>
     ```shell
-    curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_darwin_arm64_static
+    curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_darwin_arm64
     ```
   </TabItem>
   <TabItem value="amd64" label="amd64 (Older Intel Macs)">
@@ -811,7 +811,7 @@ please run the following:
 <Tabs>
   <TabItem value="linux_arm64" label="arm64" default>
     ```shell
-    curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_arm64_static
+    curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_arm64
     ```
   </TabItem>
   <TabItem value="linux_amd64" label="amd64">
@@ -895,9 +895,9 @@ Checksums for all binaries are available in the download path by appending
 For example, verify the macOS arm64 binary checksum:
 
 ```shell
-BINARY_NAME=opa_darwin_arm64_static
-curl -L -o opa_darwin_amd64 https://openpolicyagent.org/downloads/latest/$BINARY_NAME
-curl -L -o opa_darwin_amd64.sha256 https://openpolicyagent.org/downloads/latest/$BINARY_NAME.sha256
+BINARY_NAME=opa_darwin_arm64
+curl -L -O https://openpolicyagent.org/downloads/latest/$BINARY_NAME
+curl -L -O https://openpolicyagent.org/downloads/latest/$BINARY_NAME.sha256
 shasum -c $BINARY_NAME.sha256
 ```
 
