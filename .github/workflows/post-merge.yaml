@@ -1,7 +1,9 @@
 name: Post Merge
 
-# temp for testing
-on: [ pull_request ]
+on:
+  push:
+    branches:
+      - main
 
 permissions:
   contents: read

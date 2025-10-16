@@ -1,7 +1,9 @@
 name: Post Tag
 
-# temp for testing
-on: [ pull_request ]
+on:
+  push:
+    tags:
+      - "*"
 
 permissions:
   contents: read
