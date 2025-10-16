@@ -311,7 +311,7 @@ ci-build-darwin-arm64-static: ensure-release-dir
 
 .PHONY: ci-build-windows
 ci-build-windows: ensure-release-dir
-	apk add --no-cache zig
+	apt-get install  zig
 	@$(MAKE) build GOOS=windows CC="zig cc -target x86_64-windows-gnu -lunwind"
 	mv opa_windows_$(GOARCH) $(RELEASE_DIR)/opa_windows_$(GOARCH).exe
 	cd $(RELEASE_DIR)/ && shasum -a 256 opa_windows_$(GOARCH).exe > opa_windows_$(GOARCH).exe.sha256
