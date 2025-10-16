@@ -1,0 +1,27 @@
+name: PR Check temp
+
+on: [ pull_request ]
+
+jobs:
+  test-build:
+    name: Release Build (linux, windows)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Generate
+        run: make clean generate
+
+      - uses: mlugg/setup-zig@8d6198c65fb0feaa111df26e6b467fea8345e46f # v2.0.5
+        with:
+          version: '0.15.2'
+
+      - name: Build Linux and Windows
+        run: make ci-go-ci-build-linux ci-go-ci-build-linux-static ci-go-ci-build-windows
+        timeout-minutes: 30
+        env:
+          TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
