@@ -42,7 +42,7 @@ jobs:
           TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
 
       - name: Build Linux arm64
-        run: make ci-go-ci-build-linux-static
+        run: make ci-go-ci-build-linux ci-go-ci-build-linux-static
         timeout-minutes: 30
         env:
           GOARCH: arm64
@@ -81,7 +81,7 @@ jobs:
       - name: Build Darwin
         run: |
           make ci-build-darwin GOARCH=amd64
-          make ci-build-darwin-arm64-static
+          make ci-build-darwin ci-build-darwin-arm64-static GOARCH=arm64
         timeout-minutes: 30
         env:
           TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
