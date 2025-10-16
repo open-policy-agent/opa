@@ -212,7 +212,7 @@ func BenchmarkWriteAndCommit(b *testing.B) {
 }
 
 // Go          48750 ns/op   27040 B/op     311 allocs/op (no additional cost of triggers)
-// AST        191501 ns/op   37585 B/op     616 allocs/op (extra cost du to converting back to Go values.. why?)
+// AST        191501 ns/op   37585 B/op     616 allocs/op (extra cost du to converting back to Go values)
 func BenchmarkWriteAndCommitWithTriggers(b *testing.B) {
 	paths := make([]storage.Path, 100)
 	for i := range 100 {
@@ -237,6 +237,62 @@ func BenchmarkWriteAndCommitWithTriggers(b *testing.B) {
 			return onlyError(target.store.Register(b.Context(), target.txn, trigger))
 		}).
 		Bench(b, operation)
+}
+
+// AST        192169 ns/op	   17092 B/op	     308 allocs/op
+func BenchmarkWriteAndCommitWithTriggersSkipConversion(b *testing.B) {
+	paths := make([]storage.Path, 100)
+	for i := range 100 {
+		paths[i] = storage.Path{strconv.Itoa(i)}
+	}
+	values := make([]ast.Value, 100)
+	for i := range 100 {
+		values[i] = ast.String(paths[i][0])
+	}
+
+	operation := func(ctx context.Context, target *target) error {
+		txn, _ := target.store.NewTransaction(b.Context(), storage.WriteParams)
+		for i := range 100 {
+			if err := target.store.Write(b.Context(), txn, storage.AddOp, paths[i], values[i]); err != nil {
+				return err
+			}
+		}
+
+		return target.store.Commit(b.Context(), txn)
+	}
+
+	triggerCount := 0
+
+	trigger := storage.TriggerConfig{
+		SkipDataConversion: true,
+		OnCommit: func(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
+			if event.DataChanged() {
+				if len(event.Data) != 100 {
+					b.Fatalf("Expected 100 data changes but got: %d", len(event.Data))
+				}
+				if _, ok := event.Data[0].Data.(ast.Value); !ok {
+					b.Fatalf("Expected ast.Value data but got: %T", event.Data[0].Data)
+				}
+				triggerCount++
+			}
+		},
+	}
+
+	onlyAstStores := targets{{
+		name:  "AST",
+		store: inmem.NewFromObjectWithOpts(map[string]any{}, inmem.OptReturnASTValuesOnRead(true)),
+		isAST: true,
+	}}
+
+	onlyAstStores.
+		SetupWithTxn(b, writeTxn, func(ctx context.Context, target *target) error {
+			return onlyError(target.store.Register(b.Context(), target.txn, trigger))
+		}).
+		Bench(b, operation)
+
+	if triggerCount == 0 {
+		b.Fatalf("Expected trigger to be called at least once")
+	}
 }
 
 func (t targets) VerifyRead(b *testing.B, path storage.Path, expected any) targets {
