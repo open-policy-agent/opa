@@ -98,7 +98,7 @@ jobs:
         run: git describe --tags
 
       - name: Build Linux and Windows
-        run: make ci-go-ci-build-linux ci-go-ci-build-linux-static ci-go-ci-build-windows
+        run: make ci-build-windows ci-go-ci-build-linux ci-go-ci-build-linux-static
         timeout-minutes: 30
         env:
           TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
