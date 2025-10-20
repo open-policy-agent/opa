@@ -310,7 +310,7 @@ ci-build-darwin-arm64-static: ensure-release-dir
 	cd $(RELEASE_DIR)/ && shasum -a 256 opa_darwin_arm64_static > opa_darwin_arm64_static.sha256
 
 .PHONY: ci-build-windows
-ci-build-windows: ensure-release-dir
+ci-build-windows: generate ensure-release-dir
 	@$(MAKE) build GOOS=windows CC="zig cc -target x86_64-windows-gnu -lunwind"
 	mv opa_windows_$(GOARCH) $(RELEASE_DIR)/opa_windows_$(GOARCH).exe
 	cd $(RELEASE_DIR)/ && shasum -a 256 opa_windows_$(GOARCH).exe > opa_windows_$(GOARCH).exe.sha256
