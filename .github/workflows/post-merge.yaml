@@ -101,6 +101,15 @@ jobs:
         with:
           version: '0.15.2'
 
+      - id: go_version
+        name: Read go version
+        run: echo "go_version=$(cat .go-version)" >> $GITHUB_OUTPUT
+
+      - name: Install Go (${{ steps.go_version.outputs.go_version }})
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+        with:
+          go-version: ${{ steps.go_version.outputs.go_version }}
+
       - name: Build Linux and Windows
         run: make ci-build-windows ci-go-ci-build-linux ci-go-ci-build-linux-static
         timeout-minutes: 30
