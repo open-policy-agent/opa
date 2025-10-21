@@ -1,6 +1,6 @@
 [build]
 publish = "docs/build"
-command = "make netlify-edge"
+command = "make netlify-latest"
 edge_functions = "docs/functions"
 
 [build.environment]
