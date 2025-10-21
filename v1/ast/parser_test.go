@@ -1336,6 +1336,13 @@ func TestRuleHeadsContainingKeywords(t *testing.T) {
 	}
 }
 
+func TestRuleHeadsContainingHyphenError(t *testing.T) {
+	assertParseErrorContains(t, "invalid infix operator - in rule name", "foo-bar := 1", "rego_parse_error: unexpected minus token")
+	assertParseErrorContains(t, "invalid infix operator - in rule name", "foobar- := 1", "rego_parse_error: unexpected minus token")
+	assertParseErrorContains(t, "invalid infix operator - in rule name", "fo3-4ar := 1", "rego_parse_error: unexpected minus token")
+	assertParseErrorContains(t, "invalid infix operator - in rule name", "foo-bar := 9-2", "rego_parse_error: unexpected minus token")
+}
+
 func TestRuleHeadsContainingKeywords_RegoV0(t *testing.T) {
 	popts := ParserOptions{RegoVersion: RegoV0}
 
