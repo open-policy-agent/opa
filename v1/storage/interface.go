@@ -210,6 +210,10 @@ func (e TriggerEvent) DataChanged() bool {
 
 // TriggerConfig contains the trigger registration configuration.
 type TriggerConfig struct {
+	// SkipDataConversion when set to true, avoids converting data passed to
+	// trigger functions from the store to Go types, and instead passes the
+	// original representation (e.g., ast.Value).
+	SkipDataConversion bool
 
 	// OnCommit is invoked when a transaction is successfully committed. The
 	// callback is invoked with a handle to the write transaction that
