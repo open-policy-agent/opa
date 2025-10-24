@@ -46,17 +46,21 @@ Let's look at an example. Imagine you work for an organization with the followin
 
 ```mermaid
 graph
-    nX["Public Network X"] --> Internet
-    nY["Private Network Y"]
-    sX["Server X"] --"Port X"--> nX
-    sY["Server Y"] --"Port X"--> nX
-    sY --"Port Y"--> nY
-    sZ["Server Z"] --"Port Z"--> nY
+    n1["net1 (private)"]
+    n2["net2 (private)"]
+    n3["net3 (public)"] --> Internet
+    sCI["ci"] --"p1"--> n1
+    sCI --"p2"--> n2
+    sBusy["busybox"] --"p1"--> n3
+    sApp["app"] --"p1"--> n3
+    sApp --"p2"--> n1
+    sApp --"p3"--> n2
+    sCache["cache"] --"p3"--> n2
 ```
 
 There are three kinds of components in the system:
 
-- Servers expose zero or more protocols (e.g., `http`, `ssh`, etc.)
+- Servers listen on a range of ports (for different protocols such as `http`, `ssh`, etc.)
 - Networks connect servers and can be public or private. Public networks are connected to the Internet.
 - Ports attach servers to networks.
 
