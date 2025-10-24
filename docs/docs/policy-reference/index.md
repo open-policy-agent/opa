@@ -14,7 +14,7 @@ There are also detailed sections for
 [built-in functions](./policy-reference/builtins) as well as examples for
 specific keywords such as
 [`contains`](./policy-reference/keywords/contains),
-[`if`](./policy-reference/keywords/id) and
+[`if`](./policy-reference/keywords/if) and
 [`default`](./policy-reference/keywords/default).
 
 ## Assignment and Equality
