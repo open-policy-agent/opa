@@ -1336,11 +1336,46 @@ func TestRuleHeadsContainingKeywords(t *testing.T) {
 	}
 }
 
-func TestRuleHeadsContainingHyphenError(t *testing.T) {
-	assertParseErrorContains(t, "invalid infix operator - in rule name", "foo-bar := 1", "rego_parse_error: unexpected minus token")
-	assertParseErrorContains(t, "invalid infix operator - in rule name", "foobar- := 1", "rego_parse_error: unexpected minus token")
-	assertParseErrorContains(t, "invalid infix operator - in rule name", "fo3-4ar := 1", "rego_parse_error: unexpected minus token")
-	assertParseErrorContains(t, "invalid infix operator - in rule name", "foo-bar := 9-2", "rego_parse_error: unexpected minus token")
+func TestRuleHeadsContainingInfixOperatorError(t *testing.T) {
+	infixOperators := []struct {
+		lex   string
+		token tokens.Token
+	}{
+		{"+", tokens.Add},
+		{"-", tokens.Sub},
+		{"*", tokens.Mul},
+		{"/", tokens.Quo},
+		{"%", tokens.Rem},
+		{"==", tokens.Equal},
+		{"!=", tokens.Neq},
+		{"<", tokens.Lt},
+		{"<=", tokens.Lte},
+		{">", tokens.Gt},
+		{">=", tokens.Gte},
+		{"&&", tokens.And},
+		{"||", tokens.Or},
+	}
+
+	patterns := []string{
+		"foo%[1]sbar := 1",
+		"foobar%[1]s := 1",
+		"fo3%[1]s4ar := 1",
+		"foo%[1]sbar := 9%[1]s2",
+	}
+
+	for _, op := range infixOperators {
+		t.Run(op.lex, func(t *testing.T) {
+			t.Parallel()
+			for _, p := range patterns {
+				t.Run(p, func(t *testing.T) {
+					msg := fmt.Sprintf("Expected error for pattern %q with infix operator %q", p, op.lex)
+					input := fmt.Sprintf(p, op.lex)
+					exp := fmt.Sprintf("rego_parse_error: unexpected %s token", op.token.String())
+					assertParseErrorContains(t, msg, input, exp)
+				})
+			}
+		})
+	}
 }
 
 func TestRuleHeadsContainingKeywords_RegoV0(t *testing.T) {

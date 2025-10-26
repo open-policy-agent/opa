@@ -1056,7 +1056,7 @@ func (p *Parser) parseHead(defaultRule bool) (*Head, bool) {
 		return nil, false
 	}
 
-	ref := p.parseTermFinish(term, true)
+	ref := p.parseHeadFinish(term, true)
 	if ref == nil {
 		p.illegal("expected rule head name")
 		return nil, false
@@ -1126,8 +1126,6 @@ func (p *Parser) parseHead(defaultRule bool) (*Head, bool) {
 				p.illegal("expected rule value term (e.g., %s := <VALUE> { ... })", name)
 			}
 		}
-	case tokens.Sub:
-		p.illegalToken()
 	}
 
 	if head.Value == nil && head.Key == nil {
@@ -1778,6 +1776,35 @@ func (p *Parser) parseTermFinish(head *Term, skipws bool) *Term {
 		}
 		return head
 	}
+}
+
+func (p *Parser) parseHeadFinish(head *Term, skipws bool) *Term {
+	if head == nil {
+		return nil
+	}
+	offset := p.s.loc.Offset
+	p.doScan(false)
+
+	switch p.s.tok {
+	case tokens.Add, tokens.Sub, tokens.Mul, tokens.Quo, tokens.Rem,
+		tokens.And, tokens.Or,
+		tokens.Equal, tokens.Neq, tokens.Gt, tokens.Gte, tokens.Lt, tokens.Lte:
+		p.illegalToken()
+	case tokens.Whitespace:
+		p.doScan(skipws)
+	}
+
+	switch p.s.tok {
+	case tokens.LParen, tokens.Dot, tokens.LBrack:
+		return p.parseRef(head, offset)
+	case tokens.Whitespace:
+		p.scan()
+	}
+
+	if _, ok := head.Value.(Var); ok && RootDocumentNames.Contains(head) {
+		return RefTerm(head).SetLocation(head.Location)
+	}
+	return head
 }
 
 func (p *Parser) parseNumber() *Term {
