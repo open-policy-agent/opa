@@ -912,20 +912,27 @@ func (rt *Runtime) startWatcher(ctx context.Context, paths []string, onReload fu
 }
 
 func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, paths []string, onReload func(time.Duration, error)) {
-	for evt := range watcher.Events {
-		removalMask := fsnotify.Remove | fsnotify.Rename
-		mask := fsnotify.Create | fsnotify.Write | removalMask
-		if (evt.Op & mask) != 0 {
-			rt.logger.WithFields(map[string]any{
-				"event": evt.String(),
-			}).Debug("Registered file event.")
-			t0 := time.Now()
-			removed := ""
-			if (evt.Op & removalMask) != 0 {
-				removed = evt.Name
+
+	for {
+		select {
+		case evt := <-watcher.Events:
+			removalMask := fsnotify.Remove | fsnotify.Rename
+			mask := fsnotify.Create | fsnotify.Write | removalMask
+			if (evt.Op & mask) != 0 {
+				rt.logger.WithFields(map[string]any{
+					"event": evt.String(),
+				}).Debug("Registered file event.")
+				t0 := time.Now()
+				removed := ""
+				if (evt.Op & removalMask) != 0 {
+					removed = evt.Name
+				}
+				err := rt.processWatcherUpdate(ctx, paths, removed)
+				onReload(time.Since(t0), err)
 			}
-			err := rt.processWatcherUpdate(ctx, paths, removed)
-			onReload(time.Since(t0), err)
+		case <-ctx.Done():
+			watcher.Close()
+			return
 		}
 	}
 }
