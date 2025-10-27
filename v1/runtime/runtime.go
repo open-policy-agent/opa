@@ -298,10 +298,11 @@ type LoggingConfig struct {
 // NewParams returns a new Params object.
 func NewParams() Params {
 	return Params{
-		Output:             os.Stdout,
-		BundleMode:         false,
-		EnableVersionCheck: false,
-		Brand:              "OPA", // default
+		Output:                 os.Stdout,
+		BundleMode:             false,
+		EnableVersionCheck:     false,
+		GracefulShutdownPeriod: 1,
+		Brand:                  "OPA", // default
 	}
 }
 
