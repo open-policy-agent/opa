@@ -28,7 +28,7 @@ func BenchmarkParseModuleRulesBase(b *testing.B) {
 // BenchmarkParseStatementBasic gives a baseline for parsing a simple
 // statement with a single call and two variables
 func BenchmarkParseStatementBasicCall(b *testing.B) {
-	runParseStatementBenchmark(b, `a+b`)
+	runParseStatementBenchmark(b, `a + b`)
 }
 
 func BenchmarkParseStatementMixedJSON(b *testing.B) {
