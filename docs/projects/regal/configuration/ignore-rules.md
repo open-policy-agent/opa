@@ -129,7 +129,7 @@ The format of an ignore directive is `regal ignore:<rule-name>,<rule-name>...`, 
 rule to ignore. Multiple rules may be added to the same ignore directive, separated by commas.
 
 Note that at this point in time, Regal only considers the same line or the line following the ignore directive, i.e. it
-does not apply to entire blocks of code (like rules, functions or even packages). See [configuration](#configuration)
+does not apply to entire blocks of code (like rules, functions or even packages). See [configuration](../configuration)
 if you want to ignore certain rules altogether.
 
 ## Ignoring Rules via CLI Flags
