@@ -79,7 +79,7 @@ func NewConstraints(typ, variant string) (*Constraint, error) {
 		default:
 			return nil, fmt.Errorf("unsupported variant for %s: %s", typ, variant)
 		}
-		c.Features.Add("not", "field-ref")
+		c.Features.Add("not", "field-ref", "existence-ref")
 	case "ucast":
 		switch v := strings.ToLower(variant); v {
 		case "all":

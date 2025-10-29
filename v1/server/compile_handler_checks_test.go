@@ -57,7 +57,7 @@ func TestPostPartialChecks(t *testing.T) {
 		errors       []Error
 		mappings     map[string]any
 		skip         string
-		result       map[string]any
+		result       any
 	}{
 		{
 			note:   "happy path",
@@ -551,6 +551,23 @@ include if user == input.fruits.user`,
 					Message:  "both rhs and lhs non-scalar/non-ground",
 				},
 			},
+		},
+		{ // NOTE(sr): only supported for SQL-ish targets (see below)
+			note:   "non-scalar eq with var",
+			rego:   `include if input.fruits.colour = _`,
+			target: "application/vnd.opa.ucast.prisma+json",
+			errors: []Error{
+				{
+					Code:    "pe_fragment_error",
+					Message: `existence of field: unsupported feature "existence-ref" for UCAST (prisma)`,
+				},
+			},
+		},
+		{
+			note:   "non-scalar eq with var (sql)",
+			rego:   `include if input.fruits.colour = _`,
+			target: "application/vnd.opa.sql.mysql+json",
+			result: "WHERE fruits.colour IS NOT NULL",
 		},
 		{
 			note: "not a call/term",
