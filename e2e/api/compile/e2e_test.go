@@ -396,6 +396,7 @@ func TestCompileHappyPathE2E(t *testing.T) {
 			name:    "exists",
 			policy:  `include if input.fruits.price = _`,
 			expRows: []fruitRow{apple, banana, cherry},
+			prisma:  true,
 		},
 		{
 			name:    "simple startswith",

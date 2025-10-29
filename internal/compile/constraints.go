@@ -88,7 +88,7 @@ func NewConstraints(typ, variant string) (*Constraint, error) {
 			c.Builtins = allBuiltins
 		case "prisma":
 			c.Variant = v
-			c.Features.Add("not")
+			c.Features.Add("not", "existence-ref")
 			c.Builtins = allBuiltins
 		case "linq":
 			c.Variant = "LINQ" // normalize spelling

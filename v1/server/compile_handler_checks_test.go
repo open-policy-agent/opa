@@ -552,22 +552,33 @@ include if user == input.fruits.user`,
 				},
 			},
 		},
-		{ // NOTE(sr): only supported for SQL-ish targets (see below)
-			note:   "non-scalar eq with var",
+		{ // NOTE(sr): only supported for SQL-ish targets and prisma (see below)
+			note:   "equality with var",
 			rego:   `include if input.fruits.colour = _`,
-			target: "application/vnd.opa.ucast.prisma+json",
+			target: "application/vnd.opa.ucast.linq+json",
 			errors: []Error{
 				{
 					Code:    "pe_fragment_error",
-					Message: `existence of field: unsupported feature "existence-ref" for UCAST (prisma)`,
+					Message: `existence of field: unsupported feature "existence-ref" for UCAST (LINQ)`,
 				},
 			},
 		},
 		{
-			note:   "non-scalar eq with var (sql)",
+			note:   "equality with var (sql)",
 			rego:   `include if input.fruits.colour = _`,
 			target: "application/vnd.opa.sql.mysql+json",
 			result: "WHERE fruits.colour IS NOT NULL",
+		},
+		{
+			note:   "equality with var (prisma)",
+			rego:   `include if input.fruits.colour = _`,
+			target: "application/vnd.opa.ucast.prisma+json",
+			result: map[string]any{
+				"type":     "field",
+				"field":    "fruits.colour",
+				"operator": "ne",
+				"value":    nil,
+			},
 		},
 		{
 			note: "not a call/term",
