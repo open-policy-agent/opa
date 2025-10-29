@@ -69,8 +69,7 @@ func (b *failTracer) Hints(unknowns []ast.Ref) []Hint {
 		var ref ast.Ref // when this is processed, only one input.X.Y ref is in the expression (SSA)
 		switch {
 		case expr.IsCall():
-			for i := range 2 {
-				op := expr.Operand(i)
+			for _, op := range expr.Operands() {
 				if r, ok := op.Value.(ast.Ref); ok && r.HasPrefix(ast.InputRootRef) {
 					ref = r
 				}
