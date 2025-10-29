@@ -570,6 +570,12 @@ include if user == input.fruits.user`,
 			result: "WHERE fruits.colour IS NOT NULL",
 		},
 		{
+			note:   "equality with var (sql), reversed",
+			rego:   `include if _ = input.fruits.colour`,
+			target: "application/vnd.opa.sql.mysql+json",
+			result: "WHERE fruits.colour IS NOT NULL",
+		},
+		{
 			note:   "equality with var (prisma)",
 			rego:   `include if input.fruits.colour = _`,
 			target: "application/vnd.opa.ucast.prisma+json",
