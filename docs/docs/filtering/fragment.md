@@ -99,6 +99,31 @@ include if input.fruits.name != input.fruits.colour
 SQL target: `WHERE name <> colour`
 :::
 
+:::info "Is Anything"
+For SQL and UCAST/Prisma, it's valid to assert that a field exists by unifying it with a wildcard:
+```rego
+package filters
+
+include if input.fruits.price = _
+```
+SQL target: `WHERE name IS NOT NULL`
+
+A more common way to do this would be function definition shorthands, like
+```rego
+package filters
+
+include if {
+	some pat in data.filter.patterns
+	matches(pat, input.fruit.name)
+}
+
+matches("*", _) # "*" matches everything
+matches(x, x)   # exact match
+```
+
+Here, the first `matches` definition would yield an expression like `_ = input.fruit.name` in the partial evaluation results.
+:::
+
 
 ## Built-in Functions
 

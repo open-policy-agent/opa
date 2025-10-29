@@ -57,7 +57,7 @@ func TestPostPartialChecks(t *testing.T) {
 		errors       []Error
 		mappings     map[string]any
 		skip         string
-		result       map[string]any
+		result       any
 	}{
 		{
 			note:   "happy path",
@@ -550,6 +550,40 @@ include if user == input.fruits.user`,
 					Location: ast.NewLocation(nil, "filters.rego", 3, 32), // NOTE(sr): 32 is the `<=`
 					Message:  "both rhs and lhs non-scalar/non-ground",
 				},
+			},
+		},
+		{ // NOTE(sr): only supported for SQL-ish targets and prisma (see below)
+			note:   "equality with var",
+			rego:   `include if input.fruits.colour = _`,
+			target: "application/vnd.opa.ucast.linq+json",
+			errors: []Error{
+				{
+					Code:    "pe_fragment_error",
+					Message: `existence of field: unsupported feature "existence-ref" for UCAST (LINQ)`,
+				},
+			},
+		},
+		{
+			note:   "equality with var (sql)",
+			rego:   `include if input.fruits.colour = _`,
+			target: "application/vnd.opa.sql.mysql+json",
+			result: "WHERE fruits.colour IS NOT NULL",
+		},
+		{
+			note:   "equality with var (sql), reversed",
+			rego:   `include if _ = input.fruits.colour`,
+			target: "application/vnd.opa.sql.mysql+json",
+			result: "WHERE fruits.colour IS NOT NULL",
+		},
+		{
+			note:   "equality with var (prisma)",
+			rego:   `include if input.fruits.colour = _`,
+			target: "application/vnd.opa.ucast.prisma+json",
+			result: map[string]any{
+				"type":     "field",
+				"field":    "fruits.colour",
+				"operator": "ne",
+				"value":    nil,
 			},
 		},
 		{
