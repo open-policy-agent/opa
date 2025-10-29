@@ -5,8 +5,8 @@ const semver = require("semver");
 import fs from "fs/promises";
 const path = require("path");
 
-const { loadPages } = require("./src/lib/ecosystem/loadPages");
-const { loadRules } = require("./src/lib/projects/regal/loadRules");
+import { loadPages } from "./src/lib/ecosystem/loadPages.js";
+import { loadRules } from "./src/lib/projects/regal/loadRules.js";
 
 const baseUrl = "/";
 
