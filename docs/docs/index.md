@@ -119,12 +119,6 @@ and rules and observe the difference in output.
 
 They can also be run locally on your machine using the
 [`opa eval` command, here are setup instructions.](#running-opa)
-
-Note that the examples in this section try to represent the best practices.
-As such, they make use of keywords that are meant to become standard keywords
-at some point in time, but have been introduced gradually.
-[See the docs on _future keywords_](./docs/policy-language/#future-keywords)
-for more information.
 :::
 
 :::note
@@ -907,7 +901,7 @@ shasum -c $BINARY_NAME.sha256
 
 ### 2. Try `opa eval`
 
-The simplest way to interact with OPA is via the command-line using the [`opa eval` sub-command](./docs/cli/#opa-eval).
+The simplest way to interact with OPA is via the command-line using the [`opa eval` sub-command](./docs/cli#eval).
 It is a swiss-army knife that you can use to evaluate arbitrary Rego expressions and policies.
 `opa eval` supports a large number of options for controlling evaluation.
 Commonly used flags include:
@@ -990,7 +984,7 @@ echo $?
 ### 3. Try `opa run` (interactive)
 
 OPA includes an interactive shell or REPL (Read-Eval-Print-Loop) accessible via
-the [`opa run` sub-command](./docs/cli/#opa-run).
+the [`opa run` sub-command](./docs/cli#run).
 You can use the REPL to experiment with policies and prototype new ones.
 
 To start the REPL just:

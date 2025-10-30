@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Overview
 ---
 
-# OPA Control Plane
+# OPA Control Plane: Overview
 
 OPA Control Plane (OCP) simplifies how you manage policies for your OPA
 deployments. It provides a centralized management system to control how OPAs
@@ -21,7 +21,7 @@ receive the policies and data they need to make decisions. OCP provides:
   label selectors. Global policies can override other policies based on custom
   conflict resolution logic written in Rego.
 
-# Learn More
+## Learn More
 
 - [Deploy as a service](./guide-deploy-as-a-service.md) - Run OCP as a standalone service in Kubernetes
 - [Concepts](./concepts.md) - Learn how OCP works
@@ -31,7 +31,7 @@ receive the policies and data they need to make decisions. OCP provides:
 - [OCP on GitHub](http://github.com/open-policy-agent/opa-control-plane) -
   explore OCP the code, contribute and file issues.
 
-# Kick the tires
+## Kick the tires
 
 Follow this section to get a quick example running on your laptop. By following
 these instructions, you will be able to:
@@ -50,7 +50,7 @@ Install the opactl tool using one of the install methods [listed below](#install
 
 ## 2. Define a bundle
 
-The bundle is defined by a configuration file normally in the `config.d` directory. More details can be found in the [Concepts](#concepts) section, but for now lets use this configuration. In your working directory add the following to `./config.d/hello.yaml`
+The bundle is defined by a configuration file normally in the `config.d` directory. More details can be found in the [Concepts](./ocp/concepts) section, but for now lets use this configuration. In your working directory add the following to `./config.d/hello.yaml`
 
 ```yaml title="config.d/hello.yaml"
 bundles:
