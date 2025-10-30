@@ -3,7 +3,65 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 1.10.0
+
+### Fixes
+
+- Fix: Raise parse error on infix operator in rule name (#7970) ([#7433](https://github.com/open-policy-agent/opa/issues/7433)) authored by @mmzzuu
+- v1/ast: Fix "undeclared" error when printing nested comprehension (#7872) ([#7647](https://github.com/open-policy-agent/opa/issues/7647)) authored by @schmitd reported by @charlesdaniels
+
+### Miscellaneous
+
+- Add zig to post-merge github action (authored by @sspaink)
+- Adds ecosystem project Moat (#7963) (authored by @jcoenraadts)
+- Correct in OCP docs information regarding supported datasources (authored by @)
+- Fix benchmark test which was introduced with PR 7970 (#7993) (authored by @mmzzuu)
+- Fix race condition in `ReadMaybeCompressedBody` (#7966) (authored by @anderseknert)
+- Improve performance of storage operations (#7957) (authored by @anderseknert)
+- Modernize analyzer fixes (#7965) (authored by @anderseknert)
+- Performance improvements in formatter (#7967) (authored by @anderseknert)
+- Prepare v1.10.0 development (authored by @johanfylling)
+- Ref String() and greatly improved builtin lookup cost (#7961) (authored by @anderseknert)
+- Refactor hash key equality function (#7969) (authored by @anderseknert)
+- Some small improvements to inmem storage (#7944) (authored by @anderseknert)
+- TLM: Upgrade to v1 tablewriter  (#7937) (authored by @jh125486)
+- add opa test --fail-on-empty to allow making bad -r or empty folders fail (#7960) (authored by @grosser)
+- ast/capabilities: remove stale comment (#7994) (authored by @srenatus)
+- build(deps): bump the e2e-prisma group (authored by @dependabot[bot])
+- build(deps): bump the gha-dependencies group with 2 updates (authored by @dependabot[bot])
+- build: bump golang 1.25.2 -> 1.25.3 (authored by @srenatus)
+- build: bump golang for build: 1.25.1 -> 1.25.2 (authored by @srenatus)
+- build: non-static images for linux/arm64 (authored by @srenatus)
+- compile: add support for "any value at all", as IS NOT NULL (#7998) (authored by @srenatus)
+- deps(build): bump wasmtime-go: v3 -> v37, crossbuild with zig (authored by @srenatus)
+- docs/devel: update for removed vendor/ (authored by @srenatus)
+- docs/index: update some download instructions (re: arm64 <-> static) (authored by @srenatus)
+- docs/ocp/deployment: add segment on database migrations (#7952) (authored by @srenatus)
+- docs: Add some more detail to the AI guidelines (#7945) (authored by @charlieegan3)
+- docs: Address some broken anchors (#8000) (authored by @charlieegan3)
+- docs: Moving `CLI Reference` to `Operations` in TOC (#8001) (authored by @johanfylling)
+- docs: OCP HTTP API updates (#7951) (authored by @srenatus)
+- docs: Update based on slack feedback (#7990) (authored by @charlieegan3)
+- docs: Update link checker config (#7949) (authored by @charlieegan3)
+- docs: add Compile API data filtering docs (#7939) (authored by @srenatus)
+- docs: remove k8s primer line numbers comments (#7946) (authored by @charlieegan3)
+- e2e/authz,topdown: fix benchmarks (#7980) (authored by @srenatus)
+- eval: Lazy init of eval.Time term (#7968) (authored by @anderseknert)
+- fix "Post Merge": add generate step for windows build (authored by @sspaink)
+- fix "Post Merge": setup go for ci-build-windows (#7987) (authored by @sspaink)
+- fix runtime tests: close watcher & set default `GracefulShutdownPeriod` (#7991) (authored by @rMaxiQp)
+- hurray! (#7984) (authored by @sspaink)
+- perf: Zero alloc AST store lookups of interned path terms (authored by @anderseknert)
+- perf: cheaper `split` built-in calls (#7962) (authored by @anderseknert)
+- repl: check usage of `with` keyword (#7942) (authored by @sspaink)
+- server/failtracer: don't assume only being fed two-elem calls (authored by @srenatus)
+- test/e2e: move http.DefaultTransport fix to init() (#7955) (authored by @srenatus)
+- vendor/: remove (authored by @srenatus)
+- website: FOUC squashing on the homepage (authored by @charlieegan3)
+- website: Fix build issues (#7999) (authored by @charlieegan3)
+- website: Show latest release rather than edge (#7988) (authored by @charlieegan3)
+- website: Update docusaurus (authored by @charlieegan3)
+- workflow/post-tag: build arm64 binaries for linux/darwin, too (authored by @srenatus)
 
 ### Optionally fail when `opa test` did not run any tests
 

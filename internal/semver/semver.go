@@ -233,3 +233,18 @@ func validateIdentifier(id string) error {
 // reIdentifier is a regular expression used to check that pre-release and metadata
 // identifiers satisfy the spec requirements
 var reIdentifier = regexp.MustCompile(`^[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*$`)
+
+// Compare compares two semver strings.
+func Compare(a, b string) int {
+	aV, err := NewVersion(strings.TrimPrefix(a, "v"))
+	if err != nil {
+		return -1
+	}
+
+	bV, err := NewVersion(strings.TrimPrefix(b, "v"))
+	if err != nil {
+		return 1
+	}
+
+	return aV.Compare(*bV)
+}
