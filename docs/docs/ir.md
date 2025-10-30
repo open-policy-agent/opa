@@ -3,19 +3,17 @@ title: Intermediate Representation (IR)
 sidebar_position: 12
 ---
 
-# Overview
-
 OPA can compile policy queries into planned evaluation paths suitable for
 further compilation or interpretation. This document explains the structure and
 semantics of the intermediate representation (IR) used to represent these
 planned evaluation paths. Read this document if you want to write a compiler or
 interpreter for Rego.
 
-# Structure
+## Structure
 
 This section explains the structure of policies compiled into the IR.
 
-## Policy
+### Policy
 
 The root object emitted by the compiler is a `Policy` and contains the following
 top-level keys:
@@ -26,7 +24,7 @@ top-level keys:
 - `funcs` is an object containing functions supporting the compiled evaluation
   paths.
 
-## Static
+### Static
 
 The `Static` object contains static data required by the plans and functions.
 The static object also contains metadata that does not affect the semantics of
@@ -39,7 +37,7 @@ the policy. The static object contains the following top-level keys:
 - `files` is used for debugging purposes only. It is an array of filenames that
   were used during compilation.
 
-### Strings
+#### Strings
 
 The `Strings` array is a collection of string objects referenced by compiled
 statements in the policy. Strings are referenced by their index in the
@@ -47,7 +45,7 @@ collection. Each string object contains the following fields:
 
 - `value` is the string constant value. The string may be any valid JSON string.
 
-### Built-in Functions
+#### Built-in Functions
 
 The `Built-in Functions` array is a collection of built-in function
 declarations. Each declaration represents a function that must be provided by
@@ -57,13 +55,13 @@ contains the following fields:
 - `name` is the name of the function that must be provided.
 - `decl` is the type definition of the function.
 
-### Files
+#### Files
 
 The `Files` array is a collection of static strings representing names of source
 files used during compilation. Filenames are referred to by their index in the
 files array.
 
-## Plans
+### Plans
 
 The `Plans` object contains a collection of planned evaluation paths
 representing entrypoints to the policy. When users compile policies they supply
@@ -74,7 +72,7 @@ the queries to expose as entrypoints. Each plan contains the following fields:
 - `blocks` is a collection of [`Block`](#blocks) objects representing the
   compiled statements that define the entrypoint.
 
-## Functions
+### Functions
 
 The `Functions` object contains a collection of function definitions that
 represent functions supporting the plans. Functions can be invoked by name
@@ -90,7 +88,7 @@ fields:
 - `blocks` is collection of [`Block`](#blocks) objects representing the compiled
   statements that define the function.
 
-## Blocks
+### Blocks
 
 The `Block` object contains a sequence of [Statements](#statements) that must be
 executed in order until a statement terminating block execution is encountered
@@ -98,7 +96,7 @@ or the end of the block is reached. Each block contains the following fields:
 
 - `stmts` is an array of `Statement` objects.
 
-## Statements
+### Statements
 
 The `Statement` object represents an operation performed by the policy (e.g.,
 function invocation, lookup, iteration, comparison, etc.) The structure is
@@ -114,11 +112,11 @@ fields:
 See the [Statement Definitions](#statement-definitions) section for an
 explanation of the supported statement types.
 
-# Execution
+## Execution
 
 This section explains the execution model for compiled policies.
 
-## Plan Execution
+### Plan Execution
 
 Compiled policies consist of one or more plans. Any plan can be invoked by name.
 If no name is supplied, the first plan in the policy should be executed. Plans
@@ -131,7 +129,7 @@ key-value bindings representing the values of variables in the original query.
 If no `ResultSetAddStmt` statements are executed, the implicit result set is
 empty.
 
-## Function Execution
+### Function Execution
 
 Compiled policies may contain zero or more functions. Any function can be
 invoked by name via the `CallStmt` statement or dynamically via the
@@ -142,7 +140,7 @@ variable representing the `data` document. Function execution terminates when a
 `ReturnLocalStmt` statement is encountered. All functions include a final block
 that includes a `ReturnLocalStmt`.
 
-## Block Execution
+### Block Execution
 
 Blocks are sequences of statements that are executed in order. Statements can be
 executed if all of the input parameters are defined. If any input parameter is
@@ -153,7 +151,7 @@ the block (which may be the beginning of another block.) When a statement is
 defined, all output parameters are defined. Execution halts if a statement
 raises an exception.
 
-# Statement Definitions
+## Statement Definitions
 
 This section defines the statements that can be contained in plans and functions
 and explains the input and output parameters that each statement accepts. The
@@ -181,21 +179,21 @@ Local variables refer to values. The value types are any JSON value (i.e., `null
 `true`, `false`, `number`, `string`, `array`, and `object`) as well as sets
 (which are unordered value collections.)
 
-## `ArrayAppendStmt`
+### `ArrayAppendStmt`
 
 | Parameter | Input/Output | Type      | Description                       |
 | --------- | ------------ | --------- | --------------------------------- |
 | `array`   | `input`      | `local`   | The array to append a value to.   |
 | `value`   | `input`      | `operand` | The value to append to the array. |
 
-## `AssignIntStmt`
+### `AssignIntStmt`
 
 | Parameter | Input/Output | Type    | Description                                  |
 | --------- | ------------ | ------- | -------------------------------------------- |
 | `value`   | `input`      | `int64` | The integer value to assign to the target.   |
 | `target`  | `output`     | `local` | The local variable to assign the integer to. |
 
-## `AssignVarOnceStmt`
+### `AssignVarOnceStmt`
 
 | Parameter | Input/Output | Type      | Description                                  |
 | --------- | ------------ | --------- | -------------------------------------------- |
@@ -206,26 +204,26 @@ Local variables refer to values. The value types are any JSON value (i.e., `null
 This statement raises an exception if the `target` operand is already assigned.
 :::
 
-## `AssignVarStmt`
+### `AssignVarStmt`
 
 | Parameter | Input/Output | Type      | Description                                  |
 | --------- | ------------ | --------- | -------------------------------------------- |
 | `source`  | `input`      | `operand` | The value to assign to the target.           |
 | `target`  | `output`     | `local`   | The local variable to assign the operand to. |
 
-## `BlockStmt`
+### `BlockStmt`
 
 | Parameter | Input/Output | Type              | Description                   |
 | --------- | ------------ | ----------------- | ----------------------------- |
 | `blocks`  | `input`      | [Blocks](#blocks) | The nested blocks to execute. |
 
-## `BreakStmt`
+### `BreakStmt`
 
 | Parameter | Input/Output | Type     | Description                                                                                                                           |
 | --------- | ------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | `index`   | `input`      | `uint32` | The index of the block to jump out of starting with zero representing the current block and incrementing by one for each outer block. |
 
-## `CallDynamicStmt`
+### `CallDynamicStmt`
 
 | Parameter | Input/Output | Type             | Description                                                |
 | --------- | ------------ | ---------------- | ---------------------------------------------------------- |
@@ -233,7 +231,7 @@ This statement raises an exception if the `target` operand is already assigned.
 | `args`    | `input`      | `array[local]`   | The positional arguments to pass to the function.          |
 | `result`  | `output`     | `local`          | The local variable to assign the function return value to. |
 
-## `CallStmt`
+### `CallStmt`
 
 | Parameter | Input/Output | Type           | Description                                                |
 | --------- | ------------ | -------------- | ---------------------------------------------------------- |
@@ -241,7 +239,7 @@ This statement raises an exception if the `target` operand is already assigned.
 | `args`    | `input`      | `array[local]` | The positional arguments to pass to the function.          |
 | `result`  | `output`     | `local`        | The local variable to assign the function return value to. |
 
-## `DotStmt`
+### `DotStmt`
 
 | Parameter | Input/Output | Type      | Description                                 |
 | --------- | ------------ | --------- | ------------------------------------------- |
@@ -251,7 +249,7 @@ This statement raises an exception if the `target` operand is already assigned.
 
 This statement is **undefined** if the `key` does not exist in the `source` value.
 
-## `EqualStmt`
+### `EqualStmt`
 
 | Parameter | Input/Output | Type      | Description                  |
 | --------- | ------------ | --------- | ---------------------------- |
@@ -260,7 +258,7 @@ This statement is **undefined** if the `key` does not exist in the `source` valu
 
 This statement is **undefined** if `a` does not equal `b`.
 
-## `IsArrayStmt`
+### `IsArrayStmt`
 
 | Parameter | Input/Output | Type      | Description         |
 | --------- | ------------ | --------- | ------------------- |
@@ -268,7 +266,7 @@ This statement is **undefined** if `a` does not equal `b`.
 
 This statement is **undefined** if `source` is not an array.
 
-## `IsDefinedStmt`
+### `IsDefinedStmt`
 
 | Parameter | Input/Output | Type      | Description         |
 | --------- | ------------ | --------- | ------------------- |
@@ -276,7 +274,7 @@ This statement is **undefined** if `source` is not an array.
 
 This statement is **undefined** if `source` is undefined.
 
-## `IsObjectStmt`
+### `IsObjectStmt`
 
 | Parameter | Input/Output | Type      | Description         |
 | --------- | ------------ | --------- | ------------------- |
@@ -284,7 +282,7 @@ This statement is **undefined** if `source` is undefined.
 
 This statement is **undefined** if `source` is not an object.
 
-## `IsSetStmt`
+### `IsSetStmt`
 
 | Parameter | Input/Output | Type      | Description         |
 | --------- | ------------ | --------- | ------------------- |
@@ -292,7 +290,7 @@ This statement is **undefined** if `source` is not an object.
 
 This statement is **undefined** if `source` is not a set.
 
-## `IsUndefinedStmt`
+### `IsUndefinedStmt`
 
 | Parameter | Input/Output | Type      | Description         |
 | --------- | ------------ | --------- | ------------------- |
@@ -300,57 +298,57 @@ This statement is **undefined** if `source` is not a set.
 
 This statement is **undefined** if `source` is not undefined.
 
-## `LenStmt`
+### `LenStmt`
 
 | Parameter | Input/Output | Type      | Description                                 |
 | --------- | ------------ | --------- | ------------------------------------------- |
 | `source`  | `input`      | `operand` | The value to compute the length for.        |
 | `target`  | `output`     | `local`   | The local variable to assign the length to. |
 
-## `MakeArrayStmt`
+### `MakeArrayStmt`
 
 | Parameter  | Input/Output | Type    | Description                                      |
 | ---------- | ------------ | ------- | ------------------------------------------------ |
 | `capacity` | `input`      | `int32` | The initial size of the array to pre-allocate.   |
 | `target`   | `output`     | `local` | The local variable to assign the array value to. |
 
-## `MakeNullStmt`
+### `MakeNullStmt`
 
 | Parameter | Input/Output | Type    | Description                                     |
 | --------- | ------------ | ------- | ----------------------------------------------- |
 | `target`  | `output`     | `local` | The local variable to assign the null value to. |
 
-## `MakeNumberIntStmt`
+### `MakeNumberIntStmt`
 
 | Parameter | Input/Output | Type    | Description                                      |
 | --------- | ------------ | ------- | ------------------------------------------------ |
 | `value`   | `input`      | `int64` | The integer value to initialize the target with. |
 | `target`  | `output`     | `local` | The local variable to assign the number to.      |
 
-## `MakeNumberRefStmt`
+### `MakeNumberRefStmt`
 
 | Parameter | Input/Output | Type    | Description                                                    |
 | --------- | ------------ | ------- | -------------------------------------------------------------- |
 | `index`   | `input`      | `int32` | The index of the string constant to construct the number with. |
 | `target`  | `output`     | `local` | The local variable to assign the number to.                    |
 
-## `MakeObjectStmt`
+### `MakeObjectStmt`
 
 | Parameter | Input/Output | Type    | Description                                 |
 | --------- | ------------ | ------- | ------------------------------------------- |
 | `target`  | `output`     | `local` | The local variable to assign the object to. |
 
-## `MakeSetStmt`
+### `MakeSetStmt`
 
 | Parameter | Input/Output | Type    | Description                              |
 | --------- | ------------ | ------- | ---------------------------------------- |
 | `target`  | `output`     | `local` | The local variable to assign the set to. |
 
-## `NopStmt`
+### `NopStmt`
 
 This statement is only used for debugging purposes.
 
-## `NotEqualStmt`
+### `NotEqualStmt`
 
 | Parameter | Input/Output | Type      | Description                  |
 | --------- | ------------ | --------- | ---------------------------- |
@@ -359,7 +357,7 @@ This statement is only used for debugging purposes.
 
 This statement is **undefined** if `a` is equal to `b`.
 
-## `NotStmt`
+### `NotStmt`
 
 | Parameter | Input/Output | Type             | Description                       |
 | --------- | ------------ | ---------------- | --------------------------------- |
@@ -367,7 +365,7 @@ This statement is **undefined** if `a` is equal to `b`.
 
 This statement is **undefined** if the contained block is not undefined.
 
-## `ObjectInsertOnceStmt`
+### `ObjectInsertOnceStmt`
 
 | Parameter | Input/Output | Type      | Description                                   |
 | --------- | ------------ | --------- | --------------------------------------------- |
@@ -379,7 +377,7 @@ This statement is **undefined** if the contained block is not undefined.
 This statement raises an exception if the `object` contains an existing `key` with a different `value`.
 :::
 
-## `ObjectInsertStmt`
+### `ObjectInsertStmt`
 
 | Parameter | Input/Output | Type      | Description                                   |
 | --------- | ------------ | --------- | --------------------------------------------- |
@@ -387,7 +385,7 @@ This statement raises an exception if the `object` contains an existing `key` wi
 | `value`   | `input`      | `operand` | The value to insert into the object.          |
 | `object`  | `input`      | `local`   | The object to insert the key-value pair into. |
 
-## `ObjectMergeStmt`
+### `ObjectMergeStmt`
 
 | Parameter | Input/Output | Type    | Description                                        |
 | --------- | ------------ | ------- | -------------------------------------------------- |
@@ -395,25 +393,25 @@ This statement raises an exception if the `object` contains an existing `key` wi
 | `b`       | `input`      | `local` | The object to merge from.                          |
 | `target`  | `output`     | `local` | The local variable to assign the merged object to. |
 
-## `ResetLocalStmt`
+### `ResetLocalStmt`
 
 | Parameter | Input/Output | Type    | Description                  |
 | --------- | ------------ | ------- | ---------------------------- |
 | `target`  | `output`     | `local` | The local variable to reset. |
 
-## `ResultSetAddStmt`
+### `ResultSetAddStmt`
 
 | Parameter | Input/Output | Type    | Description                         |
 | --------- | ------------ | ------- | ----------------------------------- |
 | `value`   | `input`      | `local` | The value to add to the result set. |
 
-## `ReturnLocalStmt`
+### `ReturnLocalStmt`
 
 | Parameter | Input/Output | Type    | Description                            |
 | --------- | ------------ | ------- | -------------------------------------- |
 | `source`  | `input`      | `local` | The value to return from the function. |
 
-## `ScanStmt`
+### `ScanStmt`
 
 | Parameter | Input/Output | Type             | Description                                                                |
 | --------- | ------------ | ---------------- | -------------------------------------------------------------------------- |
@@ -424,14 +422,14 @@ This statement raises an exception if the `object` contains an existing `key` wi
 
 This statement is **undefined** if `source` is a scalar value or empty collection.
 
-## `SetAddStmt`
+### `SetAddStmt`
 
 | Parameter | Input/Output | Type      | Description                       |
 | --------- | ------------ | --------- | --------------------------------- |
 | `value`   | `input`      | `operand` | The value to insert into the set. |
 | `set`     | `input`      | `local`   | The set to insert the value into. |
 
-## `WithStmt`
+### `WithStmt`
 
 | Parameter | Input/Output | Type             | Description                                                                                                     |
 | --------- | ------------ | ---------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -440,7 +438,7 @@ This statement is **undefined** if `source` is a scalar value or empty collectio
 | `value`   | `input`      | `operand`        | The value to upsert.                                                                                            |
 | `block`   | `input`      | [Block](#blocks) | The nested block to execute in the context of the mutation.                                                     |
 
-# Test Suite
+## Test Suite
 
 The OPA repository contains a [test suite](https://github.com/open-policy-agent/opa/tree/main/v1/test/cases/testdata/v1)
 that is used internally to validate both the Go interpreter and the Wasm

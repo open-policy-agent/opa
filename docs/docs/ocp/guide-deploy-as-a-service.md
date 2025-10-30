@@ -65,7 +65,7 @@ When OCP starts without `--apply-migrations`, it will
 
 ## OCP Server
 
-The OCP server is fairly straightforward to setup, there is a docker [image](#docker-image) provided and you can configure it with one or more configuration files. In this case we will use multiple configuration files in a configmap to do the configuration. One important piece of configuration is the token setup for accessing the OCP API. Details of this configuration can be found in the [Authentication and permissions](./authentication.md) section, we will do a basic setup adds an admin and viewer API token:
+The OCP server is fairly straightforward to setup, there is a docker [image](./#running-with-docker) provided and you can configure it with one or more configuration files. In this case we will use multiple configuration files in a configmap to do the configuration. One important piece of configuration is the token setup for accessing the OCP API. Details of this configuration can be found in the [Authentication and permissions](./authentication.md) section, we will do a basic setup adds an admin and viewer API token:
 
 ```yaml
 tokens:

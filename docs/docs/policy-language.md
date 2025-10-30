@@ -756,7 +756,7 @@ Rules define the content of [virtual documents](./philosophy#how-does-opa-work) 
 OPA. When OPA evaluates a rule, we say OPA _generates_ the content of the
 document that is defined by the rule.
 
-The sample code in this section make use of the data defined in [Examples](#example-data).
+The sample code in this section make use of the data defined in [References](#references).
 
 ### Generating Sets
 
