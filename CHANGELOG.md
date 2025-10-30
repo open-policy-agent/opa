@@ -11,11 +11,6 @@ This release contains a mix of new features, performance improvements, and bugfi
 - A new `--fail-on-empty` flag for `opa test`
 - Support for `IS NOT NULL` query statements in the Compile API
 
-### Breaking Changes
-
-- The `github.com/olekukonko/tablewriter` dependency has been updated to `v1.1.0`, which has breaking API changes.  
-  If you're affected by this, pleas consult the [tablewriter migration guide](https://github.com/olekukonko/tablewriter/blob/master/MIGRATION.md).
-
 ### Runtime, Tooling
 
 - cmd: Add `opa test --fail-on-empty` to allow making bad `-r` or empty folders fail ([#7943](https://github.com/open-policy-agent/opa/issues/7943)) reported and authored by @grosser
@@ -67,7 +62,8 @@ This release contains a mix of new features, performance improvements, and bugfi
 - Modernize analyzer fixes ([#7965](https://github.com/open-policy-agent/opa/pull/7965)) authored by @anderseknert
 - Dependency updates; notably:
   - build: bump golang 1.25.1 -> 1.25.3 authored by @srenatus
-  - build(deps): Bump github.com/olekukonko/tablewriter from 0.0.5 to 1.1.0 ([#7937](https://github.com/open-policy-agent/opa/pull/7937)) authored by @jh125486
+  - build(deps): Bump github.com/olekukonko/tablewriter from 0.0.5 to 1.1.0 ([#7937](https://github.com/open-policy-agent/opa/pull/7937)) authored by @jh125486  
+    This is a major version update containing breaking API changes. If you're affected by this, please consult the [tablewriter migration guide](https://github.com/olekukonko/tablewriter/blob/master/MIGRATION.md).
   - deps(build): Bump github.com/bytecodealliance/wasmtime-go from v3.0.2 to v37.0.0 authored by @srenatus
 
 ### Optionally fail when `opa test` did not run any tests
