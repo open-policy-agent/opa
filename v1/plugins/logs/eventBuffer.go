@@ -99,19 +99,21 @@ func (b *eventBuffer) Reconfigure(bufferSizeLimitEvents int64, uploadSizeLimitBy
 }
 
 // Push attempts to add a new event to the buffer, returning true if an event was dropped.
-// This can be called concurrently.
-func (b *eventBuffer) Push(event *EventV1) {
-	b.push(&bufferItem{EventV1: event})
+// This can be called concurrently. Returns true if buffer is full.
+func (b *eventBuffer) Push(event *EventV1) bool {
+	return b.push(&bufferItem{EventV1: event})
 }
 
-func (b *eventBuffer) push(event *bufferItem) {
+func (b *eventBuffer) push(event *bufferItem) bool {
 	if b.limiter != nil && !b.limiter.Allow() {
 		b.incrMetric(logRateLimitExDropCounterName)
 		b.logger.Error("Decision log dropped as rate limit exceeded. Reduce reporting interval or increase rate limit.")
-		return
+		return false
 	}
 
 	util.PushFIFO(b.buffer, event, b.metrics, logBufferEventDropCounterName)
+
+	return len(b.buffer) == cap(b.buffer)
 }
 
 // Upload reads events from the buffer and uploads them to the configured client.
