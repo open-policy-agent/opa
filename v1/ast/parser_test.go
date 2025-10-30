@@ -6468,6 +6468,50 @@ else = {
 	`), curElse.Head.Value.Location)
 }
 
+func TestNestedCallText(t *testing.T) {
+	cases := []struct {
+		note     string
+		input    string
+		expected *Location
+	}{
+		{
+			note:  "Nested call",
+			input: "foo(bar(1))",
+			expected: &Location{
+				Row:    1,
+				Col:    5,
+				Offset: 4,
+				Text:   []byte("bar(1)"),
+			},
+		},
+		{
+			note:  "Inner set term",
+			input: "foo(set())",
+			expected: &Location{
+				Row:    1,
+				Col:    5,
+				Offset: 4,
+				Text:   []byte("set()"),
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			parsed, err := ParseExpr(tc.input)
+			if err != nil {
+				t.Errorf("Unexpected error on %s: %s", tc.input, err)
+				return
+			}
+
+			innerCall := parsed.Operand(0)
+			if !innerCall.Location.Equal(tc.expected) {
+				t.Errorf("Expected location %+v for '%v' but got %+v ", *(tc.expected), innerCall.String(), *innerCall.Location)
+			}
+		})
+	}
+}
+
 func TestAnnotations(t *testing.T) {
 
 	dataServers := MustParseRef("data.servers")
