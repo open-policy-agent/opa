@@ -48,7 +48,7 @@ DOCKER := docker
 export DOCKER_BUILDKIT := 1
 
 # Supported platforms to include in image manifest lists
-DOCKER_PLATFORMS := linux/amd64
+DOCKER_PLATFORMS := linux/amd64,linux/arm64
 
 BIN := opa_$(GOOS)_$(GOARCH)
 
