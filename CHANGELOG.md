@@ -11,6 +11,11 @@ This release contains a mix of new features, performance improvements, and bugfi
 - A new `--fail-on-empty` flag for `opa test`
 - Support for `IS NOT NULL` query statements in the Compile API
 
+### Non-static OPA binaries for linux/arm64 and darwin/arm64
+
+Starting with this release, OPA will ship non-static arm64 executables for linux and darwin.
+Furthermore, the openpolicyagent/opa:latest docker image is a multi-platform image with arm64 support.
+
 ### Runtime, Tooling
 
 - cmd: Add `opa test --fail-on-empty` to allow making bad `-r` or empty folders fail ([#7943](https://github.com/open-policy-agent/opa/issues/7943)) reported and authored by @grosser
