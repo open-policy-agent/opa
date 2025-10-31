@@ -7,6 +7,7 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 This release contains a mix of new features, performance improvements, and bugfixes. Notably:
 
+- Non-static arm64 executables for linux and darwin
 - Performance improvements to the formatter, compiler, and runtime
 - A new `--fail-on-empty` flag for `opa test`
 - Support for `IS NOT NULL` query statements in the Compile API
