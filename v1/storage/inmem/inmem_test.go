@@ -1150,6 +1150,66 @@ func TestInMemoryTriggers(t *testing.T) {
 	}
 }
 
+func TestASTInMemoryTriggersDataConversion(t *testing.T) {
+	ctx := t.Context()
+	store := NewFromObjectWithOpts(loadSmallTestData(), OptReturnASTValuesOnRead(true))
+
+	noConversionTriggerCount := 0
+	conversionTriggerCount := 0
+
+	// Register a trigger that doesn't want data conversion
+	err := storage.Txn(t.Context(), store, storage.WriteParams, func(txn storage.Transaction) error {
+		_, err := store.Register(ctx, txn, storage.TriggerConfig{
+			SkipDataConversion: true,
+			OnCommit: func(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
+				if event.DataChanged() {
+					if _, ok := event.Data[0].Data.(ast.Value); !ok {
+						t.Fatalf("Expected ast.Value data but got: %T", event.Data[0].Data)
+					}
+					noConversionTriggerCount++
+				}
+			},
+		})
+		return err
+	})
+	if err != nil {
+		t.Fatalf("Failed to register trigger: %v", err)
+	}
+
+	// Register a trigger that wants data conversion (skip data conversion not set, as is the default)
+	err = storage.Txn(t.Context(), store, storage.WriteParams, func(txn storage.Transaction) error {
+		_, err := store.Register(ctx, txn, storage.TriggerConfig{
+			OnCommit: func(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
+				if event.DataChanged() {
+					if _, ok := event.Data[0].Data.(ast.Value); ok {
+						t.Fatalf("Expected non-ast.Value data but got: %T", event.Data[0].Data)
+					}
+					conversionTriggerCount++
+				}
+			},
+		})
+		return err
+	})
+	if err != nil {
+		t.Fatalf("Failed to register trigger: %v", err)
+	}
+
+	err = storage.Txn(t.Context(), store, storage.WriteParams, func(txn storage.Transaction) error {
+		return store.Write(ctx, txn, storage.ReplaceOp, storage.MustParsePath("/a"), "hello")
+	})
+	if err != nil {
+		t.Fatalf("Failed to write data: %v", err)
+	}
+
+	if noConversionTriggerCount != 1 {
+		t.Fatalf("Expected no conversion trigger to be called once but got: %d", noConversionTriggerCount)
+	}
+
+	if conversionTriggerCount != 1 {
+		t.Fatalf("Expected conversion trigger to be called once but got: %d", conversionTriggerCount)
+	}
+}
+
 func TestInMemoryTriggersUnregister(t *testing.T) {
 	ctx := t.Context()
 	store := NewFromObject(loadSmallTestData())
