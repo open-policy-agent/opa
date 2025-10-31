@@ -219,6 +219,9 @@ func LoadCapabilitiesVersions() ([]string, error) {
 	for _, ent := range ents {
 		capabilitiesVersions = append(capabilitiesVersions, strings.Replace(ent.Name(), ".json", "", 1))
 	}
+
+	slices.SortStableFunc(capabilitiesVersions, semver.Compare)
+
 	return capabilitiesVersions, nil
 }
 
