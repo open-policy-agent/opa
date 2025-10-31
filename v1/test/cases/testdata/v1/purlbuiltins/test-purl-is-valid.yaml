@@ -1,0 +1,45 @@
+---
+cases:
+  - note: purlbuiltins/is_valid_npm
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+        p := x if {
+          x := purl.is_valid("pkg:npm/foobar@12.3.1")
+        }
+    want_result:
+      - x: true
+
+  - note: purlbuiltins/is_valid_maven
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+        p := x if {
+          x := purl.is_valid("pkg:maven/org.apache.xmlgraphics/batik-anim@1.9.1")
+        }
+    want_result:
+      - x: true
+
+  - note: purlbuiltins/is_valid_invalid
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+        p := x if {
+          x := purl.is_valid("not-a-purl")
+        }
+    want_result:
+      - x: false
+
+  - note: purlbuiltins/is_valid_empty
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+        p := x if {
+          x := purl.is_valid("")
+        }
+    want_result:
+      - x: false
