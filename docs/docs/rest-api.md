@@ -1651,8 +1651,8 @@ OPA uses the `Accept` header to denote the target response format.
 | `options.disableInlining` | `array[string]` | No. Default: undefined | A list of rule references. |
 | `options.maskRule` | `string` | No | The rule to evaluate for generating column masks. Overrides any `mask_rule` annotations defined in the policy. |
 | `options.targetDialects` | `array[string]`, one of `ucast+all`, `ucast+minimal`, `ucast+prisma`, `ucast+linq`, `sql+sqlserver`, `sql+mysql`, `sql+postgresql` | Yes, if using `multitarget`. **Ignored for all other targets** | The output targets for partial evaluation. Different targets will have different constraints. Use [`Accept` header](#accept-header--controlling-the-target-response-format) to request a single compilation target.  |
-| `options.targetSQLTableMappings` | `object[string, object[string, string]]` | No | A mapping between tables and columns. See the [example](#using-table-and-column-remappings) for the schema. |
-| `unknowns` | `array[string]` | No | The terms to treat as unknown during partial evaluation (default: `["input"]`]). |
+| `options.targetSQLTableMappings` | `object[string, object[string, string]]` | No | A mapping between tables and columns. See the [example](#example-mapping-table-and-column-names) for the schema. |
+| `unknowns` | `array[string]` | No | The terms to treat as unknown during partial evaluation (default: `[]`). |
 
 
 #### Example Request
@@ -1724,6 +1724,54 @@ An empty string `query` indicates **unconditional include**:
   }
 }
 ```
+
+
+#### Example: Mapping Table and Column Names
+
+For this example, let's assume OPA is running with this policy:
+
+```rego
+package filters
+
+# METADATA
+# scope: document
+# compile:
+#   unknowns: [input.fruits, input.price]
+include if input.fruits.name == input.favorite
+
+include if input.price == "free"
+```
+
+If there is no one-to-one correspondence between unknowns and table/column names, the target mapping comes into play.
+With this mapping, we would translate the policy into `WHERE fruit.display_name = E'pineapple' AND fruit.price_tag = E'free'`:
+
+```http
+POST /v1/compile/filters/include
+Content-Type: application/json
+Accept: application/vnd.opa.sql.postgresql+json
+
+{
+  "input": {
+    "favorite": "pineapple"
+  },
+  "options": {
+    "targetSQLTableMappings": {
+      "postgresql": {
+        "fruits": {
+          "$self": "fruit",
+          "name": "display_name",
+          "price": "price_tag"
+        },
+        "price": {
+          "$table": "fruits"
+        }
+      }
+    }
+  }
+}
+```
+
+For multi-target requests, per-target replacementes are possible, since the SQL table names might not match what you need for a UCAST consumer library.
 
 
 ## Health API
