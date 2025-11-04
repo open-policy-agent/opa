@@ -23,34 +23,25 @@ func builtinSemVerCompare(_ BuiltinContext, operands []*ast.Term, iter func(*ast
 		return err
 	}
 
-	versionA, err := semver.NewVersion(string(versionStringA))
+	versionA, err := semver.Parse(string(versionStringA))
 	if err != nil {
 		return fmt.Errorf("operand 1: string %s is not a valid SemVer", versionStringA)
 	}
-	versionB, err := semver.NewVersion(string(versionStringB))
+	versionB, err := semver.Parse(string(versionStringB))
 	if err != nil {
 		return fmt.Errorf("operand 2: string %s is not a valid SemVer", versionStringB)
 	}
 
-	result := versionA.Compare(*versionB)
-
-	return iter(ast.InternedTerm(result))
+	return iter(ast.InternedTerm(versionA.Compare(versionB)))
 }
 
 func builtinSemVerIsValid(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	versionString, err := builtins.StringOperand(operands[0].Value, 1)
-	if err != nil {
-		return iter(ast.InternedTerm(false))
+	if err == nil {
+		_, err = semver.Parse(string(versionString))
 	}
 
-	result := true
-
-	_, err = semver.NewVersion(string(versionString))
-	if err != nil {
-		result = false
-	}
-
-	return iter(ast.InternedTerm(result))
+	return iter(ast.InternedTerm(err == nil))
 }
 
 func init() {

@@ -44,6 +44,12 @@ func StringToByteSlice[T ~string](s T) []byte {
 // NumDigitsInt returns the number of digits in n.
 // This is useful for pre-allocating buffers for string conversion.
 func NumDigitsInt(n int) int {
+	return NumDigitsInt64(int64(n))
+}
+
+// NumDigitsInt64 returns the number of digits in n.
+// This is useful for pre-allocating buffers for string conversion.
+func NumDigitsInt64(n int64) int {
 	if n == 0 {
 		return 1
 	}

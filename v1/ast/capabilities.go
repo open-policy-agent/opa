@@ -228,13 +228,8 @@ func LoadCapabilitiesVersions() ([]string, error) {
 // MinimumCompatibleVersion returns the minimum compatible OPA version based on
 // the built-ins, features, and keywords in c.
 func (c *Capabilities) MinimumCompatibleVersion() (string, bool) {
-	var maxVersion semver.Version
-
 	// this is the oldest OPA release that includes capabilities
-	if err := maxVersion.Set("0.17.0"); err != nil {
-		panic("unreachable")
-	}
-
+	maxVersion := semver.MustParse("0.17.0")
 	minVersionIndex := minVersionIndexOnce()
 
 	for _, bi := range c.Builtins {
