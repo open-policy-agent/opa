@@ -8,7 +8,7 @@ code:
 - https://github.com/StyraInc/opa-csharp
 - https://www.nuget.org/packages/Styra.Opa
 tutorials:
-- https://styrainc.github.io/opa-csharp/
+- https://open-policy-agent.github.io/opa-csharp/
 inventors:
 - styra
 software:

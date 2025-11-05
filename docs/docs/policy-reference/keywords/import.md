@@ -80,7 +80,7 @@ output := sprintf("Hello, %v", [p1.name])
 
 ## Importing `rego.v1`
 
-In [OPA 1.0](https://www.openpolicyagent.org/docs/opa-1) a number of
+In [OPA 1.0](https://www.openpolicyagent.org/docs/v0-upgrade) a number of
 previously optional keywords will be required. These settings for the Rego
 language is available in pre-1.0 versions using the `import` keyword. The two
 files that follow are equivalent.
