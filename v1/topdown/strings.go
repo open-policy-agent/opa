@@ -523,7 +523,7 @@ func builtinSplit(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) e
 	return iter(ast.ArrayTerm(util.SplitMap(text, delim, ast.InternedTerm)...))
 }
 
-func builtinReplace(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinReplace(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	s, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
@@ -539,7 +539,12 @@ func builtinReplace(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 		return err
 	}
 
-	replaced := strings.ReplaceAll(string(s), string(old), string(n))
+	sink := newSink(ast.Replace.Name, len(s), bctx.Cancel)
+	replacer := strings.NewReplacer(string(old), string(n))
+	if _, err := replacer.WriteString(sink, string(s)); err != nil {
+		return err
+	}
+	replaced := sink.String()
 	if replaced == string(s) {
 		return iter(operands[0])
 	}
@@ -547,7 +552,7 @@ func builtinReplace(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 	return iter(ast.InternedTerm(replaced))
 }
 
-func builtinReplaceN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinReplaceN(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	patterns, err := builtins.ObjectOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
@@ -574,7 +579,12 @@ func builtinReplaceN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 		oldnewArr = append(oldnewArr, string(keyVal), string(strVal))
 	}
 
-	return iter(ast.InternedTerm(strings.NewReplacer(oldnewArr...).Replace(string(s))))
+	sink := newSink(ast.ReplaceN.Name, len(s), bctx.Cancel)
+	replacer := strings.NewReplacer(oldnewArr...)
+	if _, err := replacer.WriteString(sink, string(s)); err != nil {
+		return err
+	}
+	return iter(ast.InternedTerm(sink.String()))
 }
 
 func builtinTrim(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
