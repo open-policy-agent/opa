@@ -77,6 +77,7 @@ module.exports = {
       collapsible: true,
       collapsed: true,
       items: [
+        "operations",
         "configuration",
         {
           type: "category",

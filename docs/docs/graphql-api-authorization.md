@@ -22,7 +22,7 @@ This tutorial requires [Docker Compose](https://docs.docker.com/compose/install/
 
 :::info
 Using GraphQL in Rego via the
-[GraphQL built-in functions](./policy-reference#graphql)
+[GraphQL built-in functions](./policy-reference/builtins/graphql)
 can involve some cumbersome code-sharing, for example when sharing custom
 `@directive` definitions between schemas used in different rules.
 We recommend you evaluate the range of available functions and review your

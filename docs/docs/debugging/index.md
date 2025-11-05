@@ -46,7 +46,7 @@ others.
 The `print` built-in function can be used to print values to stdout, this can be useful for checking values
 during policy evaluation as well as seeing how many times a particular line of code is executed.
 
-See the [print function documentation](./policy-reference/#debugging) for more details on how to use
+See the [print function documentation](./policy-reference/builtins/opa#debugging) for more details on how to use
 the `print` built-in function in different contexts.
 
 ## Performance Profiling
