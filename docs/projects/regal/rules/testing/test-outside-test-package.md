@@ -34,7 +34,7 @@ test_allow_if_admin {
 
 While OPA's test runner will evaluate any rules with a `test_` prefix, it is a good practice to clearly separate tests
 from production policy. This is easily done by placing tests in a separate package with a `_test` suffix, and correctly
-[naming](./file-missing-test-suffix.md) the test files.
+[naming](https://www.openpolicyagent.org/projects/regal/rules/testing/file-missing-test-suffix) the test files.
 
 ## Configuration Options
 

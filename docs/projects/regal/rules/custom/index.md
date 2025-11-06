@@ -19,7 +19,7 @@ them, see the configuration options available for each rule for how to configure
 them according to your requirements.
 :::
 
-For more advanced requirements, see the guide on writing [custom rules](https://openpolicyagent.org/projects/regal/custom-rules) in Rego.
+For more advanced requirements, see the guide on writing [custom rules](https://www.openpolicyagent.org/projects/regal/custom-rules) in Rego.
 
 import RulesTable from '@site/src/components/projects/regal/RulesTable';
 
