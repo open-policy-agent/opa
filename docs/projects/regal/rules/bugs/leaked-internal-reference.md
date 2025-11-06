@@ -68,5 +68,5 @@ rules:
 
 ## Related Resources
 
-- Rego Style Guide: [Optionally, use leading underscore for rules intended for internal use](https://github.com/StyraInc/rego-style-guide#optionally-use-leading-underscore-for-rules-intended-for-internal-use)
+- Rego Style Guide: [Optionally, use leading underscore for rules intended for internal use](https://www.openpolicyagent.org/docs/style-guide#optionally-use-leading-underscore-for-rules-intended-for-internal-use)
 - GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/bugs/leaked-internal-reference/leaked_internal_reference.rego)
