@@ -22,7 +22,7 @@ fi
 git checkout "$LATEST_TAG"
 
 # update the sections of the site that are versioned elsewhere to use main.
-git checkout "$CURRENT_REF" -- docs/projects/
+git checkout "$CURRENT_REF" -- projects/
 
 BUILD_VERSION="$LATEST_TAG" npx docusaurus build
 
