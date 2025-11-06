@@ -13,14 +13,14 @@ the official OPA extension for Visual Studio Code - now supports the Regal langu
 To see Regal linting as you work, install the extension at version `0.13.3` or later
 and open a workspace with Rego files.
 
-The plugin will automatically find and use [Regal config](https://openpolicyagent.org/projects/regal#configuration).
+The plugin will automatically find and use [Regal config](https://www.openpolicyagent.org/projects/regal#configuration).
 
 ### Debug Adapter Protocol (DAP)
 
 From
 [`v0.17.0`](https://github.com/open-policy-agent/vscode-opa/blob/main/CHANGELOG.md#0170)
 onwards, the OPA extension for Visual Studio Code supports the
-[Regal Debug Adapter](https://openpolicyagent.org/projects/regal/debug-adapter).
+[Regal Debug Adapter](https://www.openpolicyagent.org/projects/regal/debug-adapter).
 
 To start a new debug session use the code action `Debug` found above a Rego rule
 or package.
@@ -44,7 +44,7 @@ by Regal.
 
 [Neovim](https://neovim.io/) supports both the Language Server Protocol and the Debug Adapter Protocol.
 
-Generally, the Regal binary should be [installed](https://openpolicyagent.org/projects/regal#getting-started)
+Generally, the Regal binary should be [installed](https://www.openpolicyagent.org/projects/regal#getting-started)
 first. [`mason.vim`](https://github.com/williamboman/mason.nvim) users can install the
 Regal binary with `:MasonInstall regal`
 ([package definition](https://github.com/mason-org/mason-registry/blob/2024-07-23-asian-hate/packages/regal/package.yaml)).
@@ -159,3 +159,30 @@ config = { provideFormatter = true }
 
 [See the languages docs](https://docs.helix-editor.com/languages.html#language-configuration)
 for details.
+
+## Kakoune
+
+The [Kakoune](https://kakoune.org) editor has a plugin for LSP support,
+[kakoune-lsp](https://github.com/kakoune-lsp/kakoune-lsp). You can use Regal
+with this plugin using this config:
+
+```kak
+hook global BufCreate .+\.rego %{
+    set-option buffer filetype rego
+}
+hook global BufSetOption filetype=rego %{
+    set-option buffer lsp_language_id rego
+    set-option buffer lsp_servers %{
+        [regal]
+        root_globs = [".git", ".hg", ".regal"]
+        command = "regal"
+        args = ["language-server"]
+
+        # these three lines are optional, to configure initializationOptions
+        settings_section = "regal"
+        [regal.settings.regal]
+        formatter = "opa fmt --rego-v1"
+
+    }
+}
+```

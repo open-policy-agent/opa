@@ -6,7 +6,7 @@ sidebar_position: 8
 
 # Using Regal in your build pipeline
 
-Its possible to use Regal to lint your Rego policies in your CI/CD pipeline(s)!
+It's possible to use Regal to lint your Rego policies in your CI/CD pipeline(s)!
 
 This document will guide you on how to do so. Please also review the
 [CLI](./cli) documentation for more information on the available options.

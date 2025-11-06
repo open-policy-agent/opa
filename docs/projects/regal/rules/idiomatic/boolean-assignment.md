@@ -51,5 +51,5 @@ rules:
 ## Related Resources
 
 - Styra Blog: [How to express OR in Rego](https://www.styra.com/blog/how-to-express-or-in-rego/)
-- Regal Docs: [default-over-else](https://openpolicyagent.org/projects/regal/rules/style/default-over-else)
+- Regal Docs: [default-over-else](https://www.openpolicyagent.org/projects/regal/rules/style/default-over-else)
 - GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/idiomatic/boolean-assignment/boolean_assignment.rego)

@@ -89,5 +89,5 @@ rules:
 
 ## Related Resources
 
-- Regal Docs: [defer-assignment](https://openpolicyagent.org/projects/regal/rules/performance/defer-assignment)
+- Regal Docs: [defer-assignment](https://www.openpolicyagent.org/projects/regal/rules/performance/defer-assignment)
 - GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/performance/non-loop-expression/non_loop_expression.rego)

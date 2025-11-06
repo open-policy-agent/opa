@@ -51,4 +51,4 @@ rules:
 
 ## Related Resources
 
-- GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/custom/one-line-rule/one_line_rule.rego)
+- GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/custom/one-liner-rule/one_liner_rule.rego)
