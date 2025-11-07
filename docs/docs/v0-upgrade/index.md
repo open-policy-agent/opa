@@ -512,7 +512,7 @@ when the instance needs to be accessed by the host or another container.
 :::
 
 More information can be found in the
-[security documentation](../security/#interface-binding).
+[security documentation](../security#interface-binding).
 
 ## Upgrading for Go Integrations
 

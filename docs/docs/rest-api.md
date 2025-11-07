@@ -21,7 +21,7 @@ to build on OPA by embedding functionality directly into your application.
 
 :::info
 Integrating with OPA from a programming language? You might find it easier to build your
-OPA integration using one of the [language SDKs](/ecosystem/#languages) than working
+OPA integration using one of the [language SDKs](/ecosystem#languages) than working
 with the REST API directly.
 :::
 

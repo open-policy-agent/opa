@@ -9,7 +9,7 @@ When run as a server and configured accordingly, OPA will emit spans to an
 
 Each [REST API](./rest-api/) request sent to the server will start a span.
 If processing the request involves policy evaluation, and that in turn uses
-[`http.send`](./policy-reference/#http), those HTTP clients will emit descendant spans.
+[`http.send`](./policy-reference/builtins/http), those HTTP clients will emit descendant spans.
 
 Furthermore, spans exported for policy evaluation requests will contain an
 attribute `opa.decision_id` of the evaluation's decision ID _if_ the server

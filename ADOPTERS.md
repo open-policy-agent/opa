@@ -109,10 +109,10 @@ production users that have added themselves (in alphabetical order):
 
 * [Google Cloud](https://cloud.google.com/) uses OPA to validate Google Cloud
   product's configurations in several products and tools, including
-  [Anthos Config Management](https://cloud.google.com/anthos/config-management),
+  [Config Controller](https://cloud.google.com/kubernetes-engine/enterprise/policy-controller),
   [GKE Policy Automation](https://github.com/google/gke-policy-automation) or
   [Config Validator](https://github.com/GoogleCloudPlatform/policy-library). See
-  [Creating policy-compliant Google Cloud resources article](https://cloud.google.com/architecture/policy-compliant-resources)
+  [Creating policy-compliant Google Cloud resources article](https://cloud.google.com/kubernetes-engine/enterprise/policy-controller/docs/how-to/creating-policy-controller-constraints)
   for example use cases.
 
 * [Infracost](https://www.infracost.io/) shows cloud cost estimates for Terraform.

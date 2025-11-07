@@ -3,7 +3,7 @@ title: Kubernetes Authorization
 code:
 - https://github.com/open-policy-agent/contrib/tree/main/k8s_authorization
 blogs:
-- https://blog.styra.com/blog/kubernetes-authorization-webhook
+- https://www.styra.com/blog/kubernetes-authorization-webhook
 - https://itnext.io/kubernetes-authorization-via-open-policy-agent-a9455d9d5ceb
 - https://itnext.io/optimizing-open-policy-agent-based-kubernetes-authorization-via-go-execution-tracer-7b439bb5dc5b
 inventors:
