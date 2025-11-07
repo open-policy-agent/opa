@@ -28,7 +28,7 @@ var (
 
 	InternedEmptyString = StringTerm("")
 	InternedEmptyObject = ObjectTerm()
-	InternedEmptyArray  = ArrayTerm()
+	InternedEmptyArray  = NewTerm(InternedEmptyArrayValue)
 	InternedEmptySet    = SetTerm()
 
 	InternedEmptyArrayValue = NewArray()
@@ -39,6 +39,15 @@ var (
 
 	internedStringTerms = map[string]*Term{
 		"": InternedEmptyString,
+	}
+
+	internedVarValues = map[string]Value{
+		"input": Var("input"),
+		"data":  Var("data"),
+		"key":   Var("key"),
+		"value": Var("value"),
+
+		"i": Var("i"), "j": Var("j"), "k": Var("k"), "v": Var("v"), "x": Var("x"), "y": Var("y"), "z": Var("z"),
 	}
 )
 
@@ -53,6 +62,20 @@ func InternStringTerm(str ...string) {
 		}
 
 		internedStringTerms[s] = StringTerm(s)
+	}
+}
+
+// InternVarValue interns the given variable names as Var Values. Note that Interning is
+// considered experimental and should not be relied upon by external code.
+// WARNING: This must **only** be called at initialization time, as the
+// interned terms are shared globally, and the underlying map is not thread-safe.
+func InternVarValue(names ...string) {
+	for _, name := range names {
+		if _, ok := internedVarValues[name]; ok {
+			continue
+		}
+
+		internedVarValues[name] = Var(name)
 	}
 }
 
@@ -92,6 +115,16 @@ func HasInternedValue[T internable](v T) bool {
 // interned. If the value is not interned, a new Value is returned.
 func InternedValue[T internable](v T) Value {
 	return InternedValueOr(v, internedTermValue)
+}
+
+// InternedVarValue returns an interned Var Value for the given name. If the
+// name is not interned, a new Var Value is returned.
+func InternedVarValue(name string) Value {
+	if v, ok := internedVarValues[name]; ok {
+		return v
+	}
+
+	return Var(name)
 }
 
 // InternedValueOr returns an interned Value for scalar v. Calls supplier

@@ -824,7 +824,7 @@ type Var string
 
 // VarTerm creates a new Term with a Variable value.
 func VarTerm(v string) *Term {
-	return &Term{Value: Var(v)}
+	return &Term{Value: InternedVarValue(v)}
 }
 
 // Equal returns true if the other Value is a Variable and has the same value
@@ -881,7 +881,7 @@ func (v Var) String() string {
 	// illegal variable name character (WildcardPrefix) to avoid conflicts. When
 	// we serialize the variable here, we need to make sure it's parseable.
 	if v.IsWildcard() {
-		return Wildcard.String()
+		return WildcardString
 	}
 	return string(v)
 }

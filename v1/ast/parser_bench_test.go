@@ -123,6 +123,15 @@ func BenchmarkParseStatementNestedObjectsOrSets(b *testing.B) {
 	}
 }
 
+// 7471 ns/op	    8024 B/op	      56 allocs/op
+func BenchmarkParseVars(b *testing.B) {
+	for b.Loop() {
+		if _, err := ParseExpr(`data[i][_][j]`); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func BenchmarkParseBasicABACModule(b *testing.B) {
 	mod := `
 	package app.abac
