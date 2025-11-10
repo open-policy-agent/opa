@@ -3,6 +3,9 @@ title: Style
 sidebar_position: 5
 ---
 
+<head>
+  <title>Style | Regal</title>
+</head>
 
 # Style
 

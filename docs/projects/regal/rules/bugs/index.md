@@ -3,6 +3,9 @@ title: Bugs
 sidebar_position: 1
 ---
 
+<head>
+  <title>Bugs | Regal</title>
+</head>
 
 # Bugs
 

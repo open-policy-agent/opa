@@ -2,6 +2,9 @@
 sidebar_position: 7
 ---
 
+<head>
+  <title>Project Roots | Regal</title>
+</head>
 
 # Project Roots
 

@@ -2,6 +2,9 @@
 sidebar_position: 11
 ---
 
+<head>
+  <title>Remote Features | Regal</title>
+</head>
 
 # Remote Features
 
