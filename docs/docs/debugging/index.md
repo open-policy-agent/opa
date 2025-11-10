@@ -73,7 +73,7 @@ OPA logs are a great place to start when debugging issues. The logs can be used 
 at any given time. Common issues such as failing to load in policy or data bundles will be shown here.
 
 You can also enable debug logging to get more detailed information about what OPA is doing with `--log-level debug`.
-This is documented in the [CLI documentation](./cli/#options-10) for `opa run`.
+This is documented in the [CLI documentation](./cli/#run) for `opa run`.
 
 ### Decision Logging
 

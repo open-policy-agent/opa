@@ -57,8 +57,8 @@ matches your setup to find the recommended upgrade path.
 If you are in doubt, [Scenario 1](#scenario-1-v0x-producer-v0x-consumer) is the most common starting
 point and we recommended you start there.
 
-|                   | v0.x Consumer                        | Mix Consumer              | v1.0 Consumer                        |
-| ----------------- | ------------------------------------ | ------------------------- | ------------------------------------ |
+|                   | v0.x Consumer                                                  | Mix Consumer                                        | v1.0 Consumer                                                  |
+| ----------------- | -------------------------------------------------------------- | --------------------------------------------------- | -------------------------------------------------------------- |
 | **v0.x Producer** | [Scenario 1](#scenario-1-v0x-producer-v0x-consumer) (All v0.x) | [Scenario 4](#scenario-4-v0x-producer-mix-consumer) | [Scenario 7](#scenario-7-v0x-producer-v10-consumer)            |
 | **Mix Producer**  | [Scenario 2](#scenario-2-mix-producer-v0x-consumer)            | [Scenario 5](#scenario-5-mix-producer-mix-consumer) | [Scenario 8](#scenario-8-mix-producer-v10-consumer)            |
 | **v1.0 Producer** | [Scenario 3](#scenario-3-v10-producer-v0x-consumer)            | [Scenario 6](#scenario-6-v10-producer-mix-consumer) | [Scenario 9](#scenario-9-v10-producer-v10-consumer) (All v1.0) |
@@ -512,7 +512,7 @@ when the instance needs to be accessed by the host or another container.
 :::
 
 More information can be found in the
-[security documentation](../security#interface-binding).
+[security documentation](./security#interface-binding).
 
 ## Upgrading for Go Integrations
 

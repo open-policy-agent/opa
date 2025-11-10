@@ -19,6 +19,8 @@ const baseUrl = "/";
     url: "https://openpolicyagent.org",
     baseUrl: baseUrl,
     trailingSlash: false,
+    onBrokenLinks: 'throw',
+    onBrokenAnchors: 'throw',
     presets: [
       [
         "@docusaurus/preset-classic",
@@ -33,10 +35,6 @@ const baseUrl = "/";
           blog: false,
           theme: {
             customCss: require.resolve("./src/css/custom.css"),
-          },
-          gtag: {
-            trackingID: "G-JNBNV64PDX",
-            anonymizeIP: true,
           },
         },
       ],
@@ -281,6 +279,13 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
     },
 
     plugins: [
+      [
+        "@docusaurus/plugin-google-gtag",
+        {
+          trackingID: "G-JNBNV64PDX",
+          anonymizeIP: true,
+        },
+      ],
       [
         "@docusaurus/plugin-content-docs",
         {

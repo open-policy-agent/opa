@@ -2759,7 +2759,7 @@ This value is false by default, and can only be used at `document` or `package` 
 explicit `scope` set, the presence of an `entrypoint` annotation will automatically set the scope to `document`.
 
 The `build` and `eval` CLI commands will automatically pick up annotated entrypoints; you do not have to specify them with
-[`--entrypoint`](./cli/#options-1).
+[`--entrypoint`](./cli/#eval).
 
 :::info
 Unless the `--prune-unused` flag is used, any rule transitively referring to a
@@ -2829,7 +2829,7 @@ output := decision if {
 
 <RunSnippet files="#input.metadata.json" command="data.example.output"/>
 
-If you'd like more examples and information on this, you can see more here under the [Rego](./policy-reference/#rego) policy reference.
+If you'd like more examples and information on this, you can see more here under the [Rego](./policy-reference/builtins/rego) policy reference.
 
 #### From the `inspect` command
 
