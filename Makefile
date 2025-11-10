@@ -118,6 +118,7 @@ e2e: e2e-prep
 
 e2e-prep:
 	cd e2e/api/compile/prisma && npm ci
+	cd e2e/ && go mod tidy
 
 .PHONY: test-short
 test-short: go-test-short
