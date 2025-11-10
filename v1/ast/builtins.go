@@ -26,11 +26,16 @@ func RegisterBuiltin(b *Builtin) {
 		BuiltinMap[b.Infix] = b
 
 		InternStringTerm(b.Infix)
+		InternVarValue(b.Infix)
 	}
 
-	InternStringTerm(b.Name)
 	if strings.Contains(b.Name, ".") {
-		InternStringTerm(strings.Split(b.Name, ".")...)
+		parts := strings.Split(b.Name, ".")
+		InternStringTerm(parts...)
+		InternVarValue(parts[0])
+	} else {
+		InternStringTerm(b.Name)
+		InternVarValue(b.Name)
 	}
 }
 
