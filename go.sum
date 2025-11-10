@@ -14,8 +14,8 @@ github.com/cenkalti/backoff/v5 v5.0.3 h1:ZN+IMa753KfX5hd8vVaMixjnqRZ3y8CuJKRKj1x
 github.com/cenkalti/backoff/v5 v5.0.3/go.mod h1:rkhZdG3JZukswDf7f0cwqPNk4K0sa+F97BxZthm/crw=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
 github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
-github.com/containerd/containerd/v2 v2.1.4 h1:/hXWjiSFd6ftrBOBGfAZ6T30LJcx1dBjdKEeI8xucKQ=
-github.com/containerd/containerd/v2 v2.1.4/go.mod h1:8C5QV9djwsYDNhxfTCFjWtTBZrqjditQ4/ghHSYjnHM=
+github.com/containerd/containerd/v2 v2.1.5 h1:pWSmPxUszaLZKQPvOx27iD4iH+aM6o0BoN9+hg77cro=
+github.com/containerd/containerd/v2 v2.1.5/go.mod h1:8C5QV9djwsYDNhxfTCFjWtTBZrqjditQ4/ghHSYjnHM=
 github.com/containerd/errdefs v1.0.0 h1:tg5yIfIlQIrxYtu9ajqY42W3lpS19XqdxRQeEwYG8PI=
 github.com/containerd/errdefs v1.0.0/go.mod h1:+YBYIdtsnF4Iw6nWZhJcqGSg/dwvV7tyJ/kCkyJ2k+M=
 github.com/containerd/log v0.1.0 h1:TCJt7ioM2cr/tfR8GPbGf9/VRAX8D2B4PjzCpfX540I=
