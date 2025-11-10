@@ -51,6 +51,14 @@ const baseUrl = "/";
     themes: ["@docusaurus/theme-mermaid"],
 
     themeConfig: {
+      announcementBar: {
+        id: 'opa_2025_survey',
+        content:
+          'Help shape OPA\'s future! Take the <a target="_blank" rel="noopener noreferrer" href="https://www.surveymonkey.com/r/SCBSDZN">2025 OPA Community Survey</a> 🚀',
+        backgroundColor: '#ff8c42',
+        textColor: '#ffffff',
+        isCloseable: false,
+      },
       colorMode: {
         defaultMode: "light",
         disableSwitch: false,
