@@ -152,11 +152,11 @@ jobs:
           targets: ci-build-windows
           arch: amd64
         - os: darwin
-          run: macos-13
+          run: macos-15-intel
           targets: ci-build-darwin
           arch: amd64
         - os: darwin
-          run: macos-14
+          run: macos-15
           targets: ci-build-darwin ci-build-darwin-arm64-static
           arch: arm64
     steps:
@@ -214,7 +214,7 @@ jobs:
         - os: linux
           run: ubuntu-24.04
         - os: darwin
-          run: macos-14
+          run: macos-15
     steps:
     - name: Check out code
       uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -363,7 +363,7 @@ jobs:
       env:
         GOARCH: arm64
 
-  # Note(philipc): We only run the amd64 targets.
+  # Note(philipc): We only run the amd64 targets for windows/linux
   smoke-test-binaries:
     runs-on: ${{ matrix.run }}
     needs: [go-build, check-changes]
@@ -381,11 +381,11 @@ jobs:
           arch: amd64
           wasm: disabled
         - os: darwin
-          run: macos-13
+          run: macos-15-intel
           exec: opa_darwin_amd64
           arch: amd64
         - os: darwin
-          run: macos-14
+          run: macos-15
           exec: opa_darwin_arm64_static
           arch: arm64
           wasm: disabled
@@ -436,7 +436,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-14]
+        os: [ubuntu-24.04, macos-15]
         version: ["1.24"]
     steps:
     - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
