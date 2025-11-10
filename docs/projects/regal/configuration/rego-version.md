@@ -3,6 +3,9 @@ sidebar_position: 8
 sidebar_label: Rego Version
 ---
 
+<head>
+  <title>Rego Version | Regal</title>
+</head>
 
 # Configuring Rego Version
 

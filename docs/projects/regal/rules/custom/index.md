@@ -3,6 +3,9 @@ title: Custom
 sidebar_position: 7
 ---
 
+<head>
+  <title>Custom | Regal</title>
+</head>
 
 # Custom
 

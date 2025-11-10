@@ -3,6 +3,9 @@ title: Performance
 sidebar_position: 4
 ---
 
+<head>
+  <title>Performance | Regal</title>
+</head>
 
 # Performance
 

@@ -2,6 +2,9 @@
 sidebar_position: 6
 ---
 
+<head>
+  <title>Ignoring Rules | Regal</title>
+</head>
 
 # Ignoring Rules
 

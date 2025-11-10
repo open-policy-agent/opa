@@ -2,6 +2,9 @@
 sidebar_position: 5
 ---
 
+<head>
+  <title>Custom Rules | Regal</title>
+</head>
 
 # Custom Rules
 

@@ -3,6 +3,9 @@ title: Testing
 sidebar_position: 6
 ---
 
+<head>
+  <title>Testing | Regal</title>
+</head>
 
 # Testing
 

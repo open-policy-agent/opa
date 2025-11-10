@@ -3,6 +3,9 @@ sidebar_label: OPA 1.0
 sidebar_position: 14
 ---
 
+<head>
+  <title>OPA 1.0 | Regal</title>
+</head>
 
 # OPA 1.0 and Regal
 

@@ -2,6 +2,9 @@
 sidebar_position: 4
 ---
 
+<head>
+  <title>Configuration | Regal</title>
+</head>
 
 # Configuration
 

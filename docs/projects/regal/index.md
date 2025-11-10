@@ -4,6 +4,12 @@ sidebar_position: 1
 title: Introduction
 ---
 
+<!-- markdownlint-disable MD033 -->
+<head>
+<!-- markdownlint-disable MD033 -->
+  <title>Introduction | Regal</title>
+</head>
+
 <!-- markdownlint-disable MD041 -->
 
 import Intro from '@site/src/components/projects/regal/Intro';
@@ -24,7 +30,6 @@ experienced Rego developer or just starting out.
 
 <Intro image={require('./assets/regal-banner.png').default}/>
 
-
 <!-- markdownlint-disable MD041 -->
 
 ## Goals
@@ -33,7 +38,6 @@ experienced Rego developer or just starting out.
 - Identify common mistakes, bugs and inefficiencies in Rego policies, and suggest better approaches
 - Provide advice on [best practices](https://www.openpolicyagent.org/docs/style-guide), coding style, and tooling
 - Allow users, teams and organizations to enforce custom rules on their policy code
-
 
 <!-- markdownlint-disable MD041 -->
 
@@ -57,7 +61,6 @@ experienced Rego developer or just starting out.
 — Jimmy Ray, [Boeing](https://www.boeing.com/)
 
 See the [adopters](https://www.openpolicyagent.org/projects/regal/adopters) file for more Regal users.
-
 
 <!-- markdownlint-disable MD041 -->
 
@@ -200,7 +203,6 @@ we've made it easy to run Regal as part of your builds.
 See the docs on [Using Regal in your build pipeline](https://www.openpolicyagent.org/projects/regal/cicd) to learn more
 about how to set up Regal to lint your policies on every commit or pull request.
 
-
 <!-- markdownlint-disable MD041 -->
 
 ## Next Steps
@@ -226,7 +228,6 @@ Regal.
 - [CI/CD](https://www.openpolicyagent.org/projects/regal/cicd): Run Regal as part of your automated checks.
 - [Custom Rules](https://www.openpolicyagent.org/projects/regal/custom-rules): Learn how to write your own rules for Regal.
 - [Adopters](https://www.openpolicyagent.org/projects/regal/adopters): See who else is using Regal.
-
 
 <!-- If updating, please check resources.md too -->
 
@@ -255,14 +256,12 @@ contains information about how to hack on Regal itself.
 - [Regal を使って Rego を Lint する](https://tech.dentsusoken.com/entry/2024/12/05/Regal_%E3%82%92%E4%BD%BF%E3%81%A3%E3%81%A6_Rego_%E3%82%92_Lint_%E3%81%99%E3%82%8B)
   by Shibata Takao ([@shibata.takao](https://shodo.ink/@shibata.takao/))
 
-
 <!-- markdownlint-disable MD041 -->
 
 ## Status
 
 Regal is currently in beta. End-users should not expect any drastic changes, but any API may change without notice.
 If you want to embed Regal in another project or product, please reach out!
-
 
 <!-- markdownlint-disable MD041 -->
 
@@ -280,5 +279,3 @@ The current Roadmap items are all related to the preparation for
 - [lsp: Support a JetBrains LSP client (#1560)](https://github.com/open-policy-agent/regal/issues/1560)
 
 If there's something you'd like to have added to the roadmap, either open an issue, or reach out in the community Slack!
-
-
