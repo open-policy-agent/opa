@@ -1,5 +1,6 @@
 ---
 title: Testing
+sidebar_label: Testing
 sidebar_position: 6
 ---
 

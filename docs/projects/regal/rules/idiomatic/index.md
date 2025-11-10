@@ -1,5 +1,6 @@
 ---
 title: Idiomatic
+sidebar_label: Idiomatic
 sidebar_position: 2
 ---
 

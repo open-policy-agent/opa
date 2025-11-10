@@ -1,5 +1,6 @@
 ---
 title: Imports
+sidebar_label: Imports
 sidebar_position: 3
 ---
 

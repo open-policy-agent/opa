@@ -1,5 +1,6 @@
 ---
 title: Bugs
+sidebar_label: Bugs
 sidebar_position: 1
 ---
 
