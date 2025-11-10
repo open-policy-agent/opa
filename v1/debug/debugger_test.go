@@ -145,7 +145,7 @@ f(x) := y if {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 			defer cancel()
 
 			modName := "test1.rego"
@@ -289,7 +289,7 @@ p if {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 			defer cancel()
 
 			modName := "test1.rego"
@@ -438,7 +438,7 @@ p if {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 			defer cancel()
 
 			modName := "test1.rego"
@@ -505,7 +505,7 @@ p if {
 }
 
 func TestDebuggerEvalPrint(t *testing.T) {
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
+	ctx, cancel := context.WithDeadline(t.Context(), time.Now().Add(10*time.Second))
 	defer cancel()
 
 	files := map[string]string{
@@ -571,7 +571,7 @@ p if {
 }
 
 func TestFiles(t *testing.T) {
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
+	ctx, cancel := context.WithDeadline(t.Context(), time.Now().Add(10*time.Second))
 	defer cancel()
 
 	files := map[string]string{
@@ -757,7 +757,7 @@ func TestDebuggerAutomaticStop(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 
 			stk := newTestStack(testEvents...)
@@ -937,7 +937,7 @@ func TestDebuggerStopOnBreakpoint(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 
 			stk := newTestStack(tc.events...)
@@ -1083,7 +1083,7 @@ func TestDebuggerStepIn(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 
 			stk := newTestStack(tc.events...)
@@ -1260,7 +1260,7 @@ func TestDebuggerStepOver(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 
 			stk := newTestStack(tc.events...)
@@ -1421,7 +1421,7 @@ func TestDebuggerStepOut(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 
 			stk := newTestStack(tc.events...)
@@ -1575,7 +1575,7 @@ func TestDebuggerStackTrace(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
+			ctx, cancel := context.WithDeadline(t.Context(), time.Now().Add(5*time.Second))
 			defer cancel()
 
 			stk := newTestStack(tc.events...)
@@ -1965,7 +1965,7 @@ func TestDebuggerScopeVariables(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 
 			locals := ast.NewValueMap()
@@ -2240,7 +2240,7 @@ func (ts *testStack) Close() error {
 }
 
 func TestDebuggerCustomBuiltIn(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	decl := &rego.Function{
 		Name:        "my.builtin",

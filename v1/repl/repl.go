@@ -164,7 +164,7 @@ func (r *REPL) initModule(ctx context.Context) error {
 
 func (r *REPL) WithStderrWriter(w io.Writer) *REPL {
 	r.stderr = w
-	return nil
+	return r
 }
 
 // Loop will run until the user enters "exit", Ctrl+C, Ctrl+D, or an unexpected error occurs.
@@ -1092,7 +1092,7 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 	case "json":
 		return pr.JSON(r.output, output)
 	default:
-		return pr.Pretty(r.output, output)
+		return pr.Pretty(r.output, r.stderr, output)
 	}
 }
 
@@ -1145,7 +1145,7 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 	case "json":
 		return pr.JSON(r.output, output)
 	default:
-		return pr.Pretty(r.output, output)
+		return pr.Pretty(r.output, r.stderr, output)
 	}
 }
 
@@ -1203,44 +1203,27 @@ func (r *REPL) evalPackage(p *ast.Package) error {
 //	 > b = 2
 //	 true      # not redefined!
 func (r *REPL) interpretAsRule(ctx context.Context, compiler *ast.Compiler, body ast.Body) (bool, error) {
-
 	if len(body) != 1 {
 		return false, nil
 	}
 
 	expr := body[0]
 
+	if !expr.IsAssignment() && !expr.IsEquality() {
+		return false, nil
+	}
+
 	if len(expr.Operands()) != 2 {
 		return false, nil
 	}
 
-	if expr.IsAssignment() {
-		rule, err := ast.ParseCompleteDocRuleFromAssignmentExpr(r.getCurrentOrDefaultModule(), expr.Operand(0), expr.Operand(1))
-		if err != nil {
-			return false, nil
-		}
-		// TODO(sr): support interactive ref head rule definitions
-		if len(rule.Head.Ref()) > 1 {
-			return false, nil
-		}
-
-		if err := r.compileRule(ctx, rule); err != nil {
-			return false, err
-		}
-		return rule != nil, nil
-	}
-
-	if !expr.IsEquality() {
+	if expr.IsEquality() && isGlobalInModule(compiler, r.getCurrentOrDefaultModule(), expr.Operand(0)) {
 		return false, nil
 	}
 
-	if isGlobalInModule(compiler, r.getCurrentOrDefaultModule(), body[0].Operand(0)) {
-		return false, nil
-	}
-
-	rule, err := ast.ParseCompleteDocRuleFromEqExpr(r.getCurrentOrDefaultModule(), expr.Operand(0), expr.Operand(1))
-	if err != nil {
-		return false, nil
+	rule, err := ast.ParseRuleFromExpr(r.getCurrentOrDefaultModule(), expr)
+	if rule == nil || err != nil {
+		return false, err
 	}
 	// TODO(sr): support interactive ref head rule definitions
 	if len(rule.Head.Ref()) > 1 {
@@ -1250,7 +1233,8 @@ func (r *REPL) interpretAsRule(ctx context.Context, compiler *ast.Compiler, body
 	if err := r.compileRule(ctx, rule); err != nil {
 		return false, err
 	}
-	return rule != nil, nil
+
+	return true, nil
 }
 
 func (r *REPL) getPrompt() string {
@@ -1426,7 +1410,7 @@ func newCommand(line string) *command {
 }
 
 func dumpStorage(ctx context.Context, store storage.Store, txn storage.Transaction, w io.Writer) error {
-	data, err := store.Read(ctx, txn, storage.Path{})
+	data, err := store.Read(ctx, txn, storage.RootPath)
 	if err != nil {
 		return err
 	}

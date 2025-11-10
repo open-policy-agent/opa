@@ -46,28 +46,6 @@ var configuredParseParams = parseParams{
 	jsonInclude: "",
 }
 
-var parseCommand = &cobra.Command{
-	Use:   "parse <path>",
-	Short: "Parse Rego source file",
-	Long:  `Parse Rego source file and print AST.`,
-	PreRunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return errors.New("no source file specified")
-		}
-		return env.CmdFlags.CheckEnvironmentVariables(cmd)
-	},
-	RunE: func(cmd *cobra.Command, args []string) error {
-		cmd.SilenceErrors = true
-		cmd.SilenceUsage = true
-
-		exit := parse(args, &configuredParseParams, os.Stdout, os.Stderr)
-		if exit != 0 {
-			return newExitError(exit)
-		}
-		return nil
-	},
-}
-
 func parse(args []string, params *parseParams, stdout io.Writer, stderr io.Writer) int {
 	if len(args) == 0 {
 		return 0
@@ -75,7 +53,7 @@ func parse(args []string, params *parseParams, stdout io.Writer, stderr io.Write
 
 	exposeLocation := false
 	exposeComments := true
-	for _, opt := range strings.Split(params.jsonInclude, ",") {
+	for opt := range strings.SplitSeq(params.jsonInclude, ",") {
 		value := !strings.HasPrefix(opt, "-")
 
 		if strings.HasSuffix(opt, "locations") {
@@ -140,6 +118,28 @@ func parse(args []string, params *parseParams, stdout io.Writer, stderr io.Write
 }
 
 func initParse(root *cobra.Command, _ string) {
+	parseCommand := &cobra.Command{
+		Use:   "parse <path>",
+		Short: "Parse Rego source file",
+		Long:  `Parse Rego source file and print AST.`,
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return errors.New("no source file specified")
+			}
+			return env.CmdFlags.CheckEnvironmentVariables(cmd)
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+
+			exit := parse(args, &configuredParseParams, os.Stdout, os.Stderr)
+			if exit != 0 {
+				return newExitError(exit)
+			}
+			return nil
+		},
+	}
+
 	addOutputFormat(parseCommand.Flags(), configuredParseParams.format)
 	parseCommand.Flags().StringVarP(&configuredParseParams.jsonInclude, "json-include", "", "", "include or exclude optional elements. By default comments are included. Current options: locations, comments. E.g. --json-include locations,-comments will include locations and exclude comments.")
 	addV1CompatibleFlag(parseCommand.Flags(), &configuredParseParams.v1Compatible, false)

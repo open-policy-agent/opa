@@ -26,7 +26,7 @@ func BenchmarkBuiltinRegexMatch(b *testing.B) {
 		for _, patternCount := range []int{10, 100, 1000} {
 			b.Run(fmt.Sprintf("reuse-pattern=%v, pattern-count=%d", reusePattern, patternCount), func(b *testing.B) {
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					// Clearing the cache
 					regexpCache = make(map[string]*regexp.Regexp)
 
@@ -59,7 +59,7 @@ func BenchmarkBuiltinRegexMatchAsync(b *testing.B) {
 			for _, patternCount := range []int{10, 100, 1000} {
 				b.Run(fmt.Sprintf("reuse-pattern=%v, clients=%d, pattern-count=%d", reusePattern, clientCount, patternCount), func(b *testing.B) {
 					b.ResetTimer()
-					for range b.N {
+					for b.Loop() {
 						// Clearing the cache
 						regexpCache = make(map[string]*regexp.Regexp)
 

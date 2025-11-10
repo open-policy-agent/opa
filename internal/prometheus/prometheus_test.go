@@ -4,7 +4,7 @@
 //
 // NOTE: Different go runtime metrics in pretty much
 // every Go version. Let's only test these on latest.
-//go:build go1.24
+//go:build go1.25
 
 package prometheus
 
@@ -155,6 +155,13 @@ func TestJSONSerialization(t *testing.T) {
 			"go_godebug_non_default_behavior_x509rsacrt_events_total",
 			"go_godebug_non_default_behavior_gotestjsonbuildtext_events_total",
 			"go_godebug_non_default_behavior_rsa1024min_events_total",
+			"go_godebug_non_default_behavior_allowmultiplevcs_events_total", // added in 1.24.6
+			"go_godebug_non_default_behavior_embedfollowsymlinks_events_total",
+			"go_godebug_non_default_behavior_containermaxprocs_events_total",
+			"go_godebug_non_default_behavior_updatemaxprocs_events_total",
+			"go_godebug_non_default_behavior_x509sha256skid_events_total",
+			"go_godebug_non_default_behavior_tlssha1_events_total",          // here and above, added with 1.25.1
+			"go_godebug_non_default_behavior_httpcookiemaxnum_events_total", // go 1.25.2
 		},
 		"SUMMARY": {
 			"go_gc_duration_seconds",

@@ -6,15 +6,18 @@
 package ast
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/test/cases"
 )
 
-var testcases = cases.MustLoad("../test/cases/testdata").Sorted().Cases
+var testcases = sync.OnceValue(func() []cases.TestCase {
+	return cases.MustLoad("../test/cases/testdata").Sorted().Cases
+})
 
 func FuzzCompileModules(f *testing.F) {
-	for _, tc := range testcases {
+	for _, tc := range testcases() {
 		for _, mod := range tc.Modules {
 			f.Add(mod)
 		}
@@ -26,7 +29,7 @@ func FuzzCompileModules(f *testing.F) {
 }
 
 func FuzzCompileModulesWithPrintAndAllFutureKWs(f *testing.F) {
-	for _, tc := range testcases {
+	for _, tc := range testcases() {
 		for _, mod := range tc.Modules {
 			f.Add(mod)
 		}

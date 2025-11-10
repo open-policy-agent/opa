@@ -11,5 +11,5 @@ cases:
     note: jwtencodesignheadererrors/Empty headers input error
     query: data.generated.p = x
     strict_error: true
-    want_error: unexpected end of JSON input
+    want_error: "missing or invalid 'alg' header: cannot parse JSON: cannot parse empty string"
     want_error_code: eval_builtin_error

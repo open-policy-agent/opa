@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -49,12 +50,14 @@ type buildParams struct {
 	v1Compatible       bool
 	followSymlinks     bool
 	wasmIncludePrint   bool
+	stderr             io.Writer
 }
 
 func newBuildParams() buildParams {
 	return buildParams{
 		capabilities: newCapabilitiesFlag(),
 		target:       util.NewEnumFlag(compile.TargetRego, compile.Targets),
+		stderr:       os.Stderr,
 	}
 }
 
@@ -74,7 +77,7 @@ func initBuild(root *cobra.Command, brand string) {
 
 	buildParams := newBuildParams()
 
-	var buildCommand = &cobra.Command{
+	buildCommand := &cobra.Command{
 		Use:   "build <path> [<path> [...]]",
 		Short: `Build an ` + brand + ` bundle`,
 		Long: `Build an ` + brand + ` bundle.
@@ -141,10 +144,10 @@ The 'build' command supports targets (specified by -t):
 			This is for further processing, ` + brand + ` cannot evaluate a "plan bundle" like it
 			can evaluate a wasm or rego bundle.
 
-The -e flag tells the 'build' command which documents (entrypoints) will be queried by 
-the software asking for policy decisions, so that it can focus optimization efforts and 
+The -e flag tells the 'build' command which documents (entrypoints) will be queried by
+the software asking for policy decisions, so that it can focus optimization efforts and
 ensure that document is not eliminated by the optimizer.
-Note: Unless the --prune-unused flag is used, any rule transitively referring to a 
+Note: Unless the --prune-unused flag is used, any rule transitively referring to a
 package or rule declared as an entrypoint will also be enumerated as an entrypoint.
 
 Signing
@@ -284,7 +287,6 @@ against ` + brand + ` v0.22.0:
 }
 
 func dobuild(params buildParams, args []string) error {
-
 	buf := bytes.NewBuffer(nil)
 
 	// generate the bundle verification and signing config
@@ -300,6 +302,22 @@ func dobuild(params buildParams, args []string) error {
 
 	if (bvc != nil || bsc != nil) && !params.bundleMode {
 		return errors.New("enable bundle mode (ie. --bundle) to verify or sign bundle files or directories")
+	}
+
+	// if manifest files are found in the input directories and the -b flag is not set, this is likely a mistake.
+	if !params.bundleMode {
+		for _, arg := range args {
+			stat, err := os.Stat(arg)
+			if err != nil || !stat.IsDir() {
+				continue
+			}
+
+			if _, err := os.Stat(filepath.Join(arg, ".manifest")); err != nil {
+				continue
+			}
+
+			fmt.Fprintf(params.stderr, "Warning: .manifest file found in %q but -b flag not specified. Manifest will be ignored.\n", arg)
+		}
 	}
 
 	capabilities := params.capabilities.C
@@ -332,7 +350,7 @@ func dobuild(params buildParams, args []string) error {
 	}
 
 	if params.debug {
-		compiler = compiler.WithDebug(os.Stderr)
+		compiler = compiler.WithDebug(params.stderr)
 	}
 
 	if params.claimsFile == "" {

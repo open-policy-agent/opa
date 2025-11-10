@@ -1,7 +1,0 @@
-{
-  "showInput": false,
-  "showData": false,
-  "showTitles": false,
-  "titleSize": 5,
-  "command": "data.jwt.result"
-}

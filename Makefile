@@ -19,20 +19,16 @@ GOVERSION ?= $(shell cat ./.go-version)
 GOARCH := $(shell go env GOARCH)
 GOOS := $(shell go env GOOS)
 
-ifeq ($(GOOS)/$(GOARCH),darwin/arm64)
-WASM_ENABLED=0
-endif
-
 GO_TAGS := -tags=
 ifeq ($(WASM_ENABLED),1)
 GO_TAGS = -tags=opa_wasm
 endif
 
-GOLANGCI_LINT_VERSION := v1.64.5
+GOLANGCI_LINT_VERSION := v2.4.0
 YAML_LINT_VERSION := 0.29.0
 YAML_LINT_FORMAT ?= auto
 
-DOCKER_RUNNING ?= $(shell docker ps >/dev/null 2>&1 && echo 1 || echo 0)
+export DOCKER_RUNNING ?= $(shell docker ps >/dev/null 2>&1 && echo 1 || echo 0)
 
 # We use root because the windows build, invoked through the ci-go-build-windows
 # target, installs the gcc mingw32 cross-compiler.
@@ -52,8 +48,7 @@ DOCKER := docker
 export DOCKER_BUILDKIT := 1
 
 # Supported platforms to include in image manifest lists
-DOCKER_PLATFORMS := linux/amd64
-DOCKER_PLATFORMS_STATIC := linux/amd64,linux/arm64
+DOCKER_PLATFORMS := linux/amd64,linux/arm64
 
 BIN := opa_$(GOOS)_$(GOARCH)
 
@@ -65,7 +60,7 @@ TELEMETRY_URL ?= #Default empty
 
 BUILD_HOSTNAME := $(shell ./build/get-build-hostname.sh)
 
-RELEASE_BUILD_IMAGE := golang:$(GOVERSION)-bullseye
+RELEASE_BUILD_IMAGE := golang:$(GOVERSION)-trixie
 
 RELEASE_DIR ?= _release/$(VERSION)
 
@@ -98,7 +93,7 @@ release-dir:
 .PHONY: generate
 generate: wasm-lib-build
 ifeq ($(GOOS),windows)
-	GOOS=$(shell go env GOOS) GOARCH=$(shell go env GOARCH) go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.5.0
+	GOOS=linux go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.5.0
 endif
 	$(GO) generate
 
@@ -116,6 +111,14 @@ install: generate
 
 .PHONY: test
 test: go-test wasm-test
+
+.PHONY: e2e e2e-prep
+e2e: e2e-prep
+	cd e2e/ && $(GO) test $(GO_TAGS) -v ./...
+
+e2e-prep:
+	cd e2e/api/compile/prisma && npm ci
+	cd e2e/ && go mod tidy
 
 .PHONY: test-short
 test-short: go-test-short
@@ -307,12 +310,9 @@ ci-build-darwin-arm64-static: ensure-release-dir
 	mv opa_darwin_arm64 $(RELEASE_DIR)/opa_darwin_arm64_static
 	cd $(RELEASE_DIR)/ && shasum -a 256 opa_darwin_arm64_static > opa_darwin_arm64_static.sha256
 
-# NOTE: This target expects to be run as root on some debian/ubuntu variant
-# that can install the `gcc-mingw-w64-x86-64` package via apt-get.
 .PHONY: ci-build-windows
-ci-build-windows: ensure-release-dir
-	build/ensure-windows-toolchain.sh
-	@$(MAKE) build GOOS=windows CC=x86_64-w64-mingw32-gcc
+ci-build-windows: generate ensure-release-dir
+	@$(MAKE) build GOOS=windows CC="zig cc -target x86_64-windows-gnu -lunwind"
 	mv opa_windows_$(GOARCH) $(RELEASE_DIR)/opa_windows_$(GOARCH).exe
 	cd $(RELEASE_DIR)/ && shasum -a 256 opa_windows_$(GOARCH).exe > opa_windows_$(GOARCH).exe.sha256
 	rm resource.syso
@@ -342,7 +342,6 @@ image-quick: image-quick-$(GOARCH)
 # % = arch
 .PHONY: image-quick-%
 image-quick-%: ensure-executable-bin
-ifneq ($(GOARCH),arm64) # build only static images for arm64
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION) \
 		--build-arg BASE=chainguard/glibc-dynamic \
@@ -355,7 +354,6 @@ ifneq ($(GOARCH),arm64) # build only static images for arm64
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform linux/$* \
 		.
-endif
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-static \
 		--build-arg BASE=chainguard/static:latest \
@@ -397,7 +395,7 @@ push-manifest-list-%: ensure-executable-bin
 		--build-arg BASE=chainguard/static:latest \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--build-arg BIN_SUFFIX=_static \
-		--platform $(DOCKER_PLATFORMS_STATIC) \
+		--platform $(DOCKER_PLATFORMS) \
 		--provenance=false \
 		--push \
 		.
@@ -407,7 +405,7 @@ push-manifest-list-%: ensure-executable-bin
 		--build-arg BASE=chainguard/busybox:latest-glibc \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--build-arg BIN_SUFFIX=_static \
-		--platform $(DOCKER_PLATFORMS_STATIC) \
+		--platform $(DOCKER_PLATFORMS) \
 		--provenance=false \
 		--push \
 		.
@@ -418,21 +416,13 @@ ci-image-smoke-test: ci-image-smoke-test-$(GOARCH)
 # % = arch
 .PHONY: ci-image-smoke-test-%
 ci-image-smoke-test-%: image-quick-%
-ifneq ($(GOARCH),arm64) # we build only static images for arm64
 	$(DOCKER) run --platform linux/$* $(DOCKER_IMAGE):$(VERSION) version
 	$(DOCKER) run --platform linux/$* $(DOCKER_IMAGE):$(VERSION)-debug version
 
 	$(DOCKER) image inspect $(DOCKER_IMAGE):$(VERSION) |\
 	  $(DOCKER) run --interactive --platform linux/$* $(DOCKER_IMAGE):$(VERSION) \
 	  eval --fail --format raw --stdin-input 'input[0].Config.User = "1000:1000"'
-endif
 	$(DOCKER) run --platform linux/$* $(DOCKER_IMAGE):$(VERSION)-static version
-
-# % = rego/wasm
-.PHONY: ci-binary-smoke-test-%
-ci-binary-smoke-test-%:
-	chmod +x "$(RELEASE_DIR)/$(BINARY)"
-	./build/binary-smoke-test.sh "$(RELEASE_DIR)/$(BINARY)" "$*"
 
 .PHONY: push-binary-edge
 push-binary-edge:
@@ -462,8 +452,11 @@ else
 release-ci: push-image push-manifest-list-latest
 endif
 
-.PHONY: netlify
-netlify: docs-clean docs-ci docs-build
+.PHONY: netlify-latest
+netlify-latest: docs-clean docs-ci docs-build-latest
+
+.PHONY: netlify-edge
+netlify-edge: docs-clean docs-ci docs-build
 
 # Kept for compatibility. Use `make fuzz` instead.
 .PHONY: check-fuzz
@@ -498,8 +491,18 @@ endif
 #
 ######################################################
 
+PATCH_CONTAINER_LABEL ?= opa-release-patcher
+
+.PHONY: patch-container
+patch-container:
+ifeq ($(shell docker images -q $(PATCH_CONTAINER_LABEL) 2> /dev/null),)
+	@$(DOCKER) build \
+		-t $(PATCH_CONTAINER_LABEL) \
+		-f build/release-patcher-Dockerfile .
+endif
+
 .PHONY: release-patch
-release-patch:
+release-patch: patch-container
 ifeq ($(GITHUB_TOKEN),)
 	@echo "\033[0;31mGITHUB_TOKEN environment variable missing.\033[33m Provide a GitHub Personal Access Token (PAT) with the 'read:org' scope.\033[0m"
 endif
@@ -507,14 +510,14 @@ endif
 		-e GITHUB_TOKEN=$(GITHUB_TOKEN) \
 		-e LAST_VERSION=$(LAST_VERSION) \
 		-v $(PWD):/_src:Z \
-		ashtalk/python-go-perl:v2 \
+		$(PATCH_CONTAINER_LABEL):latest \
 		/_src/build/gen-release-patch.sh --version=$(VERSION) --source-url=/_src
 
 .PHONY: dev-patch
-dev-patch:
+dev-patch: patch-container
 	@$(DOCKER) run $(DOCKER_FLAGS) \
 		-v $(PWD):/_src:Z \
-		ashtalk/python-go-perl:v2 \
+		$(PATCH_CONTAINER_LABEL):latest \
 		/_src/build/gen-dev-patch.sh --version=$(VERSION) --source-url=/_src
 
 # Deprecated targets. To be removed.

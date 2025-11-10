@@ -10,6 +10,9 @@ import (
 	iversion "github.com/open-policy-agent/opa/internal/version"
 )
 
+// Backwards compatibility definition. Newer code should use Command.
+var RootCommand = Command(nil, "OPA")
+
 // UserAgent lets you override the OPA UA sent with all the HTTP requests.
 // It's another vanity thing -- if you build your own version of OPA, you
 // may want to adjust this.

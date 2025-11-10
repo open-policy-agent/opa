@@ -1,0 +1,8 @@
+{
+  "business_hours": {
+    "Asia/Tokyo": {
+      "start": 9,
+      "end": 18
+    }
+  }
+}

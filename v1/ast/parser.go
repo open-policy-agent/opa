@@ -57,6 +57,21 @@ const (
 	RegoV1
 )
 
+var (
+	// this is the name to use for instantiating an empty set, e.g., `set()`.
+	setConstructor = RefTerm(VarTerm("set"))
+
+	preAllocWildcards = [...]Value{
+		Var("$0"), Var("$1"), Var("$2"), Var("$3"), Var("$4"), Var("$5"),
+		Var("$6"), Var("$7"), Var("$8"), Var("$9"), Var("$10"),
+	}
+
+	// use static references to avoid allocations, and
+	// copy them to  the call term only when needed
+	memberWithKeyRef = MemberWithKey.Ref()
+	memberRef        = Member.Ref()
+)
+
 func (v RegoVersion) Int() int {
 	if v == RegoV1 {
 		return 1
@@ -88,17 +103,17 @@ func RegoVersionFromInt(i int) RegoVersion {
 // can do efficient shallow copies of these values when doing a
 // save() and restore().
 type state struct {
-	s         *scanner.Scanner
-	lastEnd   int
-	skippedNL bool
-	tok       tokens.Token
-	tokEnd    int
-	lit       string
-	loc       Location
 	errors    Errors
-	hints     []string
 	comments  []*Comment
+	hints     []string
+	s         *scanner.Scanner
+	loc       Location
+	lit       string
+	lastEnd   int
+	tokEnd    int
 	wildcard  int
+	tok       tokens.Token
+	skippedNL bool
 }
 
 func (s *state) String() string {
@@ -451,7 +466,6 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 	// next type of statement. If a statement can be parsed, continue from that
 	// point trying to parse packages, imports, etc. in the same order.
 	for p.s.tok != tokens.EOF {
-
 		s := p.save()
 
 		if pkg := p.parsePackage(); pkg != nil {
@@ -512,12 +526,12 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 }
 
 func (p *Parser) parseAnnotations(stmts []Statement) []Statement {
-
 	annotStmts, errs := parseAnnotations(p.s.comments)
 	for _, err := range errs {
 		p.error(err.Location, err.Message)
 	}
 
+	stmts = slices.Grow(stmts, len(annotStmts))
 	for _, annotStmt := range annotStmts {
 		stmts = append(stmts, annotStmt)
 	}
@@ -545,11 +559,11 @@ func parseAnnotations(comments []*Comment) ([]*Annotations, Errors) {
 		}
 	}
 
-	var stmts []*Annotations
+	stmts := make([]*Annotations, 0, len(blocks))
+
 	var errs Errors
 	for _, b := range blocks {
-		a, err := b.Parse()
-		if err != nil {
+		if a, err := b.Parse(); err != nil {
 			errs = append(errs, &Error{
 				Code:     ParseErr,
 				Message:  err.Error(),
@@ -564,13 +578,12 @@ func parseAnnotations(comments []*Comment) ([]*Annotations, Errors) {
 }
 
 func (p *Parser) parsePackage() *Package {
-
-	var pkg Package
-	pkg.SetLoc(p.s.Loc())
-
 	if p.s.tok != tokens.Package {
 		return nil
 	}
+
+	var pkg Package
+	pkg.SetLoc(p.s.Loc())
 
 	p.scanWS()
 
@@ -633,13 +646,12 @@ func (p *Parser) parsePackage() *Package {
 }
 
 func (p *Parser) parseImport() *Import {
-
-	var imp Import
-	imp.SetLoc(p.s.Loc())
-
 	if p.s.tok != tokens.Import {
 		return nil
 	}
+
+	var imp Import
+	imp.SetLoc(p.s.Loc())
 
 	p.scanWS()
 
@@ -952,7 +964,7 @@ func (p *Parser) parseRules() []*Rule {
 		next.Head.keywords = rule.Head.keywords
 		for i := range next.Head.Args {
 			if v, ok := next.Head.Args[i].Value.(Var); ok && v.IsWildcard() {
-				next.Head.Args[i].Value = Var(p.genwildcard())
+				next.Head.Args[i].Value = p.genwildcard()
 			}
 		}
 		setLocRecursive(next.Head, loc)
@@ -972,7 +984,7 @@ func (p *Parser) parseElse(head *Head) *Rule {
 	rule.Head.generatedValue = false
 	for i := range rule.Head.Args {
 		if v, ok := rule.Head.Args[i].Value.(Var); ok && v.IsWildcard() {
-			rule.Head.Args[i].Value = Var(p.genwildcard())
+			rule.Head.Args[i].Value = p.genwildcard()
 		}
 	}
 	rule.Head.SetLoc(p.s.Loc())
@@ -1056,7 +1068,7 @@ func (p *Parser) parseHead(defaultRule bool) (*Head, bool) {
 		return nil, false
 	}
 
-	ref := p.parseTermFinish(term, true)
+	ref := p.parseHeadFinish(term, true)
 	if ref == nil {
 		p.illegal("expected rule head name")
 		return nil, false
@@ -1259,34 +1271,33 @@ func (p *Parser) parseLiteralExpr(negated bool) *Expr {
 				return nil
 			}
 		}
-		// If we find a plain `every` identifier, attempt to parse an every expression,
-		// add hint if it succeeds.
-		if term, ok := expr.Terms.(*Term); ok && Var("every").Equal(term.Value) {
-			var hint bool
-			t := p.save()
-			p.restore(s)
-			if expr := p.futureParser().parseEvery(); expr != nil {
-				_, hint = expr.Terms.(*Every)
-			}
-			p.restore(t)
-			if hint {
-				p.hint("`import future.keywords.every` for `every x in xs { ... }` expressions")
+
+		if p.isFutureKeyword("every") {
+			// If we find a plain `every` identifier, attempt to parse an every expression,
+			// add hint if it succeeds.
+			if term, ok := expr.Terms.(*Term); ok && Var("every").Equal(term.Value) {
+				var hint bool
+				t := p.save()
+				p.restore(s)
+				if expr := p.futureParser().parseEvery(); expr != nil {
+					_, hint = expr.Terms.(*Every)
+				}
+				p.restore(t)
+				if hint {
+					p.hint("`import future.keywords.every` for `every x in xs { ... }` expressions")
+				}
 			}
 		}
-		return expr
 	}
-	return nil
+	return expr
 }
 
 func (p *Parser) parseWith() []*With {
-
 	withs := []*With{}
 
 	for {
+		with := With{Location: p.s.Loc()}
 
-		with := With{
-			Location: p.s.Loc(),
-		}
 		p.scan()
 
 		if p.s.tok != tokens.Ident {
@@ -1368,26 +1379,28 @@ func (p *Parser) parseSome() *Expr {
 	}
 
 	p.restore(s)
-	s = p.save() // new copy for later
-	var hint bool
-	p.scan()
-	if term := p.futureParser().parseTermInfixCall(); term != nil {
-		if call, ok := term.Value.(Call); ok {
-			switch call[0].String() {
-			case Member.Name, MemberWithKey.Name:
-				hint = true
+
+	if p.isFutureKeyword("in") {
+		s = p.save() // new copy for later
+		var hint bool
+		p.scan()
+		if term := p.futureParser().parseTermInfixCall(); term != nil {
+			if call, ok := term.Value.(Call); ok {
+				switch call[0].String() {
+				case Member.Name, MemberWithKey.Name:
+					hint = true
+				}
 			}
+		}
+
+		// go on as before, it's `some x[...]` or illegal
+		p.restore(s)
+		if hint {
+			p.hint("`import future.keywords.in` for `some x in xs` expressions")
 		}
 	}
 
-	// go on as before, it's `some x[...]` or illegal
-	p.restore(s)
-	if hint {
-		p.hint("`import future.keywords.in` for `some x in xs` expressions")
-	}
-
 	for { // collecting var args
-
 		p.scan()
 
 		if p.s.tok != tokens.Ident {
@@ -1520,11 +1533,6 @@ func (p *Parser) parseTermInfixCallInList() *Term {
 
 	return p.parseTermIn(nil, false, p.s.loc.Offset)
 }
-
-// use static references to avoid allocations, and
-// copy them to  the call term only when needed
-var memberWithKeyRef = MemberWithKey.Ref()
-var memberRef = Member.Ref()
 
 func (p *Parser) parseTermIn(lhs *Term, keyVal bool, offset int) *Term {
 	if !p.enter() {
@@ -1776,6 +1784,35 @@ func (p *Parser) parseTermFinish(head *Term, skipws bool) *Term {
 	}
 }
 
+func (p *Parser) parseHeadFinish(head *Term, skipws bool) *Term {
+	if head == nil {
+		return nil
+	}
+	offset := p.s.loc.Offset
+	p.doScan(false)
+
+	switch p.s.tok {
+	case tokens.Add, tokens.Sub, tokens.Mul, tokens.Quo, tokens.Rem,
+		tokens.And, tokens.Or,
+		tokens.Equal, tokens.Neq, tokens.Gt, tokens.Gte, tokens.Lt, tokens.Lte:
+		p.illegalToken()
+	case tokens.Whitespace:
+		p.doScan(skipws)
+	}
+
+	switch p.s.tok {
+	case tokens.LParen, tokens.Dot, tokens.LBrack:
+		return p.parseRef(head, offset)
+	case tokens.Whitespace:
+		p.scan()
+	}
+
+	if _, ok := head.Value.(Var); ok && RootDocumentNames.Contains(head) {
+		return RefTerm(head).SetLocation(head.Location)
+	}
+	return head
+}
+
 func (p *Parser) parseNumber() *Term {
 	var prefix string
 	loc := p.s.Loc()
@@ -1851,13 +1888,11 @@ func (p *Parser) parseString() *Term {
 		}
 
 		var s string
-		err := json.Unmarshal([]byte(p.s.lit), &s)
-		if err != nil {
+		if err := json.Unmarshal([]byte(p.s.lit), &s); err != nil {
 			p.errorf(p.s.Loc(), "illegal string literal: %s", p.s.lit)
 			return nil
 		}
-		term := StringTerm(s).SetLocation(p.s.Loc())
-		return term
+		return StringTerm(s).SetLocation(p.s.Loc())
 	}
 	return p.parseRawString()
 }
@@ -1866,8 +1901,7 @@ func (p *Parser) parseRawString() *Term {
 	if len(p.s.lit) < 2 {
 		return nil
 	}
-	term := StringTerm(p.s.lit[1 : len(p.s.lit)-1]).SetLocation(p.s.Loc())
-	return term
+	return StringTerm(p.s.lit[1 : len(p.s.lit)-1]).SetLocation(p.s.Loc())
 }
 
 func (p *Parser) parseTemplateString() *Term {
@@ -1906,9 +1940,6 @@ func (p *Parser) parseTemplateString() *Term {
 	term.SetLocation(p.s.Loc())
 	return term
 }
-
-// this is the name to use for instantiating an empty set, e.g., `set()`.
-var setConstructor = RefTerm(VarTerm("set"))
 
 func (p *Parser) parseCall(operator *Term, offset int) (term *Term) {
 	if !p.enter() {
@@ -1987,7 +2018,7 @@ func (p *Parser) parseRef(head *Term, offset int) (term *Term) {
 					term = p.parseRef(term, offset)
 				}
 			}
-			end = p.s.tokEnd
+			end = p.s.lastEnd
 			return term
 		case tokens.LBrack:
 			p.scan()
@@ -2051,7 +2082,6 @@ func (p *Parser) parseArray() (term *Term) {
 	// Does this represent a set comprehension or a set containing binary OR
 	// call? We resolve the ambiguity by prioritizing comprehensions.
 	head := p.parseTerm()
-
 	if head == nil {
 		return nil
 	}
@@ -2295,7 +2325,7 @@ func (p *Parser) parseTermList(end tokens.Token, r []*Term) []*Term {
 				}
 				continue
 			default:
-				p.illegal(fmt.Sprintf("expected %q or %q", tokens.Comma, end))
+				p.illegal("expected %q or %q", tokens.Comma, end)
 				return nil
 			}
 		}
@@ -2325,12 +2355,12 @@ func (p *Parser) parseTermPairList(end tokens.Token, r [][2]*Term) [][2]*Term {
 						}
 						continue
 					default:
-						p.illegal(fmt.Sprintf("expected %q or %q", tokens.Comma, end))
+						p.illegal("expected %q or %q", tokens.Comma, end)
 						return nil
 					}
 				}
 			default:
-				p.illegal(fmt.Sprintf("expected %q", tokens.Colon))
+				p.illegal("expected %q", tokens.Colon)
 				return nil
 			}
 		}
@@ -2362,48 +2392,69 @@ func (p *Parser) parseTermOpName(ref Ref, values ...tokens.Token) *Term {
 }
 
 func (p *Parser) parseVar() *Term {
-
-	s := p.s.lit
-
-	term := VarTerm(s).SetLocation(p.s.Loc())
-
-	// Update wildcard values with unique identifiers
-	if term.Equal(Wildcard) {
-		term.Value = Var(p.genwildcard())
+	if p.s.lit == WildcardString {
+		// Update wildcard values with unique identifiers
+		return NewTerm(p.genwildcard()).SetLocation(p.s.Loc())
 	}
 
-	return term
+	return VarTerm(p.s.lit).SetLocation(p.s.Loc())
 }
 
-func (p *Parser) genwildcard() string {
-	c := p.s.wildcard
+func (p *Parser) genwildcard() Value {
+	var v Value
+	if p.s.wildcard < len(preAllocWildcards) {
+		v = preAllocWildcards[p.s.wildcard]
+	} else {
+		v = Var(WildcardPrefix + strconv.Itoa(p.s.wildcard))
+	}
 	p.s.wildcard++
-	return fmt.Sprintf("%v%d", WildcardPrefix, c)
+
+	return v
 }
 
-func (p *Parser) error(loc *location.Location, reason string) {
-	p.errorf(loc, reason) //nolint:govet
-}
-
-func (p *Parser) errorf(loc *location.Location, f string, a ...any) {
-	msg := strings.Builder{}
-	msg.WriteString(fmt.Sprintf(f, a...))
-
-	switch len(p.s.hints) {
+func writeHints(msg *strings.Builder, hints []string) {
+	switch len(hints) {
 	case 0: // nothing to do
 	case 1:
 		msg.WriteString(" (hint: ")
-		msg.WriteString(p.s.hints[0])
-		msg.WriteRune(')')
+		msg.WriteString(hints[0])
+		msg.WriteByte(')')
 	default:
 		msg.WriteString(" (hints: ")
-		for i, h := range p.s.hints {
+		for i, h := range hints {
 			if i > 0 {
 				msg.WriteString(", ")
 			}
 			msg.WriteString(h)
 		}
-		msg.WriteRune(')')
+		msg.WriteByte(')')
+	}
+}
+
+func (p *Parser) error(loc *location.Location, reason string) {
+	msg := reason
+	if len(p.s.hints) > 0 {
+		sb := &strings.Builder{}
+		sb.WriteString(reason)
+		writeHints(sb, p.s.hints)
+		msg = sb.String()
+	}
+
+	p.s.errors = append(p.s.errors, &Error{
+		Code:     ParseErr,
+		Message:  msg,
+		Location: loc,
+		Details:  newParserErrorDetail(p.s.s.Bytes(), loc.Offset),
+	})
+	p.s.hints = nil
+}
+
+func (p *Parser) errorf(loc *location.Location, f string, a ...any) {
+	msg := &strings.Builder{}
+	fmt.Fprintf(msg, f, a...)
+
+	if len(p.s.hints) > 0 {
+		writeHints(msg, p.s.hints)
 	}
 
 	p.s.errors = append(p.s.errors, &Error{
@@ -2415,28 +2466,25 @@ func (p *Parser) errorf(loc *location.Location, f string, a ...any) {
 	p.s.hints = nil
 }
 
-func (p *Parser) hint(f string, a ...any) {
-	p.s.hints = append(p.s.hints, fmt.Sprintf(f, a...))
+func (p *Parser) hint(s string) {
+	p.s.hints = append(p.s.hints, s)
 }
 
 func (p *Parser) illegal(note string, a ...any) {
-	tok := p.s.tok.String()
-
 	if p.s.tok == tokens.Illegal {
 		p.errorf(p.s.Loc(), "illegal token")
 		return
 	}
 
+	tok := p.s.tok.String()
+
 	tokType := "token"
-	if tokens.IsKeyword(p.s.tok) {
-		tokType = "keyword"
-	} else if _, ok := allFutureKeywords[p.s.tok.String()]; ok {
+	if _, ok := allFutureKeywords[tok]; ok || tokens.IsKeyword(p.s.tok) {
 		tokType = "keyword"
 	}
 
-	note = fmt.Sprintf(note, a...)
 	if len(note) > 0 {
-		p.errorf(p.s.Loc(), "unexpected %s %s: %s", tok, tokType, note)
+		p.errorf(p.s.Loc(), "unexpected %s %s: %s", tok, tokType, fmt.Sprintf(note, a...))
 	} else {
 		p.errorf(p.s.Loc(), "unexpected %s %s", tok, tokType)
 	}
@@ -2605,6 +2653,7 @@ type rawAnnotation struct {
 	RelatedResources []any            `yaml:"related_resources"`
 	Authors          []any            `yaml:"authors"`
 	Schemas          []map[string]any `yaml:"schemas"`
+	Compile          map[string]any   `yaml:"compile"`
 	Custom           map[string]any   `yaml:"custom"`
 }
 
@@ -2670,6 +2719,40 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 			return nil, fmt.Errorf("invalid related-resource definition %s: %w", v, err)
 		}
 		result.RelatedResources = append(result.RelatedResources, rr)
+	}
+
+	if raw.Compile != nil {
+		result.Compile = &CompileAnnotation{}
+		if unknowns, ok := raw.Compile["unknowns"]; ok {
+			if unknowns, ok := unknowns.([]any); ok {
+				result.Compile.Unknowns = make([]Ref, len(unknowns))
+				for i := range unknowns {
+					if unknown, ok := unknowns[i].(string); ok {
+						ref, err := ParseRef(unknown)
+						if err != nil {
+							return nil, fmt.Errorf("invalid unknowns element %q: %w", unknown, err)
+						}
+						result.Compile.Unknowns[i] = ref
+					}
+				}
+			}
+		}
+		if mask, ok := raw.Compile["mask_rule"]; ok {
+			if mask, ok := mask.(string); ok {
+				maskTerm, err := ParseTerm(mask)
+				if err != nil {
+					return nil, fmt.Errorf("invalid mask_rule annotation %q: %w", mask, err)
+				}
+				switch v := maskTerm.Value.(type) {
+				case Var, String:
+					result.Compile.MaskRule = Ref{maskTerm}
+				case Ref:
+					result.Compile.MaskRule = v
+				default:
+					return nil, fmt.Errorf("invalid mask_rule annotation type %q: %[1]T", mask)
+				}
+			}
+		}
 	}
 
 	for _, pair := range raw.Schemas {
@@ -2953,6 +3036,11 @@ func IsFutureKeywordForRegoVersion(s string, v RegoVersion) bool {
 	}
 
 	return yes
+}
+
+// isFutureKeyword answers if keyword is from the "future" with the parser options set.
+func (p *Parser) isFutureKeyword(s string) bool {
+	return IsFutureKeywordForRegoVersion(s, p.po.RegoVersion)
 }
 
 func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]tokens.Token) {

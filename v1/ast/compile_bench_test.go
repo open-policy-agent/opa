@@ -22,7 +22,7 @@ func BenchmarkRewriteDynamics(b *testing.B) {
 		b.Run(strconv.Itoa(sizes[i]), func(b *testing.B) {
 			factory := newEqualityFactory(newLocalVarGenerator("q", nil))
 			b.ResetTimer()
-			for range b.N {
+			for b.Loop() {
 				for _, body := range queries[i] {
 					rewriteDynamics(factory, body)
 				}

@@ -7,17 +7,51 @@ package bundle
 
 import (
 	"bytes"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 
-	"github.com/open-policy-agent/opa/internal/jwx/jwa"
-	"github.com/open-policy-agent/opa/internal/jwx/jws"
-	"github.com/open-policy-agent/opa/internal/jwx/jws/verify"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jws/jwsbb"
 	"github.com/open-policy-agent/opa/v1/util"
 )
+
+// parseVerificationKey converts a string key to the appropriate type for jws.Verify
+func parseVerificationKey(keyData string, alg jwa.SignatureAlgorithm) (any, error) {
+	// For HMAC algorithms, return the key as bytes
+	if alg == jwa.HS256() || alg == jwa.HS384() || alg == jwa.HS512() {
+		return []byte(keyData), nil
+	}
+
+	// For RSA/ECDSA algorithms, try to parse as PEM first
+	block, _ := pem.Decode([]byte(keyData))
+	if block != nil {
+		switch block.Type {
+		case "RSA PUBLIC KEY":
+			return x509.ParsePKCS1PublicKey(block.Bytes)
+		case "PUBLIC KEY":
+			return x509.ParsePKIXPublicKey(block.Bytes)
+		case "RSA PRIVATE KEY":
+			return x509.ParsePKCS1PrivateKey(block.Bytes)
+		case "PRIVATE KEY":
+			return x509.ParsePKCS8PrivateKey(block.Bytes)
+		case "EC PRIVATE KEY":
+			return x509.ParseECPrivateKey(block.Bytes)
+		case "CERTIFICATE":
+			cert, err := x509.ParseCertificate(block.Bytes)
+			if err != nil {
+				return nil, err
+			}
+			return cert.PublicKey, nil
+		}
+	}
+
+	return nil, errors.New("failed to parse PEM block containing the key")
+}
 
 const defaultVerifierID = "_default"
 
@@ -82,26 +116,42 @@ func (*DefaultVerifier) VerifyBundleSignature(sc SignaturesConfig, bvc *Verifica
 }
 
 func verifyJWTSignature(token string, bvc *VerificationConfig) (*DecodedSignature, error) {
-	// decode JWT to check if the header specifies the key to use and/or if claims have the scope.
-
-	parts, err := jws.SplitCompact(token)
+	tokbytes := []byte(token)
+	hdrb64, payloadb64, signatureb64, err := jwsbb.SplitCompact(tokbytes)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to split compact JWT: %w", err)
 	}
 
-	var decodedHeader []byte
-	if decodedHeader, err = base64.RawURLEncoding.DecodeString(parts[0]); err != nil {
-		return nil, fmt.Errorf("failed to base64 decode JWT headers: %w", err)
+	// check for the id of the key to use for JWT signature verification
+	// first in the OPA config. If not found, then check the JWT kid.
+	keyID := bvc.KeyID
+	if keyID == "" {
+		// Use jwsbb.Header to access into the "kid" header field, which we will
+		// use to determine the key to use for verification.
+		hdr := jwsbb.HeaderParseCompact(hdrb64)
+		v, err := jwsbb.HeaderGetString(hdr, "kid")
+		switch {
+		case err == nil:
+			// err == nils means we found the key ID in the header
+			keyID = v
+		case errors.Is(err, jwsbb.ErrHeaderNotFound()):
+			// no "kid" in the header. no op.
+		default:
+			// some other error occurred while trying to extract the key ID
+			return nil, fmt.Errorf("failed to extract key ID from headers: %w", err)
+		}
 	}
 
-	var hdr jws.StandardHeaders
-	if err := json.Unmarshal(decodedHeader, &hdr); err != nil {
-		return nil, fmt.Errorf("failed to parse JWT headers: %w", err)
-	}
-
-	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil {
-		return nil, err
+	// Because we want to fallback to ds.KeyID when we can't find the
+	// keyID, we need to parse the payload here already.
+	//
+	// (lestrrat) Whoa, you're going to trust the payload before you
+	// verify the signature? Even if it's for backwrds compatibility,
+	// Is this OK?
+	decoder := base64.RawURLEncoding
+	payload := make([]byte, decoder.DecodedLen(len(payloadb64)))
+	if _, err := decoder.Decode(payload, payloadb64); err != nil {
+		return nil, fmt.Errorf("failed to base64 decode JWT payload: %w", err)
 	}
 
 	var ds DecodedSignature
@@ -109,17 +159,12 @@ func verifyJWTSignature(token string, bvc *VerificationConfig) (*DecodedSignatur
 		return nil, err
 	}
 
-	// check for the id of the key to use for JWT signature verification
-	// first in the OPA config. If not found, then check the JWT kid.
-	keyID := bvc.KeyID
+	// If header has no key id, check the deprecated key claim.
 	if keyID == "" {
-		keyID = hdr.KeyID
-	}
-	if keyID == "" {
-		// If header has no key id, check the deprecated key claim.
 		keyID = ds.KeyID
 	}
 
+	// If we still don't have a keyID, we cannot proceed
 	if keyID == "" {
 		return nil, errors.New("verification key ID is empty")
 	}
@@ -130,16 +175,29 @@ func verifyJWTSignature(token string, bvc *VerificationConfig) (*DecodedSignatur
 		return nil, err
 	}
 
-	// verify JWT signature
-	alg := jwa.SignatureAlgorithm(keyConfig.Algorithm)
-	key, err := verify.GetSigningKey(keyConfig.Key, alg)
+	alg, ok := jwa.LookupSignatureAlgorithm(keyConfig.Algorithm)
+	if !ok {
+		return nil, fmt.Errorf("unknown signature algorithm: %s", keyConfig.Algorithm)
+	}
+
+	// Parse the key into the appropriate type
+	parsedKey, err := parseVerificationKey(keyConfig.Key, alg)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = jws.Verify([]byte(token), alg, key)
-	if err != nil {
-		return nil, err
+	signature := make([]byte, decoder.DecodedLen(len(signatureb64)))
+	if _, err = decoder.Decode(signature, signatureb64); err != nil {
+		return nil, fmt.Errorf("failed to base64 decode JWT signature: %w", err)
+	}
+
+	signbuf := make([]byte, len(hdrb64)+1+len(payloadb64))
+	copy(signbuf, hdrb64)
+	signbuf[len(hdrb64)] = '.'
+	copy(signbuf[len(hdrb64)+1:], payloadb64)
+
+	if err := jwsbb.Verify(parsedKey, alg.String(), signbuf, signature); err != nil {
+		return nil, fmt.Errorf("failed to verify JWT signature: %w", err)
 	}
 
 	// verify the scope

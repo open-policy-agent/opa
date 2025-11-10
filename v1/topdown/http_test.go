@@ -1268,7 +1268,7 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 			defer ts.Close()
 
 			config, _ := iCache.ParseCachingConfig([]byte(`{"inter_query_builtin_cache": {"max_size_bytes": 500, "stale_entry_eviction_period_seconds": 1, "forced_eviction_threshold_percentage": 80},}`))
-			interQueryCache := iCache.NewInterQueryCacheWithContext(context.Background(), config)
+			interQueryCache := iCache.NewInterQueryCacheWithContext(t.Context(), config)
 
 			opts := []func(*Query) *Query{
 				setTime(t0),
@@ -1429,7 +1429,7 @@ func TestHTTPSendInterQueryCaching(t *testing.T) {
 			q := newQuery(qStr, t0)
 
 			for i := range 3 {
-				res, err := q.Run(context.Background())
+				res, err := q.Run(t.Context())
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -1588,7 +1588,7 @@ func TestHTTPSendInterQueryForceCaching(t *testing.T) {
 			q := newQuery(qStr, t0)
 
 			for i := range 3 {
-				res, err := q.Run(context.Background())
+				res, err := q.Run(t.Context())
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -1684,7 +1684,7 @@ func TestHTTPSendInterQueryForceCachingRefresh(t *testing.T) {
 			request = strings.ReplaceAll(request, "%CACHE%", strconv.Itoa(cacheTime))
 			full := fmt.Sprintf("http.send(%s, x)", request)
 			config, _ := iCache.ParseCachingConfig([]byte(`{"inter_query_builtin_cache": {"max_size_bytes": 500, "stale_entry_eviction_period_seconds": 1, "forced_eviction_threshold_percentage": 80},}`))
-			interQueryCache := iCache.NewInterQueryCacheWithContext(context.Background(), config)
+			interQueryCache := iCache.NewInterQueryCacheWithContext(t.Context(), config)
 			q := NewQuery(ast.MustParseBody(full)).
 				WithInterQueryBuiltinCache(interQueryCache).
 				WithTime(t0)
@@ -1694,7 +1694,7 @@ func TestHTTPSendInterQueryForceCachingRefresh(t *testing.T) {
 			   expired cache
 			*/
 			for i := range 2 {
-				resp, err := q.Run(context.Background())
+				resp, err := q.Run(t.Context())
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -1826,7 +1826,7 @@ func TestHTTPSendInterQueryCachingModifiedResp(t *testing.T) {
 			q := newQuery(qStr, t0)
 
 			for i := range 3 {
-				res, err := q.Run(context.Background())
+				res, err := q.Run(t.Context())
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -1901,7 +1901,7 @@ func TestHTTPSendInterQueryCachingNewResp(t *testing.T) {
 			q := newQuery(qStr, t0)
 
 			for i := range 3 {
-				res, err := q.Run(context.Background())
+				res, err := q.Run(t.Context())
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -1987,7 +1987,7 @@ func TestInsertIntoHTTPSendInterQueryCacheError(t *testing.T) {
 			q := newQuery(qStr, t0)
 
 			for i := range 3 {
-				res, err := q.Run(context.Background())
+				res, err := q.Run(t.Context())
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -2298,7 +2298,7 @@ func TestInterQueryCheckCacheError(t *testing.T) {
 	input := ast.MustParseTerm(`{"force_cache": true}`)
 	inputObj := input.Value.(ast.Object)
 
-	_, err := newHTTPRequestExecutor(BuiltinContext{Context: context.Background()}, inputObj, inputObj)
+	_, err := newHTTPRequestExecutor(BuiltinContext{Context: t.Context()}, inputObj, inputObj)
 	if err == nil {
 		t.Fatal("expected error but got nil")
 	}
@@ -2894,6 +2894,60 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 		runTopDownTestCase(t, data, "http.send", rules, resultObj.String())
 	})
 
+	t.Run("Host header populates TLS server name", func(t *testing.T) {
+		const hostname = "my-server"
+
+		var requestedServerName []string
+		s := getTLSTestServer()
+		s.TLS = &tls.Config{
+			GetCertificate: func(ch *tls.ClientHelloInfo) (*tls.Certificate, error) {
+				requestedServerName = append(requestedServerName, ch.ServerName)
+				return nil, fmt.Errorf("requested host: %s", ch.ServerName)
+			},
+		}
+		s.StartTLS()
+		t.Cleanup(s.Close)
+
+		expected := &Error{Code: BuiltinErr, Message: "tls: internal error"}
+
+		data := loadSmallTestData()
+		rule := []string{fmt.Sprintf(
+			`p = x { http.send({"method": "get", "url": "%s", "tls_use_system_certs": false, "headers": {"host": "%s"}}, x) }`, s.URL, hostname)}
+
+		// run the test
+		runTopDownTestCase(t, data, "http.send", rule, expected)
+		if !slices.Equal(requestedServerName, []string{hostname}) {
+			t.Errorf("got SNI server name %v, want SNI server name %v", requestedServerName, hostname)
+		}
+	})
+
+	t.Run("tls_server_name sets server name and overrides host header", func(t *testing.T) {
+		const hostname = "my-server"
+
+		var requestedServerName []string
+		s := getTLSTestServer()
+		s.TLS = &tls.Config{
+			GetCertificate: func(ch *tls.ClientHelloInfo) (*tls.Certificate, error) {
+				requestedServerName = append(requestedServerName, ch.ServerName)
+				return nil, fmt.Errorf("requested host: %s", ch.ServerName)
+			},
+		}
+		s.StartTLS()
+		t.Cleanup(s.Close)
+
+		expected := &Error{Code: BuiltinErr, Message: "tls: internal error"}
+
+		data := loadSmallTestData()
+		rule := []string{fmt.Sprintf(
+			`p = x { http.send({"method": "get", "url": "%s", "tls_use_system_certs": false, "tls_server_name": "%s", "headers": {"host": "ignored"}}, x) }`, s.URL, hostname)}
+
+		// run the test
+		runTopDownTestCase(t, data, "http.send", rule, expected)
+		if !slices.Equal(requestedServerName, []string{hostname}) {
+			t.Errorf("got SNI server name %v, want SNI server name %v", requestedServerName, hostname)
+		}
+	})
+
 	t.Run("Negative Test: System Certs do not include local rootCA", func(t *testing.T) {
 		expectedResult := &Error{Code: BuiltinErr, Message: fixupDarwinGo118("x509: certificate signed by unknown authority", `“my-server” certificate is not standards compliant`), Location: nil}
 		data := loadSmallTestData()
@@ -2943,7 +2997,7 @@ func TestCertSelectionLogic(t *testing.T) {
 	t.Setenv("CLIENT_CA_ENV", string(caCertPEM))
 
 	getClientTLSConfig := func(obj ast.Object) *tls.Config {
-		_, client, err := createHTTPRequest(BuiltinContext{Context: context.Background()}, obj)
+		_, client, err := createHTTPRequest(BuiltinContext{Context: t.Context()}, obj)
 		if err != nil {
 			t.Fatalf("Unexpected error creating HTTP request %v", err)
 		}
@@ -2980,7 +3034,7 @@ func TestCertSelectionLogic(t *testing.T) {
 			msg:      "Expected TLS config to use system certs",
 		},
 		{
-			note:     "tls_use_system_certs set to nil",
+			note:     "tls_use_system_certs set to false",
 			input:    map[*ast.Term]*ast.Term{ast.StringTerm("tls_use_system_certs"): ast.BooleanTerm(false)},
 			expected: nil,
 			msg:      "Expected no TLS config",
@@ -2988,7 +3042,7 @@ func TestCertSelectionLogic(t *testing.T) {
 		{
 			note:     "no CAs specified",
 			input:    nil,
-			expected: systemCertsPool.Subjects(), // nolint:staticcheck // ignoring the deprecated (*CertPool).Subjects() call here because it's in a test.
+			expected: nil,
 			msg:      "Expected TLS config to use system certs",
 		},
 		{
@@ -3080,7 +3134,7 @@ func TestHTTPSendCacheDefaultStatusCodesIntraQueryCache(t *testing.T) {
 		// out to the server again and getting a http.StatusOK response status code.
 		// The third request should now be served from the cache.
 
-		_, err := q.Run(context.Background())
+		_, err := q.Run(t.Context())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -3111,10 +3165,9 @@ func TestHTTPSendCacheDefaultStatusCodesInterQueryCache(t *testing.T) {
 	defer ts.Close()
 
 	t.Run("non-cacheable status code: inter-query cache", func(t *testing.T) {
-
 		// add an inter-query cache
 		config, _ := iCache.ParseCachingConfig([]byte(`{"inter_query_builtin_cache": {"max_size_bytes": 500, "stale_entry_eviction_period_seconds": 1, "forced_eviction_threshold_percentage": 80},}`))
-		interQueryCache := iCache.NewInterQueryCacheWithContext(context.Background(), config)
+		interQueryCache := iCache.NewInterQueryCacheWithContext(t.Context(), config)
 
 		m := metrics.New()
 
@@ -3127,17 +3180,17 @@ func TestHTTPSendCacheDefaultStatusCodesInterQueryCache(t *testing.T) {
 		// out to the server again and getting a http.StatusOK response status code.
 		// The third request should now be served from the cache.
 
-		_, err := q.Run(context.Background())
+		_, err := q.Run(t.Context())
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		_, err = q.Run(context.Background())
+		_, err = q.Run(t.Context())
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		_, err = q.Run(context.Background())
+		_, err = q.Run(t.Context())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -3212,7 +3265,7 @@ func TestInterQueryCacheConcurrentModification(t *testing.T) {
 	}
 
 	qStr := "x = data.test.p; y = data.test.q"
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	txn := storage.NewTransactionOrDie(ctx, store)
 	q := NewQuery(ast.MustParseBody(qStr)).
@@ -3222,7 +3275,7 @@ func TestInterQueryCacheConcurrentModification(t *testing.T) {
 		WithInterQueryBuiltinCache(&interQueryCache).
 		WithTime(clock)
 
-	res, err := q.Run(context.Background())
+	res, err := q.Run(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3394,7 +3447,7 @@ func TestHTTPSendMetrics(t *testing.T) {
 		// Execute query and verify http.send latency shows up in metrics registry.
 		m := metrics.New()
 		q := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q})`, ts.URL))).WithMetrics(m)
-		_, err := q.Run(context.Background())
+		_, err := q.Run(t.Context())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -3407,25 +3460,64 @@ func TestHTTPSendMetrics(t *testing.T) {
 	t.Run("cache hits", func(t *testing.T) {
 		// add an inter-query cache
 		config, _ := iCache.ParseCachingConfig([]byte(`{"inter_query_builtin_cache": {"max_size_bytes": 500, "stale_entry_eviction_period_seconds": 1, "forced_eviction_threshold_percentage": 80},}`))
-		interQueryCache := iCache.NewInterQueryCacheWithContext(context.Background(), config)
+		interQueryCache := iCache.NewInterQueryCacheWithContext(t.Context(), config)
 
 		// Execute query twice and verify http.send inter-query cache hit metric is incremented.
 		m := metrics.New()
 		q := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q, "cache": true})`, ts.URL))).
 			WithInterQueryBuiltinCache(interQueryCache).
 			WithMetrics(m)
-		_, err := q.Run(context.Background())
+		_, err := q.Run(t.Context())
 		if err != nil {
 			t.Fatal(err)
 		}
 		// cache hit
-		_, err = q.Run(context.Background())
+		_, err = q.Run(t.Context())
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		if exp, act := uint64(1), m.Counter(httpSendInterQueryCacheHits).Value(); exp != act {
 			t.Fatalf("expected %d cache hits, got %d", exp, act)
+		}
+	})
+
+	t.Run("network requests", func(t *testing.T) {
+		// Test that network requests counter is incremented correctly
+		m := metrics.New()
+
+		// Test 1: Single request - verify counter increments
+		q := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q})`, ts.URL))).WithMetrics(m)
+		_, err := q.Run(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if exp, act := uint64(1), m.Counter(httpSendNetworkRequests).Value(); exp != act {
+			t.Fatalf("expected %d network requests, got %d", exp, act)
+		}
+
+		// Test 2: Another request to different URL
+		q2 := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q})`, ts.URL+"/other"))).WithMetrics(m)
+		_, err = q2.Run(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if exp, act := uint64(2), m.Counter(httpSendNetworkRequests).Value(); exp != act {
+			t.Fatalf("expected %d network requests, got %d", exp, act)
+		}
+
+		// Test 3: Request with error should still increment counter
+		badURL := "http://localhost:1" // Port 1 should fail quickly
+		q3 := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q, "raise_error": false})`, badURL))).WithMetrics(m)
+		_, err = q3.Run(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if exp, act := uint64(3), m.Counter(httpSendNetworkRequests).Value(); exp != act {
+			t.Fatalf("expected %d network requests including failed one, got %d", exp, act)
 		}
 	})
 }
@@ -3546,49 +3638,51 @@ func (*tracemock) NewHandler(http.Handler, string, tracing.Options) http.Handler
 
 // Warning(philipc): This test modifies package variables in tracing, which
 // means it cannot be run in parallel with other tests.
-func TestDistributedTracingEnableDisable(t *testing.T) {
-	t.Run("TestDistributedTracingEnabled", func(t *testing.T) {
-		mock := tracemock{}
-		tracing.RegisterHTTPTracing(&mock)
+func TestDistributedTracing(t *testing.T) {
+	tests := []struct {
+		name            string
+		opts            tracing.Options
+		obj             ast.Object
+		expectedCalls   int
+		expectTransport bool
+	}{
+		{name: "Disabled", opts: nil, expectedCalls: 0},
+		{name: "Enabled", opts: tracing.NewOptions(true), expectedCalls: 1},
+		{
+			name: "EnabledWithConfigured", opts: tracing.NewOptions(true), expectedCalls: 1,
+			obj: ast.NewObject( // Force TLS configuration for SNI
+				[2]*ast.Term{ast.StringTerm("tls_server_name"), ast.StringTerm("test-server")},
+			),
+			expectTransport: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Cleanup(func() { tracing.RegisterHTTPTracing(nil) })
+			mock := tracemock{}
+			tracing.RegisterHTTPTracing(&mock)
 
-		builtinContext := BuiltinContext{
-			Context:                context.Background(),
-			DistributedTracingOpts: tracing.NewOptions(true), // any option means it's enabled
-		}
+			if tt.obj == nil {
+				tt.obj = ast.NewObject()
+			}
 
-		_, client, err := createHTTPRequest(builtinContext, ast.NewObject())
-		if err != nil {
-			t.Fatalf("Unexpected error creating HTTP request %v", err)
-		}
-		if client.Transport == nil {
-			t.Fatal("No Transport defined")
-		}
+			builtinContext := BuiltinContext{
+				Context:                t.Context(),
+				DistributedTracingOpts: tt.opts,
+			}
 
-		if exp, act := 1, mock.called; exp != act {
-			t.Errorf("calls to NewTransport: expected %d, got %d", exp, act)
-		}
-	})
-
-	t.Run("TestDistributedTracingDisabled", func(t *testing.T) {
-		mock := tracemock{}
-		tracing.RegisterHTTPTracing(&mock)
-
-		builtinContext := BuiltinContext{
-			Context: context.Background(),
-		}
-
-		_, client, err := createHTTPRequest(builtinContext, ast.NewObject())
-		if err != nil {
-			t.Fatalf("Unexpected error creating HTTP request %v", err)
-		}
-		if client.Transport == nil {
-			t.Fatal("No Transport defined")
-		}
-
-		if exp, act := 0, mock.called; exp != act {
-			t.Errorf("calls to NewTransported: expected %d, got %d", exp, act)
-		}
-	})
+			_, client, err := createHTTPRequest(builtinContext, tt.obj)
+			if err != nil {
+				t.Fatalf("Unexpected error creating HTTP request %v", err)
+			}
+			if exp, act := tt.expectedCalls, mock.called; exp != act {
+				t.Errorf("calls to NewTransport: expected %d, got %d", exp, act)
+			}
+			if exp, act := tt.expectTransport, client.Transport != nil; exp != act {
+				t.Errorf("client transport present: expected %t, got %t", exp, act)
+			}
+		})
+	}
 }
 
 func TestHTTPGetRequestAllowNet(t *testing.T) {
@@ -3687,6 +3781,10 @@ func (st *secretTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 }
 
 func (st *secretTransport) Transform(t *http.Transport) http.RoundTripper {
+	// Transport may be nil when the http.DefaultTransport is used
+	if t == nil {
+		t = http.DefaultTransport.(*http.Transport)
+	}
 	st.Transport = t.Clone()
 	return st
 }

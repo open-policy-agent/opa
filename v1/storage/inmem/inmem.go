@@ -27,6 +27,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/merge"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/storage"
+	"github.com/open-policy-agent/opa/v1/storage/internal/errors"
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
@@ -50,6 +51,7 @@ func NewWithOpts(opts ...Opt) storage.Store {
 
 	if s.returnASTValuesOnRead {
 		s.data = ast.NewObject()
+		s.roundTripOnWrite = false
 	} else {
 		s.data = map[string]any{}
 	}
@@ -71,7 +73,7 @@ func NewFromObjectWithOpts(data map[string]any, opts ...Opt) storage.Store {
 	if err != nil {
 		panic(err)
 	}
-	if err := db.Write(ctx, txn, storage.AddOp, storage.Path{}, data); err != nil {
+	if err := db.Write(ctx, txn, storage.AddOp, storage.RootPath, data); err != nil {
 		panic(err)
 	}
 	if err := db.Commit(ctx, txn); err != nil {
@@ -89,9 +91,8 @@ func NewFromReader(r io.Reader) storage.Store {
 // NewFromReader returns a new in-memory store from a reader that produces a
 // JSON serialized object, with extra options. This function is for test purposes.
 func NewFromReaderWithOpts(r io.Reader, opts ...Opt) storage.Store {
-	d := util.NewJSONDecoder(r)
 	var data map[string]any
-	if err := d.Decode(&data); err != nil {
+	if err := util.NewJSONDecoder(r).Decode(&data); err != nil {
 		panic(err)
 	}
 	return NewFromObjectWithOpts(data, opts...)
@@ -120,35 +121,39 @@ type handle struct {
 }
 
 func (db *store) NewTransaction(_ context.Context, params ...storage.TransactionParams) (storage.Transaction, error) {
-	var write bool
-	var ctx *storage.Context
-	if len(params) > 0 {
-		write = params[0].Write
-		ctx = params[0].Context
+	txn := &transaction{
+		xid: atomic.AddUint64(&db.xid, uint64(1)),
+		db:  db,
 	}
-	xid := atomic.AddUint64(&db.xid, uint64(1))
-	if write {
+
+	if len(params) > 0 {
+		txn.write = params[0].Write
+		txn.context = params[0].Context
+	}
+
+	if txn.write {
 		db.wmu.Lock()
 	} else {
 		db.rmu.RLock()
 	}
-	return newTransaction(xid, write, ctx, db), nil
+
+	return txn, nil
 }
 
 // Truncate implements the storage.Store interface. This method must be called within a transaction.
 func (db *store) Truncate(ctx context.Context, txn storage.Transaction, params storage.TransactionParams, it storage.Iterator) error {
 	var update *storage.Update
 	var err error
-	mergedData := map[string]any{}
 
 	underlying, err := db.underlying(txn)
 	if err != nil {
 		return err
 	}
 
+	mergedData := map[string]any{}
+
 	for {
-		update, err = it.Next()
-		if err != nil {
+		if update, err = it.Next(); err != nil {
 			break
 		}
 
@@ -159,8 +164,7 @@ func (db *store) Truncate(ctx context.Context, txn storage.Transaction, params s
 			}
 		} else {
 			var value any
-			err = util.Unmarshal(update.Value, &value)
-			if err != nil {
+			if err = util.Unmarshal(update.Value, &value); err != nil {
 				return err
 			}
 
@@ -193,11 +197,7 @@ func (db *store) Truncate(ctx context.Context, txn storage.Transaction, params s
 
 	// For backwards compatibility, check if `RootOverwrite` was configured.
 	if params.RootOverwrite {
-		newPath, ok := storage.ParsePathEscaped("/")
-		if !ok {
-			return fmt.Errorf("storage path invalid: %v", newPath)
-		}
-		return underlying.Write(storage.AddOp, newPath, mergedData)
+		return underlying.Write(storage.AddOp, storage.RootPath, mergedData)
 	}
 
 	for _, root := range params.BasePaths {
@@ -310,12 +310,7 @@ func (db *store) Read(_ context.Context, txn storage.Transaction, path storage.P
 		return nil, err
 	}
 
-	v, err := underlying.Read(path)
-	if err != nil {
-		return nil, err
-	}
-
-	return v, nil
+	return underlying.Read(path)
 }
 
 func (db *store) Write(_ context.Context, txn storage.Transaction, op storage.PatchOp, path storage.Path, value any) error {
@@ -323,12 +318,19 @@ func (db *store) Write(_ context.Context, txn storage.Transaction, op storage.Pa
 	if err != nil {
 		return err
 	}
+
+	if db.returnASTValuesOnRead || !util.NeedsRoundTrip(value) {
+		// Fast path when value is nil, bool, string or json.Number.
+		return underlying.Write(op, path, value)
+	}
+
 	val := util.Reference(value)
 	if db.roundTripOnWrite {
 		if err := util.RoundTrip(val); err != nil {
 			return err
 		}
 	}
+
 	return underlying.Write(op, path, *val)
 }
 
@@ -409,22 +411,12 @@ func (db *store) underlying(txn storage.Transaction) (*transaction, error) {
 	return underlying, nil
 }
 
-const rootMustBeObjectMsg = "root must be object"
-const rootCannotBeRemovedMsg = "root cannot be removed"
-
-func invalidPatchError(f string, a ...any) *storage.Error {
-	return &storage.Error{
-		Code:    storage.InvalidPatchErr,
-		Message: fmt.Sprintf(f, a...),
-	}
-}
-
 func mktree(path []string, value any) (map[string]any, error) {
 	if len(path) == 0 {
 		// For 0 length path the value is the full tree.
 		obj, ok := value.(map[string]any)
 		if !ok {
-			return nil, invalidPatchError(rootMustBeObjectMsg)
+			return nil, errors.RootMustBeObjectErr
 		}
 		return obj, nil
 	}

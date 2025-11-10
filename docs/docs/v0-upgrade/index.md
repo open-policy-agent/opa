@@ -54,14 +54,14 @@ Tabulated in this section are the different versions of OPA users might be
 working with in different parts of their systems. Select the scenario that best
 matches your setup to find the recommended upgrade path.
 
-If you are in doubt, [Scenario 1](#scenario-1) is the most common starting
+If you are in doubt, [Scenario 1](#scenario-1-v0x-producer-v0x-consumer) is the most common starting
 point and we recommended you start there.
 
 |                   | v0.x Consumer                        | Mix Consumer              | v1.0 Consumer                        |
 | ----------------- | ------------------------------------ | ------------------------- | ------------------------------------ |
-| **v0.x Producer** | [Scenario 1](#scenario-1) (All v0.x) | [Scenario 4](#scenario-4) | [Scenario 7](#scenario-7)            |
-| **Mix Producer**  | [Scenario 2](#scenario-2)            | [Scenario 5](#scenario-5) | [Scenario 8](#scenario-8)            |
-| **v1.0 Producer** | [Scenario 3](#scenario-3)            | [Scenario 6](#scenario-6) | [Scenario 9](#scenario-9) (All v1.0) |
+| **v0.x Producer** | [Scenario 1](#scenario-1-v0x-producer-v0x-consumer) (All v0.x) | [Scenario 4](#scenario-4-v0x-producer-mix-consumer) | [Scenario 7](#scenario-7-v0x-producer-v10-consumer)            |
+| **Mix Producer**  | [Scenario 2](#scenario-2-mix-producer-v0x-consumer)            | [Scenario 5](#scenario-5-mix-producer-mix-consumer) | [Scenario 8](#scenario-8-mix-producer-v10-consumer)            |
+| **v1.0 Producer** | [Scenario 3](#scenario-3-v10-producer-v0x-consumer)            | [Scenario 6](#scenario-6-v10-producer-mix-consumer) | [Scenario 9](#scenario-9-v10-producer-v10-consumer) (All v1.0) |
 
 ```mermaid
 graph LR
@@ -104,8 +104,8 @@ most common starting point for users upgrading from a v0.x version of OPA.
 
 #### Next
 
-Start upgrading producers to v1.0 ([Scenario 2](#scenario-2)) until all producers
-are v1.0 ([Scenario 3](#scenario-3)).
+Start upgrading producers to v1.0 ([Scenario 2](#scenario-2-mix-producer-v0x-consumer)) until all producers
+are v1.0 ([Scenario 3](#scenario-3-v10-producer-v0x-consumer)).
 
 ### Scenario 2: Mix Producer, v0.x Consumer
 
@@ -129,7 +129,7 @@ producers.
 #### Next
 
 Continue migrating producers to v1.0 until all producers have been upgraded
-([Scenario 3](#scenario-3)).
+([Scenario 3](#scenario-3-v10-producer-v0x-consumer)).
 
 ### Scenario 3: v1.0 Producer, v0.x Consumer
 
@@ -152,7 +152,7 @@ required.
 #### Next
 
 Now that all producers are v1.0, and consumers are still not all v1.0, it's time
-to get all the consumers to v1.0, ([Scenario 6](#scenario-6)).
+to get all the consumers to v1.0, ([Scenario 6](#scenario-6-v10-producer-mix-consumer)).
 
 ### Scenario 4: v0.x Producer, Mix Consumer
 
@@ -196,7 +196,7 @@ must be met for the upgrade to proceed.
 
 ### Next
 
-Please gradually upgrade producers to v1.0 until all producers are v1.0 ([Scenario 6](#scenario-6)).
+Please gradually upgrade producers to v1.0 until all producers are v1.0 ([Scenario 6](#scenario-6-v10-producer-mix-consumer)).
 
 ### Scenario 6: v1.0 Producer, Mix Consumer
 
@@ -216,7 +216,7 @@ compatible with their v0.x consumers, then this upgrade path is blocked.
 
 #### Next
 
-Running exclusively v1.0 producers and consumers, ([Scenario 9](#scenario-9)), is
+Running exclusively v1.0 producers and consumers, ([Scenario 9](#scenario-9-v10-producer-v10-consumer)), is
 the next and final step.
 
 ### Scenario 7: v0.x Producer, v1.0 Consumer
@@ -238,8 +238,8 @@ Rego version or the `--v0-compatible` flag is available for producers.
 
 #### Next
 
-Upgrade producers to v1.0 ([Scenario 8](#scenario-8)) until all producers are v1.0
-([Scenario 9](#scenario-9)).
+Upgrade producers to v1.0 ([Scenario 8](#scenario-8-mix-producer-v10-consumer)) until all producers are v1.0
+([Scenario 9](#scenario-9-v10-producer-v10-consumer)).
 
 ### Scenario 8: Mix Producer, v1.0 Consumer
 
@@ -262,7 +262,7 @@ they won't however accept bundles from v0.x producers unless they have `--v0-com
 
 #### Next
 
-Upgrade producers to v1.0 ([Scenario 9](#scenario-9)), completing the upgrade.
+Upgrade producers to v1.0 ([Scenario 9](#scenario-9-v10-producer-v10-consumer)), completing the upgrade.
 
 ### Scenario 9: v1.0 Producer, v1.0 Consumer
 
@@ -512,7 +512,7 @@ when the instance needs to be accessed by the host or another container.
 :::
 
 More information can be found in the
-[security documentation](../security/#interface-binding).
+[security documentation](../security#interface-binding).
 
 ## Upgrading for Go Integrations
 

@@ -61,17 +61,37 @@ type compressResponseWriter struct {
 	minlength     int
 }
 
-var gzipPool *sync.Pool
+var (
+	gzipPool                 *sync.Pool
+	gzipPoolMutex            sync.RWMutex
+	gzipPoolCompressionLevel int
+)
 
+// initGzipPool initializes the gzip pool with the specified compression level.
+// Note that this is not called when OPA's configuration is reloaded, only at startup.
 func initGzipPool(compressionLevel int) {
-	if gzipPool == nil {
-		gzipPool = &sync.Pool{
-			New: func() any {
-				writer, _ := gzip.NewWriterLevel(io.Discard, compressionLevel)
-				return writer
-			},
-		}
+	gzipPoolMutex.RLock()
+	if gzipPool != nil && gzipPoolCompressionLevel == compressionLevel {
+		gzipPoolMutex.RUnlock()
+		return
 	}
+	gzipPoolMutex.RUnlock()
+
+	gzipPoolMutex.Lock()
+	defer gzipPoolMutex.Unlock()
+
+	if gzipPool != nil && gzipPoolCompressionLevel == compressionLevel {
+		return
+	}
+
+	gzipPool = &sync.Pool{
+		New: func() any {
+			writer, _ := gzip.NewWriterLevel(io.Discard, compressionLevel)
+			return writer
+		},
+	}
+
+	gzipPoolCompressionLevel = compressionLevel
 }
 
 func (w *compressResponseWriter) WriteHeader(statusCode int) {
@@ -121,8 +141,16 @@ func (w *compressResponseWriter) Close() error {
 	}
 
 	err := w.gzipWriter.Close()
-	defer gzipPool.Put(w.gzipWriter)
+	if err != nil {
+		return err
+	}
+
+	gzipPoolMutex.RLock()
+	gzipPool.Put(w.gzipWriter)
+	gzipPoolMutex.RUnlock()
+
 	w.gzipWriter = nil
+
 	return err
 }
 
@@ -134,7 +162,9 @@ func (w *compressResponseWriter) doCompressedResponse() error {
 	if len(w.buffer) == 0 {
 		return nil
 	}
+	gzipPoolMutex.RLock()
 	gzipWriter := gzipPool.Get().(*gzip.Writer)
+	gzipPoolMutex.RUnlock()
 	gzipWriter.Reset(w.ResponseWriter)
 	w.gzipWriter = gzipWriter
 	_, err := w.gzipWriter.Write(w.buffer)
@@ -182,9 +212,7 @@ func isGetMethod(req *http.Request) bool {
 }
 
 func gzipHeaderDetected(header http.Header) bool {
-	a := header.Get("Accept-Encoding")
-	parts := strings.Split(a, ",")
-	for _, part := range parts {
+	for part := range strings.SplitSeq(header.Get("Accept-Encoding"), ",") {
 		part = strings.TrimSpace(part)
 		if part == gzipEncodingValue || strings.HasPrefix(part, gzipEncodingValue+";") {
 			return true

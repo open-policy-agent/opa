@@ -6,6 +6,14 @@
 # redirect them to /docs/
 /docs/latest/*    /docs/:splat    301
 
+# TODO remove after 2025-12-01
+# comparison-to-other-systems has been moved into a new section
+/docs/comparison-to-other-systems /docs/comparisons/access-control-systems
+# TODO remove after 2025-12-01
+# deployments page has been broken down into docker, k8s and operations.
+# /deploy is the best entry point now
+/docs/deployments /docs/deploy
+
 # these two pages have been moved in the creation of the new site.
 /docs/kubernetes-introduction/ /docs/kubernetes/
 /docs/kubernetes-tutorial/ /docs/kubernetes/tutorial/
@@ -13,9 +21,6 @@
 /docs/envoy-tutorial-istio/ /docs/envoy/tutorial-istio/
 /docs/envoy-tutorial-standalone-envoy/ /docs/envoy/tutorial-standalone-envoy/
 /docs/envoy-tutorial-gloo-edge/ /docs/envoy/tutorial-gloo-edge/
-# issue #7755 reports this too, even though it's older, we'll redirect it here
-# TODO: (charlieegan3) remove this redirect after 2025-09-01
-/docs/envoy-authorization/ /docs/envoy/
 
 # point to search for old ecosystem pages
 /integrations/:entry/*  /ecosystem?q=:entry 301!

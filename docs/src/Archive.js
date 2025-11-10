@@ -143,6 +143,16 @@ const Archive = (props) => {
               paddingLeft: 0,
             }}
           >
+            <li key="edge">
+              <a
+                href="https://edge--opa-docs.netlify.app"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                edge
+              </a>
+              &nbsp;(built from <code>main</code>)
+            </li>
             {descVersions.map((version) => (
               <li key={version}>
                 <a

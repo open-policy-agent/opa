@@ -29,7 +29,7 @@ import (
 
 func TestManifestStoreLifecycleSingleBundle(t *testing.T) {
 	store := inmemtst.New()
-	ctx := context.Background()
+	ctx := t.Context()
 	tb := Manifest{
 		Revision: "abc123",
 		Roots:    &[]string{"/a/b", "/a/c"},
@@ -43,7 +43,7 @@ func TestManifestStoreLifecycleSingleBundle(t *testing.T) {
 
 func TestManifestStoreLifecycleMultiBundle(t *testing.T) {
 	store := inmemtst.New()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	bundles := map[string]Manifest{
 		"bundle1": {
@@ -66,7 +66,7 @@ func TestManifestStoreLifecycleMultiBundle(t *testing.T) {
 
 func TestLegacyManifestStoreLifecycle(t *testing.T) {
 	store := inmemtst.New()
-	ctx := context.Background()
+	ctx := t.Context()
 	tb := Manifest{
 		Revision: "abc123",
 		Roots:    &[]string{"/a/b", "/a/c"},
@@ -104,7 +104,7 @@ func TestLegacyManifestStoreLifecycle(t *testing.T) {
 
 func TestMixedManifestStoreLifecycle(t *testing.T) {
 	store := inmemtst.New()
-	ctx := context.Background()
+	ctx := t.Context()
 	bundles := map[string]Manifest{
 		"bundle1": {
 			Revision: "abc123",
@@ -216,7 +216,7 @@ func verifyReadLegacyRevision(ctx context.Context, t *testing.T, store storage.S
 }
 
 func TestBundleLazyModeNoPolicyOrData(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	mockStore := mock.New()
 
 	compiler := ast.NewCompiler()
@@ -1827,7 +1827,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			mockStore := mock.New()
 
 			compiler := ast.NewCompiler()
@@ -1968,7 +1968,7 @@ func TestBundleLazyModeLifecycleRaw(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	mockStore := mock.New()
 
 	compiler := ast.NewCompiler()
@@ -2155,7 +2155,7 @@ func TestBundleLazyModeLifecycleRawInvalidData(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			ctx := context.Background()
+			ctx := t.Context()
 			mockStore := mock.New()
 
 			compiler := ast.NewCompiler()
@@ -2184,7 +2184,7 @@ func TestBundleLazyModeLifecycleRawInvalidData(t *testing.T) {
 }
 
 func TestBundleLazyModeLifecycle(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	mockStore := mock.New()
 
 	compiler := ast.NewCompiler()
@@ -2397,7 +2397,7 @@ func TestBundleLazyModeLifecycleRawNoBundleRoots(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	mockStore := mock.New()
 
 	compiler := ast.NewCompiler()
@@ -2564,7 +2564,7 @@ func TestBundleLazyModeLifecycleRawNoBundleRoots(t *testing.T) {
 }
 
 func TestBundleLazyModeLifecycleRawNoBundleRootsDiskStorage(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	test.WithTempFS(nil, func(dir string) {
 		store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
@@ -2756,7 +2756,7 @@ func TestBundleLazyModeLifecycleRawNoBundleRootsDiskStorage(t *testing.T) {
 }
 
 func TestBundleLazyModeLifecycleNoBundleRoots(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	mockStore := mock.New()
 	compiler := ast.NewCompiler()
 	m := metrics.New()
@@ -2936,7 +2936,7 @@ func TestBundleLazyModeLifecycleNoBundleRoots(t *testing.T) {
 }
 
 func TestBundleLazyModeLifecycleNoBundleRootsDiskStorage(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	test.WithTempFS(nil, func(dir string) {
 		store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
@@ -3148,7 +3148,7 @@ func TestBundleLazyModeLifecycleNoBundleRootsDiskStorage(t *testing.T) {
 }
 
 func TestBundleLazyModeLifecycleMixBundleTypeActivationDiskStorage(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	test.WithTempFS(nil, func(dir string) {
 		store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
@@ -3301,7 +3301,7 @@ func TestBundleLazyModeLifecycleMixBundleTypeActivationDiskStorage(t *testing.T)
 }
 
 func TestBundleLazyModeLifecycleOldBundleEraseDiskStorage(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	test.WithTempFS(nil, func(dir string) {
 		store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
@@ -3513,7 +3513,7 @@ func TestBundleLazyModeLifecycleOldBundleEraseDiskStorage(t *testing.T) {
 }
 
 func TestBundleLazyModeLifecycleRestoreBackupDB(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	test.WithTempFS(nil, func(dir string) {
 		store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
@@ -3737,7 +3737,7 @@ func TestBundleLazyModeLifecycleRestoreBackupDB(t *testing.T) {
 }
 
 func TestDeltaBundleLazyModeLifecycleDiskStorage(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	test.WithTempFS(nil, func(dir string) {
 		store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
@@ -4010,7 +4010,7 @@ func TestDeltaBundleLazyModeLifecycleDiskStorage(t *testing.T) {
 }
 
 func TestBundleLazyModeLifecycleOverlappingBundleRoots(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	mockStore := mock.New()
 
 	compiler := ast.NewCompiler()
@@ -4159,7 +4159,7 @@ func TestBundleLazyModeLifecycleOverlappingBundleRoots(t *testing.T) {
 }
 
 func TestBundleLazyModeLifecycleOverlappingBundleRootsDiskStorage(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	test.WithTempFS(nil, func(dir string) {
 		store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
@@ -4316,7 +4316,7 @@ func TestBundleLazyModeLifecycleOverlappingBundleRootsDiskStorage(t *testing.T) 
 }
 
 func TestBundleLazyModeLifecycleRawOverlappingBundleRoots(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	mockStore := mock.New()
 
 	compiler := ast.NewCompiler()
@@ -4449,7 +4449,7 @@ func TestBundleLazyModeLifecycleRawOverlappingBundleRoots(t *testing.T) {
 }
 
 func TestBundleLazyModeLifecycleRawOverlappingBundleRootsDiskStorage(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	test.WithTempFS(nil, func(dir string) {
 		store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
@@ -4586,7 +4586,7 @@ func TestBundleLazyModeLifecycleRawOverlappingBundleRootsDiskStorage(t *testing.
 }
 
 func TestDeltaBundleLazyModeLifecycle(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	mockStore := mock.New()
 
 	compiler := ast.NewCompiler()
@@ -4872,7 +4872,7 @@ func TestDeltaBundleLazyModeLifecycle(t *testing.T) {
 }
 
 func TestDeltaBundleLazyModeWithDefaultRules(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	mockStore := mock.New()
 
 	compiler := ast.NewCompiler()
@@ -5178,7 +5178,7 @@ func TestBundleLifecycle(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			mockStore := mock.New(inmem.OptReturnASTValuesOnRead(tc.readAst))
 
 			compiler := ast.NewCompiler()
@@ -5372,7 +5372,7 @@ func TestDeltaBundleLifecycle(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			mockStore := mock.New(inmem.OptReturnASTValuesOnRead(tc.readAst))
 
 			compiler := ast.NewCompiler()
@@ -5654,7 +5654,7 @@ func TestDeltaBundleActivate(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			mockStore := mock.New(inmem.OptReturnASTValuesOnRead(tc.readAst))
 
 			compiler := ast.NewCompiler()
@@ -5773,7 +5773,7 @@ func assertEqual(t *testing.T, expectAst bool, expected string, actual any) {
 
 func TestDeltaBundleBadManifest(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 	mockStore := mock.New()
 
 	compiler := ast.NewCompiler()
@@ -5888,7 +5888,7 @@ func TestEraseData(t *testing.T) {
 		},
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	cases := []struct {
 		note        string
 		initialData map[string]any
@@ -5986,7 +5986,7 @@ func TestEraseData(t *testing.T) {
 }
 
 func TestErasePolicies(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	cases := []struct {
 		note              string
 		initialPolicies   map[string][]byte
@@ -6119,7 +6119,7 @@ func TestWriteData(t *testing.T) {
 		},
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	cases := []struct {
 		note         string
 		existingData map[string]any
@@ -6377,7 +6377,7 @@ func testWriteData(t *testing.T, tc testWriteModuleCase, legacy bool) {
 
 	t.Run(testName, func(t *testing.T) {
 
-		ctx := context.Background()
+		ctx := t.Context()
 		mockStore := mock.NewWithData(tc.storeData)
 		txn := storage.NewTransactionOrDie(ctx, mockStore, storage.WriteParams)
 
@@ -6618,55 +6618,81 @@ func TestDoDFS(t *testing.T) {
 }
 
 func TestHasRootsOverlap(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	cases := []struct {
-		note        string
-		storeRoots  map[string]*[]string
-		bundleRoots map[string]*[]string
-		overlaps    bool
+		note           string
+		storeRoots     map[string]*[]string
+		newBundleRoots map[string]*[]string
+		expectedError  string
 	}{
 		{
-			note:        "no overlap with existing roots",
-			storeRoots:  map[string]*[]string{"bundle1": {"a", "b"}},
-			bundleRoots: map[string]*[]string{"bundle2": {"c"}},
-			overlaps:    false,
+			note:           "no overlap between store and new bundles",
+			storeRoots:     map[string]*[]string{"bundle1": {"a", "b"}},
+			newBundleRoots: map[string]*[]string{"bundle2": {"c"}},
 		},
 		{
-			note:        "no overlap with existing roots multiple bundles",
-			storeRoots:  map[string]*[]string{"bundle1": {"a", "b"}},
-			bundleRoots: map[string]*[]string{"bundle2": {"c"}, "bundle3": {"d"}},
-			overlaps:    false,
+			note:           "no overlap between store and multiple new bundles",
+			storeRoots:     map[string]*[]string{"bundle1": {"a", "b"}},
+			newBundleRoots: map[string]*[]string{"bundle2": {"c"}, "bundle3": {"d"}},
 		},
 		{
-			note:        "no overlap no existing roots",
-			storeRoots:  map[string]*[]string{},
-			bundleRoots: map[string]*[]string{"bundle1": {"a", "b"}},
-			overlaps:    false,
+			note:           "no overlap with empty store",
+			storeRoots:     map[string]*[]string{},
+			newBundleRoots: map[string]*[]string{"bundle1": {"a", "b"}},
 		},
 		{
-			note:        "no overlap without existing roots multiple bundles",
-			storeRoots:  map[string]*[]string{},
-			bundleRoots: map[string]*[]string{"bundle1": {"a", "b"}, "bundle2": {"c"}},
-			overlaps:    false,
+			note:           "no overlap between multiple new bundles with empty store",
+			storeRoots:     map[string]*[]string{},
+			newBundleRoots: map[string]*[]string{"bundle1": {"a", "b"}, "bundle2": {"c"}},
 		},
 		{
-			note:        "overlap without existing roots multiple bundles",
-			storeRoots:  map[string]*[]string{},
-			bundleRoots: map[string]*[]string{"bundle1": {"a", "b"}, "bundle2": {"a", "c"}},
-			overlaps:    true,
+			note:           "overlap between multiple new bundles with empty store",
+			storeRoots:     map[string]*[]string{},
+			newBundleRoots: map[string]*[]string{"bundle1": {"a", "b"}, "bundle2": {"a", "c"}},
+			expectedError:  "detected overlapping roots in manifests for these bundles: [bundle1, bundle2] (root a is in multiple bundles)",
 		},
 		{
-			note:        "overlap with existing roots",
-			storeRoots:  map[string]*[]string{"bundle1": {"a", "b"}},
-			bundleRoots: map[string]*[]string{"bundle2": {"c", "a"}},
-			overlaps:    true,
+			note:           "overlap between store and new bundle",
+			storeRoots:     map[string]*[]string{"bundle1": {"a", "b"}},
+			newBundleRoots: map[string]*[]string{"bundle2": {"c", "a"}},
+			expectedError:  "detected overlapping roots in manifests for these bundles: [bundle1, bundle2] (root a is in multiple bundles)",
 		},
 		{
-			note:        "overlap with existing roots multiple bundles",
-			storeRoots:  map[string]*[]string{"bundle1": {"a", "b"}},
-			bundleRoots: map[string]*[]string{"bundle2": {"c", "a"}, "bundle3": {"a"}},
-			overlaps:    true,
+			note:           "overlap between store and multiple new bundles",
+			storeRoots:     map[string]*[]string{"bundle1": {"a", "b"}},
+			newBundleRoots: map[string]*[]string{"bundle2": {"c", "a"}, "bundle3": {"a"}},
+			expectedError:  "detected overlapping roots in manifests for these bundles: [bundle1, bundle2, bundle3] (root a is in multiple bundles)",
+		},
+		{
+			note:           "overlap between store bundle and new empty root bundle",
+			storeRoots:     map[string]*[]string{"bundle1": {"a", "b"}},
+			newBundleRoots: map[string]*[]string{"bundle2": {""}},
+			expectedError:  "bundles [bundle1, bundle2] have overlapping roots and cannot be activated simultaneously because bundle(s) [bundle2] specify empty root paths ('') which overlap with any other bundle root",
+		},
+		{
+			note:           "overlap between multiple new empty root bundles",
+			storeRoots:     map[string]*[]string{},
+			newBundleRoots: map[string]*[]string{"bundle1": {""}, "bundle2": {""}},
+			expectedError:  "bundles [bundle1, bundle2] have overlapping roots and cannot be activated simultaneously because bundle(s) [bundle1, bundle2] specify empty root paths ('') which overlap with any other bundle root",
+		},
+		{
+			note:           "overlap between new empty root and new regular root bundles",
+			storeRoots:     map[string]*[]string{},
+			newBundleRoots: map[string]*[]string{"bundle1": {"a"}, "bundle2": {""}},
+			expectedError:  "bundles [bundle1, bundle2] have overlapping roots and cannot be activated simultaneously because bundle(s) [bundle2] specify empty root paths ('') which overlap with any other bundle root",
+		},
+		{
+			note:           "overlap between nested paths",
+			storeRoots:     map[string]*[]string{},
+			newBundleRoots: map[string]*[]string{"bundle1": {"a"}, "bundle2": {"a/b"}},
+			expectedError:  "detected overlapping roots in manifests for these bundles: [bundle1, bundle2] (a overlaps a/b)",
+		},
+		{
+			note:           "overlap between store nested path and new bundle path",
+			storeRoots:     map[string]*[]string{"bundle1": {"a/b"}},
+			newBundleRoots: map[string]*[]string{"bundle2": {"a"}},
+			expectedError:  "detected overlapping roots in manifests for these bundles: [bundle1, bundle2] (a overlaps a/b)",
 		},
 	}
 
@@ -6683,7 +6709,7 @@ func TestHasRootsOverlap(t *testing.T) {
 			}
 
 			bundles := map[string]*Bundle{}
-			for name, roots := range tc.bundleRoots {
+			for name, roots := range tc.newBundleRoots {
 				bundles[name] = &Bundle{
 					Manifest: Manifest{
 						Roots: roots,
@@ -6692,10 +6718,15 @@ func TestHasRootsOverlap(t *testing.T) {
 			}
 
 			err := hasRootsOverlap(ctx, mockStore, txn, bundles)
-			if !tc.overlaps && err != nil {
-				t.Fatalf("unepected error: %s", err)
-			} else if tc.overlaps && (err == nil || !strings.Contains(err.Error(), "detected overlapping roots in bundle manifest")) {
-				t.Fatalf("expected overlapping roots error, got: %s", err)
+			if tc.expectedError != "" {
+				if err == nil {
+					t.Fatalf("expected error %q, got nil", tc.expectedError)
+				}
+				if err.Error() != tc.expectedError {
+					t.Fatalf("expected error message %q, got %q", tc.expectedError, err.Error())
+				}
+			} else if err != nil {
+				t.Fatalf("unexpected error: %s", err)
 			}
 
 			err = mockStore.Commit(ctx, txn)
@@ -6723,7 +6754,7 @@ func TestBundleStoreHelpers(t *testing.T) {
 		},
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	bundles := map[string]*Bundle{
 		"bundle1": {
@@ -6964,7 +6995,7 @@ func TestActivate_DefaultRegoVersion(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			store := mock.New()
 			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 			compiler := ast.NewCompiler().WithDefaultRegoVersion(ast.RegoV0CompatV1)
@@ -7103,7 +7134,7 @@ func TestDeactivate_DefaultRegoVersion(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			store := mock.New()
 			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 

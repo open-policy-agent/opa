@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"maps"
 	"path/filepath"
+	"slices"
+	"sort"
 	"strings"
 	"sync"
 
@@ -84,6 +86,12 @@ func moduleInfoPath(id string) storage.Path {
 func read(ctx context.Context, store storage.Store, txn storage.Transaction, path storage.Path) (any, error) {
 	value, err := store.Read(ctx, txn, path)
 	if err != nil {
+		if storage.IsNotFound(err) {
+			return nil, &storage.Error{
+				Code:    storage.NotFoundErr,
+				Message: strings.TrimPrefix(path.String(), "/system") + ": document does not exist",
+			}
+		}
 		return nil, err
 	}
 
@@ -1059,32 +1067,40 @@ func lookup(path storage.Path, data map[string]any) (any, bool) {
 	return value, ok
 }
 
-func hasRootsOverlap(ctx context.Context, store storage.Store, txn storage.Transaction, bundles map[string]*Bundle) error {
-	collisions := map[string][]string{}
-	allBundles, err := ReadBundleNamesFromStore(ctx, store, txn)
+func hasRootsOverlap(ctx context.Context, store storage.Store, txn storage.Transaction, newBundles map[string]*Bundle) error {
+	storeBundles, err := ReadBundleNamesFromStore(ctx, store, txn)
 	if suppressNotFound(err) != nil {
 		return err
 	}
 
 	allRoots := map[string][]string{}
+	bundlesWithEmptyRoots := map[string]bool{}
 
 	// Build a map of roots for existing bundles already in the system
-	for _, name := range allBundles {
+	for _, name := range storeBundles {
 		roots, err := ReadBundleRootsFromStore(ctx, store, txn, name)
 		if suppressNotFound(err) != nil {
 			return err
 		}
 		allRoots[name] = roots
+		if slices.Contains(roots, "") {
+			bundlesWithEmptyRoots[name] = true
+		}
 	}
 
 	// Add in any bundles that are being activated, overwrite existing roots
 	// with new ones where bundles are in both groups.
-	for name, bundle := range bundles {
+	for name, bundle := range newBundles {
 		allRoots[name] = *bundle.Manifest.Roots
+		if slices.Contains(*bundle.Manifest.Roots, "") {
+			bundlesWithEmptyRoots[name] = true
+		}
 	}
 
 	// Now check for each new bundle if it conflicts with any of the others
-	for name, bundle := range bundles {
+	collidingBundles := map[string]bool{}
+	conflictSet := map[string]bool{}
+	for name, bundle := range newBundles {
 		for otherBundle, otherRoots := range allRoots {
 			if name == otherBundle {
 				// Skip the current bundle being checked
@@ -1094,22 +1110,41 @@ func hasRootsOverlap(ctx context.Context, store storage.Store, txn storage.Trans
 			// Compare the "new" roots with other existing (or a different bundles new roots)
 			for _, newRoot := range *bundle.Manifest.Roots {
 				for _, otherRoot := range otherRoots {
-					if RootPathsOverlap(newRoot, otherRoot) {
-						collisions[otherBundle] = append(collisions[otherBundle], newRoot)
+					if !RootPathsOverlap(newRoot, otherRoot) {
+						continue
+					}
+
+					collidingBundles[name] = true
+					collidingBundles[otherBundle] = true
+
+					// Different message required if the roots are same
+					if newRoot == otherRoot {
+						conflictSet[fmt.Sprintf("root %s is in multiple bundles", newRoot)] = true
+					} else {
+						paths := []string{newRoot, otherRoot}
+						sort.Strings(paths)
+						conflictSet[fmt.Sprintf("%s overlaps %s", paths[0], paths[1])] = true
 					}
 				}
 			}
 		}
 	}
 
-	if len(collisions) > 0 {
-		var bundleNames []string
-		for name := range collisions {
-			bundleNames = append(bundleNames, name)
-		}
-		return fmt.Errorf("detected overlapping roots in bundle manifest with: %s", bundleNames)
+	if len(collidingBundles) == 0 {
+		return nil
 	}
-	return nil
+
+	bundleNames := strings.Join(util.KeysSorted(collidingBundles), ", ")
+
+	if len(bundlesWithEmptyRoots) > 0 {
+		return fmt.Errorf(
+			"bundles [%s] have overlapping roots and cannot be activated simultaneously because bundle(s) [%s] specify empty root paths ('') which overlap with any other bundle root",
+			bundleNames,
+			strings.Join(util.KeysSorted(bundlesWithEmptyRoots), ", "),
+		)
+	}
+
+	return fmt.Errorf("detected overlapping roots in manifests for these bundles: [%s] (%s)", bundleNames, strings.Join(util.KeysSorted(conflictSet), ", "))
 }
 
 func applyPatches(ctx context.Context, store storage.Store, txn storage.Transaction, patches []PatchOperation) error {

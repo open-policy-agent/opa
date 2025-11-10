@@ -20,6 +20,6 @@ model_access := {
 }
 
 all_accessible_models contains m if {
-	some group in input.groups
+	some group in input.user.groups
 	some m in model_access[group]
 }

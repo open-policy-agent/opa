@@ -11,5 +11,5 @@ cases:
     note: jwtencodesignheadererrors/unknown signature algorithm
     query: data.generated.p = x
     strict_error: true
-    want_error: unknown signature algorithm
+    want_error: "unknown JWS algorithm: dummy"
     want_error_code: eval_builtin_error

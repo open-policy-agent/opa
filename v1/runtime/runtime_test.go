@@ -85,7 +85,7 @@ func TestRuntimeProcessWatchEvents(t *testing.T) {
 func testRuntimeProcessWatchEvents(t *testing.T, asBundle bool, readAst bool) {
 	t.Helper()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	fs := map[string]string{
 		"test/some/data.json": `{
 			"hello": "world"
@@ -125,7 +125,7 @@ func testRuntimeProcessWatchEvents(t *testing.T, asBundle bool, readAst bool) {
 			"hello": "world-2",
 		}
 
-		if err := os.WriteFile(path.Join(rootDir, "some/data.json"), util.MustMarshalJSON(expected), 0644); err != nil {
+		if err := os.WriteFile(path.Join(rootDir, "some/data.json"), util.MustMarshalJSON(expected), 0o644); err != nil {
 			panic(err)
 		}
 
@@ -177,7 +177,7 @@ func TestRuntimeProcessWatchEventPolicyErrorWithBundle(t *testing.T) {
 }
 
 func testRuntimeProcessWatchEventPolicyError(t *testing.T, asBundle bool) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	fs := map[string]string{
 		"test/x.rego": `package test
@@ -222,7 +222,7 @@ func testRuntimeProcessWatchEventPolicyError(t *testing.T, asBundle bool) {
 
 		default x = 2`)
 
-		if err := os.WriteFile(path.Join(rootDir, "y.rego"), newModule, 0644); err != nil {
+		if err := os.WriteFile(path.Join(rootDir, "y.rego"), newModule, 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -280,12 +280,11 @@ func testRuntimeProcessWatchEventPolicyError(t *testing.T, asBundle bool) {
 		if err != nil {
 			t.Fatalf("Expected result to succeed before %v. Last error: %v", maxWait, err)
 		}
-
 	})
 }
 
 func TestRuntimeReplWithBundleBuiltWithV1Compatibility(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	test.WithTempFS(nil, func(rootDir string) {
 		p := filepath.Join(rootDir, "bundle.tar.gz")
@@ -437,7 +436,7 @@ p contains 1 if {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 
 			test.WithTempFS(fs, func(rootDir string) {
@@ -470,7 +469,7 @@ p contains 1 if {
 				output.Reset()
 
 				// write new policy to disk, to trigger the watcher
-				if err := os.WriteFile(path.Join(rootDir, "authz.rego"), []byte(tc.policy), 0644); err != nil {
+				if err := os.WriteFile(path.Join(rootDir, "authz.rego"), []byte(tc.policy), 0o644); err != nil {
 					t.Fatal(err)
 				}
 
@@ -590,7 +589,7 @@ p contains 1 if {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 
 			test.WithTempFS(fs, func(rootDir string) {
@@ -618,17 +617,13 @@ p contains 1 if {
 				go rt.StartServer(ctx)
 
 				if !test.Eventually(t, 5*time.Second, func() bool {
-					found := false
-					for _, e := range testLogger.Entries() {
-						found = strings.Contains(e.Message, "Server initialized.") || found
-					}
-					return found
+					return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
 				}) {
 					t.Fatal("Timed out waiting for server to start")
 				}
 
 				// write new policy to disk, to trigger the watcher
-				if err := os.WriteFile(path.Join(rootDir, "authz.rego"), []byte(tc.policy), 0644); err != nil {
+				if err := os.WriteFile(path.Join(rootDir, "authz.rego"), []byte(tc.policy), 0o644); err != nil {
 					t.Fatal(err)
 				}
 
@@ -740,7 +735,7 @@ func TestCheckOPAUpdateLoopLaterRequests(t *testing.T) {
 
 	t.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	logger := logging.New()
 	stdout := bytes.NewBuffer(nil)
@@ -789,7 +784,7 @@ func TestCheckOPAUpdateLoopWithNewUpdate(t *testing.T) {
 }
 
 func TestRuntimeWithAuthzSchemaVerification(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	fs := map[string]string{
 		"test/authz.rego": `package system.authz
@@ -823,7 +818,7 @@ func TestRuntimeWithAuthzSchemaVerification(t *testing.T) {
            input.identty = "foo"
 		}`)
 
-		if err := os.WriteFile(path.Join(rootDir, "authz.rego"), badModule, 0644); err != nil {
+		if err := os.WriteFile(path.Join(rootDir, "authz.rego"), badModule, 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -846,7 +841,7 @@ func TestRuntimeWithAuthzSchemaVerification(t *testing.T) {
 }
 
 func TestRuntimeWithAuthzSchemaVerificationTransitive(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	fs := map[string]string{
 		"test/authz.rego": `package system.authz
@@ -891,7 +886,7 @@ func TestRuntimeWithAuthzSchemaVerificationTransitive(t *testing.T) {
 }
 
 func TestCheckAuthIneffective(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Millisecond)
 	defer cancel() // NOTE(sr): The timeout will have been reached by the time `done` is closed.
 
 	params := NewParams()
@@ -921,11 +916,10 @@ func TestCheckAuthIneffective(t *testing.T) {
 	if !strings.Contains(stdout.String(), expected) {
 		t.Fatalf("Expected output to contain: \"%v\" but got \"%v\"", expected, stdout.String())
 	}
-
 }
 
 func TestServerInitialized(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Millisecond)
 	defer cancel() // NOTE(sr): The timeout will have been reached by the time `done` is closed.
 	var output bytes.Buffer
 
@@ -1065,7 +1059,7 @@ func TestServerInitializedWithRegoV1(t *testing.T) {
 		for _, b := range bundle {
 			t.Run(fmt.Sprintf("%s; bundle=%v", tc.note, b), func(t *testing.T) {
 				test.WithTempFS(tc.files, func(root string) {
-					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+					ctx, cancel := context.WithTimeout(t.Context(), 2*time.Millisecond)
 					defer cancel()
 					var output bytes.Buffer
 
@@ -1385,7 +1379,7 @@ func TestServerInitializedWithBundleRegoVersion(t *testing.T) {
 						}
 					}
 
-					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+					ctx, cancel := context.WithTimeout(t.Context(), 2*time.Millisecond)
 					defer cancel()
 					var output bytes.Buffer
 
@@ -1437,7 +1431,7 @@ func TestGracefulTracerShutdown(t *testing.T) {
 	}
 
 	test.WithTempFS(fs, func(testDirRoot string) {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+		ctx, cancel := context.WithTimeout(t.Context(), 2*time.Millisecond)
 		defer cancel() // NOTE(sr): The timeout will have been reached by the time `done` is closed.
 
 		logger := testLog.New()
@@ -1474,32 +1468,44 @@ func TestGracefulTracerShutdown(t *testing.T) {
 func TestUrlPathToConfigOverride(t *testing.T) {
 	params := NewParams()
 	params.Paths = []string{"https://www.example.com/bundles/bundle.tar.gz"}
-	ctx := context.Background()
+	ctx := t.Context()
 	rt, err := NewRuntime(ctx, params)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	var serviceConf map[string]any
-	if err = json.Unmarshal(rt.Manager.Config.Services, &serviceConf); err != nil {
-		t.Fatal(err)
+	cfg := rt.Manager.GetConfig()
+
+	var servicesConfig map[string]map[string]any
+	if len(cfg.Services) > 0 {
+		if err := json.Unmarshal([]byte(cfg.Services), &servicesConfig); err != nil {
+			t.Fatal(err)
+		}
 	}
 
-	cliService, ok := serviceConf["cli1"].(map[string]any)
+	cliService, ok := servicesConfig["cli1"]
 	if !ok {
-		t.Fatal("excpected service configuration for 'cli1' service")
+		t.Fatal("expected service configuration for 'cli1' service")
 	}
 
 	if cliService["url"] != "https://www.example.com" {
 		t.Error("expected cli1 service url value: 'https://www.example.com'")
 	}
 
-	var bundleConf map[string]any
-	if err = json.Unmarshal(rt.Manager.Config.Bundles, &bundleConf); err != nil {
-		t.Fatal(err)
+	bundleConf := make(map[string]map[string]any)
+	if len(cfg.Bundles) > 0 {
+		var bundleConfRaw map[string]any
+		if err := json.Unmarshal([]byte(cfg.Bundles), &bundleConfRaw); err != nil {
+			t.Fatal(err)
+		}
+		for k, v := range bundleConfRaw {
+			if bundleMap, ok := v.(map[string]any); ok {
+				bundleConf[k] = bundleMap
+			}
+		}
 	}
 
-	cliBundle, ok := bundleConf["cli1"].(map[string]any)
+	cliBundle, ok := bundleConf["cli1"]
 	if !ok {
 		t.Fatal("excpected bundle configuration for 'cli1' bundle")
 	}
@@ -1534,7 +1540,7 @@ func testCheckOPAUpdate(t *testing.T, url string, expected *report.DataResponse)
 	t.Helper()
 	t.Setenv("OPA_TELEMETRY_SERVICE_URL", url)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	rt := getTestRuntime(ctx, t, logging.NewNoOpLogger())
 	result := rt.checkOPAUpdate(ctx)
 
@@ -1547,7 +1553,7 @@ func testCheckOPAUpdateLoop(t *testing.T, url, expected string) {
 	t.Helper()
 	t.Setenv("OPA_TELEMETRY_SERVICE_URL", url)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	logger := logging.New()
 	stdout := bytes.NewBuffer(nil)
@@ -1598,7 +1604,7 @@ func TestAddrWarningMessage(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+			ctx, cancel := context.WithTimeout(t.Context(), 2*time.Millisecond)
 			defer cancel()
 
 			params := NewParams()
@@ -1646,7 +1652,7 @@ func TestRuntimeWithExplicitMetricConfiguration(t *testing.T) {
 		params := NewParams()
 		params.ConfigFile = filepath.Join(testDirRoot, "config.yaml")
 
-		_, err := NewRuntime(context.Background(), params)
+		_, err := NewRuntime(t.Context(), params)
 		if err != nil {
 			t.Fatal(err.Error())
 		}
@@ -1662,7 +1668,7 @@ func TestRuntimeWithExplicitBadMetricConfiguration(t *testing.T) {
 		params := NewParams()
 		params.ConfigFile = filepath.Join(testDirRoot, "config.yaml")
 
-		_, err := NewRuntime(context.Background(), params)
+		_, err := NewRuntime(t.Context(), params)
 		if err == nil {
 			t.Fatalf("Expected error to be thrown on malformed metrics config")
 		}
@@ -1674,7 +1680,7 @@ func TestRuntimeWithExplicitBadMetricConfiguration(t *testing.T) {
 }
 
 func TestExtraDiscoveryOpts(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/discovery.tar.gz", map[string]string{
 			"main.rego": `
@@ -1774,7 +1780,7 @@ func (*factory) Reconfigure(context.Context, any) {
 // in OPA run as server.
 func TestCustomHandlerFlusher(t *testing.T) {
 	fact := &factory{}
-	ctx := context.Background()
+	ctx := t.Context()
 	spanExporter := tracetest.NewInMemoryExporter()
 	options := tracing.NewOptions(
 		otelhttp.WithTracerProvider(trace.NewTracerProvider(trace.WithSpanProcessor(trace.NewSimpleSpanProcessor(spanExporter)))),
@@ -1816,11 +1822,7 @@ func TestCustomHandlerFlusher(t *testing.T) {
 			}
 			go rt.StartServer(ctx)
 			if !test.Eventually(t, 5*time.Second, func() bool {
-				found := false
-				for _, e := range testLogger.Entries() {
-					found = strings.Contains(e.Message, "Server initialized.") || found
-				}
-				return found
+				return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
 			}) {
 				t.Fatal("Timed out waiting for server to start")
 			}
@@ -1883,14 +1885,14 @@ func (ch *configHook) OnConfig(_ context.Context, c *config.Config) (*config.Con
 }
 
 func TestConfigHookAndNonReplacedEnvVars(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Millisecond)
 	defer cancel() // NOTE(sr): The timeout will have been reached by the time `done` is closed.
 	testLogger := testLog.New()
 
 	hk := configHook{}
 
 	cf := filepath.Join(t.TempDir(), "opa.yaml")
-	if err := os.WriteFile(cf, []byte("some: ${thing}\n"), 0755); err != nil {
+	if err := os.WriteFile(cf, []byte("some: ${thing}\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1946,7 +1948,7 @@ func (j *iqvcHook) OnInterQueryValueCache(_ context.Context, c topdown_cache.Int
 }
 
 func TestCacheHooksOnServer(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Millisecond)
 	defer cancel() // NOTE(sr): The timeout will have been reached by the time `done` is closed.
 	testLogger := testLog.New()
 
@@ -1999,7 +2001,7 @@ func (f *fakeStore) Read(ctx context.Context, txn storage.Transaction, p storage
 }
 
 func TestCustomStoreBuilder(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	testLogger := testLog.New()
 	params := NewParams()
 	params.Logger = testLogger
@@ -2024,11 +2026,7 @@ func TestCustomStoreBuilder(t *testing.T) {
 	}
 	go rt.StartServer(ctx)
 	if !test.Eventually(t, 5*time.Second, func() bool {
-		found := false
-		for _, e := range testLogger.Entries() {
-			found = strings.Contains(e.Message, "Server initialized.") || found
-		}
-		return found
+		return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
 	}) {
 		t.Fatal("Timed out waiting for server to start")
 	}
@@ -2058,7 +2056,7 @@ func TestCustomStoreBuilder(t *testing.T) {
 }
 
 func TestExtraMiddleware(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	testLogger := testLog.New()
 	params := NewParams()
 	params.Logger = testLogger
@@ -2079,11 +2077,7 @@ func TestExtraMiddleware(t *testing.T) {
 	}))
 	go rt.StartServer(ctx)
 	if !test.Eventually(t, 5*time.Second, func() bool {
-		found := false
-		for _, e := range testLogger.Entries() {
-			found = strings.Contains(e.Message, "Server initialized.") || found
-		}
-		return found
+		return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
 	}) {
 		t.Fatal("Timed out waiting for server to start")
 	}
@@ -2111,7 +2105,7 @@ func TestExtraMiddleware(t *testing.T) {
 }
 
 func TestExtraAuthorizerRoutes(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	testLogger := testLog.New()
 	params := NewParams()
 	params.Logger = testLogger
@@ -2126,7 +2120,7 @@ default allow := false # Reject requests by default.
 allow if {
 	input.method == "POST"
 	input.path == ["exp", "foo"]
-	input.body.example == "A" 
+	input.body.example == "A"
 }`)
 
 	rt, err := NewRuntime(ctx, params)
@@ -2158,11 +2152,7 @@ allow if {
 	})
 	go rt.StartServer(ctx)
 	if !test.Eventually(t, 5*time.Second, func() bool {
-		found := false
-		for _, e := range testLogger.Entries() {
-			found = strings.Contains(e.Message, "Server initialized.") || found
-		}
-		return found
+		return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
 	}) {
 		t.Fatal("Timed out waiting for server to start")
 	}

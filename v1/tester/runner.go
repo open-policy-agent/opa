@@ -1099,7 +1099,7 @@ func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod 
 			b.ReportAllocs()
 		}
 
-		for range b.N {
+		for b.Loop() {
 			opts := []rego.EvalOption{rego.EvalTransaction(txn), rego.EvalMetrics(m)}
 
 			var tracer *TestQueryTracer
@@ -1172,10 +1172,12 @@ func LoadWithRegoVersion(args []string, filter loader.Filter, regoVersion ast.Re
 	}
 
 	var store storage.Store
+	ctx := context.Background()
+
 	if bundle.BundleExtStore != nil {
 		store = bundle.BundleExtStore()
 		// inline'd NewFromObject
-		if err := storage.WriteOne(context.Background(), store, storage.AddOp, storage.Path{}, loaded.Documents); err != nil {
+		if err := storage.WriteOne(ctx, store, storage.AddOp, storage.RootPath, loaded.Documents); err != nil {
 			return nil, nil, err
 		}
 	} else {
@@ -1183,7 +1185,7 @@ func LoadWithRegoVersion(args []string, filter loader.Filter, regoVersion ast.Re
 	}
 
 	modules := make(map[string]*ast.Module, len(loaded.Modules))
-	ctx := context.Background()
+
 	err = storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
 		for _, loadedModule := range loaded.Modules {
 			modules[loadedModule.Name] = loadedModule.Parsed
@@ -1213,12 +1215,15 @@ func LoadWithParserOptions(args []string, filter loader.Filter, popts ast.Parser
 	if err != nil {
 		return nil, nil, err
 	}
+
 	var store storage.Store
+	ctx := context.Background()
+
 	// Plumb in storage for external bundle activation plugin, if registered with bundle.RegisterStore.
 	if bundle.BundleExtStore != nil {
 		store = bundle.BundleExtStore()
 		// inline'd NewFromObject
-		if err := storage.WriteOne(context.Background(), store, storage.AddOp, storage.Path{}, loaded.Documents); err != nil {
+		if err := storage.WriteOne(ctx, store, storage.AddOp, storage.RootPath, loaded.Documents); err != nil {
 			return nil, nil, err
 		}
 	} else {
@@ -1226,7 +1231,6 @@ func LoadWithParserOptions(args []string, filter loader.Filter, popts ast.Parser
 	}
 
 	modules := make(map[string]*ast.Module, len(loaded.Modules))
-	ctx := context.Background()
 	err = storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
 		for _, loadedModule := range loaded.Modules {
 			modules[loadedModule.Name] = loadedModule.Parsed
@@ -1234,8 +1238,7 @@ func LoadWithParserOptions(args []string, filter loader.Filter, popts ast.Parser
 			// Add the policies to the store to ensure that any future bundle
 			// activations will preserve them and re-compile the module with
 			// the bundle modules.
-			err := store.UpsertPolicy(ctx, txn, loadedModule.Name, loadedModule.Raw)
-			if err != nil {
+			if err := store.UpsertPolicy(ctx, txn, loadedModule.Name, loadedModule.Raw); err != nil {
 				return err
 			}
 		}

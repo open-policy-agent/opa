@@ -3,6 +3,8 @@ package util
 import (
 	"math"
 	"slices"
+	"strings"
+	"sync"
 	"unsafe"
 )
 
@@ -42,6 +44,12 @@ func StringToByteSlice[T ~string](s T) []byte {
 // NumDigitsInt returns the number of digits in n.
 // This is useful for pre-allocating buffers for string conversion.
 func NumDigitsInt(n int) int {
+	return NumDigitsInt64(int64(n))
+}
+
+// NumDigitsInt64 returns the number of digits in n.
+// This is useful for pre-allocating buffers for string conversion.
+func NumDigitsInt64(n int64) int {
 	if n == 0 {
 		return 1
 	}
@@ -72,4 +80,60 @@ func KeysCount[K comparable, V any](m map[K]V, p func(K) bool) int {
 		}
 	}
 	return count
+}
+
+// SplitMap calls fn for each delim-separated part of text and returns a slice of the results.
+// Cheaper than calling fn on strings.Split(text, delim), as it avoids allocating an intermediate slice of strings.
+func SplitMap[T any](text string, delim string, fn func(string) T) []T {
+	sl := make([]T, 0, strings.Count(text, delim)+1)
+	for s := range strings.SplitSeq(text, delim) {
+		sl = append(sl, fn(s))
+	}
+	return sl
+}
+
+// SlicePool is a pool for (pointers to) slices of type T.
+// It uses sync.Pool to pool the slices, and grows them as needed.
+type SlicePool[T any] struct {
+	pool sync.Pool
+}
+
+// NewSlicePool creates a new SlicePool for slices of type T with the given initial length.
+// This number is only a hint, as the slices will grow as needed. For best performance, store
+// slices of similar lengths in the same pool.
+func NewSlicePool[T any](length int) *SlicePool[T] {
+	return &SlicePool[T]{
+		pool: sync.Pool{
+			New: func() any {
+				s := make([]T, length)
+				return &s
+			},
+		},
+	}
+}
+
+// Get returns a pointer to a slice of type T with the given length
+// from the pool. The slice capacity will grow as needed to accommodate
+// the requested length. The returned slice will have all its elements
+// set to the zero value of T. Returns a pointer to avoid allocating.
+func (sp *SlicePool[T]) Get(length int) *[]T {
+	s := sp.pool.Get().(*[]T)
+	d := *s
+
+	if cap(d) < length {
+		d = slices.Grow(d, length)
+	}
+
+	d = d[:length] // reslice to requested length, while keeping capacity
+
+	clear(d)
+
+	*s = d
+
+	return s
+}
+
+// Put returns a pointer to a slice of type T to the pool.
+func (sp *SlicePool[T]) Put(s *[]T) {
+	sp.pool.Put(s)
 }

@@ -28,7 +28,7 @@ func BenchmarkParseModuleRulesBase(b *testing.B) {
 // BenchmarkParseStatementBasic gives a baseline for parsing a simple
 // statement with a single call and two variables
 func BenchmarkParseStatementBasicCall(b *testing.B) {
-	runParseStatementBenchmark(b, `a+b`)
+	runParseStatementBenchmark(b, `a + b`)
 }
 
 func BenchmarkParseStatementMixedJSON(b *testing.B) {
@@ -76,6 +76,18 @@ func BenchmarkParseStatementNestedObjects(b *testing.B) {
 	}
 }
 
+func BenchmarkParseSome(b *testing.B) {
+	for b.Loop() {
+		_ = MustParseStatement("some foo")
+	}
+}
+
+func BenchmarkParseEvery(b *testing.B) {
+	for b.Loop() {
+		_ = MustParseStatement("every x, y in input { x == y}")
+	}
+}
+
 // BenchmarkParseDeepNesting tests the impact of recursion depth tracking
 // on parsing performance with deeply nested structures (arrays and objects).
 // Different depths are used to measure the overhead at various nesting levels.
@@ -108,6 +120,15 @@ func BenchmarkParseStatementNestedObjectsOrSets(b *testing.B) {
 			stmt := generateObjectOrSetStatement(size)
 			runParseStatementBenchmarkWithError(b, stmt)
 		})
+	}
+}
+
+// 7471 ns/op	    8024 B/op	      56 allocs/op
+func BenchmarkParseVars(b *testing.B) {
+	for b.Loop() {
+		if _, err := ParseExpr(`data[i][_][j]`); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -170,8 +191,7 @@ func BenchmarkParseBasicABACModule(b *testing.B) {
 }
 
 func runParseModuleBenchmark(b *testing.B, mod string) {
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		_, err := ParseModuleWithOpts("", mod, ParserOptions{AllFutureKeywords: true})
 		if err != nil {
 			b.Fatalf("Unexpected error: %s", err)
@@ -180,8 +200,7 @@ func runParseModuleBenchmark(b *testing.B, mod string) {
 }
 
 func runParseStatementBenchmark(b *testing.B, stmt string) {
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		_, err := ParseStatement(stmt)
 		if err != nil {
 			b.Fatalf("Unexpected error: %s", err)
@@ -190,8 +209,7 @@ func runParseStatementBenchmark(b *testing.B, stmt string) {
 }
 
 func runParseStatementBenchmarkWithError(b *testing.B, stmt string) {
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		_, err := ParseStatement(stmt)
 		if err == nil {
 			b.Fatalf("Expected error: %s", err)

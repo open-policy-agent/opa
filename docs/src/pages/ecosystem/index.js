@@ -83,7 +83,7 @@ const EcosystemIndex = (props) => {
         <div className={styles.section}>
           <div className={styles.sectionContent}>
             <div className={styles.languageSection}>
-              <Heading as="h2">Create With OPA</Heading>
+              <Heading id="languages" as="h2">Create With OPA</Heading>
               <p>Integrate with OPA from your language</p>
               <div className={styles.languageGrid}>
                 {preferredLanguageOrder.map((langId) => {

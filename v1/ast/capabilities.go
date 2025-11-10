@@ -14,6 +14,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/open-policy-agent/opa/internal/semver"
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/capabilities"
@@ -38,14 +39,15 @@ type VersionIndex struct {
 //go:embed version_index.json
 var versionIndexBs []byte
 
-var minVersionIndex = func() VersionIndex {
+// init only on demand, as JSON unmarshalling comes with some cost, and contributes
+// noise to things like pprof stats
+var minVersionIndexOnce = sync.OnceValue(func() VersionIndex {
 	var vi VersionIndex
-	err := json.Unmarshal(versionIndexBs, &vi)
-	if err != nil {
+	if err := json.Unmarshal(versionIndexBs, &vi); err != nil {
 		panic(err)
 	}
 	return vi
-}()
+})
 
 // In the compiler, we used this to check that we're OK working with ref heads.
 // If this isn't present, we'll fail. This is to ensure that older versions of
@@ -93,7 +95,6 @@ type Capabilities struct {
 	// As of now, this only controls fetching remote refs for using JSON Schemas in
 	// the type checker.
 	// TODO(sr): support ports to further restrict connection peers
-	// TODO(sr): support restricting `http.send` using the same mechanism (see https://github.com/open-policy-agent/opa/issues/3665)
 	AllowNet []string `json:"allow_net,omitempty"`
 }
 
@@ -218,19 +219,18 @@ func LoadCapabilitiesVersions() ([]string, error) {
 	for _, ent := range ents {
 		capabilitiesVersions = append(capabilitiesVersions, strings.Replace(ent.Name(), ".json", "", 1))
 	}
+
+	slices.SortStableFunc(capabilitiesVersions, semver.Compare)
+
 	return capabilitiesVersions, nil
 }
 
 // MinimumCompatibleVersion returns the minimum compatible OPA version based on
 // the built-ins, features, and keywords in c.
 func (c *Capabilities) MinimumCompatibleVersion() (string, bool) {
-
-	var maxVersion semver.Version
-
 	// this is the oldest OPA release that includes capabilities
-	if err := maxVersion.Set("0.17.0"); err != nil {
-		panic("unreachable")
-	}
+	maxVersion := semver.MustParse("0.17.0")
+	minVersionIndex := minVersionIndexOnce()
 
 	for _, bi := range c.Builtins {
 		v, ok := minVersionIndex.Builtins[bi.Name]

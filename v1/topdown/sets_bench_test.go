@@ -5,7 +5,6 @@
 package topdown
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -27,7 +26,7 @@ func genNxMSetBenchmarkData(n, m int) ast.Value {
 }
 
 func BenchmarkSetIntersection(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	sizes := []int{10, 100, 1000}
 
@@ -47,7 +46,7 @@ func BenchmarkSetIntersection(b *testing.B) {
 
 				b.ResetTimer()
 
-				for range b.N {
+				for b.Loop() {
 					err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 						_, err := NewQuery(query).
 							WithCompiler(compiler).
@@ -68,7 +67,7 @@ func BenchmarkSetIntersection(b *testing.B) {
 }
 
 func BenchmarkSetIntersectionSlow(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	sizes := []int{10, 50, 100}
 
@@ -93,7 +92,7 @@ func BenchmarkSetIntersectionSlow(b *testing.B) {
 
 				b.ResetTimer()
 
-				for range b.N {
+				for b.Loop() {
 					err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 						_, err := NewQuery(query).
 							WithCompiler(compiler).
@@ -114,7 +113,7 @@ func BenchmarkSetIntersectionSlow(b *testing.B) {
 }
 
 func BenchmarkSetUnion(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	sizes := []int{10, 100, 250}
 
@@ -137,7 +136,7 @@ func BenchmarkSetUnion(b *testing.B) {
 
 				b.ResetTimer()
 
-				for range b.N {
+				for b.Loop() {
 					err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 						_, err := NewQuery(query).
 							WithCompiler(compiler).
@@ -161,7 +160,7 @@ func BenchmarkSetUnionSlow(b *testing.B) {
 	// This benchmarks the suggested means to implement union
 	// without using the builtin, to give us an idea of whether or not
 	// the builtin is actually making things any faster.
-	ctx := context.Background()
+	ctx := b.Context()
 
 	sizes := []int{10, 100, 250}
 
@@ -184,7 +183,7 @@ func BenchmarkSetUnionSlow(b *testing.B) {
 
 				b.ResetTimer()
 
-				for range b.N {
+				for b.Loop() {
 					err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 						_, err := NewQuery(query).
 							WithCompiler(compiler).

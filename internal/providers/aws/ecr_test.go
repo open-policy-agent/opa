@@ -1,7 +1,6 @@
 package aws
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -38,7 +37,7 @@ func TestECR(t *testing.T) {
 	}
 
 	creds := Credentials{}
-	token, err := ecr.GetAuthorizationToken(context.Background(), creds, "v4")
+	token, err := ecr.GetAuthorizationToken(t.Context(), creds, "v4")
 	if err != nil {
 		t.Errorf("ecrServer.getAuthorizationToken = %v", err)
 	}

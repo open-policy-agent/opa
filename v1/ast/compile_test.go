@@ -7372,6 +7372,39 @@ func TestCompilerRewritePrintCallsErrors(t *testing.T) {
 	}
 }
 
+// Regression test for bug #7647
+// head values in nested comprehensions should not lead to undeclared error.
+func TestCompilterRewritePrintCallsNestedComprehensionLocalsSafe(t *testing.T) {
+	cases := []struct {
+		note   string
+		module string
+	}{
+		{
+			note: "print variable from nested comprehension without error",
+			module: `package test
+		    f(_) := {"a": [1, 2, 3], "b": [4, 5, 6], "c": [7, 8, 9]}
+
+		    p := [v |
+			m := {l | l := f(true)[k]}[_]
+			v := m[_]
+			print(v)
+			]`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler().WithEnablePrintStatements(true)
+			c.Compile(map[string]*Module{
+				"test.rego": module(tc.module),
+			})
+			if c.Failed() {
+				t.Fatal("unexpected error:", c.Errors)
+			}
+		})
+	}
+}
+
 func TestCompilerRewritePrintCalls(t *testing.T) {
 	cases := []struct {
 		note   string

@@ -1,215 +1,248 @@
+version: "2"
 run:
   timeout: 5m
-
-issues:
-  max-same-issues: 0 # don't hide issues in CI runs because they are the same type
-  exclude-dirs:
-    - internal/gojsonschema
-    - internal/jwx
-  exclude-rules:
-    - path: ast/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: bundle/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: capabilities/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: compile/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: config/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: cover/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: debug/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: dependencies/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: download/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: format/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: hooks/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: ir/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: keys/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: loader/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: logging/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: metrics/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: plugins/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: profiler/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: refactor/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: repl/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: rego/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: resolver/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: runtime/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: schemas/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: sdk/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: server/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: storage/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: tester/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: topdown/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: tracing/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: types/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: util/
-      linters:
-        - staticcheck
-      text: "SA1019"
-    - path: version/
-      linters:
-        - staticcheck
-      text: "SA1019"
-
-linters-settings:
-  lll:
-    line-length: 200
-  gocritic:
-    disabled-checks:
-      - appendAssign
-      # NOTE(ae): this one should be enabled, but there were too
-      # many violations to fix in one go... revisit later
-      - singleCaseSwitch
-      # Reasonable rule, but not sure what to replace with in
-      # many locations, so disabling for now
-      - exitAfterDefer
-      # The following 3 rules are disabled from the perfomance tag
-      # enabled further down. The first two are reasonable, but not
-      # super important. appendCombine is really nice though! And
-      # should be enabled. Just many places to fix..
-      - hugeParam
-      - preferFprint
-      - appendCombine
-    enabled-checks:
-      # NOTE that these are rules enabled in addition to the default set
-      - filepathJoin
-      - dupImport
-      - redundantSprint
-      - stringConcatSimplify
-    enabled-tags:
-      - performance
-    settings:
-      ifElseChain:
-        # ridiculous value set for now, but this should be
-        # lowered to something more reasonable, as the rule
-        # is reasonable (replace long if-else chains with
-        # switch)... just too many violations right now
-        minThreshold: 10
-  govet:
-    enable:
-      - deepequalerrors
-      - nilness
-  perfsprint:
-    # only rule disabled by default, but it's a good one
-    err-error: true
-  revive:
-    rules:
-    # this mainly complains about us using min/max for variable names,
-    # which seems like an unlikely source of actual issues
-      - name: redefines-builtin-id
-        disabled: true
-      - name: unused-receiver
-        disabled: false
-
 linters:
-  disable-all: true
+  default: none
   enable:
-    - mirror
+    - copyloopvar
     - errcheck
+    - gocritic
     - govet
     - ineffassign
     - intrange
+    - mirror
+    - misspell
+    - perfsprint
+    - prealloc
     - revive # replacement for golint
+    - staticcheck
+    - unconvert
+    - unused
+    - usetesting
+    # - gosec # too many false positives
+  settings:
+    gocritic:
+      enabled-checks:
+        # NOTE that these are rules enabled in addition to the default set
+        - filepathJoin
+        - dupImport
+        - redundantSprint
+        - stringConcatSimplify
+      disabled-checks:
+        - appendAssign
+        # NOTE(ae): this one should be enabled, but there were too
+        # many violations to fix in one go... revisit later
+        - singleCaseSwitch
+        # Reasonable rule, but not sure what to replace with in
+        # many locations, so disabling for now
+        - exitAfterDefer
+        # The following 3 rules are disabled from the perfomance tag
+        # enabled further down. The first two are reasonable, but not
+        # super important. appendCombine is really nice though! And
+        # should be enabled. Just many places to fix..
+        - hugeParam
+        - preferFprint
+        - appendCombine
+      enabled-tags:
+        - performance
+      settings:
+        ifElseChain:
+          # ridiculous value set for now, but this should be
+          # lowered to something more reasonable, as the rule
+          # is reasonable (replace long if-else chains with
+          # switch)... just too many violations right now
+          minThreshold: 10
+    govet:
+      enable:
+        - deepequalerrors
+        - nilness
+    lll:
+      line-length: 200
+    perfsprint:
+      # only rule disabled by default, but it's a good one
+      err-error: true
+    revive:
+      # this mainly complains about us using min/max for variable names,
+      # which seems like an unlikely source of actual issues
+      rules:
+        - name: redefines-builtin-id
+          disabled: true
+        - name: unused-receiver
+          disabled: false
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - staticcheck
+        path: ast/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: bundle/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: capabilities/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: compile/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: config/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: cover/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: debug/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: dependencies/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: download/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: format/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: hooks/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: ir/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: keys/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: loader/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: logging/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: metrics/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: plugins/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: profiler/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: refactor/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: repl/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: rego/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: resolver/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: runtime/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: schemas/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: sdk/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: server/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: storage/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: tester/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: topdown/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: tracing/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: types/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: util/
+        text: SA1019
+      - linters:
+          - staticcheck
+        path: version/
+        text: SA1019
+      - linters:
+          - staticcheck
+        text: QF1001
+      - linters:
+          - staticcheck
+        text: QF1002
+      - linters:
+          - staticcheck
+        text: QF1003
+      - linters:
+          - staticcheck
+        text: QF1008
+      - linters:
+          - staticcheck
+        text: QF1009
+      - linters:
+          - staticcheck
+        text: QF1012
+    paths:
+      - internal/gojsonschema
+      - third_party$
+      - builtin$
+      - examples$
+issues:
+  # don't hide issues in CI runs because they are the same type
+  max-same-issues: 0
+formatters:
+  enable:
     - gofmt
     - goimports
-    - unused
-    - misspell
-    - usetesting
-    - typecheck
-    - staticcheck
-    - gosimple
-    - prealloc
-    - unconvert
-    - copyloopvar
-    - perfsprint
-    - gocritic
-    # - gosec # too many false positives
+  exclusions:
+    generated: lax
+    paths:
+      - internal/gojsonschema
+      - third_party$
+      - builtin$
+      - examples$

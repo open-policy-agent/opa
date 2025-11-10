@@ -41,12 +41,14 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/open-policy-agent/opa/internal/distributedtracing"
 	"github.com/open-policy-agent/opa/internal/prometheus"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/config"
 	"github.com/open-policy-agent/opa/v1/logging"
+	loggingtest "github.com/open-policy-agent/opa/v1/logging/test"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
 	pluginBundle "github.com/open-policy-agent/opa/v1/plugins/bundle"
@@ -143,7 +145,7 @@ func TestUnversionedGetHealthCheckBundleActivationSingleLegacy(t *testing.T) {
 
 	f := newFixture(t)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// The server doesn't know about any bundles, so return a healthy status
 	req := newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
@@ -154,7 +156,6 @@ func TestUnversionedGetHealthCheckBundleActivationSingleLegacy(t *testing.T) {
 			Revision: "a",
 		})
 	})
-
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -611,7 +612,7 @@ func TestUnversionedGetHealthWithPolicyMissing(t *testing.T) {
 func TestUnversionedGetHealthWithPolicyUpdates(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 	healthPolicy := `package system.health
@@ -653,7 +654,7 @@ func TestUnversionedGetHealthWithPolicyUpdates(t *testing.T) {
 func TestUnversionedGetHealthWithPolicyUsingPlugins(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 	healthPolicy := `package system.health
@@ -1183,7 +1184,7 @@ func TestCompileV1(t *testing.T) {
 func TestCompileV1Observability(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	test.WithTempFS(nil, func(root string) {
 		disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
@@ -1687,7 +1688,7 @@ p = true if { false }`
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			test.WithTempFS(nil, func(root string) {
-				ctx, cancel := context.WithCancel(context.Background())
+				ctx, cancel := context.WithCancel(t.Context())
 				defer cancel()
 				disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
 				if err != nil {
@@ -1710,7 +1711,7 @@ p = true if { false }`
 func TestDataV1Metrics(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	test.WithTempFS(nil, func(root string) {
 		disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
@@ -1750,9 +1751,7 @@ func TestDataV1Metrics(t *testing.T) {
 func TestConfigV1(t *testing.T) {
 	t.Parallel()
 
-	f := newFixture(t)
-
-	c := []byte(`{"services": {
+	c := `{"services": {
 			"acmecorp": {
 				"url": "https://example.com/control-plane-api/v1",
 				"credentials": {"bearer": {"token": "test"}}
@@ -1763,21 +1762,16 @@ func TestConfigV1(t *testing.T) {
 		},
 		"keys": {
 			"global_key": {
-				"algorithm": HS256,
+				"algorithm": "HS256",
 				"key": "secret"
 			}
-		}}`)
+		}}`
 
-	conf, err := config.ParseConfig(c, "foo")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	f.server.manager.Config = conf
+	f := newFixtureWithConfig(t, c)
 
 	expected := map[string]any{
 		"result": map[string]any{
-			"labels":                         map[string]any{"id": "foo", "version": version.Version, "region": "west"},
+			"labels":                         map[string]any{"id": "test", "version": version.Version, "region": "west"},
 			"keys":                           map[string]any{"global_key": map[string]any{"algorithm": "HS256"}},
 			"services":                       map[string]any{"acmecorp": map[string]any{"url": "https://example.com/control-plane-api/v1"}},
 			"default_authorization_decision": "/system/authz/allow",
@@ -1792,23 +1786,60 @@ func TestConfigV1(t *testing.T) {
 	if err := f.v1(http.MethodGet, "/config", "", 200, string(bs)); err != nil {
 		t.Fatal(err)
 	}
+}
 
+func TestConfigV1WithInvalidConfig(t *testing.T) {
+	t.Parallel()
+
+	// build some invalid config to forcibly load
 	badServicesConfig := []byte(`{
 		"services": {
 			"acmecorp": ["foo"]
 		}
 	}`)
 
-	conf, err = config.ParseConfig(badServicesConfig, "foo")
+	conf, err := config.ParseConfig(badServicesConfig, "foo")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	f.server.manager.Config = conf
+	// create a new server and manager
+	ctx := t.Context()
+	server := New().
+		WithAddresses([]string{"localhost:8182"}).
+		WithStore(inmem.New())
+
+	m, err := plugins.New([]byte{}, "test", server.store)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// NOTE: This is the only place we update the manager config directly.
+	// We do this to create an invalid configuration that would be impossible
+	// to set through normal Reconfigure call. This is done without
+	// starting/running the manager to be thread-safe. The manager does not
+	// need to be running in this test as the server just needs to access the
+	// manager config value.
+	m.Config = conf
+
+	server = server.WithManager(m)
+	if err := m.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	server, err = server.Init(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f := &fixture{
+		server:   server,
+		recorder: httptest.NewRecorder(),
+	}
 
 	if err := f.v1(http.MethodGet, "/config", "", 500, `{
-				"code": "internal_error",
-				"message": "type assertion error"}`); err != nil {
+		"code": "internal_error",
+		"message": "type assertion error"}`); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -1863,7 +1894,6 @@ main = data.testmod.gt1`, 200, ""); err != nil {
 	if err := f.executeRequest(req, 200, `true`); err != nil {
 		t.Fatalf("Unexpected error from POST with yaml: %v", err)
 	}
-
 }
 
 func TestDataPutV1IfNoneMatch(t *testing.T) {
@@ -1963,7 +1993,7 @@ func TestDataGetV1CompressedRequestWithAuthorizer(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			store := inmem.New()
 			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 			authzPolicy := `package system.authz
@@ -2132,7 +2162,7 @@ func TestDataPostV1CompressedDecodingLimits(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			store := inmem.New()
 			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 			examplePolicy := `package example.authz
@@ -2580,7 +2610,7 @@ func TestCompileV1CompressedRequest(t *testing.T) {
 func TestBundleScope(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	test.WithTempFS(nil, func(root string) {
 		disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
@@ -2706,7 +2736,7 @@ func TestBundleScope(t *testing.T) {
 func TestBundleScopeMultiBundle(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f := newFixture(t)
 
@@ -2772,7 +2802,7 @@ func TestBundleScopeMultiBundle(t *testing.T) {
 func TestBundleNoRoots(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f := newFixture(t)
 
@@ -2992,7 +3022,8 @@ func TestDataGetExplainFull(t *testing.T) {
 		`query:1     | Eval data.x = _`,
 		`query:1     | Exit data.x = _`,
 		`query:1     Redo data.x = _`,
-		`query:1     | Redo data.x = _`}
+		`query:1     | Redo data.x = _`,
+	}
 	actual := util.MustUnmarshalJSON(result.Explanation).([]any)
 	if !reflect.DeepEqual(actual, exp) {
 		t.Fatalf(`Expected pretty explanation to be %v, got %v`, exp, actual)
@@ -3014,7 +3045,7 @@ p = [1, 2, 3, 4] if { true }`, 200, "")
 
 	// open write transaction on the store and execute a query.
 	// Then check the query is processed
-	ctx := context.Background()
+	ctx := t.Context()
 	_ = storage.NewTransactionOrDie(ctx, f.server.store, storage.WriteParams)
 
 	req := newReqV1(http.MethodPost, "/data/test/p", "")
@@ -3077,7 +3108,6 @@ p = [1, 2, 3, 4] if { true }`, 200, "")
 	if result.Result == nil || !reflect.DeepEqual(*result.Result, expected) {
 		t.Fatalf("Expected %v but got: %v", expected, result.Result)
 	}
-
 }
 
 func TestDataPostExplainNotes(t *testing.T) {
@@ -3168,7 +3198,7 @@ func TestDataProvenanceSingleBundle(t *testing.T) {
 		t.Errorf("Unexpected provenance data: \n\n%+v\n\nExpected:\n%+v\n\n", result.Provenance, expectedProvenance)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Update bundle revision and request again
 	err := storage.Txn(ctx, f.server.store, storage.WriteParams, func(txn storage.Transaction) error {
@@ -3211,7 +3241,7 @@ func TestDataProvenanceSingleFileBundle(t *testing.T) {
 	version.Hostname = "foo.bar.com"
 
 	// No bundle plugin initialized, just a legacy revision set
-	ctx := context.Background()
+	ctx := t.Context()
 
 	err := storage.Txn(ctx, f.server.store, storage.WriteParams, func(txn storage.Transaction) error {
 		return bundle.LegacyWriteManifestToStore(ctx, f.server.store, txn, bundle.Manifest{Revision: "r1"})
@@ -3291,7 +3321,7 @@ func TestDataProvenanceMultiBundle(t *testing.T) {
 	}
 
 	// Update bundle revision for a single bundle and make the request again
-	ctx := context.Background()
+	ctx := t.Context()
 
 	err := storage.Txn(ctx, f.server.store, storage.WriteParams, func(txn storage.Transaction) error {
 		return bundle.WriteManifestToStore(ctx, f.server.store, txn, "b1", bundle.Manifest{Revision: "r1"})
@@ -3365,7 +3395,7 @@ func TestDataMetricsEval(t *testing.T) {
 	// We're setting up the disk store because that injects a few extra metrics,
 	// which storage/inmem does not.
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	test.WithTempFS(nil, func(root string) {
 		disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
@@ -3660,7 +3690,6 @@ func TestPoliciesPutV1ParseError(t *testing.T) {
 	if f.recorder.Code != 200 {
 		t.Fatalf("Expected ok but got %v", f.recorder)
 	}
-
 }
 
 func TestPoliciesPutV1CompileError(t *testing.T) {
@@ -3746,7 +3775,6 @@ func TestPoliciesPutV1Noop(t *testing.T) {
 	if _, ok := resp2.Metrics["timer_rego_module_parse_ns"]; !ok {
 		t.Fatalf("Expected parse module metric in response but got %v", resp2)
 	}
-
 }
 
 func TestPoliciesListV1(t *testing.T) {
@@ -3887,7 +3915,7 @@ func TestPoliciesUrlEncoded(t *testing.T) {
 	t.Parallel()
 
 	const expectedPolicyID = "/a policy/another-component"
-	var urlEscapedPolicyID = url.PathEscape(expectedPolicyID)
+	urlEscapedPolicyID := url.PathEscape(expectedPolicyID)
 	f := newFixture(t)
 
 	// PUT policy with URL encoded ID
@@ -3952,7 +3980,7 @@ func TestStatusV1(t *testing.T) {
 			},
 		},
 	}, f.server.manager)
-	err := bs.Start(context.Background())
+	err := bs.Start(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4030,7 +4058,7 @@ func TestStatusV1(t *testing.T) {
 func TestStatusV1MetricsWithSystemAuthzPolicy(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Add the authz policy
 	store := inmem.New()
@@ -4086,7 +4114,7 @@ func TestStatusV1MetricsWithSystemAuthzPolicy(t *testing.T) {
 			},
 		},
 	}, f.server.manager).WithMetrics(prom)
-	err := bs.Start(context.Background())
+	err := bs.Start(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4185,9 +4213,11 @@ func TestStatusV1MetricsWithSystemAuthzPolicy(t *testing.T) {
 		t.Fatal("expected http_request_duration_seconds histogram metric to be a list")
 	}
 
-	expected := []any{map[string]any{"name": "code", "value": "401"},
+	expected := []any{
+		map[string]any{"name": "code", "value": "401"},
 		map[string]any{"name": "handler", "value": "authz"},
-		map[string]any{"name": "method", "value": "get"}}
+		map[string]any{"name": "method", "value": "get"},
+	}
 
 	found := false
 	for _, m := range innerMet {
@@ -4215,7 +4245,7 @@ func TestQueryPostBasic(t *testing.T) {
 		WithAddresses([]string{"localhost:8182"}).
 		WithStore(f.server.store).
 		WithManager(f.server.manager).
-		Init(context.Background())
+		Init(t.Context())
 
 	setup := []tr{
 		{http.MethodPost, "/query", `{"query": "a=data.k.x with data.k as {\"x\" : 7}"}`, 200, `{"result":[{"a":7}]}`},
@@ -4520,7 +4550,6 @@ func TestDecisionLogging(t *testing.T) {
 			}
 		}
 	}
-
 }
 
 func TestDecisionLogErrorMessage(t *testing.T) {
@@ -4573,7 +4602,7 @@ func TestQueryV1(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 			test.WithTempFS(nil, func(root string) {
 				disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
@@ -4774,7 +4803,14 @@ func TestUnversionedPost(t *testing.T) {
 
 	// update the default decision path
 	s := "http/authz"
-	f.server.manager.Config.DefaultDecision = &s
+
+	cfg := f.server.manager.GetConfig()
+	cfg.DefaultDecision = &s
+
+	err := f.server.manager.Reconfigure(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, post())
@@ -4841,7 +4877,7 @@ func TestQueryV1Explain(t *testing.T) {
 func TestAuthorization(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	m, err := plugins.New([]byte{}, "test", store)
 	if err != nil {
@@ -4880,7 +4916,6 @@ func TestAuthorization(t *testing.T) {
 		WithManager(m).
 		WithAuthorization(AuthorizationBasic).
 		Init(ctx)
-
 	if err != nil {
 		panic(err)
 	}
@@ -4963,7 +4998,7 @@ func TestAuthorization(t *testing.T) {
 func TestAuthorizationUsesInterQueryCache(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	m, err := plugins.New([]byte{}, "test", store)
 	if err != nil {
@@ -5014,7 +5049,6 @@ allow if {
 		WithManager(m).
 		WithAuthorization(AuthorizationBasic).
 		Init(ctx)
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -5105,7 +5139,7 @@ func TestServerReloadTrigger(t *testing.T) {
 
 	f := newFixture(t)
 	store := f.server.store
-	ctx := context.Background()
+	ctx := t.Context()
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 	if err := store.UpsertPolicy(ctx, txn, "test", []byte("package test\np = 1")); err != nil {
 		panic(err)
@@ -5127,7 +5161,7 @@ func TestServerClearsCompilerConflictCheck(t *testing.T) {
 
 	f := newFixture(t)
 	store := f.server.store
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Make a new transaction
 	params := storage.WriteParams
@@ -5187,7 +5221,6 @@ func (queryBindingErrStore) Commit(_ context.Context, _ storage.Transaction) err
 }
 
 func (queryBindingErrStore) Abort(_ context.Context, _ storage.Transaction) {
-
 }
 
 func (queryBindingErrStore) Truncate(context.Context, storage.Transaction, storage.TransactionParams, storage.Iterator) error {
@@ -5199,13 +5232,12 @@ func (queryBindingErrStore) Register(context.Context, storage.Transaction, stora
 }
 
 func (queryBindingErrStore) Unregister(context.Context, storage.Transaction, string) {
-
 }
 
 func TestQueryBindingIterationError(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	mock := &queryBindingErrStore{}
 	m, err := plugins.New([]byte{}, "test", mock)
 	if err != nil {
@@ -5221,7 +5253,6 @@ func TestQueryBindingIterationError(t *testing.T) {
 	f := &fixture{
 		server:   server,
 		recorder: recorder,
-		t:        t,
 	}
 
 	get := newReqV1(http.MethodGet, `/query?q=a=data.foo.bar`, "")
@@ -5256,11 +5287,10 @@ r contains x if { z[x] = 4 }`
 type fixture struct {
 	server   *Server
 	recorder *httptest.ResponseRecorder
-	t        *testing.T
 }
 
 func newFixture(t *testing.T, opts ...any) *fixture {
-	ctx := context.Background()
+	ctx := t.Context()
 	server := New().
 		WithAddresses([]string{"localhost:8182"}).
 		WithStore(inmem.New()) // potentially overridden via opts
@@ -5295,12 +5325,11 @@ func newFixture(t *testing.T, opts ...any) *fixture {
 	return &fixture{
 		server:   server,
 		recorder: recorder,
-		t:        t,
 	}
 }
 
 func newFixtureWithConfig(t *testing.T, config string, opts ...func(*Server)) *fixture {
-	ctx := context.Background()
+	ctx := t.Context()
 	server := New().
 		WithAddresses([]string{"localhost:8182"}).
 		WithStore(inmem.New()) // potentially overridden via opts
@@ -5325,12 +5354,11 @@ func newFixtureWithConfig(t *testing.T, config string, opts ...func(*Server)) *f
 	return &fixture{
 		server:   server,
 		recorder: recorder,
-		t:        t,
 	}
 }
 
-func newFixtureWithStore(t *testing.T, store storage.Store, opts ...any) *fixture {
-	ctx := context.Background()
+func newFixtureWithStore(t testing.TB, store storage.Store, opts ...any) *fixture {
+	ctx := t.Context()
 
 	var mOpts []func(*plugins.Manager)
 	for _, opt := range opts {
@@ -5368,7 +5396,6 @@ func newFixtureWithStore(t *testing.T, store storage.Store, opts ...any) *fixtur
 	return &fixture{
 		server:   server,
 		recorder: recorder,
-		t:        t,
 	}
 }
 
@@ -5399,7 +5426,7 @@ func (f *fixture) v0(method string, path string, body string, code int, resp str
 	return f.executeRequest(newReqV0(method, path, body), code, resp)
 }
 
-func (f *fixture) executeRequestForHandler(h http.Handler, req *http.Request, code int, resp string) error {
+func (f *fixture) executeRequestForHandler(h http.Handler, req *http.Request, code int, resp string, opts ...executeOpts) error {
 	f.reset()
 	h.ServeHTTP(f.recorder, req)
 	if f.recorder.Code != code {
@@ -5422,27 +5449,21 @@ func (f *fixture) executeRequestForHandler(h http.Handler, req *http.Request, co
 		if err := util.UnmarshalJSON([]byte(resp), &expected); err != nil {
 			panic(err)
 		}
-		if !reflect.DeepEqual(result, expected) {
-			a, err := json.MarshalIndent(expected, "", "  ")
-			if err != nil {
-				panic(err)
-			}
-			b, err := json.MarshalIndent(result, "", "  ")
-			if err != nil {
-				panic(err)
-			}
-			return fmt.Errorf("Expected JSON response from %v %v to equal:\n\n%s\n\nGot:\n\n%s", req.Method, req.URL, a, b)
+		if diff := cmp.Diff(expected, result, opts...); diff != "" {
+			return fmt.Errorf("unexpected JSON from %v %v (-want, +got):\n%s", req.Method, req.URL, diff)
 		}
 	}
 	return nil
 }
 
-func (f *fixture) executeRequest(req *http.Request, code int, resp string) error {
-	return f.executeRequestForHandler(f.server.Handler, req, code, resp)
+type executeOpts = cmp.Option
+
+func (f *fixture) executeRequest(req *http.Request, code int, resp string, opts ...executeOpts) error {
+	return f.executeRequestForHandler(f.server.Handler, req, code, resp, opts...)
 }
 
-func (f *fixture) executeDiagnosticRequest(req *http.Request, code int, resp string) error {
-	return f.executeRequestForHandler(f.server.DiagnosticHandler, req, code, resp)
+func (f *fixture) executeDiagnosticRequest(req *http.Request, code int, resp string, opts ...executeOpts) error {
+	return f.executeRequestForHandler(f.server.DiagnosticHandler, req, code, resp, opts...)
 }
 
 func (f *fixture) reset() {
@@ -5575,7 +5596,7 @@ func TestShutdown(t *testing.T) {
 		}(loop)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5)*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Duration(5)*time.Second)
 	defer cancel()
 	err = f.server.Shutdown(ctx)
 	if err != nil {
@@ -5600,7 +5621,7 @@ func TestShutdownError(t *testing.T) {
 	}
 	f.server.httpListeners = []httpListener{m}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5)*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Duration(5)*time.Second)
 	defer cancel()
 	err := f.server.Shutdown(ctx)
 	if err == nil {
@@ -5631,7 +5652,7 @@ func TestShutdownMultipleErrors(t *testing.T) {
 		f.server.httpListeners = append(f.server.httpListeners, m)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5)*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Duration(5)*time.Second)
 	defer cancel()
 	err := f.server.Shutdown(ctx)
 	if err == nil {
@@ -5920,7 +5941,6 @@ func TestDiagnosticRoutes(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestDistributedTracingEnabled(t *testing.T) {
@@ -5930,7 +5950,7 @@ func TestDistributedTracingEnabled(t *testing.T) {
 		"type": "grpc"
 		}}`)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, _, _, err := distributedtracing.Init(ctx, c, "foo")
 	if err != nil {
 		t.Fatalf("Unexpected error initializing gRPC trace exporter %v", err)
@@ -5972,7 +5992,7 @@ func TestDistributedTracingResourceAttributes(t *testing.T) {
 		attributes[semconv.ServiceInstanceIDKey],
 		attributes[semconv.DeploymentEnvironmentKey])
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, traceProvider, resource, err := distributedtracing.Init(ctx, c, "foo")
 	if err != nil {
 		t.Fatalf("Unexpected error initializing trace exporter %v", err)
@@ -5992,13 +6012,12 @@ func TestDistributedTracingResourceAttributes(t *testing.T) {
 			t.Fatalf("Unexpected resource attribute. Expected: %v, Got: %v", attributes[value.Key], value)
 		}
 	}
-
 }
 
 func TestCertPoolReloading(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tempDir := t.TempDir()
 
@@ -6404,7 +6423,6 @@ func TestCertPoolReloading(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error shutting down server: %s", err)
 	}
-
 }
 
 func TestCertReloading(t *testing.T) {
@@ -6414,7 +6432,7 @@ func TestCertReloading(t *testing.T) {
 
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	testCases := map[string]struct {
 		Server func(
@@ -6468,7 +6486,6 @@ func TestCertReloading(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-
 			tempDir := t.TempDir()
 
 			serverCert1Path := filepath.Join(tempDir, "serverCert1.pem")
@@ -6661,12 +6678,21 @@ func TestCertReloading(t *testing.T) {
 				t.Fatalf("Unexpected error closing listener to free port: %s", err)
 			}
 
-			t.Log("server address:", serverAddress)
-
 			server := tc.Server(serverAddress, &initialCert, certPool, serverCert1Path, serverCert1KeyPath, caCertPath)
 
+			tl := loggingtest.New()
+
+			// only log the server's verbose logs if the test fails.
+			t.Cleanup(func() {
+				if t.Failed() {
+					for _, e := range tl.Entries() {
+						t.Log(e.Message, e.Fields)
+					}
+				}
+			})
+
 			// start the server referencing the certs
-			m, err := plugins.New([]byte{}, "test", server.store)
+			m, err := plugins.New([]byte{}, "test", server.store, plugins.Logger(tl))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -6694,31 +6720,19 @@ func TestCertReloading(t *testing.T) {
 			}
 
 			// wait for the server to start
-			retries := 10
-			for {
-				if retries == 0 {
-					t.Fatal("failed to start server before deadline")
-				}
-				_, err = tls.Dial("tcp", serverAddress, &tls.Config{RootCAs: certPool})
-				if err != nil {
-					retries--
-					time.Sleep(300 * time.Millisecond)
-					continue
-				}
-				t.Log("server started")
-				break
-			}
+			test.EventuallyOrFatal(t, 3*time.Second, func() bool {
+				_, err := tls.Dial("tcp", serverAddress, &tls.Config{RootCAs: certPool})
+
+				return err == nil
+			})
 
 			// make the first connection, check that the server 1 cert is returned
-			retries = 10
-			for {
-				if retries == 0 {
-					t.Fatal("failed to get serverCert1 before deadline")
-				}
+			test.EventuallyOrFatal(t, 3*time.Second, func() bool {
 				conn, err := tls.Dial("tcp", serverAddress, &tls.Config{RootCAs: certPool})
 				if err != nil {
 					t.Fatal(err)
 				}
+
 				err = conn.Close()
 				if err != nil {
 					t.Fatal(err)
@@ -6729,16 +6743,8 @@ func TestCertReloading(t *testing.T) {
 					t.Fatalf("expected 1 cert, got %d", len(certs))
 				}
 
-				servedCert := certs[0]
-				if !bytes.Equal(servedCert.Raw, serverCert1Data) {
-					retries--
-					time.Sleep(300 * time.Millisecond)
-					t.Logf("expected serverCert1, got %s", servedCert.Subject)
-					continue
-				}
-
-				break
-			}
+				return bytes.Equal(certs[0].Raw, serverCert1Data)
+			})
 
 			// update the cert and key files by moving the second cert into place instead
 			err = os.Rename(serverCert2Path, serverCert1Path)
@@ -6751,35 +6757,24 @@ func TestCertReloading(t *testing.T) {
 			}
 
 			// make another connection, check that the server 2 cert is returned
-			retries = 10
-			for {
-				if retries == 0 {
-					t.Fatal("failed to get serverCert2 before deadline")
-				}
-
+			test.EventuallyOrFatal(t, 3*time.Second, func() bool {
 				conn, err := tls.Dial("tcp", serverAddress, &tls.Config{RootCAs: certPool})
 				if err != nil {
 					t.Fatal(err)
 				}
+
 				err = conn.Close()
 				if err != nil {
 					t.Fatal(err)
 				}
+
 				certs := conn.ConnectionState().PeerCertificates
 				if len(certs) != 1 {
 					t.Fatalf("expected 1 cert, got %d", len(certs))
 				}
 
-				servedCert := certs[0]
-				if !bytes.Equal(servedCert.Raw, serverCert2Data) {
-					retries--
-					time.Sleep(300 * time.Millisecond)
-					t.Logf("expected serverCert2, got %s", servedCert.Subject)
-					continue
-				}
-
-				break
-			}
+				return bytes.Equal(certs[0].Raw, serverCert2Data)
+			})
 
 			// remove the certs on disk, and check that the server still serves the previous certs
 			err = os.Remove(serverCert1Path)
@@ -6792,16 +6787,12 @@ func TestCertReloading(t *testing.T) {
 			}
 
 			// make a third connection, and check that the server 2 cert is still returned despite the certs being removed
-			retries = 10
-			for {
-				if retries == 0 {
-					t.Fatal("failed to get serverCert2 before deadline")
-				}
-
+			test.EventuallyOrFatal(t, 3*time.Second, func() bool {
 				conn, err := tls.Dial("tcp", serverAddress, &tls.Config{RootCAs: certPool})
 				if err != nil {
 					t.Fatal(err)
 				}
+
 				err = conn.Close()
 				if err != nil {
 					t.Fatal(err)
@@ -6812,16 +6803,8 @@ func TestCertReloading(t *testing.T) {
 					t.Fatalf("expected 1 cert, got %d", len(certs))
 				}
 
-				servedCert := certs[0]
-				if !bytes.Equal(servedCert.Raw, serverCert2Data) {
-					retries--
-					time.Sleep(300 * time.Millisecond)
-					t.Logf("expected serverCert2, got %s", servedCert.Subject)
-					continue
-				}
-
-				break
-			}
+				return bytes.Equal(certs[0].Raw, serverCert2Data)
+			})
 
 			err = server.Shutdown(ctx)
 			if err != nil {
@@ -6829,7 +6812,6 @@ func TestCertReloading(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 type mockHTTPHandler struct{}

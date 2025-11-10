@@ -498,7 +498,7 @@ func TestLoadExtensionFail(t *testing.T) {
 		"/foo.mock": `{"a": [1,2,3]}`,
 	}
 
-	extension.RegisterExtension(".mock", func([]byte, interface{}) error {
+	extension.RegisterExtension(".mock", func([]byte, any) error {
 		return errors.New("Load .mock file failed")
 	})
 
@@ -1447,10 +1447,7 @@ func TestSchemas(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			test.WithTempFS(tc.files, func(rootDir string) {
-				err := os.Chdir(rootDir)
-				if err != nil {
-					t.Fatal(err)
-				}
+				t.Chdir(rootDir)
 				ss, err := Schemas(tc.path)
 				if tc.expErr != "" {
 					if err == nil {

@@ -1,0 +1,1 @@
+Check if a time is within a period

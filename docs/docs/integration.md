@@ -25,7 +25,7 @@ This page focuses predominantly on different ways to integrate with OPA's policy
 OPA supports different ways to evaluate policies.
 
 - The [REST API](./rest-api) returns decisions as JSON over HTTP.
-  - Also see the [Language SDKs](/ecosystem/#languages) for working with the REST API in different languages.
+  - Also see the [Language SDKs](/ecosystem#languages) for working with the REST API in different languages.
 - The [Go API (GoDoc)](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/rego) returns
   decisions as simple Go types (`bool`, `string`, `map[string]interface{}`,
   etc.)
@@ -43,7 +43,7 @@ application or service helps ensure policy decisions are fast and highly-availab
 
 When your application or service needs to make policy decisions it can query OPA
 locally via HTTP. While it's possible to call OPA's [REST API](./rest-api) directly,
-you can also find a number of [native language REST SDKs](/ecosystem/#languages)
+you can also find a number of [native language REST SDKs](/ecosystem#languages)
 which make the integration easier.
 
 #### Named Policy Decisions
@@ -299,6 +299,11 @@ bundle, ok := opa.Plugin("bundle").(*bundle.Plugin)
 if !ok {
     log.Fatal("bundle plugin not found")
 }
+
+// Monitor the status of the bundle download and activation by registering a listener function
+bundle.Register("test", func(status bundle.Status) {
+// handle the status
+})
 
 err = bundle.Trigger(ctx)
 if err != nil {

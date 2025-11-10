@@ -269,7 +269,7 @@ func TestContainsNestedRefOrCall(t *testing.T) {
 func TestTopdownVirtualCache(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 
 	tests := []struct {
@@ -724,7 +724,7 @@ func TestTopdownVirtualCache(t *testing.T) {
 func TestPartialRule(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 
 	tests := []struct {
@@ -1593,7 +1593,7 @@ func (*deadlineCtx) Done() <-chan struct{} {
 func TestContextErrorHandling(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 
 	tests := []struct {
@@ -1698,7 +1698,7 @@ func BenchmarkFormatVarTerm(b *testing.B) {
 		index:        54321,
 	}
 
-	for range b.N {
+	for b.Loop() {
 		_ = e.fmtVarTerm()
 	}
 }
