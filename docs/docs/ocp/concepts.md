@@ -168,7 +168,7 @@ sources:
         type: http
         path: data/from/s3
         config:
-          url: https://my-bucket.my-region.s3.amazonaws.com/s3-data.json
+          url: https://my-bucket.s3.my-region.amazonaws.com/s3-data.json
           credentials: aws_auth
 ```
 
