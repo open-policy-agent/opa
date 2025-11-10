@@ -1978,7 +1978,7 @@ func (p *Parser) parseRef(head *Term, offset int) (term *Term) {
 					term = p.parseRef(term, offset)
 				}
 			}
-			end = p.s.tokEnd
+			end = p.s.lastEnd
 			return term
 		case tokens.LBrack:
 			p.scan()
