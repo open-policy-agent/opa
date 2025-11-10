@@ -6,7 +6,7 @@ require (
 	github.com/agnivade/levenshtein v1.2.1
 	github.com/bytecodealliance/wasmtime-go/v37 v37.0.0
 	github.com/cespare/xxhash/v2 v2.3.0
-	github.com/containerd/containerd/v2 v2.1.4
+	github.com/containerd/containerd/v2 v2.1.5
 	github.com/containerd/errdefs v1.0.0
 	github.com/dgraph-io/badger/v4 v4.8.0
 	github.com/fortytw2/leaktest v1.3.0
