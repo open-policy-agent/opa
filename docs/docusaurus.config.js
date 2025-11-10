@@ -19,8 +19,10 @@ const baseUrl = "/";
     url: "https://openpolicyagent.org",
     baseUrl: baseUrl,
     trailingSlash: false,
-    onBrokenLinks: 'throw',
-    onBrokenAnchors: 'throw',
+    // when BUILD_VERSION is set (release builds), warn on broken links/anchors so we don't break main
+    // when not set (PR checks), throw to flag issues for developers
+    onBrokenLinks: process.env.BUILD_VERSION ? 'warn' : 'throw',
+    onBrokenAnchors: process.env.BUILD_VERSION ? 'warn' : 'throw',
     presets: [
       [
         "@docusaurus/preset-classic",
