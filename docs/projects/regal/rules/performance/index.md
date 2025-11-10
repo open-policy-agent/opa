@@ -1,5 +1,6 @@
 ---
 title: Performance
+sidebar_label: Performance
 sidebar_position: 4
 ---
 

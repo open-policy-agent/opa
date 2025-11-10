@@ -1,9 +1,10 @@
 ---
 sidebar_position: 2
+sidebar_label: Roast
 ---
 
 <head>
-  <title>Roast (Regal's Optimized AST) | Regal</title>
+  <title>Roast | Regal</title>
 </head>
 
 # Roast (Regal's Optimized AST)

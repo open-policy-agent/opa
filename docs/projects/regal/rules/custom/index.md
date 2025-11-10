@@ -1,5 +1,6 @@
 ---
 title: Custom
+sidebar_label: Custom
 sidebar_position: 7
 ---
 
