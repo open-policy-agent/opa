@@ -2440,13 +2440,13 @@ func TestHTTPSClient(t *testing.T) {
 	}
 
 	// Set up Environment
-	clientCert, err := readCertFromFile(localClientCertFile)
+	clientCert, err := os.ReadFile(localClientCertFile)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("CLIENT_CERT_ENV", string(clientCert))
 
-	clientKey, err := readKeyFromFile(localClientKeyFile)
+	clientKey, err := os.ReadFile(localClientKeyFile)
 	if err != nil {
 		t.Fatal(err)
 	}
