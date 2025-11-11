@@ -209,14 +209,24 @@ func SetOperand(x ast.Value, pos int) (ast.Set, error) {
 	return s, nil
 }
 
-// StringOperand converts x to a string. If the cast fails, a descriptive error is
-// returned.
+// StringOperand returns x as [ast.String], or a descriptive error if the conversion fails.
 func StringOperand(x ast.Value, pos int) (ast.String, error) {
 	s, ok := x.(ast.String)
 	if !ok {
 		return ast.String(""), NewOperandTypeErr(pos, x, "string")
 	}
 	return s, nil
+}
+
+// StringOperandByteSlice returns x a []byte, assuming x is [ast.String], or a descriptive error
+// if that is not the case. The returned byte slice points directly at the underlying array backing
+// the string, and should not be modified.
+func StringOperandByteSlice(x ast.Value, pos int) ([]byte, error) {
+	s, err := StringOperand(x, pos)
+	if err != nil {
+		return nil, err
+	}
+	return util.StringToByteSlice(string(s)), nil
 }
 
 // ObjectOperand converts x to an object. If the cast fails, a descriptive
