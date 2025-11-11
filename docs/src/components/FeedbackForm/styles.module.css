@@ -44,28 +44,6 @@
 	color: var(--ifm-font-color-base);
 }
 
-.email div {
-	width: 100%;
-	display: inline-block;
-	max-width: 25rem;
-}
-
-.email div:first-child {
-	/* Removing padding-right to match widths */
-}
-
-.email input {
-	padding: 0.5rem 0.5rem;
-	font-size: 1rem;
-	width: 100%;
-	max-width: 25rem;
-	border-radius: 0.2rem;
-	border: 1px solid var(--ifm-color-emphasis-300);
-	box-sizing: border-box;
-	background-color: var(--ifm-background-color);
-	color: var(--ifm-font-color-base);
-}
-
 .note {
 	font-size: 0.8rem;
 }
@@ -74,13 +52,22 @@
 	position: fixed;
 	bottom: 1.25rem;
 	right: 1.25rem;
-	background: var(--ifm-background-color);
+	background-color: var(--ifm-card-background-color);
+	color: var(--ifm-font-color-base);
 	border-radius: 0.5rem;
 	box-shadow: 0 0.125rem 0.625rem rgba(0, 0, 0, 0.1);
 	padding: 1rem;
 	z-index: 1000;
 	max-width: 18.75rem;
 	border: 1px solid var(--ifm-color-emphasis-300);
+	opacity: 0;
+	transform: translateY(20px);
+	transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.popup.show {
+	opacity: 1;
+	transform: translateY(0);
 }
 
 .closeButton {
