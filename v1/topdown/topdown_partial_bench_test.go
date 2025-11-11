@@ -34,7 +34,7 @@ func BenchmarkInliningFullScan(b *testing.B) {
 
 			b.ResetTimer()
 
-			for range b.N {
+			for b.Loop() {
 
 				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 

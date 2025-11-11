@@ -173,9 +173,7 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func gzipAccepted(header http.Header) bool {
-	a := header.Get("Accept-Encoding")
-	parts := strings.Split(a, ",")
-	for _, part := range parts {
+	for part := range strings.SplitSeq(header.Get("Accept-Encoding"), ",") {
 		part = strings.TrimSpace(part)
 		if part == "gzip" || strings.HasPrefix(part, "gzip;") {
 			return true
@@ -185,9 +183,7 @@ func gzipAccepted(header http.Header) bool {
 }
 
 func gzipReceived(header http.Header) bool {
-	a := header.Get("Content-Encoding")
-	parts := strings.Split(a, ",")
-	for _, part := range parts {
+	for part := range strings.SplitSeq(header.Get("Content-Encoding"), ",") {
 		part = strings.TrimSpace(part)
 		if part == "gzip" || strings.HasPrefix(part, "gzip;") {
 			return true

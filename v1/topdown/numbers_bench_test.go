@@ -28,7 +28,7 @@ func BenchmarkNumbersRange(b *testing.B) {
 
 	for _, test := range tests {
 		b.Run(test.name, func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				if err := builtinNumbersRange(bctx, test.operands, expect100Items); err != nil {
 					b.Fatal(err)
 				}
@@ -58,7 +58,7 @@ func BenchmarkNumbersRangeStep(b *testing.B) {
 
 	for _, test := range tests {
 		b.Run(test.name, func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				if err := builtinNumbersRangeStep(bctx, test.operands, expect100Items); err != nil {
 					b.Fatal(err)
 				}

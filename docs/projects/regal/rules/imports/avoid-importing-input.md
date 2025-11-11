@@ -72,6 +72,6 @@ rules:
 
 ## Related Resources
 
-- Rego Style Guide: [Avoid importing `input`](https://github.com/StyraInc/rego-style-guide#avoid-importing-input)
+- Rego Style Guide: [Avoid importing `input`](https://www.openpolicyagent.org/docs/style-guide#avoid-importing-input)
 - OPA Docs: [Terraform Tutorial](https://www.openpolicyagent.org/docs/terraform)
 - GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/imports/avoid-importing-input/avoid_importing_input.rego)

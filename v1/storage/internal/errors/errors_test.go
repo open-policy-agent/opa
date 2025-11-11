@@ -13,7 +13,7 @@ func BenchmarkNewNotFoundErrorWithHint(b *testing.B) {
 	path := storage.Path([]string{"a", "b", "c"})
 	hint := "something something"
 
-	for range b.N {
+	for b.Loop() {
 		err := NewNotFoundErrorWithHint(path, hint)
 		if err == nil {
 			b.Fatal("expected error")

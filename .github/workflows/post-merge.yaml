@@ -5,7 +5,7 @@ on:
     branches:
       - main
 
-permissions:  
+permissions:
   contents: read
 
 jobs:
@@ -97,21 +97,34 @@ jobs:
       - name: Git Describe
         run: git describe --tags
 
+      - uses: mlugg/setup-zig@8d6198c65fb0feaa111df26e6b467fea8345e46f # v2.0.5
+        with:
+          version: '0.15.2'
+
+      - id: go_version
+        name: Read go version
+        run: echo "go_version=$(cat .go-version)" >> $GITHUB_OUTPUT
+
+      - name: Install Go (${{ steps.go_version.outputs.go_version }})
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+        with:
+          go-version: ${{ steps.go_version.outputs.go_version }}
+
       - name: Build Linux and Windows
-        run: make ci-go-ci-build-linux ci-go-ci-build-linux-static ci-go-ci-build-windows
+        run: make ci-build-windows ci-go-ci-build-linux ci-go-ci-build-linux-static
         timeout-minutes: 30
         env:
           TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
 
       - name: Build Linux arm64
-        run: make ci-go-ci-build-linux-static
+        run: make ci-go-ci-build-linux ci-go-ci-build-linux-static
         timeout-minutes: 30
         env:
           GOARCH: arm64
           TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
 
       - name: Upload binaries
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: always()
         with:
           name: binaries-linux-windows
@@ -149,7 +162,7 @@ jobs:
           TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
 
       - name: Upload binaries (darwin)
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: always()
         with:
           name: binaries-darwin
@@ -168,7 +181,7 @@ jobs:
         timeout-minutes: 60
 
       - name: Download release binaries
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           pattern: binaries-*
           merge-multiple: true

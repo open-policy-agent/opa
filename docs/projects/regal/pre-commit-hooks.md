@@ -1,12 +1,16 @@
 ---
 sidebar_position: 6
+sidebar_label: Pre-Commit Hooks
 ---
 
+<head>
+  <title>Pre-Commit Hooks | Regal</title>
+</head>
 
 # Pre-Commit Hooks
 
 [Pre-Commit](https://pre-commit.com) is a framework for managing and maintaining multi-language pre-commit hooks.
-This allows running Regal automatically whenever (and as the name implied, before )a Rego file is about to be committed.
+This allows running Regal automatically whenever (and as the name implied before) a Rego file is about to be committed.
 
 To use Regal with pre-commit, add this to your `.pre-commit-config.yaml`
 

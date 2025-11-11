@@ -293,7 +293,7 @@ func TestCapabilitiesMinimumCompatibleVersion(t *testing.T) {
 
 func BenchmarkCapabilitiesCurrentVersion(b *testing.B) {
 	var caps *Capabilities
-	for range b.N {
+	for b.Loop() {
 		caps = CapabilitiesForThisVersion()
 	}
 	if caps == nil {

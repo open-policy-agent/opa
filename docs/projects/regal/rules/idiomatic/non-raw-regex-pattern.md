@@ -4,7 +4,7 @@
 
 **Category**: Idiomatic
 
-**Automatically fixable**: [Yes](https://openpolicyagent.org/projects/regal/fixing)
+**Automatically fixable**: [Yes](https://www.openpolicyagent.org/projects/regal/fixing)
 
 **Avoid**
 ```rego
@@ -22,7 +22,7 @@ all_digits if {
 
 ## Rationale
 
-[Raw strings](https://www.openpolicyagent.org/docs/edge/policy-language/#strings) are interpreted literally, allowing
+[Raw strings](https://www.openpolicyagent.org/docs/policy-language/#strings) are interpreted literally, allowing
 you to avoid having to escape special characters like `\` in your regex patterns. Using raw strings for regex patterns
 additionally makes them easier to identify as such.
 
@@ -56,6 +56,6 @@ rules:
 
 ## Related Resources
 
-- Rego Style Guide: [Use raw strings for regex patterns](https://github.com/StyraInc/rego-style-guide#use-raw-strings-for-regex-patterns)
+- Rego Style Guide: [Use raw strings for regex patterns](https://www.openpolicyagent.org/docs/style-guide#use-raw-strings-for-regex-patterns)
 - OPA Docs: [Regex Functions Reference](https://www.openpolicyagent.org/docs/policy-reference/#regex)
 - GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/idiomatic/non-raw-regex-pattern/non_raw_regex_pattern.rego)

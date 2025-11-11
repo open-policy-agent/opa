@@ -3,6 +3,9 @@ sidebar_position: 4
 sidebar_label: CLI
 ---
 
+<head>
+  <title>CLI | Regal</title>
+</head>
 
 # CLI
 

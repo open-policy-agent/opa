@@ -1,3 +1,4 @@
+import Heading from "@theme/Heading";
 import React from "react";
 import ReactMarkdown from "react-markdown";
 
@@ -91,9 +92,9 @@ export default function BuiltinTable({
               : `${result.name || "result"} := ${name}(${args.map((a) => a.name).join(", ")})`;
 
             return (
-              <tr key={anchor} id={anchor}>
+              <tr key={anchor}>
                 <td className={styles.functionCell}>
-                  <a href={`#${anchor}`}>
+                  <Heading as="h6" id={anchor}>
                     <code className={styles.functionName}>
                       {(isInfix ? signature : name)
                         .split(/(\.|_)/)
@@ -108,7 +109,7 @@ export default function BuiltinTable({
                             : part
                         )}
                     </code>
-                  </a>
+                  </Heading>
                 </td>
                 <td>
                   <p>

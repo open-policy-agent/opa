@@ -86,7 +86,11 @@ var ReservedVars = NewVarSet(
 )
 
 // Wildcard represents the wildcard variable as defined in the language.
-var Wildcard = &Term{Value: Var("_")}
+var (
+	WildcardString       = "_"
+	WildcardValue  Value = Var(WildcardString)
+	Wildcard             = &Term{Value: WildcardValue}
+)
 
 // WildcardPrefix is the special character that all wildcard variables are
 // prefixed with when the statement they are contained in is parsed.

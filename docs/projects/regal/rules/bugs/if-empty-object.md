@@ -1,7 +1,7 @@
 # if-empty-object
 
 **This rule has been deprecated and replaced by the
-[if-object-literal](https://openpolicyagent.org/projects/regal/rules/bugs/if-object-literal) rule. Documentation kept here only for
+[if-object-literal](https://www.openpolicyagent.org/projects/regal/rules/bugs/if-object-literal) rule. Documentation kept here only for
 the sake of posterity.**
 
 **Summary**: Empty object following `if`
@@ -36,5 +36,5 @@ rules:
 
 ## Related Resources
 
-- Regal Docs: [constant-condition](https://openpolicyagent.org/projects/regal/rules/bugs/constant-condition)
+- Regal Docs: [constant-condition](https://www.openpolicyagent.org/projects/regal/rules/bugs/constant-condition)
 - GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/bugs/if-empty-object/if_empty_object.rego)

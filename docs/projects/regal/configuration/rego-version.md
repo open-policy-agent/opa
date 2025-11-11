@@ -3,6 +3,9 @@ sidebar_position: 8
 sidebar_label: Rego Version
 ---
 
+<head>
+  <title>Rego Version | Regal</title>
+</head>
 
 # Configuring Rego Version
 
@@ -30,7 +33,7 @@ project:
     rego-version: 1
 ```
 
-Additionally, Regal will scan the project for any `.manifest` files, and user any `rego_version` found in the manifest
+Additionally, Regal will scan the project for any `.manifest` files, and use any `rego_version` found in the manifest
 for all policies under that directory.
 
 Note: the `rego-version` attribute in the configuration file has precedence over `rego_version` found in manifest files.

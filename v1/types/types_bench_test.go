@@ -22,8 +22,8 @@ func BenchmarkSelect(b *testing.B) {
 }
 
 func runSelectBenchmark(b *testing.B, tpe Type, key any) {
-	b.ResetTimer()
-	for range b.N {
+
+	for b.Loop() {
 		if result := Select(tpe, key); result != nil {
 			if Compare(result, N) != 0 {
 				b.Fatal("expected number type")

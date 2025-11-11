@@ -93,8 +93,8 @@ type distributedTracingConfig struct {
 	TLSCertFile               string                   `json:"tls_cert_file,omitempty"`
 	TLSCertPrivateKeyFile     string                   `json:"tls_private_key_file,omitempty"`
 	TLSCACertFile             string                   `json:"tls_ca_cert_file,omitempty"`
-	Resource                  resourceConfig           `json:"resource,omitempty"`
-	BatchSpanProcessorOptions batchSpanProcessorConfig `json:"batch_span_processor_options,omitempty"`
+	Resource                  resourceConfig           `json:"resource"`
+	BatchSpanProcessorOptions batchSpanProcessorConfig `json:"batch_span_processor_options"`
 }
 
 func Init(ctx context.Context, raw []byte, id string) (*otlptrace.Exporter, *trace.TracerProvider, *resource.Resource, error) {

@@ -121,23 +121,19 @@ benchmarking framework for all benchmarks.
 OPA is a Go module [https://github.com/golang/go/wiki/Modules](https://github.com/golang/go/wiki/Modules)
 and dependencies are tracked with the standard [go.mod](https://github.com/open-policy-agent/opa/blob/main/go.mod) file.
 
-We also keep a full copy of the dependencies in the [vendor](https://github.com/open-policy-agent/opa/tree/main/vendor)
-directory. All `go` commands from the [Makefile](https://github.com/open-policy-agent/opa/blob/main/Makefile) will enable
-module mode by setting `GO111MODULE=on GOFLAGS=-mod=vendor` which will also
-force using the `vendor` directory.
+All `go` commands from the [Makefile](https://github.com/open-policy-agent/opa/blob/main/Makefile) will enable
+module mode by setting `GO111MODULE=on`.
 
 To update a dependency ensure that `GO111MODULE` is either on, or the repository
 qualifies for `auto` to enable module mode. Then simply use `go get ..` to get
 the version desired. This should update the [go.mod](https://github.com/open-policy-agent/opa/blob/main/go.mod) and (potentially)
-[go.sum](https://github.com/open-policy-agent/opa/blob/main/go.sum) files. After this you _MUST_ run `go mod vendor` to ensure
-that the `vendor` directory is in sync.
+[go.sum](https://github.com/open-policy-agent/opa/blob/main/go.sum) files.
 
 Example workflow for updating a dependency:
 
 ```bash
 go get -u github.com/sirupsen/logrus@v1.4.2  # Get the specified version of the package.
 go mod tidy                                  # (Somewhat optional) Prunes removed dependencies.
-go mod vendor                                # Ensure the vendor directory is up to date.
 ```
 
 If dependencies have been removed ensure to run `go mod tidy` to clean them up.

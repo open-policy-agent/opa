@@ -212,9 +212,7 @@ func isGetMethod(req *http.Request) bool {
 }
 
 func gzipHeaderDetected(header http.Header) bool {
-	a := header.Get("Accept-Encoding")
-	parts := strings.Split(a, ",")
-	for _, part := range parts {
+	for part := range strings.SplitSeq(header.Get("Accept-Encoding"), ",") {
 		part = strings.TrimSpace(part)
 		if part == gzipEncodingValue || strings.HasPrefix(part, gzipEncodingValue+";") {
 			return true

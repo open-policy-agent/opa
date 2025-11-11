@@ -46,7 +46,7 @@ func BenchmarkSetIntersection(b *testing.B) {
 
 				b.ResetTimer()
 
-				for range b.N {
+				for b.Loop() {
 					err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 						_, err := NewQuery(query).
 							WithCompiler(compiler).
@@ -92,7 +92,7 @@ func BenchmarkSetIntersectionSlow(b *testing.B) {
 
 				b.ResetTimer()
 
-				for range b.N {
+				for b.Loop() {
 					err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 						_, err := NewQuery(query).
 							WithCompiler(compiler).
@@ -136,7 +136,7 @@ func BenchmarkSetUnion(b *testing.B) {
 
 				b.ResetTimer()
 
-				for range b.N {
+				for b.Loop() {
 					err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 						_, err := NewQuery(query).
 							WithCompiler(compiler).
@@ -183,7 +183,7 @@ func BenchmarkSetUnionSlow(b *testing.B) {
 
 				b.ResetTimer()
 
-				for range b.N {
+				for b.Loop() {
 					err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 						_, err := NewQuery(query).
 							WithCompiler(compiler).

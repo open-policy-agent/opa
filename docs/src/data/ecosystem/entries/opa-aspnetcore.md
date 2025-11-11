@@ -8,7 +8,7 @@ code:
 - https://github.com/StyraInc/opa-aspnetcore
 - https://www.nuget.org/packages/Styra.Opa.AspNetCore
 tutorials:
-- https://styrainc.github.io/opa-aspnetcore/
+- https://open-policy-agent.github.io/opa-aspnetcore/
 inventors:
 - styra
 software:

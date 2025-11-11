@@ -4,6 +4,9 @@ sidebar_position: 3
 title: Deploying OPA on AWS ECS
 ---
 
+<!-- Manual Heading imports are needed because the ParamProvider plugin provider hides anchors from the broken link checker -->
+import Heading from '@theme/Heading';
+
 Amazon ECS (Elastic Container Service) is a managed platform for running
 containerized applications. Software already packaged as containers, like OPA,
 is easy to run on ECS. ECS takes care of scaling, networking, and
@@ -84,7 +87,7 @@ graph
 >
 
 
-## Creating a Secret and IAM Role for your OPA Task
+<Heading as="h2" id="creating-a-secret-and-iam-role-for-your-opa-task">Creating a Secret and IAM Role for your OPA Task</Heading>
 
 OPA needs to download policy at startup. Often credentials are needed to
 download new policy and data bundles. These might be an API token, or
@@ -128,7 +131,7 @@ the task's ARN here to populate the later steps:
 <InlineEditable paramKey="taskRoleArn"/>.
 
 
-## Creating an OPA Task Definition
+<Heading as="h2" id="creating-an-opa-task-definition">Creating an OPA Task Definition</Heading>
 
 An ECS task definition is a blueprint that describes how containers
 should run in AWS ECS, specifying details like container images, commands and
@@ -236,7 +239,7 @@ the health `localhost` port too.
 :::
 
 
-## Deploying OPA on the Cluster
+<Heading as="h2" id="deploying-opa-on-the-cluster">Deploying OPA on the Cluster</Heading>
 
 Once you have a task definition in place, you can deploy it to your ECS cluster.
 

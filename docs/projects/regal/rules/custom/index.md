@@ -1,8 +1,12 @@
 ---
 title: Custom
+sidebar_label: Custom
 sidebar_position: 7
 ---
 
+<head>
+  <title>Custom | Regal</title>
+</head>
 
 # Custom
 
@@ -19,7 +23,7 @@ them, see the configuration options available for each rule for how to configure
 them according to your requirements.
 :::
 
-For more advanced requirements, see the guide on writing [custom rules](https://openpolicyagent.org/projects/regal/custom-rules) in Rego.
+For more advanced requirements, see the guide on writing [custom rules](https://www.openpolicyagent.org/projects/regal/custom-rules) in Rego.
 
 import RulesTable from '@site/src/components/projects/regal/RulesTable';
 

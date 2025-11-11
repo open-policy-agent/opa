@@ -55,6 +55,6 @@ rules:
 
 ## Related Resources
 
-- Regal Docs: [Call to `print` or `trace` function](https://openpolicyagent.org/projects/regal/rules/testing/print-or-trace-call)
+- Regal Docs: [Call to `print` or `trace` function](https://www.openpolicyagent.org/projects/regal/rules/testing/print-or-trace-call)
 - OPA Docs: [Policy Testing](https://www.openpolicyagent.org/docs/policy-testing/)
 - GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/testing/dubious-print-sprintf/dubious_print_sprintf.rego)

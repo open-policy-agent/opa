@@ -498,7 +498,7 @@ func TestLoadExtensionFail(t *testing.T) {
 		"/foo.mock": `{"a": [1,2,3]}`,
 	}
 
-	extension.RegisterExtension(".mock", func([]byte, interface{}) error {
+	extension.RegisterExtension(".mock", func([]byte, any) error {
 		return errors.New("Load .mock file failed")
 	})
 

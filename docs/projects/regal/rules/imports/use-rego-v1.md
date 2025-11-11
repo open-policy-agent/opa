@@ -4,15 +4,14 @@
 
 **Category**: Imports
 
-**Automatically fixable**: [Yes](https://openpolicyagent.org/projects/regal/fixing)
+**Automatically fixable**: [Yes](https://www.openpolicyagent.org/projects/regal/fixing)
 
 ## Notice: Rule disabled by default since OPA 1.0
 
-Since Regal v0.30.0, this rule is only enabled for projects that have either been explicitly configured to target
-versions of OPA before 1.0, or if no configuration is provided — where Regal is able to determine that an older version
-of OPA/Rego is being targeted. Consult the documentation on Regal's
-[configuration](https://openpolicyagent.org/projects/regal#configuration) for information on how to best work with older versions of
-OPA and Rego.
+This rule is only enabled for projects that have either been explicitly configured to target versions of OPA before 1.0,
+or if no configuration is provided — where Regal is able to determine that an older version of OPA/Rego is being
+targeted. Consult the documentation on Regal's [configuration](https://www.openpolicyagent.org/projects/regal#configuration)
+for information on how to best work with older versions of OPA and Rego.
 
 Since OPA v1.0, the `rego.v1` import is effectively a no-op. Developers working on a **policy library**, or other
 Rego polices that are expected to be used with many different OPA versions, may however benefit from enabling this rule,
@@ -64,7 +63,7 @@ See the [OPA v0.59.0 release notes](https://github.com/open-policy-agent/opa/rel
 ### Capabilities
 
 If you aren't yet using OPA v0.59.0 or later, it is recommended that you use the
-[capabilities](https://openpolicyagent.org/projects/regal#capabilities) setting in your Regal configuration file to tell Regal what
+[capabilities](https://www.openpolicyagent.org/projects/regal#capabilities) setting in your Regal configuration file to tell Regal what
 version of OPA to target. This way you won't need to disable rules that require capabilities that aren't in the version
 of OPA you're targeting, and allows for a smoother transition to newer versions of OPA when you're ready for that.
 Another benefit of using capabilities is that Regal will include notices in the report when there are rules that have
@@ -73,7 +72,7 @@ been disabled due to missing capabilities, kindly reminding you of them, but wit
 In the example below we're using the capabilities setting to target OPA v0.55.0 (where `import rego.v1` is not
 available):
 
-**.regal/config.yaml** or **.regal.yaml**
+`.regal/config.yaml` or `.regal.yaml`
 ```yaml
 capabilities:
   from:

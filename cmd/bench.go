@@ -92,6 +92,11 @@ The optional "gobench" output format conforms to the Go Benchmark Data Format.
 			if err := env.CmdFlags.CheckEnvironmentVariables(cmd); err != nil {
 				return err
 			}
+			// Initialize testing package for benchmarking. This is needed to set default values for some flags that may
+			// otherwise be dereferenced on some code paths causing panics, as reported in:
+			// https://github.com/open-policy-agent/opa/issues/7205
+			testing.Init()
+
 			return validateEvalParams(&params.evalCommandParams, args)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -245,7 +250,6 @@ func (*goBenchRunner) run(ctx context.Context, ectx *evalContext, params benchma
 	var benchErr error
 
 	br := testing.Benchmark(func(b *testing.B) {
-
 		// Track memory allocations, if enabled
 		if params.benchMem {
 			b.ReportAllocs()

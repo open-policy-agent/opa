@@ -207,7 +207,7 @@ func TestPathRef(t *testing.T) {
 func BenchmarkPathString(b *testing.B) {
 	path := Path{"foo", "bar", "baz"}
 
-	for range b.N {
+	for b.Loop() {
 		res := path.String()
 		if res != "/foo/bar/baz" {
 			b.Fatal("unexpected result:", res)

@@ -752,10 +752,7 @@ func (c *CompileAnnotation) Compare(other *CompileAnnotation) int {
 		return -1
 	}
 
-	if cmp := slices.CompareFunc(c.Unknowns, other.Unknowns,
-		func(x, y Ref) int {
-			return x.Compare(y)
-		}); cmp != 0 {
+	if cmp := slices.CompareFunc(c.Unknowns, other.Unknowns, RefCompare); cmp != 0 {
 		return cmp
 	}
 	return c.MaskRule.Compare(other.MaskRule)

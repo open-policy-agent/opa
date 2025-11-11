@@ -34,7 +34,7 @@ arguably provides a more idiomatic construct for default assignment: the
 
 While the end result is the same, default assignment has the benefit of more clearly — and **before** the conditional
 assignments — communicating what the *safe* option is. This is particularly important for
-[entrypoint](https://openpolicyagent.org/projects/regal/rules/idiomatic/no-defined-entrypoint) rules, where the
+[entrypoint](https://www.openpolicyagent.org/projects/regal/rules/idiomatic/no-defined-entrypoint) rules, where the
 default value of a rule is a part of the rule's contract.
 
 ## Exceptions

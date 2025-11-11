@@ -37,16 +37,14 @@ func TestConstantTimeByteCompare(t *testing.T) {
 
 func BenchmarkConstantTimeCompare(b *testing.B) {
 	x, y := big.NewInt(1023), big.NewInt(1024)
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		_, _ = ConstantTimeByteCompare(x.Bytes(), y.Bytes())
 	}
 }
 
 func BenchmarkCompare(b *testing.B) {
 	x, y := big.NewInt(1023).Bytes(), big.NewInt(1024).Bytes()
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		bytes.Compare(x, y)
 	}
 }

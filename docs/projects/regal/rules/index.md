@@ -1,8 +1,12 @@
 ---
 title: Rules
+sidebar_label: Rules
 sidebar_position: 2
 ---
 
+<head>
+  <title>Rules | Regal</title>
+</head>
 
 # Rules
 

@@ -47,7 +47,7 @@ allow if {
 ```
 
 Another good reason to
-[prefer some .. in for iteration](https://openpolicyagent.org/projects/regal/rules/style/prefer-some-in-iteration)!
+[prefer some .. in for iteration](https://www.openpolicyagent.org/projects/regal/rules/style/prefer-some-in-iteration)!
 
 ### `every` iteration
 

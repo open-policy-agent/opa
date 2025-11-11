@@ -561,4 +561,4 @@ Kubernetes components. Furthermore, with OPA's [Bundle](../management-bundles) f
 periodically downloaded from remote servers to satisfy changing operational requirements.
 
 For more information about deploying OPA on top of Kubernetes, see
-[Deployments - Kubernetes](../deployments#kubernetes).
+[Deployments - Kubernetes](../deploy/k8s).

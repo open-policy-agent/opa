@@ -155,10 +155,10 @@ For this example, we'll get an entry for our new function under the `Strings` se
 ### Add a capability
 
 :::info
-Read more about extending the default capabilities list for built-ins [here](./deployments/#built-ins).
+Read more about extending the default capabilities list for built-ins [here](./operations#built-ins).
 :::
 
-One of the security features of OPA is [capabilities](./deployments/#capabilities) checks on policies, allowing users to restrict which built-in functions will be available to policies at runtime.
+One of the security features of OPA is [capabilities](./operations#capabilities) checks on policies, allowing users to restrict which built-in functions will be available to policies at runtime.
 To ensure that our new `repeat` function will be available to callers, we'll need to add it to the `capabilities.json` file at the root of the repo.
 We can have this entry auto-generated for us by running `make generate`.
 

@@ -130,7 +130,7 @@ public_servers[server] {
 		t.Errorf("Expected log message to have the entry message '%s':\n%s", "test", actualStr)
 	}
 
-	for _, line := range strings.Split(mlStr, "\n") {
+	for line := range strings.SplitSeq(mlStr, "\n") {
 		// The lines will get prefixed with some padding but should always
 		// still have their real newlines, and not be encoded.
 		expectedStr := line + "\n"

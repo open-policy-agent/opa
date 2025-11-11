@@ -22,7 +22,7 @@ In this example:
 - system is the name of another source that declares package x.y
 - because x.y is a prefix of x.y.z, they overlap
 
-If you are interested in seeing this restriction relaxed please leave a comment [here](https://github.com/StyraInc/opa-control-plane/issues/30) including any details you can share about your use case.
+If you are interested in seeing this restriction relaxed please leave a comment [here](https://github.com/open-policy-agent/opa-control-plane/issues/30) including any details you can share about your use case.
 
 ### Bundle Configuration Fields
 
@@ -168,7 +168,7 @@ sources:
         type: http
         path: data/from/s3
         config:
-          url: https://my-bucket.my-region.s3.amazonaws.com/s3-data.json
+          url: https://my-bucket.s3.my-region.amazonaws.com/s3-data.json
           credentials: aws_auth
 ```
 

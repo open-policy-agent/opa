@@ -67,7 +67,7 @@ var stripExcessSpaceCases = []string{
 }
 
 func BenchmarkStripExcessSpaces(b *testing.B) {
-	for range b.N {
+	for b.Loop() {
 		for _, v := range stripExcessSpaceCases {
 			StripExcessSpaces(v)
 		}

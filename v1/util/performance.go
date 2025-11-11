@@ -1,7 +1,6 @@
 package util
 
 import (
-	"math"
 	"slices"
 	"strings"
 	"sync"
@@ -44,6 +43,12 @@ func StringToByteSlice[T ~string](s T) []byte {
 // NumDigitsInt returns the number of digits in n.
 // This is useful for pre-allocating buffers for string conversion.
 func NumDigitsInt(n int) int {
+	return NumDigitsInt64(int64(n))
+}
+
+// NumDigitsInt64 returns the number of digits in n.
+// This is useful for pre-allocating buffers for string conversion.
+func NumDigitsInt64(n int64) int {
 	if n == 0 {
 		return 1
 	}
@@ -52,7 +57,12 @@ func NumDigitsInt(n int) int {
 		n = -n
 	}
 
-	return int(math.Log10(float64(n))) + 1
+	count := 0
+	for n > 0 {
+		n /= 10
+		count++
+	}
+	return count
 }
 
 // NumDigitsUint returns the number of digits in n.
@@ -62,16 +72,10 @@ func NumDigitsUint(n uint64) int {
 		return 1
 	}
 
-	return int(math.Log10(float64(n))) + 1
-}
-
-// KeysCount returns the number of keys in m that satisfy predicate p.
-func KeysCount[K comparable, V any](m map[K]V, p func(K) bool) int {
 	count := 0
-	for k := range m {
-		if p(k) {
-			count++
-		}
+	for n > 0 {
+		n /= 10
+		count++
 	}
 	return count
 }
@@ -79,17 +83,10 @@ func KeysCount[K comparable, V any](m map[K]V, p func(K) bool) int {
 // SplitMap calls fn for each delim-separated part of text and returns a slice of the results.
 // Cheaper than calling fn on strings.Split(text, delim), as it avoids allocating an intermediate slice of strings.
 func SplitMap[T any](text string, delim string, fn func(string) T) []T {
-	before, after, found := strings.Cut(text, delim)
-	if !found {
-		return []T{fn(text)}
+	sl := make([]T, 0, strings.Count(text, delim)+1)
+	for s := range strings.SplitSeq(text, delim) {
+		sl = append(sl, fn(s))
 	}
-
-	sl := append(make([]T, 0, strings.Count(text, delim)+1), fn(before))
-	for found {
-		before, after, found = strings.Cut(after, delim)
-		sl = append(sl, fn(before))
-	}
-
 	return sl
 }
 

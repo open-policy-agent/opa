@@ -375,7 +375,7 @@ func checkLogTimeStampFormat(t *testing.T, params runCmdParams, format string) {
 	cancel()
 	<-done
 
-	for _, line := range strings.Split(buf.String(), "\n") {
+	for line := range strings.SplitSeq(buf.String(), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue

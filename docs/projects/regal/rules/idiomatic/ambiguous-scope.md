@@ -60,7 +60,7 @@ This default is sensible for a rule defined only once, but is somewhat ambiguous
 the `allow` rule in the examples above. Was the intention really to annotate that single definition, or the rule as
 whole? Most likely the latter, and that's what the `document` scope is for.
 
-If only a single rule in a group of incremental rule definitions is annotated, it should have it's `scope` set explicitly
+If only a single rule in a group of incremental rule definitions is annotated, it should have its `scope` set explicitly
 to either `document` or `rule`. If all incremental definitions are annotated, explicit `scope: rule` is not required.
 
 ## Exceptions
@@ -82,5 +82,5 @@ rules:
 ## Related Resources
 
 - OPA Docs: [Annotations](https://www.openpolicyagent.org/docs/policy-language/#annotations)
-- Regal Docs: [no-defined-entrypoint](https://openpolicyagent.org/projects/regal/rules/idiomatic/no-defined-entrypoint)
+- Regal Docs: [no-defined-entrypoint](https://www.openpolicyagent.org/projects/regal/rules/idiomatic/no-defined-entrypoint)
 - GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/idiomatic/ambiguous-scope/ambiguous_scope.rego)

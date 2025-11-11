@@ -1733,7 +1733,7 @@ func stringsMatch(t *testing.T, expected, actual string) bool {
 	t.Helper()
 
 	var expectedLines []string
-	for _, l := range strings.Split(expected, "\n") {
+	for l := range strings.SplitSeq(expected, "\n") {
 		if !strings.Contains(l, "%SKIP_LINE%") {
 			expectedLines = append(expectedLines, l)
 		}

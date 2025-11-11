@@ -12,13 +12,6 @@ framework that you can use to write _tests_ for your policies. By writing
 tests for your policies you can speed up the development process of new rules
 and reduce the amount of time it takes to modify rules as requirements evolve.
 
-:::info
-The examples in this section try to represent the best practices. As such, they
-make use of keywords that are meant to become standard keywords at some point in
-time, but have been introduced gradually.
-[See the docs on _future keywords_](./policy-language/#future-keywords) for more information.
-:::
-
 ## Getting Started
 
 Let's use an example to get started. The file below implements a simple

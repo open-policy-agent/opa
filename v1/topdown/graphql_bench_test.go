@@ -67,7 +67,7 @@ func BenchmarkGraphQLSchemaIsValid(b *testing.B) {
 
 	for _, bench := range benches {
 		b.Run(bench.desc, func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				var result *ast.Term
 				err := builtinGraphQLSchemaIsValid(
 					BuiltinContext{
@@ -112,7 +112,7 @@ func BenchmarkGraphQLParseSchema(b *testing.B) {
 	}
 	for _, bench := range benches {
 		b.Run(bench.desc, func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				var result *ast.Term
 				err := builtinGraphQLParseSchema(
 					BuiltinContext{
@@ -158,7 +158,7 @@ func BenchmarkGraphQLParseQuery(b *testing.B) {
 	}
 	for _, bench := range benches {
 		b.Run(bench.desc, func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				var result *ast.Term
 				err := builtinGraphQLParseQuery(
 					BuiltinContext{
@@ -221,7 +221,7 @@ func BenchmarkGraphQLIsValid(b *testing.B) {
 	}
 	for _, bench := range benches {
 		b.Run(bench.desc, func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				var result *ast.Term
 				err := builtinGraphQLIsValid(
 					BuiltinContext{
@@ -279,7 +279,7 @@ func BenchmarkGraphQLParse(b *testing.B) {
 	}
 	for _, bench := range benches {
 		b.Run(bench.desc, func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				var result *ast.Term
 				err := builtinGraphQLParse(
 					BuiltinContext{
@@ -348,9 +348,8 @@ func BenchmarkGraphQLParseAndVerify(b *testing.B) {
 	}
 	for _, bench := range benches {
 		b.Run(bench.desc, func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				var result *ast.Term
-				b.StartTimer()
 				err := builtinGraphQLParseAndVerify(
 					BuiltinContext{
 						InterQueryBuiltinValueCache: bench.cache,
@@ -378,6 +377,8 @@ func BenchmarkGraphQLParseAndVerify(b *testing.B) {
 						return
 					}
 				}
+
+				b.StartTimer() // b.Loop() requires a running timer
 			}
 		})
 	}

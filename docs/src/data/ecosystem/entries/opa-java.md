@@ -10,7 +10,7 @@ code:
 - https://github.com/StyraInc/opa-java
 - https://central.sonatype.com/artifact/com.styra/opa
 tutorials:
-- https://styrainc.github.io/opa-java/javadoc/
+- https://open-policy-agent.github.io/opa-java/javadoc/
 inventors:
 - styra
 ---

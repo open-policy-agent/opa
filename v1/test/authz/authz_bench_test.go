@@ -92,9 +92,7 @@ func runAuthzBenchmark(b *testing.B, mode InputMode, numPaths int, extras ...boo
 		b.Fatal(err)
 	}
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		rs, err := pq.Eval(ctx, rego.EvalParsedInput(inputAST))
 		if err != nil {
 			b.Fatalf("Unexpected error(s): %v", err)

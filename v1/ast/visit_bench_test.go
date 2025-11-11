@@ -12,7 +12,7 @@ func BenchmarkVarVisitorWalkAnyVsSpecific(b *testing.B) {
 	vis := NewVarVisitor()
 
 	b.Run("Walk", func(b *testing.B) {
-		for range b.N {
+		for b.Loop() {
 			vis.Walk(bod)
 		}
 	})
@@ -25,7 +25,7 @@ func BenchmarkVarVisitorWalkAnyVsSpecific(b *testing.B) {
 	b.ResetTimer()
 
 	b.Run("WalkBody", func(b *testing.B) {
-		for range b.N {
+		for b.Loop() {
 			vis.WalkBody(bod)
 		}
 	})
@@ -42,7 +42,7 @@ func BenchmarkVarSetUpdateEmpty(b *testing.B) {
 	ref := MustParseRef("foo.bar.baz")
 	used := NewVarSet()
 
-	for range b.N {
+	for b.Loop() {
 		for _, t := range ref[1:] {
 			vars := t.Vars()
 			used.Update(vars)

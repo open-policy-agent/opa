@@ -53,7 +53,7 @@ func populateDefaultTypes(t *testing.T, fieldType reflect.Type, fieldValue refle
 	switch fieldType.Kind() {
 	case reflect.Slice:
 		if fieldType == reflect.TypeOf(json.RawMessage{}) {
-			fieldValue.Set(reflect.ValueOf([]byte(fmt.Sprintf(`{"test": "bar-%d"}`, index))))
+			fieldValue.Set(reflect.ValueOf(fmt.Appendf(nil, `{"test": "bar-%d"}`, index)))
 			return true
 		}
 
@@ -106,8 +106,8 @@ func populateDefaultTypes(t *testing.T, fieldType reflect.Type, fieldValue refle
 			fieldType.Elem() == reflect.TypeOf(json.RawMessage{}):
 
 			fieldValue.Set(reflect.ValueOf(map[string]json.RawMessage{
-				"key1": []byte(fmt.Sprintf(`{"test": "bar-%d"}`, index)),
-				"key2": []byte(fmt.Sprintf(`{"foo": "baz-%d"}`, index)),
+				"key1": fmt.Appendf(nil, `{"test": "bar-%d"}`, index),
+				"key2": fmt.Appendf(nil, `{"foo": "baz-%d"}`, index),
 			}))
 
 			return true

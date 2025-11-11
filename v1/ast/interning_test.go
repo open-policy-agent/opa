@@ -41,25 +41,25 @@ func BenchmarkInterningAccessValue(b *testing.B) {
 	ast.InternStringTerm("open-policy-agent")
 
 	b.Run("package var value", func(b *testing.B) {
-		for range b.N {
+		for b.Loop() {
 			_ = getPackageVarValue()
 		}
 	})
 
 	b.Run("interned value", func(b *testing.B) {
-		for range b.N {
+		for b.Loop() {
 			_ = getInternedValue()
 		}
 	})
 
 	b.Run("object value", func(b *testing.B) {
-		for range b.N {
+		for b.Loop() {
 			_ = getObjectValue()
 		}
 	})
 
 	b.Run("new value", func(b *testing.B) {
-		for range b.N {
+		for b.Loop() {
 			_ = getNewValue()
 		}
 	})

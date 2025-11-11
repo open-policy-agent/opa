@@ -4,6 +4,12 @@ sidebar_position: 1
 title: Introduction
 ---
 
+<!-- markdownlint-disable MD033 -->
+<head>
+<!-- markdownlint-disable MD033 -->
+  <title>Introduction | Regal</title>
+</head>
+
 <!-- markdownlint-disable MD041 -->
 
 import Intro from '@site/src/components/projects/regal/Intro';
@@ -24,16 +30,14 @@ experienced Rego developer or just starting out.
 
 <Intro image={require('./assets/regal-banner.png').default}/>
 
-
 <!-- markdownlint-disable MD041 -->
 
 ## Goals
 
 - Deliver an outstanding policy development experience by providing the best possible tools for that purpose
 - Identify common mistakes, bugs and inefficiencies in Rego policies, and suggest better approaches
-- Provide advice on [best practices](https://github.com/StyraInc/rego-style-guide), coding style, and tooling
+- Provide advice on [best practices](https://www.openpolicyagent.org/docs/style-guide), coding style, and tooling
 - Allow users, teams and organizations to enforce custom rules on their policy code
-
 
 <!-- markdownlint-disable MD041 -->
 
@@ -56,8 +60,7 @@ experienced Rego developer or just starting out.
 
 — Jimmy Ray, [Boeing](https://www.boeing.com/)
 
-See the [adopters](https://openpolicyagent.org/projects/regal/adopters) file for more Regal users.
-
+See the [adopters](https://www.openpolicyagent.org/projects/regal/adopters) file for more Regal users.
 
 <!-- markdownlint-disable MD041 -->
 
@@ -74,7 +77,7 @@ brew install regal
 <details>
   <summary><strong>Other Installation Options</strong></summary>
 
-Please see [Packages](https://openpolicyagent.org/projects/regal/adopters#packaging)
+Please see [Packages](https://www.openpolicyagent.org/projects/regal/adopters#packaging)
 for a list of package repositories which distribute Regal.
 
 Manual installation commands:
@@ -120,9 +123,7 @@ page.
 
 First, author some Rego!
 
-**policy/authz.rego**
-
-```rego
+```rego title="policy/authz.rego"
 package authz
 
 default allow = false
@@ -150,21 +151,21 @@ Description:  	Use raw strings for regex patterns
 Category:     	idiomatic
 Location:     	policy/authz.rego:12:27
 Text:         	isEmployee if regex.match("@acmecorp\\.com$", input.user.email)
-Documentation:	https://openpolicyagent.org/projects/regal/rules/idiomatic/non-raw-regex-pattern
+Documentation:	https://www.openpolicyagent.org/projects/regal/rules/idiomatic/non-raw-regex-pattern
 
 Rule:         	use-assignment-operator
 Description:  	Prefer := over = for assignment
 Category:     	style
 Location:     	policy/authz.rego:5:1
 Text:         	default allow = false
-Documentation:	https://openpolicyagent.org/projects/regal/rules/style/use-assignment-operator
+Documentation:	https://www.openpolicyagent.org/projects/regal/rules/style/use-assignment-operator
 
 Rule:         	prefer-snake-case
 Description:  	Prefer snake_case for names
 Category:     	style
 Location:     	policy/authz.rego:12:1
 Text:         	isEmployee if regex.match("@acmecorp\\.com$", input.user.email)
-Documentation:	https://openpolicyagent.org/projects/regal/rules/style/prefer-snake-case
+Documentation:	https://www.openpolicyagent.org/projects/regal/rules/style/prefer-snake-case
 
 1 file linted. 3 violations found.
 ```
@@ -185,49 +186,48 @@ companion for Rego development!
 
 Integrating Regal in your favorite editor means you'll get immediate feedback from the linter as you work on your
 policies. More than that, it'll unlock a whole new set of features that leverage Regal's
-[language server](https://openpolicyagent.org/projects/regal/language-server),
+[language server](https://www.openpolicyagent.org/projects/regal/language-server),
 like context-aware completion suggestions, informative tooltips on hover,
 or go-to-definition.
 
 Elevate your policy development experience with Regal in VS Code, Neovim, Zed, Helix
-and more on our [Editor Support page](https://openpolicyagent.org/projects/regal/editor-support)!
+and more on our [Editor Support page](https://www.openpolicyagent.org/projects/regal/editor-support)!
 
 To learn more about the features provided by the Regal language server, see the
-[Language Server](https://openpolicyagent.org/projects/regal/language-server) page.
+[Language Server](https://www.openpolicyagent.org/projects/regal/language-server) page.
 
 ### Using Regal in Your Build Pipeline
 
 To ensure Regal's rules are enforced consistently in your project or organization,
 we've made it easy to run Regal as part of your builds.
-See the docs on [Using Regal in your build pipeline](https://openpolicyagent.org/projects/regal/cicd) to learn more
+See the docs on [Using Regal in your build pipeline](https://www.openpolicyagent.org/projects/regal/cicd) to learn more
 about how to set up Regal to lint your policies on every commit or pull request.
-
 
 <!-- markdownlint-disable MD041 -->
 
 ## Next Steps
 
-Now you're up and running with Regal, take a look around some of our documentation
-to get a feel for the different features and capabilities of Regal.
+Now that you're up and running with Regal, take a look around some of our
+documentation to get a feel for the different features and capabilities of
+Regal.
 
-- [Rules](https://openpolicyagent.org/projects/regal/rules)
-  - [Bugs](https://openpolicyagent.org/projects/regal/rules/bugs): Common mistakes, potential bugs and inefficiencies in Rego policies.
-  - [Idiomatic](https://openpolicyagent.org/projects/regal/rules/idiomatic): Suggestions for more idiomatic constructs.
-  - [Imports](https://openpolicyagent.org/projects/regal/rules/imports): Best practices for imports.
-  - [Performance](https://openpolicyagent.org/projects/regal/rules/performance): Rules for improving performance of policies.
-  - [Style](https://openpolicyagent.org/projects/regal/rules/style): Rego Style Guide rules.
-  - [Testing](https://openpolicyagent.org/projects/regal/rules/testing): Rules for testing and development.
-  - [Custom](https://openpolicyagent.org/projects/regal/rules/custom): Custom rules where enforcement can be adjusted to match your preferences.
-- [Configuration](https://openpolicyagent.org/projects/regal/configuration): Dig into some of the different configuration options available.
-- [Editor Support](https://openpolicyagent.org/projects/regal/editor-support): Get Regal integrated into your editor of choice.
-  - [Language Server](https://openpolicyagent.org/projects/regal/language-server): Learn more
+- [Rules](https://www.openpolicyagent.org/projects/regal/rules)
+  - [Bugs](https://www.openpolicyagent.org/projects/regal/rules/bugs): Common mistakes, potential bugs and inefficiencies in Rego policies.
+  - [Idiomatic](https://www.openpolicyagent.org/projects/regal/rules/idiomatic): Suggestions for more idiomatic constructs.
+  - [Imports](https://www.openpolicyagent.org/projects/regal/rules/imports): Best practices for imports.
+  - [Performance](https://www.openpolicyagent.org/projects/regal/rules/performance): Rules for improving performance of policies.
+  - [Style](https://www.openpolicyagent.org/projects/regal/rules/style): Rego Style Guide rules.
+  - [Testing](https://www.openpolicyagent.org/projects/regal/rules/testing): Rules for testing and development.
+  - [Custom](https://www.openpolicyagent.org/projects/regal/rules/custom): Custom rules where enforcement can be adjusted to match your preferences.
+- [Configuration](https://www.openpolicyagent.org/projects/regal/configuration): Dig into some of the different configuration options available.
+- [Editor Support](https://www.openpolicyagent.org/projects/regal/editor-support): Get Regal integrated into your editor of choice.
+  - [Language Server](https://www.openpolicyagent.org/projects/regal/language-server): Learn more
     about Regal's advanced editor capabilities.
-  - [DAP](https://openpolicyagent.org/projects/regal/debug-adapter): Live debug your Rego policies with Regal's DAP support.
-- [Fixing Issues](https://openpolicyagent.org/projects/regal/fixing): See Regal can help you fix issues in your Rego policies automatically.
-- [CI/CD](https://openpolicyagent.org/projects/regal/ci-cd): Run Regal as part of your automated checks.
-- [Custom Rules](https://openpolicyagent.org/projects/regal/custom-rules): Learn how to write your own rules for Regal.
-- [Adopters](https://openpolicyagent.org/projects/regal/adopters): See who else is using Regal.
-
+  - [DAP](https://www.openpolicyagent.org/projects/regal/debug-adapter): Live debug your Rego policies with Regal's DAP support.
+- [Fixing Issues](https://www.openpolicyagent.org/projects/regal/fixing): See Regal can help you fix issues in your Rego policies automatically.
+- [CI/CD](https://www.openpolicyagent.org/projects/regal/cicd): Run Regal as part of your automated checks.
+- [Custom Rules](https://www.openpolicyagent.org/projects/regal/custom-rules): Learn how to write your own rules for Regal.
+- [Adopters](https://www.openpolicyagent.org/projects/regal/adopters): See who else is using Regal.
 
 <!-- If updating, please check resources.md too -->
 
@@ -256,14 +256,12 @@ contains information about how to hack on Regal itself.
 - [Regal を使って Rego を Lint する](https://tech.dentsusoken.com/entry/2024/12/05/Regal_%E3%82%92%E4%BD%BF%E3%81%A3%E3%81%A6_Rego_%E3%82%92_Lint_%E3%81%99%E3%82%8B)
   by Shibata Takao ([@shibata.takao](https://shodo.ink/@shibata.takao/))
 
-
 <!-- markdownlint-disable MD041 -->
 
 ## Status
 
 Regal is currently in beta. End-users should not expect any drastic changes, but any API may change without notice.
 If you want to embed Regal in another project or product, please reach out!
-
 
 <!-- markdownlint-disable MD041 -->
 
@@ -281,5 +279,3 @@ The current Roadmap items are all related to the preparation for
 - [lsp: Support a JetBrains LSP client (#1560)](https://github.com/open-policy-agent/regal/issues/1560)
 
 If there's something you'd like to have added to the roadmap, either open an issue, or reach out in the community Slack!
-
-

@@ -53,7 +53,7 @@ func BenchmarkArrayPlugging(b *testing.B) {
 
 			b.ResetTimer()
 
-			for range b.N {
+			for b.Loop() {
 
 				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 
@@ -103,9 +103,7 @@ func benchmarkIteration(b *testing.B, module string) {
 		"test.rego": module,
 	})
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 
 		q := NewQuery(query).WithCompiler(compiler)
 		_, err := q.Run(ctx)
@@ -125,12 +123,10 @@ func BenchmarkLargeJSON(b *testing.B) {
 		b.Fatal(compiler.Errors)
 	}
 
-	b.ResetTimer()
-
 	// Read data.values N times inside query.
 	query := ast.MustParseBody("data.keys[_] = x; data.values = y")
 
-	for range b.N {
+	for b.Loop() {
 
 		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 
@@ -190,9 +186,7 @@ func benchmarkConcurrency(b *testing.B, params []storage.TransactionParams) {
 		b.Fatalf("Unexpected compiler error: %v", compiler.Errors)
 	}
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		wg := new(sync.WaitGroup)
 		queriesPerCore := 1000 / len(params)
 		for j := range params {
@@ -293,9 +287,7 @@ func runVirtualDocsBenchmark(b *testing.B, numTotalRules, numHitRules int) {
 		WithTransaction(txn).
 		WithInput(input)
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		rs, err := query.Run(ctx)
 		if err != nil {
 			b.Fatalf("Unexpected topdown query error: %v", err)
@@ -385,7 +377,7 @@ func runPartialEvalBenchmark(b *testing.B, numRoles int) {
 			WithTransaction(txn).
 			WithInput(input)
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			qrs, err := query.Run(ctx)
 			if len(qrs) != 1 || err != nil {
 				b.Fatal("Unexpected query result:", qrs, "err:", err)
@@ -408,7 +400,7 @@ func runPartialEvalCompileBenchmark(b *testing.B, numRoles int) {
 
 		b.ResetTimer()
 
-		for range b.N {
+		for b.Loop() {
 			// compile original policy
 			compiler := ast.NewCompiler()
 			compiler.Compile(map[string]*ast.Module{
@@ -554,7 +546,7 @@ func BenchmarkWalk(b *testing.B) {
 				b.Fatal(err)
 			}
 			b.ResetTimer()
-			for range b.N {
+			for b.Loop() {
 				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 					q := NewQuery(compiledQuery).
 						WithStore(store).
@@ -644,7 +636,7 @@ func BenchmarkComprehensionIndexing(b *testing.B) {
 					b.Fatal(err)
 				}
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					err = storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 						m := metrics.New()
 						instr := NewInstrumentation(m)
@@ -680,7 +672,7 @@ func BenchmarkFunctionArgumentIndex(b *testing.B) {
 		body := ast.MustParseBody(fmt.Sprintf("data.test.f(%d, x)", n))
 
 		b.Run(strconv.Itoa(n), func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				q := NewQuery(body).
 					WithCompiler(compiler).
 					WithIndexing(true)
@@ -750,7 +742,7 @@ func BenchmarkObjectSubset(b *testing.B) {
 
 			b.ResetTimer()
 
-			for range b.N {
+			for b.Loop() {
 
 				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 
@@ -817,7 +809,7 @@ func BenchmarkObjectSubsetSlow(b *testing.B) {
 
 			b.ResetTimer()
 
-			for range b.N {
+			for b.Loop() {
 
 				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 
@@ -907,7 +899,7 @@ func BenchmarkGlob(b *testing.B) {
 
 			b.ResetTimer()
 
-			for range b.N {
+			for b.Loop() {
 
 				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 
@@ -944,9 +936,7 @@ func BenchmarkMemberWithKeyFromBaseDoc(b *testing.B) {
 		"test.rego": mod,
 	})
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 			_, err := NewQuery(query).WithCompiler(compiler).WithStore(store).WithTransaction(txn).Run(ctx)
 			return err
@@ -969,9 +959,7 @@ func BenchmarkObjectGetFromBaseDoc(b *testing.B) {
 		"test.rego": mod,
 	})
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 			_, err := NewQuery(query).WithCompiler(compiler).WithStore(store).WithTransaction(txn).Run(ctx)
 			return err

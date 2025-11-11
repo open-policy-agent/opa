@@ -73,7 +73,7 @@ Regal rule. Get started with [Regal, the Rego linter](/projects/regal).
 
 ### Use strict mode
 
-[Strict mode](https://www.openpolicyagent.org/docs/latest/strict/) provides extra checks for common mistakes like
+[Strict mode](https://www.openpolicyagent.org/docs/policy-language#strict-mode) provides extra checks for common mistakes like
 redundant imports, or unused variables. Include an `opa check --strict path/to/polices` step as part of your build
 pipeline.
 
@@ -152,7 +152,7 @@ tailor-made for policy evaluation, there's a good chance that some of them can h
 ### Consider using JSON schemas for type checking
 
 As you author Rego policy, providing JSON schemas for your `input` (and possibly `data`) enables strict
-[type checking](https://www.openpolicyagent.org/docs/latest/schemas/), letting you avoid simple — but common — mistakes,
+[type checking](https://www.openpolicyagent.org/docs/policy-language#schema), letting you avoid simple — but common — mistakes,
 like typos, or referencing nested attributes in the wrong location. This extra level of verification improves both the
 developer experience as well as the quality of your policies.
 
@@ -796,7 +796,7 @@ allow if {
 
 #### Related Resources
 
-- [Five things you didn't know about OPA](https://blog.styra.com/blog/five-things-you-didnt-know-about-opa).
+- [Five things you didn't know about OPA](https://www.styra.com/blog/five-things-you-didnt-know-about-opa).
 
 ## Functions
 
@@ -865,7 +865,7 @@ Regal rule. Get started with [Regal, the Rego linter](/projects/regal).
 
 ### Use raw strings for regex patterns
 
-[Raw strings](https://www.openpolicyagent.org/docs/edge/policy-language/#strings) are interpreted literally, allowing
+[Raw strings](https://www.openpolicyagent.org/docs/policy-language/#strings) are interpreted literally, allowing
 you to avoid having to escape special characters like `\` in your regex patterns.
 
 **Avoid**

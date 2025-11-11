@@ -1698,7 +1698,7 @@ func BenchmarkFormatVarTerm(b *testing.B) {
 		index:        54321,
 	}
 
-	for range b.N {
+	for b.Loop() {
 		_ = e.fmtVarTerm()
 	}
 }

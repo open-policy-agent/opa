@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
+	wasmtime "github.com/bytecodealliance/wasmtime-go/v37"
 
 	sdk_errors "github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/internal/wasm/util"
@@ -79,7 +79,12 @@ func newVM(opts vmOpts, engine *wasmtime.Engine) (*VM, error) {
 	v := &VM{engine: engine}
 	store := wasmtime.NewStore(engine)
 	store.SetEpochDeadline(1)
-	memorytype := wasmtime.NewMemoryType(opts.memoryMin, true, opts.memoryMax)
+	memorytype := wasmtime.NewMemoryType(
+		opts.memoryMin,
+		true,
+		opts.memoryMax,
+		false,
+	)
 	memory, err := wasmtime.NewMemory(store, memorytype)
 	if err != nil {
 		return nil, err
@@ -94,11 +99,11 @@ func newVM(opts vmOpts, engine *wasmtime.Engine) (*VM, error) {
 	v.dispatcher = newBuiltinDispatcher()
 	externs := opaFunctions(v.dispatcher, store)
 	for name, extern := range externs {
-		if err := linker.Define("env", name, extern); err != nil {
+		if err := linker.Define(store, "env", name, extern); err != nil {
 			return nil, fmt.Errorf("linker: env.%s: %w", name, err)
 		}
 	}
-	if err := linker.Define("env", "memory", memory); err != nil {
+	if err := linker.Define(store, "env", "memory", memory); err != nil {
 		return nil, fmt.Errorf("linker: env.memory: %w", err)
 	}
 

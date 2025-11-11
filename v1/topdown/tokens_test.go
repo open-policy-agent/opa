@@ -313,7 +313,7 @@ func TestTopDownJWTEncodeSignES256(t *testing.T) {
 	}
 	// Verification
 
-	var headers map[string]interface{}
+	var headers map[string]any
 	err = json.Unmarshal([]byte(es256Hdr), &headers)
 	if err != nil {
 		t.Fatal("Failed to parse header")
@@ -335,7 +335,7 @@ func TestTopDownJWTEncodeSignES256(t *testing.T) {
 	if !ok {
 		t.Fatal("Failed to get first key")
 	}
-	var key interface{}
+	var key any
 	err = jwk.Export(jwkKey, &key)
 	if err != nil {
 		t.Fatal("Failed to create private key")
@@ -344,7 +344,7 @@ func TestTopDownJWTEncodeSignES256(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get public key: %v", err)
 	}
-	var rawPublicKey interface{}
+	var rawPublicKey any
 	err = jwk.Export(publicKey, &rawPublicKey)
 	if err != nil {
 		t.Fatalf("failed to export public key: %v", err)
@@ -453,7 +453,7 @@ func TestTopDownJWTEncodeSignES512(t *testing.T) {
 	}
 	// Verification
 
-	var headers map[string]interface{}
+	var headers map[string]any
 	err = json.Unmarshal([]byte(es512Hdr), &headers)
 	if err != nil {
 		t.Fatal("Failed to parse header")
@@ -475,7 +475,7 @@ func TestTopDownJWTEncodeSignES512(t *testing.T) {
 	if !ok {
 		t.Fatal("Failed to get first key")
 	}
-	var key interface{}
+	var key any
 	err = jwk.Export(jwkKey, &key)
 	if err != nil {
 		t.Fatalf("Failed to create private key: %v", err)
@@ -484,7 +484,7 @@ func TestTopDownJWTEncodeSignES512(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get public key: %v", err)
 	}
-	var rawPublicKey interface{}
+	var rawPublicKey any
 	err = jwk.Export(publicKey, &rawPublicKey)
 	if err != nil {
 		t.Fatalf("failed to export public key: %v", err)
@@ -1011,7 +1011,7 @@ func createJwt(payload string, privateKey string) (string, error) {
 		return "", errors.New("failed to get first key from JWK set")
 	}
 
-	var pk interface{}
+	var pk any
 	if err := jwk.Export(jwkKey, &pk); err != nil {
 		return "", fmt.Errorf("failed to materialize key: %s", err.Error())
 	}

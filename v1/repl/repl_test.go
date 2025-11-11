@@ -3261,7 +3261,7 @@ func TestTruncatePrettyOutput(t *testing.T) {
 	if err := repl.OneShot(ctx, "data[x]"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	for _, line := range strings.Split(buffer.String(), "\n") {
+	for line := range strings.SplitSeq(buffer.String(), "\n") {
 		// | "repl" | {"version": <elided>... |
 		if len(line) > 96 {
 			t.Fatalf("Expected len(line) to be < 96 but got:\n\n%v", buffer)
