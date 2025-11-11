@@ -1,7 +1,6 @@
 package util
 
 import (
-	"math"
 	"slices"
 	"strings"
 	"sync"
@@ -58,7 +57,12 @@ func NumDigitsInt64(n int64) int {
 		n = -n
 	}
 
-	return int(math.Log10(float64(n))) + 1
+	count := 0
+	for n > 0 {
+		n /= 10
+		count++
+	}
+	return count
 }
 
 // NumDigitsUint returns the number of digits in n.
@@ -68,16 +72,10 @@ func NumDigitsUint(n uint64) int {
 		return 1
 	}
 
-	return int(math.Log10(float64(n))) + 1
-}
-
-// KeysCount returns the number of keys in m that satisfy predicate p.
-func KeysCount[K comparable, V any](m map[K]V, p func(K) bool) int {
 	count := 0
-	for k := range m {
-		if p(k) {
-			count++
-		}
+	for n > 0 {
+		n /= 10
+		count++
 	}
 	return count
 }
