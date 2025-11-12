@@ -1,5 +1,6 @@
 ---
-title: "Introduction"
+title: "Open Policy Agent (OPA)"
+sidebar_label: "Introduction"
 ---
 
 The Open Policy Agent (OPA, pronounced "oh-pa") is an open source,

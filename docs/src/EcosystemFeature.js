@@ -43,7 +43,7 @@ const EcosystemFeature = (props) => {
     <Layout title={title}>
       <div className="container margin-vert--lg">
         <Heading as="h1" style={{ margin: 0 }}>
-          {title}
+          {title} OPA Ecosystem Projects
         </Heading>
         {content && (
           <div style={{ marginTop: "1rem" }}>
