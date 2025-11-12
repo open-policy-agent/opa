@@ -1,0 +1,36 @@
+name: Broken Link Report
+description: Report a broken external link pointing to OPA
+title: "website: Broken Refferring Link "
+labels: "website"
+assignees: ["charlieegan3"]
+body:
+- type: markdown
+  attributes:
+    value: |
+      Thank you for helping us identify broken external links pointing to OPA!
+
+      Please provide the details below to help us understand where outdated references to OPA exist.
+- type: input
+  id: referrer
+  attributes:
+    label: Referrer
+    description: The page where you clicked the broken link to OPA
+    placeholder: ex. https://some-non-opa-site.example.com/foo/bar
+  validations:
+    required: true
+- type: input
+  id: broken-link
+  attributes:
+    label: Broken Link
+    description: The URL that is broken or not working
+    placeholder: ex. https://www.openpolicyagent.org/docs/some-page
+  validations:
+    required: true
+- type: textarea
+  id: description
+  attributes:
+    label: Description
+    description: Additional details about the broken link (what happened when you clicked it, expected behavior, etc.)
+    placeholder: ex. Clicked the link and got a 404 error, expected to see the policy reference documentation
+  validations:
+    required: false
