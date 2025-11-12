@@ -1,6 +1,6 @@
 name: Broken Link Report
 description: Report a broken external link pointing to OPA
-title: "website: Broken Refferring Link "
+title: "website: Broken Referring Link "
 labels: "website"
 assignees: ["charlieegan3"]
 body:
