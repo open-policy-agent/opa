@@ -2087,6 +2087,9 @@ func (e *templateStringExpander) expandExprTerm(t *Term) ([]*Expr, *Term, bool) 
 	return nil, nil, false
 }
 
+// TODO: Refactor to use sprintf built-in instead of internal.template_string for supporting existing plan evaluators (Wasm, swift-opa)
+// Note: Consider supporting two modes, one using optimized built-in, and one using sprintf for unsupported compilation targets (e.g. wasm, plan)
+
 // rewriteTemplateStrings rewrites template-string calls as they appear in bodies; e.g. rules, comprehensions, etc.
 func (c *Compiler) rewriteTemplateStrings() {
 	modified := false
@@ -2095,8 +2098,8 @@ func (c *Compiler) rewriteTemplateStrings() {
 		WalkRules(mod, func(r *Rule) bool {
 			safe := r.Head.Args.Vars()
 			safe.Update(ReservedVars)
-			vis := func(v any) bool {
-				modrec, errs := rewriteTemplateStrings(c.localvargen, c.GetArity, safe, v)
+			vis := func(t *Term) bool {
+				modrec, errs := rewriteTemplateStringTerm(c.localvargen, c.GetArity, safe, t)
 				if modrec {
 					modified = true
 				}
@@ -2108,14 +2111,67 @@ func (c *Compiler) rewriteTemplateStrings() {
 			}
 
 			// Walk the head and body separately to ensure that we don't rewrite the same template string multiple times when it appears inside an else-body
-			walkCalls(r.Head, vis)
-			walkCalls(r.Body, vis)
+			WalkTerms(r.Head, vis)
+			WalkTerms(r.Body, vis)
 			return false
 		})
 	}
 	if modified {
 		c.Required.addBuiltinSorted(InternalTemplateString)
 	}
+}
+
+func rewriteTemplateStringTerm(gen *localVarGenerator, getArity func(Ref) int, globals VarSet, t *Term) (bool, Errors) {
+	if ts, ok := t.Value.(*TemplateString); ok {
+		call, errs := rewriteTemplateString(gen, t.Loc(), ts)
+		if len(errs) != 0 {
+			return false, errs
+		}
+		t.Value = call
+		return true, nil
+	}
+	return false, nil
+}
+
+func rewriteTemplateString(gen *localVarGenerator, loc *Location, ts *TemplateString) (Call, Errors) {
+	// TODO: Detect and error on enumeration/cross-product
+	var errs Errors
+	terms := make([]*Term, 0, len(ts.Parts))
+
+	if len(ts.Parts) == 0 {
+		terms = append(terms, StringTerm("").SetLocation(loc))
+	} else {
+		for _, p := range ts.Parts {
+			switch p := p.(type) {
+			case *Expr:
+				var t *Term
+				if p.IsCall() {
+					t = CallTerm(p.Terms.([]*Term)...)
+				} else {
+					var ok bool
+					t, ok = p.Terms.(*Term)
+					if !ok {
+						errs = append(errs, NewError(CompileErr, p.Location, "unexpected template-string expression type: %T", p.Terms))
+						continue
+					}
+				}
+
+				loc := t.Loc()
+				x := NewTerm(gen.Generate()).SetLocation(loc)
+				capture := Equality.Expr(x, t).SetLocation(loc)
+				capture.With = p.With
+				terms = append(terms, SetComprehensionTerm(x, NewBody(capture)).SetLocation(loc))
+			case *Term:
+				terms = append(terms, p)
+			default:
+				errs = append(errs, NewError(CompileErr, loc, "expected only term or expression parts in template-string, got %T", p))
+				return nil, errs
+			}
+		}
+	}
+
+	call := InternalTemplateString.Call(ArrayTerm(terms...)).Value.(Call)
+	return call, errs
 }
 
 func rewriteTemplateStrings(gen *localVarGenerator, getArity func(Ref) int, globals VarSet, c any) (bool, Errors) {
@@ -2915,6 +2971,9 @@ func (xform *rewriteNestedHeadVarLocalTransform) Visit(x any) bool {
 			stop = true
 		case *ObjectComprehension:
 			xform.errs = rewriteDeclaredVarsInObjectComprehension(xform.gen, stack, x, xform.errs, xform.strict)
+			stop = true
+		case *TemplateString:
+			xform.errs = rewriteDeclaredVarsInTemplateString(xform.gen, stack, x, xform.errs, xform.strict)
 			stop = true
 		}
 
@@ -4720,6 +4779,18 @@ func resolveRefsInTerm(globals map[Var]*usedRef, ignore *declaredVarStack, term 
 		cpy.Value = sc
 		ignore.Pop()
 		return &cpy
+	case *TemplateString:
+		ts := &TemplateString{}
+		for _, p := range v.Parts {
+			if expr, ok := p.(*Expr); ok {
+				ts.Parts = append(ts.Parts, resolveRefsInExpr(globals, ignore, expr))
+			} else {
+				ts.Parts = append(ts.Parts, p)
+			}
+		}
+		cpy := *term
+		cpy.Value = ts
+		return &cpy
 	default:
 		return term
 	}
@@ -5882,6 +5953,18 @@ func rewriteDeclaredVarsInWithRecursive(g *localVarGenerator, stack *localDeclar
 	}
 	// No special handling of the `with` value
 	return rewriteDeclaredVarsInTermRecursive(g, stack, w.Value, errs, strict)
+}
+
+func rewriteDeclaredVarsInTemplateString(g *localVarGenerator, stack *localDeclaredVars, ts *TemplateString, errs Errors, strict bool) Errors {
+	for i, p := range ts.Parts {
+		if expr, ok := p.(*Expr); ok {
+			stack.Push()
+			ts.Parts[i], errs = rewriteDeclaredVarsInExpr(g, stack, expr, errs, strict)
+			stack.Pop()
+		}
+	}
+
+	return errs
 }
 
 func rewriteDeclaredVarsInArrayComprehension(g *localVarGenerator, stack *localDeclaredVars, v *ArrayComprehension, errs Errors, strict bool) Errors {

@@ -1,6 +1,6 @@
 ---
 cases:
-  - note: stringinterpolation/empty string
+  - note: string-interpolation/empty string
     modules:
       - |
         package test
@@ -9,7 +9,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: ""
-  - note: stringinterpolation/no template expression
+  - note: string-interpolation/no template expression
     modules:
       - |
         package test
@@ -18,7 +18,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: "foo bar baz"
-  - note: stringinterpolation/escaped template expressions
+  - note: string-interpolation/escaped template expressions
     modules:
       - |
         package test
@@ -40,7 +40,7 @@ cases:
           e: "foo {42} bar {43} baz"
           f: "{42"
           g: "42}"
-  - note: stringinterpolation/template expressions with primitive values
+  - note: string-interpolation/template expressions with primitive values
     modules:
       - |
         package test
@@ -49,7 +49,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: "42, 13.37, true, foo, null"
-  - note: stringinterpolation/template expressions with collection values
+  - note: string-interpolation/template expressions with collection values
     modules:
       - |
         package test
@@ -58,7 +58,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: "[42, 13.37, true, \"foo\", null], {null, true, 13.37, 42, \"foo\"}, {\"a\": \"b\"}"
-  - note: stringinterpolation/template expression with array comprehension
+  - note: string-interpolation/template expression with array comprehension
     modules:
       - |
         package test
@@ -69,7 +69,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: "[\"a\", \"b\", \"c\"]"
-  - note: stringinterpolation/template expression with set comprehension
+  - note: string-interpolation/template expression with set comprehension
     modules:
       - |
         package test
@@ -80,7 +80,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: "{\"a\", \"b\", \"c\"}"
-  - note: stringinterpolation/template expression with object comprehension
+  - note: string-interpolation/template expression with object comprehension
     modules:
       - |
         package test
@@ -91,7 +91,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: "{\"a\": \"a\", \"b\": \"b\", \"c\": \"c\"}"
-  - note: stringinterpolation/template expressions with variables
+  - note: string-interpolation/template expressions with variables
     modules:
       - |
         package test
@@ -103,7 +103,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: "foo bar"
-  - note: stringinterpolation/template expressions with refs
+  - note: string-interpolation/template expressions with refs
     modules:
       - |
         package test
@@ -118,7 +118,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: "foo bar baz"
-  - note: stringinterpolation/nested template expressions
+  - note: string-interpolation/nested template expressions
     modules:
       - |
         package test
@@ -130,7 +130,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: "foo bar baz"
-  - note: stringinterpolation/nested template expressions, undefined outer expression
+  - note: string-interpolation/nested template expressions, undefined outer expression
     modules:
       - |
         package test
@@ -141,7 +141,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: "<undefined> bar baz"
-  - note: stringinterpolation/nested template expressions, undefined inner expression
+  - note: string-interpolation/nested template expressions, undefined inner expression
     modules:
       - |
         package test
@@ -152,7 +152,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: "foo <undefined> baz"
-  - note: stringinterpolation/template expressions with infix operand call
+  - note: string-interpolation/template expressions with infix operand call
     modules:
       - |
         package test
@@ -164,7 +164,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: 'sum: 43, join: {"a", "b", "c", "d", "e", "f"}'
-  - note: stringinterpolation/template expressions with undefined values
+  - note: string-interpolation/template expressions with undefined values
     modules:
       - |
         package test
@@ -173,7 +173,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: "<undefined>, <undefined>"
-  - note: stringinterpolation/inside array comprehension
+  - note: string-interpolation/inside array comprehension
     modules:
       - |
         package test
@@ -186,7 +186,7 @@ cases:
       - x:
         - "<foo>"
         - "<bar>"
-  - note: stringinterpolation/inside set comprehension
+  - note: string-interpolation/inside set comprehension
     modules:
       - |
         package test
@@ -199,7 +199,7 @@ cases:
     want_result:
       - x:
         - "<foo>"
-  - note: stringinterpolation/inside map comprehension
+  - note: string-interpolation/inside map comprehension
     modules:
       - |
         package test
@@ -212,7 +212,7 @@ cases:
       - x:
           "<0>": "<foo>"
           "<1>": "<bar>"
-  - note: stringinterpolation/inside map comprehension head
+  - note: string-interpolation/inside map comprehension head
     modules:
       - |
         package test
@@ -225,7 +225,7 @@ cases:
       - x:
           "<0>": "<foo>"
           "<1>": "<bar>"
-  - note: stringinterpolation/inside every expression
+  - note: string-interpolation/inside every expression, body
     modules:
       - |
         package test
@@ -246,3 +246,41 @@ cases:
     query: data.test.p = x
     want_result:
       - x: true
+#  - note: string-interpolation/not in template expression
+#    modules:
+#      - |
+#        package test
+#
+#        p := $"foo {not true}"
+#    query: data.test.p = x
+#    want_result:
+#      - x: "foo false"
+  - note: string-interpolation/with in template expression
+    modules:
+      - |
+        package test
+        
+        a := input.a
+
+        p := x if {
+          x := $"foo {a with input as {"a" : 42}}"
+        }
+    query: data.test.p = x
+    want_result:
+      - x: "foo 42"
+  - note: string-interpolation/with outside template string
+    modules:
+      - |
+        package test
+        
+        a := input.a
+        b := input.b
+
+        p := x if {
+          x := $"foo {a} {b}" 
+            with input as {"a" : 42}
+            with input as {"b" : "bar"}
+        }
+    query: data.test.p = x
+    want_result:
+      - x: "foo 42 bar"

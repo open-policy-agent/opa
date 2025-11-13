@@ -1905,15 +1905,18 @@ func (p *Parser) parseRawString() *Term {
 }
 
 func (p *Parser) parseTemplateString() *Term {
-	parts := make([]*Term, 0, 1)
+	var parts []Node
 
 	for {
-		if p.s.tok == tokens.TemplateStringEnd {
-			parts = append(parts, StringTerm(p.s.lit[1:len(p.s.lit)-1]))
-			break
-		} else if p.s.tok == tokens.TemplateStringPart {
-			// Add the string part of the template string
-			parts = append(parts, StringTerm(p.s.lit[1:len(p.s.lit)-1]))
+		if p.s.tok == tokens.TemplateStringEnd || p.s.tok == tokens.TemplateStringPart {
+			// Don't add empty strings
+			if s := p.s.lit[1 : len(p.s.lit)-1]; s != "" {
+				parts = append(parts, StringTerm(s))
+			}
+
+			if p.s.tok == tokens.TemplateStringEnd {
+				break
+			}
 		} else {
 			p.error(p.s.Loc(), "expected template string")
 			return nil
@@ -1921,11 +1924,25 @@ func (p *Parser) parseTemplateString() *Term {
 
 		p.scan()
 
-		expr := p.parseTermInfixCallInList()
+		expr := p.parseTemplateExpr()
 		if expr == nil {
+			p.error(p.s.Loc(), "invalid template-string expression")
 			return nil
 		}
-		parts = append(parts, expr)
+
+		// FIXME: Can we optimize for collections and comprehensions too? To qualify, they must not contain refs or calls.
+		var isPrimitive bool
+		if term, ok := expr.Terms.(*Term); ok {
+			switch term.Value.(type) {
+			case String, Number, Boolean, Null:
+				isPrimitive = true
+				parts = append(parts, term)
+			}
+		}
+
+		if !isPrimitive {
+			parts = append(parts, expr)
+		}
 
 		if p.s.tok != tokens.RBrace {
 			p.errorf(p.s.Loc(), "expected %s to end template string expression", tokens.RBrace)
@@ -1935,10 +1952,15 @@ func (p *Parser) parseTemplateString() *Term {
 		p.scanWS(scanner.ContinueTemplateString())
 	}
 
-	//term := TemplateStringTerm(parts...)
-	term := InternalTemplateString.Call(ArrayTerm(parts...))
-	term.SetLocation(p.s.Loc())
-	return term
+	return TemplateStringTerm(parts...)
+}
+
+func (p *Parser) parseTemplateExpr() *Expr {
+	// TODO: not
+
+	expr := p.parseLiteralExpr(false)
+
+	return expr
 }
 
 func (p *Parser) parseCall(operator *Term, offset int) (term *Term) {

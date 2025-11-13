@@ -8446,5 +8446,178 @@ func assertParseRule(t *testing.T, msg string, input string, correct *Rule, opts
 		opts...)
 }
 
+func TestTemplateString(t *testing.T) {
+	tests := []struct {
+		note string
+		expr string
+		exp  *Expr
+	}{
+		{
+			note: "simple template string",
+			expr: `$"foo"`,
+			exp: &Expr{
+				Terms: TemplateStringTerm(StringTerm("foo")),
+			},
+		},
+		{
+			note: "with template expression",
+			expr: `$"foo {x}"`,
+			exp: &Expr{
+				Terms: TemplateStringTerm(
+					StringTerm("foo "),
+					&Expr{
+						Terms: VarTerm("x"),
+					},
+				),
+			},
+		},
+
+		{
+			note: "with modifier, global",
+			expr: `$"foo {input}" with input as 42`,
+			exp: &Expr{
+				Terms: TemplateStringTerm(
+					StringTerm("foo "),
+					&Expr{
+						Terms: RefTerm(VarTerm("input")),
+					},
+				),
+				With: []*With{
+					{
+						Target: RefTerm(VarTerm("input")),
+						Value:  NumberTerm("42"),
+					},
+				},
+			},
+		},
+		{
+			note: "with modifier, global, multiple",
+			expr: `$"foo {input} {x}" with input as 42 with x as "bar"`,
+			exp: &Expr{
+				Terms: TemplateStringTerm(
+					StringTerm("foo "),
+					&Expr{
+						Terms: RefTerm(VarTerm("input")),
+					},
+					StringTerm(" "),
+					&Expr{
+						Terms: VarTerm("x"),
+					},
+				),
+				With: []*With{
+					{
+						Target: RefTerm(VarTerm("input")),
+						Value:  NumberTerm("42"),
+					},
+					{
+						Target: VarTerm("x"),
+						Value:  StringTerm("bar"),
+					},
+				},
+			},
+		},
+		{
+			note: "with modifier, inside template expression",
+			expr: `$"foo {x with input as 42}"`,
+			exp: &Expr{
+				Terms: TemplateStringTerm(
+					StringTerm("foo "),
+					&Expr{
+						Terms: VarTerm("x"),
+						With: []*With{
+							{
+								Target: RefTerm(VarTerm("input")),
+								Value:  NumberTerm("42"),
+							},
+						},
+					},
+				),
+			},
+		},
+		{
+			note: "template-string inside with value",
+			expr: `allow with input.x as $"<{x}>"`,
+			exp: &Expr{
+				Terms: VarTerm("allow"),
+				With: []*With{
+					{
+						Target: RefTerm(VarTerm("input"), StringTerm("x")),
+						Value: TemplateStringTerm(
+							StringTerm("<"),
+							&Expr{
+								Terms: VarTerm("x"),
+							},
+							StringTerm(">"),
+						),
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			stmts, _, err := ParseStatements("", tc.expr)
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if len(stmts) != 1 {
+				t.Fatalf("Expected exactly one statement, got %d: %v", len(stmts), stmts)
+			}
+
+			body, ok := stmts[0].(Body)
+			if !ok {
+				t.Fatalf("Expected body, got %T", stmts[0])
+			}
+
+			if len(body) != 1 {
+				t.Fatalf("Expected exactly one expression, got %d: %v", len(body), body)
+			}
+
+			if !tc.exp.Equal(body[0]) {
+				t.Errorf("Expressions not equal:\n%v (parsed)\n%v (correct)", body[0], tc.exp)
+			}
+		})
+	}
+}
+
+func TestTemplateStringError(t *testing.T) {
+	tests := []struct {
+		note     string
+		expr     string
+		expError string
+	}{
+		{
+			note:     "empty template expression",
+			expr:     `$"{}"`,
+			expError: "rego_parse_error: invalid template-string expression",
+		},
+		{
+			note:     "assignment in template expression",
+			expr:     `$"{x := 1}"`,
+			expError: "rego_parse_error: unexpected assign token: expected rule value term (e.g., p := <VALUE> { ... })",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			_, _, err := ParseStatements("", tc.expr)
+			//_, err := ParseModuleWithOpts("test.rego", tc.module, ParserOptions{
+			//	ProcessAnnotation: true,
+			//})
+
+			if err == nil {
+				t.Fatalf("Expected error, got nil")
+			}
+
+			if !strings.Contains(err.Error(), tc.expError) {
+				t.Fatalf("Expected error to contain %q, but got: %v", tc.expError, err)
+			}
+		})
+	}
+}
+
 // TODO: Test string interpolation
 // TODO: Test multi-line expression inside single-line template string. Should we allow this?

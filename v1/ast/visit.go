@@ -395,6 +395,10 @@ func (vis *GenericVisitor) Walk(x any) {
 		for i := range x.Symbols {
 			vis.Walk(x.Symbols[i])
 		}
+	case *TemplateString:
+		for i := range x.Parts {
+			vis.Walk(x.Parts[i])
+		}
 	}
 }
 
@@ -800,6 +804,10 @@ func (vis *VarVisitor) Walk(x any) {
 	case *SomeDecl:
 		for i := range x.Symbols {
 			vis.Walk(x.Symbols[i])
+		}
+	case *TemplateString:
+		for i := range x.Parts {
+			vis.Walk(x.Parts[i])
 		}
 	}
 }

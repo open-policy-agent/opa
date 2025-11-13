@@ -96,6 +96,9 @@ func Compare(a, b any) int {
 			return -1
 		}
 		return 1
+	case *TemplateString:
+		b := b.(*TemplateString)
+		return a.Compare(b)
 	case Var:
 		return VarCompare(a, b.(Var))
 	case Ref:
@@ -179,26 +182,28 @@ func sortOrder(x any) int {
 		return 2
 	case String:
 		return 3
-	case Var:
+	case *TemplateString:
 		return 4
-	case Ref:
+	case Var:
 		return 5
-	case *Array:
+	case Ref:
 		return 6
-	case Object:
+	case *Array:
 		return 7
-	case Set:
+	case Object:
 		return 8
-	case *ArrayComprehension:
+	case Set:
 		return 9
-	case *ObjectComprehension:
+	case *ArrayComprehension:
 		return 10
-	case *SetComprehension:
+	case *ObjectComprehension:
 		return 11
-	case Call:
+	case *SetComprehension:
 		return 12
-	case Args:
+	case Call:
 		return 13
+	case Args:
+		return 14
 	case *Expr:
 		return 100
 	case *SomeDecl:

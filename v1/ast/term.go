@@ -819,34 +819,114 @@ func (str String) Hash() int {
 	return int(xxhash.Sum64String(string(str)))
 }
 
-type TemplateString []*Term
-
-func (ts TemplateString) Compare(other Value) int {
-	//TODO implement me
-	panic("implement me")
+type TemplateString struct {
+	Parts []Node
 }
 
-func (ts TemplateString) Find(path Ref) (Value, error) {
-	//TODO implement me
-	panic("implement me")
+func (ts *TemplateString) Template() string {
+	template := strings.Builder{}
+
+	for _, n := range ts.Parts {
+		if _, ok := n.(*Expr); ok {
+			template.WriteString("%s")
+			continue
+		}
+
+		if t, ok := n.(*Term); ok {
+			if s, ok := t.Value.(String); ok {
+				template.WriteString(strings.ReplaceAll(string(s), "%", "%%"))
+				continue
+			}
+		}
+
+		// FIXME: panic?
+		template.WriteString("<invalid>")
+	}
+
+	return template.String()
 }
 
-func (ts TemplateString) Hash() int {
-	//TODO implement me
-	panic("implement me")
+func (ts *TemplateString) Expressions() []*Expr {
+	var exprs []*Expr
+
+	for _, p := range ts.Parts {
+		if expr, ok := p.(*Expr); ok {
+			exprs = append(exprs, expr)
+		}
+	}
+
+	return exprs
 }
 
-func (ts TemplateString) IsGround() bool {
+func (ts *TemplateString) Compare(other Value) int {
+	if ots, ok := other.(*TemplateString); ok {
+		if len(ts.Parts) != len(ots.Parts) {
+			return len(ts.Parts) - len(ots.Parts)
+		}
+
+		for i := range ts.Parts {
+			if cmp := Compare(ts.Parts[i], ots.Parts[i]); cmp != 0 {
+				return cmp
+			}
+		}
+
+		return 0
+	}
+	return Compare(ts, other)
+}
+
+func (ts *TemplateString) Find(path Ref) (Value, error) {
+	if len(path) == 0 {
+		return ts, nil
+	}
+	return nil, errFindNotFound
+}
+
+func (ts *TemplateString) Hash() int {
+	hash := 0
+	for _, p := range ts.Parts {
+		switch p.(type) {
+		case *Expr:
+			hash = hash + p.(*Expr).Hash()
+		case *Term:
+			hash = hash + p.(*Term).Value.Hash()
+		default:
+			panic(fmt.Sprintf("invalid template part type %T", p))
+		}
+	}
+	return hash
+}
+
+func (ts *TemplateString) IsGround() bool {
 	return false
 }
 
-func (ts TemplateString) String() string {
-	//TODO implement me
-	panic("implement me")
+func (ts *TemplateString) String() string {
+	str := strings.Builder{}
+	str.WriteString("$\"")
+
+	for _, p := range ts.Parts {
+		switch p.(type) {
+		case *Expr:
+			str.WriteString("{")
+			str.WriteString(p.String())
+			str.WriteString("}")
+		case *Term:
+			s := p.String()
+			s = strings.TrimPrefix(s, "\"")
+			s = strings.TrimSuffix(s, "\"")
+			str.WriteString(s)
+		default:
+			str.WriteString("<invalid>")
+		}
+	}
+
+	str.WriteString("\"")
+	return str.String()
 }
 
-func TemplateStringTerm(v ...*Term) *Term {
-	return &Term{Value: TemplateString(v)}
+func TemplateStringTerm(parts ...Node) *Term {
+	return &Term{Value: &TemplateString{Parts: parts}}
 }
 
 // Var represents a variable as defined by the language.
