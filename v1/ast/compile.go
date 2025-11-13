@@ -339,9 +339,9 @@ func NewCompiler() *Compiler {
 		{"SetModuleTree", "compile_stage_set_module_tree", c.setModuleTree},
 		{"SetRuleTree", "compile_stage_set_rule_tree", c.setRuleTree}, // depends on RewriteRuleHeadRefs
 		{"RewriteLocalVars", "compile_stage_rewrite_local_vars", c.rewriteLocalVars},
+		{"RewriteTemplateStrings", "compile_stage_rewrite_template_strings", c.rewriteTemplateStrings},
 		{"CheckVoidCalls", "compile_stage_check_void_calls", c.checkVoidCalls},
 		{"RewritePrintCalls", "compile_stage_rewrite_print_calls", c.rewritePrintCalls},
-		{"RewriteTemplateStrings", "compile_stage_rewrite_template_strings", c.rewriteTemplateStrings},
 		{"RewriteExprTerms", "compile_stage_rewrite_expr_terms", c.rewriteExprTerms},
 		{"ParseMetadataBlocks", "compile_stage_parse_metadata_blocks", c.parseMetadataBlocks},
 		{"SetAnnotationSet", "compile_stage_set_annotationset", c.setAnnotationSet},

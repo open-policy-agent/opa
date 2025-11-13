@@ -1956,10 +1956,8 @@ func (p *Parser) parseTemplateString() *Term {
 }
 
 func (p *Parser) parseTemplateExpr() *Expr {
-	// TODO: not
-
-	expr := p.parseLiteralExpr(false)
-
+	// FIXME: Nothing else to do here?
+	expr := p.parseLiteral()
 	return expr
 }
 

@@ -8290,7 +8290,7 @@ func TestCompilerRewriteTemplateStringCallsErrors(t *testing.T) {
 				"test.rego": module(tc.module),
 			})
 			if !c.Failed() {
-				t.Fatal("expected error")
+				t.Fatal("expected error, got none")
 			}
 			if c.Errors[0].Message != tc.exp {
 				t.Fatal("unexpected error:", c.Errors)
