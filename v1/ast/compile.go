@@ -1978,8 +1978,8 @@ func (c *Compiler) rewriteExprTerms() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
 		WalkRules(mod, func(rule *Rule) bool {
-			rewriteExprTermsInHead(c.localvargen, rule, nil)
-			rule.Body = rewriteExprTermsInBody(c.localvargen, rule.Body, nil)
+			rewriteExprTermsInHead(c.localvargen, rule)
+			rule.Body = rewriteExprTermsInBody(c.localvargen, rule.Body)
 			return false
 		})
 	}
@@ -2051,40 +2051,6 @@ func (c *Compiler) checkVoidCalls() {
 			c.err(err)
 		}
 	}
-}
-
-// templateStringExpander is a custom expression expander that expands template-string calls if they are encountered as
-// function call arguments or in the head of comprehensions.
-// Free-standing, "naked" template-string calls are not expanded, as they are expected to be rewritten in a later compiler stage.
-type templateStringExpander struct {
-	localvargen *localVarGenerator
-}
-
-func (e *templateStringExpander) filter(expr *Expr) bool {
-	switch v := expr.Terms.(type) {
-	case []*Term:
-		if len(v) > 0 {
-			switch t := v[0].Value.(type) {
-			case Ref:
-				if t.Equal(TemplateStringRef) {
-					// We don't expand "naked" template-string calls or their arguments, as we want to expand the arguments
-					// into comprehensions first.
-					return false
-				}
-			}
-		}
-	}
-	return true
-}
-
-func (e *templateStringExpander) expandExprTerm(t *Term) ([]*Expr, *Term, bool) {
-	if call, ok := t.Value.(Call); ok && call.Operator().Equal(TemplateStringRef) {
-		output := NewTerm(e.localvargen.Generate()).SetLocation(t.Location)
-		expr := call.MakeExpr(output).SetLocation(t.Location)
-		expr.Generated = true
-		return []*Expr{expr}, output, true
-	}
-	return nil, nil, false
 }
 
 // TODO: Refactor to use sprintf built-in instead of internal.template_string for supporting existing plan evaluators (Wasm, swift-opa)
@@ -2172,49 +2138,6 @@ func rewriteTemplateString(gen *localVarGenerator, loc *Location, ts *TemplateSt
 
 	call := InternalTemplateString.Call(ArrayTerm(terms...)).Value.(Call)
 	return call, errs
-}
-
-func rewriteTemplateStrings(gen *localVarGenerator, getArity func(Ref) int, globals VarSet, c any) (bool, Errors) {
-	switch c := c.(type) {
-	case Call:
-		if c.Operator().Equal(TemplateStringRef) {
-			return rewriteTemplateStringArgs(gen, c[0].Loc(), c.Operands())
-		}
-	case *Expr:
-		if isInternalTemplateStringCall(c) {
-			return rewriteTemplateStringArgs(gen, c.Loc(), c.Operands())
-		}
-	}
-	return false, nil
-}
-
-func rewriteTemplateStringArgs(gen *localVarGenerator, loc *Location, args []*Term) (bool, Errors) {
-	var errs Errors
-
-	if l := len(args); l < 1 || l > 2 {
-		errs = append(errs, NewError(CompileErr, loc, "%s call must have 1 or 2 arguments, got %d", InternalTemplateString.Name, len(args)))
-		return false, errs
-	}
-
-	// The first argument must be an array of terms.
-	inputTerms, ok := args[0].Value.(*Array)
-	if !ok {
-		errs = append(errs, NewError(CompileErr, loc, "first argument of %s call must be an array", InternalTemplateString.Name))
-		return false, errs
-	}
-
-	// TODO: Detect and error on enumeration/cross-product
-
-	for i, term := range inputTerms.elems {
-		if _, ok := term.Value.(String); !ok {
-			loc := term.Loc()
-			x := NewTerm(gen.Generate()).SetLocation(loc)
-			capture := Equality.Expr(x, term).SetLocation(loc)
-			inputTerms.elems[i] = SetComprehensionTerm(x, NewBody(capture)).SetLocation(loc)
-		}
-	}
-
-	return true, errs
 }
 
 func (c *Compiler) rewritePrintCalls() {
@@ -3295,7 +3218,7 @@ func (*queryCompiler) rewriteDynamicTerms(_ *QueryContext, body Body) (Body, err
 
 func (*queryCompiler) rewriteExprTerms(_ *QueryContext, body Body) (Body, error) {
 	gen := newLocalVarGenerator("q", body)
-	return rewriteExprTermsInBody(gen, body, nil), nil
+	return rewriteExprTermsInBody(gen, body), nil
 }
 
 func (qc *queryCompiler) rewriteLocalVars(_ *QueryContext, body Body) (Body, error) {
@@ -5130,23 +5053,23 @@ func rewriteDynamicsComprehensionBody(original *Expr, f *equalityFactory, body B
 	return body, generated
 }
 
-func rewriteExprTermsInHead(gen *localVarGenerator, rule *Rule, expander expressionExpander) {
+func rewriteExprTermsInHead(gen *localVarGenerator, rule *Rule) {
 	for i := range rule.Head.Args {
-		support, output := expandExprTerm(gen, rule.Head.Args[i], expander)
+		support, output := expandExprTerm(gen, rule.Head.Args[i])
 		for j := range support {
 			rule.Body.Append(support[j])
 		}
 		rule.Head.Args[i] = output
 	}
 	if rule.Head.Key != nil {
-		support, output := expandExprTerm(gen, rule.Head.Key, expander)
+		support, output := expandExprTerm(gen, rule.Head.Key)
 		for i := range support {
 			rule.Body.Append(support[i])
 		}
 		rule.Head.Key = output
 	}
 	if rule.Head.Value != nil {
-		support, output := expandExprTerm(gen, rule.Head.Value, expander)
+		support, output := expandExprTerm(gen, rule.Head.Value)
 		for i := range support {
 			rule.Body.Append(support[i])
 		}
@@ -5154,36 +5077,25 @@ func rewriteExprTermsInHead(gen *localVarGenerator, rule *Rule, expander express
 	}
 }
 
-func rewriteExprTermsInBody(gen *localVarGenerator, body Body, expander expressionExpander) Body {
+func rewriteExprTermsInBody(gen *localVarGenerator, body Body) Body {
 	cpy := make(Body, 0, len(body))
 	for i := range body {
-		for _, expr := range expandExpr(gen, body[i], expander) {
+		for _, expr := range expandExpr(gen, body[i]) {
 			cpy.Append(expr)
 		}
 	}
 	return cpy
 }
 
-// TODO: drop this
-type expressionExpander interface {
-	filter(expr *Expr) bool
-	expandExprTerm(t *Term) ([]*Expr, *Term, bool)
-}
-
-func expandExpr(gen *localVarGenerator, expr *Expr, expander expressionExpander) (result []*Expr) {
-	if expander != nil && !expander.filter(expr) {
-		result = append(result, expr)
-		return
-	}
-
+func expandExpr(gen *localVarGenerator, expr *Expr) (result []*Expr) {
 	for i := range expr.With {
-		extras, value := expandExprTerm(gen, expr.With[i].Value, expander)
+		extras, value := expandExprTerm(gen, expr.With[i].Value)
 		expr.With[i].Value = value
 		result = append(result, extras...)
 	}
 	switch terms := expr.Terms.(type) {
 	case *Term:
-		extras, term := expandExprTerm(gen, terms, expander)
+		extras, term := expandExprTerm(gen, terms)
 		if len(expr.With) > 0 {
 			for i := range extras {
 				extras[i].With = expr.With
@@ -5195,7 +5107,7 @@ func expandExpr(gen *localVarGenerator, expr *Expr, expander expressionExpander)
 	case []*Term:
 		for i := 1; i < len(terms); i++ {
 			var extras []*Expr
-			extras, terms[i] = expandExprTerm(gen, terms[i], expander)
+			extras, terms[i] = expandExprTerm(gen, terms[i])
 			connectGeneratedExprs(expr, extras...)
 			if len(expr.With) > 0 {
 				for i := range extras {
@@ -5212,10 +5124,10 @@ func expandExpr(gen *localVarGenerator, expr *Expr, expander expressionExpander)
 		eq := Equality.Expr(term, terms.Domain).SetLocation(terms.Domain.Location)
 		eq.Generated = true
 		eq.With = expr.With
-		extras = expandExpr(gen, eq, expander)
+		extras = expandExpr(gen, eq)
 		terms.Domain = term
 
-		terms.Body = rewriteExprTermsInBody(gen, terms.Body, expander)
+		terms.Body = rewriteExprTermsInBody(gen, terms.Body)
 		result = append(result, extras...)
 		result = append(result, expr)
 	}
@@ -5229,22 +5141,14 @@ func connectGeneratedExprs(parent *Expr, children ...*Expr) {
 	}
 }
 
-func expandExprTerm(gen *localVarGenerator, term *Term, expander expressionExpander) (support []*Expr, output *Term) {
+func expandExprTerm(gen *localVarGenerator, term *Term) (support []*Expr, output *Term) {
 	output = term
-
-	if expander != nil {
-		if extras, expanded, ok := expander.expandExprTerm(term); ok {
-			support = append(support, extras...)
-			output = expanded
-			return
-		}
-	}
 
 	switch v := term.Value.(type) {
 	case Call:
 		for i := 1; i < len(v); i++ {
 			var extras []*Expr
-			extras, v[i] = expandExprTerm(gen, v[i], expander)
+			extras, v[i] = expandExprTerm(gen, v[i])
 			support = append(support, extras...)
 		}
 		output = NewTerm(gen.Generate()).SetLocation(term.Location)
@@ -5252,13 +5156,13 @@ func expandExprTerm(gen *localVarGenerator, term *Term, expander expressionExpan
 		expr.Generated = true
 		support = append(support, expr)
 	case Ref:
-		support = expandExprRef(gen, v, expander)
+		support = expandExprRef(gen, v)
 	case *Array:
-		support = expandExprTermArray(gen, v, expander)
+		support = expandExprTermArray(gen, v)
 	case *object:
 		cpy, _ := v.Map(func(k, v *Term) (*Term, *Term, error) {
-			extras1, expandedKey := expandExprTerm(gen, k, expander)
-			extras2, expandedValue := expandExprTerm(gen, v, expander)
+			extras1, expandedKey := expandExprTerm(gen, k)
+			extras2, expandedValue := expandExprTerm(gen, v)
 			support = append(support, extras1...)
 			support = append(support, extras2...)
 			return expandedKey, expandedValue, nil
@@ -5266,44 +5170,44 @@ func expandExprTerm(gen *localVarGenerator, term *Term, expander expressionExpan
 		output = NewTerm(cpy).SetLocation(term.Location)
 	case Set:
 		cpy, _ := v.Map(func(x *Term) (*Term, error) {
-			extras, expanded := expandExprTerm(gen, x, expander)
+			extras, expanded := expandExprTerm(gen, x)
 			support = append(support, extras...)
 			return expanded, nil
 		})
 		output = NewTerm(cpy).SetLocation(term.Location)
 	case *ArrayComprehension:
-		support, term := expandExprTerm(gen, v.Term, expander)
+		support, term := expandExprTerm(gen, v.Term)
 		for i := range support {
 			v.Body.Append(support[i])
 		}
 		v.Term = term
-		v.Body = rewriteExprTermsInBody(gen, v.Body, expander)
+		v.Body = rewriteExprTermsInBody(gen, v.Body)
 	case *SetComprehension:
-		support, term := expandExprTerm(gen, v.Term, expander)
+		support, term := expandExprTerm(gen, v.Term)
 		for i := range support {
 			v.Body.Append(support[i])
 		}
 		v.Term = term
-		v.Body = rewriteExprTermsInBody(gen, v.Body, expander)
+		v.Body = rewriteExprTermsInBody(gen, v.Body)
 	case *ObjectComprehension:
-		support, key := expandExprTerm(gen, v.Key, expander)
+		support, key := expandExprTerm(gen, v.Key)
 		for i := range support {
 			v.Body.Append(support[i])
 		}
 		v.Key = key
-		support, value := expandExprTerm(gen, v.Value, expander)
+		support, value := expandExprTerm(gen, v.Value)
 		for i := range support {
 			v.Body.Append(support[i])
 		}
 		v.Value = value
-		v.Body = rewriteExprTermsInBody(gen, v.Body, expander)
+		v.Body = rewriteExprTermsInBody(gen, v.Body)
 	}
 	return
 }
 
-func expandExprRef(gen *localVarGenerator, v []*Term, expander expressionExpander) (support []*Expr) {
+func expandExprRef(gen *localVarGenerator, v []*Term) (support []*Expr) {
 	// Start by calling a normal expandExprTerm on all terms.
-	support = expandExprTermSlice(gen, v, expander)
+	support = expandExprTermSlice(gen, v)
 
 	// Rewrite references in order to support indirect references.  We rewrite
 	// e.g.
@@ -5328,19 +5232,19 @@ func expandExprRef(gen *localVarGenerator, v []*Term, expander expressionExpande
 	return
 }
 
-func expandExprTermArray(gen *localVarGenerator, arr *Array, expander expressionExpander) (support []*Expr) {
+func expandExprTermArray(gen *localVarGenerator, arr *Array) (support []*Expr) {
 	for i := range arr.Len() {
-		extras, v := expandExprTerm(gen, arr.Elem(i), expander)
+		extras, v := expandExprTerm(gen, arr.Elem(i))
 		arr.set(i, v)
 		support = append(support, extras...)
 	}
 	return
 }
 
-func expandExprTermSlice(gen *localVarGenerator, v []*Term, expander expressionExpander) (support []*Expr) {
+func expandExprTermSlice(gen *localVarGenerator, v []*Term) (support []*Expr) {
 	for i := range v {
 		var extras []*Expr
-		extras, v[i] = expandExprTerm(gen, v[i], expander)
+		extras, v[i] = expandExprTerm(gen, v[i])
 		support = append(support, extras...)
 	}
 	return

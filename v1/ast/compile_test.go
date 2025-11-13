@@ -2630,7 +2630,7 @@ func TestCompilerExprExpansion(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			gen := newLocalVarGenerator("", NullTerm())
 			expr := MustParseExpr(tc.input)
-			result := expandExpr(gen, expr.Copy(), nil)
+			result := expandExpr(gen, expr.Copy())
 			if len(result) != len(tc.expected) {
 				t.Fatalf("Expected %v exprs but got %v:\n\nExpected:\n\n%v\n\nGot:\n\n%v", len(tc.expected), len(result), Body(tc.expected), Body(result))
 			}
