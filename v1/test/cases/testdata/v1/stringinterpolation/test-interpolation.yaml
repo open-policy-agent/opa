@@ -269,9 +269,25 @@ cases:
 
         p := x if {
           x := $"foo {a} {b}" 
-            with input as {"a" : 42}
-            with input as {"b" : "bar"}
+            with input.a as 42
+            with input.b as "bar"
         }
     query: data.test.p = x
     want_result:
       - x: "foo 42 bar"
+  - note: string-interpolation/with outside template string, overrides
+    modules:
+      - |
+        package test
+        
+        a := input.a
+        b := input.b
+
+        p := x if {
+          x := $"foo {a} {b}" 
+            with input as {"a" : 42}
+            with input as {"b" : "bar"} # overrides above 'with', dropping the 'a' field
+        }
+    query: data.test.p = x
+    want_result:
+      - x: "foo <undefined> bar"
