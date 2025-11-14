@@ -8599,6 +8599,11 @@ func TestTemplateStringError(t *testing.T) {
 			expr:     `$"{x := 1}"`,
 			expError: "rego_parse_error: unexpected assign token: expected rule value term (e.g., p := <VALUE> { ... })",
 		},
+		{
+			note:     "not in template expression",
+			expr:     `$"{not false}"`,
+			expError: "rego_parse_error: unexpected negation ('not') in template-string expression",
+		},
 	}
 
 	for _, tc := range tests {

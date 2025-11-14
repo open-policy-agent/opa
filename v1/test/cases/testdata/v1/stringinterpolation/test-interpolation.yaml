@@ -246,15 +246,6 @@ cases:
     query: data.test.p = x
     want_result:
       - x: true
-#  - note: string-interpolation/not in template expression
-#    modules:
-#      - |
-#        package test
-#
-#        p := $"foo {not true}"
-#    query: data.test.p = x
-#    want_result:
-#      - x: "foo false"
   - note: string-interpolation/with in template expression
     modules:
       - |

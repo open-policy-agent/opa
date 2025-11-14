@@ -153,3 +153,7 @@ func IsKeyword(tok Token) bool {
 	_, ok := keywords[strings[tok]]
 	return ok
 }
+
+func KeywordFor(tok Token) string {
+	return strings[tok]
+}
