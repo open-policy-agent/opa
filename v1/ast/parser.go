@@ -1935,6 +1935,16 @@ func (p *Parser) parseTemplateString() *Term {
 			return nil
 		}
 
+		if expr.IsAssignment() {
+			p.errorf(expr.Loc(), "unexpected assignment in template-string expression")
+			return nil
+		}
+
+		if expr.IsEvery() {
+			p.errorf(expr.Loc(), "unexpected '%s' in template-string expression", tokens.KeywordFor(tokens.Every))
+			return nil
+		}
+
 		// FIXME: Can we optimize for collections and comprehensions too? To qualify, they must not contain refs or calls.
 		var isPrimitive bool
 		if term, ok := expr.Terms.(*Term); ok {

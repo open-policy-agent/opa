@@ -8553,6 +8553,28 @@ func TestTemplateString(t *testing.T) {
 				},
 			},
 		},
+
+		{
+			note: "multi-line expression in single-line template-string",
+			expr: `$"{[x |
+					x := 42]}"`,
+			exp: &Expr{
+				Terms: TemplateStringTerm(
+					&Expr{
+						Terms: &Term{
+							Value: &ArrayComprehension{
+								Term: VarTerm("x"),
+								Body: NewBody(
+									&Expr{
+										Terms: []*Term{RefTerm(VarTerm("assign")), VarTerm("x"), NumberTerm("42")},
+									},
+								),
+							},
+						},
+					},
+				),
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -8597,22 +8619,28 @@ func TestTemplateStringError(t *testing.T) {
 		{
 			note:     "assignment in template expression",
 			expr:     `$"{x := 1}"`,
-			expError: "rego_parse_error: unexpected assign token: expected rule value term (e.g., p := <VALUE> { ... })",
+			expError: "rego_parse_error: unexpected assignment in template-string expression",
 		},
 		{
 			note:     "not in template expression",
 			expr:     `$"{not false}"`,
 			expError: "rego_parse_error: unexpected negation ('not') in template-string expression",
 		},
+		{
+			note:     "every in template expression",
+			expr:     `$"{every x in [1, 2] {x > 0}}"`,
+			expError: "rego_parse_error: unexpected 'every' in template-string expression",
+		},
+		{
+			note:     "multiple expressions in template expression",
+			expr:     `$"{true; false}"`,
+			expError: "rego_parse_error: expected } to end template string expression",
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			_, _, err := ParseStatements("", tc.expr)
-			//_, err := ParseModuleWithOpts("test.rego", tc.module, ParserOptions{
-			//	ProcessAnnotation: true,
-			//})
-
 			if err == nil {
 				t.Fatalf("Expected error, got nil")
 			}

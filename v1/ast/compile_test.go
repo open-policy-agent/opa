@@ -7577,268 +7577,271 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 		module string
 		exp    string
 	}{
+		// Empty template-string
 		{
 			note: "empty template string, head value",
 			module: `package test
-			p := $""`,
+				p := $""`,
 			exp: `package test
-			p := __local0__ if { 
-				true
-				internal.template_string([""], __local0__) 
-			}`,
+				p := __local0__ if { 
+					true
+					internal.template_string([""], __local0__) 
+				}`,
 		},
 		{
 			note: "empty template string, head set value",
 			module: `package test
-			p contains $""`,
+				p contains $""`,
 			exp: `package test
-			p contains __local0__ if { 
-				true
-				internal.template_string([""], __local0__) 
-			}`,
+				p contains __local0__ if { 
+					true
+					internal.template_string([""], __local0__) 
+				}`,
 		},
 		{
 			note: "empty template string, head map key",
 			module: `package test
-			p[$""] := true`,
+				p[$""] := true`,
 			exp: `package test
-			p[__local0__] := true if { 
-				true
-				internal.template_string([""], __local1__)
-				__local0__ = __local1__
-			}`,
+				p[__local0__] := true if { 
+					true
+					internal.template_string([""], __local1__)
+					__local0__ = __local1__
+				}`,
 		},
 		{
 			note: "empty template string, in body",
 			module: `package test
-			p := x if {
-				x := $""
-			}`,
+				p := x if {
+					x := $""
+				}`,
 			exp: `package test
-			p := __local0__ if { 
-				internal.template_string([""], __local1__)
-				__local0__ = __local1__
-			}`,
+				p := __local0__ if { 
+					internal.template_string([""], __local1__)
+					__local0__ = __local1__
+				}`,
 		},
 		{
 			note: "empty template string, in body, no output arg",
 			module: `package test
-			p if {
-				$""
-			}`,
+				p if {
+					$""
+				}`,
 			exp: `package test
-			p = true if {
-				internal.template_string([""], __local0__)
-				__local0__
-			}`,
+				p = true if {
+					internal.template_string([""], __local0__)
+					__local0__
+				}`,
 		},
 
+		// No template-expressions
 		{
 			note: "non-empty template string, no template expression, head value",
 			module: `package test
-			p := $"foo bar"`,
+				p := $"foo bar"`,
 			exp: `package test
-			p := __local0__ if { 
-				true
-				internal.template_string(["foo bar"], __local0__) 
-			}`,
+				p := __local0__ if { 
+					true
+					internal.template_string(["foo bar"], __local0__) 
+				}`,
 		},
 		{
 			note: "non-empty template string, no template expression, head set value",
 			module: `package test
-			p contains $"foo bar"`,
+				p contains $"foo bar"`,
 			exp: `package test
-			p contains __local0__ if { 
-				true
-				internal.template_string(["foo bar"], __local0__) 
-			}`,
+				p contains __local0__ if { 
+					true
+					internal.template_string(["foo bar"], __local0__) 
+				}`,
 		},
 		{
 			note: "non-empty template string, no template expression, head map key",
 			module: `package test
-			p[$"foo bar"] := true`,
+				p[$"foo bar"] := true`,
 			exp: `package test
-			p[__local0__] := true if { 
-				true
-				internal.template_string(["foo bar"], __local1__)
-				__local0__ = __local1__
-			}`,
+				p[__local0__] := true if { 
+					true
+					internal.template_string(["foo bar"], __local1__)
+					__local0__ = __local1__
+				}`,
 		},
 		{
 			note: "non-empty template string, no template expression, in body",
 			module: `package test
-			p := x if {
-				x := $"foo bar"
-			}`,
+				p := x if {
+					x := $"foo bar"
+				}`,
 			exp: `package test
-			p := __local0__ if { 
-				internal.template_string(["foo bar"], __local1__)
-				__local0__ = __local1__
-			}`,
+				p := __local0__ if { 
+					internal.template_string(["foo bar"], __local1__)
+					__local0__ = __local1__
+				}`,
 		},
 		{
 			note: "non-empty template string, no template expression, in body, no output arg",
 			module: `package test
-			p if {
-				$"foo bar"
-			}`,
+				p if {
+					$"foo bar"
+				}`,
 			exp: `package test
-			p = true if {
-				internal.template_string(["foo bar"], __local0__)
-				__local0__
-			}`,
+				p = true if {
+					internal.template_string(["foo bar"], __local0__)
+					__local0__
+				}`,
 		},
 
-		// FIXME: Optimization: Drop empty string args?
+		// Ref template-expression
 		{
 			note: "single template expression, ref, head value",
 			module: `package test
-			p := $"{input.x}"`,
+				p := $"{input.x}"`,
 			exp: `package test
-			p := __local1__ if { 
-				true 
-				__local2__ = {__local0__ | __local0__ = input.x}; internal.template_string([__local2__], __local1__)
-			}`,
+				p := __local1__ if { 
+					true 
+					__local2__ = {__local0__ | __local0__ = input.x}; internal.template_string([__local2__], __local1__)
+				}`,
 		},
 		{
 			note: "single template expression, ref, head set value",
 			module: `package test
-			p contains $"{input.x}"`,
+				p contains $"{input.x}"`,
 			exp: `package test
-			p contains __local1__ if { 
-				true
-				__local2__ = {__local0__ | __local0__ = input.x}
-				internal.template_string([__local2__], __local1__)
-			}`,
+				p contains __local1__ if { 
+					true
+					__local2__ = {__local0__ | __local0__ = input.x}
+					internal.template_string([__local2__], __local1__)
+				}`,
 		},
 		{
 			note: "single template expression, ref, head map key",
 			module: `package test
-			p[$"{input.x}"] := true`,
+				p[$"{input.x}"] := true`,
 			exp: `package test
-			p[__local0__] := true if { 
-				true
-				__local3__ = {__local1__ | __local1__ = input.x}
-				internal.template_string([__local3__], __local2__)
-				__local0__ = __local2__
-			}`,
+				p[__local0__] := true if { 
+					true
+					__local3__ = {__local1__ | __local1__ = input.x}
+					internal.template_string([__local3__], __local2__)
+					__local0__ = __local2__
+				}`,
 		},
 		{
 			note: "single template expression, ref, in body",
 			module: `package test
-			p := x if {
-				x := $"{input.x}"
-			}`,
+				p := x if {
+					x := $"{input.x}"
+				}`,
 			exp: `package test
-			p := __local0__ if { 
-				__local3__ = {__local1__ | __local1__ = input.x}
-				internal.template_string([__local3__], __local2__)
-				__local0__ = __local2__
-			}`,
+				p := __local0__ if { 
+					__local3__ = {__local1__ | __local1__ = input.x}
+					internal.template_string([__local3__], __local2__)
+					__local0__ = __local2__
+				}`,
 		},
 		{
 			note: "single template expression, ref, in body, no output arg",
 			module: `package test
-			p if {
-				$"{input.x}"
-			}`,
+				p if {
+					$"{input.x}"
+				}`,
 			exp: `package test
-			p = true if { 
-				__local2__ = {__local0__ | 
-					__local0__ = input.x
-				}
-				internal.template_string([__local2__], __local1__)
-				__local1__
-			}`,
+				p = true if { 
+					__local2__ = {__local0__ | 
+						__local0__ = input.x
+					}
+					internal.template_string([__local2__], __local1__)
+					__local1__
+				}`,
 		},
 
+		// Var template-expression
 		{
 			note: "single template expression, var, head value",
 			module: `package test
-			p := $"{x}" if {
-				x := 42
-			}`,
+				p := $"{x}" if {
+					x := 42
+				}`,
 			exp: `package test
-			p := __local2__ if { 
-				__local0__ = 42
-				__local3__ = {__local1__ | __local1__ = __local0__}
-				internal.template_string([__local3__], __local2__)
-			}`,
+				p := __local2__ if { 
+					__local0__ = 42
+					__local3__ = {__local1__ | __local1__ = __local0__}
+					internal.template_string([__local3__], __local2__)
+				}`,
 		},
 		{
 			note: "single template expression, var, indirection, head value",
 			module: `package test
-			p := $"{x}" if {
-				x := input.x
-			}`,
+				p := $"{x}" if {
+					x := input.x
+				}`,
 			exp: `package test
-			p := __local2__ if { 
-				__local0__ = input.x
-				__local3__ = {__local1__ | __local1__ = __local0__}
-				internal.template_string([__local3__], __local2__)
-			}`,
+				p := __local2__ if { 
+					__local0__ = input.x
+					__local3__ = {__local1__ | __local1__ = __local0__}
+					internal.template_string([__local3__], __local2__)
+				}`,
 		},
 		{
 			note: "single template expression, var, head set value",
 			module: `package test
-			p contains $"{x}" if {
-				x := 42
-			}`,
+				p contains $"{x}" if {
+					x := 42
+				}`,
 			exp: `package test
-			p contains __local2__ if { 
-				__local0__ = 42
-				__local3__ = {__local1__ | __local1__ = __local0__}
-				internal.template_string([__local3__], __local2__)
-			}`,
+				p contains __local2__ if { 
+					__local0__ = 42
+					__local3__ = {__local1__ | __local1__ = __local0__}
+					internal.template_string([__local3__], __local2__)
+				}`,
 		},
 		{
 			note: "single template expression, var, head map key",
 			module: `package test
-			p[$"{x}"] := true if {
-				x := 42
-			}`,
+				p[$"{x}"] := true if {
+					x := 42
+				}`,
 			exp: `package test
-			p[__local0__] := true if { 
-				__local1__ = 42
-				__local4__ = {__local2__ | __local2__ = __local1__}
-				internal.template_string([__local4__], __local3__)
-				__local0__ = __local3__
-			}`,
+				p[__local0__] := true if { 
+					__local1__ = 42
+					__local4__ = {__local2__ | __local2__ = __local1__}
+					internal.template_string([__local4__], __local3__)
+					__local0__ = __local3__
+				}`,
 		},
 		{
 			note: "single template expression, var, in body",
 			module: `package test
-			p := y if {
-				x := 42
-				y := $"{x}"
-			}`,
+				p := y if {
+					x := 42
+					y := $"{x}"
+				}`,
 			exp: `package test
-			p := __local1__ if { 
-				__local0__ = 42
-				__local4__ = {__local2__ | __local2__ = __local0__}
-				internal.template_string([__local4__], __local3__)
-				__local1__ = __local3__
-			}`,
+				p := __local1__ if { 
+					__local0__ = 42
+					__local4__ = {__local2__ | __local2__ = __local0__}
+					internal.template_string([__local4__], __local3__)
+					__local1__ = __local3__
+				}`,
 		},
 		{
 			note: "single template expression, var, in body, no output arg",
 			module: `package test
-			p if {
-				x := 42
-				$"{x}"
-			}`,
+				p if {
+					x := 42
+					$"{x}"
+				}`,
 			exp: `package test
-			p = true if { 
-				__local0__ = 42
-				__local3__ = {__local1__ |
-					__local1__ = __local0__
-				}
-				internal.template_string([__local3__], __local2__)
-				__local2__
-			}`,
+				p = true if { 
+					__local0__ = 42
+					__local3__ = {__local1__ |
+						__local1__ = __local0__
+					}
+					internal.template_string([__local3__], __local2__)
+					__local2__
+				}`,
 		},
 
-		// FIXME: Optimization: Don't wrap in primitive expression values in comprehensions?
+		// Primitives
 		{
 			note: "primitives",
 			module: `package test
@@ -7850,6 +7853,7 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 				}`,
 		},
 
+		// Collections
 		{
 			note: "collections",
 			module: `package test
@@ -7864,6 +7868,7 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 				}`,
 		},
 
+		// Call template-expression
 		{
 			note: "single template expression, call, head value",
 			module: `package test
@@ -7936,6 +7941,7 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 				}`,
 		},
 
+		// Infix template-expression
 		{
 			note: "single template expression, infix, head value",
 			module: `package test
@@ -8000,101 +8006,160 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 				}`,
 		},
 
+		// Inside comprehensions
 		{
 			note: "inside array comprehension, body",
 			module: `package test
-			p if {
-				[x | x := $"{input.x}"]
-			}`,
+				p if {
+					[x | x := $"{input.x}"]
+				}`,
 			exp: `package test
-			p = true if { 
-				[__local0__ | 
-					__local3__ = {__local1__ | __local1__ = input.x}
-					internal.template_string([__local3__], __local2__)
-					__local0__ = __local2__
-				]
-			}`,
+				p = true if { 
+					[__local0__ | 
+						__local3__ = {__local1__ | __local1__ = input.x}
+						internal.template_string([__local3__], __local2__)
+						__local0__ = __local2__
+					]
+				}`,
 		},
 		{
 			note: "inside array comprehension, head",
 			module: `package test
-			p if {
-				[$"{x} {input.y}" | x := input.x]
-			}`,
+				p if {
+					[$"{x} {input.y}" | x := input.x]
+				}`,
 			exp: `package test
-			p = true if { 
-				[__local3__ | 
-					__local0__ = input.x
-					__local4__ = {__local1__ | 
-						__local1__ = __local0__
-					}
-					__local5__ = {__local2__ | 
-						__local2__ = input.y
-					}
-					internal.template_string([__local4__, " ", __local5__], __local3__)]
+				p = true if { 
+					[__local3__ | 
+						__local0__ = input.x
+						__local4__ = {__local1__ | __local1__ = __local0__}
+						__local5__ = {__local2__ | __local2__ = input.y}
+						internal.template_string([__local4__, " ", __local5__], __local3__)
+					]
 				}`,
 		},
 		{
-			note: "inside set comprehension",
+			note: "inside set comprehension, body",
 			module: `package test
-			p if {
-				{x | x := $"{input.x}"}
-			}`,
+				p if {
+					{x | x := $"{input.x}"}
+				}`,
 			exp: `package test
-			p = true if { 
-				{__local0__ | 
-					__local3__ = {__local1__ | __local1__ = input.x}
-					internal.template_string([__local3__], __local2__)
-					__local0__ = __local2__
-				}
-			}`,
+				p = true if { 
+					{__local0__ | 
+						__local3__ = {__local1__ | __local1__ = input.x}
+						internal.template_string([__local3__], __local2__)
+						__local0__ = __local2__
+					}
+				}`,
 		},
 		{
-			note: "inside map comprehension",
+			note: "inside set comprehension, head",
 			module: `package test
-			p if {
-				{x: y | 
-					x := $"{input.x}"
-					y := $"{input.y}"
-				}
-			}`,
+				p if {
+					{$"{x} {input.y}" | x := input.x}
+				}`,
 			exp: `package test
-			p = true if { 
-				{__local0__: __local1__ | 
-					__local6__ = {__local2__ | 
-						__local2__ = input.x
+				p = true if { 
+					{__local3__ | 
+						__local0__ = input.x
+						__local4__ = {__local1__ | __local1__ = __local0__}
+						__local5__ = {__local2__ | __local2__ = input.y}
+						internal.template_string([__local4__, " ", __local5__], __local3__)
 					}
-					internal.template_string([__local6__], __local4__)
-					__local0__ = __local4__
-					__local7__ = {__local3__ | 
-						__local3__ = input.y
+				}`,
+		},
+		{
+			note: "inside map comprehension, body",
+			module: `package test
+				p if {
+					{x: y | 
+						x := $"{input.x}"
+						y := $"{input.y}"
 					}
-					internal.template_string([__local7__], __local5__)
-					__local1__ = __local5__} 
+				}`,
+			exp: `package test
+				p = true if { 
+					{__local0__: __local1__ | 
+						__local6__ = {__local2__ | 
+							__local2__ = input.x
+						}
+						internal.template_string([__local6__], __local4__)
+						__local0__ = __local4__
+						__local7__ = {__local3__ | 
+							__local3__ = input.y
+						}
+						internal.template_string([__local7__], __local5__)
+						__local1__ = __local5__
+					} 
+				}`,
+		},
+		{
+			note: "inside map comprehension, head",
+			module: `package test
+				p if {
+					{$"{input.x} {y}": $"{x} {input.y}" | 
+						x := input.x
+						y := input.y
+					}
+				}`,
+			exp: `package test
+				p = true if { 
+					{__local6__: __local7__ | 
+						__local0__ = input.x
+						__local1__ = input.y
+						__local8__ = {__local2__ | __local2__ = input.x}
+						__local9__ = {__local3__ | __local3__ = __local1__}
+						internal.template_string([__local8__, " ", __local9__], __local6__)
+						__local10__ = {__local4__ | __local4__ = __local0__}
+						__local11__ = {__local5__ | __local5__ = input.y}
+						internal.template_string([__local10__, " ", __local11__], __local7__)
+					}
 				}`,
 		},
 
+		// every
 		{
 			note: "inside every expression, body",
 			module: `package test
-			p if {
-				every i, x in input.l1 {
-					x == $"<{input.l2[i]}>"
-				}
-			}`,
-			exp: `package test
-			p = true if { 
-				__local3__ = input.l1
-				every __local0__, __local1__ in __local3__ { 
-					__local5__ = {__local2__ | 
-						__local2__ = input.l2[__local0__]
+				p if {
+					every i, x in input.l1 {
+						x == $"<{input.l2[i]}>"
 					}
-					internal.template_string(["<", __local5__, ">"], __local4__)
-					__local1__ = __local4__
-				}
-			}`,
+				}`,
+			exp: `package test
+				p = true if { 
+					__local3__ = input.l1
+					every __local0__, __local1__ in __local3__ { 
+						__local5__ = {__local2__ | 
+							__local2__ = input.l2[__local0__]
+						}
+						internal.template_string(["<", __local5__, ">"], __local4__)
+						__local1__ = __local4__
+					}
+				}`,
+		},
+		{
+			note: "inside every expression, domain",
+			module: `package test
+				p if {
+					every _, x in [$"{42} {input.x}"] {
+						x == $"42 foo"
+					}
+				}`,
+			exp: `package test
+				p = true if { 
+					__local5__ = {__local1__ | __local1__ = input.x}
+					internal.template_string([42, " ", __local5__], __local3__)
+					__local2__ = [__local3__]
+					every _, __local0__ in __local2__ {
+						internal.template_string(["42 foo"], __local4__)
+						__local0__ = __local4__
+					}
+				}`,
 		},
 
+		// else
 		{
 			note: "in else body",
 			module: `package test
@@ -8132,6 +8197,7 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 				}`,
 		},
 
+		// Nesting
 		{
 			note: "nested template strings, body",
 			module: `package test
@@ -8228,9 +8294,58 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 				}`,
 		},
 
-		// TODO: 'with' expressions
-		// TODO: 'not' in template expression (Support?)
-		// TODO: 'every' expressions
+		// with
+		{
+			note: "with modifier inside template-expression",
+			module: `package test
+				a := input
+				p := $"{a with input as 42} {a with input as {"x": true}}"`,
+			exp: `package test
+				a := __local3__ if { true; __local3__ = input }
+				p := __local2__ if { 
+					true
+					__local4__ = {__local0__ | __local0__ = data.test.a with input as 42}
+					__local5__ = {__local1__ | __local1__ = data.test.a with input as {"x": true}}
+					internal.template_string([__local4__, " ", __local5__], __local2__)
+				}`,
+		},
+		{
+			note: "with modifier outside string-template",
+			module: `package test
+				a := input
+				b := input
+				p if {
+					$"{a} {b}" with input as 42
+				}`,
+			exp: `package test
+				a := __local3__ if { true; __local3__ = input }
+				b := __local4__ if { true; __local4__ = input }
+				p = true if { 
+					__local5__ = {__local0__ | __local0__ = data.test.a} with input as 42
+					__local6__ = {__local1__ | __local1__ = data.test.b} with input as 42
+					internal.template_string([__local5__, " ", __local6__], __local2__) with input as 42
+					__local2__ with input as 42 
+				}`,
+		},
+		{
+			note: "with modifier inside template-expression and outside string-template",
+			module: `package test
+				a := input.x + input.y
+				p := x if {
+					x := $"{a with input.x as 1}" with input.y as 2
+				}`,
+			exp: `package test
+				a := __local2__ if { true
+					__local4__ = input.x
+					__local5__ = input.y
+					plus(__local4__, __local5__, __local2__)
+				}
+        		p := __local0__ if {
+					__local6__ = {__local1__ | __local1__ = data.test.a with input.x as 1} with input.y as 2
+					internal.template_string([__local6__], __local3__) with input.y as 2
+					__local0__ = __local3__ with input.y as 2
+				}`,
+		},
 	}
 
 	for _, tc := range tests {
