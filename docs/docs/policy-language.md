@@ -3,19 +3,15 @@ title: Policy Language
 sidebar_position: 3
 ---
 
-OPA is purpose built for reasoning about information represented in structured
-documents. The data that your service and its users publish can be inspected and
-transformed using OPA’s native query language Rego.
+OPA is purpose built for policy evaluation and uses its declarative language Rego
+to reason about structured data like API requests, infrastructure-as-code files,
+and configuration data. Rego lets you express desired rules and decisions as code,
+and is designed to be easy to read and write while being optimized for fast policy evaluation.
 
-## What is Rego?
-
-Rego was inspired by [Datalog](https://en.wikipedia.org/wiki/Datalog), which is
-a well understood, decades old query language. Rego extends Datalog to support
-structured document models such as JSON.
-
-Rego queries are assertions on data stored in OPA. These queries can be used to
-define policies that enumerate instances of data that violate the expected state
-of the system.
+Rego queries are assertions on data that can be used to define policies and make decisions
+about whether data violates the expected state of your system. Rego was inspired by
+[Datalog](https://en.wikipedia.org/wiki/Datalog) and extends it to support structured
+document models such as JSON.
 
 ## Why use Rego?
 
