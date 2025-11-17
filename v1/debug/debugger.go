@@ -264,10 +264,12 @@ func (d *debugger) LaunchEval(ctx context.Context, props LaunchEvalProperties, o
 	// We apply all user options first, so the debugger can make overrides if necessary.
 	regoArgs = append(regoArgs, options.regoOptions...)
 
-	regoArgs = append(regoArgs, rego.Query(props.Query))
-	regoArgs = append(regoArgs, rego.Store(store))
-	regoArgs = append(regoArgs, rego.Transaction(txn))
-	regoArgs = append(regoArgs, rego.StrictBuiltinErrors(props.StrictBuiltinErrors))
+	regoArgs = append(regoArgs,
+		rego.Query(props.Query),
+		rego.Store(store),
+		rego.Transaction(txn),
+		rego.StrictBuiltinErrors(props.StrictBuiltinErrors),
+	)
 
 	if props.SkipOps == nil {
 		props.SkipOps = []topdown.Op{topdown.IndexOp, topdown.RedoOp, topdown.SaveOp, topdown.UnifyOp}

@@ -220,6 +220,7 @@ func runParseStatementBenchmarkWithError(b *testing.B, stmt string) {
 func generateModule(numRules int) string {
 	mod := "package bench\n"
 	for i := range numRules {
+		//nolint:perfsprint
 		mod += fmt.Sprintf("p%d if { input.x%d = %d }\n", i, i, i)
 	}
 	return mod

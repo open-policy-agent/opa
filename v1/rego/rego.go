@@ -44,7 +44,7 @@ const (
 	wasmVarPrefix           = "^"
 )
 
-// nolint: deadcode,varcheck
+// nolint:varcheck
 const (
 	targetWasm = "wasm"
 	targetRego = "rego"
@@ -235,6 +235,7 @@ func EvalInstrument(instrument bool) EvalOption {
 }
 
 // EvalTracer configures a tracer for a Prepared Query's evaluation
+//
 // Deprecated: Use EvalQueryTracer instead.
 func EvalTracer(tracer topdown.Tracer) EvalOption {
 	return func(e *EvalContext) {
@@ -1115,6 +1116,7 @@ func Trace(yes bool) func(r *Rego) {
 }
 
 // Tracer returns an argument that adds a query tracer to r.
+//
 // Deprecated: Use QueryTracer instead.
 func Tracer(t topdown.Tracer) func(r *Rego) {
 	return func(r *Rego) {

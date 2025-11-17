@@ -1366,7 +1366,7 @@ func TestPluginStart(t *testing.T) {
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
-	defer plugin.Stop(ctx)
+	plugin.Stop(ctx)
 }
 
 func TestStop(t *testing.T) {
@@ -2559,7 +2559,7 @@ corge contains 2 if {
 						if err != nil {
 							fatal(err)
 						} else if !bytes.Equal(bs, exp) {
-							fatal("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
+							fatal(fmt.Sprintf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs)))
 						}
 					}
 
@@ -2574,7 +2574,7 @@ corge contains 2 if {
 					if err != nil {
 						fatal(err)
 					} else if !reflect.DeepEqual(data, expData) {
-						fatal("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+						fatal(fmt.Sprintf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data))
 					}
 
 					manager.Store.Abort(ctx, txn)
