@@ -43,7 +43,7 @@ tools</EcosystemFeatureLink>.
 This section introduces the main aspects of Rego.
 
 The simplest rule is a single expression and is defined in terms of a
-[scalar value](#scalar-values). This `example` [package](#packages) defines a rule
+<GlossaryTooltip term="scalar-values">scalar value</GlossaryTooltip>. This `example` [package](#packages) defines a rule
 called `pi` that contains the value of pi:
 
 ```rego
@@ -54,7 +54,7 @@ pi := 3.14159
 
 <RunSnippet command="data.example"/>
 
-Rules can also be defined in terms of [composite values](#composite-values):
+Rules can also be defined in terms of <GlossaryTooltip term="composite-values">composite values</GlossaryTooltip>:
 
 ```rego
 package example
@@ -396,7 +396,7 @@ to an empty set.
 
 ## Variables
 
-Variables are another kind of term in Rego. They appear in both the head and body of rules.
+Variables are another kind of term in Rego. They appear in both the <GlossaryTooltip term="rule-head">head</GlossaryTooltip> and <GlossaryTooltip term="rule-body">body</GlossaryTooltip> of rules.
 
 Variables appearing in the head of a rule can be thought of as input and output of the rule. Unlike many programming languages, where a variable is either an input or an output, in Rego a variable is simultaneously an input and an output. If a query supplies a value for a variable, that variable is an input, and if the query does not supply a value for a variable, that variable is an output.
 
@@ -699,7 +699,7 @@ same_site contains apps[k].name if {
 
 ## Comprehensions
 
-Comprehensions provide a concise way of building [composite values](#composite-values) from sub-queries.
+Comprehensions provide a concise way of building <GlossaryTooltip term="composite-values">composite values</GlossaryTooltip> from sub-queries.
 
 Like [rules](#rules), comprehensions consist of a head and a body. The body of a comprehension can be understood in exactly the same way as the body of a rule, that is, one or more expressions that must all be true in order for the overall body to be true. When the body evaluates to true, the head of the comprehension is evaluated to produce an element in the result.
 
@@ -1341,7 +1341,7 @@ For safety, a variable appearing in a negated expression must also appear in ano
 
 > OPA will reorder expressions to ensure that negated expressions are evaluated after other non-negated expressions with the same variables. OPA will reject rules containing negated expressions that do not meet the safety criteria described above.
 
-The simplest use of negation involves only scalar values or variables and is equivalent to complementing the operator:
+The simplest use of negation involves only <GlossaryTooltip term="scalar-values">scalar values</GlossaryTooltip> or variables and is equivalent to complementing the operator:
 
 ```rego
 package negation
@@ -2312,7 +2312,7 @@ p[x] = y if {
 :::info Non-ground values
 A "non-ground value" is a value that contains variables - like `{"foo": y}`
 where `y` is a variable that gets bound during evaluation. This is the opposite
-of a "ground value" which contains no variables. For a formal definition, see
+of a <GlossaryTooltip term="ground-value">"ground value"</GlossaryTooltip> which contains no variables. For a formal definition, see
 [ground term](https://en.wikipedia.org/wiki/Ground_expression#ground_term).
 :::
 
@@ -2370,9 +2370,9 @@ in_london if {
 
 ### Equality: Comparison, and Unification
 
-Rego supports two kinds of equality: comparison (`==`) and unification `=`.
+Rego supports two kinds of equality: comparison (`==`) and <GlossaryTooltip term="unification">unification</GlossaryTooltip> `=`.
 Generally, to test equality, using `==` for the comparison is recommended.
-The unification operator `=` can be thought of as a combination of `:=` and
+The <GlossaryTooltip term="unification">unification</GlossaryTooltip> operator `=` can be thought of as a combination of `:=` and
 `==`, and is generally suited to some more advanced use cases.
 
 #### Comparison `==`
