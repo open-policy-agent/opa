@@ -8617,6 +8617,11 @@ func TestTemplateStringError(t *testing.T) {
 			expError: "rego_parse_error: invalid template-string expression",
 		},
 		{
+			note:     "unification in template expression",
+			expr:     `$"{x = 1}"`,
+			expError: "rego_parse_error: unexpected unification ('=') in template-string expression",
+		},
+		{
 			note:     "assignment in template expression",
 			expr:     `$"{x := 1}"`,
 			expError: "rego_parse_error: unexpected assignment (':=') in template-string expression",

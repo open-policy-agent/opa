@@ -8005,6 +8005,22 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 					__local0__ = __local3__
 				}`,
 		},
+		{
+			note: "single template expression, infix, equal (==), in body",
+			module: `package test
+				p := x if {
+					x := $"{input.x == 2}"
+				}`,
+			exp: `package test
+				p := __local0__ if { 
+					__local5__ = {__local1__ | __local4__ = input.x
+						equal(__local4__, 2, __local2__)
+						__local1__ = __local2__
+					}
+					internal.template_string([__local5__], __local3__)
+					__local0__ = __local3__
+				}`,
+		},
 
 		// Inside comprehensions
 		{
@@ -8376,7 +8392,7 @@ func TestCompilerRewriteTemplateStringCallsErrors(t *testing.T) {
 			note: "non-existent var",
 			module: `package test
 			p := $"{x}"`,
-			exp: "var x is undeclared",
+			exp: "var x is unsafe",
 		},
 		{
 			note: "var declared after template string",
@@ -8408,7 +8424,7 @@ func TestCompilerRewriteTemplateStringCallsErrors(t *testing.T) {
 				t.Fatal("expected error, got none")
 			}
 			if c.Errors[0].Message != tc.exp {
-				t.Fatal("unexpected error:", c.Errors)
+				t.Fatalf("expected error:\n\n%s\n\ngot:\n\n%s", tc.exp, c.Errors[0].Message)
 			}
 		})
 	}

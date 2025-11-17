@@ -1935,6 +1935,12 @@ func (p *Parser) parseTemplateString() *Term {
 			return nil
 		}
 
+		// Note: Actually unification
+		if expr.IsEquality() {
+			p.errorf(expr.Loc(), "unexpected unification ('=') in template-string expression")
+			return nil
+		}
+
 		if expr.IsAssignment() {
 			p.errorf(expr.Loc(), "unexpected assignment (':=') in template-string expression")
 			return nil
