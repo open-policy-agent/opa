@@ -107,10 +107,7 @@ func TestHTTPGetRequest(t *testing.T) {
 func TestHTTPGetRequestTlsInsecureSkipVerify(t *testing.T) {
 	t.Parallel()
 
-	var people []Person
-
-	// test data
-	people = append(people, Person{ID: "1", Firstname: "John"})
+	people := []Person{{ID: "1", Firstname: "John"}}
 
 	// test server
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -120,9 +117,10 @@ func TestHTTPGetRequestTlsInsecureSkipVerify(t *testing.T) {
 	defer ts.Close()
 
 	// expected result
-	expectedResult := make(map[string]any)
-	expectedResult["status"] = "200 OK"
-	expectedResult["status_code"] = http.StatusOK
+	expectedResult := map[string]any{
+		"status":      "200 OK",
+		"status_code": http.StatusOK,
+	}
 
 	var body []any
 	bodyMap := map[string]string{"id": "1", "firstname": "John"}
@@ -143,15 +141,25 @@ func TestHTTPGetRequestTlsInsecureSkipVerify(t *testing.T) {
 	}
 
 	// run the test
-	tests := []httpsStruct{}
-	tests = append(tests, httpsStruct{note: "http.send", rules: []string{fmt.Sprintf(
-		`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true, "tls_insecure_skip_verify": true}, resp); x := clean_headers(resp) }`, ts.URL)}, expected: resultObj.String()})
-
-	// This case verifies that `tls_insecure_skip_verify`
-	// is still applied, even if other TLS settings are
-	// present.
-	tests = append(tests, httpsStruct{note: "http.send", rules: []string{fmt.Sprintf(
-		`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true, "tls_insecure_skip_verify": true, "tls_use_system_certs": true,}, resp); x := clean_headers(resp) }`, ts.URL)}, expected: resultObj.String()})
+	tests := []httpsStruct{
+		{
+			note: "http.send",
+			rules: []string{fmt.Sprintf(
+				`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true, "tls_insecure_skip_verify": true}, resp); x := clean_headers(resp) }`, ts.URL),
+			},
+			expected: resultObj.String(),
+		},
+		{
+			// This case verifies that `tls_insecure_skip_verify`
+			// is still applied, even if other TLS settings are
+			// present.
+			note: "http.send",
+			rules: []string{fmt.Sprintf(
+				`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true, "tls_insecure_skip_verify": true}, resp); x := clean_headers(resp) }`, ts.URL),
+			},
+			expected: resultObj.String(),
+		},
+	}
 
 	data := loadSmallTestData()
 

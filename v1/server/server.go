@@ -272,6 +272,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	if len(errorList) > 0 {
 		errMsg := "error while shutting down: "
 		for i, err := range errorList {
+			//nolint:perfsprint
 			errMsg += fmt.Sprintf("(%d) %s. ", i, err.Error())
 		}
 		return errors.New(errMsg)

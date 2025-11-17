@@ -100,24 +100,28 @@ func Deactivate(opts *DeactivateOpts) error {
 }
 
 // LegacyWriteManifestToStore will write the bundle manifest to the older single (unnamed) bundle manifest location.
+//
 // Deprecated: Use WriteManifestToStore and named bundles instead.
 func LegacyWriteManifestToStore(ctx context.Context, store storage.Store, txn storage.Transaction, manifest Manifest) error {
 	return v1.LegacyWriteManifestToStore(ctx, store, txn, manifest)
 }
 
 // LegacyEraseManifestFromStore will erase the bundle manifest from the older single (unnamed) bundle manifest location.
+//
 // Deprecated: Use WriteManifestToStore and named bundles instead.
 func LegacyEraseManifestFromStore(ctx context.Context, store storage.Store, txn storage.Transaction) error {
 	return v1.LegacyEraseManifestFromStore(ctx, store, txn)
 }
 
 // LegacyReadRevisionFromStore will read the bundle manifest revision from the older single (unnamed) bundle manifest location.
+//
 // Deprecated: Use ReadBundleRevisionFromStore and named bundles instead.
 func LegacyReadRevisionFromStore(ctx context.Context, store storage.Store, txn storage.Transaction) (string, error) {
 	return v1.LegacyReadRevisionFromStore(ctx, store, txn)
 }
 
 // ActivateLegacy calls Activate for the bundles but will also write their manifest to the older unnamed store location.
+//
 // Deprecated: Use Activate with named bundles instead.
 func ActivateLegacy(opts *ActivateOpts) error {
 	return v1.ActivateLegacy(opts)

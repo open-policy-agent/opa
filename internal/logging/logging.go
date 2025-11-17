@@ -54,7 +54,7 @@ func (*prettyFormatter) Format(e *logrus.Entry) ([]byte, error) {
 	b := new(bytes.Buffer)
 
 	level := strings.ToUpper(e.Level.String())
-	b.WriteString(fmt.Sprintf("[%s] %s\n", level, e.Message))
+	fmt.Fprintf(b, "[%s] %s\n", level, e.Message)
 
 	// Format each key for optimal ease of human reading
 	fieldIndent := 2

@@ -361,6 +361,7 @@ func (r *REPL) WithRegoVersion(v ast.RegoVersion) *REPL {
 }
 
 // WithV1Compatible sets the Rego version to v1.
+//
 // Deprecated: Use WithRegoVersion instead.
 func (r *REPL) WithV1Compatible(v1Compatible bool) *REPL {
 	if v1Compatible {

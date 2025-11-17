@@ -5560,6 +5560,7 @@ func TestRuleFromBody(t *testing.T) {
 	// Verify the rule and rule and rule head col/loc values
 	testModule := "package a.b.c\n\n"
 	for _, tc := range tests {
+		//nolint:perfsprint
 		testModule += tc.input + "\n"
 	}
 	module, err := ParseModuleWithOpts("test.rego", testModule, popts)

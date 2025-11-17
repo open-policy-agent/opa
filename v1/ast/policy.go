@@ -379,8 +379,10 @@ func (mod *Module) String() string {
 	appendAnnotationStrings := func(buf []string, node Node) []string {
 		if as, ok := byNode[node]; ok {
 			for i := range as {
-				buf = append(buf, "# METADATA")
-				buf = append(buf, "# "+as[i].String())
+				buf = append(buf,
+					"# METADATA",
+					"# "+as[i].String(),
+				)
 			}
 		}
 		return buf
@@ -730,6 +732,7 @@ func (rule *Rule) SetLoc(loc *Location) {
 
 // Path returns a ref referring to the document produced by this rule. If rule
 // is not contained in a module, this function panics.
+//
 // Deprecated: Poor handling of ref rules. Use `(*Rule).Ref()` instead.
 func (rule *Rule) Path() Ref {
 	if rule.Module == nil {

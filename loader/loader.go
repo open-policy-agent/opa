@@ -77,6 +77,7 @@ func Schemas(schemaPath string) (*ast.SchemaSet, error) {
 }
 
 // All returns a Result object loaded (recursively) from the specified paths.
+//
 // Deprecated: Use FileLoader.Filtered() instead.
 func All(paths []string) (*Result, error) {
 	return NewFileLoader().Filtered(paths, nil)
@@ -85,6 +86,7 @@ func All(paths []string) (*Result, error) {
 // Filtered returns a Result object loaded (recursively) from the specified
 // paths while applying the given filters. If any filter returns true, the
 // file/directory is excluded.
+//
 // Deprecated: Use FileLoader.Filtered() instead.
 func Filtered(paths []string, filter Filter) (*Result, error) {
 	return NewFileLoader().Filtered(paths, filter)
@@ -93,6 +95,7 @@ func Filtered(paths []string, filter Filter) (*Result, error) {
 // AsBundle loads a path as a bundle. If it is a single file
 // it will be treated as a normal tarball bundle. If a directory
 // is supplied it will be loaded as an unzipped bundle tree.
+//
 // Deprecated: Use FileLoader.AsBundle() instead.
 func AsBundle(path string) (*bundle.Bundle, error) {
 	return NewFileLoader().AsBundle(path)
