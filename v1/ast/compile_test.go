@@ -8395,15 +8395,6 @@ func TestCompilerRewriteTemplateStringCallsErrors(t *testing.T) {
 			exp: "var x is unsafe",
 		},
 		{
-			note: "var declared after template string",
-			module: `package test
-			p := msg if { 
-				msg = $"{x}"
-				x = 7
-			}`,
-			exp: "var x is undeclared",
-		},
-		{
 			note: "wildcard",
 			module: `package test
 			p := msg if {

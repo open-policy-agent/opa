@@ -291,3 +291,15 @@ cases:
     query: data.test.p = x
     want_result:
       - x: "foo <undefined> bar"
+  - note: string-interpolation/var declared after template-string
+    modules:
+      - |
+        package test
+        
+        p := msg if { 
+            msg = $"foo {x + 2} bar"
+            x = 7
+        }
+    query: data.test.p = x
+    want_result:
+      - x: "foo 9 bar"
