@@ -8619,12 +8619,17 @@ func TestTemplateStringError(t *testing.T) {
 		{
 			note:     "assignment in template expression",
 			expr:     `$"{x := 1}"`,
-			expError: "rego_parse_error: unexpected assignment in template-string expression",
+			expError: "rego_parse_error: unexpected assignment (':=') in template-string expression",
 		},
 		{
 			note:     "not in template expression",
 			expr:     `$"{not false}"`,
 			expError: "rego_parse_error: unexpected negation ('not') in template-string expression",
+		},
+		{
+			note:     "some in template expression",
+			expr:     `$"{some 2 in [1, 2]}"`,
+			expError: "rego_parse_error: unexpected 'some' in template-string expression",
 		},
 		{
 			note:     "every in template expression",

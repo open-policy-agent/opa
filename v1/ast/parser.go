@@ -1936,12 +1936,17 @@ func (p *Parser) parseTemplateString() *Term {
 		}
 
 		if expr.IsAssignment() {
-			p.errorf(expr.Loc(), "unexpected assignment in template-string expression")
+			p.errorf(expr.Loc(), "unexpected assignment (':=') in template-string expression")
 			return nil
 		}
 
 		if expr.IsEvery() {
 			p.errorf(expr.Loc(), "unexpected '%s' in template-string expression", tokens.KeywordFor(tokens.Every))
+			return nil
+		}
+
+		if expr.IsSome() {
+			p.errorf(expr.Loc(), "unexpected '%s' in template-string expression", tokens.KeywordFor(tokens.Some))
 			return nil
 		}
 
