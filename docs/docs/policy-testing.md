@@ -441,7 +441,7 @@ FAIL: 1/1
 ## Data and Function Mocking
 
 OPA's `with` keyword can be used to replace the data document or called functions with mocks.
-Both base and virtual documents can be replaced.
+Both base and <GlossaryTooltip term="virtual-documents">virtual documents</GlossaryTooltip> can be replaced.
 
 When replacing functions, built-in or otherwise, the following constraints are in place:
 

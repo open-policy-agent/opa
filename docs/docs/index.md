@@ -454,7 +454,7 @@ logic statements. Rules can either be "complete" or "partial".
 #### Complete Rules
 
 Complete rules are if-then statements that assign a single value to a variable.
-Every rule consists of a _head_ and a _body_. In Rego we say the rule head
+Every rule consists of a <GlossaryTooltip term="rule-head">head</GlossaryTooltip> and a <GlossaryTooltip term="rule-body">body</GlossaryTooltip>. In Rego we say the rule head
 is true _if_ the rule body is true for some set of variable assignments.
 
 ```rego
@@ -564,8 +564,8 @@ exists_public_network if {
 #### Partial Rules
 
 Partial rules are if-then statements that generate a set of values and
-assign that set to a variable. In the example below `public_network contains net.id` is the rule head and
-`some net in input.networks; net.public` is the rule body. You can query for the entire
+assign that set to a variable. In the example below `public_network contains net.id` is the <GlossaryTooltip term="rule-head">rule head</GlossaryTooltip> and
+`some net in input.networks; net.public` is the <GlossaryTooltip term="rule-body">rule body</GlossaryTooltip>. You can query for the entire
 set of values just like any other value.
 
 ```rego

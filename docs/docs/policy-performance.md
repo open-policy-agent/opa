@@ -152,13 +152,6 @@ the result:
 1. A set of complete document rules that only have one, ground value.
 2. A set of function rules that only have one, ground value.
 
-:::info What is a "ground value"?
-A "ground value" is any value that doesn't contain variables - essentially a
-concrete, known value like `true`, `"hello"`, `42`, or `["a", "b"]`. This is in
-contrast to expressions with variables like `x` or `input.user`.
-For a formal definition, see
-[ground term](https://en.wikipedia.org/wiki/Ground_expression#ground_term).
-:::
 
 The most common case for this are a set of `allow` rules:
 
@@ -311,7 +304,7 @@ the policy should generate a document like this:
 }
 ```
 
-Since multiple ports could be exposed on a single interface, the policy must use a comprehension to
+Since multiple ports could be exposed on a single interface, the policy must use a <GlossaryTooltip term="comprehensions">comprehension</GlossaryTooltip> to
 aggregate the port values by the interface names. To implement this logic in Rego, we would write:
 
 ```rego
