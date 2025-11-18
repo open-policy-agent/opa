@@ -795,15 +795,6 @@ opa version
 </TabItem>
 
 <TabItem value="linux" label="Linux/Unix">
-There are a number of packages repos that provide OPA binaries for Linux/Unix.
-For example:
-
-- [Arch](https://archlinux.org/packages/extra/x86_64/open-policy-agent/)
-- [nixpkgs](https://github.com/NixOS/nixpkgs/blob/master/pkgs/by-name/op/open-policy-agent/package.nix)
-- [Wolfi](https://github.com/wolfi-dev/os/blob/main/opa.yaml)
-- [FreeBSD](https://cgit.freebsd.org/ports/tree/sysutils/opa)
-- [NetBSD](https://pkgsrc.se/devel/opa)
-
 In order to manually install the OPA binary from the GitHub release assets,
 please run the following:
 
@@ -831,6 +822,18 @@ You can verify the installation by running:
 ```shell
 opa version
 ```
+
+:::info Community Package Repositories
+There are a number of community-maintained package repositories that provide OPA binaries for Linux/Unix:
+
+- [Arch](https://archlinux.org/packages/extra/x86_64/open-policy-agent/)
+- [nixpkgs](https://github.com/NixOS/nixpkgs/blob/master/pkgs/by-name/op/open-policy-agent/package.nix)
+- [Wolfi](https://github.com/wolfi-dev/os/blob/main/opa.yaml)
+- [FreeBSD](https://cgit.freebsd.org/ports/tree/sysutils/opa)
+- [NetBSD](https://pkgsrc.se/devel/opa)
+
+These packages are maintained by their respective communities and may not always have the latest OPA version available.
+:::
 
 </TabItem>
 
