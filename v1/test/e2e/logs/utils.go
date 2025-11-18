@@ -43,7 +43,7 @@ func RunDecisionLoggerBenchmark(b *testing.B, rt *e2e.TestRuntime) {
 				}
 				b.ResetTimer()
 
-				for range b.N {
+				for b.Loop() {
 					b.StartTimer()
 
 					bodyJSON, err := rt.GetDataWithInput("data/test/rule", input)

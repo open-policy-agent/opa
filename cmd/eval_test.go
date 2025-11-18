@@ -19,6 +19,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/open-policy-agent/opa/cmd/formats"
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/internal/presentation"
@@ -1732,7 +1733,7 @@ func stringsMatch(t *testing.T, expected, actual string) bool {
 	t.Helper()
 
 	var expectedLines []string
-	for _, l := range strings.Split(expected, "\n") {
+	for l := range strings.SplitSeq(expected, "\n") {
 		if !strings.Contains(l, "%SKIP_LINE%") {
 			expectedLines = append(expectedLines, l)
 		}
@@ -1844,9 +1845,9 @@ func TestEvalPartialFormattedOutput(t *testing.T) {
 	}{
 		{
 			format: formats.Pretty,
-			expected: `+---------+------------------------------------------+
-| Query 1 | time.clock(input.y, time.clock(input.x)) |
-+---------+------------------------------------------+
+			expected: `┌─────────┬──────────────────────────────────────────┐
+│ Query 1 │ time.clock(input.y, time.clock(input.x)) │
+└─────────┴──────────────────────────────────────────┘
 `},
 		{
 			format: formats.Source,
@@ -1866,8 +1867,8 @@ time.clock(input.y, time.clock(input.x))
 			if err != nil {
 				t.Fatal("unexpected error:", err)
 			}
-			if actual := buf.String(); actual != tc.expected {
-				t.Errorf("expected output %q\ngot %q", tc.expected, actual)
+			if diff := cmp.Diff(buf.String(), tc.expected); diff != "" {
+				t.Error("output mismatch (-want +got):\n", diff)
 			}
 		})
 	}
@@ -1904,15 +1905,15 @@ import rego.v1
 
 p contains __local0__1 if __local0__1 = input.v
 `,
-				formats.Pretty: `+-----------+-------------------------------------------------+
-| Query 1   | data.partial.test.p                             |
-+-----------+-------------------------------------------------+
-| Support 1 | package partial.test                            |
-|           |                                                 |
-|           | import rego.v1                                  |
-|           |                                                 |
-|           | p contains __local0__1 if __local0__1 = input.v |
-+-----------+-------------------------------------------------+
+				formats.Pretty: `┌───────────┬─────────────────────────────────────────────────┐
+│ Query 1   │ data.partial.test.p                             │
+├───────────┼─────────────────────────────────────────────────┤
+│ Support 1 │ package partial.test                            │
+│           │                                                 │
+│           │ import rego.v1                                  │
+│           │                                                 │
+│           │ p contains __local0__1 if __local0__1 = input.v │
+└───────────┴─────────────────────────────────────────────────┘
 `,
 			},
 		},
@@ -1938,15 +1939,15 @@ p[__local0__1] {
 	__local0__1 = input.v
 }
 `,
-				formats.Pretty: `+-----------+-------------------------+
-| Query 1   | data.partial.test.p     |
-+-----------+-------------------------+
-| Support 1 | package partial.test    |
-|           |                         |
-|           | p[__local0__1] {        |
-|           |   __local0__1 = input.v |
-|           | }                       |
-+-----------+-------------------------+
+				formats.Pretty: `┌───────────┬─────────────────────────┐
+│ Query 1   │ data.partial.test.p     │
+├───────────┼─────────────────────────┤
+│ Support 1 │ package partial.test    │
+│           │                         │
+│           │ p[__local0__1] {        │
+│           │   __local0__1 = input.v │
+│           │ }                       │
+└───────────┴─────────────────────────┘
 `,
 			},
 		},
@@ -1974,15 +1975,15 @@ import rego.v1
 
 p contains __local0__1 if __local0__1 = input.v
 `,
-				formats.Pretty: `+-----------+-------------------------------------------------+
-| Query 1   | data.partial.test.p                             |
-+-----------+-------------------------------------------------+
-| Support 1 | package partial.test                            |
-|           |                                                 |
-|           | import rego.v1                                  |
-|           |                                                 |
-|           | p contains __local0__1 if __local0__1 = input.v |
-+-----------+-------------------------------------------------+
+				formats.Pretty: `┌───────────┬─────────────────────────────────────────────────┐
+│ Query 1   │ data.partial.test.p                             │
+├───────────┼─────────────────────────────────────────────────┤
+│ Support 1 │ package partial.test                            │
+│           │                                                 │
+│           │ import rego.v1                                  │
+│           │                                                 │
+│           │ p contains __local0__1 if __local0__1 = input.v │
+└───────────┴─────────────────────────────────────────────────┘
 `,
 			},
 		},
@@ -2006,13 +2007,13 @@ package partial.test
 
 p contains __local0__1 if __local0__1 = input.v
 `,
-				formats.Pretty: `+-----------+-------------------------------------------------+
-| Query 1   | data.partial.test.p                             |
-+-----------+-------------------------------------------------+
-| Support 1 | package partial.test                            |
-|           |                                                 |
-|           | p contains __local0__1 if __local0__1 = input.v |
-+-----------+-------------------------------------------------+
+				formats.Pretty: `┌───────────┬─────────────────────────────────────────────────┐
+│ Query 1   │ data.partial.test.p                             │
+├───────────┼─────────────────────────────────────────────────┤
+│ Support 1 │ package partial.test                            │
+│           │                                                 │
+│           │ p contains __local0__1 if __local0__1 = input.v │
+└───────────┴─────────────────────────────────────────────────┘
 `,
 			},
 		},
@@ -2038,13 +2039,13 @@ package partial.test
 
 p contains __local0__1 if __local0__1 = input.v
 `,
-				formats.Pretty: `+-----------+-------------------------------------------------+
-| Query 1   | data.partial.test.p                             |
-+-----------+-------------------------------------------------+
-| Support 1 | package partial.test                            |
-|           |                                                 |
-|           | p contains __local0__1 if __local0__1 = input.v |
-+-----------+-------------------------------------------------+
+				formats.Pretty: `┌───────────┬─────────────────────────────────────────────────┐
+│ Query 1   │ data.partial.test.p                             │
+├───────────┼─────────────────────────────────────────────────┤
+│ Support 1 │ package partial.test                            │
+│           │                                                 │
+│           │ p contains __local0__1 if __local0__1 = input.v │
+└───────────┴─────────────────────────────────────────────────┘
 `,
 			},
 		},
@@ -2080,8 +2081,9 @@ p contains __local0__1 if __local0__1 = input.v
 						if err != nil {
 							t.Fatal("unexpected error:", err)
 						}
-						if actual := buf.String(); actual != expected {
-							t.Errorf("expected output:\n\n%s\n\ngot:\n\n%s", expected, actual)
+
+						if diff := cmp.Diff(buf.String(), expected); diff != "" {
+							t.Error("output mismatch (-want +got):\n", diff)
 						}
 					})
 				})
@@ -2155,8 +2157,8 @@ func TestEvalDiscardOutput(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err)
 			}
-			if actual := buf.String(); actual != tc.expected {
-				t.Errorf("expected output %q\ngot %q", tc.expected, actual)
+			if diff := cmp.Diff(buf.String(), tc.expected); diff != "" {
+				t.Error("output mismatch (-want +got):\n", diff)
 			}
 		})
 	}

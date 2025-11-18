@@ -109,7 +109,7 @@ func TestPluginOneShot(t *testing.T) {
 		t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
 	}
 
-	data, err := manager.Store.Read(ctx, txn, storage.Path{})
+	data, err := manager.Store.Read(ctx, txn, storage.RootPath)
 	expData := util.MustUnmarshalJSON([]byte(`{
 		"foo": {"bar": 1, "baz": "qux"},
 		"system": {
@@ -163,7 +163,7 @@ func TestPluginOneShotWithAstStore(t *testing.T) {
 	txn := storage.NewTransactionOrDie(ctx, manager.Store)
 	defer manager.Store.Abort(ctx, txn)
 
-	data, err := manager.Store.Read(ctx, txn, storage.Path{})
+	data, err := manager.Store.Read(ctx, txn, storage.RootPath)
 	expData := ast.MustParseTerm(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`)
 	if err != nil {
 		t.Fatal(err)
@@ -993,7 +993,7 @@ func TestPluginStartLazyLoadInMem(t *testing.T) {
 				t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
 			}
 
-			data, err := manager.Store.Read(ctx, txn, storage.Path{})
+			data, err := manager.Store.Read(ctx, txn, storage.RootPath)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1118,7 +1118,7 @@ func TestPluginOneShotDiskStorageMetrics(t *testing.T) {
 			t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
 		}
 
-		data, err := manager.Store.Read(ctx, txn, storage.Path{})
+		data, err := manager.Store.Read(ctx, txn, storage.RootPath)
 		expData := util.MustUnmarshalJSON([]byte(`{
 			"foo": {"bar": 1, "baz": "qux"},
 			"system": {
@@ -1227,7 +1227,7 @@ func TestPluginOneShotDeltaBundle(t *testing.T) {
 		t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
 	}
 
-	data, err := manager.Store.Read(ctx, txn, storage.Path{})
+	data, err := manager.Store.Read(ctx, txn, storage.RootPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1338,7 +1338,7 @@ func TestPluginOneShotDeltaBundleWithAstStore(t *testing.T) {
 		t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
 	}
 
-	data, err := manager.Store.Read(ctx, txn, storage.Path{})
+	data, err := manager.Store.Read(ctx, txn, storage.RootPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1366,7 +1366,7 @@ func TestPluginStart(t *testing.T) {
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
-	defer plugin.Stop(ctx)
+	plugin.Stop(ctx)
 }
 
 func TestStop(t *testing.T) {
@@ -1535,7 +1535,7 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 		t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
 	}
 
-	data, err := manager.Store.Read(ctx, txn, storage.Path{})
+	data, err := manager.Store.Read(ctx, txn, storage.RootPath)
 	expData := util.MustUnmarshalJSON([]byte(`{
 		"foo": {"bar": 1, "baz": "qux"},
 		"system": {
@@ -1731,7 +1731,7 @@ corge contains 1 if {
 					}
 				}`))
 
-				data, err := manager.Store.Read(ctx, txn, storage.Path{})
+				data, err := manager.Store.Read(ctx, txn, storage.RootPath)
 				if err != nil {
 					t.Fatal(err)
 				} else if !reflect.DeepEqual(data, expData) {
@@ -2017,7 +2017,7 @@ corge contains 1 if {
 					t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
 				}
 
-				data, err := manager.Store.Read(ctx, txn, storage.Path{})
+				data, err := manager.Store.Read(ctx, txn, storage.RootPath)
 
 				var manifestRegoVersion string
 				var moduleRegoVersion string
@@ -2143,7 +2143,7 @@ func TestPluginOneShotSignedBundlePersistence(t *testing.T) {
 		t.Fatal("Expected no policy")
 	}
 
-	data, err := manager.Store.Read(ctx, txn, storage.Path{})
+	data, err := manager.Store.Read(ctx, txn, storage.RootPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2228,7 +2228,7 @@ func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 		t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
 	}
 
-	data, err := manager.Store.Read(ctx, txn, storage.Path{})
+	data, err := manager.Store.Read(ctx, txn, storage.RootPath)
 	expData := util.MustUnmarshalJSON([]byte(`{
 		"foo": {"bar": 1, "baz": "qux"},
 		"system": {
@@ -2314,7 +2314,7 @@ func TestLoadAndActivateBundlesFromDiskReservedChars(t *testing.T) {
 		t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
 	}
 
-	data, err := manager.Store.Read(ctx, txn, storage.Path{})
+	data, err := manager.Store.Read(ctx, txn, storage.RootPath)
 	expData := util.MustUnmarshalJSON([]byte(`{
 		"foo": {"bar": 1, "baz": "qux"},
 		"system": {
@@ -2559,7 +2559,7 @@ corge contains 2 if {
 						if err != nil {
 							fatal(err)
 						} else if !bytes.Equal(bs, exp) {
-							fatal("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
+							fatal(fmt.Sprintf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs)))
 						}
 					}
 
@@ -2570,11 +2570,11 @@ corge contains 2 if {
 						}
 					}`))
 
-					data, err := manager.Store.Read(ctx, txn, storage.Path{})
+					data, err := manager.Store.Read(ctx, txn, storage.RootPath)
 					if err != nil {
 						fatal(err)
 					} else if !reflect.DeepEqual(data, expData) {
-						fatal("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+						fatal(fmt.Sprintf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data))
 					}
 
 					manager.Store.Abort(ctx, txn)
@@ -2781,7 +2781,7 @@ corge contains 1 if {
 					t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
 				}
 
-				data, err := manager.Store.Read(ctx, txn, storage.Path{})
+				data, err := manager.Store.Read(ctx, txn, storage.RootPath)
 
 				manifestRegoVersionStr := ""
 				if tc.bundleRegoVersion != nil {
@@ -3231,7 +3231,7 @@ func TestPluginOneShotActivationRemovesOld(t *testing.T) {
 		} else if !slices.Equal([]string{filepath.Join(bundleName, "example2.rego")}, ids) {
 			return errors.New("expected updated policy ids")
 		}
-		data, err := manager.Store.Read(ctx, txn, storage.Path{})
+		data, err := manager.Store.Read(ctx, txn, storage.RootPath)
 		// remove system key to make comparison simpler
 		delete(data.(map[string]any), "system")
 		if err != nil {
@@ -3884,7 +3884,7 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 			if err := storage.Txn(ctx, manager.Store, storage.WriteParams, func(txn storage.Transaction) error {
 				externalData := map[string]any{"a": map[string]any{"a1": "x1", "a3": "x2", "a5": "x3"}}
 
-				if err := manager.Store.Write(ctx, txn, storage.AddOp, storage.Path{}, externalData); err != nil {
+				if err := manager.Store.Write(ctx, txn, storage.AddOp, storage.RootPath, externalData); err != nil {
 					return err
 				}
 				if err := manager.Store.UpsertPolicy(ctx, txn, "some/id1", []byte(`package a.a2`)); err != nil {
@@ -7137,7 +7137,7 @@ func TestPluginManualTriggerMultipleDiskStorage(t *testing.T) {
 			t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
 		}
 
-		data, err := manager.Store.Read(ctx, txn, storage.Path{})
+		data, err := manager.Store.Read(ctx, txn, storage.RootPath)
 		expData := util.MustUnmarshalJSON([]byte(`{
 			"p": "x1", "q": "x2",
 			"system": {

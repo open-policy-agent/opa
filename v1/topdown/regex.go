@@ -7,6 +7,7 @@ package topdown
 import (
 	"fmt"
 	"regexp"
+	"regexp/syntax"
 	"sync"
 
 	gintersect "github.com/yashtewari/glob-intersection"
@@ -22,18 +23,13 @@ var regexpCacheLock = sync.Mutex{}
 var regexpCache map[string]*regexp.Regexp
 
 func builtinRegexIsValid(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-
-	s, err := builtins.StringOperand(operands[0].Value, 1)
-	if err != nil {
-		return iter(ast.InternedTerm(false))
+	if s, err := builtins.StringOperand(operands[0].Value, 1); err == nil {
+		if _, err = syntax.Parse(string(s), syntax.Perl); err == nil {
+			return iter(ast.InternedTerm(true))
+		}
 	}
 
-	_, err = regexp.Compile(string(s))
-	if err != nil {
-		return iter(ast.InternedTerm(false))
-	}
-
-	return iter(ast.InternedTerm(true))
+	return iter(ast.InternedTerm(false))
 }
 
 func builtinRegexMatch(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {

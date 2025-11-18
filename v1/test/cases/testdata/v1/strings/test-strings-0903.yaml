@@ -1,6 +1,6 @@
 ---
 cases:
-  - note: "strings/split: empty string"
+  - note: "strings/split: empty text string"
     query: data.generated.p = x
     modules:
       - |
@@ -12,3 +12,21 @@ cases:
     data: {}
     want_result:
       - x: ""
+  - note: "strings/split: empty delim string"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := split("test", "")
+    want_result:
+      - x: [t, e, s, t]
+  - note: "strings/split: empty text and delim string"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := split("", "")
+    want_result:
+      - x: []

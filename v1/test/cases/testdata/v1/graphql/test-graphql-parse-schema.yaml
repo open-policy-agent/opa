@@ -95,7 +95,7 @@ cases:
           }
         `
 
-        ast := {"Definitions": [{"BuiltIn": false, "Description": "", "Fields": [{"Arguments": [{"DefaultValue": {"Kind": 5, "Raw": "true"}, "Description": "", "Name": "flag", "Type": {"NamedType": "Boolean", "NonNull": false}}], "Description": "", "Name": "world", "Type": {"NamedType": "String", "NonNull": false}}], "Kind": "OBJECT", "Name": "Hello"}]}
+        ast := {"Definitions": [{"BuiltIn": false, "Description": "", "Fields": [{"Arguments": [{"DefaultValue": {"ExpectedTypeHasDefault": false, "Kind": 5, "Raw": "true"}, "Description": "", "Name": "flag", "Type": {"NamedType": "Boolean", "NonNull": false}}], "Description": "", "Name": "world", "Type": {"NamedType": "String", "NonNull": false}}], "Kind": "OBJECT", "Name": "Hello"}]}
 
         p if {
         	graphql.parse_schema(gql) == ast

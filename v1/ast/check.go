@@ -383,10 +383,6 @@ func (tc *typeChecker) checkExpr(env *TypeEnv, expr *Expr) *Error {
 }
 
 func (tc *typeChecker) checkExprBuiltin(env *TypeEnv, expr *Expr) *Error {
-
-	args := expr.Operands()
-	pre := getArgTypes(env, args)
-
 	// NOTE(tsandall): undefined functions will have been caught earlier in the
 	// compiler. We check for undefined functions before the safety check so
 	// that references to non-existent functions result in undefined function
@@ -424,12 +420,14 @@ func (tc *typeChecker) checkExprBuiltin(env *TypeEnv, expr *Expr) *Error {
 		namedFargs.Args = append(namedFargs.Args, ftpe.NamedResult())
 	}
 
+	args := expr.Operands()
+
 	if len(args) > len(fargs.Args) && fargs.Variadic == nil {
-		return newArgError(expr.Location, name, "too many arguments", pre, namedFargs)
+		return newArgError(expr.Location, name, "too many arguments", getArgTypes(env, args), namedFargs)
 	}
 
 	if len(args) < len(ftpe.FuncArgs().Args) {
-		return newArgError(expr.Location, name, "too few arguments", pre, namedFargs)
+		return newArgError(expr.Location, name, "too few arguments", getArgTypes(env, args), namedFargs)
 	}
 
 	for i := range args {

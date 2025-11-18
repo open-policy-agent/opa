@@ -68,7 +68,7 @@ allow if {
 ```
 
 For this reason, and a few historic ones, using the second argument for the return value is the preferred way to use
-`walk`, which is [unique](https://openpolicyagent.org/projects/regal/rules/style/function-arg-return#exceptions) for the walk built-in
+`walk`, which is [unique](https://www.openpolicyagent.org/projects/regal/rules/style/function-arg-return#exceptions) for the walk built-in
 function.
 
 ## Configuration Options
@@ -85,5 +85,5 @@ rules:
 
 ## Related Resources
 
-- Regal Docs: [function-arg-return](https://openpolicyagent.org/projects/regal/rules/style/function-arg-return)
+- Regal Docs: [function-arg-return](https://www.openpolicyagent.org/projects/regal/rules/style/function-arg-return)
 - GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/performance/walk-no-path/walk_no_path.rego)

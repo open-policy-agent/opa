@@ -22,7 +22,7 @@ In this example:
 - system is the name of another source that declares package x.y
 - because x.y is a prefix of x.y.z, they overlap
 
-If you are interested in seeing this restriction relaxed please leave a comment [here](https://github.com/StyraInc/opa-control-plane/issues/30) including any details you can share about your use case.
+If you are interested in seeing this restriction relaxed please leave a comment [here](https://github.com/open-policy-agent/opa-control-plane/issues/30) including any details you can share about your use case.
 
 ### Bundle Configuration Fields
 
@@ -135,9 +135,7 @@ Sources define how OCP pulls Rego and data from external systems, local files, o
   - Name
   - Path
   - Type
-    - Http
-    - S3
-    - git
+    - http
   - Transform Query
   - Config
   - Credentials
@@ -149,6 +147,8 @@ Sources define how OCP pulls Rego and data from external systems, local files, o
 - **credentials:** Reference a named Secret for accessing Git/datasource endpoints.
 
 **Example:**
+Configuration sourcing policy from git (`app-policy`), data from file (`global-data`)
+and additional data pulled via http from Amazon S3 (`s3-data`). Information about used credentials is available in [Secrets](#secrets) section.
 
 ```yaml
 sources:
@@ -162,6 +162,14 @@ sources:
   global-data:
     paths:
       - global/common.json
+  s3-data:
+    datasources:
+      - name: s3-datasource
+        type: http
+        path: data/from/s3
+        config:
+          url: https://my-bucket.s3.my-region.amazonaws.com/s3-data.json
+          credentials: aws_auth
 ```
 
 ## Stacks

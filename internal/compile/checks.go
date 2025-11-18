@@ -189,13 +189,25 @@ func checkBuiltins(c *checker, e *ast.Expr, _ []*ast.Module) *ast.Error {
 		}
 	default: // lhs or rhs needs to be ground scalar, or, if twoRefsOK is true, unknown input refs
 		// TODO(sr): collections might work, too, let's fix this later
-		found := false
 		for i := range 2 {
 			if ast.IsScalar(e.Operand(i).Value) {
-				found = true
+				return nil
 			}
 		}
-		if !found && !(twoRefsOK && unknownRefs == 2) { // nolint:staticcheck
+		if op0 == ast.Equality.Name && unknownRefs == 1 { // one unknown, the other side non-scalar
+			for i := range 2 {
+				switch e.Operand(i).Value.(type) {
+				case ast.Var, ast.Ref: // OK
+					if err0 := c.constraints.AssertFeature("existence-ref"); err0 != nil {
+						return err(loc, "existence of field: %s", err0.Error())
+					}
+				default:
+					return err(loc, "both rhs and lhs non-scalar/non-ground")
+				}
+			}
+			return nil
+		}
+		if !twoRefsOK || unknownRefs != 2 { // nolint:staticcheck
 			return err(loc, "both rhs and lhs non-scalar/non-ground")
 		}
 	}

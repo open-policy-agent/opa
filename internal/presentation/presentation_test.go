@@ -126,7 +126,7 @@ func TestOutputJSONErrorStructuredASTErr(t *testing.T) {
 func TestOutputJSONErrorStructuredStorageErr(t *testing.T) {
 	store := inmem.New()
 	txn := storage.NewTransactionOrDie(t.Context(), store)
-	err := store.Write(t.Context(), txn, storage.AddOp, storage.Path{}, map[string]any{"foo": 1})
+	err := store.Write(t.Context(), txn, storage.AddOp, storage.RootPath, map[string]any{"foo": 1})
 	expected := `{
   "errors": [
     {
@@ -528,11 +528,11 @@ func TestDepsAnalysisPrettyOutput(t *testing.T) {
 			note:   "base document",
 			output: DepAnalysisOutput{Base: []ast.Ref{ast.InputRootRef}},
 			want: []string{
-				"+----------------+",
-				"| BASE DOCUMENTS |",
-				"+----------------+",
-				"| input          |",
-				"+----------------+",
+				"┌────────────────┐",
+				"│ BASE DOCUMENTS │",
+				"├────────────────┤",
+				"│ input          │",
+				"└────────────────┘",
 			},
 		},
 		{
@@ -543,11 +543,11 @@ func TestDepsAnalysisPrettyOutput(t *testing.T) {
 				},
 			},
 			want: []string{
-				"+-------------------+",
-				"| VIRTUAL DOCUMENTS |",
-				"+-------------------+",
-				"| data.policy.allow |",
-				"+-------------------+",
+				"┌───────────────────┐",
+				"│ VIRTUAL DOCUMENTS │",
+				"├───────────────────┤",
+				"│ data.policy.allow │",
+				"└───────────────────┘",
 			},
 		},
 		{
@@ -559,11 +559,11 @@ func TestDepsAnalysisPrettyOutput(t *testing.T) {
 				},
 			},
 			want: []string{
-				"+----------------+-------------------+",
-				"| BASE DOCUMENTS | VIRTUAL DOCUMENTS |",
-				"+----------------+-------------------+",
-				"| input          | data.policy.allow |",
-				"+----------------+-------------------+",
+				"┌────────────────┬───────────────────┐",
+				"│ BASE DOCUMENTS │ VIRTUAL DOCUMENTS │",
+				"├────────────────┼───────────────────┤",
+				"│ input          │ data.policy.allow │",
+				"└────────────────┴───────────────────┘",
 			},
 		},
 	}

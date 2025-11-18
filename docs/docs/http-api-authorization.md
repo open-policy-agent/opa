@@ -124,7 +124,7 @@ docker-compose -f docker-compose.yaml up
 :::info
 This example shows conceptually a 'manual' REST API integration with OPA.
 You might find it easier to build your OPA integration using one of the
-[language SDKs](/ecosystem/#languages) than working with the REST API directly.
+[language SDKs](/ecosystem#languages) than working with the REST API directly.
 :::
 
 Every time the demo web server receives an HTTP request, it

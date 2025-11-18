@@ -12,6 +12,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 var (
@@ -29,7 +31,7 @@ func BenchmarkObjectLookup(b *testing.B) {
 			}
 			key := StringTerm(strconv.Itoa(n - 1))
 			b.ResetTimer()
-			for range b.N {
+			for b.Loop() {
 				value := obj.Get(key)
 				if value == nil {
 					b.Fatal("expected hit")
@@ -37,6 +39,136 @@ func BenchmarkObjectLookup(b *testing.B) {
 			}
 		})
 	}
+}
+
+// Before NumberCompare refactor:
+// // --- FAIL: BenchmarkObjectGet/existing_float_number_key_as_int
+//     /Users/anderseknert/git/opa/opa/v1/ast/term_bench_test.go:111: expected hit
+
+// BenchmarkObjectGet/lookup_in_empty_object-16         	219916140	         5.323 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/existing_interned_key-16          	149059920	         8.011 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/existing_string_key-16            	144672567	         8.314 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/existing_int_number_key-16        	 62073110	         17.62 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/existing_int_number_key_as_float-16     2310716	         519.5 ns/op	     504 B/op	      24 allocs/op
+// BenchmarkObjectGet/existing_float_key-16                   1966604	         611.5 ns/op	     632 B/op	      29 allocs/op
+// BenchmarkObjectGet/missing_string_key-16                 164003106	         7.293 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/missing_int_number_key-16              74759754	         15.25 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/missing_float_key-16                    4059250	         295.8 ns/op	     296 B/op	      15 allocs/op
+
+// After NumberCompare refactor:
+// BenchmarkObjectGet/lookup_in_empty_object-16         	680466268	         1.767 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/existing_interned_key-16          	263787909	         4.498 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/existing_string_key-16            	156048259	         7.646 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/existing_int_number_key-16        	 99076318	         12.40 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/existing_float_number_key_as_int-16    98104674	         12.47 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/existing_int_number_key_as_float-16    53441701	         22.83 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/existing_float_key-16                  53429703	         20.98 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/missing_string_key-16                	193661902	         6.084 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/missing_int_number_key-16             156364982	         7.695 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkObjectGet/missing_float_key-16                   67888981	         16.26 ns/op	       0 B/op	       0 allocs/op
+
+// But do note that this was not done to improve performance, but to improve our code. The faster float comparisons
+// are a nice side effect.
+
+func BenchmarkObjectGet(b *testing.B) {
+	obj := NewObject(
+		Item(InternedTerm("env"), InternedTerm("production")), // known interned string key
+		Item(StringTerm("a"), InternedTerm(1)),
+		Item(IntNumberTerm(222), InternedTerm("b")),
+		Item(NumberTerm("3.14"), InternedTerm("c")),
+		Item(NumberTerm("2.0"), InternedTerm("d")),
+	)
+
+	empty := NewObject()
+	b.Run("lookup in empty object", func(b *testing.B) {
+		key := StringTerm("a")
+		for b.Loop() {
+			if empty.Get(key) != nil {
+				b.Fatal("expected miss")
+			}
+		}
+	})
+
+	b.Run("existing interned key", func(b *testing.B) {
+		key := InternedTerm("env")
+		for b.Loop() {
+			if obj.Get(key) == nil {
+				b.Fatal("expected hit")
+			}
+		}
+	})
+
+	b.Run("existing string key", func(b *testing.B) {
+		key := StringTerm("a")
+		for b.Loop() {
+			if obj.Get(key) == nil {
+				b.Fatal("expected hit")
+			}
+		}
+	})
+
+	b.Run("existing int number key", func(b *testing.B) {
+		key := IntNumberTerm(222)
+		for b.Loop() {
+			if obj.Get(key) == nil {
+				b.Fatal("expected hit")
+			}
+		}
+	})
+
+	b.Run("existing float number key as int", func(b *testing.B) {
+		key := IntNumberTerm(2)
+		for b.Loop() {
+			if obj.Get(key) == nil {
+				b.Fatal("expected hit")
+			}
+		}
+	})
+
+	b.Run("existing int number key as float", func(b *testing.B) {
+		key := NumberTerm("222.0")
+		for b.Loop() {
+			if obj.Get(key) == nil {
+				b.Fatal("expected hit")
+			}
+		}
+	})
+
+	b.Run("existing float key", func(b *testing.B) {
+		key := NumberTerm("3.14")
+		for b.Loop() {
+			if obj.Get(key) == nil {
+				b.Fatal("expected hit")
+			}
+		}
+	})
+
+	b.Run("missing string key", func(b *testing.B) {
+		key := StringTerm("missing")
+		for b.Loop() {
+			if obj.Get(key) != nil {
+				b.Fatal("expected miss")
+			}
+		}
+	})
+
+	b.Run("missing int number key", func(b *testing.B) {
+		key := IntNumberTerm(999)
+		for b.Loop() {
+			if obj.Get(key) != nil {
+				b.Fatal("expected miss")
+			}
+		}
+	})
+
+	b.Run("missing float key", func(b *testing.B) {
+		key := NumberTerm("9.99")
+		for b.Loop() {
+			if obj.Get(key) != nil {
+				b.Fatal("expected miss")
+			}
+		}
+	})
 }
 
 func BenchmarkObjectFind(b *testing.B) {
@@ -54,7 +186,7 @@ func BenchmarkObjectFind(b *testing.B) {
 				}
 				key := Ref{StringTerm(strconv.Itoa(n - 1)), IntNumberTerm(m - 1)}
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					value, err := obj.Find(key)
 					if err != nil {
 						b.Fatal(err)
@@ -78,7 +210,7 @@ func BenchmarkObjectInsert(b *testing.B) {
 		obj := newobject(0)
 		obj.Insert(nums[0], nums[0])
 
-		for range b.N {
+		for b.Loop() {
 			for range nums {
 				obj.Insert(nums[0], nums[0])
 			}
@@ -89,7 +221,7 @@ func BenchmarkObjectInsert(b *testing.B) {
 		obj := newobject(0)
 		obj.Insert(nums[0], StringTerm("foo"))
 
-		for range b.N {
+		for b.Loop() {
 			for i := range nums {
 				obj.Insert(nums[0], nums[i])
 			}
@@ -99,7 +231,7 @@ func BenchmarkObjectInsert(b *testing.B) {
 	b.Run("new key", func(b *testing.B) {
 		obj := newobject(0)
 
-		for range b.N {
+		for b.Loop() {
 			for i := range nums {
 				obj.Insert(nums[i], nums[0])
 				if i >= len(nums)-1 {
@@ -112,7 +244,7 @@ func BenchmarkObjectInsert(b *testing.B) {
 	b.Run("new key, new value", func(b *testing.B) {
 		obj := newobject(0)
 
-		for range b.N {
+		for b.Loop() {
 			for i := range nums {
 				obj.Insert(nums[i], nums[i])
 				if i >= len(nums)-1 {
@@ -132,7 +264,7 @@ func BenchmarkObjectCreationAndLookup(b *testing.B) {
 				obj.Insert(StringTerm(strconv.Itoa(i)), IntNumberTerm(i))
 			}
 			key := StringTerm(strconv.Itoa(n - 1))
-			for range b.N {
+			for b.Loop() {
 				value := obj.Get(key)
 				if value == nil {
 					b.Fatal("expected hit")
@@ -153,7 +285,7 @@ func BenchmarkLazyObjectLookup(b *testing.B) {
 			obj := LazyObject(data)
 			key := StringTerm(strconv.Itoa(n - 1))
 			b.ResetTimer()
-			for range b.N {
+			for b.Loop() {
 				value := obj.Get(key)
 				if value == nil {
 					b.Fatal("expected hit")
@@ -179,7 +311,7 @@ func BenchmarkLazyObjectFind(b *testing.B) {
 				obj := LazyObject(data)
 				key := Ref{StringTerm(strconv.Itoa(n - 1)), IntNumberTerm(m - 1)}
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					value, err := obj.Find(key)
 					if err != nil {
 						b.Fatal(err)
@@ -202,7 +334,7 @@ func BenchmarkSetCreationAndLookup(b *testing.B) {
 				set.Add(StringTerm(strconv.Itoa(i)))
 			}
 			key := StringTerm(strconv.Itoa(n - 1))
-			for range b.N {
+			for b.Loop() {
 				present := set.Contains(key)
 				if !present {
 					b.Fatal("expected hit")
@@ -223,7 +355,7 @@ func BenchmarkSetIntersection(b *testing.B) {
 				setB.Add(IntNumberTerm(i))
 			}
 			b.ResetTimer()
-			for range b.N {
+			for b.Loop() {
 				setC := setA.Intersect(setB)
 				if setC.Len() != setA.Len() || setC.Len() != setB.Len() {
 					b.Fatal("expected equal")
@@ -247,7 +379,7 @@ func BenchmarkSetIntersectionDifferentSize(b *testing.B) {
 			}
 			setB.Add(IntNumberTerm(-1))
 			b.ResetTimer()
-			for range b.N {
+			for b.Loop() {
 				setC := setA.Intersect(setB)
 				if setC.Len() != sizes[0] {
 					b.Fatal("expected size to be equal")
@@ -267,7 +399,7 @@ func BenchmarkSetMembership(b *testing.B) {
 			}
 			key := IntNumberTerm(n - 1)
 			b.ResetTimer()
-			for range b.N {
+			for b.Loop() {
 				if !setA.Contains(key) {
 					b.Fatal("expected hit")
 				}
@@ -282,7 +414,7 @@ func BenchmarkTermHashing(b *testing.B) {
 		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			s := String(strings.Repeat("a", n))
 			b.ResetTimer()
-			for range b.N {
+			for b.Loop() {
 				_ = s.Hash()
 			}
 		})
@@ -316,13 +448,13 @@ func BenchmarkObjectString(b *testing.B) {
 
 			b.Run("String()", func(b *testing.B) {
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					str = val.String()
 				}
 			})
 			b.Run("json.Marshal", func(b *testing.B) {
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					bs, err = json.Marshal(obj)
 					if err != nil {
 						b.Fatal(err)
@@ -352,13 +484,13 @@ func BenchmarkObjectStringInterfaces(b *testing.B) {
 
 			b.Run("String()", func(b *testing.B) {
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					str = valString.String()
 				}
 			})
 			b.Run("json.Marshal", func(b *testing.B) {
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					bs, err = json.Marshal(valJSON)
 					if err != nil {
 						b.Fatal(err)
@@ -383,7 +515,7 @@ func BenchmarkObjectConstruction(b *testing.B) {
 				r := rand.New(rand.NewSource(seed)) // Seed the PRNG.
 				r.Shuffle(len(es), func(i, j int) { es[i], es[j] = es[j], es[i] })
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					obj := NewObject()
 					for _, e := range es {
 						obj.Insert(IntNumberTerm(e.k), IntNumberTerm(e.v))
@@ -400,7 +532,7 @@ func BenchmarkObjectConstruction(b *testing.B) {
 					es = append(es, struct{ k, v int }{v, v})
 				}
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					obj := NewObject()
 					for _, e := range es {
 						obj.Insert(IntNumberTerm(e.k), IntNumberTerm(e.v))
@@ -428,13 +560,13 @@ func BenchmarkArrayString(b *testing.B) {
 
 			b.Run("String()", func(b *testing.B) {
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					str = val.String()
 				}
 			})
 			b.Run("json.Marshal", func(b *testing.B) {
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					bs, err = json.Marshal(obj)
 					if err != nil {
 						b.Fatal(err)
@@ -464,7 +596,7 @@ func BenchmarkArrayEquality(b *testing.B) {
 			arrB = arrB.Append(IntNumberTerm(10000))
 			b.ResetTimer()
 			b.ReportAllocs()
-			for range b.N {
+			for b.Loop() {
 				if arrA.Equal(arrB) {
 					b.Fatal("expected not equal")
 				}
@@ -485,7 +617,7 @@ func BenchmarkSetString(b *testing.B) {
 
 			b.Run("String()", func(b *testing.B) {
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					str = val.String()
 				}
 			})
@@ -506,7 +638,7 @@ func BenchmarkSetMarshalJSON(b *testing.B) {
 
 			b.Run("json.Marshal", func(b *testing.B) {
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					bs, err = json.Marshal(set)
 					if err != nil {
 						b.Fatal(err)
@@ -517,40 +649,76 @@ func BenchmarkSetMarshalJSON(b *testing.B) {
 	}
 }
 
+func BenchmarkIsVarCompatibleString(b *testing.B) {
+	tests := map[string]bool{
+		"hello":    true,
+		"5heel":    false,
+		"h\nllo":   false,
+		"h\tllo":   false,
+		"h\x00llo": false,
+		"h\"llo":   false,
+		"h\\llo":   false,
+		"":         false,
+	}
+
+	for _, name := range util.KeysSorted(tests) {
+		exp := tests[name]
+		b.Run(name, func(b *testing.B) {
+			for b.Loop() {
+				if IsVarCompatibleString(name) != exp {
+					b.Fatalf("expected %t but got %t", exp, !exp)
+				}
+			}
+		})
+	}
+}
+
 // BenchmarkRefString benchmarks the performance of Ref.String().
 func BenchmarkRefString(b *testing.B) {
-	// prepare all the refs before timing
-	simpleRef := MustParseRef(`data.policy["main"]`)
-	controlRef := MustParseRef(`data.policy["ma\tin"]`)
-	longInputRef := MustParseRef(
-		`data.policy.test1.test2.test3.test4` +
-			`["main1"]["main2"]["main3"]["main4"]`,
-	)
-	singleTerm := Ref{VarTerm("is_object")}
+	tests := map[string]struct {
+		inp string
+		exp string
+		ref Ref
+	}{
+		"simple ref": {
+			inp: `data.policy["main"]`,
+			exp: `data.policy.main`,
+		},
+		"scalars ref": {
+			inp: `data.policy[1234].test1[true].test2[null].test3[3.14]`,
+			exp: `data.policy[1234].test1[true].test2[null].test3[3.14]`,
+		},
+		"with escape": {
+			inp: `data.policy["ma\tin"]`,
+			exp: `data.policy["ma\tin"]`,
+		},
+		"really long": {
+			inp: `data.policy.test1.test2.test3.test4["main1"]["main2"]["main3"]["main4"]`,
+			exp: `data.policy.test1.test2.test3.test4.main1.main2.main3.main4`,
+		},
+		"var term": {
+			ref: Ref{VarTerm(`is_object`)},
+			exp: `is_object`,
+		},
+		"dot builtin": {
+			inp: `io.jwt.decode`,
+			exp: `io.jwt.decode`,
+		},
+	}
 
-	b.Run("Simple", func(b *testing.B) {
-		for range b.N {
-			_ = simpleRef.String()
+	for _, name := range util.KeysSorted(tests) {
+		tc := tests[name]
+		if tc.ref == nil {
+			tc.ref = MustParseRef(tc.inp)
 		}
-	})
-
-	b.Run("WithControl", func(b *testing.B) {
-		for range b.N {
-			_ = controlRef.String()
-		}
-	})
-
-	b.Run("LongInput", func(b *testing.B) {
-		for range b.N {
-			_ = longInputRef.String()
-		}
-	})
-
-	b.Run("SingleTerm", func(b *testing.B) {
-		for range b.N {
-			_ = singleTerm.String()
-		}
-	})
+		b.Run(name, func(b *testing.B) {
+			for b.Loop() {
+				if tc.ref.String() != tc.exp {
+					b.Fatalf("expected %s but got %s", tc.exp, tc.ref.String())
+				}
+			}
+		})
+	}
 }
 
 func reset(obj *object) {
@@ -560,4 +728,34 @@ func reset(obj *object) {
 	obj.ground = 0
 	obj.hash = 0
 	obj.sortGuard = sync.Once{}
+}
+
+func BenchmarkInterfaceToValueInt(b *testing.B) {
+	// 0 allocs
+	b.Run("interned int value", func(b *testing.B) {
+		exp := newIntNumberValue(123)
+		var act Value
+
+		for b.Loop() {
+			act = MustInterfaceToValue(123)
+		}
+
+		if exp.Compare(act) != 0 {
+			b.Fatalf("expected %v but got %v", exp, act)
+		}
+	})
+
+	// 2 allocs
+	b.Run("non-interned int value", func(b *testing.B) {
+		exp := newIntNumberValue(12345)
+		var act Value
+
+		for b.Loop() {
+			act = MustInterfaceToValue(12345)
+		}
+
+		if exp.Compare(act) != 0 {
+			b.Fatalf("expected %v but got %v", exp, act)
+		}
+	})
 }

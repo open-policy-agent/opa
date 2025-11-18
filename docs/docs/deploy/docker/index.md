@@ -44,7 +44,7 @@ accessible from outside the container. This is not necessary when running OPA
 in other environments.
 
 More information can be found in the
-[security documentation](../../security/#interface-binding).
+[security documentation](../../../docs/security#interface-binding).
 :::
 
 Test that OPA is available:

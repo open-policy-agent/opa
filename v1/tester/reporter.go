@@ -244,8 +244,8 @@ func (r PrettyReporter) fmtBenchmark(tr *Result) string {
 		// This converts the test case name like data.foo.bar.test_auth to be more
 		// like BenchmarkDataFooBarTestAuth.
 		camelCaseName := ""
-		for _, part := range strings.Split(strings.ReplaceAll(name, "_", "."), ".") {
-			camelCaseName += strings.Title(part) //nolint:staticcheck // SA1019, no unicode here
+		for part := range strings.SplitSeq(strings.ReplaceAll(name, "_", "."), ".") {
+			camelCaseName += strings.Title(part) //nolint:perfsprint,staticcheck
 		}
 		name = "Benchmark" + camelCaseName
 	}

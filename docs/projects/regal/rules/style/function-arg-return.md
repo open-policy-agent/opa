@@ -66,5 +66,5 @@ rules:
 
 ## Related Resources
 
-- Rego Style Guide: [Avoid using the last argument for the return value](https://github.com/StyraInc/rego-style-guide#avoid-using-the-last-argument-for-the-return-value)
+- Rego Style Guide: [Avoid using the last argument for the return value](https://www.openpolicyagent.org/docs/style-guide#avoid-using-the-last-argument-for-the-return-value)
 - GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/style/function-arg-return/function_arg_return.rego)

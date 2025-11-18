@@ -40,9 +40,9 @@ func TestInMemoryRead(t *testing.T) {
 		{"/d/e/1", "baz"},
 		{"/d/e", []any{"bar", "baz"}},
 		{"/c/0/z", map[string]any{"p": true, "q": false}},
-		{"/a/0/beef", storageerrors.NewNotFoundError(storage.MustParsePath("/a/0/beef"))},
-		{"/d/100", storageerrors.NewNotFoundError(storage.MustParsePath("/d/100"))},
-		{"/dead/beef", storageerrors.NewNotFoundError(storage.MustParsePath("/dead/beef"))},
+		{"/a/0/beef", storageerrors.NotFoundErr},
+		{"/d/100", storageerrors.NotFoundErr},
+		{"/dead/beef", storageerrors.NotFoundErr},
 		{"/a/str", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/str"), storageerrors.ArrayIndexTypeMsg)},
 		{"/a/100", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/100"), storageerrors.OutOfRangeMsg)},
 		{"/a/-1", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/-1"), storageerrors.OutOfRangeMsg)},
@@ -90,9 +90,9 @@ func TestInMemoryReadAst(t *testing.T) {
 		{"/d/e/1", ast.String("baz")},
 		{"/d/e", ast.NewArray(ast.StringTerm("bar"), ast.StringTerm("baz"))},
 		{"/c/0/z", ast.NewObject(ast.Item(ast.StringTerm("p"), ast.BooleanTerm(true)), ast.Item(ast.StringTerm("q"), ast.BooleanTerm(false)))},
-		{"/a/0/beef", storageerrors.NewNotFoundError(storage.MustParsePath("/a/0/beef"))},
-		{"/d/100", storageerrors.NewNotFoundError(storage.MustParsePath("/d/100"))},
-		{"/dead/beef", storageerrors.NewNotFoundError(storage.MustParsePath("/dead/beef"))},
+		{"/a/0/beef", storageerrors.NotFoundErr},
+		{"/d/100", storageerrors.NotFoundErr},
+		{"/dead/beef", storageerrors.NotFoundErr},
 		{"/a/str", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/str"), storageerrors.ArrayIndexTypeMsg)},
 		{"/a/100", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/100"), storageerrors.OutOfRangeMsg)},
 		{"/a/-1", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/-1"), storageerrors.OutOfRangeMsg)},
@@ -155,10 +155,10 @@ func TestInMemoryWrite(t *testing.T) {
 				{"append obj/arr-2", "add", `/c/0/x/3`, `"x"`, nil, "/c/0/x", `[true,false,"foo","x"]`},
 				{"append arr/arr", "add", `/h/0/-`, `"x"`, nil, `/h/0/3`, `"x"`},
 				{"append arr/arr-2", "add", `/h/0/3`, `"x"`, nil, `/h/0/3`, `"x"`},
-				{"append err", "remove", "/c/0/x/-", "", invalidPatchError("/c/0/x/-: invalid patch path"), "", nil},
-				{"append err-2", "replace", "/c/0/x/-", "", invalidPatchError("/c/0/x/-: invalid patch path"), "", nil},
+				{"append err", "remove", "/c/0/x/-", "", storageerrors.NewInvalidPatchError("/c/0/x/-: invalid patch path"), "", nil},
+				{"append err-2", "replace", "/c/0/x/-", "", storageerrors.NewInvalidPatchError("/c/0/x/-: invalid patch path"), "", nil},
 
-				{"remove", "remove", "/a", "", nil, "/a", storageerrors.NewNotFoundError(storage.MustParsePath("/a"))},
+				{"remove", "remove", "/a", "", nil, "/a", storageerrors.NotFoundErr},
 				{"remove arr", "remove", "/a/1", "", nil, "/a", "[1,3,4]"},
 				{"remove obj/arr", "remove", "/c/0/x/1", "", nil, "/c/0/x", `[true,"foo"]`},
 				{"remove arr/arr", "remove", "/h/0/1", "", nil, "/h/0", "[1,3]"},
@@ -169,23 +169,23 @@ func TestInMemoryWrite(t *testing.T) {
 				{"replace obj", "replace", "/b/v1", "1", nil, "/b", `{"v1": 1, "v2": "goodbye"}`},
 				{"replace array", "replace", "/a/1", "999", nil, "/a", "[1,999,3,4]"},
 
-				{"err: bad root type", "add", "/", "[1,2,3]", invalidPatchError(rootMustBeObjectMsg), "", nil},
-				{"err: remove root", "remove", "/", "", invalidPatchError(rootCannotBeRemovedMsg), "", nil},
+				{"err: bad root type", "add", "/", "[1,2,3]", storageerrors.NewInvalidPatchError(storageerrors.RootMustBeObjectMsg), "", nil},
+				{"err: remove root", "remove", "/", "", storageerrors.NewInvalidPatchError(storageerrors.RootCannotBeRemovedMsg), "", nil},
 				{"err: add arr (non-integer)", "add", "/a/foo", "1", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/foo"), storageerrors.ArrayIndexTypeMsg), "", nil},
 				{"err: add arr (non-integer)", "add", "/a/3.14", "1", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/3.14"), storageerrors.ArrayIndexTypeMsg), "", nil},
 				{"err: add arr (out of range)", "add", "/a/5", "1", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/5"), storageerrors.OutOfRangeMsg), "", nil},
 				{"err: add arr (out of range)", "add", "/a/-1", "1", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/-1"), storageerrors.OutOfRangeMsg), "", nil},
-				{"err: add arr (missing root)", "add", "/dead/beef/0", "1", storageerrors.NewNotFoundError(storage.MustParsePath("/dead/beef/0")), "", nil},
-				{"err: add non-coll", "add", "/a/1/2", "1", storageerrors.NewNotFoundError(storage.MustParsePath("/a/1/2")), "", nil},
-				{"err: append (missing)", "add", `/dead/beef/-`, "1", storageerrors.NewNotFoundError(storage.MustParsePath("/dead/beef/-")), "", nil},
-				{"err: append obj/arr", "add", `/c/0/deadbeef/-`, `"x"`, storageerrors.NewNotFoundError(storage.MustParsePath("/c/0/deadbeef/-")), "", nil},
+				{"err: add arr (missing root)", "add", "/dead/beef/0", "1", storageerrors.NotFoundErr, "", nil},
+				{"err: add non-coll", "add", "/a/1/2", "1", storageerrors.NotFoundErr, "", nil},
+				{"err: append (missing)", "add", `/dead/beef/-`, "1", storageerrors.NotFoundErr, "", nil},
+				{"err: append obj/arr", "add", `/c/0/deadbeef/-`, `"x"`, storageerrors.NotFoundErr, "", nil},
 				{"err: append arr/arr (out of range)", "add", `/h/9999/-`, `"x"`, storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/h/9999/-"), storageerrors.OutOfRangeMsg), "", nil},
 				{"err: append append+add", "add", `/a/-/b/-`, `"x"`, storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath(`/a/-/b/-`), storageerrors.ArrayIndexTypeMsg), "", nil},
-				{"err: append arr/arr (non-array)", "add", `/b/v1/-`, "1", storageerrors.NewNotFoundError(storage.MustParsePath("/b/v1/-")), "", nil},
-				{"err: remove missing", "remove", "/dead/beef/0", "", storageerrors.NewNotFoundError(storage.MustParsePath("/dead/beef/0")), "", nil},
-				{"err: remove obj (missing)", "remove", "/b/deadbeef", "", storageerrors.NewNotFoundError(storage.MustParsePath("/b/deadbeef")), "", nil},
-				{"err: replace root (missing)", "replace", "/deadbeef", "1", storageerrors.NewNotFoundError(storage.MustParsePath("/deadbeef")), "", nil},
-				{"err: replace missing", "replace", "/dead/beef/1", "1", storageerrors.NewNotFoundError(storage.MustParsePath("/dead/beef/1")), "", nil},
+				{"err: append arr/arr (non-array)", "add", `/b/v1/-`, "1", storageerrors.NotFoundErr, "", nil},
+				{"err: remove missing", "remove", "/dead/beef/0", "", storageerrors.NotFoundErr, "", nil},
+				{"err: remove obj (missing)", "remove", "/b/deadbeef", "", storageerrors.NotFoundErr, "", nil},
+				{"err: replace root (missing)", "replace", "/deadbeef", "1", storageerrors.NotFoundErr, "", nil},
+				{"err: replace missing", "replace", "/dead/beef/1", "1", storageerrors.NotFoundErr, "", nil},
 			}
 
 			ctx := t.Context()
@@ -195,7 +195,7 @@ func TestInMemoryWrite(t *testing.T) {
 				store := NewFromObjectWithOpts(data, OptReturnASTValuesOnRead(rvt.ast))
 
 				// Perform patch and check result
-				value := loadExpectedSortedResult(tc.value)
+				value := loadExpectedResult(tc.value)
 
 				var op storage.PatchOp
 				switch tc.op {
@@ -304,7 +304,7 @@ func TestInMemoryWriteOfStruct(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			expected := loadExpectedSortedResult(tc.expected)
+			expected := loadExpectedResult(tc.expected)
 			if !reflect.DeepEqual(expected, actual) {
 				t.Errorf("expected %v, got %v", tc.expected, actual)
 			}
@@ -1235,21 +1235,8 @@ func loadExpectedResult(input string) any {
 	if len(input) == 0 {
 		return nil
 	}
-	var data any
-	if err := util.UnmarshalJSON([]byte(input), &data); err != nil {
-		panic(err)
-	}
-	return data
-}
 
-func loadExpectedSortedResult(input string) any {
-	data := loadExpectedResult(input)
-	switch data := data.(type) {
-	case []any:
-		return data
-	default:
-		return data
-	}
+	return util.MustUnmarshalJSON([]byte(input))
 }
 
 func loadSmallTestData() map[string]any {

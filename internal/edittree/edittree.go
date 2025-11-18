@@ -148,7 +148,6 @@ package edittree
 import (
 	"errors"
 	"fmt"
-	"math/big"
 	"sort"
 	"strings"
 
@@ -203,89 +202,13 @@ func NewEditTree(term *ast.Term) *EditTree {
 // it was found in the table already.
 func (e *EditTree) getKeyHash(key *ast.Term) (int, bool) {
 	hash := key.Hash()
-	// This `equal` utility is duplicated and manually inlined a number of
-	// time in this file.  Inlining it avoids heap allocations, so it makes
-	// a big performance difference: some operations like lookup become twice
-	// as slow without it.
-	var equal func(v ast.Value) bool
-
-	switch x := key.Value.(type) {
-	case ast.Null, ast.Boolean, ast.String, ast.Var:
-		equal = func(y ast.Value) bool { return x == y }
-	case ast.Number:
-		if xi, ok := x.Int64(); ok {
-			equal = func(y ast.Value) bool {
-				if y, ok := y.(ast.Number); ok {
-					if yi, ok := y.Int64(); ok {
-						return xi == yi
-					}
-				}
-
-				return false
-			}
-			break
-		}
-
-		// We use big.Rat for comparing big numbers.
-		// It replaces big.Float due to following reason:
-		// big.Float comes with a default precision of 64, and setting a
-		// larger precision results in more memory being allocated
-		// (regardless of the actual number we are parsing with SetString).
-		//
-		// Note: If we're so close to zero that big.Float says we are zero, do
-		// *not* big.Rat).SetString on the original string it'll potentially
-		// take very long.
-		var a *big.Rat
-		fa, ok := new(big.Float).SetString(string(x))
-		if !ok {
-			panic("illegal value")
-		}
-		if fa.IsInt() {
-			if i, _ := fa.Int64(); i == 0 {
-				a = new(big.Rat).SetInt64(0)
-			}
-		}
-		if a == nil {
-			a, ok = new(big.Rat).SetString(string(x))
-			if !ok {
-				panic("illegal value")
-			}
-		}
-
-		equal = func(b ast.Value) bool {
-			if bNum, ok := b.(ast.Number); ok {
-				var b *big.Rat
-				fb, ok := new(big.Float).SetString(string(bNum))
-				if !ok {
-					panic("illegal value")
-				}
-				if fb.IsInt() {
-					if i, _ := fb.Int64(); i == 0 {
-						b = new(big.Rat).SetInt64(0)
-					}
-				}
-				if b == nil {
-					b, ok = new(big.Rat).SetString(string(bNum))
-					if !ok {
-						panic("illegal value")
-					}
-				}
-
-				return a.Cmp(b) == 0
-			}
-			return false
-		}
-
-	default:
-		equal = func(y ast.Value) bool { return ast.Compare(x, y) == 0 }
-	}
 
 	// Look through childKeys, looking up the original hash
 	// value first, and then use linear-probing to iter
 	// through the keys until we either find the Term we're
 	// after, or run out of candidates.
 	for curr, ok := e.childKeys[hash]; ok; {
-		if equal(curr.Value) {
+		if ast.KeyHashEqual(curr.Value, key.Value) {
 			return hash, true
 		}
 

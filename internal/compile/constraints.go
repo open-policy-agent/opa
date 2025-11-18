@@ -79,7 +79,7 @@ func NewConstraints(typ, variant string) (*Constraint, error) {
 		default:
 			return nil, fmt.Errorf("unsupported variant for %s: %s", typ, variant)
 		}
-		c.Features.Add("not", "field-ref")
+		c.Features.Add("not", "field-ref", "existence-ref")
 	case "ucast":
 		switch v := strings.ToLower(variant); v {
 		case "all":
@@ -88,7 +88,7 @@ func NewConstraints(typ, variant string) (*Constraint, error) {
 			c.Builtins = allBuiltins
 		case "prisma":
 			c.Variant = v
-			c.Features.Add("not")
+			c.Features.Add("not", "existence-ref")
 			c.Builtins = allBuiltins
 		case "linq":
 			c.Variant = "LINQ" // normalize spelling

@@ -1,17 +1,13 @@
 import fs from "fs/promises";
-import glob from "glob";
+
+const { glob } = require("glob");
 
 export async function loadRules() {
   const rootPath = "projects/regal/rules";
 
   const summaryMarker = "**Summary**:";
 
-  const files = await new Promise((resolve, reject) => {
-    glob(rootPath + "/*/*.md", (err, matches) => {
-      if (err) reject(err);
-      else resolve(matches);
-    });
-  });
+  const files = await glob(rootPath + "/*/*.md");
 
   const rules = await files
     .filter(file => file !== "index.md")

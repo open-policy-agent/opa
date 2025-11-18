@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/olekukonko/tablewriter/tw"
+
 	"github.com/open-policy-agent/opa/v1/ast"
 
 	"github.com/open-policy-agent/opa/v1/server/types"
@@ -90,6 +92,11 @@ The optional "gobench" output format conforms to the Go Benchmark Data Format.
 			if err := env.CmdFlags.CheckEnvironmentVariables(cmd); err != nil {
 				return err
 			}
+			// Initialize testing package for benchmarking. This is needed to set default values for some flags that may
+			// otherwise be dereferenced on some code paths causing panics, as reported in:
+			// https://github.com/open-policy-agent/opa/issues/7205
+			testing.Init()
+
 			return validateEvalParams(&params.evalCommandParams, args)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -243,7 +250,6 @@ func (*goBenchRunner) run(ctx context.Context, ectx *evalContext, params benchma
 	var benchErr error
 
 	br := testing.Benchmark(func(b *testing.B) {
-
 		// Track memory allocations, if enabled
 		if params.benchMem {
 			b.ReportAllocs()
@@ -624,9 +630,9 @@ func renderBenchmarkResult(params benchmarkCommandParams, br testing.BenchmarkRe
 			data = append(data, []string{k, prettyFormatFloat(br.Extra[k])})
 		}
 
-		table := tablewriter.NewWriter(w)
-		table.AppendBulk(data)
-		table.Render()
+		table := tablewriter.NewTable(w, tablewriter.WithAlignment(tw.Alignment{tw.AlignLeft, tw.AlignRight}))
+		_ = table.Bulk(data)
+		_ = table.Render()
 	}
 }
 

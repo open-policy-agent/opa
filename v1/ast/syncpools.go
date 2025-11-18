@@ -1,32 +1,63 @@
 package ast
 
 import (
+	"bytes"
 	"strings"
 	"sync"
 )
 
-type termPtrPool struct {
-	pool sync.Pool
+var (
+	TermPtrPool     = NewSyncPool[Term]()
+	BytesReaderPool = NewSyncPool[bytes.Reader]()
+	IndexResultPool = NewSyncPool[IndexResult]()
+	// Needs custom pool because of custom Put logic.
+	sbPool = &stringBuilderPool{
+		pool: sync.Pool{
+			New: func() any {
+				return &strings.Builder{}
+			},
+		},
+	}
+	// Needs custom pool because of custom Put logic.
+	varVisitorPool = &vvPool{
+		pool: sync.Pool{
+			New: func() any {
+				return NewVarVisitor()
+			},
+		},
+	}
+)
+
+type (
+	syncPool[T any] struct {
+		pool sync.Pool
+	}
+	stringBuilderPool struct {
+		pool sync.Pool
+	}
+	vvPool struct {
+		pool sync.Pool
+	}
+)
+
+func NewSyncPool[T any]() *syncPool[T] {
+	return &syncPool[T]{
+		pool: sync.Pool{
+			New: func() any {
+				return new(T)
+			},
+		},
+	}
 }
 
-type stringBuilderPool struct {
-	pool sync.Pool
+func (p *syncPool[T]) Get() *T {
+	return p.pool.Get().(*T)
 }
 
-type indexResultPool struct {
-	pool sync.Pool
-}
-
-type vvPool struct {
-	pool sync.Pool
-}
-
-func (p *termPtrPool) Get() *Term {
-	return p.pool.Get().(*Term)
-}
-
-func (p *termPtrPool) Put(t *Term) {
-	p.pool.Put(t)
+func (p *syncPool[T]) Put(x *T) {
+	if x != nil {
+		p.pool.Put(x)
+	}
 }
 
 func (p *stringBuilderPool) Get() *strings.Builder {
@@ -38,16 +69,6 @@ func (p *stringBuilderPool) Put(sb *strings.Builder) {
 	p.pool.Put(sb)
 }
 
-func (p *indexResultPool) Get() *IndexResult {
-	return p.pool.Get().(*IndexResult)
-}
-
-func (p *indexResultPool) Put(x *IndexResult) {
-	if x != nil {
-		p.pool.Put(x)
-	}
-}
-
 func (p *vvPool) Get() *VarVisitor {
 	return p.pool.Get().(*VarVisitor)
 }
@@ -57,36 +78,4 @@ func (p *vvPool) Put(vv *VarVisitor) {
 		vv.Clear()
 		p.pool.Put(vv)
 	}
-}
-
-var TermPtrPool = &termPtrPool{
-	pool: sync.Pool{
-		New: func() any {
-			return &Term{}
-		},
-	},
-}
-
-var sbPool = &stringBuilderPool{
-	pool: sync.Pool{
-		New: func() any {
-			return &strings.Builder{}
-		},
-	},
-}
-
-var varVisitorPool = &vvPool{
-	pool: sync.Pool{
-		New: func() any {
-			return NewVarVisitor()
-		},
-	},
-}
-
-var IndexResultPool = &indexResultPool{
-	pool: sync.Pool{
-		New: func() any {
-			return &IndexResult{}
-		},
-	},
 }

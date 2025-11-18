@@ -51,5 +51,5 @@ rules:
 
 ## Related Resources
 
-- Rego Style Guide: [Prefer unconditional assignment in rule head over rule body](https://github.com/StyraInc/rego-style-guide#prefer-unconditional-assignment-in-rule-head-over-rule-body)
+- Rego Style Guide: [Prefer unconditional assignment in rule head over rule body](https://www.openpolicyagent.org/docs/style-guide#prefer-unconditional-assignment-in-rule-head-over-rule-body)
 - GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/style/unconditional-assignment/unconditional_assignment.rego)

@@ -95,7 +95,6 @@ type Capabilities struct {
 	// As of now, this only controls fetching remote refs for using JSON Schemas in
 	// the type checker.
 	// TODO(sr): support ports to further restrict connection peers
-	// TODO(sr): support restricting `http.send` using the same mechanism (see https://github.com/open-policy-agent/opa/issues/3665)
 	AllowNet []string `json:"allow_net,omitempty"`
 }
 
@@ -220,19 +219,17 @@ func LoadCapabilitiesVersions() ([]string, error) {
 	for _, ent := range ents {
 		capabilitiesVersions = append(capabilitiesVersions, strings.Replace(ent.Name(), ".json", "", 1))
 	}
+
+	slices.SortStableFunc(capabilitiesVersions, semver.Compare)
+
 	return capabilitiesVersions, nil
 }
 
 // MinimumCompatibleVersion returns the minimum compatible OPA version based on
 // the built-ins, features, and keywords in c.
 func (c *Capabilities) MinimumCompatibleVersion() (string, bool) {
-	var maxVersion semver.Version
-
 	// this is the oldest OPA release that includes capabilities
-	if err := maxVersion.Set("0.17.0"); err != nil {
-		panic("unreachable")
-	}
-
+	maxVersion := semver.MustParse("0.17.0")
 	minVersionIndex := minVersionIndexOnce()
 
 	for _, bi := range c.Builtins {

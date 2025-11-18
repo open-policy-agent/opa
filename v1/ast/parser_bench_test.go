@@ -28,7 +28,7 @@ func BenchmarkParseModuleRulesBase(b *testing.B) {
 // BenchmarkParseStatementBasic gives a baseline for parsing a simple
 // statement with a single call and two variables
 func BenchmarkParseStatementBasicCall(b *testing.B) {
-	runParseStatementBenchmark(b, `a+b`)
+	runParseStatementBenchmark(b, `a + b`)
 }
 
 func BenchmarkParseStatementMixedJSON(b *testing.B) {
@@ -77,19 +77,15 @@ func BenchmarkParseStatementNestedObjects(b *testing.B) {
 }
 
 func BenchmarkParseSome(b *testing.B) {
-	b.Run("parse some", func(b *testing.B) {
-		for range b.N {
-			_ = MustParseStatement("some foo")
-		}
-	})
+	for b.Loop() {
+		_ = MustParseStatement("some foo")
+	}
 }
 
 func BenchmarkParseEvery(b *testing.B) {
-	b.Run("parse every", func(b *testing.B) {
-		for range b.N {
-			_ = MustParseStatement("every x, y in input { x == y}")
-		}
-	})
+	for b.Loop() {
+		_ = MustParseStatement("every x, y in input { x == y}")
+	}
 }
 
 // BenchmarkParseDeepNesting tests the impact of recursion depth tracking
@@ -124,6 +120,15 @@ func BenchmarkParseStatementNestedObjectsOrSets(b *testing.B) {
 			stmt := generateObjectOrSetStatement(size)
 			runParseStatementBenchmarkWithError(b, stmt)
 		})
+	}
+}
+
+// 7471 ns/op	    8024 B/op	      56 allocs/op
+func BenchmarkParseVars(b *testing.B) {
+	for b.Loop() {
+		if _, err := ParseExpr(`data[i][_][j]`); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -186,8 +191,7 @@ func BenchmarkParseBasicABACModule(b *testing.B) {
 }
 
 func runParseModuleBenchmark(b *testing.B, mod string) {
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		_, err := ParseModuleWithOpts("", mod, ParserOptions{AllFutureKeywords: true})
 		if err != nil {
 			b.Fatalf("Unexpected error: %s", err)
@@ -196,8 +200,7 @@ func runParseModuleBenchmark(b *testing.B, mod string) {
 }
 
 func runParseStatementBenchmark(b *testing.B, stmt string) {
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		_, err := ParseStatement(stmt)
 		if err != nil {
 			b.Fatalf("Unexpected error: %s", err)
@@ -206,8 +209,7 @@ func runParseStatementBenchmark(b *testing.B, stmt string) {
 }
 
 func runParseStatementBenchmarkWithError(b *testing.B, stmt string) {
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		_, err := ParseStatement(stmt)
 		if err == nil {
 			b.Fatalf("Expected error: %s", err)
@@ -218,6 +220,7 @@ func runParseStatementBenchmarkWithError(b *testing.B, stmt string) {
 func generateModule(numRules int) string {
 	mod := "package bench\n"
 	for i := range numRules {
+		//nolint:perfsprint
 		mod += fmt.Sprintf("p%d if { input.x%d = %d }\n", i, i, i)
 	}
 	return mod

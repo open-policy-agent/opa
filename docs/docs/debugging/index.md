@@ -46,7 +46,7 @@ others.
 The `print` built-in function can be used to print values to stdout, this can be useful for checking values
 during policy evaluation as well as seeing how many times a particular line of code is executed.
 
-See the [print function documentation](./policy-reference/#debugging) for more details on how to use
+See the [print function documentation](./policy-reference/builtins/opa#debugging) for more details on how to use
 the `print` built-in function in different contexts.
 
 ## Performance Profiling
@@ -73,7 +73,7 @@ OPA logs are a great place to start when debugging issues. The logs can be used 
 at any given time. Common issues such as failing to load in policy or data bundles will be shown here.
 
 You can also enable debug logging to get more detailed information about what OPA is doing with `--log-level debug`.
-This is documented in the [CLI documentation](./cli/#options-10) for `opa run`.
+This is documented in the [CLI documentation](./cli/#run) for `opa run`.
 
 ### Decision Logging
 

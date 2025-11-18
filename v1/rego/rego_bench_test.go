@@ -58,7 +58,7 @@ func BenchmarkPartialObjectRuleCrossModule(b *testing.B) {
 
 			b.ResetTimer()
 
-			for range b.N {
+			for b.Loop() {
 				_, err = pq.Eval(
 					ctx,
 					EvalParsedInput(inputAST),
@@ -98,7 +98,7 @@ func BenchmarkCustomFunctionInHotPath(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	for range b.N {
+	for b.Loop() {
 		res, err := pq.Eval(ctx, EvalParsedInput(input.Value))
 		if err != nil {
 			b.Fatal(err)
@@ -122,7 +122,7 @@ func BenchmarkCustomFunctionInHotPath(b *testing.B) {
 func BenchmarkAciTestBuildAndEval(b *testing.B) {
 	ctx := b.Context()
 
-	for range b.N {
+	for b.Loop() {
 		bundle, err := loader.NewFileLoader().
 			WithRegoVersion(ast.RegoV0).
 			AsBundle("testdata/aci")
@@ -170,7 +170,7 @@ func BenchmarkAciTestOnlyEval(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	for range b.N {
+	for b.Loop() {
 		res, err := pq.Eval(ctx, EvalParsedInput(input.Value))
 		if err != nil {
 			b.Fatal(err)
@@ -205,7 +205,7 @@ func BenchmarkArrayIteration(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	for range b.N {
+	for b.Loop() {
 		res, err := pq.Eval(ctx, EvalParsedInput(input))
 		if err != nil {
 			b.Fatal(err)
@@ -229,7 +229,7 @@ func BenchmarkSetIteration(b *testing.B) {
 
 	at := make([]*ast.Term, 512)
 	for i := range 512 {
-		at[i] = ast.StringTerm(strconv.Itoa(i))
+		at[i] = ast.InternedIntegerString(i)
 	}
 
 	input := ast.NewObject(ast.Item(ast.StringTerm("foo"), ast.ArrayTerm(at...)))
@@ -248,7 +248,7 @@ func BenchmarkSetIteration(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	for range b.N {
+	for b.Loop() {
 		res, err := pq.Eval(ctx, EvalParsedInput(input))
 		if err != nil {
 			b.Fatal(err)
@@ -290,7 +290,7 @@ func BenchmarkObjectIteration(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	for range b.N {
+	for b.Loop() {
 		res, err := pq.Eval(ctx, EvalParsedInput(input))
 		if err != nil {
 			b.Fatal(err)
@@ -344,7 +344,7 @@ r contains true if {
 
 			b.ResetTimer()
 
-			for range b.N {
+			for b.Loop() {
 				res, err := pq.Eval(ctx)
 				if err != nil {
 					b.Fatal(err)
@@ -375,7 +375,7 @@ func BenchmarkStoreRead(b *testing.B) {
 
 	ref := ast.MustParseRef("data.foo.bar.baz")
 
-	for range b.N {
+	for b.Loop() {
 		// 1 alloc/op
 		path, err := storage.NewPathForRef(ref)
 		if err != nil {
@@ -413,17 +413,17 @@ func BenchmarkTrivialPolicy(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	for range b.N {
+	for b.Loop() {
 		if _, err := pq.Eval(ctx); err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
-// 1851 ns/op       3376 B/op         53 allocs/op - main
+// 1851 ns/op       3376 B/op         53 allocs/op - first measurement
 // 1312 ns/op	    2632 B/op	      38 allocs/op - lazy init targetStack, functionMockStack, comprehensionCache
 // ------------------------------------------------- and move newResolverTrie call from NewQuery to WithResolver
-// ...
+// 1212 ns/op	    2568 B/op	      33 allocs/op - lazy init eval.Time
 func BenchmarkTrivialQuery(b *testing.B) {
 	m := metrics.New()
 	r := New(ParsedQuery(ast.MustParseBody("1")), GenerateJSON(noOpGenerateJSON), Metrics(m))
@@ -435,7 +435,7 @@ func BenchmarkTrivialQuery(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	for range b.N {
+	for b.Loop() {
 		if _, err := pq.Eval(ctx, EvalMetrics(m)); err != nil {
 			b.Fatal(err)
 		}
@@ -497,7 +497,7 @@ local_var if {
 
 	for i, pq := range []PreparedEvalQuery{pq1, pq2} {
 		b.Run(names[i], func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				if _, err := pq.Eval(ctx); err != nil {
 					b.Fatal(err)
 				}

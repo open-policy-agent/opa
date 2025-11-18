@@ -40,7 +40,7 @@ allow if {
 
 ## Rationale
 
-Using `some .. in` is often the [best choice](https://openpolicyagent.org/projects/regal/rules/style/prefer-some-in-iteration) for
+Using `some .. in` is often the [best choice](https://www.openpolicyagent.org/projects/regal/rules/style/prefer-some-in-iteration) for
 iteration in modern Rego, as it clearly communicates what's going on and which variables will be bound in each
 iteration. An alternative approach is to place variables (including the special "wildcard" variable `_`) in parts of a
 references, which unless assigned elsewhere automatically will be bound to every possible value in the collection being
@@ -67,5 +67,5 @@ rules:
 
 ## Related Resources
 
-- Regal Docs: [prefer-some-in-iteration](https://openpolicyagent.org/projects/regal/rules/style/prefer-some-in-iteration)
+- Regal Docs: [prefer-some-in-iteration](https://www.openpolicyagent.org/projects/regal/rules/style/prefer-some-in-iteration)
 - OPA Docs: [Membership and iteration](https://www.openpolicyagent.org/docs/policy-language/#membership-and-iteration-in)

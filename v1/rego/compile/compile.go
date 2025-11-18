@@ -26,7 +26,7 @@ type Compile struct {
 	targets  []string
 	dialects []string
 	maskRule ast.Ref
-	unknowns []*ast.Term
+	unknowns []*ast.Term // ast.Ref would be slightly more on-the-spot, but we follow what is done in v1/rego to minimise surprises.
 	query    ast.Body
 	mappings map[string]any
 	metrics  metrics.Metrics

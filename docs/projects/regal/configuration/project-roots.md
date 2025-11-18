@@ -1,22 +1,26 @@
 ---
 sidebar_position: 7
+sidebar_label: Project Roots
 ---
 
+<head>
+  <title>Project Roots | Regal</title>
+</head>
 
 # Project Roots
 
 While many projects consider the project's root directory (in editors often referred to as **workspace**) their
 "main" directory for policies, some projects may contain code from other languages, policy "subprojects", or multiple
-[bundles](https://www.openpolicyagent.org/docs/management-bundles/). While most of Regal's features works
+[bundles](https://www.openpolicyagent.org/docs/management-bundles/). While most of Regal's features work
 independently of this — linting, for example, doesn't consider where in a workspace policies are located as long as
 those locations aren't [ignored](./ignore-rules) — some features, like automatically
-[fixing](https://openpolicyagent.org/projects/regal/fixing) violations, benefit from knowing when a project contains multiple roots.
+[fixing](https://www.openpolicyagent.org/projects/regal/fixing) violations, benefit from knowing when a project contains multiple roots.
 
 To provide an example, consider the
-[directory-package-mismatch](https://openpolicyagent.org/projects/regal/rules/idiomatic/directory-package-mismatch) rule, which states
+[directory-package-mismatch](https://www.openpolicyagent.org/projects/regal/rules/idiomatic/directory-package-mismatch) rule, which states
 that a file declaring a `package` path like `policy.permissions.users` should also be located in a directory structure
 that mirrors that package, i.e. `policy/permissions/users`. When a violation against this rule is reported, the
-`regal fix` command, or its equivalent [Code Action](https://openpolicyagent.org/projects/regal#regal-language-server) in editors,
+`regal fix` command, or its equivalent [Code Action](https://www.openpolicyagent.org/projects/regal#regal-language-server) in editors,
 may when invoked remediate the issue by moving the file to the correct location.
 But where should the `policy/permissions/users` directory _itself_ reside?
 

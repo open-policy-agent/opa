@@ -57,7 +57,7 @@ func TestPostPartialChecks(t *testing.T) {
 		errors       []Error
 		mappings     map[string]any
 		skip         string
-		result       map[string]any
+		result       any
 	}{
 		{
 			note:   "happy path",
@@ -80,7 +80,7 @@ func TestPostPartialChecks(t *testing.T) {
 			rego: `
 # METADATA
 # scope: document
-# custom:
+# compile:
 #  unknowns:
 #   - input.fruits
 include if input.fruits.colour == input.colour
@@ -95,7 +95,7 @@ _use_metadata := rego.metadata.chain()`,
 			rego: `
 # METADATA
 # scope: package
-# custom:
+# compile:
 #  unknowns:
 #   - input.fruits
 package filters
@@ -112,7 +112,7 @@ _use_metadata := rego.metadata.chain()`,
 			rego: `
 # METADATA
 # scope: package
-# custom:
+# compile:
 #  unknowns:
 #   - input.fruits
 package filters
@@ -129,14 +129,14 @@ _use_metadata := rego.metadata.chain()`,
 			rego: `
 # METADATA
 # scope: package
-# custom:
+# compile:
 #  unknowns:
 #   - input.fruits
 package filters
 
 # METADATA
 # scope: document
-# custom:
+# compile:
 #  unknowns:
 #   - input.baskets
 include if {
@@ -147,7 +147,7 @@ include if {
 # METADATA
 # scope: document
 # description: if this metadata were picked up, the checks would fail
-# custom:
+# compile:
 #  unknowns:
 #   - input.colour
 red_herring if true
@@ -169,14 +169,14 @@ _use_metadata := rego.metadata.chain()`,
 			rego: `
 # METADATA
 # scope: package
-# custom:
+# compile:
 #  unknowns:
 #   - input.fruits
 package filters
 
 # METADATA
 # scope: document
-# custom:
+# compile:
 #  unknowns:
 #   - input.baskets
 include if {
@@ -187,7 +187,7 @@ include if {
 # METADATA
 # scope: document
 # description: if this metadata were picked up, the checks would fail
-# custom:
+# compile:
 #  unknowns:
 #   - input.colour
 red_herring if true
@@ -281,7 +281,7 @@ red_herring if true
 			note: "happy path, mapped short unknown",
 			rego: `package filters
 # METADATA
-# custom:
+# compile:
 #  unknowns:
 #   - input.name
 include if input.name != "apple"`,
@@ -296,7 +296,7 @@ include if input.name != "apple"`,
 			note: "happy path, double-mapped short unknown",
 			rego: `package filters
 # METADATA
-# custom:
+# compile:
 #  unknowns:
 #   - input.name
 include if input.name != "apple"`,
@@ -552,6 +552,40 @@ include if user == input.fruits.user`,
 				},
 			},
 		},
+		{ // NOTE(sr): only supported for SQL-ish targets and prisma (see below)
+			note:   "equality with var",
+			rego:   `include if input.fruits.colour = _`,
+			target: "application/vnd.opa.ucast.linq+json",
+			errors: []Error{
+				{
+					Code:    "pe_fragment_error",
+					Message: `existence of field: unsupported feature "existence-ref" for UCAST (LINQ)`,
+				},
+			},
+		},
+		{
+			note:   "equality with var (sql)",
+			rego:   `include if input.fruits.colour = _`,
+			target: "application/vnd.opa.sql.mysql+json",
+			result: "WHERE fruits.colour IS NOT NULL",
+		},
+		{
+			note:   "equality with var (sql), reversed",
+			rego:   `include if _ = input.fruits.colour`,
+			target: "application/vnd.opa.sql.mysql+json",
+			result: "WHERE fruits.colour IS NOT NULL",
+		},
+		{
+			note:   "equality with var (prisma)",
+			rego:   `include if input.fruits.colour = _`,
+			target: "application/vnd.opa.ucast.prisma+json",
+			result: map[string]any{
+				"type":     "field",
+				"field":    "fruits.colour",
+				"operator": "ne",
+				"value":    nil,
+			},
+		},
 		{
 			note: "not a call/term",
 			rego: `include if input.fruits.colour`,
@@ -701,7 +735,7 @@ other if input.fruits.price > 100
 			omitUnknowns: true,
 			rego: `
 # METADATA
-# custom:
+# compile:
 #  unknowns:
 #   - inpu.fruits
 #   - data.whatever
@@ -727,7 +761,7 @@ _use_metadata := rego.metadata.chain()`,
 			omitUnknowns: true,
 			rego: `
 # METADATA
-# custom:
+# compile:
 #  unknowns:
 #   - inpu.fruits
 #   - data.whatever

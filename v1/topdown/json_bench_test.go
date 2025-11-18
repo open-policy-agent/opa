@@ -344,7 +344,7 @@ func BenchmarkJSONPatchReplace(b *testing.B) {
 
 					b.ResetTimer()
 
-					for range b.N {
+					for b.Loop() {
 
 						err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 
@@ -491,9 +491,7 @@ func runJSONPatchBenchmarkTest(ctx context.Context, b *testing.B, source ast.Val
 		"test.rego": module,
 	})
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 			_, err := NewQuery(query).
 				WithCompiler(compiler).

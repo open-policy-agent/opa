@@ -52,7 +52,7 @@ func BenchmarkTarballLoader(b *testing.B) {
 			defer f.Close()
 
 			b.Run(strconv.Itoa(n), func(b *testing.B) {
-				for range b.N {
+				for b.Loop() {
 					// Reset the file reader.
 					if _, err := f.Seek(0, 0); err != nil {
 						b.Fatalf("Unexpected error: %s", err)
@@ -74,7 +74,7 @@ func BenchmarkDirectoryLoader(b *testing.B) {
 		test.WithTempFS(expectedFiles, func(rootDir string) {
 			b.ResetTimer()
 			b.Run(strconv.Itoa(n), func(b *testing.B) {
-				for range b.N {
+				for b.Loop() {
 					benchTestLoader(b, NewDirectoryLoader(rootDir))
 				}
 			})

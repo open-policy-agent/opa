@@ -250,9 +250,8 @@ func convertPointsToBase64(alg string, r, s []byte) (string, error) {
 	copy(rBytesPadded[keyBytes-len(r):], r)
 	sBytesPadded := make([]byte, keyBytes)
 	copy(sBytesPadded[keyBytes-len(s):], s)
-	signatureEnc := append(rBytesPadded, sBytesPadded...)
 
-	return base64.RawURLEncoding.EncodeToString(signatureEnc), nil
+	return base64.RawURLEncoding.EncodeToString(append(rBytesPadded, sBytesPadded...)), nil
 }
 
 func retrieveCurveBits(alg string) (int, error) {
@@ -397,7 +396,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) createAuthJWT(ctx context.Context, 
 		}
 
 		// Parse headers
-		var headers map[string]interface{}
+		var headers map[string]any
 		if err := json.Unmarshal(header, &headers); err != nil {
 			return nil, err
 		}

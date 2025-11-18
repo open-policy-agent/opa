@@ -52,7 +52,7 @@ This linter rules forbids any metasyntactic variable names, as listed by Wikiped
 
 While there are no recommended exceptions to this rule, you could choose to allow metasyntactic variables in tests, or
 perhaps code meant to be used in examples. When using a
-[proper suffix](https://openpolicyagent.org/projects/regal/rules/testing/file-missing-test-suffix) for tests, like `_test.rego`,
+[proper suffix](https://www.openpolicyagent.org/projects/regal/rules/testing/file-missing-test-suffix) for tests, like `_test.rego`,
 simply configure an ignore pattern with the configuration of this rule:
 
 ```yaml
@@ -66,7 +66,7 @@ rules:
 ```
 
 If you'd rather use your own list of forbidden variable names or patterns, see the
-[naming convention](https://openpolicyagent.org/projects/regal/rules/custom/naming-convention) rule.
+[naming convention](https://www.openpolicyagent.org/projects/regal/rules/custom/naming-convention) rule.
 
 ## Configuration Options
 
@@ -82,6 +82,6 @@ rules:
 
 ## Related Resources
 
-- Regal Docs: [Naming convention rule](https://openpolicyagent.org/projects/regal/rules/custom/naming-convention)
+- Regal Docs: [Naming convention rule](https://www.openpolicyagent.org/projects/regal/rules/custom/naming-convention)
 - Wikipedia: [Metasyntactic variable](https://en.wikipedia.org/wiki/Metasyntactic_variable)
 - GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/testing/metasyntactic-variable/metasyntactic_variable.rego)

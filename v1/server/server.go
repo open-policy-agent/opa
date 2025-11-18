@@ -153,7 +153,7 @@ type Server struct {
 	cipherSuites                *[]uint16
 	hooks                       hooks.Hooks
 
-	compileUnknownsCache     *lru.Cache[string, []*ast.Term]
+	compileUnknownsCache     *lru.Cache[string, []ast.Ref]
 	compileMaskingRulesCache *lru.Cache[string, ast.Ref]
 }
 
@@ -187,7 +187,7 @@ type Loop func() error
 // New returns a new Server.
 func New() *Server {
 	s := Server{}
-	s.compileUnknownsCache, _ = lru.New[string, []*ast.Term](unknownsCacheSize)
+	s.compileUnknownsCache, _ = lru.New[string, []ast.Ref](unknownsCacheSize)
 	s.compileMaskingRulesCache, _ = lru.New[string, ast.Ref](maskingRuleCacheSize)
 	return &s
 }
@@ -272,6 +272,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	if len(errorList) > 0 {
 		errMsg := "error while shutting down: "
 		for i, err := range errorList {
+			//nolint:perfsprint
 			errMsg += fmt.Sprintf("(%d) %s. ", i, err.Error())
 		}
 		return errors.New(errMsg)
@@ -2770,8 +2771,7 @@ func stringPathToRef(s string) (ast.Ref, error) {
 		return r, nil
 	}
 
-	p := strings.Split(s, "/")
-	for _, x := range p {
+	for x := range strings.SplitSeq(s, "/") {
 		if x == "" {
 			continue
 		}

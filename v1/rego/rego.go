@@ -44,7 +44,7 @@ const (
 	wasmVarPrefix           = "^"
 )
 
-// nolint: deadcode,varcheck
+// nolint:varcheck
 const (
 	targetWasm = "wasm"
 	targetRego = "rego"
@@ -235,6 +235,7 @@ func EvalInstrument(instrument bool) EvalOption {
 }
 
 // EvalTracer configures a tracer for a Prepared Query's evaluation
+//
 // Deprecated: Use EvalQueryTracer instead.
 func EvalTracer(tracer topdown.Tracer) EvalOption {
 	return func(e *EvalContext) {
@@ -1115,6 +1116,7 @@ func Trace(yes bool) func(r *Rego) {
 }
 
 // Tracer returns an argument that adds a query tracer to r.
+//
 // Deprecated: Use QueryTracer instead.
 func Tracer(t topdown.Tracer) func(r *Rego) {
 	return func(r *Rego) {
@@ -1798,7 +1800,7 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 		}
 
 		// nolint: staticcheck // SA4006 false positive
-		data, err := r.store.Read(ctx, r.txn, storage.Path{})
+		data, err := r.store.Read(ctx, r.txn, storage.RootPath)
 		if err != nil {
 			_ = txnClose(ctx, err) // Ignore error
 			return PreparedEvalQuery{}, err
@@ -2020,7 +2022,7 @@ func (r *Rego) loadFiles(ctx context.Context, txn storage.Transaction, m metrics
 	}
 
 	if len(result.Documents) > 0 {
-		err = r.store.Write(ctx, txn, storage.AddOp, storage.Path{}, result.Documents)
+		err = r.store.Write(ctx, txn, storage.AddOp, storage.RootPath, result.Documents)
 		if err != nil {
 			return err
 		}

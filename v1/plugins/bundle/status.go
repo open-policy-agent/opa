@@ -25,12 +25,12 @@ const (
 type Status struct {
 	Name                     string          `json:"name"`
 	ActiveRevision           string          `json:"active_revision,omitempty"`
-	LastSuccessfulActivation time.Time       `json:"last_successful_activation,omitempty"`
+	LastSuccessfulActivation time.Time       `json:"last_successful_activation"`
 	Type                     string          `json:"type,omitempty"`
 	Size                     int             `json:"size,omitempty"`
-	LastSuccessfulDownload   time.Time       `json:"last_successful_download,omitempty"`
-	LastSuccessfulRequest    time.Time       `json:"last_successful_request,omitempty"`
-	LastRequest              time.Time       `json:"last_request,omitempty"`
+	LastSuccessfulDownload   time.Time       `json:"last_successful_download"`
+	LastSuccessfulRequest    time.Time       `json:"last_successful_request"`
+	LastRequest              time.Time       `json:"last_request"`
 	Code                     string          `json:"code,omitempty"`
 	Message                  string          `json:"message,omitempty"`
 	Errors                   []error         `json:"errors,omitempty"`

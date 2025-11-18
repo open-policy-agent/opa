@@ -1,5 +1,6 @@
 ---
-title: "Introduction"
+title: "Open Policy Agent (OPA)"
+sidebar_label: "Introduction"
 ---
 
 The Open Policy Agent (OPA, pronounced "oh-pa") is an open source,
@@ -46,17 +47,21 @@ Let's look at an example. Imagine you work for an organization with the followin
 
 ```mermaid
 graph
-    nX["Public Network X"] --> Internet
-    nY["Private Network Y"]
-    sX["Server X"] --"Port X"--> nX
-    sY["Server Y"] --"Port X"--> nX
-    sY --"Port Y"--> nY
-    sZ["Server Z"] --"Port Z"--> nY
+    n1["net1 (private)"]
+    n2["net2 (private)"]
+    n3["net3 (public)"] --> Internet
+    sCI["ci"] --"p1"--> n1
+    sCI --"p2"--> n2
+    sBusy["busybox"] --"p1"--> n3
+    sApp["app"] --"p1"--> n3
+    sApp --"p2"--> n1
+    sApp --"p3"--> n2
+    sCache["cache"] --"p3"--> n2
 ```
 
 There are three kinds of components in the system:
 
-- Servers expose zero or more protocols (e.g., `http`, `ssh`, etc.)
+- Servers listen on a range of ports (for different protocols such as `http`, `ssh`, etc.)
 - Networks connect servers and can be public or private. Public networks are connected to the Internet.
 - Ports attach servers to networks.
 
@@ -115,12 +120,6 @@ and rules and observe the difference in output.
 
 They can also be run locally on your machine using the
 [`opa eval` command, here are setup instructions.](#running-opa)
-
-Note that the examples in this section try to represent the best practices.
-As such, they make use of keywords that are meant to become standard keywords
-at some point in time, but have been introduced gradually.
-[See the docs on _future keywords_](./docs/policy-language/#future-keywords)
-for more information.
 :::
 
 :::note
@@ -768,7 +767,7 @@ It's also possible to download the OPA binary directly:
 <Tabs>
   <TabItem value="arm64" label="arm64 (Apple Silicon)" default>
     ```shell
-    curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_darwin_arm64_static
+    curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_darwin_arm64
     ```
   </TabItem>
   <TabItem value="amd64" label="amd64 (Older Intel Macs)">
@@ -796,22 +795,13 @@ opa version
 </TabItem>
 
 <TabItem value="linux" label="Linux/Unix">
-There are a number of packages repos that provide OPA binaries for Linux/Unix.
-For example:
-
-- [Arch](https://archlinux.org/packages/extra/x86_64/open-policy-agent/)
-- [nixpkgs](https://github.com/NixOS/nixpkgs/blob/master/pkgs/by-name/op/open-policy-agent/package.nix)
-- [Wolfi](https://github.com/wolfi-dev/os/blob/main/opa.yaml)
-- [FreeBSD](https://cgit.freebsd.org/ports/tree/sysutils/opa)
-- [NetBSD](https://pkgsrc.se/devel/opa)
-
 In order to manually install the OPA binary from the GitHub release assets,
 please run the following:
 
 <Tabs>
   <TabItem value="linux_arm64" label="arm64" default>
     ```shell
-    curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_arm64_static
+    curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_arm64
     ```
   </TabItem>
   <TabItem value="linux_amd64" label="amd64">
@@ -832,6 +822,18 @@ You can verify the installation by running:
 ```shell
 opa version
 ```
+
+:::info Community Package Repositories
+There are a number of community-maintained package repositories that provide OPA binaries for Linux/Unix:
+
+- [Arch](https://archlinux.org/packages/extra/x86_64/open-policy-agent/)
+- [nixpkgs](https://github.com/NixOS/nixpkgs/blob/master/pkgs/by-name/op/open-policy-agent/package.nix)
+- [Wolfi](https://github.com/wolfi-dev/os/blob/main/opa.yaml)
+- [FreeBSD](https://cgit.freebsd.org/ports/tree/sysutils/opa)
+- [NetBSD](https://pkgsrc.se/devel/opa)
+
+These packages are maintained by their respective communities and may not always have the latest OPA version available.
+:::
 
 </TabItem>
 
@@ -895,15 +897,15 @@ Checksums for all binaries are available in the download path by appending
 For example, verify the macOS arm64 binary checksum:
 
 ```shell
-BINARY_NAME=opa_darwin_arm64_static
-curl -L -o opa_darwin_amd64 https://openpolicyagent.org/downloads/latest/$BINARY_NAME
-curl -L -o opa_darwin_amd64.sha256 https://openpolicyagent.org/downloads/latest/$BINARY_NAME.sha256
+BINARY_NAME=opa_darwin_arm64
+curl -L -O https://openpolicyagent.org/downloads/latest/$BINARY_NAME
+curl -L -O https://openpolicyagent.org/downloads/latest/$BINARY_NAME.sha256
 shasum -c $BINARY_NAME.sha256
 ```
 
 ### 2. Try `opa eval`
 
-The simplest way to interact with OPA is via the command-line using the [`opa eval` sub-command](./docs/cli/#opa-eval).
+The simplest way to interact with OPA is via the command-line using the [`opa eval` sub-command](./docs/cli#eval).
 It is a swiss-army knife that you can use to evaluate arbitrary Rego expressions and policies.
 `opa eval` supports a large number of options for controlling evaluation.
 Commonly used flags include:
@@ -986,7 +988,7 @@ echo $?
 ### 3. Try `opa run` (interactive)
 
 OPA includes an interactive shell or REPL (Read-Eval-Print-Loop) accessible via
-the [`opa run` sub-command](./docs/cli/#opa-run).
+the [`opa run` sub-command](./docs/cli#run).
 You can use the REPL to experiment with policies and prototype new ones.
 
 To start the REPL just:

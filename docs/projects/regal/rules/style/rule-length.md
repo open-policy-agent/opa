@@ -54,6 +54,6 @@ rules:
 
 ## Related Resources
 
-- Regal Docs: [file-length](https://openpolicyagent.org/projects/regal/rules/style/file-length)
-- Regal Docs: [line-length](https://openpolicyagent.org/projects/regal/rules/style/line-length)
+- Regal Docs: [file-length](https://www.openpolicyagent.org/projects/regal/rules/style/file-length)
+- Regal Docs: [line-length](https://www.openpolicyagent.org/projects/regal/rules/style/line-length)
 - GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/style/rule-length/rule_length.rego)

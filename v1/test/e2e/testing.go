@@ -28,6 +28,11 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
+func init() {
+	// Avoid port exhaustion in concurrent tests: https://github.com/golang/go/issues/16012
+	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 100
+}
+
 const (
 	defaultAddr = "localhost:0" // default listening address for server, use a random open port
 )
@@ -85,9 +90,6 @@ func NewTestRuntimeWithOpts(opts TestRuntimeOpts, params runtime.Params) (*TestR
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 
-	// Avoid port exhaustion in concurrent tests: https://github.com/golang/go/issues/16012
-	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 100
-
 	rt, err := runtime.NewRuntime(ctx, params)
 	if err != nil {
 		cancel()
@@ -107,9 +109,6 @@ func NewTestRuntimeWithOpts(opts TestRuntimeOpts, params runtime.Params) (*TestR
 
 // WrapRuntime creates a new TestRuntime by wrapping an existing runtime
 func WrapRuntime(ctx context.Context, cancel context.CancelFunc, rt *runtime.Runtime) *TestRuntime {
-	// Avoid port exhaustion in concurrent tests: https://github.com/golang/go/issues/16012
-	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 100
-
 	return &TestRuntime{
 		Params:  rt.Params,
 		Runtime: rt,
@@ -125,6 +124,7 @@ func WrapRuntime(ctx context.Context, cancel context.CancelFunc, rt *runtime.Run
 // handles starting and stopping the local API server. The return
 // value is what should be used as the code in `os.Exit` in the
 // `TestMain` function.
+//
 // Deprecated: Use RunTests instead
 func (t *TestRuntime) RunAPIServerTests(m *testing.M) int {
 	return t.runTests(m, true)
@@ -135,6 +135,7 @@ func (t *TestRuntime) RunAPIServerTests(m *testing.M) int {
 // will suppress logging output on stdout to prevent the tests
 // from being overly verbose. If log output is desired set
 // the `test.v` flag.
+//
 // Deprecated: Use RunTests instead
 func (t *TestRuntime) RunAPIServerBenchmarks(m *testing.M) int {
 	return t.runTests(m, !testing.Verbose())

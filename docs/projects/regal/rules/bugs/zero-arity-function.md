@@ -32,7 +32,7 @@ There is an [open issue](https://github.com/open-policy-agent/opa/issues/6315) i
 this in the future, and allow zero-arity functions to be treated as other functions. Until then, the recommendation
 is to avoid them and just use rules in their place.
 
-Note that if you're using the [opa fmt](https://openpolicyagent.org/projects/regal/rules/style/opa-fmt) command to format your code,
+Note that if you're using the [opa fmt](https://www.openpolicyagent.org/projects/regal/rules/style/opa-fmt) command to format your code,
 it will remove the parentheses from a zero-arity function definition for you.
 
 ## Configuration Options
