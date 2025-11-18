@@ -10662,6 +10662,84 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 	}
 }
 
+func TestCustomBuiltinWithCompileModulesWithOpt(t *testing.T) {
+	tests := []struct {
+		name              string
+		module            string
+		expectedErrorCode string
+		skipCapabilities  bool
+	}{
+		{
+			name: "custom builtin",
+			module: `package test
+
+			p if { bar(2) }`,
+		},
+		{
+			name: "missing custom builtin",
+			module: `package test
+	
+			p if { foo(1,2,x) }`,
+			expectedErrorCode: "rego_type_error",
+		},
+		{
+			name: "no capabilities, using custom builtin",
+			module: `package test
+
+			p if { bar(2) }`,
+			skipCapabilities:  true,
+			expectedErrorCode: "rego_type_error",
+		},
+		{
+			name: "no capabilities",
+			module: `package test
+				import rego.v1
+				p if { true }`,
+			skipCapabilities: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			customBuiltin := &Builtin{
+				Name: "bar",
+				Decl: types.NewFunction([]types.Type{types.N}, types.B),
+			}
+
+			capabilities := CapabilitiesForThisVersion()
+			capabilities.Builtins = append(capabilities.Builtins, customBuiltin)
+
+			var err error
+			if tc.skipCapabilities {
+				_, err = CompileModulesWithOpt(map[string]string{"x": tc.module}, CompileOpts{})
+			} else {
+				_, err = CompileModulesWithOpt(map[string]string{"x": tc.module}, CompileOpts{
+					ParserOptions: ParserOptions{
+						Capabilities: capabilities,
+					},
+				})
+			}
+
+			if tc.expectedErrorCode == "" && err != nil {
+				t.Fatal(err)
+			}
+			if tc.expectedErrorCode != "" {
+				if err == nil {
+					t.Fatalf("expected error code %s but got success", tc.expectedErrorCode)
+				}
+				var astError Errors
+				if errors.As(err, &astError) {
+					if astError[0].Code != tc.expectedErrorCode {
+						t.Fatalf("expected error code %s but got %s", tc.expectedErrorCode, astError[0].Code)
+					}
+				} else {
+					t.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
 func TestCompilerCapabilitiesExtendedWithCustomBuiltins(t *testing.T) {
 
 	compiler := NewCompiler().WithCapabilities(&Capabilities{
