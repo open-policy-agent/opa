@@ -2064,21 +2064,23 @@ func (c *Compiler) rewriteTemplateStrings() {
 		WalkRules(mod, func(r *Rule) bool {
 			safe := r.Head.Args.Vars()
 			safe.Update(ReservedVars)
-			vis := func(t *Term) bool {
-				modrec, errs := rewriteTemplateStringTerm(c.localvargen, c.GetArity, safe, t)
-				if modrec {
-					modified = true
-				}
-				for _, err := range errs {
-					c.err(err)
-				}
 
-				return false
+			modrec, safe, errs := rewriteTemplateStrings(c.localvargen, c.GetArity, safe, r.Body)
+			if modrec {
+				modified = true
+			}
+			for _, err := range errs {
+				c.err(err)
 			}
 
-			// Walk the head and body separately to ensure that we don't rewrite the same template string multiple times when it appears inside an else-body
-			WalkTerms(r.Head, vis)
-			WalkTerms(r.Body, vis)
+			modrec, _, errs = rewriteTemplateStrings(c.localvargen, c.GetArity, safe, r.Head)
+			if modrec {
+				modified = true
+			}
+			for _, err := range errs {
+				c.err(err)
+			}
+
 			return false
 		})
 	}
@@ -2087,9 +2089,90 @@ func (c *Compiler) rewriteTemplateStrings() {
 	}
 }
 
-func rewriteTemplateStringTerm(gen *localVarGenerator, getArity func(Ref) int, globals VarSet, t *Term) (bool, Errors) {
+func rewriteTemplateStrings(gen *localVarGenerator, getArity func(Ref) int, globals VarSet, x any) (bool, VarSet, Errors) {
+	var errs Errors
+	var modified bool
+
+	// All output vars in the current body are safe, recursively
+	var safe VarSet
+	if b, ok := x.(Body); ok {
+		safe = outputVarsForBody(b, getArity, globals)
+		safe.Update(globals)
+	} else {
+		safe = globals.Copy()
+	}
+
+	vis := &GenericVisitor{func(x any) bool {
+		var modrec bool
+		var errsrec Errors
+		switch x := x.(type) {
+		case *Term:
+			if _, ok := x.Value.(*TemplateString); ok {
+				modrec, errsrec = rewriteTemplateStringTerm(gen, safe, x)
+			}
+		case *SetComprehension:
+			var s VarSet
+			modrec, s, errsrec = rewriteTemplateStrings(gen, getArity, safe, x.Body)
+			if modrec {
+				modified = true
+			}
+			errs = append(errs, errsrec...)
+			errsrec = Errors{}
+
+			modrec, errsrec = rewriteTemplateStringTerm(gen, s, x.Term)
+		case *ArrayComprehension:
+			var s VarSet
+			modrec, s, errsrec = rewriteTemplateStrings(gen, getArity, safe, x.Body)
+			if modrec {
+				modified = true
+			}
+			errs = append(errs, errsrec...)
+			errsrec = Errors{}
+
+			modrec, errsrec = rewriteTemplateStringTerm(gen, s, x.Term)
+		case *ObjectComprehension:
+			var s VarSet
+			modrec, s, errsrec = rewriteTemplateStrings(gen, getArity, safe, x.Body)
+			if modrec {
+				modified = true
+			}
+			errs = append(errs, errsrec...)
+			errsrec = Errors{}
+
+			modrec, errsrec = rewriteTemplateStringTerm(gen, s, x.Key)
+			if modrec {
+				modified = true
+			}
+			errs = append(errs, errsrec...)
+			errsrec = Errors{}
+
+			modrec, errsrec = rewriteTemplateStringTerm(gen, s, x.Value)
+		case *Every:
+			modrec, errsrec = rewriteTemplateStringTerm(gen, safe, x.Domain)
+			if modrec {
+				modified = true
+			}
+			errs = append(errs, errsrec...)
+			errsrec = Errors{}
+
+			s := safe.Copy()
+			s.Update(x.KeyValueVars())
+			modrec, _, errsrec = rewriteTemplateStrings(gen, getArity, s, x.Body)
+		}
+		if modrec {
+			modified = true
+		}
+		errs = append(errs, errsrec...)
+		return false
+	}}
+	vis.Walk(x)
+
+	return modified, safe, errs
+}
+
+func rewriteTemplateStringTerm(gen *localVarGenerator, globals VarSet, t *Term) (bool, Errors) {
 	if ts, ok := t.Value.(*TemplateString); ok {
-		call, errs := rewriteTemplateString(gen, t.Loc(), ts)
+		call, errs := rewriteTemplateString(gen, globals, t.Loc(), ts)
 		if len(errs) != 0 {
 			return false, errs
 		}
@@ -2099,8 +2182,7 @@ func rewriteTemplateStringTerm(gen *localVarGenerator, getArity func(Ref) int, g
 	return false, nil
 }
 
-func rewriteTemplateString(gen *localVarGenerator, loc *Location, ts *TemplateString) (Call, Errors) {
-	// TODO: Detect and error on enumeration/cross-product
+func rewriteTemplateString(gen *localVarGenerator, safe VarSet, loc *Location, ts *TemplateString) (Call, Errors) {
 	var errs Errors
 	terms := make([]*Term, 0, len(ts.Parts))
 
@@ -2119,6 +2201,17 @@ func rewriteTemplateString(gen *localVarGenerator, loc *Location, ts *TemplateSt
 					if !ok {
 						errs = append(errs, NewError(CompileErr, p.Location, "unexpected template-string expression type: %T", p.Terms))
 						continue
+					}
+				}
+
+				var vis *VarVisitor
+				vis = vis.ClearOrNew().WithParams(SafetyCheckVisitorParams)
+				vis.Walk(t)
+				vars := vis.Vars()
+				if vars.DiffCount(safe) > 0 {
+					unsafe := vars.Diff(safe)
+					for _, v := range unsafe.Sorted() {
+						errs = append(errs, NewError(CompileErr, t.Loc(), "var %v is undeclared", v))
 					}
 				}
 
@@ -4313,6 +4406,9 @@ func outputVarsForExpr(expr *Expr, arity func(Ref) int, safe VarSet, output VarS
 	}
 
 	switch terms := expr.Terms.(type) {
+	case *TemplateString:
+		// Template-expressions have no output vars
+		return VarSet{}
 	case *Term:
 		return outputVarsForTerms(expr, safe)
 	case []*Term:
@@ -4388,7 +4484,7 @@ func outputVarsForTerms(expr any, safe VarSet) VarSet {
 	output := VarSet{}
 	WalkTerms(expr, func(x *Term) bool {
 		switch r := x.Value.(type) {
-		case *SetComprehension, *ArrayComprehension, *ObjectComprehension:
+		case *SetComprehension, *ArrayComprehension, *ObjectComprehension, *TemplateString:
 			return true
 		case Ref:
 			if !isRefSafe(r, safe) {

@@ -8039,6 +8039,30 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 				}`,
 		},
 		{
+			note: "inside array comprehension, body, nested",
+			module: `package test
+				p if {
+					a := 1
+					[x | 
+						b := 2
+						x := [y | y := $"{a} {b}"]
+					]
+				}`,
+			exp: `package test
+				p = true if { 
+					__local0__ = 1
+					[__local3__ | 
+						__local1__ = 2
+						__local3__ = [__local2__ | 
+							__local7__ = {__local4__ | __local4__ = __local0__}
+							__local8__ = {__local5__ | __local5__ = __local1__}
+							internal.template_string([__local7__, " ", __local8__], __local6__)
+							__local2__ = __local6__
+						]
+					]
+				}`,
+		},
+		{
 			note: "inside array comprehension, head",
 			module: `package test
 				p if {
@@ -8051,6 +8075,31 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 						__local4__ = {__local1__ | __local1__ = __local0__}
 						__local5__ = {__local2__ | __local2__ = input.y}
 						internal.template_string([__local4__, " ", __local5__], __local3__)
+					]
+				}`,
+		},
+		{
+			note: "inside array comprehension, head, nested",
+			module: `package test
+				p if {
+					a := 1
+					[x | 
+						b := 2
+						x := [$"{a} {b} {c}" | c := 3 ]
+					]
+				}`,
+			exp: `package test
+				p = true if { 
+					__local0__ = 1
+					[__local3__ | 
+						__local1__ = 2
+						__local3__ = [__local7__ |
+							__local2__ = 3
+							__local8__ = {__local4__ | __local4__ = __local0__}
+							__local9__ = {__local5__ | __local5__ = __local1__}
+							__local10__ = {__local6__ | __local6__ = __local2__}
+							internal.template_string([__local8__, " ", __local9__, " ", __local10__], __local7__)
+						]
 					]
 				}`,
 		},
@@ -8086,7 +8135,7 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 				}`,
 		},
 		{
-			note: "inside map comprehension, body",
+			note: "inside object comprehension, body",
 			module: `package test
 				p if {
 					{x: y | 
@@ -8111,7 +8160,7 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 				}`,
 		},
 		{
-			note: "inside map comprehension, head",
+			note: "inside object comprehension, head",
 			module: `package test
 				p if {
 					{$"{input.x} {y}": $"{x} {input.y}" | 
@@ -8362,6 +8411,22 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 					__local0__ = __local3__ with input.y as 2
 				}`,
 		},
+
+		{
+			note: "var used in template-expression preceding assignment through unification",
+			module: `package test
+				p := msg if {
+					msg := $"{x}"
+					x = 42
+				}`,
+			exp: `package test
+				p := __local0__ if { 
+					__local0__ = __local2__
+					x = 42
+					__local3__ = {__local1__ | __local1__ = x}
+					internal.template_string([__local3__], __local2__)
+				}`,
+		},
 	}
 
 	for _, tc := range tests {
@@ -8389,10 +8454,27 @@ func TestCompilerRewriteTemplateStringCallsErrors(t *testing.T) {
 		exp    string
 	}{
 		{
-			note: "non-existent var",
+			note: "non-existent var, rule head",
 			module: `package test
 			p := $"{x}"`,
-			exp: "var x is unsafe",
+			exp: "var x is undeclared",
+		},
+		{
+			note: "non-existent var, rule body",
+			module: `package test
+			p := msg if {
+				msg := $"{x}"
+			}`,
+			exp: "var x is undeclared",
+		},
+		{
+			note: "non-existent var (enum)",
+			module: `package test
+			p := msg if {
+				a := ["a", "b"]
+				msg := $"{a[x]}"
+			}`,
+			exp: "var x is undeclared",
 		},
 		{
 			note: "wildcard",
@@ -8403,6 +8485,8 @@ func TestCompilerRewriteTemplateStringCallsErrors(t *testing.T) {
 			}`,
 			exp: "var _ is undeclared",
 		},
+
+		// TODO: Add additional tests for undeclared vars/enumerations
 	}
 
 	for _, tc := range cases {

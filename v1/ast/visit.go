@@ -149,6 +149,10 @@ func walk(v Visitor, x any) {
 		for i := range x.Symbols {
 			Walk(w, x.Symbols[i])
 		}
+	case *TemplateString:
+		for i := range x.Parts {
+			Walk(w, x.Parts[i])
+		}
 	}
 }
 

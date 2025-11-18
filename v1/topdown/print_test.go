@@ -144,7 +144,7 @@ func TestTopDownPrintInternalError(t *testing.T) {
 
 	buf := bytes.NewBuffer(nil)
 
-	q := NewQuery(ast.MustParseBody("internal.print([1])")).WithPrintHook(NewPrintHook(buf))
+	q := NewQuery(ast.MustParseBody("internal.print([[1]])")).WithPrintHook(NewPrintHook(buf))
 
 	_, err := q.Run(t.Context())
 	if err == nil {
@@ -154,7 +154,7 @@ func TestTopDownPrintInternalError(t *testing.T) {
 	asTopDownErr, ok := err.(*Error)
 	if !ok {
 		t.Fatal("expected topdown error but got:", err)
-	} else if asTopDownErr.Code != InternalErr || asTopDownErr.Message != "illegal argument type: number" {
+	} else if asTopDownErr.Code != InternalErr || asTopDownErr.Message != "illegal argument type: array" {
 		t.Fatal("unexpected code or reason:", err)
 	}
 }
