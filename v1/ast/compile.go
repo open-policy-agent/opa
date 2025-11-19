@@ -1640,18 +1640,14 @@ func (c *Compiler) checkDeprecatedBuiltins() {
 }
 
 func (c *Compiler) runStage(metricName string, f func()) {
-	if c.metrics != nil {
-		c.metrics.Timer(metricName).Start()
-		defer c.metrics.Timer(metricName).Stop()
-	}
+	c.metrics.Timer(metricName).Start()
+	defer c.metrics.Timer(metricName).Stop()
 	f()
 }
 
 func (c *Compiler) runStageAfter(metricName string, s CompilerStage) *Error {
-	if c.metrics != nil {
-		c.metrics.Timer(metricName).Start()
-		defer c.metrics.Timer(metricName).Stop()
-	}
+	c.metrics.Timer(metricName).Start()
+	defer c.metrics.Timer(metricName).Stop()
 	return s(c)
 }
 
@@ -1662,6 +1658,13 @@ func (c *Compiler) compile() {
 			panic(r)
 		}
 	}()
+
+	run := c.runStage
+	runStageAfter := c.runStageAfter
+	if c.metrics != nil {
+		run = func(_ string, f func()) { f() }
+		runStageAfter = func(_ string, s CompilerStage) *Error { return s(c) }
+	}
 
 	for _, s := range c.stages {
 		if c.evalMode == EvalModeIR {
@@ -1675,12 +1678,12 @@ func (c *Compiler) compile() {
 			continue
 		}
 
-		c.runStage(s.metricName, s.f)
+		run(s.metricName, s.f)
 		if c.Failed() {
 			return
 		}
 		for _, a := range c.after[s.name] {
-			if err := c.runStageAfter(a.MetricName, a.Stage); err != nil {
+			if err := runStageAfter(a.MetricName, a.Stage); err != nil {
 				c.err(err)
 				return
 			}
