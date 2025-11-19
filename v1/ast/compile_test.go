@@ -8456,37 +8456,110 @@ func TestCompilerRewriteTemplateStringCallsErrors(t *testing.T) {
 		{
 			note: "non-existent var, rule head",
 			module: `package test
-			p := $"{x}"`,
+				p := $"{x}"`,
 			exp: "var x is undeclared",
 		},
 		{
 			note: "non-existent var, rule body",
 			module: `package test
-			p := msg if {
-				msg := $"{x}"
-			}`,
+				p := msg if {
+					msg := $"{x}"
+				}`,
 			exp: "var x is undeclared",
+		},
+		{
+			note: "non-existent var (wildcard)",
+			module: `package test
+				p := msg if {
+					a := ["a", "b"]
+					msg := $"{a[_]}"
+				}`,
+			exp: "var _ is undeclared",
 		},
 		{
 			note: "non-existent var (enum)",
 			module: `package test
-			p := msg if {
-				a := ["a", "b"]
-				msg := $"{a[x]}"
-			}`,
+				p := msg if {
+					a := ["a", "b"]
+					msg := $"{a[x]}"
+				}`,
 			exp: "var x is undeclared",
 		},
 		{
-			note: "wildcard",
+			note: "non-existent var, nested inside template-string",
 			module: `package test
-			p := msg if {
+				p := $"{$"{x}"}"`,
+			exp: "var x is undeclared",
+		},
+		{
+			note: "non-existent var, inside array comprehension body",
+			module: `package test
 				a := ["a", "b"]
-				msg := $"{a[_]}"
-			}`,
+				p := [x | x := $"{a[_]}"]`,
 			exp: "var _ is undeclared",
 		},
-
-		// TODO: Add additional tests for undeclared vars/enumerations
+		{
+			note: "non-existent var, inside array comprehension head",
+			module: `package test
+				a := ["a", "b"]
+				p := [$"{a[_]}" | x := 42]`,
+			exp: "var _ is undeclared",
+		},
+		{
+			note: "non-existent var, inside set comprehension body",
+			module: `package test
+				a := ["a", "b"]
+				p := {x | x := $"{a[_]}"}`,
+			exp: "var _ is undeclared",
+		},
+		{
+			note: "non-existent var, inside set comprehension head",
+			module: `package test
+				a := ["a", "b"]
+				p := {$"{a[_]}" | x := 42}`,
+			exp: "var _ is undeclared",
+		},
+		{
+			note: "non-existent var, inside object comprehension body",
+			module: `package test
+				a := ["a", "b"]
+				p := {x: y | x := $"{a[_]}"; y := 42}`,
+			exp: "var _ is undeclared",
+		},
+		{
+			note: "non-existent var, inside object comprehension key",
+			module: `package test
+				a := ["a", "b"]
+				p := {$"{a[_]}": 42 | x := 42}`,
+			exp: "var _ is undeclared",
+		},
+		{
+			note: "non-existent var, inside object comprehension value",
+			module: `package test
+				a := ["a", "b"]
+				p := {42: $"{a[_]}" | x := 42}`,
+			exp: "var _ is undeclared",
+		},
+		{
+			note: "non-existent var, inside every domain",
+			module: `package test
+				p if {
+					every x in {"a", $"{x}"} {
+						x != "b"
+					}
+				}`,
+			exp: "var __local1__ is undeclared", // FIXME
+		},
+		{
+			note: "non-existent var, inside every body",
+			module: `package test
+				p if {
+					every x in {"a", "b"} {
+						x != $"{y}"
+					}
+				}`,
+			exp: "var y is undeclared",
+		},
 	}
 
 	for _, tc := range cases {
