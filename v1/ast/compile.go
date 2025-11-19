@@ -13,6 +13,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/open-policy-agent/opa/internal/debug"
 	"github.com/open-policy-agent/opa/internal/gojsonschema"
@@ -157,6 +159,7 @@ type Compiler struct {
 	evalMode                   CompilerEvalMode              //
 	rewriteTestRulesForTracing bool                          // rewrite test rules to capture dynamic values for tracing.
 	defaultRegoVersion         RegoVersion
+	errorsMutex                *sync.Mutex
 }
 
 func (c *Compiler) DefaultRegoVersion() RegoVersion {
@@ -318,6 +321,7 @@ func NewCompiler() *Compiler {
 		comprehensionIndices:  map[*Term]*ComprehensionIndex{},
 		debug:                 debug.Discard(),
 		defaultRegoVersion:    DefaultRegoVersion,
+		errorsMutex:           &sync.Mutex{},
 	}
 
 	c.ModuleTree = NewModuleTree(nil)
@@ -1031,10 +1035,8 @@ func (c *Compiler) buildRequiredCapabilities() {
 	c.Required.FutureKeywords = util.KeysSorted(keywords)
 
 	// extract required features from modules
-
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-
 		if c.moduleIsRegoV1(mod) {
 			features[FeatureRegoV1] = struct{}{}
 		} else {
@@ -1225,12 +1227,11 @@ func (c *Compiler) checkRuleConflicts() {
 }
 
 func (c *Compiler) checkUndefinedFuncs() {
-	for _, name := range c.sorted {
-		m := c.Modules[name]
-		for _, err := range checkUndefinedFuncs(c.TypeEnv, m, c.GetArity, c.RewrittenVars) {
+	c.forEachModule(func(mod *Module) {
+		for _, err := range checkUndefinedFuncs(c.TypeEnv, mod, c.GetArity, c.RewrittenVars) {
 			c.err(err)
 		}
-	}
+	})
 }
 
 func checkUndefinedFuncs(env *TypeEnv, x any, arity func(Ref) int, rwVars map[Var]Var) Errors {
@@ -1285,9 +1286,8 @@ func arityMismatchError(env *TypeEnv, f Ref, expr *Expr, exp, act int) *Error {
 // positions of built-in expressions will be bound when evaluating the rule from left
 // to right, re-ordering as necessary.
 func (c *Compiler) checkSafetyRuleBodies() {
-	for _, name := range c.sorted {
-		m := c.Modules[name]
-		WalkRules(m, func(r *Rule) bool {
+	c.forEachModule(func(mod *Module) {
+		WalkRules(mod, func(r *Rule) bool {
 			safe := ReservedVars.Copy()
 			if len(r.Head.Args) > 0 {
 				safe.Update(r.Head.Args.Vars())
@@ -1295,7 +1295,7 @@ func (c *Compiler) checkSafetyRuleBodies() {
 			r.Body = c.checkBodySafety(safe, r.Body)
 			return false
 		})
-	}
+	})
 }
 
 func (c *Compiler) checkBodySafety(safe VarSet, b Body) Body {
@@ -1320,8 +1320,8 @@ var SafetyCheckVisitorParams = VarVisitorParams{
 // checkSafetyRuleHeads ensures that variables appearing in the head of a
 // rule also appear in the body.
 func (c *Compiler) checkSafetyRuleHeads() {
-	for _, name := range c.sorted {
-		WalkRules(c.Modules[name], func(r *Rule) bool {
+	c.forEachModule(func(mod *Module) {
+		WalkRules(mod, func(r *Rule) bool {
 			safe := r.Body.Vars(SafetyCheckVisitorParams)
 			if len(r.Head.Args) > 0 {
 				safe.Update(r.Head.Args.Vars())
@@ -1342,7 +1342,7 @@ func (c *Compiler) checkSafetyRuleHeads() {
 			}
 			return false
 		})
-	}
+	})
 }
 
 func compileSchema(goSchema any, allowNet []string) (*gojsonschema.Schema, error) {
@@ -1609,13 +1609,12 @@ func (c *Compiler) checkUnsafeBuiltins() {
 	if len(c.unsafeBuiltinsMap) == 0 {
 		return
 	}
-
-	for _, name := range c.sorted {
-		errs := checkUnsafeBuiltins(c.unsafeBuiltinsMap, c.Modules[name])
+	c.forEachModule(func(mod *Module) {
+		errs := checkUnsafeBuiltins(c.unsafeBuiltinsMap, mod)
 		for _, err := range errs {
 			c.err(err)
 		}
-	}
+	})
 }
 
 func (c *Compiler) checkDeprecatedBuiltins() {
@@ -1630,15 +1629,14 @@ func (c *Compiler) checkDeprecatedBuiltins() {
 		return
 	}
 
-	for _, name := range c.sorted {
-		mod := c.Modules[name]
+	c.forEachModule(func(mod *Module) {
 		if c.strict || mod.regoV1Compatible() {
 			errs := checkDeprecatedBuiltins(c.deprecatedBuiltinsMap, mod)
 			for _, err := range errs {
 				c.err(err)
 			}
 		}
-	}
+	})
 }
 
 func (c *Compiler) runStage(metricName string, f func()) {
@@ -1756,7 +1754,18 @@ func (c *Compiler) init() {
 	c.initialized = true
 }
 
+func (c *Compiler) forEachModule(f func(mod *Module)) {
+	wg := &sync.WaitGroup{}
+	for _, name := range c.sorted {
+		wg.Go(func() { f(c.Modules[name]) })
+	}
+	wg.Wait()
+}
+
+// TODO(sr): We're calling this through wg.Go() which says "the function must not panic".
 func (c *Compiler) err(err *Error) {
+	c.errorsMutex.Lock()
+	defer c.errorsMutex.Unlock()
 	if c.maxErrs > 0 && len(c.Errors) >= c.maxErrs {
 		c.Errors = append(c.Errors, errLimitReached)
 		panic(errLimitReached)
@@ -1836,15 +1845,14 @@ func (c *Compiler) checkImports() {
 }
 
 func (c *Compiler) checkKeywordOverrides() {
-	for _, name := range c.sorted {
-		mod := c.Modules[name]
+	c.forEachModule(func(mod *Module) {
 		if c.strict || c.moduleIsRegoV1Compatible(mod) {
 			errs := checkRootDocumentOverrides(mod)
 			for _, err := range errs {
 				c.err(err)
 			}
 		}
-	}
+	})
 }
 
 func (c *Compiler) moduleIsRegoV1(mod *Module) bool {
@@ -1957,7 +1965,7 @@ func (c *Compiler) resolveAllRefs() {
 
 func (c *Compiler) removeImports() {
 	c.imports = make(map[string][]*Import, len(c.Modules))
-	for name := range c.Modules {
+	for name := range c.Modules { // Trivial. No fan-out for this.
 		c.imports[name] = c.Modules[name].Imports
 		c.Modules[name].Imports = nil
 	}
@@ -1969,27 +1977,25 @@ func (c *Compiler) initLocalVarGen() {
 
 func (c *Compiler) rewriteComprehensionTerms() {
 	f := newEqualityFactory(c.localvargen)
-	for _, name := range c.sorted {
-		mod := c.Modules[name]
+	c.forEachModule(func(mod *Module) {
 		_, _ = rewriteComprehensionTerms(f, mod) // ignore error
-	}
+	})
 }
 
 func (c *Compiler) rewriteExprTerms() {
-	for _, name := range c.sorted {
-		mod := c.Modules[name]
+	c.forEachModule(func(mod *Module) {
 		WalkRules(mod, func(rule *Rule) bool {
 			rewriteExprTermsInHead(c.localvargen, rule)
 			rule.Body = rewriteExprTermsInBody(c.localvargen, rule.Body)
 			return false
 		})
-	}
+	})
 }
 
 func (c *Compiler) rewriteRuleHeadRefs() {
 	f := newEqualityFactory(c.localvargen)
-	for _, name := range c.sorted {
-		WalkRules(c.Modules[name], func(rule *Rule) bool {
+	c.forEachModule(func(mod *Module) {
+		WalkRules(mod, func(rule *Rule) bool {
 
 			ref := rule.Head.Ref()
 			// NOTE(sr): We're backfilling Refs here -- all parser code paths would have them, but
@@ -2042,16 +2048,15 @@ func (c *Compiler) rewriteRuleHeadRefs() {
 
 			return true
 		})
-	}
+	})
 }
 
 func (c *Compiler) checkVoidCalls() {
-	for _, name := range c.sorted {
-		mod := c.Modules[name]
+	c.forEachModule(func(mod *Module) {
 		for _, err := range checkVoidCalls(c.TypeEnv, mod) {
 			c.err(err)
 		}
-	}
+	})
 }
 
 func (c *Compiler) rewritePrintCalls() {
@@ -2063,8 +2068,7 @@ func (c *Compiler) rewritePrintCalls() {
 			}
 		}
 	} else {
-		for _, name := range c.sorted {
-			mod := c.Modules[name]
+		c.forEachModule(func(mod *Module) {
 			WalkRules(mod, func(r *Rule) bool {
 				safe := r.Head.Args.Vars()
 				safe.Update(ReservedVars)
@@ -2082,7 +2086,7 @@ func (c *Compiler) rewritePrintCalls() {
 				WalkBodies(r.Body, vis)
 				return false
 			})
-		}
+		})
 	}
 	if modified {
 		c.Required.addBuiltinSorted(Print)
@@ -2295,8 +2299,7 @@ func isPrintCall(x *Expr) bool {
 // p[__local0__] { i < 100; __local0__ = {"foo": data.foo[i]} }
 func (c *Compiler) rewriteRefsInHead() {
 	f := newEqualityFactory(c.localvargen)
-	for _, name := range c.sorted {
-		mod := c.Modules[name]
+	c.forEachModule(func(mod *Module) {
 		WalkRules(mod, func(rule *Rule) bool {
 			if requiresEval(rule.Head.Key) {
 				expr := f.Generate(rule.Head.Key)
@@ -2317,14 +2320,14 @@ func (c *Compiler) rewriteRefsInHead() {
 			}
 			return false
 		})
-	}
+	})
 }
 
 func (c *Compiler) rewriteEquals() {
 	modified := false
-	for _, name := range c.sorted {
-		modified = rewriteEquals(c.Modules[name]) || modified
-	}
+	c.forEachModule(func(mod *Module) {
+		modified = rewriteEquals(mod) || modified
+	})
 	if modified {
 		c.Required.addBuiltinSorted(Equal)
 	}
@@ -2332,12 +2335,12 @@ func (c *Compiler) rewriteEquals() {
 
 func (c *Compiler) rewriteDynamicTerms() {
 	f := newEqualityFactory(c.localvargen)
-	for _, name := range c.sorted {
-		WalkRules(c.Modules[name], func(rule *Rule) bool {
+	c.forEachModule(func(mod *Module) {
+		WalkRules(mod, func(rule *Rule) bool {
 			rule.Body = rewriteDynamics(f, rule.Body)
 			return false
 		})
-	}
+	})
 }
 
 // rewriteTestRuleEqualities rewrites equality expressions in test rule bodies to create local vars for statements that would otherwise
@@ -2366,39 +2369,34 @@ func (c *Compiler) rewriteTestRuleEqualities() {
 	}
 
 	f := newEqualityFactory(c.localvargen)
-	for _, name := range c.sorted {
-		mod := c.Modules[name]
+	c.forEachModule(func(mod *Module) {
 		WalkRules(mod, func(rule *Rule) bool {
 			if strings.HasPrefix(string(rule.Head.Name), "test_") {
 				rule.Body = rewriteTestEqualities(f, rule.Body)
 			}
 			return false
 		})
-	}
+	})
 }
 
 func (c *Compiler) parseMetadataBlocks() {
 	// Only parse annotations if rego.metadata built-ins are called
 	regoMetadataCalled := false
-	for _, name := range c.sorted {
-		mod := c.Modules[name]
+	c.forEachModule(func(mod *Module) {
+		if regoMetadataCalled {
+			return
+		}
 		WalkExprs(mod, func(expr *Expr) bool {
 			if isRegoMetadataChainCall(expr) || isRegoMetadataRuleCall(expr) {
 				regoMetadataCalled = true
 			}
 			return regoMetadataCalled
 		})
-
-		if regoMetadataCalled {
-			break
-		}
-	}
+	})
 
 	if regoMetadataCalled {
 		// NOTE: Possible optimization: only parse annotations for modules on the path of rego.metadata-calling module
-		for _, name := range c.sorted {
-			mod := c.Modules[name]
-
+		c.forEachModule(func(mod *Module) {
 			if len(mod.Annotations) == 0 {
 				var errs Errors
 				mod.Annotations, errs = parseAnnotations(mod.Comments)
@@ -2409,7 +2407,7 @@ func (c *Compiler) parseMetadataBlocks() {
 
 				attachRuleAnnotations(mod)
 			}
-		}
+		})
 	}
 }
 
@@ -2419,9 +2417,7 @@ func (c *Compiler) rewriteRegoMetadataCalls() {
 	_, chainFuncAllowed := c.builtins[RegoMetadataChain.Name]
 	_, ruleFuncAllowed := c.builtins[RegoMetadataRule.Name]
 
-	for _, name := range c.sorted {
-		mod := c.Modules[name]
-
+	c.forEachModule(func(mod *Module) {
 		WalkRules(mod, func(rule *Rule) bool {
 			var firstChainCall *Expr
 			var firstRuleCall *Expr
@@ -2499,7 +2495,7 @@ func (c *Compiler) rewriteRegoMetadataCalls() {
 
 			return false
 		})
-	}
+	})
 }
 
 func getPrimaryRuleAnnotations(as *AnnotationSet, rule *Rule) *Annotations {
@@ -2893,8 +2889,7 @@ func (vis *ruleArgLocalRewriter) Visit(x any) Visitor {
 
 func (c *Compiler) rewriteWithModifiers() {
 	f := newEqualityFactory(c.localvargen)
-	for _, name := range c.sorted {
-		mod := c.Modules[name]
+	c.forEachModule(func(mod *Module) {
 		t := NewGenericTransformer(func(x any) (any, error) {
 			body, ok := x.(Body)
 			if !ok {
@@ -2908,7 +2903,7 @@ func (c *Compiler) rewriteWithModifiers() {
 			return body, nil
 		})
 		_, _ = Transform(t, mod) // ignore error
-	}
+	})
 }
 
 func (c *Compiler) setModuleTree() {
@@ -4333,7 +4328,7 @@ const LocalVarPrefix = "__local"
 type localVarGenerator struct {
 	exclude VarSet
 	suffix  string
-	next    int
+	next    *atomic.Int32
 }
 
 func newLocalVarGeneratorForModuleSet(sorted []string, modules map[string]*Module) *localVarGenerator {
@@ -4341,19 +4336,19 @@ func newLocalVarGeneratorForModuleSet(sorted []string, modules map[string]*Modul
 	for _, key := range sorted {
 		vis.Walk(modules[key])
 	}
-	return &localVarGenerator{exclude: vis.vars, next: 0}
+	return &localVarGenerator{exclude: vis.vars, next: &atomic.Int32{}}
 }
 
 func newLocalVarGenerator(suffix string, node any) *localVarGenerator {
 	vis := NewVarVisitor()
 	vis.Walk(node)
-	return &localVarGenerator{exclude: vis.vars, suffix: suffix, next: 0}
+	return &localVarGenerator{exclude: vis.vars, suffix: suffix, next: &atomic.Int32{}}
 }
 
 func (l *localVarGenerator) Generate() Var {
 	for {
-		result := Var(LocalVarPrefix + l.suffix + strconv.Itoa(l.next) + "__")
-		l.next++
+		next := l.next.Add(1) - 1 // we want the old number
+		result := Var(LocalVarPrefix + l.suffix + strconv.Itoa(int(next)) + "__")
 		if !l.exclude.Contains(result) {
 			return result
 		}
