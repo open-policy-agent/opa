@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"maps"
 	"slices"
 	"sort"
@@ -304,6 +305,7 @@ type stage struct {
 	name       string
 	metricName string
 	f          func()
+	fm         func(*Module)
 }
 
 // NewCompiler returns a new empty compiler.
@@ -331,42 +333,42 @@ func NewCompiler() *Compiler {
 		// Reference resolution should run first as it may be used to lazily
 		// load additional modules. If any stages run before resolution, they
 		// need to be re-run after resolution.
-		{"ResolveRefs", "compile_stage_resolve_refs", c.resolveAllRefs},
+		{name: "ResolveRefs", metricName: "compile_stage_resolve_refs", f: c.resolveAllRefs},
 		// The local variable generator must be initialized after references are
 		// resolved and the dynamic module loader has run but before subsequent
 		// stages that need to generate variables.
-		{"InitLocalVarGen", "compile_stage_init_local_var_gen", c.initLocalVarGen},
-		{"RewriteRuleHeadRefs", "compile_stage_rewrite_rule_head_refs", c.rewriteRuleHeadRefs},
-		{"CheckKeywordOverrides", "compile_stage_check_keyword_overrides", c.checkKeywordOverrides},
-		{"CheckDuplicateImports", "compile_stage_check_imports", c.checkImports},
-		{"RemoveImports", "compile_stage_remove_imports", c.removeImports},
-		{"SetModuleTree", "compile_stage_set_module_tree", c.setModuleTree},
-		{"SetRuleTree", "compile_stage_set_rule_tree", c.setRuleTree}, // depends on RewriteRuleHeadRefs
-		{"RewriteLocalVars", "compile_stage_rewrite_local_vars", c.rewriteLocalVars},
-		{"CheckVoidCalls", "compile_stage_check_void_calls", c.checkVoidCalls},
-		{"RewritePrintCalls", "compile_stage_rewrite_print_calls", c.rewritePrintCalls},
-		{"RewriteExprTerms", "compile_stage_rewrite_expr_terms", c.rewriteExprTerms},
-		{"ParseMetadataBlocks", "compile_stage_parse_metadata_blocks", c.parseMetadataBlocks},
-		{"SetAnnotationSet", "compile_stage_set_annotationset", c.setAnnotationSet},
-		{"RewriteRegoMetadataCalls", "compile_stage_rewrite_rego_metadata_calls", c.rewriteRegoMetadataCalls},
-		{"SetGraph", "compile_stage_set_graph", c.setGraph},
-		{"RewriteComprehensionTerms", "compile_stage_rewrite_comprehension_terms", c.rewriteComprehensionTerms},
-		{"RewriteRefsInHead", "compile_stage_rewrite_refs_in_head", c.rewriteRefsInHead},
-		{"RewriteWithValues", "compile_stage_rewrite_with_values", c.rewriteWithModifiers},
-		{"CheckRuleConflicts", "compile_stage_check_rule_conflicts", c.checkRuleConflicts},
-		{"CheckUndefinedFuncs", "compile_stage_check_undefined_funcs", c.checkUndefinedFuncs},
-		{"CheckSafetyRuleHeads", "compile_stage_check_safety_rule_heads", c.checkSafetyRuleHeads},
-		{"CheckSafetyRuleBodies", "compile_stage_check_safety_rule_bodies", c.checkSafetyRuleBodies},
-		{"RewriteEquals", "compile_stage_rewrite_equals", c.rewriteEquals},
-		{"RewriteDynamicTerms", "compile_stage_rewrite_dynamic_terms", c.rewriteDynamicTerms},
-		{"RewriteTestRulesForTracing", "compile_stage_rewrite_test_rules_for_tracing", c.rewriteTestRuleEqualities}, // must run after RewriteDynamicTerms
-		{"CheckRecursion", "compile_stage_check_recursion", c.checkRecursion},
-		{"CheckTypes", "compile_stage_check_types", c.checkTypes}, // must be run after CheckRecursion
-		{"CheckUnsafeBuiltins", "compile_state_check_unsafe_builtins", c.checkUnsafeBuiltins},
-		{"CheckDeprecatedBuiltins", "compile_state_check_deprecated_builtins", c.checkDeprecatedBuiltins},
-		{"BuildRuleIndices", "compile_stage_rebuild_indices", c.buildRuleIndices},
-		{"BuildComprehensionIndices", "compile_stage_rebuild_comprehension_indices", c.buildComprehensionIndices},
-		{"BuildRequiredCapabilities", "compile_stage_build_required_capabilities", c.buildRequiredCapabilities},
+		{name: "InitLocalVarGen", metricName: "compile_stage_init_local_var_gen", f: c.initLocalVarGen},
+		{name: "RewriteRuleHeadRefs", metricName: "compile_stage_rewrite_rule_head_refs", fm: c.rewriteRuleHeadRefsMod},
+		{name: "CheckKeywordOverrides", metricName: "compile_stage_check_keyword_overrides", fm: c.checkKeywordOverridesMod},
+		{name: "CheckDuplicateImports", metricName: "compile_stage_check_imports", fm: c.checkImportsMod},
+		{name: "RemoveImports", metricName: "compile_stage_remove_imports", f: c.removeImports},
+		{name: "SetModuleTree", metricName: "compile_stage_set_module_tree", f: c.setModuleTree},
+		{name: "SetRuleTree", metricName: "compile_stage_set_rule_tree", f: c.setRuleTree},                // depends on RewriteRuleHeadRefs
+		{name: "RewriteLocalVars", metricName: "compile_stage_rewrite_local_vars", f: c.rewriteLocalVars}, // TODO(sr): fm this?
+		{name: "CheckVoidCalls", metricName: "compile_stage_check_void_calls", fm: c.checkVoidCallsMod},
+		{name: "RewritePrintCalls", metricName: "compile_stage_rewrite_print_calls", fm: c.rewritePrintCallsMod},
+		{name: "RewriteExprTerms", metricName: "compile_stage_rewrite_expr_terms", fm: c.rewriteExprTermsMod},
+		{name: "ParseMetadataBlocks", metricName: "compile_stage_parse_metadata_blocks", f: c.parseMetadataBlocks},
+		{name: "SetAnnotationSet", metricName: "compile_stage_set_annotationset", f: c.setAnnotationSet},
+		{name: "RewriteRegoMetadataCalls", metricName: "compile_stage_rewrite_rego_metadata_calls", fm: c.rewriteRegoMetadataCallsMod},
+		{name: "SetGraph", metricName: "compile_stage_set_graph", f: c.setGraph},
+		{name: "RewriteComprehensionTerms", metricName: "compile_stage_rewrite_comprehension_terms", fm: c.rewriteComprehensionTermsMod},
+		{name: "RewriteRefsInHead", metricName: "compile_stage_rewrite_refs_in_head", fm: c.rewriteRefsInHeadMod},
+		{name: "RewriteWithValues", metricName: "compile_stage_rewrite_with_values", fm: c.rewriteWithModifiersMod},
+		{name: "CheckRuleConflicts", metricName: "compile_stage_check_rule_conflicts", f: c.checkRuleConflicts},
+		{name: "CheckUndefinedFuncs", metricName: "compile_stage_check_undefined_funcs", fm: c.checkUndefinedFuncsMod},
+		{name: "CheckSafetyRuleHeads", metricName: "compile_stage_check_safety_rule_heads", fm: c.checkSafetyRuleHeadsMod},
+		{name: "CheckSafetyRuleBodies", metricName: "compile_stage_check_safety_rule_bodies", fm: c.checkSafetyRuleBodiesMod},
+		{name: "RewriteEquals", metricName: "compile_stage_rewrite_equals", fm: c.rewriteEqualsMod},
+		{name: "RewriteDynamicTerms", metricName: "compile_stage_rewrite_dynamic_terms", fm: c.rewriteDynamicTermsMod},
+		{name: "RewriteTestRulesForTracing", metricName: "compile_stage_rewrite_test_rules_for_tracing", fm: c.rewriteTestRuleEqualitiesMod}, // must run after RewriteDynamicTerms
+		{name: "CheckRecursion", metricName: "compile_stage_check_recursion", f: c.checkRecursion},
+		{name: "CheckTypes", metricName: "compile_stage_check_types", f: c.checkTypes}, // must be run after CheckRecursion
+		{name: "CheckUnsafeBuiltins", metricName: "compile_state_check_unsafe_builtins", f: c.checkUnsafeBuiltins},
+		{name: "CheckDeprecatedBuiltins", metricName: "compile_state_check_deprecated_builtins", f: c.checkDeprecatedBuiltins},
+		{name: "BuildRuleIndices", metricName: "compile_stage_rebuild_indices", f: c.buildRuleIndices},
+		{name: "BuildComprehensionIndices", metricName: "compile_stage_rebuild_comprehension_indices", f: c.buildComprehensionIndices},
+		{name: "BuildRequiredCapabilities", metricName: "compile_stage_build_required_capabilities", f: c.buildRequiredCapabilities},
 	}
 
 	return c
@@ -925,6 +927,9 @@ func (c *Compiler) counterAdd(name string, n uint64) {
 }
 
 func (c *Compiler) buildRuleIndices() {
+	if c.evalMode == EvalModeIR {
+		return
+	}
 
 	c.RuleTree.DepthFirst(func(node *TreeNode) bool {
 		if len(node.Values) == 0 {
@@ -963,6 +968,9 @@ func (c *Compiler) buildRuleIndices() {
 }
 
 func (c *Compiler) buildComprehensionIndices() {
+	if c.evalMode == EvalModeIR {
+		return
+	}
 	for _, name := range c.sorted {
 		WalkRules(c.Modules[name], func(r *Rule) bool {
 			candidates := ReservedVars.Copy()
@@ -1226,12 +1234,13 @@ func (c *Compiler) checkRuleConflicts() {
 	})
 }
 
-func (c *Compiler) checkUndefinedFuncs() {
-	c.forEachModule(func(mod *Module) {
-		for _, err := range checkUndefinedFuncs(c.TypeEnv, mod, c.GetArity, c.RewrittenVars) {
-			c.err(err)
-		}
-	})
+func (c *Compiler) checkUndefinedFuncsMod(mod *Module) {
+	if c.allowUndefinedFuncCalls {
+		return
+	}
+	for _, err := range checkUndefinedFuncs(c.TypeEnv, mod, c.GetArity, c.RewrittenVars) {
+		c.err(err)
+	}
 }
 
 func checkUndefinedFuncs(env *TypeEnv, x any, arity func(Ref) int, rwVars map[Var]Var) Errors {
@@ -1285,16 +1294,17 @@ func arityMismatchError(env *TypeEnv, f Ref, expr *Expr, exp, act int) *Error {
 // checkSafetyRuleBodies ensures that variables appearing in negated expressions or non-target
 // positions of built-in expressions will be bound when evaluating the rule from left
 // to right, re-ordering as necessary.
-func (c *Compiler) checkSafetyRuleBodies() {
-	c.forEachModule(func(mod *Module) {
-		WalkRules(mod, func(r *Rule) bool {
-			safe := ReservedVars.Copy()
-			if len(r.Head.Args) > 0 {
-				safe.Update(r.Head.Args.Vars())
-			}
-			r.Body = c.checkBodySafety(safe, r.Body)
-			return false
-		})
+func (c *Compiler) checkSafetyRuleBodiesMod(mod *Module) {
+	if c.allowUndefinedFuncCalls {
+		return
+	}
+	WalkRules(mod, func(r *Rule) bool {
+		safe := ReservedVars.Copy()
+		if len(r.Head.Args) > 0 {
+			safe.Update(r.Head.Args.Vars())
+		}
+		r.Body = c.checkBodySafety(safe, r.Body)
+		return false
 	})
 }
 
@@ -1319,29 +1329,27 @@ var SafetyCheckVisitorParams = VarVisitorParams{
 
 // checkSafetyRuleHeads ensures that variables appearing in the head of a
 // rule also appear in the body.
-func (c *Compiler) checkSafetyRuleHeads() {
-	c.forEachModule(func(mod *Module) {
-		WalkRules(mod, func(r *Rule) bool {
-			safe := r.Body.Vars(SafetyCheckVisitorParams)
-			if len(r.Head.Args) > 0 {
-				safe.Update(r.Head.Args.Vars())
-			}
-			if headMayHaveVars(r.Head) {
-				vars := r.Head.Vars()
-				if vars.DiffCount(safe) > 0 {
-					unsafe := vars.Diff(safe)
-					for v := range unsafe {
-						if w, ok := c.RewrittenVars[v]; ok {
-							v = w
-						}
-						if !v.IsGenerated() {
-							c.err(NewError(UnsafeVarErr, r.Loc(), "var %v is unsafe", v))
-						}
+func (c *Compiler) checkSafetyRuleHeadsMod(mod *Module) {
+	WalkRules(mod, func(r *Rule) bool {
+		safe := r.Body.Vars(SafetyCheckVisitorParams)
+		if len(r.Head.Args) > 0 {
+			safe.Update(r.Head.Args.Vars())
+		}
+		if headMayHaveVars(r.Head) {
+			vars := r.Head.Vars()
+			if vars.DiffCount(safe) > 0 {
+				unsafe := vars.Diff(safe)
+				for v := range unsafe {
+					if w, ok := c.RewrittenVars[v]; ok {
+						v = w
+					}
+					if !v.IsGenerated() {
+						c.err(NewError(UnsafeVarErr, r.Loc(), "var %v is unsafe", v))
 					}
 				}
 			}
-			return false
-		})
+		}
+		return false
 	})
 }
 
@@ -1651,6 +1659,8 @@ func (c *Compiler) runStageAfter(metricName string, s CompilerStage) *Error {
 	return s(c)
 }
 
+var _ = log.Printf
+
 func (c *Compiler) compile() {
 
 	defer func() {
@@ -1659,15 +1669,6 @@ func (c *Compiler) compile() {
 		}
 	}()
 
-	skip := make(map[string]bool, 4)
-	if c.evalMode == EvalModeIR {
-		skip["BuildRuleIndices"] = true
-		skip["BuildComprehensionIndices"] = true
-	}
-	if c.allowUndefinedFuncCalls {
-		skip["CheckSafetyRuleBodies"] = true
-		skip["CheckUndefinedFuncs"] = true
-	}
 	stages := c.stages
 	for s, as := range c.after {
 		for _, a := range slices.Backward(as) {
@@ -1689,11 +1690,37 @@ func (c *Compiler) compile() {
 		run = func(_ string, f func()) { f() }
 	}
 
-	for i := range stages {
-		if skip[stages[i].name] {
+	var group []*stage
+	for i := 0; i < len(stages); i += max(len(group), 1) {
+		// log.Printf("now at stage[%d]: %s", i, stages[i].name)
+		if stages[i].f != nil {
+			run(stages[i].metricName, stages[i].f)
+			group = nil
 			continue
 		}
-		run(stages[i].metricName, stages[i].f)
+
+		// log.Printf("stage[%d]: %s", i, stages[i].name)
+		group = []*stage{}
+		for j := 0; j < len(stages)-i-1; j++ { // we'll look ahead
+			if stages[i+j].fm != nil {
+				group = append(group, stages[i+j])
+				// log.Printf("group += %s", stages[i+j].name)
+				continue
+			} else if j >= 1 { // stages[i+j].fm is nil, run group and ffwd
+				// log.Printf("stage[%d] %s, ffwd %d", i, stages[i].name, len(group))
+				// run group!
+				// log.Printf("run group of %d stages: %#v", len(group), group)
+				c.forEachModule(func(mod *Module) {
+					for k := range group {
+						group[k].fm(mod)
+						if c.Failed() {
+							return
+						}
+					}
+				})
+			}
+			break
+		}
 		if c.Failed() {
 			return
 		}
@@ -1830,41 +1857,38 @@ func (c *Compiler) GetAnnotationSet() *AnnotationSet {
 	return c.annotationSet
 }
 
-func (c *Compiler) checkImports() {
-	modules := make([]*Module, 0, len(c.Modules))
+// func (c *Compiler) checkImports() {
+// 	c.forEachModule(c.checkImportsMod)
+// }
 
+func (c *Compiler) checkImportsMod(mod *Module) {
 	supportsRegoV1Import := c.capabilities.ContainsFeature(FeatureRegoV1Import) ||
 		c.capabilities.ContainsFeature(FeatureRegoV1)
-
-	for _, name := range c.sorted {
-		mod := c.Modules[name]
-
-		for _, imp := range mod.Imports {
-			if !supportsRegoV1Import && RegoV1CompatibleRef.Equal(imp.Path.Value) {
-				c.err(NewError(CompileErr, imp.Loc(), "rego.v1 import is not supported"))
-			}
-		}
-
-		if c.strict || c.moduleIsRegoV1Compatible(mod) {
-			modules = append(modules, mod)
+	for _, imp := range mod.Imports {
+		if !supportsRegoV1Import && RegoV1CompatibleRef.Equal(imp.Path.Value) {
+			c.err(NewError(CompileErr, imp.Loc(), "rego.v1 import is not supported"))
 		}
 	}
 
-	errs := checkDuplicateImports(modules)
-	for _, err := range errs {
-		c.err(err)
+	if c.strict || c.moduleIsRegoV1Compatible(mod) {
+		errs := checkDuplicateImports([]*Module{mod})
+		for _, err := range errs {
+			c.err(err)
+		}
 	}
 }
 
-func (c *Compiler) checkKeywordOverrides() {
-	c.forEachModule(func(mod *Module) {
-		if c.strict || c.moduleIsRegoV1Compatible(mod) {
-			errs := checkRootDocumentOverrides(mod)
-			for _, err := range errs {
-				c.err(err)
-			}
+// func (c *Compiler) checkKeywordOverrides() {
+// 	c.forEachModule(c.checkKeywordOverridesMod)
+// }
+
+func (c *Compiler) checkKeywordOverridesMod(mod *Module) {
+	if c.strict || c.moduleIsRegoV1Compatible(mod) {
+		errs := checkRootDocumentOverrides(mod)
+		for _, err := range errs {
+			c.err(err)
 		}
-	})
+	}
 }
 
 func (c *Compiler) moduleIsRegoV1(mod *Module) bool {
@@ -1987,121 +2011,111 @@ func (c *Compiler) initLocalVarGen() {
 	c.localvargen = newLocalVarGeneratorForModuleSet(c.sorted, c.Modules)
 }
 
-func (c *Compiler) rewriteComprehensionTerms() {
-	f := newEqualityFactory(c.localvargen)
-	c.forEachModule(func(mod *Module) {
-		_, _ = rewriteComprehensionTerms(f, mod) // ignore error
-	})
+func (c *Compiler) rewriteComprehensionTermsMod(mod *Module) {
+	_, _ = rewriteComprehensionTerms(c.localvargen.newEqualityFactory(), mod) // ignore error
 }
 
-func (c *Compiler) rewriteExprTerms() {
-	c.forEachModule(func(mod *Module) {
-		WalkRules(mod, func(rule *Rule) bool {
-			rewriteExprTermsInHead(c.localvargen, rule)
-			rule.Body = rewriteExprTermsInBody(c.localvargen, rule.Body)
-			return false
-		})
+func (c *Compiler) rewriteExprTermsMod(mod *Module) {
+	WalkRules(mod, func(rule *Rule) bool {
+		rewriteExprTermsInHead(c.localvargen, rule)
+		rule.Body = rewriteExprTermsInBody(c.localvargen, rule.Body)
+		return false
 	})
 }
 
 func (c *Compiler) rewriteRuleHeadRefs() {
-	f := newEqualityFactory(c.localvargen)
-	c.forEachModule(func(mod *Module) {
-		WalkRules(mod, func(rule *Rule) bool {
-
-			ref := rule.Head.Ref()
-			// NOTE(sr): We're backfilling Refs here -- all parser code paths would have them, but
-			//           it's possible to construct Module{} instances from Golang code, so we need
-			//           to accommodate for that, too.
-			if len(rule.Head.Reference) == 0 {
-				rule.Head.Reference = ref
-			}
-
-			cannotSpeakStringPrefixRefs := true
-			cannotSpeakGeneralRefs := true
-			for _, f := range c.capabilities.Features {
-				switch f {
-				case FeatureRefHeadStringPrefixes:
-					cannotSpeakStringPrefixRefs = false
-				case FeatureRefHeads:
-					cannotSpeakGeneralRefs = false
-				case FeatureRegoV1:
-					cannotSpeakStringPrefixRefs = false
-					cannotSpeakGeneralRefs = false
-				}
-			}
-
-			if cannotSpeakStringPrefixRefs && cannotSpeakGeneralRefs && rule.Head.Name == "" {
-				c.err(NewError(CompileErr, rule.Loc(), "rule heads with refs are not supported: %v", rule.Head.Reference))
-				return true
-			}
-
-			for i := 1; i < len(ref); i++ {
-				if cannotSpeakGeneralRefs && (rule.Head.RuleKind() == MultiValue || i != len(ref)-1) { // last
-					if _, ok := ref[i].Value.(String); !ok {
-						c.err(NewError(TypeErr, rule.Loc(), "rule heads with general refs (containing variables) are not supported: %v", rule.Head.Reference))
-						continue
-					}
-				}
-
-				// Rewrite so that any non-scalar elements in the rule's ref are vars:
-				//     p.q.r[y.z] { ... }  =>  p.q.r[__local0__] { __local0__ = y.z }
-				//     p.q[a.b][c.d] { ... }  =>  p.q[__local0__] { __local0__ = a.b; __local1__ = c.d }
-				// because that's what the RuleTree knows how to deal with.
-				if _, ok := ref[i].Value.(Var); !ok && !IsScalar(ref[i].Value) {
-					expr := f.Generate(ref[i])
-					if i == len(ref)-1 && rule.Head.Key.Equal(ref[i]) {
-						rule.Head.Key = expr.Operand(0)
-					}
-					rule.Head.Reference[i] = expr.Operand(0)
-					rule.Body.Append(expr)
-				}
-			}
-
-			return true
-		})
-	})
+	c.forEachModule(c.rewriteRuleHeadRefsMod)
 }
 
-func (c *Compiler) checkVoidCalls() {
-	c.forEachModule(func(mod *Module) {
-		for _, err := range checkVoidCalls(c.TypeEnv, mod) {
-			c.err(err)
+func (c *Compiler) rewriteRuleHeadRefsMod(mod *Module) {
+	WalkRules(mod, func(rule *Rule) bool {
+
+		ref := rule.Head.Ref()
+		// NOTE(sr): We're backfilling Refs here -- all parser code paths would have them, but
+		//           it's possible to construct Module{} instances from Golang code, so we need
+		//           to accommodate for that, too.
+		if len(rule.Head.Reference) == 0 {
+			rule.Head.Reference = ref
 		}
+
+		cannotSpeakStringPrefixRefs := true
+		cannotSpeakGeneralRefs := true
+		for _, f := range c.capabilities.Features {
+			switch f {
+			case FeatureRefHeadStringPrefixes:
+				cannotSpeakStringPrefixRefs = false
+			case FeatureRefHeads:
+				cannotSpeakGeneralRefs = false
+			case FeatureRegoV1:
+				cannotSpeakStringPrefixRefs = false
+				cannotSpeakGeneralRefs = false
+			}
+		}
+
+		if cannotSpeakStringPrefixRefs && cannotSpeakGeneralRefs && rule.Head.Name == "" {
+			c.err(NewError(CompileErr, rule.Loc(), "rule heads with refs are not supported: %v", rule.Head.Reference))
+			return true
+		}
+
+		for i := 1; i < len(ref); i++ {
+			if cannotSpeakGeneralRefs && (rule.Head.RuleKind() == MultiValue || i != len(ref)-1) { // last
+				if _, ok := ref[i].Value.(String); !ok {
+					c.err(NewError(TypeErr, rule.Loc(), "rule heads with general refs (containing variables) are not supported: %v", rule.Head.Reference))
+					continue
+				}
+			}
+
+			// Rewrite so that any non-scalar elements in the rule's ref are vars:
+			//     p.q.r[y.z] { ... }  =>  p.q.r[__local0__] { __local0__ = y.z }
+			//     p.q[a.b][c.d] { ... }  =>  p.q[__local0__] { __local0__ = a.b; __local1__ = c.d }
+			// because that's what the RuleTree knows how to deal with.
+			if _, ok := ref[i].Value.(Var); !ok && !IsScalar(ref[i].Value) {
+				expr := c.localvargen.newEqualityFactory().Generate(ref[i])
+				if i == len(ref)-1 && rule.Head.Key.Equal(ref[i]) {
+					rule.Head.Key = expr.Operand(0)
+				}
+				rule.Head.Reference[i] = expr.Operand(0)
+				rule.Body.Append(expr)
+			}
+		}
+
+		return true
 	})
 }
 
-func (c *Compiler) rewritePrintCalls() {
+func (c *Compiler) checkVoidCallsMod(mod *Module) {
+	for _, err := range checkVoidCalls(c.TypeEnv, mod) {
+		c.err(err)
+	}
+}
+
+func (c *Compiler) rewritePrintCallsMod(mod *Module) {
 	var modified bool
 	if !c.enablePrintStatements {
-		for _, name := range c.sorted {
-			if erasePrintCalls(c.Modules[name]) {
-				modified = true
-			}
+		if erasePrintCalls(mod) {
+			modified = true
 		}
 	} else {
-		c.forEachModule(func(mod *Module) {
-			WalkRules(mod, func(r *Rule) bool {
-				safe := r.Head.Args.Vars()
-				safe.Update(ReservedVars)
-				vis := func(b Body) bool {
-					modrec, errs := rewritePrintCalls(c.localvargen, c.GetArity, safe, b)
-					if modrec {
-						modified = true
-					}
-					for _, err := range errs {
-						c.err(err)
-					}
-					return false
+		WalkRules(mod, func(r *Rule) bool {
+			safe := r.Head.Args.Vars()
+			safe.Update(ReservedVars)
+			vis := func(b Body) bool {
+				modrec, errs := rewritePrintCalls(c.localvargen, c.GetArity, safe, b)
+				if modrec {
+					modified = true
 				}
-				WalkBodies(r.Head, vis)
-				WalkBodies(r.Body, vis)
+				for _, err := range errs {
+					c.err(err)
+				}
 				return false
-			})
+			}
+			WalkBodies(r.Head, vis)
+			WalkBodies(r.Body, vis)
+			return false
 		})
 	}
 	if modified {
-		c.Required.addBuiltinSorted(Print)
+		c.Required.addBuiltinSorted(Print) // TODO(sr): concurrency-proof this
 	}
 }
 
@@ -2309,49 +2323,41 @@ func isPrintCall(x *Expr) bool {
 // The rule would be re-written as:
 //
 // p[__local0__] { i < 100; __local0__ = {"foo": data.foo[i]} }
-func (c *Compiler) rewriteRefsInHead() {
+func (c *Compiler) rewriteRefsInHeadMod(mod *Module) {
 	f := newEqualityFactory(c.localvargen)
-	c.forEachModule(func(mod *Module) {
-		WalkRules(mod, func(rule *Rule) bool {
-			if requiresEval(rule.Head.Key) {
-				expr := f.Generate(rule.Head.Key)
-				rule.Head.Key = expr.Operand(0)
+	WalkRules(mod, func(rule *Rule) bool {
+		if requiresEval(rule.Head.Key) {
+			expr := f.Generate(rule.Head.Key)
+			rule.Head.Key = expr.Operand(0)
+			rule.Body.Append(expr)
+		}
+		if requiresEval(rule.Head.Value) {
+			expr := f.Generate(rule.Head.Value)
+			rule.Head.Value = expr.Operand(0)
+			rule.Body.Append(expr)
+		}
+		for i := 0; i < len(rule.Head.Args); i++ {
+			if requiresEval(rule.Head.Args[i]) {
+				expr := f.Generate(rule.Head.Args[i])
+				rule.Head.Args[i] = expr.Operand(0)
 				rule.Body.Append(expr)
 			}
-			if requiresEval(rule.Head.Value) {
-				expr := f.Generate(rule.Head.Value)
-				rule.Head.Value = expr.Operand(0)
-				rule.Body.Append(expr)
-			}
-			for i := 0; i < len(rule.Head.Args); i++ {
-				if requiresEval(rule.Head.Args[i]) {
-					expr := f.Generate(rule.Head.Args[i])
-					rule.Head.Args[i] = expr.Operand(0)
-					rule.Body.Append(expr)
-				}
-			}
-			return false
-		})
+		}
+		return false
 	})
 }
 
-func (c *Compiler) rewriteEquals() {
-	modified := false
-	c.forEachModule(func(mod *Module) {
-		modified = rewriteEquals(mod) || modified
-	})
-	if modified {
-		c.Required.addBuiltinSorted(Equal)
+func (c *Compiler) rewriteEqualsMod(mod *Module) {
+	if rewriteEquals(mod) {
+		c.Required.addBuiltinSorted(Equal) // TODO(sr): concurrency!
 	}
 }
 
-func (c *Compiler) rewriteDynamicTerms() {
+func (c *Compiler) rewriteDynamicTermsMod(mod *Module) {
 	f := newEqualityFactory(c.localvargen)
-	c.forEachModule(func(mod *Module) {
-		WalkRules(mod, func(rule *Rule) bool {
-			rule.Body = rewriteDynamics(f, rule.Body)
-			return false
-		})
+	WalkRules(mod, func(rule *Rule) bool {
+		rule.Body = rewriteDynamics(f, rule.Body)
+		return false
 	})
 }
 
@@ -2375,19 +2381,17 @@ func (c *Compiler) rewriteDynamicTerms() {
 //
 // `p` in `test_rule` resolves to `data.test.p`, which won't be an entry in the virtual-cache and must therefore be calculated after-the-fact.
 // If `p` isn't captured in a local var, there is no trivial way to retrieve its value for test reporting.
-func (c *Compiler) rewriteTestRuleEqualities() {
+func (c *Compiler) rewriteTestRuleEqualitiesMod(mod *Module) {
 	if !c.rewriteTestRulesForTracing {
 		return
 	}
 
 	f := newEqualityFactory(c.localvargen)
-	c.forEachModule(func(mod *Module) {
-		WalkRules(mod, func(rule *Rule) bool {
-			if strings.HasPrefix(string(rule.Head.Name), "test_") {
-				rule.Body = rewriteTestEqualities(f, rule.Body)
-			}
-			return false
-		})
+	WalkRules(mod, func(rule *Rule) bool {
+		if strings.HasPrefix(string(rule.Head.Name), "test_") {
+			rule.Body = rewriteTestEqualities(f, rule.Body)
+		}
+		return false
 	})
 }
 
@@ -2423,90 +2427,88 @@ func (c *Compiler) parseMetadataBlocks() {
 	}
 }
 
-func (c *Compiler) rewriteRegoMetadataCalls() {
-	eqFactory := newEqualityFactory(c.localvargen)
+func (c *Compiler) rewriteRegoMetadataCallsMod(mod *Module) {
+	eqFactory := c.localvargen.newEqualityFactory()
 
 	_, chainFuncAllowed := c.builtins[RegoMetadataChain.Name]
 	_, ruleFuncAllowed := c.builtins[RegoMetadataRule.Name]
 
-	c.forEachModule(func(mod *Module) {
-		WalkRules(mod, func(rule *Rule) bool {
-			var firstChainCall *Expr
-			var firstRuleCall *Expr
+	WalkRules(mod, func(rule *Rule) bool {
+		var firstChainCall *Expr
+		var firstRuleCall *Expr
 
-			WalkExprs(rule, func(expr *Expr) bool {
-				if chainFuncAllowed && firstChainCall == nil && isRegoMetadataChainCall(expr) {
-					firstChainCall = expr
-				} else if ruleFuncAllowed && firstRuleCall == nil && isRegoMetadataRuleCall(expr) {
-					firstRuleCall = expr
+		WalkExprs(rule, func(expr *Expr) bool {
+			if chainFuncAllowed && firstChainCall == nil && isRegoMetadataChainCall(expr) {
+				firstChainCall = expr
+			} else if ruleFuncAllowed && firstRuleCall == nil && isRegoMetadataRuleCall(expr) {
+				firstRuleCall = expr
+			}
+			return firstChainCall != nil && firstRuleCall != nil
+		})
+
+		chainCalled := firstChainCall != nil
+		ruleCalled := firstRuleCall != nil
+
+		if chainCalled || ruleCalled {
+			body := make(Body, 0, len(rule.Body)+2)
+
+			var metadataChainVar Var
+			if chainCalled {
+				// Create and inject metadata chain for rule
+
+				chain, err := createMetadataChain(c.annotationSet.Chain(rule))
+				if err != nil {
+					c.err(err)
+					return false
 				}
-				return firstChainCall != nil && firstRuleCall != nil
-			})
 
-			chainCalled := firstChainCall != nil
-			ruleCalled := firstRuleCall != nil
+				chain.Location = firstChainCall.Location
+				eq := eqFactory.Generate(chain)
+				metadataChainVar = eq.Operands()[0].Value.(Var)
+				body.Append(eq)
+			}
 
-			if chainCalled || ruleCalled {
-				body := make(Body, 0, len(rule.Body)+2)
+			var metadataRuleVar Var
+			if ruleCalled {
+				// Create and inject metadata for rule
 
-				var metadataChainVar Var
-				if chainCalled {
-					// Create and inject metadata chain for rule
+				var metadataRuleTerm *Term
 
-					chain, err := createMetadataChain(c.annotationSet.Chain(rule))
+				a := getPrimaryRuleAnnotations(c.annotationSet, rule)
+				if a != nil {
+					annotObj, err := a.toObject()
 					if err != nil {
 						c.err(err)
 						return false
 					}
-
-					chain.Location = firstChainCall.Location
-					eq := eqFactory.Generate(chain)
-					metadataChainVar = eq.Operands()[0].Value.(Var)
-					body.Append(eq)
+					metadataRuleTerm = NewTerm(*annotObj)
+				} else {
+					// If rule has no annotations, assign an empty object
+					metadataRuleTerm = ObjectTerm()
 				}
 
-				var metadataRuleVar Var
-				if ruleCalled {
-					// Create and inject metadata for rule
-
-					var metadataRuleTerm *Term
-
-					a := getPrimaryRuleAnnotations(c.annotationSet, rule)
-					if a != nil {
-						annotObj, err := a.toObject()
-						if err != nil {
-							c.err(err)
-							return false
-						}
-						metadataRuleTerm = NewTerm(*annotObj)
-					} else {
-						// If rule has no annotations, assign an empty object
-						metadataRuleTerm = ObjectTerm()
-					}
-
-					metadataRuleTerm.Location = firstRuleCall.Location
-					eq := eqFactory.Generate(metadataRuleTerm)
-					metadataRuleVar = eq.Operands()[0].Value.(Var)
-					body.Append(eq)
-				}
-
-				for _, expr := range rule.Body {
-					body.Append(expr)
-				}
-				rule.Body = body
-
-				vis := func(b Body) bool {
-					for _, err := range rewriteRegoMetadataCalls(&metadataChainVar, &metadataRuleVar, b, &c.RewrittenVars) {
-						c.err(err)
-					}
-					return false
-				}
-				WalkBodies(rule.Head, vis)
-				WalkBodies(rule.Body, vis)
+				metadataRuleTerm.Location = firstRuleCall.Location
+				eq := eqFactory.Generate(metadataRuleTerm)
+				metadataRuleVar = eq.Operands()[0].Value.(Var)
+				body.Append(eq)
 			}
 
-			return false
-		})
+			for _, expr := range rule.Body {
+				body.Append(expr)
+			}
+			rule.Body = body
+
+			vis := func(b Body) bool {
+				for _, err := range rewriteRegoMetadataCalls(&metadataChainVar, &metadataRuleVar, b, &c.RewrittenVars) {
+					c.err(err)
+				}
+				return false
+			}
+			WalkBodies(rule.Head, vis)
+			WalkBodies(rule.Body, vis)
+		}
+
+		return false
 	})
 }
 
@@ -2899,23 +2901,21 @@ func (vis *ruleArgLocalRewriter) Visit(x any) Visitor {
 	}
 }
 
-func (c *Compiler) rewriteWithModifiers() {
+func (c *Compiler) rewriteWithModifiersMod(mod *Module) {
 	f := newEqualityFactory(c.localvargen)
-	c.forEachModule(func(mod *Module) {
-		t := NewGenericTransformer(func(x any) (any, error) {
-			body, ok := x.(Body)
-			if !ok {
-				return x, nil
-			}
-			body, err := rewriteWithModifiersInBody(c, c.unsafeBuiltinsMap, f, body)
-			if err != nil {
-				c.err(err)
-			}
+	t := NewGenericTransformer(func(x any) (any, error) {
+		body, ok := x.(Body)
+		if !ok {
+			return x, nil
+		}
+		body, err := rewriteWithModifiersInBody(c, c.unsafeBuiltinsMap, f, body)
+		if err != nil {
+			c.err(err)
+		}
 
-			return body, nil
-		})
-		_, _ = Transform(t, mod) // ignore error
+		return body, nil
 	})
+	_, _ = Transform(t, mod) // ignore error
 }
 
 func (c *Compiler) setModuleTree() {
@@ -4355,6 +4355,10 @@ func newLocalVarGenerator(suffix string, node any) *localVarGenerator {
 	vis := NewVarVisitor()
 	vis.Walk(node)
 	return &localVarGenerator{exclude: vis.vars, suffix: suffix, next: &atomic.Int32{}}
+}
+
+func (l *localVarGenerator) newEqualityFactory() *equalityFactory {
+	return newEqualityFactory(l)
 }
 
 func (l *localVarGenerator) Generate() Var {
