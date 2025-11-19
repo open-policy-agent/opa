@@ -10,13 +10,12 @@ code and simple APIs to offload policy decision-making from your software. You
 can use OPA to enforce policies in microservices, Kubernetes, CI/CD pipelines,
 API gateways, and more.
 
-OPA was originally created by [Styra](https://www.styra.com) and is proud to be
-a graduated project in the [Cloud Native Computing Foundation
-(CNCF)](https://www.cncf.io/) landscape. For details read the CNCF
-[announcement](https://www.cncf.io/announcements/2021/02/04/cloud-native-computing-foundation-announces-open-policy-agent-graduation/).
+OPA is proud to be a graduated
+[Cloud Native Computing Foundation (CNCF)](https://www.cncf.io/announcements/2021/02/04/cloud-native-computing-foundation-announces-open-policy-agent-graduation/)
+project.
 
-Read this page to learn about the core concepts in OPA's policy language
-([Rego](./docs/policy-language)) as well as how to download, run, and integrate OPA.
+This page covers core concepts in OPA's policy language
+([Rego](./docs/policy-language)) as well as how to download and run OPA.
 
 ## What is OPA?
 
@@ -274,22 +273,18 @@ output if {
 
 <RunSnippet files="#input.json" command="data.servers.output"/>
 
-Like other declarative languages (e.g., SQL), iteration in Rego happens
-implicitly when you inject variables into expressions.
+Imagine you need to check if any networks are public. Recall that the networks
+are supplied inside an array:
 
-There are explicit iteration constructs to express _FOR ALL_ and _FOR SOME_, [see below](#for-some-and-for-all).
-
-To understand how iteration works in Rego, imagine you need to check if any
-networks are public. Recall that the networks are supplied inside an array:
 `[{"id": "net1", "public": false}, {"id": "net2", "public": false}, ...]`
 
-One option would be to test each network in the input (which is undefined since
-networks 1 and 2 are not public). Incremental definitions of a rule are
-[OR'd together](#logical-or) so if any are true, the result of the whole rule is
-true.
+To solve this problem, you might naively first think to test each network
+individually by checking specific array indices like this:
 
 ```rego
 package servers
+
+# if any are true, the result of the exists_public_network is true.
 
 exists_public_network if input.networks[0].public == true
 # or
@@ -303,9 +298,12 @@ exists_public_network if input.networks[3].public == true
 
 <RunSnippet files="#input.json" command="data.servers.exists_public_network"/>
 
-**This approach is problematic**. There may be too many networks to list
-statically, or more importantly, the number of networks may not be known in
-advance. In Rego, the solution is to substitute the array index with a variable.
+This approach is problematic, there may be too many networks to list statically,
+the number of networks may not be known in advance.
+
+Like other declarative languages (e.g., SQL), iteration in Rego happens
+implicitly when you inject variables into expressions. The solution for this
+case is to substitute the array index with a variable:
 
 ```rego
 package servers
@@ -323,8 +321,9 @@ you substitute variables in references, OPA automatically finds variable
 assignments that satisfy all of the expressions in the query. Just like
 intermediate variables, OPA returns the values of the variables.
 
-You can substitute as many variables as you want. For example, to find out if
-any servers expose the insecure `"http"` protocol you could write:
+You can substitute as many variables as you want to do nested iteration. For
+example, to find out if any servers expose the insecure `"http"` protocol you
+could write:
 
 ```rego
 package servers
