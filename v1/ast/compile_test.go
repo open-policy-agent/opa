@@ -7571,7 +7571,7 @@ func TestCompilerRewritePrintCalls(t *testing.T) {
 	}
 }
 
-func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
+func TestCompilerRewriteTemplateStrings(t *testing.T) {
 	tests := []struct {
 		note   string
 		module string
@@ -8447,20 +8447,20 @@ func TestCompilerRewriteTemplateStringCalls(t *testing.T) {
 	}
 }
 
-func TestCompilerRewriteTemplateStringCallsErrors(t *testing.T) {
+func TestCompilerRewriteTemplateStringsErrors(t *testing.T) {
 	cases := []struct {
 		note   string
 		module string
 		exp    string
 	}{
 		{
-			note: "non-existent var, rule head",
+			note: "undeclared var, rule head",
 			module: `package test
 				p := $"{x}"`,
 			exp: "var x is undeclared",
 		},
 		{
-			note: "non-existent var, rule body",
+			note: "undeclared var, rule body",
 			module: `package test
 				p := msg if {
 					msg := $"{x}"
@@ -8468,7 +8468,7 @@ func TestCompilerRewriteTemplateStringCallsErrors(t *testing.T) {
 			exp: "var x is undeclared",
 		},
 		{
-			note: "non-existent var (wildcard)",
+			note: "undeclared var (wildcard)",
 			module: `package test
 				p := msg if {
 					a := ["a", "b"]
@@ -8477,7 +8477,7 @@ func TestCompilerRewriteTemplateStringCallsErrors(t *testing.T) {
 			exp: "var _ is undeclared",
 		},
 		{
-			note: "non-existent var (enum)",
+			note: "undeclared var (enum)",
 			module: `package test
 				p := msg if {
 					a := ["a", "b"]
@@ -8486,62 +8486,62 @@ func TestCompilerRewriteTemplateStringCallsErrors(t *testing.T) {
 			exp: "var x is undeclared",
 		},
 		{
-			note: "non-existent var, nested inside template-string",
+			note: "undeclared var, nested inside template-string",
 			module: `package test
 				p := $"{$"{x}"}"`,
 			exp: "var x is undeclared",
 		},
 		{
-			note: "non-existent var, inside array comprehension body",
+			note: "undeclared var, inside array comprehension body",
 			module: `package test
 				a := ["a", "b"]
 				p := [x | x := $"{a[_]}"]`,
 			exp: "var _ is undeclared",
 		},
 		{
-			note: "non-existent var, inside array comprehension head",
+			note: "undeclared var, inside array comprehension head",
 			module: `package test
 				a := ["a", "b"]
 				p := [$"{a[_]}" | x := 42]`,
 			exp: "var _ is undeclared",
 		},
 		{
-			note: "non-existent var, inside set comprehension body",
+			note: "undeclared var, inside set comprehension body",
 			module: `package test
 				a := ["a", "b"]
 				p := {x | x := $"{a[_]}"}`,
 			exp: "var _ is undeclared",
 		},
 		{
-			note: "non-existent var, inside set comprehension head",
+			note: "undeclared var, inside set comprehension head",
 			module: `package test
 				a := ["a", "b"]
 				p := {$"{a[_]}" | x := 42}`,
 			exp: "var _ is undeclared",
 		},
 		{
-			note: "non-existent var, inside object comprehension body",
+			note: "undeclared var, inside object comprehension body",
 			module: `package test
 				a := ["a", "b"]
 				p := {x: y | x := $"{a[_]}"; y := 42}`,
 			exp: "var _ is undeclared",
 		},
 		{
-			note: "non-existent var, inside object comprehension key",
+			note: "undeclared var, inside object comprehension key",
 			module: `package test
 				a := ["a", "b"]
 				p := {$"{a[_]}": 42 | x := 42}`,
 			exp: "var _ is undeclared",
 		},
 		{
-			note: "non-existent var, inside object comprehension value",
+			note: "undeclared var, inside object comprehension value",
 			module: `package test
 				a := ["a", "b"]
 				p := {42: $"{a[_]}" | x := 42}`,
 			exp: "var _ is undeclared",
 		},
 		{
-			note: "non-existent var, inside every domain",
+			note: "undeclared var, inside every domain",
 			module: `package test
 				p if {
 					every x in {"a", $"{x}"} {
@@ -8551,7 +8551,7 @@ func TestCompilerRewriteTemplateStringCallsErrors(t *testing.T) {
 			exp: "var __local1__ is undeclared", // FIXME
 		},
 		{
-			note: "non-existent var, inside every body",
+			note: "undeclared var, inside every body",
 			module: `package test
 				p if {
 					every x in {"a", "b"} {
@@ -11228,6 +11228,118 @@ func runStrictnessQueryTestCase(t *testing.T, cases []strictnessQueryTestCase) {
 	for _, tc := range cases {
 		t.Run(tc.note+"_strict", makeTestRunner(tc, true))
 		t.Run(tc.note+"_non-strict", makeTestRunner(tc, false))
+	}
+}
+
+func TestQueryCompilerRewriteTemplateStrings(t *testing.T) {
+	cases := []struct {
+		note  string
+		query string
+		exp   string
+	}{
+		{
+			note:  "empty template string",
+			query: `$""`,
+			exp:   `internal.template_string([""], __localq0__); __localq0__`,
+		},
+		{
+			note:  "non-empty template string with no expressions",
+			query: `$"foo"`,
+			exp:   `internal.template_string(["foo"], __localq0__); __localq0__`,
+		},
+		{
+			note:  "template string with value expressions",
+			query: `$"{true} {null} {42} {1.2} {"foo"} {[1, 2]} {{1, 2}} {{"a": 1, "b": 2}}"`,
+			exp: `__localq4__ = {__localq0__ | __localq0__ = [1, 2]}
+				__localq5__ = {__localq1__ | __localq1__ = {1, 2}}
+				__localq6__ = {__localq2__ | __localq2__ = {"a": 1, "b": 2}}
+				internal.template_string([true, " ", null, " ", 42, " ", 1.2, " ", "foo", " ", __localq4__, " ", __localq5__, " ", __localq6__], __localq3__)
+				__localq3__`,
+		},
+		{
+			note:  "template string with var and ref expressions",
+			query: `x := 42; $"{x} {input.y}"`,
+			exp: `__localq0__ = 42; 
+				__localq4__ = {__localq1__ | __localq1__ = __localq0__}
+				__localq5__ = {__localq2__ | __localq2__ = input.y}
+				internal.template_string([__localq4__, " ", __localq5__], __localq3__)
+				__localq3__`,
+		},
+		{
+			note:  "template string with call expressions",
+			query: `$"{array.concat([1], [2])} {1 + 2} {true != false}"`,
+			exp: `__localq7__ = {__localq0__ | array.concat([1], [2], __localq3__); __localq0__ = __localq3__}
+				__localq8__ = {__localq1__ | plus(1, 2, __localq4__); __localq1__ = __localq4__}
+				__localq9__ = {__localq2__ | neq(true, false, __localq5__); __localq2__ = __localq5__}
+				internal.template_string([__localq7__, " ", __localq8__, " ", __localq9__], __localq6__)
+				__localq6__`,
+		},
+		{
+			note:  "template string with comprehension expressions",
+			query: `$"{[x | x := input.xs[_]]} {{y | y := input.ys[_]}} {{a: b | a := input.as[_]; b := input.bs[_]}}"`,
+			exp: `__localq8__ = {__localq4__ | __localq4__ = [__localq0__ | __localq0__ = input.xs[_]]}
+				__localq9__ = {__localq5__ | __localq5__ = {__localq1__ | __localq1__ = input.ys[_]}}
+				__localq10__ = {__localq6__ | __localq6__ = {__localq2__: __localq3__ | __localq2__ = input["as"][_]; __localq3__ = input.bs[_]}}
+				internal.template_string([__localq8__, " ", __localq9__, " ", __localq10__], __localq7__)
+				__localq7__`,
+		},
+		{
+			note:  "binding",
+			query: `x := 42; y := $"{x}"`,
+			exp: `__localq0__ = 42
+				__localq4__ = {__localq2__ | __localq2__ = __localq0__}
+				internal.template_string([__localq4__], __localq3__)
+				__localq1__ = __localq3__`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			qc := c.QueryCompiler()
+
+			result, err := qc.Compile(MustParseBody(tc.query))
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			exp := MustParseBody(tc.exp)
+
+			if !exp.Equal(result) {
+				t.Fatalf("Expected:\n%v\n\nGot:\n%v", exp, result)
+			}
+		})
+	}
+}
+
+func TestQueryCompilerRewriteTemplateStringsErrors(t *testing.T) {
+	cases := []struct {
+		note   string
+		query  string
+		expErr string
+	}{
+		{
+			note:   "undeclared var",
+			query:  `$"{x}"`,
+			expErr: "rego_compile_error: var x is undeclared",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			qc := c.QueryCompiler()
+			_, err := qc.Compile(MustParseBody(tc.query))
+
+			if err == nil {
+				t.Fatal("Expected error but got none")
+			}
+
+			if !strings.Contains(err.Error(), tc.expErr) {
+				t.Fatalf("Expected error %v but got: %v", tc.expErr, err)
+			}
+		})
 	}
 }
 

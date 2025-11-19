@@ -1,0 +1,74 @@
+---
+cases:
+  - note: string-interpolation/query/empty template string
+    modules:
+      - |
+        package test
+    query: x = $""
+    ignore_generated_vars: true
+    want_result:
+      - x: ""
+  - note: string-interpolation/query/non-empty template string with no expressions
+    modules:
+      - |
+        package test
+    query: x = $"foo"
+    ignore_generated_vars: true
+    want_result:
+      - x: "foo"
+  - note: string-interpolation/query/template string with value expressions
+    modules:
+      - |
+        package test
+    query: 'x = $"{true} {null} {42} {1.2} {"foo"} {[1, 2]} {{1, 2}} {{"a": 1, "b": 2}}"'
+    ignore_generated_vars: true
+    want_result:
+      - x: "true null 42 1.2 foo [1, 2] {1, 2} {\"a\": 1, \"b\": 2}"
+  - note: string-interpolation/query/template string with ref expressions (undefined)
+    modules:
+      - |
+        package test
+        
+        p if {
+          false
+        }
+    query: 'x = $"{data.test.p} {input.y}"'
+    ignore_generated_vars: true
+    want_result:
+      - x: "<undefined> <undefined>"
+  - note: string-interpolation/query/template string with var and ref expressions
+    modules:
+      - |
+        package test
+        
+        p if {
+          true
+        }
+    data:
+      a: "foo"
+    input:
+      b: "bar"
+    query: 'x = 42; y = $"{x} {data.test.p} {data.a} {input.b}"'
+    ignore_generated_vars: true
+    want_result:
+      - x: 42
+        "y": "42 true foo bar"
+  - note: string-interpolation/query/template string with call expressions
+    modules:
+      - |
+        package test
+    query: 'x = $"{array.concat([1], [2])} {1 + 2} {true != false}"'
+    ignore_generated_vars: true
+    want_result:
+      - x: "[1, 2] 3 true"
+  - note: string-interpolation/query/template string with comprehension expressions
+    modules:
+      - |
+        package test
+    input:
+      xs: ["a", "b"]
+      ys: ["c", "d"]
+    query: 'x = $"{[x | x := input.xs[_]]} {{y | y := input.ys[_]}} {{$"{x}-{y}": y | x := input.xs[_]; y := input.ys[_]}}"'
+    ignore_generated_vars: true
+    want_result:
+      - x: '["a", "b"] {"c", "d"} {"a-c": "c", "a-d": "d", "b-c": "c", "b-d": "d"}'

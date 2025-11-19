@@ -3207,6 +3207,7 @@ func (qc *queryCompiler) Compile(query Body) (Body, error) {
 		{"CheckKeywordOverrides", "query_compile_stage_check_keyword_overrides", qc.checkKeywordOverrides},
 		{"ResolveRefs", "query_compile_stage_resolve_refs", qc.resolveRefs},
 		{"RewriteLocalVars", "query_compile_stage_rewrite_local_vars", qc.rewriteLocalVars},
+		{"RewriteTemplateStrings", "compile_stage_rewrite_template_strings", qc.rewriteTemplateStrings},
 		{"CheckVoidCalls", "query_compile_stage_check_void_calls", qc.checkVoidCalls},
 		{"RewritePrintCalls", "query_compile_stage_rewrite_print_calls", qc.rewritePrintCalls},
 		{"RewriteExprTerms", "query_compile_stage_rewrite_expr_terms", qc.rewriteExprTerms},
@@ -3327,6 +3328,14 @@ func (qc *queryCompiler) rewriteLocalVars(_ *QueryContext, body Body) (Body, err
 	// want to include these inside the rewritten set though.
 	qc.rewritten = maps.Clone(stack.rewritten)
 
+	return body, nil
+}
+
+func (qc *queryCompiler) rewriteTemplateStrings(_ *QueryContext, body Body) (Body, error) {
+	gen := newLocalVarGenerator("q", body)
+	if _, _, errs := rewriteTemplateStrings(gen, qc.compiler.GetArity, ReservedVars, body); len(errs) > 0 {
+		return nil, errs
+	}
 	return body, nil
 }
 

@@ -1566,7 +1566,7 @@ func TestPartialRule(t *testing.T) {
 				if expLen, act := len(exp), len(qrs); expLen != act {
 					t.Fatalf("expected %d query result:\n\n%+v,\n\ngot %d query results:\n\n%+v", expLen, exp, act, qrs)
 				}
-				testAssertResultSet(t, exp, qrs, false)
+				testAssertResultSet(t, exp, qrs, false, false)
 			}
 		})
 	}
