@@ -131,7 +131,7 @@ type Compiler struct {
 	localvargen                *localVarGenerator
 	moduleLoader               ModuleLoader
 	ruleIndices                *util.HasherMap[Ref, RuleIndex]
-	stages                     []stage
+	stages                     []*stage
 	maxErrs                    int
 	sorted                     []string // list of sorted module names
 	pathExists                 func([]string) (bool, error)
@@ -327,7 +327,7 @@ func NewCompiler() *Compiler {
 	c.ModuleTree = NewModuleTree(nil)
 	c.RuleTree = NewRuleTree(c.ModuleTree)
 
-	c.stages = []stage{
+	c.stages = []*stage{
 		// Reference resolution should run first as it may be used to lazily
 		// load additional modules. If any stages run before resolution, they
 		// need to be re-run after resolution.
@@ -1659,34 +1659,43 @@ func (c *Compiler) compile() {
 		}
 	}()
 
-	run := c.runStage
-	runStageAfter := c.runStageAfter
-	if c.metrics != nil {
-		run = func(_ string, f func()) { f() }
-		runStageAfter = func(_ string, s CompilerStage) *Error { return s(c) }
+	skip := make(map[string]bool, 4)
+	if c.evalMode == EvalModeIR {
+		skip["BuildRuleIndices"] = true
+		skip["BuildComprehensionIndices"] = true
+	}
+	if c.allowUndefinedFuncCalls {
+		skip["CheckSafetyRuleBodies"] = true
+		skip["CheckUndefinedFuncs"] = true
+	}
+	stages := c.stages
+	for s, as := range c.after {
+		for _, a := range slices.Backward(as) {
+			idx := slices.IndexFunc(stages, func(s0 *stage) bool { return s0.name == s })
+			stages = slices.Insert(stages, idx+1, &stage{
+				name:       a.Name,
+				metricName: a.MetricName,
+				f: func() {
+					if err := a.Stage(c); err != nil {
+						c.err(err)
+					}
+				},
+			})
+		}
 	}
 
-	for _, s := range c.stages {
-		if c.evalMode == EvalModeIR {
-			switch s.name {
-			case "BuildRuleIndices", "BuildComprehensionIndices":
-				continue // skip these stages
-			}
-		}
+	run := c.runStage
+	if c.metrics == nil {
+		run = func(_ string, f func()) { f() }
+	}
 
-		if c.allowUndefinedFuncCalls && (s.name == "CheckUndefinedFuncs" || s.name == "CheckSafetyRuleBodies") {
+	for i := range stages {
+		if skip[stages[i].name] {
 			continue
 		}
-
-		run(s.metricName, s.f)
+		run(stages[i].metricName, stages[i].f)
 		if c.Failed() {
 			return
-		}
-		for _, a := range c.after[s.name] {
-			if err := runStageAfter(a.MetricName, a.Stage); err != nil {
-				c.err(err)
-				return
-			}
 		}
 	}
 }
