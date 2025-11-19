@@ -277,7 +277,7 @@ func TestTopDownQueryCancellationEvery(t *testing.T) {
 			t.Parallel()
 
 			compiler := ast.NewCompiler().WithEnablePrintStatements(true)
-			compiler.Compile(map[string]*ast.Module{"test.rego": tc.module})
+			compiler.Compile(map[string]*ast.Module{"test.rego": tc.module.Copy()})
 			if compiler.Failed() {
 				t.Fatalf("compiler: %v", compiler.Errors)
 			}

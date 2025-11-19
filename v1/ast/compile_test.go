@@ -736,7 +736,6 @@ func TestRuleTreeWithDotsInHeads(t *testing.T) {
 			c := NewCompiler()
 			for i, m := range tc.modules {
 				c.Modules[strconv.Itoa(i)] = m
-				c.sorted = append(c.sorted, strconv.Itoa(i))
 			}
 			compileStages(c, c.setRuleTree)
 			if len(c.Errors) > 0 {
@@ -815,7 +814,6 @@ func TestRuleIndices(t *testing.T) {
 			c := NewCompiler()
 			for i, m := range tc.modules {
 				c.Modules[strconv.Itoa(i)] = m
-				c.sorted = append(c.sorted, strconv.Itoa(i))
 			}
 			compileStages(c, c.buildRuleIndices)
 
