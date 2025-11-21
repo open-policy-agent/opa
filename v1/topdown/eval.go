@@ -120,24 +120,9 @@ type eval struct {
 }
 
 type (
-	evp struct {
-		pool sync.Pool
-	}
-	evfp struct {
-		pool sync.Pool
-	}
-	evbp struct {
-		pool sync.Pool
-	}
+	evfp struct{ pool sync.Pool }
+	evbp struct{ pool sync.Pool }
 )
-
-func (ep *evp) Put(e *eval) {
-	ep.pool.Put(e)
-}
-
-func (ep *evp) Get() *eval {
-	return ep.pool.Get().(*eval)
-}
 
 func (ep *evfp) Put(e *evalFunc) {
 	if e != nil {
@@ -162,13 +147,9 @@ func (ep *evbp) Get() *evalBuiltin {
 }
 
 var (
-	evalPool = &evp{
-		pool: sync.Pool{
-			New: func() any {
-				return &eval{}
-			},
-		},
-	}
+	evalPool     = util.NewSyncPool[eval]()
+	deecPool     = util.NewSyncPool[deferredEarlyExitContainer]()
+	resolverPool = util.NewSyncPool[evalResolver]()
 	evalFuncPool = &evfp{
 		pool: sync.Pool{
 			New: func() any {
@@ -1688,7 +1669,7 @@ func (e *eval) getRules(ref ast.Ref, args []*ast.Term) (*ast.IndexResult, error)
 		return nil, nil
 	}
 
-	resolver := resolverPool.Get().(*evalResolver)
+	resolver := resolverPool.Get()
 	defer func() {
 		resolver.e = nil
 		resolver.args = nil
@@ -1742,14 +1723,6 @@ type evalResolver struct {
 	e    *eval
 	args []*ast.Term
 }
-
-var (
-	resolverPool = sync.Pool{
-		New: func() any {
-			return &evalResolver{}
-		},
-	}
-)
 
 func (e *evalResolver) Resolve(ref ast.Ref) (ast.Value, error) {
 	e.e.instr.startTimer(evalOpResolve)
@@ -2439,12 +2412,6 @@ func (dc *deferredEarlyExitContainer) copyError() *deferredEarlyExitError {
 	return &cpy
 }
 
-var deecPool = sync.Pool{
-	New: func() any {
-		return &deferredEarlyExitContainer{}
-	},
-}
-
 type evalTree struct {
 	e         *eval
 	bindings  *bindings
@@ -2530,7 +2497,7 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 		return err
 	}
 
-	dc := deecPool.Get().(*deferredEarlyExitContainer)
+	dc := deecPool.Get()
 	dc.deferred = nil
 	defer deecPool.Put(dc)
 
