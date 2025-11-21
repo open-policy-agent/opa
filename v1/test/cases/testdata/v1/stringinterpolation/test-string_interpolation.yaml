@@ -303,3 +303,18 @@ cases:
     query: data.test.p = x
     want_result:
       - x: "foo 9 bar"
+  - note: string-interpolation/template-string function arg
+    modules:
+      - |
+        package test
+
+        p := f("foo bar")
+
+        f($"{x} {input.y}") := 42 if {
+            x = "foo"
+        }
+    input:
+      "y": "bar"
+    query: data.test.p = x
+    want_result:
+      - x: 42

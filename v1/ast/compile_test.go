@@ -7753,6 +7753,17 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 					__local1__
 				}`,
 		},
+		{
+			note: "single template expression, ref, in function arg",
+			module: `package test
+				f($"{input.x}") := 42`,
+			exp: `package test
+				f(__local1__) := 42 if { 
+					true
+					__local2__ = {__local0__ | __local0__ = input.x}
+					internal.template_string([__local2__], __local1__)
+				}`,
+		},
 
 		// Var template-expression
 		{
@@ -7838,6 +7849,44 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 					}
 					internal.template_string([__local3__], __local2__)
 					__local2__
+				}`,
+		},
+		{
+			note: "single template expression, var from function args, in head args",
+			module: `package test
+				f($"{x}") := 42 if {
+					x := "foo"
+				}`,
+			exp: `package test
+				f(__local2__) := 42 if { 
+					__local0__ = "foo"
+					__local3__ = {__local1__ | __local1__ = __local0__}
+					internal.template_string([__local3__], __local2__)
+				}`,
+		},
+		{
+			note: "single template expression, var from function args, in head value",
+			module: `package test
+				f(x) := $"{x}"`,
+			exp: `package test
+				f(__local0__) := __local2__ if { 
+					true
+					__local3__ = {__local1__ | __local1__ = __local0__}
+					internal.template_string([__local3__], __local2__)
+				}`,
+		},
+
+		{
+			note: "single template expression, var from function args, in body",
+			module: `package test
+				f(x) := y if {
+					y := $"{x}"
+				}`,
+			exp: `package test
+				f(__local0__) := __local1__ if { 
+					__local4__ = {__local2__ | __local2__ = __local0__}
+					internal.template_string([__local4__], __local3__)
+					__local1__ = __local3__
 				}`,
 		},
 
@@ -8022,7 +8071,7 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				}`,
 		},
 
-		// Inside comprehensions
+		// Comprehensions
 		{
 			note: "inside array comprehension, body",
 			module: `package test
@@ -8180,6 +8229,19 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 						__local11__ = {__local5__ | __local5__ = input.y}
 						internal.template_string([__local10__, " ", __local11__], __local7__)
 					}
+				}`,
+		},
+		{
+			note: "single template expression, nested comprehension with local var, in function arg",
+			module: `package test
+				f($"{[x | y := input.ys[_]; x := y]}") := 42`,
+			exp: `package test
+				f(__local3__) := 42 if { true
+					__local4__ = {__local2__ | 
+						__local2__ = [__local1__ | __local0__ = input.ys[_]
+						__local1__ = __local0__]
+					}
+					internal.template_string([__local4__], __local3__)
 				}`,
 		},
 

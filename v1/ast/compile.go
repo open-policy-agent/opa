@@ -3065,8 +3065,8 @@ func (vis *ruleArgLocalRewriter) Visit(x any) Visitor {
 			t.Value = cpy
 		}
 		return nil
-	case Null, Boolean, Number, String, *ArrayComprehension, *SetComprehension, *ObjectComprehension, Set:
-		// Scalars are no-ops. Comprehensions are handled above. Sets must not
+	case Null, Boolean, Number, String, *ArrayComprehension, *SetComprehension, *ObjectComprehension, Set, *TemplateString:
+		// Scalars are no-ops. Comprehensions and template-strings are handled above. Sets must not
 		// contain variables.
 		return nil
 	case Call:
