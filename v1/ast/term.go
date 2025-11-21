@@ -820,7 +820,7 @@ func (str String) Hash() int {
 }
 
 type TemplateString struct {
-	Parts []Node
+	Parts []Node `json:"parts"`
 }
 
 func (ts *TemplateString) Template() string {

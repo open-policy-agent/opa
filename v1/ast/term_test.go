@@ -16,6 +16,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
@@ -1288,6 +1289,130 @@ func TestJSONWithOptLazyObjOptOut(t *testing.T) {
 
 	if _, ok := m["baz"]; ok {
 		t.Errorf("expected no change in m, found one: %v", m)
+	}
+}
+
+func TestJSONMarshalling(t *testing.T) {
+	cases := []struct {
+		note    string
+		val     any
+		expJson string
+	}{
+		{
+			note: "template-string",
+			val:  MustParseExpr(`$"foo {"bar"} {true} {null} {42} {x} {[1, 2]} {1 + 2}"`),
+			expJson: `{
+  "index": 0,
+  "terms": {
+    "type": "templatestring",
+    "value": {
+      "parts": [
+        {
+          "type": "string",
+          "value": "foo "
+        },
+        {
+          "type": "string",
+          "value": "bar"
+        },
+        {
+          "type": "string",
+          "value": " "
+        },
+        {
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "type": "string",
+          "value": " "
+        },
+        {
+          "type": "null",
+          "value": {}
+        },
+        {
+          "type": "string",
+          "value": " "
+        },
+        {
+          "type": "number",
+          "value": 42
+        },
+        {
+          "type": "string",
+          "value": " "
+        },
+        {
+          "index": 0,
+          "terms": {
+            "type": "var",
+            "value": "x"
+          }
+        },
+        {
+          "type": "string",
+          "value": " "
+        },
+        {
+          "index": 0,
+          "terms": {
+            "type": "array",
+            "value": [
+              {
+                "type": "number",
+                "value": 1
+              },
+              {
+                "type": "number",
+                "value": 2
+              }
+            ]
+          }
+        },
+        {
+          "type": "string",
+          "value": " "
+        },
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "plus"
+                }
+              ]
+            },
+            {
+              "type": "number",
+              "value": 1
+            },
+            {
+              "type": "number",
+              "value": 2
+            }
+          ]
+        }
+      ]
+    }
+  }
+}`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			actual, err := json.MarshalIndent(tc.val, "", "  ")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diff := cmp.Diff(tc.expJson, string(actual)); diff != "" {
+				t.Errorf("JSON mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 
