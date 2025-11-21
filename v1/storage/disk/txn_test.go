@@ -49,7 +49,7 @@ func TestSetTxnIsTooBigToFitIntoOneRequestWhenUseDiskStoreReturnsError(t *testin
 		nbKeys := 140_000 // 135_000 is ok, but 140_000 not
 		jsonFixture := fixture(nbKeys)
 		err = storage.Txn(ctx, s, storage.WriteParams, func(txn storage.Transaction) error {
-			err := s.Write(ctx, txn, storage.AddOp, storage.MustParsePath("/"), jsonFixture)
+			err := s.Write(ctx, txn, storage.AddOp, storage.RootPath, jsonFixture)
 			if !errors.Is(err, badger.ErrTxnTooBig) {
 				t.Errorf("expected %v, got %v", badger.ErrTxnTooBig, err)
 			}

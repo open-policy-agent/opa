@@ -569,7 +569,7 @@ func TestTruncateNoExistingPath(t *testing.T) {
 
 			txn = storage.NewTransactionOrDie(ctx, store)
 
-			actual, err := store.Read(ctx, txn, storage.MustParsePath("/"))
+			actual, err := store.Read(ctx, txn, storage.RootPath)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -641,7 +641,7 @@ func TestTruncate(t *testing.T) {
 
 	txn = storage.NewTransactionOrDie(ctx, store)
 
-	actual, err := store.Read(ctx, txn, storage.MustParsePath("/"))
+	actual, err := store.Read(ctx, txn, storage.RootPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -739,7 +739,7 @@ func TestTruncateAst(t *testing.T) {
 
 	txn = storage.NewTransactionOrDie(ctx, store)
 
-	actual, err := store.Read(ctx, txn, storage.MustParsePath("/"))
+	actual, err := store.Read(ctx, txn, storage.RootPath)
 	if err != nil {
 		t.Fatal(err)
 	}

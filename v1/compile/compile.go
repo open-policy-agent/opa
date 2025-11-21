@@ -32,6 +32,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 const (
@@ -749,7 +750,7 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 		}
 
 		c.bundle.Manifest.WasmResolvers = append(c.bundle.Manifest.WasmResolvers, bundle.WasmResolver{
-			Module:      "/" + strings.TrimLeft(modulePath, "/"),
+			Module:      util.WithPrefix(modulePath, "/"),
 			Entrypoint:  entrypointPath,
 			Annotations: annotations,
 		})

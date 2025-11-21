@@ -279,12 +279,7 @@ func (db *Store) Truncate(ctx context.Context, txn storage.Transaction, params s
 
 	// For backwards compatibility, check if `RootOverwrite` was configured.
 	if params.RootOverwrite || overwriteRoot(params.BasePaths) {
-		newPath, ok := storage.ParsePathEscaped("/")
-		if !ok {
-			return fmt.Errorf("storage path invalid: %v", newPath)
-		}
-
-		sTxn, err := db.doTruncateData(ctx, underlyingTxn, db.db, params, newPath, map[string]any{})
+		sTxn, err := db.doTruncateData(ctx, underlyingTxn, db.db, params, storage.RootPath, map[string]any{})
 		if err != nil {
 			return wrapError(err)
 		}
@@ -835,7 +830,7 @@ func (db *Store) diagnostics(ctx context.Context, partitions pathSet, logger log
 	}
 	if len(partitions) == 1 { // '/system/*' is always present
 		logger.Warn("no partitions configured")
-		if err := db.logPrefixStatistics(ctx, storage.MustParsePath("/"), logger); err != nil {
+		if err := db.logPrefixStatistics(ctx, storage.RootPath, logger); err != nil {
 			return err
 		}
 	}
