@@ -610,6 +610,7 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 			for _, bundleDir := range params.bundlePaths.v {
 				regoArgs = append(regoArgs, rego.LoadBundle(bundleDir))
 			}
+			regoArgs = append(regoArgs, rego.WithFilter(buildCommandLoaderFilter(true, params.ignore)))
 		} else {
 			b, err := generateOptimizedBundle(params, true, buildCommandLoaderFilter(true, params.ignore), params.bundlePaths.v)
 			if err != nil {
