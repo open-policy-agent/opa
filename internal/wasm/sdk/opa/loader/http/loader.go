@@ -8,7 +8,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"math/rand"
 	"net/http"
 	"sync"
@@ -229,7 +228,7 @@ func (l *Loader) get(ctx context.Context, tag string) (*bundle.Bundle, error) {
 		return nil, err
 	}
 
-	defer l.close(resp)
+	defer util.Close(resp)
 
 	switch resp.StatusCode {
 	case http.StatusOK:
@@ -254,11 +253,4 @@ func (l *Loader) get(ctx context.Context, tag string) (*bundle.Bundle, error) {
 	default:
 		return nil, fmt.Errorf("unknown HTTP status %v", resp.StatusCode)
 	}
-}
-
-// close closes the HTTP response gracefully, first draining it, to
-// avoid resource leaks.
-func (*Loader) close(resp *http.Response) {
-	_, _ = io.Copy(io.Discard, resp.Body) // Ignore errors.
-	_ = resp.Body.Close()
 }
