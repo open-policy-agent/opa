@@ -110,3 +110,13 @@ overlap. This can be useful when using patterns to define permissions or access 
 rules. The function returns `true` if the two patterns overlap and `false` otherwise.
 
 <PlaygroundExample dir={require.context('../_examples/regex/globs_match/role_patterns')} />
+
+## Performance Metrics
+
+When OPA is configured with metrics enabled, regex operations expose the following metrics in per-query metrics (accessible when `?metrics=true` is specified in API requests):
+
+| Metric | Description |
+| ------ | ----------- |
+| `counter_rego_builtin_regex_interquery_value_cache_hits` | Number of regex cache hits for compiled patterns |
+
+Effective regex caching improves performance when the same patterns are used repeatedly. High cache hit ratios indicate that regex compilation overhead is being minimized through caching.
