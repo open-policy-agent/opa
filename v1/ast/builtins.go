@@ -3553,7 +3553,7 @@ type Builtin struct {
 	Decl             *types.Function `json:"decl"`                       // Built-in function type declaration.
 	Infix            string          `json:"infix,omitempty"`            // Unique name of infix operator. Default should be unset.
 	Relation         bool            `json:"relation,omitempty"`         // Indicates if the built-in acts as a relation.
-	Deprecated       bool            `json:"deprecated"`                 // Indicates if the built-in has been deprecated.
+	Deprecated       bool            `json:"deprecated,omitempty"`       // Indicates if the built-in has been deprecated.
 	CanSkipBctx      bool            `json:"-"`                          // Built-in needs no data from the built-in context.
 	Nondeterministic bool            `json:"nondeterministic,omitempty"` // Indicates if the built-in returns non-deterministic results.
 }
