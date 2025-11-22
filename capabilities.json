@@ -40,7 +40,8 @@
           "type": "boolean"
         },
         "type": "function"
-      }
+      },
+      "deprecated": true
     },
     {
       "name": "and",
@@ -95,7 +96,8 @@
           "type": "boolean"
         },
         "type": "function"
-      }
+      },
+      "deprecated": true
     },
     {
       "name": "array.concat",
@@ -385,7 +387,8 @@
           "type": "array"
         },
         "type": "function"
-      }
+      },
+      "deprecated": true
     },
     {
       "name": "cast_boolean",
@@ -399,7 +402,8 @@
           "type": "boolean"
         },
         "type": "function"
-      }
+      },
+      "deprecated": true
     },
     {
       "name": "cast_null",
@@ -413,7 +417,8 @@
           "type": "null"
         },
         "type": "function"
-      }
+      },
+      "deprecated": true
     },
     {
       "name": "cast_object",
@@ -435,7 +440,8 @@
           "type": "object"
         },
         "type": "function"
-      }
+      },
+      "deprecated": true
     },
     {
       "name": "cast_set",
@@ -452,7 +458,8 @@
           "type": "set"
         },
         "type": "function"
-      }
+      },
+      "deprecated": true
     },
     {
       "name": "cast_string",
@@ -466,7 +473,8 @@
           "type": "string"
         },
         "type": "function"
-      }
+      },
+      "deprecated": true
     },
     {
       "name": "ceil",
@@ -2975,7 +2983,8 @@
           "type": "boolean"
         },
         "type": "function"
-      }
+      },
+      "deprecated": true
     },
     {
       "name": "net.lookup_ip_addr",
@@ -3493,7 +3502,8 @@
           "type": "boolean"
         },
         "type": "function"
-      }
+      },
+      "deprecated": true
     },
     {
       "name": "regex.find_all_string_submatch_n",
@@ -3808,7 +3818,8 @@
           "type": "set"
         },
         "type": "function"
-      }
+      },
+      "deprecated": true
     },
     {
       "name": "sort",
