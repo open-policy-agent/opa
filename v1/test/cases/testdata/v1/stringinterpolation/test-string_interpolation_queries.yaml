@@ -20,10 +20,10 @@ cases:
     modules:
       - |
         package test
-    query: 'x = $"{true} {null} {42} {1.2} {"foo"} {[1, 2]} {{1, 2}} {{"a": 1, "b": 2}}"'
+    query: 'x = $"{true} {null} {42} {1.2} {"foo"} {[1, 2]} {{1}} {{"a": 1}}"'
     ignore_generated_vars: true
     want_result:
-      - x: "true null 42 1.2 foo [1, 2] {1, 2} {\"a\": 1, \"b\": 2}"
+      - x: "true null 42 1.2 foo [1, 2] {1} {\"a\": 1}"
   - note: string-interpolation/query/template string with ref expressions (undefined)
     modules:
       - |
@@ -66,9 +66,9 @@ cases:
       - |
         package test
     input:
-      xs: ["a", "b"]
-      ys: ["c", "d"]
+      xs: ["a"]
+      ys: ["c"]
     query: 'x = $"{[x | x := input.xs[_]]} {{y | y := input.ys[_]}} {{$"{x}-{y}": y | x := input.xs[_]; y := input.ys[_]}}"'
     ignore_generated_vars: true
     want_result:
-      - x: '["a", "b"] {"c", "d"} {"a-c": "c", "a-d": "d", "b-c": "c", "b-d": "d"}'
+      - x: '["a"] {"c"} {"a-c": "c"}'

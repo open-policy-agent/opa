@@ -9045,7 +9045,7 @@
     "result": {
       "type": "string"
     },
-    "wasm": false
+    "wasm": true
   },
   "internal.test_case": {
     "args": [
