@@ -8575,6 +8575,69 @@ func TestTemplateString(t *testing.T) {
 				),
 			},
 		},
+
+		{
+			note: "multi-line template string",
+			expr: "$`<foo>\n" +
+				"  <bar>{x}</bar>\n" +
+				"  <baz>{y}</baz>\n" +
+				"</foo>`",
+			exp: &Expr{
+				Terms: TemplateStringTerm(
+					StringTerm("<foo>\n  <bar>"),
+					&Expr{
+						Terms: VarTerm("x"),
+					},
+					StringTerm("</bar>\n  <baz>"),
+					&Expr{
+						Terms: VarTerm("y"),
+					},
+					StringTerm("</baz>\n</foo>"),
+				),
+			},
+		},
+		{
+			note: "multi-line template string, nested single-line template string",
+			expr: "$`<foo>\n" +
+				"  <bar>{$\"a {x} b\"}</bar>\n" +
+				"</foo>`",
+			exp: &Expr{
+				Terms: TemplateStringTerm(
+					StringTerm("<foo>\n  <bar>"),
+					&Expr{
+						Terms: TemplateStringTerm(
+							StringTerm("a "),
+							&Expr{
+								Terms: VarTerm("x"),
+							},
+							StringTerm(" b"),
+						),
+					},
+					StringTerm("</bar>\n</foo>"),
+				),
+			},
+		},
+		{
+			note: "multi-line template string, nested multi-line template string",
+			expr: "$`<foo>\n" +
+				"  <bar>{$`a {x} b`}</bar>\n" +
+				"</foo>`",
+			exp: &Expr{
+				Terms: TemplateStringTerm(
+					StringTerm("<foo>\n  <bar>"),
+					&Expr{
+						Terms: TemplateStringTerm(
+							StringTerm("a "),
+							&Expr{
+								Terms: VarTerm("x"),
+							},
+							StringTerm(" b"),
+						),
+					},
+					StringTerm("</bar>\n</foo>"),
+				),
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -8645,6 +8708,17 @@ func TestTemplateStringError(t *testing.T) {
 			note:     "multiple expressions in template expression",
 			expr:     `$"{true; false}"`,
 			expError: "rego_parse_error: expected } to end template string expression",
+		},
+
+		{
+			note:     "single-line start terminator, multi-line end terminator",
+			expr:     "$\"{x}`",
+			expError: "rego_parse_error: non-terminated string",
+		},
+		{
+			note:     "multi-line start terminator, single-line end terminator",
+			expr:     "$`{x}\"",
+			expError: "rego_parse_error: non-terminated string",
 		},
 	}
 

@@ -188,7 +188,9 @@ func TestTemplateStrings(t *testing.T) {
 		wantOffset int
 		wantTok    tokens.Token
 		wantLit    string
+		wantErr    string
 	}{
+		// Single-line
 		{
 			note:       "no template expressions",
 			input:      `$"foo bar"`,
@@ -196,6 +198,22 @@ func TestTemplateStrings(t *testing.T) {
 			wantOffset: 0,
 			wantTok:    tokens.TemplateStringEnd,
 			wantLit:    `"foo bar"`,
+		},
+		{
+			note:       "escaped template-string terminator",
+			input:      `$"foo \" bar"`,
+			wantRow:    1,
+			wantOffset: 0,
+			wantTok:    tokens.TemplateStringEnd,
+			wantLit:    `"foo \" bar"`,
+		},
+		{
+			note:       "raw-template-string terminator",
+			input:      "$\"foo ` bar\"",
+			wantRow:    1,
+			wantOffset: 0,
+			wantTok:    tokens.TemplateStringEnd,
+			wantLit:    "\"foo ` bar\"",
 		},
 		{
 			note:       "with template expression",
@@ -208,7 +226,7 @@ func TestTemplateStrings(t *testing.T) {
 		{
 			note:       "with template expression, continued",
 			input:      `} bar"`,
-			opts:       []ScanOption{ContinueTemplateString()},
+			opts:       []ScanOption{ContinueTemplateString(false)},
 			offset:     2, // the closing brace would have already been scanned as part of the template expression
 			wantRow:    1,
 			wantOffset: 1,
@@ -218,7 +236,7 @@ func TestTemplateStrings(t *testing.T) {
 		{
 			note:       "with multiple template expressions, continued",
 			input:      `} bar { 1 + 2 } baz"`,
-			opts:       []ScanOption{ContinueTemplateString()},
+			opts:       []ScanOption{ContinueTemplateString(false)},
 			offset:     2, // the closing brace would have already been scanned as part of the template expression
 			wantRow:    1,
 			wantOffset: 1,
@@ -281,6 +299,78 @@ func TestTemplateStrings(t *testing.T) {
 			wantTok:    tokens.TemplateStringPart,
 			wantLit:    `"foo {{`,
 		},
+
+		// Multi-line
+		{
+			note:       "raw, no template expressions",
+			input:      "$`foo bar`",
+			wantRow:    1,
+			wantOffset: 0,
+			wantTok:    tokens.RawTemplateStringEnd,
+			wantLit:    "`foo bar`",
+		},
+		{
+			note:       "raw, non-raw template-string terminator",
+			input:      "$`foo \" bar`",
+			wantRow:    1,
+			wantOffset: 0,
+			wantTok:    tokens.RawTemplateStringEnd,
+			wantLit:    "`foo \" bar`",
+		},
+		{
+			note: "raw, multi-line, no template expressions",
+			input: "$`foo\n" +
+				"bar`",
+			wantRow:    1,
+			wantOffset: 0,
+			wantTok:    tokens.RawTemplateStringEnd,
+			wantLit:    "`foo\nbar`",
+		},
+		{
+			note:       "raw, with template expression",
+			input:      "$`foo {1 + 2} bar`",
+			wantRow:    1,
+			wantOffset: 0,
+			wantTok:    tokens.RawTemplateStringPart,
+			wantLit:    "`foo {",
+		},
+		{
+			note: "raw, multi-line, with template expression",
+			input: "$`foo \n" +
+				"{1 + 2} bar`",
+			wantRow:    1,
+			wantOffset: 0,
+			wantTok:    tokens.RawTemplateStringPart,
+			wantLit:    "`foo \n{",
+		},
+		{
+			note:       "raw, with escaped template expression",
+			input:      "$`foo \\{1 + 2} bar`",
+			wantRow:    1,
+			wantOffset: 0,
+			wantTok:    tokens.RawTemplateStringEnd,
+			wantLit:    "`foo {1 + 2} bar`",
+		},
+		{
+			note:       "raw, with escaped template expression, both braces",
+			input:      "$`foo \\{1 + 2\\} bar`",
+			wantRow:    1,
+			wantOffset: 0,
+			wantTok:    tokens.RawTemplateStringEnd,
+			wantLit:    "`foo {1 + 2} bar`",
+		},
+
+		// Errors
+		{
+			note:    "non-string terminal",
+			input:   `$=`,
+			wantErr: `illegal $ character`,
+		},
+		{
+			note:    "space",
+			input:   `$ "foo"`,
+			wantErr: `illegal $ character`,
+		},
 	}
 
 	for _, tc := range tests {
@@ -293,20 +383,37 @@ func TestTemplateStrings(t *testing.T) {
 				t.Fatal(err)
 			}
 			tok, pos, lit, errs := s.Scan(tc.opts...)
-			if pos.Row != tc.wantRow {
-				t.Errorf("Expected row %d but got %d", tc.wantRow, pos.Row)
-			}
-			if pos.Offset != tc.wantOffset {
-				t.Errorf("Expected offset %d but got %d", tc.wantOffset, pos.Offset)
-			}
-			if tok != tc.wantTok {
-				t.Errorf("Expected token %v but got %v", tc.wantTok, tok)
-			}
-			if lit != tc.wantLit {
-				t.Errorf("Expected literal %v but got %v", tc.wantLit, lit)
-			}
-			if len(errs) > 0 {
-				t.Fatal("Unexpected error(s):", errs)
+
+			if tc.wantErr != "" {
+				if len(errs) == 0 {
+					t.Fatalf("Expected errors, got none")
+				}
+				var found bool
+				for _, err := range errs {
+					if err.Message == tc.wantErr {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Fatalf("Expected errors to contain:\n%v\nbut got:\n%v", tc.wantErr, errs)
+				}
+			} else {
+				if pos.Row != tc.wantRow {
+					t.Errorf("Expected row %d but got %d", tc.wantRow, pos.Row)
+				}
+				if pos.Offset != tc.wantOffset {
+					t.Errorf("Expected offset %d but got %d", tc.wantOffset, pos.Offset)
+				}
+				if tok != tc.wantTok {
+					t.Errorf("Expected token %v but got %v", tc.wantTok, tok)
+				}
+				if lit != tc.wantLit {
+					t.Errorf("Expected literal %v but got %v", tc.wantLit, lit)
+				}
+				if len(errs) > 0 {
+					t.Fatal("Unexpected error(s):", errs)
+				}
 			}
 		})
 	}

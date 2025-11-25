@@ -160,14 +160,16 @@ func (s *Scanner) WithoutKeywords(kws map[string]tokens.Token) (*Scanner, map[st
 
 type ScanOptions struct {
 	continueTemplateString bool
+	rawTemplateString      bool
 }
 
 type ScanOption func(*ScanOptions)
 
 // ContinueTemplateString will continue scanning a template string
-func ContinueTemplateString() ScanOption {
+func ContinueTemplateString(raw bool) ScanOption {
 	return func(opts *ScanOptions) {
 		opts.continueTemplateString = true
+		opts.rawTemplateString = raw
 	}
 }
 
@@ -186,7 +188,11 @@ func (s *Scanner) Scan(opts ...ScanOption) (tokens.Token, Position, string, []Er
 	var tok tokens.Token
 	var lit string
 	if scanOpts.continueTemplateString {
-		lit, tok = s.scanTemplateString()
+		if scanOpts.rawTemplateString {
+			lit, tok = s.scanRawTemplateString()
+		} else {
+			lit, tok = s.scanTemplateString()
+		}
 	} else if s.isWhitespace() {
 		// string(rune) is an unnecessary heap allocation in this case as we know all
 		// the possible whitespace values, and can simply translate to string ourselves
@@ -294,8 +300,16 @@ func (s *Scanner) Scan(opts ...ScanOption) (tokens.Token, Position, string, []Er
 		case '.':
 			tok = tokens.Dot
 		case '$':
-			s.next()
-			lit, tok = s.scanTemplateString()
+			switch s.curr {
+			case '`':
+				s.next()
+				lit, tok = s.scanRawTemplateString()
+			case '"':
+				s.next()
+				lit, tok = s.scanTemplateString()
+			default:
+				s.error("illegal $ character")
+			}
 		}
 	}
 
@@ -417,8 +431,6 @@ func (s *Scanner) scanRawString() string {
 }
 
 func (s *Scanner) scanTemplateString() (string, tokens.Token) {
-	// TODO: Differentiate between raw and regular template strings.
-
 	tok := tokens.TemplateStringPart
 	start := s.literalStart()
 	var escapes []int
@@ -461,28 +473,71 @@ func (s *Scanner) scanTemplateString() (string, tokens.Token) {
 
 	// Lazily remove escapes to not unnecessarily allocate a new byte slice
 	if len(escapes) > 0 {
-		// If there are escapes, we need to remove them from the string.
-		from := start
-		bs := make([]byte, 0, s.offset-start-len(escapes))
-
-		for _, escape := range escapes {
-			// Append the bytes before the escape sequence.
-			if escape > from {
-				bs = append(bs, s.bs[from:escape-1]...)
-			}
-			// Skip the escape character.
-			from = escape
-		}
-
-		// Append the remaining bytes after the last escape sequence.
-		if from < s.offset-1 {
-			bs = append(bs, s.bs[from:s.offset-1]...)
-		}
-
-		return util.ByteSliceToString(bs), tok
+		return util.ByteSliceToString(lazyRemoveEscapes(s, escapes, start)), tok
 	}
 
 	return util.ByteSliceToString(s.bs[start : s.offset-1]), tok
+}
+
+func (s *Scanner) scanRawTemplateString() (string, tokens.Token) {
+	tok := tokens.RawTemplateStringPart
+	start := s.literalStart()
+	var escapes []int
+	for {
+		ch := s.curr
+
+		if ch < 0 {
+			s.error("non-terminated string")
+			break
+		}
+
+		s.next()
+
+		if ch == '`' {
+			tok = tokens.RawTemplateStringEnd
+			break
+		}
+
+		if ch == '{' {
+			break
+		}
+
+		if ch == '\\' {
+			switch s.curr {
+			case '{', '}':
+				escapes = append(escapes, s.offset-1)
+				s.next()
+			}
+		}
+	}
+
+	// Lazily remove escapes to not unnecessarily allocate a new byte slice
+	if len(escapes) > 0 {
+		return util.ByteSliceToString(lazyRemoveEscapes(s, escapes, start)), tok
+	}
+
+	return util.ByteSliceToString(s.bs[start : s.offset-1]), tok
+}
+
+func lazyRemoveEscapes(s *Scanner, escapes []int, start int) []byte {
+	from := start
+	bs := make([]byte, 0, s.offset-start-len(escapes))
+
+	for _, escape := range escapes {
+		// Append the bytes before the escape sequence.
+		if escape > from {
+			bs = append(bs, s.bs[from:escape-1]...)
+		}
+		// Skip the escape character.
+		from = escape
+	}
+
+	// Append the remaining bytes after the last escape sequence.
+	if from < s.offset-1 {
+		bs = append(bs, s.bs[from:s.offset-1]...)
+	}
+
+	return bs
 }
 
 func (s *Scanner) scanComment() string {

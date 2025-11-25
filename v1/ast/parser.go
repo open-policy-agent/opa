@@ -1736,7 +1736,9 @@ func (p *Parser) parseTerm() *Term {
 	case tokens.String:
 		term = p.parseString()
 	case tokens.TemplateStringPart, tokens.TemplateStringEnd:
-		term = p.parseTemplateString()
+		term = p.parseTemplateString(false)
+	case tokens.RawTemplateStringPart, tokens.RawTemplateStringEnd:
+		term = p.parseTemplateString(true)
 	case tokens.Ident, tokens.Contains: // NOTE(sr): contains anywhere BUT in rule heads gets no special treatment
 		term = p.parseVar()
 	case tokens.LBrack:
@@ -1904,17 +1906,18 @@ func (p *Parser) parseRawString() *Term {
 	return StringTerm(p.s.lit[1 : len(p.s.lit)-1]).SetLocation(p.s.Loc())
 }
 
-func (p *Parser) parseTemplateString() *Term {
+func (p *Parser) parseTemplateString(raw bool) *Term {
 	var parts []Node
 
 	for {
-		if p.s.tok == tokens.TemplateStringEnd || p.s.tok == tokens.TemplateStringPart {
+		if p.s.tok == tokens.TemplateStringEnd || p.s.tok == tokens.RawTemplateStringEnd ||
+			p.s.tok == tokens.TemplateStringPart || p.s.tok == tokens.RawTemplateStringPart {
 			// Don't add empty strings
 			if s := p.s.lit[1 : len(p.s.lit)-1]; s != "" {
 				parts = append(parts, StringTerm(s))
 			}
 
-			if p.s.tok == tokens.TemplateStringEnd {
+			if p.s.tok == tokens.TemplateStringEnd || p.s.tok == tokens.RawTemplateStringEnd {
 				break
 			}
 		} else {
@@ -1975,7 +1978,7 @@ func (p *Parser) parseTemplateString() *Term {
 			return nil
 		}
 
-		p.scanWS(scanner.ContinueTemplateString())
+		p.scanWS(scanner.ContinueTemplateString(raw))
 	}
 
 	return TemplateStringTerm(parts...)

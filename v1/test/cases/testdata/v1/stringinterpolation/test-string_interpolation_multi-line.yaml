@@ -1,0 +1,343 @@
+---
+cases:
+  - note: string-interpolation/multi-line/empty string
+    modules:
+      - |
+        package test
+
+        p := $``
+    query: data.test.p = x
+    want_result:
+      - x: ""
+  - note: string-interpolation/multi-line/no template expression
+    modules:
+      - |
+        package test
+
+        p := $`
+        foo
+        bar
+        baz
+        `
+    query: data.test.p = x
+    want_result:
+      - x: |
+          
+          foo
+          bar
+          baz
+  - note: string-interpolation/multi-line/escaped template expressions
+    modules:
+      - |
+        package test
+
+        a := $`\{42}`
+        b := $`foo \{42} bar`
+        c := $`foo \{42\}`
+        d := $`foo \{42\} bar`
+        e := $`foo \{42} bar \{43} baz`
+        f := $`\{{42}`
+        g := $`{42}\}`
+    query: data.test = x
+    want_result:
+      - x:
+          a: "{42}"
+          b: "foo {42} bar"
+          c: "foo {42}"
+          d: "foo {42} bar"
+          e: "foo {42} bar {43} baz"
+          f: "{42"
+          g: "42}"
+  - note: string-interpolation/multi-line/template expressions with primitive values
+    modules:
+      - |
+        package test
+
+        p := $`{42},
+        {13.37},
+        {true},
+        {"foo"},
+        {null}`
+    query: data.test.p = x
+    want_result:
+      - x: "42,\n13.37,\ntrue,\nfoo,\nnull"
+  - note: string-interpolation/multi-line/template expressions with collection values
+    modules:
+      - |
+        package test
+
+        # no multi-value sets and maps, as order can't be guaranteed
+        p := $`{[]},
+        {[42, 13.37, true, "foo", null]},
+        {set()},
+        {{42}},
+        {{}},
+        {{"a": "b"}}`
+    query: data.test.p = x
+    want_result:
+      - x: "[],\n[42, 13.37, true, \"foo\", null],\nset(),\n{42},\n{},\n{\"a\": \"b\"}"
+  - note: string-interpolation/multi-line/template expression with array comprehension
+    modules:
+      - |
+        package test
+        
+        a := ["a", "b", "c"]
+
+        p := $`{[x | some x in a]}`
+    query: data.test.p = x
+    want_result:
+      - x: "[\"a\", \"b\", \"c\"]"
+  - note: string-interpolation/multi-line/template expression with set comprehension
+    modules:
+      - |
+        package test
+        
+        a := ["a"]
+
+        # no multi-value sets, as order can't be guaranteed
+        p := $`{{x | some x in a}}`
+    query: data.test.p = x
+    want_result:
+      - x: "{\"a\"}"
+  - note: string-interpolation/multi-line/template expression with object comprehension
+    modules:
+      - |
+        package test
+        
+        # no multi-value maps, as order can't be guaranteed
+        a := ["a"]
+
+        p := $`{{x: x | some x in a}}`
+    query: data.test.p = x
+    want_result:
+      - x: "{\"a\": \"a\"}"
+  - note: string-interpolation/multi-line/template expressions with variables
+    modules:
+      - |
+        package test
+
+        a := "foo"
+        b := "bar"
+
+        p := $`{a}
+        {b}`
+    query: data.test.p = x
+    want_result:
+      - x: "foo\nbar"
+  - note: string-interpolation/multi-line/template expressions with refs
+    modules:
+      - |
+        package test
+
+        a := "foo"
+
+        p := $`{data.test.a}
+        {data.b}
+        {input.c}`
+    data:
+      b: "bar"
+    input:
+      c: "baz"
+    query: data.test.p = x
+    want_result:
+      - x: "foo\nbar\nbaz"
+  - note: string-interpolation/multi-line/nested template expressions
+    modules:
+      - |
+        package test
+
+        a := "foo"
+        b := "bar"
+
+        p := $`{$"{a}"}
+        {$`{$`{b}`}
+        baz`}`
+    query: data.test.p = x
+    want_result:
+      - x: "foo\nbar\nbaz"
+  - note: string-interpolation/multi-line/nested template expressions, undefined outer expression
+    modules:
+      - |
+        package test
+
+        p := $`{$"{data.a}"}
+        {$`{$"{data.b}"}
+        baz`}`
+    data:
+      b: "bar"
+    query: data.test.p = x
+    want_result:
+      - x: "<undefined>\nbar\nbaz"
+  - note: string-interpolation/multi-line/nested template expressions, undefined inner expression
+    modules:
+      - |
+        package test
+
+        p := $`{$"{data.a}"}
+        {$`{$"{data.b}"}
+        baz`}`
+    data:
+      a: "foo"
+    query: data.test.p = x
+    want_result:
+      - x: "foo\n<undefined>\nbaz"
+  - note: string-interpolation/multi-line/template expressions with infix operand call
+    modules:
+      - |
+        package test
+
+        a := 42
+
+        p := $`<sum>
+          {1 + a}
+        </sum>`
+    query: data.test.p = x
+    want_result:
+      - x: "<sum>\n  43\n</sum>"
+  - note: string-interpolation/multi-line/template expressions with undefined values
+    modules:
+      - |
+        package test
+
+        p := $`{input.x},
+        {data.y}`
+    query: data.test.p = x
+    want_result:
+      - x: "<undefined>,\n<undefined>"
+  - note: string-interpolation/multi-line/inside array comprehension
+    modules:
+      - |
+        package test
+
+        a := ["foo", "bar"]
+
+        p := [x | some y in a; x := $`<v>
+        {y}
+        </v>`]
+    query: data.test.p = x
+    want_result:
+      - x:
+        - "<v>\nfoo\n</v>"
+        - "<v>\nbar\n</v>"
+  - note: string-interpolation/multi-line/inside set comprehension
+    modules:
+      - |
+        package test
+
+        a := "foo"
+
+        # Only generate one entry to avoid non-deterministic ordering.
+        p := {x | x = $`<v>
+        {a}
+        </v>`}
+    query: data.test.p = x
+    want_result:
+      - x:
+        - "<v>\nfoo\n</v>"
+  - note: string-interpolation/multi-line/inside map comprehension
+    modules:
+      - |
+        package test
+
+        a := ["foo", "bar"]
+
+        p := {x: y | some k, v in a; x = $`<{k}>`; y = $`<{v}>`}
+    query: data.test.p = x
+    want_result:
+      - x:
+          "<0>": "<foo>"
+          "<1>": "<bar>"
+  - note: string-interpolation/multi-line/inside map comprehension head
+    modules:
+      - |
+        package test
+
+        a := ["foo", "bar"]
+
+        p := {$`<{k}>`: $`<{v}>` | some k, v in a}
+    query: data.test.p = x
+    want_result:
+      - x:
+          "<0>": "<foo>"
+          "<1>": "<bar>"
+  - note: string-interpolation/multi-line/inside every expression, body
+    modules:
+      - |
+        package test
+        p if {
+          every i, x in input.l1 {
+            input.l2[i] == $`<{x}>`
+          }
+        }
+    input:
+      l1:
+        - "a"
+        - "b"
+        - "c"
+      l2:
+        - "<a>"
+        - "<b>"
+        - "<c>"
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - note: string-interpolation/multi-line/with in template expression
+    modules:
+      - |
+        package test
+        
+        a := input.a
+
+        p := x if {
+          x := $`foo {a with input as {"a" : 42}}`
+        }
+    query: data.test.p = x
+    want_result:
+      - x: "foo 42"
+  - note: string-interpolation/multi-line/with outside template string
+    modules:
+      - |
+        package test
+        
+        a := input.a
+        b := input.b
+
+        p := x if {
+          x := $`foo {a} {b}` 
+            with input.a as 42
+            with input.b as "bar"
+        }
+    query: data.test.p = x
+    want_result:
+      - x: "foo 42 bar"
+  - note: string-interpolation/multi-line/with outside template string, overrides
+    modules:
+      - |
+        package test
+        
+        a := input.a
+        b := input.b
+
+        p := x if {
+          x := $`foo {a} {b}` 
+            with input as {"a" : 42}
+            with input as {"b" : "bar"} # overrides above 'with', dropping the 'a' field
+        }
+    query: data.test.p = x
+    want_result:
+      - x: "foo <undefined> bar"
+  - note: string-interpolation/multi-line/template-string function arg
+    modules:
+      - |
+        package test
+
+        p := f("foo bar")
+
+        f($`{x} {input.y}`) := 42 if {
+            x = "foo"
+        }
+    input:
+      "y": "bar"
+    query: data.test.p = x
+    want_result:
+      - x: 42
