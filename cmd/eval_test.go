@@ -1019,6 +1019,36 @@ func TestEvalReturnsRegoError(t *testing.T) {
 	}
 }
 
+func TestEvalBundlePathWithIgnoreFlag(t *testing.T) {
+	files := map[string]string{
+		"good_policy.rego": `
+				package example
+				p1 if { data.foo }`,
+		"bad_policy.rego": `
+				package example
+				var `,
+		"data.json": `
+				{"foo": true, "bar": false}`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+		params := newEvalCommandParams()
+		if err := params.bundlePaths.Set(path); err != nil {
+			t.Fatalf("Unable to set bundle path: %v", err)
+		}
+		params.ignore = []string{"bad_policy.rego"}
+
+		var buf bytes.Buffer
+
+		// Evaluate policies
+		defined, err := eval([]string{"data.example.p1"}, params, &buf, &buf)
+
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error for p1: %v", err)
+		}
+	})
+}
+
 func TestEvalWithBundleData(t *testing.T) {
 	files := map[string]string{
 		"x/x.rego":            "package x\np = 1",
