@@ -325,6 +325,7 @@ func (r *Runner) SetStore(store storage.Store) *Runner {
 }
 
 // SetCoverageTracer sets the tracer to use to compute coverage.
+//
 // Deprecated: Use SetCoverageQueryTracer instead.
 func (r *Runner) SetCoverageTracer(tracer topdown.Tracer) *Runner {
 	if tracer == nil {
@@ -406,6 +407,7 @@ func (r *Runner) Target(target string) *Runner {
 }
 
 // Run executes all tests contained in supplied modules.
+//
 // Deprecated: Use RunTests and the Runner#SetModules or Runner#SetBundles
 // helpers instead. This will NOT use the modules or bundles set on the Runner.
 func (r *Runner) Run(ctx context.Context, modules map[string]*ast.Module) (chan *Result, error) {

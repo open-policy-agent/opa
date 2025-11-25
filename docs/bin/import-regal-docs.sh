@@ -14,6 +14,32 @@ then
   exit 1
 fi
 
+# function to extract title from frontmatter or first H1
+extract_title() {
+  local yaml_file="$1"
+  local md_file="$2"
+
+  # Try to extract title from YAML frontmatter
+  local title=$(grep '^title:' "$yaml_file" | sed 's/^title: *//; s/^"//; s/"$//')
+
+  # If no title, try sidebar_label
+  if [[ -z "$title" ]]; then
+    title=$(grep '^sidebar_label:' "$yaml_file" | sed 's/^sidebar_label: *//; s/^"//; s/"$//')
+  fi
+
+  # If still no title, extract from first H1 in markdown
+  if [[ -z "$title" && -f "$md_file" ]]; then
+    title=$(grep '^# ' "$md_file" | head -1 | sed 's/^# *//')
+  fi
+
+  # Default fallback
+  if [[ -z "$title" ]]; then
+    title="Regal"
+  fi
+
+  echo "$title"
+}
+
 download_regal() {
   ref="heads/main"
   if [[ -v VERSION ]]; then
@@ -49,30 +75,24 @@ mkdir -p "$regal_docs_dest"
 # copy assets
 rsync -ah "$regal_docs_src/assets/." "$regal_docs_dest/assets" --delete
 
-# generate index
+# generate index from readme-sections
 readme_sections_dir="$regal_docs_src/readme-sections"
 manifest="$readme_sections_dir/website-manifest"
 
-tmpfile=$(mktemp)
+{
+  while IFS= read -r file; do
+    section_path="$readme_sections_dir/$file"
+    if [[ -f "$section_path" ]]; then
+      cat "$section_path"
+      echo ""
+    fi
+  done < "$manifest"
+} > "$regal_docs_dest/index.md"
 
-while IFS= read -r file; do
-  section_path="$readme_sections_dir/$file"
-
-  if [[ -f "$section_path" ]]; then
-    cat "$section_path" >> "$tmpfile"
-    echo -e "\n" >> "$tmpfile"
-  else
-    echo "Section file not found: $section_path" >&2
-    exit 1
-  fi
-done < "$manifest"
-
-mv $tmpfile "$regal_docs_dest/index.md"
-
-# copy in rules
+# copy rules directory
 cp -r "$regal_docs_src/rules" "$regal_docs_dest/"
 
-# generate other files
+# process .md.yaml pairs to add head metadata
 find "$regal_docs_src" -type f -name '*.md.yaml' | while read -r yaml_file; do
   md_file="$(dirname $yaml_file)/$(basename "$yaml_file" .yaml)"
   md_file_rel=${md_file#"$regal_docs_src/"}
@@ -83,7 +103,14 @@ find "$regal_docs_src" -type f -name '*.md.yaml' | while read -r yaml_file; do
   if [[ ! -e $md_file ]]; then
     echo "Warning: $md_file missing"
   else
-    echo -e "---\n$(cat $yaml_file)\n---\n\n" > $dest_md_file
-    cat $md_file >> $dest_md_file
+    # extract title for head metadata
+    title=$(extract_title "$yaml_file" "$md_file")
+
+    # generate file with frontmatter, head metadata, and content
+    {
+      echo -e "---\n$(cat $yaml_file)\n---\n"
+      echo -e "<head>\n  <title>$title | Regal</title>\n</head>\n"
+      cat $md_file
+    } > "$dest_md_file"
   fi
 done

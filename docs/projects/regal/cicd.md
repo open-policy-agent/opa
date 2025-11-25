@@ -3,6 +3,9 @@ sidebar_label: CI/CD
 sidebar_position: 8
 ---
 
+<head>
+  <title>CI/CD | Regal</title>
+</head>
 
 # Using Regal in your build pipeline
 

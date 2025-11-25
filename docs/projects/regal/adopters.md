@@ -1,7 +1,11 @@
 ---
 sidebar_position: 13
+sidebar_label: Adopters
 ---
 
+<head>
+  <title>Adopters | Regal</title>
+</head>
 
 # Adopters
 

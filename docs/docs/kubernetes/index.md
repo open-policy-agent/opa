@@ -1,5 +1,6 @@
 ---
-title: "Overview & Architecture"
+title: "OPA for Kubernetes Admission Control"
+sidebar_label: "Overview"
 sidebar_position: 1
 ---
 

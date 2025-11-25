@@ -1,7 +1,11 @@
 ---
 sidebar_position: 9
+sidebar_label: Language Server
 ---
 
+<head>
+  <title>Language Server | Regal</title>
+</head>
 
 # Language Server
 

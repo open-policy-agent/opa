@@ -1,7 +1,11 @@
 ---
 sidebar_position: 7
+sidebar_label: Project Roots
 ---
 
+<head>
+  <title>Project Roots | Regal</title>
+</head>
 
 # Project Roots
 

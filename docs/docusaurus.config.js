@@ -19,6 +19,10 @@ const baseUrl = "/";
     url: "https://openpolicyagent.org",
     baseUrl: baseUrl,
     trailingSlash: false,
+    // when BUILD_VERSION is set (release builds), warn on broken links/anchors so we don't break main
+    // when not set (PR checks), throw to flag issues for developers
+    onBrokenLinks: process.env.BUILD_VERSION ? 'warn' : 'throw',
+    onBrokenAnchors: process.env.BUILD_VERSION ? 'warn' : 'throw',
     presets: [
       [
         "@docusaurus/preset-classic",
@@ -33,10 +37,6 @@ const baseUrl = "/";
           blog: false,
           theme: {
             customCss: require.resolve("./src/css/custom.css"),
-          },
-          gtag: {
-            trackingID: "G-JNBNV64PDX",
-            anonymizeIP: true,
           },
         },
       ],
@@ -53,6 +53,14 @@ const baseUrl = "/";
     themes: ["@docusaurus/theme-mermaid"],
 
     themeConfig: {
+      announcementBar: {
+        id: 'opa_2025_survey',
+        content:
+          'Help shape OPA\'s future! Take the <a target="_blank" rel="noopener noreferrer" href="https://www.surveymonkey.com/r/SCBSDZN">2025 OPA Community Survey</a> 🚀',
+        backgroundColor: '#ff8c42',
+        textColor: '#ffffff',
+        isCloseable: false,
+      },
       colorMode: {
         defaultMode: "light",
         disableSwitch: false,
@@ -281,6 +289,13 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
     },
 
     plugins: [
+      [
+        "@docusaurus/plugin-google-gtag",
+        {
+          trackingID: "G-JNBNV64PDX",
+          anonymizeIP: true,
+        },
+      ],
       [
         "@docusaurus/plugin-content-docs",
         {

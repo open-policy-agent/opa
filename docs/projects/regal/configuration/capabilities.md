@@ -1,7 +1,11 @@
 ---
 sidebar_position: 5
+sidebar_label: Capabilities
 ---
 
+<head>
+  <title>Capabilities | Regal</title>
+</head>
 
 # Capabilities
 

@@ -1,7 +1,11 @@
 ---
 sidebar_position: 7
+sidebar_label: Editor Support
 ---
 
+<head>
+  <title>Editor Support | Regal</title>
+</head>
 
 # Editor Support
 

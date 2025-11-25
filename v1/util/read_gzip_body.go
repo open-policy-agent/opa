@@ -8,17 +8,11 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"sync"
 
 	"github.com/open-policy-agent/opa/v1/util/decoding"
 )
 
-var gzipReaderPool = sync.Pool{
-	New: func() any {
-		reader := new(gzip.Reader)
-		return reader
-	},
-}
+var gzipReaderPool = NewSyncPool[gzip.Reader]()
 
 // Note(philipc): Originally taken from server/server.go
 // The DecodingLimitHandler handles validating that the gzip payload is within the
@@ -49,7 +43,7 @@ func ReadMaybeCompressedBody(r *http.Request) ([]byte, error) {
 			return nil, errors.New("gzip payload too large")
 		}
 
-		gzReader := gzipReaderPool.Get().(*gzip.Reader)
+		gzReader := gzipReaderPool.Get()
 		defer func() {
 			gzReader.Close()
 			gzipReaderPool.Put(gzReader)

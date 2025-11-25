@@ -24,6 +24,11 @@ function = "badge"
 path = "/docs/*"
 function = "version-redirect"
 
+# function to process form notifications from netlify forms and send them to slack
+[[edge_functions]]
+path = "/api/feedback"
+function = "feedback"
+
 # /data/versions.json is used by versioned OPA deployments to determine
 # if what the latest release is, how outdated they are.
 [[headers]]

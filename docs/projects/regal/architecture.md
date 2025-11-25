@@ -1,7 +1,11 @@
 ---
 sidebar_position: 4
+sidebar_label: Architecture
 ---
 
+<head>
+  <title>Architecture | Regal</title>
+</head>
 
 # Architecture
 

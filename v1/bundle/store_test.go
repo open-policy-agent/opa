@@ -270,7 +270,7 @@ func TestBundleLazyModeNoPolicyOrData(t *testing.T) {
 		}
 	}
 
-	actual, err := mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+	actual, err := mockStore.Read(ctx, txn, storage.RootPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -1883,7 +1883,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					// Start read transaction
 					txn = storage.NewTransactionOrDie(ctx, mockStore)
 
-					actual, err := mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+					actual, err := mockStore.Read(ctx, txn, storage.RootPath)
 					if err != nil {
 						t.Fatalf("unexpected error: %s", err)
 					}
@@ -1918,7 +1918,7 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 					// Start read transaction
 					txn = storage.NewTransactionOrDie(ctx, mockStore)
 
-					actual, err := mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+					actual, err := mockStore.Read(ctx, txn, storage.RootPath)
 					if err != nil {
 						t.Fatalf("unexpected error: %s", err)
 					}
@@ -2026,7 +2026,7 @@ func TestBundleLazyModeLifecycleRaw(t *testing.T) {
 		}
 	}
 
-	actual, err := mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+	actual, err := mockStore.Read(ctx, txn, storage.RootPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -2120,7 +2120,7 @@ func TestBundleLazyModeLifecycleRaw(t *testing.T) {
 		t.Fatalf("expected 0 bundles in store, found %d", len(names))
 	}
 
-	actual, err = mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+	actual, err = mockStore.Read(ctx, txn, storage.RootPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -2285,7 +2285,7 @@ func TestBundleLazyModeLifecycle(t *testing.T) {
 		}
 	}
 
-	actual, err := mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+	actual, err := mockStore.Read(ctx, txn, storage.RootPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -2365,7 +2365,7 @@ func TestBundleLazyModeLifecycle(t *testing.T) {
 		t.Fatalf("expected 0 bundles in store, found %d", len(names))
 	}
 
-	actual, err = mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+	actual, err = mockStore.Read(ctx, txn, storage.RootPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -2450,7 +2450,7 @@ func TestBundleLazyModeLifecycleRawNoBundleRoots(t *testing.T) {
 		}
 	}
 
-	actual, err := mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+	actual, err := mockStore.Read(ctx, txn, storage.RootPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -2530,7 +2530,7 @@ func TestBundleLazyModeLifecycleRawNoBundleRoots(t *testing.T) {
 
 	txn = storage.NewTransactionOrDie(ctx, mockStore)
 
-	actual, err = mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+	actual, err = mockStore.Read(ctx, txn, storage.RootPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -2642,7 +2642,7 @@ func TestBundleLazyModeLifecycleRawNoBundleRootsDiskStorage(t *testing.T) {
 			}
 		}
 
-		actual, err := store.Read(ctx, txn, storage.MustParsePath("/"))
+		actual, err := store.Read(ctx, txn, storage.RootPath)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -2722,7 +2722,7 @@ func TestBundleLazyModeLifecycleRawNoBundleRootsDiskStorage(t *testing.T) {
 
 		txn = storage.NewTransactionOrDie(ctx, store)
 
-		actual, err = store.Read(ctx, txn, storage.MustParsePath("/"))
+		actual, err = store.Read(ctx, txn, storage.RootPath)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -2820,7 +2820,7 @@ func TestBundleLazyModeLifecycleNoBundleRoots(t *testing.T) {
 	// Ensure the patches were applied
 	txn = storage.NewTransactionOrDie(ctx, mockStore)
 
-	actual, err := mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+	actual, err := mockStore.Read(ctx, txn, storage.RootPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -2903,7 +2903,7 @@ func TestBundleLazyModeLifecycleNoBundleRoots(t *testing.T) {
 	// Ensure the patches were applied
 	txn = storage.NewTransactionOrDie(ctx, mockStore)
 
-	actual, err = mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+	actual, err = mockStore.Read(ctx, txn, storage.RootPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -3030,7 +3030,7 @@ func TestBundleLazyModeLifecycleNoBundleRootsDiskStorage(t *testing.T) {
 			}
 		}
 
-		actual, err := store.Read(ctx, txn, storage.MustParsePath("/"))
+		actual, err := store.Read(ctx, txn, storage.RootPath)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -3113,7 +3113,7 @@ func TestBundleLazyModeLifecycleNoBundleRootsDiskStorage(t *testing.T) {
 		// Ensure the snapshot bundle was activated
 		txn = storage.NewTransactionOrDie(ctx, store)
 
-		actual, err = store.Read(ctx, txn, storage.MustParsePath("/"))
+		actual, err = store.Read(ctx, txn, storage.RootPath)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -3253,7 +3253,7 @@ func TestBundleLazyModeLifecycleMixBundleTypeActivationDiskStorage(t *testing.T)
 		// Ensure the patches were applied
 		txn = storage.NewTransactionOrDie(ctx, store)
 
-		actual, err := store.Read(ctx, txn, storage.MustParsePath("/"))
+		actual, err := store.Read(ctx, txn, storage.RootPath)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -3395,7 +3395,7 @@ func TestBundleLazyModeLifecycleOldBundleEraseDiskStorage(t *testing.T) {
 			}
 		}
 
-		actual, err := store.Read(ctx, txn, storage.MustParsePath("/"))
+		actual, err := store.Read(ctx, txn, storage.RootPath)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -3478,7 +3478,7 @@ func TestBundleLazyModeLifecycleOldBundleEraseDiskStorage(t *testing.T) {
 		// Ensure the snapshot bundle was activated
 		txn = storage.NewTransactionOrDie(ctx, store)
 
-		actual, err = store.Read(ctx, txn, storage.MustParsePath("/"))
+		actual, err = store.Read(ctx, txn, storage.RootPath)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -3607,7 +3607,7 @@ func TestBundleLazyModeLifecycleRestoreBackupDB(t *testing.T) {
 			}
 		}
 
-		actual, err := store.Read(ctx, txn, storage.MustParsePath("/"))
+		actual, err := store.Read(ctx, txn, storage.RootPath)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -3686,7 +3686,7 @@ func TestBundleLazyModeLifecycleRestoreBackupDB(t *testing.T) {
 
 		txn = storage.NewTransactionOrDie(ctx, store)
 
-		actual, err = store.Read(ctx, txn, storage.MustParsePath("/"))
+		actual, err = store.Read(ctx, txn, storage.RootPath)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -3953,7 +3953,7 @@ func TestDeltaBundleLazyModeLifecycleDiskStorage(t *testing.T) {
 		// Ensure the patches were applied
 		txn = storage.NewTransactionOrDie(ctx, store)
 
-		actual, err := store.Read(ctx, txn, storage.MustParsePath("/"))
+		actual, err := store.Read(ctx, txn, storage.RootPath)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -4112,7 +4112,7 @@ func TestBundleLazyModeLifecycleOverlappingBundleRoots(t *testing.T) {
 	// Ensure the patches were applied
 	txn = storage.NewTransactionOrDie(ctx, mockStore)
 
-	actual, err := mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+	actual, err := mockStore.Read(ctx, txn, storage.RootPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -4270,7 +4270,7 @@ func TestBundleLazyModeLifecycleOverlappingBundleRootsDiskStorage(t *testing.T) 
 		// Ensure the patches were applied
 		txn = storage.NewTransactionOrDie(ctx, store)
 
-		actual, err := store.Read(ctx, txn, storage.MustParsePath("/"))
+		actual, err := store.Read(ctx, txn, storage.RootPath)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -4396,7 +4396,7 @@ func TestBundleLazyModeLifecycleRawOverlappingBundleRoots(t *testing.T) {
 	// Ensure the patches were applied
 	txn = storage.NewTransactionOrDie(ctx, mockStore)
 
-	actual, err := mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+	actual, err := mockStore.Read(ctx, txn, storage.RootPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -4536,7 +4536,7 @@ func TestBundleLazyModeLifecycleRawOverlappingBundleRootsDiskStorage(t *testing.
 		// Ensure the patches were applied
 		txn = storage.NewTransactionOrDie(ctx, store)
 
-		actual, err := store.Read(ctx, txn, storage.MustParsePath("/"))
+		actual, err := store.Read(ctx, txn, storage.RootPath)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -4816,7 +4816,7 @@ func TestDeltaBundleLazyModeLifecycle(t *testing.T) {
 	// Ensure the patches were applied
 	txn = storage.NewTransactionOrDie(ctx, mockStore)
 
-	actual, err := mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+	actual, err := mockStore.Read(ctx, txn, storage.RootPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -5106,7 +5106,7 @@ func TestDeltaBundleLazyModeWithDefaultRules(t *testing.T) {
 	// Ensure the patches were applied
 	txn = storage.NewTransactionOrDie(ctx, mockStore)
 
-	actual, err := mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+	actual, err := mockStore.Read(ctx, txn, storage.RootPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -5268,7 +5268,7 @@ func TestBundleLifecycle(t *testing.T) {
 				}
 			}
 
-			actual, err := mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+			actual, err := mockStore.Read(ctx, txn, storage.RootPath)
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err)
 			}
@@ -5343,7 +5343,7 @@ func TestBundleLifecycle(t *testing.T) {
 				t.Fatalf("expected 0 bundles in store, found %d", len(names))
 			}
 
-			actual, err = mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+			actual, err = mockStore.Read(ctx, txn, storage.RootPath)
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err)
 			}
@@ -5575,7 +5575,7 @@ func TestDeltaBundleLifecycle(t *testing.T) {
 			// Ensure the patches were applied
 			txn = storage.NewTransactionOrDie(ctx, mockStore)
 
-			actual, err := mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+			actual, err := mockStore.Read(ctx, txn, storage.RootPath)
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err)
 			}
@@ -5720,7 +5720,7 @@ func TestDeltaBundleActivate(t *testing.T) {
 			// Ensure the patches were applied
 			txn = storage.NewTransactionOrDie(ctx, mockStore)
 
-			actual, err := mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+			actual, err := mockStore.Read(ctx, txn, storage.RootPath)
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err)
 			}
@@ -5974,7 +5974,7 @@ func TestEraseData(t *testing.T) {
 					mockStore.AssertValid(t)
 
 					txn = storage.NewTransactionOrDie(ctx, mockStore)
-					actual, err := mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+					actual, err := mockStore.Read(ctx, txn, storage.RootPath)
 					if err != nil {
 						t.Fatalf("unexpected error: %s", err)
 					}
@@ -6224,7 +6224,7 @@ func TestWriteData(t *testing.T) {
 					mockStore.AssertValid(t)
 
 					txn = storage.NewTransactionOrDie(ctx, mockStore)
-					actual, err := mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+					actual, err := mockStore.Read(ctx, txn, storage.RootPath)
 					if err != nil {
 						t.Fatalf("unexpected error: %s", err)
 					}

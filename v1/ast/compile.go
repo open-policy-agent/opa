@@ -441,6 +441,7 @@ func (c *Compiler) WithDebug(sink io.Writer) *Compiler {
 }
 
 // WithBuiltins is deprecated.
+//
 // Deprecated: Use WithCapabilities instead.
 func (c *Compiler) WithBuiltins(builtins map[string]*Builtin) *Compiler {
 	c.customBuiltins = maps.Clone(builtins)
@@ -448,6 +449,7 @@ func (c *Compiler) WithBuiltins(builtins map[string]*Builtin) *Compiler {
 }
 
 // WithUnsafeBuiltins is deprecated.
+//
 // Deprecated: Use WithCapabilities instead.
 func (c *Compiler) WithUnsafeBuiltins(unsafeBuiltins map[string]struct{}) *Compiler {
 	maps.Copy(c.unsafeBuiltinsMap, unsafeBuiltins)

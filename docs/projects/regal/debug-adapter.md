@@ -1,7 +1,11 @@
 ---
 sidebar_position: 10
+sidebar_label: Debugging Rego
 ---
 
+<head>
+  <title>Debugging Rego | Regal</title>
+</head>
 
 # Debugging Rego
 

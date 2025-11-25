@@ -1,7 +1,11 @@
 ---
 sidebar_position: 6
+sidebar_label: Pre-Commit Hooks
 ---
 
+<head>
+  <title>Pre-Commit Hooks | Regal</title>
+</head>
 
 # Pre-Commit Hooks
 

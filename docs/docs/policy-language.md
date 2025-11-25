@@ -3,19 +3,15 @@ title: Policy Language
 sidebar_position: 3
 ---
 
-OPA is purpose built for reasoning about information represented in structured
-documents. The data that your service and its users publish can be inspected and
-transformed using OPA’s native query language Rego.
+OPA is purpose built for policy evaluation and uses its declarative language Rego
+to reason about structured data like API requests, infrastructure-as-code files,
+and configuration data. Rego lets you express desired rules and decisions as code,
+and is designed to be easy to read and write while being optimized for fast policy evaluation.
 
-## What is Rego?
-
-Rego was inspired by [Datalog](https://en.wikipedia.org/wiki/Datalog), which is
-a well understood, decades old query language. Rego extends Datalog to support
-structured document models such as JSON.
-
-Rego queries are assertions on data stored in OPA. These queries can be used to
-define policies that enumerate instances of data that violate the expected state
-of the system.
+Rego queries are assertions on data that can be used to define policies and make decisions
+about whether data violates the expected state of your system. Rego was inspired by
+[Datalog](https://en.wikipedia.org/wiki/Datalog) and extends it to support structured
+document models such as JSON.
 
 ## Why use Rego?
 
@@ -68,7 +64,7 @@ rect := {"width": 2, "height": 4}
 
 <RunSnippet id="rect.rego" command="data.example"/>
 
-You can [compare](#equality-assignment-comparison-and-unification) two scalar or composite values, and when you do so you are
+You can [compare](#equality-comparison-and-unification) two scalar or composite values, and when you do so you are
 checking if the two values are the same JSON value.
 
 ```rego
@@ -2240,13 +2236,16 @@ p[x] = y if {
 
 <RunSnippet command="data.some_in"/>
 
-### Equality: Assignment, Comparison, and Unification
+:::info Non-ground values
+A "non-ground value" is a value that contains variables - like `{"foo": y}`
+where `y` is a variable that gets bound during evaluation. This is the opposite
+of a "ground value" which contains no variables. For a formal definition, see
+[ground term](https://en.wikipedia.org/wiki/Ground_expression#ground_term).
+:::
 
-Rego supports three kinds of equality: assignment (`:=`), comparison (`==`), and unification `=`. We recommend using assignment (`:=`) and comparison (`==`) whenever possible for policies that are easier to read and write.
+### Assignment (`:=`)
 
-#### Assignment `:=`
-
-The assignment operator (`:=`) is used to assign values to variables. Variables assigned inside a rule are locally scoped to that rule and shadow global variables.
+The assignment operator `:=` is used to assign values to variables. Variables assigned inside a rule are locally scoped to that rule and shadow global variables.
 
 ```rego
 package assignment
@@ -2295,6 +2294,13 @@ in_london if {
 ```
 
 <RunSnippet command="data.assignment"/>
+
+### Equality: Comparison, and Unification
+
+Rego supports two kinds of equality: comparison (`==`) and unification `=`.
+Generally, to test equality, using `==` for the comparison is recommended.
+The unification operator `=` can be thought of as a combination of `:=` and
+`==`, and is generally suited to some more advanced use cases.
 
 #### Comparison `==`
 
@@ -2373,21 +2379,27 @@ s if {
 
 <RunSnippet command="data.unification.s"/>
 
-#### Best Practices for Equality
+#### Best Practices for Equality and Assignment
 
-Here is a comparison of the three forms of equality.
+Best practice is to use assignment `:=` and comparison `==` unless you know you
+need to use unification.
+The additional compiler checks help avoid errors when writing policy, and the
+additional syntax helps make the intent clearer when reading policy.
 
-```
-Equality  Applicable    Compiler Errors            Use Case
---------  -----------   -------------------------  ----------------------
-:=        Everywhere    Var already assigned       Assign variable
-==        Everywhere    Var not assigned           Compare values
-=         Everywhere    Values cannot be computed  Express query
-```
+| Equality | Compiler Errors              | Use Case        |
+| -------- | ---------------------------- | --------------- |
+| `:=`     | Var already assigned         | Assign variable |
+| `==`     | Var not assigned             | Compare values  |
+| `=`      | Values would not be computed | Express query   |
 
-Best practice is to use assignment `:=` and comparison `==` wherever possible. The additional compiler checks help avoid errors when writing policy, and the additional syntax helps make the intent clearer when reading policy.
+:::tip Further Reading
+There are some Regal rules to help authors make the right decisions:
+
+- [`use-assignment-operator`](/projects/regal/rules/style/use-assignment-operator)
+- [`prefer-equals-comparison`](/projects/regal/rules/idiomatic/prefer-equals-comparison)
 
 Under the hood `:=` and `==` are syntactic sugar for `=`, local variable creation, and additional compiler checks.
+:::
 
 ### Comparison Operators
 
@@ -2759,7 +2771,7 @@ This value is false by default, and can only be used at `document` or `package` 
 explicit `scope` set, the presence of an `entrypoint` annotation will automatically set the scope to `document`.
 
 The `build` and `eval` CLI commands will automatically pick up annotated entrypoints; you do not have to specify them with
-[`--entrypoint`](./cli/#options-1).
+[`--entrypoint`](./cli/#eval).
 
 :::info
 Unless the `--prune-unused` flag is used, any rule transitively referring to a
@@ -2829,7 +2841,7 @@ output := decision if {
 
 <RunSnippet files="#input.metadata.json" command="data.example.output"/>
 
-If you'd like more examples and information on this, you can see more here under the [Rego](./policy-reference/#rego) policy reference.
+If you'd like more examples and information on this, you can see more here under the [Rego](./policy-reference/builtins/rego) policy reference.
 
 #### From the `inspect` command
 

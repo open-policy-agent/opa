@@ -26,6 +26,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast/internal/tokens"
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/ast/location"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // DefaultMaxParsingRecursionDepth is the default maximum recursion
@@ -3105,10 +3106,7 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 		return
 	}
 
-	kwds := make([]string, 0, len(allowedFutureKeywords))
-	for k := range allowedFutureKeywords {
-		kwds = append(kwds, k)
-	}
+	kwds := util.Keys(allowedFutureKeywords)
 
 	switch len(path) {
 	case 2: // all keywords imported, nothing to do
@@ -3158,10 +3156,7 @@ func (p *Parser) regoV1Import(imp *Import) {
 	}
 
 	// import all future keywords with the rego.v1 import
-	kwds := make([]string, 0, len(futureKeywordsV0))
-	for k := range futureKeywordsV0 {
-		kwds = append(kwds, k)
-	}
+	kwds := util.Keys(futureKeywordsV0)
 
 	p.s.s.SetRegoV1Compatible()
 	for _, kw := range kwds {

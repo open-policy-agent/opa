@@ -1,7 +1,11 @@
 ---
 sidebar_position: 5
+sidebar_label: Custom Rules
 ---
 
+<head>
+  <title>Custom Rules | Regal</title>
+</head>
 
 # Custom Rules
 

@@ -1,7 +1,11 @@
 ---
 sidebar_position: 3
+sidebar_label: Fixing Violations
 ---
 
+<head>
+  <title>Fixing Violations | Regal</title>
+</head>
 
 # Fixing Violations
 

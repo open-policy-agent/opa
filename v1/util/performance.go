@@ -1,12 +1,39 @@
 package util
 
 import (
-	"math"
 	"slices"
 	"strings"
 	"sync"
 	"unsafe"
 )
+
+// SyncPool is a generic sync.Pool for type T, providing some convenience
+// over sync.Pool directly: [SyncPool.Put] ensures that nil values are not
+// put into the pool, and [SyncPool.Get] returns a pointer to T without having
+// to do a type assertion at the call site.
+type SyncPool[T any] struct {
+	pool sync.Pool
+}
+
+func NewSyncPool[T any]() *SyncPool[T] {
+	return &SyncPool[T]{
+		pool: sync.Pool{
+			New: func() any {
+				return new(T)
+			},
+		},
+	}
+}
+
+func (p *SyncPool[T]) Get() *T {
+	return p.pool.Get().(*T)
+}
+
+func (p *SyncPool[T]) Put(x *T) {
+	if x != nil {
+		p.pool.Put(x)
+	}
+}
 
 // NewPtrSlice returns a slice of pointers to T with length n,
 // with only 2 allocations performed no matter the size of n.
@@ -58,7 +85,12 @@ func NumDigitsInt64(n int64) int {
 		n = -n
 	}
 
-	return int(math.Log10(float64(n))) + 1
+	count := 0
+	for n > 0 {
+		n /= 10
+		count++
+	}
+	return count
 }
 
 // NumDigitsUint returns the number of digits in n.
@@ -68,16 +100,10 @@ func NumDigitsUint(n uint64) int {
 		return 1
 	}
 
-	return int(math.Log10(float64(n))) + 1
-}
-
-// KeysCount returns the number of keys in m that satisfy predicate p.
-func KeysCount[K comparable, V any](m map[K]V, p func(K) bool) int {
 	count := 0
-	for k := range m {
-		if p(k) {
-			count++
-		}
+	for n > 0 {
+		n /= 10
+		count++
 	}
 	return count
 }
@@ -135,5 +161,7 @@ func (sp *SlicePool[T]) Get(length int) *[]T {
 
 // Put returns a pointer to a slice of type T to the pool.
 func (sp *SlicePool[T]) Put(s *[]T) {
-	sp.pool.Put(s)
+	if s != nil {
+		sp.pool.Put(s)
+	}
 }

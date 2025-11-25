@@ -1,0 +1,38 @@
+name: Benchmarks
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+
+jobs:
+  benchmarks:
+    permissions:
+      contents: write # we'll push to the `benchmarks` branch
+    name: Benchmarks
+    if: ${{ github.actor != 'dependabot[bot]' }} && false
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: open-policy-agent/setup-opa@950f159a49aa91f9323f36f1de81c7f6b5de9576 # v2.3.0
+      - name: Check out code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          path: opa
+      - id: go_version
+        name: Read go version
+        run: echo "go_version=$(cat .go-version)" >> $GITHUB_OUTPUT
+        working-directory: opa
+      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+        with:
+          go-version: ${{ steps.go_version.outputs.go_version }}
+          cache-dependency-path: opa/go.sum
+      - name: gobenchdata publish
+        run: go run go.bobheadxi.dev/gobenchdata@v1 action
+        env:
+          INPUT_GO_TEST_FLAGS: -tags=opa_wasm -timeout=120m -run=-
+          INPUT_GO_TEST_PKGS: ./...
+          INPUT_SUBDIRECTORY: opa
+          INPUT_PUBLISH: true
+          INPUT_PUBLISH_BRANCH: benchmarks
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        timeout-minutes: 120
