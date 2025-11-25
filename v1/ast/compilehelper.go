@@ -33,7 +33,8 @@ func CompileModulesWithOpt(modules map[string]string, opts CompileOpts) (*Compil
 
 	compiler := NewCompiler().
 		WithDefaultRegoVersion(opts.ParserOptions.RegoVersion).
-		WithEnablePrintStatements(opts.EnablePrintStatements)
+		WithEnablePrintStatements(opts.EnablePrintStatements).
+		WithCapabilities(opts.ParserOptions.Capabilities)
 	compiler.Compile(parsed)
 
 	if compiler.Failed() {

@@ -2139,8 +2139,7 @@ func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler
 	}
 
 	if os.Getenv("OPA_DUMP_TEST") != "" {
-
-		data, err := store.Read(ctx, txn, storage.MustParsePath("/"))
+		data, err := store.Read(ctx, txn, storage.RootPath)
 		if err != nil {
 			t.Fatal(err)
 		}

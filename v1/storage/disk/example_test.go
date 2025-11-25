@@ -44,7 +44,7 @@ func Example_store() {
 	// Insert data into the store. The `storage.WriteOne` function automatically
 	// opens a write transaction, applies the operation, and commits the
 	// transaction in one-shot.
-	err = storage.WriteOne(ctx, store, storage.AddOp, storage.MustParsePath("/"), util.MustUnmarshalJSON([]byte(`{
+	err = storage.WriteOne(ctx, store, storage.AddOp, storage.RootPath, util.MustUnmarshalJSON([]byte(`{
 		"authz": {
 			"tenants": {
 				"acmecorp.openpolicyagent.org": {

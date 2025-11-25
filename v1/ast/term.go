@@ -1153,12 +1153,6 @@ func IsVarCompatibleString(s string) bool {
 	return varRegexp.MatchString(s)
 }
 
-var bbPool = &sync.Pool{
-	New: func() any {
-		return new(bytes.Buffer)
-	},
-}
-
 func (ref Ref) String() string {
 	// Note(anderseknert):
 	// Options tried in the order of cheapness, where after some effort,
@@ -1180,7 +1174,7 @@ func (ref Ref) String() string {
 
 	_var := ref[0].Value.String()
 
-	bb := bbPool.Get().(*bytes.Buffer)
+	bb := bbPool.Get()
 	bb.Reset()
 
 	defer bbPool.Put(bb)

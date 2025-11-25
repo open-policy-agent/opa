@@ -349,10 +349,25 @@ func (h *handle) Unregister(_ context.Context, txn storage.Transaction) {
 }
 
 func (db *store) runOnCommitTriggers(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
-	if db.returnASTValuesOnRead && len(db.triggers) > 0 {
-		// FIXME: Not very performant for large data.
+	// While it's unlikely, the API allows one trigger to be configured to want
+	// data conversion, and another that doesn't. So let's handle that properly.
+	var wantsDataConversion bool
+	if db.returnASTValuesOnRead && len(event.Data) > 0 {
+		for _, t := range db.triggers {
+			if !t.SkipDataConversion {
+				wantsDataConversion = true
+				break
+			}
+		}
+	}
 
-		dataEvents := make([]storage.DataEvent, 0, len(event.Data))
+	var converted storage.TriggerEvent
+	if wantsDataConversion {
+		converted = storage.TriggerEvent{
+			Policy:  event.Policy,
+			Data:    make([]storage.DataEvent, 0, len(event.Data)),
+			Context: event.Context,
+		}
 
 		for _, dataEvent := range event.Data {
 			if astData, ok := dataEvent.Data.(ast.Value); ok {
@@ -360,25 +375,21 @@ func (db *store) runOnCommitTriggers(ctx context.Context, txn storage.Transactio
 				if err != nil {
 					panic(err)
 				}
-				dataEvents = append(dataEvents, storage.DataEvent{
+				converted.Data = append(converted.Data, storage.DataEvent{
 					Path:    dataEvent.Path,
 					Data:    jsn,
 					Removed: dataEvent.Removed,
 				})
-			} else {
-				dataEvents = append(dataEvents, dataEvent)
 			}
-		}
-
-		event = storage.TriggerEvent{
-			Policy:  event.Policy,
-			Data:    dataEvents,
-			Context: event.Context,
 		}
 	}
 
 	for _, t := range db.triggers {
-		t.OnCommit(ctx, txn, event)
+		if wantsDataConversion && !t.SkipDataConversion {
+			t.OnCommit(ctx, txn, converted)
+		} else {
+			t.OnCommit(ctx, txn, event)
+		}
 	}
 }
 

@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"strings"
 	"sync"
+
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 var (
-	TermPtrPool     = NewSyncPool[Term]()
-	BytesReaderPool = NewSyncPool[bytes.Reader]()
-	IndexResultPool = NewSyncPool[IndexResult]()
+	TermPtrPool     = util.NewSyncPool[Term]()
+	BytesReaderPool = util.NewSyncPool[bytes.Reader]()
+	IndexResultPool = util.NewSyncPool[IndexResult]()
+	bbPool          = util.NewSyncPool[bytes.Buffer]()
 	// Needs custom pool because of custom Put logic.
 	sbPool = &stringBuilderPool{
 		pool: sync.Pool{
@@ -29,36 +32,9 @@ var (
 )
 
 type (
-	syncPool[T any] struct {
-		pool sync.Pool
-	}
-	stringBuilderPool struct {
-		pool sync.Pool
-	}
-	vvPool struct {
-		pool sync.Pool
-	}
+	stringBuilderPool struct{ pool sync.Pool }
+	vvPool            struct{ pool sync.Pool }
 )
-
-func NewSyncPool[T any]() *syncPool[T] {
-	return &syncPool[T]{
-		pool: sync.Pool{
-			New: func() any {
-				return new(T)
-			},
-		},
-	}
-}
-
-func (p *syncPool[T]) Get() *T {
-	return p.pool.Get().(*T)
-}
-
-func (p *syncPool[T]) Put(x *T) {
-	if x != nil {
-		p.pool.Put(x)
-	}
-}
 
 func (p *stringBuilderPool) Get() *strings.Builder {
 	return p.pool.Get().(*strings.Builder)
