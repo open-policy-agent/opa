@@ -1,0 +1,5 @@
+title: gobenchdata web
+description: Benchmarks generated using 'gobenchdata'
+repository: https://github.com/open-policy-agent/opa
+benchmarksFile: benchmarks.json
+chartGroups: []

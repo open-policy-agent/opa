@@ -1,0 +1,44 @@
+/* Breakpoints - sourced from https://bulma.io/documentation/customize/variables/ */
+.chart .chart-set {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+}
+.chart .chart-set .metric {
+  width: 33%;
+}
+@media (max-width: 1408px) {
+.chart .chart-set .metric {
+    width: 50%;
+}
+}
+@media (max-width: 1024px) {
+.chart .chart-set .metric {
+    width: 100%;
+}
+}
+.chart .chart-set .metric.full-width {
+  width: 80%;
+}
+@media (max-width: 1024px) {
+.chart .chart-set .metric.full-width {
+    width: 100%;
+}
+}/* Breakpoints - sourced from https://bulma.io/documentation/customize/variables/ */
+.chart-group {
+  margin-top: 64px;
+}
+.chart-group .chart {
+  margin-top: 32px;
+  margin-bottom: 32px;
+}/* Breakpoints - sourced from https://bulma.io/documentation/customize/variables/ */
+.app {
+  padding-left: 32px;
+  padding-right: 32px;
+  font-family: "Fira Code", monospace;
+  text-align: center;
+}
+.app .footer {
+  margin-top: 64px;
+  margin-bottom: 64px;
+}
