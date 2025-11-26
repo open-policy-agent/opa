@@ -5,68 +5,74 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## 1.11.0
 
-### Fixes
+This release contains a mix of new features, performance improvements, and bugfixes. Notably:
 
-- ast: Export built-in deprecated field (#8069) ([#7912](https://github.com/open-policy-agent/opa/issues/7912)) authored by @colinjlacy
-- inmem: allow passing triggers (AST) data without conversion (#7959) ([#7958](https://github.com/open-policy-agent/opa/issues/7958)) authored by @anderseknert
+- More efficient connection management in the `http.send` built-in function
+- More performant loading of large bundles
+
+### Runtime, SDK, Tooling
+
+- v1/ast: Fix Call parsing Text attribute including an extra character ([#7989](https://github.com/open-policy-agent/opa/issues/7989)) authored by @schmitd
+- ast: Export built-in deprecated field ([#7912](https://github.com/open-policy-agent/opa/issues/7912)) authored by @colinjlacy
+- ast: Intern common var values + some parser improvements ([#8028](https://github.com/open-policy-agent/opa/pull/8028)) authored by @anderseknert
+- ast: Support custom builtins in CompileModulesWithOpt ([#8061](https://github.com/open-policy-agent/opa/issues/5580)) authored by @sspaink
+- bundle: Concurrent Rego parsing in bundle loader ([#8067](https://github.com/open-policy-agent/opa/pull/8067)) authored by @anderseknert
+- cmd: Support `--ignore` in `eval` cmd when using bundle flag (`--bundle`) ([#8062](https://github.com/open-policy-agent/opa/pull/8048)) authored by @sspaink
+- storage/inmem: Allow passing triggers (AST) data without conversion ([#7958](https://github.com/open-policy-agent/opa/issues/7958)) authored by @anderseknert
+
+### Compiler, Topdown and Rego
+
+- topdown: Avoid unnecessary use of custom `http.Transport` in `http.send` built-in ([#7927](https://github.com/open-policy-agent/opa/pull/7927)) authored by @sykesm
+- topdown: Fix `split` built-in function's handling of empty delimiter (`split(..., "")`) ([#8019](https://github.com/open-policy-agent/opa/pull/8019)) authored by @srenatus
+- topdown: New custom SemVer implementation ([#8010](https://github.com/open-policy-agent/opa/pull/8010)) authored by @anderseknert
+- topdown: Use `sync.Pool` for eval func objects ([#8054](https://github.com/open-policy-agent/opa/pull/8054)) authored by @anderseknert
+
+### Docs, Website, Ecosystem
+
+- docs: Add example for Compile API's table mapping ([#8017](https://github.com/open-policy-agent/opa/pull/8017)) authored by @srenatus
+- docs: Address pages with similar titles ([#8046](https://github.com/open-policy-agent/opa/pull/8046)) authored by @charlieegan3
+- docs: Address some broken links ([#8022](https://github.com/open-policy-agent/opa/pull/8022)) authored by @charlieegan3
+- docs: Bump glob dep (CVE-2025-64756) ([#8056](https://github.com/open-policy-agent/opa/pull/8056)) authored by @srenatus
+- docs: Improve ground value and assignment docs ([#8047](https://github.com/open-policy-agent/opa/pull/8047)) authored by @charlieegan3
+- docs: Make iteration content flow better ([#8064](https://github.com/open-policy-agent/opa/pull/8064)) authored by @charlieegan3
+- docs: Note package repos are community maintained ([#8053](https://github.com/open-policy-agent/opa/pull/8053)) authored by @charlieegan3
+- docs: Update terraform guide with notes about plan ([#8043](https://github.com/open-policy-agent/opa/pull/8043)) authored by @charlieegan3
+- docs: Update the archive to have an edge link ([#8011](https://github.com/open-policy-agent/opa/pull/8011)) authored by @charlieegan3
+- docs: Update the policy language intro ([#8050](https://github.com/open-policy-agent/opa/pull/8050)) authored by @charlieegan3
+- docs/ocp: Datasource example uses wrong AWS S3 URL ([#8039](https://github.com/open-policy-agent/opa/pull/8039)) authored by @SuchSkill
+- docs/regal: Replicate sidebar fixes ([#8036](https://github.com/open-policy-agent/opa/pull/8036)) authored by @charlieegan3
+- website: Add an issue template for ext 404s ([#8045](https://github.com/open-policy-agent/opa/pull/8045)) authored by @charlieegan3
+- website: Add bar to show survey link ([#8035](https://github.com/open-policy-agent/opa/pull/8035)) authored by @charlieegan3
+- website: Address styling issue in regal logo ([#8037](https://github.com/open-policy-agent/opa/pull/8037)) authored by @charlieegan3
+- website: Build prod Regal content from main ([#8023](https://github.com/open-policy-agent/opa/pull/8023)) authored by @charlieegan3
+- website: Checkout relative to docs dir ([#8024](https://github.com/open-policy-agent/opa/pull/8024)) authored by @charlieegan3
+- website: Docs versioning ([#8038](https://github.com/open-policy-agent/opa/pull/8038)) authored by @charlieegan3
+- website: Improve not found page content ([#8042](https://github.com/open-policy-agent/opa/pull/8042)) authored by @charlieegan3
+- website: Process feedback form on netlify ([#8040](https://github.com/open-policy-agent/opa/pull/8040)) authored by @charlieegan3
+- website: Remove unused lunr dependency ([#8013](https://github.com/open-policy-agent/opa/pull/8013)) authored by @charlieegan3
+- website: Use Regal in regal page titles ([#8033](https://github.com/open-policy-agent/opa/pull/8033)) authored by @charlieegan3
+- website,docs: Fix remaining broken links ([#8034](https://github.com/open-policy-agent/opa/pull/8034)) authored by @charlieegan3
 
 ### Miscellaneous
 
-- Add test cases for consistent cache behavior (authored by @DFrenkel)
-- Avoid unnecessary use of custom http.Transport by http.send (#7927) (authored by @sykesm)
-- Bump golangci-lint, more gocritic linters (#8052) (authored by @anderseknert)
-- CHANGELOG: integrate v1.10.1 (authored by @srenatus)
-- Concurrent Rego parsing in bundle loader (#8067) (authored by @anderseknert)
-- Intern common var values + some parser improvements (#8028) (authored by @anderseknert)
-- New custom SemVer implementation (#8010) (authored by @anderseknert)
-- Prepare v1.11.0 development (authored by @johanfylling)
-- Tidy up and unify sync pool handling (#8068) (authored by @anderseknert)
-- Updating e2e go.mod (authored by @johanfylling)
-- Use `sync.Pool` for eval func objects (#8054) (authored by @anderseknert)
-- build(deps): bump github.com/containerd/containerd/v2 from 2.1.4 to 2.1.5 (#8025) (authored by @dependabot[bot])
-- build(deps): bump github.com/containerd/containerd/v2 in /e2e (authored by @dependabot[bot])
-- build(deps): bump golang.org/x/crypto from 0.43.0 to 0.45.0 (#8065) (authored by @dependabot[bot])
-- build(deps): bump golang.org/x/crypto from 0.43.0 to 0.45.0 in /e2e (#8066) (authored by @dependabot[bot])
-- build(deps): bump js-yaml from 3.14.1 to 3.14.2 in /docs (authored by @dependabot[bot])
-- build(deps): bump the dependencies group across 2 directories with 10 updates (authored by @dependabot[bot])
-- build(deps): bump the e2e-prisma group (#8008) (authored by @dependabot[bot])
-- build(deps): bump the e2e-prisma group (authored by @dependabot[bot])
-- build(deps): bump the gha-dependencies group with 7 updates (#8006) (authored by @dependabot[bot])
-- build(deps): github.com/vektah/gqlparser/v2 from 2.5.30 to 2.5.31 (authored by @johanfylling)
-- build: go 1.25.3 -> 1.25.4 (#8051) (authored by @srenatus)
-- builtins: Add `StringOperandByteSlice` helper (authored by @anderseknert)
-- cmd: Support --ignore in eval cmd when using bundle flag (-b) (#8062) (authored by @sspaink)
-- docs/ocp: datasource example uses wrong AWS S3 URL (#8039) (authored by @SuchSkill)
-- docs/regal: Replicate sidebar fixes (#8036) (authored by @charlieegan3)
-- docs: Address pages with similar titles (#8046) (authored by @charlieegan3)
-- docs: Address some broken links (#8022) (authored by @charlieegan3)
-- docs: Improve ground value and assignment docs (#8047) (authored by @charlieegan3)
-- docs: Make iteration content flow better (#8064) (authored by @charlieegan3)
-- docs: Note package repos are community maintained (#8053) (authored by @charlieegan3)
-- docs: Update terraform guide with notes about plan (#8043) (authored by @charlieegan3)
-- docs: Update the archive to have an edge link (authored by @charlieegan3)
-- docs: Update the policy language intro (#8050) (authored by @charlieegan3)
-- docs: add example for Compile API's table mapping (authored by @srenatus)
-- docs: bump glob dep (CVE-2025-64756) (authored by @srenatus)
-- fix: support custom builtins in CompileModulesWithOpt (#8061) (authored by @sspaink)
-- topdown: fix split(..., "") (authored by @srenatus)
-- util/performance: remove math.Log10, remove unused KeysCount (#8041) (authored by @srenatus)
-- v1/ast: Fix Call parsing Text attibute including an extra character (#8029) (authored by @schmitd)
-- website/docs: Fix remaining broken links (#8034) (authored by @charlieegan3)
-- website: Add an issue template for ext 404s (#8045) (authored by @charlieegan3)
-- website: Add bar to show survey link (#8035) (authored by @charlieegan3)
-- website: Address styling issue in regal logo (#8037) (authored by @charlieegan3)
-- website: Build prod Regal content from main (#8023) (authored by @charlieegan3)
-- website: Docs versioning (#8038) (authored by @charlieegan3)
-- website: Improve not found page content (#8042) (authored by @charlieegan3)
-- website: Process feedback form on netlify (#8040) (authored by @charlieegan3)
-- website: Remove unused lunr dependency (authored by @charlieegan3)
-- website: Use Regal in regal page titles (#8033) (authored by @charlieegan3)
-- website: checkout relative to docs dir (#8024) (authored by @charlieegan3)
-- workflow: add 'Benchmarks' workflow (authored by @srenatus)
-- workflows/pull-request: fix indentation of 'if:' for setup-go (authored by @srenatus)
-- workflows/pull-request: update macos versions (authored by @srenatus)
-
+- Bump golangci-lint, more gocritic linters ([#8052](https://github.com/open-policy-agent/opa/pull/8052)) authored by @anderseknert
+- Tidy up and unify sync pool handling ([#8068](https://github.com/open-policy-agent/opa/pull/8068)) authored by @anderseknert
+- builtins: Add `StringOperandByteSlice` helper ([#8048](https://github.com/open-policy-agent/opa/pull/8048)) authored by @anderseknert
+- test: Add test cases for consistent cache behavior ([#8015](https://github.com/open-policy-agent/opa/pull/8015)) authored by @DFrenkel
+- util/performance: Remove math.Log10, remove unused KeysCount ([#8041](https://github.com/open-policy-agent/opa/pull/8041)) authored by @srenatus
+- workflow: Add `Benchmarks` workflow ([#8072](https://github.com/open-policy-agent/opa/pull/8072)) authored by @srenatus
+- workflows/pull-request: Update macos versions ([#8030](https://github.com/open-policy-agent/opa/pull/8030)) authored by @srenatus
+- Dependency updates; notably:
+  - build: golang 1.25.3 -> 1.25.4 ([#8051](https://github.com/open-policy-agent/opa/pull/8051)) authored by @srenatus
+  - build(deps): bump github.com/containerd/containerd/v2 from 2.1.4 to 2.2.0
+  - build(deps): bump golang.org/x/crypto from 0.43.0 to 0.45.0
+  - build(deps): golang.org/x/net from 0.44.0 to 0.45.0
+  - build(deps): golang.org/x/time from 0.13.0 to 0.14.0
+  - build(deps): github.com/vektah/gqlparser/v2 from 2.5.30 to 2.5.31 ([#8027](https://github.com/open-policy-agent/opa/pull/8027)) authored by @johanfylling
+  - build(deps): github.com/huandu/go-sqlbuilder from 1.37.0 to 1.38.1
+  - build(deps): github.com/lestrrat-go/jwx/v3 from 3.0.11 to 3.0.12
+  - build(deps): google.golang.org/grpc from 1.75.1 to 1.76.0
+  - build(deps): google.golang.org/protobuf from 1.36.9 to 1.36.10
 
 ## 1.10.1
 
