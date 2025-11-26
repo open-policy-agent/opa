@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	wasmtime "github.com/bytecodealliance/wasmtime-go/v37"
+	wasmtime "github.com/bytecodealliance/wasmtime-go/v39"
 
 	sdk_errors "github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/internal/wasm/util"
@@ -79,12 +79,15 @@ func newVM(opts vmOpts, engine *wasmtime.Engine) (*VM, error) {
 	v := &VM{engine: engine}
 	store := wasmtime.NewStore(engine)
 	store.SetEpochDeadline(1)
-	memorytype := wasmtime.NewMemoryType(
+	memorytype, err := wasmtime.NewMemoryType(
 		opts.memoryMin,
 		true,
 		opts.memoryMax,
 		false,
 	)
+	if err != nil {
+		return nil, err
+	}
 	memory, err := wasmtime.NewMemory(store, memorytype)
 	if err != nil {
 		return nil, err
