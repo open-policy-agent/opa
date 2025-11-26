@@ -3,7 +3,69 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 1.11.0
+
+### Fixes
+
+- ast: Export built-in deprecated field (#8069) ([#7912](https://github.com/open-policy-agent/opa/issues/7912)) authored by @colinjlacy
+- inmem: allow passing triggers (AST) data without conversion (#7959) ([#7958](https://github.com/open-policy-agent/opa/issues/7958)) authored by @anderseknert
+
+### Miscellaneous
+
+- Add test cases for consistent cache behavior (authored by @DFrenkel)
+- Avoid unnecessary use of custom http.Transport by http.send (#7927) (authored by @sykesm)
+- Bump golangci-lint, more gocritic linters (#8052) (authored by @anderseknert)
+- CHANGELOG: integrate v1.10.1 (authored by @srenatus)
+- Concurrent Rego parsing in bundle loader (#8067) (authored by @anderseknert)
+- Intern common var values + some parser improvements (#8028) (authored by @anderseknert)
+- New custom SemVer implementation (#8010) (authored by @anderseknert)
+- Prepare v1.11.0 development (authored by @johanfylling)
+- Tidy up and unify sync pool handling (#8068) (authored by @anderseknert)
+- Updating e2e go.mod (authored by @johanfylling)
+- Use `sync.Pool` for eval func objects (#8054) (authored by @anderseknert)
+- build(deps): bump github.com/containerd/containerd/v2 from 2.1.4 to 2.1.5 (#8025) (authored by @dependabot[bot])
+- build(deps): bump github.com/containerd/containerd/v2 in /e2e (authored by @dependabot[bot])
+- build(deps): bump golang.org/x/crypto from 0.43.0 to 0.45.0 (#8065) (authored by @dependabot[bot])
+- build(deps): bump golang.org/x/crypto from 0.43.0 to 0.45.0 in /e2e (#8066) (authored by @dependabot[bot])
+- build(deps): bump js-yaml from 3.14.1 to 3.14.2 in /docs (authored by @dependabot[bot])
+- build(deps): bump the dependencies group across 2 directories with 10 updates (authored by @dependabot[bot])
+- build(deps): bump the e2e-prisma group (#8008) (authored by @dependabot[bot])
+- build(deps): bump the e2e-prisma group (authored by @dependabot[bot])
+- build(deps): bump the gha-dependencies group with 7 updates (#8006) (authored by @dependabot[bot])
+- build(deps): github.com/vektah/gqlparser/v2 from 2.5.30 to 2.5.31 (authored by @johanfylling)
+- build: go 1.25.3 -> 1.25.4 (#8051) (authored by @srenatus)
+- builtins: Add `StringOperandByteSlice` helper (authored by @anderseknert)
+- cmd: Support --ignore in eval cmd when using bundle flag (-b) (#8062) (authored by @sspaink)
+- docs/ocp: datasource example uses wrong AWS S3 URL (#8039) (authored by @SuchSkill)
+- docs/regal: Replicate sidebar fixes (#8036) (authored by @charlieegan3)
+- docs: Address pages with similar titles (#8046) (authored by @charlieegan3)
+- docs: Address some broken links (#8022) (authored by @charlieegan3)
+- docs: Improve ground value and assignment docs (#8047) (authored by @charlieegan3)
+- docs: Make iteration content flow better (#8064) (authored by @charlieegan3)
+- docs: Note package repos are community maintained (#8053) (authored by @charlieegan3)
+- docs: Update terraform guide with notes about plan (#8043) (authored by @charlieegan3)
+- docs: Update the archive to have an edge link (authored by @charlieegan3)
+- docs: Update the policy language intro (#8050) (authored by @charlieegan3)
+- docs: add example for Compile API's table mapping (authored by @srenatus)
+- docs: bump glob dep (CVE-2025-64756) (authored by @srenatus)
+- fix: support custom builtins in CompileModulesWithOpt (#8061) (authored by @sspaink)
+- topdown: fix split(..., "") (authored by @srenatus)
+- util/performance: remove math.Log10, remove unused KeysCount (#8041) (authored by @srenatus)
+- v1/ast: Fix Call parsing Text attibute including an extra character (#8029) (authored by @schmitd)
+- website/docs: Fix remaining broken links (#8034) (authored by @charlieegan3)
+- website: Add an issue template for ext 404s (#8045) (authored by @charlieegan3)
+- website: Add bar to show survey link (#8035) (authored by @charlieegan3)
+- website: Address styling issue in regal logo (#8037) (authored by @charlieegan3)
+- website: Build prod Regal content from main (#8023) (authored by @charlieegan3)
+- website: Docs versioning (#8038) (authored by @charlieegan3)
+- website: Improve not found page content (#8042) (authored by @charlieegan3)
+- website: Process feedback form on netlify (#8040) (authored by @charlieegan3)
+- website: Remove unused lunr dependency (authored by @charlieegan3)
+- website: Use Regal in regal page titles (#8033) (authored by @charlieegan3)
+- website: checkout relative to docs dir (#8024) (authored by @charlieegan3)
+- workflow: add 'Benchmarks' workflow (authored by @srenatus)
+- workflows/pull-request: fix indentation of 'if:' for setup-go (authored by @srenatus)
+- workflows/pull-request: update macos versions (authored by @srenatus)
 
 
 ## 1.10.1
