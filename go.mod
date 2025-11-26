@@ -1,6 +1,6 @@
 module github.com/open-policy-agent/opa
 
-go 1.24.6
+go 1.25
 
 require (
 	github.com/agnivade/levenshtein v1.2.1
