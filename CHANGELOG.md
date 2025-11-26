@@ -10,6 +10,10 @@ This release contains a mix of new features, performance improvements, and bugfi
 - More efficient connection management in the `http.send` built-in function
 - More performant loading of large bundles containing multiple Rego files
 
+### Immutable Releases
+
+Starting with this release, OPA releases are [immutable](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/immutable-releases) for increased security.
+
 ### Runtime, SDK, Tooling
 
 - v1/ast: Fix Call parsing Text attribute including an extra character ([#7989](https://github.com/open-policy-agent/opa/issues/7989)) authored by @schmitd
