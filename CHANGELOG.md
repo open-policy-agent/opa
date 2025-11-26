@@ -8,7 +8,7 @@ project adheres to [Semantic Versioning](http://semver.org/).
 This release contains a mix of new features, performance improvements, and bugfixes. Notably:
 
 - More efficient connection management in the `http.send` built-in function
-- More performant loading of large bundles
+- More performant loading of large bundles containing multiple Rego files
 
 ### Runtime, SDK, Tooling
 
