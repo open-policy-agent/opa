@@ -64,15 +64,16 @@ This release contains a mix of new features, performance improvements, and bugfi
 - workflows/pull-request: Update macos versions ([#8030](https://github.com/open-policy-agent/opa/pull/8030)) authored by @srenatus
 - Dependency updates; notably:
   - build: golang 1.25.3 -> 1.25.4 ([#8051](https://github.com/open-policy-agent/opa/pull/8051)) authored by @srenatus
-  - build(deps): bump github.com/containerd/containerd/v2 from 2.1.4 to 2.2.0
-  - build(deps): bump golang.org/x/crypto from 0.43.0 to 0.45.0
-  - build(deps): golang.org/x/net from 0.44.0 to 0.45.0
-  - build(deps): golang.org/x/time from 0.13.0 to 0.14.0
-  - build(deps): github.com/vektah/gqlparser/v2 from 2.5.30 to 2.5.31 ([#8027](https://github.com/open-policy-agent/opa/pull/8027)) authored by @johanfylling
-  - build(deps): github.com/huandu/go-sqlbuilder from 1.37.0 to 1.38.1
-  - build(deps): github.com/lestrrat-go/jwx/v3 from 3.0.11 to 3.0.12
-  - build(deps): google.golang.org/grpc from 1.75.1 to 1.76.0
-  - build(deps): google.golang.org/protobuf from 1.36.9 to 1.36.10
+  - build(deps): Bump github.com/bytecodealliance/wasmtime-go from v37.0.0 to v39.0.1 ([#8075](https://github.com/open-policy-agent/opa/pull/8075)) authored by @srenatus
+  - build(deps): Bump github.com/containerd/containerd/v2 from 2.1.4 to 2.2.0
+  - build(deps): Bump github.com/huandu/go-sqlbuilder from 1.37.0 to 1.38.1
+  - build(deps): Bump github.com/lestrrat-go/jwx/v3 from 3.0.11 to 3.0.12
+  - build(deps): Bump github.com/vektah/gqlparser/v2 from 2.5.30 to 2.5.31 ([#8027](https://github.com/open-policy-agent/opa/pull/8027)) authored by @johanfylling
+  - build(deps): Bump golang.org/x/crypto from 0.43.0 to 0.45.0
+  - build(deps): Bump golang.org/x/net from 0.44.0 to 0.45.0
+  - build(deps): Bump golang.org/x/time from 0.13.0 to 0.14.0
+  - build(deps): Bump google.golang.org/grpc from 1.75.1 to 1.76.0
+  - build(deps): Bump google.golang.org/protobuf from 1.36.9 to 1.36.10
 
 ## 1.10.1
 
