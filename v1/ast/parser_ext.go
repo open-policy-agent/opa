@@ -11,7 +11,6 @@
 package ast
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"slices"
@@ -625,10 +624,9 @@ func ParseStatements(filename, input string) ([]Statement, []*Comment, error) {
 // ParseStatementsWithOpts returns a slice of parsed statements. This is the
 // default return value from the parser.
 func ParseStatementsWithOpts(filename, input string, popts ParserOptions) ([]Statement, []*Comment, error) {
-
 	parser := NewParser().
 		WithFilename(filename).
-		WithReader(bytes.NewBufferString(input)).
+		WithReader(strings.NewReader(input)).
 		WithProcessAnnotation(popts.ProcessAnnotation).
 		WithFutureKeywords(popts.FutureKeywords...).
 		WithAllFutureKeywords(popts.AllFutureKeywords).
@@ -638,7 +636,6 @@ func ParseStatementsWithOpts(filename, input string, popts ParserOptions) ([]Sta
 		withUnreleasedKeywords(popts.unreleasedKeywords)
 
 	stmts, comments, errs := parser.Parse()
-
 	if len(errs) > 0 {
 		return nil, nil, errs
 	}
@@ -647,7 +644,6 @@ func ParseStatementsWithOpts(filename, input string, popts ParserOptions) ([]Sta
 }
 
 func parseModule(filename string, stmts []Statement, comments []*Comment, regoCompatibilityMode RegoVersion) (*Module, error) {
-
 	if len(stmts) == 0 {
 		return nil, NewError(ParseErr, &Location{File: filename}, "empty module")
 	}
@@ -662,23 +658,21 @@ func parseModule(filename string, stmts []Statement, comments []*Comment, regoCo
 
 	mod := &Module{
 		Package: pkg,
-		stmts:   stmts,
+		// The comments slice only holds comments that were not their own statements.
+		Comments: comments,
+		stmts:    stmts,
 	}
 
-	// The comments slice only holds comments that were not their own statements.
-	mod.Comments = append(mod.Comments, comments...)
-
+	mod.regoVersion = regoCompatibilityMode
 	if regoCompatibilityMode == RegoUndefined {
 		mod.regoVersion = DefaultRegoVersion
-	} else {
-		mod.regoVersion = regoCompatibilityMode
 	}
 
 	for i, stmt := range stmts[1:] {
 		switch stmt := stmt.(type) {
 		case *Import:
 			mod.Imports = append(mod.Imports, stmt)
-			if mod.regoVersion == RegoV0 && Compare(stmt.Path.Value, RegoV1CompatibleRef) == 0 {
+			if mod.regoVersion == RegoV0 && RegoV1CompatibleRef.Equal(stmt.Path.Value) {
 				mod.regoVersion = RegoV0CompatV1
 			}
 		case *Rule:

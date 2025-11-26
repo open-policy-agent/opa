@@ -216,16 +216,25 @@ func (vis namespacingVisitor) Visit(x any) bool {
 	switch x := x.(type) {
 	case *ast.ArrayComprehension:
 		x.Term = vis.namespaceTerm(x.Term)
-		ast.NewGenericVisitor(vis.Visit).Walk(x.Body)
+		vis := ast.NewGenericVisitor(vis.Visit)
+		for _, expr := range x.Body {
+			vis.Walk(expr)
+		}
 		return true
 	case *ast.SetComprehension:
 		x.Term = vis.namespaceTerm(x.Term)
-		ast.NewGenericVisitor(vis.Visit).Walk(x.Body)
+		vis := ast.NewGenericVisitor(vis.Visit)
+		for _, expr := range x.Body {
+			vis.Walk(expr)
+		}
 		return true
 	case *ast.ObjectComprehension:
 		x.Key = vis.namespaceTerm(x.Key)
 		x.Value = vis.namespaceTerm(x.Value)
-		ast.NewGenericVisitor(vis.Visit).Walk(x.Body)
+		vis := ast.NewGenericVisitor(vis.Visit)
+		for _, expr := range x.Body {
+			vis.Walk(expr)
+		}
 		return true
 	case *ast.Expr:
 		switch terms := x.Terms.(type) {
