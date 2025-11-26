@@ -40,17 +40,7 @@ This release contains a mix of new features, performance improvements, and bugfi
 - docs: Update the policy language intro ([#8050](https://github.com/open-policy-agent/opa/pull/8050)) authored by @charlieegan3
 - docs/ocp: Datasource example uses wrong AWS S3 URL ([#8039](https://github.com/open-policy-agent/opa/pull/8039)) authored by @SuchSkill
 - docs/regal: Replicate sidebar fixes ([#8036](https://github.com/open-policy-agent/opa/pull/8036)) authored by @charlieegan3
-- website: Add an issue template for ext 404s ([#8045](https://github.com/open-policy-agent/opa/pull/8045)) authored by @charlieegan3
-- website: Add bar to show survey link ([#8035](https://github.com/open-policy-agent/opa/pull/8035)) authored by @charlieegan3
-- website: Address styling issue in regal logo ([#8037](https://github.com/open-policy-agent/opa/pull/8037)) authored by @charlieegan3
-- website: Build prod Regal content from main ([#8023](https://github.com/open-policy-agent/opa/pull/8023)) authored by @charlieegan3
-- website: Checkout relative to docs dir ([#8024](https://github.com/open-policy-agent/opa/pull/8024)) authored by @charlieegan3
-- website: Docs versioning ([#8038](https://github.com/open-policy-agent/opa/pull/8038)) authored by @charlieegan3
-- website: Improve not found page content ([#8042](https://github.com/open-policy-agent/opa/pull/8042)) authored by @charlieegan3
-- website: Process feedback form on netlify ([#8040](https://github.com/open-policy-agent/opa/pull/8040)) authored by @charlieegan3
-- website: Remove unused lunr dependency ([#8013](https://github.com/open-policy-agent/opa/pull/8013)) authored by @charlieegan3
-- website: Use Regal in regal page titles ([#8033](https://github.com/open-policy-agent/opa/pull/8033)) authored by @charlieegan3
-- website,docs: Fix remaining broken links ([#8034](https://github.com/open-policy-agent/opa/pull/8034)) authored by @charlieegan3
+- website: Various fixes and improvements by @charlieegan3
 
 ### Miscellaneous
 
