@@ -4,7 +4,7 @@ go 1.24.6
 
 require (
 	github.com/agnivade/levenshtein v1.2.1
-	github.com/bytecodealliance/wasmtime-go/v37 v37.0.0
+	github.com/bytecodealliance/wasmtime-go/v39 v39.0.1
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/containerd/containerd/v2 v2.2.0
 	github.com/containerd/errdefs v1.0.0
