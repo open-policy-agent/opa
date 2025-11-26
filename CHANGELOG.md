@@ -23,7 +23,6 @@ This release contains a mix of new features, performance improvements, and bugfi
 ### Compiler, Topdown and Rego
 
 - topdown: Avoid unnecessary use of custom `http.Transport` in `http.send` built-in ([#7927](https://github.com/open-policy-agent/opa/pull/7927)) authored by @sykesm
-- topdown: Fix `split` built-in function's handling of empty delimiter (`split(..., "")`) ([#8019](https://github.com/open-policy-agent/opa/pull/8019)) authored by @srenatus
 - topdown: New custom SemVer implementation ([#8010](https://github.com/open-policy-agent/opa/pull/8010)) authored by @anderseknert
 - topdown: Use `sync.Pool` for eval func objects ([#8054](https://github.com/open-policy-agent/opa/pull/8054)) authored by @anderseknert
 
@@ -77,7 +76,7 @@ This release contains a mix of new features, performance improvements, and bugfi
 
 ## 1.10.1
 
-This is a bugfix release for the `split` builtin: In v1.10.0, it was looping infinitely when used with an empty-string delimiter.
+This is a bugfix release for the `split` builtin: In v1.10.0, it was looping infinitely when used with an empty-string delimiter ([#8018](https://github.com/open-policy-agent/opa/issues/8018)).
 
 Reported by @SignalRichard, authored by @srenatus
 
