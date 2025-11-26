@@ -65,7 +65,7 @@ func checkRootDocumentOverrides(node any) Errors {
 }
 
 func walkCalls(node any, f func(any) bool) {
-	vis := &GenericVisitor{func(x any) bool {
+	vis := NewGenericVisitor(func(x any) bool {
 		switch x := x.(type) {
 		case Call:
 			return f(x)
@@ -78,13 +78,11 @@ func walkCalls(node any, f func(any) bool) {
 			walkCalls(x.Reference, f)
 		}
 		return false
-	}}
+	})
 	vis.Walk(node)
 }
 
-func checkDeprecatedBuiltins(deprecatedBuiltinsMap map[string]struct{}, node any) Errors {
-	errs := make(Errors, 0)
-
+func checkDeprecatedBuiltins(deprecatedBuiltinsMap map[string]struct{}, node any) (errs Errors) {
 	walkCalls(node, func(x any) bool {
 		var operator string
 		var loc *Location
