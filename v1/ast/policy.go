@@ -1095,11 +1095,21 @@ func (a Args) Copy() Args {
 }
 
 func (a Args) String() string {
-	buf := make([]string, 0, len(a))
-	for _, t := range a {
-		buf = append(buf, t.String())
+	if len(a) == 0 {
+		return "()"
 	}
-	return "(" + strings.Join(buf, ", ") + ")"
+	sb := sbPool.Get()
+	defer sbPool.Put(sb)
+	sb.Grow(len(a) * 10)
+	sb.WriteByte('(')
+	for i, t := range a {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(t.String())
+	}
+	sb.WriteByte(')')
+	return sb.String()
 }
 
 // Loc returns the Location of a.
@@ -1232,11 +1242,22 @@ func (body Body) SetLoc(loc *Location) {
 }
 
 func (body Body) String() string {
-	buf := make([]string, 0, len(body))
-	for _, v := range body {
-		buf = append(buf, v.String())
+	if len(body) == 0 {
+		return ""
 	}
-	return strings.Join(buf, "; ")
+	if len(body) == 1 {
+		return body[0].String()
+	}
+	sb := sbPool.Get()
+	defer sbPool.Put(sb)
+	sb.Grow(len(body) * 20)
+	for i, v := range body {
+		if i > 0 {
+			sb.WriteString("; ")
+		}
+		sb.WriteString(v.String())
+	}
+	return sb.String()
 }
 
 // Vars returns a VarSet containing variables in body. The params can be set to
@@ -1547,26 +1568,34 @@ func (expr *Expr) SetLoc(loc *Location) {
 }
 
 func (expr *Expr) String() string {
-	buf := make([]string, 0, 2+len(expr.With))
+	sb := sbPool.Get()
+	defer sbPool.Put(sb)
+	sb.Grow(32 + len(expr.With)*20)
+
 	if expr.Negated {
-		buf = append(buf, "not")
+		sb.WriteString("not ")
 	}
 	switch t := expr.Terms.(type) {
 	case []*Term:
 		if expr.IsEquality() && validEqAssignArgCount(expr) {
-			buf = append(buf, fmt.Sprintf("%v %v %v", t[1], Equality.Infix, t[2]))
+			sb.WriteString(t[1].String())
+			sb.WriteByte(' ')
+			sb.WriteString(Equality.Infix)
+			sb.WriteByte(' ')
+			sb.WriteString(t[2].String())
 		} else {
-			buf = append(buf, Call(t).String())
+			sb.WriteString(Call(t).String())
 		}
 	case fmt.Stringer:
-		buf = append(buf, t.String())
+		sb.WriteString(t.String())
 	}
 
 	for i := range expr.With {
-		buf = append(buf, expr.With[i].String())
+		sb.WriteByte(' ')
+		sb.WriteString(expr.With[i].String())
 	}
 
-	return strings.Join(buf, " ")
+	return sb.String()
 }
 
 func (expr *Expr) MarshalJSON() ([]byte, error) {
@@ -1666,11 +1695,22 @@ func (d *SomeDecl) String() string {
 		}
 		return "some " + call[1].String() + " in " + call[2].String()
 	}
-	buf := make([]string, len(d.Symbols))
-	for i := range buf {
-		buf[i] = d.Symbols[i].String()
+	if len(d.Symbols) == 0 {
+		return "some"
 	}
-	return "some " + strings.Join(buf, ", ")
+	if len(d.Symbols) == 1 {
+		return "some " + d.Symbols[0].String()
+	}
+	sb := sbPool.Get()
+	defer sbPool.Put(sb)
+	sb.WriteString("some ")
+	for i := range d.Symbols {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(d.Symbols[i].String())
+	}
+	return sb.String()
 }
 
 // SetLoc sets the Location on d.

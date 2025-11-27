@@ -667,6 +667,9 @@ func (c *Compiler) GetRulesWithPrefix(ref Ref) (rules []*Rule) {
 }
 
 func extractRules(s []any) []*Rule {
+	if len(s) == 0 {
+		return nil
+	}
 	rules := make([]*Rule, len(s))
 	for i := range s {
 		rules[i] = s[i].(*Rule)
@@ -691,7 +694,6 @@ func extractRules(s []any) []*Rule {
 //	GetRules("data.a.b.c")		=> [rule1, rule2]
 //	GetRules("data.a.b.d")		=> nil
 func (c *Compiler) GetRules(ref Ref) (rules []*Rule) {
-
 	set := map[*Rule]struct{}{}
 
 	for _, rule := range c.GetRulesForVirtualDocument(ref) {
@@ -702,10 +704,13 @@ func (c *Compiler) GetRules(ref Ref) (rules []*Rule) {
 		set[rule] = struct{}{}
 	}
 
+	if len(set) == 0 {
+		return nil
+	}
+	rules = make([]*Rule, 0, len(set))
 	for rule := range set {
 		rules = append(rules, rule)
 	}
-
 	return rules
 }
 
