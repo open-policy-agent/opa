@@ -112,7 +112,7 @@ func newUpdateArrayAST(data *ast.Array, op storage.PatchOp, path storage.Path, i
 
 		switch op {
 		case storage.AddOp:
-			var results []*ast.Term
+			results := make([]*ast.Term, 0, data.Len()+1)
 			for i := range data.Len() {
 				if i == pos {
 					results = append(results, ast.NewTerm(value))
@@ -123,7 +123,7 @@ func newUpdateArrayAST(data *ast.Array, op storage.PatchOp, path storage.Path, i
 			return &updateAST{path[:len(path)-1], false, ast.NewArray(results...)}, nil
 
 		case storage.RemoveOp:
-			var results []*ast.Term
+			results := make([]*ast.Term, 0, data.Len()-1)
 			for i := range data.Len() {
 				if i != pos {
 					results = append(results, data.Elem(i))
@@ -132,7 +132,7 @@ func newUpdateArrayAST(data *ast.Array, op storage.PatchOp, path storage.Path, i
 			return &updateAST{path[:len(path)-1], false, ast.NewArray(results...)}, nil
 
 		default:
-			var results []*ast.Term
+			results := make([]*ast.Term, 0, data.Len())
 			for i := range data.Len() {
 				if i == pos {
 					results = append(results, ast.NewTerm(value))
@@ -259,7 +259,7 @@ func removeInAstObject(obj ast.Object, path storage.Path) (ast.Value, error) {
 	key := ast.InternedTerm(path[0])
 
 	if len(path) == 1 {
-		var items [][2]*ast.Term
+		items := make([][2]*ast.Term, 0, obj.Len()-1)
 		// Note: possibly expensive operation for large data.
 		obj.Foreach(func(k *ast.Term, v *ast.Term) {
 			if k.Equal(key) {
@@ -293,7 +293,7 @@ func removeInAstArray(arr *ast.Array, path storage.Path) (ast.Value, error) {
 	}
 
 	if len(path) == 1 {
-		var elems []*ast.Term
+		elems := make([]*ast.Term, 0, arr.Len()-1)
 		// Note: possibly expensive operation for large data.
 		for i := range arr.Len() {
 			if i == idx {

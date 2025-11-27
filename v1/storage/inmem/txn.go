@@ -223,7 +223,8 @@ func (txn *transaction) Read(path storage.Path) (any, error) {
 		return pointer(txn.db.data, path)
 	}
 
-	var merge []dataUpdate
+	// Pre-allocate merge slice with updates list length as upper bound
+	merge := make([]dataUpdate, 0, txn.updates.Len())
 
 	for curr := txn.updates.Front(); curr != nil; curr = curr.Next() {
 
@@ -261,7 +262,21 @@ func (txn *transaction) Read(path storage.Path) (any, error) {
 }
 
 func (txn *transaction) ListPolicies() []string {
-	var ids []string
+	// Pre-allocate with exact capacity
+	capacity := len(txn.db.policies)
+	for id, update := range txn.policies {
+		if update.remove {
+			if _, exists := txn.db.policies[id]; exists {
+				capacity--
+			}
+		} else {
+			if _, exists := txn.db.policies[id]; !exists {
+				capacity++
+			}
+		}
+	}
+
+	ids := make([]string, 0, capacity)
 	for id := range txn.db.policies {
 		if _, ok := txn.policies[id]; !ok {
 			ids = append(ids, id)
