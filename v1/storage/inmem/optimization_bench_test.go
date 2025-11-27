@@ -200,38 +200,36 @@ func BenchmarkCommit(b *testing.B) {
 	ctx := context.Background()
 
 	b.Run("data_only", func(b *testing.B) {
+		db := New()
+		b.ResetTimer()
 		for range b.N {
-			b.StopTimer()
-			db := New()
 			txn, _ := db.NewTransaction(ctx, storage.WriteParams)
 			// Add multiple data updates
 			for i := range 10 {
 				path := storage.MustParsePath("/data/test" + string(rune('0'+i)))
 				_ = db.Write(ctx, txn, storage.AddOp, path, map[string]any{"value": i})
 			}
-			b.StartTimer()
 			_ = db.Commit(ctx, txn)
 		}
 	})
 
 	b.Run("policies_only", func(b *testing.B) {
+		db := New()
+		b.ResetTimer()
 		for range b.N {
-			b.StopTimer()
-			db := New()
 			txn, _ := db.NewTransaction(ctx, storage.WriteParams)
 			// Add multiple policy updates
 			for i := range 10 {
 				_ = db.UpsertPolicy(ctx, txn, "policy"+string(rune('0'+i)), []byte("package test"))
 			}
-			b.StartTimer()
 			_ = db.Commit(ctx, txn)
 		}
 	})
 
 	b.Run("mixed", func(b *testing.B) {
+		db := New()
+		b.ResetTimer()
 		for range b.N {
-			b.StopTimer()
-			db := New()
 			txn, _ := db.NewTransaction(ctx, storage.WriteParams)
 			// Add data updates
 			for i := range 5 {
@@ -242,7 +240,6 @@ func BenchmarkCommit(b *testing.B) {
 			for i := range 5 {
 				_ = db.UpsertPolicy(ctx, txn, "policy"+string(rune('0'+i)), []byte("package test"))
 			}
-			b.StartTimer()
 			_ = db.Commit(ctx, txn)
 		}
 	})

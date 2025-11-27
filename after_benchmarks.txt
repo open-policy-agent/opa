@@ -1,0 +1,9 @@
+goos: darwin
+goarch: amd64
+pkg: github.com/open-policy-agent/opa/v1/storage/inmem
+cpu: Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
+BenchmarkMktree/single-12         	29274865	        49.20 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMktree/double-12         	 2659150	       469.8 ns/op	     336 B/op	       2 allocs/op
+BenchmarkMktree/triple-12         	 1000000	      1853 ns/op	     672 B/op	       4 allocs/op
+BenchmarkMktree/deep-12           	  437599	      2666 ns/op	    1344 B/op	       8 allocs/op
+BenchmarkCommit/data_only-12      	
