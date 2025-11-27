@@ -506,6 +506,36 @@ jobs:
     - name: Build docs
       run: make docs-install docs-build
 
+  performance-related:
+    name: Performance
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.go == 'true' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          path: opa
+      - id: go_version
+        name: Read go version
+        run: echo "go_version=$(cat .go-version)" >> $GITHUB_OUTPUT
+        working-directory: opa
+      - name: Install Go (${{ steps.go_version.outputs.go_version }})
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+        with:
+          go-version: ${{ steps.go_version.outputs.go_version }}
+      - name: gobenchdata check
+        if: ${{ github.ref != 'refs/heads/main' && github.actor != 'dependabot[bot]' }}
+        run: go run go.bobheadxi.dev/gobenchdata@v1 action
+        env:
+          INPUT_GO_TEST_PKGS: ./v1/ast ./v1/rego
+          INPUT_SUBDIRECTORY: opa
+          INPUT_CHECKS: true
+          INPUT_CHECKS_CONFIG: opa/gobenchdata-checks.yml
+          INPUT_PUBLISH: false
+          INPUT_PUBLISH_BRANCH: benchmarks
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        timeout-minutes: 20
+
   # This job is required to complete before merging, and is set as a branch
   # protection rule:
   # https://github.com/open-policy-agent/opa/settings/branch_protection_rules

@@ -1,0 +1,28 @@
+checks:
+  - name: NsPerOp diff
+    description: Should not exceed 150%
+    package: .
+    benchmarks: []
+    diff: (current.NsPerOp - base.NsPerOp) / base.NsPerOp * 100
+    thresholds:
+      max: 250 # the runners are very noisy, it seems
+  - name: AllocsPerOp diff
+    description: Should not exceed 150%
+    package: .
+    benchmarks: []
+    diff: |
+      base.Mem.AllocsPerOp == 0
+        ? (current.Mem.AllocsPerOp == 0 ? 0 : 999999999)
+        : (current.Mem.AllocsPerOp - base.Mem.AllocsPerOp) / base.Mem.AllocsPerOp * 100
+    thresholds:
+      max: 110
+  - name: BytesPerOp diff
+    description: Should not exceed 150%
+    package: .
+    benchmarks: []
+    diff: |
+      base.Mem.BytesPerOp == 0
+        ? (current.Mem.BytesPerOp == 0 ? 0 : 999999999)
+        : (current.Mem.BytesPerOp - base.Mem.BytesPerOp) / base.Mem.BytesPerOp * 100
+    thresholds:
+      max: 110
