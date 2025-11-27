@@ -13,7 +13,7 @@ func BenchmarkRefPtr(b *testing.B) {
 	ref := MustParseRef("data.foo.bar.baz.qux")
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, _ = ref.Ptr()
 	}
 }
@@ -28,7 +28,7 @@ func BenchmarkArgsString(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = args.String()
 	}
 }
@@ -38,7 +38,7 @@ func BenchmarkBodyString(b *testing.B) {
 	body := MustParseBody("x := 1; y := 2; z := x + y; a := z * 2")
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = body.String()
 	}
 }
@@ -48,7 +48,7 @@ func BenchmarkExprString(b *testing.B) {
 	expr := MustParseExpr("x = y + z with input.foo as 42 with data.bar as \"test\"")
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = expr.String()
 	}
 }
@@ -57,7 +57,7 @@ func BenchmarkExprString(b *testing.B) {
 func BenchmarkSetDiff(b *testing.B) {
 	s1 := NewSet()
 	s2 := NewSet()
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		s1.Add(IntNumberTerm(i))
 		if i%2 == 0 {
 			s2.Add(IntNumberTerm(i))
@@ -65,7 +65,7 @@ func BenchmarkSetDiff(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = s1.Diff(s2)
 	}
 }
@@ -74,7 +74,7 @@ func BenchmarkSetDiff(b *testing.B) {
 func BenchmarkSetIntersect(b *testing.B) {
 	s1 := NewSet()
 	s2 := NewSet()
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		s1.Add(IntNumberTerm(i))
 		if i%2 == 0 {
 			s2.Add(IntNumberTerm(i))
@@ -82,7 +82,7 @@ func BenchmarkSetIntersect(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = s1.Intersect(s2)
 	}
 }
@@ -90,12 +90,12 @@ func BenchmarkSetIntersect(b *testing.B) {
 // BenchmarkObjectKeys benchmarks the optimized object.Keys() method
 func BenchmarkObjectKeys(b *testing.B) {
 	obj := NewObject()
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		obj.Insert(StringTerm(string(rune('a'+i%26))+string(rune('0'+i/26))), IntNumberTerm(i))
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = obj.Keys()
 	}
 }
@@ -123,7 +123,7 @@ func BenchmarkGetRules(b *testing.B) {
 	ref := MustParseRef("data.test.p")
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = c.GetRules(ref)
 	}
 }
