@@ -17,7 +17,10 @@ func BenchmarkStoreRead(b *testing.B) {
 	store := New()
 
 	// Setup test data
-	txn, _ := store.NewTransaction(ctx, storage.WriteParams)
+	txn, err := store.NewTransaction(ctx, storage.WriteParams)
+	if err != nil {
+		b.Fatal(err)
+	}
 	testData := map[string]any{
 		"users": map[string]any{
 			"alice": map[string]any{"role": "admin"},
@@ -27,15 +30,27 @@ func BenchmarkStoreRead(b *testing.B) {
 			"allow": true,
 		},
 	}
-	_ = store.Write(ctx, txn, storage.AddOp, storage.Path{}, testData)
-	_ = store.Commit(ctx, txn)
+	if err := store.Write(ctx, txn, storage.AddOp, storage.Path{}, testData); err != nil {
+		b.Fatal(err)
+	}
+	if err := store.Commit(ctx, txn); err != nil {
+		b.Fatal(err)
+	}
 
-	path, _ := storage.ParsePathEscaped("/users/alice")
+	path, ok := storage.ParsePathEscaped("/users/alice")
+	if !ok {
+		b.Fatal("failed to parse path")
+	}
 
 	b.ResetTimer()
 	for range b.N {
-		txn, _ := store.NewTransaction(ctx)
-		_, _ = store.Read(ctx, txn, path)
+		txn, err := store.NewTransaction(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if _, err := store.Read(ctx, txn, path); err != nil {
+			b.Fatal(err)
+		}
 		store.Abort(ctx, txn)
 	}
 }
@@ -46,22 +61,37 @@ func BenchmarkStoreReadWrite(b *testing.B) {
 	store := New()
 
 	// Setup test data
-	txn, _ := store.NewTransaction(ctx, storage.WriteParams)
+	txn, err := store.NewTransaction(ctx, storage.WriteParams)
+	if err != nil {
+		b.Fatal(err)
+	}
 	testData := map[string]any{
 		"users": map[string]any{
 			"alice": map[string]any{"role": "admin"},
 			"bob":   map[string]any{"role": "user"},
 		},
 	}
-	_ = store.Write(ctx, txn, storage.AddOp, storage.Path{}, testData)
-	_ = store.Commit(ctx, txn)
+	if err := store.Write(ctx, txn, storage.AddOp, storage.Path{}, testData); err != nil {
+		b.Fatal(err)
+	}
+	if err := store.Commit(ctx, txn); err != nil {
+		b.Fatal(err)
+	}
 
-	path, _ := storage.ParsePathEscaped("/users/alice")
+	path, ok := storage.ParsePathEscaped("/users/alice")
+	if !ok {
+		b.Fatal("failed to parse path")
+	}
 
 	b.ResetTimer()
 	for range b.N {
-		txn, _ := store.NewTransaction(ctx, storage.WriteParams)
-		_, _ = store.Read(ctx, txn, path)
+		txn, err := store.NewTransaction(ctx, storage.WriteParams)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if _, err := store.Read(ctx, txn, path); err != nil {
+			b.Fatal(err)
+		}
 		store.Abort(ctx, txn)
 	}
 }
@@ -70,15 +100,19 @@ func BenchmarkStoreReadWrite(b *testing.B) {
 func BenchmarkStoreWrite(b *testing.B) {
 	ctx := context.Background()
 
-	b.ResetTimer()
 	for range b.N {
 		store := New()
-		txn, _ := store.NewTransaction(ctx, storage.WriteParams)
+		txn, err := store.NewTransaction(ctx, storage.WriteParams)
+		if err != nil {
+			b.Fatal(err)
+		}
 
-		path, _ := storage.ParsePathEscaped("/users/alice")
-		value := map[string]any{"role": "admin", "active": true}
+		path := storage.MustParsePath("/users")
+		value := map[string]any{"alice": map[string]any{"role": "admin", "active": true}}
 
-		_ = store.Write(ctx, txn, storage.AddOp, path, value)
+		if err := store.Write(ctx, txn, storage.AddOp, path, value); err != nil {
+			b.Fatal(err)
+		}
 		store.Abort(ctx, txn)
 	}
 }
@@ -89,18 +123,30 @@ func BenchmarkStoreListPolicies(b *testing.B) {
 	store := New()
 
 	// Setup test policies
-	txn, _ := store.NewTransaction(ctx, storage.WriteParams)
+	txn, err := store.NewTransaction(ctx, storage.WriteParams)
+	if err != nil {
+		b.Fatal(err)
+	}
 	for i := range 50 {
 		policyID := "policy" + string(rune('0'+i%10)) + string(rune('a'+i/10))
 		policyData := []byte(`package test`)
-		_ = store.UpsertPolicy(ctx, txn, policyID, policyData)
+		if err := store.UpsertPolicy(ctx, txn, policyID, policyData); err != nil {
+			b.Fatal(err)
+		}
 	}
-	_ = store.Commit(ctx, txn)
+	if err := store.Commit(ctx, txn); err != nil {
+		b.Fatal(err)
+	}
 
 	b.ResetTimer()
 	for range b.N {
-		txn, _ := store.NewTransaction(ctx)
-		_, _ = store.ListPolicies(ctx, txn)
+		txn, err := store.NewTransaction(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if _, err := store.ListPolicies(ctx, txn); err != nil {
+			b.Fatal(err)
+		}
 		store.Abort(ctx, txn)
 	}
 }
@@ -111,19 +157,34 @@ func BenchmarkStoreArrayUpdate(b *testing.B) {
 	store := NewWithOpts(OptReturnASTValuesOnRead(true))
 
 	// Setup test data with array
-	txn, _ := store.NewTransaction(ctx, storage.WriteParams)
+	txn, err := store.NewTransaction(ctx, storage.WriteParams)
+	if err != nil {
+		b.Fatal(err)
+	}
 	testData := map[string]any{
 		"items": []any{"a", "b", "c", "d", "e"},
 	}
-	_ = store.Write(ctx, txn, storage.AddOp, storage.Path{}, testData)
-	_ = store.Commit(ctx, txn)
+	if err := store.Write(ctx, txn, storage.AddOp, storage.Path{}, testData); err != nil {
+		b.Fatal(err)
+	}
+	if err := store.Commit(ctx, txn); err != nil {
+		b.Fatal(err)
+	}
 
-	path, _ := storage.ParsePathEscaped("/items/2")
+	path, ok := storage.ParsePathEscaped("/items/2")
+	if !ok {
+		b.Fatal("failed to parse path")
+	}
 
 	b.ResetTimer()
 	for range b.N {
-		txn, _ := store.NewTransaction(ctx, storage.WriteParams)
-		_ = store.Write(ctx, txn, storage.ReplaceOp, path, "updated")
+		txn, err := store.NewTransaction(ctx, storage.WriteParams)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if err := store.Write(ctx, txn, storage.ReplaceOp, path, "updated"); err != nil {
+			b.Fatal(err)
+		}
 		store.Abort(ctx, txn)
 	}
 }
@@ -136,7 +197,10 @@ func BenchmarkStoreObjectRemove(b *testing.B) {
 	b.ResetTimer()
 	for range b.N {
 		// Setup fresh data for each iteration
-		txn, _ := store.NewTransaction(ctx, storage.WriteParams)
+		txn, err := store.NewTransaction(ctx, storage.WriteParams)
+		if err != nil {
+			b.Fatal(err)
+		}
 		testData := map[string]any{
 			"users": map[string]any{
 				"alice":   map[string]any{"role": "admin"},
@@ -144,10 +208,17 @@ func BenchmarkStoreObjectRemove(b *testing.B) {
 				"charlie": map[string]any{"role": "guest"},
 			},
 		}
-		_ = store.Write(ctx, txn, storage.AddOp, storage.Path{}, testData)
+		if err := store.Write(ctx, txn, storage.AddOp, storage.Path{}, testData); err != nil {
+			b.Fatal(err)
+		}
 
-		path, _ := storage.ParsePathEscaped("/users/bob")
-		_ = store.Write(ctx, txn, storage.RemoveOp, path, nil)
+		path, ok := storage.ParsePathEscaped("/users/bob")
+		if !ok {
+			b.Fatal("failed to parse path")
+		}
+		if err := store.Write(ctx, txn, storage.RemoveOp, path, nil); err != nil {
+			b.Fatal(err)
+		}
 		store.Abort(ctx, txn)
 	}
 }
@@ -160,14 +231,24 @@ func BenchmarkStoreArrayRemove(b *testing.B) {
 	b.ResetTimer()
 	for range b.N {
 		// Setup fresh data for each iteration
-		txn, _ := store.NewTransaction(ctx, storage.WriteParams)
+		txn, err := store.NewTransaction(ctx, storage.WriteParams)
+		if err != nil {
+			b.Fatal(err)
+		}
 		testData := map[string]any{
 			"items": []any{"a", "b", "c", "d", "e", "f", "g"},
 		}
-		_ = store.Write(ctx, txn, storage.AddOp, storage.Path{}, testData)
+		if err := store.Write(ctx, txn, storage.AddOp, storage.Path{}, testData); err != nil {
+			b.Fatal(err)
+		}
 
-		path, _ := storage.ParsePathEscaped("/items/3")
-		_ = store.Write(ctx, txn, storage.RemoveOp, path, nil)
+		path, ok := storage.ParsePathEscaped("/items/3")
+		if !ok {
+			b.Fatal("failed to parse path")
+		}
+		if err := store.Write(ctx, txn, storage.RemoveOp, path, nil); err != nil {
+			b.Fatal(err)
+		}
 		store.Abort(ctx, txn)
 	}
 }
@@ -187,7 +268,6 @@ func BenchmarkMktree(b *testing.B) {
 
 	for _, tt := range tests {
 		b.Run(tt.name, func(b *testing.B) {
-			b.ResetTimer()
 			for range b.N {
 				_, _ = mktree(tt.path, tt.value)
 			}
@@ -201,46 +281,66 @@ func BenchmarkCommit(b *testing.B) {
 
 	b.Run("data_only", func(b *testing.B) {
 		db := New()
-		b.ResetTimer()
 		for range b.N {
-			txn, _ := db.NewTransaction(ctx, storage.WriteParams)
+			txn, err := db.NewTransaction(ctx, storage.WriteParams)
+			if err != nil {
+				b.Fatal(err)
+			}
 			// Add multiple data updates
 			for i := range 10 {
-				path := storage.MustParsePath("/data/test" + string(rune('0'+i)))
-				_ = db.Write(ctx, txn, storage.AddOp, path, map[string]any{"value": i})
+				path := storage.MustParsePath("/test" + string(rune('0'+i)))
+				if err := db.Write(ctx, txn, storage.AddOp, path, map[string]any{"value": i}); err != nil {
+					b.Fatal(err)
+				}
 			}
-			_ = db.Commit(ctx, txn)
+			if err := db.Commit(ctx, txn); err != nil {
+				b.Fatal(err)
+			}
 		}
 	})
 
 	b.Run("policies_only", func(b *testing.B) {
 		db := New()
-		b.ResetTimer()
 		for range b.N {
-			txn, _ := db.NewTransaction(ctx, storage.WriteParams)
+			txn, err := db.NewTransaction(ctx, storage.WriteParams)
+			if err != nil {
+				b.Fatal(err)
+			}
 			// Add multiple policy updates
 			for i := range 10 {
-				_ = db.UpsertPolicy(ctx, txn, "policy"+string(rune('0'+i)), []byte("package test"))
+				if err := db.UpsertPolicy(ctx, txn, "policy"+string(rune('0'+i)), []byte("package test")); err != nil {
+					b.Fatal(err)
+				}
 			}
-			_ = db.Commit(ctx, txn)
+			if err := db.Commit(ctx, txn); err != nil {
+				b.Fatal(err)
+			}
 		}
 	})
 
 	b.Run("mixed", func(b *testing.B) {
 		db := New()
-		b.ResetTimer()
 		for range b.N {
-			txn, _ := db.NewTransaction(ctx, storage.WriteParams)
+			txn, err := db.NewTransaction(ctx, storage.WriteParams)
+			if err != nil {
+				b.Fatal(err)
+			}
 			// Add data updates
 			for i := range 5 {
-				path := storage.MustParsePath("/data/test" + string(rune('0'+i)))
-				_ = db.Write(ctx, txn, storage.AddOp, path, map[string]any{"value": i})
+				path := storage.MustParsePath("/test" + string(rune('0'+i)))
+				if err := db.Write(ctx, txn, storage.AddOp, path, map[string]any{"value": i}); err != nil {
+					b.Fatal(err)
+				}
 			}
 			// Add policy updates
 			for i := range 5 {
-				_ = db.UpsertPolicy(ctx, txn, "policy"+string(rune('0'+i)), []byte("package test"))
+				if err := db.UpsertPolicy(ctx, txn, "policy"+string(rune('0'+i)), []byte("package test")); err != nil {
+					b.Fatal(err)
+				}
 			}
-			_ = db.Commit(ctx, txn)
+			if err := db.Commit(ctx, txn); err != nil {
+				b.Fatal(err)
+			}
 		}
 	})
 }
@@ -268,7 +368,6 @@ func BenchmarkLookup(b *testing.B) {
 
 	for _, tt := range tests {
 		b.Run(tt.name, func(b *testing.B) {
-			b.ResetTimer()
 			for range b.N {
 				_, _ = lookup(tt.path, data)
 			}
@@ -291,7 +390,6 @@ func BenchmarkIterator(b *testing.B) {
 	underlying := txn.(*transaction)
 
 	b.Run("iterator_pattern", func(b *testing.B) {
-		b.ResetTimer()
 		for range b.N {
 			count := 0
 			for range underlying.All() {
@@ -302,7 +400,7 @@ func BenchmarkIterator(b *testing.B) {
 
 	b.Run("traditional_list", func(b *testing.B) {
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			count := 0
 			for curr := underlying.updates.Front(); curr != nil; curr = curr.Next() {
 				_ = curr.Value.(dataUpdate)
