@@ -206,7 +206,6 @@ func (txn *transaction) Commit() (result storage.TriggerEvent) {
 
 	if txn.updates != nil {
 		if len(txn.db.triggers) > 0 {
-			result.Data = make([]storage.DataEvent, 0, txn.updates.Len())
 			result.Data = slices.Grow(result.Data, txn.updates.Len())
 		}
 
@@ -225,7 +224,6 @@ func (txn *transaction) Commit() (result storage.TriggerEvent) {
 	}
 
 	if len(txn.policies) > 0 && len(txn.db.triggers) > 0 {
-		result.Policy = make([]storage.PolicyEvent, 0, len(txn.policies))
 		result.Policy = slices.Grow(result.Policy, len(txn.policies))
 	}
 
