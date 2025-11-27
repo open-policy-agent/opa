@@ -429,31 +429,38 @@ func mktree(path []string, value any) (map[string]any, error) {
 		return obj, nil
 	}
 
-	dir := map[string]any{}
-	for i := len(path) - 1; i > 0; i-- {
-		dir[path[i]] = value
-		value = dir
-		dir = map[string]any{}
+	// Optimize for single-element path
+	if len(path) == 1 {
+		return map[string]any{path[0]: value}, nil
 	}
-	dir[path[0]] = value
 
-	return dir, nil
+	// Build tree from bottom to top with minimal allocations
+	for i := len(path) - 1; i > 0; i-- {
+		value = map[string]any{path[i]: value}
+	}
+
+	return map[string]any{path[0]: value}, nil
 }
 
 func lookup(path storage.Path, data map[string]any) (any, bool) {
 	if len(path) == 0 {
 		return data, true
 	}
+	// Single key lookup - most common case
+	if len(path) == 1 {
+		value, ok := data[path[0]]
+		return value, ok
+	}
+	// Navigate to parent, then lookup final key
 	for i := range len(path) - 1 {
 		value, ok := data[path[i]]
 		if !ok {
 			return nil, false
 		}
-		obj, ok := value.(map[string]any)
+		data, ok = value.(map[string]any)
 		if !ok {
 			return nil, false
 		}
-		data = obj
 	}
 	value, ok := data[path[len(path)-1]]
 	return value, ok

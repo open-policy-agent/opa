@@ -7,6 +7,7 @@ package inmem
 import (
 	"container/list"
 	"encoding/json"
+	"iter"
 	"strconv"
 
 	"github.com/open-policy-agent/opa/internal/deepcopy"
@@ -61,6 +62,18 @@ func newTransaction(xid uint64, write bool, context *storage.Context, db *store)
 
 func (txn *transaction) ID() uint64 {
 	return txn.xid
+}
+
+// All returns an iterator over all updates in the transaction.
+// This allows using range over func pattern from Go 1.23+.
+func (txn *transaction) All() iter.Seq[dataUpdate] {
+	return func(yield func(dataUpdate) bool) {
+		for curr := txn.updates.Front(); curr != nil; curr = curr.Next() {
+			if !yield(curr.Value.(dataUpdate)) {
+				return
+			}
+		}
+	}
 }
 
 func (txn *transaction) Write(op storage.PatchOp, path storage.Path, value any) error {
@@ -168,6 +181,14 @@ func (txn *transaction) updateRoot(op storage.PatchOp, value any) error {
 
 func (txn *transaction) Commit() (result storage.TriggerEvent) {
 	result.Context = txn.context
+	// Pre-allocate slices with exact capacity
+	if txn.updates.Len() > 0 {
+		result.Data = make([]storage.DataEvent, 0, txn.updates.Len())
+	}
+	if len(txn.policies) > 0 {
+		result.Policy = make([]storage.PolicyEvent, 0, len(txn.policies))
+	}
+
 	for curr := txn.updates.Front(); curr != nil; curr = curr.Next() {
 		action := curr.Value.(dataUpdate)
 		txn.db.data = action.Apply(txn.db.data)
@@ -226,10 +247,7 @@ func (txn *transaction) Read(path storage.Path) (any, error) {
 	// Pre-allocate merge slice with updates list length as upper bound
 	merge := make([]dataUpdate, 0, txn.updates.Len())
 
-	for curr := txn.updates.Front(); curr != nil; curr = curr.Next() {
-
-		upd := curr.Value.(dataUpdate)
-
+	for upd := range txn.All() {
 		if path.HasPrefix(upd.Path()) {
 			if upd.Remove() {
 				return nil, errors.NewNotFoundError(path)
