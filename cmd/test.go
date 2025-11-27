@@ -64,6 +64,7 @@ type testCommandParams struct {
 	v1Compatible bool
 	varValues    bool
 	parallel     int
+	failOnEmpty  bool
 }
 
 func newTestCommandParams() testCommandParams {
@@ -203,12 +204,14 @@ func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runne
 		return 1, err
 	}
 
+	testRan := false
 	exitCode := 0
 	dup := make(chan *tester.Result)
 
 	go func() {
 		defer close(dup)
 		for tr := range ch {
+			testRan = true
 			if !tr.Pass() {
 				if !(tr.Skip && testParams.skipExitZero) {
 					exitCode = 2
@@ -227,6 +230,11 @@ func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runne
 				return 2, err
 			}
 		}
+		return 1, err
+	}
+
+	if !testRan && testParams.failOnEmpty {
+		_, _ = fmt.Fprintln(testParams.errOutput, "no tests were run")
 		return 1, err
 	}
 
@@ -302,7 +310,7 @@ func processWatcherUpdate(ctx context.Context, testParams testCommandParams, pat
 	err := pathwatcher.ProcessWatcherUpdateForRegoVersion(ctx, testParams.RegoVersion(), paths, removed, store, filter, testParams.bundleMode, false,
 		func(ctx context.Context, txn storage.Transaction, loaded *initload.LoadPathsResult) error {
 			if len(loaded.Files.Documents) > 0 || removed != "" {
-				if err := store.Write(ctx, txn, storage.AddOp, storage.Path{}, loaded.Files.Documents); err != nil {
+				if err := store.Write(ctx, txn, storage.AddOp, storage.RootPath, loaded.Files.Documents); err != nil {
 					return fmt.Errorf("storage error: %w", err)
 				}
 			}
@@ -567,6 +575,7 @@ recommended as some updates might cause them to be dropped by OPA.
 	testCommand.Flags().BoolVarP(&testParams.watch, "watch", "w", false, "watch command line files for changes")
 	testCommand.Flags().BoolVar(&testParams.varValues, "var-values", false, "show local variable values in test output")
 	testCommand.Flags().IntVarP(&testParams.parallel, "parallel", "p", goRuntime.NumCPU(), "the number of tests that can run in parallel, defaulting to the number of CPUs (explicitly set with 0). Benchmarks are always run sequentially.")
+	testCommand.Flags().BoolVar(&testParams.failOnEmpty, "fail-on-empty", false, "Whether to fail the test when no test was run")
 
 	// Shared flags
 	addOutputFormat(testCommand.Flags(), testParams.outputFormat)

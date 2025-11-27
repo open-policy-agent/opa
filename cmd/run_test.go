@@ -24,7 +24,7 @@ import (
 
 func TestRunServerBase(t *testing.T) {
 	params := newTestRunParams()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	rt, err := initRuntime(ctx, params, nil, false)
 	if err != nil {
@@ -57,7 +57,7 @@ func TestRunServerBaseListenOnLocalhost(t *testing.T) {
 	params := newTestRunParams()
 	params.rt.V1Compatible = true
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	rt, err := initRuntime(ctx, params, nil, true)
 	if err != nil {
@@ -98,7 +98,7 @@ func TestRunServerBaseListenOnLocalhost(t *testing.T) {
 func TestRunServerWithDiagnosticAddr(t *testing.T) {
 	params := newTestRunParams()
 	params.rt.DiagnosticAddrs = &[]string{"localhost:0"}
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	rt, err := initRuntime(ctx, params, nil, false)
 	if err != nil {
@@ -141,7 +141,7 @@ func TestInitRuntimeVerifyNonBundle(t *testing.T) {
 	params.pubKey = "secret"
 	params.serverMode = false
 
-	_, err := initRuntime(context.Background(), params, nil, false)
+	_, err := initRuntime(t.Context(), params, nil, false)
 	if err == nil {
 		t.Fatal("Expected error but got nil")
 	}
@@ -175,7 +175,7 @@ func TestInitRuntimeCipherSuites(t *testing.T) {
 				params.cipherSuites = tc.cipherSuites
 			}
 
-			rt, err := initRuntime(context.Background(), params, nil, false)
+			rt, err := initRuntime(t.Context(), params, nil, false)
 			fmt.Println(err)
 
 			if !tc.expErr && err != nil {
@@ -219,7 +219,7 @@ func TestInitRuntimeSkipKnownSchemaCheck(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		_, err = initRuntime(context.Background(), params, []string{rootDir}, false)
+		_, err = initRuntime(t.Context(), params, []string{rootDir}, false)
 		if err == nil {
 			t.Fatal("Expected error but got nil")
 		}
@@ -230,7 +230,7 @@ func TestInitRuntimeSkipKnownSchemaCheck(t *testing.T) {
 
 		// skip type checking for known input schemas
 		params.skipKnownSchemaCheck = true
-		_, err = initRuntime(context.Background(), params, []string{rootDir}, false)
+		_, err = initRuntime(t.Context(), params, []string{rootDir}, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -282,7 +282,7 @@ func TestRunServerUploadPolicy(t *testing.T) {
 
 	for i, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(t.Context())
 
 			params := newTestRunParams()
 			params.rt.V0Compatible = tc.v0Compatible
@@ -345,7 +345,7 @@ func TestRunServerCheckLogTimestampFormat(t *testing.T) {
 }
 
 func checkLogTimeStampFormat(t *testing.T, params runCmdParams, format string) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	rt, err := initRuntime(ctx, params, nil, false)
 	if err != nil {
@@ -375,7 +375,7 @@ func checkLogTimeStampFormat(t *testing.T, params runCmdParams, format string) {
 	cancel()
 	<-done
 
-	for _, line := range strings.Split(buf.String(), "\n") {
+	for line := range strings.SplitSeq(buf.String(), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
@@ -417,7 +417,7 @@ func TestInitRuntimeAddrSetByUser(t *testing.T) {
 
 			params := newTestRunParams()
 			params.rt.Addrs = &[]string{"localhost:0"}
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(t.Context())
 
 			rt, err := initRuntime(ctx, params, []string{}, cmd.Flags().Changed("addr"))
 			if err != nil {

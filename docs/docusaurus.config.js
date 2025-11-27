@@ -5,7 +5,8 @@ const semver = require("semver");
 import fs from "fs/promises";
 const path = require("path");
 
-const { loadPages } = require("./src/lib/ecosystem/loadPages");
+import { loadPages } from "./src/lib/ecosystem/loadPages.js";
+import { loadRules } from "./src/lib/projects/regal/loadRules.js";
 
 const baseUrl = "/";
 
@@ -17,10 +18,11 @@ const baseUrl = "/";
     tagline: "Policy-based control for cloud native environments",
     url: "https://openpolicyagent.org",
     baseUrl: baseUrl,
-    // Build-time options
-    onBrokenLinks: "throw",
-    onBrokenMarkdownLinks: "throw",
     trailingSlash: false,
+    // when BUILD_VERSION is set (release builds), warn on broken links/anchors so we don't break main
+    // when not set (PR checks), throw to flag issues for developers
+    onBrokenLinks: process.env.BUILD_VERSION ? 'warn' : 'throw',
+    onBrokenAnchors: process.env.BUILD_VERSION ? 'warn' : 'throw',
     presets: [
       [
         "@docusaurus/preset-classic",
@@ -36,10 +38,6 @@ const baseUrl = "/";
           theme: {
             customCss: require.resolve("./src/css/custom.css"),
           },
-          gtag: {
-            trackingID: "G-JNBNV64PDX",
-            anonymizeIP: true,
-          },
         },
       ],
     ],
@@ -49,11 +47,20 @@ const baseUrl = "/";
     },
 
     markdown: {
+      hooks: { onBrokenMarkdownLinks: "throw" },
       mermaid: true,
     },
     themes: ["@docusaurus/theme-mermaid"],
 
     themeConfig: {
+      announcementBar: {
+        id: 'opa_2025_survey',
+        content:
+          'Help shape OPA\'s future! Take the <a target="_blank" rel="noopener noreferrer" href="https://www.surveymonkey.com/r/SCBSDZN">2025 OPA Community Survey</a> 🚀',
+        backgroundColor: '#ff8c42',
+        textColor: '#ffffff',
+        isCloseable: false,
+      },
       colorMode: {
         defaultMode: "light",
         disableSwitch: false,
@@ -136,13 +143,28 @@ const baseUrl = "/";
               { href: "https://blog.openpolicyagent.org/", label: "Blog" },
             ],
           },
+          {
+            type: "dropdown",
+            label: "Projects",
+            position: "right",
+            items: [
+              { to: "/docs", label: "OPA" },
+              { to: "/projects/regal", label: "Regal" },
+              {
+                type: "html",
+                value: "<hr style=\"margin: 0.3rem 1rem\">",
+              },
+              { href: "https://open-policy-agent.github.io/gatekeeper/website/", label: "OPA Gatekeeper" },
+              { href: "https://www.conftest.dev", label: "Conftest" },
+            ],
+          },
           { to: "/ecosystem/", label: "Ecosystem", position: "right" },
           { href: "https://play.openpolicyagent.org/", label: "Play", position: "right" },
           {
             type: "html",
             position: "right",
             value: `
-        <a href="https://github.com/open-policy-agent/opa"
+        <a href="https://github.com/open-policy-agent"
            target="_blank"
            rel="noopener noreferrer"
            aria-label="GitHub repository">
@@ -267,6 +289,22 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
     },
 
     plugins: [
+      [
+        "@docusaurus/plugin-google-gtag",
+        {
+          trackingID: "G-JNBNV64PDX",
+          anonymizeIP: true,
+        },
+      ],
+      [
+        "@docusaurus/plugin-content-docs",
+        {
+          id: "regal",
+          path: "projects/regal",
+          routeBasePath: "projects/regal",
+          sidebarPath: require.resolve("./src/lib/sidebar-auto.js"),
+        },
+      ],
       [
         require.resolve("@easyops-cn/docusaurus-search-local"),
         {
@@ -486,6 +524,22 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
               exact: true,
               modules: {},
             });
+          },
+        };
+      },
+
+      async function ecosystemData(context, options) {
+        return {
+          name: "regal",
+
+          async loadContent() {
+            const rules = await loadRules();
+
+            return { rules };
+          },
+
+          async contentLoaded({ content, actions }) {
+            await actions.createData("rules.json", JSON.stringify(content.rules, null, 2));
           },
         };
       },

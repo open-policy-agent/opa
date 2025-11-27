@@ -1,7 +1,6 @@
 package topdown
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -9,11 +8,12 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 func BenchmarkBulkStartsWithNaive(b *testing.B) {
 	data := generateBulkStartsWithInput()
-	ctx := context.Background()
+	ctx := b.Context()
 	store := inmem.NewFromObject(data)
 
 	compiler := ast.MustCompileModules(map[string]string{
@@ -31,9 +31,7 @@ result if {
 		b.Fatal(err)
 	}
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 			_, err := NewQuery(query).
 				WithCompiler(compiler).
@@ -52,7 +50,7 @@ result if {
 
 func BenchmarkBulkStartsWithOptimized(b *testing.B) {
 	data := generateBulkStartsWithInput()
-	ctx := context.Background()
+	ctx := b.Context()
 	store := inmem.NewFromObject(data)
 
 	compiler := ast.MustCompileModules(map[string]string{
@@ -70,9 +68,7 @@ result if {
 		b.Fatal(err)
 	}
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 			_, err := NewQuery(query).
 				WithCompiler(compiler).
@@ -104,24 +100,14 @@ func generateBulkStartsWithInput() map[string]any {
 	}
 }
 
+// 276.4 ns/op	     464 B/op	      15 allocs/op  // Before SplitMap
+// 255.1 ns/op	     384 B/op	      14 allocs/op  // After SplitMap
 func BenchmarkSplit(b *testing.B) {
 	bctx := BuiltinContext{}
-	operands := []*ast.Term{
-		ast.StringTerm("a.b.c.d.e"),
-		ast.StringTerm("."),
-	}
+	operands := []*ast.Term{ast.StringTerm("a.b.c.d.e"), ast.StringTerm(".")}
+	exp := eqIter(ast.ArrayTerm(util.SplitMap("a.b.c.d.e", ".", ast.InternedTerm)...))
 
-	exp := eqIter(ast.ArrayTerm(
-		ast.StringTerm("a"),
-		ast.StringTerm("b"),
-		ast.StringTerm("c"),
-		ast.StringTerm("d"),
-		ast.StringTerm("e"),
-	))
-
-	b.ResetTimer()
-	b.ReportAllocs()
-	for range b.N {
+	for b.Loop() {
 		if err := builtinSplit(bctx, operands, exp); err != nil {
 			b.Fatal(err)
 		}
@@ -140,9 +126,7 @@ func BenchmarkSubstring(b *testing.B) {
 
 	iter := eqIter(ast.StringTerm("ick brown "))
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		if err := builtinSubstring(BuiltinContext{}, operands, iter); err != nil {
 			b.Fatal(err)
 		}
@@ -160,9 +144,7 @@ func BenchmarkIndexOf(b *testing.B) {
 		ast.StringTerm("dog"),
 	}
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		if err := builtinIndexOf(BuiltinContext{}, operands, eqIter(ast.InternedTerm(40))); err != nil {
 			b.Fatal(err)
 		}
@@ -187,9 +169,7 @@ func BenchmarkFormatInt(b *testing.B) {
 	bctx := BuiltinContext{}
 	want := eqIter(ast.StringTerm("99"))
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		if err := builtinFormatInt(bctx, operands, want); err != nil {
 			b.Fatal(err)
 		}
@@ -207,9 +187,7 @@ func BenchmarkSprintfSingleInteger(b *testing.B) {
 	bctx := BuiltinContext{}
 	want := eqIter(ast.StringTerm("99"))
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		if err := builtinSprintf(bctx, operands, want); err != nil {
 			b.Fatal(err)
 		}
@@ -246,7 +224,7 @@ func BenchmarkTrimSpace(b *testing.B) {
 	for _, c := range cases {
 		b.Run(c.input, func(b *testing.B) {
 			b.ResetTimer()
-			for range b.N {
+			for b.Loop() {
 				if err := builtinTrimSpace(bctx, c.operands, iter); err != nil {
 					b.Fatal(err)
 				}
@@ -282,7 +260,7 @@ func BenchmarkLower(b *testing.B) {
 	for _, c := range cases {
 		b.Run(c.name, func(b *testing.B) {
 			b.ResetTimer()
-			for range b.N {
+			for b.Loop() {
 				if err := builtinLower(bctx, c.operands, eqIter(lower)); err != nil {
 					b.Fatal(err)
 				}
@@ -327,7 +305,7 @@ func BenchmarkConcat(b *testing.B) {
 
 	for _, test := range tests {
 		b.Run(test.name, func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				if err := builtinConcat(bctx, test.operands, eqIter(test.expected)); err != nil {
 					b.Fatal(err)
 				}
@@ -346,7 +324,7 @@ func BenchmarkConcatVsSprintfSimple(b *testing.B) {
 	b.Run("concat foobar", func(b *testing.B) {
 		operands := []*ast.Term{ast.InternedEmptyString, ast.ArrayTerm(foo, bar)}
 
-		for range b.N {
+		for b.Loop() {
 			if err := builtinConcat(bctx, operands, eqIter(expected)); err != nil {
 				b.Fatal(err)
 			}
@@ -358,7 +336,7 @@ func BenchmarkConcatVsSprintfSimple(b *testing.B) {
 	b.Run("sprintf foobar", func(b *testing.B) {
 		operands := []*ast.Term{ast.InternedTerm("%s%s"), ast.ArrayTerm(foo, bar)}
 
-		for range b.N {
+		for b.Loop() {
 			if err := builtinSprintf(bctx, operands, eqIter(expected)); err != nil {
 				b.Fatal(err)
 			}
@@ -378,7 +356,7 @@ func BenchmarkSplitLenVsStringsCount(b *testing.B) {
 	str := "a.b.c.d.e"
 
 	b.Run("split len", func(b *testing.B) {
-		for range b.N {
+		for b.Loop() {
 			if len(strings.Split(str, ".")) != 5 {
 				b.Fatal("expected 5 elements")
 			}
@@ -386,7 +364,7 @@ func BenchmarkSplitLenVsStringsCount(b *testing.B) {
 	})
 
 	b.Run("strings count", func(b *testing.B) {
-		for range b.N {
+		for b.Loop() {
 			if strings.Count(str, ".")+1 != 5 {
 				b.Fatal("expected 5 elements")
 			}

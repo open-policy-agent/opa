@@ -10,8 +10,6 @@ fi
 
 git fetch --tags origin
 
-CURRENT_REF=$(git rev-parse HEAD)
-
 LATEST_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
 
 if [ -z "$LATEST_TAG" ]; then
@@ -19,8 +17,7 @@ if [ -z "$LATEST_TAG" ]; then
     exit 1
 fi
 
-git checkout "$LATEST_TAG"
+# for docs content we use the latest release
+git checkout "$LATEST_TAG" -- docs
 
 BUILD_VERSION="$LATEST_TAG" npx docusaurus build
-
-git checkout "$CURRENT_REF"

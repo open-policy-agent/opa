@@ -28,7 +28,7 @@ func BenchmarkSumIntArray(b *testing.B) {
 		return nil
 	}
 
-	for range b.N {
+	for b.Loop() {
 		err := builtinSum(bcx, []*ast.Term{arr}, verify)
 		if err != nil {
 			b.Fatalf("unexpected error: %v", err)
@@ -56,7 +56,7 @@ func BenchmarkSumFloatArray(b *testing.B) {
 		return nil
 	}
 
-	for range b.N {
+	for b.Loop() {
 		err := builtinSum(bcx, []*ast.Term{arr}, verify)
 		if err != nil {
 			b.Fatalf("unexpected error: %v", err)
@@ -83,7 +83,7 @@ func BenchmarkSumIntSet(b *testing.B) {
 		return nil
 	}
 
-	for range b.N {
+	for b.Loop() {
 		err := builtinSum(bcx, []*ast.Term{set}, verify)
 		if err != nil {
 			b.Fatalf("unexpected error: %v", err)
@@ -110,7 +110,7 @@ func BenchmarkSumFloatSet(b *testing.B) {
 		return nil
 	}
 
-	for range b.N {
+	for b.Loop() {
 		err := builtinSum(bcx, []*ast.Term{set}, verify)
 		if err != nil {
 			b.Fatalf("unexpected error: %v", err)

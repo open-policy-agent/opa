@@ -5,7 +5,6 @@
 package disk
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -39,7 +38,7 @@ func TestSetTxnIsTooBigToFitIntoOneRequestWhenUseDiskStoreReturnsError(t *testin
 	t.Parallel()
 
 	test.WithTempFS(nil, func(dir string) {
-		ctx := context.Background()
+		ctx := t.Context()
 		s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
 			storage.MustParsePath("/foo"),
 		}})
@@ -50,7 +49,7 @@ func TestSetTxnIsTooBigToFitIntoOneRequestWhenUseDiskStoreReturnsError(t *testin
 		nbKeys := 140_000 // 135_000 is ok, but 140_000 not
 		jsonFixture := fixture(nbKeys)
 		err = storage.Txn(ctx, s, storage.WriteParams, func(txn storage.Transaction) error {
-			err := s.Write(ctx, txn, storage.AddOp, storage.MustParsePath("/"), jsonFixture)
+			err := s.Write(ctx, txn, storage.AddOp, storage.RootPath, jsonFixture)
 			if !errors.Is(err, badger.ErrTxnTooBig) {
 				t.Errorf("expected %v, got %v", badger.ErrTxnTooBig, err)
 			}
@@ -81,7 +80,7 @@ func TestDeleteTxnIsTooBigToFitIntoOneRequestWhenUseDiskStore(t *testing.T) {
 	t.Parallel()
 
 	test.WithTempFS(nil, func(dir string) {
-		ctx := context.Background()
+		ctx := t.Context()
 		s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
 			storage.MustParsePath("/foo"),
 		}})

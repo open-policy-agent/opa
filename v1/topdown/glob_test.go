@@ -5,7 +5,6 @@
 package topdown
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -79,7 +78,7 @@ func TestGlobBuiltinInterQueryValueCache(t *testing.T) {
 
 	ip := []byte(`{"inter_query_builtin_value_cache": {"max_num_entries": "10"},}`)
 	config, _ := cache.ParseCachingConfig(ip)
-	interQueryValueCache := cache.NewInterQueryValueCache(context.Background(), config)
+	interQueryValueCache := cache.NewInterQueryValueCache(t.Context(), config)
 
 	ctx := BuiltinContext{InterQueryBuiltinValueCache: interQueryValueCache}
 	iter := func(*ast.Term) error { return nil }
@@ -136,7 +135,7 @@ func TestGlobBuiltinInterQueryValueCacheTypeMismatch(t *testing.T) {
 
 	ip := []byte(`{"inter_query_builtin_value_cache": {"max_num_entries": "10"},}`)
 	config, _ := cache.ParseCachingConfig(ip)
-	interQueryValueCache := cache.NewInterQueryValueCache(context.Background(), config)
+	interQueryValueCache := cache.NewInterQueryValueCache(t.Context(), config)
 
 	ctx := BuiltinContext{InterQueryBuiltinValueCache: interQueryValueCache}
 	iter := func(*ast.Term) error { return nil }

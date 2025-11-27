@@ -11,5 +11,5 @@ cases:
         }
     data: {}
     want_error_code: eval_builtin_error
-    want_error: invalid character
+    want_error: "missing or invalid 'alg' header: jwsbb: header \"alg\" not found"
     strict_error: true

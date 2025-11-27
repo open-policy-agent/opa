@@ -5,7 +5,6 @@
 package topdown
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -27,7 +26,7 @@ func genNxMObjectBenchmarkData(n, m int) ast.Value {
 }
 
 func BenchmarkObjectUnionN(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	sizes := []int{10, 100, 250}
 
@@ -46,7 +45,7 @@ func BenchmarkObjectUnionN(b *testing.B) {
 
 				b.ResetTimer()
 
-				for range b.N {
+				for b.Loop() {
 					err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 						_, err := NewQuery(query).
 							WithCompiler(compiler).
@@ -70,7 +69,7 @@ func BenchmarkObjectUnionNSlow(b *testing.B) {
 	// This benchmarks the suggested means to implement union
 	// without using the builtin, to give us an idea of whether or not
 	// the builtin is actually making things any faster.
-	ctx := context.Background()
+	ctx := b.Context()
 
 	sizes := []int{10, 100, 250}
 
@@ -89,7 +88,7 @@ func BenchmarkObjectUnionNSlow(b *testing.B) {
 
 				b.ResetTimer()
 
-				for range b.N {
+				for b.Loop() {
 					err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 						_, err := NewQuery(query).
 							WithCompiler(compiler).

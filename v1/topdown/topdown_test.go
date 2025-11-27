@@ -36,7 +36,7 @@ import (
 func TestTopDownQueryIDsUnique(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	inputTerm := &ast.Term{}
 	txn := storage.NewTransactionOrDie(ctx, store)
@@ -76,7 +76,7 @@ func TestTopDownQueryIDsUnique(t *testing.T) {
 func TestTopDownIndexExpr(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	txn := storage.NewTransactionOrDie(ctx, store)
 	defer store.Abort(ctx, txn)
@@ -172,7 +172,7 @@ func TestTopDownUnsupportedBuiltin(t *testing.T) {
 	})
 
 	body := ast.MustParseBody(`unsupported_builtin()`)
-	ctx := context.Background()
+	ctx := t.Context()
 	compiler := ast.NewCompiler()
 	store := inmem.New()
 	txn := storage.NewTransactionOrDie(ctx, store)
@@ -190,7 +190,7 @@ func TestTopDownUnsupportedBuiltin(t *testing.T) {
 func TestTopDownQueryCancellation(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	compiler := compileModules([]string{
 		`
@@ -239,7 +239,7 @@ func TestTopDownQueryCancellation(t *testing.T) {
 func TestTopDownQueryCancellationEvery(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	module := func(ev ast.Every, _ ...any) *ast.Module {
 		t.Helper()
@@ -1511,7 +1511,7 @@ arr := [1, 2, 3, 4, 5]
 			t.Parallel()
 
 			countExit := 1 + tc.extraExit
-			ctx := context.Background()
+			ctx := t.Context()
 			compiler := compileModules([]string{tc.module})
 			size := 1000
 			arr := make([]any, size)
@@ -1682,7 +1682,7 @@ func TestTopDownEvery(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := t.Context()
 			c := ast.NewCompiler().WithEnablePrintStatements(true)
 			mod := ast.MustParseModuleWithOpts(tc.module, ast.ParserOptions{AllFutureKeywords: true})
 			if c.Compile(map[string]*ast.Module{"test": mod}); c.Failed() {
@@ -1764,7 +1764,7 @@ func (m *contextPropagationStore) Read(ctx context.Context, _ storage.Transactio
 func TestTopDownContextPropagation(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.WithValue(context.Background(), contextPropagationMock{}, "bar")
+	ctx := context.WithValue(t.Context(), contextPropagationMock{}, "bar")
 
 	compiler := ast.NewCompiler()
 	compiler.Compile(map[string]*ast.Module{
@@ -1831,7 +1831,7 @@ func TestTopdownStoreAST(t *testing.T) {
 	t.Parallel()
 
 	body := ast.MustParseBody(`data.stored = x`)
-	ctx := context.Background()
+	ctx := t.Context()
 	compiler := ast.NewCompiler()
 	store := &astStore{path: "/stored", value: ast.String("value")}
 
@@ -1857,7 +1857,7 @@ func TestTopdownLazyObj(t *testing.T) {
 	t.Parallel()
 
 	body := ast.MustParseBody(`data.stored = x`)
-	ctx := context.Background()
+	ctx := t.Context()
 	compiler := ast.NewCompiler()
 	foo := map[string]any{
 		"foo": "bar",
@@ -1889,7 +1889,7 @@ func TestTopdownLazyObjOptOut(t *testing.T) {
 	t.Parallel()
 
 	body := ast.MustParseBody(`data.stored = x`)
-	ctx := context.Background()
+	ctx := t.Context()
 	compiler := ast.NewCompiler()
 	foo := map[string]any{
 		"foo": "bar",
@@ -2075,13 +2075,13 @@ func setRoundTripper(t CustomizeRoundTripper) func(*Query) *Query {
 func runTopDownTestCase(t *testing.T, data map[string]any, note string, rules []string, expected any, options ...func(*Query) *Query) {
 	t.Helper()
 
-	runTopDownTestCaseWithContext(context.Background(), t, data, note, rules, nil, "", expected, options...)
+	runTopDownTestCaseWithContext(t.Context(), t, data, note, rules, nil, "", expected, options...)
 }
 
 func runTopDownTestCaseWithModules(t *testing.T, data map[string]any, note string, rules []string, modules []string, input string, expected any) {
 	t.Helper()
 
-	runTopDownTestCaseWithContext(context.Background(), t, data, note, rules, modules, input, expected)
+	runTopDownTestCaseWithContext(t.Context(), t, data, note, rules, modules, input, expected)
 }
 
 func runTopDownTestCaseWithContext(ctx context.Context, t *testing.T, data map[string]any, note string, rules []string, modules []string, input string, expected any,
@@ -2139,8 +2139,7 @@ func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler
 	}
 
 	if os.Getenv("OPA_DUMP_TEST") != "" {
-
-		data, err := store.Read(ctx, txn, storage.MustParsePath("/"))
+		data, err := store.Read(ctx, txn, storage.RootPath)
 		if err != nil {
 			t.Fatal(err)
 		}

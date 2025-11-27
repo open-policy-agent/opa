@@ -126,13 +126,13 @@ func (tc *typeChecker) Env(builtins map[string]*Builtin) *TypeEnv {
 // are found. The resulting TypeEnv wraps the provided one. The resulting
 // TypeEnv will be able to resolve types of vars contained in the body.
 func (tc *typeChecker) CheckBody(env *TypeEnv, body Body) (*TypeEnv, Errors) {
+	var errors []*Error
 
-	errors := []*Error{}
 	env = tc.newEnv(env)
 	vis := newRefChecker(env, tc.varRewriter)
+	gv := NewGenericVisitor(vis.Visit)
 
 	WalkExprs(body, func(expr *Expr) bool {
-
 		closureErrs := tc.checkClosures(env, expr)
 		for _, err := range closureErrs {
 			errors = append(errors, err)
@@ -142,7 +142,7 @@ func (tc *typeChecker) CheckBody(env *TypeEnv, body Body) (*TypeEnv, Errors) {
 
 		// reset errors from previous iteration
 		vis.errs = nil
-		NewGenericVisitor(vis.Visit).Walk(expr)
+		gv.Walk(expr)
 		for _, err := range vis.errs {
 			errors = append(errors, err)
 		}
@@ -162,7 +162,7 @@ func (tc *typeChecker) CheckBody(env *TypeEnv, body Body) (*TypeEnv, Errors) {
 		return true
 	})
 
-	tc.err(errors)
+	tc.err(errors...)
 	return env, errors
 }
 
@@ -243,7 +243,7 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 	for _, schemaAnnot := range schemaAnnots {
 		refType, err := tc.getSchemaType(schemaAnnot, rule)
 		if err != nil {
-			tc.err([]*Error{err})
+			tc.err(err)
 			continue
 		}
 
@@ -259,7 +259,7 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 		} else {
 			newType, err := override(ref[len(prefixRef):], t, refType, rule)
 			if err != nil {
-				tc.err([]*Error{err})
+				tc.err(err)
 				continue
 			}
 			env.tree.Put(prefixRef, newType)
@@ -310,7 +310,7 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 				var err error
 				tpe, err = nestedObject(cpy, objPath, typeV)
 				if err != nil {
-					tc.err([]*Error{NewError(TypeErr, rule.Head.Location, err.Error())}) //nolint:govet
+					tc.err(NewError(TypeErr, rule.Head.Location, "%s", err.Error()))
 					tpe = nil
 				}
 			} else if typeV != nil {
@@ -383,10 +383,6 @@ func (tc *typeChecker) checkExpr(env *TypeEnv, expr *Expr) *Error {
 }
 
 func (tc *typeChecker) checkExprBuiltin(env *TypeEnv, expr *Expr) *Error {
-
-	args := expr.Operands()
-	pre := getArgTypes(env, args)
-
 	// NOTE(tsandall): undefined functions will have been caught earlier in the
 	// compiler. We check for undefined functions before the safety check so
 	// that references to non-existent functions result in undefined function
@@ -424,12 +420,14 @@ func (tc *typeChecker) checkExprBuiltin(env *TypeEnv, expr *Expr) *Error {
 		namedFargs.Args = append(namedFargs.Args, ftpe.NamedResult())
 	}
 
+	args := expr.Operands()
+
 	if len(args) > len(fargs.Args) && fargs.Variadic == nil {
-		return newArgError(expr.Location, name, "too many arguments", pre, namedFargs)
+		return newArgError(expr.Location, name, "too many arguments", getArgTypes(env, args), namedFargs)
 	}
 
 	if len(args) < len(ftpe.FuncArgs().Args) {
-		return newArgError(expr.Location, name, "too few arguments", pre, namedFargs)
+		return newArgError(expr.Location, name, "too few arguments", getArgTypes(env, args), namedFargs)
 	}
 
 	for i := range args {
@@ -683,7 +681,7 @@ func unify1Set(env *TypeEnv, val Set, tpe *types.Set, union bool) bool {
 	})
 }
 
-func (tc *typeChecker) err(errors []*Error) {
+func (tc *typeChecker) err(errors ...*Error) {
 	tc.errs = append(tc.errs, errors...)
 }
 
@@ -716,8 +714,9 @@ func (rc *refChecker) Visit(x any) bool {
 	case *Expr:
 		switch terms := x.Terms.(type) {
 		case []*Term:
+			vis := NewGenericVisitor(rc.Visit)
 			for i := 1; i < len(terms); i++ {
-				NewGenericVisitor(rc.Visit).Walk(terms[i])
+				vis.Walk(terms[i])
 			}
 			return true
 		case *Term:
@@ -1318,7 +1317,7 @@ func processAnnotation(ss *SchemaSet, annot *SchemaAnnotation, rule *Rule, allow
 
 	tpe, err := loadSchema(schema, allowNet)
 	if err != nil {
-		return nil, NewError(TypeErr, rule.Location, err.Error()) //nolint:govet
+		return nil, NewError(TypeErr, rule.Location, "%s", err.Error())
 	}
 
 	return tpe, nil

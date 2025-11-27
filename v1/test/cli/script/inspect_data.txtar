@@ -1,0 +1,21 @@
+# correct namespace+path in inspect output
+exec $OPA inspect a/b/c/bundle
+[!windows] cmp stdout expected_stdout
+[windows] stdout 'a\\b\\c\\bundle\\namespace\\data\.json'
+[windows] stdout 'a\\b\\c\\bundle\\test\.rego'
+! stderr .
+
+-- a/b/c/bundle/namespace/data.json --
+{}
+-- a/b/c/bundle/test.rego --
+package test
+
+result if input.yay
+-- expected_stdout --
+NAMESPACES:
+┌────────────────┬──────────────────────────────────┐
+│   NAMESPACE    │               FILE               │
+├────────────────┼──────────────────────────────────┤
+│ data.namespace │ a/b/c/bundle/namespace/data.json │
+│ data.test      │ a/b/c/bundle/test.rego           │
+└────────────────┴──────────────────────────────────┘

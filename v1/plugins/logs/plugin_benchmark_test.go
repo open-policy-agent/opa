@@ -1,7 +1,6 @@
 package logs
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -137,7 +136,7 @@ const largeEvent = `{
 
 func BenchmarkMaskingNop(b *testing.B) {
 
-	ctx := context.Background()
+	ctx := b.Context()
 	store := inmem.New()
 
 	manager, err := plugins.New(nil, "test", store)
@@ -163,9 +162,7 @@ func BenchmarkMaskingNop(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		if err := plugin.maskEvent(ctx, nil, input, &event); err != nil {
 			b.Fatal(err)
 		}
@@ -175,7 +172,7 @@ func BenchmarkMaskingNop(b *testing.B) {
 func BenchmarkMaskingRuleCountsNop(b *testing.B) {
 	numRules := []int{1, 10, 100, 1000}
 
-	ctx := context.Background()
+	ctx := b.Context()
 	store := inmem.New()
 
 	manager, err := plugins.New(nil, "test", store)
@@ -204,7 +201,7 @@ func BenchmarkMaskingRuleCountsNop(b *testing.B) {
 	for _, ruleCount := range numRules {
 		b.Run(fmt.Sprintf("%dRules", ruleCount), func(b *testing.B) {
 			b.ResetTimer()
-			for range b.N {
+			for b.Loop() {
 				if err := plugin.maskEvent(ctx, nil, input, &event); err != nil {
 					b.Fatal(err)
 				}
@@ -215,7 +212,7 @@ func BenchmarkMaskingRuleCountsNop(b *testing.B) {
 
 func BenchmarkMaskingErase(b *testing.B) {
 
-	ctx := context.Background()
+	ctx := b.Context()
 	store := inmem.New()
 
 	err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
@@ -253,9 +250,7 @@ func BenchmarkMaskingErase(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		if err := plugin.maskEvent(ctx, nil, input, &event); err != nil {
 			b.Fatal(err)
 		}

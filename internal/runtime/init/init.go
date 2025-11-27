@@ -18,6 +18,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/loader"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/storage"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // InsertAndCompileOptions contains the input for the operation.
@@ -42,7 +43,7 @@ type InsertAndCompileResult struct {
 // store contents.
 func InsertAndCompile(ctx context.Context, opts InsertAndCompileOptions) (*InsertAndCompileResult, error) {
 	if len(opts.Files.Documents) > 0 {
-		if err := opts.Store.Write(ctx, opts.Txn, storage.AddOp, storage.Path{}, opts.Files.Documents); err != nil {
+		if err := opts.Store.Write(ctx, opts.Txn, storage.AddOp, storage.RootPath, opts.Files.Documents); err != nil {
 			return nil, fmt.Errorf("storage error: %w", err)
 		}
 	}
@@ -176,7 +177,7 @@ func LoadPathsForRegoVersion(regoVersion ast.RegoVersion,
 		}
 	}
 
-	if len(nonBundlePaths) == 0 {
+	if asBundle {
 		return &result, nil
 	}
 
@@ -246,13 +247,9 @@ func WalkPaths(paths []string, filter loader.Filter, asBundle bool) (*WalkPathsR
 				cleanedPath = fp
 			}
 
-			if !strings.HasPrefix(cleanedPath, "/") {
-				cleanedPath = "/" + cleanedPath
-			}
-
 			result.FileDescriptors = append(result.FileDescriptors, &Descriptor{
 				Root: path,
-				Path: cleanedPath,
+				Path: util.WithPrefix(cleanedPath, "/"),
 			})
 		}
 	}

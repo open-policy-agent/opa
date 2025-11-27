@@ -24,7 +24,7 @@ func BenchmarkBase(b *testing.B) {
 
 			b.ResetTimer()
 
-			for range b.N {
+			for b.Loop() {
 				if _, err := Base(compiler, ref); err != nil {
 					b.Fatalf("Failed to compute base doc deps: %v", err)
 				}
@@ -47,7 +47,7 @@ func BenchmarkVirtual(b *testing.B) {
 
 			b.ResetTimer()
 
-			for range b.N {
+			for b.Loop() {
 				if _, err := Virtual(compiler, ref); err != nil {
 					b.Fatalf("Failed to compute virtual doc deps: %v", err)
 				}

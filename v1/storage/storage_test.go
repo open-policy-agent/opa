@@ -49,7 +49,7 @@ func TestNonEmpty(t *testing.T) {
 		},
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	for _, tc := range cases {
 		t.Run(tc.content, func(t *testing.T) {
@@ -83,7 +83,7 @@ func (*nonEmpty) NonEmpty(context.Context, storage.Transaction) func([]string) (
 }
 
 func TestNonEmptyer(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	ne := &nonEmpty{inmem.New()}
 
 	for _, path := range []string{"a", "a/b/c"} {

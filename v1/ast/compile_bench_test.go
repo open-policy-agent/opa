@@ -6,7 +6,6 @@ import (
 )
 
 func BenchmarkRewriteDynamics(b *testing.B) {
-
 	// The choice of query to use is somewhat arbitrary. This query is
 	// representative of the ones that result from partial evaluation on IAM
 	// data models (e.g., a triple glob match on subject/action/resource.)
@@ -22,18 +21,26 @@ func BenchmarkRewriteDynamics(b *testing.B) {
 		b.Run(strconv.Itoa(sizes[i]), func(b *testing.B) {
 			factory := newEqualityFactory(newLocalVarGenerator("q", nil))
 			b.ResetTimer()
-			for range b.N {
+			for b.Loop() {
 				for _, body := range queries[i] {
 					rewriteDynamics(factory, body)
 				}
 			}
 		})
 	}
+}
 
+// 32.38 ns/op	      31 B/op	       1 allocs/op // String concatenation
+// 18.77 ns/op	      23 B/op	       1 allocs/op // []byte appends
+func BenchmarkGenerateLocalVar(b *testing.B) {
+	g := newLocalVarGenerator("q", nil)
+
+	for b.Loop() {
+		g.Generate()
+	}
 }
 
 func makeQueriesForRewriteDynamicsBenchmark(sizes []int, body Body) [][]Body {
-
 	queries := make([][]Body, len(sizes))
 
 	for i := range queries {

@@ -5,7 +5,6 @@
 package cover
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -60,7 +59,7 @@ p if {
 		rego.QueryTracer(cover),
 	)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err = eval.Eval(ctx)
 
 	if err != nil {
@@ -162,7 +161,7 @@ allow if { true }
 		rego.QueryTracer(cover),
 	)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err = eval.Eval(ctx)
 
 	if err != nil {

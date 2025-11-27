@@ -15,22 +15,29 @@ jobs:
     permissions:
       issues: write # required for peter-evans/create-issue-from-file
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
     - name: Link Checker
       id: lychee
-      uses: lycheeverse/lychee-action@v2
+      uses: lycheeverse/lychee-action@a8c4c7cb88f0c7386610c35eb25108e448569cb0 # v2.7.0
+      # ignored domains are a source of false positives in
+      # https://github.com/open-policy-agent/opa/issues/7888 for example
       with:
-        workingDirectory: .
-        args: |
-          --max-concurrency 1 \
-          --no-progress \
-          --exclude-path vendor \
-          --exclude-path internal \
-          --exclude-path CHANGELOG.md \
-          --scheme https \
-          --scheme http \
+        args: >
+          --max-concurrency 1
+          --no-progress
+          --exclude-path vendor
+          --exclude-path internal
+          --exclude-path CHANGELOG.md
+          --scheme https
+          --scheme http
+          --exclude medium.com
+          --exclude blog.openpolicyagent.org
+          --exclude itnext.io
           --accept 200..=206,403,429
+          --retry-wait-time 5
+          --max-retries 1
+          .
         fail: false
 
     - name: Show Report
@@ -38,7 +45,7 @@ jobs:
 
     - name: Create Issue From File
       if: steps.lychee.outputs.exit_code != 0
-      uses: peter-evans/create-issue-from-file@v5
+      uses: peter-evans/create-issue-from-file@fca9117c27cdc29c6c4db3b86c48e4115a786710 # v6.0.0
       with:
         title: "docs: Link Checker Report"
         content-filepath: ./lychee/out.md

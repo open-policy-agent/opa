@@ -1,10 +1,39 @@
 package util
 
 import (
-	"math"
 	"slices"
+	"strings"
+	"sync"
 	"unsafe"
 )
+
+// SyncPool is a generic sync.Pool for type T, providing some convenience
+// over sync.Pool directly: [SyncPool.Put] ensures that nil values are not
+// put into the pool, and [SyncPool.Get] returns a pointer to T without having
+// to do a type assertion at the call site.
+type SyncPool[T any] struct {
+	pool sync.Pool
+}
+
+func NewSyncPool[T any]() *SyncPool[T] {
+	return &SyncPool[T]{
+		pool: sync.Pool{
+			New: func() any {
+				return new(T)
+			},
+		},
+	}
+}
+
+func (p *SyncPool[T]) Get() *T {
+	return p.pool.Get().(*T)
+}
+
+func (p *SyncPool[T]) Put(x *T) {
+	if x != nil {
+		p.pool.Put(x)
+	}
+}
 
 // NewPtrSlice returns a slice of pointers to T with length n,
 // with only 2 allocations performed no matter the size of n.
@@ -42,6 +71,12 @@ func StringToByteSlice[T ~string](s T) []byte {
 // NumDigitsInt returns the number of digits in n.
 // This is useful for pre-allocating buffers for string conversion.
 func NumDigitsInt(n int) int {
+	return NumDigitsInt64(int64(n))
+}
+
+// NumDigitsInt64 returns the number of digits in n.
+// This is useful for pre-allocating buffers for string conversion.
+func NumDigitsInt64(n int64) int {
 	if n == 0 {
 		return 1
 	}
@@ -50,7 +85,12 @@ func NumDigitsInt(n int) int {
 		n = -n
 	}
 
-	return int(math.Log10(float64(n))) + 1
+	count := 0
+	for n > 0 {
+		n /= 10
+		count++
+	}
+	return count
 }
 
 // NumDigitsUint returns the number of digits in n.
@@ -60,16 +100,68 @@ func NumDigitsUint(n uint64) int {
 		return 1
 	}
 
-	return int(math.Log10(float64(n))) + 1
-}
-
-// KeysCount returns the number of keys in m that satisfy predicate p.
-func KeysCount[K comparable, V any](m map[K]V, p func(K) bool) int {
 	count := 0
-	for k := range m {
-		if p(k) {
-			count++
-		}
+	for n > 0 {
+		n /= 10
+		count++
 	}
 	return count
+}
+
+// SplitMap calls fn for each delim-separated part of text and returns a slice of the results.
+// Cheaper than calling fn on strings.Split(text, delim), as it avoids allocating an intermediate slice of strings.
+func SplitMap[T any](text string, delim string, fn func(string) T) []T {
+	sl := make([]T, 0, strings.Count(text, delim)+1)
+	for s := range strings.SplitSeq(text, delim) {
+		sl = append(sl, fn(s))
+	}
+	return sl
+}
+
+// SlicePool is a pool for (pointers to) slices of type T.
+// It uses sync.Pool to pool the slices, and grows them as needed.
+type SlicePool[T any] struct {
+	pool sync.Pool
+}
+
+// NewSlicePool creates a new SlicePool for slices of type T with the given initial length.
+// This number is only a hint, as the slices will grow as needed. For best performance, store
+// slices of similar lengths in the same pool.
+func NewSlicePool[T any](length int) *SlicePool[T] {
+	return &SlicePool[T]{
+		pool: sync.Pool{
+			New: func() any {
+				s := make([]T, length)
+				return &s
+			},
+		},
+	}
+}
+
+// Get returns a pointer to a slice of type T with the given length
+// from the pool. The slice capacity will grow as needed to accommodate
+// the requested length. The returned slice will have all its elements
+// set to the zero value of T. Returns a pointer to avoid allocating.
+func (sp *SlicePool[T]) Get(length int) *[]T {
+	s := sp.pool.Get().(*[]T)
+	d := *s
+
+	if cap(d) < length {
+		d = slices.Grow(d, length)
+	}
+
+	d = d[:length] // reslice to requested length, while keeping capacity
+
+	clear(d)
+
+	*s = d
+
+	return s
+}
+
+// Put returns a pointer to a slice of type T to the pool.
+func (sp *SlicePool[T]) Put(s *[]T) {
+	if s != nil {
+		sp.pool.Put(s)
+	}
 }

@@ -6,7 +6,6 @@ package authorizer
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -549,7 +548,7 @@ func TestInterQueryValueCache(t *testing.T) {
 	}
 
 	config, _ := cache.ParseCachingConfig(nil)
-	interQueryValueCache := cache.NewInterQueryValueCache(context.Background(), config)
+	interQueryValueCache := cache.NewInterQueryValueCache(t.Context(), config)
 
 	basic := NewBasic(&mockHandler{}, compiler, inmem.New(), InterQueryValueCache(interQueryValueCache), Decision(func() ast.Ref {
 		return ast.MustParseRef("data.system.authz.allow")

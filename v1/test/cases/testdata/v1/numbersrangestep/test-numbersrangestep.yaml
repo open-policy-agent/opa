@@ -59,7 +59,7 @@ cases:
         	num := numbers.range_step(0, 10, -2)
         }
     want_error_code: eval_builtin_error
-    want_error: "numbers.range_step: step must be a positive number above zero"
+    want_error: "numbers.range_step: step must be a positive integer"
     strict_error: true
   - note: numbersrangestep/memoryexample
     query: data.test.p = x

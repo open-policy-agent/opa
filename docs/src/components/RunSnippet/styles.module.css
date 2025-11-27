@@ -1,39 +1,55 @@
 .runButton {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    background-color: var(--ifm-color-primary);
-    color: white;
-    border: none;
-    border-radius: 0.25rem;
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: background-color 0.2s;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.5rem 1rem;
+	background-color: var(--ifm-color-primary);
+	color: white;
+	border: none;
+	border-radius: 0.25rem;
+	cursor: pointer;
+	font-size: 0.9rem;
+	transition: background-color 0.2s;
 }
 
 .runButton:hover {
-    background-color: var(--ifm-color-primary-darker);
+	background-color: var(--ifm-color-primary-darker);
 }
 
 .runButton:disabled {
-    background-color: var(--ifm-color-emphasis-300);
-    cursor: not-allowed;
+	background-color: var(--ifm-color-emphasis-300);
+	cursor: not-allowed;
 }
 
 .output {
-    margin-top: 1rem;
-    padding: 1rem;
-    background-color: var(--ifm-background-color);
-    border: 1px solid var(--ifm-color-emphasis-200);
-    border-radius: 0.25rem;
+	margin-top: 1rem;
+	padding: 1rem;
+	background-color: var(--ifm-background-color);
+	border: 1px solid var(--ifm-color-emphasis-200);
+	border-radius: 0.25rem;
 }
 
 .error {
-    color: var(--ifm-color-danger);
-    margin-top: 0.5rem;
+	color: var(--ifm-color-danger);
+	margin-top: 0.5rem;
 }
 
-.codeApiHider :global(codapi-ref) {
-    display: none;
+.dn {
+	display: none;
+}
+
+.codeApiSnippetLoadingPlaceholder {
+	/* the amount that the codapi toolbar uses when loaded */
+	height: 42px;
+	opacity: 0.2;
+}
+
+.codeApiSnippet :global(codapi-ref) {
+	display: none;
+}
+
+/* codapi seems to insert another toolbar which is hidden, this ensure is it
+ * not displayed causing a visual bump */
+.codeApiSnippet codapi-toolbar:nth-child(2) {
+	display: none;
 }

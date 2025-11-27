@@ -7,7 +7,6 @@ package repl
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -27,7 +26,7 @@ import (
 
 func TestFunction(t *testing.T) {
 	store := newTestStore()
-	ctx := context.Background()
+	ctx := t.Context()
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
 	mod1 := []byte(`package a.b.c
@@ -178,7 +177,7 @@ baz(_) = y if {
 }
 
 func TestComplete(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
@@ -267,7 +266,7 @@ r = 3 if { true }`)
 }
 
 func TestDump(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	input := `{"a": [1,2,3,4]}`
 	var data map[string]any
 	err := util.UnmarshalJSON([]byte(input), &data)
@@ -284,7 +283,7 @@ func TestDump(t *testing.T) {
 }
 
 func TestDumpPath(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	input := `{"a": [1,2,3,4]}`
 	var data map[string]any
 	err := util.UnmarshalJSON([]byte(input), &data)
@@ -320,7 +319,7 @@ func TestDumpPath(t *testing.T) {
 }
 
 func TestDumpPathCaseSensitive(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	input := `{"a": [1,2,3,4]}`
 	var data map[string]any
 	err := util.UnmarshalJSON([]byte(input), &data)
@@ -363,7 +362,7 @@ func TestHelp(t *testing.T) {
 		},
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -379,7 +378,7 @@ func TestHelp(t *testing.T) {
 }
 
 func TestHelpWithOPAVersionReport(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -415,7 +414,7 @@ Release Notes           : https://github.com/open-policy-agent/opa/releases/tag/
 }
 
 func TestShowDebug(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -471,7 +470,7 @@ func TestShowDebug(t *testing.T) {
 // The rego.v1 import will be stripped from the output if the default rego-version is v1,
 // so we need two flavours of this test: v0, and v1.
 func TestShowV0(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer).WithRegoVersion(ast.RegoV0)
@@ -557,7 +556,7 @@ p[2]` + "\n"
 }
 
 func TestShowV1(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer).WithRegoVersion(ast.RegoV1)
@@ -643,7 +642,7 @@ p contains 2` + "\n"
 }
 
 func TestTypes(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -680,7 +679,7 @@ func TestTypes(t *testing.T) {
 }
 
 func TestUnknown(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -701,19 +700,19 @@ func TestUnknown(t *testing.T) {
 
 	output := strings.TrimSpace(buffer.String())
 	expected := strings.TrimSpace(`
-+---------+-------------+
-| Query 1 | input.x = 1 |
-|         | i = 0       |
-|         | x = 1       |
-+---------+-------------+
-| Query 2 | input.x = 2 |
-|         | i = 1       |
-|         | x = 2       |
-+---------+-------------+
-| Query 3 | input.x = 3 |
-|         | i = 2       |
-|         | x = 3       |
-+---------+-------------+
+┌─────────┬─────────────┐
+│ Query 1 │ input.x = 1 │
+│         │ i = 0       │
+│         │ x = 1       │
+├─────────┼─────────────┤
+│ Query 2 │ input.x = 2 │
+│         │ i = 1       │
+│         │ x = 2       │
+├─────────┼─────────────┤
+│ Query 3 │ input.x = 3 │
+│         │ i = 2       │
+│         │ x = 3       │
+└─────────┴─────────────┘
 `)
 
 	if output != expected {
@@ -721,7 +720,7 @@ func TestUnknown(t *testing.T) {
 	}
 }
 func TestUnknownMetrics(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -746,19 +745,19 @@ func TestUnknownMetrics(t *testing.T) {
 
 	output := strings.TrimSpace(buffer.String())
 	expected := strings.TrimSpace(`
-+---------+-------------+
-| Query 1 | input.x = 1 |
-|         | i = 0       |
-|         | x = 1       |
-+---------+-------------+
-| Query 2 | input.x = 2 |
-|         | i = 1       |
-|         | x = 2       |
-+---------+-------------+
-| Query 3 | input.x = 3 |
-|         | i = 2       |
-|         | x = 3       |
-+---------+-------------+
+┌─────────┬─────────────┐
+│ Query 1 │ input.x = 1 │
+│         │ i = 0       │
+│         │ x = 1       │
+├─────────┼─────────────┤
+│ Query 2 │ input.x = 2 │
+│         │ i = 1       │
+│         │ x = 2       │
+├─────────┼─────────────┤
+│ Query 3 │ input.x = 3 │
+│         │ i = 2       │
+│         │ x = 3       │
+└─────────┴─────────────┘
 `)
 
 	if !strings.HasPrefix(output, expected) {
@@ -771,7 +770,7 @@ func TestUnknownMetrics(t *testing.T) {
 }
 
 func TestUnknownJSON(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -805,7 +804,7 @@ func TestUnknownJSON(t *testing.T) {
 }
 
 func TestUnknownInvalid(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -827,7 +826,7 @@ func TestUnknownInvalid(t *testing.T) {
 }
 
 func TestUnset(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -951,7 +950,7 @@ func TestUnset(t *testing.T) {
 func TestUnsetInputDocument(t *testing.T) {
 	// input is only allowed to be overridden in rego v0, so we only assert the following when that's the active version.
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer).WithRegoVersion(ast.RegoV0)
@@ -975,14 +974,19 @@ func TestUnsetInputDocument(t *testing.T) {
 }
 
 func TestOneShotEmptyBufferOneExpr(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	if err := repl.OneShot(ctx, "data.a[i].b.c[j] = 2"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	expectOutput(t, buffer.String(), "+---+---+\n| i | j |\n+---+---+\n| 0 | 1 |\n+---+---+\n")
+	expectOutput(t, buffer.String(), `┌───┬───┐
+│ i │ j │
+├───┼───┤
+│ 0 │ 1 │
+└───┴───┘
+`)
 	buffer.Reset()
 	if err := repl.OneShot(ctx, "data.a[i].b.c[j] = \"deadbeef\""); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -991,7 +995,7 @@ func TestOneShotEmptyBufferOneExpr(t *testing.T) {
 }
 
 func TestOneShotEmptyBufferOneRule(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -1008,7 +1012,7 @@ func TestOneShotEmptyBufferOneRule(t *testing.T) {
 }
 
 func TestOneShotRefHeadRulePrinted(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -1021,7 +1025,7 @@ func TestOneShotRefHeadRulePrinted(t *testing.T) {
 }
 
 func TestOneShotBufferedExpr(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -1036,11 +1040,16 @@ func TestOneShotBufferedExpr(t *testing.T) {
 	if err := repl.OneShot(ctx, ""); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	expectOutput(t, buffer.String(), "+---+---+\n| i | j |\n+---+---+\n| 0 | 1 |\n+---+---+\n")
+	expectOutput(t, buffer.String(), `┌───┬───┐
+│ i │ j │
+├───┼───┤
+│ 0 │ 1 │
+└───┴───┘
+`)
 }
 
 func TestOneShotBufferedRule(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -1082,7 +1091,7 @@ func TestOneShotBufferedRule(t *testing.T) {
 }
 
 func TestOneShotJSON(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -1238,7 +1247,7 @@ func TestOneShot_DefaultRegoVersion(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			store := newTestStore()
 			var buffer bytes.Buffer
 			repl := newRepl(store, &buffer)
@@ -1399,7 +1408,7 @@ func TestOneShot_RegoVersion(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			store := newTestStore()
 			var buffer bytes.Buffer
 			repl := newRepl(store, &buffer).
@@ -1534,7 +1543,7 @@ p if { data := 1; data == 1 }`,
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			store := newTestStore()
 
 			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
@@ -1574,7 +1583,7 @@ p if { data := 1; data == 1 }`,
 }
 
 func TestEvalData(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -1639,7 +1648,7 @@ p = [1, 2, 3] if { true }`)
 }
 
 func TestEvalFalse(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -1653,7 +1662,7 @@ func TestEvalFalse(t *testing.T) {
 }
 
 func TestEvalConstantRule(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -1697,7 +1706,7 @@ func TestEvalConstantRule(t *testing.T) {
 }
 
 func TestEvalBooleanFlags(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -1709,12 +1718,12 @@ func TestEvalBooleanFlags(t *testing.T) {
 	}
 	expected := strings.TrimSpace(`
 Rule 'flags' defined in package repl. Type 'show' to see rules.
-+----------+
-| flags[_] |
-+----------+
-| true     |
-| true     |
-+----------+`)
+┌──────────┐
+│ flags[_] │
+├──────────┤
+│ true     │
+│ true     │
+└──────────┘`)
 	result := strings.TrimSpace(buffer.String())
 	if result != expected {
 		t.Errorf("Expected a single column with boolean output but got:\n%v", result)
@@ -1729,13 +1738,13 @@ Rule 'flags' defined in package repl. Type 'show' to see rules.
 	}
 	expected = strings.TrimSpace(`
 Rule 'flags2' defined in package repl. Type 'show' to see rules.
-+-----------+
-| flags2[_] |
-+-----------+
-| true      |
-| "x"       |
-| 1         |
-+-----------+`)
+┌───────────┐
+│ flags2[_] │
+├───────────┤
+│ true      │
+│ "x"       │
+│ 1         │
+└───────────┘`)
 	result = strings.TrimSpace(buffer.String())
 	if result != expected {
 		t.Errorf("Expected a single column with boolean output but got:\n%v", result)
@@ -1745,7 +1754,7 @@ Rule 'flags2' defined in package repl. Type 'show' to see rules.
 func TestEvalConstantRuleDefaultRootDoc(t *testing.T) {
 	// The 'input' document may only be shadowed in rego v0.
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer).
@@ -1766,7 +1775,7 @@ func TestEvalConstantRuleDefaultRootDoc(t *testing.T) {
 }
 
 func TestEvalConstantRuleAssignment(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 
@@ -1825,7 +1834,7 @@ x := 2
 func TestEvalConstantRuleAssignmentInputDocument(t *testing.T) {
 	// input is only allowed to be overridden in rego v0, so we only assert the following when that's the active version.
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer).
@@ -1855,7 +1864,7 @@ func TestEvalConstantRuleAssignmentInputDocument(t *testing.T) {
 }
 
 func TestEvalSingleTermMultiValue(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -2053,7 +2062,7 @@ func TestEvalSingleTermMultiValue(t *testing.T) {
 }
 
 func TestEvalSingleTermMultiValueSetRef(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -2242,7 +2251,7 @@ func TestEvalSingleTermMultiValueSetRef(t *testing.T) {
 }
 
 func TestEvalRuleCompileError(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -2270,7 +2279,7 @@ func TestEvalRuleCompileError(t *testing.T) {
 }
 
 func TestEvalBodyCompileError(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -2327,7 +2336,7 @@ func TestEvalBodyCompileError(t *testing.T) {
 }
 
 func TestEvalBodyContainingWildCards(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -2335,16 +2344,16 @@ func TestEvalBodyContainingWildCards(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 	expected := strings.TrimSpace(`
-+-------+
-|   x   |
-+-------+
-| true  |
-| 2     |
-| false |
-| false |
-| true  |
-| 1     |
-+-------+`)
+┌───────┐
+│   x   │
+├───────┤
+│ true  │
+│ 2     │
+│ false │
+│ false │
+│ true  │
+│ 1     │
+└───────┘`)
 	result := strings.TrimSpace(buffer.String())
 	if result != expected {
 		t.Errorf("Expected only a single column of output but got:\n%v", result)
@@ -2353,7 +2362,7 @@ func TestEvalBodyContainingWildCards(t *testing.T) {
 }
 
 func TestEvalBodyInput(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer).
@@ -2389,7 +2398,7 @@ func TestEvalBodyInput(t *testing.T) {
 }
 
 func TestEvalBodyInputComplete(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer).
@@ -2490,7 +2499,7 @@ func TestEvalBodyInputComplete(t *testing.T) {
 }
 
 func TestEvalBodyWith(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -2527,7 +2536,7 @@ func TestEvalBodyWith(t *testing.T) {
 }
 
 func TestEvalBodyRewrittenBuiltin(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -2587,7 +2596,7 @@ func TestEvalBodyRewrittenBuiltin(t *testing.T) {
 }
 
 func TestEvalBodyRewrittenRef(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -2711,7 +2720,7 @@ func TestEvalBodyRewrittenRef(t *testing.T) {
 }
 
 func TestEvalBodySomeDecl(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -2747,7 +2756,7 @@ func TestEvalBodySomeDecl(t *testing.T) {
 }
 
 func TestEvalImport(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -2783,7 +2792,7 @@ func TestEvalImport(t *testing.T) {
 }
 
 func TestEvalImportFutureKeywords(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer).
@@ -2876,7 +2885,7 @@ p {
 }
 
 func TestEvalPackage(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -2918,7 +2927,7 @@ func TestEvalPackage(t *testing.T) {
 }
 
 func TestMetrics(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 
@@ -2971,7 +2980,7 @@ func TestMetrics(t *testing.T) {
 
 func TestProfile(t *testing.T) {
 	store := newTestStore()
-	ctx := context.Background()
+	ctx := t.Context()
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 	const numLines = 21
 
@@ -3053,7 +3062,7 @@ default allow = false
 }
 
 func TestStrictBuiltinErrors(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 
@@ -3086,7 +3095,7 @@ func TestStrictBuiltinErrors(t *testing.T) {
 }
 
 func TestInstrument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 
@@ -3164,7 +3173,7 @@ func TestInstrument(t *testing.T) {
 }
 
 func TestEvalTrace(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -3197,11 +3206,11 @@ query:1     | Redo data.a[i].b.c[j] = x
 query:1     | Eval data.a[k].b.c[x] = 1
 query:1     | Fail data.a[k].b.c[x] = 1
 query:1     | Redo data.a[i].b.c[j] = x
-+---+---+---+---+
-| i | j | k | x |
-+---+---+---+---+
-| 0 | 1 | 1 | 2 |
-+---+---+---+---+`)
+┌───┬───┬───┬───┐
+│ i │ j │ k │ x │
+├───┼───┼───┼───┤
+│ 0 │ 1 │ 1 │ 2 │
+└───┴───┴───┴───┘`)
 	expected += "\n"
 
 	if expected != buffer.String() {
@@ -3210,7 +3219,7 @@ query:1     | Redo data.a[i].b.c[j] = x
 }
 
 func TestEvalNotes(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -3241,7 +3250,7 @@ true`)
 }
 
 func TestTruncatePrettyOutput(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -3252,7 +3261,7 @@ func TestTruncatePrettyOutput(t *testing.T) {
 	if err := repl.OneShot(ctx, "data[x]"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	for _, line := range strings.Split(buffer.String(), "\n") {
+	for line := range strings.SplitSeq(buffer.String(), "\n") {
 		// | "repl" | {"version": <elided>... |
 		if len(line) > 96 {
 			t.Fatalf("Expected len(line) to be < 96 but got:\n\n%v", buffer)
@@ -3265,7 +3274,7 @@ func TestTruncatePrettyOutput(t *testing.T) {
 }
 
 func TestUnsetPackage(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -3323,7 +3332,7 @@ func TestCapabilities(t *testing.T) {
 		}
 	}
 	capabilities.Builtins = allowedBuiltins
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer).WithCapabilities(capabilities)
@@ -3337,7 +3346,7 @@ func TestCapabilities(t *testing.T) {
 }
 
 func TestTraceArgument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
@@ -3370,7 +3379,7 @@ func expectOutput(t *testing.T, output string, expected string) {
 }
 
 func newRepl(store storage.Store, buffer *bytes.Buffer) *REPL {
-	return New(store, "", buffer, "", 0, "")
+	return New(store, "", buffer, "", 0, "").WithStderrWriter(buffer)
 }
 
 func newTestStore() storage.Store {
@@ -3404,4 +3413,49 @@ func parseJSON(s string) any {
 		panic(err)
 	}
 	return v
+}
+
+func TestWith(t *testing.T) {
+	ctx := t.Context()
+	store := inmem.New()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	if err := repl.OneShot(ctx, "package main"); err != nil {
+		t.Fatal(err)
+	}
+	if err := repl.OneShot(ctx, "n = 5"); err != nil {
+		t.Fatal(err)
+	}
+
+	// add invalid expression using with in rule head
+	expectedErr := "expressions using with keyword cannot be used for rule head"
+	err := repl.OneShot(ctx, "even := n % 2 == 0 with n as 4")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if err.Error() != expectedErr {
+		t.Fatalf("expected error: %q but got %q", expectedErr, err.Error())
+	}
+
+	// add valid with expression used in body
+	if err := repl.OneShot(ctx, "even if {\n z := n % 2 == 0 with n as 4 \n z }"); err != nil {
+		t.Fatal(err)
+	}
+
+	buffer.Reset()
+
+	if err := repl.OneShot(ctx, "show"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	expected := `package main
+
+n := 5
+
+even if {
+	z := (n % 2) == 0 with n as 4
+	z
+}` + "\n"
+
+	assertREPLText(t, buffer, expected)
 }

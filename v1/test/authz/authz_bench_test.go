@@ -5,7 +5,6 @@
 package authz
 
 import (
-	"context"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -51,7 +50,7 @@ func runAuthzBenchmark(b *testing.B, mode InputMode, numPaths int, extras ...boo
 		NumPaths:  numPaths,
 	}
 
-	ctx := context.Background()
+	ctx := b.Context()
 	data := GenerateDataset(profile)
 	useDisk := len(extras) > 0 && extras[0]
 
@@ -62,7 +61,7 @@ func runAuthzBenchmark(b *testing.B, mode InputMode, numPaths int, extras ...boo
 			b.Fatal(err)
 		}
 
-		if err = storage.WriteOne(ctx, store, storage.AddOp, storage.Path{}, data); err != nil {
+		if err = storage.WriteOne(ctx, store, storage.AddOp, storage.RootPath, data); err != nil {
 			b.Fatal(err)
 		}
 	} else {
@@ -93,9 +92,7 @@ func runAuthzBenchmark(b *testing.B, mode InputMode, numPaths int, extras ...boo
 		b.Fatal(err)
 	}
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		rs, err := pq.Eval(ctx, rego.EvalParsedInput(inputAST))
 		if err != nil {
 			b.Fatalf("Unexpected error(s): %v", err)

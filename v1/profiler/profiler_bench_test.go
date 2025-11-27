@@ -5,7 +5,6 @@
 package profiler
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -29,7 +28,7 @@ func BenchmarkProfilerBigLocalVar(b *testing.B) {
 					b.Fatal(err)
 				}
 
-				ctx := context.Background()
+				ctx := b.Context()
 
 				pq, err := rego.New(
 					rego.Module("test.rego", module),
@@ -42,7 +41,7 @@ func BenchmarkProfilerBigLocalVar(b *testing.B) {
 
 				b.ResetTimer()
 
-				for range b.N {
+				for b.Loop() {
 					if _, err = pq.Eval(ctx, rego.EvalQueryTracer(profiler)); err != nil {
 						b.Fatal(err)
 					}

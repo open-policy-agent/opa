@@ -106,6 +106,7 @@ type eval struct {
 	tracers                     []QueryTracer
 	tracingOpts                 tracing.Options
 	queryID                     uint64
+	timeStart                   int64
 	index                       int
 	genvarid                    int
 	indexing                    bool
@@ -118,25 +119,52 @@ type eval struct {
 	defined                     bool
 }
 
-type evp struct {
-	pool sync.Pool
+type (
+	evfp struct{ pool sync.Pool }
+	evbp struct{ pool sync.Pool }
+)
+
+func (ep *evfp) Put(e *evalFunc) {
+	if e != nil {
+		e.e, e.terms, e.ir = nil, nil, nil
+		ep.pool.Put(e)
+	}
 }
 
-func (ep *evp) Put(e *eval) {
-	ep.pool.Put(e)
+func (ep *evfp) Get() *evalFunc {
+	return ep.pool.Get().(*evalFunc)
 }
 
-func (ep *evp) Get() *eval {
-	return ep.pool.Get().(*eval)
+func (ep *evbp) Put(e *evalBuiltin) {
+	if e != nil {
+		e.e, e.bi, e.bctx, e.f, e.terms = nil, nil, nil, nil, nil
+		ep.pool.Put(e)
+	}
 }
 
-var evalPool = evp{
-	pool: sync.Pool{
-		New: func() any {
-			return &eval{}
+func (ep *evbp) Get() *evalBuiltin {
+	return ep.pool.Get().(*evalBuiltin)
+}
+
+var (
+	evalPool     = util.NewSyncPool[eval]()
+	deecPool     = util.NewSyncPool[deferredEarlyExitContainer]()
+	resolverPool = util.NewSyncPool[evalResolver]()
+	evalFuncPool = &evfp{
+		pool: sync.Pool{
+			New: func() any {
+				return &evalFunc{}
+			},
 		},
-	},
-}
+	}
+	evalBuiltinPool = &evbp{
+		pool: sync.Pool{
+			New: func() any {
+				return &evalBuiltin{}
+			},
+		},
+	}
+)
 
 func (e *eval) Run(iter evalIterator) error {
 	if !e.traceEnabled {
@@ -171,16 +199,17 @@ func (e *eval) string(s *strings.Builder) {
 func (e *eval) builtinFunc(name string) (*ast.Builtin, BuiltinFunc, bool) {
 	decl, ok := ast.BuiltinMap[name]
 	if ok {
-		f, ok := builtinFunctions[name]
-		if ok {
+		if f, ok := builtinFunctions[name]; ok {
 			return decl, f, true
 		}
-	} else {
-		bi, ok := e.builtins[name]
-		if ok {
-			return bi.Decl, bi.Func, true
+		if bi, ok := e.builtins[name]; ok {
+			return decl, bi.Func, true
 		}
 	}
+	if bi, ok := e.builtins[name]; ok {
+		return bi.Decl, bi.Func, true
+	}
+
 	return nil, nil, false
 }
 
@@ -399,9 +428,11 @@ func (e *eval) evalExpr(iter evalIterator) error {
 		}
 		return nil
 	}
-	expr := e.query[e.index]
 
-	e.traceEval(expr)
+	expr := e.query[e.index]
+	if e.traceEnabled {
+		e.traceEval(expr)
+	}
 
 	if len(expr.With) > 0 {
 		return e.evalWith(iter)
@@ -519,7 +550,7 @@ func (e *eval) evalStep(iter evalIterator) error {
 		// generateVar inlined here to avoid extra allocations in hot path
 		rterm := ast.VarTerm(e.fmtVarTerm())
 		err = e.unify(terms, rterm, func() error {
-			if e.saveSet.Contains(rterm, e.bindings) {
+			if e.saveSet != nil && e.saveSet.Contains(rterm, e.bindings) {
 				return e.saveExpr(ast.NewExpr(rterm), e.bindings, func() error {
 					return iter(e)
 				})
@@ -886,7 +917,6 @@ func (e *eval) evalNotPartialSupport(negationID uint64, expr *ast.Expr, unknowns
 }
 
 func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
-
 	ref := terms[0].Value.(ast.Ref)
 
 	mock, mocked := e.functionMocks.Get(ref)
@@ -910,8 +940,8 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 
 	if ref[0].Equal(ast.DefaultRootDocument) {
 		if mocked {
-			f := e.compiler.TypeEnv.Get(ref).(*types.Function)
-			return e.evalCallValue(f.Arity(), terms, mock, iter)
+			arity := e.compiler.TypeEnv.GetByRef(ref).(*types.Function).Arity()
+			return e.evalCallValue(arity, terms, mock, iter)
 		}
 
 		var ir *ast.IndexResult
@@ -926,11 +956,13 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 			return err
 		}
 
-		eval := evalFunc{
-			e:     e,
-			terms: terms,
-			ir:    ir,
-		}
+		eval := evalFuncPool.Get()
+		defer evalFuncPool.Put(eval)
+
+		eval.e = e
+		eval.terms = terms
+		eval.ir = ir
+
 		return eval.eval(iter)
 	}
 
@@ -951,7 +983,7 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 	var bctx *BuiltinContext
 
 	// Creating a BuiltinContext is expensive, so only do it if the builtin depends on it.
-	if bi.NeedsBuiltInContext() {
+	if !bi.CanSkipBctx {
 		var parentID uint64
 		if e.parent != nil {
 			parentID = e.parent.queryID
@@ -960,6 +992,10 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		var capabilities *ast.Capabilities
 		if e.compiler != nil {
 			capabilities = e.compiler.Capabilities()
+		}
+
+		if e.time == nil {
+			e.time = ast.NumberTerm(int64ToJSONNumber(e.timeStart))
 		}
 
 		bctx = &BuiltinContext{
@@ -985,13 +1021,14 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		}
 	}
 
-	eval := evalBuiltin{
-		e:     e,
-		bi:    bi,
-		bctx:  bctx,
-		f:     f,
-		terms: terms[1:],
-	}
+	eval := evalBuiltinPool.Get()
+	defer evalBuiltinPool.Put(eval)
+
+	eval.e = e
+	eval.bi = bi
+	eval.bctx = bctx
+	eval.f = f
+	eval.terms = terms[1:]
 
 	return eval.eval(iter)
 }
@@ -1048,7 +1085,9 @@ func (e *eval) biunify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) err
 		case ast.Var, ast.Ref, *ast.ArrayComprehension:
 			return e.biunifyValues(a, b, b1, b2, iter)
 		case *ast.Array:
-			return e.biunifyArrays(vA, vB, b1, b2, iter)
+			if vA.Len() == vB.Len() {
+				return e.biunifyArraysRec(vA, vB, b1, b2, iter, 0)
+			}
 		}
 	case ast.Object:
 		switch vB := b.Value.(type) {
@@ -1061,13 +1100,6 @@ func (e *eval) biunify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) err
 		return e.biunifyValues(a, b, b1, b2, iter)
 	}
 	return nil
-}
-
-func (e *eval) biunifyArrays(a, b *ast.Array, b1, b2 *bindings, iter unifyIterator) error {
-	if a.Len() != b.Len() {
-		return nil
-	}
-	return e.biunifyArraysRec(a, b, b1, b2, iter, 0)
 }
 
 func (e *eval) biunifyArraysRec(a, b *ast.Array, b1, b2 *bindings, iter unifyIterator, idx int) error {
@@ -1637,7 +1669,7 @@ func (e *eval) getRules(ref ast.Ref, args []*ast.Term) (*ast.IndexResult, error)
 		return nil, nil
 	}
 
-	resolver := resolverPool.Get().(*evalResolver)
+	resolver := resolverPool.Get()
 	defer func() {
 		resolver.e = nil
 		resolver.args = nil
@@ -1646,12 +1678,11 @@ func (e *eval) getRules(ref ast.Ref, args []*ast.Term) (*ast.IndexResult, error)
 
 	var result *ast.IndexResult
 	var err error
+	resolver.e = e
 	if e.indexing {
-		resolver.e = e
 		resolver.args = args
 		result, err = index.Lookup(resolver)
 	} else {
-		resolver.e = e
 		result, err = index.AllRules(resolver)
 	}
 	if err != nil {
@@ -1692,14 +1723,6 @@ type evalResolver struct {
 	e    *eval
 	args []*ast.Term
 }
-
-var (
-	resolverPool = sync.Pool{
-		New: func() any {
-			return &evalResolver{}
-		},
-	}
-)
 
 func (e *evalResolver) Resolve(ref ast.Ref) (ast.Value, error) {
 	e.e.instr.startTimer(evalOpResolve)
@@ -2047,8 +2070,7 @@ type evalFunc struct {
 	terms []*ast.Term
 }
 
-func (e evalFunc) eval(iter unifyIterator) error {
-
+func (e *evalFunc) eval(iter unifyIterator) error {
 	if e.ir.Empty() {
 		return nil
 	}
@@ -2060,13 +2082,13 @@ func (e evalFunc) eval(iter unifyIterator) error {
 		argCount = len(e.ir.Default.Head.Args)
 	}
 
-	if len(e.ir.Else) > 0 && e.e.unknown(e.e.query[e.e.index], e.e.bindings) {
-		// Partial evaluation of ordered rules is not supported currently. Save the
-		// expression and continue. This could be revisited in the future.
-		return e.e.saveCall(argCount, e.terms, iter)
-	}
-
 	if e.e.partial() {
+		if len(e.ir.Else) > 0 && e.e.unknown(e.e.query[e.e.index], e.e.bindings) {
+			// Partial evaluation of ordered rules is not supported currently. Save the
+			// expression and continue. This could be revisited in the future.
+			return e.e.saveCall(argCount, e.terms, iter)
+		}
+
 		var mustGenerateSupport bool
 
 		if defRule := e.ir.Default; defRule != nil {
@@ -2104,7 +2126,7 @@ func (e evalFunc) eval(iter unifyIterator) error {
 	return e.evalValue(iter, argCount, e.ir.EarlyExit)
 }
 
-func (e evalFunc) evalValue(iter unifyIterator, argCount int, findOne bool) error {
+func (e *evalFunc) evalValue(iter unifyIterator, argCount int, findOne bool) error {
 	var cacheKey ast.Ref
 	if !e.e.partial() {
 		var hit bool
@@ -2189,7 +2211,7 @@ func (e evalFunc) evalValue(iter unifyIterator, argCount int, findOne bool) erro
 	})
 }
 
-func (e evalFunc) evalCache(argCount int, iter unifyIterator) (ast.Ref, bool, error) {
+func (e *evalFunc) evalCache(argCount int, iter unifyIterator) (ast.Ref, bool, error) {
 	plen := len(e.terms)
 	if plen == argCount+2 { // func name + output = 2
 		plen -= 1
@@ -2221,7 +2243,7 @@ func (e evalFunc) evalCache(argCount int, iter unifyIterator) (ast.Ref, bool, er
 	return cacheKey, false, nil
 }
 
-func (e evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, args []*ast.Term, cacheKey ast.Ref, prev *ast.Term, findOne bool) (*ast.Term, error) {
+func (e *evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, args []*ast.Term, cacheKey ast.Ref, prev *ast.Term, findOne bool) (*ast.Term, error) {
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
@@ -2283,7 +2305,7 @@ func (e evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, args []*ast.Te
 	return result, err
 }
 
-func (e evalFunc) partialEvalSupport(declArgsLen int, iter unifyIterator) error {
+func (e *evalFunc) partialEvalSupport(declArgsLen int, iter unifyIterator) error {
 	path := e.e.namespaceRef(e.terms[0].Value.(ast.Ref))
 
 	if !e.e.saveSupport.Exists(path) {
@@ -2311,7 +2333,7 @@ func (e evalFunc) partialEvalSupport(declArgsLen int, iter unifyIterator) error 
 	return e.e.saveCall(declArgsLen, append([]*ast.Term{term}, e.terms[1:]...), iter)
 }
 
-func (e evalFunc) partialEvalSupportRule(rule *ast.Rule, path ast.Ref) error {
+func (e *evalFunc) partialEvalSupportRule(rule *ast.Rule, path ast.Ref) error {
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
@@ -2388,12 +2410,6 @@ func (dc *deferredEarlyExitContainer) copyError() *deferredEarlyExitError {
 
 	cpy := *dc.deferred
 	return &cpy
-}
-
-var deecPool = sync.Pool{
-	New: func() any {
-		return &deferredEarlyExitContainer{}
-	},
 }
 
 type evalTree struct {
@@ -2481,7 +2497,7 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 		return err
 	}
 
-	dc := deecPool.Get().(*deferredEarlyExitContainer)
+	dc := deecPool.Get()
 	dc.deferred = nil
 	defer deecPool.Put(dc)
 

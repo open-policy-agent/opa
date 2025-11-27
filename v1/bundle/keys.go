@@ -6,12 +6,14 @@
 package bundle
 
 import (
+	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"os"
+	"strings"
 
-	"github.com/open-policy-agent/opa/internal/jwx/jwa"
-	"github.com/open-policy-agent/opa/internal/jwx/jws/sign"
+	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/open-policy-agent/opa/v1/keys"
 
 	"github.com/open-policy-agent/opa/v1/util"
@@ -106,26 +108,53 @@ func (s *SigningConfig) WithPlugin(plugin string) *SigningConfig {
 
 // GetPrivateKey returns the private key or secret from the signing config
 func (s *SigningConfig) GetPrivateKey() (any, error) {
+	var keyData string
 
-	block, _ := pem.Decode([]byte(s.Key))
-	if block != nil {
-		return sign.GetSigningKey(s.Key, jwa.SignatureAlgorithm(s.Algorithm))
+	alg, ok := jwa.LookupSignatureAlgorithm(s.Algorithm)
+	if !ok {
+		return nil, fmt.Errorf("unknown signature algorithm: %s", s.Algorithm)
 	}
 
-	var priv string
-	if _, err := os.Stat(s.Key); err == nil {
-		bs, err := os.ReadFile(s.Key)
-		if err != nil {
+	// Check if the key looks like PEM data first (starts with -----BEGIN)
+	if strings.HasPrefix(s.Key, "-----BEGIN") {
+		keyData = s.Key
+	} else {
+		// Try to read as a file path
+		if _, err := os.Stat(s.Key); err == nil {
+			bs, err := os.ReadFile(s.Key)
+			if err != nil {
+				return nil, err
+			}
+			keyData = string(bs)
+		} else if os.IsNotExist(err) {
+			// Not a file, treat as raw key data
+			keyData = s.Key
+		} else {
 			return nil, err
 		}
-		priv = string(bs)
-	} else if os.IsNotExist(err) {
-		priv = s.Key
-	} else {
-		return nil, err
 	}
 
-	return sign.GetSigningKey(priv, jwa.SignatureAlgorithm(s.Algorithm))
+	// For HMAC algorithms, return the key as bytes
+	if alg == jwa.HS256() || alg == jwa.HS384() || alg == jwa.HS512() {
+		return []byte(keyData), nil
+	}
+
+	// For RSA/ECDSA algorithms, parse the PEM-encoded key
+	block, _ := pem.Decode([]byte(keyData))
+	if block == nil {
+		return nil, errors.New("failed to parse PEM block containing the key")
+	}
+
+	switch block.Type {
+	case "RSA PRIVATE KEY":
+		return x509.ParsePKCS1PrivateKey(block.Bytes)
+	case "PRIVATE KEY":
+		return x509.ParsePKCS8PrivateKey(block.Bytes)
+	case "EC PRIVATE KEY":
+		return x509.ParseECPrivateKey(block.Bytes)
+	default:
+		return nil, fmt.Errorf("unsupported key type: %s", block.Type)
+	}
 }
 
 // GetClaims returns the claims by reading the file specified in the signing config

@@ -170,6 +170,7 @@ func (evt *Event) equalNodes(other *Event) bool {
 }
 
 // Tracer defines the interface for tracing in the top-down evaluation engine.
+//
 // Deprecated: Use QueryTracer instead.
 type Tracer interface {
 	Enabled() bool
@@ -230,6 +231,7 @@ func (b *BufferTracer) Enabled() bool {
 }
 
 // Trace adds the event to the buffer.
+//
 // Deprecated: Use TraceEvent instead.
 func (b *BufferTracer) Trace(evt *Event) {
 	*b = append(*b, evt)
@@ -806,7 +808,7 @@ func printPrettyVars(w *bytes.Buffer, exprVars map[string]varInfo) {
 
 		w.WriteString("\n\nWhere:\n")
 		for _, info := range byName {
-			w.WriteString(fmt.Sprintf("\n%s: %s", info.Title(), iStrs.Truncate(info.Value(), maxPrettyExprVarWidth)))
+			fmt.Fprintf(w, "\n%s: %s", info.Title(), iStrs.Truncate(info.Value(), maxPrettyExprVarWidth))
 		}
 
 		return
@@ -878,7 +880,7 @@ func printArrows(w *bytes.Buffer, l []varInfo, printValueAt int) {
 			valueStr := iStrs.Truncate(info.Value(), maxPrettyExprVarWidth)
 			if (i > 0 && col == l[i-1].col) || (i < len(l)-1 && col == l[i+1].col) {
 				// There is another var on this column, so we need to include the name to differentiate them.
-				w.WriteString(fmt.Sprintf("%s: %s", info.Title(), valueStr))
+				fmt.Fprintf(w, "%s: %s", info.Title(), valueStr)
 			} else {
 				w.WriteString(valueStr)
 			}

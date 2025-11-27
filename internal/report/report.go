@@ -6,6 +6,7 @@
 package report
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -26,16 +27,20 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
-// ExternalServiceURL is the base HTTP URL for a telemetry service.
-// If not otherwise specified, it will use the hard-coded default.
+// ExternalServiceURL is the base HTTP URL for a github instance used
+// to query for more recent version.
+// If not otherwise specified, it will use the hard-coded default, api.github.com.
+// GHRepo is the repository to use, and defaults to "open-policy-agent/opa"
 //
 // Override at build time via:
 //
 //	-ldflags "-X github.com/open-policy-agent/opa/internal/report.ExternalServiceURL=<url>"
+//	-ldflags "-X github.com/open-policy-agent/opa/internal/report.GHRepo=<url>"
 //
-// This will be overridden if the OPA_TELEMETRY_SERVICE_URL environment variable
+// ExternalServiceURL will be overridden if the OPA_TELEMETRY_SERVICE_URL environment variable
 // is provided.
 var ExternalServiceURL = "https://api.github.com"
+var GHRepo = "open-policy-agent/opa"
 
 // Reporter reports information such as the version, heap usage about the running OPA instance to an external service
 type Reporter interface {
@@ -48,7 +53,7 @@ type Gatherer func(ctx context.Context) (any, error)
 
 // DataResponse represents the data returned by the external service
 type DataResponse struct {
-	Latest ReleaseDetails `json:"latest,omitempty"`
+	Latest ReleaseDetails `json:"latest"`
 }
 
 // ReleaseDetails holds information about the latest OPA release
@@ -76,12 +81,7 @@ type GHResponse struct {
 
 // New returns an instance of the Reporter
 func New(opts Options) (Reporter, error) {
-	r := GHVersionCollector{}
-
-	url := os.Getenv("OPA_TELEMETRY_SERVICE_URL")
-	if url == "" {
-		url = ExternalServiceURL
-	}
+	url := cmp.Or(os.Getenv("OPA_TELEMETRY_SERVICE_URL"), ExternalServiceURL)
 
 	restConfig := fmt.Appendf(nil, `{
 		"url": %q,
@@ -91,7 +91,7 @@ func New(opts Options) (Reporter, error) {
 	if err != nil {
 		return nil, err
 	}
-	r.client = client
+	r := GHVersionCollector{client: client}
 
 	// heap_usage_bytes is always present, so register it unconditionally
 	r.RegisterGatherer("heap_usage_bytes", readRuntimeMemStats)
@@ -105,7 +105,7 @@ func (r *GHVersionCollector) SendReport(ctx context.Context) (*DataResponse, err
 	rCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	resp, err := r.client.Do(rCtx, "GET", "/repos/open-policy-agent/opa/releases/latest")
+	resp, err := r.client.Do(rCtx, "GET", fmt.Sprintf("/repos/%s/releases/latest", GHRepo))
 	if err != nil {
 		return nil, err
 	}
@@ -133,19 +133,17 @@ func createDataResponse(ghResp GHResponse) (*DataResponse, error) {
 		return nil, errors.New("server response does not contain tag_name")
 	}
 
-	v := strings.TrimPrefix(version.Version, "v")
-	sv, err := semver.NewVersion(v)
+	sv, err := semver.Parse(version.Version)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse current version %q: %w", v, err)
+		return nil, fmt.Errorf("failed to parse current version %q: %w", version.Version, err)
 	}
 
-	latestV := strings.TrimPrefix(ghResp.TagName, "v")
-	latestSV, err := semver.NewVersion(latestV)
+	latestSV, err := semver.Parse(ghResp.TagName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse latest version %q: %w", latestV, err)
+		return nil, fmt.Errorf("failed to parse latest version %q: %w", ghResp.TagName, err)
 	}
 
-	isLatest := sv.Compare(*latestSV) >= 0
+	isLatest := sv.Compare(latestSV) >= 0
 
 	// Note: alternatively, we could look through the assets in the GH API response to find a matching asset,
 	// and use its URL. However, this is not guaranteed to be more robust, and wouldn't use the 'openpolicyagent.org' domain.

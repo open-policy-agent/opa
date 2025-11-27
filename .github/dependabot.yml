@@ -1,7 +1,9 @@
 version: 2
 updates:
   - package-ecosystem: gomod
-    directory: /
+    directories:
+    - /
+    - /e2e
     schedule:
       interval: monthly
     groups:
@@ -13,6 +15,14 @@ updates:
           - "*"
         exclude-patterns:
           - "go.opentelemetry.io/*"
+  - package-ecosystem: npm
+    directory: /e2e/api/compile/prisma
+    schedule:
+      interval: monthly
+    groups:
+      e2e/prisma:
+        patterns:
+          - "*"
   - package-ecosystem: github-actions
     directory: /
     schedule:

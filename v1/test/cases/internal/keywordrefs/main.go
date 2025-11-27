@@ -45,7 +45,7 @@ func main() {
 func generate(keywords []string, root string, template string) error {
 	err := os.MkdirAll(root, os.ModePerm)
 	if err != nil {
-		return fmt.Errorf("error creating directory %s: %v\n", root, err)
+		return fmt.Errorf("error creating directory %s: %v", root, err)
 	}
 
 	// Generate a YAML file for each keyword
@@ -56,7 +56,7 @@ func generate(keywords []string, root string, template string) error {
 
 		err := os.WriteFile(file, []byte(outputContent), 0644)
 		if err != nil {
-			return fmt.Errorf("error writing file %s: %v\n", file, err)
+			return fmt.Errorf("error writing file %s: %v", file, err)
 		}
 		fmt.Printf("Generated file: %s\n", file)
 	}

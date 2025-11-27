@@ -11,5 +11,5 @@ cases:
     note: jwtencodesignheadererrors/Unknown signature algorithm
     query: data.generated.p = x
     strict_error: true
-    want_error: invalid character
+    want_error: "missing or invalid 'alg' header: cannot parse JSON"
     want_error_code: eval_builtin_error

@@ -44,6 +44,7 @@ func PartialObjectBenchmarkCrossModule(n int) []string {
 	ruleBuilder := ""
 
 	for idx := 1; idx <= n; idx++ {
+		//nolint:perfsprint
 		barMod += fmt.Sprintf(`
 		bench_test_%[1]d := result if {
             input.bench_test_collector_mambo_number_%[3]d

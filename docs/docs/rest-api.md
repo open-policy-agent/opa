@@ -9,7 +9,7 @@ groups:
 - [Policy API](#policy-api) - manage policy loaded into the OPA instance.
 - [Data API](#data-api) - evaluate rules and retrieve data.
 - [Query API](#query-api) - execute adhoc queries.
-- [Compile API](#compile-api) - access Rego's [Partial Evaluation](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422) functionality.
+- [Compile API](#compile-api) - access Rego's [Partial Evaluation](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422) and data filtering functionality.
 - [Health API](#health-api) - access instance operational health information.
 - [Config API](#config-api) - view instance configuration.
 - [Status API](#status-api) - view instance [status](./management-status) state.
@@ -21,7 +21,7 @@ to build on OPA by embedding functionality directly into your application.
 
 :::info
 Integrating with OPA from a programming language? You might find it easier to build your
-OPA integration using one of the [language SDKs](/ecosystem/#languages) than working
+OPA integration using one of the [language SDKs](/ecosystem#languages) than working
 with the REST API directly.
 :::
 
@@ -49,7 +49,14 @@ It could have `gzip` value which indicates the request body is a gzip encoded ob
 
 The Policy API exposes CRUD endpoints for managing policy modules. Policy modules can be added, removed, and modified at any time.
 
-The identifiers given to policy modules are only used for management purposes. They are not used outside the Policy API.
+The identifiers given to policy modules are only used for management purposes in
+the REST API and are not used outside the Policy API. OPA uses identifiers
+to refer to individual policy files loaded into OPA. These might come
+from a bundle, a file or from the policy path fragment (`<id>`) used when
+inserting via the API. They are unrelated to the file's package and if you are
+unsure of a value to use, you can use the name of the file containing the
+policy, e.g. `authz.rego`. Note that `opa run -s file.rego` will have
+`file.rego` as the ID in the Policy API.
 
 ### List Policies
 
@@ -655,6 +662,13 @@ Content-Type: text/plain
 Create or update a policy module.
 
 If the policy module does not exist, it is created. If the policy module already exists, it is replaced.
+
+:::info
+[Bundles](./management-bundles) are the preferred way to update policies and are best suited for most use cases. Bundles provide eventually consistent updates and better support for deployments with many OPA instances than manual API calls to set policies.
+
+Note that if a package path is owned by a loaded Bundle, you will not be able to
+update this path using the Policy API.
+:::
 
 #### Request Headers
 
@@ -1593,6 +1607,172 @@ The following table summarizes the behavior for partial evaluation results.
 | `1 < 0`       | N/A            | `{"result": {}}`                           | The query is always false.                                              |
 
 > The partially evaluated queries are represented as strings in the table above. The actual API response contains the JSON AST representation.
+
+
+### Compling a Rego policy (and query) into data filters
+
+```http
+POST /v1/compile/{path:.+}
+Content-Type: application/json
+```
+
+Where the `{path}` is the slash delimited filter rule to be compiled.
+E.g., to compile the `data.filters.include` rule, query `/v1/compile/filters/include`
+
+
+#### Request Headers
+
+| Name | Required | Accepted Values | Description |
+| --- | --- | --- | --- |
+| Content-Type | No | `application/json` | Indicates the request body is either a JSON encoded document. |
+| Content-Encoding | No | gzip | Indicates the request body is a compressed gzip object. |
+| Accept | Yes | See [below](#accept-header--controlling-the-target-response-format) | See [below](#accept-header--controlling-the-target-response-format) |
+
+
+#### Accept Header – Controlling the Target Response Format
+
+The same request can generate filters that are representable in many different ways, such as raw SQL `WHERE` clauses or Universal Conditions AST (UCAST).
+
+OPA uses the `Accept` header to denote the target response format.
+
+| Value | Response Schema | Description |
+| --- | --- | -- |
+| Multitarget: `application/vnd.opa.multitarget+json` | `result.{ucast,sqlserver,mysql,postgresql,sqlite}` | The partially evaluated result of the query in each target dialect. Use the `options.targetDialects` field in the request body to control targets. |
+| UCAST: `application/vnd.opa.ucast.all+json`, `application/vnd.opa.ucast.minimal+json`, `application/vnd.opa.ucast.linq+json`, `application/vnd.opa.ucast.prisma+json` | `result.query`| UCAST JSON object describing the conditions under which the query is true. |
+| SQL: `application/vnd.opa.sql.sqlserver+json`, `application/vnd.opa.sql.mysql+json`, `application/vnd.opa.sql.postgresql+json`, `application/vnd.opa.sql.sqlite+json` | `result.query`| String representing the SQL equivalent of the conditions under which the query is true. |
+
+
+#### Request Body
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `input` | `any` | No | The input document to use during partial evaluation and during mask rule evaluation (default: undefined). |
+| `options` | `object[string, any]` | No | Additional options to use during partial evaluation |
+| `options.disableInlining` | `array[string]` | No. Default: undefined | A list of rule references. |
+| `options.maskRule` | `string` | No | The rule to evaluate for generating column masks. Overrides any `mask_rule` annotations defined in the policy. |
+| `options.targetDialects` | `array[string]`, one of `ucast+all`, `ucast+minimal`, `ucast+prisma`, `ucast+linq`, `sql+sqlserver`, `sql+mysql`, `sql+postgresql` | Yes, if using `multitarget`. **Ignored for all other targets** | The output targets for partial evaluation. Different targets will have different constraints. Use [`Accept` header](#accept-header--controlling-the-target-response-format) to request a single compilation target.  |
+| `options.targetSQLTableMappings` | `object[string, object[string, string]]` | No | A mapping between tables and columns. See the [example](#example-mapping-table-and-column-names) for the schema. |
+| `unknowns` | `array[string]` | No | The terms to treat as unknown during partial evaluation (default: `[]`). |
+
+
+#### Example Request
+
+With OPA running with this policy, we'll compile the query `data.filters.include` into SQL filters:
+
+```rego
+package filters
+
+# METADATA
+# scope: document
+# compile:
+#   unknowns: [input.fruits]
+include if input.fruits.name == input.favorite
+
+include if {
+	input.fruits.name == "apple"
+	not input.favorite
+}
+```
+
+```http
+POST /v1/compile/filters/include HTTP/1.1
+Content-Type: application/json
+Accept: application/vnd.opa.sql.postgresql+json
+```
+
+```json
+{
+  "input": {
+    "favorite": "pineapple"
+  }
+}
+```
+
+
+#### Example Response
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/vnd.opa.sql.postgresql+json
+```
+
+```json
+{
+  "result": {
+    "query": "WHERE fruits.name = E'pineapple'"
+  }
+}
+```
+
+
+#### Unconditional Results from Filters Generation
+
+An absent `query` in the `result` indicates **unconditional deny**:
+
+```json
+{
+  "result": {}
+}
+```
+
+An empty string `query` indicates **unconditional include**:
+
+```json
+{
+  "result": {
+    "query": ""
+  }
+}
+```
+
+
+#### Example: Mapping Table and Column Names
+
+For this example, let's assume OPA is running with this policy:
+
+```rego
+package filters
+
+# METADATA
+# scope: document
+# compile:
+#   unknowns: [input.fruits, input.price]
+include if input.fruits.name == input.favorite
+
+include if input.price == "free"
+```
+
+If there is no one-to-one correspondence between unknowns and table/column names, the target mapping comes into play.
+With this mapping, we would translate the policy into `WHERE fruit.display_name = E'pineapple' AND fruit.price_tag = E'free'`:
+
+```http
+POST /v1/compile/filters/include
+Content-Type: application/json
+Accept: application/vnd.opa.sql.postgresql+json
+
+{
+  "input": {
+    "favorite": "pineapple"
+  },
+  "options": {
+    "targetSQLTableMappings": {
+      "postgresql": {
+        "fruits": {
+          "$self": "fruit",
+          "name": "display_name",
+          "price": "price_tag"
+        },
+        "price": {
+          "$table": "fruits"
+        }
+      }
+    }
+  }
+}
+```
+
+For multi-target requests, per-target replacementes are possible, since the SQL table names might not match what you need for a UCAST consumer library.
+
 
 ## Health API
 

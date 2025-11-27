@@ -25,7 +25,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/open-policy-agent/opa/internal/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
@@ -255,17 +255,17 @@ func extractVerifyOpts(options ast.Object) (verifyOpt x509.VerifyOptions, err er
 }
 
 func builtinCryptoX509ParseKeyPair(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	certificate, err := builtins.StringOperand(operands[0].Value, 1)
+	certificate, err := builtins.StringOperandByteSlice(operands[0].Value, 1)
 	if err != nil {
 		return err
 	}
 
-	key, err := builtins.StringOperand(operands[1].Value, 1)
+	key, err := builtins.StringOperandByteSlice(operands[1].Value, 1)
 	if err != nil {
 		return err
 	}
 
-	certs, err := getTLSx509KeyPairFromString([]byte(certificate), []byte(key))
+	certs, err := getTLSx509KeyPairFromString(certificate, key)
 	if err != nil {
 		return err
 	}
@@ -326,10 +326,7 @@ func builtinCryptoX509ParseCertificateRequest(_ BuiltinContext, operands []*ast.
 }
 
 func builtinCryptoJWKFromPrivateKey(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	var x any
-
-	a := operands[0].Value
-	input, err := builtins.StringOperand(a, 1)
+	input, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
 	}
@@ -361,7 +358,7 @@ func builtinCryptoJWKFromPrivateKey(_ BuiltinContext, operands []*ast.Term, iter
 		return iter(ast.InternedNullTerm)
 	}
 
-	key, err := jwk.New(rawKeys[0])
+	key, err := jwk.Import(rawKeys[0])
 	if err != nil {
 		return err
 	}
@@ -371,6 +368,7 @@ func builtinCryptoJWKFromPrivateKey(_ BuiltinContext, operands []*ast.Term, iter
 		return err
 	}
 
+	var x any
 	if err := util.UnmarshalJSON(jsonKey, &x); err != nil {
 		return err
 	}
@@ -430,53 +428,51 @@ func toHexEncodedString(src []byte) string {
 }
 
 func builtinCryptoMd5(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	s, err := builtins.StringOperand(operands[0].Value, 1)
+	bs, err := builtins.StringOperandByteSlice(operands[0].Value, 1)
 	if err != nil {
 		return err
 	}
 
-	md5sum := md5.Sum([]byte(s))
+	md5sum := md5.Sum(bs)
 
 	return iter(ast.StringTerm(toHexEncodedString(md5sum[:])))
 }
 
 func builtinCryptoSha1(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	s, err := builtins.StringOperand(operands[0].Value, 1)
+	bs, err := builtins.StringOperandByteSlice(operands[0].Value, 1)
 	if err != nil {
 		return err
 	}
 
-	sha1sum := sha1.Sum([]byte(s))
+	sha1sum := sha1.Sum(bs)
 
 	return iter(ast.StringTerm(toHexEncodedString(sha1sum[:])))
 }
 
 func builtinCryptoSha256(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	s, err := builtins.StringOperand(operands[0].Value, 1)
+	bs, err := builtins.StringOperandByteSlice(operands[0].Value, 1)
 	if err != nil {
 		return err
 	}
 
-	sha256sum := sha256.Sum256([]byte(s))
+	sha256sum := sha256.Sum256(bs)
 
 	return iter(ast.StringTerm(toHexEncodedString(sha256sum[:])))
 }
 
 func hmacHelper(operands []*ast.Term, iter func(*ast.Term) error, h func() hash.Hash) error {
-	a1 := operands[0].Value
-	message, err := builtins.StringOperand(a1, 1)
+	message, err := builtins.StringOperandByteSlice(operands[0].Value, 1)
 	if err != nil {
 		return err
 	}
 
-	a2 := operands[1].Value
-	key, err := builtins.StringOperand(a2, 2)
+	key, err := builtins.StringOperandByteSlice(operands[1].Value, 2)
 	if err != nil {
 		return err
 	}
 
-	mac := hmac.New(h, []byte(key))
-	mac.Write([]byte(message))
+	mac := hmac.New(h, key)
+	mac.Write(message)
 	messageDigest := mac.Sum(nil)
 
 	return iter(ast.StringTerm(hex.EncodeToString(messageDigest)))
@@ -499,21 +495,17 @@ func builtinCryptoHmacSha512(_ BuiltinContext, operands []*ast.Term, iter func(*
 }
 
 func builtinCryptoHmacEqual(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	a1 := operands[0].Value
-	mac1, err := builtins.StringOperand(a1, 1)
+	mac1, err := builtins.StringOperandByteSlice(operands[0].Value, 1)
 	if err != nil {
 		return err
 	}
 
-	a2 := operands[1].Value
-	mac2, err := builtins.StringOperand(a2, 2)
+	mac2, err := builtins.StringOperandByteSlice(operands[1].Value, 2)
 	if err != nil {
 		return err
 	}
 
-	res := hmac.Equal([]byte(mac1), []byte(mac2))
-
-	return iter(ast.InternedTerm(res))
+	return iter(ast.InternedTerm(hmac.Equal(mac1, mac2)))
 }
 
 func init() {
@@ -668,7 +660,7 @@ func addCACertsFromFile(pool *x509.CertPool, filePath string) (*x509.CertPool, e
 		pool = x509.NewCertPool()
 	}
 
-	caCert, err := readCertFromFile(filePath)
+	caCert, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}
@@ -703,17 +695,7 @@ func addCACertsFromEnv(pool *x509.CertPool, envName string) (*x509.CertPool, err
 		return nil, fmt.Errorf("could not add CA certificates from envvar %q: %w", envName, err)
 	}
 
-	return pool, err
-}
-
-// ReadCertFromFile reads a cert from file
-func readCertFromFile(localCertFile string) ([]byte, error) {
-	// Read in the cert file
-	certPEM, err := os.ReadFile(localCertFile)
-	if err != nil {
-		return nil, err
-	}
-	return certPEM, nil
+	return pool, nil
 }
 
 var beginPrefix = []byte("-----BEGIN ")
@@ -770,14 +752,4 @@ func getTLSx509KeyPairFromString(certPemBlock []byte, keyPemBlock []byte) (*tls.
 	}
 
 	return &cert, nil
-}
-
-// ReadKeyFromFile reads a key from file
-func readKeyFromFile(localKeyFile string) ([]byte, error) {
-	// Read in the cert file
-	key, err := os.ReadFile(localKeyFile)
-	if err != nil {
-		return nil, err
-	}
-	return key, nil
 }

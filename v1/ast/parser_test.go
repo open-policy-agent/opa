@@ -1336,6 +1336,48 @@ func TestRuleHeadsContainingKeywords(t *testing.T) {
 	}
 }
 
+func TestRuleHeadsContainingInfixOperatorError(t *testing.T) {
+	infixOperators := []struct {
+		lex   string
+		token tokens.Token
+	}{
+		{"+", tokens.Add},
+		{"-", tokens.Sub},
+		{"*", tokens.Mul},
+		{"/", tokens.Quo},
+		{"%", tokens.Rem},
+		{"==", tokens.Equal},
+		{"!=", tokens.Neq},
+		{"<", tokens.Lt},
+		{"<=", tokens.Lte},
+		{">", tokens.Gt},
+		{">=", tokens.Gte},
+		{"&&", tokens.And},
+		{"||", tokens.Or},
+	}
+
+	patterns := []string{
+		"foo%[1]sbar := 1",
+		"foobar%[1]s := 1",
+		"fo3%[1]s4ar := 1",
+		"foo%[1]sbar := 9%[1]s2",
+	}
+
+	for _, op := range infixOperators {
+		t.Run(op.lex, func(t *testing.T) {
+			t.Parallel()
+			for _, p := range patterns {
+				t.Run(p, func(t *testing.T) {
+					msg := fmt.Sprintf("Expected error for pattern %q with infix operator %q", p, op.lex)
+					input := fmt.Sprintf(p, op.lex)
+					exp := fmt.Sprintf("rego_parse_error: unexpected %s token", op.token.String())
+					assertParseErrorContains(t, msg, input, exp)
+				})
+			}
+		})
+	}
+}
+
 func TestRuleHeadsContainingKeywords_RegoV0(t *testing.T) {
 	popts := ParserOptions{RegoVersion: RegoV0}
 
@@ -2381,6 +2423,8 @@ func TestSomeDeclExpr(t *testing.T) {
 		"unexpected identifier token: expected \\n or ; or } (hint: `import future.keywords.in` for `some x in xs` expressions)",
 		ParserOptions{RegoVersion: RegoV0})
 
+	assertNoParseError(t, `p contains x if some x in {"foo": "bar"}`, ParserOptions{RegoVersion: RegoV1})
+
 	assertParseRule(t, "whitespace terminated", `
 
 	p[x] {
@@ -2472,6 +2516,10 @@ func TestEvery(t *testing.T) {
 	}`,
 		"unexpected identifier token: expected \\n or ; or } (hint: `import future.keywords.every` for `every x in xs { ... }` expressions)",
 		ParserOptions{RegoVersion: RegoV0})
+
+	assertNoParseError(t, `p if {
+		every x, y in {"foo": "bar"} { is_string(x); is_string(y) }
+	}`, ParserOptions{RegoVersion: RegoV1})
 
 	// Only relevant for v0, as the 'in' keyword is included in v1.
 	assertParseErrorContains(t, "not every 'every' gets a hint", `
@@ -5512,6 +5560,7 @@ func TestRuleFromBody(t *testing.T) {
 	// Verify the rule and rule and rule head col/loc values
 	testModule := "package a.b.c\n\n"
 	for _, tc := range tests {
+		//nolint:perfsprint
 		testModule += tc.input + "\n"
 	}
 	module, err := ParseModuleWithOpts("test.rego", testModule, popts)
@@ -6420,6 +6469,50 @@ else = {
 	`), curElse.Head.Value.Location)
 }
 
+func TestNestedCallText(t *testing.T) {
+	cases := []struct {
+		note     string
+		input    string
+		expected *Location
+	}{
+		{
+			note:  "Nested call",
+			input: "foo(bar(1))",
+			expected: &Location{
+				Row:    1,
+				Col:    5,
+				Offset: 4,
+				Text:   []byte("bar(1)"),
+			},
+		},
+		{
+			note:  "Inner set term",
+			input: "foo(set())",
+			expected: &Location{
+				Row:    1,
+				Col:    5,
+				Offset: 4,
+				Text:   []byte("set()"),
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			parsed, err := ParseExpr(tc.input)
+			if err != nil {
+				t.Errorf("Unexpected error on %s: %s", tc.input, err)
+				return
+			}
+
+			innerCall := parsed.Operand(0)
+			if !innerCall.Location.Equal(tc.expected) {
+				t.Errorf("Expected location %+v for '%v' but got %+v ", *(tc.expected), innerCall.String(), *innerCall.Location)
+			}
+		})
+	}
+}
+
 func TestAnnotations(t *testing.T) {
 
 	dataServers := MustParseRef("data.servers")
@@ -6998,6 +7091,78 @@ p if { input = "str" }`,
 						"number": 42,
 						"string": "foo bar baz",
 						"flag":   nil,
+					},
+				},
+			},
+		},
+		{
+			note: "compile annotation, short mask_rule",
+			module: `
+package opa.examples
+
+# METADATA
+# scope: document
+# compile:
+#   unknowns:
+#   - input.fruits
+#   mask_rule: mask
+include if input.fruits.name == "banana"
+mask.fruits.owner.replace.value := "___"
+`,
+			expNumComments: 6,
+			expAnnotations: []*Annotations{
+				{
+					Scope: annotationScopeDocument,
+					Compile: &CompileAnnotation{
+						Unknowns: []Ref{MustParseRef("input.fruits")},
+						MaskRule: EmptyRef().Append(VarTerm("mask")),
+					},
+				},
+			},
+		},
+		{
+			note: "compile annotation, full mask_rule",
+			module: `
+package opa.examples
+
+# METADATA
+# scope: document
+# compile:
+#   unknowns:
+#   - input.fruits
+#   mask_rule: data.filtering.mask
+include if input.fruits.name == "banana"
+mask.fruits.owner.replace.value := "___"
+`,
+			expNumComments: 6,
+			expAnnotations: []*Annotations{
+				{
+					Scope: annotationScopeDocument,
+					Compile: &CompileAnnotation{
+						Unknowns: []Ref{MustParseRef("input.fruits")},
+						MaskRule: MustParseRef("data.filtering.mask"),
+					},
+				},
+			},
+		},
+		{
+			note: "compile annotation, no mask_rule",
+			module: `
+package opa.examples
+
+# METADATA
+# scope: document
+# compile:
+#   unknowns:
+#   - input.fruits
+include if input.fruits.name == "banana"
+`,
+			expNumComments: 5,
+			expAnnotations: []*Annotations{
+				{
+					Scope: annotationScopeDocument,
+					Compile: &CompileAnnotation{
+						Unknowns: []Ref{MustParseRef("input.fruits")},
 					},
 				},
 			},
@@ -8111,6 +8276,14 @@ func assertParseError(t *testing.T, msg string, input string, opts ...ParserOpti
 	})
 }
 
+func assertNoParseError(t *testing.T, input string, opts ...ParserOptions) {
+	t.Helper()
+	assertParseErrorFunc(t, "", input, func(result string) {
+		t.Helper()
+		t.Fatalf("expected no parser error, got %s", result)
+	}, opts...)
+}
+
 func assertParseErrorContains(t *testing.T, msg string, input string, expected string, opts ...ParserOptions) {
 	t.Helper()
 	assertParseErrorFunc(t, msg, input, func(result string) {
@@ -8132,6 +8305,9 @@ func assertParseErrorFunc(t *testing.T, msg string, input string, f func(string)
 		err = errors.New("expected exactly one statement")
 	}
 	if err == nil {
+		if msg == "" {
+			return
+		}
 		t.Errorf("Error on test \"%s\": expected parse error on %s: expected no statements, got %d: %v", msg, input, len(stmts), stmts)
 		return
 	}

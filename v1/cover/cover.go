@@ -107,6 +107,7 @@ func (c *Cover) Report(modules map[string]*ast.Module) (report Report) {
 }
 
 // Trace updates the coverage state.
+//
 // Deprecated: Use TraceEvent instead.
 func (c *Cover) Trace(event *topdown.Event) {
 	c.TraceEvent(*event)

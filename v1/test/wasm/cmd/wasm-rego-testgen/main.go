@@ -6,11 +6,9 @@ package main
 
 import (
 	"archive/tar"
-	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -18,6 +16,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/open-policy-agent/opa/v1/test/cases"
 	"github.com/open-policy-agent/opa/v1/types"
@@ -132,13 +131,10 @@ func run(params params) error {
 	if err != nil {
 		return err
 	}
-
 	defer f.Close()
 
-	gw := gzip.NewWriter(f)
-	defer gw.Close()
-	tw := tar.NewWriter(gw)
-	defer tw.Close()
+	tgw := archive.NewTarGzWriter(f)
+	defer tgw.Close()
 
 	files, err := os.ReadDir(params.InputDir)
 	if err != nil {
@@ -171,8 +167,7 @@ func run(params params) error {
 					return err
 				}
 
-				dst := strings.ReplaceAll(files[i].Name(), ".yaml", ".json")
-				return writeFile(tw, dst, bs)
+				return tgw.WriteFile(strings.ReplaceAll(strings.TrimLeft(files[i].Name(), "/"), ".yaml", ".json"), bs)
 			}()
 			if err != nil {
 				return fmt.Errorf("%s: %w", files[i].Name(), err)
@@ -182,26 +177,10 @@ func run(params params) error {
 		}
 	}
 
-	return copyFile(tw, "test.js", params.TestRunner)
+	return copyFile(tgw, "test.js", params.TestRunner)
 }
 
-func writeFile(tw *tar.Writer, dst string, bs []byte) error {
-	hdr := &tar.Header{
-		Name:     strings.TrimLeft(dst, "/"),
-		Mode:     0600,
-		Typeflag: tar.TypeReg,
-		Size:     int64(len(bs)),
-	}
-
-	if err := tw.WriteHeader(hdr); err != nil {
-		return err
-	}
-
-	_, err := tw.Write(bs)
-	return err
-}
-
-func copyFile(tw *tar.Writer, dst, src string) error {
+func copyFile(tgw *archive.TarGzWriter, dst, src string) error {
 	in, err := os.Open(src)
 	if err != nil {
 		return err
@@ -221,11 +200,11 @@ func copyFile(tw *tar.Writer, dst, src string) error {
 		Size:     info.Size(),
 	}
 
-	if err := tw.WriteHeader(hdr); err != nil {
+	if err := tgw.WriteHeader(hdr); err != nil {
 		return err
 	}
 
-	_, err = io.Copy(tw, in)
+	_, err = in.WriteTo(tgw)
 	return err
 
 }

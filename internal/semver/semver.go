@@ -14,222 +14,234 @@
 
 // Semantic Versions http://semver.org
 
-// Package semver has been vendored from:
+// This file was originally vendored from:
 // https://github.com/coreos/go-semver/tree/e214231b295a8ea9479f11b70b35d5acf3556d9b/semver
-// A number of the original functions of the package have been removed since
-// they are not required for our built-ins.
+// There isn't a single line left from the original source today, but being generous about
+// attribution won't hurt.
 package semver
 
 import (
-	"bytes"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/open-policy-agent/opa/v1/util"
 )
+
+// reMetaIdentifier matches pre-release and metadata identifiers against the spec requirements
+var reMetaIdentifier = regexp.MustCompile(`^[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*$`)
 
 // Version represents a parsed SemVer
 type Version struct {
 	Major      int64
 	Minor      int64
 	Patch      int64
-	PreRelease PreRelease
-	Metadata   string
+	PreRelease string `json:"PreRelease,omitempty"`
+	Metadata   string `json:"Metadata,omitempty"`
 }
 
-// PreRelease represents a pre-release suffix string
-type PreRelease string
+// Parse constructs new semver Version from version string.
+func Parse(version string) (v Version, err error) {
+	version = strings.TrimPrefix(version, "v")
 
-func splitOff(input *string, delim string) (val string) {
-	parts := strings.SplitN(*input, delim, 2)
-
-	if len(parts) == 2 {
-		*input = parts[0]
-		val = parts[1]
+	version, v.Metadata = cut(version, '+')
+	if v.Metadata != "" && !reMetaIdentifier.MatchString(v.Metadata) {
+		return v, fmt.Errorf("invalid metadata identifier: %s", v.Metadata)
 	}
 
-	return val
+	version, v.PreRelease = cut(version, '-')
+	if v.PreRelease != "" && !reMetaIdentifier.MatchString(v.PreRelease) {
+		return v, fmt.Errorf("invalid pre-release identifier: %s", v.PreRelease)
+	}
+
+	if strings.Count(version, ".") != 2 {
+		return v, fmt.Errorf("%s should contain major, minor, and patch versions", version)
+	}
+
+	major, after := cut(version, '.')
+	if v.Major, err = strconv.ParseInt(major, 10, 64); err != nil {
+		return v, err
+	}
+
+	minor, after := cut(after, '.')
+	if v.Minor, err = strconv.ParseInt(minor, 10, 64); err != nil {
+		return v, err
+	}
+
+	if v.Patch, err = strconv.ParseInt(after, 10, 64); err != nil {
+		return v, err
+	}
+
+	return v, nil
 }
 
-// NewVersion constructs new SemVers from strings
-func NewVersion(version string) (*Version, error) {
-	v := Version{}
-
-	if err := v.Set(version); err != nil {
-		return nil, err
+// MustParse is like Parse but panics if the version string is invalid instead of returning an error.
+func MustParse(version string) Version {
+	v, err := Parse(version)
+	if err != nil {
+		panic(err)
 	}
 
-	return &v, nil
+	return v
 }
 
-// Set parses and updates v from the given version string. Implements flag.Value
-func (v *Version) Set(version string) error {
-	metadata := splitOff(&version, "+")
-	preRelease := PreRelease(splitOff(&version, "-"))
-	dotParts := strings.SplitN(version, ".", 3)
-
-	if len(dotParts) != 3 {
-		return fmt.Errorf("%s is not in dotted-tri format", version)
+// Compare compares two semver strings.
+func Compare(a, b string) int {
+	aV, err := Parse(a)
+	if err != nil {
+		return -1
 	}
 
-	if err := validateIdentifier(string(preRelease)); err != nil {
-		return fmt.Errorf("failed to validate pre-release: %v", err)
+	bV, err := Parse(b)
+	if err != nil {
+		return 1
 	}
 
-	if err := validateIdentifier(metadata); err != nil {
-		return fmt.Errorf("failed to validate metadata: %v", err)
-	}
-
-	parsed := make([]int64, 3)
-
-	for i, v := range dotParts[:3] {
-		val, err := strconv.ParseInt(v, 10, 64)
-		parsed[i] = val
-		if err != nil {
-			return err
-		}
-	}
-
-	v.Metadata = metadata
-	v.PreRelease = preRelease
-	v.Major = parsed[0]
-	v.Minor = parsed[1]
-	v.Patch = parsed[2]
-	return nil
+	return aV.Compare(bV)
 }
 
-func (v Version) String() string {
-	var buffer bytes.Buffer
+// AppendText appends the textual representation of the version to b and returns the extended buffer.
+// This method conforms to the encoding.TextAppender interface, and is useful for serializing the Version
+// without allocating, provided the caller has pre-allocated sufficient space in b.
+func (v Version) AppendText(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, 0, length(v))
+	}
 
-	fmt.Fprintf(&buffer, "%d.%d.%d", v.Major, v.Minor, v.Patch)
+	b = append(strconv.AppendInt(b, v.Major, 10), '.')
+	b = append(strconv.AppendInt(b, v.Minor, 10), '.')
+	b = strconv.AppendInt(b, v.Patch, 10)
 
 	if v.PreRelease != "" {
-		fmt.Fprintf(&buffer, "-%s", v.PreRelease)
+		b = append(append(b, '-'), v.PreRelease...)
 	}
-
 	if v.Metadata != "" {
-		fmt.Fprintf(&buffer, "+%s", v.Metadata)
+		b = append(append(b, '+'), v.Metadata...)
 	}
 
-	return buffer.String()
+	return b, nil
 }
 
-// Compare tests if v is less than, equal to, or greater than versionB,
-// returning -1, 0, or +1 respectively.
-func (v Version) Compare(versionB Version) int {
-	if cmp := recursiveCompare(v.Slice(), versionB.Slice()); cmp != 0 {
-		return cmp
-	}
-	return preReleaseCompare(v, versionB)
+// String returns the string representation of the version.
+func (v Version) String() string {
+	bs := make([]byte, 0, length(v))
+	bs, _ = v.AppendText(bs)
+
+	return string(bs)
 }
 
-// Slice converts the comparable parts of the semver into a slice of integers.
-func (v Version) Slice() []int64 {
-	return []int64{v.Major, v.Minor, v.Patch}
-}
-
-// Slice splits the pre-release suffix string
-func (p PreRelease) Slice() []string {
-	preRelease := string(p)
-	return strings.Split(preRelease, ".")
-}
-
-func preReleaseCompare(versionA Version, versionB Version) int {
-	a := versionA.PreRelease
-	b := versionB.PreRelease
-
-	/* Handle the case where if two versions are otherwise equal it is the
-	 * one without a PreRelease that is greater */
-	if len(a) == 0 && (len(b) > 0) {
+// Compare tests if v is less than, equal to, or greater than other, returning -1, 0, or +1 respectively.
+// Comparison is based on the SemVer specification (https://semver.org/#spec-item-11).
+func (v Version) Compare(other Version) int {
+	if v.Major > other.Major {
 		return 1
-	} else if len(b) == 0 && (len(a) > 0) {
+	} else if v.Major < other.Major {
 		return -1
 	}
 
-	// If there is a prerelease, check and compare each part.
-	return recursivePreReleaseCompare(a.Slice(), b.Slice())
-}
+	if v.Minor > other.Minor {
+		return 1
+	} else if v.Minor < other.Minor {
+		return -1
+	}
 
-func recursiveCompare(versionA []int64, versionB []int64) int {
-	if len(versionA) == 0 {
+	if v.Patch > other.Patch {
+		return 1
+	} else if v.Patch < other.Patch {
+		return -1
+	}
+
+	if v.PreRelease == other.PreRelease {
 		return 0
 	}
 
-	a := versionA[0]
-	b := versionB[0]
-
-	if a > b {
+	// if two versions are otherwise equal it is the one without a pre-release that is greater
+	if v.PreRelease == "" && other.PreRelease != "" {
 		return 1
-	} else if a < b {
+	}
+	if other.PreRelease == "" && v.PreRelease != "" {
 		return -1
 	}
 
-	return recursiveCompare(versionA[1:], versionB[1:])
-}
+	a, afterA := cut(v.PreRelease, '.')
+	b, afterB := cut(other.PreRelease, '.')
 
-func recursivePreReleaseCompare(versionA []string, versionB []string) int {
-	// A larger set of pre-release fields has a higher precedence than a smaller set,
-	// if all of the preceding identifiers are equal.
-	if len(versionA) == 0 {
-		if len(versionB) > 0 {
+	for {
+		if a == "" && b != "" {
 			return -1
 		}
-		return 0
-	} else if len(versionB) == 0 {
-		// We're longer than versionB so return 1.
-		return 1
-	}
-
-	a := versionA[0]
-	b := versionB[0]
-
-	aInt := false
-	bInt := false
-
-	aI, err := strconv.Atoi(versionA[0])
-	if err == nil {
-		aInt = true
-	}
-
-	bI, err := strconv.Atoi(versionB[0])
-	if err == nil {
-		bInt = true
-	}
-
-	// Numeric identifiers always have lower precedence than non-numeric identifiers.
-	if aInt && !bInt {
-		return -1
-	} else if !aInt && bInt {
-		return 1
-	}
-
-	// Handle Integer Comparison
-	if aInt && bInt {
-		if aI > bI {
+		if a != "" && b == "" {
 			return 1
-		} else if aI < bI {
+		}
+
+		aIsInt := isAllDecimals(a)
+		bIsInt := isAllDecimals(b)
+
+		// numeric identifiers have lower precedence than non-numeric
+		if aIsInt && !bIsInt {
+			return -1
+		} else if !aIsInt && bIsInt {
+			return 1
+		}
+
+		if aIsInt && bIsInt {
+			aInt, _ := strconv.Atoi(a)
+			bInt, _ := strconv.Atoi(b)
+
+			if aInt > bInt {
+				return 1
+			} else if aInt < bInt {
+				return -1
+			}
+		} else {
+			// string comparison
+			if a > b {
+				return 1
+			} else if a < b {
+				return -1
+			}
+		}
+
+		// a larger set of pre-release fields has a higher precedence than a
+		// smaller set, if all of the preceding identifiers are equal.
+		if afterA != "" && afterB == "" {
+			return 1
+		} else if afterA == "" && afterB != "" {
 			return -1
 		}
-	}
 
-	// Handle String Comparison
-	if a > b {
-		return 1
-	} else if a < b {
-		return -1
+		a, afterA = cut(afterA, '.')
+		b, afterB = cut(afterB, '.')
 	}
-
-	return recursivePreReleaseCompare(versionA[1:], versionB[1:])
 }
 
-// validateIdentifier makes sure the provided identifier satisfies semver spec
-func validateIdentifier(id string) error {
-	if id != "" && !reIdentifier.MatchString(id) {
-		return fmt.Errorf("%s is not a valid semver identifier", id)
+func isAllDecimals(s string) bool {
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
 	}
-	return nil
+	return s != ""
 }
 
-// reIdentifier is a regular expression used to check that pre-release and metadata
-// identifiers satisfy the spec requirements
-var reIdentifier = regexp.MustCompile(`^[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*$`)
+// length allows calculating the length of the version for pre-allocation.
+func length(v Version) int {
+	n := util.NumDigitsInt64(v.Major) + util.NumDigitsInt64(v.Minor) + util.NumDigitsInt64(v.Patch) + 2
+	if v.PreRelease != "" {
+		n += len(v.PreRelease) + 1
+	}
+	if v.Metadata != "" {
+		n += len(v.Metadata) + 1
+	}
+	return n
+}
+
+// cut is a *slightly* faster version of strings.Cut only accepting
+// single byte separators, and skipping the boolean return value.
+func cut(s string, sep byte) (before, after string) {
+	if i := strings.IndexByte(s, sep); i >= 0 {
+		return s[:i], s[i+1:]
+	}
+	return s, ""
+}

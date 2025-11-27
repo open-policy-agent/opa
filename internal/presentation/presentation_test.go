@@ -6,7 +6,6 @@ package presentation
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -126,8 +125,8 @@ func TestOutputJSONErrorStructuredASTErr(t *testing.T) {
 
 func TestOutputJSONErrorStructuredStorageErr(t *testing.T) {
 	store := inmem.New()
-	txn := storage.NewTransactionOrDie(context.Background(), store)
-	err := store.Write(context.Background(), txn, storage.AddOp, storage.Path{}, map[string]any{"foo": 1})
+	txn := storage.NewTransactionOrDie(t.Context(), store)
+	err := store.Write(t.Context(), txn, storage.AddOp, storage.RootPath, map[string]any{"foo": 1})
 	expected := `{
   "errors": [
     {
@@ -156,7 +155,7 @@ func TestOutputJSONErrorStructuredTopdownErr(t *testing.T) {
 	_, err := rego.New(
 		rego.Module("test.rego", mod),
 		rego.Query("data.test.z"),
-	).Eval(context.Background())
+	).Eval(t.Context())
 
 	expected := `{
   "errors": [
@@ -177,7 +176,7 @@ func TestOutputJSONErrorStructuredTopdownErr(t *testing.T) {
 }
 
 func TestOutputJSONErrorStructuredAstErr(t *testing.T) {
-	_, err := rego.New(rego.Query("count(0)")).Eval(context.Background())
+	_, err := rego.New(rego.Query("count(0)")).Eval(t.Context())
 	expected := `{
 		"errors": [
 		  {
@@ -249,7 +248,7 @@ func TestOutputJSONErrorStructuredAstParseErr(t *testing.T) {
 	_, err := rego.New(
 		rego.Module("parse-err.rego", "!!!"),
 		rego.Query("!!!"),
-	).Eval(context.Background())
+	).Eval(t.Context())
 
 	expected := `{
   "errors": [
@@ -359,7 +358,7 @@ q if {
 	_, err := rego.New(
 		rego.Module("error.rego", mod),
 		rego.Query("data"),
-	).PrepareForEval(context.Background())
+	).PrepareForEval(t.Context())
 
 	expected := `{
   "errors": [
@@ -392,7 +391,7 @@ func TestSource(t *testing.T) {
 
 	buf := new(bytes.Buffer)
 
-	err := Source(buf, Output{
+	err := Source(buf, nil, Output{
 		Partial: &rego.PartialQueries{
 			Queries: []ast.Body{
 				ast.MustParseBody("a = 1; b = 2"),
@@ -427,9 +426,10 @@ p := 1
 
 func TestRaw(t *testing.T) {
 	tests := []struct {
-		note   string
-		output Output
-		want   string
+		note    string
+		output  Output
+		want    string
+		wantErr string
 	}{
 		{
 			note: "simple single string",
@@ -485,7 +485,7 @@ func TestRaw(t *testing.T) {
 			output: Output{
 				Errors: NewOutputErrors(errors.New("boom")),
 			},
-			want: "1 error occurred: boom\n",
+			wantErr: "1 error occurred: boom\n",
 		},
 		{
 			// NOTE(sr): The presentation package outputs whatever Error() on
@@ -496,19 +496,23 @@ func TestRaw(t *testing.T) {
 			output: Output{
 				Errors: NewOutputErrors(&testErrorWithDetails{}),
 			},
-			want: "1 error occurred: something went wrong\noh\nso\nwrong\n",
+			wantErr: "1 error occurred: something went wrong\noh\nso\nwrong\n",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			buf := new(bytes.Buffer)
-			err := Raw(buf, tc.output)
+			output := new(bytes.Buffer)
+			stderr := new(bytes.Buffer)
+			err := Raw(output, stderr, tc.output)
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err)
 			}
-			if buf.String() != tc.want {
-				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", tc.want, buf.String())
+			if output.String() != tc.want {
+				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", tc.want, output.String())
+			}
+			if stderr.String() != tc.wantErr {
+				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", tc.wantErr, stderr.String())
 			}
 		})
 	}
@@ -524,11 +528,11 @@ func TestDepsAnalysisPrettyOutput(t *testing.T) {
 			note:   "base document",
 			output: DepAnalysisOutput{Base: []ast.Ref{ast.InputRootRef}},
 			want: []string{
-				"+----------------+",
-				"| BASE DOCUMENTS |",
-				"+----------------+",
-				"| input          |",
-				"+----------------+",
+				"┌────────────────┐",
+				"│ BASE DOCUMENTS │",
+				"├────────────────┤",
+				"│ input          │",
+				"└────────────────┘",
 			},
 		},
 		{
@@ -539,11 +543,11 @@ func TestDepsAnalysisPrettyOutput(t *testing.T) {
 				},
 			},
 			want: []string{
-				"+-------------------+",
-				"| VIRTUAL DOCUMENTS |",
-				"+-------------------+",
-				"| data.policy.allow |",
-				"+-------------------+",
+				"┌───────────────────┐",
+				"│ VIRTUAL DOCUMENTS │",
+				"├───────────────────┤",
+				"│ data.policy.allow │",
+				"└───────────────────┘",
 			},
 		},
 		{
@@ -555,11 +559,11 @@ func TestDepsAnalysisPrettyOutput(t *testing.T) {
 				},
 			},
 			want: []string{
-				"+----------------+-------------------+",
-				"| BASE DOCUMENTS | VIRTUAL DOCUMENTS |",
-				"+----------------+-------------------+",
-				"| input          | data.policy.allow |",
-				"+----------------+-------------------+",
+				"┌────────────────┬───────────────────┐",
+				"│ BASE DOCUMENTS │ VIRTUAL DOCUMENTS │",
+				"├────────────────┼───────────────────┤",
+				"│ input          │ data.policy.allow │",
+				"└────────────────┴───────────────────┘",
 			},
 		},
 	}

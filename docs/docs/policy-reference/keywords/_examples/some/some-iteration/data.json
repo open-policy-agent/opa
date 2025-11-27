@@ -1,0 +1,38 @@
+{
+  "last_weeks_requests": [
+    [
+      { "user_id": 1, "request_id": 701 },
+      { "user_id": 2, "request_id": 702 },
+      { "user_id": 3, "request_id": 703 }
+    ],
+    [
+      { "user_id": 3, "request_id": 601 },
+      { "user_id": 1, "request_id": 602 }
+    ],
+    [
+      { "user_id": 1, "request_id": 501 },
+      { "user_id": 2, "request_id": 502 },
+      { "user_id": 3, "request_id": 503 }
+    ],
+    [
+      { "user_id": 2, "request_id": 401 },
+      { "user_id": 3, "request_id": 402 },
+      { "user_id": 1, "request_id": 403 }
+    ],
+    [
+      { "user_id": 1, "request_id": 301 },
+      { "user_id": 2, "request_id": 302 },
+      { "user_id": 1, "request_id": 303 },
+      { "user_id": 1, "request_id": 304 }
+    ],
+    [
+      { "user_id": 3, "request_id": 201 },
+      { "user_id": 1, "request_id": 202 }
+    ],
+    [
+      { "user_id": 1, "request_id": 101 },
+      { "user_id": 2, "request_id": 102 },
+      { "user_id": 1, "request_id": 103 }
+    ]
+  ]
+}

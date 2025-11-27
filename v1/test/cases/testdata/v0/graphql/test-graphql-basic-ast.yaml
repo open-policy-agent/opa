@@ -67,6 +67,7 @@ cases:
                     {
                       "Name": "episode",
                       "Value": {
+                        "ExpectedTypeHasDefault": false,
                         "Kind": 0,
                         "Raw": "episode"
                       }
@@ -172,6 +173,7 @@ cases:
                     {
                       "Name": "episode",
                       "Value": {
+                        "ExpectedTypeHasDefault": false,
                         "Kind": 0,
                         "Raw": "ep"
                       }
@@ -255,6 +257,7 @@ cases:
                     {
                       "Name": "text",
                       "Value": {
+                        "ExpectedTypeHasDefault": false,
                         "Kind": 3,
                         "Raw": "an"
                       }

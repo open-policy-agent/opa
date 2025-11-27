@@ -1,0 +1,129 @@
+---
+sidebar_label: Container Apps
+sidebar_position: 3
+title: Deploying OPA on Azure Container Apps
+---
+
+<!-- Manual Heading imports are needed because the ParamProvider plugin provider hides anchors from the broken link checker -->
+import Heading from '@theme/Heading';
+
+Azure Container Apps provides a fully managed platform for deploying and scaling
+containerized applications. It is well-suited for running off-the-shelf
+software, such as OPA, handling scaling, networking, and infrastructure,
+allowing you to focus on developing your applications.
+
+This guide details the steps and considerations when deploying OPA as a Policy
+Decision Point (PDP) on Azure Container Apps.
+
+
+## Selecting a Container Image
+
+It is recommended to use the `openpolicyagent/opa:<version>` variant available
+on [Docker Hub](https://hub.docker.com/r/openpolicyagent/opa). Users without
+access to Docker Hub may need to mirror these images to a Azure Container
+Registry.
+
+:::warning
+**Note**: Avoid using the `latest` tag in production environments.
+:::
+
+
+## Ingress, Authentication & Authorization Considerations
+
+In Azure Container Apps, endpoints can be public or private to only Container
+Apps. Since OPA typically handles requests from internal services (PEPs),
+setting up a private endpoint is advisable where possible. For public endpoints,
+use additional authentication mechanisms if Azure AD cannot be used.
+
+While OPA’s primary role is providing authorization decisions as a PDP, OPA
+itself should restrict access to ensure that only authorized PEPs can interact
+with it.
+
+If PEP applications are authenticated using Azure AD, their tokens can identify
+them to OPA. Otherwise, consider using client certificates or tokens. Refer to
+the [security documentation](../../security/)
+for more information on securing OPA with tokens or certificates.
+
+
+## CPU Scaling & Memory Allocation
+
+OPA is lightweight, but to achieve low-latency responses in serverless
+environments, it is recommended to configure Azure Container Apps with a minimum
+of 1 OPA instance, using 1 vCPU and 2GB of memory.
+
+:::warning
+By default, Container Apps can scale to 0 instances, which may cause latency
+issues for PEPs if not OPAs are running to serve requests.
+:::
+
+Increase memory allocation if substantial data needs to be loaded into OPA for
+policy evaluations. Test deployments with realistic data and traffic to ensure
+satisfactory production performance.
+
+
+## Creating the OPA App
+
+To deploy OPA to Container Apps, specify these settings in the initial revision
+t create the app. In a later step, we'll create the secret for the OPA
+configuration file and mount it into the container.
+
+Throughout the following steps, we'll be using these values for the OPA
+Container App. Replace the values with the details from your environment before
+continuing to have the values set in the steps below.
+
+<!-- markdownlint-disable MD044 -->
+<!-- markdownlint-disable MD034 -->
+<ParamProvider
+  initialParams={{
+    token: '7AnU3j1R1MQN9N...',
+    image: 'openpolicyagent/opa:...',
+  }}
+>
+
+
+The first step is to create a
+[new Container App](https://portal.azure.com/#create/Microsoft.ContainerApp).
+Use these values below to create the app and the first revision:
+
+
+- Container app name: e.g. `opa` or some name in line with internal naming
+  standards.
+- Region: Choose the region where your PEP applications are hosted.
+- Image source: Docker Hub or OPA image replicated to private registry.
+- Container Image URL: <InlineEditable paramKey="image"/>
+  Valid versions: e.g. `X.Y.Z` not `latest` or `vX.Y.Z`. Review the
+  [OPA images](https://hub.docker.com/r/openpolicyagent/opa/tags) for a list of
+  available versions.
+- Use the argument override to run the server, and load the configuration file
+  (note the commas):
+  ```text
+  run, --server, --addr=:8181, --config-file=/run/secrets/opa-config.yaml
+  ```
+- Ingress: OPA will be listening on port 8181, use this as the 'Target Port'
+  when enabling ingress. Session affinity is not required.
+- For 'Container resource allocation', use 1 vCPU and 2GB of memory.
+
+Once created, the app will be deployed with the specified image. In the next
+step we'll create an link the OPA configuration file as a secret mount.
+
+
+<Heading as="h2" id="loading-opa-configuration">Loading OPA Configuration</Heading>
+
+OPA requires a configuration file specifying policy bundle locations. For secure
+management, store the OPA configuration file as a secret in Azure Container
+Apps. To define a secret, follow the steps in the
+[Azure documentation](https://learn.microsoft.com/en-us/azure/container-apps/manage-secrets?tabs=azure-portal),
+or refer to the CLI example below.
+
+Create a file called `opa-conf.yaml` based on the
+[configuration documentation](../../configuration).
+Once you have the `opa-conf.yaml` file ready, we can create a new revision
+referencing this secret.
+
+Create a new revision and add a volume called `secrets`. Mount `opa-confif` at
+`opa-config.yaml`. Then, select the OPA container and add a mount for `secrets`
+at `/run/secrets`. This measn the OPA configuration file will be available at
+`/run/secrets/opa-config.yaml` within the container, as specified in the
+container definition above.
+
+</ParamProvider>
