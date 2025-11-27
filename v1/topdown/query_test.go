@@ -85,7 +85,7 @@ func TestQueryTracerDontPlugLocalVars(t *testing.T) {
 				query = query.WithQueryTracer(tt)
 			}
 
-			_, err := query.Run(context.Background())
+			_, err := query.Run(t.Context())
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
@@ -122,7 +122,7 @@ func TestLegacyTracerUpgrade(t *testing.T) {
 	// If the deprecated Trace() API is called the test will fail.
 	query.WithTracer(tracer)
 
-	_, err := query.Run(context.Background())
+	_, err := query.Run(t.Context())
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -145,7 +145,7 @@ func TestLegacyTracerBackwardsCompatibility(t *testing.T) {
 	bt := NewBufferTracer()
 	query.WithQueryTracer(bt)
 
-	_, err := query.Run(context.Background())
+	_, err := query.Run(t.Context())
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -175,7 +175,7 @@ func TestDisabledTracer(t *testing.T) {
 	query.WithTracer(tracer)
 	query.WithQueryTracer(tracer)
 
-	_, err := query.Run(context.Background())
+	_, err := query.Run(t.Context())
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -212,7 +212,7 @@ func TestRegoMetadataBuiltinCall(t *testing.T) {
 			c := ast.NewCompiler()
 			q := NewQuery(ast.MustParseBody(tc.query)).WithCompiler(c).
 				WithStrictBuiltinErrors(true)
-			_, err := q.Run(context.Background())
+			_, err := q.Run(t.Context())
 
 			if err == nil {
 				t.Fatalf("expected error")
@@ -229,7 +229,7 @@ func TestWithCompilerErrors(t *testing.T) {
 	t.Parallel()
 
 	store := inmem.New()
-	ctx := context.Background()
+	ctx := t.Context()
 	txn := storage.NewTransactionOrDie(ctx, store)
 	defer store.Abort(ctx, txn)
 
@@ -246,7 +246,7 @@ p := data.q(42)`),
 		WithStore(store).
 		WithTransaction(txn)
 
-	_, err := q.Run(context.Background())
+	_, err := q.Run(t.Context())
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}

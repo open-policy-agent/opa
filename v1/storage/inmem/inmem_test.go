@@ -40,16 +40,16 @@ func TestInMemoryRead(t *testing.T) {
 		{"/d/e/1", "baz"},
 		{"/d/e", []any{"bar", "baz"}},
 		{"/c/0/z", map[string]any{"p": true, "q": false}},
-		{"/a/0/beef", storageerrors.NewNotFoundError(storage.MustParsePath("/a/0/beef"))},
-		{"/d/100", storageerrors.NewNotFoundError(storage.MustParsePath("/d/100"))},
-		{"/dead/beef", storageerrors.NewNotFoundError(storage.MustParsePath("/dead/beef"))},
+		{"/a/0/beef", storageerrors.NotFoundErr},
+		{"/d/100", storageerrors.NotFoundErr},
+		{"/dead/beef", storageerrors.NotFoundErr},
 		{"/a/str", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/str"), storageerrors.ArrayIndexTypeMsg)},
 		{"/a/100", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/100"), storageerrors.OutOfRangeMsg)},
 		{"/a/-1", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/-1"), storageerrors.OutOfRangeMsg)},
 	}
 
 	store := NewFromObject(data)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	for idx, tc := range tests {
 		result, err := storage.ReadOne(ctx, store, storage.MustParsePath(tc.path))
@@ -90,16 +90,16 @@ func TestInMemoryReadAst(t *testing.T) {
 		{"/d/e/1", ast.String("baz")},
 		{"/d/e", ast.NewArray(ast.StringTerm("bar"), ast.StringTerm("baz"))},
 		{"/c/0/z", ast.NewObject(ast.Item(ast.StringTerm("p"), ast.BooleanTerm(true)), ast.Item(ast.StringTerm("q"), ast.BooleanTerm(false)))},
-		{"/a/0/beef", storageerrors.NewNotFoundError(storage.MustParsePath("/a/0/beef"))},
-		{"/d/100", storageerrors.NewNotFoundError(storage.MustParsePath("/d/100"))},
-		{"/dead/beef", storageerrors.NewNotFoundError(storage.MustParsePath("/dead/beef"))},
+		{"/a/0/beef", storageerrors.NotFoundErr},
+		{"/d/100", storageerrors.NotFoundErr},
+		{"/dead/beef", storageerrors.NotFoundErr},
 		{"/a/str", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/str"), storageerrors.ArrayIndexTypeMsg)},
 		{"/a/100", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/100"), storageerrors.OutOfRangeMsg)},
 		{"/a/-1", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/-1"), storageerrors.OutOfRangeMsg)},
 	}
 
 	store := NewFromObjectWithOpts(data, OptReturnASTValuesOnRead(true))
-	ctx := context.Background()
+	ctx := t.Context()
 
 	for idx, tc := range tests {
 		result, err := storage.ReadOne(ctx, store, storage.MustParsePath(tc.path))
@@ -155,10 +155,10 @@ func TestInMemoryWrite(t *testing.T) {
 				{"append obj/arr-2", "add", `/c/0/x/3`, `"x"`, nil, "/c/0/x", `[true,false,"foo","x"]`},
 				{"append arr/arr", "add", `/h/0/-`, `"x"`, nil, `/h/0/3`, `"x"`},
 				{"append arr/arr-2", "add", `/h/0/3`, `"x"`, nil, `/h/0/3`, `"x"`},
-				{"append err", "remove", "/c/0/x/-", "", invalidPatchError("/c/0/x/-: invalid patch path"), "", nil},
-				{"append err-2", "replace", "/c/0/x/-", "", invalidPatchError("/c/0/x/-: invalid patch path"), "", nil},
+				{"append err", "remove", "/c/0/x/-", "", storageerrors.NewInvalidPatchError("/c/0/x/-: invalid patch path"), "", nil},
+				{"append err-2", "replace", "/c/0/x/-", "", storageerrors.NewInvalidPatchError("/c/0/x/-: invalid patch path"), "", nil},
 
-				{"remove", "remove", "/a", "", nil, "/a", storageerrors.NewNotFoundError(storage.MustParsePath("/a"))},
+				{"remove", "remove", "/a", "", nil, "/a", storageerrors.NotFoundErr},
 				{"remove arr", "remove", "/a/1", "", nil, "/a", "[1,3,4]"},
 				{"remove obj/arr", "remove", "/c/0/x/1", "", nil, "/c/0/x", `[true,"foo"]`},
 				{"remove arr/arr", "remove", "/h/0/1", "", nil, "/h/0", "[1,3]"},
@@ -169,33 +169,33 @@ func TestInMemoryWrite(t *testing.T) {
 				{"replace obj", "replace", "/b/v1", "1", nil, "/b", `{"v1": 1, "v2": "goodbye"}`},
 				{"replace array", "replace", "/a/1", "999", nil, "/a", "[1,999,3,4]"},
 
-				{"err: bad root type", "add", "/", "[1,2,3]", invalidPatchError(rootMustBeObjectMsg), "", nil},
-				{"err: remove root", "remove", "/", "", invalidPatchError(rootCannotBeRemovedMsg), "", nil},
+				{"err: bad root type", "add", "/", "[1,2,3]", storageerrors.NewInvalidPatchError(storageerrors.RootMustBeObjectMsg), "", nil},
+				{"err: remove root", "remove", "/", "", storageerrors.NewInvalidPatchError(storageerrors.RootCannotBeRemovedMsg), "", nil},
 				{"err: add arr (non-integer)", "add", "/a/foo", "1", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/foo"), storageerrors.ArrayIndexTypeMsg), "", nil},
 				{"err: add arr (non-integer)", "add", "/a/3.14", "1", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/3.14"), storageerrors.ArrayIndexTypeMsg), "", nil},
 				{"err: add arr (out of range)", "add", "/a/5", "1", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/5"), storageerrors.OutOfRangeMsg), "", nil},
 				{"err: add arr (out of range)", "add", "/a/-1", "1", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/-1"), storageerrors.OutOfRangeMsg), "", nil},
-				{"err: add arr (missing root)", "add", "/dead/beef/0", "1", storageerrors.NewNotFoundError(storage.MustParsePath("/dead/beef/0")), "", nil},
-				{"err: add non-coll", "add", "/a/1/2", "1", storageerrors.NewNotFoundError(storage.MustParsePath("/a/1/2")), "", nil},
-				{"err: append (missing)", "add", `/dead/beef/-`, "1", storageerrors.NewNotFoundError(storage.MustParsePath("/dead/beef/-")), "", nil},
-				{"err: append obj/arr", "add", `/c/0/deadbeef/-`, `"x"`, storageerrors.NewNotFoundError(storage.MustParsePath("/c/0/deadbeef/-")), "", nil},
+				{"err: add arr (missing root)", "add", "/dead/beef/0", "1", storageerrors.NotFoundErr, "", nil},
+				{"err: add non-coll", "add", "/a/1/2", "1", storageerrors.NotFoundErr, "", nil},
+				{"err: append (missing)", "add", `/dead/beef/-`, "1", storageerrors.NotFoundErr, "", nil},
+				{"err: append obj/arr", "add", `/c/0/deadbeef/-`, `"x"`, storageerrors.NotFoundErr, "", nil},
 				{"err: append arr/arr (out of range)", "add", `/h/9999/-`, `"x"`, storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/h/9999/-"), storageerrors.OutOfRangeMsg), "", nil},
 				{"err: append append+add", "add", `/a/-/b/-`, `"x"`, storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath(`/a/-/b/-`), storageerrors.ArrayIndexTypeMsg), "", nil},
-				{"err: append arr/arr (non-array)", "add", `/b/v1/-`, "1", storageerrors.NewNotFoundError(storage.MustParsePath("/b/v1/-")), "", nil},
-				{"err: remove missing", "remove", "/dead/beef/0", "", storageerrors.NewNotFoundError(storage.MustParsePath("/dead/beef/0")), "", nil},
-				{"err: remove obj (missing)", "remove", "/b/deadbeef", "", storageerrors.NewNotFoundError(storage.MustParsePath("/b/deadbeef")), "", nil},
-				{"err: replace root (missing)", "replace", "/deadbeef", "1", storageerrors.NewNotFoundError(storage.MustParsePath("/deadbeef")), "", nil},
-				{"err: replace missing", "replace", "/dead/beef/1", "1", storageerrors.NewNotFoundError(storage.MustParsePath("/dead/beef/1")), "", nil},
+				{"err: append arr/arr (non-array)", "add", `/b/v1/-`, "1", storageerrors.NotFoundErr, "", nil},
+				{"err: remove missing", "remove", "/dead/beef/0", "", storageerrors.NotFoundErr, "", nil},
+				{"err: remove obj (missing)", "remove", "/b/deadbeef", "", storageerrors.NotFoundErr, "", nil},
+				{"err: replace root (missing)", "replace", "/deadbeef", "1", storageerrors.NotFoundErr, "", nil},
+				{"err: replace missing", "replace", "/dead/beef/1", "1", storageerrors.NotFoundErr, "", nil},
 			}
 
-			ctx := context.Background()
+			ctx := t.Context()
 
 			for i, tc := range tests {
 				data := loadSmallTestData()
 				store := NewFromObjectWithOpts(data, OptReturnASTValuesOnRead(rvt.ast))
 
 				// Perform patch and check result
-				value := loadExpectedSortedResult(tc.value)
+				value := loadExpectedResult(tc.value)
 
 				var op storage.PatchOp
 				switch tc.op {
@@ -292,7 +292,7 @@ func TestInMemoryWriteOfStruct(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			store := New()
-			ctx := context.Background()
+			ctx := t.Context()
 
 			err := storage.WriteOne(ctx, store, storage.AddOp, storage.MustParsePath("/x"), tc.value)
 			if err != nil {
@@ -304,7 +304,7 @@ func TestInMemoryWriteOfStruct(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			expected := loadExpectedSortedResult(tc.expected)
+			expected := loadExpectedResult(tc.expected)
 			if !reflect.DeepEqual(expected, actual) {
 				t.Errorf("expected %v, got %v", tc.expected, actual)
 			}
@@ -337,7 +337,7 @@ func TestInMemoryWriteOfStructAst(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			store := NewWithOpts(OptReturnASTValuesOnRead(true))
-			ctx := context.Background()
+			ctx := t.Context()
 
 			// Written non-AST values are expected to be converted to AST values
 			err := storage.WriteOne(ctx, store, storage.AddOp, storage.MustParsePath("/x"), tc.value)
@@ -361,7 +361,7 @@ func TestInMemoryWriteOfStructAst(t *testing.T) {
 
 func TestInMemoryTxnMultipleWrites(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := NewFromObject(loadSmallTestData())
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
@@ -443,7 +443,7 @@ func TestInMemoryTxnMultipleWrites(t *testing.T) {
 
 func TestInMemoryTxnMultipleWritesAst(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := NewFromObjectWithOpts(loadSmallTestData(), OptReturnASTValuesOnRead(true))
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
@@ -534,7 +534,7 @@ func TestTruncateNoExistingPath(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			store := NewFromObjectWithOpts(map[string]any{}, OptReturnASTValuesOnRead(tc.ast))
 			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
@@ -569,7 +569,7 @@ func TestTruncateNoExistingPath(t *testing.T) {
 
 			txn = storage.NewTransactionOrDie(ctx, store)
 
-			actual, err := store.Read(ctx, txn, storage.MustParsePath("/"))
+			actual, err := store.Read(ctx, txn, storage.RootPath)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -601,7 +601,7 @@ func TestTruncateNoExistingPath(t *testing.T) {
 }
 
 func TestTruncate(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := NewFromObject(map[string]any{})
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
@@ -641,7 +641,7 @@ func TestTruncate(t *testing.T) {
 
 	txn = storage.NewTransactionOrDie(ctx, store)
 
-	actual, err := store.Read(ctx, txn, storage.MustParsePath("/"))
+	actual, err := store.Read(ctx, txn, storage.RootPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -699,7 +699,7 @@ func TestTruncate(t *testing.T) {
 }
 
 func TestTruncateAst(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := NewFromObjectWithOpts(map[string]any{}, OptReturnASTValuesOnRead(true))
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
@@ -739,7 +739,7 @@ func TestTruncateAst(t *testing.T) {
 
 	txn = storage.NewTransactionOrDie(ctx, store)
 
-	actual, err := store.Read(ctx, txn, storage.MustParsePath("/"))
+	actual, err := store.Read(ctx, txn, storage.RootPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -807,7 +807,7 @@ func TestTruncateDataMergeError(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			store := NewFromObjectWithOpts(map[string]any{}, OptReturnASTValuesOnRead(tc.ast))
 			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
@@ -853,7 +853,7 @@ func TestTruncateBadRootWrite(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			store := NewFromObjectWithOpts(map[string]any{}, OptReturnASTValuesOnRead(tc.ast))
 			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
@@ -900,7 +900,7 @@ func TestInMemoryTxnWriteFailures(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			store := NewFromObjectWithOpts(loadSmallTestData(), OptReturnASTValuesOnRead(tc.ast))
 			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
@@ -945,7 +945,7 @@ func TestInMemoryTxnReadFailures(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			store := NewFromObjectWithOpts(loadSmallTestData(), OptReturnASTValuesOnRead(tc.ast))
 			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
@@ -969,7 +969,7 @@ func TestInMemoryTxnReadFailures(t *testing.T) {
 }
 
 func TestInMemoryTxnBadWrite(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := NewFromObject(loadSmallTestData())
 	txn := storage.NewTransactionOrDie(ctx, store)
 	if err := store.Write(ctx, txn, storage.RemoveOp, storage.MustParsePath("/a"), nil); !storage.IsInvalidTransaction(err) {
@@ -979,7 +979,7 @@ func TestInMemoryTxnBadWrite(t *testing.T) {
 
 func TestInMemoryTxnPolicies(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := New()
 
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
@@ -1082,7 +1082,7 @@ func TestInMemoryTriggers(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			store := NewFromObjectWithOpts(loadSmallTestData(), OptReturnASTValuesOnRead(tc.ast))
 			writeTxn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 			readTxn := storage.NewTransactionOrDie(ctx, store)
@@ -1150,8 +1150,68 @@ func TestInMemoryTriggers(t *testing.T) {
 	}
 }
 
+func TestASTInMemoryTriggersDataConversion(t *testing.T) {
+	ctx := t.Context()
+	store := NewFromObjectWithOpts(loadSmallTestData(), OptReturnASTValuesOnRead(true))
+
+	noConversionTriggerCount := 0
+	conversionTriggerCount := 0
+
+	// Register a trigger that doesn't want data conversion
+	err := storage.Txn(t.Context(), store, storage.WriteParams, func(txn storage.Transaction) error {
+		_, err := store.Register(ctx, txn, storage.TriggerConfig{
+			SkipDataConversion: true,
+			OnCommit: func(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
+				if event.DataChanged() {
+					if _, ok := event.Data[0].Data.(ast.Value); !ok {
+						t.Fatalf("Expected ast.Value data but got: %T", event.Data[0].Data)
+					}
+					noConversionTriggerCount++
+				}
+			},
+		})
+		return err
+	})
+	if err != nil {
+		t.Fatalf("Failed to register trigger: %v", err)
+	}
+
+	// Register a trigger that wants data conversion (skip data conversion not set, as is the default)
+	err = storage.Txn(t.Context(), store, storage.WriteParams, func(txn storage.Transaction) error {
+		_, err := store.Register(ctx, txn, storage.TriggerConfig{
+			OnCommit: func(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
+				if event.DataChanged() {
+					if _, ok := event.Data[0].Data.(ast.Value); ok {
+						t.Fatalf("Expected non-ast.Value data but got: %T", event.Data[0].Data)
+					}
+					conversionTriggerCount++
+				}
+			},
+		})
+		return err
+	})
+	if err != nil {
+		t.Fatalf("Failed to register trigger: %v", err)
+	}
+
+	err = storage.Txn(t.Context(), store, storage.WriteParams, func(txn storage.Transaction) error {
+		return store.Write(ctx, txn, storage.ReplaceOp, storage.MustParsePath("/a"), "hello")
+	})
+	if err != nil {
+		t.Fatalf("Failed to write data: %v", err)
+	}
+
+	if noConversionTriggerCount != 1 {
+		t.Fatalf("Expected no conversion trigger to be called once but got: %d", noConversionTriggerCount)
+	}
+
+	if conversionTriggerCount != 1 {
+		t.Fatalf("Expected conversion trigger to be called once but got: %d", conversionTriggerCount)
+	}
+}
+
 func TestInMemoryTriggersUnregister(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := NewFromObject(loadSmallTestData())
 	writeTxn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 	modifiedPath := storage.MustParsePath("/a")
@@ -1201,7 +1261,7 @@ func TestInMemoryTriggersUnregister(t *testing.T) {
 
 func TestInMemoryContext(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 	store := New()
 	params := storage.WriteParams
 	params.Context = storage.NewContext()
@@ -1235,21 +1295,8 @@ func loadExpectedResult(input string) any {
 	if len(input) == 0 {
 		return nil
 	}
-	var data any
-	if err := util.UnmarshalJSON([]byte(input), &data); err != nil {
-		panic(err)
-	}
-	return data
-}
 
-func loadExpectedSortedResult(input string) any {
-	data := loadExpectedResult(input)
-	switch data := data.(type) {
-	case []any:
-		return data
-	default:
-		return data
-	}
+	return util.MustUnmarshalJSON([]byte(input))
 }
 
 func loadSmallTestData() map[string]any {
@@ -1334,7 +1381,7 @@ func TestOptRoundTripOnWrite(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			db := NewWithOpts(tt.opts...)
-			ctx := context.Background()
+			ctx := t.Context()
 
 			txn, err := db.NewTransaction(ctx, storage.WriteParams)
 			if err != nil {

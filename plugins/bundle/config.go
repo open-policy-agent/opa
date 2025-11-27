@@ -11,6 +11,7 @@ import (
 // ParseConfig validates the config and injects default values. This is
 // for the legacy single bundle configuration. This will add the bundle
 // to the `Bundles` map to provide compatibility with newer clients.
+//
 // Deprecated: Use `ParseBundlesConfig` with `bundles` OPA config option instead
 func ParseConfig(config []byte, services []string) (*Config, error) {
 	return v1.ParseConfig(config, services)

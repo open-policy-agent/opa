@@ -1,7 +1,6 @@
 package compile
 
 import (
-	"context"
 	"fmt"
 	"io/fs"
 	"strconv"
@@ -26,10 +25,10 @@ func BenchmarkCompileDynamicPolicy(b *testing.B) {
 		test.WithTestFS(testcase, true, func(root string, fileSys fs.FS) {
 			b.ResetTimer()
 			b.Run(strconv.Itoa(n), func(b *testing.B) {
-				for range b.N {
+				for b.Loop() {
 					compiler := New().WithFS(fileSys).WithPaths(root)
 
-					if err := compiler.Build(context.Background()); err != nil {
+					if err := compiler.Build(b.Context()); err != nil {
 						b.Fatal("unexpected error", err)
 					}
 				}
@@ -81,10 +80,10 @@ func BenchmarkLargePartialRulePolicy(b *testing.B) {
 			test.WithTempFS(testcase, func(root string) {
 				b.ResetTimer()
 
-				for range b.N {
+				for b.Loop() {
 					compiler := New().WithPaths(root)
 
-					if err := compiler.Build(context.Background()); err != nil {
+					if err := compiler.Build(b.Context()); err != nil {
 						b.Fatal("unexpected error", err)
 					}
 				}

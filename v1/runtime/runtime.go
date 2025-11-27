@@ -298,10 +298,11 @@ type LoggingConfig struct {
 // NewParams returns a new Params object.
 func NewParams() Params {
 	return Params{
-		Output:             os.Stdout,
-		BundleMode:         false,
-		EnableVersionCheck: false,
-		Brand:              "OPA", // default
+		Output:                 os.Stdout,
+		BundleMode:             false,
+		EnableVersionCheck:     false,
+		GracefulShutdownPeriod: 1,
+		Brand:                  "OPA", // default
 	}
 }
 
@@ -542,7 +543,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 
 // extractMetricsConfig returns the configuration for server metrics and parsing errors if any
 func extractMetricsConfig(config []byte, params Params) (*metrics_config.Config, error) {
-	var opaParsedConfig, opaParsedConfigErr = opa_config.ParseConfig(config, params.ID)
+	opaParsedConfig, opaParsedConfigErr := opa_config.ParseConfig(config, params.ID)
 	if opaParsedConfigErr != nil {
 		return nil, opaParsedConfigErr
 	}
@@ -552,8 +553,8 @@ func extractMetricsConfig(config []byte, params Params) (*metrics_config.Config,
 		serverMetricsData = opaParsedConfig.Server.Metrics
 	}
 
-	var configBuilder = metrics_config.NewConfigBuilder()
-	var metricsParsedConfig, metricsParsedConfigErr = configBuilder.WithBytes(serverMetricsData).Parse()
+	configBuilder := metrics_config.NewConfigBuilder()
+	metricsParsedConfig, metricsParsedConfigErr := configBuilder.WithBytes(serverMetricsData).Parse()
 	if metricsParsedConfigErr != nil {
 		return nil, fmt.Errorf("server metrics configuration parse error: %w", metricsParsedConfigErr)
 	}
@@ -661,7 +662,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 
 	// If decision_logging plugin enabled, check to see if we opted in to the ND builtins cache.
 	if lp := logs.Lookup(rt.Manager); lp != nil {
-		rt.server = rt.server.WithNDBCacheEnabled(rt.Params.NDBCacheEnabled || rt.Manager.Config.NDBuiltinCacheEnabled())
+		rt.server = rt.server.WithNDBCacheEnabled(rt.Params.NDBCacheEnabled || rt.Manager.GetConfig().NDBuiltinCacheEnabled())
 	}
 
 	if rt.Params.DiagnosticAddrs != nil {
@@ -806,7 +807,8 @@ func (rt *Runtime) StartREPL(ctx context.Context) error {
 	repl := repl.New(rt.Store, rt.Params.HistoryPath, rt.Params.Output, rt.Params.OutputFormat, rt.Params.ErrorLimit, banner).
 		WithRuntime(rt.Manager.Info).
 		WithRegoVersion(rt.Params.regoVersion()).
-		WithInitBundles(rt.loadedPathsResult.Bundles)
+		WithInitBundles(rt.loadedPathsResult.Bundles).
+		WithStderrWriter(rt.Params.Output)
 
 	if rt.Params.Watch {
 		if err := rt.startWatcher(ctx, rt.Params.Paths, onReloadPrinter(rt.Params.Output)); err != nil {
@@ -911,20 +913,27 @@ func (rt *Runtime) startWatcher(ctx context.Context, paths []string, onReload fu
 }
 
 func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, paths []string, onReload func(time.Duration, error)) {
-	for evt := range watcher.Events {
-		removalMask := fsnotify.Remove | fsnotify.Rename
-		mask := fsnotify.Create | fsnotify.Write | removalMask
-		if (evt.Op & mask) != 0 {
-			rt.logger.WithFields(map[string]any{
-				"event": evt.String(),
-			}).Debug("Registered file event.")
-			t0 := time.Now()
-			removed := ""
-			if (evt.Op & removalMask) != 0 {
-				removed = evt.Name
+
+	for {
+		select {
+		case evt := <-watcher.Events:
+			removalMask := fsnotify.Remove | fsnotify.Rename
+			mask := fsnotify.Create | fsnotify.Write | removalMask
+			if (evt.Op & mask) != 0 {
+				rt.logger.WithFields(map[string]any{
+					"event": evt.String(),
+				}).Debug("Registered file event.")
+				t0 := time.Now()
+				removed := ""
+				if (evt.Op & removalMask) != 0 {
+					removed = evt.Name
+				}
+				err := rt.processWatcherUpdate(ctx, paths, removed)
+				onReload(time.Since(t0), err)
 			}
-			err := rt.processWatcherUpdate(ctx, paths, removed)
-			onReload(time.Since(t0), err)
+		case <-ctx.Done():
+			watcher.Close()
+			return
 		}
 	}
 }
@@ -1065,7 +1074,7 @@ func generateDecisionID() string {
 }
 
 func verifyAuthorizationPolicySchema(m *plugins.Manager) error {
-	authorizationDecisionRef, err := ref.ParseDataPath(*m.Config.DefaultAuthorizationDecision)
+	authorizationDecisionRef, err := ref.ParseDataPath(*m.GetConfig().DefaultAuthorizationDecision)
 	if err != nil {
 		return err
 	}

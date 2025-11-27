@@ -4,7 +4,6 @@
 package topdown
 
 import (
-	"context"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -13,7 +12,7 @@ import (
 func TestOPARuntime(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	q := NewQuery(ast.MustParseBody("opa.runtime(x)")) // no runtime info
 	rs, err := q.Run(ctx)
 	if err != nil {
@@ -49,7 +48,7 @@ func TestOPARuntime(t *testing.T) {
 func TestOPARuntimeConfigMasking(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	q := NewQuery(ast.MustParseBody("opa.runtime(x)")).WithRuntime(ast.MustParseTerm(`{"config": {
 		"labels": {"foo": "bar"},
 		"services": {

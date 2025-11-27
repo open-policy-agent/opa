@@ -9,77 +9,54 @@ export default function NotFoundContent({ className }) {
 
   const fullUrl = `https://${currentHost}${currentPath}`;
 
-  const issueTitle = `docs: 404 error on ${currentPath}`;
-  const issueBody = `## Description
-
-The page at path **${currentPath}** resulted in a 404 error.
-
-### URL:
-[${fullUrl}](${fullUrl})
-
-### Additional Context:
-
-I found the broken link on https://...
-
-<!-- If you encountered an issue, please help us fix it by providing more details. -->
-`;
-
-  const encodedTitle = encodeURIComponent(issueTitle);
-  const encodedBody = encodeURIComponent(issueBody);
-  const labels = "docs,bug";
+  const encodedBrokenLink = encodeURIComponent(fullUrl);
 
   const githubIssueUrl =
-    `https://github.com/open-policy-agent/opa/issues/new?template=bug_report.md&title=${encodedTitle}&body=${encodedBody}&labels=${labels}`;
+    `https://github.com/open-policy-agent/opa/issues/new?template=broken-link.yaml&broken-link=${encodedBrokenLink}`;
 
   return (
     <main className={clsx("container margin-vert--xl", className)}>
       <div className="row">
         <div className="col col--6 col--offset-3">
           <Heading as="h1" className="hero__title">
-            <Translate
-              id="theme.NotFound.title"
-              description="The title of the 404 page"
-            >
-              Sorry, looks like this page was lost at sea!
-            </Translate>
+            Sorry, this link is broken.
           </Heading>
           <p>
-            <Translate
-              id="theme.NotFound.p1"
-              description="The first paragraph of the 404 page"
-            >
-              We could not find what you were looking for.
-            </Translate>
+            <strong>Will you help us fix it?</strong>{" "}
+            All you need to do is open an issue with some information about where you just clicked this link.
           </p>
-          <p>
-            <Translate
-              id="theme.NotFound.p2"
-              description="The 2nd paragraph of the 404 page"
-            >
-              This is a bug, please help us fix it!
-            </Translate>
-          </p>
-          <p>
-            <Translate
-              id="theme.NotFound.p3"
-              description="The 3rd paragraph of the 404 page"
-            >
-              When creating the issue, please make sure to reference the following path:
-            </Translate>
-          </p>
-          <pre className="language-text">
-            {currentPath}
-          </pre>
-
-          <div className="text--center">
-            <a
-              href={githubIssueUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="button button--primary button--sm"
-            >
-              Report a Bug
-            </a>
+          <Heading as="h3">
+            Step 1: Get the URL you just came from
+          </Heading>
+          <div>
+            <p>
+              This is the most important step. We don't track you and so we don't know which site you just came from.
+            </p>
+            <p>
+              Press back in your browser and copy the URL of the page you just visited. We'll need this in the next
+              step. Press forward once you have it copied.
+            </p>
+          </div>
+          <Heading as="h3">
+            Step 2: Click this button to open the issue template
+          </Heading>
+          <div>
+            <p>
+              This link will pre-populate the broken link information. You'll just need to fill in where you found this link.
+            </p>
+            <p>
+              <a
+                href={githubIssueUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="button button--primary"
+              >
+                Report a Bug
+              </a>
+            </p>
+            <p>
+              This will open in a new tab.
+            </p>
           </div>
         </div>
       </div>

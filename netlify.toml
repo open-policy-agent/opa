@@ -4,7 +4,7 @@ command = "make netlify-latest"
 edge_functions = "docs/functions"
 
 [build.environment]
-NODE_VERSION = "22.15.0"
+NODE_VERSION = "22.16.0"
 # some examples in v1/test/cases/testdata/v0/cryptox509* flag the netlify
 # secret scan
 SECRETS_SCAN_OMIT_PATHS = "v1/test/cases,v1/topdown/crypto_test.go"
@@ -23,6 +23,11 @@ function = "badge"
 [[edge_functions]]
 path = "/docs/*"
 function = "version-redirect"
+
+# function to process form notifications from netlify forms and send them to slack
+[[edge_functions]]
+path = "/api/feedback"
+function = "feedback"
 
 # /data/versions.json is used by versioned OPA deployments to determine
 # if what the latest release is, how outdated they are.

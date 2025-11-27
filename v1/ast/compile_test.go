@@ -23,7 +23,6 @@ import (
 )
 
 func TestOutputVarsForNode(t *testing.T) {
-
 	tests := []struct {
 		note      string
 		query     string
@@ -250,7 +249,7 @@ func TestOutputVarsForNode(t *testing.T) {
 
 			vs := NewSet()
 
-			for v := range outputVarsForBody(body, arity, safe) {
+			for v := range outputVarsForBody(body, arity, safe, nil) {
 				vs.Add(NewTerm(v))
 			}
 
@@ -7360,6 +7359,39 @@ func TestCompilerRewritePrintCallsErrors(t *testing.T) {
 	}
 }
 
+// Regression test for bug #7647
+// head values in nested comprehensions should not lead to undeclared error.
+func TestCompilterRewritePrintCallsNestedComprehensionLocalsSafe(t *testing.T) {
+	cases := []struct {
+		note   string
+		module string
+	}{
+		{
+			note: "print variable from nested comprehension without error",
+			module: `package test
+		    f(_) := {"a": [1, 2, 3], "b": [4, 5, 6], "c": [7, 8, 9]}
+
+		    p := [v |
+			m := {l | l := f(true)[k]}[_]
+			v := m[_]
+			print(v)
+			]`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler().WithEnablePrintStatements(true)
+			c.Compile(map[string]*Module{
+				"test.rego": module(tc.module),
+			})
+			if c.Failed() {
+				t.Fatal("unexpected error:", c.Errors)
+			}
+		})
+	}
+}
+
 func TestCompilerRewritePrintCalls(t *testing.T) {
 	cases := []struct {
 		note   string
@@ -10624,6 +10656,84 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 				}
 			} else if compiler.Failed() {
 				t.Fatalf("unexpected error(s): %v", compiler.Errors)
+			}
+		})
+	}
+}
+
+func TestCustomBuiltinWithCompileModulesWithOpt(t *testing.T) {
+	tests := []struct {
+		name              string
+		module            string
+		expectedErrorCode string
+		skipCapabilities  bool
+	}{
+		{
+			name: "custom builtin",
+			module: `package test
+
+			p if { bar(2) }`,
+		},
+		{
+			name: "missing custom builtin",
+			module: `package test
+	
+			p if { foo(1,2,x) }`,
+			expectedErrorCode: "rego_type_error",
+		},
+		{
+			name: "no capabilities, using custom builtin",
+			module: `package test
+
+			p if { bar(2) }`,
+			skipCapabilities:  true,
+			expectedErrorCode: "rego_type_error",
+		},
+		{
+			name: "no capabilities",
+			module: `package test
+				import rego.v1
+				p if { true }`,
+			skipCapabilities: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			customBuiltin := &Builtin{
+				Name: "bar",
+				Decl: types.NewFunction([]types.Type{types.N}, types.B),
+			}
+
+			capabilities := CapabilitiesForThisVersion()
+			capabilities.Builtins = append(capabilities.Builtins, customBuiltin)
+
+			var err error
+			if tc.skipCapabilities {
+				_, err = CompileModulesWithOpt(map[string]string{"x": tc.module}, CompileOpts{})
+			} else {
+				_, err = CompileModulesWithOpt(map[string]string{"x": tc.module}, CompileOpts{
+					ParserOptions: ParserOptions{
+						Capabilities: capabilities,
+					},
+				})
+			}
+
+			if tc.expectedErrorCode == "" && err != nil {
+				t.Fatal(err)
+			}
+			if tc.expectedErrorCode != "" {
+				if err == nil {
+					t.Fatalf("expected error code %s but got success", tc.expectedErrorCode)
+				}
+				var astError Errors
+				if errors.As(err, &astError) {
+					if astError[0].Code != tc.expectedErrorCode {
+						t.Fatalf("expected error code %s but got %s", tc.expectedErrorCode, astError[0].Code)
+					}
+				} else {
+					t.Fatal(err)
+				}
 			}
 		})
 	}

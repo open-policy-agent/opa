@@ -21,12 +21,14 @@ characters or so.
 * All commits must be signed off by the author. If you are not
 familiar with signing off, see our contributor guide below.
 
-For more information on contributing to OPA see:
+* You have read the project's
+  [guidelines on AI tool use](https://www.openpolicyagent.org/docs/contrib-code#ai-guidelines).
 
-* [Contributing Guide](https://www.openpolicyagent.org/docs/contributing/)
-  for high-level contributing guidelines and development setup.
-  (See the [Developer Certificate of Origin](https://www.openpolicyagent.org/docs/contrib-code/#developer-certificate-of-origin)
-  section for specifics on signing off a commit.)
+For more information on contributing to OPA see our
+[Contributing Guide](https://www.openpolicyagent.org/docs/contributing/)
+for high-level contributing guidelines and development setup.
+(See the [Developer Certificate of Origin](https://www.openpolicyagent.org/docs/contrib-code/#developer-certificate-of-origin)
+section for specifics on signing off a commit.)
 
 -->
 

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"strconv"
 
 	"sigs.k8s.io/yaml"
 
@@ -19,15 +20,14 @@ import (
 // UnmarshalJSON parses the JSON encoded data and stores the result in the value
 // pointed to by x.
 //
-// This function is intended to be used in place of the standard json.Marshal
-// function when json.Number is required.
+// This function is intended to be used in place of the standard [json.Marshal]
+// function when [json.Number] is required.
 func UnmarshalJSON(bs []byte, x any) error {
 	return unmarshalJSON(bs, x, true)
 }
 
 func unmarshalJSON(bs []byte, x any, ext bool) error {
-	buf := bytes.NewBuffer(bs)
-	decoder := NewJSONDecoder(buf)
+	decoder := NewJSONDecoder(bytes.NewBuffer(bs))
 	if err := decoder.Decode(x); err != nil {
 		if handler := extension.FindExtension(".json"); handler != nil && ext {
 			return handler(bs, x)
@@ -49,8 +49,8 @@ func unmarshalJSON(bs []byte, x any, ext bool) error {
 
 // NewJSONDecoder returns a new decoder that reads from r.
 //
-// This function is intended to be used in place of the standard json.NewDecoder
-// when json.Number is required.
+// This function is intended to be used in place of the standard [json.NewDecoder]
+// when [json.Number] is required.
 func NewJSONDecoder(r io.Reader) *json.Decoder {
 	decoder := json.NewDecoder(r)
 	decoder.UseNumber()
@@ -87,6 +87,55 @@ func MustMarshalJSON(x any) []byte {
 // rego.Input and inmem's Write operations. Works with both references and
 // values.
 func RoundTrip(x *any) error {
+	// Avoid round-tripping types that won't change as a result of
+	// marshalling/unmarshalling, as even for those values, round-tripping
+	// comes with a significant cost.
+	if x == nil || !NeedsRoundTrip(*x) {
+		return nil
+	}
+
+	// For number types, we can write the json.Number representation
+	// directly into x without marshalling to bytes and back.
+	a := *x
+	switch v := a.(type) {
+	case int:
+		*x = json.Number(strconv.Itoa(v))
+		return nil
+	case int8:
+		*x = json.Number(strconv.FormatInt(int64(v), 10))
+		return nil
+	case int16:
+		*x = json.Number(strconv.FormatInt(int64(v), 10))
+		return nil
+	case int32:
+		*x = json.Number(strconv.FormatInt(int64(v), 10))
+		return nil
+	case int64:
+		*x = json.Number(strconv.FormatInt(v, 10))
+		return nil
+	case uint:
+		*x = json.Number(strconv.FormatUint(uint64(v), 10))
+		return nil
+	case uint8:
+		*x = json.Number(strconv.FormatUint(uint64(v), 10))
+		return nil
+	case uint16:
+		*x = json.Number(strconv.FormatUint(uint64(v), 10))
+		return nil
+	case uint32:
+		*x = json.Number(strconv.FormatUint(uint64(v), 10))
+		return nil
+	case uint64:
+		*x = json.Number(strconv.FormatUint(v, 10))
+		return nil
+	case float32:
+		*x = json.Number(strconv.FormatFloat(float64(v), 'f', -1, 32))
+		return nil
+	case float64:
+		*x = json.Number(strconv.FormatFloat(v, 'f', -1, 64))
+		return nil
+	}
+
 	bs, err := json.Marshal(x)
 	if err != nil {
 		return err
@@ -94,15 +143,28 @@ func RoundTrip(x *any) error {
 	return UnmarshalJSON(bs, x)
 }
 
+// NeedsRoundTrip returns true if the value won't change as a result of
+// a marshalling/unmarshalling round-trip. Since [RoundTrip] itself calls
+// this you normally don't need to call this function directly, unless you
+// want to make decisions based on the round-tripability of a value without
+// actually doing the round-trip.
+func NeedsRoundTrip(x any) bool {
+	switch x.(type) {
+	case nil, bool, string, json.Number:
+		return false
+	}
+	return true
+}
+
 // Reference returns a pointer to its argument unless the argument already is
 // a pointer. If the argument is **t, or ***t, etc, it will return *t.
 //
 // Used for preparing Go types (including pointers to structs) into values to be
-// put through util.RoundTrip().
+// put through [RoundTrip].
 func Reference(x any) *any {
 	var y any
 	rv := reflect.ValueOf(x)
-	if rv.Kind() == reflect.Ptr {
+	if rv.Kind() == reflect.Pointer {
 		return Reference(rv.Elem().Interface())
 	}
 	if rv.Kind() != reflect.Invalid {

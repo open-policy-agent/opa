@@ -1,0 +1,190 @@
+---
+sidebar_label: GCE
+sidebar_position: 1
+title: Deploying OPA on GCE
+---
+
+This section outlines the steps to deploy OPA on virtual machines within Google
+Compute Engine (GCE). GCE is a versatile options to run an OPA Policy Decision
+Point (PDP) without containers, and is a good fit for various use cases that
+require integration with GCE-based applications. The following use cases often
+involve running OPA on GCE:
+
+- OPA needs to run close to an existing application or Policy Enforcement Point
+  (PEP) or application running on GCE, sharing the same host to achieve
+  low-latency policy checks.
+- Your deployment process for GCE is well-established, and you’re adding OPA to
+  your toolset.
+- You want to quickly set up an OPA instance for testing or development
+  activities.
+
+This guide will walk you through the steps and considerations for setting up and
+managing an OPA Policy Decision Point (PDP) on GCE.
+
+
+## Choosing an Operating System Image
+
+While OPA can run on almost any GCE machine type, a Linux-based operating system
+image is recommended.
+
+It is also recommended to use a service manager to run OPA. This ensures that
+OPA starts at boot time and is restarted if it crashes. This guide uses Systemd
+as the service manager, as this is what is used in most commonly available
+operating system images on GCE.
+
+If you are unsure of which operating system image to use, it is recommended to
+run OPA on the latest default image available on GCE with Systemd, typically
+Debian.
+
+
+## Choosing a Machine Type
+
+The machine type you choose is based on the expected load and memory
+requirements of the data needed for policy evaluation once loaded into OPA.
+While OPA itself is lightweight, in some cases, the data required for policy
+evaluation can be large datasets of users, roles, and other information
+necessary for decision-making.
+
+Users are always recommended to benchmark the memory performance of OPA with
+their data loaded. Read more about
+[OPA Resource Utilization](../../policy-performance/#resource-utilization).
+
+On GCE, using a machine type smaller than `e2.small` is not recommended.
+
+:::info
+For readers looking to add an OPA process to run alongside their existing GCE
+application within the same virtual machine, it is recommended to verify that
+running OPA alongside the application will not cause performance issues before
+selecting a machine type for production use.
+:::
+
+
+## Networking Considerations
+
+**Public IP Addresses**: These are typically not required for OPA deployments.
+PEPs calling OPA are generally other internal services, rather than
+end-users. If exposing an OPA instance running on GCE to the internet, it is
+recommended to use OPA's own
+[Authentication and Authorization](../../security/#authentication-and-authorization)
+functionality to secure the API and to run OPA behind a reverse proxy or load
+balancer.
+
+**Firewall Rules**: If OPA needs to be accessed by other services running in
+GCP, you must permit inbound traffic on the port that OPA is listening on. The
+default port for OPA is `8181`. It is also recommended to restrict the source IP
+addresses to only those that need to access OPA. For GCE, these settings can be
+configured in using firewall Rules.
+
+:::info
+When OPA need only be accessed from the virtual machine it is running on, OPA
+can be configured to listen on `localhost` instead.
+:::
+
+If you need to run OPA on a low number port on GCE, you might need to add the
+following to the startup script to allow OPA to bind to the port:
+
+```sh
+setcap 'cap_net_bind_service=+ep' /usr/local/bin/opa
+```
+
+
+## Startup Script
+
+Once you have chosen the specifications for your GCE machine, it’s time to
+install and run OPA.
+
+Setting a startup script when creating a GCE instance to install and run OPA is
+the recommended way to create a new GCE instance with OPA installed - that is,
+if you are not creating a custom image with OPA pre-installed. This section
+shows a startup script that will install and run OPA. In summary, the script
+will:
+
+- Download the OPA binary for the latest release.
+- Place the config for the instance in the credstore
+- Start OPA using Systemd with this configuration file listening on port `8181`.
+
+<!-- markdownlint-disable MD044 -->
+<!-- markdownlint-disable MD034 -->
+<ParamProvider
+  initialParams={{
+    token: '7AnU3j1R1MQN9N...',
+    version: '...',
+  }}
+>
+
+Before continuing, please ensure you have the following information:
+
+- Bundle Service Token: <InlineEditable paramKey="token"/> (if the bundle server
+  requires a static token, see [configuration](../../configuration) for more
+  information).
+- OPA Version: <InlineEditable paramKey="version"/>, e.g. `X.Y.Z` not `latest`
+  or `vX.Y.Z`. Review the
+  [OPA releases](https://github.com/open-policy-agent/opa/releases) on GitHub.
+
+Please use the user data shell script below to install and run OPA:
+
+<!-- markdownlint-disable MD044 -->
+<!-- markdownlint-disable MD034 -->
+<ParamCodeBlock>
+{`#!/bin/bash
+
+curl -L -o /usr/local/bin/opa https://github.com/open-policy-agent/opa/releases/download/v{{version}}/opa_linux_amd64
+chmod 755 /usr/local/bin/opa
+
+cat <<EOF > /etc/credstore/opa.service/config
+# example configuration
+
+services:
+  acmecorp:
+    url: https://example.com/control-plane-api/v1
+    response_header_timeout_seconds: 5
+    credentials:
+      bearer:
+        token: "{{token}}"
+
+labels:
+  app: myapp
+  region: west
+  environment: production
+
+bundles:
+  authz:
+    service: acmecorp
+    resource: bundles/http/example/authz.tar.gz
+
+EOF
+
+cat <<EOF > /etc/systemd/system/opa.service
+[Unit]
+Description=Open Policy Agent
+After=network.target
+StartLimitInterval=60
+StartLimitBurst=4
+
+[Service]
+ExecStart=/usr/local/bin/opa run --server --addr=0.0.0.0:8181 --config-file=$CREDENTIALS_DIRECTORY/config
+LoadCredential=config:/etc/credstore/opa.service/config
+
+
+RuntimeDirectory=opa
+WorkingDirectory=/run/opa
+
+Restart=always
+RestartSec=5
+Restart=on-failure
+
+DynamicUser=yes
+ProtectSystem=full
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable opa.service
+systemctl start opa.service
+`}
+</ParamCodeBlock>
+
+</ParamProvider>

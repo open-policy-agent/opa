@@ -5,7 +5,6 @@
 package topdown
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -20,7 +19,7 @@ func TestTimeSeeding(t *testing.T) {
 	clock := time.Now()
 	q := NewQuery(ast.MustParseBody(query)).WithTime(clock).WithCompiler(ast.NewCompiler())
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	qrs, err := q.Run(ctx)
 	if err != nil {

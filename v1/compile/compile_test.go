@@ -2,7 +2,6 @@ package compile
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -45,7 +44,7 @@ func TestCompilerV1Module(t *testing.T) {
 				WithFS(fsys).
 				WithPaths(root)
 
-			err := compiler.Build(context.Background())
+			err := compiler.Build(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -78,7 +77,7 @@ func TestOrderedStringSet(t *testing.T) {
 
 func TestCompilerInitErrors(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tests := []struct {
 		note string
@@ -128,7 +127,7 @@ func TestCompilerLoadError(t *testing.T) {
 			err := New().
 				WithFS(fsys).
 				WithPaths(path.Join(root, "does-not-exist")).
-				Build(context.Background())
+				Build(t.Context())
 			if err == nil {
 				t.Fatal("expected failure")
 			}
@@ -138,7 +137,7 @@ func TestCompilerLoadError(t *testing.T) {
 
 func TestCompilerLoadAsBundleSuccess(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 	rv := strconv.Itoa(ast.DefaultRegoVersion.Int())
 
 	files := map[string]string{
@@ -431,7 +430,7 @@ p contains "B" if {
 
 	for _, bundleType := range bundleTypeCases {
 		for _, tc := range tests {
-			ctx := context.Background()
+			ctx := t.Context()
 			t.Run(fmt.Sprintf("%s, %s", bundleType.note, tc.note), func(t *testing.T) {
 				files := map[string]string{}
 				if bundleType.tar {
@@ -870,7 +869,7 @@ func compareRegoVersions(t *testing.T, exp, act *int) {
 
 func TestCompilerLoadAsBundleMergeError(t *testing.T) {
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Omit manifests (defaulting to '') to trigger a merge error
 	files := map[string]string{
@@ -921,7 +920,7 @@ func TestCompilerLoadFilesystem(t *testing.T) {
 				WithFS(fsys).
 				WithPaths(root)
 
-			err := compiler.Build(context.Background())
+			err := compiler.Build(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -965,7 +964,7 @@ func TestCompilerLoadFilesystemWithEnablePrintStatementsFalse(t *testing.T) {
 				WithTarget("plan").WithEntrypoints("test/allow").
 				WithEnablePrintStatements(false)
 
-			if err := compiler.Build(context.Background()); err != nil {
+			if err := compiler.Build(t.Context()); err != nil {
 				t.Fatal(err)
 			}
 
@@ -1000,7 +999,7 @@ func TestCompilerLoadFilesystemWithEnablePrintStatementsTrue(t *testing.T) {
 				WithEntrypoints("test/allow").
 				WithEnablePrintStatements(true)
 
-			if err := compiler.Build(context.Background()); err != nil {
+			if err := compiler.Build(t.Context()); err != nil {
 				t.Fatal(err)
 			}
 
@@ -1033,7 +1032,7 @@ func TestCompilerLoadHonorsFilter(t *testing.T) {
 					return strings.HasSuffix(abspath, ".json")
 				})
 
-			err := compiler.Build(context.Background())
+			err := compiler.Build(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1060,7 +1059,7 @@ func TestCompilerInputBundle(t *testing.T) {
 
 	compiler := New().WithBundle(b)
 
-	if err := compiler.Build(context.Background()); err != nil {
+	if err := compiler.Build(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1092,7 +1091,7 @@ func TestCompilerInputInvalidBundle(t *testing.T) {
 
 	compiler := New().WithBundle(b)
 
-	if err := compiler.Build(context.Background()); err == nil {
+	if err := compiler.Build(t.Context()); err == nil {
 		t.Fatal("duplicate module URL not detected")
 	} else if err.Error() != "duplicate module URL: /url" {
 		t.Fatal(err)
@@ -1115,7 +1114,7 @@ func TestCompilerError(t *testing.T) {
 				WithFS(fsys).
 				WithPaths(root)
 
-			err := compiler.Build(context.Background())
+			err := compiler.Build(t.Context())
 			if err == nil {
 				t.Fatal("expected error")
 			}
@@ -1151,7 +1150,7 @@ func TestCompilerOptimizationL1(t *testing.T) {
 				WithOptimizationLevel(1).
 				WithEntrypoints("test/p")
 
-			err := compiler.Build(context.Background())
+			err := compiler.Build(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1212,7 +1211,7 @@ func TestCompilerOptimizationL2(t *testing.T) {
 				WithOptimizationLevel(2).
 				WithEntrypoints("test/p")
 
-			err := compiler.Build(context.Background())
+			err := compiler.Build(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1272,7 +1271,7 @@ func TestCompilerOptimizationWithConfiguredNamespace(t *testing.T) {
 				WithEntrypoints("test/p").
 				WithPartialNamespace("custom")
 
-			err := compiler.Build(context.Background())
+			err := compiler.Build(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1673,7 +1672,7 @@ update {
 						WithEntrypoints(tc.entrypoint).
 						WithCapabilities(caps)
 
-					err := compiler.Build(context.Background())
+					err := compiler.Build(t.Context())
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -1940,7 +1939,7 @@ p if {
 					WithOptimizationLevel(1).
 					WithEntrypoints(tc.entrypoint)
 
-				err := compiler.Build(context.Background())
+				err := compiler.Build(t.Context())
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -2001,7 +2000,7 @@ func TestCompilerWasmTarget(t *testing.T) {
 				WithTarget("wasm").
 				WithEntrypoints("test/p", "test/q").
 				WithCapabilities(wasmABIVersions(ast.WasmABIVersion{Version: 1}))
-			err := compiler.Build(context.Background())
+			err := compiler.Build(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -2037,7 +2036,7 @@ func TestCompilerWasmTargetWithCapabilitiesUnset(t *testing.T) {
 				WithPaths(root).
 				WithTarget("wasm").
 				WithEntrypoints("test/p", "test/q")
-			err := compiler.Build(context.Background())
+			err := compiler.Build(t.Context())
 			if err != nil {
 				t.Fatalf("expected no error, got %v", err)
 			}
@@ -2069,7 +2068,7 @@ func TestCompilerWasmTargetWithCapabilitiesMismatch(t *testing.T) {
 						WithTarget("wasm").
 						WithEntrypoints("test/p", "test/q").
 						WithCapabilities(caps)
-					err := compiler.Build(context.Background())
+					err := compiler.Build(t.Context())
 					if err == nil {
 						t.Fatal("expected err, got nil")
 					}
@@ -2102,7 +2101,7 @@ func TestCompilerWasmTargetMultipleEntrypoints(t *testing.T) {
 				WithTarget("wasm").
 				WithEntrypoints("test/p", "policy/authz").
 				WithCapabilities(wasmABIVersions(ast.WasmABIVersion{Version: 1}))
-			err := compiler.Build(context.Background())
+			err := compiler.Build(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -2168,7 +2167,7 @@ q = true`,
 				WithEntrypoints("test", "policy/q").
 				WithRegoAnnotationEntrypoints(true)
 
-			err := compiler.Build(context.Background())
+			err := compiler.Build(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -2243,7 +2242,7 @@ func TestCompilerWasmTargetEntrypointDependents(t *testing.T) {
 				WithTarget("wasm").
 				WithEntrypoints("test/r", "test/z").
 				WithCapabilities(wasmABIVersions(ast.WasmABIVersion{Version: 1}))
-			err := compiler.Build(context.Background())
+			err := compiler.Build(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -2304,7 +2303,7 @@ func TestCompilerWasmTargetLazyCompile(t *testing.T) {
 				WithEntrypoints("test/p").
 				WithOptimizationLevel(1).
 				WithCapabilities(wasmABIVersions(ast.WasmABIVersion{Version: 1}))
-			err := compiler.Build(context.Background())
+			err := compiler.Build(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -2353,7 +2352,7 @@ func TestCompilerPlanTarget(t *testing.T) {
 				WithPaths(root).
 				WithTarget("plan").
 				WithEntrypoints("test/p", "test/q")
-			err := compiler.Build(context.Background())
+			err := compiler.Build(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -2382,7 +2381,7 @@ func TestCompilerPlanTargetPruneUnused(t *testing.T) {
 				WithTarget("plan").
 				WithEntrypoints("test").
 				WithPruneUnused(true)
-			err := compiler.Build(context.Background())
+			err := compiler.Build(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -2424,7 +2423,7 @@ func TestCompilerPlanTargetUnmatchedEntrypoints(t *testing.T) {
 				WithPaths(root).
 				WithTarget("plan").
 				WithEntrypoints("test/p", "test/q", "test/no")
-			err := compiler.Build(context.Background())
+			err := compiler.Build(t.Context())
 			if err == nil {
 				t.Error("expected error from unmatched entrypoint")
 			}
@@ -2443,7 +2442,7 @@ func TestCompilerPlanTargetUnmatchedEntrypoints(t *testing.T) {
 				WithPaths(root).
 				WithTarget("plan").
 				WithEntrypoints("foo", "foo.bar", "test/no")
-			err := compiler.Build(context.Background())
+			err := compiler.Build(t.Context())
 			if err == nil {
 				t.Error("expected error from unmatched entrypoints")
 			}
@@ -2766,7 +2765,7 @@ q contains 3
 						WithEntrypoints(tc.entrypoints...).
 						WithRegoAnnotationEntrypoints(true).
 						WithPruneUnused(true)
-					err := compiler.Build(context.Background())
+					err := compiler.Build(t.Context())
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -2802,7 +2801,7 @@ func TestCompilerSetRevision(t *testing.T) {
 				WithFS(fsys).
 				WithPaths(root).
 				WithRevision("deadbeef")
-			err := compiler.Build(context.Background())
+			err := compiler.Build(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -2830,7 +2829,7 @@ func TestCompilerSetMetadata(t *testing.T) {
 				WithPaths(root).
 				WithMetadata(&metadata)
 
-			err := compiler.Build(context.Background())
+			err := compiler.Build(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -2859,7 +2858,7 @@ func TestCompilerSetRoots(t *testing.T) {
 				WithPaths(root).
 				WithRoots("test")
 
-			err := compiler.Build(context.Background())
+			err := compiler.Build(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -2890,7 +2889,7 @@ func TestCompilerOutput(t *testing.T) {
 				WithFS(fsys).
 				WithPaths(root).
 				WithOutput(buf)
-			err := compiler.Build(context.Background())
+			err := compiler.Build(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -2951,7 +2950,7 @@ func TestOptimizerNoops(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			o := getOptimizer(tc.modules, "", tc.entrypoints, nil, "", ast.ParserOptions{AllFutureKeywords: true})
 			cpy := o.bundle.Copy()
-			err := o.Do(context.Background())
+			err := o.Do(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -3002,7 +3001,7 @@ func TestOptimizerErrors(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			o := getOptimizer(tc.modules, "", tc.entrypoints, nil, "", ast.ParserOptions{AllFutureKeywords: true})
 			cpy := o.bundle.Copy()
-			got := o.Do(context.Background())
+			got := o.Do(t.Context())
 			if got == nil || got.Error() != tc.wantErr.Error() {
 				t.Fatalf("expected error to be %v but got %v", tc.wantErr, got)
 			}
@@ -3500,7 +3499,7 @@ func TestOptimizerOutput(t *testing.T) {
 			popts := ast.ParserOptions{AllFutureKeywords: true}
 			o := getOptimizer(tc.modules, tc.data, tc.entrypoints, tc.roots, tc.namespace, popts)
 			original := o.bundle.Copy()
-			err := o.Do(context.Background())
+			err := o.Do(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -3573,7 +3572,7 @@ func TestOptimizerError(t *testing.T) {
 			popts := ast.ParserOptions{AllFutureKeywords: true}
 			o := getOptimizer(tc.modules, "", tc.entrypoints, tc.roots, "", popts)
 
-			err := o.Do(context.Background())
+			err := o.Do(t.Context())
 			if err == nil {
 				t.Fatal("expected error but got nil")
 			}
@@ -3698,15 +3697,16 @@ type prettyBundle struct {
 }
 
 func (p prettyBundle) String() string {
-
 	buf := []string{fmt.Sprintf("%d module(s) (hiding data):", len(p.Modules)), ""}
 
 	for _, mf := range p.Modules {
-		buf = append(buf, "#")
-		buf = append(buf, fmt.Sprintf("# Module: %q", mf.Path))
-		buf = append(buf, "#")
-		buf = append(buf, mf.Parsed.String())
-		buf = append(buf, "")
+		buf = append(buf,
+			"#",
+			fmt.Sprintf("# Module: %q", mf.Path),
+			"#",
+			mf.Parsed.String(),
+			"",
+		)
 	}
 
 	return strings.Join(buf, "\n")

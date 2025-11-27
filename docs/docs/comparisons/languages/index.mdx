@@ -1,0 +1,52 @@
+---
+sidebar_label: Programming Languages
+sidebar_position: 0
+show_feedback_form: false
+---
+
+# Learn Rego by Comparison
+
+Writing policy that models authorization, admission control, and data filtering
+requirements isn't a new problem. Many readers will have implemented such
+policies as part of their applications — and some will have done so in dozens of
+languages and frameworks. The most common languages used today are general
+purpose. Engineers write business logic and policies in the same language, side
+by side, often with tight coupling between the two.
+
+When considering a new model standardizing policy specification and evaluation
+across an organization, using a language written from the ground up for policy
+use cases can provide significant benefits.
+[Rego](../policy-language/), the policy
+language used by OPA, is designed specifically to express policy logic in a
+short, declarative manner — without sacrificing on performance or
+expressiveness.
+
+In this section, we provide examples of policy code in different programming
+languages. Each example includes the same policy written in a general purpose
+programming language and the corresponding policy written in Rego. This is
+intended to help readers learn Rego more quickly by comparing it to languages
+they already know well.
+
+Please select a language that you know well to see how it compares
+with Rego.
+
+<CardGrid>
+  <Card key={"python"} item={{
+    title: "Python",
+    icon: require('./assets/images/python.png').default,
+    link: "./languages/python",
+    link_text: "Compare Python",
+  }} />
+  <Card key={"java"} item={{
+    title: "Java",
+    icon: require('./assets/images/java.png').default,
+    link: "./languages/java",
+    link_text: "Compare Java",
+  }} />
+  <Card key={"go"} item={{
+    title: "Go",
+    icon: require('./assets/images/go.png').default,
+    link: "./languages/go",
+    link_text: "Compare Go",
+  }} />
+</CardGrid>

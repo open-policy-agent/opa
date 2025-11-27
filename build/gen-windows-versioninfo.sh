@@ -12,6 +12,9 @@ if [ -n "${1+x}" ] && [ "$1" = "arm64" ]; then
 fi
 
 if ! command -v goversioninfo &> /dev/null; then
+    go version
+    ls -al /go/bin/
+    /go/bin/goversioninfo
     # If goversioninfo isn't on the path, print an error message
     echo "Error: goversioninfo command not found" >&2
     exit 1

@@ -86,6 +86,12 @@ func moduleInfoPath(id string) storage.Path {
 func read(ctx context.Context, store storage.Store, txn storage.Transaction, path storage.Path) (any, error) {
 	value, err := store.Read(ctx, txn, path)
 	if err != nil {
+		if storage.IsNotFound(err) {
+			return nil, &storage.Error{
+				Code:    storage.NotFoundErr,
+				Message: strings.TrimPrefix(path.String(), "/system") + ": document does not exist",
+			}
+		}
 		return nil, err
 	}
 
@@ -565,12 +571,11 @@ func doDFS(obj map[string]json.RawMessage, path string, roots []string) error {
 	}
 
 	for key := range obj {
-
 		newPath := filepath.Join(strings.Trim(path, "/"), key)
 
 		// Note: filepath.Join can return paths with '\' separators, always use
 		// filepath.ToSlash to keep them normalized.
-		newPath = strings.TrimLeft(normalizePath(newPath), "/.")
+		newPath = strings.TrimLeft(filepath.ToSlash(newPath), "/.")
 
 		contains := false
 		prefix := false
@@ -1185,17 +1190,20 @@ func applyPatches(ctx context.Context, store storage.Store, txn storage.Transact
 // Helpers for the older single (unnamed) bundle style manifest storage.
 
 // LegacyManifestStoragePath is the older unnamed bundle path for manifests to be stored.
+//
 // Deprecated: Use ManifestStoragePath and named bundles instead.
 var legacyManifestStoragePath = storage.MustParsePath("/system/bundle/manifest")
 var legacyRevisionStoragePath = append(legacyManifestStoragePath, "revision")
 
 // LegacyWriteManifestToStore will write the bundle manifest to the older single (unnamed) bundle manifest location.
+//
 // Deprecated: Use WriteManifestToStore and named bundles instead.
 func LegacyWriteManifestToStore(ctx context.Context, store storage.Store, txn storage.Transaction, manifest Manifest) error {
 	return write(ctx, store, txn, legacyManifestStoragePath, manifest)
 }
 
 // LegacyEraseManifestFromStore will erase the bundle manifest from the older single (unnamed) bundle manifest location.
+//
 // Deprecated: Use WriteManifestToStore and named bundles instead.
 func LegacyEraseManifestFromStore(ctx context.Context, store storage.Store, txn storage.Transaction) error {
 	err := store.Write(ctx, txn, storage.RemoveOp, legacyManifestStoragePath, nil)
@@ -1206,12 +1214,14 @@ func LegacyEraseManifestFromStore(ctx context.Context, store storage.Store, txn 
 }
 
 // LegacyReadRevisionFromStore will read the bundle manifest revision from the older single (unnamed) bundle manifest location.
+//
 // Deprecated: Use ReadBundleRevisionFromStore and named bundles instead.
 func LegacyReadRevisionFromStore(ctx context.Context, store storage.Store, txn storage.Transaction) (string, error) {
 	return readRevisionFromStore(ctx, store, txn, legacyRevisionStoragePath)
 }
 
 // ActivateLegacy calls Activate for the bundles but will also write their manifest to the older unnamed store location.
+//
 // Deprecated: Use Activate with named bundles instead.
 func ActivateLegacy(opts *ActivateOpts) error {
 	opts.legacy = true

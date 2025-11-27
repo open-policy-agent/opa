@@ -6,7 +6,6 @@ package lineage
 
 import (
 	"bytes"
-	"context"
 	"strings"
 	"testing"
 
@@ -181,7 +180,7 @@ Enter data.test.p = x
 				"test.rego": tc.module,
 			})
 			query := topdown.NewQuery(ast.MustParseBody("data.test.p = x")).WithCompiler(compiler).WithTracer(buf)
-			rs, err := query.Run(context.TODO())
+			rs, err := query.Run(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			} else if len(rs) != 1 || !rs[0][ast.Var("x")].Equal(ast.BooleanTerm(true)) {

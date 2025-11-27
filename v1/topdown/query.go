@@ -121,6 +121,7 @@ func (q *Query) WithInput(input *ast.Term) *Query {
 }
 
 // WithTracer adds a query tracer to use during evaluation. This is optional.
+//
 // Deprecated: Use WithQueryTracer instead.
 func (q *Query) WithTracer(tracer Tracer) *Query {
 	qt, ok := tracer.(QueryTracer)
@@ -374,7 +375,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		ctx:                         ctx,
 		metrics:                     q.metrics,
 		seed:                        q.seed,
-		time:                        ast.NumberTerm(int64ToJSONNumber(q.time.UnixNano())),
+		timeStart:                   q.time.UnixNano(),
 		cancel:                      q.cancel,
 		query:                       q.query,
 		queryCompiler:               q.queryCompiler,
@@ -569,7 +570,7 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		ctx:                         ctx,
 		metrics:                     q.metrics,
 		seed:                        q.seed,
-		time:                        ast.NumberTerm(int64ToJSONNumber(q.time.UnixNano())),
+		timeStart:                   q.time.UnixNano(),
 		cancel:                      q.cancel,
 		query:                       q.query,
 		queryCompiler:               q.queryCompiler,

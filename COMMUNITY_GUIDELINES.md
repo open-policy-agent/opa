@@ -57,7 +57,7 @@ Instances of abusive, harassing, or otherwise unacceptable behavior will not be 
 
 Please reach out to one of the admins below, or use the anonymous feedback form. 
 
-- Peter ONeill (peteroneilljr@styra.com or @peteroneilljr)
-- Torin Sandall (torin@styra.com or @tsandall) 
+- Anders Eknert (a_eknert@apple.com or @anderseknert)
+- Torin Sandall (torinsandall@gmail.com or @tsandall) 
 - Amye Scavarda Parrin (amye@linuxfoundation.org)
 - Anonymous Feedback: https://forms.gle/vFkrC1jMai1q3EZY6

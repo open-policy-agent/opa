@@ -99,6 +99,7 @@ var (
 	requiredKeys                = ast.NewSet(ast.InternedTerm("method"), ast.InternedTerm("url"))
 	httpSendLatencyMetricKey    = "rego_builtin_http_send"
 	httpSendInterQueryCacheHits = httpSendLatencyMetricKey + "_interquery_cache_hits"
+	httpSendNetworkRequests     = httpSendLatencyMetricKey + "_network_requests"
 )
 
 type httpSendKey string
@@ -313,7 +314,6 @@ func validateHTTPRequestOperand(term *ast.Term, pos int) (ast.Object, error) {
 	}
 
 	return obj, nil
-
 }
 
 // canonicalizeHeaders returns a copy of the headers where the keys are in
@@ -332,7 +332,7 @@ func canonicalizeHeaders(headers map[string]any) map[string]any {
 // a DialContext that opens a socket (specified in the http call).
 // The url is expected to contain socket=/path/to/socket (url encoded)
 // Ex. "unix://localhost/end/point?socket=%2Ftmp%2Fhttp.sock"
-func useSocket(rawURL string, tlsConfig *tls.Config) (bool, string, *http.Transport) {
+func useSocket(rawURL string) (bool, string, *http.Transport) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return false, "", nil
@@ -361,7 +361,6 @@ func useSocket(rawURL string, tlsConfig *tls.Config) (bool, string, *http.Transp
 	tr.DialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
 		return http.DefaultTransport.(*http.Transport).DialContext(ctx, "unix", socket)
 	}
-	tr.TLSClientConfig = tlsConfig
 	tr.DisableKeepAlives = true
 
 	return true, u.String(), tr
@@ -532,6 +531,10 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 		}
 	}
 
+	if len(customHeaders) != 0 {
+		customHeaders = canonicalizeHeaders(customHeaders)
+	}
+
 	isTLS := false
 	client := &http.Client{
 		Timeout: timeout,
@@ -578,13 +581,6 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 		tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
 	}
 
-	// Use system certs if no CA cert is provided
-	// or system certs flag is not set
-	if len(tlsCaCert) == 0 && tlsCaCertFile == "" && tlsCaCertEnvVar == "" && tlsUseSystemCerts == nil {
-		trueValue := true
-		tlsUseSystemCerts = &trueValue
-	}
-
 	// Check the system certificates config first so that we
 	// load additional certificated into the correct pool.
 	if tlsUseSystemCerts != nil && *tlsUseSystemCerts && runtime.GOOS != "windows" {
@@ -628,21 +624,31 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 		tlsConfig.RootCAs = pool
 	}
 
+	// If Host header is set, use it for TLS server name.
+	if host, hasHost := customHeaders["Host"]; hasHost {
+		// Only default the ServerName if the caller has
+		// specified the host. If we don't specify anything,
+		// Go will default to the target hostname. This name
+		// is not the same as the default that Go populates
+		// `req.Host` with, which is why we don't just set
+		// this unconditionally.
+		isTLS = true
+		tlsConfig.ServerName, _ = host.(string)
+	}
+
+	if tlsServerName != "" {
+		isTLS = true
+		tlsConfig.ServerName = tlsServerName
+	}
+
 	var transport *http.Transport
-	if isTLS {
-		if ok, parsedURL, tr := useSocket(url, &tlsConfig); ok {
-			transport = tr
-			url = parsedURL
-		} else {
-			transport = http.DefaultTransport.(*http.Transport).Clone()
-			transport.TLSClientConfig = &tlsConfig
-			transport.DisableKeepAlives = true
-		}
-	} else {
-		if ok, parsedURL, tr := useSocket(url, nil); ok {
-			transport = tr
-			url = parsedURL
-		}
+	if ok, parsedURL, tr := useSocket(url); ok {
+		transport = tr
+		url = parsedURL
+	} else if isTLS {
+		transport = http.DefaultTransport.(*http.Transport).Clone()
+		transport.TLSClientConfig = &tlsConfig
+		transport.DisableKeepAlives = true
 	}
 
 	if bctx.RoundTripper != nil {
@@ -675,8 +681,6 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 
 	// Add custom headers
 	if len(customHeaders) != 0 {
-		customHeaders = canonicalizeHeaders(customHeaders)
-
 		for k, v := range customHeaders {
 			header, ok := v.(string)
 			if !ok {
@@ -696,19 +700,7 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 		if host, hasHost := customHeaders["Host"]; hasHost {
 			host := host.(string) // We already checked that it's a string.
 			req.Host = host
-
-			// Only default the ServerName if the caller has
-			// specified the host. If we don't specify anything,
-			// Go will default to the target hostname. This name
-			// is not the same as the default that Go populates
-			// `req.Host` with, which is why we don't just set
-			// this unconditionally.
-			tlsConfig.ServerName = host
 		}
-	}
-
-	if tlsServerName != "" {
-		tlsConfig.ServerName = tlsServerName
 	}
 
 	if len(bctx.DistributedTracingOpts) > 0 {
@@ -1191,7 +1183,8 @@ func newInterQueryCacheData(bctx BuiltinContext, resp *http.Response, respBody [
 		RespBody:   respBody,
 		Status:     resp.Status,
 		StatusCode: resp.StatusCode,
-		Headers:    resp.Header}
+		Headers:    resp.Header,
+	}
 
 	return &cv, nil
 }
@@ -1221,7 +1214,8 @@ func (c *interQueryCacheData) Clone() (cache.InterQueryCacheValue, error) {
 		RespBody:   dup,
 		Status:     c.Status,
 		StatusCode: c.StatusCode,
-		Headers:    c.Headers.Clone()}, nil
+		Headers:    c.Headers.Clone(),
+	}, nil
 }
 
 type responseHeaders struct {
@@ -1315,7 +1309,7 @@ func parseCacheControlHeader(headers http.Header) map[string]string {
 	ccDirectives := map[string]string{}
 	ccHeader := headers.Get("cache-control")
 
-	for _, part := range strings.Split(ccHeader, ",") {
+	for part := range strings.SplitSeq(ccHeader, ",") {
 		part = strings.Trim(part, " ")
 		if part == "" {
 			continue
@@ -1383,7 +1377,6 @@ func parseMaxAgeCacheDirective(cc map[string]string) (deltaSeconds, error) {
 }
 
 func formatHTTPResponseToAST(resp *http.Response, forceJSONDecode, forceYAMLDecode bool) (ast.Value, []byte, error) {
-
 	resultRawBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, nil, err
@@ -1535,6 +1528,9 @@ func (c *interQueryCache) ExecuteHTTPRequest() (*http.Response, error) {
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}
 
+	// Increment counter for actual network requests
+	c.bctx.Metrics.Counter(httpSendNetworkRequests).Incr()
+
 	return executeHTTPRequest(c.httpReq, c.httpClient, c.req)
 }
 
@@ -1586,6 +1582,10 @@ func (c *intraQueryCache) ExecuteHTTPRequest() (*http.Response, error) {
 	if err != nil {
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}
+
+	// Increment counter for actual network requests
+	c.bctx.Metrics.Counter(httpSendNetworkRequests).Incr()
+
 	return executeHTTPRequest(httpReq, httpClient, c.req)
 }
 

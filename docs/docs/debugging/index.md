@@ -15,13 +15,13 @@ whole.
 
 ## Live Debugging
 
-Using the [Debug Adapter](https://docs.styra.com/regal/debug-adapter)
+Using the [Debug Adapter](/projects/regal/debug-adapter)
 based on [OPA's Debug API](https://github.com/open-policy-agent/opa/blob/main/v1/debug/README.md),
 supported clients are now able to live debug Rego line by line. Breakpoints,
 variable inspection and print statements are all supported.
 
 Read more about the supported editors of this debugging method in the
-[Regal Editor Support Page](https://docs.styra.com/regal/editor-support).
+[Regal Editor Support Page](/projects/regal/editor-support).
 
 ![Debugging Rego in VS Code](debugging-dap.gif)
 
@@ -46,7 +46,7 @@ others.
 The `print` built-in function can be used to print values to stdout, this can be useful for checking values
 during policy evaluation as well as seeing how many times a particular line of code is executed.
 
-See the [print function documentation](./policy-reference/#debugging) for more details on how to use
+See the [print function documentation](./policy-reference/builtins/opa#debugging) for more details on how to use
 the `print` built-in function in different contexts.
 
 ## Performance Profiling
@@ -73,7 +73,7 @@ OPA logs are a great place to start when debugging issues. The logs can be used 
 at any given time. Common issues such as failing to load in policy or data bundles will be shown here.
 
 You can also enable debug logging to get more detailed information about what OPA is doing with `--log-level debug`.
-This is documented in the [CLI documentation](./cli/#options-10) for `opa run`.
+This is documented in the [CLI documentation](./cli/#run) for `opa run`.
 
 ### Decision Logging
 

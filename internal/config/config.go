@@ -138,7 +138,8 @@ func subEnvVars(s string) string {
 		// Lookup the variable in the environment. We do not
 		// play by bash rules: if its undefined we'll keep it
 		// as-is, it could be replaced somewhere down the line.
-		if lu := os.Getenv(varName); lu != "" {
+		// If it's set to "", we'll return that.
+		if lu, ok := os.LookupEnv(varName); ok {
 			return lu
 		}
 		return s

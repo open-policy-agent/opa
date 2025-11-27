@@ -1,6 +1,6 @@
 import Link from "@docusaurus/Link";
 import useBaseUrl from "@docusaurus/useBaseUrl";
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
@@ -12,7 +12,6 @@ import Card from "@site/src/components/Card";
 import CardGrid from "@site/src/components/CardGrid";
 import PlaygroundExample from "@site/src/components/PlaygroundExample";
 
-import StyraLogo from "./assets/styra.svg";
 import styles from "./index.module.css";
 
 const Index = (props) => {
@@ -23,7 +22,7 @@ const Index = (props) => {
         <div className={styles.heroContainer}>
           <div className={styles.heroLeft}>
             <div className={styles.heroContent}>
-              <ThemedImage
+              <ThemedImageLoader
                 alt="OPA Logo"
                 className={styles.logo}
                 sources={{
@@ -79,16 +78,18 @@ const Index = (props) => {
         </div>
       </div>
 
-      <p className={styles.createdBy}>Created by</p>
+      <p className={styles.cncfContainer}>
+        Open Policy Agent is a <a href="https://www.cncf.io/">Cloud Native Computing Foundation</a> Graduated project.
 
-      <p className={styles.styraContainer}>
-        <a href="https://styra.com" target="_blank" rel="noopener noreferrer">
-          <StyraLogo className={styles.styraLogo} alt="Styra Logo" />
-        </a>
-      </p>
-
-      <p className={styles.maintainedBy}>
-        OPA is now maintained by Styra and a large community of contributors.
+        <div className={styles.cncfLogo}>
+          <ThemedImageLoader
+            alt="CNCF Logo"
+            sources={{
+              light: useBaseUrl("img/footer/cncf-light.svg"),
+              dark: useBaseUrl("img/footer/cncf-dark.svg"),
+            }}
+          />
+        </div>
       </p>
 
       <div className={styles.container}>
@@ -171,6 +172,11 @@ const Index = (props) => {
             high-level declarative language that lets you specify policy for a wide range of use cases. You can use OPA
             to enforce policies in applications, proxies, Kubernetes, CI/CD pipelines, API gateways, and more.
           </p>
+          <p>
+            The examples below are interactive! Use the <b>Evaluate</b>{" "}
+            button to see output for the given rego and input. Then edit the rego or the input (or both) to see how the
+            output changes.
+          </p>
 
           <Tabs
             defaultValue="app"
@@ -219,7 +225,33 @@ const Index = (props) => {
           }].map((cardItem, index) => <Card key={index} item={cardItem} />)}
         </CardGrid>
       </div>
-    </Layout >
+    </Layout>
+  );
+};
+
+const ThemedImageLoader = ({ alt, className, sources }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsLoaded(true);
+  }, []);
+
+  return (
+    <div
+      style={{
+        width: "auto",
+        height: "auto",
+        opacity: isLoaded ? 1 : 0,
+        transition: "opacity 0.1s ease-in-out",
+      }}
+    >
+      <ThemedImage
+        className={className}
+        alt={alt}
+        sources={sources}
+        onLoad={() => setIsLoaded(true)}
+      />
+    </div>
   );
 };
 

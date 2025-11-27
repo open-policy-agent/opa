@@ -57,6 +57,7 @@ jobs:
         .*\.sum$|\
         .*\.sh$|\
         ^Makefile$|\
+        ^\.go-version$|\
         ^cmd/|\
         ^internal/|\
         ^v1/)"
@@ -110,13 +111,13 @@ jobs:
     if: ${{ needs.check-changes.outputs.go == 'true' }}
     steps:
     - name: Check out code
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
     - name: Generate
       run: make clean generate
 
     - name: Upload generated artifacts
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
       with:
         name: generated
         path: |
@@ -138,7 +139,7 @@ jobs:
           arch: amd64
         - os: linux
           run: ubuntu-24.04
-          targets: ci-go-ci-build-linux-static
+          targets: ci-go-ci-build-linux ci-go-ci-build-linux-static
           arch: arm64
         - os: linux
           run: ubuntu-24.04
@@ -148,32 +149,36 @@ jobs:
           arch: arm64
         - os: windows
           run: ubuntu-24.04
-          targets: ci-go-ci-build-windows
+          targets: ci-build-windows
           arch: amd64
         - os: darwin
-          run: macos-13
+          run: macos-15-intel
           targets: ci-build-darwin
           arch: amd64
         - os: darwin
-          run: macos-14
-          targets: ci-build-darwin-arm64-static
+          run: macos-15
+          targets: ci-build-darwin ci-build-darwin-arm64-static
           arch: arm64
     steps:
     - name: Check out code
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
     - id: go_version
       name: Read go version
       run: echo "go_version=$(cat .go-version)" >> $GITHUB_OUTPUT
 
     - name: Install Go (${{ steps.go_version.outputs.go_version }})
-      uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+      uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
       with:
         go-version: ${{ steps.go_version.outputs.go_version }}
-      if: matrix.os == 'darwin'
+      if: matrix.os != 'linux'
+    - uses: mlugg/setup-zig@8d6198c65fb0feaa111df26e6b467fea8345e46f # v2.0.5
+      with:
+        version: '0.15.2'
+      if: matrix.os == 'windows'
 
     - name: Download generated artifacts
-      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
       with:
         name: generated
 
@@ -184,14 +189,14 @@ jobs:
       timeout-minutes: 30
 
     - name: Upload binaries - No Go tags
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
       if: ${{ matrix.go_tags == '' }}
       with:
         name: binaries-${{ matrix.os }}-${{ matrix.arch }}
         path: _release
 
     - name: Upload binaries - Go tag variants
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
       if: ${{ matrix.go_tags != '' && matrix.variant_name != '' }}
       with:
         name: binaries-variant-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.variant_name }}
@@ -209,28 +214,34 @@ jobs:
         - os: linux
           run: ubuntu-24.04
         - os: darwin
-          run: macos-14
+          run: macos-15
     steps:
     - name: Check out code
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
     - id: go_version
       name: Read go version
       run: echo "go_version=$(cat .go-version)" >> $GITHUB_OUTPUT
 
     - name: Install Go (${{ steps.go_version.outputs.go_version }})
-      uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+      uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
       with:
         go-version: ${{ steps.go_version.outputs.go_version }}
 
+    - name: Install Node
+      uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+
     - name: Download generated artifacts
-      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
       with:
         name: generated
 
     - name: Unit Test Golang
       run: make test-coverage
       timeout-minutes: 30
+
+    - name: E2E Test Golang
+      run: make e2e
 
   go-lint:
     name: Go Lint
@@ -239,7 +250,7 @@ jobs:
     if: ${{ needs.check-changes.outputs.go == 'true' }}
     steps:
     - name: Check out code
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
     - name: Golang Style and Lint Check
       run: make check
@@ -252,7 +263,7 @@ jobs:
     if: ${{ needs.check-changes.outputs.go == 'true' }}
     steps:
     - name: Check out code
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
     - name: YAML Style and Lint Check
       run: make check-yaml-tests
@@ -267,10 +278,10 @@ jobs:
     if: ${{ needs.check-changes.outputs.wasm == 'true' }}
     steps:
     - name: Check out code
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
     - name: Download generated artifacts
-      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
       with:
         name: generated
 
@@ -291,10 +302,10 @@ jobs:
     if: ${{ needs.check-changes.outputs.go == 'true' }}
     steps:
     - name: Check out code
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
     - name: Download generated artifacts
-      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
       with:
         name: generated
 
@@ -311,10 +322,10 @@ jobs:
     if: ${{ needs.check-changes.outputs.go == 'true' }}
     steps:
     - name: Check out code
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
     - name: Download generated artifacts
-      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
       with:
         name: generated
 
@@ -330,7 +341,7 @@ jobs:
     if: ${{ needs.check-changes.outputs.go == 'true' }}
     steps:
     - name: Check out code
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
@@ -338,7 +349,7 @@ jobs:
         platforms: arm64
 
     - name: Download release binaries
-      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
       with:
         pattern: binaries-*
         merge-multiple: true
@@ -352,7 +363,7 @@ jobs:
       env:
         GOARCH: arm64
 
-  # Note(philipc): We only run the amd64 targets.
+  # Note(philipc): We only run the amd64 targets for windows/linux
   smoke-test-binaries:
     runs-on: ${{ matrix.run }}
     needs: [go-build, check-changes]
@@ -370,11 +381,11 @@ jobs:
           arch: amd64
           wasm: disabled
         - os: darwin
-          run: macos-13
+          run: macos-15-intel
           exec: opa_darwin_amd64
           arch: amd64
         - os: darwin
-          run: macos-14
+          run: macos-15
           exec: opa_darwin_arm64_static
           arch: arm64
           wasm: disabled
@@ -385,19 +396,36 @@ jobs:
 
     steps:
     - name: Check out code
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+    - name: Install Go
+      uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+      with:
+        go-version: stable
 
     - name: Download release binaries
-      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
       with:
         name: binaries-${{ matrix.os }}-${{ matrix.arch }}
         path: _release
 
-    - name: Test binaries (Rego)
-      run: make ci-binary-smoke-test-rego BINARY=${{ matrix.exec }}
+    - name: Prep tests
+      run: go install github.com/rogpeppe/go-internal/cmd/testscript@latest
 
-    - name: Test binaries (Wasm)
-      run: make ci-binary-smoke-test-wasm BINARY=${{ matrix.exec }}
+    - name: CLI E2E tests
+      run: |
+        matches=($BINARY_PATH_GLOB) # expand glob
+        export OPA="$(pwd)/${matches[0]}"
+        chmod +x "$OPA"
+        find . -type f -name '*.txtar' -path '*/script/*' -print0 \
+          | xargs -0 -I{} testscript -e OPA {}
+      shell: bash
+      env:
+        BINARY_PATH_GLOB: _release/*/${{ matrix.exec }}
+
+    - name: wasm smoke test
+      run: _release/*/${{ matrix.exec }} eval --target wasm 'time.now_ns()'
+      shell: bash
       if: matrix.wasm != 'disabled'
 
   go-version-build:
@@ -408,15 +436,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-14]
-        version: ["1.21"]
+        os: [ubuntu-24.04, macos-15]
+        version: ["1.24"]
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
     - name: Download generated artifacts
-      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
       with:
         name: generated
-    - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+    - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
       with:
         go-version: ${{ matrix.version }}
     - run: make build
@@ -434,10 +462,10 @@ jobs:
     if: ${{ needs.check-changes.outputs.go == 'true' }}
     steps:
     - name: Checkout code
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
     - name: Download OPA
-      uses: open-policy-agent/setup-opa@34a30e8a924d1b03ce2cf7abe97250bbb1f332b5 # v2.2.0
+      uses: open-policy-agent/setup-opa@950f159a49aa91f9323f36f1de81c7f6b5de9576 # v2.3.0
       with:
         version: edge
 
@@ -473,7 +501,7 @@ jobs:
     if: ${{ needs.check-changes.outputs.docs == 'true' }}
     steps:
     - name: Check out code
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
     - name: Build docs
       run: make docs-install docs-build
@@ -503,9 +531,9 @@ jobs:
     if: always()
     steps:
     - name: Check out code
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
     - name: Download OPA
-      uses: open-policy-agent/setup-opa@34a30e8a924d1b03ce2cf7abe97250bbb1f332b5 # v2.2.0
+      uses: open-policy-agent/setup-opa@950f159a49aa91f9323f36f1de81c7f6b5de9576 # v2.3.0
       with:
         version: edge
     - name: Check job results

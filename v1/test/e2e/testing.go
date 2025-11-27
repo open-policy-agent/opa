@@ -28,6 +28,11 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
+func init() {
+	// Avoid port exhaustion in concurrent tests: https://github.com/golang/go/issues/16012
+	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 100
+}
+
 const (
 	defaultAddr = "localhost:0" // default listening address for server, use a random open port
 )
@@ -82,7 +87,6 @@ func NewTestRuntime(params runtime.Params) (*TestRuntime, error) {
 
 // NewTestRuntimeWithOpts returns a new TestRuntime.
 func NewTestRuntimeWithOpts(opts TestRuntimeOpts, params runtime.Params) (*TestRuntime, error) {
-
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 
@@ -120,6 +124,7 @@ func WrapRuntime(ctx context.Context, cancel context.CancelFunc, rt *runtime.Run
 // handles starting and stopping the local API server. The return
 // value is what should be used as the code in `os.Exit` in the
 // `TestMain` function.
+//
 // Deprecated: Use RunTests instead
 func (t *TestRuntime) RunAPIServerTests(m *testing.M) int {
 	return t.runTests(m, true)
@@ -130,6 +135,7 @@ func (t *TestRuntime) RunAPIServerTests(m *testing.M) int {
 // will suppress logging output on stdout to prevent the tests
 // from being overly verbose. If log output is desired set
 // the `test.v` flag.
+//
 // Deprecated: Use RunTests instead
 func (t *TestRuntime) RunAPIServerBenchmarks(m *testing.M) int {
 	return t.runTests(m, !testing.Verbose())
@@ -348,14 +354,14 @@ func (t *TestRuntime) DeletePolicy(name string) error {
 func (t *TestRuntime) UploadPolicy(name string, policy io.Reader) error {
 	req, err := http.NewRequest("PUT", t.URL()+"/v1/policies/"+name, policy)
 	if err != nil {
-		return fmt.Errorf("Unexpected error creating request: %s", err)
+		return fmt.Errorf("unexpected error creating request: %s", err)
 	}
 	resp, err := t.Client.Do(req)
 	if err != nil {
-		return fmt.Errorf("Failed to PUT the test policy: %s", err)
+		return fmt.Errorf("failed to PUT the test policy: %s", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Unexpected response: %d %s", resp.StatusCode, resp.Status)
+		return fmt.Errorf("unexpected response: %d %s", resp.StatusCode, resp.Status)
 	}
 	return nil
 }

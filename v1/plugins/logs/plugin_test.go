@@ -174,7 +174,7 @@ func TestPluginCustomBackendAndHTTPServiceAndConsole(t *testing.T) {
 	}
 	fixture.plugin.flushDecisions(ctx)
 
-	err := fixture.plugin.oneShot(ctx)
+	err := fixture.plugin.b.Upload(ctx, fixture.plugin.manager.Client(fixture.plugin.config.Service), *fixture.plugin.config.Resource)
 	fmt.Println(errors.Is(err, &bufferEmpty{}))
 	if err != nil && !errors.Is(err, &bufferEmpty{}) {
 		t.Fatal(err)
@@ -477,7 +477,7 @@ func TestPluginStartSameInput(t *testing.T) {
 		}
 	}
 
-	err = fixture.plugin.oneShot(ctx)
+	err = fixture.plugin.b.Upload(ctx, fixture.plugin.manager.Client(fixture.plugin.config.Service), *fixture.plugin.config.Resource)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -560,7 +560,7 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 		}
 	}
 
-	err = fixture.plugin.oneShot(ctx)
+	err = fixture.plugin.b.Upload(ctx, fixture.plugin.manager.Client(fixture.plugin.config.Service), *fixture.plugin.config.Resource)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -630,7 +630,7 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 		}
 	}
 
-	err = fixture.plugin.oneShot(ctx)
+	err = fixture.plugin.b.Upload(ctx, fixture.plugin.manager.Client(fixture.plugin.config.Service), *fixture.plugin.config.Resource)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -699,7 +699,7 @@ func TestPluginRequeue(t *testing.T) {
 			}
 
 			fixture.server.expCode = 500
-			err := fixture.plugin.oneShot(ctx)
+			err := fixture.plugin.b.Upload(ctx, fixture.plugin.manager.Client(fixture.plugin.config.Service), *fixture.plugin.config.Resource)
 			if err == nil {
 				t.Fatal("Expected error")
 			}
@@ -708,7 +708,7 @@ func TestPluginRequeue(t *testing.T) {
 
 			fixture.server.expCode = 200
 
-			err = fixture.plugin.oneShot(ctx)
+			err = fixture.plugin.b.Upload(ctx, fixture.plugin.manager.Client(fixture.plugin.config.Service), *fixture.plugin.config.Resource)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -719,7 +719,7 @@ func TestPluginRequeue(t *testing.T) {
 				t.Fatalf("Expected %v but got: %v", events1, events2)
 			}
 
-			err = fixture.plugin.oneShot(ctx)
+			err = fixture.plugin.b.Upload(ctx, fixture.plugin.manager.Client(fixture.plugin.config.Service), *fixture.plugin.config.Resource)
 			if err != nil && !errors.Is(err, &bufferEmpty{}) {
 				t.Fatalf("Unexpected error or upload, err: %v", err)
 			}
@@ -755,20 +755,20 @@ func TestPluginRequeueBufferPreserved(t *testing.T) {
 	_ = fixture.plugin.Log(ctx, logServerInfo("def", input, result1))
 	_ = fixture.plugin.Log(ctx, logServerInfo("ghi", input, result1))
 
-	bufLen := fixture.plugin.buffer.Len()
+	bufLen := fixture.plugin.b.(*sizeBuffer).buffer.Len()
 	if bufLen < 1 {
 		t.Fatal("Expected buffer length of at least 1")
 	}
 
 	fixture.server.expCode = 500
-	err := fixture.plugin.oneShot(ctx)
+	err := fixture.plugin.b.Upload(ctx, fixture.plugin.manager.Client(fixture.plugin.config.Service), *fixture.plugin.config.Resource)
 	if err == nil {
 		t.Fatal("Expected error")
 	}
 
 	<-fixture.server.ch
 
-	if fixture.plugin.buffer.Len() < bufLen {
+	if fixture.plugin.b.(*sizeBuffer).buffer.Len() < bufLen {
 		t.Fatal("Expected buffer to be preserved")
 	}
 }
@@ -881,9 +881,9 @@ func TestPluginRateLimitInt(t *testing.T) {
 			}
 
 			var bufferEvent1, bufferEvent2 EventV1
-			switch fixture.plugin.runningBuffer {
+			switch fixture.plugin.b.Name() {
 			case sizeBufferType:
-				chunk, err := fixture.plugin.enc.Flush()
+				chunk, err := fixture.plugin.b.(*sizeBuffer).enc.Flush()
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -897,10 +897,10 @@ func TestPluginRateLimitInt(t *testing.T) {
 				bufferEvent1 = events[0]
 				bufferEvent2 = events[1]
 			case eventBufferType:
-				bufferEvent1 = *(<-fixture.plugin.eventBuffer.buffer).EventV1
+				bufferEvent1 = *(<-fixture.plugin.b.(*eventBuffer).buffer).EventV1
 				bufferEvent1.Bundles = nil
 
-				bufferEvent2 = *(<-fixture.plugin.eventBuffer.buffer).EventV1
+				bufferEvent2 = *(<-fixture.plugin.b.(*eventBuffer).buffer).EventV1
 				bufferEvent2.Bundles = nil
 
 			}
@@ -918,12 +918,12 @@ func TestPluginRateLimitInt(t *testing.T) {
 
 // getBufferLen returns the buffer length for either the event or size buffer.
 func getBufferLen(t *testing.T, fixture testFixture, eventSize int) int {
-	switch fixture.plugin.runningBuffer {
+	switch fixture.plugin.b.Name() {
 	case eventBufferType:
-		return len(fixture.plugin.eventBuffer.buffer)
+		return len(fixture.plugin.b.(*eventBuffer).buffer)
 	case sizeBufferType:
 		// events stay in the encoder until the upload limit is reached
-		return fixture.plugin.enc.bytesWritten / eventSize
+		return fixture.plugin.b.(*sizeBuffer).enc.bytesWritten / eventSize
 	default:
 		t.Fatal("unknown buffer type")
 		return 0
@@ -1054,9 +1054,9 @@ func TestPluginRateLimitFloat(t *testing.T) {
 			}
 
 			var bufferEvent1, bufferEvent2 EventV1
-			switch fixture.plugin.runningBuffer {
+			switch fixture.plugin.b.Name() {
 			case sizeBufferType:
-				chunk, err := fixture.plugin.enc.Flush()
+				chunk, err := fixture.plugin.b.(*sizeBuffer).enc.Flush()
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -1070,10 +1070,10 @@ func TestPluginRateLimitFloat(t *testing.T) {
 				bufferEvent1 = events[0]
 				bufferEvent2 = events[1]
 			case eventBufferType:
-				bufferEvent1 = *(<-fixture.plugin.eventBuffer.buffer).EventV1
+				bufferEvent1 = *(<-fixture.plugin.b.(*eventBuffer).buffer).EventV1
 				bufferEvent1.Bundles = nil
 
-				bufferEvent2 = *(<-fixture.plugin.eventBuffer.buffer).EventV1
+				bufferEvent2 = *(<-fixture.plugin.b.(*eventBuffer).buffer).EventV1
 				bufferEvent2.Bundles = nil
 
 			}
@@ -1175,7 +1175,7 @@ func TestPluginStatusUpdateEncodingFailure(t *testing.T) {
 
 	m := metrics.New()
 	fixture.plugin.metrics = m
-	fixture.plugin.enc.metrics = m
+	fixture.plugin.b.(*sizeBuffer).enc.metrics = m
 
 	var input any = map[string]any{"method": "GET"}
 	var result any = false
@@ -1194,11 +1194,11 @@ func TestPluginStatusUpdateEncodingFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fixture.plugin.mtx.Lock()
-	if fixture.plugin.enc.bytesWritten != 0 {
+	fixture.plugin.b.(*sizeBuffer).mtx.Lock()
+	if fixture.plugin.b.(*sizeBuffer).enc.bytesWritten != 0 {
 		t.Fatal("Expected no event to be written into the encoder")
 	}
-	fixture.plugin.mtx.Unlock()
+	fixture.plugin.b.(*sizeBuffer).mtx.Unlock()
 
 	// Create a status plugin that logs to console
 	pluginConfig := []byte(`{
@@ -1266,7 +1266,7 @@ func TestPluginStatusUpdateBufferSizeExceeded(t *testing.T) {
 
 	fixture.server.ch = make(chan []EventV1, 1)
 
-	fixture.plugin.metrics = metrics.New()
+	fixture.plugin = fixture.plugin.WithMetrics(metrics.New())
 
 	var input any = map[string]any{"method": "GET"}
 	var result any = false
@@ -1306,17 +1306,16 @@ func TestPluginStatusUpdateBufferSizeExceeded(t *testing.T) {
 	if err := fixture.plugin.Log(ctx, event2); err != nil {
 		t.Error(err)
 	}
+	fixture.plugin.b.(*sizeBuffer).mtx.Lock()
 
-	fixture.plugin.mtx.Lock()
-
-	if fixture.plugin.enc.bytesWritten == 0 {
+	if fixture.plugin.b.(*sizeBuffer).enc.bytesWritten == 0 {
 		t.Fatal("Expected event to be written into the encoder")
 	}
 
-	if fixture.plugin.buffer.Len() == 0 {
+	if fixture.plugin.b.(*sizeBuffer).buffer.Len() == 0 {
 		t.Fatal("Expected one chunk to be written into the buffer")
 	}
-	fixture.plugin.mtx.Unlock()
+	fixture.plugin.b.(*sizeBuffer).mtx.Unlock()
 
 	// write event 3 into the encoder and then flush the encoder which will result in the event being
 	// written to the buffer. But given the buffer size it won't be able to hold this event and will
@@ -1361,13 +1360,11 @@ func TestPluginStatusUpdateBufferSizeExceeded(t *testing.T) {
 		t.Fatal("Expected metrics field in status update")
 	}
 
-	exp := map[string]any{"<built-in>": map[string]any{
-		"counter_decision_logs_dropped_buffer_size_limit_bytes_exceeded": json.Number("1"),
-		"counter_decision_logs_dropped_buffer_size_limit_exceeded":       json.Number("1"),
-	}}
-
-	if !reflect.DeepEqual(e.Fields["metrics"], exp) {
-		t.Fatalf("Expected %v but got %v", exp, e.Fields["metrics"])
+	if e.Fields["metrics"].(map[string]any)["<built-in>"].(map[string]any)["counter_decision_logs_dropped_buffer_size_limit_bytes_exceeded"] != json.Number("1") {
+		t.Fatal("Expected metrics field in status update")
+	}
+	if e.Fields["metrics"].(map[string]any)["<built-in>"].(map[string]any)["counter_decision_logs_dropped_buffer_size_limit_exceeded"] != json.Number("1") {
+		t.Fatal("Expected metrics field in status update")
 	}
 }
 
@@ -1392,7 +1389,7 @@ func TestPluginStatusUpdateRateLimitExceeded(t *testing.T) {
 
 	fixture.server.ch = make(chan []EventV1, 1)
 
-	fixture.plugin.metrics = metrics.New()
+	fixture.plugin = fixture.plugin.WithMetrics(metrics.New())
 
 	var input any = map[string]any{"method": "GET"}
 	var result any = false
@@ -1426,11 +1423,11 @@ func TestPluginStatusUpdateRateLimitExceeded(t *testing.T) {
 
 	_ = fixture.plugin.Log(ctx, event1) // event 1 should be written into the encoder
 
-	fixture.plugin.mtx.Lock()
-	if fixture.plugin.enc.bytesWritten == 0 {
+	fixture.plugin.b.(*sizeBuffer).mtx.Lock()
+	if fixture.plugin.b.(*sizeBuffer).enc.bytesWritten == 0 {
 		t.Fatal("Expected event to be written into the encoder")
 	}
-	fixture.plugin.mtx.Unlock()
+	fixture.plugin.b.(*sizeBuffer).mtx.Unlock()
 
 	// Create a status plugin that logs to console
 	pluginConfig := []byte(`{
@@ -1530,14 +1527,14 @@ func TestPluginRateLimitRequeue(t *testing.T) {
 			}
 
 			fixture.server.expCode = 500
-			err := fixture.plugin.oneShot(ctx)
+			err := fixture.plugin.b.Upload(ctx, fixture.plugin.manager.Client(fixture.plugin.config.Service), *fixture.plugin.config.Resource)
 			if err == nil {
 				t.Fatal("Expected error")
 			}
 			<-fixture.server.ch
 
 			var event1, event2, event3 EventV1
-			switch fixture.plugin.runningBuffer {
+			switch fixture.plugin.b.Name() {
 			case eventBufferType:
 				// buffer will put a single event with the failed uploaded chunk back in the buffer
 				bufLen = getBufferLen(t, fixture, eventSize)
@@ -1545,7 +1542,7 @@ func TestPluginRateLimitRequeue(t *testing.T) {
 					t.Fatal("Expected buffer length of 3 but got ", bufLen)
 				}
 
-				chunk := (<-fixture.plugin.eventBuffer.buffer).chunk
+				chunk := (<-fixture.plugin.b.(*eventBuffer).buffer).chunk
 
 				events, err := newChunkDecoder(chunk).decode()
 				if err != nil {
@@ -1562,7 +1559,7 @@ func TestPluginRateLimitRequeue(t *testing.T) {
 					t.Fatal("Expected buffer length of 3 but got ", bufLen)
 				}
 
-				chunks, err := fixture.plugin.enc.Flush()
+				chunks, err := fixture.plugin.b.(*sizeBuffer).enc.Flush()
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -1629,7 +1626,7 @@ func TestPluginRateLimitDropCountStatus(t *testing.T) {
 			})
 			defer fixture.server.stop()
 
-			fixture.plugin.metrics = metrics.New()
+			fixture.plugin = fixture.plugin.WithMetrics(metrics.New())
 
 			var input any = map[string]any{"method": "GET"}
 			var result any = false
@@ -2085,7 +2082,7 @@ func TestPluginTerminatesAfterGracefulShutdownPeriod(t *testing.T) {
 	fixture.plugin.Stop(timeoutCtx)
 
 	// Ensure the plugin was stopped without flushing its whole buffer
-	if fixture.plugin.buffer.Len() == 0 && fixture.plugin.enc.buf.Len() == 0 {
+	if fixture.plugin.b.(*sizeBuffer).buffer.Len() == 0 && fixture.plugin.b.(*sizeBuffer).enc.buf.Len() == 0 {
 		t.Errorf("Expected the plugin to still have buffered messages")
 	}
 }
@@ -2115,10 +2112,11 @@ func TestPluginReconfigure(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name                           string
-		currentBufferType              string
-		newBufferType                  string
-		reportingBufferSizeLimitEvents int64
+		name              string
+		currentBufferType string
+		newBufferType     string
+		limitEvents       int64
+		limitBytes        int64
 	}{
 		{
 			name:              "Reconfigure from event to size buffer",
@@ -2131,12 +2129,16 @@ func TestPluginReconfigure(t *testing.T) {
 			newBufferType:     "event",
 		},
 		{
-			name: "Reconfigure from size to size buffer",
+			name:              "Reconfigure from size to size buffer",
+			currentBufferType: "size",
+			newBufferType:     "size",
+			limitBytes:        100,
 		},
 		{
 			name:              "Reconfigure from event to event buffer",
 			currentBufferType: "event",
 			newBufferType:     "event",
+			limitEvents:       200,
 		},
 	}
 
@@ -2154,38 +2156,47 @@ func TestPluginReconfigure(t *testing.T) {
 
 			ensurePluginState(t, fixture.plugin, plugins.StateOK)
 
-			minDelay := 2
-			maxDelay := 3
+			var config Config
+			resource := ""
+			config.Resource = &resource
+			trigger := plugins.TriggerPeriodic
+			config.Reporting.Trigger = &trigger
+			config.Reporting.BufferType = tc.newBufferType
+			config.Reporting.BufferSizeLimitBytes = &tc.limitBytes
+			config.Reporting.BufferSizeLimitEvents = &tc.limitEvents
 
-			pluginConfig := fmt.Appendf(nil, `{
-			"service": "example",
-			"reporting": {
-				"buffer_type": %v,
-				"min_delay_seconds": %v,
-				"max_delay_seconds": %v
-			}
-			}`, tc.newBufferType, minDelay, maxDelay)
+			minDelay := int64(2)
+			maxDelay := int64(3)
+			config.Reporting.MinDelaySeconds = &minDelay
+			config.Reporting.MaxDelaySeconds = &maxDelay
 
-			config, _ := ParseConfig(pluginConfig, fixture.manager.Services(), nil)
+			uploadLimit := int64(100)
+			config.Reporting.UploadSizeLimitBytes = &uploadLimit
 
-			fixture.plugin.Reconfigure(ctx, config)
+			fixture.plugin.Reconfigure(ctx, &config)
 			ensurePluginState(t, fixture.plugin, plugins.StateOK)
 
 			fixture.plugin.Stop(ctx)
 			ensurePluginState(t, fixture.plugin, plugins.StateNotReady)
 
-			actualMin := time.Duration(*fixture.plugin.config.Reporting.MinDelaySeconds) / time.Nanosecond
-			expectedMin := time.Duration(minDelay) * time.Second
-
-			if actualMin != expectedMin {
-				t.Fatalf("Expected minimum polling interval: %v but got %v", expectedMin, actualMin)
+			if *fixture.plugin.config.Reporting.MinDelaySeconds != minDelay {
+				t.Fatalf("Expected minimum polling interval: %v but got %v", minDelay, *fixture.plugin.config.Reporting.MinDelaySeconds)
 			}
 
-			actualMax := time.Duration(*fixture.plugin.config.Reporting.MaxDelaySeconds) / time.Nanosecond
-			expectedMax := time.Duration(maxDelay) * time.Second
+			if *fixture.plugin.config.Reporting.MaxDelaySeconds != maxDelay {
+				t.Fatalf("Expected maximum polling interval: %v but got %v", maxDelay, *fixture.plugin.config.Reporting.MaxDelaySeconds)
+			}
 
-			if actualMax != expectedMax {
-				t.Fatalf("Expected maximum polling interval: %v but got %v", expectedMax, actualMax)
+			if *fixture.plugin.config.Reporting.BufferSizeLimitEvents != tc.limitEvents {
+				t.Fatalf("Expected limit events %v, but got %v", tc.limitEvents, *fixture.plugin.config.Reporting.BufferSizeLimitEvents)
+			}
+
+			if *fixture.plugin.config.Reporting.BufferSizeLimitBytes != tc.limitBytes {
+				t.Fatalf("Expected limit bytes %v, but got %v", tc.limitBytes, *fixture.plugin.config.Reporting.BufferSizeLimitBytes)
+			}
+
+			if *fixture.plugin.config.Reporting.UploadSizeLimitBytes != uploadLimit {
+				t.Fatalf("Expected upload limit %v, but got %v", uploadLimit, *fixture.plugin.config.Reporting.UploadSizeLimitBytes)
 			}
 		})
 	}
@@ -2208,11 +2219,11 @@ func TestPluginReconfigureUploadSizeLimit(t *testing.T) {
 
 	ensurePluginState(t, fixture.plugin, plugins.StateOK)
 
-	fixture.plugin.mtx.Lock()
-	if fixture.plugin.enc.limit != limit {
-		t.Fatalf("Expected upload size limit %v but got %v", limit, fixture.plugin.enc.limit)
+	fixture.plugin.b.(*sizeBuffer).mtx.Lock()
+	if fixture.plugin.b.(*sizeBuffer).enc.limit != limit {
+		t.Fatalf("Expected upload size limit %v but got %v", limit, fixture.plugin.b.(*sizeBuffer).enc.limit)
 	}
-	fixture.plugin.mtx.Unlock()
+	fixture.plugin.b.(*sizeBuffer).mtx.Unlock()
 
 	newLimit := int64(600)
 
@@ -2231,11 +2242,11 @@ func TestPluginReconfigureUploadSizeLimit(t *testing.T) {
 	fixture.plugin.Stop(ctx)
 	ensurePluginState(t, fixture.plugin, plugins.StateNotReady)
 
-	fixture.plugin.mtx.Lock()
-	if fixture.plugin.enc.limit != newLimit {
-		t.Fatalf("Expected upload size limit %v but got %v", newLimit, fixture.plugin.enc.limit)
+	fixture.plugin.b.(*sizeBuffer).mtx.Lock()
+	if fixture.plugin.b.(*sizeBuffer).enc.limit != newLimit {
+		t.Fatalf("Expected upload size limit %v but got %v", newLimit, fixture.plugin.b.(*sizeBuffer).enc.limit)
 	}
-	fixture.plugin.mtx.Unlock()
+	fixture.plugin.b.(*sizeBuffer).mtx.Unlock()
 }
 
 type appendingPrintHook struct {
@@ -3061,7 +3072,6 @@ func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
 		plugin:        p,
 		server:        &ts,
 	}
-
 }
 
 func TestParseConfigUseDefaultServiceNoConsole(t *testing.T) {
@@ -3470,7 +3480,7 @@ func TestPluginDefaultResourcePath(t *testing.T) {
 
 			fixture.server.expCode = 200
 
-			err := fixture.plugin.oneShot(ctx)
+			err := fixture.plugin.b.Upload(ctx, fixture.plugin.manager.Client(fixture.plugin.config.Service), *fixture.plugin.config.Resource)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -3532,7 +3542,7 @@ func TestPluginResourcePathAndPartitionName(t *testing.T) {
 
 			fixture.server.expCode = 200
 
-			err := fixture.plugin.oneShot(ctx)
+			err := fixture.plugin.b.Upload(ctx, fixture.plugin.manager.Client(fixture.plugin.config.Service), *fixture.plugin.config.Resource)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -3593,7 +3603,7 @@ func TestPluginResourcePath(t *testing.T) {
 
 			fixture.server.expCode = 200
 
-			err := fixture.plugin.oneShot(ctx)
+			err := fixture.plugin.b.Upload(ctx, fixture.plugin.manager.Client(fixture.plugin.config.Service), *fixture.plugin.config.Resource)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -3875,7 +3885,7 @@ func TestAdaptiveSoftLimitBetweenUpload(t *testing.T) {
 			}
 
 			// this will increase the soft limit
-			if err := fixture.plugin.oneShot(ctx); err != nil {
+			if err := fixture.plugin.b.Upload(ctx, fixture.plugin.manager.Client(fixture.plugin.config.Service), *fixture.plugin.config.Resource); err != nil {
 				t.Fatal(err)
 			}
 
@@ -3893,7 +3903,7 @@ func TestAdaptiveSoftLimitBetweenUpload(t *testing.T) {
 			}
 
 			// the soft limit will stay the same and not be reset to the initial soft limit
-			if err := fixture.plugin.oneShot(ctx); err != nil {
+			if err := fixture.plugin.b.Upload(ctx, fixture.plugin.manager.Client(fixture.plugin.config.Service), *fixture.plugin.config.Resource); err != nil {
 				t.Fatal(err)
 			}
 
@@ -3910,9 +3920,9 @@ func currentSoftLimit(t *testing.T, plugin *Plugin, bufferType string) int64 {
 
 	switch bufferType {
 	case eventBufferType:
-		return plugin.eventBuffer.enc.uncompressedLimit
+		return plugin.b.(*eventBuffer).enc.uncompressedLimit
 	case sizeBufferType:
-		return plugin.enc.uncompressedLimit
+		return plugin.b.(*sizeBuffer).enc.uncompressedLimit
 	default:
 		t.Fatal("Unknown buffer type")
 	}

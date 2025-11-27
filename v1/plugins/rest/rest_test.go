@@ -6,7 +6,6 @@ package rest
 
 import (
 	"bytes"
-	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -33,8 +32,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/internal/jwx/jwa"
-	"github.com/open-policy-agent/opa/internal/jwx/jws"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/open-policy-agent/opa/internal/providers/aws"
 	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/keys"
@@ -954,7 +953,7 @@ func TestDoWithResponseHeaderTimeout(t *testing.T) {
 
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tests := map[string]struct {
 		d                     time.Duration
@@ -1015,7 +1014,7 @@ func (*tracemock) NewHandler(http.Handler, string, tracing.Options) http.Handler
 func TestDoWithDistributedTracingOpts(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	mock := tracemock{}
 	tracing.RegisterHTTPTracing(&mock)
 
@@ -1054,7 +1053,7 @@ func TestDoWithDistributedTracingOpts(t *testing.T) {
 func TestDoWithResponseInClientLog(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	body := "Some Bad Request was received"
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -1091,7 +1090,7 @@ func TestDoWithResponseInClientLog(t *testing.T) {
 func TestDoWithTruncatedResponseInClientLog(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
@@ -1143,7 +1142,7 @@ func TestValidUrl(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	ctx := context.Background()
+	ctx := t.Context()
 	if _, err := client.Do(ctx, "GET", "test"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -1172,7 +1171,7 @@ func testBearerToken(t *testing.T, scheme, token string) {
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	ctx := context.Background()
+	ctx := t.Context()
 	if _, err := client.Do(ctx, "GET", "test"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -1211,7 +1210,7 @@ func TestBearerTokenPath(t *testing.T) {
 
 		client := newTestBearerClient(t, &ts, tokenPath)
 
-		ctx := context.Background()
+		ctx := t.Context()
 		if _, err := client.Do(ctx, "GET", "test"); err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -1278,7 +1277,7 @@ func TestBearerWithCustomCACert(t *testing.T) {
 
 		client := newTestBearerClient(t, &ts, tokenPath)
 
-		ctx := context.Background()
+		ctx := t.Context()
 		if _, err := client.Do(ctx, "GET", "test"); err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -1310,7 +1309,7 @@ func TestBearerWithCustomCACertAndSystemCA(t *testing.T) {
 
 		client := newTestBearerClient(t, &ts, tokenPath)
 
-		ctx := context.Background()
+		ctx := t.Context()
 		if _, err := client.Do(ctx, "GET", "test"); err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -1342,7 +1341,7 @@ func TestBearerTokenInvalidConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, err = client.Do(ctx, "GET", "test")
 
@@ -1432,7 +1431,7 @@ func TestClientCert(t *testing.T) {
 
 		client := newTestClient(t, &ts, certPath, keyPath)
 
-		ctx := context.Background()
+		ctx := t.Context()
 		if _, err := client.Do(ctx, "GET", "test"); err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -1493,7 +1492,7 @@ func TestClientCertPassword(t *testing.T) {
 
 		client := newTestClient(t, &ts, certPath, keyPath)
 
-		ctx := context.Background()
+		ctx := t.Context()
 		if _, err := client.Do(ctx, "GET", "test"); err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -1524,7 +1523,7 @@ func TestClientTLSWithCustomCACert(t *testing.T) {
 
 		client := newTestClient(t, &ts, certPath, keyPath)
 
-		ctx := context.Background()
+		ctx := t.Context()
 		if _, err := client.Do(ctx, "GET", "test"); err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -1556,7 +1555,7 @@ func TestClientTLSWithCustomCACertAndSystemCA(t *testing.T) {
 
 		client := newTestClient(t, &ts, certPath, keyPath)
 
-		ctx := context.Background()
+		ctx := t.Context()
 		if _, err := client.Do(ctx, "GET", "test"); err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -1624,7 +1623,7 @@ func TestOauth2ClientCredentials(t *testing.T) {
 			}
 
 			client := newOauth2TestClient(t, tc.ts, tc.ots, tc.options)
-			ctx := context.Background()
+			ctx := t.Context()
 			_, err := client.Do(ctx, "GET", "test")
 			if err != nil && !tc.wantErr {
 				t.Fatalf("Unexpected error: %v", err)
@@ -1653,7 +1652,7 @@ func TestOauth2ClientCredentialsExpiringTokenIsRefreshed(t *testing.T) {
 	defer ots.stop()
 
 	client := newOauth2TestClient(t, &ts, &ots)
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err := client.Do(ctx, "GET", "test")
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
@@ -1668,7 +1667,7 @@ func TestOauth2ClientCredentialsExpiringTokenIsRefreshed(t *testing.T) {
 	defer ts.stop()
 
 	client = newOauth2TestClient(t, &ts, &ots)
-	ctx = context.Background()
+	ctx = t.Context()
 	_, err = client.Do(ctx, "GET", "test")
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
@@ -1693,7 +1692,7 @@ func TestOauth2ClientCredentialsNonExpiringTokenIsReused(t *testing.T) {
 	defer ots.stop()
 
 	client := newOauth2TestClient(t, &ts, &ots)
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err := client.Do(ctx, "GET", "test")
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
@@ -1730,7 +1729,7 @@ func TestOauth2JwtBearerGrantType(t *testing.T) {
 		expGrantType:     "urn:ietf:params:oauth:grant-type:jwt-bearer",
 		expScope:         &[]string{"scope1", "scope2"},
 		expJwtCredential: true,
-		expAlgorithm:     jwa.RS256,
+		expAlgorithm:     jwa.RS256(),
 		verificationKey:  &key.PublicKey,
 	}
 	ots.start()
@@ -1739,7 +1738,7 @@ func TestOauth2JwtBearerGrantType(t *testing.T) {
 	client := newOauth2JwtBearerTestClient(t, ks, &ts, &ots, func(c *Config) {
 		c.Credentials.OAuth2.SigningKeyID = keyID
 	})
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err = client.Do(ctx, "GET", "test")
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
@@ -1759,7 +1758,7 @@ func TestOauth2JwtBearerGrantTypePKCS8EncodedPrivateKey(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	keyPem := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: privateKey})
+	keyPem := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privateKey})
 	ks := map[string]*keys.Config{
 		keyID: {
 			PrivateKey: string(keyPem),
@@ -1777,7 +1776,7 @@ func TestOauth2JwtBearerGrantTypePKCS8EncodedPrivateKey(t *testing.T) {
 		expGrantType:     "urn:ietf:params:oauth:grant-type:jwt-bearer",
 		expScope:         &[]string{"scope1", "scope2"},
 		expJwtCredential: true,
-		expAlgorithm:     jwa.RS256,
+		expAlgorithm:     jwa.RS256(),
 		verificationKey:  &key.PublicKey,
 	}
 	ots.start()
@@ -1786,7 +1785,7 @@ func TestOauth2JwtBearerGrantTypePKCS8EncodedPrivateKey(t *testing.T) {
 	client := newOauth2JwtBearerTestClient(t, ks, &ts, &ots, func(c *Config) {
 		c.Credentials.OAuth2.SigningKeyID = keyID
 	})
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err = client.Do(ctx, "GET", "test")
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
@@ -1823,7 +1822,7 @@ func TestOauth2JwtBearerGrantTypeEllipticCurveAlgorithm(t *testing.T) {
 		expGrantType:     "urn:ietf:params:oauth:grant-type:jwt-bearer",
 		expScope:         &[]string{"scope1", "scope2"},
 		expJwtCredential: true,
-		expAlgorithm:     jwa.ES256,
+		expAlgorithm:     jwa.ES256(),
 		verificationKey:  &key.PublicKey,
 	}
 	ots.start()
@@ -1833,7 +1832,7 @@ func TestOauth2JwtBearerGrantTypeEllipticCurveAlgorithm(t *testing.T) {
 		c.Credentials.OAuth2.SigningKeyID = keyID
 		c.Credentials.OAuth2.IncludeJti = true
 	})
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err = client.Do(ctx, "GET", "test")
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
@@ -1871,7 +1870,7 @@ func TestOauth2ClientCredentialsJwtAuthentication(t *testing.T) {
 		expScope:         &[]string{"scope1", "scope2"},
 		expX5t:           "jxvd3pmCKZ5idJwg7duqxX9hnQQ=",
 		expJwtCredential: true,
-		expAlgorithm:     jwa.RS256,
+		expAlgorithm:     jwa.RS256(),
 		verificationKey:  &key.PublicKey,
 	}
 	ots.start()
@@ -1880,7 +1879,7 @@ func TestOauth2ClientCredentialsJwtAuthentication(t *testing.T) {
 	client := newOauth2ClientCredentialsJwtAuthClient(t, ks, &ts, &ots, func(c *Config) {
 		c.Credentials.OAuth2.SigningKeyID = keyID
 	})
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err = client.Do(ctx, "GET", "test")
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
@@ -2102,7 +2101,7 @@ func TestDebugLoggingRequestMaskAuthorizationHeader(t *testing.T) {
 	logger.SetLevel(logging.Debug)
 	client.logger = logger
 
-	ctx := context.Background()
+	ctx := t.Context()
 	if _, err := client.Do(ctx, "GET", "test"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -2386,7 +2385,7 @@ func (t *oauth2TestServer) handle(w http.ResponseWriter, r *http.Request) {
 				t.t.Errorf("Expected expSignature %v, got %v", t.expSignature, signature)
 			}
 		} else {
-			_, err := jws.Verify([]byte(token), t.expAlgorithm, t.verificationKey)
+			_, err := jws.Verify([]byte(token), jws.WithKey(t.expAlgorithm, t.verificationKey))
 			if err != nil {
 				t.t.Fatalf("Unexpected signature verification error %v", err)
 			}
@@ -2639,7 +2638,7 @@ func TestOauth2ClientCredentialsGrantTypeWithKms(t *testing.T) {
 		tokenTTL:         300,
 		expScope:         &[]string{"scope1", "scope2"},
 		expJwtCredential: true,
-		expAlgorithm:     jwa.ES256,
+		expAlgorithm:     jwa.ES256(),
 		expGrantType:     grantTypeClientCredentials,
 		expSignature:     jwtSignature,
 	}
@@ -2672,7 +2671,7 @@ func TestOauth2ClientCredentialsGrantTypeWithKms(t *testing.T) {
 
 	kms := aws.NewKMSWithURLClient(kmsServer.URL, kmsServer.Client(), logger)
 	client := newOauth2KmsClientCredentialsTestClient(t, &ts, &ots, kms)
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err := client.Do(ctx, "GET", "test")
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
@@ -2748,7 +2747,7 @@ func TestOauth2ClientCredentialsGrantTypeWithKeyVault(t *testing.T) {
 		tokenTTL:         300,
 		expScope:         &[]string{"scope1", "scope2"},
 		expJwtCredential: true,
-		expAlgorithm:     "ES256",
+		expAlgorithm:     jwa.ES256(),
 		expGrantType:     grantTypeClientCredentials,
 		expSignature:     sign,
 	}
@@ -2819,7 +2818,7 @@ func TestOauth2ClientCredentialsGrantTypeWithKeyVault(t *testing.T) {
 	}
 
 	client := newOauth2AzureKVClient(t, &ts, &ots, tokenerServer, fakePlugin)
-	_, err = client.Do(context.Background(), http.MethodGet, "test")
+	_, err = client.Do(t.Context(), http.MethodGet, "test")
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}

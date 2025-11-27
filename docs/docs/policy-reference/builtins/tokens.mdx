@@ -1,31 +1,127 @@
 ---
 title: Token Verification
 ---
-<BuiltinTable category={"tokens"}/>
-:::info
-Note that the `io.jwt.verify_XX` built-in methods verify **only** the signature. They **do not** provide any validation for the JWT
-payload and any claims specified. The `io.jwt.decode_verify` built-in will verify the payload and **all** standard claims.
+
+<BuiltinTable category={"tokens"} />
+
+While OPA isn't responsible for issuing JWT tokens, Rego policies commonly
+operate on HTTP requests which are authenticated using JWT tokens. Because
+of this, it's important that Rego has native functionality to decode and
+verify the contents of JWT tokens in order to enforce additional
+authorization logic on requests.
+
+Tokens often contain information about a user, which can be useful when
+writing authorization policies. Other information contained in a token's
+claims can include:
+
+- Email or user ID. This can be used to look up the user in other
+  datasets.
+- Roles or groups. Often used for role-based access control.
+- Locale, language and location. This can be used to enforce regional
+  restrictions or provide localized messages.
+
+Tokens can also contain any number of custom claims that are specific to
+your organization and use case.
+
+:::danger
+Remember that JWT tokens **must** be verified before being trusted. Using
+`io.jwt.decode()` alone is not enough without also verifying the token's
+signature. [`io.jwt.decode_verify()`](#decode_verify) is the recommended
+function to use as it both decodes and verifies the token while supporting
+a wide range of signature algorithms.
 :::
 
 The input `string` is a JSON Web Token encoded with JWS Compact Serialization. JWE and JWS JSON Serialization are not supported. If nested signing was used, the `header`, `payload` and `signature` will represent the most deeply nested token.
 
-For `io.jwt.decode_verify`, `constraints` is an object with the following members:
+## Examples
 
-| Name     | Meaning                                                                                                                                                                                              | Required  |
-| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| `cert`   | A PEM encoded certificate, PEM encoded public key, or a JWK key (set) containing an RSA or ECDSA public key.                                                                                         | See below |
-| `secret` | The secret key for HS256, HS384 and HS512 verification.                                                                                                                                              | See below |
-| `alg`    | The JWA algorithm name to use. If it is absent then any algorithm that is compatible with the key is accepted.                                                                                       | Optional  |
-| `iss`    | The issuer string. If it is present the only tokens with this issuer are accepted. If it is absent then any issuer is accepted.                                                                      | Optional  |
-| `time`   | The time in nanoseconds to verify the token at. If this is present then the `exp` and `nbf` claims are compared against this value. If it is absent then they are compared against the current time. | Optional  |
-| `aud`    | The audience that the verifier identifies with. If this is present then the `aud` claim is checked against it. **If it is absent then the `aud` claim must be absent too.**                          | Optional  |
+### `decode_verify`
 
-Exactly one of `cert` and `secret` must be present. If there are any
-unrecognized constraints then the token is considered invalid.
+`io.jwt.decode_verify()` is a built-in function that verifies and decodes
+a JWT token using the provided constraints. The function accepts two
+arguments:
 
-#### Token Verification Examples
+- `jwt`: the JWT from the request to verify and decode.
+- `constraints`: a map of constraints to apply when verifying the JWT.
 
-The examples below use the following token:
+The function can be seen as a combination of `io.jwt.verify_*` and
+`io.jwt.decode()` built-ins. `io.jwt.decode_verify()` supports all of the
+following algorithms:
+
+- **HMAC Algorithms**: HS256, HS384, HS512
+- **RSA Algorithms**: RS256, RS384, RS512
+- **ECDSA Algorithms**: ES256, ES384, ES512
+- **RSASSA-PSS Algorithms**: PS256, PS384, PS512
+
+The function also supports using a symmetric key to verify the token,
+though this is not recommended for production use.
+
+:::danger
+Remember that JWT tokens **must** be verified before being trusted. Using
+`io.jwt.decode()` alone is not enough without also verifying the token's
+signature. Using either a suitable `io.jwt.verify_*` function for your
+token type or `io.jwt.decode_verify()` is required to ensure the token is
+valid.
+:::
+
+`constraints` should contain either:
+
+- `cert`: The [JWKS](https://datatracker.ietf.org/doc/html/rfc7517)
+  or PEM-encoded certificate to use when verifying (RSA or ECDSA).
+- `secret`: The secret key for HS256, HS384 and HS512 verification (not
+  recommended for production use).
+
+Optionally, `constraints` can also contain the following to further verify the token:
+
+- `alg`: The JWA algorithm name to use. If it is absent then any algorithm that
+  is compatible with the key is accepted.
+- `aud`: Check the token was issued for the expected audience.
+- `iss`: The issuer string. If it is present the only tokens with this issuer
+  are accepted. If it is absent then any issuer is accepted.
+- `time`: The time in nanoseconds to verify the token at. If this is present
+  then the `exp` and `nbf` claims are compared against this value. If it is
+  absent then they are compared against the current time.
+
+The function returns a three element array consisting of:
+
+1. A boolean indicating if the token was successfully verified.
+2. A map of the token's headers.
+3. A map of the token's claims.
+
+For example, it might return:
+
+```json
+[
+   true, // verified ok
+   { "alg":"HS256", "typ":"JWT" }, // header
+   { // claims
+      "iss":"pki.example.com",
+      "name":"John Doe",
+      "sub":"1234567890"
+   }
+]
+```
+
+:::tip
+<!-- note the code at the link is also here under tokens.go in case of link rot -->
+
+If you'd like to generate a JWKS and signed JWT for testing below, you can
+use the [example code here](https://go.dev/play/p/HMAPqDJM3jk).
+:::
+
+<PlaygroundExample dir={require.context('../_examples/io.jwt/decode_verify/symmetric')} />
+
+<PlaygroundExample dir={require.context('../_examples/io.jwt/decode_verify/jwks')} />
+
+<PlaygroundExample dir={require.context('../_examples/io.jwt/decode_verify/cert')} />
+
+<PlaygroundExample dir={require.context('../_examples/io.jwt/decode_verify/jwks_time')} />
+
+<PlaygroundExample dir={require.context('../_examples/io.jwt/decode_verify/jwks_groups')} />
+
+### `verify_es256`
+
+The example below uses the following token:
 
 ```rego
 package jwt
@@ -35,7 +131,6 @@ es256_token := "eyJ0eXAiOiAiSldUIiwgImFsZyI6ICJFUzI1NiJ9.eyJuYmYiOiAxNDQ0NDc4NDA
 
 <RunSnippet id="token.rego"/>
 
-#### Using JWKS
 
 This example shows a two-step process to verify the token signature and then decode it for
 further checks of the payload content. This approach gives more flexibility in verifying only
@@ -55,13 +150,10 @@ jwks := `{
 ```
 
 <RunSnippet id="jwks.rego"/>
-<PlaygroundExample files="#jwks.rego #token.rego" dir={require.context("../_examples/tokens/verify/jwks")} />
 
-<PlaygroundExample files="#jwks.rego #token.rego" dir={require.context("../_examples/tokens/verify/jwks_single")} />
+<PlaygroundExample files="#jwks.rego #token.rego" dir={require.context("../_examples/io.jwt/verify_es256/jwks")} />
 
-#### Using PEM encoded X.509 Certificate
-
-The following examples will demonstrate verifying tokens using an X.509 Certificate
+The following example will demonstrate verifying tokens using an X.509 Certificate
 defined as:
 
 ```rego
@@ -81,22 +173,5 @@ OHoCIHmNX37JOqTcTzGn2u9+c8NlnvZ0uDvsd1BmKPaUmjmm
 
 <RunSnippet id="cert.rego"/>
 
-<PlaygroundExample files="#cert.rego #token.rego" dir={require.context("../_examples/tokens/verify/cert")} />
+<PlaygroundExample files="#cert.rego #token.rego" dir={require.context("../_examples/io.jwt/verify_es256/cert")} />
 
-<PlaygroundExample files="#cert.rego #token.rego" dir={require.context("../_examples/tokens/verify/cert_single")} />
-
-#### Round Trip - Sign and Verify
-
-These examples show how to encode a token, verify, and decode it with the different options available.
-
-<PlaygroundExample dir={require.context("../_examples/tokens/verify/sign_raw")} />
-
-<PlaygroundExample dir={require.context("../_examples/tokens/verify/sign")} />
-
-:::info
-Note that the resulting encoded token is different from the first example using
-`io.jwt.encode_sign_raw`. The reason is that the `io.jwt.encode_sign` function
-is using canonicalized formatting for the header and payload whereas
-`io.jwt.encode_sign_raw` does not change the whitespace of the strings passed
-in. The decoded and parsed JSON values are still the same.
-:::

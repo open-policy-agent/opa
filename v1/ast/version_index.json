@@ -3,1469 +3,1062 @@
     "abs": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "all": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "and": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "any": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "array.concat": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "array.reverse": {
       "Major": 0,
       "Minor": 36,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "array.slice": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "assign": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "base64.decode": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "base64.encode": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "base64.is_valid": {
       "Major": 0,
       "Minor": 24,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "base64url.decode": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "base64url.encode": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "base64url.encode_no_pad": {
       "Major": 0,
       "Minor": 25,
       "Patch": 0,
-      "PreRelease": "rc2",
-      "Metadata": ""
+      "PreRelease": "rc2"
     },
     "bits.and": {
       "Major": 0,
       "Minor": 18,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "bits.lsh": {
       "Major": 0,
       "Minor": 18,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "bits.negate": {
       "Major": 0,
       "Minor": 18,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "bits.or": {
       "Major": 0,
       "Minor": 18,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "bits.rsh": {
       "Major": 0,
       "Minor": 18,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "bits.xor": {
       "Major": 0,
       "Minor": 18,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "cast_array": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "cast_boolean": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "cast_null": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "cast_object": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "cast_set": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "cast_string": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "ceil": {
       "Major": 0,
       "Minor": 26,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "concat": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "contains": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "count": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "crypto.hmac.equal": {
       "Major": 0,
       "Minor": 52,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "crypto.hmac.md5": {
       "Major": 0,
       "Minor": 36,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "crypto.hmac.sha1": {
       "Major": 0,
       "Minor": 36,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "crypto.hmac.sha256": {
       "Major": 0,
       "Minor": 36,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "crypto.hmac.sha512": {
       "Major": 0,
       "Minor": 36,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "crypto.md5": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "crypto.parse_private_keys": {
       "Major": 0,
       "Minor": 55,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "crypto.sha1": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "crypto.sha256": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "crypto.x509.parse_and_verify_certificates": {
       "Major": 0,
       "Minor": 31,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "crypto.x509.parse_and_verify_certificates_with_options": {
       "Major": 0,
       "Minor": 63,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "crypto.x509.parse_certificate_request": {
       "Major": 0,
       "Minor": 21,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "crypto.x509.parse_certificates": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "crypto.x509.parse_keypair": {
       "Major": 0,
       "Minor": 53,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "crypto.x509.parse_rsa_private_key": {
       "Major": 0,
       "Minor": 33,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "div": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "endswith": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "eq": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "equal": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "floor": {
       "Major": 0,
       "Minor": 26,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "format_int": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "glob.match": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "glob.quote_meta": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "graph.reachable": {
       "Major": 0,
       "Minor": 20,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "graph.reachable_paths": {
       "Major": 0,
       "Minor": 37,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "graphql.is_valid": {
       "Major": 0,
       "Minor": 41,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "graphql.parse": {
       "Major": 0,
       "Minor": 41,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "graphql.parse_and_verify": {
       "Major": 0,
       "Minor": 41,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "graphql.parse_query": {
       "Major": 0,
       "Minor": 41,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "graphql.parse_schema": {
       "Major": 0,
       "Minor": 41,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "graphql.schema_is_valid": {
       "Major": 0,
       "Minor": 46,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "gt": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "gte": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "hex.decode": {
       "Major": 0,
       "Minor": 25,
       "Patch": 0,
-      "PreRelease": "rc2",
-      "Metadata": ""
+      "PreRelease": "rc2"
     },
     "hex.encode": {
       "Major": 0,
       "Minor": 25,
       "Patch": 0,
-      "PreRelease": "rc2",
-      "Metadata": ""
+      "PreRelease": "rc2"
     },
     "http.send": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "indexof": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "indexof_n": {
       "Major": 0,
       "Minor": 37,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "internal.member_2": {
       "Major": 0,
       "Minor": 34,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "internal.member_3": {
       "Major": 0,
       "Minor": 34,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "internal.print": {
       "Major": 0,
       "Minor": 34,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "internal.test_case": {
       "Major": 1,
       "Minor": 2,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "intersection": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "io.jwt.decode": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "io.jwt.decode_verify": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "io.jwt.encode_sign": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "io.jwt.encode_sign_raw": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
+    },
+    "io.jwt.verify_eddsa": {
+      "Major": 1,
+      "Minor": 8,
+      "Patch": 0
     },
     "io.jwt.verify_es256": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "io.jwt.verify_es384": {
       "Major": 0,
       "Minor": 20,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "io.jwt.verify_es512": {
       "Major": 0,
       "Minor": 20,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "io.jwt.verify_hs256": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "io.jwt.verify_hs384": {
       "Major": 0,
       "Minor": 20,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "io.jwt.verify_hs512": {
       "Major": 0,
       "Minor": 20,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "io.jwt.verify_ps256": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "io.jwt.verify_ps384": {
       "Major": 0,
       "Minor": 20,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "io.jwt.verify_ps512": {
       "Major": 0,
       "Minor": 20,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "io.jwt.verify_rs256": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "io.jwt.verify_rs384": {
       "Major": 0,
       "Minor": 20,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "io.jwt.verify_rs512": {
       "Major": 0,
       "Minor": 20,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "is_array": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "is_boolean": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "is_null": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "is_number": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "is_object": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "is_set": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "is_string": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "json.filter": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "json.is_valid": {
       "Major": 0,
       "Minor": 25,
       "Patch": 0,
-      "PreRelease": "rc1",
-      "Metadata": ""
+      "PreRelease": "rc1"
     },
     "json.marshal": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "json.marshal_with_options": {
       "Major": 0,
       "Minor": 64,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "json.match_schema": {
       "Major": 0,
       "Minor": 50,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "json.patch": {
       "Major": 0,
       "Minor": 25,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "json.remove": {
       "Major": 0,
       "Minor": 18,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "json.unmarshal": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "json.verify_schema": {
       "Major": 0,
       "Minor": 50,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "lower": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "lt": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "lte": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "max": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "min": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "minus": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "mul": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "neq": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "net.cidr_contains": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "net.cidr_contains_matches": {
       "Major": 0,
       "Minor": 19,
       "Patch": 0,
-      "PreRelease": "rc1",
-      "Metadata": ""
+      "PreRelease": "rc1"
     },
     "net.cidr_expand": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "net.cidr_intersects": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "net.cidr_is_valid": {
       "Major": 0,
       "Minor": 46,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "net.cidr_merge": {
       "Major": 0,
       "Minor": 24,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "net.cidr_overlap": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "net.lookup_ip_addr": {
       "Major": 0,
       "Minor": 35,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "numbers.range": {
       "Major": 0,
       "Minor": 22,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "numbers.range_step": {
       "Major": 0,
       "Minor": 56,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "object.filter": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 2,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 2
     },
     "object.get": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "object.keys": {
       "Major": 0,
       "Minor": 47,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "object.remove": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 2,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 2
     },
     "object.subset": {
       "Major": 0,
       "Minor": 42,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "object.union": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 2,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 2
     },
     "object.union_n": {
       "Major": 0,
       "Minor": 37,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "opa.runtime": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "or": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "plus": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "print": {
       "Major": 0,
       "Minor": 34,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "product": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "providers.aws.sign_req": {
       "Major": 0,
       "Minor": 47,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "rand.intn": {
       "Major": 0,
       "Minor": 31,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "re_match": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "regex.find_all_string_submatch_n": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "regex.find_n": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "regex.globs_match": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "regex.is_valid": {
       "Major": 0,
       "Minor": 23,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "regex.match": {
       "Major": 0,
       "Minor": 23,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "regex.replace": {
       "Major": 0,
       "Minor": 45,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "regex.split": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "regex.template_match": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "rego.metadata.chain": {
       "Major": 0,
       "Minor": 40,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "rego.metadata.rule": {
       "Major": 0,
       "Minor": 40,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "rego.parse_module": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "rem": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "replace": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "round": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "semver.compare": {
       "Major": 0,
       "Minor": 22,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "semver.is_valid": {
       "Major": 0,
       "Minor": 22,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "set_diff": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "sort": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "split": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "sprintf": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "startswith": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "strings.any_prefix_match": {
       "Major": 0,
       "Minor": 44,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "strings.any_suffix_match": {
       "Major": 0,
       "Minor": 44,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "strings.count": {
       "Major": 0,
       "Minor": 67,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "strings.render_template": {
       "Major": 0,
       "Minor": 59,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "strings.replace_n": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "strings.reverse": {
       "Major": 0,
       "Minor": 36,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "substring": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "sum": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "time.add_date": {
       "Major": 0,
       "Minor": 19,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "time.clock": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "time.date": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "time.diff": {
       "Major": 0,
       "Minor": 28,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "time.format": {
       "Major": 0,
       "Minor": 48,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "time.now_ns": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "time.parse_duration_ns": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "time.parse_ns": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "time.parse_rfc3339_ns": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "time.weekday": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "to_number": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "trace": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "trim": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "trim_left": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "trim_prefix": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "trim_right": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "trim_space": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "trim_suffix": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "type_name": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "union": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "units.parse": {
       "Major": 0,
       "Minor": 41,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "units.parse_bytes": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "upper": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "urlquery.decode": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "urlquery.decode_object": {
       "Major": 0,
       "Minor": 24,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "urlquery.encode": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "urlquery.encode_object": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "uuid.parse": {
       "Major": 0,
       "Minor": 57,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "uuid.rfc4122": {
       "Major": 0,
       "Minor": 20,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "walk": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "yaml.is_valid": {
       "Major": 0,
       "Minor": 25,
       "Patch": 0,
-      "PreRelease": "rc1",
-      "Metadata": ""
+      "PreRelease": "rc1"
     },
     "yaml.marshal": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "yaml.unmarshal": {
       "Major": 0,
       "Minor": 17,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     }
   },
   "features": {
     "keywords_in_refs": {
       "Major": 1,
       "Minor": 6,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "rego_v1": {
       "Major": 1,
       "Minor": 0,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "rego_v1_import": {
       "Major": 0,
       "Minor": 59,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "rule_head_ref_string_prefixes": {
       "Major": 0,
       "Minor": 46,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "rule_head_refs": {
       "Major": 0,
       "Minor": 59,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     }
   },
   "keywords": {
     "contains": {
       "Major": 0,
       "Minor": 42,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "every": {
       "Major": 0,
       "Minor": 38,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "if": {
       "Major": 0,
       "Minor": 42,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     },
     "in": {
       "Major": 0,
       "Minor": 34,
-      "Patch": 0,
-      "PreRelease": "",
-      "Metadata": ""
+      "Patch": 0
     }
   }
 }

@@ -1429,19 +1429,10 @@ func TestTopDownPartialEval(t *testing.T) {
 			`},
 			wantSupport: []string{`package partial.test
 
-			q if {
-				__local6__2 = input
-				data.partial.test.mock_concat(["foo"], __local6__2, __local5__2)
-				__local4__2 = __local5__2
-			}
-			mock_concat(__local0__3, __local1__3) = ["foo", "bar"] if {
-				input.foo = x_term_3_03
-				x_term_3_03
-			}
-			mock_concat(__local2__4, __local3__4) = ["bar", "baz"] if {
-				input.bar = x_term_4_04
-				x_term_4_04
-			}`},
+			q if { __local6__2 = input; data.partial.test.mock_concat(["foo"], __local6__2, __local5__2); __local4__2 = __local5__2 }
+			mock_concat(__local0__4, __local1__4) = ["foo", "bar"] if { input.foo = x_term_4_04; x_term_4_04 }
+			mock_concat(__local2__3, __local3__3) = ["bar", "baz"] if { input.bar = x_term_3_03; x_term_3_03 }`,
+			},
 		},
 		{
 			note:  "with+function: unknowns in replacement function's bodies",
@@ -1461,19 +1452,10 @@ func TestTopDownPartialEval(t *testing.T) {
 			`},
 			wantSupport: []string{`package partial.test
 
-			q if {
-				__local9__2 = input
-				data.partial.test.mock_concat(",", __local9__2, __local8__2)
-				__local6__2 = __local8__2
-			}
-			mock_concat(__local2__3, __local3__3) = "foo,bar" if {
-				input.foo = x_term_3_03
-				x_term_3_03
-			}
-			mock_concat(__local4__4, __local5__4) = "bar,baz" if {
-				input.bar = x_term_4_04
-				x_term_4_04
-			}`},
+			q if { __local9__2 = input; data.partial.test.mock_concat(",", __local9__2, __local8__2); __local6__2 = __local8__2 }
+			mock_concat(__local2__4, __local3__4) = "foo,bar" if { input.foo = x_term_4_04; x_term_4_04 }
+			mock_concat(__local4__3, __local5__3) = "bar,baz" if { input.bar = x_term_3_03; x_term_3_03 }`,
+			},
 		},
 		{
 			note:  "with+builtin+negation: when replacement has no unknowns (args, defs), save negated expr without replacement",
@@ -1586,8 +1568,8 @@ func TestTopDownPartialEval(t *testing.T) {
 				package partial.test
 
 				q if { data.partial.test.mock_count([1], __local2__3); __local2__3 = input.x }
-				mock_count(__local0__4) = 100 if { input.y = x_term_4_04; x_term_4_04 }
-				mock_count(__local1__5) = 101 if { input.z = x_term_5_05; x_term_5_05 }
+				mock_count(__local0__5) = 100 if { input.y = x_term_5_05; x_term_5_05 }
+				mock_count(__local1__4) = 101 if { input.z = x_term_4_04; x_term_4_04 }
 			`},
 		},
 		{
@@ -1611,8 +1593,8 @@ func TestTopDownPartialEval(t *testing.T) {
 				package partial.test
 
 				q if { data.partial.test.mock_count([1], __local4__3); __local4__3 = input.x }
-				mock_count(__local1__4) = 100 if { input.y = x_term_4_04; x_term_4_04 }
-				mock_count(__local2__5) = 101 if { input.z = x_term_5_05; x_term_5_05 }
+				mock_count(__local1__5) = 100 if { input.y = x_term_5_05; x_term_5_05 }
+				mock_count(__local2__4) = 101 if { input.z = x_term_4_04; x_term_4_04 }
 			`},
 		},
 		{
@@ -4964,7 +4946,7 @@ q if { input.x = 7 }`},
 		},
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	for _, tc := range tests {
 		params := fixtureParams{

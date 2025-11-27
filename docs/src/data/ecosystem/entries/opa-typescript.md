@@ -10,10 +10,11 @@ labels:
   layer: network
   category: application
 tutorials:
-- https://styrainc.github.io/opa-typescript/
+- https://open-policy-agent.github.io/opa-typescript/
 code:
-- https://github.com/StyraInc/opa-typescript
-- https://www.npmjs.com/package/@styra/opa
+- https://github.com/open-policy-agent/opa-typescript
+- https://www.npmjs.com/package/@open-policy-agent/opa
 ---
 
-The Styra-supported driver to connect to Open Policy Agent (OPA) and Enterprise OPA deployments from Typescript applications.
+The driver to connect to Open Policy Agent (OPA) deployments
+from Typescript applications.

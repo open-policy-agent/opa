@@ -376,7 +376,7 @@ type CompileRequestV1 struct {
 	Options  struct {
 		DisableInlining          []string `json:"disableInlining,omitempty"`
 		NondeterministicBuiltins bool     `json:"nondeterministicBuiltins"`
-	} `json:"options,omitempty"`
+	} `json:"options"`
 }
 
 // CompileResponseV1 models the response message for Compile API operations.
@@ -448,6 +448,7 @@ const (
 	// ParamBundleActivationV1 defines the name of the HTTP URL parameter that
 	// indicates the client wants to include bundle activation in the results
 	// of the health API.
+	//
 	// Deprecated: Use ParamBundlesActivationV1 instead.
 	ParamBundleActivationV1 = "bundle"
 

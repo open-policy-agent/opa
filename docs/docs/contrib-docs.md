@@ -117,9 +117,14 @@ preview site anyway.
 Once you've tested your changes and you're happy with how they look, commit them
 to your branch and open a pull request. If this is your first time opening a
 pull request with the OPA repository, check out the
-[Contributing Guide](./contributing).
+[Contributing Code Guide](./contrib-code).
 Once your PR has been received a Netlify preview will be automatically created,
 check the PR for a unique link.
+
+:::warning
+Please review OPA's [AI Guidelines](./contrib-code#ai-guidelines) if you're
+using any generative AI tooling.
+:::
 
 ## Having trouble?
 

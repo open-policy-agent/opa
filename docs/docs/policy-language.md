@@ -3,19 +3,15 @@ title: Policy Language
 sidebar_position: 3
 ---
 
-OPA is purpose built for reasoning about information represented in structured
-documents. The data that your service and its users publish can be inspected and
-transformed using OPA’s native query language Rego.
+OPA is purpose built for policy evaluation and uses its declarative language Rego
+to reason about structured data like API requests, infrastructure-as-code files,
+and configuration data. Rego lets you express desired rules and decisions as code,
+and is designed to be easy to read and write while being optimized for fast policy evaluation.
 
-## What is Rego?
-
-Rego was inspired by [Datalog](https://en.wikipedia.org/wiki/Datalog), which is
-a well understood, decades old query language. Rego extends Datalog to support
-structured document models such as JSON.
-
-Rego queries are assertions on data stored in OPA. These queries can be used to
-define policies that enumerate instances of data that violate the expected state
-of the system.
+Rego queries are assertions on data that can be used to define policies and make decisions
+about whether data violates the expected state of your system. Rego was inspired by
+[Datalog](https://en.wikipedia.org/wiki/Datalog) and extends it to support structured
+document models such as JSON.
 
 ## Why use Rego?
 
@@ -47,7 +43,7 @@ tools</EcosystemFeatureLink>.
 This section introduces the main aspects of Rego.
 
 The simplest rule is a single expression and is defined in terms of a
-[Scalar Value](#scalar-values). This `example` package defines a rule
+[scalar value](#scalar-values). This `example` [package](#packages) defines a rule
 called `pi` that contains the value of pi:
 
 ```rego
@@ -58,7 +54,7 @@ pi := 3.14159
 
 <RunSnippet command="data.example"/>
 
-Rules can also be defined in terms of [Composite Values](#composite-values):
+Rules can also be defined in terms of [composite values](#composite-values):
 
 ```rego
 package example
@@ -68,7 +64,7 @@ rect := {"width": 2, "height": 4}
 
 <RunSnippet id="rect.rego" command="data.example"/>
 
-You can compare two scalar or composite values, and when you do so you are
+You can [compare](#equality-comparison-and-unification) two scalar or composite values, and when you do so you are
 checking if the two values are the same JSON value.
 
 ```rego
@@ -138,7 +134,7 @@ If the **value** is not specified, it defaults to the boolean value of **true**.
 
 Rego [references](#references) help you refer to nested documents.
 The rule `prod_exists` asserts that there exists (at least) one document
-within `sites` where the `name` attribute equals `"prod"`.
+within `sites` where the `name` attribute equals `"prod"` using the [`some` keyword](#some-keyword).
 
 ```rego
 package sites
@@ -206,7 +202,7 @@ A simple example is a regex to match a valid Rego variable. With a regular strin
 
 ## Composite Values
 
-Composite values define collections. In simple cases, composite values can be treated as constants like [Scalar Values](#scalar-values):
+Composite values define collections. In simple cases, composite values can be treated as constants like [scalar values](#scalar-values):
 
 ```rego
 package composite
@@ -319,8 +315,8 @@ not_equal := {} == {e| some e in []}
 
 <RunSnippet command="data.sets"/>
 
-:::danger
-`count({})` will still return `0` because `{}` is an empty object. However,
+:::warning
+The [built-in function](#built-in-functions) `count({})` will still return `0` because `{}` is an empty object. However,
 since `{}` is not a set, it will not equal `set()` or something that evaluates
 to an empty set.
 :::
@@ -525,7 +521,7 @@ package references
 
 import data.example.sites
 
-result := {h| h := sites[i].servers[j].hostname }
+result := {h| h := sites[i].servers[j].hostname}
 ```
 
 <RunSnippet files="#example_data.rego" command="data.references.result"/>
@@ -534,11 +530,11 @@ Conceptually, this is the same as the following imperative code:
 
 ```python
 def hostnames(sites):
-    result = []
+    result = set()
 
     for site in sites:
         for server in site.servers:
-            result.append(server.hostname)
+            result.add(server.hostname)
 
     return result
 ```
@@ -630,9 +626,9 @@ same_site contains apps[k].name if {
 
 ## Comprehensions
 
-Comprehensions provide a concise way of building [Composite Values](#composite-values) from sub-queries.
+Comprehensions provide a concise way of building [composite values](#composite-values) from sub-queries.
 
-Like [Rules](#rules), comprehensions consist of a head and a body. The body of a comprehension can be understood in exactly the same way as the body of a rule, that is, one or more expressions that must all be true in order for the overall body to be true. When the body evaluates to true, the head of the comprehension is evaluated to produce an element in the result.
+Like [rules](#rules), comprehensions consist of a head and a body. The body of a comprehension can be understood in exactly the same way as the body of a rule, that is, one or more expressions that must all be true in order for the overall body to be true. When the body evaluates to true, the head of the comprehension is evaluated to produce an element in the result.
 
 The body of a comprehension is able to refer to variables defined in the outer body. For example:
 
@@ -648,7 +644,7 @@ names := [name | sites[i].region == region; name := sites[i].name]
 
 <RunSnippet files="#example_data.rego" command="data.comprehensions.names"/>
 
-In the above query, the second expression contains an [Array Comprehension](#array-comprehensions) that refers to the `region` variable. The region variable will be bound in the outer body.
+In the above query, the second expression contains an [array comprehension](#array-comprehensions) that refers to the `region` variable. The region variable will be bound in the outer body.
 
 > When a comprehension refers to a variable in an outer body, OPA will reorder expressions in the outer body so that variables referred to in the comprehension are bound by the time the comprehension is evaluated.
 
@@ -663,7 +659,7 @@ Comprehensions are often used to group elements by some key. A common use case f
 
 ### Array Comprehensions
 
-Array Comprehensions build array values out of sub-queries. Array Comprehensions have the form:
+Array comprehensions build array values out of sub-queries. Array comprehensions have the form:
 
 ```
 [ <term> | <body> ]
@@ -691,13 +687,13 @@ app_to_hostnames[app_name] := hostnames if {
 
 ### Object Comprehensions
 
-Object Comprehensions build object values out of sub-queries. Object Comprehensions have the form:
+Object comprehensions build object values out of sub-queries. Object comprehensions have the form:
 
 ```
 { <key>: <term> | <body> }
 ```
 
-We can use Object Comprehensions to write the rule from above as a comprehension instead:
+We can use object comprehensions to write the rule from above as a comprehension instead:
 
 ```rego
 package comprehensions
@@ -752,11 +748,11 @@ my_set := {e | some e in my_array}
 
 ## Rules
 
-Rules define the content of [Virtual Documents](./philosophy#how-does-opa-work) in
+Rules define the content of [virtual documents](./philosophy#how-does-opa-work) in
 OPA. When OPA evaluates a rule, we say OPA _generates_ the content of the
 document that is defined by the rule.
 
-The sample code in this section make use of the data defined in [Examples](#example-data).
+The sample code in this section make use of the data defined in [References](#references).
 
 ### Generating Sets
 
@@ -1264,7 +1260,7 @@ result := [r([10]), r([10, 1])]
 
 ## Negation
 
-To generate the content of a [Virtual Document](./philosophy#how-does-opa-work), OPA attempts to bind variables in the body of the rule such that all expressions in the rule evaluate to True.
+To generate the content of a [virtual document](./philosophy#how-does-opa-work), OPA attempts to bind variables in the body of the rule such that all expressions in the rule evaluate to True.
 
 This generates the correct result when the expressions represent assertions about what states should exist in the data stored in OPA. In some cases, you want to express that certain states _should not_ exist in the data stored in OPA. In these cases, negation must be used.
 
@@ -1286,7 +1282,7 @@ t if {
 <RunSnippet command="data.negation.t"/>
 
 Negation is required to check whether some value _does not_ exist in a collection: `not p["foo"]`. That is not the same as complementing the `==` operator in an expression `p[_] == "foo"` which yields `p[_] != "foo"`
-which means for any item in `p`, return true if the item is not `"foo"`. See more details [here](https://docs.styra.com/regal/rules/bugs/not-equals-in-loop).
+which means for any item in `p`, return true if the item is not `"foo"`. See more details [here](/projects/regal/rules/bugs/not-equals-in-loop).
 
 For example, we can write a rule that defines a document containing names of
 apps not deployed on the `"prod"` site:
@@ -1322,6 +1318,18 @@ apps_not_in_prod contains name if {
 
 <RunSnippet files="#example_data.rego" command="data.negation.apps_not_in_prod"/>
 
+:::info
+Logical OR/AND in Rego is structured differently from other languages you might
+be familiar with. See the notes here on [logical OR](../docs/#logical-or) or
+here for [logical AND](../docs/#basic-syntax) for more details.
+:::
+
+:::tip
+Have a look at the other examples for
+[`not`](./policy-reference/keywords/not) in the examples section to learn more
+about using this keyword.
+:::
+
 ## Universal Quantification (FOR ALL)
 
 Rego allows for several ways to express universal quantification.
@@ -1332,7 +1340,7 @@ For example, imagine you want to express a policy that says in natural language:
 There must be no apps named "bitcoin-miner".
 ```
 
-The most expressive way to state this in Rego is using the `every` keyword:
+The most expressive way to state this in Rego is using the [`every` keyword](#every-keyword):
 
 ```rego
 no_bitcoin_miners_using_every if {
@@ -1355,9 +1363,9 @@ expressions are simultaneously satisfied.
 Therefore, there are other ways to express the desired policy.
 
 For this policy, you can also define a rule that finds if there exists a bitcoin-mining
-app (which is easy using the `some` keyword). And then you use negation to check
-that there is NO bitcoin-mining app. Technically, you're using 2 negations and
-an existential quantifier, which is logically the same as a universal
+app (which is easy using the [`some` keyword](#some-keyword)). And then you use negation to check
+that there is NO bitcoin-mining app. Technically, you're using a [negation](#negation) and
+an [existential quantifier](#in-keyword), which is logically the same as a universal
 quantifier.
 
 For example:
@@ -1433,7 +1441,7 @@ ALL. To express FOR ALL in Rego complement the logic in the rule body (e.g.,
 `no_bitcoin_miners` becomes `not any_bitcoin_miners`).
 
 Alternatively, we can implement the same kind of logic inside a single rule
-using [Comprehensions](#comprehensions).
+using [comprehensions](#comprehensions).
 
 ```rego
 no_bitcoin_miners_using_comprehension if {
@@ -1444,7 +1452,7 @@ no_bitcoin_miners_using_comprehension if {
 
 :::info
 Whether you use negation, comprehensions, or `every` to express FOR ALL is up to you.
-The `every` keyword should lend itself nicely to a rule formulation that closely
+The [`every` keyword](#every-keyword) should lend itself nicely to a rule formulation that closely
 follows how requirements are stated, and thus enhances your policy's readability.
 
 The comprehension version is more concise than the negation variant, and does not
@@ -1452,13 +1460,19 @@ require a helper rule while the negation version is more verbose but a bit simpl
 and allows for more complex ORs.
 :::
 
+:::tip
+Have a look at the other examples for
+[`some`](./policy-reference/keywords/some) and
+[`every`](./policy-reference/keywords/every) in the examples section.
+:::
+
 ## Modules
 
 In Rego, policies are defined inside _modules_. Modules consist of:
 
-- Exactly one [Package](#packages) declaration.
-- Zero or more [Import](#imports) statements.
-- Zero or more [Rule](#rules) definitions.
+- Exactly one [package](#packages) declaration.
+- Zero or more [import](#imports) statements.
+- Zero or more [rule](#rules) definitions.
 
 Modules are typically represented in Unicode text and encoded in UTF-8.
 
@@ -1502,7 +1516,7 @@ package 1foo        # not a variable
 package foo[1].bar  # contains non-string operand
 ```
 
-For more details see the language [Grammar](./policy-reference/#grammar).
+For more details see the language [grammar](./policy-reference/#grammar).
 
 ### Imports
 
@@ -1511,7 +1525,28 @@ document, the identifiers exported by that document can be referenced within the
 
 All modules contain implicit statements which import the `data` and `input` documents.
 
-Modules use the same syntax to declare dependencies on [Base and Virtual Documents](./philosophy#how-does-opa-work).
+Modules use the same syntax to declare dependencies on [base and virtual documents](./philosophy#how-does-opa-work).
+
+For example, the following document can be imported and used as follows:
+
+```rego
+package example
+
+servers := [
+    {
+        "id": "app",
+        "protocols": ["https", "ssh"]
+    },
+    {
+        "id": "db",
+        "protocols": ["mysql"]
+    },
+    {
+        "id": "ci",
+        "protocols": ["http"]
+    }
+]
+```
 
 ```rego
 package opa.examples
@@ -1525,6 +1560,13 @@ http_servers contains server if {
 ```
 
 Similarly, modules can declare dependencies on query arguments by specifying an import path that starts with `input`.
+
+```json title="input.json"
+{
+  "user": "paul",
+  "method": "GET"
+}
+```
 
 ```rego
 package examples
@@ -1574,13 +1616,17 @@ http_servers contains server if {
 
 More expressive membership and existential quantification keyword:
 
+```json title="input.json"
+{ "roles": ["denylisted-role", "another-role"] }
+```
+
 ```rego
-deny {
+deny if {
     some x in input.roles # iteration
     x == "denylisted-role"
 }
 
-deny {
+deny if {
     "denylisted-role" in input.roles # membership check
 }
 ```
@@ -1591,6 +1637,12 @@ See [the keywords docs](#membership-and-iteration-in) for details.
 
 This keyword allows more expressive rule heads:
 
+```json title="input.json"
+{
+  "token": "secret"
+}
+```
+
 ```rego
 deny if input.token != "secret"
 ```
@@ -1600,7 +1652,7 @@ deny if input.token != "secret"
 This keyword allows more expressive rule heads for partial set rules:
 
 ```rego
-deny contains msg { msg := "forbidden" }
+deny contains msg if { msg := "forbidden" }
 ```
 
 ## Some Keyword
@@ -1639,7 +1691,7 @@ Since we have declared `i`, `j`, and `server` to be local, we can introduce
 rules in the same package without affecting the result above:
 
 ```rego
-# Define a rule called 'i', has no impact on the tubples rule
+# Define a rule called 'i', has no impact on the tuples rule
 i := 1
 ```
 
@@ -1716,10 +1768,10 @@ please use `some x in xs; not p(x)` instead.
 ## With Keyword
 
 The `with` keyword allows queries to programmatically specify values nested
-under the [input Document](./philosophy/#the-opa-document-model) or the
-[data Document](./philosophy/#the-opa-document-model), or built-in functions.
+under the [input document](./philosophy/#the-opa-document-model) or the
+[data document](./philosophy/#the-opa-document-model), or [built-in functions](#built-in-functions).
 
-For example, given the simple authorization policy in the [Imports](#imports)
+For example, given the simple authorization policy in the [imports](#imports)
 section, we can write a query that checks whether a particular request would be
 allowed:
 
@@ -1877,7 +1929,7 @@ function arguments: if running `f(input.x), and`input.x`is undefined, the replac
 ## Default Keyword
 
 The `default` keyword allows policies to define a default value for documents
-produced by rules with [Complete Definitions](#complete-definitions). The
+produced by rules with [complete definitions](#complete-definitions). The
 default value is used when all the rules sharing the same name are undefined.
 
 For example:
@@ -1956,6 +2008,11 @@ function satisfies the following properties:
 A `default` function will still fail (as in not evaluate, even to the default value) if any of the arguments provided in
 the call are **undefined**. The reason for this is that the arguments are evaluated before the function is even called,
 and an undefined argument halts evaluation at that point.
+:::
+
+:::tip
+Have a look at the other examples for
+[`default`](./policy-reference/keywords/default) in the examples section to learn more.
 :::
 
 ## Else Keyword
@@ -2179,13 +2236,16 @@ p[x] = y if {
 
 <RunSnippet command="data.some_in"/>
 
-### Equality: Assignment, Comparison, and Unification
+:::info Non-ground values
+A "non-ground value" is a value that contains variables - like `{"foo": y}`
+where `y` is a variable that gets bound during evaluation. This is the opposite
+of a "ground value" which contains no variables. For a formal definition, see
+[ground term](https://en.wikipedia.org/wiki/Ground_expression#ground_term).
+:::
 
-Rego supports three kinds of equality: assignment (`:=`), comparison (`==`), and unification `=`. We recommend using assignment (`:=`) and comparison (`==`) whenever possible for policies that are easier to read and write.
+### Assignment (`:=`)
 
-#### Assignment `:=`
-
-The assignment operator (`:=`) is used to assign values to variables. Variables assigned inside a rule are locally scoped to that rule and shadow global variables.
+The assignment operator `:=` is used to assign values to variables. Variables assigned inside a rule are locally scoped to that rule and shadow global variables.
 
 ```rego
 package assignment
@@ -2234,6 +2294,13 @@ in_london if {
 ```
 
 <RunSnippet command="data.assignment"/>
+
+### Equality: Comparison, and Unification
+
+Rego supports two kinds of equality: comparison (`==`) and unification `=`.
+Generally, to test equality, using `==` for the comparison is recommended.
+The unification operator `=` can be thought of as a combination of `:=` and
+`==`, and is generally suited to some more advanced use cases.
 
 #### Comparison `==`
 
@@ -2312,21 +2379,27 @@ s if {
 
 <RunSnippet command="data.unification.s"/>
 
-#### Best Practices for Equality
+#### Best Practices for Equality and Assignment
 
-Here is a comparison of the three forms of equality.
+Best practice is to use assignment `:=` and comparison `==` unless you know you
+need to use unification.
+The additional compiler checks help avoid errors when writing policy, and the
+additional syntax helps make the intent clearer when reading policy.
 
-```
-Equality  Applicable    Compiler Errors            Use Case
---------  -----------   -------------------------  ----------------------
-:=        Everywhere    Var already assigned       Assign variable
-==        Everywhere    Var not assigned           Compare values
-=         Everywhere    Values cannot be computed  Express query
-```
+| Equality | Compiler Errors              | Use Case        |
+| -------- | ---------------------------- | --------------- |
+| `:=`     | Var already assigned         | Assign variable |
+| `==`     | Var not assigned             | Compare values  |
+| `=`      | Values would not be computed | Express query   |
 
-Best practice is to use assignment `:=` and comparison `==` wherever possible. The additional compiler checks help avoid errors when writing policy, and the additional syntax helps make the intent clearer when reading policy.
+:::tip Further Reading
+There are some Regal rules to help authors make the right decisions:
+
+- [`use-assignment-operator`](/projects/regal/rules/style/use-assignment-operator)
+- [`prefer-equals-comparison`](/projects/regal/rules/idiomatic/prefer-equals-comparison)
 
 Under the hood `:=` and `==` are syntactic sugar for `=`, local variable creation, and additional compiler checks.
+:::
 
 ### Comparison Operators
 
@@ -2454,19 +2527,19 @@ comment block containing the YAML document is finished
 
 ### Annotations
 
-| Name              | Type                                                        | Description                                                                                               |
-| ----------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| scope             | string; one of `package`, `rule`, `document`, `subpackages` | The scope for which the metadata applies. Read more [here](./#scope).                                     |
-| title             | string                                                      | A human-readable name for the annotation target. Read more [here](#title).                                |
-| description       | string                                                      | A description of the annotation target. Read more [here](#description).                                   |
-| related_resources | list of URLs                                                | A list of URLs pointing to related resources/documentation. Read more [here](#related-resources).         |
-| authors           | list of strings                                             | A list of authors for the annotation target. Read more [here](#authors).                                  |
-| organizations     | list of strings                                             | A list of organizations related to the annotation target. Read more [here](#organizations).               |
-| schemas           | list of object                                              | A list of associations between value paths and schema definitions. Read more [here](#schemas).            |
-| entrypoint        | boolean                                                     | Whether or not the annotation target is to be used as a policy entrypoint. Read more [here](#entrypoint). |
-| custom            | mapping of arbitrary data                                   | A custom mapping of named parameters holding arbitrary data. Read more [here](#custom).                   |
+| Name              | Type                                                        | Description                                                                                                        |
+| ----------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| scope             | string; one of `package`, `rule`, `document`, `subpackages` | The scope for which the metadata applies. Read more [here](#metadata-scope).                                       |
+| title             | string                                                      | A human-readable name for the annotation target. Read more [here](#metadata-title).                                |
+| description       | string                                                      | A description of the annotation target. Read more [here](#metadata-description).                                   |
+| related_resources | list of URLs                                                | A list of URLs pointing to related resources/documentation. Read more [here](#metadata-related_resources).         |
+| authors           | list of strings                                             | A list of authors for the annotation target. Read more [here](#metadata-authors).                                  |
+| organizations     | list of strings                                             | A list of organizations related to the annotation target. Read more [here](#metadata-organizations).               |
+| schemas           | list of object                                              | A list of associations between value paths and schema definitions. Read more [here](#metadata-schemas).            |
+| entrypoint        | boolean                                                     | Whether or not the annotation target is to be used as a policy entrypoint. Read more [here](#metadata-entrypoint). |
+| custom            | mapping of arbitrary data                                   | A custom mapping of named parameters holding arbitrary data. Read more [here](#metadata-custom).                   |
 
-### Scope
+### Metadata `Scope`
 
 Annotations can be defined at the rule or package level. The `scope` annotation in
 a metadata block determines how that metadata block will be applied. If the
@@ -2698,7 +2771,7 @@ This value is false by default, and can only be used at `document` or `package` 
 explicit `scope` set, the presence of an `entrypoint` annotation will automatically set the scope to `document`.
 
 The `build` and `eval` CLI commands will automatically pick up annotated entrypoints; you do not have to specify them with
-[`--entrypoint`](./cli/#options-1).
+[`--entrypoint`](./cli/#eval).
 
 :::info
 Unless the `--prune-unused` flag is used, any rule transitively referring to a
@@ -2768,7 +2841,7 @@ output := decision if {
 
 <RunSnippet files="#input.metadata.json" command="data.example.output"/>
 
-If you'd like more examples and information on this, you can see more here under the [Rego](./policy-reference/#rego) policy reference.
+If you'd like more examples and information on this, you can see more here under the [Rego](./policy-reference/builtins/rego) policy reference.
 
 #### From the `inspect` command
 

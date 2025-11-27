@@ -23,7 +23,7 @@ func TestNewPathForString(t *testing.T) {
 	}{
 		{"", nil, false},
 		{"foo", nil, false},
-		{"/", Path{}, true},
+		{"/", RootPath, true},
 		{"/", nil, true},
 		{"/foo", Path{"foo"}, true},
 		{"/foo/bar", Path{"foo", "bar"}, true},
@@ -53,7 +53,7 @@ func TestNewPathForRef(t *testing.T) {
 		{ast.MustParseRef("data.foo[{1, 2}]"), nil, fmt.Errorf("composites cannot be base document keys: %v", ast.MustParseRef("data.foo[{1, 2}]"))},
 		{ast.MustParseRef(`data.foo[{"foo": 2}]`), nil, fmt.Errorf("composites cannot be base document keys: %v", ast.MustParseRef(`data.foo[{"foo": 2}]`))},
 
-		{ast.MustParseRef("data"), Path{}, nil},
+		{ast.MustParseRef("data"), RootPath, nil},
 		{ast.MustParseRef("data.foo"), Path{"foo"}, nil},
 		{ast.MustParseRef("data.foo[1]"), Path{"foo", "1"}, nil},
 		{ast.MustParseRef("data.foo.bar"), Path{"foo", "bar"}, nil},
@@ -70,12 +70,15 @@ func TestNewPathForRef(t *testing.T) {
 }
 
 func TestNewPathForStringEscaped(t *testing.T) {
-
 	tests := []struct {
 		input  string
 		result Path
 		ok     bool
 	}{
+		{
+			input: "",
+			ok:    false,
+		},
 		{
 			input:  "/foo/bar", // no escaping
 			result: Path{"foo", "bar"},
@@ -90,6 +93,11 @@ func TestNewPathForStringEscaped(t *testing.T) {
 			input:  "/foo%2F%2Fbar/baz", // double escape
 			result: Path{"foo//bar", "baz"},
 			ok:     true,
+		},
+		{
+			input:  "/foo%%%%bar",
+			result: nil, // invalid escaping
+			ok:     false,
 		},
 	}
 
@@ -107,9 +115,9 @@ func TestPathCompare(t *testing.T) {
 		b      Path
 		result int
 	}{
-		{Path{}, Path{}, 0},
-		{Path{}, Path{"x"}, -1},
-		{Path{"x"}, Path{}, 1},
+		{RootPath, RootPath, 0},
+		{RootPath, Path{"x"}, -1},
+		{Path{"x"}, RootPath, 1},
 		{Path{"x"}, Path{"x"}, 0},
 		{Path{"x"}, Path{"y"}, -1},
 		{Path{"x"}, Path{"w"}, 1},
@@ -133,9 +141,9 @@ func TestPathEqual(t *testing.T) {
 		b      Path
 		result bool
 	}{
-		{Path{}, Path{}, true},
-		{Path{}, Path{"foo"}, false},
-		{Path{"foo"}, Path{}, false},
+		{RootPath, RootPath, true},
+		{RootPath, Path{"foo"}, false},
+		{Path{"foo"}, RootPath, false},
 		{Path{"foo", "bar"}, Path{"foo"}, false},
 		{Path{"foo", "bar"}, Path{"foo", "bar"}, true},
 	}
@@ -153,15 +161,15 @@ func TestPathHasPrefix(t *testing.T) {
 		b      Path
 		result bool
 	}{
-		{Path{}, Path{}, true},
-		{Path{}, Path{"foo"}, false},
-		{Path{"foo"}, Path{}, true},
+		{RootPath, RootPath, true},
+		{RootPath, Path{"foo"}, false},
+		{Path{"foo"}, RootPath, true},
 		{Path{"foo"}, Path{"bar"}, false},
 		{Path{"bar"}, Path{"foo"}, false},
 		{Path{"foo", "bar"}, Path{"foo"}, true},
 		{Path{"foo", "bar"}, Path{"foo", "bar"}, true},
 		{Path{"foo", "bar"}, Path{"foo", "bar", "baz"}, false},
-		{Path{"foo", "bar", "baz"}, Path{}, true},
+		{Path{"foo", "bar", "baz"}, RootPath, true},
 	}
 	for _, tc := range tests {
 		result := tc.a.HasPrefix(tc.b)
@@ -199,7 +207,7 @@ func TestPathRef(t *testing.T) {
 func BenchmarkPathString(b *testing.B) {
 	path := Path{"foo", "bar", "baz"}
 
-	for range b.N {
+	for b.Loop() {
 		res := path.String()
 		if res != "/foo/bar/baz" {
 			b.Fatal("unexpected result:", res)

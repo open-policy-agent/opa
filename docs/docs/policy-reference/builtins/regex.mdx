@@ -1,4 +1,112 @@
 ---
 title: Regular Expressions
 ---
+
+Regular expressions are an important tool for defining and testing patterns,
+making them useful in a range of policy use cases. Regular expressions enable
+specifying and enforcing rules on text data, such as validating input formats
+or extracting relevant substrings for further processing.
+
+Rego's regular expression functions use the RE2[^1] standard, known for its
+safety and performance features. RE2 avoids slow performance in common cases
+making it good for use in performance sensitive environments like policy evaluation.
+
+[^1]: Read more about the [RE2 syntax](https://github.com/google/re2/wiki/Syntax)
+
+Here is a simple rule based on a regular expression:
+
+```rego
+email_valid := regex.match(`^[^@]+@[^@]+\.[^@]+$`, "name@example.com")
+```
+
+In this example, the `email_valid` will be true as the email matches the pattern.
+Also note that the pattern is defined as a raw string, which is a common practice
+as it avoids the need to escape special characters[^2].
+
+[^2]: See [non-raw Regex Regal rule](/projects/regal/rules/idiomatic/non-raw-regex-pattern).
+
+While regular expressions are useful in many policies, it's important to
+consider performance and readability. For simple string operations, such as
+checking for a substring or performing exact matches, Rego's built-in string
+matching functions can be faster and easier to read by non-developers.
+
+:::tip
+Check out [regex101.com](https://regex101.com/r/ygG2RR/1) and use the RE2
+syntax to test your Rego patterns in a visual way.
+:::
+
+
 <BuiltinTable category={"regex"}/>
+
+## Examples
+
+### `match`
+
+`regex.match()` is a commonly used built-in function that checks if a string matches a
+given regular expression pattern. The function returns `true` if the string matches the
+pattern and `false` otherwise.
+
+Some examples of policy use cases where `regex.match()` might be used include:
+
+- Validating formats, such as ensuring an email address follows a specific pattern or
+  checking if a credit card number matches common formats.
+- Matching HTTP paths to specific patterns for routing or access control purposes.
+
+:::tip
+Check out [regex101.com](https://regex101.com/r/ygG2RR/1) and use the RE2
+syntax to test your Rego patterns in a visual way.
+:::
+
+<PlaygroundExample dir={require.context('../_examples/regex/match/email')} />
+
+<PlaygroundExample dir={require.context('../_examples/regex/match/paths')} />
+
+<PlaygroundExample dir={require.context('../_examples/regex/match/names')} />
+
+<PlaygroundExample dir={require.context('../_examples/regex/match/case-insensitive')} />
+
+
+### `template_match`
+
+`regex.template_match()` is an advanced function for matching inputs against
+complex patterns. Sometimes, an input string needs to be validated as a series
+of distinct components. This function allows you to offer patterns to validate
+specific parts of the string separately.
+
+:::warning
+Before continuing, make sure your use case is not solved by the simpler
+[`regex.match()`](#match)
+or
+[`glob.match`](/docs/policy-reference/builtins/glob#builtin-glob-globmatch)
+functions.
+
+This functions are easier to use and thus less error prone for simpler use cases.
+:::
+
+<PlaygroundExample dir={require.context('../_examples/regex/template_match/path_pattern')} />
+
+### `find_all_string_submatch_n`
+
+`regex.find_all_string_submatch_n()` is an advanced function for matching inputs
+against patterns with capture groups. This function returns a list matches,
+where matches are themselves lists of strings containing the full match followed
+by each of the submatches.
+
+:::warning
+Before continuing, make sure your use case is not solved by the simpler
+[`regex.match()`](#match) function.
+
+This function is easier to use and thus less error prone for simpler use cases.
+:::
+
+<PlaygroundExample dir={require.context('../_examples/regex/find_all_string_submatch_n/email_plus_addressing')} />
+
+<PlaygroundExample dir={require.context('../_examples/regex/find_all_string_submatch_n/scope_parsing/')} />
+
+### `globs_match`
+
+`regex.globs_match()` is a less commonly used built-in function that checks if two patterns
+overlap. This can be useful when using patterns to define permissions or access control
+rules. The function returns `true` if the two patterns overlap and `false` otherwise.
+
+<PlaygroundExample dir={require.context('../_examples/regex/globs_match/role_patterns')} />

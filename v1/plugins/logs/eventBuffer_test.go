@@ -6,7 +6,6 @@ package logs
 
 import (
 	"compress/gzip"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -30,7 +29,8 @@ func TestEventBuffer_Push(t *testing.T) {
 	expectedIds := make(map[string]struct{})
 	var expectedDropped uint64
 	limit := int64(2)
-	b := newEventBuffer(limit, rest.Client{}, "", 0).WithMetrics(metrics.New())
+	b := newEventBuffer(limit, 0)
+	b.WithMetrics(metrics.New())
 
 	id := "id1"
 	expectedIds[id] = struct{}{}
@@ -56,7 +56,7 @@ func TestEventBuffer_Push(t *testing.T) {
 
 	// Increase the limit, forcing the buffer to change
 	limit = int64(3)
-	b.Reconfigure(limit, rest.Client{}, "", 0)
+	b.Reconfigure(limit, 0, nil)
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 
 	id = "id4"
@@ -73,7 +73,7 @@ func TestEventBuffer_Push(t *testing.T) {
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 
 	limit = int64(1)
-	b.Reconfigure(limit, rest.Client{}, "", 0)
+	b.Reconfigure(limit, 0, nil)
 	// Limit reconfigured from 3->1, dropping 2 more events.
 	expectedDropped = 4
 	delete(expectedIds, "id3")
@@ -81,7 +81,7 @@ func TestEventBuffer_Push(t *testing.T) {
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 
 	// Nothing changed
-	b.Reconfigure(limit, rest.Client{}, "", 0)
+	b.Reconfigure(limit, 0, nil)
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 }
 
@@ -143,8 +143,8 @@ func TestEventBuffer_Upload(t *testing.T) {
 			uploadSizeLimitBytes: 196, // Each test event is 195 bytes
 			handleFunc: func(w http.ResponseWriter, r *http.Request) {
 				events := decodeLogEvent(t, r.Body)
-				if len(events) != 2 {
-					t.Errorf("expected 2 events, got %d", len(events))
+				if len(events) != 1 {
+					t.Errorf("expected 1 events, got %d", len(events))
 				}
 				w.WriteHeader(http.StatusOK)
 			},
@@ -165,13 +165,13 @@ func TestEventBuffer_Upload(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			client, ts := setupTestServer(t, uploadPath, tc.handleFunc)
 			defer ts.Close()
-			e := newEventBuffer(tc.eventLimit, client, uploadPath, tc.uploadSizeLimitBytes).WithMetrics(metrics.New()).WithLogger(logging.NewNoOpLogger())
-
+			e := newEventBuffer(tc.eventLimit, tc.uploadSizeLimitBytes).WithLogger(logging.NewNoOpLogger())
+			e.WithMetrics(metrics.New())
 			for i := range tc.numberOfEvents {
 				e.Push(newTestEvent(t, strconv.Itoa(i), true))
 			}
 
-			err := e.Upload(context.Background())
+			err := e.Upload(t.Context(), client, uploadPath)
 			if err != nil {
 				if tc.expectedError == "" || tc.expectedError != "" && err.Error() != tc.expectedError {
 					t.Fatal(err)

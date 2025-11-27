@@ -35,9 +35,7 @@ func BenchmarkMetricsMarshaling(b *testing.B) {
 		}
 	}
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		bs, err := json.Marshal(m)
 		if err != nil {
 			b.Fatalf("Unexpected error: %v", err)
@@ -51,7 +49,7 @@ func BenchmarkMetricsMarshaling(b *testing.B) {
 func BenchmarkMetricsTimerStartStopRestart(b *testing.B) {
 	m := metrics.New()
 
-	for range b.N {
+	for b.Loop() {
 		m.Timer("foo").Start()
 		_ = m.Timer("foo").Stop()
 		_ = m.Timer("foo").Stop() // Second stop to exercise the sync guard.

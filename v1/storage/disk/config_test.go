@@ -5,7 +5,6 @@
 package disk
 
 import (
-	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -105,7 +104,7 @@ storage:
 func TestDataDirPrefix(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	tmpdir := t.TempDir()
 
 	d, err := New(ctx, logging.NewNoOpLogger(), nil, Options{

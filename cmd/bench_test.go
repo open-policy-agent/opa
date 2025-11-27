@@ -39,7 +39,7 @@ func TestRunBenchmark(t *testing.T) {
 	args := []string{"1 + 1"}
 	var buf bytes.Buffer
 
-	rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+	rc, err := benchMain(args, params, &buf, nil, &goBenchRunner{})
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -83,7 +83,7 @@ func TestRunBenchmarkWithQueryImport(t *testing.T) {
 	args := []string{`"a" in ["a", "b", "c"]`}
 	var buf bytes.Buffer
 
-	rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+	rc, err := benchMain(args, params, &buf, nil, &goBenchRunner{})
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -125,7 +125,7 @@ func TestRunBenchmarkE2E(t *testing.T) {
 	args := []string{"1 + 1"}
 	var buf bytes.Buffer
 
-	rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+	rc, err := benchMain(args, params, &buf, nil, &goBenchRunner{})
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -182,7 +182,7 @@ func TestRunBenchmarkE2EWithOPAConfigFile(t *testing.T) {
 		args := []string{"1 + 1"}
 		var buf bytes.Buffer
 
-		rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+		rc, err := benchMain(args, params, &buf, nil, &goBenchRunner{})
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
@@ -234,7 +234,7 @@ func TestRunBenchmarkFailFastE2E(t *testing.T) {
 	args := []string{"a := 1; a > 2"}
 	var buf bytes.Buffer
 
-	rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+	rc, err := benchMain(args, params, &buf, nil, &goBenchRunner{})
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -270,7 +270,7 @@ func TestBenchPartialE2E(t *testing.T) {
 	args := []string{"input.x > 0"}
 	var buf bytes.Buffer
 
-	rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+	rc, err := benchMain(args, params, &buf, nil, &goBenchRunner{})
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -321,7 +321,7 @@ func TestRunBenchmarkPartialFailFastE2E(t *testing.T) {
 	args := []string{"1 == 2"}
 	var buf bytes.Buffer
 
-	rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+	rc, err := benchMain(args, params, &buf, nil, &goBenchRunner{})
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -354,7 +354,7 @@ func TestRunBenchmarkFailFast(t *testing.T) {
 	args := []string{"a := 1; a > 2"}
 	var buf bytes.Buffer
 
-	rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+	rc, err := benchMain(args, params, &buf, nil, &goBenchRunner{})
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -397,7 +397,7 @@ func TestBenchPartial(t *testing.T) {
 	args := []string{"input=1"}
 	var buf bytes.Buffer
 
-	rc, err := benchMain(args, params, &buf, &mockBenchRunner{})
+	rc, err := benchMain(args, params, &buf, nil, &mockBenchRunner{})
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -414,7 +414,7 @@ func TestBenchMainErrPreparing(t *testing.T) {
 	args := []string{"???"} // query compile error
 	var buf bytes.Buffer
 
-	rc, err := benchMain(args, params, &buf, &mockBenchRunner{})
+	rc, err := benchMain(args, params, &buf, nil, &mockBenchRunner{})
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -436,7 +436,7 @@ func TestBenchMainErrRunningBenchmark(t *testing.T) {
 		return testing.BenchmarkResult{}, errors.New("error error error")
 	}
 
-	rc, err := benchMain(args, params, &buf, mockRunner)
+	rc, err := benchMain(args, params, &buf, nil, mockRunner)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -462,7 +462,7 @@ func TestBenchMainWithCount(t *testing.T) {
 		return testing.BenchmarkResult{}, nil
 	}
 
-	rc, err := benchMain(args, params, &buf, mockRunner)
+	rc, err := benchMain(args, params, &buf, nil, mockRunner)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -492,7 +492,7 @@ func TestBenchMainWithNegativeCount(t *testing.T) {
 		return testing.BenchmarkResult{}, nil
 	}
 
-	rc, err := benchMain(args, params, &buf, mockRunner)
+	rc, err := benchMain(args, params, &buf, nil, mockRunner)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -534,7 +534,7 @@ func validateBenchMainPrep(t *testing.T, args []string, params benchmarkCommandP
 		return testing.BenchmarkResult{}, nil
 	}
 
-	rc, err := benchMain(args, params, &buf, mockRunner)
+	rc, err := benchMain(args, params, &buf, nil, mockRunner)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -586,7 +586,7 @@ func TestBenchMainInvalidInputFile(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		rc, err := benchMain(args, params, &buf, &mockBenchRunner{})
+		rc, err := benchMain(args, params, &buf, nil, &mockBenchRunner{})
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
@@ -614,7 +614,7 @@ func TestBenchMainWithJSONInputFileE2E(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+		rc, err := benchMain(args, params, &buf, nil, &goBenchRunner{})
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
@@ -643,7 +643,7 @@ func TestBenchMainWithYAMLInputFileE2E(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+		rc, err := benchMain(args, params, &buf, nil, &goBenchRunner{})
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
@@ -668,7 +668,7 @@ func TestBenchMainInvalidInputFileE2E(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+		rc, err := benchMain(args, params, &buf, nil, &goBenchRunner{})
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
@@ -750,7 +750,7 @@ func TestBenchMainWithBundleDataE2E(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+		rc, err := benchMain(args, params, &buf, nil, &goBenchRunner{})
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
@@ -793,7 +793,7 @@ func TestBenchMainWithDataE2E(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+		rc, err := benchMain(args, params, &buf, nil, &goBenchRunner{})
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
@@ -817,7 +817,7 @@ func TestBenchMainBadQueryE2E(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+	rc, err := benchMain(args, params, &buf, nil, &goBenchRunner{})
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -899,15 +899,15 @@ a contains x if {
 
 					args := []string{tc.query}
 
-					var buf bytes.Buffer
-					rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+					var buf, errBuf bytes.Buffer
+					rc, err := benchMain(args, params, &buf, &errBuf, &goBenchRunner{})
 
 					if len(tc.expErrs) > 0 {
 						if rc == 0 {
 							t.Fatalf("Expected non-zero return code")
 						}
 
-						output := buf.String()
+						output := errBuf.String()
 						for _, expErr := range tc.expErrs {
 							if !strings.Contains(output, expErr) {
 								t.Fatalf("Expected error:\n\n%s\n\ngot:\n\n%s", expErr, output)
@@ -1037,15 +1037,15 @@ a[4] {
 
 					args := []string{tc.query}
 
-					var buf bytes.Buffer
-					rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+					var buf, errBuf bytes.Buffer
+					rc, err := benchMain(args, params, &buf, &errBuf, &goBenchRunner{})
 
 					if len(tc.expErrs) > 0 {
 						if rc == 0 {
 							t.Fatalf("Expected non-zero return code")
 						}
 
-						output := buf.String()
+						output := errBuf.String()
 						for _, expErr := range tc.expErrs {
 							if !strings.Contains(output, expErr) {
 								t.Fatalf("Expected error:\n\n%s\n\ngot:\n\n%s", expErr, output)
@@ -1241,15 +1241,15 @@ a contains 4 if {
 
 						args := []string{tc.query}
 
-						var buf bytes.Buffer
-						rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+						var buf, errBuf bytes.Buffer
+						rc, err := benchMain(args, params, &buf, &errBuf, &goBenchRunner{})
 
 						if len(tc.expErrs) > 0 {
 							if rc == 0 {
 								t.Fatalf("Expected non-zero return code")
 							}
 
-							output := buf.String()
+							output := errBuf.String()
 							for _, expErr := range tc.expErrs {
 								if !strings.Contains(output, expErr) {
 									t.Fatalf("Expected error:\n\n%s\n\ngot:\n\n%s", expErr, output)
@@ -1330,22 +1330,22 @@ func TestRenderBenchmarkResultPrettyOutput(t *testing.T) {
 
 	actual := buf.String()
 
-	expected := `+-------------------------------------------+------------+
-| samples                                   |     134844 |
-| ns/op                                     |       8071 |
-| histogram_timer_rego_query_eval_ns_75%    |       4954 |
-| histogram_timer_rego_query_eval_ns_90%    |       6310 |
-| histogram_timer_rego_query_eval_ns_95%    |       7873 |
-| histogram_timer_rego_query_eval_ns_99%    |      14947 |
-| histogram_timer_rego_query_eval_ns_99.9%  |     174377 |
-| histogram_timer_rego_query_eval_ns_99.99% |     176301 |
-| histogram_timer_rego_query_eval_ns_count  |     134844 |
-| histogram_timer_rego_query_eval_ns_max    |     176301 |
-| histogram_timer_rego_query_eval_ns_mean   |       5118 |
-| histogram_timer_rego_query_eval_ns_median |       4312 |
-| histogram_timer_rego_query_eval_ns_min    |       3553 |
-| histogram_timer_rego_query_eval_ns_stddev |       6588 |
-+-------------------------------------------+------------+
+	expected := `┌───────────────────────────────────────────┬────────┐
+│ samples                                   │ 134844 │
+│ ns/op                                     │   8071 │
+│ histogram_timer_rego_query_eval_ns_75%    │   4954 │
+│ histogram_timer_rego_query_eval_ns_90%    │   6310 │
+│ histogram_timer_rego_query_eval_ns_95%    │   7873 │
+│ histogram_timer_rego_query_eval_ns_99%    │  14947 │
+│ histogram_timer_rego_query_eval_ns_99.9%  │ 174377 │
+│ histogram_timer_rego_query_eval_ns_99.99% │ 176301 │
+│ histogram_timer_rego_query_eval_ns_count  │ 134844 │
+│ histogram_timer_rego_query_eval_ns_max    │ 176301 │
+│ histogram_timer_rego_query_eval_ns_mean   │   5118 │
+│ histogram_timer_rego_query_eval_ns_median │   4312 │
+│ histogram_timer_rego_query_eval_ns_min    │   3553 │
+│ histogram_timer_rego_query_eval_ns_stddev │   6588 │
+└───────────────────────────────────────────┴────────┘
 `
 	if actual != expected {
 		t.Fatalf("\nExpected:\n%s\n\nGot:\n%s\n", expected, actual)
@@ -1369,24 +1369,24 @@ func TestRenderBenchmarkResultPrettyOutputShowAllocs(t *testing.T) {
 
 	actual := buf.String()
 
-	expected := `+-------------------------------------------+------------+
-| samples                                   |     134844 |
-| ns/op                                     |       8071 |
-| B/op                                      |       3336 |
-| allocs/op                                 |         62 |
-| histogram_timer_rego_query_eval_ns_75%    |       4954 |
-| histogram_timer_rego_query_eval_ns_90%    |       6310 |
-| histogram_timer_rego_query_eval_ns_95%    |       7873 |
-| histogram_timer_rego_query_eval_ns_99%    |      14947 |
-| histogram_timer_rego_query_eval_ns_99.9%  |     174377 |
-| histogram_timer_rego_query_eval_ns_99.99% |     176301 |
-| histogram_timer_rego_query_eval_ns_count  |     134844 |
-| histogram_timer_rego_query_eval_ns_max    |     176301 |
-| histogram_timer_rego_query_eval_ns_mean   |       5118 |
-| histogram_timer_rego_query_eval_ns_median |       4312 |
-| histogram_timer_rego_query_eval_ns_min    |       3553 |
-| histogram_timer_rego_query_eval_ns_stddev |       6588 |
-+-------------------------------------------+------------+
+	expected := `┌───────────────────────────────────────────┬────────┐
+│ samples                                   │ 134844 │
+│ ns/op                                     │   8071 │
+│ B/op                                      │   3336 │
+│ allocs/op                                 │     62 │
+│ histogram_timer_rego_query_eval_ns_75%    │   4954 │
+│ histogram_timer_rego_query_eval_ns_90%    │   6310 │
+│ histogram_timer_rego_query_eval_ns_95%    │   7873 │
+│ histogram_timer_rego_query_eval_ns_99%    │  14947 │
+│ histogram_timer_rego_query_eval_ns_99.9%  │ 174377 │
+│ histogram_timer_rego_query_eval_ns_99.99% │ 176301 │
+│ histogram_timer_rego_query_eval_ns_count  │ 134844 │
+│ histogram_timer_rego_query_eval_ns_max    │ 176301 │
+│ histogram_timer_rego_query_eval_ns_mean   │   5118 │
+│ histogram_timer_rego_query_eval_ns_median │   4312 │
+│ histogram_timer_rego_query_eval_ns_min    │   3553 │
+│ histogram_timer_rego_query_eval_ns_stddev │   6588 │
+└───────────────────────────────────────────┴────────┘
 `
 	if actual != expected {
 		t.Fatalf("\nExpected:\n%s\n\nGot:\n%s\n", expected, actual)
@@ -1432,7 +1432,7 @@ func TestRenderBenchmarkErrorJSONOutput(t *testing.T) {
 
 	_, err = ast.ParseBody("???")
 
-	err = renderBenchmarkError(params, err, &buf)
+	err = renderBenchmarkError(params, err, &buf, nil)
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
@@ -1491,7 +1491,7 @@ func testPrettyBenchmarkOutput(t *testing.T, params benchmarkCommandParams) {
 
 	_, err := ast.ParseBody("???")
 
-	err = renderBenchmarkError(params, err, &buf)
+	err = renderBenchmarkError(params, err, &buf, &buf)
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}

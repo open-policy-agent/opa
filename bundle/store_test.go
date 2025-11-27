@@ -5,7 +5,6 @@
 package bundle
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -17,7 +16,7 @@ import (
 )
 
 func TestHasRootsOverlap(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	cases := []struct {
 		note        string
@@ -181,7 +180,7 @@ func TestActivate_DefaultRegoVersion(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			store := mock.New()
 			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 			compiler := ast.NewCompiler().WithDefaultRegoVersion(ast.RegoV0CompatV1)
@@ -329,7 +328,7 @@ func TestDeactivate_DefaultRegoVersion(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			store := mock.New()
 			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 

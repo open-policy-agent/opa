@@ -116,32 +116,32 @@ func TestDoInspectPretty(t *testing.T) {
 		output := strings.TrimSpace(out.String())
 		expected := strings.TrimSpace(`
  MANIFEST:
-+----------+----------------------------------------------------+
-|  FIELD   |                       VALUE                        |
-+----------+----------------------------------------------------+
-| Revision | foobarfoobarfoobarfoobarfoobarfoobarfoobarfooba... |
-| Roots    | a                                                  |
-|          | bar                                                |
-|          | foo                                                |
-|          | fuz                                                |
-|          | http                                               |
-|          | metadata/...oobarfoobarfoobarfoobarfoobar/features |
-|          | x                                                  |
-| Metadata | {"hello":"worldworldworldworldworldworldworldwo... |
-+----------+----------------------------------------------------+
+┌──────────┬────────────────────────────────────────────────────┐
+│  FIELD   │                       VALUE                        │
+├──────────┼────────────────────────────────────────────────────┤
+│ Revision │ foobarfoobarfoobarfoobarfoobarfoobarfoobarfooba... │
+│ Roots    │ a                                                  │
+│          │ bar                                                │
+│          │ foo                                                │
+│          │ fuz                                                │
+│          │ http                                               │
+│          │ metadata/...oobarfoobarfoobarfoobarfoobar/features │
+│          │ x                                                  │
+│ Metadata │ {"hello":"worldworldworldworldworldworldworldwo... │
+└──────────┴────────────────────────────────────────────────────┘
 NAMESPACES:
-+-----------------------------+----------------------------------------------------+
-|          NAMESPACE          |                        FILE                        |
-+-----------------------------+----------------------------------------------------+
-| data                        | /data.json                                         |
-| data.a.b.y                  | /a/b/y/foo.rego                                    |
-|                             | /a/...xxxxxxxxxxxxxx/yyyyyyyyyyyyyyyyyyyy/foo.rego |
-| data.foo                    | /example/foo.rego                                  |
-| data.http.example.authz     | /http/example/authz/foo.rego                       |
-|                             | /http/example/authz/data.json                      |
-|                             | /policy.wasm                                       |
-| data.http.example.foo.allow | /example/policy.wasm                               |
-+-----------------------------+----------------------------------------------------+
+┌─────────────────────────────┬────────────────────────────────────────────────────┐
+│          NAMESPACE          │                        FILE                        │
+├─────────────────────────────┼────────────────────────────────────────────────────┤
+│ data                        │ /data.json                                         │
+│ data.a.b.y                  │ /a/b/y/foo.rego                                    │
+│                             │ /a/...xxxxxxxxxxxxxx/yyyyyyyyyyyyyyyyyyyy/foo.rego │
+│ data.foo                    │ /example/foo.rego                                  │
+│ data.http.example.authz     │ /http/example/authz/foo.rego                       │
+│                             │ /http/example/authz/data.json                      │
+│                             │ /policy.wasm                                       │
+│ data.http.example.foo.allow │ /example/policy.wasm                               │
+└─────────────────────────────┴────────────────────────────────────────────────────┘
 `)
 
 		if output != expected {
@@ -186,12 +186,12 @@ func TestDoInspectPrettyManifestOnlySingleRoot(t *testing.T) {
 		output := strings.TrimSpace(out.String())
 		expected := strings.TrimSpace(`
 MANIFEST:
-+----------+----------------------------------------------------+
-|  FIELD   |                       VALUE                        |
-+----------+----------------------------------------------------+
-| Roots    | metadata/...oobarfoobarfoobarfoobarfoobar/features |
-| Metadata | {"hello":"world"}                                  |
-+----------+----------------------------------------------------+
+┌──────────┬────────────────────────────────────────────────────┐
+│  FIELD   │                       VALUE                        │
+├──────────┼────────────────────────────────────────────────────┤
+│ Roots    │ metadata/...oobarfoobarfoobarfoobarfoobar/features │
+│ Metadata │ {"hello":"world"}                                  │
+└──────────┴────────────────────────────────────────────────────┘
 `)
 
 		if output != expected {
@@ -1517,11 +1517,11 @@ p contains 2 if {
 							}
 
 							expOut := fmt.Sprintf(`MANIFEST:
-+--------------+-------+
-|    FIELD     | VALUE |
-+--------------+-------+
-| Rego Version | %d     |
-+--------------+-------+`,
+┌──────────────┬───────┐
+│    FIELD     │ VALUE │
+├──────────────┼───────┤
+│ Rego Version │ %d     │
+└──────────────┴───────┘`,
 								tc.bundleRegoVersion)
 							if !strings.Contains(out.String(), expOut) {
 								t.Fatalf("Expected output to contain:\n\n%s\n\nbut got:\n\n%s", expOut, out.String())
@@ -2095,11 +2095,11 @@ p = 1`,
 		output := strings.TrimSpace(out.String())
 		expected := strings.TrimSpace(fmt.Sprintf(`
 NAMESPACES:
-+-----------+----------------------------------------------------+
-| NAMESPACE |                        FILE                        |
-+-----------+----------------------------------------------------+
-| data.test | %[1]s |
-+-----------+----------------------------------------------------+
+┌───────────┬────────────────────────────────────────────────────┐
+│ NAMESPACE │                        FILE                        │
+├───────────┼────────────────────────────────────────────────────┤
+│ data.test │ %[1]s │
+└───────────┴────────────────────────────────────────────────────┘
 ANNOTATIONS:
 pkg-title
 =========
@@ -2251,15 +2251,15 @@ p = 1`,
 		output := strings.TrimSpace(out.String())
 		expected := strings.TrimSpace(fmt.Sprintf(`
 NAMESPACES:
-+-----------+----------------------------------------------------+
-| NAMESPACE |                        FILE                        |
-+-----------+----------------------------------------------------+
-| data.test | %s |
-+-----------+----------------------------------------------------+
+┌───────────┬────────────────────────────────────────────────────┐
+│ NAMESPACE │                        FILE                        │
+├───────────┼────────────────────────────────────────────────────┤
+│ data.test │ %v │
+└───────────┴────────────────────────────────────────────────────┘
 `, shortFileName))
 
 		if output != expected {
-			t.Fatalf("Unexpected output. Expected:\n\n%q\n\nGot:\n\n%q", expected, output)
+			t.Fatalf("Unexpected output. Expected:\n%v\nGot:\n%v", expected, output)
 		}
 	})
 }

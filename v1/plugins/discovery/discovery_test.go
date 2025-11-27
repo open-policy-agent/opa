@@ -54,7 +54,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestEvaluateBundle(t *testing.T) {
-
 	sampleModule := `
 		package foo.bar
 		import rego.v1
@@ -89,7 +88,7 @@ func TestEvaluateBundle(t *testing.T) {
 
 	info := ast.MustParseTerm(`{"name": "test/bundle1"}`)
 
-	config, err := evaluateBundle(context.Background(), "test-id", info, b, "data.foo.bar")
+	config, err := evaluateBundle(t.Context(), "test-id", info, b, "data.foo.bar")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,12 +111,10 @@ func TestEvaluateBundle(t *testing.T) {
 	if !reflect.DeepEqual(expectedBundleConfig, parsedConfig) {
 		t.Fatalf("Expected bundle config %v, but got %v", expectedBundleConfig, parsedConfig)
 	}
-
 }
 
 func TestProcessBundle(t *testing.T) {
-
-	ctx := context.Background()
+	ctx := t.Context()
 
 	manager, err := plugins.New([]byte(`{
 		"services": {
@@ -186,12 +183,10 @@ func TestProcessBundle(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error but got success")
 	}
-
 }
 
 func TestEnvVarSubstitution(t *testing.T) {
-
-	ctx := context.Background()
+	ctx := t.Context()
 
 	manager, err := plugins.New([]byte(`{
 		"services": {
@@ -230,10 +225,11 @@ func TestEnvVarSubstitution(t *testing.T) {
 		t.Fatalf("Expected exactly three start events but got %v", ps)
 	}
 
-	actualConfig, err := manager.Config.ActiveConfig()
+	actualConfig, err := manager.GetConfig().ActiveConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	assertConfig(t, actualConfig, fmt.Sprintf(`{
 	"bundle": {
 		"name": "test1"
@@ -253,7 +249,7 @@ func TestEnvVarSubstitution(t *testing.T) {
 }
 
 func TestProcessBundleV1Compatible(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	popts := ast.ParserOptions{RegoVersion: ast.RegoV1}
 
 	manager, err := plugins.New([]byte(`{
@@ -290,7 +286,7 @@ decision_logs := {} if { 3 == 3 }
 		t.Fatalf("Expected exactly three start events but got %v", ps)
 	}
 
-	actualConfig, err := manager.Config.ActiveConfig()
+	actualConfig, err := manager.GetConfig().ActiveConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -329,7 +325,7 @@ decision_logs.partition_name := "bar" if { 3 == 3 }
 		t.Fatalf("Expected exactly three start events but got %v", ps)
 	}
 
-	actualConfig, err = manager.Config.ActiveConfig()
+	actualConfig, err = manager.GetConfig().ActiveConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -375,8 +371,7 @@ decision_logs.partition_name := "bar" if { 3 == 3 }
 }
 
 func TestProcessBundleWithActiveConfig(t *testing.T) {
-
-	ctx := context.Background()
+	ctx := t.Context()
 
 	manager, err := plugins.New([]byte(`{
 		"labels": {"x": "y"},
@@ -431,7 +426,7 @@ func TestProcessBundleWithActiveConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	actual, err := manager.Config.ActiveConfig()
+	actual, err := manager.GetConfig().ActiveConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -496,7 +491,7 @@ func TestProcessBundleWithActiveConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	actual, err = manager.Config.ActiveConfig()
+	actual, err = manager.GetConfig().ActiveConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -602,7 +597,7 @@ func TestStartWithBundlePersistence(t *testing.T) {
 		t.Fatalf("unexpected error %v", err)
 	}
 
-	if err := os.WriteFile(filepath.Join(bundleDir, "bundle.tar.gz"), buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(bundleDir, "bundle.tar.gz"), buf.Bytes(), 0o644); err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
 
@@ -619,7 +614,12 @@ func TestStartWithBundlePersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	manager.Config.PersistenceDirectory = &dir
+	cfg := manager.GetConfig()
+	cfg.PersistenceDirectory = &dir
+	err = manager.Reconfigure(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	testPlugin := &reconfigureTestPlugin{counts: map[string]int{}}
 	testFactory := testFactory{p: testPlugin}
@@ -629,7 +629,7 @@ func TestStartWithBundlePersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = disco.Start(context.Background())
+	err = disco.Start(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -676,14 +676,17 @@ func TestOneShotWithBundlePersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	disco.bundlePersistPath = filepath.Join(dir, ".opa")
 
 	ensurePluginState(t, disco, plugins.StateNotReady)
 
 	// simulate a bundle download error with no bundle on disk
-	disco.oneShot(ctx, download.Update{Error: errors.New("unknown error")})
+	err = disco.oneShot(ctx, download.Update{Error: errors.New("unknown error")})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if disco.status.Message == "" {
 		t.Fatal("expected error but got none")
@@ -713,7 +716,10 @@ func TestOneShotWithBundlePersistence(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	disco.oneShot(ctx, download.Update{Bundle: initialBundle, ETag: "etag-1", Raw: &buf})
+	err = disco.oneShot(ctx, download.Update{Bundle: initialBundle, ETag: "etag-1", Raw: &buf})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ensurePluginState(t, disco, plugins.StateOK)
 
@@ -766,7 +772,7 @@ func TestLoadAndActivateBundleFromDisk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	disco.bundlePersistPath = filepath.Join(dir, ".opa")
 
@@ -857,7 +863,7 @@ func TestLoadAndActivateSignedBundleFromDisk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	disco.bundlePersistPath = filepath.Join(dir, ".opa")
 	disco.config.Signing = bundleApi.NewVerificationConfig(map[string]*bundleApi.KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "foo", "", nil)
@@ -953,7 +959,7 @@ func TestLoadAndActivateBundleFromDiskMaxAttempts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	disco.bundlePersistPath = filepath.Join(dir, ".opa")
 
@@ -1083,7 +1089,7 @@ bundles.authz.service := v if {
 				t.Fatal(err)
 			}
 
-			ctx := context.Background()
+			ctx := t.Context()
 
 			disco.bundlePersistPath = filepath.Join(dir, ".opa")
 
@@ -1253,7 +1259,7 @@ bundles.authz.service := v if {
 				t.Fatal(err)
 			}
 
-			ctx := context.Background()
+			ctx := t.Context()
 
 			disco.bundlePersistPath = filepath.Join(dir, ".opa")
 
@@ -1370,7 +1376,12 @@ func TestSaveBundleToDiskNewConfiguredPersistDir(t *testing.T) {
 	}
 
 	// configure persistence dir instead of using the default. Discover plugin should pick this up
-	manager.Config.PersistenceDirectory = &dir
+	cfg := manager.GetConfig()
+	cfg.PersistenceDirectory = &dir
+	err = manager.Reconfigure(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	testPlugin := &reconfigureTestPlugin{counts: map[string]int{}}
 	testFactory := testFactory{p: testPlugin}
@@ -1380,7 +1391,7 @@ func TestSaveBundleToDiskNewConfiguredPersistDir(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = disco.Start(context.Background())
+	err = disco.Start(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -1418,7 +1429,6 @@ func TestSaveBundleToDiskNewConfiguredPersistDir(t *testing.T) {
 }
 
 func TestReconfigure(t *testing.T) {
-
 	manager, err := plugins.New([]byte(`{
 		"labels": {"x": "y"},
 		"services": {
@@ -1440,7 +1450,7 @@ func TestReconfigure(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	initialBundle := makeDataBundle(1, `
 		{
@@ -1455,7 +1465,10 @@ func TestReconfigure(t *testing.T) {
 		}
 	`)
 
-	disco.oneShot(ctx, download.Update{Bundle: initialBundle, Size: snapshotBundleSize})
+	err = disco.oneShot(ctx, download.Update{Bundle: initialBundle, Size: snapshotBundleSize})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if disco.status == nil {
 		t.Fatal("Expected to find status, found nil")
@@ -1474,11 +1487,12 @@ func TestReconfigure(t *testing.T) {
 	// Verify decision ids set
 	expDecision := ast.MustParseTerm("data.bar.baz")
 	expAuthzDecision := ast.MustParseTerm("data.baz.qux")
-	if !manager.Config.DefaultDecisionRef().Equal(expDecision.Value) {
-		t.Errorf("Expected default decision to be %v but got %v", expDecision, manager.Config.DefaultDecisionRef())
+	cfg := manager.GetConfig()
+	if !cfg.DefaultDecisionRef().Equal(expDecision.Value) {
+		t.Errorf("Expected default decision to be %v but got %v", expDecision, cfg.DefaultDecisionRef())
 	}
-	if !manager.Config.DefaultAuthorizationDecisionRef().Equal(expAuthzDecision.Value) {
-		t.Errorf("Expected default authz decision to be %v but got %v", expAuthzDecision, manager.Config.DefaultAuthorizationDecisionRef())
+	if !cfg.DefaultAuthorizationDecisionRef().Equal(expAuthzDecision.Value) {
+		t.Errorf("Expected default authz decision to be %v but got %v", expAuthzDecision, cfg.DefaultAuthorizationDecisionRef())
 	}
 
 	// Verify plugins started
@@ -1500,7 +1514,10 @@ func TestReconfigure(t *testing.T) {
 		}
 	`)
 
-	disco.oneShot(ctx, download.Update{Bundle: updatedBundle})
+	err = disco.oneShot(ctx, download.Update{Bundle: updatedBundle})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Verify label additions are always on top of bootstrap config with multiple discovery documents
 	exp = map[string]string{"x": "y", "z": "another added label", "id": "test-id", "version": version.Version}
@@ -1545,7 +1562,7 @@ func TestReconfigureV1Compatible(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	initialBundle := makeModuleBundle(1, `package config
 labels := v if {
@@ -1557,7 +1574,10 @@ plugins.test_plugin := v if {
 	v := {"a": "b"}
 }`, popts)
 
-	disco.oneShot(ctx, download.Update{Bundle: initialBundle, Size: snapshotBundleSize})
+	err = disco.oneShot(ctx, download.Update{Bundle: initialBundle, Size: snapshotBundleSize})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if disco.status == nil {
 		t.Fatal("Expected to find status, found nil")
@@ -1576,11 +1596,12 @@ plugins.test_plugin := v if {
 	// Verify decision ids set
 	expDecision := ast.MustParseTerm("data.bar.baz")
 	expAuthzDecision := ast.MustParseTerm("data.baz.qux")
-	if !manager.Config.DefaultDecisionRef().Equal(expDecision.Value) {
-		t.Errorf("Expected default decision to be %v but got %v", expDecision, manager.Config.DefaultDecisionRef())
+	cfg := manager.GetConfig()
+	if !cfg.DefaultDecisionRef().Equal(expDecision.Value) {
+		t.Errorf("Expected default decision to be %v but got %v", expDecision, cfg.DefaultDecisionRef())
 	}
-	if !manager.Config.DefaultAuthorizationDecisionRef().Equal(expAuthzDecision.Value) {
-		t.Errorf("Expected default authz decision to be %v but got %v", expAuthzDecision, manager.Config.DefaultAuthorizationDecisionRef())
+	if !cfg.DefaultAuthorizationDecisionRef().Equal(expAuthzDecision.Value) {
+		t.Errorf("Expected default authz decision to be %v but got %v", expAuthzDecision, cfg.DefaultAuthorizationDecisionRef())
 	}
 
 	// Verify plugins started
@@ -1599,7 +1620,10 @@ plugins.test_plugin := v if {
 	v := {"a": "plugin parameter value changed"}
 }`, popts)
 
-	disco.oneShot(ctx, download.Update{Bundle: updatedBundle})
+	err = disco.oneShot(ctx, download.Update{Bundle: updatedBundle})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Verify label additions are always on top of bootstrap config with multiple discovery documents
 	exp = map[string]string{"x": "y", "z": "another added label", "id": "test-id", "version": version.Version}
@@ -1624,7 +1648,10 @@ labels := v {
 default_decision := "bar/baz"
 default_authorization_decision := "baz/qux"`, 0)
 
-	disco.oneShot(ctx, download.Update{Bundle: regoV0Bundle})
+	err = disco.oneShot(ctx, download.Update{Bundle: regoV0Bundle})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if disco.status == nil {
 		t.Fatal("Expected to find status, found nil")
@@ -1645,7 +1672,10 @@ labels := v if {
 default_decision := "bar/baz"
 default_authorization_decision := "baz/qux"`, 1)
 
-	disco.oneShot(ctx, download.Update{Bundle: regoV1Bundle})
+	err = disco.oneShot(ctx, download.Update{Bundle: regoV1Bundle})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if disco.status == nil {
 		t.Fatal("Expected to find status, found nil")
@@ -1686,7 +1716,7 @@ func TestReconfigureWithBundleRegoVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	initialBundle := makeModuleBundleWithRegoVersion(1, `package config
 labels := v if {
@@ -1698,7 +1728,10 @@ plugins.test_plugin := v if {
 	v := {"a": "b"}
 }`, 1)
 
-	disco.oneShot(ctx, download.Update{Bundle: initialBundle, Size: snapshotBundleSize})
+	err = disco.oneShot(ctx, download.Update{Bundle: initialBundle, Size: snapshotBundleSize})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if disco.status == nil {
 		t.Fatal("Expected to find status, found nil")
@@ -1717,11 +1750,12 @@ plugins.test_plugin := v if {
 	// Verify decision ids set
 	expDecision := ast.MustParseTerm("data.bar.baz")
 	expAuthzDecision := ast.MustParseTerm("data.baz.qux")
-	if !manager.Config.DefaultDecisionRef().Equal(expDecision.Value) {
-		t.Errorf("Expected default decision to be %v but got %v", expDecision, manager.Config.DefaultDecisionRef())
+	cfg := manager.GetConfig()
+	if !cfg.DefaultDecisionRef().Equal(expDecision.Value) {
+		t.Errorf("Expected default decision to be %v but got %v", expDecision, cfg.DefaultDecisionRef())
 	}
-	if !manager.Config.DefaultAuthorizationDecisionRef().Equal(expAuthzDecision.Value) {
-		t.Errorf("Expected default authz decision to be %v but got %v", expAuthzDecision, manager.Config.DefaultAuthorizationDecisionRef())
+	if !cfg.DefaultAuthorizationDecisionRef().Equal(expAuthzDecision.Value) {
+		t.Errorf("Expected default authz decision to be %v but got %v", expAuthzDecision, cfg.DefaultAuthorizationDecisionRef())
 	}
 
 	// Verify plugins started
@@ -1740,7 +1774,10 @@ plugins.test_plugin := v if {
 	v := {"a": "plugin parameter value changed"}
 }`, 1)
 
-	disco.oneShot(ctx, download.Update{Bundle: updatedBundle})
+	err = disco.oneShot(ctx, download.Update{Bundle: updatedBundle})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Verify label additions are always on top of bootstrap config with multiple discovery documents
 	exp = map[string]string{"x": "y", "z": "another added label", "id": "test-id", "version": version.Version}
@@ -1760,7 +1797,7 @@ plugins.test_plugin := v if {
 }
 
 func TestReconfigureWithLocalOverride(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	bootConfigRaw := []byte(`{
 		"labels": {"x": "y"},
@@ -1816,7 +1853,10 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 		}
 	`)
 
-	disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
+	err = disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if disco.status == nil {
 		t.Fatal("Expected to find status, found nil")
@@ -1839,11 +1879,18 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 		}
 	`)
 
-	disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
+	err = disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	expAuthzRule := "/http/example/system/allow"
-	if *manager.Config.DefaultAuthorizationDecision != expAuthzRule {
-		t.Errorf("Expected default authorization decision %v but got %v", expAuthzRule, *manager.Config.DefaultAuthorizationDecision)
+	var defaultAuthzDecision string
+	if cfg := manager.GetConfig(); cfg.DefaultAuthorizationDecision != nil {
+		defaultAuthzDecision = *cfg.DefaultAuthorizationDecision
+	}
+	if defaultAuthzDecision != expAuthzRule {
+		t.Errorf("Expected default authorization decision %v but got %v", expAuthzRule, defaultAuthzDecision)
 	}
 
 	// `default_decision` is specified in both boot and service config. The former should take precedence.
@@ -1855,7 +1902,10 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 		}
 	`)
 
-	disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
+	err = disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if disco.status == nil {
 		t.Fatal("Expected to find status, found nil")
@@ -1864,8 +1914,12 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 	}
 
 	expAuthzRule = "/http/example/authz/allow"
-	if *manager.Config.DefaultDecision != expAuthzRule {
-		t.Fatalf("Expected default decision %v but got %v", expAuthzRule, *manager.Config.DefaultDecision)
+	var defaultDecision string
+	if cfg := manager.GetConfig(); cfg.DefaultDecision != nil {
+		defaultDecision = *cfg.DefaultDecision
+	}
+	if defaultDecision != expAuthzRule {
+		t.Fatalf("Expected default decision %v but got %v", expAuthzRule, defaultDecision)
 	}
 
 	// `nd_builtin_cache` is specified in both boot and service config. The former should take precedence.
@@ -1877,7 +1931,10 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 		}
 	`)
 
-	disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
+	err = disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if disco.status == nil {
 		t.Fatal("Expected to find status, found nil")
@@ -1885,7 +1942,7 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 		t.Fatal("expected key \"nd_builtin_cache\" to be overridden")
 	}
 
-	if manager.Config.NDBuiltinCache {
+	if manager.GetConfig().NDBuiltinCache {
 		t.Fatal("Expected nd_builtin_cache value to be false")
 	}
 
@@ -1898,9 +1955,16 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 		}
 	`)
 
-	disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
+	err = disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	if manager.Config.PersistenceDirectory == nil || *manager.Config.PersistenceDirectory != "test" {
+	var persistDir string
+	if cfg := manager.GetConfig(); cfg.PersistenceDirectory != nil {
+		persistDir = *cfg.PersistenceDirectory
+	}
+	if persistDir != "test" {
 		t.Fatal("Unexpected update to persistence directory")
 	}
 
@@ -1913,7 +1977,10 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 		}
 	`)
 
-	disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
+	err = disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if disco.status == nil {
 		t.Fatal("Expected to find status, found nil")
@@ -1961,7 +2028,10 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 		}
 	`)
 
-	disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
+	err = disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if disco.status == nil {
 		t.Fatal("Expected to find status, found nil")
@@ -1979,7 +2049,7 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 		}
 	}
 
-	cacheConf, err := cache.ParseCachingConfig(manager.Config.Caching)
+	cacheConf, err := cache.ParseCachingConfig([]byte(manager.GetConfig().Caching))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2027,21 +2097,23 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 		}
 	`)
 
-	disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
-
-	var dtConfig map[string]any
-	err = util.Unmarshal(manager.Config.DistributedTracing, &dtConfig)
+	err = disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	ty, ok := dtConfig["type"]
-	if !ok {
+	var dtConfig struct {
+		Type string `json:"type"`
+	}
+	if err := util.Unmarshal([]byte(manager.GetConfig().DistributedTracing), &dtConfig); err != nil {
+		t.Fatal(err)
+	}
+	if dtConfig.Type == "" {
 		t.Fatal("Expected config for distributed tracing")
 	}
 
-	if ty != "grpc" {
-		t.Fatalf("Expected distributed tracing \"grpc\" but got %v", ty)
+	if dtConfig.Type != "grpc" {
+		t.Fatalf("Expected distributed tracing \"grpc\" but got %v", dtConfig.Type)
 	}
 }
 
@@ -2308,8 +2380,7 @@ func TestMergeValuesAndListOverrides(t *testing.T) {
 }
 
 func TestReconfigureWithUpdates(t *testing.T) {
-
-	ctx := context.Background()
+	ctx := t.Context()
 
 	bootConfigRaw := []byte(`{
 		"labels": {"x": "y"},
@@ -2644,11 +2715,18 @@ func TestReconfigureWithUpdates(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	if manager.Config.PersistenceDirectory == nil {
-		t.Fatal("Erased persistence directory configuration")
-	}
-	if manager.Config.Discovery == nil {
+	cfg := manager.GetConfig()
+
+	if len(cfg.Discovery) == 0 {
 		t.Fatal("Erased discovery plugin configuration")
+	}
+
+	var persistDir string
+	if cfg.PersistenceDirectory != nil {
+		persistDir = *cfg.PersistenceDirectory
+	}
+	if persistDir == "" {
+		t.Fatal("Erased persistence directory configuration")
 	}
 
 	// update persistence directory in the service config and check that its boot config value is not overridden
@@ -2665,14 +2743,18 @@ func TestReconfigureWithUpdates(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	if manager.Config.PersistenceDirectory == nil || *manager.Config.PersistenceDirectory == "my_bundles" {
+	cfg = manager.GetConfig()
+	persistDir = ""
+	if cfg.PersistenceDirectory != nil {
+		persistDir = *cfg.PersistenceDirectory
+	}
+	if persistDir == "" || persistDir == "my_bundles" {
 		t.Fatal("Unexpected update to persistence directory")
 	}
 }
 
 func TestProcessBundleWithSigning(t *testing.T) {
-
-	ctx := context.Background()
+	ctx := t.Context()
 
 	manager, err := plugins.New([]byte(`{
 		"labels": {"x": "y"},
@@ -2711,7 +2793,7 @@ func TestProcessBundleWithSigning(t *testing.T) {
 }
 
 func TestProcessBundleWithNoSigningConfig(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	manager, err := plugins.New([]byte(`{
 		"labels": {"x": "y"},
@@ -2762,7 +2844,6 @@ func (ts *testServer) Stop() {
 }
 
 func (ts *testServer) handle(w http.ResponseWriter, r *http.Request) {
-
 	var update status.UpdateRequestV1
 
 	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
@@ -2775,7 +2856,6 @@ func (ts *testServer) handle(w http.ResponseWriter, r *http.Request) {
 }
 
 func TestStatusUpdates(t *testing.T) {
-
 	ts := testServer{t: t}
 	ts.Start()
 	defer ts.Stop()
@@ -2800,14 +2880,17 @@ func TestStatusUpdates(t *testing.T) {
 
 	updates := make(chan status.UpdateRequestV1, 100)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Enable status plugin which sends initial update.
-	disco.oneShot(ctx, download.Update{ETag: "etag-1", Bundle: makeDataBundle(1, `{
-		"config": {
-			"status": {}
-		}
-	}`)})
+	err = disco.oneShot(ctx, download.Update{ETag: "etag-1", Bundle: makeDataBundle(1, `{
+			"config": {
+				"status": {}
+			}
+		}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// status plugin updates and bundle discovery status update,
 	updates <- <-ts.updates
@@ -2815,30 +2898,42 @@ func TestStatusUpdates(t *testing.T) {
 	updates <- <-ts.updates
 
 	// Downloader error.
-	disco.oneShot(ctx, download.Update{Error: errors.New("unknown error")})
+	err = disco.oneShot(ctx, download.Update{Error: errors.New("unknown error")})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	updates <- <-ts.updates
 
 	// Clear error.
-	disco.oneShot(ctx, download.Update{ETag: "etag-2", Bundle: makeDataBundle(2, `{
-		"config": {
-			"status": {}
-		}
-	}`)})
+	err = disco.oneShot(ctx, download.Update{ETag: "etag-2", Bundle: makeDataBundle(2, `{
+			"config": {
+				"status": {}
+			}
+		}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	updates <- <-ts.updates
 
 	// Configuration error.
-	disco.oneShot(ctx, download.Update{ETag: "etag-3", Bundle: makeDataBundle(3, `{
-		"config": {
-			"status": {"service": "missing service"}
-		}
-	}`)})
+	err = disco.oneShot(ctx, download.Update{ETag: "etag-3", Bundle: makeDataBundle(3, `{
+			"config": {
+				"status": {"service": "missing service"}
+			}
+		}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	updates <- <-ts.updates
 
 	// Clear error (last successful reconfigure).
-	disco.oneShot(ctx, download.Update{ETag: "etag-2"})
+	err = disco.oneShot(ctx, download.Update{ETag: "etag-2"})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	updates <- <-ts.updates
 
@@ -2922,14 +3017,13 @@ func TestStatusUpdatesFromPersistedBundlesDontDelayBoot(t *testing.T) {
 	}
 
 	discoBundleDir := filepath.Join(dir, "bundles", "config")
-	if err := os.MkdirAll(discoBundleDir, 0755); err != nil {
+	if err := os.MkdirAll(discoBundleDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	discoBundleFile, err := os.Create(filepath.Join(discoBundleDir, "bundle.tar.gz"))
 	if err != nil {
 		t.Fatal(err)
-
 	}
 	defer discoBundleFile.Close()
 
@@ -2946,14 +3040,13 @@ func TestStatusUpdatesFromPersistedBundlesDontDelayBoot(t *testing.T) {
 	}
 
 	mainBundleDir := filepath.Join(dir, "bundles", "main")
-	if err := os.MkdirAll(mainBundleDir, 0755); err != nil {
+	if err := os.MkdirAll(mainBundleDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	mainBundleFile, err := os.Create(filepath.Join(mainBundleDir, "bundle.tar.gz"))
 	if err != nil {
 		t.Fatal(err)
-
 	}
 	defer mainBundleFile.Close()
 
@@ -2984,7 +3077,7 @@ func TestStatusUpdatesFromPersistedBundlesDontDelayBoot(t *testing.T) {
 	}
 
 	// allow 2s of time to start before failing
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 	defer cancel()
 
 	// start Discovery instance, wait for it to complete Start()
@@ -3016,7 +3109,6 @@ func TestStatusUpdatesFromPersistedBundlesDontDelayBoot(t *testing.T) {
 }
 
 func TestStatusUpdatesTimestamp(t *testing.T) {
-
 	ts := testServer{t: t}
 	ts.Start()
 	defer ts.Stop()
@@ -3039,14 +3131,17 @@ func TestStatusUpdatesTimestamp(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// simulate HTTP 200 response from downloader
-	disco.oneShot(ctx, download.Update{ETag: "etag-1", Bundle: makeDataBundle(1, `{
-		"config": {
-			"status": {}
-		}
-	}`)})
+	err = disco.oneShot(ctx, download.Update{ETag: "etag-1", Bundle: makeDataBundle(1, `{
+			"config": {
+				"status": {}
+			}
+		}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if disco.status.LastSuccessfulDownload != disco.status.LastSuccessfulRequest || disco.status.LastSuccessfulDownload != disco.status.LastRequest {
 		t.Fatal("expected last successful request to be same as download and request")
@@ -3059,17 +3154,23 @@ func TestStatusUpdatesTimestamp(t *testing.T) {
 	time.Sleep(time.Millisecond)
 
 	// simulate HTTP 304 response from downloader
-	disco.oneShot(ctx, download.Update{ETag: "etag-1", Bundle: nil})
+	err = disco.oneShot(ctx, download.Update{ETag: "etag-1", Bundle: nil})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if disco.status.LastSuccessfulDownload == disco.status.LastSuccessfulRequest || disco.status.LastSuccessfulDownload == disco.status.LastRequest {
 		t.Fatal("expected last successful download to differ from request and last request")
 	}
 
 	// simulate HTTP 200 response from downloader
-	disco.oneShot(ctx, download.Update{ETag: "etag-2", Bundle: makeDataBundle(2, `{
-		"config": {
-			"status": {}
-		}
-	}`)})
+	err = disco.oneShot(ctx, download.Update{ETag: "etag-2", Bundle: makeDataBundle(2, `{
+			"config": {
+				"status": {}
+			}
+		}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if disco.status.LastSuccessfulDownload != disco.status.LastSuccessfulRequest || disco.status.LastSuccessfulDownload != disco.status.LastRequest {
 		t.Fatal("expected last successful request to be same as download and request")
@@ -3080,7 +3181,10 @@ func TestStatusUpdatesTimestamp(t *testing.T) {
 	}
 
 	// simulate error response from downloader
-	disco.oneShot(ctx, download.Update{Error: errors.New("unknown error")})
+	err = disco.oneShot(ctx, download.Update{Error: errors.New("unknown error")})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if disco.status.LastSuccessfulDownload != disco.status.LastSuccessfulRequest || disco.status.LastSuccessfulDownload == disco.status.LastRequest {
 		t.Fatal("expected last successful request to be same as download but different from request")
@@ -3088,12 +3192,24 @@ func TestStatusUpdatesTimestamp(t *testing.T) {
 }
 
 func TestStatusMetricsForLogDrops(t *testing.T) {
+	tests := []struct {
+		bufferType string
+	}{
+		{
+			bufferType: "size",
+		},
+		{
+			bufferType: "event",
+		},
+	}
 
-	ctx := context.Background()
+	for _, tc := range tests {
+		t.Run(tc.bufferType, func(t *testing.T) {
+			ctx := t.Context()
 
-	testLogger := test.New()
+			testLogger := test.New()
 
-	manager, err := plugins.New([]byte(`{
+			manager, err := plugins.New([]byte(`{
 		"services": {
 			"localhost": {
 				"url": "http://localhost:9999"
@@ -3101,110 +3217,116 @@ func TestStatusMetricsForLogDrops(t *testing.T) {
 		},
 		"discovery": {"name": "config"},
 	}`), "test-id", inmem.New(), plugins.ConsoleLogger(testLogger))
-	if err != nil {
-		t.Fatal(err)
-	}
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	initialBundle := makeDataBundle(1, `
+			initialBundle := makeDataBundle(1, fmt.Sprintf(`
 		{
 			"config": {
 				"status": {"console": true},
 				"decision_logs": {
 					"service": "localhost",
 					"reporting": {
+						"buffer_type": "%s",
 						"max_decisions_per_second": 1
 					}
 				}
 			}
 		}
-	`)
+	`, tc.bufferType))
 
-	disco, err := New(manager, Metrics(metrics.New()))
-	if err != nil {
-		t.Fatal(err)
-	}
+			disco, err := New(manager, Metrics(metrics.New()))
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	ps, err := disco.processBundle(ctx, initialBundle)
-	if err != nil {
-		t.Fatal(err)
-	}
+			ps, err := disco.processBundle(ctx, initialBundle)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	// start the decision log and status plugins
-	for _, p := range ps.Start {
-		if err := p.Start(ctx); err != nil {
-			t.Fatal(err)
-		}
-	}
+			// start the decision log and status plugins
+			for _, p := range ps.Start {
+				if err := p.Start(ctx); err != nil {
+					t.Fatal(err)
+				}
+			}
 
-	plugin := logs.Lookup(manager)
-	if plugin == nil {
-		t.Fatal("Expected decision log plugin registered on manager")
-	}
+			plugin := logs.Lookup(manager)
+			if plugin == nil {
+				t.Fatal("Expected decision log plugin registered on manager")
+			}
 
-	var input any = map[string]any{"method": "GET"}
-	var result any = false
+			var input any = map[string]any{"method": "GET"}
+			var result any = false
 
-	event1 := &server.Info{
-		DecisionID: "abc",
-		Path:       "foo/bar",
-		Input:      &input,
-		Results:    &result,
-		RemoteAddr: "test-1",
-	}
+			event1 := &server.Info{
+				DecisionID: "abc",
+				Path:       "foo/bar",
+				Input:      &input,
+				Results:    &result,
+				RemoteAddr: "test-1",
+			}
 
-	event2 := &server.Info{
-		DecisionID: "def",
-		Path:       "foo/baz",
-		Input:      &input,
-		Results:    &result,
-		RemoteAddr: "test-2",
-	}
+			event2 := &server.Info{
+				DecisionID: "def",
+				Path:       "foo/baz",
+				Input:      &input,
+				Results:    &result,
+				RemoteAddr: "test-2",
+			}
 
-	event3 := &server.Info{
-		DecisionID: "ghi",
-		Path:       "foo/aux",
-		Input:      &input,
-		Results:    &result,
-		RemoteAddr: "test-3",
-	}
+			event3 := &server.Info{
+				DecisionID: "ghi",
+				Path:       "foo/aux",
+				Input:      &input,
+				Results:    &result,
+				RemoteAddr: "test-3",
+			}
 
-	_ = plugin.Log(ctx, event1) // event 1 should be written into the decision log encoder
-	_ = plugin.Log(ctx, event2) // event 2 should not be written into the decision log encoder as rate limit exceeded
-	_ = plugin.Log(ctx, event3) // event 3 should not be written into the decision log encoder as rate limit exceeded
+			_ = plugin.Log(ctx, event1) // event 1 should be written into the decision log encoder
+			_ = plugin.Log(ctx, event2) // event 2 should not be written into the decision log encoder as rate limit exceeded
+			_ = plugin.Log(ctx, event3) // event 3 should not be written into the decision log encoder as rate limit exceeded
 
-	// trigger a status update
-	disco.oneShot(ctx, download.Update{ETag: "etag-1", Bundle: makeDataBundle(1, `{
-		"config": {
-			"bundles": {"test-bundle": {"service": "localhost"}}
-		}
-	}`)})
+			// trigger a status update
+			err = disco.oneShot(ctx, download.Update{ETag: "etag-1", Bundle: makeDataBundle(1, `{
+          "config": {
+            "bundles": {"test-bundle": {"service": "localhost"}}
+          }
+        }`)})
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	status.Lookup(manager).Stop(ctx)
+			status.Lookup(manager).Stop(ctx)
 
-	entries := testLogger.Entries()
-	if len(entries) == 0 {
-		t.Fatal("Expected log entries but got none")
-	}
+			entries := testLogger.Entries()
+			if len(entries) == 0 {
+				t.Fatal("Expected log entries but got none")
+			}
 
-	// Pick the last entry as it should have the drop count
-	e := entries[len(entries)-1]
+			// Pick the last entry as it should have the drop count
+			e := entries[len(entries)-1]
 
-	if _, ok := e.Fields["metrics"]; !ok {
-		t.Fatal("Expected metrics")
-	}
+			if _, ok := e.Fields["metrics"]; !ok {
+				t.Fatal("Expected metrics")
+			}
 
-	builtInMet := e.Fields["metrics"].(map[string]any)["<built-in>"]
-	dropCount := builtInMet.(map[string]any)["counter_decision_logs_dropped_rate_limit_exceeded"]
+			builtInMet := e.Fields["metrics"].(map[string]any)["<built-in>"]
+			dropCount := builtInMet.(map[string]any)["counter_decision_logs_dropped_rate_limit_exceeded"]
 
-	actual, err := dropCount.(json.Number).Int64()
-	if err != nil {
-		t.Fatal(err)
-	}
+			actual, err := dropCount.(json.Number).Int64()
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	// Along with event 2 and event 3, event 1 could also get dropped. This happens when the decision log plugin
-	// tries to requeue event 1 after a failed upload attempt to a non-existent remote endpoint
-	if actual < 2 {
-		t.Fatal("Expected at least 2 events to be dropped")
+			// Along with event 2 and event 3, event 1 could also get dropped. This happens when the decision log plugin
+			// tries to requeue event 1 after a failed upload attempt to a non-existent remote endpoint
+			if actual < 2 {
+				t.Fatal("Expected at least 2 events to be dropped")
+			}
+		})
 	}
 }
 
@@ -3317,7 +3439,7 @@ bundle:
 `
 	manager := getTestManager(t, conf)
 	trigger := plugins.TriggerManual
-	_, err := getPluginSet(nil, manager, manager.Config, nil, nil, &trigger)
+	_, err := getPluginSet(nil, manager, manager.GetConfig(), nil, nil, &trigger)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -3354,7 +3476,7 @@ bundles:
 `
 	manager := getTestManager(t, conf)
 	trigger := plugins.TriggerManual
-	_, err := getPluginSet(nil, manager, manager.Config, nil, nil, &trigger)
+	_, err := getPluginSet(nil, manager, manager.GetConfig(), nil, nil, &trigger)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -3411,10 +3533,9 @@ bundles:
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-
 			manager := getTestManager(t, tc.conf)
 			trigger := plugins.TriggerManual
-			_, err := getPluginSet(nil, manager, manager.Config, nil, nil, &trigger)
+			_, err := getPluginSet(nil, manager, manager.GetConfig(), nil, nil, &trigger)
 
 			if tc.wantErr {
 				if err == nil {
@@ -3432,7 +3553,6 @@ bundles:
 }
 
 func TestGetPluginSetWithBadManualTriggerDecisionLogConfig(t *testing.T) {
-
 	confGood := `
 services:
   s1:
@@ -3476,10 +3596,9 @@ decision_logs:
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-
 			manager := getTestManager(t, tc.conf)
 			trigger := plugins.TriggerManual
-			_, err := getPluginSet(nil, manager, manager.Config, nil, nil, &trigger)
+			_, err := getPluginSet(nil, manager, manager.GetConfig(), nil, nil, &trigger)
 
 			if tc.wantErr {
 				if err == nil {
@@ -3547,10 +3666,9 @@ status:
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-
 			manager := getTestManager(t, tc.conf)
 			trigger := plugins.TriggerManual
-			_, err := getPluginSet(nil, manager, manager.Config, nil, nil, &trigger)
+			_, err := getPluginSet(nil, manager, manager.GetConfig(), nil, nil, &trigger)
 
 			if tc.wantErr {
 				if err == nil {
@@ -3599,7 +3717,7 @@ func TestInterQueryBuiltinCacheConfigUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	initialBundle := makeDataBundle(1, `{
     "config": {
@@ -3611,7 +3729,10 @@ func TestInterQueryBuiltinCacheConfigUpdate(t *testing.T) {
     }
   }`)
 
-	disco.oneShot(ctx, download.Update{Bundle: initialBundle})
+	err = disco.oneShot(ctx, download.Update{Bundle: initialBundle})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Verify interQueryBuiltinCacheConfig is triggered with initial config
 	if config1 == nil || *config1.InterQueryBuiltinCache.MaxSizeBytes != int64(100) {
@@ -3629,7 +3750,10 @@ func TestInterQueryBuiltinCacheConfigUpdate(t *testing.T) {
     }
   }`)
 
-	disco.oneShot(ctx, download.Update{Bundle: updatedBundle})
+	err = disco.oneShot(ctx, download.Update{Bundle: updatedBundle})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if config2 == nil || *config2.InterQueryBuiltinCache.MaxSizeBytes != int64(200) {
 		t.Fatalf("Expected cache max size bytes to be 200 after discovery reconfigure, got: %v", config2.InterQueryBuiltinCache.MaxSizeBytes)
@@ -3671,7 +3795,7 @@ func TestNDBuiltinCacheConfigUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	initialBundle := makeDataBundle(1, `{
 		"config": {
@@ -3679,7 +3803,10 @@ func TestNDBuiltinCacheConfigUpdate(t *testing.T) {
 		}
 	}`)
 
-	disco.oneShot(ctx, download.Update{Bundle: initialBundle})
+	err = disco.oneShot(ctx, download.Update{Bundle: initialBundle})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Verify NDBuiltinCache is triggered with initial config
 	if config1 == nil || config1.v != true {
@@ -3693,7 +3820,10 @@ func TestNDBuiltinCacheConfigUpdate(t *testing.T) {
 		}
 	}`)
 
-	disco.oneShot(ctx, download.Update{Bundle: updatedBundle})
+	err = disco.oneShot(ctx, download.Update{Bundle: updatedBundle})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if config2 == nil || config2.v != false {
 		t.Fatalf("Expected ND builtin cache to be disabled after discovery reconfigure, got: %v", config2.v)
@@ -3701,7 +3831,7 @@ func TestNDBuiltinCacheConfigUpdate(t *testing.T) {
 }
 
 func TestPluginManualTriggerLifecycle(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	m := metrics.New()
 
 	fixture := newTestFixture(t)
@@ -3907,7 +4037,7 @@ func TestListeners(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	ensurePluginState(t, disco, plugins.StateNotReady)
 
@@ -3917,7 +4047,10 @@ func TestListeners(t *testing.T) {
 	})
 
 	// simulate a bundle download error
-	disco.oneShot(ctx, download.Update{Error: errors.New("unknown error")})
+	err = disco.oneShot(ctx, download.Update{Error: errors.New("unknown error")})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if status == nil {
 		t.Fatalf("Expected discovery listener to receive status but was nil")
@@ -3927,7 +4060,10 @@ func TestListeners(t *testing.T) {
 	disco.Unregister("testlistener")
 
 	// simulate a bundle download error
-	disco.oneShot(ctx, download.Update{Error: errors.New("unknown error")})
+	err = disco.oneShot(ctx, download.Update{Error: errors.New("unknown error")})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if status != nil {
 		t.Fatalf("Expected discovery listener to be removed but received %v", status)
 	}
@@ -3988,13 +4124,12 @@ func newTestFixture(t *testing.T) *testFixture {
 		stopCh:             make(chan chan struct{}),
 	}
 
-	go tf.loop(context.Background())
+	go tf.loop(t.Context())
 
 	return &tf
 }
 
 func (t *testFixture) loop(ctx context.Context) {
-
 	for {
 		select {
 		case stop := <-t.stopCh:
@@ -4047,7 +4182,6 @@ func (t *testFixture) runQuery(ctx context.Context, query string, m metrics.Metr
 }
 
 func (t *testFixture) log(ctx context.Context, query string, m metrics.Metrics, result *any) error {
-
 	record := server.Info{
 		Timestamp: time.Now(),
 		Path:      query,
@@ -4267,7 +4401,6 @@ func (t *testFixtureServer) handle(w http.ResponseWriter, r *http.Request) {
 	} else {
 		t.t.Fatalf("unknown path %v", r.URL.Path)
 	}
-
 }
 
 func (t *testFixtureServer) start() {

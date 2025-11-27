@@ -77,13 +77,10 @@ func dfsRecursive(t Traversal, eq Equals, u, z T, path []T) []T {
 	}
 	for _, v := range t.Edges(u) {
 		if eq(v, z) {
-			path = append(path, z)
-			path = append(path, u)
-			return path
+			return append(path, z, u)
 		}
 		if p := dfsRecursive(t, eq, v, z, path); len(p) > 0 {
-			path = append(p, u)
-			return path
+			return append(p, u)
 		}
 	}
 	return path

@@ -6,7 +6,6 @@ package topdown
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -32,7 +31,7 @@ func BenchmarkArrayIteration(b *testing.B) {
 }
 
 func BenchmarkArrayPlugging(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	sizes := []int{10, 100, 1000, 10000}
 
@@ -54,7 +53,7 @@ func BenchmarkArrayPlugging(b *testing.B) {
 
 			b.ResetTimer()
 
-			for range b.N {
+			for b.Loop() {
 
 				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 
@@ -98,15 +97,13 @@ func BenchmarkObjectIteration(b *testing.B) {
 }
 
 func benchmarkIteration(b *testing.B, module string) {
-	ctx := context.Background()
+	ctx := b.Context()
 	query := ast.MustParseBody("data.test.main")
 	compiler := ast.MustCompileModules(map[string]string{
 		"test.rego": module,
 	})
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 
 		q := NewQuery(query).WithCompiler(compiler)
 		_, err := q.Run(ctx)
@@ -118,7 +115,7 @@ func benchmarkIteration(b *testing.B, module string) {
 
 func BenchmarkLargeJSON(b *testing.B) {
 	data := test.GenerateLargeJSONBenchmarkData()
-	ctx := context.Background()
+	ctx := b.Context()
 	store := inmem.NewFromObject(data)
 	compiler := ast.NewCompiler()
 
@@ -126,12 +123,10 @@ func BenchmarkLargeJSON(b *testing.B) {
 		b.Fatal(compiler.Errors)
 	}
 
-	b.ResetTimer()
-
 	// Read data.values N times inside query.
 	query := ast.MustParseBody("data.keys[_] = x; data.values = y")
 
-	for range b.N {
+	for b.Loop() {
 
 		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 
@@ -182,7 +177,7 @@ func BenchmarkConcurrency8Writers(b *testing.B) {
 func benchmarkConcurrency(b *testing.B, params []storage.TransactionParams) {
 
 	mod, data := test.GenerateConcurrencyBenchmarkData()
-	ctx := context.Background()
+	ctx := b.Context()
 	store := inmem.NewFromObject(data)
 	mods := map[string]*ast.Module{"module": ast.MustParseModule(mod)}
 	compiler := ast.NewCompiler()
@@ -191,9 +186,7 @@ func benchmarkConcurrency(b *testing.B, params []storage.TransactionParams) {
 		b.Fatalf("Unexpected compiler error: %v", compiler.Errors)
 	}
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		wg := new(sync.WaitGroup)
 		queriesPerCore := 1000 / len(params)
 		for j := range params {
@@ -278,7 +271,7 @@ func BenchmarkVirtualDocs1000x1000(b *testing.B) {
 func runVirtualDocsBenchmark(b *testing.B, numTotalRules, numHitRules int) {
 
 	mod, inp := test.GenerateVirtualDocsBenchmarkData(numTotalRules, numHitRules)
-	ctx := context.Background()
+	ctx := b.Context()
 	compiler := ast.NewCompiler()
 	mods := map[string]*ast.Module{"module": ast.MustParseModule(mod)}
 	input := ast.NewTerm(ast.MustInterfaceToValue(inp))
@@ -294,9 +287,7 @@ func runVirtualDocsBenchmark(b *testing.B, numTotalRules, numHitRules int) {
 		WithTransaction(txn).
 		WithInput(input)
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		rs, err := query.Run(ctx)
 		if err != nil {
 			b.Fatalf("Unexpected topdown query error: %v", err)
@@ -326,7 +317,7 @@ func BenchmarkPartialEvalCompile(b *testing.B) {
 }
 
 func runPartialEvalBenchmark(b *testing.B, numRoles int) {
-	ctx := context.Background()
+	ctx := b.Context()
 	compiler := ast.NewCompiler()
 
 	if compiler.Compile(map[string]*ast.Module{"authz": ast.MustParseModule(partialEvalBenchmarkPolicy)}); compiler.Failed() {
@@ -386,7 +377,7 @@ func runPartialEvalBenchmark(b *testing.B, numRoles int) {
 			WithTransaction(txn).
 			WithInput(input)
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			qrs, err := query.Run(ctx)
 			if len(qrs) != 1 || err != nil {
 				b.Fatal("Unexpected query result:", qrs, "err:", err)
@@ -401,7 +392,7 @@ func runPartialEvalBenchmark(b *testing.B, numRoles int) {
 
 func runPartialEvalCompileBenchmark(b *testing.B, numRoles int) {
 
-	ctx := context.Background()
+	ctx := b.Context()
 	data := generatePartialEvalBenchmarkData(numRoles)
 	store := inmem.NewFromObject(data)
 
@@ -409,7 +400,7 @@ func runPartialEvalCompileBenchmark(b *testing.B, numRoles int) {
 
 		b.ResetTimer()
 
-		for range b.N {
+		for b.Loop() {
 			// compile original policy
 			compiler := ast.NewCompiler()
 			compiler.Compile(map[string]*ast.Module{
@@ -541,7 +532,7 @@ func generatePartialEvalBenchmarkInput(numRoles int) *ast.Term {
 
 func BenchmarkWalk(b *testing.B) {
 
-	ctx := context.Background()
+	ctx := b.Context()
 	sizes := []int{100, 1000, 2000, 3000}
 
 	for _, n := range sizes {
@@ -555,7 +546,7 @@ func BenchmarkWalk(b *testing.B) {
 				b.Fatal(err)
 			}
 			b.ResetTimer()
-			for range b.N {
+			for b.Loop() {
 				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 					q := NewQuery(compiledQuery).
 						WithStore(store).
@@ -587,7 +578,7 @@ func genWalkBenchmarkData(n int) map[string]any {
 }
 
 func BenchmarkComprehensionIndexing(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 	cases := []struct {
 		note   string
 		module string
@@ -645,7 +636,7 @@ func BenchmarkComprehensionIndexing(b *testing.B) {
 					b.Fatal(err)
 				}
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					err = storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 						m := metrics.New()
 						instr := NewInstrumentation(m)
@@ -670,7 +661,7 @@ func BenchmarkComprehensionIndexing(b *testing.B) {
 }
 
 func BenchmarkFunctionArgumentIndex(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	sizes := []int{10, 100, 1000}
 
@@ -681,7 +672,7 @@ func BenchmarkFunctionArgumentIndex(b *testing.B) {
 		body := ast.MustParseBody(fmt.Sprintf("data.test.f(%d, x)", n))
 
 		b.Run(strconv.Itoa(n), func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				q := NewQuery(body).
 					WithCompiler(compiler).
 					WithIndexing(true)
@@ -723,7 +714,7 @@ func genComprehensionIndexingData(n int) map[string]any {
 }
 
 func BenchmarkObjectSubset(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	sizes := []int{10, 100, 1000, 10000}
 
@@ -751,7 +742,7 @@ func BenchmarkObjectSubset(b *testing.B) {
 
 			b.ResetTimer()
 
-			for range b.N {
+			for b.Loop() {
 
 				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 
@@ -780,7 +771,7 @@ func BenchmarkObjectSubsetSlow(b *testing.B) {
 	// This benchmarks the suggested means to implement object.subset
 	// without using the builtin, to give us an idea of whether or not
 	// the builtin is actually making things any faster.
-	ctx := context.Background()
+	ctx := b.Context()
 
 	sizes := []int{10, 100, 1000, 10000}
 
@@ -818,7 +809,7 @@ func BenchmarkObjectSubsetSlow(b *testing.B) {
 
 			b.ResetTimer()
 
-			for range b.N {
+			for b.Loop() {
 
 				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 
@@ -854,7 +845,7 @@ func randomString(symbols []rune, length int) string {
 }
 
 func BenchmarkGlob(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 
 	// Benchmark Strategy:
 	//
@@ -908,7 +899,7 @@ func BenchmarkGlob(b *testing.B) {
 
 			b.ResetTimer()
 
-			for range b.N {
+			for b.Loop() {
 
 				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 
@@ -939,15 +930,13 @@ func BenchmarkMemberWithKeyFromBaseDoc(b *testing.B) {
 	main if { "key99", "value99" in data.values }
 	`
 
-	ctx := context.Background()
+	ctx := b.Context()
 	query := ast.MustParseBody("data.test.main")
 	compiler := ast.MustCompileModules(map[string]string{
 		"test.rego": mod,
 	})
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 			_, err := NewQuery(query).WithCompiler(compiler).WithStore(store).WithTransaction(txn).Run(ctx)
 			return err
@@ -964,15 +953,13 @@ func BenchmarkObjectGetFromBaseDoc(b *testing.B) {
 	main if { object.get(data.values, "key99", false) == "value99" }
 	`
 
-	ctx := context.Background()
+	ctx := b.Context()
 	query := ast.MustParseBody("data.test.main")
 	compiler := ast.MustCompileModules(map[string]string{
 		"test.rego": mod,
 	})
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 			_, err := NewQuery(query).WithCompiler(compiler).WithStore(store).WithTransaction(txn).Run(ctx)
 			return err

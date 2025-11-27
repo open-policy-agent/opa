@@ -25,6 +25,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/ir"
 	"github.com/open-policy-agent/opa/v1/loader"
+	"github.com/open-policy-agent/opa/v1/loader/filter"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/resolver"
@@ -44,7 +45,7 @@ const (
 	wasmVarPrefix           = "^"
 )
 
-// nolint: deadcode,varcheck
+// nolint:varcheck
 const (
 	targetWasm = "wasm"
 	targetRego = "rego"
@@ -235,6 +236,7 @@ func EvalInstrument(instrument bool) EvalOption {
 }
 
 // EvalTracer configures a tracer for a Prepared Query's evaluation
+//
 // Deprecated: Use EvalQueryTracer instead.
 func EvalTracer(tracer topdown.Tracer) EvalOption {
 	return func(e *EvalContext) {
@@ -670,6 +672,7 @@ type Rego struct {
 	regoVersion                 ast.RegoVersion
 	compilerHook                func(*ast.Compiler)
 	evalMode                    *ast.CompilerEvalMode
+	filter                      filter.LoaderFilter
 }
 
 func (r *Rego) RegoVersion() ast.RegoVersion {
@@ -840,7 +843,6 @@ type memo struct {
 type memokey string
 
 func memoize(decl *Function, bctx BuiltinContext, terms []*ast.Term, ifEmpty func() (*ast.Term, error)) (*ast.Term, error) {
-
 	if !decl.Memoize {
 		return ifEmpty()
 	}
@@ -1047,6 +1049,12 @@ func LoadBundle(path string) func(r *Rego) {
 	}
 }
 
+func WithFilter(f filter.LoaderFilter) func(r *Rego) {
+	return func(r *Rego) {
+		r.filter = f
+	}
+}
+
 // ParsedBundle returns an argument that adds a bundle to be loaded.
 func ParsedBundle(name string, b *bundle.Bundle) func(r *Rego) {
 	return func(r *Rego) {
@@ -1116,6 +1124,7 @@ func Trace(yes bool) func(r *Rego) {
 }
 
 // Tracer returns an argument that adds a query tracer to r.
+//
 // Deprecated: Use QueryTracer instead.
 func Tracer(t topdown.Tracer) func(r *Rego) {
 	return func(r *Rego) {
@@ -1339,7 +1348,6 @@ func EvalMode(mode ast.CompilerEvalMode) func(r *Rego) {
 
 // New returns a new Rego object.
 func New(options ...func(r *Rego)) *Rego {
-
 	r := &Rego{
 		parsedModules:   map[string]*ast.Module{},
 		capture:         map[*ast.Expr]ast.Var{},
@@ -1411,8 +1419,8 @@ func New(options ...func(r *Rego)) *Rego {
 	}
 
 	if r.pluginMgr != nil {
-		for _, name := range r.pluginMgr.Plugins() {
-			p := r.pluginMgr.Plugin(name)
+		for _, pluginName := range r.pluginMgr.Plugins() {
+			p := r.pluginMgr.Plugin(pluginName)
 			if p0, ok := p.(TargetPlugin); ok {
 				r.plugins = append(r.plugins, p0)
 			}
@@ -1574,7 +1582,6 @@ func CompilePartial(yes bool) CompileOption {
 
 // Compile returns a compiled policy query.
 func (r *Rego) Compile(ctx context.Context, opts ...CompileOption) (*CompileResult, error) {
-
 	var cfg CompileContext
 
 	for _, opt := range opts {
@@ -1801,7 +1808,7 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 		}
 
 		// nolint: staticcheck // SA4006 false positive
-		data, err := r.store.Read(ctx, r.txn, storage.Path{})
+		data, err := r.store.Read(ctx, r.txn, storage.RootPath)
 		if err != nil {
 			_ = txnClose(ctx, err) // Ignore error
 			return PreparedEvalQuery{}, err
@@ -2023,7 +2030,7 @@ func (r *Rego) loadFiles(ctx context.Context, txn storage.Transaction, m metrics
 	}
 
 	if len(result.Documents) > 0 {
-		err = r.store.Write(ctx, txn, storage.AddOp, storage.Path{}, result.Documents)
+		err = r.store.Write(ctx, txn, storage.AddOp, storage.RootPath, result.Documents)
 		if err != nil {
 			return err
 		}
@@ -2047,6 +2054,7 @@ func (r *Rego) loadBundles(_ context.Context, _ storage.Transaction, m metrics.M
 			WithSkipBundleVerification(r.skipBundleVerification).
 			WithRegoVersion(r.regoVersion).
 			WithCapabilities(r.capabilities).
+			WithFilter(r.filter).
 			AsBundle(path)
 		if err != nil {
 			return fmt.Errorf("loading error: %s", err)
@@ -2119,7 +2127,6 @@ func parserOptionsFromRegoVersionImport(imports []*ast.Import, popts ast.ParserO
 }
 
 func (r *Rego) compileModules(ctx context.Context, txn storage.Transaction, m metrics.Metrics) error {
-
 	// Only compile again if there are new modules.
 	if len(r.bundles) > 0 || len(r.parsedModules) > 0 {
 
@@ -2230,7 +2237,6 @@ func (r *Rego) compileQuery(query ast.Body, imports []*ast.Import, _ metrics.Met
 	compiled, err := qc.Compile(query)
 
 	return qc, compiled, err
-
 }
 
 func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
@@ -2319,7 +2325,6 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		rs = append(rs, result)
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -2392,7 +2397,6 @@ func (r *Rego) valueToQueryResult(res ast.Value, ectx *EvalContext) (ResultSet, 
 }
 
 func (r *Rego) generateResult(qr topdown.QueryResult, ectx *EvalContext) (Result, error) {
-
 	rewritten := ectx.compiledQuery.compiler.RewrittenVars()
 
 	result := newResult()
@@ -2432,7 +2436,6 @@ func (r *Rego) generateResult(qr topdown.QueryResult, ectx *EvalContext) (Result
 }
 
 func (r *Rego) partialResult(ctx context.Context, pCfg *PrepareConfig) (PartialResult, error) {
-
 	err := r.prepare(ctx, partialResultQueryType, []extraStage{
 		{
 			after: "ResolveRefs",
@@ -2526,7 +2529,6 @@ func (r *Rego) partialResult(ctx context.Context, pCfg *PrepareConfig) (PartialR
 }
 
 func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries, error) {
-
 	var unknowns []*ast.Term
 
 	switch {
@@ -2664,7 +2666,6 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 }
 
 func (r *Rego) rewriteQueryToCaptureValue(_ ast.QueryCompiler, query ast.Body) (ast.Body, error) {
-
 	checkCapture := iteration(query) || len(query) > 1
 
 	for _, expr := range query {
@@ -2779,7 +2780,6 @@ type transactionCloser func(ctx context.Context, err error) error
 // the configured Rego object. The returned function should be used to close the txn
 // regardless of status.
 func (r *Rego) getTxn(ctx context.Context) (storage.Transaction, transactionCloser, error) {
-
 	noopCloser := func(_ context.Context, _ error) error {
 		return nil // no-op default
 	}
@@ -2889,7 +2889,6 @@ type refResolver struct {
 }
 
 func iteration(x any) bool {
-
 	var stopped bool
 
 	vis := ast.NewGenericVisitor(func(x any) bool {

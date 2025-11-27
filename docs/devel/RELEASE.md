@@ -150,14 +150,14 @@ standard GitHub fork workflow. See [OPA Dev Instructions](DEVELOPMENT.md)
   involved here.
 - The docs and website should update and be published automatically. If they are not you can
   trigger one by a couple of methods:
-  - Login to Netlify (requires permission for the project) and manually trigger a build.
-  - Post to the build webhook via:
-    ```bash
-    curl -X POST -d {} https://api.netlify.com/build_hooks/612e8941ffe30d2902bcce80
-    ```
-- A versioned release is created automatically at
-  `vX-Y-Z--opa-docs.netlify.app`, automation is configured in
-  `github.com/open-policy-agent/opa-docs-machinery/actions`.
+	- Login to Netlify (requires permission for the project) and manually trigger a build.
+	- Post to the build webhook via:
+		```bash
+		curl -X POST -d {} https://api.netlify.com/build_hooks/612e8941ffe30d2902bcce80
+		```
+- The Algolia search index is automatically updated when the site is crawled daily at 20:30 (UTC). The
+  crawling process takes around 25 minutes to complete and can be triggered from
+  [crawler.algolia.com](https://crawler.algolia.com) (login details required). 
 
 # Bugfix Release Process
 
@@ -217,10 +217,7 @@ git push origin release-0.14
 
 Open a Pull Request against the upstream release branch. Be careful to open the
 Pull Request against the correct upstream release branch. **DO NOT** open/merge
-the Pull Request into main or other release branches.
-
-When merging the Pull Request, make sure to do a rebase merge to retain all 
-cherry-picked commits (**do not squash**). 
+the Pull Request into main or other release branches:
 
 Once the Pull Request has merged fetch the latest changes and tag the commit to
 prepare for publishing. Use the same instructions as defined above in normal

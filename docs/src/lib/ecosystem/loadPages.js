@@ -1,15 +1,11 @@
 import fs from "fs/promises";
-import glob from "glob";
 import { matter } from "md-front-matter";
 import path from "path";
 
+import { glob } from "glob";
+
 export async function loadPages(globPattern) {
-  const files = await new Promise((resolve, reject) => {
-    glob(globPattern, (err, matches) => {
-      if (err) reject(err);
-      else resolve(matches);
-    });
-  });
+  const files = await glob(globPattern);
 
   const pages = await files.reduce(async (accPromise, filePath) => {
     const acc = await accPromise;

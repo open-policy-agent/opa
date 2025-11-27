@@ -352,12 +352,10 @@ func (t *tarballLoader) NextFile() (*Descriptor, error) {
 
 		for {
 			header, err := t.tr.Next()
-
-			if err == io.EOF {
-				break
-			}
-
 			if err != nil {
+				if err == io.EOF {
+					break
+				}
 				return nil, err
 			}
 
@@ -365,7 +363,6 @@ func (t *tarballLoader) NextFile() (*Descriptor, error) {
 			if header.Typeflag == tar.TypeReg {
 
 				if t.filter != nil {
-
 					if t.filter(filepath.ToSlash(header.Name), header.FileInfo(), getdepth(header.Name, false)) {
 						continue
 					}
@@ -462,7 +459,7 @@ func (it *iterator) Next() (*storage.Update, error) {
 	f := it.files[it.idx]
 	it.idx++
 
-	isPolicy := false
+	var isPolicy bool
 	if strings.HasSuffix(f.name, RegoExt) {
 		isPolicy = true
 	}
@@ -504,9 +501,9 @@ func getdepth(path string, isDir bool) int {
 }
 
 func getFileStoragePath(path string) (storage.Path, error) {
-	fpath := strings.TrimLeft(normalizePath(filepath.Dir(path)), "/.")
+	fpath := strings.TrimLeft(filepath.ToSlash(filepath.Dir(path)), "/.")
 	if strings.HasSuffix(path, RegoExt) {
-		fpath = strings.Trim(normalizePath(path), "/")
+		fpath = strings.Trim(filepath.ToSlash(path), "/")
 	}
 
 	p, ok := storage.ParsePathEscaped("/" + fpath)

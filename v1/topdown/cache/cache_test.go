@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
 func TestParseCachingConfig(t *testing.T) {
@@ -104,7 +105,7 @@ func TestInterValueCache_DefaultConfiguration(t *testing.T) {
 			InterQueryBuiltinValueCache: InterQueryBuiltinValueCacheConfig{},
 		}
 
-		c := NewInterQueryValueCache(context.Background(), &config)
+		c := NewInterQueryValueCache(t.Context(), &config)
 		if c.GetCache("foo") != nil {
 			t.Fatal("Expected cache to be disabled")
 		}
@@ -119,7 +120,7 @@ func TestInterValueCache_DefaultConfiguration(t *testing.T) {
 			MaxNumEntries: &[]int{5}[0],
 		})
 
-		c := NewInterQueryValueCache(context.Background(), &config)
+		c := NewInterQueryValueCache(t.Context(), &config)
 		if act := *c.GetCache("bar").(*interQueryValueCacheBucket).config.MaxNumEntries; act != 5 {
 			t.Fatalf("Expected 5 max entries, got %d", act)
 		}
@@ -136,7 +137,7 @@ func TestInterValueCache_DefaultConfiguration(t *testing.T) {
 
 		RegisterDefaultInterQueryBuiltinValueCacheConfig("baz", nil)
 
-		c := NewInterQueryValueCache(context.Background(), &cacheConfig)
+		c := NewInterQueryValueCache(t.Context(), &cacheConfig)
 		if c.GetCache("baz") != nil {
 			t.Fatal("Expected cache to be disabled")
 		}
@@ -157,7 +158,7 @@ func TestInterValueCache_DefaultConfiguration(t *testing.T) {
 			MaxNumEntries: &[]int{10}[0],
 		})
 
-		c := NewInterQueryValueCache(context.Background(), &cacheConfig)
+		c := NewInterQueryValueCache(t.Context(), &cacheConfig)
 		if act := *c.GetCache("box").(*interQueryValueCacheBucket).config.MaxNumEntries; act != 5 {
 			t.Fatalf("Expected 5 max entries, got %d", act)
 		}
@@ -178,7 +179,7 @@ func TestInterValueCache_NamedCaches(t *testing.T) {
 			},
 		}
 
-		c := NewInterQueryValueCache(context.Background(), &config)
+		c := NewInterQueryValueCache(t.Context(), &config)
 
 		nc := c.GetCache("foo").(*interQueryValueCacheBucket)
 		if act := *nc.config.MaxNumEntries; act != 2 {
@@ -229,7 +230,7 @@ func TestInterValueCache_NamedCaches(t *testing.T) {
 			},
 		}
 
-		c := NewInterQueryValueCache(context.Background(), &config)
+		c := NewInterQueryValueCache(t.Context(), &config)
 
 		c.Insert(ast.StringTerm("foo").Value, "bar")
 
@@ -370,7 +371,7 @@ func TestInterQueryValueCache(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	cache := NewInterQueryValueCache(context.Background(), config)
+	cache := NewInterQueryValueCache(t.Context(), config)
 
 	cache.Insert(ast.StringTerm("foo").Value, "bar")
 	cache.Insert(ast.StringTerm("foo2").Value, "bar2")
@@ -477,7 +478,6 @@ func TestConcurrentInsert(t *testing.T) {
 
 			cacheValue2 := newInterQueryCacheValue(ast.String("bar2"), 5)
 			cache.Insert(ast.String("foo2"), cacheValue2)
-
 		}()
 	}
 	wg.Wait()
@@ -590,7 +590,7 @@ func TestInsertWithExpiryAndEviction(t *testing.T) {
 	}
 
 	// This starts a background ticker at stale_entry_eviction_period_seconds to clean up items.
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cache := NewInterQueryCacheWithContext(ctx, config)
 	t.Cleanup(cancel)
 
@@ -639,7 +639,7 @@ func TestInsertHighTTLWithStaleEntryCleanup(t *testing.T) {
 	}
 
 	// This starts a background ticker at stale_entry_eviction_period_seconds to clean up items.
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cache := NewInterQueryCacheWithContext(ctx, config)
 	t.Cleanup(cancel)
 
@@ -685,7 +685,7 @@ func TestInsertHighTTLWithoutStaleEntryCleanup(t *testing.T) {
 	}
 
 	// This starts a background ticker at stale_entry_eviction_period_seconds to clean up items.
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cache := NewInterQueryCacheWithContext(ctx, config)
 	t.Cleanup(cancel)
 
@@ -728,7 +728,7 @@ func TestZeroExpiryTime(t *testing.T) {
 	}
 
 	// This starts a background ticker at stale_entry_eviction_period_seconds to clean up items.
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cache := NewInterQueryCacheWithContext(ctx, config)
 	t.Cleanup(cancel)
 	cacheValue := newInterQueryCacheValue(ast.StringTerm("bar").Value, 20)
@@ -758,7 +758,7 @@ func TestCancelNewInterQueryCacheWithContext(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cache := NewInterQueryCacheWithContext(ctx, config)
 	cacheValue := newInterQueryCacheValue(ast.StringTerm("bar").Value, 20)
 	cache.InsertWithExpiry(ast.StringTerm("foo").Value, cacheValue, time.Now().Add(100*time.Millisecond))
@@ -773,7 +773,6 @@ func TestCancelNewInterQueryCacheWithContext(t *testing.T) {
 	if fetchedCacheValue, found := cache.Get(ast.StringTerm("foo").Value); !found {
 		t.Fatalf("Expected cache entry with value %v for foo, found %v", cacheValue, fetchedCacheValue)
 	}
-
 }
 
 func TestUpdateConfig(t *testing.T) {
@@ -852,4 +851,35 @@ func (p testInterQueryCacheValue) SizeInBytes() int64 {
 
 func (p testInterQueryCacheValue) Clone() (InterQueryCacheValue, error) {
 	return &testInterQueryCacheValue{value: p.value, size: p.size}, nil
+}
+
+func TestConfigClone(t *testing.T) {
+	// test nil config
+	var nilConfig *Config
+	cloned := nilConfig.Clone()
+	if cloned != nil {
+		t.Fatal("expected nil clone for nil config")
+	}
+
+	// test config with all fields populated using reflection
+	original := test.PopulateAllFields[Config](t)
+
+	cloned = original.Clone()
+	if cloned == nil {
+		t.Fatal("clone returned nil")
+	}
+
+	if cloned == original {
+		t.Fatal("clone should be different instance")
+	}
+
+	if !reflect.DeepEqual(original, cloned) {
+		t.Errorf("clone differs from original")
+	}
+
+	// Test that modifying the clone doesn't affect the original
+	*cloned.InterQueryBuiltinCache.MaxSizeBytes = 999
+	if *original.InterQueryBuiltinCache.MaxSizeBytes == 999 {
+		t.Errorf("modifying clone affected original")
+	}
 }

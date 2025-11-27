@@ -1,0 +1,18 @@
+{
+  "name": "prisma-ucast-e2e",
+  "version": "0.0.1",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "",
+  "description": "",
+  "dependencies": {
+    "@prisma/client": "^6.19.0",
+    "@open-policy-agent/ucast-prisma": "^0.1.6"
+  },
+  "devDependencies": {
+    "prisma": "^6.19.0"
+  }
+}
