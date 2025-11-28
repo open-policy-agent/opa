@@ -152,7 +152,7 @@ func builtinFormatInt(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 	return iter(ast.InternedTerm(fmt.Sprintf(format, i)))
 }
 
-func builtinConcat(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinConcat(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	join, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
@@ -163,11 +163,13 @@ func builtinConcat(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) 
 		return iter(term)
 	}
 
+	sb := newSink(ast.Concat.Name, 0, bctx.Cancel)
+
 	// NOTE(anderseknert):
 	// More or less Go's strings.Join implementation, but where we avoid
 	// creating an intermediate []string slice to pass to that function,
 	// as that's expensive (3.5x more space allocated). Instead we build
-	// the string directly using a strings.Builder to concatenate the string
+	// the string directly using the sink to concatenate the string
 	// values from the array/set with the separator.
 	n := 0
 	switch b := operands[1].Value.(type) {
@@ -182,25 +184,36 @@ func builtinConcat(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) 
 		}
 		sep := string(join)
 		n += len(sep) * (l - 1)
-		var sb strings.Builder
 		sb.Grow(n)
-		sb.WriteString(string(b.Elem(0).Value.(ast.String)))
+		if _, err := sb.WriteString(string(b.Elem(0).Value.(ast.String))); err != nil {
+			return err
+		}
 		if sep == "" {
 			for i := 1; i < l; i++ {
-				sb.WriteString(string(b.Elem(i).Value.(ast.String)))
+				if _, err := sb.WriteString(string(b.Elem(i).Value.(ast.String))); err != nil {
+					return err
+				}
 			}
 		} else if len(sep) == 1 {
 			// when the separator is a single byte, sb.WriteByte is substantially faster
 			bsep := sep[0]
 			for i := 1; i < l; i++ {
-				sb.WriteByte(bsep)
-				sb.WriteString(string(b.Elem(i).Value.(ast.String)))
+				if err := sb.WriteByte(bsep); err != nil {
+					return err
+				}
+				if _, err := sb.WriteString(string(b.Elem(i).Value.(ast.String))); err != nil {
+					return err
+				}
 			}
 		} else {
 			// for longer separators, there is no such difference between WriteString and Write
 			for i := 1; i < l; i++ {
-				sb.WriteString(sep)
-				sb.WriteString(string(b.Elem(i).Value.(ast.String)))
+				if _, err := sb.WriteString(sep); err != nil {
+					return err
+				}
+				if _, err := sb.WriteString(string(b.Elem(i).Value.(ast.String))); err != nil {
+					return err
+				}
 			}
 		}
 		return iter(ast.InternedTerm(sb.String()))
@@ -215,12 +228,15 @@ func builtinConcat(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) 
 		sep := string(join)
 		l := b.Len()
 		n += len(sep) * (l - 1)
-		var sb strings.Builder
 		sb.Grow(n)
 		for i, v := range b.Slice() {
-			sb.WriteString(string(v.Value.(ast.String)))
+			if _, err := sb.WriteString(string(v.Value.(ast.String))); err != nil {
+				return err
+			}
 			if i < l-1 {
-				sb.WriteString(sep)
+				if _, err := sb.WriteString(sep); err != nil {
+					return err
+				}
 			}
 		}
 		return iter(ast.InternedTerm(sb.String()))
