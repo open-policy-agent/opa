@@ -10,7 +10,10 @@ import (
 
 // BenchmarkRefPtr benchmarks the optimized Ref.Ptr() method
 func BenchmarkRefPtr(b *testing.B) {
-	ref := MustParseRef("data.foo.bar.baz.qux")
+	ref, err := ParseRef("data.foo.bar.baz.qux")
+	if err != nil {
+		b.Fatal(err)
+	}
 
 	b.ResetTimer()
 	for range b.N {
@@ -35,7 +38,10 @@ func BenchmarkArgsString(b *testing.B) {
 
 // BenchmarkBodyString benchmarks the optimized Body.String() method
 func BenchmarkBodyString(b *testing.B) {
-	body := MustParseBody("x := 1; y := 2; z := x + y; a := z * 2")
+	body, err := ParseBody("x := 1; y := 2; z := x + y; a := z * 2")
+	if err != nil {
+		b.Fatal(err)
+	}
 
 	b.ResetTimer()
 	for range b.N {
@@ -45,7 +51,10 @@ func BenchmarkBodyString(b *testing.B) {
 
 // BenchmarkExprString benchmarks the optimized Expr.String() method
 func BenchmarkExprString(b *testing.B) {
-	expr := MustParseExpr("x = y + z with input.foo as 42 with data.bar as \"test\"")
+	expr, err := ParseExpr("x = y + z with input.foo as 42 with data.bar as \"test\"")
+	if err != nil {
+		b.Fatal(err)
+	}
 
 	b.ResetTimer()
 	for range b.N {
@@ -105,22 +114,30 @@ func BenchmarkGetRules(b *testing.B) {
 	module := `
 		package test
 		
-		p[x] { x := 1 }
-		p[x] { x := 2 }
-		q[x] { x := 3 }
+		p contains x if { x := 1 }
+		p contains x if { x := 2 }
+		q contains x if { x := 3 }
 		r := 4
 	`
 
+	mod, err := ParseModule("test.rego", module)
+	if err != nil {
+		b.Fatal(err)
+	}
+
 	c := NewCompiler()
 	c.Compile(map[string]*Module{
-		"test.rego": MustParseModule(module),
+		"test.rego": mod,
 	})
 
 	if c.Failed() {
 		b.Fatal(c.Errors)
 	}
 
-	ref := MustParseRef("data.test.p")
+	ref, err := ParseRef("data.test.p")
+	if err != nil {
+		b.Fatal(err)
+	}
 
 	b.ResetTimer()
 	for range b.N {
