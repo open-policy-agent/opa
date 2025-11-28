@@ -1136,15 +1136,23 @@ func (ref Ref) IsNested() bool {
 // contains non-string terms this function returns an error. Path
 // components are escaped.
 func (ref Ref) Ptr() (string, error) {
-	parts := make([]string, 0, len(ref)-1)
-	for _, term := range ref[1:] {
+	if len(ref) <= 1 {
+		return "", nil
+	}
+	sb := sbPool.Get()
+	defer sbPool.Put(sb)
+	sb.Grow(len(ref) * 8) // Estimate average component size
+	for i, term := range ref[1:] {
 		if str, ok := term.Value.(String); ok {
-			parts = append(parts, url.PathEscape(string(str)))
+			if i > 0 {
+				sb.WriteByte('/')
+			}
+			sb.WriteString(url.PathEscape(string(str)))
 		} else {
 			return "", errors.New("invalid path value type")
 		}
 	}
-	return strings.Join(parts, "/"), nil
+	return sb.String(), nil
 }
 
 var varRegexp = regexp.MustCompile("^[[:alpha:]_][[:alpha:][:digit:]_]*$")
@@ -1220,12 +1228,12 @@ func (ref Ref) OutputVars() VarSet {
 }
 
 func (ref Ref) toArray() *Array {
-	terms := make([]*Term, 0, len(ref))
-	for _, term := range ref {
+	terms := make([]*Term, len(ref))
+	for i, term := range ref {
 		if _, ok := term.Value.(String); ok {
-			terms = append(terms, term)
+			terms[i] = term
 		} else {
-			terms = append(terms, InternedTerm(term.Value.String()))
+			terms[i] = InternedTerm(term.Value.String())
 		}
 	}
 	return NewArray(terms...)
@@ -1627,19 +1635,28 @@ func (s *set) Diff(other Set) Set {
 	if s.Compare(other) == 0 {
 		return NewSet()
 	}
+	if s.Len() == 0 {
+		return NewSet()
+	}
 
-	terms := make([]*Term, 0, len(s.keys))
+	terms := make([]*Term, 0, s.Len())
 	for _, term := range s.sortedKeys() {
 		if !other.Contains(term) {
 			terms = append(terms, term)
 		}
 	}
 
+	if len(terms) == 0 {
+		return NewSet()
+	}
 	return NewSet(terms...)
 }
 
 // Intersect returns the set containing elements in both s and other.
 func (s *set) Intersect(other Set) Set {
+	if s.Len() == 0 || other.Len() == 0 {
+		return NewSet()
+	}
 	o := other.(*set)
 	n, m := s.Len(), o.Len()
 	ss := s
@@ -1657,6 +1674,9 @@ func (s *set) Intersect(other Set) Set {
 		}
 	}
 
+	if len(terms) == 0 {
+		return NewSet()
+	}
 	return NewSet(terms...)
 }
 
@@ -1698,7 +1718,10 @@ func (s *set) Foreach(f func(*Term)) {
 
 // Map returns a new Set obtained by applying f to each value in s.
 func (s *set) Map(f func(*Term) (*Term, error)) (Set, error) {
-	mapped := make([]*Term, 0, len(s.keys))
+	if s.Len() == 0 {
+		return NewSet(), nil
+	}
+	mapped := make([]*Term, 0, s.Len())
 	for _, x := range s.sortedKeys() {
 		term, err := f(x)
 		if err != nil {
@@ -2262,12 +2285,13 @@ func (obj *object) Map(f func(*Term, *Term) (*Term, *Term, error)) (Object, erro
 
 // Keys returns the keys of obj.
 func (obj *object) Keys() []*Term {
-	keys := make([]*Term, len(obj.keys))
-
+	if obj.Len() == 0 {
+		return nil
+	}
+	keys := make([]*Term, obj.Len())
 	for i, elem := range obj.sortedKeys() {
 		keys[i] = elem.key
 	}
-
 	return keys
 }
 
@@ -2444,6 +2468,9 @@ func filterObject(o Value, filter Value) (Value, error) {
 	case String, Number, Boolean, Null:
 		return o, nil
 	case *Array:
+		if v.Len() == 0 {
+			return v, nil
+		}
 		values := NewArray()
 		for i := range v.Len() {
 			subFilter := filteredObj.Get(InternedIntegerString(i))
@@ -2457,6 +2484,9 @@ func filterObject(o Value, filter Value) (Value, error) {
 		}
 		return values, nil
 	case Set:
+		if v.Len() == 0 {
+			return v, nil
+		}
 		terms := make([]*Term, 0, v.Len())
 		for _, t := range v.Slice() {
 			if filteredObj.Get(t) != nil {
@@ -2466,6 +2496,9 @@ func filterObject(o Value, filter Value) (Value, error) {
 				}
 				terms = append(terms, NewTerm(filteredValue))
 			}
+		}
+		if len(terms) == 0 {
+			return NewSet(), nil
 		}
 		return NewSet(terms...), nil
 	case *object:
