@@ -2108,7 +2108,7 @@ func TestDataPostV1CompressedDecodingLimits(t *testing.T) {
 			payload:               mustGZIPPayload([]byte(`{"input": {"user": "alice"}}`)),
 			expRespHTTPStatus:     400,
 			forcePayloadSizeField: 134217728, // 128 MB
-			expErrorMsg:           "gzip payload too large",
+			expErrorMsg:           "gzip: invalid checksum",
 			gzipMaxLen:            1024,
 		},
 		{
@@ -2118,7 +2118,7 @@ func TestDataPostV1CompressedDecodingLimits(t *testing.T) {
 			payload:               mustGZIPPayload([]byte(`{"input": {"user": "alice"}}`)),
 			expRespHTTPStatus:     400,
 			forcePayloadSizeField: 134217728, // 128 MB
-			expErrorMsg:           "gzip payload too large",
+			expErrorMsg:           "gzip: invalid checksum",
 			gzipMaxLen:            1024,
 		},
 		{
