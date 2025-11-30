@@ -3470,6 +3470,72 @@
       }
     },
     {
+      "name": "purl.is_valid",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "type": "boolean"
+        },
+        "type": "function"
+      }
+    },
+    {
+      "name": "purl.parse",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "dynamic": {
+            "key": {
+              "type": "string"
+            },
+            "value": {
+              "of": [
+                {
+                  "type": "string"
+                },
+                {
+                  "dynamic": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              ],
+              "type": "any"
+            }
+          },
+          "static": [
+            {
+              "key": "name",
+              "value": {
+                "type": "string"
+              }
+            },
+            {
+              "key": "type",
+              "value": {
+                "type": "string"
+              }
+            }
+          ],
+          "type": "object"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "rand.intn",
       "decl": {
         "args": [
