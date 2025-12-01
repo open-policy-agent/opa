@@ -26,7 +26,7 @@ var (
 	InternedBooleanTrueTerm         = &Term{Value: InternedBooleanTrueValue}
 	InternedBooleanFalseTerm        = &Term{Value: InternedBooleanFalseValue}
 
-	InternedEmptyString = StringTerm("")
+	InternedEmptyString = &Term{Value: String("")}
 	InternedEmptyObject = ObjectTerm()
 	InternedEmptyArray  = NewTerm(InternedEmptyArrayValue)
 	InternedEmptySet    = SetTerm()
@@ -61,7 +61,7 @@ func InternStringTerm(str ...string) {
 			continue
 		}
 
-		internedStringTerms[s] = StringTerm(s)
+		internedStringTerms[s] = &Term{Value: String(s)}
 	}
 }
 
@@ -212,7 +212,8 @@ func HasInternedIntNumberTerm(i int) bool {
 func InternedIntegerString(i int) *Term {
 	// Cheapest option - we don't need to call strconv.Itoa
 	if HasInternedIntNumberTerm(i) {
-		if interned, ok := internedStringTerms[IntNumberTerm(i).String()]; ok {
+		str := IntNumberTerm(i).String()
+		if interned, ok := internedStringTerms[str]; ok {
 			return interned
 		}
 	}
@@ -280,7 +281,7 @@ func internedStringTerm(s string) *Term {
 		return term
 	}
 
-	return StringTerm(s)
+	return &Term{Value: String(s)}
 }
 
 func internedTermValue[T internable](v T) Value {
@@ -837,6 +838,7 @@ var stringToIntNumberTermMap = map[string]*Term{
 	"511": intNumberTerms[511],
 	"512": intNumberTerms[512],
 }
+
 
 var intNumberValues = [...]Value{
 	Number("0"),

@@ -524,42 +524,48 @@ type trieNode struct {
 }
 
 func (node *trieNode) String() string {
-	var flags []string
-	flags = append(flags, fmt.Sprintf("self:%p", node))
+	sb := sbPool.Get()
+	defer sbPool.Put(sb)
+
+	fmt.Fprintf(sb, "self:%p", node)
+
 	if len(node.ref) > 0 {
-		flags = append(flags, node.ref.String())
+		sb.WriteByte(' ')
+		sb.WriteString(node.ref.String())
 	}
 	if node.next != nil {
-		flags = append(flags, fmt.Sprintf("next:%p", node.next))
+		fmt.Fprintf(sb, " next:%p", node.next)
 	}
 	if node.any != nil {
-		flags = append(flags, fmt.Sprintf("any:%p", node.any))
+		fmt.Fprintf(sb, " any:%p", node.any)
 	}
 	if node.undefined != nil {
-		flags = append(flags, fmt.Sprintf("undefined:%p", node.undefined))
+		fmt.Fprintf(sb, " undefined:%p", node.undefined)
 	}
 	if node.array != nil {
-		flags = append(flags, fmt.Sprintf("array:%p", node.array))
+		fmt.Fprintf(sb, " array:%p", node.array)
 	}
 	if node.scalars.Len() > 0 {
 		buf := make([]string, 0, node.scalars.Len())
+
 		node.scalars.Iter(func(key Value, val *trieNode) bool {
 			buf = append(buf, fmt.Sprintf("scalar(%v):%p", key, val))
 			return false
 		})
 		sort.Strings(buf)
-		flags = append(flags, strings.Join(buf, " "))
+		sb.WriteByte(' ')
+		sb.WriteString(strings.Join(buf, " "))
 	}
 	if len(node.rules) > 0 {
-		flags = append(flags, fmt.Sprintf("%d rule(s)", len(node.rules)))
+		fmt.Fprintf(sb, " %d rule(s)", len(node.rules))
 	}
 	if len(node.mappers) > 0 {
-		flags = append(flags, fmt.Sprintf("%d mapper(s)", len(node.mappers)))
+		fmt.Fprintf(sb, " %d mapper(s)", len(node.mappers))
 	}
 	if node.value != nil {
-		flags = append(flags, "value exists")
+		sb.WriteString(" value exists")
 	}
-	return strings.Join(flags, " ")
+	return sb.String()
 }
 
 func (node *trieNode) append(prio [2]int, rule *Rule) {
@@ -894,7 +900,8 @@ func globDelimiterToString(delim *Term) (string, bool) {
 	if arr.Len() == 0 {
 		result = "."
 	} else {
-		sb := strings.Builder{}
+		sb := sbPool.Get()
+		defer sbPool.Put(sb)
 		for i := range arr.Len() {
 			term := arr.Elem(i)
 			s, ok := term.Value.(String)

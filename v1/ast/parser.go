@@ -158,7 +158,8 @@ type parsedTermCache struct {
 }
 
 func (c parsedTermCache) String() string {
-	s := strings.Builder{}
+	s := sbPool.Get()
+	defer sbPool.Put(s)
 	s.WriteRune('{')
 	var e *parsedTermCacheItem
 	for e = c.m; e != nil; e = e.next {
@@ -2396,7 +2397,8 @@ func writeHints(msg *strings.Builder, hints []string) {
 func (p *Parser) error(loc *location.Location, reason string) {
 	msg := reason
 	if len(p.s.hints) > 0 {
-		sb := &strings.Builder{}
+		sb := sbPool.Get()
+		defer sbPool.Put(sb)
 		sb.WriteString(reason)
 		writeHints(sb, p.s.hints)
 		msg = sb.String()
@@ -2412,7 +2414,8 @@ func (p *Parser) error(loc *location.Location, reason string) {
 }
 
 func (p *Parser) errorf(loc *location.Location, f string, a ...any) {
-	msg := &strings.Builder{}
+	msg := sbPool.Get()
+	defer sbPool.Put(msg)
 	fmt.Fprintf(msg, f, a...)
 
 	if len(p.s.hints) > 0 {

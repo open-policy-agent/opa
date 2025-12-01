@@ -23,6 +23,23 @@ const (
 	annotationScopeSubpackages = "subpackages"
 )
 
+// JSON keys for MarshalJSON - constants ensure string interning by compiler
+const (
+	jsonKeyScope            = "scope"
+	jsonKeyTitle            = "title"
+	jsonKeyDescription      = "description"
+	jsonKeyEntrypoint       = "entrypoint"
+	jsonKeyOrganizations    = "organizations"
+	jsonKeyRelatedResources = "related_resources"
+	jsonKeyAuthors          = "authors"
+	jsonKeySchemas          = "schemas"
+	jsonKeyCustom           = "custom"
+	jsonKeyLocation         = "location"
+	jsonKeyPath             = "path"
+	jsonKeyAnnotations      = "annotations"
+	jsonKeyRef              = "ref"
+)
+
 type (
 	// Annotations represents metadata attached to other AST nodes such as rules.
 	Annotations struct {
@@ -192,49 +209,50 @@ func (a *Annotations) MarshalJSON() ([]byte, error) {
 		return []byte(`{"scope":""}`), nil
 	}
 
-	data := map[string]any{
-		"scope": a.Scope,
-	}
+	data := mapStringAnyPool.Get()
+	defer mapStringAnyPool.Put(data)
+
+	(*data)[jsonKeyScope] = a.Scope
 
 	if a.Title != "" {
-		data["title"] = a.Title
+		(*data)[jsonKeyTitle] = a.Title
 	}
 
 	if a.Description != "" {
-		data["description"] = a.Description
+		(*data)[jsonKeyDescription] = a.Description
 	}
 
 	if a.Entrypoint {
-		data["entrypoint"] = a.Entrypoint
+		(*data)[jsonKeyEntrypoint] = a.Entrypoint
 	}
 
 	if len(a.Organizations) > 0 {
-		data["organizations"] = a.Organizations
+		(*data)[jsonKeyOrganizations] = a.Organizations
 	}
 
 	if len(a.RelatedResources) > 0 {
-		data["related_resources"] = a.RelatedResources
+		(*data)[jsonKeyRelatedResources] = a.RelatedResources
 	}
 
 	if len(a.Authors) > 0 {
-		data["authors"] = a.Authors
+		(*data)[jsonKeyAuthors] = a.Authors
 	}
 
 	if len(a.Schemas) > 0 {
-		data["schemas"] = a.Schemas
+		(*data)[jsonKeySchemas] = a.Schemas
 	}
 
 	if len(a.Custom) > 0 {
-		data["custom"] = a.Custom
+		(*data)[jsonKeyCustom] = a.Custom
 	}
 
-	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Annotations {
+	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Annotations() {
 		if a.Location != nil {
-			data["location"] = a.Location
+			(*data)[jsonKeyLocation] = a.Location
 		}
 	}
 
-	return json.Marshal(data)
+	return json.Marshal(*data)
 }
 
 func NewAnnotationsRef(a *Annotations) *AnnotationsRef {
@@ -272,17 +290,18 @@ func (ar *AnnotationsRef) GetRule() *Rule {
 }
 
 func (ar *AnnotationsRef) MarshalJSON() ([]byte, error) {
-	data := map[string]any{
-		"path": ar.Path,
-	}
+	data := mapStringAnyPool.Get()
+	defer mapStringAnyPool.Put(data)
+
+	(*data)[jsonKeyPath] = ar.Path
 
 	if ar.Annotations != nil {
-		data["annotations"] = ar.Annotations
+		(*data)[jsonKeyAnnotations] = ar.Annotations
 	}
 
-	if astJSON.GetOptions().MarshalOptions.IncludeLocation.AnnotationsRef {
+	if astJSON.GetOptions().MarshalOptions.IncludeLocation.AnnotationsRef() {
 		if ar.Location != nil {
-			data["location"] = ar.Location
+			(*data)[jsonKeyLocation] = ar.Location
 		}
 
 		// The location set for the schema ref terms is wrong (always set to
@@ -296,7 +315,7 @@ func (ar *AnnotationsRef) MarshalJSON() ([]byte, error) {
 		}
 	}
 
-	return json.Marshal(data)
+	return json.Marshal(*data)
 }
 
 func scopeCompare(s1, s2 string) int {
@@ -684,15 +703,16 @@ func (rr *RelatedResourceAnnotation) String() string {
 }
 
 func (rr *RelatedResourceAnnotation) MarshalJSON() ([]byte, error) {
-	d := map[string]any{
-		"ref": rr.Ref.String(),
-	}
+	d := mapStringAnyPool.Get()
+	defer mapStringAnyPool.Put(d)
+
+	(*d)[jsonKeyRef] = rr.Ref.String()
 
 	if len(rr.Description) > 0 {
-		d["description"] = rr.Description
+		(*d)[jsonKeyDescription] = rr.Description
 	}
 
-	return json.Marshal(d)
+	return json.Marshal(*d)
 }
 
 // Copy returns a deep copy of s.

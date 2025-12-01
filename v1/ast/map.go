@@ -26,16 +26,21 @@ func NewValueMap() *ValueMap {
 // MarshalJSON provides a custom marshaller for the ValueMap which
 // will include the key, value, and value type.
 func (vs *ValueMap) MarshalJSON() ([]byte, error) {
-	var tmp []map[string]any
+	l := vs.Len()
+	tmp := mapStringAnySlicePool.Get(l)
+	defer mapStringAnySlicePool.Put(tmp)
+
+	i := 0
 	vs.Iter(func(k Value, v Value) bool {
-		tmp = append(tmp, map[string]any{
+		(*tmp)[i] = map[string]any{
 			"name":  k.String(),
 			"type":  ValueName(v),
 			"value": v,
-		})
+		}
+		i++
 		return false
 	})
-	return json.Marshal(tmp)
+	return json.Marshal(*tmp)
 }
 
 // Equal returns true if this ValueMap equals the other.
