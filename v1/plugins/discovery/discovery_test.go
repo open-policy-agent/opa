@@ -4069,6 +4069,41 @@ func TestListeners(t *testing.T) {
 	}
 }
 
+func TestServicePluginInitialization(t *testing.T) {
+	manager, err := plugins.New(fmt.Appendf(nil, `{
+			"services": {
+				"localhost": {
+					"url": "http://localhost:9999"
+				}
+			},
+			"plugins": {
+				"initializeTestPlugin": {}
+			},
+			"discovery": {"name": "config"}
+		}`), "test-id", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Add the test plugin to check the counter if the plugin was started
+	testPlugin := &reconfigureTestPlugin{counts: map[string]int{}}
+	testFactory := testFactory{p: testPlugin}
+	disco, err := New(manager, Factories(map[string]plugins.Factory{"initializeTestPlugin": testFactory}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = disco.Start(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, exists := testPlugin.counts["start"]
+	if !exists {
+		t.Fatalf("Expected plugin to have been initialized but it was not")
+	}
+}
+
 type testFixture struct {
 	manager            *plugins.Manager
 	plugin             *Discovery
