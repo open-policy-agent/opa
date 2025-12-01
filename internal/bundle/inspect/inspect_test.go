@@ -97,9 +97,7 @@ p = 1`,
 
 		astJSON.SetOptions(astJSON.Options{
 			MarshalOptions: astJSON.MarshalOptions{
-				IncludeLocation: astJSON.NodeToggle{
-					AnnotationsRef: true,
-				},
+				IncludeLocation: astJSON.NewNodeToggle().WithAnnotationsRef(),
 			},
 		})
 		defer astJSON.SetOptions(astJSON.Defaults())

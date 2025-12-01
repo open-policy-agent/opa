@@ -122,14 +122,16 @@ func doInspect(params inspectCommandParams, path string, out io.Writer) error {
 		return err
 	}
 
+	toggle := astJson.NewNodeToggle()
+	if params.listAnnotations {
+		toggle.WithAnnotationsRef()
+	}
 	switch params.outputFormat.String() {
 	case formats.JSON:
 		astJson.SetOptions(astJson.Options{
 			MarshalOptions: astJson.MarshalOptions{
-				IncludeLocation: astJson.NodeToggle{
-					// Annotation location data is only included if includeAnnotations is set
-					AnnotationsRef: params.listAnnotations,
-				},
+				// Annotation location data is only included if includeAnnotations is set
+				IncludeLocation: toggle,
 			},
 		})
 		defer astJson.SetOptions(astJson.Defaults())
