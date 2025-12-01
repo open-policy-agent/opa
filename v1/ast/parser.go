@@ -2532,12 +2532,10 @@ func (p *Parser) restore(s *state) {
 }
 
 func setLocRecursive(x any, loc *location.Location) {
-	NewGenericVisitor(func(x any) bool {
-		if node, ok := x.(Node); ok {
-			node.SetLoc(loc)
-		}
+	WalkNodes(x, func(n Node) bool {
+		n.SetLoc(loc)
 		return false
-	}).Walk(x)
+	})
 }
 
 func (p *Parser) setLoc(term *Term, loc *location.Location, offset, end int) *Term {

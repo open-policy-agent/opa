@@ -121,9 +121,13 @@ func (e *Error) Error() string {
 
 // NewError returns a new Error object.
 func NewError(code string, loc *Location, f string, a ...any) *Error {
+	return newErrorString(code, loc, fmt.Sprintf(f, a...))
+}
+
+func newErrorString(code string, loc *Location, m string) *Error {
 	return &Error{
 		Code:     code,
 		Location: loc,
-		Message:  fmt.Sprintf(f, a...),
+		Message:  m,
 	}
 }

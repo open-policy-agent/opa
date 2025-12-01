@@ -19,7 +19,6 @@ type Transformer interface {
 // Transform iterates the AST and calls the Transform function on the
 // Transformer t for x before recursing.
 func Transform(t Transformer, x any) (any, error) {
-
 	if term, ok := x.(*Term); ok {
 		return Transform(t, term.Value)
 	}
@@ -387,11 +386,7 @@ func transformTerm(t Transformer, term *Term) (*Term, error) {
 	if err != nil {
 		return nil, err
 	}
-	r := &Term{
-		Value:    v,
-		Location: term.Location,
-	}
-	return r, nil
+	return &Term{Value: v, Location: term.Location}, nil
 }
 
 func transformValue(t Transformer, v Value) (Value, error) {
@@ -407,13 +402,18 @@ func transformValue(t Transformer, v Value) (Value, error) {
 }
 
 func transformVar(t Transformer, v Var) (Var, error) {
-	v1, err := Transform(t, v)
+	tv, err := t.Transform(v)
 	if err != nil {
 		return "", err
 	}
-	r, ok := v1.(Var)
+
+	if tv == nil {
+		return "", nil
+	}
+
+	r, ok := tv.(Var)
 	if !ok {
-		return "", fmt.Errorf("illegal transform: %T != %T", v, v1)
+		return "", fmt.Errorf("illegal transform: %T != %T", v, tv)
 	}
 	return r, nil
 }

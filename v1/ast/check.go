@@ -126,13 +126,13 @@ func (tc *typeChecker) Env(builtins map[string]*Builtin) *TypeEnv {
 // are found. The resulting TypeEnv wraps the provided one. The resulting
 // TypeEnv will be able to resolve types of vars contained in the body.
 func (tc *typeChecker) CheckBody(env *TypeEnv, body Body) (*TypeEnv, Errors) {
+	var errors []*Error
 
-	errors := []*Error{}
 	env = tc.newEnv(env)
 	vis := newRefChecker(env, tc.varRewriter)
+	gv := NewGenericVisitor(vis.Visit)
 
 	WalkExprs(body, func(expr *Expr) bool {
-
 		closureErrs := tc.checkClosures(env, expr)
 		for _, err := range closureErrs {
 			errors = append(errors, err)
@@ -142,7 +142,7 @@ func (tc *typeChecker) CheckBody(env *TypeEnv, body Body) (*TypeEnv, Errors) {
 
 		// reset errors from previous iteration
 		vis.errs = nil
-		NewGenericVisitor(vis.Visit).Walk(expr)
+		gv.Walk(expr)
 		for _, err := range vis.errs {
 			errors = append(errors, err)
 		}
@@ -162,7 +162,7 @@ func (tc *typeChecker) CheckBody(env *TypeEnv, body Body) (*TypeEnv, Errors) {
 		return true
 	})
 
-	tc.err(errors)
+	tc.err(errors...)
 	return env, errors
 }
 
@@ -243,7 +243,7 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 	for _, schemaAnnot := range schemaAnnots {
 		refType, err := tc.getSchemaType(schemaAnnot, rule)
 		if err != nil {
-			tc.err([]*Error{err})
+			tc.err(err)
 			continue
 		}
 
@@ -259,7 +259,7 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 		} else {
 			newType, err := override(ref[len(prefixRef):], t, refType, rule)
 			if err != nil {
-				tc.err([]*Error{err})
+				tc.err(err)
 				continue
 			}
 			env.tree.Put(prefixRef, newType)
@@ -310,7 +310,7 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 				var err error
 				tpe, err = nestedObject(cpy, objPath, typeV)
 				if err != nil {
-					tc.err([]*Error{NewError(TypeErr, rule.Head.Location, "%s", err.Error())})
+					tc.err(NewError(TypeErr, rule.Head.Location, "%s", err.Error()))
 					tpe = nil
 				}
 			} else if typeV != nil {
@@ -681,7 +681,7 @@ func unify1Set(env *TypeEnv, val Set, tpe *types.Set, union bool) bool {
 	})
 }
 
-func (tc *typeChecker) err(errors []*Error) {
+func (tc *typeChecker) err(errors ...*Error) {
 	tc.errs = append(tc.errs, errors...)
 }
 
@@ -714,8 +714,9 @@ func (rc *refChecker) Visit(x any) bool {
 	case *Expr:
 		switch terms := x.Terms.(type) {
 		case []*Term:
+			vis := NewGenericVisitor(rc.Visit)
 			for i := 1; i < len(terms); i++ {
-				NewGenericVisitor(rc.Visit).Walk(terms[i])
+				vis.Walk(terms[i])
 			}
 			return true
 		case *Term:
