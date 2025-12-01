@@ -1109,7 +1109,7 @@ var Concat = &Builtin{
 		types.Named("output", types.S).Description("the joined string"),
 	),
 	Categories:  stringsCat,
-	CanSkipBctx: true,
+	CanSkipBctx: false,
 }
 
 var FormatInt = &Builtin{
