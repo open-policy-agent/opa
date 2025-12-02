@@ -7,10 +7,10 @@ labels:
   category: wasm
   type: poweredbyopa
 code:
-- https://github.com/StyraInc/opa-java-wasm
+- https://github.com/StyraOSS/opa-java-wasm
 - https://central.sonatype.com/artifact/com.styra.opa/opa-java-wasm
 tutorials:
-- https://github.com/StyraInc/opa-java-wasm?tab=readme-ov-file#getting-started
+- https://github.com/StyraOSS/opa-java-wasm?tab=readme-ov-file#getting-started
 inventors:
 - andreatp
 ---

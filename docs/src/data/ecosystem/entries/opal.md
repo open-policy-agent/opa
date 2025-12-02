@@ -19,17 +19,17 @@ docs_features:
     note: |
       OPAL uses the OPA REST API to update the policy and data pushed down
       from the OPAL server.
-      See [how this works](https://docs.opal.ac/overview/architecture).
+      See [how this works](https://docs.opal.ac/overview/architecture/).
   external-data:
     note: |
       The OPAL Client uses the OPA REST API to update the state pushed down
       from the OPAL server.
-      See [how this works](https://docs.opal.ac/overview/architecture).
+      See [how this works](https://docs.opal.ac/overview/architecture/).
   external-data-realtime-push:
     note: |
       OPAL is able to deliver real-time data updates to OPA instances.
       See
-      [how this works](https://docs.opal.ac/getting-started/quickstart/opal-playground/publishing-data-update)
+      [how this works](https://docs.opal.ac/getting-started/quickstart/opal-playground/publishing-data-update/)
       in the OPAL docs.
 ---
 OPAL is an administration layer for Open Policy Agent (OPA), detecting changes in realtime to both policy and policy data and pushing live updates to your agents.

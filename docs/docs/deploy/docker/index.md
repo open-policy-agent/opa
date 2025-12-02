@@ -267,7 +267,7 @@ OPA will respond with the greeting from the policy (the pod hostname will differ
 ### Readiness and Liveness Probes
 
 OPA exposes a `/health` API endpoint that you can configure Kubernetes
-[Readiness and Liveness Probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/)
+[Readiness and Liveness Probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/)
 to call. For example:
 
 <EvergreenCodeBlock>

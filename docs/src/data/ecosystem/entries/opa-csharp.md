@@ -5,7 +5,7 @@ labels:
   category: application
   layer: network
 code:
-- https://github.com/StyraInc/opa-csharp
+- https://github.com/open-policy-agent/opa-csharp
 - https://www.nuget.org/packages/Styra.Opa
 tutorials:
 - https://open-policy-agent.github.io/opa-csharp/

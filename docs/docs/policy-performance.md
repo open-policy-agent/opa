@@ -806,7 +806,7 @@ PASS: 2/2
 
 The benchmark output formats default to `pretty`, but support a `gobench` format which complies with the
 [Golang Benchmark Data Format](https://go.googlesource.com/proposal/+/master/design/14313-benchmark-format.md).
-This allows for usage of tools like [benchstat](https://godoc.org/golang.org/x/perf/cmd/benchstat) to gain additional
+This allows for usage of tools like [benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat?utm_source=godoc) to gain additional
 insight into the benchmark results and to diff between benchmark results.
 
 Example:
@@ -893,7 +893,7 @@ DataRbacTestUserHasRoleNegative                         235 ± 0%               
 
 This gives clear feedback that the evaluations have slowed down considerably by looking at the `delta`
 
-> Note that for [benchstat](https://godoc.org/golang.org/x/perf/cmd/benchstat) you will want to run with `--count` to
+> Note that for [benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat?utm_source=godoc) you will want to run with `--count` to
 > repeat the benchmarks a number of times (5-10 is usually enough). The tool requires several data points else the `p`
 > value will not show meaningful changes and the `delta` will be `~`.
 

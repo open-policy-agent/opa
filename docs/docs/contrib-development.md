@@ -8,7 +8,7 @@ the [Contributing to OPA](./contrib-code) page first.
 
 OPA is written in the [Go](https://golang.org) programming language.
 If you are new to Go, consider reading
-[Effective Go](https://golang.org/doc/effective_go.html),
+[Effective Go](https://go.dev/doc/effective_go.html),
 [Go Code Review Comments](https://go.dev/wiki/CodeReviewComments) or
 [How to Write Go Code](https://go.dev/doc/code)
 for guidance on writing idiomatic Go code.
@@ -23,7 +23,7 @@ Requirements:
 
 ## Getting Started
 
-After forking the repository and creating a [clone from your fork](https://docs.github.com/en/get-started/quickstart/contributing-to-projects),
+After forking the repository and creating a [clone from your fork](https://docs.github.com/en/get-started/exploring-projects-on-github/contributing-to-a-project),
 just run `make`. This will:
 
 - Build the OPA binary.
@@ -98,7 +98,7 @@ git push origin somefeature
 > Make sure to use a [good commit message](./contrib-code/#commit-messages).
 
 Now, submit a Pull Request from your fork.
-See the official [GitHub Documentation](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork)
+See the official [GitHub Documentation](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork)
 for instructions to create the request.
 
 > Hint: You should be prompted to with a "Compare and Pull Request" button
@@ -108,7 +108,7 @@ Once your Pull Request has been reviewed and signed off please squash your
 commits. If you have a specific reason to leave multiple commits in the
 Pull Request, please mention it in the discussion.
 
-> If you are not familiar with squashing commits, see [the following blog post for a good overview](http://gitready.com/advanced/2009/02/10/squashing-commits-with-rebase.html).
+> If you are not familiar with squashing commits, see [the following blog post for a good overview](https://gitready.com/advanced/2009/02/10/squashing-commits-with-rebase.html).
 
 ## Benchmarks
 

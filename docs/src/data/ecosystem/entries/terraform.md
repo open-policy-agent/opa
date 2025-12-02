@@ -11,17 +11,17 @@ labels:
   layer: orchestration
 tutorials:
 - https://www.openpolicyagent.org/docs/terraform.html
-- https://github.com/instrumenta/conftest/blob/master/README.md
+- https://github.com/open-policy-agent/conftest/blob/master/README.md
 code:
 - https://github.com/instrumenta/conftest
 - https://github.com/fugue/regula
-- https://github.com/accurics/terrascan
+- https://github.com/tenable/terrascan
 - https://github.com/Checkmarx/kics
 - https://github.com/open-policy-agent/library/tree/master/terraform
-- https://github.com/accurics/terrascan/tree/master/pkg/policies/opa/rego
+- https://github.com/tenable/terrascan/tree/master/pkg/policies/opa/rego
 - https://github.com/Checkmarx/kics/tree/master/assets/queries/terraform
 blogs:
-- https://www.styra.com/blog/policy-based-infrastructure-guardrails-with-terraform-and-opa
+- https://www.styra.com/blog/policy-based-infrastructure-guardrails-with-terraform-and-opa/
 inventors:
 - fugue
 - accurics

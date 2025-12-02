@@ -12,7 +12,7 @@ code:
 inventors:
 - armo
 tutorials:
-- https://hub.armosec.io/docs
+- https://hub.armosec.io/docs/armo-platform
 docs_features:
   go-integration:
     note: |

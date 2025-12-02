@@ -12,7 +12,7 @@ OPA-Envoy plugin. If none of these tips work, feel free to join
 ### Benchmarking Queries
 
 The `opa bench` command evaluates a Rego query multiple times and reports metrics. You can also profile your polices using
-`opa eval` to understand expression evaluation time. More information on improving policy performance can be found [here](https://www.openpolicyagent.org/docs/latest/policy-performance/).
+`opa eval` to understand expression evaluation time. More information on improving policy performance can be found [here](https://www.openpolicyagent.org/docs/policy-performance).
 
 ### Analyzing Decision Logs
 

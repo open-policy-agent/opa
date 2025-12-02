@@ -11,7 +11,7 @@ sidebar_label: Project Roots
 
 While many projects consider the project's root directory (in editors often referred to as **workspace**) their
 "main" directory for policies, some projects may contain code from other languages, policy "subprojects", or multiple
-[bundles](https://www.openpolicyagent.org/docs/management-bundles/). While most of Regal's features work
+[bundles](https://www.openpolicyagent.org/docs/management-bundles). While most of Regal's features work
 independently of this — linting, for example, doesn't consider where in a workspace policies are located as long as
 those locations aren't [ignored](./ignore-rules) — some features, like automatically
 [fixing](https://www.openpolicyagent.org/projects/regal/fixing) violations, benefit from knowing when a project contains multiple roots.

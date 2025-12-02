@@ -361,7 +361,7 @@ Following successful authentication at the token endpoint the returned token wil
 
 Two claims will always be included in the issued JWT: `iat` and `exp`. Any other claims will be populated from the `additional_claims` map.
 
-The following is an example of using a [Google Cloud Storage](https://cloud.google.com/storage/) bucket as a bundle service backend
+The following is an example of using a [Google Cloud Storage](https://cloud.google.com/storage) bucket as a bundle service backend
 from outside the cloud account (for access from inside the account, see the [GCP Metadata Token](#gcp-metadata-token) section).
 
 ```yaml
@@ -399,7 +399,7 @@ Consider requiring authentication in order to prevent unauthorized read access t
 
 ### AWS Signature
 
-OPA will authenticate with an [AWS Version 4](https://docs.aws.amazon.com/general/latest/gr/sigv4_signing.html) or version 4A signature. While version 4 is the default, version 4A must be used when making requests that might be handled by more than one region, such as an [S3 Multi-Region Access Point](https://docs.aws.amazon.com/AmazonS3/latest/userguide/MultiRegionAccessPoints.html). You must use version 4A for this or requests will fail when routed to a different region than the one indicated in a version 4 signature. Furthermore, using version 4a also requires that temporary credentials are retrieved from a [regional AWS STS endpoint](https://docs.aws.amazon.com/sdkref/latest/guide/feature-sts-regionalized-endpoints.html), rather than the global STS endpoint.
+OPA will authenticate with an [AWS Version 4](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_sigv-create-signed-request.html) or version 4A signature. While version 4 is the default, version 4A must be used when making requests that might be handled by more than one region, such as an [S3 Multi-Region Access Point](https://docs.aws.amazon.com/AmazonS3/latest/userguide/MultiRegionAccessPoints.html). You must use version 4A for this or requests will fail when routed to a different region than the one indicated in a version 4 signature. Furthermore, using version 4a also requires that temporary credentials are retrieved from a [regional AWS STS endpoint](https://docs.aws.amazon.com/sdkref/latest/guide/feature-sts-regionalized-endpoints.html), rather than the global STS endpoint.
 
 Several methods of obtaining the necessary credentials are available; exactly one must be specified to use the AWS signature authentication method.
 
@@ -427,7 +427,7 @@ Please note that if you are using temporary IAM credentials (e.g. assumed IAM ro
 #### Using Named Profile Credentials
 
 If specifying `profile_credentials`, OPA will expect to find the `access key id`, `secret access key` and
-`session token` from the [named profiles](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html)
+`session token` from the [named profiles](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html)
 stored in the [credentials](https://docs.aws.amazon.com/sdkref/latest/guide/file-format.html) file on disk. On each
 request OPA will re-read the credentials from the file and use them for authentication.
 
@@ -452,7 +452,7 @@ On each request, Opa will try to use cached token acquired credentials using the
 #### Using EC2 Metadata Credentials
 
 If specifying `metadata_credentials`, OPA will use the AWS metadata services for [EC2](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html)
-or [ECS](https://docs.aws.amazon.com/AmazonECS/latest/userguide/task-iam-roles.html)
+or [ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html)
 to obtain the necessary credentials when running within a supported virtual machine/container.
 
 To use the EC2 metadata service, the IAM role to use and the AWS region for the resource must both
@@ -527,7 +527,7 @@ If specifying `web_identity_credentials`, OPA will expect to find environment va
 
 ### GCP Metadata Token
 
-OPA will authenticate with a GCP [access token](https://cloud.google.com/run/docs/securing/service-identity#access_tokens) or [identity token](https://cloud.google.com/run/docs/securing/service-identity) fetched from the [Compute Metadata Server](https://cloud.google.com/compute/docs/storing-retrieving-metadata). When one or more `scopes` is provided an access token is fetched. When a non-empty `audience` is provided an identity token is fetched. An audience or `scopes` array is required.
+OPA will authenticate with a GCP [access token](https://cloud.google.com/run/docs/securing/service-identity#access_tokens) or [identity token](https://cloud.google.com/run/docs/securing/service-identity) fetched from the [Compute Metadata Server](https://docs.cloud.google.com/compute/docs/metadata/overview). When one or more `scopes` is provided an access token is fetched. When a non-empty `audience` is provided an identity token is fetched. An audience or `scopes` array is required.
 
 When authenticating to native GCP services such as [Google Cloud Storage](https://cloud.google.com/storage) an access token should be used with the appropriate set of scopes required by the target resource. When authenticating to a third party application such as an application hosted on Google Cloud Run an identity token should be used.
 
@@ -586,7 +586,7 @@ When the given resource (the object in the GCS bucket) contains slashes (/) or o
 
 ### Azure Managed Identities Token
 
-OPA will authenticate with an [Azure managed identities](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview) token.
+OPA will authenticate with an [Azure managed identities](https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/overview) token.
 The [token request](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http)
 can be configured via the plugin to customize the base URL, API version, and resource. Specific managed identity IDs can be optionally provided as well.
 (The token request for [Azure App Service](https://learn.microsoft.com/en-us/azure/app-service/overview-managed-identity?tabs=portal%2Chttp#connect-to-azure-services-in-app-code) or
@@ -602,7 +602,7 @@ but the endpoint and the header are different. Please see the individual documen
 | `services[_].credentials.azure_managed_identity.client_id`   | `string` | No       | Optional client ID of the managed identity you would like the token for. Required, if your VM has multiple user-assigned managed identities.                                                                                                                                                     |
 | `services[_].credentials.azure_managed_identity.mi_res_id`   | `string` | No       | Optional Azure Resource ID of the managed identity you would like the token for. Required, if your VM has multiple user-assigned managed identities.                                                                                                                                             |
 
-The following is an example of how to use an [Azure storage account](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-overview)
+The following is an example of how to use an [Azure storage account](https://learn.microsoft.com/en-us/azure/storage/common/storage-account-overview)
 as a bundle service backend.
 
 > Note that the `x-ms-version` header must be specified for the storage account
@@ -833,7 +833,7 @@ included in the actual bundle gzipped tarball.
 | `decision_logs.service`                            | `string`  | No                                | Name of the service to use to contact remote server. If no `plugin` is specified, and `console` logging is disabled, this will default to the first `service` name defined in the Services configuration.                                                |
 | `decision_logs.partition_name`                     | `string`  | No                                | Deprecated: Use `resource` instead. Path segment to include in status updates.                                                                                                                                                                           |
 | `decision_logs.resource`                           | `string`  | No (default: `/logs`)             | Full path to use for sending decision logs to a remote server.                                                                                                                                                                                           |
-| `decision_logs.reporting.buffer_type`              | `string`  | No (default: `size`)              | Toggles the type of buffer to use. The two available options are "size" or "event". Refer to the [Decision Log Plugin README](https://github.com/open-policy-agent/opa/tree/main/v1/plugins/logs/README.md) for for a detailed comparison.               |
+| `decision_logs.reporting.buffer_type`              | `string`  | No (default: `size`)              | Toggles the type of buffer to use. The two available options are "size" or "event". Refer to the [Decision Log Plugin README](https://github.com/open-policy-agent/opa/blob/main/v1/plugins/logs/README.md) for for a detailed comparison.               |
 | `decision_logs.reporting.buffer_size_limit_events` | `int64`   | No (default: `10000`)             | Decision log buffer size limit by events. OPA will drop old events from the log if this limit is exceeded. By default, 100 events are held. This number has to be greater than zero. Only works with "event" buffer type.                                |
 | `decision_logs.reporting.buffer_size_limit_bytes`  | `int64`   | No (default: `unlimited`)         | Decision log buffer size limit in bytes. OPA will drop old events from the log if this limit is exceeded. By default, no limit is set. Only one of `buffer_size_limit_bytes`, `max_decisions_per_second` may be set. Only works with "size" buffer type. |
 | `decision_logs.reporting.max_decisions_per_second` | `float64` | No                                | Maximum number of decision log events to buffer per second. OPA will drop events if the rate limit is exceeded. Only one of `buffer_size_limit_bytes`, `max_decisions_per_second` may be set.                                                            |
