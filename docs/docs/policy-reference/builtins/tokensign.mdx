@@ -2,7 +2,7 @@
 title: Token Signing
 ---
 <BuiltinTable category={"tokensign"}/>
-OPA provides two builtins that implement JSON Web Signature [RFC7515](https://tools.ietf.org/html/rfc7515) functionality.
+OPA provides two builtins that implement JSON Web Signature [RFC7515](https://datatracker.ietf.org/doc/html/rfc7515) functionality.
 
 `io.jwt.encode_sign_raw()` takes three JSON Objects (strings) as parameters and returns their JWS Compact Serialization.
 This builtin should be used by those that want maximum control over the signing and serialization procedure. It is
@@ -35,7 +35,7 @@ The following algorithms are supported:
 - `RS512`: RSASSA-PKCS-v1.5 using SHA-512
 
 :::info
-Note that the key's provided should be base64 URL encoded (without padding) as per the specification ([RFC7517](https://tools.ietf.org/html/rfc7517)).
+Note that the key's provided should be base64 URL encoded (without padding) as per the specification ([RFC7517](https://datatracker.ietf.org/doc/html/rfc7517)).
 This differs from the plain text secrets provided with the algorithm specific verify built-ins described below.
 :::
 

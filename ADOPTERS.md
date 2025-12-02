@@ -44,7 +44,7 @@ production users that have added themselves (in alphabetical order):
   information stored on namespaces. OPA is deployed on multiple
   clusters with ~100 nodes and ~300 namespaces total.
 
-* [BNY Mellon](https://www.bnymellon.com/) uses OPA as a sidecar to enforce access
+* [BNY Mellon](https://www.bny.com/corporate/global/en.html) uses OPA as a sidecar to enforce access
   control over applications based on external context coming from AD and other
   internal services. For more information see this talk from [QCon 2019](https://www.infoq.com/presentations/opa-spring-boot-hocon/).
 
@@ -112,7 +112,7 @@ production users that have added themselves (in alphabetical order):
   [Config Controller](https://cloud.google.com/kubernetes-engine/enterprise/policy-controller),
   [GKE Policy Automation](https://github.com/google/gke-policy-automation) or
   [Config Validator](https://github.com/GoogleCloudPlatform/policy-library). See
-  [Creating policy-compliant Google Cloud resources article](https://cloud.google.com/kubernetes-engine/enterprise/policy-controller/docs/how-to/creating-policy-controller-constraints)
+  [Creating policy-compliant Google Cloud resources article](https://docs.cloud.google.com/kubernetes-engine/policy-controller/docs/how-to/creating-policy-controller-constraints)
   for example use cases.
 
 * [Infracost](https://www.infracost.io/) shows cloud cost estimates for Terraform.
@@ -176,7 +176,7 @@ production users that have added themselves (in alphabetical order):
 
 * [Plex Systems](https://www.plex.com) uses OPA to enforce policy throughout
   their entire release process; from local development to continuous production
-  audits. The CI/CD pipelines at Plex leverage [conftest](https://github.com/instrumenta/conftest),
+  audits. The CI/CD pipelines at Plex leverage [conftest](https://github.com/open-policy-agent/conftest),
   a policy enforcement tool that relies on OPA, to automatically reject changes that do not adhere
   to defined policies. Plex also uses
   [Gatekeeper](https://github.com/open-policy-agent/gatekeeper), a Kubernetes policy controller, as
@@ -196,25 +196,25 @@ production users that have added themselves (in alphabetical order):
   etc. SAP/Infrabox is used in production within SAP and has several
   external users.
 
-* [Terminus Software](https://terminus.com/) uses OPA for microservice authorization.
+* [Terminus Software](https://demandscience.com/?utm_campaign=terminus-redirect) uses OPA for microservice authorization.
 
 * [T-Mobile](https://www.t-mobile.com) uses OPA as a core component for their
   [MagTape](https://github.com/tmobile/magtape/) project that enforces best
   practices and secure configurations across their fleet of Kubernetes
-  clusters (more info in [this blog post](https://opensource.t-mobile.com/blog/posts/rolling-out-the-magenta-tape/)).
+  clusters (more info in [this blog post](https://www.t-mobile.com/)).
   T-Mobile also leverages OPA to enforce authorization workflows within their
   Corporate Delivery Platform (CI/CD).
 
-* [Tremolo Security](https://www.tremolosecurity.com/) uses OPA at a
+* [Tremolo Security](https://www.tremolo.io/) uses OPA at a
   London-based financial services company to inject annotations and
   volume mount parameters into Kubernetes Pods so that workloads can
   connect to off-cluster CIFS drives and SQL Server
   instances. Policies are based on external context sourced from
   OpenUnison. Ability to validate policies offline is a huge win
   because the clusters are air-gapped. For more information on how
-  Tremolo Security uses OPA see [this blog post](https://www.tremolosecurity.com/beyond-rbac-in-openshift-open-policy-agent/).
+  Tremolo Security uses OPA see [this blog post](https://www.tremolo.io/beyond-rbac-in-openshift-open-policy-agent/).
 
-* [Tripadvisor](http://tripadvisor.com/) uses OPA to enforce
+* [Tripadvisor](https://tripadvisor.com/) uses OPA to enforce
   admission control policies in Kubernetes. In the process of rolling out OPA,
   they created an integration testing framework that verifies clusters are accepting
   and rejecting the right objects when OPA is deployed. For more information see
@@ -230,7 +230,7 @@ production users that have added themselves (in alphabetical order):
   have propagated. For more details on the VGS use case see this
   [blog post](https://www.verygoodsecurity.com/blog/posts/building-a-fine-grained-permission-system-in-a-distributed-environment).
 
-* [VNG Cloud](https://www.vngcloud.vn/en/home) [Identity and Access Management (IAM)](https://iam.vngcloud.vn/)
+* [VNG Cloud](https://www.vngcloud.vn/en/home) [Identity and Access Management (IAM)](https://iam.console.vngcloud.vn/)
   use OPA as a policy-based decision engine for authorization. IAM provides administrators with fine-grained 
   access control to VNG Cloud resources and help centralize and manage permissions to access resources. 
   Specifically, OPA is integrated to evaluate policies to make the decision about denying or allowing incoming requests.
@@ -240,9 +240,9 @@ production users that have added themselves (in alphabetical order):
   automatically correlates the entire security stack to uncover the most pressing issues.
   Wiz policies leverage Open Policy Agent (OPA) for a unified framework across the
   cloud-native stack. Whether for configurations, compliance, IaC, and more, OPA enables
-  teams to move faster in the cloud. For more information on how Wiz uses OPA, [contact Wiz](https://www.wiz.io/contact/).
+  teams to move faster in the cloud. For more information on how Wiz uses OPA, [contact Wiz](https://www.wiz.io/contact).
 
-* [Xenit AB](https://www.xenit.se/) uses OPA to implement fine-grained control
+* [Xenit AB](https://xenit.se/) uses OPA to implement fine-grained control
   over resource formulation in its managed Kubernetes service as well as several
   customer-specific implementations. For more information, see the Kubernetes Terraform library
   [OPA Gatekeeper module](https://github.com/XenitAB/terraform-modules/tree/main/modules/kubernetes/gatekeeper) and
@@ -270,7 +270,7 @@ pre-production (in alphabetical order):
   [OPA Runtime](https://github.com/aserto-dev/runtime) that make it easier for
   developers to incorporate OPA policies and the OPA engine into their applications.
 
-* [Cyral](https://www.cyral.com/) is a venture-funded data security
+* [Cyral](https://www.varonis.com/platform/database-activity-monitoring) is a venture-funded data security
   company. Still in stealth mode but using OPA to manage and enforce
   fine-grained authorization policies.
 
@@ -284,7 +284,7 @@ pre-production (in alphabetical order):
 
 * [Scalr](https://scalr.com/) is a remote operations backend for Terraform
   that helps users scale their Terraform usage through automation and collaboration.
-  [Scalr uses OPA](https://docs.scalr.com/en/latest/opa.html) to validate Terraform
+  [Scalr uses OPA](https://docs.scalr.io/docs/introduction) to validate Terraform
   code against organization standards and allows for approvals prior to a Terraform apply.
 
 * [Spacelift](https://spacelift.io) is a specialized CI/CD platform
@@ -303,9 +303,9 @@ testing include:
 * [Cisco](https://www.cisco.com/)
 * [Nefeli Networks](https://nefeli.io)
 * [SolarWinds](https://www.solarwinds.com/) via [Lee Calcote](https://github.com/leecalcote)
-* [State Street Corporation](http://www.statestreet.com/)
-* [PITS Global Data Recovery Services](https://www.pitsdatarecovery.net/)
+* [State Street Corporation](https://www.statestreet.com/us/en)
+* [PITS Global Data Recovery Services](https://www.pitsdatarecovery.com/)
 
 If you have adopted OPA and would like to be included in this list,
 feel free to submit a PR updating this file or
-[open an issue](https://github.com/open-policy-agent/opa/issues/new?assignees=&labels=adopt-opa&template=adopt-opa.yaml&title=organization_name+has+adopted+OPA).
+[open an issue](https://github.com/login?return_to=https%3A%2F%2Fgithub.com%2Fopen-policy-agent%2Fopa%2Fissues%2Fnew%3Fassignees%3D%26labels%3Dadopt-opa%26template%3Dadopt-opa.yaml%26title%3Dorganization_name%2Bhas%2Badopted%2BOPA).

@@ -6,11 +6,66 @@ on:
     branches: [main]
 
 jobs:
+    # Check what types of changes this PR contains
+  check-changes:
+    name: Check what files changed
+    runs-on: ubuntu-24.04
+    outputs:
+      go: ${{ steps.changes.outputs.go }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+      - name: Check for file changes
+        id: changes
+        run: |
+          set -e
+          BEFORE_SHA="${{ github.event.before }}"
+          CURRENT_SHA="${{ github.event.after }}"
+  
+          # Default to running all checks
+          echo "go=true" >> $GITHUB_OUTPUT
+  
+          echo "Comparing $BEFORE_SHA with $CURRENT_SHA"
+          git diff --name-only "$BEFORE_SHA" "$CURRENT_SHA" > changed_files.txt
+          if [ ! -s changed_files.txt ]; then
+            echo "Warning: No changed files found"
+            exit 0
+          fi
+  
+          echo "Changed files:"
+          cat changed_files.txt
+  
+          # Check for Go-related changes
+          go_patterns="^(.*\.go$|\
+          .*\.yaml$|\
+          .*\.yml$|\
+          .*\.json$|\
+          .*\.mod$|\
+          .*\.sum$|\
+          .*\.sh$|\
+          ^Makefile$|\
+          ^\.go-version$|\
+          ^cmd/|\
+          ^internal/|\
+          ^v1/)"
+          if ! grep -E "$go_patterns" changed_files.txt > /dev/null 2>&1; then
+            echo "go=false" >> $GITHUB_OUTPUT
+            echo "No Go files changed, skipping Go checks"
+          else
+            echo "Found Go file changes"
+          fi
+  
+          echo "Final outputs:"
+          echo "go=$(grep '^go=' $GITHUB_OUTPUT | tail -1 | cut -d'=' -f2)"
+
   benchmarks:
     permissions:
       contents: write # we'll push to the `benchmarks` branch
     name: Benchmarks
-    if: ${{ github.actor != 'dependabot[bot]' }} && false
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.go == 'true' }} && ${{ github.actor != 'dependabot[bot]' }}
     runs-on: ubuntu-24.04
     steps:
       - uses: open-policy-agent/setup-opa@950f159a49aa91f9323f36f1de81c7f6b5de9576 # v2.3.0
@@ -29,7 +84,7 @@ jobs:
       - name: gobenchdata publish
         run: go run go.bobheadxi.dev/gobenchdata@v1 action
         env:
-          INPUT_GO_TEST_FLAGS: -tags=opa_wasm -timeout=120m -run=-
+          INPUT_GO_TEST_FLAGS: "-tags=opa_wasm -timeout=120m -run=^#"
           INPUT_GO_TEST_PKGS: ./...
           INPUT_SUBDIRECTORY: opa
           INPUT_PUBLISH: true

@@ -6,9 +6,9 @@ labels:
 software:
 - elasticsearch
 code:
-- https://github.com/open-policy-agent/contrib/tree/master/data_filter_elasticsearch
+- https://github.com/open-policy-agent/contrib/tree/main/data_filter_elasticsearch
 tutorials:
-- https://github.com/open-policy-agent/contrib/blob/master/data_filter_elasticsearch/README.md
+- https://github.com/open-policy-agent/contrib/blob/main/data_filter_elasticsearch/README.md
 inventors:
 - styra
 ---

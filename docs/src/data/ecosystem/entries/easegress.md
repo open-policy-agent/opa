@@ -4,7 +4,7 @@ labels:
   category: gateway
   layer: network
 code:
-- https://github.com/megaease/easegress
+- https://github.com/easegress-io/easegress
 inventors:
 - megaease
 ---

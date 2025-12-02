@@ -14,14 +14,14 @@ blogs:
 code:
 - https://github.com/flipt-io/flipt
 tutorials:
-- https://docs.flipt.io/authorization/overview
-- https://docs.flipt.io/guides/operation/authorization/rbac-with-keycloak
-- https://docs.flipt.io/configuration/authorization
+- https://docs.flipt.io/v1/authorization/overview
+- https://docs.flipt.io/v1/guides/operation/authorization/rbac-with-keycloak
+- https://docs.flipt.io/v1/configuration/authorization
 docs_features:
   go-integration:
     note: |
       Flipt's authorization feature uses the Go API to embed Open Policy Agent and evaluate authorization policies.
-      [These docs](https://docs.flipt.io/authorization/overview)
+      [These docs](https://docs.flipt.io/v1/authorization/overview)
       explain how it works.
 ---
 Flipt is an open-source, Enterprise-ready, GitOps enabled, CloudNative feature management solution.
