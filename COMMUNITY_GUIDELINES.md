@@ -2,9 +2,9 @@
 
 The [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md) is enforced in all areas of the OPA community, plus the following.
 
-## Relevancy 
+## Relevancy
 
-Any content posted or shared in the OPA community should be relevant to the specific Slack Channel or GitHub Category, and generally to the OPA community. If you're unsure about the content you want to share, posting in #help channel in Slack or the Community category in GitHub Discussions is always a safe choice; admins will be around to help guide new members. 
+Any content posted or shared in the OPA community should be relevant to the specific Slack Channel or GitHub Category, and generally to the OPA community. If you're unsure about the content you want to share, posting in #help channel in Slack or the Community category in GitHub Discussions is always a safe choice; admins will be around to help guide new members.
 
 ## Spamming
 
@@ -16,7 +16,7 @@ The OPA community has a rich ecosystem of tools, integrations, and Vendors to su
 
 ## End-users
 
-Companies that use cloud-native services internally, but do not sell any of these services externally, are considered an End User Company in the OPA Community. End User companies are expected to operate with positive intentions, this is not the place to build your marketing funnel for external tools and services. 
+Companies that use cloud-native services internally, but do not sell any of these services externally, are considered an End User Company in the OPA Community. End User companies are expected to operate with positive intentions, this is not the place to build your marketing funnel for external tools and services.
 
 ## Member Participation
 
@@ -52,12 +52,10 @@ Be inclusive of everyone in an interaction, respecting and facilitating peopleâ€
 
 Instances of abusive, harassing, or otherwise unacceptable behavior will not be tolerated. An admin may take any action deemed appropriate, up to and including, a warning, a temporary ban(30 days), and a permanent ban for repeated violation of these guidelines. Admins may also remove content that violates the guidelines.
 
-
 ## Reporting
 
-Please reach out to one of the admins below, or use the anonymous feedback form. 
+Please reach out to one of the admins below:
 
 - Anders Eknert (a_eknert@apple.com or @anderseknert)
-- Torin Sandall (torinsandall@gmail.com or @tsandall) 
+- Torin Sandall (torinsandall@gmail.com or @tsandall)
 - Amye Scavarda Parrin (amye@linuxfoundation.org)
-- Anonymous Feedback: https://forms.gle/vFkrC1jMai1q3EZY6
