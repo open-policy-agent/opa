@@ -12,7 +12,7 @@ This tutorial shows how Istio's AuthorizationPolicy can be configured to delegat
 ## Prerequisites
 
 This tutorial requires Kubernetes 1.20 or later. To run the tutorial locally ensure you start a cluster with Kubernetes
-version 1.20+, we recommend using [minikube](https://kubernetes.io/docs/getting-started-guides/minikube) or
+version 1.20+, we recommend using [minikube](https://kubernetes.io/docs/setup/) or
 [KIND](https://kind.sigs.k8s.io/).
 
 The tutorial also requires Istio v1.19.0 or later. It assumes you have Istio deployed on top of Kubernetes.

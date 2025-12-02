@@ -9,10 +9,10 @@
   "license": "",
   "description": "",
   "dependencies": {
-    "@prisma/client": "^6.16.2",
+    "@prisma/client": "^6.19.0",
     "@open-policy-agent/ucast-prisma": "^0.1.6"
   },
   "devDependencies": {
-    "prisma": "^6.16.2"
+    "prisma": "^6.19.0"
   }
 }

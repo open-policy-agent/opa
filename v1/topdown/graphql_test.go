@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/cache"
 )
@@ -47,7 +48,7 @@ const invalidEmployeeGQLSchema = `
 		employeeByID(id: String!): Employee
 	}`
 
-const employeeGQLQueryAST = `{"Operations":[{"Name":"","Operation":"query","SelectionSet":[{"Alias":"employeeByID","Arguments":[{"Name":"id","Value":{"Kind":3,"Raw":"alice"}}],"Name":"employeeByID","SelectionSet":[{"Alias":"salary","Name":"salary"}]}]}]}`
+const employeeGQLQueryAST = `{"Operations":[{"Name":"","Operation":"query","SelectionSet":[{"Alias":"employeeByID","Arguments":[{"Name":"id","Value":{"ExpectedTypeHasDefault": false, "Kind":3,"Raw":"alice"}}],"Name":"employeeByID","SelectionSet":[{"Alias":"salary","Name":"salary"}]}]}]}`
 
 const employeeGQLSchemaAST = `{"Definitions":[{"BuiltIn":false,"Description":"","Fields":[{"Description":"","Name":"id","Type":{"NamedType":"String","NonNull":true}},{"Description":"","Name":"salary","Type":{"NamedType":"Int","NonNull":true}}],"Kind":"OBJECT","Name":"Employee"},{"BuiltIn":false,"Description":"","Fields":[{"Arguments":[{"Description":"","Name":"id","Type":{"NamedType":"String","NonNull":true}}],"Description":"","Name":"employeeByID","Type":{"NamedType":"Employee","NonNull":false}}],"Kind":"OBJECT","Name":"Query"}],"Schema":[{"Description":"","OperationTypes":[{"Operation":"query","Type":"Query"}]}]}`
 
@@ -68,7 +69,7 @@ func TestGraphQLParseString(t *testing.T) {
 			note:    "valid employee query and GQL schema",
 			schema:  employeeGQLSchema,
 			query:   `{ employeeByID(id: "alice") { salary } }`,
-			result:  `[{"Operations": [{"Name": "", "Operation": "query", "SelectionSet": [{"Alias": "employeeByID", "Arguments": [{"Name": "id", "Value": {"Kind": 3, "Raw": "alice"}}], "Name": "employeeByID", "SelectionSet": [{"Alias": "salary", "Name": "salary"}]}]}]}, {"Definitions": [{"BuiltIn": false, "Description": "", "Fields": [{"Description": "", "Name": "id", "Type": {"NamedType": "String", "NonNull": true}}, {"Description": "", "Name": "salary", "Type": {"NamedType": "Int", "NonNull": true}}], "Kind": "OBJECT", "Name": "Employee"}, {"BuiltIn": false, "Description": "", "Fields": [{"Arguments": [{"Description": "", "Name": "id", "Type": {"NamedType": "String", "NonNull": true}}], "Description": "", "Name": "employeeByID", "Type": {"NamedType": "Employee", "NonNull": false}}], "Kind": "OBJECT", "Name": "Query"}], "Schema": [{"Description": "", "OperationTypes": [{"Operation": "query", "Type": "Query"}]}]}]`,
+			result:  `[{"Operations": [{"Name": "", "Operation": "query", "SelectionSet": [{"Alias": "employeeByID", "Arguments": [{"Name": "id", "Value": {"ExpectedTypeHasDefault": false, "Kind": 3, "Raw": "alice"}}], "Name": "employeeByID", "SelectionSet": [{"Alias": "salary", "Name": "salary"}]}]}]}, {"Definitions": [{"BuiltIn": false, "Description": "", "Fields": [{"Description": "", "Name": "id", "Type": {"NamedType": "String", "NonNull": true}}, {"Description": "", "Name": "salary", "Type": {"NamedType": "Int", "NonNull": true}}], "Kind": "OBJECT", "Name": "Employee"}, {"BuiltIn": false, "Description": "", "Fields": [{"Arguments": [{"Description": "", "Name": "id", "Type": {"NamedType": "String", "NonNull": true}}], "Description": "", "Name": "employeeByID", "Type": {"NamedType": "Employee", "NonNull": false}}], "Kind": "OBJECT", "Name": "Query"}], "Schema": [{"Description": "", "OperationTypes": [{"Operation": "query", "Type": "Query"}]}]}]`,
 			wantErr: false,
 		},
 		{
@@ -134,9 +135,15 @@ func TestGraphQLParseString(t *testing.T) {
 					t.Errorf("Unexpected return value, expected nil, got error: %s", err)
 					return
 				}
-				if (result != nil) && (tc.result != result.String()) {
-					t.Errorf("Unexpected result, expected %#v, got %s", tc.result, result.String())
-					return
+
+				if tc.result != "" {
+					if result == nil {
+						t.Fatal("Expected result, got nil")
+					}
+					if diff := cmp.Diff(tc.result, result.String()); diff != "" {
+						t.Errorf("Unexpected result (-want, +got):\n%s", diff)
+						return
+					}
 				}
 			}
 			// Without the cache
@@ -718,8 +725,8 @@ func TestGraphQLParseQuery(t *testing.T) {
 					t.Errorf("Unexpected return value, expected nil, got error: %s", err)
 					return
 				}
-				if !tc.result.Equal(result) {
-					t.Errorf("Unexpected result, expected %#v, got %#v", tc.result, result)
+				if diff := cmp.Diff(tc.result, result); diff != "" {
+					t.Errorf("Unexpected result (-want, +got):\n%s", diff)
 					return
 				}
 			}

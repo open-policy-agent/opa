@@ -9,7 +9,7 @@ code:
 software:
 - kubernetes
 tutorials:
-- https://open-policy-agent.github.io/gatekeeper/website/docs/howto
+- https://open-policy-agent.github.io/gatekeeper/website/docs/howto/
 videos:
 - https://youtu.be/RMiovzGGCfI?t=1049
 - https://youtu.be/6RNp3m_THw4?t=864

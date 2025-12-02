@@ -8,6 +8,15 @@ import BuiltinLegacyRedirect from "@site/src/components/BuiltinLegacyRedirect";
 
 <BuiltinLegacyRedirect/>
 
+This page is a reference for details of the Rego language and its syntax. See
+our guided [Policy Language](./policy-language) page for a walked introduction.
+There are also detailed sections for
+[built-in functions](./policy-reference/builtins) as well as examples for
+specific keywords such as
+[`contains`](./policy-reference/keywords/contains),
+[`if`](./policy-reference/keywords/if) and
+[`default`](./policy-reference/keywords/default).
+
 ## Assignment and Equality
 
 ```rego
@@ -322,43 +331,50 @@ as defining partial sets, like `box2`.
 ## Tests
 
 ```rego
-# define a rule that starts with test_
+# it's common for tests to have a _test in their package name
+package foo.bar_test # contains tests for package foo.bar
+
+# define a rule that starts with test_, these will be run with opa test
 test_NAME { ... }
 
-# override input.foo value using the 'with' keyword
+# override input.foo value using the 'with' keyword to mock different inputs
 data.foo.bar.deny with input.foo as {"bar": [1,2,3]}}
 ```
+
+:::tip
+Please see [Policy Testing](./policy-testing) for an in depth look into writing
+and running Rego tests with OPA.
+:::
 
 ## Built-in Functions
 
 Rego's built-in functions offer policy authors tools for common policy
 operations like JWT validation, signature verification, among many others.
-The reference documentation for these functions can be found under [Built-in Functions](./policy-reference/builtins).
+The reference documentation for these functions can be found under
+[Built-in Functions](./policy-reference/builtins).
 
-## Reserved Names
+## Reserved Names & Keywords
 
 The following words are reserved and cannot be used as variable names, rule
 names, or dot-access style reference arguments:
 
-```
-as
-contains
-data
-default
-else
-every
-false
-if
-in
-import
-input
-package
-not
-null
-some
-true
-with
-```
+- `as`
+- `contains` ([Examples](./policy-reference/keywords/contains))
+- `data`
+- `default` ([Examples](./policy-reference/keywords/default))
+- `else`
+- `every` ([Examples](./policy-reference/keywords/every))
+- `false`
+- `if` ([Examples](./policy-reference/keywords/if))
+- `in`
+- `import` ([Examples](./policy-reference/keywords/import))
+- `input`
+- `package`
+- `not` ([Examples](./policy-reference/keywords/not))
+- `null`
+- `some` ([Examples](./policy-reference/keywords/some))
+- `true`
+- `with`
 
 ## Grammar
 

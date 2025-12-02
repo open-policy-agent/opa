@@ -3,6 +3,9 @@ sidebar_label: OPA 1.0
 sidebar_position: 14
 ---
 
+<head>
+  <title>OPA 1.0 | Regal</title>
+</head>
 
 # OPA 1.0 and Regal
 
@@ -29,21 +32,21 @@ the precedence of these methods is as listed below:
 2. Setting the `rego-version` configuration option under `project` attribute
 3. Setting the `rego_version` in a `.manifest` file in any directory (will apply to that directory and any below it)
 
-Note that it's is perfectly possible to use different `rego-version`s for different roots of a project:
+Note that it is perfectly possible to use different `rego-version`s for different roots of a project:
 
 ```yaml
 project:
   rego-version: 1
   roots:
-  # lib/legacy overriding project version to set versin 0
+  # lib/legacy overriding project version to set version 0
   - path: lib/legacy
     rego-version: 0
   # main directory will inherit version 1 from project
   - path: main
 ```
 
-See the documentation covering Regal's [configuration](https://openpolicyagent.org/projects/regal#configuration) for more information
-on [configuring Rego version](https://openpolicyagent.org/projects/regal#configuring-rego-version) for your project.
+See the documentation covering Regal's [configuration](https://www.openpolicyagent.org/projects/regal#configuration) for more information
+on [configuring Rego version](https://www.openpolicyagent.org/projects/regal#configuring-rego-version) for your project.
 
 Finally, Regal will automatically parse and lint any file with a `_v0.rego` suffix as Rego v0. This is intended only
 for testing and development, where you sometimes may want to try something out using and older Rego version without
@@ -57,21 +60,21 @@ otherwise no longer relevant. The following rules are now disabled by default, u
 Rego versions before 1.0, or in the case where no configuration is provided, Regal determines that the project being
 linted is not yet using OPA 1.0:
 
-- [deprecated-builtin](https://openpolicyagent.org/projects/regal/rules/bugs/deprecated-builtin)
-- [import-shadows-import](https://openpolicyagent.org/projects/regal/rules/imports/import-shadows-import)
-- [rule-named-if](https://openpolicyagent.org/projects/regal/rules/bugs/rule-named-if)
-- [use-contains](https://openpolicyagent.org/projects/regal/rules/idiomatic/use-contains)
-- [use-if](https://openpolicyagent.org/projects/regal/rules/idiomatic/use-if)
-- [use-rego-v1](https://openpolicyagent.org/projects/regal/rules/imports/use-rego-v1)
+- [deprecated-builtin](https://www.openpolicyagent.org/projects/regal/rules/bugs/deprecated-builtin)
+- [import-shadows-import](https://www.openpolicyagent.org/projects/regal/rules/imports/import-shadows-import)
+- [rule-named-if](https://www.openpolicyagent.org/projects/regal/rules/bugs/rule-named-if)
+- [use-contains](https://www.openpolicyagent.org/projects/regal/rules/idiomatic/use-contains)
+- [use-if](https://www.openpolicyagent.org/projects/regal/rules/idiomatic/use-if)
+- [use-rego-v1](https://www.openpolicyagent.org/projects/regal/rules/imports/use-rego-v1)
 
-Except for the `deprecated-bultin` rule — which is disabled simply because there currently are no deprecated built-ins
+Except for the `deprecated-builtin` rule — which is disabled simply because there currently are no deprecated built-ins
 in OPA 1.0 — these rules are now enforced automatically by OPA, and so there's no reason for Regal to duplicate that
 effort.
 
 ## Related Resources
 
-- OPA Docs: [Upgrading to v1.0](https://www.openpolicyagent.org/docs/v0-upgrade/)
-- OPA Docs: [v0 Backwards Compatibility](https://www.openpolicyagent.org/docs/v0-compatibility/)
+- OPA Docs: [Upgrading to v1.0](https://www.openpolicyagent.org/docs/v0-upgrade)
+- OPA Docs: [v0 Backwards Compatibility](https://www.openpolicyagent.org/docs/v0-compatibility)
 - Styra Blog: [Renovating Rego](https://www.styra.com/blog/renovating-rego/)
 - OPA Blog: [OPA 1.0 Is Coming, Here's What You Need to Know](https://blog.openpolicyagent.org/opa-1-0-is-coming-heres-what-you-need-to-know-c8fb0d258368)
 - OPA Blog: [Announcing OPA 1.0: A New Standard for Policy as Code](https://blog.openpolicyagent.org/announcing-opa-1-0-a-new-standard-for-policy-as-code-a6d8427ee828)

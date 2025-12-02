@@ -15,8 +15,8 @@ software:
 inventors:
 - env0
 tutorials:
-- https://docs.env0.com/docs/opa-plugin
-- https://docs.env0.com/docs/policies
+- https://docs.envzero.com/guides/integrations/plugins/opa-plugin
+- https://docs.envzero.com/guides/policies-governance/policies
 code:
 - https://github.com/env0/approval-policies
 blogs:
@@ -34,7 +34,7 @@ docs_features:
     note: |
       env0 is a Terraform automation platform that allows you to manage your
       infrastructure as code (IaC) at scale. It has a built-in integration with
-      OPA. See docs [here](https://docs.env0.com/docs/opa-plugin).
+      OPA. See docs [here](https://docs.envzero.com/guides/integrations/plugins/opa-plugin).
 ---
 
 env0 is the best way to deploy and manage IaC - Terraform, OpenTofu, CloudFormation, Pulumi, Kubernetes, and more. Our platform integrates with OPA to allow its users to streamline cloud governance, automate policy enforcement, and maintain control over cloud deployments while enabling managed self-service.

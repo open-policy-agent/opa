@@ -107,10 +107,7 @@ func TestHTTPGetRequest(t *testing.T) {
 func TestHTTPGetRequestTlsInsecureSkipVerify(t *testing.T) {
 	t.Parallel()
 
-	var people []Person
-
-	// test data
-	people = append(people, Person{ID: "1", Firstname: "John"})
+	people := []Person{{ID: "1", Firstname: "John"}}
 
 	// test server
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -120,9 +117,10 @@ func TestHTTPGetRequestTlsInsecureSkipVerify(t *testing.T) {
 	defer ts.Close()
 
 	// expected result
-	expectedResult := make(map[string]any)
-	expectedResult["status"] = "200 OK"
-	expectedResult["status_code"] = http.StatusOK
+	expectedResult := map[string]any{
+		"status":      "200 OK",
+		"status_code": http.StatusOK,
+	}
 
 	var body []any
 	bodyMap := map[string]string{"id": "1", "firstname": "John"}
@@ -143,15 +141,25 @@ func TestHTTPGetRequestTlsInsecureSkipVerify(t *testing.T) {
 	}
 
 	// run the test
-	tests := []httpsStruct{}
-	tests = append(tests, httpsStruct{note: "http.send", rules: []string{fmt.Sprintf(
-		`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true, "tls_insecure_skip_verify": true}, resp); x := clean_headers(resp) }`, ts.URL)}, expected: resultObj.String()})
-
-	// This case verifies that `tls_insecure_skip_verify`
-	// is still applied, even if other TLS settings are
-	// present.
-	tests = append(tests, httpsStruct{note: "http.send", rules: []string{fmt.Sprintf(
-		`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true, "tls_insecure_skip_verify": true, "tls_use_system_certs": true,}, resp); x := clean_headers(resp) }`, ts.URL)}, expected: resultObj.String()})
+	tests := []httpsStruct{
+		{
+			note: "http.send",
+			rules: []string{fmt.Sprintf(
+				`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true, "tls_insecure_skip_verify": true}, resp); x := clean_headers(resp) }`, ts.URL),
+			},
+			expected: resultObj.String(),
+		},
+		{
+			// This case verifies that `tls_insecure_skip_verify`
+			// is still applied, even if other TLS settings are
+			// present.
+			note: "http.send",
+			rules: []string{fmt.Sprintf(
+				`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true, "tls_insecure_skip_verify": true}, resp); x := clean_headers(resp) }`, ts.URL),
+			},
+			expected: resultObj.String(),
+		},
+	}
 
 	data := loadSmallTestData()
 
@@ -2432,13 +2440,13 @@ func TestHTTPSClient(t *testing.T) {
 	}
 
 	// Set up Environment
-	clientCert, err := readCertFromFile(localClientCertFile)
+	clientCert, err := os.ReadFile(localClientCertFile)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("CLIENT_CERT_ENV", string(clientCert))
 
-	clientKey, err := readKeyFromFile(localClientKeyFile)
+	clientKey, err := os.ReadFile(localClientKeyFile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2894,6 +2902,60 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 		runTopDownTestCase(t, data, "http.send", rules, resultObj.String())
 	})
 
+	t.Run("Host header populates TLS server name", func(t *testing.T) {
+		const hostname = "my-server"
+
+		var requestedServerName []string
+		s := getTLSTestServer()
+		s.TLS = &tls.Config{
+			GetCertificate: func(ch *tls.ClientHelloInfo) (*tls.Certificate, error) {
+				requestedServerName = append(requestedServerName, ch.ServerName)
+				return nil, fmt.Errorf("requested host: %s", ch.ServerName)
+			},
+		}
+		s.StartTLS()
+		t.Cleanup(s.Close)
+
+		expected := &Error{Code: BuiltinErr, Message: "tls: internal error"}
+
+		data := loadSmallTestData()
+		rule := []string{fmt.Sprintf(
+			`p = x { http.send({"method": "get", "url": "%s", "tls_use_system_certs": false, "headers": {"host": "%s"}}, x) }`, s.URL, hostname)}
+
+		// run the test
+		runTopDownTestCase(t, data, "http.send", rule, expected)
+		if !slices.Equal(requestedServerName, []string{hostname}) {
+			t.Errorf("got SNI server name %v, want SNI server name %v", requestedServerName, hostname)
+		}
+	})
+
+	t.Run("tls_server_name sets server name and overrides host header", func(t *testing.T) {
+		const hostname = "my-server"
+
+		var requestedServerName []string
+		s := getTLSTestServer()
+		s.TLS = &tls.Config{
+			GetCertificate: func(ch *tls.ClientHelloInfo) (*tls.Certificate, error) {
+				requestedServerName = append(requestedServerName, ch.ServerName)
+				return nil, fmt.Errorf("requested host: %s", ch.ServerName)
+			},
+		}
+		s.StartTLS()
+		t.Cleanup(s.Close)
+
+		expected := &Error{Code: BuiltinErr, Message: "tls: internal error"}
+
+		data := loadSmallTestData()
+		rule := []string{fmt.Sprintf(
+			`p = x { http.send({"method": "get", "url": "%s", "tls_use_system_certs": false, "tls_server_name": "%s", "headers": {"host": "ignored"}}, x) }`, s.URL, hostname)}
+
+		// run the test
+		runTopDownTestCase(t, data, "http.send", rule, expected)
+		if !slices.Equal(requestedServerName, []string{hostname}) {
+			t.Errorf("got SNI server name %v, want SNI server name %v", requestedServerName, hostname)
+		}
+	})
+
 	t.Run("Negative Test: System Certs do not include local rootCA", func(t *testing.T) {
 		expectedResult := &Error{Code: BuiltinErr, Message: fixupDarwinGo118("x509: certificate signed by unknown authority", `“my-server” certificate is not standards compliant`), Location: nil}
 		data := loadSmallTestData()
@@ -2980,7 +3042,7 @@ func TestCertSelectionLogic(t *testing.T) {
 			msg:      "Expected TLS config to use system certs",
 		},
 		{
-			note:     "tls_use_system_certs set to nil",
+			note:     "tls_use_system_certs set to false",
 			input:    map[*ast.Term]*ast.Term{ast.StringTerm("tls_use_system_certs"): ast.BooleanTerm(false)},
 			expected: nil,
 			msg:      "Expected no TLS config",
@@ -2988,7 +3050,7 @@ func TestCertSelectionLogic(t *testing.T) {
 		{
 			note:     "no CAs specified",
 			input:    nil,
-			expected: systemCertsPool.Subjects(), // nolint:staticcheck // ignoring the deprecated (*CertPool).Subjects() call here because it's in a test.
+			expected: nil,
 			msg:      "Expected TLS config to use system certs",
 		},
 		{
@@ -3111,7 +3173,6 @@ func TestHTTPSendCacheDefaultStatusCodesInterQueryCache(t *testing.T) {
 	defer ts.Close()
 
 	t.Run("non-cacheable status code: inter-query cache", func(t *testing.T) {
-
 		// add an inter-query cache
 		config, _ := iCache.ParseCachingConfig([]byte(`{"inter_query_builtin_cache": {"max_size_bytes": 500, "stale_entry_eviction_period_seconds": 1, "forced_eviction_threshold_percentage": 80},}`))
 		interQueryCache := iCache.NewInterQueryCacheWithContext(t.Context(), config)
@@ -3585,49 +3646,51 @@ func (*tracemock) NewHandler(http.Handler, string, tracing.Options) http.Handler
 
 // Warning(philipc): This test modifies package variables in tracing, which
 // means it cannot be run in parallel with other tests.
-func TestDistributedTracingEnableDisable(t *testing.T) {
-	t.Run("TestDistributedTracingEnabled", func(t *testing.T) {
-		mock := tracemock{}
-		tracing.RegisterHTTPTracing(&mock)
+func TestDistributedTracing(t *testing.T) {
+	tests := []struct {
+		name            string
+		opts            tracing.Options
+		obj             ast.Object
+		expectedCalls   int
+		expectTransport bool
+	}{
+		{name: "Disabled", opts: nil, expectedCalls: 0},
+		{name: "Enabled", opts: tracing.NewOptions(true), expectedCalls: 1},
+		{
+			name: "EnabledWithConfigured", opts: tracing.NewOptions(true), expectedCalls: 1,
+			obj: ast.NewObject( // Force TLS configuration for SNI
+				[2]*ast.Term{ast.StringTerm("tls_server_name"), ast.StringTerm("test-server")},
+			),
+			expectTransport: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Cleanup(func() { tracing.RegisterHTTPTracing(nil) })
+			mock := tracemock{}
+			tracing.RegisterHTTPTracing(&mock)
 
-		builtinContext := BuiltinContext{
-			Context:                t.Context(),
-			DistributedTracingOpts: tracing.NewOptions(true), // any option means it's enabled
-		}
+			if tt.obj == nil {
+				tt.obj = ast.NewObject()
+			}
 
-		_, client, err := createHTTPRequest(builtinContext, ast.NewObject())
-		if err != nil {
-			t.Fatalf("Unexpected error creating HTTP request %v", err)
-		}
-		if client.Transport == nil {
-			t.Fatal("No Transport defined")
-		}
+			builtinContext := BuiltinContext{
+				Context:                t.Context(),
+				DistributedTracingOpts: tt.opts,
+			}
 
-		if exp, act := 1, mock.called; exp != act {
-			t.Errorf("calls to NewTransport: expected %d, got %d", exp, act)
-		}
-	})
-
-	t.Run("TestDistributedTracingDisabled", func(t *testing.T) {
-		mock := tracemock{}
-		tracing.RegisterHTTPTracing(&mock)
-
-		builtinContext := BuiltinContext{
-			Context: t.Context(),
-		}
-
-		_, client, err := createHTTPRequest(builtinContext, ast.NewObject())
-		if err != nil {
-			t.Fatalf("Unexpected error creating HTTP request %v", err)
-		}
-		if client.Transport == nil {
-			t.Fatal("No Transport defined")
-		}
-
-		if exp, act := 0, mock.called; exp != act {
-			t.Errorf("calls to NewTransported: expected %d, got %d", exp, act)
-		}
-	})
+			_, client, err := createHTTPRequest(builtinContext, tt.obj)
+			if err != nil {
+				t.Fatalf("Unexpected error creating HTTP request %v", err)
+			}
+			if exp, act := tt.expectedCalls, mock.called; exp != act {
+				t.Errorf("calls to NewTransport: expected %d, got %d", exp, act)
+			}
+			if exp, act := tt.expectTransport, client.Transport != nil; exp != act {
+				t.Errorf("client transport present: expected %t, got %t", exp, act)
+			}
+		})
+	}
 }
 
 func TestHTTPGetRequestAllowNet(t *testing.T) {
@@ -3726,6 +3789,10 @@ func (st *secretTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 }
 
 func (st *secretTransport) Transform(t *http.Transport) http.RoundTripper {
+	// Transport may be nil when the http.DefaultTransport is used
+	if t == nil {
+		t = http.DefaultTransport.(*http.Transport)
+	}
 	st.Transport = t.Clone()
 	return st
 }

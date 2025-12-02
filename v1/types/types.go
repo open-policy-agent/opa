@@ -716,6 +716,7 @@ func (t *Function) NamedFuncArgs() FuncArgs {
 }
 
 // Args returns the function's arguments as a slice, ignoring variadic arguments.
+//
 // Deprecated: Use FuncArgs instead.
 func (t *Function) Args() []Type {
 	cpy := make([]Type, len(t.args))

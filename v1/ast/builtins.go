@@ -26,11 +26,16 @@ func RegisterBuiltin(b *Builtin) {
 		BuiltinMap[b.Infix] = b
 
 		InternStringTerm(b.Infix)
+		InternVarValue(b.Infix)
 	}
 
-	InternStringTerm(b.Name)
 	if strings.Contains(b.Name, ".") {
-		InternStringTerm(strings.Split(b.Name, ".")...)
+		parts := strings.Split(b.Name, ".")
+		InternStringTerm(parts...)
+		InternVarValue(parts[0])
+	} else {
+		InternStringTerm(b.Name)
+		InternVarValue(b.Name)
 	}
 }
 
@@ -1104,7 +1109,7 @@ var Concat = &Builtin{
 		types.Named("output", types.S).Description("the joined string"),
 	),
 	Categories:  stringsCat,
-	CanSkipBctx: true,
+	CanSkipBctx: false,
 }
 
 var FormatInt = &Builtin{
@@ -1272,7 +1277,7 @@ var Replace = &Builtin{
 		types.Named("y", types.S).Description("string with replaced substrings"),
 	),
 	Categories:  stringsCat,
-	CanSkipBctx: true,
+	CanSkipBctx: false,
 }
 
 var ReplaceN = &Builtin{
@@ -1292,7 +1297,7 @@ The old string comparisons are done in argument order.`,
 		),
 		types.Named("output", types.S).Description("string with replaced substrings"),
 	),
-	CanSkipBctx: true,
+	CanSkipBctx: false,
 }
 
 var RegexReplace = &Builtin{
@@ -3397,7 +3402,7 @@ var SetDiff = &Builtin{
 		),
 		types.SetOfAny,
 	),
-	deprecated:  true,
+	Deprecated:  true,
 	CanSkipBctx: true,
 }
 
@@ -3411,7 +3416,7 @@ var NetCIDROverlap = &Builtin{
 		),
 		types.B,
 	),
-	deprecated:  true,
+	Deprecated:  true,
 	CanSkipBctx: true,
 }
 
@@ -3423,7 +3428,7 @@ var CastArray = &Builtin{
 		types.Args(types.A),
 		types.NewArray(nil, types.A),
 	),
-	deprecated:  true,
+	Deprecated:  true,
 	CanSkipBctx: true,
 }
 
@@ -3437,7 +3442,7 @@ var CastSet = &Builtin{
 		types.Args(types.A),
 		types.SetOfAny,
 	),
-	deprecated:  true,
+	Deprecated:  true,
 	CanSkipBctx: true,
 }
 
@@ -3449,7 +3454,7 @@ var CastString = &Builtin{
 		types.Args(types.A),
 		types.S,
 	),
-	deprecated:  true,
+	Deprecated:  true,
 	CanSkipBctx: true,
 }
 
@@ -3460,7 +3465,7 @@ var CastBoolean = &Builtin{
 		types.Args(types.A),
 		types.B,
 	),
-	deprecated:  true,
+	Deprecated:  true,
 	CanSkipBctx: true,
 }
 
@@ -3471,7 +3476,7 @@ var CastNull = &Builtin{
 		types.Args(types.A),
 		types.Nl,
 	),
-	deprecated:  true,
+	Deprecated:  true,
 	CanSkipBctx: true,
 }
 
@@ -3482,11 +3487,11 @@ var CastObject = &Builtin{
 		types.Args(types.A),
 		types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 	),
-	deprecated:  true,
+	Deprecated:  true,
 	CanSkipBctx: true,
 }
 
-// RegexMatchDeprecated declares `re_match` which has been deprecated. Use `regex.match` instead.
+// RegexMatchDeprecated declares `re_match` which has been Deprecated. Use `regex.match` instead.
 var RegexMatchDeprecated = &Builtin{
 	Name: "re_match",
 	Decl: types.NewFunction(
@@ -3496,7 +3501,7 @@ var RegexMatchDeprecated = &Builtin{
 		),
 		types.B,
 	),
-	deprecated:  true,
+	Deprecated:  true,
 	CanSkipBctx: false,
 }
 
@@ -3513,7 +3518,7 @@ var All = &Builtin{
 		),
 		types.B,
 	),
-	deprecated:  true,
+	Deprecated:  true,
 	CanSkipBctx: true,
 }
 
@@ -3530,7 +3535,7 @@ var Any = &Builtin{
 		),
 		types.B,
 	),
-	deprecated:  true,
+	Deprecated:  true,
 	CanSkipBctx: true,
 }
 
@@ -3548,7 +3553,7 @@ type Builtin struct {
 	Decl             *types.Function `json:"decl"`                       // Built-in function type declaration.
 	Infix            string          `json:"infix,omitempty"`            // Unique name of infix operator. Default should be unset.
 	Relation         bool            `json:"relation,omitempty"`         // Indicates if the built-in acts as a relation.
-	deprecated       bool            `json:"-"`                          // Indicates if the built-in has been deprecated.
+	Deprecated       bool            `json:"deprecated,omitempty"`       // Indicates if the built-in has been deprecated.
 	CanSkipBctx      bool            `json:"-"`                          // Built-in needs no data from the built-in context.
 	Nondeterministic bool            `json:"nondeterministic,omitempty"` // Indicates if the built-in returns non-deterministic results.
 }
@@ -3573,12 +3578,12 @@ func (b *Builtin) Minimal() *Builtin {
 	return &cpy
 }
 
-// IsDeprecated returns true if the Builtin function is deprecated and will be removed in a future release.
+// IsDeprecated returns true if the Builtin function is Deprecated and will be removed in a future release.
 func (b *Builtin) IsDeprecated() bool {
-	return b.deprecated
+	return b.Deprecated
 }
 
-// IsDeterministic returns true if the Builtin function returns non-deterministic results.
+// IsNondeterministic returns true if the Builtin function returns non-deterministic results.
 func (b *Builtin) IsNondeterministic() bool {
 	return b.Nondeterministic
 }

@@ -57,7 +57,7 @@ token := {"valid": valid, "payload": payload} if {
 <RunSnippet id="authz.rego"/>
 
 The first line `package envoy.authz` declaration gives the (hierarchical) name `envoy.authz` to the rules in the
-remainder of the policy. If the OPA-Envoy [configuration](../#configuration) does not specify the `path`
+remainder of the policy. If the OPA-Envoy [configuration](../configuration) does not specify the `path`
 field, `envoy/authz/allow` will be considered as the default policy decision path. `data.envoy.authz.allow` will be the
 name of the policy decision to query in the default case.
 
@@ -486,7 +486,7 @@ allow if {
 The `truncated_body` field in the input represents if the HTTP request body is truncated. The body is considered to be
 truncated, if the value of the `Content-Length` header exceeds the size of the request body.
 
-If `skip-request-body-parse: true` is specified in the OPA-Envoy [configuration](../#configuration), then
+If `skip-request-body-parse: true` is specified in the OPA-Envoy [configuration](../configuration), then
 the `parsed_body` and `truncated_body` fields will be omitted from the input.
 
 ## Example with JWT payload passed from Envoy

@@ -73,5 +73,5 @@ rules:
 ## Related Resources
 
 - OPA Docs: [Comprehensions](https://www.openpolicyagent.org/docs/policy-language/#comprehensions)
-- Regal Docs: [pointless-reassignment](https://openpolicyagent.org/projects/regal/rules/style/pointless-reassignment)
+- Regal Docs: [pointless-reassignment](https://www.openpolicyagent.org/projects/regal/rules/style/pointless-reassignment)
 - GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/style/comprehension-term-assignment/comprehension_term_assignment.rego)

@@ -1,0 +1,13 @@
+---
+cases:
+  - note: time.now_ns/consistent value for same evaluation
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := count(times) if {
+        	times := {time.now_ns() | numbers.range(1, 100)[_]}
+        }
+    want_result:
+      - x: 1

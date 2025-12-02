@@ -32,15 +32,14 @@ type Event struct {
 func (d Event) String() string {
 	buf := new(strings.Builder)
 
-	buf.WriteString(fmt.Sprintf("%s{", d.Type))
-	buf.WriteString(fmt.Sprintf("thread=%d", d.Thread))
+	fmt.Fprintf(buf, "%s{thread=%d", d.Type, d.Thread)
 
 	if d.Message != "" {
-		buf.WriteString(fmt.Sprintf(", message=%q", d.Message))
+		fmt.Fprintf(buf, ", message=%q", d.Message)
 	}
 
 	if d.stackEvent != nil {
-		buf.WriteString(fmt.Sprintf(", stackIndex=%d", d.stackIndex))
+		fmt.Fprintf(buf, ", stackIndex=%d", d.stackIndex)
 	}
 
 	buf.WriteString("}")

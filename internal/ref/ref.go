@@ -7,16 +7,16 @@ package ref
 
 import (
 	"errors"
-	"strings"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/storage"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // ParseDataPath returns a ref from the slash separated path s rooted at data.
 // All path segments are treated as identifier strings.
 func ParseDataPath(s string) (ast.Ref, error) {
-	path, ok := storage.ParsePath("/" + strings.TrimPrefix(s, "/"))
+	path, ok := storage.ParsePath(util.WithPrefix(s, "/"))
 	if !ok {
 		return nil, errors.New("invalid path")
 	}

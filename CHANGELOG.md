@@ -5,6 +5,148 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 1.11.0
+
+This release contains a mix of new features, performance improvements, and bugfixes. Notably:
+
+- More efficient connection management in the `http.send` built-in function
+- More performant loading of large bundles containing multiple Rego files
+
+### Immutable Releases
+
+Starting with this release, OPA releases are [immutable](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/immutable-releases) for increased security.
+
+### Runtime, SDK, Tooling
+
+- v1/ast: Fix Call parsing Text attribute including an extra character ([#7989](https://github.com/open-policy-agent/opa/issues/7989)) authored by @schmitd
+- ast: Export built-in deprecated field ([#7912](https://github.com/open-policy-agent/opa/issues/7912)) authored by @colinjlacy
+- ast: Intern common var values + some parser improvements ([#8028](https://github.com/open-policy-agent/opa/pull/8028)) authored by @anderseknert
+- ast: Support custom builtins in CompileModulesWithOpt ([#8061](https://github.com/open-policy-agent/opa/issues/5580)) authored by @sspaink
+- bundle: Concurrent Rego parsing in bundle loader ([#8067](https://github.com/open-policy-agent/opa/pull/8067)) authored by @anderseknert
+- cmd: Support `--ignore` in `eval` cmd when using bundle flag (`--bundle`) ([#8062](https://github.com/open-policy-agent/opa/pull/8048)) authored by @sspaink
+- storage/inmem: Allow passing triggers (AST) data without conversion ([#7958](https://github.com/open-policy-agent/opa/issues/7958)) authored by @anderseknert
+
+### Compiler, Topdown and Rego
+
+- topdown: Avoid unnecessary use of custom `http.Transport` in `http.send` built-in ([#7927](https://github.com/open-policy-agent/opa/pull/7927)) authored by @sykesm
+- topdown: New custom SemVer implementation ([#8010](https://github.com/open-policy-agent/opa/pull/8010)) authored by @anderseknert
+- topdown: Use `sync.Pool` for eval func objects ([#8054](https://github.com/open-policy-agent/opa/pull/8054)) authored by @anderseknert
+
+### Docs, Website, Ecosystem
+
+- docs: Add example for Compile API's table mapping ([#8017](https://github.com/open-policy-agent/opa/pull/8017)) authored by @srenatus
+- docs: Address pages with similar titles ([#8046](https://github.com/open-policy-agent/opa/pull/8046)) authored by @charlieegan3
+- docs: Address some broken links ([#8022](https://github.com/open-policy-agent/opa/pull/8022)) authored by @charlieegan3
+- docs: Bump glob dep (CVE-2025-64756) ([#8056](https://github.com/open-policy-agent/opa/pull/8056)) authored by @srenatus
+- docs: Improve ground value and assignment docs ([#8047](https://github.com/open-policy-agent/opa/pull/8047)) authored by @charlieegan3
+- docs: Make iteration content flow better ([#8064](https://github.com/open-policy-agent/opa/pull/8064)) authored by @charlieegan3
+- docs: Note package repos are community maintained ([#8053](https://github.com/open-policy-agent/opa/pull/8053)) authored by @charlieegan3
+- docs: Update terraform guide with notes about plan ([#8043](https://github.com/open-policy-agent/opa/pull/8043)) authored by @charlieegan3
+- docs: Update the archive to have an edge link ([#8011](https://github.com/open-policy-agent/opa/pull/8011)) authored by @charlieegan3
+- docs: Update the policy language intro ([#8050](https://github.com/open-policy-agent/opa/pull/8050)) authored by @charlieegan3
+- docs/ocp: Datasource example uses wrong AWS S3 URL ([#8039](https://github.com/open-policy-agent/opa/pull/8039)) authored by @SuchSkill
+- docs/regal: Replicate sidebar fixes ([#8036](https://github.com/open-policy-agent/opa/pull/8036)) authored by @charlieegan3
+- website: Various fixes and improvements by @charlieegan3
+
+### Miscellaneous
+
+- Bump golangci-lint, more gocritic linters ([#8052](https://github.com/open-policy-agent/opa/pull/8052)) authored by @anderseknert
+- Tidy up and unify sync pool handling ([#8068](https://github.com/open-policy-agent/opa/pull/8068)) authored by @anderseknert
+- builtins: Add `StringOperandByteSlice` helper ([#8048](https://github.com/open-policy-agent/opa/pull/8048)) authored by @anderseknert
+- test: Add test cases for consistent cache behavior ([#8015](https://github.com/open-policy-agent/opa/pull/8015)) authored by @DFrenkel
+- util/performance: Remove math.Log10, remove unused KeysCount ([#8041](https://github.com/open-policy-agent/opa/pull/8041)) authored by @srenatus
+- workflow: Add `Benchmarks` workflow ([#8072](https://github.com/open-policy-agent/opa/pull/8072)) authored by @srenatus
+- workflows/pull-request: Update macos versions ([#8030](https://github.com/open-policy-agent/opa/pull/8030)) authored by @srenatus
+- Dependency updates; notably:
+  - build: golang 1.25.3 -> 1.25.4 ([#8051](https://github.com/open-policy-agent/opa/pull/8051)) authored by @srenatus
+  - build(deps): Bump github.com/bytecodealliance/wasmtime-go from v37.0.0 to v39.0.1 ([#8075](https://github.com/open-policy-agent/opa/pull/8075)) authored by @srenatus
+  - build(deps): Bump github.com/containerd/containerd/v2 from 2.1.4 to 2.2.0
+  - build(deps): Bump github.com/huandu/go-sqlbuilder from 1.37.0 to 1.38.1
+  - build(deps): Bump github.com/lestrrat-go/jwx/v3 from 3.0.11 to 3.0.12
+  - build(deps): Bump github.com/vektah/gqlparser/v2 from 2.5.30 to 2.5.31 ([#8027](https://github.com/open-policy-agent/opa/pull/8027)) authored by @johanfylling
+  - build(deps): Bump golang.org/x/crypto from 0.43.0 to 0.45.0
+  - build(deps): Bump golang.org/x/net from 0.44.0 to 0.45.0
+  - build(deps): Bump golang.org/x/time from 0.13.0 to 0.14.0
+  - build(deps): Bump google.golang.org/grpc from 1.75.1 to 1.76.0
+  - build(deps): Bump google.golang.org/protobuf from 1.36.9 to 1.36.10
+
+## 1.10.1
+
+This is a bugfix release for the `split` builtin: In v1.10.0, it was looping infinitely when used with an empty-string delimiter ([#8018](https://github.com/open-policy-agent/opa/issues/8018)).
+
+Reported by @SignalRichard, authored by @srenatus
+
+The release is otherwise identical to v1.10.0.
+
+## 1.10.0
+
+This release contains a mix of new features, performance improvements, and bugfixes. Notably:
+
+- Non-static arm64 executables for linux and darwin
+- Performance improvements to the formatter, compiler, and runtime
+- A new `--fail-on-empty` flag for `opa test`
+- Support for `IS NOT NULL` query statements in the Compile API
+
+### Non-static OPA binaries for linux/arm64 and darwin/arm64
+
+Starting with this release, OPA will ship non-static arm64 executables for linux and darwin.
+Furthermore, the openpolicyagent/opa:latest docker image is a multi-platform image with arm64 support.
+
+### Runtime, Tooling
+
+- cmd: Add `opa test --fail-on-empty` to allow making bad `-r` or empty folders fail ([#7943](https://github.com/open-policy-agent/opa/issues/7943)) reported and authored by @grosser
+- format: Performance improvements in formatter ([#7967](https://github.com/open-policy-agent/opa/pull/7967)) authored by @anderseknert
+- repl: Check usage of `with` keyword ([#7942](https://github.com/open-policy-agent/opa/pull/7942)) authored by @sspaink
+- server/failtracer: don't assume only being fed two-elem calls ([#7995](https://github.com/open-policy-agent/opa/pull/7995)) authored by @srenatus
+- storage: Improve performance of storage operations ([#7957](https://github.com/open-policy-agent/opa/pull/7957)) authored by @anderseknert
+- storage: Some small improvements to inmem storage ([#7944](https://github.com/open-policy-agent/opa/pull/7944)) authored by @anderseknert
+- util: Fix race condition in `ReadMaybeCompressedBody` ([#7966](https://github.com/open-policy-agent/opa/pull/7966)) authored by @anderseknert
+
+### Compiler, Topdown and Rego
+
+- ast: Fix `undeclared` error when printing nested comprehension ([#7647](https://github.com/open-policy-agent/opa/issues/7647)) authored by @schmitd reported by @charlesdaniels
+- ast: Raise parse error on infix operator in rule name ([#7433](https://github.com/open-policy-agent/opa/issues/7433)) authored by @mmzzuu
+- ast: Refactor hash key equality function ([#7969](https://github.com/open-policy-agent/opa/pull/7969)) authored by @anderseknert
+- ast,topdown: Ref String() and greatly improved builtin lookup cost ([#7961](https://github.com/open-policy-agent/opa/pull/7961)) authored by @anderseknert
+- compile: Add support for "any value at all", as IS NOT NULL ([#7998](https://github.com/open-policy-agent/opa/pull/7998)) authored by @srenatus
+- eval: Lazy init of `eval.Time` term ([#7968](https://github.com/open-policy-agent/opa/pull/7968)) authored by @anderseknert
+- perf: Zero alloc AST store lookups of interned path terms ([#7979](https://github.com/open-policy-agent/opa/pull/7979)) authored by @anderseknert
+- perf: Cheaper `split` built-in calls ([#7962](https://github.com/open-policy-agent/opa/pull/7962)) authored by @anderseknert
+
+### Docs, Website, Ecosystem
+
+- docs: Add Compile API data filtering docs ([#7939](https://github.com/open-policy-agent/opa/pull/7939)) authored by @srenatus
+- docs: Add ecosystem project Moat ([#7963](https://github.com/open-policy-agent/opa/pull/7963)) authored by @jcoenraadts
+- docs: Address broken anchors ([#8000](https://github.com/open-policy-agent/opa/pull/8000)) authored by @charlieegan3
+- docs: Correction in OCP docs information regarding supported datasources ([#7964](https://github.com/open-policy-agent/opa/pull/7964)) authored by @irodzik
+- docs: Moving `CLI Reference` to `Operations` in TOC ([#8001](https://github.com/open-policy-agent/opa/pull/8001)) authored by @johanfylling
+- docs: OCP HTTP API updates ([#7951](https://github.com/open-policy-agent/opa/pull/7951)) authored by @srenatus
+- docs: Remove k8s primer line numbers comments ([#7946](https://github.com/open-policy-agent/opa/pull/7946)) authored by @charlieegan3
+- docs: Update based on Slack feedback ([#7990](https://github.com/open-policy-agent/opa/pull/7990)) authored by @charlieegan3
+- docs: Update link checker config ([#7949](https://github.com/open-policy-agent/opa/pull/7949)) authored by @charlieegan3
+- docs: Updated AI guidelines ([#7945](https://github.com/open-policy-agent/opa/pull/7945)) authored by @charlieegan3
+- docs/ocp/deployment: Add segment on database migrations ([#7952](https://github.com/open-policy-agent/opa/pull/7952)) authored by @srenatus
+- website: Fix build issues ([#7999](https://github.com/open-policy-agent/opa/pull/7999)) authored by @charlieegan3
+- website: FOUC squashing on the homepage ([#7948](https://github.com/open-policy-agent/opa/pull/7948)) authored by @charlieegan3
+- website: Show latest release rather than edge ([#7988](https://github.com/open-policy-agent/opa/pull/7988)) authored by @charlieegan3
+- website: Update docusaurus ([#7947](https://github.com/open-policy-agent/opa/pull/7947)) authored by @charlieegan3
+
+### Miscellaneous
+
+- ast/capabilities: Remove stale comment ([#7994](https://github.com/open-policy-agent/opa/pull/7994)) authored by @srenatus
+- build: Non-static images for linux/arm64 ([#7977](https://github.com/open-policy-agent/opa/pull/7977)) authored by @srenatus
+- ci: Add zig to post-merge github action ([#7983](https://github.com/open-policy-agent/opa/pull/7983)) authored by @sspaink
+- e2e/authz,topdown: Fix benchmarks ([#7980](https://github.com/open-policy-agent/opa/pull/7980)) authored by @srenatus
+- runtime: Fixing tests by closing watcher & set default `GracefulShutdownPeriod` ([#7991](https://github.com/open-policy-agent/opa/pull/7991)) authored by @rMaxiQp
+- test/e2e: move `http.DefaultTransport` fix to `init()` ([#7955](https://github.com/open-policy-agent/opa/pull/7955)) authored by @srenatus
+- Remove `vendor/` ([#7975](https://github.com/open-policy-agent/opa/pull/7975)) authored by @srenatus
+- Modernize analyzer fixes ([#7965](https://github.com/open-policy-agent/opa/pull/7965)) authored by @anderseknert
+- Dependency updates; notably:
+  - build: bump golang 1.25.1 -> 1.25.3 authored by @srenatus
+  - build(deps): Bump github.com/olekukonko/tablewriter from 0.0.5 to 1.1.0 ([#7937](https://github.com/open-policy-agent/opa/pull/7937)) authored by @jh125486  
+    This is a major version update containing breaking API changes. If you're affected by this, please consult the [tablewriter migration guide](https://github.com/olekukonko/tablewriter/blob/master/MIGRATION.md).
+  - deps(build): Bump github.com/bytecodealliance/wasmtime-go from v3.0.2 to v37.0.0 authored by @srenatus
+
 ### Optionally fail when `opa test` did not run any tests
 
 With the new `--fail-on-empty` flag, accidentally running `opa test` in a directory without any tests or 

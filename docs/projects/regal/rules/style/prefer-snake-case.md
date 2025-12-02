@@ -46,5 +46,5 @@ rules:
 
 ## Related Resources
 
-- Rego Style Guide: [Prefer snake_case for rule names and variables](https://github.com/StyraInc/rego-style-guide#prefer-snake_case-for-rule-names-and-variables)
+- Rego Style Guide: [Prefer snake_case for rule names and variables](https://www.openpolicyagent.org/docs/style-guide#prefer-snake_case-for-rule-names-and-variables)
 - GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/style/prefer-snake-case/prefer_snake_case.rego)

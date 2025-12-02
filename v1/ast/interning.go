@@ -28,7 +28,7 @@ var (
 
 	InternedEmptyString = StringTerm("")
 	InternedEmptyObject = ObjectTerm()
-	InternedEmptyArray  = ArrayTerm()
+	InternedEmptyArray  = NewTerm(InternedEmptyArrayValue)
 	InternedEmptySet    = SetTerm()
 
 	InternedEmptyArrayValue = NewArray()
@@ -39,6 +39,15 @@ var (
 
 	internedStringTerms = map[string]*Term{
 		"": InternedEmptyString,
+	}
+
+	internedVarValues = map[string]Value{
+		"input": Var("input"),
+		"data":  Var("data"),
+		"key":   Var("key"),
+		"value": Var("value"),
+
+		"i": Var("i"), "j": Var("j"), "k": Var("k"), "v": Var("v"), "x": Var("x"), "y": Var("y"), "z": Var("z"),
 	}
 )
 
@@ -53,6 +62,20 @@ func InternStringTerm(str ...string) {
 		}
 
 		internedStringTerms[s] = StringTerm(s)
+	}
+}
+
+// InternVarValue interns the given variable names as Var Values. Note that Interning is
+// considered experimental and should not be relied upon by external code.
+// WARNING: This must **only** be called at initialization time, as the
+// interned terms are shared globally, and the underlying map is not thread-safe.
+func InternVarValue(names ...string) {
+	for _, name := range names {
+		if _, ok := internedVarValues[name]; ok {
+			continue
+		}
+
+		internedVarValues[name] = Var(name)
 	}
 }
 
@@ -92,6 +115,16 @@ func HasInternedValue[T internable](v T) bool {
 // interned. If the value is not interned, a new Value is returned.
 func InternedValue[T internable](v T) Value {
 	return InternedValueOr(v, internedTermValue)
+}
+
+// InternedVarValue returns an interned Var Value for the given name. If the
+// name is not interned, a new Var Value is returned.
+func InternedVarValue(name string) Value {
+	if v, ok := internedVarValues[name]; ok {
+		return v
+	}
+
+	return Var(name)
 }
 
 // InternedValueOr returns an interned Value for scalar v. Calls supplier
@@ -257,7 +290,8 @@ func internedTermValue[T internable](v T) Value {
 func init() {
 	InternStringTerm(
 		// Numbers
-		"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
+		"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10",
+		"11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
 		"21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38",
 		"39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56",
 		"57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74",
@@ -281,6 +315,9 @@ func init() {
 		// Decisions
 		"revision", "labels", "decision_id", "bundles", "query", "mapped_result", "nd_builtin_cache",
 		"erased", "masked", "requested_by", "timestamp", "metrics", "req_id",
+
+		// Whitespace
+		" ", "\n", "\t",
 	)
 }
 

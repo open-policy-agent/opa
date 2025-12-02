@@ -1,7 +1,11 @@
 ---
 sidebar_position: 5
+sidebar_label: Custom Rules
 ---
 
+<head>
+  <title>Custom Rules | Regal</title>
+</head>
 
 # Custom Rules
 
@@ -71,8 +75,9 @@ in a policy, like the package declaration, imports and rules.
 Since OPA expects JSON as input, the module and all its child nodes are serialized, and then made available as `input`
 in Regal linter rule policies. The `opa parse --format json` command can be used to get an idea of what the structure
 of the serialized AST looks like. However, recent versions of Regal leverage an optimized AST JSON representation called
-[roast](roast.md), which is both more compact and performant to traverse as part of
-linting. See the roast docs for more information on how the format differs from the "normal" OPA AST.
+[roast](https://www.openpolicyagent.org/projects/regal/custom-rules/roast), which is both more compact and performant to
+traverse as part of linting. See the roast docs for more information on how the format differs from the "normal" OPA
+AST.
 
 In order to view the JSON AST representation of a policy, use the `regal parse` command. This works similarly to
 `opa parse`, but only outputs the roast JSON format, including additions made by Regal.
@@ -80,9 +85,7 @@ In order to view the JSON AST representation of a policy, use the `regal parse` 
 If we were to write the simplest policy possible, and parse it using `regal parse`, it would contain nothing but a
 package declaration:
 
-**policy.rego**
-
-```rego
+```rego title="policy.rego"
 package policy
 ```
 
@@ -187,13 +190,13 @@ Starting from top to bottom, these are the components comprising our custom rule
 ### Rule Development Workflow
 
 In addition to making use of the `regal parse` command to inspect the AST of a policy, using Regal's
-[language server](https://openpolicyagent.org/projects/regal/language-server) for rule development provides the absolute best rule
+[language server](https://www.openpolicyagent.org/projects/regal/language-server) for rule development provides the absolute best rule
 development experience.
 
 #### Code Lens for Evaluation
 
 If you're using VS Code and the [OPA VS Code extension](https://github.com/open-policy-agent/vscode-opa), you may
-use the [Code Lens for Evaluation](https://openpolicyagent.org/projects/regal/language-server#code-lenses-evaluation) to directly
+use the [Code Lens for Evaluation](https://www.openpolicyagent.org/projects/regal/language-server#code-lenses-evaluation) to directly
 evaluate packages and rules using the `input.json` file as input, and see the result directly in your editor on the
 line you clicked to evaluate.
 

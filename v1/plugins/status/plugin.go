@@ -293,6 +293,7 @@ func (p *Plugin) flush(ctx context.Context) {
 }
 
 // UpdateBundleStatus notifies the plugin that the policy bundle was updated.
+//
 // Deprecated: Use BulkUpdateBundleStatus instead.
 func (p *Plugin) UpdateBundleStatus(status bundle.Status) {
 	util.PushFIFO(p.bundleCh, status, p.metrics, statusBufferDropCounterName)

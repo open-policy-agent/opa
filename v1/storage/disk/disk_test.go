@@ -236,7 +236,7 @@ func runTruncateTest(t *testing.T, dir string) {
 
 	txn = storage.NewTransactionOrDie(ctx, s)
 
-	actual, err := s.Read(ctx, txn, storage.MustParsePath("/"))
+	actual, err := s.Read(ctx, txn, storage.RootPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1524,7 +1524,7 @@ func TestDataPartitioningWriteInvalidPatchError(t *testing.T) {
 					t.Fatal("expected invalid patch error but got:", err)
 				}
 
-				err = storage.WriteOne(ctx, s, storage.AddOp, storage.MustParsePath("/"), util.MustUnmarshalJSON([]byte(`{"foo": [1,2,3]}`)))
+				err = storage.WriteOne(ctx, s, storage.AddOp, storage.RootPath, util.MustUnmarshalJSON([]byte(`{"foo": [1,2,3]}`)))
 				if err == nil {
 					t.Fatal("expected error")
 				} else if sErr, ok := err.(*storage.Error); !ok {
@@ -1533,7 +1533,7 @@ func TestDataPartitioningWriteInvalidPatchError(t *testing.T) {
 					t.Fatal("expected invalid patch error but got:", err)
 				}
 
-				err = storage.WriteOne(ctx, s, storage.AddOp, storage.MustParsePath("/"), util.MustUnmarshalJSON([]byte(`[1,2,3]`)))
+				err = storage.WriteOne(ctx, s, storage.AddOp, storage.RootPath, util.MustUnmarshalJSON([]byte(`[1,2,3]`)))
 				if err == nil {
 					t.Fatal("expected error")
 				} else if sErr, ok := err.(*storage.Error); !ok {

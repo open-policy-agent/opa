@@ -1,7 +1,11 @@
 ---
 sidebar_position: 13
+sidebar_label: Adopters
 ---
 
+<head>
+  <title>Adopters | Regal</title>
+</head>
 
 # Adopters
 
@@ -17,13 +21,13 @@ Public open source projects integrating Regal for linting in their CI/CD pipelin
 - [Brainiac](https://github.com/carbonetes/brainiac)
 - [Cloudbeat](https://github.com/elastic/cloudbeat)
 - [Conftest](https://github.com/open-policy-agent/conftest)
-- [CVAT](https://github.com/opencv/cvat)
+- [CVAT](https://github.com/cvat-ai/cvat)
 - [GKE Policy Automation](https://github.com/google/gke-policy-automation)
 - [Konstraint](https://github.com/plexsystems/konstraint)
 - [Kubescape](https://github.com/kubescape/regolibrary)
 - [Legitify](https://github.com/Legit-Labs/legitify)
 - [Matrix Authentication Service](https://github.com/element-hq/matrix-authentication-service/)
-- [Minder](https://github.com/stacklok/minder)
+- [Minder](https://github.com/mindersec/minder)
 - [Modernisation Platform](https://github.com/ministryofjustice/modernisation-platform)
 - [OPA Library](https://github.com/open-policy-agent/library)
 - [Red Hat COP](https://github.com/redhat-cop/rego-policies)
@@ -43,7 +47,7 @@ Projects and products that integrate Regal into their offerings.
 - [Dependency Management Data](https://gitlab.com/tanna.dev/dependency-management-data)
 - [Enterprise OPA](https://github.com/styrainc/enterprise-opa)
 - [The Rego Playground](https://play.openpolicyagent.org)
-- [Trunk Check](https://trunk.io/check)
+- [Trunk Check](https://trunk.io/)
 - [reviewdog/action-regal](https://github.com/reviewdog/action-regal)
 <!-- cspell:enable-->
 
@@ -53,7 +57,7 @@ The following package managers include Regal in their repositories, either nativ
 
 - [Homebrew](https://brew.sh/) via the [regal](https://formulae.brew.sh/formula/regal) formula
 - [asdf](https://asdf-vm.com/) via [asdf-regal](https://github.com/asdf-community/asdf-regal)
-- [mise](https://mise.jdx.dev/) via its [aqua](https://aquaproj.github.io/) backend and [aqua's regal definition](https://github.com/aquaproj/aqua-registry/tree/main/pkgs/StyraInc/regal)
+- [mise](https://mise.jdx.dev/) via its [aqua](https://aquaproj.github.io/) backend and [aqua's regal definition](https://github.com/aquaproj/aqua-registry/tree/main/pkgs/open-policy-agent/regal)
 - [pkgsrc](https://www.pkgsrc.se/) and the [regal](https://pkgsrc.se/devel/regal) package
 - [Nix](https://nixos.org/): [regal](https://search.nixos.org/packages?channel=24.05&show=regal&from=0&size=50&sort=relevance&type=packages&query=regal)
 - [mason.vim](https://github.com/williamboman/mason.nvim): [regal](https://github.com/mason-org/mason-registry/blob/main/packages/regal/package.yaml)

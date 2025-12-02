@@ -6,7 +6,7 @@ labels:
 software:
 - sqlite
 code:
-- https://github.com/open-policy-agent/contrib/tree/master/data_filter_example
+- https://github.com/open-policy-agent/contrib/tree/main/data_filter_example
 blogs:
 - https://blog.openpolicyagent.org/write-policy-in-opa-enforce-policy-in-sql-d9d24db93bf4
 inventors:

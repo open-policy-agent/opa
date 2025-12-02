@@ -9,7 +9,7 @@ inventors:
 code:
 - https://github.com/opcr-io/policy
 tutorials:
-- https://openpolicycontainers.com/docs/tutorial
+- https://openpolicycontainers.com/docs/tutorial/
 docs_features:
   go-integration:
     note: |
@@ -20,18 +20,18 @@ docs_features:
     note: |
       OPCR policy images can be loaded in over the Bundle API. The feature
       it documented in the
-      [OPCR docs](https://openpolicycontainers.com/docs/opa).
+      [OPCR docs](https://openpolicycontainers.com/docs/opa/).
   opa-bundles-discovery:
     note: |
       OPCR images can be loaded in over the Bundle API and contain
       discovery bundles. The feature it documented in the
-      [OPCR docs](https://openpolicycontainers.com/docs/opa).
+      [OPCR docs](https://openpolicycontainers.com/docs/opa/).
   external-data:
     note: |
       OPCR policy images can contain data as well as policy. If you need to
       distribute data to OPA from an OCI registry, OPCR can build and push
       such images. See the docs for
-      [building images here](https://openpolicycontainers.com/docs/cli/build).
+      [building images here](https://openpolicycontainers.com/docs/cli/build/).
 ---
 
 The Open Policy Registry project provides a docker-style workflow for OPA

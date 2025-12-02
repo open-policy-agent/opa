@@ -81,8 +81,6 @@ type GHResponse struct {
 
 // New returns an instance of the Reporter
 func New(opts Options) (Reporter, error) {
-	r := GHVersionCollector{}
-
 	url := cmp.Or(os.Getenv("OPA_TELEMETRY_SERVICE_URL"), ExternalServiceURL)
 
 	restConfig := fmt.Appendf(nil, `{
@@ -93,7 +91,7 @@ func New(opts Options) (Reporter, error) {
 	if err != nil {
 		return nil, err
 	}
-	r.client = client
+	r := GHVersionCollector{client: client}
 
 	// heap_usage_bytes is always present, so register it unconditionally
 	r.RegisterGatherer("heap_usage_bytes", readRuntimeMemStats)
@@ -135,19 +133,17 @@ func createDataResponse(ghResp GHResponse) (*DataResponse, error) {
 		return nil, errors.New("server response does not contain tag_name")
 	}
 
-	v := strings.TrimPrefix(version.Version, "v")
-	sv, err := semver.NewVersion(v)
+	sv, err := semver.Parse(version.Version)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse current version %q: %w", v, err)
+		return nil, fmt.Errorf("failed to parse current version %q: %w", version.Version, err)
 	}
 
-	latestV := strings.TrimPrefix(ghResp.TagName, "v")
-	latestSV, err := semver.NewVersion(latestV)
+	latestSV, err := semver.Parse(ghResp.TagName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse latest version %q: %w", latestV, err)
+		return nil, fmt.Errorf("failed to parse latest version %q: %w", ghResp.TagName, err)
 	}
 
-	isLatest := sv.Compare(*latestSV) >= 0
+	isLatest := sv.Compare(latestSV) >= 0
 
 	// Note: alternatively, we could look through the assets in the GH API response to find a matching asset,
 	// and use its URL. However, this is not guaranteed to be more robust, and wouldn't use the 'openpolicyagent.org' domain.

@@ -350,7 +350,6 @@ func BenchmarkGraphQLParseAndVerify(b *testing.B) {
 		b.Run(bench.desc, func(b *testing.B) {
 			for b.Loop() {
 				var result *ast.Term
-				b.StartTimer()
 				err := builtinGraphQLParseAndVerify(
 					BuiltinContext{
 						InterQueryBuiltinValueCache: bench.cache,
@@ -378,6 +377,8 @@ func BenchmarkGraphQLParseAndVerify(b *testing.B) {
 						return
 					}
 				}
+
+				b.StartTimer() // b.Loop() requires a running timer
 			}
 		})
 	}

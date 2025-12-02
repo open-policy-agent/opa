@@ -12,7 +12,7 @@ OPA-Envoy plugin. If none of these tips work, feel free to join
 ### Benchmarking Queries
 
 The `opa bench` command evaluates a Rego query multiple times and reports metrics. You can also profile your polices using
-`opa eval` to understand expression evaluation time. More information on improving policy performance can be found [here](https://www.openpolicyagent.org/docs/latest/policy-performance/).
+`opa eval` to understand expression evaluation time. More information on improving policy performance can be found [here](https://www.openpolicyagent.org/docs/policy-performance).
 
 ### Analyzing Decision Logs
 
@@ -23,7 +23,7 @@ To enable local console logging of decisions see [this](https://www.openpolicyag
 ### Envoy External Authorization Filter Configuration
 
 Envoy's External authorization gRPC service configuration uses either Envoy’s in-built gRPC client, or the Google C++ gRPC client.
-From the [benchmarking](./performance#opa-benchmarks) results, lower latency numbers are seen while using Envoy’s gRPC client versus Google's. Experimenting
+From the [benchmarking](./performance#benchmark-scenarios) results, lower latency numbers are seen while using Envoy's gRPC client versus Google's. Experimenting
 with the gRPC service configuration may help in improving performance.
 
 The filter configuration also has a `status_on_error` field that can be used to indicate a network error between the filter

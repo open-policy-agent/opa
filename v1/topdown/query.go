@@ -121,6 +121,7 @@ func (q *Query) WithInput(input *ast.Term) *Query {
 }
 
 // WithTracer adds a query tracer to use during evaluation. This is optional.
+//
 // Deprecated: Use WithQueryTracer instead.
 func (q *Query) WithTracer(tracer Tracer) *Query {
 	qt, ok := tracer.(QueryTracer)

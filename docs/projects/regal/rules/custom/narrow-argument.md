@@ -53,7 +53,7 @@ country_code(country) := 81 if country == "Japan"
 Instead of passing around potentially large `user` objects, our function now only needs to consider a `country` string,
 which perhaps may prove useful for more than just users. Another benefit of this approach is that it's often possible
 to simplify functions even further by moving the equality comparison directly into the function's arguments — a simple
-form of [pattern matching](https://openpolicyagent.org/projects/regal/rules/idiomatic/equals-pattern-matching):
+form of [pattern matching](https://www.openpolicyagent.org/projects/regal/rules/idiomatic/equals-pattern-matching):
 
 ```rego
 package policy
@@ -157,7 +157,7 @@ example rewrite `is_unreachable` to `is_reachable`, and then use `not` to negate
 impossible to reach.
 
 Find what works best for you, and use the `exclude-args` configuration option (see below) to exclude arg names that you
-commonly don't want to narrow, or [ignore directives](https://openpolicyagent.org/projects/regal#inline-ignore-directives) for single
+commonly don't want to narrow, or [ignore directives](https://www.openpolicyagent.org/projects/regal#inline-ignore-directives) for single
 locations.
 
 ## Configuration Options

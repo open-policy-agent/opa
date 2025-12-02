@@ -884,7 +884,6 @@ func indexValue(b Value) (Value, bool) {
 }
 
 func globDelimiterToString(delim *Term) (string, bool) {
-
 	arr, ok := delim.Value.(*Array)
 	if !ok {
 		return "", false
@@ -895,14 +894,16 @@ func globDelimiterToString(delim *Term) (string, bool) {
 	if arr.Len() == 0 {
 		result = "."
 	} else {
+		sb := strings.Builder{}
 		for i := range arr.Len() {
 			term := arr.Elem(i)
 			s, ok := term.Value.(String)
 			if !ok {
 				return "", false
 			}
-			result += string(s)
+			sb.WriteString(string(s))
 		}
+		result = sb.String()
 	}
 
 	return result, true

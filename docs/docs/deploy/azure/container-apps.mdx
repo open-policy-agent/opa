@@ -4,6 +4,9 @@ sidebar_position: 3
 title: Deploying OPA on Azure Container Apps
 ---
 
+<!-- Manual Heading imports are needed because the ParamProvider plugin provider hides anchors from the broken link checker -->
+import Heading from '@theme/Heading';
+
 Azure Container Apps provides a fully managed platform for deploying and scaling
 containerized applications. It is well-suited for running off-the-shelf
 software, such as OPA, handling scaling, networking, and infrastructure,
@@ -104,7 +107,7 @@ Once created, the app will be deployed with the specified image. In the next
 step we'll create an link the OPA configuration file as a secret mount.
 
 
-## Loading OPA Configuration
+<Heading as="h2" id="loading-opa-configuration">Loading OPA Configuration</Heading>
 
 OPA requires a configuration file specifying policy bundle locations. For secure
 management, store the OPA configuration file as a secret in Azure Container

@@ -10,16 +10,19 @@ import v1 "github.com/open-policy-agent/opa/v1/ast"
 // can return a Visitor w which will be used to visit the children of the AST
 // element v. If the Visit function returns nil, the children will not be
 // visited.
+//
 // Deprecated: use GenericVisitor or another visitor implementation
 type Visitor = v1.Visitor
 
 // BeforeAndAfterVisitor wraps Visitor to provide hooks for being called before
 // and after the AST has been visited.
+//
 // Deprecated: use GenericVisitor or another visitor implementation
 type BeforeAndAfterVisitor = v1.BeforeAndAfterVisitor
 
 // Walk iterates the AST by calling the Visit function on the Visitor
 // v for x before recursing.
+//
 // Deprecated: use GenericVisitor.Walk
 func Walk(v Visitor, x any) {
 	v1.Walk(v, x)
@@ -27,6 +30,7 @@ func Walk(v Visitor, x any) {
 
 // WalkBeforeAndAfter iterates the AST by calling the Visit function on the
 // Visitor v for x before recursing.
+//
 // Deprecated: use GenericVisitor.Walk
 func WalkBeforeAndAfter(v BeforeAndAfterVisitor, x any) {
 	v1.WalkBeforeAndAfter(v, x)

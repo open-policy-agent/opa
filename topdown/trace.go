@@ -63,6 +63,7 @@ type VarMetadata = v1.VarMetadata
 type Event = v1.Event
 
 // Tracer defines the interface for tracing in the top-down evaluation engine.
+//
 // Deprecated: Use QueryTracer instead.
 type Tracer = v1.Tracer
 

@@ -97,12 +97,11 @@ func runAuthzBenchmark(b *testing.B, mode testAuthz.InputMode, numPaths int) {
 		// receive a response, and do any normal client error checking on
 		// the response. The benchmark is for the OPA server, not how
 		// long it takes the golang client to unpack the response body.
-		b.StartTimer()
 		resp, err := testRuntime.GetDataWithRawInput(url, inputReader)
 		if err != nil {
 			b.Fatal(err)
 		}
-		b.StopTimer()
+		b.StopTimer() // don't measure time for the checks below
 
 		body, err := io.ReadAll(resp)
 		if err != nil {
@@ -123,5 +122,8 @@ func runAuthzBenchmark(b *testing.B, mode testAuthz.InputMode, numPaths int) {
 		}
 
 		inputReader.Reset(inputPayload)
+
+		// start timing again, b.Loop() requires that
+		b.StartTimer()
 	}
 }

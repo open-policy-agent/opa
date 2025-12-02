@@ -43,6 +43,6 @@ rules:
 ## Related Resources
 
 - Styra Blog: [Dynamic Policy Composition](https://www.styra.com/blog/dynamic-policy-composition-for-opa/)
-- Regal Docs: [line-length](https://openpolicyagent.org/projects/regal/rules/style/line-length)
-- Regal Docs: [rule-length](https://openpolicyagent.org/projects/regal/rules/style/rule-length)
+- Regal Docs: [line-length](https://www.openpolicyagent.org/projects/regal/rules/style/line-length)
+- Regal Docs: [rule-length](https://www.openpolicyagent.org/projects/regal/rules/style/rule-length)
 - GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/style/file-length/file_length.rego)

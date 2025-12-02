@@ -41,7 +41,7 @@ An example of directory structure for a project following this convention might 
 
 Astute observers may notice that the test files in the example above are placed in the same directory as the
 policies they test. This may seem to contradict the
-[test-outside-test-package](https://openpolicyagent.org/projects/regal/rules/testing/test-outside-test-package) rule, which
+[test-outside-test-package](https://www.openpolicyagent.org/projects/regal/rules/testing/test-outside-test-package) rule, which
 says that any test package should have a `_test` suffix in its package path. However, putting tests next to
 the file they target arguably makes it _easier_ to find, and is a common practice in the OPA community. This
 rule therefore by default ignores the `_test` suffix when determining whether the package path matches the
@@ -85,20 +85,20 @@ easier to understand where both policies and data come from.
 
 ### `regal fix` & Editor Support
 
-Regal's [`fix` command](https://openpolicyagent.org/projects/regal/fixing) can automatically
+Regal's [`fix` command](https://www.openpolicyagent.org/projects/regal/fixing) can automatically
 rename files in a project to ensure compliance with this rule. This is
 particularly useful when refactoring a project with many files.
 
 :::info
 Note that files will be renamed relative to their nearest root, see the
-[documentation on roots](https://openpolicyagent.org/projects/regal#project-roots) when using
+[documentation on roots](https://www.openpolicyagent.org/projects/regal#project-roots) when using
 this rule with policy roots different from the project root.
 :::
 
-Editors integrating Regal's [language server](https://openpolicyagent.org/projects/regal/language-server) will automatically display
+Editors integrating Regal's [language server](https://www.openpolicyagent.org/projects/regal/language-server) will automatically display
 suggestions for idiomatic package paths based on the directory structure in which a policy resides. The image below
 demonstrates a new policy being created inside an `authorization/rbac/roles` directory, and the editor
-([via Regal](https://openpolicyagent.org/projects/regal/language-server#code-completions)) suggesting the package path
+([via Regal](https://www.openpolicyagent.org/projects/regal/language-server#code-completions)) suggesting the package path
 `authorization.rbac.roles`.
 
 <img
@@ -131,7 +131,7 @@ rules:
 
 ## Related Resources
 
-- Rego Style Guide: [Package name should match file location](https://github.com/StyraInc/rego-style-guide#package-name-should-match-file-location)
-- Regal Docs: [test-outside-test-package](https://openpolicyagent.org/projects/regal/rules/testing/test-outside-test-package)
+- Rego Style Guide: [Package name should match file location](https://www.openpolicyagent.org/docs/style-guide#package-name-should-match-file-location)
+- Regal Docs: [test-outside-test-package](https://www.openpolicyagent.org/projects/regal/rules/testing/test-outside-test-package)
 - OPA Docs: [Bundles](https://www.openpolicyagent.org/docs/management-bundles/)
 - GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/idiomatic/directory-package-mismatch/directory_package_mismatch.rego)

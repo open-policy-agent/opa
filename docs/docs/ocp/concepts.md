@@ -7,7 +7,7 @@ title: Concepts
 
 Bundles are the primary packaging and distribution unit in OCP. Each bundle contains Rego policies, data files, and is intended to be consumed by any number of OPA instances. The OCP configuration for the bundle specifies a set of **requirements** that list the sources (Rego, data, etc.) to include in the bundle.
 
-OCP builds [OPA Bundles](https://openpolicyagent.org/docs/management-bundles) and pushes them to external object storage systems (e.g., S3, GCS, Azure Cloud Storage, File System). OPA instances are configured to download bundles directly from these storage systems. See the [OPA Configuration](https://www.openpolicyagent.org/docs/latest/configuration/) documentation for more information how to configure authentication and bundle downloads for different cloud providers
+OCP builds [OPA Bundles](https://www.openpolicyagent.org/docs/management-bundles) and pushes them to external object storage systems (e.g., S3, GCS, Azure Cloud Storage, File System). OPA instances are configured to download bundles directly from these storage systems. See the [OPA Configuration](https://www.openpolicyagent.org/docs/configuration) documentation for more information how to configure authentication and bundle downloads for different cloud providers
 
 ### Namespacing
 
@@ -22,7 +22,7 @@ In this example:
 - system is the name of another source that declares package x.y
 - because x.y is a prefix of x.y.z, they overlap
 
-If you are interested in seeing this restriction relaxed please leave a comment [here](https://github.com/StyraInc/opa-control-plane/issues/30) including any details you can share about your use case.
+If you are interested in seeing this restriction relaxed please leave a comment [here](https://github.com/open-policy-agent/opa-control-plane/issues/30) including any details you can share about your use case.
 
 ### Bundle Configuration Fields
 
@@ -168,7 +168,7 @@ sources:
         type: http
         path: data/from/s3
         config:
-          url: https://my-bucket.my-region.s3.amazonaws.com/s3-data.json
+          url: https://my-bucket.s3.my-region.amazonaws.com/s3-data.json
           credentials: aws_auth
 ```
 

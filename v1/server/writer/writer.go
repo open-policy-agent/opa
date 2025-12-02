@@ -56,6 +56,7 @@ func Error(w http.ResponseWriter, status int, err *types.ErrorV1) {
 
 // JSON writes a response with the specified status code and object. The object
 // will be JSON serialized.
+//
 // Deprecated: This method is problematic when using a non-200 status `code`: if
 // encoding the payload fails, it'll print "superfluous call to WriteHeader()"
 // logs.
@@ -91,6 +92,7 @@ func JSONOK(w http.ResponseWriter, v any, pretty bool) {
 }
 
 // Bytes writes a response with the specified status code and bytes.
+//
 // Deprecated: Unused in OPA, will be removed in the future.
 func Bytes(w http.ResponseWriter, code int, bs []byte) {
 	w.WriteHeader(code)

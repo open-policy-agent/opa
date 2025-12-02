@@ -5,7 +5,6 @@ package bundle_test
 
 import (
 	"context"
-	"maps"
 	"slices"
 	"testing"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/storage/disk"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
+	"github.com/open-policy-agent/opa/v1/util"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
@@ -28,7 +28,7 @@ type customBundleActivator struct {
 
 func (cba *customBundleActivator) Activate(opts *bundle.ActivateOpts) error {
 	cba.activator = &bundle.DefaultActivator{}
-	cba.BundleNames = slices.Collect(maps.Keys(opts.Bundles))
+	cba.BundleNames = util.Keys(opts.Bundles)
 	if cba.Files == nil {
 		cba.Files = make(map[string]map[string][]byte, len(cba.BundleNames))
 	}
@@ -166,7 +166,7 @@ func TestRegisterBundleActivatorWithStore(t *testing.T) {
 					t.Fatalf("wrong bundle names. expected: %v, got: %v", expNames, actNames)
 				}
 				for k, v := range bundles {
-					actFilenames := slices.Collect(maps.Keys(cba.Files[k]))
+					actFilenames := util.Keys(cba.Files[k])
 					expFilenames := make([]string, len(v.Raw))
 					for _, r := range v.Raw {
 						expFilenames = append(expFilenames, r.Path)

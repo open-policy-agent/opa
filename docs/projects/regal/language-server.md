@@ -1,7 +1,11 @@
 ---
 sidebar_position: 9
+sidebar_label: Language Server
 ---
 
+<head>
+  <title>Language Server | Regal</title>
+</head>
 
 # Language Server
 
@@ -15,7 +19,9 @@ and without having to call Regal from the command line. The language server howe
 linting!
 
 :::tip
-Check support for your editor on the [editor support](./editor-support.md) page.
+Check Regal's support for your editor on the
+[editor support](https://www.openpolicyagent.org/projects/regal/editor-support)
+page.
 :::
 
 ## Features
@@ -101,9 +107,9 @@ but also via a [code action](#code-actions) when unformatted files are encounter
   alt="Screenshot of diagnostics as displayed in Zed"/>
 
 Two other formatters are also available — `opa fmt --rego-v1` and `regal fix`. See the docs on
-[Fixing Violations](fixing.md) for more information about the `fix` command. Which formatter to use
-can be set via the `formatter` configuration option, which can be passed to Regal via the client (see
-the documentation for your client for how to do that).
+[Fixing Violations](https://www.openpolicyagent.org/projects/regal/fixing) for more information about the `fix` command.
+Which formatter to use can be set via the `formatter` configuration option, which can be passed to Regal via the client
+(see the documentation for your client for how to do that).
 
 ### Code completions
 
@@ -133,16 +139,16 @@ that may appear when a linter rule has been violated. Code actions can be trigge
 that appears on the line with a diagnostic message, or by pressing `ctrl/cmd + .` when the cursor is on the line.
 
 <img
-src={require('./assets/lsp/codeaction.png').default}
-alt="Screenshot of code action displayed in Zed"/>
+  src={require('./assets/lsp/codeaction.png').default}
+  alt="Screenshot of code action displayed in Zed"/>
 
 Regal currently provides **quick fix actions** for the following linter rules:
 
-- [opa-fmt](https://openpolicyagent.org/projects/regal/rules/style/opa-fmt)
-- [use-rego-v1](https://openpolicyagent.org/projects/regal/rules/imports/use-rego-v1)
-- [use-assignment-operator](https://openpolicyagent.org/projects/regal/rules/style/use-assignment-operator)
-- [no-whitespace-comment](https://openpolicyagent.org/projects/regal/rules/style/no-whitespace-comment)
-- [directory-package-mismatch](https://openpolicyagent.org/projects/regal/rules/idiomatic/directory-package-mismatch)
+- [opa-fmt](https://www.openpolicyagent.org/projects/regal/rules/style/opa-fmt)
+- [use-rego-v1](https://www.openpolicyagent.org/projects/regal/rules/imports/use-rego-v1)
+- [use-assignment-operator](https://www.openpolicyagent.org/projects/regal/rules/style/use-assignment-operator)
+- [no-whitespace-comment](https://www.openpolicyagent.org/projects/regal/rules/style/no-whitespace-comment)
+- [directory-package-mismatch](https://www.openpolicyagent.org/projects/regal/rules/idiomatic/directory-package-mismatch)
 
 Regal also provides **source actions** — actions that apply to a whole file and aren't triggered by linter issues:
 
@@ -186,23 +192,18 @@ accidentally committed.
 
 #### Editor support
 
-The Evaluation code lens is supported in any language server client that
-supports the running of code lenses. The evaluation result is saved to
-`output.json` in the default case.
+The Evaluation code lens is supported in any language server client that supports the running of code lenses. The
+evaluation result is saved to `output.json` in the default case.
 
-The displaying of evaluation results in the current file or buffer is currently
-only supported in the
-[OPA VS Code extension](https://github.com/open-policy-agent/vscode-opa) and
-for Neovim users in
+The displaying of evaluation results in the current file or buffer is currently only supported in the
+[OPA VS Code extension](https://github.com/open-policy-agent/vscode-opa) and for Neovim users in
 [nvim-dap-rego](https://github.com/rinx/nvim-dap-rego/).
 
 ### Code lenses (Debugging)
 
-Regal also implements the
-[Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/).
-This allows users to trigger debugging sessions for their policies by invoking a
-code lens on a rule. For more information, see the [Debug Adapter](./debug-adapter.md)
-page.
+Regal also implements the [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/). This allows
+users to trigger debugging sessions for their policies by invoking a code lens on a rule. For more information, see the
+[Debug Adapter](https://www.openpolicyagent.org/projects/regal/debug-adapter) page.
 
 #### Editor support
 
@@ -225,6 +226,83 @@ evaluation, so Regal will handle that on its own, and differently depending on w
   For other editors that support the code lens feature, Regal will instead write the result of evaluation to an
   `output.json` file.
 
+### Selection ranges
+
+<img
+  src={require('./assets/lsp/selectionranges.gif').default}
+  alt="Animation showing expanding selection range to parent AST nodes"/>
+
+Selection ranges allow expanding and shrinking of selections in the editor based on the syntactic structure of the code.
+Say for example that you have the following code:
+
+```rego
+package example
+
+my_rule if {
+    multi.part.reference == true
+}
+```
+
+With the cursor somewhere on the `part` term, expanding the selection range would first select the `part` term, then
+expand further to select the whole `multi.part.reference` reference, then the whole equality expression, then the whole
+rule body, and so on. This can be extremely efficient when selecting code for copying, cutting, or replacing. Note also
+_ranges_ in plural here — as this feature supports multiple cursors/selections at once.
+
+#### Editor support
+
+##### VS Code
+
+- For best results, set `editor.smartSelect.selectLeadingAndTrailingWhitespace` and `editor.smartSelect.selectSubwords`
+  to `false` in your VS Code settings, as this will let Regal control the selection ranges fully
+- Default keybindings for selection ranges are:
+  - Grow selection: `Shift` + `Alt` + `Right Arrow` (`Ctrl` + `Shift` + `Right Arrow` on Mac)
+  - Shrink selection: `Shift + Alt + Left Arrow` (`Ctrl` + `Shift` + `Left Arrow` on Mac)
+- See the configuration of binding for the `editor.action.smartSelect.grow` and `editor.action.smartSelect.shrink`
+  commands, should you want to change them
+
+### Linked editing ranges
+
+Linked editing ranges allow renaming of local symbols in multiple places at once. The most well-known example of this is
+in HTML/XML editing, where renaming a tag will update both the opening and closing tag at the same time. This feature is
+however of limited value in most other languages, and therefore typically disabled by default in editors. While Regal's
+language server contains experimental code that links edits of function arguments to references of those variables in
+the function head or body, we'd rather implement the rename feature from the LSP specification for this purpose. For
+that reason, the linked editing ranges feature is currently disabled by default. Set the `REGAL_EXPERIMENTAL`
+environment variable to `true` if you want to try it out, but remember that you may also have to enable linked editing
+in your editor.
+
+If you have any suggestions for how linked editing ranges could be useful in Rego, please
+[open an issue](https://github.com/open-policy-agent/regal/issues/new) to let us know!
+
+### Signature Help
+
+Signature help is a feature that shows the names and types of variables as the
+user types a call to a function.
+
+<img
+  src={require('./assets/lsp/signaturehelp.gif').default}
+  alt="Animation showing suggestions for function arguments"/>
+
+### Document Highlights
+
+Document highlights are regions of the current file that deserve additional
+attention. We use document highlights in Regal to show usages of a variable
+within a function - more use cases coming soon!
+
+<img
+  src={require('./assets/lsp/documenthighlights.gif').default}
+  alt="Animation showing highlighting of values in a function"/>
+
+### Document Links
+
+Document links are used to make regular text ranges within a file appear as a
+clickable link in clients. We use these links to make ignore directives
+clickable.
+
+<img
+  src={require('./assets/lsp/documentlinks.gif').default}
+  alt="Animation showing a document link in action"/>
+
 ## Unsupported features
 
 See the
@@ -233,4 +311,5 @@ with the `language server protocol` label for a list of features that are not ye
 server, but that are planned for the future. If you have suggestions for anything else, please create a new issue!
 
 Also note that not all clients (i.e. editors) may support all features of a language server! See the
-[editor support](./editor-support.md) page for information about Regal support in different editors.
+[editor support](https://www.openpolicyagent.org/projects/regal/editor-support) page for information about Regal support
+in different editors.

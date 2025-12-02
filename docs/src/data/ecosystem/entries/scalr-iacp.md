@@ -13,7 +13,7 @@ code:
 inventors:
 - scalr
 blogs:
-- https://www.scalr.com/blog/opa-is-to-policy-automation-as-terraform-is-to-iac/
+- https://scalr.com/blog/opa-is-to-policy-automation-as-terraform-is-to-iac
 docs_features:
   cli-integration:
     note: |

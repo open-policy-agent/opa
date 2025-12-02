@@ -4,7 +4,7 @@
 
 **Category**: Style
 
-**Automatically fixable**: [Yes](https://openpolicyagent.org/projects/regal/fixing)
+**Automatically fixable**: [Yes](https://www.openpolicyagent.org/projects/regal/fixing)
 
 **Avoid**
 

@@ -1,5 +1,6 @@
 ---
-title: "Overview & Architecture"
+title: "OPA Management APIs and Architecture"
+sidebar_label: "Overview"
 ---
 
 OPA exposes a set of APIs that enable unified, logically centralized policy

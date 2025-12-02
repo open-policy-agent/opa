@@ -1,8 +1,12 @@
 ---
 title: Idiomatic
+sidebar_label: Idiomatic
 sidebar_position: 2
 ---
 
+<head>
+  <title>Idiomatic | Regal</title>
+</head>
 
 # Idiomatic
 

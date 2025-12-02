@@ -36,13 +36,8 @@ linters:
         # Reasonable rule, but not sure what to replace with in
         # many locations, so disabling for now
         - exitAfterDefer
-        # The following 3 rules are disabled from the perfomance tag
-        # enabled further down. The first two are reasonable, but not
-        # super important. appendCombine is really nice though! And
-        # should be enabled. Just many places to fix..
+        # This is disabled from the perfomance tag  enabled further down.
         - hugeParam
-        - preferFprint
-        - appendCombine
       enabled-tags:
         - performance
       settings:
@@ -53,6 +48,9 @@ linters:
           # switch)... just too many violations right now
           minThreshold: 10
     govet:
+      disable:
+        # enable later and fix
+        - buildtag
       enable:
         - deepequalerrors
         - nilness

@@ -5,7 +5,7 @@
 //go:build bench_disk
 // +build bench_disk
 
-// nolint: deadcode,unused // build tags confuse these linters
+// nolint: unused // build tags confuse these linters
 package authz
 
 import (

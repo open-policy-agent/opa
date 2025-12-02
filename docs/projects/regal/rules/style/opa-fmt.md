@@ -4,7 +4,7 @@
 
 **Category**: Style
 
-**Automatically fixable**: [Yes](https://openpolicyagent.org/projects/regal/fixing)
+**Automatically fixable**: [Yes](https://www.openpolicyagent.org/projects/regal/fixing)
 
 **Avoid**
 
@@ -44,7 +44,7 @@ been formatted with `opa fmt` (the rego.v1 keyword is permitted but not added).
 
 When formatting, a file expected to be v1 based on the configuration, but with
 v0 syntax is still formatted as `opa fmt –-v0-v1`. Please see
-[Configuring Rego Version](https://openpolicyagent.org/projects/regal#configuring-rego-version)
+[Configuring Rego Version](https://www.openpolicyagent.org/projects/regal#configuring-rego-version)
 for more configuration help for multi version projects.
 
 ## Configuration Options

@@ -7,13 +7,13 @@ labels:
 inventors:
 - styra
 blogs:
-- http://styra.com/blog/how-to-express-or-in-rego
+- https://www.styra.com/blog/how-to-express-or-in-rego/
 docs_features:
   learning-rego:
     note: |
-      This [learning material](http://styra.com/blog/how-to-express-or-in-rego)
+      This [learning material](https://www.styra.com/blog/how-to-express-or-in-rego/)
       is a great way to learn how to migrate logic from other languages to Rego.
 ---
 
-This [learning material](http://styra.com/blog/how-to-express-or-in-rego)
+This [learning material](https://www.styra.com/blog/how-to-express-or-in-rego/)
 is a great way to learn how to migrate logic from other languages to Rego.

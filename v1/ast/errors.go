@@ -99,26 +99,35 @@ func (e *Error) Error() string {
 		}
 	}
 
-	msg := fmt.Sprintf("%v: %v", e.Code, e.Message)
-
+	sb := strings.Builder{}
 	if len(prefix) > 0 {
-		msg = prefix + ": " + msg
+		sb.WriteString(prefix)
+		sb.WriteString(": ")
 	}
+
+	sb.WriteString(e.Code)
+	sb.WriteString(": ")
+	sb.WriteString(e.Message)
 
 	if e.Details != nil {
 		for _, line := range e.Details.Lines() {
-			msg += "\n\t" + line
+			sb.WriteString("\n\t")
+			sb.WriteString(line)
 		}
 	}
 
-	return msg
+	return sb.String()
 }
 
 // NewError returns a new Error object.
 func NewError(code string, loc *Location, f string, a ...any) *Error {
+	return newErrorString(code, loc, fmt.Sprintf(f, a...))
+}
+
+func newErrorString(code string, loc *Location, m string) *Error {
 	return &Error{
 		Code:     code,
 		Location: loc,
-		Message:  fmt.Sprintf(f, a...),
+		Message:  m,
 	}
 }

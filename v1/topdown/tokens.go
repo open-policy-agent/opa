@@ -428,7 +428,7 @@ func builtinJWTVerify(bctx BuiltinContext, jwt ast.Value, keyStr ast.Value, hash
 	// If a match is found, verify using only that key. Only applicable when a JWKS was provided.
 	if header.kid != "" {
 		if key := getKeyByKid(header.kid, keys); key != nil {
-			err = verify(key.key, getInputSHA([]byte(token.header+"."+token.payload), hasher), []byte(signature))
+			err = verify(key.key, getInputSHA([]byte(token.header+"."+token.payload), hasher), signature)
 
 			return done(err == nil)
 		}
@@ -440,7 +440,7 @@ func builtinJWTVerify(bctx BuiltinContext, jwt ast.Value, keyStr ast.Value, hash
 		if key.alg == "" {
 			// No algorithm provided for the key - this is likely a certificate and not a JWKS, so
 			// we'll need to verify to find out
-			err = verify(key.key, getInputSHA([]byte(token.header+"."+token.payload), hasher), []byte(signature))
+			err = verify(key.key, getInputSHA([]byte(token.header+"."+token.payload), hasher), signature)
 			if err == nil {
 				return done(true)
 			}
@@ -448,7 +448,7 @@ func builtinJWTVerify(bctx BuiltinContext, jwt ast.Value, keyStr ast.Value, hash
 			if header.alg != key.alg {
 				continue
 			}
-			err = verify(key.key, getInputSHA([]byte(token.header+"."+token.payload), hasher), []byte(signature))
+			err = verify(key.key, getInputSHA([]byte(token.header+"."+token.payload), hasher), signature)
 			if err == nil {
 				return done(true)
 			}
@@ -509,7 +509,7 @@ func builtinJWTVerifyHS(bctx BuiltinContext, operands []*ast.Term, hashF func() 
 		return err
 	}
 
-	valid := hmac.Equal([]byte(signature), mac.Sum(nil))
+	valid := hmac.Equal(signature, mac.Sum(nil))
 
 	putTokenInCache(bctx, jwt, astSecret, nil, nil, valid)
 
@@ -662,7 +662,7 @@ func (constraints *tokenConstraints) validate() error {
 }
 
 // verify verifies a JWT using the constraints and the algorithm from the header
-func (constraints *tokenConstraints) verify(kid, alg, header, payload, signature string) error {
+func (constraints *tokenConstraints) verify(kid, alg, header, payload string, signature []byte) error {
 	// Construct the payload
 	plaintext := append(append([]byte(header), '.'), []byte(payload)...)
 
@@ -670,7 +670,7 @@ func (constraints *tokenConstraints) verify(kid, alg, header, payload, signature
 	if constraints.keys != nil {
 		if kid != "" {
 			if key := getKeyByKid(kid, constraints.keys); key != nil {
-				err := jwsbb.Verify(key.key, alg, plaintext, []byte(signature))
+				err := jwsbb.Verify(key.key, alg, plaintext, signature)
 				if err != nil {
 					return errSignatureNotVerified
 				}
@@ -681,7 +681,7 @@ func (constraints *tokenConstraints) verify(kid, alg, header, payload, signature
 		verified := false
 		for _, key := range constraints.keys {
 			if key.alg == "" {
-				err := jwsbb.Verify(key.key, alg, plaintext, []byte(signature))
+				err := jwsbb.Verify(key.key, alg, plaintext, signature)
 				if err == nil {
 					verified = true
 					break
@@ -690,7 +690,7 @@ func (constraints *tokenConstraints) verify(kid, alg, header, payload, signature
 				if alg != key.alg {
 					continue
 				}
-				err := jwsbb.Verify(key.key, alg, plaintext, []byte(signature))
+				err := jwsbb.Verify(key.key, alg, plaintext, signature)
 				if err == nil {
 					verified = true
 					break
@@ -704,7 +704,7 @@ func (constraints *tokenConstraints) verify(kid, alg, header, payload, signature
 		return nil
 	}
 	if constraints.secret != "" {
-		err := jwsbb.Verify([]byte(constraints.secret), alg, plaintext, []byte(signature))
+		err := jwsbb.Verify([]byte(constraints.secret), alg, plaintext, signature)
 		if err != nil {
 			return errSignatureNotVerified
 		}
@@ -1170,17 +1170,17 @@ func decodeJWT(a ast.Value) (*JSONWebToken, error) {
 	return &JSONWebToken{header: parts[0], payload: parts[1], signature: parts[2]}, nil
 }
 
-func (token *JSONWebToken) decodeSignature() (string, error) {
+func (token *JSONWebToken) decodeSignature() ([]byte, error) {
 	decodedSignature, err := getResult(builtinBase64UrlDecode, ast.StringTerm(token.signature))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	signatureAst, err := builtins.StringOperand(decodedSignature.Value, 1)
+	signatureBs, err := builtins.StringOperandByteSlice(decodedSignature.Value, 1)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return string(signatureAst), err
+	return signatureBs, nil
 }
 
 // Extract, validate and return the JWT header as an ast.Object.

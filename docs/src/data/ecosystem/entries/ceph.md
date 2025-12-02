@@ -6,7 +6,7 @@ labels:
   category: object
   layer: data
 tutorials:
-- https://docs.ceph.com/docs/master/radosgw/opa/
+- https://docs.ceph.com/en/latest/radosgw/opa/
 inventors:
 - styra
 - redhat

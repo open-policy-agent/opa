@@ -98,7 +98,7 @@ cases:
             }
           }
         `
-        q_ast := {"Operations": [{"Name": "SomeOperation", "Operation": "query", "SelectionSet": [{"Alias": "myAction", "Arguments": [{"Name": "myEnum", "Value": {"Kind": 0, "Raw": "locale"}}], "Name": "myAction", "SelectionSet": [{"Alias": "id", "Name": "id"}]}], "VariableDefinitions": [{"DefaultValue": {"Kind": 7, "Raw": "DE"}, "Type": {"NamedType": "Locale", "NonNull": true}, "Used": false, "Variable": "locale"}]}]}
+        q_ast := {"Operations": [{"Name": "SomeOperation", "Operation": "query", "SelectionSet": [{"Alias": "myAction", "Arguments": [{"Name": "myEnum", "Value": {"ExpectedTypeHasDefault": false, "Kind": 0, "Raw": "locale"}}], "Name": "myAction", "SelectionSet": [{"Alias": "id", "Name": "id"}]}], "VariableDefinitions": [{"DefaultValue": {"ExpectedTypeHasDefault": false, "Kind": 7, "Raw": "DE"}, "Type": {"NamedType": "Locale", "NonNull": true}, "Used": false, "Variable": "locale"}]}]}
         p {
             [valid, q_ast, _] = graphql.parse_and_verify(query, schema)
             valid
@@ -146,7 +146,7 @@ cases:
             bar @include(if: $flag)
           }
         `
-        q_ast := {"Fragments": [{"Name": "Bar", "SelectionSet": [{"Alias": "bar", "Directives": [{"Arguments": [{"Name": "if", "Value": {"Kind": 0, "Raw": "flag"}}], "Location": "", "Name": "include"}], "Name": "bar"}], "TypeCondition": "Query"}], "Operations": [{"Name": "Foo", "Operation": "query", "SelectionSet": [{"Name": "Bar"}], "VariableDefinitions": [{"Type": {"NamedType": "Boolean", "NonNull": true}, "Used": false, "Variable": "flag"}]}]}
+        q_ast := {"Fragments": [{"Name": "Bar", "SelectionSet": [{"Alias": "bar", "Directives": [{"Arguments": [{"Name": "if", "Value": {"ExpectedTypeHasDefault": false, "Kind": 0, "Raw": "flag"}}], "Location": "", "Name": "include"}], "Name": "bar"}], "TypeCondition": "Query"}], "Operations": [{"Name": "Foo", "Operation": "query", "SelectionSet": [{"Name": "Bar"}], "VariableDefinitions": [{"Type": {"NamedType": "Boolean", "NonNull": true}, "Used": false, "Variable": "flag"}]}]}
         p {
             [valid, q_ast, _] = graphql.parse_and_verify(query, schema)
             valid

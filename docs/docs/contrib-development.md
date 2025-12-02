@@ -8,7 +8,7 @@ the [Contributing to OPA](./contrib-code) page first.
 
 OPA is written in the [Go](https://golang.org) programming language.
 If you are new to Go, consider reading
-[Effective Go](https://golang.org/doc/effective_go.html),
+[Effective Go](https://go.dev/doc/effective_go.html),
 [Go Code Review Comments](https://go.dev/wiki/CodeReviewComments) or
 [How to Write Go Code](https://go.dev/doc/code)
 for guidance on writing idiomatic Go code.
@@ -23,7 +23,7 @@ Requirements:
 
 ## Getting Started
 
-After forking the repository and creating a [clone from your fork](https://docs.github.com/en/get-started/quickstart/contributing-to-projects),
+After forking the repository and creating a [clone from your fork](https://docs.github.com/en/get-started/exploring-projects-on-github/contributing-to-a-project),
 just run `make`. This will:
 
 - Build the OPA binary.
@@ -98,7 +98,7 @@ git push origin somefeature
 > Make sure to use a [good commit message](./contrib-code/#commit-messages).
 
 Now, submit a Pull Request from your fork.
-See the official [GitHub Documentation](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork)
+See the official [GitHub Documentation](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork)
 for instructions to create the request.
 
 > Hint: You should be prompted to with a "Compare and Pull Request" button
@@ -108,7 +108,7 @@ Once your Pull Request has been reviewed and signed off please squash your
 commits. If you have a specific reason to leave multiple commits in the
 Pull Request, please mention it in the discussion.
 
-> If you are not familiar with squashing commits, see [the following blog post for a good overview](http://gitready.com/advanced/2009/02/10/squashing-commits-with-rebase.html).
+> If you are not familiar with squashing commits, see [the following blog post for a good overview](https://gitready.com/advanced/2009/02/10/squashing-commits-with-rebase.html).
 
 ## Benchmarks
 
@@ -121,23 +121,19 @@ benchmarking framework for all benchmarks.
 OPA is a Go module [https://github.com/golang/go/wiki/Modules](https://github.com/golang/go/wiki/Modules)
 and dependencies are tracked with the standard [go.mod](https://github.com/open-policy-agent/opa/blob/main/go.mod) file.
 
-We also keep a full copy of the dependencies in the [vendor](https://github.com/open-policy-agent/opa/tree/main/vendor)
-directory. All `go` commands from the [Makefile](https://github.com/open-policy-agent/opa/blob/main/Makefile) will enable
-module mode by setting `GO111MODULE=on GOFLAGS=-mod=vendor` which will also
-force using the `vendor` directory.
+All `go` commands from the [Makefile](https://github.com/open-policy-agent/opa/blob/main/Makefile) will enable
+module mode by setting `GO111MODULE=on`.
 
 To update a dependency ensure that `GO111MODULE` is either on, or the repository
 qualifies for `auto` to enable module mode. Then simply use `go get ..` to get
 the version desired. This should update the [go.mod](https://github.com/open-policy-agent/opa/blob/main/go.mod) and (potentially)
-[go.sum](https://github.com/open-policy-agent/opa/blob/main/go.sum) files. After this you _MUST_ run `go mod vendor` to ensure
-that the `vendor` directory is in sync.
+[go.sum](https://github.com/open-policy-agent/opa/blob/main/go.sum) files.
 
 Example workflow for updating a dependency:
 
 ```bash
 go get -u github.com/sirupsen/logrus@v1.4.2  # Get the specified version of the package.
 go mod tidy                                  # (Somewhat optional) Prunes removed dependencies.
-go mod vendor                                # Ensure the vendor directory is up to date.
 ```
 
 If dependencies have been removed ensure to run `go mod tidy` to clean them up.

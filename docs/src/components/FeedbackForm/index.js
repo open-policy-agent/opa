@@ -10,7 +10,7 @@ import styles from "./styles.module.css";
  * A feedback form component that is automatically added to the end of documentation pages.
  * It can also be manually included in other pages by setting enablePopup to true.
  * The form allows users to provide positive or negative feedback with optional comments
- * and email for follow-up. Feedback is submitted to Netlify Forms via AJAX.
+. Feedback is submitted to Netlify Forms via AJAX.
  *
  * Note: When adding new fields to this form, remember to update the static/netlify-forms.html
  * file so that Netlify knows which fields to permit. If this is not updated, new fields
@@ -207,6 +207,17 @@ export default function FeedbackForm({ enablePopup = false }) {
  * hidden when the feedback form comes into view.
  */
 const FloatingPopup = ({ onClose, onFeedbackSelect }) => {
+  const [showAnimation, setShowAnimation] = useState(false);
+
+  useEffect(() => {
+    // Trigger fade-in animation after component mounts
+    const timer = setTimeout(() => {
+      setShowAnimation(true);
+    }, 50); // Small delay to ensure smooth animation
+
+    return () => clearTimeout(timer);
+  }, []);
+
   const handleClose = () => {
     // Set global flag to never show popup again
     localStorage.setItem("documentation-feedback-popup-dismissed", "true");
@@ -221,7 +232,7 @@ const FloatingPopup = ({ onClose, onFeedbackSelect }) => {
   };
 
   return (
-    <div className={styles.popup}>
+    <div className={`${styles.popup} ${showAnimation ? styles.show : ''}`}>
       <button
         className={styles.closeButton}
         onClick={handleClose}
@@ -302,12 +313,6 @@ const Form = ({
             required={feedbackType === "negative"}
           />
         </div>
-        <div className={styles.email}>
-          <div>
-            <input type="email" name="email" placeholder="Email (optional)" />
-          </div>
-        </div>
-        <p className={styles.note}>Email will only be used for comment follow-up.</p>
       </div>
     )}
 

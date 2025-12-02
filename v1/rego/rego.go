@@ -25,6 +25,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/ir"
 	"github.com/open-policy-agent/opa/v1/loader"
+	"github.com/open-policy-agent/opa/v1/loader/filter"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/resolver"
@@ -44,7 +45,7 @@ const (
 	wasmVarPrefix           = "^"
 )
 
-// nolint: deadcode,varcheck
+// nolint:varcheck
 const (
 	targetWasm = "wasm"
 	targetRego = "rego"
@@ -235,6 +236,7 @@ func EvalInstrument(instrument bool) EvalOption {
 }
 
 // EvalTracer configures a tracer for a Prepared Query's evaluation
+//
 // Deprecated: Use EvalQueryTracer instead.
 func EvalTracer(tracer topdown.Tracer) EvalOption {
 	return func(e *EvalContext) {
@@ -670,6 +672,7 @@ type Rego struct {
 	regoVersion                 ast.RegoVersion
 	compilerHook                func(*ast.Compiler)
 	evalMode                    *ast.CompilerEvalMode
+	filter                      filter.LoaderFilter
 }
 
 func (r *Rego) RegoVersion() ast.RegoVersion {
@@ -1046,6 +1049,12 @@ func LoadBundle(path string) func(r *Rego) {
 	}
 }
 
+func WithFilter(f filter.LoaderFilter) func(r *Rego) {
+	return func(r *Rego) {
+		r.filter = f
+	}
+}
+
 // ParsedBundle returns an argument that adds a bundle to be loaded.
 func ParsedBundle(name string, b *bundle.Bundle) func(r *Rego) {
 	return func(r *Rego) {
@@ -1115,6 +1124,7 @@ func Trace(yes bool) func(r *Rego) {
 }
 
 // Tracer returns an argument that adds a query tracer to r.
+//
 // Deprecated: Use QueryTracer instead.
 func Tracer(t topdown.Tracer) func(r *Rego) {
 	return func(r *Rego) {
@@ -2044,6 +2054,7 @@ func (r *Rego) loadBundles(_ context.Context, _ storage.Transaction, m metrics.M
 			WithSkipBundleVerification(r.skipBundleVerification).
 			WithRegoVersion(r.regoVersion).
 			WithCapabilities(r.capabilities).
+			WithFilter(r.filter).
 			AsBundle(path)
 		if err != nil {
 			return fmt.Errorf("loading error: %s", err)

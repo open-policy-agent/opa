@@ -107,6 +107,12 @@ func toFieldNode(op string, r ast.Ref, v ast.Value, opts *Opts, refOK bool) *uca
 				Field: f,
 			}
 		}
+	case ast.Var:
+		if op == ast.Equality.Name { // _ = <unknown>
+			op = "ne" // this will end up as `unknown IS NOT NULL`
+		} else { // we used to run into "var needs evaluation" below, let's just return nil here
+			return nil
+		}
 	default:
 		var err error
 		value, err = ast.ValueToInterface(v, nil)

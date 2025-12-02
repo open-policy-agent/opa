@@ -31,7 +31,7 @@ func TestBuiltinDeclRoundtrip(t *testing.T) {
 
 func TestAllBuiltinsHaveDescribedArguments(t *testing.T) {
 	for _, b := range Builtins {
-		if b.deprecated || b.Infix != "" || b.Name == "print" || b.Name == "internal.print" || b.Name == "internal.test_case" {
+		if b.Deprecated || b.Infix != "" || b.Name == "print" || b.Name == "internal.print" || b.Name == "internal.test_case" {
 			continue
 		}
 

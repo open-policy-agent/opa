@@ -158,6 +158,8 @@ func SignV4(headers map[string][]string, method string, theURL *url.URL, body []
 	// include the values for the signed headers
 	orderedKeys := util.KeysSorted(headersToSign)
 	for _, k := range orderedKeys {
+		// TODO: fix later
+		//nolint:perfsprint
 		canonicalReq += k + ":" + strings.Join(headersToSign[k], ",") + "\n"
 	}
 	canonicalReq += "\n" // linefeed to terminate headers

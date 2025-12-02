@@ -784,7 +784,7 @@ func getNormalizedBundleName(name string) string {
 	sb := new(strings.Builder)
 	for i := range len(name) {
 		if isReservedCharacter(rune(name[i])) {
-			sb.WriteString(fmt.Sprintf("\\%c", name[i]))
+			fmt.Fprintf(sb, "\\%c", name[i])
 		} else {
 			sb.WriteByte(name[i])
 		}

@@ -245,7 +245,7 @@ func (r PrettyReporter) fmtBenchmark(tr *Result) string {
 		// like BenchmarkDataFooBarTestAuth.
 		camelCaseName := ""
 		for part := range strings.SplitSeq(strings.ReplaceAll(name, "_", "."), ".") {
-			camelCaseName += strings.Title(part) //nolint:staticcheck // SA1019, no unicode here
+			camelCaseName += strings.Title(part) //nolint:perfsprint,staticcheck
 		}
 		name = "Benchmark" + camelCaseName
 	}

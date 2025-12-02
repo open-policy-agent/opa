@@ -93,6 +93,6 @@ rules:
 
 ## Related Resources
 
-- Regal Docs: [prefer-some-in-iteration](https://openpolicyagent.org/projects/regal/rules/style/prefer-some-in-iteration)
+- Regal Docs: [prefer-some-in-iteration](https://www.openpolicyagent.org/projects/regal/rules/style/prefer-some-in-iteration)
 - OPA Docs: [Strict Mode](https://www.openpolicyagent.org/docs/policy-language/#strict-mode)
 - GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/bugs/unused-output-variable/unused_output_variable.rego)

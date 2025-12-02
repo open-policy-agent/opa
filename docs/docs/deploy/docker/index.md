@@ -44,7 +44,7 @@ accessible from outside the container. This is not necessary when running OPA
 in other environments.
 
 More information can be found in the
-[security documentation](../../security/#interface-binding).
+[security documentation](../../../docs/security#interface-binding).
 :::
 
 Test that OPA is available:
@@ -267,7 +267,7 @@ OPA will respond with the greeting from the policy (the pod hostname will differ
 ### Readiness and Liveness Probes
 
 OPA exposes a `/health` API endpoint that you can configure Kubernetes
-[Readiness and Liveness Probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/)
+[Readiness and Liveness Probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/)
 to call. For example:
 
 <EvergreenCodeBlock>

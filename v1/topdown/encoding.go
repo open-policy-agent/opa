@@ -5,7 +5,6 @@
 package topdown
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -21,7 +20,6 @@ import (
 )
 
 func builtinJSONMarshal(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-
 	asJSON, err := ast.JSON(operands[0].Value)
 	if err != nil {
 		return err
@@ -32,11 +30,10 @@ func builtinJSONMarshal(_ BuiltinContext, operands []*ast.Term, iter func(*ast.T
 		return err
 	}
 
-	return iter(ast.StringTerm(string(bs)))
+	return iter(ast.StringTerm(util.ByteSliceToString(bs)))
 }
 
 func builtinJSONMarshalWithOpts(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-
 	asJSON, err := ast.JSON(operands[0].Value)
 	if err != nil {
 		return err
@@ -101,36 +98,34 @@ func builtinJSONMarshalWithOpts(_ BuiltinContext, operands []*ast.Term, iter fun
 	}
 
 	var bs []byte
-
 	if shouldPrettyPrint {
 		bs, err = json.MarshalIndent(asJSON, prefixWith, indentWith)
 	} else {
 		bs, err = json.Marshal(asJSON)
 	}
-
 	if err != nil {
 		return err
 	}
 
+	s := util.ByteSliceToString(bs)
+
 	if shouldPrettyPrint {
 		// json.MarshalIndent() function will not prefix the first line of emitted JSON
-		return iter(ast.StringTerm(prefixWith + string(bs)))
+		return iter(ast.StringTerm(prefixWith + s))
 	}
 
-	return iter(ast.StringTerm(string(bs)))
+	return iter(ast.StringTerm(s))
 
 }
 
 func builtinJSONUnmarshal(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-
-	str, err := builtins.StringOperand(operands[0].Value, 1)
+	bs, err := builtins.StringOperandByteSlice(operands[0].Value, 1)
 	if err != nil {
 		return err
 	}
 
 	var x any
-
-	if err := util.UnmarshalJSON([]byte(str), &x); err != nil {
+	if err := util.UnmarshalJSON(bs, &x); err != nil {
 		return err
 	}
 	v, err := ast.InterfaceToValue(x)
@@ -141,22 +136,21 @@ func builtinJSONUnmarshal(_ BuiltinContext, operands []*ast.Term, iter func(*ast
 }
 
 func builtinJSONIsValid(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-
-	str, err := builtins.StringOperand(operands[0].Value, 1)
+	bs, err := builtins.StringOperandByteSlice(operands[0].Value, 1)
 	if err != nil {
 		return iter(ast.InternedTerm(false))
 	}
 
-	return iter(ast.InternedTerm(json.Valid([]byte(str))))
+	return iter(ast.InternedTerm(json.Valid(bs)))
 }
 
 func builtinBase64Encode(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	str, err := builtins.StringOperand(operands[0].Value, 1)
+	bs, err := builtins.StringOperandByteSlice(operands[0].Value, 1)
 	if err != nil {
 		return err
 	}
 
-	return iter(ast.StringTerm(base64.StdEncoding.EncodeToString([]byte(str))))
+	return iter(ast.StringTerm(base64.StdEncoding.EncodeToString(bs)))
 }
 
 func builtinBase64Decode(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -183,20 +177,20 @@ func builtinBase64IsValid(_ BuiltinContext, operands []*ast.Term, iter func(*ast
 }
 
 func builtinBase64UrlEncode(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	str, err := builtins.StringOperand(operands[0].Value, 1)
+	bs, err := builtins.StringOperandByteSlice(operands[0].Value, 1)
 	if err != nil {
 		return err
 	}
 
-	return iter(ast.StringTerm(base64.URLEncoding.EncodeToString([]byte(str))))
+	return iter(ast.StringTerm(base64.URLEncoding.EncodeToString(bs)))
 }
 
 func builtinBase64UrlEncodeNoPad(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	str, err := builtins.StringOperand(operands[0].Value, 1)
+	bs, err := builtins.StringOperandByteSlice(operands[0].Value, 1)
 	if err != nil {
 		return err
 	}
-	return iter(ast.StringTerm(base64.RawURLEncoding.EncodeToString([]byte(str))))
+	return iter(ast.StringTerm(base64.RawURLEncoding.EncodeToString(bs)))
 }
 
 func builtinBase64UrlDecode(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -306,45 +300,39 @@ func builtinURLQueryDecodeObject(_ BuiltinContext, operands []*ast.Term, iter fu
 }
 
 func builtinYAMLMarshal(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-
 	asJSON, err := ast.JSON(operands[0].Value)
 	if err != nil {
 		return err
 	}
 
-	var buf bytes.Buffer
-	encoder := json.NewEncoder(&buf)
-	if err := encoder.Encode(asJSON); err != nil {
-		return err
-	}
-
-	bs, err := yaml.JSONToYAML(buf.Bytes())
+	bs, err := yaml.Marshal(asJSON)
 	if err != nil {
 		return err
 	}
 
-	return iter(ast.StringTerm(string(bs)))
+	return iter(ast.StringTerm(util.ByteSliceToString(bs)))
 }
 
 func builtinYAMLUnmarshal(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-
-	str, err := builtins.StringOperand(operands[0].Value, 1)
+	bs, err := builtins.StringOperandByteSlice(operands[0].Value, 1)
 	if err != nil {
 		return err
 	}
 
-	bs, err := yaml.YAMLToJSON([]byte(str))
+	js, err := yaml.YAMLToJSON(bs)
 	if err != nil {
 		return err
 	}
 
-	buf := bytes.NewBuffer(bs)
-	decoder := util.NewJSONDecoder(buf)
+	reader := ast.BytesReaderPool.Get()
+	defer ast.BytesReaderPool.Put(reader)
+	reader.Reset(js)
+
 	var val any
-	err = decoder.Decode(&val)
-	if err != nil {
+	if err = util.NewJSONDecoder(reader).Decode(&val); err != nil {
 		return err
 	}
+
 	v, err := ast.InterfaceToValue(val)
 	if err != nil {
 		return err
@@ -353,22 +341,22 @@ func builtinYAMLUnmarshal(_ BuiltinContext, operands []*ast.Term, iter func(*ast
 }
 
 func builtinYAMLIsValid(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	str, err := builtins.StringOperand(operands[0].Value, 1)
+	bs, err := builtins.StringOperandByteSlice(operands[0].Value, 1)
 	if err != nil {
 		return iter(ast.InternedTerm(false))
 	}
 
 	var x any
-	err = yaml.Unmarshal([]byte(str), &x)
+	err = yaml.Unmarshal(bs, &x)
 	return iter(ast.InternedTerm(err == nil))
 }
 
 func builtinHexEncode(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	str, err := builtins.StringOperand(operands[0].Value, 1)
+	bs, err := builtins.StringOperandByteSlice(operands[0].Value, 1)
 	if err != nil {
 		return err
 	}
-	return iter(ast.StringTerm(hex.EncodeToString([]byte(str))))
+	return iter(ast.StringTerm(hex.EncodeToString(bs)))
 }
 
 func builtinHexDecode(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {

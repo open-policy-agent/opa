@@ -28,7 +28,7 @@ func BenchmarkParseModuleRulesBase(b *testing.B) {
 // BenchmarkParseStatementBasic gives a baseline for parsing a simple
 // statement with a single call and two variables
 func BenchmarkParseStatementBasicCall(b *testing.B) {
-	runParseStatementBenchmark(b, `a+b`)
+	runParseStatementBenchmark(b, `a + b`)
 }
 
 func BenchmarkParseStatementMixedJSON(b *testing.B) {
@@ -123,6 +123,15 @@ func BenchmarkParseStatementNestedObjectsOrSets(b *testing.B) {
 	}
 }
 
+// 7471 ns/op	    8024 B/op	      56 allocs/op
+func BenchmarkParseVars(b *testing.B) {
+	for b.Loop() {
+		if _, err := ParseExpr(`data[i][_][j]`); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func BenchmarkParseBasicABACModule(b *testing.B) {
 	mod := `
 	package app.abac
@@ -211,6 +220,7 @@ func runParseStatementBenchmarkWithError(b *testing.B, stmt string) {
 func generateModule(numRules int) string {
 	mod := "package bench\n"
 	for i := range numRules {
+		//nolint:perfsprint
 		mod += fmt.Sprintf("p%d if { input.x%d = %d }\n", i, i, i)
 	}
 	return mod

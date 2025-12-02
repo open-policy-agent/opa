@@ -9,7 +9,7 @@ code:
 - https://github.com/principled-evolution/gopal
 - https://github.com/principled-evolution/aicertify
 blogs:
-- https://principledevolution.ai/blog/governance-policy-as-code-opa-trust-ai
+- https://principledevolution.ai/blog/governance-policy-as-code-opa-trust-ai/
 # tutorials: # Optional: Add if specific tutorials exist
 ---
 

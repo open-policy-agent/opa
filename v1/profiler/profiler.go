@@ -140,6 +140,7 @@ func (p *Profiler) ReportTopNResults(numResults int, criteria []string) []ExprSt
 }
 
 // Trace updates the profiler state.
+//
 // Deprecated: Use TraceEvent instead.
 func (p *Profiler) Trace(event *topdown.Event) {
 	p.TraceEvent(*event)

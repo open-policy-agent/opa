@@ -39,6 +39,14 @@ func TestHints(t *testing.T) {
 			},
 		},
 		{
+			note: "failing function call",
+			evts: []topdown.Event{
+				evtFromExpr(`data.policy.udf(__local1__)`),
+			},
+			unknowns: []string{"input.fruits"},
+			exp:      nil,
+		},
+		{
 			note: "all of input unknown, ignored",
 			evts: []topdown.Event{
 				evtFromExpr(`__local1__ = input.fruit.price`),

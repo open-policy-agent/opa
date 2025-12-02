@@ -3697,15 +3697,16 @@ type prettyBundle struct {
 }
 
 func (p prettyBundle) String() string {
-
 	buf := []string{fmt.Sprintf("%d module(s) (hiding data):", len(p.Modules)), ""}
 
 	for _, mf := range p.Modules {
-		buf = append(buf, "#")
-		buf = append(buf, fmt.Sprintf("# Module: %q", mf.Path))
-		buf = append(buf, "#")
-		buf = append(buf, mf.Parsed.String())
-		buf = append(buf, "")
+		buf = append(buf,
+			"#",
+			fmt.Sprintf("# Module: %q", mf.Path),
+			"#",
+			mf.Parsed.String(),
+			"",
+		)
 	}
 
 	return strings.Join(buf, "\n")

@@ -22,10 +22,7 @@ func minVersionIndex() ast.VersionIndex {
 	}
 
 	for _, v := range versions {
-		var sv semver.Version
-		if err := sv.Set(v[1:]); err != nil {
-			panic(err)
-		}
+		sv := semver.MustParse(v[1:])
 
 		c, err := ast.LoadCapabilitiesVersion(v)
 		if err != nil {

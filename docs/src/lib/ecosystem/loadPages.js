@@ -2,7 +2,7 @@ import fs from "fs/promises";
 import { matter } from "md-front-matter";
 import path from "path";
 
-const { glob } = require("glob");
+import { glob } from "glob";
 
 export async function loadPages(globPattern) {
   const files = await glob(globPattern);

@@ -19,16 +19,12 @@ GOVERSION ?= $(shell cat ./.go-version)
 GOARCH := $(shell go env GOARCH)
 GOOS := $(shell go env GOOS)
 
-ifeq ($(GOOS)/$(GOARCH),darwin/arm64)
-WASM_ENABLED=0
-endif
-
 GO_TAGS := -tags=
 ifeq ($(WASM_ENABLED),1)
 GO_TAGS = -tags=opa_wasm
 endif
 
-GOLANGCI_LINT_VERSION := v2.4.0
+GOLANGCI_LINT_VERSION := v2.6.2
 YAML_LINT_VERSION := 0.29.0
 YAML_LINT_FORMAT ?= auto
 
@@ -52,8 +48,7 @@ DOCKER := docker
 export DOCKER_BUILDKIT := 1
 
 # Supported platforms to include in image manifest lists
-DOCKER_PLATFORMS := linux/amd64
-DOCKER_PLATFORMS_STATIC := linux/amd64,linux/arm64
+DOCKER_PLATFORMS := linux/amd64,linux/arm64
 
 BIN := opa_$(GOOS)_$(GOARCH)
 
@@ -123,6 +118,7 @@ e2e: e2e-prep
 
 e2e-prep:
 	cd e2e/api/compile/prisma && npm ci
+	cd e2e/ && go mod tidy
 
 .PHONY: test-short
 test-short: go-test-short
@@ -314,12 +310,9 @@ ci-build-darwin-arm64-static: ensure-release-dir
 	mv opa_darwin_arm64 $(RELEASE_DIR)/opa_darwin_arm64_static
 	cd $(RELEASE_DIR)/ && shasum -a 256 opa_darwin_arm64_static > opa_darwin_arm64_static.sha256
 
-# NOTE: This target expects to be run as root on some debian/ubuntu variant
-# that can install the `gcc-mingw-w64-x86-64` package via apt-get.
 .PHONY: ci-build-windows
-ci-build-windows: ensure-release-dir
-	build/ensure-windows-toolchain.sh
-	@$(MAKE) build GOOS=windows CC=x86_64-w64-mingw32-gcc
+ci-build-windows: generate ensure-release-dir
+	@$(MAKE) build GOOS=windows CC="zig cc -target x86_64-windows-gnu -lunwind"
 	mv opa_windows_$(GOARCH) $(RELEASE_DIR)/opa_windows_$(GOARCH).exe
 	cd $(RELEASE_DIR)/ && shasum -a 256 opa_windows_$(GOARCH).exe > opa_windows_$(GOARCH).exe.sha256
 	rm resource.syso
@@ -349,7 +342,6 @@ image-quick: image-quick-$(GOARCH)
 # % = arch
 .PHONY: image-quick-%
 image-quick-%: ensure-executable-bin
-ifneq ($(GOARCH),arm64) # build only static images for arm64
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION) \
 		--build-arg BASE=chainguard/glibc-dynamic \
@@ -362,7 +354,6 @@ ifneq ($(GOARCH),arm64) # build only static images for arm64
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform linux/$* \
 		.
-endif
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-static \
 		--build-arg BASE=chainguard/static:latest \
@@ -404,7 +395,7 @@ push-manifest-list-%: ensure-executable-bin
 		--build-arg BASE=chainguard/static:latest \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--build-arg BIN_SUFFIX=_static \
-		--platform $(DOCKER_PLATFORMS_STATIC) \
+		--platform $(DOCKER_PLATFORMS) \
 		--provenance=false \
 		--push \
 		.
@@ -414,7 +405,7 @@ push-manifest-list-%: ensure-executable-bin
 		--build-arg BASE=chainguard/busybox:latest-glibc \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--build-arg BIN_SUFFIX=_static \
-		--platform $(DOCKER_PLATFORMS_STATIC) \
+		--platform $(DOCKER_PLATFORMS) \
 		--provenance=false \
 		--push \
 		.
@@ -425,14 +416,12 @@ ci-image-smoke-test: ci-image-smoke-test-$(GOARCH)
 # % = arch
 .PHONY: ci-image-smoke-test-%
 ci-image-smoke-test-%: image-quick-%
-ifneq ($(GOARCH),arm64) # we build only static images for arm64
 	$(DOCKER) run --platform linux/$* $(DOCKER_IMAGE):$(VERSION) version
 	$(DOCKER) run --platform linux/$* $(DOCKER_IMAGE):$(VERSION)-debug version
 
 	$(DOCKER) image inspect $(DOCKER_IMAGE):$(VERSION) |\
 	  $(DOCKER) run --interactive --platform linux/$* $(DOCKER_IMAGE):$(VERSION) \
 	  eval --fail --format raw --stdin-input 'input[0].Config.User = "1000:1000"'
-endif
 	$(DOCKER) run --platform linux/$* $(DOCKER_IMAGE):$(VERSION)-static version
 
 .PHONY: push-binary-edge

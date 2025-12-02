@@ -43,7 +43,7 @@ the error message rather than actually failing.
 ```
 
 While this is normally caught in development and testing, having this issue reported at "compile time", which ideally
-is [directly in your editor](https://openpolicyagent.org/projects/regal/language-server) as you work on your policy. This means less
+is [directly in your editor](https://www.openpolicyagent.org/projects/regal/language-server) as you work on your policy. This means less
 time spent chasing down issues later, and a happier development experience.
 
 ## Configuration Options

@@ -16,6 +16,6 @@ tutorials:
 ---
 
 Swift-OPA is a Swift package for evaluating
-[OPA IR Plans](https://www.openpolicyagent.org/docs/latest/ir/) compiled from
+[OPA IR Plans](https://www.openpolicyagent.org/docs/ir) compiled from
 [Rego](https://www.openpolicyagent.org/docs/latest/policy-language/#what-is-rego)
 declarative policy.

@@ -25,7 +25,7 @@ _data_ files. If no reference is found, the rule will flag it as unresolved.
 Since unresolved imports may be perfectly valid — for example when an import points to data — this rule provides an
 option in its configuration to except certain paths from being checked. These paths may even contain a wildcard suffix
 to indicate that any path past the wildcard (e.g. `data.users.*`) should be ignored. It is also possible to use a
-regular [ignore directive](https://openpolicyagent.org/projects/regal#inline-ignore-directives):
+regular [ignore directive](https://www.openpolicyagent.org/projects/regal#inline-ignore-directives):
 
 ```rego
 package example

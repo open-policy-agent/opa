@@ -3,6 +3,9 @@ sidebar_position: 12
 sidebar_label: Go Integration
 ---
 
+<head>
+  <title>Go Integration | Regal</title>
+</head>
 
 # Go Integration
 

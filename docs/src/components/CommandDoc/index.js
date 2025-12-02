@@ -2,6 +2,7 @@ import { React, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 
 import { useThemeConfig } from "@docusaurus/theme-common";
+import Heading from "@theme/Heading";
 import ReactMarkdown from "react-markdown";
 import styles from "./styles.module.css";
 
@@ -57,12 +58,7 @@ const CommandDoc = ({ command }) => {
   return (
     <div>
       <div className={styles.commandHeader}>
-        <h2 id={id} className={styles.commandTitle}>
-          {id}
-          <a href={`#${id}`} className={styles.directLink} title={`Direct link to ${id}`}>
-            <span className={styles.directLinkSymbol}>#</span>
-          </a>
-        </h2>
+        <Heading id={id} as="h2">{id}</Heading>
       </div>
 
       {useline && (
