@@ -893,7 +893,7 @@ DataRbacTestUserHasRoleNegative                         235 ± 0%               
 
 This gives clear feedback that the evaluations have slowed down considerably by looking at the `delta`
 
-> Note that for [benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat?utm_source=godoc) you will want to run with `--count` to
+> Note that for [benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat) you will want to run with `--count` to
 > repeat the benchmarks a number of times (5-10 is usually enough). The tool requires several data points else the `p`
 > value will not show meaningful changes and the `delta` will be `~`.
 
