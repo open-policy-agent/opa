@@ -38,7 +38,7 @@ This tutorial requires:
 - Docker Engine 18.06.0-ce or newer
 - Docker API version 1.38 or newer
 - `root` or `sudo` access
-- Nginx, or any capable [bundle](https://www.openpolicyagent.org/docs/latest/management-bundles/) server
+- Nginx, or any capable [bundle](https://www.openpolicyagent.org/docs/management-bundles) server
 
 The tutorial has been tested on the following platforms:
 
@@ -69,7 +69,7 @@ the policy.
 
 ### 2. Create policy bundle and OPA configuration.
 
-For the purpose of this example, we are going to use [Nginx](https://www.openpolicyagent.org/docs/latest/management-bundles/#nginx)
+For the purpose of this example, we are going to use [Nginx](https://www.openpolicyagent.org/docs/management-bundles#nginx)
 to serve bundles from the same machine Docker is running on.
 
 With nginx running, simply build the policy bundle placed into the nginx web root directory.

@@ -160,8 +160,8 @@ On each Pull Request, a series of tests will be run to ensure that the code
 is up to standard. Part of this process is also to run vulnerability scanning
 on the code and on the generated container image.
 
-[Trivy](https://aquasecurity.github.io/trivy/) is used to run the aforementioned
-vulnerability scanning. To install, follow the [installation instructions](https://aquasecurity.github.io/trivy/v0.29.2/getting-started/installation/).
+[Trivy](http://trivy.dev/) is used to run the aforementioned
+vulnerability scanning. To install, follow the [installation instructions](http://trivy.dev/v0.29.2/getting-started/installation/).
 
 To run the vulnerability scanning, on the code-base, run the following command:
 

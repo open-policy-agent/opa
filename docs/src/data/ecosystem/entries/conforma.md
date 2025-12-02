@@ -1,20 +1,20 @@
 ---
-title: Enterprise Contract
+title: Conforma
 software:
-- enterprise-contract
+- conforma
 inventors:
-- enterprise-contract
+- conforma
 labels:
   category: security
   layer: application
 code:
-- https://github.com/enterprise-contract/ec-cli
+- https://github.com/conforma/cli
 blogs:
-- https://enterprisecontract.dev/posts/
+- https://conforma.dev/posts/
 docs_features:
   go-integration:
     note: |
-      The [Enterprise Contract](https://enterprisecontract.dev/) uses the OPA go
+      [Conforma](https://conforma.dev/) uses the OPA go
       library to process rego policies when validating the signatures and
       attestations of container images and other software artifacts.
 ---

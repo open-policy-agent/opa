@@ -1,6 +1,6 @@
 # OPA Community Guidelines v2.0
 
-The [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md) is enforced in all areas of the OPA community, plus the following.
+The [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md) is enforced in all areas of the OPA community, plus the following.
 
 ## Relevancy
 
