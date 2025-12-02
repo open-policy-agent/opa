@@ -10,6 +10,7 @@ import (
 )
 
 func TestOracleFindDefinitionErrors(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		note    string
 		buffer  string
@@ -80,6 +81,7 @@ p = 1`,
 
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
 			modules := map[string]*ast.Module{}
 			for k, v := range tc.modules {
 				var err error
@@ -106,6 +108,7 @@ p = 1`,
 }
 
 func TestOracleFindDefinition(t *testing.T) {
+	t.Parallel()
 	const aBufferModule = `package test
 
 import rego.v1
@@ -558,6 +561,7 @@ allow if bar.foo == "value"`,
 
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
 			modules := map[string]*ast.Module{}
 
 			for k, v := range tc.modules {
@@ -628,6 +632,7 @@ func showLocationContext(t *testing.T, modules map[string]string, loc *ast.Locat
 }
 
 func TestFindContainingNodeStack(t *testing.T) {
+	t.Parallel()
 	const trivial = `package test
 import rego.v1
 
@@ -682,6 +687,7 @@ q = true`
 }
 
 func TestCompileUptoNoModules(t *testing.T) {
+	t.Parallel()
 	compiler, module, err := New().compileUpto("SetRuleTree", nil, []byte("package test\np=1"), "test.rego")
 	if err != nil {
 		t.Fatal(err)
@@ -698,6 +704,7 @@ func TestCompileUptoNoModules(t *testing.T) {
 }
 
 func TestCompileUptoNoBuffer(t *testing.T) {
+	t.Parallel()
 	compiler, module, err := New().compileUpto("SetRuleTree", map[string]*ast.Module{
 		"test.rego": ast.MustParseModule("package test\np=1"),
 	}, nil, "test.rego")
@@ -716,6 +723,7 @@ func TestCompileUptoNoBuffer(t *testing.T) {
 }
 
 func TestCompileUptoBadStageName(t *testing.T) {
+	t.Parallel()
 	_, _, err := New().compileUpto("DEADBEEF", map[string]*ast.Module{
 		"test.rego": ast.MustParseModule("package test\np=1"),
 	}, nil, "test.rego")
@@ -726,6 +734,7 @@ func TestCompileUptoBadStageName(t *testing.T) {
 }
 
 func TestUsingCustomCompiler(t *testing.T) {
+	t.Parallel()
 	m := metrics.New()
 	o := New().WithCompiler(ast.NewCompiler().WithMetrics(m))
 	q := DefinitionQuery{Modules: map[string]*ast.Module{"test.rego": ast.MustParseModule("package test\np=1")}}
