@@ -140,6 +140,9 @@ const (
 type TriggerMode string
 
 const (
+	// TriggerImmediate represents uploading chunks when ready, flushed by the periodic polling mechanism
+	TriggerImmediate TriggerMode = "immediate"
+
 	// TriggerPeriodic represents periodic polling mechanism
 	TriggerPeriodic TriggerMode = "periodic"
 
@@ -272,10 +275,10 @@ func getWasmResolversOnContext(context *storage.Context) []*wasm.Resolver {
 
 func validateTriggerMode(mode TriggerMode) error {
 	switch mode {
-	case TriggerPeriodic, TriggerManual:
+	case TriggerPeriodic, TriggerManual, TriggerImmediate:
 		return nil
 	default:
-		return fmt.Errorf("invalid trigger mode %q (want %q or %q)", mode, TriggerPeriodic, TriggerManual)
+		return fmt.Errorf("invalid trigger mode %q (want %q, %q or %q)", mode, TriggerPeriodic, TriggerManual, TriggerImmediate)
 	}
 }
 

@@ -471,7 +471,7 @@ func TestParseConfigTriggerMode(t *testing.T) {
 			conf:        `{"b1":{"service": "s1", "trigger": "foo"}}`,
 			services:    []string{"s1"},
 			wantError:   true,
-			err:         errors.New("invalid configuration for bundle \"b1\": invalid trigger mode \"foo\" (want \"periodic\" or \"manual\")"),
+			err:         errors.New("invalid configuration for bundle \"b1\": invalid trigger mode \"foo\" (want \"periodic\", \"manual\" or \"immediate\")"),
 			triggerMode: nil,
 		},
 	}

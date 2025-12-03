@@ -6,6 +6,7 @@ package logs
 
 import (
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -19,6 +20,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/keys"
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/metrics"
+	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/plugins/rest"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 )
@@ -29,7 +31,7 @@ func TestEventBuffer_Push(t *testing.T) {
 	expectedIds := make(map[string]struct{})
 	var expectedDropped uint64
 	limit := int64(2)
-	b := newEventBuffer(limit, 0)
+	b := newEventBuffer(limit, 0, plugins.TriggerManual, rest.Client{}, "", nil)
 	b.WithMetrics(metrics.New())
 
 	id := "id1"
@@ -56,7 +58,7 @@ func TestEventBuffer_Push(t *testing.T) {
 
 	// Increase the limit, forcing the buffer to change
 	limit = int64(3)
-	b.Reconfigure(limit, 0, nil)
+	b.Reconfigure(limit, 0, nil, rest.Client{}, "", plugins.TriggerPeriodic)
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 
 	id = "id4"
@@ -73,7 +75,7 @@ func TestEventBuffer_Push(t *testing.T) {
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 
 	limit = int64(1)
-	b.Reconfigure(limit, 0, nil)
+	b.Reconfigure(limit, 0, nil, rest.Client{}, "", plugins.TriggerPeriodic)
 	// Limit reconfigured from 3->1, dropping 2 more events.
 	expectedDropped = 4
 	delete(expectedIds, "id3")
@@ -81,7 +83,7 @@ func TestEventBuffer_Push(t *testing.T) {
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 
 	// Nothing changed
-	b.Reconfigure(limit, 0, nil)
+	b.Reconfigure(limit, 0, nil, rest.Client{}, "", plugins.TriggerPeriodic)
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 }
 
@@ -107,6 +109,25 @@ func checkBufferState(t *testing.T, limit int64, b *eventBuffer, expectedDropped
 	}
 
 	b.buffer = newBuffer
+}
+
+func TestStopEventBufferLoop(t *testing.T) {
+	t.Parallel()
+
+	uploadPath := "/v1/test"
+	client, ts := setupTestServer(t, uploadPath, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	defer ts.Close()
+	resetTimer := make(chan struct{})
+	e := newEventBuffer(100, 100, plugins.TriggerImmediate, client, uploadPath, resetTimer).WithLogger(logging.NewNoOpLogger())
+	e.Stop()
+	e = newEventBuffer(100, 100, plugins.TriggerImmediate, rest.Client{}, uploadPath, resetTimer).WithLogger(logging.NewNoOpLogger())
+	e.Push(newTestEvent(t, strconv.Itoa(100), false))
+	if err := e.Upload(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	e.Stop()
 }
 
 func TestEventBuffer_Upload(t *testing.T) {
@@ -162,22 +183,25 @@ func TestEventBuffer_Upload(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			client, ts := setupTestServer(t, uploadPath, tc.handleFunc)
-			defer ts.Close()
-			e := newEventBuffer(tc.eventLimit, tc.uploadSizeLimitBytes).WithLogger(logging.NewNoOpLogger())
-			e.WithMetrics(metrics.New())
-			for i := range tc.numberOfEvents {
-				e.Push(newTestEvent(t, strconv.Itoa(i), true))
-			}
-
-			err := e.Upload(t.Context(), client, uploadPath)
-			if err != nil {
-				if tc.expectedError == "" || tc.expectedError != "" && err.Error() != tc.expectedError {
-					t.Fatal(err)
+		for _, mode := range []plugins.TriggerMode{plugins.TriggerPeriodic, plugins.TriggerImmediate} {
+			t.Run(tc.name+"_"+string(mode), func(t *testing.T) {
+				client, ts := setupTestServer(t, uploadPath, tc.handleFunc)
+				defer ts.Close()
+				resetTimer := make(chan struct{})
+				e := newEventBuffer(tc.eventLimit, tc.uploadSizeLimitBytes, mode, client, uploadPath, resetTimer).WithLogger(logging.NewNoOpLogger())
+				e.WithMetrics(metrics.New())
+				for i := range tc.numberOfEvents {
+					e.Push(newTestEvent(t, strconv.Itoa(i), true))
 				}
-			}
-		})
+
+				err := e.Upload(t.Context())
+				if err != nil {
+					if tc.expectedError == "" || tc.expectedError != "" && err.Error() != tc.expectedError {
+						t.Fatal(err)
+					}
+				}
+			})
+		}
 	}
 }
 
