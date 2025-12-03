@@ -25,21 +25,15 @@ cases:
 
         a := $"\{42}"
         b := $"foo \{42} bar"
-        c := $"foo \{42\}"
-        d := $"foo \{42\} bar"
-        e := $"foo \{42} bar \{43} baz"
-        f := $"\{{42}"
-        g := $"{42}\}"
+        c := $"foo \{42} bar \{43} baz"
+        d := $"\{{42}"
     query: data.test = x
     want_result:
       - x:
           a: "{42}"
           b: "foo {42} bar"
-          c: "foo {42}"
-          d: "foo {42} bar"
-          e: "foo {42} bar {43} baz"
-          f: "{42"
-          g: "42}"
+          c: "foo {42} bar {43} baz"
+          d: "{42"
   - note: string-interpolation/template expressions with primitive values
     modules:
       - |

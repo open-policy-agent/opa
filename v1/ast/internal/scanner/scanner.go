@@ -457,7 +457,7 @@ func (s *Scanner) scanTemplateString() (string, tokens.Token) {
 			switch s.curr {
 			case '\\', '"', '/', 'b', 'f', 'n', 'r', 't':
 				s.next()
-			case '{', '}':
+			case '{':
 				escapes = append(escapes, s.offset-1)
 				s.next()
 			case 'u':
@@ -504,7 +504,7 @@ func (s *Scanner) scanRawTemplateString() (string, tokens.Token) {
 
 		if ch == '\\' {
 			switch s.curr {
-			case '{', '}':
+			case '{':
 				escapes = append(escapes, s.offset-1)
 				s.next()
 			}
