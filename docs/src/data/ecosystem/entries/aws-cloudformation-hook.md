@@ -10,7 +10,7 @@ tutorials:
 code:
 - https://github.com/StyraInc/opa-aws-cloudformation-hook
 blogs:
-- https://www.styra.com/blog/the-opa-aws-cloudformation-hook
+- https://www.styra.com/blog/the-opa-aws-cloudformation-hook/
 inventors:
 - styra
 docs_features:

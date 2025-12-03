@@ -23,7 +23,6 @@ import (
 )
 
 func TestOutputVarsForNode(t *testing.T) {
-
 	tests := []struct {
 		note      string
 		query     string
@@ -250,7 +249,7 @@ func TestOutputVarsForNode(t *testing.T) {
 
 			vs := NewSet()
 
-			for v := range outputVarsForBody(body, arity, safe) {
+			for v := range outputVarsForBody(body, arity, safe, nil) {
 				vs.Add(NewTerm(v))
 			}
 

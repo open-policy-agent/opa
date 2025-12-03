@@ -9,7 +9,7 @@ This document describes options for replicating data into OPA. The content of th
 
 ## Option 1: JWT Tokens
 
-[JSON Web Tokens (JWTs)](https://tools.ietf.org/html/rfc7519) allow you to securely transmit JSON data between software systems and are usually produced during the authentication process. You can set up authentication so that when the user logs in you create a JWT with that user's attributes (or any other data as far as OPA is concerned). Then you hand that JWT to OPA and use OPA's specialized support for JWTs to extract the information you need to make a policy decision.
+[JSON Web Tokens (JWTs)](https://datatracker.ietf.org/doc/html/rfc7519) allow you to securely transmit JSON data between software systems and are usually produced during the authentication process. You can set up authentication so that when the user logs in you create a JWT with that user's attributes (or any other data as far as OPA is concerned). Then you hand that JWT to OPA and use OPA's specialized support for JWTs to extract the information you need to make a policy decision.
 
 ### Flow
 

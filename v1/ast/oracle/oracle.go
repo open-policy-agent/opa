@@ -303,22 +303,10 @@ func halted(c *ast.Compiler) error {
 }
 
 func walkToFirstOccurrence(node ast.Node, needle ast.Var) (match *ast.Term) {
-	ast.WalkNodes(node, func(x ast.Node) bool {
+	ast.WalkTerms(node, func(x *ast.Term) bool {
 		if match == nil {
-			switch x := x.(type) {
-			case *ast.SomeDecl:
-				// NOTE(tsandall): The visitor doesn't traverse into some decl terms
-				// so special case here.
-				for i := range x.Symbols {
-					if x.Symbols[i].Value.Compare(needle) == 0 {
-						match = x.Symbols[i]
-						break
-					}
-				}
-			case *ast.Term:
-				if x.Value.Compare(needle) == 0 {
-					match = x
-				}
+			if x.Value.Compare(needle) == 0 {
+				match = x
 			}
 		}
 		return match != nil
@@ -331,7 +319,6 @@ func findContainingNodeStack(module *ast.Module, pos int) []ast.Node {
 
 	ast.WalkNodes(module, func(x ast.Node) bool {
 		minLoc, maxLoc := getLocMinMax(x)
-
 		if pos < minLoc || pos >= maxLoc {
 			return true
 		}

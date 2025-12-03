@@ -11,7 +11,7 @@ labels:
 code:
 - https://github.com/kubeshield/bpf-opa-demo
 blogs:
-- https://blog.byte.builders/post/bpf-opa/
+- https://appscode.com/blog/post/bpf-opa/
 docs_features:
   kubernetes:
     note: |

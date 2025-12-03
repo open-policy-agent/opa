@@ -7,7 +7,7 @@ labels:
 software:
 - java
 code:
-- https://github.com/StyraInc/opa-java
+- https://github.com/open-policy-agent/opa-java
 - https://central.sonatype.com/artifact/com.styra/opa
 tutorials:
 - https://open-policy-agent.github.io/opa-java/javadoc/

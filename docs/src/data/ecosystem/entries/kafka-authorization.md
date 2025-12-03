@@ -7,9 +7,9 @@ labels:
   category: streaming
   layer: data
 blogs:
-- https://opencredo.com/blogs/controlling-kafka-data-flows-using-open-policy-agent/
+- https://www.opencredo.com/blogs/controlling-kafka-data-flows-using-open-policy-agent
 tutorials:
-- https://www.openpolicyagent.org/docs/latest/kafka-authorization/
+- https://www.openpolicyagent.org/docs/kafka-authorization
 code:
 - https://github.com/StyraInc/opa-kafka-plugin
 - https://github.com/llofberg/kafka-authorizer-opa

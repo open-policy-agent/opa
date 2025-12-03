@@ -42,7 +42,7 @@ This tutorial requires
 - [OPA](https://github.com/open-policy-agent/opa/releases)
 
 (This tutorial _should_ also work with the
-[latest version of Terraform](https://www.terraform.io/downloads.html), but
+[latest version of Terraform](https://developer.hashicorp.com/terraform), but
 it is untested. Contributions welcome!)
 
 # Getting Started
@@ -51,7 +51,7 @@ it is untested. Contributions welcome!)
 
 ### 1. Create and save a Terraform plan
 
-Create a [Terraform](https://www.terraform.io/docs/index.html) file that includes an
+Create a [Terraform](https://developer.hashicorp.com/terraform/docs) file that includes an
 auto-scaling group and a server on AWS.
 (You will need to modify the `shared_credentials_file` to point to your AWS credentials.)
 
@@ -92,7 +92,7 @@ terraform plan --out tfplan.binary
 
 ### 2. Convert the Terraform plan into JSON
 
-Use the command [terraform show](https://www.terraform.io/docs/commands/show.html) to convert the Terraform plan into
+Use the command [terraform show](https://developer.hashicorp.com/terraform/cli/commands/show) to convert the Terraform plan into
 JSON so that OPA can read the plan.
 
 ```shell
