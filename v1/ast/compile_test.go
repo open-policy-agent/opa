@@ -10823,6 +10823,13 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 			builtins: []string{"assign", "eq"},
 			features: []string{"rego_v1"}, // rego_v1 includes rule_head_refs
 		},
+		{
+			note: "template-string",
+			module: `package test
+				p := $"foo {42}"`,
+			builtins: []string{"internal.template_string"},
+			features: []string{FeatureRegoV1, FeatureTemplateStrings},
+		},
 	}
 
 	for _, tc := range tests {
@@ -11827,6 +11834,20 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 				p if { true }`,
 			features: []string{
 				FeatureRegoV1,
+			},
+		},
+		{
+			note: "no features, template-string",
+			module: `package test
+				p := $"foo {42}"`,
+			expectedErr: "rego_compile_error: template-strings are not supported",
+		},
+		{
+			note: "template-string feature, template-string",
+			module: `package test
+				p := $"foo {42}"`,
+			features: []string{
+				FeatureTemplateStrings,
 			},
 		},
 	}

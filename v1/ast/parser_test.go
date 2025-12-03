@@ -8737,5 +8737,61 @@ func TestTemplateStringError(t *testing.T) {
 	}
 }
 
-// TODO: Test string interpolation
-// TODO: Test multi-line expression inside single-line template string. Should we allow this?
+func TestTemplateStringCapabilities(t *testing.T) {
+	tests := []struct {
+		note   string
+		caps   *Capabilities
+		expErr string
+	}{
+		{
+			note: "default capabilities",
+		},
+		{
+			note:   "v0 capabilities",
+			caps:   CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV0)),
+			expErr: `rego_parse_error: template strings are not supported by current capabilities`,
+		},
+		{
+			note: "v1 capabilities",
+			caps: CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV1)),
+		},
+		{
+			note:   "v1 capabilities, missing feature",
+			caps:   removeCapabilityFeature(CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV1)), FeatureTemplateStrings),
+			expErr: `rego_parse_error: template strings are not supported by current capabilities`,
+		},
+	}
+
+	expr := `$"foo {bar} baz"`
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			_, _, err := ParseStatementsWithOpts("", expr, ParserOptions{Capabilities: tc.caps})
+
+			if tc.expErr != "" {
+				if err == nil {
+					t.Fatalf("Expected error, got nil")
+				}
+
+				if !strings.Contains(err.Error(), tc.expErr) {
+					t.Fatalf("Expected error to contain %q, but got: %v", tc.expErr, err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func removeCapabilityFeature(caps *Capabilities, feat string) *Capabilities {
+	feats := make([]string, 0, len(caps.Features)-1)
+	for _, f := range caps.Features {
+		if feat != f {
+			feats = append(feats, f)
+		}
+	}
+	caps.Features = feats
+	return caps
+}

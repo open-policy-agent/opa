@@ -1052,11 +1052,16 @@ func (c *Compiler) buildRequiredCapabilities() {
 		}
 	}
 
-	c.Required.Features = util.KeysSorted(features)
-
 	for i, bi := range c.Required.Builtins {
 		c.Required.Builtins[i] = bi.Minimal()
+
+		// FIXME: Do we need to declare the template-string feature in the compiler, or is it enough to just require the built-in?
+		if bi.Name == InternalTemplateString.Name {
+			features[FeatureTemplateStrings] = struct{}{}
+		}
 	}
+
+	c.Required.Features = util.KeysSorted(features)
 }
 
 // checkRecursion ensures that there are no recursive definitions, i.e., there are
@@ -2055,9 +2060,6 @@ func (c *Compiler) checkVoidCalls() {
 	}
 }
 
-// TODO: Refactor to use sprintf built-in instead of internal.template_string for supporting existing plan evaluators (Wasm, swift-opa)
-// Note: Consider supporting two modes, one using optimized built-in, and one using sprintf for unsupported compilation targets (e.g. wasm, plan)
-
 // rewriteTemplateStrings rewrites template-string calls as they appear in bodies; e.g. rules, comprehensions, etc.
 func (c *Compiler) rewriteTemplateStrings() {
 	modified := false
@@ -2067,7 +2069,7 @@ func (c *Compiler) rewriteTemplateStrings() {
 			safe := r.Head.Args.Vars()
 			safe.Update(ReservedVars)
 
-			modrec, safe, errs := rewriteTemplateStrings(c.localvargen, c.GetArity, safe, r.Body)
+			modrec, safe, errs := rewriteTemplateStrings(c.capabilities, c.localvargen, c.GetArity, safe, r.Body)
 			if modrec {
 				modified = true
 			}
@@ -2075,7 +2077,7 @@ func (c *Compiler) rewriteTemplateStrings() {
 				c.err(err)
 			}
 
-			modrec, _, errs = rewriteTemplateStrings(c.localvargen, c.GetArity, safe, r.Head)
+			modrec, _, errs = rewriteTemplateStrings(c.capabilities, c.localvargen, c.GetArity, safe, r.Head)
 			if modrec {
 				modified = true
 			}
@@ -2091,7 +2093,7 @@ func (c *Compiler) rewriteTemplateStrings() {
 	}
 }
 
-func rewriteTemplateStrings(gen *localVarGenerator, getArity func(Ref) int, globals VarSet, x any) (bool, VarSet, Errors) {
+func rewriteTemplateStrings(caps *Capabilities, gen *localVarGenerator, getArity func(Ref) int, globals VarSet, x any) (bool, VarSet, Errors) {
 	var errs Errors
 	var modified bool
 
@@ -2110,47 +2112,47 @@ func rewriteTemplateStrings(gen *localVarGenerator, getArity func(Ref) int, glob
 		switch x := x.(type) {
 		case *Term:
 			if _, ok := x.Value.(*TemplateString); ok {
-				modrec, errsrec = rewriteTemplateStringTerm(gen, safe, x)
+				modrec, errsrec = rewriteTemplateStringTerm(caps, gen, safe, x)
 			}
 		case *SetComprehension:
 			var s VarSet
-			modrec, s, errsrec = rewriteTemplateStrings(gen, getArity, safe, x.Body)
+			modrec, s, errsrec = rewriteTemplateStrings(caps, gen, getArity, safe, x.Body)
 			if modrec {
 				modified = true
 			}
 			errs = append(errs, errsrec...)
 			errsrec = Errors{}
 
-			modrec, errsrec = rewriteTemplateStringTerm(gen, s, x.Term)
+			modrec, errsrec = rewriteTemplateStringTerm(caps, gen, s, x.Term)
 		case *ArrayComprehension:
 			var s VarSet
-			modrec, s, errsrec = rewriteTemplateStrings(gen, getArity, safe, x.Body)
+			modrec, s, errsrec = rewriteTemplateStrings(caps, gen, getArity, safe, x.Body)
 			if modrec {
 				modified = true
 			}
 			errs = append(errs, errsrec...)
 			errsrec = Errors{}
 
-			modrec, errsrec = rewriteTemplateStringTerm(gen, s, x.Term)
+			modrec, errsrec = rewriteTemplateStringTerm(caps, gen, s, x.Term)
 		case *ObjectComprehension:
 			var s VarSet
-			modrec, s, errsrec = rewriteTemplateStrings(gen, getArity, safe, x.Body)
+			modrec, s, errsrec = rewriteTemplateStrings(caps, gen, getArity, safe, x.Body)
 			if modrec {
 				modified = true
 			}
 			errs = append(errs, errsrec...)
 			errsrec = Errors{}
 
-			modrec, errsrec = rewriteTemplateStringTerm(gen, s, x.Key)
+			modrec, errsrec = rewriteTemplateStringTerm(caps, gen, s, x.Key)
 			if modrec {
 				modified = true
 			}
 			errs = append(errs, errsrec...)
 			errsrec = Errors{}
 
-			modrec, errsrec = rewriteTemplateStringTerm(gen, s, x.Value)
+			modrec, errsrec = rewriteTemplateStringTerm(caps, gen, s, x.Value)
 		case *Every:
-			modrec, errsrec = rewriteTemplateStringTerm(gen, safe, x.Domain)
+			modrec, errsrec = rewriteTemplateStringTerm(caps, gen, safe, x.Domain)
 			if modrec {
 				modified = true
 			}
@@ -2159,7 +2161,7 @@ func rewriteTemplateStrings(gen *localVarGenerator, getArity func(Ref) int, glob
 
 			s := safe.Copy()
 			s.Update(x.KeyValueVars())
-			modrec, _, errsrec = rewriteTemplateStrings(gen, getArity, s, x.Body)
+			modrec, _, errsrec = rewriteTemplateStrings(caps, gen, getArity, s, x.Body)
 		}
 		if modrec {
 			modified = true
@@ -2172,9 +2174,9 @@ func rewriteTemplateStrings(gen *localVarGenerator, getArity func(Ref) int, glob
 	return modified, safe, errs
 }
 
-func rewriteTemplateStringTerm(gen *localVarGenerator, globals VarSet, t *Term) (bool, Errors) {
+func rewriteTemplateStringTerm(caps *Capabilities, gen *localVarGenerator, globals VarSet, t *Term) (bool, Errors) {
 	if ts, ok := t.Value.(*TemplateString); ok {
-		call, errs := rewriteTemplateString(gen, globals, t.Loc(), ts)
+		call, errs := rewriteTemplateString(caps, gen, globals, t.Loc(), ts)
 		if len(errs) != 0 {
 			return false, errs
 		}
@@ -2184,7 +2186,11 @@ func rewriteTemplateStringTerm(gen *localVarGenerator, globals VarSet, t *Term) 
 	return false, nil
 }
 
-func rewriteTemplateString(gen *localVarGenerator, safe VarSet, loc *Location, ts *TemplateString) (Call, Errors) {
+func rewriteTemplateString(caps *Capabilities, gen *localVarGenerator, safe VarSet, loc *Location, ts *TemplateString) (Call, Errors) {
+	if !caps.ContainsFeature(FeatureTemplateStrings) {
+		return nil, Errors{NewError(CompileErr, loc, "template-strings are not supported")}
+	}
+
 	var errs Errors
 	terms := make([]*Term, 0, len(ts.Parts))
 
@@ -3335,7 +3341,7 @@ func (qc *queryCompiler) rewriteLocalVars(_ *QueryContext, body Body) (Body, err
 
 func (qc *queryCompiler) rewriteTemplateStrings(_ *QueryContext, body Body) (Body, error) {
 	gen := newLocalVarGenerator("q", body)
-	if _, _, errs := rewriteTemplateStrings(gen, qc.compiler.GetArity, ReservedVars, body); len(errs) > 0 {
+	if _, _, errs := rewriteTemplateStrings(qc.compiler.capabilities, gen, qc.compiler.GetArity, ReservedVars, body); len(errs) > 0 {
 		return nil, errs
 	}
 	return body, nil

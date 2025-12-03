@@ -1908,6 +1908,11 @@ func (p *Parser) parseRawString() *Term {
 }
 
 func (p *Parser) parseTemplateString(multiLine bool) *Term {
+	if !p.po.Capabilities.ContainsFeature(FeatureTemplateStrings) {
+		p.errorf(p.s.Loc(), "template strings are not supported by current capabilities")
+		return nil
+	}
+
 	var parts []Node
 
 	for {

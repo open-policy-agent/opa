@@ -58,12 +58,14 @@ const FeatureRefHeads = "rule_head_refs"
 const FeatureRegoV1 = "rego_v1"
 const FeatureRegoV1Import = "rego_v1_import"
 const FeatureKeywordsInRefs = "keywords_in_refs"
+const FeatureTemplateStrings = "template_strings"
 
 // Features carries the default features supported by this version of OPA.
 // Use RegisterFeatures to add to them.
 var Features = []string{
 	FeatureRegoV1,
 	FeatureKeywordsInRefs,
+	FeatureTemplateStrings,
 }
 
 // RegisterFeatures lets applications wrapping OPA register features, to be
