@@ -121,7 +121,7 @@ When OPA is configured with metrics enabled, `http.send` operations expose the f
 | Metric | Description |
 | ------ | ----------- |
 | `timer_rego_builtin_http_send_ns` | Total time spent in `http.send` calls during query evaluation |
-| `counter_rego_builtin_http_send_interquery_cache_hits` | Number of inter-query cache hits for `http.send` requests |
-| `counter_rego_builtin_http_send_network_requests` | Number of actual network requests made by `http.send` |
+| `counter_rego_builtin_http_send_interquery_cache_hits` | Number of inter-query cache hits for `http.send` requests. Only appears when [inter-query caching is enabled](/docs/configuration/#caching) in OPA's configuration |
+| `counter_rego_builtin_http_send_network_requests` | Number of actual network requests made by `http.send` (excluding cached requests) |
 
 High cache hit ratios indicate effective caching and reduced network overhead. These metrics help identify I/O bottlenecks in policies that make external HTTP requests.

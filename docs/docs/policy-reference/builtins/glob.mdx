@@ -34,6 +34,6 @@ When OPA is configured with metrics enabled, `glob.match` operations expose the 
 
 | Metric | Description |
 | ------ | ----------- |
-| `counter_rego_builtin_glob_interquery_value_cache_hits` | Number of inter-query cache hits for compiled glob patterns |
+| `counter_rego_builtin_glob_interquery_value_cache_hits` | Number of inter-query cache hits for compiled glob patterns. Only appears when [inter-query caching is enabled](/docs/configuration/#caching) in OPA's configuration and the same glob pattern is compiled and reused multiple times |
 
 Effective glob pattern caching improves performance when the same patterns are used repeatedly across queries. High cache hit ratios indicate that glob compilation overhead is being minimized through caching.

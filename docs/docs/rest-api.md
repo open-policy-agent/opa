@@ -2336,9 +2336,11 @@ instrumentation off unless you are debugging a performance problem.
 When query instrumentation is enabled (`instrument=true`), the following additional detailed evaluation metrics are included:
 - **timer_eval_op_***: Various evaluation operation timers (e.g., `timer_eval_op_plug_ns`, `timer_eval_op_resolve_ns`)
 - **histogram_eval_op_***: Histograms tracking evaluation operation time distributions
+- **timer_compile_stage_*_ns**: Compilation stage timers for the query and module compilation stages
+
+Note that the following built-in metrics are available with `metrics=true` and do not require `instrument=true`:
 - **timer_rego_builtin_***: Built-in function execution times
 - **counter_rego_builtin_***: Built-in function call counts and cache hits
-- **timer_compile_stage_*_ns**: Compilation stage timers for the query and module compilation stages
 
 ## Provenance
 
