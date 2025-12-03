@@ -58,4 +58,4 @@ Please reach out to one of the admins below:
 
 - Anders Eknert (a_eknert@apple.com or @anderseknert)
 - Torin Sandall (torinsandall@gmail.com or @tsandall)
-- Amye Scavarda Parrin (amye@linuxfoundation.org)
+- Jorge Castro (CNCF Slack)
