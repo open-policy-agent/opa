@@ -28,7 +28,7 @@ cases:
     modules:
       - |
         package test
-        
+
         p if {
           false
         }
@@ -40,7 +40,7 @@ cases:
     modules:
       - |
         package test
-        
+
         p if {
           true
         }

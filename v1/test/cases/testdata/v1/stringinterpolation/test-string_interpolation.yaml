@@ -57,7 +57,7 @@ cases:
     modules:
       - |
         package test
-        
+
         a := ["a", "b", "c"]
 
         p := $"{[x | some x in a]}"
@@ -68,7 +68,7 @@ cases:
     modules:
       - |
         package test
-        
+
         a := ["a"]
 
         # no multi-value sets, as order can't be guaranteed
@@ -80,7 +80,7 @@ cases:
     modules:
       - |
         package test
-        
+
         # no multi-value maps, as order can't be guaranteed
         a := ["a"]
 
@@ -180,8 +180,8 @@ cases:
     query: data.test.p = x
     want_result:
       - x:
-        - "<foo>"
-        - "<bar>"
+          - "<foo>"
+          - "<bar>"
   - note: string-interpolation/inside set comprehension
     modules:
       - |
@@ -194,7 +194,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x:
-        - "<foo>"
+          - "<foo>"
   - note: string-interpolation/inside map comprehension
     modules:
       - |
@@ -225,6 +225,7 @@ cases:
     modules:
       - |
         package test
+
         p if {
           every i, x in input.l1 {
             input.l2[i] == $"<{x}>"
@@ -246,7 +247,7 @@ cases:
     modules:
       - |
         package test
-        
+
         a := input.a
 
         p := x if {
@@ -259,12 +260,12 @@ cases:
     modules:
       - |
         package test
-        
+
         a := input.a
         b := input.b
 
         p := x if {
-          x := $"foo {a} {b}" 
+          x := $"foo {a} {b}"
             with input.a as 42
             with input.b as "bar"
         }
@@ -275,12 +276,12 @@ cases:
     modules:
       - |
         package test
-        
+
         a := input.a
         b := input.b
 
         p := x if {
-          x := $"foo {a} {b}" 
+          x := $"foo {a} {b}"
             with input as {"a" : 42}
             with input as {"b" : "bar"} # overrides above 'with', dropping the 'a' field
         }

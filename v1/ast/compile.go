@@ -2133,7 +2133,7 @@ func rewriteTemplateStrings(caps *Capabilities, gen *localVarGenerator, getArity
 	// All output vars in the current body are safe, recursively
 	var safe VarSet
 	if b, ok := x.(Body); ok {
-		safe = outputVarsForBody(b, getArity, globals)
+		safe = outputVarsForBody(b, getArity, globals, nil)
 		safe.Update(globals)
 	} else {
 		safe = globals.Copy()
