@@ -157,9 +157,17 @@ func (p *Plugin) Reconfigure(ctx context.Context, config any) {
 
 	// Look for any bundles that have had their config changed, are new, or have been removed
 	newConfig := config.(*Config)
+
+	for name, source := range newConfig.Bundles {
+		err := source.ValidateAndInjectDefaults()
+		if err != nil {
+			p.log(name).Error("Failed to validate bundle configuration: %s", err)
+			p.cfgMtx.Unlock()
+			return
+		}
+	}
 	newBundles, updatedBundles, deletedBundles := p.configDelta(newConfig)
 	p.config = *newConfig
-
 	p.cfgMtx.Unlock()
 
 	if len(updatedBundles) == 0 && len(newBundles) == 0 && len(deletedBundles) == 0 {

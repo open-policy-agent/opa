@@ -26,6 +26,11 @@ func newSink(name string, hint int, c Cancel) sinkWriter {
 	if hint > 0 {
 		b.Grow(hint)
 	}
+
+	if c == nil {
+		return b
+	}
+
 	return &sinkW{
 		cancel: c,
 		buf:    b,
@@ -43,21 +48,21 @@ func (sw *sinkW) Grow(n int) {
 }
 
 func (sw *sinkW) Write(bs []byte) (int, error) {
-	if sw.cancel != nil && sw.cancel.Cancelled() {
+	if sw.cancel.Cancelled() {
 		return 0, sw.err
 	}
 	return sw.buf.Write(bs)
 }
 
 func (sw *sinkW) WriteByte(b byte) error {
-	if sw.cancel != nil && sw.cancel.Cancelled() {
+	if sw.cancel.Cancelled() {
 		return sw.err
 	}
 	return sw.buf.WriteByte(b)
 }
 
 func (sw *sinkW) WriteString(s string) (int, error) {
-	if sw.cancel != nil && sw.cancel.Cancelled() {
+	if sw.cancel.Cancelled() {
 		return 0, sw.err
 	}
 	return sw.buf.WriteString(s)
