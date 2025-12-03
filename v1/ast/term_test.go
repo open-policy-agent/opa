@@ -1396,7 +1396,8 @@ func TestJSONMarshalling(t *testing.T) {
             }
           ]
         }
-      ]
+      ],
+      "multi_line": false
     }
   }
 }`,

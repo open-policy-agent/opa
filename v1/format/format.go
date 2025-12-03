@@ -1284,6 +1284,11 @@ func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Co
 			}
 
 		}
+	case *ast.TemplateString:
+		comments, err = w.writeTemplateString(x, comments)
+		if err != nil {
+			return nil, err
+		}
 	case ast.Var:
 		w.write(w.formatVar(x))
 	case ast.Call:
@@ -1298,6 +1303,86 @@ func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Co
 	if !w.inline {
 		w.startLine()
 	}
+	return comments, nil
+}
+
+func (w *writer) writeTemplateString(ts *ast.TemplateString, comments []*ast.Comment) ([]*ast.Comment, error) {
+	w.write("$")
+	if ts.MultiLine {
+		w.write("`")
+	} else {
+		w.write("\"")
+	}
+
+	for i, p := range ts.Parts {
+		switch x := p.(type) {
+		case *ast.Expr:
+			w.write("{")
+			w.up()
+
+			if w.beforeEnd != nil {
+				// We have a comment on the same line as the opening template-expression brace '{'
+				w.endLine()
+				w.startLine()
+			} else {
+				// We might have comments to write; the first of which should be on the same line as the opening template-expression brace '{'
+				before, _, _ := partitionComments(comments, x.Location)
+				if len(before) > 0 {
+					w.write(" ")
+					w.inline = true
+					if err := w.writeComments(before); err != nil {
+						return nil, err
+					}
+
+					comments = comments[len(before):]
+				}
+			}
+
+			var err error
+			comments, err = w.writeExpr(x, comments)
+			if err != nil {
+				return comments, err
+			}
+
+			// write trailing comments
+			if i+1 < len(ts.Parts) {
+				before, _, _ := partitionComments(comments, ts.Parts[i+1].Loc())
+				if len(before) > 0 {
+					w.endLine()
+					if err := w.writeComments(before); err != nil {
+						return nil, err
+					}
+
+					comments = comments[len(before):]
+					w.startLine()
+				}
+			}
+
+			w.write("}")
+
+			if err := w.down(); err != nil {
+				return nil, err
+			}
+		case *ast.Term:
+			if s, ok := x.Value.(ast.String); ok {
+				w.write(string(s))
+			} else {
+				s := x.String()
+				s = strings.TrimPrefix(s, "\"")
+				s = strings.TrimSuffix(s, "\"")
+				w.write(s)
+			}
+		default:
+			w.write("<invalid>")
+		}
+	}
+
+	if ts.MultiLine {
+		w.write("`")
+	} else {
+		w.write("\"")
+	}
+
 	return comments, nil
 }
 
@@ -1931,7 +2016,7 @@ func partitionComments(comments []*ast.Comment, l *ast.Location) ([]*ast.Comment
 	var at *ast.Comment
 
 	before := make([]*ast.Comment, 0, numBefore)
-	after := comments[0 : 0 : len(comments)-numBefore]
+	after := make([]*ast.Comment, 0, numAfter)
 
 	for _, c := range comments {
 		switch cmp := c.Location.Row - l.Row; {

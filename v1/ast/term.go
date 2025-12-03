@@ -819,46 +819,19 @@ func (str String) Hash() int {
 }
 
 type TemplateString struct {
-	Parts []Node `json:"parts"`
-}
-
-func (ts *TemplateString) Template() string {
-	template := strings.Builder{}
-
-	for _, n := range ts.Parts {
-		if _, ok := n.(*Expr); ok {
-			template.WriteString("%s")
-			continue
-		}
-
-		if t, ok := n.(*Term); ok {
-			if s, ok := t.Value.(String); ok {
-				template.WriteString(strings.ReplaceAll(string(s), "%", "%%"))
-				continue
-			}
-		}
-
-		// FIXME: panic?
-		template.WriteString("<invalid>")
-	}
-
-	return template.String()
-}
-
-func (ts *TemplateString) Expressions() []*Expr {
-	var exprs []*Expr
-
-	for _, p := range ts.Parts {
-		if expr, ok := p.(*Expr); ok {
-			exprs = append(exprs, expr)
-		}
-	}
-
-	return exprs
+	Parts     []Node `json:"parts"`
+	MultiLine bool   `json:"multi_line"`
 }
 
 func (ts *TemplateString) Compare(other Value) int {
 	if ots, ok := other.(*TemplateString); ok {
+		if ts.MultiLine != ots.MultiLine {
+			if !ts.MultiLine {
+				return -1
+			}
+			return 1
+		}
+
 		if len(ts.Parts) != len(ots.Parts) {
 			return len(ts.Parts) - len(ots.Parts)
 		}
@@ -924,8 +897,8 @@ func (ts *TemplateString) String() string {
 	return str.String()
 }
 
-func TemplateStringTerm(parts ...Node) *Term {
-	return &Term{Value: &TemplateString{Parts: parts}}
+func TemplateStringTerm(multiLine bool, parts ...Node) *Term {
+	return &Term{Value: &TemplateString{MultiLine: multiLine, Parts: parts}}
 }
 
 // Var represents a variable as defined by the language.

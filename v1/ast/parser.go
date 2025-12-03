@@ -1907,7 +1907,7 @@ func (p *Parser) parseRawString() *Term {
 	return StringTerm(p.s.lit[1 : len(p.s.lit)-1]).SetLocation(p.s.Loc())
 }
 
-func (p *Parser) parseTemplateString(raw bool) *Term {
+func (p *Parser) parseTemplateString(multiLine bool) *Term {
 	var parts []Node
 
 	for {
@@ -1915,7 +1915,7 @@ func (p *Parser) parseTemplateString(raw bool) *Term {
 			p.s.tok == tokens.TemplateStringPart || p.s.tok == tokens.RawTemplateStringPart {
 			// Don't add empty strings
 			if s := p.s.lit[1 : len(p.s.lit)-1]; s != "" {
-				parts = append(parts, StringTerm(s))
+				parts = append(parts, StringTerm(s).SetLocation(p.s.Loc()))
 			}
 
 			if p.s.tok == tokens.TemplateStringEnd || p.s.tok == tokens.RawTemplateStringEnd {
@@ -1926,7 +1926,9 @@ func (p *Parser) parseTemplateString(raw bool) *Term {
 			return nil
 		}
 
+		numCommentsBefore := len(p.s.comments)
 		p.scan()
+		numCommentsAfter := len(p.s.comments)
 
 		expr := p.parseTemplateExpr()
 		if expr == nil {
@@ -1962,7 +1964,7 @@ func (p *Parser) parseTemplateString(raw bool) *Term {
 
 		// FIXME: Can we optimize for collections and comprehensions too? To qualify, they must not contain refs or calls.
 		var isPrimitive bool
-		if term, ok := expr.Terms.(*Term); ok {
+		if term, ok := expr.Terms.(*Term); ok && numCommentsAfter == numCommentsBefore {
 			switch term.Value.(type) {
 			case String, Number, Boolean, Null:
 				isPrimitive = true
@@ -1979,10 +1981,10 @@ func (p *Parser) parseTemplateString(raw bool) *Term {
 			return nil
 		}
 
-		p.scanWS(scanner.ContinueTemplateString(raw))
+		p.scanWS(scanner.ContinueTemplateString(multiLine))
 	}
 
-	return TemplateStringTerm(parts...)
+	return TemplateStringTerm(multiLine, parts...)
 }
 
 func (p *Parser) parseTemplateExpr() *Expr {

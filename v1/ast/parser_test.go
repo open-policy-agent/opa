@@ -8457,14 +8457,14 @@ func TestTemplateString(t *testing.T) {
 			note: "simple template string",
 			expr: `$"foo"`,
 			exp: &Expr{
-				Terms: TemplateStringTerm(StringTerm("foo")),
+				Terms: TemplateStringTerm(false, StringTerm("foo")),
 			},
 		},
 		{
 			note: "with template expression",
 			expr: `$"foo {x}"`,
 			exp: &Expr{
-				Terms: TemplateStringTerm(
+				Terms: TemplateStringTerm(false,
 					StringTerm("foo "),
 					&Expr{
 						Terms: VarTerm("x"),
@@ -8477,7 +8477,7 @@ func TestTemplateString(t *testing.T) {
 			note: "with modifier, global",
 			expr: `$"foo {input}" with input as 42`,
 			exp: &Expr{
-				Terms: TemplateStringTerm(
+				Terms: TemplateStringTerm(false,
 					StringTerm("foo "),
 					&Expr{
 						Terms: RefTerm(VarTerm("input")),
@@ -8495,7 +8495,7 @@ func TestTemplateString(t *testing.T) {
 			note: "with modifier, global, multiple",
 			expr: `$"foo {input} {x}" with input as 42 with x as "bar"`,
 			exp: &Expr{
-				Terms: TemplateStringTerm(
+				Terms: TemplateStringTerm(false,
 					StringTerm("foo "),
 					&Expr{
 						Terms: RefTerm(VarTerm("input")),
@@ -8521,7 +8521,7 @@ func TestTemplateString(t *testing.T) {
 			note: "with modifier, inside template expression",
 			expr: `$"foo {x with input as 42}"`,
 			exp: &Expr{
-				Terms: TemplateStringTerm(
+				Terms: TemplateStringTerm(false,
 					StringTerm("foo "),
 					&Expr{
 						Terms: VarTerm("x"),
@@ -8543,7 +8543,7 @@ func TestTemplateString(t *testing.T) {
 				With: []*With{
 					{
 						Target: RefTerm(VarTerm("input"), StringTerm("x")),
-						Value: TemplateStringTerm(
+						Value: TemplateStringTerm(false,
 							StringTerm("<"),
 							&Expr{
 								Terms: VarTerm("x"),
@@ -8560,7 +8560,7 @@ func TestTemplateString(t *testing.T) {
 			expr: `$"{[x |
 					x := 42]}"`,
 			exp: &Expr{
-				Terms: TemplateStringTerm(
+				Terms: TemplateStringTerm(false,
 					&Expr{
 						Terms: &Term{
 							Value: &ArrayComprehension{
@@ -8584,7 +8584,7 @@ func TestTemplateString(t *testing.T) {
 				"  <baz>{y}</baz>\n" +
 				"</foo>`",
 			exp: &Expr{
-				Terms: TemplateStringTerm(
+				Terms: TemplateStringTerm(true,
 					StringTerm("<foo>\n  <bar>"),
 					&Expr{
 						Terms: VarTerm("x"),
@@ -8603,10 +8603,10 @@ func TestTemplateString(t *testing.T) {
 				"  <bar>{$\"a {x} b\"}</bar>\n" +
 				"</foo>`",
 			exp: &Expr{
-				Terms: TemplateStringTerm(
+				Terms: TemplateStringTerm(true,
 					StringTerm("<foo>\n  <bar>"),
 					&Expr{
-						Terms: TemplateStringTerm(
+						Terms: TemplateStringTerm(false,
 							StringTerm("a "),
 							&Expr{
 								Terms: VarTerm("x"),
@@ -8624,10 +8624,10 @@ func TestTemplateString(t *testing.T) {
 				"  <bar>{$`a {x} b`}</bar>\n" +
 				"</foo>`",
 			exp: &Expr{
-				Terms: TemplateStringTerm(
+				Terms: TemplateStringTerm(true,
 					StringTerm("<foo>\n  <bar>"),
 					&Expr{
-						Terms: TemplateStringTerm(
+						Terms: TemplateStringTerm(true,
 							StringTerm("a "),
 							&Expr{
 								Terms: VarTerm("x"),
