@@ -25,7 +25,7 @@ type sizeBuffer struct {
 	client               rest.Client
 	uploadPath           string
 	mode                 plugins.TriggerMode
-	resetTimer           chan struct{}
+	cancelUpload         bool
 }
 
 func newSizeBuffer(
@@ -33,8 +33,7 @@ func newSizeBuffer(
 	uploadSizeLimitBytes int64,
 	client rest.Client,
 	uploadPath string,
-	mode plugins.TriggerMode,
-	resetTimer chan struct{}) *sizeBuffer {
+	mode plugins.TriggerMode) *sizeBuffer {
 	return &sizeBuffer{
 		enc:                  newChunkEncoder(uploadSizeLimitBytes),
 		buffer:               newLogBuffer(bufferSizeLimitBytes),
@@ -43,7 +42,6 @@ func newSizeBuffer(
 		client:               client,
 		uploadPath:           uploadPath,
 		mode:                 mode,
-		resetTimer:           resetTimer,
 	}
 }
 
@@ -93,9 +91,10 @@ func (b *sizeBuffer) Reconfigure(
 		b.limiter = nil
 	}
 
-	// The encoder and buffer will use these new values after upload
 	b.UploadSizeLimitBytes = uploadSizeLimitBytes
+	b.enc.Reconfigure(uploadSizeLimitBytes)
 	b.BufferSizeLimitBytes = bufferSizeLimitBytes
+	b.buffer.Reconfigure(bufferSizeLimitBytes)
 
 	b.mode = mode
 	b.client = client
@@ -128,16 +127,32 @@ func (b *sizeBuffer) Push(event *EventV1) {
 
 	switch b.mode {
 	case plugins.TriggerImmediate:
-		// we have a result, reset timer to attempt upload
-		b.resetTimer <- struct{}{}
-
 		ctx := context.Background()
+
+		var uploadErr error
 		for _, chunk := range result {
-			err = b.uploadChunk(ctx, chunk, err)
+			uploadErr = uploadChunk(ctx, b.client, b.uploadPath, chunk)
+			if uploadErr != nil {
+				break
+			}
 		}
-		// flush any failed to upload chunks
-		for bs := b.buffer.Pop(); bs != nil; bs = b.buffer.Pop() {
-			err = b.uploadChunk(ctx, bs, err)
+
+		if uploadErr != nil {
+			for _, chunk := range result {
+				b.bufferChunk(b.buffer, chunk)
+			}
+		} else {
+			for bs := b.buffer.Pop(); bs != nil; bs = b.buffer.Pop() {
+				uploadErr = uploadChunk(ctx, b.client, b.uploadPath, bs)
+				if uploadErr != nil {
+					b.bufferChunk(b.buffer, bs)
+					break
+				}
+			}
+		}
+
+		if uploadErr != nil {
+			b.cancelUpload = true
 		}
 	case plugins.TriggerPeriodic:
 		for _, chunk := range result {
@@ -153,13 +168,9 @@ func (b *sizeBuffer) Upload(ctx context.Context) error {
 	// increased latency for OPA clients
 	b.mtx.Lock()
 	if b.mode == plugins.TriggerImmediate {
-		select {
-		case <-b.resetTimer:
-			// This catches the scenario if the timer loop expired while the read() loop was uploading a chunk
-			// The timer loop won't be able to read the reset timer because it will be waiting for doOneShot
-			// Just return because then the timer will be reset
+		if b.cancelUpload {
+			b.cancelUpload = false
 			return nil
-		default:
 		}
 	}
 
@@ -187,33 +198,28 @@ func (b *sizeBuffer) Upload(ctx context.Context) error {
 	}
 
 	for bs := oldBuffer.Pop(); bs != nil; bs = oldBuffer.Pop() {
-		err = b.uploadChunk(ctx, bs, err)
-	}
+		if err == nil {
+			err = uploadChunk(ctx, b.client, b.uploadPath, bs)
+		}
+		if err != nil {
+			if b.limiter != nil {
+				events, decErr := newChunkDecoder(bs).decode()
+				if decErr != nil {
+					return err
+				}
 
-	return err
-}
-
-func (b *sizeBuffer) uploadChunk(ctx context.Context, chunk []byte, err error) error {
-	if err == nil {
-		err = uploadChunk(ctx, b.client, b.uploadPath, chunk)
-	}
-	if err != nil {
-		if b.limiter != nil {
-			events, decErr := newChunkDecoder(chunk).decode()
-			if decErr != nil {
-				return err
+				for i := range events {
+					b.Push(&events[i])
+				}
+			} else {
+				// requeue the chunk
+				b.mtx.Lock()
+				b.bufferChunk(b.buffer, bs)
+				b.mtx.Unlock()
 			}
-
-			for i := range events {
-				b.Push(&events[i])
-			}
-		} else {
-			// requeue the chunk
-			b.mtx.Lock()
-			b.bufferChunk(b.buffer, chunk)
-			b.mtx.Unlock()
 		}
 	}
+
 	return err
 }
 

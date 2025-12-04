@@ -25,17 +25,17 @@ type bufferItem struct {
 
 // eventBuffer stores and uploads a gzip compressed JSON array of EventV1 entries
 type eventBuffer struct {
-	buffer      chan *bufferItem // buffer stores JSON encoded EventV1 data
-	encoderLock sync.Mutex       // encoderLock controls that uploads are done sequentially
-	enc         *chunkEncoder    // enc adds events into a gzip compressed JSON array (chunk)
-	limiter     *rate.Limiter
-	metrics     metrics.Metrics
-	logger      logging.Logger
-	client      rest.Client
-	uploadPath  string
-	mode        plugins.TriggerMode
-	stop        chan chan struct{}
-	resetTimer  chan struct{}
+	buffer       chan *bufferItem // buffer stores JSON encoded EventV1 data
+	encoderLock  sync.Mutex       // encoderLock controls that uploads are done sequentially
+	enc          *chunkEncoder    // enc adds events into a gzip compressed JSON array (chunk)
+	limiter      *rate.Limiter
+	metrics      metrics.Metrics
+	logger       logging.Logger
+	client       rest.Client
+	uploadPath   string
+	mode         plugins.TriggerMode
+	stop         chan chan struct{}
+	cancelUpload bool
 }
 
 func newEventBuffer(
@@ -43,8 +43,7 @@ func newEventBuffer(
 	uploadSizeLimitBytes int64,
 	mode plugins.TriggerMode,
 	client rest.Client,
-	uploadPath string,
-	resetTimer chan struct{}) *eventBuffer {
+	uploadPath string) *eventBuffer {
 	b := &eventBuffer{
 		buffer:     make(chan *bufferItem, bufferSizeLimitEvents),
 		enc:        newChunkEncoder(uploadSizeLimitBytes),
@@ -52,7 +51,6 @@ func newEventBuffer(
 		client:     client,
 		uploadPath: uploadPath,
 		stop:       make(chan chan struct{}),
-		resetTimer: resetTimer,
 	}
 
 	if b.mode == plugins.TriggerImmediate {
@@ -225,8 +223,7 @@ func (b *eventBuffer) read() {
 			}
 			if result != nil {
 				if b.mode == plugins.TriggerImmediate {
-					// we have a result, reset timer to attempt upload
-					b.resetTimer <- struct{}{}
+					b.cancelUpload = true
 				}
 
 				if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil {
@@ -251,13 +248,9 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 	defer b.encoderLock.Unlock()
 
 	if b.mode == plugins.TriggerImmediate {
-		select {
-		case <-b.resetTimer:
-			// This catches the scenario if the timer loop expired while the read() loop was uploading a chunk
-			// The timer loop won't be able to read the reset timer because it will be waiting for doOneShot
-			// Just return because then the timer will be reset
-			return nil
-		default:
+		if b.cancelUpload {
+			b.cancelUpload = false
+			return &uploadCancelled{}
 		}
 	}
 
@@ -279,11 +272,6 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 				b.logger.Error("%v.", err)
 			}
 			if result != nil {
-				if b.mode == plugins.TriggerImmediate {
-					// we have a result, reset timer to attempt upload
-					b.resetTimer <- struct{}{}
-				}
-
 				if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil {
 					b.logger.Error("%v.", err)
 				}

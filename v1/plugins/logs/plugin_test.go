@@ -572,7 +572,7 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 	expLen2 := 248
 	expLen3 := 27
 
-	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len((chunk3)) != expLen3 {
+	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len(chunk3) != expLen3 {
 		t.Fatalf("Expected chunk lens %v, %v and %v but got: %v, %v and %v", expLen1, expLen2, expLen3, len(chunk1), len(chunk2), len(chunk3))
 	}
 
@@ -667,7 +667,7 @@ func TestPluginRequeue(t *testing.T) {
 	}{
 		{
 			name:                "using event buffer",
-			reportingBufferType: "event",
+			reportingBufferType: eventBufferType,
 		},
 		{
 			name: "using size buffer",
@@ -1824,7 +1824,7 @@ func TestPluginTriggerManual(t *testing.T) {
 	}{
 		{
 			name:                "using event buffer",
-			reportingBufferType: "event",
+			reportingBufferType: eventBufferType,
 		},
 		{
 			name: "using size buffer",
@@ -2025,7 +2025,7 @@ func TestPluginGracefulShutdownFlushesDecisions(t *testing.T) {
 	}{
 		{
 			name:       "immediate mode, event buffer",
-			bufferType: "event",
+			bufferType: eventBufferType,
 			mode:       plugins.TriggerImmediate,
 		},
 		{
@@ -2035,7 +2035,7 @@ func TestPluginGracefulShutdownFlushesDecisions(t *testing.T) {
 		},
 		{
 			name:       "periodic mode, event buffer",
-			bufferType: "event",
+			bufferType: eventBufferType,
 			mode:       plugins.TriggerPeriodic,
 		},
 		{
@@ -2150,13 +2150,13 @@ func TestPluginReconfigure(t *testing.T) {
 	}{
 		{
 			name:              "Reconfigure from event to size buffer",
-			currentBufferType: "event",
-			newBufferType:     "size",
+			currentBufferType: eventBufferType,
+			newBufferType:     sizeBufferType,
 		},
 		{
 			name:              "Reconfigure from size to event buffer",
-			currentBufferType: "size",
-			newBufferType:     "event",
+			currentBufferType: sizeBufferType,
+			newBufferType:     eventBufferType,
 		},
 		{
 			name:              "Reconfigure from size to size buffer",
@@ -2166,8 +2166,8 @@ func TestPluginReconfigure(t *testing.T) {
 		},
 		{
 			name:              "Reconfigure from event to event buffer",
-			currentBufferType: "event",
-			newBufferType:     "event",
+			currentBufferType: eventBufferType,
+			newBufferType:     eventBufferType,
 			limitEvents:       200,
 		},
 	}
@@ -3254,7 +3254,7 @@ func TestEventV1ToAST(t *testing.T) {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	var ndbCacheExample any = ast.MustJSON(builtins.NDBCache{
+	var ndbCacheExample = ast.MustJSON(builtins.NDBCache{
 		"time.now_ns": ast.NewObject([2]*ast.Term{
 			ast.ArrayTerm(),
 			ast.NumberTerm("1663803565571081429"),
@@ -3485,13 +3485,12 @@ func TestPluginDefaultResourcePath(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name                           string
-		reportingBufferType            string
-		reportingBufferSizeLimitEvents int64
+		name                string
+		reportingBufferType string
 	}{
 		{
 			name:                "using event buffer",
-			reportingBufferType: "event",
+			reportingBufferType: eventBufferType,
 		},
 		{
 			name: "using size buffer",
@@ -3543,13 +3542,12 @@ func TestPluginResourcePathAndPartitionName(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name                           string
-		reportingBufferType            string
-		reportingBufferSizeLimitEvents int64
+		name                string
+		reportingBufferType string
 	}{
 		{
 			name:                "using event buffer",
-			reportingBufferType: "event",
+			reportingBufferType: eventBufferType,
 		},
 		{
 			name: "using size buffer",
@@ -3611,7 +3609,7 @@ func TestPluginResourcePath(t *testing.T) {
 	}{
 		{
 			name:                "using event buffer",
-			reportingBufferType: "event",
+			reportingBufferType: eventBufferType,
 		},
 		{
 			name: "using size buffer",
@@ -3998,7 +3996,7 @@ func TestImmediateMode(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 
 			// Configured with a 1-second delay to make sure it is flushed quickly
 			delay := int64(1)
@@ -4043,16 +4041,16 @@ func TestImmediateMode(t *testing.T) {
 				t.Fatalf("expected event to be flushed after %d second, got %s", delay, elapsed)
 			}
 
-			config := fixture.plugin.Config()
+			newConfig := *fixture.plugin.Config()
 			// Reconfigure the plugin delay to 5 seconds so that the chunk is returned by the encoder
 			delay = int64(5)
-			config.Reporting.MinDelaySeconds = &delay
-			config.Reporting.MaxDelaySeconds = &delay
+			newConfig.Reporting.MinDelaySeconds = &delay
+			newConfig.Reporting.MaxDelaySeconds = &delay
 			// With this upload limit one logged event will result in a chunk
 			uploadLimit := int64(180)
-			config.Reporting.UploadSizeLimitBytes = &uploadLimit
+			newConfig.Reporting.UploadSizeLimitBytes = &uploadLimit
 
-			fixture.plugin.reconfigure(t.Context(), config)
+			fixture.plugin.reconfigure(t.Context(), &newConfig)
 
 			start = time.Now()
 			event2 := &server.Info{
