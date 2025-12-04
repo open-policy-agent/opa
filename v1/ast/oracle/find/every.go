@@ -18,22 +18,12 @@ func (*EveryLocator) Name() string {
 	return "every_declarations"
 }
 
-func (*EveryLocator) Applicable(stack []ast.Node) bool {
-	if expr, ok := stack[len(stack)-1].(*ast.Expr); ok {
-		if _, ok := expr.Terms.(*ast.Every); ok {
-			return true
-		}
-	}
-
-	return false
-}
-
 func (e *EveryLocator) Find(stack []ast.Node, compiler *ast.Compiler, _ *ast.Module) *ast.Location {
 	var every *ast.Every
 
 	if expr, ok := stack[len(stack)-1].(*ast.Expr); ok {
-		if e, ok := expr.Terms.(*ast.Every); ok {
-			every = e
+		if ev, ok := expr.Terms.(*ast.Every); ok {
+			every = ev
 		}
 	}
 

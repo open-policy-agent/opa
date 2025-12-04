@@ -14,16 +14,6 @@ func (*VarLocator) Name() string {
 	return "variables"
 }
 
-func (*VarLocator) Applicable(stack []ast.Node) bool {
-	top, ok := stack[len(stack)-1].(*ast.Term)
-	if !ok {
-		return false
-	}
-
-	_, ok = top.Value.(ast.Var)
-	return ok
-}
-
 func (v *VarLocator) Find(stack []ast.Node, _ *ast.Compiler, _ *ast.Module) *ast.Location {
 	top, ok := stack[len(stack)-1].(*ast.Term)
 	if !ok {

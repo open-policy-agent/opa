@@ -26,10 +26,6 @@ func (m *Manager) FindDefinition(stack []ast.Node, compiler *ast.Compiler, parse
 	}
 
 	for _, locator := range m.locators {
-		if !locator.Applicable(stack) {
-			continue
-		}
-
 		location := locator.Find(stack, compiler, parsed)
 		if location != nil {
 			return location

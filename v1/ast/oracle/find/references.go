@@ -14,19 +14,6 @@ func (*RefLocator) Name() string {
 	return "references"
 }
 
-func (*RefLocator) Applicable(stack []ast.Node) bool {
-	for i := len(stack) - 1; i >= 0; i-- {
-		term, ok := stack[i].(*ast.Term)
-		if !ok {
-			continue
-		}
-		if _, ok := term.Value.(ast.Ref); ok {
-			return true
-		}
-	}
-	return false
-}
-
 func (*RefLocator) Find(stack []ast.Node, compiler *ast.Compiler, parsed *ast.Module) *ast.Location {
 	for i := len(stack) - 1; i >= 0; i-- {
 		term, ok := stack[i].(*ast.Term)
