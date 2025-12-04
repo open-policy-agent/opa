@@ -21,9 +21,9 @@ are:
 - `pretty` (default) - Human-readable table-like output where each violation is printed with a detailed explanation
 - `compact` - Human-readable output where each violation is printed on a single line
 - `json` - JSON output, suitable for programmatic consumption
-- `github` - GitHub [workflow command](https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions)
+- `github` - GitHub [workflow command](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands)
   output, ideal for use in GitHub Actions. Annotates PRs and creates a
-  [job summary](https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#adding-a-job-summary)
+  [job summary](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands#adding-a-job-summary)
   from the linter report
 - `sarif` - [SARIF](https://sarifweb.azurewebsites.net/) JSON output, for consumption by tools processing code analysis
   reports

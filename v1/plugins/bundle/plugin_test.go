@@ -4665,11 +4665,11 @@ func TestReconfigurePlugin_ManagerInit_BundleDeactivation(t *testing.T) {
 	}
 }
 
-func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
+func TestUpgradeLegacyBundleToMultiBundleSameBundle(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
-	manager := getTestManager()
+	manager := getTestManagerWithOpts(fmt.Appendf(nil, `{"services":{"s1":{}}}`))
 	defer manager.Stop(ctx)
 	plugin := Plugin{
 		manager:     manager,
@@ -4679,8 +4679,8 @@ func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
 	}
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
-	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
-
+	triggerMode := plugins.TriggerManual
+	plugin.downloaders[bundleName] = download.New(download.Config{Trigger: &triggerMode}, plugin.manager.Client(""), bundleName)
 	// Start with a "legacy" style config for a single bundle
 	plugin.config = Config{
 		Bundles: map[string]*Source{

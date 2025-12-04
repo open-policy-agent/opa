@@ -3,7 +3,7 @@ title: SSH and sudo
 ---
 
 Host-level access controls are an important part of every organization's
-security strategy. Using [Linux-PAM](http://tldp.org/HOWTO/User-Authentication-HOWTO/x115.html) and OPA
+security strategy. Using [Linux-PAM](https://tldp.org/HOWTO/User-Authentication-HOWTO/x115.html) and OPA
 we can extend policy-based access control to SSH and sudo.
 
 ## Goals

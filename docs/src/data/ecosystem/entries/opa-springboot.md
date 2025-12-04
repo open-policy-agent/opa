@@ -7,7 +7,7 @@ labels:
 software:
 - java
 code:
-- "https://github.com/StyraInc/opa-springboot"
+- "https://github.com/open-policy-agent/opa-springboot"
 - "https://central.sonatype.com/artifact/com.styra.opa/springboot"
 inventors:
 - styra

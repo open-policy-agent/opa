@@ -164,7 +164,23 @@ func (c *Discovery) Start(ctx context.Context) error {
 	}
 	c.bundlePersistPath = bundlePersistPath
 
-	c.loadAndActivateBundleFromDisk(ctx)
+	if c.config != nil && c.config.Persist {
+		c.loadAndActivateBundleFromDisk(ctx)
+	} else {
+		// If bundle persistence isn't enabled, initialise plugins before starting the downloader
+		ps, err := getPluginSet(c.factories, c.manager, c.manager.GetConfig(), c.metrics, c.logger, nil)
+		if err != nil {
+			return err
+		}
+
+		for _, p := range ps.Start {
+			if err := p.Start(ctx); err != nil {
+				c.logger.Error("Failed to start configured plugins: %v", err)
+				c.status.SetError(err)
+				return err
+			}
+		}
+	}
 
 	if c.downloader != nil {
 		c.downloader.Start(ctx)
@@ -239,50 +255,48 @@ func (c *Discovery) getBundlePersistPath() (string, error) {
 }
 
 func (c *Discovery) loadAndActivateBundleFromDisk(ctx context.Context) {
-	if c.config != nil && c.config.Persist {
-		b, err := c.loadBundleFromDisk()
+	b, err := c.loadBundleFromDisk()
+	if err != nil {
+		c.logger.Error("Failed to load discovery bundle from disk: %v", err)
+		c.status.SetError(err)
+		return
+	}
+
+	if b == nil {
+		return
+	}
+
+	for range maxActivationRetry {
+
+		ps, err := c.processBundle(ctx, b)
 		if err != nil {
-			c.logger.Error("Failed to load discovery bundle from disk: %v", err)
+			c.logger.Error("Discovery bundle processing error occurred: %v", err)
 			c.status.SetError(err)
-			return
+			continue
 		}
 
-		if b == nil {
-			return
-		}
-
-		for range maxActivationRetry {
-
-			ps, err := c.processBundle(ctx, b)
-			if err != nil {
-				c.logger.Error("Discovery bundle processing error occurred: %v", err)
+		for _, p := range ps.Start {
+			if err := p.Start(ctx); err != nil {
+				c.logger.Error("Failed to start configured plugins: %v", err)
 				c.status.SetError(err)
-				continue
+				return
 			}
-
-			for _, p := range ps.Start {
-				if err := p.Start(ctx); err != nil {
-					c.logger.Error("Failed to start configured plugins: %v", err)
-					c.status.SetError(err)
-					return
-				}
-			}
-
-			for _, p := range ps.Reconfig {
-				p.Plugin.Reconfigure(ctx, p.Config)
-			}
-
-			c.status.SetError(nil)
-			c.status.SetActivateSuccess(b.Manifest.Revision)
-
-			// On the first activation success mark the plugin as being in OK state
-			c.readyOnce.Do(func() {
-				c.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateOK})
-			})
-
-			c.logger.Debug("Discovery bundle loaded from disk and activated successfully.")
-			return
 		}
+
+		for _, p := range ps.Reconfig {
+			p.Plugin.Reconfigure(ctx, p.Config)
+		}
+
+		c.status.SetError(nil)
+		c.status.SetActivateSuccess(b.Manifest.Revision)
+
+		// On the first activation success mark the plugin as being in OK state
+		c.readyOnce.Do(func() {
+			c.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateOK})
+		})
+
+		c.logger.Debug("Discovery bundle loaded from disk and activated successfully.")
+		return
 	}
 }
 

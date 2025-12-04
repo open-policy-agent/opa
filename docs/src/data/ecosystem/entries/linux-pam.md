@@ -7,7 +7,7 @@ labels:
 tutorials:
 - https://www.openpolicyagent.org/docs/ssh-and-sudo-authorization.html
 code:
-- https://github.com/open-policy-agent/contrib/tree/master/pam_opa
+- https://github.com/open-policy-agent/contrib/tree/main/pam_opa
 inventors:
 - styra
 ---

@@ -2212,7 +2212,7 @@ func (r *Rego) compileQuery(query ast.Body, imports []*ast.Import, _ metrics.Met
 
 	if r.pkg != "" {
 		var err error
-		pkg, err = ast.ParsePackage(fmt.Sprintf("package %v", r.pkg))
+		pkg, err = ast.ParsePackage("package " + r.pkg)
 		if err != nil {
 			return nil, nil, err
 		}

@@ -5,7 +5,7 @@ labels:
   layer: cicd
   type: poweredbyopa
 tutorials:
-- https://circleci.com/docs/config-policy-management-overview/
+- https://circleci.com/docs/guides/config-policies/config-policy-management-overview/
 inventors:
 - circleci
 ---

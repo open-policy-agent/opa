@@ -73,8 +73,8 @@ effort.
 
 ## Related Resources
 
-- OPA Docs: [Upgrading to v1.0](https://www.openpolicyagent.org/docs/v0-upgrade/)
-- OPA Docs: [v0 Backwards Compatibility](https://www.openpolicyagent.org/docs/v0-compatibility/)
+- OPA Docs: [Upgrading to v1.0](https://www.openpolicyagent.org/docs/v0-upgrade)
+- OPA Docs: [v0 Backwards Compatibility](https://www.openpolicyagent.org/docs/v0-compatibility)
 - Styra Blog: [Renovating Rego](https://www.styra.com/blog/renovating-rego/)
 - OPA Blog: [OPA 1.0 Is Coming, Here's What You Need to Know](https://blog.openpolicyagent.org/opa-1-0-is-coming-heres-what-you-need-to-know-c8fb0d258368)
 - OPA Blog: [Announcing OPA 1.0: A New Standard for Policy as Code](https://blog.openpolicyagent.org/announcing-opa-1-0-a-new-standard-for-policy-as-code-a6d8427ee828)

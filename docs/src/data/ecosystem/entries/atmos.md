@@ -19,7 +19,7 @@ docs_features:
     note: |
       Atmos can validate Terraform stack before applying them. This is done
       using the `validate component` command
-      [documented here](https://atmos.tools/cli/commands/validate/component).
+      [documented here](https://atmos.tools/cli/commands/validate/component/).
 ---
 
 Workflow automation tool for DevOps. Keep configuration DRY with hierarchical imports of configurations, inheritance, and WAY more.

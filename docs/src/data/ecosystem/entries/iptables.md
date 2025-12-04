@@ -6,9 +6,9 @@ labels:
 software:
 - linux
 tutorials:
-- https://github.com/open-policy-agent/contrib/blob/master/opa-iptables/docs/tutorial.md
+- https://github.com/open-policy-agent/contrib/blob/main/opa-iptables/docs/tutorial.md
 code:
-- https://github.com/open-policy-agent/contrib/tree/master/opa-iptables
+- https://github.com/open-policy-agent/contrib/tree/main/opa-iptables
 inventors:
 - gsoc
 - cisco

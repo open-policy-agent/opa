@@ -14,8 +14,8 @@ software:
 code:
 - https://github.com/walt-id/waltid-ssikit
 tutorials:
-- https://docs.walt.id/v/ssikit/ssi-kit/open-policy-agent
-- https://docs.walt.id/v/ssikit/concepts/verification-policies/dynamic-policies
+- https://docs-old.walt.id/ssikit/concepts/open-policy-agent
+- https://docs-old.walt.id/ssikit/concepts/verification-policies/dynamic-policies
 videos:
 - title: Verifying W3C Verifiable Credentials with the SSI Kit using OPA (Open Policy
     Agent)
@@ -28,7 +28,7 @@ docs_features:
     note: |
       SSI Kit's CLI exposes policy management commands which update a local
       OPA instance. The feature is
-      [documented in the walt.id docs](https://docs.walt.id/v/ssikit/concepts/open-policy-agent).
+      [documented in the walt.id docs](https://docs-old.walt.id/ssikit/concepts/open-policy-agent).
 ---
 Verifying W3C Verifiable Credentials for building SSI (Self-Sovereign Identity) use cases.
 

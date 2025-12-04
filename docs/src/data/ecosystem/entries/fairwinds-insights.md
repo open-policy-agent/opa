@@ -11,7 +11,7 @@ software:
 - helm
 tutorials:
 - https://insights.docs.fairwinds.com/features/admission-controller/
-- https://insights.docs.fairwinds.com/features/insights-cli
+- https://insights.docs.fairwinds.com/features/insights-cli/
 blogs:
 - https://www.fairwinds.com/blog/managing-opa-policies-with-fairwinds-insights
 - https://www.fairwinds.com/blog/manage-open-policy-agent-opa-consistently

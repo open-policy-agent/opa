@@ -5,7 +5,7 @@ labels:
   category: application
   layer: network
 code:
-- https://github.com/StyraInc/opa-aspnetcore
+- https://github.com/open-policy-agent/opa-aspnetcore
 - https://www.nuget.org/packages/Styra.Opa.AspNetCore
 tutorials:
 - https://open-policy-agent.github.io/opa-aspnetcore/

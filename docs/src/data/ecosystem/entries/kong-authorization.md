@@ -6,7 +6,7 @@ labels:
 software:
 - kong
 code:
-- https://github.com/open-policy-agent/contrib/tree/master/kong_api_authz
+- https://github.com/open-policy-agent/contrib/tree/main/kong_api_authz
 inventors:
 - wada-ama
 ---

@@ -8,7 +8,7 @@ software:
 - envoy
 tutorials:
 - https://github.com/tsandall/minimal-opa-envoy-example/blob/master/README.md
-- https://www.openpolicyagent.org/docs/latest/envoy-introduction/
+- https://www.openpolicyagent.org/docs/envoy
 code:
 - https://github.com/open-policy-agent/opa-envoy-plugin
 - https://github.com/tsandall/minimal-opa-envoy-example
@@ -53,6 +53,6 @@ docs_features:
       project uses the REST API to allow and deny requests routed via an Envoy proxy.
 
       Read about this integration in the
-      [OPA Docs](https://www.openpolicyagent.org/docs/latest/envoy-introduction/).
+      [OPA Docs](https://www.openpolicyagent.org/docs/envoy).
 ---
 Envoy is a networking abstraction for cloud-native applications. OPA hooks into Envoy’s external authorization filter to provide fine-grained, context-aware authorization for network or HTTP requests.

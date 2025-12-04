@@ -49,7 +49,7 @@ by Regal.
 [Neovim](https://neovim.io/) supports both the Language Server Protocol and the Debug Adapter Protocol.
 
 Generally, the Regal binary should be [installed](https://www.openpolicyagent.org/projects/regal#getting-started)
-first. [`mason.vim`](https://github.com/williamboman/mason.nvim) users can install the
+first. [`mason.vim`](https://github.com/mason-org/mason.nvim) users can install the
 Regal binary with `:MasonInstall regal`
 ([package definition](https://github.com/mason-org/mason-registry/blob/2024-07-23-asian-hate/packages/regal/package.yaml)).
 

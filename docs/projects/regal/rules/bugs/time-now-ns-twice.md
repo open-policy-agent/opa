@@ -43,7 +43,7 @@ same way they'd normally do it using a traditional programming language (that is
 work, OPA provides several tools to help measure performance, and learning how to use them well is the best way to
 understand the performance characteristics of policy evaluation.
 
-See the [performance](https://www.openpolicyagent.org/docs/policy-performance/) section of the OPA docs for an
+See the [performance](https://www.openpolicyagent.org/docs/policy-performance) section of the OPA docs for an
 introduction to these tools, as well as advice on how to write performant policies.
 
 ## Configuration Options
@@ -61,4 +61,4 @@ rules:
 ## Related Resources
 
 - OPA Docs: [time.now_ns](https://www.openpolicyagent.org/docs/policy-reference/#builtin-time-timenow_ns)
-- OPA Docs: [Policy Performance](https://www.openpolicyagent.org/docs/policy-performance/)
+- OPA Docs: [Policy Performance](https://www.openpolicyagent.org/docs/policy-performance)

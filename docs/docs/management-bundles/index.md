@@ -645,7 +645,7 @@ An empty list of operations in a _delta_ bundle `patch.json` will remove all the
 }
 ```
 
-If there are no operations to apply to the data, the bundle server should return the same [`Etag`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag) value as the last update. OPA will send the last `Etag` value in the [`If-None-Match`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-None-Match) Header.
+If there are no operations to apply to the data, the bundle server should return the same [`Etag`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/ETag) value as the last update. OPA will send the last `Etag` value in the [`If-None-Match`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/If-None-Match) Header.
 :::
 
 #### Delta Bundle Patch Operations
@@ -705,7 +705,7 @@ bundle would erase and overwrite policy and data under the manifest `roots`.
 
 The Bundle API is simple. Most HTTP servers capable of serving static files will do. While not strictly required in all deployments, it is also good if the implementation supports:
 
-- HTTP caching using the [ETag header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag). This keeps OPA from having to download a bundle unless the bundle's content have changes.
+- HTTP caching using the [ETag header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/ETag). This keeps OPA from having to download a bundle unless the bundle's content have changes.
 - Authentication. When exposing a bundle at a remote endpoint, it is often desirable to protect the data by requiring all requests to the endpoint to be authenticated.
 
 This document lists some of the more common HTTP servers suitable as bundle servers, along with instructions for how to set them up as such.
@@ -1022,7 +1022,7 @@ The easiest way of testing GCP metadata token or JWT bearer grant type authentic
 
 #### Upload Bundle
 
-Uploading a bundle is trivial with the `gsutil` command included with the [Google Cloud SDK](https://cloud.google.com/sdk/docs/quickstart).
+Uploading a bundle is trivial with the `gsutil` command included with the [Google Cloud SDK](https://docs.cloud.google.com/sdk/docs/install-sdk).
 
 ```shell
 gsutil cp bundle.tar.gz gs://<bucket-name>/
@@ -1089,7 +1089,7 @@ keys:
 | Caching headers        | Yes                                                                                                                                                                                                                                                                              |
 | Authentication methods | [OAuth2 Client Credentials](https://www.openpolicyagent.org/docs/latest/configuration/#oauth2-client-credentials), <br/> [OAuth2 Client Credentials JWT authentication](https://www.openpolicyagent.org/docs/latest/configuration/#oauth2-client-credentials-jwt-authentication) |
 
-Note that for the time being, the [Shared Key or Shared Access Signature (SAS)](https://docs.microsoft.com/en-us/rest/api/storageservices/authorize-requests-to-azure-storage) options are [not supported](https://github.com/open-policy-agent/opa/issues/2964).
+Note that for the time being, the [Shared Key or Shared Access Signature (SAS)](https://learn.microsoft.com/en-us/rest/api/storageservices/authorize-requests-to-azure-storage) options are [not supported](https://github.com/open-policy-agent/opa/issues/2964).
 
 #### Setup Instructions
 
@@ -1124,9 +1124,9 @@ curl --silent \
 
 #### Upload Bundle
 
-Uploading bundles to Azure Blob storage is easily done using the [azcopy](https://docs.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10) tool. Make sure to first properly [authorize](https://docs.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-authorize-azure-active-directory) the user to be able to upload to Blob storage.
+Uploading bundles to Azure Blob storage is easily done using the [azcopy](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10) tool. Make sure to first properly [authorize](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-authorize-user-identity) the user to be able to upload to Blob storage.
 
-By now you should be able to login interactively using `azcopy login --tenant-id <Active Directory tenant ID>`. Since you'll most likely will want to log in from scripts (to upload bundles programmatically), you should however create an Azure AD application, and a [service principal](https://docs.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal) to do so. Good news! If you've followed the Authentication steps above, you already have one.
+By now you should be able to login interactively using `azcopy login --tenant-id <Active Directory tenant ID>`. Since you'll most likely will want to log in from scripts (to upload bundles programmatically), you should however create an Azure AD application, and a [service principal](https://learn.microsoft.com/en-us/entra/identity-platform/howto-create-service-principal-portal) to do so. Good news! If you've followed the Authentication steps above, you already have one.
 
 **Uploading bundle using client secret authentication**
 
@@ -1242,7 +1242,7 @@ Nginx offers a simple but competent bundle server for those who prefer to host t
 
 #### Upload Bundle
 
-Either use the [nginx-upload-module](https://www.nginx.com/resources/wiki/modules/upload/) or upload bundles out-of-band with SSH or similar.
+Either use the [nginx-upload-module](https://docs.nginx.com/) or upload bundles out-of-band with SSH or similar.
 
 #### Example OPA Configuration
 

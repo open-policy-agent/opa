@@ -82,7 +82,7 @@ evaluating compiled policies. If you want to evaluate Rego policies inside
 JavaScript we recommend you use the
 [Javascript SDK](https://github.com/open-policy-agent/npm-opa-wasm).
 There is also an
-[example NodeJS application](https://github.com/open-policy-agent/npm-opa-wasm/tree/master/examples/nodejs-app)
+[example NodeJS application](https://github.com/open-policy-agent/npm-opa-wasm/tree/main/examples/nodejs-app)
 provided for reference.
 
 ### Other Languages

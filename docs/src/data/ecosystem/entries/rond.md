@@ -21,7 +21,7 @@ inventors:
 blogs:
 - https://mia-platform.eu/blog/rond-open-source-api-enforcement/
 - https://mia-platform.eu/blog/role-based-access-control-rbac/
-- https://resources.mia-platform.eu/en/white-paper-rbac-platform-engineering
+- https://mia-platform.eu/library/rbac-implementation-platform-engineering/
 docs_features:
   go-integration:
     note: |

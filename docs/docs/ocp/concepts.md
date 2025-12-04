@@ -7,7 +7,7 @@ title: Concepts
 
 Bundles are the primary packaging and distribution unit in OCP. Each bundle contains Rego policies, data files, and is intended to be consumed by any number of OPA instances. The OCP configuration for the bundle specifies a set of **requirements** that list the sources (Rego, data, etc.) to include in the bundle.
 
-OCP builds [OPA Bundles](https://openpolicyagent.org/docs/management-bundles) and pushes them to external object storage systems (e.g., S3, GCS, Azure Cloud Storage, File System). OPA instances are configured to download bundles directly from these storage systems. See the [OPA Configuration](https://www.openpolicyagent.org/docs/latest/configuration/) documentation for more information how to configure authentication and bundle downloads for different cloud providers
+OCP builds [OPA Bundles](https://www.openpolicyagent.org/docs/management-bundles) and pushes them to external object storage systems (e.g., S3, GCS, Azure Cloud Storage, File System). OPA instances are configured to download bundles directly from these storage systems. See the [OPA Configuration](https://www.openpolicyagent.org/docs/configuration) documentation for more information how to configure authentication and bundle downloads for different cloud providers
 
 ### Namespacing
 

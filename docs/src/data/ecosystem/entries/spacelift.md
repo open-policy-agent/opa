@@ -25,7 +25,7 @@ docs_features:
     note: |
       Spacelift supports Rego as a language to describe policies for IaC
       resources. View the docs on
-      [creating Rego policies](https://docs.spacelift.io/concepts/policy/).
+      [creating Rego policies](https://docs.spacelift.io/concepts/policy).
   terraform:
     note: |
       Spacelift supports Rego as a language to describe policies for Terraform
@@ -36,7 +36,7 @@ docs_features:
     note: |
       Spacelift supports Rego as a language to describe policies for various
       resource types, including Kubernetes. View the
-      [policy documentation](https://docs.spacelift.io/concepts/policy/) for
+      [policy documentation](https://docs.spacelift.io/concepts/policy) for
       more information.
 ---
 Spacelift is a sophisticated CI/CD platform for Infrastructure as Code including Terraform, Pulumi, CloudFormation, Kubernetes, and Ansible. Spacelift utilizes Open Policy Agent to support a variety of policy types within the platform and Policy as Code for secure and compliance Infrastructure as Code.

@@ -213,7 +213,7 @@ docker-compose -f docker-compose.yaml up
 Every time the demo GraphQL server receives an HTTP request, it asks OPA to decide whether an GraphQL query is authorized or not using a single RESTful API call.
 An example codebase is [here][graphql-example-repo], but the crux of the (JavaScript, Apollo framework) code is shown below.
 
-[graphql-example-repo]: https://github.com/StyraInc/graphql-apollo-example
+[graphql-example-repo]: https://github.com/StyraOSS/graphql-apollo-example
 
 ```javascript
 // we assume user is passed in as part of the request context.

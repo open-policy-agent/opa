@@ -145,7 +145,7 @@ containers:
 
 > 💡 Consider specifying CPU and memory resource requests and limits for the OPA and other containers to prevent
 > deployments from resource starvation.
-> You can also start OPA with the [`GOMAXPROCS`](https://golang.org/pkg/runtime)environment variable to limit the number of
+> You can also start OPA with the [`GOMAXPROCS`](https://pkg.go.dev/runtime)environment variable to limit the number of
 > cores that OPA can consume.
 >
 > 💡 The OPA-Envoy plugin can be configured to listen on a UNIX Domain Socket. A complete example of such a setup
@@ -254,7 +254,7 @@ CPU and memory consumed as well as latency added.
 
 ### Features
 
-The sample OPA-Envoy deployment described [previously](#opa-envoy-plugin), does not utilize OPA's [decision logs](https://www.openpolicyagent.org/docs/latest/management-decision-logs/)
+The sample OPA-Envoy deployment described [previously](#opa-envoy-plugin), does not utilize OPA's [decision logs](https://www.openpolicyagent.org/docs/management-decision-logs)
 management API that enables periodic reporting of decision logs to remote HTTP servers or local console. Decision logging
 can be enabled by updating the OPA-Envoy configuration, and the guidance provided on this page can be used to
 gather benchmark results.

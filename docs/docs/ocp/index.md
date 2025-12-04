@@ -28,7 +28,7 @@ receive the policies and data they need to make decisions. OCP provides:
 - [Configuration](./configuration.md) - Learn how to configure the server
 - [API Reference](./api-reference.md) - Learn about the OCP REST API
 - [Authentication](./authentication.md) - Learn how to secure the server API
-- [OCP on GitHub](http://github.com/open-policy-agent/opa-control-plane) -
+- [OCP on GitHub](https://github.com/open-policy-agent/opa-control-plane) -
   explore OCP the code, contribute and file issues.
 
 ## Kick the tires
