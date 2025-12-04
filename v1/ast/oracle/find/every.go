@@ -43,7 +43,7 @@ func (e *EveryLocator) Find(stack []ast.Node, compiler *ast.Compiler, _ *ast.Mod
 
 	switch v := every.Domain.Value.(type) {
 	case ast.Var:
-		return e.varLocator.FindVarOccurrence(stack, v)
+		return e.varLocator.FindVarDefinition(stack, v)
 	case ast.Ref:
 		return findRulesDefinition(compiler, v)
 	}

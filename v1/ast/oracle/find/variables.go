@@ -35,18 +35,25 @@ func (v *VarLocator) Find(stack []ast.Node, _ *ast.Compiler, _ *ast.Module) *ast
 		return nil
 	}
 
-	return v.FindVarOccurrence(stack, name)
+	return v.FindVarDefinition(stack, name)
 }
 
-func (v *VarLocator) FindVarOccurrence(stack []ast.Node, name ast.Var) *ast.Location {
-	for i := range stack {
-		switch node := stack[i].(type) {
-		case *ast.Rule:
-			if match := v.walkToFirstOccurrence(node.Head.Args, name); match != nil {
+// FindVarDefinition searches for the definition of a variable in the AST stack.
+// It prioritizes explicit assignments but also falls back to finding implicit definitions
+// (first occurrences in unification contexts) to handle where variables
+// are introduced without explicit assignment.
+func (v *VarLocator) FindVarDefinition(stack []ast.Node, name ast.Var) *ast.Location {
+	for i := len(stack) - 1; i >= 0; i-- {
+		if rule, ok := stack[i].(*ast.Rule); ok {
+			if match := v.walkToFirstOccurrence(rule.Head.Args, name); match != nil {
 				return match.Location
 			}
-		case ast.Body:
-			if match := v.walkToFirstOccurrence(node, name); match != nil {
+		}
+	}
+
+	for i := len(stack) - 1; i >= 0; i-- {
+		if body, ok := stack[i].(ast.Body); ok {
+			if match := v.walkToFirstOccurrence(body, name); match != nil {
 				return match.Location
 			}
 		}
@@ -56,6 +63,8 @@ func (v *VarLocator) FindVarOccurrence(stack []ast.Node, name ast.Var) *ast.Loca
 }
 
 func (*VarLocator) walkToFirstOccurrence(node ast.Node, needle ast.Var) (match *ast.Term) {
+	var firstOccurrence *ast.Term
+
 	ast.WalkNodes(node, func(x ast.Node) bool {
 		if match == nil {
 			switch x := x.(type) {
@@ -65,16 +74,35 @@ func (*VarLocator) walkToFirstOccurrence(node ast.Node, needle ast.Var) (match *
 				for i := range x.Symbols {
 					if x.Symbols[i].Value.Compare(needle) == 0 {
 						match = x.Symbols[i]
-						break
+						return true // found definition, stop searching
+					}
+				}
+			case *ast.Expr:
+				if x.IsAssignment() {
+					if term := x.Operand(0); term != nil {
+						if term.Value.Compare(needle) == 0 {
+							match = term
+
+							return true
+						}
 					}
 				}
 			case *ast.Term:
-				if x.Value.Compare(needle) == 0 {
-					match = x
+				// implicit definitions look like occurrences rather than assignments.
+				// track these to return in case we find no assignments.
+				if firstOccurrence == nil && x.Value.Compare(needle) == 0 {
+					firstOccurrence = x
 				}
 			}
 		}
+
 		return match != nil
 	})
-	return match
+
+	// if a definition was found, that is preferred
+	if match != nil {
+		return match
+	}
+
+	return firstOccurrence
 }

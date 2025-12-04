@@ -5,13 +5,11 @@ import (
 )
 
 type SomeLocator struct {
-	varLocator *VarLocator
+	VarLocator
 }
 
 func NewSomeLocator() *SomeLocator {
-	return &SomeLocator{
-		varLocator: NewVarLocator(),
-	}
+	return &SomeLocator{}
 }
 
 func (*SomeLocator) Name() string {
@@ -35,14 +33,13 @@ func (*SomeLocator) Applicable(stack []ast.Node) bool {
 func (s *SomeLocator) Find(stack []ast.Node, compiler *ast.Compiler, _ *ast.Module) *ast.Location {
 	var someDecl *ast.SomeDecl
 
-	if expr, ok := stack[len(stack)-1].(*ast.Expr); ok {
-		if sd, ok := expr.Terms.(*ast.SomeDecl); ok {
+	switch node := stack[len(stack)-1].(type) {
+	case *ast.Expr:
+		if sd, ok := node.Terms.(*ast.SomeDecl); ok {
 			someDecl = sd
 		}
-	}
-
-	if sd, ok := stack[len(stack)-1].(*ast.SomeDecl); ok {
-		someDecl = sd
+	case *ast.SomeDecl:
+		someDecl = node
 	}
 
 	if someDecl == nil {
@@ -58,7 +55,7 @@ func (s *SomeLocator) Find(stack []ast.Node, compiler *ast.Compiler, _ *ast.Modu
 
 	switch v := call[len(call)-1].Value.(type) {
 	case ast.Var:
-		return s.varLocator.FindVarOccurrence(stack, v)
+		return s.FindVarDefinition(stack, v)
 	case ast.Ref:
 		return findRulesDefinition(compiler, v)
 	}

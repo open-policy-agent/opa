@@ -28,8 +28,9 @@ type Oracle struct {
 func New() *Oracle {
 	manager := find.NewManager()
 
-	manager.Register(find.NewRefLocator())
+	// variable can appear within a reference (e.g., 'data.foo[x]') and so are most specific
 	manager.Register(find.NewVarLocator())
+	manager.Register(find.NewRefLocator())
 	manager.Register(find.NewSomeLocator())
 	manager.Register(find.NewEveryLocator())
 

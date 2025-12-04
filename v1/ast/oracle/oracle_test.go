@@ -557,6 +557,55 @@ allow if bar.foo == "value"`,
 				Text: []byte(`bar`),
 			},
 		},
+		{
+			note: "variable shadowing block",
+			modules: map[string]string{
+				"buffer.rego": `package test
+
+p if {
+    x := 1
+    {x|
+        x := 2
+        x == 2
+    } == {2}
+    x == 1
+}`,
+			},
+			pos: 63, // position of "x" in "x == 2"
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  6,
+				Col:  9,
+				Text: []byte("x"),
+			},
+		},
+		{
+			note: "variable shadowing, unification",
+			modules: map[string]string{
+				"buffer.rego": `package test
+
+p if {
+    x := 1
+    {x|
+	    x := 2
+        {x|
+		    [x, y] = [3, 4]
+            x == 3
+        } == {3}
+        x == 2
+    } == {2}
+    x == 1
+}
+`,
+			},
+			pos: 98, // position of "x" in "x == 3"
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  8,
+				Col:  8,
+				Text: []byte("x"),
+			},
+		},
 	}
 
 	for _, tc := range cases {
@@ -622,6 +671,10 @@ got      file=%q, row=%d, col=%d`,
 func showLocationContext(t *testing.T, modules map[string]string, loc *ast.Location, label string) {
 	t.Helper()
 	if content, exists := modules[loc.File]; exists {
+		if strings.Contains(content, "\t") {
+			t.Fatalf("rego contains tabs - please use spaces for ^ position")
+		}
+
 		lines := strings.Split(content, "\n")
 		if loc.Row > 0 && loc.Row <= len(lines) {
 			line := lines[loc.Row-1]
