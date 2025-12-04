@@ -25,25 +25,21 @@ type bufferItem struct {
 
 // eventBuffer stores and uploads a gzip compressed JSON array of EventV1 entries
 type eventBuffer struct {
-	buffer       chan *bufferItem // buffer stores JSON encoded EventV1 data
-	encoderLock  sync.Mutex       // encoderLock controls that uploads are done sequentially
-	enc          *chunkEncoder    // enc adds events into a gzip compressed JSON array (chunk)
-	limiter      *rate.Limiter
-	metrics      metrics.Metrics
-	logger       logging.Logger
-	client       rest.Client
-	uploadPath   string
+	buffer      chan *bufferItem // buffer stores JSON encoded EventV1 data
+	encoderLock sync.Mutex       // encoderLock controls that uploads are done sequentially
+	enc         *chunkEncoder    // enc adds events into a gzip compressed JSON array (chunk)
+	limiter     *rate.Limiter
+	metrics     metrics.Metrics
+	logger      logging.Logger
+	client      rest.Client
+	uploadPath  string
+	// Enables the read loop in immediate mode to constantly read from the event buffer
 	mode         plugins.TriggerMode
 	stop         chan chan struct{}
 	cancelUpload bool
 }
 
-func newEventBuffer(
-	bufferSizeLimitEvents int64,
-	uploadSizeLimitBytes int64,
-	mode plugins.TriggerMode,
-	client rest.Client,
-	uploadPath string) *eventBuffer {
+func newEventBuffer(bufferSizeLimitEvents int64, uploadSizeLimitBytes int64, mode plugins.TriggerMode, client rest.Client, uploadPath string) *eventBuffer {
 	b := &eventBuffer{
 		buffer:     make(chan *bufferItem, bufferSizeLimitEvents),
 		enc:        newChunkEncoder(uploadSizeLimitBytes),
@@ -189,7 +185,6 @@ func (b *eventBuffer) flush(ctx context.Context) {
 	b.encoderLock.Lock()
 	defer b.encoderLock.Unlock()
 
-	// try to flush buffer before stopping
 	eventLen := len(b.buffer)
 	for range eventLen {
 		item := b.readBufItem()
@@ -208,6 +203,38 @@ func (b *eventBuffer) flush(ctx context.Context) {
 			}
 		}
 	}
+
+	result, err := b.enc.Flush()
+	if err != nil {
+		return
+	}
+	if result == nil {
+		return
+	}
+	if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil {
+		return
+	}
+}
+
+func (b *eventBuffer) immediateRead(ctx context.Context, item *bufferItem) {
+	b.encoderLock.Lock()
+	defer b.encoderLock.Unlock()
+
+	result, err := b.processBufferItem(item)
+	if err != nil {
+		b.logger.Error("%v.", err)
+	}
+	if result == nil {
+		return
+	}
+
+	if b.mode == plugins.TriggerImmediate {
+		b.cancelUpload = true
+	}
+
+	if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil {
+		b.logger.Error("%v.", err)
+	}
 }
 
 // read is a loop that reads from the buffer constantly, so that the chunk can be uploaded as soon as it is ready
@@ -216,24 +243,9 @@ func (b *eventBuffer) read() {
 	for {
 		select {
 		case item := <-b.buffer:
-			b.encoderLock.Lock()
-			result, err := b.processBufferItem(item)
-			if err != nil {
-				b.logger.Error("%v.", err)
-			}
-			if result != nil {
-				if b.mode == plugins.TriggerImmediate {
-					b.cancelUpload = true
-				}
-
-				if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil {
-					b.logger.Error("%v.", err)
-				}
-			}
-			b.encoderLock.Unlock()
+			b.immediateRead(ctx, item)
 		case done := <-b.stop:
 			b.flush(ctx)
-
 			done <- struct{}{}
 			return
 		}
@@ -286,6 +298,10 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 		if b.logger != nil {
 			b.logger.Error("encoding failure: %v", err)
 		}
+		return nil
+	}
+
+	if result == nil {
 		return nil
 	}
 

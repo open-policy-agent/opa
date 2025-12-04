@@ -101,19 +101,23 @@ range is 300-600 seconds, this can be configured by setting `decision_logs.repor
 `decision_logs.reporting.max_delay_seconds`. When the upload is triggered multiple chunks will be uploaded one at a
 time.
 
-It is recommended to use this trigger mode to prevent overloading the service with upload requests.
+It is recommended to use this trigger mode if you want a bursts of decision event data.
 
 ### Immediate
 
 As soon as enough events are received to create a chunk the plugin will trigger an upload (when a chunk is ready is
-determined by `upload_size_limit_bytes`). Similar to the `periodic` mode the `min_delay_seconds` and `max_delay_seconds`
-can still be configured. Instead, this timer is used to flush the encoder buffer in case not enough events are received
-to create a chunk. The timer is reset if a chunk is uploaded, this helps to ensure chunks are closer to the upload limit
-before upload.
+determined by reaching the upload limit, configured with `upload_size_limit_bytes`). Similar to the `periodic` mode the
+`min_delay_seconds` and `max_delay_seconds` can still be configured. Instead, this timer is used to flush the encoder
+buffer in case not enough events are received to create a chunk. The timer is reset if a chunk is uploaded, this helps
+to ensure chunks are closer to the upload limit before upload.
 
-if the buffer fills up the contents could upload before `min_delay_seconds`.
+It is recommended to use this trigger mode if you want a constant stream of decision event data.
 
-It is recommended to use this trigger mode if you want a constant stream of incoming data.
+For the event buffer type this means if enough events are received they could be uploaded sooner than the configured
+min-max delay allowing the buffer to empty quicker preventing any dropped events. While for the size buffer uploads
+could
+also happen sooner but regardless of the trigger mode dropped events aren't as likely, given the default unlimited size
+and the fact the events are stored as chunks.
 
 ### Manual
 

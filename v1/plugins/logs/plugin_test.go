@@ -52,14 +52,14 @@ type testPlugin struct {
 	events []EventV1
 }
 
-func (p *testPlugin) Start(context.Context) error {
+func (*testPlugin) Start(context.Context) error {
 	return nil
 }
 
-func (p *testPlugin) Stop(context.Context) {
+func (*testPlugin) Stop(context.Context) {
 }
 
-func (p *testPlugin) Reconfigure(context.Context, any) {
+func (*testPlugin) Reconfigure(context.Context, any) {
 }
 
 func (p *testPlugin) Log(_ context.Context, event EventV1) error {
@@ -3138,7 +3138,7 @@ func TestParseConfigUseDefaultServiceNoConsole(t *testing.T) {
 		"console": false
 	}`)
 
-	config, err := ParseConfig([]byte(loggerConfig), services, nil)
+	config, err := ParseConfig(loggerConfig, services, nil)
 
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err)
@@ -3162,7 +3162,7 @@ func TestParseConfigDefaultServiceWithConsole(t *testing.T) {
 		"console": true
 	}`)
 
-	config, err := ParseConfig([]byte(loggerConfig), services, nil)
+	config, err := ParseConfig(loggerConfig, services, nil)
 
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err)
@@ -4073,5 +4073,54 @@ func TestImmediateMode(t *testing.T) {
 				t.Fatalf("expected chunk to be uploaded sooner than %d seconds, got %s", delay, elapsed)
 			}
 		})
+	}
+}
+
+func TestDroppedEvents(t *testing.T) {
+	ctx := t.Context()
+	testLogger := test.New()
+	fixture := newTestFixture(t, testFixtureOptions{
+		ConsoleLogger: testLogger,
+		// the size buffer drops entire chunks instead of event
+		ReportingBufferType: eventBufferType,
+		TriggerMode:         plugins.TriggerImmediate,
+		// configured with a long delay
+		MinDelay:                      10,
+		MaxDelay:                      20,
+		ReportingUploadSizeLimitBytes: 127,
+	})
+	fixture.plugin = fixture.plugin.WithMetrics(metrics.New())
+	if err := fixture.plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	defer fixture.server.stop()
+
+	newConfig := *fixture.plugin.Config()
+	eventLimit := int64(100)
+	newConfig.Reporting.BufferSizeLimitEvents = &eventLimit
+	fixture.plugin.Reconfigure(ctx, &newConfig)
+
+	fixture.server.ch = make(chan []EventV1, 1)
+	for range 100 {
+		event := &server.Info{
+			DecisionID: strconv.Itoa(1),
+		}
+		if err := fixture.plugin.Log(ctx, event); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Each event gets pushed out by the next event, so one stays behind
+	for range 99 {
+		<-fixture.server.ch
+	}
+
+	// Stopping the plugin will flush out the last event
+	fixture.plugin.Stop(ctx)
+	<-fixture.server.ch
+
+	dropped := fixture.plugin.metrics.Counter("decision_logs_dropped_buffer_size_limit_exceeded").Value().(uint64)
+	if dropped != 0 {
+		t.Fatalf("expected dropped %d but got %d", 0, dropped)
 	}
 }

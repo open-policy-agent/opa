@@ -28,12 +28,7 @@ type sizeBuffer struct {
 	cancelUpload         bool
 }
 
-func newSizeBuffer(
-	bufferSizeLimitBytes int64,
-	uploadSizeLimitBytes int64,
-	client rest.Client,
-	uploadPath string,
-	mode plugins.TriggerMode) *sizeBuffer {
+func newSizeBuffer(bufferSizeLimitBytes int64, uploadSizeLimitBytes int64, client rest.Client, uploadPath string, mode plugins.TriggerMode) *sizeBuffer {
 	return &sizeBuffer{
 		enc:                  newChunkEncoder(uploadSizeLimitBytes),
 		buffer:               newLogBuffer(bufferSizeLimitBytes),
@@ -205,7 +200,7 @@ func (b *sizeBuffer) Upload(ctx context.Context) error {
 			if b.limiter != nil {
 				events, decErr := newChunkDecoder(bs).decode()
 				if decErr != nil {
-					return err
+					continue
 				}
 
 				for i := range events {
