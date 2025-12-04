@@ -2018,8 +2018,6 @@ func TestPluginTriggerManualWithTimeout(t *testing.T) {
 }
 
 func TestPluginGracefulShutdownFlushesDecisions(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name       string
 		mode       plugins.TriggerMode
@@ -2071,8 +2069,6 @@ func TestPluginGracefulShutdownFlushesDecisions(t *testing.T) {
 				input = generateInputMap(i)
 				_ = fixture.plugin.Log(ctx, logServerInfo("abc", input, result))
 			}
-
-			fixture.server.expCode = 200
 
 			timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 			defer cancel()

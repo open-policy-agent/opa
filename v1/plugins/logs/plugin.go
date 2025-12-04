@@ -595,7 +595,7 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		status:       &lstat.Status{},
 		preparedDrop: *newPrepareOnce(),
 		preparedMask: *newPrepareOnce(),
-		resetTimer:   make(chan struct{}),
+		resetTimer:   make(chan struct{}, 1),
 	}
 
 	switch parsedConfig.Reporting.BufferType {

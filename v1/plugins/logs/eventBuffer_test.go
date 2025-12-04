@@ -135,6 +135,8 @@ func TestEventBuffer_Upload(t *testing.T) {
 
 	uploadPath := "/v1/test"
 
+	var allEvents []EventV1
+
 	tests := []struct {
 		name                 string
 		eventLimit           int64
@@ -142,9 +144,26 @@ func TestEventBuffer_Upload(t *testing.T) {
 		uploadSizeLimitBytes int64
 		handleFunc           func(w http.ResponseWriter, r *http.Request)
 		expectedError        string
+		mode                 plugins.TriggerMode
 	}{
 		{
+			name:                 "Upload everything in the buffer, immediate mode",
+			mode:                 plugins.TriggerImmediate,
+			eventLimit:           4,
+			numberOfEvents:       3,
+			uploadSizeLimitBytes: defaultUploadSizeLimitBytes,
+			handleFunc: func(w http.ResponseWriter, r *http.Request) {
+				events := decodeLogEvent(t, r.Body)
+				// in immediate mode it isn't certain if this is called by the read loop or the call to upload
+				// so just check if all events are received at the end
+				allEvents = append(allEvents, events...)
+
+				w.WriteHeader(http.StatusOK)
+			},
+		},
+		{
 			name:                 "Upload everything in the buffer",
+			mode:                 plugins.TriggerPeriodic,
 			eventLimit:           4,
 			numberOfEvents:       3,
 			uploadSizeLimitBytes: defaultUploadSizeLimitBytes,
@@ -153,12 +172,14 @@ func TestEventBuffer_Upload(t *testing.T) {
 				if len(events) != 3 {
 					t.Errorf("expected 3 events, got %d", len(events))
 				}
+				allEvents = append(allEvents, events...)
 
 				w.WriteHeader(http.StatusOK)
 			},
 		},
 		{
-			name:                 "Upload in chunks determined by upload size limit",
+			name:                 "Upload in chunks determined by upload size limit, immediate mode",
+			mode:                 plugins.TriggerImmediate,
 			eventLimit:           4,
 			numberOfEvents:       4,
 			uploadSizeLimitBytes: 196, // Each test event is 195 bytes
@@ -167,11 +188,39 @@ func TestEventBuffer_Upload(t *testing.T) {
 				if len(events) != 1 {
 					t.Errorf("expected 1 events, got %d", len(events))
 				}
+				allEvents = append(allEvents, events...)
 				w.WriteHeader(http.StatusOK)
 			},
 		},
 		{
-			name:                 "Get error from failed upload",
+			name:                 "Upload in chunks determined by upload size limit, periodic mode",
+			mode:                 plugins.TriggerPeriodic,
+			eventLimit:           4,
+			numberOfEvents:       4,
+			uploadSizeLimitBytes: 196, // Each test event is 195 bytes
+			handleFunc: func(w http.ResponseWriter, r *http.Request) {
+				events := decodeLogEvent(t, r.Body)
+				if len(events) != 1 {
+					t.Errorf("expected 1 events, got %d", len(events))
+				}
+				allEvents = append(allEvents, events...)
+				w.WriteHeader(http.StatusOK)
+			},
+		},
+		{
+			name:                 "Get error from failed upload, immediate mode",
+			mode:                 plugins.TriggerImmediate,
+			eventLimit:           1,
+			numberOfEvents:       1,
+			uploadSizeLimitBytes: defaultUploadSizeLimitBytes,
+			handleFunc: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusBadRequest)
+			},
+			expectedError: "log upload failed, server replied with HTTP 400 Bad Request",
+		},
+		{
+			name:                 "Get error from failed upload, periodic mode",
+			mode:                 plugins.TriggerPeriodic,
 			eventLimit:           1,
 			numberOfEvents:       1,
 			uploadSizeLimitBytes: defaultUploadSizeLimitBytes,
@@ -183,25 +232,37 @@ func TestEventBuffer_Upload(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		for _, mode := range []plugins.TriggerMode{plugins.TriggerPeriodic, plugins.TriggerImmediate} {
-			t.Run(tc.name+"_"+string(mode), func(t *testing.T) {
-				client, ts := setupTestServer(t, uploadPath, tc.handleFunc)
-				defer ts.Close()
-				resetTimer := make(chan struct{})
-				e := newEventBuffer(tc.eventLimit, tc.uploadSizeLimitBytes, mode, client, uploadPath, resetTimer).WithLogger(logging.NewNoOpLogger())
-				e.WithMetrics(metrics.New())
-				for i := range tc.numberOfEvents {
-					e.Push(newTestEvent(t, strconv.Itoa(i), true))
-				}
+		t.Run(tc.name, func(t *testing.T) {
+			defer func() {
+				allEvents = []EventV1{}
+			}()
 
-				err := e.Upload(t.Context())
-				if err != nil {
-					if tc.expectedError == "" || tc.expectedError != "" && err.Error() != tc.expectedError {
-						t.Fatal(err)
-					}
+			client, ts := setupTestServer(t, uploadPath, tc.handleFunc)
+			defer ts.Close()
+			resetTimer := make(chan struct{}, 1)
+			e := newEventBuffer(tc.eventLimit, tc.uploadSizeLimitBytes, tc.mode, client, uploadPath, resetTimer).WithLogger(logging.NewNoOpLogger())
+			e.WithMetrics(metrics.New())
+			for i := range tc.numberOfEvents {
+				e.Push(newTestEvent(t, strconv.Itoa(i), true))
+			}
+
+			e.Stop()
+
+			err := e.Upload(t.Context())
+			if err != nil {
+				if tc.expectedError == "" || tc.expectedError != "" && err.Error() != tc.expectedError {
+					t.Fatal(err)
 				}
-			})
-		}
+			}
+
+			if tc.expectedError != "" {
+				return
+			}
+
+			if len(allEvents) != tc.numberOfEvents {
+				t.Fatalf("expected %d events, got %d", tc.numberOfEvents, len(allEvents))
+			}
+		})
 	}
 }
 

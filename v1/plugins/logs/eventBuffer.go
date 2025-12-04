@@ -110,6 +110,13 @@ func (b *eventBuffer) Reconfigure(
 	uploadPath string,
 	mode plugins.TriggerMode,
 ) {
+	b.Stop()
+	defer func() {
+		if b.mode == plugins.TriggerImmediate {
+			go b.read()
+		}
+	}()
+
 	// prevent an upload from pushing events that failed to upload back into a closed buffer
 	b.encoderLock.Lock()
 	defer b.encoderLock.Unlock()
@@ -125,9 +132,6 @@ func (b *eventBuffer) Reconfigure(
 	}
 
 	b.mode = mode
-	if b.mode == plugins.TriggerImmediate {
-		go b.read()
-	}
 	b.client = client
 	b.uploadPath = uploadPath
 
@@ -160,7 +164,7 @@ func (b *eventBuffer) push(event *bufferItem) {
 	util.PushFIFO(b.buffer, event, b.metrics, logBufferEventDropCounterName)
 }
 
-func (b *eventBuffer) processBufferItem(ctx context.Context, item *bufferItem) error {
+func (b *eventBuffer) processBufferItem(item *bufferItem) ([][]byte, error) {
 	var result [][]byte
 	if item.chunk != nil {
 		result = [][]byte{item.chunk}
@@ -168,7 +172,7 @@ func (b *eventBuffer) processBufferItem(ctx context.Context, item *bufferItem) e
 		event := item.EventV1
 		eventBytes, err := json.Marshal(&event)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		result, err = b.enc.Encode(*event, eventBytes)
@@ -180,17 +184,32 @@ func (b *eventBuffer) processBufferItem(ctx context.Context, item *bufferItem) e
 		}
 	}
 
-	if result != nil {
-		if b.mode == plugins.TriggerImmediate {
-			// we have a result, reset timer to attempt upload
-			b.resetTimer <- struct{}{}
+	return result, nil
+}
+
+func (b *eventBuffer) flush(ctx context.Context) {
+	b.encoderLock.Lock()
+	defer b.encoderLock.Unlock()
+
+	// try to flush buffer before stopping
+	eventLen := len(b.buffer)
+	for range eventLen {
+		item := b.readBufItem()
+		if item == nil {
+			return
 		}
 
-		if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil {
-			return err
+		result, err := b.processBufferItem(item)
+		if err != nil {
+			return
+		}
+
+		if result != nil {
+			if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil {
+				return
+			}
 		}
 	}
-	return nil
 }
 
 // read is a loop that reads from the buffer constantly, so that the chunk can be uploaded as soon as it is ready
@@ -200,31 +219,24 @@ func (b *eventBuffer) read() {
 		select {
 		case item := <-b.buffer:
 			b.encoderLock.Lock()
-			if err := b.processBufferItem(ctx, item); err != nil {
+			result, err := b.processBufferItem(item)
+			if err != nil {
 				b.logger.Error("%v.", err)
+			}
+			if result != nil {
+				if b.mode == plugins.TriggerImmediate {
+					// we have a result, reset timer to attempt upload
+					b.resetTimer <- struct{}{}
+				}
+
+				if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil {
+					b.logger.Error("%v.", err)
+				}
 			}
 			b.encoderLock.Unlock()
 		case done := <-b.stop:
-			b.encoderLock.Lock()
-			// try to flush buffer before stopping
-			eventLen := len(b.buffer)
-			for range eventLen {
-				item := b.readBufItem()
-				if item == nil {
-					break
-				}
+			b.flush(ctx)
 
-				if err := b.processBufferItem(ctx, item); err != nil {
-					break
-				}
-			}
-			// Don't reset the timer in this case so that the call to upload flushes the encoder
-			// Could also flush the encoder here, but this way the original flow stays the same
-			select {
-			case <-b.resetTimer:
-			default:
-			}
-			b.encoderLock.Unlock()
 			done <- struct{}{}
 			return
 		}
@@ -262,8 +274,19 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 				break
 			}
 
-			if err := b.processBufferItem(ctx, item); err != nil {
-				return err
+			result, err := b.processBufferItem(item)
+			if err != nil {
+				b.logger.Error("%v.", err)
+			}
+			if result != nil {
+				if b.mode == plugins.TriggerImmediate {
+					// we have a result, reset timer to attempt upload
+					b.resetTimer <- struct{}{}
+				}
+
+				if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil {
+					b.logger.Error("%v.", err)
+				}
 			}
 		}
 	}
