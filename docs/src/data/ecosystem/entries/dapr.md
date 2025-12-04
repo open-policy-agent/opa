@@ -9,7 +9,7 @@ tutorials:
 - https://docs.dapr.io/reference/components-reference/supported-middleware/middleware-opa/
 code:
 - https://github.com/dapr/dapr
-- https://github.com/dapr/components-contrib/blob/master/middleware/http/opa/middleware.go
+- https://github.com/dapr/components-contrib/blob/main/middleware/http/opa/middleware.go
 docs_features:
   go-integration:
     note: |

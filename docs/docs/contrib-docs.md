@@ -88,7 +88,7 @@ if you need some help setting this up.
 ## Updating Existing Documentation
 
 Navigate to the
-[docs](https://github.com/open-policy-agent/opa/blob/main/docs/docs)
+[docs](https://github.com/open-policy-agent/opa/tree/main/docs/docs)
 folder in your local environment. Each top level item in the documentation nav
 will have an associated markdown file in the documentation folder. Locate the
 file you wish to update and confirm the title in the YAML frontmatter matches. Once
@@ -138,8 +138,8 @@ The [OPA Ecosystem](/ecosystem/) is a showcase of projects that are built with
 or integrated with OPA. If you have a project that you would like to showcase,
 please open a PR with two files:
 
-- A markdown file in [docs/src/data/ecosystem/entries](https://github.com/open-policy-agent/opa/blob/main/docs/src/data/ecosystem/entries)
-- An icon file in [docs/static/img/ecosystem-entry-logos](https://github.com/open-policy-agent/opa/blob/main/docs/static/img/ecosystem-entry-logos)
+- A markdown file in [docs/src/data/ecosystem/entries](https://github.com/open-policy-agent/opa/tree/main/docs/src/data/ecosystem/entries)
+- An icon file in [docs/static/img/ecosystem-entry-logos](https://github.com/open-policy-agent/opa/tree/main/docs/static/img/ecosystem-entry-logos)
 
 Both files should have the same 'id', e.g. if your project is called `foobar`,
 then the markdown file should be named `foobar.md` and the icon file

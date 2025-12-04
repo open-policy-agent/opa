@@ -2,7 +2,7 @@
 title: AWS CloudFormation Hooks
 ---
 
-[AWS CloudFormation Hooks](https://docs.aws.amazon.com/cloudformation-cli/latest/userguide/hooks.html) allows users to
+[AWS CloudFormation Hooks](https://docs.aws.amazon.com/cloudformation-cli/latest/hooks-userguide/what-is-cloudformation-hooks.html) allows users to
 verify AWS infrastructure components defined in AWS CloudFormation
 [templates](https://aws.amazon.com/cloudformation/resources/templates/), like S3 Buckets or EC2 instances, prior to
 deployment. This is done via **hooks**. Hooks are composed of custom code running in an AWS Lambda function, which is
@@ -12,8 +12,8 @@ AWS currently supports hooks written in either Java or Python, and provides a
 [sample repository](https://github.com/aws-cloudformation/aws-cloudformation-samples), which includes example hooks
 written in both languages. Since we'd rather use OPA for this purpose, we'd need some code to process the requests
 handled by the hook and send them forward to OPA for policy decisions via its
-[REST API](https://www.openpolicyagent.org/docs/latest/rest-api/) using
-the [OPA AWS CloudFormation Hook](https://github.com/StyraInc/opa-aws-cloudformation-hook).
+[REST API](https://www.openpolicyagent.org/docs/rest-api) using
+the [OPA AWS CloudFormation Hook](https://github.com/StyraOSS/opa-aws-cloudformation-hook).
 
 ## Goals
 
@@ -35,7 +35,7 @@ In order to complete this tutorial, the following prerequisites needs to be met:
 - Docker
 - OPA server running at an endpoint reachable by the AWS Lambda function, either within the same AWS environment, or
   elsewhere. While developing your CloudFormation policies, a good option is to run OPA locally, but exposed to the
-  public via a service like [tunnelmole](https://tunnelmole.com/docs), an open source tunneling tool or [ngrok](https://ngrok.com/),
+  public via a service like [tunnelmole](https://tunnelmole.com/docs/), an open source tunneling tool or [ngrok](https://ngrok.com/),
   a popular closed source tunneling tool.
 
 ## Steps
@@ -45,7 +45,7 @@ In order to complete this tutorial, the following prerequisites needs to be met:
 To start out, clone the OPA AWS CloudFormation Hook repository:
 
 ```shell
-git clone https://github.com/StyraInc/opa-aws-cloudformation-hook.git
+git clone https://github.com/StyraOSS/opa-aws-cloudformation-hook.git
 cd opa-aws-cloudformation-hook
 ```
 
@@ -447,7 +447,7 @@ bucket_is_private if {
 Note how we no longer need the `bucket_create_or_update` rule, as that is already asserted by the main policy.
 Quite an improvement in terms of readability, and a good foundation for further policy authoring. If you'd like to see
 more examples of policy utilizing this pattern, check out the
-[policy directory](https://github.com/StyraInc/opa-aws-cloudformation-hook/tree/main/examples/policy) in the OPA AWS
+[policy directory](https://github.com/StyraOSS/opa-aws-cloudformation-hook/tree/main/examples/policy) in the OPA AWS
 CloudFormation Hook repo.
 
 ### OPA Authentication via AWS Secrets

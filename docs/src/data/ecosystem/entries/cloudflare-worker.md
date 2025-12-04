@@ -6,9 +6,9 @@ labels:
   layer: application
   category: serverless
 code:
-- https://github.com/open-policy-agent/contrib/tree/master/wasm/cloudflare-worker
+- https://github.com/open-policy-agent/contrib/tree/main/wasm/cloudflare-worker
 tutorials:
-- https://github.com/open-policy-agent/contrib/blob/master/wasm/cloudflare-worker/README.md
+- https://github.com/open-policy-agent/contrib/blob/main/wasm/cloudflare-worker/README.md
 docs_features:
   wasm-integration:
     note: |

@@ -8,12 +8,12 @@ labels:
 software:
 - java
 code:
-- https://github.com/open-policy-agent/contrib/tree/master/spring_authz
+- https://github.com/open-policy-agent/contrib/tree/main/spring_authz
 - https://github.com/Bisnode/opa-spring-security
 - https://github.com/massenz/jwt-opa
 - https://github.com/eugenp/tutorials/tree/master/spring-security-modules/spring-security-opa
 tutorials:
-- https://github.com/open-policy-agent/contrib/blob/master/spring_authz/README.md
+- https://github.com/open-policy-agent/contrib/blob/main/spring_authz/README.md
 - https://github.com/massenz/jwt-opa#web-server-demo-app
 - https://www.baeldung.com/spring-security-authorization-opa
 inventors:

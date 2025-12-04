@@ -9,7 +9,7 @@ general notes about operating OPA in such cases.
 
 ## HTTP Proxies
 
-OPA uses the standard Go [net/http](https://golang.org/pkg/net/http/) package
+OPA uses the standard Go [net/http](https://pkg.go.dev/net/http) package
 for outbound HTTP requests that download bundles, upload decision logs, etc. In
 environments where an HTTP proxy is required, you can configure OPA using the
 pseudo-standard `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment
@@ -146,7 +146,7 @@ When passing a capabilities definition file via `--capabilities`, one can restri
 
 Not providing a capabilities file, or providing a file without an `allow_net` key, will permit fetching remote schemas from any host.
 
-Note that the metaschemas [http://json-schema.org/draft-04/schema](http://json-schema.org/draft-04/schema), [http://json-schema.org/draft-06/schema](http://json-schema.org/draft-06/schema), and [http://json-schema.org/draft-07/schema](http://json-schema.org/draft-07/schema), are always available, even without network access.
+Note that the metaschemas [https://json-schema.org/draft-04/schema](https://json-schema.org/draft-04/schema), [https://json-schema.org/draft-06/schema](https://json-schema.org/draft-06/schema), and [https://json-schema.org/draft-07/schema](https://json-schema.org/draft-07/schema), are always available, even without network access.
 
 Similarly, the `allow_net` capability restricts what hosts the `http.send` built-in function may send requests to, and what hosts the `net.lookup_ip_addr` built-in function may resolve IP addresses for.
 

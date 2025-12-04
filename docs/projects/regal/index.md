@@ -19,7 +19,7 @@ import Intro from '@site/src/components/projects/regal/Intro';
 # Regal
 
 Regal is a linter and language server for
-[Rego](https://www.openpolicyagent.org/docs/policy-language/), making
+[Rego](https://www.openpolicyagent.org/docs/policy-language), making
 your Rego magnificent, and you the ruler of rules!
 
 With its extensive set of linter rules, documentation and editor integrations,
