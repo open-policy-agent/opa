@@ -8285,6 +8285,41 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				}`,
 		},
 
+		// some
+		{
+			note: "inside some",
+			module: `package test
+				users := {"alice_1", "alice_2"}
+				id := 1
+				
+				t if {
+					$"user_{id}" in users
+				}`,
+			exp: `package test
+				users := {"alice_1", "alice_2"} if { true }
+				id := 1 if { true }
+				t = true if { 
+					__local2__ = {__local0__ | __local0__ = data.test.id}
+					internal.template_string(["user_", __local2__], __local1__)
+					__local3__ = data.test.users
+					internal.member_2(__local1__, __local3__)
+				}`,
+		},
+		{
+			note: "inside some, domain",
+			module: `package test
+				t if {
+					some "user_1" in [$"alice_{1}", $"alice_{2}"]
+				}`,
+			exp: `package test
+				t = true if { 
+					internal.template_string(["alice_", 1], __local2__)
+					internal.template_string(["alice_", 2], __local3__)
+					__local4__ = [__local2__, __local3__]
+					"user_1" = __local4__[__local1__]
+				}`,
+		},
+
 		// else
 		{
 			note: "in else body",

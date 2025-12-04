@@ -303,3 +303,17 @@ cases:
     query: data.test.p = x
     want_result:
       - x: 42
+  - note: string-interpolation/some
+    modules:
+      - |
+        package test
+
+        users := {"user_1", "user_2"}
+        id := 1
+
+        p if {
+          $"user_{id}" in users
+        }
+    query: data.test.p = x
+    want_result:
+      - x: true

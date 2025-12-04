@@ -8556,6 +8556,26 @@ func TestTemplateString(t *testing.T) {
 		},
 
 		{
+			note: "template-string inside some symbols",
+			expr: `some $"user_{id}" in users`,
+			exp: &Expr{
+				Terms: &SomeDecl{
+					Symbols: []*Term{
+						Member.Call(
+							TemplateStringTerm(false,
+								StringTerm("user_"),
+								&Expr{
+									Terms: VarTerm("id"),
+								},
+							),
+							VarTerm("users"),
+						),
+					},
+				},
+			},
+		},
+
+		{
 			note: "multi-line expression in single-line template-string",
 			expr: `$"{[x |
 					x := 42]}"`,
@@ -8664,6 +8684,126 @@ func TestTemplateString(t *testing.T) {
 
 			if !tc.exp.Equal(body[0]) {
 				t.Errorf("Expressions not equal:\n%v (parsed)\n%v (correct)", body[0], tc.exp)
+			}
+		})
+	}
+}
+
+func TestTemplateStringLocation(t *testing.T) {
+	tests := []struct {
+		note string
+		expr string
+		exp  Location
+	}{
+		{
+			note: "empty template-string",
+			expr: `$""`,
+			exp: Location{
+				Text: []byte(`$""`),
+				Row:  1,
+				Col:  1,
+			},
+		},
+		{
+			note: "empty template-string, multi-line",
+			expr: "$``",
+			exp: Location{
+				Text: []byte("$``"),
+				Row:  1,
+				Col:  1,
+			},
+		},
+		{
+			note: "no template-expressions",
+			expr: `$"foo bar"`,
+			exp: Location{
+				Text: []byte(`$"foo bar"`),
+				Row:  1,
+				Col:  1,
+			},
+		},
+		{
+			note: "no template-expressions, multi-line",
+			expr: "$`foo\n" +
+				"bar`",
+			exp: Location{
+				Text: []byte("$`foo\nbar`"),
+				Row:  1,
+				Col:  1,
+			},
+		},
+		{
+			note: "template-expressions, expr tail",
+			expr: `$"foo {42} bar {x}"`,
+			exp: Location{
+				Text: []byte(`$"foo {42} bar {x}"`),
+				Row:  1,
+				Col:  1,
+			},
+		},
+		{
+			note: "template-expressions, expr tail, multi-line",
+			expr: "$`foo\n{42}\nbar\n{x}`",
+			exp: Location{
+				Text: []byte("$`foo\n{42}\nbar\n{x}`"),
+				Row:  1,
+				Col:  1,
+			},
+		},
+		{
+			note: "template-expressions, string tail",
+			expr: `$"foo {42} bar {x} baz"`,
+			exp: Location{
+				Text: []byte(`$"foo {42} bar {x} baz"`),
+				Row:  1,
+				Col:  1,
+			},
+		},
+		{
+			note: "template-expressions, string tail, multi-line",
+			expr: "$`foo\n{42}\nbar\n{x}\nbaz`",
+			exp: Location{
+				Text: []byte("$`foo\n{42}\nbar\n{x}\nbaz`"),
+				Row:  1,
+				Col:  1,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			stmts, _, err := ParseStatements("", tc.expr)
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if len(stmts) != 1 {
+				t.Fatalf("Expected exactly one statement, got %d: %v", len(stmts), stmts)
+			}
+
+			body, ok := stmts[0].(Body)
+			if !ok {
+				t.Fatalf("Expected body, got %T", stmts[0])
+			}
+
+			if len(body) != 1 {
+				t.Fatalf("Expected exactly one expression, got %d: %v", len(body), body)
+			}
+
+			trm, ok := body[0].Terms.(*Term)
+			if !ok {
+				t.Fatalf("Expected term, got %T", stmts[0])
+			}
+
+			_, ok = trm.Value.(*TemplateString)
+			if !ok {
+				t.Fatalf("Expected template-string, got %T", stmts[0])
+			}
+
+			loc := trm.Loc()
+			if !tc.exp.Equal(loc) {
+				t.Errorf("Locations not equal:\n%v (parsed)\n%v (correct)", *loc, tc.exp)
 			}
 		})
 	}

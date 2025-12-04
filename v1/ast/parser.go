@@ -1908,6 +1908,8 @@ func (p *Parser) parseRawString() *Term {
 }
 
 func (p *Parser) parseTemplateString(multiLine bool) *Term {
+	loc := p.s.Loc()
+
 	if !p.po.Capabilities.ContainsFeature(FeatureTemplateStrings) {
 		p.errorf(p.s.Loc(), "template strings are not supported by current capabilities")
 		return nil
@@ -1989,7 +1991,10 @@ func (p *Parser) parseTemplateString(multiLine bool) *Term {
 		p.scanWS(scanner.ContinueTemplateString(multiLine))
 	}
 
-	return TemplateStringTerm(multiLine, parts...)
+	// When there are template-expressions, the initial location will only contain the text up to the first expression
+	loc.Text = p.s.Text(loc.Offset, p.s.tokEnd)
+
+	return TemplateStringTerm(multiLine, parts...).SetLocation(loc)
 }
 
 func (p *Parser) parseTemplateExpr() *Expr {
