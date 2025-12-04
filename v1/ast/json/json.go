@@ -19,7 +19,48 @@
 // such as `github.com/json-iterator/go`.
 package json
 
-import "sync"
+import (
+	"bytes"
+	"encoding/json"
+	"sync"
+
+	"github.com/open-policy-agent/opa/v1/util"
+)
+
+// Pool for bytes.Buffer to reduce allocations during marshaling
+var bytesBufferPool = sync.Pool{
+	New: func() any {
+		return &bytes.Buffer{}
+	},
+}
+
+// Pool for byte slices to reduce allocations during marshaling
+// Using the generic SlicePool from util package
+var byteSlicePool = util.NewSlicePool[byte](maxNodeToggleJSONSize)
+
+// Interned JSON field names and values as byte slices to avoid string allocations
+var (
+	jsonTrue  = util.StringToByteSlice("true")
+	jsonFalse = util.StringToByteSlice("false")
+
+	// Field name prefixes (includes quotes and colon)
+	jsonFieldTerm           = util.StringToByteSlice(`"Term":`)
+	jsonFieldPackage        = util.StringToByteSlice(`,"Package":`)
+	jsonFieldComment        = util.StringToByteSlice(`,"Comment":`)
+	jsonFieldImport         = util.StringToByteSlice(`,"Import":`)
+	jsonFieldRule           = util.StringToByteSlice(`,"Rule":`)
+	jsonFieldHead           = util.StringToByteSlice(`,"Head":`)
+	jsonFieldExpr           = util.StringToByteSlice(`,"Expr":`)
+	jsonFieldSomeDecl       = util.StringToByteSlice(`,"SomeDecl":`)
+	jsonFieldEvery          = util.StringToByteSlice(`,"Every":`)
+	jsonFieldWith           = util.StringToByteSlice(`,"With":`)
+	jsonFieldAnnotations    = util.StringToByteSlice(`,"Annotations":`)
+	jsonFieldAnnotationsRef = util.StringToByteSlice(`,"AnnotationsRef":`)
+)
+
+// Pre-calculated JSON output size for NodeToggle
+// {"Term":false,"Package":false,"Comment":false,"Import":false,"Rule":false,"Head":false,"Expr":false,"SomeDecl":false,"Every":false,"With":false,"Annotations":false,"AnnotationsRef":false}
+const maxNodeToggleJSONSize = 200
 
 // Options defines the options for JSON operations,
 // currently only marshaling can be configured
@@ -60,6 +101,11 @@ const (
 	toggleWith
 	toggleAnnotations
 	toggleAnnotationsRef
+
+	// toggleAll is a mask with all valid flags set
+	toggleAll = toggleTerm | togglePackage | toggleComment | toggleImport |
+		toggleRule | toggleHead | toggleExpr | toggleSomeDecl |
+		toggleEvery | toggleWith | toggleAnnotations | toggleAnnotationsRef
 )
 
 // Getters for each field
@@ -96,6 +142,233 @@ func (n *NodeToggle) setFlag(flag uint16, value bool) {
 	} else {
 		n.flags &^= flag
 	}
+}
+
+// MarshalJSON implements json.Marshaler for NodeToggle
+// Exports the bitflags as individual boolean fields for backward compatibility
+// Optimized to write JSON directly without intermediate struct allocation
+// Uses interned byte slices to avoid string allocations
+func (n NodeToggle) MarshalJSON() ([]byte, error) {
+	// Get byte slice from pool with initial size 0 (we'll append)
+	resultPtr := byteSlicePool.Get(0)
+	result := (*resultPtr)[:0] // Reset to empty but keep capacity
+
+	result = append(result, '{')
+
+	// Write fields directly using interned byte slices
+	result = append(result, jsonFieldTerm...)
+	if n.Term() {
+		result = append(result, jsonTrue...)
+	} else {
+		result = append(result, jsonFalse...)
+	}
+
+	result = append(result, jsonFieldPackage...)
+	if n.Package() {
+		result = append(result, jsonTrue...)
+	} else {
+		result = append(result, jsonFalse...)
+	}
+
+	result = append(result, jsonFieldComment...)
+	if n.Comment() {
+		result = append(result, jsonTrue...)
+	} else {
+		result = append(result, jsonFalse...)
+	}
+
+	result = append(result, jsonFieldImport...)
+	if n.Import() {
+		result = append(result, jsonTrue...)
+	} else {
+		result = append(result, jsonFalse...)
+	}
+
+	result = append(result, jsonFieldRule...)
+	if n.Rule() {
+		result = append(result, jsonTrue...)
+	} else {
+		result = append(result, jsonFalse...)
+	}
+
+	result = append(result, jsonFieldHead...)
+	if n.Head() {
+		result = append(result, jsonTrue...)
+	} else {
+		result = append(result, jsonFalse...)
+	}
+
+	result = append(result, jsonFieldExpr...)
+	if n.Expr() {
+		result = append(result, jsonTrue...)
+	} else {
+		result = append(result, jsonFalse...)
+	}
+
+	result = append(result, jsonFieldSomeDecl...)
+	if n.SomeDecl() {
+		result = append(result, jsonTrue...)
+	} else {
+		result = append(result, jsonFalse...)
+	}
+
+	result = append(result, jsonFieldEvery...)
+	if n.Every() {
+		result = append(result, jsonTrue...)
+	} else {
+		result = append(result, jsonFalse...)
+	}
+
+	result = append(result, jsonFieldWith...)
+	if n.With() {
+		result = append(result, jsonTrue...)
+	} else {
+		result = append(result, jsonFalse...)
+	}
+
+	result = append(result, jsonFieldAnnotations...)
+	if n.Annotations() {
+		result = append(result, jsonTrue...)
+	} else {
+		result = append(result, jsonFalse...)
+	}
+
+	result = append(result, jsonFieldAnnotationsRef...)
+	if n.AnnotationsRef() {
+		result = append(result, jsonTrue...)
+	} else {
+		result = append(result, jsonFalse...)
+	}
+
+	result = append(result, '}')
+
+	// Make a copy to return, then return slice to pool
+	output := make([]byte, len(result))
+	copy(output, result)
+	byteSlicePool.Put(resultPtr)
+
+	return output, nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler for NodeToggle
+// Imports individual boolean fields and converts them to bitflags
+// Optimized with custom JSON parsing for maximum performance
+func (n *NodeToggle) UnmarshalJSON(data []byte) error {
+	n.flags = 0
+
+	// Fast path: manual parsing without map allocation
+	// Expected format: {"Term":true,"Package":false,...}
+
+	i := 0
+	length := len(data)
+
+	// Skip whitespace and opening brace
+	for i < length && (data[i] == ' ' || data[i] == '\t' || data[i] == '\n' || data[i] == '\r') {
+		i++
+	}
+	if i >= length || data[i] != '{' {
+		return json.Unmarshal(data, &map[string]bool{}) // Return error via standard parser
+	}
+	i++
+
+	for i < length {
+		// Skip whitespace
+		for i < length && (data[i] == ' ' || data[i] == '\t' || data[i] == '\n' || data[i] == '\r') {
+			i++
+		}
+
+		// Check for end of object
+		if i < length && data[i] == '}' {
+			break
+		}
+
+		// Skip comma
+		if i < length && data[i] == ',' {
+			i++
+			for i < length && (data[i] == ' ' || data[i] == '\t' || data[i] == '\n' || data[i] == '\r') {
+				i++
+			}
+		}
+
+		// Parse field name
+		if i >= length || data[i] != '"' {
+			// Invalid JSON - fallback to standard parser for error
+			return json.Unmarshal(data, &map[string]bool{})
+		}
+		i++
+
+		fieldStart := i
+		for i < length && data[i] != '"' {
+			if data[i] == '\\' { // Handle escaped quotes
+				i++
+			}
+			i++
+		}
+		if i >= length {
+			return json.Unmarshal(data, &map[string]bool{})
+		}
+		fieldName := string(data[fieldStart:i])
+		i++ // skip closing quote
+
+		// Skip colon
+		for i < length && (data[i] == ' ' || data[i] == '\t' || data[i] == '\n' || data[i] == '\r') {
+			i++
+		}
+		if i >= length || data[i] != ':' {
+			return json.Unmarshal(data, &map[string]bool{})
+		}
+		i++
+
+		// Skip whitespace before value
+		for i < length && (data[i] == ' ' || data[i] == '\t' || data[i] == '\n' || data[i] == '\r') {
+			i++
+		}
+
+		// Parse boolean value
+		var value bool
+		if i+4 <= length && string(data[i:i+4]) == "true" {
+			value = true
+			i += 4
+		} else if i+5 <= length && string(data[i:i+5]) == "false" {
+			value = false
+			i += 5
+		} else {
+			// Invalid value - not a boolean, fallback to standard parser for error
+			return json.Unmarshal(data, &map[string]bool{})
+		}
+
+		// Set the appropriate flag
+		if value {
+			switch fieldName {
+			case "Term":
+				n.flags |= toggleTerm
+			case "Package":
+				n.flags |= togglePackage
+			case "Comment":
+				n.flags |= toggleComment
+			case "Import":
+				n.flags |= toggleImport
+			case "Rule":
+				n.flags |= toggleRule
+			case "Head":
+				n.flags |= toggleHead
+			case "Expr":
+				n.flags |= toggleExpr
+			case "SomeDecl":
+				n.flags |= toggleSomeDecl
+			case "Every":
+				n.flags |= toggleEvery
+			case "With":
+				n.flags |= toggleWith
+			case "Annotations":
+				n.flags |= toggleAnnotations
+			case "AnnotationsRef":
+				n.flags |= toggleAnnotationsRef
+			}
+		}
+	}
+
+	return nil
 }
 
 // NewNodeToggle creates a NodeToggle with specific fields enabled
@@ -178,7 +451,7 @@ func (n NodeToggle) WithAnnotationsRef() NodeToggle {
 
 // WithAll enables all flags
 func (n NodeToggle) WithAll() NodeToggle {
-	n.flags = 0xFFFF
+	n.flags = toggleAll
 	return n
 }
 
@@ -378,6 +651,6 @@ func AnnotationsRefLocation(enabled bool) NodeToggle {
 
 func AllLocations() NodeToggle {
 	var nt NodeToggle
-	nt.flags = 0xFFFF
+	nt.flags = toggleAll
 	return nt
 }

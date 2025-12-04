@@ -72,7 +72,7 @@ func parse(args []string, params *parseParams, stdout io.Writer, stderr io.Write
 		astJSON.SetOptions(astJSON.Options{
 			MarshalOptions: astJSON.MarshalOptions{
 				IncludeLocationText: true,
-				IncludeLocation:     astJSON.NewNodeToggle().WithAll(),
+				IncludeLocation:     astJSON.AllLocations(),
 			},
 		})
 		defer astJSON.SetOptions(astJSON.Defaults())
