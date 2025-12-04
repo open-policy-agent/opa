@@ -8916,10 +8916,8 @@ func TestTemplateStringCapabilities(t *testing.T) {
 				if !strings.Contains(err.Error(), tc.expErr) {
 					t.Fatalf("Expected error to contain %q, but got: %v", tc.expErr, err)
 				}
-			} else {
-				if err != nil {
-					t.Fatalf("Unexpected error: %v", err)
-				}
+			} else if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
 			}
 		})
 	}

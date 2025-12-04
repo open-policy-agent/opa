@@ -857,11 +857,11 @@ func (ts *TemplateString) Find(path Ref) (Value, error) {
 func (ts *TemplateString) Hash() int {
 	hash := 0
 	for _, p := range ts.Parts {
-		switch p.(type) {
+		switch x := p.(type) {
 		case *Expr:
-			hash = hash + p.(*Expr).Hash()
+			hash += x.Hash()
 		case *Term:
-			hash = hash + p.(*Term).Value.Hash()
+			hash += x.Value.Hash()
 		default:
 			panic(fmt.Sprintf("invalid template part type %T", p))
 		}
@@ -869,7 +869,7 @@ func (ts *TemplateString) Hash() int {
 	return hash
 }
 
-func (ts *TemplateString) IsGround() bool {
+func (*TemplateString) IsGround() bool {
 	return false
 }
 

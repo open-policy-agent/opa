@@ -2154,7 +2154,6 @@ func rewriteTemplateStrings(caps *Capabilities, gen *localVarGenerator, getArity
 				modified = true
 			}
 			errs = append(errs, errsrec...)
-			errsrec = Errors{}
 
 			modrec, errsrec = rewriteTemplateStringTerm(caps, gen, s, x.Term)
 		case *ArrayComprehension:
@@ -2164,7 +2163,6 @@ func rewriteTemplateStrings(caps *Capabilities, gen *localVarGenerator, getArity
 				modified = true
 			}
 			errs = append(errs, errsrec...)
-			errsrec = Errors{}
 
 			modrec, errsrec = rewriteTemplateStringTerm(caps, gen, s, x.Term)
 		case *ObjectComprehension:
@@ -2174,14 +2172,12 @@ func rewriteTemplateStrings(caps *Capabilities, gen *localVarGenerator, getArity
 				modified = true
 			}
 			errs = append(errs, errsrec...)
-			errsrec = Errors{}
 
 			modrec, errsrec = rewriteTemplateStringTerm(caps, gen, s, x.Key)
 			if modrec {
 				modified = true
 			}
 			errs = append(errs, errsrec...)
-			errsrec = Errors{}
 
 			modrec, errsrec = rewriteTemplateStringTerm(caps, gen, s, x.Value)
 		case *Every:
@@ -2190,7 +2186,6 @@ func rewriteTemplateStrings(caps *Capabilities, gen *localVarGenerator, getArity
 				modified = true
 			}
 			errs = append(errs, errsrec...)
-			errsrec = Errors{}
 
 			s := safe.Copy()
 			s.Update(x.KeyValueVars())
@@ -2509,12 +2504,6 @@ var printRef = Print.Ref()
 
 func isPrintCall(x *Expr) bool {
 	return x.IsCall() && x.Operator().Equal(printRef)
-}
-
-var TemplateStringRef = InternalTemplateString.Ref()
-
-func isInternalTemplateStringCall(x *Expr) bool {
-	return x.IsCall() && x.Operator().Equal(TemplateStringRef)
 }
 
 // rewriteRefsInHead will rewrite rules so that the head does not contain any
