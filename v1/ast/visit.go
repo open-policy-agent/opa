@@ -458,6 +458,10 @@ func (tv *typeVisitor[T]) walk(x any, visit func(x T) bool) {
 		for i := range x.Symbols {
 			tv.walk(x.Symbols[i], visit)
 		}
+	case *TemplateString:
+		for i := range x.Parts {
+			tv.walk(x.Parts[i], visit)
+		}
 	}
 }
 

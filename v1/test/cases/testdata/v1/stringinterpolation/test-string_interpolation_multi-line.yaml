@@ -14,8 +14,7 @@ cases:
       - |
         package test
 
-        p := $`
-        foo
+        p := $`foo
         bar
         baz
         `

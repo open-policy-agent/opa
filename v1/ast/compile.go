@@ -2245,8 +2245,7 @@ func rewriteTemplateString(caps *Capabilities, gen *localVarGenerator, safe VarS
 					}
 				}
 
-				var vis *VarVisitor
-				vis = vis.ClearOrNew().WithParams(SafetyCheckVisitorParams)
+				vis := ClearOrNewVarVisitor(nil).WithParams(SafetyCheckVisitorParams)
 				vis.Walk(t)
 				vars := vis.Vars()
 				if vars.DiffCount(safe) > 0 {
