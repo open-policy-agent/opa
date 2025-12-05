@@ -715,6 +715,7 @@ typedef struct {
     size_t len;
     int set_literals_enabled;
     int non_string_object_keys_enabled;
+    int spacing_enabled;
 } opa_json_writer;
 
 void opa_json_writer_init(opa_json_writer *w)
@@ -724,6 +725,7 @@ void opa_json_writer_init(opa_json_writer *w)
     w->len = 0;
     w->set_literals_enabled = 0;
     w->non_string_object_keys_enabled = 0;
+    w->spacing_enabled = 0;
 }
 
 size_t opa_json_writer_offset(opa_json_writer *w)
@@ -956,6 +958,15 @@ int opa_json_writer_emit_object_element(opa_json_writer *w, opa_value *coll, opa
         return rc;
     }
 
+    if (w->spacing_enabled) {
+        rc = opa_json_writer_emit_char(w, ' ');
+
+        if (rc != 0)
+        {
+            return rc;
+        }
+    }
+
     return opa_json_writer_emit_value(w, opa_value_get(coll, k));
 }
 
@@ -980,6 +991,15 @@ int opa_json_writer_emit_collection(opa_json_writer *w, opa_value *v, char open,
             if (rc != 0)
             {
                 return rc;
+            }
+
+            if (w->spacing_enabled) {
+                rc = opa_json_writer_emit_char(w, ' ');
+
+                if (rc != 0)
+                {
+                    return rc;
+                }
             }
         }
 
@@ -1076,5 +1096,6 @@ char *opa_value_dump(opa_value *v)
     opa_json_writer_init(&w);
     w.set_literals_enabled = 1;
     w.non_string_object_keys_enabled = 1;
+    w.spacing_enabled = 1;
     return opa_json_writer_write(&w, v);
 }

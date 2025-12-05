@@ -36,7 +36,7 @@ func TestOpaEvalGrowMemoryForLargeInput(t *testing.T) {
 
 	poolSize := 1
 	testPool := initPoolWithData(t, uint32(poolSize), module, "test/p", data)
-	expected := `{{"result":true}}`
+	expected := `{{"result": true}}`
 	ensurePoolResults(t, ctx, testPool, poolSize, &input, expected)
 }
 
@@ -66,7 +66,7 @@ func TestPoolCopyParsedDataOnInit(t *testing.T) {
 
 	poolSize := 4
 	testPool := initPoolWithData(t, uint32(poolSize), module, "test/p", data)
-	expected := `{{"result":{"b":[1,2,3,{"d":{"e":{"f":123}},"c":4}]}}}`
+	expected := `{{"result": {"b": [1, 2, 3, {"d": {"e": {"f": 123}}, "c": 4}]}}}`
 	ensurePoolResults(t, ctx, testPool, poolSize, nil, expected)
 }
 
@@ -88,7 +88,7 @@ func TestPoolCopyParsedDataUpdateFull(t *testing.T) {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	expected := `{{"result":{"y":"bar","x":123}}}`
+	expected := `{{"result": {"y": "bar", "x": 123}}}`
 	ensurePoolResults(t, ctx, testPool, poolSize, nil, expected)
 
 	// Change it one more time, now that all VM's in the pool have been
@@ -99,7 +99,7 @@ func TestPoolCopyParsedDataUpdateFull(t *testing.T) {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	expected = `{{"result":[1,2,3]}}`
+	expected = `{{"result": [1, 2, 3]}}`
 	ensurePoolResults(t, ctx, testPool, poolSize, nil, expected)
 }
 
@@ -124,25 +124,25 @@ func TestPoolCopyParsedDataUpdatePartial(t *testing.T) {
 			note:     "add object",
 			update:   util.MustUnmarshalJSON([]byte(`{"foo": 123}`)),
 			path:     []string{"a"},
-			expected: `{{"result":{"foo":123}}}`,
+			expected: `{{"result": {"foo": 123}}}`,
 		},
 		{
 			note:     "remove path",
 			path:     []string{"a", "foo"},
 			remove:   true,
-			expected: `{{"result":{}}}`,
+			expected: `{{"result": {}}}`,
 		},
 		{
 			note:     "add set",
 			update:   ast.MustParseTerm(`{"x": {"y": {"z"}}}`),
 			path:     []string{"a", "b", "c"},
-			expected: `{{"result":{"b":{"c":{"x":{"y":{"z"}}}}}}}`,
+			expected: `{{"result": {"b": {"c": {"x": {"y": {"z"}}}}}}}`,
 		},
 		{
 			note:     "remove set",
 			path:     []string{"a", "b", "c", "x", "y"},
 			remove:   true,
-			expected: `{{"result":{"b":{"c":{"x":{}}}}}}`,
+			expected: `{{"result": {"b": {"c": {"x": {}}}}}}`,
 		},
 	}
 	for _, tc := range cases {

@@ -144,7 +144,7 @@ func testRun(t *testing.T, tc cases.TestCase, regoVersion ast.RegoVersion, opts 
 	}
 
 	if tc.WantResult != nil {
-		testAssertResultSet(t, *tc.WantResult, rs, tc.SortBindings)
+		testAssertResultSet(t, *tc.WantResult, rs, tc.SortBindings, tc.IgnoreGeneratedVars)
 	}
 
 	if tc.WantResult == nil && tc.WantErrorCode == nil && tc.WantError == nil {
@@ -156,7 +156,7 @@ func testRun(t *testing.T, tc cases.TestCase, regoVersion ast.RegoVersion, opts 
 	}
 }
 
-func testAssertResultSet(t *testing.T, wantResult []map[string]any, rs QueryResultSet, sortBindings bool) {
+func testAssertResultSet(t *testing.T, wantResult []map[string]any, rs QueryResultSet, sortBindings bool, ignoreGeneratedVars bool) {
 
 	exp := ast.NewSet()
 
@@ -180,7 +180,10 @@ func testAssertResultSet(t *testing.T, wantResult []map[string]any, rs QueryResu
 			if sortBindings {
 				sort.Sort(resultSet(v.([]any)))
 			}
-			obj.Insert(ast.StringTerm(string(k)), ast.NewTerm(ast.MustInterfaceToValue(v)))
+			name := string(k)
+			if !ignoreGeneratedVars || !strings.HasPrefix(name, "__localq") {
+				obj.Insert(ast.StringTerm(name), ast.NewTerm(ast.MustInterfaceToValue(v)))
+			}
 		}
 		got.Add(ast.NewTerm(obj))
 	}

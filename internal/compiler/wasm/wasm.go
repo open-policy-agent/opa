@@ -162,6 +162,7 @@ var builtinsFunctions = map[string]string{
 	ast.TrimRight.Name:                  "opa_strings_trim_right",
 	ast.TrimSuffix.Name:                 "opa_strings_trim_suffix",
 	ast.TrimSpace.Name:                  "opa_strings_trim_space",
+	ast.InternalTemplateString.Name:     "opa_template_string",
 	ast.NumbersRange.Name:               "opa_numbers_range",
 	ast.ToNumber.Name:                   "opa_to_number",
 	ast.WalkBuiltin.Name:                "opa_value_transitive_closure",

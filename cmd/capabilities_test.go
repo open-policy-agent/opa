@@ -91,6 +91,7 @@ func TestCapabilitiesCurrent(t *testing.T) {
 			expFeatures: []string{
 				ast.FeatureRegoV1,
 				ast.FeatureKeywordsInRefs,
+				ast.FeatureTemplateStrings,
 			},
 		},
 		{

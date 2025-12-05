@@ -1626,6 +1626,23 @@
       }
     },
     {
+      "name": "internal.template_string",
+      "decl": {
+        "args": [
+          {
+            "dynamic": {
+              "type": "any"
+            },
+            "type": "array"
+          }
+        ],
+        "result": {
+          "type": "string"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "internal.test_case",
       "decl": {
         "args": [
@@ -4873,6 +4890,7 @@
   ],
   "features": [
     "keywords_in_refs",
-    "rego_v1"
+    "rego_v1",
+    "template_strings"
   ]
 }
