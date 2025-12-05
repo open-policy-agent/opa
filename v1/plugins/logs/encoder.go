@@ -389,6 +389,9 @@ func (enc *chunkEncoder) Flush() ([][]byte, error) {
 		if err != nil {
 			return nil, err
 		}
+		if r == nil {
+			return result, nil
+		}
 		if len(r) < int(enc.limit) {
 			return append(result, r), nil
 		}
