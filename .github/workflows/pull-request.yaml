@@ -143,7 +143,7 @@ jobs:
           arch: arm64
         - os: linux
           run: ubuntu-24.04
-          targets: ci-go-ci-build-linux-static
+          targets: ci-build-linux-static
           go_tags: GO_TAGS="-tags=opa_no_oci"
           variant_name: opa_no_oci
           arch: arm64
