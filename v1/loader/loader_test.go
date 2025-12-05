@@ -1152,9 +1152,7 @@ func TestLoadWithJSONOptions(t *testing.T) {
 
 	astJSON.SetOptions(astJSON.Options{
 		MarshalOptions: astJSON.MarshalOptions{
-			IncludeLocation: astJSON.NodeToggle{
-				Package: true,
-			},
+			IncludeLocation: astJSON.NewNodeToggle().WithPackage(),
 		},
 	})
 

@@ -6,7 +6,6 @@ package ast
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/open-policy-agent/opa/v1/types"
 	"github.com/open-policy-agent/opa/v1/util"
@@ -417,7 +416,8 @@ func mergeTypes(a, b types.Type) types.Type {
 }
 
 func (n *typeTreeNode) String() string {
-	b := strings.Builder{}
+	b := sbPool.Get()
+	defer sbPool.Put(b)
 
 	if k := n.key; k != nil {
 		b.WriteString(k.String())
@@ -433,8 +433,14 @@ func (n *typeTreeNode) String() string {
 	n.children.Iter(func(_ Value, child *typeTreeNode) bool {
 		b.WriteString("\n\t+ ")
 		s := child.String()
-		s = strings.ReplaceAll(s, "\n", "\n\t")
-		b.WriteString(s)
+		// Optimize: manual replacement is faster than strings.ReplaceAll for small strings
+		for i := 0; i < len(s); i++ {
+			if s[i] == '\n' {
+				b.WriteString("\n\t")
+			} else {
+				b.WriteByte(s[i])
+			}
+		}
 
 		return false
 	})

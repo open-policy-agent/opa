@@ -1028,10 +1028,19 @@ func (a *UnificationErrDetail) nilType() bool {
 
 // Lines returns the string representation of the detail.
 func (a *UnificationErrDetail) Lines() []string {
-	lines := make([]string, 2)
-	lines[0] = fmt.Sprint("left  : ", types.Sprint(a.Left))
-	lines[1] = fmt.Sprint("right : ", types.Sprint(a.Right))
-	return lines
+	sb := sbPool.Get()
+	defer sbPool.Put(sb)
+
+	sb.WriteString("left  : ")
+	sb.WriteString(types.Sprint(a.Left))
+	left := sb.String()
+
+	sb.Reset()
+	sb.WriteString("right : ")
+	sb.WriteString(types.Sprint(a.Right))
+	right := sb.String()
+
+	return []string{left, right}
 }
 
 // RefErrUnsupportedDetail describes an undefined reference error where the

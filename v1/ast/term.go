@@ -413,7 +413,7 @@ func (term *Term) MarshalJSON() ([]byte, error) {
 		"value": term.Value,
 	}
 	jsonOptions := astJSON.GetOptions().MarshalOptions
-	if jsonOptions.IncludeLocation.Term {
+	if jsonOptions.IncludeLocation.Term() {
 		if term.Location != nil {
 			d["location"] = term.Location
 		}
@@ -650,8 +650,9 @@ func NumberTerm(n json.Number) *Term {
 }
 
 // IntNumberTerm creates a new Term with an integer Number value.
+// Uses interned terms for commonly used integers (-1 to 512).
 func IntNumberTerm(i int) *Term {
-	return &Term{Value: newIntNumberValue(i)}
+	return internedIntNumberTerm(i)
 }
 
 // UIntNumberTerm creates a new Term with an unsigned integer Number value.
@@ -763,8 +764,9 @@ func floatNumber(f float64) Number {
 type String string
 
 // StringTerm creates a new Term with a String value.
+// Uses interned terms for commonly used strings.
 func StringTerm(s string) *Term {
-	return &Term{Value: String(s)}
+	return internedStringTerm(s)
 }
 
 // Equal returns true if the other Value is a String and is equal.
@@ -1136,15 +1138,23 @@ func (ref Ref) IsNested() bool {
 // contains non-string terms this function returns an error. Path
 // components are escaped.
 func (ref Ref) Ptr() (string, error) {
-	parts := make([]string, 0, len(ref)-1)
-	for _, term := range ref[1:] {
+	if len(ref) <= 1 {
+		return "", nil
+	}
+	sb := sbPool.Get()
+	defer sbPool.Put(sb)
+	sb.Grow(len(ref) * 8) // Estimate average component size
+	for i, term := range ref[1:] {
 		if str, ok := term.Value.(String); ok {
-			parts = append(parts, url.PathEscape(string(str)))
+			if i > 0 {
+				sb.WriteByte('/')
+			}
+			sb.WriteString(url.PathEscape(string(str)))
 		} else {
 			return "", errors.New("invalid path value type")
 		}
 	}
-	return strings.Join(parts, "/"), nil
+	return sb.String(), nil
 }
 
 var varRegexp = regexp.MustCompile("^[[:alpha:]_][[:alpha:][:digit:]_]*$")
@@ -1220,12 +1230,12 @@ func (ref Ref) OutputVars() VarSet {
 }
 
 func (ref Ref) toArray() *Array {
-	terms := make([]*Term, 0, len(ref))
-	for _, term := range ref {
+	terms := make([]*Term, len(ref))
+	for i, term := range ref {
 		if _, ok := term.Value.(String); ok {
-			terms = append(terms, term)
+			terms[i] = term
 		} else {
-			terms = append(terms, InternedTerm(term.Value.String()))
+			terms[i] = InternedTerm(term.Value.String())
 		}
 	}
 	return NewArray(terms...)
@@ -1627,19 +1637,28 @@ func (s *set) Diff(other Set) Set {
 	if s.Compare(other) == 0 {
 		return NewSet()
 	}
+	if s.Len() == 0 {
+		return NewSet()
+	}
 
-	terms := make([]*Term, 0, len(s.keys))
+	terms := make([]*Term, 0, s.Len())
 	for _, term := range s.sortedKeys() {
 		if !other.Contains(term) {
 			terms = append(terms, term)
 		}
 	}
 
+	if len(terms) == 0 {
+		return NewSet()
+	}
 	return NewSet(terms...)
 }
 
 // Intersect returns the set containing elements in both s and other.
 func (s *set) Intersect(other Set) Set {
+	if s.Len() == 0 || other.Len() == 0 {
+		return NewSet()
+	}
 	o := other.(*set)
 	n, m := s.Len(), o.Len()
 	ss := s
@@ -1657,6 +1676,9 @@ func (s *set) Intersect(other Set) Set {
 		}
 	}
 
+	if len(terms) == 0 {
+		return NewSet()
+	}
 	return NewSet(terms...)
 }
 
@@ -1698,7 +1720,10 @@ func (s *set) Foreach(f func(*Term)) {
 
 // Map returns a new Set obtained by applying f to each value in s.
 func (s *set) Map(f func(*Term) (*Term, error)) (Set, error) {
-	mapped := make([]*Term, 0, len(s.keys))
+	if s.Len() == 0 {
+		return NewSet(), nil
+	}
+	mapped := make([]*Term, 0, s.Len())
 	for _, x := range s.sortedKeys() {
 		term, err := f(x)
 		if err != nil {
@@ -2262,12 +2287,13 @@ func (obj *object) Map(f func(*Term, *Term) (*Term, *Term, error)) (Object, erro
 
 // Keys returns the keys of obj.
 func (obj *object) Keys() []*Term {
-	keys := make([]*Term, len(obj.keys))
-
+	if obj.Len() == 0 {
+		return nil
+	}
+	keys := make([]*Term, obj.Len())
 	for i, elem := range obj.sortedKeys() {
 		keys[i] = elem.key
 	}
-
 	return keys
 }
 
@@ -2278,11 +2304,14 @@ func (obj *object) KeysIterator() ObjectKeysIterator {
 
 // MarshalJSON returns JSON encoded bytes representing obj.
 func (obj *object) MarshalJSON() ([]byte, error) {
-	sl := make([][2]*Term, obj.Len())
+	l := obj.Len()
+	sl := termPair2SlicePool.Get(l)
+	defer termPair2SlicePool.Put(sl)
+
 	for i, node := range obj.sortedKeys() {
-		sl[i] = Item(node.key, node.value)
+		(*sl)[i] = Item(node.key, node.value)
 	}
-	return json.Marshal(sl)
+	return json.Marshal(*sl)
 }
 
 // Merge returns a new Object containing the non-overlapping keys of obj and other. If there are
@@ -2444,6 +2473,9 @@ func filterObject(o Value, filter Value) (Value, error) {
 	case String, Number, Boolean, Null:
 		return o, nil
 	case *Array:
+		if v.Len() == 0 {
+			return v, nil
+		}
 		values := NewArray()
 		for i := range v.Len() {
 			subFilter := filteredObj.Get(InternedIntegerString(i))
@@ -2457,6 +2489,9 @@ func filterObject(o Value, filter Value) (Value, error) {
 		}
 		return values, nil
 	case Set:
+		if v.Len() == 0 {
+			return v, nil
+		}
 		terms := make([]*Term, 0, v.Len())
 		for _, t := range v.Slice() {
 			if filteredObj.Get(t) != nil {
@@ -2466,6 +2501,9 @@ func filterObject(o Value, filter Value) (Value, error) {
 				}
 				terms = append(terms, NewTerm(filteredValue))
 			}
+		}
+		if len(terms) == 0 {
+			return NewSet(), nil
 		}
 		return NewSet(terms...), nil
 	case *object:
@@ -2578,7 +2616,15 @@ func (ac *ArrayComprehension) IsGround() bool {
 }
 
 func (ac *ArrayComprehension) String() string {
-	return "[" + ac.Term.String() + " | " + ac.Body.String() + "]"
+	sb := sbPool.Get()
+	defer sbPool.Put(sb)
+
+	sb.WriteByte('[')
+	sb.WriteString(ac.Term.String())
+	sb.WriteString(" | ")
+	sb.WriteString(ac.Body.String())
+	sb.WriteByte(']')
+	return sb.String()
 }
 
 // ObjectComprehension represents an object comprehension as defined in the language.
@@ -2638,7 +2684,17 @@ func (oc *ObjectComprehension) IsGround() bool {
 }
 
 func (oc *ObjectComprehension) String() string {
-	return "{" + oc.Key.String() + ": " + oc.Value.String() + " | " + oc.Body.String() + "}"
+	sb := sbPool.Get()
+	defer sbPool.Put(sb)
+
+	sb.WriteByte('{')
+	sb.WriteString(oc.Key.String())
+	sb.WriteString(": ")
+	sb.WriteString(oc.Value.String())
+	sb.WriteString(" | ")
+	sb.WriteString(oc.Body.String())
+	sb.WriteByte('}')
+	return sb.String()
 }
 
 // SetComprehension represents a set comprehension as defined in the language.
@@ -2695,7 +2751,15 @@ func (sc *SetComprehension) IsGround() bool {
 }
 
 func (sc *SetComprehension) String() string {
-	return "{" + sc.Term.String() + " | " + sc.Body.String() + "}"
+	sb := sbPool.Get()
+	defer sbPool.Put(sb)
+
+	sb.WriteByte('{')
+	sb.WriteString(sc.Term.String())
+	sb.WriteString(" | ")
+	sb.WriteString(sc.Body.String())
+	sb.WriteByte('}')
+	return sb.String()
 }
 
 // Call represents as function call in the language.
@@ -2740,11 +2804,26 @@ func (c Call) MakeExpr(output *Term) *Expr {
 }
 
 func (c Call) String() string {
-	args := make([]string, len(c)-1)
-	for i := 1; i < len(c); i++ {
-		args[i-1] = c[i].String()
+	if len(c) == 0 {
+		return ""
 	}
-	return fmt.Sprintf("%v(%v)", c[0], strings.Join(args, ", "))
+
+	sb := sbPool.Get()
+	sb.Grow(len(c) * 16)
+	defer sbPool.Put(sb)
+
+	sb.WriteString(c[0].String())
+	sb.WriteByte('(')
+
+	for i := 1; i < len(c); i++ {
+		if i > 1 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(c[i].String())
+	}
+
+	sb.WriteByte(')')
+	return sb.String()
 }
 
 func termSliceCopy(a []*Term) []*Term {

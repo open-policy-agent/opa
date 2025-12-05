@@ -759,3 +759,52 @@ func BenchmarkInterfaceToValueInt(b *testing.B) {
 		}
 	})
 }
+
+func BenchmarkCallString(b *testing.B) {
+	tests := []struct {
+		name string
+		call Call
+	}{
+		{
+			name: "small/2_args",
+			call: Call{
+				StringTerm("func"),
+				StringTerm("arg1"),
+			},
+		},
+		{
+			name: "medium/5_args",
+			call: Call{
+				StringTerm("func"),
+				StringTerm("arg1"),
+				StringTerm("arg2"),
+				NumberTerm("123"),
+				BooleanTerm(true),
+			},
+		},
+		{
+			name: "large/10_args",
+			call: Call{
+				StringTerm("very_long_function_name"),
+				StringTerm("argument_one"),
+				StringTerm("argument_two"),
+				NumberTerm("123"),
+				NumberTerm("456"),
+				BooleanTerm(true),
+				BooleanTerm(false),
+				NullTerm(),
+				StringTerm("last_arg"),
+				RefTerm(VarTerm("x"), StringTerm("foo")),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				str = tt.call.String()
+			}
+		})
+	}
+}

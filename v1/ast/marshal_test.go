@@ -31,9 +31,7 @@ func TestGeneric_MarshalWithLocationJSONOptions(t *testing.T) {
 		"location included, location text excluded": {
 			Options: astJSON.Options{
 				MarshalOptions: astJSON.MarshalOptions{
-					IncludeLocation: astJSON.NodeToggle{
-						Term: true,
-					},
+					IncludeLocation: astJSON.NewNodeToggle().WithTerm(),
 					IncludeLocationText: false,
 				},
 			},
@@ -49,9 +47,7 @@ func TestGeneric_MarshalWithLocationJSONOptions(t *testing.T) {
 		"location included, location text also included": {
 			Options: astJSON.Options{
 				MarshalOptions: astJSON.MarshalOptions{
-					IncludeLocation: astJSON.NodeToggle{
-						Term: true,
-					},
+					IncludeLocation: astJSON.NewNodeToggle().WithTerm(),
 					IncludeLocationText: true,
 				},
 			},
@@ -68,9 +64,7 @@ func TestGeneric_MarshalWithLocationJSONOptions(t *testing.T) {
 		"location included, location text included, file excluded": {
 			Options: astJSON.Options{
 				MarshalOptions: astJSON.MarshalOptions{
-					IncludeLocation: astJSON.NodeToggle{
-						Term: true,
-					},
+					IncludeLocation: astJSON.NewNodeToggle().WithTerm(),
 					IncludeLocationText: true,
 					ExcludeLocationFile: true,
 				},
@@ -129,9 +123,7 @@ func TestTerm_MarshalJSON(t *testing.T) {
 			}(),
 			Options: astJSON.Options{
 				MarshalOptions: astJSON.MarshalOptions{
-					IncludeLocation: astJSON.NodeToggle{
-						Term: false,
-					},
+					IncludeLocation: astJSON.NewNodeToggle(),
 				},
 			},
 			ExpectedJSON: `{"type":"string","value":"example"}`,
@@ -146,9 +138,7 @@ func TestTerm_MarshalJSON(t *testing.T) {
 			}(),
 			Options: astJSON.Options{
 				MarshalOptions: astJSON.MarshalOptions{
-					IncludeLocation: astJSON.NodeToggle{
-						Term: true,
-					},
+					IncludeLocation: astJSON.NewNodeToggle().WithTerm(),
 				},
 			},
 			ExpectedJSON: `{"location":{"file":"example.rego","row":1,"col":2},"type":"string","value":"example"}`,
@@ -236,9 +226,7 @@ func TestPackage_MarshalJSON(t *testing.T) {
 			},
 			Options: astJSON.Options{
 				MarshalOptions: astJSON.MarshalOptions{
-					IncludeLocation: astJSON.NodeToggle{
-						Package: false,
-					},
+					IncludeLocation: astJSON.NewNodeToggle(),
 				},
 			},
 			ExpectedJSON: `{"path":[]}`,
@@ -250,9 +238,7 @@ func TestPackage_MarshalJSON(t *testing.T) {
 			},
 			Options: astJSON.Options{
 				MarshalOptions: astJSON.MarshalOptions{
-					IncludeLocation: astJSON.NodeToggle{
-						Package: true,
-					},
+					IncludeLocation: astJSON.NewNodeToggle().WithPackage(),
 				},
 			},
 			ExpectedJSON: `{"location":{"file":"example.rego","row":1,"col":2},"path":[]}`,
@@ -296,9 +282,7 @@ func TestComment_MarshalJSON(t *testing.T) {
 			},
 			Options: astJSON.Options{
 				MarshalOptions: astJSON.MarshalOptions{
-					IncludeLocation: astJSON.NodeToggle{
-						Comment: false, // ignored
-					},
+					IncludeLocation: astJSON.CommentLocation(), // ignored - Comment location is always included
 				},
 			},
 			ExpectedJSON: `{"Text":"Y29tbWVudA==","Location":{"file":"example.rego","row":1,"col":2}}`,
@@ -310,9 +294,7 @@ func TestComment_MarshalJSON(t *testing.T) {
 			},
 			Options: astJSON.Options{
 				MarshalOptions: astJSON.MarshalOptions{
-					IncludeLocation: astJSON.NodeToggle{
-						Comment: true, // ignored
-					},
+					IncludeLocation: astJSON.CommentLocation(), // ignored - Comment location is always included
 				},
 			},
 			ExpectedJSON: `{"Text":"Y29tbWVudA==","Location":{"file":"example.rego","row":1,"col":2}}`,
@@ -366,9 +348,7 @@ func TestImport_MarshalJSON(t *testing.T) {
 			}(),
 			Options: astJSON.Options{
 				MarshalOptions: astJSON.MarshalOptions{
-					IncludeLocation: astJSON.NodeToggle{
-						Import: false,
-					},
+					IncludeLocation: astJSON.NewNodeToggle(),
 				},
 			},
 			ExpectedJSON: `{"path":{"type":"string","value":"example"}}`,
@@ -387,9 +367,7 @@ func TestImport_MarshalJSON(t *testing.T) {
 			}(),
 			Options: astJSON.Options{
 				MarshalOptions: astJSON.MarshalOptions{
-					IncludeLocation: astJSON.NodeToggle{
-						Import: true,
-					},
+					IncludeLocation: astJSON.NewNodeToggle().WithImport(),
 				},
 			},
 			ExpectedJSON: `{"location":{"file":"example.rego","row":1,"col":2},"path":{"type":"string","value":"example"}}`,
@@ -441,9 +419,7 @@ func TestRule_MarshalJSON(t *testing.T) {
 			Rule: rule,
 			Options: astJSON.Options{
 				MarshalOptions: astJSON.MarshalOptions{
-					IncludeLocation: astJSON.NodeToggle{
-						Rule: false,
-					},
+					IncludeLocation: astJSON.NewNodeToggle(),
 				},
 			},
 			ExpectedJSON: `{"body":[{"index":0,"terms":{"type":"boolean","value":true}}],"head":{"name":"allow","value":{"type":"boolean","value":true},"ref":[{"type":"var","value":"allow"}]}}`,
@@ -452,9 +428,7 @@ func TestRule_MarshalJSON(t *testing.T) {
 			Rule: rule,
 			Options: astJSON.Options{
 				MarshalOptions: astJSON.MarshalOptions{
-					IncludeLocation: astJSON.NodeToggle{
-						Rule: true,
-					},
+					IncludeLocation: astJSON.NewNodeToggle().WithRule(),
 				},
 			},
 			ExpectedJSON: `{"body":[{"index":0,"terms":{"type":"boolean","value":true}}],"head":{"name":"allow","value":{"type":"boolean","value":true},"ref":[{"type":"var","value":"allow"}]},"location":{"file":"example.rego","row":6,"col":2}}`,
@@ -522,9 +496,7 @@ func TestHead_MarshalJSON(t *testing.T) {
 			Head: head,
 			Options: astJSON.Options{
 				MarshalOptions: astJSON.MarshalOptions{
-					IncludeLocation: astJSON.NodeToggle{
-						Head: false,
-					},
+					IncludeLocation: astJSON.NewNodeToggle(),
 				},
 			},
 			ExpectedJSON: `{"name":"allow","value":{"type":"boolean","value":true},"ref":[{"type":"var","value":"allow"}]}`,
@@ -533,9 +505,7 @@ func TestHead_MarshalJSON(t *testing.T) {
 			Head: head,
 			Options: astJSON.Options{
 				MarshalOptions: astJSON.MarshalOptions{
-					IncludeLocation: astJSON.NodeToggle{
-						Head: true,
-					},
+					IncludeLocation: astJSON.NewNodeToggle().WithHead(),
 				},
 			},
 			ExpectedJSON: `{"name":"allow","value":{"type":"boolean","value":true},"ref":[{"type":"var","value":"allow"}],"location":{"file":"example.rego","row":6,"col":2}}`,
@@ -569,10 +539,7 @@ ref.head[rule].test contains "value" if {
 
 	astJSON.SetOptions(astJSON.Options{
 		MarshalOptions: astJSON.MarshalOptions{
-			IncludeLocation: astJSON.NodeToggle{
-				Head: true,
-				Term: true,
-			},
+			IncludeLocation: astJSON.NewNodeToggle().WithHead().WithTerm(),
 		},
 	})
 	t.Cleanup(resetJSONOptions)
@@ -624,9 +591,7 @@ func TestExpr_MarshalJSON(t *testing.T) {
 			Expr: expr,
 			Options: astJSON.Options{
 				MarshalOptions: astJSON.MarshalOptions{
-					IncludeLocation: astJSON.NodeToggle{
-						Expr: false,
-					},
+					IncludeLocation: astJSON.NewNodeToggle(),
 				},
 			},
 			ExpectedJSON: `{"index":0,"terms":{"type":"boolean","value":true}}`,
@@ -635,9 +600,7 @@ func TestExpr_MarshalJSON(t *testing.T) {
 			Expr: expr,
 			Options: astJSON.Options{
 				MarshalOptions: astJSON.MarshalOptions{
-					IncludeLocation: astJSON.NodeToggle{
-						Expr: true,
-					},
+					IncludeLocation: astJSON.NewNodeToggle().WithExpr(),
 				},
 			},
 			ExpectedJSON: `{"index":0,"location":{"file":"example.rego","row":6,"col":13},"terms":{"type":"boolean","value":true}}`,
@@ -741,7 +704,7 @@ func TestSomeDecl_MarshalJSON(t *testing.T) {
 				Location: NewLocation([]byte{}, "example.rego", 1, 2),
 			},
 			Options: astJSON.Options{
-				MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NodeToggle{SomeDecl: false}},
+				MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NewNodeToggle()},
 			},
 			ExpectedJSON: `{"symbols":[{"type":"string","value":"example"}]}`,
 		},
@@ -751,7 +714,7 @@ func TestSomeDecl_MarshalJSON(t *testing.T) {
 				Location: NewLocation([]byte{}, "example.rego", 1, 2),
 			},
 			Options: astJSON.Options{
-				MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NodeToggle{SomeDecl: true}},
+				MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NewNodeToggle().WithSomeDecl()},
 			},
 			ExpectedJSON: `{"location":{"file":"example.rego","row":1,"col":2},"symbols":[{"type":"string","value":"example"}]}`,
 		},
@@ -807,13 +770,13 @@ allow if {
 		"location excluded": {
 			Every: every,
 			Options: astJSON.Options{
-				MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NodeToggle{Every: false}},
+				MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NewNodeToggle()},
 			},
 			ExpectedJSON: `{"body":[{"index":0,"terms":[{"type":"ref","value":[{"type":"var","value":"equal"}]},{"type":"var","value":"e"},{"type":"number","value":1}]}],"domain":{"type":"array","value":[{"type":"number","value":1},{"type":"number","value":2},{"type":"number","value":3}]},"key":null,"value":{"type":"var","value":"e"}}`,
 		},
 		"location included": {
 			Every:        every,
-			Options:      astJSON.Options{MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NodeToggle{Every: true}}},
+			Options:      astJSON.Options{MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NewNodeToggle().WithEvery()}},
 			ExpectedJSON: `{"body":[{"index":0,"terms":[{"type":"ref","value":[{"type":"var","value":"equal"}]},{"type":"var","value":"e"},{"type":"number","value":1}]}],"domain":{"type":"array","value":[{"type":"number","value":1},{"type":"number","value":2},{"type":"number","value":3}]},"key":null,"location":{"file":"example.rego","row":5,"col":2},"value":{"type":"var","value":"e"}}`,
 		},
 	}
@@ -861,11 +824,11 @@ b if {
 			ExpectedJSON: `{"target":{"type":"ref","value":[{"type":"var","value":"input"}]},"value":{"type":"number","value":1}}`,
 		},
 		"location excluded": {
-			Options:      astJSON.Options{MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NodeToggle{With: false}}},
+			Options:      astJSON.Options{MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NewNodeToggle()}},
 			ExpectedJSON: `{"target":{"type":"ref","value":[{"type":"var","value":"input"}]},"value":{"type":"number","value":1}}`,
 		},
 		"location included": {
-			Options:      astJSON.Options{MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NodeToggle{With: true}}},
+			Options:      astJSON.Options{MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NewNodeToggle().WithWith()}},
 			ExpectedJSON: `{"location":{"file":"example.rego","row":7,"col":4},"target":{"type":"ref","value":[{"type":"var","value":"input"}]},"value":{"type":"number","value":1}}`,
 		},
 	}
@@ -921,7 +884,7 @@ func TestAnnotations_MarshalJSON(t *testing.T) {
 			},
 			Options: astJSON.Options{
 				MarshalOptions: astJSON.MarshalOptions{
-					IncludeLocation: astJSON.NodeToggle{Annotations: false},
+					IncludeLocation: astJSON.NewNodeToggle(),
 				},
 			},
 			ExpectedJSON: `{"custom":{"foo":"bar"},"description":"My desc","entrypoint":true,"organizations":["org1"],"scope":"rule","title":"My rule"}`,
@@ -940,7 +903,7 @@ func TestAnnotations_MarshalJSON(t *testing.T) {
 			},
 			Options: astJSON.Options{
 				MarshalOptions: astJSON.MarshalOptions{
-					IncludeLocation: astJSON.NodeToggle{Annotations: true},
+					IncludeLocation: astJSON.NewNodeToggle().WithAnnotations(),
 				},
 			},
 			ExpectedJSON: `{"custom":{"foo":"bar"},"description":"My desc","entrypoint":true,"location":{"file":"example.rego","row":1,"col":4},"organizations":["org1"],"scope":"rule","title":"My rule"}`,
@@ -987,7 +950,7 @@ func TestAnnotationsRef_MarshalJSON(t *testing.T) {
 			},
 			Options: astJSON.Options{
 				MarshalOptions: astJSON.MarshalOptions{
-					IncludeLocation: astJSON.NodeToggle{AnnotationsRef: false},
+					IncludeLocation: astJSON.NewNodeToggle(),
 				},
 			},
 			ExpectedJSON: `{"annotations":{"scope":""},"path":[]}`,
@@ -1000,7 +963,7 @@ func TestAnnotationsRef_MarshalJSON(t *testing.T) {
 			},
 			Options: astJSON.Options{
 				MarshalOptions: astJSON.MarshalOptions{
-					IncludeLocation: astJSON.NodeToggle{AnnotationsRef: true},
+					IncludeLocation: astJSON.NewNodeToggle().WithAnnotationsRef(),
 				},
 			},
 			ExpectedJSON: `{"annotations":{"scope":""},"location":{"file":"example.rego","row":1,"col":4},"path":[]}`,
@@ -1082,20 +1045,7 @@ p = 1`,
 			},
 			jsonOptions: astJSON.Options{
 				MarshalOptions: astJSON.MarshalOptions{
-					IncludeLocation: astJSON.NodeToggle{
-						Term:           true,
-						Package:        true,
-						Comment:        true,
-						Import:         true,
-						Rule:           true,
-						Head:           true,
-						Expr:           true,
-						SomeDecl:       true,
-						Every:          true,
-						With:           true,
-						Annotations:    true,
-						AnnotationsRef: true,
-					},
+					IncludeLocation: astJSON.NewNodeToggle().WithTerm().WithPackage().WithComment().WithImport().WithRule().WithHead().WithExpr().WithSomeDecl().WithEvery().WithWith().WithAnnotations().WithAnnotationsRef(),
 				},
 			},
 			expected: []string{

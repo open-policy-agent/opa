@@ -126,10 +126,8 @@ func doInspect(params inspectCommandParams, path string, out io.Writer) error {
 	case formats.JSON:
 		astJson.SetOptions(astJson.Options{
 			MarshalOptions: astJson.MarshalOptions{
-				IncludeLocation: astJson.NodeToggle{
-					// Annotation location data is only included if includeAnnotations is set
-					AnnotationsRef: params.listAnnotations,
-				},
+				// Annotation location data is only included if includeAnnotations is set
+				IncludeLocation: astJson.AnnotationsRefLocation(params.listAnnotations),
 			},
 		})
 		defer astJson.SetOptions(astJson.Defaults())

@@ -88,20 +88,19 @@ type Error struct {
 
 func (e *Error) Error() string {
 
-	var prefix string
+	sb := sbPool.Get()
+	defer sbPool.Put(sb)
 
 	if e.Location != nil {
-
 		if len(e.Location.File) > 0 {
-			prefix += e.Location.File + ":" + strconv.Itoa(e.Location.Row)
+			sb.WriteString(e.Location.File)
+			sb.WriteRune(':')
+			sb.WriteString(strconv.Itoa(e.Location.Row))
 		} else {
-			prefix += strconv.Itoa(e.Location.Row) + ":" + strconv.Itoa(e.Location.Col)
+			sb.WriteString(strconv.Itoa(e.Location.Row))
+			sb.WriteRune(':')
+			sb.WriteString(strconv.Itoa(e.Location.Col))
 		}
-	}
-
-	sb := strings.Builder{}
-	if len(prefix) > 0 {
-		sb.WriteString(prefix)
 		sb.WriteString(": ")
 	}
 

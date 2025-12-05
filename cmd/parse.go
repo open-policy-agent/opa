@@ -72,20 +72,7 @@ func parse(args []string, params *parseParams, stdout io.Writer, stderr io.Write
 		astJSON.SetOptions(astJSON.Options{
 			MarshalOptions: astJSON.MarshalOptions{
 				IncludeLocationText: true,
-				IncludeLocation: astJSON.NodeToggle{
-					Term:           true,
-					Package:        true,
-					Comment:        true,
-					Import:         true,
-					Rule:           true,
-					Head:           true,
-					Expr:           true,
-					SomeDecl:       true,
-					Every:          true,
-					With:           true,
-					Annotations:    true,
-					AnnotationsRef: true,
-				},
+				IncludeLocation:     astJSON.AllLocations(),
 			},
 		})
 		defer astJSON.SetOptions(astJSON.Defaults())
