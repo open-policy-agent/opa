@@ -145,7 +145,7 @@ jobs:
           run: ubuntu-24.04
           targets: ci-go-ci-build-linux-static
           go_tags: GO_TAGS="-tags=opa_no_oci"
-          variant_name: opa_no_ci
+          variant_name: opa_no_oci
           arch: arm64
         - os: windows
           run: ubuntu-24.04
