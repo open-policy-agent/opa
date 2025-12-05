@@ -7,6 +7,7 @@ package ast
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -19,9 +20,11 @@ import (
 )
 
 func TestCheckInference(t *testing.T) {
+	builtinMap := make(map[string]*Builtin, len(BuiltinMap)+3)
+	maps.Copy(builtinMap, BuiltinMap)
 
 	// fake_builtin_1([str1,str2])
-	RegisterBuiltin(&Builtin{
+	builtinMap["fake_builtin_1"] = &Builtin{
 		Name: "fake_builtin_1",
 		Decl: types.NewFunction(
 			nil,
@@ -29,10 +32,10 @@ func TestCheckInference(t *testing.T) {
 				[]types.Type{types.S, types.S}, nil,
 			),
 		),
-	})
+	}
 
 	// fake_builtin_2({"a":str1,"b":str2})
-	RegisterBuiltin(&Builtin{
+	builtinMap["fake_builtin_2"] = &Builtin{
 		Name: "fake_builtin_2",
 		Decl: types.NewFunction(
 			nil,
@@ -43,16 +46,16 @@ func TestCheckInference(t *testing.T) {
 				}, nil,
 			),
 		),
-	})
+	}
 
 	// fake_builtin_3({str1,str2,...})
-	RegisterBuiltin(&Builtin{
+	builtinMap["fake_builtin_3"] = &Builtin{
 		Name: "fake_builtin_3",
 		Decl: types.NewFunction(
 			nil,
 			types.NewSet(types.S),
 		),
-	})
+	}
 
 	tests := []struct {
 		note     string
@@ -289,7 +292,7 @@ func TestCheckInference(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			body := MustParseBody(tc.query)
 			checker := newTypeChecker()
-			env := checker.Env(BuiltinMap)
+			env := checker.Env(builtinMap)
 			env, err := checker.CheckBody(env, body)
 			if len(err) != 0 {
 				t.Fatalf("Unexpected error: %v", err)
@@ -883,8 +886,10 @@ func TestCheckMatchErrors(t *testing.T) {
 }
 
 func TestCheckBuiltinErrors(t *testing.T) {
+	builtinMap := make(map[string]*Builtin, len(BuiltinMap)+3)
+	maps.Copy(builtinMap, BuiltinMap)
 
-	RegisterBuiltin(&Builtin{
+	builtinMap["fake_builtin_2"] = &Builtin{
 		Name: "fake_builtin_2",
 		Decl: types.NewFunction(
 			types.Args(
@@ -902,7 +907,7 @@ func TestCheckBuiltinErrors(t *testing.T) {
 				}, nil,
 			),
 		),
-	})
+	}
 
 	tests := []struct {
 		note  string
@@ -922,7 +927,7 @@ func TestCheckBuiltinErrors(t *testing.T) {
 	env := newTestEnv([]string{
 		`p = "foo" { true }`,
 		`f(x) = x { true }`,
-	})
+	}, builtinMap)
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
@@ -937,15 +942,17 @@ func TestCheckBuiltinErrors(t *testing.T) {
 }
 
 func TestVoidBuiltins(t *testing.T) {
+	builtinMap := make(map[string]*Builtin, len(BuiltinMap)+1)
+	maps.Copy(builtinMap, BuiltinMap)
 
-	// Void builtins are used in test cases.
-	RegisterBuiltin(&Builtin{
+	// Void builtin is used in test cases.
+	builtinMap["fake_void_builtin"] = &Builtin{
 		Name: "fake_void_builtin",
 		Decl: types.NewFunction(
 			types.Args(types.N),
 			nil,
 		),
-	})
+	}
 
 	tests := []struct {
 		query   string
@@ -960,7 +967,7 @@ func TestVoidBuiltins(t *testing.T) {
 	for _, tc := range tests {
 		body := MustParseBody(tc.query)
 		checker := newTypeChecker()
-		_, errs := checker.CheckBody(newTestEnv(nil), body)
+		_, errs := checker.CheckBody(newTestEnv(nil, builtinMap), body)
 		if len(errs) != 0 && !tc.wantErr {
 			t.Fatal(errs)
 		} else if len(errs) == 0 && tc.wantErr {
@@ -1056,7 +1063,7 @@ func TestCheckRefErrInvalid(t *testing.T) {
 		`p { true }`,
 		`q = {"foo": 1, "bar": 2} { true }`,
 		`a.b.c[3] = x { x = {"x": {"y": 2}} }`,
-	})
+	}, BuiltinMap)
 
 	tests := []struct {
 		note  string
@@ -1561,7 +1568,7 @@ func TestRewrittenVarsInErrors(t *testing.T) {
 
 }
 
-func newTestEnv(rs []string) *TypeEnv {
+func newTestEnv(rs []string, builtinMap map[string]*Builtin) *TypeEnv {
 	module := MustParseModule(`
 		package test
 	`)
@@ -1580,7 +1587,7 @@ func newTestEnv(rs []string) *TypeEnv {
 		}
 	}
 
-	env, err := newTypeChecker().CheckTypes(newTypeChecker().Env(BuiltinMap), elems, nil)
+	env, err := newTypeChecker().CheckTypes(newTypeChecker().Env(builtinMap), elems, nil)
 	if len(err) > 0 {
 		panic(err)
 	}
