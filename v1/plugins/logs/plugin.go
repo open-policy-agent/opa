@@ -606,7 +606,8 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 			*parsedConfig.Resource,
 		).WithLogger(plugin.logger).WithLimiter(parsedConfig.Reporting.MaxDecisionsPerSecond)
 	case sizeBufferType:
-		plugin.b = newSizeBuffer(*parsedConfig.Reporting.BufferSizeLimitBytes,
+		plugin.b = newSizeBuffer(
+			*parsedConfig.Reporting.BufferSizeLimitBytes,
 			*parsedConfig.Reporting.UploadSizeLimitBytes,
 			plugin.manager.Client(plugin.config.Service),
 			*parsedConfig.Resource,

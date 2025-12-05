@@ -32,7 +32,7 @@ func newSizeBuffer(bufferSizeLimitBytes int64, uploadSizeLimitBytes int64, clien
 	return &sizeBuffer{
 		enc:                  newChunkEncoder(uploadSizeLimitBytes),
 		buffer:               newLogBuffer(bufferSizeLimitBytes),
-		BufferSizeLimitBytes: uploadSizeLimitBytes,
+		BufferSizeLimitBytes: bufferSizeLimitBytes,
 		UploadSizeLimitBytes: uploadSizeLimitBytes,
 		client:               client,
 		uploadPath:           uploadPath,
