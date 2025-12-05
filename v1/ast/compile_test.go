@@ -8656,6 +8656,12 @@ func TestCompilerRewriteTemplateStringsErrors(t *testing.T) {
 				}`,
 			exp: "var y is undeclared",
 		},
+		{
+			note: "walk built-in call",
+			module: `package test
+p := $"{walk(["a", "b"])}"`,
+			exp: "illegal call to relation built-in 'walk' that may cause multiple outputs",
+		},
 	}
 
 	for _, tc := range cases {
@@ -11658,6 +11664,7 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 		note        string
 		module      string
 		features    []string
+		builtins    []*Builtin
 		expectedErr string
 	}{
 		{
@@ -11877,11 +11884,24 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 			expectedErr: "rego_compile_error: template-strings are not supported",
 		},
 		{
-			note: "template-string feature, template-string",
+			note: "template-string feature, no internal.template_string built-in, template-string",
 			module: `package test
 				p := $"foo {42}"`,
 			features: []string{
 				FeatureTemplateStrings,
+			},
+			builtins:    []*Builtin{},
+			expectedErr: "rego_compile_error: template-strings are not supported",
+		},
+		{
+			note: "template-string feature, internal.template_string built-in, template-string",
+			module: `package test
+				p := $"foo {42}"`,
+			features: []string{
+				FeatureTemplateStrings,
+			},
+			builtins: []*Builtin{
+				InternalTemplateString,
 			},
 		},
 	}
@@ -11890,6 +11910,10 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			capabilities := CapabilitiesForThisVersion()
 			capabilities.Features = tc.features
+
+			if tc.builtins != nil {
+				capabilities.Builtins = tc.builtins
+			}
 
 			// Modules are parsed with full set of capabilities
 			mod := module(tc.module)

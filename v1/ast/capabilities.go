@@ -271,6 +271,12 @@ func (c *Capabilities) ContainsFeature(feature string) bool {
 	return slices.Contains(c.Features, feature)
 }
 
+func (c *Capabilities) ContainsBuiltin(name string) bool {
+	return slices.ContainsFunc(c.Builtins, func(builtin *Builtin) bool {
+		return builtin.Name == name
+	})
+}
+
 // addBuiltinSorted inserts a built-in into c in sorted order. An existing built-in with the same name
 // will be overwritten.
 func (c *Capabilities) addBuiltinSorted(bi *Builtin) {

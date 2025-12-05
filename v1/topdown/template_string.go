@@ -19,7 +19,17 @@ func builtinTemplateString(bctx BuiltinContext, operands []*ast.Term, iter func(
 
 	buf := make([]string, arr.Len())
 
+	var count int
 	err = builtinPrintCrossProductOperands(bctx, buf, arr, 0, func(buf []string) error {
+		count += 1
+		// Precautionary run-time assertion that template-strings can't produce multiple outputs; e.g. for custom relation type built-ins not known at compile-time.
+		if count > 1 {
+			return Halt{Err: &Error{
+				Code:     ConflictErr,
+				Location: bctx.Location,
+				Message:  "template-strings must not produce multiple outputs",
+			}}
+		}
 		return nil
 	})
 
