@@ -8,6 +8,7 @@ package metrics
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -16,6 +17,62 @@ import (
 
 	go_metrics "github.com/rcrowley/go-metrics"
 )
+
+type stringBuilderPool struct{ pool sync.Pool }
+
+func (p *stringBuilderPool) Get() *strings.Builder {
+	return p.pool.Get().(*strings.Builder)
+}
+
+func (p *stringBuilderPool) Put(sb *strings.Builder) {
+	sb.Reset()
+	p.pool.Put(sb)
+}
+
+var sbPool = &stringBuilderPool{
+	pool: sync.Pool{
+		New: func() any {
+			return &strings.Builder{}
+		},
+	},
+}
+
+// Fast integer to string conversion helpers using strconv for better performance
+func writeInt64(buf *strings.Builder, v int64) {
+	// Use a small stack buffer for common case
+	var b [20]byte // enough for 64-bit int
+	s := b[:]
+	if v < 0 {
+		buf.WriteByte('-')
+		v = -v
+	}
+	// Convert to string in reverse
+	i := len(s)
+	for v >= 10 {
+		i--
+		s[i] = byte('0' + v%10)
+		v /= 10
+	}
+	i--
+	s[i] = byte('0' + v)
+	buf.Write(s[i:])
+}
+
+func writeUint64(buf *strings.Builder, v uint64) {
+	// Use a small stack buffer
+	var b [20]byte // enough for 64-bit uint
+	s := b[:]
+	// Convert to string in reverse
+	i := len(s)
+	for v >= 10 {
+		i--
+		s[i] = byte('0' + v%10)
+		v /= 10
+	}
+	i--
+	s[i] = byte('0' + v)
+	buf.Write(s[i:])
+} 
 
 // Well-known metric names.
 const (
@@ -42,6 +99,33 @@ const (
 	CompileEvalMaskRule               = "compile_eval_mask_rule"
 )
 
+// Shared percentiles slice for all histograms to avoid repeated allocations
+var sharedPercentiles = []float64{
+	0.5,
+	0.75,
+	0.9,
+	0.95,
+	0.99,
+	0.999,
+	0.9999,
+}
+
+// Histogram field names - interned to avoid repeated string allocations
+const (
+	histogramCount  = "count"
+	histogramMin    = "min"
+	histogramMax    = "max"
+	histogramMean   = "mean"
+	histogramStddev = "stddev"
+	histogramMedian = "median"
+	histogram75     = "75%"
+	histogram90     = "90%"
+	histogram95     = "95%"
+	histogram99     = "99%"
+	histogram999    = "99.9%"
+	histogram9999   = "99.99%"
+)
+
 // Info contains attributes describing the underlying metrics provider.
 type Info struct {
 	Name string `json:"name"` // name is a unique human-readable identifier for the provider.
@@ -63,21 +147,37 @@ type TimerMetrics interface {
 	Timers() map[string]any
 }
 
-type metrics struct {
-	mtx        sync.Mutex
+// metricsState holds the actual metrics maps and is replaced atomically
+type metricsState struct {
+	// Direct string-keyed maps for fast access path
 	timers     map[string]Timer
 	histograms map[string]Histogram
 	counters   map[string]Counter
+	// Pre-formatted keys cache to avoid string allocations during marshaling
+	timerKeys     map[string]string
+	histogramKeys map[string]string
+	counterKeys   map[string]string
+}
+
+type metrics struct {
+	state atomic.Pointer[metricsState]
+	mtx   sync.Mutex // Only for writes to ensure consistency
 }
 
 // New returns a new Metrics object.
 func New() Metrics {
-	return &metrics{
-		timers:     map[string]Timer{},
-		histograms: map[string]Histogram{},
-		counters:   map[string]Counter{},
+	m := &metrics{}
+	initialState := &metricsState{
+		timers:        make(map[string]Timer),
+		histograms:    make(map[string]Histogram),
+		counters:      make(map[string]Counter),
+		timerKeys:     make(map[string]string),
+		histogramKeys: make(map[string]string),
+		counterKeys:   make(map[string]string),
 	}
-}
+	m.state.Store(initialState)
+	return m
+} 
 
 // NoOp returns a Metrics implementation that does nothing and costs nothing.
 // Used when metrics are expected, but not of interest.
@@ -111,97 +211,293 @@ func (m *metrics) String() string {
 		return strings.Compare(a.Key, b.Key)
 	})
 
-	buf := make([]string, len(sorted))
+	buf := sbPool.Get()
+	defer sbPool.Put(buf)
+
+	totalLen := 0
 	for i := range sorted {
-		buf[i] = fmt.Sprintf("%v:%v", sorted[i].Key, sorted[i].Value)
+		totalLen += len(sorted[i].Key) + 20 // estimate for value and separators
+	}
+	buf.Grow(totalLen)
+
+	for i := range sorted {
+		if i > 0 {
+			buf.WriteByte(' ')
+		}
+		buf.WriteString(sorted[i].Key)
+		buf.WriteByte(':')
+		// Avoid fmt.Fprintf overhead by type-switching on common types
+		switch v := sorted[i].Value.(type) {
+		case int64:
+			writeInt64(buf, v)
+		case uint64:
+			writeUint64(buf, v)
+		default:
+			fmt.Fprintf(buf, "%v", v)
+		}
 	}
 
-	return strings.Join(buf, " ")
+	return buf.String()
 }
 
 func (m *metrics) MarshalJSON() ([]byte, error) {
-	return json.Marshal(m.All())
+	state := m.state.Load()
+
+	// Estimate buffer size
+	estimatedSize := len(state.timers)*50 + len(state.histograms)*200 + len(state.counters)*30 + 100
+	buf := sbPool.Get()
+	defer sbPool.Put(buf)
+	buf.Grow(estimatedSize)
+
+	buf.WriteByte('{')
+	first := true
+
+	// Write timers
+	for name, timer := range state.timers {
+		if !first {
+			buf.WriteByte(',')
+		}
+		first = false
+		buf.WriteByte('"')
+		buf.WriteString(state.timerKeys[name])
+		buf.WriteString("\":")
+		writeInt64(buf, timer.Int64())
+	}
+
+	// Write counters
+	for name, cntr := range state.counters {
+		if !first {
+			buf.WriteByte(',')
+		}
+		first = false
+		buf.WriteByte('"')
+		buf.WriteString(state.counterKeys[name])
+		buf.WriteString("\":")
+		writeUint64(buf, cntr.Value().(uint64))
+	}
+
+	// Write histograms (these need standard JSON marshaling for the nested map)
+	for name, hist := range state.histograms {
+		if !first {
+			buf.WriteByte(',')
+		}
+		first = false
+		buf.WriteByte('"')
+		buf.WriteString(state.histogramKeys[name])
+		buf.WriteString("\":")
+		// Use standard JSON for histogram values since they're complex
+		histJSON, err := json.Marshal(hist.Value())
+		if err != nil {
+			return nil, err
+		}
+		buf.Write(histJSON)
+	}
+
+	buf.WriteByte('}')
+
+	// Return a copy since buf will be reused
+	result := make([]byte, buf.Len())
+	copy(result, buf.String())
+	return result, nil
 }
 
 func (m *metrics) Timer(name string) Timer {
+	// Fast path: single map lookup
+	state := m.state.Load()
+	if t, ok := state.timers[name]; ok {
+		return t
+	}
+
+	// Slow path: need to add new timer
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	t, ok := m.timers[name]
-	if !ok {
-		t = &timer{}
-		m.timers[name] = t
+
+	// Double-check after acquiring lock
+	state = m.state.Load()
+	if t, ok := state.timers[name]; ok {
+		return t
 	}
+
+	// Create new state with added timer
+	newState := &metricsState{
+		timers:        make(map[string]Timer, len(state.timers)+1),
+		histograms:    state.histograms,
+		counters:      state.counters,
+		timerKeys:     make(map[string]string, len(state.timerKeys)+1),
+		histogramKeys: state.histogramKeys,
+		counterKeys:   state.counterKeys,
+	}
+	maps.Copy(newState.timers, state.timers)
+	maps.Copy(newState.timerKeys, state.timerKeys)
+
+	// Pre-format and cache the key
+	formattedKey := formatTimerKey(name)
+	newState.timerKeys[name] = formattedKey
+
+	t := &timer{}
+	newState.timers[name] = t
+	m.state.Store(newState)
+
 	return t
 }
 
 func (m *metrics) Histogram(name string) Histogram {
+	// Fast path: single map lookup
+	state := m.state.Load()
+	if h, ok := state.histograms[name]; ok {
+		return h
+	}
+
+	// Slow path: need to add new histogram
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	h, ok := m.histograms[name]
-	if !ok {
-		h = newHistogram()
-		m.histograms[name] = h
+
+	// Double-check after acquiring lock
+	state = m.state.Load()
+	if h, ok := state.histograms[name]; ok {
+		return h
 	}
+
+	// Create new state with added histogram
+	newState := &metricsState{
+		timers:        state.timers,
+		histograms:    make(map[string]Histogram, len(state.histograms)+1),
+		counters:      state.counters,
+		timerKeys:     state.timerKeys,
+		histogramKeys: make(map[string]string, len(state.histogramKeys)+1),
+		counterKeys:   state.counterKeys,
+	}
+	maps.Copy(newState.histograms, state.histograms)
+	maps.Copy(newState.histogramKeys, state.histogramKeys)
+
+	// Pre-format and cache the key
+	formattedKey := formatHistogramKey(name)
+	newState.histogramKeys[name] = formattedKey
+
+	h := newHistogram()
+	newState.histograms[name] = h
+	m.state.Store(newState)
+
 	return h
 }
 
 func (m *metrics) Counter(name string) Counter {
+	// Fast path: single map lookup
+	state := m.state.Load()
+	if c, ok := state.counters[name]; ok {
+		return c
+	}
+
+	// Slow path: need to add new counter
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	c, ok := m.counters[name]
-	if !ok {
-		zero := counter{}
-		c = &zero
-		m.counters[name] = c
+
+	// Double-check after acquiring lock
+	state = m.state.Load()
+	if c, ok := state.counters[name]; ok {
+		return c
 	}
+
+	// Create new state with added counter
+	newState := &metricsState{
+		timers:        state.timers,
+		histograms:    state.histograms,
+		counters:      make(map[string]Counter, len(state.counters)+1),
+		timerKeys:     state.timerKeys,
+		histogramKeys: state.histogramKeys,
+		counterKeys:   make(map[string]string, len(state.counterKeys)+1),
+	}
+	maps.Copy(newState.counters, state.counters)
+	maps.Copy(newState.counterKeys, state.counterKeys)
+
+	// Pre-format and cache the key
+	formattedKey := formatCounterKey(name)
+	newState.counterKeys[name] = formattedKey
+
+	c := &counter{}
+	newState.counters[name] = c
+	m.state.Store(newState)
+
 	return c
 }
 
 func (m *metrics) All() map[string]any {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-	result := make(map[string]any, len(m.timers)+len(m.histograms)+len(m.counters))
-	for name, timer := range m.timers {
-		result[m.formatKey(name, timer)] = timer.Value()
+	state := m.state.Load()
+	result := make(map[string]any, len(state.timers)+len(state.histograms)+len(state.counters))
+
+	for name, timer := range state.timers {
+		key := state.timerKeys[name]
+		result[key] = timer.Value()
 	}
-	for name, hist := range m.histograms {
-		result[m.formatKey(name, hist)] = hist.Value()
+	for name, hist := range state.histograms {
+		key := state.histogramKeys[name]
+		result[key] = hist.Value()
 	}
-	for name, cntr := range m.counters {
-		result[m.formatKey(name, cntr)] = cntr.Value()
+	for name, cntr := range state.counters {
+		key := state.counterKeys[name]
+		result[key] = cntr.Value()
 	}
+
 	return result
 }
 
 func (m *metrics) Timers() map[string]any {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-	ts := make(map[string]any, len(m.timers))
-	for n, t := range m.timers {
-		ts[m.formatKey(n, t)] = t.Value()
+	state := m.state.Load()
+	ts := make(map[string]any, len(state.timers))
+
+	for name, t := range state.timers {
+		key := state.timerKeys[name]
+		ts[key] = t.Value()
 	}
+
 	return ts
 }
 
 func (m *metrics) Clear() {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	m.timers = map[string]Timer{}
-	m.histograms = map[string]Histogram{}
-	m.counters = map[string]Counter{}
+
+	newState := &metricsState{
+		timers:        make(map[string]Timer),
+		histograms:    make(map[string]Histogram),
+		counters:      make(map[string]Counter),
+		timerKeys:     make(map[string]string),
+		histogramKeys: make(map[string]string),
+		counterKeys:   make(map[string]string),
+	}
+	m.state.Store(newState)
+} 
+
+// Optimized key formatters that avoid allocations by using strings.Builder
+func formatTimerKey(name string) string {
+	// timer_ + name + _ns
+	buf := sbPool.Get()
+	defer sbPool.Put(buf)
+	buf.Grow(len(name) + 9) // "timer_" (6) + "_ns" (3)
+	buf.WriteString("timer_")
+	buf.WriteString(name)
+	buf.WriteString("_ns")
+	return buf.String()
 }
 
-func (*metrics) formatKey(name string, metrics any) string {
-	switch metrics.(type) {
-	case Timer:
-		return "timer_" + name + "_ns"
-	case Histogram:
-		return "histogram_" + name
-	case Counter:
-		return "counter_" + name
-	default:
-		return name
-	}
+func formatHistogramKey(name string) string {
+	// histogram_ + name
+	buf := sbPool.Get()
+	defer sbPool.Put(buf)
+	buf.Grow(len(name) + 10) // "histogram_" (10)
+	buf.WriteString("histogram_")
+	buf.WriteString(name)
+	return buf.String()
+}
+
+func formatCounterKey(name string) string {
+	// counter_ + name
+	buf := sbPool.Get()
+	defer sbPool.Put(buf)
+	buf.Grow(len(name) + 8) // "counter_" (8)
+	buf.WriteString("counter_")
+	buf.WriteString(name)
+	return buf.String()
 }
 
 // Timer defines the interface for a restartable timer that accumulates elapsed
@@ -217,29 +513,25 @@ type Timer interface {
 }
 
 type timer struct {
-	mtx   sync.Mutex
-	start time.Time
-	value int64
+	start atomic.Int64 // nanoseconds since epoch, 0 means not started
+	value atomic.Int64 // accumulated nanoseconds
 }
 
 func (t *timer) Start() {
-	t.mtx.Lock()
-	t.start = time.Now()
-	t.mtx.Unlock()
+	t.start.Store(time.Now().UnixNano())
 }
 
 func (t *timer) Stop() int64 {
-	t.mtx.Lock()
-	defer t.mtx.Unlock()
-
-	var delta int64
-	if !t.start.IsZero() {
-		// Add the delta to the accumulated time value so far.
-		delta = time.Since(t.start).Nanoseconds()
-		t.value += delta
-		t.start = time.Time{} // Reset the start time to zero.
+	startNs := t.start.Swap(0) // Reset to 0 atomically
+	if startNs == 0 {
+		return 0
 	}
 
+	delta := max(time.Now().UnixNano()-startNs,
+		// Clock skew protection
+		0)
+
+	t.value.Add(delta)
 	return delta
 }
 
@@ -248,9 +540,7 @@ func (t *timer) Value() any {
 }
 
 func (t *timer) Int64() int64 {
-	t.mtx.Lock()
-	defer t.mtx.Unlock()
-	return t.value
+	return t.value.Load()
 }
 
 // Histogram defines the interface for a histogram with hardcoded percentiles.
@@ -269,7 +559,9 @@ func newHistogram() Histogram {
 	// the future.
 	sample := go_metrics.NewExpDecaySample(1028, 0.015)
 	hist := go_metrics.NewHistogram(sample)
-	return &histogram{hist}
+	return &histogram{
+		hist: hist,
+	}
 }
 
 func (h *histogram) Update(v int64) {
@@ -277,29 +569,25 @@ func (h *histogram) Update(v int64) {
 }
 
 func (h *histogram) Value() any {
-	values := make(map[string]any, 12)
 	snap := h.hist.Snapshot()
-	percentiles := snap.Percentiles([]float64{
-		0.5,
-		0.75,
-		0.9,
-		0.95,
-		0.99,
-		0.999,
-		0.9999,
-	})
-	values["count"] = snap.Count()
-	values["min"] = snap.Min()
-	values["max"] = snap.Max()
-	values["mean"] = snap.Mean()
-	values["stddev"] = snap.StdDev()
-	values["median"] = percentiles[0]
-	values["75%"] = percentiles[1]
-	values["90%"] = percentiles[2]
-	values["95%"] = percentiles[3]
-	values["99%"] = percentiles[4]
-	values["99.9%"] = percentiles[5]
-	values["99.99%"] = percentiles[6]
+	// Use shared percentiles slice to avoid allocation
+	percentiles := snap.Percentiles(sharedPercentiles)
+
+	// Preallocate map with exact size and use interned string keys
+	values := make(map[string]any, 12)
+	values[histogramCount] = snap.Count()
+	values[histogramMin] = snap.Min()
+	values[histogramMax] = snap.Max()
+	values[histogramMean] = snap.Mean()
+	values[histogramStddev] = snap.StdDev()
+	values[histogramMedian] = percentiles[0]
+	values[histogram75] = percentiles[1]
+	values[histogram90] = percentiles[2]
+	values[histogram95] = percentiles[3]
+	values[histogram99] = percentiles[4]
+	values[histogram999] = percentiles[5]
+	values[histogram9999] = percentiles[6]
+
 	return values
 }
 
