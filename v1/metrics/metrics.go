@@ -72,7 +72,7 @@ func writeUint64(buf *strings.Builder, v uint64) {
 	i--
 	s[i] = byte('0' + v)
 	buf.Write(s[i:])
-} 
+}
 
 // Well-known metric names.
 const (
@@ -177,7 +177,7 @@ func New() Metrics {
 	}
 	m.state.Store(initialState)
 	return m
-} 
+}
 
 // NoOp returns a Metrics implementation that does nothing and costs nothing.
 // Used when metrics are expected, but not of interest.
@@ -466,7 +466,7 @@ func (m *metrics) Clear() {
 		counterKeys:   make(map[string]string),
 	}
 	m.state.Store(newState)
-} 
+}
 
 // Optimized key formatters that avoid allocations by using strings.Builder
 func formatTimerKey(name string) string {
