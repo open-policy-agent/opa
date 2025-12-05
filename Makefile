@@ -263,7 +263,6 @@ CI_GOLANG_DOCKER_MAKE := $(DOCKER) run \
 	-w /src \
 	-e GOCACHE=/src/.go/cache \
 	-e GOARCH=$(GOARCH) \
-	-e GO_TAGS="$(GO_TAGS)" \
 	-e CGO_ENABLED=$(CGO_ENABLED) \
 	-e WASM_ENABLED=$(WASM_ENABLED) \
 	-e FUZZ_TIME=$(FUZZ_TIME) \
