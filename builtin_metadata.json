@@ -62,6 +62,8 @@
       "json.marshal",
       "json.marshal_with_options",
       "json.unmarshal",
+      "purl.is_valid",
+      "purl.parse",
       "urlquery.decode",
       "urlquery.decode_object",
       "urlquery.encode",
@@ -17620,6 +17622,46 @@
       "description": "HTTP request object with `Authorization` header",
       "name": "signed_request",
       "type": "object[any: any]"
+    },
+    "wasm": false
+  },
+  "purl.is_valid": {
+    "args": [
+      {
+        "description": "Package URL string to validate",
+        "name": "purl",
+        "type": "string"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Validates that the input is a valid Package URL (PURL).",
+    "introduced": "edge",
+    "result": {
+      "description": "`true` if `purl` is a valid Package URL; `false` otherwise",
+      "name": "result",
+      "type": "boolean"
+    },
+    "wasm": false
+  },
+  "purl.parse": {
+    "args": [
+      {
+        "description": "Package URL string to parse",
+        "name": "purl",
+        "type": "string"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Parses a Package URL (PURL) string into its components.",
+    "introduced": "edge",
+    "result": {
+      "description": "object with required fields (type, name) and optional fields (namespace, version, qualifiers, subpath)",
+      "name": "result",
+      "type": "object\u003cname: string, type: string\u003e[string: any\u003cstring, object[string: string]\u003e]"
     },
     "wasm": false
   },
