@@ -141,12 +141,6 @@ jobs:
           run: ubuntu-24.04
           targets: ci-go-ci-build-linux ci-go-ci-build-linux-static
           arch: arm64
-        - os: linux
-          run: ubuntu-24.04
-          targets: ci-build-linux-static
-          go_tags: GO_TAGS="-tags=opa_no_oci"
-          variant_name: opa_no_oci
-          arch: arm64
         - os: windows
           run: ubuntu-24.04
           targets: ci-build-windows
@@ -158,6 +152,13 @@ jobs:
         - os: darwin
           run: macos-15
           targets: ci-build-darwin ci-build-darwin-arm64-static
+          arch: arm64
+        - # NB(sr): We're only building this to see that it still builds.
+          #         The resulting binary is not used in any other way.
+          os: linux
+          run: ubuntu-24.04
+          targets: ci-build-linux-static
+          go_tags: GO_TAGS="-tags=opa_no_oci"
           arch: arm64
     steps:
     - name: Check out code
@@ -193,13 +194,6 @@ jobs:
       if: ${{ matrix.go_tags == '' }}
       with:
         name: binaries-${{ matrix.os }}-${{ matrix.arch }}
-        path: _release
-
-    - name: Upload binaries - Go tag variants
-      uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-      if: ${{ matrix.go_tags != '' && matrix.variant_name != '' }}
-      with:
-        name: binaries-variant-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.variant_name }}
         path: _release
 
   go-test:
