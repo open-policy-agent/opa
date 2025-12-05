@@ -1365,7 +1365,12 @@ func (w *writer) writeTemplateString(ts *ast.TemplateString, comments []*ast.Com
 			}
 		case *ast.Term:
 			if s, ok := x.Value.(ast.String); ok {
-				w.write(string(s))
+				if ts.MultiLine {
+					w.write(string(s))
+				} else {
+					str := s.String()
+					w.write(str[1 : len(str)-1])
+				}
 			} else {
 				s := x.String()
 				s = strings.TrimPrefix(s, "\"")

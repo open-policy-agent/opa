@@ -662,7 +662,7 @@ a[_x[y][[z, w]]]`,
 					Terms: ast.Round.Call(ast.NumberTerm("1.2")),
 				},
 			),
-			expected: "$\"foo {x} {input.y} \n {round(1.2)}\"",
+			expected: `$"foo {x} {input.y} \n {round(1.2)}"`,
 		},
 		{
 			note: "template-string, multi-line",

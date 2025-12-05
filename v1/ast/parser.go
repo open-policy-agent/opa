@@ -1907,6 +1907,22 @@ func (p *Parser) parseRawString() *Term {
 	return StringTerm(p.s.lit[1 : len(p.s.lit)-1]).SetLocation(p.s.Loc())
 }
 
+func templateStringPartToStringLiteral(tok tokens.Token, lit string) (string, error) {
+	switch tok {
+	case tokens.TemplateStringPart, tokens.TemplateStringEnd:
+		trimmed := fmt.Sprintf(`"%s"`, lit[1:len(lit)-1])
+		var s string
+		if err := json.Unmarshal([]byte(trimmed), &s); err != nil {
+			return "", fmt.Errorf("illegal template-string part: %s", lit)
+		}
+		return s, nil
+	case tokens.RawTemplateStringPart, tokens.RawTemplateStringEnd:
+		return lit[1 : len(lit)-1], nil
+	default:
+		return "", errors.New("expected template-string part")
+	}
+}
+
 func (p *Parser) parseTemplateString(multiLine bool) *Term {
 	loc := p.s.Loc()
 
@@ -1918,19 +1934,19 @@ func (p *Parser) parseTemplateString(multiLine bool) *Term {
 	var parts []Node
 
 	for {
-		if p.s.tok == tokens.TemplateStringEnd || p.s.tok == tokens.RawTemplateStringEnd ||
-			p.s.tok == tokens.TemplateStringPart || p.s.tok == tokens.RawTemplateStringPart {
-			// Don't add empty strings
-			if s := p.s.lit[1 : len(p.s.lit)-1]; s != "" {
-				parts = append(parts, StringTerm(s).SetLocation(p.s.Loc()))
-			}
-
-			if p.s.tok == tokens.TemplateStringEnd || p.s.tok == tokens.RawTemplateStringEnd {
-				break
-			}
-		} else {
-			p.error(p.s.Loc(), "expected template string")
+		s, err := templateStringPartToStringLiteral(p.s.tok, p.s.lit)
+		if err != nil {
+			p.error(p.s.Loc(), err.Error())
 			return nil
+		}
+
+		// Don't add empty strings
+		if len(s) > 0 {
+			parts = append(parts, StringTerm(s).SetLocation(p.s.Loc()))
+		}
+
+		if p.s.tok == tokens.TemplateStringEnd || p.s.tok == tokens.RawTemplateStringEnd {
+			break
 		}
 
 		numCommentsBefore := len(p.s.comments)

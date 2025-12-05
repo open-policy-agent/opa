@@ -18,6 +18,15 @@ cases:
     query: data.test.p = x
     want_result:
       - x: "foo bar baz"
+  - note: string-interpolation/escapes
+    modules:
+      - |
+        package test
+
+        p := $"\t\n\""
+    query: data.test.p = x
+    want_result:
+      - x: "\t\n\""
   - note: string-interpolation/escaped template expressions
     modules:
       - |

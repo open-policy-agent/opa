@@ -8474,6 +8474,25 @@ func TestTemplateString(t *testing.T) {
 		},
 
 		{
+			note: "escapes",
+			expr: `$"\t\n\"\{"`,
+			exp: &Expr{
+				Terms: TemplateStringTerm(false,
+					StringTerm("\t\n\"{"),
+				),
+			},
+		},
+		{
+			note: "escapes, multi-line",
+			expr: "$`\\{`",
+			exp: &Expr{
+				Terms: TemplateStringTerm(true,
+					StringTerm(`{`),
+				),
+			},
+		},
+
+		{
 			note: "with modifier, global",
 			expr: `$"foo {input}" with input as 42`,
 			exp: &Expr{
