@@ -527,9 +527,16 @@ func (t *timer) Stop() int64 {
 		return 0
 	}
 
-	delta := max(time.Now().UnixNano()-startNs,
+	delta := time.Now().UnixNano() - startNs
+	if delta < 0 {
 		// Clock skew protection
-		0)
+		delta = 0
+	} else if delta == 0 {
+		// On systems with low timer resolution, if Start and Stop
+		// happen in the same clock tick, record 1ns to indicate
+		// the operation did complete
+		delta = 1
+	}
 
 	t.value.Add(delta)
 	return delta
