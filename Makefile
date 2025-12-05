@@ -19,10 +19,12 @@ GOVERSION ?= $(shell cat ./.go-version)
 GOARCH := $(shell go env GOARCH)
 GOOS := $(shell go env GOOS)
 
-GO_TAGS := -tags=
+GO_TAGS ?=
+CONDITIONAL_WASM_TAG :=
 ifeq ($(WASM_ENABLED),1)
-GO_TAGS = -tags=opa_wasm
+CONDITIONAL_WASM_TAG := -tags=opa_wasm
 endif
+override GO_TAGS := $(GO_TAGS) $(CONDITIONAL_WASM_TAG)
 
 GOLANGCI_LINT_VERSION := v2.6.2
 YAML_LINT_VERSION := 0.29.0
