@@ -14,43 +14,43 @@ func NewOCI(Config, rest.Client, string, string) *OCIDownloader {
 	panic("built without OCI support")
 }
 
-func (d *OCIDownloader) WithCallback(f func(context.Context, Update)) *OCIDownloader {
+func (*OCIDownloader) WithCallback(func(context.Context, Update) error) *OCIDownloader {
 	panic("built without OCI support")
 }
 
-func (d *OCIDownloader) WithLogAttrs(map[string]any) *OCIDownloader {
+func (*OCIDownloader) WithLogAttrs(map[string]any) *OCIDownloader {
 	panic("built without OCI support")
 }
 
-func (d *OCIDownloader) WithBundleVerificationConfig(*bundle.VerificationConfig) *OCIDownloader {
+func (*OCIDownloader) WithBundleVerificationConfig(*bundle.VerificationConfig) *OCIDownloader {
 	panic("built without OCI support")
 }
 
-func (d *OCIDownloader) WithSizeLimitBytes(int64) *OCIDownloader {
+func (*OCIDownloader) WithSizeLimitBytes(int64) *OCIDownloader {
 	panic("built without OCI support")
 }
 
-func (d *OCIDownloader) WithBundlePersistence(bool) *OCIDownloader {
+func (*OCIDownloader) WithBundlePersistence(bool) *OCIDownloader {
 	panic("built without OCI support")
 }
 
-func (d *OCIDownloader) ClearCache() {
+func (*OCIDownloader) ClearCache() {
 	panic("built without OCI support")
 }
 
-func (d *OCIDownloader) SetCache(string) {
+func (*OCIDownloader) SetCache(string) {
 	panic("built without OCI support")
 }
 
-func (d *OCIDownloader) Trigger(context.Context) error {
+func (*OCIDownloader) Trigger(context.Context) error {
 	panic("built without OCI support")
 }
 
-func (d *OCIDownloader) Start(context.Context) {
+func (*OCIDownloader) Start(context.Context) {
 	panic("built without OCI support")
 }
 
-func (d *OCIDownloader) Stop(context.Context) {
+func (*OCIDownloader) Stop(context.Context) {
 	panic("built without OCI support")
 }
 
