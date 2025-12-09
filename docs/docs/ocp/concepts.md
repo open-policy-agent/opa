@@ -246,6 +246,7 @@ The petshop service will define a policy that allows:
 
 ```rego
 package service
+import rego.v1
 
 allow if {
   input.action == "view_pets"
@@ -261,6 +262,7 @@ The notifications service will define a policy that allows customers to subscrib
 
 ```rego
 package service
+import rego.v1
 
 allow if {
   input.action == "subscribe_to_newsletter"
@@ -272,6 +274,7 @@ The stack policy will deny users that are contained in the blocklist datasource.
 
 ```rego
 package globalsecurity
+import rego.v1
 
 deny if {
   input.principal.username in data.blocklist
@@ -282,6 +285,7 @@ Finally, the entrypoint policy will combine the service and stack policy to prod
 
 ```rego
 package main
+import rego.v1
 
 main if {
   data.service.allow
@@ -298,16 +302,20 @@ bundles:
       environment: prod
     requirements:
     - source: petshop-svc
+    options:
+      no_default_stack_mount: true
   notifications-svc:
     labels:
       environment: prod
     requirements:
     - source: notifications-svc
+    options:
+      no_default_stack_mount: true
 
 stacks:
   globalsecurity:
     selector:
-      environment: prod
+      environment: [prod]
     requirements:
     - source: main
     - source: globalsecurity
@@ -333,6 +341,7 @@ The bundle policy will deny deployments that contain artifacts that do not conta
 
 ```rego
 package pipeline
+import rego.v1
 
 deny contains msg if {
   some artifact in input.artifacts
@@ -345,6 +354,7 @@ The first stack policy will block deployments that do not contain an SBOM:
 
 ```rego
 package pipelines.stacks.sbom
+import rego.v1
 
 deny contains "deployments must contain sbom" if {
   not input.sbom
@@ -355,6 +365,7 @@ The second stack policy will block deployments if an artifact has critical CVEs:
 
 ```rego
 package pipelines.stacks.cves
+import rego.v1
 
 deny contains msg if {
     some artifact in input.artifacts
@@ -368,6 +379,7 @@ The entrypoint policy will union all of the deny reasons to produce the final se
 
 ```rego
 package pipelines
+import rego.v1
 
 deny contains msg if {
     some msg in data.pipeline.deny
@@ -389,6 +401,8 @@ bundles:
       type: pipeline
     requirements:
     - source: pipeline-a1234
+    options:
+      no_default_stack_mount: true
 
 stacks:
   sbom:
