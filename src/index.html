@@ -1,0 +1,369 @@
+<!doctype html>
+<notebook theme="glacier">
+  <title>OPA benchmark</title>
+  <script type="text/markdown">
+    # OPA benchmarks
+  </script>
+  <script type="application/vnd.node.javascript" format="json" output="commits" hidden>
+  async function fetchLastNCommitsMap(repoOwner, repoName, count = 100, githubToken = null) {
+    const headers = {
+      'Accept': 'application/vnd.github.v3+json',
+    };
+    if (githubToken) {
+      headers['Authorization'] = `token ${githubToken}`;
+    }
+  
+    const baseUrl = `https://api.github.com/repos/${repoOwner}/${repoName}`;
+    const commitsMap = new Map(); // Changed to a Map
+  
+    const commitsResponse = await fetch(`${baseUrl}/commits?per_page=${count}`, { headers });
+    
+    if (!commitsResponse.ok) {
+      throw new Error(`Failed to fetch commits: ${commitsResponse.statusText}`);
+    }
+    const commits = await commitsResponse.json();
+
+    commits.forEach(({sha, author, commit}) => {
+      commitsMap.set(sha, {
+        message: commit.message,
+        github_username: author?.login,
+        author_date: commit.author.date,
+      });
+    });
+    
+    return commitsMap;
+  }
+  const commitDataMap = await fetchLastNCommitsMap("open-policy-agent", "opa", 100, process.env.GITHUB_TOKEN);
+  const commitDataObject = Object.fromEntries(commitDataMap);
+
+  process.stdout.write(JSON.stringify(commitDataObject));
+  </script>
+  <script type="application/vnd.node.javascript" format="json" output="tags" hidden>
+  async function fetchCommitToTagMap(repoOwner, repoName, githubToken = null) {
+    const headers = {
+      'Accept': 'application/vnd.github.v3+json',
+    };
+    if (githubToken) {
+      headers['Authorization'] = `token ${githubToken}`;
+    }
+  
+    const baseUrl = `https://api.github.com/repos/${repoOwner}/${repoName}`;
+    const commitToTagMap = {};
+  
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore) {
+      const tagsResponse = await fetch(`${baseUrl}/tags?per_page=100&page=${page}`, { headers });
+      if (!tagsResponse.ok) {
+        throw new Error(`Failed to fetch tags (page ${page}): ${tagsResponse.statusText}`);
+      }
+      const tags = await tagsResponse.json();
+      if (tags.length === 0) {
+        hasMore = false;
+      } else {
+        tags.forEach(({name, commit}) => {
+          commitToTagMap[commit.sha] = name; // perhaps override, assume one tag per commit at most
+        });
+        page++;
+      }
+    }
+    return commitToTagMap;
+  }
+  process.stdout.write(JSON.stringify(await fetchCommitToTagMap("open-policy-agent", "opa", process.env.GITHUB_TOKEN)));
+  </script>
+  <script type="module" hidden>
+  function flatten(benchmarksData, tagData) {
+    return benchmarksData.flatMap(commitData => {
+      const commit = commitData.Version;
+      const date = new Date(commitData.Date * 1000);
+  
+      return (commitData.Suites || []).flatMap(suite => {
+        const pkg = suite.Pkg.replace('github.com/open-policy-agent/opa', '.');
+  
+        // Map each individual benchmark into the final flat record
+        return (suite.Benchmarks || []).flatMap(benchmark => {
+          const base = { commit, date, pkg, name: benchmark.Name, tag: tagData[commit] };
+          const r0 = {
+            ...base,
+            measure: "NsPerOp",
+            value: benchmark.NsPerOp,
+          };
+          const r1 = {
+            ...base,
+            measure: "AllocsPerOp",
+            value: benchmark.Mem.AllocsPerOp,
+          };
+          const r2 = {
+            ...base,
+            measure: "BytesPerOp",
+            value: benchmark.Mem.BytesPerOp,
+          };
+          return [r0, r1, r2];
+        });
+      });
+    });
+  }
+  const response = await fetch('https://open-policy-agent.github.io/opa/benchmarks.json');
+  const benchmarksData = await response.json();
+  const rows = flatten(benchmarksData, tags);
+  </script>
+  <script type="module">
+  const tagsInData = [...new Set(rows.flatMap((d) => d.tag || []))];
+  const selectedTag = view(Inputs.select(tagsInData, {label: "Tag as Index:"}))
+  </script>
+  <script type="module">
+  const relativeDifferencesByMeasure = d3.rollup(
+    rows,
+    (v) => {
+      // Sort by date descending, now find the latest measurements + tags
+      v.sort((a, b) => b.date.getTime() - a.date.getTime());
+      const lastMeasurement = v[0];
+      const latestTaggedMeasurement = v.find(d => !!d.tag);
+  
+      if (!latestTaggedMeasurement) return null;
+      return { relativeDifference: latestTaggedMeasurement.value !== 0 ? lastMeasurement.value / latestTaggedMeasurement.value : null};
+    },
+    d => d.pkg,
+    d => d.name,
+    d => d.measure
+  );
+  const benchmarksWithRelDiffs = [];
+  
+  for (const [pkg, nameMap] of relativeDifferencesByMeasure) {
+    for (const [name, measureMap] of nameMap) {
+      const outputRow = {
+        pkg,
+        name,
+      };
+  
+      for (const [measure, data] of measureMap) {
+        if (data && data?.relativeDifference !== null) {
+          outputRow[measure] = data.relativeDifference;
+        }
+      }
+
+      // Only add the row if it contains at least one calculated measure difference
+      // (i.e., if `outputRow` has more than just `pkg`, `name`)
+      if (Object.keys(outputRow).length > 2) {
+        benchmarksWithRelDiffs.push(outputRow);
+      }
+    }
+  }
+  d3.sort(benchmarksWithRelDiffs, (d) => d.NsPerOp);
+
+  const numericKeys = ["NsPerOp", "BytesPerOp", "AllocsPerOp"];
+  const minMaxByMeasureKeyLog2 = new Map(); // Stores { key: { minLog2, maxLog2 } } for each column
+
+  // Calculate min/max of log2(value) for each numeric key (column)
+  numericKeys.forEach(key => {
+    let colMinLog2 = Infinity;
+    let colMaxLog2 = -Infinity;
+
+    benchmarksWithRelDiffs.forEach(row => {
+      const value = row[key];
+      if (typeof value === 'number' && !isNaN(value) && value > 0) { // Ensure value is positive for log2
+        const log2Value = Math.log2(value);
+        colMinLog2 = Math.min(colMinLog2, log2Value);
+        colMaxLog2 = Math.max(colMaxLog2, log2Value);
+      }
+    });
+    minMaxByMeasureKeyLog2.set(key, { minLog2: colMinLog2, maxLog2: colMaxLog2 });
+  });
+
+  const scalesByMeasureKey = new Map(); // Stores { key: d3.scale } for each column
+
+  // Create a color scale for each numeric key
+  numericKeys.forEach(key => {
+    const { minLog2: colMinLog2, maxLog2: colMaxLog2 } = minMaxByMeasureKeyLog2.get(key);
+
+    // Determine the maximum absolute deviation from 0 (which is log2(1.0)) for this specific column
+    const maxAbsDeviationLog2 = Math.max(Math.abs(colMinLog2 - 0), Math.abs(colMaxLog2 - 0));
+    const symmetricMinLog2 = 0 - maxAbsDeviationLog2;
+    const symmetricMaxLog2 = 0 + maxAbsDeviationLog2;
+
+    // Use the reversed RdYlGn interpolator
+    // (Green for lower log2 values / better performance, Red for higher log2 values / worse)
+    const reversedRdYlGn = t => d3.interpolateRdYlGn(1 - t);
+
+    // Create the scale for this column with a domain in log2 space
+    const colScale = d3.scaleDiverging(reversedRdYlGn)
+      .domain([symmetricMinLog2, 0, symmetricMaxLog2]); // 0 is the neutral point for log2(ratio)
+
+    scalesByMeasureKey.set(key, colScale);
+  });
+
+  function colorScaleBackground(key, precision = 2, addPaddingRight = true) {
+    const scale = scalesByMeasureKey.get(key);
+    return value => {
+      if (typeof value !== 'number' || isNaN(value) || value === null) {
+        return value; // Return as-is for non-numeric, NaN, or null values
+      }
+      const bgColor = scale(Math.log2(value));
+      // Simple luminance check for text color contrast
+      const textColor = d3.color(bgColor).rgb().r * 0.299 + d3.color(bgColor).rgb().g * 0.587 + d3.color(bgColor).rgb().b * 0.114 > 186 ? "black" : "white";
+  
+      return htl.html`<div style="
+        background-color: ${bgColor};
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: end;
+        box-sizing: border-box;
+        ${addPaddingRight ? 'padding-right: 3px;' : ''} /* Optional padding */
+        color: ${textColor};
+      ">${value.toFixed(precision)}</div>`;
+    };
+  }
+
+  function termFilter(term) {
+    return new RegExp(escapeRegExp(term), "iu");
+  }
+
+  function escapeRegExp(text) {
+    return text.replace(/[\\^$.*+?()[\]{}]/g, "\\$&");
+  }
+
+  function columnFilter(columns) {
+    return query => {
+      const filters = `${query}`.split(/\s+/g).filter(t => t).map(termFilter);
+      return d => {
+        out: for (const filter of filters) {
+          for (const column of columns) {
+            if (filter.test(d[column])) {
+              continue out;
+            }
+          }
+          return false;
+        }
+        return true;
+      };
+    };
+  }
+  
+  const search = view(Inputs.search(benchmarksWithRelDiffs, {
+    label: "Benchmarks",
+    filter: columnFilter(["pkg", "name"]),
+    autocomplete: true,
+  }));
+  </script>
+  <script type="module" >
+  const selectedRow = view(Inputs.table(search.length > 0 ? search : benchmarksWithRelDiffs, {
+    multiple: false,
+    value: search.length > 0 ? search[0] : benchmarksWithRelDiffs[0],
+    width: {
+      pkg: 200,
+      name: 300,
+    },
+    sort: "NsPerOp",
+    reverse: true,
+    format: {
+      NsPerOp: colorScaleBackground("NsPerOp"),
+      AllocsPerOp: colorScaleBackground("AllocsPerOp"),
+      BytesPerOp: colorScaleBackground("BytesPerOp"),
+    },
+  }));
+  </script>
+  <script type="module" >
+  let plot;
+  if (selectedRow) {
+    const data = d3.sort(rows.filter((d) => d.name === selectedRow.name && d.pkg == selectedRow.pkg), (d) => d.date);
+    const idx = data.findIndex((d) => d.tag == selectedTag) || 0;
+
+    const xy = Plot.normalizeY({
+      // NB(sr) We know that measurements follow each other in data, so it's safe
+      // to use the first `values` element as offset:
+      basis: (values, data) => data[idx+values[0]],
+      x: (d) => d.tag || d.commit,
+      y: "value",
+      z: "measure",
+    });
+    plot = Plot.plot({
+      width: 1024,
+      margin: 80,
+      y: {
+        type: "log",
+        base: 2,
+        label: "Performance Change (log₂)",
+        tickFormat: d => { // Custom tick format to show ratios/percentages
+          if (d === 1) return "Base"; // log2(1) = 0
+          if (d > 1) return `+${((d - 1) * 100).toFixed(0)}%`;
+          if (d < 1) return `-${((1 - d) * 100).toFixed(0)}%`;
+        },
+        grid: true,
+        ticks: 8,
+      },
+      x: {
+        type: "band",
+        domain: data.map((d) => tags[d.commit] || d.commit),
+        tickFormat: (d) => d.substring(0, 7),
+        tickRotate: -45,
+        tickAnchor: "start",
+        clip: false,
+      },
+      height: 340,
+      color: {legend: true},
+      marks: [
+        Plot.dotY(data, {
+            ...xy,
+            fill: "measure",
+            href: (d) => `https://github.com/open-policy-agent/opa/commit/${d.commit}`,
+            target: "_blank",
+            channels: {
+              absolute: "value",
+            },
+            tip: {
+              format: {
+                y: d => {
+                  if (d === 1) return "Base";
+                  if (d > 1) return `+${((d - 1) * 100).toFixed(0)}%`;
+                  if (d < 1) return `-${((1 - d) * 100).toFixed(0)}%`;
+                  return "";
+                },
+                x: false,
+                fill: true,
+                date: true,
+                absolute: true,
+              }
+            }
+          }),
+        Plot.lineY(data, {
+            ...xy,
+            stroke: "measure",
+            curve: "step",
+            tip: false,
+          }),
+        Plot.ruleX(tagsInData, {
+          x: (d) => d,
+          stroke: "grey",
+          strokeDasharray: "4,4",
+          strokeOpacity: 0.7,
+        }),
+        Plot.ruleX(data, Plot.pointerX({
+          x: xy.x,
+          py: xy.y,
+          strokeDasharray: "4,4",
+          strokeOpacity: 0.7,
+          stroke: "grey",
+        })),
+      ]
+    });
+    display(plot);
+  }
+  </script>
+  <script type="module">
+  const x = Generators.input(plot);
+  </script>
+  <script type="module">
+  const commit = commits[x?.commit];
+  </script>
+  <script type="text/markdown">
+    ```
+    ${commit ? `Author: ${commit?.github_username}
+Date: ${commit?.author_date}
+
+${commit?.message}` : ""}
+    ```
+  </script>
+</notebook>
