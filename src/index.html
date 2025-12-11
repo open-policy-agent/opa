@@ -4,6 +4,16 @@
   <script type="text/markdown">
     # OPA benchmarks
   </script>
+  <script type="application/vnd.node.javascript" format="json" output="benchmarks" hidden>
+  import fs from 'fs';
+  fs.readFile('./benchmarks.json', 'utf8', (err, data) => {
+    if (err) {
+      console.error(`Error reading benchmark.json:`, err);
+      return;
+    }
+    process.stdout.write(data);
+  });
+  </script>
   <script type="application/vnd.node.javascript" format="json" output="commits" hidden>
   async function fetchLastNCommitsMap(repoOwner, repoName, count = 100, githubToken = null) {
     const headers = {
@@ -104,9 +114,7 @@
       });
     });
   }
-  const response = await fetch('https://open-policy-agent.github.io/opa/benchmarks.json');
-  const benchmarksData = await response.json();
-  const rows = flatten(benchmarksData, tags);
+  const rows = flatten(benchmarks, tags);
   </script>
   <script type="module">
   const tagsInData = [...new Set(rows.flatMap((d) => d.tag || []))];
