@@ -1063,7 +1063,6 @@ func (c *Compiler) buildRequiredCapabilities() {
 	for i, bi := range c.Required.Builtins {
 		c.Required.Builtins[i] = bi.Minimal()
 
-		// FIXME: Do we need to declare the template-string feature in the compiler, or is it enough to just require the built-in?
 		if bi.Name == InternalTemplateString.Name {
 			features[FeatureTemplateStrings] = struct{}{}
 		}
@@ -2093,19 +2092,19 @@ func (c *Compiler) checkVoidCalls() {
 	}
 }
 
+func (c *Compiler) builtinLoc(ref Ref) *Builtin {
+	n := ref.String()
+	if b, ok := c.builtins[n]; ok {
+		return b
+	}
+	if b, ok := c.customBuiltins[n]; ok {
+		return b
+	}
+	return nil
+}
+
 // rewriteTemplateStrings rewrites template-string calls as they appear in bodies; e.g. rules, comprehensions, etc.
 func (c *Compiler) rewriteTemplateStrings() {
-	builtinLoc := func(ref Ref) *Builtin {
-		n := ref.String()
-		if b, ok := c.builtins[n]; ok {
-			return b
-		}
-		if b, ok := c.customBuiltins[n]; ok {
-			return b
-		}
-		return nil
-	}
-
 	modified := false
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
@@ -2113,7 +2112,7 @@ func (c *Compiler) rewriteTemplateStrings() {
 			safe := r.Head.Args.Vars()
 			safe.Update(ReservedVars)
 
-			modrec, safe, errs := rewriteTemplateStrings(c.capabilities, c.localvargen, c.GetArity, safe, builtinLoc, r.Body)
+			modrec, safe, errs := rewriteTemplateStrings(c.capabilities, c.localvargen, c.GetArity, safe, c.builtinLoc, r.Body)
 			if modrec {
 				modified = true
 			}
@@ -2121,7 +2120,7 @@ func (c *Compiler) rewriteTemplateStrings() {
 				c.err(err)
 			}
 
-			modrec, _, errs = rewriteTemplateStrings(c.capabilities, c.localvargen, c.GetArity, safe, builtinLoc, r.Head)
+			modrec, _, errs = rewriteTemplateStrings(c.capabilities, c.localvargen, c.GetArity, safe, c.builtinLoc, r.Head)
 			if modrec {
 				modified = true
 			}
@@ -3379,19 +3378,8 @@ func (qc *queryCompiler) rewriteLocalVars(_ *QueryContext, body Body) (Body, err
 }
 
 func (qc *queryCompiler) rewriteTemplateStrings(_ *QueryContext, body Body) (Body, error) {
-	builtinLoc := func(ref Ref) *Builtin {
-		n := ref.String()
-		if b, ok := qc.compiler.builtins[n]; ok {
-			return b
-		}
-		if b, ok := qc.compiler.customBuiltins[n]; ok {
-			return b
-		}
-		return nil
-	}
-
 	gen := newLocalVarGenerator("q", body)
-	if _, _, errs := rewriteTemplateStrings(qc.compiler.capabilities, gen, qc.compiler.GetArity, ReservedVars, builtinLoc, body); len(errs) > 0 {
+	if _, _, errs := rewriteTemplateStrings(qc.compiler.capabilities, gen, qc.compiler.GetArity, ReservedVars, qc.compiler.builtinLoc, body); len(errs) > 0 {
 		return nil, errs
 	}
 	return body, nil
