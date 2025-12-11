@@ -4,6 +4,6 @@
   },
   "scripts": {
     "docs:preview": "notebooks preview",
-    "docs:build": "notebooks build --base /benchmarks --empty --out ../benchmarks/ -- *.html"
+    "docs:build": "notebooks build --no-minify --base /opa/benchmarks --empty --out ../benchmarks/ -- *.html"
   }
 }
