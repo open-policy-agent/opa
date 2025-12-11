@@ -40,7 +40,7 @@ fn([x, y]) = z if { json.unmarshal(x, z); z > y }
 	vis := &testVis{}
 	NewGenericVisitor(vis.Visit).Walk(rule)
 
-	if exp, act := 250, len(vis.elems); exp != act {
+	if exp, act := 252, len(vis.elems); exp != act {
 		t.Errorf("Expected exactly %d elements in AST but got %d: %v", exp, act, vis.elems)
 	}
 }
@@ -107,7 +107,7 @@ fn([x, y]) = z if { json.unmarshal(x, z); z > y }
 	})
 	vis.Walk(rule)
 
-	if len(elems) != 250 {
+	if len(elems) != 252 {
 		t.Errorf("Expected exactly 254 elements in AST but got %d: %v", len(elems), elems)
 	}
 }

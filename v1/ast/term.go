@@ -878,15 +878,17 @@ func (ts *TemplateString) String() string {
 	str.WriteString("$\"")
 
 	for _, p := range ts.Parts {
-		switch p.(type) {
+		switch x := p.(type) {
 		case *Expr:
 			str.WriteString("{")
 			str.WriteString(p.String())
 			str.WriteString("}")
 		case *Term:
 			s := p.String()
-			s = strings.TrimPrefix(s, "\"")
-			s = strings.TrimSuffix(s, "\"")
+			if _, ok := x.Value.(String); ok {
+				s = strings.TrimPrefix(s, "\"")
+				s = strings.TrimSuffix(s, "\"")
+			}
 			str.WriteString(s)
 		default:
 			str.WriteString("<invalid>")

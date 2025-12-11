@@ -3248,7 +3248,6 @@ func (qc *queryCompiler) Compile(query Body) (Body, error) {
 
 	query = query.Copy()
 
-	// TODO: rewrite template string calls
 	stages := []queryStage{
 		{"CheckKeywordOverrides", "query_compile_stage_check_keyword_overrides", qc.checkKeywordOverrides},
 		{"ResolveRefs", "query_compile_stage_resolve_refs", qc.resolveRefs},

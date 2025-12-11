@@ -1953,7 +1953,7 @@ func (p *Parser) parseTemplateString(multiLine bool) *Term {
 		p.scan()
 		numCommentsAfter := len(p.s.comments)
 
-		expr := p.parseTemplateExpr()
+		expr := p.parseLiteral()
 		if expr == nil {
 			p.error(p.s.Loc(), "invalid template-string expression")
 			return nil
@@ -1986,16 +1986,16 @@ func (p *Parser) parseTemplateString(multiLine bool) *Term {
 		}
 
 		// FIXME: Can we optimize for collections and comprehensions too? To qualify, they must not contain refs or calls.
-		var isPrimitive bool
+		var nonOptional bool
 		if term, ok := expr.Terms.(*Term); ok && numCommentsAfter == numCommentsBefore {
 			switch term.Value.(type) {
 			case String, Number, Boolean, Null:
-				isPrimitive = true
+				nonOptional = true
 				parts = append(parts, term)
 			}
 		}
 
-		if !isPrimitive {
+		if !nonOptional {
 			parts = append(parts, expr)
 		}
 
@@ -2011,12 +2011,6 @@ func (p *Parser) parseTemplateString(multiLine bool) *Term {
 	loc.Text = p.s.Text(loc.Offset, p.s.tokEnd)
 
 	return TemplateStringTerm(multiLine, parts...).SetLocation(loc)
-}
-
-func (p *Parser) parseTemplateExpr() *Expr {
-	// FIXME: Nothing else to do here?
-	expr := p.parseLiteral()
-	return expr
 }
 
 func (p *Parser) parseCall(operator *Term, offset int) (term *Term) {

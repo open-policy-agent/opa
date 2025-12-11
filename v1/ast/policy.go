@@ -1095,10 +1095,6 @@ func (head *Head) HasDynamicRef() bool {
 
 // Copy returns a deep copy of a.
 func (a Args) Copy() Args {
-	if a == nil {
-		return nil
-	}
-
 	cpy := Args{}
 	for _, t := range a {
 		cpy = append(cpy, t.Copy())
