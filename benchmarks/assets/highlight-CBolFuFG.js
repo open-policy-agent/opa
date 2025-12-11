@@ -1,5 +1,5 @@
-const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/index-CrE9IHJv.js","assets/index-CtkdKDmw.js","assets/index-Uk43FeYi.js","assets/index-BRW4IiKQ.js","assets/index-DgT5dRem.js","assets/index-DUBo0CS-.js","assets/index-jPUE8YUl.js"])))=>i.map(i=>d[i]);
-import { _ as __vitePreload } from "./index-Uk43FeYi.js";
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/index-DCEA9DZ6.js","assets/index-BVKNUd6z.js","assets/index-BgUYgv1m.js","assets/index-DZ2qrSLn.js","assets/index-BVP2Va0b.js","assets/index-BzMcE0XD.js","assets/index-0gYmzf-z.js"])))=>i.map(i=>d[i]);
+import { _ as __vitePreload } from "./index-BgUYgv1m.js";
 const DefaultBufferLength = 1024;
 let nextPropID = 0;
 class Range {
@@ -2327,27 +2327,27 @@ async function getParser(language) {
     case "ts":
     case "jsx":
       return (await __vitePreload(async () => {
-        const { parser } = await import("./index-CrE9IHJv.js");
+        const { parser } = await import("./index-DCEA9DZ6.js");
         return { parser };
       }, true ? __vite__mapDeps([0,1,2]) : void 0)).parser.configure({ dialect: language });
     case "python":
       return (await __vitePreload(async () => {
-        const { parser } = await import("./index-BRW4IiKQ.js");
+        const { parser } = await import("./index-DZ2qrSLn.js");
         return { parser };
       }, true ? __vite__mapDeps([3,1,2]) : void 0)).parser;
     case "html":
       return (await __vitePreload(async () => {
-        const { parser } = await import("./index-DgT5dRem.js");
+        const { parser } = await import("./index-BVP2Va0b.js");
         return { parser };
       }, true ? __vite__mapDeps([4,1,2]) : void 0)).parser;
     case "css":
       return (await __vitePreload(async () => {
-        const { parser } = await import("./index-DUBo0CS-.js");
+        const { parser } = await import("./index-BzMcE0XD.js");
         return { parser };
       }, true ? __vite__mapDeps([5,1,2]) : void 0)).parser;
     case "md":
       return (await __vitePreload(async () => {
-        const { parser } = await import("./index-jPUE8YUl.js");
+        const { parser } = await import("./index-0gYmzf-z.js");
         return { parser };
       }, true ? __vite__mapDeps([6,2]) : void 0)).parser;
   }
