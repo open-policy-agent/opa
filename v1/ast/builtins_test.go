@@ -7,6 +7,7 @@ package ast
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/types"
@@ -31,7 +32,7 @@ func TestBuiltinDeclRoundtrip(t *testing.T) {
 
 func TestAllBuiltinsHaveDescribedArguments(t *testing.T) {
 	for _, b := range Builtins {
-		if b.Deprecated || b.Infix != "" || b.Name == "print" || b.Name == "internal.print" || b.Name == "internal.test_case" || b.Name == "internal.template_string" {
+		if b.Deprecated || b.Infix != "" || b.Name == "print" || strings.HasPrefix(b.Name, "internal.") {
 			continue
 		}
 
