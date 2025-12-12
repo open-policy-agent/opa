@@ -289,7 +289,7 @@ import rego.v1
 
 main if {
   data.service.allow
-  not data.globalsecurity.deny
+  not data.mandatory.globalsecurity.deny
 }
 ```
 
@@ -302,22 +302,19 @@ bundles:
       environment: prod
     requirements:
     - source: petshop-svc
-    options:
-      no_default_stack_mount: true
   notifications-svc:
     labels:
       environment: prod
     requirements:
     - source: notifications-svc
-    options:
-      no_default_stack_mount: true
 
 stacks:
-  globalsecurity:
+  mandatory:
     selector:
       environment: [prod]
     requirements:
     - source: main
+      automount: false
     - source: globalsecurity
 
 sources:
