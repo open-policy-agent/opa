@@ -473,7 +473,7 @@ func (s *Scanner) scanTemplateString() (string, tokens.Token) {
 
 	// Lazily remove escapes to not unnecessarily allocate a new byte slice
 	if len(escapes) > 0 {
-		return util.ByteSliceToString(lazyRemoveEscapes(s, escapes, start)), tok
+		return util.ByteSliceToString(removeEscapes(s, escapes, start)), tok
 	}
 
 	return util.ByteSliceToString(s.bs[start : s.offset-1]), tok
@@ -513,13 +513,13 @@ func (s *Scanner) scanRawTemplateString() (string, tokens.Token) {
 
 	// Lazily remove escapes to not unnecessarily allocate a new byte slice
 	if len(escapes) > 0 {
-		return util.ByteSliceToString(lazyRemoveEscapes(s, escapes, start)), tok
+		return util.ByteSliceToString(removeEscapes(s, escapes, start)), tok
 	}
 
 	return util.ByteSliceToString(s.bs[start : s.offset-1]), tok
 }
 
-func lazyRemoveEscapes(s *Scanner, escapes []int, start int) []byte {
+func removeEscapes(s *Scanner, escapes []int, start int) []byte {
 	from := start
 	bs := make([]byte, 0, s.offset-start-len(escapes))
 
