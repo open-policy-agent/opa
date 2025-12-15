@@ -16,8 +16,6 @@ import (
 type sizeBuffer struct {
 	mtx                  sync.Mutex
 	buffer               *logBuffer
-	BufferSizeLimitBytes int64
-	UploadSizeLimitBytes int64
 	enc                  *chunkEncoder // encoder appends events into the gzip compressed JSON array
 	limiter              *rate.Limiter
 	metrics              metrics.Metrics
@@ -32,8 +30,6 @@ func newSizeBuffer(bufferSizeLimitBytes int64, uploadSizeLimitBytes int64, clien
 	return &sizeBuffer{
 		enc:                  newChunkEncoder(uploadSizeLimitBytes),
 		buffer:               newLogBuffer(bufferSizeLimitBytes),
-		BufferSizeLimitBytes: bufferSizeLimitBytes,
-		UploadSizeLimitBytes: uploadSizeLimitBytes,
 		client:               client,
 		uploadPath:           uploadPath,
 		mode:                 mode,
@@ -86,9 +82,7 @@ func (b *sizeBuffer) Reconfigure(
 		b.limiter = nil
 	}
 
-	b.UploadSizeLimitBytes = uploadSizeLimitBytes
 	b.enc.Reconfigure(uploadSizeLimitBytes)
-	b.BufferSizeLimitBytes = bufferSizeLimitBytes
 	b.buffer.Reconfigure(bufferSizeLimitBytes)
 
 	b.mode = mode
@@ -171,8 +165,8 @@ func (b *sizeBuffer) Upload(ctx context.Context) error {
 
 	oldChunkEnc := b.enc
 	oldBuffer := b.buffer
-	b.buffer = newLogBuffer(b.BufferSizeLimitBytes)
-	b.enc = newChunkEncoder(b.UploadSizeLimitBytes).WithMetrics(b.metrics).WithLogger(b.logger).
+	b.buffer = newLogBuffer(b.buffer.limit)
+	b.enc = newChunkEncoder(b.enc.limit).WithMetrics(b.metrics).WithLogger(b.logger).
 		WithUncompressedLimit(oldChunkEnc.uncompressedLimit, oldChunkEnc.uncompressedLimitScaleDownExponent, oldChunkEnc.uncompressedLimitScaleUpExponent)
 	b.mtx.Unlock()
 

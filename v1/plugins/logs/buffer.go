@@ -29,8 +29,8 @@ func newLogBuffer(limit int64) *logBuffer {
 	}
 }
 
-func (l *logBuffer) Reconfigure(limit int64) {
-	l.limit = limit
+func (lb *logBuffer) Reconfigure(limit int64) {
+	lb.limit = limit
 }
 
 func (lb *logBuffer) Push(bs []byte) (dropped int) {
