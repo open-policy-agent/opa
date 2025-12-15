@@ -1,6 +1,6 @@
-import { L as LRParser, E as ExternalTokenizer, a as LocalTokenGroup } from "./index-BVKNUd6z.js";
-import { s as styleTags, t as tags } from "./highlight-CBolFuFG.js";
-import "./index-BgUYgv1m.js";
+import { L as LRParser, E as ExternalTokenizer, a as LocalTokenGroup } from "./index-DZvTYnLF.js";
+import { s as styleTags, t as tags } from "./highlight-BedHDusv.js";
+import "./index-Cim170W7.js";
 const descendantOp = 122, Unit = 1, identifier = 123, callee = 124, VariableName = 2, queryIdentifier = 125, queryVariableName = 3, QueryCallee = 4;
 const space = [
   9,
