@@ -14,25 +14,25 @@ import (
 )
 
 type sizeBuffer struct {
-	mtx                  sync.Mutex
-	buffer               *logBuffer
-	enc                  *chunkEncoder // encoder appends events into the gzip compressed JSON array
-	limiter              *rate.Limiter
-	metrics              metrics.Metrics
-	logger               logging.Logger
-	client               rest.Client
-	uploadPath           string
-	mode                 plugins.TriggerMode
-	cancelUpload         bool
+	mtx          sync.Mutex
+	buffer       *logBuffer
+	enc          *chunkEncoder // encoder appends events into the gzip compressed JSON array
+	limiter      *rate.Limiter
+	metrics      metrics.Metrics
+	logger       logging.Logger
+	client       rest.Client
+	uploadPath   string
+	mode         plugins.TriggerMode
+	cancelUpload bool
 }
 
 func newSizeBuffer(bufferSizeLimitBytes int64, uploadSizeLimitBytes int64, client rest.Client, uploadPath string, mode plugins.TriggerMode) *sizeBuffer {
 	return &sizeBuffer{
-		enc:                  newChunkEncoder(uploadSizeLimitBytes),
-		buffer:               newLogBuffer(bufferSizeLimitBytes),
-		client:               client,
-		uploadPath:           uploadPath,
-		mode:                 mode,
+		enc:        newChunkEncoder(uploadSizeLimitBytes),
+		buffer:     newLogBuffer(bufferSizeLimitBytes),
+		client:     client,
+		uploadPath: uploadPath,
+		mode:       mode,
 	}
 }
 
