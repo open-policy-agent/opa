@@ -13,22 +13,18 @@ import (
 )
 
 type sizeBuffer struct {
-	mtx                  sync.Mutex
-	buffer               *logBuffer
-	BufferSizeLimitBytes int64
-	UploadSizeLimitBytes int64
-	enc                  *chunkEncoder // encoder appends events into the gzip compressed JSON array
-	limiter              *rate.Limiter
-	metrics              metrics.Metrics
-	logger               logging.Logger
+	mtx     sync.Mutex
+	buffer  *logBuffer
+	enc     *chunkEncoder // encoder appends events into the gzip compressed JSON array
+	limiter *rate.Limiter
+	metrics metrics.Metrics
+	logger  logging.Logger
 }
 
 func newSizeBuffer(bufferSizeLimitBytes int64, uploadSizeLimitBytes int64) *sizeBuffer {
 	return &sizeBuffer{
-		enc:                  newChunkEncoder(uploadSizeLimitBytes),
-		buffer:               newLogBuffer(bufferSizeLimitBytes),
-		BufferSizeLimitBytes: uploadSizeLimitBytes,
-		UploadSizeLimitBytes: uploadSizeLimitBytes,
+		enc:    newChunkEncoder(uploadSizeLimitBytes),
+		buffer: newLogBuffer(bufferSizeLimitBytes),
 	}
 }
 
@@ -70,9 +66,8 @@ func (b *sizeBuffer) Reconfigure(bufferSizeLimitBytes int64, uploadSizeLimitByte
 		b.limiter = nil
 	}
 
-	// The encoder and buffer will use these new values after upload
-	b.UploadSizeLimitBytes = uploadSizeLimitBytes
-	b.BufferSizeLimitBytes = bufferSizeLimitBytes
+	b.enc.Reconfigure(uploadSizeLimitBytes)
+	b.buffer.Reconfigure(bufferSizeLimitBytes)
 }
 
 func (b *sizeBuffer) Push(event *EventV1) {
@@ -107,8 +102,8 @@ func (b *sizeBuffer) Upload(ctx context.Context, client rest.Client, uploadPath 
 	b.mtx.Lock()
 	oldChunkEnc := b.enc
 	oldBuffer := b.buffer
-	b.buffer = newLogBuffer(b.BufferSizeLimitBytes)
-	b.enc = newChunkEncoder(b.UploadSizeLimitBytes).WithMetrics(b.metrics).WithLogger(b.logger).
+	b.buffer = newLogBuffer(b.buffer.limit)
+	b.enc = newChunkEncoder(b.enc.limit).WithMetrics(b.metrics).WithLogger(b.logger).
 		WithUncompressedLimit(oldChunkEnc.uncompressedLimit, oldChunkEnc.uncompressedLimitScaleDownExponent, oldChunkEnc.uncompressedLimitScaleUpExponent)
 	b.mtx.Unlock()
 
