@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/v1/plugins/rest"
 )
 
@@ -12,7 +13,7 @@ func TestSizeBuffer_Upload(t *testing.T) {
 
 	bufferSizeLimit := int64(100)
 	UploadSizeLimit := int64(100)
-	b := newSizeBuffer(bufferSizeLimit, UploadSizeLimit)
+	b := newSizeBuffer(bufferSizeLimit, UploadSizeLimit, rest.Client{}, "", plugins.TriggerPeriodic)
 
 	if b.enc.limit != UploadSizeLimit {
 		t.Fatalf("expected encoder limit to be %d, got %d", UploadSizeLimit, b.enc.limit)
@@ -21,7 +22,7 @@ func TestSizeBuffer_Upload(t *testing.T) {
 		t.Fatalf("expected buffer limit to be %d, got %d", bufferSizeLimit, b.buffer.limit)
 	}
 
-	err := b.Upload(t.Context(), rest.Client{}, "")
+	err := b.Upload(t.Context())
 	if err == nil {
 		t.Fatalf("expected error, got %s", err)
 	}
@@ -40,7 +41,7 @@ func TestSizeBuffer_Upload(t *testing.T) {
 	newUploadSizeLimit := int64(200)
 	newBufferSizeLimit := int64(200)
 
-	b.Reconfigure(newBufferSizeLimit, newUploadSizeLimit, nil)
+	b.Reconfigure(newBufferSizeLimit, newUploadSizeLimit, nil, rest.Client{}, "", plugins.TriggerPeriodic)
 
 	if b.enc.limit != newUploadSizeLimit {
 		t.Fatalf("expected encoder limit to be %d, got %d", newUploadSizeLimit, b.enc.limit)

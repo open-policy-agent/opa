@@ -4101,7 +4101,7 @@ func TestNoDroppedEvents(t *testing.T) {
 		}
 	}
 
-	if err := fixture.plugin.b.Upload(ctx, fixture.plugin.manager.Client(fixture.plugin.config.Service), *fixture.plugin.config.Resource); err != nil {
+	if err := fixture.plugin.b.Upload(ctx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -4114,7 +4114,7 @@ func TestNoDroppedEvents(t *testing.T) {
 		}
 	}
 
-	if err := fixture.plugin.b.Upload(ctx, fixture.plugin.manager.Client(fixture.plugin.config.Service), *fixture.plugin.config.Resource); err != nil {
+	if err := fixture.plugin.b.Upload(ctx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -4181,4 +4181,3 @@ func TestDroppedEvents(t *testing.T) {
 		t.Fatalf("expected dropped %d but got %d", 0, dropped)
 	}
 }
-
