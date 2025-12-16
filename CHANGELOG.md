@@ -10,7 +10,7 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 This is a bugfix release:
 
-### Memory exhaustion via forget gzip header
+### Memory exhaustion via forged gzip header
 
 A crafted HTTP request any of OPA's HTTP endpoints would lead OPA to use a large amount of memory, triggering
 an out-of-memory process exit.
