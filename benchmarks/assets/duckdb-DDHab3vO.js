@@ -1,4 +1,4 @@
-import { _ as __vitePreload } from "./index-Cim170W7.js";
+import { _ as __vitePreload } from "./index-VtGJxanb.js";
 import * as duckdb from "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/+esm";
 const bundles = {
   mvp: {
