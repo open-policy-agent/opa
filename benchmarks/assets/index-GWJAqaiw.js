@@ -2244,7 +2244,7 @@ const Arrow = () => __vitePreload(() => import("https://cdn.jsdelivr.net/npm/apa
 const d3 = () => __vitePreload(() => import("https://cdn.jsdelivr.net/npm/d3/+esm"), true ? [] : void 0);
 const dot = () => __vitePreload(() => import("./dot-8mGemiIy.js"), true ? [] : void 0).then((_2) => _2.dot);
 const duckdb = () => __vitePreload(() => import("https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/+esm"), true ? [] : void 0);
-const DuckDBClient = () => __vitePreload(() => import("./duckdb-DDHab3vO.js"), true ? [] : void 0).then((_2) => _2.DuckDBClient);
+const DuckDBClient = () => __vitePreload(() => import("./duckdb-DcRa9wTr.js"), true ? [] : void 0).then((_2) => _2.DuckDBClient);
 const echarts = () => __vitePreload(() => import("https://cdn.jsdelivr.net/npm/echarts/dist/echarts.esm.min.js/+esm"), true ? [] : void 0);
 const htl = () => __vitePreload(() => import("https://cdn.jsdelivr.net/npm/htl/+esm"), true ? [] : void 0);
 const html = () => __vitePreload(() => import("https://cdn.jsdelivr.net/npm/htl/+esm"), true ? [] : void 0).then((_2) => _2.html);
@@ -2252,7 +2252,7 @@ const svg = () => __vitePreload(() => import("https://cdn.jsdelivr.net/npm/htl/+
 const Inputs = () => __vitePreload(() => import("./inputs-vIc-jKci.js"), true ? __vite__mapDeps([0,1]) : void 0);
 const L = () => __vitePreload(() => import("./leaflet-CkvVhxBL.js"), true ? [] : void 0);
 const mapboxgl = () => __vitePreload(() => import("./mapboxgl-C0i2HzjJ.js"), true ? [] : void 0).then((_2) => _2.default);
-const md = () => __vitePreload(() => import("./md-BGdgqz4H.js"), true ? [] : void 0).then((_2) => _2.md);
+const md = () => __vitePreload(() => import("./md-DN2Ks_mU.js"), true ? [] : void 0).then((_2) => _2.md);
 const mermaid = () => __vitePreload(() => import("./mermaid-BmdbBLu8.js"), true ? [] : void 0).then((_2) => _2.mermaid);
 const Plot = () => __vitePreload(() => import("https://cdn.jsdelivr.net/npm/@observablehq/plot/+esm"), true ? [] : void 0);
 const React = () => __vitePreload(() => import("https://cdn.jsdelivr.net/npm/react/+esm"), true ? [] : void 0);
@@ -2421,7 +2421,7 @@ define(
   {
     id: 2,
     body: (FileAttachment2) => {
-      return FileAttachment2(new URL("/opa/benchmarks/assets/node-2sqbms3s85uuh6dw-D3Ir97_k.json", import.meta.url).href).json();
+      return FileAttachment2(new URL("/opa/benchmarks/assets/node-2sqbms3s85uuh6dw-Df4i4oSb.json", import.meta.url).href).json();
     },
     inputs: ["FileAttachment"],
     outputs: [],
@@ -2441,7 +2441,7 @@ define(
   {
     id: 3,
     body: (FileAttachment2) => {
-      return FileAttachment2(new URL("/opa/benchmarks/assets/node-10x93cm4f8cnpem6-D51WgVws.json", import.meta.url).href).json();
+      return FileAttachment2(new URL("/opa/benchmarks/assets/node-10x93cm4f8cnpem6-Cw4n7Ws8.json", import.meta.url).href).json();
     },
     inputs: ["FileAttachment"],
     outputs: [],
