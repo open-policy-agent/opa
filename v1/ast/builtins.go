@@ -151,6 +151,7 @@ var DefaultBuiltins = [...]*Builtin{
 	Sprintf,
 	StringReverse,
 	RenderTemplate,
+	InternalTemplateString,
 
 	// Numbers
 	NumbersRange,
@@ -3386,6 +3387,11 @@ var InternalPrint = &Builtin{
 var InternalTestCase = &Builtin{
 	Name: "internal.test_case",
 	Decl: types.NewFunction([]types.Type{types.NewArray(nil, types.A)}, nil),
+}
+
+var InternalTemplateString = &Builtin{
+	Name: "internal.template_string",
+	Decl: types.NewFunction([]types.Type{types.NewArray(nil, types.A)}, types.S),
 }
 
 /**

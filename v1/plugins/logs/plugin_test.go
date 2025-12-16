@@ -3929,3 +3929,60 @@ func currentSoftLimit(t *testing.T, plugin *Plugin, bufferType string) int64 {
 
 	return 0
 }
+
+func TestNoDroppedEvents(t *testing.T) {
+	ctx := t.Context()
+	testLogger := test.New()
+	fixture := newTestFixture(t, testFixtureOptions{
+		ConsoleLogger: testLogger,
+		// the size buffer drops entire chunks instead of event
+		ReportingBufferType:           sizeBufferType,
+		ReportingUploadSizeLimitBytes: 127,
+	})
+	fixture.plugin = fixture.plugin.WithMetrics(metrics.New())
+	if err := fixture.plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	defer fixture.server.stop()
+
+	fixture.server.ch = make(chan []EventV1, 200)
+	for range 100 {
+		event := &server.Info{
+			DecisionID: strconv.Itoa(1),
+		}
+		if err := fixture.plugin.Log(ctx, event); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := fixture.plugin.b.Upload(ctx, fixture.plugin.manager.Client(fixture.plugin.config.Service), *fixture.plugin.config.Resource); err != nil {
+		t.Fatal(err)
+	}
+
+	for range 100 {
+		event := &server.Info{
+			DecisionID: strconv.Itoa(1),
+		}
+		if err := fixture.plugin.Log(ctx, event); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := fixture.plugin.b.Upload(ctx, fixture.plugin.manager.Client(fixture.plugin.config.Service), *fixture.plugin.config.Resource); err != nil {
+		t.Fatal(err)
+	}
+
+	// Each event gets pushed out by the next event, so one stays behind
+	for range 199 {
+		<-fixture.server.ch
+	}
+
+	// Stopping the plugin will flush out the last event
+	fixture.plugin.Stop(ctx)
+	<-fixture.server.ch
+
+	dropped := fixture.plugin.metrics.Counter("decision_logs_dropped_buffer_size_limit_exceeded").Value().(uint64)
+	if dropped != 0 {
+		t.Fatalf("expected dropped %d but got %d", 0, dropped)
+	}
+}

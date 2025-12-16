@@ -283,6 +283,19 @@ func Transform(t Transformer, x any) (any, error) {
 			}
 		}
 		return y, nil
+	case *TemplateString:
+		for i := range y.Parts {
+			if expr, ok := y.Parts[i].(*Expr); ok {
+				transformed, err := Transform(t, expr)
+				if err != nil {
+					return nil, err
+				}
+				if y.Parts[i], ok = transformed.(*Expr); !ok {
+					return nil, fmt.Errorf("illegal transform: %T != %T", expr, transformed)
+				}
+			}
+		}
+		return y, nil
 	default:
 		return y, nil
 	}
