@@ -113,7 +113,7 @@ func benchmarkIteration(b *testing.B, module string) {
 		if err != nil {
 			b.Fatalf("Unexpected query error: %v", err)
 		}
-		if string(r.Result) != `{{"x":true}}` {
+		if string(r.Result) != `{{"x": true}}` {
 			b.Errorf("unexpected result: %s", string(r.Result))
 		}
 	}
