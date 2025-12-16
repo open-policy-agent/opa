@@ -818,6 +818,91 @@ func (str String) Hash() int {
 	return int(xxhash.Sum64String(string(str)))
 }
 
+type TemplateString struct {
+	Parts     []Node `json:"parts"`
+	MultiLine bool   `json:"multi_line"`
+}
+
+func (ts *TemplateString) Compare(other Value) int {
+	if ots, ok := other.(*TemplateString); ok {
+		if ts.MultiLine != ots.MultiLine {
+			if !ts.MultiLine {
+				return -1
+			}
+			return 1
+		}
+
+		if len(ts.Parts) != len(ots.Parts) {
+			return len(ts.Parts) - len(ots.Parts)
+		}
+
+		for i := range ts.Parts {
+			if cmp := Compare(ts.Parts[i], ots.Parts[i]); cmp != 0 {
+				return cmp
+			}
+		}
+
+		return 0
+	}
+	return Compare(ts, other)
+}
+
+func (ts *TemplateString) Find(path Ref) (Value, error) {
+	if len(path) == 0 {
+		return ts, nil
+	}
+	return nil, errFindNotFound
+}
+
+func (ts *TemplateString) Hash() int {
+	hash := 0
+	for _, p := range ts.Parts {
+		switch x := p.(type) {
+		case *Expr:
+			hash += x.Hash()
+		case *Term:
+			hash += x.Value.Hash()
+		default:
+			panic(fmt.Sprintf("invalid template part type %T", p))
+		}
+	}
+	return hash
+}
+
+func (*TemplateString) IsGround() bool {
+	return false
+}
+
+func (ts *TemplateString) String() string {
+	str := strings.Builder{}
+	str.WriteString("$\"")
+
+	for _, p := range ts.Parts {
+		switch x := p.(type) {
+		case *Expr:
+			str.WriteString("{")
+			str.WriteString(p.String())
+			str.WriteString("}")
+		case *Term:
+			s := p.String()
+			if _, ok := x.Value.(String); ok {
+				s = strings.TrimPrefix(s, "\"")
+				s = strings.TrimSuffix(s, "\"")
+			}
+			str.WriteString(s)
+		default:
+			str.WriteString("<invalid>")
+		}
+	}
+
+	str.WriteString("\"")
+	return str.String()
+}
+
+func TemplateStringTerm(multiLine bool, parts ...Node) *Term {
+	return &Term{Value: &TemplateString{MultiLine: multiLine, Parts: parts}}
+}
+
 // Var represents a variable as defined by the language.
 type Var string
 
@@ -2733,10 +2818,26 @@ func (c Call) IsGround() bool {
 	return termSliceIsGround(c)
 }
 
-// MakeExpr returns an ew Expr from this call.
+// MakeExpr returns a new Expr from this call.
 func (c Call) MakeExpr(output *Term) *Expr {
 	terms := []*Term(c)
 	return NewExpr(append(terms, output))
+}
+
+func (c Call) Operator() Ref {
+	if len(c) == 0 {
+		return nil
+	}
+
+	return c[0].Value.(Ref)
+}
+
+func (c Call) Operands() []*Term {
+	if len(c) < 1 {
+		return nil
+	}
+
+	return c[1:]
 }
 
 func (c Call) String() string {

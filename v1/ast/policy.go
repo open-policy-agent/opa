@@ -988,6 +988,7 @@ func (head *Head) Copy() *Head {
 	cpy.Key = head.Key.Copy()
 	cpy.Value = head.Value.Copy()
 	cpy.keywords = nil
+	cpy.Assign = head.Assign
 	return &cpy
 }
 

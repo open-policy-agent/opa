@@ -8446,3 +8446,509 @@ func assertParseRule(t *testing.T, msg string, input string, correct *Rule, opts
 	},
 		opts...)
 }
+
+func TestTemplateString(t *testing.T) {
+	tests := []struct {
+		note string
+		expr string
+		exp  *Expr
+	}{
+		{
+			note: "simple template string",
+			expr: `$"foo"`,
+			exp: &Expr{
+				Terms: TemplateStringTerm(false, StringTerm("foo")),
+			},
+		},
+		{
+			note: "with template expression",
+			expr: `$"foo {x}"`,
+			exp: &Expr{
+				Terms: TemplateStringTerm(false,
+					StringTerm("foo "),
+					&Expr{
+						Terms: VarTerm("x"),
+					},
+				),
+			},
+		},
+
+		{
+			note: "escapes",
+			expr: `$"\t\n\"\{"`,
+			exp: &Expr{
+				Terms: TemplateStringTerm(false,
+					StringTerm("\t\n\"{"),
+				),
+			},
+		},
+		{
+			note: "escapes, multi-line",
+			expr: "$`\\{`",
+			exp: &Expr{
+				Terms: TemplateStringTerm(true,
+					StringTerm(`{`),
+				),
+			},
+		},
+
+		{
+			note: "with modifier, global",
+			expr: `$"foo {input}" with input as 42`,
+			exp: &Expr{
+				Terms: TemplateStringTerm(false,
+					StringTerm("foo "),
+					&Expr{
+						Terms: RefTerm(VarTerm("input")),
+					},
+				),
+				With: []*With{
+					{
+						Target: RefTerm(VarTerm("input")),
+						Value:  NumberTerm("42"),
+					},
+				},
+			},
+		},
+		{
+			note: "with modifier, global, multiple",
+			expr: `$"foo {input} {x}" with input as 42 with x as "bar"`,
+			exp: &Expr{
+				Terms: TemplateStringTerm(false,
+					StringTerm("foo "),
+					&Expr{
+						Terms: RefTerm(VarTerm("input")),
+					},
+					StringTerm(" "),
+					&Expr{
+						Terms: VarTerm("x"),
+					},
+				),
+				With: []*With{
+					{
+						Target: RefTerm(VarTerm("input")),
+						Value:  NumberTerm("42"),
+					},
+					{
+						Target: VarTerm("x"),
+						Value:  StringTerm("bar"),
+					},
+				},
+			},
+		},
+		{
+			note: "with modifier, inside template expression",
+			expr: `$"foo {x with input as 42}"`,
+			exp: &Expr{
+				Terms: TemplateStringTerm(false,
+					StringTerm("foo "),
+					&Expr{
+						Terms: VarTerm("x"),
+						With: []*With{
+							{
+								Target: RefTerm(VarTerm("input")),
+								Value:  NumberTerm("42"),
+							},
+						},
+					},
+				),
+			},
+		},
+		{
+			note: "template-string inside with value",
+			expr: `allow with input.x as $"<{x}>"`,
+			exp: &Expr{
+				Terms: VarTerm("allow"),
+				With: []*With{
+					{
+						Target: RefTerm(VarTerm("input"), StringTerm("x")),
+						Value: TemplateStringTerm(false,
+							StringTerm("<"),
+							&Expr{
+								Terms: VarTerm("x"),
+							},
+							StringTerm(">"),
+						),
+					},
+				},
+			},
+		},
+
+		{
+			note: "template-string inside some symbols",
+			expr: `some $"user_{id}" in users`,
+			exp: &Expr{
+				Terms: &SomeDecl{
+					Symbols: []*Term{
+						Member.Call(
+							TemplateStringTerm(false,
+								StringTerm("user_"),
+								&Expr{
+									Terms: VarTerm("id"),
+								},
+							),
+							VarTerm("users"),
+						),
+					},
+				},
+			},
+		},
+
+		{
+			note: "multi-line expression in single-line template-string",
+			expr: `$"{[x |
+					x := 42]}"`,
+			exp: &Expr{
+				Terms: TemplateStringTerm(false,
+					&Expr{
+						Terms: &Term{
+							Value: &ArrayComprehension{
+								Term: VarTerm("x"),
+								Body: NewBody(
+									&Expr{
+										Terms: []*Term{RefTerm(VarTerm("assign")), VarTerm("x"), NumberTerm("42")},
+									},
+								),
+							},
+						},
+					},
+				),
+			},
+		},
+
+		{
+			note: "multi-line template string",
+			expr: "$`<foo>\n" +
+				"  <bar>{x}</bar>\n" +
+				"  <baz>{y}</baz>\n" +
+				"</foo>`",
+			exp: &Expr{
+				Terms: TemplateStringTerm(true,
+					StringTerm("<foo>\n  <bar>"),
+					&Expr{
+						Terms: VarTerm("x"),
+					},
+					StringTerm("</bar>\n  <baz>"),
+					&Expr{
+						Terms: VarTerm("y"),
+					},
+					StringTerm("</baz>\n</foo>"),
+				),
+			},
+		},
+		{
+			note: "multi-line template string, nested single-line template string",
+			expr: "$`<foo>\n" +
+				"  <bar>{$\"a {x} b\"}</bar>\n" +
+				"</foo>`",
+			exp: &Expr{
+				Terms: TemplateStringTerm(true,
+					StringTerm("<foo>\n  <bar>"),
+					&Expr{
+						Terms: TemplateStringTerm(false,
+							StringTerm("a "),
+							&Expr{
+								Terms: VarTerm("x"),
+							},
+							StringTerm(" b"),
+						),
+					},
+					StringTerm("</bar>\n</foo>"),
+				),
+			},
+		},
+		{
+			note: "multi-line template string, nested multi-line template string",
+			expr: "$`<foo>\n" +
+				"  <bar>{$`a {x} b`}</bar>\n" +
+				"</foo>`",
+			exp: &Expr{
+				Terms: TemplateStringTerm(true,
+					StringTerm("<foo>\n  <bar>"),
+					&Expr{
+						Terms: TemplateStringTerm(true,
+							StringTerm("a "),
+							&Expr{
+								Terms: VarTerm("x"),
+							},
+							StringTerm(" b"),
+						),
+					},
+					StringTerm("</bar>\n</foo>"),
+				),
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			stmts, _, err := ParseStatements("", tc.expr)
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if len(stmts) != 1 {
+				t.Fatalf("Expected exactly one statement, got %d: %v", len(stmts), stmts)
+			}
+
+			body, ok := stmts[0].(Body)
+			if !ok {
+				t.Fatalf("Expected body, got %T", stmts[0])
+			}
+
+			if len(body) != 1 {
+				t.Fatalf("Expected exactly one expression, got %d: %v", len(body), body)
+			}
+
+			if !tc.exp.Equal(body[0]) {
+				t.Errorf("Expressions not equal:\n%v (parsed)\n%v (correct)", body[0], tc.exp)
+			}
+		})
+	}
+}
+
+func TestTemplateStringLocation(t *testing.T) {
+	tests := []struct {
+		note string
+		expr string
+		exp  Location
+	}{
+		{
+			note: "empty template-string",
+			expr: `$""`,
+			exp: Location{
+				Text: []byte(`$""`),
+				Row:  1,
+				Col:  1,
+			},
+		},
+		{
+			note: "empty template-string, multi-line",
+			expr: "$``",
+			exp: Location{
+				Text: []byte("$``"),
+				Row:  1,
+				Col:  1,
+			},
+		},
+		{
+			note: "no template-expressions",
+			expr: `$"foo bar"`,
+			exp: Location{
+				Text: []byte(`$"foo bar"`),
+				Row:  1,
+				Col:  1,
+			},
+		},
+		{
+			note: "no template-expressions, multi-line",
+			expr: "$`foo\n" +
+				"bar`",
+			exp: Location{
+				Text: []byte("$`foo\nbar`"),
+				Row:  1,
+				Col:  1,
+			},
+		},
+		{
+			note: "template-expressions, expr tail",
+			expr: `$"foo {42} bar {x}"`,
+			exp: Location{
+				Text: []byte(`$"foo {42} bar {x}"`),
+				Row:  1,
+				Col:  1,
+			},
+		},
+		{
+			note: "template-expressions, expr tail, multi-line",
+			expr: "$`foo\n{42}\nbar\n{x}`",
+			exp: Location{
+				Text: []byte("$`foo\n{42}\nbar\n{x}`"),
+				Row:  1,
+				Col:  1,
+			},
+		},
+		{
+			note: "template-expressions, string tail",
+			expr: `$"foo {42} bar {x} baz"`,
+			exp: Location{
+				Text: []byte(`$"foo {42} bar {x} baz"`),
+				Row:  1,
+				Col:  1,
+			},
+		},
+		{
+			note: "template-expressions, string tail, multi-line",
+			expr: "$`foo\n{42}\nbar\n{x}\nbaz`",
+			exp: Location{
+				Text: []byte("$`foo\n{42}\nbar\n{x}\nbaz`"),
+				Row:  1,
+				Col:  1,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			stmts, _, err := ParseStatements("", tc.expr)
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if len(stmts) != 1 {
+				t.Fatalf("Expected exactly one statement, got %d: %v", len(stmts), stmts)
+			}
+
+			body, ok := stmts[0].(Body)
+			if !ok {
+				t.Fatalf("Expected body, got %T", stmts[0])
+			}
+
+			if len(body) != 1 {
+				t.Fatalf("Expected exactly one expression, got %d: %v", len(body), body)
+			}
+
+			trm, ok := body[0].Terms.(*Term)
+			if !ok {
+				t.Fatalf("Expected term, got %T", stmts[0])
+			}
+
+			_, ok = trm.Value.(*TemplateString)
+			if !ok {
+				t.Fatalf("Expected template-string, got %T", stmts[0])
+			}
+
+			loc := trm.Loc()
+			if !tc.exp.Equal(loc) {
+				t.Errorf("Locations not equal:\n%v (parsed)\n%v (correct)", *loc, tc.exp)
+			}
+		})
+	}
+}
+
+func TestTemplateStringError(t *testing.T) {
+	tests := []struct {
+		note     string
+		expr     string
+		expError string
+	}{
+		{
+			note:     "empty template expression",
+			expr:     `$"{}"`,
+			expError: "rego_parse_error: invalid template-string expression",
+		},
+		{
+			note:     "unification in template expression",
+			expr:     `$"{x = 1}"`,
+			expError: "rego_parse_error: unexpected unification ('=') in template-string expression",
+		},
+		{
+			note:     "assignment in template expression",
+			expr:     `$"{x := 1}"`,
+			expError: "rego_parse_error: unexpected assignment (':=') in template-string expression",
+		},
+		{
+			note:     "not in template expression",
+			expr:     `$"{not false}"`,
+			expError: "rego_parse_error: unexpected negation ('not') in template-string expression",
+		},
+		{
+			note:     "some in template expression",
+			expr:     `$"{some 2 in [1, 2]}"`,
+			expError: "rego_parse_error: unexpected 'some' in template-string expression",
+		},
+		{
+			note:     "every in template expression",
+			expr:     `$"{every x in [1, 2] {x > 0}}"`,
+			expError: "rego_parse_error: unexpected 'every' in template-string expression",
+		},
+		{
+			note:     "multiple expressions in template expression",
+			expr:     `$"{true; false}"`,
+			expError: "rego_parse_error: expected } to end template string expression",
+		},
+
+		{
+			note:     "single-line start terminator, multi-line end terminator",
+			expr:     "$\"{x}`",
+			expError: "rego_parse_error: non-terminated string",
+		},
+		{
+			note:     "multi-line start terminator, single-line end terminator",
+			expr:     "$`{x}\"",
+			expError: "rego_parse_error: non-terminated string",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			_, _, err := ParseStatements("", tc.expr)
+			if err == nil {
+				t.Fatalf("Expected error, got nil")
+			}
+
+			if !strings.Contains(err.Error(), tc.expError) {
+				t.Fatalf("Expected error to contain %q, but got: %v", tc.expError, err)
+			}
+		})
+	}
+}
+
+func TestTemplateStringCapabilities(t *testing.T) {
+	tests := []struct {
+		note   string
+		caps   *Capabilities
+		expErr string
+	}{
+		{
+			note: "default capabilities",
+		},
+		{
+			note:   "v0 capabilities",
+			caps:   CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV0)),
+			expErr: `rego_parse_error: template strings are not supported by current capabilities`,
+		},
+		{
+			note: "v1 capabilities",
+			caps: CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV1)),
+		},
+		{
+			note:   "v1 capabilities, missing feature",
+			caps:   removeCapabilityFeature(CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV1)), FeatureTemplateStrings),
+			expErr: `rego_parse_error: template strings are not supported by current capabilities`,
+		},
+	}
+
+	expr := `$"foo {bar} baz"`
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			_, _, err := ParseStatementsWithOpts("", expr, ParserOptions{Capabilities: tc.caps})
+
+			if tc.expErr != "" {
+				if err == nil {
+					t.Fatalf("Expected error, got nil")
+				}
+
+				if !strings.Contains(err.Error(), tc.expErr) {
+					t.Fatalf("Expected error to contain %q, but got: %v", tc.expErr, err)
+				}
+			} else if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func removeCapabilityFeature(caps *Capabilities, feat string) *Capabilities {
+	feats := make([]string, 0, len(caps.Features)-1)
+	for _, f := range caps.Features {
+		if feat != f {
+			feats = append(feats, f)
+		}
+	}
+	caps.Features = feats
+	return caps
+}
