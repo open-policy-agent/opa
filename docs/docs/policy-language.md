@@ -245,6 +245,7 @@ deny contains $"User {input.username}'s role was '{role}', but must be one of {a
 <RunSnippet command="data.interpolation.deny"/>
 
 Compared to the `sprintf` [built-in function](#built-in-functions), not halting evaluation on `undefined` values make interpolated strings less error-prone, and is therefore the recommended alternative.
+In the above example, the `user.input` value is `undefined`; had we instead used `sprintf` in the rule head, the rule would have failed to evaluate even though `input.username` is inconsequential to the logic in the rule's body.
 
 #### Escaping
 
