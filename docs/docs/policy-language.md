@@ -209,7 +209,7 @@ A template-expression is enclosed in curly-braces (`{`,`}`), and must contain a 
 
 - Primitive values: `$"{1} {2.3} {"foo"} {false} {null}"`
 - Composite values: `$"{[true, false]} {{1, 2}} {{"a": "b"}}"`
-- Variables: `x = "foo"; a = "$"{x}"`
+- Variables: `x := "foo"; a := "$"{x}"`
 - References: `"$"{input.x} {data.y}"`
 - Comprehensions: `$"{[x | ...]} {{x | ...}} {{x: y | ...}}"`
 
@@ -225,7 +225,7 @@ a := $"Hello {username}!"
 
 #### Undefined values
 
-`Undefined` values don't halt evaluation of template-strings. If a template-expression evaluates to an `undefined` value,
+If a template-expression evaluates to an `undefined` value,
 the string `"<undefined>"` will be emitted instead. This means string interpolation is safe to use in cases where a string result is
 always expected, but not all expression values are guaranteed at evaluation time.
 
