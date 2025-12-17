@@ -44,10 +44,14 @@ async function exec({ command, files }) {
       stdout: JSON.stringify(body.result[0].expressions[0].value, undefined, 2),
     };
   }
-  const { message: stderr } = await resp.json();
+
+  const errorText = await resp.text();
   return {
     ok,
-    stderr,
+    stderr: errorText
+      .replace(/^"|"$/g, "")
+      .replace(/\\n/g, "\n")
+      .replace(/\\t/g, "\t"),
   };
 }
 
