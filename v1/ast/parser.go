@@ -1771,7 +1771,7 @@ func (p *Parser) parseTermFinish(head *Term, skipws bool) *Term {
 		return nil
 	}
 	offset := p.s.loc.Offset
-	p.doScan(skipws)
+	p.doScan(skipws, noScanOptions...)
 
 	switch p.s.tok {
 	case tokens.LParen, tokens.Dot, tokens.LBrack:
@@ -1792,7 +1792,7 @@ func (p *Parser) parseHeadFinish(head *Term, skipws bool) *Term {
 		return nil
 	}
 	offset := p.s.loc.Offset
-	p.doScan(false)
+	p.scanWS()
 
 	switch p.s.tok {
 	case tokens.Add, tokens.Sub, tokens.Mul, tokens.Quo, tokens.Rem,
@@ -1800,7 +1800,7 @@ func (p *Parser) parseHeadFinish(head *Term, skipws bool) *Term {
 		tokens.Equal, tokens.Neq, tokens.Gt, tokens.Gte, tokens.Lt, tokens.Lte:
 		p.illegalToken()
 	case tokens.Whitespace:
-		p.doScan(skipws)
+		p.doScan(skipws, noScanOptions...)
 	}
 
 	switch p.s.tok {
@@ -2017,7 +2017,7 @@ func (p *Parser) parseTemplateString(multiLine bool) *Term {
 			return nil
 		}
 
-		p.scanWS(scanner.ContinueTemplateString(multiLine))
+		p.doScan(false, scanner.ContinueTemplateString(multiLine))
 	}
 
 	// When there are template-expressions, the initial location will only contain the text up to the first expression
@@ -2579,12 +2579,14 @@ func (p *Parser) illegalToken() {
 	p.illegal("")
 }
 
-func (p *Parser) scan(scanOpts ...scanner.ScanOption) {
-	p.doScan(true, scanOpts...)
+var noScanOptions []scanner.ScanOption
+
+func (p *Parser) scan() {
+	p.doScan(true, noScanOptions...)
 }
 
-func (p *Parser) scanWS(scanOpts ...scanner.ScanOption) {
-	p.doScan(false, scanOpts...)
+func (p *Parser) scanWS() {
+	p.doScan(false, noScanOptions...)
 }
 
 func (p *Parser) doScan(skipws bool, scanOpts ...scanner.ScanOption) {
