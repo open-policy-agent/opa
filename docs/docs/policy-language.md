@@ -245,7 +245,7 @@ deny contains $"User {input.username}'s role was '{role}', but must be one of {a
     not role in allowed_roles
 }
 
-deny contains sprintf("User %s's role was '%s', but must be one of %v", [input.username, location, allowed_locations]) if {
+deny contains sprintf("User %s's location was '%s', but must be one of %v", [input.username, location, allowed_locations]) if {
     not location in allowed_locations
 }
 ```
