@@ -1890,6 +1890,11 @@ func (p *Parser) parseString() *Term {
 			return NewTerm(InternedEmptyString.Value).SetLocation(p.s.Loc())
 		}
 
+		inner := p.s.lit[1 : len(p.s.lit)-1]
+		if !strings.ContainsRune(inner, '\\') { // nothing to un-escape
+			return StringTerm(inner).SetLocation(p.s.Loc())
+		}
+
 		var s string
 		if err := json.Unmarshal([]byte(p.s.lit), &s); err != nil {
 			p.errorf(p.s.Loc(), "illegal string literal: %s", p.s.lit)
@@ -1911,6 +1916,10 @@ func templateStringPartToStringLiteral(tok tokens.Token, lit string) (string, er
 	switch tok {
 	case tokens.TemplateStringPart, tokens.TemplateStringEnd:
 		inner := lit[1 : len(lit)-1]
+		if !strings.ContainsRune(inner, '\\') { // nothing to un-escape
+			return inner, nil
+		}
+
 		buf := make([]byte, 0, len(inner)+2)
 		buf = append(buf, '"')
 		buf = append(buf, inner...)
