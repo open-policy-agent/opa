@@ -233,20 +233,31 @@ always expected, but not all expression values are guaranteed at evaluation time
 ```rego
 package interpolation
 
-allowed_roles := ["admin", "employee"]
-
 default role := "guest"
 role := input.role
+allowed_roles := ["admin", "employee"]
+
+default location := "unknown"
+location := input.location
+allowed_locations := ["Narnia", "Mordor"]
 
 deny contains $"User {input.username}'s role was '{role}', but must be one of {allowed_roles}" if {
     not role in allowed_roles
+}
+
+deny contains sprintf("User %s's role was '%s', but must be one of %v", [input.username, location, allowed_locations]) if {
+    not location in allowed_locations
 }
 ```
 
 <RunSnippet command="data.interpolation.deny"/>
 
+In the above example, the `input.username` value is `undefined`; notice how 
+
+- the first `deny` rule uses string interpolation, and will output `User <undefined>'s role was 'guest', but must be one of ["admin", "employee"]`, whereas
+- the second `deny` rule uses `sprintf`, and will output no result as it failed to evaluate even though `input.username` is inconsequential to the logic in the rule's body.
+
 Compared to the `sprintf` [built-in function](#built-in-functions), not halting evaluation on `undefined` values make interpolated strings less error-prone, and is therefore the recommended alternative.
-In the above example, the `user.input` value is `undefined`; had we instead used `sprintf` in the rule head, the rule would have failed to evaluate even though `input.username` is inconsequential to the logic in the rule's body.
 
 #### Escaping
 
