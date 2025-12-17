@@ -21,8 +21,8 @@ const baseUrl = "/";
     trailingSlash: false,
     // when BUILD_VERSION is set (release builds), warn on broken links/anchors so we don't break main
     // when not set (PR checks), throw to flag issues for developers
-    onBrokenLinks: process.env.BUILD_VERSION ? 'warn' : 'throw',
-    onBrokenAnchors: process.env.BUILD_VERSION ? 'warn' : 'throw',
+    onBrokenLinks: process.env.BUILD_VERSION ? "warn" : "throw",
+    onBrokenAnchors: process.env.BUILD_VERSION ? "warn" : "throw",
     presets: [
       [
         "@docusaurus/preset-classic",
@@ -53,14 +53,6 @@ const baseUrl = "/";
     themes: ["@docusaurus/theme-mermaid"],
 
     themeConfig: {
-      announcementBar: {
-        id: 'opa_2025_survey',
-        content:
-          'Help shape OPA\'s future! Take the <a target="_blank" rel="noopener noreferrer" href="https://www.surveymonkey.com/r/SCBSDZN">2025 OPA Community Survey</a> 🚀',
-        backgroundColor: '#ff8c42',
-        textColor: '#ffffff',
-        isCloseable: false,
-      },
       colorMode: {
         defaultMode: "light",
         disableSwitch: false,
