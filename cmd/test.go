@@ -39,32 +39,33 @@ import (
 )
 
 type testCommandParams struct {
-	verbose      bool
-	explain      *util.EnumFlag
-	errLimit     int
-	outputFormat *util.EnumFlag
-	coverage     bool
-	threshold    float64
-	timeout      time.Duration
-	ignore       []string
-	bundleMode   bool
-	benchmark    bool
-	benchMem     bool
-	runRegex     string
-	count        int
-	target       *util.EnumFlag
-	skipExitZero bool
-	capabilities *capabilitiesFlag
-	schema       *schemaFlags
-	watch        bool
-	stopChan     chan os.Signal
-	output       io.Writer
-	errOutput    io.Writer
-	v0Compatible bool
-	v1Compatible bool
-	varValues    bool
-	parallel     int
-	failOnEmpty  bool
+	verbose             bool
+	explain             *util.EnumFlag
+	errLimit            int
+	outputFormat        *util.EnumFlag
+	coverage            bool
+	threshold           float64
+	timeout             time.Duration
+	ignore              []string
+	bundleMode          bool
+	benchmark           bool
+	benchMem            bool
+	runRegex            string
+	count               int
+	target              *util.EnumFlag
+	skipExitZero        bool
+	capabilities        *capabilitiesFlag
+	schema              *schemaFlags
+	watch               bool
+	stopChan            chan os.Signal
+	output              io.Writer
+	errOutput           io.Writer
+	v0Compatible        bool
+	v1Compatible        bool
+	varValues           bool
+	parallel            int
+	failOnEmpty         bool
+	strictBuiltinErrors bool
 }
 
 func newTestCommandParams() testCommandParams {
@@ -421,6 +422,10 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 		Filter(testParams.runRegex).
 		SetParallel(testParams.parallel)
 
+	if testParams.strictBuiltinErrors {
+		runner.StrictBuiltinErrors(true)
+	}
+
 	if testParams.target.IsSet() {
 		runner = runner.Target(testParams.target.String())
 	}
@@ -576,6 +581,7 @@ recommended as some updates might cause them to be dropped by OPA.
 	testCommand.Flags().BoolVar(&testParams.varValues, "var-values", false, "show local variable values in test output")
 	testCommand.Flags().IntVarP(&testParams.parallel, "parallel", "p", goRuntime.NumCPU(), "the number of tests that can run in parallel, defaulting to the number of CPUs (explicitly set with 0). Benchmarks are always run sequentially.")
 	testCommand.Flags().BoolVar(&testParams.failOnEmpty, "fail-on-empty", false, "Whether to fail the test when no test was run")
+	testCommand.Flags().BoolVar(&testParams.strictBuiltinErrors, "strict-builtin-errors", false, "treat builtin evaluation errors as test errors (ERROR) instead of failures (FAIL)")
 
 	// Shared flags
 	addOutputFormat(testCommand.Flags(), testParams.outputFormat)
