@@ -18,27 +18,26 @@ type matchResult struct {
 func createMatcher(t *target) func(ast.Node, *ast.Compiler, *ast.Module, *matchResult) {
 	return func(node ast.Node, compiler *ast.Compiler, parsed *ast.Module, result *matchResult) {
 		if t.isRef {
-			matchRef(t, node, compiler, parsed, result)
+			if targetRef, ok := t.term.Value.(ast.Ref); ok {
+				matchRef(targetRef, node, compiler, parsed, result)
+			}
 		} else if t.isVar {
-			matchVar(t, node, compiler, parsed, result)
+			if targetVar, ok := t.term.Value.(ast.Var); ok {
+				matchVar(targetVar, t.term, node, compiler, parsed, result)
+			}
 		}
 	}
 }
 
 // matchRef searches for reference definitions in a node.
 // Ref usage sites are never definition sites (definitions come from rules/imports).
-func matchRef(t *target, node ast.Node, compiler *ast.Compiler, parsed *ast.Module, result *matchResult) {
+func matchRef(targetRef ast.Ref, node ast.Node, compiler *ast.Compiler, parsed *ast.Module, result *matchResult) {
 	term, ok := node.(*ast.Term)
 	if !ok {
 		return
 	}
 
 	nodeRef, ok := term.Value.(ast.Ref)
-	if !ok {
-		return
-	}
-
-	targetRef, ok := t.term.Value.(ast.Ref)
 	if !ok {
 		return
 	}
@@ -71,13 +70,8 @@ func matchRef(t *target, node ast.Node, compiler *ast.Compiler, parsed *ast.Modu
 // matchVar searches for variable definitions in a node.
 // Variables can be declared in-place (e.g., function args, iteration vars),
 // so targetLocation is used to skip self-definition at the declaration site.
-func matchVar(t *target, node ast.Node, compiler *ast.Compiler, parsed *ast.Module, result *matchResult) {
-	v, ok := t.term.Value.(ast.Var)
-	if !ok {
-		return
-	}
-
-	targetLocation := t.term.Location
+func matchVar(v ast.Var, targetTerm *ast.Term, node ast.Node, compiler *ast.Compiler, parsed *ast.Module, result *matchResult) {
+	targetLocation := targetTerm.Location
 
 	switch n := node.(type) {
 	case *ast.Expr:
