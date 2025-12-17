@@ -8472,13 +8472,21 @@ func TestTemplateString(t *testing.T) {
 				),
 			},
 		},
-
 		{
 			note: "escapes",
 			expr: `$"\t\n\"\{"`,
 			exp: &Expr{
 				Terms: TemplateStringTerm(false,
 					StringTerm("\t\n\"{"),
+				),
+			},
+		},
+		{
+			note: "JSON-specific escapes",
+			expr: `$"\/\uD834\uDD1E"`,
+			exp: &Expr{
+				Terms: TemplateStringTerm(false,
+					StringTerm("/𝄞"),
 				),
 			},
 		},
