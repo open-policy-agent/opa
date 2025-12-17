@@ -5,6 +5,40 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### String Interpolation ([#4733](https://github.com/open-policy-agent/opa/issues/4733))
+
+The Rego language has been extended to support [String Interpolation](https://www.openpolicyagent.org/docs/policy-language#string-interpolation),
+which provides a readable means to compose strings containing dynamic values determined at evaluation time.
+
+An interpolated string is composed of a template-string containing zero or more template-expressions that evaluates to a value at evaluation time.
+The `$` character prefix identifies a template-string, and template-expressions are declared by being enclosed in curly-braces (`{`, `}`).
+
+Additionally, `undefined` template-expression values don't halt evaluation; instead, `<undefined>` will be injected into the generated string.
+
+```rego
+package interpolation
+
+allowed_roles := ["admin", "employee"]
+
+default role := "guest"
+role := input.role
+
+deny contains $"User {input.username}'s role was '{role}', but must be one of {allowed_roles}" if {
+  not role in allowed_roles
+}
+```
+
+```
+{
+  "deny": [
+    "User <undefined>'s role was 'guest', but must be one of [\"admin\", \"employee\"]"
+  ],
+}
+```
+
+String interpolation is a more readable and less error-prone substitute for the `sprintf` built-in function.
+
+Authored by @johanfylling reported by @anderseknert
 
 ## 1.11.1
 

@@ -200,6 +200,79 @@ escape special characters.
 
 A simple example is a regex to match a valid Rego variable. With a regular string, the regex is `"[a-zA-Z_]\\w*"`, but with raw strings, it becomes `` `[a-zA-Z_]\w*` ``.
 
+### String Interpolation
+
+Runtime data can be incorporated into a string through string interpolation. An interpolated string is composed of a template-string containing zero or more template-expressions.
+The `$` character identifies a template-string, and can be used with regular double-quoted strings (`$"hello"`), and backtick-quoted raw strings (`` $`hello` ``).
+
+A template-expression is enclosed in curly-braces (`{`,`}`), and must contain a single expression that evaluate to a value, e.g.:
+
+- Primitive values: `$"{1} {2.3} {"foo"} {false} {null}"`
+- Composite values: `$"{[true, false]} {{1, 2}} {{"a": "b"}}"`
+- Variables: `x := "foo"; a := "$"{x}"`
+- References: `"$"{input.x} {data.y}"`
+- Function calls: `$"{abs(-1)} {1 + 2}"`
+- Comprehensions: `$"{[x | ...]} {{x | ...}} {{x: y | ...}}"`
+
+```rego
+package interpolation
+
+username := "Alice"
+
+a := $"Hello {username}!"
+```
+
+<RunSnippet command="data.interpolation.a"/>
+
+#### Undefined values
+
+If a template-expression evaluates to an `undefined` value,
+the string `"<undefined>"` will be emitted instead. This means string interpolation is safe to use in cases where a string result is
+always expected, but not all expression values are guaranteed at evaluation time.
+
+```rego
+package interpolation
+
+default role := "guest"
+role := input.role
+allowed_roles := ["admin", "employee"]
+
+default location := "unknown"
+location := input.location
+allowed_locations := ["Narnia", "Mordor"]
+
+deny contains $"User {input.username}'s role was '{role}', but must be one of {allowed_roles}" if {
+    not role in allowed_roles
+}
+
+deny contains sprintf("User %s's location was '%s', but must be one of %v", [input.username, location, allowed_locations]) if {
+    not location in allowed_locations
+}
+```
+
+<RunSnippet command="data.interpolation.deny"/>
+
+In the above example, the `input.username` value is `undefined`; notice how 
+
+- the first `deny` rule uses string interpolation, and will output `User <undefined>'s role was 'guest', but must be one of ["admin", "employee"]`, whereas
+- the second `deny` rule uses `sprintf`, and will output no result as it failed to evaluate even though `input.username` is inconsequential to the logic in the rule's body.
+
+Compared to the `sprintf` [built-in function](#built-in-functions), not halting evaluation on `undefined` values make interpolated strings less error-prone, and is therefore the recommended alternative.
+
+#### Escaping
+
+Since the left curly-brace (`{`) is reserved for starting a template-expression within a template-string, this character can be escaped with a backslash (`\`) in cases where a template expression is not wanted:
+
+```rego
+package interpolation
+
+a := $"In this template-string, \{ will not start a template-expression."
+```
+
+<RunSnippet command="data.interpolation.a"/>
+
+Left curly-brace escaping is also present for multi-line raw template-strings (`` $`\{}` ``), differentiating them from regular raw strings, where no escaping is recognized.
+
 ## Composite Values
 
 Composite values define collections. In simple cases, composite values can be treated as constants like [scalar values](#scalar-values):
