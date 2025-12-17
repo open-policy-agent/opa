@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	wasm_errors "github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/loader"
@@ -732,8 +731,7 @@ func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 					expr := rule.Body[i]
 					moved := false
 
-					// If the expression is a generated assignment of a var in the head ref, we attempt to move it as far
-					// up the body as possible.
+					// If the expression is a generated assignment of a var in the head ref, we attempt to move it up the rule body
 					// This is a shallow move, we don't attempt to detect multiple levels of indirection and don't move such expressions; in such case, we move the assigning expression up to the first reference.
 					// Once done for all vars in the head ref, we can inject the test case function below the last (possibly moved) such expr.
 					// Note: We don't move non-generated expressions, as that could contradict author intent.
@@ -969,12 +967,15 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	// Builtin error handling
 	if len(builtinErrors) > 0 {
 
-		// Strict mode ALWAYS wins
 		if r.strictBuiltinErrors {
 			if len(builtinErrors) == 1 {
 				tr.Error = &builtinErrors[0]
 			} else {
-				tr.Error = fmt.Errorf("%v", builtinErrors)
+				errs := make([]error, 0, len(builtinErrors))
+				for i := range builtinErrors {
+					errs = append(errs, &builtinErrors[i])
+				}
+				tr.Error = errors.Join(errs...)
 			}
 			return tr, false
 		}
@@ -986,11 +987,8 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	}
 
 	var stop bool
-	if err != nil {
-		if topdown.IsCancel(err) || wasm_errors.IsCancel(err) {
-			stop = ctx.Err() != context.DeadlineExceeded
-		}
-	} else if len(rs) == 0 {
+
+	if len(rs) == 0 {
 		tr.Fail = true
 	} else if rule.Head.DocKind() == ast.PartialObjectDoc {
 		tr.Fail, tr.SubResults = subResults(rs[0].Expressions[0].Value, trace)
