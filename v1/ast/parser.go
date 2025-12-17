@@ -1910,9 +1910,13 @@ func (p *Parser) parseRawString() *Term {
 func templateStringPartToStringLiteral(tok tokens.Token, lit string) (string, error) {
 	switch tok {
 	case tokens.TemplateStringPart, tokens.TemplateStringEnd:
-		trimmed := fmt.Sprintf(`"%s"`, lit[1:len(lit)-1])
+		inner := lit[1 : len(lit)-1]
+		buf := make([]byte, 0, len(inner)+2)
+		buf = append(buf, '"')
+		buf = append(buf, inner...)
+		buf = append(buf, '"')
 		var s string
-		if err := json.Unmarshal([]byte(trimmed), &s); err != nil {
+		if err := json.Unmarshal(buf, &s); err != nil {
 			return "", fmt.Errorf("illegal template-string part: %s", lit)
 		}
 		return s, nil
@@ -1927,7 +1931,7 @@ func (p *Parser) parseTemplateString(multiLine bool) *Term {
 	loc := p.s.Loc()
 
 	if !p.po.Capabilities.ContainsFeature(FeatureTemplateStrings) {
-		p.errorf(p.s.Loc(), "template strings are not supported by current capabilities")
+		p.errorf(loc, "template strings are not supported by current capabilities")
 		return nil
 	}
 
