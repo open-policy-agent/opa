@@ -266,6 +266,7 @@ type Runner struct {
 	customBuiltins        []*Builtin
 	defaultRegoVersion    ast.RegoVersion
 	parallel              int
+	strictBuiltinErrors   bool
 }
 
 // NewRunner returns a new runner.
@@ -305,6 +306,13 @@ func (r *Runner) SetCompiler(compiler *ast.Compiler) *Runner {
 // such as parsing input.
 func (r *Runner) RaiseBuiltinErrors(enabled bool) *Runner {
 	r.raiseBuiltinErrors = enabled
+	return r
+}
+
+// StrictBuiltinErrors causes builtin evaluation errors to be reported
+// as test ERRORs instead of FAILs.
+func (r *Runner) StrictBuiltinErrors(enabled bool) *Runner {
+	r.strictBuiltinErrors = enabled
 	return r
 }
 
@@ -952,14 +960,28 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 
 	tr := newResult(rule.Loc(), mod.Package.Path.String(), ruleRef.String(), dt, trace, printbuf.Bytes())
 
-	// If there was an error other than errors from builtins, prefer that error.
+	// Prefer non-builtin evaluation errors.
 	if err != nil {
 		tr.Error = err
-	} else if r.raiseBuiltinErrors && len(builtinErrors) > 0 {
-		if len(builtinErrors) == 1 {
-			tr.Error = &builtinErrors[0]
-		} else {
-			tr.Error = fmt.Errorf("%v", builtinErrors)
+		return tr, false
+	}
+
+	// Builtin error handling
+	if len(builtinErrors) > 0 {
+
+		// Strict mode ALWAYS wins
+		if r.strictBuiltinErrors {
+			if len(builtinErrors) == 1 {
+				tr.Error = &builtinErrors[0]
+			} else {
+				tr.Error = fmt.Errorf("%v", builtinErrors)
+			}
+			return tr, false
+		}
+
+		// Legacy behavior: only if explicitly enabled
+		if r.raiseBuiltinErrors {
+			tr.Fail = true
 		}
 	}
 

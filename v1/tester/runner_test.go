@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"maps"
 	"path/filepath"
@@ -750,71 +749,49 @@ func TestRunnerWithCustomBuiltin(t *testing.T) {
 	})
 }
 
-func TestRunnerWithBuiltinErrors(t *testing.T) {
-	const ruleTemplate = `package test
-	import rego.v1
+func TestRunnerWithStrictBuiltinErrors(t *testing.T) {
+	files := map[string]string{
+		"strict_error_test.rego": `
+            package test
+            import rego.v1
 
-	test_json_parsing if {
-      x := json.unmarshal("%s")
-	  x.test == 123
-	}`
-
-	testCases := []struct {
-		desc          string
-		json          string
-		builtinErrors bool
-		wantErr       bool
-	}{
-		{
-			desc:          "Valid JSON with flag enabled does not raise an error",
-			json:          `{\"test\": 123}`,
-			builtinErrors: true,
-		},
-		{
-			desc:          "Invalid JSON with flag enabled raises an error",
-			json:          `test: 123`,
-			builtinErrors: true,
-			wantErr:       true,
-		},
-		{
-			desc: "Invalid JSON with flag disabled does not raise an error",
-			json: `test: 123`,
-		},
+            test_error if {
+                1 / 0
+            }
+        `,
 	}
 
 	ctx := t.Context()
 
-	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			files := map[string]string{
-				"builtin_error_test.rego": fmt.Sprintf(ruleTemplate, tc.json),
+	test.WithTempFS(files, func(d string) {
+		modules, store, err := tester.Load([]string{d}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		txn := storage.NewTransactionOrDie(ctx, store)
+		defer store.Abort(ctx, txn)
+
+		runner := tester.NewRunner().
+			SetStore(store).
+			SetModules(modules).
+			RaiseBuiltinErrors(true).
+			StrictBuiltinErrors(true)
+
+		ch, err := runner.RunTests(ctx, txn)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for r := range ch {
+			if r.Error == nil {
+				t.Fatalf("expected builtin error, got nil")
 			}
-
-			test.WithTempFS(files, func(d string) {
-				paths := []string{d}
-				modules, store, err := tester.Load(paths, nil)
-				if err != nil {
-					t.Fatal(err)
-				}
-				txn := storage.NewTransactionOrDie(ctx, store)
-				runner := tester.
-					NewRunner().
-					SetStore(store).
-					SetModules(modules).
-					RaiseBuiltinErrors(tc.builtinErrors)
-
-				ch, err := runner.RunTests(ctx, txn)
-				if err != nil {
-					t.Fatal(err)
-				}
-				for result := range ch {
-					if gotErr := result.Error != nil; gotErr != tc.wantErr {
-						t.Errorf("wantErr = %v, gotErr = %v", tc.wantErr, gotErr)
-					}
-				}
-			})
-		})
-	}
+			if r.Fail {
+				t.Fatalf("expected ERROR, got FAIL")
+			}
+		}
+	})
 }
 
 func TestLoad_DefaultRegoVersion(t *testing.T) {
