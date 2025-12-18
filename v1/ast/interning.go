@@ -42,10 +42,17 @@ var (
 	}
 
 	internedVarValues = map[string]Value{
-		"input": Var("input"),
-		"data":  Var("data"),
-		"key":   Var("key"),
-		"value": Var("value"),
+		"input":    Var("input"),
+		"data":     Var("data"),
+		"args":     Var("args"),
+		"schema":   Var("schema"),
+		"key":      Var("key"),
+		"value":    Var("value"),
+		"future":   Var("future"),
+		"rego":     Var("rego"),
+		"set":      Var("set"),
+		"internal": Var("internal"),
+		"else":     Var("else"),
 
 		"i": Var("i"), "j": Var("j"), "k": Var("k"), "v": Var("v"), "x": Var("x"), "y": Var("y"), "z": Var("z"),
 	}

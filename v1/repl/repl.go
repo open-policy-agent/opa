@@ -1293,9 +1293,8 @@ func (r *REPL) loadModules(ctx context.Context, txn storage.Transaction) (map[st
 }
 
 func (r *REPL) printTypes(_ context.Context, typeEnv *ast.TypeEnv, body ast.Body) {
-
 	ast.WalkRefs(body, func(ref ast.Ref) bool {
-		fmt.Fprintf(r.output, "# %v: %v\n", ref, typeEnv.Get(ref))
+		fmt.Fprintf(r.output, "# %v: %v\n", ref, typeEnv.GetByRef(ref))
 		return false
 	})
 

@@ -274,6 +274,35 @@ func BenchmarkObjectCreationAndLookup(b *testing.B) {
 	}
 }
 
+// insert           38148     30049 ns/op   58912 B/op     528 allocs/op
+// terms_array      65698     17079 ns/op   34680 B/op     506 allocs/op
+func BenchmarkObjectCreateWithInsertVsTermsArray(b *testing.B) {
+	n := 500
+	interned := make([]*Term, n)
+	for i := range n {
+		interned[i] = InternedTerm(i)
+	}
+
+	b.Run("insert", func(b *testing.B) {
+		for b.Loop() {
+			obj := NewObject()
+			for i := range n {
+				obj.Insert(interned[i], interned[i])
+			}
+		}
+	})
+	b.Run("terms array", func(b *testing.B) {
+		for b.Loop() {
+			terms := make([][2]*Term, n)
+			for i := range n {
+				terms[i][0] = interned[i]
+				terms[i][1] = interned[i]
+			}
+			_ = NewObject(terms...)
+		}
+	})
+}
+
 func BenchmarkLazyObjectLookup(b *testing.B) {
 	sizes := []int{5, 50, 500, 5000}
 	for _, n := range sizes {
@@ -781,6 +810,24 @@ func BenchmarkInterfaceToValueInt(b *testing.B) {
 			b.Fatalf("expected %v but got %v", exp, act)
 		}
 	})
+}
+
+func BenchmarkValueToInterfaceInt(b *testing.B) {
+	term := MustParseTerm(`{
+		"foo": [1, "two", true, false, null, {3: 4}],
+		"bar": 5.67,
+		"baz": {"a": "b", "c": "d"},
+		"set": {10, 20, 30}
+	}`)
+
+	opt := JSONOpt{SortSets: true, CopyMaps: true}
+
+	for b.Loop() {
+		_, err := valueToInterface(term.Value, nil, opt)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
 }
 
 // without_conflict   258.8 ns/op     440 B/op      11 allocs/op // use NewObject
