@@ -9,6 +9,7 @@ This release contains a mix of new features, performance improvements, and bugfi
 
 - Support for string interpolation in the Rego language
 - Faster compilation and runtime
+- Fixes published in the v1.11.1 release
 
 ### String Interpolation ([#4733](https://github.com/open-policy-agent/opa/issues/4733))
 
@@ -47,7 +48,7 @@ Authored by @johanfylling reported by @anderseknert
 
 > Help us out!
 >
-> New Rego language features are exciting, and we want to maximize their usefulness. If you come across tools and integrations in the community where string interpolation isn't properly handled, such as syntax highlighting, please reach out and let us know: <TODO: links>
+> New Rego language features are exciting, and we want to maximize their usefulness. If you come across tools and integrations in the community where string interpolation isn't properly handled, such as syntax highlighting, please [reach out](https://www.openpolicyagent.org/community) and let us know.
 
 ### Runtime, SDK, Tooling
 
