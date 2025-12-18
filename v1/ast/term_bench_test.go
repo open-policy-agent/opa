@@ -408,6 +408,29 @@ func BenchmarkSetMembership(b *testing.B) {
 	}
 }
 
+// 241.9 ns/op	     472 B/op	      10 allocs/op
+// 207.7 ns/op	     424 B/op	       9 allocs/op
+func BenchmarkSetCopy(b *testing.B) {
+	s := NewSet(InternedTerm(1), InternedTerm(2), InternedTerm(3), InternedTerm(4), InternedTerm(5))
+	for b.Loop() {
+		_ = s.Copy()
+	}
+}
+
+// 396.9 ns/op	     664 B/op	      19 allocs/op
+func BenchmarkObjectCopy(b *testing.B) {
+	o := NewObject(
+		Item(InternedTerm("a"), InternedTerm(1)),
+		Item(InternedTerm("b"), InternedTerm(2)),
+		Item(InternedTerm("c"), InternedTerm(3)),
+		Item(InternedTerm("d"), InternedTerm(4)),
+		Item(InternedTerm("e"), InternedTerm(5)),
+	)
+	for b.Loop() {
+		_ = o.Copy()
+	}
+}
+
 func BenchmarkTermHashing(b *testing.B) {
 	sizes := []int{10, 100, 1000}
 	for _, n := range sizes {
@@ -756,6 +779,108 @@ func BenchmarkInterfaceToValueInt(b *testing.B) {
 
 		if exp.Compare(act) != 0 {
 			b.Fatalf("expected %v but got %v", exp, act)
+		}
+	})
+}
+
+// without_conflict   258.8 ns/op     440 B/op      11 allocs/op // use NewObject
+// with_conflict      290.6 ns/op     440 B/op      11 allocs/op //
+// without_conflict   220.5 ns/op     408 B/op       9 allocs/op // use newobject with size
+// with_conflict      231.5 ns/op     424 B/op       9 allocs/op //
+func BenchmarkObjectMergeWith(b *testing.B) {
+	o1 := NewObject(InternedItem("a", 1), InternedItem("b", 2))
+	overwrite := func(_, v2 *Term) (*Term, bool) {
+		return v2, false
+	}
+
+	b.Run("without conflict", func(b *testing.B) {
+		o2 := NewObject(InternedItem("c", 2), InternedItem("d", 3))
+
+		for b.Loop() {
+			_, _ = o1.MergeWith(o2, overwrite)
+		}
+	})
+
+	b.Run("with conflict", func(b *testing.B) {
+		o2 := NewObject(InternedItem("a", 2), InternedItem("c", 3), InternedItem("d", 4))
+
+		for b.Loop() {
+			_, _ = o1.MergeWith(o2, overwrite)
+		}
+	})
+}
+
+// 17.88 ns/op       0 B/op       0 allocs/op
+func BenchmarkConstantPrefix(b *testing.B) {
+	ref := MustParseRef("data.example.internal[foo].bar")
+	exp := MustParseRef("data.example.internal")
+
+	for b.Loop() {
+		prefix := ref.ConstantPrefix()
+		if !prefix.Equal(exp) {
+			b.Fatalf("expected %v but got %v", exp, prefix)
+		}
+	}
+}
+
+// 14.30 ns/op       0 B/op       0 allocs/op
+func BenchmarkStringPrefix(b *testing.B) {
+	ref := MustParseRef("data.example.internal[foo].bar")
+	exp := MustParseRef("data.example.internal")
+
+	for b.Loop() {
+		prefix := ref.StringPrefix()
+		if !prefix.Equal(exp) {
+			b.Fatalf("expected %v but got %v", exp, prefix)
+		}
+	}
+}
+
+// 17.07 ns/op       0 B/op       0 allocs/op
+func BenchmarkGroundPrefix(b *testing.B) {
+	ref := MustParseRef("data.example.internal[foo].bar")
+	exp := MustParseRef("data.example.internal")
+
+	for b.Loop() {
+		prefix := ref.GroundPrefix()
+		if !prefix.Equal(exp) {
+			b.Fatalf("expected %v but got %v", exp, prefix)
+		}
+	}
+}
+
+// BenchmarkPtr/with_escape-16         	11040984       109.5 ns/op     96 B/op       3 allocs/op // strings.Join
+// BenchmarkPtr/without_escape-16      	13879591        91.02 ns/op    88 B/op       2 allocs/op
+// BenchmarkPtr/with_escape-16         	12612588        88.95 ns/op    32 B/op       2 allocs/op // strings.Builder
+// BenchmarkPtr/without_escape-16      	19047051        64.84 ns/op    24 B/op       1 allocs/op
+func BenchmarkPtr(b *testing.B) {
+	b.Run("with escape", func(b *testing.B) {
+		ref := MustParseRef("data.example[\"e~s/c\"].foo.bar")
+		exp := "example/e~s%2Fc/foo/bar"
+
+		for b.Loop() {
+			ptr, err := ref.Ptr()
+			if err != nil {
+				b.Fatal(err)
+			}
+			if ptr != exp {
+				b.Fatalf("expected %v but got %v", exp, ptr)
+			}
+		}
+	})
+
+	b.Run("without escape", func(b *testing.B) {
+		ref := MustParseRef("data.example.internal.foo.bar")
+		exp := "example/internal/foo/bar"
+
+		for b.Loop() {
+			ptr, err := ref.Ptr()
+			if err != nil {
+				b.Fatal(err)
+			}
+			if ptr != exp {
+				b.Fatalf("expected %v but got %v", exp, ptr)
+			}
 		}
 	})
 }

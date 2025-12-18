@@ -190,6 +190,13 @@ func InternedTerm[T internable](v T) *Term {
 	}
 }
 
+// InternedItem works just like [Item] but returns interned terms for both
+// key and value where possible. This is mostly useful for making tests less
+// verbose.
+func InternedItem[K, V internable](key K, value V) [2]*Term {
+	return [2]*Term{InternedTerm(key), InternedTerm(value)}
+}
+
 // InternedIntFromString returns a term with the given integer value if the string
 // maps to an interned term. If the string does not map to an interned term, nil is
 // returned.
