@@ -456,7 +456,17 @@ func (term *Term) Vars() VarSet {
 }
 
 // IsConstant returns true if the AST value is constant.
+// Note that this is only a shallow check as we currently don't have a real
+// notion of constant "vars" in the AST implementation. Meaning that while we could
+// derive that a reference to a constant value is also constant, we currently don't.
 func IsConstant(v Value) bool {
+	switch v.(type) {
+	case Null, Boolean, Number, String:
+		return true
+	case Var, Ref, *ArrayComprehension, *ObjectComprehension, *SetComprehension, Call:
+		return false
+	}
+
 	found := false
 	vis := GenericVisitor{
 		func(x any) bool {
@@ -1036,14 +1046,14 @@ func (ref Ref) Insert(x *Term, pos int) Ref {
 // Extend returns a copy of ref with the terms from other appended. The head of
 // other will be converted to a string.
 func (ref Ref) Extend(other Ref) Ref {
-	dst := make(Ref, len(ref)+len(other))
+	offset := len(ref)
+	dst := make(Ref, offset+len(other))
 	copy(dst, ref)
 
 	head := other[0].Copy()
 	head.Value = String(head.Value.(Var))
-	offset := len(ref)
-	dst[offset] = head
 
+	dst[offset] = head
 	copy(dst[offset+1:], other[1:])
 	return dst
 }
@@ -1155,42 +1165,38 @@ func (ref Ref) HasPrefix(other Ref) bool {
 func (ref Ref) ConstantPrefix() Ref {
 	i := ref.Dynamic()
 	if i < 0 {
-		return ref.Copy()
+		return ref
 	}
-	return ref[:i].Copy()
+	return ref[:i]
 }
 
+// StringPrefix returns the string portion of the ref starting from the head.
 func (ref Ref) StringPrefix() Ref {
 	for i := 1; i < len(ref); i++ {
 		switch ref[i].Value.(type) {
 		case String: // pass
 		default: // cut off
-			return ref[:i].Copy()
+			return ref[:i]
 		}
 	}
 
-	return ref.Copy()
+	return ref
 }
 
 // GroundPrefix returns the ground portion of the ref starting from the head. By
 // definition, the head of the reference is always ground.
 func (ref Ref) GroundPrefix() Ref {
-	if ref.IsGround() {
-		return ref
-	}
-
-	prefix := make(Ref, 0, len(ref))
-
-	for i, x := range ref {
-		if i > 0 && !x.IsGround() {
-			break
+	for i := range ref {
+		if i > 0 && !ref[i].IsGround() {
+			return ref[:i]
 		}
-		prefix = append(prefix, x)
 	}
 
-	return prefix
+	return ref
 }
 
+// DynamicSuffix returns the dynamic portion of the ref.
+// If the ref is not dynamic, nil is returned.
 func (ref Ref) DynamicSuffix() Ref {
 	i := ref.Dynamic()
 	if i < 0 {
@@ -1201,7 +1207,7 @@ func (ref Ref) DynamicSuffix() Ref {
 
 // IsGround returns true if all of the parts of the Ref are ground.
 func (ref Ref) IsGround() bool {
-	if len(ref) == 0 {
+	if len(ref) < 2 {
 		return true
 	}
 	return termSliceIsGround(ref[1:])
@@ -1221,15 +1227,28 @@ func (ref Ref) IsNested() bool {
 // contains non-string terms this function returns an error. Path
 // components are escaped.
 func (ref Ref) Ptr() (string, error) {
-	parts := make([]string, 0, len(ref)-1)
-	for _, term := range ref[1:] {
-		if str, ok := term.Value.(String); ok {
-			parts = append(parts, url.PathEscape(string(str)))
-		} else {
+	buf := &strings.Builder{}
+	tail := ref[1:]
+
+	l := max(len(tail)-1, 0) // number of '/' to add
+	for i := range tail {
+		str, ok := tail[i].Value.(String)
+		if !ok {
 			return "", errors.New("invalid path value type")
 		}
+		l += len(str)
 	}
-	return strings.Join(parts, "/"), nil
+	buf.Grow(l)
+
+	for i := range tail {
+		if i > 0 {
+			buf.WriteByte('/')
+		}
+		str := string(tail[i].Value.(String))
+		// Sadly, the url package does not expose an appender for this.
+		buf.WriteString(url.PathEscape(str))
+	}
+	return buf.String(), nil
 }
 
 var varRegexp = regexp.MustCompile("^[[:alpha:]_][[:alpha:][:digit:]_]*$")
@@ -1348,13 +1367,12 @@ type Array struct {
 
 // Copy returns a deep copy of arr.
 func (arr *Array) Copy() *Array {
-	cpy := make([]int, len(arr.elems))
-	copy(cpy, arr.hashs)
 	return &Array{
 		elems:  termSliceCopy(arr.elems),
-		hashs:  cpy,
+		hashs:  slices.Clone(arr.hashs),
 		hash:   arr.hash,
-		ground: arr.IsGround()}
+		ground: arr.ground,
+	}
 }
 
 // Equal returns true if arr is equal to other.
@@ -1633,13 +1651,19 @@ type set struct {
 
 // Copy returns a deep copy of s.
 func (s *set) Copy() Set {
-	terms := make([]*Term, len(s.keys))
-	for i := range s.keys {
-		terms[i] = s.keys[i].Copy()
+	cpy := &set{
+		hash:      s.hash,
+		ground:    s.ground,
+		sortGuard: sync.Once{},
+		elems:     make(map[int]*Term, len(s.elems)),
+		keys:      make([]*Term, 0, len(s.keys)),
 	}
-	cpy := NewSet(terms...).(*set)
-	cpy.hash = s.hash
-	cpy.ground = s.ground
+
+	for hash := range s.elems {
+		cpy.elems[hash] = s.elems[hash].Copy()
+		cpy.keys = append(cpy.keys, cpy.elems[hash])
+	}
+
 	return cpy
 }
 
@@ -2394,19 +2418,21 @@ func (obj *object) Merge(other Object) (Object, bool) {
 // is called. The conflictResolver can return a merged value and a boolean
 // indicating if the merge has failed and should stop.
 func (obj *object) MergeWith(other Object, conflictResolver func(v1, v2 *Term) (*Term, bool)) (Object, bool) {
-	result := NewObject()
+	// Might overallocate assuming no conflicts is the common case,
+	// but that's typically faster than iterating over each object twice.
+	result := newobject(obj.Len() + other.Len())
 	stop := obj.Until(func(k, v *Term) bool {
 		v2 := other.Get(k)
 		// The key didn't exist in other, keep the original value
 		if v2 == nil {
-			result.Insert(k, v)
+			result.insert(k, v, false)
 			return false
 		}
 
 		// The key exists in both, resolve the conflict if possible
 		merged, stop := conflictResolver(v, v2)
 		if !stop {
-			result.Insert(k, merged)
+			result.insert(k, merged, false)
 		}
 		return stop
 	})
@@ -2418,7 +2444,7 @@ func (obj *object) MergeWith(other Object, conflictResolver func(v1, v2 *Term) (
 	// Copy in any values from other for keys that don't exist in obj
 	other.Foreach(func(k, v *Term) {
 		if v2 := obj.Get(k); v2 == nil {
-			result.Insert(k, v)
+			result.insert(k, v, false)
 		}
 	})
 	return result, true
