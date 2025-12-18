@@ -66,6 +66,7 @@ Authored by @johanfylling reported by @anderseknert
 - ast/compile: Deal with error limit without panic/defer ([#8087](https://github.com/open-policy-agent/opa/pull/8087)) authored by @srenatus
 - ast/parser: Check if we need to unescape at all ([#8135](https://github.com/open-policy-agent/opa/pull/8135)) authored by @srenatus
 - perf: Improved visitor implementation (10% faster compilation) ([#8078](https://github.com/open-policy-agent/opa/pull/8078)) authored by @anderseknert
+- perf: Reduce allocations handling terms ([#8116](https://github.com/open-policy-agent/opa/pull/8116)) authored by @anderseknert
 
 ### Docs, Website, Ecosystem
 
