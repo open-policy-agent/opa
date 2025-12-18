@@ -52,7 +52,7 @@ Authored by @johanfylling reported by @anderseknert
 
 ### Runtime, SDK, Tooling
 
-- oracle: Refactor Oracle to be more extensible ([#8105](https://github.com/open-policy-agent/opa/pull/8105), [#8131](https://github.com/open-policy-agent/opa/pull/8131), [#8138](https://github.com/open-policy-agent/opa/pull/8138)) authored by @charlieegan3
+- oracle: Refactor Oracle better support `some` and `every` ([#8105](https://github.com/open-policy-agent/opa/pull/8105), [#8131](https://github.com/open-policy-agent/opa/pull/8131), [#8138](https://github.com/open-policy-agent/opa/pull/8138)) authored by @charlieegan3
 - plugins/bundle: Prevent ns-level polling by validating intervals ([#8082](https://github.com/open-policy-agent/opa/pull/8082)) authored by @jjhwan-h
 - plugins/discovery: Initialize plugins before downloading ([#8071](https://github.com/open-policy-agent/opa/pull/8071)) authored by @jt28828
 - topdown: Introduce sink for context cancellation
