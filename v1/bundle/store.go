@@ -970,7 +970,7 @@ func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[strin
 	m.Timer(metrics.RegoModuleCompile).Start()
 	defer m.Timer(metrics.RegoModuleCompile).Stop()
 
-	modules := map[string]*ast.Module{}
+	modules := make(map[string]*ast.Module, len(compiler.Modules)+len(extraModules)+len(bundles))
 
 	// preserve any modules already on the compiler
 	maps.Copy(modules, compiler.Modules)

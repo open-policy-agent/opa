@@ -27,8 +27,6 @@ import (
 const defaultLocationFile = "__format_default__"
 
 var (
-	elseVar ast.Value = ast.Var("else")
-
 	expandedConst     = ast.NewBody(ast.NewExpr(ast.InternedTerm(true)))
 	commentsSlicePool = util.NewSlicePool[*ast.Comment](50)
 	varRegexp         = regexp.MustCompile("^[[:alpha:]_][[:alpha:][:digit:]_]*$")
@@ -732,7 +730,7 @@ func (w *writer) writeElse(rule *ast.Rule, comments []*ast.Comment) ([]*ast.Comm
 
 	rule.Else.Head.Name = "else" // NOTE(sr): whaaat
 
-	elseHeadReference := ast.NewTerm(elseVar)            // construct a reference for the term
+	elseHeadReference := ast.VarTerm("else")             // construct a reference for the term
 	elseHeadReference.Location = rule.Else.Head.Location // and set the location to match the rule location
 
 	rule.Else.Head.Reference = ast.Ref{elseHeadReference}
