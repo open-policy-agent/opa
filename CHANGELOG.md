@@ -55,7 +55,6 @@ Authored by @johanfylling reported by @anderseknert
 - oracle: Refactor Oracle to be more extensible ([#8105](https://github.com/open-policy-agent/opa/pull/8105), [#8131](https://github.com/open-policy-agent/opa/pull/8131), [#8138](https://github.com/open-policy-agent/opa/pull/8138)) authored by @charlieegan3
 - plugins/bundle: Prevent ns-level polling by validating intervals ([#8082](https://github.com/open-policy-agent/opa/pull/8082)) authored by @jjhwan-h
 - plugins/discovery: Initialize plugins before downloading ([#8071](https://github.com/open-policy-agent/opa/pull/8071)) authored by @jt28828
-- server: Enforce gzip decompression limits ([#8132](https://github.com/open-policy-agent/opa/pull/8132)) authored by @thevilledev
 - topdown: Introduce sink for context cancellation
   - topdown: Make `regex.replace` respect cancellation ([#8089](https://github.com/open-policy-agent/opa/pull/8089)) authored by @srenatus
   - topdown: Make `replace` and `strings.replace_n` respect cancellation ([#8089](https://github.com/open-policy-agent/opa/pull/8089)) authored by @srenatus
