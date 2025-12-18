@@ -68,6 +68,7 @@ Authored by @johanfylling reported by @anderseknert
 - ast/parser: Check if we need to unescape at all ([#8135](https://github.com/open-policy-agent/opa/pull/8135)) authored by @srenatus
 - perf: Improved visitor implementation (10% faster compilation) ([#8078](https://github.com/open-policy-agent/opa/pull/8078)) authored by @anderseknert
 - perf: Reduce allocations handling terms ([#8116](https://github.com/open-policy-agent/opa/pull/8116)) authored by @anderseknert
+- perf: Type-checker performance improvements ([#8143](https://github.com/open-policy-agent/opa/pull/8143)) authored by @anderseknert
 
 ### Docs, Website, Ecosystem
 
