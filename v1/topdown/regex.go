@@ -266,34 +266,7 @@ func builtinRegexReplace(bctx BuiltinContext, operands []*ast.Term, iter func(*a
 		return err
 	}
 
-	sink := newSink(ast.RegexReplace.Name, len(base), bctx.Cancel)
-	start := 0
-	src := []byte(base)
-
-	for {
-		match := re.FindSubmatchIndex(src[start:])
-		if match == nil {
-			// No more matches, append remaining source and continue
-			if _, err := sink.Write(src[start:]); err != nil {
-				return err
-			}
-			break
-		}
-
-		// Append text before match
-		if _, err := sink.Write(src[start : start+match[0]]); err != nil {
-			return err
-		}
-		// Append expanded replacement
-		// NB(sr): the nil here could be a []byte we've allocated already
-		// Probably an entrypoint into tweaking the performance of this!
-		if _, err := sink.Write(re.Expand(nil, []byte(value), src[start:], match)); err != nil {
-			return err
-		}
-		start += match[1]
-	}
-
-	res := sink.String()
+	res := re.ReplaceAllString(string(base), string(value))
 	if res == string(base) {
 		return iter(operands[0])
 	}
