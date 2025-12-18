@@ -358,6 +358,11 @@
       "Minor": 34,
       "Patch": 0
     },
+    "internal.template_string": {
+      "Major": 1,
+      "Minor": 12,
+      "Patch": 0
+    },
     "internal.test_case": {
       "Major": 1,
       "Minor": 2,
@@ -1036,6 +1041,11 @@
     "rule_head_refs": {
       "Major": 0,
       "Minor": 59,
+      "Patch": 0
+    },
+    "template_strings": {
+      "Major": 1,
+      "Minor": 12,
       "Patch": 0
     }
   },

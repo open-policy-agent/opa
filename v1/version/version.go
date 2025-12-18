@@ -10,7 +10,7 @@ import (
 	"runtime/debug"
 )
 
-var Version = "1.12.0-dev"
+var Version = "1.12.0"
 
 // GoVersion is the version of Go this was built with
 var GoVersion = runtime.Version()

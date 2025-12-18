@@ -3,7 +3,58 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 1.12.0
+
+### Fixes
+
+- download: fix when compiling with tag opa_no_oci ([#8070](https://github.com/open-policy-agent/opa/issues/8070)) authored by @srenatus reported by @mg0083
+
+### Miscellaneous
+
+- CHANGELOG+metadata: Integrate v1.11.1 (authored by @srenatus)
+- Fixing failing benchmarks (#8130) (authored by @johanfylling)
+- Prepare v1.12.0 development (#8077) (authored by @johanfylling)
+- String interpolation (#8109) (authored by @johanfylling)
+- String interpolation docs (#8129) (authored by @johanfylling)
+- Update CHANGELOG.md (authored by @philipaconrad)
+- Update a number of links to their new location (#8100) (authored by @charlieegan3)
+- Update community contacts (authored by @charlieegan3)
+- ast/checks_test: fix flaky tests (authored by @srenatus)
+- ast/compile: deal with error limit without  panic/defer (authored by @srenatus)
+- ast/parser: avoid allocating slices for variadic options (authored by @srenatus)
+- ast/parser: build []byte directly (authored by @srenatus)
+- ast/parser: check if we need to unescape at all (authored by @srenatus)
+- benchmarks: install node v24 (authored by @srenatus)
+- build(deps): bump express from 4.21.2 to 4.22.1 in /docs (authored by @dependabot[bot])
+- build(deps): bump mdast-util-to-hast from 13.2.0 to 13.2.1 in /docs (authored by @dependabot[bot])
+- build(deps): bump node-forge from 1.3.1 to 1.3.2 in /docs (authored by @dependabot[bot])
+- build(deps): bump the dependencies group across 2 directories with 3 updates (authored by @dependabot[bot])
+- deps: bump golang 1.25.4 -> 1.25.5 (authored by @srenatus)
+- docs/ocp: update "concepts" for v0.3.0 (#8117) (authored by @srenatus)
+- docs: Remove link to feedback form (#8101) (authored by @charlieegan3)
+- fix(plugin/decision): set the correct limit after upload (#8126) (authored by @sspaink)
+- fix(status): race in TestStatusUpdateBuffer (authored by @thevilledev)
+- fix(util): enforce gzip decompression limits (authored by @thevilledev)
+- oracle: Refactor Oracle again to fix Some/Every (authored by @charlieegan3)
+- oracle: Refactor oracle to be more extensible (#8105) (authored by @charlieegan3)
+- oracle: Use typed targets for specific matchers (#8138) (authored by @charlieegan3)
+- perf: 10% faster compilation (authored by @anderseknert)
+- perf: avoid extra allocation in sink if no cancel (authored by @anderseknert)
+- plugins/bundle: prevent ns-level polling by validating intervals (#8082) (authored by @jjhwan-h)
+- plugins/discovery: Initialize plugins before downloading (#8071) (authored by @jt28828)
+- topdown: make `regex.replace` respect cancellation (authored by @srenatus)
+- topdown: make `replace` and `strings.replace_n` respect cancellation (authored by @srenatus)
+- topdown: use sink for concat() (authored by @srenatus)
+- website: Add support for rego string interpolation (authored by @charlieegan3)
+- website: Remove survey bar (authored by @charlieegan3)
+- website: Show playground errors (authored by @charlieegan3)
+- workflow: integrate benchmarks notebook (authored by @srenatus)
+- workflows/benchmark: fix fetch-depth (authored by @srenatus)
+- workflows/benchmark: only run for go-changes (authored by @srenatus)
+- workflows/benchmarks: checkout code first (authored by @srenatus)
+- workflows/pull-request: don't build tag build in container (authored by @srenatus)
+- workflows/pull-request: don't upload artifact that's never downloaded (authored by @srenatus)
+- workflows: skip all tests in benchmarks run (authored by @srenatus)
 
 ### String Interpolation ([#4733](https://github.com/open-policy-agent/opa/issues/4733))
 
