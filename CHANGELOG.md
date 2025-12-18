@@ -5,6 +5,12 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 1.12.1
+
+This bug fix release reverts a change to `regex.replace` that unintentionally changed its behaviour for anchored regular expressions.
+
+- Revert "topdown: make `regex.replace` respect cancellation" (authored by @srenatus)
+
 ## 1.12.0
 
 This release contains a mix of new features, performance improvements, and bugfixes. Notably:
