@@ -34,7 +34,6 @@ In older documentation, these are sometimes referred to as "complete rules". ([T
 
 
 
-
 ```json title="input.json"
 {
   "user": {
@@ -73,7 +72,6 @@ In older documentation these are sometimes referred to as "partial set rules". (
 
 
 
-
 ```json title="input.json"
 {
   "user": {
@@ -83,7 +81,6 @@ In older documentation these are sometimes referred to as "partial set rules". (
     ]
   }
 }
-
 ```
 
 <RunSnippet id="input.Multi-Value+Set+Rules.json"/>
@@ -112,7 +109,6 @@ In older documentation these are sometimes referred to as "partial object rules"
 
 
 
-
 ```json title="input.json"
 {
   "paths": [
@@ -123,7 +119,6 @@ In older documentation these are sometimes referred to as "partial object rules"
     "c/x.txt"
   ]
 }
-
 ```
 
 <RunSnippet id="input.Multi-Value+Object+Rules.json"/>
@@ -184,7 +179,6 @@ Check conditions on many elements. ([Try It](https://play.openpolicyagent.org/?s
 
 
 
-
 ```json title="input.json"
 {
   "userID": "u123",
@@ -224,7 +218,6 @@ Statements in rules are joined with logical AND. ([Try It](https://play.openpoli
 
 
 
-
 ```json title="input.json"
 {
   "email": "joe@example.com"
@@ -250,7 +243,6 @@ valid_staff_email if {
 
 
 Express OR with multiple rules, functions or the in keyword. ([Try It](https://play.openpolicyagent.org/?state=eyJpIjoie1xuICBcImVtYWlsXCI6IFwib3BhQGV4YW1wbGUuY29tXCIsXG4gIFwibmFtZVwiOiBcImFubmFcIixcbiAgXCJtZXRob2RcIjogXCJHRVRcIlxufSIsInAiOiJwYWNrYWdlIGNoZWF0XG5cbmltcG9ydCByZWdvLnYxXG5cbiMgdXNpbmcgbXVsdGlwbGUgcnVsZXNcbnZhbGlkX2VtYWlsIGlmIGVuZHN3aXRoKGlucHV0LmVtYWlsLCBcIkBleGFtcGxlLmNvbVwiKVxudmFsaWRfZW1haWwgaWYgZW5kc3dpdGgoaW5wdXQuZW1haWwsIFwiQGV4YW1wbGUub3JnXCIpXG52YWxpZF9lbWFpbCBpZiBlbmRzd2l0aChpbnB1dC5lbWFpbCwgXCJAZXhhbXBsZS5uZXRcIilcblxuIyB1c2luZyBmdW5jdGlvbnNcbmFsbG93ZWRfZmlyc3RuYW1lKG5hbWUpIGlmIHtcblx0c3RhcnRzd2l0aChuYW1lLCBcImFcIilcblx0Y291bnQobmFtZSkgXHUwMDNlIDJcbn1cblxuYWxsb3dlZF9maXJzdG5hbWUoXCJqb2VcIikgIyBpZiBuYW1lID09ICdqb2UnXG5cbnZhbGlkX25hbWUgaWYgYWxsb3dlZF9maXJzdG5hbWUoaW5wdXQubmFtZSlcblxudmFsaWRfcmVxdWVzdCBpZiB7XG5cdGlucHV0Lm1ldGhvZCBpbiB7XCJHRVRcIiwgXCJQT1NUXCJ9ICMgdXNpbmcgYGluYFxufVxuIn0%3D))
-
 
 
 
