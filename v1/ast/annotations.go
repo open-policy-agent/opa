@@ -433,18 +433,7 @@ func (a *Annotations) toObject() (*Object, *Error) {
 	}
 
 	if len(a.Scope) > 0 {
-		switch a.Scope {
-		case annotationScopeDocument:
-			obj.Insert(InternedTerm("scope"), InternedTerm("document"))
-		case annotationScopePackage:
-			obj.Insert(InternedTerm("scope"), InternedTerm("package"))
-		case annotationScopeRule:
-			obj.Insert(InternedTerm("scope"), InternedTerm("rule"))
-		case annotationScopeSubpackages:
-			obj.Insert(InternedTerm("scope"), InternedTerm("subpackages"))
-		default:
-			obj.Insert(InternedTerm("scope"), StringTerm(a.Scope))
-		}
+		obj.Insert(InternedTerm("scope"), InternedTerm(a.Scope))
 	}
 
 	if len(a.Title) > 0 {

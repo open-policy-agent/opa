@@ -63,13 +63,6 @@ func TestStatusUpdateBuffer(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			fixture := newTestFixture(t, nil)
-			ctx := t.Context()
-
-			err := fixture.plugin.Start(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer fixture.plugin.Stop(ctx)
 
 			for i := range tc.numberOfStatusUpdates {
 				s := bundle.Status{

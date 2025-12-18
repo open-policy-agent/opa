@@ -621,7 +621,7 @@ func (imp *Import) SetLoc(loc *Location) {
 // document. This is the alias if defined otherwise the last element in the
 // path.
 func (imp *Import) Name() Var {
-	if len(imp.Alias) != 0 {
+	if imp.Alias != "" {
 		return imp.Alias
 	}
 	switch v := imp.Path.Value.(type) {

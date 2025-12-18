@@ -1,11 +1,10 @@
-// Copyright 2025 The OPA Authors.  All rights reserved.
+// Copyright 2025 The OPA Authors. All rights reserved.
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 package oracle
 
 import (
 	"github.com/open-policy-agent/opa/v1/ast"
-	"github.com/open-policy-agent/opa/v1/ast/oracle/find"
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
@@ -21,22 +20,11 @@ func (e Error) Error() string {
 // Oracle implements different queries over ASTs, e.g., find definition.
 type Oracle struct {
 	compiler *ast.Compiler
-	manager  *find.Manager
 }
 
 // New returns a new Oracle object.
 func New() *Oracle {
-	manager := find.NewManager()
-
-	// variable can appear within a reference (e.g., 'data.foo[x]') and so are most specific
-	manager.Register(find.NewVarLocator())
-	manager.Register(find.NewRefLocator())
-	manager.Register(find.NewSomeLocator())
-	manager.Register(find.NewEveryLocator())
-
-	return &Oracle{
-		manager: manager,
-	}
+	return &Oracle{}
 }
 
 // DefinitionQuery defines a Rego definition query.
@@ -91,7 +79,12 @@ func (o *Oracle) FindDefinition(q DefinitionQuery) (*DefinitionQueryResult, erro
 		return nil, ErrNoMatchFound
 	}
 
-	location := o.manager.FindDefinition(stack, compiler, parsed)
+	target := findTarget(stack)
+	if target == nil {
+		return nil, ErrNoDefinitionFound
+	}
+
+	location := findDefinition(target, stack, compiler, parsed)
 	if location == nil {
 		return nil, ErrNoDefinitionFound
 	}
