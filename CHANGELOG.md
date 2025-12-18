@@ -71,13 +71,13 @@ Authored by @johanfylling reported by @anderseknert
 
 ### Docs, Website, Ecosystem
 
-- docs: Remove link to feedback form ([#8101](https://github.com/open-policy-agent/opa/pull/8101)) authored by @charlieegan3
-- docs: Update community contacts ([#8108](https://github.com/open-policy-agent/opa/pull/8108)) authored by @charlieegan3
-- docs/ocp: Update "concepts" for v0.3.0 ([#8117](https://github.com/open-policy-agent/opa/pull/8117)) authored by @srenatus
 - website: Add support for rego string interpolation syntax highlighting ([#8092](https://github.com/open-policy-agent/opa/pull/8092)) authored by @charlieegan3
-- website: Remove survey bar ([#8136](https://github.com/open-policy-agent/opa/pull/8136)) authored by @charlieegan3
-- website: Update a number of links to their new location ([#8100](https://github.com/open-policy-agent/opa/pull/8100)) authored by @charlieegan3
+- docs/ocp: Update "concepts" for v0.3.0 ([#8117](https://github.com/open-policy-agent/opa/pull/8117)) authored by @srenatus
 - website: Show playground errors ([#8141](https://github.com/open-policy-agent/opa/pull/8141)) authored by @charlieegan3
+- website: Update a number of links to their new location ([#8100](https://github.com/open-policy-agent/opa/pull/8100)) authored by @charlieegan3
+- docs: Remove link to feedback form ([#8101](https://github.com/open-policy-agent/opa/pull/8101)) authored by @charlieegan3
+- website: Remove survey bar ([#8136](https://github.com/open-policy-agent/opa/pull/8136)) authored by @charlieegan3
+- docs: Update community contacts ([#8108](https://github.com/open-policy-agent/opa/pull/8108)) authored by @charlieegan3
 
 ### Miscellaneous
 
