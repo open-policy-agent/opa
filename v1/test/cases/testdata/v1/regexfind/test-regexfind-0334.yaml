@@ -1,19 +1,57 @@
 ---
 cases:
   - note: regexfind/finds all match values
-    query: data.generated.p = x
+    query: data.test.p = x
     modules:
       - |
-        package generated
-
-        p contains x if {
-        	regex.find_n("a.", "paranormal", -1, __local0__)
-        	x = __local0__
-        }
-    data: {}
+        package test
+        p := regex.find_n("a.", "paranormal", -1)
     want_result:
       - x:
-          - - ar
-            - an
-            - al
-    sort_bindings: true
+          - ar
+          - an
+          - al
+  - note: regexfind/finds 2 matched values
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := regex.find_n("a.", "paranormal", 2)
+    want_result:
+      - x:
+          - ar
+          - an
+  - note: regexfind/finds 0 matched values
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := regex.find_n("a.", "paranormal", 0)
+    want_result:
+      - x: []
+  - note: regexfind/regex is anchored, start
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := regex.find_n("^a.", "abacadaeaf", -1)
+    want_result:
+      - x:
+          - ab
+  - note: regexfind/regex is anchored,end
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := regex.find_n(".$", "abacadaeaf", -1)
+    want_result:
+      - x:
+          - f
+  - note: regexfind/regex with overlapping matches
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := regex.find_n("[abcdef]{2}", "abacadaeaf", -1)
+    want_result:
+      - x: ["ab", "ac", "ad", "ae", "af"]
