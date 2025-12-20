@@ -1,14 +1,42 @@
 ---
 cases:
   - note: "regexsplit/regex.split: empty string"
-    query: data.generated.p = x
+    query: data.test.p = x
     modules:
       - |
-        package generated
-
-        p := x if {
-        	regex.split("^[a-z]+\\[[0-9]+\\]$", "", [x])
-        }
-    data: {}
+        package test
+        p := regex.split("^[a-z]+\\[[0-9]+\\]$", "")
     want_result:
-      - x: ""
+      - x: [""]
+  - note: "regexsplit/regex.split: anchored RE, start"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := regex.split("^[a-z]+", "foobar baz")
+    want_result:
+      - x: ["", " baz"]
+  - note: "regexsplit/regex.split: anchored RE, end"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := regex.split("[a-z]+$", "foobar baz")
+    want_result:
+      - x: ["foobar ", ""]
+  - note: "regexsplit/regex.split: anchored RE, start+end"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := regex.split("^[a-z]+$", "foobar baz")
+    want_result:
+      - x: ["foobar baz"]
+  - note: "regexsplit/regex.split: anchored RE, start+end, match"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := regex.split("^[a-z ]+$", "foobar baz")
+    want_result:
+      - x: ["", ""] # empty string before and after match

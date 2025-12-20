@@ -2455,7 +2455,8 @@ func (p *Parser) parseTermPairList(end tokens.Token, r [][2]*Term) [][2]*Term {
 
 func (p *Parser) parseTermOp(values ...tokens.Token) *Term {
 	if slices.Contains(values, p.s.tok) {
-		r := RefTerm(VarTerm(p.s.tok.String()).SetLocation(p.s.Loc())).SetLocation(p.s.Loc())
+		loc := p.s.Loc()
+		r := RefTerm(VarTerm(p.s.tok.String()).SetLocation(loc)).SetLocation(loc)
 		p.scan()
 		return r
 	}
@@ -2465,11 +2466,12 @@ func (p *Parser) parseTermOp(values ...tokens.Token) *Term {
 func (p *Parser) parseTermOpName(ref Ref, values ...tokens.Token) *Term {
 	if slices.Contains(values, p.s.tok) {
 		cp := ref.Copy()
+		loc := p.s.Loc()
 		for _, r := range cp {
-			r.SetLocation(p.s.Loc())
+			r.SetLocation(loc)
 		}
 		t := RefTerm(cp...)
-		t.SetLocation(p.s.Loc())
+		t.SetLocation(loc)
 		p.scan()
 		return t
 	}

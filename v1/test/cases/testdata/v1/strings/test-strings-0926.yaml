@@ -27,3 +27,43 @@ cases:
         p := strings.count("dummy", "x")
     want_result:
       - x: 0
+  - note: strings/count_empty_string
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := strings.count("dummy", "")
+    want_result:
+      - x: 6
+  - note: strings/count_empty_string_twice
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := strings.count("", "")
+    want_result:
+      - x: 1
+  - note: strings/count_empty_haystack_non-empty_needle
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := strings.count("", "x")
+    want_result:
+      - x: 0
+  - note: strings/count_odd_even_case
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := strings.count("11111", "11")
+    want_result:
+      - x: 2
+  - note: strings/count_equal
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := strings.count("11111", "11111")
+    want_result:
+      - x: 1

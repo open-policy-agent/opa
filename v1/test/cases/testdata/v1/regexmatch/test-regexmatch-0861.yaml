@@ -1,14 +1,49 @@
 ---
 cases:
-  - note: regexmatch/regex.match
+  - note: regexmatch/regex.match positive
     query: data.generated.p = x
     modules:
       - |
         package generated
-
-        p if {
-        	regex.match("^[a-z]+\\[[0-9]+\\]$", "foo[1]")
-        }
-    data: {}
+        p := regex.match("^[a-z]+\\[[0-9]+\\]$", "foo[1]")
     want_result:
       - x: true
+  - note: regexmatch/regex.match empty anchored
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+        p := regex.match("^$", "")
+    want_result:
+      - x: true
+  - note: regexmatch/regex.match empty string against empty string
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+        p := regex.match("", "")
+    want_result:
+      - x: true
+  - note: regexmatch/regex.match empty string against non-empty string
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+        p := regex.match("", "x")
+    want_result:
+      - x: true
+  - note: regexmatch/regex.match negative
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+        p := regex.match("^$", "something")
+    want_result:
+      - x: false
+  - note: regexmatch/regex.match bad RE
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+        p := regex.match("$^[[[", "something")
+    want_result: []
