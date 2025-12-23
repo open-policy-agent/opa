@@ -1346,32 +1346,34 @@ func ArrayTerm(a ...*Term) *Term {
 // NewArray creates an Array with the terms provided. The array will
 // use the provided term slice.
 func NewArray(a ...*Term) *Array {
-	hs := make([]int, len(a))
-	for i, e := range a {
-		hs[i] = e.Value.Hash()
+	arr := &Array{
+		elems:     a,
+		ground:    termSliceIsGround(a),
+		hashValid: false, // hash will be computed on first access
 	}
-	arr := &Array{elems: a, hashs: hs, ground: termSliceIsGround(a)}
-	arr.rehash()
 	return arr
 }
 
 // Array represents an array as defined by the language. Arrays are similar to the
 // same types as defined by JSON with the exception that they can contain Vars
 // and References.
+//
+// Optimization: removed hashs []int slice to save memory (8*N bytes per array).
+// Hash is now computed lazily on first access and cached in hashValid flag.
 type Array struct {
-	elems  []*Term
-	hashs  []int // element hashes
-	hash   int
-	ground bool
+	elems     []*Term
+	hash      int
+	ground    bool
+	hashValid bool // true if hash is up-to-date
 }
 
 // Copy returns a deep copy of arr.
 func (arr *Array) Copy() *Array {
 	return &Array{
-		elems:  termSliceCopy(arr.elems),
-		hashs:  slices.Clone(arr.hashs),
-		hash:   arr.hash,
-		ground: arr.ground,
+		elems:     termSliceCopy(arr.elems),
+		hash:      arr.hash,
+		ground:    arr.ground,
+		hashValid: arr.hashValid,
 	}
 }
 
@@ -1460,12 +1462,24 @@ func (arr *Array) Sorted() *Array {
 	slices.SortFunc(cpy, TermValueCompare)
 
 	a := NewArray(cpy...)
-	a.hashs = arr.hashs
+	// If parent arr already has valid hash, copy it since sorting doesn't change hash
+	if arr.hashValid {
+		a.hash = arr.hash
+		a.hashValid = true
+	}
 	return a
 }
 
 // Hash returns the hash code for the Value.
+// Computes hash lazily on first access and caches it.
 func (arr *Array) Hash() int {
+	if !arr.hashValid {
+		arr.hash = 0
+		for _, e := range arr.elems {
+			arr.hash += e.Value.Hash()
+		}
+		arr.hashValid = true
+	}
 	return arr.hash
 }
 
@@ -1515,20 +1529,16 @@ func (arr *Array) Set(i int, v *Term) {
 	arr.set(i, v)
 }
 
-// rehash updates the cached hash of arr.
+// rehash invalidates the cached hash so it will be recomputed on next access.
 func (arr *Array) rehash() {
-	arr.hash = 0
-	for _, h := range arr.hashs {
-		arr.hash += h
-	}
+	arr.hashValid = false
 }
 
 // set sets the element i of arr.
 func (arr *Array) set(i int, v *Term) {
 	arr.ground = arr.ground && v.IsGround()
 	arr.elems[i] = v
-	arr.hashs[i] = v.Value.Hash()
-	arr.rehash()
+	arr.rehash() // invalidate hash cache
 }
 
 // Slice returns a slice of arr starting from i index to j. -1
@@ -1537,21 +1547,20 @@ func (arr *Array) set(i int, v *Term) {
 // the other.
 func (arr *Array) Slice(i, j int) *Array {
 	var elems []*Term
-	var hashs []int
 	if j == -1 {
 		elems = arr.elems[i:]
-		hashs = arr.hashs[i:]
 	} else {
 		elems = arr.elems[i:j]
-		hashs = arr.hashs[i:j]
 	}
 	// If arr is ground, the slice is, too.
 	// If it's not, the slice could still be.
 	gr := arr.ground || termSliceIsGround(elems)
 
-	s := &Array{elems: elems, hashs: hashs, ground: gr}
-	s.rehash()
-	return s
+	return &Array{
+		elems:     elems,
+		ground:    gr,
+		hashValid: false, // hash will be computed lazily
+	}
 }
 
 // Iter calls f on each element in arr. If f returns an error,
@@ -1581,9 +1590,14 @@ func (arr *Array) Foreach(f func(*Term)) {
 func (arr *Array) Append(v *Term) *Array {
 	cpy := *arr
 	cpy.elems = append(arr.elems, v)
-	cpy.hashs = append(arr.hashs, v.Value.Hash())
-	cpy.hash = arr.hash + v.Value.Hash()
 	cpy.ground = arr.ground && v.IsGround()
+	// If hash was already computed, we can update it incrementally
+	if arr.hashValid {
+		cpy.hash = arr.hash + v.Value.Hash()
+		cpy.hashValid = true
+	} else {
+		cpy.hashValid = false // will be computed on first access
+	}
 	return &cpy
 }
 
