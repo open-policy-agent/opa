@@ -3749,7 +3749,7 @@ func NewModuleTree(mods map[string]*Module) *ModuleTreeNode {
 			c, ok := node.Children[x.Value]
 			if !ok {
 				var hide bool
-				if i == 1 && x.Value.Compare(SystemDocumentKey) == 0 {
+				if i == 1 && SystemDocumentKey.Equal(x.Value) {
 					hide = true
 				}
 				c = &ModuleTreeNode{
