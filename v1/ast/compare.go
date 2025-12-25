@@ -327,14 +327,6 @@ func TermValueEqual(a, b *Term) bool {
 }
 
 func ValueEqual(a, b Value) bool {
-	// TODO(ae): why doesn't this work the same?
-	//
-	// case interface{ Equal(Value) bool }:
-	// 	   return v.Equal(b)
-	//
-	// When put on top, golangci-lint even flags the other cases as unreachable..
-	// but TestTopdownVirtualCache will have failing test cases when we replace
-	// the other cases with the above one.. 🤔
 	switch v := a.(type) {
 	case Null:
 		return v.Equal(b)
@@ -349,6 +341,8 @@ func ValueEqual(a, b Value) bool {
 	case Ref:
 		return v.Equal(b)
 	case *Array:
+		return v.Equal(b)
+	case *TemplateString:
 		return v.Equal(b)
 	}
 

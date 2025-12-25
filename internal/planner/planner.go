@@ -1768,7 +1768,7 @@ func (p *Planner) planRef(ref ast.Ref, iter planiter) error {
 		return errors.New("illegal ref: non-var head")
 	}
 
-	if head.Compare(ast.DefaultRootDocument.Value) == 0 {
+	if head.Equal(ast.DefaultRootDocument.Value) {
 		virtual := p.rules.Get(ref[0].Value)
 		base := &baseptr{local: p.vars.GetOrEmpty(ast.DefaultRootDocument.Value.(ast.Var))}
 		return p.planRefData(virtual, base, ref, 1, iter)

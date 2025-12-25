@@ -190,7 +190,7 @@ func termMatchesVar(t *ast.Term, name ast.Var) bool {
 
 	v, ok := t.Value.(ast.Var)
 
-	return ok && v.Compare(name) == 0
+	return ok && v.Equal(name)
 }
 
 // findRulesDefinition looks up rules for a given ref. Rules appear in various
