@@ -568,6 +568,9 @@ func TestTermString(t *testing.T) {
 	// ensure that objects and sets have deterministic String() results
 	assertToString(t, SetTerm(VarTerm("y"), VarTerm("x")).Value, "{x, y}")
 	assertToString(t, ObjectTerm([2]*Term{VarTerm("y"), VarTerm("b")}, [2]*Term{VarTerm("x"), VarTerm("a")}).Value, "{x: a, y: b}")
+
+	assertToString(t, MustParseTerm(`$"foo {bar}"`).Value, `$"foo {bar}"`)
+	assertToString(t, MustParseTerm(`$"foo \{bar}"`).Value, `$"foo \{bar}"`)
 }
 
 func TestRefString_Escapes(t *testing.T) {
@@ -1687,6 +1690,22 @@ func TestLazyObjectCompare(t *testing.T) {
 		t.Errorf("expected Compare() => %v, got %v", exp, act)
 	}
 	assertForced(t, x, true)
+}
+
+func TestEscapeTemplateStringStringPart(t *testing.T) {
+	unescaped := `unescaped { left curly brace.`
+	got := EscapeTemplateStringStringPart(unescaped)
+
+	if got != `unescaped \{ left curly brace.` {
+		t.Errorf("Expected %q but got %q", `unescaped \{ left curly brace.`, got)
+	}
+
+	alreadyEscaped := `already escaped \{ left curly brace.`
+	got = EscapeTemplateStringStringPart(alreadyEscaped)
+
+	if got != alreadyEscaped {
+		t.Errorf("Expected %q but got %q", alreadyEscaped, got)
+	}
 }
 
 func TestTemplateStringEqual(t *testing.T) {

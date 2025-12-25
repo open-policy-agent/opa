@@ -723,6 +723,28 @@ a[_x[y][[z, w]]]`,
 			),
 			expected: "$`foo {\"bar\"} {`baz`}`",
 		},
+		{
+			note: "template-string, left curly in string part",
+			toFmt: ast.TemplateStringTerm(false,
+				ast.StringTerm(`allow if { `),
+				&ast.Expr{
+					Terms: ast.VarTerm("x"),
+				},
+				ast.StringTerm(" }"),
+			),
+			expected: `$"allow if \{ {x} }"`,
+		},
+		{
+			note: "template-string, multi-line, left curly in string part",
+			toFmt: ast.TemplateStringTerm(true,
+				ast.StringTerm("allow if {\n\t"),
+				&ast.Expr{
+					Terms: ast.VarTerm("x"),
+				},
+				ast.StringTerm("\n}"),
+			),
+			expected: "$`allow if \\{\n\t{x}\n}`",
+		},
 	}
 
 	for _, tc := range cases {
@@ -745,11 +767,7 @@ a[_x[y][[z, w]]]`,
 
 		// consistency check: disregarding source locations, it shouldn't panic
 		t.Run("no_loc/"+tc.note, func(t *testing.T) {
-			_, err := AstWithOpts(tc.toFmt, Opts{IgnoreLocations: true})
-			if err != nil {
-				t.Fatalf("Unexpected error: %s", err)
-			}
-			if err != nil {
+			if _, err := AstWithOpts(tc.toFmt, Opts{IgnoreLocations: true}); err != nil {
 				t.Fatalf("Unexpected error: %s", err)
 			}
 		})
