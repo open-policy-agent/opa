@@ -1,0 +1,85 @@
+---
+cases:
+  # Test parsing Maven PURL with namespace
+  - note: purlbuiltins/parse_maven_log4j
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+        p := x if {
+          pkg := purl.parse("pkg:maven/org.apache.logging.log4j/log4j-core@2.14.0")
+          x := pkg
+        }
+    want_result:
+      - x:
+          type: "maven"
+          namespace: "org.apache.logging.log4j"
+          name: "log4j-core"
+          version: "2.14.0"
+
+  # Test parsing Docker PURL with qualifiers
+  - note: purlbuiltins/parse_docker_with_registry
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+        p := x if {
+          pkg := purl.parse("pkg:docker/myapp@1.0.0?repository_url=docker.io")
+          x := pkg
+        }
+    want_result:
+      - x:
+          type: "docker"
+          name: "myapp"
+          version: "1.0.0"
+          qualifiers:
+            repository_url: "docker.io"
+
+  # Test parsing NPM package without namespace
+  - note: purlbuiltins/parse_npm_lodash
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+        p := x if {
+          pkg := purl.parse("pkg:npm/lodash@4.17.21")
+          x := pkg
+        }
+    want_result:
+      - x:
+          type: "npm"
+          name: "lodash"
+          version: "4.17.21"
+
+  # Test parsing PyPI package
+  - note: purlbuiltins/parse_pypi_tensorflow
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+        p := x if {
+          pkg := purl.parse("pkg:pypi/tensorflow@2.5.0")
+          x := pkg
+        }
+    want_result:
+      - x:
+          type: "pypi"
+          name: "tensorflow"
+          version: "2.5.0"
+
+  # Test parsing GitHub package with namespace
+  - note: purlbuiltins/parse_github_opa
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+        p := x if {
+          pkg := purl.parse("pkg:github/open-policy-agent/opa@v0.45.0")
+          x := pkg
+        }
+    want_result:
+      - x:
+          type: "github"
+          namespace: "open-policy-agent"
+          name: "opa"
+          version: "v0.45.0"
