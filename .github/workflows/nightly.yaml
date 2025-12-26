@@ -168,3 +168,48 @@ jobs:
         with:
           status: ${{ job.status }}
           fields: repo,workflow
+
+  go-get-test:
+    name: Go Get Smoke Test
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - id: go_version
+        name: Read go version
+        run: echo "go_version=$(cat .go-version)" >> $GITHUB_OUTPUT
+
+      - name: Install Go (${{ steps.go_version.outputs.go_version }})
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+        with:
+          go-version: ${{ steps.go_version.outputs.go_version }}
+
+      - name: Test go get without proxy
+        run: |
+          mkdir -p /tmp/go-get-test
+          cd /tmp/go-get-test
+
+          go mod init test-go-get
+
+          # Disable Go module proxy to test direct VCS access
+          export GOPROXY=direct
+
+          # Test go get with current main
+          if go get github.com/open-policy-agent/opa@main 2>&1 | tee /tmp/go-get-output.log | grep -q "warning"; then
+            echo "ERROR: Found warnings during go get:"
+            grep "warning" /tmp/go-get-output.log
+            exit 1
+          fi
+
+          echo "Success: No warnings found"
+        timeout-minutes: 10
+
+      - name: Slack Notification
+        uses: 8398a7/action-slack@77eaa4f1c608a7d68b38af4e3f739dcd8cba273e # v3.19.0
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+        if: ${{ failure() && env.SLACK_WEBHOOK_URL }}
+        with:
+          status: ${{ job.status }}
+          fields: repo,workflow
