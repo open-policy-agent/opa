@@ -12943,3 +12943,27 @@ func TestCompilerInitWithDefaultModuleLoader(t *testing.T) {
 		t.Error("expected bar.rego from defaultModuleLoader in result")
 	}
 }
+
+// Verify fix for https://github.com/open-policy-agent/opa/issues/8158
+func TestCompilerCopiesTemplateStrings(t *testing.T) {
+	mod := MustParseModule(`package p
+	s contains z if {
+		some y in [1, 2, 3]
+		z := $"{y} "
+	}`)
+	cpy := mod.Copy()
+
+	c1 := NewCompiler()
+	if c1.Compile(map[string]*Module{"p.rego": mod}); c1.Failed() {
+		t.Fatalf("unexpected compile errors: %v", c1.Errors)
+	}
+
+	c2 := NewCompiler()
+	if c2.Compile(map[string]*Module{"p.rego": mod}); c2.Failed() {
+		t.Fatalf("unexpected compile errors: %v", c2.Errors)
+	}
+
+	if !mod.Equal(cpy) {
+		t.Fatalf("expected module to be unchanged after compilation")
+	}
+}

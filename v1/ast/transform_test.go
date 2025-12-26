@@ -121,7 +121,7 @@ func TestTransformRefsAndRuleHeads(t *testing.T) {
 p.q.this.fo[x] = y if { x := "x"; y := "y" }`)
 
 	result, err := TransformRefs(module, func(r Ref) (Value, error) {
-		if r[0].Value.Compare(Var("p")) == 0 {
+		if Var("p").Equal(r[0].Value) {
 			r[2] = StringTerm("that")
 		}
 		return r, nil

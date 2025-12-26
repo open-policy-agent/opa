@@ -344,7 +344,7 @@ func (p *CopyPropagator) livevarRef(a *ast.Term) bool {
 	}
 
 	for _, v := range p.sorted {
-		if ref[0].Value.Compare(v) == 0 {
+		if v.Equal(ref[0].Value) {
 			return true
 		}
 	}
@@ -403,7 +403,7 @@ func containedIn(value ast.Value, x any) bool {
 			if v, ok := value.(ast.Ref); ok {
 				match = x.HasPrefix(v)
 			} else {
-				match = x.Compare(value) == 0
+				match = x.Equal(value)
 			}
 			if stop || match {
 				stop = true

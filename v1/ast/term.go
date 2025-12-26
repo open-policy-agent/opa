@@ -43,6 +43,7 @@ func NewLocation(text []byte, file string, row int, col int) *Location {
 // - Variables, References
 // - Array, Set, and Object Comprehensions
 // - Calls
+// - Template Strings
 type Value interface {
 	Compare(other Value) int      // Compare returns <0, 0, or >0 if this Value is less than, equal to, or greater than other, respectively.
 	Find(path Ref) (Value, error) // Find returns value referred to by path or an error if path is not found.
@@ -350,6 +351,8 @@ func (term *Term) Copy() *Term {
 	case *ObjectComprehension:
 		cpy.Value = v.Copy()
 	case *SetComprehension:
+		cpy.Value = v.Copy()
+	case *TemplateString:
 		cpy.Value = v.Copy()
 	case Call:
 		cpy.Value = v.Copy()
@@ -831,6 +834,40 @@ func (str String) Hash() int {
 type TemplateString struct {
 	Parts     []Node `json:"parts"`
 	MultiLine bool   `json:"multi_line"`
+}
+
+func (ts *TemplateString) Copy() *TemplateString {
+	cpy := &TemplateString{MultiLine: ts.MultiLine, Parts: make([]Node, len(ts.Parts))}
+	for i, p := range ts.Parts {
+		switch v := p.(type) {
+		case *Expr:
+			cpy.Parts[i] = v.Copy()
+		case *Term:
+			cpy.Parts[i] = v.Copy()
+		}
+	}
+	return cpy
+}
+
+func (ts *TemplateString) Equal(other Value) bool {
+	if o, ok := other.(*TemplateString); ok && ts.MultiLine == o.MultiLine && len(ts.Parts) == len(o.Parts) {
+		for i, p := range ts.Parts {
+			switch v := p.(type) {
+			case *Expr:
+				if ope, ok := o.Parts[i].(*Expr); !ok || !v.Equal(ope) {
+					return false
+				}
+			case *Term:
+				if opt, ok := o.Parts[i].(*Term); !ok || !v.Equal(opt) {
+					return false
+				}
+			default:
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }
 
 func (ts *TemplateString) Compare(other Value) int {

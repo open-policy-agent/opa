@@ -930,7 +930,7 @@ func (r *REPL) parserOptions() (ast.ParserOptions, error) {
 		opts, err := future.ParserOptionsFromFutureImports(r.modules[r.currentModuleID].Imports)
 		if err == nil {
 			for _, i := range r.modules[r.currentModuleID].Imports {
-				if ast.Compare(i.Path.Value, ast.RegoV1CompatibleRef) == 0 {
+				if ast.RegoV1CompatibleRef.Equal(i.Path.Value) {
 					opts.RegoVersion = ast.RegoV1
 				}
 			}

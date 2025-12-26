@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"hash"
 	"math/big"
+	"strconv"
 	"strings"
 
 	"github.com/lestrrat-go/jwx/v3/jwk"
@@ -1131,8 +1132,8 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 		switch v := nbf.Value.(type) {
 		case ast.Number:
 			// constraints.time is in nanoseconds but nbf Value is in seconds
-			compareTime := ast.FloatNumberTerm(constraints.time / 1000000000)
-			if ast.Compare(compareTime, v) == -1 {
+			compareTime := ast.Number(strconv.FormatFloat(constraints.time/1000000000, 'g', -1, 64))
+			if compareTime.Compare(v) == -1 {
 				return iter(unverified)
 			}
 		default:

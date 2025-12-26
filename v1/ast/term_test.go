@@ -1689,6 +1689,20 @@ func TestLazyObjectCompare(t *testing.T) {
 	assertForced(t, x, true)
 }
 
+func TestTemplateStringEqual(t *testing.T) {
+	a := MustParseTerm(`$"hello {world}!"`).Value.(*TemplateString)
+	b := MustParseTerm(`$"hello {world}!"`).Value.(*TemplateString)
+	c := MustParseTerm(`$"goodbye {world}!"`).Value.(*TemplateString)
+
+	if !a.Equal(b) {
+		t.Errorf("Expected %v to equal %v", a, b)
+	}
+
+	if a.Equal(c) {
+		t.Errorf("Expected %v to not equal %v", a, c)
+	}
+}
+
 func assertForced(t *testing.T, x Object, forced bool) {
 	t.Helper()
 	l, ok := x.(*lazyObj)
