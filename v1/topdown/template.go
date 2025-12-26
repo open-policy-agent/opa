@@ -2,6 +2,7 @@ package topdown
 
 import (
 	"bytes"
+	"strings"
 	"text/template"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -30,14 +31,13 @@ func renderTemplate(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 		return err
 	}
 
-	// Do not attempt to render if template variable keys are missing
-	tmpl.Option("missingkey=error")
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, templateVariables); err != nil {
 		return err
 	}
 
-	return iter(ast.StringTerm(buf.String()))
+	res := strings.ReplaceAll(buf.String(), "<no value>", "<undefined>")
+	return iter(ast.StringTerm(res))
 }
 
 func init() {
