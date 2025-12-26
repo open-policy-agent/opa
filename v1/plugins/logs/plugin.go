@@ -455,9 +455,10 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 type buffer interface {
 	Name() string
 	Push(*EventV1)
-	Upload(context.Context, rest.Client, string) error
-	Reconfigure(int64, int64, *float64)
+	Upload(context.Context) error
+	Reconfigure(int64, int64, *float64, rest.Client, string, plugins.TriggerMode)
 	WithMetrics(metrics.Metrics)
+	Stop()
 }
 
 // Plugin implements decision log buffering and uploading.
@@ -600,10 +601,17 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		plugin.b = newEventBuffer(
 			*parsedConfig.Reporting.BufferSizeLimitEvents,
 			*parsedConfig.Reporting.UploadSizeLimitBytes,
+			*parsedConfig.Reporting.Trigger,
+			plugin.manager.Client(plugin.config.Service),
+			*parsedConfig.Resource,
 		).WithLogger(plugin.logger).WithLimiter(parsedConfig.Reporting.MaxDecisionsPerSecond)
 	case sizeBufferType:
-		plugin.b = newSizeBuffer(*parsedConfig.Reporting.BufferSizeLimitBytes,
+		plugin.b = newSizeBuffer(
+			*parsedConfig.Reporting.BufferSizeLimitBytes,
 			*parsedConfig.Reporting.UploadSizeLimitBytes,
+			plugin.manager.Client(plugin.config.Service),
+			*parsedConfig.Resource,
+			*parsedConfig.Reporting.Trigger,
 		).WithLogger(plugin.logger).WithLimiter(parsedConfig.Reporting.MaxDecisionsPerSecond)
 	}
 
@@ -643,8 +651,9 @@ func (p *Plugin) Start(_ context.Context) error {
 // Stop stops the plugin.
 func (p *Plugin) Stop(ctx context.Context) {
 	p.logger.Info("Stopping decision logger.")
+	p.b.Stop()
 
-	if *p.config.Reporting.Trigger == plugins.TriggerPeriodic {
+	if *p.config.Reporting.Trigger == plugins.TriggerPeriodic || *p.config.Reporting.Trigger == plugins.TriggerImmediate {
 		if _, ok := ctx.Deadline(); ok && p.config.Service != "" {
 			p.flushDecisions(ctx)
 		}
@@ -668,7 +677,7 @@ func (p *Plugin) flushDecisions(ctx context.Context) {
 
 	go func(ctx context.Context, done chan bool) {
 		for ctx.Err() == nil {
-			if err := p.b.Upload(ctx, p.manager.Client(p.config.Service), *p.config.Resource); err != nil && !errors.Is(err, &bufferEmpty{}) {
+			if err := p.b.Upload(ctx); err != nil && !errors.Is(err, &bufferEmpty{}) {
 				p.logger.Error("Error flushing decisions: %s", err)
 				// Wait some before retrying, but skip incrementing interval since we are shutting down
 				time.Sleep(1 * time.Second)
@@ -838,7 +847,7 @@ func (p *Plugin) loop() {
 	for {
 		var waitC chan struct{}
 
-		if *p.config.Reporting.Trigger == plugins.TriggerPeriodic && p.config.Service != "" {
+		if (*p.config.Reporting.Trigger == plugins.TriggerPeriodic || *p.config.Reporting.Trigger == plugins.TriggerImmediate) && p.config.Service != "" {
 			err := p.doOneShot(ctx)
 
 			var delay time.Duration
@@ -855,17 +864,21 @@ func (p *Plugin) loop() {
 
 			waitC = make(chan struct{})
 			go func() {
-				timer, timerCancel := util.TimerWithCancel(delay)
-				select {
-				case <-timer.C:
-					if err != nil {
-						retry++
-					} else {
-						retry = 0
+				timer := time.NewTimer(delay)
+				for {
+					select {
+					case <-timer.C:
+						if err != nil {
+							retry++
+						} else {
+							retry = 0
+						}
+						close(waitC)
+						return
+					case <-ctx.Done():
+						timer.Stop()
+						return
 					}
-					close(waitC)
-				case <-ctx.Done():
-					timerCancel() // explicitly cancel the timer.
 				}
 			}()
 		}
@@ -889,11 +902,19 @@ func (*bufferEmpty) Error() string {
 	return "buffer is empty"
 }
 
+type uploadCancelled struct{}
+
+func (*uploadCancelled) Error() string {
+	return "cancelled upload"
+}
+
 func (p *Plugin) doOneShot(ctx context.Context) error {
-	err := p.b.Upload(ctx, p.manager.Client(p.config.Service), *p.config.Resource)
+	err := p.b.Upload(ctx)
 	if err != nil {
 		if errors.Is(err, &bufferEmpty{}) {
 			p.logger.Debug("Log upload queue was empty.")
+			err = nil
+		} else if errors.Is(err, &uploadCancelled{}) {
 			err = nil
 		} else {
 			p.logger.Error("%v.", err)
@@ -923,20 +944,27 @@ func (p *Plugin) reconfigure(ctx context.Context, config any) {
 	// User reconfigured the type of buffer
 	if p.b.Name() != newConfig.Reporting.BufferType {
 		// upload all events in the current buffer type
-		if err := p.b.Upload(ctx, p.manager.Client(p.config.Service), *p.config.Resource); err != nil && !errors.Is(err, &bufferEmpty{}) {
+		if err := p.b.Upload(ctx); err != nil && !errors.Is(err, &bufferEmpty{}) {
 			p.setStatus(err)
 		}
+		p.b.Stop()
 
 		switch newConfig.Reporting.BufferType {
 		case eventBufferType:
 			p.b = newEventBuffer(
 				*p.config.Reporting.BufferSizeLimitEvents,
 				*p.config.Reporting.UploadSizeLimitBytes,
+				*p.config.Reporting.Trigger,
+				p.manager.Client(p.config.Service),
+				*p.config.Resource,
 			).WithLogger(p.logger).WithLimiter(p.config.Reporting.MaxDecisionsPerSecond)
 		case sizeBufferType:
 			p.b = newSizeBuffer(
 				*p.config.Reporting.BufferSizeLimitBytes,
 				*p.config.Reporting.UploadSizeLimitBytes,
+				p.manager.Client(p.config.Service),
+				*p.config.Resource,
+				*p.config.Reporting.Trigger,
 			).WithLogger(p.logger).WithLimiter(p.config.Reporting.MaxDecisionsPerSecond)
 		}
 
@@ -951,12 +979,15 @@ func (p *Plugin) reconfigure(ctx context.Context, config any) {
 	case eventBufferType:
 		limit = *p.config.Reporting.BufferSizeLimitEvents
 	case sizeBufferType:
-		limit = *p.config.Reporting.UploadSizeLimitBytes
+		limit = *p.config.Reporting.BufferSizeLimitBytes
 	}
 	p.b.Reconfigure(
 		limit,
 		*p.config.Reporting.UploadSizeLimitBytes,
 		p.config.Reporting.MaxDecisionsPerSecond,
+		p.manager.Client(p.config.Service),
+		*p.config.Resource,
+		*p.config.Reporting.Trigger,
 	)
 }
 

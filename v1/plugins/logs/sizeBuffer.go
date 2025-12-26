@@ -8,23 +8,31 @@ import (
 
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/metrics"
+	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/plugins/rest"
 	"golang.org/x/time/rate"
 )
 
 type sizeBuffer struct {
-	mtx     sync.Mutex
-	buffer  *logBuffer
-	enc     *chunkEncoder // encoder appends events into the gzip compressed JSON array
-	limiter *rate.Limiter
-	metrics metrics.Metrics
-	logger  logging.Logger
+	mtx          sync.Mutex
+	buffer       *logBuffer
+	enc          *chunkEncoder // encoder appends events into the gzip compressed JSON array
+	limiter      *rate.Limiter
+	metrics      metrics.Metrics
+	logger       logging.Logger
+	client       rest.Client
+	uploadPath   string
+	mode         plugins.TriggerMode
+	cancelUpload bool
 }
 
-func newSizeBuffer(bufferSizeLimitBytes int64, uploadSizeLimitBytes int64) *sizeBuffer {
+func newSizeBuffer(bufferSizeLimitBytes int64, uploadSizeLimitBytes int64, client rest.Client, uploadPath string, mode plugins.TriggerMode) *sizeBuffer {
 	return &sizeBuffer{
-		enc:    newChunkEncoder(uploadSizeLimitBytes),
-		buffer: newLogBuffer(bufferSizeLimitBytes),
+		enc:        newChunkEncoder(uploadSizeLimitBytes),
+		buffer:     newLogBuffer(bufferSizeLimitBytes),
+		client:     client,
+		uploadPath: uploadPath,
+		mode:       mode,
 	}
 }
 
@@ -46,6 +54,8 @@ func (b *sizeBuffer) WithLogger(l logging.Logger) *sizeBuffer {
 	return b
 }
 
+func (*sizeBuffer) Stop() {}
+
 func (*sizeBuffer) Name() string {
 	return sizeBufferType
 }
@@ -56,7 +66,13 @@ func (b *sizeBuffer) incrMetric(name string) {
 	}
 }
 
-func (b *sizeBuffer) Reconfigure(bufferSizeLimitBytes int64, uploadSizeLimitBytes int64, maxDecisionsPerSecond *float64) {
+func (b *sizeBuffer) Reconfigure(
+	bufferSizeLimitBytes int64,
+	uploadSizeLimitBytes int64,
+	maxDecisionsPerSecond *float64,
+	client rest.Client,
+	uploadPath string,
+	mode plugins.TriggerMode) {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 
@@ -68,6 +84,10 @@ func (b *sizeBuffer) Reconfigure(bufferSizeLimitBytes int64, uploadSizeLimitByte
 
 	b.enc.Reconfigure(uploadSizeLimitBytes)
 	b.buffer.Reconfigure(bufferSizeLimitBytes)
+
+	b.mode = mode
+	b.client = client
+	b.uploadPath = uploadPath
 }
 
 func (b *sizeBuffer) Push(event *EventV1) {
@@ -89,17 +109,60 @@ func (b *sizeBuffer) Push(event *EventV1) {
 	if err != nil {
 		return
 	}
-	for _, chunk := range result {
-		b.bufferChunk(b.buffer, chunk)
+
+	if result == nil {
+		return
+	}
+
+	switch b.mode {
+	case plugins.TriggerImmediate:
+		ctx := context.Background()
+
+		var uploadErr error
+		for _, chunk := range result {
+			uploadErr = uploadChunk(ctx, b.client, b.uploadPath, chunk)
+			if uploadErr != nil {
+				break
+			}
+		}
+
+		if uploadErr != nil {
+			for _, chunk := range result {
+				b.bufferChunk(b.buffer, chunk)
+			}
+		} else {
+			for bs := b.buffer.Pop(); bs != nil; bs = b.buffer.Pop() {
+				uploadErr = uploadChunk(ctx, b.client, b.uploadPath, bs)
+				if uploadErr != nil {
+					b.bufferChunk(b.buffer, bs)
+					break
+				}
+			}
+		}
+
+		if uploadErr != nil {
+			b.cancelUpload = true
+		}
+	case plugins.TriggerPeriodic:
+		for _, chunk := range result {
+			b.bufferChunk(b.buffer, chunk)
+		}
 	}
 }
 
-func (b *sizeBuffer) Upload(ctx context.Context, client rest.Client, uploadPath string) error {
+func (b *sizeBuffer) Upload(ctx context.Context) error {
 	// Make a local copy of the plugin's encoder and buffer and create
 	// a new encoder and buffer. This is needed as locking the buffer for
 	// the upload duration will block policy evaluation and result in
 	// increased latency for OPA clients
 	b.mtx.Lock()
+	if b.mode == plugins.TriggerImmediate {
+		if b.cancelUpload {
+			b.cancelUpload = false
+			return nil
+		}
+	}
+
 	oldChunkEnc := b.enc
 	oldBuffer := b.buffer
 	b.buffer = newLogBuffer(b.buffer.limit)
@@ -125,7 +188,7 @@ func (b *sizeBuffer) Upload(ctx context.Context, client rest.Client, uploadPath 
 
 	for bs := oldBuffer.Pop(); bs != nil; bs = oldBuffer.Pop() {
 		if err == nil {
-			err = uploadChunk(ctx, client, uploadPath, bs)
+			err = uploadChunk(ctx, b.client, b.uploadPath, bs)
 		}
 		if err != nil {
 			if b.limiter != nil {
