@@ -53,6 +53,7 @@ const EcosystemIndex = (props) => {
     "clojure",
     "rust",
     "php",
+    "zig",
   ];
 
   const featureListByCategory = {};
