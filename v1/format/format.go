@@ -1309,7 +1309,7 @@ func (w *writer) writeTemplateString(ts *ast.TemplateString, comments []*ast.Com
 	if ts.MultiLine {
 		w.write("`")
 	} else {
-		w.write("\"")
+		w.write(`"`)
 	}
 
 	for i, p := range ts.Parts {
@@ -1364,9 +1364,9 @@ func (w *writer) writeTemplateString(ts *ast.TemplateString, comments []*ast.Com
 		case *ast.Term:
 			if s, ok := x.Value.(ast.String); ok {
 				if ts.MultiLine {
-					w.write(string(s))
+					w.write(ast.EscapeTemplateStringStringPart(string(s)))
 				} else {
-					str := s.String()
+					str := ast.EscapeTemplateStringStringPart(s.String())
 					w.write(str[1 : len(str)-1])
 				}
 			} else {
@@ -1383,7 +1383,7 @@ func (w *writer) writeTemplateString(ts *ast.TemplateString, comments []*ast.Com
 	if ts.MultiLine {
 		w.write("`")
 	} else {
-		w.write("\"")
+		w.write(`"`)
 	}
 
 	return comments, nil

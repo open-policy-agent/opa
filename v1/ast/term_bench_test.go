@@ -931,3 +931,49 @@ func BenchmarkPtr(b *testing.B) {
 		}
 	})
 }
+
+func BenchmarkEscapeTemplateStringStringPart(b *testing.B) {
+	inputs := []string{
+		"",
+		"{",
+		"\\{",
+		"}{",
+		"no curly!!!",
+		"{unes{caped",
+		"{{{{{{{{{{",
+	}
+	repeat := 100
+
+	for _, input := range inputs {
+		b.Run(fmt.Sprintf("%s * %d", input, repeat), func(b *testing.B) {
+			s := strings.Repeat(input, repeat)
+			for b.Loop() {
+				// expected output covered in test already
+				_ = EscapeTemplateStringStringPart(s)
+			}
+		})
+	}
+}
+
+func BenchmarkCountUnescapedLeftCurly(b *testing.B) {
+	inputs := []string{
+		"",
+		"{",
+		"\\{",
+		"}{",
+		"no curly!!!",
+		"{unes{caped",
+		"{{{{{{{{{{",
+	}
+	repeat := 100
+
+	for _, input := range inputs {
+		b.Run(fmt.Sprintf("%s * %d", input, repeat), func(b *testing.B) {
+			s := strings.Repeat(input, repeat)
+			for b.Loop() {
+				// expected output covered in test already
+				_ = countUnescapedLeftCurly(s)
+			}
+		})
+	}
+}
