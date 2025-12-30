@@ -678,7 +678,6 @@ func BenchmarkSetString(b *testing.B) {
 }
 
 func BenchmarkSetMarshalJSON(b *testing.B) {
-	var err error
 	sizes := []int{5, 50, 500, 5000, 50000}
 
 	for _, n := range sizes {
@@ -689,7 +688,7 @@ func BenchmarkSetMarshalJSON(b *testing.B) {
 			}
 
 			b.Run("json.Marshal", func(b *testing.B) {
-				b.ResetTimer()
+				var err error
 				for b.Loop() {
 					bs, err = json.Marshal(set)
 					if err != nil {
@@ -701,16 +700,26 @@ func BenchmarkSetMarshalJSON(b *testing.B) {
 	}
 }
 
+// Rationale for using byte-by-byte check vs regex in IsVarCompatibleString
+// ---------------------------------------------------------------------------
+// string                                          byte check            regex
+// ----------------------------------------   ---------------     ------------
+// ""                                              1.60 ns/op       2.14 ns/op
+// "5heel"                                         1.57 ns/op      17.21 ns/op
+// "__really_long_variable_name_1234567890"       13.84 ns/op     342.10 ns/op
+// "_ello_"                                        3.07 ns/op      66.35 ns/op
+// "h_llo"                                         1.61 ns/op      23.86 ns/op
+// "hello"                                         2.35 ns/op      59.42 ns/op
+// "incompatible_last_char!"                       7.85 ns/op     208.60 ns/op
 func BenchmarkIsVarCompatibleString(b *testing.B) {
 	tests := map[string]bool{
-		"hello":    true,
-		"5heel":    false,
-		"h\nllo":   false,
-		"h\tllo":   false,
-		"h\x00llo": false,
-		"h\"llo":   false,
-		"h\\llo":   false,
-		"":         false,
+		"hello":                                  true,
+		"_ello_":                                 true,
+		"5heel":                                  false,
+		"h\nllo":                                 false,
+		"":                                       false,
+		"incompatible_last_char!":                false,
+		"__really_long_variable_name_1234567890": true,
 	}
 
 	for _, name := range util.KeysSorted(tests) {
