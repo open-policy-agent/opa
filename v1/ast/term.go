@@ -1824,14 +1824,14 @@ func (s *set) Diff(other Set) Set {
 		return NewSet()
 	}
 
-	terms := make([]*Term, 0, len(s.keys))
-	for _, term := range s.sortedKeys() {
+	result := newset(len(s.keys))
+	for _, term := range s.keys {
 		if !other.Contains(term) {
-			terms = append(terms, term)
+			result.insert(term, false)
 		}
 	}
 
-	return NewSet(terms...)
+	return result
 }
 
 // Intersect returns the set containing elements in both s and other.
@@ -1846,14 +1846,14 @@ func (s *set) Intersect(other Set) Set {
 		n = m
 	}
 
-	terms := make([]*Term, 0, n)
-	for _, term := range ss.sortedKeys() {
+	result := newset(n)
+	for _, term := range ss.keys {
 		if so.Contains(term) {
-			terms = append(terms, term)
+			result.insert(term, false)
 		}
 	}
 
-	return NewSet(terms...)
+	return result
 }
 
 // Union returns the set containing all elements of s and other.
