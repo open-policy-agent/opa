@@ -1080,6 +1080,16 @@ func Store(s storage.Store) func(r *Rego) {
 	}
 }
 
+// Data returns an argument that sets the Rego data document. Data should be
+// a map representing the data document. This is a simpler alternative to
+// using Store with inmem.NewFromObject for cases where an in-memory store
+// with static data is sufficient.
+func Data(x map[string]any) func(r *Rego) {
+	return func(r *Rego) {
+		r.store = inmem.NewFromObject(x)
+	}
+}
+
 // StoreReadAST returns an argument that sets whether the store should eagerly convert data to AST values.
 //
 // Only applicable when no store has been set on the Rego object through the Store option.
