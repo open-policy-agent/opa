@@ -8319,6 +8319,22 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 					"user_1" = __local4__[__local1__]
 				}`,
 		},
+		{
+			note: "template string in head referencing var from some with template string in domain (issue #8162)",
+			module: `package test
+				r contains $"{val}" if {
+					some val in [1, $"{1 + 1}"]
+				}`,
+			exp: `package test
+				r contains __local5__ if {
+					__local9__ = {__local3__ | plus(1, 1, __local6__); __local3__ = __local6__}
+					internal.template_string([__local9__], __local7__)
+					__local8__ = [1, __local7__]
+					__local2__ = __local8__[__local1__]
+					__local10__ = {__local4__ | __local4__ = __local2__}
+					internal.template_string([__local10__], __local5__)
+				}`,
+		},
 
 		// else
 		{
