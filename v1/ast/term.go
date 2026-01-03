@@ -1884,9 +1884,16 @@ func (s *set) Intersect(other Set) Set {
 
 // Union returns the set containing all elements of s and other.
 func (s *set) Union(other Set) Set {
-	r := NewSet()
-	s.Foreach(r.Add)
-	other.Foreach(r.Add)
+	o := other.(*set)
+	// Pre-allocate with max size - avoids over-allocation for overlapping sets
+	// while only requiring one potential grow for disjoint sets.
+	r := newset(max(len(s.keys), len(o.keys)))
+	for _, term := range s.keys {
+		r.insert(term, false)
+	}
+	for _, term := range o.keys {
+		r.insert(term, false)
+	}
 	return r
 }
 
