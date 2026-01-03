@@ -1728,6 +1728,11 @@ func NewSet(t ...*Term) Set {
 	return s
 }
 
+// NewSetWithCapacity returns a new empty Set with the given capacity pre-allocated.
+func NewSetWithCapacity(capacity int) Set {
+	return newset(capacity)
+}
+
 func newset(n int) *set {
 	var keys []*Term
 	if n > 0 {
