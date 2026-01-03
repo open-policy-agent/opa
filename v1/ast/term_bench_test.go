@@ -418,6 +418,48 @@ func BenchmarkSetIntersectionDifferentSize(b *testing.B) {
 	}
 }
 
+func BenchmarkSetUnion(b *testing.B) {
+	sizes := []int{5, 50, 500, 5000}
+	for _, n := range sizes {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			setA := NewSet()
+			setB := NewSet()
+			for i := range n {
+				setA.Add(IntNumberTerm(i))
+				setB.Add(IntNumberTerm(i + n)) // disjoint sets
+			}
+			b.ResetTimer()
+			for b.Loop() {
+				setC := setA.Union(setB)
+				if setC.Len() != 2*n {
+					b.Fatal("expected combined size")
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkSetUnionOverlapping(b *testing.B) {
+	sizes := []int{5, 50, 500, 5000}
+	for _, n := range sizes {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			setA := NewSet()
+			setB := NewSet()
+			for i := range n {
+				setA.Add(IntNumberTerm(i))
+				setB.Add(IntNumberTerm(i)) // identical sets
+			}
+			b.ResetTimer()
+			for b.Loop() {
+				setC := setA.Union(setB)
+				if setC.Len() != n {
+					b.Fatal("expected same size")
+				}
+			}
+		})
+	}
+}
+
 func BenchmarkSetMembership(b *testing.B) {
 	sizes := []int{5, 50, 500, 5000}
 	for _, n := range sizes {
