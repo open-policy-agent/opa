@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## 1.12.2
+
+This bug fix release address issues introduced in the new string interpolation feature
+
+- Fix template string not serialized with escaped { ([#8161](https://github.com/open-policy-agent/opa/pull/8161))
+  authored by @anderseknert
+- fix(ast): skip template string vars in ref safety ([#8174](https://github.com/open-policy-agent/opa/pull/8174))
+  authored by @thevilledev
+- fix(ast): use original var names in template error ([#8180](https://github.com/open-policy-agent/opa/pull/8180))
+  authored by @thevilledev
+
 ## 1.12.1
 
 This bug fix release reverts a change to `regex.replace` that unintentionally changed its behaviour for anchored regular expressions.
