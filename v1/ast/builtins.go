@@ -1823,7 +1823,8 @@ var ObjectKeys = &Builtin{
 /*
  *  Encoding
  */
-var encoding = category("encoding")
+// Not using 'encoding' to avoid having to alias stdlib "encoding" imports
+var catEncoding = category("encoding")
 
 var JSONMarshal = &Builtin{
 	Name:        "json.marshal",
@@ -1834,7 +1835,7 @@ var JSONMarshal = &Builtin{
 		),
 		types.Named("y", types.S).Description("the JSON string representation of `x`"),
 	),
-	Categories:  encoding,
+	Categories:  catEncoding,
 	CanSkipBctx: true,
 }
 
@@ -1856,7 +1857,7 @@ var JSONMarshalWithOptions = &Builtin{
 		),
 		types.Named("y", types.S).Description("the JSON string representation of `x`, with configured prefix/indent string(s) as appropriate"),
 	),
-	Categories:  encoding,
+	Categories:  catEncoding,
 	CanSkipBctx: true,
 }
 
@@ -1869,7 +1870,7 @@ var JSONUnmarshal = &Builtin{
 		),
 		types.Named("y", types.A).Description("the term deserialized from `x`"),
 	),
-	Categories:  encoding,
+	Categories:  catEncoding,
 	CanSkipBctx: true,
 }
 
@@ -1882,7 +1883,7 @@ var JSONIsValid = &Builtin{
 		),
 		types.Named("result", types.B).Description("`true` if `x` is valid JSON, `false` otherwise"),
 	),
-	Categories:  encoding,
+	Categories:  catEncoding,
 	CanSkipBctx: true,
 }
 
@@ -1895,7 +1896,7 @@ var Base64Encode = &Builtin{
 		),
 		types.Named("y", types.S).Description("base64 serialization of `x`"),
 	),
-	Categories:  encoding,
+	Categories:  catEncoding,
 	CanSkipBctx: true,
 }
 
@@ -1908,7 +1909,7 @@ var Base64Decode = &Builtin{
 		),
 		types.Named("y", types.S).Description("base64 deserialization of `x`"),
 	),
-	Categories:  encoding,
+	Categories:  catEncoding,
 	CanSkipBctx: true,
 }
 
@@ -1921,7 +1922,7 @@ var Base64IsValid = &Builtin{
 		),
 		types.Named("result", types.B).Description("`true` if `x` is valid base64 encoded value, `false` otherwise"),
 	),
-	Categories:  encoding,
+	Categories:  catEncoding,
 	CanSkipBctx: true,
 }
 
@@ -1934,7 +1935,7 @@ var Base64UrlEncode = &Builtin{
 		),
 		types.Named("y", types.S).Description("base64url serialization of `x`"),
 	),
-	Categories:  encoding,
+	Categories:  catEncoding,
 	CanSkipBctx: true,
 }
 
@@ -1947,7 +1948,7 @@ var Base64UrlEncodeNoPad = &Builtin{
 		),
 		types.Named("y", types.S).Description("base64url serialization of `x`"),
 	),
-	Categories:  encoding,
+	Categories:  catEncoding,
 	CanSkipBctx: true,
 }
 
@@ -1960,7 +1961,7 @@ var Base64UrlDecode = &Builtin{
 		),
 		types.Named("y", types.S).Description("base64url deserialization of `x`"),
 	),
-	Categories:  encoding,
+	Categories:  catEncoding,
 	CanSkipBctx: true,
 }
 
@@ -1973,7 +1974,7 @@ var URLQueryDecode = &Builtin{
 		),
 		types.Named("y", types.S).Description("URL-encoding deserialization of `x`"),
 	),
-	Categories:  encoding,
+	Categories:  catEncoding,
 	CanSkipBctx: true,
 }
 
@@ -1986,7 +1987,7 @@ var URLQueryEncode = &Builtin{
 		),
 		types.Named("y", types.S).Description("URL-encoding serialization of `x`"),
 	),
-	Categories:  encoding,
+	Categories:  catEncoding,
 	CanSkipBctx: true,
 }
 
@@ -2010,7 +2011,7 @@ var URLQueryEncodeObject = &Builtin{
 		),
 		types.Named("y", types.S).Description("the URL-encoded serialization of `object`"),
 	),
-	Categories:  encoding,
+	Categories:  catEncoding,
 	CanSkipBctx: true,
 }
 
@@ -2025,7 +2026,7 @@ var URLQueryDecodeObject = &Builtin{
 			types.S,
 			types.NewArray(nil, types.S)))).Description("the resulting object"),
 	),
-	Categories:  encoding,
+	Categories:  catEncoding,
 	CanSkipBctx: true,
 }
 
@@ -2038,7 +2039,7 @@ var YAMLMarshal = &Builtin{
 		),
 		types.Named("y", types.S).Description("the YAML string representation of `x`"),
 	),
-	Categories:  encoding,
+	Categories:  catEncoding,
 	CanSkipBctx: true,
 }
 
@@ -2051,7 +2052,7 @@ var YAMLUnmarshal = &Builtin{
 		),
 		types.Named("y", types.A).Description("the term deserialized from `x`"),
 	),
-	Categories:  encoding,
+	Categories:  catEncoding,
 	CanSkipBctx: true,
 }
 
@@ -2065,7 +2066,7 @@ var YAMLIsValid = &Builtin{
 		),
 		types.Named("result", types.B).Description("`true` if `x` is valid YAML, `false` otherwise"),
 	),
-	Categories:  encoding,
+	Categories:  catEncoding,
 	CanSkipBctx: true,
 }
 
@@ -2078,7 +2079,7 @@ var HexEncode = &Builtin{
 		),
 		types.Named("y", types.S).Description("serialization of `x` using hex-encoding"),
 	),
-	Categories:  encoding,
+	Categories:  catEncoding,
 	CanSkipBctx: true,
 }
 
@@ -2091,7 +2092,7 @@ var HexDecode = &Builtin{
 		),
 		types.Named("y", types.S).Description("deserialized from `x`"),
 	),
-	Categories:  encoding,
+	Categories:  catEncoding,
 	CanSkipBctx: true,
 }
 

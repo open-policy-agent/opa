@@ -2,6 +2,7 @@ package util
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"unsafe"
@@ -106,6 +107,11 @@ func NumDigitsUint(n uint64) int {
 		count++
 	}
 	return count
+}
+
+// AppendInt is a less messy version of strconv.AppendInt for base 10 ints.
+func AppendInt(buf []byte, n int) []byte {
+	return strconv.AppendInt(buf, int64(n), 10)
 }
 
 // SplitMap calls fn for each delim-separated part of text and returns a slice of the results.
