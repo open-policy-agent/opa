@@ -28,7 +28,6 @@ func (h printHook) Print(_ print.Context, msg string) error {
 }
 
 func builtinPrint(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-
 	if bctx.PrintHook == nil {
 		return iter(nil)
 	}
@@ -40,7 +39,7 @@ func builtinPrint(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 
 	buf := make([]string, arr.Len())
 
-	err = builtinPrintCrossProductOperands(bctx, buf, arr, 0, func(buf []string) error {
+	err = builtinPrintCrossProductOperands(bctx.Location, buf, arr, 0, func(buf []string) error {
 		pctx := print.Context{
 			Context:  bctx.Context,
 			Location: bctx.Location,
@@ -54,20 +53,32 @@ func builtinPrint(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 	return iter(nil)
 }
 
-func builtinPrintCrossProductOperands(bctx BuiltinContext, buf []string, operands *ast.Array, i int, f func([]string) error) error {
-
+func builtinPrintCrossProductOperands(loc *ast.Location, buf []string, operands *ast.Array, i int, f func([]string) error) error {
 	if i >= operands.Len() {
 		return f(buf)
 	}
 
-	xs, ok := operands.Elem(i).Value.(ast.Set)
+	operand := operands.Elem(i)
+
+	// We allow primitives ...
+	switch x := operand.Value.(type) {
+	case ast.String:
+		buf[i] = string(x)
+		return builtinPrintCrossProductOperands(loc, buf, operands, i+1, f)
+	case ast.Number, ast.Boolean, ast.Null:
+		buf[i] = x.String()
+		return builtinPrintCrossProductOperands(loc, buf, operands, i+1, f)
+	}
+
+	// ... but all other operand types must be sets.
+	xs, ok := operand.Value.(ast.Set)
 	if !ok {
-		return Halt{Err: internalErr(bctx.Location, fmt.Sprintf("illegal argument type: %v", ast.ValueName(operands.Elem(i).Value)))}
+		return Halt{Err: internalErr(loc, "illegal argument type: "+ast.ValueName(operand.Value))}
 	}
 
 	if xs.Len() == 0 {
 		buf[i] = "<undefined>"
-		return builtinPrintCrossProductOperands(bctx, buf, operands, i+1, f)
+		return builtinPrintCrossProductOperands(loc, buf, operands, i+1, f)
 	}
 
 	return xs.Iter(func(x *ast.Term) error {
@@ -77,7 +88,7 @@ func builtinPrintCrossProductOperands(bctx BuiltinContext, buf []string, operand
 		default:
 			buf[i] = v.String()
 		}
-		return builtinPrintCrossProductOperands(bctx, buf, operands, i+1, f)
+		return builtinPrintCrossProductOperands(loc, buf, operands, i+1, f)
 	})
 }
 

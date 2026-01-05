@@ -42,10 +42,17 @@ var (
 	}
 
 	internedVarValues = map[string]Value{
-		"input": Var("input"),
-		"data":  Var("data"),
-		"key":   Var("key"),
-		"value": Var("value"),
+		"input":    Var("input"),
+		"data":     Var("data"),
+		"args":     Var("args"),
+		"schema":   Var("schema"),
+		"key":      Var("key"),
+		"value":    Var("value"),
+		"future":   Var("future"),
+		"rego":     Var("rego"),
+		"set":      Var("set"),
+		"internal": Var("internal"),
+		"else":     Var("else"),
 
 		"i": Var("i"), "j": Var("j"), "k": Var("k"), "v": Var("v"), "x": Var("x"), "y": Var("y"), "z": Var("z"),
 	}
@@ -188,6 +195,13 @@ func InternedTerm[T internable](v T) *Term {
 	default:
 		panic("unreachable")
 	}
+}
+
+// InternedItem works just like [Item] but returns interned terms for both
+// key and value where possible. This is mostly useful for making tests less
+// verbose.
+func InternedItem[K, V internable](key K, value V) [2]*Term {
+	return [2]*Term{InternedTerm(key), InternedTerm(value)}
 }
 
 // InternedIntFromString returns a term with the given integer value if the string

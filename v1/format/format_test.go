@@ -310,6 +310,14 @@ func TestFormatAST(t *testing.T) {
 			expected: `"foo"`,
 		},
 		{
+			note: "string, raw",
+			toFmt: &ast.Term{
+				Value:    ast.String(`foo`),
+				Location: &ast.Location{Text: []byte("`foo`")},
+			},
+			expected: "`foo`",
+		},
+		{
 			note:     "var wildcard",
 			toFmt:    ast.Var(`$12`),
 			expected: "_",
@@ -638,6 +646,105 @@ a[_x[y][[z, w]]]`,
 			}(),
 			expected: `concat(",", [__local1__], __local0__)`,
 		},
+		{
+			note: "template-string",
+			toFmt: ast.TemplateStringTerm(false,
+				ast.StringTerm("foo "),
+				&ast.Expr{
+					Terms: ast.VarTerm("x"),
+				},
+				ast.StringTerm(" "),
+				&ast.Expr{
+					Terms: ast.RefTerm(ast.VarTerm("input"), ast.StringTerm("y")),
+				},
+				ast.StringTerm(" \n "),
+				&ast.Expr{
+					Terms: ast.Round.Call(ast.NumberTerm("1.2")),
+				},
+			),
+			expected: `$"foo {x} {input.y} \n {round(1.2)}"`,
+		},
+		{
+			note: "template-string, multi-line",
+			toFmt: ast.TemplateStringTerm(true,
+				ast.StringTerm(`foo `),
+				&ast.Expr{
+					Terms: ast.VarTerm("x"),
+				},
+				ast.StringTerm(` `),
+				&ast.Expr{
+					Terms: ast.RefTerm(ast.VarTerm("input"), ast.StringTerm("y")),
+				},
+				ast.StringTerm(` 
+ `),
+				&ast.Expr{
+					Terms: ast.Round.Call(ast.NumberTerm("1.2")),
+				},
+			),
+			expected: "$`foo {x} {input.y} \n {round(1.2)}`",
+		},
+		{
+			note: "template-string, single-line, string template-expressions",
+			toFmt: ast.TemplateStringTerm(false,
+				ast.StringTerm("foo "),
+				&ast.Expr{
+					Terms: &ast.Term{
+						Value:    ast.String("bar"),
+						Location: &ast.Location{Text: []byte(`"bar"`)},
+					},
+				},
+				ast.StringTerm(" "),
+				&ast.Expr{
+					Terms: &ast.Term{
+						Value:    ast.String(`baz`),
+						Location: &ast.Location{Text: []byte("`baz`")},
+					},
+				},
+			),
+			expected: `$"foo {"bar"} {` + "`baz`" + `}"`,
+		},
+		{
+			note: "template-string, multi-line, string template-expressions",
+			toFmt: ast.TemplateStringTerm(true,
+				ast.StringTerm("foo "),
+				&ast.Expr{
+					Terms: &ast.Term{
+						Value:    ast.String("bar"),
+						Location: &ast.Location{Text: []byte(`"bar"`)},
+					},
+				},
+				ast.StringTerm(" "),
+				&ast.Expr{
+					Terms: &ast.Term{
+						Value:    ast.String(`baz`),
+						Location: &ast.Location{Text: []byte("`baz`")},
+					},
+				},
+			),
+			expected: "$`foo {\"bar\"} {`baz`}`",
+		},
+		{
+			note: "template-string, left curly in string part",
+			toFmt: ast.TemplateStringTerm(false,
+				ast.StringTerm(`allow if { `),
+				&ast.Expr{
+					Terms: ast.VarTerm("x"),
+				},
+				ast.StringTerm(" }"),
+			),
+			expected: `$"allow if \{ {x} }"`,
+		},
+		{
+			note: "template-string, multi-line, left curly in string part",
+			toFmt: ast.TemplateStringTerm(true,
+				ast.StringTerm("allow if {\n\t"),
+				&ast.Expr{
+					Terms: ast.VarTerm("x"),
+				},
+				ast.StringTerm("\n}"),
+			),
+			expected: "$`allow if \\{\n\t{x}\n}`",
+		},
 	}
 
 	for _, tc := range cases {
@@ -660,11 +767,7 @@ a[_x[y][[z, w]]]`,
 
 		// consistency check: disregarding source locations, it shouldn't panic
 		t.Run("no_loc/"+tc.note, func(t *testing.T) {
-			_, err := AstWithOpts(tc.toFmt, Opts{IgnoreLocations: true})
-			if err != nil {
-				t.Fatalf("Unexpected error: %s", err)
-			}
-			if err != nil {
+			if _, err := AstWithOpts(tc.toFmt, Opts{IgnoreLocations: true}); err != nil {
 				t.Fatalf("Unexpected error: %s", err)
 			}
 		})

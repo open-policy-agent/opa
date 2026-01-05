@@ -969,3 +969,66 @@ func BenchmarkObjectGetFromBaseDoc(b *testing.B) {
 		}
 	}
 }
+
+// templatestring           216386      5524 ns/op   10074 B/op	     158 allocs/op
+// templatestring                       5219 ns/op    8337 B/op      152 allocs/op don't pass bctx
+// --
+// concat                   272054      4500 ns/op    6728 B/op	     123 allocs/op
+// sprintf                  280381      4421 ns/op    6365 B/op	     121 allocs/op
+func BenchmarkTemplateStringVsConcatVsSprintf(b *testing.B) {
+	ctx := b.Context()
+	store := inmem.NewFromObject(map[string]any{})
+
+	modBase := `package test
+	
+	foo := "foo"
+	bar := "bar"
+	baz := "baz"
+
+	`
+	tests := []struct {
+		name    string
+		snippet string
+	}{
+		{
+			name:    "templatestring",
+			snippet: `s := $"{foo}-{bar}-{baz}"`,
+		},
+		{
+			name:    "concat",
+			snippet: `s := concat("-", [foo, bar, baz])`,
+		},
+		{
+			name:    "sprintf",
+			snippet: `s := sprintf("%s-%s-%s", [foo, bar, baz])`,
+		},
+	}
+
+	for _, tc := range tests {
+		policy := modBase + tc.snippet
+
+		query := ast.MustParseBody("data.test.s = s")
+		compiler := ast.MustCompileModules(map[string]string{"test.rego": policy})
+
+		b.Run(tc.name, func(b *testing.B) {
+			err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+				q := NewQuery(query).WithCompiler(compiler).WithStore(store).WithTransaction(txn)
+				for b.Loop() {
+					rs, err := q.Run(ctx)
+					if err != nil {
+						return err
+					}
+					result := rs[0][ast.Var("s")]
+					expected := ast.String("foo-bar-baz")
+					if !result.Value.(ast.String).Equal(expected) {
+						b.Fatalf("unexpected result: %v (expected: %v)", result, expected)
+					}
+				}
+				return nil
+			})
+			if err != nil {
+				b.Fatal(err)
+			}
+		})
+	}
+}

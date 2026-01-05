@@ -343,6 +343,7 @@ func NewCompiler() *Compiler {
 		{"SetModuleTree", "compile_stage_set_module_tree", c.setModuleTree},
 		{"SetRuleTree", "compile_stage_set_rule_tree", c.setRuleTree}, // depends on RewriteRuleHeadRefs
 		{"RewriteLocalVars", "compile_stage_rewrite_local_vars", c.rewriteLocalVars},
+		{"RewriteTemplateStrings", "compile_stage_rewrite_template_strings", c.rewriteTemplateStrings},
 		{"CheckVoidCalls", "compile_stage_check_void_calls", c.checkVoidCalls},
 		{"RewritePrintCalls", "compile_stage_rewrite_print_calls", c.rewritePrintCalls},
 		{"RewriteExprTerms", "compile_stage_rewrite_expr_terms", c.rewriteExprTerms},
@@ -1059,11 +1060,15 @@ func (c *Compiler) buildRequiredCapabilities() {
 		}
 	}
 
-	c.Required.Features = util.KeysSorted(features)
-
 	for i, bi := range c.Required.Builtins {
 		c.Required.Builtins[i] = bi.Minimal()
+
+		if bi.Name == InternalTemplateString.Name {
+			features[FeatureTemplateStrings] = struct{}{}
+		}
 	}
+
+	c.Required.Features = util.KeysSorted(features)
 }
 
 // checkRecursion ensures that there are no recursive definitions, i.e., there are
@@ -2087,6 +2092,199 @@ func (c *Compiler) checkVoidCalls() {
 	}
 }
 
+func (c *Compiler) builtinLoc(ref Ref) *Builtin {
+	n := ref.String()
+	if b, ok := c.builtins[n]; ok {
+		return b
+	}
+	if b, ok := c.customBuiltins[n]; ok {
+		return b
+	}
+	return nil
+}
+
+// rewriteTemplateStrings rewrites template-string calls as they appear in bodies; e.g. rules, comprehensions, etc.
+func (c *Compiler) rewriteTemplateStrings() {
+	modified := false
+	for _, name := range c.sorted {
+		mod := c.Modules[name]
+		WalkRules(mod, func(r *Rule) bool {
+			safe := r.Head.Args.Vars()
+			safe.Update(ReservedVars)
+
+			modrec, safe, errs := rewriteTemplateStrings(c.capabilities, c.localvargen, c.GetArity, safe, c.builtinLoc, r.Body)
+			if modrec {
+				modified = true
+			}
+			for _, err := range errs {
+				c.err(err)
+			}
+
+			modrec, _, errs = rewriteTemplateStrings(c.capabilities, c.localvargen, c.GetArity, safe, c.builtinLoc, r.Head)
+			if modrec {
+				modified = true
+			}
+			for _, err := range errs {
+				c.err(err)
+			}
+
+			return false
+		})
+	}
+	if modified {
+		c.Required.addBuiltinSorted(InternalTemplateString)
+	}
+}
+
+func rewriteTemplateStrings(caps *Capabilities, gen *localVarGenerator, getArity func(Ref) int, globals VarSet, builtins builtinLocator, x any) (bool, VarSet, Errors) {
+	var errs Errors
+	var modified bool
+
+	// All output vars in the current body are safe, recursively
+	var safe VarSet
+	if b, ok := x.(Body); ok {
+		safe = outputVarsForBody(b, getArity, globals, nil)
+		safe.Update(globals)
+	} else {
+		safe = globals.Copy()
+	}
+
+	vis := &GenericVisitor{func(x any) bool {
+		var modrec bool
+		var errsrec Errors
+		switch x := x.(type) {
+		case *Term:
+			if _, ok := x.Value.(*TemplateString); ok {
+				modrec, errsrec = rewriteTemplateStringTerm(caps, gen, safe, builtins, x)
+			}
+		case *SetComprehension:
+			var s VarSet
+			modrec, s, errsrec = rewriteTemplateStrings(caps, gen, getArity, safe, builtins, x.Body)
+			if modrec {
+				modified = true
+			}
+			errs = append(errs, errsrec...)
+
+			modrec, errsrec = rewriteTemplateStringTerm(caps, gen, s, builtins, x.Term)
+		case *ArrayComprehension:
+			var s VarSet
+			modrec, s, errsrec = rewriteTemplateStrings(caps, gen, getArity, safe, builtins, x.Body)
+			if modrec {
+				modified = true
+			}
+			errs = append(errs, errsrec...)
+
+			modrec, errsrec = rewriteTemplateStringTerm(caps, gen, s, builtins, x.Term)
+		case *ObjectComprehension:
+			var s VarSet
+			modrec, s, errsrec = rewriteTemplateStrings(caps, gen, getArity, safe, builtins, x.Body)
+			if modrec {
+				modified = true
+			}
+			errs = append(errs, errsrec...)
+
+			modrec, errsrec = rewriteTemplateStringTerm(caps, gen, s, builtins, x.Key)
+			if modrec {
+				modified = true
+			}
+			errs = append(errs, errsrec...)
+
+			modrec, errsrec = rewriteTemplateStringTerm(caps, gen, s, builtins, x.Value)
+		case *Every:
+			modrec, errsrec = rewriteTemplateStringTerm(caps, gen, safe, builtins, x.Domain)
+			if modrec {
+				modified = true
+			}
+			errs = append(errs, errsrec...)
+
+			s := safe.Copy()
+			s.Update(x.KeyValueVars())
+			modrec, _, errsrec = rewriteTemplateStrings(caps, gen, getArity, s, builtins, x.Body)
+		}
+		if modrec {
+			modified = true
+		}
+		errs = append(errs, errsrec...)
+		return false
+	}}
+	vis.Walk(x)
+
+	return modified, safe, errs
+}
+
+func rewriteTemplateStringTerm(caps *Capabilities, gen *localVarGenerator, globals VarSet, builtins builtinLocator, t *Term) (bool, Errors) {
+	if ts, ok := t.Value.(*TemplateString); ok {
+		call, errs := rewriteTemplateString(caps, gen, globals, builtins, t.Loc(), ts)
+		if len(errs) != 0 {
+			return false, errs
+		}
+		t.Value = call
+		return true, nil
+	}
+	return false, nil
+}
+
+type builtinLocator func(Ref) *Builtin
+
+func rewriteTemplateString(caps *Capabilities, gen *localVarGenerator, safe VarSet, builtins builtinLocator, loc *Location, ts *TemplateString) (Call, Errors) {
+	if !caps.ContainsFeature(FeatureTemplateStrings) || !caps.ContainsBuiltin(InternalTemplateString.Name) {
+		return nil, Errors{NewError(CompileErr, loc, "template-strings are not supported")}
+	}
+
+	var errs Errors
+	terms := make([]*Term, 0, len(ts.Parts))
+
+	if len(ts.Parts) == 0 {
+		terms = append(terms, StringTerm("").SetLocation(loc))
+	} else {
+		for _, p := range ts.Parts {
+			switch p := p.(type) {
+			case *Expr:
+				var t *Term
+				if p.IsCall() {
+					// Assert that the call isn't for a known relation built-in
+					if bi := builtins(p.Operator()); bi != nil && bi.Relation {
+						errs = append(errs, NewError(CompileErr, t.Loc(), "illegal call to relation built-in '%s' that may cause multiple outputs", bi.Name))
+						continue
+					}
+					t = CallTerm(p.Terms.([]*Term)...)
+				} else {
+					var ok bool
+					t, ok = p.Terms.(*Term)
+					if !ok {
+						errs = append(errs, NewError(CompileErr, p.Location, "unexpected template-string expression type: %T", p.Terms))
+						continue
+					}
+				}
+
+				vis := ClearOrNewVarVisitor(nil).WithParams(SafetyCheckVisitorParams)
+				vis.Walk(t)
+				vars := vis.Vars()
+				if vars.DiffCount(safe) > 0 {
+					unsafe := vars.Diff(safe)
+					for _, v := range unsafe.Sorted() {
+						errs = append(errs, NewError(CompileErr, t.Loc(), "var %v is undeclared", v))
+					}
+				}
+
+				loc := t.Loc()
+				x := NewTerm(gen.Generate()).SetLocation(loc)
+				capture := Equality.Expr(x, t).SetLocation(loc)
+				capture.With = p.With
+				terms = append(terms, SetComprehensionTerm(x, NewBody(capture)).SetLocation(loc))
+			case *Term:
+				terms = append(terms, p)
+			default:
+				errs = append(errs, NewError(CompileErr, loc, "expected only term or expression parts in template-string, got %T", p))
+				return nil, errs
+			}
+		}
+	}
+
+	call := InternalTemplateString.Call(ArrayTerm(terms...)).Value.(Call)
+	return call, errs
+}
+
 func (c *Compiler) rewritePrintCalls() {
 	var modified bool
 	if !c.enablePrintStatements {
@@ -2839,6 +3037,9 @@ func (xform *rewriteNestedHeadVarLocalTransform) Visit(x any) bool {
 		case *ObjectComprehension:
 			xform.errs = rewriteDeclaredVarsInObjectComprehension(xform.gen, stack, x, xform.errs, xform.strict)
 			stop = true
+		case *TemplateString:
+			xform.errs = rewriteDeclaredVarsInTemplateString(xform.gen, stack, x, xform.errs, xform.strict)
+			stop = true
 		}
 
 		maps.Copy(xform.RewrittenVars, stack.rewritten)
@@ -2910,8 +3111,8 @@ func (vis *ruleArgLocalRewriter) Visit(x any) Visitor {
 			t.Value = cpy
 		}
 		return nil
-	case Null, Boolean, Number, String, *ArrayComprehension, *SetComprehension, *ObjectComprehension, Set:
-		// Scalars are no-ops. Comprehensions are handled above. Sets must not
+	case Null, Boolean, Number, String, *ArrayComprehension, *SetComprehension, *ObjectComprehension, Set, *TemplateString:
+		// Scalars are no-ops. Comprehensions and template-strings are handled above. Sets must not
 		// contain variables.
 		return nil
 	case Call:
@@ -3051,6 +3252,7 @@ func (qc *queryCompiler) Compile(query Body) (Body, error) {
 		{"CheckKeywordOverrides", "query_compile_stage_check_keyword_overrides", qc.checkKeywordOverrides},
 		{"ResolveRefs", "query_compile_stage_resolve_refs", qc.resolveRefs},
 		{"RewriteLocalVars", "query_compile_stage_rewrite_local_vars", qc.rewriteLocalVars},
+		{"RewriteTemplateStrings", "compile_stage_rewrite_template_strings", qc.rewriteTemplateStrings},
 		{"CheckVoidCalls", "query_compile_stage_check_void_calls", qc.checkVoidCalls},
 		{"RewritePrintCalls", "query_compile_stage_rewrite_print_calls", qc.rewritePrintCalls},
 		{"RewriteExprTerms", "query_compile_stage_rewrite_expr_terms", qc.rewriteExprTerms},
@@ -3171,6 +3373,14 @@ func (qc *queryCompiler) rewriteLocalVars(_ *QueryContext, body Body) (Body, err
 	// want to include these inside the rewritten set though.
 	qc.rewritten = maps.Clone(stack.rewritten)
 
+	return body, nil
+}
+
+func (qc *queryCompiler) rewriteTemplateStrings(_ *QueryContext, body Body) (Body, error) {
+	gen := newLocalVarGenerator("q", body)
+	if _, _, errs := rewriteTemplateStrings(qc.compiler.capabilities, gen, qc.compiler.GetArity, ReservedVars, qc.compiler.builtinLoc, body); len(errs) > 0 {
+		return nil, errs
+	}
 	return body, nil
 }
 
@@ -3536,7 +3746,7 @@ func NewModuleTree(mods map[string]*Module) *ModuleTreeNode {
 			c, ok := node.Children[x.Value]
 			if !ok {
 				var hide bool
-				if i == 1 && x.Value.Compare(SystemDocumentKey) == 0 {
+				if i == 1 && SystemDocumentKey.Equal(x.Value) {
 					hide = true
 				}
 				c = &ModuleTreeNode{
@@ -4273,6 +4483,9 @@ func outputVarsForExpr(expr *Expr, arity func(Ref) int, safe VarSet, output VarS
 	}
 
 	switch terms := expr.Terms.(type) {
+	case *TemplateString:
+		// Template-expressions have no output vars
+		return VarSet{}
 	case *Term:
 		return outputVarsForTerms(expr, safe, nil)
 	case []*Term:
@@ -4351,7 +4564,7 @@ func outputVarsForTerms(expr any, safe, output VarSet) VarSet {
 	}
 	WalkTerms(expr, func(x *Term) bool {
 		switch r := x.Value.(type) {
-		case *SetComprehension, *ArrayComprehension, *ObjectComprehension:
+		case *SetComprehension, *ArrayComprehension, *ObjectComprehension, *TemplateString:
 			return true
 		case Ref:
 			if !isRefSafe(r, safe) {
@@ -4671,6 +4884,18 @@ func resolveRefsInTerm(globals map[Var]*usedRef, ignore *declaredVarStack, term 
 		cpy := *term
 		cpy.Value = sc
 		ignore.Pop()
+		return &cpy
+	case *TemplateString:
+		ts := &TemplateString{}
+		for _, p := range v.Parts {
+			if expr, ok := p.(*Expr); ok {
+				ts.Parts = append(ts.Parts, resolveRefsInExpr(globals, ignore, expr))
+			} else {
+				ts.Parts = append(ts.Parts, p)
+			}
+		}
+		cpy := *term
+		cpy.Value = ts
 		return &cpy
 	default:
 		return term
@@ -5101,6 +5326,7 @@ func connectGeneratedExprs(parent *Expr, children ...*Expr) {
 
 func expandExprTerm(gen *localVarGenerator, term *Term) (support []*Expr, output *Term) {
 	output = term
+
 	switch v := term.Value.(type) {
 	case Call:
 		for i := 1; i < len(v); i++ {
@@ -5814,6 +6040,18 @@ func rewriteDeclaredVarsInWithRecursive(g *localVarGenerator, stack *localDeclar
 	}
 	// No special handling of the `with` value
 	return rewriteDeclaredVarsInTermRecursive(g, stack, w.Value, errs, strict)
+}
+
+func rewriteDeclaredVarsInTemplateString(g *localVarGenerator, stack *localDeclaredVars, ts *TemplateString, errs Errors, strict bool) Errors {
+	for i, p := range ts.Parts {
+		if expr, ok := p.(*Expr); ok {
+			stack.Push()
+			ts.Parts[i], errs = rewriteDeclaredVarsInExpr(g, stack, expr, errs, strict)
+			stack.Pop()
+		}
+	}
+
+	return errs
 }
 
 func rewriteDeclaredVarsInArrayComprehension(g *localVarGenerator, stack *localDeclaredVars, v *ArrayComprehension, errs Errors, strict bool) Errors {

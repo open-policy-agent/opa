@@ -12,7 +12,6 @@ import (
 	"io"
 	"math"
 	"net/url"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -25,7 +24,11 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
-var errFindNotFound = errors.New("find: not found")
+var (
+	NullValue Value = Null{}
+
+	errFindNotFound = errors.New("find: not found")
+)
 
 // Location records a position in source code.
 type Location = location.Location
@@ -43,6 +46,7 @@ func NewLocation(text []byte, file string, row int, col int) *Location {
 // - Variables, References
 // - Array, Set, and Object Comprehensions
 // - Calls
+// - Template Strings
 type Value interface {
 	Compare(other Value) int      // Compare returns <0, 0, or >0 if this Value is less than, equal to, or greater than other, respectively.
 	Find(path Ref) (Value, error) // Find returns value referred to by path or an error if path is not found.
@@ -351,6 +355,8 @@ func (term *Term) Copy() *Term {
 		cpy.Value = v.Copy()
 	case *SetComprehension:
 		cpy.Value = v.Copy()
+	case *TemplateString:
+		cpy.Value = v.Copy()
 	case Call:
 		cpy.Value = v.Copy()
 	}
@@ -456,7 +462,17 @@ func (term *Term) Vars() VarSet {
 }
 
 // IsConstant returns true if the AST value is constant.
+// Note that this is only a shallow check as we currently don't have a real
+// notion of constant "vars" in the AST implementation. Meaning that while we could
+// derive that a reference to a constant value is also constant, we currently don't.
 func IsConstant(v Value) bool {
+	switch v.(type) {
+	case Null, Boolean, Number, String:
+		return true
+	case Var, Ref, *ArrayComprehension, *ObjectComprehension, *SetComprehension, Call:
+		return false
+	}
+
 	found := false
 	vis := GenericVisitor{
 		func(x any) bool {
@@ -530,8 +546,6 @@ func IsScalar(v Value) bool {
 
 // Null represents the null value defined by JSON.
 type Null struct{}
-
-var NullValue Value = Null{}
 
 // NullTerm creates a new Term with a Null value.
 func NullTerm() *Term {
@@ -818,6 +832,173 @@ func (str String) Hash() int {
 	return int(xxhash.Sum64String(string(str)))
 }
 
+type TemplateString struct {
+	Parts     []Node `json:"parts"`
+	MultiLine bool   `json:"multi_line"`
+}
+
+func (ts *TemplateString) Copy() *TemplateString {
+	cpy := &TemplateString{MultiLine: ts.MultiLine, Parts: make([]Node, len(ts.Parts))}
+	for i, p := range ts.Parts {
+		switch v := p.(type) {
+		case *Expr:
+			cpy.Parts[i] = v.Copy()
+		case *Term:
+			cpy.Parts[i] = v.Copy()
+		}
+	}
+	return cpy
+}
+
+func (ts *TemplateString) Equal(other Value) bool {
+	if o, ok := other.(*TemplateString); ok && ts.MultiLine == o.MultiLine && len(ts.Parts) == len(o.Parts) {
+		for i, p := range ts.Parts {
+			switch v := p.(type) {
+			case *Expr:
+				if ope, ok := o.Parts[i].(*Expr); !ok || !v.Equal(ope) {
+					return false
+				}
+			case *Term:
+				if opt, ok := o.Parts[i].(*Term); !ok || !v.Equal(opt) {
+					return false
+				}
+			default:
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+func (ts *TemplateString) Compare(other Value) int {
+	if ots, ok := other.(*TemplateString); ok {
+		if ts.MultiLine != ots.MultiLine {
+			if !ts.MultiLine {
+				return -1
+			}
+			return 1
+		}
+
+		if len(ts.Parts) != len(ots.Parts) {
+			return len(ts.Parts) - len(ots.Parts)
+		}
+
+		for i := range ts.Parts {
+			if cmp := Compare(ts.Parts[i], ots.Parts[i]); cmp != 0 {
+				return cmp
+			}
+		}
+
+		return 0
+	}
+	return Compare(ts, other)
+}
+
+func (ts *TemplateString) Find(path Ref) (Value, error) {
+	if len(path) == 0 {
+		return ts, nil
+	}
+	return nil, errFindNotFound
+}
+
+func (ts *TemplateString) Hash() int {
+	hash := 0
+	for _, p := range ts.Parts {
+		switch x := p.(type) {
+		case *Expr:
+			hash += x.Hash()
+		case *Term:
+			hash += x.Value.Hash()
+		default:
+			panic(fmt.Sprintf("invalid template part type %T", p))
+		}
+	}
+	return hash
+}
+
+func (*TemplateString) IsGround() bool {
+	return false
+}
+
+func (ts *TemplateString) String() string {
+	str := strings.Builder{}
+	str.WriteString("$\"")
+
+	for _, p := range ts.Parts {
+		switch x := p.(type) {
+		case *Expr:
+			str.WriteByte('{')
+			str.WriteString(p.String())
+			str.WriteByte('}')
+		case *Term:
+			s := p.String()
+			if _, ok := x.Value.(String); ok {
+				s = strings.TrimPrefix(s, "\"")
+				s = strings.TrimSuffix(s, "\"")
+				s = EscapeTemplateStringStringPart(s)
+			}
+			str.WriteString(s)
+		default:
+			str.WriteString("<invalid>")
+		}
+	}
+
+	str.WriteByte('"')
+	return str.String()
+}
+
+func TemplateStringTerm(multiLine bool, parts ...Node) *Term {
+	return &Term{Value: &TemplateString{MultiLine: multiLine, Parts: parts}}
+}
+
+// EscapeTemplateStringStringPart escapes unescaped left curly braces in s - i.e "{" becomes "\{".
+// The internal representation of string terms within a template string does **NOT**
+// treat '{' as special, but expects code dealing with template strings to escape them when
+// required, such as when serializing the complete template string. Code that programmatically
+// constructs template strings should not pre-escape left curly braces in string term parts.
+//
+// // TODO(anders): a future optimization would be to combine this with the other escaping done
+// // for strings (e.g. escaping quotes, backslashes, and JSON control characters) in a single operation
+// // to avoid multiple passes and allocations over the same string. That's currently done by
+// // strconv.Quote, so we would need to re-implement that logic in code of our own.
+// // NOTE(anders): I would love to come up with a better name for this component than
+// // "TemplateStringStringPart"..
+func EscapeTemplateStringStringPart(s string) string {
+	numUnescaped := countUnescapedLeftCurly(s)
+	if numUnescaped == 0 {
+		return s
+	}
+
+	l := len(s)
+	escaped := make([]byte, 0, l+numUnescaped)
+	if s[0] == '{' {
+		escaped = append(escaped, '\\', s[0])
+	} else {
+		escaped = append(escaped, s[0])
+	}
+
+	for i := 1; i < l; i++ {
+		if s[i] == '{' && s[i-1] != '\\' {
+			escaped = append(escaped, '\\', s[i])
+		} else {
+			escaped = append(escaped, s[i])
+		}
+	}
+
+	return util.ByteSliceToString(escaped)
+}
+
+func countUnescapedLeftCurly(s string) (n int) {
+	// Note(anders): while not the functions I'd intuitively reach for to solve this,
+	// they are hands down the fastest option here, as they're done in assembly, which
+	// performs about an order of magnitude better than a manual loop in Go.
+	if n = strings.Count(s, "{"); n > 0 {
+		n -= strings.Count(s, `\{`)
+	}
+	return n
+}
+
 // Var represents a variable as defined by the language.
 type Var string
 
@@ -951,14 +1132,14 @@ func (ref Ref) Insert(x *Term, pos int) Ref {
 // Extend returns a copy of ref with the terms from other appended. The head of
 // other will be converted to a string.
 func (ref Ref) Extend(other Ref) Ref {
-	dst := make(Ref, len(ref)+len(other))
+	offset := len(ref)
+	dst := make(Ref, offset+len(other))
 	copy(dst, ref)
 
 	head := other[0].Copy()
 	head.Value = String(head.Value.(Var))
-	offset := len(ref)
-	dst[offset] = head
 
+	dst[offset] = head
 	copy(dst[offset+1:], other[1:])
 	return dst
 }
@@ -1070,42 +1251,38 @@ func (ref Ref) HasPrefix(other Ref) bool {
 func (ref Ref) ConstantPrefix() Ref {
 	i := ref.Dynamic()
 	if i < 0 {
-		return ref.Copy()
+		return ref
 	}
-	return ref[:i].Copy()
+	return ref[:i]
 }
 
+// StringPrefix returns the string portion of the ref starting from the head.
 func (ref Ref) StringPrefix() Ref {
 	for i := 1; i < len(ref); i++ {
 		switch ref[i].Value.(type) {
 		case String: // pass
 		default: // cut off
-			return ref[:i].Copy()
+			return ref[:i]
 		}
 	}
 
-	return ref.Copy()
+	return ref
 }
 
 // GroundPrefix returns the ground portion of the ref starting from the head. By
 // definition, the head of the reference is always ground.
 func (ref Ref) GroundPrefix() Ref {
-	if ref.IsGround() {
-		return ref
-	}
-
-	prefix := make(Ref, 0, len(ref))
-
-	for i, x := range ref {
-		if i > 0 && !x.IsGround() {
-			break
+	for i := range ref {
+		if i > 0 && !ref[i].IsGround() {
+			return ref[:i]
 		}
-		prefix = append(prefix, x)
 	}
 
-	return prefix
+	return ref
 }
 
+// DynamicSuffix returns the dynamic portion of the ref.
+// If the ref is not dynamic, nil is returned.
 func (ref Ref) DynamicSuffix() Ref {
 	i := ref.Dynamic()
 	if i < 0 {
@@ -1116,7 +1293,7 @@ func (ref Ref) DynamicSuffix() Ref {
 
 // IsGround returns true if all of the parts of the Ref are ground.
 func (ref Ref) IsGround() bool {
-	if len(ref) == 0 {
+	if len(ref) < 2 {
 		return true
 	}
 	return termSliceIsGround(ref[1:])
@@ -1136,21 +1313,61 @@ func (ref Ref) IsNested() bool {
 // contains non-string terms this function returns an error. Path
 // components are escaped.
 func (ref Ref) Ptr() (string, error) {
-	parts := make([]string, 0, len(ref)-1)
-	for _, term := range ref[1:] {
-		if str, ok := term.Value.(String); ok {
-			parts = append(parts, url.PathEscape(string(str)))
-		} else {
+	buf := &strings.Builder{}
+	tail := ref[1:]
+
+	l := max(len(tail)-1, 0) // number of '/' to add
+	for i := range tail {
+		str, ok := tail[i].Value.(String)
+		if !ok {
 			return "", errors.New("invalid path value type")
 		}
+		l += len(str)
 	}
-	return strings.Join(parts, "/"), nil
+	buf.Grow(l)
+
+	for i := range tail {
+		if i > 0 {
+			buf.WriteByte('/')
+		}
+		str := string(tail[i].Value.(String))
+		// Sadly, the url package does not expose an appender for this.
+		buf.WriteString(url.PathEscape(str))
+	}
+	return buf.String(), nil
 }
 
-var varRegexp = regexp.MustCompile("^[[:alpha:]_][[:alpha:][:digit:]_]*$")
-
+// IsVarCompatibleString returns true if s is a valid variable name. String s is a valid variable
+// name if it starts with a letter (a-z or A-Z) or underscore (_) and is followed by
+// letters (a-z or A-Z), digits (0-9), and underscores.
 func IsVarCompatibleString(s string) bool {
-	return varRegexp.MatchString(s)
+	l := len(s)
+	if l == 0 {
+		return false
+	}
+	// not exactly easy on the eyes, but often orders of magnitude faster
+	// than using a compiled regex (see benchmarks in term_bench_test.go)
+	is_letter := func(c byte) bool {
+		return (c > 96 && c < 123) || (c > 64 && c < 91)
+	}
+	is_digit := func(c byte) bool {
+		return c > 47 && c < 58
+	}
+
+	// first character must be a letter or underscore
+	c := s[0]
+	if !(is_letter(c) || c == 95) {
+		return false
+	}
+
+	// remaining characters must be letters, digits, or underscores
+	for i := 1; i < l; i++ {
+		if c = s[i]; !(is_letter(c) || is_digit(c) || c == 95) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (ref Ref) String() string {
@@ -1263,13 +1480,12 @@ type Array struct {
 
 // Copy returns a deep copy of arr.
 func (arr *Array) Copy() *Array {
-	cpy := make([]int, len(arr.elems))
-	copy(cpy, arr.hashs)
 	return &Array{
 		elems:  termSliceCopy(arr.elems),
-		hashs:  cpy,
+		hashs:  slices.Clone(arr.hashs),
 		hash:   arr.hash,
-		ground: arr.IsGround()}
+		ground: arr.ground,
+	}
 }
 
 // Equal returns true if arr is equal to other.
@@ -1548,13 +1764,19 @@ type set struct {
 
 // Copy returns a deep copy of s.
 func (s *set) Copy() Set {
-	terms := make([]*Term, len(s.keys))
-	for i := range s.keys {
-		terms[i] = s.keys[i].Copy()
+	cpy := &set{
+		hash:      s.hash,
+		ground:    s.ground,
+		sortGuard: sync.Once{},
+		elems:     make(map[int]*Term, len(s.elems)),
+		keys:      make([]*Term, 0, len(s.keys)),
 	}
-	cpy := NewSet(terms...).(*set)
-	cpy.hash = s.hash
-	cpy.ground = s.ground
+
+	for hash := range s.elems {
+		cpy.elems[hash] = s.elems[hash].Copy()
+		cpy.keys = append(cpy.keys, cpy.elems[hash])
+	}
+
 	return cpy
 }
 
@@ -2309,19 +2531,21 @@ func (obj *object) Merge(other Object) (Object, bool) {
 // is called. The conflictResolver can return a merged value and a boolean
 // indicating if the merge has failed and should stop.
 func (obj *object) MergeWith(other Object, conflictResolver func(v1, v2 *Term) (*Term, bool)) (Object, bool) {
-	result := NewObject()
+	// Might overallocate assuming no conflicts is the common case,
+	// but that's typically faster than iterating over each object twice.
+	result := newobject(obj.Len() + other.Len())
 	stop := obj.Until(func(k, v *Term) bool {
 		v2 := other.Get(k)
 		// The key didn't exist in other, keep the original value
 		if v2 == nil {
-			result.Insert(k, v)
+			result.insert(k, v, false)
 			return false
 		}
 
 		// The key exists in both, resolve the conflict if possible
 		merged, stop := conflictResolver(v, v2)
 		if !stop {
-			result.Insert(k, merged)
+			result.insert(k, merged, false)
 		}
 		return stop
 	})
@@ -2333,7 +2557,7 @@ func (obj *object) MergeWith(other Object, conflictResolver func(v1, v2 *Term) (
 	// Copy in any values from other for keys that don't exist in obj
 	other.Foreach(func(k, v *Term) {
 		if v2 := obj.Get(k); v2 == nil {
-			result.Insert(k, v)
+			result.insert(k, v, false)
 		}
 	})
 	return result, true
@@ -2733,10 +2957,26 @@ func (c Call) IsGround() bool {
 	return termSliceIsGround(c)
 }
 
-// MakeExpr returns an ew Expr from this call.
+// MakeExpr returns a new Expr from this call.
 func (c Call) MakeExpr(output *Term) *Expr {
 	terms := []*Term(c)
 	return NewExpr(append(terms, output))
+}
+
+func (c Call) Operator() Ref {
+	if len(c) == 0 {
+		return nil
+	}
+
+	return c[0].Value.(Ref)
+}
+
+func (c Call) Operands() []*Term {
+	if len(c) < 1 {
+		return nil
+	}
+
+	return c[1:]
 }
 
 func (c Call) String() string {

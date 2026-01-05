@@ -77,6 +77,93 @@ p = 1`,
 			pos: -100,
 			exp: ErrNoMatchFound,
 		},
+		{
+			note: "no good match - every iteration variable",
+			buffer: `package test
+
+allow if {
+    arr := [1,2,3]
+    every v in arr {
+        v == 1
+    }
+}`,
+			pos: 54, // position on 'v' in 'every v'
+			exp: ErrNoDefinitionFound,
+		},
+		{
+			note: "no good match - some iteration variable",
+			buffer: `package test
+
+allow if {
+    arr := [1,2,3]
+    some e in arr
+    e == 2
+}`,
+			pos: 53, // position on 'e' in 'some e'
+			exp: ErrNoDefinitionFound,
+		},
+		{
+			note: "no good match - every iteration variable k in declaration",
+			buffer: `package test
+
+allow if {
+    obj := {"k": 1}
+    every k, v in obj {
+        v == 1
+        k == "k"
+    }
+}`,
+			pos: 55, // position on 'k' in 'every k, v'
+			exp: ErrNoDefinitionFound,
+		},
+		{
+			note: "no good match - every iteration variable v in declaration",
+			buffer: `package test
+
+allow if {
+    obj := {"k": 1}
+    every k, v in obj {
+        v == 1
+        k == "k"
+    }
+}`,
+			pos: 58, // position on 'v' in 'every k, v'
+			exp: ErrNoDefinitionFound,
+		},
+		{
+			note: "no good match - some iteration variable i in declaration",
+			buffer: `package test
+
+allow if {
+    arr := [1,2,3]
+    some i, val in arr
+    val == 2
+    i == 1
+}`,
+			pos: 53, // position on 'i' in 'some i, val'
+			exp: ErrNoDefinitionFound,
+		},
+		{
+			note: "no good match - some iteration variable val in declaration",
+			buffer: `package test
+
+allow if {
+    arr := [1,2,3]
+    some i, val in arr
+    val == 2
+    i == 1
+}`,
+			pos: 56, // position on 'val' in 'some i, val'
+			exp: ErrNoDefinitionFound,
+		},
+		{
+			note: "no good match - ref with non existent variable",
+			buffer: `package foo
+
+allow if bar.foo == "value"`,
+			pos: 22, // "b" in "bar.foo"
+			exp: ErrNoDefinitionFound,
+		},
 	}
 
 	for _, tc := range cases {
@@ -372,6 +459,151 @@ allow if {
 			},
 		},
 		{
+			note: "every - iteration variable k",
+			modules: map[string]string{
+				"buffer.rego": `package test
+
+allow if {
+    obj := {"k": 1}
+
+    every k, v in obj {
+        v == 1
+        k == "k"
+    }
+}`,
+			},
+			pos: 93,
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  6,
+				Col:  11,
+				Text: []byte("k"),
+			},
+		},
+		{
+			note: "every - iteration variable v",
+			modules: map[string]string{
+				"buffer.rego": `package test
+
+allow if {
+    obj := {"k": 1}
+
+    every k, v in obj {
+        v == 1
+        k == "k"
+    }
+}`,
+			},
+			pos: 78,
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  6,
+				Col:  14,
+				Text: []byte("v"),
+			},
+		},
+		{
+			note: "some - iteration variable i in body",
+			modules: map[string]string{
+				"buffer.rego": `package test
+
+allow if {
+    arr := [1,2,3]
+    some i, val in arr
+    val == 2
+    i == 1
+}`,
+			},
+			pos: 84, // position on 'i' in 'i == 1'
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  5,
+				Col:  10,
+				Text: []byte("i"),
+			},
+		},
+		{
+			note: "some - iteration variable val in body",
+			modules: map[string]string{
+				"buffer.rego": `package test
+
+allow if {
+    arr := [1,2,3]
+    some i, val in arr
+    val == 2
+    i == 1
+}`,
+			},
+			pos: 71, // position on 'val' in 'val == 2'
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  5,
+				Col:  13,
+				Text: []byte("val"),
+			},
+		},
+		{
+			note: "every - iteration variable i in array body",
+			modules: map[string]string{
+				"buffer.rego": `package test
+
+allow if {
+    arr := [1,2,3]
+    every i, v in arr {
+        i == v
+    }
+}`,
+			},
+			pos: 76, // position on 'i' in 'i == v'
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  5,
+				Col:  11,
+				Text: []byte("i"),
+			},
+		},
+		{
+			note: "every - iteration variable v in array body",
+			modules: map[string]string{
+				"buffer.rego": `package test
+
+allow if {
+    arr := [1,2,3]
+    every i, v in arr {
+        i == v
+    }
+}`,
+			},
+			pos: 81, // position on 'v' in 'i == v'
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  5,
+				Col:  14,
+				Text: []byte("v"),
+			},
+		},
+		{
+			note: "nested every - iteration variable shadowing",
+			modules: map[string]string{
+				"buffer.rego": `package test
+
+allow if {
+    every i, j in [1, 2, 3] {
+        every i, j in [4, 5, 6] {
+            i == 4
+        }
+    }
+}`,
+			},
+			pos: 101, // position on 'i' in 'i == 4'
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  5,
+				Col:  15,
+				Text: []byte("i"),
+			},
+		},
+		{
 			note: "t - embedded ref and import alias",
 			modules: map[string]string{
 				"buffer.rego": aBufferModule,
@@ -543,21 +775,6 @@ obj.key := "value"`,
 			},
 		},
 		{
-			note: "intra-rule: ref object key non existent returns self",
-			modules: map[string]string{
-				"buffer.rego": `package foo
-
-allow if bar.foo == "value"`,
-			},
-			pos: 22, // "b" in "bar.foo"
-			exp: &ast.Location{
-				File: "buffer.rego",
-				Row:  3,
-				Col:  10,
-				Text: []byte(`bar`),
-			},
-		},
-		{
 			note: "variable shadowing block",
 			modules: map[string]string{
 				"buffer.rego": `package test
@@ -604,6 +821,61 @@ p if {
 				Row:  8,
 				Col:  8,
 				Text: []byte("x"),
+			},
+		},
+		{
+			note: "string interpolation - single line variable",
+			modules: map[string]string{
+				"buffer.rego": `package test
+
+a := true
+
+str1 := $"{a}"
+`,
+			},
+			pos: 36, // position of 'a' inside the string interpolation
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  3,
+				Col:  1,
+				Text: []byte("a := true"),
+			},
+		},
+		{
+			note: "string interpolation - multi line variable",
+			modules: map[string]string{
+				"buffer.rego": `package test
+
+a := true
+str := $` + "`" + `
+{a}
+` + "`",
+			},
+			pos: 35, // position of 'a' inside the multiline string interpolation
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  3,
+				Col:  1,
+				Text: []byte("a := true"),
+			},
+		},
+		{
+			note: "template string with multiple variables - second variable",
+			modules: map[string]string{
+				"buffer.rego": `package test
+
+a := true
+
+b := false
+
+str1 := $"{a} {b}"`,
+			},
+			pos: 52, // position of 'b' in the template string
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  5,
+				Col:  1,
+				Text: []byte("b := false"),
 			},
 		},
 	}

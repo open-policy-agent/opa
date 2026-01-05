@@ -158,18 +158,42 @@ func (s *Scanner) WithoutKeywords(kws map[string]tokens.Token) (*Scanner, map[st
 	return &cpy, kw
 }
 
+type ScanOptions struct {
+	continueTemplateString bool
+	rawTemplateString      bool
+}
+
+type ScanOption func(*ScanOptions)
+
+// ContinueTemplateString will continue scanning a template string
+func ContinueTemplateString(raw bool) ScanOption {
+	return func(opts *ScanOptions) {
+		opts.continueTemplateString = true
+		opts.rawTemplateString = raw
+	}
+}
+
 // Scan will increment the scanners position in the source
 // code until the next token is found. The token, starting position
 // of the token, string literal, and any errors encountered are
 // returned. A token will always be returned, the caller must check
 // for any errors before using the other values.
-func (s *Scanner) Scan() (tokens.Token, Position, string, []Error) {
+func (s *Scanner) Scan(opts ...ScanOption) (tokens.Token, Position, string, []Error) {
+	scanOpts := &ScanOptions{}
+	for _, opt := range opts {
+		opt(scanOpts)
+	}
 
 	pos := Position{Offset: s.offset - s.width, Row: s.row, Col: s.col, Tabs: s.tabs}
 	var tok tokens.Token
 	var lit string
-
-	if s.isWhitespace() {
+	if scanOpts.continueTemplateString {
+		if scanOpts.rawTemplateString {
+			lit, tok = s.scanRawTemplateString()
+		} else {
+			lit, tok = s.scanTemplateString()
+		}
+	} else if s.isWhitespace() {
 		// string(rune) is an unnecessary heap allocation in this case as we know all
 		// the possible whitespace values, and can simply translate to string ourselves
 		switch s.curr {
@@ -275,6 +299,17 @@ func (s *Scanner) Scan() (tokens.Token, Position, string, []Error) {
 			tok = tokens.Semicolon
 		case '.':
 			tok = tokens.Dot
+		case '$':
+			switch s.curr {
+			case '`':
+				s.next()
+				lit, tok = s.scanRawTemplateString()
+			case '"':
+				s.next()
+				lit, tok = s.scanTemplateString()
+			default:
+				s.error("illegal $ character")
+			}
 		}
 	}
 
@@ -393,6 +428,116 @@ func (s *Scanner) scanRawString() string {
 	}
 
 	return util.ByteSliceToString(s.bs[start : s.offset-1])
+}
+
+func (s *Scanner) scanTemplateString() (string, tokens.Token) {
+	tok := tokens.TemplateStringPart
+	start := s.literalStart()
+	var escapes []int
+	for {
+		ch := s.curr
+
+		if ch == '\n' || ch < 0 {
+			s.error("non-terminated string")
+			break
+		}
+
+		s.next()
+
+		if ch == '"' {
+			tok = tokens.TemplateStringEnd
+			break
+		}
+
+		if ch == '{' {
+			break
+		}
+
+		if ch == '\\' {
+			switch s.curr {
+			case '\\', '"', '/', 'b', 'f', 'n', 'r', 't':
+				s.next()
+			case '{':
+				escapes = append(escapes, s.offset-1)
+				s.next()
+			case 'u':
+				s.next()
+				s.next()
+				s.next()
+				s.next()
+			default:
+				s.error("illegal escape sequence")
+			}
+		}
+	}
+
+	// Lazily remove escapes to not unnecessarily allocate a new byte slice
+	if len(escapes) > 0 {
+		return util.ByteSliceToString(removeEscapes(s, escapes, start)), tok
+	}
+
+	return util.ByteSliceToString(s.bs[start : s.offset-1]), tok
+}
+
+func (s *Scanner) scanRawTemplateString() (string, tokens.Token) {
+	tok := tokens.RawTemplateStringPart
+	start := s.literalStart()
+	var escapes []int
+	for {
+		ch := s.curr
+
+		if ch < 0 {
+			s.error("non-terminated string")
+			break
+		}
+
+		s.next()
+
+		if ch == '`' {
+			tok = tokens.RawTemplateStringEnd
+			break
+		}
+
+		if ch == '{' {
+			break
+		}
+
+		if ch == '\\' {
+			switch s.curr {
+			case '{':
+				escapes = append(escapes, s.offset-1)
+				s.next()
+			}
+		}
+	}
+
+	// Lazily remove escapes to not unnecessarily allocate a new byte slice
+	if len(escapes) > 0 {
+		return util.ByteSliceToString(removeEscapes(s, escapes, start)), tok
+	}
+
+	return util.ByteSliceToString(s.bs[start : s.offset-1]), tok
+}
+
+func removeEscapes(s *Scanner, escapes []int, start int) []byte {
+	from := start
+	bs := make([]byte, 0, s.offset-start-len(escapes))
+
+	for _, escape := range escapes {
+		// Append the bytes before the escape sequence.
+		if escape > from {
+			bs = append(bs, s.bs[from:escape-1]...)
+		}
+		// Skip the escape character.
+		from = escape
+	}
+
+	// Append the remaining bytes after the last escape sequence.
+	if from < s.offset-1 {
+		bs = append(bs, s.bs[from:s.offset-1]...)
+	}
+
+	return bs
 }
 
 func (s *Scanner) scanComment() string {

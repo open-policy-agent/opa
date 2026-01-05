@@ -5,12 +5,7 @@ cases:
     modules:
       - |
         package test
-
-        p := x if {
-        	s := "-wy-wxxy-"
-        	x := regex.replace(s, "w(x*)y", "0")
-        }
-    data: {}
+        p := regex.replace("-wy-wxxy-", "w(x*)y", "0")
     want_result:
       - x: -0-0-
   - note: "regex.replace: work with groups"
@@ -18,12 +13,7 @@ cases:
     modules:
       - |
         package test
-
-        p := x if {
-        	s := "foo"
-        	x := regex.replace(s, "(foo)", "$1$1")
-        }
-    data: {}
+        p := regex.replace("foo", "(foo)", "$1$1")
     want_result:
       - x: foofoo
   - note: "regex.replace: bad regex pattern: Syntax error"
@@ -31,10 +21,69 @@ cases:
     modules:
       - |
         package test
-
-        p := x if {
-        	s := "foo"
-        	x := regex.replace(s, "[", "$1")
-        }
-    data: {}
+        p := regex.replace("foo", "[", "$1")
     want_result: []
+  - note: "regex.replace: anchored RE, start"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := regex.replace("foo", "^[a-z]", "F")
+    want_result:
+      - x: Foo
+  - note: "regex.replace: anchored RE, start+end, no match"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := regex.replace("foo", "^[a-z]$", "F")
+    want_result:
+      - x: foo # unchanged
+  - note: "regex.replace: anchored RE, start+end, match"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := regex.replace("foo", "^[a-z]+$", "M")
+    want_result:
+      - x: M
+  - note: "regex.replace: anchored RE, end"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := regex.replace("foo", "[a-z]$", "F")
+    want_result:
+      - x: foF
+  - note: "regex.replace: anchored RE, end, no match"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := regex.replace("foo", "x[a-z]$", "F")
+    want_result:
+      - x: foo # unchanged
+  - note: "regex.replace: per-character match"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := regex.replace("foo bar", "[a-z]", "_")
+    want_result:
+      - x: ___ ___
+  - note: "regex.replace: match with count"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := regex.replace("foo barx", "[a-z]{3}", "_")
+    want_result:
+      - x: _ _x
+  - note: "regex.replace: match with count, 2"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := regex.replace("foo barx", "[a-z]{2}", "_")
+    want_result:
+      - x: _o __

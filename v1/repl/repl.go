@@ -930,7 +930,7 @@ func (r *REPL) parserOptions() (ast.ParserOptions, error) {
 		opts, err := future.ParserOptionsFromFutureImports(r.modules[r.currentModuleID].Imports)
 		if err == nil {
 			for _, i := range r.modules[r.currentModuleID].Imports {
-				if ast.Compare(i.Path.Value, ast.RegoV1CompatibleRef) == 0 {
+				if ast.RegoV1CompatibleRef.Equal(i.Path.Value) {
 					opts.RegoVersion = ast.RegoV1
 				}
 			}
@@ -1293,9 +1293,8 @@ func (r *REPL) loadModules(ctx context.Context, txn storage.Transaction) (map[st
 }
 
 func (r *REPL) printTypes(_ context.Context, typeEnv *ast.TypeEnv, body ast.Body) {
-
 	ast.WalkRefs(body, func(ref ast.Ref) bool {
-		fmt.Fprintf(r.output, "# %v: %v\n", ref, typeEnv.Get(ref))
+		fmt.Fprintf(r.output, "# %v: %v\n", ref, typeEnv.GetByRef(ref))
 		return false
 	})
 

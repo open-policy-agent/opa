@@ -217,6 +217,10 @@ func walk(v Visitor, x any) {
 		for i := range x.Symbols {
 			Walk(w, x.Symbols[i])
 		}
+	case *TemplateString:
+		for i := range x.Parts {
+			Walk(w, x.Parts[i])
+		}
 	}
 }
 
@@ -454,6 +458,10 @@ func (tv *typeVisitor[T]) walk(x any, visit func(x T) bool) {
 		for i := range x.Symbols {
 			tv.walk(x.Symbols[i], visit)
 		}
+	case *TemplateString:
+		for i := range x.Parts {
+			tv.walk(x.Parts[i], visit)
+		}
 	}
 }
 
@@ -586,6 +594,10 @@ func (vis *GenericVisitor) Walk(x any) {
 	case *SomeDecl:
 		for i := range x.Symbols {
 			vis.Walk(x.Symbols[i])
+		}
+	case *TemplateString:
+		for i := range x.Parts {
+			vis.Walk(x.Parts[i])
 		}
 	}
 }
@@ -794,7 +806,7 @@ func (vis *VarVisitor) visit(v any) bool {
 	}
 	if vis.params.SkipClosures {
 		switch v := v.(type) {
-		case *ArrayComprehension, *ObjectComprehension, *SetComprehension:
+		case *ArrayComprehension, *ObjectComprehension, *SetComprehension, *TemplateString:
 			return true
 		case *Expr:
 			if ev, ok := v.Terms.(*Every); ok {
@@ -965,6 +977,10 @@ func (vis *VarVisitor) Walk(x any) {
 	case *SomeDecl:
 		for i := range x.Symbols {
 			vis.Walk(x.Symbols[i])
+		}
+	case *TemplateString:
+		for i := range x.Parts {
+			vis.Walk(x.Parts[i])
 		}
 	}
 }

@@ -1736,6 +1736,10 @@ func (p *Parser) parseTerm() *Term {
 		term = p.parseNumber()
 	case tokens.String:
 		term = p.parseString()
+	case tokens.TemplateStringPart, tokens.TemplateStringEnd:
+		term = p.parseTemplateString(false)
+	case tokens.RawTemplateStringPart, tokens.RawTemplateStringEnd:
+		term = p.parseTemplateString(true)
 	case tokens.Ident, tokens.Contains: // NOTE(sr): contains anywhere BUT in rule heads gets no special treatment
 		term = p.parseVar()
 	case tokens.LBrack:
@@ -1767,7 +1771,7 @@ func (p *Parser) parseTermFinish(head *Term, skipws bool) *Term {
 		return nil
 	}
 	offset := p.s.loc.Offset
-	p.doScan(skipws)
+	p.doScan(skipws, noScanOptions...)
 
 	switch p.s.tok {
 	case tokens.LParen, tokens.Dot, tokens.LBrack:
@@ -1788,7 +1792,7 @@ func (p *Parser) parseHeadFinish(head *Term, skipws bool) *Term {
 		return nil
 	}
 	offset := p.s.loc.Offset
-	p.doScan(false)
+	p.scanWS()
 
 	switch p.s.tok {
 	case tokens.Add, tokens.Sub, tokens.Mul, tokens.Quo, tokens.Rem,
@@ -1796,7 +1800,7 @@ func (p *Parser) parseHeadFinish(head *Term, skipws bool) *Term {
 		tokens.Equal, tokens.Neq, tokens.Gt, tokens.Gte, tokens.Lt, tokens.Lte:
 		p.illegalToken()
 	case tokens.Whitespace:
-		p.doScan(skipws)
+		p.doScan(skipws, noScanOptions...)
 	}
 
 	switch p.s.tok {
@@ -1886,6 +1890,11 @@ func (p *Parser) parseString() *Term {
 			return NewTerm(InternedEmptyString.Value).SetLocation(p.s.Loc())
 		}
 
+		inner := p.s.lit[1 : len(p.s.lit)-1]
+		if !strings.ContainsRune(inner, '\\') { // nothing to un-escape
+			return StringTerm(inner).SetLocation(p.s.Loc())
+		}
+
 		var s string
 		if err := json.Unmarshal([]byte(p.s.lit), &s); err != nil {
 			p.errorf(p.s.Loc(), "illegal string literal: %s", p.s.lit)
@@ -1901,6 +1910,120 @@ func (p *Parser) parseRawString() *Term {
 		return nil
 	}
 	return StringTerm(p.s.lit[1 : len(p.s.lit)-1]).SetLocation(p.s.Loc())
+}
+
+func templateStringPartToStringLiteral(tok tokens.Token, lit string) (string, error) {
+	switch tok {
+	case tokens.TemplateStringPart, tokens.TemplateStringEnd:
+		inner := lit[1 : len(lit)-1]
+		if !strings.ContainsRune(inner, '\\') { // nothing to un-escape
+			return inner, nil
+		}
+
+		buf := make([]byte, 0, len(inner)+2)
+		buf = append(buf, '"')
+		buf = append(buf, inner...)
+		buf = append(buf, '"')
+		var s string
+		if err := json.Unmarshal(buf, &s); err != nil {
+			return "", fmt.Errorf("illegal template-string part: %s", lit)
+		}
+		return s, nil
+	case tokens.RawTemplateStringPart, tokens.RawTemplateStringEnd:
+		return lit[1 : len(lit)-1], nil
+	default:
+		return "", errors.New("expected template-string part")
+	}
+}
+
+func (p *Parser) parseTemplateString(multiLine bool) *Term {
+	loc := p.s.Loc()
+
+	if !p.po.Capabilities.ContainsFeature(FeatureTemplateStrings) {
+		p.errorf(loc, "template strings are not supported by current capabilities")
+		return nil
+	}
+
+	var parts []Node
+
+	for {
+		s, err := templateStringPartToStringLiteral(p.s.tok, p.s.lit)
+		if err != nil {
+			p.error(p.s.Loc(), err.Error())
+			return nil
+		}
+
+		// Don't add empty strings
+		if len(s) > 0 {
+			parts = append(parts, StringTerm(s).SetLocation(p.s.Loc()))
+		}
+
+		if p.s.tok == tokens.TemplateStringEnd || p.s.tok == tokens.RawTemplateStringEnd {
+			break
+		}
+
+		numCommentsBefore := len(p.s.comments)
+		p.scan()
+		numCommentsAfter := len(p.s.comments)
+
+		expr := p.parseLiteral()
+		if expr == nil {
+			p.error(p.s.Loc(), "invalid template-string expression")
+			return nil
+		}
+
+		if expr.Negated {
+			p.errorf(expr.Loc(), "unexpected negation ('%s') in template-string expression", tokens.KeywordFor(tokens.Not))
+			return nil
+		}
+
+		// Note: Actually unification
+		if expr.IsEquality() {
+			p.errorf(expr.Loc(), "unexpected unification ('=') in template-string expression")
+			return nil
+		}
+
+		if expr.IsAssignment() {
+			p.errorf(expr.Loc(), "unexpected assignment (':=') in template-string expression")
+			return nil
+		}
+
+		if expr.IsEvery() {
+			p.errorf(expr.Loc(), "unexpected '%s' in template-string expression", tokens.KeywordFor(tokens.Every))
+			return nil
+		}
+
+		if expr.IsSome() {
+			p.errorf(expr.Loc(), "unexpected '%s' in template-string expression", tokens.KeywordFor(tokens.Some))
+			return nil
+		}
+
+		// FIXME: Can we optimize for collections and comprehensions too? To qualify, they must not contain refs or calls.
+		var nonOptional bool
+		if term, ok := expr.Terms.(*Term); ok && numCommentsAfter == numCommentsBefore {
+			switch term.Value.(type) {
+			case String, Number, Boolean, Null:
+				nonOptional = true
+				parts = append(parts, term)
+			}
+		}
+
+		if !nonOptional {
+			parts = append(parts, expr)
+		}
+
+		if p.s.tok != tokens.RBrace {
+			p.errorf(p.s.Loc(), "expected %s to end template string expression", tokens.RBrace)
+			return nil
+		}
+
+		p.doScan(false, scanner.ContinueTemplateString(multiLine))
+	}
+
+	// When there are template-expressions, the initial location will only contain the text up to the first expression
+	loc.Text = p.s.Text(loc.Offset, p.s.tokEnd)
+
+	return TemplateStringTerm(multiLine, parts...).SetLocation(loc)
 }
 
 func (p *Parser) parseCall(operator *Term, offset int) (term *Term) {
@@ -2332,7 +2455,8 @@ func (p *Parser) parseTermPairList(end tokens.Token, r [][2]*Term) [][2]*Term {
 
 func (p *Parser) parseTermOp(values ...tokens.Token) *Term {
 	if slices.Contains(values, p.s.tok) {
-		r := RefTerm(VarTerm(p.s.tok.String()).SetLocation(p.s.Loc())).SetLocation(p.s.Loc())
+		loc := p.s.Loc()
+		r := RefTerm(VarTerm(p.s.tok.String()).SetLocation(loc)).SetLocation(loc)
 		p.scan()
 		return r
 	}
@@ -2342,11 +2466,12 @@ func (p *Parser) parseTermOp(values ...tokens.Token) *Term {
 func (p *Parser) parseTermOpName(ref Ref, values ...tokens.Token) *Term {
 	if slices.Contains(values, p.s.tok) {
 		cp := ref.Copy()
+		loc := p.s.Loc()
 		for _, r := range cp {
-			r.SetLocation(p.s.Loc())
+			r.SetLocation(loc)
 		}
 		t := RefTerm(cp...)
-		t.SetLocation(p.s.Loc())
+		t.SetLocation(loc)
 		p.scan()
 		return t
 	}
@@ -2456,15 +2581,17 @@ func (p *Parser) illegalToken() {
 	p.illegal("")
 }
 
+var noScanOptions []scanner.ScanOption
+
 func (p *Parser) scan() {
-	p.doScan(true)
+	p.doScan(true, noScanOptions...)
 }
 
 func (p *Parser) scanWS() {
-	p.doScan(false)
+	p.doScan(false, noScanOptions...)
 }
 
-func (p *Parser) doScan(skipws bool) {
+func (p *Parser) doScan(skipws bool, scanOpts ...scanner.ScanOption) {
 
 	// NOTE(tsandall): the last position is used to compute the "text" field for
 	// complex AST nodes. Whitespace never affects the last position of an AST
@@ -2477,7 +2604,7 @@ func (p *Parser) doScan(skipws bool) {
 	var errs []scanner.Error
 	for {
 		var pos scanner.Position
-		p.s.tok, pos, p.s.lit, errs = p.s.s.Scan()
+		p.s.tok, pos, p.s.lit, errs = p.s.s.Scan(scanOpts...)
 
 		p.s.tokEnd = pos.End
 		p.s.loc.Row = pos.Row

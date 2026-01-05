@@ -158,7 +158,9 @@ func builtinObjectKeys(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 }
 
 // getObjectKeysParam returns a set of key values
-// from a supplied ast array, object, set value
+// from a supplied ast array, object, set value.
+// The returned set must not be mutated. For Set
+// inputs, it may be the original.
 func getObjectKeysParam(arrayOrSet ast.Value) (ast.Set, error) {
 	switch v := arrayOrSet.(type) {
 	case *ast.Array:
@@ -166,7 +168,9 @@ func getObjectKeysParam(arrayOrSet ast.Value) (ast.Set, error) {
 		v.Foreach(keys.Add)
 		return keys, nil
 	case ast.Set:
-		return ast.NewSet(v.Slice()...), nil
+		// Return directly. Callers only use this for Contains() checks
+		// without mutating the set.
+		return v, nil
 	case ast.Object:
 		return ast.NewSet(v.Keys()...), nil
 	}

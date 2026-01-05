@@ -6,9 +6,9 @@ require (
 	github.com/agnivade/levenshtein v1.2.1
 	github.com/bytecodealliance/wasmtime-go/v39 v39.0.1
 	github.com/cespare/xxhash/v2 v2.3.0
-	github.com/containerd/containerd/v2 v2.2.0
+	github.com/containerd/containerd/v2 v2.2.1
 	github.com/containerd/errdefs v1.0.0
-	github.com/dgraph-io/badger/v4 v4.8.0
+	github.com/dgraph-io/badger/v4 v4.9.0
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/foxcpp/go-mockdns v1.1.0
 	github.com/fsnotify/fsnotify v1.9.0
@@ -18,7 +18,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
-	github.com/huandu/go-sqlbuilder v1.38.1
+	github.com/huandu/go-sqlbuilder v1.38.2
 	github.com/lestrrat-go/jwx/v3 v3.0.12
 	github.com/olekukonko/tablewriter v1.1.0
 	github.com/opencontainers/go-digest v1.0.0
@@ -29,7 +29,7 @@ require (
 	github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9
 	github.com/sergi/go-diff v1.4.0
 	github.com/sirupsen/logrus v1.9.4-0.20230606125235-dd1b4c2e81af
-	github.com/spf13/cobra v1.10.1
+	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 	github.com/tchap/go-patricia/v2 v2.3.3
@@ -44,12 +44,12 @@ require (
 	go.opentelemetry.io/otel/sdk v1.38.0
 	go.opentelemetry.io/otel/trace v1.38.0
 	go.uber.org/automaxprocs v1.6.0
-	golang.org/x/net v0.47.0
-	golang.org/x/sync v0.18.0
-	golang.org/x/text v0.31.0
+	golang.org/x/net v0.48.0
+	golang.org/x/sync v0.19.0
+	golang.org/x/text v0.32.0
 	golang.org/x/time v0.14.0
-	google.golang.org/grpc v1.77.0
-	google.golang.org/protobuf v1.36.10
+	google.golang.org/grpc v1.78.0
+	google.golang.org/protobuf v1.36.11
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 	gopkg.in/yaml.v3 v3.0.1
 	oras.land/oras-go/v2 v2.6.0
@@ -117,12 +117,12 @@ require (
 	go.opentelemetry.io/proto/otlp v1.7.1 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/crypto v0.45.0 // indirect
-	golang.org/x/mod v0.29.0 // indirect
-	golang.org/x/sys v0.38.0 // indirect
-	golang.org/x/tools v0.38.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20251022142026-3a174f9686a8 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20251022142026-3a174f9686a8 // indirect
+	golang.org/x/crypto v0.46.0 // indirect
+	golang.org/x/mod v0.30.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/tools v0.39.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20251029180050-ab9386a59fda // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251029180050-ab9386a59fda // indirect
 )
 
 // retract directive comment below will be displayed as a warning on pkg.go.dev for the old package name. Please retain

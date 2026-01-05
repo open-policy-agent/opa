@@ -5,6 +5,142 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 1.12.1
+
+This bug fix release reverts a change to `regex.replace` that unintentionally changed its behaviour for anchored regular expressions.
+
+- Revert "topdown: make `regex.replace` respect cancellation" (authored by @srenatus)
+
+## 1.12.0
+
+This release contains a mix of new features, performance improvements, and bugfixes. Notably:
+
+- Support for string interpolation in the Rego language
+- Faster compilation and runtime
+- Fixes published in the v1.11.1 release
+
+### String Interpolation ([#4733](https://github.com/open-policy-agent/opa/issues/4733))
+
+The Rego language has been extended to support [String Interpolation](https://www.openpolicyagent.org/docs/policy-language#string-interpolation),
+which provides a readable means to compose strings containing dynamic values determined at evaluation time.
+
+An interpolated string is composed of a template-string containing zero or more template-expressions that evaluates to a value at evaluation time.
+The `$` character prefix identifies a template-string, and template-expressions are declared by being enclosed in curly-braces (`{`, `}`).
+
+Additionally, `undefined` template-expression values don't halt evaluation; instead, `<undefined>` will be injected into the generated string.
+
+```rego
+package interpolation
+
+allowed_roles := ["admin", "employee"]
+
+default role := "guest"
+role := input.role
+
+deny contains $"User {input.username}'s role was '{role}', but must be one of {allowed_roles}" if {
+  not role in allowed_roles
+}
+```
+
+```
+{
+  "deny": [
+    "User <undefined>'s role was 'guest', but must be one of [\"admin\", \"employee\"]"
+  ],
+}
+```
+
+String interpolation is a more readable and less error-prone substitute for the `sprintf` built-in function.
+
+Authored by @johanfylling reported by @anderseknert
+
+> Help us out!
+>
+> New Rego language features are exciting, and we want to maximize their usefulness. If you come across tools and integrations in the community where string interpolation isn't properly handled, such as syntax highlighting, please [reach out](https://www.openpolicyagent.org/community) and let us know.
+
+### Runtime, SDK, Tooling
+
+- oracle: Refactor Oracle better support `some` and `every` ([#8105](https://github.com/open-policy-agent/opa/pull/8105), [#8131](https://github.com/open-policy-agent/opa/pull/8131), [#8138](https://github.com/open-policy-agent/opa/pull/8138)) authored by @charlieegan3
+- plugins/bundle: Prevent ns-level polling by validating intervals ([#8082](https://github.com/open-policy-agent/opa/pull/8082)) authored by @jjhwan-h
+- plugins/discovery: Initialize plugins before downloading ([#8071](https://github.com/open-policy-agent/opa/pull/8071)) authored by @jt28828
+- topdown: Introduce sink for context cancellation
+  - topdown: Make `regex.replace` respect cancellation ([#8089](https://github.com/open-policy-agent/opa/pull/8089)) authored by @srenatus
+  - topdown: Make `replace` and `strings.replace_n` respect cancellation ([#8089](https://github.com/open-policy-agent/opa/pull/8089)) authored by @srenatus
+  - topdown: Use sink for `concat` ([#8090](https://github.com/open-policy-agent/opa/pull/8090)) authored by @srenatus
+  - perf: Avoid extra allocation in sink if no cancel ([#8104](https://github.com/open-policy-agent/opa/pull/8104)) authored by @anderseknert
+
+### Compiler, Topdown and Rego
+
+- ast/compile: Deal with error limit without panic/defer ([#8087](https://github.com/open-policy-agent/opa/pull/8087)) authored by @srenatus
+- ast/parser: Check if we need to unescape at all ([#8135](https://github.com/open-policy-agent/opa/pull/8135)) authored by @srenatus
+- perf: Improved visitor implementation (10% faster compilation) ([#8078](https://github.com/open-policy-agent/opa/pull/8078)) authored by @anderseknert
+- perf: Reduce allocations handling terms ([#8116](https://github.com/open-policy-agent/opa/pull/8116)) authored by @anderseknert
+- perf: Type-checker performance improvements ([#8143](https://github.com/open-policy-agent/opa/pull/8143)) authored by @anderseknert
+
+### Docs, Website, Ecosystem
+
+- website: Add support for rego string interpolation syntax highlighting ([#8092](https://github.com/open-policy-agent/opa/pull/8092)) authored by @charlieegan3
+- docs/ocp: Update "concepts" for v0.3.0 ([#8117](https://github.com/open-policy-agent/opa/pull/8117)) authored by @srenatus
+- website: Show playground errors ([#8141](https://github.com/open-policy-agent/opa/pull/8141)) authored by @charlieegan3
+- website: Update a number of links to their new location ([#8100](https://github.com/open-policy-agent/opa/pull/8100)) authored by @charlieegan3
+- docs: Remove link to feedback form ([#8101](https://github.com/open-policy-agent/opa/pull/8101)) authored by @charlieegan3
+- website: Remove survey bar ([#8136](https://github.com/open-policy-agent/opa/pull/8136)) authored by @charlieegan3
+- docs: Update community contacts ([#8108](https://github.com/open-policy-agent/opa/pull/8108)) authored by @charlieegan3
+
+### Miscellaneous
+
+- ast/checks_test: Fix flaky tests ([#8111](https://github.com/open-policy-agent/opa/pull/8111)) authored by @srenatus
+- benchmarks: Install node v24 ([#8122](https://github.com/open-policy-agent/opa/pull/8122)) authored by @srenatus
+- download: Fix when compiling with tag opa_no_oci ([#8070](https://github.com/open-policy-agent/opa/issues/8070)) authored by @srenatus reported by @mg0083
+- tests: Race in TestStatusUpdateBuffer ([#8133](https://github.com/open-policy-agent/opa/pull/8133)) authored by @thevilledev
+- workflow: Integrate benchmarks notebook ([#8121](https://github.com/open-policy-agent/opa/pull/8121)) authored by @srenatus
+- workflows: Skip all tests in benchmarks run ([#8086](https://github.com/open-policy-agent/opa/pull/8086)) authored by @srenatus
+- Dependency updates; notably:
+  - build: Bump golang from 1.25.4 to 1.25.5 ([#8107](https://github.com/open-policy-agent/opa/pull/8107)) authored by @srenatus
+  - build(deps): Bump google.golang.org/grpc from 1.76.0 to 1.77.0
+
+## 1.11.1
+
+This is a bugfix release:
+
+### Memory exhaustion via forged gzip header
+
+A crafted HTTP request any of OPA's HTTP endpoints would lead OPA to use a large amount of memory, triggering
+an out-of-memory process exit.
+
+This weakness in OPA's HTTP API gzip handling is as old as the gzip handling itself.
+[A configurable limit was introduced in v0.67.0](https://github.com/open-policy-agent/opa/blob/v0.67.0/CHANGELOG.md#request-body-size-limits), but it has been shown that this security measure wasn't sufficient to avoid running out of memory in memory-constrained setups.
+Thanks to @thevilledev for reporting and fixing this issue.
+
+It only applies to OPA running as server (as a binary or in a container, as "sidecar").
+To trigger an OOM process exit using this weakness, an adversary must be able to send an HTTP request directly to OPA.
+This would be the case if they are in the same network, there is no proxy in front of OPA, or if OPA was exposed to the internet, which is advised against.
+
+By the nature of HTTP encodings, this would be effective **before** _token-based authentication_ and _authorization policies_, so these measures do not protect against the attack vector.
+If all OPA endpoints are using [TLS-based authentication](https://www.openpolicyagent.org/docs/security#tls-based-authentication-example) (mutual TLS, "mTLS"), then an adversary cannot do harm with this method.
+
+Please note that while we're taking all of these issues seriously, OPA isn't designed for adversary environments.
+It's strongly advised not to expose any of its endpoints to the public internet.
+Furthermore, available security measures should be applied **regardless**, for a defense in depth approach.
+[See the documentation for the available means of authentication and authorization in OPA.](https://www.openpolicyagent.org/docs/security)
+
+Please also check out our [Security Policy](https://www.openpolicyagent.org/security) for reporting critical issues and bugs.
+
+### Decision Logs dropped (introduced in OPA v1.9.0)
+
+When the decision logs buffer was uploaded, the buffer limit inadvertently got reset to the default upload limit (32kb).
+This causes logs to be dropped that shouldn't have been dropped.
+
+This default is overridden by the configuration value `decision_logs.reporting.upload_size_limit_bytes`, see [the docs on decision logs](https://www.openpolicyagent.org/docs/configuration#decision-logs).
+
+There's a Prometheus metric for dropped events, `counter_decision_logs_dropped_buffer_size_limit_bytes_exceeded`,
+and you can check that for unexpectedly high counts.
+
+Reported by @johanneslarsson [#8123](https://github.com/open-policy-agent/opa/issues/8123), fixed by @sspaink.
+
+
+The release is otherwise identical to v1.11.0.
+
 ## 1.11.0
 
 This release contains a mix of new features, performance improvements, and bugfixes. Notably:

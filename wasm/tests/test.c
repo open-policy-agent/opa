@@ -21,6 +21,7 @@
 #include "strings.h"
 #include "test.h"
 #include "types.h"
+#include "template-string.h"
 
 // NOTE(sr): we've removed the float number representation, so this helper
 // is to make our tests less annoying:
@@ -1586,13 +1587,13 @@ void test_opa_value_dump(void)
     test("sets of one", opa_strcmp(opa_value_dump(&set->hdr), "{1}") == 0);
 
     opa_set_add(set, opa_number_int(2));
-    test("sets", opa_strcmp(opa_value_dump(&set->hdr), "{1,2}") == 0);
+    test("sets", opa_strcmp(opa_value_dump(&set->hdr), "{1, 2}") == 0);
 
     opa_value *non_string_keys = opa_object();
     opa_array_t *arrk = opa_cast_array(opa_array());
     opa_array_append(arrk, opa_number_int(1));
     opa_object_insert(opa_cast_object(non_string_keys), &arrk->hdr, opa_number_int(1));
-    test_str_eq("objects/non string keys", opa_value_dump(non_string_keys), "{[1]:1}");
+    test_str_eq("objects/non string keys", "{[1]: 1}", opa_value_dump(non_string_keys));
 }
 
 WASM_EXPORT(test_arithmetic)
@@ -3726,4 +3727,114 @@ void test_opa_mapping_init(void)
     opa_array_append(path1, opa_string_terminated("foo"));
     opa_array_append(path1, opa_string_terminated("bar"));
     test("opa_mapping_init/opa_lookup_works", opa_mapping_lookup(&path1->hdr) == 123);
+}
+
+opa_value *template_expression_value(opa_value *v) {
+    opa_set_t *s = opa_cast_set(opa_set());
+
+    if (v != NULL) {
+        opa_set_add(s, v);
+    }
+
+    return &s->hdr;
+}
+
+WASM_EXPORT(test_opa_template_string)
+void test_opa_template_string(void)
+{
+    // empty
+    opa_value *arg = opa_array();
+    opa_array_t *arr = opa_cast_array(arg);
+
+    opa_value *res = opa_template_string(arg);
+    test_str_eq("empty", "", opa_cast_string(res)->v);
+    opa_array_free(arr, true, false);
+
+    // simple
+    arg = opa_array();
+    arr = opa_cast_array(arg);
+    opa_array_append(arr, opa_string_terminated("foo"));
+
+    res = opa_template_string(arg);
+    test_str_eq("simple", "foo", opa_cast_string(res)->v);
+    opa_array_free(arr, true, false);
+
+    // undefined
+    arg = opa_array();
+    arr = opa_cast_array(arg);
+    opa_array_append(arr, opa_set()); // empty set indicates undefined value
+
+    res = opa_template_string(arg);
+    test_str_eq("undefined", "<undefined>", opa_cast_string(res)->v);
+    opa_array_free(arr, true, false);
+
+    // primitives
+    arg = opa_array();
+    arr = opa_cast_array(arg);
+    opa_array_append(arr, opa_string_terminated("foo "));
+    opa_array_append(arr, opa_null());
+    opa_array_append(arr, opa_string_terminated(" "));
+    opa_array_append(arr, opa_boolean(true));
+    opa_array_append(arr, opa_string_terminated(" "));
+    opa_array_append(arr, opa_boolean(false));
+    opa_array_append(arr, opa_string_terminated(" "));
+    opa_array_append(arr, opa_number_int(42));
+    opa_array_append(arr, opa_string_terminated(" "));
+    opa_array_append(arr, opa_number_float(4.2));
+
+    res = opa_template_string(arg);
+    test_str_eq("primitives", "foo null true false 42 4.2", opa_cast_string(res)->v);
+    opa_array_free(arr, true, false);
+
+    // template-expressions, primitives
+    arg = opa_array();
+    arr = opa_cast_array(arg);
+    opa_array_append(arr, opa_string_terminated("foo "));
+    opa_array_append(arr, template_expression_value(opa_string_terminated("bar ")));
+    opa_array_append(arr, template_expression_value(opa_boolean(true)));
+    opa_array_append(arr, opa_string_terminated(" "));
+    opa_array_append(arr, template_expression_value(opa_boolean(false)));
+
+    opa_array_append(arr, opa_string_terminated(" "));
+    opa_array_append(arr, template_expression_value(opa_null()));
+    opa_array_append(arr, opa_string_terminated(" "));
+    opa_array_append(arr, template_expression_value(opa_number_int(42)));
+    opa_array_append(arr, opa_string_terminated(" "));
+    opa_array_append(arr, template_expression_value(opa_number_ref("4.2", 3)));
+
+    res = opa_template_string(arg);
+    test_str_eq("template-expressions, primitives", "foo bar true false null 42 4.2", opa_cast_string(res)->v);
+    opa_array_free(arr, true, false);
+
+    // template-expressions, collections
+    arg = opa_array();
+    arr = opa_cast_array(arg);
+    opa_array_append(arr, template_expression_value(opa_array()));
+
+    opa_array_append(arr, opa_string_terminated(" "));
+    opa_array_t *arrExpr = opa_cast_array(opa_array());
+    opa_array_append(arrExpr, opa_boolean(true));
+    opa_array_append(arrExpr, opa_string_terminated("foo"));
+    opa_array_append(arr, template_expression_value(&arrExpr->hdr));
+
+    opa_array_append(arr, opa_string_terminated(" "));
+    opa_array_append(arr, template_expression_value(opa_set()));
+
+    opa_array_append(arr, opa_string_terminated(" "));
+    opa_set_t *setExpr = opa_cast_set(opa_set());
+    opa_set_add(setExpr, opa_boolean(false));
+    opa_array_append(arr, template_expression_value(&setExpr->hdr));
+
+    opa_array_append(arr, opa_string_terminated(" "));
+    opa_array_append(arr, template_expression_value(opa_object()));
+
+    opa_array_append(arr, opa_string_terminated(" "));
+    opa_object_t *objExpr = opa_cast_object(opa_object());
+    opa_object_insert(objExpr, opa_string_terminated("foo"), opa_boolean(true));
+    opa_object_insert(objExpr, opa_number_int(42), opa_null());
+    opa_array_append(arr, template_expression_value(&objExpr->hdr));
+
+    res = opa_template_string(arg);
+    test_str_eq("template-expressions, collections", "[] [true, \"foo\"] set() {false} {} {\"foo\": true, 42: null}", opa_cast_string(res)->v);
+    opa_array_free(arr, true, false);
 }

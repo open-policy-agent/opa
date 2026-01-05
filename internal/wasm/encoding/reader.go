@@ -83,7 +83,7 @@ func readModule(r io.Reader) (*module.Module, error) {
 
 	var m module.Module
 
-	if err := readSections(r, &m); err != nil && err != io.EOF {
+	if err := readSections(r, &m); err != io.EOF {
 		return nil, err
 	}
 

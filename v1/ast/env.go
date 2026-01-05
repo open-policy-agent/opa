@@ -54,15 +54,14 @@ func (env *TypeEnv) GetByValue(v Value) types.Type {
 		return types.B
 	case Number:
 		return types.N
-	case String:
+	case String, *TemplateString:
 		return types.S
 
 	// Composites.
 	case *Array:
 		static := make([]types.Type, x.Len())
 		for i := range static {
-			tpe := env.GetByValue(x.Elem(i).Value)
-			static[i] = tpe
+			static[i] = env.GetByValue(x.Elem(i).Value)
 		}
 
 		var dynamic types.Type
@@ -80,17 +79,13 @@ func (env *TypeEnv) GetByValue(v Value) types.Type {
 
 		x.Foreach(func(k, v *Term) {
 			if IsConstant(k.Value) {
-				kjson, err := JSON(k.Value)
-				if err == nil {
-					tpe := env.GetByValue(v.Value)
-					static = append(static, types.NewStaticProperty(kjson, tpe))
+				if kjson, err := JSON(k.Value); err == nil {
+					static = append(static, types.NewStaticProperty(kjson, env.GetByValue(v.Value)))
 					return
 				}
 			}
 			// Can't handle it as a static property, fallback to dynamic
-			typeK := env.GetByValue(k.Value)
-			typeV := env.GetByValue(v.Value)
-			dynamic = types.NewDynamicProperty(typeK, typeV)
+			dynamic = types.NewDynamicProperty(env.GetByValue(k.Value), env.GetByValue(v.Value))
 		})
 
 		if len(static) == 0 && dynamic == nil {
@@ -99,7 +94,7 @@ func (env *TypeEnv) GetByValue(v Value) types.Type {
 
 		return types.NewObject(static, dynamic)
 
-	case Set:
+	case *set:
 		var tpe types.Type
 		x.Foreach(func(elem *Term) {
 			tpe = types.Or(tpe, env.GetByValue(elem.Value))
@@ -162,7 +157,6 @@ func (env *TypeEnv) GetByRef(ref Ref) types.Type {
 }
 
 func (env *TypeEnv) getRefFallback(ref Ref) types.Type {
-
 	if env.next != nil {
 		return env.next.GetByRef(ref)
 	}
@@ -299,15 +293,11 @@ func (n *typeTreeNode) PutOne(key Value, tpe types.Type) {
 func (n *typeTreeNode) Put(path Ref, tpe types.Type) {
 	curr := n
 	for _, term := range path {
-		c, ok := curr.children.Get(term.Value)
-
-		var child *typeTreeNode
+		child, ok := curr.children.Get(term.Value)
 		if !ok {
 			child = newTypeTree()
 			child.key = term.Value
 			curr.children.Put(child.key, child)
-		} else {
-			child = c
 		}
 
 		curr = child
@@ -321,23 +311,18 @@ func (n *typeTreeNode) Put(path Ref, tpe types.Type) {
 func (n *typeTreeNode) Insert(path Ref, tpe types.Type, env *TypeEnv) {
 	curr := n
 	for i, term := range path {
-		c, ok := curr.children.Get(term.Value)
-
-		var child *typeTreeNode
+		child, ok := curr.children.Get(term.Value)
 		if !ok {
 			child = newTypeTree()
 			child.key = term.Value
 			curr.children.Put(child.key, child)
-		} else {
-			child = c
-			if child.value != nil && i+1 < len(path) {
-				// If child has an object value, merge the new value into it.
-				if o, ok := child.value.(*types.Object); ok {
-					var err error
-					child.value, err = insertIntoObject(o, path[i+1:], tpe, env)
-					if err != nil {
-						panic(fmt.Errorf("unreachable, insertIntoObject: %w", err))
-					}
+		} else if child.value != nil && i+1 < len(path) {
+			// If child has an object value, merge the new value into it.
+			if o, ok := child.value.(*types.Object); ok {
+				var err error
+				child.value, err = insertIntoObject(o, path[i+1:], tpe, env)
+				if err != nil {
+					panic(fmt.Errorf("unreachable, insertIntoObject: %w", err))
 				}
 			}
 		}
@@ -349,8 +334,7 @@ func (n *typeTreeNode) Insert(path Ref, tpe types.Type, env *TypeEnv) {
 
 	if _, ok := tpe.(*types.Object); ok && curr.children.Len() > 0 {
 		// merge all leafs into the inserted object
-		leafs := curr.Leafs()
-		for p, t := range leafs {
+		for p, t := range curr.Leafs() {
 			var err error
 			curr.value, err = insertIntoObject(curr.value.(*types.Object), *p, t, env)
 			if err != nil {
@@ -388,7 +372,8 @@ func mergeTypes(a, b types.Type) types.Type {
 			bDynProps := bObj.DynamicProperties()
 			dynProps := types.NewDynamicProperty(
 				types.Or(aDynProps.Key, bDynProps.Key),
-				mergeTypes(aDynProps.Value, bDynProps.Value))
+				mergeTypes(aDynProps.Value, bDynProps.Value),
+			)
 			return types.NewObject(nil, dynProps)
 		} else if bAny, ok := b.(types.Any); ok && len(a.StaticProperties()) == 0 {
 			// If a is an object type with no static components ...
@@ -417,14 +402,14 @@ func mergeTypes(a, b types.Type) types.Type {
 }
 
 func (n *typeTreeNode) String() string {
-	b := strings.Builder{}
+	b := &strings.Builder{}
 
+	key := "-"
 	if k := n.key; k != nil {
-		b.WriteString(k.String())
-	} else {
-		b.WriteString("-")
+		key = k.String()
 	}
 
+	b.WriteString(key)
 	if v := n.value; v != nil {
 		b.WriteString(": ")
 		b.WriteString(v.String())
@@ -432,9 +417,7 @@ func (n *typeTreeNode) String() string {
 
 	n.children.Iter(func(_ Value, child *typeTreeNode) bool {
 		b.WriteString("\n\t+ ")
-		s := child.String()
-		s = strings.ReplaceAll(s, "\n", "\n\t")
-		b.WriteString(s)
+		b.WriteString(strings.ReplaceAll(child.String(), "\n", "\n\t"))
 
 		return false
 	})
@@ -485,7 +468,8 @@ func (n *typeTreeNode) Leafs() map[*Ref]types.Type {
 func collectLeafs(n *typeTreeNode, path Ref, leafs map[*Ref]types.Type) {
 	nPath := append(path, NewTerm(n.key))
 	if n.Leaf() {
-		leafs[&nPath] = n.Value()
+		npc := nPath // copy of else nPath escapes to heap even if !n.Leaf()
+		leafs[&npc] = n.Value()
 		return
 	}
 	n.children.Iter(func(_ Value, v *typeTreeNode) bool {
@@ -513,7 +497,6 @@ func selectConstant(tpe types.Type, term *Term) types.Type {
 // contains vars or refs, then the returned type will be a union of the
 // possible types.
 func selectRef(tpe types.Type, ref Ref) types.Type {
-
 	if tpe == nil || len(ref) == 0 {
 		return tpe
 	}

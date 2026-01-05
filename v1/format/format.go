@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -27,11 +26,8 @@ import (
 const defaultLocationFile = "__format_default__"
 
 var (
-	elseVar ast.Value = ast.Var("else")
-
 	expandedConst     = ast.NewBody(ast.NewExpr(ast.InternedTerm(true)))
 	commentsSlicePool = util.NewSlicePool[*ast.Comment](50)
-	varRegexp         = regexp.MustCompile("^[[:alpha:]_][[:alpha:][:digit:]_]*$")
 )
 
 // Opts lets you control the code formatting via `AstWithOpts()`.
@@ -732,7 +728,7 @@ func (w *writer) writeElse(rule *ast.Rule, comments []*ast.Comment) ([]*ast.Comm
 
 	rule.Else.Head.Name = "else" // NOTE(sr): whaaat
 
-	elseHeadReference := ast.NewTerm(elseVar)            // construct a reference for the term
+	elseHeadReference := ast.VarTerm("else")             // construct a reference for the term
 	elseHeadReference.Location = rule.Else.Head.Location // and set the location to match the rule location
 
 	rule.Else.Head.Reference = ast.Ref{elseHeadReference}
@@ -1284,6 +1280,11 @@ func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Co
 			}
 
 		}
+	case *ast.TemplateString:
+		comments, err = w.writeTemplateString(x, comments)
+		if err != nil {
+			return nil, err
+		}
 	case ast.Var:
 		w.write(w.formatVar(x))
 	case ast.Call:
@@ -1298,6 +1299,91 @@ func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Co
 	if !w.inline {
 		w.startLine()
 	}
+	return comments, nil
+}
+
+func (w *writer) writeTemplateString(ts *ast.TemplateString, comments []*ast.Comment) ([]*ast.Comment, error) {
+	w.write("$")
+	if ts.MultiLine {
+		w.write("`")
+	} else {
+		w.write(`"`)
+	}
+
+	for i, p := range ts.Parts {
+		switch x := p.(type) {
+		case *ast.Expr:
+			w.write("{")
+			w.up()
+
+			if w.beforeEnd != nil {
+				// We have a comment on the same line as the opening template-expression brace '{'
+				w.endLine()
+				w.startLine()
+			} else {
+				// We might have comments to write; the first of which should be on the same line as the opening template-expression brace '{'
+				before, _, _ := partitionComments(comments, x.Location)
+				if len(before) > 0 {
+					w.write(" ")
+					w.inline = true
+					if err := w.writeComments(before); err != nil {
+						return nil, err
+					}
+
+					comments = comments[len(before):]
+				}
+			}
+
+			var err error
+			comments, err = w.writeExpr(x, comments)
+			if err != nil {
+				return comments, err
+			}
+
+			// write trailing comments
+			if i+1 < len(ts.Parts) {
+				before, _, _ := partitionComments(comments, ts.Parts[i+1].Loc())
+				if len(before) > 0 {
+					w.endLine()
+					if err := w.writeComments(before); err != nil {
+						return nil, err
+					}
+
+					comments = comments[len(before):]
+					w.startLine()
+				}
+			}
+
+			w.write("}")
+
+			if err := w.down(); err != nil {
+				return nil, err
+			}
+		case *ast.Term:
+			if s, ok := x.Value.(ast.String); ok {
+				if ts.MultiLine {
+					w.write(ast.EscapeTemplateStringStringPart(string(s)))
+				} else {
+					str := ast.EscapeTemplateStringStringPart(s.String())
+					w.write(str[1 : len(str)-1])
+				}
+			} else {
+				s := x.String()
+				s = strings.TrimPrefix(s, "\"")
+				s = strings.TrimSuffix(s, "\"")
+				w.write(s)
+			}
+		default:
+			w.write("<invalid>")
+		}
+	}
+
+	if ts.MultiLine {
+		w.write("`")
+	} else {
+		w.write(`"`)
+	}
+
 	return comments, nil
 }
 
@@ -1353,7 +1439,7 @@ func (w *writer) writeRefStringPath(s ast.String, l *ast.Location) {
 }
 
 func (w *writer) shouldBracketRefTerm(s string, l *ast.Location) bool {
-	if !varRegexp.MatchString(s) {
+	if !ast.IsVarCompatibleString(s) {
 		return true
 	}
 
@@ -1931,7 +2017,7 @@ func partitionComments(comments []*ast.Comment, l *ast.Location) ([]*ast.Comment
 	var at *ast.Comment
 
 	before := make([]*ast.Comment, 0, numBefore)
-	after := comments[0 : 0 : len(comments)-numBefore]
+	after := make([]*ast.Comment, 0, numAfter)
 
 	for _, c := range comments {
 		switch cmp := c.Location.Row - l.Row; {

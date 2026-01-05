@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/rand"
 	"reflect"
 	"runtime"
@@ -16,6 +17,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
@@ -567,6 +569,9 @@ func TestTermString(t *testing.T) {
 	// ensure that objects and sets have deterministic String() results
 	assertToString(t, SetTerm(VarTerm("y"), VarTerm("x")).Value, "{x, y}")
 	assertToString(t, ObjectTerm([2]*Term{VarTerm("y"), VarTerm("b")}, [2]*Term{VarTerm("x"), VarTerm("a")}).Value, "{x: a, y: b}")
+
+	assertToString(t, MustParseTerm(`$"foo {bar}"`).Value, `$"foo {bar}"`)
+	assertToString(t, MustParseTerm(`$"foo \{bar}"`).Value, `$"foo \{bar}"`)
 }
 
 func TestRefString_Escapes(t *testing.T) {
@@ -1291,6 +1296,131 @@ func TestJSONWithOptLazyObjOptOut(t *testing.T) {
 	}
 }
 
+func TestJSONMarshalling(t *testing.T) {
+	cases := []struct {
+		note    string
+		val     any
+		expJson string
+	}{
+		{
+			note: "template-string",
+			val:  MustParseExpr(`$"foo {"bar"} {true} {null} {42} {x} {[1, 2]} {1 + 2}"`),
+			expJson: `{
+  "index": 0,
+  "terms": {
+    "type": "templatestring",
+    "value": {
+      "parts": [
+        {
+          "type": "string",
+          "value": "foo "
+        },
+        {
+          "type": "string",
+          "value": "bar"
+        },
+        {
+          "type": "string",
+          "value": " "
+        },
+        {
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "type": "string",
+          "value": " "
+        },
+        {
+          "type": "null",
+          "value": {}
+        },
+        {
+          "type": "string",
+          "value": " "
+        },
+        {
+          "type": "number",
+          "value": 42
+        },
+        {
+          "type": "string",
+          "value": " "
+        },
+        {
+          "index": 0,
+          "terms": {
+            "type": "var",
+            "value": "x"
+          }
+        },
+        {
+          "type": "string",
+          "value": " "
+        },
+        {
+          "index": 0,
+          "terms": {
+            "type": "array",
+            "value": [
+              {
+                "type": "number",
+                "value": 1
+              },
+              {
+                "type": "number",
+                "value": 2
+              }
+            ]
+          }
+        },
+        {
+          "type": "string",
+          "value": " "
+        },
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "plus"
+                }
+              ]
+            },
+            {
+              "type": "number",
+              "value": 1
+            },
+            {
+              "type": "number",
+              "value": 2
+            }
+          ]
+        }
+      ],
+      "multi_line": false
+    }
+  }
+}`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			actual, err := json.MarshalIndent(tc.val, "", "  ")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diff := cmp.Diff(tc.expJson, string(actual)); diff != "" {
+				t.Errorf("JSON mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func assertTermEqual(t *testing.T, x *Term, y *Term) {
 	t.Helper()
 	if !x.Equal(y) {
@@ -1561,6 +1691,79 @@ func TestLazyObjectCompare(t *testing.T) {
 		t.Errorf("expected Compare() => %v, got %v", exp, act)
 	}
 	assertForced(t, x, true)
+}
+
+func TestEscapeTemplateStringStringPart(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		inp string
+		exp string
+	}{
+		{inp: "", exp: ""},
+		{inp: "{", exp: "\\{"},
+		{inp: "\\{", exp: "\\{"},
+		{inp: "{\\{}", exp: "\\{\\{}"},
+		{inp: "\n{", exp: "\n\\{"},
+		{inp: "}{", exp: "}\\{"},
+		{inp: "no curly!!!", exp: "no curly!!!"},
+		{inp: "{unes{caped", exp: "\\{unes\\{caped"},
+		{inp: "{{{{{{{{{{", exp: "\\{\\{\\{\\{\\{\\{\\{\\{\\{\\{"},
+	}
+
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("%q", c.inp), func(t *testing.T) {
+			t.Parallel()
+
+			if got := EscapeTemplateStringStringPart(c.inp); got != c.exp {
+				t.Fatalf("\nexp %q\ngot %q", c.exp, got)
+			}
+		})
+	}
+}
+
+func TestCountUnescapedLeftCurly(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		inp string
+		exp int
+	}{
+		{inp: "", exp: 0},
+		{inp: "{", exp: 1},
+		{inp: "\\{", exp: 0},
+		{inp: "{\\{}", exp: 1},
+		{inp: "\n{", exp: 1},
+		{inp: "}{", exp: 1},
+		{inp: "no curly!!!", exp: 0},
+		{inp: "{unes{caped", exp: 2},
+		{inp: "{{{{{{{{{{", exp: 10},
+		{inp: "\\{{\\{{\\{{", exp: 3},
+	}
+
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("%q", c.inp), func(t *testing.T) {
+			t.Parallel()
+
+			if got := countUnescapedLeftCurly(c.inp); got != c.exp {
+				t.Fatalf("\nexp %d\ngot %d", c.exp, got)
+			}
+		})
+	}
+}
+
+func TestTemplateStringEqual(t *testing.T) {
+	a := MustParseTerm(`$"hello {world}!"`).Value.(*TemplateString)
+	b := MustParseTerm(`$"hello {world}!"`).Value.(*TemplateString)
+	c := MustParseTerm(`$"goodbye {world}!"`).Value.(*TemplateString)
+
+	if !a.Equal(b) {
+		t.Errorf("Expected %v to equal %v", a, b)
+	}
+
+	if a.Equal(c) {
+		t.Errorf("Expected %v to not equal %v", a, c)
+	}
 }
 
 func assertForced(t *testing.T, x Object, forced bool) {

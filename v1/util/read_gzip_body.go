@@ -3,7 +3,6 @@ package util
 import (
 	"bytes"
 	"compress/gzip"
-	"encoding/binary"
 	"errors"
 	"io"
 	"net/http"
@@ -15,11 +14,10 @@ import (
 var gzipReaderPool = NewSyncPool[gzip.Reader]()
 
 // Note(philipc): Originally taken from server/server.go
-// The DecodingLimitHandler handles validating that the gzip payload is within the
-// allowed max size limit. Thus, in the event of a forged payload size trailer,
-// the worst that can happen is that we waste memory up to the allowed max gzip
-// payload size, but not an unbounded amount of memory, as was potentially
-// possible before.
+// The DecodingLimitHandler handles setting the max size limits in the context.
+// This function enforces those limits. For gzip payloads, we use a LimitReader
+// to ensure we don't decompress more than the allowed maximum, preventing
+// memory exhaustion from forged gzip trailers.
 func ReadMaybeCompressedBody(r *http.Request) ([]byte, error) {
 	length := r.ContentLength
 	if maxLenConf, ok := decoding.GetServerDecodingMaxLen(r.Context()); ok {
@@ -34,15 +32,6 @@ func ReadMaybeCompressedBody(r *http.Request) ([]byte, error) {
 	if strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
 		gzipMaxLength, _ := decoding.GetServerDecodingGzipMaxLen(r.Context())
 
-		// Note(philipc): The last 4 bytes of a well-formed gzip blob will
-		// always be a little-endian uint32, representing the decompressed
-		// content size, modulo 2^32. We validate that the size is safe,
-		// earlier in DecodingLimitHandler.
-		sizeDecompressed := int64(binary.LittleEndian.Uint32(content[len(content)-4:]))
-		if sizeDecompressed > gzipMaxLength {
-			return nil, errors.New("gzip payload too large")
-		}
-
 		gzReader := gzipReaderPool.Get()
 		defer func() {
 			gzReader.Close()
@@ -53,9 +42,14 @@ func ReadMaybeCompressedBody(r *http.Request) ([]byte, error) {
 			return nil, err
 		}
 
-		decompressed := bytes.NewBuffer(make([]byte, 0, sizeDecompressed))
-		if _, err = io.CopyN(decompressed, gzReader, sizeDecompressed); err != nil {
+		decompressed := bytes.NewBuffer(make([]byte, 0, len(content)))
+		limitReader := io.LimitReader(gzReader, gzipMaxLength+1)
+		if _, err := decompressed.ReadFrom(limitReader); err != nil {
 			return nil, err
+		}
+
+		if int64(decompressed.Len()) > gzipMaxLength {
+			return nil, errors.New("gzip payload too large")
 		}
 
 		return decompressed.Bytes(), nil
