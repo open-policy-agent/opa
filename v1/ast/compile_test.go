@@ -8660,7 +8660,7 @@ func TestCompilerRewriteTemplateStringsErrors(t *testing.T) {
 						x != "b"
 					}
 				}`,
-			exp: "var __local1__ is undeclared", // FIXME
+			exp: "var x is undeclared",
 		},
 		{
 			note: "undeclared var, inside every body",
@@ -8677,6 +8677,15 @@ func TestCompilerRewriteTemplateStringsErrors(t *testing.T) {
 			module: `package test
 p := $"{walk(["a", "b"])}"`,
 			exp: "illegal call to relation built-in 'walk' that may cause multiple outputs",
+		},
+		{
+			note: "undeclared var, some-in with undeclared collection (issue #8157)",
+			module: `package test
+				items contains item if {
+					some label in labels
+					item := $"{label}"
+				}`,
+			exp: "var label is undeclared",
 		},
 	}
 
