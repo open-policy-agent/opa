@@ -25,7 +25,13 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
-var errFindNotFound = errors.New("find: not found")
+var (
+	NullValue Value = Null{}
+
+	errFindNotFound = errors.New("find: not found")
+
+	varRegexp = regexp.MustCompile("^[[:alpha:]_][[:alpha:][:digit:]_]*$")
+)
 
 // Location records a position in source code.
 type Location = location.Location
@@ -43,6 +49,7 @@ func NewLocation(text []byte, file string, row int, col int) *Location {
 // - Variables, References
 // - Array, Set, and Object Comprehensions
 // - Calls
+// - Template Strings
 type Value interface {
 	Compare(other Value) int      // Compare returns <0, 0, or >0 if this Value is less than, equal to, or greater than other, respectively.
 	Find(path Ref) (Value, error) // Find returns value referred to by path or an error if path is not found.
@@ -351,6 +358,8 @@ func (term *Term) Copy() *Term {
 		cpy.Value = v.Copy()
 	case *SetComprehension:
 		cpy.Value = v.Copy()
+	case *TemplateString:
+		cpy.Value = v.Copy()
 	case Call:
 		cpy.Value = v.Copy()
 	}
@@ -540,8 +549,6 @@ func IsScalar(v Value) bool {
 
 // Null represents the null value defined by JSON.
 type Null struct{}
-
-var NullValue Value = Null{}
 
 // NullTerm creates a new Term with a Null value.
 func NullTerm() *Term {
@@ -833,6 +840,40 @@ type TemplateString struct {
 	MultiLine bool   `json:"multi_line"`
 }
 
+func (ts *TemplateString) Copy() *TemplateString {
+	cpy := &TemplateString{MultiLine: ts.MultiLine, Parts: make([]Node, len(ts.Parts))}
+	for i, p := range ts.Parts {
+		switch v := p.(type) {
+		case *Expr:
+			cpy.Parts[i] = v.Copy()
+		case *Term:
+			cpy.Parts[i] = v.Copy()
+		}
+	}
+	return cpy
+}
+
+func (ts *TemplateString) Equal(other Value) bool {
+	if o, ok := other.(*TemplateString); ok && ts.MultiLine == o.MultiLine && len(ts.Parts) == len(o.Parts) {
+		for i, p := range ts.Parts {
+			switch v := p.(type) {
+			case *Expr:
+				if ope, ok := o.Parts[i].(*Expr); !ok || !v.Equal(ope) {
+					return false
+				}
+			case *Term:
+				if opt, ok := o.Parts[i].(*Term); !ok || !v.Equal(opt) {
+					return false
+				}
+			default:
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
 func (ts *TemplateString) Compare(other Value) int {
 	if ots, ok := other.(*TemplateString); ok {
 		if ts.MultiLine != ots.MultiLine {
@@ -890,14 +931,15 @@ func (ts *TemplateString) String() string {
 	for _, p := range ts.Parts {
 		switch x := p.(type) {
 		case *Expr:
-			str.WriteString("{")
+			str.WriteByte('{')
 			str.WriteString(p.String())
-			str.WriteString("}")
+			str.WriteByte('}')
 		case *Term:
 			s := p.String()
 			if _, ok := x.Value.(String); ok {
 				s = strings.TrimPrefix(s, "\"")
 				s = strings.TrimSuffix(s, "\"")
+				s = EscapeTemplateStringStringPart(s)
 			}
 			str.WriteString(s)
 		default:
@@ -905,12 +947,59 @@ func (ts *TemplateString) String() string {
 		}
 	}
 
-	str.WriteString("\"")
+	str.WriteByte('"')
 	return str.String()
 }
 
 func TemplateStringTerm(multiLine bool, parts ...Node) *Term {
 	return &Term{Value: &TemplateString{MultiLine: multiLine, Parts: parts}}
+}
+
+// EscapeTemplateStringStringPart escapes unescaped left curly braces in s - i.e "{" becomes "\{".
+// The internal representation of string terms within a template string does **NOT**
+// treat '{' as special, but expects code dealing with template strings to escape them when
+// required, such as when serializing the complete template string. Code that programmatically
+// constructs template strings should not pre-escape left curly braces in string term parts.
+//
+// // TODO(anders): a future optimization would be to combine this with the other escaping done
+// // for strings (e.g. escaping quotes, backslashes, and JSON control characters) in a single operation
+// // to avoid multiple passes and allocations over the same string. That's currently done by
+// // strconv.Quote, so we would need to re-implement that logic in code of our own.
+// // NOTE(anders): I would love to come up with a better name for this component than
+// // "TemplateStringStringPart"..
+func EscapeTemplateStringStringPart(s string) string {
+	numUnescaped := countUnescapedLeftCurly(s)
+	if numUnescaped == 0 {
+		return s
+	}
+
+	l := len(s)
+	escaped := make([]byte, 0, l+numUnescaped)
+	if s[0] == '{' {
+		escaped = append(escaped, '\\', s[0])
+	} else {
+		escaped = append(escaped, s[0])
+	}
+
+	for i := 1; i < l; i++ {
+		if s[i] == '{' && s[i-1] != '\\' {
+			escaped = append(escaped, '\\', s[i])
+		} else {
+			escaped = append(escaped, s[i])
+		}
+	}
+
+	return util.ByteSliceToString(escaped)
+}
+
+func countUnescapedLeftCurly(s string) (n int) {
+	// Note(anders): while not the functions I'd intuitively reach for to solve this,
+	// they are hands down the fastest option here, as they're done in assembly, which
+	// performs about an order of magnitude better than a manual loop in Go.
+	if n = strings.Count(s, "{"); n > 0 {
+		n -= strings.Count(s, `\{`)
+	}
+	return n
 }
 
 // Var represents a variable as defined by the language.
@@ -1250,8 +1339,6 @@ func (ref Ref) Ptr() (string, error) {
 	}
 	return buf.String(), nil
 }
-
-var varRegexp = regexp.MustCompile("^[[:alpha:]_][[:alpha:][:digit:]_]*$")
 
 func IsVarCompatibleString(s string) bool {
 	return varRegexp.MatchString(s)

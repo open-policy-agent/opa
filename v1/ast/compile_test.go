@@ -8319,6 +8319,22 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 					"user_1" = __local4__[__local1__]
 				}`,
 		},
+		{
+			note: "template string in head referencing var from some with template string in domain (issue #8162)",
+			module: `package test
+				r contains $"{val}" if {
+					some val in [1, $"{1 + 1}"]
+				}`,
+			exp: `package test
+				r contains __local5__ if {
+					__local9__ = {__local3__ | plus(1, 1, __local6__); __local3__ = __local6__}
+					internal.template_string([__local9__], __local7__)
+					__local8__ = [1, __local7__]
+					__local2__ = __local8__[__local1__]
+					__local10__ = {__local4__ | __local4__ = __local2__}
+					internal.template_string([__local10__], __local5__)
+				}`,
+		},
 
 		// else
 		{
@@ -8644,7 +8660,7 @@ func TestCompilerRewriteTemplateStringsErrors(t *testing.T) {
 						x != "b"
 					}
 				}`,
-			exp: "var __local1__ is undeclared", // FIXME
+			exp: "var x is undeclared",
 		},
 		{
 			note: "undeclared var, inside every body",
@@ -8661,6 +8677,15 @@ func TestCompilerRewriteTemplateStringsErrors(t *testing.T) {
 			module: `package test
 p := $"{walk(["a", "b"])}"`,
 			exp: "illegal call to relation built-in 'walk' that may cause multiple outputs",
+		},
+		{
+			note: "undeclared var, some-in with undeclared collection (issue #8157)",
+			module: `package test
+				items contains item if {
+					some label in labels
+					item := $"{label}"
+				}`,
+			exp: "var label is undeclared",
 		},
 	}
 
@@ -12941,5 +12966,29 @@ func TestCompilerInitWithDefaultModuleLoader(t *testing.T) {
 	}
 	if _, ok := got2["bar.rego"]; !ok {
 		t.Error("expected bar.rego from defaultModuleLoader in result")
+	}
+}
+
+// Verify fix for https://github.com/open-policy-agent/opa/issues/8158
+func TestCompilerCopiesTemplateStrings(t *testing.T) {
+	mod := MustParseModule(`package p
+	s contains z if {
+		some y in [1, 2, 3]
+		z := $"{y} "
+	}`)
+	cpy := mod.Copy()
+
+	c1 := NewCompiler()
+	if c1.Compile(map[string]*Module{"p.rego": mod}); c1.Failed() {
+		t.Fatalf("unexpected compile errors: %v", c1.Errors)
+	}
+
+	c2 := NewCompiler()
+	if c2.Compile(map[string]*Module{"p.rego": mod}); c2.Failed() {
+		t.Fatalf("unexpected compile errors: %v", c2.Errors)
+	}
+
+	if !mod.Equal(cpy) {
+		t.Fatalf("expected module to be unchanged after compilation")
 	}
 }
