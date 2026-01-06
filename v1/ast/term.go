@@ -12,7 +12,6 @@ import (
 	"io"
 	"math"
 	"net/url"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -29,8 +28,6 @@ var (
 	NullValue Value = Null{}
 
 	errFindNotFound = errors.New("find: not found")
-
-	varRegexp = regexp.MustCompile("^[[:alpha:]_][[:alpha:][:digit:]_]*$")
 )
 
 // Location records a position in source code.
@@ -1340,8 +1337,37 @@ func (ref Ref) Ptr() (string, error) {
 	return buf.String(), nil
 }
 
+// IsVarCompatibleString returns true if s is a valid variable name. String s is a valid variable
+// name if it starts with a letter (a-z or A-Z) or underscore (_) and is followed by
+// letters (a-z or A-Z), digits (0-9), and underscores.
 func IsVarCompatibleString(s string) bool {
-	return varRegexp.MatchString(s)
+	l := len(s)
+	if l == 0 {
+		return false
+	}
+	// not exactly easy on the eyes, but often orders of magnitude faster
+	// than using a compiled regex (see benchmarks in term_bench_test.go)
+	is_letter := func(c byte) bool {
+		return (c > 96 && c < 123) || (c > 64 && c < 91)
+	}
+	is_digit := func(c byte) bool {
+		return c > 47 && c < 58
+	}
+
+	// first character must be a letter or underscore
+	c := s[0]
+	if !(is_letter(c) || c == 95) {
+		return false
+	}
+
+	// remaining characters must be letters, digits, or underscores
+	for i := 1; i < l; i++ {
+		if c = s[i]; !(is_letter(c) || is_digit(c) || c == 95) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (ref Ref) String() string {
