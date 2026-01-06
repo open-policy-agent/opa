@@ -13,12 +13,12 @@ import (
 )
 
 type sizeBuffer struct {
-	mtx     sync.Mutex
-	buffer  *logBuffer
-	enc     *chunkEncoder // encoder appends events into the gzip compressed JSON array
-	limiter *rate.Limiter
 	metrics metrics.Metrics
 	logger  logging.Logger
+	buffer  *logBuffer
+	enc     *chunkEncoder
+	limiter *rate.Limiter
+	mtx     sync.Mutex
 }
 
 func newSizeBuffer(bufferSizeLimitBytes int64, uploadSizeLimitBytes int64) *sizeBuffer {

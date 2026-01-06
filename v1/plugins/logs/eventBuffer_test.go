@@ -115,12 +115,12 @@ func TestEventBuffer_Upload(t *testing.T) {
 	uploadPath := "/v1/test"
 
 	tests := []struct {
+		handleFunc           func(w http.ResponseWriter, r *http.Request)
 		name                 string
+		expectedError        string
 		eventLimit           int64
 		numberOfEvents       int
 		uploadSizeLimitBytes int64
-		handleFunc           func(w http.ResponseWriter, r *http.Request)
-		expectedError        string
 	}{
 		{
 			name:                 "Upload everything in the buffer",

@@ -16,10 +16,10 @@ import (
 
 func TestNewMaskRule(t *testing.T) {
 	tests := []struct {
-		note   string
-		input  *maskRule
 		expErr error
+		input  *maskRule
 		expPtr *maskRule
+		note   string
 	}{
 		{
 			note: "empty",
@@ -181,11 +181,11 @@ func TestNewMaskRule(t *testing.T) {
 
 func TestMaskRuleMask(t *testing.T) {
 	tests := []struct {
-		note   string
+		expErr error
 		ptr    *maskRule
+		note   string
 		event  string
 		exp    string
-		expErr error
 	}{
 		{
 			note: "erase input",
@@ -653,10 +653,10 @@ func TestMaskRuleMask(t *testing.T) {
 
 func TestNewMaskRuleSet(t *testing.T) {
 	tests := []struct {
-		note  string
 		value any
-		exp   *maskRuleSet
 		err   error
+		exp   *maskRuleSet
+		note  string
 	}{
 		{
 			note:  "invalid format: not []any",
@@ -688,11 +688,11 @@ func TestNewMaskRuleSet(t *testing.T) {
 
 func TestMaskRuleSetMask(t *testing.T) {
 	tests := []struct {
+		expErr error
 		note   string
-		rules  []*maskRule
 		event  string
 		exp    string
-		expErr error
+		rules  []*maskRule
 	}{
 		{
 			note: "erase input",

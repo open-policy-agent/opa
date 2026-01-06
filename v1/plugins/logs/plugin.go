@@ -44,31 +44,30 @@ type Logger interface {
 // the struct. Any changes here MUST be reflected in the AST()
 // implementation below.
 type EventV1 struct {
-	Labels              map[string]string       `json:"labels"`
-	DecisionID          string                  `json:"decision_id"`
-	BatchDecisionID     string                  `json:"batch_decision_id,omitempty"`
-	TraceID             string                  `json:"trace_id,omitempty"`
-	SpanID              string                  `json:"span_id,omitempty"`
-	Revision            string                  `json:"revision,omitempty"` // Deprecated: Use Bundles instead
+	Timestamp           time.Time `json:"timestamp"`
+	Error               error     `json:"error,omitempty"`
+	inputAST            ast.Value
 	Bundles             map[string]BundleInfoV1 `json:"bundles,omitempty"`
-	Path                string                  `json:"path,omitempty"`
-	Query               string                  `json:"query,omitempty"`
+	Metrics             map[string]any          `json:"metrics,omitempty"`
+	Custom              map[string]any          `json:"custom,omitempty"`
+	Labels              map[string]string       `json:"labels"`
+	RequestContext      *RequestContext         `json:"request_context,omitempty"`
+	NDBuiltinCache      *any                    `json:"nd_builtin_cache,omitempty"`
 	Input               *any                    `json:"input,omitempty"`
 	Result              *any                    `json:"result,omitempty"`
 	IntermediateResults map[string]any          `json:"intermediate_results,omitempty"`
 	MappedResult        *any                    `json:"mapped_result,omitempty"`
-	NDBuiltinCache      *any                    `json:"nd_builtin_cache,omitempty"`
+	Query               string                  `json:"query,omitempty"`
+	TraceID             string                  `json:"trace_id,omitempty"`
+	RequestedBy         string                  `json:"requested_by,omitempty"`
+	BatchDecisionID     string                  `json:"batch_decision_id,omitempty"`
+	SpanID              string                  `json:"span_id,omitempty"`
+	Path                string                  `json:"path,omitempty"`
+	Revision            string                  `json:"revision,omitempty"`
+	DecisionID          string                  `json:"decision_id"`
 	Erased              []string                `json:"erased,omitempty"`
 	Masked              []string                `json:"masked,omitempty"`
-	Error               error                   `json:"error,omitempty"`
-	RequestedBy         string                  `json:"requested_by,omitempty"`
-	Timestamp           time.Time               `json:"timestamp"`
-	Metrics             map[string]any          `json:"metrics,omitempty"`
 	RequestID           uint64                  `json:"req_id,omitempty"`
-	RequestContext      *RequestContext         `json:"request_context,omitempty"`
-	Custom              map[string]any          `json:"custom,omitempty"`
-
-	inputAST ast.Value
 }
 
 // BundleInfoV1 describes a bundle associated with a decision log event.
@@ -271,14 +270,14 @@ const (
 
 // ReportingConfig represents configuration for the plugin's reporting behaviour.
 type ReportingConfig struct {
-	BufferType            string               `json:"buffer_type,omitempty"`              // toggles how the buffer stores events, defaults to using bytes
-	BufferSizeLimitBytes  *int64               `json:"buffer_size_limit_bytes,omitempty"`  // max size of in-memory size buffer
-	BufferSizeLimitEvents *int64               `json:"buffer_size_limit_events,omitempty"` // max size of in-memory event channel buffer
-	UploadSizeLimitBytes  *int64               `json:"upload_size_limit_bytes,omitempty"`  // max size of upload payload
-	MinDelaySeconds       *int64               `json:"min_delay_seconds,omitempty"`        // min amount of time to wait between successful poll attempts
-	MaxDelaySeconds       *int64               `json:"max_delay_seconds,omitempty"`        // max amount of time to wait between poll attempts
-	MaxDecisionsPerSecond *float64             `json:"max_decisions_per_second,omitempty"` // max number of decision logs to buffer per second
-	Trigger               *plugins.TriggerMode `json:"trigger,omitempty"`                  // trigger mode
+	BufferSizeLimitBytes  *int64               `json:"buffer_size_limit_bytes,omitempty"`
+	BufferSizeLimitEvents *int64               `json:"buffer_size_limit_events,omitempty"`
+	UploadSizeLimitBytes  *int64               `json:"upload_size_limit_bytes,omitempty"`
+	MinDelaySeconds       *int64               `json:"min_delay_seconds,omitempty"`
+	MaxDelaySeconds       *int64               `json:"max_delay_seconds,omitempty"`
+	MaxDecisionsPerSecond *float64             `json:"max_decisions_per_second,omitempty"`
+	Trigger               *plugins.TriggerMode `json:"trigger,omitempty"`
+	BufferType            string               `json:"buffer_type,omitempty"`
 }
 
 type RequestContextConfig struct {
@@ -291,18 +290,18 @@ type HTTPRequestContextConfig struct {
 
 // Config represents the plugin configuration.
 type Config struct {
-	Plugin          *string              `json:"plugin"`
-	Service         string               `json:"service"`
-	PartitionName   string               `json:"partition_name,omitempty"`
 	Reporting       ReportingConfig      `json:"reporting"`
+	Plugin          *string              `json:"plugin"`
 	RequestContext  RequestContextConfig `json:"request_context"`
 	MaskDecision    *string              `json:"mask_decision"`
 	DropDecision    *string              `json:"drop_decision"`
-	ConsoleLogs     bool                 `json:"console"`
 	Resource        *string              `json:"resource"`
-	NDBuiltinCache  bool                 `json:"nd_builtin_cache,omitempty"`
+	Service         string               `json:"service"`
+	PartitionName   string               `json:"partition_name,omitempty"`
 	maskDecisionRef ast.Ref
 	dropDecisionRef ast.Ref
+	ConsoleLogs     bool `json:"console"`
+	NDBuiltinCache  bool `json:"nd_builtin_cache,omitempty"`
 }
 
 func (c *Config) validateAndInjectDefaults(services []string, pluginsList []string, trigger *plugins.TriggerMode, l logging.Logger) error {
@@ -462,18 +461,18 @@ type buffer interface {
 
 // Plugin implements decision log buffering and uploading.
 type Plugin struct {
-	manager      *plugins.Manager
-	config       Config
-	reconfigMtx  sync.RWMutex // reconfigMtx blocks reads/writes on buffer reconfiguration
-	b            buffer
-	statusMtx    sync.Mutex
-	stop         chan chan struct{}
-	reconfig     chan reconfigure
 	preparedMask prepareOnce
 	preparedDrop prepareOnce
+	b            buffer
 	metrics      metrics.Metrics
 	logger       logging.Logger
+	manager      *plugins.Manager
+	stop         chan chan struct{}
+	reconfig     chan reconfigure
 	status       *lstat.Status
+	config       Config
+	reconfigMtx  sync.RWMutex
+	statusMtx    sync.Mutex
 }
 
 type prepareOnce struct {
@@ -517,11 +516,11 @@ func ParseConfig(config []byte, services []string, pluginList []string) (*Config
 
 // ConfigBuilder assists in the construction of the plugin configuration.
 type ConfigBuilder struct {
+	logger   logging.Logger
+	trigger  *plugins.TriggerMode
 	raw      []byte
 	services []string
 	plugins  []string
-	trigger  *plugins.TriggerMode
-	logger   logging.Logger
 }
 
 // NewConfigBuilder returns a new ConfigBuilder to build and parse the plugin config.

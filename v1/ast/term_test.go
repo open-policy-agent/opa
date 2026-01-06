@@ -132,8 +132,8 @@ func (brokenMarshaller) MarshalJSON() ([]byte, error) {
 
 func TestObjectInsertGetLen(t *testing.T) {
 	tests := []struct {
-		insert   [][2]string
 		expected map[string]string
+		insert   [][2]string
 	}{
 		{[][2]string{{`null`, `value1`}, {`null`, `value2`}}, map[string]string{`null`: `value2`}},
 		{[][2]string{{`false`, `value`}, {`true`, `value1`}, {`true`, `value2`}}, map[string]string{`false`: `value`, `true`: `value2`}},
@@ -705,9 +705,9 @@ func TestRefAppend(t *testing.T) {
 func TestRefInsert(t *testing.T) {
 	ref := MustParseRef("test.ex")
 	cases := []struct {
-		pos      int
 		term     *Term
 		expected string
+		pos      int
 	}{
 		{0, VarTerm("foo"), `foo[test].ex`},
 		{1, StringTerm("foo"), `test.foo.ex`},
@@ -1089,10 +1089,10 @@ func TestArrayOperations(t *testing.T) {
 
 	var results []*Term
 	tests := []struct {
+		iterator func(arr *Array)
 		note     string
 		input    string
 		expected []string
-		iterator func(arr *Array)
 	}{
 		{
 			"for",

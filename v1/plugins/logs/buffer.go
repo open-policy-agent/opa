@@ -12,9 +12,9 @@ import (
 // usage at the configured limit. If the buffer size is exceeded, events from
 // the front of the buffer are dropped.
 type logBuffer struct {
+	l     *list.List
 	usage int64
 	limit int64
-	l     *list.List
 }
 
 type logBufferElem struct {

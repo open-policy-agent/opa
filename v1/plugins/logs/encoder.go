@@ -32,24 +32,15 @@ const (
 // chunkEncoder implements log buffer chunking and compression.
 // Decision events are written to the encoder and the encoder outputs chunks that are fit to the configured limit.
 type chunkEncoder struct {
-	// limit is the maximum compressed payload size (configured by upload_size_limit_bytes)
-	limit     int64
-	threshold int
-	// bytesWritten is used to track if anything has been written to the buffer
-	// using this avoids working around the fact that the gzip compression adds a header
-	bytesWritten  int
-	eventsWritten int64
-	buf           *bytes.Buffer
-	w             *gzip.Writer
-	metrics       metrics.Metrics
-	logger        logging.Logger
-	// lastDroppedNDSize is a known size of an individual event that would require the ND cache to be dropped
-	lastDroppedNDSize int64
-
-	// The uncompressedLimit is an adaptive limit that will attempt to guess the uncompressedLimit based on the utilization of the buffer on upload.
-	// This minimizes having to decompress all the events in case the limit is reached, needing to only do it if the guess is too large.
-	// Otherwise, you would need to compress the incoming event by itself to get an accurate size for comparison which would cause two compressions each write.
-	// This means that at first the chunks will contain fewer events until the uncompressedLimit can grow to a stable state.
+	metrics                            metrics.Metrics
+	logger                             logging.Logger
+	buf                                *bytes.Buffer
+	w                                  *gzip.Writer
+	limit                              int64
+	threshold                          int
+	bytesWritten                       int
+	eventsWritten                      int64
+	lastDroppedNDSize                  int64
 	uncompressedLimit                  int64
 	uncompressedLimitScaleUpExponent   float64
 	uncompressedLimitScaleDownExponent float64

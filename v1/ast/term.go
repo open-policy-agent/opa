@@ -2211,8 +2211,8 @@ func (l *lazyObj) KeysIterator() ObjectKeysIterator {
 }
 
 type lazyObjKeysIterator struct {
-	current int
 	keys    []*Term
+	current int
 }
 
 func (ki *lazyObjKeysIterator) Next() (*Term, bool) {
