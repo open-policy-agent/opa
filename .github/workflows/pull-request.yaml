@@ -21,6 +21,14 @@ jobs:
       wasm: ${{ steps.changes.outputs.wasm }}
       docs: ${{ steps.changes.outputs.docs }}
     steps:
+    - name: Check out repository code
+      uses: actions/checkout@v3
+
+    - name: Download OPA
+      uses: open-policy-agent/setup-opa@v2
+      with:
+        version: latest
+        
     - name: Check for file changes
       id: changes
       run: |
@@ -31,9 +39,8 @@ jobs:
         echo "wasm=true" >> $GITHUB_OUTPUT
         echo "docs=true" >> $GITHUB_OUTPUT
 
-        if ! curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-          "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" \
-           > changed_files.json; then
+        if ! curl -s -o changed_files.json -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files"; then
           echo "Error: Failed to fetch changed files from GitHub API"
           echo "Defaulting to running all checks (go=true, wasm=true, docs=true)"
           exit 0
@@ -52,7 +59,7 @@ jobs:
         --data build/policy/pr-check/pr_check.rego \
         --input changed_files.json \
         --format pretty \
-        'data.pr_check' > opa_result.json
+        'data.policy["pr-check"]' > opa_result.json
 
         go_result=$(jq -r '.changes.go // false' opa_result.json)
         wasm_result=$(jq -r '.changes.wasm // false' opa_result.json)
